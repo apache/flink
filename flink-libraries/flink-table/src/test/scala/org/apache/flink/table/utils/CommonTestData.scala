@@ -21,14 +21,20 @@ package org.apache.flink.table.utils
 import java.io.{File, FileOutputStream, OutputStreamWriter}
 import java.util
 
-import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.java.typeutils.TypeExtractor
+import org.apache.flink.table.sources.{BatchTableSource, CsvTableSource}
+import org.apache.calcite.sql.SqlKind
+import org.apache.calcite.tools.RuleSet
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
-import org.apache.flink.api.common.typeutils.TypeSerializer
-import org.apache.flink.api.java.typeutils.{PojoField, PojoTypeInfo, TypeExtractor}
+import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
-import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
-import org.apache.flink.table.sources.{BatchTableSource, CsvTableSource, TableSource}
-import org.apache.flink.api.scala._
+import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
+import org.apache.flink.table.api.{Table, TableConfig, TableEnvironment}
+import org.apache.flink.table.expressions._
+import org.apache.flink.table.sinks.TableSink
+import org.apache.flink.table.sources._
+import org.apache.flink.types.Row
 
 object CommonTestData {
 
@@ -96,6 +102,138 @@ object CommonTestData {
   class Address(var street: String, var city: String) {
     def this() {
       this(null, null)
+    }
+  }
+
+  def getMockTableEnvironment: TableEnvironment = new MockTableEnvironment
+
+  def getFilterableTableSource(
+    fieldNames: Array[String] = Array[String](
+      "name", "id", "amount", "price"),
+    fieldTypes: Array[TypeInformation[_]] = Array(
+      BasicTypeInfo.STRING_TYPE_INFO,
+      BasicTypeInfo.LONG_TYPE_INFO,
+      BasicTypeInfo.INT_TYPE_INFO,
+      BasicTypeInfo.DOUBLE_TYPE_INFO)) = new TestFilterableTableSource(fieldNames, fieldTypes)
+}
+
+class MockTableEnvironment extends TableEnvironment(new TableConfig) {
+
+  override private[flink] def writeToSink[T](table: Table, sink: TableSink[T]): Unit = ???
+
+  override protected def checkValidTableName(name: String): Unit = ???
+
+  override def sql(query: String): Table = ???
+
+  override def registerTableSource(name: String, tableSource: TableSource[_]): Unit = ???
+
+  override protected def getBuiltInNormRuleSet: RuleSet = ???
+
+  override protected def getBuiltInOptRuleSet: RuleSet = ???
+}
+
+class TestFilterableTableSource(
+    fieldNames: Array[String],
+    fieldTypes: Array[TypeInformation[_]])
+  extends BatchTableSource[Row]
+    with StreamTableSource[Row]
+    with FilterableTableSource
+    with DefinedFieldNames {
+
+  private var filterPredicate: Option[Expression] = None
+
+  /** Returns the data of the table as a [[DataSet]]. */
+  override def getDataSet(execEnv: ExecutionEnvironment): DataSet[Row] = {
+    execEnv.fromElements[Row](
+      generateDynamicCollection(33, fieldNames, filterPredicate): _*)
+  }
+
+  /** Returns the data of the table as a [[DataStream]]. */
+  def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[Row] = {
+    execEnv.fromElements[Row](
+      generateDynamicCollection(33, fieldNames, filterPredicate): _*)
+  }
+
+  private def generateDynamicCollection(
+    num: Int,
+    fieldNames: Array[String],
+    predicate: Option[Expression]): Seq[Row] = {
+
+    if (predicate.isEmpty) {
+      throw new RuntimeException("filter expression was not set")
+    }
+
+    val literal = predicate.get.children.last
+      .asInstanceOf[Literal]
+      .value.asInstanceOf[Int]
+
+    def shouldCreateRow(value: Int): Boolean = {
+      value > literal
+    }
+
+    def createRow(row: Row, name: String, pos: Int, value: Int): Unit = {
+      name match {
+        case "name" =>
+          row.setField(pos, s"Record_$value")
+        case "id" =>
+          row.setField(pos, value.toLong)
+        case "amount" =>
+          row.setField(pos, value.toInt)
+        case "price" =>
+          row.setField(pos, value.toDouble)
+        case _ =>
+          throw new IllegalArgumentException(s"unknown fieldName name $name")
+      }
+    }
+
+    for {cnt <- 0 until num}
+      yield {
+        val row = new Row(fieldNames.length)
+        fieldNames.zipWithIndex.foreach {
+          case (name, index) =>
+            if (shouldCreateRow(cnt)) {
+              createRow(row, name, index, cnt)
+            }
+        }
+        row
+      }
+  }
+
+  /** Returns the [[TypeInformation]] for the return type. */
+  override def getReturnType: TypeInformation[Row] = new RowTypeInfo(fieldTypes: _*)
+
+  /** Returns the names of the table fields. */
+  override def getFieldNames: Array[String] = fieldNames
+
+  /** Returns the indices of the table fields. */
+  override def getFieldIndices: Array[Int] = fieldNames.indices.toArray
+
+  def getPredicate: Option[Expression] = filterPredicate
+
+  /** Return an unsupported predicate expression. */
+  override def setPredicate(predicate: Expression): Expression = {
+    val (filterPredicate, unused) = extractLeftPredicateWithGraterThan(predicate)
+    if (filterPredicate.isDefined) {
+      this.filterPredicate = filterPredicate
+    }
+    unused
+  }
+
+  private def extractLeftPredicateWithGraterThan(
+    predicate: Expression): (Option[Expression], Expression) = {
+
+    predicate match {
+      case e: Expression =>
+        e.children.head match {
+          case bc: BinaryComparison =>
+            bc.sqlOperator.kind match {
+              case SqlKind.GREATER_THAN =>
+                (Option(e.children.head), e.children.last)
+              case _ => (None, e)
+            }
+          case _ => (None, e)
+        }
+      case _ => (None, null)
     }
   }
 }

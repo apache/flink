@@ -21,12 +21,12 @@ package org.apache.flink.table.plan.nodes.datastream
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter}
-import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.table.api.{StreamTableEnvironment, TableEnvironment}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.schema.TableSourceTable
-import org.apache.flink.table.sources.StreamTableSource
 import org.apache.flink.types.Row
+import org.apache.flink.table.sources.{FilterableTableSource, StreamTableSource}
+import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.table.api.{StreamTableEnvironment, TableEnvironment}
 
 /** Flink RelNode to read data from an external source defined by a [[StreamTableSource]]. */
 class StreamTableSourceScan(
@@ -58,8 +58,16 @@ class StreamTableSourceScan(
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
+    val s = tableSource match {
+      case source: FilterableTableSource =>
+        source.getPredicate.getOrElse("").toString.replaceAll("\\'|\\\"|\\s", "")
+      case _ => ""
+    }
     super.explainTerms(pw)
       .item("fields", TableEnvironment.getFieldNames(tableSource).mkString(", "))
+      // TODO should we have this? If yes how it should look like, as in DataCalc?
+      // (current example, s = "id>2")
+      .item("filter", s)
   }
 
   override def translateToPlan(tableEnv: StreamTableEnvironment): DataStream[Row] = {
@@ -70,5 +78,4 @@ class StreamTableSourceScan(
 
     convertToInternalRow(inputDataStream, new TableSourceTable(tableSource), config)
   }
-
 }
