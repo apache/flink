@@ -107,7 +107,7 @@ trait FlinkRel {
     val fieldList = rowType.getFieldList
 
     fieldList.map(_.getType).foldLeft(0.0) { (s, t) =>
-      git s + estimateDataTypeSize(t)
+      s + estimateDataTypeSize(t)
     }
   }
 
