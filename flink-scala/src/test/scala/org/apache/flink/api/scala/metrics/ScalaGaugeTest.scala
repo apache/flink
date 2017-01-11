@@ -29,8 +29,8 @@ class ScalaGaugeTest extends TestLogger with JUnitSuiteLike {
 
   @Test
   def testGaugeCorrectValue(): Unit = {
-    val myGauge = ScalaGauge[Long]( () => 4 )
-    assert( myGauge.getValue == 4 )
+    val myGauge = ScalaGauge[Long](() => 4)
+    assert(myGauge.getValue == 4)
   }
 
   @Test

@@ -20,9 +20,9 @@ package org.apache.flink.api.scala.metrics
 
 import org.apache.flink.metrics.Gauge
 
-class ScalaGauge[T]( func: () => T ) extends Gauge[T] {
-  override def getValue: T =  {
-    return func()
+class ScalaGauge[T](func: () => T) extends Gauge[T] {
+  override def getValue: T = {
+    func()
   }
 }
 
