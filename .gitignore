@@ -31,3 +31,5 @@ out/
 /docs/ruby2/.rubydeps
 *.ipr
 *.iws
+tools/flink
+tools/flink-*
