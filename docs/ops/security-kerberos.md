@@ -1,9 +1,8 @@
 ---
-title:  "Flink Security"
-# Top navigation
-top-nav-group: internals
-top-nav-pos: 10
-top-nav-title: Flink Security
+title:  "Kerberos Authentication Setup and Configuration"
+nav-parent_id: setup
+nav-pos: 10
+nav-title: Kerberos
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
