@@ -77,7 +77,7 @@ public class StreamingRuntimeContextTest {
 				createMockEnvironment(),
 				Collections.<String, Accumulator<?, ?>>emptyMap());
 
-		ValueStateDescriptor<TaskInfo> descr = new ValueStateDescriptor<>("name", TaskInfo.class, null);
+		ValueStateDescriptor<TaskInfo> descr = new ValueStateDescriptor<>("name", TaskInfo.class);
 		context.getState(descr);
 		
 		StateDescriptor<?, ?> descrIntercepted = (StateDescriptor<?, ?>) descriptorCapture.get();

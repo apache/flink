@@ -349,7 +349,7 @@ public class ProcessOperatorTest extends TestLogger {
 		private static final long serialVersionUID = 1L;
 
 		private final ValueStateDescriptor<Integer> state =
-				new ValueStateDescriptor<>("seen-element", IntSerializer.INSTANCE,  null);
+				new ValueStateDescriptor<>("seen-element", IntSerializer.INSTANCE);
 
 		private final TimeDomain timeDomain;
 

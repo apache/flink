@@ -603,8 +603,7 @@ public class QueryableStateITCase extends TestLogger {
 			// Value state
 			ValueStateDescriptor<Tuple2<Integer, Long>> valueState = new ValueStateDescriptor<>(
 					"any",
-					source.getType(),
-					null);
+					source.getType());
 
 			QueryableStateStream<Integer, Tuple2<Integer, Long>> queryableState =
 					source.keyBy(new KeySelector<Tuple2<Integer, Long>, Integer>() {
