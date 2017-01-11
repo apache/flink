@@ -155,7 +155,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		CheckpointStreamFactory streamFactory = createStreamFactory();
 		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
 
-		ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>("id", String.class, null);
+		ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>("id", String.class);
 		kvId.initializeSerializerUnlessSet(new ExecutionConfig());
 
 		TypeSerializer<Integer> keySerializer = IntSerializer.INSTANCE;
@@ -253,8 +253,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 				new KeyGroupRange(0, 0),
 				new DummyEnvironment("test_op", 1, 0));
 
-		ValueStateDescriptor<String> desc1 = new ValueStateDescriptor<>("a-string", StringSerializer.INSTANCE, null);
-		ValueStateDescriptor<Integer> desc2 = new ValueStateDescriptor<>("an-integer", IntSerializer.INSTANCE, null);
+		ValueStateDescriptor<String> desc1 = new ValueStateDescriptor<>("a-string", StringSerializer.INSTANCE);
+		ValueStateDescriptor<Integer> desc2 = new ValueStateDescriptor<>("an-integer", IntSerializer.INSTANCE);
 
 		desc1.initializeSerializerUnlessSet(new ExecutionConfig());
 		desc2.initializeSerializerUnlessSet(new ExecutionConfig());
@@ -822,7 +822,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 				new KeyGroupRange(0, MAX_PARALLELISM - 1),
 				new DummyEnvironment("test", 1, 0));
 
-		ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>("id", String.class, null);
+		ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>("id", String.class);
 		kvId.initializeSerializerUnlessSet(new ExecutionConfig());
 
 		ValueState<String> state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
@@ -904,7 +904,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			CheckpointStreamFactory streamFactory = createStreamFactory();
 			AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
 
-			ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>("id", String.class, null);
+			ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>("id", String.class);
 			kvId.initializeSerializerUnlessSet(new ExecutionConfig());
 
 			ValueState<String> state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
@@ -927,7 +927,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 				(TypeSerializer<String>) (TypeSerializer<?>) FloatSerializer.INSTANCE;
 
 			try {
-				kvId = new ValueStateDescriptor<>("id", fakeStringSerializer, null);
+				kvId = new ValueStateDescriptor<>("id", fakeStringSerializer);
 
 				state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
 
@@ -1259,8 +1259,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 		ValueStateDescriptor<Integer> desc = new ValueStateDescriptor<>(
 				"test",
-				IntSerializer.INSTANCE,
-				null);
+				IntSerializer.INSTANCE);
 		desc.setQueryable("banana");
 
 		backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, desc);

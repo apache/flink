@@ -491,7 +491,7 @@ public class AbstractStreamOperatorTest {
 		private transient InternalTimerService<VoidNamespace> timerService;
 
 		private final ValueStateDescriptor<String> stateDescriptor =
-				new ValueStateDescriptor<>("state", StringSerializer.INSTANCE, null);
+				new ValueStateDescriptor<>("state", StringSerializer.INSTANCE);
 
 		@Override
 		public void open() throws Exception {

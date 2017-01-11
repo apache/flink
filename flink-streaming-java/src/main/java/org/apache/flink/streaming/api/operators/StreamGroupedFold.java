@@ -71,7 +71,7 @@ public class StreamGroupedFold<IN, OUT, KEY>
 			initialValue = outTypeSerializer.deserialize(in);
 		}
 		
-		ValueStateDescriptor<OUT> stateId = new ValueStateDescriptor<>(STATE_NAME, outTypeSerializer, null);
+		ValueStateDescriptor<OUT> stateId = new ValueStateDescriptor<>(STATE_NAME, outTypeSerializer);
 		values = getPartitionedState(stateId);
 	}
 
