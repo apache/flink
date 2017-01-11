@@ -371,8 +371,7 @@ public class RocksDBAsyncSnapshotTest {
 			ValueState<String> state = getPartitionedState(
 					VoidNamespace.INSTANCE,
 					VoidNamespaceSerializer.INSTANCE,
-					new ValueStateDescriptor<>("count",
-							StringSerializer.INSTANCE, "hello"));
+					new ValueStateDescriptor<>("count", StringSerializer.INSTANCE));
 
 		}
 
@@ -383,8 +382,7 @@ public class RocksDBAsyncSnapshotTest {
 			ValueState<String> state = getPartitionedState(
 					VoidNamespace.INSTANCE,
 					VoidNamespaceSerializer.INSTANCE,
-					new ValueStateDescriptor<>("count",
-							StringSerializer.INSTANCE, "hello"));
+					new ValueStateDescriptor<>("count", StringSerializer.INSTANCE));
 
 			state.update(element.getValue());
 		}
