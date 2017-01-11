@@ -129,7 +129,7 @@ class DataSetWindowAggregate(
       case EventTimeSlidingGroupWindow(_, _, _, _) =>
         throw new UnsupportedOperationException(
           "Event-time sliding windows on batch are currently not supported")
-      case w: ProcessingTimeGroupWindow =>
+      case _: ProcessingTimeGroupWindow =>
         throw new UnsupportedOperationException(
           "Processing-time tumbling windows are not supported on batch tables, " +
             "window on batch must declare a time attribute over which the query is evaluated.")

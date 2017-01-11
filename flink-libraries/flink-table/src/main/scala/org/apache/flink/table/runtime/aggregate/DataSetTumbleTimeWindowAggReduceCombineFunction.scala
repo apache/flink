@@ -73,20 +73,23 @@ class DataSetTumbleTimeWindowAggReduceCombineFunction(
     */
   override def combine(records: Iterable[Row]): Row = {
 
-    // Initiate intermediate aggregate value.
+    // initiate intermediate aggregate value.
     aggregates.foreach(_.initiate(aggregateBuffer))
 
-    // Merge intermediate aggregate value to buffer.
+    // merge intermediate aggregate value to buffer.
     var last: Row = null
     records.foreach((record) => {
       aggregates.foreach(_.merge(record, aggregateBuffer))
       last = record
     })
 
-    // Set group keys to aggregateBuffer.
+    // set group keys to aggregateBuffer.
     for (i <- groupKeysMapping.indices) {
       aggregateBuffer.setField(i, last.getField(i))
     }
+
+    // set the rowtime attribute
+    aggregateBuffer.setField(rowtimePos, last.getField(rowtimePos))
 
     aggregateBuffer
   }

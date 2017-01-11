@@ -311,4 +311,5 @@ object FieldProjectionTest {
     def eval(s: String): Int = s.hashCode()
   }
 
+  case class WC(word: String, frequency: Long)
 }
