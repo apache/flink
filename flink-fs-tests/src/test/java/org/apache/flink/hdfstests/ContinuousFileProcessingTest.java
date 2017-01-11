@@ -588,6 +588,59 @@ public class ContinuousFileProcessingTest {
 	}
 
 	@Test
+	public void testNestedFilesProcessing() throws Exception {
+		final Set<org.apache.hadoop.fs.Path> filesCreated = new HashSet<>();
+		final Set<String> filesToBeRead = new TreeSet<>();
+
+		// create two nested directories
+		org.apache.hadoop.fs.Path firstLevelDir = new org.apache.hadoop.fs.Path(hdfsURI + "/" + "firstLevelDir");
+		org.apache.hadoop.fs.Path secondLevelDir = new org.apache.hadoop.fs.Path(hdfsURI + "/" + "firstLevelDir" + "/" + "secondLevelDir");
+		Assert.assertFalse(hdfs.exists(firstLevelDir));
+		hdfs.mkdirs(firstLevelDir);
+		hdfs.mkdirs(secondLevelDir);
+
+		// create files in the base dir, the first level dir and the second level dir
+		for (int i = 0; i < NO_OF_FILES; i++) {
+			Tuple2<org.apache.hadoop.fs.Path, String> file = createFileAndFillWithData(hdfsURI, "firstLevelFile", i, "This is test line.");
+			filesCreated.add(file.f0);
+			filesToBeRead.add(file.f0.getName());
+		}
+		for (int i = 0; i < NO_OF_FILES; i++) {
+			Tuple2<org.apache.hadoop.fs.Path, String> file = createFileAndFillWithData(firstLevelDir.toString(), "secondLevelFile", i, "This is test line.");
+			filesCreated.add(file.f0);
+			filesToBeRead.add(file.f0.getName());
+		}
+		for (int i = 0; i < NO_OF_FILES; i++) {
+			Tuple2<org.apache.hadoop.fs.Path, String> file = createFileAndFillWithData(secondLevelDir.toString(), "thirdLevelFile", i, "This is test line.");
+			filesCreated.add(file.f0);
+			filesToBeRead.add(file.f0.getName());
+		}
+
+		TextInputFormat format = new TextInputFormat(new Path(hdfsURI));
+		format.setFilesFilter(FilePathFilter.createDefaultFilter());
+		format.setNestedFileEnumeration(true);
+
+		ContinuousFileMonitoringFunction<String> monitoringFunction =
+			new ContinuousFileMonitoringFunction<>(format,
+				FileProcessingMode.PROCESS_ONCE, 1, INTERVAL);
+
+		final FileVerifyingSourceContext context =
+			new FileVerifyingSourceContext(new OneShotLatch(), monitoringFunction);
+
+		monitoringFunction.open(new Configuration());
+		monitoringFunction.run(context);
+
+		Assert.assertArrayEquals(filesToBeRead.toArray(), context.getSeenFiles().toArray());
+
+		// finally delete the dirs and the files created for the test.
+		for (org.apache.hadoop.fs.Path file: filesCreated) {
+			hdfs.delete(file, false);
+		}
+		hdfs.delete(secondLevelDir, false);
+		hdfs.delete(firstLevelDir, false);
+	}
+
+	@Test
 	public void testSortingOnModTime() throws Exception {
 		final long[] modTimes = new long[NO_OF_FILES];
 		final org.apache.hadoop.fs.Path[] filesCreated = new org.apache.hadoop.fs.Path[NO_OF_FILES];
