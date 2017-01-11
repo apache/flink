@@ -21,13 +21,13 @@ package org.apache.flink.table.plan.nodes.dataset
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter}
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.table.api.{BatchTableEnvironment, TableEnvironment}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.schema.TableSourceTable
-import org.apache.flink.table.sources.BatchTableSource
 import org.apache.flink.types.Row
+
+import org.apache.flink.table.sources.{BatchTableSource, FilterableTableSource}
 
 /** Flink RelNode to read data from an external source defined by a [[BatchTableSource]]. */
 class BatchTableSourceScan(
@@ -59,8 +59,16 @@ class BatchTableSourceScan(
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
+    val s = tableSource match {
+      case source: FilterableTableSource =>
+        source.getPredicate.getOrElse("").toString.replaceAll("\\'|\\\"|\\s", "")
+      case _ => ""
+    }
     super.explainTerms(pw)
       .item("fields", TableEnvironment.getFieldNames(tableSource).mkString(", "))
+      // TODO should we have this? If yes how it should look like, as in DataCalc?
+      // (current example, s = "id>2")
+      .item("filter", s)
   }
 
   override def translateToPlan(tableEnv: BatchTableEnvironment): DataSet[Row] = {

@@ -18,24 +18,21 @@
 
 package org.apache.flink.table.sources
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.table.expressions.Expression
 
-/** Defines an external table by providing schema information and used to produce a
-  * [[org.apache.flink.api.scala.DataSet]] or [[org.apache.flink.streaming.api.scala.DataStream]].
-  * Schema information consists of a data type, field names, and corresponding indices of
-  * these names in the data type.
+/**
+  * Adds support for filtering push-down to a [[TableSource]].
+  * A [[TableSource]] extending this interface is able to filter the fields of the return table.
   *
-  * To define a TableSource one need to implement [[TableSource#getReturnType]]. In this case
-  * field names and field indices are derived from the returned type.
-  *
-  * In case if custom field names are required one need to additionally implement
-  * the [[DefinedFieldNames]] trait.
-  *
-  * @tparam T The return type of the [[TableSource]].
   */
-trait TableSource[T] {
+trait FilterableTableSource {
 
-  /** Returns the [[TypeInformation]] for the return type of the [[TableSource]]. */
-  def getReturnType: TypeInformation[T]
+  /** return an predicate expression that was set. */
+  def getPredicate: Option[Expression]
 
+  /**
+    * @param predicate a filter expression that will be applied to fields to return.
+    * @return an unsupported predicate expression.
+    */
+  def setPredicate(predicate: Expression): Expression
 }
