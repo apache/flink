@@ -322,6 +322,8 @@ metrics.reporter.my_other_reporter.port: 10000
 
 ```
 
+**Important:** The jar containing the reporter must be accessible when Flink is started by placing it in the /lib folder.
+
 You can write your own `Reporter` by implementing the `org.apache.flink.metrics.reporter.MetricReporter` interface.
 If the Reporter should send out reports regularly you have to implement the `Scheduled` interface as well.
 
@@ -362,14 +364,9 @@ An example for such a list would be `host=localhost,job_name=MyJob,task_name=MyT
 The domain thus identifies a metric class, while the key-property list identifies one (or multiple) instances of that metric.
 
 ### Ganglia (org.apache.flink.metrics.ganglia.GangliaReporter)
-Dependency:
-{% highlight xml %}
-<dependency>
-      <groupId>org.apache.flink</groupId>
-      <artifactId>flink-metrics-ganglia</artifactId>
-      <version>{{site.version}}</version>
-</dependency>
-{% endhighlight %}
+
+In order to use this reporter you must copy `/opt/flink-metrics-ganglia-{{site.version}}.jar` into the `/lib` folder
+of your Flink distribution.
 
 Parameters:
 
@@ -396,14 +393,9 @@ metrics.reporter.gang.addressingMode: MULTICAST
 {% endhighlight %}
 
 ### Graphite (org.apache.flink.metrics.graphite.GraphiteReporter)
-Dependency:
-{% highlight xml %}
-<dependency>
-      <groupId>org.apache.flink</groupId>
-      <artifactId>flink-metrics-graphite</artifactId>
-      <version>{{site.version}}</version>
-</dependency>
-{% endhighlight %}
+
+In order to use this reporter you must copy `/opt/flink-metrics-graphite-{{site.version}}.jar` into the `/lib` folder
+of your Flink distribution.
 
 Parameters:
 
@@ -424,14 +416,9 @@ metrics.reporter.grph.protocol: TCP
 {% endhighlight %}
 
 ### StatsD (org.apache.flink.metrics.statsd.StatsDReporter)
-Dependency:
-{% highlight xml %}
-<dependency>
-      <groupId>org.apache.flink</groupId>
-      <artifactId>flink-metrics-statsd</artifactId>
-      <version>{{site.version}}</version>
-</dependency>
-{% endhighlight %}
+
+In order to use this reporter you must copy `/opt/flink-metrics-statsd-{{site.version}}.jar` into the `/lib` folder
+of your Flink distribution.
 
 Parameters:
 
