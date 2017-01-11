@@ -16,19 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.plan.schema
+package org.apache.flink.table.sources
 
-import org.apache.flink.table.api.TableEnvironment
-import org.apache.flink.table.plan.stats.FlinkStatistic
-import org.apache.flink.table.sources.TableSource
+import org.apache.flink.table.expressions.Expression
 
-/** Table which defines an external table via a [[TableSource]] */
-class TableSourceTable[T](
-    val tableSource: TableSource[T],
-    val tableEnv: TableEnvironment,
-    override val statistic: FlinkStatistic = FlinkStatistic.UNKNOWN)
-  extends FlinkTable[T](
-    typeInfo = tableSource.getReturnType,
-    fieldIndexes = TableEnvironment.getFieldIndices(tableSource),
-    fieldNames = TableEnvironment.getFieldNames(tableSource),
-    statistic)
+/**
+  * Adds support for filtering push-down to a [[TableSource]].
+  * A [[TableSource]] extending this interface is able to filter the fields of the return table.
+  *
+  */
+trait FilterableTableSource {
+
+  /** return an predicate expression that was set. */
+  def getPredicate: Array[Expression]
+
+  /**
+    * @param predicate a filter expression that will be applied to fields to return.
+    * @return an unsupported predicate expression.
+    */
+  def setPredicate(predicate: Array[Expression]): Array[Expression]
+}

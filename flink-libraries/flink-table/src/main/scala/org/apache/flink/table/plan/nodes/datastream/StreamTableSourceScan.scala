@@ -21,19 +21,21 @@ package org.apache.flink.table.plan.nodes.datastream
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter}
-import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.table.api.{StreamTableEnvironment, TableEnvironment}
+import org.apache.calcite.rex.RexNode
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.schema.TableSourceTable
-import org.apache.flink.table.sources.StreamTableSource
 import org.apache.flink.types.Row
+import org.apache.flink.table.sources.StreamTableSource
+import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.table.api.{StreamTableEnvironment, TableEnvironment}
 
 /** Flink RelNode to read data from an external source defined by a [[StreamTableSource]]. */
 class StreamTableSourceScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     table: RelOptTable,
-    val tableSource: StreamTableSource[_])
+    val tableSource: StreamTableSource[_],
+  filterCondition: RexNode = null)
   extends StreamScan(cluster, traitSet, table) {
 
   override def deriveRowType() = {
@@ -53,13 +55,20 @@ class StreamTableSourceScan(
       cluster,
       traitSet,
       getTable,
-      tableSource
+      tableSource,
+      filterCondition
     )
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
-    super.explainTerms(pw)
+    val terms = super.explainTerms(pw)
       .item("fields", TableEnvironment.getFieldNames(tableSource).mkString(", "))
+    if (filterCondition != null) {
+      import scala.collection.JavaConverters._
+      val fieldNames = getTable.getRowType.getFieldNames.asScala.toList
+      terms.item("filter", getExpressionString(filterCondition, fieldNames, None))
+    }
+    terms
   }
 
   override def translateToPlan(tableEnv: StreamTableEnvironment): DataStream[Row] = {
@@ -68,7 +77,6 @@ class StreamTableSourceScan(
     val inputDataStream: DataStream[Any] = tableSource
       .getDataStream(tableEnv.execEnv).asInstanceOf[DataStream[Any]]
 
-    convertToInternalRow(inputDataStream, new TableSourceTable(tableSource), config)
+    convertToInternalRow(inputDataStream, new TableSourceTable(tableSource, tableEnv), config)
   }
-
 }

@@ -102,4 +102,20 @@ class TableSourceITCase(
     TestBaseUtils.compareResultAsText(result.asJava, expected)
   }
 
+  @Test
+  def testTableSourceWithFilterable(): Unit = {
+    val tableName = "MyTable"
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
+    tableEnv.registerTableSource(tableName, CommonTestData.getFilterableTableSource)
+    val results = tableEnv
+      .scan(tableName)
+      .where("amount > 4 && price < 9")
+      .select("id, name")
+      .collect()
+
+    val expected = Seq(
+      "5,Record_5", "6,Record_6", "7,Record_7", "8,Record_8").mkString("\n")
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
 }
