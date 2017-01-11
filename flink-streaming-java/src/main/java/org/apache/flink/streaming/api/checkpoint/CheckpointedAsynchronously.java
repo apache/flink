@@ -36,6 +36,7 @@ import java.io.Serializable;
  * <p>To be able to support asynchronous snapshots, the state returned by the
  * {@link #snapshotState(long, long)} method is typically a copy or shadow copy
  * of the actual state.</p>
+ * @deprecated Please use {@link CheckpointedFunction}.
  */
 @Deprecated
 @PublicEvolving
