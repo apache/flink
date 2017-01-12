@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.api.java.batch.sql;
 
+import java.util.Comparator;
+import java.util.List;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -27,7 +29,7 @@ import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
-import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase;
+import org.apache.flink.table.api.scala.batch.utils.TableProgramsClusterTestBase;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.Row;
@@ -36,18 +38,20 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import java.util.Comparator;
-import java.util.List;
-
+/**
+ * This test should be replaced by a DataSetAggregateITCase.
+ * We should only perform logical unit tests here.
+ * Until then, we perform a cluster test here.
+ */
 @RunWith(Parameterized.class)
-public class GroupingSetsITCase extends TableProgramsTestBase {
+public class GroupingSetsITCase extends TableProgramsClusterTestBase {
 
 	private final static String TABLE_NAME = "MyTable";
 	private final static String TABLE_WITH_NULLS_NAME = "MyTableWithNulls";
 	private BatchTableEnvironment tableEnv;
 
-	public GroupingSetsITCase(TestExecutionMode mode, TableConfigMode tableConfigMode) {
-		super(mode, tableConfigMode);
+	public GroupingSetsITCase(TableConfigMode tableConfigMode) {
+		super(tableConfigMode);
 	}
 
 	@Before
