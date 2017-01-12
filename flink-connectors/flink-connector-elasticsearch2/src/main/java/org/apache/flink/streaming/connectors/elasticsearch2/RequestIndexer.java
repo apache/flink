@@ -20,6 +20,12 @@ import org.elasticsearch.action.ActionRequest;
 
 import java.io.Serializable;
 
+/**
+ * @deprecated Deprecated since 1.2, to be removed at 2.0.
+ *             This class has been deprecated due to package relocation.
+ *             Please use {@link org.apache.flink.streaming.connectors.elasticsearch.RequestIndexer} instead.
+ */
+@Deprecated
 public interface RequestIndexer extends Serializable {
 	void add(ActionRequest... actionRequests);
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -15,18 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.streaming.connectors.elasticsearch5;
+
+package org.apache.flink.streaming.connectors.elasticsearch;
 
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.elasticsearch.action.ActionRequest;
 
 import java.io.Serializable;
 
 /**
- * Method that creates an {@link org.elasticsearch.action.ActionRequest} from an element in a Stream.
+ * Creates multiple {@link ActionRequest ActionRequests} from an element in a stream.
  *
  * <p>
- * This is used by {@link ElasticsearchSink} to prepare elements for sending them to Elasticsearch.
+ * This is used by sinks to prepare elements for sending them to Elasticsearch.
  *
  * <p>
  * Example:
@@ -54,7 +56,17 @@ import java.io.Serializable;
  * }</pre>
  *
  * @param <T> The type of the element handled by this {@code ElasticsearchSinkFunction}
+ *
  */
 public interface ElasticsearchSinkFunction<T> extends Serializable, Function {
+
+	/**
+	 * Process the incoming element to produce multiple {@link ActionRequest ActionsRequests}.
+	 * The produced requests should be added to the provided {@link RequestIndexer}.
+	 *
+	 * @param element incoming element to process
+	 * @param ctx     runtime context containting information about the sink instance
+	 * @param indexer request indexer that {@code ActionRequest} should be added to
+	 */
 	void process(T element, RuntimeContext ctx, RequestIndexer indexer);
 }

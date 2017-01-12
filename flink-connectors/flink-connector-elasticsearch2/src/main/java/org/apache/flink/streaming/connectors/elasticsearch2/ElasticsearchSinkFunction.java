@@ -23,7 +23,7 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import java.io.Serializable;
 
 /**
- * Method that creates an {@link org.elasticsearch.action.ActionRequest} from an element in a Stream.
+ * Method that creates multiple {@link org.elasticsearch.action.ActionRequest}s from an element in a Stream.
  *
  * <p>
  * This is used by {@link ElasticsearchSink} to prepare elements for sending them to Elasticsearch.
@@ -54,7 +54,12 @@ import java.io.Serializable;
  * }</pre>
  *
  * @param <T> The type of the element handled by this {@code ElasticsearchSinkFunction}
+ *
+ * @deprecated Deprecated since 1.2, to be removed at 2.0.
+ *             This class has been deprecated due to package relocation.
+ *             Please use {@link org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunction} instead.
  */
+@Deprecated
 public interface ElasticsearchSinkFunction<T> extends Serializable, Function {
 	void process(T element, RuntimeContext ctx, RequestIndexer indexer);
 }

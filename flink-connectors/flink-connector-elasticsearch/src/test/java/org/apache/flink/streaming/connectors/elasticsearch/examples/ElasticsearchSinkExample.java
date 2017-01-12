@@ -14,20 +14,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.streaming.connectors.elasticsearch2.examples;
 
-import org.apache.flink.api.common.functions.MapFunction;
+package org.apache.flink.streaming.connectors.elasticsearch.examples;
+
 import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
+import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.connectors.elasticsearch2.ElasticsearchSink;
-import org.apache.flink.streaming.connectors.elasticsearch2.ElasticsearchSinkFunction;
-import org.apache.flink.streaming.connectors.elasticsearch2.RequestIndexer;
+import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSink;
+import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunction;
+import org.apache.flink.streaming.connectors.elasticsearch.RequestIndexer;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.client.Requests;
+import org.elasticsearch.common.transport.InetSocketTransportAddress;
+import org.elasticsearch.common.transport.TransportAddress;
 
 import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -35,46 +37,49 @@ import java.util.Map;
 
 /**
  * This example shows how to use the Elasticsearch Sink. Before running it you must ensure that
- * you have a cluster named "elasticsearch" running or change the name of cluster in the config map.
+ * you have a cluster named "elasticsearch" running or change the cluster name in the config map.
  */
-public class ElasticsearchExample {
+public class ElasticsearchSinkExample {
 
 	public static void main(String[] args) throws Exception {
+		
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		DataStreamSource<String> source = env.addSource(new SourceFunction<String>() {
+			private static final long serialVersionUID = 1L;
 
-		SingleOutputStreamOperator<String> source =
-				env.generateSequence(0, 20).map(new MapFunction<Long, String>() {
-					/**
-					 * The mapping method. Takes an element from the input data set and transforms
-					 * it into exactly one element.
-					 *
-					 * @param value The input value.
-					 * @return The transformed value
-					 * @throws Exception This method may throw exceptions. Throwing an exception will cause the operation
-					 *                   to fail and may trigger recovery.
-					 */
-					@Override
-					public String map(Long value) throws Exception {
-						return "message #" + value;
-					}
-				});
+			private volatile boolean running = true;
+
+			@Override
+			public void run(SourceContext<String> ctx) throws Exception {
+				for (int i = 0; i < 20 && running; i++) {
+					ctx.collect("message #" + i);
+				}
+			}
+
+			@Override
+			public void cancel() {
+				running = false;
+			}
+		});
 
 		Map<String, String> config = new HashMap<>();
+		config.put("cluster.name", "elasticsearch");
 		// This instructs the sink to emit after every element, otherwise they would be buffered
 		config.put(ElasticsearchSink.CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, "1");
 
-		List<InetSocketAddress> transports = new ArrayList<>();
-		transports.add(new InetSocketAddress(InetAddress.getByName("127.0.0.1"), 9300));
+		List<TransportAddress> transports = new ArrayList<>();
+		transports.add(new InetSocketTransportAddress(InetAddress.getByName("127.0.0.1"), 9300));
 
-		source.addSink(new ElasticsearchSink<>(config, transports, new ElasticsearchSinkFunction<String>(){
+		source.addSink(new ElasticsearchSink<>(config, transports, new ElasticsearchSinkFunction<String>() {
 			@Override
 			public void process(String element, RuntimeContext ctx, RequestIndexer indexer) {
 				indexer.add(createIndexRequest(element));
 			}
 		}));
 
-		env.execute("Elasticsearch Example");
+
+		env.execute("Elasticsearch Sink Example");
 	}
 
 	private static IndexRequest createIndexRequest(String element) {
@@ -82,9 +87,9 @@ public class ElasticsearchExample {
 		json.put("data", element);
 
 		return Requests.indexRequest()
-				.index("my-index")
-				.type("my-type")
-				.id(element)
-				.source(json);
+			.index("my-index")
+			.type("my-type")
+			.id(element)
+			.source(json);
 	}
 }

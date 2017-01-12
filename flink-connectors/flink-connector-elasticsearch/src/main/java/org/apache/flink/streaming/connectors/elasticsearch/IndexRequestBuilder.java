@@ -51,7 +51,11 @@ import java.io.Serializable;
  * }</pre>
  *
  * @param <T> The type of the element handled by this {@code IndexRequestBuilder}
+ *
+ * @deprecated Deprecated since version 1.2, to be removed at version 2.0.
+ *             Please create a {@link ElasticsearchSink} using a {@link ElasticsearchSinkFunction} instead.
  */
+@Deprecated
 public interface IndexRequestBuilder<T> extends Function, Serializable {
 
 	/**
