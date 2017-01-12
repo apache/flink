@@ -119,11 +119,11 @@ public class Pattern<T, F extends T> {
 	 */
 	@SuppressWarnings("unchecked")
 	public Pattern<T, T> next(final Pattern<T, ? extends T> pattern) {
-		if (pattern instanceof EventPattern) {
+		if (pattern.parents == null || pattern.parents.isEmpty()) {
 			pattern.parents = Collections.<Pattern<T, ? extends T>>singleton(this);
 		} else {
 			for (Pattern<T, ? extends T> parent : pattern.parents) {
-				parent.parents = Collections.<Pattern<T, ? extends T>>singleton(this);
+				next(parent);
 			}
 		}
 		return (Pattern<T, T>) pattern;

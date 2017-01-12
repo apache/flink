@@ -646,11 +646,13 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 			new Event(3, "end", 3.0),
 			new Event(4, "start", 4.0),
 			new Event(5, "middle2", 5.0),
-			new Event(6, "end", 6.0)
+			new Event(6, "middle3", 5.0),
+			new Event(7, "end", 6.0)
 		);
 
 		Pattern<Event, ?> pattern = EventPattern.event("start", Event.class)
 			.where(new FilterFunction<Event>() {
+
 				@Override
 				public boolean filter(Event value) throws Exception {
 					return value.getName().equals("start");
@@ -660,6 +662,7 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 				Pattern.or(
 					EventPattern.<Event>event("middle1")
 						.where(new FilterFunction<Event>() {
+
 							@Override
 							public boolean filter(Event value) throws Exception {
 								return value.getName().equals("middle1");
@@ -667,11 +670,22 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 						}),
 					EventPattern.<Event>event("middle2")
 						.where(new FilterFunction<Event>() {
+
 							@Override
 							public boolean filter(Event value) throws Exception {
 								return value.getName().equals("middle2");
 							}
 						})
+						.next(
+							EventPattern.<Event>event("middle3")
+								.where(new FilterFunction<Event>() {
+
+									@Override
+									public boolean filter(Event value) throws Exception {
+										return value.getName().equals("middle3");
+									}
+								})
+						)
 				)
 			)
 			.followedBy(
@@ -711,7 +725,7 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
 		// expected sequence of matching event ids
-		expected = "1,5,6\n1,2,3\n4,5,6\n1,2,6";
+		expected = "1,5,7\n1,2,3\n4,5,7\n1,2,7";
 
 		env.execute();
 	}
