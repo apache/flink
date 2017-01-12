@@ -99,10 +99,12 @@ public abstract class StreamTransformation<T> {
 
 	// This is used to assign a unique ID to every StreamTransformation
 	protected static Integer idCounter = 0;
+
 	public static int getNewNodeId() {
 		idCounter++;
 		return idCounter;
 	}
+
 
 	protected final int id;
 
@@ -129,6 +131,8 @@ public abstract class StreamTransformation<T> {
 	 * field is independent from this.
 	 */
 	private String uid;
+
+	private String userProvidedNodeHash;
 
 	protected long bufferTimeout = -1;
 
@@ -202,6 +206,31 @@ public abstract class StreamTransformation<T> {
 	 */
 	public void setMaxParallelism(int maxParallelism) {
 		this.maxParallelism = maxParallelism;
+	}
+
+	/**
+	 * Sets an additional, user provided hash for this operator.
+	 *
+	 * <p/>
+	 * <p>The user provided hash is an alternative to the generated hashes, that is considered when identifying an
+	 * operator through the default hash mechanics fails (e.g. because of changes between Flink versions.
+	 *
+	 * <p><strong>Important</strong>: this hash needs to be unique per transformation and job. Otherwise, job
+	 * submission will fail.
+	 *
+	 * @param nodeHash the user provided hash for this operator.
+	 */
+	public void provideAdditionalNodeHash(String nodeHash) {
+		this.userProvidedNodeHash = nodeHash;
+	}
+
+	/**
+	 * Gets the user provided hash.
+	 *
+	 * @return The user provided hash.
+	 */
+	public String getUserProvidedNodeHash() {
+		return userProvidedNodeHash;
 	}
 
 	/**

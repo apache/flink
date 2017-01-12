@@ -201,6 +201,28 @@ class DataStream[T](stream: JavaStream[T]) {
   }
 
   /**
+    * Sets an additional, user provided hash for this operator.
+    *
+    * <p/>
+    * <p>The user provided hash is an alternative to the generated hashes,
+    * that is considered when identifying an operator through the default
+    * hash mechanics fails (e.g. because of changes between Flink versions.
+    *
+    * <p><strong>Important</strong>: this hash needs to be unique per
+    * transformation and job. Otherwise, job submission will fail.
+    *
+    * @param hash the user provided hash for this operator.
+    * @return The operator with the user provided hash.
+    */
+  @PublicEvolving
+  def provideAdditionalNodeHash(hash: String) : DataStream[T] = javaStream match {
+    case stream : SingleOutputStreamOperator[T] =>
+      asScalaStream(stream.provideAdditionalNodeHash(hash))
+    case _ => throw new UnsupportedOperationException("Only supported for operators.")
+      this
+  }
+
+  /**
    * Turns off chaining for this operator so thread co-location will not be
    * used as an optimization. </p> Chaining can be turned off for the whole
    * job by [[StreamExecutionEnvironment.disableOperatorChaining()]]

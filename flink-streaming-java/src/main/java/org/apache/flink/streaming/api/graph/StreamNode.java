@@ -69,7 +69,8 @@ public class StreamNode implements Serializable {
 
 	private InputFormat<?, ?> inputFormat;
 
-	private String transformationId;
+	private String transformationUID;
+	private String userHash;
 
 	public StreamNode(StreamExecutionEnvironment env,
 		Integer id,
@@ -272,12 +273,20 @@ public class StreamNode implements Serializable {
 		this.stateKeySerializer = stateKeySerializer;
 	}
 
-	public String getTransformationId() {
-		return transformationId;
+	public String getTransformationUID() {
+		return transformationUID;
 	}
 
-	void setTransformationId(String transformationId) {
-		this.transformationId = transformationId;
+	void setTransformationUID(String transformationId) {
+		this.transformationUID = transformationId;
+	}
+
+	public String getUserHash() {
+		return userHash;
+	}
+
+	public void setUserHash(String userHash) {
+		this.userHash = userHash;
 	}
 
 	@Override
