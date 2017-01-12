@@ -3915,23 +3915,22 @@ object TimestampModifier extends ScalarFunction {
 
 ### User-defined Table Functions
 
-A user-defined table function is implemented similar to a user-defined scalar function but can return a set of values instead of a single value. The returned set of values can consist of multiple columns and multiple rows similar to a standard table. A user-defined table function works on zero, one, or multiple scalar values as input and returns multiple rows as output.
+Similar to a user-defined scalar function, a user-defined table function takes zero, one, or multiple scalar values as input parameters. However in contrast to a scalar function, it can return an arbitrary number of rows as output instead of a single value. The returned rows may consist of one or more columns. 
 
 In order to define a table function one has to extend the base class `TableFunction` in `org.apache.flink.table.functions` and implement (one or more) evaluation methods. The behavior of a table function is determined by its evaluation methods. An evaluation method must be declared `public` and named `eval`. The `TableFunction` can be overloaded by implementing multiple methods named `eval`. The parameter types of the evaluation methods determine all valid parameters of the table function. The type of the returned table is determined by the generic type of `TableFunction`. Evaluation methods emit output rows using the protected `collect(T)` method.
 
-In the Table API, a table function is used with `.join(Expression)` or `.leftOuterJoin(Expression)` for Scala users and `.join(String)` or `.leftOuterJoin(String)` for Java users. The `join` operator (cross) joins each row from the outer table (table on the left of the operator) with all rows produced by the table-valued function (which is on the right side of the operator). The `leftOuterJoin` operator joins each row from the outer table (table on the left of the operator) with all rows produced by the table-valued function (which is on the right side of the operator) and preserves outer rows for which the table function returns an empty table. In SQL use `LATERAL TABLE(<TableFunction>)` with CROSS JOIN and LEFT JOIN with ON TRUE condition (see examples below).
+In the Table API, a table function is used with `.join(Expression)` or `.leftOuterJoin(Expression)` for Scala users and `.join(String)` or `.leftOuterJoin(String)` for Java users. The `join` operator (cross) joins each row from the outer table (table on the left of the operator) with all rows produced by the table-valued function (which is on the right side of the operator). The `leftOuterJoin` operator joins each row from the outer table (table on the left of the operator) with all rows produced by the table-valued function (which is on the right side of the operator) and preserves outer rows for which the table function returns an empty table. In SQL use `LATERAL TABLE(<TableFunction>)` with CROSS JOIN and LEFT JOIN with an ON TRUE join condition (see examples below).
 
 The following examples show how to define a table-valued function and use it:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-// the generic type "Tuple2<String, Integer>" determines the returned table type has two columns,
-// the first is a String type and the second is an Integer type
+// The generic type "Tuple2<String, Integer>" determines the schema of the returned table as (String, Integer).
 public class Split extends TableFunction<Tuple2<String, Integer>> {
     public void eval(String str) {
         for (String s : str.split(" ")) {
-            // use collect(...) to emit an output row
+            // use collect(...) to emit a row
             collect(new Tuple2<String, Integer>(s, s.length()));
         }
     }
@@ -3940,29 +3939,27 @@ public class Split extends TableFunction<Tuple2<String, Integer>> {
 BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 Table myTable = ...         // table schema: [a: String]
 
-// register the function
+// Register the function.
 tableEnv.registerFunction("split", new Split());
 
-// use the function in Java Table API
-// use AS to rename column names
+// Use the table function in the Java Table API. "as" specifies the field names of the table.
 myTable.join("split(a) as (word, length)").select("a, word, length");
 myTable.leftOuterJoin("split(a) as (word, length)").select("a, word, length");
 
-// use the function in SQL API, LATERAL and TABLE keywords are required
-// CROSS JOIN a table function (equivalent to "join" in Table API)
+// Use the table function in SQL with LATERAL and TABLE keywords.
+// CROSS JOIN a table function (equivalent to "join" in Table API).
 tableEnv.sql("SELECT a, word, length FROM MyTable, LATERAL TABLE(split(a)) as T(word, length)");
-// LEFT JOIN a table function (equivalent to "leftOuterJoin" in Table API)
+// LEFT JOIN a table function (equivalent to "leftOuterJoin" in Table API).
 tableEnv.sql("SELECT a, word, length FROM MyTable LEFT JOIN LATERAL TABLE(split(a)) as T(word, length) ON TRUE");
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-// the generic type "(String, Integer)" determines the returned table type has two columns,
-// the first is a String type and the second is an Integer type
-class Split extends TableFunction[(String, Integer)] {
+// The generic type "(String, Int)" determines the schema of the returned table as (String, Integer).
+class Split extends TableFunction[(String, Int)] {
   def eval(str: String): Unit = {
-    // use collect(...) to emit an output row
+    // use collect(...) to emit a row.
     str.split(" ").foreach(x -> collect((x, x.length))
   }
 }
@@ -3970,14 +3967,16 @@ class Split extends TableFunction[(String, Integer)] {
 val tableEnv = TableEnvironment.getTableEnvironment(env)
 val myTable = ...         // table schema: [a: String]
 
-// use the function in Scala Table API (Note: No registration required in Scala Table API)
+// Use the table function in the Scala Table API (Note: No registration required in Scala Table API).
 val split = new Split()
-// use AS to rename column names
+// "as" specifies the field names of the generated table.
 myTable.join(split('a) as ('word, 'length)).select('a, 'word, 'length);
 myTable.leftOuterJoin(split('a) as ('word, 'length)).select('a, 'word, 'length);
 
-// register and use the function in SQL API, LATERAL and TABLE keywords are required
+// Register the table function to use it in SQL queries.
 tableEnv.registerFunction("split", new Split())
+
+// Use the table function in SQL with LATERAL and TABLE keywords.
 // CROSS JOIN a table function (equivalent to "join" in Table API)
 tableEnv.sql("SELECT a, word, length FROM MyTable, LATERAL TABLE(split(a)) as T(word, length)");
 // LEFT JOIN a table function (equivalent to "leftOuterJoin" in Table API)
