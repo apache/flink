@@ -106,7 +106,7 @@ public class MetricQueryService extends UntypedActor {
 					this.meters.remove(metric);
 				}
 			} else if (message instanceof CreateDump) {
-				byte[] dump = serializer.serialize(counters, gauges, histograms, meters);
+				MetricDumpSerialization.MetricSerializationResult dump = serializer.serialize(counters, gauges, histograms, meters);
 				getSender().tell(dump, getSelf());
 			} else {
 				LOG.warn("MetricQueryServiceActor received an invalid message. " + message.toString());

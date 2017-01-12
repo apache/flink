@@ -30,6 +30,7 @@ import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.messages.webmonitor.RequestJobDetails;
+import org.apache.flink.runtime.metrics.dump.MetricDumpSerialization;
 import org.apache.flink.runtime.metrics.dump.MetricQueryService;
 import org.apache.flink.runtime.metrics.dump.MetricDump;
 import org.apache.flink.runtime.webmonitor.JobManagerRetriever;
@@ -42,7 +43,6 @@ import scala.concurrent.Future;
 import scala.concurrent.duration.Duration;
 import scala.concurrent.duration.FiniteDuration;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -191,8 +191,8 @@ public class MetricFetcher {
 		logErrorOnFailure(metricQueryFuture, "Fetching metrics failed.");
 	}
 
-	private void addMetrics(Object result) throws IOException {
-		byte[] data = (byte[]) result;
+	private void addMetrics(Object result) {
+		MetricDumpSerialization.MetricSerializationResult data = (MetricDumpSerialization.MetricSerializationResult) result;
 		List<MetricDump> dumpedMetrics = deserializer.deserialize(data);
 		for (MetricDump metric : dumpedMetrics) {
 			metrics.add(metric);
