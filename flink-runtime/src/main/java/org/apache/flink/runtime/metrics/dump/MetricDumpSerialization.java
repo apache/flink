@@ -85,9 +85,11 @@ public class MetricDumpSerialization {
 			}
 
 			for (Map.Entry<Gauge<?>, Tuple2<QueryScopeInfo, String>> entry : gauges.entrySet()) {
-				serializeMetricInfo(dos, entry.getValue().f0);
-				serializeString(dos, entry.getValue().f1);
-				serializeGauge(dos, entry.getKey());
+				if (entry.getKey().getValue() != null) {
+					serializeMetricInfo(dos, entry.getValue().f0);
+					serializeString(dos, entry.getValue().f1);
+					serializeGauge(dos, entry.getKey());
+				}
 			}
 
 			for (Map.Entry<Histogram, Tuple2<QueryScopeInfo, String>> entry : histograms.entrySet()) {
