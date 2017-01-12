@@ -22,16 +22,16 @@ nav.navbar.navbar-default.navbar-secondary-additional.navbar-secondary-additiona
   .navbar-info {{ vertex.name }}
   .navbar-info {{ nodeid }}
 
-  .dropup.add-metrics(ng-if="availableMetrics.length")
+  .dropdown.add-metrics(ng-if="availableMetrics.length")
     button.btn.btn-default.navbar-btn.dropdown-toggle(type='button', data-toggle='dropdown')
       | Add metric
       | &nbsp;
       span.caret
     ul.dropdown-menu.dropdown-menu-right.metric-menu
       li(ng-repeat="metric in availableMetrics track by $index")
-        a(ng-click="addMetric(metric)") {{ metric.id }}
+        a(ng-click="addMetric(metric)") {{ metric.id | limit }}
 
-  .dropup.add-metrics(ng-if="!availableMetrics.length")
+  .dropdown.add-metrics(ng-if="!availableMetrics.length")
     button.btn.btn-default.navbar-btn.dropdown-toggle(type='button', data-toggle='dropdown', disabled='disabled')
       i No metrics available
 
