@@ -2101,7 +2101,7 @@ angular.module('flinkApp').controller('JobSubmitController', ["$scope", "JobSubm
           }
         }
       };
-      xhr.open("POST", "/jars/upload");
+      xhr.open("POST", flinkConfig.jobServer + "jars/upload");
       return xhr.send(formdata);
     } else {
       return console.log("Unexpected Error. This should not happen");
