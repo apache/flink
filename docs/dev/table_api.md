@@ -1324,13 +1324,12 @@ val result = tableEnv.sql(
 
 #### Limitations
 
-The current version supports selection (filter), projection, inner equi-joins, grouping, non-distinct aggregates, and sorting on batch tables.
+The current version supports selection (filter), projection, inner equi-joins, grouping, aggregates, and sorting on batch tables.
 
 Among others, the following SQL features are not supported, yet:
 
 - Timestamps and intervals are limited to milliseconds precision
 - Interval arithmetic is currenly limited
-- Distinct aggregates (e.g., `COUNT(DISTINCT name)`)
 - Non-equi joins and Cartesian products
 - Efficient grouping sets
 

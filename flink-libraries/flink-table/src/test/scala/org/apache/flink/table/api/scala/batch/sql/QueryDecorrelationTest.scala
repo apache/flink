@@ -85,7 +85,7 @@ class QueryDecorrelationTest extends TableTestBase {
           term("join", "empno", "salary", "empno0"),
           term("joinType", "InnerJoin")
         ),
-        term("select", "salary", "empno0")
+        term("select", "empno0", "salary")
       ),
       term("groupBy", "empno0"),
       term("select", "empno0", "AVG(salary) AS EXPR$0")

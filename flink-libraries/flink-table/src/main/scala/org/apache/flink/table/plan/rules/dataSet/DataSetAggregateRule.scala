@@ -44,9 +44,6 @@ class DataSetAggregateRule
 
     // check if we have distinct aggregates
     val distinctAggs = agg.getAggCallList.exists(_.isDistinct)
-    if (distinctAggs) {
-      throw TableException("DISTINCT aggregates are currently not supported.")
-    }
 
     !distinctAggs
   }
