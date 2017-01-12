@@ -40,7 +40,7 @@ var mainBowerFiles = require('main-bower-files');
 var less = require('gulp-less');
 var path = require('path');
 
-var environment = 'development';
+var environment = 'production';
 var paths = {
   src: './app/',
   dest: './web/',
@@ -50,8 +50,8 @@ var paths = {
   tmp: './tmp/'
 }
 
-gulp.task('set-production', function() {
-  environment = 'production';
+gulp.task('set-development', function() {
+  environment = 'development';
 });
 
 gulp.task('fonts', function() {
@@ -157,6 +157,7 @@ gulp.task('styles', function () {
 });
 
 gulp.task('watch', function () {
+  environment = 'development';
   livereload.listen();
 
   gulp.watch(paths.vendorLocal + '**', ['vendor-scripts']);
@@ -181,5 +182,5 @@ gulp.task('vendor', ['vendor-styles', 'vendor-scripts']);
 gulp.task('compile', ['html', 'partials','styles', 'scripts']);
 
 gulp.task('default', ['fonts', 'assets', 'vendor', 'compile']);
-gulp.task('production', ['set-production', 'default']);
+gulp.task('dev', ['set-development', 'default']);
 
