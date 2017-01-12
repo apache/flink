@@ -341,7 +341,25 @@ public class QueryableStateClient {
 					return previous;
 				}
 			} else {
-				return cachedFuture;
+				// do not retain futures which failed as they will remain in
+				// the cache even if the error cause is not present any more
+				// and a new lookup may succeed
+				if (cachedFuture.isCompleted() &&
+					cachedFuture.value().get().isFailure()) {
+					// issue a new lookup
+					Future<KvStateLocation> lookupFuture = lookupService
+						.getKvStateLookupInfo(jobId, queryableStateName);
+
+					// replace the existing one if it has not been replaced yet
+					// otherwise return the one in the cache
+					if (lookupCache.replace(cacheKey, cachedFuture, lookupFuture)) {
+						return lookupFuture;
+					} else {
+						return lookupCache.get(cacheKey);
+					}
+				} else {
+					return cachedFuture;
+				}
 			}
 		}
 	}
