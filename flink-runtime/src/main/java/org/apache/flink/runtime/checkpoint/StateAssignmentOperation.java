@@ -109,8 +109,8 @@ public class StateAssignmentOperation {
 			if (hasNonPartitionedState && parallelismChanged) {
 				throw new IllegalStateException("Cannot restore the latest checkpoint because " +
 						"the operator " + executionJobVertex.getJobVertexId() + " has non-partitioned " +
-						"state and its parallelism changed. The operator" + executionJobVertex.getJobVertexId() +
-						" has parallelism " + newParallelism + " whereas the corresponding" +
+						"state and its parallelism changed. The operator " + executionJobVertex.getJobVertexId() +
+						" has parallelism " + newParallelism + " whereas the corresponding " +
 						"state object has a parallelism of " + oldParallelism);
 			}
 
