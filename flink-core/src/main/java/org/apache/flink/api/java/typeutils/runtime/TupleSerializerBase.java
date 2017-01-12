@@ -19,10 +19,7 @@
 package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
 
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.Objects;
 
@@ -83,13 +80,6 @@ public abstract class TupleSerializerBase<T> extends TypeSerializer<T> {
 
 	public abstract T createOrReuseInstance(Object[] fields, T reuse);
 
-	@Override
-	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		for (int i = 0; i < arity; i++) {
-			fieldSerializers[i].copy(source, target);
-		}
-	}
-	
 	@Override
 	public int hashCode() {
 		return 31 * Arrays.hashCode(fieldSerializers) + Objects.hash(tupleClass, arity);

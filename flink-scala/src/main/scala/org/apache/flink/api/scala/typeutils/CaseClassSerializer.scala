@@ -20,7 +20,7 @@ package org.apache.flink.api.scala.typeutils
 import org.apache.flink.annotation.Internal
 import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializerBase
-import org.apache.flink.core.memory.{DataOutputView, DataInputView}
+import org.apache.flink.core.memory.{DataInputView, DataOutputView}
 
 /**
  * Serializer for Case Classes. Creation and access is different from
@@ -37,7 +37,7 @@ abstract class CaseClassSerializer[T <: Product](
 
   @transient var instanceCreationFailed : Boolean = false
 
-  override def duplicate = {
+  override def duplicate: CaseClassSerializer[T] = {
     clone().asInstanceOf[CaseClassSerializer[T]]
   }
 
@@ -68,7 +68,7 @@ abstract class CaseClassSerializer[T <: Product](
         createInstance(fields)
       }
       catch {
-        case t: Throwable =>
+        case _: Throwable =>
           instanceCreationFailed = true
           null.asInstanceOf[T]
       }
@@ -84,21 +84,42 @@ abstract class CaseClassSerializer[T <: Product](
   }
 
   def copy(from: T): T = {
-    initArray()
-    var i = 0
-    while (i < arity) {
-      fields(i) = fieldSerializers(i).copy(from.productElement(i).asInstanceOf[AnyRef])
-      i += 1
+    if (from == null) {
+      null.asInstanceOf[T]
+    } else {
+      initArray()
+      var i = 0
+      while (i < arity) {
+        fields(i) = fieldSerializers(i).copy(from.productElement(i).asInstanceOf[AnyRef])
+        i += 1
+      }
+      createInstance(fields)
     }
-    createInstance(fields)
+  }
+
+  def copy(source: DataInputView, target: DataOutputView): Unit = {
+    val isNotNull = source.readBoolean()
+    target.writeBoolean(isNotNull)
+    if (isNotNull) {
+      var i = 0
+      while (i < arity) {
+        fieldSerializers(i).copy(source, target)
+        i += 1
+      }
+    }
   }
 
   def serialize(value: T, target: DataOutputView) {
     var i = 0
-    while (i < arity) {
-      val serializer = fieldSerializers(i).asInstanceOf[TypeSerializer[Any]]
-      serializer.serialize(value.productElement(i), target)
-      i += 1
+    if (value == null) {
+      target.writeBoolean(false)
+    } else {
+      target.writeBoolean(true)
+      while (i < arity) {
+        val serializer = fieldSerializers(i).asInstanceOf[TypeSerializer[Any]]
+        serializer.serialize(value.productElement(i), target)
+        i += 1
+      }
     }
   }
 
@@ -107,16 +128,20 @@ abstract class CaseClassSerializer[T <: Product](
   }
 
   def deserialize(source: DataInputView): T = {
-    initArray()
-    var i = 0
-    while (i < arity) {
-      fields(i) = fieldSerializers(i).deserialize(source)
-      i += 1
+    if (source.readBoolean()) {
+      initArray()
+      var i = 0
+      while (i < arity) {
+        fields(i) = fieldSerializers(i).deserialize(source)
+        i += 1
+      }
+      createInstance(fields)
+    } else {
+      null.asInstanceOf[T]
     }
-    createInstance(fields)
   }
 
-  def initArray() = {
+  def initArray(): Unit = {
     if (fields == null) {
       fields = new Array[AnyRef](arity)
     }

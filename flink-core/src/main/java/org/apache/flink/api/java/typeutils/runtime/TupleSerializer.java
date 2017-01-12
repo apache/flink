@@ -117,6 +117,13 @@ public class TupleSerializer<T extends Tuple> extends TupleSerializerBase<T> {
 	}
 
 	@Override
+	public void copy(DataInputView source, DataOutputView target) throws IOException {
+		for (int i = 0; i < arity; i++) {
+			fieldSerializers[i].copy(source, target);
+		}
+	}
+
+	@Override
 	public void serialize(T value, DataOutputView target) throws IOException {
 		for (int i = 0; i < arity; i++) {
 			Object o = value.getField(i);
