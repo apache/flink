@@ -99,7 +99,7 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 		this.lengthBuffer.putInt(0, len);
 		
 		if (numBytesOut != null) {
-			numBytesOut.inc(len);
+			numBytesOut.inc(len + 4);
 		}
 
 		this.dataBuffer = this.serializationBuffer.wrapAsByteBuffer();
