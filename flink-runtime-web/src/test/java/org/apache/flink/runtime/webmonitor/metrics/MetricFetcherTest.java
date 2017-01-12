@@ -115,7 +115,7 @@ public class MetricFetcherTest extends TestLogger {
 
 		MetricFetcher.BasicGateway jmQueryServiceGateway = mock(MetricFetcher.BasicGateway.class);
 		when(jmQueryServiceGateway.ask(any(MetricQueryService.getCreateDump().getClass()), any(FiniteDuration.class)))
-			.thenReturn(Future$.MODULE$.successful((Object) new byte[16]));
+			.thenReturn(Future$.MODULE$.successful((Object) new MetricDumpSerialization.MetricSerializationResult(new byte[0], 0, 0, 0, 0)));
 
 		MetricFetcher.BasicGateway tmQueryServiceGateway = mock(MetricFetcher.BasicGateway.class);
 		when(tmQueryServiceGateway.ask(any(MetricQueryService.getCreateDump().getClass()), any(FiniteDuration.class)))
@@ -171,7 +171,7 @@ public class MetricFetcherTest extends TestLogger {
 		}
 	}
 
-	private static byte[] createRequestDumpAnswer(InstanceID tmID, JobID jobID) throws IOException {
+	private static MetricDumpSerialization.MetricSerializationResult createRequestDumpAnswer(InstanceID tmID, JobID jobID) throws IOException {
 		Map<Counter, Tuple2<QueryScopeInfo, String>> counters = new HashMap<>();
 		Map<Gauge<?>, Tuple2<QueryScopeInfo, String>> gauges = new HashMap<>();
 		Map<Histogram, Tuple2<QueryScopeInfo, String>> histograms = new HashMap<>();
@@ -213,7 +213,7 @@ public class MetricFetcherTest extends TestLogger {
 		histograms.put(new TestingHistogram(), new Tuple2<QueryScopeInfo, String>(new QueryScopeInfo.JobManagerQueryScopeInfo("abc"), "hist"));
 
 		MetricDumpSerialization.MetricDumpSerializer serializer = new MetricDumpSerialization.MetricDumpSerializer();
-		byte[] dump = serializer.serialize(counters, gauges, histograms, meters);
+		MetricDumpSerialization.MetricSerializationResult dump = serializer.serialize(counters, gauges, histograms, meters);
 		serializer.close();
 
 		return dump;
