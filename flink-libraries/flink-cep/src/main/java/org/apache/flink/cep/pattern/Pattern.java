@@ -39,9 +39,9 @@ import java.util.Map;
  * a {@link NFA}.
  *
  * <pre>{@code
- * Pattern<T, F> pattern = Pattern.<T>begin("start")
- *   .next("middle").subtype(F.class)
- *   .followedBy("end").where(new MyFilterFunction());
+ * Pattern<T, F> pattern = EventPattern.<T>event("start")
+ *   .next(EventPattern.<T>event("middle").subtype(F.class))
+ *   .followedBy(EventPattern.<T>event("end").where(new MyFilterFunction()));
  * }
  * </pre>
  *
@@ -65,6 +65,23 @@ public class Pattern<T, F extends T> {
 		this.parents = new HashSet<>(Arrays.asList(parents));
 	}
 
+	/**
+	 * Function to define branched pattern.
+	 *
+	 * <pre>{@code
+	 * Pattern<T, F> pattern = EventPattern.<T>event("start")
+	 *   .next(
+	 *     Pattern.or(
+	 *       EventPattern.<T>event("middle_1").subtype(F.class)),
+	 *       EventPattern.<T>event("middle_2").where(new MyFilterFunction())
+	 *     ))
+	 *   .followedBy(EventPattern.<T>event("end"));
+	 * }
+	 * </pre>
+	 *
+	 * @param patterns Children patterns.
+	 * @return A new pattern operator which is appended to the patterns.
+	 */
 	@SafeVarargs
 	public static <T> Pattern<T, T> or(final Pattern<T, ? extends T>... patterns) {
 		return new Pattern<>(patterns);
@@ -93,12 +110,16 @@ public class Pattern<T, F extends T> {
 		return time < 0 ? null : Time.milliseconds(time);
 	}
 
+	public FilterFunction<F> getFilterFunction() {
+		return null;
+	}
+
 	/**
 	 * Defines the maximum time interval for a matching pattern. This means that the time gap
 	 * between first and the last event must not be longer than the window time.
 	 *
 	 * @param windowTime Time of the matching window
-	 * @return The same pattenr operator with the new window length
+	 * @return The same pattern operator with the new window length
 	 */
 	public Pattern<T, F> within(Time windowTime) {
 		if (windowTime != null) {
@@ -142,10 +163,6 @@ public class Pattern<T, F extends T> {
 		this.setSkipped();
 		next(pattern);
 		return (Pattern<T, T>) pattern;
-	}
-
-	public FilterFunction<F> getFilterFunction() {
-		return null;
 	}
 
 	/**
