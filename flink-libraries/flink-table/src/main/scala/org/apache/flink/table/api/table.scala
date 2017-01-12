@@ -82,6 +82,26 @@ class Table(
   def printSchema(): Unit = print(tableSchema.toString)
 
   /**
+    * Evaluates a SQL query directly on current [[Table]] and retrieves the result as a
+    * new [[Table]]. An underscore can be used to reference the current table.
+    *
+    * Example:
+    *
+    * {{{
+    *   tab.sql("SELECT a, b, c FROM _ WHERE d = 12")
+    * }}}
+    *
+    * @param query The SQL query to evaluate.
+    * @return The result of the query as Table.
+    */
+  def sql(query: String): Table = {
+    tableEnv.registerTable("_", this)
+    val table = tableEnv.sql(query)
+    tableEnv.unregisterTable("_")
+    table
+  }
+
+  /**
     * Performs a selection operation. Similar to an SQL SELECT statement. The field expressions
     * can contain complex expressions and aggregations.
     *
