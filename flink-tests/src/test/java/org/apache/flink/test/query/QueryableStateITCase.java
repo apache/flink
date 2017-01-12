@@ -622,40 +622,8 @@ public class QueryableStateITCase extends TestLogger {
 			// Now query
 			long expected = numElements;
 
-			FiniteDuration retryDelay = new FiniteDuration(1, TimeUnit.SECONDS);
-			for (int key = 0; key < NUM_SLOTS; key++) {
-				final byte[] serializedKey = KvStateRequestSerializer.serializeKeyAndNamespace(
-						key,
-						queryableState.getKeySerializer(),
-						VoidNamespace.INSTANCE,
-						VoidNamespaceSerializer.INSTANCE);
-
-				boolean success = false;
-				while (deadline.hasTimeLeft() && !success) {
-					Future<byte[]> future = getKvStateWithRetries(client,
-							jobId,
-							queryableState.getQueryableStateName(),
-							key,
-							serializedKey,
-							retryDelay);
-
-					byte[] serializedValue = Await.result(future, deadline.timeLeft());
-
-					Tuple2<Integer, Long> value = KvStateRequestSerializer.deserializeValue(
-							serializedValue,
-							queryableState.getValueSerializer());
-
-					assertEquals("Key mismatch", key, value.f0.intValue());
-					if (expected == value.f1) {
-						success = true;
-					} else {
-						// Retry
-						Thread.sleep(50);
-					}
-				}
-
-				assertTrue("Did not succeed query", success);
-			}
+			executeValueQuery(deadline, client, jobId, queryableState,
+				expected);
 		} finally {
 			// Free cluster resources
 			if (jobId != null) {
@@ -668,6 +636,50 @@ public class QueryableStateITCase extends TestLogger {
 			}
 
 			client.shutDown();
+		}
+	}
+
+	/**
+	 * Retry a query for state for keys between 0 and {@link #NUM_SLOTS} until
+	 * <tt>expected</tt> equals the value of the result tuple's second field.
+	 */
+	private void executeValueQuery(final Deadline deadline,
+		final QueryableStateClient client, final JobID jobId,
+		final QueryableStateStream<Integer, Tuple2<Integer, Long>> queryableState,
+		final long expected) throws Exception {
+		FiniteDuration retryDelay = new FiniteDuration(1, TimeUnit.SECONDS);
+		for (int key = 0; key < NUM_SLOTS; key++) {
+			final byte[] serializedKey = KvStateRequestSerializer.serializeKeyAndNamespace(
+				key,
+				queryableState.getKeySerializer(),
+				VoidNamespace.INSTANCE,
+				VoidNamespaceSerializer.INSTANCE);
+
+			boolean success = false;
+			while (deadline.hasTimeLeft() && !success) {
+				Future<byte[]> future = getKvStateWithRetries(client,
+					jobId,
+					queryableState.getQueryableStateName(),
+					key,
+					serializedKey,
+					retryDelay);
+
+				byte[] serializedValue = Await.result(future, deadline.timeLeft());
+
+				Tuple2<Integer, Long> value = KvStateRequestSerializer.deserializeValue(
+					serializedValue,
+					queryableState.getValueSerializer());
+
+				assertEquals("Key mismatch", key, value.f0.intValue());
+				if (expected == value.f1) {
+					success = true;
+				} else {
+					// Retry
+					Thread.sleep(50);
+				}
+			}
+
+			assertTrue("Did not succeed query", success);
 		}
 	}
 
@@ -718,40 +730,8 @@ public class QueryableStateITCase extends TestLogger {
 			// Now query
 			long expected = numElements;
 
-			FiniteDuration retryDelay = new FiniteDuration(1, TimeUnit.SECONDS);
-			for (int key = 0; key < NUM_SLOTS; key++) {
-				final byte[] serializedKey = KvStateRequestSerializer.serializeKeyAndNamespace(
-						key,
-						queryableState.getKeySerializer(),
-						VoidNamespace.INSTANCE,
-						VoidNamespaceSerializer.INSTANCE);
-
-				boolean success = false;
-				while (deadline.hasTimeLeft() && !success) {
-					Future<byte[]> future = getKvStateWithRetries(client,
-							jobId,
-							queryableState.getQueryableStateName(),
-							key,
-							serializedKey,
-							retryDelay);
-
-					byte[] serializedValue = Await.result(future, deadline.timeLeft());
-
-					Tuple2<Integer, Long> value = KvStateRequestSerializer.deserializeValue(
-							serializedValue,
-							queryableState.getValueSerializer());
-
-					assertEquals("Key mismatch", key, value.f0.intValue());
-					if (expected == value.f1) {
-						success = true;
-					} else {
-						// Retry
-						Thread.sleep(50);
-					}
-				}
-
-				assertTrue("Did not succeed query", success);
-			}
+			executeValueQuery(deadline, client, jobId, queryableState,
+				expected);
 		} finally {
 			// Free cluster resources
 			if (jobId != null) {
@@ -1024,40 +1004,8 @@ public class QueryableStateITCase extends TestLogger {
 			// Now query
 			long expected = numElements * (numElements + 1) / 2;
 
-			FiniteDuration retryDelay = new FiniteDuration(1, TimeUnit.SECONDS);
-			for (int key = 0; key < NUM_SLOTS; key++) {
-				final byte[] serializedKey = KvStateRequestSerializer.serializeKeyAndNamespace(
-						key,
-						queryableState.getKeySerializer(),
-						VoidNamespace.INSTANCE,
-						VoidNamespaceSerializer.INSTANCE);
-
-				boolean success = false;
-				while (deadline.hasTimeLeft() && !success) {
-					Future<byte[]> future = getKvStateWithRetries(client,
-							jobId,
-							queryableState.getQueryableStateName(),
-							key,
-							serializedKey,
-							retryDelay);
-
-					byte[] serializedValue = Await.result(future, deadline.timeLeft());
-
-					Tuple2<Integer, Long> value = KvStateRequestSerializer.deserializeValue(
-							serializedValue,
-							queryableState.getValueSerializer());
-
-					assertEquals("Key mismatch", key, value.f0.intValue());
-					if (expected == value.f1) {
-						success = true;
-					} else {
-						// Retry
-						Thread.sleep(50);
-					}
-				}
-
-				assertTrue("Did not succeed query", success);
-			}
+			executeValueQuery(deadline, client, jobId, queryableState,
+				expected);
 		} finally {
 			// Free cluster resources
 			if (jobId != null) {
