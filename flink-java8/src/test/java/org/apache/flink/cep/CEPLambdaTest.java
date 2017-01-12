@@ -18,19 +18,17 @@
 
 package org.apache.flink.cep;
 
+import static org.junit.Assert.assertEquals;
+
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.cep.pattern.EventPattern;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
 import org.apache.flink.util.TestLogger;
-
 import org.junit.Test;
-
-import java.util.Map;
-
-import static org.junit.Assert.*;
 
 public class CEPLambdaTest extends TestLogger {
 	public static class EventA {}
@@ -54,7 +52,7 @@ public class CEPLambdaTest extends TestLogger {
 				eventTypeInformation,
 				1));
 
-		Pattern<EventA, ?> dummyPattern = Pattern.begin("start");
+		Pattern<EventA, ?> dummyPattern = EventPattern.event("start");
 
 		PatternStream<EventA> patternStream = new PatternStream<>(inputStream, dummyPattern);
 
@@ -81,7 +79,7 @@ public class CEPLambdaTest extends TestLogger {
 				eventTypeInformation,
 				1));
 
-		Pattern<EventA, ?> dummyPattern = Pattern.begin("start");
+		Pattern<EventA, ?> dummyPattern = EventPattern.event("start");
 
 		PatternStream<EventA> patternStream = new PatternStream<>(inputStream, dummyPattern);
 
