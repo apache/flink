@@ -195,14 +195,13 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
 			} catch (Exception e) {
 				throw new Exception("Failed to draw state snapshot from function: " + e.getMessage(), e);
 			}
-		} else if (userFunction instanceof CheckpointedRestoring) {
-			out.write(0);
 		}
 	}
 
 	@Override
 	public void restoreState(FSDataInputStream in) throws Exception {
-		if (userFunction instanceof CheckpointedRestoring) {
+		if (userFunction instanceof Checkpointed ||
+				(userFunction instanceof CheckpointedRestoring && in instanceof Migration)) {
 			@SuppressWarnings("unchecked")
 			CheckpointedRestoring<Serializable> chkFunction = (CheckpointedRestoring<Serializable>) userFunction;
 
@@ -219,6 +218,7 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
 				}
 			}
 		} else if (in instanceof Migration) {
+			// absorb the introduced byte from the migration stream without too much further consequences
 			int hasUdfState = in.read();
 			if (hasUdfState == 1) {
 				throw new Exception("Found UDF state but operator is not instance of CheckpointedRestoring");
