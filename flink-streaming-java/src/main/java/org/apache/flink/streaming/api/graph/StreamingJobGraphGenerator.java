@@ -317,7 +317,7 @@ public class StreamingJobGraphGenerator {
 			// the parallelism should always be smaller or equal than the max parallelism
 			throw new IllegalStateException("The maximum parallelism (" + maxParallelism + ") of " +
 				"the stream node " + streamNode + " is smaller than the parallelism (" +
-				parallelism + "). Increase the maximum parallelism or decrease the parallelism of" +
+				parallelism + "). Increase the maximum parallelism or decrease the parallelism of " +
 				"this operator.");
 		} else {
 			jobVertex.setMaxParallelism(streamNode.getMaxParallelism());
