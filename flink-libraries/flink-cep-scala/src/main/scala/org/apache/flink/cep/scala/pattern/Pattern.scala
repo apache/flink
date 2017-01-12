@@ -18,7 +18,11 @@
 
 package org.apache.flink.cep.scala.pattern
 
+import java.util
+
 import org.apache.flink.api.common.functions.FilterFunction
+import org.apache.flink.api.java.tuple.Tuple2
+import org.apache.flink.cep.nfa.State
 import org.apache.flink.cep.pattern.{Pattern => JPattern}
 import org.apache.flink.cep.pattern.{EventPattern => JEventPattern}
 import org.apache.flink.streaming.api.windowing.time.Time
@@ -100,6 +104,21 @@ class Pattern[T, F <: T](jPattern: JPattern[T, F]) {
   def followedBy(pattern: Pattern[T, _ <: T]): Pattern[T, T] = {
     Pattern(jPattern.followedBy(pattern.wrappedPattern))
   }
+
+  /**
+    * Compute states for this pattern.
+    *
+    * @param states Current map of states.
+    * @param succeedingState State to transition.
+    * @param filterFunction Filter function for transition.
+    * @return A collection of the beginning states for this pattern.
+    */
+  def setStates(states: util.Map[String, State[T]],
+                succeedingState: State[T],
+                filterFunction: FilterFunction[T]
+               ): util.Collection[Tuple2[State[T], JPattern[T, _ <: T]]] =
+    jPattern.setStates(states, succeedingState, filterFunction)
+      .asInstanceOf[util.Collection[Tuple2[State[T], JPattern[T, _ <: T]]]]
 }
 
 object Pattern {

@@ -148,6 +148,14 @@ public class Pattern<T, F extends T> {
 		return null;
 	}
 
+	/**
+	 * Compute states for this pattern.
+	 *
+	 * @param states Current map of states.
+	 * @param succeedingState State to transition.
+	 * @param filterFunction Filter function for transition.
+	 * @return A collection of the beginning states for this pattern.
+	 */
 	@Internal
 	public Collection<Tuple2<State<T>, Pattern<T, ?>>> setStates(Map<String, State<T>> states, State<T> succeedingState, FilterFunction<T> filterFunction) {
 		Collection<Tuple2<State<T>, Pattern<T, ?>>> startStates = new ArrayList<>();
