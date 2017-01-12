@@ -2,7 +2,7 @@
 title: "RabbitMQ Connector"
 nav-title: RabbitMQ
 nav-parent_id: connectors
-nav-pos: 8
+nav-pos: 6
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

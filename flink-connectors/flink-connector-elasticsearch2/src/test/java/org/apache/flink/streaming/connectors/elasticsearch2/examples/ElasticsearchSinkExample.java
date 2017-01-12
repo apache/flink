@@ -14,16 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.streaming.connectors.elasticsearch5.examples;
+package org.apache.flink.streaming.connectors.elasticsearch2.examples;
 
-import com.google.common.collect.ImmutableMap;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.connectors.elasticsearch5.ElasticsearchSink;
-import org.apache.flink.streaming.connectors.elasticsearch5.ElasticsearchSinkFunction;
-import org.apache.flink.streaming.connectors.elasticsearch5.RequestIndexer;
+import org.apache.flink.streaming.connectors.elasticsearch2.ElasticsearchSink;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.client.Requests;
 
@@ -38,36 +35,35 @@ import java.util.Map;
  * This example shows how to use the Elasticsearch Sink. Before running it you must ensure that
  * you have a cluster named "elasticsearch" running or change the name of cluster in the config map.
  */
-public class ElasticsearchExample {
+public class ElasticsearchSinkExample {
 
 	public static void main(String[] args) throws Exception {
 
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		SingleOutputStreamOperator<String> source =
-			env.generateSequence(0, 20).map(new MapFunction<Long, String>() {
-				@Override
-				public String map(Long value) throws Exception {
-					return "message #" + value;
-				}
-			});
+		DataStream<String> source = env.generateSequence(0, 20).map(new MapFunction<Long, String>() {
+			@Override
+			public String map(Long value) throws Exception {
+				return "message #" + value;
+			}
+		});
 
-		Map<String, String> esConfig = ImmutableMap.of("cluster.name", "elasticsearch");
-
+		Map<String, String> userConfig = new HashMap<>();
+		userConfig.put("cluster.name", "elasticsearch");
 		// This instructs the sink to emit after every element, otherwise they would be buffered
-		Map<String, String> sinkConfig = ImmutableMap.of(ElasticsearchSink.CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, "1");
+		userConfig.put(ElasticsearchSink.CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, "1");
 
 		List<InetSocketAddress> transports = new ArrayList<>();
 		transports.add(new InetSocketAddress(InetAddress.getByName("127.0.0.1"), 9300));
 
-		source.addSink(new ElasticsearchSink<>(esConfig, sinkConfig, transports, new ElasticsearchSinkFunction<String>() {
+		source.addSink(new ElasticsearchSink<>(userConfig, transports, new org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunction<String>(){
 			@Override
-			public void process(String element, RuntimeContext ctx, RequestIndexer indexer) {
+			public void process(String element, RuntimeContext ctx, org.apache.flink.streaming.connectors.elasticsearch.RequestIndexer indexer) {
 				indexer.add(createIndexRequest(element));
 			}
 		}));
 
-		env.execute("Elasticsearch Example");
+		env.execute("Elasticsearch Sink Example");
 	}
 
 	private static IndexRequest createIndexRequest(String element) {

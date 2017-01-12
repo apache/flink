@@ -14,12 +14,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.streaming.connectors.elasticsearch5;
+
+package org.apache.flink.streaming.connectors.elasticsearch2;
 
 import org.elasticsearch.action.ActionRequest;
 
-import java.io.Serializable;
+/**
+ * A dummy {@link org.apache.flink.streaming.connectors.elasticsearch.RequestIndexer} to bridge
+ * the migration from the deprecated {@link RequestIndexer}.
+ */
+class OldNewRequestIndexerBridge implements RequestIndexer {
 
-public interface RequestIndexer extends Serializable {
-	void add(ActionRequest... actionRequests);
+	private static final long serialVersionUID = 4213982619497149416L;
+
+	private final org.apache.flink.streaming.connectors.elasticsearch.RequestIndexer requestIndexer;
+
+	OldNewRequestIndexerBridge(org.apache.flink.streaming.connectors.elasticsearch.RequestIndexer requestIndexer) {
+		this.requestIndexer = requestIndexer;
+	}
+
+	@Override
+	public void add(ActionRequest... actionRequests) {
+		requestIndexer.add(actionRequests);
+	}
+
 }
