@@ -19,7 +19,7 @@
 package org.apache.flink.table.api.scala.batch.table
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase
+import org.apache.flink.table.api.scala.batch.utils.TableProgramsCollectionTestBase
 import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.table.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
@@ -36,9 +36,8 @@ import scala.collection.JavaConverters._
 
 @RunWith(classOf[Parameterized])
 class JoinITCase(
-    mode: TestExecutionMode,
     configMode: TableConfigMode)
-  extends TableProgramsTestBase(mode, configMode) {
+  extends TableProgramsCollectionTestBase(configMode) {
 
   @Test
   def testJoin(): Unit = {

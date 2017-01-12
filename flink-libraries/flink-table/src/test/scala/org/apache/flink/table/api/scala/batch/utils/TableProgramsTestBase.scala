@@ -53,8 +53,8 @@ object TableProgramsTestBase {
   val NO_NULL = TableConfigMode(nullCheck = false, efficientTypes = false)
   val EFFICIENT = TableConfigMode(nullCheck = false, efficientTypes = true)
 
-  @Parameterized.Parameters(name = "Execution mode = {0}, Table config = {1}")
+  @Parameterized.Parameters(name = "Table config = {0}")
   def parameters(): util.Collection[Array[java.lang.Object]] = {
-    Seq[Array[AnyRef]](Array(TestExecutionMode.COLLECTION, DEFAULT))
+    Seq[Array[AnyRef]](Array(DEFAULT))
   }
 }

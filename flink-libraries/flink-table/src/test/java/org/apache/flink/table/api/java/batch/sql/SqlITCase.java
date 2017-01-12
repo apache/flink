@@ -24,7 +24,7 @@ import org.apache.flink.table.api.java.BatchTableEnvironment;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.types.Row;
-import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase;
+import org.apache.flink.table.api.scala.batch.utils.TableProgramsCollectionTestBase;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
@@ -35,10 +35,10 @@ import org.junit.runners.Parameterized;
 import java.util.List;
 
 @RunWith(Parameterized.class)
-public class SqlITCase extends TableProgramsTestBase {
+public class SqlITCase extends TableProgramsCollectionTestBase {
 
-	public SqlITCase(TestExecutionMode mode, TableConfigMode configMode) {
-		super(mode, configMode);
+	public SqlITCase(TableConfigMode configMode) {
+		super(configMode);
 	}
 
 	@Test

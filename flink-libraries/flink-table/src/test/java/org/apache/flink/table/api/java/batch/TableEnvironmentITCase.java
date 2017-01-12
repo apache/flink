@@ -33,8 +33,9 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
-import org.apache.flink.types.Row;
+import org.apache.flink.table.api.scala.batch.utils.TableProgramsCollectionTestBase;
 import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase;
+import org.apache.flink.types.Row;
 import org.apache.flink.table.calcite.CalciteConfig;
 import org.apache.flink.table.calcite.CalciteConfigBuilder;
 import org.apache.flink.table.api.Table;
@@ -46,17 +47,17 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 @RunWith(Parameterized.class)
-public class TableEnvironmentITCase extends TableProgramsTestBase {
+public class TableEnvironmentITCase extends TableProgramsCollectionTestBase {
 
-	public TableEnvironmentITCase(TestExecutionMode mode, TableConfigMode configMode) {
-		super(mode, configMode);
+	public TableEnvironmentITCase(TableConfigMode configMode) {
+		super(configMode);
 	}
 
-	@Parameterized.Parameters(name = "Execution mode = {0}, Table config = {1}")
+	@Parameterized.Parameters(name = "Table config = {0}")
 	public static Collection<Object[]> parameters() {
 		return Arrays.asList(new Object[][] {
-			{ TestExecutionMode.COLLECTION, TableProgramsTestBase.DEFAULT() },
-			{ TestExecutionMode.COLLECTION, TableProgramsTestBase.EFFICIENT() }
+			{ TableProgramsTestBase.DEFAULT() },
+			{ TableProgramsTestBase.EFFICIENT() }
 		});
 	}
 
