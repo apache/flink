@@ -18,88 +18,37 @@
 
 package org.apache.flink.table
 
-import org.apache.calcite.rel.rules.{CalcSplitRule, CalcMergeRule, FilterMergeRule}
-import org.apache.calcite.sql.fun.{SqlStdOperatorTable, OracleSqlOperatorTable}
-import org.apache.calcite.tools.RuleSets
-import org.apache.flink.table.calcite.{CalciteConfigBuilder, CalciteConfig}
-import org.junit.Test
+import org.apache.calcite.sql.fun.{OracleSqlOperatorTable, SqlStdOperatorTable}
+import org.apache.flink.table.calcite.{CalciteConfig, CalciteConfigBuilder, RuleSetConfig, RuleSetConfigBuilder}
 import org.junit.Assert._
+import org.junit.Test
 
 import scala.collection.JavaConverters._
 
 class CalciteConfigBuilderTest {
 
   @Test
-  def testDefaultRules(): Unit = {
+  def testDefaultRuleSetConfig(): Unit = {
 
     val cc: CalciteConfig = new CalciteConfigBuilder()
       .build()
 
-    assertEquals(false, cc.replacesRuleSet)
-    assertFalse(cc.getRuleSet.isDefined)
+    assertFalse(cc.getRuleSetConfig.isDefined)
   }
 
   @Test
-  def testReplaceRules(): Unit = {
+  def testReplaceRuleSetConfig(): Unit = {
 
-    val cc: CalciteConfig = new CalciteConfigBuilder()
-      .replaceRuleSet(RuleSets.ofList(FilterMergeRule.INSTANCE))
+    val rc: RuleSetConfig = new RuleSetConfigBuilder()
       .build()
 
-    assertEquals(true, cc.replacesRuleSet)
-    assertTrue(cc.getRuleSet.isDefined)
-    val cSet = cc.getRuleSet.get.iterator().asScala.toSet
-    assertEquals(1, cSet.size)
-    assertTrue(cSet.contains(FilterMergeRule.INSTANCE))
-  }
-
-  @Test
-  def testReplaceAddRules(): Unit = {
-
     val cc: CalciteConfig = new CalciteConfigBuilder()
-      .replaceRuleSet(RuleSets.ofList(FilterMergeRule.INSTANCE))
-      .addRuleSet(RuleSets.ofList(CalcMergeRule.INSTANCE, CalcSplitRule.INSTANCE))
+      .replaceRuleSetConfig(rc)
       .build()
 
-    assertEquals(true, cc.replacesRuleSet)
-    assertTrue(cc.getRuleSet.isDefined)
-    val cSet = cc.getRuleSet.get.iterator().asScala.toSet
-    assertEquals(3, cSet.size)
-    assertTrue(cSet.contains(FilterMergeRule.INSTANCE))
-    assertTrue(cSet.contains(CalcMergeRule.INSTANCE))
-    assertTrue(cSet.contains(CalcSplitRule.INSTANCE))
+    assertTrue(cc.getRuleSetConfig.isDefined)
   }
 
-  @Test
-  def testAddRules(): Unit = {
-
-    val cc: CalciteConfig = new CalciteConfigBuilder()
-      .addRuleSet(RuleSets.ofList(FilterMergeRule.INSTANCE))
-      .build()
-
-    assertEquals(false, cc.replacesRuleSet)
-    assertTrue(cc.getRuleSet.isDefined)
-    val cSet = cc.getRuleSet.get.iterator().asScala.toSet
-    assertEquals(1, cSet.size)
-    assertTrue(cSet.contains(FilterMergeRule.INSTANCE))
-  }
-
-  @Test
-  def testAddAddRules(): Unit = {
-
-    val cc: CalciteConfig = new CalciteConfigBuilder()
-      .addRuleSet(RuleSets.ofList(FilterMergeRule.INSTANCE))
-      .addRuleSet(RuleSets.ofList(CalcMergeRule.INSTANCE, CalcSplitRule.INSTANCE))
-      .build()
-
-    assertEquals(false, cc.replacesRuleSet)
-    assertTrue(cc.getRuleSet.isDefined)
-    val cSet = cc.getRuleSet.get.iterator().asScala.toSet
-    assertEquals(3, cSet.size)
-    assertTrue(cSet.contains(FilterMergeRule.INSTANCE))
-    assertTrue(cSet.contains(CalcMergeRule.INSTANCE))
-    assertTrue(cSet.contains(CalcSplitRule.INSTANCE))
-  }
 
   @Test
   def testDefaultOperatorTable(): Unit = {

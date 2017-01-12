@@ -18,21 +18,16 @@
 
 package org.apache.flink.table.calcite
 
-import org.apache.calcite.plan.RelOptRule
 import org.apache.calcite.sql.SqlOperatorTable
 import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.sql.util.ChainedSqlOperatorTable
-import org.apache.calcite.tools.{RuleSet, RuleSets}
 import org.apache.flink.util.Preconditions
-
-import scala.collection.JavaConverters._
 
 /**
   * Builder for creating a Calcite configuration.
   */
 class CalciteConfigBuilder {
-  private var replaceRules: Boolean = false
-  private var ruleSets: List[RuleSet] = Nil
+  private var replaceRuleSetConfig: Option[RuleSetConfig] = None
 
   private var replaceOperatorTable: Boolean = false
   private var operatorTables: List[SqlOperatorTable] = Nil
@@ -40,21 +35,11 @@ class CalciteConfigBuilder {
   private var replaceSqlParserConfig: Option[SqlParser.Config] = None
 
   /**
-    * Replaces the built-in rule set with the given rule set.
+    * Replaces the built-in RuleSet configuration with the given configuration.
     */
-  def replaceRuleSet(replaceRuleSet: RuleSet): CalciteConfigBuilder = {
-    Preconditions.checkNotNull(replaceRuleSet)
-    ruleSets = List(replaceRuleSet)
-    replaceRules = true
-    this
-  }
-
-  /**
-    * Appends the given rule set to the built-in rule set.
-    */
-  def addRuleSet(addedRuleSet: RuleSet): CalciteConfigBuilder = {
-    Preconditions.checkNotNull(addedRuleSet)
-    ruleSets = addedRuleSet :: ruleSets
+  def replaceRuleSetConfig(ruleSetConfig: RuleSetConfig): CalciteConfigBuilder = {
+    Preconditions.checkNotNull(ruleSetConfig)
+    replaceRuleSetConfig = Some(ruleSetConfig)
     this
   }
 
@@ -87,32 +72,23 @@ class CalciteConfigBuilder {
   }
 
   private class CalciteConfigImpl(
-      val getRuleSet: Option[RuleSet],
-      val replacesRuleSet: Boolean,
-      val getSqlOperatorTable: Option[SqlOperatorTable],
-      val replacesSqlOperatorTable: Boolean,
-      val getSqlParserConfig: Option[SqlParser.Config])
+    val getRuleSetConfig: Option[RuleSetConfig],
+    val getSqlOperatorTable: Option[SqlOperatorTable],
+    val replacesSqlOperatorTable: Boolean,
+    val getSqlParserConfig: Option[SqlParser.Config])
     extends CalciteConfig
 
   /**
     * Builds a new [[CalciteConfig]].
     */
   def build(): CalciteConfig = new CalciteConfigImpl(
-        ruleSets match {
-      case Nil => None
-      case h :: Nil => Some(h)
-      case _ =>
-        // concat rule sets
-        val concatRules = ruleSets.foldLeft(Nil: Iterable[RelOptRule])( (c, r) => r.asScala ++ c)
-        Some(RuleSets.ofList(concatRules.asJava))
-    },
-    this.replaceRules,
+    replaceRuleSetConfig,
     operatorTables match {
       case Nil => None
       case h :: Nil => Some(h)
       case _ =>
         // chain operator tables
-        Some(operatorTables.reduce( (x, y) => ChainedSqlOperatorTable.of(x, y)))
+        Some(operatorTables.reduce((x, y) => ChainedSqlOperatorTable.of(x, y)))
     },
     this.replaceOperatorTable,
     replaceSqlParserConfig)
@@ -122,15 +98,11 @@ class CalciteConfigBuilder {
   * Calcite configuration for defining a custom Calcite configuration for Table and SQL API.
   */
 trait CalciteConfig {
-  /**
-    * Returns whether this configuration replaces the built-in rule set.
-    */
-  def replacesRuleSet: Boolean
 
   /**
-    * Returns a custom rule set.
+    * Returns a custom RuleSet configuration.
     */
-  def getRuleSet: Option[RuleSet]
+  def getRuleSetConfig: Option[RuleSetConfig]
 
   /**
     * Returns whether this configuration replaces the built-in SQL operator table.

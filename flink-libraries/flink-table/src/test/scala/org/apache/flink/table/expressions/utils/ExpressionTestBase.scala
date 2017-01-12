@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.expressions.utils
 
+import org.apache.calcite.plan.hep.{HepMatchOrder, HepPlanner, HepProgramBuilder}
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql2rel.RelDecorrelator
@@ -57,6 +58,16 @@ abstract class ExpressionTestBase {
     context._2.getPlanner,
     context._2.getTypeFactory)
   private val optProgram = Programs.ofRules(FlinkRuleSets.DATASET_OPT_RULES)
+
+  private def hepPlanner = {
+    val builder = new HepProgramBuilder
+    builder.addMatchOrder(HepMatchOrder.BOTTOM_UP)
+    val it = FlinkRuleSets.DATASET_NORM_RULES.iterator()
+    while (it.hasNext) {
+      builder.addRuleInstance(it.next())
+    }
+    new HepPlanner(builder.build, context._2.getFrameworkConfig.getContext)
+  }
 
   private def prepareContext(typeInfo: TypeInformation[Any]): (RelBuilder, TableEnvironment) = {
     // create DataSetTable
@@ -140,10 +151,20 @@ abstract class ExpressionTestBase {
     val validated = planner.validate(parsed)
     val converted = planner.rel(validated).rel
 
-    // create DataSetCalc
     val decorPlan = RelDecorrelator.decorrelateQuery(converted)
+
+    // normalize
+    val normalizedPlan = if (FlinkRuleSets.DATASET_NORM_RULES.iterator().hasNext) {
+      val planner = hepPlanner
+      planner.setRoot(decorPlan)
+      planner.findBestExp
+    } else {
+      decorPlan
+    }
+
+    // create DataSetCalc
     val flinkOutputProps = converted.getTraitSet.replace(DataSetConvention.INSTANCE).simplify()
-    val dataSetCalc = optProgram.run(context._2.getPlanner, decorPlan, flinkOutputProps)
+    val dataSetCalc = optProgram.run(context._2.getPlanner, normalizedPlan, flinkOutputProps)
 
     // extract RexNode
     val calcProgram = dataSetCalc
