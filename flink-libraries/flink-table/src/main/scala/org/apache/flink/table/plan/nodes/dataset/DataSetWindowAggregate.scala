@@ -120,19 +120,26 @@ class DataSetWindowAggregate(
       // tell the input operator that this operator currently only supports Rows as input
       Some(TypeConverter.DEFAULT_ROW_TYPE))
 
+    // whether identifiers are matched case-sensitively
+    val caseSensitive = tableEnv.getFrameworkConfig.getParserConfig.caseSensitive()
     val result = window match {
       case EventTimeTumblingGroupWindow(_, _, size) =>
-        createEventTimeTumblingWindowDataSet(inputDS, isTimeInterval(size.resultType))
+        createEventTimeTumblingWindowDataSet(
+          inputDS,
+          isTimeInterval(size.resultType),
+          caseSensitive)
+
       case EventTimeSessionGroupWindow(_, _, _) =>
         throw new UnsupportedOperationException(
-          "Event-time session windows on batch are currently not supported")
+          "Event-time session windows in a batch environment are currently not supported")
       case EventTimeSlidingGroupWindow(_, _, _, _) =>
         throw new UnsupportedOperationException(
-          "Event-time sliding windows on batch are currently not supported")
+          "Event-time sliding windows in a batch environment are currently not supported")
       case _: ProcessingTimeGroupWindow =>
         throw new UnsupportedOperationException(
-          "Processing-time tumbling windows are not supported on batch tables, " +
-            "window on batch must declare a time attribute over which the query is evaluated.")
+          "Processing-time tumbling windows are not supported in a batch environment, " +
+            "windows in a batch environment must declare a time attribute over which " +
+            "the query is evaluated.")
     }
 
     // if the expected type is not a Row, inject a mapper to convert to the expected type
@@ -156,13 +163,15 @@ class DataSetWindowAggregate(
 
   private def createEventTimeTumblingWindowDataSet(
       inputDS: DataSet[Any],
-      isTimeWindow: Boolean)
+      isTimeWindow: Boolean,
+      isParserCaseSensitive: Boolean)
     : DataSet[Any] = {
     val mapFunction = createDataSetWindowPrepareMapFunction(
       window,
       namedAggregates,
       grouping,
-      inputType)
+      inputType,
+      isParserCaseSensitive)
     val groupReduceFunction = createDataSetWindowAggGroupReduceFunction(
       window,
       namedAggregates,
@@ -175,9 +184,9 @@ class DataSetWindowAggregate(
       .map(mapFunction)
       .name(prepareOperatorName)
 
+    val mapReturnType = mapFunction.asInstanceOf[ResultTypeQueryable[Row]].getProducedType
     if (isTimeWindow) {
       // grouped time window aggregation
-      val mapReturnType = mapFunction.asInstanceOf[ResultTypeQueryable[Row]].getProducedType
       // group by grouping keys and rowtime field (the last field in the row)
       val groupingKeys = grouping.indices ++ Seq(mapReturnType.getArity - 1)
       mappedInput.asInstanceOf[DataSet[Row]]
@@ -193,8 +202,8 @@ class DataSetWindowAggregate(
         // grouped aggregation
         mappedInput.asInstanceOf[DataSet[Row]]
           .groupBy(groupingKeys: _*)
-          // sort on time field, it's the one after grouping keys
-          .sortGroup(groupingKeys.length, Order.ASCENDING)
+          // sort on time field, it's the last element in the row
+          .sortGroup(mapReturnType.getArity - 1, Order.ASCENDING)
           .reduceGroup(groupReduceFunction)
           .returns(resultRowTypeInfo)
           .name(aggregateOperatorName)

@@ -15,11 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.api.scala.batch.table
+package org.apache.flink.table.api.scala.batch.table
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.scala.Session
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.utils.TableTestBase

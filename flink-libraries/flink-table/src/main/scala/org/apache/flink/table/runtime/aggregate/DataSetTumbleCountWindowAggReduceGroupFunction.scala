@@ -24,9 +24,6 @@ import org.apache.flink.configuration.Configuration
 import org.apache.flink.types.Row
 import org.apache.flink.util.{Collector, Preconditions}
 
-import scala.collection.JavaConversions._
-
-
 /**
   * It wraps the aggregate logic inside of
   * [[org.apache.flink.api.java.operators.GroupReduceOperator]].
@@ -64,7 +61,10 @@ class DataSetTumbleCountWindowAggReduceGroupFunction(
 
     var count: Long = 0
 
-    records.foreach( (record) => {
+    val iterator = records.iterator()
+
+    while (iterator.hasNext) {
+      val record = iterator.next()
       if (count == 0) {
         // initiate intermediate aggregate value.
         aggregates.foreach(_.initiate(aggregateBuffer))
@@ -88,6 +88,6 @@ class DataSetTumbleCountWindowAggReduceGroupFunction(
         out.collect(output)
         count = 0
       }
-    })
+    }
   }
 }

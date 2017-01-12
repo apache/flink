@@ -25,9 +25,6 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow
 import org.apache.flink.types.Row
 import org.apache.flink.util.{Collector, Preconditions}
 
-import scala.collection.JavaConversions._
-
-
 /**
   * It wraps the aggregate logic inside of
   * [[org.apache.flink.api.java.operators.GroupReduceOperator]]. It is used for tumbling time-window
@@ -76,10 +73,13 @@ class DataSetTumbleTimeWindowAggReduceGroupFunction(
 
     // merge intermediate aggregate value to buffer.
     var last: Row = null
-    records.foreach((record) => {
+
+    val iterator = records.iterator()
+    while (iterator.hasNext) {
+      val record = iterator.next()
       aggregates.foreach(_.merge(record, aggregateBuffer))
       last = record
-    })
+    }
 
     // set group keys value to final output.
     groupKeysMapping.foreach {

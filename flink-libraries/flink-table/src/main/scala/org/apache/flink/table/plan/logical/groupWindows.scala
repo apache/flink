@@ -124,7 +124,8 @@ case class EventTimeTumblingGroupWindow(
         case Literal(_, RowIntervalTypeInfo.INTERVAL_ROWS)
           if tableEnv.isInstanceOf[StreamTableEnvironment] =>
           ValidationFailure(
-            "Event-time grouping windows on row intervals are currently not supported.")
+            "Event-time grouping windows on row intervals in a stream environment " +
+              "are currently not supported.")
         case _ =>
           ValidationSuccess
       })
@@ -214,7 +215,8 @@ case class EventTimeSlidingGroupWindow(
         case Literal(_, RowIntervalTypeInfo.INTERVAL_ROWS)
           if tableEnv.isInstanceOf[StreamTableEnvironment] =>
           ValidationFailure(
-            "Event-time grouping windows on row intervals are currently not supported.")
+            "Event-time grouping windows on row intervals in a stream environment " +
+              "are currently not supported.")
         case _ =>
           ValidationSuccess
       })

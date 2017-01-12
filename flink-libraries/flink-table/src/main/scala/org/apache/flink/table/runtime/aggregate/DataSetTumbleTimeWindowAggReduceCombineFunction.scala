@@ -22,8 +22,6 @@ import java.lang.Iterable
 import org.apache.flink.api.common.functions.CombineFunction
 import org.apache.flink.types.Row
 
-import scala.collection.JavaConversions._
-
 /**
   * It wraps the aggregate logic inside of
   * [[org.apache.flink.api.java.operators.GroupReduceOperator]] and
@@ -78,10 +76,13 @@ class DataSetTumbleTimeWindowAggReduceCombineFunction(
 
     // merge intermediate aggregate value to buffer.
     var last: Row = null
-    records.foreach((record) => {
+
+    val iterator = records.iterator()
+    while (iterator.hasNext) {
+      val record = iterator.next()
       aggregates.foreach(_.merge(record, aggregateBuffer))
       last = record
-    })
+    }
 
     // set group keys to aggregateBuffer.
     for (i <- groupKeysMapping.indices) {

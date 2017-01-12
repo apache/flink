@@ -116,7 +116,8 @@ object AggregateUtil {
     window: LogicalWindow,
     namedAggregates: Seq[CalcitePair[AggregateCall, String]],
     groupings: Array[Int],
-    inputType: RelDataType): MapFunction[Any, Row] = {
+    inputType: RelDataType,
+    isParserCaseSensitive: Boolean): MapFunction[Any, Row] = {
 
     val (aggFieldIndexes, aggregates) = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),
@@ -128,9 +129,14 @@ object AggregateUtil {
 
     val (timeFieldPos, tumbleTimeWindowSize) = window match {
       case EventTimeTumblingGroupWindow(_, time, size) =>
-        (getTimeFieldPosition(time, inputType), Some(asLong(size)))
+        val timeFieldPos = getTimeFieldPosition(time, inputType, isParserCaseSensitive)
+        size match {
+          case Literal(value: Long, TimeIntervalTypeInfo.INTERVAL_MILLIS) =>
+            (timeFieldPos, Some(value))
+          case _ => (timeFieldPos, None)
+        }
       case EventTimeSessionGroupWindow(_, time, _) =>
-        (getTimeFieldPosition(time, inputType), None)
+        (getTimeFieldPosition(time, inputType, isParserCaseSensitive), None)
       case _ =>
         throw new UnsupportedOperationException(s"$window is currently not supported on batch")
     }
@@ -668,7 +674,7 @@ object AggregateUtil {
     // get all field data types of all intermediate aggregates
     val aggTypes: Seq[TypeInformation[_]] = aggregates.flatMap(_.intermediateDataType)
 
-    // concat group key types and aggregation types
+    // concat group key types and aggregation types, and window key types (may be empty)
     val allFieldTypes = groupingTypes ++: aggTypes ++: windowKeyType
     val partialType = new RowTypeInfo(allFieldTypes.toSeq: _*)
     partialType
@@ -730,18 +736,31 @@ object AggregateUtil {
     groupingOffsetMapping.toArray
   }
 
-  private def getTimeFieldPosition(timeField: Expression, inputType: RelDataType): Int = {
+  private def getTimeFieldPosition(
+    timeField: Expression,
+    inputType: RelDataType,
+    isParserCaseSensitive: Boolean): Int = {
+
     timeField match {
-      case ResolvedFieldReference(name, resultType) =>
+      case ResolvedFieldReference(name, _) =>
         // get the RelDataType referenced by the time-field
-        val relDataType = inputType.getFieldList.filter(r => name.equals(r.getName))
+        val relDataType = inputType.getFieldList.filter { r =>
+          if (isParserCaseSensitive) {
+            name.equals(r.getName)
+          } else {
+            name.equalsIgnoreCase(r.getName)
+          }
+        }
         // should only match one
         if (relDataType.length == 1) {
           relDataType.head.getIndex
         } else {
-          throw new IllegalArgumentException()
+          throw TableException(
+            s"Encountered more than one time attribute with the same name: $relDataType")
         }
-      case _ => throw new IllegalArgumentException()
+      case e => throw TableException(
+        "The time attribute of window in batch environment should be " +
+          s"ResolvedFieldReference, but is $e")
     }
   }
 
