@@ -18,6 +18,9 @@
 
 package org.apache.flink.cep.nfa.compiler;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -28,6 +31,7 @@ import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.State;
 import org.apache.flink.cep.nfa.StateTransition;
 import org.apache.flink.cep.nfa.StateTransitionAction;
+import org.apache.flink.cep.pattern.EventPattern;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
@@ -37,9 +41,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.assertEquals;
-
 public class NFACompilerTest extends TestLogger {
 
 	/**
@@ -47,27 +48,37 @@ public class NFACompilerTest extends TestLogger {
 	 */
 	@Test
 	public void testNFACompilerWithSimplePattern() {
-		Pattern<Event, Event> pattern = Pattern.<Event>begin("start").where(new FilterFunction<Event>() {
-			private static final long serialVersionUID = 3314714776170474221L;
-
-			@Override
-			public boolean filter(Event value) throws Exception {
-				return value.getPrice() > 2;
-			}
-		})
-		.followedBy("middle").subtype(SubEvent.class)
-		.next("end").where(new FilterFunction<Event>() {
-				private static final long serialVersionUID = 3990995859716364087L;
+		Pattern<Event, ?> pattern = EventPattern.<Event>event("start")
+			.where(new FilterFunction<Event>() {
+				private static final long serialVersionUID = 3314714776170474221L;
 
 				@Override
-			public boolean filter(Event value) throws Exception {
-				return value.getName().equals("end");
-			}
-		});
+				public boolean filter(Event value) throws Exception {
+					return value.getPrice() > 2;
+				}
+			})
+			.followedBy(
+				EventPattern.<Event>event("middle")
+					.subtype(SubEvent.class)
+			)
+			.next(
+				EventPattern.<Event>event("end")
+					.where(new FilterFunction<Event>() {
+						private static final long serialVersionUID = 3990995859716364087L;
+
+						@Override
+						public boolean filter(Event value) throws Exception {
+							return value.getName().equals("end");
+						}
+					})
+			);
 
 		TypeInformation<Event> typeInformation = TypeExtractor.createTypeInfo(Event.class);
 
-		NFA<Event> nfa = NFACompiler.compile(pattern, typeInformation.createSerializer(new ExecutionConfig()), false);
+		NFA<Event>
+			nfa =
+			NFACompiler
+				.compile(pattern, typeInformation.createSerializer(new ExecutionConfig()), false);
 
 		Set<State<Event>> states = nfa.getStates();
 
@@ -75,7 +86,7 @@ public class NFACompilerTest extends TestLogger {
 
 		Map<String, State<Event>> stateMap = new HashMap<>();
 
-		for (State<Event> state: states) {
+		for (State<Event> state : states) {
 			stateMap.put(state.getName(), state);
 		}
 
@@ -90,7 +101,7 @@ public class NFACompilerTest extends TestLogger {
 		Collection<StateTransition<Event>> startTransitions = startState.getStateTransitions();
 		Map<String, StateTransition<Event>> startTransitionMap = new HashMap<>();
 
-		for (StateTransition<Event> transition: startTransitions) {
+		for (StateTransition<Event> transition : startTransitions) {
 			startTransitionMap.put(transition.getTargetState().getName(), transition);
 		}
 
@@ -109,7 +120,7 @@ public class NFACompilerTest extends TestLogger {
 
 		Map<String, StateTransition<Event>> middleTransitionMap = new HashMap<>();
 
-		for (StateTransition<Event> transition: middleState.getStateTransitions()) {
+		for (StateTransition<Event> transition : middleState.getStateTransitions()) {
 			middleTransitionMap.put(transition.getTargetState().getName(), transition);
 		}
 

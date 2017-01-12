@@ -19,8 +19,8 @@
 package org.apache.flink.cep.nfa;
 
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.Objects;
 
 /**
@@ -42,8 +42,7 @@ public class State<T> implements Serializable {
 	public State(final String name, final StateType stateType) {
 		this.name = name;
 		this.stateType = stateType;
-
-		stateTransitions = new ArrayList<StateTransition<T>>();
+		stateTransitions = new HashSet<>();
 	}
 
 	public boolean isFinal() {

@@ -18,6 +18,9 @@
 
 package org.apache.flink.cep.operator;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -29,6 +32,7 @@ import org.apache.flink.cep.Event;
 import org.apache.flink.cep.SubEvent;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
+import org.apache.flink.cep.pattern.EventPattern;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.runtime.state.StreamStateHandle;
@@ -44,8 +48,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import static org.junit.Assert.*;
-
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Queue;
@@ -58,12 +60,14 @@ public class CEPOperatorTest extends TestLogger {
 
 	@Test
 	public void testCEPOperatorWatermarkForwarding() throws Exception {
-		OneInputStreamOperatorTestHarness<Event, Map<String, Event>> harness = new OneInputStreamOperatorTestHarness<>(
-			new CEPPatternOperator<>(
-				Event.createTypeSerializer(),
-				false,
-				new NFAFactory())
-		);
+		OneInputStreamOperatorTestHarness<Event, Map<String, Event>>
+			harness =
+			new OneInputStreamOperatorTestHarness<>(
+				new CEPPatternOperator<>(
+					Event.createTypeSerializer(),
+					false,
+					new NFAFactory())
+			);
 
 		harness.open();
 
@@ -90,7 +94,9 @@ public class CEPOperatorTest extends TestLogger {
 			}
 		};
 
-		OneInputStreamOperatorTestHarness<Event, Map<String, Event>> harness = new KeyedOneInputStreamOperatorTestHarness<>(
+		OneInputStreamOperatorTestHarness<Event, Map<String, Event>>
+			harness =
+			new KeyedOneInputStreamOperatorTestHarness<>(
 				new KeyedCEPPatternOperator<>(
 					Event.createTypeSerializer(),
 					false,
@@ -125,17 +131,19 @@ public class CEPOperatorTest extends TestLogger {
 			}
 		};
 
-		OneInputStreamOperatorTestHarness<Event, Map<String, Event>> harness = new OneInputStreamOperatorTestHarness<>(
+		OneInputStreamOperatorTestHarness<Event, Map<String, Event>>
+			harness =
+			new OneInputStreamOperatorTestHarness<>(
 				new CEPPatternOperator<>(
-						Event.createTypeSerializer(),
-						false,
-						new NFAFactory()));
+					Event.createTypeSerializer(),
+					false,
+					new NFAFactory()));
 
 		harness.open();
 
 		Event startEvent = new Event(42, "start", 1.0);
 		SubEvent middleEvent = new SubEvent(42, "foo", 1.0, 10.0);
-		Event endEvent=  new Event(42, "end", 1.0);
+		Event endEvent = new Event(42, "end", 1.0);
 
 		harness.processElement(new StreamRecord<Event>(startEvent, 1));
 		harness.processElement(new StreamRecord<Event>(new Event(42, "foobar", 1.0), 2));
@@ -145,10 +153,10 @@ public class CEPOperatorTest extends TestLogger {
 		harness.close();
 
 		harness = new OneInputStreamOperatorTestHarness<>(
-				new CEPPatternOperator<>(
-						Event.createTypeSerializer(),
-						false,
-						new NFAFactory()));
+			new CEPPatternOperator<>(
+				Event.createTypeSerializer(),
+				false,
+				new NFAFactory()));
 
 		harness.setup();
 		harness.restore(snapshot);
@@ -167,10 +175,10 @@ public class CEPOperatorTest extends TestLogger {
 		harness.close();
 
 		harness = new OneInputStreamOperatorTestHarness<>(
-				new CEPPatternOperator<>(
-						Event.createTypeSerializer(),
-						false,
-						new NFAFactory()));
+			new CEPPatternOperator<>(
+				Event.createTypeSerializer(),
+				false,
+				new NFAFactory()));
 
 		harness.setup();
 		harness.restore(snapshot2);
@@ -214,13 +222,15 @@ public class CEPOperatorTest extends TestLogger {
 			}
 		};
 
-		OneInputStreamOperatorTestHarness<Event, Map<String, Event>> harness = new KeyedOneInputStreamOperatorTestHarness<>(
+		OneInputStreamOperatorTestHarness<Event, Map<String, Event>>
+			harness =
+			new KeyedOneInputStreamOperatorTestHarness<>(
 				new KeyedCEPPatternOperator<>(
-						Event.createTypeSerializer(),
-						false,
-						keySelector,
-						IntSerializer.INSTANCE,
-						new NFAFactory()),
+					Event.createTypeSerializer(),
+					false,
+					keySelector,
+					IntSerializer.INSTANCE,
+					new NFAFactory()),
 				keySelector,
 				BasicTypeInfo.INT_TYPE_INFO);
 
@@ -228,7 +238,7 @@ public class CEPOperatorTest extends TestLogger {
 
 		Event startEvent = new Event(42, "start", 1.0);
 		SubEvent middleEvent = new SubEvent(42, "foo", 1.0, 10.0);
-		Event endEvent=  new Event(42, "end", 1.0);
+		Event endEvent = new Event(42, "end", 1.0);
 
 		harness.processElement(new StreamRecord<Event>(startEvent, 1));
 		harness.processElement(new StreamRecord<Event>(new Event(42, "foobar", 1.0), 2));
@@ -238,14 +248,14 @@ public class CEPOperatorTest extends TestLogger {
 		harness.close();
 
 		harness = new KeyedOneInputStreamOperatorTestHarness<>(
-				new KeyedCEPPatternOperator<>(
-						Event.createTypeSerializer(),
-						false,
-						keySelector,
-						IntSerializer.INSTANCE,
-						new NFAFactory()),
+			new KeyedCEPPatternOperator<>(
+				Event.createTypeSerializer(),
+				false,
 				keySelector,
-				BasicTypeInfo.INT_TYPE_INFO);
+				IntSerializer.INSTANCE,
+				new NFAFactory()),
+			keySelector,
+			BasicTypeInfo.INT_TYPE_INFO);
 
 		harness.setup();
 		harness.restore(snapshot);
@@ -264,14 +274,14 @@ public class CEPOperatorTest extends TestLogger {
 		harness.close();
 
 		harness = new KeyedOneInputStreamOperatorTestHarness<>(
-				new KeyedCEPPatternOperator<>(
-						Event.createTypeSerializer(),
-						false,
-						keySelector,
-						IntSerializer.INSTANCE,
-						new NFAFactory()),
+			new KeyedCEPPatternOperator<>(
+				Event.createTypeSerializer(),
+				false,
 				keySelector,
-				BasicTypeInfo.INT_TYPE_INFO);
+				IntSerializer.INSTANCE,
+				new NFAFactory()),
+			keySelector,
+			BasicTypeInfo.INT_TYPE_INFO);
 
 		harness.setup();
 		harness.restore(snapshot2);
@@ -319,13 +329,15 @@ public class CEPOperatorTest extends TestLogger {
 			}
 		};
 
-		OneInputStreamOperatorTestHarness<Event, Map<String, Event>> harness = new KeyedOneInputStreamOperatorTestHarness<>(
+		OneInputStreamOperatorTestHarness<Event, Map<String, Event>>
+			harness =
+			new KeyedOneInputStreamOperatorTestHarness<>(
 				new KeyedCEPPatternOperator<>(
-						Event.createTypeSerializer(),
-						false,
-						keySelector,
-						IntSerializer.INSTANCE,
-						new NFAFactory()),
+					Event.createTypeSerializer(),
+					false,
+					keySelector,
+					IntSerializer.INSTANCE,
+					new NFAFactory()),
 				keySelector,
 				BasicTypeInfo.INT_TYPE_INFO);
 
@@ -335,7 +347,7 @@ public class CEPOperatorTest extends TestLogger {
 
 		Event startEvent = new Event(42, "start", 1.0);
 		SubEvent middleEvent = new SubEvent(42, "foo", 1.0, 10.0);
-		Event endEvent=  new Event(42, "end", 1.0);
+		Event endEvent = new Event(42, "end", 1.0);
 
 		harness.processElement(new StreamRecord<Event>(startEvent, 1));
 		harness.processElement(new StreamRecord<Event>(new Event(42, "foobar", 1.0), 2));
@@ -345,14 +357,14 @@ public class CEPOperatorTest extends TestLogger {
 		harness.close();
 
 		harness = new KeyedOneInputStreamOperatorTestHarness<>(
-				new KeyedCEPPatternOperator<>(
-						Event.createTypeSerializer(),
-						false,
-						keySelector,
-						IntSerializer.INSTANCE,
-						new NFAFactory()),
+			new KeyedCEPPatternOperator<>(
+				Event.createTypeSerializer(),
+				false,
 				keySelector,
-				BasicTypeInfo.INT_TYPE_INFO);
+				IntSerializer.INSTANCE,
+				new NFAFactory()),
+			keySelector,
+			BasicTypeInfo.INT_TYPE_INFO);
 
 		rocksDBStateBackend = new RocksDBStateBackend(new MemoryStateBackend());
 		rocksDBStateBackend.setDbStoragePath(rocksDbPath);
@@ -375,14 +387,14 @@ public class CEPOperatorTest extends TestLogger {
 		harness.close();
 
 		harness = new KeyedOneInputStreamOperatorTestHarness<>(
-				new KeyedCEPPatternOperator<>(
-						Event.createTypeSerializer(),
-						false,
-						keySelector,
-						IntSerializer.INSTANCE,
-						new NFAFactory()),
+			new KeyedCEPPatternOperator<>(
+				Event.createTypeSerializer(),
+				false,
 				keySelector,
-				BasicTypeInfo.INT_TYPE_INFO);
+				IntSerializer.INSTANCE,
+				new NFAFactory()),
+			keySelector,
+			BasicTypeInfo.INT_TYPE_INFO);
 
 		rocksDBStateBackend = new RocksDBStateBackend(new MemoryStateBackend());
 		rocksDBStateBackend.setDbStoragePath(rocksDbPath);
@@ -437,15 +449,17 @@ public class CEPOperatorTest extends TestLogger {
 		final Map<String, Event> expectedSequence = new HashMap<>(2);
 		expectedSequence.put("start", startEvent);
 
-		OneInputStreamOperatorTestHarness<Event, Either<Tuple2<Map<String, Event>, Long>, Map<String, Event>>> harness = new KeyedOneInputStreamOperatorTestHarness<>(
-			new TimeoutKeyedCEPPatternOperator<>(
-				Event.createTypeSerializer(),
-				false,
+		OneInputStreamOperatorTestHarness<Event, Either<Tuple2<Map<String, Event>, Long>, Map<String, Event>>>
+			harness =
+			new KeyedOneInputStreamOperatorTestHarness<>(
+				new TimeoutKeyedCEPPatternOperator<>(
+					Event.createTypeSerializer(),
+					false,
+					keySelector,
+					IntSerializer.INSTANCE,
+					new NFAFactory(true)),
 				keySelector,
-				IntSerializer.INSTANCE,
-				new NFAFactory(true)),
-			keySelector,
-			BasicTypeInfo.INT_TYPE_INFO);
+				BasicTypeInfo.INT_TYPE_INFO);
 
 		try {
 			harness.setup(
@@ -472,11 +486,16 @@ public class CEPOperatorTest extends TestLogger {
 
 			assertTrue(resultObject instanceof StreamRecord);
 
-			StreamRecord<Either<Tuple2<Map<String, Event>, Long>, Map<String, Event>>> streamRecord = (StreamRecord<Either<Tuple2<Map<String,Event>,Long>,Map<String,Event>>>) resultObject;
+			StreamRecord<Either<Tuple2<Map<String, Event>, Long>, Map<String, Event>>>
+				streamRecord =
+				(StreamRecord<Either<Tuple2<Map<String, Event>, Long>, Map<String, Event>>>) resultObject;
 
 			assertTrue(streamRecord.getValue() instanceof Either.Left);
 
-			Either.Left<Tuple2<Map<String, Event>, Long>, Map<String, Event>> left = (Either.Left<Tuple2<Map<String, Event>, Long>, Map<String, Event>>) streamRecord.getValue();
+			Either.Left<Tuple2<Map<String, Event>, Long>, Map<String, Event>>
+				left =
+				(Either.Left<Tuple2<Map<String, Event>, Long>, Map<String, Event>>) streamRecord
+					.getValue();
 
 			Tuple2<Map<String, Event>, Long> leftResult = left.left();
 
@@ -505,12 +524,14 @@ public class CEPOperatorTest extends TestLogger {
 		final Map<String, Event> expectedSequence = new HashMap<>(2);
 		expectedSequence.put("start", startEvent);
 
-		OneInputStreamOperatorTestHarness<Event, Either<Tuple2<Map<String, Event>, Long>, Map<String, Event>>> harness = new OneInputStreamOperatorTestHarness<>(
-			new TimeoutCEPPatternOperator<>(
-				Event.createTypeSerializer(),
-				false,
-				new NFAFactory(true))
-		);
+		OneInputStreamOperatorTestHarness<Event, Either<Tuple2<Map<String, Event>, Long>, Map<String, Event>>>
+			harness =
+			new OneInputStreamOperatorTestHarness<>(
+				new TimeoutCEPPatternOperator<>(
+					Event.createTypeSerializer(),
+					false,
+					new NFAFactory(true))
+			);
 
 		try {
 			harness.setup(
@@ -537,11 +558,16 @@ public class CEPOperatorTest extends TestLogger {
 
 			assertTrue(resultObject instanceof StreamRecord);
 
-			StreamRecord<Either<Tuple2<Map<String, Event>, Long>, Map<String, Event>>> streamRecord = (StreamRecord<Either<Tuple2<Map<String,Event>,Long>,Map<String,Event>>>) resultObject;
+			StreamRecord<Either<Tuple2<Map<String, Event>, Long>, Map<String, Event>>>
+				streamRecord =
+				(StreamRecord<Either<Tuple2<Map<String, Event>, Long>, Map<String, Event>>>) resultObject;
 
 			assertTrue(streamRecord.getValue() instanceof Either.Left);
 
-			Either.Left<Tuple2<Map<String, Event>, Long>, Map<String, Event>> left = (Either.Left<Tuple2<Map<String, Event>, Long>, Map<String, Event>>) streamRecord.getValue();
+			Either.Left<Tuple2<Map<String, Event>, Long>, Map<String, Event>>
+				left =
+				(Either.Left<Tuple2<Map<String, Event>, Long>, Map<String, Event>>) streamRecord
+					.getValue();
 
 			Tuple2<Map<String, Event>, Long> leftResult = left.left();
 
@@ -575,23 +601,29 @@ public class CEPOperatorTest extends TestLogger {
 		@Override
 		public NFA<Event> createNFA() {
 
-			Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new FilterFunction<Event>() {
-						private static final long serialVersionUID = 5726188262756267490L;
+			Pattern<Event, ?> pattern = EventPattern.<Event>event("start")
+				.where(new FilterFunction<Event>() {
+					private static final long serialVersionUID = 5726188262756267490L;
 
-						@Override
-						public boolean filter(Event value) throws Exception {
-							return value.getName().equals("start");
-						}
-					})
-					.followedBy("middle").subtype(SubEvent.class).where(new FilterFunction<SubEvent>() {
-						private static final long serialVersionUID = 6215754202506583964L;
+					@Override
+					public boolean filter(Event value) throws Exception {
+						return value.getName().equals("start");
+					}
+				})
+				.followedBy(
+					EventPattern.<Event>event("middle")
+						.subtype(SubEvent.class)
+						.where(new FilterFunction<SubEvent>() {
+							private static final long serialVersionUID = 6215754202506583964L;
 
-						@Override
-						public boolean filter(SubEvent value) throws Exception {
-							return value.getVolume() > 5.0;
-						}
-					})
-					.followedBy("end").where(new FilterFunction<Event>() {
+							@Override
+							public boolean filter(SubEvent value) throws Exception {
+								return value.getVolume() > 5.0;
+							}
+						})
+				)
+				.followedBy(
+					EventPattern.<Event>event("end").where(new FilterFunction<Event>() {
 						private static final long serialVersionUID = 7056763917392056548L;
 
 						@Override
@@ -599,9 +631,10 @@ public class CEPOperatorTest extends TestLogger {
 							return value.getName().equals("end");
 						}
 					})
-					// add a window timeout to test whether timestamps of elements in the
-					// priority queue in CEP operator are correctly checkpointed/restored
-					.within(Time.milliseconds(10L));
+				)
+				// add a window timeout to test whether timestamps of elements in the
+				// priority queue in CEP operator are correctly checkpointed/restored
+				.within(Time.milliseconds(10L));
 
 			return NFACompiler.compile(pattern, Event.createTypeSerializer(), handleTimeout);
 		}

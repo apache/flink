@@ -16,18 +16,28 @@
  * limitations under the License.
  */
 
-package org.apache.flink.cep.pattern;
+package org.apache.flink.cep.pattern.functions;
+
+import org.apache.flink.api.common.functions.FilterFunction;
 
 /**
- * Pattern operator which signifies that the there is a non-strict temporal contiguity between
- * itself and its preceding pattern operator. This means that there might be events in between
- * two matching events. These events are then simply ignored.
+ * A filter function which filters elements of the given type. A element if filtered out iff it
+ * is not assignable to the given subtype of T.
  *
- * @param <T> Base type of the events
- * @param <F> Subtype of T to which the operator is currently constrained
+ * @param <T> Type of the elements to be filtered
  */
-public class FollowedByPattern<T, F extends T> extends Pattern<T, F> {
-	FollowedByPattern(final String name, Pattern<T, ?> previous) {
-		super(name, previous);
+public class SubtypeFilterFunction<T> implements FilterFunction<T> {
+	private static final long serialVersionUID = -2990017519957561355L;
+
+	// subtype to filter for
+	private final Class<? extends T> subtype;
+
+	public SubtypeFilterFunction(final Class<? extends T> subtype) {
+		this.subtype = subtype;
+	}
+
+	@Override
+	public boolean filter(T value) throws Exception {
+		return subtype.isAssignableFrom(value.getClass());
 	}
 }

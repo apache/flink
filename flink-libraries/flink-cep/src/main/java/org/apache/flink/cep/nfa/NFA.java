@@ -307,7 +307,7 @@ public class NFA<T> implements Serializable {
 								// a new computation state is referring to the shared entry
 								sharedBuffer.lock(newState, event, timestamp);
 
-								resultingComputationStates.add(new ComputationState<T>(
+								resultingComputationStates.add(new ComputationState<>(
 									newState,
 									event,
 									timestamp,
@@ -526,14 +526,12 @@ public class NFA<T> implements Serializable {
 		}
 
 		@Override
+		@SuppressWarnings("unchecked")
 		public NFA<T> deserialize(DataInputView source) throws IOException {
 			ObjectInputStream ois = new ObjectInputStream(new DataInputViewStream(source));
 
 			try {
-				@SuppressWarnings("unchecked")
-				NFA<T> nfa = null;
-				nfa = (NFA<T>) ois.readObject();
-				return nfa;
+				return (NFA<T>) ois.readObject();
 			} catch (ClassNotFoundException e) {
 				throw new RuntimeException("Could not deserialize NFA.", e);
 			}
