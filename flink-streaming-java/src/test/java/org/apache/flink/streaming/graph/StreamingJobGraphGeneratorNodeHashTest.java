@@ -32,8 +32,10 @@ import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamNode;
 import org.apache.flink.util.TestLogger;
+import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -45,6 +47,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Tests the {@link StreamNode} hash assignment during translation from {@link StreamGraph} to
@@ -420,6 +423,43 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
 				.addSink(new NoOpSinkFunction());
 
 		env.getStreamGraph().getJobGraph();
+	}
+
+	@Test
+	public void testUserProvidedHashing() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
+
+		List<String> userHashes = Arrays.asList("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
+
+		env.addSource(new NoOpSourceFunction(), "src").setUidHash(userHashes.get(0))
+				.map(new NoOpMapFunction())
+				.filter(new NoOpFilterFunction())
+				.keyBy(new NoOpKeySelector())
+				.reduce(new NoOpReduceFunction()).name("reduce").setUidHash(userHashes.get(1));
+
+		StreamGraph streamGraph = env.getStreamGraph();
+		int idx = 1;
+		for (JobVertex jobVertex : streamGraph.getJobGraph().getVertices()) {
+			Assert.assertEquals(jobVertex.getIdAlternatives().get(1).toString(), userHashes.get(idx));
+			--idx;
+		}
+	}
+
+	@Test
+	public void testUserProvidedHashingOnChainNotSupported() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
+
+		env.addSource(new NoOpSourceFunction(), "src").setUidHash("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+				.map(new NoOpMapFunction()).setUidHash("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")
+				.filter(new NoOpFilterFunction()).setUidHash("cccccccccccccccccccccccccccccccc")
+				.keyBy(new NoOpKeySelector())
+				.reduce(new NoOpReduceFunction()).name("reduce").setUidHash("dddddddddddddddddddddddddddddddd");
+
+		try {
+			env.getStreamGraph().getJobGraph();
+			fail();
+		} catch (UnsupportedOperationException ignored) {
+		}
 	}
 
 	// ------------------------------------------------------------------------

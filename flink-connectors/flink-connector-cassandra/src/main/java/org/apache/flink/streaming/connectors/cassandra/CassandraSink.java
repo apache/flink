@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.connectors.cassandra;
 
 import com.datastax.driver.core.Cluster;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple;
@@ -85,11 +86,42 @@ public class CassandraSink<IN> {
 	 * @param uid The unique user-specified ID of this transformation.
 	 * @return The operator with the specified ID.
 	 */
+	@PublicEvolving
 	public CassandraSink<IN> uid(String uid) {
 		if (useDataStreamSink) {
 			getSinkTransformation().setUid(uid);
 		} else {
 			getStreamTransformation().setUid(uid);
+		}
+		return this;
+	}
+
+	/**
+	 * Sets an user provided hash for this operator. This will be used AS IS the create the JobVertexID.
+	 * <p/>
+	 * <p>The user provided hash is an alternative to the generated hashes, that is considered when identifying an
+	 * operator through the default hash mechanics fails (e.g. because of changes between Flink versions).
+	 * <p/>
+	 * <p><strong>Important</strong>: this should be used as a workaround or for trouble shooting. The provided hash
+	 * needs to be unique per transformation and job. Otherwise, job submission will fail. Furthermore, you cannot
+	 * assign user-specified hash to intermediate nodes in an operator chain and trying so will let your job fail.
+	 *
+	 * <p>
+	 * A use case for this is in migration between Flink versions or changing the jobs in a way that changes the
+	 * automatically generated hashes. In this case, providing the previous hashes directly through this method (e.g.
+	 * obtained from old logs) can help to reestablish a lost mapping from states to their target operator.
+	 * <p/>
+	 *
+	 * @param uidHash The user provided hash for this operator. This will become the JobVertexID, which is shown in the
+	 *                 logs and web ui.
+	 * @return The operator with the user provided hash.
+	 */
+	@PublicEvolving
+	public CassandraSink<IN> setUidHash(String uidHash) {
+		if (useDataStreamSink) {
+			getSinkTransformation().setUidHash(uidHash);
+		} else {
+			getStreamTransformation().setUidHash(uidHash);
 		}
 		return this;
 	}

@@ -51,8 +51,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -89,7 +89,7 @@ public class StreamingJobGraphGenerator {
 	public StreamingJobGraphGenerator(StreamGraph streamGraph) {
 		this.streamGraph = streamGraph;
 		this.defaultStreamGraphHasher = new StreamGraphHasherV2();
-		this.legacyStreamGraphHashers = Collections.<StreamGraphHasher>singletonList(new StreamGraphHasherV1());
+		this.legacyStreamGraphHashers = Arrays.asList(new StreamGraphHasherV1(), new StreamGraphUserHashHasher());
 	}
 
 	private void init() {
@@ -185,7 +185,7 @@ public class StreamingJobGraphGenerator {
 			List<StreamEdge> nonChainableOutputs = new ArrayList<StreamEdge>();
 
 			for (StreamEdge outEdge : streamGraph.getStreamNode(currentNodeId).getOutEdges()) {
-				if (isChainable(outEdge)) {
+				if (isChainable(outEdge, streamGraph)) {
 					chainableOutputs.add(outEdge);
 				} else {
 					nonChainableOutputs.add(outEdge);
@@ -426,7 +426,7 @@ public class StreamingJobGraphGenerator {
 		}
 	}
 
-	private boolean isChainable(StreamEdge edge) {
+	public static boolean isChainable(StreamEdge edge, StreamGraph streamGraph) {
 		StreamNode upStreamVertex = edge.getSourceVertex();
 		StreamNode downStreamVertex = edge.getTargetVertex();
 

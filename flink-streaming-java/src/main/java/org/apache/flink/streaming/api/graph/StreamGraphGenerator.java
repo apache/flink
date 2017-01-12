@@ -208,7 +208,10 @@ public class StreamGraphGenerator {
 			streamGraph.setBufferTimeout(transform.getId(), transform.getBufferTimeout());
 		}
 		if (transform.getUid() != null) {
-			streamGraph.setTransformationId(transform.getId(), transform.getUid());
+			streamGraph.setTransformationUID(transform.getId(), transform.getUid());
+		}
+		if (transform.getUserProvidedNodeHash() != null) {
+			streamGraph.setTransformationUserHash(transform.getId(), transform.getUserProvidedNodeHash());
 		}
 
 		return transformedIds;
