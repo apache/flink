@@ -314,9 +314,9 @@ but not activated.
 
 Parameters:
 
-- `port` - the port on which JMX listens for connections. This can also be a port range. When a
-range is specified the actual port is shown in the relevant job or task manager log. If you don't
-specify a port no extra JMX server will be started. Metrics are still available on the default
+- `port` - (optional) the port on which JMX listens for connections. This can also be a port range. When a
+range is specified the actual port is shown in the relevant job or task manager log. If this setting is set
+Flink will start an extra JMX connector for the given port/range. Metrics are always available on the default
 local JMX interface.
 
 Example configuration:
@@ -328,6 +328,18 @@ metrics.reporter.jmx.class: org.apache.flink.metrics.jmx.JMXReporter
 metrics.reporter.jmx.port: 8789
 
 {% endhighlight %}
+
+Metrics exposed through JMX are identified by a domain and a list of key-properties, which together form the object name.
+
+The domain always begins with `org.apache.flink` followed by a generalized metric identifier. In contrast to the usual
+identifier it is not affected by scope-formats, does not contain any variables and is constant across jobs.
+An example for such a domain would be `org.apache.flink.job.task.numBytesOut`.
+
+The key-property list contains the values for all variables, regardless of configured scope formats, that are associated
+with a given metric.
+An example for such a list would be `host=localhost,job_name=MyJob,task_name=MyTask`.
+
+The domain thus identifies a metric class, while the key-property list identifies one (or multiple) instances of that metric.
 
 ### Ganglia (org.apache.flink.metrics.ganglia.GangliaReporter)
 
