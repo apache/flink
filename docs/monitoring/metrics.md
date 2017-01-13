@@ -274,7 +274,8 @@ or by assigning unique names to jobs and operators.
 
 ## Reporter
 
-Metrics can be exposed to an external system by configuring one or several reporters in `conf/flink-conf.yaml`.
+Metrics can be exposed to an external system by configuring one or several reporters in `conf/flink-conf.yaml`. These
+reporters will be instantiated on each job and task manager when they are started.
 
 - `metrics.reporters`: The list of named reporters.
 - `metrics.reporter.<name>.<config>`: Generic setting `<config>` for the reporter named `<name>`.
