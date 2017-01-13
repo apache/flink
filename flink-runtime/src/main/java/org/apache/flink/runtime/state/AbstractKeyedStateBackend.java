@@ -291,48 +291,88 @@ public abstract class AbstractKeyedStateBackend<K>
 	}
 
 	@Override
-	@SuppressWarnings("unchecked,rawtypes")
-	public <N, S extends MergingState<?, ?>> void mergePartitionedStates(final N target, Collection<N> sources, final TypeSerializer<N> namespaceSerializer, final StateDescriptor<S, ?> stateDescriptor) throws Exception {
+	public <N, S extends MergingState<?, ?>> void mergePartitionedStates(
+			final N target,
+			Collection<N> sources,
+			final TypeSerializer<N> namespaceSerializer,
+			final StateDescriptor<S, ?> stateDescriptor) throws Exception {
+
 		if (stateDescriptor instanceof ReducingStateDescriptor) {
-			ReducingStateDescriptor reducingStateDescriptor = (ReducingStateDescriptor) stateDescriptor;
-			ReduceFunction reduceFn = reducingStateDescriptor.getReduceFunction();
-			ReducingState state = (ReducingState) getPartitionedState(target, namespaceSerializer, stateDescriptor);
-			KvState kvState = (KvState) state;
-			Object result = null;
-			for (N source: sources) {
-				kvState.setCurrentNamespace(source);
-				Object sourceValue = state.get();
-				if (result == null) {
-					result = state.get();
-				} else if (sourceValue != null) {
-					result = reduceFn.reduce(result, sourceValue);
+			mergeReducingState((ReducingStateDescriptor<?>) stateDescriptor, namespaceSerializer, target,sources);
+		}
+		else if (stateDescriptor instanceof ListStateDescriptor) {
+			mergeListState((ListStateDescriptor<?>) stateDescriptor, namespaceSerializer, target,sources);
+		}
+		else {
+			throw new IllegalArgumentException("Cannot merge states for " + stateDescriptor);
+		}
+	}
+
+	private <N, T> void mergeReducingState(
+			final ReducingStateDescriptor<?> stateDescriptor,
+			final TypeSerializer<N> namespaceSerializer,
+			final N target,
+			final Collection<N> sources) throws Exception {
+
+		@SuppressWarnings("unchecked")
+		final ReducingStateDescriptor<T> reducingStateDescriptor = (ReducingStateDescriptor<T>) stateDescriptor;
+
+		@SuppressWarnings("unchecked")
+		final ReducingState<T> state = (ReducingState<T>) getPartitionedState(target, namespaceSerializer, stateDescriptor);
+
+		@SuppressWarnings("unchecked")
+		final KvState<N> kvState = (KvState<N>) state;
+
+		final ReduceFunction<T> reduceFn = reducingStateDescriptor.getReduceFunction();
+
+		T result = null;
+		for (N source: sources) {
+			kvState.setCurrentNamespace(source);
+			T sourceValue = state.get();
+			if (result == null) {
+				result = state.get();
+			} else if (sourceValue != null) {
+				result = reduceFn.reduce(result, sourceValue);
+			}
+			state.clear();
+		}
+
+		// write result to the target
+		kvState.setCurrentNamespace(target);
+		if (result != null) {
+			state.add(result);
+		}
+	}
+
+	private <N, T> void mergeListState(
+			final ListStateDescriptor<?> listStateDescriptor,
+			final TypeSerializer<N> namespaceSerializer,
+			final N target,
+			final Collection<N> sources) throws Exception {
+
+		@SuppressWarnings("unchecked")
+		final ListState<T> state = (ListState<T>) getPartitionedState(target, namespaceSerializer, listStateDescriptor);
+
+		@SuppressWarnings("unchecked")
+		final KvState<N> kvState = (KvState<N>) state;
+
+		// merge the sources
+		final List<T> result = new ArrayList<>();
+		for (N source: sources) {
+			kvState.setCurrentNamespace(source);
+			Iterable<T> sourceValue = state.get();
+			if (sourceValue != null) {
+				for (T o : sourceValue) {
+					result.add(o);
 				}
-				state.clear();
 			}
-			kvState.setCurrentNamespace(target);
-			if (result != null) {
-				state.add(result);
-			}
-		} else if (stateDescriptor instanceof ListStateDescriptor) {
-			ListState<Object> state = (ListState) getPartitionedState(target, namespaceSerializer, stateDescriptor);
-			KvState kvState = (KvState) state;
-			List<Object> result = new ArrayList<>();
-			for (N source: sources) {
-				kvState.setCurrentNamespace(source);
-				Iterable<Object> sourceValue = state.get();
-				if (sourceValue != null) {
-					for (Object o : sourceValue) {
-						result.add(o);
-					}
-				}
-				state.clear();
-			}
-			kvState.setCurrentNamespace(target);
-			for (Object o : result) {
-				state.add(o);
-			}
-		} else {
-			throw new RuntimeException("Cannot merge states for " + stateDescriptor);
+			state.clear();
+		}
+
+		// write to the target
+		kvState.setCurrentNamespace(target);
+		for (T o : result) {
+			state.add(o);
 		}
 	}
 
