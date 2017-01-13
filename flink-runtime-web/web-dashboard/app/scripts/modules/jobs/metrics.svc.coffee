@@ -66,13 +66,13 @@ angular.module('flinkApp')
     100
 
   @setupLS = ->
-    if !localStorage.flinkMetrics?
+    if !sessionStorage.flinkMetrics?
       @saveSetup()
 
-    @metrics = JSON.parse(localStorage.flinkMetrics)
+    @metrics = JSON.parse(sessionStorage.flinkMetrics)
 
   @saveSetup = ->
-    localStorage.flinkMetrics = JSON.stringify(@metrics)
+    sessionStorage.flinkMetrics = JSON.stringify(@metrics)
 
   @saveValue = (jobid, nodeid, value) ->
     unless @values[jobid]?
