@@ -71,7 +71,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 		KeySelector<IN, K> keySelector,
 		TypeSerializer<K> keySerializer,
 		StateDescriptor<? extends ListState<StreamRecord<IN>>, ?> windowStateDescriptor,
-		InternalWindowFunction<Iterable<IN>, OUT, K, W> windowFunction,
+		InternalWindowFunction<Iterable<IN>, OUT, K, W, ?> windowFunction,
 		Trigger<? super IN, ? super W> trigger,
 		Evictor<? super IN, ? super W> evictor,
 		long allowedLateness) {
