@@ -91,12 +91,10 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 	}
 
 	@SuppressWarnings("unchecked")
-	@Override
 	public <T extends Serializable> ListState<T> getBroadcastSerializableListState(String stateName) throws Exception {
 		return (ListState<T>) getBroadcastOperatorState(new ListStateDescriptor<>(stateName, javaSerializer));
 	}
 
-	@Override
 	public <S> ListState<S> getBroadcastOperatorState(ListStateDescriptor<S> stateDescriptor) throws Exception {
 		return getOperatorState(stateDescriptor, OperatorStateHandle.Mode.BROADCAST);
 	}
