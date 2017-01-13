@@ -50,7 +50,7 @@ under the License.
 	</scm>
 
 	<modules>
-		<!--- Dummy module to force execution of the Maven Shade plugin (see Shade plugin below) -->
+		<!-- Dummy module to force execution of the Maven Shade plugin (see Shade plugin below) -->
 		<module>tools/force-shading</module>
 		<module>flink-annotations</module>
 		<module>flink-shaded-hadoop</module>
@@ -269,7 +269,7 @@ under the License.
 				<version>2.4</version>
 			</dependency>
 
-			<!--- commons collections needs to be pinned to this critical security fix version -->
+			<!-- commons collections needs to be pinned to this critical security fix version -->
 			<dependency>
 				<groupId>commons-collections</groupId>
 				<artifactId>commons-collections</artifactId>

@@ -510,7 +510,7 @@ under the License.
 								</transformer>
 							</transformers>
 							<finalName>Kafka</finalName>
-							<!--- <outputFile>Kafka.jar</outputFile> -->
+							<!-- <outputFile>Kafka.jar</outputFile> -->
 							<filters>
 								<filter>
 									<artifact>*</artifact>
