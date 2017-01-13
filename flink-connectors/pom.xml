@@ -93,6 +93,9 @@ under the License.
 		-->
 		<profile>
 			<id>include-elasticsearch5</id>
+			<activation>
+				<jdk>1.8</jdk>
+			</activation>
 			<modules>
 				<module>flink-connector-elasticsearch5</module>
 			</modules>
