@@ -27,7 +27,6 @@ import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.connectors.kafka.internals.AbstractFetcher;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
-import org.apache.flink.streaming.runtime.operators.windowing.WindowOperatorTest;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.util.SerializedValue;
@@ -60,7 +59,7 @@ import static org.mockito.Mockito.mock;
 public class FlinkKafkaConsumerBaseMigrationTest {
 
 	private static String getResourceFilename(String filename) {
-		ClassLoader cl = WindowOperatorTest.class.getClassLoader();
+		ClassLoader cl = FlinkKafkaConsumerBaseMigrationTest.class.getClassLoader();
 		URL resource = cl.getResource(filename);
 		if (resource == null) {
 			throw new NullPointerException("Missing snapshot resource.");
