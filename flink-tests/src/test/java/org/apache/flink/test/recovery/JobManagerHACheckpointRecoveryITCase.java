@@ -509,18 +509,19 @@ public class JobManagerHACheckpointRecoveryITCase extends TestLogger {
 
 		@Override
 		public void restoreState(List<Long> state) throws Exception {
-			if (!state.isEmpty()) {
-				Long s = state.get(0);
-				LOG.debug("Restoring state {}", s);
-
-				// This is necessary to make sure that something is recovered at all. Otherwise it
-				// might happen that the job is restarted from the beginning.
-				RecoveredStates.set(getRuntimeContext().getIndexOfThisSubtask(), s);
-
-				sync.countDown();
-
-				current = s;
+			if (state.isEmpty() || state.size() > 1) {
+				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
 			}
+			Long s = state.get(0);
+			LOG.debug("Restoring state {}", s);
+
+			// This is necessary to make sure that something is recovered at all. Otherwise it
+			// might happen that the job is restarted from the beginning.
+			RecoveredStates.set(getRuntimeContext().getIndexOfThisSubtask(), s);
+
+			sync.countDown();
+
+			current = s;
 		}
 
 		@Override
@@ -570,13 +571,14 @@ public class JobManagerHACheckpointRecoveryITCase extends TestLogger {
 
 		@Override
 		public void restoreState(List<CountingSink> state) throws Exception {
-			if (!state.isEmpty()) {
-				CountingSink s = state.get(0);
-				LOG.debug("Restoring state {}:{}", s.current, s.numberOfReceivedLastElements);
-
-				this.current = s.current;
-				this.numberOfReceivedLastElements = s.numberOfReceivedLastElements;
+			if (state.isEmpty() || state.size() > 1) {
+				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
 			}
+			CountingSink s = state.get(0);
+			LOG.debug("Restoring state {}:{}", s.current, s.numberOfReceivedLastElements);
+
+			this.current = s.current;
+			this.numberOfReceivedLastElements = s.numberOfReceivedLastElements;
 		}
 
 		@Override

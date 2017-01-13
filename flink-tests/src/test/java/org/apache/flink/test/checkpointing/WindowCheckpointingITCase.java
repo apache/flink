@@ -381,9 +381,10 @@ public class WindowCheckpointingITCase extends TestLogger {
 
 		@Override
 		public void restoreState(List<Integer> state) throws Exception {
-			if (!state.isEmpty()) {
-				this.numElementsEmitted = state.get(0);
+			if (state.isEmpty() || state.size() > 1) {
+				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
 			}
+			this.numElementsEmitted = state.get(0);
 		}
 
 		public static void reset() {
@@ -449,12 +450,13 @@ public class WindowCheckpointingITCase extends TestLogger {
 
 		@Override
 		public void restoreState(List<HashMap<Long, Integer>> state) throws Exception {
-			if (!state.isEmpty()) {
-				this.counts.putAll(state.get(0));
+			if (state.isEmpty() || state.size() > 1) {
+				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
+			}
+			this.counts.putAll(state.get(0));
 
-				for (Integer i : state.get(0).values()) {
-					this.aggCount += i;
-				}
+			for (Integer i : state.get(0).values()) {
+				this.aggCount += i;
 			}
 		}
 	}

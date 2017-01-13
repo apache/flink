@@ -1993,9 +1993,10 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 		@Override
 		public void restoreState(List<Integer> state) throws Exception {
-			if (!state.isEmpty()) {
-				this.numElementsTotal = state.get(0);
+			if (state.isEmpty() || state.size() > 1) {
+				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
 			}
+			this.numElementsTotal = state.get(0);
 		}
 	}
 }

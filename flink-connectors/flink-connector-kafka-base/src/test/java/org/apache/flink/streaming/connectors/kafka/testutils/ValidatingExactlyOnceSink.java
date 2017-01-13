@@ -76,11 +76,13 @@ public class ValidatingExactlyOnceSink extends RichSinkFunction<Integer> impleme
 
 	@Override
 	public void restoreState(List<Tuple2<Integer, BitSet>> state) throws Exception {
-		if (!state.isEmpty()) {
-			Tuple2<Integer, BitSet> s = state.get(0);
-			LOG.info("restoring num elements to {}", s.f0);
-			this.numElements = s.f0;
-			this.duplicateChecker = s.f1;
+		if (state.isEmpty() || state.size() > 1) {
+			throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
 		}
+
+		Tuple2<Integer, BitSet> s = state.get(0);
+		LOG.info("restoring num elements to {}", s.f0);
+		this.numElements = s.f0;
+		this.duplicateChecker = s.f1;
 	}
 }

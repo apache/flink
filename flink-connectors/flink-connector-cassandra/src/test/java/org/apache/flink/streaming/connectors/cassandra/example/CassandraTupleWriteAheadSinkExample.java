@@ -52,6 +52,9 @@ public class CassandraTupleWriteAheadSinkExample {
 			.setQuery("INSERT INTO example.values (id, counter) values (?, ?);")
 			.enableWriteAheadLog()
 			.setClusterBuilder(new ClusterBuilder() {
+
+				private static final long serialVersionUID = 2793938419775311824L;
+
 				@Override
 				public Cluster buildCluster(Cluster.Builder builder) {
 					return builder.addContactPoint("127.0.0.1").build();
@@ -65,6 +68,8 @@ public class CassandraTupleWriteAheadSinkExample {
 	}
 
 	public static class MySource implements SourceFunction<Tuple2<String, Integer>>, ListCheckpointed<Integer> {
+		private static final long serialVersionUID = 4022367939215095610L;
+
 		private int counter = 0;
 		private boolean stop = false;
 
@@ -92,9 +97,10 @@ public class CassandraTupleWriteAheadSinkExample {
 
 		@Override
 		public void restoreState(List<Integer> state) throws Exception {
-			if (!state.isEmpty()) {
-				this.counter = state.get(0);
+			if (state.isEmpty() || state.size() > 1) {
+				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
 			}
+			this.counter = state.get(0);
 		}
 	}
 }

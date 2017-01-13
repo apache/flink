@@ -287,14 +287,15 @@ public class BucketingSinkFaultToleranceITCase extends StreamFaultToleranceTestB
 
 		@Override
 		public List<Integer> snapshotState(long checkpointId, long timestamp) throws Exception {
-			return Collections.singletonList(this.index);
+			return Collections.singletonList(index);
 		}
 
 		@Override
 		public void restoreState(List<Integer> state) throws Exception {
-			if (!state.isEmpty()) {
-				this.index = state.get(0);
+			if (state.isEmpty() || state.size() > 1) {
+				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
 			}
+			this.index = state.get(0);
 		}
 	}
 }

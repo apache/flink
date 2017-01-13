@@ -575,9 +575,10 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 
 		@Override
 		public void restoreState(List<Integer> state) throws Exception {
-			if (!state.isEmpty()) {
-				this.numElementsEmitted = state.get(0);
+			if (state.isEmpty() || state.size() > 1) {
+				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
 			}
+			this.numElementsEmitted = state.get(0);
 		}
 
 		public static void reset() {
@@ -686,9 +687,10 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 
 		@Override
 		public void restoreState(List<HashMap<Long, Integer>> state) throws Exception {
-			if (!state.isEmpty()) {
-				this.windowCounts.putAll(state.get(0));
+			if (state.isEmpty() || state.size() > 1) {
+				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
 			}
+			windowCounts.putAll(state.get(0));
 		}
 	}
 
@@ -769,9 +771,10 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 
 		@Override
 		public void restoreState(List<HashMap<Long, Integer>> state) throws Exception {
-			if (!state.isEmpty()) {
-				this.windowCounts.putAll(state.get(0));
+			if (state.isEmpty() || state.size() > 1) {
+				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
 			}
+			this.windowCounts.putAll(state.get(0));
 		}
 	}
 

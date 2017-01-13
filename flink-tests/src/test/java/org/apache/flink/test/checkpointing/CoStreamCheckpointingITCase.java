@@ -218,9 +218,10 @@ public class CoStreamCheckpointingITCase extends StreamingMultipleProgramsTestBa
 
 		@Override
 		public void restoreState(List<Integer> state) throws Exception {
-			if(!state.isEmpty()) {
-				this.index = state.get(0);
+			if (state.isEmpty() || state.size() > 1) {
+				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
 			}
+			this.index = state.get(0);
 		}
 
 		@Override
@@ -267,9 +268,10 @@ public class CoStreamCheckpointingITCase extends StreamingMultipleProgramsTestBa
 
 		@Override
 		public void restoreState(List<Long> state) throws Exception {
-			if(!state.isEmpty()) {
-				this.count = state.get(0);
+			if (state.isEmpty() || state.size() > 1) {
+				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
 			}
+			this.count = state.get(0);
 		}
 	}
 
@@ -332,9 +334,10 @@ public class CoStreamCheckpointingITCase extends StreamingMultipleProgramsTestBa
 
 		@Override
 		public void restoreState(List<Long> state) throws Exception {
-			if (!state.isEmpty()) {
-				this.count = state.get(0);
+			if (state.isEmpty() || state.size() > 1) {
+				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
 			}
+			this.count = state.get(0);
 		}
 	}
 
@@ -357,9 +360,10 @@ public class CoStreamCheckpointingITCase extends StreamingMultipleProgramsTestBa
 
 		@Override
 		public void restoreState(List<Long> state) throws Exception {
-			if (!state.isEmpty()) {
-				this.count = state.get(0);
+			if (state.isEmpty() || state.size() > 1) {
+				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
 			}
+			this.count = state.get(0);
 		}
 
 		@Override
@@ -393,9 +397,10 @@ public class CoStreamCheckpointingITCase extends StreamingMultipleProgramsTestBa
 
 		@Override
 		public void restoreState(List<Long> state) throws Exception {
-			if (!state.isEmpty()) {
-				this.count = state.get(0);
+			if (state.isEmpty() || state.size() > 1) {
+				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
 			}
+			this.count = state.get(0);
 		}
 
 		@Override

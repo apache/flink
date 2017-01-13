@@ -434,10 +434,11 @@ public class ChaosMonkeyITCase extends TestLogger {
 
 		@Override
 		public void restoreState(List<Long> state) throws Exception {
-			if (!state.isEmpty()) {
-				LOG.info("Restoring state {}/{}", state.get(0), end);
-				this.current = state.get(0);
+			if (state.isEmpty() || state.size() > 1) {
+				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
 			}
+			LOG.info("Restoring state {}/{}", state.get(0), end);
+			this.current = state.get(0);
 		}
 
 		@Override
@@ -504,12 +505,13 @@ public class ChaosMonkeyITCase extends TestLogger {
 
 		@Override
 		public void restoreState(List<CountingSink> state) throws Exception {
-			if (!state.isEmpty()) {
-				CountingSink sink = state.get(0);
-				this.current = sink.current;
-				this.numberOfReceivedLastElements = sink.numberOfReceivedLastElements;
-				LOG.info("Restoring state {}:{}", sink.current, sink.numberOfReceivedLastElements);
+			if (state.isEmpty() || state.size() > 1) {
+				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
 			}
+			CountingSink sink = state.get(0);
+			this.current = sink.current;
+			this.numberOfReceivedLastElements = sink.numberOfReceivedLastElements;
+			LOG.info("Restoring state {}:{}", sink.current, sink.numberOfReceivedLastElements);
 		}
 
 		@Override

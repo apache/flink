@@ -202,9 +202,10 @@ public class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
 
 		@Override
 		public void restoreState(List<Integer> state) throws Exception {
-			if (!state.isEmpty()) {
-				this.index = state.get(0);
+			if (state.isEmpty() || state.size() > 1) {
+				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
 			}
+			this.index = state.get(0);
 		}
 	}
 
@@ -233,9 +234,10 @@ public class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
 
 		@Override
 		public void restoreState(List<Long> state) throws Exception {
-			if (!state.isEmpty()) {
-				this.count = state.get(0);
+			if (state.isEmpty() || state.size() > 1) {
+				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
 			}
+			this.count = state.get(0);
 		}
 	}
 
@@ -264,9 +266,10 @@ public class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
 
 		@Override
 		public void restoreState(List<Long> state) throws Exception {
-			if (!state.isEmpty()) {
-				this.count = state.get(0);
+			if (state.isEmpty() || state.size() > 1) {
+				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
 			}
+			this.count = state.get(0);
 		}
 	}
 	
@@ -295,9 +298,10 @@ public class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
 
 		@Override
 		public void restoreState(List<Long> state) throws Exception {
-			if (!state.isEmpty()) {
-				this.count = state.get(0);
+			if (state.isEmpty() || state.size() > 1) {
+				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
 			}
+			this.count = state.get(0);
 		}
 	}
 	
@@ -351,9 +355,10 @@ public class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
 
 		@Override
 		public void restoreState(List<HashMap<String, PrefixCount>> state) throws Exception {
-			if (!state.isEmpty()) {
-				this.aggregationMap.putAll(state.get(0));
+			if (state.isEmpty() || state.size() > 1) {
+				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
 			}
+			this.aggregationMap.putAll(state.get(0));
 		}
 
 		@Override
@@ -393,9 +398,10 @@ public class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
 
 		@Override
 		public void restoreState(List<HashMap<Character, Long>> state) throws Exception {
-			if (!state.isEmpty()) {
-				this.counts.putAll(state.get(0));
+			if (state.isEmpty() || state.size() > 1) {
+				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
 			}
+			this.counts.putAll(state.get(0));
 		}
 	}
 }

@@ -173,9 +173,10 @@ public class UdfStreamOperatorCheckpointingITCase extends StreamFaultToleranceTe
 
 		@Override
 		public void restoreState(List<Long> state) throws Exception {
-			if (!state.isEmpty()) {
-				this.count = state.get(0);
+			if (state.isEmpty() || state.size() > 1) {
+				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
 			}
+			this.count = state.get(0);
 		}
 	}
 

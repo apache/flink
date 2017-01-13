@@ -99,12 +99,13 @@ public class CheckpointedStreamingProgram {
 
 		@Override
 		public void restoreState(List<StatefulMapper> state) throws Exception {
-			if (!state.isEmpty()) {
-				restored = true;
-				StatefulMapper s = state.get(0);
-				this.someState = s.someState;
-				this.atLeastOneSnapshotComplete = s.atLeastOneSnapshotComplete;
+			if (state.isEmpty() || state.size() > 1) {
+				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
 			}
+			restored = true;
+			StatefulMapper s = state.get(0);
+			this.someState = s.someState;
+			this.atLeastOneSnapshotComplete = s.atLeastOneSnapshotComplete;
 		}
 
 		@Override
