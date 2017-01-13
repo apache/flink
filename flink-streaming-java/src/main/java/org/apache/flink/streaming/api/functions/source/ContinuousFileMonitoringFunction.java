@@ -232,7 +232,7 @@ public class ContinuousFileMonitoringFunction<OUT>
 											SourceContext<TimestampedFileInputSplit> context) throws IOException {
 		assert (Thread.holdsLock(checkpointLock));
 
-		Map<Path, FileStatus> eligibleFiles = listEligibleFiles(fs, path);
+		Map<Path, FileStatus> eligibleFiles = listEligibleFiles(fs, new Path(path));
 		Map<Long, List<TimestampedFileInputSplit>> splitsSortedByModTime = getInputSplitsSortedByModTime(eligibleFiles);
 
 		for (Map.Entry<Long, List<TimestampedFileInputSplit>> splits: splitsSortedByModTime.entrySet()) {
@@ -282,11 +282,11 @@ public class ContinuousFileMonitoringFunction<OUT>
 	 * Returns the paths of the files not yet processed.
 	 * @param fileSystem The filesystem where the monitored directory resides.
 	 */
-	private Map<Path, FileStatus> listEligibleFiles(FileSystem fileSystem, String path) throws IOException {
+	private Map<Path, FileStatus> listEligibleFiles(FileSystem fileSystem, Path path) throws IOException {
 
 		final FileStatus[] statuses;
 		try {
-			statuses = fileSystem.listStatus(new Path(path));
+			statuses = fileSystem.listStatus(path);
 		} catch (IOException e) {
 			// we may run into an IOException if files are moved while listing their status
 			// delay the check for eligible files in this case
@@ -307,7 +307,7 @@ public class ContinuousFileMonitoringFunction<OUT>
 						files.put(filePath, status);
 					}
 				} else if (format.getNestedFileEnumeration() && format.acceptFile(status)){
-					files.putAll(listEligibleFiles(fileSystem, status.getPath().getPath()));
+					files.putAll(listEligibleFiles(fileSystem, status.getPath()));
 				}
 			}
 			return files;
