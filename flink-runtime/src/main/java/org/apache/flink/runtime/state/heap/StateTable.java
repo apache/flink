@@ -17,6 +17,7 @@
  */
 package org.apache.flink.runtime.state.heap;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.RegisteredBackendStateMetaInfo;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -77,5 +78,22 @@ public class StateTable<K, N, ST> {
 
 	public List<Map<N, Map<K, ST>>> getState() {
 		return state;
+	}
+
+	// ------------------------------------------------------------------------
+	//  for testing
+	// ------------------------------------------------------------------------
+
+	@VisibleForTesting
+	boolean isEmpty() {
+		for (Map<N, Map<K, ST>> map : state) {
+			if (map != null) {
+				if (!map.isEmpty()) {
+					return false;
+				}
+			}
+		}
+
+		return true;
 	}
 }

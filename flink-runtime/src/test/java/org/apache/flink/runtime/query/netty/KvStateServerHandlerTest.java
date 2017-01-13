@@ -40,9 +40,9 @@ import org.apache.flink.runtime.query.netty.message.KvStateRequestSerializer;
 import org.apache.flink.runtime.query.netty.message.KvStateRequestType;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateBackend;
-import org.apache.flink.runtime.state.KvState;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
@@ -267,7 +267,7 @@ public class KvStateServerHandlerTest extends TestLogger {
 	}
 
 	/**
-	 * Tests the failure response on a failure on the {@link KvState#getSerializedValue(byte[])}
+	 * Tests the failure response on a failure on the {@link InternalKvState#getSerializedValue(byte[])}
 	 * call.
 	 */
 	@Test
@@ -279,7 +279,7 @@ public class KvStateServerHandlerTest extends TestLogger {
 		EmbeddedChannel channel = new EmbeddedChannel(getFrameDecoder(), handler);
 
 		// Failing KvState
-		KvState<?> kvState = mock(KvState.class);
+		InternalKvState<?> kvState = mock(InternalKvState.class);
 		when(kvState.getSerializedValue(any(byte[].class)))
 				.thenThrow(new RuntimeException("Expected test Exception"));
 

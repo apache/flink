@@ -18,18 +18,53 @@
 
 package org.apache.flink.runtime.state;
 
+import java.io.ObjectStreamException;
+
 /**
- * Uninstantiable placeholder class for state without a namespace.
+ * Singleton placeholder class for state without a namespace.
  */
 public final class VoidNamespace {
 
+	// ------------------------------------------------------------------------
+	//  Singleton instance
+	// ------------------------------------------------------------------------
+
+	/** The singleton instance */
 	public static final VoidNamespace INSTANCE = new VoidNamespace();
 
-	private VoidNamespace() {
-	}
-
+	/** Getter for the singleton instance */
 	public static VoidNamespace get() {
 		return INSTANCE;
 	}
 
+	/** This class should not be instantiated */
+	private VoidNamespace() {}
+
+	// ------------------------------------------------------------------------
+	//  Standard Utilities
+	// ------------------------------------------------------------------------
+
+	@Override
+	public int hashCode() {
+		return 99;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		return obj == this;
+	}
+
+	@Override
+	public String toString() {
+		return getClass().getSimpleName();
+	}
+
+	// ------------------------------------------------------------------------
+	//  Singleton serialization
+	// ------------------------------------------------------------------------
+
+	// make sure that we preserve the singleton properly on serialization
+	private Object readResolve() throws ObjectStreamException {
+		return INSTANCE;
+	}
 }

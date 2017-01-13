@@ -18,9 +18,7 @@
 
 package org.apache.flink.test.query;
 
-
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
@@ -30,10 +28,14 @@ import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.query.netty.message.KvStateRequestSerializer;
 import org.apache.flink.runtime.query.netty.message.KvStateRequestSerializerTest;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
+import org.apache.flink.runtime.state.internal.InternalListState;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
 
@@ -59,14 +61,18 @@ public final class KVStateRequestSerializerRocksDBTest {
 	 */
 	final static class RocksDBKeyedStateBackend2<K> extends RocksDBKeyedStateBackend<K> {
 
-		RocksDBKeyedStateBackend2(final JobID jobId,
-			final String operatorIdentifier,
-			final ClassLoader userCodeClassLoader,
-			final File instanceBasePath, final DBOptions dbOptions,
-			final ColumnFamilyOptions columnFamilyOptions,
-			final TaskKvStateRegistry kvStateRegistry,
-			final TypeSerializer<K> keySerializer, final int numberOfKeyGroups,
-			final KeyGroupRange keyGroupRange) throws Exception {
+		RocksDBKeyedStateBackend2(
+				final JobID jobId,
+				final String operatorIdentifier,
+				final ClassLoader userCodeClassLoader,
+				final File instanceBasePath,
+				final DBOptions dbOptions,
+				final ColumnFamilyOptions columnFamilyOptions,
+				final TaskKvStateRegistry kvStateRegistry,
+				final TypeSerializer<K> keySerializer,
+				final int numberOfKeyGroups,
+				final KeyGroupRange keyGroupRange) throws Exception {
+
 			super(jobId, operatorIdentifier, userCodeClassLoader,
 				instanceBasePath,
 				dbOptions, columnFamilyOptions, kvStateRegistry, keySerializer,
@@ -74,9 +80,10 @@ public final class KVStateRequestSerializerRocksDBTest {
 		}
 
 		@Override
-		public <N, T> ListState<T> createListState(
+		public <N, T> InternalListState<N, T> createListState(
 			final TypeSerializer<N> namespaceSerializer,
 			final ListStateDescriptor<T> stateDesc) throws Exception {
+
 			return super.createListState(namespaceSerializer, stateDesc);
 		}
 	}
@@ -90,8 +97,7 @@ public final class KVStateRequestSerializerRocksDBTest {
 	 */
 	@Test
 	public void testListSerialization() throws Exception {
-		final long key = 0l;
-		TypeSerializer<Long> valueSerializer = LongSerializer.INSTANCE;
+		final long key = 0L;
 
 		// objects for RocksDB state list serialisation
 		DBOptions dbOptions = PredefinedOptions.DEFAULT.createDBOptions();
@@ -110,9 +116,10 @@ public final class KVStateRequestSerializerRocksDBTest {
 			);
 		longHeapKeyedStateBackend.setCurrentKey(key);
 
-		final ListState<Long> listState = longHeapKeyedStateBackend
+		final InternalListState<VoidNamespace, Long> listState = longHeapKeyedStateBackend
 			.createListState(VoidNamespaceSerializer.INSTANCE,
 				new ListStateDescriptor<>("test", LongSerializer.INSTANCE));
+
 		KvStateRequestSerializerTest.testListSerialization(key, listState);
 	}
 }

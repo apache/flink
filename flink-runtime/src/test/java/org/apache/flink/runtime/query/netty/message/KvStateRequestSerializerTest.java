@@ -21,7 +21,7 @@ package org.apache.flink.runtime.query.netty.message;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.UnpooledByteBufAllocator;
-import org.apache.flink.api.common.state.ListState;
+
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
@@ -30,10 +30,12 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.query.KvStateID;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.KvState;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
+import org.apache.flink.runtime.state.internal.InternalKvState;
+import org.apache.flink.runtime.state.internal.InternalListState;
+
 import org.junit.Test;
 
 import java.io.IOException;
@@ -315,7 +317,7 @@ public class KvStateRequestSerializerTest {
 	 */
 	@Test
 	public void testListSerialization() throws Exception {
-		final long key = 0l;
+		final long key = 0L;
 
 		// objects for heap state list serialisation
 		final HeapKeyedStateBackend<Long> longHeapKeyedStateBackend =
@@ -327,9 +329,10 @@ public class KvStateRequestSerializerTest {
 			);
 		longHeapKeyedStateBackend.setCurrentKey(key);
 
-		final ListState<Long> listState = longHeapKeyedStateBackend
-			.createListState(VoidNamespaceSerializer.INSTANCE,
+		final InternalListState<VoidNamespace, Long> listState = longHeapKeyedStateBackend.createListState(
+				VoidNamespaceSerializer.INSTANCE,
 				new ListStateDescriptor<>("test", LongSerializer.INSTANCE));
+
 		testListSerialization(key, listState);
 	}
 
@@ -340,19 +343,16 @@ public class KvStateRequestSerializerTest {
 	 * @param key
 	 * 		key of the list state
 	 * @param listState
-	 * 		list state using the {@link VoidNamespace}, must also be a {@link
-	 * 		KvState} instance
+	 * 		list state using the {@link VoidNamespace}, must also be a {@link InternalKvState} instance
 	 *
 	 * @throws Exception
 	 */
-	public static void testListSerialization(final long key,
-		final ListState<Long> listState) throws Exception {
+	public static void testListSerialization(
+			final long key,
+			final InternalListState<VoidNamespace, Long> listState) throws Exception {
 
 		TypeSerializer<Long> valueSerializer = LongSerializer.INSTANCE;
-
-		final KvState<VoidNamespace> listKvState =
-			(KvState<VoidNamespace>) listState;
-		listKvState.setCurrentNamespace(VoidNamespace.INSTANCE);
+		listState.setCurrentNamespace(VoidNamespace.INSTANCE);
 
 		// List
 		final int numElements = 10;
@@ -368,8 +368,8 @@ public class KvStateRequestSerializerTest {
 			KvStateRequestSerializer.serializeKeyAndNamespace(
 				key, LongSerializer.INSTANCE,
 				VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE);
-		final byte[] serializedValues =
-			listKvState.getSerializedValue(serializedKey);
+		
+		final byte[] serializedValues = listState.getSerializedValue(serializedKey);
 
 		List<Long> actualValues = KvStateRequestSerializer.deserializeList(serializedValues, valueSerializer);
 		assertEquals(expectedValues, actualValues);

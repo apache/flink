@@ -20,15 +20,16 @@ package org.apache.flink.streaming.runtime.operators.windowing;
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Iterables;
+
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.AppendingState;
-import org.apache.flink.api.common.state.MergingState;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.windowing.assigners.MergingWindowAssigner;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
@@ -41,7 +42,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import java.util.Collection;
 
-import static java.util.Objects.requireNonNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A {@link WindowOperator} that also allows an {@link Evictor} to be used.
@@ -56,40 +57,52 @@ import static java.util.Objects.requireNonNull;
  * @param <W> The type of {@code Window} that the {@code WindowAssigner} assigns.
  */
 @Internal
-public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends WindowOperator<K, IN, Iterable<IN>, OUT, W> {
+public class EvictingWindowOperator<K, IN, OUT, W extends Window> 
+		extends WindowOperator<K, IN, Iterable<IN>, OUT, W> {
 
 	private static final long serialVersionUID = 1L;
 
+	// ------------------------------------------------------------------------
+	// these fields are set by the API stream graph builder to configure the operator 
+	
 	private final Evictor<? super IN, ? super W> evictor;
+
+	private final StateDescriptor<? extends ListState<StreamRecord<IN>>, ?> evictingWindowStateDescriptor;
+
+	// ------------------------------------------------------------------------
+	// the fields below are instantiated once the operator runs in the runtime 
 
 	private transient EvictorContext evictorContext;
 
-	private final StateDescriptor<? extends ListState<StreamRecord<IN>>, ?> windowStateDescriptor;
+	private transient InternalListState<W, StreamRecord<IN>> evictingWindowState;
+
+	// ------------------------------------------------------------------------
 
 	public EvictingWindowOperator(WindowAssigner<? super IN, W> windowAssigner,
-		TypeSerializer<W> windowSerializer,
-		KeySelector<IN, K> keySelector,
-		TypeSerializer<K> keySerializer,
-		StateDescriptor<? extends ListState<StreamRecord<IN>>, ?> windowStateDescriptor,
-		InternalWindowFunction<Iterable<IN>, OUT, K, W> windowFunction,
-		Trigger<? super IN, ? super W> trigger,
-		Evictor<? super IN, ? super W> evictor,
-		long allowedLateness) {
+			TypeSerializer<W> windowSerializer,
+			KeySelector<IN, K> keySelector,
+			TypeSerializer<K> keySerializer,
+			StateDescriptor<? extends ListState<StreamRecord<IN>>, ?> windowStateDescriptor,
+			InternalWindowFunction<Iterable<IN>, OUT, K, W> windowFunction,
+			Trigger<? super IN, ? super W> trigger,
+			Evictor<? super IN, ? super W> evictor,
+			long allowedLateness) {
 
 		super(windowAssigner, windowSerializer, keySelector,
 			keySerializer, null, windowFunction, trigger, allowedLateness);
-		this.evictor = requireNonNull(evictor);
-		this.windowStateDescriptor = windowStateDescriptor;
+
+		this.evictor = checkNotNull(evictor);
+		this.evictingWindowStateDescriptor = checkNotNull(windowStateDescriptor);
 	}
 
 	@Override
-	@SuppressWarnings("unchecked")
 	public void processElement(StreamRecord<IN> element) throws Exception {
 		Collection<W> elementWindows = windowAssigner.assignWindows(
 				element.getValue(),
 				element.getTimestamp(),
 				windowAssignerContext);
 
+		@SuppressWarnings("unchecked")
 		final K key = (K) getKeyedStateBackend().getCurrentKey();
 
 		if (windowAssigner instanceof MergingWindowAssigner) {
@@ -119,11 +132,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 								}
 
 								// merge the merged state windows into the newly resulting state window
-								getKeyedStateBackend().mergePartitionedStates(
-									stateWindowResult,
-									mergedStateWindows,
-									windowSerializer,
-									(StateDescriptor<? extends MergingState<?, ?>, ?>) windowStateDescriptor);
+								evictingWindowState.mergeNamespaces(stateWindowResult, mergedStateWindows);
 							}
 						});
 
@@ -137,9 +146,9 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 				if (stateWindow == null) {
 					throw new IllegalStateException("Window " + window + " is not in in-flight window set.");
 				}
-				ListState<StreamRecord<IN>> windowState = getPartitionedState(
-					stateWindow, windowSerializer, windowStateDescriptor);
-				windowState.add(element);
+				
+				evictingWindowState.setCurrentNamespace(stateWindow);
+				evictingWindowState.add(element);
 
 				context.key = key;
 				context.window = actualWindow;
@@ -149,16 +158,16 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 				TriggerResult triggerResult = context.onElement(element);
 
 				if (triggerResult.isFire()) {
-					Iterable<StreamRecord<IN>> contents = windowState.get();
+					Iterable<StreamRecord<IN>> contents = evictingWindowState.get();
 					if (contents == null) {
 						// if we have no state, there is nothing to do
 						continue;
 					}
-					fire(actualWindow, contents, windowState);
+					fire(actualWindow, contents, evictingWindowState);
 				}
 
 				if (triggerResult.isPurge()) {
-					cleanup(actualWindow, windowState, mergingWindows);
+					cleanup(actualWindow, evictingWindowState, mergingWindows);
 				} else {
 					registerCleanupTimer(actualWindow);
 				}
@@ -173,9 +182,8 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 					continue;
 				}
 
-				ListState<StreamRecord<IN>> windowState = getPartitionedState(
-					window, windowSerializer, windowStateDescriptor);
-				windowState.add(element);
+				evictingWindowState.setCurrentNamespace(window);
+				evictingWindowState.add(element);
 
 				context.key = key;
 				context.window = window;
@@ -185,16 +193,16 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 				TriggerResult triggerResult = context.onElement(element);
 
 				if (triggerResult.isFire()) {
-					Iterable<StreamRecord<IN>> contents = windowState.get();
+					Iterable<StreamRecord<IN>> contents = evictingWindowState.get();
 					if (contents == null) {
 						// if we have no state, there is nothing to do
 						continue;
 					}
-					fire(window, contents, windowState);
+					fire(window, contents, evictingWindowState);
 				}
 
 				if (triggerResult.isPurge()) {
-					cleanup(window, windowState, null);
+					cleanup(window, evictingWindowState, null);
 				} else {
 					registerCleanupTimer(window);
 				}
@@ -222,15 +230,13 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 				// so it is safe to just ignore
 				return;
 			}
-			windowState = getPartitionedState(stateWindow, windowSerializer, windowStateDescriptor);
+			
+			evictingWindowState.setCurrentNamespace(stateWindow);
 		} else {
-			windowState = getPartitionedState(
-					context.window,
-					windowSerializer,
-					windowStateDescriptor);
+			evictingWindowState.setCurrentNamespace(context.window);
 		}
 
-		Iterable<StreamRecord<IN>> contents = windowState.get();
+		Iterable<StreamRecord<IN>> contents = evictingWindowState.get();
 		if (contents == null) {
 			// if we have no state, there is nothing to do
 			return;
@@ -238,11 +244,11 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 
 		TriggerResult triggerResult = context.onEventTime(timer.getTimestamp());
 		if (triggerResult.isFire()) {
-			fire(context.window, contents, windowState);
+			fire(context.window, contents, evictingWindowState);
 		}
 
 		if (triggerResult.isPurge() || (windowAssigner.isEventTime() && isCleanupTime(context.window, timer.getTimestamp()))) {
-			cleanup(context.window, windowState, mergingWindows);
+			cleanup(context.window, evictingWindowState, mergingWindows);
 		}
 	}
 
@@ -265,12 +271,12 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 				// so it is safe to just ignore
 				return;
 			}
-			windowState = getPartitionedState(stateWindow, windowSerializer, windowStateDescriptor);
+			evictingWindowState.setCurrentNamespace(stateWindow);
 		} else {
-			windowState = getPartitionedState(context.window, windowSerializer, windowStateDescriptor);
+			evictingWindowState.setCurrentNamespace(context.window);
 		}
 
-		Iterable<StreamRecord<IN>> contents = windowState.get();
+		Iterable<StreamRecord<IN>> contents = evictingWindowState.get();
 		if (contents == null) {
 			// if we have no state, there is nothing to do
 			return;
@@ -278,11 +284,11 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 
 		TriggerResult triggerResult = context.onProcessingTime(timer.getTimestamp());
 		if (triggerResult.isFire()) {
-			fire(context.window, contents, windowState);
+			fire(context.window, contents, evictingWindowState);
 		}
 
 		if (triggerResult.isPurge() || (!windowAssigner.isEventTime() && isCleanupTime(context.window, timer.getTimestamp()))) {
-			cleanup(context.window, windowState, mergingWindows);
+			cleanup(context.window, evictingWindowState, mergingWindows);
 		}
 	}
 
@@ -381,7 +387,10 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 	@Override
 	public void open() throws Exception {
 		super.open();
+
 		evictorContext = new EvictorContext(null,null);
+		evictingWindowState = (InternalListState<W, StreamRecord<IN>>) 
+				getOrCreateKeyedState(windowSerializer, evictingWindowStateDescriptor);
 	}
 
 	@Override
@@ -409,6 +418,6 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 	@VisibleForTesting
 	@SuppressWarnings("unchecked, rawtypes")
 	public StateDescriptor<? extends AppendingState<IN, Iterable<IN>>, ?> getStateDescriptor() {
-		return (StateDescriptor<? extends AppendingState<IN, Iterable<IN>>, ?>) windowStateDescriptor;
+		return (StateDescriptor<? extends AppendingState<IN, Iterable<IN>>, ?>) evictingWindowStateDescriptor;
 	}
 }

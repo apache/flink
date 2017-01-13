@@ -25,14 +25,13 @@ import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.query.netty.message.KvStateRequestSerializer;
+import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
-import org.apache.flink.runtime.state.KvState;
 import org.apache.flink.util.Preconditions;
+
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDBException;
 import org.rocksdb.WriteOptions;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
@@ -48,9 +47,7 @@ import java.io.IOException;
  * @param <SD> The type of {@link StateDescriptor}.
  */
 public abstract class AbstractRocksDBState<K, N, S extends State, SD extends StateDescriptor<S, V>, V>
-		implements KvState<N>, State {
-
-	private static final Logger LOG = LoggerFactory.getLogger(AbstractRocksDBState.class);
+		implements InternalKvState<N>, State {
 
 	/** Serializer for the namespace */
 	private final TypeSerializer<N> namespaceSerializer;

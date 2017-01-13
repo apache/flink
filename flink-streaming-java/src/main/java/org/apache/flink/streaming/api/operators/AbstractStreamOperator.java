@@ -494,15 +494,34 @@ public abstract class AbstractStreamOperator<OUT>
 		return getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateDescriptor);
 	}
 
+
+	protected <N, S extends State, T> S getOrCreateKeyedState(
+			TypeSerializer<N> namespaceSerializer,
+			StateDescriptor<S, T> stateDescriptor) throws Exception {
+
+		if (keyedStateStore != null) {
+			return keyedStateBackend.getOrCreateKeyedState(namespaceSerializer, stateDescriptor);
+		}
+		else {
+			throw new IllegalStateException("Cannot create partitioned state. " +
+					"The keyed state backend has not been set." +
+					"This indicates that the operator is not partitioned/keyed.");
+		}
+	}
+
 	/**
 	 * Creates a partitioned state handle, using the state backend configured for this task.
+	 * 
+	 * TODO: NOTE: This method does a lot of work caching / retrieving states just to update the namespace.
+	 *       This method should be removed for the sake of namespaces being lazily fetched from the keyed
+	 *       state backend, or being set on the state directly.
 	 *
 	 * @throws IllegalStateException Thrown, if the key/value state was already initialized.
 	 * @throws Exception Thrown, if the state backend cannot create the key/value state.
 	 */
-	@SuppressWarnings("unchecked")
 	protected <S extends State, N> S getPartitionedState(
-			N namespace, TypeSerializer<N> namespaceSerializer,
+			N namespace,
+			TypeSerializer<N> namespaceSerializer,
 			StateDescriptor<S, ?> stateDescriptor) throws Exception {
 
 		if (keyedStateStore != null) {

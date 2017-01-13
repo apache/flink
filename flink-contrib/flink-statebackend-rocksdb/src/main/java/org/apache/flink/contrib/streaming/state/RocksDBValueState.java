@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.query.netty.message.KvStateRequestSerializer;
+import org.apache.flink.runtime.state.internal.InternalValueState;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDBException;
 import org.rocksdb.WriteOptions;
@@ -40,7 +41,7 @@ import java.io.IOException;
  */
 public class RocksDBValueState<K, N, V>
 	extends AbstractRocksDBState<K, N, ValueState<V>, ValueStateDescriptor<V>, V>
-	implements ValueState<V> {
+	implements InternalValueState<N, V> {
 
 	/** Serializer for the values */
 	private final TypeSerializer<V> valueSerializer;

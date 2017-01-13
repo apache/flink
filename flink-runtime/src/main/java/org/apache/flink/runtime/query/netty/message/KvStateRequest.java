@@ -19,11 +19,11 @@
 package org.apache.flink.runtime.query.netty.message;
 
 import org.apache.flink.runtime.query.KvStateID;
-import org.apache.flink.runtime.state.KvState;
+import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.util.Preconditions;
 
 /**
- * A {@link KvState} instance request for a specific key and namespace.
+ * A {@link InternalKvState} instance request for a specific key and namespace.
  */
 public final class KvStateRequest {
 
