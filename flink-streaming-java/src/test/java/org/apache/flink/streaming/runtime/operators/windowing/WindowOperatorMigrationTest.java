@@ -73,7 +73,7 @@ import static org.junit.Assert.fail;
 public class WindowOperatorMigrationTest {
 
 	private static String getResourceFilename(String filename) {
-		ClassLoader cl = WindowOperatorTest.class.getClassLoader();
+		ClassLoader cl = WindowOperatorMigrationTest.class.getClassLoader();
 		URL resource = cl.getResource(filename);
 		if (resource == null) {
 			throw new NullPointerException("Missing snapshot resource.");
