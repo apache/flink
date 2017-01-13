@@ -53,7 +53,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * should be defined by concrete implementations of a {@link ElasticsearchClientFactory}, which is to be provided to the
  * constructor of this class.
  *
- * @param <T> Type of the elements emitted by this sink
+ * @param <T> Type of the elements handled by this sink
  */
 public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> {
 
@@ -228,7 +228,6 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> {
 				throw new RuntimeException("An error occured in ElasticsearchSink.", cause);
 			} else {
 				throw new RuntimeException("An error occured in ElasticsearchSink.");
-
 			}
 		}
 	}

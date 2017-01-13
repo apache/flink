@@ -46,9 +46,9 @@ class ElasticsearchClientFactoryImpl implements ElasticsearchClientFactory {
 	private static final Logger LOG = LoggerFactory.getLogger(ElasticsearchClientFactoryImpl.class);
 
 	/**
-	 * 	User-provided transport addresses.
+	 * User-provided transport addresses.
 	 *
-	 * 	We are using {@link InetSocketAddress} because {@link TransportAddress} is not serializable in Elasticsearch 5.x.
+	 * We are using {@link InetSocketAddress} because {@link TransportAddress} is not serializable in Elasticsearch 5.x.
 	 */
 	private final List<InetSocketAddress> transportAddresses;
 
@@ -71,7 +71,7 @@ class ElasticsearchClientFactoryImpl implements ElasticsearchClientFactory {
 
 		// verify that we actually are connected to a cluster
 		if (transportClient.connectedNodes().isEmpty()) {
-			throw new RuntimeException("Client is not connected to any Elasticsearch nodes!");
+			throw new RuntimeException("Elasticsearch client is not connected to any Elasticsearch nodes!");
 		}
 
 		if (LOG.isInfoEnabled()) {

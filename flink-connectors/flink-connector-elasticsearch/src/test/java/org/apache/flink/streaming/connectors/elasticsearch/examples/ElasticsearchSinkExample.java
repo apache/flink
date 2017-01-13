@@ -17,10 +17,10 @@
 
 package org.apache.flink.streaming.connectors.elasticsearch.examples;
 
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.streaming.api.datastream.DataStreamSource;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSink;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunction;
 import org.apache.flink.streaming.connectors.elasticsearch.RequestIndexer;
@@ -45,33 +45,22 @@ public class ElasticsearchSinkExample {
 		
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		DataStreamSource<String> source = env.addSource(new SourceFunction<String>() {
-			private static final long serialVersionUID = 1L;
-
-			private volatile boolean running = true;
-
+		DataStream<String> source = env.generateSequence(0, 20).map(new MapFunction<Long, String>() {
 			@Override
-			public void run(SourceContext<String> ctx) throws Exception {
-				for (int i = 0; i < 20 && running; i++) {
-					ctx.collect("message #" + i);
-				}
-			}
-
-			@Override
-			public void cancel() {
-				running = false;
+			public String map(Long value) throws Exception {
+				return "message #" + value;
 			}
 		});
 
-		Map<String, String> config = new HashMap<>();
-		config.put("cluster.name", "elasticsearch");
+		Map<String, String> userConfig = new HashMap<>();
+		userConfig.put("cluster.name", "elasticsearch");
 		// This instructs the sink to emit after every element, otherwise they would be buffered
-		config.put(ElasticsearchSink.CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, "1");
+		userConfig.put(ElasticsearchSink.CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, "1");
 
 		List<TransportAddress> transports = new ArrayList<>();
 		transports.add(new InetSocketTransportAddress(InetAddress.getByName("127.0.0.1"), 9300));
 
-		source.addSink(new ElasticsearchSink<>(config, transports, new ElasticsearchSinkFunction<String>() {
+		source.addSink(new ElasticsearchSink<>(userConfig, transports, new ElasticsearchSinkFunction<String>() {
 			@Override
 			public void process(String element, RuntimeContext ctx, RequestIndexer indexer) {
 				indexer.add(createIndexRequest(element));

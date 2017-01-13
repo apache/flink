@@ -19,6 +19,7 @@ package org.apache.flink.streaming.connectors.elasticsearch;
 
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.bulk.BulkProcessor;
+import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.node.Node;
@@ -62,16 +63,16 @@ import java.util.Map;
  * {@link ActionRequest ActionRequests} for each incoming element. See the class level documentation of
  * {@link ElasticsearchSinkFunction} for an example.
  *
- * @param <T> Type of the elements emitted by this sink
+ * @param <T> Type of the elements handled by this sink
  */
 public class ElasticsearchSink<T> extends ElasticsearchSinkBase<T> {
 
 	private static final long serialVersionUID = 1L;
 
 	/**
-	 * Creates a new {@code ElasticsearchSink} that connects to the cluster using an embedded Node.
+	 * Creates a new {@code ElasticsearchSink} that connects to the cluster using an embedded {@link Node}.
 	 *
-	 * @param userConfig The map of user settings that are passed when constructing the Node and BulkProcessor
+	 * @param userConfig The map of user settings that are used when constructing the {@link Node} and {@link BulkProcessor}
 	 * @param indexRequestBuilder This is used to generate the IndexRequest from the incoming element
 	 *
 	 * @deprecated Deprecated since version 1.2, to be removed at version 2.0.
@@ -83,11 +84,11 @@ public class ElasticsearchSink<T> extends ElasticsearchSinkBase<T> {
 	}
 
 	/**
-	 * Creates a new ElasticsearchSink that connects to the cluster using a TransportClient.
+	 * Creates a new {@code ElasticsearchSink} that connects to the cluster using a {@link TransportClient}.
 	 *
-	 * @param userConfig The map of user settings that are passed when constructing the TransportClient and BulkProcessor
-	 * @param transportAddresses The addresses of Elasticsearch nodes to which to connect using a {@code TransportClient}
-	 * @param indexRequestBuilder This is used to generate the IndexRequest from the incoming element
+	 * @param userConfig The map of user settings that are used when constructing the {@link TransportClient} and {@link BulkProcessor}
+	 * @param transportAddresses The addresses of Elasticsearch nodes to which to connect using a {@link TransportClient}
+	 * @param indexRequestBuilder This is used to generate a {@link IndexRequest} from the incoming element
 	 *
 	 * @deprecated Deprecated since 1.2, to be removed at 2.0.
 	 *             Please use {@link ElasticsearchSink#ElasticsearchSink(Map, List, ElasticsearchSinkFunction)} instead.
@@ -98,21 +99,21 @@ public class ElasticsearchSink<T> extends ElasticsearchSinkBase<T> {
 	}
 
 	/**
-	 * Creates a new ElasticsearchSink that connects to the cluster using an embedded Node.
+	 * Creates a new {@code ElasticsearchSink} that connects to the cluster using an embedded {@link Node}.
 	 *
-	 * @param userConfig The map of user settings that are passed when constructing the embedded Node and BulkProcessor
-	 * @param elasticsearchSinkFunction This is used generate multiple {@code ActionRequest} from the incoming element
+	 * @param userConfig The map of user settings that are used when constructing the embedded {@link Node} and {@link BulkProcessor}
+	 * @param elasticsearchSinkFunction This is used to generate multiple {@link ActionRequest} from the incoming element
 	 */
 	public ElasticsearchSink(Map<String, String> userConfig, ElasticsearchSinkFunction<T> elasticsearchSinkFunction) {
 		super(new ElasticsearchClientFactoryImpl(), userConfig, elasticsearchSinkFunction);
 	}
 
 	/**
-	 * Creates a new ElasticsearchSink that connects to the cluster using a TransportClient.
+	 * Creates a new {@code ElasticsearchSink} that connects to the cluster using a {@link TransportClient}.
 	 *
-	 * @param userConfig The map of user settings that are passed when constructing the TransportClient and BulkProcessor
-	 * @param transportAddresses The addresses of Elasticsearch nodes to which to connect using a {@code TransportClient}
-	 * @param elasticsearchSinkFunction This is used generate multiple {@code ActionRequest} from the incoming element
+	 * @param userConfig The map of user settings that are used when constructing the {@link TransportClient} and {@link BulkProcessor}
+	 * @param transportAddresses The addresses of Elasticsearch nodes to which to connect using a {@link TransportClient}
+	 * @param elasticsearchSinkFunction This is used to generate multiple {@link ActionRequest} from the incoming element
 	 */
 	public ElasticsearchSink(Map<String, String> userConfig, List<TransportAddress> transportAddresses, ElasticsearchSinkFunction<T> elasticsearchSinkFunction) {
 		super(new ElasticsearchClientFactoryImpl(transportAddresses), userConfig, elasticsearchSinkFunction);

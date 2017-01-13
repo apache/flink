@@ -65,7 +65,7 @@ class ElasticsearchClientFactoryImpl implements ElasticsearchClientFactory {
 
 		// verify that we actually are connected to a cluster
 		if (transportClient.connectedNodes().isEmpty()) {
-			throw new RuntimeException("Client is not connected to any Elasticsearch nodes!");
+			throw new RuntimeException("Elasticsearch client is not connected to any Elasticsearch nodes!");
 		}
 
 		if (LOG.isInfoEnabled()) {

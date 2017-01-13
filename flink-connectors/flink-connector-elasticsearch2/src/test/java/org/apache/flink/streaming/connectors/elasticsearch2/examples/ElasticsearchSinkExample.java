@@ -18,7 +18,7 @@ package org.apache.flink.streaming.connectors.elasticsearch2.examples;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.elasticsearch2.ElasticsearchSink;
 import org.elasticsearch.action.index.IndexRequest;
@@ -41,39 +41,29 @@ public class ElasticsearchSinkExample {
 
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		SingleOutputStreamOperator<String> source =
-				env.generateSequence(0, 20).map(new MapFunction<Long, String>() {
-					/**
-					 * The mapping method. Takes an element from the input data set and transforms
-					 * it into exactly one element.
-					 *
-					 * @param value The input value.
-					 * @return The transformed value
-					 * @throws Exception This method may throw exceptions. Throwing an exception will cause the operation
-					 *                   to fail and may trigger recovery.
-					 */
-					@Override
-					public String map(Long value) throws Exception {
-						return "message #" + value;
-					}
-				});
+		DataStream<String> source = env.generateSequence(0, 20).map(new MapFunction<Long, String>() {
+			@Override
+			public String map(Long value) throws Exception {
+				return "message #" + value;
+			}
+		});
 
-		Map<String, String> config = new HashMap<>();
-		config.put("cluster.name", "elasticsearch");
+		Map<String, String> userConfig = new HashMap<>();
+		userConfig.put("cluster.name", "elasticsearch");
 		// This instructs the sink to emit after every element, otherwise they would be buffered
-		config.put(ElasticsearchSink.CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, "1");
+		userConfig.put(ElasticsearchSink.CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, "1");
 
 		List<InetSocketAddress> transports = new ArrayList<>();
 		transports.add(new InetSocketAddress(InetAddress.getByName("127.0.0.1"), 9300));
 
-		source.addSink(new ElasticsearchSink<>(config, transports, new org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunction<String>(){
+		source.addSink(new ElasticsearchSink<>(userConfig, transports, new org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunction<String>(){
 			@Override
 			public void process(String element, RuntimeContext ctx, org.apache.flink.streaming.connectors.elasticsearch.RequestIndexer indexer) {
 				indexer.add(createIndexRequest(element));
 			}
 		}));
 
-		env.execute("Elasticsearch Example");
+		env.execute("Elasticsearch Sink Example");
 	}
 
 	private static IndexRequest createIndexRequest(String element) {
@@ -81,9 +71,9 @@ public class ElasticsearchSinkExample {
 		json.put("data", element);
 
 		return Requests.indexRequest()
-				.index("my-index")
-				.type("my-type")
-				.id(element)
-				.source(json);
+			.index("my-index")
+			.type("my-type")
+			.id(element)
+			.source(json);
 	}
 }

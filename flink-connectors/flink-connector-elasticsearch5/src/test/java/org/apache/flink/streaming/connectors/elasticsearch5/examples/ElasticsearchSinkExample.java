@@ -18,7 +18,7 @@ package org.apache.flink.streaming.connectors.elasticsearch5.examples;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunction;
 import org.apache.flink.streaming.connectors.elasticsearch.RequestIndexer;
@@ -43,13 +43,12 @@ public class ElasticsearchSinkExample {
 
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		SingleOutputStreamOperator<String> source =
-			env.generateSequence(0, 20).map(new MapFunction<Long, String>() {
-				@Override
-				public String map(Long value) throws Exception {
-					return "message #" + value;
-				}
-			});
+		DataStream<String> source = env.generateSequence(0, 20).map(new MapFunction<Long, String>() {
+			@Override
+			public String map(Long value) throws Exception {
+				return "message #" + value;
+			}
+		});
 
 		Map<String, String> userConfig = new HashMap<>();
 		userConfig.put("cluster.name", "elasticsearch");
@@ -66,7 +65,7 @@ public class ElasticsearchSinkExample {
 			}
 		}));
 
-		env.execute("Elasticsearch Example");
+		env.execute("Elasticsearch Sink Example");
 	}
 
 	private static IndexRequest createIndexRequest(String element) {

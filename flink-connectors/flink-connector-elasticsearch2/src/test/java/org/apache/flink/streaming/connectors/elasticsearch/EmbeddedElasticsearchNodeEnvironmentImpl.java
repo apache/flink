@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.elasticsearch;
 
+import org.apache.flink.streaming.connectors.elasticsearch2.ElasticsearchSinkITCase;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.node.Node;
@@ -24,6 +25,10 @@ import org.elasticsearch.node.NodeBuilder;
 
 import java.io.File;
 
+/**
+ * Implementation of {@link EmbeddedElasticsearchNodeEnvironment} for Elasticsearch 2.x.
+ * Will be dynamically loaded in {@link ElasticsearchSinkITCase} for integration tests.
+ */
 public class EmbeddedElasticsearchNodeEnvironmentImpl implements EmbeddedElasticsearchNodeEnvironment {
 
 	private Node node;
@@ -53,7 +58,11 @@ public class EmbeddedElasticsearchNodeEnvironmentImpl implements EmbeddedElastic
 
 	@Override
 	public Client getClient() {
-		return node.client();
+		if (node != null && !node.isClosed()) {
+			return node.client();
+		} else {
+			return null;
+		}
 	}
 
 }

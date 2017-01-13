@@ -44,6 +44,9 @@ public class SourceSinkDataTestKit {
 
 	private static final String TYPE_NAME = "flink-es-test-type";
 
+	/**
+	 * A {@link SourceFunction} that generates the elements (id, "message #" + id) with id being 0 - 20.
+	 */
 	public static class TestDataSourceFunction implements SourceFunction<Tuple2<Integer, String>> {
 		private static final long serialVersionUID = 1L;
 
@@ -62,11 +65,19 @@ public class SourceSinkDataTestKit {
 		}
 	}
 
+	/**
+	 * A {@link ElasticsearchSinkFunction} that indexes each element it receives to a sepecified Elasticsearch index.
+	 */
 	public static class TestElasticsearchSinkFunction implements ElasticsearchSinkFunction<Tuple2<Integer, String>> {
 		private static final long serialVersionUID = 1L;
 
 		private final String index;
 
+		/**
+		 * Create the sink function, specifying a target Elasticsearch index.
+		 *
+		 * @param index Name of the target Elasticsearch index.
+		 */
 		public TestElasticsearchSinkFunction(String index) {
 			this.index = index;
 		}

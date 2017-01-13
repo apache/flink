@@ -41,7 +41,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
- * Suite of tests for version-specific {@link ElasticsearchSinkBase} implementations.
+ * Environment preparation and suite of tests for version-specific {@link ElasticsearchSinkBase} implementations.
  */
 public abstract class ElasticsearchSinkTestBase extends StreamingMultipleProgramsTestBase {
 

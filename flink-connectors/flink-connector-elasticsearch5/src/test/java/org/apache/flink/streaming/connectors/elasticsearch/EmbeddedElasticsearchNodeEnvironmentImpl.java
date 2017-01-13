@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.connectors.elasticsearch;
 
+import org.apache.flink.streaming.connectors.elasticsearch5.ElasticsearchSinkITCase;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.network.NetworkModule;
 import org.elasticsearch.common.settings.Settings;
@@ -29,6 +30,10 @@ import org.elasticsearch.transport.Netty3Plugin;
 import java.io.File;
 import java.util.Collections;
 
+/**
+ * Implementation of {@link EmbeddedElasticsearchNodeEnvironment} for Elasticsearch 5.x.
+ * Will be dynamically loaded in {@link ElasticsearchSinkITCase} for integration tests.
+ */
 public class EmbeddedElasticsearchNodeEnvironmentImpl implements EmbeddedElasticsearchNodeEnvironment {
 
 	private Node node;
@@ -60,7 +65,11 @@ public class EmbeddedElasticsearchNodeEnvironmentImpl implements EmbeddedElastic
 
 	@Override
 	public Client getClient() {
-		return node.client();
+		if (node != null && !node.isClosed()) {
+			return node.client();
+		} else {
+			return null;
+		}
 	}
 
 	private static class PluginNode extends Node {

@@ -44,10 +44,10 @@ class ElasticsearchClientFactoryImpl implements ElasticsearchClientFactory {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ElasticsearchClientFactoryImpl.class);
 
-	/** User-provided transport addresses. This is null if we are using an embedded Node for communication. */
+	/** User-provided transport addresses. This is null if we are using an embedded {@link Node} for communication. */
 	private final List<TransportAddress> transportAddresses;
 
-	/** The embedded Node used for communication. This is null if we are using a TransportClient. */
+	/** The embedded {@link Node} used for communication. This is null if we are using a TransportClient. */
 	private transient Node node;
 
 	/**
@@ -89,7 +89,6 @@ class ElasticsearchClientFactoryImpl implements ElasticsearchClientFactory {
 
 			return client;
 		} else {
-
 			Settings settings = settingsBuilder()
 				.put(clientConfig)
 				.build();
@@ -101,7 +100,7 @@ class ElasticsearchClientFactoryImpl implements ElasticsearchClientFactory {
 
 			// verify that we actually are connected to a cluster
 			if (transportClient.connectedNodes().isEmpty()) {
-				throw new RuntimeException("Client is not connected to any Elasticsearch nodes!");
+				throw new RuntimeException("Elasticsearch client is not connected to any Elasticsearch nodes!");
 			}
 
 			if (LOG.isInfoEnabled()) {

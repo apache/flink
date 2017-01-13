@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -56,7 +56,6 @@ import java.io.Serializable;
  * }</pre>
  *
  * @param <T> The type of the element handled by this {@code ElasticsearchSinkFunction}
- *
  */
 public interface ElasticsearchSinkFunction<T> extends Serializable, Function {
 
@@ -65,7 +64,7 @@ public interface ElasticsearchSinkFunction<T> extends Serializable, Function {
 	 * The produced requests should be added to the provided {@link RequestIndexer}.
 	 *
 	 * @param element incoming element to process
-	 * @param ctx     runtime context containting information about the sink instance
+	 * @param ctx     runtime context containing information about the sink instance
 	 * @param indexer request indexer that {@code ActionRequest} should be added to
 	 */
 	void process(T element, RuntimeContext ctx, RequestIndexer indexer);
