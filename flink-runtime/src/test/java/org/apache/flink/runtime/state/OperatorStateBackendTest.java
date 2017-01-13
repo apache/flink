@@ -45,8 +45,9 @@ public class OperatorStateBackendTest {
 		return env;
 	}
 
-	private OperatorStateBackend createNewOperatorStateBackend() throws Exception {
-		return abstractStateBackend.createOperatorStateBackend(
+	private DefaultOperatorStateBackend createNewOperatorStateBackend() throws Exception {
+		//TODO this is temporarily casted to test already functionality that we do not yet expose through public API
+		return (DefaultOperatorStateBackend) abstractStateBackend.createOperatorStateBackend(
 				createMockEnvironment(),
 				"test-operator");
 	}
@@ -60,7 +61,7 @@ public class OperatorStateBackendTest {
 
 	@Test
 	public void testRegisterStates() throws Exception {
-		OperatorStateBackend operatorStateBackend = createNewOperatorStateBackend();
+		DefaultOperatorStateBackend operatorStateBackend = createNewOperatorStateBackend();
 		ListStateDescriptor<Serializable> stateDescriptor1 = new ListStateDescriptor<>("test1", new JavaSerializer<>());
 		ListStateDescriptor<Serializable> stateDescriptor2 = new ListStateDescriptor<>("test2", new JavaSerializer<>());
 		ListStateDescriptor<Serializable> stateDescriptor3 = new ListStateDescriptor<>("test3", new JavaSerializer<>());
@@ -143,7 +144,7 @@ public class OperatorStateBackendTest {
 
 	@Test
 	public void testSnapshotRestore() throws Exception {
-		OperatorStateBackend operatorStateBackend = createNewOperatorStateBackend();
+		DefaultOperatorStateBackend operatorStateBackend = createNewOperatorStateBackend();
 		ListStateDescriptor<Serializable> stateDescriptor1 = new ListStateDescriptor<>("test1", new JavaSerializer<>());
 		ListStateDescriptor<Serializable> stateDescriptor2 = new ListStateDescriptor<>("test2", new JavaSerializer<>());
 		ListStateDescriptor<Serializable> stateDescriptor3 = new ListStateDescriptor<>("test3", new JavaSerializer<>());
@@ -171,7 +172,8 @@ public class OperatorStateBackendTest {
 			operatorStateBackend.close();
 			operatorStateBackend.dispose();
 
-			operatorStateBackend = abstractStateBackend.createOperatorStateBackend(
+			//TODO this is temporarily casted to test already functionality that we do not yet expose through public API
+			operatorStateBackend = (DefaultOperatorStateBackend) abstractStateBackend.createOperatorStateBackend(
 					createMockEnvironment(),
 					"testOperator");
 

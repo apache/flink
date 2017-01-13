@@ -34,6 +34,7 @@ import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
@@ -969,8 +970,10 @@ public class RescalingITCase extends TestLogger {
 		public void initializeState(FunctionInitializationContext context) throws Exception {
 
 			if (broadcast) {
+				//TODO this is temporarily casted to test already functionality that we do not yet expose through public API
+				DefaultOperatorStateBackend operatorStateStore = (DefaultOperatorStateBackend) context.getOperatorStateStore();
 				this.counterPartitions =
-						context.getOperatorStateStore().getBroadcastSerializableListState("counter_partitions");
+						operatorStateStore.getBroadcastSerializableListState("counter_partitions");
 			} else {
 				this.counterPartitions =
 						context.getOperatorStateStore().getSerializableListState("counter_partitions");
