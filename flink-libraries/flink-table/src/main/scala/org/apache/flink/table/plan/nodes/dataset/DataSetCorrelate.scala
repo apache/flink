@@ -24,7 +24,6 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.calcite.rex.{RexCall, RexNode}
 import org.apache.calcite.sql.SemiJoinType
-import org.apache.flink.api.common.functions.FlatMapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.table.api.BatchTableEnvironment
@@ -93,11 +92,6 @@ class DataSetCorrelate(
     : DataSet[Any] = {
 
     val config = tableEnv.getConfig
-    val returnType = determineReturnType(
-      getRowType,
-      expectedType,
-      config.getNullCheck,
-      config.getEfficientTypeUsage)
 
     // we do not need to specify input type
     val inputDS = inputNode.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
@@ -116,7 +110,7 @@ class DataSetCorrelate(
       None,
       Some(pojoFieldMapping))
 
-    val body = functionBody(
+    val (flatMap, collector) = generateFunction(
       generator,
       udtfTypeInfo,
       getRowType,
@@ -124,15 +118,10 @@ class DataSetCorrelate(
       condition,
       config,
       joinType,
-      expectedType)
+      expectedType,
+      ruleDescription)
 
-    val genFunction = generator.generateFunction(
-      ruleDescription,
-      classOf[FlatMapFunction[Any, Any]],
-      body,
-      returnType)
-
-    val mapFunc = correlateMapFunction(genFunction)
+    val mapFunc = correlateMapFunction(flatMap, collector)
 
     inputDS.flatMap(mapFunc).name(correlateOpName(rexCall, sqlFunction, relRowType))
   }
