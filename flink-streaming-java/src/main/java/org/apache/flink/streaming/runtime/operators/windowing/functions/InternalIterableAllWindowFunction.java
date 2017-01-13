@@ -19,9 +19,7 @@ package org.apache.flink.streaming.runtime.operators.windowing.functions;
 
 import org.apache.flink.api.common.functions.IterationRuntimeContext;
 import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.java.operators.translation.WrappingFunction;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
@@ -36,31 +34,13 @@ public final class InternalIterableAllWindowFunction<IN, OUT, W extends Window>
 
 	private static final long serialVersionUID = 1L;
 
-	protected final AllWindowFunction<IN, OUT, W> wrappedFunction;
-
 	public InternalIterableAllWindowFunction(AllWindowFunction<IN, OUT, W> wrappedFunction) {
 		super(wrappedFunction);
-		this.wrappedFunction = wrappedFunction;
 	}
 
 	@Override
 	public void apply(Byte key, W window, Iterable<IN> input, Collector<OUT> out) throws Exception {
 		wrappedFunction.apply(window, input, out);
-	}
-
-	@Override
-	public void open(Configuration parameters) throws Exception {
-		FunctionUtils.openFunction(this.wrappedFunction, parameters);
-	}
-
-	@Override
-	public void close() throws Exception {
-		FunctionUtils.closeFunction(this.wrappedFunction);
-	}
-
-	@Override
-	public void setRuntimeContext(RuntimeContext t) {
-		FunctionUtils.setFunctionRuntimeContext(this.wrappedFunction, t);
 	}
 
 	@Override
