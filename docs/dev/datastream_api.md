@@ -911,34 +911,6 @@ DataStream<Tuple2<String, Integer>> out = in.project(2,0);
 </table>
 
 </div>
-
-<div data-lang="scala" markdown="1">
-
-<br />
-
-<table class="table table-bordered">
-  <thead>
-    <tr>
-      <th class="text-left" style="width: 20%">Transformation</th>
-      <th class="text-center">Description</th>
-    </tr>
-  </thead>
-  <tbody>
-   <tr>
-      <td><strong>Project</strong><br>DataStream &rarr; DataStream</td>
-      <td>
-        <p>Selects a subset of fields from the tuples
-{% highlight scala %}
-val in : DataStream[(Int,Double,String)] = // [...]
-val out = in.project(2,0)
-{% endhighlight %}
-        </p>
-      </td>
-    </tr>
-  </tbody>
-</table>
-
-</div>
 </div>
 
 
