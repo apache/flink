@@ -18,10 +18,9 @@
 
 package org.apache.flink.table.functions
 
-import java.util
-
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.expressions.{Expression, TableFunctionCall}
+import org.apache.flink.util.Collector
 
 /**
   * Base class for a user-defined table function (UDTF). A user-defined table functions works on
@@ -99,27 +98,28 @@ abstract class TableFunction[T] extends UserDefinedFunction {
 
   // ----------------------------------------------------------------------------------------------
 
-  private val rows: util.ArrayList[T] = new util.ArrayList[T]()
-
   /**
     * Emit an output row.
     *
     * @param row the output row
     */
   protected def collect(row: T): Unit = {
-    // cache rows for now, maybe immediately process them further
-    rows.add(row)
+    collector.collect(row)
   }
 
-  /**
-    * Internal use. Get an iterator of the buffered rows.
-    */
-  def getRowsIterator = rows.iterator()
+  // ----------------------------------------------------------------------------------------------
 
   /**
-    * Internal use. Clear buffered rows.
+    * The code generated collector used to emit row.
     */
-  def clear() = rows.clear()
+  private var collector: Collector[T] = _
+
+  /**
+    * Internal use. Sets the current collector.
+    */
+  private[flink] final def setCollector(collector: Collector[T]): Unit = {
+    this.collector = collector
+  }
 
   // ----------------------------------------------------------------------------------------------
 
