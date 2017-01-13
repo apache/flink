@@ -17,15 +17,12 @@
  */
 package org.apache.flink.streaming.runtime.operators.windowing.functions;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.IterationRuntimeContext;
-import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.operators.translation.WrappingFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction;
-import org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
 
@@ -34,14 +31,15 @@ import org.apache.flink.util.Collector;
  * when the window state also is an {@code Iterable}.
  */
 public final class InternalIterableAllWindowFunction<IN, OUT, W extends Window>
-		extends InternalWindowFunction<Iterable<IN>, OUT, Byte, W>
-		implements RichFunction {
+		extends WrappingFunction<AllWindowFunction<IN, OUT, W>>
+		implements InternalWindowFunction<Iterable<IN>, OUT, Byte, W> {
 
 	private static final long serialVersionUID = 1L;
 
 	protected final AllWindowFunction<IN, OUT, W> wrappedFunction;
 
 	public InternalIterableAllWindowFunction(AllWindowFunction<IN, OUT, W> wrappedFunction) {
+		super(wrappedFunction);
 		this.wrappedFunction = wrappedFunction;
 	}
 
@@ -74,13 +72,5 @@ public final class InternalIterableAllWindowFunction<IN, OUT, W extends Window>
 	public IterationRuntimeContext getIterationRuntimeContext() {
 		throw new RuntimeException("This should never be called.");
 
-	}
-
-	@SuppressWarnings("unchecked")
-	@Override
-	public void setOutputType(TypeInformation<OUT> outTypeInfo, ExecutionConfig executionConfig) {
-		if (OutputTypeConfigurable.class.isAssignableFrom(this.wrappedFunction.getClass())) {
-			((OutputTypeConfigurable<OUT>)this.wrappedFunction).setOutputType(outTypeInfo, executionConfig);
-		}
 	}
 }

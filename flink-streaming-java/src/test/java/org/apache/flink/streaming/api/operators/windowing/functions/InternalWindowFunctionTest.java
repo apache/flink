@@ -23,6 +23,7 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.functions.util.StreamingFunctionUtils;
 import org.apache.flink.streaming.api.functions.windowing.RichAllWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
 import org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
@@ -52,7 +53,7 @@ public class InternalWindowFunctionTest {
 		ExecutionConfig execConf = new ExecutionConfig();
 		execConf.setParallelism(42);
 
-		windowFunction.setOutputType(stringType, execConf);
+		StreamingFunctionUtils.setOutputType(windowFunction, stringType, execConf);
 		verify(mock).setOutputType(stringType, execConf);
 
 		// check open
@@ -93,7 +94,7 @@ public class InternalWindowFunctionTest {
 		ExecutionConfig execConf = new ExecutionConfig();
 		execConf.setParallelism(42);
 
-		windowFunction.setOutputType(stringType, execConf);
+		StreamingFunctionUtils.setOutputType(windowFunction, stringType, execConf);
 		verify(mock).setOutputType(stringType, execConf);
 
 		// check open
@@ -134,7 +135,8 @@ public class InternalWindowFunctionTest {
 		ExecutionConfig execConf = new ExecutionConfig();
 		execConf.setParallelism(42);
 
-		windowFunction.setOutputType(stringType, execConf);
+		StreamingFunctionUtils.setOutputType(windowFunction, stringType, execConf);
+
 		verify(mock).setOutputType(stringType, execConf);
 
 		// check open
@@ -174,7 +176,8 @@ public class InternalWindowFunctionTest {
 		ExecutionConfig execConf = new ExecutionConfig();
 		execConf.setParallelism(42);
 
-		windowFunction.setOutputType(stringType, execConf);
+		StreamingFunctionUtils.setOutputType(windowFunction, stringType, execConf);
+
 		verify(mock).setOutputType(stringType, execConf);
 
 		// check open
@@ -205,6 +208,8 @@ public class InternalWindowFunctionTest {
 		extends RichWindowFunction<Long, String, Long, TimeWindow>
 		implements OutputTypeConfigurable<String> {
 
+		private static final long serialVersionUID = 1L;
+
 		@Override
 		public void setOutputType(TypeInformation<String> outTypeInfo, ExecutionConfig executionConfig) { }
 
@@ -215,6 +220,8 @@ public class InternalWindowFunctionTest {
 	public static class AllWindowFunctionMock
 		extends RichAllWindowFunction<Long, String, TimeWindow>
 		implements OutputTypeConfigurable<String> {
+
+		private static final long serialVersionUID = 1L;
 
 		@Override
 		public void setOutputType(TypeInformation<String> outTypeInfo, ExecutionConfig executionConfig) { }
