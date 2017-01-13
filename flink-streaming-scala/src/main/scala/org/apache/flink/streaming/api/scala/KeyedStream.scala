@@ -323,38 +323,38 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
     .MINBY, field)
 
   /**
-    * Applies an aggregation that gives the current minimum element of the data stream by
-    * the given position by the given key. An independent aggregate is kept per key.
-    * When equality, returns either the first or last one depending on the parameter setting.
-    *
-    * @param position
-    *            The field position in the data points to minimize. This is applicable to
-    *            Tuple types, Scala case classes, and primitive types (which is considered
-    *            as having one field).
-    * @param first
-    *            If true, then the operator return the first element with the
-    *            minimum value, otherwise returns the last.
-    *
-    */
+   * Applies an aggregation that gives the current minimum element of the data stream by
+   * the given position by the given key. An independent aggregate is kept per key.
+   * When equality, returns either the first or last one depending on the parameter setting.
+   *
+   * @param position
+   *            The field position in the data points to minimize. This is applicable to
+   *            Tuple types, Scala case classes, and primitive types (which is considered
+   *            as having one field).
+   * @param first
+   *            If true, then the operator return the first element with the
+   *            minimum value, otherwise returns the last.
+   *
+   */
   def minBy(position: Int, first: Boolean): DataStream[T] = aggregate(AggregationType
     .MINBY, position, first)
 
   /**
-    * Applies an aggregation that gives the current minimum element of the data stream by
-    * the given field by the given key. An independent aggregate is kept per key.
-    * When equality, returns either the first or last one depending on the parameter setting.
-    *
-    * @param field
-    *            In case of a POJO, Scala case class, or Tuple type, the
-    *            name of the (public) field on which to perform the aggregation.
-    *            Additionally, a dot can be used to drill down into nested
-    *            objects, as in `"field1.fieldxy"`.
-    *            Furthermore "*" can be specified in case of a basic type
-    *            (which is considered as having only one field).
-    * @param first
-    *            If true, then the operator return the first element with the
-    *            minimum value, otherwise returns the last.
-    */
+   * Applies an aggregation that gives the current minimum element of the data stream by
+   * the given field by the given key. An independent aggregate is kept per key.
+   * When equality, returns either the first or last one depending on the parameter setting.
+   *
+   * @param field
+   *            In case of a POJO, Scala case class, or Tuple type, the
+   *            name of the (public) field on which to perform the aggregation.
+   *            Additionally, a dot can be used to drill down into nested
+   *            objects, as in `"field1.fieldxy"`.
+   *            Furthermore "*" can be specified in case of a basic type
+   *            (which is considered as having only one field).
+   * @param first
+   *            If true, then the operator return the first element with the
+   *            minimum value, otherwise returns the last.
+   */
   def minBy(field: String, first: Boolean): DataStream[T] = aggregate(AggregationType
     .MINBY, field, first)
 
@@ -388,37 +388,37 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
     aggregate(AggregationType.MAXBY, field)
 
   /**
-    * Applies an aggregation that that gives the current maximum element of the data stream by
-    * the given position by the given key. An independent aggregate is kept per key.
-    * When equality, returns either the first or last one depending on the parameter setting.
-    *
-    * @param position
-    *            The field position in the data points to minimize. This is applicable to
-    *            Tuple types, Scala case classes, and primitive types (which is considered
-    *            as having one field).
-    * @param first
-    *            If true, then the operator return the first element with the
-    *            maximum value, otherwise returns the last.
-    */
+   * Applies an aggregation that that gives the current maximum element of the data stream by
+   * the given position by the given key. An independent aggregate is kept per key.
+   * When equality, returns either the first or last one depending on the parameter setting.
+   *
+   * @param position
+   *            The field position in the data points to minimize. This is applicable to
+   *            Tuple types, Scala case classes, and primitive types (which is considered
+   *            as having one field).
+   * @param first
+   *            If true, then the operator return the first element with the
+   *            maximum value, otherwise returns the last.
+   */
   def maxBy(position: Int, first: Boolean): DataStream[T] =
   aggregate(AggregationType.MAXBY, position, first)
 
   /**
-    * Applies an aggregation that that gives the current maximum element of the data stream by
-    * the given field by the given key. An independent aggregate is kept per key.
-    * When equality, returns either the first or last one depending on the parameter setting.
-    *
-    * @param field
-    *            In case of a POJO, Scala case class, or Tuple type, the
-    *            name of the (public) field on which to perform the aggregation.
-    *            Additionally, a dot can be used to drill down into nested
-    *            objects, as in `"field1.fieldxy"`.
-    *            Furthermore "*" can be specified in case of a basic type
-    *            (which is considered as having only one field).
-    * @param first
-    *            If true, then the operator return the first element with the
-    *            maximum value, otherwise returns the last.
-    */
+   * Applies an aggregation that that gives the current maximum element of the data stream by
+   * the given field by the given key. An independent aggregate is kept per key.
+   * When equality, returns either the first or last one depending on the parameter setting.
+   *
+   * @param field
+   *            In case of a POJO, Scala case class, or Tuple type, the
+   *            name of the (public) field on which to perform the aggregation.
+   *            Additionally, a dot can be used to drill down into nested
+   *            objects, as in `"field1.fieldxy"`.
+   *            Furthermore "*" can be specified in case of a basic type
+   *            (which is considered as having only one field).
+   * @param first
+   *            If true, then the operator return the first element with the
+   *            maximum value, otherwise returns the last.
+   */
   def maxBy(field: String, first: Boolean): DataStream[T] =
   aggregate(AggregationType.MAXBY, field, first)
 
