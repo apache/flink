@@ -609,4 +609,18 @@ latency issues caused by individual machines.
 Currently, Flink assumes that the clocks of all machines in the cluster are in sync. We recommend setting
 up an automated clock synchronisation service (like NTP) to avoid false latency results.
 
+### Dashboard integration
+
+Metrics that were gathered for each task or operator can also be visualized in the Dashboard. On the main page for a
+job, select the `Metrics` tab. After selecting one of the tasks in the top graph you can select metrics to display using
+the `Add Metric` drop-down menu.
+
+* Task metrics are listed as `<subtask_index>.<metric_name>`.
+* Operator metrics are listed as `<subtask_index>.<operator_name>.<metric_name>`.
+
+Each metric will be visualized as a separate graph, with the x-axis representing time and the y-axis the measured value.
+All graphs are automatically updated every 10 seconds, and continue to do so when navigating to another page.
+
+There is no limit as to the number of visualized metrics; however only numeric metrics can be visualized.
+
 {% top %}
