@@ -96,7 +96,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @Internal
 public class WindowOperator<K, IN, ACC, OUT, W extends Window>
-	extends AbstractUdfStreamOperator<OUT, InternalWindowFunction<ACC, OUT, K, W>>
+	extends AbstractUdfStreamOperator<OUT, InternalWindowFunction<ACC, OUT, K, W, ?>>
 	implements OneInputStreamOperator<IN, OUT>, Triggerable<K, W> {
 
 	private static final long serialVersionUID = 1L;
@@ -191,7 +191,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 			KeySelector<IN, K> keySelector,
 			TypeSerializer<K> keySerializer,
 			StateDescriptor<? extends AppendingState<IN, ACC>, ?> windowStateDescriptor,
-			InternalWindowFunction<ACC, OUT, K, W> windowFunction,
+			InternalWindowFunction<ACC, OUT, K, W, ?> windowFunction,
 			Trigger<? super IN, ? super W> trigger,
 			long allowedLateness) {
 
@@ -208,7 +208,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 			KeySelector<IN, K> keySelector,
 			TypeSerializer<K> keySerializer,
 			StateDescriptor<? extends AppendingState<IN, ACC>, ?> windowStateDescriptor,
-			InternalWindowFunction<ACC, OUT, K, W> windowFunction,
+			InternalWindowFunction<ACC, OUT, K, W, ?> windowFunction,
 			Trigger<? super IN, ? super W> trigger,
 			long allowedLateness,
 			LegacyWindowOperatorType legacyWindowOperatorType) {

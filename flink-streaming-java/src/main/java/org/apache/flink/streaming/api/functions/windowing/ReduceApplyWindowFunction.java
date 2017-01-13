@@ -33,13 +33,11 @@ public class ReduceApplyWindowFunction<K, W extends Window, T, R>
 	private static final long serialVersionUID = 1L;
 
 	private final ReduceFunction<T> reduceFunction;
-	private final WindowFunction<T, R, K, W> windowFunction;
 
 	public ReduceApplyWindowFunction(ReduceFunction<T> reduceFunction,
 		WindowFunction<T, R, K, W> windowFunction) {
 		super(windowFunction);
 		this.reduceFunction = reduceFunction;
-		this.windowFunction = windowFunction;
 	}
 
 	@Override
@@ -53,6 +51,6 @@ public class ReduceApplyWindowFunction<K, W extends Window, T, R>
 				curr = reduceFunction.reduce(curr, val);
 			}
 		}
-		windowFunction.apply(k, window, Collections.singletonList(curr), out);
+		wrappedFunction.apply(k, window, Collections.singletonList(curr), out);
 	}
 }
