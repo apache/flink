@@ -1432,6 +1432,7 @@ tableReference:
 
 tablePrimary:
   [ TABLE ] [ [ catalogName . ] schemaName . ] tableName
+  | LATERAL TABLE '(' functionName '(' expression [, expression ]* ')' ')'
 
 values:
   VALUES expression [, expression ]*
@@ -4109,9 +4110,12 @@ By default, the Table API supports `null` values. Null handling can be disabled 
 
 Explaining a Table
 ----
-The Table API provides a mechanism to describe the graph of operations that leads to the resulting output. This is done through the `TableEnvironment#explain(table)` method. It returns a string describing two graphs: the Abstract Syntax Tree of the relational algebra query and Flink's Execution Plan of the Job. 
+The Table API provides a mechanism to explain the logical and optimized query plans to compute a `Table`. 
+This is done through the `TableEnvironment#explain(table)` method. It returns a string describing three plans: 
 
-Table `explain` is supported for both `BatchTableEnvironment` and `StreamTableEnvironment`. Currently `StreamTableEnvironment` doesn't support the explanation of the Execution Plan.
+1. the Abstract Syntax Tree of the relational query, i.e., the unoptimized logical query plan,
+2. the optimized logical query plan, and
+3. the physical execution plan.
 
 The following code shows an example and the corresponding output:
 
@@ -4126,7 +4130,9 @@ DataStream<Tuple2<Integer, String>> stream2 = env.fromElements(new Tuple2<>(1, "
 
 Table table1 = tEnv.fromDataStream(stream1, "count, word");
 Table table2 = tEnv.fromDataStream(stream2, "count, word");
-Table table = table1.unionAll(table2);
+Table table = table1
+        .where("LIKE(word, 'F%')")
+        .unionAll(table2);
 
 String explanation = tEnv.explain(table);
 System.out.println(explanation);
@@ -4140,7 +4146,9 @@ val tEnv = TableEnvironment.getTableEnvironment(env)
 
 val table1 = env.fromElements((1, "hello")).toTable(tEnv, 'count, 'word)
 val table2 = env.fromElements((1, "hello")).toTable(tEnv, 'count, 'word)
-val table = table1.unionAll(table2)
+val table = table1
+      .where('word.like("F%"))
+      .unionAll(table2)
 
 val explanation: String = tEnv.explain(table)
 println(explanation)
@@ -4151,8 +4159,34 @@ println(explanation)
 {% highlight text %}
 == Abstract Syntax Tree ==
 LogicalUnion(all=[true])
-  LogicalTableScan(table=[[_DataStreamTable_0]])
+  LogicalFilter(condition=[LIKE($1, 'F%')])
+    LogicalTableScan(table=[[_DataStreamTable_0]])
   LogicalTableScan(table=[[_DataStreamTable_1]])
+
+== Optimized Logical Plan ==
+DataStreamUnion(union=[count, word])
+  DataStreamCalc(select=[count, word], where=[LIKE(word, 'F%')])
+    DataStreamScan(table=[[_DataStreamTable_0]])
+  DataStreamScan(table=[[_DataStreamTable_1]])
+
+== Physical Execution Plan ==
+Stage 1 : Data Source
+  content : collect elements with CollectionInputFormat
+
+Stage 2 : Data Source
+  content : collect elements with CollectionInputFormat
+
+  Stage 3 : Operator
+    content : from: (count, word)
+    ship_strategy : REBALANCE
+
+    Stage 4 : Operator
+      content : where: (LIKE(word, 'F%')), select: (count, word)
+      ship_strategy : FORWARD
+
+      Stage 5 : Operator
+        content : from: (count, word)
+        ship_strategy : REBALANCE
 {% endhighlight %}
 
 {% top %}
