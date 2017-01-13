@@ -175,6 +175,19 @@ under the License.
 					<configLocation>${project.basedir}/../../tools/maven/scalastyle-config.xml</configLocation>
 				</configuration>
 			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<environmentVariables>
+						<!-- Make sure external hadoop environment will not affect maven building -->
+						<HADOOP_HOME />
+						<HADOOP_CONF_DIR />
+					</environmentVariables>
+				</configuration>
+			</plugin>
+
 		</plugins>
 	</build>
 
