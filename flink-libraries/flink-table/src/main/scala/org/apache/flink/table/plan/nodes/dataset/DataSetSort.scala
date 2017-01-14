@@ -77,10 +77,10 @@ class DataSetSort(
     if (inputRowCnt == null) {
       inputRowCnt
     } else {
-      val rowCount = Math.max(inputRowCnt - limitStart, 0D)
+      val rowCount = (inputRowCnt - limitStart).max(1.0)
       if (fetch != null) {
         val limit = RexLiteral.intValue(fetch)
-        Math.min(limit.toDouble, rowCount)
+        rowCount.min(limit)
       } else {
         rowCount
       }
