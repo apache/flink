@@ -21,9 +21,9 @@ package org.apache.flink.streaming.util.serialization;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.types.Row;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
@@ -86,29 +86,36 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
 	public Row deserialize(byte[] message) throws IOException {
 		try {
 			JsonNode root = objectMapper.readTree(message);
-
-			Row row = new Row(fieldNames.length);
-			for (int i = 0; i < fieldNames.length; i++) {
-				JsonNode node = root.get(fieldNames[i]);
-
-				if (node == null) {
-					if (failOnMissingField) {
-						throw new IllegalStateException("Failed to find field with name '"
-								+ fieldNames[i] + "'.");
-					} else {
-						row.setField(i, null);
-					}
-				} else {
-					// Read the value as specified type
-					Object value = objectMapper.treeToValue(node, fieldTypes[i].getTypeClass());
-					row.setField(i, value);
-				}
-			}
-
-			return row;
+			return deserializeRow(root, fieldNames, fieldTypes);
 		} catch (Throwable t) {
 			throw new IOException("Failed to deserialize JSON object.", t);
 		}
+	}
+
+	private Row deserializeRow(JsonNode root, String[] fieldNames, TypeInformation<?>[] fieldTypes) throws IOException {
+		Row row = new Row(fieldNames.length);
+		for (int i = 0; i < fieldNames.length; i++) {
+			JsonNode node = root.get(fieldNames[i]);
+			TypeInformation<?> typeInfo = fieldTypes[i];
+
+			if (node == null) {
+				if (failOnMissingField) {
+					throw new IllegalStateException("Failed to find field with name '"
+							+ fieldNames[i] + "'.");
+				} else {
+					row.setField(i, null);
+				}
+			} else if (typeInfo instanceof RowTypeInfo) {
+				RowTypeInfo rowTypeInfo = (RowTypeInfo) typeInfo;
+				row.setField(i, deserializeRow(node, rowTypeInfo.getFieldNames(), rowTypeInfo.getFieldTypes()));
+			} else {
+				// Read the value as specified type
+				Object value = objectMapper.treeToValue(node, fieldTypes[i].getTypeClass());
+				row.setField(i, value);
+			}
+		}
+
+		return row;
 	}
 
 	@Override

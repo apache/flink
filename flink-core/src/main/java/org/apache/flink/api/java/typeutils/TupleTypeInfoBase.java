@@ -87,6 +87,10 @@ public abstract class TupleTypeInfoBase<T> extends CompositeType<T> {
 		return totalFields;
 	}
 
+	public TypeInformation<?>[] getFieldTypes() {
+		return types;
+	}
+
 	@Override
 	public void getFlatFields(String fieldExpression, int offset, List<FlatFieldDescriptor> result) {
 

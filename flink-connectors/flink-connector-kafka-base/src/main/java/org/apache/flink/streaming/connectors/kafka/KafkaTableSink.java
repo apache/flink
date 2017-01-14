@@ -78,9 +78,10 @@ public abstract class KafkaTableSink implements StreamTableSink<Row> {
 	 * Create serialization schema for converting table rows into bytes.
 	 *
 	 * @param fieldNames Field names in table rows.
+	 * @param fieldTypes Field types in table rows.
 	 * @return Instance of serialization schema
 	 */
-	protected abstract SerializationSchema<Row> createSerializationSchema(String[] fieldNames);
+	protected abstract SerializationSchema<Row> createSerializationSchema(String[] fieldNames, TypeInformation<?>[] fieldTypes);
 
 	/**
 	 * Create a deep copy of this sink.
@@ -116,7 +117,7 @@ public abstract class KafkaTableSink implements StreamTableSink<Row> {
 		copy.fieldTypes = Preconditions.checkNotNull(fieldTypes, "fieldTypes");
 		Preconditions.checkArgument(fieldNames.length == fieldTypes.length,
 			"Number of provided field names and types does not match.");
-		copy.serializationSchema = createSerializationSchema(fieldNames);
+		copy.serializationSchema = createSerializationSchema(fieldNames, fieldTypes);
 
 		return copy;
 	}

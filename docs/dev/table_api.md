@@ -219,7 +219,8 @@ All sources that come with the `flink-table` dependency can be directly used by 
 To use the Kafka JSON source, you have to add the Kafka connector dependency to your project:
 
   - `flink-connector-kafka-0.8` for Kafka 0.8, and
-  - `flink-connector-kafka-0.9` for Kafka 0.9, respectively.
+  - `flink-connector-kafka-0.9` for Kafka 0.9, and
+  - `flink-connector-kafka-0.10` for Kafka 0.10, respectively.
 
 You can then create the source as follows (example for Kafka 0.8):
 
