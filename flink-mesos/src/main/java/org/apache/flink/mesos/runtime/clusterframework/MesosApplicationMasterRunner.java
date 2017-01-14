@@ -204,13 +204,13 @@ public class MesosApplicationMasterRunner {
 		try {
 			// ------- (1) load and parse / validate all configurations -------
 
-			// Note that we use the "appMasterHostname" given by the system, to make sure
+			// Note that we use the "appMasterAddress" given by the system, to make sure
 			// we use the hostnames consistently throughout akka.
 			// for akka "localhost" and "localhost.localdomain" are different actors.
-			final String appMasterHostname = InetAddress.getLocalHost().getHostName();
+			final InetAddress appMasterAddress = InetAddress.getLocalHost();
 
 			// Mesos configuration
-			final MesosConfiguration mesosConfig = createMesosConfig(config, appMasterHostname);
+			final MesosConfiguration mesosConfig = createMesosConfig(config, appMasterAddress);
 
 			// JM configuration
 			int numberProcessors = Hardware.getNumberCPUCores();
@@ -245,7 +245,7 @@ public class MesosApplicationMasterRunner {
 
 			// try to start the actor system, JobManager and JobManager actor system
 			// using the configured address and ports
-			actorSystem = BootstrapTools.startActorSystem(config, appMasterHostname, listeningPort, LOG);
+			actorSystem = BootstrapTools.startActorSystem(config, appMasterAddress.getHostName(), listeningPort, LOG);
 
 			Address address = AkkaUtils.getAddress(actorSystem);
 			final String akkaHostname = address.host().get();
@@ -258,7 +258,7 @@ public class MesosApplicationMasterRunner {
 			final int artifactServerPort = config.getInteger(ConfigConstants.MESOS_ARTIFACT_SERVER_PORT_KEY,
 				ConfigConstants.DEFAULT_MESOS_ARTIFACT_SERVER_PORT);
 			final String artifactServerPrefix = UUID.randomUUID().toString();
-			artifactServer = new MesosArtifactServer(artifactServerPrefix, akkaHostname, artifactServerPort, config);
+			artifactServer = new MesosArtifactServer(artifactServerPrefix, appMasterAddress, artifactServerPort, config);
 
 			// ----------------- (3) Generate the configuration for the TaskManagers -------------------
 
@@ -307,7 +307,7 @@ public class MesosApplicationMasterRunner {
 
 			webMonitor = BootstrapTools.startWebMonitorIfConfigured(config, actorSystem, jobManager, LOG);
 			if(webMonitor != null) {
-				final URL webMonitorURL = new URL("http", appMasterHostname, webMonitor.getServerPort(), "/");
+				final URL webMonitorURL = webMonitor.getServerURL();
 				mesosConfig.frameworkInfo().setWebuiUrl(webMonitorURL.toExternalForm());
 			}
 
@@ -446,10 +446,10 @@ public class MesosApplicationMasterRunner {
 	/**
 	 * Loads and validates the ResourceManager Mesos configuration from the given Flink configuration.
 	 */
-	public static MesosConfiguration createMesosConfig(Configuration flinkConfig, String hostname) {
+	public static MesosConfiguration createMesosConfig(Configuration flinkConfig, InetAddress serverAddress) {
 
 		Protos.FrameworkInfo.Builder frameworkInfo = Protos.FrameworkInfo.newBuilder()
-			.setHostname(hostname);
+			.setHostname(serverAddress.getCanonicalHostName());
 		Protos.Credential.Builder credential = null;
 
 		if(!flinkConfig.containsKey(ConfigConstants.MESOS_MASTER_URL)) {

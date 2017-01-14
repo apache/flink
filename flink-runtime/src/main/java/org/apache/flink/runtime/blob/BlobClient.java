@@ -99,11 +99,11 @@ public final class BlobClient implements Closeable {
 			}
 
 			if (clientSSLContext != null) {
-
-				LOG.info("Using ssl connection to the blob server");
+				LOG.info("Using SSL connection to the blob server at {}",
+					serverAddress.getAddress().getCanonicalHostName());
 
 				SSLSocket sslSocket = (SSLSocket) clientSSLContext.getSocketFactory().createSocket(
-					serverAddress.getAddress(),
+					serverAddress.getAddress().getCanonicalHostName(),
 					serverAddress.getPort());
 
 				// Enable hostname verification for remote SSL connections

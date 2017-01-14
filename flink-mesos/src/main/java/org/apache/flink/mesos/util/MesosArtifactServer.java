@@ -63,6 +63,7 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 import java.io.File;
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -80,6 +81,7 @@ import static io.netty.handler.codec.http.HttpResponseStatus.METHOD_NOT_ALLOWED;
 import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 
 /**
@@ -105,11 +107,12 @@ public class MesosArtifactServer implements MesosArtifactResolver {
 
 	private final SSLContext serverSSLContext;
 
-	public MesosArtifactServer(String prefix, String serverHostname, int configuredPort, Configuration config)
+	public MesosArtifactServer(String prefix, InetAddress serverAddress, int configuredPort, Configuration config)
 		throws Exception {
 		if (configuredPort < 0 || configuredPort > 0xFFFF) {
 			throw new IllegalArgumentException("File server port is invalid: " + configuredPort);
 		}
+		checkArgument(!serverAddress.isAnyLocalAddress(), "serverAddress cannot be a wildcard address");
 
 		// Config to enable https access to the artifact server
 		boolean enableSSL = config.getBoolean(
@@ -118,7 +121,7 @@ public class MesosArtifactServer implements MesosArtifactResolver {
 				SSLUtils.getSSLEnabled(config);
 
 		if (enableSSL) {
-			LOG.info("Enabling ssl for the artifact server");
+			LOG.info("Enabling SSL for the artifact server");
 			try {
 				serverSSLContext = SSLUtils.createSSLServerContext(config);
 			} catch (Exception e) {
@@ -160,7 +163,7 @@ public class MesosArtifactServer implements MesosArtifactResolver {
 			.channel(NioServerSocketChannel.class)
 			.childHandler(initializer);
 
-		Channel ch = this.bootstrap.bind(serverHostname, configuredPort).sync().channel();
+		Channel ch = this.bootstrap.bind(serverAddress, configuredPort).sync().channel();
 		this.serverChannel = ch;
 
 		InetSocketAddress bindAddress = (InetSocketAddress) ch.localAddress();
@@ -169,12 +172,12 @@ public class MesosArtifactServer implements MesosArtifactResolver {
 
 		String httpProtocol = (serverSSLContext != null) ? "https": "http";
 
-		baseURL = new URL(httpProtocol, serverHostname, port, "/" + prefix + "/");
+		baseURL = new URL(httpProtocol, serverAddress.getCanonicalHostName(), port, "/" + prefix + "/");
 
-		LOG.info("Mesos Artifact Server Base URL: {}, listening at {}:{}", baseURL, address, port);
+		LOG.info("Mesos Artifact Server listening at {}", baseURL);
 	}
 
-	public URL baseURL() {
+	public URL getServerURL() {
 		return baseURL;
 	}
 
@@ -373,6 +376,12 @@ public class MesosArtifactServer implements MesosArtifactResolver {
 	 */
 	@ChannelHandler.Sharable
 	public static class UnknownFileHandler extends SimpleChannelInboundHandler<Object> {
+
+		@Override
+		public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+			LOG.debug("unhandled exception", cause);
+			ctx.close();
+		}
 
 		@Override
 		protected void channelRead0(ChannelHandlerContext ctx, Object message) {
