@@ -239,8 +239,6 @@ class KvStateServerHandler extends ChannelInboundHandlerAdapter {
 
 					success = true;
 				} else {
-					kvState.getSerializedValue(serializedKeyAndNamespace);
-
 					// No data for the key/namespace. This is considered to be
 					// a failure.
 					ByteBuf unknownKey = KvStateRequestSerializer.serializeKvStateRequestFailure(
