@@ -261,6 +261,23 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		}
 	}
 
+	/**
+	 * Just return the last assigned resource location if found
+	 *
+	 * @return The collection of TaskManagerLocation
+	 */
+	public List<TaskManagerLocation> getPriorAssignedResourceLocations() {
+		List<TaskManagerLocation> list = new ArrayList<>();
+		for (int i = priorExecutions.size() - 1 ; i >= 0 ; i--) {
+			Execution prior = priorExecutions.get(i) ;
+			if (prior.getAssignedResourceLocation() != null) {
+				list.add(prior.getAssignedResourceLocation());
+				break;
+			}
+		}
+		return list;
+	}
+
 	EvictingBoundedList<Execution> getCopyOfPriorExecutionsList() {
 		synchronized (priorExecutions) {
 			return new EvictingBoundedList<>(priorExecutions);
