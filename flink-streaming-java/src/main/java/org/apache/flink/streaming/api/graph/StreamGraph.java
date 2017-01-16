@@ -17,6 +17,18 @@
 
 package org.apache.flink.streaming.api.graph;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.InputFormat;
@@ -38,7 +50,6 @@ import org.apache.flink.streaming.api.operators.StoppableStreamSource;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
-import org.apache.flink.streaming.runtime.partitioner.ConfigurableStreamPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
@@ -50,18 +61,6 @@ import org.apache.flink.streaming.runtime.tasks.StreamIterationTail;
 import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 /**
  * Class representing the streaming topology. It contains all the information
@@ -358,18 +357,6 @@ public class StreamGraph extends StreamingPlan {
 			if (partitioner == null) {
 				partitioner = virtuaPartitionNodes.get(virtualId).f1;
 			}
-
-			if (partitioner instanceof ConfigurableStreamPartitioner) {
-				StreamNode downstreamNode = getStreamNode(downStreamVertexID);
-
-				ConfigurableStreamPartitioner configurableStreamPartitioner = (ConfigurableStreamPartitioner) partitioner;
-
-				// Configure the partitioner with the max parallelism. This is necessary if the
-				// partitioner has been created before the maximum parallelism has been set. The
-				// maximum parallelism is necessary for the key group mapping.
-				configurableStreamPartitioner.configure(downstreamNode.getMaxParallelism());
-			}
-
 			addEdgeInternal(upStreamVertexID, downStreamVertexID, typeNumber, partitioner, outputNames);
 		} else {
 			StreamNode upstreamNode = getStreamNode(upStreamVertexID);

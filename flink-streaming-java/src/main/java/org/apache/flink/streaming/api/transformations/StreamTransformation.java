@@ -23,6 +23,7 @@ import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
 import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.util.Preconditions;
 
@@ -205,6 +206,10 @@ public abstract class StreamTransformation<T> {
 	 * @param maxParallelism Maximum parallelism for this stream transformation.
 	 */
 	public void setMaxParallelism(int maxParallelism) {
+		Preconditions.checkArgument(maxParallelism > 0
+						&& maxParallelism <= StreamGraphGenerator.UPPER_BOUND_MAX_PARALLELISM,
+				"Maximum parallelism must be between 1 and " + StreamGraphGenerator.UPPER_BOUND_MAX_PARALLELISM
+						+ ". Found: " + maxParallelism);
 		this.maxParallelism = maxParallelism;
 	}
 

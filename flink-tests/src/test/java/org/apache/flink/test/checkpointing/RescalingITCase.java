@@ -30,6 +30,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
@@ -122,19 +123,29 @@ public class RescalingITCase extends TestLogger {
 
 	@Test
 	public void testSavepointRescalingInKeyedState() throws Exception {
-		testSavepointRescalingKeyedState(false);
+		testSavepointRescalingKeyedState(false, false);
 	}
 
 	@Test
 	public void testSavepointRescalingOutKeyedState() throws Exception {
-		testSavepointRescalingKeyedState(true);
+		testSavepointRescalingKeyedState(true, false);
+	}
+
+	@Test
+	public void testSavepointRescalingInKeyedStateDerivedMaxParallelism() throws Exception {
+		testSavepointRescalingKeyedState(false, true);
+	}
+
+	@Test
+	public void testSavepointRescalingOutKeyedStateDerivedMaxParallelism() throws Exception {
+		testSavepointRescalingKeyedState(true, true);
 	}
 
 	/**
 	 * Tests that a a job with purely keyed state can be restarted from a savepoint
 	 * with a different parallelism.
 	 */
-	public void testSavepointRescalingKeyedState(boolean scaleOut) throws Exception {
+	public void testSavepointRescalingKeyedState(boolean scaleOut, boolean deriveMaxParallelism) throws Exception {
 		final int numberKeys = 42;
 		final int numberElements = 1000;
 		final int numberElements2 = 500;
@@ -194,7 +205,9 @@ public class RescalingITCase extends TestLogger {
 
 			jobID = null;
 
-			JobGraph scaledJobGraph = createJobGraphWithKeyedState(parallelism2, maxParallelism, numberKeys, numberElements2, true, 100);
+			int restoreMaxParallelism = deriveMaxParallelism ? ExecutionJobVertex.VALUE_NOT_SET : maxParallelism;
+
+			JobGraph scaledJobGraph = createJobGraphWithKeyedState(parallelism2, restoreMaxParallelism, numberKeys, numberElements2, true, 100);
 
 			scaledJobGraph.setSavepointRestoreSettings(SavepointRestoreSettings.forPath(savepointPath));
 
@@ -642,7 +655,9 @@ public class RescalingITCase extends TestLogger {
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(parallelism);
-		env.getConfig().setMaxParallelism(maxParallelism);
+		if (0 < maxParallelism) {
+			env.getConfig().setMaxParallelism(maxParallelism);
+		}
 		env.enableCheckpointing(checkpointingInterval);
 		env.setRestartStrategy(RestartStrategies.noRestart());
 

@@ -40,13 +40,16 @@ import org.apache.flink.runtime.jobmanager.JobManagerOptions;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
+import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.EvictingBoundedList;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 import org.slf4j.Logger;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -599,7 +602,24 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		boolean lazyScheduling = getExecutionGraph().getScheduleMode().allowLazyDeployment();
 
 		for (IntermediateResultPartition partition : resultPartitions.values()) {
-			producedPartitions.add(ResultPartitionDeploymentDescriptor.from(partition, lazyScheduling));
+
+			List<List<ExecutionEdge>> consumers = partition.getConsumers();
+
+			if (consumers.isEmpty()) {
+				//TODO this case only exists for test, currently there has to be exactly one consumer in real jobs!
+				producedPartitions.add(ResultPartitionDeploymentDescriptor.from(
+						partition,
+						KeyGroupRangeAssignment.UPPER_BOUND_MAX_PARALLELISM,
+						lazyScheduling));
+			} else {
+				Preconditions.checkState(1 == consumers.size(),
+						"Only one consumer supported in the current implementation! Found: " + consumers.size());
+
+				List<ExecutionEdge> consumer = consumers.get(0);
+				ExecutionJobVertex vertex = consumer.get(0).getTarget().getJobVertex();
+				int maxParallelism = vertex.getMaxParallelism();
+				producedPartitions.add(ResultPartitionDeploymentDescriptor.from(partition, maxParallelism, lazyScheduling));
+			}
 		}
 		
 		
@@ -620,7 +640,14 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		}
 
 		SerializedValue<JobInformation> serializedJobInformation = getExecutionGraph().getSerializedJobInformation();
-		SerializedValue<TaskInformation> serializedJobVertexInformation = jobVertex.getSerializedTaskInformation();
+		SerializedValue<TaskInformation> serializedJobVertexInformation = null;
+
+		try {
+			serializedJobVertexInformation = jobVertex.getSerializedTaskInformation();
+		} catch (IOException e) {
+			throw new ExecutionGraphException(
+					"Could not create a serialized JobVertexInformation for " + jobVertex.getJobVertexId(), e);
+		}
 
 		return new TaskDeploymentDescriptor(
 			serializedJobInformation,

@@ -95,6 +95,8 @@ public class ResultPartition implements BufferPoolOwner {
 
 	private final ResultPartitionConsumableNotifier partitionConsumableNotifier;
 
+	public final int numTargetKeyGroups;
+
 	private final boolean sendScheduleOrUpdateConsumersMessage;
 
 	// - Runtime state --------------------------------------------------------
@@ -131,6 +133,7 @@ public class ResultPartition implements BufferPoolOwner {
 		ResultPartitionID partitionId,
 		ResultPartitionType partitionType,
 		int numberOfSubpartitions,
+		int numTargetKeyGroups,
 		ResultPartitionManager partitionManager,
 		ResultPartitionConsumableNotifier partitionConsumableNotifier,
 		IOManager ioManager,
@@ -142,6 +145,7 @@ public class ResultPartition implements BufferPoolOwner {
 		this.partitionId = checkNotNull(partitionId);
 		this.partitionType = checkNotNull(partitionType);
 		this.subpartitions = new ResultSubpartition[numberOfSubpartitions];
+		this.numTargetKeyGroups = numTargetKeyGroups;
 		this.partitionManager = checkNotNull(partitionManager);
 		this.partitionConsumableNotifier = checkNotNull(partitionConsumableNotifier);
 		this.sendScheduleOrUpdateConsumersMessage = sendScheduleOrUpdateConsumersMessage;
@@ -354,6 +358,10 @@ public class ResultPartition implements BufferPoolOwner {
 
 	public Throwable getFailureCause() {
 		return cause;
+	}
+
+	public int getNumTargetKeyGroups() {
+		return numTargetKeyGroups;
 	}
 
 	/**

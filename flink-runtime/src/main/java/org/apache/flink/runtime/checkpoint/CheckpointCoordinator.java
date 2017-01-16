@@ -885,8 +885,10 @@ public class CheckpointCoordinator {
 
 			LOG.info("Restoring from latest valid checkpoint: {}.", latest);
 
+			final Map<JobVertexID, TaskState> taskStates = latest.getTaskStates();
+
 			StateAssignmentOperation stateAssignmentOperation =
-					new StateAssignmentOperation(LOG, tasks, latest, allowNonRestoredState);
+					new StateAssignmentOperation(LOG, tasks, taskStates, allowNonRestoredState);
 
 			stateAssignmentOperation.assignStates();
 

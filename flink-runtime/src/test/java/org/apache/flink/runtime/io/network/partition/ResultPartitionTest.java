@@ -83,6 +83,7 @@ public class ResultPartitionTest {
 			new ResultPartitionID(),
 			type,
 			1,
+			1,
 			mock(ResultPartitionManager.class),
 			notifier,
 			mock(IOManager.class),

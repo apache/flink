@@ -17,8 +17,8 @@
 
 package org.apache.flink.streaming.api.datastream;
 
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -115,18 +115,18 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 
 	/**
 	 * Sets the parallelism for this operator. The degree must be 1 or more.
-	 * 
+	 *
 	 * @param parallelism
 	 *            The parallelism for this operator.
 	 * @return The operator with set parallelism.
 	 */
 	public SingleOutputStreamOperator<T> setParallelism(int parallelism) {
-		if (parallelism < 1) {
-			throw new IllegalArgumentException("The parallelism of an operator must be at least 1.");
-		}
-		if (nonParallel && parallelism > 1) {
-			throw new IllegalArgumentException("The parallelism of non parallel operator must be 1.");
-		}
+		Preconditions.checkArgument(parallelism > 0,
+				"The parallelism of an operator must be at least 1.");
+
+		Preconditions.checkArgument(canBeParallel() || parallelism == 1,
+				"The parallelism of non parallel operator must be 1.");
+
 		transformation.setParallelism(parallelism);
 
 		return this;
@@ -143,15 +143,23 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 	 */
 	@PublicEvolving
 	public SingleOutputStreamOperator<T> setMaxParallelism(int maxParallelism) {
-		Preconditions.checkArgument(maxParallelism > 0, "The maximum parallelism must be greater than 0.");
+		Preconditions.checkArgument(maxParallelism > 0,
+				"The maximum parallelism must be greater than 0.");
+
+		Preconditions.checkArgument(canBeParallel() || maxParallelism == 1,
+				"The maximum parallelism of non parallel operator must be 1.");
 
 		transformation.setMaxParallelism(maxParallelism);
 
 		return this;
 	}
 
+	private boolean canBeParallel() {
+		return !nonParallel;
+	}
+
 	/**
-	 * Sets the parallelism of this operator to one.
+	 * Sets the parallelism and maximum parallelism of this operator to one.
 	 * And mark this operator cannot set a non-1 degree of parallelism.
 	 *
 	 * @return The operator with only one parallelism.
@@ -159,6 +167,7 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 	@PublicEvolving
 	public SingleOutputStreamOperator<T> forceNonParallel() {
 		transformation.setParallelism(1);
+		transformation.setMaxParallelism(1);
 		nonParallel = true;
 		return this;
 	}
