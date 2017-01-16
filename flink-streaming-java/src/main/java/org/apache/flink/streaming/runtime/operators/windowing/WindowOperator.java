@@ -833,9 +833,6 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 	public void registerRestoredLegacyStateState() throws Exception {
 
-		LOG.info("{} (taskIdx={}) re-registering state from an older Flink version.",
-			getClass().getSimpleName(), legacyWindowOperatorType, getRuntimeContext().getIndexOfThisSubtask());
-
 		switch (legacyWindowOperatorType) {
 			case NONE:
 				reregisterStateFromLegacyWindowOperator();
@@ -1012,14 +1009,22 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		// if we restore from an older version,
 		// we have to re-register the recovered state.
 
-		if (restoredFromLegacyEventTimeTimers != null) {
+		if (restoredFromLegacyEventTimeTimers != null && !restoredFromLegacyEventTimeTimers.isEmpty()) {
+
+			LOG.info("{} (taskIdx={}) re-registering event-time timers from an older Flink version.",
+				getClass().getSimpleName(), getRuntimeContext().getIndexOfThisSubtask());
+
 			for (Timer<K, W> timer : restoredFromLegacyEventTimeTimers) {
 				setCurrentKey(timer.key);
 				internalTimerService.registerEventTimeTimer(timer.window, timer.timestamp);
 			}
 		}
 
-		if (restoredFromLegacyProcessingTimeTimers != null) {
+		if (restoredFromLegacyProcessingTimeTimers != null && !restoredFromLegacyProcessingTimeTimers.isEmpty()) {
+
+			LOG.info("{} (taskIdx={}) re-registering processing-time timers from an older Flink version.",
+				getClass().getSimpleName(), getRuntimeContext().getIndexOfThisSubtask());
+
 			for (Timer<K, W> timer : restoredFromLegacyProcessingTimeTimers) {
 				setCurrentKey(timer.key);
 				internalTimerService.registerProcessingTimeTimer(timer.window, timer.timestamp);
@@ -1032,16 +1037,20 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	}
 
 	public void reregisterStateFromLegacyAlignedWindowOperator() throws Exception {
-		if (restoredFromLegacyAlignedOpRecords != null) {
+		if (restoredFromLegacyAlignedOpRecords != null && !restoredFromLegacyAlignedOpRecords.isEmpty()) {
+
+			LOG.info("{} (taskIdx={}) re-registering timers from legacy {} from an older Flink version.",
+				getClass().getSimpleName(), getRuntimeContext().getIndexOfThisSubtask(), legacyWindowOperatorType);
+
 			while (!restoredFromLegacyAlignedOpRecords.isEmpty()) {
 				StreamRecord<IN> record = restoredFromLegacyAlignedOpRecords.poll();
 				setCurrentKey(keySelector.getKey(record.getValue()));
 				processElement(record);
 			}
-
-			// gc friendliness
-			restoredFromLegacyAlignedOpRecords = null;
 		}
+
+		// gc friendliness
+		restoredFromLegacyAlignedOpRecords = null;
 	}
 
 	// ------------------------------------------------------------------------
