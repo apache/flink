@@ -2,7 +2,7 @@
 title: "Elasticsearch2 Connector"
 layout: redirect
 redirect: /dev/connectors/elasticsearch.html
-permalink: /apis/streaming/connectors/elasticsearch2.html
+permalink: /dev/connectors/elasticsearch2.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
