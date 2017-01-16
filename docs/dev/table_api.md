@@ -1334,7 +1334,6 @@ Among others, the following SQL features are not supported, yet:
 - Interval arithmetic is currenly limited
 - Distinct aggregates (e.g., `COUNT(DISTINCT name)`)
 - Non-equi joins and Cartesian products
-- Grouping sets
 
 *Note: Tables are joined in the order in which they are specified in the `FROM` clause. In some cases the table order must be manually tweaked to resolve Cartesian products.*
 
@@ -1442,7 +1441,9 @@ groupItem:
   expression
   | '(' ')'
   | '(' expression [, expression ]* ')'
-
+  | CUBE '(' expression [, expression ]* ')'
+  | ROLLUP '(' expression [, expression ]* ')'
+  | GROUPING SETS '(' groupItem [, groupItem ]* ')'
 ```
 
 For a better definition of SQL queries within a Java String, Flink SQL uses a lexical policy similar to Java:
@@ -3754,6 +3755,50 @@ MIN(value)
       </td>
       <td>
         <p>Returns the minimum value of <i>value</i> across all input values.</p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 40%">Grouping functions</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <tr>
+      <td>
+        {% highlight text %}
+GROUP_ID()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns an integer that uniquely identifies the combination of grouping keys.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+GROUPING(expression)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns 1 if expression is rolled up in the current row’s grouping set, 0 otherwise.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+GROUPING_ID(expression [, expression]* )
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a bit vector of the given grouping expressions.</p>
       </td>
     </tr>
   </tbody>

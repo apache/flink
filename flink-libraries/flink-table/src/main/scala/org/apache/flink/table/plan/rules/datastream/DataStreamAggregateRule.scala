@@ -22,19 +22,17 @@ import org.apache.calcite.plan.{Convention, RelOptRule, RelOptRuleCall, RelTrait
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.expressions.Alias
 import org.apache.flink.table.plan.logical.rel.LogicalWindowAggregate
-import org.apache.flink.table.plan.nodes.datastream.{DataStreamAggregate, DataStreamConvention}
+import org.apache.flink.table.plan.nodes.datastream.{DataStreamAggregate, DataStreamConvention, DataStreamUnion}
 
 import scala.collection.JavaConversions._
 
 class DataStreamAggregateRule
   extends ConverterRule(
-      classOf[LogicalWindowAggregate],
-      Convention.NONE,
-      DataStreamConvention.INSTANCE,
-      "DataStreamAggregateRule")
-  {
+    classOf[LogicalWindowAggregate],
+    Convention.NONE,
+    DataStreamConvention.INSTANCE,
+    "DataStreamAggregateRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val agg: LogicalWindowAggregate = call.rel(0).asInstanceOf[LogicalWindowAggregate]
@@ -45,13 +43,7 @@ class DataStreamAggregateRule
       throw TableException("DISTINCT aggregates are currently not supported.")
     }
 
-    // check if we have grouping sets
-    val groupSets = agg.getGroupSets.size() != 1 || agg.getGroupSets.get(0) != agg.getGroupSet
-    if (groupSets || agg.indicator) {
-      throw TableException("GROUPING SETS are currently not supported.")
-    }
-
-    !distinctAggs && !groupSets && !agg.indicator
+    !distinctAggs
   }
 
   override def convert(rel: RelNode): RelNode = {
@@ -59,18 +51,44 @@ class DataStreamAggregateRule
     val traitSet: RelTraitSet = rel.getTraitSet.replace(DataStreamConvention.INSTANCE)
     val convInput: RelNode = RelOptRule.convert(agg.getInput, DataStreamConvention.INSTANCE)
 
-    new DataStreamAggregate(
-      agg.getWindow,
-      agg.getNamedProperties,
-      rel.getCluster,
-      traitSet,
-      convInput,
-      agg.getNamedAggCalls,
-      rel.getRowType,
-      agg.getInput.getRowType,
-      agg.getGroupSet.toArray)
+    if (agg.indicator) {
+      agg.groupSets.map(set =>
+        new DataStreamAggregate(
+          agg.getWindow,
+          agg.getNamedProperties,
+          rel.getCluster,
+          traitSet,
+          convInput,
+          agg.getNamedAggCalls,
+          rel.getRowType,
+          agg.getInput.getRowType,
+          set.toArray
+        ).asInstanceOf[RelNode]
+      ).reduce(
+        (rel1, rel2) => {
+          new DataStreamUnion(
+            rel.getCluster,
+            traitSet,
+            rel1, rel2,
+            rel.getRowType
+          )
+        }
+      )
+    } else {
+      new DataStreamAggregate(
+        agg.getWindow,
+        agg.getNamedProperties,
+        rel.getCluster,
+        traitSet,
+        convInput,
+        agg.getNamedAggCalls,
+        rel.getRowType,
+        agg.getInput.getRowType,
+        agg.getGroupSet.toArray
+      )
     }
   }
+}
 
 object DataStreamAggregateRule {
   val INSTANCE: RelOptRule = new DataStreamAggregateRule
