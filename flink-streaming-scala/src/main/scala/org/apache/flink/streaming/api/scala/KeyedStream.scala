@@ -504,30 +504,6 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
   }
 
   /**
-    * Publishes the keyed stream as a queryable ListState instance.
-    *
-    * @param queryableStateName Name under which to the publish the queryable state instance
-    * @param stateDescriptor State descriptor to create state instance from
-    * @return Queryable state instance
-    */
-  @PublicEvolving
-  def asQueryableState(
-     queryableStateName: String,
-      stateDescriptor: ListStateDescriptor[T]) : QueryableStateStream[K, T]  = {
-
-    transform(
-      s"Queryable state: $queryableStateName",
-      new QueryableAppendingStateOperator(queryableStateName, stateDescriptor))(dataType)
-
-    stateDescriptor.initializeSerializerUnlessSet(executionConfig)
-
-    new QueryableStateStream(
-      queryableStateName,
-      stateDescriptor.getSerializer,
-      getKeyType.createSerializer(executionConfig))
-  }
-
-  /**
     * Publishes the keyed stream as a queryable FoldingState instance.
     *
     * @param queryableStateName Name under which to the publish the queryable state instance

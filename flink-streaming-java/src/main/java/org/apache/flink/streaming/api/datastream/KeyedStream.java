@@ -682,30 +682,6 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	}
 
 	/**
-	 * Publishes the keyed stream as a queryable ListStance instance.
-	 *
-	 * @param queryableStateName Name under which to the publish the queryable state instance
-	 * @param stateDescriptor State descriptor to create state instance from
-	 * @return Queryable state instance
-	 */
-	@PublicEvolving
-	public QueryableStateStream<KEY, T> asQueryableState(
-			String queryableStateName,
-			ListStateDescriptor<T> stateDescriptor) {
-
-		transform("Queryable state: " + queryableStateName,
-				getType(),
-				new QueryableAppendingStateOperator<>(queryableStateName, stateDescriptor));
-
-		stateDescriptor.initializeSerializerUnlessSet(getExecutionConfig());
-
-		return new QueryableStateStream<>(
-				queryableStateName,
-				getType().createSerializer(getExecutionConfig()),
-				getKeyType().createSerializer(getExecutionConfig()));
-	}
-
-	/**
 	 * Publishes the keyed stream as a queryable FoldingState instance.
 	 *
 	 * @param queryableStateName Name under which to the publish the queryable state instance
