@@ -113,7 +113,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 			dataStream.getExecutionEnvironment(),
 			new PartitionTransformation<>(
 				dataStream.getTransformation(),
-				new KeyGroupStreamPartitioner<>(keySelector, StreamGraphGenerator.DEFAULT_MAX_PARALLELISM)));
+				new KeyGroupStreamPartitioner<>(keySelector, StreamGraphGenerator.DEFAULT_LOWER_BOUND_MAX_PARALLELISM)));
 		this.keySelector = keySelector;
 		this.keyType = keyType;
 	}

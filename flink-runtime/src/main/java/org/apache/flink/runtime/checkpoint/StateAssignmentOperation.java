@@ -45,29 +45,37 @@ public class StateAssignmentOperation {
 
 	private final Logger logger;
 	private final Map<JobVertexID, ExecutionJobVertex> tasks;
-	private final CompletedCheckpoint latest;
+	private final Map<JobVertexID, TaskState> taskStates;
 	private final boolean allowNonRestoredState;
 
 	public StateAssignmentOperation(
 			Logger logger,
 			Map<JobVertexID, ExecutionJobVertex> tasks,
-			CompletedCheckpoint latest,
+			Map<JobVertexID, TaskState> taskStates,
 			boolean allowNonRestoredState) {
 
 		this.logger = logger;
 		this.tasks = tasks;
-		this.latest = latest;
+		this.taskStates = taskStates;
 		this.allowNonRestoredState = allowNonRestoredState;
 	}
 
 	public boolean assignStates() throws Exception {
 
+		// this tracks if we find missing node hash ids and already use secondary mappings
 		boolean expandedToLegacyIds = false;
+
+		// this tracks if the max parallelism was derived from the state (when user did not specify it explicitly)
+		boolean maxParallelismDerived = false;
+
 		Map<JobVertexID, ExecutionJobVertex> localTasks = this.tasks;
 
-		for (Map.Entry<JobVertexID, TaskState> taskGroupStateEntry : latest.getTaskStates().entrySet()) {
+		for (Map.Entry<JobVertexID, TaskState> taskGroupStateEntry : taskStates.entrySet()) {
 
 			TaskState taskState = taskGroupStateEntry.getValue();
+
+			//----------------------------------------find vertex for state---------------------------------------------
+
 			ExecutionJobVertex executionJobVertex = localTasks.get(taskGroupStateEntry.getKey());
 
 			// on the first time we can not find the execution job vertex for an id, we also consider alternative ids,
@@ -89,20 +97,38 @@ public class StateAssignmentOperation {
 				}
 			}
 
-			// check that the number of key groups have not changed
+			//----------------------------------------max parallelism preconditions-------------------------------------
+
+			// check that the number of key groups have not changed or if we need to override it to satisfy the restored state
 			if (taskState.getMaxParallelism() != executionJobVertex.getMaxParallelism()) {
-				throw new IllegalStateException("The maximum parallelism (" +
-						taskState.getMaxParallelism() + ") with which the latest " +
-						"checkpoint of the execution job vertex " + executionJobVertex +
-						" has been taken and the current maximum parallelism (" +
-						executionJobVertex.getMaxParallelism() + ") changed. This " +
-						"is currently not supported.");
+
+				if (ExecutionJobVertex.VALUE_NOT_SET == executionJobVertex.getMaxParallelismConfigured()) {
+					// if the max parallelism was not explicitly specified by the user, we derive it from the state
+					maxParallelismDerived = true;
+
+					if (logger.isDebugEnabled()) {
+						logger.debug("Overriding maximum parallelism for JobVertex " + executionJobVertex.getJobVertexId()
+								+ " from " + executionJobVertex.getMaxParallelism() + " to " + taskState.getMaxParallelism());
+					}
+
+					executionJobVertex.setMaxParallelismDerived(taskState.getMaxParallelism());
+				} else {
+					// if the max parallelism was explicitly specified, we complain on mismatch
+					throw new IllegalStateException("The maximum parallelism (" +
+							taskState.getMaxParallelism() + ") with which the latest " +
+							"checkpoint of the execution job vertex " + executionJobVertex +
+							" has been taken and the current maximum parallelism (" +
+							executionJobVertex.getMaxParallelism() + ") changed. This " +
+							"is currently not supported.");
+				}
 			}
 
-			//-------------------------------------------------------------------
+			//----------------------------------------parallelism preconditions-----------------------------------------
 
 			final int oldParallelism = taskState.getParallelism();
 			final int newParallelism = executionJobVertex.getParallelism();
+
+			// this tracks if the parallelism was changed between runs
 			final boolean parallelismChanged = oldParallelism != newParallelism;
 			final boolean hasNonPartitionedState = taskState.hasNonPartitionedState();
 
@@ -113,6 +139,8 @@ public class StateAssignmentOperation {
 						" has parallelism " + newParallelism + " whereas the corresponding " +
 						"state object has a parallelism of " + oldParallelism);
 			}
+
+			//----------------------------------------state repartitioning for vertex-----------------------------------
 
 			List<KeyGroupRange> keyGroupPartitions = createKeyGroupPartitions(
 					executionJobVertex.getMaxParallelism(),
@@ -248,6 +276,10 @@ public class StateAssignmentOperation {
 
 				currentExecutionAttempt.setInitialState(taskStateHandles);
 			}
+		}
+
+		if (maxParallelismDerived) {
+			logger.info("Maximum parallelism overridden with value from task state for at least one job vertex.");
 		}
 
 		return true;

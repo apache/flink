@@ -176,9 +176,9 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	public StreamExecutionEnvironment setMaxParallelism(int maxParallelism) {
 		Preconditions.checkArgument(maxParallelism > 0 &&
-						maxParallelism <= KeyGroupRangeAssignment.MAX_MAX_PARALLELISM,
+						maxParallelism <= KeyGroupRangeAssignment.UPPER_BOUND_MAX_PARALLELISM,
 				"maxParallelism is out of bounds 0 < maxParallelism <= " +
-						KeyGroupRangeAssignment.MAX_MAX_PARALLELISM + ". Found: " + maxParallelism);
+						KeyGroupRangeAssignment.UPPER_BOUND_MAX_PARALLELISM + ". Found: " + maxParallelism);
 
 		config.setMaxParallelism(maxParallelism);
 		return this;

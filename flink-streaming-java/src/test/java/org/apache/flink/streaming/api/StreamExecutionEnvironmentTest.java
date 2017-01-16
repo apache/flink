@@ -17,19 +17,12 @@
 
 package org.apache.flink.streaming.api;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
-import java.util.NoSuchElementException;
-
+import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
@@ -38,9 +31,19 @@ import org.apache.flink.streaming.api.functions.source.StatefulSequenceSource;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.util.Collector;
 import org.apache.flink.util.SplittableIterator;
-
+import org.junit.Assert;
 import org.junit.Test;
+
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.List;
+import java.util.NoSuchElementException;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class StreamExecutionEnvironmentTest {
 
@@ -122,6 +125,102 @@ public class StreamExecutionEnvironmentTest {
 
 		DataStreamSource<Long> src4 = env.fromCollection(list);
 		assertTrue(getFunctionFromDataSource(src4) instanceof FromElementsFunction);
+	}
+
+	@Test
+	public void testParallelismBounds() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		SourceFunction<Integer> srcFun = new SourceFunction<Integer>() {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public void run(SourceContext<Integer> ctx) throws Exception {
+			}
+
+			@Override
+			public void cancel() {
+			}
+		};
+
+
+		SingleOutputStreamOperator<Object> operator =
+				env.addSource(srcFun).flatMap(new FlatMapFunction<Integer, Object>() {
+
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public void flatMap(Integer value, Collector<Object> out) throws Exception {
+
+			}
+		});
+
+		// default value for max parallelism
+		Assert.assertEquals(-1, operator.getTransformation().getMaxParallelism());
+
+		// bounds for parallelism 1
+		try {
+			operator.setParallelism(0);
+			Assert.fail();
+		} catch (IllegalArgumentException expected) {
+		}
+
+		// bounds for parallelism 2
+		operator.setParallelism(1);
+		Assert.assertEquals(1, operator.getParallelism());
+
+		// bounds for parallelism 3
+		operator.setParallelism(1 << 15);
+		Assert.assertEquals(1 << 15, operator.getParallelism());
+
+		// default value after generating
+		env.getStreamGraph().getJobGraph();
+		Assert.assertEquals(-1, operator.getTransformation().getMaxParallelism());
+
+		// configured value after generating
+		env.setMaxParallelism(42);
+		env.getStreamGraph().getJobGraph();
+		Assert.assertEquals(42, operator.getTransformation().getMaxParallelism());
+
+		// bounds configured parallelism 1
+		try {
+			env.setMaxParallelism(0);
+			Assert.fail();
+		} catch (IllegalArgumentException expected) {
+		}
+
+		// bounds configured parallelism 2
+		try {
+			env.setMaxParallelism(1 + (1 << 15));
+			Assert.fail();
+		} catch (IllegalArgumentException expected) {
+		}
+
+		// bounds for max parallelism 1
+		try {
+			operator.setMaxParallelism(0);
+			Assert.fail();
+		} catch (IllegalArgumentException expected) {
+		}
+
+		// bounds for max parallelism 2
+		try {
+			operator.setMaxParallelism(1 + (1 << 15));
+			Assert.fail();
+		} catch (IllegalArgumentException expected) {
+		}
+
+		// bounds for max parallelism 3
+		operator.setMaxParallelism(1);
+		Assert.assertEquals(1, operator.getTransformation().getMaxParallelism());
+
+		// bounds for max parallelism 4
+		operator.setMaxParallelism(1 << 15);
+		Assert.assertEquals(1 << 15, operator.getTransformation().getMaxParallelism());
+
+		// override config
+		env.getStreamGraph().getJobGraph();
+		Assert.assertEquals(1 << 15 , operator.getTransformation().getMaxParallelism());
 	}
 
 	/////////////////////////////////////////////////////////////

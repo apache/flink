@@ -678,12 +678,8 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			}
 
 			// create the execution job vertex and attach it to the graph
-			ExecutionJobVertex ejv = null;
-			try {
-				ejv = new ExecutionJobVertex(this, jobVertex, 1, timeout, createTimestamp);
-			} catch (IOException e) {
-				throw new JobException("Could not create a execution job vertex for " + jobVertex.getID() + '.', e);
-			}
+			ExecutionJobVertex ejv =
+					new ExecutionJobVertex(this, jobVertex, 1, timeout, createTimestamp);
 			ejv.connectToPredecessors(this.intermediateResults);
 
 			ExecutionJobVertex previousTask = this.tasks.putIfAbsent(jobVertex.getID(), ejv);

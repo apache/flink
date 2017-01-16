@@ -351,6 +351,7 @@ public class Task implements Runnable, TaskActions {
 				partitionId,
 				desc.getPartitionType(),
 				desc.getNumberOfSubpartitions(),
+				desc.getMaxParallelism(),
 				networkEnvironment.getResultPartitionManager(),
 				resultPartitionConsumableNotifier,
 				ioManager,

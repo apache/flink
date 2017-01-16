@@ -626,10 +626,12 @@ public class JobManagerTest {
 		JobGraph jobGraph = new JobGraph("croissant");
 		JobVertex jobVertex1 = new JobVertex("cappuccino");
 		jobVertex1.setParallelism(4);
+		jobVertex1.setMaxParallelism(16);
 		jobVertex1.setInvokableClass(BlockingNoOpInvokable.class);
 
 		JobVertex jobVertex2 = new JobVertex("americano");
 		jobVertex2.setParallelism(4);
+		jobVertex2.setMaxParallelism(16);
 		jobVertex2.setInvokableClass(BlockingNoOpInvokable.class);
 
 		jobGraph.addVertex(jobVertex1);
