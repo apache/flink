@@ -56,6 +56,7 @@ under the License.
 			<artifactId>flink-connector-elasticsearch-base_2.10</artifactId>
 			<version>${project.version}</version>
 			<exclusions>
+				<!-- Elasticsearch Java Client has been moved to a different module in 5.x -->
 				<exclusion>
 					<groupId>org.elasticsearch</groupId>
 					<artifactId>elasticsearch</artifactId>
@@ -63,32 +64,23 @@ under the License.
 			</exclusions>
 		</dependency>
 
+		<!-- Dependency for Elasticsearch 5.x Java Client -->
 		<dependency>
 			<groupId>org.elasticsearch.client</groupId>
 			<artifactId>transport</artifactId>
 			<version>${elasticsearch.version}</version>
 		</dependency>
 
-		<dependency>
-			<groupId>com.fasterxml.jackson.core</groupId>
-			<artifactId>jackson-core</artifactId>
-		</dependency>
-
 		<!--
-			Including Log4j 2 dependencies because Elasticsearch 5.x no
-			longer detects logging implementations, and requires the Log4j 2
-			API on the classpath.
+			Elasticsearch 5.x uses Log4j2 and no longer detects logging implementations, making
+			Log4j2 a strict dependency. The following is added so that the Log4j2 API in
+			Elasticsearch 5.x is routed to SLF4J. This way, user projects can remain flexible
+			in the logging implementation preferred.
 		-->
 
 		<dependency>
 			<groupId>org.apache.logging.log4j</groupId>
-			<artifactId>log4j-api</artifactId>
-			<version>2.7</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.logging.log4j</groupId>
-			<artifactId>log4j-core</artifactId>
+			<artifactId>log4j-to-slf4j</artifactId>
 			<version>2.7</version>
 		</dependency>
 
@@ -123,6 +115,48 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
+		<!--
+			Including Log4j2 dependencies for tests is required for the
+			embedded Elasticsearch nodes used in tests to run correctly.
+		-->
+
+		<dependency>
+			<groupId>org.apache.logging.log4j</groupId>
+			<artifactId>log4j-api</artifactId>
+			<version>2.7</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.logging.log4j</groupId>
+			<artifactId>log4j-core</artifactId>
+			<version>2.7</version>
+			<scope>test</scope>
+		</dependency>
+
 	</dependencies>
+
+	<build>
+		<plugins>
+			<!--
+				For the tests, we need to exclude the Log4j2 to slf4j adapter dependency
+				and let Elasticsearch directly use Log4j2, otherwise the embedded Elasticsearch node
+				used in tests will fail to work.
+
+				In other words, the connector jar is routing Elasticsearch 5.x's Log4j2 API's to SLF4J,
+				but for the test builds, we still stick to directly using Log4j2.
+			-->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<version>2.12.2</version>
+				<configuration>
+					<classpathDependencyExcludes>
+						<classpathDependencyExclude>org.apache.logging.log4j:log4j-to-slf4j</classpathDependencyExclude>
+					</classpathDependencyExcludes>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
 
 </project>
