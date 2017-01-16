@@ -984,8 +984,8 @@ public class SlotPool extends RpcEndpoint<SlotPoolGateway> {
 
 		@Override
 		public Future<SimpleSlot> allocateSlot(ScheduledUnit task, boolean allowQueued) {
-			return gateway.allocateSlot(
-					task, ResourceProfile.UNKNOWN, Collections.<TaskManagerLocation>emptyList(), timeout);
+			return gateway.allocateSlot(task, ResourceProfile.UNKNOWN,
+					task.getTaskToExecute().getVertex().getPriorAssignedResourceLocations(), timeout);
 		}
 	}
 
