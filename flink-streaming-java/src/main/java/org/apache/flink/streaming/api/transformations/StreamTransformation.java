@@ -205,6 +205,7 @@ public abstract class StreamTransformation<T> {
 	 * @param maxParallelism Maximum parallelism for this stream transformation.
 	 */
 	public void setMaxParallelism(int maxParallelism) {
+		Preconditions.checkArgument(maxParallelism > 0, "Maximum parallelism must be bigger than zero.");
 		this.maxParallelism = maxParallelism;
 	}
 

@@ -23,7 +23,8 @@ import org.apache.flink.util.Preconditions;
 
 public final class KeyGroupRangeAssignment {
 
-	public static final int DEFAULT_MAX_PARALLELISM = 128;
+	public static final int DEFAULT_MAX_PARALLELISM = 1 << 7;
+	public static final int MAX_MAX_PARALLELISM = 1 << 15;
 
 	private KeyGroupRangeAssignment() {
 		throw new AssertionError();
@@ -81,7 +82,7 @@ public final class KeyGroupRangeAssignment {
 			int operatorIndex) {
 		Preconditions.checkArgument(parallelism > 0, "Parallelism must not be smaller than zero.");
 		Preconditions.checkArgument(maxParallelism >= parallelism, "Maximum parallelism must not be smaller than parallelism.");
-		Preconditions.checkArgument(maxParallelism <= (1 << 15), "Maximum parallelism must be smaller than 2^15.");
+		Preconditions.checkArgument(maxParallelism <= MAX_MAX_PARALLELISM, "Maximum parallelism must be less or equals 2^15.");
 
 		int start = operatorIndex == 0 ? 0 : ((operatorIndex * maxParallelism - 1) / parallelism) + 1;
 		int end = ((operatorIndex + 1) * maxParallelism - 1) / parallelism;

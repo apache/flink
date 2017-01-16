@@ -79,6 +79,8 @@ public class StreamGraphGenerator {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StreamGraphGenerator.class);
 
+	public static final int DEFAULT_MAX_PARALLELISM = KeyGroupRangeAssignment.DEFAULT_MAX_PARALLELISM;
+
 	// The StreamGraph that is being built, this is initialized at the beginning.
 	private StreamGraph streamGraph;
 
@@ -150,7 +152,7 @@ public class StreamGraphGenerator {
 
 			// if the max parallelism hasn't been set, then first use the job wide max parallelism
 			// from theExecutionConfig. If this value has not been specified either, then use the
-			// parallelism of the operator.
+			// maximum between parallelism of the operator and the default max parallelism.
 			int maxParallelism = env.getConfig().getMaxParallelism();
 
 			if (maxParallelism <= 0) {
@@ -163,8 +165,7 @@ public class StreamGraphGenerator {
 				}
 
 				maxParallelism = Math.max(
-						MathUtils.roundUpToPowerOfTwo(parallelism + (parallelism / 2)),
-						KeyGroupRangeAssignment.DEFAULT_MAX_PARALLELISM);
+						MathUtils.roundUpToPowerOfTwo(parallelism + (parallelism / 2)), DEFAULT_MAX_PARALLELISM);
 			}
 
 			transform.setMaxParallelism(maxParallelism);
