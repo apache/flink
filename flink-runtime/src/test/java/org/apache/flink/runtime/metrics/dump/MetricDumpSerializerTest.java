@@ -53,7 +53,6 @@ public class MetricDumpSerializerTest {
 
 		SimpleCounter c1 = new SimpleCounter();
 		SimpleCounter c2 = new SimpleCounter();
-		SimpleCounter c3 = new SimpleCounter();
 
 		c1.inc(1);
 		c2.inc(2);
