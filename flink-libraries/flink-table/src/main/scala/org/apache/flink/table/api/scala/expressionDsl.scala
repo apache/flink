@@ -47,21 +47,69 @@ trait ImplicitExpressionOperations {
     */
   def toExpr: Expression = expr
 
+  /**
+    * Boolean AND in three-valued logic.
+    */
   def && (other: Expression) = And(expr, other)
+
+  /**
+    * Boolean OR in three-valued logic.
+    */
   def || (other: Expression) = Or(expr, other)
 
+  /**
+    * Greater than.
+    */
   def > (other: Expression) = GreaterThan(expr, other)
+
+  /**
+    * Greater than or equal.
+    */
   def >= (other: Expression) = GreaterThanOrEqual(expr, other)
+
+  /**
+    * Less than.
+    */
   def < (other: Expression) = LessThan(expr, other)
+
+  /**
+    * Less than or equal.
+    */
   def <= (other: Expression) = LessThanOrEqual(expr, other)
 
+  /**
+    * Equals.
+    */
   def === (other: Expression) = EqualTo(expr, other)
+
+  /**
+    * Not equal.
+    */
   def !== (other: Expression) = NotEqualTo(expr, other)
 
+  /**
+    * Whether boolean expression is not true; returns null if boolean is null.
+    */
   def unary_! = Not(expr)
+
+  /**
+    * Returns negative numeric.
+    */
   def unary_- = UnaryMinus(expr)
 
+  /**
+    * Returns numeric.
+    */
+  def unary_+ = expr
+
+  /**
+    * Returns true if the given expression is null.
+    */
   def isNull = IsNull(expr)
+
+  /**
+    * Returns true if the given expression is not null.
+    */
   def isNotNull = IsNotNull(expr)
 
   /**
@@ -84,18 +132,64 @@ trait ImplicitExpressionOperations {
     */
   def isNotFalse = IsNotFalse(expr)
 
+  /**
+    * Returns left plus right.
+    */
   def + (other: Expression) = Plus(expr, other)
+
+  /**
+    * Returns left minus right.
+    */
   def - (other: Expression) = Minus(expr, other)
+
+  /**
+    * Returns left divided by right.
+    */
   def / (other: Expression) = Div(expr, other)
+
+  /**
+    * Returns left multiplied by right.
+    */
   def * (other: Expression) = Mul(expr, other)
+
+  /**
+    * Returns the remainder (modulus) of left divided by right.
+    * The result is negative only if left is negative.
+    */
   def % (other: Expression) = mod(other)
 
+  /**
+    * Returns the sum of the numeric field across all input values.
+    */
   def sum = Sum(expr)
+
+  /**
+    * Returns the minimum value of field across all input values.
+    */
   def min = Min(expr)
+
+  /**
+    * Returns the maximum value of field across all input values.
+    */
   def max = Max(expr)
+
+  /**
+    * Returns the number of input rows for which the field is not null.
+    */
   def count = Count(expr)
+
+  /**
+    * Returns the average (arithmetic mean) of the numeric field across all input values.
+    */
   def avg = Avg(expr)
 
+  /**
+    * Converts a value to a given type.
+    *
+    * e.g. "42".cast(Types.INT) leads to 42.
+    *
+    * @return casted expression
+    */
   def cast(toType: TypeInformation[_]) = Cast(expr, toType)
 
   /**
