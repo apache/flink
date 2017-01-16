@@ -73,6 +73,7 @@ import java.net.URL;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Callable;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -315,7 +316,7 @@ public class MesosApplicationMasterRunner {
 			LOG.debug("Starting Mesos Flink Resource Manager");
 
 			// create the worker store to persist task information across restarts
-			MesosWorkerStore workerStore = createWorkerStore(config);
+			MesosWorkerStore workerStore = createWorkerStore(config, ioExecutor);
 
 			// we need the leader retrieval service here to be informed of new
 			// leader session IDs, even though there can be only one leader ever
@@ -497,7 +498,7 @@ public class MesosApplicationMasterRunner {
 		return mesos;
 	}
 
-	private static MesosWorkerStore createWorkerStore(Configuration flinkConfig) throws Exception {
+	private static MesosWorkerStore createWorkerStore(Configuration flinkConfig, Executor executor) throws Exception {
 		MesosWorkerStore workerStore;
 		HighAvailabilityMode recoveryMode = HighAvailabilityMode.fromConfig(flinkConfig);
 		if (recoveryMode == HighAvailabilityMode.NONE) {
@@ -506,7 +507,7 @@ public class MesosApplicationMasterRunner {
 		else if (recoveryMode == HighAvailabilityMode.ZOOKEEPER) {
 			// note: the store is responsible for closing the client.
 			CuratorFramework client = ZooKeeperUtils.startCuratorFramework(flinkConfig);
-			workerStore = ZooKeeperMesosWorkerStore.createMesosWorkerStore(client, flinkConfig);
+			workerStore = ZooKeeperMesosWorkerStore.createMesosWorkerStore(client, flinkConfig, executor);
 		}
 		else {
 			throw new IllegalConfigurationException("Unexpected recovery mode '" + recoveryMode + ".");
