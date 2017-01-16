@@ -304,15 +304,7 @@ adding the following to the Maven POM file in the plugins section:
             </goals>
             <configuration>
                 <transformers>
-                    <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
-                        <resource>META-INF/services/org.apache.lucene.codecs.Codec</resource>
-                    </transformer>
-                    <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
-                        <resource>META-INF/services/org.apache.lucene.codecs.DocValuesFormat</resource>
-                    </transformer>
-                    <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
-                        <resource>META-INF/services/org.apache.lucene.codecs.PostingsFormat</resource>
-                    </transformer>
+                    <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
                 </transformers>
             </configuration>
         </execution>
