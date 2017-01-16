@@ -40,7 +40,6 @@ public class JobVertex implements java.io.Serializable {
 
 	private static final String DEFAULT_NAME = "(unnamed vertex)";
 
-
 	// --------------------------------------------------------------------------------------------
 	// Members that define the structure / topology of the graph
 	// --------------------------------------------------------------------------------------------
@@ -60,7 +59,7 @@ public class JobVertex implements java.io.Serializable {
 	private int parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
 
 	/** Maximum number of subtasks to split this taks into a runtime. */
-	private int maxParallelism = Short.MAX_VALUE;
+	private int maxParallelism = -1;
 
 	/** Custom configuration passed to the assigned task at runtime. */
 	private Configuration configuration;
@@ -276,10 +275,6 @@ public class JobVertex implements java.io.Serializable {
 	 * @param maxParallelism The maximum parallelism to be set. must be between 1 and Short.MAX_VALUE.
 	 */
 	public void setMaxParallelism(int maxParallelism) {
-		org.apache.flink.util.Preconditions.checkArgument(
-				maxParallelism > 0 && maxParallelism <= (1 << 15),
-				"The max parallelism must be at least 1 and smaller than 2^15.");
-
 		this.maxParallelism = maxParallelism;
 	}
 

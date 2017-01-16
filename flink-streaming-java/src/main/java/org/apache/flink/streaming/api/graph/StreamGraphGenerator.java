@@ -34,7 +34,6 @@ import org.apache.flink.streaming.api.transformations.SplitTransformation;
 import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.streaming.api.transformations.UnionTransformation;
-import org.apache.flink.util.MathUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -78,6 +77,9 @@ import java.util.Map;
 public class StreamGraphGenerator {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StreamGraphGenerator.class);
+
+	public static final int DEFAULT_LOWER_BOUND_MAX_PARALLELISM = KeyGroupRangeAssignment.DEFAULT_LOWER_BOUND_MAX_PARALLELISM;
+	public static final int UPPER_BOUND_MAX_PARALLELISM = KeyGroupRangeAssignment.UPPER_BOUND_MAX_PARALLELISM;
 
 	// The StreamGraph that is being built, this is initialized at the beginning.
 	private StreamGraph streamGraph;
@@ -149,25 +151,11 @@ public class StreamGraphGenerator {
 		if (transform.getMaxParallelism() <= 0) {
 
 			// if the max parallelism hasn't been set, then first use the job wide max parallelism
-			// from theExecutionConfig. If this value has not been specified either, then use the
-			// parallelism of the operator.
-			int maxParallelism = env.getConfig().getMaxParallelism();
-
-			if (maxParallelism <= 0) {
-
-				int parallelism = transform.getParallelism();
-
-				if(parallelism <= 0) {
-					parallelism = 1;
-					transform.setParallelism(parallelism);
-				}
-
-				maxParallelism = Math.max(
-						MathUtils.roundUpToPowerOfTwo(parallelism + (parallelism / 2)),
-						KeyGroupRangeAssignment.DEFAULT_MAX_PARALLELISM);
+			// from theExecutionConfig.
+			int globalMaxParallelismFromConfig = env.getConfig().getMaxParallelism();
+			if (globalMaxParallelismFromConfig > 0) {
+				transform.setMaxParallelism(globalMaxParallelismFromConfig);
 			}
-
-			transform.setMaxParallelism(maxParallelism);
 		}
 
 		// call at least once to trigger exceptions about MissingTypeInfo

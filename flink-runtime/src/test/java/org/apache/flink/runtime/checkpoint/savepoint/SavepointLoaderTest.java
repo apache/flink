@@ -87,6 +87,7 @@ public class SavepointLoaderTest {
 
 		// 2) Load and validate: max parallelism mismatch
 		when(vertex.getMaxParallelism()).thenReturn(222);
+		when(vertex.isMaxParallelismConfigured()).thenReturn(true);
 
 		try {
 			SavepointLoader.loadAndValidateSavepoint(jobId, tasks, path, ucl, false);
