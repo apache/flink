@@ -24,7 +24,6 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
-import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -678,30 +677,6 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 		return new QueryableStateStream<>(
 				queryableStateName,
 				stateDescriptor.getSerializer(),
-				getKeyType().createSerializer(getExecutionConfig()));
-	}
-
-	/**
-	 * Publishes the keyed stream as a queryable ListStance instance.
-	 *
-	 * @param queryableStateName Name under which to the publish the queryable state instance
-	 * @param stateDescriptor State descriptor to create state instance from
-	 * @return Queryable state instance
-	 */
-	@PublicEvolving
-	public QueryableStateStream<KEY, T> asQueryableState(
-			String queryableStateName,
-			ListStateDescriptor<T> stateDescriptor) {
-
-		transform("Queryable state: " + queryableStateName,
-				getType(),
-				new QueryableAppendingStateOperator<>(queryableStateName, stateDescriptor));
-
-		stateDescriptor.initializeSerializerUnlessSet(getExecutionConfig());
-
-		return new QueryableStateStream<>(
-				queryableStateName,
-				getType().createSerializer(getExecutionConfig()),
 				getKeyType().createSerializer(getExecutionConfig()));
 	}
 
