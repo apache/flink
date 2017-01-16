@@ -97,6 +97,7 @@ object FlinkRuleSets {
     CalcMergeRule.INSTANCE,
 
     // translate to Flink DataSet nodes
+    DataSetWindowAggregateRule.INSTANCE,
     DataSetAggregateRule.INSTANCE,
     DataSetAggregateWithNullValuesRule.INSTANCE,
     DataSetCalcRule.INSTANCE,
