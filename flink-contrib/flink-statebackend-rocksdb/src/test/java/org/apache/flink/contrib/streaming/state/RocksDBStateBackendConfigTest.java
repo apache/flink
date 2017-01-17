@@ -40,6 +40,7 @@ import org.rocksdb.CompactionStyle;
 import org.rocksdb.DBOptions;
 
 import java.io.File;
+import java.nio.file.Files;
 
 import static org.hamcrest.CoreMatchers.anyOf;
 import static org.hamcrest.MatcherAssert.assertThat;
