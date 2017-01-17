@@ -31,7 +31,8 @@ import org.apache.flink.table.codegen.CodeGenerator
 import org.apache.flink.table.runtime.FlatJoinRunner
 import org.apache.flink.table.typeutils.TypeConverter.determineReturnType
 import org.apache.flink.api.common.functions.FlatJoinFunction
-import org.apache.calcite.rex.RexNode
+import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode}
+import org.apache.calcite.sql.SqlKind
 import org.apache.flink.table.api.{BatchTableEnvironment, TableException}
 
 import scala.collection.JavaConversions._
@@ -129,6 +130,32 @@ class DataSetJoin(
       // at least one equality expression
       val leftFields = left.getRowType.getFieldList
       val rightFields = right.getRowType.getFieldList
+
+      def exceptionOnNonEqualityJoinPredicate(predicates: RexNode): Unit = {
+        val rexCall = predicates.asInstanceOf[RexCall]
+        val kind: SqlKind = rexCall.getKind
+        if (kind == SqlKind.AND || kind == SqlKind.OR) {
+          rexCall.getOperands.map(exceptionOnNonEqualityJoinPredicate(_))
+        }
+        if (kind != SqlKind.EQUALS && !predicates.isAlwaysTrue) {
+          val operands = rexCall.getOperands
+          if (operands.size() > 1 && operands.get(0).isInstanceOf[RexInputRef] && operands.get(1)
+            .isInstanceOf[RexInputRef]) {
+            throw TableException(
+              "Non equality join predicates not supported\n" +
+                s"\tLeft: ${left.toString},\n" +
+                s"\tRight: ${right.toString},\n" +
+                s"\tCondition: ($joinConditionToString)"
+            )
+          }
+        }
+      }
+
+      // remaining = [join predicates] - [equi-join predicates]
+      val remaining = joinInfo.getRemaining(cluster.getRexBuilder)
+      if(!remaining.isAlwaysTrue){
+        exceptionOnNonEqualityJoinPredicate(remaining)
+      }
 
       keyPairs.foreach(pair => {
         val leftKeyType = leftFields.get(pair.source).getType.getSqlTypeName
