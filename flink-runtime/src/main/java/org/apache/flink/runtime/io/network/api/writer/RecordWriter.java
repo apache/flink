@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.api.writer;
 
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.event.AbstractEvent;
@@ -59,7 +60,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 
 	private final Random RNG = new XORShiftRandom();
 
-	private Counter numBytesOut;
+	private Counter numBytesOut = new SimpleCounter();
 
 	public RecordWriter(ResultPartitionWriter writer) {
 		this(writer, new RoundRobinChannelSelector<T>());
@@ -116,9 +117,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 				Buffer buffer = serializer.getCurrentBuffer();
 
 				if (buffer != null) {
-					if (numBytesOut != null) {
-						numBytesOut.inc(buffer.getSize());
-					}
+					numBytesOut.inc(buffer.getSize());
 					writeAndClearBuffer(buffer, targetChannel, serializer);
 
 					// If this was a full record, we are done. Not breaking
@@ -146,9 +145,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 				synchronized (serializer) {
 					Buffer buffer = serializer.getCurrentBuffer();
 					if (buffer != null) {
-						if (numBytesOut != null) {
-							numBytesOut.inc(buffer.getSize());
-						}
+						numBytesOut.inc(buffer.getSize());
 						writeAndClearBuffer(buffer, targetChannel, serializer);
 					} else if (serializer.hasData()) {
 						// sanity check
@@ -176,9 +173,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 					Buffer buffer = serializer.getCurrentBuffer();
 
 					if (buffer != null) {
-						if (numBytesOut != null) {
-							numBytesOut.inc(buffer.getSize());
-						}
+						numBytesOut.inc(buffer.getSize());
 						targetPartition.writeBuffer(buffer, targetChannel);
 					}
 				} finally {
