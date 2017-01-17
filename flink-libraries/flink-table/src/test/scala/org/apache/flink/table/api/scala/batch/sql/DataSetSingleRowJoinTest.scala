@@ -194,13 +194,18 @@ class DataSetSingleRowJoinTest extends TableTestBase {
   }
 
   @Test
-  def testSingleRowJoinLeftAndRightJoin(): Unit = {
+  def testSingleRowJoinLeftOuterJoin(): Unit = {
     val util = batchTestUtil()
     util.addTable[(Int, Int)]("A", 'a1, 'a2)
     util.addTable[(Int, Int)]("B", 'b1, 'b2)
 
-    val queryTemplate = "SELECT a2 FROM A " +
-                          "%1$s JOIN (SELECT COUNT(*) AS cnt FROM B) AS x ON a1 < cnt"
+    val queryLeftJoin =
+      "SELECT a2 FROM A " +
+        "LEFT JOIN " +
+        "(SELECT COUNT(*) AS cnt FROM B) " +
+        "AS x " +
+        "ON a1 < cnt"
+
     val expected =
       unaryNode(
         "DataSetCalc",
@@ -230,16 +235,62 @@ class DataSetSingleRowJoinTest extends TableTestBase {
           term("select", "COUNT(*) AS cnt")
         )
 
-    util.verifySql(queryTemplate.format("LEFT"), expected)
-    util.verifySql(queryTemplate.format("RIGHT"), expected)
+    util.verifySql(queryLeftJoin, expected)
+  }
+
+  @Test
+  def testSingleRowJoinRightOuterJoin(): Unit = {
+    val util = batchTestUtil()
+    util.addTable[(Int, Int)]("A", 'a1, 'a2)
+    util.addTable[(Int, Int)]("B", 'b1, 'b2)
+
+    val queryRightJoin =
+      "SELECT a2 FROM A " +
+        "RIGHT JOIN " +
+        "(SELECT COUNT(*) AS cnt FROM B) " +
+        "AS x " +
+        "ON a1 < cnt"
+
+    val expected =
+      unaryNode(
+        "DataSetCalc",
+        unaryNode(
+          "DataSetSingleRowJoin",
+          batchTableNode(0),
+          term("where", "<(a1, cnt)"),
+          term("join", "a1", "a2", "cnt"),
+          term("joinType", "NestedLoopJoin")
+        ),
+        term("select", "a2")
+      ) + "\n" +
+        unaryNode(
+          "DataSetAggregate",
+          unaryNode(
+            "DataSetUnion",
+            unaryNode(
+              "DataSetValues",
+              unaryNode(
+                "DataSetCalc",
+                batchTableNode(1),
+                term("select", "0 AS $f0")),
+              tuples(List(null)), term("values", "$f0")
+            ),
+            term("union", "$f0")
+          ),
+          term("select", "COUNT(*) AS cnt")
+        )
+
+    util.verifySql(queryRightJoin, expected)
   }
 
   @Test
   def testSingleRowJoinInnerJoin(): Unit = {
     val util = batchTestUtil()
     util.addTable[(Int, Int)]("A", 'a1, 'a2)
-    val query = "SELECT a2, sum(a1) " +
-      "FROM A GROUP BY a2 HAVING sum(a1) > (SELECT sum(a1) * 0.1 FROM A)"
+    val query =
+      "SELECT a2, sum(a1) " +
+        "FROM A GROUP BY a2 " +
+        "HAVING sum(a1) > (SELECT sum(a1) * 0.1 FROM A)"
 
     val expected =
       unaryNode(
