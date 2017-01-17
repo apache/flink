@@ -94,6 +94,7 @@ import static org.junit.Assert.fail;
 public class QueryableStateITCase extends TestLogger {
 
 	private final static FiniteDuration TEST_TIMEOUT = new FiniteDuration(100, TimeUnit.SECONDS);
+	private final static FiniteDuration QUERY_RETRY_DELAY = new FiniteDuration(100, TimeUnit.MILLISECONDS);
 
 	private final static ActorSystem TEST_ACTOR_SYSTEM = AkkaUtils.createDefaultActorSystem();
 
@@ -200,8 +201,6 @@ public class QueryableStateITCase extends TestLogger {
 
 			final AtomicLongArray counts = new AtomicLongArray(numKeys);
 
-			final FiniteDuration retryDelay = new FiniteDuration(1, TimeUnit.SECONDS);
-
 			boolean allNonZero = false;
 			while (!allNonZero && deadline.hasTimeLeft()) {
 				allNonZero = true;
@@ -230,7 +229,7 @@ public class QueryableStateITCase extends TestLogger {
 							queryName,
 							key,
 							serializedKey,
-							retryDelay);
+							QUERY_RETRY_DELAY);
 
 					serializedResult.onSuccess(new OnSuccess<byte[]>() {
 						@Override
@@ -347,14 +346,13 @@ public class QueryableStateITCase extends TestLogger {
 
 			boolean success = false;
 			while (!success && deadline.hasTimeLeft()) {
-				final FiniteDuration retryDelay = new FiniteDuration(1, TimeUnit.SECONDS);
 				Future<byte[]> serializedResultFuture = getKvStateWithRetries(
 						client,
 						jobId,
 						queryName,
 						key,
 						serializedKey,
-						retryDelay);
+						QUERY_RETRY_DELAY);
 
 				byte[] serializedResult = Await.result(serializedResultFuture, deadline.timeLeft());
 
@@ -451,14 +449,13 @@ public class QueryableStateITCase extends TestLogger {
 			// Now start another task manager
 			cluster.addTaskManager();
 
-			final FiniteDuration retryDelay = new FiniteDuration(1, TimeUnit.SECONDS);
 			Future<byte[]> serializedResultFuture = getKvStateWithRetries(
 					client,
 					jobId,
 					queryName,
 					key,
 					serializedKey,
-					retryDelay);
+					QUERY_RETRY_DELAY);
 
 			byte[] serializedResult = Await.result(serializedResultFuture, deadline.timeLeft());
 
@@ -719,7 +716,7 @@ public class QueryableStateITCase extends TestLogger {
 		final QueryableStateClient client, final JobID jobId,
 		final QueryableStateStream<Integer, Tuple2<Integer, Long>> queryableState,
 		final long expected) throws Exception {
-		FiniteDuration retryDelay = new FiniteDuration(1, TimeUnit.SECONDS);
+
 		for (int key = 0; key < NUM_SLOTS; key++) {
 			final byte[] serializedKey = KvStateRequestSerializer.serializeKeyAndNamespace(
 				key,
@@ -734,7 +731,7 @@ public class QueryableStateITCase extends TestLogger {
 					queryableState.getQueryableStateName(),
 					key,
 					serializedKey,
-					retryDelay);
+					QUERY_RETRY_DELAY);
 
 				byte[] serializedValue = Await.result(future, deadline.timeLeft());
 
@@ -872,7 +869,6 @@ public class QueryableStateITCase extends TestLogger {
 			// Now query
 			String expected = Integer.toString(numElements * (numElements + 1) / 2);
 
-			FiniteDuration retryDelay = new FiniteDuration(1, TimeUnit.SECONDS);
 			for (int key = 0; key < NUM_SLOTS; key++) {
 				final byte[] serializedKey = KvStateRequestSerializer.serializeKeyAndNamespace(
 						key,
@@ -887,7 +883,7 @@ public class QueryableStateITCase extends TestLogger {
 							queryableState.getQueryableStateName(),
 							key,
 							serializedKey,
-							retryDelay);
+							QUERY_RETRY_DELAY);
 
 					byte[] serializedValue = Await.result(future, deadline.timeLeft());
 
