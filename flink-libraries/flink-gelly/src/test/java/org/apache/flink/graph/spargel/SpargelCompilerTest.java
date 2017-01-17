@@ -18,33 +18,33 @@
 
 package org.apache.flink.graph.spargel;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.java.io.DiscardingOutputFormat;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.optimizer.util.CompilerTestBase;
-import org.junit.Test;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
+import org.apache.flink.graph.library.ConnectedComponents;
+import org.apache.flink.graph.utils.Tuple2ToVertexMap;
 import org.apache.flink.optimizer.plan.DualInputPlanNode;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.PlanNode;
 import org.apache.flink.optimizer.plan.SinkPlanNode;
 import org.apache.flink.optimizer.plan.WorksetIterationPlanNode;
+import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
 import org.apache.flink.types.NullValue;
-import org.apache.flink.graph.library.ConnectedComponents;
-import org.apache.flink.graph.utils.Tuple2ToVertexMap;
+import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 
 public class SpargelCompilerTest extends CompilerTestBase {
@@ -65,7 +65,7 @@ public class SpargelCompilerTest extends CompilerTestBase {
 						.map(new Tuple2ToVertexMap<Long, Long>());
 
 				DataSet<Edge<Long, NullValue>> edges = env.fromElements(new Tuple2<>(1L, 2L))
-					.map(new MapFunction<Tuple2<Long,Long>, Edge<Long, NullValue>>() {
+					.map(new MapFunction<Tuple2<Long, Long>, Edge<Long, NullValue>>() {
 
 						public Edge<Long, NullValue> map(Tuple2<Long, Long> edge) {
 							return new Edge<>(edge.f0, edge.f1, NullValue.getInstance());
@@ -147,7 +147,7 @@ public class SpargelCompilerTest extends CompilerTestBase {
 						.map(new Tuple2ToVertexMap<Long, Long>());
 
 				DataSet<Edge<Long, NullValue>> edges = env.fromElements(new Tuple2<>(1L, 2L))
-						.map(new MapFunction<Tuple2<Long,Long>, Edge<Long, NullValue>>() {
+						.map(new MapFunction<Tuple2<Long, Long>, Edge<Long, NullValue>>() {
 
 							public Edge<Long, NullValue> map(Tuple2<Long, Long> edge) {
 								return new Edge<>(edge.f0, edge.f1, NullValue.getInstance());

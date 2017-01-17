@@ -18,9 +18,6 @@
 
 package org.apache.flink.graph.test.operations;
 
-import java.util.LinkedList;
-import java.util.List;
-
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -36,6 +33,9 @@ import org.apache.flink.types.NullValue;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+
+import java.util.LinkedList;
+import java.util.List;
 
 @RunWith(Parameterized.class)
 public class GraphCreationITCase extends MultipleProgramsTestBase {
@@ -55,8 +55,8 @@ public class GraphCreationITCase extends MultipleProgramsTestBase {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		Graph<Long, NullValue, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongEdgeData(env), env);
 
-        DataSet<Vertex<Long,NullValue>> data = graph.getVertices();
-        List<Vertex<Long,NullValue>> result= data.collect();
+        DataSet<Vertex<Long, NullValue>> data = graph.getVertices();
+        List<Vertex<Long, NullValue>> result= data.collect();
         
 		expectedResult = "1,(null)\n" +
 					"2,(null)\n" +
@@ -76,8 +76,8 @@ public class GraphCreationITCase extends MultipleProgramsTestBase {
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongEdgeData(env),
 				new AssignIdAsValueMapper(), env);
 
-        DataSet<Vertex<Long,Long>> data = graph.getVertices();
-        List<Vertex<Long,Long>> result= data.collect();
+        DataSet<Vertex<Long, Long>> data = graph.getVertices();
+        List<Vertex<Long, Long>> result= data.collect();
         
 		expectedResult = "1,1\n" +
 					"2,2\n" +
@@ -97,8 +97,8 @@ public class GraphCreationITCase extends MultipleProgramsTestBase {
 		Graph<Long, DummyCustomParameterizedType<Double>, Long> graph = Graph.fromDataSet(
 				TestGraphUtils.getLongLongEdgeData(env), new AssignCustomVertexValueMapper(), env);
 
-        DataSet<Vertex<Long,DummyCustomParameterizedType<Double>>> data = graph.getVertices();
-        List<Vertex<Long,DummyCustomParameterizedType<Double>>> result= data.collect();
+        DataSet<Vertex<Long, DummyCustomParameterizedType<Double>>> data = graph.getVertices();
+        List<Vertex<Long, DummyCustomParameterizedType<Double>>> result= data.collect();
         
 		expectedResult = "1,(2.0,0)\n" +
 				"2,(4.0,1)\n" +

@@ -38,24 +38,24 @@ public class AsmTestBase {
 	protected ExecutionEnvironment env;
 
 	// simple graph
-	protected Graph<IntValue,NullValue,NullValue> directedSimpleGraph;
+	protected Graph<IntValue, NullValue, NullValue> directedSimpleGraph;
 
-	protected Graph<IntValue,NullValue,NullValue> undirectedSimpleGraph;
+	protected Graph<IntValue, NullValue, NullValue> undirectedSimpleGraph;
 
 	// complete graph
 	protected final long completeGraphVertexCount = 47;
 
-	protected Graph<LongValue,NullValue,NullValue> completeGraph;
+	protected Graph<LongValue, NullValue, NullValue> completeGraph;
 
 	// empty graph
 	protected final long emptyGraphVertexCount = 3;
 
-	protected Graph<LongValue,NullValue,NullValue> emptyGraph;
+	protected Graph<LongValue, NullValue, NullValue> emptyGraph;
 
 	// RMat graph
-	protected Graph<LongValue,NullValue,NullValue> directedRMatGraph;
+	protected Graph<LongValue, NullValue, NullValue> directedRMatGraph;
 
-	protected Graph<LongValue,NullValue,NullValue> undirectedRMatGraph;
+	protected Graph<LongValue, NullValue, NullValue> undirectedRMatGraph;
 
 	@Before
 	public void setup()
@@ -73,7 +73,7 @@ public class AsmTestBase {
 			new Object[]{5, 3},
 		};
 
-		List<Edge<IntValue,NullValue>> directedEdgeList = new LinkedList<>();
+		List<Edge<IntValue, NullValue>> directedEdgeList = new LinkedList<>();
 
 		for (Object[] edge : edges) {
 			directedEdgeList.add(new Edge<>(new IntValue((int) edge[0]), new IntValue((int) edge[1]), NullValue.getInstance()));
@@ -95,7 +95,7 @@ public class AsmTestBase {
 		long rmatVertexCount = 1L << 10;
 		long rmatEdgeCount = 16 * rmatVertexCount;
 
-		Graph<LongValue,NullValue,NullValue> rmatGraph = new RMatGraph<>(env, new JDKRandomGeneratorFactory(), rmatVertexCount, rmatEdgeCount)
+		Graph<LongValue, NullValue, NullValue> rmatGraph = new RMatGraph<>(env, new JDKRandomGeneratorFactory(), rmatVertexCount, rmatEdgeCount)
 			.generate();
 
 		directedRMatGraph = rmatGraph

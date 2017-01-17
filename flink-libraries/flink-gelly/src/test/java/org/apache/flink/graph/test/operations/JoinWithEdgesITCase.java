@@ -18,8 +18,6 @@
 
 package org.apache.flink.graph.test.operations;
 
-import java.util.List;
-
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -35,6 +33,8 @@ import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+
+import java.util.List;
 
 @RunWith(Parameterized.class)
 public class JoinWithEdgesITCase extends MultipleProgramsTestBase {
@@ -59,7 +59,7 @@ public class JoinWithEdgesITCase extends MultipleProgramsTestBase {
         Graph<Long, Long, Long> res = graph.joinWithEdges(graph.getEdges()
                         .map(new EdgeToTuple3Map<Long, Long>()), new AddValuesMapper());
 
-        DataSet<Edge<Long,Long>> data = res.getEdges();
+        DataSet<Edge<Long, Long>> data = res.getEdges();
         List<Edge<Long, Long>> result= data.collect();
 
         expectedResult = "1,2,24\n" +
@@ -87,7 +87,7 @@ public class JoinWithEdgesITCase extends MultipleProgramsTestBase {
         Graph<Long, Long, Long> res = graph.joinWithEdges(graph.getEdges().first(3)
                         .map(new EdgeToTuple3Map<Long, Long>()), new AddValuesMapper());
 
-        DataSet<Edge<Long,Long>> data = res.getEdges();
+        DataSet<Edge<Long, Long>> data = res.getEdges();
         List<Edge<Long, Long>> result= data.collect();
 
         expectedResult = "1,2,24\n" +
@@ -115,7 +115,7 @@ public class JoinWithEdgesITCase extends MultipleProgramsTestBase {
         Graph<Long, Long, Long> res = graph.joinWithEdges(graph.getEdges().first(3)
                         .map(new BooleanEdgeValueMapper()), new DoubleIfTrueMapper());
 
-        DataSet<Edge<Long,Long>> data = res.getEdges();
+        DataSet<Edge<Long, Long>> data = res.getEdges();
         List<Edge<Long, Long>> result= data.collect();
 
         expectedResult = "1,2,24\n" +
@@ -143,7 +143,7 @@ public class JoinWithEdgesITCase extends MultipleProgramsTestBase {
         Graph<Long, Long, Long> res = graph.joinWithEdges(TestGraphUtils.getLongLongLongTuple3Data(env),
                 new DoubleValueMapper());
 
-        DataSet<Edge<Long,Long>> data = res.getEdges();
+        DataSet<Edge<Long, Long>> data = res.getEdges();
         List<Edge<Long, Long>> result= data.collect();
 
         expectedResult = "1,2,24\n" +
@@ -170,7 +170,7 @@ public class JoinWithEdgesITCase extends MultipleProgramsTestBase {
         Graph<Long, Long, Long> res = graph.joinWithEdges(TestGraphUtils.getLongLongCustomTuple3Data(env),
                 new CustomValueMapper());
 
-        DataSet<Edge<Long,Long>> data = res.getEdges();
+        DataSet<Edge<Long, Long>> data = res.getEdges();
         List<Edge<Long, Long>> result= data.collect();
 
         expectedResult = "1,2,10\n" +
@@ -198,7 +198,7 @@ public class JoinWithEdgesITCase extends MultipleProgramsTestBase {
         Graph<Long, Long, Long> res = graph.joinWithEdgesOnSource(graph.getEdges()
                         .map(new ProjectSourceAndValueMapper()), new AddValuesMapper());
 
-        DataSet<Edge<Long,Long>> data = res.getEdges();
+        DataSet<Edge<Long, Long>> data = res.getEdges();
         List<Edge<Long, Long>> result= data.collect();
 
         expectedResult = "1,2,24\n" +
@@ -226,7 +226,7 @@ public class JoinWithEdgesITCase extends MultipleProgramsTestBase {
         Graph<Long, Long, Long> res = graph.joinWithEdgesOnSource(graph.getEdges().first(3)
                         .map(new ProjectSourceAndValueMapper()), new AddValuesMapper());
 
-        DataSet<Edge<Long,Long>> data = res.getEdges();
+        DataSet<Edge<Long, Long>> data = res.getEdges();
         List<Edge<Long, Long>> result= data.collect();
 
         expectedResult = "1,2,24\n" +
@@ -254,7 +254,7 @@ public class JoinWithEdgesITCase extends MultipleProgramsTestBase {
         Graph<Long, Long, Long> res = graph.joinWithEdgesOnSource(graph.getEdges().first(3)
                         .map(new ProjectSourceWithTrueMapper()), new DoubleIfTrueMapper());
 
-        DataSet<Edge<Long,Long>> data = res.getEdges();
+        DataSet<Edge<Long, Long>> data = res.getEdges();
         List<Edge<Long, Long>> result= data.collect();
 
         expectedResult = "1,2,24\n" +
@@ -282,7 +282,7 @@ public class JoinWithEdgesITCase extends MultipleProgramsTestBase {
         Graph<Long, Long, Long> res = graph.joinWithEdgesOnSource(TestGraphUtils.getLongLongTuple2SourceData(env),
                 new DoubleValueMapper());
 
-        DataSet<Edge<Long,Long>> data = res.getEdges();
+        DataSet<Edge<Long, Long>> data = res.getEdges();
         List<Edge<Long, Long>> result= data.collect();
 
         expectedResult = "1,2,20\n" +
@@ -309,7 +309,7 @@ public class JoinWithEdgesITCase extends MultipleProgramsTestBase {
         Graph<Long, Long, Long> res = graph.joinWithEdgesOnSource(TestGraphUtils.getLongCustomTuple2SourceData(env),
                 new CustomValueMapper());
 
-        DataSet<Edge<Long,Long>> data = res.getEdges();
+        DataSet<Edge<Long, Long>> data = res.getEdges();
         List<Edge<Long, Long>> result= data.collect();
 
         expectedResult = "1,2,10\n" +
@@ -337,7 +337,7 @@ public class JoinWithEdgesITCase extends MultipleProgramsTestBase {
         Graph<Long, Long, Long> res = graph.joinWithEdgesOnTarget(graph.getEdges()
                         .map(new ProjectTargetAndValueMapper()), new AddValuesMapper());
 
-        DataSet<Edge<Long,Long>> data = res.getEdges();
+        DataSet<Edge<Long, Long>> data = res.getEdges();
         List<Edge<Long, Long>> result= data.collect();
 
         expectedResult = "1,2,24\n" +
@@ -365,7 +365,7 @@ public class JoinWithEdgesITCase extends MultipleProgramsTestBase {
         Graph<Long, Long, Long> res = graph.joinWithEdgesOnTarget(graph.getEdges().first(3)
                         .map(new ProjectTargetAndValueMapper()), new AddValuesMapper());
 
-        DataSet<Edge<Long,Long>> data = res.getEdges();
+        DataSet<Edge<Long, Long>> data = res.getEdges();
         List<Edge<Long, Long>> result= data.collect();
 
         expectedResult = "1,2,24\n" +
@@ -393,7 +393,7 @@ public class JoinWithEdgesITCase extends MultipleProgramsTestBase {
         Graph<Long, Long, Long> res = graph.joinWithEdgesOnTarget(graph.getEdges().first(3)
                         .map(new ProjectTargetWithTrueMapper()), new DoubleIfTrueMapper());
 
-        DataSet<Edge<Long,Long>> data = res.getEdges();
+        DataSet<Edge<Long, Long>> data = res.getEdges();
         List<Edge<Long, Long>> result= data.collect();
 
         expectedResult = "1,2,24\n" +
@@ -421,7 +421,7 @@ public class JoinWithEdgesITCase extends MultipleProgramsTestBase {
         Graph<Long, Long, Long> res = graph.joinWithEdgesOnTarget(TestGraphUtils.getLongLongTuple2TargetData(env),
                 new DoubleValueMapper());
 
-        DataSet<Edge<Long,Long>> data = res.getEdges();
+        DataSet<Edge<Long, Long>> data = res.getEdges();
         List<Edge<Long, Long>> result= data.collect();
 
         expectedResult = "1,2,20\n" +
@@ -448,7 +448,7 @@ public class JoinWithEdgesITCase extends MultipleProgramsTestBase {
         Graph<Long, Long, Long> res = graph.joinWithEdgesOnTarget(TestGraphUtils.getLongCustomTuple2TargetData(env),
                 new CustomValueMapper());
 
-        DataSet<Edge<Long,Long>> data = res.getEdges();
+        DataSet<Edge<Long, Long>> data = res.getEdges();
         List<Edge<Long, Long>> result= data.collect();
 
         expectedResult = "1,2,10\n" +

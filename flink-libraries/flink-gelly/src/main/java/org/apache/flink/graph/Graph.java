@@ -544,7 +544,7 @@ public class Graph<K, VV, EV> {
 	 * @param returnType the explicit return type.
 	 * @return a new graph
 	 */
-	public <NV> Graph<K, NV, EV> mapVertices(final MapFunction<Vertex<K, VV>, NV> mapper, TypeInformation<Vertex<K,NV>> returnType) {
+	public <NV> Graph<K, NV, EV> mapVertices(final MapFunction<Vertex<K, VV>, NV> mapper, TypeInformation<Vertex<K, NV>> returnType) {
 		DataSet<Vertex<K, NV>> mappedVertices = vertices.map(
 				new MapFunction<Vertex<K, VV>, Vertex<K, NV>>() {
 					private Vertex<K, NV> output = new Vertex<>();
@@ -588,7 +588,7 @@ public class Graph<K, VV, EV> {
 	 * @param returnType the explicit return type.
 	 * @return a new graph
 	 */
-	public <NV> Graph<K, VV, NV> mapEdges(final MapFunction<Edge<K, EV>, NV> mapper, TypeInformation<Edge<K,NV>> returnType) {
+	public <NV> Graph<K, VV, NV> mapEdges(final MapFunction<Edge<K, EV>, NV> mapper, TypeInformation<Edge<K, NV>> returnType) {
 		DataSet<Edge<K, NV>> mappedEdges = edges.map(
 			new MapFunction<Edge<K, EV>, Edge<K, NV>>() {
 				private Edge<K, NV> output = new Edge<>();
@@ -924,7 +924,7 @@ public class Graph<K, VV, EV> {
 		private Tuple2<K, LongValue> vertexDegree = new Tuple2<>(null, degree);
 
 		@SuppressWarnings("unused")
-		public void coGroup(Iterable<Vertex<K, VV>> vertex,	Iterable<Edge<K, EV>> outEdges,
+		public void coGroup(Iterable<Vertex<K, VV>> vertex, Iterable<Edge<K, EV>> outEdges,
 				Collector<Tuple2<K, LongValue>> out) {
 			long count = 0;
 			for (Edge<K, EV> edge : outEdges) {
@@ -1217,7 +1217,7 @@ public class Graph<K, VV, EV> {
 			this.function = fun;
 		}
 
-		public void coGroup(Iterable<Vertex<K, VV>> vertex,	final Iterable<Tuple2<K, Edge<K, EV>>> keysWithEdges,
+		public void coGroup(Iterable<Vertex<K, VV>> vertex, 	final Iterable<Tuple2<K, Edge<K, EV>>> keysWithEdges,
 				Collector<T> out) throws Exception {
 
 			final Iterator<Edge<K, EV>> edgesIterator = new Iterator<Edge<K, EV>>() {
@@ -1416,9 +1416,9 @@ public class Graph<K, VV, EV> {
 	 */
 	public Graph<K, VV, EV> addEdges(List<Edge<K, EV>> newEdges) {
 
-		DataSet<Edge<K,EV>> newEdgesDataSet = this.context.fromCollection(newEdges);
+		DataSet<Edge<K, EV>> newEdgesDataSet = this.context.fromCollection(newEdges);
 
-		DataSet<Edge<K,EV>> validNewEdges = this.getVertices().join(newEdgesDataSet)
+		DataSet<Edge<K, EV>> validNewEdges = this.getVertices().join(newEdgesDataSet)
 				.where(0).equalTo(0)
 				.with(new JoinVerticesWithEdgesOnSrc<K, VV, EV>()).name("Join with source")
 				.join(this.getVertices()).where(1).equalTo(0)
@@ -1516,7 +1516,7 @@ public class Graph<K, VV, EV> {
 	}
 
 	@ForwardedFieldsSecond("f0; f1; f2")
-	private static final class ProjectEdgeToBeRemoved<K,VV,EV> implements JoinFunction<Vertex<K, VV>, Edge<K, EV>, Edge<K, EV>> {
+	private static final class ProjectEdgeToBeRemoved<K, VV, EV> implements JoinFunction<Vertex<K, VV>, Edge<K, EV>, Edge<K, EV>> {
 		@Override
 		public Edge<K, EV> join(Vertex<K, VV> vertex, Edge<K, EV> edge) throws Exception {
 			return edge;
@@ -1559,12 +1559,12 @@ public class Graph<K, VV, EV> {
 	public Graph<K, VV, EV> removeEdges(List<Edge<K, EV>> edgesToBeRemoved) {
 
 		DataSet<Edge<K, EV>> newEdges = getEdges().coGroup(this.context.fromCollection(edgesToBeRemoved))
-				.where(0,1).equalTo(0,1).with(new EdgeRemovalCoGroup<K, EV>()).name("Remove edges");
+				.where(0, 1).equalTo(0, 1).with(new EdgeRemovalCoGroup<K, EV>()).name("Remove edges");
 
 		return new Graph<>(this.vertices, newEdges, context);
 	}
 
-	private static final class EdgeRemovalCoGroup<K,EV> implements CoGroupFunction<Edge<K, EV>, Edge<K, EV>, Edge<K, EV>> {
+	private static final class EdgeRemovalCoGroup<K, EV> implements CoGroupFunction<Edge<K, EV>, Edge<K, EV>, Edge<K, EV>> {
 
 		@Override
 		public void coGroup(Iterable<Edge<K, EV>> edge, Iterable<Edge<K, EV>> edgeToBeRemoved,
@@ -1608,8 +1608,8 @@ public class Graph<K, VV, EV> {
 	 * @param graph the graph to perform difference with
 	 * @return a new graph where the common vertices and edges have been removed
 	 */
-	public Graph<K,VV,EV> difference(Graph<K,VV,EV> graph) {
-		DataSet<Vertex<K,VV>> removeVerticesData = graph.getVertices();
+	public Graph<K, VV, EV> difference(Graph<K, VV, EV> graph) {
+		DataSet<Vertex<K, VV>> removeVerticesData = graph.getVertices();
 		return this.removeVertices(removeVerticesData);
 	}
 
@@ -1688,7 +1688,7 @@ public class Graph<K, VV, EV> {
 	 * @param <EV> 	edge value type
 	 */
 	private static final class MatchingEdgeReducer<K, EV>
-			implements CoGroupFunction<Edge<K,EV>, Edge<K,EV>, Edge<K, EV>> {
+			implements CoGroupFunction<Edge<K, EV>, Edge<K, EV>, Edge<K, EV>> {
 
 		@Override
 		public void coGroup(Iterable<Edge<K, EV>> edgesLeft, Iterable<Edge<K, EV>> edgesRight, Collector<Edge<K, EV>> out)
@@ -2149,12 +2149,12 @@ public class Graph<K, VV, EV> {
 
 		public void coGroup(Iterable<Vertex<K, VV>> vertex, Iterable<Tuple2<Edge<K, EV>, Vertex<K, VV>>> neighbors,
 				Collector<T> out) throws Exception {
-			function.iterateNeighbors(vertex.iterator().next(),	neighbors, out);
+			function.iterateNeighbors(vertex.iterator().next(), 	neighbors, out);
 		}
 
 		@Override
 		public TypeInformation<T> getProducedType() {
-			return TypeExtractor.createTypeInfo(NeighborsFunctionWithVertexValue.class,	function.getClass(), 3, null, null);
+			return TypeExtractor.createTypeInfo(NeighborsFunctionWithVertexValue.class, 	function.getClass(), 3, null, null);
 		}
 	}
 
@@ -2209,7 +2209,7 @@ public class Graph<K, VV, EV> {
 
 		@Override
 		public TypeInformation<T> getProducedType() {
-			return TypeExtractor.createTypeInfo(NeighborsFunctionWithVertexValue.class,	function.getClass(), 3, null, null);
+			return TypeExtractor.createTypeInfo(NeighborsFunctionWithVertexValue.class, function.getClass(), 3, null, null);
 		}
 	}
 

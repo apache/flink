@@ -18,8 +18,6 @@
 
 package org.apache.flink.graph.test.operations;
 
-import java.util.List;
-
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -32,6 +30,8 @@ import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+
+import java.util.List;
 
 @RunWith(Parameterized.class)
 public class GraphCreationWithMapperITCase extends MultipleProgramsTestBase {
@@ -52,8 +52,8 @@ public class GraphCreationWithMapperITCase extends MultipleProgramsTestBase {
 		Graph<Long, Double, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongEdgeData(env),
 				new AssignDoubleValueMapper(), env);
 
-        DataSet<Vertex<Long,Double>> data = graph.getVertices();
-        List<Vertex<Long,Double>> result= data.collect();
+        DataSet<Vertex<Long, Double>> data = graph.getVertices();
+        List<Vertex<Long, Double>> result= data.collect();
 		
 		expectedResult = "1,0.1\n" +
 				"2,0.1\n" +
@@ -95,8 +95,8 @@ public class GraphCreationWithMapperITCase extends MultipleProgramsTestBase {
 	Graph<String, Double, Long> graph = Graph.fromDataSet(TestGraphUtils.getStringLongEdgeData(env),
 			new AssignDoubleConstantMapper(), env);
 
-    DataSet<Vertex<String,Double>> data = graph.getVertices();
-    List<Vertex<String,Double>> result= data.collect();
+    DataSet<Vertex<String, Double>> data = graph.getVertices();
+    List<Vertex<String, Double>> result= data.collect();
     
 	expectedResult = "1,0.1\n" +
 			"2,0.1\n" +
@@ -116,8 +116,8 @@ public class GraphCreationWithMapperITCase extends MultipleProgramsTestBase {
 		Graph<Long, DummyCustomType, Long> graph = Graph.fromDataSet(
 				TestGraphUtils.getLongLongEdgeData(env), new AssignCustomValueMapper(), env);
 
-	    DataSet<Vertex<Long,DummyCustomType>> data = graph.getVertices();
-	    List<Vertex<Long,DummyCustomType>> result= data.collect();
+	    DataSet<Vertex<Long, DummyCustomType>> data = graph.getVertices();
+	    List<Vertex<Long, DummyCustomType>> result= data.collect();
 	    
 		expectedResult = "1,(F,0)\n" +
 				"2,(F,1)\n" +

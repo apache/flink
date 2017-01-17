@@ -79,14 +79,14 @@ extends AbstractGraphTest {
 			throws Exception {
 		int parallelism = 2;
 
-		Graph<LongValue,NullValue,NullValue> graph = new GridGraph(env)
+		Graph<LongValue, NullValue, NullValue> graph = new GridGraph(env)
 			.addDimension(3, false)
 			.addDimension(5, false)
 			.setParallelism(parallelism)
 			.generate();
 
-		graph.getVertices().output(new DiscardingOutputFormat<Vertex<LongValue,NullValue>>());
-		graph.getEdges().output(new DiscardingOutputFormat<Edge<LongValue,NullValue>>());
+		graph.getVertices().output(new DiscardingOutputFormat<Vertex<LongValue, NullValue>>());
+		graph.getEdges().output(new DiscardingOutputFormat<Edge<LongValue, NullValue>>());
 
 		TestUtils.verifyParallelism(env, parallelism);
 	}

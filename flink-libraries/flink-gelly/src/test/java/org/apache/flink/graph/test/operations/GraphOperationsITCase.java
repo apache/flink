@@ -56,7 +56,7 @@ public class GraphOperationsITCase extends MultipleProgramsTestBase {
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getLongLongEdgeData(env), env);
 
-        DataSet<Edge<Long,Long>> data = graph.getUndirected().getEdges();
+        DataSet<Edge<Long, Long>> data = graph.getUndirected().getEdges();
         List<Edge<Long, Long>> result= data.collect();
         
 		expectedResult = "1,2,12\n" + "2,1,12\n" +
@@ -80,7 +80,7 @@ public class GraphOperationsITCase extends MultipleProgramsTestBase {
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getLongLongEdgeData(env), env);
 
-        DataSet<Edge<Long,Long>> data = graph.reverse().getEdges();
+        DataSet<Edge<Long, Long>> data = graph.reverse().getEdges();
         List<Edge<Long, Long>> result= data.collect();
         
 		expectedResult = "2,1,12\n" +
@@ -105,7 +105,7 @@ public class GraphOperationsITCase extends MultipleProgramsTestBase {
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getLongLongEdgeData(env), env);
 		
-		DataSet<Edge<Long,Long>> data= graph.subgraph(new FilterFunction<Vertex<Long, Long>>() {
+		DataSet<Edge<Long, Long>> data= graph.subgraph(new FilterFunction<Vertex<Long, Long>>() {
 						   public boolean filter(Vertex<Long, Long> vertex) throws Exception {
 							   return (vertex.getValue() > 2);
 						   }
@@ -135,7 +135,7 @@ public class GraphOperationsITCase extends MultipleProgramsTestBase {
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getLongLongEdgeData(env), env);
 		
-		DataSet<Edge<Long,Long>> data = graph.filterOnVertices(new FilterFunction<Vertex<Long, Long>>() {
+		DataSet<Edge<Long, Long>> data = graph.filterOnVertices(new FilterFunction<Vertex<Long, Long>>() {
 			public boolean filter(Vertex<Long, Long> vertex) throws Exception {
 				return (vertex.getValue() > 2);
 			}
@@ -161,7 +161,7 @@ public class GraphOperationsITCase extends MultipleProgramsTestBase {
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getLongLongEdgeData(env), env);
 		
-		DataSet<Edge<Long,Long>> data = graph.filterOnEdges(new FilterFunction<Edge<Long, Long>>() {
+		DataSet<Edge<Long, Long>> data = graph.filterOnEdges(new FilterFunction<Edge<Long, Long>>() {
 			public boolean filter(Edge<Long, Long> edge) throws Exception {
 				return (edge.getValue() > 34);
 			}
@@ -240,7 +240,7 @@ public class GraphOperationsITCase extends MultipleProgramsTestBase {
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getLongLongEdgeData(env), env);
 		
-		DataSet<Tuple2<Long,Long>> data = graph.getEdgeIds();
+		DataSet<Tuple2<Long, Long>> data = graph.getEdgeIds();
         List<Tuple2<Long, Long>> result= data.collect();
         
 		expectedResult = "1,2\n" + "1,3\n" +
@@ -269,7 +269,7 @@ public class GraphOperationsITCase extends MultipleProgramsTestBase {
 
 		graph = graph.union(Graph.fromCollection(vertices, edges, env));
 
-        DataSet<Edge<Long,Long>> data = graph.getEdges();
+        DataSet<Edge<Long, Long>> data = graph.getEdges();
         List<Edge<Long, Long>> result= data.collect();
 
 		expectedResult = "1,2,12\n" +
@@ -339,7 +339,7 @@ public class GraphOperationsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Vertex<Long, Long>> vertex = env.fromElements(new Vertex<>(6L, 6L));
 
-		Graph<Long, Long, Long> graph2 = Graph.fromDataSet(vertex,TestGraphUtils.getLongLongEdgeDataDifference2(env),env);
+		Graph<Long, Long, Long> graph2 = Graph.fromDataSet(vertex, TestGraphUtils.getLongLongEdgeDataDifference2(env), env);
 
 		graph = graph.difference(graph2);
 
@@ -446,8 +446,8 @@ public class GraphOperationsITCase extends MultipleProgramsTestBase {
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
 				TestGraphUtils.getLongLongEdgeData(env), env);
 
-        DataSet<Triplet<Long,Long,Long>> data = graph.getTriplets();
-        List<Triplet<Long,Long,Long>> result= data.collect();
+        DataSet<Triplet<Long, Long, Long>> data = graph.getTriplets();
+        List<Triplet<Long, Long, Long>> result= data.collect();
 
 		expectedResult = "1,2,1,2,12\n" + "1,3,1,3,13\n" +
 				"2,3,2,3,23\n" + "3,4,3,4,34\n" +

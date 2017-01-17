@@ -73,8 +73,8 @@ public class ScatterGatherConfigurationITCase extends MultipleProgramsTestBase {
 		Graph<Long, Long, Long> res = graph.runScatterGatherIteration(
 				new MessageFunction(), new UpdateFunction(), 10, parameters);
 
-		DataSet<Vertex<Long,Long>> data = res.getVertices();
-		List<Vertex<Long,Long>> result= data.collect();
+		DataSet<Vertex<Long, Long>> data = res.getVertices();
+		List<Vertex<Long, Long>> result= data.collect();
 
 		expectedResult = "1,11\n" +
 						"2,11\n" +
@@ -109,7 +109,7 @@ public class ScatterGatherConfigurationITCase extends MultipleProgramsTestBase {
 		Assert.assertEquals(true, iteration.getIterationConfiguration().isSolutionSetUnmanagedMemory());
 
 		DataSet<Vertex<Long, Long>> data = TestGraphUtils.getLongLongVertexData(env).runOperation(iteration);
-        List<Vertex<Long,Long>> result= data.collect();
+        List<Vertex<Long, Long>> result= data.collect();
 
 		expectedResult = "1,11\n" +
 						"2,12\n" +

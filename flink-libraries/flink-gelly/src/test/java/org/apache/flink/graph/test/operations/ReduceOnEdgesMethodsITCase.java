@@ -18,9 +18,6 @@
 
 package org.apache.flink.graph.test.operations;
 
-import java.util.List;
-import java.util.Objects;
-
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -37,6 +34,9 @@ import org.apache.flink.util.Collector;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+
+import java.util.List;
+import java.util.Objects;
 
 @RunWith(Parameterized.class)
 public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
@@ -59,7 +59,7 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple2<Long, Long>> verticesWithLowestOutNeighbor = 
 				graph.groupReduceOnEdges(new SelectMinWeightNeighbor(), EdgeDirection.OUT);
-		List<Tuple2<Long,Long>> result = verticesWithLowestOutNeighbor.collect();
+		List<Tuple2<Long, Long>> result = verticesWithLowestOutNeighbor.collect();
 
 	
 		expectedResult = "1,2\n" +
@@ -83,7 +83,7 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple2<Long, Long>> verticesWithLowestOutNeighbor = 
 				graph.groupReduceOnEdges(new SelectMinWeightInNeighbor(), EdgeDirection.IN);
-		List<Tuple2<Long,Long>> result = verticesWithLowestOutNeighbor.collect();
+		List<Tuple2<Long, Long>> result = verticesWithLowestOutNeighbor.collect();
 
 		expectedResult = "1,5\n" +
 					"2,1\n" + 
@@ -105,7 +105,7 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple2<Long, Long>> verticesWithAllOutNeighbors =
 				graph.groupReduceOnEdges(new SelectOutNeighbors(), EdgeDirection.OUT);
-		List<Tuple2<Long,Long>> result = verticesWithAllOutNeighbors.collect();
+		List<Tuple2<Long, Long>> result = verticesWithAllOutNeighbors.collect();
 
 		expectedResult = "1,2\n" +
 				"1,3\n" +
@@ -129,7 +129,7 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple2<Long, Long>> verticesWithAllOutNeighbors =
 				graph.groupReduceOnEdges(new SelectOutNeighborsExcludeFive(), EdgeDirection.OUT);
-		List<Tuple2<Long,Long>> result = verticesWithAllOutNeighbors.collect();
+		List<Tuple2<Long, Long>> result = verticesWithAllOutNeighbors.collect();
 
 		expectedResult = "1,2\n" +
 				"1,3\n" +
@@ -152,7 +152,7 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple2<Long, Long>> verticesWithAllOutNeighbors =
 				graph.groupReduceOnEdges(new SelectOutNeighborsValueGreaterThanTwo(), EdgeDirection.OUT);
-		List<Tuple2<Long,Long>> result = verticesWithAllOutNeighbors.collect();
+		List<Tuple2<Long, Long>> result = verticesWithAllOutNeighbors.collect();
 
 		expectedResult = "3,4\n" +
 				"3,5\n" +
@@ -173,7 +173,7 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple2<Long, Long>> verticesWithAllInNeighbors =
 				graph.groupReduceOnEdges(new SelectInNeighbors(), EdgeDirection.IN);
-		List<Tuple2<Long,Long>> result = verticesWithAllInNeighbors.collect();
+		List<Tuple2<Long, Long>> result = verticesWithAllInNeighbors.collect();
 
 		expectedResult = "1,5\n" +
 				"2,1\n" +
@@ -197,7 +197,7 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple2<Long, Long>> verticesWithAllInNeighbors =
 				graph.groupReduceOnEdges(new SelectInNeighborsExceptFive(), EdgeDirection.IN);
-		List<Tuple2<Long,Long>> result = verticesWithAllInNeighbors.collect();
+		List<Tuple2<Long, Long>> result = verticesWithAllInNeighbors.collect();
 
 		expectedResult = "1,5\n" +
 				"2,1\n" +
@@ -219,7 +219,7 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple2<Long, Long>> verticesWithAllInNeighbors =
 				graph.groupReduceOnEdges(new SelectInNeighborsValueGreaterThanTwo(), EdgeDirection.IN);
-		List<Tuple2<Long,Long>> result = verticesWithAllInNeighbors.collect();
+		List<Tuple2<Long, Long>> result = verticesWithAllInNeighbors.collect();
 
 		expectedResult = "3,1\n" +
 				"3,2\n" +
@@ -241,7 +241,7 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple2<Long, Long>> verticesWithAllNeighbors =
 				graph.groupReduceOnEdges(new SelectNeighbors(), EdgeDirection.ALL);
-		List<Tuple2<Long,Long>> result = verticesWithAllNeighbors.collect();
+		List<Tuple2<Long, Long>> result = verticesWithAllNeighbors.collect();
 
 		expectedResult = "1,2\n" +
 				"1,3\n" +
@@ -272,7 +272,7 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple2<Long, Long>> verticesWithAllNeighbors =
 				graph.groupReduceOnEdges(new SelectNeighborsExceptFiveAndTwo(), EdgeDirection.ALL);
-		List<Tuple2<Long,Long>> result = verticesWithAllNeighbors.collect();
+		List<Tuple2<Long, Long>> result = verticesWithAllNeighbors.collect();
 
 		expectedResult = "1,2\n" +
 				"1,3\n" +
@@ -298,7 +298,7 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple2<Long, Long>> verticesWithAllNeighbors =
 				graph.groupReduceOnEdges(new SelectNeighborsValueGreaterThanFour(), EdgeDirection.ALL);
-		List<Tuple2<Long,Long>> result = verticesWithAllNeighbors.collect();
+		List<Tuple2<Long, Long>> result = verticesWithAllNeighbors.collect();
 
 		expectedResult = "5,1\n" +
 				"5,3\n" +
@@ -319,7 +319,7 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple2<Long, Long>> verticesWithMaxEdgeWeight = 
 				graph.groupReduceOnEdges(new SelectMaxWeightNeighbor(), EdgeDirection.ALL);
-		List<Tuple2<Long,Long>> result = verticesWithMaxEdgeWeight.collect();
+		List<Tuple2<Long, Long>> result = verticesWithMaxEdgeWeight.collect();
 
 		expectedResult = "1,51\n" +
 				"2,23\n" + 
@@ -342,7 +342,7 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple2<Long, Long>> verticesWithLowestOutNeighbor = 
 				graph.reduceOnEdges(new SelectMinWeightNeighborNoValue(), EdgeDirection.OUT);
-		List<Tuple2<Long,Long>> result = verticesWithLowestOutNeighbor.collect();
+		List<Tuple2<Long, Long>> result = verticesWithLowestOutNeighbor.collect();
 
 		expectedResult = "1,12\n" +
 				"2,23\n" +
@@ -365,7 +365,7 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple2<Long, Long>> verticesWithLowestOutNeighbor = 
 				graph.reduceOnEdges(new SelectMinWeightNeighborNoValue(), EdgeDirection.IN);
-		List<Tuple2<Long,Long>> result = verticesWithLowestOutNeighbor.collect();
+		List<Tuple2<Long, Long>> result = verticesWithLowestOutNeighbor.collect();
 
 		expectedResult = "1,51\n" +
 				"2,12\n" +
@@ -388,7 +388,7 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple2<Long, Long>> verticesWithMaxEdgeWeight = 
 				graph.reduceOnEdges(new SelectMaxWeightNeighborNoValue(), EdgeDirection.ALL);
-		List<Tuple2<Long,Long>> result = verticesWithMaxEdgeWeight.collect();
+		List<Tuple2<Long, Long>> result = verticesWithMaxEdgeWeight.collect();
 
 		expectedResult = "1,51\n" +
 				"2,23\n" + 

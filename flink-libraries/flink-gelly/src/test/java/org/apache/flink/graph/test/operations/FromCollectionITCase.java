@@ -18,7 +18,6 @@
 
 package org.apache.flink.graph.test.operations;
 
-import java.util.List;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -31,6 +30,8 @@ import org.apache.flink.types.NullValue;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+
+import java.util.List;
 
 @RunWith(Parameterized.class)
 public class FromCollectionITCase extends MultipleProgramsTestBase {
@@ -51,7 +52,7 @@ public class FromCollectionITCase extends MultipleProgramsTestBase {
         Graph<Long, Long, Long> graph = Graph.fromCollection(TestGraphUtils.getLongLongVertices(),
                 TestGraphUtils.getLongLongEdges(), env);
 
-        DataSet<Edge<Long,Long>> data = graph.getEdges();
+        DataSet<Edge<Long, Long>> data = graph.getEdges();
         List<Edge<Long, Long>> result= data.collect();
         
         expectedResult = "1,2,12\n" +
@@ -75,8 +76,8 @@ public class FromCollectionITCase extends MultipleProgramsTestBase {
         		env);
 
         
-        DataSet<Vertex<Long,NullValue>> data = graph.getVertices();
-        List<Vertex<Long,NullValue>> result= data.collect();
+        DataSet<Vertex<Long, NullValue>> data = graph.getVertices();
+        List<Vertex<Long, NullValue>> result= data.collect();
         
         expectedResult = "1,(null)\n" +
 	                "2,(null)\n" +
@@ -97,8 +98,8 @@ public class FromCollectionITCase extends MultipleProgramsTestBase {
 		Graph<Long, Long, Long> graph = Graph.fromCollection(TestGraphUtils.getLongLongEdges(),
                 new InitVerticesMapper(), env);
 
-        DataSet<Vertex<Long,Long>> data = graph.getVertices();
-        List<Vertex<Long,Long>> result= data.collect();
+        DataSet<Vertex<Long, Long>> data = graph.getVertices();
+        List<Vertex<Long, Long>> result= data.collect();
         
         expectedResult = "1,2\n" +
 	                "2,4\n" +

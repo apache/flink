@@ -60,10 +60,10 @@ import java.util.List;
  * grouping on edges on the vertex with the smaller degree.
  */
 public class TriangleEnumerator<K extends Comparable<K>, VV, EV> implements
-	GraphAlgorithm<K, VV, EV, DataSet<Tuple3<K,K,K>>> {
+	GraphAlgorithm<K, VV, EV, DataSet<Tuple3<K, K, K>>> {
 
 	@Override
-	public DataSet<Tuple3<K,K,K>> run(Graph<K, VV, EV> input) throws Exception {
+	public DataSet<Tuple3<K, K, K>> run(Graph<K, VV, EV> input) throws Exception {
 
 		DataSet<Edge<K, EV>> edges = input.getEdges();
 
@@ -77,7 +77,7 @@ public class TriangleEnumerator<K extends Comparable<K>, VV, EV> implements
 		// project edges by vertex id
 		DataSet<Edge<K, NullValue>> edgesById = edgesByDegree.map(new EdgeByIdProjector<K>());
 
-		DataSet<Tuple3<K,K,K>> triangles = edgesByDegree
+		DataSet<Tuple3<K, K, K>> triangles = edgesByDegree
 				// build triads
 				.groupBy(EdgeWithDegrees.V1).sortGroup(EdgeWithDegrees.V2, Order.ASCENDING)
 				.reduceGroup(new TriadBuilder<K>())
@@ -268,10 +268,10 @@ public class TriangleEnumerator<K extends Comparable<K>, VV, EV> implements
 	 * Filters triads (three vertices connected by two edges) without a closing third edge.
 	 */
 	@SuppressWarnings("serial")
-	private static final class TriadFilter<K> implements JoinFunction<Triad<K>, Edge<K,NullValue>, Tuple3<K,K,K>> {
+	private static final class TriadFilter<K> implements JoinFunction<Triad<K>, Edge<K, NullValue>, Tuple3<K, K, K>> {
 
 		@Override
-		public Tuple3<K,K,K> join(Triad<K> triad, Edge<K, NullValue> edge) throws Exception {
+		public Tuple3<K, K, K> join(Triad<K> triad, Edge<K, NullValue> edge) throws Exception {
 			return new Tuple3<>(triad.getFirstVertex(), triad.getSecondVertex(), triad.getThirdVertex());
 		}
 	}

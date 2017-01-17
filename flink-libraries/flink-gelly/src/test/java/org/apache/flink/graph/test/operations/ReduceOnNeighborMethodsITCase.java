@@ -59,7 +59,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple2<Long, Long>> verticesWithSumOfOutNeighborValues = 
 				graph.groupReduceOnNeighbors(new SumOutNeighbors(), EdgeDirection.OUT);
-		List<Tuple2<Long,Long>> result = verticesWithSumOfOutNeighborValues.collect();
+		List<Tuple2<Long, Long>> result = verticesWithSumOfOutNeighborValues.collect();
 		
 		expectedResult = "1,5\n" +
 				"2,3\n" + 
@@ -82,7 +82,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple2<Long, Long>> verticesWithSum = 
 				graph.groupReduceOnNeighbors(new SumInNeighbors(), EdgeDirection.IN);
-		List<Tuple2<Long,Long>> result = verticesWithSum.collect();
+		List<Tuple2<Long, Long>> result = verticesWithSum.collect();
 		
 		expectedResult = "1,255\n" +
 				"2,12\n" + 
@@ -108,7 +108,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple2<Long, Long>> verticesWithSumOfOutNeighborValues = 
 				graph.groupReduceOnNeighbors(new SumAllNeighbors(), EdgeDirection.ALL);
-		List<Tuple2<Long,Long>> result = verticesWithSumOfOutNeighborValues.collect();
+		List<Tuple2<Long, Long>> result = verticesWithSumOfOutNeighborValues.collect();
 
 		expectedResult = "1,11\n" +
 				"2,6\n" + 
@@ -131,7 +131,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple2<Long, Long>> verticesWithSumOfOutNeighborValues =
 				graph.groupReduceOnNeighbors(new SumOutNeighborsIdGreaterThanThree(), EdgeDirection.OUT);
-		List<Tuple2<Long,Long>> result = verticesWithSumOfOutNeighborValues.collect();
+		List<Tuple2<Long, Long>> result = verticesWithSumOfOutNeighborValues.collect();
 		
 		expectedResult = "4,5\n" +
 				"5,1\n";
@@ -151,7 +151,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple2<Long, Long>> verticesWithSum =
 				graph.groupReduceOnNeighbors(new SumInNeighborsIdGreaterThanThree(), EdgeDirection.IN);
-		List<Tuple2<Long,Long>> result = verticesWithSum.collect();
+		List<Tuple2<Long, Long>> result = verticesWithSum.collect();
 		
 		expectedResult = "4,102\n" +
 				"5,285\n";
@@ -172,7 +172,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple2<Long, Long>> verticesWithSumOfOutNeighborValues =
 				graph.groupReduceOnNeighbors(new SumAllNeighborsIdGreaterThanThree(), EdgeDirection.ALL);
-		List<Tuple2<Long,Long>> result = verticesWithSumOfOutNeighborValues.collect();
+		List<Tuple2<Long, Long>> result = verticesWithSumOfOutNeighborValues.collect();
 
 		expectedResult = "4,12\n" +
 				"5,13\n";
@@ -192,7 +192,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple2<Long, Long>> verticesWithSumOfOutNeighborValues = 
 				graph.reduceOnNeighbors(new SumNeighbors(), EdgeDirection.OUT);
-		List<Tuple2<Long,Long>> result = verticesWithSumOfOutNeighborValues.collect();
+		List<Tuple2<Long, Long>> result = verticesWithSumOfOutNeighborValues.collect();
 
 		expectedResult = "1,5\n" +
 				"2,3\n" + 
@@ -215,7 +215,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple2<Long, Long>> verticesWithSum = 
 				graph.groupReduceOnNeighbors(new SumInNeighborsNoValue(), EdgeDirection.IN);
-		List<Tuple2<Long,Long>> result = verticesWithSum.collect();
+		List<Tuple2<Long, Long>> result = verticesWithSum.collect();
 	
 		expectedResult = "1,255\n" +
 				"2,12\n" +
@@ -238,7 +238,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple2<Long, Long>> verticesWithSumOfAllNeighborValues =
 				graph.reduceOnNeighbors(new SumNeighbors(), EdgeDirection.ALL);
-		List<Tuple2<Long,Long>> result = verticesWithSumOfAllNeighborValues.collect();
+		List<Tuple2<Long, Long>> result = verticesWithSumOfAllNeighborValues.collect();
 	
 		expectedResult = "1,10\n" +
 				"2,4\n" + 
@@ -261,7 +261,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple2<Long, Long>> verticesWithSumOfOutNeighborValues =
 				graph.groupReduceOnNeighbors(new SumOutNeighborsNoValueMultipliedByTwoIdGreaterThanTwo(), EdgeDirection.OUT);
-		List<Tuple2<Long,Long>> result = verticesWithSumOfOutNeighborValues.collect();
+		List<Tuple2<Long, Long>> result = verticesWithSumOfOutNeighborValues.collect();
 
 		expectedResult = "3,9\n" +
 				"3,18\n" +
@@ -285,7 +285,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple2<Long, Long>> verticesWithSumOfOutNeighborValues =
 				graph.groupReduceOnNeighbors(new SumInNeighborsNoValueMultipliedByTwoIdGreaterThanTwo(), EdgeDirection.IN);
-		List<Tuple2<Long,Long>> result = verticesWithSumOfOutNeighborValues.collect();
+		List<Tuple2<Long, Long>> result = verticesWithSumOfOutNeighborValues.collect();
 
 		expectedResult = "3,59\n" +
 				"3,118\n" +
@@ -309,7 +309,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple2<Long, Long>> verticesWithSumOfAllNeighborValues =
 				graph.groupReduceOnNeighbors(new SumAllNeighborsNoValueMultipliedByTwoIdGreaterThanTwo(), EdgeDirection.ALL);
-		List<Tuple2<Long,Long>> result = verticesWithSumOfAllNeighborValues.collect();
+		List<Tuple2<Long, Long>> result = verticesWithSumOfAllNeighborValues.collect();
 
 		expectedResult = "3,12\n" +
 				"3,24\n" +
@@ -333,7 +333,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple2<Long, Long>> verticesWithSumOfOutNeighborValues =
 				graph.groupReduceOnNeighbors(new SumOutNeighborsMultipliedByTwo(), EdgeDirection.OUT);
-		List<Tuple2<Long,Long>> result = verticesWithSumOfOutNeighborValues.collect();
+		List<Tuple2<Long, Long>> result = verticesWithSumOfOutNeighborValues.collect();
 		
 		expectedResult = "1,5\n" +
 				"1,10\n" +
@@ -361,7 +361,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple2<Long, Long>> verticesWithSum =
 				graph.groupReduceOnNeighbors(new SumInNeighborsSubtractOne(), EdgeDirection.IN);
-		List<Tuple2<Long,Long>> result = verticesWithSum.collect();
+		List<Tuple2<Long, Long>> result = verticesWithSum.collect();
 		
 		expectedResult = "1,255\n" +
 				"1,254\n" +
@@ -390,7 +390,7 @@ public class ReduceOnNeighborMethodsITCase extends MultipleProgramsTestBase {
 
 		DataSet<Tuple2<Long, Long>> verticesWithSumOfOutNeighborValues =
 				graph.groupReduceOnNeighbors(new SumAllNeighborsAddFive(), EdgeDirection.ALL);
-		List<Tuple2<Long,Long>> result = verticesWithSumOfOutNeighborValues.collect();
+		List<Tuple2<Long, Long>> result = verticesWithSumOfOutNeighborValues.collect();
 
 		expectedResult = "1,11\n" +
 				"1,16\n" +

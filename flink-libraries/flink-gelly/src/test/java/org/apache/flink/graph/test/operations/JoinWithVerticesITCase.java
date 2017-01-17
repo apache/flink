@@ -18,8 +18,6 @@
 
 package org.apache.flink.graph.test.operations;
 
-import java.util.List;
-
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -34,6 +32,8 @@ import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+
+import java.util.List;
 
 @RunWith(Parameterized.class)
 public class JoinWithVerticesITCase extends MultipleProgramsTestBase {
@@ -58,8 +58,8 @@ public class JoinWithVerticesITCase extends MultipleProgramsTestBase {
         Graph<Long, Long, Long> res = graph.joinWithVertices(graph.getVertices()
                         .map(new VertexToTuple2Map<Long, Long>()), new AddValuesMapper());
 
-		DataSet<Vertex<Long,Long>> data = res.getVertices();
-        List<Vertex<Long,Long>> result= data.collect();
+		DataSet<Vertex<Long, Long>> data = res.getVertices();
+        List<Vertex<Long, Long>> result= data.collect();
 
        expectedResult = "1,2\n" +
 	                "2,4\n" +
@@ -84,8 +84,8 @@ public class JoinWithVerticesITCase extends MultipleProgramsTestBase {
         Graph<Long, Long, Long> res = graph.joinWithVertices(graph.getVertices().first(3)
                         .map(new VertexToTuple2Map<Long, Long>()), new AddValuesMapper());
 
-		DataSet<Vertex<Long,Long>> data = res.getVertices();
-        List<Vertex<Long,Long>> result= data.collect();
+		DataSet<Vertex<Long, Long>> data = res.getVertices();
+        List<Vertex<Long, Long>> result= data.collect();
 
         expectedResult = "1,2\n" +
 	                "2,4\n" +
@@ -110,8 +110,8 @@ public class JoinWithVerticesITCase extends MultipleProgramsTestBase {
         Graph<Long, Long, Long> res = graph.joinWithVertices(graph.getVertices().first(3)
                         .map(new ProjectIdWithTrue()), new DoubleIfTrueMapper());
 
-		DataSet<Vertex<Long,Long>> data = res.getVertices();
-        List<Vertex<Long,Long>> result= data.collect();
+		DataSet<Vertex<Long, Long>> data = res.getVertices();
+        List<Vertex<Long, Long>> result= data.collect();
 
         expectedResult = "1,2\n" +
 	                "2,4\n" +
@@ -136,8 +136,8 @@ public class JoinWithVerticesITCase extends MultipleProgramsTestBase {
         Graph<Long, Long, Long> res = graph.joinWithVertices(TestGraphUtils.getLongLongTuple2Data(env),
                 new ProjectSecondMapper());
 
-		DataSet<Vertex<Long,Long>> data = res.getVertices();
-        List<Vertex<Long,Long>> result= data.collect();
+		DataSet<Vertex<Long, Long>> data = res.getVertices();
+        List<Vertex<Long, Long>> result= data.collect();
 
         expectedResult = "1,10\n" +
 	                "2,20\n" +
@@ -161,8 +161,8 @@ public class JoinWithVerticesITCase extends MultipleProgramsTestBase {
         Graph<Long, Long, Long> res = graph.joinWithVertices(TestGraphUtils.getLongCustomTuple2Data(env),
                 new CustomValueMapper());
 
-		DataSet<Vertex<Long,Long>> data = res.getVertices();
-        List<Vertex<Long,Long>> result= data.collect();
+		DataSet<Vertex<Long, Long>> data = res.getVertices();
+        List<Vertex<Long, Long>> result= data.collect();
 
         expectedResult = "1,10\n" +
 	                "2,20\n" +

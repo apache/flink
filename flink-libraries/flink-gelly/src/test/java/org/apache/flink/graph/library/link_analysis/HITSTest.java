@@ -46,8 +46,8 @@ extends AsmTestBase {
 		List<Tuple2<Double, Double>> expectedResults = new ArrayList<>();
 		expectedResults.add(Tuple2.of(0.5446287864731747, 0.0));
 		expectedResults.add(Tuple2.of(0.0, 0.8363240238999012));
-		expectedResults.add(Tuple2.of(0.6072453524686667,0.26848532437604833));
-		expectedResults.add(Tuple2.of(0.5446287864731747,0.39546603929699625));
+		expectedResults.add(Tuple2.of(0.6072453524686667, 0.26848532437604833));
+		expectedResults.add(Tuple2.of(0.5446287864731747, 0.39546603929699625));
 		expectedResults.add(Tuple2.of(0.0, 0.26848532437604833));
 		expectedResults.add(Tuple2.of(0.194966796646811, 0.0));
 

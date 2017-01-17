@@ -27,7 +27,7 @@ implements GraphGenerator<K, VV, EV> {
 	protected int parallelism = PARALLELISM_DEFAULT;
 
 	@Override
-	public GraphGenerator<K,VV,EV> setParallelism(int parallelism) {
+	public GraphGenerator<K, VV, EV> setParallelism(int parallelism) {
 		this.parallelism = parallelism;
 
 		return this;
