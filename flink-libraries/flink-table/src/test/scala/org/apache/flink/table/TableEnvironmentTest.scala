@@ -68,9 +68,12 @@ class TableEnvironmentTest {
     fieldInfo._2.zip(Array(0, 1, 2)).foreach(x => assertEquals(x._2, x._1))
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testGetFieldInfoAtomic(): Unit = {
-    tEnv.getFieldInfo(atomicType)
+    val fieldInfo = tEnv.getFieldInfo(atomicType)
+
+    fieldInfo._1.zip(Array("f0")).foreach(x => assertEquals(x._2, x._1))
+    fieldInfo._2.zip(Array(0)).foreach(x => assertEquals(x._2, x._1))
   }
 
   @Test

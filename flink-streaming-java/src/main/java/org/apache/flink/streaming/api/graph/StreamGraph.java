@@ -202,7 +202,7 @@ public class StreamGraph extends StreamingPlan {
 
 		setSerializers(vertexID, inSerializer, null, outSerializer);
 
-		if (operatorObject instanceof OutputTypeConfigurable) {
+		if (operatorObject instanceof OutputTypeConfigurable && outTypeInfo != null) {
 			@SuppressWarnings("unchecked")
 			OutputTypeConfigurable<OUT> outputTypeConfigurable = (OutputTypeConfigurable<OUT>) operatorObject;
 			// sets the output type which must be know at StreamGraph creation time

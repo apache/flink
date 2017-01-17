@@ -1,5 +1,5 @@
 ---
-title: "Deployment"
+title: "Clusters & Deployment"
 nav-id: deployment
 nav-parent_id: setup
 nav-pos: 5

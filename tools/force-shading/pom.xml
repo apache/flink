@@ -28,7 +28,7 @@ under the License.
 		<version>14</version>
 	</parent>
 
-	<!---
+	<!--
 	This module is used a dependency in the root pom. It activates shading for all sub modules
 	through an include rule in the shading configuration. This assures that Maven always generates
 	an effective pom for all modules, i.e. get rid of Maven properties. In particular, this is needed

@@ -19,7 +19,9 @@ package org.apache.flink.api.java.typeutils;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.operators.Keys.ExpressionKeys;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.runtime.RowComparator;
@@ -29,7 +31,13 @@ import org.apache.flink.types.Row;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -39,6 +47,20 @@ import static org.apache.flink.util.Preconditions.checkState;
 public class RowTypeInfo extends TupleTypeInfoBase<Row> {
 
 	private static final long serialVersionUID = 9158518989896601963L;
+
+	private static final String REGEX_INT_FIELD = "[0-9]+";
+	private static final String REGEX_STR_FIELD = "[\\p{L}_\\$][\\p{L}\\p{Digit}_\\$]*";
+	private static final String REGEX_FIELD = REGEX_STR_FIELD + "|" + REGEX_INT_FIELD;
+	private static final String REGEX_NESTED_FIELDS = "(" + REGEX_FIELD + ")(\\.(.+))?";
+	private static final String REGEX_NESTED_FIELDS_WILDCARD = REGEX_NESTED_FIELDS + "|\\"
+			+ ExpressionKeys.SELECT_ALL_CHAR + "|\\"
+			+ ExpressionKeys.SELECT_ALL_CHAR_SCALA;
+
+	private static final Pattern PATTERN_NESTED_FIELDS = Pattern.compile(REGEX_NESTED_FIELDS);
+	private static final Pattern PATTERN_NESTED_FIELDS_WILDCARD = Pattern.compile(REGEX_NESTED_FIELDS_WILDCARD);
+	private static final Pattern PATTERN_INT_FIELD = Pattern.compile(REGEX_INT_FIELD);
+
+	// --------------------------------------------------------------------------------------------
 
 	protected final String[] fieldNames;
 	/** Temporary variable for directly passing orders to comparators. */
@@ -51,6 +73,122 @@ public class RowTypeInfo extends TupleTypeInfoBase<Row> {
 
 		for (int i = 0; i < types.length; i++) {
 			fieldNames[i] = "f" + i;
+		}
+	}
+
+	public RowTypeInfo(TypeInformation<?>[] types, String[] fieldNames) {
+		super(Row.class, types);
+		checkNotNull(fieldNames, "FieldNames should not be null.");
+		checkArgument(
+			types.length == fieldNames.length,
+			"Number of field types and names is different.");
+		checkArgument(
+			!hasDuplicateFieldNames(fieldNames),
+			"Field names are not unique.");
+
+		this.fieldNames = Arrays.copyOf(fieldNames, fieldNames.length);
+	}
+
+	@Override
+	public void getFlatFields(String fieldExpression, int offset, List<FlatFieldDescriptor> result) {
+		Matcher matcher = PATTERN_NESTED_FIELDS_WILDCARD.matcher(fieldExpression);
+
+		if (!matcher.matches()) {
+			throw new InvalidFieldReferenceException(
+				"Invalid tuple field reference \"" + fieldExpression + "\".");
+		}
+
+		String field = matcher.group(0);
+
+		if ((field.equals(ExpressionKeys.SELECT_ALL_CHAR)) ||
+			(field.equals(ExpressionKeys.SELECT_ALL_CHAR_SCALA))) {
+			// handle select all
+			int keyPosition = 0;
+			for (TypeInformation<?> fType : types) {
+				if (fType instanceof CompositeType) {
+					CompositeType<?> cType = (CompositeType<?>) fType;
+					cType.getFlatFields(ExpressionKeys.SELECT_ALL_CHAR, offset + keyPosition, result);
+					keyPosition += cType.getTotalFields() - 1;
+				} else {
+					result.add(new FlatFieldDescriptor(offset + keyPosition, fType));
+				}
+				keyPosition++;
+			}
+		} else {
+			field = matcher.group(1);
+
+			Matcher intFieldMatcher = PATTERN_INT_FIELD.matcher(field);
+			int fieldIndex;
+			if (intFieldMatcher.matches()) {
+				// field expression is an integer
+				fieldIndex = Integer.valueOf(field);
+			} else {
+				fieldIndex = this.getFieldIndex(field);
+			}
+			// fetch the field type will throw exception if the index is illegal
+			TypeInformation<?> fieldType = this.getTypeAt(fieldIndex);
+			// compute the offset,
+			for (int i = 0; i < fieldIndex; i++) {
+				offset += this.getTypeAt(i).getTotalFields();
+			}
+
+			String tail = matcher.group(3);
+
+			if (tail == null) {
+				// expression hasn't nested field
+				if (fieldType instanceof CompositeType) {
+					((CompositeType) fieldType).getFlatFields("*", offset, result);
+				} else {
+					result.add(new FlatFieldDescriptor(offset, fieldType));
+				}
+			} else {
+				// expression has nested field
+				if (fieldType instanceof CompositeType) {
+					((CompositeType) fieldType).getFlatFields(tail, offset, result);
+				} else {
+					throw new InvalidFieldReferenceException(
+						"Nested field expression \"" + tail + "\" not possible on atomic type " + fieldType + ".");
+				}
+			}
+		}
+	}
+
+	@Override
+	public <X> TypeInformation<X> getTypeAt(String fieldExpression) {
+		Matcher matcher = PATTERN_NESTED_FIELDS.matcher(fieldExpression);
+		if (!matcher.matches()) {
+			if (fieldExpression.equals(ExpressionKeys.SELECT_ALL_CHAR) ||
+				fieldExpression.equals(ExpressionKeys.SELECT_ALL_CHAR_SCALA)) {
+				throw new InvalidFieldReferenceException("Wildcard expressions are not allowed here.");
+			} else {
+				throw new InvalidFieldReferenceException("Invalid format of Row field expression \""+fieldExpression+"\".");
+			}
+		}
+
+		String field = matcher.group(1);
+
+		Matcher intFieldMatcher = PATTERN_INT_FIELD.matcher(field);
+		int fieldIndex;
+		if (intFieldMatcher.matches()) {
+			// field expression is an integer
+			fieldIndex = Integer.valueOf(field);
+		} else {
+			fieldIndex = this.getFieldIndex(field);
+		}
+		// fetch the field type will throw exception if the index is illegal
+		TypeInformation<X> fieldType = this.getTypeAt(fieldIndex);
+
+		String tail = matcher.group(3);
+		if (tail == null) {
+			// found the type
+			return fieldType;
+		} else {
+			if (fieldType instanceof CompositeType) {
+				return ((CompositeType<?>) fieldType).getTypeAt(tail);
+			} else {
+				throw new InvalidFieldReferenceException(
+					"Nested field expression \""+ tail + "\" not possible on atomic type "+fieldType+".");
+			}
 		}
 	}
 
@@ -127,6 +265,16 @@ public class RowTypeInfo extends TupleTypeInfoBase<Row> {
 			bld.append(')');
 		}
 		return bld.toString();
+	}
+
+	private boolean hasDuplicateFieldNames(String[] fieldNames) {
+		HashSet<String> names = new HashSet<>();
+		for (String field : fieldNames) {
+			if (!names.add(field)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private class RowTypeComparatorBuilder implements TypeComparatorBuilder<Row> {

@@ -562,7 +562,7 @@ public class KvStateClientTest {
 			clientTaskExecutor = Executors.newFixedThreadPool(numClientsTasks);
 
 			// Create state
-			ValueStateDescriptor<Integer> desc = new ValueStateDescriptor<>("any", IntSerializer.INSTANCE, null);
+			ValueStateDescriptor<Integer> desc = new ValueStateDescriptor<>("any", IntSerializer.INSTANCE);
 			desc.setQueryable("any");
 
 			// Create servers

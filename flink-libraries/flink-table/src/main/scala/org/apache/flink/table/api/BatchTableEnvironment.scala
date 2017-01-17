@@ -298,7 +298,7 @@ abstract class BatchTableEnvironment(
     * @return The [[DataSet]] that corresponds to the translated [[Table]].
     */
   protected def translate[A](logicalPlan: RelNode)(implicit tpe: TypeInformation[A]): DataSet[A] = {
-    validateType(tpe)
+    TableEnvironment.validateType(tpe)
 
     logicalPlan match {
       case node: DataSetRel =>

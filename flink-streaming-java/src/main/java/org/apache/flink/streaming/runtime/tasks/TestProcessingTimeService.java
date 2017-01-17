@@ -53,7 +53,7 @@ public class TestProcessingTimeService extends ProcessingTimeService {
 			}
 		});
 	}
-	
+
 	public void setCurrentTime(long timestamp) throws Exception {
 		this.currentTime = timestamp;
 
@@ -90,15 +90,7 @@ public class TestProcessingTimeService extends ProcessingTimeService {
 
 		CallbackTask callbackTask = new CallbackTask(target);
 
-		if (timestamp <= currentTime) {
-			try {
-				callbackTask.onProcessingTime(timestamp);
-			} catch (Exception e) {
-				throw new RuntimeException(e);
-			}
-		} else {
-			priorityQueue.offer(Tuple2.of(timestamp, callbackTask));
-		}
+		priorityQueue.offer(Tuple2.of(timestamp, callbackTask));
 
 		return callbackTask;
 	}

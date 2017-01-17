@@ -105,7 +105,7 @@ public class KvStateServerTest {
 
 			registry.registerListener(registryListener);
 
-			ValueStateDescriptor<Integer> desc = new ValueStateDescriptor<>("any", IntSerializer.INSTANCE, null);
+			ValueStateDescriptor<Integer> desc = new ValueStateDescriptor<>("any", IntSerializer.INSTANCE);
 			desc.setQueryable("vanilla");
 
 			ValueState<Integer> state = backend.getPartitionedState(

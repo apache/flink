@@ -317,7 +317,7 @@ public class StreamingJobGraphGenerator {
 			// the parallelism should always be smaller or equal than the max parallelism
 			throw new IllegalStateException("The maximum parallelism (" + maxParallelism + ") of " +
 				"the stream node " + streamNode + " is smaller than the parallelism (" +
-				parallelism + "). Increase the maximum parallelism or decrease the parallelism of" +
+				parallelism + "). Increase the maximum parallelism or decrease the parallelism of " +
 				"this operator.");
 		} else {
 			jobVertex.setMaxParallelism(streamNode.getMaxParallelism());
@@ -524,11 +524,26 @@ public class StreamingJobGraphGenerator {
 			externalizedCheckpointSettings = ExternalizedCheckpointSettings.none();
 		}
 
+		CheckpointingMode mode = cfg.getCheckpointingMode();
+
+		boolean isExactlyOnce;
+		if (mode == CheckpointingMode.EXACTLY_ONCE) {
+			isExactlyOnce = true;
+		} else if (mode == CheckpointingMode.AT_LEAST_ONCE) {
+			isExactlyOnce = false;
+		} else {
+			throw new IllegalStateException("Unexpected checkpointing mode. " +
+				"Did not expect there to be another checkpointing mode besides " +
+				"exactly-once or at-least-once.");
+		}
+
 		JobSnapshottingSettings settings = new JobSnapshottingSettings(
 				triggerVertices, ackVertices, commitVertices, interval,
 				cfg.getCheckpointTimeout(), cfg.getMinPauseBetweenCheckpoints(),
 				cfg.getMaxConcurrentCheckpoints(),
-				externalizedCheckpointSettings);
+				externalizedCheckpointSettings,
+				isExactlyOnce);
+
 		jobGraph.setSnapshotSettings(settings);
 	}
 }

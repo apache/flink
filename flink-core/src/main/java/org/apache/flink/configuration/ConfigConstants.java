@@ -588,7 +588,12 @@ public final class ConfigConstants {
 	/** Config parameter indicating whether jobs can be uploaded and run from the web-frontend. */
 	public static final String JOB_MANAGER_WEB_SUBMIT_ENABLED_KEY = "jobmanager.web.submit.enable";
 
-	/** Flag to disable checkpoint stats. */
+	/**
+	 * Flag to disable checkpoint stats.
+	 *
+	 * @deprecated Not possible to disable any longer. Use history size of 0.
+	 */
+	@Deprecated
 	public static final String JOB_MANAGER_WEB_CHECKPOINTS_DISABLE = "jobmanager.web.checkpoints.disable";
 
 	/** Config parameter defining the number of checkpoints to remember for recent history. */
@@ -1226,7 +1231,8 @@ public final class ConfigConstants {
 	/** By default, submitting jobs from the web-frontend is allowed. */
 	public static final boolean DEFAULT_JOB_MANAGER_WEB_SUBMIT_ENABLED = true;
 
-	/** Default flag to disable checkpoint stats. */
+	/** Config key has been deprecated. Therefore, no default value required. */
+	@Deprecated
 	public static final boolean DEFAULT_JOB_MANAGER_WEB_CHECKPOINTS_DISABLE = false;
 
 	/** Default number of checkpoints to remember for recent history. */
@@ -1388,20 +1394,6 @@ public final class ConfigConstants {
 
 	/** The environment variable name which contains the Flink installation root directory */
 	public static final String ENV_FLINK_HOME_DIR = "FLINK_HOME";
-
-	// -------------------------------- Security -------------------------------
-
-	/**
-	 * The config parameter defining security credentials required
-	 * for securing Flink cluster.
-	 */
-
-	/** Keytab file key name to be used in flink configuration file */
-	public static final String SECURITY_KEYTAB_KEY = "security.keytab";
-
-	/** Kerberos security principal key name to be used in flink configuration file */
-	public static final String SECURITY_PRINCIPAL_KEY = "security.principal";
-
 
 	/**
 	 * Not instantiable.

@@ -331,14 +331,30 @@ val batchTable = batchTableEnvironment.scan("mycsv")
 </div>
 </div>
 
+### Unregister a Table
+
+A table can be unregistered using the following method. Subsequent SQL queries won't find the unregistered table name anymore.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+tableEnvironment.unregisterTable("Customers");
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+tableEnvironment.unregisterTable("Customers")
+{% endhighlight %}
+</div>
+</div>
+
 
 Table API
 ----------
 The Table API provides methods to apply relational operations on DataSets and Datastreams both in Scala and Java.
 
 The central concept of the Table API is a `Table` which represents a table with relational schema (or relation). Tables can be created from a `DataSet` or `DataStream`, converted into a `DataSet` or `DataStream`, or registered in a table catalog using a `TableEnvironment`. A `Table` is always bound to a specific `TableEnvironment`. It is not possible to combine Tables of different TableEnvironments.
-
-*Note: The only operations currently supported on streaming Tables are selection, projection, and union.*
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -1263,7 +1279,8 @@ A session window is defined by using the `Session` class as follows:
 Currently the following features are not supported yet:
 
 - Row-count windows on event-time
-- Windows on batch tables
+- Session windows on batch tables
+- Sliding windows on batch tables
 
 SQL
 ----
@@ -1317,7 +1334,7 @@ Among others, the following SQL features are not supported, yet:
 - Interval arithmetic is currenly limited
 - Distinct aggregates (e.g., `COUNT(DISTINCT name)`)
 - Non-equi joins and Cartesian products
-- Grouping sets
+- Efficient grouping sets
 
 *Note: Tables are joined in the order in which they are specified in the `FROM` clause. In some cases the table order must be manually tweaked to resolve Cartesian products.*
 
@@ -1416,6 +1433,7 @@ tableReference:
 
 tablePrimary:
   [ TABLE ] [ [ catalogName . ] schemaName . ] tableName
+  | LATERAL TABLE '(' functionName '(' expression [, expression ]* ')' ')'
 
 values:
   VALUES expression [, expression ]*
@@ -1424,7 +1442,9 @@ groupItem:
   expression
   | '(' ')'
   | '(' expression [, expression ]* ')'
-
+  | CUBE '(' expression [, expression ]* ')'
+  | ROLLUP '(' expression [, expression ]* ')'
+  | GROUPING SETS '(' groupItem [, groupItem ]* ')'
 ```
 
 For a better definition of SQL queries within a Java String, Flink SQL uses a lexical policy similar to Java:
@@ -3744,6 +3764,50 @@ MIN(value)
 <table class="table table-bordered">
   <thead>
     <tr>
+      <th class="text-left" style="width: 40%">Grouping functions</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <tr>
+      <td>
+        {% highlight text %}
+GROUP_ID()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns an integer that uniquely identifies the combination of grouping keys.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+GROUPING(expression)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns 1 if <i>expression</i> is rolled up in the current row’s grouping set, 0 otherwise.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+GROUPING_ID(expression [, expression]* )
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a bit vector of the given grouping expressions.</p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
       <th class="text-left" style="width: 40%">Value access functions</th>
       <th class="text-center">Description</th>
     </tr>
@@ -3899,23 +3963,22 @@ object TimestampModifier extends ScalarFunction {
 
 ### User-defined Table Functions
 
-A user-defined table function is implemented similar to a user-defined scalar function but can return a set of values instead of a single value. The returned set of values can consist of multiple columns and multiple rows similar to a standard table. A user-defined table function works on zero, one, or multiple scalar values as input and returns multiple rows as output.
+Similar to a user-defined scalar function, a user-defined table function takes zero, one, or multiple scalar values as input parameters. However in contrast to a scalar function, it can return an arbitrary number of rows as output instead of a single value. The returned rows may consist of one or more columns. 
 
 In order to define a table function one has to extend the base class `TableFunction` in `org.apache.flink.table.functions` and implement (one or more) evaluation methods. The behavior of a table function is determined by its evaluation methods. An evaluation method must be declared `public` and named `eval`. The `TableFunction` can be overloaded by implementing multiple methods named `eval`. The parameter types of the evaluation methods determine all valid parameters of the table function. The type of the returned table is determined by the generic type of `TableFunction`. Evaluation methods emit output rows using the protected `collect(T)` method.
 
-In the Table API, a table function is used with `.join(Expression)` or `.leftOuterJoin(Expression)` for Scala users and `.join(String)` or `.leftOuterJoin(String)` for Java users. The `join` operator (cross) joins each row from the outer table (table on the left of the operator) with all rows produced by the table-valued function (which is on the right side of the operator). The `leftOuterJoin` operator joins each row from the outer table (table on the left of the operator) with all rows produced by the table-valued function (which is on the right side of the operator) and preserves outer rows for which the table function returns an empty table. In SQL use `LATERAL TABLE(<TableFunction>)` with CROSS JOIN and LEFT JOIN with ON TRUE condition (see examples below).
+In the Table API, a table function is used with `.join(Expression)` or `.leftOuterJoin(Expression)` for Scala users and `.join(String)` or `.leftOuterJoin(String)` for Java users. The `join` operator (cross) joins each row from the outer table (table on the left of the operator) with all rows produced by the table-valued function (which is on the right side of the operator). The `leftOuterJoin` operator joins each row from the outer table (table on the left of the operator) with all rows produced by the table-valued function (which is on the right side of the operator) and preserves outer rows for which the table function returns an empty table. In SQL use `LATERAL TABLE(<TableFunction>)` with CROSS JOIN and LEFT JOIN with an ON TRUE join condition (see examples below).
 
 The following examples show how to define a table-valued function and use it:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-// the generic type "Tuple2<String, Integer>" determines the returned table type has two columns,
-// the first is a String type and the second is an Integer type
+// The generic type "Tuple2<String, Integer>" determines the schema of the returned table as (String, Integer).
 public class Split extends TableFunction<Tuple2<String, Integer>> {
     public void eval(String str) {
         for (String s : str.split(" ")) {
-            // use collect(...) to emit an output row
+            // use collect(...) to emit a row
             collect(new Tuple2<String, Integer>(s, s.length()));
         }
     }
@@ -3924,29 +3987,27 @@ public class Split extends TableFunction<Tuple2<String, Integer>> {
 BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 Table myTable = ...         // table schema: [a: String]
 
-// register the function
+// Register the function.
 tableEnv.registerFunction("split", new Split());
 
-// use the function in Java Table API
-// use AS to rename column names
+// Use the table function in the Java Table API. "as" specifies the field names of the table.
 myTable.join("split(a) as (word, length)").select("a, word, length");
 myTable.leftOuterJoin("split(a) as (word, length)").select("a, word, length");
 
-// use the function in SQL API, LATERAL and TABLE keywords are required
-// CROSS JOIN a table function (equivalent to "join" in Table API)
+// Use the table function in SQL with LATERAL and TABLE keywords.
+// CROSS JOIN a table function (equivalent to "join" in Table API).
 tableEnv.sql("SELECT a, word, length FROM MyTable, LATERAL TABLE(split(a)) as T(word, length)");
-// LEFT JOIN a table function (equivalent to "leftOuterJoin" in Table API)
+// LEFT JOIN a table function (equivalent to "leftOuterJoin" in Table API).
 tableEnv.sql("SELECT a, word, length FROM MyTable LEFT JOIN LATERAL TABLE(split(a)) as T(word, length) ON TRUE");
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-// the generic type "(String, Integer)" determines the returned table type has two columns,
-// the first is a String type and the second is an Integer type
-class Split extends TableFunction[(String, Integer)] {
+// The generic type "(String, Int)" determines the schema of the returned table as (String, Integer).
+class Split extends TableFunction[(String, Int)] {
   def eval(str: String): Unit = {
-    // use collect(...) to emit an output row
+    // use collect(...) to emit a row.
     str.split(" ").foreach(x -> collect((x, x.length))
   }
 }
@@ -3954,14 +4015,16 @@ class Split extends TableFunction[(String, Integer)] {
 val tableEnv = TableEnvironment.getTableEnvironment(env)
 val myTable = ...         // table schema: [a: String]
 
-// use the function in Scala Table API (Note: No registration required in Scala Table API)
+// Use the table function in the Scala Table API (Note: No registration required in Scala Table API).
 val split = new Split()
-// use AS to rename column names
+// "as" specifies the field names of the generated table.
 myTable.join(split('a) as ('word, 'length)).select('a, 'word, 'length);
 myTable.leftOuterJoin(split('a) as ('word, 'length)).select('a, 'word, 'length);
 
-// register and use the function in SQL API, LATERAL and TABLE keywords are required
+// Register the table function to use it in SQL queries.
 tableEnv.registerFunction("split", new Split())
+
+// Use the table function in SQL with LATERAL and TABLE keywords.
 // CROSS JOIN a table function (equivalent to "join" in Table API)
 tableEnv.sql("SELECT a, word, length FROM MyTable, LATERAL TABLE(split(a)) as T(word, length)");
 // LEFT JOIN a table function (equivalent to "leftOuterJoin" in Table API)
@@ -4094,9 +4157,12 @@ By default, the Table API supports `null` values. Null handling can be disabled 
 
 Explaining a Table
 ----
-The Table API provides a mechanism to describe the graph of operations that leads to the resulting output. This is done through the `TableEnvironment#explain(table)` method. It returns a string describing two graphs: the Abstract Syntax Tree of the relational algebra query and Flink's Execution Plan of the Job. 
+The Table API provides a mechanism to explain the logical and optimized query plans to compute a `Table`. 
+This is done through the `TableEnvironment#explain(table)` method. It returns a string describing three plans: 
 
-Table `explain` is supported for both `BatchTableEnvironment` and `StreamTableEnvironment`. Currently `StreamTableEnvironment` doesn't support the explanation of the Execution Plan.
+1. the Abstract Syntax Tree of the relational query, i.e., the unoptimized logical query plan,
+2. the optimized logical query plan, and
+3. the physical execution plan.
 
 The following code shows an example and the corresponding output:
 
@@ -4111,7 +4177,9 @@ DataStream<Tuple2<Integer, String>> stream2 = env.fromElements(new Tuple2<>(1, "
 
 Table table1 = tEnv.fromDataStream(stream1, "count, word");
 Table table2 = tEnv.fromDataStream(stream2, "count, word");
-Table table = table1.unionAll(table2);
+Table table = table1
+        .where("LIKE(word, 'F%')")
+        .unionAll(table2);
 
 String explanation = tEnv.explain(table);
 System.out.println(explanation);
@@ -4125,7 +4193,9 @@ val tEnv = TableEnvironment.getTableEnvironment(env)
 
 val table1 = env.fromElements((1, "hello")).toTable(tEnv, 'count, 'word)
 val table2 = env.fromElements((1, "hello")).toTable(tEnv, 'count, 'word)
-val table = table1.unionAll(table2)
+val table = table1
+      .where('word.like("F%"))
+      .unionAll(table2)
 
 val explanation: String = tEnv.explain(table)
 println(explanation)
@@ -4136,8 +4206,34 @@ println(explanation)
 {% highlight text %}
 == Abstract Syntax Tree ==
 LogicalUnion(all=[true])
-  LogicalTableScan(table=[[_DataStreamTable_0]])
+  LogicalFilter(condition=[LIKE($1, 'F%')])
+    LogicalTableScan(table=[[_DataStreamTable_0]])
   LogicalTableScan(table=[[_DataStreamTable_1]])
+
+== Optimized Logical Plan ==
+DataStreamUnion(union=[count, word])
+  DataStreamCalc(select=[count, word], where=[LIKE(word, 'F%')])
+    DataStreamScan(table=[[_DataStreamTable_0]])
+  DataStreamScan(table=[[_DataStreamTable_1]])
+
+== Physical Execution Plan ==
+Stage 1 : Data Source
+  content : collect elements with CollectionInputFormat
+
+Stage 2 : Data Source
+  content : collect elements with CollectionInputFormat
+
+  Stage 3 : Operator
+    content : from: (count, word)
+    ship_strategy : REBALANCE
+
+    Stage 4 : Operator
+      content : where: (LIKE(word, 'F%')), select: (count, word)
+      ship_strategy : FORWARD
+
+      Stage 5 : Operator
+        content : from: (count, word)
+        ship_strategy : REBALANCE
 {% endhighlight %}
 
 {% top %}

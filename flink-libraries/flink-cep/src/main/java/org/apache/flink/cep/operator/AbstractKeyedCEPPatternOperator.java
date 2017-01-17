@@ -102,8 +102,7 @@ abstract public class AbstractKeyedCEPPatternOperator<IN, KEY, OUT> extends Abst
 			nfaOperatorState = getPartitionedState(
 					new ValueStateDescriptor<NFA<IN>>(
 						NFA_OPERATOR_STATE_NAME,
-						new NFA.Serializer<IN>(),
-						null));
+						new NFA.Serializer<IN>()));
 		}
 
 		@SuppressWarnings("unchecked,rawtypes")
@@ -116,8 +115,7 @@ abstract public class AbstractKeyedCEPPatternOperator<IN, KEY, OUT> extends Abst
 						PRIORIRY_QUEUE_STATE_NAME,
 						new PriorityQueueSerializer<>(
 								streamRecordSerializer,
-								new PriorityQueueStreamRecordFactory<IN>()),
-						null));
+								new PriorityQueueStreamRecordFactory<IN>())));
 		}
 	}
 

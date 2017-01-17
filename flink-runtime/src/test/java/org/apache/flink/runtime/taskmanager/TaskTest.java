@@ -25,6 +25,7 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
@@ -54,6 +55,8 @@ import org.apache.flink.runtime.messages.TaskManagerMessages;
 import org.apache.flink.runtime.messages.TaskMessages;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.util.EnvironmentInformation;
+import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 import org.junit.After;
@@ -106,7 +109,7 @@ public class TaskTest extends TestLogger {
 	private ActorGateway listenerGateway;
 
 	private ActorGatewayTaskExecutionStateListener listener;
-	private ActorGatewayTaskManagerConnection taskManagerConnection;
+	private ActorGatewayTaskManagerActions taskManagerConnection;
 
 	private BlockingQueue<Object> taskManagerMessages;
 	private BlockingQueue<Object> jobManagerMessages;
@@ -122,7 +125,7 @@ public class TaskTest extends TestLogger {
 		listenerGateway = new ForwardingActorGateway(listenerMessages);
 
 		listener = new ActorGatewayTaskExecutionStateListener(listenerGateway);
-		taskManagerConnection = new ActorGatewayTaskManagerConnection(taskManagerGateway);
+		taskManagerConnection = new ActorGatewayTaskManagerActions(taskManagerGateway);
 		
 		awaitLatch = new OneShotLatch();
 		triggerLatch = new OneShotLatch();
@@ -943,6 +946,7 @@ public class TaskTest extends TestLogger {
 			jobInformation,
 			taskInformation,
 			executionAttemptId,
+			new AllocationID(),
 			0,
 			0,
 			Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
@@ -958,7 +962,7 @@ public class TaskTest extends TestLogger {
 			checkpointResponder,
 			libCache,
 			mock(FileCache.class),
-			new TaskManagerRuntimeInfo("localhost", taskManagerConfig, System.getProperty("java.io.tmpdir")),
+			new TestingTaskManagerRuntimeInfo(taskManagerConfig),
 			mock(TaskMetricGroup.class),
 			consumableNotifier,
 			partitionProducerStateChecker,

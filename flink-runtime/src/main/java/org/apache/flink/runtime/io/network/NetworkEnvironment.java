@@ -75,15 +75,15 @@ public class NetworkEnvironment {
 	private boolean isShutdown;
 
 	public NetworkEnvironment(
-		NetworkBufferPool networkBufferPool,
-		ConnectionManager connectionManager,
-		ResultPartitionManager resultPartitionManager,
-		TaskEventDispatcher taskEventDispatcher,
-		KvStateRegistry kvStateRegistry,
-		KvStateServer kvStateServer,
-		IOMode defaultIOMode,
-		int partitionRequestInitialBackoff,
-		int partitionRequestMaxBackoff) {
+			NetworkBufferPool networkBufferPool,
+			ConnectionManager connectionManager,
+			ResultPartitionManager resultPartitionManager,
+			TaskEventDispatcher taskEventDispatcher,
+			KvStateRegistry kvStateRegistry,
+			KvStateServer kvStateServer,
+			IOMode defaultIOMode,
+			int partitionRequestInitialBackoff,
+			int partitionRequestMaxBackoff) {
 
 		this.networkBufferPool = checkNotNull(networkBufferPool);
 		this.connectionManager = checkNotNull(connectionManager);

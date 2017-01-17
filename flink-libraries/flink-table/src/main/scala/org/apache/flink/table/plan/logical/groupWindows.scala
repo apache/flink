@@ -55,7 +55,21 @@ abstract class EventTimeGroupWindow(
   }
 }
 
-abstract class ProcessingTimeGroupWindow(name: Option[Expression]) extends LogicalWindow(name)
+abstract class ProcessingTimeGroupWindow(name: Option[Expression]) extends LogicalWindow(name) {
+  override def validate(tableEnv: TableEnvironment): ValidationResult = {
+    val valid = super.validate(tableEnv)
+    if (valid.isFailure) {
+      return valid
+    }
+
+    tableEnv match {
+      case b: BatchTableEnvironment => ValidationFailure(
+        "Window on batch must declare a time attribute over which the query is evaluated.")
+      case _ =>
+        ValidationSuccess
+    }
+  }
+}
 
 // ------------------------------------------------------------------------------------------------
 // Tumbling group windows
@@ -107,9 +121,11 @@ case class EventTimeTumblingGroupWindow(
     super.validate(tableEnv)
       .orElse(TumblingGroupWindow.validate(tableEnv, size))
       .orElse(size match {
-        case Literal(_, RowIntervalTypeInfo.INTERVAL_ROWS) =>
+        case Literal(_, RowIntervalTypeInfo.INTERVAL_ROWS)
+          if tableEnv.isInstanceOf[StreamTableEnvironment] =>
           ValidationFailure(
-            "Event-time grouping windows on row intervals are currently not supported.")
+            "Event-time grouping windows on row intervals in a stream environment " +
+              "are currently not supported.")
         case _ =>
           ValidationSuccess
       })
@@ -196,9 +212,11 @@ case class EventTimeSlidingGroupWindow(
     super.validate(tableEnv)
       .orElse(SlidingGroupWindow.validate(tableEnv, size, slide))
       .orElse(size match {
-        case Literal(_, RowIntervalTypeInfo.INTERVAL_ROWS) =>
+        case Literal(_, RowIntervalTypeInfo.INTERVAL_ROWS)
+          if tableEnv.isInstanceOf[StreamTableEnvironment] =>
           ValidationFailure(
-            "Event-time grouping windows on row intervals are currently not supported.")
+            "Event-time grouping windows on row intervals in a stream environment " +
+              "are currently not supported.")
         case _ =>
           ValidationSuccess
       })

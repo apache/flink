@@ -37,7 +37,6 @@ public class AcknowledgeCheckpoint extends AbstractCheckpointMessage implements 
 
 	private static final long serialVersionUID = -7606214777192401493L;
 
-
 	private final SubtaskState subtaskState;
 
 	private final CheckpointMetaData checkpointMetaData;
@@ -76,20 +75,8 @@ public class AcknowledgeCheckpoint extends AbstractCheckpointMessage implements 
 		return subtaskState;
 	}
 
-	public long getSynchronousDurationMillis() {
-		return checkpointMetaData.getSyncDurationMillis();
-	}
-
-	public long getAsynchronousDurationMillis() {
-		return checkpointMetaData.getAsyncDurationMillis();
-	}
-
-	public long getBytesBufferedInAlignment() {
-		return checkpointMetaData.getBytesBufferedInAlignment();
-	}
-
-	public long getAlignmentDurationNanos() {
-		return checkpointMetaData.getAlignmentDurationNanos();
+	public CheckpointMetaData getCheckpointMetaData() {
+		return checkpointMetaData;
 	}
 
 	// --------------------------------------------------------------------------------------------

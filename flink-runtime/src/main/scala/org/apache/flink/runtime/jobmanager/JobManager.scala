@@ -778,7 +778,12 @@ class JobManager(
                   override def apply(success: CompletedCheckpoint, cause: Throwable): Void = {
                     if (success != null) {
                       if (success.getExternalPath != null) {
-                        senderRef ! TriggerSavepointSuccess(jobId, success.getExternalPath)
+                        senderRef ! TriggerSavepointSuccess(
+                          jobId,
+                          success.getCheckpointID,
+                          success.getExternalPath,
+                          success.getTimestamp
+                        )
                       } else {
                         senderRef ! TriggerSavepointFailure(
                           jobId, new Exception("Savepoint has not been persisted."))

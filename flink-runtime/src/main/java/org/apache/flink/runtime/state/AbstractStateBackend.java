@@ -24,7 +24,6 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 
 import java.io.IOException;
-import java.util.Collection;
 
 /**
  * A state backend defines how state is stored and snapshotted during checkpoints.
@@ -59,41 +58,12 @@ public abstract class AbstractStateBackend implements java.io.Serializable {
 	) throws Exception;
 
 	/**
-	 * Creates a new {@link AbstractKeyedStateBackend} that restores its state from the given list
-	 * {@link KeyGroupsStateHandle KeyGroupStateHandles}.
-	 */
-	public abstract <K> AbstractKeyedStateBackend<K> restoreKeyedStateBackend(
-			Environment env,
-			JobID jobID,
-			String operatorIdentifier,
-			TypeSerializer<K> keySerializer,
-			int numberOfKeyGroups,
-			KeyGroupRange keyGroupRange,
-			Collection<KeyGroupsStateHandle> restoredState,
-			TaskKvStateRegistry kvStateRegistry
-	) throws Exception;
-
-
-	/**
 	 * Creates a new {@link OperatorStateBackend} that can be used for storing partitionable operator
 	 * state in checkpoint streams.
 	 */
 	public OperatorStateBackend createOperatorStateBackend(
 			Environment env,
-			String operatorIdentifier
-	) throws Exception {
+			String operatorIdentifier) throws Exception {
 		return new DefaultOperatorStateBackend(env.getUserClassLoader());
-	}
-
-	/**
-	 * Creates a new {@link OperatorStateBackend} that restores its state from the given collection of
-	 * {@link OperatorStateHandle}.
-	 */
-	public OperatorStateBackend restoreOperatorStateBackend(
-			Environment env,
-			String operatorIdentifier,
-			Collection<OperatorStateHandle> restoreSnapshots
-	) throws Exception {
-		return new DefaultOperatorStateBackend(env.getUserClassLoader(), restoreSnapshots);
 	}
 }

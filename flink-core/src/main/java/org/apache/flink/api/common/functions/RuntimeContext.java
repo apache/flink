@@ -27,6 +27,8 @@ import org.apache.flink.api.common.accumulators.Histogram;
 import org.apache.flink.api.common.accumulators.IntCounter;
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.cache.DistributedCache;
+import org.apache.flink.api.common.state.FoldingState;
+import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ReducingState;
@@ -307,7 +309,7 @@ public interface RuntimeContext {
 	<T> ListState<T> getListState(ListStateDescriptor<T> stateProperties);
 
 	/**
-	 * Gets a handle to the system's key/value list state. This state is similar to the state
+	 * Gets a handle to the system's key/value reducing state. This state is similar to the state
 	 * accessed via {@link #getState(ValueStateDescriptor)}, but is optimized for state that
 	 * aggregates values.
 	 *
@@ -319,16 +321,16 @@ public interface RuntimeContext {
 	 *
 	 * keyedStream.map(new RichMapFunction<MyType, List<MyType>>() {
 	 *
-	 *     private ReducingState<Long> sum;
+	 *     private ReducingState<Long> state;
 	 *
 	 *     public void open(Configuration cfg) {
 	 *         state = getRuntimeContext().getReducingState(
-	 *                 new ReducingStateDescriptor<>("sum", MyType.class, 0L, (a, b) -> a + b));
+	 *                 new ReducingStateDescriptor<>("sum", (a, b) -> a + b, Long.class));
 	 *     }
 	 *
 	 *     public Tuple2<MyType, Long> map(MyType value) {
-	 *         sum.add(value.count());
-	 *         return new Tuple2<>(value, sum.get());
+	 *         state.add(value.count());
+	 *         return new Tuple2<>(value, state.get());
 	 *     }
 	 * });
 	 * 
@@ -345,4 +347,44 @@ public interface RuntimeContext {
 	 */
 	@PublicEvolving
 	<T> ReducingState<T> getReducingState(ReducingStateDescriptor<T> stateProperties);
+
+	/**
+	 * Gets a handle to the system's key/value folding state. This state is similar to the state
+	 * accessed via {@link #getState(ValueStateDescriptor)}, but is optimized for state that
+	 * aggregates values with different types.
+	 *
+	 * <p>This state is only accessible if the function is executed on a KeyedStream.
+	 *
+	 * <pre>{@code
+	 * DataStream<MyType> stream = ...;
+	 * KeyedStream<MyType> keyedStream = stream.keyBy("id");
+	 *
+	 * keyedStream.map(new RichMapFunction<MyType, List<MyType>>() {
+	 *
+	 *     private FoldingState<MyType, Long> state;
+	 *
+	 *     public void open(Configuration cfg) {
+	 *         state = getRuntimeContext().getReducingState(
+	 *                 new FoldingStateDescriptor<>("sum", 0L, (a, b) -> a.count() + b, Long.class));
+	 *     }
+	 *
+	 *     public Tuple2<MyType, Long> map(MyType value) {
+	 *         state.add(value);
+	 *         return new Tuple2<>(value, state.get());
+	 *     }
+	 * });
+	 *
+	 * }</pre>
+	 *
+	 * @param stateProperties The descriptor defining the properties of the stats.
+	 *
+	 * @param <T> The type of value stored in the state.
+	 *
+	 * @return The partitioned state object.
+	 *
+	 * @throws UnsupportedOperationException Thrown, if no partitioned state is available for the
+	 *                                       function (function is not part of a KeyedStream).
+	 */
+	@PublicEvolving
+	<T, ACC> FoldingState<T, ACC> getFoldingState(FoldingStateDescriptor<T, ACC> stateProperties);
 }

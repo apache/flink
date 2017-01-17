@@ -18,13 +18,12 @@
 
 package org.apache.flink.table.plan.schema
 
-import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.sources.TableSource
-import org.apache.flink.types.Row
 
 /** Table which defines an external table via a [[TableSource]] */
-class TableSourceTable(val tableSource: TableSource[_])
-  extends FlinkTable[Row](
-    typeInfo = new RowTypeInfo(tableSource.getFieldTypes: _*),
-    fieldIndexes = 0.until(tableSource.getNumberOfFields).toArray,
-    fieldNames = tableSource.getFieldsNames)
+class TableSourceTable[T](val tableSource: TableSource[T])
+  extends FlinkTable[T](
+    typeInfo = tableSource.getReturnType,
+    fieldIndexes = TableEnvironment.getFieldIndices(tableSource),
+    fieldNames = TableEnvironment.getFieldNames(tableSource))

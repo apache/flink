@@ -30,6 +30,7 @@ import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
+import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
@@ -591,7 +592,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				// yet be created
 				final CancelCheckpointMarker message = new CancelCheckpointMarker(checkpointMetaData.getCheckpointId());
 				for (ResultPartitionWriter output : getEnvironment().getAllWriters()) {
-					output.writeEventToAllChannels(message);
+					output.writeBufferToAllChannels(EventSerializer.toBuffer(message));
 				}
 
 				return false;
@@ -741,13 +742,17 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		Environment env = getEnvironment();
 		String opId = createOperatorIdentifier(op, getConfiguration().getVertexID());
 
-		OperatorStateBackend newBackend = restoreStateHandles == null ?
-				stateBackend.createOperatorStateBackend(env, opId)
-				: stateBackend.restoreOperatorStateBackend(env, opId, restoreStateHandles);
+		OperatorStateBackend operatorStateBackend = stateBackend.createOperatorStateBackend(env, opId);
 
-		cancelables.registerClosable(newBackend);
+		// let operator state backend participate in the operator lifecycle, i.e. make it responsive to cancelation
+		cancelables.registerClosable(operatorStateBackend);
 
-		return newBackend;
+		// restore if we have some old state
+		if (null != restoreStateHandles) {
+			operatorStateBackend.restore(restoreStateHandles);
+		}
+
+		return operatorStateBackend;
 	}
 
 	public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
@@ -763,28 +768,22 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				headOperator,
 				configuration.getVertexID());
 
-		if (null != restoreStateHandles && null != restoreStateHandles.getManagedKeyedState()) {
-			keyedStateBackend = stateBackend.restoreKeyedStateBackend(
-					getEnvironment(),
-					getEnvironment().getJobID(),
-					operatorIdentifier,
-					keySerializer,
-					numberOfKeyGroups,
-					keyGroupRange,
-					restoreStateHandles.getManagedKeyedState(),
-					getEnvironment().getTaskKvStateRegistry());
-		} else {
-			keyedStateBackend = stateBackend.createKeyedStateBackend(
-					getEnvironment(),
-					getEnvironment().getJobID(),
-					operatorIdentifier,
-					keySerializer,
-					numberOfKeyGroups,
-					keyGroupRange,
-					getEnvironment().getTaskKvStateRegistry());
-		}
+		keyedStateBackend = stateBackend.createKeyedStateBackend(
+				getEnvironment(),
+				getEnvironment().getJobID(),
+				operatorIdentifier,
+				keySerializer,
+				numberOfKeyGroups,
+				keyGroupRange,
+				getEnvironment().getTaskKvStateRegistry());
 
+		// let keyed state backend participate in the operator lifecycle, i.e. make it responsive to cancelation
 		cancelables.registerClosable(keyedStateBackend);
+
+		// restore if we have some old state
+		if (null != restoreStateHandles && null != restoreStateHandles.getManagedKeyedState()) {
+			keyedStateBackend.restore(restoreStateHandles.getManagedKeyedState());
+		}
 
 		@SuppressWarnings("unchecked")
 		AbstractKeyedStateBackend<K> typedBackend = (AbstractKeyedStateBackend<K>) keyedStateBackend;
@@ -903,8 +902,15 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				List<OperatorStateHandle> operatorStatesStream = new ArrayList<>(snapshotInProgressList.size());
 
 				for (OperatorSnapshotResult snapshotInProgress : snapshotInProgressList) {
-					operatorStatesBackend.add(FutureUtil.runIfNotDoneAndGet(snapshotInProgress.getOperatorStateManagedFuture()));
-					operatorStatesStream.add(FutureUtil.runIfNotDoneAndGet(snapshotInProgress.getOperatorStateRawFuture()));
+					if (null != snapshotInProgress) {
+						operatorStatesBackend.add(
+								FutureUtil.runIfNotDoneAndGet(snapshotInProgress.getOperatorStateManagedFuture()));
+						operatorStatesStream.add(
+								FutureUtil.runIfNotDoneAndGet(snapshotInProgress.getOperatorStateRawFuture()));
+					} else {
+						operatorStatesBackend.add(null);
+						operatorStatesStream.add(null);
+					}
 				}
 
 				final long asyncEndNanos = System.nanoTime();
@@ -951,7 +957,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		public void close() {
 			// cleanup/release ongoing snapshot operations
 			for (OperatorSnapshotResult snapshotResult : snapshotInProgressList) {
-				snapshotResult.cancel();
+				if (null != snapshotResult) {
+					snapshotResult.cancel();
+				}
 			}
 		}
 	}
@@ -996,14 +1004,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			try {
 
 				for (StreamOperator<?> op : allOperators) {
-
-					createStreamFactory(op);
-					snapshotNonPartitionableState(op);
-
-					OperatorSnapshotResult snapshotInProgress =
-							op.snapshotState(checkpointMetaData.getCheckpointId(), checkpointMetaData.getTimestamp(), streamFactory);
-
-					snapshotInProgressList.add(snapshotInProgress);
+					checkpointStreamOperator(op);
 				}
 
 				if (LOG.isDebugEnabled()) {
@@ -1030,7 +1031,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				if (failed) {
 					// Cleanup to release resources
 					for (OperatorSnapshotResult operatorSnapshotResult : snapshotInProgressList) {
-						operatorSnapshotResult.cancel();
+						if (null != operatorSnapshotResult) {
+							operatorSnapshotResult.cancel();
+						}
 					}
 
 					if (LOG.isDebugEnabled()) {
@@ -1040,7 +1043,24 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 					}
 				}
 			}
+		}
 
+		private void checkpointStreamOperator(StreamOperator<?> op) throws Exception {
+			if (null != op) {
+				createStreamFactory(op);
+				snapshotNonPartitionableState(op);
+
+				OperatorSnapshotResult snapshotInProgress = op.snapshotState(
+						checkpointMetaData.getCheckpointId(),
+						checkpointMetaData.getTimestamp(),
+						streamFactory);
+
+				snapshotInProgressList.add(snapshotInProgress);
+			} else {
+				nonPartitionedStates.add(null);
+				OperatorSnapshotResult emptySnapshotInProgress = new OperatorSnapshotResult();
+				snapshotInProgressList.add(emptySnapshotInProgress);
+			}
 		}
 
 		private void createStreamFactory(StreamOperator<?> operator) throws IOException {

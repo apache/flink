@@ -57,7 +57,7 @@ public class CrossDriver<T1, T2, OT> implements Driver<CrossFunction<T1, T2, OT>
 	
 	private BlockResettableMutableObjectIterator<?> blockIter;
 	
-	private int  memPagesForBlockSide;
+	private int memPagesForBlockSide;
 	
 	private int memPagesForSpillingSide;
 

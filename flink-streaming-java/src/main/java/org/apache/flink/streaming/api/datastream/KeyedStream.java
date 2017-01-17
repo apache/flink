@@ -652,8 +652,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	public QueryableStateStream<KEY, T> asQueryableState(String queryableStateName) {
 		ValueStateDescriptor<T> valueStateDescriptor = new ValueStateDescriptor<T>(
 				UUID.randomUUID().toString(),
-				getType(),
-				null);
+				getType());
 
 		return asQueryableState(queryableStateName, valueStateDescriptor);
 	}

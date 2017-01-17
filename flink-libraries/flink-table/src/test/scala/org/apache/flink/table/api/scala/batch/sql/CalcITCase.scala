@@ -298,7 +298,7 @@ class CalcITCase(
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
     tEnv.registerFunction("hashCode",
-      new org.apache.flink.table.api.java.batch.table.CalcITCase.OldHashCode)
+      org.apache.flink.table.api.scala.batch.table.OldHashCode)
     tEnv.registerFunction("hashCode", MyHashCode)
 
     val ds = env.fromElements("a", "b", "c")

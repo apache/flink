@@ -97,7 +97,7 @@ public class Graph<K, VV, EV> {
 	 * @param edges a DataSet of edges.
 	 * @param context the flink execution environment.
 	 */
-	private Graph(DataSet<Vertex<K, VV>> vertices, DataSet<Edge<K, EV>> edges, ExecutionEnvironment context) {
+	protected Graph(DataSet<Vertex<K, VV>> vertices, DataSet<Edge<K, EV>> edges, ExecutionEnvironment context) {
 		this.vertices = vertices;
 		this.edges = edges;
 		this.context = context;

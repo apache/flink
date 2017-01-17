@@ -206,7 +206,7 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 			ChainedStateHandle<StreamStateHandle> stateHandle = CheckpointCoordinatorTest.generateChainedStateHandle(
 					new CheckpointMessagesTest.MyHandle());
 
-			taskState.putState(i, new SubtaskState(stateHandle, null, null, null, null, 0L));
+			taskState.putState(i, new SubtaskState(stateHandle, null, null, null, null));
 		}
 
 		return new TestCompletedCheckpoint(new JobID(), id, 0, taskGroupStates, props);

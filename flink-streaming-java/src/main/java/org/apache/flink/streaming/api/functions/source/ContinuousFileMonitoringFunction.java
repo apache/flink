@@ -38,7 +38,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -187,8 +186,9 @@ public class ContinuousFileMonitoringFunction<OUT>
 
 	@Override
 	public void run(SourceFunction.SourceContext<TimestampedFileInputSplit> context) throws Exception {
-		FileSystem fileSystem = FileSystem.get(new URI(path));
-		if (!fileSystem.exists(new Path(path))) {
+		Path p = new Path(path);
+		FileSystem fileSystem = FileSystem.get(p.toUri());
+		if (!fileSystem.exists(p)) {
 			throw new FileNotFoundException("The provided file path " + path + " does not exist.");
 		}
 

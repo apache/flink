@@ -22,9 +22,9 @@ FROM java:8-jre-alpine
 RUN apk add --no-cache bash snappy
 
 # Configure Flink version
-ENV FLINK_VERSION=1.1.1
-ENV HADOOP_VERSION=27
-ENV SCALA_VERSION=2.11
+ARG FLINK_VERSION=1.1.3
+ARG HADOOP_VERSION=27
+ARG SCALA_VERSION=2.11
 
 # Flink environment variables
 ENV FLINK_INSTALL_PATH=/opt

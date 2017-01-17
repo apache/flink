@@ -29,6 +29,13 @@ import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.util.DataOutputSerializer;
 
+/**
+ * Record serializer which serializes the complete record to an intermediate
+ * data serialization buffer and copies this buffer to target buffers
+ * one-by-one using {@link #setNextBuffer(Buffer)}.
+ *
+ * @param <T>
+ */
 public class SpanningRecordSerializer<T extends IOReadableWritable> implements RecordSerializer<T> {
 
 	/** Flag to enable/disable checks, if buffer not set/full or pending serialization */
@@ -65,6 +72,15 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 		this.lengthBuffer.position(4);
 	}
 
+	/**
+	 * Serializes the complete record to an intermediate data serialization
+	 * buffer and starts copying it to the target buffer (if available).
+	 *
+	 * @param record the record to serialize
+	 * @return how much information was written to the target buffer and
+	 *         whether this buffer is full
+	 * @throws IOException
+	 */
 	@Override
 	public SerializationResult addRecord(T record) throws IOException {
 		if (CHECKED) {

@@ -58,6 +58,23 @@ object AkkaUtils {
   }
 
   /**
+    * Creates an actor system bound to the given hostname and port.
+    *
+    * @param configuration instance containing the user provided configuration values
+    * @param hostname of the network interface to bind to
+    * @param port of to bind to
+    * @return created actor system
+    */
+  def createActorSystem(
+      configuration: Configuration,
+      hostname: String,
+      port: Int)
+    : ActorSystem = {
+
+    createActorSystem(configuration, Some((hostname, port)))
+  }
+
+  /**
    * Creates an actor system. If a listening address is specified, then the actor system will listen
    * on that address for messages from a remote actor system. If not, then a local actor system
    * will be instantiated.
@@ -95,6 +112,28 @@ object AkkaUtils {
    */
   def createDefaultActorSystem(): ActorSystem = {
     createActorSystem(getDefaultAkkaConfig)
+  }
+
+  /**
+    * Return a remote Akka config for the given configuration values.
+    *
+    * @param configuration containing the user provided configuration values
+    * @param hostname to bind against. If null, then the loopback interface is used
+    * @param port to bind against
+    * @return A remote Akka config
+    */
+  def getAkkaConfig(configuration: Configuration, hostname: String, port: Int): Config = {
+    getAkkaConfig(configuration, Some((hostname, port)))
+  }
+
+  /**
+    * Return a local Akka config for the given configuration values.
+    *
+    * @param configuration containing the user provided configuration values
+    * @return A local Akka config
+    */
+  def getAkkaConfig(configuration: Configuration): Config = {
+    getAkkaConfig(configuration, None)
   }
 
   /**
@@ -663,6 +702,12 @@ object AkkaUtils {
     }
   }
 
+  def formatDurationParingErrorMessage: String = {
+    "Duration format must be \"val unit\", where 'val' is a number and 'unit' is " +
+      "(d|day)|(h|hour)|(min|minute)|s|sec|second)|(ms|milli|millisecond)|" +
+      "(µs|micro|microsecond)|(ns|nano|nanosecond)"
+  }
+  
   /** Returns the protocol field for the URL of the remote actor system given the user configuration
     *
     * @param config instance containing the user provided configuration values

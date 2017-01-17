@@ -54,7 +54,8 @@ import java.util.Map.Entry;
 import org.apache.flink.api.common.typeutils.GenericPairComparator;
 import org.apache.flink.api.java.tuple.Tuple2;
 
-@SuppressWarnings({"serial"})
+@SuppressWarnings({"serial", "EqualsWhichDoesntCheckParameterClass", 
+		"StatementWithEmptyBody", "KeySetIterationMayUseEntrySet"})
 public class NonReusingHashJoinIteratorITCase {
 	
 	private static final int MEMORY_SIZE = 16000000;		// total memory
@@ -133,7 +134,7 @@ public class NonReusingHashJoinIteratorITCase {
 					collectTupleData(input1),
 					collectTupleData(input2));
 			
-			final FlatJoinFunction matcher = new TupleMatchRemovingJoin(expectedMatchesMap);
+			final TupleMatchRemovingJoin matcher = new TupleMatchRemovingJoin(expectedMatchesMap);
 			final Collector<Tuple2<Integer, String>> collector = new DiscardingOutputCollector<Tuple2<Integer, String>>();
 	
 			// reset the generators
@@ -150,7 +151,8 @@ public class NonReusingHashJoinIteratorITCase {
 						this.memoryManager, ioManager, this.parentTask, 1.0, false, false, true);
 			
 			iterator.open();
-			
+
+			//noinspection StatementWithEmptyBody
 			while (iterator.callWithNextKey(matcher, collector));
 			
 			iterator.close();
@@ -227,7 +229,7 @@ public class NonReusingHashJoinIteratorITCase {
 			input1 = new UnionIterator<>(inList1);
 			input2 = new UnionIterator<>(inList2);
 			
-			final FlatJoinFunction matcher = new TupleMatchRemovingJoin(expectedMatchesMap);
+			final TupleMatchRemovingJoin matcher = new TupleMatchRemovingJoin(expectedMatchesMap);
 			final Collector<Tuple2<Integer, String>> collector = new DiscardingOutputCollector<>();
 	
 			NonReusingBuildFirstHashJoinIterator<Tuple2<Integer, String>, Tuple2<Integer, String>, Tuple2<Integer, String>> iterator =
@@ -269,7 +271,7 @@ public class NonReusingHashJoinIteratorITCase {
 					collectTupleData(input1),
 					collectTupleData(input2));
 			
-			final FlatJoinFunction matcher = new TupleMatchRemovingJoin(expectedMatchesMap);
+			final TupleMatchRemovingJoin matcher = new TupleMatchRemovingJoin(expectedMatchesMap);
 			final Collector<Tuple2<Integer, String>> collector = new DiscardingOutputCollector<>();
 	
 			// reset the generators
@@ -363,7 +365,7 @@ public class NonReusingHashJoinIteratorITCase {
 			input1 = new UnionIterator<>(inList1);
 			input2 = new UnionIterator<>(inList2);
 			
-			final FlatJoinFunction matcher = new TupleMatchRemovingJoin(expectedMatchesMap);
+			final TupleMatchRemovingJoin matcher = new TupleMatchRemovingJoin(expectedMatchesMap);
 			final Collector<Tuple2<Integer, String>> collector = new DiscardingOutputCollector<>();
 
 			NonReusingBuildSecondHashJoinIterator<Tuple2<Integer, String>, Tuple2<Integer, String>, Tuple2<Integer, String>> iterator =
@@ -499,7 +501,7 @@ public class NonReusingHashJoinIteratorITCase {
 					collectTupleData(input1),
 					collectTupleData(input2));
 	
-			final FlatJoinFunction matcher = new TupleMatchRemovingJoin(expectedMatchesMap);
+			final TupleMatchRemovingJoin matcher = new TupleMatchRemovingJoin(expectedMatchesMap);
 			final Collector<Tuple2<Integer, String>> collector = new DiscardingOutputCollector<>();
 	
 			// reset the generators
@@ -548,7 +550,7 @@ public class NonReusingHashJoinIteratorITCase {
 				collectTupleData(input1),
 				collectTupleData(input2));
 	
-			final FlatJoinFunction matcher = new TupleMatchRemovingJoin(expectedMatchesMap);
+			final TupleMatchRemovingJoin matcher = new TupleMatchRemovingJoin(expectedMatchesMap);
 			final Collector<Tuple2<Integer, String>> collector = new DiscardingOutputCollector<>();
 	
 			// reset the generators
@@ -597,7 +599,7 @@ public class NonReusingHashJoinIteratorITCase {
 				collectTupleData(input1),
 				collectTupleData(input2));
 	
-			final FlatJoinFunction matcher = new TupleMatchRemovingJoin(expectedMatchesMap);
+			final TupleMatchRemovingJoin matcher = new TupleMatchRemovingJoin(expectedMatchesMap);
 			final Collector<Tuple2<Integer, String>> collector = new DiscardingOutputCollector<>();
 	
 			// reset the generators
@@ -646,7 +648,7 @@ public class NonReusingHashJoinIteratorITCase {
 					collectTupleData(input1),
 					collectTupleData(input2));
 	
-			final FlatJoinFunction matcher = new TupleMatchRemovingJoin(expectedMatchesMap);
+			final TupleMatchRemovingJoin matcher = new TupleMatchRemovingJoin(expectedMatchesMap);
 			final Collector<Tuple2<Integer, String>> collector = new DiscardingOutputCollector<>();
 	
 			// reset the generators
@@ -695,7 +697,7 @@ public class NonReusingHashJoinIteratorITCase {
 				collectTupleData(input1),
 				collectTupleData(input2));
 	
-			final FlatJoinFunction matcher = new TupleMatchRemovingJoin(expectedMatchesMap);
+			final TupleMatchRemovingJoin matcher = new TupleMatchRemovingJoin(expectedMatchesMap);
 			final Collector<Tuple2<Integer, String>> collector = new DiscardingOutputCollector<>();
 	
 			// reset the generators
@@ -744,7 +746,7 @@ public class NonReusingHashJoinIteratorITCase {
 				collectTupleData(input1),
 				collectTupleData(input2));
 	
-			final FlatJoinFunction matcher = new TupleMatchRemovingJoin(expectedMatchesMap);
+			final TupleMatchRemovingJoin matcher = new TupleMatchRemovingJoin(expectedMatchesMap);
 			final Collector<Tuple2<Integer, String>> collector = new DiscardingOutputCollector<>();
 	
 			// reset the generators
@@ -1012,23 +1014,12 @@ public class NonReusingHashJoinIteratorITCase {
 
 		@Override
 		public boolean equals(Object obj) {
-			TupleMatch o = (TupleMatch) obj;
+			TupleMatch that = (TupleMatch) obj;
 
-			if(left != null && o.left != null && right != null && o.right != null) {
-				return this.left.equals(o.left) && this.right.equals(o.right);
-			}
-			else if(left == null && o.left == null) {
-				return this.right.equals(o.right);
-			}
-			else if(right == null && o.right == null) {
-				return this.left.equals(o.left);
-			}
-			else if(left == null && o.left == null && right == null && o.right == null) {
-				return true;
-			}
-			else {
-				return false;
-			}
+			return (this.right == null ? that.right == null :
+							(that.right != null && this.right.equals(that.right))) &&
+					(this.left == null ? that.left == null :
+							(that.left != null && this.left.equals(that.left)));
 		}
 		
 		@Override
@@ -1041,7 +1032,7 @@ public class NonReusingHashJoinIteratorITCase {
 		@Override
 		public String toString() {
 			String s = left == null ? "<null>" : left;
-			s += ", " + right == null ? "<null>" : right;
+			s += ", " + (right == null ? "<null>" : right);
 			return s;
 		}
 	}
@@ -1056,7 +1047,7 @@ public class NonReusingHashJoinIteratorITCase {
 
 		public TupleIntPairMatch(int left, String right) {
 			this.left = left;
-			this.right = new String(right);
+			this.right = right;
 		}
 
 		@Override

@@ -18,28 +18,11 @@
 
 package org.apache.flink.api.java.typeutils;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Field;
-import java.lang.reflect.GenericArrayType;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
-import java.lang.reflect.TypeVariable;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.HashMap;
-import java.util.List;
-
-import java.util.Map;
 import org.apache.avro.specific.SpecificRecordBase;
-
 import org.apache.commons.lang3.ClassUtils;
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.CrossFunction;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
@@ -66,19 +49,35 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple0;
 import org.apache.flink.api.java.typeutils.TypeExtractionUtils.LambdaExecutable;
-import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.checkAndExtractLambda;
-import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.getAllDeclaredMethods;
-import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.isClassType;
-import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.sameTypeVars;
-import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.typeToClass;
-import org.apache.flink.types.Either;
+import org.apache.flink.types.Row;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
+import java.lang.reflect.GenericArrayType;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.lang.reflect.TypeVariable;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.checkAndExtractLambda;
+import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.getAllDeclaredMethods;
+import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.isClassType;
+import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.sameTypeVars;
+import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.typeToClass;
 
 /**
  * A utility for reflection analysis on classes, to determine the return type of implementations of transformation
@@ -690,38 +689,6 @@ public class TypeExtractor {
 			return new TupleTypeInfo(typeToClass(t), subTypesInfo);
 			
 		}
-		// check if type is a subclass of Either
-		else if (isClassType(t) && Either.class.isAssignableFrom(typeToClass(t))) {
-			Type curT = t;
-
-			// go up the hierarchy until we reach Either (with or without generics)
-			// collect the types while moving up for a later top-down
-			while (!(isClassType(curT) && typeToClass(curT).equals(Either.class))) {
-				typeHierarchy.add(curT);
-				curT = typeToClass(curT).getGenericSuperclass();
-			}
-
-			// check if Either has generics
-			if (curT instanceof Class<?>) {
-				throw new InvalidTypesException("Either needs to be parameterized by using generics.");
-			}
-
-			typeHierarchy.add(curT);
-
-			// create the type information for the subtypes
-			final TypeInformation<?>[] subTypesInfo = createSubTypesInfo(t, (ParameterizedType) curT, typeHierarchy, in1Type, in2Type, false);
-			// type needs to be treated a pojo due to additional fields
-			if (subTypesInfo == null) {
-				if (t instanceof ParameterizedType) {
-					return (TypeInformation<OUT>) analyzePojo(typeToClass(t), new ArrayList<Type>(typeHierarchy), (ParameterizedType) t, in1Type, in2Type);
-				}
-				else {
-					return (TypeInformation<OUT>) analyzePojo(typeToClass(t), new ArrayList<Type>(typeHierarchy), null, in1Type, in2Type);
-				}
-			}
-			// return either info
-			return (TypeInformation<OUT>) new EitherTypeInfo(subTypesInfo[0], subTypesInfo[1]);
-		}
 		// type depends on another type
 		// e.g. class MyMapper<E> extends MapFunction<String, E>
 		else if (t instanceof TypeVariable) {
@@ -947,7 +914,7 @@ public class TypeExtractor {
 
 	/**
 	 * Creates the TypeInformation for all elements of a type that expects a certain number of
-	 * subtypes (e.g. TupleXX or Either).
+	 * subtypes (e.g. TupleXX).
 	 *
 	 * @param originalType most concrete subclass
 	 * @param definingType type that defines the number of subtypes (e.g. Tuple2 -> 2 subtypes)
@@ -1233,29 +1200,6 @@ public class TypeExtractor {
 				for (int i = 0; i < subTypes.length; i++) {
 					validateInfo(new ArrayList<Type>(typeHierarchy), subTypes[i], tti.getTypeAt(i));
 				}
-			}
-			// check for Either
-			else if (typeInfo instanceof EitherTypeInfo) {
-				// check if Either at all
-				if (!(isClassType(type) && Either.class.isAssignableFrom(typeToClass(type)))) {
-					throw new InvalidTypesException("Either type expected.");
-				}
-
-				// go up the hierarchy until we reach Either (with or without generics)
-				while (!(isClassType(type) && typeToClass(type).equals(Either.class))) {
-					typeHierarchy.add(type);
-					type = typeToClass(type).getGenericSuperclass();
-				}
-
-				// check if Either has generics
-				if (type instanceof Class<?>) {
-					throw new InvalidTypesException("Parameterized Either type expected.");
-				}
-
-				EitherTypeInfo<?, ?> eti = (EitherTypeInfo<?, ?>) typeInfo;
-				Type[] subTypes = ((ParameterizedType) type).getActualTypeArguments();
-				validateInfo(new ArrayList<Type>(typeHierarchy), subTypes[0], eti.getLeftType());
-				validateInfo(new ArrayList<Type>(typeHierarchy), subTypes[1], eti.getRightType());
 			}
 			// check for primitive array
 			else if (typeInfo instanceof PrimitiveArrayTypeInfo) {
@@ -1675,11 +1619,6 @@ public class TypeExtractor {
 			throw new InvalidTypesException("Type information extraction for tuples (except Tuple0) cannot be done based on the class.");
 		}
 
-		// check for subclasses of Either
-		if (Either.class.isAssignableFrom(clazz)) {
-			throw new InvalidTypesException("Type information extraction for Either cannot be done based on the class.");
-		}
-
 		// check for Enums
 		if(Enum.class.isAssignableFrom(clazz)) {
 			return new EnumTypeInfo(clazz);
@@ -1956,17 +1895,21 @@ public class TypeExtractor {
 			}
 			return new TupleTypeInfo(value.getClass(), infos);
 		}
-		// we can not extract the types from an Either object since it only contains type information
-		// of one type, but from Either classes
-		else if (value instanceof Either) {
-			try {
-				return (TypeInformation<X>) privateCreateTypeInfo(value.getClass());
+		else if (value instanceof Row) {
+			Row row = (Row) value;
+			int arity = row.getArity();
+			for (int i = 0; i < arity; i++) {
+				if (row.getField(i) == null) {
+					LOG.warn("Cannot extract type of Row field, because of Row field[" + i + "] is null. " +
+						"Should define RowTypeInfo explicitly.");
+					return privateGetForClass((Class<X>) value.getClass(), new ArrayList<Type>());
+				}
 			}
-			catch (InvalidTypesException e) {
-				throw new InvalidTypesException("Automatic type extraction is not possible on an Either type "
-						+ "as it does not contain information about both possible types. "
-						+ "Please specify the types directly.");
+			TypeInformation<?>[] typeArray = new TypeInformation<?>[arity];
+			for (int i = 0; i < arity; i++) {
+				typeArray[i] = TypeExtractor.getForObject(row.getField(i));
 			}
+			return (TypeInformation<X>) new RowTypeInfo(typeArray);
 		}
 		else {
 			return privateGetForClass((Class<X>) value.getClass(), new ArrayList<Type>());

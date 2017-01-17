@@ -88,7 +88,5 @@ public interface SubmittedJobGraphStore {
 		 * @param jobId The {@link JobID} of the removed job graph
 		 */
 		void onRemovedJobGraph(JobID jobId);
-
 	}
-
 }

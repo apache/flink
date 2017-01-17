@@ -21,7 +21,6 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.runtime.checkpoint.stats.CheckpointStatsTracker;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -40,6 +39,7 @@ import org.apache.flink.runtime.state.TaskStateHandles;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -147,8 +147,9 @@ public class CheckpointCoordinator {
 	/** Flag marking the coordinator as shut down (not accepting any messages any more) */
 	private volatile boolean shutdown;
 
-	/** Helper for tracking checkpoint statistics  */
-	private final CheckpointStatsTracker statsTracker;
+	/** Optional tracker for checkpoint statistics. */
+	@Nullable
+	private CheckpointStatsTracker statsTracker;
 
 	/** Default checkpoint properties **/
 	private final CheckpointProperties checkpointProperties;
@@ -170,7 +171,6 @@ public class CheckpointCoordinator {
 			CheckpointIDCounter checkpointIDCounter,
 			CompletedCheckpointStore completedCheckpointStore,
 			String checkpointDirectory,
-			CheckpointStatsTracker statsTracker,
 			Executor executor) {
 
 		// sanity checks
@@ -209,7 +209,6 @@ public class CheckpointCoordinator {
 		this.completedCheckpointStore = checkNotNull(completedCheckpointStore);
 		this.checkpointDirectory = checkpointDirectory;
 		this.recentPendingCheckpoints = new ArrayDeque<>(NUM_GHOST_CHECKPOINT_IDS);
-		this.statsTracker = checkNotNull(statsTracker);
 
 		this.timer = new Timer("Checkpoint Timer", true);
 
@@ -229,6 +228,15 @@ public class CheckpointCoordinator {
 		}
 
 		this.executor = checkNotNull(executor);
+	}
+
+	/**
+	 * Sets the checkpoint stats tracker.
+	 *
+	 * @param statsTracker The checkpoint stats tracker.
+	 */
+	public void setCheckpointStatsTracker(@Nullable CheckpointStatsTracker statsTracker) {
+		this.statsTracker = statsTracker;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -428,10 +436,18 @@ public class CheckpointCoordinator {
 				checkpointID,
 				timestamp,
 				ackTasks,
-				isPeriodic,
 				props,
 				targetDirectory,
 				executor);
+
+			if (statsTracker != null) {
+				PendingCheckpointStats callback = statsTracker.reportPendingCheckpoint(
+					checkpointID,
+					timestamp,
+					props);
+
+				checkpoint.setStatsCallback(callback);
+			}
 
 			// schedule the timer that will clean up the expired checkpoints
 			TimerTask canceller = new TimerTask() {
@@ -632,7 +648,7 @@ public class CheckpointCoordinator {
 
 			if (checkpoint != null && !checkpoint.isDiscarded()) {
 
-				switch (checkpoint.acknowledgeTask(message.getTaskExecutionId(), message.getSubtaskState())) {
+				switch (checkpoint.acknowledgeTask(message.getTaskExecutionId(), message.getSubtaskState(), message.getCheckpointMetaData())) {
 					case SUCCESS:
 						LOG.debug("Received acknowledge message for checkpoint {} from task {} of job {}.",
 							checkpointId, message.getTaskExecutionId(), message.getJob());
@@ -769,8 +785,6 @@ public class CheckpointCoordinator {
 				ee.notifyCheckpointComplete(checkpointId, timestamp);
 			}
 		}
-
-		statsTracker.onCompletedCheckpoint(completedCheckpoint);
 	}
 
 	private void rememberRecentCheckpointId(long id) {
@@ -875,6 +889,17 @@ public class CheckpointCoordinator {
 					new StateAssignmentOperation(LOG, tasks, latest, allowNonRestoredState);
 
 			stateAssignmentOperation.assignStates();
+
+			if (statsTracker != null) {
+				long restoreTimestamp = System.currentTimeMillis();
+				RestoredCheckpointStats restored = new RestoredCheckpointStats(
+					latest.getCheckpointID(),
+					latest.getProperties(),
+					restoreTimestamp,
+					latest.getExternalPath());
+
+				statsTracker.reportRestoredCheckpoint(restored);
+			}
 
 			return true;
 		}

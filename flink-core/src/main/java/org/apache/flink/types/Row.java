@@ -113,4 +113,30 @@ public class Row implements Serializable{
 	public int hashCode() {
 		return Arrays.hashCode(fields);
 	}
+
+	/**
+	 * Creates a new Row and assigns the given values to the Row's fields.
+	 * This is more convenient than using the constructor.
+	 *
+	 * <p>For example:
+	 *
+	 * <pre>
+	 *     Row.of("hello", true, 1L);}
+	 * </pre>
+	 * instead of
+	 * <pre>
+	 *     Row row = new Row(3);
+	 *     row.setField(0, "hello");
+	 *     row.setField(1, true);
+	 *     row.setField(2, 1L);
+	 * </pre>
+	 *
+	 */
+	public static Row of(Object... values) {
+		Row row = new Row(values.length);
+		for (int i = 0; i < values.length; i++) {
+			row.setField(i, values[i]);
+		}
+		return row;
+	}
 }

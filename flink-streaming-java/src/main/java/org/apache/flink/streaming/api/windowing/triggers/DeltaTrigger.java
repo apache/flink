@@ -46,7 +46,7 @@ public class DeltaTrigger<T, W extends Window> extends Trigger<T, W> {
 	private DeltaTrigger(double threshold, DeltaFunction<T> deltaFunction, TypeSerializer<T> stateSerializer) {
 		this.deltaFunction = deltaFunction;
 		this.threshold = threshold;
-		stateDesc = new ValueStateDescriptor<>("last-element", stateSerializer, null);
+		stateDesc = new ValueStateDescriptor<>("last-element", stateSerializer);
 
 	}
 
