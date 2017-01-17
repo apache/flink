@@ -132,7 +132,7 @@ public class ValueStateDescriptor<T> extends SimpleStateDescriptor<T, ValueState
 	 * @param typeClass The type of the values in the state.
 	 */
 	public ValueStateDescriptor(String name, Class<T> typeClass) {
-		super(name, typeClass, null);
+		super(name, typeClass);
 	}
 
 	/**
@@ -142,7 +142,7 @@ public class ValueStateDescriptor<T> extends SimpleStateDescriptor<T, ValueState
 	 * @param typeInfo The type of the values in the state.
 	 */
 	public ValueStateDescriptor(String name, TypeInformation<T> typeInfo) {
-		super(name, typeInfo, null);
+		super(name, typeInfo);
 	}
 
 	/**
@@ -152,7 +152,7 @@ public class ValueStateDescriptor<T> extends SimpleStateDescriptor<T, ValueState
 	 * @param typeSerializer The type serializer of the values in the state.
 	 */
 	public ValueStateDescriptor(String name, TypeSerializer<T> typeSerializer) {
-		super(name, typeSerializer, null);
+		super(name, typeSerializer);
 	}
 
 	// ------------------------------------------------------------------------
@@ -196,6 +196,8 @@ public class ValueStateDescriptor<T> extends SimpleStateDescriptor<T, ValueState
 	@Override
 	public Type getType() {
 		return Type.VALUE;
+	}
+
 	// ------------------------------------------------------------------------
 	//  Serialization
 	// ------------------------------------------------------------------------

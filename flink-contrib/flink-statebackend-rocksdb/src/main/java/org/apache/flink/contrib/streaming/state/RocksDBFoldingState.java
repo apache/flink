@@ -32,12 +32,12 @@ import java.io.IOException;
 /**
  * {@link FoldingState} implementation that stores state in RocksDB.
  *
- * @param <K> The type of the key.
- * @param <N> The type of the namespace.
- * @param <T> The type of the values that can be folded into the state.
+ * @param <K>   The type of the key.
+ * @param <N>   The type of the namespace.
+ * @param <T>   The type of the values that can be folded into the state.
  * @param <ACC> The type of the value in the folding state.
  */
-public class RocksDBFoldingState<K, N, T, ACC> extends RocksDBSimpleState<K, N, ACC> implements FoldingState<T, ACC> {
+public class RocksDBFoldingState<K, N, T, ACC> extends RocksDBSimpleState<K, N, ACC, FoldingStateDescriptor<T, ACC>> implements FoldingState<T, ACC> {
 	/** User-specified initial value for folding */
 	private final ACC initialValue;
 
@@ -48,13 +48,14 @@ public class RocksDBFoldingState<K, N, T, ACC> extends RocksDBSimpleState<K, N, 
 	 * Creates a new {@code RocksDBFoldingState}.
 	 *
 	 * @param namespaceSerializer The serializer for the namespace.
-	 * @param stateDesc The state identifier for the state. This contains name
-	 *                     and can create a default state value.
+	 * @param stateDesc           The state identifier for the state. This contains name
+	 *                            and can create a default state value.
 	 */
 	public RocksDBFoldingState(ColumnFamilyHandle columnFamily,
 			TypeSerializer<N> namespaceSerializer,
 			FoldingStateDescriptor<T, ACC> stateDesc,
-			RocksDBKeyedStateBackend<K> backend) {
+			RocksDBKeyedStateBackend<K> backend)
+	{
 		super(columnFamily, namespaceSerializer, stateDesc, backend);
 
 		this.initialValue = stateDesc.getInitialValue();

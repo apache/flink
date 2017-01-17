@@ -137,7 +137,7 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 		return keyedStateStore.getFoldingState(stateProperties);
 	}
 
-	private KeyedStateStore checkPreconditionsAndGetKeyedStateStore(StateDescriptor<?, ?> stateDescriptor) {
+	private KeyedStateStore checkPreconditionsAndGetKeyedStateStore(StateDescriptor<?> stateDescriptor) {
 		Preconditions.checkNotNull(stateDescriptor, "The state properties must not be null");
 		KeyedStateStore keyedStateStore = operator.getKeyedStateStore();
 		Preconditions.checkNotNull(keyedStateStore, "Keyed state can only be used on a 'keyed stream', i.e., after a 'keyBy()' operation.");

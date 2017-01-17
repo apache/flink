@@ -19,8 +19,8 @@
 package org.apache.flink.migration.runtime.state.memory;
 
 import org.apache.flink.api.common.state.ValueState;
-import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.migration.api.common.state.ValueStateDescriptor;
 
 /**
  * Heap-backed key/value state that is snapshotted into a serialized memory copy.

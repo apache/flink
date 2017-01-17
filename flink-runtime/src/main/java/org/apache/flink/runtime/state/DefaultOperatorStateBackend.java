@@ -126,8 +126,8 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 							partitionableListState.getAssignmentMode());
 			Preconditions.checkState(
 					partitionableListState.getPartitionStateSerializer().
-							isCompatibleWith(stateDescriptor.getSerializer()),
-					"Incompatible type serializers. Provided: " + stateDescriptor.getSerializer() +
+							isCompatibleWith(stateDescriptor.getElemSerializer()),
+					"Incompatible type serializers. Provided: " + stateDescriptor.getElemSerializer() +
 							", found: " + partitionableListState.getPartitionStateSerializer());
 		}
 
