@@ -86,6 +86,7 @@ class ScalarOperatorsTest extends ExpressionTestBase {
     testTableApi('f8 * 2, "f8 * 2", "10")
     testTableApi('f8 % 2, "f8 % 2", "1")
     testTableApi(-'f8, "-f8", "-5")
+    testTableApi( +'f8, "+f8", "5") // additional space before "+" required because of checkstyle
     testTableApi(3.toExpr + 'f8, "3 + f8", "8")
 
     // boolean arithmetic
