@@ -34,7 +34,7 @@ under the License.
 
 	<packaging>jar</packaging>
 
-	
+
 	<repositories>
 		<!-- This repository is needed as a stable source for some Clojure libraries -->
 		<repository>
@@ -48,12 +48,12 @@ under the License.
 			</snapshots>
 		</repository>
 	</repositories>
-	
-	
+
+
 	<dependencies>
-		
+
 		<!-- core dependencies -->
-		
+
 		<!-- Together with the dependency management section in flink-parent, this
 			pins the Kryo version of transitive dependencies to the Flink Kryo version -->
 		<dependency>
@@ -61,7 +61,7 @@ under the License.
 			<artifactId>kryo</artifactId>
 			<scope>provided</scope>
 		</dependency>
-		
+
 		<!-- Core streaming API -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -69,7 +69,7 @@ under the License.
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
-		
+
 		<!-- we only need the Apache Storm API, not all the runtime and web UI functionality,
 			so we exclude many of the unnecessary and possibly conflicting dependencies -->
 		<dependency>
@@ -163,9 +163,9 @@ under the License.
 				</exclusion>
 			</exclusions>
 		</dependency>
-		
+
 		<!-- test dependencies -->
-		
+
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-runtime_2.10</artifactId>
@@ -178,6 +178,7 @@ under the License.
 			<artifactId>json-simple</artifactId>
 			<version>1.1</version>
 		</dependency>
+
 	</dependencies>
 
 </project>
