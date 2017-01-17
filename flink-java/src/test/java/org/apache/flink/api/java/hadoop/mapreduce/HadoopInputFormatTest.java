@@ -99,6 +99,12 @@ public class HadoopInputFormatTest {
 	}
 
 	@Test
+	public void testCloseWithoutOpen() throws Exception {
+		HadoopInputFormat<String, Long> hadoopInputFormat = new HadoopInputFormat<>(new DummyInputFormat(), String.class, Long.class, Job.getInstance());
+		hadoopInputFormat.close();
+	}
+
+	@Test
 	public void testFetchNextInitialState() throws Exception {
 		DummyRecordReader recordReader = new DummyRecordReader();
 
