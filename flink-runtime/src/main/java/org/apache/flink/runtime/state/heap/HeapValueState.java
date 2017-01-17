@@ -21,6 +21,7 @@ package org.apache.flink.runtime.state.heap;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.runtime.query.netty.message.KvStateRequestSerializer;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.util.Preconditions;
 
@@ -108,5 +109,33 @@ public class HeapValueState<K, N, V>
 		}
 
 		keyedMap.put(backend.<K>getCurrentKey(), value);
+	}
+
+	/**
+	 * Returns the serialized value for the given key and namespace.
+	 *
+	 * <p>If no value is associated with key and namespace, the default value
+	 * set via the state descriptor is returned (may be <code>null</code>).
+	 *
+	 * @param serializedKeyAndNamespace
+	 * 		Serialized key and namespace
+	 *
+	 * @return Serialized value, default value or <code>null</code> if no value
+	 * is associated with the key and namespace.
+	 *
+	 * @throws Exception
+	 * 		Exceptions during serialization are forwarded
+	 */
+	@Override
+	public byte[] getSerializedValue(byte[] serializedKeyAndNamespace) throws Exception {
+		byte[] value = super.getSerializedValue(serializedKeyAndNamespace);
+
+		if (value != null) {
+			return value;
+		} else {
+			return KvStateRequestSerializer
+				.serializeValue(stateDesc.getDefaultValue(),
+					stateDesc.getSerializer());
+		}
 	}
 }
