@@ -348,7 +348,7 @@ windowedStream.reduce (new ReduceFunction<Tuple2<String,Integer>>() {
     public Tuple2<String, Integer> reduce(Tuple2<String, Integer> value1, Tuple2<String, Integer> value2) throws Exception {
         return new Tuple2<String,Integer>(value1.f0, value1.f1 + value2.f1);
     }
-};
+});
     {% endhighlight %}
           </td>
         </tr>
@@ -363,7 +363,7 @@ windowedStream.fold("start", new FoldFunction<Integer, String>() {
     public String fold(String current, Integer value) {
         return current + "-" + value;
     }
-};
+});
     {% endhighlight %}
           </td>
         </tr>
