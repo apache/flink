@@ -24,7 +24,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * StreamGraphHasher that works with user provided hashes. This us useful in case we want to set (alternative) hashes
+ * StreamGraphHasher that works with user provided hashes. This is useful in case we want to set (alternative) hashes
  * explicitly, e.g. to provide a way of manual backwards compatibility between versions when the mechanism of generating
  * hashes has changed in an incompatible way.
  *

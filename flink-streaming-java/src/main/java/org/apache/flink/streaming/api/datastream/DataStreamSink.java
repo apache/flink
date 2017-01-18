@@ -80,7 +80,7 @@ public class DataStreamSink<T> {
 	 * Sets an additional, user provided hash for this operator.
 	 * <p/>
 	 * <p>The user provided hash is an alternative to the generated hashes, that is considered when identifying an
-	 * operator through the default hash mechanics fails (e.g. because of changes between Flink versions.
+	 * operator through the default hash mechanics fails (e.g. because of changes between Flink versions).
 	 * <p/>
 	 * <p><strong>Important</strong>: this hash needs to be unique per transformation and job. Otherwise, job
 	 * submission will fail. Furthermore, you cannot assign user-specified hash to intermediate nodes in an operator
