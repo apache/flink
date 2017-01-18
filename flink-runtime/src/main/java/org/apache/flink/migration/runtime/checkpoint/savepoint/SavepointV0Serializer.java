@@ -141,16 +141,6 @@ public class SavepointV0Serializer implements SavepointSerializer<SavepointV1> {
 		try {
 
 			return convertSavepoint(taskStates, userClassLoader, checkpointId);
-		} catch (ClassNotFoundException cnfe) {
-
-			if (cnfe.toString().contains("SemiAsyncSnapshot")) {
-				throw new IOException("Attempt to migrate RocksDB state created with semi async snapshot mode failed. "
-						+ "Unfortunately, this is not supported. Please create a new savepoint for the job using fully "
-						+ "async mode in Flink 1.1 and run migration again with the new savepoint.");
-			}
-
-			throw new IOException(cnfe);
-
 		} catch (Exception e) {
 
 			throw new IOException(e);
