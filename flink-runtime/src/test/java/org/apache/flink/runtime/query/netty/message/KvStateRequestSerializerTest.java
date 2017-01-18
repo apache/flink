@@ -220,6 +220,46 @@ public class KvStateRequestSerializerTest {
 	}
 
 	/**
+	 * Tests key and namespace deserialization utils with too few bytes.
+	 */
+	@Test(expected = IOException.class)
+	public void testKeyAndNamespaceDeserializationEmpty() throws Exception {
+		KvStateRequestSerializer.deserializeKeyAndNamespace(
+			new byte[] {}, LongSerializer.INSTANCE, StringSerializer.INSTANCE);
+	}
+
+	/**
+	 * Tests key and namespace deserialization utils with too few bytes.
+	 */
+	@Test(expected = IOException.class)
+	public void testKeyAndNamespaceDeserializationTooShort() throws Exception {
+		KvStateRequestSerializer.deserializeKeyAndNamespace(
+			new byte[] {1}, LongSerializer.INSTANCE, StringSerializer.INSTANCE);
+	}
+
+	/**
+	 * Tests key and namespace deserialization utils with too many bytes.
+	 */
+	@Test(expected = IOException.class)
+	public void testKeyAndNamespaceDeserializationTooMany1() throws Exception {
+		// Long + null String + 1 byte
+		KvStateRequestSerializer.deserializeKeyAndNamespace(
+			new byte[] {1, 1, 1, 1, 1, 1, 1, 1, 42, 0, 2}, LongSerializer.INSTANCE,
+			StringSerializer.INSTANCE);
+	}
+
+	/**
+	 * Tests key and namespace deserialization utils with too many bytes.
+	 */
+	@Test(expected = IOException.class)
+	public void testKeyAndNamespaceDeserializationTooMany2() throws Exception {
+		// Long + null String + 2 bytes
+		KvStateRequestSerializer.deserializeKeyAndNamespace(
+			new byte[] {1, 1, 1, 1, 1, 1, 1, 1, 42, 0, 2, 2}, LongSerializer.INSTANCE,
+			StringSerializer.INSTANCE);
+	}
+
+	/**
 	 * Tests value serialization utils.
 	 */
 	@Test

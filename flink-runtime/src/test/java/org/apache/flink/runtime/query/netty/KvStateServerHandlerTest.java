@@ -554,7 +554,7 @@ public class KvStateServerHandlerTest extends TestLogger {
 		assertEquals(KvStateRequestType.REQUEST_FAILURE, KvStateRequestSerializer.deserializeHeader(buf));
 		KvStateRequestFailure response = KvStateRequestSerializer.deserializeKvStateRequestFailure(buf);
 		assertEquals(182828, response.getRequestId());
-		assertTrue(response.getCause().getMessage().contains("IllegalArgumentException"));
+		assertTrue(response.getCause().getMessage().contains("IOException"));
 
 		// Repeat with wrong namespace only
 		request = KvStateRequestSerializer.serializeKvStateRequest(
@@ -573,7 +573,7 @@ public class KvStateServerHandlerTest extends TestLogger {
 		assertEquals(KvStateRequestType.REQUEST_FAILURE, KvStateRequestSerializer.deserializeHeader(buf));
 		response = KvStateRequestSerializer.deserializeKvStateRequestFailure(buf);
 		assertEquals(182829, response.getRequestId());
-		assertTrue(response.getCause().getMessage().contains("IllegalArgumentException"));
+		assertTrue(response.getCause().getMessage().contains("IOException"));
 
 		assertEquals(2, stats.getNumRequests());
 		assertEquals(2, stats.getNumFailed());
