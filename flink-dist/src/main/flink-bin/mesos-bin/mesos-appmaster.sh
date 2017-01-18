@@ -38,9 +38,13 @@ constructAppMasterClassPath() {
     echo $CC_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS
 }
 
+if [ "$FLINK_IDENT_STRING" = "" ]; then
+    FLINK_IDENT_STRING="$USER"
+fi
+
 CC_CLASSPATH=`manglePathList $(constructAppMasterClassPath)`
 
-log=flink-appmaster.log
+log="${FLINK_LOG_DIR}/flink-${FLINK_IDENT_STRING}-mesos-appmaster-${HOSTNAME}.log"
 log_setting="-Dlog.file="$log" -Dlog4j.configuration=file:"$FLINK_CONF_DIR"/log4j.properties -Dlogback.configurationFile=file:"$FLINK_CONF_DIR"/logback.xml"
 
 export FLINK_CONF_DIR
