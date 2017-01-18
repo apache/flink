@@ -610,9 +610,9 @@ reduce, etc), four methods: `open`, `close`, `getRuntimeContext`, and
 `setRuntimeContext`. These are useful for parameterizing the function
 (see [Passing Parameters to Functions]({{ site.baseurl }}/dev/batch/index.html#passing-parameters-to-functions)),
 creating and finalizing local state, accessing broadcast variables (see
-[Broadcast Variables]({{ site.baseurl }}/dev/batch/index.html#broadcast-variables), and for accessing runtime
+[Broadcast Variables]({{ site.baseurl }}/dev/batch/index.html#broadcast-variables)), and for accessing runtime
 information such as accumulators and counters (see
-[Accumulators and Counters](#accumulators--counters), and information
+[Accumulators and Counters](#accumulators--counters)), and information
 on iterations (see [Iterations]({{ site.baseurl }}/dev/batch/iterations.html)).
 
 {% top %}
