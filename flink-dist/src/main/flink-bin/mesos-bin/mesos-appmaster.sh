@@ -53,3 +53,10 @@ export FLINK_LIB_DIR
 
 $JAVA_RUN $JVM_ARGS -classpath "$CC_CLASSPATH" $log_setting org.apache.flink.mesos.runtime.clusterframework.MesosApplicationMasterRunner "$@"
 
+rc=$?
+
+if [[ $rc -ne 0 ]]; then
+    echo "Error while starting the mesos application master. Please check ${log} for more details."
+fi
+
+exit $rc
