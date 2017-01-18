@@ -155,7 +155,7 @@ limitations under the License.
                 <td>{{ subtask['checkpoint']['async'] | humanizeDuration }}</td>
                 <td>{{ subtask['alignment']['buffered'] | humanizeBytes}}</td>
                 <td ng-if-end="ng-if-end">{{ subtask['alignment']['duration'] | humanizeDuration }}</td>
-                <td ng-if="subtask['status'] == 'pending'" colspan="7">n/a</td>
+                <td ng-if="subtask['status'] == 'pending_or_failed'" colspan="7">n/a</td>
               </tr>
             </tbody>
           </table>
