@@ -210,17 +210,20 @@ public abstract class StreamTransformation<T> {
 
 	/**
 	 * Sets an additional, user provided hash for this operator.
-	 *
 	 * <p/>
 	 * <p>The user provided hash is an alternative to the generated hashes, that is considered when identifying an
 	 * operator through the default hash mechanics fails (e.g. because of changes between Flink versions.
-	 *
+	 * <p/>
 	 * <p><strong>Important</strong>: this hash needs to be unique per transformation and job. Otherwise, job
-	 * submission will fail.
+	 * submission will fail. Furthermore, you cannot assign user-specified hash to intermediate nodes in an operator
+	 * chain and trying so will let your job fail.
 	 *
 	 * @param nodeHash the user provided hash for this operator.
 	 */
 	public void provideAdditionalNodeHash(String nodeHash) {
+		Preconditions.checkNotNull(nodeHash);
+		Preconditions.checkArgument(nodeHash.matches("^[0-9A-Fa-f]{32}$"),
+				"Node hash must be a 32 character String that describes a hex code. Found: " + nodeHash);
 		this.userProvidedNodeHash = nodeHash;
 	}
 

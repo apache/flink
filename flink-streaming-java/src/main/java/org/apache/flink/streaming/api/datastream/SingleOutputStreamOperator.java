@@ -87,22 +87,21 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 		return this;
 	}
 
-
 	/**
 	 * Sets an additional, user provided hash for this operator.
-	 *
 	 * <p/>
 	 * <p>The user provided hash is an alternative to the generated hashes, that is considered when identifying an
 	 * operator through the default hash mechanics fails (e.g. because of changes between Flink versions.
-	 *
+	 * <p/>
 	 * <p><strong>Important</strong>: this hash needs to be unique per transformation and job. Otherwise, job
-	 * submission will fail.
+	 * submission will fail. Furthermore, you cannot assign user-specified hash to intermediate nodes in an operator
+	 * chain and trying so will let your job fail.
 	 *
 	 * @param hash the user provided hash for this operator.
 	 * @return The operator with the user provided hash.
 	 */
 	@PublicEvolving
-	public SingleOutputStreamOperator<T> provideAdditionalNodeHash(String hash) {
+	public SingleOutputStreamOperator<T> setAdditionalNodeHash(String hash) {
 		transformation.provideAdditionalNodeHash(hash);
 		return this;
 	}

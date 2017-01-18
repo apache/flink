@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.connectors.cassandra;
 
 import com.datastax.driver.core.Cluster;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple;
@@ -85,6 +86,7 @@ public class CassandraSink<IN> {
 	 * @param uid The unique user-specified ID of this transformation.
 	 * @return The operator with the specified ID.
 	 */
+	@PublicEvolving
 	public CassandraSink<IN> uid(String uid) {
 		if (useDataStreamSink) {
 			getSinkTransformation().setUid(uid);
@@ -96,18 +98,19 @@ public class CassandraSink<IN> {
 
 	/**
 	 * Sets an additional, user provided hash for this operator.
-	 *
 	 * <p/>
 	 * <p>The user provided hash is an alternative to the generated hashes, that is considered when identifying an
 	 * operator through the default hash mechanics fails (e.g. because of changes between Flink versions.
-	 *
+	 * <p/>
 	 * <p><strong>Important</strong>: this hash needs to be unique per transformation and job. Otherwise, job
-	 * submission will fail.
+	 * submission will fail. Furthermore, you cannot assign user-specified hash to intermediate nodes in an operator
+	 * chain and trying so will let your job fail.
 	 *
 	 * @param hash the user provided hash for this operator.
 	 * @return The operator with the user provided hash.
 	 */
-	public CassandraSink<IN> provideAdditionalNodeHash(String hash) {
+	@PublicEvolving
+	public CassandraSink<IN> setAdditionalNodeHash(String hash) {
 		if (useDataStreamSink) {
 			getSinkTransformation().provideAdditionalNodeHash(hash);
 		} else {

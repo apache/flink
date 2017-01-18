@@ -185,7 +185,7 @@ public class StreamingJobGraphGenerator {
 			List<StreamEdge> nonChainableOutputs = new ArrayList<StreamEdge>();
 
 			for (StreamEdge outEdge : streamGraph.getStreamNode(currentNodeId).getOutEdges()) {
-				if (isChainable(outEdge)) {
+				if (isChainable(outEdge, streamGraph)) {
 					chainableOutputs.add(outEdge);
 				} else {
 					nonChainableOutputs.add(outEdge);
@@ -426,7 +426,7 @@ public class StreamingJobGraphGenerator {
 		}
 	}
 
-	private boolean isChainable(StreamEdge edge) {
+	public static boolean isChainable(StreamEdge edge, StreamGraph streamGraph) {
 		StreamNode upStreamVertex = edge.getSourceVertex();
 		StreamNode downStreamVertex = edge.getTargetVertex();
 

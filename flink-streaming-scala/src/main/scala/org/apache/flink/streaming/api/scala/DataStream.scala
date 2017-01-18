@@ -209,15 +209,17 @@ class DataStream[T](stream: JavaStream[T]) {
     * hash mechanics fails (e.g. because of changes between Flink versions.
     *
     * <p><strong>Important</strong>: this hash needs to be unique per
-    * transformation and job. Otherwise, job submission will fail.
+    * transformation and job. Furthermore, you cannot assign
+    * user-specified hash to intermediate nodes in an operator
+    * chain. Otherwise, job submission will fail.
     *
     * @param hash the user provided hash for this operator.
     * @return The operator with the user provided hash.
     */
   @PublicEvolving
-  def provideAdditionalNodeHash(hash: String) : DataStream[T] = javaStream match {
+  def setAdditionalNodeHash(hash: String) : DataStream[T] = javaStream match {
     case stream : SingleOutputStreamOperator[T] =>
-      asScalaStream(stream.provideAdditionalNodeHash(hash))
+      asScalaStream(stream.setAdditionalNodeHash(hash))
     case _ => throw new UnsupportedOperationException("Only supported for operators.")
       this
   }

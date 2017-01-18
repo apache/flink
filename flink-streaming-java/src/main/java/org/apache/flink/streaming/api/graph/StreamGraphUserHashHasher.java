@@ -18,27 +18,29 @@
 
 package org.apache.flink.streaming.api.graph;
 
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
-import org.apache.flink.streaming.api.operators.StreamOperator;
-import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.util.StringUtils;
 
 import java.util.HashMap;
 import java.util.Map;
 
 /**
- * StreamGraphHasher that works with user provided hashes.
+ * StreamGraphHasher that works with user provided hashes. This us useful in case we want to set (alternative) hashes
+ * explicitly, e.g. to provide a way of manual backwards compatibility between versions when the mechanism of generating
+ * hashes has changed in an incompatible way.
+ *
  */
 public class StreamGraphUserHashHasher implements StreamGraphHasher {
+
 	@Override
 	public Map<Integer, byte[]> traverseStreamGraphAndGenerateHashes(StreamGraph streamGraph) {
 		HashMap<Integer, byte[]> hashResult = new HashMap<>();
 		for (StreamNode streamNode : streamGraph.getStreamNodes()) {
-			String userHash = streamNode.getUserHash();
-			if (null != userHash) {
 
+			String userHash = streamNode.getUserHash();
+
+			if (null != userHash) {
 				for (StreamEdge inEdge : streamNode.getInEdges()) {
-					if (isChainable(inEdge, streamGraph.isChainingEnabled())) {
+					if (StreamingJobGraphGenerator.isChainable(inEdge, streamGraph)) {
 						throw new UnsupportedOperationException("Cannot assign user-specified hash "
 								+ "to intermediate node in chain. This will be supported in future "
 								+ "versions of Flink. As a work around start new chain at task "
@@ -51,24 +53,5 @@ public class StreamGraphUserHashHasher implements StreamGraphHasher {
 		}
 
 		return hashResult;
-	}
-
-	private boolean isChainable(StreamEdge edge, boolean isChainingEnabled) {
-		StreamNode upStreamVertex = edge.getSourceVertex();
-		StreamNode downStreamVertex = edge.getTargetVertex();
-
-		StreamOperator<?> headOperator = upStreamVertex.getOperator();
-		StreamOperator<?> outOperator = downStreamVertex.getOperator();
-
-		return downStreamVertex.getInEdges().size() == 1
-				&& outOperator != null
-				&& headOperator != null
-				&& upStreamVertex.isSameSlotSharingGroup(downStreamVertex)
-				&& outOperator.getChainingStrategy() == ChainingStrategy.ALWAYS
-				&& (headOperator.getChainingStrategy() == ChainingStrategy.HEAD ||
-				headOperator.getChainingStrategy() == ChainingStrategy.ALWAYS)
-				&& (edge.getPartitioner() instanceof ForwardPartitioner)
-				&& upStreamVertex.getParallelism() == downStreamVertex.getParallelism()
-				&& isChainingEnabled;
 	}
 }
