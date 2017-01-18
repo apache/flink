@@ -336,7 +336,7 @@ Field expressions make it very easy to select fields in (nested) composite types
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 
-In the example below, we have a `WC` POJO with two fields "word" and "count". To group by the field `word`, we just pass its name to the `groupBy()` function.
+In the example below, we have a `WC` POJO with two fields "word" and "count". To group by the field `word`, we just pass its name to the `keyBy()` function.
 {% highlight java %}
 // some ordinary POJO (Plain old Java Object)
 public class WC {
@@ -392,7 +392,7 @@ These are valid field expressions for the example code above:
 </div>
 <div data-lang="scala" markdown="1">
 
-In the example below, we have a `WC` POJO with two fields "word" and "count". To group by the field `word`, we just pass its name to the `groupBy()` function.
+In the example below, we have a `WC` POJO with two fields "word" and "count". To group by the field `word`, we just pass its name to the `keyBy()` function.
 {% highlight java %}
 // some ordinary POJO (Plain old Java Object)
 class WC(var word: String, var count: Int) {
