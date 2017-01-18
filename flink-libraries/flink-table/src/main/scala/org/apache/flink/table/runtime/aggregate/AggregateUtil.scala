@@ -270,7 +270,6 @@ object AggregateUtil {
     * }}}
     *
     */
-
   private[flink] def createDataSetWindowAggregationCombineFunction(
     window: LogicalWindow,
     namedAggregates: Seq[CalcitePair[AggregateCall, String]],
@@ -292,7 +291,7 @@ object AggregateUtil {
             groupings,
             aggregates,
             inputType,
-            Some(Array(BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO)))
+            Option(Array(BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO)))
 
         new DataSetSessionWindowAggregateCombineGroupFunction(
           aggregates,

@@ -70,22 +70,24 @@ class DataSetSessionWindowAggregateCombineGroupFunction(
     out: Collector[Row]): Unit = {
 
     var head:Row = null
-    var lastRowTime: Option[Long] = None
-    var currentRowTime: Option[Long] = None
+    var lastRowTime: java.lang.Long = null
+    var currentRowTime: java.lang.Long = null
 
-    records.foreach(
-      (record) => {
-        currentRowTime = Some(record.getField(rowTimePos).asInstanceOf[Long])
+    val iterator = records.iterator()
+
+    while (iterator.hasNext) {
+      val record = iterator.next()
+        currentRowTime = record.getField(rowTimePos).asInstanceOf[Long]
 
         // initial traversal or opening a new window
         // the session window end is equal to last row-time + gap .
-        if (lastRowTime.isEmpty ||
-          (lastRowTime.isDefined && (currentRowTime.get > (lastRowTime.get + gap)))) {
+        if (null == lastRowTime ||
+          (null != lastRowTime && (currentRowTime > (lastRowTime + gap)))) {
 
           // calculate the current window and open a new window.
-          if (lastRowTime.isDefined) {
+          if (null != lastRowTime) {
             // emit the current window's merged data
-            doCollect(out, head, lastRowTime.get)
+            doCollect(out, head, lastRowTime)
           } else {
             // set group keys to aggregateBuffer.
             for (i <- 0 until groupingKeys.length) {
@@ -103,9 +105,9 @@ class DataSetSessionWindowAggregateCombineGroupFunction(
 
         // the current row-time is the last row-time of the next calculation.
         lastRowTime = currentRowTime
-      })
+      }
     // emit the merged data of the current window.
-    doCollect(out, head, lastRowTime.get)
+    doCollect(out, head, lastRowTime)
   }
 
   def doCollect(

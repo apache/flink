@@ -251,15 +251,16 @@ class DataSetWindowAggregate(
       // the position of the rowtime field in the intermediate result for map output
       val rowTimeFilePos = mapReturnType.getArity - 1
 
-      // gets the window-start and window-end position  in the intermediate result.
-      val windowStartPos = rowTimeFilePos
-      val windowEndPos = windowStartPos + 1
-
       // do incremental aggregation
       if (doAllSupportPartialAggregation(
         namedAggregates.map(_.getKey),
         inputType,
         grouping.length)) {
+
+        // gets the window-start and window-end position  in the intermediate result.
+        val windowStartPos = rowTimeFilePos
+        val windowEndPos = windowStartPos + 1
+
         val combineGroupFunction = createDataSetWindowAggregationCombineFunction(
           window,
           namedAggregates,

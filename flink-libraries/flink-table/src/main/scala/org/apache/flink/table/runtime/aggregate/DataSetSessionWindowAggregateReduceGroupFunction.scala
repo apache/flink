@@ -31,6 +31,12 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow
   * It wraps the aggregate logic inside of
   * [[org.apache.flink.api.java.operators.GroupReduceOperator]]. It is used for Session time-window
   * on batch.
+  * Note:
+  *  This can handle two input types:
+  *  1. when partial aggregate is not supported, the input data structure of reduce is
+  *    |groupKey1|groupKey2|sum1|count1|sum2|count2|rowTime|
+  *  2. when partial aggregate is supported, the input data structure of reduce is
+  *    |groupKey1|groupKey2|sum1|count1|sum2|count2|windowStart|windowEnd|
   *
   * @param aggregates The aggregate functions.
   * @param groupKeysMapping The index mapping of group keys between intermediate aggregate Row
@@ -84,20 +90,20 @@ class DataSetSessionWindowAggregateReduceGroupFunction(
 
     var last: Row = null
     var head: Row = null
-    var lastWindowEnd: Option[Long] = None
-    var currentWindowStart: Option[Long] = None
+    var lastWindowEnd: java.lang.Long = null
+    var currentWindowStart:java.lang.Long  = null
 
-    records.foreach(
-      (record) => {
-        currentWindowStart =
-          Some(record.getField(intermediateRowWindowStartPos).asInstanceOf[Long])
+    val iterator = records.iterator()
+
+    while (iterator.hasNext) {
+      val record = iterator.next()
+        currentWindowStart = record.getField(intermediateRowWindowStartPos).asInstanceOf[Long]
         // initial traversal or opening a new window
-        if (lastWindowEnd.isEmpty ||
-          (lastWindowEnd.isDefined && currentWindowStart.get > lastWindowEnd.get)) {
+        if (null == lastWindowEnd ||
+          (null != lastWindowEnd && currentWindowStart > lastWindowEnd)) {
 
           // calculate the current window and open a new window
-          if (lastWindowEnd.isDefined) {
-
+          if (null != lastWindowEnd) {
             // evaluate and emit the current window's result.
             doEvaluateAndCollect(out, last, head)
           }
@@ -108,8 +114,8 @@ class DataSetSessionWindowAggregateReduceGroupFunction(
 
         aggregates.foreach(_.merge(record, aggregateBuffer))
         last = record
-        lastWindowEnd = Some(getWindowEnd(last))
-      })
+        lastWindowEnd = getWindowEnd(last)
+      }
 
     doEvaluateAndCollect(out, last, head)
 
@@ -138,7 +144,8 @@ class DataSetSessionWindowAggregateReduceGroupFunction(
       val end = getWindowEnd(last)
 
       collector.wrappedCollector = out
-      collector.timeWindow = new TimeWindow(start, end)
+      collector.windowStart = start
+      collector.windowEnd = end
 
       collector.collect(output)
     } else {
@@ -146,8 +153,16 @@ class DataSetSessionWindowAggregateReduceGroupFunction(
     }
   }
 
+  /**
+    * when partial aggregate is not supported, the input data structure of reduce is
+    * |groupKey1|groupKey2|sum1|count1|sum2|count2|rowTime|
+    *  when partial aggregate is supported, the input data structure of reduce is
+    * |groupKey1|groupKey2|sum1|count1|sum2|count2|windowStart|windowEnd|
+    *
+    * @param record The last record in the window
+    * @return window-end time.
+    */
   def getWindowEnd(record: Row): Long = {
-
     // when partial aggregate is not supported, the input data structure of reduce is
     // |groupKey1|groupKey2|sum1|count1|sum2|count2|rowTime|
     if (record.getArity == intermediateRowWindowEndPos) {
