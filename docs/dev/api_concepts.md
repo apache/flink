@@ -653,7 +653,7 @@ DataStream<Tuple2<String, Integer>> wordCounts = env.fromElements(
 
 wordCounts.map(new MapFunction<Tuple2<String, Integer>, Integer>() {
     @Override
-    public String map(Tuple2<String, Integer> value) throws Exception {
+    public Integer map(Tuple2<String, Integer> value) throws Exception {
         return value.f1;
     }
 });
