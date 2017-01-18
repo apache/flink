@@ -134,7 +134,7 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 		int keyGroup = KeyGroupRangeAssignment.assignToKeyGroup(des.f0, backend.getNumberOfKeyGroups());
 
 		// we cannot reuse the keySerializationStream member since this method
-		// is called concurrently to the other ones and it may this contain garbage
+		// is called concurrently to the other ones and it may thus contain garbage
 		ByteArrayOutputStreamWithPos tmpKeySerializationStream =
 			new ByteArrayOutputStreamWithPos(128);
 		DataOutputViewStreamWrapper tmpKeySerializationDateDataOutputView =
