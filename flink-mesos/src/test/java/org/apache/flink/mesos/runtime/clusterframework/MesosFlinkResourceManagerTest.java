@@ -46,6 +46,7 @@ import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
+import org.apache.flink.util.TestLogger;
 import org.apache.mesos.SchedulerDriver;
 import org.apache.mesos.Protos;
 import org.apache.mesos.Scheduler;
@@ -73,15 +74,18 @@ import static org.mockito.Mockito.*;
 /**
  * General tests for the Mesos resource manager component.
  */
-public class MesosFlinkResourceManagerTest {
+public class MesosFlinkResourceManagerTest extends TestLogger {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MesosFlinkResourceManagerTest.class);
 
 	private static ActorSystem system;
 
-	private static Configuration config = new Configuration() {{
-		setInteger(ConfigConstants.MESOS_MAX_FAILED_TASKS, -1);
-		setInteger(ConfigConstants.MESOS_INITIAL_TASKS, 0);
+	private static Configuration config = new Configuration() {
+		private static final long serialVersionUID = -952579203067648838L;
+
+		{
+			setInteger(ConfigConstants.MESOS_MAX_FAILED_TASKS, -1);
+			setInteger(ConfigConstants.MESOS_INITIAL_TASKS, 0);
 	}};
 
 	@BeforeClass
