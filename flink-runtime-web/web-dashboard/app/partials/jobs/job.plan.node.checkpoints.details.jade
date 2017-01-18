@@ -145,7 +145,7 @@ div(ng-if="checkpoint")
                 td {{ subtask['checkpoint']['async'] | humanizeDuration }}
                 td {{ subtask['alignment']['buffered'] | humanizeBytes}}
                 td(ng-if-end) {{ subtask['alignment']['duration'] | humanizeDuration }}
-                td(ng-if="subtask['status'] == 'pending'" colspan=7) n/a
+                td(ng-if="subtask['status'] == 'pending_or_failed'" colspan=7) n/a
 
 div(ng-if="!checkpoint")
   p(ng-if="unknown_checkpoint" role="alert").alert.alert-danger
