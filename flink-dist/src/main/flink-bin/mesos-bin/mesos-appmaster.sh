@@ -42,7 +42,6 @@ if [ "$FLINK_IDENT_STRING" = "" ]; then
     FLINK_IDENT_STRING="$USER"
 fi
 
-
 CC_CLASSPATH=`manglePathList $(constructAppMasterClassPath)`
 
 log="${FLINK_LOG_DIR}/flink-${FLINK_IDENT_STRING}-mesos-appmaster-${HOSTNAME}.log"
@@ -54,3 +53,10 @@ export FLINK_LIB_DIR
 
 $JAVA_RUN $JVM_ARGS -classpath "$CC_CLASSPATH" $log_setting org.apache.flink.mesos.runtime.clusterframework.MesosApplicationMasterRunner "$@"
 
+rc=$?
+
+if [[ $rc -ne 0 ]]; then
+    echo "Error while starting the mesos application master. Please check ${log} for more details."
+fi
+
+exit $rc
