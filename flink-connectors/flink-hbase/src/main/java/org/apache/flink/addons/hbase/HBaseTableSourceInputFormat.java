@@ -73,8 +73,7 @@ public class HBaseTableSourceInputFormat extends RichInputFormat<Row, TableInput
 	private org.apache.hadoop.conf.Configuration conf;
 	private static final String COLON = ":";
 
-	public HBaseTableSourceInputFormat(org.apache.hadoop.conf.Configuration conf, String tableName,
-									   String[] fieldNames, TypeInformation[] fieldTypeInfos) {
+	public HBaseTableSourceInputFormat(org.apache.hadoop.conf.Configuration conf, String tableName, String[] fieldNames, TypeInformation[] fieldTypeInfos) {
 		this.conf = conf;
 		this.tableName = tableName;
 		this.fieldNames = fieldNames;

@@ -51,21 +51,6 @@ public class HBaseTableSource implements BatchTableSource<Row>, ProjectableTable
 	}
 
 	@Override
-	public int getNumberOfFields() {
-		return colNames.length;
-	}
-
-	@Override
-	public String[] getFieldsNames() {
-		return colNames;
-	}
-
-	@Override
-	public TypeInformation<?>[] getFieldTypes() {
-		return colTypes;
-	}
-
-	@Override
 	public TypeInformation<Row> getReturnType() {
 		return new RowTypeInfo(colTypes);
 	}
