@@ -134,7 +134,7 @@ public class BootstrapTools {
 				int listeningPort,
 				Logger logger) throws Exception {
 
-		String hostPortUrl = NetUtils.hostAndPortToUrlString(listeningAddress, listeningPort);
+		String hostPortUrl = listeningAddress + ':' + listeningPort;
 		logger.info("Trying to start actor system at {}", hostPortUrl);
 
 		try {
@@ -146,7 +146,8 @@ public class BootstrapTools {
 			logger.debug("Using akka configuration\n {}", akkaConfig);
 
 			ActorSystem actorSystem = AkkaUtils.createActorSystem(akkaConfig);
-			logger.info("Actor system started at {}", hostPortUrl);
+
+			logger.info("Actor system started at {}", AkkaUtils.getAddress(actorSystem));
 			return actorSystem;
 		}
 		catch (Throwable t) {

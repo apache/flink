@@ -1741,8 +1741,7 @@ object TaskManager {
 
     // Bring up the TaskManager actor system first, bind it to the given address.
     
-    LOG.info("Starting TaskManager actor system at " + 
-      NetUtils.hostAndPortToUrlString(taskManagerHostname, actorSystemPort))
+    LOG.info("Starting TaskManager actor system at {}:{}.", taskManagerHostname, actorSystemPort)
 
     val taskManagerSystem = try {
       val akkaConfig = AkkaUtils.getAkkaConfig(
@@ -1759,9 +1758,8 @@ object TaskManager {
         if (t.isInstanceOf[org.jboss.netty.channel.ChannelException]) {
           val cause = t.getCause()
           if (cause != null && t.getCause().isInstanceOf[java.net.BindException]) {
-            val address = NetUtils.hostAndPortToUrlString(taskManagerHostname, actorSystemPort)
             throw new IOException("Unable to bind TaskManager actor system to address " +
-              address + " - " + cause.getMessage(), t)
+              taskManagerHostname + ':' + actorSystemPort + " - " + cause.getMessage(), t)
           }
         }
         throw new Exception("Could not create TaskManager actor system", t)
