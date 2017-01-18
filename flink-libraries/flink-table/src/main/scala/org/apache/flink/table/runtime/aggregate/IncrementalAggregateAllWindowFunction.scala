@@ -53,7 +53,12 @@ class IncrementalAggregateAllWindowFunction[W <: Window](
 
     if (iterator.hasNext) {
       val record = iterator.next()
-      out.collect(record)
+      var i = 0
+      while (i < record.getArity) {
+        output.setField(i, record.getField(i))
+        i += 1
+      }
+      out.collect(output)
     }
   }
 }

@@ -113,11 +113,10 @@ class DataSetTumbleTimeWindowAggReduceGroupFunction(
 
     // get final aggregate value and set to output.
     aggregateMapping.foreach {
-      case (after, previous) => {
+      case (after, previous) =>
         val agg = aggregates(previous)
         val result = agg.getValue(accumulatorList(previous).get(0))
         output.setField(after, result)
-      }
     }
 
     // get window start timestamp

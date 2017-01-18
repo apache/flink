@@ -47,10 +47,8 @@ class DataSetTumbleCountWindowAggReduceGroupFunction(
     private val finalRowArity: Int)
   extends RichGroupReduceFunction[Row, Row] {
 
-  private var aggregateBuffer: Row = _
   private var output: Row = _
   private val accumStartPos: Int = groupKeysMapping.length
-  private val intermediateRowArity: Int = accumStartPos + aggregates.length + 1
 
   val accumulatorList: Array[JArrayList[Accumulator]] = Array.fill(aggregates.length) {
     new JArrayList[Accumulator](2)
@@ -59,7 +57,6 @@ class DataSetTumbleCountWindowAggReduceGroupFunction(
   override def open(config: Configuration) {
     Preconditions.checkNotNull(aggregates)
     Preconditions.checkNotNull(groupKeysMapping)
-    aggregateBuffer = new Row(intermediateRowArity)
     output = new Row(finalRowArity)
 
     // init lists with two empty accumulators
