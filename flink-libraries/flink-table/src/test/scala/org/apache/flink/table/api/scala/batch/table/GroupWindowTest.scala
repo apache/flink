@@ -310,26 +310,15 @@ class GroupWindowTest extends TableTestBase {
     util.verifyTable(windowedTable, expected)
   }
 
-  @Test
-  def testAllEventTimeSessionGroupWindowOverTime(): Unit = {
+  @Test(expected = classOf[ValidationException])
+  def testProcessingTimeSessionGroupWindowOverTime(): Unit = {
     val util = batchTestUtil()
     val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
 
     val windowedTable = table
-      .window(Session withGap 7.milli on 'long)
-      .select('int.count)
-
-    val expected = unaryNode(
-      "DataSetWindowAggregate",
-      unaryNode(
-        "DataSetCalc",
-        batchTableNode(0),
-        term("select", "int", "long")
-      ),
-      term("window", EventTimeSessionGroupWindow(None, 'long, 7.milli)),
-      term("select", "COUNT(int) AS TMP_0")
-    )
-
-    util.verifyTable(windowedTable, expected)
+      .groupBy('string)
+      .window(Session withGap 7.milli) // require on a time attribute
+      .select('string, 'int.count)
   }
+
 }

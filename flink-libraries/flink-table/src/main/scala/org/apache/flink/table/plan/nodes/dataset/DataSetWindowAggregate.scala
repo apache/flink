@@ -128,10 +128,8 @@ class DataSetWindowAggregate(
           inputDS,
           isTimeInterval(size.resultType),
           caseSensitive)
-
-      case EventTimeSessionGroupWindow(_, _, _) =>
-        throw new UnsupportedOperationException(
-          "Event-time session windows in a batch environment are currently not supported")
+      case EventTimeSessionGroupWindow(_, _, gap) =>
+        createEventTimeSessionWindowDataSet(inputDS,caseSensitive)
       case EventTimeSlidingGroupWindow(_, _, _, _) =>
         throw new UnsupportedOperationException(
           "Event-time sliding windows in a batch environment are currently not supported")
@@ -172,7 +170,7 @@ class DataSetWindowAggregate(
       grouping,
       inputType,
       isParserCaseSensitive)
-    val groupReduceFunction = createDataSetWindowAggGroupReduceFunction(
+    val groupReduceFunction = createDataSetWindowAggregationGroupReduceFunction(
       window,
       namedAggregates,
       inputType,
@@ -215,6 +213,84 @@ class DataSetWindowAggregate(
         throw new UnsupportedOperationException(
           "Count tumbling non-grouping window on event-time are currently not supported.")
       }
+    }
+  }
+
+  private[this] def createEventTimeSessionWindowDataSet(
+    inputDS: DataSet[Any],
+    isParserCaseSensitive: Boolean): DataSet[Any] = {
+
+    val groupingKeys = grouping.indices.toArray
+    val rowTypeInfo = resultRowTypeInfo
+
+    // grouping window
+    if (groupingKeys.length > 0) {
+      //create mapFunction for initializing the aggregations
+      val mapFunction = createDataSetWindowPrepareMapFunction(
+        window,
+        namedAggregates,
+        grouping,
+        inputType,isParserCaseSensitive)
+
+      // create groupReduceFunction for calculating the aggregations
+      val groupReduceFunction = createDataSetWindowAggregationGroupReduceFunction(
+        window,
+        namedAggregates,
+        inputType,
+        rowRelDataType,
+        grouping,
+        namedProperties)
+
+      val mappedInput =
+        inputDS
+        .map(mapFunction)
+        .name(prepareOperatorName)
+
+      val mapReturnType = mapFunction.asInstanceOf[ResultTypeQueryable[Row]].getProducedType
+
+      // the position of the rowtime field in the intermediate result for map output
+      val rowTimeFilePos = mapReturnType.getArity - 1
+
+      // gets the window-start and window-end position  in the intermediate result.
+      val windowStartPos = rowTimeFilePos
+      val windowEndPos = windowStartPos + 1
+
+      // do incremental aggregation
+      if (doAllSupportPartialAggregation(
+        namedAggregates.map(_.getKey),
+        inputType,
+        grouping.length)) {
+        val combineGroupFunction = createDataSetWindowAggregationCombineFunction(
+          window,
+          namedAggregates,
+          inputType,
+          grouping)
+
+        mappedInput.groupBy(groupingKeys: _*)
+        .sortGroup(rowTimeFilePos, Order.ASCENDING)
+        .combineGroup(combineGroupFunction)
+        .groupBy(groupingKeys: _*)
+        .sortGroup(windowStartPos, Order.ASCENDING)
+        .sortGroup(windowEndPos, Order.ASCENDING)
+        .reduceGroup(groupReduceFunction)
+        .returns(rowTypeInfo)
+        .name(aggregateOperatorName)
+        .asInstanceOf[DataSet[Any]]
+      }
+      // do non-incremental aggregation
+      else {
+        mappedInput.groupBy(groupingKeys: _*)
+        .sortGroup(rowTimeFilePos, Order.ASCENDING)
+        .reduceGroup(groupReduceFunction)
+        .returns(rowTypeInfo)
+        .name(aggregateOperatorName)
+        .asInstanceOf[DataSet[Any]]
+      }
+    }
+    // non-grouping window
+    else {
+      throw new UnsupportedOperationException(
+        "Session non-grouping window on event-time are currently not supported.")
     }
   }
 
