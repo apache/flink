@@ -20,7 +20,6 @@ package org.apache.flink.table.runtime.aggregate
 
 import org.apache.calcite.runtime.SqlFunctions
 import org.apache.flink.types.Row
-import org.apache.flink.streaming.api.windowing.windows.TimeWindow
 import org.apache.flink.util.Collector
 
 /**
@@ -31,7 +30,8 @@ class TimeWindowPropertyCollector(windowStartOffset: Option[Int], windowEndOffse
     extends Collector[Row] {
 
   var wrappedCollector: Collector[Row] = _
-  var timeWindow: TimeWindow = _
+  var windowStart:Long = _
+  var windowEnd:Long = _
 
   override def collect(record: Row): Unit = {
 
@@ -40,12 +40,12 @@ class TimeWindowPropertyCollector(windowStartOffset: Option[Int], windowEndOffse
     if (windowStartOffset.isDefined) {
       record.setField(
         lastFieldPos + windowStartOffset.get,
-        SqlFunctions.internalToTimestamp(timeWindow.getStart))
+        SqlFunctions.internalToTimestamp(windowStart))
     }
     if (windowEndOffset.isDefined) {
       record.setField(
         lastFieldPos + windowEndOffset.get,
-        SqlFunctions.internalToTimestamp(timeWindow.getEnd))
+        SqlFunctions.internalToTimestamp(windowEnd))
     }
     wrappedCollector.collect(record)
   }

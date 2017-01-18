@@ -116,4 +116,36 @@ class DataSetWindowAggregateITCase(configMode: TableConfigMode)
     val results = windowedTable.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
+
+  @Test
+  def testEventTimeSessionGroupWindow(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val table = env.fromCollection(data).toTable(tEnv, 'long, 'int, 'string)
+    val windowedTable = table
+      .groupBy('string)
+      .window(Session withGap 7.milli on 'long as 'w)
+      .select('string, 'string.count, 'w.start, 'w.end)
+
+    val results = windowedTable.toDataSet[Row].collect()
+
+    val expected = "Hallo,1,1970-01-01 00:00:00.002,1970-01-01 00:00:00.009\n" +
+      "Hello world,1,1970-01-01 00:00:00.008,1970-01-01 00:00:00.015\n" +
+      "Hello world,1,1970-01-01 00:00:00.016,1970-01-01 00:00:00.023\n" +
+      "Hello,3,1970-01-01 00:00:00.003,1970-01-01 00:00:00.013\n" +
+      "Hi,1,1970-01-01 00:00:00.001,1970-01-01 00:00:00.008"
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test(expected = classOf[UnsupportedOperationException])
+  def testAlldEventTimeSessionGroupWindow(): Unit = {
+    // Non-grouping Session window on event-time are currently not supported
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val table = env.fromCollection(data).toTable(tEnv, 'long, 'int, 'string)
+    val windowedTable =table
+      .window(Session withGap 7.milli on 'long as 'w)
+      .select('string.count).toDataSet[Row].collect()
+  }
 }
