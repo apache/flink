@@ -156,11 +156,10 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 			this.keySerializationDateDataOutputView);
 	}
 
-	protected void writeKeyWithGroupAndNamespace(int keyGroup, K key,
-		N namespace,
-		final ByteArrayOutputStreamWithPos keySerializationStream,
-		final DataOutputView keySerializationDateDataOutputView) throws
-		IOException {
+	protected void writeKeyWithGroupAndNamespace(
+			int keyGroup, K key, N namespace,
+			final ByteArrayOutputStreamWithPos keySerializationStream,
+			final DataOutputView keySerializationDateDataOutputView) throws IOException {
 
 		keySerializationStream.reset();
 		writeKeyGroup(keyGroup, keySerializationDateDataOutputView);
@@ -168,19 +167,18 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 		writeNameSpace(namespace, keySerializationStream, keySerializationDateDataOutputView);
 	}
 
-	private void writeKeyGroup(int keyGroup,
-		final DataOutputView keySerializationDateDataOutputView) throws
-		IOException {
+	private void writeKeyGroup(
+			int keyGroup, final DataOutputView keySerializationDateDataOutputView)
+			throws IOException {
 
 		for (int i = backend.getKeyGroupPrefixBytes(); --i >= 0;) {
 			keySerializationDateDataOutputView.writeByte(keyGroup >>> (i << 3));
 		}
 	}
 
-	private void writeKey(K key,
-		final ByteArrayOutputStreamWithPos keySerializationStream,
-		final DataOutputView keySerializationDateDataOutputView) throws
-		IOException {
+	private void writeKey(
+			K key, final ByteArrayOutputStreamWithPos keySerializationStream,
+			final DataOutputView keySerializationDateDataOutputView) throws IOException {
 
 		//write key
 		int beforeWrite = keySerializationStream.getPosition();
@@ -193,10 +191,9 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 		}
 	}
 
-	private void writeNameSpace(N namespace,
-		final ByteArrayOutputStreamWithPos keySerializationStream,
-		final DataOutputView keySerializationDateDataOutputView) throws
-		IOException {
+	private void writeNameSpace(
+			N namespace, final ByteArrayOutputStreamWithPos keySerializationStream,
+			final DataOutputView keySerializationDateDataOutputView) throws IOException {
 
 		int beforeWrite = keySerializationStream.getPosition();
 		namespaceSerializer.serialize(namespace, keySerializationDateDataOutputView);
@@ -208,18 +205,17 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 		}
 	}
 
-	private static void writeLengthFrom(int fromPosition,
-		final ByteArrayOutputStreamWithPos keySerializationStream,
-		final DataOutputView keySerializationDateDataOutputView) throws
-		IOException {
+	private static void writeLengthFrom(
+			int fromPosition, final ByteArrayOutputStreamWithPos keySerializationStream,
+			final DataOutputView keySerializationDateDataOutputView) throws IOException {
 
 		int length = keySerializationStream.getPosition() - fromPosition;
 		writeVariableIntBytes(length, keySerializationDateDataOutputView);
 	}
 
-	private static void writeVariableIntBytes(int value,
-		final DataOutputView keySerializationDateDataOutputView) throws
-		IOException {
+	private static void writeVariableIntBytes(
+			int value, final DataOutputView keySerializationDateDataOutputView)
+			throws IOException {
 
 		do {
 			keySerializationDateDataOutputView.writeByte(value);
