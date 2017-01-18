@@ -747,6 +747,11 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 		// TODO: Implement disconnect behaviour
 	}
 
+	@RpcMethod
+	public void heartbeatFromTaskManager(final ResourceID resourceID, final Object payload) {
+		// TODO: Implement heartbeat logic in JobManager side
+	}
+
 	//----------------------------------------------------------------------------------------------
 	// Internal methods
 	//----------------------------------------------------------------------------------------------

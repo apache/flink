@@ -28,6 +28,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.filecache.FileCache;
+import org.apache.flink.runtime.heartbeat.HeartbeatManagerImpl;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
@@ -97,6 +98,7 @@ public class TaskExecutorITCase {
 		SlotManagerFactory slotManagerFactory = new DefaultSlotManager.Factory();
 		JobLeaderIdService jobLeaderIdService = new JobLeaderIdService(testingHAServices);
 		MetricRegistry metricRegistry = mock(MetricRegistry.class);
+		HeartbeatManagerImpl heartbeatManager = mock(HeartbeatManagerImpl.class);
 
 		final TaskManagerConfiguration taskManagerConfiguration = TaskManagerConfiguration.fromConfiguration(configuration);
 		final TaskManagerLocation taskManagerLocation = new TaskManagerLocation(taskManagerResourceId, InetAddress.getLocalHost(), 1234);
@@ -128,6 +130,7 @@ public class TaskExecutorITCase {
 			networkEnvironment,
 			testingHAServices,
 			metricRegistry,
+			heartbeatManager,
 			taskManagerMetricGroup,
 			broadcastVariableManager,
 			fileCache,
