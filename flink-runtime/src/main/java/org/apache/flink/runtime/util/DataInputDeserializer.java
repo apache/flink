@@ -55,7 +55,7 @@ public class DataInputDeserializer implements DataInputView, java.io.Serializabl
 	}
 
 	// ------------------------------------------------------------------------
-	//  Chaning buffers
+	//  Changing buffers
 	// ------------------------------------------------------------------------
 	
 	public void setBuffer(ByteBuffer buffer) {
@@ -98,7 +98,7 @@ public class DataInputDeserializer implements DataInputView, java.io.Serializabl
 
 	public int available() {
 		if (position < end) {
-			return end - position - 1;
+			return end - position;
 		} else {
 			return 0;
 		}
