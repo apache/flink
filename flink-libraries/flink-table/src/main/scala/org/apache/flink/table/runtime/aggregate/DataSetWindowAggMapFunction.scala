@@ -19,6 +19,7 @@ package org.apache.flink.table.runtime.aggregate
 
 import java.sql.Timestamp
 
+import org.apache.calcite.runtime.SqlFunctions
 import org.apache.flink.api.common.functions.RichMapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
@@ -34,7 +35,7 @@ import org.apache.flink.util.Preconditions
   * and [[org.apache.flink.table.runtime.aggregate.AggregateMapFunction]] is this function
   * append an (aligned) rowtime field to the end of the output row.
   */
-class DataSetWindowAggregateMapFunction(
+class DataSetWindowAggMapFunction(
     private val aggregates: Array[AggregateFunction[_]],
     private val aggFields: Array[Int],
     private val groupingKeys: Array[Int],
@@ -97,7 +98,7 @@ class DataSetWindowAggregateMapFunction(
       case f: Float => f.toLong
       case d: Double => d.toLong
       case s: String => s.toLong
-      case t: Timestamp => t.getTime
+      case t: Timestamp => SqlFunctions.toLong(t)
       case _ =>
         throw new RuntimeException(
           s"Window time field doesn't support ${timeField.getClass} type currently")

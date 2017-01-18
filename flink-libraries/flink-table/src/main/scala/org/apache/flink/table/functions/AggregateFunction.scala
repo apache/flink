@@ -61,7 +61,7 @@ abstract class AggregateFunction[T] extends UserDefinedFunction {
   def getValue(accumulator: Accumulator): T
 
   /**
-    * Process the input values and update the provided accumulator instance.
+    * Processes the input values and update the provided accumulator instance.
     *
     * @param accumulator the accumulator which contains the current
     *                    aggregated results
@@ -70,9 +70,9 @@ abstract class AggregateFunction[T] extends UserDefinedFunction {
   def accumulate(accumulator: Accumulator, input: Any): Unit
 
   /**
-    * Merge a list of accumulator instances into one accumulator instance.
+    * Merges a list of accumulator instances into one accumulator instance.
     *
-    * IMPORTANT: You may only return a new accumulator instance or the the first accumulator of the
+    * IMPORTANT: You may only return a new accumulator instance or the first accumulator of the
     * input list. If you return another instance, the result of the aggregation function might be
     * incorrect.
     *
@@ -88,7 +88,7 @@ abstract class AggregateFunction[T] extends UserDefinedFunction {
     *
     * @return The type information for the accumulator.
     */
-  def getAccumulatorType(): TypeInformation[_] = null
+  def getAccumulatorType: TypeInformation[_] = null
 }
 
 /**
