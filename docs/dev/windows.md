@@ -84,39 +84,272 @@ independently from the rest. All elements referring to the same key will be sent
 In case of non-keyed streams, your original stream will not be split into multiple logical streams and all the windowing logic 
 will be performed by a single task, *i.e.* with parallelism of 1.
 
-## Window Assigner
+## Window Assigners
 
-After specifying whether your stream is keyed or not, the next step is to specify a *windowing strategy*. 
-This will dictate how your elements will be assigned into windows and the general way to do so, is by specifying the 
+After specifying whether your stream is keyed or not, the next step is to define a *windowing strategy*. 
+The windowing strategy defines how elements are assigned to windows. This is done by specifying the 
 `WindowAssigner` that corresponds to the windowing strategy of your choice in the `window(...)` call. 
 
-The `WindowAssigner` is responsible for assigning each incoming element to one or more windows. Flink comes with 
-pre-implemented window assigners for the most typical use cases, namely *tumbling windows*, *sliding windows*, 
-*session windows* and *global windows*, but you can implement your own by extending the `WindowAssigner` class. All the 
-built-in window assigners, except for the *global windows* one, assign elements to windows based on time, which can 
-either be *processing* time or *event* time. A list of the pre-implemented `WindowAssigners` follows:
+A `WindowAssigner` is responsible for assigning each incoming element to one or more windows. Flink comes
+with pre-defined window assigners for the most common use cases, namely *tumbling windows*,
+*sliding windows*, *session windows* and *global windows*. You can also implement a custom window assigner by
+extending the `WindowAssigner` class. All built-in window assigners (except the global
+windows) assign elements to windows based on time, which can either be processing time or event
+time. Please take a look at our section on [event time]({{ site.baseurl }}/dev/event_time.html) to learn 
+about the difference between processing time and event time and how timestamps and watermarks are generated.
 
-* **TumblingTimeWindows**: non-overlapping windows of a user-specified *duration* `d`. Each element belongs to a single 
-            window based on its timestamp. As an example, an element with timestamp 12.01 and a tumbling windowing 
-            strategy with `d = 5 min` will be assigned to the window `[start=12.00, end=12.05]`.
+In the following, we show how Flink's pre-defined window assigners work and how they are used
+in a DataStream program. The following figures visualize the workings of each assigner. The purple circles 
+represent elements of the stream, which are partitioned by some key (in this case *user 1*, *user 2* and *user 3*). 
+The x-axis shows the progress of time.
 
-* **SlidingTimeWindows**: overlapping windows of a user-specified *duration* `d` and a *slide* `s`. Each element belongs to 
-            a `d/s` windows based on its timestamp. Our element with timestamp 12.01 and a sliding windowing 
-            strategy with `d = 5 min` and `s = 1 min` will be assigned to the windows `[start=12.00, end=12.05]`, 
-            `[start=12.01, end=12.06]`, `[start=12.02, end=12.07]`, `[start=12.03, end=12.08]`, `[start=12.04, end=12.09]`.
+### Tumbling Windows
 
-* **TimeSessionWindows**: contrary to the previous assigners, here the window boundaries depend on the incoming data. The user 
-            specifies a gap `g` and if there is a period of inactivity for the stream of more than `g` time units, then the 
-            open window closes and a new, clean one opens to receive new events. In case we are operating in `event time`, two 
-            consecutive session windows can be *merged* if an element arrives and makes the gap between the two windows less than 
-            `g`. This is the reason why session windows belong to the category of `MergingWindowAssigners`. To illustrate
-            the latter, if `g = 5` and we have two windows `w1=[start=12.00, end=12.05]` and `w2=[start=12.10, end=12.15]`,
-            then if element `e` arrives with timestamp `t=12.03`, the two previous windows will be merged into one, 
-            `w3=[start=12.00, end=12.15]`.
+A *tumbling windows* assigner assigns each element to a window of a specified *window size*. 
+Tumbling windows have a fixed size and do not overlap. For example, if you specify a tumbling 
+window with a size of 5 minutes, the current window will be evaluated and a new window will be 
+started every five minutes as illustrated by the following figure.
 
-* **GlobalWindows**: this is a way of specifying that we don’t want to subdivide our elements into windows. All elements are 
-            assigned to the same per-key global window. This implies that this strategy is only meaningful when combined 
-            with a custom trigger, *e.g.* a `CountTrigger`, which will tell the window when to fire.
+<img src="{{ site.baseurl }}/fig/tumbling-windows.svg" class="center" style="width: 80%;" />
+
+The following code snippets show how to use tumbling windows.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+DataStream<T> input = ...;
+
+// tumbling event-time windows
+input
+    .keyBy(<key selector>)
+    .window(TumblingEventTimeWindows.of(Time.seconds(5)))
+    .<windowed transformation>(<window function>);
+
+// tumbling processing-time windows
+input
+    .keyBy(<key selector>)
+    .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
+    .<windowed transformation>(<window function>);
+
+// daily tumbling event-time windows offset by -8 hours.
+input
+    .keyBy(<key selector>)
+    .window(TumblingEventTimeWindows.of(Time.days(1), Time.hours(-8)))
+    .<windowed transformation>(<window function>);
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val input: DataStream[T] = ...
+
+// tumbling event-time windows
+input
+    .keyBy(<key selector>)
+    .window(TumblingEventTimeWindows.of(Time.seconds(5)))
+    .<windowed transformation>(<window function>)
+
+// tumbling processing-time windows
+input
+    .keyBy(<key selector>)
+    .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
+    .<windowed transformation>(<window function>)
+
+// daily tumbling event-time windows offset by -8 hours.
+input
+    .keyBy(<key selector>)
+    .window(TumblingEventTimeWindows.of(Time.days(1), Time.hours(-8)))
+    .<windowed transformation>(<window function>)
+{% endhighlight %}
+</div>
+</div>
+
+Time intervals can be specified by using one of `Time.milliseconds(x)`, `Time.seconds(x)`,
+`Time.minutes(x)`, and so on.
+
+As shown in the last example, tumbling window assigners also take an optional `offset` 
+parameter that can be used to change the alignment of windows. For example, without offsets 
+hourly tumbling windows are aligned with epoch, that is you will get windows such as 
+`1:00:00.000 - 1:59:59.999`, `2:00:00.000 - 2:59:59.999` and so on. If you want to change 
+that you can give an offset. With an offset of 15 minutes you would, for example, get 
+`1:15:00.000 - 2:14:59.999`, `2:15:00.000 - 3:14:59.999` etc. 
+An important use case for offsets is to adjust windows to timezones other than UTC-0. 
+For example, in China you would have to specify an offset of `Time.hours(-8)`.
+
+### Sliding Windows
+
+The *sliding windows* assigner assigns elements to windows of fixed length. Similar to a tumbling 
+windows assigner, the size of the windows is configured by the *window size* parameter. 
+An additional *window slide* parameter controls how frequently a sliding window is started. Hence, 
+sliding windows can be overlapping if the slide is smaller than the window size. In this case elements 
+are assigned to multiple windows.
+
+For example, you could have windows of size 10 minutes that slides by 5 minutes. With this you get every
+5 minutes a window that contains the events that arrived during the last 10 minutes as depicted by the 
+following figure.
+
+<img src="{{ site.baseurl }}/fig/sliding-windows.svg" class="center" style="width: 80%;" />
+
+The following code snippets show how to use sliding windows.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+DataStream<T> input = ...;
+
+// sliding event-time windows
+input
+    .keyBy(<key selector>)
+    .window(SlidingEventTimeWindows.of(Time.seconds(10), Time.seconds(5)))
+    .<windowed transformation>(<window function>);
+
+// sliding processing-time windows
+input
+    .keyBy(<key selector>)
+    .window(SlidingProcessingTimeWindows.of(Time.seconds(10), Time.seconds(5)))
+    .<windowed transformation>(<window function>);
+
+// sliding processing-time windows offset by -8 hours
+input
+    .keyBy(<key selector>)
+    .window(SlidingProcessingTimeWindows.of(Time.hours(12), Time.hours(1), Time.hours(-8)))
+    .<windowed transformation>(<window function>);
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val input: DataStream[T] = ...
+
+// sliding event-time windows
+input
+    .keyBy(<key selector>)
+    .window(SlidingEventTimeWindows.of(Time.seconds(10), Time.seconds(5)))
+    .<windowed transformation>(<window function>)
+
+// sliding processing-time windows
+input
+    .keyBy(<key selector>)
+    .window(SlidingProcessingTimeWindows.of(Time.seconds(10), Time.seconds(5)))
+    .<windowed transformation>(<window function>)
+
+// sliding processing-time windows offset by -8 hours
+input
+    .keyBy(<key selector>)
+    .window(SlidingProcessingTimeWindows.of(Time.hours(12), Time.hours(1), Time.hours(-8)))
+    .<windowed transformation>(<window function>)
+{% endhighlight %}
+</div>
+</div>
+
+Time intervals can be specified by using one of `Time.milliseconds(x)`, `Time.seconds(x)`,
+`Time.minutes(x)`, and so on.
+
+As shown in the last example, sliding window assigners also take an optional `offset` parameter 
+that can be used to change the alignment of windows. For example, without offsets hourly windows 
+sliding by 30 minutes are aligned with epoch, that is you will get windows such as 
+`1:00:00.000 - 1:59:59.999`, `1:30:00.000 - 2:29:59.999` and so on. If you want to change that 
+you can give an offset. With an offset of 15 minutes you would, for example, get 
+`1:15:00.000 - 2:14:59.999`, `1:45:00.000 - 2:44:59.999` etc. 
+An important use case for offsets is to adjust windows to timezones other than UTC-0. 
+For example, in China you would have to specify an offset of `Time.hours(-8)`.
+
+### Session Windows
+
+The *session windows* assigner groups elements by sessions of activity. Session windows do not overlap and
+do not have a fixed start and end time in contrast to *tumbling windows* and *sliding windows*. Instead a 
+session window assigner closes a window when it does not receive elements for a certain period 
+of time, i.e., when a gap of inactivity occurred. A session window assigner is configured with the *session gap* which
+defines how long the assigner waits until it closes the current session window and assigns following elements 
+to a new session window.
+
+<img src="{{ site.baseurl }}/fig/session-windows.svg" class="center" style="width: 80%;" />
+
+The following code snippets show how to use session windows.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+DataStream<T> input = ...;
+
+// event-time session windows
+input
+    .keyBy(<key selector>)
+    .window(EventTimeSessionWindows.withGap(Time.minutes(10)))
+    .<windowed transformation>(<window function>);
+
+// processing-time session windows
+input
+    .keyBy(<key selector>)
+    .window(ProcessingTimeSessionWindows.withGap(Time.minutes(10)))
+    .<windowed transformation>(<window function>);
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val input: DataStream[T] = ...
+
+// event-time session windows
+input
+    .keyBy(<key selector>)
+    .window(EventTimeSessionWindows.withGap(Time.minutes(10)))
+    .<windowed transformation>(<window function>)
+
+// processing-time session windows
+input
+    .keyBy(<key selector>)
+    .window(ProcessingTimeSessionWindows.withGap(Time.minutes(10)))
+    .<windowed transformation>(<window function>)
+{% endhighlight %}
+</div>
+</div>
+
+Time intervals can be specified by using one of `Time.milliseconds(x)`, `Time.seconds(x)`,
+`Time.minutes(x)`, and so on.
+
+<span class="label label-danger">Attention</span> Since session windows do not have a fixed start and end, 
+they are  evaluated differently than tumbling and sliding windows. Internally, a session window operator 
+creates a new window for each arriving record and merges windows together if their are closer to each other 
+than the defined gap.
+In order to be mergable, a session window operator requires a mergable [Trigger](#triggers) and a mergable 
+[Window Function](#window-functions), such as `ReduceFunction` or `WindowFunction` 
+(`FoldFunction` is not mergable.)
+
+### Global Windows
+
+A *global windows* assigner assigns all elements with the same key to the same single *global window*.
+This windowing scheme is only useful if you also specify a custom [trigger](#triggers). Otherwise,
+no computation will be performed, as the global window does not have a natural end at
+which we could process the aggregated elements.
+
+<img src="{{ site.baseurl }}/fig/non-windowed.svg" class="center" style="width: 80%;" />
+
+The following code snippets show how to use a global window.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+DataStream<T> input = ...;
+
+input
+    .keyBy(<key selector>)
+    .window(GlobalWindows.create())
+    .<windowed transformation>(<window function>);
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val input: DataStream[T] = ...
+
+input
+    .keyBy(<key selector>)
+    .window(GlobalWindows.create())
+    .<windowed transformation>(<window function>)
+{% endhighlight %}
+</div>
+</div>
 
 ## Window Function
 
@@ -138,10 +371,11 @@ get both incremental aggregation of window elements and the additional window me
 
 ### ReduceFunction
 
-A reduce function specifies how two values can be combined to form one element. Flink can use this
-to incrementally aggregate the elements in a window.
+A `ReduceFunction` specifies how two elements from the input are combined to produce
+an output element of the same type. Flink uses a `ReduceFunction` to incrementally aggregate 
+the elements of a window.
 
-A `ReduceFunction` can be used in a program like this:
+A `ReduceFunction` can be defined and used like this:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -171,13 +405,15 @@ input
 </div>
 </div>
 
-A `ReduceFunction` specifies how two elements from the input can be combined to produce
-an output element. This example will sum up the second field of the tuple for all elements
-in a window.
+The above example sums up the second fields of the tuples for all elements in a window.
 
 ### FoldFunction
 
-A fold function can be specified like this:
+A `FoldFunction` specifies how an input element of the window is combined with an element of 
+the output type. The `FoldFunction` is incrementally called for each element that is added 
+to the window and the current output value. The first element is combined with a pre-defined initial value of the output type.
+
+A `FoldFunction` can be defined and used like this:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -207,19 +443,18 @@ input
 </div>
 </div>
 
-A `FoldFunction` specifies how elements from the input will be added to an initial
-accumulator value (`""`, the empty string, in our example). This example will compute
-a concatenation of all the `Long` fields of the input.
+The above example appends all input `Long` values to an initially empty `String`.
 
 <span class="label label-danger">Attention</span> `fold()` cannot be used with session windows or other mergable windows.
 
 ### WindowFunction - The Generic Case
 
-Using a `WindowFunction` provides the most flexibility, at the cost of performance. The reason for this
-is that elements cannot be incrementally aggregated for a window and instead need to be buffered
-internally until the window is considered ready for processing. A `WindowFunction` gets an
-`Iterable` containing all the elements of the window being processed. The signature of
-`WindowFunction` is this:
+A `WindowFunction` gets an `Iterable` containing all the elements of the window and provides 
+the most flexibility of all window functions. This comes 
+at the cost of performance and resource consumption, because elements cannot be incrementally 
+aggregated but instead need to be buffered internally until the window is considered ready for processing.
+
+The signature of a `WindowFunction` looks as follows:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -260,12 +495,7 @@ trait WindowFunction[IN, OUT, KEY, W <: Window] extends Function with Serializab
 </div>
 </div>
 
-Here we show an example that uses a `WindowFunction` to count the elements in a window. We do this
-because we want to access information about the window itself to emit it along with the count.
-This is very inefficient, however, and should be implemented with a
-`ReduceFunction` in practice. Below, we will see an example of how a `ReduceFunction` can
-be combined with a `WindowFunction` to get both incremental aggregation and the added
-information of a `WindowFunction`.
+A `WindowFunction` can be defined and used like this:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -317,6 +547,10 @@ class MyWindowFunction extends WindowFunction[(String, Long), String, String, Ti
 {% endhighlight %}
 </div>
 </div>
+
+The example shows a `WindowFunction` to count the elements in a window. In addition, the window function adds information about the window to the output.
+
+<span class="label label-danger">Attention</span> Note that using `WindowFunction` for simple aggregates such as count is quite inefficient. The next section shows how a `ReduceFunction` can be combined with a `WindowFunction` to get both incremental aggregation and the added information of a `WindowFunction`.
 
 ### WindowFunction with Incremental Aggregation
 
@@ -458,38 +692,37 @@ input
 
 ## Triggers
 
-The next step is optional and consists in specifying the trigger that fits your needs. 
 A `Trigger` determines when a window (as formed by the `WindowAssigner`) is ready to be
-processed by the *window function*. 
+processed by the *window function*. Each `WindowAssigner` comes with a default `Trigger`. 
+If the default trigger does not fit your needs, you can specify a custom trigger using `trigger(...)`.
 
-The trigger interface provides five methods that react to different events. These are the `onElement()` which
-observes and can react to the event of an element being added to a window, the `onEventTime()` which reacts to the 
-event of a registered event-time timer firing, the `onProcessingTime()` which reacts to the event of a registered 
-processing-time timer firing, the `onMerge()` which is relevant for stateful triggers and merges the states of 
-two triggers when their corresponding windows merge, *e.g.* when using session windows, and the `clear()` which 
-performs any action needed upon removal of the corresponding window. On all the previous occasions, the trigger can
-register processing- or event-time timers for future actions. 
+The trigger interface provides five methods that react to different events: 
 
-Once a trigger determines that a window is ready for processing, it fires. This is the signal for the window operator to 
-take the elements that are currently in the window and pass them to the window function (or the evictor if one is 
-specified) to produce the output for the firing window. When a trigger fires, it can either `FIRE` or `FIRE_AND_PURGE`. 
-The difference is that the latter cleans up the elements in the fired window after firing, while the former keeps them. 
+* The `onElement()` method is called for each element that is added to a window. 
+* The `onEventTime()` method is called when  a registered event-time timer fires. 
+* The `onProcessingTime()` method is called when a registered processing-time timer fires. 
+* The `onMerge()` method is relevant for stateful triggers and merges the states of two triggers when their corresponding windows merge, *e.g.* when using session windows. 
+* Finally the `clear()` method performs any action needed upon removal of the corresponding window. 
+
+Any of these methods can be used to register processing- or event-time timers for future actions. 
+
+### Fire and Purge
+
+Once a trigger determines that a window is ready for processing, it fires. This is the signal for the window operator to emit the result of the current window. Given a window with a `WindowFunction` 
+all elements are passed to the `WindowFunction` (possibly after passing them to an evictor). 
+Windows with `ReduceFunction` of `FoldFunction` simply emit their eagerly aggregated result. 
+
+When a trigger fires, it can either `FIRE` or `FIRE_AND_PURGE`. While `FIRE` keeps the contents of the window, `FIRE_AND_PURGE` removes its content.
 By default, the pre-implemented triggers simply `FIRE` without purging the window state.
 
-<span class="label label-danger">Attention</span> When purging, only the contents of the window are cleared and not the
-window metadata.
+<span class="label label-danger">Attention</span> When purging, only the contents of the window are cleared. The window itself is not removed and accepts new elements.
 
-Each `WindowAssigner` (except `GlobalWindows`) comes with a default trigger that should be
-appropriate for most use cases. For example, all the event-time window assigners have an `EventTimeTrigger` as
-default trigger. This trigger simply fires once the watermark passes the end of a window. If the default 
-trigger of your window assigner is enough, then you do not need to explicitly specify it. In other cases 
-you can specify a trigger using the `trigger(...)` method with a given `Trigger`.
+### Default Triggers of WindowAssigners
 
-Flink comes with a few triggers out-of-box: there is the already mentioned `EventTimeTrigger` that
-fires based on the progress of event-time as measured by watermarks, the `ProcessingTimeTrigger`
-which does the same but based on processing time, the `CountTrigger` which fires once the number of elements
-in a window exceeds the given limit, and the `PurgingTrigger` which takes as argument another trigger and 
-transforms it into a purging one. 
+The default `Trigger` of a `WindowAssigner` is appropriate for many use cases. For example, all the event-time window assigners have an `EventTimeTrigger` as
+default trigger. This trigger simply fires once the watermark passes the end of a window. 
+
+<span class="label label-danger">Attention</span> The default trigger of the `GlobalWindow` is the `NeverTrigger` which does never fire. Consequently, you always have to define a custom trigger when using a `GlobalWindow`.
 
 <span class="label label-danger">Attention</span> By specifying a trigger using `trigger()` you
 are overwriting the default trigger of a `WindowAssigner`. For example, if you specify a
@@ -497,9 +730,17 @@ are overwriting the default trigger of a `WindowAssigner`. For example, if you s
 progress of time but only by count. Right now, you have to write your own custom trigger if
 you want to react based on both time and count.
 
-The internal `Trigger` API is still considered experimental but you can check out the code
-if you want to write your own custom trigger:
-{% gh_link /flink-streaming-java/src/main/java/org/apache/flink/streaming/api/windowing/triggers/Trigger.java "Trigger.java" %}.
+### Built-in and Custom Triggers
+
+Flink comes with a few built-in triggers. 
+
+* The (already mentioned) `EventTimeTrigger` fires based on the progress of event-time as measured by watermarks. 
+* The `ProcessingTimeTrigger` fires based on processing time. 
+* The `CountTrigger` which fires once the number of elements in a window exceeds the given limit.
+* The `PurgingTrigger` takes as argument another trigger and transforms it into a purging one. 
+
+If you need to implement a custom trigger, you should check out the abstract {% gh_link /flink-streaming-java/src/main/java/org/apache/flink/streaming/api/windowing/triggers/Trigger.java "Trigger" %} class. Please note that the API is still evolving and might change in future versions of Flink.
+
 
 ## Evictors
 
@@ -559,12 +800,13 @@ keep track of the progress of event-time is already past the end timestamp of a 
 [event time](./event_time.html) and especially [late elements](./event_time.html#late-elements) for a more thorough 
 discussion of how Flink deals with event time.
 
-By default, late data is dropped from a window and is *not* considered when evaluating the window function. For cases 
-that this is too strict, Flink allows you to specify a maximum *allowed lateness*. This specifies by how much time
-elements can be late while not being dropped. Elements that arrive within the allowed lateness are still put into windows
-and are considered when computing window results. Flink will also make sure that for time-based windows, any state held 
-by the windowing operation is cleaned up once the watermark passes the end of a window plus the allowed lateness, as 
-also stated in the section describing the [Window Lifecycle](#window-lifecycle).
+By default, late elements are dropped if their associated window was already evaluated. However, 
+Flink allows to specify a maximum *allowed lateness* for window operators. Allowed lateness 
+specifies by how much time elements can be late before they are dropped. Elements that arrive 
+within the allowed lateness of a window are still added to the window and trigger an immediate evaluation of the window which might emit elements.
+
+In order to make this work, Flink keeps the state of windows until their allowed lateness expires. Once this happens, Flink removes the window and deletes its state, as 
+also described in the [Window Lifecycle](#window-lifecycle) section.
 
 <span class="label label-info">Default</span> By default, the allowed lateness is set to
 `0`. That is, elements that arrive behind the watermark will be dropped.
@@ -608,16 +850,14 @@ window. These firings are called `late firings`, as they are triggered by late e
 which is the first firing of the window. In case of session windows, late firings can further lead to merging of windows,
 as they may "bridge" the gap between two pre-existing, unmerged windows.
 
+<span class="label label-info">Attention</span> You should be aware that the elements emitted by a late firing should be treated as updated results of a previous computation, i.e., your data stream will contain multiple results for the same computation. Depending on your application, you need to take these duplicated results into account or deduplicate them.
+
 ## Useful state size considerations
 
-The main rules to keep in mind when estimating the storage needs of your windowing computation are:
+Windows can be defined over long periods of time (such as days, weeks, or months) and therefore accumulate very large state. There are a couple of rules to keep in mind when estimating the storage requirements of your windowing computation:
  
-1. Flink creates one copy of each element per window to which it belongs. Given this, tumbling windows keep one copy of each 
-element, as each element belongs to at most one window (0 if the element is late), while sliding windows create `d/s`
-copies of each element, as explained in the [Window Assigners](#window-assigners) section.
+1. Flink creates one copy of each element per window to which it belongs. Given this, tumbling windows keep one copy of each element (an element belongs to exactly window unless it is dropped late). In contrast, sliding windows create several of each element, as explained in the [Window Assigners](#window-assigners) section. Hence, a sliding window of size 1 day and slide 1 second might not be a good idea.
 
-2. If `fold()` or `reduce()` functions are used, there is only one value kept per window, while `apply()` keeps all the 
-elements. 
+2. `FoldFunction` and `ReduceFunction` can significantly reduce the storage requirements, as they eagerly aggregate elements and store only one value per window. In contrast a `WindowFunction` must accumulate all elements.
 
-3. Using an `Evictor` voids any pre-aggregation, as all the elements of a window have to be passed through the evictor 
-before applying the computation (see [Evictors](#evictors)).
+3. Using an `Evictor` prevents any pre-aggregation, as all the elements of a window have to be passed through the evictor before applying the computation (see [Evictors](#evictors)).
