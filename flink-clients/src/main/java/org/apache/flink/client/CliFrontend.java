@@ -128,8 +128,10 @@ public class CliFrontend {
 	private static final List<CustomCommandLine> customCommandLine = new LinkedList<>();
 
 	static {
-		/** command line interface of the YARN session, with a special initialization here
-		 *  to prefix all options with y/yarn. */
+		//	Command line interface of the YARN session, with a special initialization here
+		//	to prefix all options with y/yarn.
+		//	Tips: DefaultCLI must be added at last, because getActiveCustomCommandLine(..) will get the
+		//	      active CustomCommandLine in order and DefaultCLI isActive always return true.
 		loadCustomCommandLine("org.apache.flink.yarn.cli.FlinkYarnSessionCli", "y", "yarn");
 		loadCustomCommandLine("org.apache.flink.yarn.cli.FlinkYarnCLI", "y", "yarn");
 		customCommandLine.add(new DefaultCLI());
