@@ -238,24 +238,6 @@ class JoinStringExpressionTest {
   }
 
   @Test
-  def testRightJoinWithNotOnlyEquiJoin(): Unit = {
-    val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-    tEnv.getConfig.setNullCheck(true)
-
-    val ds1 = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
-
-    val t1 = ds1.rightOuterJoin(ds2, 'a === 'd && 'b < 'h).select('c, 'g)
-    val t2 = ds1.rightOuterJoin(ds2, "a = d && b < h").select("c, g")
-
-    val lPlan1 = t1.logicalPlan
-    val lPlan2 = t2.logicalPlan
-
-    Assert.assertEquals("Logical Plans do not match", lPlan1, lPlan2)
-  }
-
-  @Test
   def testFullOuterJoinWithMultipleKeys(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)

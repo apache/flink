@@ -86,8 +86,8 @@ class JoinITCase(
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  @Test(expected = classOf[TableException])
-  def testJoinWithNonEquiJoinPredicate(): Unit = {
+  @Test
+  def testInnerJoinWithNonEquiJoinPredicate(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
@@ -97,6 +97,8 @@ class JoinITCase(
     val joinT = ds1.join(ds2).where('b === 'e && 'a < 6 && 'h < 'b).select('c, 'g)
 
     val results = joinT.toDataSet[Row].collect()
+    val expected = "Hello world, how are you?,Hallo Welt wie\n" + "I am fine.,Hallo Welt wie\n"
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
@@ -110,7 +112,7 @@ class JoinITCase(
     val joinT = ds1.join(ds2).filter('a === 'd && 'b === 'h).select('c, 'g)
 
     val expected = "Hi,Hallo\n" + "Hello,Hallo Welt\n" + "Hello world,Hallo Welt wie gehts?\n" +
-      "Hello world,ABC\n" + "I am fine.,HIJ\n" + "I am fine.,IJK\n"
+    "Hello world,ABC\n" + "I am fine.,HIJ\n" + "I am fine.,IJK\n"
     val results = joinT.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }

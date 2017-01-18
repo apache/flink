@@ -153,7 +153,8 @@ class DataSetJoin(
 
       // remaining = [join predicates] - [equi-join predicates]
       val remaining = joinInfo.getRemaining(cluster.getRexBuilder)
-      if(!remaining.isAlwaysTrue){
+      // disable outer joins with non-equality predicates
+      if(joinType!=JoinRelType.INNER && !remaining.isAlwaysTrue){
         exceptionOnNonEqualityJoinPredicate(remaining)
       }
 
