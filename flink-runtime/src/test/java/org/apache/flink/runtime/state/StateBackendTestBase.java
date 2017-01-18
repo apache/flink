@@ -38,6 +38,7 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.runtime.checkpoint.StateAssignmentOperation;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
@@ -48,7 +49,6 @@ import org.apache.flink.runtime.query.netty.message.KvStateRequestSerializer;
 import org.apache.flink.runtime.state.heap.AbstractHeapState;
 import org.apache.flink.runtime.state.heap.StateTable;
 import org.apache.flink.types.IntValue;
-import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
@@ -308,35 +308,24 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			namespace, namespaceSerializer, valueSerializer));
 		state.update("1");
 
-		boolean getterSuccess;
-		final Throwable[] throwables = {null, null};
-
-		final Thread getter = new Thread("State getter") {
+		final CheckedThread getter = new CheckedThread("State getter") {
 			@Override
-			public void run() {
-				try {
-					while (!isInterrupted() && throwables[1] == null) {
-						assertEquals("1", state.value());
-					}
-				} catch (Throwable a) {
-					throwables[0] = a;
+			public void go() throws Exception {
+				while (!isInterrupted()) {
+					assertEquals("1", state.value());
 				}
 			}
 		};
 
-		final Thread serializedGetter = new Thread("Serialized state getter") {
+		final CheckedThread serializedGetter = new CheckedThread("Serialized state getter") {
 			@Override
-			public void run() {
-				try {
-					while(!isInterrupted() && throwables[0] == null) {
-						final String serializedValue =
-							getSerializedValue(kvState, key2, keySerializer,
-								namespace, namespaceSerializer,
-								valueSerializer);
-						assertEquals("1", serializedValue);
-					}
-				} catch (Throwable a) {
-					throwables[1] = a;
+			public void go() throws Exception {
+				while(!isInterrupted() && getter.isAlive()) {
+					final String serializedValue =
+						getSerializedValue(kvState, key2, keySerializer,
+							namespace, namespaceSerializer,
+							valueSerializer);
+					assertEquals("1", serializedValue);
 				}
 			}
 		};
@@ -356,18 +345,17 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		}, 100);
 
 		// wait for both threads to finish
-		getter.join();
-		serializedGetter.join();
-		t.cancel(); // if not executed yet
-
-		// clean up
-		backend.dispose();
-
-		// re-throw any assertion error
-		if (throwables[0] != null) {
-			ExceptionUtils.rethrow(throwables[0]);
-		} else if (throwables[1] != null) {
-			ExceptionUtils.rethrow(throwables[1]);
+		try {
+			// serializedGetter will finish if its assertion fails or if
+			// getter is not alive any more
+			serializedGetter.sync();
+			// if serializedGetter crashed, getter will not know -> interrupt just in case
+			getter.interrupt();
+			getter.sync();
+			t.cancel(); // if not executed yet
+		} finally {
+			// clean up
+			backend.dispose();
 		}
 	}
 
