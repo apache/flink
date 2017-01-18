@@ -51,17 +51,17 @@ case class Project(projectList: Seq[NamedExpression], child: LogicalNode) extend
     val newProjectList =
       afterResolve.projectList.zipWithIndex.map { case (e, i) =>
         e match {
-          case u@UnresolvedAlias(c) => c match {
+          case u @ UnresolvedAlias(c) => c match {
             case ne: NamedExpression => ne
             case expr if !expr.valid => u
-            case c@Cast(ne: NamedExpression, tp) => Alias(c, s"${ne.name}-$tp")
+            case c @ Cast(ne: NamedExpression, tp) => Alias(c, s"${ne.name}-$tp")
             case gcf: GetCompositeField => Alias(gcf, gcf.aliasName().getOrElse(s"_c$i"))
             case other => Alias(other, s"_c$i")
           }
           case _ =>
             throw new RuntimeException("This should never be called and probably points to a bug.")
         }
-      }
+    }
     Project(newProjectList, child)
   }
 
@@ -115,16 +115,15 @@ case class AliasNode(aliasList: Seq[Expression], child: LogicalNode) extends Una
     } else if (!aliasList.forall(_.asInstanceOf[UnresolvedFieldReference].name != "*")) {
       failValidation("Alias can not accept '*' as name")
     } else if (tableEnv.isInstanceOf[StreamTableEnvironment] && !aliasList.forall {
-      case UnresolvedFieldReference(name) => name != "rowtime"
-    }) {
+          case UnresolvedFieldReference(name) => name != "rowtime"
+        }) {
       failValidation("'rowtime' cannot be used as field name in a streaming environment.")
     } else {
       val names = aliasList.map(_.asInstanceOf[UnresolvedFieldReference].name)
       val input = child.output
       Project(
         names.zip(input).map { case (name, attr) =>
-          Alias(attr, name)
-        } ++ input.drop(names.length), child)
+          Alias(attr, name)} ++ input.drop(names.length), child)
     }
   }
 }
@@ -194,9 +193,8 @@ case class Filter(condition: Expression, child: LogicalNode) extends UnaryNode {
   override def validate(tableEnv: TableEnvironment): LogicalNode = {
     val resolvedFilter = super.validate(tableEnv).asInstanceOf[Filter]
     if (resolvedFilter.condition.resultType != BOOLEAN_TYPE_INFO) {
-      failValidation(
-        s"Filter operator requires a boolean expression as input," +
-          s" but ${resolvedFilter.condition} is of type ${resolvedFilter.condition.resultType}")
+      failValidation(s"Filter operator requires a boolean expression as input," +
+        s" but ${resolvedFilter.condition} is of type ${resolvedFilter.condition.resultType}")
     }
     resolvedFilter
   }
@@ -262,7 +260,6 @@ case class Aggregate(
             "because it's not a valid key type which must be hashable and comparable")
       }
     }
-
     resolvedAggregate
   }
 }
@@ -283,18 +280,16 @@ case class Minus(left: LogicalNode, right: LogicalNode, all: Boolean) extends Bi
 
     val resolvedMinus = super.validate(tableEnv).asInstanceOf[Minus]
     if (left.output.length != right.output.length) {
-      failValidation(
-        s"Minus two table of different column sizes:" +
-          s" ${left.output.size} and ${right.output.size}")
+      failValidation(s"Minus two table of different column sizes:" +
+        s" ${left.output.size} and ${right.output.size}")
     }
     val sameSchema = left.output.zip(right.output).forall { case (l, r) =>
       l.resultType == r.resultType
     }
     if (!sameSchema) {
-      failValidation(
-        s"Minus two table of different schema:" +
-          s" [${left.output.map(a => (a.name, a.resultType)).mkString(", ")}] and" +
-          s" [${right.output.map(a => (a.name, a.resultType)).mkString(", ")}]")
+      failValidation(s"Minus two table of different schema:" +
+        s" [${left.output.map(a => (a.name, a.resultType)).mkString(", ")}] and" +
+        s" [${right.output.map(a => (a.name, a.resultType)).mkString(", ")}]")
     }
     resolvedMinus
   }
@@ -316,18 +311,16 @@ case class Union(left: LogicalNode, right: LogicalNode, all: Boolean) extends Bi
 
     val resolvedUnion = super.validate(tableEnv).asInstanceOf[Union]
     if (left.output.length != right.output.length) {
-      failValidation(
-        s"Union two tables of different column sizes:" +
-          s" ${left.output.size} and ${right.output.size}")
+      failValidation(s"Union two tables of different column sizes:" +
+        s" ${left.output.size} and ${right.output.size}")
     }
     val sameSchema = left.output.zip(right.output).forall { case (l, r) =>
       l.resultType == r.resultType
     }
     if (!sameSchema) {
-      failValidation(
-        s"Union two tables of different schema:" +
-          s" [${left.output.map(a => (a.name, a.resultType)).mkString(", ")}] and" +
-          s" [${right.output.map(a => (a.name, a.resultType)).mkString(", ")}]")
+      failValidation(s"Union two tables of different schema:" +
+        s" [${left.output.map(a => (a.name, a.resultType)).mkString(", ")}] and" +
+        s" [${right.output.map(a => (a.name, a.resultType)).mkString(", ")}]")
     }
     resolvedUnion
   }
@@ -349,19 +342,17 @@ case class Intersect(left: LogicalNode, right: LogicalNode, all: Boolean) extend
 
     val resolvedIntersect = super.validate(tableEnv).asInstanceOf[Intersect]
     if (left.output.length != right.output.length) {
-      failValidation(
-        s"Intersect two tables of different column sizes:" +
-          s" ${left.output.size} and ${right.output.size}")
+      failValidation(s"Intersect two tables of different column sizes:" +
+        s" ${left.output.size} and ${right.output.size}")
     }
     // allow different column names between tables
     val sameSchema = left.output.zip(right.output).forall { case (l, r) =>
       l.resultType == r.resultType
     }
     if (!sameSchema) {
-      failValidation(
-        s"Intersect two tables of different schema:" +
-          s" [${left.output.map(a => (a.name, a.resultType)).mkString(", ")}] and" +
-          s" [${right.output.map(a => (a.name, a.resultType)).mkString(", ")}]")
+      failValidation(s"Intersect two tables of different schema:" +
+        s" [${left.output.map(a => (a.name, a.resultType)).mkString(", ")}] and" +
+        s" [${right.output.map(a => (a.name, a.resultType)).mkString(", ")}]")
     }
     resolvedIntersect
   }
@@ -379,10 +370,10 @@ case class Join(
   }
 
   private case class JoinFieldReference(
-      name: String,
-      resultType: TypeInformation[_],
-      left: LogicalNode,
-      right: LogicalNode) extends Attribute {
+    name: String,
+    resultType: TypeInformation[_],
+    left: LogicalNode,
+    right: LogicalNode) extends Attribute {
 
     val isFromLeftInput = left.output.map(_.name).contains(name)
 
@@ -398,11 +389,7 @@ case class Join(
 
     override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
       // look up type of field
-      val fieldType = relBuilder.field(2, if (isFromLeftInput) {
-        0
-      } else {
-        1
-      }, name).getType
+      val fieldType = relBuilder.field(2, if (isFromLeftInput) 0 else 1, name).getType
       // create a new RexInputRef with index offset
       new RexInputRef(indexInJoin, fieldType)
     }
@@ -455,9 +442,8 @@ case class Join(
 
     val resolvedJoin = super.validate(tableEnv).asInstanceOf[Join]
     if (!resolvedJoin.condition.forall(_.resultType == BOOLEAN_TYPE_INFO)) {
-      failValidation(
-        s"Filter operator requires a boolean expression as input, " +
-          s"but ${resolvedJoin.condition} is of type ${resolvedJoin.joinType}")
+      failValidation(s"Filter operator requires a boolean expression as input, " +
+        s"but ${resolvedJoin.condition} is of type ${resolvedJoin.joinType}")
     } else if (ambiguousName.nonEmpty) {
       failValidation(s"join relations with ambiguous names: ${ambiguousName.mkString(", ")}")
     }
@@ -571,7 +557,7 @@ case class WindowAggregate(
   override def resolveReference(
       tableEnv: TableEnvironment,
       name: String)
-  : Option[NamedExpression] = tableEnv match {
+    : Option[NamedExpression] = tableEnv match {
     // resolve reference to rowtime attribute in a streaming environment
     case _: StreamTableEnvironment if name == "rowtime" =>
       Some(RowtimeAttribute())
@@ -657,11 +643,11 @@ case class WindowAggregate(
 /**
   * LogicalNode for calling a user-defined table functions.
   *
-  * @param functionName  function name
+  * @param functionName function name
   * @param tableFunction table function to be called (might be overloaded)
-  * @param parameters    actual parameters
-  * @param fieldNames    output field names
-  * @param child         child logical node
+  * @param parameters actual parameters
+  * @param fieldNames output field names
+  * @param child child logical node
   */
 case class LogicalTableFunctionCall(
     functionName: String,
