@@ -131,33 +131,6 @@ class DataSetJoin(
       val leftFields = left.getRowType.getFieldList
       val rightFields = right.getRowType.getFieldList
 
-      def exceptionOnNonEqualityJoinPredicate(predicates: RexNode): Unit = {
-        val rexCall = predicates.asInstanceOf[RexCall]
-        val kind: SqlKind = rexCall.getKind
-        if (kind == SqlKind.AND || kind == SqlKind.OR) {
-          rexCall.getOperands.map(exceptionOnNonEqualityJoinPredicate(_))
-        }
-        if (kind != SqlKind.EQUALS && !predicates.isAlwaysTrue) {
-          val operands = rexCall.getOperands
-          if (operands.size() > 1 && operands.get(0).isInstanceOf[RexInputRef] && operands.get(1)
-            .isInstanceOf[RexInputRef]) {
-            throw TableException(
-              "Non equality join predicates not supported\n" +
-                s"\tLeft: ${left.toString},\n" +
-                s"\tRight: ${right.toString},\n" +
-                s"\tCondition: ($joinConditionToString)"
-            )
-          }
-        }
-      }
-
-      // remaining = [join predicates] - [equi-join predicates]
-      val remaining = joinInfo.getRemaining(cluster.getRexBuilder)
-      // disable outer joins with non-equality predicates
-      if(joinType!=JoinRelType.INNER && !remaining.isAlwaysTrue){
-        exceptionOnNonEqualityJoinPredicate(remaining)
-      }
-
       keyPairs.foreach(pair => {
         val leftKeyType = leftFields.get(pair.source).getType.getSqlTypeName
         val rightKeyType = rightFields.get(pair.target).getType.getSqlTypeName
