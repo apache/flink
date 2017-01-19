@@ -304,6 +304,12 @@ public class StateAssignmentOperation {
 			List<OperatorStateHandle>[] chainParallelOpStates, ChainedStateHandle<OperatorStateHandle> chainOpState) {
 
 		if (null != chainOpState) {
+
+			int chainLength = chainOpState.getLength();
+			Preconditions.checkState(chainLength >= chainParallelOpStates.length,
+					"Found more states than operators in the chain. Chain length: " + chainLength +
+							", States: " + chainParallelOpStates.length);
+
 			for (int chainIdx = 0; chainIdx < chainParallelOpStates.length; ++chainIdx) {
 				OperatorStateHandle operatorState = chainOpState.get(chainIdx);
 

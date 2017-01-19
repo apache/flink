@@ -30,6 +30,7 @@ import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.util.AbstractID;
+import org.apache.flink.util.IOUtils;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
 import org.rocksdb.NativeLibraryLoader;
@@ -63,6 +64,7 @@ import static java.util.Objects.requireNonNull;
  * {@link #setOptions(OptionsFactory)}.
  */
 public class RocksDBStateBackend extends AbstractStateBackend {
+
 	private static final long serialVersionUID = 1L;
 
 	private static final Logger LOG = LoggerFactory.getLogger(RocksDBStateBackend.class);
@@ -502,5 +504,12 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 		final Field initField = org.rocksdb.NativeLibraryLoader.class.getDeclaredField("initialized");
 		initField.setAccessible(true);
 		initField.setBoolean(null, false);
+	}
+
+	@Override
+	public void close() throws Exception {
+		IOUtils.closeQuietly(dbOptions);
+		IOUtils.closeQuietly(columnOptions);
+		IOUtils.closeQuietly(checkpointStreamBackend);
 	}
 }
