@@ -105,7 +105,7 @@ public abstract class Trigger<T, W extends Window> implements Serializable {
 	 * @param ctx A context object that can be used to register timer callbacks and access state.
 	 */
 	public void onMerge(W window, OnMergeContext ctx) throws Exception {
-		throw new RuntimeException("This trigger does not support merging.");
+		throw new UnsupportedOperationException("This trigger does not support merging.");
 	}
 
 	/**
