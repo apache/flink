@@ -18,16 +18,15 @@
 
 package org.apache.flink.table.api.scala.batch.sql
 
-import org.apache.flink.api.scala.ExecutionEnvironment
-import org.apache.flink.table.api.scala.batch.utils.TableProgramsCollectionTestBase
-import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
-import org.apache.flink.table.api.scala.batch.utils.SortTestUtils._
+import org.apache.flink.api.scala.{ExecutionEnvironment, _}
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.table.api.scala._
-import org.apache.flink.api.scala._
-import org.apache.flink.types.Row
+import org.apache.flink.table.api.scala.batch.utils.SortTestUtils._
+import org.apache.flink.table.api.scala.batch.utils.TableProgramsClusterTestBase
+import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.table.api.{TableEnvironment, TableException}
 import org.apache.flink.test.util.TestBaseUtils
+import org.apache.flink.types.Row
 import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -35,77 +34,95 @@ import org.junit.runners.Parameterized
 import scala.collection.JavaConverters._
 
 @RunWith(classOf[Parameterized])
-class SortITCase(
-    configMode: TableConfigMode)
-  extends TableProgramsCollectionTestBase(configMode) {
+class SortITCase(configMode: TableConfigMode) extends TableProgramsClusterTestBase(configMode) {
+
+  private def getExecutionEnvironment = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    // set the parallelism explicitly to make sure the query is executed in
+    // a distributed manner
+    env.setParallelism(3)
+    env
+  }
 
   @Test
   def testOrderByMultipleFieldsWithSql(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
+    val env = getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
     val sqlQuery = "SELECT * FROM MyTable ORDER BY _1 DESC, _2 DESC"
 
-    implicit def rowOrdering[T <: Product] = Ordering.by((x : T) =>
+    implicit def tupleOrdering[T <: Product] = Ordering.by((x : T) =>
       (- x.productElement(0).asInstanceOf[Int], - x.productElement(1).asInstanceOf[Long]))
 
     val ds = CollectionDataSets.get3TupleDataSet(env)
     tEnv.registerDataSet("MyTable", ds)
 
     val expected = sortExpectedly(tupleDataSetStrings)
+    // squash all rows inside a partition into one element
     val results = tEnv.sql(sqlQuery).toDataSet[Row].mapPartition(rows => Seq(rows.toSeq)).collect()
 
+    def rowOrdering = Ordering.by((r : Row) => {
+      // ordering for this tuple will fall into the previous defined tupleOrdering,
+      // so we just need to return the field by their defining sequence
+      (r.getField(0).asInstanceOf[Int], r.getField(1).asInstanceOf[Long])
+    })
+
     val result = results
-      .filterNot(_.isEmpty)
-      .sortBy(_.head)(Ordering.by(f=> f.toString))
-      .reduceLeft(_ ++ _)
+        .filterNot(_.isEmpty)
+        // sort all partitions by their head element to verify the order across partitions
+        .sortBy(_.head)(rowOrdering)
+        .reduceLeft(_ ++ _)
 
     TestBaseUtils.compareOrderedResultAsText(result.asJava, expected)
   }
 
   @Test
   def testOrderByWithOffset(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
+    val env = getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
     val sqlQuery = "SELECT * FROM MyTable ORDER BY _1 DESC OFFSET 2 ROWS"
 
-    implicit def rowOrdering[T <: Product] = Ordering.by((x : T) =>
+    implicit def tupleOrdering[T <: Product] = Ordering.by((x : T) =>
       - x.productElement(0).asInstanceOf[Int] )
 
     val ds = CollectionDataSets.get3TupleDataSet(env)
     tEnv.registerDataSet("MyTable", ds)
 
     val expected = sortExpectedly(tupleDataSetStrings, 2, 21)
+    // squash all rows inside a partition into one element
     val results = tEnv.sql(sqlQuery).toDataSet[Row].mapPartition(rows => Seq(rows.toSeq)).collect()
 
     val result = results.
-      filterNot(_.isEmpty)
-      .sortBy(_.head)(Ordering.by(f=> f.toString))
-      .reduceLeft(_ ++ _)
+        filterNot(_.isEmpty)
+        // sort all partitions by their head element to verify the order across partitions
+        .sortBy(_.head)(Ordering.by((r : Row) => -r.getField(0).asInstanceOf[Int]))
+        .reduceLeft(_ ++ _)
 
     TestBaseUtils.compareOrderedResultAsText(result.asJava, expected)
   }
 
   @Test
   def testOrderByWithOffsetAndFetch(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
+    val env = getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
     val sqlQuery = "SELECT * FROM MyTable ORDER BY _1 OFFSET 2 ROWS FETCH NEXT 5 ROWS ONLY"
 
-    implicit def rowOrdering[T <: Product] = Ordering.by((x : T) =>
+    implicit def tupleOrdering[T <: Product] = Ordering.by((x : T) =>
       x.productElement(0).asInstanceOf[Int] )
 
     val ds = CollectionDataSets.get3TupleDataSet(env)
     tEnv.registerDataSet("MyTable", ds)
 
     val expected = sortExpectedly(tupleDataSetStrings, 2, 7)
+    // squash all rows inside a partition into one element
     val results = tEnv.sql(sqlQuery).toDataSet[Row].mapPartition(rows => Seq(rows.toSeq)).collect()
 
     val result = results
       .filterNot(_.isEmpty)
-      .sortBy(_.head)(Ordering.by(f=> f.toString))
+        // sort all partitions by their head element to verify the order across partitions
+      .sortBy(_.head)(Ordering.by((r : Row) => r.getField(0).asInstanceOf[Int]))
       .reduceLeft(_ ++ _)
 
     TestBaseUtils.compareOrderedResultAsText(result.asJava, expected)
@@ -113,31 +130,39 @@ class SortITCase(
 
   @Test
   def testOrderByLimit(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
+    val env = getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
     val sqlQuery = "SELECT * FROM MyTable ORDER BY _2, _1 LIMIT 5"
 
-    implicit def rowOrdering[T <: Product] = Ordering.by((x : T) =>
+    implicit def tupleOrdering[T <: Product] = Ordering.by((x : T) =>
       (x.productElement(1).asInstanceOf[Long], x.productElement(0).asInstanceOf[Int]) )
 
     val ds = CollectionDataSets.get3TupleDataSet(env)
     tEnv.registerDataSet("MyTable", ds)
 
     val expected = sortExpectedly(tupleDataSetStrings, 0, 5)
+    // squash all rows inside a partition into one element
     val results = tEnv.sql(sqlQuery).toDataSet[Row].mapPartition(rows => Seq(rows.toSeq)).collect()
 
+    def rowOrdering = Ordering.by((r : Row) => {
+      // ordering for this tuple will fall into the previous defined tupleOrdering,
+      // so we just need to return the field by their defining sequence
+      (r.getField(0).asInstanceOf[Int], r.getField(1).asInstanceOf[Long])
+    })
+
     val result = results
-      .filterNot(_.isEmpty)
-      .sortBy(_.head)(Ordering.by(f=> f.toString))
-      .reduceLeft(_ ++ _)
+        .filterNot(_.isEmpty)
+        // sort all partitions by their head element to verify the order across partitions
+        .sortBy(_.head)(rowOrdering)
+        .reduceLeft(_ ++ _)
 
     TestBaseUtils.compareOrderedResultAsText(result.asJava, expected)
   }
 
   @Test(expected = classOf[TableException])
   def testLimitWithoutOrder(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
+    val env = getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
     val sqlQuery = "SELECT * FROM MyTable LIMIT 5"
