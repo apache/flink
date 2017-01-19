@@ -27,6 +27,7 @@ import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
 import org.apache.hadoop.yarn.client.api.YarnClient;
+import org.apache.hadoop.yarn.client.api.YarnClientApplication;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -90,7 +91,8 @@ public class YarnClusterClientV2 extends ClusterClient {
 	protected JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader) throws ProgramInvocationException {
 		try {
 			// Create application via yarnClient
-			ApplicationReport report = this.clusterDescriptor.startAppMaster(jobGraph, yarnClient);
+			final YarnClientApplication yarnApplication = yarnClient.createApplication();
+			ApplicationReport report = this.clusterDescriptor.startAppMaster(jobGraph, yarnClient, yarnApplication);
 			if (report.getYarnApplicationState().equals(YarnApplicationState.RUNNING)) {
 				appId = report.getApplicationId();
 				trackingURL = report.getTrackingUrl();
