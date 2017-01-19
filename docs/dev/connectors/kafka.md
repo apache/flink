@@ -247,6 +247,7 @@ the `Watermark getCurrentWatermark()` (for periodic) or the
 `Watermark checkAndGetNextWatermark(T lastElement, long extractedTimestamp)` (for punctuated) is called to determine
 if a new watermark should be emitted and with which timestamp.
 
+
 ### Kafka Producer
 
 The `FlinkKafkaProducer08` writes data to a Kafka topic. The producer can specify a custom partitioner that assigns
@@ -329,3 +330,26 @@ config.setWriteTimestampToKafka(true);
 {% endhighlight %}
 
 
+
+### Kafka Connector metrics
+
+Flink's Kafka connectors provide some metrics through Flink's [metrics system]({{ site.baseurl }}/monitoring/metrics.html) to analyze
+the behavior of the connector.
+The producers export Kafka's internal metrics through Flink's metric system for all supported versions. The consumers export 
+all metrics starting from Kafka version 0.9. The Kafka documentation lists all exported metrics 
+in its [documentation](http://kafka.apache.org/documentation/#selector_monitoring).
+
+In addition to these metrics, all consumers expose the `current-offsets` and `committed-offsets` for each topic partition.
+The `current-offsets` refers to the current offset in the partition. This refers to the offset of the last element that
+we retrieved and emitted successfully. The `committed-offsets` is the last committed offset.
+
+The Kafka Consumers in Flink commit the offsets back to Zookeeper (Kafka 0.8) or the Kafka brokers (Kafka 0.9+). If checkpointing
+is disabled, offsets are committed periodically.
+With checkpointing, the commit happens once all operators in the streaming topology have confirmed that they've created a checkpoint of their state. 
+This provides users with at-least-once semantics for the offsets committed to Zookeer or the broker. For offsets checkpointed to Flink, the system 
+provides exactly once guarantees.
+
+The offsets committed to ZK or the broker can also be used to track the read progress of the Kafka consumer. The difference between
+the committed offset and the most recent offset in each partition is called the *consumer lag*. If the Flink topology is consuming
+the data slower from the topic than new data is added, the lag will increase and the consumer will fall behind.
+For large production deployments we recommend monitoring that metric to avoid increasing latency.

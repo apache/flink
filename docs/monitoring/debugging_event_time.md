@@ -27,8 +27,31 @@ under the License.
 
 ## Monitoring Current Event Time
 
-  - What metrics, how to access in the UI
-  - Event time dominated by furthest-behind source
+Flink's [event time]({{ site.baseurl }}/dev/event_time.html) and watermark support is a powerful feature for handling
+out-of-order events. However, its harder to understand what exactly is going on because the progress of time
+is tracked within the system.
+
+There are plans (see [FLINK-3427](https://issues.apache.org/jira/browse/FLINK-3427)) to show the current low watermark
+for each operator in the Flink web interface.
+
+Until this feature is implemented the current low watermark for each task can be accessed through the 
+[metrics system]({{ site.baseurl }}/monitoring/metrics.html).
+
+Each Task in Flink exposes a metric called `currentLowWatermark` that represents the lowest watermark received
+by this task. This long value represents the "current event time".
+The value is calculated by taking the minimum of all watermarks received by upstream operators. This means that 
+the event time tracked with watermarks is always dominated by the furthest-behind source.
+
+The low watermark metric is accessible **using the web interface**, by choosing a task in the metric tab,
+and selecting the `<taskNr>.currentLowWatermark` metric. In the new box you'll now be able to see 
+the current low watermark of the task.
+
+Another way of getting the metric is using one of the **metric reporters**, as described in the documentation
+for the [metrics system]({{ site.baseurl }}/monitoring/metrics.html).
+For local setups, we recommend using the JMX metric reporter and a tool like [VisualVM](https://visualvm.github.io/).
+
+
+
 
 ## Handling Event Time Stragglers
 

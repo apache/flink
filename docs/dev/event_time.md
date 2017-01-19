@@ -204,3 +204,9 @@ the evaluation of the event time windows by too much.
 Due to that, some streaming programs will explicitly expect a number of *late* elements. Late elements are elements that
 arrive after the system's event time clock (as signaled by the watermarks) has already passed the time of the late element's
 timestamp.
+
+
+## Debugging Watermarks
+
+Please refer to the [Debugging Windows & Event Time]({{ site.baseurl }}/monitoring/debugging_event_time.html) section for debugging
+watermarks at runtime.
