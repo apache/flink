@@ -499,7 +499,6 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		// Create application via yarnClient
 		final YarnClientApplication yarnApplication = yarnClient.createApplication();
 		GetNewApplicationResponse appResponse = yarnApplication.getNewApplicationResponse();
-		ApplicationSubmissionContext appContext = yarnApplication.getApplicationSubmissionContext();
 
 		Resource maxRes = appResponse.getMaximumResourceCapability();
 		final String NOTE = "Please check the 'yarn.scheduler.maximum-allocation-mb' and the 'yarn.nodemanager.resource.memory-mb' configuration values\n";
@@ -555,7 +554,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			}
 		}
 
-		ApplicationReport report = startAppMaster(null, yarnClient);
+		ApplicationReport report = startAppMaster(null, yarnClient, yarnApplication);
 
 		String host = report.getHost();
 		int port = report.getRpcPort();
@@ -568,7 +567,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		return createYarnClusterClient(this, yarnClient, report, flinkConfiguration, sessionFilesDir, true);
 	}
 
-	public ApplicationReport startAppMaster(JobGraph jobGraph, YarnClient yarnClient) throws Exception {
+	public ApplicationReport startAppMaster(JobGraph jobGraph, YarnClient yarnClient, YarnClientApplication yarnApplication) throws Exception {
 
 		// ------------------ Set default file system scheme -------------------------
 
@@ -592,7 +591,6 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 					+ "The Flink YARN client needs to store its files in a distributed file system");
 		}
 
-		final YarnClientApplication yarnApplication = yarnClient.createApplication();
 		ApplicationSubmissionContext appContext = yarnApplication.getApplicationSubmissionContext();
 		Set<File> effectiveShipFiles = new HashSet<>(shipFiles.size());
 		for (File file : shipFiles) {
