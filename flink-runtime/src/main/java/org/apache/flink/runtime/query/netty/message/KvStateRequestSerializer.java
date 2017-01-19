@@ -453,24 +453,32 @@ public final class KvStateRequestSerializer {
 	 */
 	public static <T> List<T> deserializeList(byte[] serializedValue, TypeSerializer<T> serializer) throws IOException {
 		if (serializedValue != null) {
-			DataInputDeserializer in = new DataInputDeserializer(serializedValue, 0, serializedValue.length);
+			final DataInputDeserializer in = new DataInputDeserializer(
+				serializedValue, 0, serializedValue.length);
 
-			List<T> result = new ArrayList<>();
-			while (in.available() > 0) {
-				result.add(serializer.deserialize(in));
+			try {
+				final List<T> result = new ArrayList<>();
+				while (in.available() > 0) {
+					result.add(serializer.deserialize(in));
 
-				// The expected binary format has a single byte separator. We
-				// want a consistent binary format in order to not need any
-				// special casing during deserialization. A "cleaner" format
-				// would skip this extra byte, but would require a memory copy
-				// for RocksDB, which stores the data serialized in this way
-				// for lists.
-				if (in.available() > 0) {
-					in.readByte();
+					// The expected binary format has a single byte separator. We
+					// want a consistent binary format in order to not need any
+					// special casing during deserialization. A "cleaner" format
+					// would skip this extra byte, but would require a memory copy
+					// for RocksDB, which stores the data serialized in this way
+					// for lists.
+					if (in.available() > 0) {
+						in.readByte();
+					}
 				}
-			}
 
-			return result;
+				return result;
+			} catch (IOException e) {
+				throw new IOException(
+						"Unable to deserialize value. " +
+							"This indicates a mismatch in the value serializers " +
+							"used by the KvState instance and this access.", e);
+			}
 		} else {
 			return null;
 		}
