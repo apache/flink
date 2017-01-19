@@ -94,7 +94,24 @@ case class Project(projectList: Seq[NamedExpression], child: LogicalNode) extend
   override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
     child.construct(relBuilder)
     relBuilder.project(
-      projectList.map(_.toRexNode(relBuilder)).asJava,
+      projectList.map {
+        case Alias(gf: GroupFunction, name, extraNames) =>
+          children.head match {
+
+            case GroupingAggregation(grpExps, _, node) =>
+              Alias(gf.replaceExpression(relBuilder,
+                Some(grpExps.flatten.distinct), node.output, indicator = true),
+                    name, extraNames).toRexNode(relBuilder)
+
+            case Aggregate(grpExps, _, node) =>
+              Alias(gf.replaceExpression(relBuilder, Some(grpExps), node.output),
+                    name, extraNames).toRexNode(relBuilder)
+
+            case _ =>
+              Alias(gf.replaceExpression(relBuilder, None), name, extraNames).toRexNode(relBuilder)
+          }
+        case x => x.toRexNode(relBuilder)
+      }.asJava,
       projectList.map(_.name).asJava,
       true)
   }
@@ -279,11 +296,10 @@ case class GroupingAggregation(
 
   override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
     child.construct(relBuilder)
-    val groupingSets = groupingExpressions.map(_.map(_.toRexNode(relBuilder)).toList).toList
     relBuilder.aggregate(
       relBuilder.groupKey(
         groupingExpressions.flatten.distinct.map(_.toRexNode(relBuilder)).asJava,
-        true, groupingSets.map(_.asJava).asJava
+        true, groupingExpressions.map(_.map(_.toRexNode(relBuilder)).asJava).asJava
       ),
       aggregateExpressions.map {
         case Alias(agg: Aggregation, name, _) => agg.toAggCall(name)(relBuilder)
