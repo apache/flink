@@ -249,8 +249,6 @@ public class BarrierBufferTest {
 			check(sequence[2], buffer.getNextNonBlocked());
 			assertEquals(1L, handler.getNextExpectedCheckpointId());
 
-			long buffered = BufferSpiller.HEADER_SIZE + sequence[6].getBuffer().getSize() + BufferSpiller.HEADER_SIZE + sequence[5].getBuffer().getSize();
-
 			long startTs = System.nanoTime();
 
 			// blocking while aligning for checkpoint 1
@@ -261,7 +259,7 @@ public class BarrierBufferTest {
 			check(sequence[5], buffer.getNextNonBlocked());
 			assertEquals(2L, handler.getNextExpectedCheckpointId());
 			validateAlignmentTime(startTs, buffer);
-			validateAlignmentBuffered(handler.getLastReportedBytesBufferedInAlignment(), sequence[6], sequence[5]);
+			validateAlignmentBuffered(handler.getLastReportedBytesBufferedInAlignment(), sequence[5], sequence[6]);
 
 			check(sequence[6], buffer.getNextNonBlocked());
 
