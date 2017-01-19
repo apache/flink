@@ -310,7 +310,7 @@ public class CheckpointStatsSubtaskDetailsHandlerTest {
 	private static void verifySubtaskStats(JsonNode subtaskNode, int index, SubtaskStateStats subtask) {
 		if (subtask == null) {
 			assertEquals(index, subtaskNode.get("index").asInt());
-			assertEquals("pending", subtaskNode.get("status").asText());
+			assertEquals("pending_or_failed", subtaskNode.get("status").asText());
 		} else {
 			assertEquals(subtask.getSubtaskIndex(), subtaskNode.get("index").asInt());
 			assertEquals("completed", subtaskNode.get("status").asText());

@@ -168,7 +168,7 @@ public class CheckpointStatsDetailsSubtasksHandler extends AbstractExecutionGrap
 				gen.writeNumberField("duration", subtask.getAlignmentDuration());
 				gen.writeEndObject();
 			} else {
-				gen.writeStringField("status", "pending");
+				gen.writeStringField("status", "pending_or_failed");
 			}
 			gen.writeEndObject();
 		}
