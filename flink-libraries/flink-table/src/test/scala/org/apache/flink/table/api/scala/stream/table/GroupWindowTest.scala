@@ -53,7 +53,7 @@ class GroupWindowTest extends TableTestBase {
     val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
 
     table
-      .select('string, 'int as 'rowtime) // rowtime attribute must not be an alias
+    .select('string, 'int as 'rowtime) // rowtime attribute must not be an alias
   }
 
   @Test(expected = classOf[ValidationException])
@@ -70,10 +70,35 @@ class GroupWindowTest extends TableTestBase {
     val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
 
     table
-      // only rowtime is a valid time attribute in a stream environment
-      .window(Tumble over 50.milli on 'string as 'w)
-      .groupBy('w, 'string)
-      .select('string, 'int.count)
+    // only rowtime is a valid time attribute in a stream environment
+    .window(Tumble over 50.milli on 'string as 'w)
+    .groupBy('w, 'string)
+    .select('string, 'int.count)
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testGroupByWithoutWindowAlias(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
+
+    table
+    .window(Tumble over 5.milli on 'long as 'w)
+    .groupBy('string)
+    .select('string, 'int.count)
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testInvalidRowTimeRef(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
+
+    table
+    .window(Tumble over 5.milli on 'long as 'w)
+    .groupBy('w, 'string)
+    .select('string, 'int.count)
+    .window(Slide over 5.milli every 1.milli on 'int as 'w2) // 'Int  does not exist in input.
+    .groupBy('w2)
+    .select('string)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -82,9 +107,9 @@ class GroupWindowTest extends TableTestBase {
     val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
 
     table
-      .window(Tumble over "WRONG" as 'w) // string is not a valid interval
-      .groupBy('w, 'string)
-      .select('string, 'int.count)
+    .window(Tumble over "WRONG" as 'w) // string is not a valid interval
+    .groupBy('w, 'string)
+    .select('string, 'int.count)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -93,9 +118,9 @@ class GroupWindowTest extends TableTestBase {
     val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
 
     table
-      .window(Slide over "WRONG" every "WRONG" as 'w) // string is not a valid interval
-      .groupBy('w, 'string)
-      .select('string, 'int.count)
+    .window(Slide over "WRONG" every "WRONG" as 'w) // string is not a valid interval
+    .groupBy('w, 'string)
+    .select('string, 'int.count)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -104,9 +129,9 @@ class GroupWindowTest extends TableTestBase {
     val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
 
     table
-      .window(Slide over 12.rows every 1.minute as 'w) // row and time intervals may not be mixed
-      .groupBy('w, 'string)
-      .select('string, 'int.count)
+    .window(Slide over 12.rows every 1.minute as 'w) // row and time intervals may not be mixed
+    .groupBy('w, 'string)
+    .select('string, 'int.count)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -115,9 +140,9 @@ class GroupWindowTest extends TableTestBase {
     val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
 
     table
-      .window(Session withGap 10.rows as 'w) // row interval is not valid for session windows
-      .groupBy('w, 'string)
-      .select('string, 'int.count)
+    .window(Session withGap 10.rows as 'w) // row interval is not valid for session windows
+    .groupBy('w, 'string)
+    .select('string, 'int.count)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -126,9 +151,9 @@ class GroupWindowTest extends TableTestBase {
     val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
 
     table
-      .window(Session withGap 100.milli as 1 + 1) // expression instead of a symbol
-      .groupBy('string)
-      .select('string, 'int.count)
+    .window(Session withGap 100.milli as 1 + 1) // expression instead of a symbol
+    .groupBy('string)
+    .select('string, 'int.count)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -137,9 +162,9 @@ class GroupWindowTest extends TableTestBase {
     val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
 
     table
-      .window(Session withGap 100.milli as 'string) // field name "string" is already present
-      .groupBy('string)
-      .select('string, 'int.count)
+    .window(Session withGap 100.milli as 'string) // field name "string" is already present
+    .groupBy('string)
+    .select('string, 'int.count)
   }
 
   @Test

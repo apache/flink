@@ -33,6 +33,17 @@ class GroupWindowTest extends TableTestBase {
   //===============================================================================================
 
   @Test(expected = classOf[ValidationException])
+  def testGroupByWithoutWindowAlias(): Unit = {
+    val util = batchTestUtil()
+    val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
+
+    table
+    .window(Tumble over 5.milli on 'long as 'w)
+    .groupBy('string)
+    .select('string, 'int.count)
+  }
+
+  @Test(expected = classOf[ValidationException])
   def testInvalidRowTimeRef(): Unit = {
     val util = batchTestUtil()
     val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)

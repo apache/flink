@@ -121,7 +121,7 @@ class DataSetWindowAggregateITCase(configMode: TableConfigMode)
   }
 
   @Test(expected = classOf[ValidationException])
-  def testMutilGroupWindow(): Unit = {
+  def testMultiGroupWindow(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
