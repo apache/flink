@@ -18,16 +18,19 @@
 
 package org.apache.flink.table.api.scala.batch.table
 
-import org.apache.flink.table.api.scala.batch.utils.SortTestUtils._
+import java.util
+
 import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase
-import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.ValidationException
+import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.api.scala.{ExecutionEnvironment, _}
-import org.apache.flink.types.Row
-import org.apache.flink.table.api.{TableEnvironment, ValidationException}
-import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
+import org.apache.flink.table.api.TableEnvironment
+import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.scala.batch.utils.SortTestUtils._
+import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.test.util.TestBaseUtils
+import org.apache.flink.types.Row
 import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -36,13 +39,14 @@ import scala.collection.JavaConverters._
 
 @RunWith(classOf[Parameterized])
 class SortITCase(
-    mode: TestExecutionMode,
     configMode: TableConfigMode)
-  extends TableProgramsTestBase(mode, configMode) {
+  extends TableProgramsTestBase(TestExecutionMode.CLUSTER, configMode) {
 
-  def getExecutionEnvironment = {
+  private def getExecutionEnvironment = {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    env.setParallelism(4)
+    // set the parallelism explicitly to make sure the query is executed in
+    // a distributed manner
+    env.setParallelism(3)
     env
   }
 
@@ -53,16 +57,18 @@ class SortITCase(
 
     val ds = CollectionDataSets.get3TupleDataSet(env)
     val t = ds.toTable(tEnv).orderBy('_1.desc)
-    implicit def rowOrdering[T <: Product] = Ordering.by((x : T) =>
+    implicit def tupleOrdering[T <: Product] = Ordering.by((x : T) =>
       - x.productElement(0).asInstanceOf[Int] )
 
     val expected = sortExpectedly(tupleDataSetStrings)
+    // squash all rows inside a partition into one element
     val results = t.toDataSet[Row].mapPartition(rows => Seq(rows.toSeq)).collect()
 
     val result = results
-      .filterNot(_.isEmpty)
-      .sortBy(_.head)(Ordering.by(f=> f.toString))
-      .reduceLeft(_ ++ _)
+        .filterNot(_.isEmpty)
+        // sort all partitions by their head element to verify the order across partitions
+        .sortBy(_.head)(Ordering.by((r : Row) => -r.getField(0).asInstanceOf[Int]))
+        .reduceLeft(_ ++ _)
 
     TestBaseUtils.compareOrderedResultAsText(result.asJava, expected)
   }
@@ -74,16 +80,18 @@ class SortITCase(
 
     val ds = CollectionDataSets.get3TupleDataSet(env)
     val t = ds.toTable(tEnv).orderBy('_1.asc)
-    implicit def rowOrdering[T <: Product] = Ordering.by((x : T) =>
+    implicit def tupleOrdering[T <: Product] = Ordering.by((x : T) =>
       x.productElement(0).asInstanceOf[Int] )
 
     val expected = sortExpectedly(tupleDataSetStrings)
+    // squash all rows inside a partition into one element
     val results = t.toDataSet[Row].mapPartition(rows => Seq(rows.toSeq)).collect()
 
     val result = results
-      .filterNot(_.isEmpty)
-      .sortBy(_.head)(Ordering.by(f=> f.toString))
-      .reduceLeft(_ ++ _)
+        .filterNot(_.isEmpty)
+        // sort all partitions by their head element to verify the order across partitions
+        .sortBy(_.head)(Ordering.by((r : Row) => r.getField(0).asInstanceOf[Int]))
+        .reduceLeft(_ ++ _)
 
     TestBaseUtils.compareOrderedResultAsText(result.asJava, expected)
   }
@@ -95,16 +103,24 @@ class SortITCase(
 
     val ds = CollectionDataSets.get3TupleDataSet(env)
     val t = ds.toTable(tEnv).orderBy('_2.asc, '_1.desc)
-    implicit def rowOrdering[T <: Product] = Ordering.by((x : T) =>
+    implicit def tupleOrdering[T <: Product] = Ordering.by((x : T) =>
       (x.productElement(1).asInstanceOf[Long], - x.productElement(0).asInstanceOf[Int]) )
 
     val expected = sortExpectedly(tupleDataSetStrings)
+    // squash all rows inside a partition into one element
     val results = t.toDataSet[Row].mapPartition(rows => Seq(rows.toSeq)).collect()
 
+    def rowOrdering = Ordering.by((r : Row) => {
+      // ordering for this tuple will fall into the previous defined tupleOrdering,
+      // so we just need to return the field by their defining sequence
+      (r.getField(0).asInstanceOf[Int], r.getField(1).asInstanceOf[Long])
+    })
+
     val result = results
-      .filterNot(_.isEmpty)
-      .sortBy(_.head)(Ordering.by(f=> f.toString))
-      .reduceLeft(_ ++ _)
+        .filterNot(_.isEmpty)
+        // sort all partitions by their head element to verify the order across partitions
+        .sortBy(_.head)(rowOrdering)
+        .reduceLeft(_ ++ _)
 
     TestBaseUtils.compareOrderedResultAsText(result.asJava, expected)
   }
@@ -116,16 +132,18 @@ class SortITCase(
 
     val ds = CollectionDataSets.get3TupleDataSet(env)
     val t = ds.toTable(tEnv).orderBy('_1.asc).limit(3)
-    implicit def rowOrdering[T <: Product] = Ordering.by((x : T) =>
+    implicit def tupleOrdering[T <: Product] = Ordering.by((x : T) =>
       x.productElement(0).asInstanceOf[Int] )
 
     val expected = sortExpectedly(tupleDataSetStrings, 3, 21)
+    // squash all rows inside a partition into one element
     val results = t.toDataSet[Row].mapPartition(rows => Seq(rows.toSeq)).collect()
 
     val result = results
-      .filterNot(_.isEmpty)
-      .sortBy(_.head)(Ordering.by(f=> f.toString))
-      .reduceLeft(_ ++ _)
+        .filterNot(_.isEmpty)
+        // sort all partitions by their head element to verify the order across partitions
+        .sortBy(_.head)(Ordering.by((r : Row) => r.getField(0).asInstanceOf[Int]))
+        .reduceLeft(_ ++ _)
 
     TestBaseUtils.compareOrderedResultAsText(result.asJava, expected)
   }
@@ -137,16 +155,18 @@ class SortITCase(
 
     val ds = CollectionDataSets.get3TupleDataSet(env)
     val t = ds.toTable(tEnv).orderBy('_1.desc).limit(3, 5)
-    implicit def rowOrdering[T <: Product] = Ordering.by((x : T) =>
+    implicit def tupleOrdering[T <: Product] = Ordering.by((x : T) =>
       - x.productElement(0).asInstanceOf[Int] )
 
     val expected = sortExpectedly(tupleDataSetStrings, 3, 8)
+    // squash all rows inside a partition into one element
     val results = t.toDataSet[Row].mapPartition(rows => Seq(rows.toSeq)).collect()
 
     val result = results
-      .filterNot(_.isEmpty)
-      .sortBy(_.head)(Ordering.by(f=> f.toString))
-      .reduceLeft(_ ++ _)
+        .filterNot(_.isEmpty)
+        // sort all partitions by their head element to verify the order across partitions
+        .sortBy(_.head)(Ordering.by((r : Row) => -r.getField(0).asInstanceOf[Int]))
+        .reduceLeft(_ ++ _)
 
     TestBaseUtils.compareOrderedResultAsText(result.asJava, expected)
   }
@@ -158,16 +178,20 @@ class SortITCase(
 
     val ds = CollectionDataSets.get3TupleDataSet(env)
     val t = ds.toTable(tEnv).orderBy('_1.asc).limit(0, 5)
-    implicit def rowOrdering[T <: Product] = Ordering.by((x : T) =>
+    implicit def tupleOrdering[T <: Product] = Ordering.by((x : T) =>
       x.productElement(0).asInstanceOf[Int] )
 
     val expected = sortExpectedly(tupleDataSetStrings, 0, 5)
+    // squash all rows inside a partition into one element
     val results = t.toDataSet[Row].mapPartition(rows => Seq(rows.toSeq)).collect()
 
+    implicit def rowOrdering = Ordering.by((r : Row) => r.getField(0).asInstanceOf[Int])
+
     val result = results
-      .filterNot(_.isEmpty)
-      .sortBy(_.head)(Ordering.by(f=> f.toString))
-      .reduceLeft(_ ++ _)
+        .filterNot(_.isEmpty)
+        // sort all partitions by their head element to verify the order across partitions
+        .sortBy(_.head)
+        .reduceLeft(_ ++ _)
 
     TestBaseUtils.compareOrderedResultAsText(result.asJava, expected)
   }
@@ -183,4 +207,12 @@ class SortITCase(
     t.toDataSet[Row].collect()
   }
 
+}
+
+object SortITCase {
+
+  @Parameterized.Parameters(name = "Table config = {0}")
+  def parameters(): util.Collection[Array[java.lang.Object]] = {
+    Seq[Array[AnyRef]](Array(TableProgramsTestBase.DEFAULT)).asJavaCollection
+  }
 }
