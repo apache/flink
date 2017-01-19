@@ -342,6 +342,35 @@ public class KvStateRequestSerializerTest {
 		assertEquals(expectedValue, actualValue.get(0).longValue());
 	}
 
+	/**
+	 * Tests list deserialization with too few bytes.
+	 */
+	@Test
+	public void testDeserializeListEmpty() throws Exception {
+		List<Long> actualValue = KvStateRequestSerializer
+			.deserializeList(new byte[] {}, LongSerializer.INSTANCE);
+		assertEquals(0, actualValue.size());
+	}
+
+	/**
+	 * Tests list deserialization with too few bytes.
+	 */
+	@Test(expected = IOException.class)
+	public void testDeserializeListTooShort1() throws Exception {
+		// 1 byte (incomplete Long)
+		KvStateRequestSerializer.deserializeList(new byte[] {1}, LongSerializer.INSTANCE);
+	}
+
+	/**
+	 * Tests list deserialization with too few bytes.
+	 */
+	@Test(expected = IOException.class)
+	public void testDeserializeListTooShort2() throws Exception {
+		// Long + 1 byte (separator) + 1 byte (incomplete Long)
+		KvStateRequestSerializer.deserializeList(new byte[] {1, 1, 1, 1, 1, 1, 1, 1, 2, 3},
+			LongSerializer.INSTANCE);
+	}
+
 	private byte[] randomByteArray(int capacity) {
 		byte[] bytes = new byte[capacity];
 		ThreadLocalRandom.current().nextBytes(bytes);
