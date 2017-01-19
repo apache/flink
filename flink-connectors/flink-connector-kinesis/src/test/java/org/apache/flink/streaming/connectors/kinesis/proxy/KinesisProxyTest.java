@@ -17,7 +17,8 @@
 
 package org.apache.flink.streaming.connectors.kinesis.proxy;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertFalse;
 
 import org.junit.Test;
 
@@ -27,8 +28,7 @@ import com.amazonaws.services.kinesis.model.ExpiredIteratorException;
 import com.amazonaws.services.kinesis.model.ProvisionedThroughputExceededException;
 
 /**
- * Test for methods in the KinesisProxy class.
- * 
+ * Test for methods in the {@link KinesisProxy} class.
  */
 public class KinesisProxyTest {
 

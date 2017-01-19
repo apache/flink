@@ -263,11 +263,9 @@ public class KinesisProxy implements KinesisProxyInterface {
 	}
 
 	/**
-	 * Determines whether the exception can be recovered from using
-	 * exponential-backoff
+	 * Determines whether the exception is recoverable using exponential-backoff.
 	 * 
-	 * @param ex
-	 *            Exception to inspect
+	 * @param ex Exception to inspect
 	 * @return <code>true</code> if the exception can be recovered from, else
 	 *         <code>false</code>
 	 */
@@ -277,17 +275,13 @@ public class KinesisProxy implements KinesisProxyInterface {
 		}
 
 		switch (ex.getErrorType()) {
-		case Client:
-			if (ex instanceof ProvisionedThroughputExceededException) {
+			case Client:
+				return ex instanceof ProvisionedThroughputExceededException;
+			case Service:
+			case Unknown:
 				return true;
-			} else {
+			default:
 				return false;
-			}
-		case Service:
-		case Unknown:
-			return true;
-		default:
-			return false;
 		}
 	}
 
