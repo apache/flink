@@ -78,27 +78,6 @@ class JoinITCase(
   }
 
   @Test
-  def testJoinWithJoinFilter(): Unit = {
-
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
-    val sqlQuery = "SELECT c, g FROM Table3, Table5 WHERE b = e AND a < 6"
-
-    val ds1 = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
-    val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('d, 'e, 'f, 'g, 'h)
-    tEnv.registerTable("Table3", ds1)
-    tEnv.registerTable("Table5", ds2)
-
-    val result = tEnv.sql(sqlQuery)
-
-    val expected = "Hi,Hallo\n" + "Hello,Hallo Welt\n" + "Hello world,Hallo Welt\n" +
-      "Hello world, how are you?,Hallo Welt wie\n" + "I am fine.,Hallo Welt wie\n"
-    val results = result.toDataSet[Row].collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
-  }
-
-  @Test
   def testInnerJoinWithNonEquiJoinPredicate(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
@@ -411,8 +390,6 @@ class JoinITCase(
     tEnv.registerTable("Table5", ds2)
 
     tEnv.sql(sqlQuery).toDataSet[Row].collect()
-
-    val results = tEnv.sql(sqlQuery).toDataSet[Row].collect()
   }
 
   @Test(expected = classOf[TableException])
@@ -430,8 +407,6 @@ class JoinITCase(
     tEnv.registerTable("Table5", ds2)
 
     tEnv.sql(sqlQuery).toDataSet[Row].collect()
-
-    val results = tEnv.sql(sqlQuery).toDataSet[Row].collect()
   }
 
   @Test(expected = classOf[TableException])
@@ -449,8 +424,56 @@ class JoinITCase(
     tEnv.registerTable("Table5", ds2)
 
     tEnv.sql(sqlQuery).toDataSet[Row].collect()
-
-    val results = tEnv.sql(sqlQuery).toDataSet[Row].collect()
   }
 
+  @Test(expected = classOf[TableException])
+  def testRightOuterJoinWithLocalPredicate(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    tEnv.getConfig.setNullCheck(true)
+
+    val sqlQuery = "SELECT c, g FROM Table3 RIGHT OUTER JOIN Table5 ON b = e and e > 3"
+
+    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
+    val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('d, 'e, 'f, 'g, 'h)
+    tEnv.registerTable("Table3", ds1)
+    tEnv.registerTable("Table5", ds2)
+
+    tEnv.sql(sqlQuery).toDataSet[Row].collect()
+  }
+
+  @Test(expected = classOf[TableException])
+  def testLeftOuterJoinWithLocalPredicate(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    tEnv.getConfig.setNullCheck(true)
+
+    val sqlQuery = "SELECT c, g FROM Table3 LEFT OUTER JOIN Table5 ON b = e and b > 3"
+
+    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
+    val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('d, 'e, 'f, 'g, 'h)
+    tEnv.registerTable("Table3", ds1)
+    tEnv.registerTable("Table5", ds2)
+
+    tEnv.sql(sqlQuery).toDataSet[Row].collect()
+  }
+
+  @Test(expected = classOf[TableException])
+  def testFullOuterJoinWithLocalPredicate(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    tEnv.getConfig.setNullCheck(true)
+
+    val sqlQuery = "SELECT c, g FROM Table3 FULL OUTER JOIN Table5 ON b = e and b > 3"
+
+    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
+    val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('d, 'e, 'f, 'g, 'h)
+    tEnv.registerTable("Table3", ds1)
+    tEnv.registerTable("Table5", ds2)
+
+    tEnv.sql(sqlQuery).toDataSet[Row].collect()
+  }
 }

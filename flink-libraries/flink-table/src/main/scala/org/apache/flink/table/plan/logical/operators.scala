@@ -457,7 +457,7 @@ case class Join(
     def checkIfJoinCondition(exp: BinaryComparison) = exp.children match {
       case (x: JoinFieldReference) :: (y: JoinFieldReference) :: Nil
         if x.isFromLeftInput != y.isFromLeftInput => true
-      case x => false
+      case _ => false
     }
 
     def checkIfFilterCondition(exp: BinaryComparison) = exp.children match {
