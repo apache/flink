@@ -28,6 +28,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.query.KvStateID;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
@@ -221,6 +222,43 @@ public class KvStateRequestSerializerTest {
 		long actualValue = KvStateRequestSerializer.deserializeValue(serializedValue, valueSerializer);
 
 		assertEquals(expectedValue, actualValue);
+	}
+
+	/**
+	 * Tests value deserialization with too few bytes.
+	 */
+	@Test(expected = IOException.class)
+	public void testDeserializeValueEmpty() throws Exception {
+		KvStateRequestSerializer.deserializeValue(new byte[] {}, LongSerializer.INSTANCE);
+	}
+
+	/**
+	 * Tests value deserialization with too few bytes.
+	 */
+	@Test(expected = IOException.class)
+	public void testDeserializeValueTooShort() throws Exception {
+		// 1 byte (incomplete Long)
+		KvStateRequestSerializer.deserializeValue(new byte[] {1}, LongSerializer.INSTANCE);
+	}
+
+	/**
+	 * Tests value deserialization with too many bytes.
+	 */
+	@Test(expected = IOException.class)
+	public void testDeserializeValueTooMany1() throws Exception {
+		// Long + 1 byte
+		KvStateRequestSerializer.deserializeValue(new byte[] {1, 1, 1, 1, 1, 1, 1, 1, 2},
+			LongSerializer.INSTANCE);
+	}
+
+	/**
+	 * Tests value deserialization with too many bytes.
+	 */
+	@Test(expected = IOException.class)
+	public void testDeserializeValueTooMany2() throws Exception {
+		// Long + 2 bytes
+		KvStateRequestSerializer.deserializeValue(new byte[] {1, 1, 1, 1, 1, 1, 1, 1, 2, 2},
+			LongSerializer.INSTANCE);
 	}
 
 	/**

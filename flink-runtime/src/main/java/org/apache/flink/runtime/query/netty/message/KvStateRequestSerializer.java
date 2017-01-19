@@ -429,8 +429,16 @@ public final class KvStateRequestSerializer {
 		if (serializedValue == null) {
 			return null;
 		} else {
-			DataInputDeserializer deser = new DataInputDeserializer(serializedValue, 0, serializedValue.length);
-			return serializer.deserialize(deser);
+			final DataInputDeserializer deser =
+				new DataInputDeserializer(serializedValue, 0, serializedValue.length);
+			final T value = serializer.deserialize(deser);
+			if (deser.available() > 0) {
+				throw new IOException(
+					"Unconsumed bytes in the deserialized value. " +
+						"This indicates a mismatch in the value serializers " +
+						"used by the KvState instance and this access.");
+			}
+			return value;
 		}
 	}
 
