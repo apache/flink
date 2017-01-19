@@ -39,7 +39,7 @@ public class TranslateEdgeValues<K, VV, OLD, NEW>
 extends GraphAlgorithmWrappingGraph<K, VV, OLD, K, VV, NEW> {
 
 	// Required configuration
-	private TranslateFunction<OLD,NEW> translator;
+	private TranslateFunction<OLD, NEW> translator;
 
 	// Optional configuration
 	private int parallelism = PARALLELISM_DEFAULT;

@@ -36,6 +36,7 @@ import org.apache.flink.util.NetUtils;
 
 import org.slf4j.Logger;
 
+import org.slf4j.LoggerFactory;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.File;
@@ -44,13 +45,16 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.BindException;
 import java.net.ServerSocket;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
 
 /**
  * Tools for starting JobManager and TaskManager processes, including the
  * Actor Systems used to run the JobManager and TaskManager actors.
  */
 public class BootstrapTools {
+	private static final Logger LOG = LoggerFactory.getLogger(BootstrapTools.class);
 
 	/**
 	 * Starts an ActorSystem with the given configuration listening at the address/ports.
@@ -347,38 +351,48 @@ public class BootstrapTools {
 			boolean hasKrb5,
 			Class<?> mainClass) {
 
-		StringBuilder tmCommand = new StringBuilder("$JAVA_HOME/bin/java");
-		tmCommand.append(" -Xms").append(tmParams.taskManagerHeapSizeMB()).append("m");
-		tmCommand.append(" -Xmx").append(tmParams.taskManagerHeapSizeMB()).append("m");
-		tmCommand.append(" -XX:MaxDirectMemorySize=").append(tmParams.taskManagerDirectMemoryLimitMB()).append("m");
+		final Map<String, String> startCommandValues = new HashMap<>();
+		startCommandValues.put("java", "$JAVA_HOME/bin/java");
+		startCommandValues
+			.put("jvmmem", 	"-Xms" + tmParams.taskManagerHeapSizeMB() + "m " +
+							"-Xmx" + tmParams.taskManagerHeapSizeMB() + "m " +
+							"-XX:MaxDirectMemorySize=" + tmParams.taskManagerDirectMemoryLimitMB() + "m");
+		String javaOpts = flinkConfig.getString(ConfigConstants.FLINK_JVM_OPTIONS, "");
+		//applicable only for YarnMiniCluster secure test run
+		//krb5.conf file will be available as local resource in JM/TM container
+		if(hasKrb5) {
+			javaOpts += " -Djava.security.krb5.conf=krb5.conf";
+		}
+		startCommandValues.put("jvmopts", javaOpts);
 
-		String  javaOpts = flinkConfig.getString(ConfigConstants.FLINK_JVM_OPTIONS, "");
-		tmCommand.append(' ').append(javaOpts);
-
+		String logging = "";
 		if (hasLogback || hasLog4j) {
-			tmCommand.append(" -Dlog.file=").append(logDirectory).append("/taskmanager.log");
+			logging = "-Dlog.file=" + logDirectory + "/taskmanager.log";
 			if (hasLogback) {
-				tmCommand.append(" -Dlogback.configurationFile=file:")
-						.append(configDirectory).append("/logback.xml");
+				logging +=
+					" -Dlogback.configurationFile=file:" + configDirectory +
+						"/logback.xml";
 			}
 			if (hasLog4j) {
-				tmCommand.append(" -Dlog4j.configuration=file:")
-						.append(configDirectory).append("/log4j.properties");
-			}
-
-			//applicable only for YarnMiniCluster secure test run
-			//krb5.conf file will be available as local resource in JM/TM container
-			if(hasKrb5) {
-				tmCommand.append(" -Djava.security.krb5.conf=krb5.conf");
+				logging += " -Dlog4j.configuration=file:" + configDirectory +
+					"/log4j.properties";
 			}
 		}
 
-		tmCommand.append(' ').append(mainClass.getName());
-		tmCommand.append(" --configDir ").append(configDirectory);
-		tmCommand.append(" 1> ").append(logDirectory).append("/taskmanager.out");
-		tmCommand.append(" 2> ").append(logDirectory).append("/taskmanager.err");
+		startCommandValues.put("logging", logging);
+		startCommandValues.put("class", mainClass.getName());
+		startCommandValues.put("redirects",
+			"1> " + logDirectory + "/taskmanager.out " +
+			"2> " + logDirectory + "/taskmanager.err");
+		startCommandValues.put("args", "--configDir " + configDirectory);
 
-		return tmCommand.toString();
+		final String commandTemplate = flinkConfig
+			.getString(ConfigConstants.YARN_CONTAINER_START_COMMAND_TEMPLATE,
+				ConfigConstants.DEFAULT_YARN_CONTAINER_START_COMMAND_TEMPLATE);
+		String startCommand = getStartCommand(commandTemplate, startCommandValues);
+		LOG.debug("TaskManager start command: " + startCommand);
+
+		return startCommand;
 	}
 
 
@@ -386,4 +400,39 @@ public class BootstrapTools {
 
 	/** Private constructor to prevent instantiation */
 	private BootstrapTools() {}
+
+	/**
+	 * Replaces placeholders in the template start command with values from
+	 * <tt>startCommandValues</tt>.
+	 *
+	 * <p>If the default template {@link ConfigConstants#DEFAULT_YARN_CONTAINER_START_COMMAND_TEMPLATE}
+	 * is used, the following keys must be present in the map or the resulting
+	 * command will still contain placeholders:
+	 * <ul>
+	 * <li><tt>java</tt> = path to the Java executable</li>
+	 * <li><tt>jvmmem</tt> = JVM memory limits and tweaks</li>
+	 * <li><tt>jvmopts</tt> = misc options for the Java VM</li>
+	 * <li><tt>logging</tt> = logging-related configuration settings</li>
+	 * <li><tt>class</tt> = main class to execute</li>
+	 * <li><tt>args</tt> = arguments for the main class</li>
+	 * <li><tt>redirects</tt> = output redirects</li>
+	 * </ul>
+	 * </p>
+	 *
+	 * @param template
+	 * 		a template start command with placeholders
+	 * @param startCommandValues
+	 * 		a replacement map <tt>placeholder -&gt; value</tt>
+	 *
+	 * @return the start command with placeholders filled in
+	 */
+	public static String getStartCommand(String template,
+		Map<String, String> startCommandValues) {
+		for (Map.Entry<String, String> variable : startCommandValues
+			.entrySet()) {
+			template = template
+				.replace("%" + variable.getKey() + "%", variable.getValue());
+		}
+		return template;
+	}
 }

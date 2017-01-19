@@ -18,9 +18,10 @@
 
 package org.apache.flink.runtime.blob;
 
-import org.apache.commons.io.FileUtils;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.FileUtils;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

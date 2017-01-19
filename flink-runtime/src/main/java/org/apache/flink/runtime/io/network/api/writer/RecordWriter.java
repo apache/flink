@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.api.writer;
 
 import org.apache.flink.core.io.IOReadableWritable;
+import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer;
@@ -131,35 +132,30 @@ public class RecordWriter<T extends IOReadableWritable> {
 	}
 
 	public void broadcastEvent(AbstractEvent event) throws IOException, InterruptedException {
-		for (int targetChannel = 0; targetChannel < numChannels; targetChannel++) {
-			RecordSerializer<T> serializer = serializers[targetChannel];
+		final Buffer eventBuffer = EventSerializer.toBuffer(event);
+		try {
+			for (int targetChannel = 0; targetChannel < numChannels; targetChannel++) {
+				RecordSerializer<T> serializer = serializers[targetChannel];
 
-			synchronized (serializer) {
-				Buffer buffer = serializer.getCurrentBuffer();
-				if (buffer != null) {
-					writeAndClearBuffer(buffer, targetChannel, serializer);
-				} else if (serializer.hasData()) {
-					throw new IllegalStateException("No buffer, but serializer has buffered data.");
-				}
+				synchronized (serializer) {
+					Buffer buffer = serializer.getCurrentBuffer();
+					if (buffer != null) {
+						writeAndClearBuffer(buffer, targetChannel, serializer);
+					} else if (serializer.hasData()) {
+						// sanity check
+						throw new IllegalStateException("No buffer, but serializer has buffered data.");
+					}
 
-				targetPartition.writeEvent(event, targetChannel);
-			}
-		}
-	}
-
-	public void sendEndOfSuperstep() throws IOException, InterruptedException {
-		for (int targetChannel = 0; targetChannel < numChannels; targetChannel++) {
-			RecordSerializer<T> serializer = serializers[targetChannel];
-
-			synchronized (serializer) {
-				Buffer buffer = serializer.getCurrentBuffer();
-				if (buffer != null) {
-					writeAndClearBuffer(buffer, targetChannel, serializer);
+					// retain the buffer so that it can be recycled by each channel of targetPartition
+					eventBuffer.retain();
+					targetPartition.writeBuffer(eventBuffer, targetChannel);
 				}
 			}
+		} finally {
+			// we do not need to further retain the eventBuffer
+			// (it will be recycled after the last channel stops using it)
+			eventBuffer.recycle();
 		}
-
-		targetPartition.writeEndOfSuperstep();
 	}
 
 	public void flush() throws IOException {
@@ -171,7 +167,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 					Buffer buffer = serializer.getCurrentBuffer();
 
 					if (buffer != null) {
-						writeAndClearBuffer(buffer, targetChannel, serializer);
+						targetPartition.writeBuffer(buffer, targetChannel);
 					}
 				} finally {
 					serializer.clear();
@@ -208,9 +204,10 @@ public class RecordWriter<T extends IOReadableWritable> {
 	}
 
 	/**
-	 * Writes the buffer to the {@link ResultPartitionWriter}.
+	 * Writes the buffer to the {@link ResultPartitionWriter} and removes the
+	 * buffer from the serializer state.
 	 *
-	 * <p> The buffer is cleared from the serializer state after a call to this method.
+	 * Needs to be synchronized on the serializer!
 	 */
 	private void writeAndClearBuffer(
 			Buffer buffer,

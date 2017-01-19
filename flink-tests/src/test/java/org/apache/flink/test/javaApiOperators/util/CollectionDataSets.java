@@ -23,8 +23,6 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
@@ -48,10 +46,10 @@ import scala.math.BigInt;
 
 /**
  * #######################################################################################################
- *
- * 			BE AWARE THAT OTHER TESTS DEPEND ON THIS TEST DATA.
+ * 
+ * 			BE AWARE THAT OTHER TESTS DEPEND ON THIS TEST DATA. 
  * 			IF YOU MODIFY THE DATA MAKE SURE YOU CHECK THAT ALL TESTS ARE STILL WORKING!
- *
+ * 
  * #######################################################################################################
  */
 public class CollectionDataSets {
@@ -203,7 +201,7 @@ public class CollectionDataSets {
 
 		return env.fromCollection(data, type);
 	}
-
+	
 	public static DataSet<Tuple2<byte[], Integer>> getTuple2WithByteArrayDataSet(ExecutionEnvironment env) {
 		List<Tuple2<byte[], Integer>> data = new ArrayList<>();
 		data.add(new Tuple2<>(new byte[]{0, 4}, 1));
@@ -212,12 +210,12 @@ public class CollectionDataSets {
 		data.add(new Tuple2<>(new byte[]{2, 1}, 3));
 		data.add(new Tuple2<>(new byte[]{0}, 0));
 		data.add(new Tuple2<>(new byte[]{2, 0}, 1));
-
+				
 		TupleTypeInfo<Tuple2<byte[], Integer>> type = new TupleTypeInfo<>(
 				PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO,
 				BasicTypeInfo.INT_TYPE_INFO
 		);
-
+		
 		return env.fromCollection(data, type);
 	}
 
@@ -349,13 +347,13 @@ public class CollectionDataSets {
 		data.add(new Tuple7<>(3, "Third", 30, 300, 3000L, "Three", 30000L));
 		return env.fromCollection(data);
 	}
-
+	
 	public static DataSet<Tuple7<Long, Integer, Integer, Long, String, Integer, String>> getSmallTuplebasedDataSetMatchingPojo(ExecutionEnvironment env) {
 		List<Tuple7<Long, Integer, Integer, Long, String, Integer, String>> data = new ArrayList<>();
 		data.add(new Tuple7<>(10000L, 10, 100, 1000L, "One", 1, "First"));
 		data.add(new Tuple7<>(20000L, 20, 200, 2000L, "Two", 2, "Second"));
 		data.add(new Tuple7<>(30000L, 30, 300, 3000L, "Three", 3, "Third"));
-
+		
 		return env.fromCollection(data);
 	}
 
@@ -612,22 +610,22 @@ public class CollectionDataSets {
 		public Date date;
 		public Category cat;
 	}
-
+	
 	public static DataSet<PojoWithDateAndEnum> getPojoWithDateAndEnum(ExecutionEnvironment env) {
 		List<PojoWithDateAndEnum> data = new ArrayList<>();
-
+		
 		PojoWithDateAndEnum one = new PojoWithDateAndEnum();
 		one.group = "a"; one.date = new Date(666); one.cat = Category.CAT_A;
 		data.add(one);
-
+		
 		PojoWithDateAndEnum two = new PojoWithDateAndEnum();
 		two.group = "a"; two.date = new Date(666); two.cat = Category.CAT_A;
 		data.add(two);
-
+		
 		PojoWithDateAndEnum three = new PojoWithDateAndEnum();
 		three.group = "b"; three.date = new Date(666); three.cat = Category.CAT_B;
 		data.add(three);
-
+		
 		return env.fromCollection(data);
 	}
 
@@ -695,7 +693,7 @@ public class CollectionDataSets {
 		pwc1.bigInt = BigInteger.valueOf(Long.MAX_VALUE).multiply(BigInteger.TEN);
 		pwc1.scalaBigInt = BigInt.int2bigInt(10);
 		pwc1.bigDecimalKeepItNull = null;
-
+		
 		// use calendar to make it stable across time zones
 		GregorianCalendar gcl1 = new GregorianCalendar(2033, 4, 18);
 		pwc1.sqlDate = new java.sql.Date(gcl1.getTimeInMillis());
@@ -712,7 +710,7 @@ public class CollectionDataSets {
 		pwc2.bigInt = BigInteger.valueOf(Long.MAX_VALUE).multiply(BigInteger.TEN);
 		pwc2.scalaBigInt = BigInt.int2bigInt(31104000);
 		pwc2.bigDecimalKeepItNull = null;
-
+		
 		GregorianCalendar gcl2 = new GregorianCalendar(1976, 4, 3);
 		pwc2.sqlDate = new java.sql.Date(gcl2.getTimeInMillis()); // 1976
 

@@ -22,6 +22,7 @@ import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Map;
 
@@ -31,21 +32,27 @@ import java.util.Map;
  */
 public class OperatorStateHandle implements StreamStateHandle {
 
+	public enum Mode {
+		SPLIT_DISTRIBUTE, BROADCAST
+	}
+
 	private static final long serialVersionUID = 35876522969227335L;
 
-	/** unique state name -> offsets for available partitions in the handle stream */
-	private final Map<String, long[]> stateNameToPartitionOffsets;
+	/**
+	 * unique state name -> offsets for available partitions in the handle stream
+	 */
+	private final Map<String, StateMetaInfo> stateNameToPartitionOffsets;
 	private final StreamStateHandle delegateStateHandle;
 
 	public OperatorStateHandle(
-			Map<String, long[]> stateNameToPartitionOffsets,
+			Map<String, StateMetaInfo> stateNameToPartitionOffsets,
 			StreamStateHandle delegateStateHandle) {
 
 		this.delegateStateHandle = Preconditions.checkNotNull(delegateStateHandle);
 		this.stateNameToPartitionOffsets = Preconditions.checkNotNull(stateNameToPartitionOffsets);
 	}
 
-	public Map<String, long[]> getStateNameToPartitionOffsets() {
+	public Map<String, StateMetaInfo> getStateNameToPartitionOffsets() {
 		return stateNameToPartitionOffsets;
 	}
 
@@ -80,12 +87,12 @@ public class OperatorStateHandle implements StreamStateHandle {
 
 		OperatorStateHandle that = (OperatorStateHandle) o;
 
-		if(stateNameToPartitionOffsets.size() != that.stateNameToPartitionOffsets.size()) {
+		if (stateNameToPartitionOffsets.size() != that.stateNameToPartitionOffsets.size()) {
 			return false;
 		}
 
-		for (Map.Entry<String, long[]> entry : stateNameToPartitionOffsets.entrySet()) {
-			if (!Arrays.equals(entry.getValue(), that.stateNameToPartitionOffsets.get(entry.getKey()))) {
+		for (Map.Entry<String, StateMetaInfo> entry : stateNameToPartitionOffsets.entrySet()) {
+			if (!entry.getValue().equals(that.stateNameToPartitionOffsets.get(entry.getKey()))) {
 				return false;
 			}
 		}
@@ -96,14 +103,75 @@ public class OperatorStateHandle implements StreamStateHandle {
 	@Override
 	public int hashCode() {
 		int result = delegateStateHandle.hashCode();
-		for (Map.Entry<String, long[]> entry : stateNameToPartitionOffsets.entrySet()) {
+		for (Map.Entry<String, StateMetaInfo> entry : stateNameToPartitionOffsets.entrySet()) {
 
 			int entryHash = entry.getKey().hashCode();
 			if (entry.getValue() != null) {
-				entryHash += Arrays.hashCode(entry.getValue());
+				entryHash += entry.getValue().hashCode();
 			}
 			result = 31 * result + entryHash;
 		}
 		return result;
+	}
+
+	@Override
+	public String toString() {
+		return "OperatorStateHandle{" +
+				"stateNameToPartitionOffsets=" + stateNameToPartitionOffsets +
+				", delegateStateHandle=" + delegateStateHandle +
+				'}';
+	}
+
+	public static class StateMetaInfo implements Serializable {
+
+		private static final long serialVersionUID = 3593817615858941166L;
+
+		private final long[] offsets;
+		private final Mode distributionMode;
+
+		public StateMetaInfo(long[] offsets, Mode distributionMode) {
+			this.offsets = Preconditions.checkNotNull(offsets);
+			this.distributionMode = Preconditions.checkNotNull(distributionMode);
+		}
+
+		public long[] getOffsets() {
+			return offsets;
+		}
+
+		public Mode getDistributionMode() {
+			return distributionMode;
+		}
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) {
+				return true;
+			}
+			if (o == null || getClass() != o.getClass()) {
+				return false;
+			}
+
+			StateMetaInfo that = (StateMetaInfo) o;
+
+			if (!Arrays.equals(getOffsets(), that.getOffsets())) {
+				return false;
+			}
+			return getDistributionMode() == that.getDistributionMode();
+		}
+
+		@Override
+		public int hashCode() {
+			int result = Arrays.hashCode(getOffsets());
+			result = 31 * result + getDistributionMode().hashCode();
+			return result;
+		}
+
+		@Override
+		public String toString() {
+			return "StateMetaInfo{" +
+					"offsets=" + Arrays.toString(offsets) +
+					", distributionMode=" + distributionMode +
+					'}';
+		}
 	}
 }

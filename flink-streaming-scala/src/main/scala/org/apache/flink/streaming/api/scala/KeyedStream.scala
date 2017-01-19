@@ -474,8 +474,7 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
   def asQueryableState(queryableStateName: String) : QueryableStateStream[K, T] = {
     val stateDescriptor = new ValueStateDescriptor(
       queryableStateName,
-      dataType.createSerializer(executionConfig),
-      null.asInstanceOf[T])
+      dataType.createSerializer(executionConfig))
 
     asQueryableState(queryableStateName, stateDescriptor)
   }

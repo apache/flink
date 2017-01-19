@@ -17,7 +17,6 @@
 
 package org.apache.flink.contrib.streaming.state;
 
-import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.FoldingState;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
@@ -54,8 +53,10 @@ import org.apache.flink.runtime.state.KeyedBackendSerializationProxy;
 import org.apache.flink.runtime.state.RegisteredBackendStateMetaInfo;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.util.SerializableObject;
+import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
+
 import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ColumnFamilyOptions;
@@ -65,6 +66,7 @@ import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
 import org.rocksdb.RocksIterator;
 import org.rocksdb.Snapshot;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -178,51 +180,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		}
 		keyGroupPrefixBytes = getNumberOfKeyGroups() > (Byte.MAX_VALUE + 1) ? 2 : 1;
 		kvStateInformation = new HashMap<>();
-	}
-
-	public RocksDBKeyedStateBackend(
-			JobID jobId,
-			String operatorIdentifier,
-			ClassLoader userCodeClassLoader,
-			File instanceBasePath,
-			DBOptions dbOptions,
-			ColumnFamilyOptions columnFamilyOptions,
-			TaskKvStateRegistry kvStateRegistry,
-			TypeSerializer<K> keySerializer,
-			int numberOfKeyGroups,
-			KeyGroupRange keyGroupRange,
-			Collection<KeyGroupsStateHandle> restoreState
-	) throws Exception {
-
-		this(jobId,
-			operatorIdentifier,
-			userCodeClassLoader,
-			instanceBasePath,
-			dbOptions,
-			columnFamilyOptions,
-			kvStateRegistry,
-			keySerializer,
-			numberOfKeyGroups,
-			keyGroupRange);
-
-		LOG.info("Initializing RocksDB keyed state backend from snapshot.");
-
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("Restoring snapshot from state handles: {}.", restoreState);
-		}
-
-		try {
-			if (MigrationUtil.isOldSavepointKeyedState(restoreState)) {
-				LOG.info("Converting RocksDB state from old savepoint.");
-				restoreOldSavepointKeyedState(restoreState);
-			} else {
-				RocksDBRestoreOperation restoreOperation = new RocksDBRestoreOperation(this);
-				restoreOperation.doRestore(restoreState);
-			}
-		} catch (Exception ex) {
-			dispose();
-			throw ex;
-		}
 	}
 
 	/**
@@ -628,6 +585,28 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			if(Thread.currentThread().isInterrupted()) {
 				throw new InterruptedException("RocksDB snapshot interrupted.");
 			}
+		}
+	}
+
+	@Override
+	public void restore(Collection<KeyGroupsStateHandle> restoreState) throws Exception {
+		LOG.info("Initializing RocksDB keyed state backend from snapshot.");
+
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("Restoring snapshot from state handles: {}.", restoreState);
+		}
+
+		try {
+			if (MigrationUtil.isOldSavepointKeyedState(restoreState)) {
+				LOG.info("Converting RocksDB state from old savepoint.");
+				restoreOldSavepointKeyedState(restoreState);
+			} else {
+				RocksDBRestoreOperation restoreOperation = new RocksDBRestoreOperation(this);
+				restoreOperation.doRestore(restoreState);
+			}
+		} catch (Exception ex) {
+			dispose();
+			throw ex;
 		}
 	}
 

@@ -44,7 +44,7 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 	private final ExecutionEnvironment env;
 
 	// Required configuration
-	private List<Tuple2<Long,Boolean>> dimensions = new ArrayList<>();
+	private List<Tuple2<Long, Boolean>> dimensions = new ArrayList<>();
 
 	private long vertexCount = 1;
 
@@ -84,18 +84,18 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 	}
 
 	@Override
-	public Graph<LongValue,NullValue,NullValue> generate() {
+	public Graph<LongValue, NullValue, NullValue> generate() {
 		if (dimensions.isEmpty()) {
 			throw new RuntimeException("No dimensions added to GridGraph");
 		}
 
 		// Vertices
-		DataSet<Vertex<LongValue,NullValue>> vertices = GraphGeneratorUtils.vertexSequence(env, parallelism, vertexCount);
+		DataSet<Vertex<LongValue, NullValue>> vertices = GraphGeneratorUtils.vertexSequence(env, parallelism, vertexCount);
 
 		// Edges
 		LongValueSequenceIterator iterator = new LongValueSequenceIterator(0, this.vertexCount - 1);
 
-		DataSet<Edge<LongValue,NullValue>> edges = env
+		DataSet<Edge<LongValue, NullValue>> edges = env
 			.fromParallelCollection(iterator, LongValue.class)
 				.setParallelism(parallelism)
 				.name("Edge iterators")
@@ -109,23 +109,23 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 
 	@ForwardedFields("*->f0")
 	public class LinkVertexToNeighbors
-	implements FlatMapFunction<LongValue, Edge<LongValue,NullValue>> {
+	implements FlatMapFunction<LongValue, Edge<LongValue, NullValue>> {
 
 		private long vertexCount;
 
-		private List<Tuple2<Long,Boolean>> dimensions;
+		private List<Tuple2<Long, Boolean>> dimensions;
 
 		private LongValue target = new LongValue();
 
-		private Edge<LongValue,NullValue> edge = new Edge<>(null, target, NullValue.getInstance());
+		private Edge<LongValue, NullValue> edge = new Edge<>(null, target, NullValue.getInstance());
 
-		public LinkVertexToNeighbors(long vertexCount, List<Tuple2<Long,Boolean>> dimensions) {
+		public LinkVertexToNeighbors(long vertexCount, List<Tuple2<Long, Boolean>> dimensions) {
 			this.vertexCount = vertexCount;
 			this.dimensions = dimensions;
 		}
 
 		@Override
-		public void flatMap(LongValue source, Collector<Edge<LongValue,NullValue>> out)
+		public void flatMap(LongValue source, Collector<Edge<LongValue, NullValue>> out)
 				throws Exception {
 			edge.f0 = source;
 			long val = source.getValue();
@@ -136,7 +136,7 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 			// the value in the remaining dimensions
 			long remainder = val;
 
-			for (Tuple2<Long,Boolean> dimension : dimensions) {
+			for (Tuple2<Long, Boolean> dimension : dimensions) {
 				increment /= dimension.f0;
 
 				// the index within this dimension

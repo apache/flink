@@ -29,22 +29,21 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.plan.nodes.dataset.{DataSetAggregate, DataSetConvention}
 
 /**
-  * Rule for insert [[org.apache.flink.types.Row]] with null records into a [[DataSetAggregate]]
-  * Rule apply for non grouped aggregate query
+  * Rule for insert [[org.apache.flink.types.Row]] with null records into a [[DataSetAggregate]].
+  * Rule apply for non grouped aggregate query.
   */
 class DataSetAggregateWithNullValuesRule
   extends ConverterRule(
     classOf[LogicalAggregate],
     Convention.NONE,
     DataSetConvention.INSTANCE,
-    "DataSetAggregateWithNullValuesRule")
-{
+    "DataSetAggregateWithNullValuesRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val agg: LogicalAggregate = call.rel(0).asInstanceOf[LogicalAggregate]
 
-    //for grouped agg sets shouldn't attach of null row
-    //need apply other rules. e.g. [[DataSetAggregateRule]]
+    // group sets shouldn't attach a null row
+    // we need to apply other rules. i.e. DataSetAggregateRule
     if (!agg.getGroupSet.isEmpty) {
       return false
     }
@@ -55,12 +54,7 @@ class DataSetAggregateWithNullValuesRule
       throw TableException("DISTINCT aggregates are currently not supported.")
     }
 
-    // check if we have grouping sets
-    val groupSets = agg.getGroupSets.size() == 0 || agg.getGroupSets.get(0) != agg.getGroupSet
-    if (groupSets || agg.indicator) {
-      throw TableException("GROUPING SETS are currently not supported.")
-    }
-    !distinctAggs && !groupSets && !agg.indicator
+    !distinctAggs
   }
 
   override def convert(rel: RelNode): RelNode = {
@@ -87,7 +81,8 @@ class DataSetAggregateWithNullValuesRule
       agg.getNamedAggCalls,
       rel.getRowType,
       agg.getInput.getRowType,
-      agg.getGroupSet.toArray
+      agg.getGroupSet.toArray,
+      inGroupingSet = false
     )
   }
 }

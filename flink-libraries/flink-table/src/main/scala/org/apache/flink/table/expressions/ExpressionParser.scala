@@ -377,9 +377,8 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   lazy val prefixed: PackratParser[Expression] =
     prefixArray | prefixSum | prefixMin | prefixMax | prefixCount | prefixAvg |
-      prefixStart | prefixEnd |
-      prefixCast | prefixAs | prefixTrim | prefixTrimWithoutArgs | prefixIf | prefixExtract |
-      prefixFloor | prefixCeil | prefixGet | prefixFlattening |
+      prefixStart | prefixEnd | prefixCast | prefixAs | prefixTrim | prefixTrimWithoutArgs |
+      prefixIf | prefixExtract | prefixFloor | prefixCeil | prefixGet | prefixFlattening |
       prefixFunctionCall | prefixFunctionCallOneArg // function call must always be at the end
 
   // suffix/prefix composite
@@ -393,7 +392,9 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
 
   lazy val unaryMinus: PackratParser[Expression] = "-" ~> composite ^^ { e => UnaryMinus(e) }
 
-  lazy val unary = composite | unaryNot | unaryMinus |
+  lazy val unaryPlus: PackratParser[Expression] = "+" ~> composite ^^ { e => e }
+
+  lazy val unary = composite | unaryNot | unaryMinus | unaryPlus |
     failure("Unary expression expected.")
 
   // arithmetic

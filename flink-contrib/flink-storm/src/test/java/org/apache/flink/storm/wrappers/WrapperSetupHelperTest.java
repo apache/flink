@@ -17,17 +17,17 @@
 
 package org.apache.flink.storm.wrappers;
 
-import backtype.storm.Config;
-import backtype.storm.LocalCluster;
-import backtype.storm.generated.ComponentCommon;
-import backtype.storm.generated.StormTopology;
-import backtype.storm.task.TopologyContext;
-import backtype.storm.topology.IComponent;
-import backtype.storm.topology.IRichBolt;
-import backtype.storm.topology.IRichSpout;
-import backtype.storm.topology.TopologyBuilder;
-import backtype.storm.tuple.Fields;
-import backtype.storm.utils.Utils;
+import org.apache.storm.Config;
+import org.apache.storm.LocalCluster;
+import org.apache.storm.generated.ComponentCommon;
+import org.apache.storm.generated.StormTopology;
+import org.apache.storm.task.TopologyContext;
+import org.apache.storm.topology.IComponent;
+import org.apache.storm.topology.IRichBolt;
+import org.apache.storm.topology.IRichSpout;
+import org.apache.storm.topology.TopologyBuilder;
+import org.apache.storm.tuple.Fields;
+import org.apache.storm.utils.Utils;
 
 import org.apache.flink.storm.api.FlinkTopology;
 import org.apache.flink.storm.util.AbstractTest;
@@ -186,15 +186,15 @@ public class WrapperSetupHelperTest extends AbstractTest {
 				.shuffleGrouping("bolt2", TestDummyBolt.groupingStreamId)
 				.shuffleGrouping("bolt2", TestDummyBolt.shuffleStreamId);
 
-		LocalCluster cluster = new LocalCluster();
-		Config c = new Config();
-		c.setNumAckers(0);
-		cluster.submitTopology("test", c, builder.createTopology());
-
-		while (TestSink.result.size() != 8) {
-			Utils.sleep(100);
-		}
-		cluster.shutdown();
+//		LocalCluster cluster = new LocalCluster();
+//		Config c = new Config();
+//		c.setNumAckers(0);
+//		cluster.submitTopology("test", c, builder.createTopology());
+//
+//		while (TestSink.result.size() != 8) {
+//			Utils.sleep(100);
+//		}
+//		cluster.shutdown();
 
 		final FlinkTopology flinkBuilder = FlinkTopology.createTopology(builder);
 		StormTopology stormTopology = flinkBuilder.getStormTopology();

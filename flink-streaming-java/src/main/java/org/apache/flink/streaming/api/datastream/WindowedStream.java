@@ -41,15 +41,21 @@ import org.apache.flink.streaming.api.functions.windowing.PassThroughWindowFunct
 import org.apache.flink.streaming.api.functions.windowing.ReduceApplyWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.windowing.assigners.BaseAlignedWindowAssigner;
 import org.apache.flink.streaming.api.windowing.assigners.MergingWindowAssigner;
+import org.apache.flink.streaming.api.windowing.assigners.SlidingAlignedProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingProcessingTimeWindows;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingAlignedProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.evictors.Evictor;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.ProcessingTimeTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
+import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
+import org.apache.flink.streaming.runtime.operators.windowing.AccumulatingProcessingTimeWindowOperator;
+import org.apache.flink.streaming.runtime.operators.windowing.AggregatingProcessingTimeWindowOperator;
 import org.apache.flink.streaming.runtime.operators.windowing.EvictingWindowOperator;
 import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalIterableWindowFunction;
 import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalSingleValueWindowFunction;
@@ -117,6 +123,10 @@ public class WindowedStream<T, K, W extends Window> {
 			throw new UnsupportedOperationException("A merging window assigner cannot be used with a trigger that does not support merging.");
 		}
 
+		if (windowAssigner instanceof BaseAlignedWindowAssigner) {
+			throw new UnsupportedOperationException("Cannot use a " + windowAssigner.getClass().getSimpleName() + " with a custom trigger.");
+		}
+
 		this.trigger = trigger;
 		return this;
 	}
@@ -153,6 +163,10 @@ public class WindowedStream<T, K, W extends Window> {
 		if (windowAssigner instanceof MergingWindowAssigner) {
 			throw new UnsupportedOperationException("Cannot use a merging WindowAssigner with an Evictor.");
 		}
+
+		if (windowAssigner instanceof BaseAlignedWindowAssigner) {
+			throw new UnsupportedOperationException("Cannot use a " + windowAssigner.getClass().getSimpleName() + " with an Evictor.");
+		}
 		this.evictor = evictor;
 		return this;
 	}
@@ -187,6 +201,15 @@ public class WindowedStream<T, K, W extends Window> {
 
 		//clean the closure
 		function = input.getExecutionEnvironment().clean(function);
+
+		String callLocation = Utils.getCallLocationName();
+		String udfName = "WindowedStream." + callLocation;
+
+		SingleOutputStreamOperator<T> result = createFastTimeOperatorIfValid(function, input.getType(), udfName);
+		if (result != null) {
+			return result;
+		}
+
 		LegacyWindowOperatorType legacyOpType = getLegacyWindowType(function);
 		return reduce(function, new PassThroughWindowFunction<K, W, T>(), legacyOpType);
 	}
@@ -389,7 +412,7 @@ public class WindowedStream<T, K, W extends Window> {
 			Utils.getCallLocationName(), true);
 
 		TypeInformation<R> resultType = TypeExtractor.getUnaryOperatorReturnType(
-			function, WindowFunction.class, true, true, getInputType(), null, false);
+			function, WindowFunction.class, true, true, foldAccumulatorType, null, false);
 
 		return fold(initialValue, foldFunction, function, foldAccumulatorType, resultType);
 	}
@@ -419,6 +442,11 @@ public class WindowedStream<T, K, W extends Window> {
 		}
 		if (windowAssigner instanceof MergingWindowAssigner) {
 			throw new UnsupportedOperationException("Fold cannot be used with a merging WindowAssigner.");
+		}
+
+		if (windowAssigner instanceof BaseAlignedWindowAssigner) {
+			throw new UnsupportedOperationException("Fold cannot be used with a " +
+				windowAssigner.getClass().getSimpleName() + " assigner.");
 		}
 
 		//clean the closures
@@ -511,6 +539,11 @@ public class WindowedStream<T, K, W extends Window> {
 
 		String callLocation = Utils.getCallLocationName();
 		String udfName = "WindowedStream." + callLocation;
+
+		SingleOutputStreamOperator<R> result = createFastTimeOperatorIfValid(function, resultType, udfName);
+		if (result != null) {
+			return result;
+		}
 
 		LegacyWindowOperatorType legacyWindowOpType = getLegacyWindowType(function);
 		String opName;
@@ -833,14 +866,14 @@ public class WindowedStream<T, K, W extends Window> {
 
 	/**
 	 * Applies an aggregation that gives the minimum element of every window of
-	 * the data stream by the given position. If more elements have the same
+	 * the data stream by the given field. If more elements have the same
 	 * minimum value the operator returns the first element by default.
 	 *
-	 * @param positionToMinBy The position to minimize by
+	 * @param field The field to minimize by
 	 * @return The transformed DataStream.
 	 */
-	public SingleOutputStreamOperator<T> minBy(String positionToMinBy) {
-		return this.minBy(positionToMinBy, true);
+	public SingleOutputStreamOperator<T> minBy(String field) {
+		return this.minBy(field, true);
 	}
 
 	/**
@@ -912,15 +945,15 @@ public class WindowedStream<T, K, W extends Window> {
 
 	/**
 	 * Applies an aggregation that gives the maximum element of every window of
-	 * the data stream by the given position. If more elements have the same
+	 * the data stream by the given field. If more elements have the same
 	 * maximum value the operator returns the first by default.
 	 *
-	 * @param positionToMaxBy
-	 *            The position to maximize by
+	 * @param field
+	 *            The field to maximize by
 	 * @return The transformed DataStream.
 	 */
-	public SingleOutputStreamOperator<T> maxBy(String positionToMaxBy) {
-		return this.maxBy(positionToMaxBy, true);
+	public SingleOutputStreamOperator<T> maxBy(String field) {
+		return this.maxBy(field, true);
 	}
 
 	/**
@@ -975,6 +1008,79 @@ public class WindowedStream<T, K, W extends Window> {
 			}
 		}
 		return LegacyWindowOperatorType.NONE;
+	}
+
+	private <R> SingleOutputStreamOperator<R> createFastTimeOperatorIfValid(
+			Function function,
+			TypeInformation<R> resultType,
+			String functionName) {
+
+		if (windowAssigner instanceof SlidingAlignedProcessingTimeWindows && trigger == null && evictor == null) {
+			SlidingAlignedProcessingTimeWindows timeWindows = (SlidingAlignedProcessingTimeWindows) windowAssigner;
+			final long windowLength = timeWindows.getSize();
+			final long windowSlide = timeWindows.getSlide();
+
+			String opName = "Fast " + timeWindows + " of " + functionName;
+
+			if (function instanceof ReduceFunction) {
+				@SuppressWarnings("unchecked")
+				ReduceFunction<T> reducer = (ReduceFunction<T>) function;
+
+				@SuppressWarnings("unchecked")
+				OneInputStreamOperator<T, R> op = (OneInputStreamOperator<T, R>)
+						new AggregatingProcessingTimeWindowOperator<>(
+								reducer, input.getKeySelector(), 
+								input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
+								input.getType().createSerializer(getExecutionEnvironment().getConfig()),
+								windowLength, windowSlide);
+				return input.transform(opName, resultType, op);
+			}
+			else if (function instanceof WindowFunction) {
+				@SuppressWarnings("unchecked")
+				WindowFunction<T, R, K, TimeWindow> wf = (WindowFunction<T, R, K, TimeWindow>) function;
+
+				OneInputStreamOperator<T, R> op = new AccumulatingProcessingTimeWindowOperator<>(
+						wf, input.getKeySelector(),
+						input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
+						input.getType().createSerializer(getExecutionEnvironment().getConfig()),
+						windowLength, windowSlide);
+				return input.transform(opName, resultType, op);
+			}
+		} else if (windowAssigner instanceof TumblingAlignedProcessingTimeWindows && trigger == null && evictor == null) {
+			TumblingAlignedProcessingTimeWindows timeWindows = (TumblingAlignedProcessingTimeWindows) windowAssigner;
+			final long windowLength = timeWindows.getSize();
+			final long windowSlide = timeWindows.getSize();
+
+			String opName = "Fast " + timeWindows + " of " + functionName;
+
+			if (function instanceof ReduceFunction) {
+				@SuppressWarnings("unchecked")
+				ReduceFunction<T> reducer = (ReduceFunction<T>) function;
+
+				@SuppressWarnings("unchecked")
+				OneInputStreamOperator<T, R> op = (OneInputStreamOperator<T, R>)
+						new AggregatingProcessingTimeWindowOperator<>(
+								reducer,
+								input.getKeySelector(),
+								input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
+								input.getType().createSerializer(getExecutionEnvironment().getConfig()),
+								windowLength, windowSlide);
+				return input.transform(opName, resultType, op);
+			}
+			else if (function instanceof WindowFunction) {
+				@SuppressWarnings("unchecked")
+				WindowFunction<T, R, K, TimeWindow> wf = (WindowFunction<T, R, K, TimeWindow>) function;
+
+				OneInputStreamOperator<T, R> op = new AccumulatingProcessingTimeWindowOperator<>(
+						wf, input.getKeySelector(),
+						input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
+						input.getType().createSerializer(getExecutionEnvironment().getConfig()),
+						windowLength, windowSlide);
+				return input.transform(opName, resultType, op);
+			}
+		}
+
+		return null;
 	}
 
 	public StreamExecutionEnvironment getExecutionEnvironment() {

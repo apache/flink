@@ -36,7 +36,7 @@ import java.util.List;
 public class SerializationProxiesTest {
 
 	@Test
-	public void testSerializationRoundtrip() throws Exception {
+	public void testKeyedBackendSerializationProxyRoundtrip() throws Exception {
 
 		TypeSerializer<?> keySerializer = IntSerializer.INSTANCE;
 		TypeSerializer<?> namespaceSerializer = LongSerializer.INSTANCE;
@@ -67,13 +67,12 @@ public class SerializationProxiesTest {
 			serializationProxy.read(new DataInputViewStreamWrapper(in));
 		}
 
-
 		Assert.assertEquals(keySerializer, serializationProxy.getKeySerializerProxy().getTypeSerializer());
 		Assert.assertEquals(stateMetaInfoList, serializationProxy.getNamedStateSerializationProxies());
 	}
 
 	@Test
-	public void testMetaInfoSerialization() throws Exception {
+	public void testKeyedStateMetaInfoSerialization() throws Exception {
 
 		String name = "test";
 		TypeSerializer<?> namespaceSerializer = LongSerializer.INSTANCE;
@@ -95,5 +94,79 @@ public class SerializationProxiesTest {
 		}
 
 		Assert.assertEquals(name, metaInfo.getStateName());
+	}
+
+
+	@Test
+	public void testOperatorBackendSerializationProxyRoundtrip() throws Exception {
+
+		TypeSerializer<?> stateSerializer = DoubleSerializer.INSTANCE;
+
+		List<OperatorBackendSerializationProxy.StateMetaInfo<?>> stateMetaInfoList = new ArrayList<>();
+
+		stateMetaInfoList.add(
+				new OperatorBackendSerializationProxy.StateMetaInfo<>("a", stateSerializer, OperatorStateHandle.Mode.SPLIT_DISTRIBUTE));
+		stateMetaInfoList.add(
+				new OperatorBackendSerializationProxy.StateMetaInfo<>("b", stateSerializer, OperatorStateHandle.Mode.SPLIT_DISTRIBUTE));
+		stateMetaInfoList.add(
+				new OperatorBackendSerializationProxy.StateMetaInfo<>("c", stateSerializer, OperatorStateHandle.Mode.BROADCAST));
+
+		OperatorBackendSerializationProxy serializationProxy =
+				new OperatorBackendSerializationProxy(stateMetaInfoList);
+
+		byte[] serialized;
+		try (ByteArrayOutputStreamWithPos out = new ByteArrayOutputStreamWithPos()) {
+			serializationProxy.write(new DataOutputViewStreamWrapper(out));
+			serialized = out.toByteArray();
+		}
+
+		serializationProxy =
+				new OperatorBackendSerializationProxy(Thread.currentThread().getContextClassLoader());
+
+		try (ByteArrayInputStreamWithPos in = new ByteArrayInputStreamWithPos(serialized)) {
+			serializationProxy.read(new DataInputViewStreamWrapper(in));
+		}
+
+		Assert.assertEquals(stateMetaInfoList, serializationProxy.getNamedStateSerializationProxies());
+	}
+
+	@Test
+	public void testOperatorStateMetaInfoSerialization() throws Exception {
+
+		String name = "test";
+		TypeSerializer<?> stateSerializer = DoubleSerializer.INSTANCE;
+
+		OperatorBackendSerializationProxy.StateMetaInfo<?> metaInfo =
+				new OperatorBackendSerializationProxy.StateMetaInfo<>(name, stateSerializer, OperatorStateHandle.Mode.BROADCAST);
+
+		byte[] serialized;
+		try (ByteArrayOutputStreamWithPos out = new ByteArrayOutputStreamWithPos()) {
+			metaInfo.write(new DataOutputViewStreamWrapper(out));
+			serialized = out.toByteArray();
+		}
+
+		metaInfo = new OperatorBackendSerializationProxy.StateMetaInfo<>(Thread.currentThread().getContextClassLoader());
+
+		try (ByteArrayInputStreamWithPos in = new ByteArrayInputStreamWithPos(serialized)) {
+			metaInfo.read(new DataInputViewStreamWrapper(in));
+		}
+
+		Assert.assertEquals(name, metaInfo.getName());
+	}
+
+	/**
+	 * This test fixes the order of elements in the enum which is important for serialization. Do not modify this test
+	 * except if you are entirely sure what you are doing.
+	 */
+	@Test
+	public void testFixTypeOrder() {
+		// ensure all elements are covered
+		Assert.assertEquals(5, StateDescriptor.Type.values().length);
+		// fix the order of elements to keep serialization format stable
+		Assert.assertEquals(0, StateDescriptor.Type.UNKNOWN.ordinal());
+		Assert.assertEquals(1, StateDescriptor.Type.VALUE.ordinal());
+		Assert.assertEquals(2, StateDescriptor.Type.LIST.ordinal());
+		Assert.assertEquals(3, StateDescriptor.Type.REDUCING.ordinal());
+		Assert.assertEquals(4, StateDescriptor.Type.FOLDING.ordinal());
 	}
 }

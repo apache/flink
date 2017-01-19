@@ -19,6 +19,8 @@
 package org.apache.flink.types;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.api.common.typeinfo.TypeInfo;
+import org.apache.flink.api.java.typeutils.EitherTypeInfoFactory;
 
 /**
  * This type represents a value of one two possible types, Left or Right (a
@@ -30,6 +32,7 @@ import org.apache.flink.annotation.Public;
  *            the type of Right
  */
 @Public
+@TypeInfo(EitherTypeInfoFactory.class)
 public abstract class Either<L, R> {
 
 	/**

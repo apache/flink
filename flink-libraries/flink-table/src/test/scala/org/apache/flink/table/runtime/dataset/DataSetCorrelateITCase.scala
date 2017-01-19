@@ -19,12 +19,11 @@ package org.apache.flink.table.runtime.dataset
 
 import org.apache.flink.api.scala._
 import org.apache.flink.types.Row
-import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase
+import org.apache.flink.table.api.scala.batch.utils.{TableProgramsClusterTestBase, TableProgramsCollectionTestBase}
 import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.utils._
-import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.TestBaseUtils
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -35,9 +34,8 @@ import scala.collection.mutable
 
 @RunWith(classOf[Parameterized])
 class DataSetCorrelateITCase(
-  mode: TestExecutionMode,
   configMode: TableConfigMode)
-  extends TableProgramsTestBase(mode, configMode) {
+  extends TableProgramsClusterTestBase(configMode) {
 
   @Test
   def testCrossJoin(): Unit = {

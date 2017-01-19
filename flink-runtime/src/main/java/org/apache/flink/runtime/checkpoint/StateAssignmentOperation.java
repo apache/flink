@@ -109,8 +109,8 @@ public class StateAssignmentOperation {
 			if (hasNonPartitionedState && parallelismChanged) {
 				throw new IllegalStateException("Cannot restore the latest checkpoint because " +
 						"the operator " + executionJobVertex.getJobVertexId() + " has non-partitioned " +
-						"state and its parallelism changed. The operator" + executionJobVertex.getJobVertexId() +
-						" has parallelism " + newParallelism + " whereas the corresponding" +
+						"state and its parallelism changed. The operator " + executionJobVertex.getJobVertexId() +
+						" has parallelism " + newParallelism + " whereas the corresponding " +
 						"state object has a parallelism of " + oldParallelism);
 			}
 
@@ -338,9 +338,22 @@ public class StateAssignmentOperation {
 					chainOpParallelStates,
 					newParallelism);
 		} else {
-
 			List<Collection<OperatorStateHandle>> repackStream = new ArrayList<>(newParallelism);
 			for (OperatorStateHandle operatorStateHandle : chainOpParallelStates) {
+
+				Map<String, OperatorStateHandle.StateMetaInfo> partitionOffsets =
+						operatorStateHandle.getStateNameToPartitionOffsets();
+
+				for (OperatorStateHandle.StateMetaInfo metaInfo : partitionOffsets.values()) {
+
+					// if we find any broadcast state, we cannot take the shortcut and need to go through repartitioning
+					if (OperatorStateHandle.Mode.BROADCAST.equals(metaInfo.getDistributionMode())) {
+						return opStateRepartitioner.repartitionState(
+								chainOpParallelStates,
+								newParallelism);
+					}
+				}
+
 				repackStream.add(Collections.singletonList(operatorStateHandle));
 			}
 			return repackStream;

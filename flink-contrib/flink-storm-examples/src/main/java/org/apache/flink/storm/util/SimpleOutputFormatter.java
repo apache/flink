@@ -18,7 +18,7 @@
 
 package org.apache.flink.storm.util;
 
-import backtype.storm.tuple.Tuple;
+import org.apache.storm.tuple.Tuple;
 
 public class SimpleOutputFormatter implements OutputFormatter {
 	private static final long serialVersionUID = 6349573860144270338L;

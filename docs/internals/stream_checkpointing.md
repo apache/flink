@@ -138,7 +138,7 @@ in *at least once* mode.
 
 Note that the above described mechanism implies that operators stop processing input records while they are storing a snapshot of their state in the *state backend*. This *synchronous* state snapshot introduces a delay every time a snapshot is taken.
 
-It is possible to let an operator continue processing while it stores its state snapshot, effectively letting the state snapshots happen *asynchronously* in the background. To do that, the operator must be able to produce a state object that should be stored in a way such that further modifications to the operator state do not affect that state object.
+It is possible to let an operator continue processing while it stores its state snapshot, effectively letting the state snapshots happen *asynchronously* in the background. To do that, the operator must be able to produce a state object that should be stored in a way such that further modifications to the operator state do not affect that state object. An example for that are *copy-on-write* style data structures, such as used for example in RocksDB.
 
 After receiving the checkpoint barriers on its inputs, the operator starts the asynchronous snapshot copying of its state. It immediately emits the barrier to its outputs and continues with the regular stream processing. Once the background copy process has completed, it acknowledges the checkpoint to the checkpoint coordinator (the JobManager). The checkpoint is now only complete after all sinks received the barriers and all stateful operators acknowledged their completed backup (which may be later than the barriers reaching the sinks).
 
@@ -152,3 +152,15 @@ entire distributed dataflow, and gives each operator the state that was snapshot
 stream from position <i>S<sub>k</sub></i>. For example in Apache Kafka, that means telling the consumer to start fetching from offset <i>S<sub>k</sub></i>.
 
 If state was snapshotted incrementally, the operators start with the state of the latest full snapshot and then apply a series of incremental snapshot updates to that state.
+
+## Operator Snapshot Implementation
+
+When operator snapshots are taken, there are two parts: the **synchronous** and the **asynchronous** parts.
+
+Operators and state backends provide their snapshots as a Java `FutureTask`. That task contains the state where the *synchronous* part
+is completed and the *asynchronous* part is pending. The asynchronous part is then executed by a background thread for that checkpoint.
+
+Operators that checkpoint purely synchronously return an already completed `FutureTask`.
+If an asynchronous operation needs to be performed, it is executed in the `run()` method of that `FutureTask`.
+
+The tasks are cancelable, in order to release streams and other resource consuming handles.

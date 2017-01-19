@@ -80,7 +80,7 @@ abstract class Solver extends Serializable with WithParameters {
     dimensionDS.map {
       dimension =>
         val values = Array.fill(dimension)(0.0)
-        new WeightVector(DenseVector(values), 0.0)
+        WeightVector(DenseVector(values), 0.0)
     }
   }
 

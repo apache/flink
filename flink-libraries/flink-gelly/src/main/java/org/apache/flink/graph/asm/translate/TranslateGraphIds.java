@@ -41,7 +41,7 @@ public class TranslateGraphIds<OLD, NEW, VV, EV>
 extends GraphAlgorithmWrappingGraph<OLD, VV, EV, NEW, VV, EV> {
 
 	// Required configuration
-	private TranslateFunction<OLD,NEW> translator;
+	private TranslateFunction<OLD, NEW> translator;
 
 	// Optional configuration
 	private int parallelism = PARALLELISM_DEFAULT;

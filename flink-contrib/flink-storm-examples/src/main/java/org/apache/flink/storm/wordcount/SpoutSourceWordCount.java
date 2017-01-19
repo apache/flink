@@ -17,8 +17,8 @@
 
 package org.apache.flink.storm.wordcount;
 
-import backtype.storm.topology.IRichSpout;
-import backtype.storm.utils.Utils;
+import org.apache.storm.topology.IRichSpout;
+import org.apache.storm.utils.Utils;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;

@@ -36,7 +36,7 @@ extends AbstractGraphTest {
 			throws Exception {
 		int vertexCount = 4;
 
-		Graph<LongValue,NullValue,NullValue> graph = new CompleteGraph(env, vertexCount)
+		Graph<LongValue, NullValue, NullValue> graph = new CompleteGraph(env, vertexCount)
 			.generate();
 
 		String vertices = "0; 1; 2; 3";
@@ -50,7 +50,7 @@ extends AbstractGraphTest {
 			throws Exception {
 		int vertexCount = 10;
 
-		Graph<LongValue,NullValue,NullValue> graph = new CompleteGraph(env, vertexCount)
+		Graph<LongValue, NullValue, NullValue> graph = new CompleteGraph(env, vertexCount)
 			.generate();
 
 		assertEquals(vertexCount, graph.numberOfVertices());
@@ -72,12 +72,12 @@ extends AbstractGraphTest {
 			throws Exception {
 		int parallelism = 2;
 
-		Graph<LongValue,NullValue,NullValue> graph = new CompleteGraph(env, 10)
+		Graph<LongValue, NullValue, NullValue> graph = new CompleteGraph(env, 10)
 			.setParallelism(parallelism)
 			.generate();
 
-		graph.getVertices().output(new DiscardingOutputFormat<Vertex<LongValue,NullValue>>());
-		graph.getEdges().output(new DiscardingOutputFormat<Edge<LongValue,NullValue>>());
+		graph.getVertices().output(new DiscardingOutputFormat<Vertex<LongValue, NullValue>>());
+		graph.getEdges().output(new DiscardingOutputFormat<Edge<LongValue, NullValue>>());
 
 		TestUtils.verifyParallelism(env, parallelism);
 	}

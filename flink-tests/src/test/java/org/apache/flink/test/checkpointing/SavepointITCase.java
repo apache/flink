@@ -25,10 +25,16 @@ import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskState;
@@ -58,11 +64,17 @@ import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages.ResponseSubmitTaskListener;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
+import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.IterativeStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -78,6 +90,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
@@ -613,4 +626,189 @@ public class SavepointITCase extends TestLogger {
 		}
 	}
 
+	private static final int ITER_TEST_PARALLELISM = 1;
+	private static OneShotLatch[] ITER_TEST_SNAPSHOT_WAIT = new OneShotLatch[ITER_TEST_PARALLELISM];
+	private static OneShotLatch[] ITER_TEST_RESTORE_WAIT = new OneShotLatch[ITER_TEST_PARALLELISM];
+	private static int[] ITER_TEST_CHECKPOINT_VERIFY = new int[ITER_TEST_PARALLELISM];
+
+	@Test
+	public void testSavepointForJobWithIteration() throws Exception {
+
+		for (int i = 0; i < ITER_TEST_PARALLELISM; ++i) {
+			ITER_TEST_SNAPSHOT_WAIT[i] = new OneShotLatch();
+			ITER_TEST_RESTORE_WAIT[i] = new OneShotLatch();
+			ITER_TEST_CHECKPOINT_VERIFY[i] = 0;
+		}
+
+		TemporaryFolder folder = new TemporaryFolder();
+		folder.create();
+		// Temporary directory for file state backend
+		final File tmpDir = folder.newFolder();
+
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		final IntegerStreamSource source = new IntegerStreamSource();
+		IterativeStream<Integer> iteration = env.addSource(source)
+				.flatMap(new RichFlatMapFunction<Integer, Integer>() {
+
+					private static final long serialVersionUID = 1L;
+
+					@Override
+					public void flatMap(Integer in, Collector<Integer> clctr) throws Exception {
+						clctr.collect(in);
+					}
+				}).setParallelism(ITER_TEST_PARALLELISM)
+				.keyBy(new KeySelector<Integer, Object>() {
+
+					private static final long serialVersionUID = 1L;
+
+					@Override
+					public Object getKey(Integer value) throws Exception {
+						return value;
+					}
+				})
+				.flatMap(new DuplicateFilter())
+				.setParallelism(ITER_TEST_PARALLELISM)
+				.iterate();
+
+		DataStream<Integer> iterationBody = iteration
+				.map(new MapFunction<Integer, Integer>() {
+					private static final long serialVersionUID = 1L;
+
+					@Override
+					public Integer map(Integer value) throws Exception {
+						return value;
+					}
+				})
+				.setParallelism(ITER_TEST_PARALLELISM);
+
+		iteration.closeWith(iterationBody);
+
+		StreamGraph streamGraph = env.getStreamGraph();
+		streamGraph.setJobName("Test");
+
+		JobGraph jobGraph = streamGraph.getJobGraph();
+
+		Configuration config = new Configuration();
+		config.addAll(jobGraph.getJobConfiguration());
+		config.setLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, -1L);
+		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 2 * jobGraph.getMaximumParallelism());
+		final File checkpointDir = new File(tmpDir, "checkpoints");
+		final File savepointDir = new File(tmpDir, "savepoints");
+
+		if (!checkpointDir.mkdir() || !savepointDir.mkdirs()) {
+			fail("Test setup failed: failed to create temporary directories.");
+		}
+
+		config.setString(ConfigConstants.STATE_BACKEND, "filesystem");
+		config.setString(FsStateBackendFactory.CHECKPOINT_DIRECTORY_URI_CONF_KEY,
+				checkpointDir.toURI().toString());
+		config.setString(FsStateBackendFactory.MEMORY_THRESHOLD_CONF_KEY, "0");
+		config.setString(ConfigConstants.SAVEPOINT_DIRECTORY_KEY,
+				savepointDir.toURI().toString());
+
+		TestingCluster cluster = new TestingCluster(config, false);
+		String savepointPath = null;
+		try {
+			cluster.start();
+
+			cluster.submitJobDetached(jobGraph);
+			for (OneShotLatch latch : ITER_TEST_SNAPSHOT_WAIT) {
+				latch.await();
+			}
+			savepointPath = cluster.triggerSavepoint(jobGraph.getJobID());
+			source.cancel();
+
+			jobGraph = streamGraph.getJobGraph();
+			jobGraph.setSavepointRestoreSettings(SavepointRestoreSettings.forPath(savepointPath));
+
+			cluster.submitJobDetached(jobGraph);
+			for (OneShotLatch latch : ITER_TEST_RESTORE_WAIT) {
+				latch.await();
+			}
+			source.cancel();
+		} finally {
+			if (null != savepointPath) {
+				cluster.disposeSavepoint(savepointPath);
+			}
+			cluster.stop();
+			cluster.awaitTermination();
+		}
+	}
+
+	private static final class IntegerStreamSource
+			extends RichSourceFunction<Integer>
+			implements ListCheckpointed<Integer> {
+
+		private static final long serialVersionUID = 1L;
+		private volatile boolean running;
+		private volatile boolean isRestored;
+		private int emittedCount;
+
+		public IntegerStreamSource() {
+			this.running = true;
+			this.isRestored = false;
+			this.emittedCount = 0;
+		}
+
+		@Override
+		public void run(SourceContext<Integer> ctx) throws Exception {
+
+			while (running) {
+				synchronized (ctx.getCheckpointLock()) {
+					ctx.collect(emittedCount);
+				}
+
+				if (emittedCount < 100) {
+					++emittedCount;
+				} else {
+					emittedCount = 0;
+				}
+				Thread.sleep(1);
+			}
+		}
+
+		@Override
+		public void cancel() {
+			running = false;
+		}
+
+		@Override
+		public List<Integer> snapshotState(long checkpointId, long timestamp) throws Exception {
+			ITER_TEST_CHECKPOINT_VERIFY[getRuntimeContext().getIndexOfThisSubtask()] = emittedCount;
+			return Collections.singletonList(emittedCount);
+		}
+
+		@Override
+		public void restoreState(List<Integer> state) throws Exception {
+			if (!state.isEmpty()) {
+				this.emittedCount = state.get(0);
+			}
+			Assert.assertEquals(ITER_TEST_CHECKPOINT_VERIFY[getRuntimeContext().getIndexOfThisSubtask()], emittedCount);
+			ITER_TEST_RESTORE_WAIT[getRuntimeContext().getIndexOfThisSubtask()].trigger();
+		}
+	}
+
+	public static class DuplicateFilter extends RichFlatMapFunction<Integer, Integer> {
+
+		static final ValueStateDescriptor<Boolean> descriptor = new ValueStateDescriptor<>("seen", Boolean.class, false);
+		private static final long serialVersionUID = 1L;
+		private ValueState<Boolean> operatorState;
+
+		@Override
+		public void open(Configuration configuration) {
+			operatorState = this.getRuntimeContext().getState(descriptor);
+		}
+
+		@Override
+		public void flatMap(Integer value, Collector<Integer> out) throws Exception {
+			if (!operatorState.value()) {
+				out.collect(value);
+				operatorState.update(true);
+			}
+
+			if (30 == value) {
+				ITER_TEST_SNAPSHOT_WAIT[getRuntimeContext().getIndexOfThisSubtask()].trigger();
+			}
+		}
+	}
 }

@@ -33,8 +33,7 @@ class DataStreamAggregateRule
       classOf[LogicalWindowAggregate],
       Convention.NONE,
       DataStreamConvention.INSTANCE,
-      "DataStreamAggregateRule")
-  {
+      "DataStreamAggregateRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val agg: LogicalWindowAggregate = call.rel(0).asInstanceOf[LogicalWindowAggregate]
@@ -75,4 +74,3 @@ class DataStreamAggregateRule
 object DataStreamAggregateRule {
   val INSTANCE: RelOptRule = new DataStreamAggregateRule
 }
-

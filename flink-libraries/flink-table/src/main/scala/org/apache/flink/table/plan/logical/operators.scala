@@ -92,20 +92,11 @@ case class Project(projectList: Seq[NamedExpression], child: LogicalNode) extend
   }
 
   override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
-    val allAlias = projectList.forall(_.isInstanceOf[Alias])
     child.construct(relBuilder)
-    if (allAlias) {
-      // Calcite's RelBuilder does not translate identity projects even if they rename fields.
-      //   Add a projection ourselves (will be automatically removed by translation rules).
-      val project = LogicalProject.create(relBuilder.peek(),
-        // avoid AS call
-        projectList.map(_.asInstanceOf[Alias].child.toRexNode(relBuilder)).asJava,
-        projectList.map(_.name).asJava)
-      relBuilder.build()  // pop previous relNode
-      relBuilder.push(project)
-    } else {
-      relBuilder.project(projectList.map(_.toRexNode(relBuilder)): _*)
-    }
+    relBuilder.project(
+      projectList.map(_.toRexNode(relBuilder)).asJava,
+      projectList.map(_.name).asJava,
+      true)
   }
 }
 

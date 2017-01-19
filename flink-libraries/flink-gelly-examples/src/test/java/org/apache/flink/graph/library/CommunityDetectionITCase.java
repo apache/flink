@@ -47,10 +47,10 @@ public class CommunityDetectionITCase extends MultipleProgramsTestBase {
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		Graph<Long, Long, Double> inputGraph = Graph.fromDataSet(
-				CommunityDetectionData.getSimpleEdgeDataSet(env), new InitLabels(), env);
+			CommunityDetectionData.getSimpleEdgeDataSet(env), new InitLabels(), env);
 
-        List<Vertex<Long, Long>> result = inputGraph.run(new CommunityDetection<Long>(1, CommunityDetectionData.DELTA))
-        		.getVertices().collect();
+		List<Vertex<Long, Long>> result = inputGraph.run(new CommunityDetection<Long>(1, CommunityDetectionData.DELTA))
+			.getVertices().collect();
 
 		expected = CommunityDetectionData.COMMUNITIES_SINGLE_ITERATION;
 		compareResultAsTuples(result, expected);
@@ -63,16 +63,16 @@ public class CommunityDetectionITCase extends MultipleProgramsTestBase {
 		 */
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		Graph<Long, Long, Double> inputGraph = Graph.fromDataSet(
-				CommunityDetectionData.getTieEdgeDataSet(env), new InitLabels(), env);
+			CommunityDetectionData.getTieEdgeDataSet(env), new InitLabels(), env);
 
-        List<Vertex<Long, Long>> result = inputGraph.run(new CommunityDetection<Long>(1, CommunityDetectionData.DELTA))
-        		.getVertices().collect();
+		List<Vertex<Long, Long>> result = inputGraph.run(new CommunityDetection<Long>(1, CommunityDetectionData.DELTA))
+			.getVertices().collect();
 		expected = CommunityDetectionData.COMMUNITIES_WITH_TIE;
 		compareResultAsTuples(result, expected);
 	}
 
 	@SuppressWarnings("serial")
-	private static final class InitLabels implements MapFunction<Long, Long>{
+	private static final class InitLabels implements MapFunction<Long, Long> {
 
 		public Long map(Long id) {
 			return id;

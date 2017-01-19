@@ -124,14 +124,6 @@ public class HighAvailabilityOptions {
 			.defaultValue(3)
 			.withDeprecatedKeys("recovery.zookeeper.client.max-retry-attempts");
 
-	public static final ConfigOption<Boolean> ZOOKEEPER_SASL_DISABLE = 
-			key("zookeeper.sasl.disable")
-			.defaultValue(true);
-
-	public static final ConfigOption<String> ZOOKEEPER_SASL_SERVICE_NAME = 
-			key("zookeeper.sasl.service-name")
-			.noDefaultValue();
-
 	// ------------------------------------------------------------------------
 
 	/** Not intended to be instantiated */

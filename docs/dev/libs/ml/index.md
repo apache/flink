@@ -58,6 +58,10 @@ FlinkML currently supports the following algorithms:
 
 * [Alternating Least Squares (ALS)](als.html)
 
+### Outlier selection
+
+* [Stochastic Outlier Selection (SOS)](sos.html)
+
 ### Utilities
 
 * [Distance Metrics](distance_metrics.html)

@@ -32,7 +32,7 @@ import java.util.List;
 
 public class SimplifyTest {
 
-	protected Graph<IntValue,NullValue,NullValue> graph;
+	protected Graph<IntValue, NullValue, NullValue> graph;
 
 	@Before
 	public void setup() {
@@ -66,7 +66,7 @@ public class SimplifyTest {
 			"(1,0,(null))\n" +
 			"(2,0,(null))";
 
-		Graph<IntValue,NullValue,NullValue> simpleGraph = graph
+		Graph<IntValue, NullValue, NullValue> simpleGraph = graph
 			.run(new Simplify<IntValue, NullValue, NullValue>(false));
 
 		TestBaseUtils.compareResultAsText(simpleGraph.getEdges().collect(), expectedResult);
@@ -79,7 +79,7 @@ public class SimplifyTest {
 			"(0,1,(null))\n" +
 			"(1,0,(null))";
 
-		Graph<IntValue,NullValue,NullValue> simpleGraph = graph
+		Graph<IntValue, NullValue, NullValue> simpleGraph = graph
 			.run(new Simplify<IntValue, NullValue, NullValue>(true));
 
 		TestBaseUtils.compareResultAsText(simpleGraph.getEdges().collect(), expectedResult);

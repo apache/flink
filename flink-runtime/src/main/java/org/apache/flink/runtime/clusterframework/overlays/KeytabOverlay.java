@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.clusterframework.overlays;
 
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
 import org.slf4j.Logger;
@@ -34,7 +34,7 @@ import java.io.IOException;
  * Overlays cluster-level Kerberos credentials (i.e. keytab) into a container.
  *
  * The folloowing Flink configuration entries are updated:
- *  - security.keytab
+ *  - security.kerberos.login.keytab
  */
 public class KeytabOverlay extends AbstractContainerOverlay {
 
@@ -60,7 +60,7 @@ public class KeytabOverlay extends AbstractContainerOverlay {
 				.setDest(TARGET_PATH)
 				.setCachable(false)
 				.build());
-			container.getDynamicConfiguration().setString(ConfigConstants.SECURITY_KEYTAB_KEY, TARGET_PATH.getPath());
+			container.getDynamicConfiguration().setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB, TARGET_PATH.getPath());
 		}
 	}
 
@@ -69,7 +69,7 @@ public class KeytabOverlay extends AbstractContainerOverlay {
 	}
 
 	/**
-	 * A builder for the {@link HadoopUserOverlay}.
+	 * A builder for the {@link KeytabOverlay}.
 	 */
 	public static class Builder {
 
@@ -79,15 +79,15 @@ public class KeytabOverlay extends AbstractContainerOverlay {
 		 * Configures the overlay using the current environment (and global configuration).
 		 *
 		 * The following Flink configuration settings are checked for a keytab:
-		 *  - security.keytab
+		 *  - security.kerberos.login.keytab
 		 */
 		public Builder fromEnvironment(Configuration globalConfiguration) {
-			String keytab = globalConfiguration.getString(ConfigConstants.SECURITY_KEYTAB_KEY, null);
+			String keytab = globalConfiguration.getString(SecurityOptions.KERBEROS_LOGIN_KEYTAB);
 			if(keytab != null) {
 				keytabPath = new File(keytab);
 				if(!keytabPath.exists()) {
 					throw new IllegalStateException("Invalid configuration for " +
-						ConfigConstants.SECURITY_KEYTAB_KEY +
+						SecurityOptions.KERBEROS_LOGIN_KEYTAB +
 						"; '" + keytab + "' not found.");
 				}
 			}

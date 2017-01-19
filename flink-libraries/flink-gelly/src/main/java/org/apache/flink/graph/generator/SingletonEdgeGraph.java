@@ -58,16 +58,16 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 	}
 
 	@Override
-	public Graph<LongValue,NullValue,NullValue> generate() {
+	public Graph<LongValue, NullValue, NullValue> generate() {
 		// Vertices
 		long vertexCount = 2 * this.vertexPairCount;
 
-		DataSet<Vertex<LongValue,NullValue>> vertices = GraphGeneratorUtils.vertexSequence(env, parallelism, vertexCount);
+		DataSet<Vertex<LongValue, NullValue>> vertices = GraphGeneratorUtils.vertexSequence(env, parallelism, vertexCount);
 
 		// Edges
 		LongValueSequenceIterator iterator = new LongValueSequenceIterator(0, vertexCount - 1);
 
-		DataSet<Edge<LongValue,NullValue>> edges = env
+		DataSet<Edge<LongValue, NullValue>> edges = env
 			.fromParallelCollection(iterator, LongValue.class)
 				.setParallelism(parallelism)
 				.name("Edge iterators")
@@ -81,16 +81,16 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 
 	@ForwardedFields("*->f0")
 	private static class LinkVertexToSingletonNeighbor
-	implements MapFunction<LongValue, Edge<LongValue,NullValue>> {
+	implements MapFunction<LongValue, Edge<LongValue, NullValue>> {
 
 		private LongValue source = new LongValue();
 
 		private LongValue target = new LongValue();
 
-		private Edge<LongValue,NullValue> edge = new Edge<>(source, target, NullValue.getInstance());
+		private Edge<LongValue, NullValue> edge = new Edge<>(source, target, NullValue.getInstance());
 
 		@Override
-		public Edge<LongValue,NullValue> map(LongValue value) throws Exception {
+		public Edge<LongValue, NullValue> map(LongValue value) throws Exception {
 			long val = value.getValue();
 
 			source.setValue(val);

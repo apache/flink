@@ -103,7 +103,7 @@ public class Graph500 {
 			graph = graph.run(new Simplify<LongValue, NullValue, NullValue>(clipAndFlip));
 		}
 
-		DataSet<Tuple2<LongValue,LongValue>> edges = graph
+		DataSet<Tuple2<LongValue, LongValue>> edges = graph
 			.getEdges()
 			.project(0, 1);
 

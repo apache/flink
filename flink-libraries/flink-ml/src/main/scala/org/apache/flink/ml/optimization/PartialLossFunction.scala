@@ -62,6 +62,6 @@ object SquaredLoss extends PartialLossFunction {
     * @return
     */
   override def derivative(prediction: Double, label: Double): Double = {
-    (prediction - label)
+    prediction - label
   }
 }

@@ -52,8 +52,8 @@ public class GlobFilePathFilter extends FilePathFilter {
 
 	private static final long serialVersionUID = 1L;
 
-	private final List<PathMatcher> includeMatchers;
-	private final List<PathMatcher> excludeMatchers;
+	private final ArrayList<PathMatcher> includeMatchers;
+	private final ArrayList<PathMatcher> excludeMatchers;
 
 	/**
 	 * Constructor for GlobFilePathFilter that will match all files
@@ -73,9 +73,9 @@ public class GlobFilePathFilter extends FilePathFilter {
 		excludeMatchers = buildPatterns(excludePatterns);
 	}
 
-	private List<PathMatcher> buildPatterns(List<String> patterns) {
+	private ArrayList<PathMatcher> buildPatterns(List<String> patterns) {
 		FileSystem fileSystem = FileSystems.getDefault();
-		List<PathMatcher> matchers = new ArrayList<>();
+		ArrayList<PathMatcher> matchers = new ArrayList<>(patterns.size());
 
 		for (String patternStr : patterns) {
 			matchers.add(fileSystem.getPathMatcher("glob:" + patternStr));
@@ -90,22 +90,28 @@ public class GlobFilePathFilter extends FilePathFilter {
 			return false;
 		}
 
+		// compensate for the fact that Flink paths are slashed
+		final String path = filePath.hasWindowsDrive() ?
+				filePath.getPath().substring(1) :
+				filePath.getPath();
+
+		final java.nio.file.Path nioPath = Paths.get(path);
+
 		for (PathMatcher matcher : includeMatchers) {
-			if (matcher.matches(Paths.get(filePath.getPath()))) {
-				return shouldExclude(filePath);
+			if (matcher.matches(nioPath)) {
+				return shouldExclude(nioPath);
 			}
 		}
 
 		return true;
 	}
 
-	private boolean shouldExclude(Path filePath) {
+	private boolean shouldExclude(java.nio.file.Path nioPath) {
 		for (PathMatcher matcher : excludeMatchers) {
-			if (matcher.matches(Paths.get(filePath.getPath()))) {
+			if (matcher.matches(nioPath)) {
 				return true;
 			}
 		}
 		return false;
 	}
-
 }

@@ -308,7 +308,7 @@ abstract class StreamTableEnvironment(
   protected def translate[A]
       (logicalPlan: RelNode)(implicit tpe: TypeInformation[A]): DataStream[A] = {
 
-    validateType(tpe)
+    TableEnvironment.validateType(tpe)
 
     logicalPlan match {
       case node: DataStreamRel =>

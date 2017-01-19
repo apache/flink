@@ -58,7 +58,7 @@ class DataStreamAggregate(
   with FlinkAggregate
   with DataStreamRel {
 
-  override def deriveRowType() = rowRelDataType
+  override def deriveRowType(): RelDataType = rowRelDataType
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new DataStreamAggregate(
@@ -242,6 +242,7 @@ class DataStreamAggregate(
         }
       }
     }
+
     // if the expected type is not a Row, inject a mapper to convert to the expected type
     expectedType match {
       case Some(typeInfo) if typeInfo.getTypeClass != classOf[Row] =>

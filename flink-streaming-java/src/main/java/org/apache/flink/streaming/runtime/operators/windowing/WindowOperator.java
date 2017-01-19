@@ -50,6 +50,7 @@ import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
+import org.apache.flink.streaming.api.windowing.assigners.BaseAlignedWindowAssigner;
 import org.apache.flink.streaming.api.windowing.assigners.MergingWindowAssigner;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
@@ -213,6 +214,11 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 			LegacyWindowOperatorType legacyWindowOperatorType) {
 
 		super(windowFunction);
+
+		checkArgument(!(windowAssigner instanceof BaseAlignedWindowAssigner),
+			"The " + windowAssigner.getClass().getSimpleName() + " cannot be used with a WindowOperator. " +
+				"This assigner is only used with the AccumulatingProcessingTimeWindowOperator and " +
+				"the AggregatingProcessingTimeWindowOperator");
 
 		checkArgument(allowedLateness >= 0);
 

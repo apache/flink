@@ -398,7 +398,7 @@ public class CoProcessOperatorTest extends TestLogger {
 		private static final long serialVersionUID = 1L;
 
 		private final ValueStateDescriptor<String> state =
-				new ValueStateDescriptor<>("seen-element", StringSerializer.INSTANCE, null);
+				new ValueStateDescriptor<>("seen-element", StringSerializer.INSTANCE);
 
 		@Override
 		public void processElement1(Integer value, Context ctx, Collector<String> out) throws Exception {
@@ -479,7 +479,7 @@ public class CoProcessOperatorTest extends TestLogger {
 		private static final long serialVersionUID = 1L;
 
 		private final ValueStateDescriptor<String> state =
-				new ValueStateDescriptor<>("seen-element", StringSerializer.INSTANCE, null);
+				new ValueStateDescriptor<>("seen-element", StringSerializer.INSTANCE);
 
 		@Override
 		public void processElement1(Integer value, Context ctx, Collector<String> out) throws Exception {

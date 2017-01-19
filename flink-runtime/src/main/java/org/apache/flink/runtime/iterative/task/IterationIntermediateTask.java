@@ -124,7 +124,7 @@ public class IterationIntermediateTask<S extends Function, OT> extends AbstractI
 
 	private void sendEndOfSuperstep() throws IOException, InterruptedException {
 		for (RecordWriter eventualOutput : this.eventualOutputs) {
-			eventualOutput.sendEndOfSuperstep();
+			eventualOutput.broadcastEvent(EndOfSuperstepEvent.INSTANCE);
 		}
 	}
 

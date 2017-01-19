@@ -1,0 +1,61 @@
+//
+  Licensed to the Apache Software Foundation (ASF) under one
+  or more contributor license agreements.  See the NOTICE file
+  distributed with this work for additional information
+  regarding copyright ownership.  The ASF licenses this file
+  to you under the Apache License, Version 2.0 (the
+  "License"); you may not use this file except in compliance
+  with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+
+div(ng-if="checkpointStats['history'] && checkpointStats['history'].length > 0")
+  table.table
+    thead
+      tr
+        td #[strong ID]
+        td #[strong Status]
+        td #[strong Acknowledged]
+        td #[strong Trigger Time]
+        td #[strong Latest Acknowledgement]
+        td #[strong End to End Duration]
+        td #[strong State Size]
+        td #[strong Buffered During Alignment]
+        td
+    tbody
+      tr(ng-repeat="checkpoint in checkpointStats['history']" ng-class="{'bg-danger': checkpoint['status'] == 'FAILED'}")
+        td {{ checkpoint['id'] }}
+        td(ng-if="checkpoint['status'] == 'IN_PROGRESS'") #[i(aria-hidden="true").fa.fa-circle-o-notch.fa-spin.fa-fw] #[i(ng-if="checkpoint['is_savepoint']" aria-hidden="true").fa.fa-floppy-o]
+        td(ng-if="checkpoint['status'] == 'COMPLETED'") #[i(aria-hidden="true").fa.fa-check] #[i(ng-if="checkpoint['is_savepoint']" aria-hidden="true").fa.fa-floppy-o]
+        td(ng-if="checkpoint['status'] == 'FAILED'") #[i(aria-hidden="true").fa.fa-remove] #[i(ng-if="checkpoint['is_savepoint']" aria-hidden="true").fa.fa-floppy-o]
+        td {{ checkpoint['num_acknowledged_subtasks'] }}/{{ checkpoint['num_subtasks'] }}
+          = ' '
+          span(ng-if="checkpoint['status'] == 'IN_PROGRESS'") ({{ checkpoint['num_acknowledged_subtasks']/checkpoint['num_subtasks'] | percentage }})
+        td {{ checkpoint['trigger_timestamp'] | amDateFormat:'H:mm:ss' }}
+        td(ng-if="checkpoint['latest_ack_timestamp'] >= 0") {{ checkpoint['latest_ack_timestamp'] | amDateFormat:'H:mm:ss' }}
+        td(ng-if="checkpoint['latest_ack_timestamp'] < 0") n/a
+        td(ng-if="checkpoint['end_to_end_duration'] >= 0") {{ checkpoint['end_to_end_duration'] | humanizeDuration }}
+        td(ng-if="checkpoint['end_to_end_duration'] < 0") n/a
+        td {{ checkpoint['state_size'] | humanizeBytes }}
+        td {{ checkpoint['alignment_buffered'] | humanizeBytes }}
+        td
+          a.btn.btn-default(ui-sref="^.details({checkpointId: checkpoint['id']})")
+            i(aria-hidden="true").fa.fa-chevron-right
+            = ' '
+            strong More details
+  p
+    strong.small Status:
+    ul.small
+      li In Progress: #[i(aria-hidden="true").fa.fa-circle-o-notch.fa-spin.fa-fw]
+      li Completed: #[i(aria-hidden="true").fa.fa-check]
+      li Failed: #[i(aria-hidden="true").fa.fa-remove]
+      li Savepoint: #[i(aria-hidden="true").fa.fa-floppy-o]
+
+div(ng-if="checkpointStats['history'] && checkpointStats['history'].length == 0")
+  p(role="alert").alert.alert-info #[strong No checkpoint history available.]

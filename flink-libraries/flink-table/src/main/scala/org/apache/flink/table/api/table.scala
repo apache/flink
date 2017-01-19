@@ -63,9 +63,23 @@ class Table(
     private[flink] val tableEnv: TableEnvironment,
     private[flink] val logicalPlan: LogicalNode) {
 
+  private val tableSchema: TableSchema = new TableSchema(
+    logicalPlan.output.map(_.name).toArray,
+    logicalPlan.output.map(_.resultType).toArray)
+
   def relBuilder = tableEnv.getRelBuilder
 
   def getRelNode: RelNode = logicalPlan.toRelNode(relBuilder)
+
+  /**
+    * Returns the schema of this table.
+    */
+  def getSchema: TableSchema = tableSchema
+
+  /**
+    * Prints the schema of this table to the console in a tree format.
+    */
+  def printSchema(): Unit = print(tableSchema.toString)
 
   /**
     * Performs a selection operation. Similar to an SQL SELECT statement. The field expressions
@@ -788,9 +802,6 @@ class Table(
     * @return A windowed table.
     */
   def window(groupWindow: GroupWindow): GroupWindowedTable = {
-    if (tableEnv.isInstanceOf[BatchTableEnvironment]) {
-      throw new ValidationException(s"Windows on batch tables are currently not supported.")
-    }
     new GroupWindowedTable(this, Seq(), groupWindow)
   }
 }
@@ -858,9 +869,6 @@ class GroupedTable(
     * @return A windowed table.
     */
   def window(groupWindow: GroupWindow): GroupWindowedTable = {
-    if (table.tableEnv.isInstanceOf[BatchTableEnvironment]) {
-      throw new ValidationException(s"Windows on batch tables are currently not supported.")
-    }
     new GroupWindowedTable(table, groupKey, groupWindow)
   }
 }

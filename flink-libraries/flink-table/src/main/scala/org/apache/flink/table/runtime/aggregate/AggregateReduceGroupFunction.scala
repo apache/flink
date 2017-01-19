@@ -20,38 +20,45 @@ package org.apache.flink.table.runtime.aggregate
 import java.lang.Iterable
 
 import org.apache.flink.api.common.functions.RichGroupReduceFunction
-import org.apache.flink.types.Row
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.types.Row
 import org.apache.flink.util.{Collector, Preconditions}
 
 import scala.collection.JavaConversions._
 
 /**
- * It wraps the aggregate logic inside of 
+ * It wraps the aggregate logic inside of
  * [[org.apache.flink.api.java.operators.GroupReduceOperator]].
  *
- * @param aggregates   The aggregate functions.
- * @param groupKeysMapping The index mapping of group keys between intermediate aggregate Row 
- *                         and output Row.
- * @param aggregateMapping The index mapping between aggregate function list and aggregated value
- *                         index in output Row.
+ * @param aggregates          The aggregate functions.
+ * @param groupKeysMapping    The index mapping of group keys between intermediate aggregate Row
+ *                            and output Row.
+ * @param aggregateMapping    The index mapping between aggregate function list and aggregated value
+ *                            index in output Row.
+ * @param groupingSetsMapping The index mapping of keys in grouping sets between intermediate
+ *                            Row and output Row.
  */
 class AggregateReduceGroupFunction(
     private val aggregates: Array[Aggregate[_ <: Any]],
     private val groupKeysMapping: Array[(Int, Int)],
     private val aggregateMapping: Array[(Int, Int)],
+    private val groupingSetsMapping: Array[(Int, Int)],
     private val intermediateRowArity: Int,
     private val finalRowArity: Int)
   extends RichGroupReduceFunction[Row, Row] {
 
   protected var aggregateBuffer: Row = _
   private var output: Row = _
+  private var intermediateGroupKeys: Option[Array[Int]] = None
 
   override def open(config: Configuration) {
     Preconditions.checkNotNull(aggregates)
     Preconditions.checkNotNull(groupKeysMapping)
     aggregateBuffer = new Row(intermediateRowArity)
     output = new Row(finalRowArity)
+    if (!groupingSetsMapping.isEmpty) {
+      intermediateGroupKeys = Some(groupKeysMapping.map(_._1))
+    }
   }
 
   /**
@@ -85,6 +92,14 @@ class AggregateReduceGroupFunction(
     aggregateMapping.foreach {
       case (after, previous) =>
         output.setField(after, aggregates(previous).evaluate(aggregateBuffer))
+    }
+
+    // Evaluate additional values of grouping sets
+    if (intermediateGroupKeys.isDefined) {
+      groupingSetsMapping.foreach {
+        case (inputIndex, outputIndex) =>
+          output.setField(outputIndex, !intermediateGroupKeys.get.contains(inputIndex))
+      }
     }
 
     out.collect(output)

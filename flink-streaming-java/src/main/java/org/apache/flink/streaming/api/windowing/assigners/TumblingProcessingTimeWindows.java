@@ -108,6 +108,7 @@ public class TumblingProcessingTimeWindows extends WindowAssigner<Object, TimeWi
 	public static TumblingProcessingTimeWindows of(Time size, Time offset) {
 		return new TumblingProcessingTimeWindows(size.toMilliseconds(), offset.toMilliseconds() % size.toMilliseconds());
 	}
+
 	@Override
 	public TypeSerializer<TimeWindow> getWindowSerializer(ExecutionConfig executionConfig) {
 		return new TimeWindow.Serializer();

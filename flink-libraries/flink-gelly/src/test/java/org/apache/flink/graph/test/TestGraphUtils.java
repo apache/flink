@@ -18,17 +18,17 @@
 
 package org.apache.flink.graph.test;
 
-import java.io.PrintStream;
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.List;
-
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Vertex;
+
+import java.io.PrintStream;
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
 
 public class TestGraphUtils {
 
@@ -354,20 +354,20 @@ public class TestGraphUtils {
 	 * utils for getting the second graph for the test of method difference();
 	 * @param env - ExecutionEnvironment
 	 */
-	public static DataSet<Edge<Long,Long>> getLongLongEdgeDataDifference(ExecutionEnvironment env) {
+	public static DataSet<Edge<Long, Long>> getLongLongEdgeDataDifference(ExecutionEnvironment env) {
 		return env.fromCollection(getLongLongEdgesForDifference());
 	}
 
-	public static DataSet<Edge<Long,Long>> getLongLongEdgeDataDifference2(ExecutionEnvironment env) {
+	public static DataSet<Edge<Long, Long>> getLongLongEdgeDataDifference2(ExecutionEnvironment env) {
 		return env.fromCollection(getLongLongEdgesForDifference2());
 	}
 
-	public static DataSet<Vertex<Long,Long>> getLongLongVertexDataDifference(ExecutionEnvironment env) {
+	public static DataSet<Vertex<Long, Long>> getLongLongVertexDataDifference(ExecutionEnvironment env) {
 		return env.fromCollection(getVerticesForDifference());
 	}
 
-	public static List<Vertex<Long,Long>> getVerticesForDifference(){
-		List<Vertex<Long,Long>> vertices = new ArrayList<>();
+	public static List<Vertex<Long, Long>> getVerticesForDifference(){
+		List<Vertex<Long, Long>> vertices = new ArrayList<>();
 		vertices.add(new Vertex<>(1L, 1L));
 		vertices.add(new Vertex<>(3L, 3L));
 		vertices.add(new Vertex<>(6L, 6L));

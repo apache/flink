@@ -32,13 +32,11 @@ import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.util.Collection;
 
 import static org.junit.Assert.fail;
 
@@ -107,19 +105,6 @@ public class StateBackendITCase extends StreamingMultipleProgramsTestBase {
 				TypeSerializer<K> keySerializer,
 				int numberOfKeyGroups,
 				KeyGroupRange keyGroupRange,
-				TaskKvStateRegistry kvStateRegistry) throws Exception {
-			throw new SuccessException();
-		}
-
-		@Override
-		public <K> AbstractKeyedStateBackend<K> restoreKeyedStateBackend(
-				Environment env,
-				JobID jobID,
-				String operatorIdentifier,
-				TypeSerializer<K> keySerializer,
-				int numberOfKeyGroups,
-				KeyGroupRange keyGroupRange,
-				Collection<KeyGroupsStateHandle> restoredState,
 				TaskKvStateRegistry kvStateRegistry) throws Exception {
 			throw new SuccessException();
 		}
