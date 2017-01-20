@@ -28,7 +28,7 @@ under the License.
 ## Monitoring Current Event Time
 
 Flink's [event time]({{ site.baseurl }}/dev/event_time.html) and watermark support is a powerful feature for handling
-out-of-order events. However, its harder to understand what exactly is going on because the progress of time
+out-of-order events. However, it's harder to understand what exactly is going on because the progress of time
 is tracked within the system.
 
 There are plans (see [FLINK-3427](https://issues.apache.org/jira/browse/FLINK-3427)) to show the current low watermark
