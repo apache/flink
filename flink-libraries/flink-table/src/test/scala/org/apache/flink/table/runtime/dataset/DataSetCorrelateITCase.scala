@@ -20,14 +20,16 @@ package org.apache.flink.table.runtime.dataset
 import java.sql.{Date, Timestamp}
 
 import org.apache.flink.api.scala._
-import org.apache.flink.types.Row
-import org.apache.flink.table.api.scala.batch.utils.TableProgramsClusterTestBase
-import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
-import org.apache.flink.table.api.scala._
+import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.java.utils.UserDefinedTableFunctions.JavaTableFunc0
+import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
+import org.apache.flink.table.api.scala.batch.utils.TableProgramsClusterTestBase
+import org.apache.flink.table.expressions.utils.RichFunc2
 import org.apache.flink.table.utils._
 import org.apache.flink.test.util.TestBaseUtils
+import org.apache.flink.types.Row
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -147,7 +149,7 @@ class DataSetCorrelateITCase(
   }
 
   @Test
-  def testUDTFWithScalarFunction(): Unit = {
+  def testUserDefinedTableFunctionWithScalarFunction(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tableEnv = TableEnvironment.getTableEnvironment(env, config)
     val in = testData(env).toTable(tableEnv).as('a, 'b, 'c)
@@ -182,6 +184,46 @@ class DataSetCorrelateITCase(
 
     val results = result.collect()
     val expected = "1000\n" + "655906210000\n" + "7591\n"
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testUserDefinedTableFunctionWithParameter(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val richTableFunc1 = new RichTableFunc1
+    tEnv.registerFunction("RichTableFunc1", richTableFunc1)
+    UserDefinedFunctionTestUtils.setJobParameters(env, Map("word_separator" -> "#"))
+
+    val result = testData(env)
+      .toTable(tEnv, 'a, 'b, 'c)
+      .join(richTableFunc1('c) as 's)
+      .select('a, 's)
+
+    val expected = "1,Jack\n" + "1,22\n" + "2,John\n" + "2,19\n" + "3,Anna\n" + "3,44"
+    val results = result.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testUserDefinedTableFunctionWithScalarFunctionWithParameters(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val richTableFunc1 = new RichTableFunc1
+    tEnv.registerFunction("RichTableFunc1", richTableFunc1)
+    val richFunc2 = new RichFunc2
+    tEnv.registerFunction("RichFunc2", richFunc2)
+    UserDefinedFunctionTestUtils.setJobParameters(
+      env,
+      Map("word_separator" -> "#", "string.value" -> "test"))
+
+    val result = CollectionDataSets.getSmall3TupleDataSet(env)
+      .toTable(tEnv, 'a, 'b, 'c)
+      .join(richTableFunc1(richFunc2('c)) as 's)
+      .select('a, 's)
+
+    val expected = "1,Hi\n1,test\n2,Hello\n2,test\n3,Hello world\n3,test"
+    val results = result.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 

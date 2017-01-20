@@ -21,9 +21,11 @@ import java.lang.Boolean
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.tuple.Tuple3
-import org.apache.flink.types.Row
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.functions.TableFunction
+import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.functions.{TableFunction, FunctionContext}
+import org.apache.flink.types.Row
+import org.junit.Assert
 
 
 case class SimpleUser(name: String, age: Int)
@@ -113,5 +115,57 @@ object ObjectTableFunction extends TableFunction[Integer] {
   def eval(a: Int, b: Int): Unit = {
     collect(a)
     collect(b)
+  }
+}
+
+class RichTableFunc0 extends TableFunction[String] {
+  var openCalled = false
+  var closeCalled = false
+
+  override def open(context: FunctionContext): Unit = {
+    super.open(context)
+    if (closeCalled) {
+      Assert.fail("Close called before open.")
+    }
+    openCalled = true
+  }
+
+  def eval(str: String): Unit = {
+    if (!openCalled) {
+      Assert.fail("Open was not called before eval.")
+    }
+    if (closeCalled) {
+      Assert.fail("Close called before eval.")
+    }
+
+    if (!str.contains("#")) {
+      collect(str)
+    }
+  }
+
+  override def close(): Unit = {
+    super.close()
+    if (!openCalled) {
+      Assert.fail("Open was not called before close.")
+    }
+    closeCalled = true
+  }
+}
+
+class RichTableFunc1 extends TableFunction[String] {
+  var separator: Option[String] = None
+
+  override def open(context: FunctionContext): Unit = {
+    separator = Some(context.getJobParameter("word_separator", ""))
+  }
+
+  def eval(str: String): Unit = {
+    if (str.contains(separator.getOrElse(throw new ValidationException(s"no separator")))) {
+      str.split(separator.get).foreach(collect)
+    }
+  }
+
+  override def close(): Unit = {
+    separator = None
   }
 }

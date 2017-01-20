@@ -23,5 +23,20 @@ package org.apache.flink.table.functions
   *
   * User-defined functions must have a default constructor and must be instantiable during runtime.
   */
-trait UserDefinedFunction {
+abstract class UserDefinedFunction {
+  /**
+    * Setup method for user-defined function. It can be used for initialization work.
+    *
+    * By default, this method does nothing.
+    */
+  @throws(classOf[Exception])
+  def open(context: FunctionContext): Unit = {}
+
+  /**
+    * Tear-down method for user-defined function. It can be used for clean up work.
+    *
+    * By default, this method does nothing.
+    */
+  @throws(classOf[Exception])
+  def close(): Unit = {}
 }

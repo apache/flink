@@ -4724,6 +4724,11 @@ ELEMENT(ARRAY)
 </div>
 </div>
 
+{% top %}
+
+User-defined Functions
+----------------
+
 ### User-defined Scalar Functions
 
 If a required scalar function is not contained in the built-in functions, it is possible to define custom, user-defined scalar functions for both the Table API and SQL. A user-defined scalar functions maps zero, one, or multiple scalar values to a new scalar value.
@@ -4932,6 +4937,93 @@ class CustomTypeSplit extends TableFunction[Row] {
 {% endhighlight %}
 </div>
 </div>
+
+### Advanced Function Features
+
+Sometimes it might be necessary for a user-defined function to get global runtime information or do some setup/clean-up work before the actual work. User-defined functions provide `open()` and `close()` methods that can be overriden and provide similar functionality as the methods in `RichFunction` of DataSet or DataStream API.
+
+The `open()` method is called once before the evaluation method. The `close()` method after the last call to the evaluation method.
+
+The `open()` method provides a `FunctionContext` that contains information about the context in which user-defined functions are executed, such as the metric group, the distributed cache files, or the global job parameters.
+
+The following information can be obtained by calling the corresponding methods of `FunctionContext`:
+
+| Method                                | Description                                            |
+| :------------------------------------ | :----------------------------------------------------- |
+| `getMetricGroup()`                    | Metric group for this parallel subtask.                |
+| `getCachedFile(name)`                 | Local temporary file copy of a distributed cache file. |
+| `getJobParameter(name, defaultValue)` | Global job parameter value associated with given key.  |
+
+The following example snippet shows how to use `FunctionContext` in a scalar function for accessing a global job parameter:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+public class HashCode extends ScalarFunction {
+
+    private int factor = 0;
+
+    @Override
+    public void open(FunctionContext context) throws Exception {
+        // access "hashcode_factor" parameter
+        // "12" would be the default value if parameter does not exist
+        factor = Integer.valueOf(context.getJobParameter("hashcode_factor", "12")); 
+    }
+
+    public int eval(String s) {
+        return s.hashCode() * factor;
+    }
+}
+
+ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+
+// set job parameter
+Configuration conf = new Configuration();
+conf.setString("hashcode_factor", "31");
+env.getConfig().setGlobalJobParameters(conf);
+
+// register the function
+tableEnv.registerFunction("hashCode", new HashCode())
+
+// use the function in Java Table API
+myTable.select("string, string.hashCode(), hashCode(string)");
+
+// use the function in SQL
+tableEnv.sql("SELECT string, HASHCODE(string) FROM MyTable");
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+object hashCode extends ScalarFunction {
+
+  var hashcode_factor = 12;
+
+  override def open(context: FunctionContext): Unit = {
+    // access "hashcode_factor" parameter
+    // "12" would be the default value if parameter does not exist
+    hashcode_factor = context.getJobParameter("hashcode_factor", "12").toInt
+  }
+
+  def eval(s: String): Int = {
+    s.hashCode() * hashcode_factor
+  }
+}
+
+val tableEnv = TableEnvironment.getTableEnvironment(env)
+
+// use the function in Scala Table API
+myTable.select('string, hashCode('string))
+
+// register and use the function in SQL
+tableEnv.registerFunction("hashCode", hashCode)
+tableEnv.sql("SELECT string, HASHCODE(string) FROM MyTable");
+{% endhighlight %}
+
+</div>
+</div>
+
 
 ### Limitations
 

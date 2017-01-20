@@ -179,7 +179,7 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
       "Func12(f8)",
       "+0 00:00:01.000")
   }
-
+  
   @Test
   def testJavaBoxedPrimitives(): Unit = {
     val JavaFunc0 = new JavaFunc0()
@@ -209,6 +209,30 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
       "JavaFunc1(Null(TIME), 15, Null(TIMESTAMP))",
       "JavaFunc1(NULL, 15, NULL)",
       "null and 15 and null")
+  }
+
+  @Test
+  def testRichFunctions(): Unit = {
+    val richFunc0 = new RichFunc0
+    val richFunc1 = new RichFunc1
+    val richFunc2 = new RichFunc2
+    testAllApis(
+      richFunc0('f0),
+      "RichFunc0(f0)",
+      "RichFunc0(f0)",
+      "43")
+
+    testAllApis(
+      richFunc1('f0),
+      "RichFunc1(f0)",
+      "RichFunc1(f0)",
+      "42")
+
+    testAllApis(
+      richFunc2('f1),
+      "RichFunc2(f1)",
+      "RichFunc2(f1)",
+      "#Test")
   }
 
   // ----------------------------------------------------------------------------------------------
@@ -256,7 +280,10 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
     "Func11" -> Func11,
     "Func12" -> Func12,
     "JavaFunc0" -> new JavaFunc0,
-    "JavaFunc1" -> new JavaFunc1
+    "JavaFunc1" -> new JavaFunc1,
+    "RichFunc0" -> new RichFunc0,
+    "RichFunc1" -> new RichFunc1,
+    "RichFunc2" -> new RichFunc2
   )
 }
 

@@ -22,7 +22,11 @@ import java.sql.{Date, Time, Timestamp}
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.Types
-import org.apache.flink.table.functions.ScalarFunction
+import org.apache.flink.table.functions.{ScalarFunction, FunctionContext}
+import org.junit.Assert
+
+import scala.collection.mutable
+import scala.io.Source
 
 case class SimplePojo(name: String, age: Int)
 
@@ -117,5 +121,96 @@ object Func12 extends ScalarFunction {
 
   override def getResultType(signature: Array[Class[_]]): TypeInformation[_] = {
     Types.INTERVAL_MILLIS
+  }
+}
+
+class RichFunc0 extends ScalarFunction {
+  var openCalled = false
+  var closeCalled = false
+
+  override def open(context: FunctionContext): Unit = {
+    super.open(context)
+    if (openCalled) {
+      Assert.fail("Open called more than once.")
+    } else {
+      openCalled = true
+    }
+    if (closeCalled) {
+      Assert.fail("Close called before open.")
+    }
+  }
+
+  def eval(index: Int): Int = {
+    if (!openCalled) {
+      Assert.fail("Open was not called before eval.")
+    }
+    if (closeCalled) {
+      Assert.fail("Close called before eval.")
+    }
+
+    index + 1
+  }
+
+  override def close(): Unit = {
+    super.close()
+    if (closeCalled) {
+      Assert.fail("Close called more than once.")
+    } else {
+      closeCalled = true
+    }
+    if (!openCalled) {
+      Assert.fail("Open was not called before close.")
+    }
+  }
+}
+
+class RichFunc1 extends ScalarFunction {
+  var added = Int.MaxValue
+
+  override def open(context: FunctionContext): Unit = {
+    added = context.getJobParameter("int.value", "0").toInt
+  }
+
+  def eval(index: Int): Int = {
+    index + added
+  }
+
+  override def close(): Unit = {
+    added = Int.MaxValue
+  }
+}
+
+class RichFunc2 extends ScalarFunction {
+  var prefix = "ERROR_VALUE"
+
+  override def open(context: FunctionContext): Unit = {
+    prefix = context.getJobParameter("string.value", "")
+  }
+
+  def eval(value: String): String = {
+    prefix + "#" + value
+  }
+
+  override def close(): Unit = {
+    prefix = "ERROR_VALUE"
+  }
+}
+
+class RichFunc3 extends ScalarFunction {
+  private val words = mutable.HashSet[String]()
+
+  override def open(context: FunctionContext): Unit = {
+    val file = context.getCachedFile("words")
+    for (line <- Source.fromFile(file.getCanonicalPath).getLines) {
+      words.add(line.trim)
+    }
+  }
+
+  def eval(value: String): Boolean = {
+    words.contains(value)
+  }
+
+  override def close(): Unit = {
+    words.clear()
   }
 }
