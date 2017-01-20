@@ -353,3 +353,24 @@ The offsets committed to ZK or the broker can also be used to track the read pro
 the committed offset and the most recent offset in each partition is called the *consumer lag*. If the Flink topology is consuming
 the data slower from the topic than new data is added, the lag will increase and the consumer will fall behind.
 For large production deployments we recommend monitoring that metric to avoid increasing latency.
+
+### Enabling Kerberos Authentication (for versions 0.9+ and above only)
+
+Flink provides first-class support through the Kafka connector to authenticate to a Kafka installation
+configured for Kerberos. Simply configure Flink in `flink-conf.yaml` to enable Kerberos authentication for Kafka like so:
+
+1. Configure Kerberos credentials by setting the following -
+ - `security.kerberos.login.use-ticket-cache`: By default, this is `true` and Flink will attempt to use Kerberos credentials in ticket caches managed by `kinit`. 
+ Note that when using the Kafka connector in Flink jobs deployed on YARN, Kerberos authorization using ticket caches will not work. This is also the case when deploying using Mesos, as authorization using ticket cache is not supported for Mesos deployments. 
+ - `security.kerberos.login.keytab` and `security.kerberos.login.principal`: To use Kerberos keytabs instead, set values for both of these properties.
+ 
+2. Append `KafkaClient` to `security.kerberos.login.contexts`: This tells Flink to provide the configured Kerberos credentials to the Kafka login context to be used for Kafka authentication.
+
+Once Kerberos-based Flink security is enabled, you can authenticate to Kafka with either the Flink Kafka Consumer or Producer by simply including the following two settings in the provided properties configuration that is passed to the internal Kafka client:
+
+- Set `security.protocol` to `SASL_PLAINTEXT` (default `NONE`): The protocol used to communicate to Kafka brokers.
+When using standalone Flink deployment, you can also use `SASL_SSL`; please see how to configure the Kafka client for SSL [here](https://kafka.apache.org/documentation/#security_configclients). 
+- Set `sasl.kerberos.service.name` to `kafka` (default `kafka`): The value for this should match the `sasl.kerberos.service.name` used for Kafka broker configurations. A mismatch in service name between client and server configuration will cause the authentication to fail.
+
+For more information on Flink configuration for Kerberos security, please see [here]({{ site.baseurl}}/setup/config.html).
+You can also find [here]({{ site.baseurl}}/ops/security-kerberos.html) further details on how Flink internally setups Kerberos-based security.
