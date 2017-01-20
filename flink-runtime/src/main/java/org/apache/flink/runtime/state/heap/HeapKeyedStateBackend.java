@@ -239,6 +239,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		}
 	}
 
+	@SuppressWarnings("deprecation")
 	@Override
 	public void restore(Collection<KeyGroupsStateHandle> restoredState) throws Exception {
 		LOG.info("Initializing heap keyed state backend from snapshot.");
@@ -388,6 +389,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		return "HeapKeyedStateBackend";
 	}
 
+	@SuppressWarnings({"unchecked", "rawtypes", "deprecation"})
 	@Deprecated
 	private void restoreOldSavepointKeyedState(
 			Collection<KeyGroupsStateHandle> stateHandles) throws IOException, ClassNotFoundException {
@@ -447,13 +449,14 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 							stateSerializer);
 
 			StateTable<K, ?, ?> stateTable = new StateTable<>(registeredBackendStateMetaInfo, keyGroupRange);
-			stateTable.getState().set(0, rawResultMap);
+			stateTable.getState()[0] = rawResultMap;
 
 			// add named state to the backend
 			stateTables.put(registeredBackendStateMetaInfo.getName(), stateTable);
 		}
 	}
 
+	@SuppressWarnings("deprecation")
 	private RestoredState restoreHeapState(AbstractMemStateSnapshot<K, ?, ?, ?, ?> stateSnapshot) throws IOException {
 		return new RestoredState(
 				stateSnapshot.deserialize(),
@@ -461,6 +464,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				stateSnapshot.getStateSerializer());
 	}
 
+	@SuppressWarnings({"rawtypes", "unchecked", "deprecation"})
 	private RestoredState restoreFsState(AbstractFsStateSnapshot<K, ?, ?, ?, ?> stateSnapshot) throws IOException {
 		FileSystem fs = stateSnapshot.getFilePath().getFileSystem();
 		//TODO register closeable to support fast cancelation?
@@ -492,6 +496,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		}
 	}
 
+	@SuppressWarnings("rawtypes")
 	static final class RestoredState {
 
 		private final Map rawResultMap;
