@@ -75,7 +75,7 @@ class DataSetWindowAggregateMapFunction(
         rowtimeIndex,
         TimeWindow.getWindowStartWithOffset(rowtime, 0L, tumbleTimeWindowSize.get))
     } else {
-      // otherwise, set rowtime for future use
+      // for session window and slide window
       output.setField(rowtimeIndex, rowtime)
     }
 
