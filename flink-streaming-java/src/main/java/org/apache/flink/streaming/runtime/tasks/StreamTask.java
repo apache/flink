@@ -42,6 +42,7 @@ import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateBackendFactory;
+import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
@@ -530,7 +531,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			// propagate exceptions only if the task is still in "running" state
 			if (isRunning) {
 				throw new Exception("Could not perform checkpoint " + checkpointMetaData.getCheckpointId() +
-					"for operator " + getName() + '.', e);
+					" for operator " + getName() + '.', e);
 			} else {
 				LOG.debug("Could not perform checkpoint {} for operator {} while the " +
 					"invokable was not in state running.", checkpointMetaData.getCheckpointId(), getName(), e);
@@ -953,12 +954,19 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 							owner.getName(), checkpointMetaData.getCheckpointId(), asyncDurationMillis);
 				}
 			} catch (Exception e) {
+				try {
+					cleanup();
+				} catch (Exception cleanupException) {
+					e.addSuppressed(cleanupException);
+				}
+
 				// registers the exception and tries to fail the whole task
 				AsynchronousException asyncException = new AsynchronousException(
 					new Exception(
 						"Could not materialize checkpoint " + checkpointMetaData.getCheckpointId() +
 							" for operator " + owner.getName() + '.',
 						e));
+
 				owner.handleAsyncException("Failure in asynchronous checkpoint materialization", asyncException);
 			} finally {
 				owner.cancelables.unregisterClosable(this);
@@ -967,16 +975,36 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 		@Override
 		public void close() {
-			// cleanup/release ongoing snapshot operations
-			for (OperatorSnapshotResult snapshotResult : snapshotInProgressList) {
-				if (null != snapshotResult) {
+			try {
+				cleanup();
+			} catch (Exception cleanupException) {
+				LOG.warn("Could not properly clean up the async checkpoint runnable.", cleanupException);
+			}
+		}
+
+		private void cleanup() throws Exception {
+			Exception exception = null;
+
+			// clean up ongoing operator snapshot results and non partitioned state handles
+			for (OperatorSnapshotResult operatorSnapshotResult : snapshotInProgressList) {
+				if (operatorSnapshotResult != null) {
 					try {
-						snapshotResult.cancel();
-					} catch (Exception e) {
-						LOG.warn("Could not properly cancel operator snapshot result in async " +
-							"checkpoint runnable.", e);
+						operatorSnapshotResult.cancel();
+					} catch (Exception cancelException) {
+						exception = ExceptionUtils.firstOrSuppressed(cancelException, exception);
 					}
 				}
+			}
+
+			// discard non partitioned state handles
+			try {
+				StateUtil.bestEffortDiscardAllStateObjects(nonPartitionedStateHandles);
+			} catch (Exception discardException) {
+				exception = ExceptionUtils.firstOrSuppressed(discardException, exception);
+			}
+
+			if (null != exception) {
+				throw exception;
 			}
 		}
 	}
@@ -1053,6 +1081,18 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 								operatorSnapshotResult.cancel();
 							} catch (Exception e) {
 								LOG.warn("Could not properly cancel an operator snapshot result.", e);
+							}
+						}
+					}
+
+					// Cleanup non partitioned state handles
+					for (StreamStateHandle nonPartitionedState : nonPartitionedStates) {
+						if (nonPartitionedState != null) {
+							try {
+								nonPartitionedState.discardState();
+							} catch (Exception e) {
+								LOG.warn("Could not properly discard a non partitioned " +
+									"state. This might leave some orphaned files behind.", e);
 							}
 						}
 					}

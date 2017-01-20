@@ -18,6 +18,10 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.util.FutureUtil;
+
+import java.util.concurrent.RunnableFuture;
+
 /**
  * Helpers for {@link StateObject} related code.
  */
@@ -58,6 +62,23 @@ public class StateUtil {
 
 			if (suppressedExceptions != null) {
 				throw suppressedExceptions;
+			}
+		}
+	}
+
+	/**
+	 * Discards the given state future by first trying to cancel it. If this is not possible, then
+	 * the state object contained in the future is calculated and afterwards discarded.
+	 *
+	 * @param stateFuture to be discarded
+	 * @throws Exception if the discard operation failed
+	 */
+	public static void discardStateFuture(RunnableFuture<? extends StateObject> stateFuture) throws Exception {
+		if (null != stateFuture) {
+			if (!stateFuture.cancel(true)) {
+				StateObject stateObject = FutureUtil.runIfNotDoneAndGet(stateFuture);
+
+				stateObject.discardState();
 			}
 		}
 	}
