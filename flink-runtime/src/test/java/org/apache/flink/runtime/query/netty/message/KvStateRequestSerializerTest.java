@@ -36,6 +36,7 @@ import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
@@ -233,6 +234,43 @@ public class KvStateRequestSerializerTest {
 	}
 
 	/**
+	 * Tests value deserialization with too few bytes.
+	 */
+	@Test(expected = IOException.class)
+	public void testDeserializeValueEmpty() throws Exception {
+		KvStateRequestSerializer.deserializeValue(new byte[] {}, LongSerializer.INSTANCE);
+	}
+
+	/**
+	 * Tests value deserialization with too few bytes.
+	 */
+	@Test(expected = IOException.class)
+	public void testDeserializeValueTooShort() throws Exception {
+		// 1 byte (incomplete Long)
+		KvStateRequestSerializer.deserializeValue(new byte[] {1}, LongSerializer.INSTANCE);
+	}
+
+	/**
+	 * Tests value deserialization with too many bytes.
+	 */
+	@Test(expected = IOException.class)
+	public void testDeserializeValueTooMany1() throws Exception {
+		// Long + 1 byte
+		KvStateRequestSerializer.deserializeValue(new byte[] {1, 1, 1, 1, 1, 1, 1, 1, 2},
+			LongSerializer.INSTANCE);
+	}
+
+	/**
+	 * Tests value deserialization with too many bytes.
+	 */
+	@Test(expected = IOException.class)
+	public void testDeserializeValueTooMany2() throws Exception {
+		// Long + 2 bytes
+		KvStateRequestSerializer.deserializeValue(new byte[] {1, 1, 1, 1, 1, 1, 1, 1, 2, 2},
+			LongSerializer.INSTANCE);
+	}
+
+	/**
 	 * Tests list serialization utils.
 	 */
 	@Test
@@ -302,6 +340,35 @@ public class KvStateRequestSerializerTest {
 		List<Long> actualValue = KvStateRequestSerializer.deserializeList(serializedValue, valueSerializer);
 		assertEquals(1, actualValue.size());
 		assertEquals(expectedValue, actualValue.get(0).longValue());
+	}
+
+	/**
+	 * Tests list deserialization with too few bytes.
+	 */
+	@Test
+	public void testDeserializeListEmpty() throws Exception {
+		List<Long> actualValue = KvStateRequestSerializer
+			.deserializeList(new byte[] {}, LongSerializer.INSTANCE);
+		assertEquals(0, actualValue.size());
+	}
+
+	/**
+	 * Tests list deserialization with too few bytes.
+	 */
+	@Test(expected = IOException.class)
+	public void testDeserializeListTooShort1() throws Exception {
+		// 1 byte (incomplete Long)
+		KvStateRequestSerializer.deserializeList(new byte[] {1}, LongSerializer.INSTANCE);
+	}
+
+	/**
+	 * Tests list deserialization with too few bytes.
+	 */
+	@Test(expected = IOException.class)
+	public void testDeserializeListTooShort2() throws Exception {
+		// Long + 1 byte (separator) + 1 byte (incomplete Long)
+		KvStateRequestSerializer.deserializeList(new byte[] {1, 1, 1, 1, 1, 1, 1, 1, 2, 3},
+			LongSerializer.INSTANCE);
 	}
 
 	private byte[] randomByteArray(int capacity) {
