@@ -520,7 +520,7 @@ public class AbstractStreamOperatorTest {
 					timerService.registerProcessingTimeTimer(VoidNamespace.INSTANCE, Long.parseLong(command[1]));
 					break;
 				case "EMIT_STATE":
-					String stateValue = getPartitionedState(stateDescriptor).value();
+					String stateValue = getPartitionedState(stateDescriptor).get();
 					output.collect(new StreamRecord<>("ON_ELEMENT:" + element.getValue().f0 + ":" + stateValue));
 					break;
 				default:
@@ -530,13 +530,13 @@ public class AbstractStreamOperatorTest {
 
 		@Override
 		public void onEventTime(InternalTimer<Integer, VoidNamespace> timer) throws Exception {
-			String stateValue = getPartitionedState(stateDescriptor).value();
+			String stateValue = getPartitionedState(stateDescriptor).get();
 			output.collect(new StreamRecord<>("ON_EVENT_TIME:" + stateValue));
 		}
 
 		@Override
 		public void onProcessingTime(InternalTimer<Integer, VoidNamespace> timer) throws Exception {
-			String stateValue = getPartitionedState(stateDescriptor).value();
+			String stateValue = getPartitionedState(stateDescriptor).get();
 			output.collect(new StreamRecord<>("ON_PROC_TIME:" + stateValue));
 		}
 	}

@@ -44,14 +44,14 @@ public class ListStateDescriptorTest {
 				new ListStateDescriptor<String>("testName", serializer);
 		
 		assertEquals("testName", descr.getName());
-		assertNotNull(descr.getSerializer());
-		assertEquals(serializer, descr.getSerializer());
+		assertNotNull(descr.getElemSerializer());
+		assertEquals(serializer, descr.getElemSerializer());
 
 		ListStateDescriptor<String> copy = CommonTestUtils.createCopySerializable(descr);
 
 		assertEquals("testName", copy.getName());
-		assertNotNull(copy.getSerializer());
-		assertEquals(serializer, copy.getSerializer());
+		assertNotNull(copy.getElemSerializer());
+		assertEquals(serializer, copy.getElemSerializer());
 	}
 
 	@Test
@@ -64,16 +64,16 @@ public class ListStateDescriptorTest {
 				new ListStateDescriptor<Path>("testName", Path.class);
 		
 		try {
-			descr.getSerializer();
+			descr.getElemSerializer();
 			fail("should cause an exception");
 		} catch (IllegalStateException ignored) {}
 
 		descr.initializeSerializerUnlessSet(cfg);
 		
-		assertNotNull(descr.getSerializer());
-		assertTrue(descr.getSerializer() instanceof KryoSerializer);
+		assertNotNull(descr.getElemSerializer());
+		assertTrue(descr.getElemSerializer() instanceof KryoSerializer);
 
-		assertTrue(((KryoSerializer<?>) descr.getSerializer()).getKryo().getRegistration(TaskInfo.class).getId() > 0);
+		assertTrue(((KryoSerializer<?>) descr.getElemSerializer()).getKryo().getRegistration(TaskInfo.class).getId() > 0);
 	}
 
 	@Test
@@ -85,7 +85,7 @@ public class ListStateDescriptorTest {
 		ListStateDescriptor<String> copy = CommonTestUtils.createCopySerializable(descr);
 
 		assertEquals("testName", copy.getName());
-		assertNotNull(copy.getSerializer());
-		assertEquals(StringSerializer.INSTANCE, copy.getSerializer());
+		assertNotNull(copy.getElemSerializer());
+		assertEquals(StringSerializer.INSTANCE, copy.getElemSerializer());
 	}
 }

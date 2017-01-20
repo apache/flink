@@ -121,7 +121,7 @@ abstract public class AbstractKeyedCEPPatternOperator<IN, KEY, OUT> extends Abst
 
 	@Override
 	protected NFA<IN> getNFA() throws IOException {
-		NFA<IN> nfa = nfaOperatorState.value();
+		NFA<IN> nfa = nfaOperatorState.get();
 
 		if (nfa == null) {
 			nfa = nfaFactory.createNFA();
@@ -139,7 +139,7 @@ abstract public class AbstractKeyedCEPPatternOperator<IN, KEY, OUT> extends Abst
 
 	@Override
 	protected PriorityQueue<StreamRecord<IN>> getPriorityQueue() throws IOException {
-		PriorityQueue<StreamRecord<IN>> priorityQueue = priorityQueueOperatorState.value();
+		PriorityQueue<StreamRecord<IN>> priorityQueue = priorityQueueOperatorState.get();
 
 		if (priorityQueue == null) {
 			priorityQueue = priorityQueueFactory.createPriorityQueue();

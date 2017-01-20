@@ -374,7 +374,7 @@ public class ProcessOperatorTest extends TestLogger {
 				OnTimerContext ctx,
 				Collector<String> out) throws Exception {
 			assertEquals(this.timeDomain, ctx.timeDomain());
-			out.collect("STATE:" + getRuntimeContext().getState(state).value());
+			out.collect("STATE:" + getRuntimeContext().getState(state).get());
 		}
 	}
 

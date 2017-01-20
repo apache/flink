@@ -18,8 +18,8 @@
 package org.apache.flink.migration.contrib.streaming.state;
 
 import org.apache.flink.api.common.state.ValueState;
-import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.migration.api.common.state.ValueStateDescriptor;
 import org.apache.flink.migration.runtime.state.AbstractStateBackend;
 import org.apache.flink.migration.runtime.state.KvStateSnapshot;
 import org.apache.flink.migration.runtime.state.StateHandle;

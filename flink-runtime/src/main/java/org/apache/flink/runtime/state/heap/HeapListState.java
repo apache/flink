@@ -22,7 +22,6 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.util.Preconditions;
 
@@ -39,19 +38,17 @@ import java.util.Map;
  * @param <V> The type of the value.
  */
 public class HeapListState<K, N, V>
-		extends AbstractHeapState<K, N, ArrayList<V>, ListState<V>, ListStateDescriptor<V>>
+		extends AbstractHeapState<K, N, ArrayList<V>, ListStateDescriptor<V>>
 		implements ListState<V> {
 
 	/**
 	 * Creates a new key/value state for the given hash map of key/value pairs.
 	 *
 	 * @param backend The state backend backing that created this state.
-	 * @param stateDesc The state identifier for the state. This contains name
-	 *                           and can create a default state value.
+	 * @param stateDesc The state identifier for the state. This contains name and can create a default state value.
 	 * @param stateTable The state tab;e to use in this kev/value state. May contain initial state.
 	 */
-	public HeapListState(
-			KeyedStateBackend<K> backend,
+	public HeapListState(KeyedStateBackend<K> backend,
 			ListStateDescriptor<V> stateDesc,
 			StateTable<K, N, ArrayList<V>> stateTable,
 			TypeSerializer<K> keySerializer,
@@ -64,20 +61,38 @@ public class HeapListState<K, N, V>
 		Preconditions.checkState(currentNamespace != null, "No namespace set.");
 		Preconditions.checkState(backend.getCurrentKey() != null, "No key set.");
 
-		Map<N, Map<K, ArrayList<V>>> namespaceMap =
-				stateTable.get(backend.getCurrentKeyGroupIndex());
-
+		Map<N, Map<K, ArrayList<V>>> namespaceMap = stateTable.get(backend.getCurrentKeyGroupIndex());
 		if (namespaceMap == null) {
 			return null;
 		}
 
 		Map<K, ArrayList<V>> keyedMap = namespaceMap.get(currentNamespace);
-
 		if (keyedMap == null) {
 			return null;
 		}
 
 		return keyedMap.get(backend.<K>getCurrentKey());
+	}
+
+	@Override
+	public void clear() {
+		Preconditions.checkState(currentNamespace != null, "No namespace set.");
+		Preconditions.checkState(backend.getCurrentKey() != null, "No key set.");
+
+		Map<N, Map<K, ArrayList<V>>> namespaceMap = stateTable.get(backend.getCurrentKeyGroupIndex());
+		if (namespaceMap == null) {
+			return;
+		}
+
+		Map<K, ArrayList<V>> keyedMap = namespaceMap.get(currentNamespace);
+		if (keyedMap == null) {
+			return;
+		}
+
+		keyedMap.remove(backend.getCurrentKey());
+		if (keyedMap.isEmpty()) {
+			namespaceMap.remove(currentNamespace);
+		}
 	}
 
 	@Override
@@ -90,55 +105,48 @@ public class HeapListState<K, N, V>
 			return;
 		}
 
-		Map<N, Map<K, ArrayList<V>>> namespaceMap =
-				stateTable.get(backend.getCurrentKeyGroupIndex());
-
+		Map<N, Map<K, ArrayList<V>>> namespaceMap = stateTable.get(backend.getCurrentKeyGroupIndex());
 		if (namespaceMap == null) {
 			namespaceMap = createNewMap();
 			stateTable.set(backend.getCurrentKeyGroupIndex(), namespaceMap);
 		}
 
 		Map<K, ArrayList<V>> keyedMap = namespaceMap.get(currentNamespace);
-
 		if (keyedMap == null) {
 			keyedMap = createNewMap();
 			namespaceMap.put(currentNamespace, keyedMap);
 		}
 
 		ArrayList<V> list = keyedMap.get(backend.<K>getCurrentKey());
-
 		if (list == null) {
 			list = new ArrayList<>();
 			keyedMap.put(backend.<K>getCurrentKey(), list);
 		}
+
 		list.add(value);
 	}
 	
 	@Override
-	public byte[] getSerializedValue(K key, N namespace) throws Exception {
+	public byte[] getSerializedValue(int keyGroup, K key, N namespace) throws Exception {
 		Preconditions.checkState(namespace != null, "No namespace given.");
 		Preconditions.checkState(key != null, "No key given.");
 
-		Map<N, Map<K, ArrayList<V>>> namespaceMap =
-				stateTable.get(KeyGroupRangeAssignment.assignToKeyGroup(key, backend.getNumberOfKeyGroups()));
-
+		Map<N, Map<K, ArrayList<V>>> namespaceMap = stateTable.get(keyGroup);
 		if (namespaceMap == null) {
 			return null;
 		}
 
 		Map<K, ArrayList<V>> keyedMap = namespaceMap.get(currentNamespace);
-
 		if (keyedMap == null) {
 			return null;
 		}
 
 		ArrayList<V> result = keyedMap.get(key);
-
 		if (result == null) {
 			return null;
 		}
 
-		TypeSerializer<V> serializer = stateDesc.getSerializer();
+		TypeSerializer<V> serializer = stateDesc.getElemSerializer();
 
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		DataOutputViewStreamWrapper view = new DataOutputViewStreamWrapper(baos);

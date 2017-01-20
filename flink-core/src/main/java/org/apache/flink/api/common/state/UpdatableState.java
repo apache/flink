@@ -16,13 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.migration.runtime.state;
+package org.apache.flink.api.common.state;
 
-import org.apache.flink.api.common.state.State;
-import org.apache.flink.migration.api.common.state.StateDescriptor;
+import org.apache.flink.annotation.PublicEvolving;
 
-@Deprecated
-public interface KvStateSnapshot<K, N, S extends State<?>, SD extends StateDescriptor<S, ?>>
-		extends StateObject {
-
+/**
+ * Interface of those states allowing updates.
+ *
+ * <p> By default, {@link State} is read-only. Those states allowing updates must
+ * implement this interface.
+ *
+ * @param <T> The type of the values in the state.
+ */
+@PublicEvolving
+public interface UpdatableState<T> extends State<T> {
+	/**
+	 * Removes the value mapped under the current key.
+	 */
+	void clear();
 }

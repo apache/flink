@@ -76,10 +76,10 @@ public interface KeyedStateBackend<K> {
 	 * @throws Exception Exceptions may occur during initialization of the state and should be forwarded.
 	 */
 	@SuppressWarnings({"rawtypes", "unchecked"})
-	<N, S extends State> S getPartitionedState(
+	<N, S extends State<?>> S getPartitionedState(
 			N namespace,
 			TypeSerializer<N> namespaceSerializer,
-			StateDescriptor<S, ?> stateDescriptor) throws Exception;
+			StateDescriptor<S> stateDescriptor) throws Exception;
 
 
 	@SuppressWarnings("unchecked,rawtypes")
@@ -87,7 +87,7 @@ public interface KeyedStateBackend<K> {
 			N target,
 			Collection<N> sources,
 			TypeSerializer<N> namespaceSerializer,
-			StateDescriptor<S, ?> stateDescriptor) throws Exception;
+			StateDescriptor<S> stateDescriptor) throws Exception;
 
 	/**
 	 * Closes the backend and releases all resources.

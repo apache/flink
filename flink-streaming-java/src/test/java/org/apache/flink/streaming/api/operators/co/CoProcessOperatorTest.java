@@ -421,7 +421,7 @@ public class CoProcessOperatorTest extends TestLogger {
 				OnTimerContext ctx,
 				Collector<String> out) throws Exception {
 			assertEquals(TimeDomain.EVENT_TIME, ctx.timeDomain());
-			out.collect("STATE:" + getRuntimeContext().getState(state).value());
+			out.collect("STATE:" + getRuntimeContext().getState(state).get());
 		}
 	}
 
@@ -502,7 +502,7 @@ public class CoProcessOperatorTest extends TestLogger {
 				OnTimerContext ctx,
 				Collector<String> out) throws Exception {
 			assertEquals(TimeDomain.PROCESSING_TIME, ctx.timeDomain());
-			out.collect("STATE:" + getRuntimeContext().getState(state).value());
+			out.collect("STATE:" + getRuntimeContext().getState(state).get());
 		}
 	}
 

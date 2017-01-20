@@ -22,6 +22,8 @@ import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.state.FoldingState;
 import org.apache.flink.api.common.state.ValueState;
 
+import java.io.IOException;
+
 /**
  * Generic implementation of {@link FoldingState} based on a wrapped {@link ValueState}.
  *
@@ -63,13 +65,13 @@ public class GenericFoldingState<N, T, ACC, W extends ValueState<ACC> & KvState<
 	}
 
 	@Override
-	public ACC get() throws Exception {
-		return wrappedState.value();
+	public ACC get() throws IOException {
+		return wrappedState.get();
 	}
 
 	@Override
 	public void add(T value) throws Exception {
-		ACC currentValue = wrappedState.value();
+		ACC currentValue = wrappedState.get();
 		wrappedState.update(foldFunction.fold(currentValue, value));
 	}
 

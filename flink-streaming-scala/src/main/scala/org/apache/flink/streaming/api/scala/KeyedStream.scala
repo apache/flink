@@ -523,7 +523,7 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
 
     new QueryableStateStream(
       queryableStateName,
-      stateDescriptor.getSerializer,
+      stateDescriptor.getElemSerializer,
       getKeyType.createSerializer(executionConfig))
   }
 

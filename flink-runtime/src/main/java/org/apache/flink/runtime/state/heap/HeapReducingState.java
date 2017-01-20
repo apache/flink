@@ -36,9 +36,7 @@ import java.util.Map;
  * @param <N> The type of the namespace.
  * @param <V> The type of the value.
  */
-public class HeapReducingState<K, N, V>
-		extends AbstractHeapState<K, N, V, ReducingState<V>, ReducingStateDescriptor<V>>
-		implements ReducingState<V> {
+public class HeapReducingState<K, N, V> extends HeapSimpleState<K, N, V, ReducingStateDescriptor<V>> implements ReducingState<V> {
 
 	private final ReduceFunction<V> reduceFunction;
 
@@ -50,35 +48,14 @@ public class HeapReducingState<K, N, V>
 	 *                           and can create a default state value.
 	 * @param stateTable The state tab;e to use in this kev/value state. May contain initial state.
 	 */
-	public HeapReducingState(
-			KeyedStateBackend<K> backend,
+	public HeapReducingState(KeyedStateBackend<K> backend,
 			ReducingStateDescriptor<V> stateDesc,
 			StateTable<K, N, V> stateTable,
 			TypeSerializer<K> keySerializer,
 			TypeSerializer<N> namespaceSerializer) {
 		super(backend, stateDesc, stateTable, keySerializer, namespaceSerializer);
+
 		this.reduceFunction = stateDesc.getReduceFunction();
-	}
-
-	@Override
-	public V get() {
-		Preconditions.checkState(currentNamespace != null, "No namespace set.");
-		Preconditions.checkState(backend.getCurrentKey() != null, "No key set.");
-
-		Map<N, Map<K, V>> namespaceMap =
-				stateTable.get(backend.getCurrentKeyGroupIndex());
-
-		if (namespaceMap == null) {
-			return null;
-		}
-
-		Map<K, V> keyedMap = namespaceMap.get(currentNamespace);
-
-		if (keyedMap == null) {
-			return null;
-		}
-
-		return keyedMap.get(backend.<K>getCurrentKey());
 	}
 
 	@Override
@@ -91,33 +68,27 @@ public class HeapReducingState<K, N, V>
 			return;
 		}
 
-		Map<N, Map<K, V>> namespaceMap =
-				stateTable.get(backend.getCurrentKeyGroupIndex());
-
+		Map<N, Map<K, V>> namespaceMap = stateTable.get(backend.getCurrentKeyGroupIndex());
 		if (namespaceMap == null) {
 			namespaceMap = createNewMap();
 			stateTable.set(backend.getCurrentKeyGroupIndex(), namespaceMap);
 		}
 
 		Map<K, V> keyedMap = namespaceMap.get(currentNamespace);
-
 		if (keyedMap == null) {
 			keyedMap = createNewMap();
 			namespaceMap.put(currentNamespace, keyedMap);
 		}
 
-		V currentValue = keyedMap.put(backend.<K>getCurrentKey(), value);
-
-		if (currentValue == null) {
-			// we're good, just added the new value
-		} else {
-			V reducedValue = null;
-			try {
-				reducedValue = reduceFunction.reduce(currentValue, value);
-			} catch (Exception e) {
-				throw new RuntimeException("Could not add value to reducing state.", e);
+		V currentValue = keyedMap.get(backend.getCurrentKey());
+		try {
+			if (currentValue == null) {
+				keyedMap.put(backend.getCurrentKey(), stateDesc.getSerializer().copy(value));
+			} else {
+				keyedMap.put(backend.getCurrentKey(), reduceFunction.reduce(currentValue, value));
 			}
-			keyedMap.put(backend.<K>getCurrentKey(), reducedValue);
+		} catch (Exception e) {
+			throw new RuntimeException("Could not add value to reducing state.", e);
 		}
 	}
 }

@@ -25,6 +25,7 @@ import org.apache.flink.api.common.state.AppendingState;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MergingState;
+import org.apache.flink.api.common.state.SimpleStateDescriptor;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
@@ -111,7 +112,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 	protected final Trigger<? super IN, ? super W> trigger;
 
-	protected final StateDescriptor<? extends AppendingState<IN, ACC>, ?> windowStateDescriptor;
+	protected final StateDescriptor<? extends AppendingState<IN, ACC>> windowStateDescriptor;
 
 	protected final ListStateDescriptor<Tuple2<W, W>> mergingWindowsDescriptor;
 
@@ -190,7 +191,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 			TypeSerializer<W> windowSerializer,
 			KeySelector<IN, K> keySelector,
 			TypeSerializer<K> keySerializer,
-			StateDescriptor<? extends AppendingState<IN, ACC>, ?> windowStateDescriptor,
+			StateDescriptor<? extends AppendingState<IN, ACC>> windowStateDescriptor,
 			InternalWindowFunction<ACC, OUT, K, W> windowFunction,
 			Trigger<? super IN, ? super W> trigger,
 			long allowedLateness) {
@@ -207,7 +208,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 			TypeSerializer<W> windowSerializer,
 			KeySelector<IN, K> keySelector,
 			TypeSerializer<K> keySerializer,
-			StateDescriptor<? extends AppendingState<IN, ACC>, ?> windowStateDescriptor,
+			StateDescriptor<? extends AppendingState<IN, ACC>> windowStateDescriptor,
 			InternalWindowFunction<ACC, OUT, K, W> windowFunction,
 			Trigger<? super IN, ? super W> trigger,
 			long allowedLateness,
@@ -319,7 +320,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 							stateWindowResult,
 							mergedStateWindows,
 							windowSerializer,
-							(StateDescriptor<? extends MergingState<?,?>, ?>) windowStateDescriptor);
+							(StateDescriptor<? extends MergingState<IN, OUT>>)windowStateDescriptor);
 					}
 				});
 
@@ -643,7 +644,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		}
 
 		@SuppressWarnings("unchecked")
-		public <S extends State> S getPartitionedState(StateDescriptor<S, ?> stateDescriptor) {
+		public <S extends State<?>> S getPartitionedState(StateDescriptor<S> stateDescriptor) {
 			try {
 				return WindowOperator.this.getPartitionedState(window, windowSerializer, stateDescriptor);
 			} catch (Exception e) {
@@ -652,7 +653,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		}
 
 		@Override
-		public <S extends MergingState<?, ?>> void mergePartitionedState(StateDescriptor<S, ?> stateDescriptor) {
+		public <S extends MergingState<?, ?>> void mergePartitionedState(StateDescriptor<S> stateDescriptor) {
 			if (mergedWindows != null && mergedWindows.size() > 0) {
 				try {
 					WindowOperator.this.getKeyedStateBackend().mergePartitionedStates(window,
@@ -858,8 +859,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		final long paneSize = getPaneSize();
 		long nextElementTimestamp = nextSlideTime - (numPanes * paneSize);
 
-		@SuppressWarnings("unchecked")
-		ArrayListSerializer<IN> ser = new ArrayListSerializer<>((TypeSerializer<IN>) getStateDescriptor().getSerializer());
+		ArrayListSerializer<IN> ser = new ArrayListSerializer<>(getStateSerializer(getStateDescriptor()));
 
 		while (numPanes > 0) {
 			validateMagicNumber(BEGIN_OF_PANE_MAGIC_NUMBER, in.readInt());
@@ -893,9 +893,8 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 			final int numElementsInPane = in.readInt();
 			for (int i = numElementsInPane - 1; i >= 0; i--) {
 				K key = keySerializer.deserialize(in);
+				IN value = getStateSerializer(getStateDescriptor()).deserialize(in);
 
-				@SuppressWarnings("unchecked")
-				IN value = (IN) getStateDescriptor().getSerializer().deserialize(in);
 				restoredFromLegacyAlignedOpRecords.add(new StreamRecord<>(value, nextElementTimestamp));
 			}
 			numPanes--;
@@ -923,6 +922,19 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 			throw new IOException("Corrupt state stream - wrong magic number. " +
 				"Expected '" + Integer.toHexString(expected) +
 				"', found '" + Integer.toHexString(found) + '\'');
+		}
+	}
+
+	@SuppressWarnings("unchecked")
+	private TypeSerializer<IN> getStateSerializer(StateDescriptor<?> stateDescriptor) {
+		if (stateDescriptor instanceof SimpleStateDescriptor) {
+			SimpleStateDescriptor<IN, ?> simpleStateDescriptor = (SimpleStateDescriptor<IN, ?>) stateDescriptor;
+			return simpleStateDescriptor.getSerializer();
+		} else if (stateDescriptor instanceof ListStateDescriptor) {
+			ListStateDescriptor<IN> listStateDescriptor = (ListStateDescriptor<IN>) stateDescriptor;
+			return listStateDescriptor.getElemSerializer();
+		} else {
+			throw new IllegalStateException();
 		}
 	}
 
@@ -1035,7 +1047,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	}
 
 	@VisibleForTesting
-	public StateDescriptor<? extends AppendingState<IN, ACC>, ?> getStateDescriptor() {
+	public StateDescriptor<? extends AppendingState<IN, ACC>> getStateDescriptor() {
 		return windowStateDescriptor;
 	}
 }

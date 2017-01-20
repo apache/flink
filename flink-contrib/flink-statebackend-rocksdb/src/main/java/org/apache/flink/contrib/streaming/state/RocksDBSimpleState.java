@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * <p/>
- * http://www.apache.org/licenses/LICENSE-2.0
- * <p/>
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -18,85 +18,75 @@
 
 package org.apache.flink.contrib.streaming.state;
 
-import org.apache.flink.api.common.state.ListState;
-import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.SimpleStateDescriptor;
+import org.apache.flink.api.common.state.State;
+import org.apache.flink.api.common.state.UpdatableState;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
-import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.util.Preconditions;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDBException;
 import org.rocksdb.WriteOptions;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
- * {@link ListState} implementation that stores state in RocksDB.
- *
- * <p>{@link RocksDBStateBackend} must ensure that we set the
- * {@link org.rocksdb.StringAppendOperator} on the column family that we use for our state since
- * we use the {@code merge()} call.
+ * The implementation that stores simple states in RocksDB.
  *
  * @param <K> The type of the key.
  * @param <N> The type of the namespace.
- * @param <V> The type of the values in the list state.
+ * @param <V> The type of value that the state state stores.
+ * @param <SD> The type of the state descriptor.
  */
-public class RocksDBListState<K, N, V> extends AbstractRocksDBState<K, N> implements ListState<V> {
+public class RocksDBSimpleState<K, N, V, SD extends SimpleStateDescriptor<V, ? extends State<V>>> extends AbstractRocksDBState<K, N> implements UpdatableState<V> {
+
+	/** State descriptor from which to create this state instance */
+	protected final SD stateDesc;
 
 	/** Serializer for the values */
-	private final TypeSerializer<V> valueSerializer;
+	protected final TypeSerializer<V> valueSerializer;
 
 	/**
 	 * We disable writes to the write-ahead-log here. We can't have these in the base class
 	 * because JNI segfaults for some reason if they are.
 	 */
-	private final WriteOptions writeOptions;
+	protected final WriteOptions writeOptions;
 
 	/**
-	 * Creates a new {@code RocksDBListState}.
+	 * Creates a new {@code RocksDBSimpleState}.
 	 *
 	 * @param namespaceSerializer The serializer for the namespace.
-	 * @param stateDesc The state identifier for the state. This contains name
-	 *                     and can create a default state value.
+	 * @param stateDesc The state identifier for the state. This contains name and can create a default state value.
 	 */
-	public RocksDBListState(ColumnFamilyHandle columnFamily,
+	public RocksDBSimpleState(ColumnFamilyHandle columnFamily,
 			TypeSerializer<N> namespaceSerializer,
-			ListStateDescriptor<V> stateDesc,
+			SD stateDesc,
 			RocksDBKeyedStateBackend<K> backend) {
 
 		super(columnFamily, namespaceSerializer, backend);
-		this.valueSerializer = stateDesc.getElemSerializer();
+
+		this.stateDesc = Preconditions.checkNotNull(stateDesc, "State Descriptor");
+		this.valueSerializer = stateDesc.getSerializer();
 
 		writeOptions = new WriteOptions();
 		writeOptions.setDisableWAL(true);
 	}
 
 	@Override
-	public Iterable<V> get() {
+	public V get() {
 		try {
 			writeCurrentKeyWithGroupAndNamespace();
 			byte[] key = keySerializationStream.toByteArray();
-			byte[] valueBytes = backend.db.get(columnFamily, key);
 
+			byte[] valueBytes = backend.db.get(columnFamily, key);
 			if (valueBytes == null) {
 				return null;
 			}
 
-			ByteArrayInputStream bais = new ByteArrayInputStream(valueBytes);
-			DataInputViewStreamWrapper in = new DataInputViewStreamWrapper(bais);
-
-			List<V> result = new ArrayList<>();
-			while (in.available() > 0) {
-				result.add(valueSerializer.deserialize(in));
-				if (in.available() > 0) {
-					in.readByte();
-				}
-			}
-			return result;
+			return valueSerializer.deserialize(new DataInputViewStreamWrapper(new ByteArrayInputStream(valueBytes)));
 		} catch (IOException|RocksDBException e) {
-			throw new RuntimeException("Error while retrieving data from RocksDB", e);
+			throw new RuntimeException("Error while retrieving data from RocksDB.", e);
 		}
 	}
 
@@ -105,25 +95,10 @@ public class RocksDBListState<K, N, V> extends AbstractRocksDBState<K, N> implem
 		try {
 			writeCurrentKeyWithGroupAndNamespace();
 			byte[] key = keySerializationStream.toByteArray();
+
 			backend.db.remove(columnFamily, writeOptions, key);
 		} catch (IOException|RocksDBException e) {
 			throw new RuntimeException("Error while removing entry from RocksDB", e);
 		}
 	}
-
-	@Override
-	public void add(V value) throws IOException {
-		try {
-			writeCurrentKeyWithGroupAndNamespace();
-			byte[] key = keySerializationStream.toByteArray();
-			keySerializationStream.reset();
-			DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(keySerializationStream);
-			valueSerializer.serialize(value, out);
-			backend.db.merge(columnFamily, writeOptions, key, keySerializationStream.toByteArray());
-
-		} catch (Exception e) {
-			throw new RuntimeException("Error while adding data to RocksDB", e);
-		}
-	}
-
 }

@@ -124,7 +124,7 @@ public class StreamOperatorSnapshotRestoreTest {
 			if (verifyRestore) {
 				// check restored managed keyed state
 				long exp = element.getValue() + 1;
-				long act = keyedState.value();
+				long act = keyedState.get();
 				Assert.assertEquals(exp, act);
 			} else {
 				// write managed keyed state that goes into snapshot

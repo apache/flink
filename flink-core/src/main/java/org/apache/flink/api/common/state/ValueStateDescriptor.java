@@ -21,6 +21,14 @@ package org.apache.flink.api.common.state;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 
 /**
  * {@link StateDescriptor} for {@link ValueState}. This can be used to create partitioned
@@ -33,8 +41,11 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
  * @param <T> The type of the values that the value state can hold.
  */
 @PublicEvolving
-public class ValueStateDescriptor<T> extends StateDescriptor<ValueState<T>, T> {
+public class ValueStateDescriptor<T> extends SimpleStateDescriptor<T, ValueState<T>> {
 	private static final long serialVersionUID = 1L;
+
+	/** The default value returned by the state when no other value is bound to a key */
+	protected transient T defaultValue;
 	
 	/**
 	 * Creates a new {@code ValueStateDescriptor} with the given name, type, and default value.
@@ -52,7 +63,9 @@ public class ValueStateDescriptor<T> extends StateDescriptor<ValueState<T>, T> {
 	 */
 	@Deprecated
 	public ValueStateDescriptor(String name, Class<T> typeClass, T defaultValue) {
-		super(name, typeClass, defaultValue);
+		super(name, typeClass);
+
+		this.defaultValue = defaultValue;
 	}
 
 	/**
@@ -68,7 +81,9 @@ public class ValueStateDescriptor<T> extends StateDescriptor<ValueState<T>, T> {
 	 */
 	@Deprecated
 	public ValueStateDescriptor(String name, TypeInformation<T> typeInfo, T defaultValue) {
-		super(name, typeInfo, defaultValue);
+		super(name, typeInfo);
+
+		this.defaultValue = defaultValue;
 	}
 
 	/**
@@ -85,7 +100,26 @@ public class ValueStateDescriptor<T> extends StateDescriptor<ValueState<T>, T> {
 	 */
 	@Deprecated
 	public ValueStateDescriptor(String name, TypeSerializer<T> typeSerializer, T defaultValue) {
-		super(name, typeSerializer, defaultValue);
+		super(name, typeSerializer);
+
+		this.defaultValue = defaultValue;
+	}
+
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Returns the default value.
+	 */
+	public T getDefaultValue() {
+		if (defaultValue != null) {
+			if (typeSerializer != null) {
+				return typeSerializer.copy(defaultValue);
+			} else {
+				throw new IllegalStateException("Serializer not yet initialized.");
+			}
+		} else {
+			return null;
+		}
 	}
 
 	/**
@@ -98,7 +132,7 @@ public class ValueStateDescriptor<T> extends StateDescriptor<ValueState<T>, T> {
 	 * @param typeClass The type of the values in the state.
 	 */
 	public ValueStateDescriptor(String name, Class<T> typeClass) {
-		super(name, typeClass, null);
+		super(name, typeClass);
 	}
 
 	/**
@@ -108,7 +142,7 @@ public class ValueStateDescriptor<T> extends StateDescriptor<ValueState<T>, T> {
 	 * @param typeInfo The type of the values in the state.
 	 */
 	public ValueStateDescriptor(String name, TypeInformation<T> typeInfo) {
-		super(name, typeInfo, null);
+		super(name, typeInfo);
 	}
 
 	/**
@@ -118,7 +152,7 @@ public class ValueStateDescriptor<T> extends StateDescriptor<ValueState<T>, T> {
 	 * @param typeSerializer The type serializer of the values in the state.
 	 */
 	public ValueStateDescriptor(String name, TypeSerializer<T> typeSerializer) {
-		super(name, typeSerializer, null);
+		super(name, typeSerializer);
 	}
 
 	// ------------------------------------------------------------------------
@@ -139,13 +173,13 @@ public class ValueStateDescriptor<T> extends StateDescriptor<ValueState<T>, T> {
 
 		ValueStateDescriptor<?> that = (ValueStateDescriptor<?>) o;
 
-		return serializer.equals(that.serializer) && name.equals(that.name);
+		return typeSerializer.equals(that.typeSerializer) && name.equals(that.name);
 
 	}
 
 	@Override
 	public int hashCode() {
-		int result = serializer.hashCode();
+		int result = typeSerializer.hashCode();
 		result = 31 * result + name.hashCode();
 		return result;
 	}
@@ -155,12 +189,68 @@ public class ValueStateDescriptor<T> extends StateDescriptor<ValueState<T>, T> {
 		return "ValueStateDescriptor{" +
 				"name=" + name +
 				", defaultValue=" + defaultValue +
-				", serializer=" + serializer +
+				", serializer=" + typeSerializer +
 				'}';
 	}
 
 	@Override
 	public Type getType() {
 		return Type.VALUE;
+	}
+
+	// ------------------------------------------------------------------------
+	//  Serialization
+	// ------------------------------------------------------------------------
+
+	private void writeObject(final ObjectOutputStream out) throws IOException {
+		// write the non-serializable default value field
+		if (defaultValue == null) {
+			// we don't have a default value
+			out.writeBoolean(false);
+		} else {
+			// we have a default value
+			out.writeBoolean(true);
+
+			byte[] serializedDefaultValue;
+			try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+				DataOutputViewStreamWrapper outView = new DataOutputViewStreamWrapper(baos))
+			{
+				TypeSerializer<T> duplicateSerializer = typeSerializer.duplicate();
+				duplicateSerializer.serialize(defaultValue, outView);
+
+				outView.flush();
+				serializedDefaultValue = baos.toByteArray();
+			}
+			catch (Exception e) {
+				throw new IOException("Unable to serialize default value of type " +
+					defaultValue.getClass().getSimpleName() + ".", e);
+			}
+
+			out.writeInt(serializedDefaultValue.length);
+			out.write(serializedDefaultValue);
+		}
+	}
+
+	private void readObject(final ObjectInputStream in) throws IOException, ClassNotFoundException {
+		// read the default value field
+		boolean hasDefaultValue = in.readBoolean();
+		if (hasDefaultValue) {
+			int size = in.readInt();
+
+			byte[] buffer = new byte[size];
+
+			in.readFully(buffer);
+
+			try (ByteArrayInputStream bais = new ByteArrayInputStream(buffer);
+				DataInputViewStreamWrapper inView = new DataInputViewStreamWrapper(bais))
+			{
+				defaultValue = typeSerializer.deserialize(inView);
+			}
+			catch (Exception e) {
+				throw new IOException("Unable to deserialize default value.", e);
+			}
+		} else {
+			defaultValue = null;
+		}
 	}
 }

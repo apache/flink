@@ -19,8 +19,8 @@
 package org.apache.flink.migration.runtime.state.memory;
 
 import org.apache.flink.api.common.state.State;
-import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.migration.api.common.state.StateDescriptor;
 import org.apache.flink.migration.runtime.state.KvStateSnapshot;
 import org.apache.flink.runtime.util.DataInputDeserializer;
 
@@ -29,7 +29,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Deprecated
-public abstract class AbstractMemStateSnapshot<K, N, SV, S extends State, SD extends StateDescriptor<S, ?>> 
+public abstract class AbstractMemStateSnapshot<K, N, SV, S extends State<?>, SD extends StateDescriptor<S, ?>>
 		implements KvStateSnapshot<K, N, S, SD> {
 
 	private static final long serialVersionUID = 1L;

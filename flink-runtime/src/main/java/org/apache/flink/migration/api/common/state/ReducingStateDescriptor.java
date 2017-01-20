@@ -16,28 +16,27 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.common.state;
+package org.apache.flink.migration.api.common.state;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichFunction;
+import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 import static java.util.Objects.requireNonNull;
 
 /**
- * {@link StateDescriptor} for {@link ReducingState}. This can be used to create partitioned
- * reducing state using
- * {@link org.apache.flink.api.common.functions.RuntimeContext#getReducingState(ReducingStateDescriptor)}.
+ * {@link StateDescriptor} for {@link ReducingState}.
  *
  * @param <T> The type of the values that can be added to the list state.
  */
 @PublicEvolving
-public class ReducingStateDescriptor<T> extends SimpleStateDescriptor<T, ReducingState<T>> {
+public class ReducingStateDescriptor<T> extends StateDescriptor<ReducingState<T>, T> {
 	private static final long serialVersionUID = 1L;
 
-	
+
 	private final ReduceFunction<T> reduceFunction;
 
 	/**
@@ -47,17 +46,16 @@ public class ReducingStateDescriptor<T> extends SimpleStateDescriptor<T, Reducin
 	 * consider using the {@link #ReducingStateDescriptor(String, ReduceFunction, TypeInformation)} constructor.
 	 *
 	 * @param name The (unique) name for the state.
-	 * @param reduceFunction The {@code ReduceFunction} used to aggregate the state.   
+	 * @param reduceFunction The {@code ReduceFunction} used to aggregate the state.
 	 * @param typeClass The type of the values in the state.
 	 */
 	public ReducingStateDescriptor(String name, ReduceFunction<T> reduceFunction, Class<T> typeClass) {
-		super(name, typeClass);
+		super(name, typeClass, null);
+		this.reduceFunction = requireNonNull(reduceFunction);
 
 		if (reduceFunction instanceof RichFunction) {
 			throw new UnsupportedOperationException("ReduceFunction of ReducingState can not be a RichFunction.");
 		}
-
-		this.reduceFunction = requireNonNull(reduceFunction);
 	}
 
 	/**
@@ -68,12 +66,7 @@ public class ReducingStateDescriptor<T> extends SimpleStateDescriptor<T, Reducin
 	 * @param typeInfo The type of the values in the state.
 	 */
 	public ReducingStateDescriptor(String name, ReduceFunction<T> reduceFunction, TypeInformation<T> typeInfo) {
-		super(name, typeInfo);
-
-		if (reduceFunction instanceof RichFunction) {
-			throw new UnsupportedOperationException("ReduceFunction of ReducingState can not be a RichFunction.");
-		}
-
+		super(name, typeInfo, null);
 		this.reduceFunction = requireNonNull(reduceFunction);
 	}
 
@@ -85,17 +78,12 @@ public class ReducingStateDescriptor<T> extends SimpleStateDescriptor<T, Reducin
 	 * @param typeSerializer The type serializer of the values in the state.
 	 */
 	public ReducingStateDescriptor(String name, ReduceFunction<T> reduceFunction, TypeSerializer<T> typeSerializer) {
-		super(name, typeSerializer);
-
-		if (reduceFunction instanceof RichFunction) {
-			throw new UnsupportedOperationException("ReduceFunction of ReducingState can not be a RichFunction.");
-		}
-
+		super(name, typeSerializer, null);
 		this.reduceFunction = requireNonNull(reduceFunction);
 	}
 
 	// ------------------------------------------------------------------------
-	
+
 	@Override
 	public ReducingState<T> bind(StateBackend stateBackend) throws Exception {
 		return stateBackend.createReducingState(this);
@@ -119,13 +107,13 @@ public class ReducingStateDescriptor<T> extends SimpleStateDescriptor<T, Reducin
 
 		ReducingStateDescriptor<?> that = (ReducingStateDescriptor<?>) o;
 
-		return typeSerializer.equals(that.typeSerializer) && name.equals(that.name);
+		return serializer.equals(that.serializer) && name.equals(that.name);
 
 	}
 
 	@Override
 	public int hashCode() {
-		int result = typeSerializer.hashCode();
+		int result = serializer.hashCode();
 		result = 31 * result + name.hashCode();
 		return result;
 	}
@@ -133,13 +121,13 @@ public class ReducingStateDescriptor<T> extends SimpleStateDescriptor<T, Reducin
 	@Override
 	public String toString() {
 		return "ReducingStateDescriptor{" +
-				"serializer=" + typeSerializer +
+				"serializer=" + serializer +
 				", reduceFunction=" + reduceFunction +
 				'}';
 	}
 
 	@Override
-	public Type getType() {
-		return Type.REDUCING;
+	public org.apache.flink.api.common.state.StateDescriptor.Type getType() {
+		return org.apache.flink.api.common.state.StateDescriptor.Type.REDUCING;
 	}
 }

@@ -40,6 +40,7 @@ import org.mockito.Matchers;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -396,7 +397,7 @@ public class FlinkKafkaConsumerBaseTest {
 		}
 
 		@Override
-		public Iterable<T> get() throws Exception {
+		public Iterable<T> get() throws IOException {
 			return list;
 		}
 

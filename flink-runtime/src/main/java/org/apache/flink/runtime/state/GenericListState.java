@@ -21,6 +21,7 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ValueState;
 
+import java.io.IOException;
 import java.util.ArrayList;
 
 /**
@@ -60,13 +61,13 @@ public class GenericListState<N, T, W extends ValueState<ArrayList<T>> & KvState
 	}
 
 	@Override
-	public Iterable<T> get() throws Exception {
-		return wrappedState.value();
+	public Iterable<T> get() throws IOException {
+		return wrappedState.get();
 	}
 
 	@Override
 	public void add(T value) throws Exception {
-		ArrayList<T> currentValue = wrappedState.value();
+		ArrayList<T> currentValue = wrappedState.get();
 		if (currentValue == null) {
 			currentValue = new ArrayList<>();
 			currentValue.add(value);

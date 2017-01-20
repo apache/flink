@@ -38,34 +38,13 @@ import java.io.IOException;
  * @param <OUT> Type of the value that can be retrieved from the state.
  */
 @PublicEvolving
-public interface AppendingState<IN, OUT> extends State {
-
-	/**
-	 * Returns the current value for the state. When the state is not
-	 * partitioned the returned value is the same for all inputs in a given
-	 * operator instance. If state partitioning is applied, the value returned
-	 * depends on the current operator input, as the operator maintains an
-	 * independent state for each partition.
-	 *
-	 * <p>
-	 *     <b>NOTE TO IMPLEMENTERS:</b> if the state is empty, then this method
-	 *     should return {@code null}.
-	 * </p>
-	 *
-	 * @return The operator state value corresponding to the current input or {@code null}
-	 * if the state is empty.
-	 * 
-	 * @throws Exception Thrown if the system cannot access the state.
-	 */
-	OUT get() throws Exception ;
-
+public interface AppendingState<IN, OUT> extends UpdatableState<OUT> {
 	/**
 	 * Updates the operator state accessible by {@link #get()} by adding the given value
 	 * to the list of values. The next time {@link #get()} is called (for the same state
 	 * partition) the returned state will represent the updated list.
 	 * 
-	 * @param value
-	 *            The new value for the state.
+	 * @param value The new value for the state.
 	 *            
 	 * @throws IOException Thrown if the system cannot access the state.
 	 */
