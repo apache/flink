@@ -50,6 +50,7 @@ public class DataInputDeserializerTest {
 
 		try {
 			dis.readByte();
+			Assert.fail("Did not throw expected IOException");
 		} catch (IOException e) {
 			// ignore
 		}
