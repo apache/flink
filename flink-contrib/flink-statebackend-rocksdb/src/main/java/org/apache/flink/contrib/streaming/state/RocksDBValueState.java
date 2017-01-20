@@ -103,6 +103,21 @@ public class RocksDBValueState<K, N, V>
 		}
 	}
 
+	/**
+	 * Returns the serialized value for the given key and namespace.
+	 *
+	 * <p>If no value is associated with key and namespace, the default value
+	 * set via the state descriptor is returned (may be <code>null</code>).
+	 *
+	 * @param serializedKeyAndNamespace
+	 * 		Serialized key and namespace
+	 *
+	 * @return Serialized value, default value or <code>null</code> if no value
+	 * is associated with the key and namespace.
+	 *
+	 * @throws Exception
+	 * 		Exceptions during serialization are forwarded
+	 */
 	@Override
 	public byte[] getSerializedValue(byte[] serializedKeyAndNamespace) throws Exception {
 		byte[] value = super.getSerializedValue(serializedKeyAndNamespace);
