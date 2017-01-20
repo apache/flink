@@ -117,6 +117,14 @@ object FlinkRuleSets {
   )
 
   /**
+    * RuleSet to optimize plans for window
+    */
+  val DATASET_PRE_OPT_RULES: RuleSet = RuleSets.ofList(
+
+    ProjectToWindowRule.PROJECT
+  )
+
+  /**
   * RuleSet to optimize plans for stream / DataStream execution
   */
   val DATASTREAM_OPT_RULES: RuleSet = RuleSets.ofList(
@@ -141,6 +149,7 @@ object FlinkRuleSets {
       ProjectFilterTransposeRule.INSTANCE,
       FilterProjectTransposeRule.INSTANCE,
       ProjectRemoveRule.INSTANCE,
+      ProjectMergeRule.INSTANCE,
 
       // simplify expressions rules
       ReduceExpressionsRule.FILTER_INSTANCE,
@@ -151,6 +160,7 @@ object FlinkRuleSets {
       UnionEliminatorRule.INSTANCE,
 
       // translate to DataStream nodes
+      DataStreamWindowRule.INSTANCE,
       DataStreamAggregateRule.INSTANCE,
       DataStreamCalcRule.INSTANCE,
       DataStreamScanRule.INSTANCE,
@@ -159,6 +169,14 @@ object FlinkRuleSets {
       DataStreamCorrelateRule.INSTANCE,
       StreamTableSourceScanRule.INSTANCE,
       PushProjectIntoStreamTableSourceScanRule.INSTANCE
+  )
+
+  /**
+    * RuleSet to optimize plans for window
+    */
+  val DATASTREAM_PRE_OPT_RULES: RuleSet = RuleSets.ofList(
+
+    ProjectToWindowRule.PROJECT
   )
 
 }

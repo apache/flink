@@ -40,6 +40,7 @@ import org.apache.flink.api.scala.{ExecutionEnvironment => ScalaBatchExecEnv}
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaStreamExecEnv}
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecEnv}
 import java.{BatchTableEnvironment => JavaBatchTableEnv, StreamTableEnvironment => JavaStreamTableEnv}
+import org.apache.calcite.plan.hep.{HepPlanner, HepProgramBuilder}
 import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnv, StreamTableEnvironment => ScalaStreamTableEnv}
 import org.apache.flink.table.calcite.{FlinkRelBuilder, FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.codegen.ExpressionReducer
@@ -87,6 +88,9 @@ abstract class TableEnvironment(val config: TableConfig) {
   // the planner instance used to optimize queries of this TableEnvironment
   private lazy val planner: RelOptPlanner = relBuilder.getPlanner
 
+  // the planner instance used to optimize queries of this TableEnvironment
+  private lazy val hepPlanner: RelOptPlanner = createHepPlanner
+
   private lazy val typeFactory: FlinkTypeFactory = relBuilder.getTypeFactory
 
   // a counter for unique attribute names
@@ -112,6 +116,18 @@ abstract class TableEnvironment(val config: TableConfig) {
           ChainedSqlOperatorTable.of(functionCatalog.getSqlOperatorTable, table)
         }
     }
+  }
+
+  /**
+    * create hepplanner for window optimize.
+    */
+  protected def createHepPlanner: RelOptPlanner = {
+    val hepProgramBuilder = new HepProgramBuilder
+    for (rule <- getPreOptRuleSet.asScala) {
+      hepProgramBuilder.addRuleInstance(rule)
+    }
+
+    new HepPlanner(hepProgramBuilder.build())
   }
 
   /**
@@ -157,6 +173,8 @@ abstract class TableEnvironment(val config: TableConfig) {
     * Returns the built-in rules that are defined by the environment.
     */
   protected def getBuiltInRuleSet: RuleSet
+
+  protected def getPreOptRuleSet: RuleSet
 
   /**
     * Registers a [[ScalarFunction]] under a unique name. Replaces already existing
@@ -322,6 +340,11 @@ abstract class TableEnvironment(val config: TableConfig) {
   /** Returns the Calcite [[org.apache.calcite.plan.RelOptPlanner]] of this TableEnvironment. */
   private[flink] def getPlanner: RelOptPlanner = {
     planner
+  }
+
+  /** Returns the Calcite [[org.apache.calcite.plan.hep.HepPlanner]] of this TableEnvironment. */
+  private[flink] def getHepPlanner: RelOptPlanner = {
+    hepPlanner
   }
 
   /** Returns the [[FlinkTypeFactory]] of this TableEnvironment. */

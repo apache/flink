@@ -237,6 +237,8 @@ abstract class BatchTableEnvironment(
     */
   protected def getBuiltInRuleSet: RuleSet = FlinkRuleSets.DATASET_OPT_RULES
 
+  protected def getPreOptRuleSet: RuleSet = FlinkRuleSets.DATASET_PRE_OPT_RULES
+
   /**
     * Generates the optimized [[RelNode]] tree from the original relational node tree.
     *

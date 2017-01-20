@@ -19,10 +19,12 @@
 package org.apache.flink.table.api
 
 import _root_.java.util.concurrent.atomic.AtomicInteger
+import _root_.java.util.ArrayList
 
 import org.apache.calcite.plan.RelOptPlanner.CannotPlanException
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.metadata.{CachingRelMetadataProvider, ChainedRelMetadataProvider, RelMetadataProvider}
 import org.apache.calcite.sql2rel.RelDecorrelator
 import org.apache.calcite.tools.{Programs, RuleSet}
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -251,6 +253,11 @@ abstract class StreamTableEnvironment(
     * Returns the built-in rules that are defined by the environment.
     */
   protected def getBuiltInRuleSet: RuleSet = FlinkRuleSets.DATASTREAM_OPT_RULES
+  
+  /**
+    * Returns the built-in rules that are used before volcano optimize.
+    */
+  protected def getPreOptRuleSet: RuleSet = FlinkRuleSets.DATASTREAM_PRE_OPT_RULES
 
   /**
     * Generates the optimized [[RelNode]] tree from the original relational node tree.
@@ -267,7 +274,25 @@ abstract class StreamTableEnvironment(
     val flinkOutputProps = relNode.getTraitSet.replace(DataStreamConvention.INSTANCE).simplify()
 
     val dataStreamPlan = try {
-      optProgram.run(getPlanner, decorPlan, flinkOutputProps)
+      //pre optimize
+      val prePlanner = getHepPlanner
+      val provider = decorPlan.getCluster.getMetadataProvider
+      val providerList = new ArrayList[RelMetadataProvider]()
+      providerList.add(provider)
+      prePlanner.registerMetadataProviders(providerList)
+
+      val cachingMetaDataProvider =
+        new CachingRelMetadataProvider(ChainedRelMetadataProvider.of(providerList), prePlanner)
+      decorPlan.getCluster.setMetadataProvider(cachingMetaDataProvider)
+
+      // HepPlanner is specifically used for Window Function planning only.
+      prePlanner.setRoot(decorPlan)
+      val preOptRel = prePlanner.findBestExp
+
+      // reset the metadata provider instances changed for hep planner execution.
+      preOptRel.getCluster().setMetadataProvider(provider);
+
+      optProgram.run(getPlanner, preOptRel, flinkOutputProps)
     }
     catch {
       case e: CannotPlanException =>
