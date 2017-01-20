@@ -795,14 +795,17 @@ class Table(
     * For batch tables of finite size, windowing essentially provides shortcuts for time-based
     * groupBy.
     *
-    * __Note__: window on non-grouped streaming table is a non-parallel operation, i.e., all data
-    * will be processed by a single operator.
+    * __Note__: streaming table only grouped by window alias is a non-parallel operation, i.e.,
+    * all data will be processed by a single operator.
     *
-    * @param groupWindow group-window that specifies how elements are grouped.
+    * @param window window that specifies how elements are grouped.
     * @return A windowed table.
     */
-  def window(groupWindow: GroupWindow): GroupWindowedTable = {
-    new GroupWindowedTable(this, Seq(), groupWindow)
+  def window(window: Window): WindowedTable = {
+    if (window.alias.isEmpty) {
+      throw new ValidationException("An alias must be specified for the window.")
+    }
+    new WindowedTable(this, window)
   }
 }
 
@@ -855,57 +858,45 @@ class GroupedTable(
     val fieldExprs = ExpressionParser.parseExpressionList(fields)
     select(fieldExprs: _*)
   }
-
-  /**
-    * Groups the records of a table by assigning them to windows defined by a time or row interval.
-    *
-    * For streaming tables of infinite size, grouping into windows is required to define finite
-    * groups on which group-based aggregates can be computed.
-    *
-    * For batch tables of finite size, windowing essentially provides shortcuts for time-based
-    * groupBy.
-    *
-    * @param groupWindow group-window that specifies how elements are grouped.
-    * @return A windowed table.
-    */
-  def window(groupWindow: GroupWindow): GroupWindowedTable = {
-    new GroupWindowedTable(table, groupKey, groupWindow)
-  }
 }
 
-class GroupWindowedTable(
+class WindowGroupedTable(
     private[flink] val table: Table,
     private[flink] val groupKey: Seq[Expression],
-    private[flink] val window: GroupWindow) {
+    private[flink] val window: Window) {
 
   /**
-    * Performs a selection operation on a windowed table. Similar to an SQL SELECT statement.
+    * Performs a selection operation on a window grouped table. Similar to an SQL SELECT statement.
     * The field expressions can contain complex expressions and aggregations.
     *
     * Example:
     *
     * {{{
-    *   groupWindowTable.select('key, 'window.start, 'value.avg + " The average" as 'average)
+    *   windowGroupedTable.select('key, 'window.start, 'value.avg + " The average" as 'average)
     * }}}
     */
   def select(fields: Expression*): Table = {
+    // get group keys by removing window alias
+    val groupKeyWithoutWindow = groupKey.filterNot(window.alias.get.equals(_))
+
     val (aggNames, propNames) = extractAggregationsAndProperties(fields, table.tableEnv)
+
     val projectsOnAgg = replaceAggregationsAndProperties(
       fields, table.tableEnv, aggNames, propNames)
 
     val projectFields = (table.tableEnv, window) match {
       // event time can be arbitrary field in batch environment
       case (_: BatchTableEnvironment, w: EventTimeWindow) =>
-        extractFieldReferences(fields ++ groupKey ++ Seq(w.timeField))
+        extractFieldReferences(fields ++ groupKeyWithoutWindow ++ Seq(w.timeField))
       case (_, _) =>
-        extractFieldReferences(fields ++ groupKey)
+        extractFieldReferences(fields ++ groupKeyWithoutWindow)
     }
 
     new Table(table.tableEnv,
       Project(
         projectsOnAgg,
         WindowAggregate(
-          groupKey,
+          groupKeyWithoutWindow,
           window.toLogicalWindow,
           propNames.map(a => Alias(a._1, a._2)).toSeq,
           aggNames.map(a => Alias(a._1, a._2)).toSeq,
@@ -915,18 +906,60 @@ class GroupWindowedTable(
   }
 
   /**
-    * Performs a selection operation on a group-windows table. Similar to an SQL SELECT statement.
+    * Performs a selection operation on a window grouped  table. Similar to an SQL SELECT statement.
     * The field expressions can contain complex expressions and aggregations.
     *
     * Example:
     *
     * {{{
-    *   groupWindowTable.select("key, window.start, value.avg + ' The average' as average")
+    *   windowGroupedTable.select("key, window.start, value.avg + 'The average' as 'average")
     * }}}
     */
   def select(fields: String): Table = {
     val fieldExprs = ExpressionParser.parseExpressionList(fields)
     select(fieldExprs: _*)
+  }
+
+}
+
+class WindowedTable(
+    private[flink] val table: Table,
+    private[flink] val window: Window) {
+
+  /**
+    * Groups the elements on some keys (window alias or group keys). It should be noted that one
+    * window alias MUST be included in the key list. Use this function before a selection with
+    * aggregations to perform the aggregation on a per-group basis. Similar to a SQL GROUP BY
+    * statement.
+    *
+    * Example:
+    *
+    * {{{
+    *   tab.window([window] as 'w)).groupBy('w, 'key).select('key, 'value.avg)
+    * }}}
+    */
+  def groupBy(fields: Expression*): WindowGroupedTable = {
+    if (fields.filter(window.alias.get.equals(_)).length != 1) {
+      throw new ValidationException("GroupBy must contain exactly one window alias.")
+    }
+    new WindowGroupedTable(table, fields, window)
+  }
+
+  /**
+    * Groups the elements on some keys (window alias or group keys). It should be noted that one
+    * window alias MUST be included in the key list. Use this function before a selection with
+    * aggregations to perform the aggregation on a per-group basis. Similar to a SQL GROUP BY
+    * statement.
+    *
+    * Example:
+    *
+    * {{{
+    *   tab.window([window].as("w")).groupBy("w, key").select("key, value.avg")
+    * }}}
+    */
+  def groupBy(fields: String): WindowGroupedTable = {
+    val fieldsExpr = ExpressionParser.parseExpressionList(fields)
+    groupBy(fieldsExpr: _*)
   }
 
 }

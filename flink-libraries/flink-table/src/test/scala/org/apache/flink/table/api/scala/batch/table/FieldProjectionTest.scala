@@ -228,6 +228,7 @@ class FieldProjectionTest extends TableTestBase {
     val sourceTable = streamUtil.addTable[(Int, Long, String, Double)]("MyTable", 'a, 'b, 'c, 'd)
     val resultTable = sourceTable
         .window(Tumble over 5.millis on 'rowtime as 'w)
+        .groupBy('w)
         .select(Upper('c).count, 'a.sum)
 
     val expected =
@@ -253,8 +254,8 @@ class FieldProjectionTest extends TableTestBase {
   def testSelectFromStreamingGroupedWindow(): Unit = {
     val sourceTable = streamUtil.addTable[(Int, Long, String, Double)]("MyTable", 'a, 'b, 'c, 'd)
     val resultTable = sourceTable
-        .groupBy('b)
         .window(Tumble over 5.millis on 'rowtime as 'w)
+        .groupBy('w, 'b)
         .select(Upper('c).count, 'a.sum, 'b)
 
     val expected = unaryNode(
@@ -287,7 +288,6 @@ class FieldProjectionTest extends TableTestBase {
       .groupBy('word)
       .select('word, 'frequency.sum as 'frequency)
       .filter('frequency === 2)
-
     val expected =
       unaryNode(
         "DataSetCalc",
@@ -303,6 +303,7 @@ class FieldProjectionTest extends TableTestBase {
 
     util.verifyTable(resultTable, expected)
   }
+
 }
 
 object FieldProjectionTest {
