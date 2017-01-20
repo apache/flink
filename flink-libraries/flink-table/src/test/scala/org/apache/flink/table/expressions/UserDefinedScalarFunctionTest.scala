@@ -179,6 +179,27 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
       "+0 00:00:01.000")
   }
 
+  @Test
+  def testRichFunctions(): Unit = {
+    testAllApis(
+      RichFunc0('f0),
+      "RichFunc0(f0)",
+      "RichFunc0(f0)",
+      "43")
+
+    testAllApis(
+      RichFunc1('f0),
+      "RichFunc1(f0)",
+      "RichFunc1(f0)",
+      "42")
+
+    testAllApis(
+      RichFunc2('f1),
+      "RichFunc2(f1)",
+      "RichFunc2(f1)",
+      "#Test")
+  }
+
   // ----------------------------------------------------------------------------------------------
 
   override def testData: Any = {
@@ -222,7 +243,10 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
     "Func9" -> Func9,
     "Func10" -> Func10,
     "Func11" -> Func11,
-    "Func12" -> Func12
+    "Func12" -> Func12,
+    "RichFunc0" -> RichFunc0,
+    "RichFunc1" -> RichFunc1,
+    "RichFunc2" -> RichFunc2
   )
 }
 

@@ -25,12 +25,13 @@ import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
-import org.apache.flink.api.common.functions.{FlatJoinFunction, FlatMapFunction, Function, MapFunction}
+import org.apache.flink.api.common.functions._
 import org.apache.flink.api.common.io.GenericInputFormat
 import org.apache.flink.api.common.typeinfo.{AtomicType, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils.{GenericTypeInfo, PojoTypeInfo, RowTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
+import org.apache.flink.configuration.Configuration
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGenUtils._
@@ -38,9 +39,9 @@ import org.apache.flink.table.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
 import org.apache.flink.table.codegen.Indenter.toISC
 import org.apache.flink.table.codegen.calls.FunctionGenerator
 import org.apache.flink.table.codegen.calls.ScalarOperators._
-import org.apache.flink.table.functions.UserDefinedFunction
-import org.apache.flink.table.typeutils.TypeConverter
+import org.apache.flink.table.functions.{UDFContext, UserDefinedFunction}
 import org.apache.flink.table.typeutils.TypeCheckUtils._
+import org.apache.flink.table.typeutils.TypeConverter
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -121,6 +122,18 @@ class CodeGenerator(
   // we use a LinkedHashSet to keep the insertion order
   private val reusableInitStatements = mutable.LinkedHashSet[String]()
 
+  // generate RichFunction(e.g. RichFlatMapFunction) if true
+  // generate Function(e.g. FlatMapFunction) if false
+  private var generatedRichFunctions = false
+
+  // set of open statements for RichFunction that will be added only once
+  // we use a LinkedHashSet to keep the insertion order
+  private val reusableOpenStatements = mutable.LinkedHashSet[String]()
+
+  // set of close statements for RichFunction that will be added only once
+  // we use a LinkedHashSet to keep the insertion order
+  private val reusableCloseStatements = mutable.LinkedHashSet[String]()
+
   // set of statements that will be added only once per record
   // we use a LinkedHashSet to keep the insertion order
   private val reusablePerRecordStatements = mutable.LinkedHashSet[String]()
@@ -142,6 +155,20 @@ class CodeGenerator(
     */
   def reuseInitCode(): String = {
     reusableInitStatements.mkString("", "\n", "\n")
+  }
+
+  /**
+    * @return code block of statements that need to be placed in the open Function
+    */
+  def reuseOpenCode(): String = {
+    reusableOpenStatements.mkString("", "\n", "\n")
+  }
+
+  /**
+    * @return code block of statements that need to be placed in the close Function
+    */
+  def reuseCloseCode(): String = {
+    reusableCloseStatements.mkString("", "\n", "\n")
   }
 
   /**
@@ -220,56 +247,105 @@ class CodeGenerator(
     // manual casting here
     val samHeader =
       // FlatMapFunction
-      if (clazz == classOf[FlatMapFunction[_,_]]) {
+      if (clazz == classOf[FlatMapFunction[_, _]]) {
+        val baseClass = if (generatedRichFunctions) {
+          classOf[RichFlatMapFunction[_, _]]
+        } else {
+          classOf[FlatMapFunction[_, _]]
+        }
         val inputTypeTerm = boxedTypeTermForTypeInfo(input1)
-        (s"void flatMap(Object _in1, org.apache.flink.util.Collector $collectorTerm)",
+        (baseClass,
+          s"void flatMap(Object _in1, org.apache.flink.util.Collector $collectorTerm)",
           List(s"$inputTypeTerm $input1Term = ($inputTypeTerm) _in1;"))
       }
 
       // MapFunction
-      else if (clazz == classOf[MapFunction[_,_]]) {
+      else if (clazz == classOf[MapFunction[_, _]]) {
+        val baseClass = if (generatedRichFunctions) {
+          classOf[RichMapFunction[_, _]]
+        } else {
+          classOf[MapFunction[_, _]]
+        }
         val inputTypeTerm = boxedTypeTermForTypeInfo(input1)
-        ("Object map(Object _in1)",
+        (baseClass,
+          "Object map(Object _in1)",
           List(s"$inputTypeTerm $input1Term = ($inputTypeTerm) _in1;"))
       }
 
       // FlatJoinFunction
-      else if (clazz == classOf[FlatJoinFunction[_,_,_]]) {
+      else if (clazz == classOf[FlatJoinFunction[_, _, _]]) {
+        val baseClass = if (generatedRichFunctions) {
+          classOf[RichFlatJoinFunction[_, _, _]]
+        } else {
+          classOf[FlatJoinFunction[_, _, _]]
+        }
         val inputTypeTerm1 = boxedTypeTermForTypeInfo(input1)
         val inputTypeTerm2 = boxedTypeTermForTypeInfo(input2.getOrElse(
-            throw new CodeGenException("Input 2 for FlatJoinFunction should not be null")))
-        (s"void join(Object _in1, Object _in2, org.apache.flink.util.Collector $collectorTerm)",
+          throw new CodeGenException("Input 2 for FlatJoinFunction should not be null")))
+        (baseClass,
+          s"void join(Object _in1, Object _in2, org.apache.flink.util.Collector $collectorTerm)",
           List(s"$inputTypeTerm1 $input1Term = ($inputTypeTerm1) _in1;",
-          s"$inputTypeTerm2 $input2Term = ($inputTypeTerm2) _in2;"))
+               s"$inputTypeTerm2 $input2Term = ($inputTypeTerm2) _in2;"))
       }
       else {
         // TODO more functions
         throw new CodeGenException("Unsupported Function.")
       }
 
-    val funcCode = j"""
-      public class $funcName
-          implements ${clazz.getCanonicalName} {
+    val funcCode = if (generatedRichFunctions) {
+      j"""
+        public class $funcName
+            extends ${samHeader._1.getCanonicalName} {
 
-        ${reuseMemberCode()}
+          ${reuseMemberCode()}
 
-        public $funcName() throws Exception {
-          ${reuseInitCode()}
+          public $funcName() throws Exception {
+            ${reuseInitCode()}
+          }
+
+          @Override
+          public void open(${classOf[Configuration].getCanonicalName} parameters) throws Exception {
+            ${reuseOpenCode()}
+          }
+
+          @Override
+          public ${samHeader._2} throws Exception {
+            ${samHeader._3.mkString("\n")}
+            ${reusePerRecordCode()}
+            ${reuseInputUnboxingCode()}
+            $bodyCode
+          }
+
+          @Override
+          public void close() throws Exception {
+            ${reuseCloseCode()}
+          }
         }
+      """.stripMargin
+    } else {
+      j"""
+        public class $funcName
+            implements ${samHeader._1.getCanonicalName} {
 
-        @Override
-        public ${samHeader._1} throws Exception {
-          ${samHeader._2.mkString("\n")}
-          ${reusePerRecordCode()}
-          ${reuseInputUnboxingCode()}
-          $bodyCode
+          ${reuseMemberCode()}
+
+          public $funcName() throws Exception {
+            ${reuseInitCode()}
+          }
+
+          @Override
+          public ${samHeader._2} throws Exception {
+            ${samHeader._3.mkString("\n")}
+            ${reusePerRecordCode()}
+            ${reuseInputUnboxingCode()}
+            $bodyCode
+          }
         }
-      }
-    """.stripMargin
+      """.stripMargin
+    }
 
     GeneratedFunction(funcName, returnType, funcCode)
   }
-
   /**
     * Generates a values input format that can be passed to Java compiler.
     *
@@ -1412,6 +1488,21 @@ class CodeGenerator(
         |$fieldTerm = ($classQualifier) $constructorTerm.newInstance();
        """.stripMargin
     reusableInitStatements.add(constructorAccessibility)
+
+    val openFunction =
+      s"""
+         |$fieldTerm.open(new ${classOf[UDFContext].getCanonicalName}(getRuntimeContext()));
+       """.stripMargin
+    reusableOpenStatements.add(openFunction)
+
+    val closeFunction =
+      s"""
+         |$fieldTerm.close();
+       """.stripMargin
+    reusableCloseStatements.add(closeFunction)
+
+    generatedRichFunctions = true
+
     fieldTerm
   }
 
