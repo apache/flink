@@ -35,6 +35,10 @@ public enum SentinelSequenceNumber {
 	 * start to be read from the earliest records that haven't expired yet */
 	SENTINEL_EARLIEST_SEQUENCE_NUM( new SequenceNumber("EARLIEST_SEQUENCE_NUM") ),
 
+	/** Flag value for shard's sequence numbers to indicate that the shard should
+	 * start to be read from the specified timestamp */
+	SENTINEL_AT_TIMESTAMP_SEQUENCE_NUM( new SequenceNumber("AT_TIMESTAMP_SEQUENCE_NUM") ),
+
 	/** Flag value to indicate that we have already read the last record of this shard
 	 * (Note: Kinesis shards that have been closed due to a split or merge will have an ending data record) */
 	SENTINEL_SHARD_ENDING_SEQUENCE_NUM( new SequenceNumber("SHARD_ENDING_SEQUENCE_NUM") );
