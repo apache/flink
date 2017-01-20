@@ -35,11 +35,11 @@ import org.apache.flink.streaming.api.windowing.time.Time;
  * <p>
  * <b>WARNING:</b> Bear in mind that no rescaling and no backwards compatibility is supported.
  * */
-public class TumblingAlignedProcessingTimeWindows extends BaseAlignedWindowAssigner {
+public final class TumblingAlignedProcessingTimeWindows extends BaseAlignedWindowAssigner {
 
 	private static final long serialVersionUID = -6217477609512299842L;
 
-	protected TumblingAlignedProcessingTimeWindows(long size) {
+	public TumblingAlignedProcessingTimeWindows(long size) {
 		super(size);
 	}
 
