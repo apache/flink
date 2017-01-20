@@ -530,7 +530,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			// propagate exceptions only if the task is still in "running" state
 			if (isRunning) {
 				throw new Exception("Could not perform checkpoint " + checkpointMetaData.getCheckpointId() +
-					"for operator " + getName() + '.', e);
+					" for operator " + getName() + '.', e);
 			} else {
 				LOG.debug("Could not perform checkpoint {} for operator {} while the " +
 					"invokable was not in state running.", checkpointMetaData.getCheckpointId(), getName(), e);
@@ -953,6 +953,27 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 							owner.getName(), checkpointMetaData.getCheckpointId(), asyncDurationMillis);
 				}
 			} catch (Exception e) {
+				// clean up ongoing operator snapshot results and non partitioned state handles
+				for (OperatorSnapshotResult operatorSnapshotResult : snapshotInProgressList) {
+					if (operatorSnapshotResult != null) {
+						try {
+							operatorSnapshotResult.cancel();
+						} catch (Exception cancelException) {
+							e.addSuppressed(cancelException);
+						}
+					}
+				}
+
+				for (StreamStateHandle nonPartitionedStateHandle : nonPartitionedStateHandles) {
+					if (nonPartitionedStateHandle != null) {
+						try {
+							nonPartitionedStateHandle.discardState();
+						} catch (Exception discardException) {
+							e.addSuppressed(discardException);
+						}
+					}
+				}
+
 				// registers the exception and tries to fail the whole task
 				AsynchronousException asyncException = new AsynchronousException(
 					new Exception(
@@ -975,6 +996,18 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 					} catch (Exception e) {
 						LOG.warn("Could not properly cancel operator snapshot result in async " +
 							"checkpoint runnable.", e);
+					}
+				}
+			}
+
+			// discard non partitioned state handles
+			for (StreamStateHandle nonPartitionedStateHandle : nonPartitionedStateHandles) {
+				if (nonPartitionedStateHandle != null) {
+					try {
+						nonPartitionedStateHandle.discardState();
+					} catch (Exception e) {
+						LOG.warn("Could not properly discard non partitioned state handle " +
+							"in async checkpoint runnable.", e);
 					}
 				}
 			}
@@ -1053,6 +1086,18 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 								operatorSnapshotResult.cancel();
 							} catch (Exception e) {
 								LOG.warn("Could not properly cancel an operator snapshot result.", e);
+							}
+						}
+					}
+
+					// Cleanup non partitioned state handles
+					for (StreamStateHandle nonPartitionedState : nonPartitionedStates) {
+						if (nonPartitionedState != null) {
+							try {
+								nonPartitionedState.discardState();
+							} catch (Exception e) {
+								LOG.warn("Could not properly discard a non partitioned " +
+									"state. This might leave some orphaned files behind.", e);
 							}
 						}
 					}
