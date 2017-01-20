@@ -129,7 +129,7 @@ class DataSetWindowAggregate(
           isTimeInterval(size.resultType),
           caseSensitive)
       case EventTimeSessionGroupWindow(_, _, gap) =>
-        createEventTimeSessionWindowDataSet(inputDS,caseSensitive)
+        createEventTimeSessionWindowDataSet(inputDS, caseSensitive)
       case EventTimeSlidingGroupWindow(_, _, _, _) =>
         throw new UnsupportedOperationException(
           "Event-time sliding windows in a batch environment are currently not supported")
@@ -230,16 +230,8 @@ class DataSetWindowAggregate(
         window,
         namedAggregates,
         grouping,
-        inputType,isParserCaseSensitive)
-
-      // create groupReduceFunction for calculating the aggregations
-      val groupReduceFunction = createDataSetWindowAggregationGroupReduceFunction(
-        window,
-        namedAggregates,
         inputType,
-        rowRelDataType,
-        grouping,
-        namedProperties)
+        isParserCaseSensitive)
 
       val mappedInput =
         inputDS
@@ -249,7 +241,7 @@ class DataSetWindowAggregate(
       val mapReturnType = mapFunction.asInstanceOf[ResultTypeQueryable[Row]].getProducedType
 
       // the position of the rowtime field in the intermediate result for map output
-      val rowTimeFilePos = mapReturnType.getArity - 1
+      val rowTimeFieldPos = mapReturnType.getArity - 1
 
       // do incremental aggregation
       if (doAllSupportPartialAggregation(
@@ -258,17 +250,28 @@ class DataSetWindowAggregate(
         grouping.length)) {
 
         // gets the window-start and window-end position  in the intermediate result.
-        val windowStartPos = rowTimeFilePos
+        val windowStartPos = rowTimeFieldPos
         val windowEndPos = windowStartPos + 1
 
+        // create groupCombineFunction for combine the aggregations
         val combineGroupFunction = createDataSetWindowAggregationCombineFunction(
           window,
           namedAggregates,
           inputType,
           grouping)
 
+        // create groupReduceFunction for calculating the aggregations
+        val groupReduceFunction = createDataSetWindowAggregationGroupReduceFunction(
+          window,
+          namedAggregates,
+          inputType,
+          rowRelDataType,
+          grouping,
+          namedProperties,
+          true)
+
         mappedInput.groupBy(groupingKeys: _*)
-        .sortGroup(rowTimeFilePos, Order.ASCENDING)
+        .sortGroup(rowTimeFieldPos, Order.ASCENDING)
         .combineGroup(combineGroupFunction)
         .groupBy(groupingKeys: _*)
         .sortGroup(windowStartPos, Order.ASCENDING)
@@ -280,8 +283,17 @@ class DataSetWindowAggregate(
       }
       // do non-incremental aggregation
       else {
+        // create groupReduceFunction for calculating the aggregations
+        val groupReduceFunction = createDataSetWindowAggregationGroupReduceFunction(
+          window,
+          namedAggregates,
+          inputType,
+          rowRelDataType,
+          grouping,
+          namedProperties)
+
         mappedInput.groupBy(groupingKeys: _*)
-        .sortGroup(rowTimeFilePos, Order.ASCENDING)
+        .sortGroup(rowTimeFieldPos, Order.ASCENDING)
         .reduceGroup(groupReduceFunction)
         .returns(rowTypeInfo)
         .name(aggregateOperatorName)
