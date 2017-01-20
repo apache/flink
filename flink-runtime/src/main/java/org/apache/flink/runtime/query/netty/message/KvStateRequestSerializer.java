@@ -363,8 +363,7 @@ public final class KvStateRequestSerializer {
 	 * @param <K>                       Key type
 	 * @param <N>                       Namespace
 	 * @return Tuple2 holding deserialized key and namespace
-	 * @throws IOException           Serialization errors are forwarded
-	 * @throws IllegalStateException If unexpected magic number between key and namespace
+	 * @throws IOException              if the deserialization fails for any reason
 	 */
 	public static <K, N> Tuple2<K, N> deserializeKeyAndNamespace(
 			byte[] serializedKeyAndNamespace,
@@ -376,22 +375,24 @@ public final class KvStateRequestSerializer {
 				0,
 				serializedKeyAndNamespace.length);
 
-		K key = keySerializer.deserialize(dis);
-		byte magicNumber = dis.readByte();
-		if (magicNumber != 42) {
-			throw new IllegalArgumentException("Unexpected magic number " + magicNumber +
-					". This indicates a mismatch in the key serializers used by the " +
-					"KvState instance and this access.");
-		}
-		N namespace = namespaceSerializer.deserialize(dis);
+		try {
+			K key = keySerializer.deserialize(dis);
+			byte magicNumber = dis.readByte();
+			if (magicNumber != 42) {
+				throw new IOException("Unexpected magic number " + magicNumber + ".");
+			}
+			N namespace = namespaceSerializer.deserialize(dis);
 
-		if (dis.available() > 0) {
-			throw new IllegalArgumentException("Unconsumed bytes in the serialized key " +
-					"and namespace. This indicates a mismatch in the key/namespace " +
-					"serializers used by the KvState instance and this access.");
-		}
+			if (dis.available() > 0) {
+				throw new IOException("Unconsumed bytes in the serialized key and namespace.");
+			}
 
-		return new Tuple2<>(key, namespace);
+			return new Tuple2<>(key, namespace);
+		} catch (IOException e) {
+			throw new IOException("Unable to deserialize key " +
+				"and namespace. This indicates a mismatch in the key/namespace " +
+				"serializers used by the KvState instance and this access.", e);
+		}
 	}
 
 	/**
