@@ -1279,7 +1279,7 @@ A session window is defined by using the `Session` class as follows:
 Currently the following features are not supported yet:
 
 - Row-count windows on event-time
-- Session windows on batch tables
+- Non-grouped session windows on batch tables
 - Sliding windows on batch tables
 
 SQL
