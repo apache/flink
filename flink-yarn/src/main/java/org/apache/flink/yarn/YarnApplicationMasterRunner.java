@@ -169,6 +169,8 @@ public class YarnApplicationMasterRunner {
 			LOG.debug("YARN dynamic properties: {}", dynamicProperties);
 
 			final Configuration flinkConfig = createConfiguration(currDir, dynamicProperties);
+
+			// set keytab principal and replace path with the local path of the shipped keytab file in NodeManager
 			if (keytabPath != null && remoteKeytabPrincipal != null) {
 				flinkConfig.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB, keytabPath);
 				flinkConfig.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, remoteKeytabPrincipal);
