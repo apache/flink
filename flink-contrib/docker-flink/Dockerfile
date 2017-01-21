@@ -21,11 +21,6 @@ FROM java:8-jre-alpine
 # Install requirements
 RUN apk add --no-cache bash snappy
 
-# Configure Flink version
-ARG FLINK_VERSION=1.1.3
-ARG HADOOP_VERSION=27
-ARG SCALA_VERSION=2.11
-
 # Flink environment variables
 ENV FLINK_INSTALL_PATH=/opt
 ENV FLINK_HOME $FLINK_INSTALL_PATH/flink
@@ -36,22 +31,25 @@ ENV PATH $PATH:$FLINK_HOME/bin
 EXPOSE 8081
 EXPOSE 6123
 
+# flink-dist can point to a directory, a tarball on the local system, or a url to a tarball
+ARG flink_dist=NOT_SET
+
 # Install build dependencies and flink
+ADD $flink_dist $FLINK_INSTALL_PATH
 RUN set -x && \
   mkdir -p $FLINK_INSTALL_PATH && \
-  apk --update add --virtual build-dependencies curl && \
-  curl -s $(curl -s https://www.apache.org/dyn/closer.cgi\?preferred\=true)flink/flink-${FLINK_VERSION}/flink-${FLINK_VERSION}-bin-hadoop${HADOOP_VERSION}-scala_${SCALA_VERSION}.tgz | \
-  tar xvz -C $FLINK_INSTALL_PATH && \
-  ln -s $FLINK_INSTALL_PATH/flink-$FLINK_VERSION $FLINK_HOME && \
+  ln -s $FLINK_INSTALL_PATH/flink-* $FLINK_HOME && \
   addgroup -S flink && adduser -D -S -H -G flink -h $FLINK_HOME flink && \
-  chown -R flink:flink $FLINK_INSTALL_PATH/flink-$FLINK_VERSION && \
+  chown -R flink:flink $FLINK_INSTALL_PATH/flink-* && \
   chown -h flink:flink $FLINK_HOME && \
-  sed -i -e "s/echo \$mypid >> \$pid/echo \$mypid >> \$pid \&\& wait/g" $FLINK_HOME/bin/flink-daemon.sh && \
-  apk del build-dependencies && \
-  rm -rf /var/cache/apk/*
+  sed -i -e "s/echo \$mypid >> \$pid/echo \$mypid >> \$pid \&\& wait/g" $FLINK_HOME/bin/flink-daemon.sh
 
 # Configure container
 USER flink
 ADD docker-entrypoint.sh $FLINK_HOME/bin/
+
+# Overwrite default logging settings.  This will additionally log to stdout so we can use 'docker logs'
+ADD log4j.properties $FLINK_HOME/conf/
+
 ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["sh", "-c"]
