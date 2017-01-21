@@ -18,10 +18,14 @@
 ################################################################################
 
 # Start/stop a Flink JobManager.
-USAGE="Usage: jobmanager.sh (start (local|cluster) [host] [webui-port]|stop|stop-all)"
+USAGE="Usage: jobmanager.sh (start (local|cluster) [--no-redirect-stdout] [host] [webui-port]|stop|stop-all)"
 
 STARTSTOP=$1
 EXECUTIONMODE=$2
+
+# Parse out --no-redirect-stdout flag if present
+[[ "$3" == "--no-redirect-stdout" ]] && redirect_flag="--no-redirect-stdout" && shift
+
 HOST=$3 # optional when starting multiple instances
 WEBUIPORT=$4 # optional when starting multiple instances
 
@@ -70,4 +74,4 @@ if [[ $STARTSTOP == "start" ]]; then
     fi
 fi
 
-"${FLINK_BIN_DIR}"/flink-daemon.sh $STARTSTOP jobmanager "${args[@]}"
+"${FLINK_BIN_DIR}"/flink-daemon.sh $STARTSTOP jobmanager "$redirect_flag" "${args[@]}"

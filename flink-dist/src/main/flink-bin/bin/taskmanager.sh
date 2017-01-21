@@ -18,9 +18,12 @@
 ################################################################################
 
 # Start/stop a Flink TaskManager.
-USAGE="Usage: taskmanager.sh (start|stop|stop-all)"
+USAGE="Usage: taskmanager.sh (start|stop|stop-all) [--no-redirect-stdout]"
 
 STARTSTOP=$1
+
+# Parse out --no-redirect-stdout flag
+[[ "$2" == "--no-redirect-stdout" ]] && redirect_flag="--no-redirect-stdout"
 
 bin=`dirname "$0"`
 bin=`cd "$bin"; pwd`
@@ -96,4 +99,4 @@ if [[ $STARTSTOP == "start" ]]; then
     args=("--configDir" "${FLINK_CONF_DIR}")
 fi
 
-"${FLINK_BIN_DIR}"/flink-daemon.sh $STARTSTOP taskmanager "${args[@]}"
+"${FLINK_BIN_DIR}"/flink-daemon.sh $STARTSTOP taskmanager "$redirect_flag" "${args[@]}"
