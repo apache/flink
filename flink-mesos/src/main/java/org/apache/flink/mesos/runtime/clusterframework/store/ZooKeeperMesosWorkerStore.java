@@ -39,6 +39,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.ConcurrentModificationException;
 import java.util.List;
+import java.util.concurrent.Executor;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -72,10 +73,10 @@ public class ZooKeeperMesosWorkerStore implements MesosWorkerStore {
 
 	@SuppressWarnings("unchecked")
 	ZooKeeperMesosWorkerStore(
-		CuratorFramework client,
-		String storePath,
-		RetrievableStateStorageHelper<Worker> stateStorage
-	) throws Exception {
+			CuratorFramework client,
+			String storePath,
+			RetrievableStateStorageHelper<Worker> stateStorage,
+			Executor executor) throws Exception {
 		checkNotNull(storePath, "storePath");
 		checkNotNull(stateStorage, "stateStorage");
 
@@ -100,8 +101,8 @@ public class ZooKeeperMesosWorkerStore implements MesosWorkerStore {
 
 		// using late-binding as a workaround for shaded curator dependency of flink-runtime.
 		this.workersInZooKeeper = ZooKeeperStateHandleStore.class
-			.getConstructor(CuratorFramework.class, RetrievableStateStorageHelper.class)
-			.newInstance(storeFacade, stateStorage);
+			.getConstructor(CuratorFramework.class, RetrievableStateStorageHelper.class, Executor.class)
+			.newInstance(storeFacade, stateStorage, executor);
 	}
 
 	@Override
@@ -284,7 +285,8 @@ public class ZooKeeperMesosWorkerStore implements MesosWorkerStore {
 	 */
 	public static ZooKeeperMesosWorkerStore createMesosWorkerStore(
 			CuratorFramework client,
-			Configuration configuration) throws Exception {
+			Configuration configuration,
+			Executor executor) throws Exception {
 
 		checkNotNull(configuration, "Configuration");
 
@@ -297,6 +299,9 @@ public class ZooKeeperMesosWorkerStore implements MesosWorkerStore {
 		);
 
 		return new ZooKeeperMesosWorkerStore(
-			client, zooKeeperMesosWorkerStorePath, stateStorage);
+			client,
+			zooKeeperMesosWorkerStorePath,
+			stateStorage,
+			executor);
 	}
 }
