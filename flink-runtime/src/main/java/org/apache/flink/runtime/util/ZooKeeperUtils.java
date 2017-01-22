@@ -376,13 +376,17 @@ public class ZooKeeperUtils {
 		}
 	}
 
-	private static String generateZookeeperPath(String root, String namespace) {
+	public static String generateZookeeperPath(String root, String namespace) {
 		if (!namespace.startsWith("/")) {
-			namespace = "/" + namespace;
+			namespace = '/' + namespace;
 		}
 
 		if (namespace.endsWith("/")) {
 			namespace = namespace.substring(0, namespace.length() - 1);
+		}
+
+		if (root.endsWith("/")) {
+			root = root.substring(0, root.length() - 1);
 		}
 
 		return root + namespace;
