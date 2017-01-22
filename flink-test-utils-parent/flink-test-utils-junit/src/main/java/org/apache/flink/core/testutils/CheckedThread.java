@@ -37,6 +37,25 @@ public abstract class CheckedThread extends Thread {
 	// ------------------------------------------------------------------------
 
 	/**
+	 * Unnamed checked thread.
+	 */
+	public CheckedThread() {
+		super();
+	}
+
+	/**
+	 * Checked thread with a name.
+	 *
+	 * @param name
+	 * 		the name of the new thread
+	 *
+	 * @see Thread#Thread(String)
+	 */
+	public CheckedThread(final String name) {
+		super(name);
+	}
+
+	/**
 	 * This method needs to be overwritten to contain the main work logic.
 	 * It takes the role of {@link Thread#run()}, but should propagate exceptions.
 	 *
