@@ -21,8 +21,9 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.annotation.PublicEvolving;
 
 /**
- * This interface provides a context in which operators that use managed (i.e. state that is managed by state
- * backends) or raw (i.e. the operator can write it's state streams) state can perform a snapshot.
+ * This interface provides a context in which operators that use managed (i.e. state that is managed
+ * by state backends) or raw (i.e. the operator can write it's state streams) state can perform a
+ * snapshot.
  */
 @PublicEvolving
 public interface StateSnapshotContext extends FunctionSnapshotContext {

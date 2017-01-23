@@ -394,10 +394,19 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 		int subtaskIdx = getRuntimeContext().getIndexOfThisSubtask();
 
 		checkpointedState.clear();
+
 		List<TimestampedFileInputSplit> readerState = reader.getReaderState();
-		for (TimestampedFileInputSplit split : readerState) {
-			// create a new partition for each entry.
-			checkpointedState.add(split);
+
+		try {
+			for (TimestampedFileInputSplit split : readerState) {
+				// create a new partition for each entry.
+				checkpointedState.add(split);
+			}
+		} catch (Exception e) {
+			checkpointedState.clear();
+
+			throw new Exception("Could not add timestamped file input splits to to operator " +
+				"state backend of operator " + getOperatorName() + '.', e);
 		}
 
 		if (LOG.isDebugEnabled()) {
