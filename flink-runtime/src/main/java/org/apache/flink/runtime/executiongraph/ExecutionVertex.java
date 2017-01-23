@@ -605,7 +605,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 
 			List<List<ExecutionEdge>> consumers = partition.getConsumers();
 
-			if(consumers.isEmpty()) {
+			if (consumers.isEmpty()) {
 				//TODO this case only exists for test, currently there has to be exactly one consumer in real jobs!
 				producedPartitions.add(ResultPartitionDeploymentDescriptor.from(
 						partition,

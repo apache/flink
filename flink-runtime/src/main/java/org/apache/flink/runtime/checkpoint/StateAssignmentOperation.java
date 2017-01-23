@@ -54,9 +54,9 @@ public class StateAssignmentOperation {
 			Map<JobVertexID, TaskState> taskStates,
 			boolean allowNonRestoredState) {
 
-		this.logger = logger;
-		this.tasks = tasks;
-		this.taskStates = taskStates;
+		this.logger = Preconditions.checkNotNull(logger);
+		this.tasks = Preconditions.checkNotNull(tasks);
+		this.taskStates = Preconditions.checkNotNull(taskStates);
 		this.allowNonRestoredState = allowNonRestoredState;
 	}
 
@@ -64,9 +64,6 @@ public class StateAssignmentOperation {
 
 		// this tracks if we find missing node hash ids and already use secondary mappings
 		boolean expandedToLegacyIds = false;
-
-		// this tracks if the max parallelism was derived from the state (when user did not specify it explicitly)
-		boolean maxParallelismDerived = false;
 
 		Map<JobVertexID, ExecutionJobVertex> localTasks = this.tasks;
 
@@ -97,192 +94,194 @@ public class StateAssignmentOperation {
 				}
 			}
 
-			//----------------------------------------max parallelism preconditions-------------------------------------
+			checkParallelismPreconditions(taskState, executionJobVertex);
 
-			// check that the number of key groups have not changed or if we need to override it to satisfy the restored state
-			if (taskState.getMaxParallelism() != executionJobVertex.getMaxParallelism()) {
-
-				if (ExecutionJobVertex.VALUE_NOT_SET == executionJobVertex.getMaxParallelismConfigured()) {
-					// if the max parallelism was not explicitly specified by the user, we derive it from the state
-					maxParallelismDerived = true;
-
-					if (logger.isDebugEnabled()) {
-						logger.debug("Overriding maximum parallelism for JobVertex " + executionJobVertex.getJobVertexId()
-								+ " from " + executionJobVertex.getMaxParallelism() + " to " + taskState.getMaxParallelism());
-					}
-
-					executionJobVertex.setMaxParallelismDerived(taskState.getMaxParallelism());
-				} else {
-					// if the max parallelism was explicitly specified, we complain on mismatch
-					throw new IllegalStateException("The maximum parallelism (" +
-							taskState.getMaxParallelism() + ") with which the latest " +
-							"checkpoint of the execution job vertex " + executionJobVertex +
-							" has been taken and the current maximum parallelism (" +
-							executionJobVertex.getMaxParallelism() + ") changed. This " +
-							"is currently not supported.");
-				}
-			}
-
-			//----------------------------------------parallelism preconditions-----------------------------------------
-
-			final int oldParallelism = taskState.getParallelism();
-			final int newParallelism = executionJobVertex.getParallelism();
-
-			// this tracks if the parallelism was changed between runs
-			final boolean parallelismChanged = oldParallelism != newParallelism;
-			final boolean hasNonPartitionedState = taskState.hasNonPartitionedState();
-
-			if (hasNonPartitionedState && parallelismChanged) {
-				throw new IllegalStateException("Cannot restore the latest checkpoint because " +
-						"the operator " + executionJobVertex.getJobVertexId() + " has non-partitioned " +
-						"state and its parallelism changed. The operator " + executionJobVertex.getJobVertexId() +
-						" has parallelism " + newParallelism + " whereas the corresponding " +
-						"state object has a parallelism of " + oldParallelism);
-			}
-
-			//----------------------------------------state repartitioning for vertex-----------------------------------
-
-			List<KeyGroupRange> keyGroupPartitions = createKeyGroupPartitions(
-					executionJobVertex.getMaxParallelism(),
-					newParallelism);
-
-			final int chainLength = taskState.getChainLength();
-
-			// operator chain idx -> list of the stored op states from all parallel instances for this chain idx
-			@SuppressWarnings("unchecked")
-			List<OperatorStateHandle>[] parallelOpStatesBackend = new List[chainLength];
-			@SuppressWarnings("unchecked")
-			List<OperatorStateHandle>[] parallelOpStatesStream = new List[chainLength];
-
-			List<KeyGroupsStateHandle> parallelKeyedStatesBackend = new ArrayList<>(oldParallelism);
-			List<KeyGroupsStateHandle> parallelKeyedStateStream = new ArrayList<>(oldParallelism);
-
-			for (int p = 0; p < oldParallelism; ++p) {
-				SubtaskState subtaskState = taskState.getState(p);
-
-				if (null != subtaskState) {
-					collectParallelStatesByChainOperator(
-							parallelOpStatesBackend, subtaskState.getManagedOperatorState());
-
-					collectParallelStatesByChainOperator(
-							parallelOpStatesStream, subtaskState.getRawOperatorState());
-
-					KeyGroupsStateHandle keyedStateBackend = subtaskState.getManagedKeyedState();
-					if (null != keyedStateBackend) {
-						parallelKeyedStatesBackend.add(keyedStateBackend);
-					}
-
-					KeyGroupsStateHandle keyedStateStream = subtaskState.getRawKeyedState();
-					if (null != keyedStateStream) {
-						parallelKeyedStateStream.add(keyedStateStream);
-					}
-				}
-			}
-
-			// operator chain index -> lists with collected states (one collection for each parallel subtasks)
-			@SuppressWarnings("unchecked")
-			List<Collection<OperatorStateHandle>>[] partitionedParallelStatesBackend = new List[chainLength];
-
-			@SuppressWarnings("unchecked")
-			List<Collection<OperatorStateHandle>>[] partitionedParallelStatesStream = new List[chainLength];
-
-			//TODO here we can employ different redistribution strategies for state, e.g. union state.
-			// For now we only offer round robin as the default.
-			OperatorStateRepartitioner opStateRepartitioner = RoundRobinOperatorStateRepartitioner.INSTANCE;
-
-			for (int chainIdx = 0; chainIdx < chainLength; ++chainIdx) {
-
-				List<OperatorStateHandle> chainOpParallelStatesBackend = parallelOpStatesBackend[chainIdx];
-				List<OperatorStateHandle> chainOpParallelStatesStream = parallelOpStatesStream[chainIdx];
-
-				partitionedParallelStatesBackend[chainIdx] = applyRepartitioner(
-						opStateRepartitioner,
-						chainOpParallelStatesBackend,
-						oldParallelism,
-						newParallelism);
-
-				partitionedParallelStatesStream[chainIdx] = applyRepartitioner(
-						opStateRepartitioner,
-						chainOpParallelStatesStream,
-						oldParallelism,
-						newParallelism);
-			}
-
-			for (int subTaskIdx = 0; subTaskIdx < newParallelism; ++subTaskIdx) {
-				// non-partitioned state
-				ChainedStateHandle<StreamStateHandle> nonPartitionableState = null;
-
-				if (!parallelismChanged) {
-					if (taskState.getState(subTaskIdx) != null) {
-						nonPartitionableState = taskState.getState(subTaskIdx).getLegacyOperatorState();
-					}
-				}
-
-				// partitionable state
-				@SuppressWarnings("unchecked")
-				Collection<OperatorStateHandle>[] iab = new Collection[chainLength];
-				@SuppressWarnings("unchecked")
-				Collection<OperatorStateHandle>[] ias = new Collection[chainLength];
-				List<Collection<OperatorStateHandle>> operatorStateFromBackend = Arrays.asList(iab);
-				List<Collection<OperatorStateHandle>> operatorStateFromStream = Arrays.asList(ias);
-
-				for (int chainIdx = 0; chainIdx < partitionedParallelStatesBackend.length; ++chainIdx) {
-					List<Collection<OperatorStateHandle>> redistributedOpStateBackend =
-							partitionedParallelStatesBackend[chainIdx];
-
-					List<Collection<OperatorStateHandle>> redistributedOpStateStream =
-							partitionedParallelStatesStream[chainIdx];
-
-					if (redistributedOpStateBackend != null) {
-						operatorStateFromBackend.set(chainIdx, redistributedOpStateBackend.get(subTaskIdx));
-					}
-
-					if (redistributedOpStateStream != null) {
-						operatorStateFromStream.set(chainIdx, redistributedOpStateStream.get(subTaskIdx));
-					}
-				}
-
-				Execution currentExecutionAttempt = executionJobVertex
-						.getTaskVertices()[subTaskIdx]
-						.getCurrentExecutionAttempt();
-
-				List<KeyGroupsStateHandle> newKeyedStatesBackend;
-				List<KeyGroupsStateHandle> newKeyedStateStream;
-				if (parallelismChanged) {
-					KeyGroupRange subtaskKeyGroupIds = keyGroupPartitions.get(subTaskIdx);
-					newKeyedStatesBackend = getKeyGroupsStateHandles(parallelKeyedStatesBackend, subtaskKeyGroupIds);
-					newKeyedStateStream = getKeyGroupsStateHandles(parallelKeyedStateStream, subtaskKeyGroupIds);
-				} else {
-					SubtaskState subtaskState = taskState.getState(subTaskIdx);
-					if (subtaskState != null) {
-						KeyGroupsStateHandle oldKeyedStatesBackend = subtaskState.getManagedKeyedState();
-						KeyGroupsStateHandle oldKeyedStatesStream = subtaskState.getRawKeyedState();
-						newKeyedStatesBackend = oldKeyedStatesBackend != null ? Collections.singletonList(
-								oldKeyedStatesBackend) : null;
-						newKeyedStateStream = oldKeyedStatesStream != null ? Collections.singletonList(
-								oldKeyedStatesStream) : null;
-					} else {
-						newKeyedStatesBackend = null;
-						newKeyedStateStream = null;
-					}
-				}
-
-				TaskStateHandles taskStateHandles = new TaskStateHandles(
-						nonPartitionableState,
-						operatorStateFromBackend,
-						operatorStateFromStream,
-						newKeyedStatesBackend,
-						newKeyedStateStream);
-
-				currentExecutionAttempt.setInitialState(taskStateHandles);
-			}
-		}
-
-		if (maxParallelismDerived) {
-			logger.info("Maximum parallelism overridden with value from task state for at least one job vertex.");
+			assignTaskStatesToOperatorInstances(taskState, executionJobVertex);
 		}
 
 		return true;
+	}
+
+	private void checkParallelismPreconditions(TaskState taskState, ExecutionJobVertex executionJobVertex) {
+		//----------------------------------------max parallelism preconditions-------------------------------------
+
+		// check that the number of key groups have not changed or if we need to override it to satisfy the restored state
+		if (taskState.getMaxParallelism() != executionJobVertex.getMaxParallelism()) {
+
+			if (ExecutionJobVertex.VALUE_NOT_SET == executionJobVertex.getMaxParallelismConfigured()) {
+				// if the max parallelism was not explicitly specified by the user, we derive it from the state
+
+				if (logger.isDebugEnabled()) {
+					logger.debug("Overriding maximum parallelism for JobVertex " + executionJobVertex.getJobVertexId()
+							+ " from " + executionJobVertex.getMaxParallelism() + " to " + taskState.getMaxParallelism());
+				}
+
+				executionJobVertex.setMaxParallelismDerived(taskState.getMaxParallelism());
+			} else {
+				// if the max parallelism was explicitly specified, we complain on mismatch
+				throw new IllegalStateException("The maximum parallelism (" +
+						taskState.getMaxParallelism() + ") with which the latest " +
+						"checkpoint of the execution job vertex " + executionJobVertex +
+						" has been taken and the current maximum parallelism (" +
+						executionJobVertex.getMaxParallelism() + ") changed. This " +
+						"is currently not supported.");
+			}
+		}
+
+		//----------------------------------------parallelism preconditions-----------------------------------------
+
+		final int oldParallelism = taskState.getParallelism();
+		final int newParallelism = executionJobVertex.getParallelism();
+
+		if (taskState.hasNonPartitionedState() && (oldParallelism != newParallelism)) {
+			throw new IllegalStateException("Cannot restore the latest checkpoint because " +
+					"the operator " + executionJobVertex.getJobVertexId() + " has non-partitioned " +
+					"state and its parallelism changed. The operator " + executionJobVertex.getJobVertexId() +
+					" has parallelism " + newParallelism + " whereas the corresponding " +
+					"state object has a parallelism of " + oldParallelism);
+		}
+	}
+
+	private static void assignTaskStatesToOperatorInstances(
+			TaskState taskState, ExecutionJobVertex executionJobVertex) {
+
+		final int oldParallelism = taskState.getParallelism();
+		final int newParallelism = executionJobVertex.getParallelism();
+
+		List<KeyGroupRange> keyGroupPartitions = createKeyGroupPartitions(
+				executionJobVertex.getMaxParallelism(),
+				newParallelism);
+
+		final int chainLength = taskState.getChainLength();
+
+		// operator chain idx -> list of the stored op states from all parallel instances for this chain idx
+		@SuppressWarnings("unchecked")
+		List<OperatorStateHandle>[] parallelOpStatesBackend = new List[chainLength];
+		@SuppressWarnings("unchecked")
+		List<OperatorStateHandle>[] parallelOpStatesStream = new List[chainLength];
+
+		List<KeyGroupsStateHandle> parallelKeyedStatesBackend = new ArrayList<>(oldParallelism);
+		List<KeyGroupsStateHandle> parallelKeyedStateStream = new ArrayList<>(oldParallelism);
+
+		for (int p = 0; p < oldParallelism; ++p) {
+			SubtaskState subtaskState = taskState.getState(p);
+
+			if (null != subtaskState) {
+				collectParallelStatesByChainOperator(
+						parallelOpStatesBackend, subtaskState.getManagedOperatorState());
+
+				collectParallelStatesByChainOperator(
+						parallelOpStatesStream, subtaskState.getRawOperatorState());
+
+				KeyGroupsStateHandle keyedStateBackend = subtaskState.getManagedKeyedState();
+				if (null != keyedStateBackend) {
+					parallelKeyedStatesBackend.add(keyedStateBackend);
+				}
+
+				KeyGroupsStateHandle keyedStateStream = subtaskState.getRawKeyedState();
+				if (null != keyedStateStream) {
+					parallelKeyedStateStream.add(keyedStateStream);
+				}
+			}
+		}
+
+		// operator chain index -> lists with collected states (one collection for each parallel subtasks)
+		@SuppressWarnings("unchecked")
+		List<Collection<OperatorStateHandle>>[] partitionedParallelStatesBackend = new List[chainLength];
+
+		@SuppressWarnings("unchecked")
+		List<Collection<OperatorStateHandle>>[] partitionedParallelStatesStream = new List[chainLength];
+
+		//TODO here we can employ different redistribution strategies for state, e.g. union state.
+		// For now we only offer round robin as the default.
+		OperatorStateRepartitioner opStateRepartitioner = RoundRobinOperatorStateRepartitioner.INSTANCE;
+
+		for (int chainIdx = 0; chainIdx < chainLength; ++chainIdx) {
+
+			List<OperatorStateHandle> chainOpParallelStatesBackend = parallelOpStatesBackend[chainIdx];
+			List<OperatorStateHandle> chainOpParallelStatesStream = parallelOpStatesStream[chainIdx];
+
+			partitionedParallelStatesBackend[chainIdx] = applyRepartitioner(
+					opStateRepartitioner,
+					chainOpParallelStatesBackend,
+					oldParallelism,
+					newParallelism);
+
+			partitionedParallelStatesStream[chainIdx] = applyRepartitioner(
+					opStateRepartitioner,
+					chainOpParallelStatesStream,
+					oldParallelism,
+					newParallelism);
+		}
+
+		for (int subTaskIdx = 0; subTaskIdx < newParallelism; ++subTaskIdx) {
+			// non-partitioned state
+			ChainedStateHandle<StreamStateHandle> nonPartitionableState = null;
+
+			if (oldParallelism == newParallelism) {
+				if (taskState.getState(subTaskIdx) != null) {
+					nonPartitionableState = taskState.getState(subTaskIdx).getLegacyOperatorState();
+				}
+			}
+
+			// partitionable state
+			@SuppressWarnings("unchecked")
+			Collection<OperatorStateHandle>[] iab = new Collection[chainLength];
+			@SuppressWarnings("unchecked")
+			Collection<OperatorStateHandle>[] ias = new Collection[chainLength];
+			List<Collection<OperatorStateHandle>> operatorStateFromBackend = Arrays.asList(iab);
+			List<Collection<OperatorStateHandle>> operatorStateFromStream = Arrays.asList(ias);
+
+			for (int chainIdx = 0; chainIdx < partitionedParallelStatesBackend.length; ++chainIdx) {
+				List<Collection<OperatorStateHandle>> redistributedOpStateBackend =
+						partitionedParallelStatesBackend[chainIdx];
+
+				List<Collection<OperatorStateHandle>> redistributedOpStateStream =
+						partitionedParallelStatesStream[chainIdx];
+
+				if (redistributedOpStateBackend != null) {
+					operatorStateFromBackend.set(chainIdx, redistributedOpStateBackend.get(subTaskIdx));
+				}
+
+				if (redistributedOpStateStream != null) {
+					operatorStateFromStream.set(chainIdx, redistributedOpStateStream.get(subTaskIdx));
+				}
+			}
+
+			Execution currentExecutionAttempt = executionJobVertex
+					.getTaskVertices()[subTaskIdx]
+					.getCurrentExecutionAttempt();
+
+			List<KeyGroupsStateHandle> newKeyedStatesBackend;
+			List<KeyGroupsStateHandle> newKeyedStateStream;
+			if (oldParallelism == newParallelism) {
+				SubtaskState subtaskState = taskState.getState(subTaskIdx);
+				if (subtaskState != null) {
+					KeyGroupsStateHandle oldKeyedStatesBackend = subtaskState.getManagedKeyedState();
+					KeyGroupsStateHandle oldKeyedStatesStream = subtaskState.getRawKeyedState();
+					newKeyedStatesBackend = oldKeyedStatesBackend != null ? Collections.singletonList(
+							oldKeyedStatesBackend) : null;
+					newKeyedStateStream = oldKeyedStatesStream != null ? Collections.singletonList(
+							oldKeyedStatesStream) : null;
+				} else {
+					newKeyedStatesBackend = null;
+					newKeyedStateStream = null;
+				}
+			} else {
+				KeyGroupRange subtaskKeyGroupIds = keyGroupPartitions.get(subTaskIdx);
+				newKeyedStatesBackend = getKeyGroupsStateHandles(parallelKeyedStatesBackend, subtaskKeyGroupIds);
+				newKeyedStateStream = getKeyGroupsStateHandles(parallelKeyedStateStream, subtaskKeyGroupIds);
+			}
+
+			TaskStateHandles taskStateHandles = new TaskStateHandles(
+					nonPartitionableState,
+					operatorStateFromBackend,
+					operatorStateFromStream,
+					newKeyedStatesBackend,
+					newKeyedStateStream);
+
+			currentExecutionAttempt.setInitialState(taskStateHandles);
+		}
 	}
 
 	/**
@@ -330,7 +329,7 @@ public class StateAssignmentOperation {
 
 	/**
 	 * @param chainParallelOpStates array = chain ops, array[idx] = parallel states for this chain op.
-	 * @param chainOpState
+	 * @param chainOpState the operator chain
 	 */
 	private static void collectParallelStatesByChainOperator(
 			List<OperatorStateHandle>[] chainParallelOpStates, ChainedStateHandle<OperatorStateHandle> chainOpState) {
