@@ -237,7 +237,7 @@ under the License.
 				<artifactId>japicmp-maven-plugin</artifactId>
 				<configuration>
 					<parameter>
-						<excludes>
+						<excludes combine.children="append">
 							<!-- Exclude generated classes from api compatibility checks -->
 							<exclude>*\$\$anon\$*</exclude>
 						</excludes>
