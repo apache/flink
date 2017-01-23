@@ -1242,7 +1242,7 @@ under the License.
 							<dependency>
 								<groupId>org.apache.flink</groupId>
 								<artifactId>${project.artifactId}</artifactId>
-								<version>1.0.0</version>
+								<version>1.1.4</version>
 								<type>${project.packaging}</type>
 							</dependency>
 						</oldVersion>
