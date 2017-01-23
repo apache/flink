@@ -82,9 +82,9 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 
 	private final InputSplit[] inputSplits;
 
-	private final int maxParallelismConfigured;
+	private final boolean maxParallelismConfigured;
 
-	private int maxParallelismDerived;
+	private int maxParallelism;
 
 	private volatile int numSubtasksInFinalState;
 
@@ -125,8 +125,13 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 
 		this.parallelism = numTaskVertices;
 
-		this.maxParallelismConfigured = jobVertex.getMaxParallelism();
-		this.maxParallelismDerived = VALUE_NOT_SET;
+		final int configuredMaxParallelism = jobVertex.getMaxParallelism();
+
+		this.maxParallelismConfigured = (VALUE_NOT_SET != configuredMaxParallelism);
+
+		// if no max parallelism was configured by the user, we calculate and set a default
+		setMaxParallelismInternal(maxParallelismConfigured ?
+				configuredMaxParallelism : KeyGroupRangeAssignment.computeDefaultMaxParallelism(parallelism));
 
 		this.serializedTaskInformation = null;
 
@@ -206,18 +211,22 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		finishedSubtasks = new boolean[parallelism];
 	}
 
-	public void setMaxParallelismDerived(int maxParallelism) {
+	public void setMaxParallelism(int maxParallelismDerived) {
 
-		Preconditions.checkState(VALUE_NOT_SET == maxParallelismConfigured,
-				"Attempt to override a configured max parallelism. Configured: " + maxParallelismConfigured
-						+ ", argument: " + maxParallelism);
+		Preconditions.checkState(!maxParallelismConfigured,
+				"Attempt to override a configured max parallelism. Configured: " + this.maxParallelism
+						+ ", argument: " + maxParallelismDerived);
 
+		setMaxParallelismInternal(maxParallelismDerived);
+	}
+
+	private void setMaxParallelismInternal(int maxParallelism) {
 		Preconditions.checkArgument(maxParallelism > 0
 						&& maxParallelism <= KeyGroupRangeAssignment.UPPER_BOUND_MAX_PARALLELISM,
 				"Overriding max parallelism is not in valid bounds (1.." +
 						KeyGroupRangeAssignment.UPPER_BOUND_MAX_PARALLELISM + "), found:" + maxParallelism);
 
-		this.maxParallelismDerived = maxParallelism;
+		this.maxParallelism = maxParallelism;
 	}
 
 	public ExecutionGraph getGraph() {
@@ -238,46 +247,13 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		return parallelism;
 	}
 
-	/**
-	 * Returns the effective max parallelism. This value is determined in the following order of priority:
-	 * <p>
-	 * (maxParallelismConfigured) overrides (maxParallelismDerived) overrides (max(128, roundUp(parallelism)) / default)
-	 *
-	 * @return the effective max parallelism.
-	 */
 	@Override
 	public int getMaxParallelism() {
-
-		// prio 1: the configured value, given by user
-		if (VALUE_NOT_SET != maxParallelismConfigured) {
-			KeyGroupRangeAssignment.checkParallelismPreconditions(maxParallelismConfigured);
-			return maxParallelismConfigured;
-		}
-
-		// prio 2: derived value, e.g. obtained from a checkpoint when no value was configured
-		if (VALUE_NOT_SET != maxParallelismDerived) {
-			KeyGroupRangeAssignment.checkParallelismPreconditions(maxParallelismDerived);
-			return maxParallelismDerived;
-		}
-
-		// prio 3: a default, e.g. in case nothing is configured and this is a new job
-		return KeyGroupRangeAssignment.computeDefaultMaxParallelism(getParallelism());
+		return maxParallelism;
 	}
 
-	/**
-	 *
-	 * @return the configured max parallelism, as obtained from the {@link JobVertex}.
-	 */
-	public int getMaxParallelismConfigured() {
+	public boolean isMaxParallelismConfigured() {
 		return maxParallelismConfigured;
-	}
-
-	/**
-	 *
-	 * @return the override value for maximum parallelism.
-	 */
-	public int getMaxParallelismDerived() {
-		return maxParallelismDerived;
 	}
 
 	public JobID getJobId() {
@@ -358,9 +334,8 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 				"(" + jobVertex.getName() + " | " + jobVertex.getID() + ")" +
 				"{" +
 				"parallelism=" + parallelism +
-				", maxParallelismEffective=" + getMaxParallelism() +
+				", maxParallelism=" + getMaxParallelism() +
 				", maxParallelismConfigured=" + maxParallelismConfigured +
-				", maxParallelismDerived=" + maxParallelismDerived +
 				'}';
 	}
 

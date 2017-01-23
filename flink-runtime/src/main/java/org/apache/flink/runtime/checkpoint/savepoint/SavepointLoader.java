@@ -83,7 +83,7 @@ public class SavepointLoader {
 			if (executionJobVertex != null) {
 
 				if (executionJobVertex.getMaxParallelism() == taskState.getMaxParallelism()
-						|| ExecutionJobVertex.VALUE_NOT_SET == executionJobVertex.getMaxParallelismConfigured()) {
+						|| !executionJobVertex.isMaxParallelismConfigured()) {
 					taskStates.put(taskState.getJobVertexID(), taskState);
 				} else {
 					String msg = String.format("Failed to rollback to savepoint %s. " +

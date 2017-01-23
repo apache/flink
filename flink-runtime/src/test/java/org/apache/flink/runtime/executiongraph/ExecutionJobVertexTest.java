@@ -55,8 +55,8 @@ public class ExecutionJobVertexTest {
 		Assert.assertEquals(1 << 15, executionJobVertex.getMaxParallelism());
 
 		// test upper bound
-		executionJobVertex = createExecutionJobVertex(1 + (1 << 15), NOT_CONFIGURED);
 		try {
+			executionJobVertex = createExecutionJobVertex(1 + (1 << 15), NOT_CONFIGURED);
 			executionJobVertex.getMaxParallelism();
 			Assert.fail();
 		} catch (IllegalArgumentException ignore) {
@@ -72,28 +72,28 @@ public class ExecutionJobVertexTest {
 		Assert.assertEquals(1 << 15, executionJobVertex.getMaxParallelism());
 
 		// test upper bound configured
-		executionJobVertex = createExecutionJobVertex(4, 1 + (1 << 15));
 		try {
+			executionJobVertex = createExecutionJobVertex(4, 1 + (1 << 15));
 			Assert.fail(String.valueOf(executionJobVertex.getMaxParallelism()));
 		} catch (IllegalArgumentException ignore) {
 		}
 
 		// test lower bound configured
-		executionJobVertex = createExecutionJobVertex(4, 0);
 		try {
+			executionJobVertex = createExecutionJobVertex(4, 0);
 			Assert.fail(String.valueOf(executionJobVertex.getMaxParallelism()));
 		} catch (IllegalArgumentException ignore) {
 		}
 
 		// test override trumps test configured 2
 		executionJobVertex = createExecutionJobVertex(4, NOT_CONFIGURED);
-		executionJobVertex.setMaxParallelismDerived(7);
+		executionJobVertex.setMaxParallelism(7);
 		Assert.assertEquals(7, executionJobVertex.getMaxParallelism());
 
 		// test lower bound with derived value
 		executionJobVertex = createExecutionJobVertex(4, NOT_CONFIGURED);
 		try {
-			executionJobVertex.setMaxParallelismDerived(0);
+			executionJobVertex.setMaxParallelism(0);
 			Assert.fail(String.valueOf(executionJobVertex.getMaxParallelism()));
 		} catch (IllegalArgumentException ignore) {
 		}
@@ -101,7 +101,7 @@ public class ExecutionJobVertexTest {
 		// test upper bound with derived value
 		executionJobVertex = createExecutionJobVertex(4, NOT_CONFIGURED);
 		try {
-			executionJobVertex.setMaxParallelismDerived(1 + (1 << 15));
+			executionJobVertex.setMaxParallelism(1 + (1 << 15));
 			Assert.fail(String.valueOf(executionJobVertex.getMaxParallelism()));
 		} catch (IllegalArgumentException ignore) {
 		}
@@ -109,7 +109,7 @@ public class ExecutionJobVertexTest {
 		// test complain on setting derived value in presence of a configured value
 		executionJobVertex = createExecutionJobVertex(4, 16);
 		try {
-			executionJobVertex.setMaxParallelismDerived(7);
+			executionJobVertex.setMaxParallelism(7);
 			Assert.fail(String.valueOf(executionJobVertex.getMaxParallelism()));
 		} catch (IllegalStateException ignore) {
 		}

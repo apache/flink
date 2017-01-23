@@ -108,7 +108,7 @@ public class StateAssignmentOperation {
 		// check that the number of key groups have not changed or if we need to override it to satisfy the restored state
 		if (taskState.getMaxParallelism() != executionJobVertex.getMaxParallelism()) {
 
-			if (ExecutionJobVertex.VALUE_NOT_SET == executionJobVertex.getMaxParallelismConfigured()) {
+			if (!executionJobVertex.isMaxParallelismConfigured()) {
 				// if the max parallelism was not explicitly specified by the user, we derive it from the state
 
 				if (logger.isDebugEnabled()) {
@@ -116,7 +116,7 @@ public class StateAssignmentOperation {
 							+ " from " + executionJobVertex.getMaxParallelism() + " to " + taskState.getMaxParallelism());
 				}
 
-				executionJobVertex.setMaxParallelismDerived(taskState.getMaxParallelism());
+				executionJobVertex.setMaxParallelism(taskState.getMaxParallelism());
 			} else {
 				// if the max parallelism was explicitly specified, we complain on mismatch
 				throw new IllegalStateException("The maximum parallelism (" +
