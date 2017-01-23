@@ -18,16 +18,13 @@
 
 package org.apache.flink.table.plan.nodes.dataset.forwarding
 
-import org.apache.calcite.rex.RexProgram
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.table.api.TableException
 
-import scala.collection.JavaConversions._
-
 object FieldForwardingUtils {
 
-  def compositeTypeField = (fields: Seq[String]) => (v: Int) => fields(v)
+  def compositeTypeField = (fields: Seq[String]) => fields
 
   private def throwMissedWrapperException(wrapperCustomCase: TypeInformation[_]) = {
     throw new TableException(s"Implementation for $wrapperCustomCase index wrapper is missing.")
@@ -35,79 +32,70 @@ object FieldForwardingUtils {
 
   /**
     * Wrapper for {@link getForwardedFields}
-    * @param inputType
-    * @param outputType
-    * @param forwardIndices
-    * @param wrapperCustomCase
-    * @param calcProgram
-    * @return
     */
   def getForwardedInput(
       inputType: TypeInformation[_],
       outputType: TypeInformation[_],
       forwardIndices: Seq[Int],
-      wrapperCustomCase: TypeInformation[_] => (Int) => String = throwMissedWrapperException,
-      calcProgram: Option[RexProgram] = None) = {
+      wrapperCustomCase: TypeInformation[_] =>
+        (Int) => String = throwMissedWrapperException): String = {
 
     getForwardedFields(inputType,
       outputType,
       forwardIndices.zip(forwardIndices),
-      wrapperCustomCase,
-      calcProgram)
+      wrapperCustomCase)
   }
 
   /**
-    * Wraps provided indices with proper names, e.g. _1 for tuple, f0 for row, fieldName for POJO.
-    * @param inputType
-    * @param outputType
-    * @param forwardIndices - tuple of input-output indices of a forwarded field
-    * @param wrapperCustomCase - used for  figuring out proper type in specific cases,
-    *                          e.g. {@see DataSetSingleRowJoin}
-    * @param calcProgram - used for  figuring out proper type in specific cases,
-    *                    e.g. {@see DataSetCalc}
-    * @return - string with forwarded fields mapped from input to output
+    * Wraps provided indices with proper names.
+    * e.g. _1 for Tuple, f0 for Row, fieldName for POJO and named Row
+    *
+    * @param inputType      information of input data
+    * @param outputType     information of output data
+    * @param forwardIndices tuple of (input, output) indices of a forwarded field
+    * @param customWrapper  used for figuring out proper type in specific cases,
+    *                       e.g. {@see DataSetSingleRowJoin}
+    * @return string with forwarded fields mapped from input to output
     */
   def getForwardedFields(
       inputType: TypeInformation[_],
       outputType: TypeInformation[_],
       forwardIndices: Seq[(Int, Int)],
-      wrapperCustomCase: TypeInformation[_] => (Int) => String = throwMissedWrapperException,
-      calcProgram: Option[RexProgram] = None): String = {
+      customWrapper: TypeInformation[_] =>
+        (Int) => String = throwMissedWrapperException): String = {
 
     def chooseWrapper(typeInformation: TypeInformation[_]): (Int) => String = {
       typeInformation match {
         case composite: CompositeType[_] =>
-          // POJOs' fields are sorted, so we can not access them by their positional index.
-          // So we collect field names from
-          // outputRowType. For all other types we get field names from inputDS.
-          val typeFieldList = composite.getFieldNames
-          var fieldWrapper: (Int) => String = compositeTypeField(typeFieldList)
-          if (calcProgram.isDefined) {
-            val projectFieldList = calcProgram.get.getOutputRowType.getFieldNames
-            if (typeFieldList.toSet == projectFieldList.toSet) {
-              fieldWrapper = compositeTypeField(projectFieldList)
-            }
-          }
-          fieldWrapper
-        case basic: BasicTypeInfo[_] => (v: Int) => s"*"
-        case _ => wrapperCustomCase(typeInformation)
+          compositeTypeField(composite.getFieldNames)
+        case basic: BasicTypeInfo[_] =>
+          (_: Int) => s"*"
+        case _ =>
+          customWrapper(typeInformation)
       }
     }
 
     val wrapInput = chooseWrapper(inputType)
     val wrapOutput = chooseWrapper(outputType)
 
-    implicit def string2ForwardFields(left: String) = new AnyRef {
-      def ->(right: String): String = left + "->" + right
-      def simplify(): String = if (left.split("->").head == left.split("->").last) {
-        left.split("->").head
-      } else {
+    forwardFields(forwardIndices, wrapInput, wrapOutput)
+  }
+
+  private def forwardFields(
+      forwardIndices: Seq[(Int, Int)],
+      wrapInput: (Int) => String,
+      wrapOutput: (Int) => String): String = {
+
+    implicit class String2ForwardFields(left: String) {
+      def ->(right: String): String = if (left == right) {
         left
+      } else {
+        s"$left->$right"
       }
     }
 
     def wrapIndices(inputIndex: Int, outputIndex: Int): String = {
-      wrapInput(inputIndex) -> wrapOutput(outputIndex) simplify()
+      wrapInput(inputIndex) -> wrapOutput(outputIndex)
     }
 
     forwardIndices map { case (in, out) => wrapIndices(in, out) } mkString ";"

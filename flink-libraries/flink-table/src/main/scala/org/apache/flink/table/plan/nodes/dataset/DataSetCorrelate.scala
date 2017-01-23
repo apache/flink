@@ -33,6 +33,7 @@ import org.apache.flink.table.functions.utils.TableSqlFunction
 import org.apache.flink.table.plan.nodes.CommonCorrelate
 import org.apache.flink.types.Row
 import org.apache.flink.table.plan.nodes.dataset.forwarding.FieldForwardingUtils.getForwardedInput
+import org.apache.flink.table.plan.util.RexFieldExtractor._
 
 import scala.collection.JavaConversions._
 
@@ -117,39 +118,25 @@ class DataSetCorrelate(
       ruleDescription)
 
     def getIndices = {
-      //recursively get all operands from RexCalls
-      def extractOperands(rex: RexNode): Seq[Int] = {
-        rex match {
-          case r: RexInputRef => Seq(r.getIndex)
-          case call: RexCall => call.operands.flatMap(extractOperands)
-          case _ => Seq()
-        }
-      }
-      //get indices of all modified operands
-      val modifiedOperandsInRel = funcRel.getCall.asInstanceOf[RexCall].operands
-        .flatMap(extractOperands)
-        .toSet
+      //get indices of all input operands
+      val inputOperandsInRel = extractRefInputFields(rexCall)
       val joinCondition = if (condition.isDefined) {
-        condition.get.asInstanceOf[RexCall].operands
-          .flatMap(extractOperands)
-          .toSet
+        extractRefInputFields(condition.get)
       } else {
-        Set()
+        Array()
       }
-      val modifiedOperands = modifiedOperandsInRel ++ joinCondition
+      val inputOperands = inputOperandsInRel ++ joinCondition
 
-      // get input/output indices of operands, filter modified operands and specify forwarding
-      val tuples = inputDS.getType.asInstanceOf[CompositeType[_]].getFieldNames
-        .zipWithIndex
-        .map(_._2)
-        .filterNot(modifiedOperands.contains)
-        .toSeq
-
-      tuples
+      inputDS.getType.asInstanceOf[CompositeType[_]]
+        .getFieldNames
+        .indices
+        .filter(inputOperands.contains)
     }
 
-    val fields: String = getForwardedInput(inputDS.getType, returnType, getIndices)
-    inputDS.flatMap(mapFunc)
+    val fields = getForwardedInput(inputDS.getType, mapFunc.getProducedType, getIndices)
+
+    inputDS
+      .flatMap(mapFunc)
       .withForwardedFields(fields)
       .name(correlateOpName(rexCall, sqlFunction, relRowType))
   }

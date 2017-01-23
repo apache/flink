@@ -23,7 +23,7 @@ import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.logical.Minus
 import org.apache.flink.table.expressions.{Alias, Asc, Call, Expression, ExpressionParser, Ordering, TableFunctionCall, UnresolvedAlias}
-import org.apache.flink.table.plan.ProjectionTranslator._
+import org.apache.flink.table.plan.util.ProjectionTranslator._
 import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.sinks.TableSink
 

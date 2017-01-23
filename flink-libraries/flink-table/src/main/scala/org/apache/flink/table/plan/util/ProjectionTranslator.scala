@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.plan
+package org.apache.flink.table.plan.util
 
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.table.api.TableEnvironment

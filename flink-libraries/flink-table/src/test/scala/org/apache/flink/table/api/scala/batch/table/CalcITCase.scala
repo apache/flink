@@ -260,7 +260,7 @@ class CalcITCase(
   }
 
   @Test
-  def testSimpleCalc(): Unit = {
+  def testSimpleCalcWithRow(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
@@ -272,6 +272,21 @@ class CalcITCase(
     val expected = "1,Hi\n" + "2,Hello\n" + "3,Hello world\n" +
       "4,Hello world, how are you?\n" + "5,I am fine.\n" + "6,Luke Skywalker\n"
       val results = t.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testSimpleCalcWithPojo(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val t = CollectionDataSets.getSmallPojoDataSet(env).toTable(tEnv)
+      .select('number, 'str, 'nestedPojo)
+      .where('number < 7)
+      .select('nestedPojo.get("longNumber"), 'str)
+
+    val expected = "10000,First\n20000,Second\n30000,Third\n"
+    val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 

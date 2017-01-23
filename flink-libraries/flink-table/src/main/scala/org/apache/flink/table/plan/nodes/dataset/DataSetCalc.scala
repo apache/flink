@@ -32,6 +32,7 @@ import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGenerator
 import org.apache.flink.table.plan.nodes.CommonCalc
 import org.apache.flink.types.Row
+import org.apache.flink.table.plan.util.RexProgramProjectExtractor._
 
 import scala.collection.JavaConversions._
 /**
@@ -103,34 +104,25 @@ class DataSetCalc(
       returnType)
 
     def getForwardIndices = {
-      //get indices of all modified operands
-      val modifiedOperands = calcProgram.
-        getExprList
-        .filter(_.isInstanceOf[RexCall])
-        .flatMap(_.asInstanceOf[RexCall].operands)
-        .map(_.asInstanceOf[RexLocalRef].getIndex)
-        .toSet
-
-      // get input/output indices of operands, filter modified operands and specify forwarding
-      val tuples = calcProgram.getProjectList
-        .map(ref => (ref.getName, ref.getIndex))
+      // get (input, output) indices of operands,
+      // filter modified operands and specify forwarding
+      val inputFields = extractRefInputFields(calcProgram)
+      calcProgram.getProjectList
+        .map(_.getIndex)
         .zipWithIndex
-        .map { case ((name, inputIndex), projectIndex) => (name, inputIndex, projectIndex) }
-        //consider only input fields
-        .filter(_._2 < calcProgram.getExprList.filter(_.isInstanceOf[RexInputRef]).map(_.asInstanceOf[RexInputRef]).size)
-        .filterNot(ref => modifiedOperands.contains(ref._2))
-        .map {case (name, in, out) => (in, out)}
-      tuples
+        .filter(tup => inputFields.contains(tup._1))
     }
 
     val mapFunc = calcMapFunction(genFunction)
-    val tuples = getForwardIndices
 
-    val fields: String = getForwardedFields(inputDS.getType,
+    val fields = getForwardedFields(
+      inputDS.getType,
       returnType,
-      tuples,
-      calcProgram = Some(calcProgram))
+      getForwardIndices)
 
-      inputDS.flatMap(mapFunc).withForwardedFields(fields).name(calcOpName(calcProgram, getExpressionString))
+      inputDS
+        .flatMap(mapFunc)
+        .withForwardedFields(fields)
+        .name(calcOpName(calcProgram, getExpressionString))
     }
 }
