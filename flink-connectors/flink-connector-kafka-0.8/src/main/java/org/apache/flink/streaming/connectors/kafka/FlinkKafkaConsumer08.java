@@ -292,11 +292,12 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 						}
 					}
 					break retryLoop; // leave the loop through the brokers
-				} catch (Exception e) {
+				}
+				catch (Exception e) {
 					//validates seed brokers in case of a ClosedChannelException
 					validateSeedBrokers(seedBrokers, e);
-					LOG.warn("Error communicating with broker " + seedBroker + " to find partitions for " + topics.toString() + "." +
-							"" + e.getClass() + ". Message: " + e.getMessage());
+					LOG.warn("Error communicating with broker {} to find partitions for {}. {} Message: {}",
+							seedBroker, topics, e.getClass().getName(), e.getMessage());
 					LOG.debug("Detailed trace", e);
 					// we sleep a bit. Retrying immediately doesn't make sense in cases where Kafka is reorganizing the leader metadata
 					try {
