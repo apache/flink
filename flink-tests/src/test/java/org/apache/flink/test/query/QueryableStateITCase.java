@@ -164,7 +164,7 @@ public class QueryableStateITCase extends TestLogger {
 	public void testQueryableState() throws Exception {
 		// Config
 		final Deadline deadline = TEST_TIMEOUT.fromNow();
-		final int numKeys = 1024;
+		final int numKeys = 256;
 
 		final QueryableStateClient client = new QueryableStateClient(cluster.configuration());
 
@@ -298,7 +298,7 @@ public class QueryableStateITCase extends TestLogger {
 	public void testQueryableStateWithTaskManagerFailure() throws Exception {
 		// Config
 		final Deadline deadline = TEST_TIMEOUT.fromNow();
-		final int numKeys = 1024;
+		final int numKeys = 256;
 
 		final QueryableStateClient client = new QueryableStateClient(cluster.configuration());
 
@@ -499,7 +499,7 @@ public class QueryableStateITCase extends TestLogger {
 	public void testDuplicateRegistrationFailsJob() throws Exception {
 		// Config
 		final Deadline deadline = TEST_TIMEOUT.fromNow();
-		final int numKeys = 1024;
+		final int numKeys = 256;
 
 		JobID jobId = null;
 
