@@ -821,9 +821,10 @@ class TaskManager(
     val logFilePathOption = Option(config.configuration.getString(
       ConfigConstants.TASK_MANAGER_LOG_PATH_KEY, System.getProperty("log.file")));
     logFilePathOption match {
-      case None => sender ! new IOException("TaskManager log files are unavailable. " +
+      case None => sender ! akka.actor.Status.Failure(
+        new IOException("TaskManager log files are unavailable. " +
         "Log file location not found in environment variable log.file or configuration key "
-        + ConfigConstants.TASK_MANAGER_LOG_PATH_KEY + ".");
+        + ConfigConstants.TASK_MANAGER_LOG_PATH_KEY + "."))
       case Some(logFilePath) =>
         val file: File = requestType match {
           case LogFileRequest => new File(logFilePath);
@@ -841,12 +842,13 @@ class TaskManager(
                 sender ! value
                 fis.close()
               case Failure(e) =>
-                sender ! e
+                sender ! akka.actor.Status.Failure(e)
                 fis.close()
             }(context.dispatcher)
         } else {
-          sender ! new IOException("TaskManager log files are unavailable. " +
-            "Log file does not exist.")
+          sender ! akka.actor.Status.Failure(
+            new IOException("TaskManager log files are unavailable. " +
+            "Log file could not be found at " + file.getAbsolutePath + "."))
         }
     }
   }
