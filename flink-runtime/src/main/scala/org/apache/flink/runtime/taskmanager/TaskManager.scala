@@ -339,7 +339,7 @@ class TaskManager(
         case Some(_) =>
           handleRequestTaskManagerLog(sender(), requestType, currentJobManager.get)
         case None =>
-          sender() ! new IOException("BlobService not available. Cannot upload TaskManager logs.")
+          sender() ! akka.actor.Status.Failure(new IOException("BlobService not available. Cannot upload TaskManager logs."))
       }
 
     case RequestBroadcastVariablesWithReferences =>
