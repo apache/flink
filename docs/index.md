@@ -23,7 +23,9 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-This documentation is for Apache Flink version {{ site.version }}.
+
+
+This documentation is for Apache Flink version {{ site.version }}. These pages have been built at: {% build_time %}.
 
 Apache Flink is an open source platform for distributed stream and batch data processing. Flink’s core is a streaming dataflow engine that provides data distribution, communication, and fault tolerance for distributed computations over data streams. Flink also builds batch processing on top of the streaming engine, overlaying native iteration support, managed memory, and program optimization.
 
@@ -42,4 +44,3 @@ While all parts of the API that were marked as public and stable are still suppo
 newer interfaces where applicable.
 
 For users that look to upgrade an operation Flink system to the latest version, we recommend to check out the guide on [upgrading Apache Flink](ops/upgrading.html)
-
