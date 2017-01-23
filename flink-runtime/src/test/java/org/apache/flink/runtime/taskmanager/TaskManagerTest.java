@@ -23,8 +23,6 @@ import akka.actor.ActorSystem;
 import akka.actor.Kill;
 import akka.actor.Props;
 import akka.actor.Status;
-import akka.dispatch.OnFailure;
-import akka.dispatch.OnSuccess;
 import akka.japi.Creator;
 import akka.testkit.JavaTestKit;
 import org.apache.flink.api.common.ExecutionConfig;
@@ -87,8 +85,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Option;
 import scala.concurrent.Await;
-import scala.concurrent.ExecutionContext$;
-import scala.concurrent.ExecutionContextExecutor;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 import scala.util.Failure;
@@ -105,7 +101,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.messages.JobManagerMessages.RequestPartitionState;
@@ -1085,15 +1080,11 @@ public class TaskManagerTest extends TestLogger {
 
 		new JavaTestKit(system){{
 
+			// we require a JobManager so that the BlobService is also started
 			ActorGateway jobManager = null;
 			ActorGateway taskManager = null;
 
-			final ActorGateway testActorGateway = new AkkaActorGateway(
-				getTestActor(),
-				leaderSessionID);
-
 			try {
-				final IntermediateDataSetID resultId = new IntermediateDataSetID();
 
 				// Create the JM
 				ActorRef jm = system.actorOf(Props.create(
@@ -1118,36 +1109,20 @@ public class TaskManagerTest extends TestLogger {
 				// ---------------------------------------------------------------------------------
 
 				final ActorGateway tm = taskManager;
-				final ExecutionContextExecutor context = ExecutionContext$.MODULE$.fromExecutor(Executors.newSingleThreadExecutor());
 
 				new Within(d) {
 					@Override
 					protected void run() {
 						Future<Object> logFuture = tm.ask(TaskManagerMessages.getRequestTaskManagerLog(), timeout);
-
-						logFuture.onSuccess(new OnSuccess<Object>() {
-								@Override
-								public void onSuccess(Object result) throws Throwable {
-									Assert.fail();
-								}
-							}, context);
-						logFuture.onFailure(new OnFailure() {
-							@Override
-							public void onFailure(Throwable failure) throws Throwable {
-								testActorGateway.tell(new Status.Success("success"));
-							}
-						}, context);
-						
-						Status.Success msg = expectMsgClass(Status.Success.class);
-						Assert.assertEquals("success", msg.status());
+						try {
+							Await.result(logFuture, timeout);
+							Assert.fail();
+						} catch (Exception e) {
+							Assert.assertTrue(e.getMessage().startsWith("TaskManager log files are unavailable. Log file could not be found at"));
+						}
 					}
 				};
-			}
-			catch(Exception e) {
-				e.printStackTrace();
-				fail(e.getMessage());
-			}
-			finally {
+			} finally {
 				TestingUtils.stopActor(taskManager);
 				TestingUtils.stopActor(jobManager);
 			}
