@@ -23,6 +23,8 @@ import akka.actor.ActorSystem;
 import akka.actor.Kill;
 import akka.actor.Props;
 import akka.actor.Status;
+import akka.dispatch.OnFailure;
+import akka.dispatch.OnSuccess;
 import akka.japi.Creator;
 import akka.testkit.JavaTestKit;
 import org.apache.flink.api.common.ExecutionConfig;
@@ -78,12 +80,15 @@ import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Option;
 import scala.concurrent.Await;
+import scala.concurrent.ExecutionContext$;
+import scala.concurrent.ExecutionContextExecutor;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 import scala.util.Failure;
@@ -100,6 +105,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.messages.JobManagerMessages.RequestPartitionState;
@@ -1073,6 +1079,79 @@ public class TaskManagerTest extends TestLogger {
 			}
 		}};
 	}
+
+	@Test
+	public void testLogNotFoundHandling() throws Exception {
+
+		new JavaTestKit(system){{
+
+			ActorGateway jobManager = null;
+			ActorGateway taskManager = null;
+
+			final ActorGateway testActorGateway = new AkkaActorGateway(
+				getTestActor(),
+				leaderSessionID);
+
+			try {
+				final IntermediateDataSetID resultId = new IntermediateDataSetID();
+
+				// Create the JM
+				ActorRef jm = system.actorOf(Props.create(
+					new SimplePartitionStateLookupJobManagerCreator(leaderSessionID, getTestActor())));
+
+				jobManager = new AkkaActorGateway(jm, leaderSessionID);
+
+				final int dataPort = NetUtils.getAvailablePort();
+				Configuration config = new Configuration();
+				config.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, dataPort);
+				config.setInteger(TaskManagerOptions.NETWORK_REQUEST_BACKOFF_INITIAL, 100);
+				config.setInteger(TaskManagerOptions.NETWORK_REQUEST_BACKOFF_MAX, 200);
+				config.setString(ConfigConstants.TASK_MANAGER_LOG_PATH_KEY, "/i/dont/exist");
+
+				taskManager = TestingUtils.createTaskManager(
+					system,
+					jobManager,
+					config,
+					false,
+					true);
+
+				// ---------------------------------------------------------------------------------
+
+				final ActorGateway tm = taskManager;
+				final ExecutionContextExecutor context = ExecutionContext$.MODULE$.fromExecutor(Executors.newSingleThreadExecutor());
+
+				new Within(d) {
+					@Override
+					protected void run() {
+						Future<Object> logFuture = tm.ask(TaskManagerMessages.getRequestTaskManagerLog(), timeout);
+
+						logFuture.onSuccess(new OnSuccess<Object>() {
+								@Override
+								public void onSuccess(Object result) throws Throwable {
+									Assert.fail();
+								}
+							}, context);
+						logFuture.onFailure(new OnFailure() {
+							@Override
+							public void onFailure(Throwable failure) throws Throwable {
+								testActorGateway.tell(new Status.Success("success"));
+							}
+						}, context);
+						
+						Status.Success msg = expectMsgClass(Status.Success.class);
+						Assert.assertEquals("success", msg.status());
+					}
+				};
+			}
+			catch(Exception e) {
+				e.printStackTrace();
+				fail(e.getMessage());
+			}
+			finally {
+				TestingUtils.stopActor(taskManager);
+				TestingUtils.stopActor(jobManager);
+			}
+		}};}
 
 	// ------------------------------------------------------------------------
 	// Stack trace sample
