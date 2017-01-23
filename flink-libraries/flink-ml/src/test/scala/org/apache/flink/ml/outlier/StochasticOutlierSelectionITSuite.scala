@@ -45,8 +45,6 @@ class StochasticOutlierSelectionITSuite extends FlatSpec with Matchers with Flin
   val maxIterations = 5000
   val parameters = new StochasticOutlierSelection().setPerplexity(perplexity).parameters
 
-  val env = ExecutionEnvironment.getExecutionEnvironment
-
   it should "Compute the perplexity of the vector and return the correct error" in {
     val vector = BreezeDenseVector(Array(1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 8.0, 9.0, 10.0))
 
@@ -73,6 +71,7 @@ class StochasticOutlierSelectionITSuite extends FlatSpec with Matchers with Flin
   }
 
   it should "Compute the distance matrix and give symmetrical distances" in {
+    val env = ExecutionEnvironment.getExecutionEnvironment
 
     val data = env.fromCollection(List(
       BreezeLabeledVector(0, BreezeDenseVector(Array(1.0, 3.0))),
@@ -89,6 +88,7 @@ class StochasticOutlierSelectionITSuite extends FlatSpec with Matchers with Flin
   }
 
   it should "Compute the distance matrix and give the correct distances" in {
+    val env = ExecutionEnvironment.getExecutionEnvironment
 
     val expectedDistanceMatrix = Array(
       Array(Math.sqrt(2.0), Math.sqrt(10.0)),
@@ -113,6 +113,7 @@ class StochasticOutlierSelectionITSuite extends FlatSpec with Matchers with Flin
   }
 
   it should "Computing the affinity matrix and return the correct affinity" in {
+    val env = ExecutionEnvironment.getExecutionEnvironment
 
     val data = env.fromCollection(List(
       BreezeLabeledVector(0, BreezeDenseVector(Array(1.0, 1.0))),
@@ -144,6 +145,7 @@ class StochasticOutlierSelectionITSuite extends FlatSpec with Matchers with Flin
   }
 
   it should "Compute the binding probabilities and return the correct probabilities" in {
+    val env = ExecutionEnvironment.getExecutionEnvironment
 
     val expectedBindingProbabilityMatrix = Array(
       Array(0.00000000000000000, 0.3659685430819966, 0.36596854308199660,
@@ -183,6 +185,7 @@ class StochasticOutlierSelectionITSuite extends FlatSpec with Matchers with Flin
 
 
   it should "Compute the product of the vector, should return the correct values" in {
+    val env = ExecutionEnvironment.getExecutionEnvironment
 
     val data = env.fromCollection(List(
       BreezeLabeledVector(0, BreezeDenseVector(0.5, 0.3)),
@@ -207,6 +210,7 @@ class StochasticOutlierSelectionITSuite extends FlatSpec with Matchers with Flin
   }
 
   it should "Verifying the output of the SOS algorithm assign the one true outlier" in {
+    val env = ExecutionEnvironment.getExecutionEnvironment
 
     val data = env.fromCollection(List(
       LabeledVector(0.0, DenseVector(1.0, 1.0)),
