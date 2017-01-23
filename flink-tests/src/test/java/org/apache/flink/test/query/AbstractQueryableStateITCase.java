@@ -39,7 +39,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.QueryableStateOptions;
-import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
@@ -57,10 +56,7 @@ import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
-import org.apache.flink.runtime.state.filesystem.FsStateBackend;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
-import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages.ResponseRunningTasks;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -71,10 +67,9 @@ import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
+import org.junit.Before;
 import org.junit.BeforeClass;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.Deadline;
@@ -98,19 +93,24 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-public class QueryableStateITCase extends TestLogger {
+/**
+ * Base class for queryable state integration tests with a configurable state backend.
+ */
+public abstract class AbstractQueryableStateITCase extends TestLogger {
 
 	private final static FiniteDuration TEST_TIMEOUT = new FiniteDuration(100, TimeUnit.SECONDS);
 	private final static FiniteDuration QUERY_RETRY_DELAY = new FiniteDuration(100, TimeUnit.MILLISECONDS);
 
-	private final static ActorSystem TEST_ACTOR_SYSTEM = AkkaUtils.createDefaultActorSystem();
+	private static ActorSystem TEST_ACTOR_SYSTEM;
 
 	private final static int NUM_TMS = 2;
 	private final static int NUM_SLOTS_PER_TM = 4;
 	private final static int NUM_SLOTS = NUM_TMS * NUM_SLOTS_PER_TM;
 
-	@Rule
-	public TemporaryFolder temporaryFolder = new TemporaryFolder();
+	/**
+	 * State backend to use.
+	 */
+	protected AbstractStateBackend stateBackend;
 
 	/**
 	 * Shared between all the test. Make sure to have at least NUM_SLOTS
@@ -131,6 +131,8 @@ public class QueryableStateITCase extends TestLogger {
 
 			cluster = new TestingCluster(config, false);
 			cluster.start(true);
+
+			TEST_ACTOR_SYSTEM = AkkaUtils.createDefaultActorSystem();
 		} catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
@@ -151,6 +153,20 @@ public class QueryableStateITCase extends TestLogger {
 		}
 	}
 
+	@Before
+	public void setUp() throws Exception {
+		// NOTE: do not use a shared instance for all tests as the tests may brake
+		this.stateBackend = createStateBackend();
+	}
+
+	/**
+	 * Creates a state backend instance which is used in the {@link #setUp()} method before each
+	 * test case.
+	 *
+	 * @return a state backend instance for each unit test
+	 */
+	protected abstract AbstractStateBackend createStateBackend() throws Exception;
+
 	/**
 	 * Runs a simple topology producing random (key, 1) pairs at the sources (where
 	 * number of keys is in fixed in range 0...numKeys). The records are keyed and
@@ -164,7 +180,7 @@ public class QueryableStateITCase extends TestLogger {
 	public void testQueryableState() throws Exception {
 		// Config
 		final Deadline deadline = TEST_TIMEOUT.fromNow();
-		final int numKeys = 1024;
+		final int numKeys = 256;
 
 		final QueryableStateClient client = new QueryableStateClient(cluster.configuration());
 
@@ -175,6 +191,7 @@ public class QueryableStateITCase extends TestLogger {
 			// Test program
 			//
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+			env.setStateBackend(stateBackend);
 			env.setParallelism(NUM_SLOTS);
 			// Very important, because cluster is shared between tests and we
 			// don't explicitly check that all slots are available before
@@ -298,7 +315,7 @@ public class QueryableStateITCase extends TestLogger {
 	public void testQueryableStateWithTaskManagerFailure() throws Exception {
 		// Config
 		final Deadline deadline = TEST_TIMEOUT.fromNow();
-		final int numKeys = 1024;
+		final int numKeys = 256;
 
 		final QueryableStateClient client = new QueryableStateClient(cluster.configuration());
 
@@ -309,12 +326,13 @@ public class QueryableStateITCase extends TestLogger {
 			// Test program
 			//
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+			env.setStateBackend(stateBackend);
 			env.setParallelism(NUM_SLOTS);
 			// Very important, because cluster is shared between tests and we
 			// don't explicitly check that all slots are available before
 			// submitting.
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000));
-			env.getCheckpointConfig().setCheckpointInterval(1000);
+			env.getCheckpointConfig().setCheckpointInterval(500);
 
 			DataStream<Tuple2<Integer, Long>> source = env
 					.addSource(new TestKeyRangeSource(numKeys));
@@ -375,18 +393,18 @@ public class QueryableStateITCase extends TestLogger {
 				countForKey = result.f1;
 
 				assertEquals("Key mismatch", key, result.f0.intValue());
-				success = countForKey > 1000; // Wait for some progress
+				success = countForKey > 3; // Wait for some progress
 			}
 
-			assertTrue("No progress for count", countForKey > 1000);
+			assertTrue("No progress for count", countForKey > 3);
 
 			long currentCheckpointId = TestKeyRangeSource.LATEST_CHECKPOINT_ID.get();
-			long waitUntilCheckpointId = currentCheckpointId + 5;
+			long waitUntilCheckpointId = currentCheckpointId + 2;
 
 			// Wait for some checkpoint after the query result
 			while (deadline.hasTimeLeft() &&
 					TestKeyRangeSource.LATEST_CHECKPOINT_ID.get() < waitUntilCheckpointId) {
-				Thread.sleep(500);
+				Thread.sleep(100);
 			}
 
 			assertTrue("Did not complete enough checkpoints to continue",
@@ -402,7 +420,7 @@ public class QueryableStateITCase extends TestLogger {
 			Future<ExecutionGraph> egFuture = cluster.getLeaderGateway(deadline.timeLeft())
 					.ask(new RequestExecutionGraph(jobId), deadline.timeLeft())
 					.mapTo(ClassTag$.MODULE$.<ExecutionGraphFound>apply(ExecutionGraphFound.class))
-					.map(new Mapper<TestingJobManagerMessages.ExecutionGraphFound, ExecutionGraph>() {
+					.map(new Mapper<ExecutionGraphFound, ExecutionGraph>() {
 						@Override
 						public ExecutionGraph apply(ExecutionGraphFound found) {
 							return (ExecutionGraph) found.executionGraph();
@@ -499,7 +517,7 @@ public class QueryableStateITCase extends TestLogger {
 	public void testDuplicateRegistrationFailsJob() throws Exception {
 		// Config
 		final Deadline deadline = TEST_TIMEOUT.fromNow();
-		final int numKeys = 1024;
+		final int numKeys = 256;
 
 		JobID jobId = null;
 
@@ -508,6 +526,7 @@ public class QueryableStateITCase extends TestLogger {
 			// Test program
 			//
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+			env.setStateBackend(stateBackend);
 			env.setParallelism(NUM_SLOTS);
 			// Very important, because cluster is shared between tests and we
 			// don't explicitly check that all slots are available before
@@ -545,7 +564,7 @@ public class QueryableStateITCase extends TestLogger {
 			JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 			jobId = jobGraph.getJobID();
 
-			Future<TestingJobManagerMessages.JobStatusIs> failedFuture = cluster
+			Future<JobStatusIs> failedFuture = cluster
 					.getLeaderGateway(deadline.timeLeft())
 					.ask(new NotifyWhenJobStatus(jobId, JobStatus.FAILED), deadline.timeLeft())
 					.mapTo(ClassTag$.MODULE$.<JobStatusIs>apply(JobStatusIs.class));
@@ -600,6 +619,7 @@ public class QueryableStateITCase extends TestLogger {
 		JobID jobId = null;
 		try {
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+			env.setStateBackend(stateBackend);
 			env.setParallelism(NUM_SLOTS);
 			// Very important, because cluster is shared between tests and we
 			// don't explicitly check that all slots are available before
@@ -664,6 +684,7 @@ public class QueryableStateITCase extends TestLogger {
 		JobID jobId = null;
 		try {
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+			env.setStateBackend(stateBackend);
 			env.setParallelism(NUM_SLOTS);
 			// Very important, because cluster is shared between tests and we
 			// don't explicitly check that all slots are available before
@@ -768,44 +789,14 @@ public class QueryableStateITCase extends TestLogger {
 
 	/**
 	 * Tests simple value state queryable state instance with a default value
-	 * set using the {@link MemoryStateBackend}.
-	 */
-	@Test(expected = UnknownKeyOrNamespace.class)
-	public void testValueStateDefaultValueMemoryBackend() throws Exception {
-		testValueStateDefault(new MemoryStateBackend());
-	}
-
-	/**
-	 * Tests simple value state queryable state instance with a default value
-	 * set using the {@link RocksDBStateBackend}.
-	 */
-	@Test(expected = UnknownKeyOrNamespace.class)
-	public void testValueStateDefaultValueRocksDBBackend() throws Exception {
-		testValueStateDefault(new RocksDBStateBackend(
-			temporaryFolder.newFolder().toURI().toString()));
-	}
-
-	/**
-	 * Tests simple value state queryable state instance with a default value
-	 * set using the {@link FsStateBackend}.
-	 */
-	@Test(expected = UnknownKeyOrNamespace.class)
-	public void testValueStateDefaultValueFsBackend() throws Exception {
-		testValueStateDefault(new FsStateBackend(
-			temporaryFolder.newFolder().toURI().toString()));
-	}
-
-	/**
-	 * Tests simple value state queryable state instance with a default value
 	 * set. Each source emits (subtaskIndex, 0)..(subtaskIndex, numElements)
 	 * tuples, the key is mapped to 1 but key 0 is queried which should throw
 	 * a {@link UnknownKeyOrNamespace} exception.
 	 *
-	 * @param stateBackend state back-end to use for the job
-	 *
 	 * @throws UnknownKeyOrNamespace thrown due querying a non-existent key
 	 */
-	void testValueStateDefault(final AbstractStateBackend stateBackend) throws
+	@Test(expected = UnknownKeyOrNamespace.class)
+	public void testValueStateDefault() throws
 		Exception, UnknownKeyOrNamespace {
 
 		// Config
@@ -819,14 +810,13 @@ public class QueryableStateITCase extends TestLogger {
 		try {
 			StreamExecutionEnvironment env =
 				StreamExecutionEnvironment.getExecutionEnvironment();
+			env.setStateBackend(stateBackend);
 			env.setParallelism(NUM_SLOTS);
 			// Very important, because cluster is shared between tests and we
 			// don't explicitly check that all slots are available before
 			// submitting.
 			env.setRestartStrategy(RestartStrategies
 				.fixedDelayRestart(Integer.MAX_VALUE, 1000));
-
-			env.setStateBackend(stateBackend);
 
 			DataStream<Tuple2<Integer, Long>> source = env
 				.addSource(new TestAscendingValueSource(numElements));
@@ -912,6 +902,7 @@ public class QueryableStateITCase extends TestLogger {
 		JobID jobId = null;
 		try {
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+			env.setStateBackend(stateBackend);
 			env.setParallelism(NUM_SLOTS);
 			// Very important, because cluster is shared between tests and we
 			// don't explicitly check that all slots are available before
@@ -975,6 +966,7 @@ public class QueryableStateITCase extends TestLogger {
 		JobID jobId = null;
 		try {
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+			env.setStateBackend(stateBackend);
 			env.setParallelism(NUM_SLOTS);
 			// Very important, because cluster is shared between tests and we
 			// don't explicitly check that all slots are available before
@@ -1075,6 +1067,7 @@ public class QueryableStateITCase extends TestLogger {
 		JobID jobId = null;
 		try {
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+			env.setStateBackend(stateBackend);
 			env.setParallelism(NUM_SLOTS);
 			// Very important, because cluster is shared between tests and we
 			// don't explicitly check that all slots are available before
@@ -1261,6 +1254,8 @@ public class QueryableStateITCase extends TestLogger {
 					record.f0 = random.nextInt(numKeys);
 					ctx.collect(record);
 				}
+				// mild slow down
+				Thread.sleep(1);
 			}
 		}
 
