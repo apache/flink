@@ -209,22 +209,31 @@ public abstract class StreamTransformation<T> {
 	}
 
 	/**
-	 * Sets an additional, user provided hash for this operator.
+	 * Sets an user provided hash for this operator. This will be used AS IS the create the JobVertexID.
 	 * <p/>
 	 * <p>The user provided hash is an alternative to the generated hashes, that is considered when identifying an
 	 * operator through the default hash mechanics fails (e.g. because of changes between Flink versions).
 	 * <p/>
-	 * <p><strong>Important</strong>: this hash needs to be unique per transformation and job. Otherwise, job
-	 * submission will fail. Furthermore, you cannot assign user-specified hash to intermediate nodes in an operator
-	 * chain and trying so will let your job fail.
+	 * <p><strong>Important</strong>: this should be used as a workaround or for trouble shooting. The provided hash
+	 * needs to be unique per transformation and job. Otherwise, job submission will fail. Furthermore, you cannot
+	 * assign user-specified hash to intermediate nodes in an operator chain and trying so will let your job fail.
 	 *
-	 * @param nodeHash the user provided hash for this operator.
+	 * <p>
+	 * A use case for this is in migration between Flink versions or changing the jobs in a way that changes the
+	 * automatically generated hashes. In this case, providing the previous hashes directly through this method (e.g.
+	 * obtained from old logs) can help to reestablish a lost mapping from states to their target operator.
+	 * <p/>
+	 *
+	 * @param uidHash The user provided hash for this operator. This will become the JobVertexID, which is shown in the
+	 *                 logs and web ui.
 	 */
-	public void provideAdditionalNodeHash(String nodeHash) {
-		Preconditions.checkNotNull(nodeHash);
-		Preconditions.checkArgument(nodeHash.matches("^[0-9A-Fa-f]{32}$"),
-				"Node hash must be a 32 character String that describes a hex code. Found: " + nodeHash);
-		this.userProvidedNodeHash = nodeHash;
+	public void setUidHash(String uidHash) {
+
+		Preconditions.checkNotNull(uidHash);
+		Preconditions.checkArgument(uidHash.matches("^[0-9A-Fa-f]{32}$"),
+				"Node hash must be a 32 character String that describes a hex code. Found: " + uidHash);
+
+		this.userProvidedNodeHash = uidHash;
 	}
 
 	/**
@@ -237,7 +246,8 @@ public abstract class StreamTransformation<T> {
 	}
 
 	/**
-	 * Sets an ID for this {@link StreamTransformation}.
+	 * Sets an ID for this {@link StreamTransformation}. This is will later be hashed to a uidHash which is then used to
+	 * create the JobVertexID (that is shown in logs and the web ui).
 	 *
 	 * <p>The specified ID is used to assign the same operator ID across job
 	 * submissions (for example when starting a job from a savepoint).

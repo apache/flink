@@ -431,11 +431,11 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
 
 		List<String> userHashes = Arrays.asList("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
 
-		env.addSource(new NoOpSourceFunction(), "src").setAdditionalNodeHash(userHashes.get(0))
+		env.addSource(new NoOpSourceFunction(), "src").setUidHash(userHashes.get(0))
 				.map(new NoOpMapFunction())
 				.filter(new NoOpFilterFunction())
 				.keyBy(new NoOpKeySelector())
-				.reduce(new NoOpReduceFunction()).name("reduce").setAdditionalNodeHash(userHashes.get(1));
+				.reduce(new NoOpReduceFunction()).name("reduce").setUidHash(userHashes.get(1));
 
 		StreamGraph streamGraph = env.getStreamGraph();
 		int idx = 1;
@@ -449,11 +449,11 @@ public class StreamingJobGraphGeneratorNodeHashTest extends TestLogger {
 	public void testUserProvidedHashingOnChainNotSupported() {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
 
-		env.addSource(new NoOpSourceFunction(), "src").setAdditionalNodeHash("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
-				.map(new NoOpMapFunction()).setAdditionalNodeHash("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")
-				.filter(new NoOpFilterFunction()).setAdditionalNodeHash("cccccccccccccccccccccccccccccccc")
+		env.addSource(new NoOpSourceFunction(), "src").setUidHash("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+				.map(new NoOpMapFunction()).setUidHash("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")
+				.filter(new NoOpFilterFunction()).setUidHash("cccccccccccccccccccccccccccccccc")
 				.keyBy(new NoOpKeySelector())
-				.reduce(new NoOpReduceFunction()).name("reduce").setAdditionalNodeHash("dddddddddddddddddddddddddddddddd");
+				.reduce(new NoOpReduceFunction()).name("reduce").setUidHash("dddddddddddddddddddddddddddddddd");
 
 		try {
 			env.getStreamGraph().getJobGraph();

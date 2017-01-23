@@ -201,25 +201,25 @@ class DataStream[T](stream: JavaStream[T]) {
   }
 
   /**
-    * Sets an additional, user provided hash for this operator.
-    *
+    * Sets an user provided hash for this operator. This will be used AS IS the create
+    * the JobVertexID.
     * <p/>
-    * <p>The user provided hash is an alternative to the generated hashes,
-    * that is considered when identifying an operator through the default
-    * hash mechanics fails (e.g. because of changes between Flink versions.
-    *
-    * <p><strong>Important</strong>: this hash needs to be unique per
-    * transformation and job. Furthermore, you cannot assign
-    * user-specified hash to intermediate nodes in an operator
-    * chain. Otherwise, job submission will fail.
+    * <p>The user provided hash is an alternative to the generated hashes, that is
+    * considered when identifying an operator through the default hash mechanics fails
+    * (e.g. because of changes between Flink versions).
+    * <p/>
+    * <p><strong>Important</strong>: this should be used as a workaround or for trouble
+    * shooting. The provided hash needs to be unique per transformation and job. Otherwise,
+    * job submission will fail. Furthermore, you cannot assign user-specified hash to
+    * intermediate nodes in an operator chain and trying so will let your job fail.
     *
     * @param hash the user provided hash for this operator.
     * @return The operator with the user provided hash.
     */
   @PublicEvolving
-  def setAdditionalNodeHash(hash: String) : DataStream[T] = javaStream match {
+  def setUidHash(hash: String) : DataStream[T] = javaStream match {
     case stream : SingleOutputStreamOperator[T] =>
-      asScalaStream(stream.setAdditionalNodeHash(hash))
+      asScalaStream(stream.setUidHash(hash))
     case _ => throw new UnsupportedOperationException("Only supported for operators.")
       this
   }
