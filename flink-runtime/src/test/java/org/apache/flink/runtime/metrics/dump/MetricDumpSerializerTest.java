@@ -27,7 +27,9 @@ import org.apache.flink.runtime.metrics.util.TestingHistogram;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -64,10 +66,24 @@ public class MetricDumpSerializerTest {
 			Collections.<Meter, Tuple2<QueryScopeInfo, String>>emptyMap());
 		
 		// no metrics should be serialized
-		Assert.assertEquals(0, output.data.length);
+		Assert.assertEquals(0, output.serializedMetrics.length);
 
 		List<MetricDump> deserialized = deserializer.deserialize(output);
 		Assert.assertEquals(0, deserialized.size());
+	}
+
+	@Test
+	public void testJavaSerialization() throws IOException {
+		MetricDumpSerialization.MetricDumpSerializer serializer = new MetricDumpSerialization.MetricDumpSerializer();
+
+		final ByteArrayOutputStream bos = new ByteArrayOutputStream(1024);
+		final ObjectOutputStream oos = new ObjectOutputStream(bos);
+
+		oos.writeObject(serializer.serialize(
+			new HashMap<Counter, Tuple2<QueryScopeInfo,String>>(),
+			new HashMap<Gauge<?>, Tuple2<QueryScopeInfo,String>>(),
+			new HashMap<Histogram, Tuple2<QueryScopeInfo,String>>(),
+			new HashMap<Meter, Tuple2<QueryScopeInfo,String>>()));
 	}
 
 	@Test

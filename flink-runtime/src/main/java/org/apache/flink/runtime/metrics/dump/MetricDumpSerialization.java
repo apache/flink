@@ -26,12 +26,14 @@ import org.apache.flink.metrics.HistogramStatistics;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.runtime.util.DataInputDeserializer;
 import org.apache.flink.runtime.util.DataOutputSerializer;
+import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -46,20 +48,41 @@ import static org.apache.flink.runtime.metrics.dump.QueryScopeInfo.INFO_CATEGORY
  * Utility class for the serialization of metrics.
  */
 public class MetricDumpSerialization {
+
 	private static final Logger LOG = LoggerFactory.getLogger(MetricDumpSerialization.class);
 
 	private MetricDumpSerialization() {
 	}
 
-	public static class MetricSerializationResult {
-		public final byte[] data;
+	/**
+	 * This class encapsulates all serialized metrics and a count for each metric type.
+	 * 
+	 * The counts are stored separately from the metrics since the final count for any given type can only be
+	 * determined after all metrics of that type were serialized. Storing them together in a single byte[] would
+	 * require an additional copy of all serialized metrics, as you would first have to serialize the metrics into a
+	 * temporary buffer to calculate the counts, write the counts to the final output and copy all metrics from the
+	 * temporary buffer.
+	 * 
+	 * Note that while one could implement the serialization in such a way so that at least 1 byte (a validity flag)
+	 * is written for each metric, this would require more bandwidth due to the sheer number of metrics.
+	 */
+	public static class MetricSerializationResult implements Serializable {
+
+		private static final long serialVersionUID = 6928770855951536906L;
+
+		public final byte[] serializedMetrics;
 		public final int numCounters;
 		public final int numGauges;
 		public final int numMeters;
 		public final int numHistograms;
 		
-		public MetricSerializationResult(byte[] data, int numCounters, int numGauges, int numMeters, int numHistograms) {
-			this.data = data;
+		MetricSerializationResult(byte[] serializedMetrics, int numCounters, int numGauges, int numMeters, int numHistograms) {
+			Preconditions.checkNotNull(serializedMetrics);
+			Preconditions.checkArgument(numCounters >= 0);
+			Preconditions.checkArgument(numGauges >= 0);
+			Preconditions.checkArgument(numMeters >= 0); 
+			Preconditions.checkArgument(numHistograms >= 0);
+			this.serializedMetrics = serializedMetrics;
 			this.numCounters = numCounters;
 			this.numGauges = numGauges;
 			this.numMeters = numMeters;
@@ -70,16 +93,26 @@ public class MetricDumpSerialization {
 	//-------------------------------------------------------------------------
 	// Serialization
 	//-------------------------------------------------------------------------
+
 	public static class MetricDumpSerializer {
+
 		private DataOutputSerializer buffer = new DataOutputSerializer(1024 * 32);
 
 		/**
 		 * Serializes the given metrics and returns the resulting byte array.
+		 * 
+		 * Should a {@link Metric} accessed in this method throw an exception it will be omitted from the returned
+		 * {@link MetricSerializationResult}.
+		 * 
+		 * If the serialization of any primitive or String fails then the returned {@link MetricSerializationResult}
+		 * is partially corrupted. Such a result can be deserialized safely by 
+		 * {@link MetricDumpDeserializer#deserialize(MetricSerializationResult)}; however only metrics that were
+		 * fully serialized before the failure will be returned.
 		 *
 		 * @param counters   counters to serialize
 		 * @param gauges     gauges to serialize
 		 * @param histograms histograms to serialize
-		 * @return byte array containing the serialized metrics
+		 * @return MetricSerializationResult containing the serialized metrics and the count of each metric type
 		 */
 		public MetricSerializationResult serialize(
 			Map<Counter, Tuple2<QueryScopeInfo, String>> counters,
@@ -95,7 +128,7 @@ public class MetricDumpSerialization {
 					serializeCounter(buffer, entry.getValue().f0, entry.getValue().f1, entry.getKey());
 					numCounters++;
 				} catch (Exception e) {
-					LOG.warn("Failed to serialize counter.", e);
+					LOG.debug("Failed to serialize counter.", e);
 				}
 			}
 
@@ -105,7 +138,7 @@ public class MetricDumpSerialization {
 					serializeGauge(buffer, entry.getValue().f0, entry.getValue().f1, entry.getKey());
 					numGauges++;
 				} catch (Exception e) {
-					LOG.warn("Failed to serialize gauge.", e);
+					LOG.debug("Failed to serialize gauge.", e);
 				}
 			}
 
@@ -115,7 +148,7 @@ public class MetricDumpSerialization {
 					serializeHistogram(buffer, entry.getValue().f0, entry.getValue().f1, entry.getKey());
 					numHistograms++;
 				} catch (Exception e) {
-					LOG.warn("Failed to serialize histogram.", e);
+					LOG.debug("Failed to serialize histogram.", e);
 				}
 			}
 
@@ -125,9 +158,10 @@ public class MetricDumpSerialization {
 					serializeMeter(buffer, entry.getValue().f0, entry.getValue().f1, entry.getKey());
 					numMeters++;
 				} catch (Exception e) {
-					LOG.warn("Failed to serialize meter.", e);
+					LOG.debug("Failed to serialize meter.", e);
 				}
 			}
+
 			return new MetricSerializationResult(buffer.getCopyOfBuffer(), numCounters, numGauges, numMeters, numHistograms);
 		}
 
@@ -184,6 +218,7 @@ public class MetricDumpSerialization {
 		if (stringValue == null) {
 			throw new NullPointerException("toString() of the value returned by gauge " + name + " returned null.");
 		}
+
 		serializeMetricInfo(out, info);
 		out.writeUTF(name);
 		out.writeUTF(stringValue);
@@ -194,7 +229,7 @@ public class MetricDumpSerialization {
 		long min = stat.getMin();
 		long max = stat.getMax();
 		double mean = stat.getMean();
-		double mediam = stat.getQuantile(0.5);
+		double median = stat.getQuantile(0.5);
 		double stddev = stat.getStdDev();
 		double p75 = stat.getQuantile(0.75);
 		double p90 = stat.getQuantile(0.90);
@@ -208,7 +243,7 @@ public class MetricDumpSerialization {
 		out.writeLong(min);
 		out.writeLong(max);
 		out.writeDouble(mean);
-		out.writeDouble(mediam);
+		out.writeDouble(median);
 		out.writeDouble(stddev);
 		out.writeDouble(p75);
 		out.writeDouble(p90);
@@ -227,6 +262,7 @@ public class MetricDumpSerialization {
 	//-------------------------------------------------------------------------
 	// Deserialization
 	//-------------------------------------------------------------------------
+
 	public static class MetricDumpDeserializer {
 		/**
 		 * De-serializes metrics from the given byte array and returns them as a list of {@link MetricDump}.
@@ -234,9 +270,8 @@ public class MetricDumpSerialization {
 		 * @param data serialized metrics
 		 * @return A list containing the deserialized metrics.
 		 */
-
 		public List<MetricDump> deserialize(MetricDumpSerialization.MetricSerializationResult data) {
-			DataInputView in = new DataInputDeserializer(data.data, 0, data.data.length);
+			DataInputView in = new DataInputDeserializer(data.serializedMetrics, 0, data.serializedMetrics.length);
 
 			List<MetricDump> metrics = new ArrayList<>(data.numCounters + data.numGauges + data.numHistograms + data.numMeters);
 
@@ -244,7 +279,7 @@ public class MetricDumpSerialization {
 				try {
 					metrics.add(deserializeCounter(in));
 				} catch (Exception e) {
-					LOG.warn("Failed to deserialize counter.", e);
+					LOG.debug("Failed to deserialize counter.", e);
 				}
 			}
 
@@ -252,7 +287,7 @@ public class MetricDumpSerialization {
 				try {
 					metrics.add(deserializeGauge(in));
 				} catch (Exception e) {
-					LOG.warn("Failed to deserialize gauge.", e);
+					LOG.debug("Failed to deserialize gauge.", e);
 				}
 			}
 
@@ -260,7 +295,7 @@ public class MetricDumpSerialization {
 				try {
 					metrics.add(deserializeHistogram(in));
 				} catch (Exception e) {
-					LOG.warn("Failed to deserialize histogram.", e);
+					LOG.debug("Failed to deserialize histogram.", e);
 				}
 			}
 
@@ -268,9 +303,10 @@ public class MetricDumpSerialization {
 				try {
 					metrics.add(deserializeMeter(in));
 				} catch (Exception e) {
-					LOG.warn("Failed to deserialize meter.", e);
+					LOG.debug("Failed to deserialize meter.", e);
 				}
 			}
+
 			return metrics;
 		}
 	}
@@ -304,6 +340,7 @@ public class MetricDumpSerialization {
 		double p98 = dis.readDouble();
 		double p99 = dis.readDouble();
 		double p999 = dis.readDouble();
+
 		return new MetricDump.HistogramDump(info, name, min, max, mean, median, stddev, p75, p90, p95, p98, p99, p999);
 	}
 
