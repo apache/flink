@@ -29,13 +29,18 @@ import org.apache.flink.annotation.PublicEvolving;
 public interface ManagedSnapshotContext {
 
 	/**
-	 * Returns the Id of the checkpoint for which the snapshot is taken.
+	 * Returns the ID of the checkpoint for which the snapshot is taken.
+	 * 
+	 * <p>The checkpoint ID is guaranteed to be strictly monotonously increasing across checkpoints.
+	 * For two completed checkpoints <i>A</i> and <i>B</i>, {@code ID_B > ID_A} means that checkpoint
+	 * <i>B</i> subsumes checkpoint <i>A</i>, i.e., checkpoint <i>B</i>it contains a later state
+	 * than checkpoint <i>A</i>.
 	 */
 	long getCheckpointId();
 
 	/**
-	 * Returns the timestamp of the checkpoint for which the snapshot is taken.
+	 * Returns timestamp (wall clock time) when the master node triggered the checkpoint for which
+	 * the state snapshot is taken.
 	 */
 	long getCheckpointTimestamp();
-
 }
