@@ -47,7 +47,7 @@ public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> {
 
 	private final ClusterBuilder builder;
 
-	protected final AtomicInteger updatesPending = new AtomicInteger();
+	private final AtomicInteger updatesPending = new AtomicInteger();
 
 	protected CassandraSinkBase(ClusterBuilder builder) {
 		this.builder = builder;
@@ -99,32 +99,34 @@ public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> {
 	public abstract ListenableFuture<V> send(IN value);
 
 	@Override
-	public void close() {
-		while (updatesPending.get() > 0) {
-			synchronized (updatesPending) {
-				try {
+	public void close() throws Exception {
+		try {
+			Throwable e = exception.get();
+			if (e != null) {
+				throw new IOException("Error while sending value.", e);
+			}
+
+			while (updatesPending.get() > 0) {
+				synchronized (updatesPending) {
 					updatesPending.wait();
-				} catch (InterruptedException e) {
 				}
 			}
-		}
-		try {
-			if (session != null) {
-				session.close();
+			
+		} finally {
+			try {
+				if (session != null) {
+					session.close();
+				}
+			} catch (Exception e) {
+				LOG.error("Error while closing session.", e);
 			}
-		} catch (Exception e) {
-			LOG.error("Error while closing session.", e);
-		}
-		try {
-			if (cluster != null) {
-				cluster.close();
+			try {
+				if (cluster != null) {
+					cluster.close();
+				}
+			} catch (Exception e) {
+				LOG.error("Error while closing cluster.", e);
 			}
-		} catch (Exception e) {
-			LOG.error("Error while closing cluster.", e);
-		}
-		Throwable e = exception.get();
-		if (e != null) {
-			LOG.error("Error while sending value.", e);
 		}
 	}
 }

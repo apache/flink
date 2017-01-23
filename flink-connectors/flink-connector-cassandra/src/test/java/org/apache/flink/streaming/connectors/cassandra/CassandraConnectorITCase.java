@@ -157,19 +157,9 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 			cassandra.start();
 		}
 
-		// give cassandra a few seconds to start up
-		long start = System.currentTimeMillis();
-		long deadline = start + 1000 * 10;
-		while (System.currentTimeMillis() < deadline) {
-			try {
-				Thread.sleep(1000);
-			} catch (InterruptedException ignored) {
-			}
-		}
-
 		// start establishing a connection within 30 seconds
-		start = System.currentTimeMillis();
-		deadline = start + 1000 * 30;
+		long start = System.nanoTime();
+		long deadline = start + 1000 * 30;
 		while (true) {
 			try {
 				cluster = builder.getCluster();
@@ -180,7 +170,7 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 					throw e;
 				}
 				try {
-					Thread.sleep(2000);
+					Thread.sleep(500);
 				} catch (InterruptedException ignored) {
 				}
 			}
@@ -379,12 +369,6 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 
 		sink.close();
 
-		synchronized (sink.updatesPending) {
-			if (sink.updatesPending.get() != 0) {
-				sink.updatesPending.wait();
-			}
-		}
-
 		ResultSet rs = session.execute(injectTableName(SELECT_DATA_QUERY));
 		Assert.assertEquals(20, rs.all().size());
 	}
@@ -402,12 +386,6 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 		}
 
 		sink.close();
-
-		synchronized (sink.updatesPending) {
-			while (sink.updatesPending.get() != 0) {
-				sink.updatesPending.wait();
-			}
-		}
 
 		ResultSet rs = session.execute(SELECT_DATA_QUERY.replace(TABLE_NAME_VARIABLE, "test"));
 		Assert.assertEquals(20, rs.all().size());
