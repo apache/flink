@@ -314,7 +314,7 @@ public class QueryableStateITCase extends TestLogger {
 			// don't explicitly check that all slots are available before
 			// submitting.
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000));
-			env.getCheckpointConfig().setCheckpointInterval(1000);
+			env.getCheckpointConfig().setCheckpointInterval(500);
 
 			DataStream<Tuple2<Integer, Long>> source = env
 					.addSource(new TestKeyRangeSource(numKeys));
@@ -375,18 +375,18 @@ public class QueryableStateITCase extends TestLogger {
 				countForKey = result.f1;
 
 				assertEquals("Key mismatch", key, result.f0.intValue());
-				success = countForKey > 1000; // Wait for some progress
+				success = countForKey > 3; // Wait for some progress
 			}
 
-			assertTrue("No progress for count", countForKey > 1000);
+			assertTrue("No progress for count", countForKey > 3);
 
 			long currentCheckpointId = TestKeyRangeSource.LATEST_CHECKPOINT_ID.get();
-			long waitUntilCheckpointId = currentCheckpointId + 5;
+			long waitUntilCheckpointId = currentCheckpointId + 2;
 
 			// Wait for some checkpoint after the query result
 			while (deadline.hasTimeLeft() &&
 					TestKeyRangeSource.LATEST_CHECKPOINT_ID.get() < waitUntilCheckpointId) {
-				Thread.sleep(500);
+				Thread.sleep(100);
 			}
 
 			assertTrue("Did not complete enough checkpoints to continue",
@@ -1261,6 +1261,8 @@ public class QueryableStateITCase extends TestLogger {
 					record.f0 = random.nextInt(numKeys);
 					ctx.collect(record);
 				}
+				// mild slow down
+				Thread.sleep(1);
 			}
 		}
 
