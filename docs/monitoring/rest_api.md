@@ -1,5 +1,5 @@
 ---
-title:  "Monitoring REST API"
+title: "Monitoring REST API"
 nav-parent_id: monitoring
 nav-pos: 10
 ---
