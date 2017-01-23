@@ -29,6 +29,7 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.CompletableFuture;
+import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.Instance;
@@ -96,7 +97,7 @@ public class TaskManagerLogHandlerTest {
 
 		TaskManagerLogHandler handler = new TaskManagerLogHandler(
 			retriever,
-			ExecutionContext$.MODULE$.fromExecutor(new CurrentThreadExecutor()),
+			ExecutionContext$.MODULE$.fromExecutor(Executors.directExecutor()),
 			Future$.MODULE$.successful("/jm/address"),
 			AkkaUtils.getDefaultClientTimeout(),
 			TaskManagerLogHandler.FileMode.LOG,
@@ -124,11 +125,5 @@ public class TaskManagerLogHandlerTest {
 		handler.respondAsLeader(ctx, routed, jobManagerGateway);
 
 		Assert.assertEquals("Fetching TaskManager log failed.", exception.get());
-	}
-
-	public class CurrentThreadExecutor implements Executor {
-		public void execute(Runnable r) {
-			r.run();
-		}
 	}
 }
