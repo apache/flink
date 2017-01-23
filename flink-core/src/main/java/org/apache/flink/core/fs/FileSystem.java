@@ -25,6 +25,7 @@
 
 package org.apache.flink.core.fs;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -97,6 +98,7 @@ public abstract class FileSystem {
 	 * Create a SafetyNetCloseableRegistry for a Task. This method should be called at the beginning of the task's
 	 * main thread.
 	 */
+	@Internal
 	public static void createFileSystemCloseableRegistryForTask() {
 		SafetyNetCloseableRegistry oldRegistry = REGISTRIES.get();
 		if (null != oldRegistry) {
@@ -111,6 +113,7 @@ public abstract class FileSystem {
 	 * Create a SafetyNetCloseableRegistry for a Task. This method should be called at the end of the task's
 	 * main thread or when the task should be canceled.
 	 */
+	@Internal
 	public static void disposeFileSystemCloseableRegistryForTask() {
 		SafetyNetCloseableRegistry registry = REGISTRIES.get();
 		if (null != registry) {
@@ -200,6 +203,7 @@ public abstract class FileSystem {
 		}
 	}
 
+	@Internal
 	public static FileSystem getUnguardedFileSystem(URI uri) throws IOException {
 		FileSystem fs;
 
