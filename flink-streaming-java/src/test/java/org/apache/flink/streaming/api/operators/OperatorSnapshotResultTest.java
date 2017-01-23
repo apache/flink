@@ -20,80 +20,59 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
-import org.junit.Assert;
+import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.RunnableFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
-public class OperatorSnapshotResultTest {
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.powermock.api.mockito.PowerMockito.when;
 
+public class OperatorSnapshotResultTest extends TestLogger {
+
+	/**
+	 * Tests that all runnable futures in an OperatorSnapshotResult are properly cancelled and if
+	 * the StreamStateHandle result is retrievable that the state handle are discarded.
+	 */
 	@Test
-	public void testCancel() {
+	public void testCancelAndCleanup() throws Exception {
 		OperatorSnapshotResult operatorSnapshotResult = new OperatorSnapshotResult();
 
 		operatorSnapshotResult.cancel();
 
-		RunnableFuture<KeyGroupsStateHandle> keyedStateManagedFuture = new TestRunnableFuture<>();
-		RunnableFuture<KeyGroupsStateHandle> keyedStateRawFuture = new TestRunnableFuture<>();
-		RunnableFuture<OperatorStateHandle> operatorStateManagedFuture = new TestRunnableFuture<>();
-		RunnableFuture<OperatorStateHandle> operatorStateRawFuture = new TestRunnableFuture<>();
+		KeyGroupsStateHandle keyedManagedStateHandle = mock(KeyGroupsStateHandle.class);
+		RunnableFuture<KeyGroupsStateHandle> keyedStateManagedFuture = mock(RunnableFuture.class);
+		when(keyedStateManagedFuture.get()).thenReturn(keyedManagedStateHandle);
+
+		KeyGroupsStateHandle keyedRawStateHandle = mock(KeyGroupsStateHandle.class);
+		RunnableFuture<KeyGroupsStateHandle> keyedStateRawFuture = mock(RunnableFuture.class);
+		when(keyedStateRawFuture.get()).thenReturn(keyedRawStateHandle);
+
+		OperatorStateHandle operatorManagedStateHandle = mock(OperatorStateHandle.class);
+		RunnableFuture<OperatorStateHandle> operatorStateManagedFuture = mock(RunnableFuture.class);
+		when(operatorStateManagedFuture.get()).thenReturn(operatorManagedStateHandle);
+
+		OperatorStateHandle operatorRawStateHandle = mock(OperatorStateHandle.class);
+		RunnableFuture<OperatorStateHandle> operatorStateRawFuture = mock(RunnableFuture.class);
+		when(operatorStateRawFuture.get()).thenReturn(operatorRawStateHandle);
 
 		operatorSnapshotResult = new OperatorSnapshotResult(
-				keyedStateManagedFuture,
-				keyedStateRawFuture,
-				operatorStateManagedFuture,
-				operatorStateRawFuture);
+			keyedStateManagedFuture,
+			keyedStateRawFuture,
+			operatorStateManagedFuture,
+			operatorStateRawFuture);
 
 		operatorSnapshotResult.cancel();
 
-		Assert.assertTrue(keyedStateManagedFuture.isCancelled());
-		Assert.assertTrue(keyedStateRawFuture.isCancelled());
-		Assert.assertTrue(operatorStateManagedFuture.isCancelled());
-		Assert.assertTrue(operatorStateRawFuture.isCancelled());
+		verify(keyedStateManagedFuture).cancel(true);
+		verify(keyedStateRawFuture).cancel(true);
+		verify(operatorStateManagedFuture).cancel(true);
+		verify(operatorStateRawFuture).cancel(true);
 
+		verify(keyedManagedStateHandle).discardState();
+		verify(keyedRawStateHandle).discardState();
+		verify(operatorManagedStateHandle).discardState();
+		verify(operatorRawStateHandle).discardState();
 	}
-
-	static final class TestRunnableFuture<T> implements RunnableFuture<T> {
-
-		private boolean canceled;
-
-		public TestRunnableFuture() {
-			this.canceled = false;
-		}
-
-		@Override
-		public void run() {
-
-		}
-
-		@Override
-		public boolean cancel(boolean mayInterruptIfRunning) {
-			return canceled = true;
-		}
-
-		@Override
-		public boolean isCancelled() {
-			return canceled;
-		}
-
-		@Override
-		public boolean isDone() {
-			return false;
-		}
-
-		@Override
-		public T get() throws InterruptedException, ExecutionException {
-			return null;
-		}
-
-		@Override
-		public T get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
-			return null;
-		}
-	}
-
-
 }

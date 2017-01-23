@@ -57,6 +57,7 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.CollectionUtil;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FutureUtil;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
@@ -529,7 +530,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			// propagate exceptions only if the task is still in "running" state
 			if (isRunning) {
 				throw new Exception("Could not perform checkpoint " + checkpointMetaData.getCheckpointId() +
-					"for operator " + getName() + '.', e);
+					" for operator " + getName() + '.', e);
 			} else {
 				LOG.debug("Could not perform checkpoint {} for operator {} while the " +
 					"invokable was not in state running.", checkpointMetaData.getCheckpointId(), getName(), e);
@@ -590,8 +591,20 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				// we cannot broadcast the cancellation markers on the 'operator chain', because it may not
 				// yet be created
 				final CancelCheckpointMarker message = new CancelCheckpointMarker(checkpointMetaData.getCheckpointId());
+				Exception exception = null;
+
 				for (ResultPartitionWriter output : getEnvironment().getAllWriters()) {
-					output.writeEventToAllChannels(message);
+					try {
+						output.writeEventToAllChannels(message);
+					} catch (Exception e) {
+						exception = ExceptionUtils.firstOrSuppressed(
+							new Exception("Could not send cancel checkpoint marker to downstream tasks.", e),
+							exception);
+					}
+				}
+
+				if (exception != null) {
+					throw exception;
 				}
 
 				return false;
@@ -940,6 +953,27 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 							owner.getName(), checkpointMetaData.getCheckpointId(), asyncDurationMillis);
 				}
 			} catch (Exception e) {
+				// clean up ongoing operator snapshot results and non partitioned state handles
+				for (OperatorSnapshotResult operatorSnapshotResult : snapshotInProgressList) {
+					if (operatorSnapshotResult != null) {
+						try {
+							operatorSnapshotResult.cancel();
+						} catch (Exception cancelException) {
+							e.addSuppressed(cancelException);
+						}
+					}
+				}
+
+				for (StreamStateHandle nonPartitionedStateHandle : nonPartitionedStateHandles) {
+					if (nonPartitionedStateHandle != null) {
+						try {
+							nonPartitionedStateHandle.discardState();
+						} catch (Exception discardException) {
+							e.addSuppressed(discardException);
+						}
+					}
+				}
+
 				// registers the exception and tries to fail the whole task
 				AsynchronousException asyncException = new AsynchronousException(
 					new Exception(
@@ -957,7 +991,24 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			// cleanup/release ongoing snapshot operations
 			for (OperatorSnapshotResult snapshotResult : snapshotInProgressList) {
 				if (null != snapshotResult) {
-					snapshotResult.cancel();
+					try {
+						snapshotResult.cancel();
+					} catch (Exception e) {
+						LOG.warn("Could not properly cancel operator snapshot result in async " +
+							"checkpoint runnable.", e);
+					}
+				}
+			}
+
+			// discard non partitioned state handles
+			for (StreamStateHandle nonPartitionedStateHandle : nonPartitionedStateHandles) {
+				if (nonPartitionedStateHandle != null) {
+					try {
+						nonPartitionedStateHandle.discardState();
+					} catch (Exception e) {
+						LOG.warn("Could not properly discard non partitioned state handle " +
+							"in async checkpoint runnable.", e);
+					}
 				}
 			}
 		}
@@ -1021,24 +1072,42 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 				if (LOG.isDebugEnabled()) {
 					LOG.debug("{} - finished synchronous part of checkpoint {}." +
-									"Alignment duration: {} ms, snapshot duration {} ms",
-							owner.getName(), checkpointMetaData.getCheckpointId(),
-							checkpointMetaData.getAlignmentDurationNanos() / 1_000_000,
-							checkpointMetaData.getSyncDurationMillis());
+							"Alignment duration: {} ms, snapshot duration {} ms",
+						owner.getName(), checkpointMetaData.getCheckpointId(),
+						checkpointMetaData.getAlignmentDurationNanos() / 1_000_000,
+						checkpointMetaData.getSyncDurationMillis());
 				}
 			} finally {
 				if (failed) {
 					// Cleanup to release resources
 					for (OperatorSnapshotResult operatorSnapshotResult : snapshotInProgressList) {
 						if (null != operatorSnapshotResult) {
-							operatorSnapshotResult.cancel();
+							try {
+								operatorSnapshotResult.cancel();
+							} catch (Exception e) {
+								LOG.warn("Could not properly cancel an operator snapshot result.", e);
+							}
+						}
+					}
+
+					// Cleanup non partitioned state handles
+					for (StreamStateHandle nonPartitionedState : nonPartitionedStates) {
+						if (nonPartitionedState != null) {
+							try {
+								nonPartitionedState.discardState();
+							} catch (Exception e) {
+								LOG.warn("Could not properly discard a non partitioned " +
+									"state. This might leave some orphaned files behind.", e);
+							}
 						}
 					}
 
 					if (LOG.isDebugEnabled()) {
 						LOG.debug("{} - did NOT finish synchronous part of checkpoint {}." +
-										"Alignment duration: {} ms, snapshot duration {} ms",
-								owner.getName(), checkpointMetaData.getCheckpointId());
+								"Alignment duration: {} ms, snapshot duration {} ms",
+							owner.getName(), checkpointMetaData.getCheckpointId(),
+							checkpointMetaData.getAlignmentDurationNanos() / 1_000_000,
+							checkpointMetaData.getSyncDurationMillis());
 					}
 				}
 			}
