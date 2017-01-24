@@ -515,12 +515,16 @@ public class WindowedStream<T, K, W extends Window> {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Applies the given fold function to each window. The window function is called for each
-	 * evaluation of the window for each key individually. The output of the reduce function is
-	 * interpreted as a regular non-windowed stream.
+	 * Applies the given aggregation function to each window. The aggregation function is called for
+	 * each element, aggregating values incrementally and keeping the state to one accumulator
+	 * per key and window.
 	 *
-	 * @param function The fold function.
+	 * @param function The aggregation function.
 	 * @return The data stream that is the result of applying the fold function to the window.
+	 * 
+	 * @param <ACC> The type of the AggregateFunction's accumulator
+	 * @param <R> The type of the elements in the resulting stream, equal to the
+	 *            AggregateFunction's result type   
 	 */
 	public <ACC, R> SingleOutputStreamOperator<R> aggregate(AggregateFunction<T, ACC, R> function) {
 		checkNotNull(function, "function");
@@ -545,6 +549,10 @@ public class WindowedStream<T, K, W extends Window> {
 	 *
 	 * @param function The aggregation function.
 	 * @return The data stream that is the result of applying the aggregation function to the window.
+	 * 
+	 * @param <ACC> The type of the AggregateFunction's accumulator
+	 * @param <R> The type of the elements in the resulting stream, equal to the
+	 *            AggregateFunction's result type  
 	 */
 	public <ACC, R> SingleOutputStreamOperator<R> aggregate(
 			AggregateFunction<T, ACC, R> function,
@@ -559,7 +567,8 @@ public class WindowedStream<T, K, W extends Window> {
 			throw new UnsupportedOperationException("This aggregation function cannot be a RichFunction.");
 		}
 
-		return aggregate(function, new PassThroughWindowFunction<K, W, R>(), accumulatorType, resultType);
+		return aggregate(function, new PassThroughWindowFunction<K, W, R>(),
+				accumulatorType, resultType, resultType);
 	}
 
 	/**
@@ -574,10 +583,15 @@ public class WindowedStream<T, K, W extends Window> {
 	 * @param windowFunction The window function.
 	 * 
 	 * @return The data stream that is the result of applying the window function to the window.
+	 * 
+	 * @param <ACC> The type of the AggregateFunction's accumulator
+	 * @param <V> The type of AggregateFunction's result, and the WindowFunction's input  
+	 * @param <R> The type of the elements in the resulting stream, equal to the
+	 *            WindowFunction's result type
 	 */
-	public <ACC, R> SingleOutputStreamOperator<R> aggregate(
-			AggregateFunction<T, ACC, R> aggFunction,
-			WindowFunction<R, R, K, W> windowFunction) {
+	public <ACC, V, R> SingleOutputStreamOperator<R> aggregate(
+			AggregateFunction<T, ACC, V> aggFunction,
+			WindowFunction<V, R, K, W> windowFunction) {
 
 		checkNotNull(aggFunction, "aggFunction");
 		checkNotNull(windowFunction, "windowFunction");
@@ -585,10 +599,13 @@ public class WindowedStream<T, K, W extends Window> {
 		TypeInformation<ACC> accumulatorType = TypeExtractor.getAggregateFunctionAccumulatorType(
 				aggFunction, input.getType(), null, false);
 
-		TypeInformation<R> resultType = TypeExtractor.getAggregateFunctionReturnType(
+		TypeInformation<V> aggResultType = TypeExtractor.getAggregateFunctionReturnType(
 				aggFunction, input.getType(), null, false);
 
-		return aggregate(aggFunction, windowFunction, accumulatorType, resultType);
+		TypeInformation<R> resultType = TypeExtractor.getUnaryOperatorReturnType(
+				windowFunction, WindowFunction.class, true, true, aggResultType, null, false);
+
+		return aggregate(aggFunction, windowFunction, accumulatorType, aggResultType, resultType);
 	}
 
 	/**
@@ -605,16 +622,23 @@ public class WindowedStream<T, K, W extends Window> {
 	 * @param resultType Type information for the result type of the window function
 	 *    
 	 * @return The data stream that is the result of applying the window function to the window.
+	 * 
+	 * @param <ACC> The type of the AggregateFunction's accumulator
+	 * @param <V> The type of AggregateFunction's result, and the WindowFunction's input  
+	 * @param <R> The type of the elements in the resulting stream, equal to the
+	 *            WindowFunction's result type
 	 */
-	public <ACC, R> SingleOutputStreamOperator<R> aggregate(
-			AggregateFunction<T, ACC, R> aggregateFunction,
-			WindowFunction<R, R, K, W> windowFunction, 
+	public <ACC, V, R> SingleOutputStreamOperator<R> aggregate(
+			AggregateFunction<T, ACC, V> aggregateFunction,
+			WindowFunction<V, R, K, W> windowFunction, 
 			TypeInformation<ACC> accumulatorType,
+			TypeInformation<V> aggregateResultType,
 			TypeInformation<R> resultType) {
 
 		checkNotNull(aggregateFunction, "aggregateFunction");
 		checkNotNull(windowFunction, "windowFunction");
 		checkNotNull(accumulatorType, "accumulatorType");
+		checkNotNull(aggregateResultType, "aggregateResultType");
 		checkNotNull(resultType, "resultType");
 
 		if (aggregateFunction instanceof RichFunction) {
@@ -654,7 +678,7 @@ public class WindowedStream<T, K, W extends Window> {
 					allowedLateness);
 
 		} else {
-			AggregatingStateDescriptor<T, ACC, R> stateDesc = new AggregatingStateDescriptor<>("window-contents",
+			AggregatingStateDescriptor<T, ACC, V> stateDesc = new AggregatingStateDescriptor<>("window-contents",
 					aggregateFunction, accumulatorType.createSerializer(getExecutionEnvironment().getConfig()));
 
 			opName = "TriggerWindow(" + windowAssigner + ", " + stateDesc + ", " + trigger + ", " + udfName + ")";
