@@ -240,6 +240,8 @@ under the License.
 						<excludes combine.children="append">
 							<!-- Exclude generated classes from api compatibility checks -->
 							<exclude>*\$\$anon\$*</exclude>
+							<exclude>org.apache.flink.streaming.api.scala.WindowedStream#aggregate(org.apache.flink.streaming.api.functions.aggregation.AggregationFunction$AggregationType,int)</exclude>
+							<exclude>org.apache.flink.streaming.api.scala.AllWindowedStream#aggregate(org.apache.flink.streaming.api.functions.aggregation.AggregationFunction$AggregationType,int)</exclude>
 						</excludes>
 					</parameter>
 				</configuration>
