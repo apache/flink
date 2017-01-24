@@ -116,7 +116,7 @@ public class CheckpointConfigHandlerTest {
 	 */
 	@Test
 	public void testEnabledExternalizedCheckpointSettings() throws Exception {
-		ExternalizedCheckpointSettings externalizedSettings = ExternalizedCheckpointSettings.externalizeCheckpoints(true);
+		ExternalizedCheckpointSettings externalizedSettings = ExternalizedCheckpointSettings.externalizeCheckpoints(true, "testdir");
 
 		JobSnapshottingSettings settings = new JobSnapshottingSettings(
 			Collections.<JobVertexID>emptyList(),
