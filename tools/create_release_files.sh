@@ -185,7 +185,7 @@ make_source_release() {
   cd ..
 
   # local dist have no need to commit to remote
-  if [ ! IS_LOCAL_DIST ]; then
+  if [ "$IS_LOCAL_DIST" == "false" ]; then
     git commit --author="$GIT_AUTHOR" -am "Commit for release $RELEASE_VERSION"
     git remote add asf_push https://$USER_NAME@$GIT_REPO
     RELEASE_HASH=`git rev-parse HEAD`
@@ -299,7 +299,7 @@ else
   make_binary_release "hadoop2x" "-Dhadoop.version=$HADOOP_VERSION" "$SCALA_VERSION"
 fi
 
-if [ ! IS_LOCAL_DIST ] ; then
+if [ "$IS_LOCAL_DIST" == "false" ] ; then
     copy_data
     deploy_to_maven
 fi
