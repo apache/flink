@@ -36,6 +36,21 @@ import java.io.Serializable;
  * <p>To be able to support asynchronous snapshots, the state returned by the
  * {@link #snapshotState(long, long)} method is typically a copy or shadow copy
  * of the actual state.</p>
+ * @deprecated Please use {@link ListCheckpointed} and {@link CheckpointedFunction}.
+ *
+ * The short cut replacement via {@link ListCheckpointed}
+ * <pre>{@code
+ *  public class ExampleOperator implements ListCheckpointed<Integer> {
+ *
+ *		public List<Integer> snapshotState(long checkpointId, long timestamp) throws Exception {
+ *			 return Collections.singletonList(this.value);
+ *		}
+ *
+ *		public void restoreState(List<Integer> state) throws Exception {
+ *			this.value = state.get(0);
+ *		}
+ * }</pre>
  */
+@Deprecated
 @PublicEvolving
 public interface CheckpointedAsynchronously<T extends Serializable> extends Checkpointed<T> {}
