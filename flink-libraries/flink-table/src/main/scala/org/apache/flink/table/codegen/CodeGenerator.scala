@@ -171,6 +171,7 @@ class CodeGenerator(
     reusableConstructorStatements.map { case (params, body) =>
       s"""
          |public $className($params) throws Exception {
+         |  this();
          |  $body
          |}
        """.stripMargin
@@ -1491,7 +1492,7 @@ class CodeGenerator(
   def addReusableConstructor(parameterTypes: Class[_]*): Array[String] = {
     val parameters = mutable.ListBuffer[String]()
     val fieldTerms = mutable.ListBuffer[String]()
-    var body = "this();\n"
+    val body = mutable.ListBuffer[String]()
 
     parameterTypes.zipWithIndex.foreach { case (t, index) =>
       val classQualifier = t.getCanonicalName
@@ -1500,10 +1501,11 @@ class CodeGenerator(
       reusableMemberStatements.add(field)
       fieldTerms += fieldTerm
       parameters += s"$classQualifier arg$index"
-      body += s"$fieldTerm = arg$index;\n"
+      body += s"$fieldTerm = arg$index;"
     }
 
-    reusableConstructorStatements.add((parameters.mkString(","), body))
+    reusableConstructorStatements.add(
+      (parameters.mkString(","), body.mkString("", "\n", "\n")))
 
     fieldTerms.toArray
   }
