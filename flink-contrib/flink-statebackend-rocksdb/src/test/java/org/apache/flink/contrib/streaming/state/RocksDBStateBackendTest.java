@@ -19,16 +19,28 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.filefilter.IOFileFilter;
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.state.StateBackendTestBase;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.util.OperatingSystem;
 import org.junit.Assume;
 import org.junit.Before;
+import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.UUID;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for the partitioned state part of {@link RocksDBStateBackend}.
@@ -53,11 +65,58 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 		return backend;
 	}
 
+	@Test
+	public void testDisposeDeletesAllDirectories() throws Exception {
+
+		backend.initializeForJob(
+				new DummyEnvironment("test", 1, 0),
+				"test_op",
+				IntSerializer.INSTANCE);
+
+		ValueStateDescriptor<String> kvId =
+				new ValueStateDescriptor<>("id", String.class, null);
+
+		kvId.initializeSerializerUnlessSet(new ExecutionConfig());
+
+		ValueState<String> state =
+				backend.getPartitionedState(null, VoidSerializer.INSTANCE, kvId);
+
+		backend.setCurrentKey(1);
+		state.update("Hello");
+
+
+		Collection<File> allFilesInDbDir =
+				FileUtils.listFilesAndDirs(dbDir, new AcceptAllFilter(), new AcceptAllFilter());
+
+		// more than just the root directory
+		assertTrue(allFilesInDbDir.size() > 1);
+
+		backend.dispose();
+
+		allFilesInDbDir =
+				FileUtils.listFilesAndDirs(dbDir, new AcceptAllFilter(), new AcceptAllFilter());
+
+		// just the root directory left
+		assertEquals(1, allFilesInDbDir.size());
+	}
+
 	@Override
 	protected void cleanup() {
 		try {
 			FileUtils.deleteDirectory(dbDir);
 			FileUtils.deleteDirectory(chkDir);
 		} catch (IOException ignore) {}
+	}
+
+	private static class AcceptAllFilter implements IOFileFilter {
+		@Override
+		public boolean accept(File file) {
+			return true;
+		}
+
+		@Override
+		public boolean accept(File file, String s) {
+			return true;
+		}
 	}
 }

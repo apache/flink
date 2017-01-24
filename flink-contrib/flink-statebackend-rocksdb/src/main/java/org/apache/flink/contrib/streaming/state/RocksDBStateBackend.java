@@ -274,7 +274,10 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 		
 		nextDirectory = new Random().nextInt(initializedDbBasePaths.length);
 
-		instanceBasePath = new File(getDbPath("dummy_state"), UUID.randomUUID().toString());
+		instanceBasePath = new File(
+				getNextStoragePath(),
+				"job-" + jobId.toString() + "_op-" + operatorIdentifier + "-" + env.getTaskInfo().getIndexOfThisSubtask());
+		
 		instanceCheckpointPath = getCheckpointPath("dummy_state");
 		instanceRocksDBPath = new File(instanceBasePath, "db");
 
@@ -364,6 +367,17 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 			}
 		}
 
+		try {
+			org.apache.flink.util.FileUtils.deleteDirectory(instanceBasePath);
+		} catch (Throwable t) {
+			if (exception == null) {
+				exception = t;
+			} else {
+				exception.addSuppressed(t);
+			}
+		}
+
+
 		if (exception != null) {
 			if (exception instanceof Exception) {
 				throw (Exception) exception;
@@ -381,10 +395,6 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 		// otherwise this can lead to SEGFAULT problems
 		// native resources must only be released in the 'dispose()' method.
 		nonPartitionedStateBackend.close();
-	}
-
-	private File getDbPath(String stateName) {
-		return new File(new File(new File(getNextStoragePath(), jobId.toString()), operatorIdentifier), stateName);
 	}
 
 	private String getCheckpointPath(String stateName) {
