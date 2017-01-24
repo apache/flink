@@ -296,7 +296,8 @@ or by assigning unique names to jobs and operators.
 
 ## Reporter
 
-Metrics can be exposed to an external system by configuring one or several reporters in `conf/flink-conf.yaml`.
+Metrics can be exposed to an external system by configuring one or several reporters in `conf/flink-conf.yaml`. These
+reporters will be instantiated on each job and task manager when they are started.
 
 - `metrics.reporters`: The list of named reporters.
 - `metrics.reporter.<name>.<config>`: Generic setting `<config>` for the reporter named `<name>`.
@@ -321,6 +322,8 @@ metrics.reporter.my_other_reporter.port: 10000
 
 ```
 
+**Important:** The jar containing the reporter must be accessible when Flink is started by placing it in the /lib folder.
+
 You can write your own `Reporter` by implementing the `org.apache.flink.metrics.reporter.MetricReporter` interface.
 If the Reporter should send out reports regularly you have to implement the `Scheduled` interface as well.
 
@@ -333,9 +336,9 @@ but not activated.
 
 Parameters:
 
-- `port` - the port on which JMX listens for connections. This can also be a port range. When a
-range is specified the actual port is shown in the relevant job or task manager log. If you don't
-specify a port no extra JMX server will be started. Metrics are still available on the default
+- `port` - (optional) the port on which JMX listens for connections. This can also be a port range. When a
+range is specified the actual port is shown in the relevant job or task manager log. If this setting is set
+Flink will start an extra JMX connector for the given port/range. Metrics are always available on the default
 local JMX interface.
 
 Example configuration:
@@ -348,15 +351,22 @@ metrics.reporter.jmx.port: 8789
 
 {% endhighlight %}
 
+Metrics exposed through JMX are identified by a domain and a list of key-properties, which together form the object name.
+
+The domain always begins with `org.apache.flink` followed by a generalized metric identifier. In contrast to the usual
+identifier it is not affected by scope-formats, does not contain any variables and is constant across jobs.
+An example for such a domain would be `org.apache.flink.job.task.numBytesOut`.
+
+The key-property list contains the values for all variables, regardless of configured scope formats, that are associated
+with a given metric.
+An example for such a list would be `host=localhost,job_name=MyJob,task_name=MyTask`.
+
+The domain thus identifies a metric class, while the key-property list identifies one (or multiple) instances of that metric.
+
 ### Ganglia (org.apache.flink.metrics.ganglia.GangliaReporter)
-Dependency:
-{% highlight xml %}
-<dependency>
-      <groupId>org.apache.flink</groupId>
-      <artifactId>flink-metrics-ganglia</artifactId>
-      <version>{{site.version}}</version>
-</dependency>
-{% endhighlight %}
+
+In order to use this reporter you must copy `/opt/flink-metrics-ganglia-{{site.version}}.jar` into the `/lib` folder
+of your Flink distribution.
 
 Parameters:
 
@@ -383,14 +393,9 @@ metrics.reporter.gang.addressingMode: MULTICAST
 {% endhighlight %}
 
 ### Graphite (org.apache.flink.metrics.graphite.GraphiteReporter)
-Dependency:
-{% highlight xml %}
-<dependency>
-      <groupId>org.apache.flink</groupId>
-      <artifactId>flink-metrics-graphite</artifactId>
-      <version>{{site.version}}</version>
-</dependency>
-{% endhighlight %}
+
+In order to use this reporter you must copy `/opt/flink-metrics-graphite-{{site.version}}.jar` into the `/lib` folder
+of your Flink distribution.
 
 Parameters:
 
@@ -411,14 +416,9 @@ metrics.reporter.grph.protocol: TCP
 {% endhighlight %}
 
 ### StatsD (org.apache.flink.metrics.statsd.StatsDReporter)
-Dependency:
-{% highlight xml %}
-<dependency>
-      <groupId>org.apache.flink</groupId>
-      <artifactId>flink-metrics-statsd</artifactId>
-      <version>{{site.version}}</version>
-</dependency>
-{% endhighlight %}
+
+In order to use this reporter you must copy `/opt/flink-metrics-statsd-{{site.version}}.jar` into the `/lib` folder
+of your Flink distribution.
 
 Parameters:
 
@@ -438,119 +438,270 @@ metrics.reporter.stsd.port: 8125
 
 ## System metrics
 
-Flink exposes the following system metrics:
+By default Flink gathers several metrics that provide deep insights on the current state.
+This section is a reference of all these metrics.
 
+The tables below generally feature 4 columns:
+
+* The "Scope" column describes which scope format is used to generate the system scope.
+  For example, if the cell contains "Operator" then the scope format for "metrics.scope.operator" is used.
+  If the cell contains multiple values, separated by a slash, then the metrics are reported multiple
+  times for different entities, like for both job- and taskmanagers.
+
+* The (optional)"Infix" column describes which infix is appended to the system scope.
+
+* The "Metrics" column lists the names of all metrics that are registered for the given scope and infix.
+
+* The "Description" column provides information as to what a given metric is measuring.
+
+Note that all dots in the infix/metric name columns are still subject to the "metrics.delimiter" setting.
+
+Thus, in order to infer the metric identifier:
+
+1. Take the scope-format based on the "Scope" column
+2. Append the value in the "Infix" column if present, and account for the "metrics.delimiter" setting
+3. Append metric name.
+
+#### CPU:
 <table class="table table-bordered">
   <thead>
     <tr>
       <th class="text-left" style="width: 20%">Scope</th>
-      <th class="text-left">Metrics</th>
-      <th class="text-left">Description</th>
+      <th class="text-left" style="width: 25%">Infix</th>
+      <th class="text-left" style="width: 23%">Metrics</th>
+      <th class="text-left" style="width: 32%">Description</th>
     </tr>
   </thead>
   <tbody>
     <tr>
-      <th rowspan="1"><strong>JobManager</strong></th>
-      <td></td>
-      <td></td>
+      <th rowspan="2"><strong>Job-/TaskManager</strong></th>
+      <td rowspan="2">Status.JVM.CPU</td>
+      <td>Load</td>
+      <td>The recent CPU usage of the JVM.</td>
     </tr>
     <tr>
-      <th rowspan="2"><strong>TaskManager.Status</strong></th>
-      <td>Network.AvailableMemorySegments</td>
-      <td>The number of unused memory segments.</td>
+      <td>Time</td>
+      <td>The CPU time used by the JVM.</td>
     </tr>
-    <tr>
-      <td>Network.TotalMemorySegments</td>
-      <td>The number of allocated memory segments.</td>
-    </tr>
-    <tr>
-      <th rowspan="19"><strong>TaskManager.Status.JVM</strong></th>
-      <td>ClassLoader.ClassesLoaded</td>
-      <td>The total number of classes loaded since the start of the JVM.</td>
-    </tr>
-    <tr>
-      <td>ClassLoader.ClassesUnloaded</td>
-      <td>The total number of classes unloaded since the start of the JVM.</td>
-    </tr>
-    <tr>
-      <td>GargabeCollector.&lt;garbageCollector&gt;.Count</td>
-      <td>The total number of collections that have occurred.</td>
-    </tr>
-    <tr>
-      <td>GargabeCollector.&lt;garbageCollector&gt;.Time</td>
-      <td>The total time spent performing garbage collection.</td>
-    </tr>
-    <tr>
+  </tbody>
+</table>
+
+#### Memory:
+<table class="table table-bordered">                               
+  <thead>                                                          
+    <tr>                                                           
+      <th class="text-left" style="width: 20%">Scope</th>
+      <th class="text-left" style="width: 25%">Infix</th>          
+      <th class="text-left" style="width: 23%">Metrics</th>                           
+      <th class="text-left" style="width: 32%">Description</th>                       
+    </tr>                                                          
+  </thead>                                                         
+  <tbody>                                                          
+    <tr>                                                           
+      <th rowspan="12"><strong>Job-/TaskManager</strong></th>
+      <td rowspan="12">Status.JVM.Memory</td>
       <td>Memory.Heap.Used</td>
       <td>The amount of heap memory currently used.</td>
     </tr>
     <tr>
-      <td>Memory.Heap.Committed</td>
+      <td>Heap.Committed</td>
       <td>The amount of heap memory guaranteed to be available to the JVM.</td>
     </tr>
     <tr>
-      <td>Memory.Heap.Max</td>
+      <td>Heap.Max</td>
       <td>The maximum amount of heap memory that can be used for memory management.</td>
     </tr>
     <tr>
-      <td>Memory.NonHeap.Used</td>
+      <td>NonHeap.Used</td>
       <td>The amount of non-heap memory currently used.</td>
     </tr>
     <tr>
-      <td>Memory.NonHeap.Committed</td>
+      <td>NonHeap.Committed</td>
       <td>The amount of non-heap memory guaranteed to be available to the JVM.</td>
     </tr>
     <tr>
-      <td>Memory.NonHeap.Max</td>
+      <td>NonHeap.Max</td>
       <td>The maximum amount of non-heap memory that can be used for memory management.</td>
     </tr>
     <tr>
-      <td>Memory.Direct.Count</td>
+      <td>Direct.Count</td>
       <td>The number of buffers in the direct buffer pool.</td>
     </tr>
     <tr>
-      <td>Memory.Direct.MemoryUsed</td>
+      <td>Direct.MemoryUsed</td>
       <td>The amount of memory used by the JVM for the direct buffer pool.</td>
     </tr>
     <tr>
-      <td>Memory.Direct.TotalCapacity</td>
+      <td>Direct.TotalCapacity</td>
       <td>The total capacity of all buffers in the direct buffer pool.</td>
     </tr>
     <tr>
-      <td>Memory.Mapped.Count</td>
+      <td>Mapped.Count</td>
       <td>The number of buffers in the mapped buffer pool.</td>
     </tr>
     <tr>
-      <td>Memory.Mapped.MemoryUsed</td>
+      <td>Mapped.MemoryUsed</td>
       <td>The amount of memory used by the JVM for the mapped buffer pool.</td>
     </tr>
     <tr>
-      <td>Memory.Mapped.TotalCapacity</td>
+      <td>Mapped.TotalCapacity</td>
       <td>The number of buffers in the mapped buffer pool.</td>
-    </tr>
+    </tr>                                                         
+  </tbody>                                                         
+</table>
+
+#### Threads:
+<table class="table table-bordered">
+  <thead>
     <tr>
+      <th class="text-left" style="width: 20%">Scope</th>
+      <th class="text-left" style="width: 25%">Infix</th>
+      <th class="text-left" style="width: 23%">Metrics</th>
+      <th class="text-left" style="width: 32%">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="1"><strong>Job-/TaskManager</strong></th>
+      <td rowspan="1">Status.JVM.ClassLoader</td>
       <td>Threads.Count</td>
       <td>The total number of live threads.</td>
     </tr>
+  </tbody>
+</table>
+
+#### GarbageCollection:
+<table class="table table-bordered">
+  <thead>
     <tr>
-      <td>CPU.Load</td>
-      <td>The recent CPU usage of the JVM.</td>
+      <th class="text-left" style="width: 20%">Scope</th>
+      <th class="text-left" style="width: 25%">Infix</th>
+      <th class="text-left" style="width: 23%">Metrics</th>
+      <th class="text-left" style="width: 32%">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="2"><strong>Job-/TaskManager</strong></th>
+      <td rowspan="2">Status.JVM.GarbageCollector</td>
+      <td>&lt;GarbageCollector&gt;.Count</td>
+      <td>The total number of collections that have occurred.</td>
     </tr>
     <tr>
-      <td>CPU.Time</td>
-      <td>The CPU time used by the JVM.</td>
+      <td>&lt;GarbageCollector&gt;.Time</td>
+      <td>The total time spent performing garbage collection.</td>
+    </tr>
+  </tbody>
+</table>
+
+#### ClassLoader:
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Scope</th>
+      <th class="text-left" style="width: 25%">Infix</th>
+      <th class="text-left" style="width: 23%">Metrics</th>
+      <th class="text-left" style="width: 32%">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="2"><strong>Job-/TaskManager</strong></th>
+      <td rowspan="2">Status.JVM.ClassLoader</td>
+      <td>ClassesLoaded</td>
+      <td>The total number of classes loaded since the start of the JVM.</td>
     </tr>
     <tr>
-      <th rowspan="1"><strong>Job</strong></th>
-      <td></td>
-      <td></td>
+      <td>ClassesUnloaded</td>
+      <td>The total number of classes unloaded since the start of the JVM.</td>
+    </tr>
+  </tbody>
+</table>
+
+#### Network:
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Scope</th>
+      <th class="text-left" style="width: 25%">Infix</th>
+      <th class="text-left" style="width: 25%">Metrics</th>
+      <th class="text-left" style="width: 30%">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="2"><strong>TaskManager</strong></th>
+      <td rowspan="2">Status.Network</td>
+      <td>AvailableMemorySegments</td>
+      <td>The number of unused memory segments.</td>
     </tr>
     <tr>
-      <th rowspan="7"><strong>Task</strong></th>
-      <td>currentLowWatermark</td>
-      <td>The lowest watermark a task has received.</td>
+      <td>TotalMemorySegments</td>
+      <td>The number of allocated memory segments.</td>
     </tr>
     <tr>
+      <th rowspan="4">Task</th>
+      <td rowspan="4">buffers</td>
+      <td>inputQueueLength</td>
+      <td>The number of queued input buffers.</td>
+    </tr>
+    <tr>
+      <td>outputQueueLength</td>
+      <td>The number of queued output buffers.</td>
+    </tr>
+    <tr>
+      <td>inPoolUsage</td>
+      <td>An estimate of the input buffers usage.</td>
+    </tr>
+    <tr>
+      <td>outPoolUsage</td>
+      <td>An estimate of the output buffers usage.</td>
+    </tr>
+  </tbody>
+</table>
+
+#### Cluster:
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Scope</th>
+      <th class="text-left" style="width: 30%">Metrics</th>
+      <th class="text-left" style="width: 50%">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="4"><strong>JobManager</strong></th>
+      <td>numRegisteredTaskManagers</td>
+      <td>The number of registered taskmanagers.</td>
+    </tr>
+    <tr>
+      <td>numRunningJobs</td>
+      <td>The number of running jobs.</td>
+    </tr>
+    <tr>
+      <td>taskSlotsAvailable</td>
+      <td>The number of available task slots.</td>
+    </tr>
+    <tr>
+      <td>taskSlotsTotal</td>
+      <td>The total number of task slots.</td>
+    </tr>
+  </tbody>
+</table>
+
+#### Checkpointing:
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Scope</th>
+      <th class="text-left" style="width: 30%">Metrics</th>
+      <th class="text-left" style="width: 50%">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="3"><strong>Job (only available on JobManager)</strong></th>
       <td>lastCheckpointDuration</td>
       <td>The time it took to complete the last checkpoint.</td>
     </tr>
@@ -559,37 +710,81 @@ Flink exposes the following system metrics:
       <td>The total size of the last checkpoint.</td>
     </tr>
     <tr>
-      <td>restartingTime</td>
-      <td>The time it took to restart the job.</td>
+      <td>lastCheckpointExternalPath</td>
+      <td>The path where the last checkpoint was stored.</td>
+    </tr>
+    <tr>
+      <th rowspan="1">Task</th>
+      <td>checkpointAlignmentTime</td>
+      <td>The time in nanoseconds that the last barrier alignment took to complete, or how long the current alignment has taken so far.</td>
+    </tr>
+  </tbody>
+</table>
+
+#### IO:
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Scope</th>
+      <th class="text-left" style="width: 30%">Metrics</th>
+      <th class="text-left" style="width: 50%">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="7"><strong>Task</strong></th>
+      <td>currentLowWatermark</td>
+      <td>The lowest watermark this task has received.</td>
     </tr>
     <tr>
       <td>numBytesInLocal</td>
       <td>The total number of bytes this task has read from a local source.</td>
     </tr>
     <tr>
+      <td>numBytesInLocalPerSecond</td>
+      <td>The number of bytes this task reads from a local source per second.</td>
+    </tr>
+    <tr>
       <td>numBytesInRemote</td>
       <td>The total number of bytes this task has read from a remote source.</td>
+    </tr>
+    <tr>
+      <td>numBytesInRemotePerSecond</td>
+      <td>The number of bytes this task reads from a remote source per second.</td>
     </tr>
     <tr>
       <td>numBytesOut</td>
       <td>The total number of bytes this task has emitted.</td>
     </tr>
     <tr>
-      <th rowspan="4"><strong>Operator</strong></th>
+      <td>numBytesOutPerSecond</td>
+      <td>The number of bytes this task emits per second.</td>
+    </tr>
+    <tr>
+      <th rowspan="4"><strong>Task/Operator</strong></th>
       <td>numRecordsIn</td>
-      <td>The total number of records this operator has received.</td>
+      <td>The total number of records this operator/task has received.</td>
+    </tr>
+    <tr>
+      <td>numRecordsInPerSecond</td>
+      <td>The number of records this operator/task receives per second.</td>
     </tr>
     <tr>
       <td>numRecordsOut</td>
-      <td>The total number of records this operator has emitted.</td>
+      <td>The total number of records this operator/task has emitted.</td>
+    </tr>
+    <tr>
+      <td>numRecordsOutPerSecond</td>
+      <td>The number of records this operator/task sends per second.</td>
+    </tr>
+    <tr>
+      <th rowspan="2"><strong>Operator</strong></th>
+      <td>latency</td>
+      <td>The latency distributions from all incoming sources.</td>
     </tr>
     <tr>
       <td>numSplitsProcessed</td>
       <td>The total number of InputSplits this data source has processed (if the operator is a data source).</td>
-    </tr>
-    <tr>
-      <td>latency</td>
-      <td>A latency gauge reporting the latency distribution from the different sources.</td>
     </tr>
   </tbody>
 </table>
@@ -617,5 +812,19 @@ latency issues caused by individual machines.
 
 Currently, Flink assumes that the clocks of all machines in the cluster are in sync. We recommend setting
 up an automated clock synchronisation service (like NTP) to avoid false latency results.
+
+### Dashboard integration
+
+Metrics that were gathered for each task or operator can also be visualized in the Dashboard. On the main page for a
+job, select the `Metrics` tab. After selecting one of the tasks in the top graph you can select metrics to display using
+the `Add Metric` drop-down menu.
+
+* Task metrics are listed as `<subtask_index>.<metric_name>`.
+* Operator metrics are listed as `<subtask_index>.<operator_name>.<metric_name>`.
+
+Each metric will be visualized as a separate graph, with the x-axis representing time and the y-axis the measured value.
+All graphs are automatically updated every 10 seconds, and continue to do so when navigating to another page.
+
+There is no limit as to the number of visualized metrics; however only numeric metrics can be visualized.
 
 {% top %}
