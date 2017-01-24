@@ -19,7 +19,7 @@
 package org.apache.flink.test.query;
 
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
-import org.junit.Before;
+import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.junit.Rule;
 import org.junit.rules.TemporaryFolder;
 
@@ -28,12 +28,11 @@ import org.junit.rules.TemporaryFolder;
  */
 public class QueryableStateITCaseRocksDBBackend extends AbstractQueryableStateITCase {
 
-
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	@Before
-	public void setUp() throws Exception {
-		stateBackend = new RocksDBStateBackend(temporaryFolder.newFolder().toURI().toString());
+	@Override
+	protected AbstractStateBackend createStateBackend() throws Exception {
+		return new RocksDBStateBackend(temporaryFolder.newFolder().toURI().toString());
 	}
 }

@@ -67,6 +67,7 @@ import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import scala.concurrent.Await;
@@ -94,10 +95,6 @@ import static org.junit.Assert.fail;
 
 /**
  * Base class for queryable state integration tests with a configurable state backend.
- *
- * NOTE: {@link #stateBackend} must be set in a <tt>setUp()</tt> method before each test case
- * by a class that extends this class. Do not use a shared instance set by the constructor, for
- * example, as the tests may brake.
  */
 public abstract class AbstractQueryableStateITCase extends TestLogger {
 
@@ -111,7 +108,7 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 	private final static int NUM_SLOTS = NUM_TMS * NUM_SLOTS_PER_TM;
 
 	/**
-	 * State backend to use - must be initialized by the extending classes!
+	 * State backend to use.
 	 */
 	protected AbstractStateBackend stateBackend;
 
@@ -155,6 +152,20 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 			TEST_ACTOR_SYSTEM.shutdown();
 		}
 	}
+
+	@Before
+	public void setUp() throws Exception {
+		// NOTE: do not use a shared instance for all tests as the tests may brake
+		this.stateBackend = createStateBackend();
+	}
+
+	/**
+	 * Creates a state backend instance which is used in the {@link #setUp()} method before each
+	 * test case.
+	 *
+	 * @return a state backend instance for each unit test
+	 */
+	protected abstract AbstractStateBackend createStateBackend() throws Exception;
 
 	/**
 	 * Runs a simple topology producing random (key, 1) pairs at the sources (where

@@ -18,17 +18,17 @@
 
 package org.apache.flink.test.query;
 
+import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
-import org.junit.Before;
 
 /**
  * Several integration tests for queryable state using the {@link MemoryStateBackend}.
  */
 public class QueryableStateITCaseMemoryBackend extends AbstractQueryableStateITCase {
 
-	@Before
-	public void setUp() throws Exception {
-		stateBackend = new MemoryStateBackend();
+	@Override
+	protected AbstractStateBackend createStateBackend() throws Exception {
+		return new MemoryStateBackend();
 	}
 
 }

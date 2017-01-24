@@ -18,8 +18,8 @@
 
 package org.apache.flink.test.query;
 
+import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.rules.TemporaryFolder;
 
@@ -28,12 +28,11 @@ import org.junit.rules.TemporaryFolder;
  */
 public class QueryableStateITCaseFsBackend extends AbstractQueryableStateITCase {
 
-
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	@Before
-	public void setUp() throws Exception {
-		stateBackend = new FsStateBackend(temporaryFolder.newFolder().toURI().toString());
+	@Override
+	protected AbstractStateBackend createStateBackend() throws Exception {
+		return new FsStateBackend(temporaryFolder.newFolder().toURI().toString());
 	}
 }
