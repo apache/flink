@@ -167,12 +167,12 @@ class CodeGenerator(
   /**
     * @return code block of constructor statements of the function
     */
-  def reuseConstructorCode(funcName: String): String = {
+  def reuseConstructorCode(className: String): String = {
     reusableConstructorStatements.map { case (params, body) =>
-      j"""
-         public $funcName($params) throws Exception {
-           $body
-         }
+      s"""
+         |public $className($params) throws Exception {
+         |  $body
+         |}
        """.stripMargin
     }.mkString("", "\n", "\n")
   }
@@ -355,21 +355,21 @@ class CodeGenerator(
     * @return instance of GeneratedFunction
     */
   def generateTableFunctionCollector(
-    name: String,
-    bodyCode: String,
-    returnType: TypeInformation[Any])
-  : GeneratedFunction[TableFunctionCollector[Any]] = {
+      name: String,
+      bodyCode: String,
+      returnType: TypeInformation[Any])
+    : GeneratedCollector = {
 
-    val funcName = newName(name)
+    val className = newName(name)
     val input1TypeClass = boxedTypeTermForTypeInfo(input1)
     val input2TypeClass = boxedTypeTermForTypeInfo(returnType)
 
     val funcCode = j"""
-      public class $funcName extends ${classOf[TableFunctionCollector[_]].getCanonicalName} {
+      public class $className extends ${classOf[TableFunctionCollector[_]].getCanonicalName} {
 
         ${reuseMemberCode()}
 
-        public $funcName() throws Exception {
+        public $className() throws Exception {
           ${reuseInitCode()}
         }
 
@@ -388,7 +388,7 @@ class CodeGenerator(
       }
     """.stripMargin
 
-    GeneratedFunction[TableFunctionCollector[Any]](funcName, returnType, funcCode)
+    GeneratedCollector(className, funcCode)
   }
 
   /**

@@ -24,7 +24,6 @@ import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.calcite.rex.{RexCall, RexNode}
 import org.apache.calcite.sql.SemiJoinType
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.codegen.CodeGenerator
 import org.apache.flink.table.functions.utils.TableSqlFunction
 import org.apache.flink.table.plan.nodes.FlinkCorrelate
 import org.apache.flink.table.typeutils.TypeConverter._
@@ -96,26 +95,17 @@ class DataStreamCorrelate(
     val pojoFieldMapping = sqlFunction.getPojoFieldMapping
     val udtfTypeInfo = sqlFunction.getRowTypeInfo.asInstanceOf[TypeInformation[Any]]
 
-    val generator = new CodeGenerator(
+    val mapFunc = correlateMapFunction(
       config,
-      false,
       inputDS.getType,
-      Some(udtfTypeInfo),
-      None,
-      Some(pojoFieldMapping))
-
-    val (flatMap, collector) = generateFunction(
-      generator,
       udtfTypeInfo,
       getRowType,
+      joinType,
       rexCall,
       condition,
-      config,
-      joinType,
       expectedType,
+      Some(pojoFieldMapping),
       ruleDescription)
-
-    val mapFunc = correlateMapFunction(flatMap, collector)
 
     inputDS.flatMap(mapFunc).name(correlateOpName(rexCall, sqlFunction, relRowType))
   }

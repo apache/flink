@@ -22,7 +22,8 @@ import org.apache.calcite.rex.{RexCall, RexNode}
 import org.apache.calcite.sql.SemiJoinType
 import org.apache.flink.api.common.functions.FlatMapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.codegen.{CodeGenerator, GeneratedExpression, GeneratedFunction}
+import org.apache.flink.table.codegen.{CodeGenerator, GeneratedCollector, GeneratedExpression,
+GeneratedFunction}
 import org.apache.flink.table.codegen.CodeGenUtils.primitiveDefaultValue
 import org.apache.flink.table.codegen.GeneratedExpression.{ALWAYS_NULL, NO_CODE}
 import org.apache.flink.table.functions.utils.TableSqlFunction
@@ -37,18 +38,20 @@ import scala.collection.JavaConverters._
   */
 trait FlinkCorrelate {
 
-  private[flink] def generateFunction(
-      generator: CodeGenerator,
+  /** Creates the [[CorrelateFlatMapRunner]] to execute the join of input table
+    * and user-defined table function */
+  private[flink] def correlateMapFunction(
+      config: TableConfig,
+      inputTypeInfo: TypeInformation[Any],
       udtfTypeInfo: TypeInformation[Any],
       rowType: RelDataType,
+      joinType: SemiJoinType,
       rexCall: RexCall,
       condition: Option[RexNode],
-      config: TableConfig,
-      joinType: SemiJoinType,
       expectedType: Option[TypeInformation[Any]],
+      pojoFieldMapping: Option[Array[Int]], // udtf return type pojo field mapping
       ruleDescription: String)
-  : (GeneratedFunction[FlatMapFunction[Any, Any]],
-    GeneratedFunction[TableFunctionCollector[Any]]) = {
+    : CorrelateFlatMapRunner[Any, Any] = {
 
     val returnType = determineReturnType(
       rowType,
@@ -56,11 +59,63 @@ trait FlinkCorrelate {
       config.getNullCheck,
       config.getEfficientTypeUsage)
 
-    val (input1AccessExprs, input2AccessExprs) = generator.generateCorrelateAccessExprs
+    val flatMap = generateFunction(
+      config,
+      inputTypeInfo,
+      udtfTypeInfo,
+      returnType,
+      rowType,
+      joinType,
+      rexCall,
+      pojoFieldMapping,
+      ruleDescription)
 
-    val collectorTerm = generator.addReusableConstructor(classOf[TableFunctionCollector[_]]).head
+    val collector = generateCollector(
+      config,
+      inputTypeInfo,
+      udtfTypeInfo,
+      returnType,
+      rowType,
+      condition,
+      pojoFieldMapping)
 
-    val call = generator.generateExpression(rexCall)
+    new CorrelateFlatMapRunner[Any, Any](
+      flatMap.name,
+      flatMap.code,
+      collector.name,
+      collector.code,
+      flatMap.returnType)
+
+  }
+
+  /** Generates the flat map function to run user defined table function */
+  private def generateFunction(
+      config: TableConfig,
+      inputTypeInfo: TypeInformation[Any],
+      udtfTypeInfo: TypeInformation[Any],
+      returnType: TypeInformation[Any],
+      rowType: RelDataType,
+      joinType: SemiJoinType,
+      rexCall: RexCall,
+      pojoFieldMapping: Option[Array[Int]],
+      ruleDescription: String)
+    : GeneratedFunction[FlatMapFunction[Any, Any]] = {
+
+    val functionGenerator = new CodeGenerator(
+      config,
+      false,
+      inputTypeInfo,
+      Some(udtfTypeInfo),
+      None,
+      pojoFieldMapping)
+
+    val (input1AccessExprs, input2AccessExprs) = functionGenerator.generateCorrelateAccessExprs
+
+    val collectorTerm = functionGenerator
+      .addReusableConstructor(classOf[TableFunctionCollector[_]])
+      .head
+
+    val call = functionGenerator.generateExpression(rexCall)
     var body =
       s"""
          |${call.resultTerm}.setCollector($collectorTerm);
@@ -88,13 +143,13 @@ trait FlinkCorrelate {
           NO_CODE,
           x.resultType)
       }
-      val outerResultExpr = generator.generateResultExpression(
+      val outerResultExpr = functionGenerator.generateResultExpression(
         input1AccessExprs ++ input2NullExprs, returnType, rowType.getFieldNames.asScala)
       body +=
         s"""
            |if (!hasOutput) {
            |  ${outerResultExpr.code}
-           |  ${generator.collectorTerm}.collect(${outerResultExpr.resultTerm});
+           |  ${functionGenerator.collectorTerm}.collect(${outerResultExpr.resultTerm});
            |  return;
            |}
         """.stripMargin
@@ -102,13 +157,33 @@ trait FlinkCorrelate {
       throw TableException(s"Unsupported SemiJoinType: $joinType for correlate join.")
     }
 
-    val flatMapFunction = generator.generateFunction(
+    functionGenerator.generateFunction(
       ruleDescription,
       classOf[FlatMapFunction[Any, Any]],
       body,
       returnType)
+  }
 
-    // -------------------------- generate table function collector -----------------------
+  /** Generates table function collector */
+  private[flink] def generateCollector(
+      config: TableConfig,
+      inputTypeInfo: TypeInformation[Any],
+      udtfTypeInfo: TypeInformation[Any],
+      returnType: TypeInformation[Any],
+      rowType: RelDataType,
+      condition: Option[RexNode],
+      pojoFieldMapping: Option[Array[Int]])
+    : GeneratedCollector = {
+
+    val generator = new CodeGenerator(
+      config,
+      false,
+      inputTypeInfo,
+      Some(udtfTypeInfo),
+      None,
+      pojoFieldMapping)
+
+    val (input1AccessExprs, input2AccessExprs) = generator.generateCorrelateAccessExprs
 
     val crossResultExpr = generator.generateResultExpression(
       input1AccessExprs ++ input2AccessExprs,
@@ -134,25 +209,10 @@ trait FlinkCorrelate {
          |""".stripMargin
     }
 
-    val collectorFunction = generator.generateTableFunctionCollector(
+    generator.generateTableFunctionCollector(
       "TableFunctionCollector",
       collectorCode,
       udtfTypeInfo)
-
-    (flatMapFunction, collectorFunction)
-  }
-
-  private[flink] def correlateMapFunction(
-      flatMap: GeneratedFunction[FlatMapFunction[Any, Any]],
-      collector: GeneratedFunction[TableFunctionCollector[Any]])
-    : CorrelateFlatMapRunner[Any, Any] = {
-
-    new CorrelateFlatMapRunner[Any, Any](
-      flatMap.name,
-      flatMap.code,
-      collector.name,
-      collector.code,
-      flatMap.returnType)
   }
 
   private[flink] def selectToString(rowType: RelDataType): String = {

@@ -20,16 +20,16 @@ package org.apache.flink.table.runtime
 import org.apache.flink.util.Collector
 
 /**
-  * The basic implementation of collector for [[org.apache.calcite.schema.TableFunction]].
+  * The basic implementation of collector for [[org.apache.flink.table.functions.TableFunction]].
   */
 abstract class TableFunctionCollector[T] extends Collector[T] {
 
-  var input: Any = _
-  var collector: Collector[_] = _
-  var collected: Boolean = _
+  private var input: Any = _
+  private var collector: Collector[_] = _
+  private var collected: Boolean = _
 
   /**
-    * Gets the input row from left table,
+    * Sets the input row from left table,
     * which will be used to cross join with the result of table function.
     */
   def setInput(input: Any): Unit = {

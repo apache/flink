@@ -115,7 +115,7 @@ abstract class TableFunction[T] extends UserDefinedFunction {
   /**
     * Internal use. Sets the current collector.
     */
-  def setCollector(collector: Collector[T]): Unit = {
+  private[flink] final def setCollector(collector: Collector[T]): Unit = {
     this.collector = collector
   }
 
