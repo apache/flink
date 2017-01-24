@@ -337,7 +337,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 							Collection<W> mergedWindows, W stateWindowResult,
 							Collection<W> mergedStateWindows) throws Exception {
 						context.key = key;
-						context.window = mergeResult;
+						context.window = stateWindowResult;
 
 						context.onMerge(mergedWindows);
 
