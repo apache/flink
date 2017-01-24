@@ -108,6 +108,11 @@ public class StateBackendITCase extends StreamingMultipleProgramsTestBase {
 				TaskKvStateRegistry kvStateRegistry) throws Exception {
 			throw new SuccessException();
 		}
+
+		@Override
+		public void close() throws Exception {
+
+		}
 	}
 
 	static final class SuccessException extends IOException {

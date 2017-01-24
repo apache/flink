@@ -66,9 +66,4 @@ public abstract class AbstractStateBackend implements java.io.Serializable, Auto
 			String operatorIdentifier) throws Exception {
 		return new DefaultOperatorStateBackend(env.getUserClassLoader());
 	}
-
-	@Override
-	public void close() throws Exception {
-
-	}
 }

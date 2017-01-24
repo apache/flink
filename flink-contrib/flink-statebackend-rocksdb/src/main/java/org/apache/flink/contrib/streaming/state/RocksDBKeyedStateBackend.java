@@ -137,12 +137,12 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			TypeSerializer<K> keySerializer,
 			int numberOfKeyGroups,
 			KeyGroupRange keyGroupRange
-	) throws Exception {
+	) throws IOException {
 
 		super(kvStateRegistry, keySerializer, userCodeClassLoader, numberOfKeyGroups, keyGroupRange);
-		this.columnOptions = columnFamilyOptions;
+		this.columnOptions = Preconditions.checkNotNull(columnFamilyOptions);
 
-		this.instanceBasePath = instanceBasePath;
+		this.instanceBasePath = Preconditions.checkNotNull(instanceBasePath);
 		this.instanceRocksDBPath = new File(instanceBasePath, "db");
 
 		if (!instanceBasePath.exists()) {
@@ -166,7 +166,13 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		columnFamilyDescriptors.add(new ColumnFamilyDescriptor("default".getBytes()));
 		List<ColumnFamilyHandle> columnFamilyHandles = new ArrayList<>(1);
 		try {
-			db = RocksDB.open(dbOptions, instanceRocksDBPath.getAbsolutePath(), columnFamilyDescriptors, columnFamilyHandles);
+
+			db = RocksDB.open(
+					Preconditions.checkNotNull(dbOptions),
+					instanceRocksDBPath.getAbsolutePath(),
+					columnFamilyDescriptors,
+					columnFamilyHandles);
+
 		} catch (RocksDBException e) {
 			throw new IOException("Error while opening RocksDB instance.", e);
 		}
@@ -190,13 +196,21 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 				for (Tuple2<ColumnFamilyHandle, RegisteredBackendStateMetaInfo<?, ?>> column :
 						kvStateInformation.values()) {
-
-					IOUtils.closeQuietly(column.f0);
+					try {
+						column.f0.close();
+					} catch (Exception ex) {
+						LOG.info("Exception while closing ColumnFamilyHandle object.", ex);
+					}
 				}
 
 				kvStateInformation.clear();
 
-				IOUtils.closeQuietly(db);
+				try {
+					db.close();
+				} catch (Exception ex) {
+					LOG.info("Exception while closing RocksDB object.", ex);
+				}
+
 				db = null;
 			}
 		}
@@ -204,7 +218,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		try {
 			FileUtils.deleteDirectory(instanceBasePath);
 		} catch (IOException ioex) {
-			LOG.info("Could not delete instace base path for RocksDB: " + instanceBasePath);
+			LOG.info("Could not delete instace base path for RocksDB: " + instanceBasePath, ioex);
 		}
 	}
 
@@ -238,8 +252,10 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			if (db != null) {
 
 				if (kvStateInformation.isEmpty()) {
-					LOG.info("Asynchronous RocksDB snapshot performed on empty keyed state at " + timestamp +
-							" . Returning null.");
+					if (LOG.isDebugEnabled()) {
+						LOG.debug("Asynchronous RocksDB snapshot performed on empty keyed state at " + timestamp +
+								" . Returning null.");
+					}
 
 					return new DoneFuture<>(null);
 				}
@@ -337,7 +353,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		/**
 		 * 1) Create a snapshot object from RocksDB.
 		 *
-		 * @param checkpointId        id of the checkpoint for which we take the snapshot
+		 * @param checkpointId id of the checkpoint for which we take the snapshot
 		 * @param checkpointTimeStamp timestamp of the checkpoint for which we take the snapshot
 		 */
 		public void takeDBSnapShot(long checkpointId, long checkpointTimeStamp) {
@@ -785,12 +801,13 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				descriptor.getSerializer());
 
 		if (stateInfo != null) {
-			if (!newMetaInfo.isCompatibleWith(stateInfo.f1)) {
+			if (newMetaInfo.isCompatibleWith(stateInfo.f1)) {
+				stateInfo.f1 = newMetaInfo;
+				return stateInfo.f0;
+			} else {
 				throw new IOException("Trying to access state using wrong meta info, was " + stateInfo.f1 +
 						" trying access with " + newMetaInfo);
 			}
-			stateInfo.f1 = newMetaInfo;
-			return stateInfo.f0;
 		}
 
 		ColumnFamilyDescriptor columnDescriptor = new ColumnFamilyDescriptor(
@@ -1139,7 +1156,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			// the EOFException will get us out of this...
 			while (true) {
 				byte mappingByte = inputView.readByte();
-				ColumnFamilyHandle handle = getColumnFamily(columnFamilyMapping.get(mappingByte), null);
+				ColumnFamilyHandle handle = getColumnFamily(columnFamilyMapping.get(mappingByte),null);
+
 				byte[] keyAndNamespace = BytePrimitiveArraySerializer.INSTANCE.deserialize(inputView);
 
 				ByteArrayInputStreamWithPos bis = new ByteArrayInputStreamWithPos(keyAndNamespace);

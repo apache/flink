@@ -262,4 +262,9 @@ public class FsStateBackend extends AbstractStateBackend {
 			}
 		}
 	}
+
+	@Override
+	public void close() throws Exception {
+
+	}
 }

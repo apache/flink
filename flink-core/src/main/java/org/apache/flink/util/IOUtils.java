@@ -232,11 +232,7 @@ public final class IOUtils {
 						closeable.close();
 					}
 				} catch (Exception e) {
-					if (null == collectedExceptions) {
-						collectedExceptions = e;
-					} else {
-						collectedExceptions.addSuppressed(e);
-					}
+					collectedExceptions = ExceptionUtils.firstOrSuppressed(collectedExceptions, e);
 				}
 			}
 

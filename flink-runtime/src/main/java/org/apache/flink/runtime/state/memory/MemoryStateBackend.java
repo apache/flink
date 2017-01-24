@@ -90,4 +90,9 @@ public class MemoryStateBackend extends AbstractStateBackend {
 				numberOfKeyGroups,
 				keyGroupRange);
 	}
+
+	@Override
+	public void close() throws Exception {
+
+	}
 }
