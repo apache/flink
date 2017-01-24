@@ -57,7 +57,9 @@ public class TableInputFormatITCase extends HBaseTestingClusterAutostarter {
 	public void createTestTable() throws IOException {
 		TableName tableName = TableName.valueOf(TEST_TABLE_NAME);
 		byte[][] splitKeys = {"0".getBytes(), "3".getBytes(), "6".getBytes(), "9".getBytes()};
-		createTable(tableName, TEST_TABLE_FAMILY_NAME, splitKeys);
+		byte[][] famNames = new byte[1][];
+		famNames[0] = TEST_TABLE_FAMILY_NAME;
+		createTable(tableName, famNames, splitKeys);
 		HTable table = openTable(tableName);
 
 		for (String rowId : ROW_IDS) {

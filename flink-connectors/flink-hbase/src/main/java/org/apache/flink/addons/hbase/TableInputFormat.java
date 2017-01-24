@@ -41,7 +41,7 @@ import java.util.List;
 /**
  * {@link InputFormat} subclass that wraps the access for HTables.
  */
-public abstract class TableInputFormat<T extends Tuple> extends RichInputFormat<T, TableInputSplit> {
+public abstract class TableInputFormat<T> extends RichInputFormat<T, TableInputSplit> {
 
 	private static final long serialVersionUID = 1L;
 

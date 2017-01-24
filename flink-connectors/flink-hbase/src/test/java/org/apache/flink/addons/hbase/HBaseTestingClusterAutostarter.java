@@ -89,13 +89,15 @@ public class HBaseTestingClusterAutostarter implements Serializable {
 
 	private static Configuration conf;
 
-	protected static void createTable(TableName tableName, byte[] columnFamilyName, byte[][] splitKeys) {
+	protected static void createTable(TableName tableName, byte[][] columnFamilyName, byte[][] splitKeys) {
 		LOG.info("HBase minicluster: Creating table " + tableName.getNameAsString());
 
 		assertNotNull("HBaseAdmin is not initialized successfully.", admin);
 		HTableDescriptor desc = new HTableDescriptor(tableName);
-		HColumnDescriptor colDef = new HColumnDescriptor(columnFamilyName);
-		desc.addFamily(colDef);
+		for(byte[] fam : columnFamilyName) {
+			HColumnDescriptor colDef = new HColumnDescriptor(fam);
+			desc.addFamily(colDef);
+		}
 
 		try {
 			admin.createTable(desc, splitKeys);
