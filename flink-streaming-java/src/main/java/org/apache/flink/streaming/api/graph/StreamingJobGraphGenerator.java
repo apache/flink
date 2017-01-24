@@ -519,7 +519,7 @@ public class StreamingJobGraphGenerator {
 			if (cleanup == null) {
 				throw new IllegalStateException("Externalized checkpoints enabled, but no cleanup mode configured.");
 			}
-			externalizedCheckpointSettings = ExternalizedCheckpointSettings.externalizeCheckpoints(cleanup.deleteOnCancellation());
+			externalizedCheckpointSettings = ExternalizedCheckpointSettings.externalizeCheckpoints(cleanup.deleteOnCancellation(), cfg.getExternalizedCheckpointDirectory());
 		} else {
 			externalizedCheckpointSettings = ExternalizedCheckpointSettings.none();
 		}

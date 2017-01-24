@@ -26,7 +26,7 @@ import org.apache.flink.annotation.Internal;
 @Internal
 public class ExternalizedCheckpointSettings implements java.io.Serializable {
 
-	private static final ExternalizedCheckpointSettings NONE = new ExternalizedCheckpointSettings(false, false);
+	private static final ExternalizedCheckpointSettings NONE = new ExternalizedCheckpointSettings(false, false, null);
 
 	/** Flag indicating whether checkpoints should be externalized. */
 	private final boolean externalizeCheckpoints;
@@ -34,9 +34,13 @@ public class ExternalizedCheckpointSettings implements java.io.Serializable {
 	/** Flag indicating whether externalized checkpoints should delete on cancellation. */
 	private final boolean deleteOnCancellation;
 
-	private ExternalizedCheckpointSettings(boolean externalizeCheckpoints, boolean deleteOnCancellation) {
+	/** Optional directory for the externalized checkpoints */
+	private final String externalizedCheckpointDir;
+	
+	private ExternalizedCheckpointSettings(boolean externalizeCheckpoints, boolean deleteOnCancellation, String externalizedCheckpointDir) {
 		this.externalizeCheckpoints = externalizeCheckpoints;
 		this.deleteOnCancellation = deleteOnCancellation;
+		this.externalizedCheckpointDir = externalizedCheckpointDir;
 	}
 
 	/**
@@ -56,9 +60,13 @@ public class ExternalizedCheckpointSettings implements java.io.Serializable {
 	public boolean deleteOnCancellation() {
 		return deleteOnCancellation;
 	}
+	
+	public String getExternalizedCheckpointDir() {
+		return externalizedCheckpointDir;
+	}
 
-	public static ExternalizedCheckpointSettings externalizeCheckpoints(boolean deleteOnCancellation) {
-		return new ExternalizedCheckpointSettings(true, deleteOnCancellation);
+	public static ExternalizedCheckpointSettings externalizeCheckpoints(boolean deleteOnCancellation, String checkpointDir) {
+		return new ExternalizedCheckpointSettings(true, deleteOnCancellation, checkpointDir);
 	}
 
 	public static ExternalizedCheckpointSettings none() {

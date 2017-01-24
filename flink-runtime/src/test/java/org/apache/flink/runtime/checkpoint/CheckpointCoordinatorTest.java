@@ -2363,7 +2363,7 @@ public class CheckpointCoordinatorTest {
 				600000,
 				0,
 				Integer.MAX_VALUE,
-				ExternalizedCheckpointSettings.externalizeCheckpoints(true),
+				ExternalizedCheckpointSettings.externalizeCheckpoints(true, null),
 				new ExecutionVertex[] { vertex1 },
 				new ExecutionVertex[] { vertex1 },
 				new ExecutionVertex[] { vertex1 },
@@ -2371,7 +2371,7 @@ public class CheckpointCoordinatorTest {
 				new StandaloneCompletedCheckpointStore(1),
 				"fake-directory",
 				Executors.directExecutor());
-
+			
 			assertTrue(coord.triggerCheckpoint(timestamp, false));
 
 			for (PendingCheckpoint checkpoint : coord.getPendingCheckpoints().values()) {
