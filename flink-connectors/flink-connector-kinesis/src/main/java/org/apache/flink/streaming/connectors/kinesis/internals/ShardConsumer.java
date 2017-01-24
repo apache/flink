@@ -38,6 +38,10 @@ import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Properties;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -64,6 +68,9 @@ public class ShardConsumer<T> implements Runnable {
 
 	private SequenceNumber lastSequenceNum;
 
+	/** Reference to the first error thrown by the {@link ShardConsumerFetcher} threads */
+	private final AtomicReference<Throwable> error;
+
 	/**
 	 * Creates a shard consumer.
 	 *
@@ -80,6 +87,7 @@ public class ShardConsumer<T> implements Runnable {
 			subscribedShardStateIndex,
 			subscribedShard,
 			lastSequenceNum,
+			new AtomicReference<Throwable>(),
 			KinesisProxy.create(fetcherRef.getConsumerConfiguration()));
 	}
 
@@ -88,6 +96,7 @@ public class ShardConsumer<T> implements Runnable {
 							Integer subscribedShardStateIndex,
 							KinesisStreamShard subscribedShard,
 							SequenceNumber lastSequenceNum,
+							AtomicReference<Throwable> error,
 							KinesisProxyInterface kinesis) {
 		this.fetcherRef = checkNotNull(fetcherRef);
 		this.subscribedShardStateIndex = checkNotNull(subscribedShardStateIndex);
@@ -107,27 +116,30 @@ public class ShardConsumer<T> implements Runnable {
 		this.fetchIntervalMillis = Long.valueOf(consumerConfig.getProperty(
 			ConsumerConfigConstants.SHARD_GETRECORDS_INTERVAL_MILLIS,
 			Long.toString(ConsumerConfigConstants.DEFAULT_SHARD_GETRECORDS_INTERVAL_MILLIS)));
+
+		this.error = checkNotNull(error);
 	}
 
 	@SuppressWarnings("unchecked")
 	@Override
 	public void run() {
-		String nextShardItr;
+		String startShardItr;
+		Timer timer = new Timer();
 
 		try {
-			// before infinitely looping, we set the initial nextShardItr appropriately
+			// before infinitely looping, we set the initial startShardItr appropriately
 
 			if (lastSequenceNum.equals(SentinelSequenceNumber.SENTINEL_LATEST_SEQUENCE_NUM.get())) {
 				// if the shard is already closed, there will be no latest next record to get for this shard
 				if (subscribedShard.isClosed()) {
-					nextShardItr = null;
+					startShardItr = null;
 				} else {
-					nextShardItr = kinesis.getShardIterator(subscribedShard, ShardIteratorType.LATEST.toString(), null);
+					startShardItr = kinesis.getShardIterator(subscribedShard, ShardIteratorType.LATEST.toString(), null);
 				}
 			} else if (lastSequenceNum.equals(SentinelSequenceNumber.SENTINEL_EARLIEST_SEQUENCE_NUM.get())) {
-				nextShardItr = kinesis.getShardIterator(subscribedShard, ShardIteratorType.TRIM_HORIZON.toString(), null);
+				startShardItr = kinesis.getShardIterator(subscribedShard, ShardIteratorType.TRIM_HORIZON.toString(), null);
 			} else if (lastSequenceNum.equals(SentinelSequenceNumber.SENTINEL_SHARD_ENDING_SEQUENCE_NUM.get())) {
-				nextShardItr = null;
+				startShardItr = null;
 			} else {
 				// we will be starting from an actual sequence number (due to restore from failure).
 				// if the last sequence number refers to an aggregated record, we need to clean up any dangling sub-records
@@ -154,42 +166,115 @@ public class ShardConsumer<T> implements Runnable {
 						}
 					}
 
-					// set the nextShardItr so we can continue iterating in the next while loop
-					nextShardItr = getRecordsResult.getNextShardIterator();
+					// set the startShardItr so we can continue iterating in the next while loop
+					startShardItr = getRecordsResult.getNextShardIterator();
 				} else {
 					// the last record was non-aggregated, so we can simply start from the next record
-					nextShardItr = kinesis.getShardIterator(subscribedShard, ShardIteratorType.AFTER_SEQUENCE_NUMBER.toString(), lastSequenceNum.getSequenceNumber());
+					startShardItr = kinesis.getShardIterator(subscribedShard, ShardIteratorType.AFTER_SEQUENCE_NUMBER.toString(), lastSequenceNum.getSequenceNumber());
 				}
 			}
 
+			ArrayBlockingQueue<UserRecord> queue = new ArrayBlockingQueue<>(maxNumberOfRecordsPerFetch);
+			ShardConsumerFetcher shardConsumerFetcher;
+
+			if (fetchIntervalMillis > 0L) {
+				shardConsumerFetcher = new ShardConsumerFetcher(this, startShardItr, queue, false);
+				timer.scheduleAtFixedRate(shardConsumerFetcher, 0L, fetchIntervalMillis);
+			} else {
+				// if fetchIntervalMillis is 0, make the task run forever and schedule it once only.
+				shardConsumerFetcher = new ShardConsumerFetcher(this, startShardItr, queue, true);
+				timer.schedule(shardConsumerFetcher, 0L);
+			}
+
 			while(isRunning()) {
-				if (nextShardItr == null) {
-					fetcherRef.updateState(subscribedShardStateIndex, SentinelSequenceNumber.SENTINEL_SHARD_ENDING_SEQUENCE_NUM.get());
-
-					// we can close this consumer thread once we've reached the end of the subscribed shard
-					break;
+				UserRecord record = queue.poll();
+				if (record != null) {
+					deserializeRecordForCollectionAndUpdateState(record);
 				} else {
-					if (fetchIntervalMillis != 0) {
-						Thread.sleep(fetchIntervalMillis);
+					if (shardConsumerFetcher.nextShardItr == null) {
+						fetcherRef.updateState(subscribedShardStateIndex, SentinelSequenceNumber.SENTINEL_SHARD_ENDING_SEQUENCE_NUM.get());
+
+						// we can close this consumer thread once we've reached the end of the subscribed shard
+						break;
 					}
+				}
 
-					GetRecordsResult getRecordsResult = getRecords(nextShardItr, maxNumberOfRecordsPerFetch);
-
-					// each of the Kinesis records may be aggregated, so we must deaggregate them before proceeding
-					List<UserRecord> fetchedRecords = deaggregateRecords(
-						getRecordsResult.getRecords(),
-						subscribedShard.getShard().getHashKeyRange().getStartingHashKey(),
-						subscribedShard.getShard().getHashKeyRange().getEndingHashKey());
-
-					for (UserRecord record : fetchedRecords) {
-						deserializeRecordForCollectionAndUpdateState(record);
-					}
-
-					nextShardItr = getRecordsResult.getNextShardIterator();
+				Throwable throwable = this.error.get();
+				if (throwable != null) {
+					throw throwable;
 				}
 			}
 		} catch (Throwable t) {
 			fetcherRef.stopWithError(t);
+		} finally {
+			timer.cancel();
+		}
+	}
+
+	private class ShardConsumerFetcher extends TimerTask {
+		private String nextShardItr;
+
+		private final ShardConsumer<T> shardConsumerRef;
+
+		private final ArrayBlockingQueue<UserRecord> userRecordQueue;
+
+		/** The latest finish time for fetching data from Kinesis used to recognize if the following task has been delayed.*/
+		private Long lastFinishTime = -1L;
+
+		private boolean runForever;
+
+		ShardConsumerFetcher(ShardConsumer<T> shardConsumerRef,
+							String nextShardItr,
+							ArrayBlockingQueue<UserRecord> userRecordQueue,
+							boolean runForever) {
+			this.shardConsumerRef = shardConsumerRef;
+			this.nextShardItr = nextShardItr;
+			this.userRecordQueue = userRecordQueue;
+			this.runForever = runForever;
+		}
+
+		@Override
+		public void run() {
+			try {
+				do {
+					if (nextShardItr != null) {
+						// ignore to log this warning if runForever is true, since fetchIntervalMillis is 0
+						if (!runForever && this.scheduledExecutionTime() < lastFinishTime) {
+							// If expected scheduled execution time is earlier than lastFinishTime,
+							// it seems that the fetchIntervalMillis might be short to finish the previous task.
+							LOG.warn("The value given for ShardConsumer is too short to finish getRecords on time. Please increase the value set in config \"{}\"", ConsumerConfigConstants.SHARD_GETRECORDS_INTERVAL_MILLIS);
+						} else {
+							GetRecordsResult getRecordsResult = shardConsumerRef.getRecords(nextShardItr, maxNumberOfRecordsPerFetch);
+
+							if (getRecordsResult != null) {
+								// each of the Kinesis records may be aggregated, so we must deaggregate them before proceeding
+								List<UserRecord> fetchedRecords = deaggregateRecords(
+									getRecordsResult.getRecords(),
+									subscribedShard.getShard().getHashKeyRange().getStartingHashKey(),
+									subscribedShard.getShard().getHashKeyRange().getEndingHashKey());
+
+								for (UserRecord record : fetchedRecords) {
+									boolean notFull = false;
+									while (!notFull) {
+										notFull = userRecordQueue.offer(record);
+									}
+								}
+
+								nextShardItr = getRecordsResult.getNextShardIterator();
+							} else {
+								// getRecordsResult got null due to iterator expired.
+								// Give up this task and get a new shard iterator for the next task.
+								nextShardItr = kinesis.getShardIterator(subscribedShard, ShardIteratorType.AFTER_SEQUENCE_NUMBER.toString(), lastSequenceNum.getSequenceNumber());
+							}
+							lastFinishTime = System.currentTimeMillis();
+						}
+					} else {
+						break;
+					}
+				} while (runForever);
+			} catch (Throwable t) {
+				shardConsumerRef.stopWithError(t);
+			}
 		}
 	}
 
@@ -201,6 +286,12 @@ public class ShardConsumer<T> implements Runnable {
 	 */
 	private boolean isRunning() {
 		return !Thread.interrupted();
+	}
+
+	/** Called by created TimerTask to pass on errors. Only the first thrown error is set.
+	 * Once set, It will cause run() to throw the error and call stopWithError() in {@link KinesisDataFetcher}*/
+	private void stopWithError(Throwable throwable) {
+		this.error.compareAndSet(null, throwable);
 	}
 
 	/**
@@ -263,20 +354,13 @@ public class ShardConsumer<T> implements Runnable {
 	 */
 	private GetRecordsResult getRecords(String shardItr, int maxNumberOfRecords) throws InterruptedException {
 		GetRecordsResult getRecordsResult = null;
-		while (getRecordsResult == null) {
-			try {
-				getRecordsResult = kinesis.getRecords(shardItr, maxNumberOfRecords);
-			} catch (ExpiredIteratorException eiEx) {
-				LOG.warn("Encountered an unexpected expired iterator {} for shard {};" +
-					" refreshing the iterator ...", shardItr, subscribedShard);
-				shardItr = kinesis.getShardIterator(subscribedShard, ShardIteratorType.AFTER_SEQUENCE_NUMBER.toString(), lastSequenceNum.getSequenceNumber());
-
-				// sleep for the fetch interval before the next getRecords attempt with the refreshed iterator
-				if (fetchIntervalMillis != 0) {
-					Thread.sleep(fetchIntervalMillis);
-				}
-			}
+		try {
+			getRecordsResult = kinesis.getRecords(shardItr, maxNumberOfRecords);
+		} catch (ExpiredIteratorException eiEx) {
+			LOG.warn("Encountered an unexpected expired iterator {} for shard {};" +
+				" refreshing the iterator ...", shardItr, subscribedShard);
 		}
+
 		return getRecordsResult;
 	}
 

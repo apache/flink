@@ -72,6 +72,7 @@ public class ShardConsumerTest {
 			0,
 			subscribedShardsStateUnderTest.get(0).getKinesisStreamShard(),
 			subscribedShardsStateUnderTest.get(0).getLastProcessedSequenceNum(),
+			new AtomicReference<Throwable>(),
 			FakeKinesisBehavioursFactory.totalNumOfRecordsAfterNumOfGetRecordsCalls(1000, 9)).run();
 
 		assertTrue(fetcher.getNumOfElementsCollected() == 1000);
@@ -112,6 +113,7 @@ public class ShardConsumerTest {
 			subscribedShardsStateUnderTest.get(0).getLastProcessedSequenceNum(),
 			// Get a total of 1000 records with 9 getRecords() calls,
 			// and the 7th getRecords() call will encounter an unexpected expired shard iterator
+			new AtomicReference<Throwable>(),
 			FakeKinesisBehavioursFactory.totalNumOfRecordsAfterNumOfGetRecordsCallsWithUnexpectedExpiredIterator(1000, 9, 7)).run();
 
 		assertTrue(fetcher.getNumOfElementsCollected() == 1000);
