@@ -55,6 +55,7 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
 import java.util.Timer;
@@ -1205,6 +1206,48 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			writer.interrupt();
 			writer.sync();
 			t.cancel(); // if not executed yet
+		} finally {
+			// clean up
+			backend.dispose();
+		}
+	}
+
+	/**
+	 * Tests {@link Iterator#remove()} on the iterator available through {@link ListState#get()}.
+	 * This should fail with an {@link UnsupportedOperationException}.
+	 */
+	@Test(expected = UnsupportedOperationException.class)
+	public void testListStateIteratorRemove() throws Exception {
+		final AbstractKeyedStateBackend<Integer> backend =
+			createKeyedBackend(IntSerializer.INSTANCE);
+		final Integer namespace = 1;
+
+		final ListStateDescriptor<String> kvId = new ListStateDescriptor<>("id", String.class);
+		kvId.setQueryable("testListStateRace");
+		kvId.initializeSerializerUnlessSet(new ExecutionConfig());
+
+		final TypeSerializer<Integer> keySerializer = IntSerializer.INSTANCE;
+		final TypeSerializer<Integer> namespaceSerializer = IntSerializer.INSTANCE;
+		final TypeSerializer<String> valueSerializer = kvId.getSerializer();
+
+		final ListState<String> state = backend
+			.getPartitionedState(namespace, IntSerializer.INSTANCE, kvId);
+
+		final InternalKvState<Integer> kvState = (InternalKvState<Integer>) state;
+
+		// some modifications to the state
+		final int key = 10;
+		backend.setCurrentKey(key);
+		assertNull(state.get());
+		assertNull(getSerializedList(kvState, key, keySerializer,
+			namespace, namespaceSerializer, valueSerializer));
+		state.add("1");
+
+		// wait for both threads to finish
+		try {
+			Iterator<String> iterator = state.get().iterator();
+			iterator.next();
+			iterator.remove();
 		} finally {
 			// clean up
 			backend.dispose();

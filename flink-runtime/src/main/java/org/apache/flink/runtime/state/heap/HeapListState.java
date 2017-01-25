@@ -44,6 +44,40 @@ public class HeapListState<K, N, V>
 		implements InternalListState<N, V> {
 
 	/**
+	 * Private class extending ArrayList which forbids {@link #remove(int)} that is used by {@link
+	 * #iterator()}'s remove function.
+	 * <p>
+	 * This is useful for the {@link HeapListState#get()} function that returns an {@link Iterable}.
+	 * By using {@link Iterable#iterator()}, the user may call {@link java.util.Iterator#remove}
+	 * which modifies the list. {@link HeapListState#get()}, however, should only return a copy but
+	 * actually returns on the real value which queryable state reads concurrently. In order not to
+	 * create any races during structural changes, we thus forbid {@link #remove(int)}.
+	 * <p>
+	 * <em>Note:</em> we only make the {@link #remove(int)} function unsupported so this is not a
+	 * real immutable arraylist. Also, future changes in {@link ArrayList} are not covered since we
+	 * do not have control over its iterator class.
+	 *
+	 * @param <V>
+	 * 		list element type
+	 */
+	private static class QueryableStateArrayList<V> extends ArrayList<V> {
+		private static final long serialVersionUID = 1L;
+
+		/**
+		 * Unsupported operation.
+		 *
+		 * @throw UnsupportedOperationException always thrown
+		 * @deprecated unsupported
+		 */
+		@Deprecated
+		@Override
+		public V remove(final int index) {
+			throw new UnsupportedOperationException(
+				"Structural changes to queryable list state are not allowed.");
+		}
+	}
+
+	/**
 	 * Creates a new key/value state for the given hash map of key/value pairs.
 	 *
 	 * @param backend The state backend backing that created this state.
@@ -113,7 +147,11 @@ public class HeapListState<K, N, V>
 		ArrayList<V> list = keyedMap.get(backend.<K>getCurrentKey());
 
 		if (list == null) {
-			list = new ArrayList<>();
+			if (stateDesc.isQueryable()) {
+				list = new QueryableStateArrayList<>();
+			} else {
+				list = new ArrayList<>();
+			}
 			keyedMap.put(backend.<K>getCurrentKey(), list);
 		}
 		if (stateDesc.isQueryable()) {

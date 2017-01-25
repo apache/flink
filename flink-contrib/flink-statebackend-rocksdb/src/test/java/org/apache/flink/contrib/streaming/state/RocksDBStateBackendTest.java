@@ -38,6 +38,7 @@ import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -454,5 +455,11 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 		public boolean accept(File file, String s) {
 			return true;
 		}
+	}
+
+	@Override
+	@Test
+	@Ignore("Since RocksDB returns copies, we allow any operation and ignore this test")
+	public void testListStateIteratorRemove() {
 	}
 }
