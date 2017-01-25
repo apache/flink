@@ -172,11 +172,8 @@ public class ArchivedExecutionGraphTest {
 		// -------------------------------------------------------------------------------------------------------------
 		// CheckpointStats
 		// -------------------------------------------------------------------------------------------------------------
-		CheckpointStatsTracker runtimeStats = runtimeGraph.getCheckpointStatsTracker();
-		CheckpointStatsTracker archivedStats = archivedGraph.getCheckpointStatsTracker();
-
-		CheckpointStatsSnapshot runtimeSnapshot = runtimeStats.createSnapshot();
-		CheckpointStatsSnapshot archivedSnapshot = archivedStats.createSnapshot();
+		CheckpointStatsSnapshot runtimeSnapshot = runtimeGraph.getCheckpointStatsSnapshot();
+		CheckpointStatsSnapshot archivedSnapshot = archivedGraph.getCheckpointStatsSnapshot();
 
 		assertEquals(runtimeSnapshot.getSummaryStats().getEndToEndDurationStats().getAverage(), archivedSnapshot.getSummaryStats().getEndToEndDurationStats().getAverage());
 		assertEquals(runtimeSnapshot.getSummaryStats().getEndToEndDurationStats().getMinimum(), archivedSnapshot.getSummaryStats().getEndToEndDurationStats().getMinimum());
