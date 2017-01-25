@@ -116,7 +116,13 @@ public class HeapListState<K, N, V>
 			list = new ArrayList<>();
 			keyedMap.put(backend.<K>getCurrentKey(), list);
 		}
-		list.add(value);
+		if (stateDesc.isQueryable()) {
+			synchronized (list) {
+				list.add(value);
+			}
+		} else {
+			list.add(value);
+		}
 	}
 	
 	@Override
@@ -143,6 +149,16 @@ public class HeapListState<K, N, V>
 			return null;
 		}
 
+		if (stateDesc.isQueryable()) {
+			synchronized (result) {
+				return serializeList(result);
+			}
+		} else {
+			return serializeList(result);
+		}
+	}
+
+	private byte[] serializeList(final ArrayList<V> result) throws java.io.IOException {
 		TypeSerializer<V> serializer = stateDesc.getSerializer();
 
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
