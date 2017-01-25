@@ -24,7 +24,6 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.CloseableRegistry;
-import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.execution.CancelTaskException;
@@ -174,8 +173,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	/** Flag to mark this task as canceled */
 	private volatile boolean canceled;
 
-	private long lastCheckpointSize = 0;
-
 	/** Thread pool for async snapshot workers */
 	private ExecutorService asyncOperationsThreadPool;
 
@@ -235,13 +232,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 			operatorChain = new OperatorChain<>(this);
 			headOperator = operatorChain.getHeadOperator();
-
-			getEnvironment().getMetricGroup().gauge("lastCheckpointSize", new Gauge<Long>() {
-				@Override
-				public Long getValue() {
-					return StreamTask.this.lastCheckpointSize;
-				}
-			});
 
 			// task specific initialization
 			init();
