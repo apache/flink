@@ -887,6 +887,7 @@ under the License.
 						<exclude>flink-libraries/flink-table/src/test/scala/resources/*.out</exclude>
 
 						<!-- snapshots -->
+						<exclude>flink-connectors/flink-connector-filesystem/src/test/resources/rolling-sink-migration-test-flink1.1-snapshot</exclude>
 						<exclude>flink-connectors/flink-connector-kafka-base/src/test/resources/kafka-consumer-migration-test-flink1.1-snapshot</exclude>
 						<exclude>flink-connectors/flink-connector-kafka-base/src/test/resources/kafka-consumer-migration-test-flink1.1-snapshot-empty-state</exclude>
 						<exclude>flink-fs-tests/src/test/resources/monitoring-function-migration-test-1482144479339-flink1.1-snapshot</exclude>
