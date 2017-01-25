@@ -69,7 +69,6 @@ class TableFunctionCallGen(
     val functionCallCode =
       s"""
         |${parameters.map(_.code).mkString("\n")}
-        |$functionReference.clear();
         |$functionReference.eval(${parameters.map(_.resultTerm).mkString(", ")});
         |""".stripMargin
 

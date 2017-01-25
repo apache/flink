@@ -41,3 +41,10 @@ object GeneratedExpression {
 }
 
 case class GeneratedFunction[T](name: String, returnType: TypeInformation[Any], code: String)
+
+/**
+  * Describes a generated [[org.apache.flink.util.Collector]].
+  * @param name The class name of the generated Collector.
+  * @param code The code of the generated Collector.
+  */
+case class GeneratedCollector(name: String, code: String)
