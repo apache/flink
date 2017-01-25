@@ -23,7 +23,6 @@ import org.apache.flink.addons.hbase.HBaseTableSchema;
 import org.apache.flink.addons.hbase.HBaseTableSource;
 import org.apache.flink.addons.hbase.HBaseTestingClusterAutostarter;
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple;
@@ -37,7 +36,6 @@ import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.util.Bytes;
-import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -47,9 +45,7 @@ import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
-
 public class HBaseTableSourceITCase extends HBaseTestingClusterAutostarter {
-
 
 	public static final byte[] ROW_1 = Bytes.toBytes("row1");
 	public static final byte[] ROW_2 = Bytes.toBytes("row2");
@@ -119,9 +115,9 @@ public class HBaseTableSourceITCase extends HBaseTestingClusterAutostarter {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, 	new TableConfig());
 		HBaseTableSchema schema = new HBaseTableSchema();
-		schema.addColumns(Bytes.toString(F_1), Bytes.toString(Q_1), BasicTypeInfo.INT_TYPE_INFO);
-		schema.addColumns(Bytes.toString(F_1), Bytes.toString(Q_2), BasicTypeInfo.STRING_TYPE_INFO);
-		schema.addColumns(Bytes.toString(F_1), Bytes.toString(Q_3), BasicTypeInfo.LONG_TYPE_INFO);
+		schema.addColumn(Bytes.toString(F_1), Bytes.toString(Q_1), Integer.class);
+		schema.addColumn(Bytes.toString(F_1), Bytes.toString(Q_2), String.class);
+		schema.addColumn(Bytes.toString(F_1), Bytes.toString(Q_3), Long.class);
 		// fetch row2 from the table till the end
 		BatchTableSource hbaseTable = new HBaseTableSource(getConf(), tableName.getNameAsString(), schema);
 		tableEnv.registerTableSource("test", hbaseTable);
@@ -184,12 +180,12 @@ public class HBaseTableSourceITCase extends HBaseTestingClusterAutostarter {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, 	new TableConfig());
 		HBaseTableSchema schema = new HBaseTableSchema();
-		schema.addColumns(Bytes.toString(F_1), Bytes.toString(Q_1), BasicTypeInfo.INT_TYPE_INFO);
-		schema.addColumns(Bytes.toString(F_1), Bytes.toString(Q_2), BasicTypeInfo.STRING_TYPE_INFO);
-		schema.addColumns(Bytes.toString(F_1), Bytes.toString(Q_3), BasicTypeInfo.LONG_TYPE_INFO);
-		schema.addColumns(Bytes.toString(F_2), Bytes.toString(Q_1), BasicTypeInfo.INT_TYPE_INFO);
-		schema.addColumns(Bytes.toString(F_2), Bytes.toString(Q_2), BasicTypeInfo.STRING_TYPE_INFO);
-		schema.addColumns(Bytes.toString(F_2), Bytes.toString(Q_3), BasicTypeInfo.LONG_TYPE_INFO);
+		schema.addColumn(Bytes.toString(F_1), Bytes.toString(Q_1), Integer.class);
+		schema.addColumn(Bytes.toString(F_1), Bytes.toString(Q_2), String.class);
+		schema.addColumn(Bytes.toString(F_1), Bytes.toString(Q_3), Long.class);
+		schema.addColumn(Bytes.toString(F_2), Bytes.toString(Q_1), Integer.class);
+		schema.addColumn(Bytes.toString(F_2), Bytes.toString(Q_2), String.class);
+		schema.addColumn(Bytes.toString(F_2), Bytes.toString(Q_3), Long.class);
 		// fetch row2 from the table till the end
 		BatchTableSource hbaseTable = new HBaseTableSource(getConf(), tableName.getNameAsString(), schema);
 		tableEnv.registerTableSource("test1", hbaseTable);
@@ -198,9 +194,9 @@ public class HBaseTableSourceITCase extends HBaseTestingClusterAutostarter {
 		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
 		List<Row> results = resultSet.collect();
 
-		String expected = "100,strvalue,19991,-2147483648,NULL,-9223372036854775808\n" +
-			"-2147483648,NULL,-9223372036854775808,201,newvalue1,29992\n" +
-			"102,strvalue2,19993,-2147483648,NULL,-9223372036854775808\n";
+		String expected = "100,strvalue,19991,null,null,null\n" +
+			"null,null,null,201,newvalue1,29992\n" +
+			"102,strvalue2,19993,null,null,null\n";
 		compareResult(results, expected, false, false);
 	}
 

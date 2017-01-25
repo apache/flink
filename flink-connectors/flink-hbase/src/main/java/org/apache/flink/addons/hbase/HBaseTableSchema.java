@@ -17,8 +17,8 @@
  */
 package org.apache.flink.addons.hbase;
 
-import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.util.Preconditions;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.Pair;
@@ -38,40 +38,72 @@ import java.util.Date;
 public class HBaseTableSchema implements Serializable {
 
 	// A Map with key as column family.
-	private final Map<String, List<Pair>> familyMap =
-		new HashMap<String, List<Pair>>();
+	private final Map<String, List<Pair<String, TypeInformation<?>>>> familyMap =
+		new HashMap<String, List<Pair<String, TypeInformation<?>>>>();
 
 	// Allowed types. This may change.
 	// TODO : Check if the Date type should be the one in java.util or the one in java.sql
 	private static Class[] CLASS_TYPES = {
-		Integer.class, Short.class, Float.class, Long.class, String.class, Byte.class, Boolean.class, Double.class, BigInteger.class, BigDecimal.class, Date.class
+		Integer.class, Short.class, Float.class, Long.class, String.class, Byte.class, Boolean.class, Double.class, BigInteger.class, BigDecimal.class, Date.class, byte[].class
 	};
-	private static byte[] EMPTY_BYTE_ARRAY = new byte[0];
-	public void addColumns(String family, String qualifier, TypeInformation<?> type) {
+	/**
+	 * Allows specifying the family and qualifier name along with the data type of the qualifier for an HBase table
+	 *
+	 * @param family    the family name
+	 * @param qualifier the qualifier name
+	 * @param clazz     the data type of the qualifier
+	 */
+	public void addColumn(String family, String qualifier, Class<?> clazz) {
 		Preconditions.checkNotNull(family, "family name");
 		Preconditions.checkNotNull(family, "qualifier name");
-		Preconditions.checkNotNull(type, "type name");
-		List<Pair> list = this.familyMap.get(family);
+		Preconditions.checkNotNull(clazz, "class type");
+		List<Pair<String, TypeInformation<?>>> list = this.familyMap.get(family);
 		if (list == null) {
-			list = new ArrayList<Pair>();
+			list = new ArrayList<Pair<String, TypeInformation<?>>>();
 		}
 		boolean found = false;
-		for(Class classType : CLASS_TYPES) {
-			if(classType == type.getTypeClass()) {
+		for (Class classType : CLASS_TYPES) {
+			if (classType == clazz) {
 				found = true;
 				break;
 			}
 		}
-		if(!found) {
-			// by default it will be byte[] type only
-			type = BasicArrayTypeInfo.BYTE_ARRAY_TYPE_INFO;
+		if (!found) {
+			// throw exception
+			throw new IllegalArgumentException("Unsupported class type found " + clazz);
 		}
-		list.add(new Pair(qualifier, type));
+		list.add(new Pair<String, TypeInformation<?>>(qualifier, TypeExtractor.getForClass(clazz)));
 		familyMap.put(family, list);
 	}
 
-	public Map<String, List<Pair>> getFamilyMap() {
-		return this.familyMap;
+	public String[] getFamilyNames() {
+		return this.familyMap.keySet().toArray(new String[this.familyMap.size()]);
+	}
+
+	public String[] getQualifierNames(String family) {
+		List<Pair<String, TypeInformation<?>>> colDetails = familyMap.get(family);
+		String[] qualifierNames = new String[colDetails.size()];
+		int i = 0;
+		for (Pair<String, TypeInformation<?>> pair : colDetails) {
+			qualifierNames[i] = pair.getFirst();
+			i++;
+		}
+		return qualifierNames;
+	}
+
+	public TypeInformation<?>[] getTypeInformation(String family) {
+		List<Pair<String, TypeInformation<?>>> colDetails = familyMap.get(family);
+		TypeInformation<?>[] typeInformations = new TypeInformation[colDetails.size()];
+		int i = 0;
+		for (Pair<String, TypeInformation<?>> pair : colDetails) {
+			typeInformations[i] = pair.getSecond();
+			i++;
+		}
+		return typeInformations;
+	}
+
+	public List<Pair<String, TypeInformation<?>>> getFamilyInfo(String family) {
+		return familyMap.get(family);
 	}
 
 	public Object deserialize(byte[] value, TypeInformation<?> typeInfo) {
@@ -102,34 +134,4 @@ public class HBaseTableSchema implements Serializable {
 		}
 		return value;
 	}
-
-	public Object deserializeNull(TypeInformation<?> typeInfo) {
-		// TODO : this may need better handling.
-		if(typeInfo.getTypeClass() ==  Integer.class) {
-			return Integer.MIN_VALUE;
-		} else if(typeInfo.getTypeClass() == Short.class) {
-			return Short.MIN_VALUE;
-		} else if(typeInfo.getTypeClass() == Float.class) {
-			return Float.MIN_VALUE;
-		} else if(typeInfo.getTypeClass() == Long.class) {
-			return Long.MIN_VALUE;
-		} else if(typeInfo.getTypeClass() == String.class) {
-			return "NULL";
-		} else if(typeInfo.getTypeClass() == Byte.class) {
-			return Byte.MIN_VALUE;
-		} else if(typeInfo.getTypeClass() == Boolean.class) {
-			return Boolean.FALSE;
-		} else if(typeInfo.getTypeClass() == Double.class) {
-			return Double.MIN_VALUE;
-		} else if(typeInfo.getTypeClass() == BigInteger.class) {
-			return new BigInteger(Bytes.toBytes(Integer.MIN_VALUE));
-		} else if(typeInfo.getTypeClass() == BigDecimal.class) {
-			return Bytes.toBigDecimal(Bytes.toBytes(Double.MIN_VALUE));
-		} else if(typeInfo.getTypeClass() == Date.class) {
-			return new Date(Bytes.toLong(Bytes.toBytes(Long.MIN_VALUE)));
-		}
-		// Return a byte[]
-		return EMPTY_BYTE_ARRAY;
-	}
-
 }

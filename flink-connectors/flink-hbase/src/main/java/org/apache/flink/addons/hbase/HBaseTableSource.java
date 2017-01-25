@@ -25,11 +25,6 @@ import org.apache.flink.table.sources.BatchTableSource;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.util.Pair;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
 
 /**
  * Creates a table source that helps to scan data from an hbase table
@@ -43,35 +38,21 @@ public class HBaseTableSource implements BatchTableSource<Row> {
 	private Configuration conf;
 	private String tableName;
 	private HBaseTableSchema schema;
-	private String[] famNames;
 
 	public HBaseTableSource(Configuration conf, String tableName, HBaseTableSchema schema) {
 		this.conf = conf;
 		this.tableName = Preconditions.checkNotNull(tableName, "Table  name");
 		this.schema = Preconditions.checkNotNull(schema, "Schema");
-		Map<String, List<Pair>> familyMap = schema.getFamilyMap();
-		famNames = familyMap.keySet().toArray(new String[familyMap.size()]);
 	}
 
 	@Override
 	public TypeInformation<Row> getReturnType() {
-		// split the fieldNames
-		Map<String, List<Pair>> famMap = schema.getFamilyMap();
-
-		List<String> qualNames = new ArrayList<String>();
-		List<TypeInformation<?>> colTypeInfo = new ArrayList<TypeInformation<?>>();
-		TypeInformation<?>[] typeInfos = new TypeInformation[famMap.size()];
+		String[] famNames = schema.getFamilyNames();
+		TypeInformation<?>[] typeInfos = new TypeInformation[famNames.length];
 		int i = 0;
-		for (String family : famMap.keySet()) {
-			List<Pair> colDetails = famMap.get(family);
-			for (Pair<String, TypeInformation<?>> pair : colDetails) {
-				qualNames.add(pair.getFirst());
-				colTypeInfo.add(pair.getSecond());
-			}
-			typeInfos[i] = new RowTypeInfo(colTypeInfo.toArray(new TypeInformation[colTypeInfo.size()]), qualNames.toArray(new String[qualNames.size()]));
+		for (String family : famNames) {
+			typeInfos[i] = new RowTypeInfo(schema.getTypeInformation(family), schema.getQualifierNames(family));
 			i++;
-			colTypeInfo.clear();
-			qualNames.clear();
 		}
 		RowTypeInfo rowInfo = new RowTypeInfo(typeInfos, famNames);
 		return rowInfo;

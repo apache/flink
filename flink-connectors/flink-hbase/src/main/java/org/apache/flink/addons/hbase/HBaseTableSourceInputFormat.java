@@ -40,7 +40,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 /**
  * {@link InputFormat} subclass that wraps the access for HTables. Returns the result as {@link Row}
@@ -72,14 +71,10 @@ public class HBaseTableSourceInputFormat extends TableInputFormat<Row> implement
 
 	@Override
 	protected Scan getScanner() {
-		// TODO : Pass 'rowkey'. For this we need FilterableTableSource
 		Scan scan = new Scan();
-		Map<String, List<Pair>> familyMap = schema.getFamilyMap();
-		for(String family : familyMap.keySet()) {
-			// select only the fields in the 'selectedFields'
-			List<Pair> colDetails = familyMap.get(family);
-			for(Pair<String, TypeInformation<?>> pair : colDetails) {
-				scan.addColumn(Bytes.toBytes(family), Bytes.toBytes(pair.getFirst()));
+		for(String family : schema.getFamilyNames()) {
+			for(String qualifierName : schema.getQualifierNames(family)) {
+				scan.addColumn(Bytes.toBytes(family), Bytes.toBytes(qualifierName));
 			}
 		}
 		return scan;
@@ -94,16 +89,15 @@ public class HBaseTableSourceInputFormat extends TableInputFormat<Row> implement
 	protected Row mapResultToTuple(Result res) {
 		List<Object> values = new ArrayList<Object>();
 		int i = 0;
-		Map<String, List<Pair>> familyMap = schema.getFamilyMap();
-		Row[] rows = new Row[familyMap.size()];
-		for(String family : familyMap.keySet()) {
-			List<Pair> colDetails = familyMap.get(family);
-			for(Pair<String, TypeInformation<?>> pair : colDetails) {
-				byte[] value = res.getValue(Bytes.toBytes(family), Bytes.toBytes(pair.getFirst()));
+		String[] familyNames = schema.getFamilyNames();
+		Object[] rows = new Object[familyNames.length];
+		for(String family : familyNames) {
+			for(Pair<String, TypeInformation<?>> info : schema.getFamilyInfo(family)) {
+				byte[] value = res.getValue(Bytes.toBytes(family), Bytes.toBytes(info.getFirst()));
 				if(value != null) {
-					values.add(schema.deserialize(value, pair.getSecond()));
+					values.add(schema.deserialize(value, info.getSecond()));
 				} else {
-					values.add(schema.deserializeNull(pair.getSecond()));
+					values.add(null);
 				}
 			}
 			rows[i] = Row.of(values.toArray(new Object[values.size()]));
@@ -136,25 +130,14 @@ public class HBaseTableSourceInputFormat extends TableInputFormat<Row> implement
 	@Override
 	public TypeInformation<Row> getProducedType() {
 		// split the fieldNames
-		Map<String, List<Pair>> famMap = schema.getFamilyMap();
-
-		List<String> qualNames = new ArrayList<String>();
-		List<TypeInformation<?>> colTypeInfo = new ArrayList<TypeInformation<?>>();
-		TypeInformation<?>[] typeInfos = new TypeInformation[famMap.size()];
+		String[] famNames = schema.getFamilyNames();
+		TypeInformation<?>[] typeInfos = new TypeInformation[famNames.length];
 		int i = 0;
-		for (String family : famMap.keySet()) {
-			List<Pair> colDetails = famMap.get(family);
-			for (Pair<String, TypeInformation<?>> pair : colDetails) {
-				qualNames.add(pair.getFirst());
-				colTypeInfo.add(pair.getSecond());
-			}
-			typeInfos[i] = new RowTypeInfo(colTypeInfo.toArray(new TypeInformation[colTypeInfo.size()]), qualNames.toArray(new String[qualNames.size()]));
+		for (String family : famNames) {
+			typeInfos[i] = new RowTypeInfo(schema.getTypeInformation(family), schema.getQualifierNames(family));
 			i++;
-			colTypeInfo.clear();
-			qualNames.clear();
 		}
-
-		RowTypeInfo rowInfo = new RowTypeInfo(typeInfos, famMap.keySet().toArray(new String[famMap.size()]));
+		RowTypeInfo rowInfo = new RowTypeInfo(typeInfos, famNames);
 		return rowInfo;
 	}
 }
