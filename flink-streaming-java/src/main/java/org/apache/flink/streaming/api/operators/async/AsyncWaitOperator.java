@@ -89,7 +89,7 @@ public class AsyncWaitOperator<IN, OUT>
 	/** Timeout for the async collectors */
 	private final long timeout;
 
-	private transient Object checkpointingLock;
+	protected transient Object checkpointingLock;
 
 	/** {@link TypeSerializer} for inputs while making snapshots. */
 	private transient StreamElementSerializer<IN> inStreamElementSerializer;
@@ -189,7 +189,7 @@ public class AsyncWaitOperator<IN, OUT>
 		this.emitter = new Emitter<>(checkpointingLock, output, queue, this);
 
 		// start the emitter thread
-		this.emitterThread = new Thread(emitter);
+		this.emitterThread = new Thread(emitter, "AsyncIO-Emitter-Thread (" + getOperatorName() + ')');
 		emitterThread.setDaemon(true);
 		emitterThread.start();
 
@@ -354,6 +354,16 @@ public class AsyncWaitOperator<IN, OUT>
 				executor.shutdownNow();
 
 				Thread.currentThread().interrupt();
+			}
+
+			/**
+			 * FLINK-5638: If we have the checkpoint lock we might have to free it for a while so
+			 * that the emitter thread can complete/react to the interrupt signal.
+			 */
+			if (Thread.holdsLock(checkpointingLock)) {
+				while (emitterThread.isAlive()) {
+					checkpointingLock.wait(100L);
+				}
 			}
 
 			emitterThread.join();
