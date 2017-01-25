@@ -21,9 +21,10 @@ import org.apache.flink.api.common.ArchivedExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
-import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
+import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
 import org.apache.flink.util.SerializedValue;
 
 import java.io.Serializable;
@@ -33,7 +34,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializable {
+
 	private static final long serialVersionUID = 7231383912742578428L;
 	// --------------------------------------------------------------------------------------------
 
@@ -76,23 +80,24 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 	private final ArchivedExecutionConfig archivedExecutionConfig;
 	private final boolean isStoppable;
 	private final Map<String, SerializedValue<Object>> serializedUserAccumulators;
-	private final CheckpointStatsTracker tracker;
+	private final JobSnapshottingSettings jobSnapshottingSettings;
+	private final CheckpointStatsSnapshot checkpointStatsSnapshot;
 
 	public ArchivedExecutionGraph(
-		JobID jobID,
-		String jobName,
-		Map<JobVertexID, ArchivedExecutionJobVertex> tasks,
-		List<ArchivedExecutionJobVertex> verticesInCreationOrder,
-		long[] stateTimestamps,
-		JobStatus state,
-		String failureCause,
-		String jsonPlan,
-		StringifiedAccumulatorResult[] archivedUserAccumulators,
-		Map<String, SerializedValue<Object>> serializedUserAccumulators,
-		ArchivedExecutionConfig executionConfig,
-		boolean isStoppable,
-		CheckpointStatsTracker tracker
-	) {
+			JobID jobID,
+			String jobName,
+			Map<JobVertexID, ArchivedExecutionJobVertex> tasks,
+			List<ArchivedExecutionJobVertex> verticesInCreationOrder,
+			long[] stateTimestamps,
+			JobStatus state,
+			String failureCause,
+			String jsonPlan,
+			StringifiedAccumulatorResult[] archivedUserAccumulators,
+			Map<String, SerializedValue<Object>> serializedUserAccumulators,
+			ArchivedExecutionConfig executionConfig,
+			boolean isStoppable,
+			JobSnapshottingSettings jobSnapshottingSettings,
+			CheckpointStatsSnapshot checkpointStatsSnapshot) {
 		this.jobID = jobID;
 		this.jobName = jobName;
 		this.tasks = tasks;
@@ -105,10 +110,12 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 		this.serializedUserAccumulators = serializedUserAccumulators;
 		this.archivedExecutionConfig = executionConfig;
 		this.isStoppable = isStoppable;
-		this.tracker = tracker;
+		this.jobSnapshottingSettings = checkNotNull(jobSnapshottingSettings);
+		this.checkpointStatsSnapshot = checkNotNull(checkpointStatsSnapshot);
 	}
 
 	// --------------------------------------------------------------------------------------------
+
 	@Override
 	public String getJsonPlan() {
 		return jsonPlan;
@@ -200,8 +207,13 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 	}
 
 	@Override
-	public CheckpointStatsTracker getCheckpointStatsTracker() {
-		return tracker;
+	public JobSnapshottingSettings getJobSnapshottingSettings() {
+		return jobSnapshottingSettings;
+	}
+
+	@Override
+	public CheckpointStatsSnapshot getCheckpointStatsSnapshot() {
+		return checkpointStatsSnapshot;
 	}
 
 	@Override

@@ -20,7 +20,6 @@ package org.apache.flink.runtime.webmonitor.handlers.checkpoints;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
@@ -60,9 +59,7 @@ public class CheckpointConfigHandlerTest {
 			true);
 
 		AccessExecutionGraph graph = mock(AccessExecutionGraph.class);
-		CheckpointStatsTracker tracker = mock(CheckpointStatsTracker.class);
-		when(graph.getCheckpointStatsTracker()).thenReturn(tracker);
-		when(tracker.getSnapshottingSettings()).thenReturn(settings);
+		when(graph.getJobSnapshottingSettings()).thenReturn(settings);
 
 		CheckpointConfigHandler handler = new CheckpointConfigHandler(mock(ExecutionGraphHolder.class));
 		String json = handler.handleRequest(graph, Collections.<String, String>emptyMap());
@@ -98,9 +95,7 @@ public class CheckpointConfigHandlerTest {
 			false); // at least once
 
 		AccessExecutionGraph graph = mock(AccessExecutionGraph.class);
-		CheckpointStatsTracker tracker = mock(CheckpointStatsTracker.class);
-		when(graph.getCheckpointStatsTracker()).thenReturn(tracker);
-		when(tracker.getSnapshottingSettings()).thenReturn(settings);
+		when(graph.getJobSnapshottingSettings()).thenReturn(settings);
 
 		CheckpointConfigHandler handler = new CheckpointConfigHandler(mock(ExecutionGraphHolder.class));
 		String json = handler.handleRequest(graph, Collections.<String, String>emptyMap());
@@ -130,9 +125,7 @@ public class CheckpointConfigHandlerTest {
 			false); // at least once
 
 		AccessExecutionGraph graph = mock(AccessExecutionGraph.class);
-		CheckpointStatsTracker tracker = mock(CheckpointStatsTracker.class);
-		when(graph.getCheckpointStatsTracker()).thenReturn(tracker);
-		when(tracker.getSnapshottingSettings()).thenReturn(settings);
+		when(graph.getJobSnapshottingSettings()).thenReturn(settings);
 
 		CheckpointConfigHandler handler = new CheckpointConfigHandler(mock(ExecutionGraphHolder.class));
 		String json = handler.handleRequest(graph, Collections.<String, String>emptyMap());
