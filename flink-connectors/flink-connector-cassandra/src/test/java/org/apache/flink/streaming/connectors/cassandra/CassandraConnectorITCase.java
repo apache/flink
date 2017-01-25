@@ -293,7 +293,7 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 		}
 
 		ArrayList<Integer> actual = new ArrayList<>();
-		ResultSet result = session.execute(SELECT_DATA_QUERY);
+		ResultSet result = session.execute(injectTableName(SELECT_DATA_QUERY));
 		for (Row s : result) {
 			actual.add(s.getInt("counter"));
 		}
