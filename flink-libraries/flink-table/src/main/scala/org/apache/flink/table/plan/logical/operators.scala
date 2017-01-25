@@ -23,13 +23,12 @@ import java.util
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.CorrelationId
-import org.apache.calcite.rel.logical.{LogicalProject, LogicalTableFunctionScan}
+import org.apache.calcite.rel.logical.LogicalTableFunctionScan
 import org.apache.calcite.rex.{RexInputRef, RexNode}
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.join.JoinType
-import org.apache.flink.table._
 import org.apache.flink.table.api.{StreamTableEnvironment, TableEnvironment, UnresolvedException}
 import org.apache.flink.table.calcite.{FlinkRelBuilder, FlinkTypeFactory}
 import org.apache.flink.table.expressions._
@@ -98,13 +97,8 @@ case class Project(projectList: Seq[NamedExpression], child: LogicalNode) extend
         case Alias(gf: GroupFunction, name, extraNames) =>
           children.head match {
 
-            case GroupingAggregation(grpExps, _, node) =>
-              Alias(gf.replaceExpression(relBuilder,
-                Some(grpExps.flatten.distinct), node.output, indicator = true),
-                    name, extraNames).toRexNode(relBuilder)
-
             case Aggregate(grpExps, _, node) =>
-              Alias(gf.replaceExpression(relBuilder, Some(grpExps), node.output),
+              Alias(gf.replaceExpression(relBuilder, Some(grpExps.flatten.distinct), node.output),
                     name, extraNames).toRexNode(relBuilder)
 
             case _ =>
@@ -218,74 +212,9 @@ case class Filter(condition: Expression, child: LogicalNode) extends UnaryNode {
 }
 
 case class Aggregate(
-    groupingExpressions: Seq[Expression],
-    aggregateExpressions: Seq[NamedExpression],
-    child: LogicalNode) extends UnaryNode {
-
-  override def output: Seq[Attribute] = {
-    (groupingExpressions ++ aggregateExpressions) map {
-      case ne: NamedExpression => ne.toAttribute
-      case e => Alias(e, e.toString).toAttribute
-    }
-  }
-
-  override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
-    child.construct(relBuilder)
-    relBuilder.aggregate(
-      relBuilder.groupKey(groupingExpressions.map(_.toRexNode(relBuilder)).asJava),
-      aggregateExpressions.map {
-        case Alias(agg: Aggregation, name, _) => agg.toAggCall(name)(relBuilder)
-        case _ => throw new RuntimeException("This should never happen.")
-      }.asJava)
-  }
-
-  override def validate(tableEnv: TableEnvironment): LogicalNode = {
-    if (tableEnv.isInstanceOf[StreamTableEnvironment]) {
-      failValidation(s"Aggregate on stream tables is currently not supported.")
-    }
-
-    val resolvedAggregate = super.validate(tableEnv).asInstanceOf[Aggregate]
-    val groupingExprs = resolvedAggregate.groupingExpressions
-    val aggregateExprs = resolvedAggregate.aggregateExpressions
-    aggregateExprs.foreach(validateAggregateExpression)
-    groupingExprs.foreach(validateGroupingExpression)
-
-    def validateAggregateExpression(expr: Expression): Unit = expr match {
-      // check no nested aggregation exists.
-      case aggExpr: Aggregation =>
-        aggExpr.children.foreach { child =>
-          child.preOrderVisit {
-            case agg: Aggregation =>
-              failValidation(
-                "It's not allowed to use an aggregate function as " +
-                  "input of another aggregate function")
-            case _ => // OK
-          }
-        }
-      case a: Attribute if !groupingExprs.exists(_.checkEquals(a)) =>
-        failValidation(
-          s"expression '$a' is invalid because it is neither" +
-            " present in group by nor an aggregate function")
-      case e if groupingExprs.exists(_.checkEquals(e)) => // OK
-      case e => e.children.foreach(validateAggregateExpression)
-    }
-
-    def validateGroupingExpression(expr: Expression): Unit = {
-      if (!expr.resultType.isKeyType) {
-        failValidation(
-          s"expression $expr cannot be used as a grouping expression " +
-            "because it's not a valid key type which must be hashable and comparable")
-      }
-    }
-    resolvedAggregate
-  }
-}
-
-case class GroupingAggregation(
     groupingExpressions: Seq[Seq[Expression]],
     aggregateExpressions: Seq[NamedExpression],
-    child: LogicalNode
-  ) extends UnaryNode {
+    child: LogicalNode) extends UnaryNode {
 
   override def output: Seq[Attribute] = {
     (groupingExpressions.flatten.distinct ++ aggregateExpressions) map {
@@ -299,7 +228,8 @@ case class GroupingAggregation(
     relBuilder.aggregate(
       relBuilder.groupKey(
         groupingExpressions.flatten.distinct.map(_.toRexNode(relBuilder)).asJava,
-        true, groupingExpressions.map(_.map(_.toRexNode(relBuilder)).asJava).asJava
+        groupingExpressions.size > 1,
+        groupingExpressions.map(_.map(_.toRexNode(relBuilder)).asJava).asJava
       ),
       aggregateExpressions.map {
         case Alias(agg: Aggregation, name, _) => agg.toAggCall(name)(relBuilder)
@@ -312,7 +242,7 @@ case class GroupingAggregation(
       failValidation(s"Aggregate on stream tables is currently not supported.")
     }
 
-    val resolvedAggregate = super.validate(tableEnv).asInstanceOf[GroupingAggregation]
+    val resolvedAggregate = super.validate(tableEnv).asInstanceOf[Aggregate]
     val groupingExprs = resolvedAggregate.groupingExpressions
     val aggregateExprs = resolvedAggregate.aggregateExpressions
     val resolvedGroupingExprs = groupingExprs.map(_.map {
@@ -350,7 +280,7 @@ case class GroupingAggregation(
             "because it's not a valid key type which must be hashable and comparable")
       }
     }
-    GroupingAggregation(resolvedGroupingExprs, resolvedAggregate.aggregateExpressions, child)
+    Aggregate(resolvedGroupingExprs, resolvedAggregate.aggregateExpressions, child)
   }
 }
 
@@ -605,7 +535,7 @@ case class LogicalRelNode(
 }
 
 case class WindowAggregate(
-    groupingExpressions: Seq[Expression],
+    groupingExpressions: Seq[Seq[Expression]],
     window: LogicalWindow,
     propertyExpressions: Seq[NamedExpression],
     aggregateExpressions: Seq[NamedExpression],
@@ -613,7 +543,7 @@ case class WindowAggregate(
   extends UnaryNode {
 
   override def output: Seq[Attribute] = {
-    (groupingExpressions ++ aggregateExpressions ++ propertyExpressions) map {
+    (groupingExpressions.flatten.distinct ++ aggregateExpressions ++ propertyExpressions) map {
       case ne: NamedExpression => ne.toAttribute
       case e => Alias(e, e.toString).toAttribute
     }
@@ -649,112 +579,10 @@ case class WindowAggregate(
     child.construct(flinkRelBuilder)
     flinkRelBuilder.aggregate(
       window,
-      relBuilder.groupKey(groupingExpressions.map(_.toRexNode(relBuilder)).asJava),
-      propertyExpressions.map {
-        case Alias(prop: WindowProperty, name, _) => prop.toNamedWindowProperty(name)(relBuilder)
-        case _ => throw new RuntimeException("This should never happen.")
-      },
-      aggregateExpressions.map {
-        case Alias(agg: Aggregation, name, _) => agg.toAggCall(name)(relBuilder)
-        case _ => throw new RuntimeException("This should never happen.")
-      }.asJava)
-  }
-
-  override def validate(tableEnv: TableEnvironment): LogicalNode = {
-    val resolvedWindowAggregate = super.validate(tableEnv).asInstanceOf[WindowAggregate]
-    val groupingExprs = resolvedWindowAggregate.groupingExpressions
-    val aggregateExprs = resolvedWindowAggregate.aggregateExpressions
-    aggregateExprs.foreach(validateAggregateExpression)
-    groupingExprs.foreach(validateGroupingExpression)
-
-    def validateAggregateExpression(expr: Expression): Unit = expr match {
-      // check no nested aggregation exists.
-      case aggExpr: Aggregation =>
-        aggExpr.children.foreach { child =>
-          child.preOrderVisit {
-            case agg: Aggregation =>
-              failValidation(
-                "It's not allowed to use an aggregate function as " +
-                  "input of another aggregate function")
-            case _ => // ok
-          }
-        }
-      case a: Attribute if !groupingExprs.exists(_.checkEquals(a)) =>
-        failValidation(
-          s"Expression '$a' is invalid because it is neither" +
-            " present in group by nor an aggregate function")
-      case e if groupingExprs.exists(_.checkEquals(e)) => // ok
-      case e => e.children.foreach(validateAggregateExpression)
-    }
-
-    def validateGroupingExpression(expr: Expression): Unit = {
-      if (!expr.resultType.isKeyType) {
-        failValidation(
-          s"Expression $expr cannot be used as a grouping expression " +
-            "because it's not a valid key type which must be hashable and comparable")
-      }
-    }
-
-    // validate window
-    resolvedWindowAggregate.window.validate(tableEnv) match {
-      case ValidationFailure(msg) =>
-        failValidation(s"$window is invalid: $msg")
-      case ValidationSuccess => // ok
-    }
-
-    resolvedWindowAggregate
-  }
-}
-
-case class GroupingWindowAggregate(
-    groupingExpressions: Seq[Seq[Expression]],
-    window: LogicalWindow,
-    propertyExpressions: Seq[NamedExpression],
-    aggregateExpressions: Seq[NamedExpression],
-    child: LogicalNode
-  ) extends UnaryNode {
-
-  override def output: Seq[Attribute] = {
-    (groupingExpressions.flatten.distinct ++ aggregateExpressions ++ propertyExpressions) map {
-      case ne: NamedExpression => ne.toAttribute
-      case e => Alias(e, e.toString).toAttribute
-    }
-  }
-
-  // resolve references of this operator's parameters
-  override def resolveReference(
-     tableEnv: TableEnvironment,
-     name: String)
-  : Option[NamedExpression] = tableEnv match {
-    // resolve reference to rowtime attribute in a streaming environment
-    case _: StreamTableEnvironment if name == "rowtime" =>
-      Some(RowtimeAttribute())
-    case _ =>
-      window.alias match {
-        // resolve reference to this window's alias
-        case Some(UnresolvedFieldReference(alias)) if name == alias =>
-          // check if reference can already be resolved by input fields
-          val found = super.resolveReference(tableEnv, name)
-          if (found.isDefined) {
-            failValidation(s"Reference $name is ambiguous.")
-          } else {
-            Some(WindowReference(name))
-          }
-        case _ =>
-          // resolve references as usual
-          super.resolveReference(tableEnv, name)
-      }
-  }
-
-  override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
-    val flinkRelBuilder = relBuilder.asInstanceOf[FlinkRelBuilder]
-    child.construct(flinkRelBuilder)
-    val groupingSets = groupingExpressions.map(_.map(_.toRexNode(relBuilder)).toList).toList
-    flinkRelBuilder.aggregate(
-      window,
       relBuilder.groupKey(
-        groupingExpressions.head.map(_.toRexNode(relBuilder)).asJava,
-        true, groupingSets.map(_.asJava).asJava
+        groupingExpressions.flatten.distinct.map(_.toRexNode(relBuilder)).asJava,
+        groupingExpressions.size > 1,
+        groupingExpressions.map(_.map(_.toRexNode(relBuilder)).asJava).asJava
       ),
       propertyExpressions.map {
         case Alias(prop: WindowProperty, name, _) => prop.toNamedWindowProperty(name)(relBuilder)
@@ -767,7 +595,7 @@ case class GroupingWindowAggregate(
   }
 
   override def validate(tableEnv: TableEnvironment): LogicalNode = {
-    val resolvedWindowAggregate = super.validate(tableEnv).asInstanceOf[GroupingWindowAggregate]
+    val resolvedWindowAggregate = super.validate(tableEnv).asInstanceOf[WindowAggregate]
     val groupingExprs = resolvedWindowAggregate.groupingExpressions
     val aggregateExprs = resolvedWindowAggregate.aggregateExpressions
     val resolvedGroupingExprs = groupingExprs.map(_.map {
@@ -813,8 +641,8 @@ case class GroupingWindowAggregate(
       case ValidationSuccess => // ok
     }
 
-    GroupingWindowAggregate(resolvedGroupingExprs, window, propertyExpressions,
-      resolvedWindowAggregate.aggregateExpressions, child)
+    WindowAggregate(resolvedGroupingExprs, window, propertyExpressions,
+                    resolvedWindowAggregate.aggregateExpressions, child)
   }
 }
 

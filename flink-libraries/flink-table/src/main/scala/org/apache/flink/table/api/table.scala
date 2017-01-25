@@ -24,10 +24,9 @@ import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.plan.logical.{Minus => MinusNode}
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.plan.ProjectionTranslator._
-import org.apache.flink.table.plan.logical._
+import org.apache.flink.table.plan.logical.{Minus => MinusNode, _}
 import org.apache.flink.table.sinks.TableSink
 
 import _root_.scala.collection.JavaConverters._
@@ -939,7 +938,7 @@ class GroupedTable(
 
     new Table(table.tableEnv,
       Project(projectsOnAgg,
-        Aggregate(groupKey, aggNames.map(a => Alias(a._1, a._2)).toSeq,
+        Aggregate(Seq(groupKey), aggNames.map(a => Alias(a._1, a._2)).toSeq,
           Project(projectFields, table.logicalPlan).validate(table.tableEnv)
         ).validate(table.tableEnv)
       ).validate(table.tableEnv))
@@ -1009,7 +1008,7 @@ class GroupWindowedTable(
       Project(
         projectsOnAgg,
         WindowAggregate(
-          groupKey,
+          Seq(groupKey),
           window.toLogicalWindow,
           propNames.map(a => Alias(a._1, a._2)).toSeq,
           aggNames.map(a => Alias(a._1, a._2)).toSeq,
@@ -1072,8 +1071,8 @@ class GroupingSetsTable(
 
     val logical =
       Project(projectsOnAgg,
-        GroupingAggregation(groupingSets, aggNames.map(a => Alias(a._1, a._2)).toSeq,
-                            Project(projectFields, table.logicalPlan).validate(table.tableEnv)
+        Aggregate(groupingSets, aggNames.map(a => Alias(a._1, a._2)).toSeq,
+                  Project(projectFields, table.logicalPlan).validate(table.tableEnv)
         ).validate(table.tableEnv)
       ).validate(table.tableEnv)
 
@@ -1153,7 +1152,7 @@ class GroupingSetsWindowedTable(
 
     val logical =
       Project(projectsOnAgg,
-        GroupingWindowAggregate(
+        WindowAggregate(
           groupingSets,
           window.toLogicalWindow,
           propNames.map(a => Alias(a._1, a._2)).toSeq,
