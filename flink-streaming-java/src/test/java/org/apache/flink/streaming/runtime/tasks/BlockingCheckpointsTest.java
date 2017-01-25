@@ -180,11 +180,6 @@ public class BlockingCheckpointsTest {
 
 			throw new UnsupportedOperationException();
 		}
-
-		@Override
-		public void close() throws Exception {
-
-		}
 	}
 
 	private static final class LockingOutputStreamFactory implements CheckpointStreamFactory {

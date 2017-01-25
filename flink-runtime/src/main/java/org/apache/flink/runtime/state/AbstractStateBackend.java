@@ -28,7 +28,7 @@ import java.io.IOException;
 /**
  * A state backend defines how state is stored and snapshotted during checkpoints.
  */
-public abstract class AbstractStateBackend implements java.io.Serializable, AutoCloseable {
+public abstract class AbstractStateBackend implements java.io.Serializable {
 	private static final long serialVersionUID = 4620415814639230247L;
 
 	/**

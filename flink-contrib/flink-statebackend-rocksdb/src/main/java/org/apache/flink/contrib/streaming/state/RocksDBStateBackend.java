@@ -30,7 +30,6 @@ import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.util.AbstractID;
-import org.apache.flink.util.IOUtils;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
 import org.rocksdb.NativeLibraryLoader;
@@ -105,10 +104,6 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 
 	/** The options factory to create the RocksDB options in the cluster */
 	private OptionsFactory optionsFactory;
-
-	/** The options from the options factory, cached */
-	private transient DBOptions dbOptions;
-	private transient ColumnFamilyOptions columnOptions;
 
 	/** Whether we already lazily initialized our local storage directories. */
 	private transient boolean isInitialized = false;
@@ -394,39 +389,33 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 	 * Gets the RocksDB {@link DBOptions} to be used for all RocksDB instances.
 	 */
 	public DBOptions getDbOptions() {
-		if (dbOptions == null) {
-			// initial options from pre-defined profile
-			DBOptions opt = predefinedOptions.createDBOptions();
+		// initial options from pre-defined profile
+		DBOptions opt = predefinedOptions.createDBOptions();
 
-			// add user-defined options, if specified
-			if (optionsFactory != null) {
-				opt = optionsFactory.createDBOptions(opt);
-			}
-
-			// add necessary default options
-			opt = opt.setCreateIfMissing(true);
-
-			dbOptions = opt;
+		// add user-defined options, if specified
+		if (optionsFactory != null) {
+			opt = optionsFactory.createDBOptions(opt);
 		}
-		return dbOptions;
+
+		// add necessary default options
+		opt = opt.setCreateIfMissing(true);
+
+		return opt;
 	}
 
 	/**
 	 * Gets the RocksDB {@link ColumnFamilyOptions} to be used for all RocksDB instances.
 	 */
 	public ColumnFamilyOptions getColumnOptions() {
-		if (columnOptions == null) {
-			// initial options from pre-defined profile
-			ColumnFamilyOptions opt = predefinedOptions.createColumnOptions();
+		// initial options from pre-defined profile
+		ColumnFamilyOptions opt = predefinedOptions.createColumnOptions();
 
-			// add user-defined options, if specified
-			if (optionsFactory != null) {
-				opt = optionsFactory.createColumnOptions(opt);
-			}
-
-			columnOptions = opt;
+		// add user-defined options, if specified
+		if (optionsFactory != null) {
+			opt = optionsFactory.createColumnOptions(opt);
 		}
-		return columnOptions;
+
+		return opt;
 	}
 
 	@Override
@@ -504,12 +493,5 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 		final Field initField = org.rocksdb.NativeLibraryLoader.class.getDeclaredField("initialized");
 		initField.setAccessible(true);
 		initField.setBoolean(null, false);
-	}
-
-	@Override
-	public void close() throws Exception {
-		IOUtils.closeQuietly(dbOptions);
-		IOUtils.closeQuietly(columnOptions);
-		IOUtils.closeQuietly(checkpointStreamBackend);
 	}
 }

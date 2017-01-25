@@ -94,8 +94,11 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(RocksDBKeyedStateBackend.class);
 
-	/** The options from the options factory, cached */
+	/** The column family options from the options factory */
 	private final ColumnFamilyOptions columnOptions;
+
+	/** The DB options from the options factory */
+	private final DBOptions dbOptions;
 
 	/** Path where this configured instance stores its data directory */
 	private final File instanceBasePath;
@@ -141,6 +144,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		super(kvStateRegistry, keySerializer, userCodeClassLoader, numberOfKeyGroups, keyGroupRange);
 		this.columnOptions = Preconditions.checkNotNull(columnFamilyOptions);
+		this.dbOptions = Preconditions.checkNotNull(dbOptions);
 
 		this.instanceBasePath = Preconditions.checkNotNull(instanceBasePath);
 		this.instanceRocksDBPath = new File(instanceBasePath, "db");
@@ -214,6 +218,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				db = null;
 			}
 		}
+
+		IOUtils.closeQuietly(columnOptions);
+		IOUtils.closeQuietly(dbOptions);
 
 		try {
 			FileUtils.deleteDirectory(instanceBasePath);
@@ -783,7 +790,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	 * we don't restore the individual k/v states, just the global RocksDB data base and the
 	 * list of column families. When a k/v state is first requested we check here whether we
 	 * already have a column family for that and return it or create a new one if it doesn't exist.
-	 * <p>
+	 *
 	 * <p>This also checks whether the {@link StateDescriptor} for a state matches the one
 	 * that we checkpointed, i.e. is already in the map of column families.
 	 */
