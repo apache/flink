@@ -1736,11 +1736,11 @@ object TaskManager {
       taskManagerClass: Class[_ <: TaskManager])
     : Unit = {
 
-    LOG.info(s"Starting TaskManager")
+    LOG.info("Starting TaskManager")
 
     // Bring up the TaskManager actor system first, bind it to the given address.
-    
-    LOG.info("Starting TaskManager actor system at {}:{}.", taskManagerHostname, actorSystemPort)
+
+    LOG.info(s"Starting TaskManager actor system at $taskManagerHostname:$actorSystemPort.")
 
     val taskManagerSystem = try {
       val akkaConfig = AkkaUtils.getAkkaConfig(
