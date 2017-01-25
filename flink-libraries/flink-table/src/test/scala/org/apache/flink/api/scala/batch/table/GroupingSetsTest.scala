@@ -120,7 +120,7 @@ class GroupingSetsTest {
 
     val results1 = t1.toDataSet[Row].map(_.toString).collect()
     val results2 = t2.toDataSet[Row].map(_.toString).collect()
-    TestBaseUtils.compareResultCollections(results1.asJava, results2.asJava)
+    compareResultCollections(results1, results2)
   }
 
   @Test
@@ -145,6 +145,17 @@ class GroupingSetsTest {
 
     val results1 = t1.toDataSet[Row].map(_.toString).collect()
     val results2 = t2.toDataSet[Row].map(_.toString).collect()
-    TestBaseUtils.compareResultCollections(results1.asJava, results2.asJava)
+    compareResultCollections(results1, results2)
+  }
+
+  def compareResultCollections(expected: Seq[String], actual: Seq[String]): Unit = {
+    Assert.assertEquals(expected.size, actual.size)
+    val expectedSorted = expected.sorted
+    val actualSorted = actual.sorted
+    expectedSorted.zip(actualSorted)
+      .foreach {
+        case (expectedString, actualString) =>
+          Assert.assertEquals(expectedString, actualString)
+      }
   }
 }
