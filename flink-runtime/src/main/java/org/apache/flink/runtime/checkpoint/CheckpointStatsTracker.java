@@ -27,7 +27,6 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
 
 import javax.annotation.Nullable;
-import java.io.Serializable;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
@@ -52,9 +51,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>The statistics are accessed via {@link #createSnapshot()} and exposed via
  * both the web frontend and the {@link Metric} system.
  */
-public class CheckpointStatsTracker implements Serializable {
-
-	private static final long serialVersionUID = 1694085244807339288L;
+public class CheckpointStatsTracker {
 
 	/**
 	 * Lock used to update stats and creating snapshots. Updates always happen
@@ -66,9 +63,6 @@ public class CheckpointStatsTracker implements Serializable {
 	 * multiple concurrent Netty event loop Threads of the web runtime monitor.
 	 */
 	private final ReentrantLock statsReadWriteLock = new ReentrantLock();
-
-	/** The job vertices taking part in the checkpoints. */
-	private final List<ExecutionJobVertex> jobVertices;
 
 	/** Total number of subtasks to checkpoint. */
 	private final int totalSubtaskCount;
@@ -84,6 +78,9 @@ public class CheckpointStatsTracker implements Serializable {
 
 	/** History of checkpoints. */
 	private final CheckpointStatsHistory history;
+
+	/** The job vertices taking part in the checkpoints. */
+	private final transient List<ExecutionJobVertex> jobVertices;
 
 	/** The latest restored checkpoint. */
 	@Nullable
@@ -217,6 +214,11 @@ public class CheckpointStatsTracker implements Serializable {
 		return pending;
 	}
 
+	/**
+	 * Callback when a checkpoint is restored.
+	 *
+	 * @param restored The restored checkpoint stats.
+	 */
 	void reportRestoredCheckpoint(RestoredCheckpointStats restored) {
 		checkNotNull(restored, "Restored checkpoint");
 
