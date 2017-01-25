@@ -58,8 +58,8 @@ public class GlobFilePathFilter extends FilePathFilter {
 
 	// Path matchers are not serializable so we are delaying their
 	// creation until they are used
-	private ArrayList<PathMatcher> includeMatchers;
-	private ArrayList<PathMatcher> excludeMatchers;
+	transient private ArrayList<PathMatcher> includeMatchers;
+	transient private ArrayList<PathMatcher> excludeMatchers;
 
 	/**
 	 * Constructor for GlobFilePathFilter that will match all files
@@ -76,7 +76,7 @@ public class GlobFilePathFilter extends FilePathFilter {
 	 */
 	public GlobFilePathFilter(List<String> includePatterns, List<String> excludePatterns) {
 		this.includePatterns = Preconditions.checkNotNull(includePatterns);
-		this.excludePatterns = Preconditions.checkNotNull(excludePatterns)	;
+		this.excludePatterns = Preconditions.checkNotNull(excludePatterns);
 	}
 
 	private ArrayList<PathMatcher> buildPatterns(List<String> patterns) {
@@ -112,14 +112,14 @@ public class GlobFilePathFilter extends FilePathFilter {
 		return true;
 	}
 
-	public ArrayList<PathMatcher> getIncludeMatchers() {
+	private ArrayList<PathMatcher> getIncludeMatchers() {
 		if (includeMatchers == null) {
 			includeMatchers = buildPatterns(includePatterns);
 		}
 		return includeMatchers;
 	}
 
-	public ArrayList<PathMatcher> getExcludeMatchers() {
+	private ArrayList<PathMatcher> getExcludeMatchers() {
 		if (excludeMatchers == null) {
 			excludeMatchers = buildPatterns(excludePatterns);
 		}

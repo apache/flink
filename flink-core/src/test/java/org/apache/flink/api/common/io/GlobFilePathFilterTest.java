@@ -18,11 +18,10 @@
 package org.apache.flink.api.common.io;
 
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.testutils.CommonTestUtils;
 import org.junit.Test;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.ObjectOutputStream;
 import java.util.Collections;
 
 import static org.junit.Assert.assertFalse;
@@ -162,9 +161,6 @@ public class GlobFilePathFilterTest {
 			Collections.singletonList("**"),
 			Collections.<String>emptyList());
 
-		ByteArrayOutputStream outStream = new ByteArrayOutputStream();
-		ObjectOutputStream out = new ObjectOutputStream(outStream);
-		out.writeObject(matcher);
-		out.close();
+		CommonTestUtils.createCopySerializable(matcher);
 	}
 }
