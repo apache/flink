@@ -25,16 +25,28 @@ import org.apache.flink.util.Collector;
 
 import java.util.Collections;
 
+/**
+ * A {@link WindowFunction} that composes an {@link AggregateFunction} and {@link WindowFunction}.
+ * Upon invocation, this first applies {@code AggregateFunction} to the input, and then
+ * finally the {@code WindowFunction} to the single result element.
+ * 
+ * @param <K> The key type
+ * @param <W> The window type
+ * @param <T> The type of the input to the AggregateFunction
+ * @param <ACC> The type of the AggregateFunction's accumulator
+ * @param <V> The type of the AggregateFunction's result, and the input to the WindowFunction
+ * @param <R> The result type of the WindowFunction
+ */
 @Internal
-public class AggregateApplyWindowFunction<K, W extends Window, T, ACC, R>
-	extends WrappingFunction<WindowFunction<R, R, K, W>>
+public class AggregateApplyWindowFunction<K, W extends Window, T, ACC, V, R>
+	extends WrappingFunction<WindowFunction<V, R, K, W>>
 	implements WindowFunction<T, R, K, W> {
 
 	private static final long serialVersionUID = 1L;
 
-	private final AggregateFunction<T, ACC, R> aggFunction;
+	private final AggregateFunction<T, ACC, V> aggFunction;
 
-	public AggregateApplyWindowFunction(AggregateFunction<T, ACC, R> aggFunction, WindowFunction<R, R, K, W> windowFunction) {
+	public AggregateApplyWindowFunction(AggregateFunction<T, ACC, V> aggFunction, WindowFunction<V, R, K, W> windowFunction) {
 		super(windowFunction);
 		this.aggFunction = aggFunction;
 	}

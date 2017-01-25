@@ -19,7 +19,7 @@
 package org.apache.flink.streaming.api.scala
 
 import org.apache.flink.annotation.{PublicEvolving, Public}
-import org.apache.flink.api.common.functions.{FoldFunction, ReduceFunction}
+import org.apache.flink.api.common.functions.{AggregateFunction, FoldFunction, ReduceFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.datastream.{WindowedStream => JavaWStream}
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction.AggregationType
@@ -98,6 +98,8 @@ class WindowedStream[T, K, W <: Window](javaStream: JavaWStream[T, K, W]) {
   //  Operations on the keyed windows
   // ------------------------------------------------------------------------
 
+  // --------------------------- reduce() -----------------------------------
+  
   /**
    * Applies a reduce function to the window. The window function is called for each evaluation
    * of the window for each key individually. The output of the reduce function is interpreted
@@ -196,6 +198,86 @@ class WindowedStream[T, K, W <: Window](javaStream: JavaWStream[T, K, W]) {
     asScalaStream(javaStream.reduce(reducer, applyFunction, implicitly[TypeInformation[R]]))
   }
 
+  // -------------------------- aggregate() ---------------------------------
+
+  /**
+   * Applies the given aggregation function to each window and key. The aggregation function 
+   * is called for each element, aggregating values incrementally and keeping the state to
+   * one accumulator per key and window.
+   *
+   * @param aggregateFunction The aggregation function.
+   * @return The data stream that is the result of applying the fold function to the window.
+   */
+  def aggregate[ACC: TypeInformation, R: TypeInformation]
+      (aggregateFunction: AggregateFunction[T, ACC, R]): DataStream[R] = {
+
+    val accumulatorType: TypeInformation[ACC] = implicitly[TypeInformation[ACC]]
+    val resultType: TypeInformation[R] = implicitly[TypeInformation[R]]
+    
+    asScalaStream(javaStream.aggregate(
+      clean(aggregateFunction), accumulatorType, resultType))
+  }
+
+  /**
+   * Applies the given window function to each window. The window function is called for each
+   * evaluation of the window for each key individually. The output of the window function is
+   * interpreted as a regular non-windowed stream.
+   *
+   * Arriving data is pre-aggregated using the given aggregation function.
+   *
+   * @param preAggregator The aggregation function that is used for pre-aggregation
+   * @param windowFunction The window function.
+   * @return The data stream that is the result of applying the window function to the window.
+   */
+  def aggregate[ACC: TypeInformation, V: TypeInformation, R: TypeInformation]
+      (preAggregator: AggregateFunction[T, ACC, V],
+       windowFunction: WindowFunction[V, R, K, W]): DataStream[R] = {
+
+    val cleanedPreAggregator = clean(preAggregator)
+    val cleanedWindowFunction = clean(windowFunction)
+
+    val applyFunction = new ScalaWindowFunctionWrapper[V, R, K, W](cleanedWindowFunction)
+
+    val accumulatorType: TypeInformation[ACC] = implicitly[TypeInformation[ACC]]
+    val aggregationResultType: TypeInformation[V] = implicitly[TypeInformation[V]]
+    val resultType: TypeInformation[R] = implicitly[TypeInformation[R]]
+    
+    asScalaStream(javaStream.aggregate(
+      cleanedPreAggregator, applyFunction,
+      accumulatorType, aggregationResultType, resultType))
+  }
+
+  /**
+   * Applies the given window function to each window. The window function is called for each
+   * evaluation of the window for each key individually. The output of the window function is
+   * interpreted as a regular non-windowed stream.
+   *
+   * Arriving data is pre-aggregated using the given aggregation function.
+   *
+   * @param preAggregator The aggregation function that is used for pre-aggregation
+   * @param windowFunction The window function.
+   * @return The data stream that is the result of applying the window function to the window.
+   */
+  def aggregate[ACC: TypeInformation, V: TypeInformation, R: TypeInformation]
+      (preAggregator: AggregateFunction[T, ACC, V],
+       windowFunction: (K, W, Iterable[V], Collector[R]) => Unit): DataStream[R] = {
+
+    val cleanedPreAggregator = clean(preAggregator)
+    val cleanedWindowFunction = clean(windowFunction)
+
+    val applyFunction = new ScalaWindowFunction[V, R, K, W](cleanedWindowFunction)
+
+    val accumulatorType: TypeInformation[ACC] = implicitly[TypeInformation[ACC]]
+    val aggregationResultType: TypeInformation[V] = implicitly[TypeInformation[V]]
+    val resultType: TypeInformation[R] = implicitly[TypeInformation[R]]
+
+    asScalaStream(javaStream.aggregate(
+      cleanedPreAggregator, applyFunction,
+      accumulatorType, aggregationResultType, resultType))
+  }
+
+  // ---------------------------- fold() ------------------------------------
+  
   /**
    * Applies the given fold function to each window. The window function is called for each
    * evaluation of the window for each key individually. The output of the reduce function is
@@ -296,6 +378,8 @@ class WindowedStream[T, K, W <: Window](javaStream: JavaWStream[T, K, W]) {
     val accType: TypeInformation[ACC] = implicitly[TypeInformation[ACC]]
     asScalaStream(javaStream.fold(initialValue, folder, applyFunction, accType, resultType))
   }
+
+  // ---------------------------- apply() -------------------------------------
 
   /**
    * Applies the given window function to each window. The window function is called for each
@@ -472,70 +556,66 @@ class WindowedStream[T, K, W <: Window](javaStream: JavaWStream[T, K, W]) {
    * Applies an aggregation that that gives the maximum of the elements in the window at
    * the given position.
    */
-  def max(position: Int): DataStream[T] = aggregate(AggregationType.MAX, position)
+  def max(position: Int): DataStream[T] = builtinAggregate(AggregationType.MAX, position)
 
   /**
    * Applies an aggregation that that gives the maximum of the elements in the window at
    * the given field.
    */
-  def max(field: String): DataStream[T] = aggregate(AggregationType.MAX, field)
+  def max(field: String): DataStream[T] = builtinAggregate(AggregationType.MAX, field)
 
   /**
    * Applies an aggregation that that gives the minimum of the elements in the window at
    * the given position.
    */
-  def min(position: Int): DataStream[T] = aggregate(AggregationType.MIN, position)
+  def min(position: Int): DataStream[T] = builtinAggregate(AggregationType.MIN, position)
 
   /**
    * Applies an aggregation that that gives the minimum of the elements in the window at
    * the given field.
    */
-  def min(field: String): DataStream[T] = aggregate(AggregationType.MIN, field)
+  def min(field: String): DataStream[T] = builtinAggregate(AggregationType.MIN, field)
 
   /**
    * Applies an aggregation that sums the elements in the window at the given position.
    */
-  def sum(position: Int): DataStream[T] = aggregate(AggregationType.SUM, position)
+  def sum(position: Int): DataStream[T] = builtinAggregate(AggregationType.SUM, position)
 
   /**
    * Applies an aggregation that sums the elements in the window at the given field.
    */
-  def sum(field: String): DataStream[T] = aggregate(AggregationType.SUM, field)
+  def sum(field: String): DataStream[T] = builtinAggregate(AggregationType.SUM, field)
 
   /**
    * Applies an aggregation that that gives the maximum element of the window by
    * the given position. When equality, returns the first.
    */
-  def maxBy(position: Int): DataStream[T] = aggregate(AggregationType.MAXBY,
-    position)
+  def maxBy(position: Int): DataStream[T] = builtinAggregate(AggregationType.MAXBY, position)
 
   /**
    * Applies an aggregation that that gives the maximum element of the window by
    * the given field. When equality, returns the first.
    */
-  def maxBy(field: String): DataStream[T] = aggregate(AggregationType.MAXBY,
-    field)
+  def maxBy(field: String): DataStream[T] = builtinAggregate(AggregationType.MAXBY, field)
 
   /**
    * Applies an aggregation that that gives the minimum element of the window by
    * the given position. When equality, returns the first.
    */
-  def minBy(position: Int): DataStream[T] = aggregate(AggregationType.MINBY,
-    position)
+  def minBy(position: Int): DataStream[T] = builtinAggregate(AggregationType.MINBY, position)
 
   /**
    * Applies an aggregation that that gives the minimum element of the window by
    * the given field. When equality, returns the first.
    */
-  def minBy(field: String): DataStream[T] = aggregate(AggregationType.MINBY,
-    field)
+  def minBy(field: String): DataStream[T] = builtinAggregate(AggregationType.MINBY, field)
 
-  private def aggregate(aggregationType: AggregationType, field: String): DataStream[T] = {
+  private def builtinAggregate(aggregationType: AggregationType, field: String): DataStream[T] = {
     val position = fieldNames2Indices(getInputType(), Array(field))(0)
-    aggregate(aggregationType, position)
+    builtinAggregate(aggregationType, position)
   }
 
-  def aggregate(aggregationType: AggregationType, position: Int): DataStream[T] = {
+  private def builtinAggregate(aggregationType: AggregationType, position: Int): DataStream[T] = {
 
     val jStream = javaStream.asInstanceOf[JavaWStream[Product, K, W]]
 
