@@ -128,7 +128,7 @@ public class UnorderedStreamElementQueue implements StreamElementQueue {
 
 				return true;
 			} else {
-				LOG.debug("Failed to put element into ordered stream element queue because it " +
+				LOG.debug("Failed to put element into unordered stream element queue because it " +
 					"was full ({}/{}).", numberEntries, capacity);
 
 				return false;
