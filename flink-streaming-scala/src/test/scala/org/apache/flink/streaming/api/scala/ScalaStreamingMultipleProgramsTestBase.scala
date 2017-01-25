@@ -21,18 +21,20 @@ package org.apache.flink.streaming.api.scala
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster
 import org.apache.flink.streaming.util.TestStreamEnvironment
 import org.apache.flink.test.util.TestBaseUtils
-import org.scalatest.BeforeAndAfterAll
+
+import org.junit.{After, Before}
+
 import org.scalatest.junit.JUnitSuiteLike
 
 trait ScalaStreamingMultipleProgramsTestBase
   extends TestBaseUtils
-  with  JUnitSuiteLike
-  with BeforeAndAfterAll {
+  with  JUnitSuiteLike {
 
   val parallelism = 4
   var cluster: Option[LocalFlinkMiniCluster] = None
 
-  override protected def beforeAll(): Unit = {
+  @Before
+  def beforeAll(): Unit = {
     val cluster = Some(
       TestBaseUtils.startCluster(
         1,
@@ -43,10 +45,12 @@ trait ScalaStreamingMultipleProgramsTestBase
       )
     )
 
-    val clusterEnvironment = new TestStreamEnvironment(cluster.get, parallelism)
+    TestStreamEnvironment.setAsContext(cluster.get, parallelism)
   }
 
-  override protected def afterAll(): Unit = {
+  @After
+  def afterAll(): Unit = {
+    TestStreamEnvironment.unsetAsContext()
     cluster.foreach {
       TestBaseUtils.stopCluster(_, TestBaseUtils.DEFAULT_TIMEOUT)
     }
