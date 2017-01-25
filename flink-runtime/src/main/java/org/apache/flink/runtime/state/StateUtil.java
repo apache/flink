@@ -78,7 +78,9 @@ public class StateUtil {
 			if (!stateFuture.cancel(true)) {
 				StateObject stateObject = FutureUtil.runIfNotDoneAndGet(stateFuture);
 
-				stateObject.discardState();
+				if (null != stateObject) {
+					stateObject.discardState();
+				}
 			}
 		}
 	}
