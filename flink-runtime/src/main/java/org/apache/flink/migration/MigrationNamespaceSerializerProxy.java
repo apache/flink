@@ -25,9 +25,16 @@ import org.apache.flink.core.memory.DataOutputView;
 import java.io.IOException;
 import java.io.Serializable;
 
+/**
+ * The purpose of this class is the be filled in as a placeholder for the namespace serializer when migrating from
+ * Flink 1.1 savepoint (which did not include the namespace serializer) to Flink 1.2 (which always must include a
+ * (non-null) namespace serializer. This is then replaced as soon as the user is re-registering her state again for
+ * the first run under Flink 1.2 and provides again the real namespace serializer.
+ */
+@Deprecated
 public class MigrationNamespaceSerializerProxy extends TypeSerializer<Serializable> {
 
-	public static MigrationNamespaceSerializerProxy INSTANCE = new MigrationNamespaceSerializerProxy();
+	public static final MigrationNamespaceSerializerProxy INSTANCE = new MigrationNamespaceSerializerProxy();
 
 	private static final long serialVersionUID = -707800010807094491L;
 
@@ -41,7 +48,8 @@ public class MigrationNamespaceSerializerProxy extends TypeSerializer<Serializab
 
 	@Override
 	public TypeSerializer<Serializable> duplicate() {
-		return new MigrationNamespaceSerializerProxy();
+		throw new UnsupportedOperationException(
+				"This is just a proxy used during migration until the real type serializer is provided by the user.");
 	}
 
 	@Override

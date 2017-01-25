@@ -96,6 +96,7 @@ public class RegisteredBackendStateMetaInfo<N, S> {
 
 		return (stateSerializer.isCompatibleWith(other.stateSerializer)) &&
 				(namespaceSerializer.isCompatibleWith(other.namespaceSerializer)
+						// we also check if there is just a migration proxy that should be replaced by any real serializer
 						|| other.namespaceSerializer instanceof MigrationNamespaceSerializerProxy);
 	}
 
