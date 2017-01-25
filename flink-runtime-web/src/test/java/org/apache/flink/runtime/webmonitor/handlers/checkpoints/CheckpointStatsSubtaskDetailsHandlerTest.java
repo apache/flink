@@ -24,7 +24,6 @@ import org.apache.flink.runtime.checkpoint.AbstractCheckpointStats;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsHistory;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsStatus;
-import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.MinMaxAvgStats;
 import org.apache.flink.runtime.checkpoint.PendingCheckpointStats;
 import org.apache.flink.runtime.checkpoint.SubtaskStateStats;
@@ -129,9 +128,7 @@ public class CheckpointStatsSubtaskDetailsHandlerTest {
 		when(snapshot.getHistory()).thenReturn(history);
 
 		AccessExecutionGraph graph = mock(AccessExecutionGraph.class);
-		CheckpointStatsTracker tracker = mock(CheckpointStatsTracker.class);
-		when(graph.getCheckpointStatsTracker()).thenReturn(tracker);
-		when(tracker.createSnapshot()).thenReturn(snapshot);
+		when(graph.getCheckpointStatsSnapshot()).thenReturn(snapshot);
 
 		CheckpointStatsDetailsSubtasksHandler handler = new CheckpointStatsDetailsSubtasksHandler(mock(ExecutionGraphHolder.class), new CheckpointStatsCache(0));
 		Map<String, String> params = new HashMap<>();
@@ -186,9 +183,7 @@ public class CheckpointStatsSubtaskDetailsHandlerTest {
 		when(snapshot.getHistory()).thenReturn(history);
 
 		AccessExecutionGraph graph = mock(AccessExecutionGraph.class);
-		CheckpointStatsTracker tracker = mock(CheckpointStatsTracker.class);
-		when(graph.getCheckpointStatsTracker()).thenReturn(tracker);
-		when(tracker.createSnapshot()).thenReturn(snapshot);
+		when(graph.getCheckpointStatsSnapshot()).thenReturn(snapshot);
 
 		CheckpointStatsDetailsSubtasksHandler handler = new CheckpointStatsDetailsSubtasksHandler(mock(ExecutionGraphHolder.class), new CheckpointStatsCache(0));
 		Map<String, String> params = new HashMap<>();
@@ -209,9 +204,7 @@ public class CheckpointStatsSubtaskDetailsHandlerTest {
 		when(snapshot.getHistory()).thenReturn(history);
 
 		AccessExecutionGraph graph = mock(AccessExecutionGraph.class);
-		CheckpointStatsTracker tracker = mock(CheckpointStatsTracker.class);
-		when(graph.getCheckpointStatsTracker()).thenReturn(tracker);
-		when(tracker.createSnapshot()).thenReturn(snapshot);
+		when(graph.getCheckpointStatsSnapshot()).thenReturn(snapshot);
 
 		CheckpointStatsDetailsSubtasksHandler handler = new CheckpointStatsDetailsSubtasksHandler(mock(ExecutionGraphHolder.class), new CheckpointStatsCache(0));
 		Map<String, String> params = new HashMap<>();
