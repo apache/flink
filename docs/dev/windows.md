@@ -32,7 +32,7 @@ while the second to *non-keyed* ones. As one can see, the only difference is the
 and the `window(...)` which becomes `windowAll(...)` for non-keyed streams. These is also going to serve as a roadmap 
 for the rest of the page.
 
-    //----------------------    KEYED STREAMS   ----------------------//
+    //----------------------    KEYED WINDOWS   ----------------------//
     
     stream
            .keyBy(...)          <-  keyed versus non-keyed windows
@@ -44,7 +44,7 @@ for the rest of the page.
 
  <!-- html comment to separate the two snippets -->
 
-    //--------------------    NON-KEYED STREAMS   --------------------//
+    //--------------------    NON-KEYED WINDOWS   --------------------//
     
     stream
            .windowAll(...)      <-  required: "assigner"
@@ -102,9 +102,8 @@ will be performed by a single task, *i.e.* with parallelism of 1.
 ## Window Assigners
 
 After specifying whether your stream is keyed or not, the next step is to define a *window assigner*. 
-The window assigner defines how elements are assigned to windows. This is done by specifying the 
-`WindowAssigner` that corresponds to the windowing strategy of your choice in the `window(...)` (for *keyed* streams)
-or the `windowAll()` (for *non-keyed* streams) call. 
+The window assigner defines how elements are assigned to windows. This is done by specifying the `WindowAssigner` 
+of your choice in the `window(...)` (for *keyed* streams) or the `windowAll()` (for *non-keyed* streams) call. 
 
 A `WindowAssigner` is responsible for assigning each incoming element to one or more windows. Flink comes
 with pre-defined window assigners for the most common use cases, namely *tumbling windows*,
@@ -276,7 +275,7 @@ The *session windows* assigner groups elements by sessions of activity. Session 
 do not have a fixed start and end time, in contrast to *tumbling windows* and *sliding windows*. Instead a 
 session window closes when it does not receive elements for a certain period of time, *i.e.*, when a gap of 
 inactivity occurred. A session window assigner is configured with the *session gap* which
-defines how long is the required period of inactivity. After this period expires, the current session closes 
+defines how long is the required period of inactivity. When this period expires, the current session closes 
 and subsequent elements are assigned to a new session window.
 
 <img src="{{ site.baseurl }}/fig/session-windows.svg" class="center" style="width: 80%;" />
@@ -330,7 +329,7 @@ creates a new window for each arriving record and merges windows together if the
 than the defined gap.
 In order to be mergeable, a session window operator requires a merging [Trigger](#triggers) and a merging 
 [Window Function](#window-functions), such as `ReduceFunction` or `WindowFunction` 
-(`FoldFunction` is not mergeable.)
+(`FoldFunction` cannot merge.)
 
 ### Global Windows
 
@@ -722,11 +721,11 @@ The trigger interface has five methods that allow a `Trigger` to react to differ
 
 Two things to notice about the above methods are:
 
-1) The first three can return a `TriggerResult`, *i.e.* take action as a response to their corresponding event. The action can be one of the following: 
+1) The first three decide how to act on their invocation event by returning a `TriggerResult`. The action can be one of the following: 
 * `CONTINUE`: do nothing, 
 * `FIRE`: trigger the computation, 
 * `PURGE`: clear the elements in the window, and 
-* `FIRE_AND_PURGE`: take both previous actions.
+* `FIRE_AND_PURGE`: trigger the computation and clear the elements in the window afterwards.
 
 2) Any of these methods can be used to register processing- or event-time timers for future actions. 
 
@@ -740,7 +739,7 @@ Windows with `ReduceFunction` of `FoldFunction` simply emit their eagerly aggreg
 When a trigger fires, it can either `FIRE` or `FIRE_AND_PURGE`. While `FIRE` keeps the contents of the window, `FIRE_AND_PURGE` removes its content.
 By default, the pre-implemented triggers simply `FIRE` without purging the window state.
 
-<span class="label label-danger">Attention</span> Purging will simply remove the contents of the window and will leave any eventual meta-information about the window and any trigger state intact.
+<span class="label label-danger">Attention</span> Purging will simply remove the contents of the window and will leave any potential meta-information about the window and any trigger state intact.
 
 ### Default Triggers of WindowAssigners
 
@@ -829,8 +828,8 @@ discussion of how Flink deals with event time.
 By default, late elements are dropped when the watermark is past the end of the window. However, 
 Flink allows to specify a maximum *allowed lateness* for window operators. Allowed lateness 
 specifies by how much time elements can be late before they are dropped, and its default value is 0. 
-Elements that arrive after the watermark is past the end of the window but before it passes the end of 
-window plus the allowed lateness, are still added to the window. Depending on the trigger used, 
+Elements that arrive after the watermark has passed the end of the window but before it passes the end of 
+the window plus the allowed lateness, are still added to the window. Depending on the trigger used, 
 a late but not dropped element may cause the window to fire again. This is the case for the `EventTimeTrigger`.
 
 In order to make this work, Flink keeps the state of windows until their allowed lateness expires. Once this happens, Flink removes the window and deletes its state, as 
