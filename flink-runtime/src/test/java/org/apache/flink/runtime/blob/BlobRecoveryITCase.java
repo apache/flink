@@ -18,15 +18,14 @@
 
 package org.apache.flink.runtime.blob;
 
-import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
-import org.junit.After;
-import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.InputStream;
@@ -35,25 +34,12 @@ import java.util.Arrays;
 import java.util.Random;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
 public class BlobRecoveryITCase {
 
-	private File recoveryDir;
-
-	@Before
-	public void setUp() throws Exception {
-		recoveryDir = new File(FileUtils.getTempDirectory(), "BlobRecoveryITCaseDir");
-		if (!recoveryDir.exists() && !recoveryDir.mkdirs()) {
-			throw new IllegalStateException("Failed to create temp directory for test");
-		}
-	}
-
-	@After
-	public void cleanUp() throws Exception {
-		if (recoveryDir != null) {
-			FileUtils.deleteDirectory(recoveryDir);
-		}
-	}
+	@Rule
+	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	/**
 	 * Tests that with {@link HighAvailabilityMode#ZOOKEEPER} distributed JARs are recoverable from any
@@ -67,12 +53,12 @@ public class BlobRecoveryITCase {
 		InetSocketAddress[] serverAddress = new InetSocketAddress[2];
 		BlobClient client = null;
 
-		try {
-			Configuration config = new Configuration();
-			config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
-			config.setString(ConfigConstants.STATE_BACKEND, "FILESYSTEM");
-			config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, recoveryDir.getPath());
+		Configuration config = new Configuration();
+		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
+		config.setString(ConfigConstants.STATE_BACKEND, "FILESYSTEM");
+		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, temporaryFolder.getRoot().getPath());
 
+		try {
 			for (int i = 0; i < server.length; i++) {
 				server[i] = new BlobServer(config);
 				serverAddress[i] = new InetSocketAddress("localhost", server[i].getPort());
@@ -159,8 +145,12 @@ public class BlobRecoveryITCase {
 			}
 		}
 
-		// Verify everything is clean
-		File[] recoveryFiles = recoveryDir.listFiles();
-		assertEquals("Unclean state backend: " + Arrays.toString(recoveryFiles), 0, recoveryFiles.length);
+		// Verify everything is clean below recoveryDir/<cluster_id>
+		final String clusterId = config.getString(HighAvailabilityOptions.HA_CLUSTER_ID);
+		File haBlobStoreDir = new File(temporaryFolder.getRoot(), clusterId);
+		File[] recoveryFiles = haBlobStoreDir.listFiles();
+		assertNotNull("HA storage directory does not exist", recoveryFiles);
+		assertEquals("Unclean state backend: " + Arrays.toString(recoveryFiles),
+			0, recoveryFiles.length);
 	}
 }

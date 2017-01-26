@@ -21,10 +21,6 @@ package org.apache.flink.runtime.blob;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.HighAvailabilityOptions;
-import org.apache.flink.configuration.IllegalConfigurationException;
-import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.net.SSLUtils;
@@ -49,8 +45,8 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.StringUtils.isNullOrWhitespaceOnly;
 
 /**
  * This class implements the BLOB server. The BLOB server is responsible for listening for incoming requests and
@@ -77,10 +73,10 @@ public class BlobServer extends Thread implements BlobService {
 	/** Indicates whether a shutdown of server component has been requested. */
 	private final AtomicBoolean shutdownRequested = new AtomicBoolean();
 
-	/** Is the root directory for file storage */
+	/** Root directory for local file storage */
 	private final File storageDir;
 
-	/** Blob store for HA */
+	/** Blob store for distributed file storage, e.g. in HA */
 	private final BlobStore blobStore;
 
 	/** Set of currently running threads */
@@ -99,10 +95,11 @@ public class BlobServer extends Thread implements BlobService {
 	 * Instantiates a new BLOB server and binds it to a free network port.
 	 *
 	 * @throws IOException
-	 *         thrown if the BLOB server cannot bind to a free network port
+	 * 		thrown if the BLOB server cannot bind to a free network port or if the
+	 * 		(local or distributed) file storage cannot be created or is not usable
 	 */
 	public BlobServer(Configuration config) throws IOException {
-		this(config, createBlobStoreFromConfig(config));
+		this(config, BlobUtils.createBlobStoreFromConfig(config));
 	}
 
 	public BlobServer(Configuration config, HighAvailabilityServices haServices) throws IOException {
@@ -110,10 +107,8 @@ public class BlobServer extends Thread implements BlobService {
 	}
 
 	private BlobServer(Configuration config, BlobStore blobStore) throws IOException {
-		checkNotNull(config);
+		this.blobServiceConfiguration = checkNotNull(config);
 		this.blobStore = checkNotNull(blobStore);
-
-		this.blobServiceConfiguration = config;
 
 		// configure and create the storage directory
 		String storageDirectory = config.getString(ConfigConstants.BLOB_STORAGE_DIRECTORY_KEY, null);
@@ -358,9 +353,7 @@ public class BlobServer extends Thread implements BlobService {
 	 */
 	@Override
 	public URL getURL(BlobKey requiredBlob) throws IOException {
-		if (requiredBlob == null) {
-			throw new IllegalArgumentException("Required BLOB cannot be null.");
-		}
+		checkArgument(requiredBlob != null, "BLOB key cannot be null.");
 
 		final File localFile = BlobUtils.getStorageLocation(storageDir, requiredBlob);
 
@@ -450,37 +443,4 @@ public class BlobServer extends Thread implements BlobService {
 		}
 	}
 
-	private static BlobStore createBlobStoreFromConfig(Configuration config) throws IOException {
-		HighAvailabilityMode highAvailabilityMode = HighAvailabilityMode.fromConfig(config);
-
-		if (highAvailabilityMode == HighAvailabilityMode.NONE) {
-		return new VoidBlobStore();
-		} else if (highAvailabilityMode == HighAvailabilityMode.ZOOKEEPER) {
-			final String storagePath = config.getValue(HighAvailabilityOptions.HA_STORAGE_PATH);
-			if (isNullOrWhitespaceOnly(storagePath)) {
-				throw new IllegalConfigurationException("Configuration is missing the mandatory parameter: " +
-						HighAvailabilityOptions.HA_STORAGE_PATH);
-			}
-
-			final Path path;
-			try {
-				path = new Path(storagePath);
-			} catch (Exception e) {
-				throw new IOException("Invalid path for highly available storage (" +
-						HighAvailabilityOptions.HA_STORAGE_PATH.key() + ')', e);
-			}
-
-			final FileSystem fileSystem;
-			try {
-				fileSystem = path.getFileSystem();
-			} catch (Exception e) {
-				throw new IOException("Could not create FileSystem for highly available storage (" +
-						HighAvailabilityOptions.HA_STORAGE_PATH.key() + ')', e);
-			}
-
-			return new FileSystemBlobStore(fileSystem, storagePath);
-		} else {
-			throw new IllegalConfigurationException("Unexpected high availability mode '" + highAvailabilityMode + ".");
-		}
-	}
 }
