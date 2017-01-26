@@ -51,7 +51,7 @@ public class PythonStreamer implements Serializable {
 	private static final int SIGNAL_ERROR = -2;
 	private static final byte SIGNAL_LAST = 32;
 
-	private final int id;
+	private final String id;
 	private final boolean usePython3;
 	private final String planArguments;
 
@@ -73,7 +73,7 @@ public class PythonStreamer implements Serializable {
 
 	protected final AbstractRichFunction function;
 
-	public PythonStreamer(AbstractRichFunction function, int id, boolean usesByteArray) {
+	public PythonStreamer(AbstractRichFunction function, String id, boolean usesByteArray) {
 		this.id = id;
 		this.usePython3 = PythonPlanBinder.usePython3;
 		planArguments = PythonPlanBinder.arguments.toString();
@@ -126,10 +126,17 @@ public class PythonStreamer implements Serializable {
 
 		Runtime.getRuntime().addShutdownHook(shutdownThread);
 
+		System.out.println(id);
+
+		String envID = id.split("\\.")[0],
+			setID = id.split("\\.")[1];
+
+		System.out.println("JAVA ENTERING OPS MODE");
 		OutputStream processOutput = process.getOutputStream();
 		processOutput.write("operator\n".getBytes());
+		processOutput.write((envID + "\n").getBytes());
+		processOutput.write((setID + "\n").getBytes());
 		processOutput.write(("" + server.getLocalPort() + "\n").getBytes());
-		processOutput.write((id + "\n").getBytes());
 		processOutput.write((this.function.getRuntimeContext().getIndexOfThisSubtask() + "\n").getBytes());
 		processOutput.write((inputFilePath + "\n").getBytes());
 		processOutput.write((outputFilePath + "\n").getBytes());

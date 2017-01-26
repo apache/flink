@@ -46,11 +46,7 @@ public class PythonPlanStreamer implements Serializable {
 	}
 
 	public void open(String tmpPath, String args) throws IOException {
-		server = new ServerSocket(0);
 		startPython(tmpPath, args);
-		socket = server.accept();
-		sender = new PythonPlanSender(socket.getOutputStream());
-		receiver = new PythonPlanReceiver(socket.getInputStream());
 	}
 
 	private void startPython(String tmpPath, String args) throws IOException {
@@ -81,18 +77,37 @@ public class PythonPlanStreamer implements Serializable {
 			}
 		} catch (IllegalThreadStateException ise) {//Process still running
 		}
+	}
 
+	public boolean startPlanMode() throws IOException {
+		System.out.println("JAVA ENTERING PLAN MODE");
+		server = new ServerSocket(0);
 		process.getOutputStream().write("plan\n".getBytes());
 		process.getOutputStream().write((server.getLocalPort() + "\n").getBytes());
 		process.getOutputStream().flush();
+		if (isPythonRunning()) {
+			socket = server.accept();
+			sender = new PythonPlanSender(socket.getOutputStream());
+			receiver = new PythonPlanReceiver(socket.getInputStream());
+			return true;
+		} else {
+			return false;
+		}
 	}
 
 	public void close() {
+		if (isPythonRunning()) {
+			process.destroy();
+		}
+	}
+
+	public boolean isPythonRunning() {
 		try {
 			process.exitValue();
 		} catch (NullPointerException npe) { //exception occurred before process was started
 		} catch (IllegalThreadStateException ise) { //process still active
-			process.destroy();
+			return true;
 		}
+		return false;
 	}
 }

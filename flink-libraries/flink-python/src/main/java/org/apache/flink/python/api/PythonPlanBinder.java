@@ -92,8 +92,9 @@ public class PythonPlanBinder {
 	private static String FLINK_HDFS_PATH = "hdfs:/tmp";
 	public static final String FLINK_TMP_DATA_DIR = System.getProperty("java.io.tmpdir") + File.separator + "flink_data";
 
-	private HashMap<Integer, Object> sets = new HashMap<>();
+	private HashMap<String, Object> sets = new HashMap<>();
 	public ExecutionEnvironment env;
+	private int environmentCounter = 0;
 	private PythonPlanStreamer streamer;
 
 	public static final int MAPPED_FILE_SIZE = 1024 * 1024 * 64;
@@ -126,8 +127,6 @@ public class PythonPlanBinder {
 	}
 
 	private void runPlan(String[] args) throws Exception {
-		env = ExecutionEnvironment.getExecutionEnvironment();
-
 		int split = 0;
 		for (int x = 0; x < args.length; x++) {
 			if (args[x].compareTo("-") == 0) {
@@ -139,15 +138,27 @@ public class PythonPlanBinder {
 			String tmpPath = FLINK_PYTHON_FILE_PATH + r.nextInt();
 			prepareFiles(tmpPath, Arrays.copyOfRange(args, 0, split == 0 ? args.length : split));
 			startPython(tmpPath, Arrays.copyOfRange(args, split == 0 ? args.length : split + 1, args.length));
-			receivePlan();
 
-			if (env instanceof LocalEnvironment) {
-				FLINK_HDFS_PATH = "file:" + System.getProperty("java.io.tmpdir") + File.separator + "flink";
+			// Python process should terminate itself when all jobs have been run
+			while (streamer.isPythonRunning()) {
+				System.out.println("LOL Python still alive right?");
+				env = ExecutionEnvironment.getExecutionEnvironment();
+				if (receivePlan()) {
+					if (env instanceof LocalEnvironment) {
+						FLINK_HDFS_PATH = "file:" + System.getProperty("java.io.tmpdir") + File.separator + "flink";
+					}
+
+					distributeFiles(tmpPath, env);
+					JobExecutionResult jer = env.execute();
+					sendResult(jer);
+
+					environmentCounter++;
+				} else {
+					break;
+				}
 			}
 
-			distributeFiles(tmpPath, env);
-			JobExecutionResult jer = env.execute();
-			sendResult(jer);
+			clearPath(tmpPath);
 			close();
 		} catch (Exception e) {
 			close();
@@ -200,7 +211,6 @@ public class PythonPlanBinder {
 		clearPath(FLINK_HDFS_PATH);
 		FileCache.copy(new Path(tmpPath), new Path(FLINK_HDFS_PATH), true);
 		env.registerCachedFile(FLINK_HDFS_PATH, FLINK_PYTHON_DC_ID);
-		clearPath(tmpPath);
 	}
 
 	private void startPython(String tempPath, String[] args) throws IOException {
@@ -213,6 +223,7 @@ public class PythonPlanBinder {
 
 	private void sendResult(JobExecutionResult jer) throws IOException {
 		long runtime = jer.getNetRuntime();
+		System.out.println("JAVA RUNTIME: " + runtime);
 		streamer.sendRecord(runtime);
 	}
 
@@ -233,9 +244,13 @@ public class PythonPlanBinder {
 	}
 
 	//====Plan==========================================================================================================
-	private void receivePlan() throws IOException {
-		receiveParameters();
-		receiveOperations();
+	private boolean receivePlan() throws IOException {
+		if ( streamer.startPlanMode() ) {
+			receiveParameters();
+			receiveOperations();
+			return true;
+		}
+		return false;
 	}
 
 	//====Environment===================================================================================================
@@ -285,7 +300,7 @@ public class PythonPlanBinder {
 	private void receiveOperations() throws IOException {
 		Integer operationCount = (Integer) streamer.getRecord(true);
 		for (int x = 0; x < operationCount; x++) {
-			PythonOperationInfo info = new PythonOperationInfo(streamer);
+			PythonOperationInfo info = new PythonOperationInfo(streamer, environmentCounter);
 			Operation op;
 			try {
 				op = Operation.valueOf(info.identifier.toUpperCase());
@@ -394,48 +409,48 @@ public class PythonPlanBinder {
 		String lineD = info.lineDelimiter;
 		String fieldD = info.fieldDelimiter;
 		TupleTypeInfo<?> types = (TupleTypeInfo) info.types;
-		sets.put(info.setID, env.createInput(new TupleCsvInputFormat(path, lineD, fieldD, types), info.types).setParallelism(getParallelism(info)).name("CsvSource")
+		sets.put(info.uniqueID, env.createInput(new TupleCsvInputFormat(path, lineD, fieldD, types), info.types).setParallelism(getParallelism(info)).name("CsvSource")
 				.map(new SerializerMap<>()).setParallelism(getParallelism(info)).name("CsvSourcePostStep"));
 	}
 
 	private void createTextSource(PythonOperationInfo info) throws IOException {
-		sets.put(info.setID, env.readTextFile(info.path).setParallelism(getParallelism(info)).name("TextSource")
+		sets.put(info.uniqueID, env.readTextFile(info.path).setParallelism(getParallelism(info)).name("TextSource")
 				.map(new SerializerMap<String>()).setParallelism(getParallelism(info)).name("TextSourcePostStep"));
 	}
 
 	private void createValueSource(PythonOperationInfo info) throws IOException {
-		sets.put(info.setID, env.fromElements(info.values).setParallelism(getParallelism(info)).name("ValueSource")
+		sets.put(info.uniqueID, env.fromElements(info.values).setParallelism(getParallelism(info)).name("ValueSource")
 				.map(new SerializerMap<>()).setParallelism(getParallelism(info)).name("ValueSourcePostStep"));
 	}
 
 	private void createSequenceSource(PythonOperationInfo info) throws IOException {
-		sets.put(info.setID, env.generateSequence(info.frm, info.to).setParallelism(getParallelism(info)).name("SequenceSource")
+		sets.put(info.uniqueID, env.generateSequence(info.frm, info.to).setParallelism(getParallelism(info)).name("SequenceSource")
 				.map(new SerializerMap<Long>()).setParallelism(getParallelism(info)).name("SequenceSourcePostStep"));
 	}
 
 	@SuppressWarnings("unchecked")
 	private void createCsvSink(PythonOperationInfo info) throws IOException {
-		DataSet parent = (DataSet) sets.get(info.parentID);
+		DataSet parent = (DataSet) sets.get(info.uniqueParentID);
 		parent.map(new StringTupleDeserializerMap()).setParallelism(getParallelism(info)).name("CsvSinkPreStep")
 				.writeAsCsv(info.path, info.lineDelimiter, info.fieldDelimiter, info.writeMode).setParallelism(getParallelism(info)).name("CsvSink");
 	}
 
 	@SuppressWarnings("unchecked")
 	private void createTextSink(PythonOperationInfo info) throws IOException {
-		DataSet parent = (DataSet) sets.get(info.parentID);
+		DataSet parent = (DataSet) sets.get(info.uniqueParentID);
 		parent.map(new StringDeserializerMap()).setParallelism(getParallelism(info))
 			.writeAsText(info.path, info.writeMode).setParallelism(getParallelism(info)).name("TextSink");
 	}
 
 	@SuppressWarnings("unchecked")
 	private void createPrintSink(PythonOperationInfo info) throws IOException {
-		DataSet parent = (DataSet) sets.get(info.parentID);
+		DataSet parent = (DataSet) sets.get(info.uniqueParentID);
 		parent.map(new StringDeserializerMap()).setParallelism(getParallelism(info)).name("PrintSinkPreStep")
 			.output(new PrintingOutputFormat(info.toError)).setParallelism(getParallelism(info));
 	}
 
 	private void createBroadcastVariable(PythonOperationInfo info) throws IOException {
-		UdfOperator<?> op1 = (UdfOperator) sets.get(info.parentID);
+		UdfOperator<?> op1 = (UdfOperator) sets.get(info.uniqueParentID);
 		DataSet<?> op2 = (DataSet) sets.get(info.otherID);
 
 		op1.withBroadcastSet(op2, info.name);
@@ -454,77 +469,77 @@ public class PythonPlanBinder {
 
 	@SuppressWarnings("unchecked")
 	private void createDistinctOperation(PythonOperationInfo info) throws IOException {
-		DataSet op = (DataSet) sets.get(info.parentID);
-		sets.put(info.setID, op.distinct(info.keys).setParallelism(getParallelism(info)).name("Distinct")
+		DataSet op = (DataSet) sets.get(info.uniqueParentID);
+		sets.put(info.uniqueID, op.distinct(info.keys).setParallelism(getParallelism(info)).name("Distinct")
 				.map(new KeyDiscarder()).setParallelism(getParallelism(info)).name("DistinctPostStep"));
 	}
 
 	@SuppressWarnings("unchecked")
 	private void createFirstOperation(PythonOperationInfo info) throws IOException {
-		Object op = sets.get(info.parentID);
+		Object op = sets.get(info.uniqueParentID);
 		if (op instanceof DataSet) {
-			sets.put(info.setID, ((DataSet) op).first(info.count).setParallelism(getParallelism(info)).name("First"));
+			sets.put(info.uniqueID, ((DataSet) op).first(info.count).setParallelism(getParallelism(info)).name("First"));
 			return;
 		}
 		if (op instanceof UnsortedGrouping) {
-			sets.put(info.setID, ((UnsortedGrouping) op).first(info.count).setParallelism(getParallelism(info)).name("First")
+			sets.put(info.uniqueID, ((UnsortedGrouping) op).first(info.count).setParallelism(getParallelism(info)).name("First")
 				.map(new KeyDiscarder()).setParallelism(getParallelism(info)).name("FirstPostStep"));
 			return;
 		}
 		if (op instanceof SortedGrouping) {
-			sets.put(info.setID, ((SortedGrouping) op).first(info.count).setParallelism(getParallelism(info)).name("First")
+			sets.put(info.uniqueID, ((SortedGrouping) op).first(info.count).setParallelism(getParallelism(info)).name("First")
 				.map(new KeyDiscarder()).setParallelism(getParallelism(info)).name("FirstPostStep"));
 		}
 	}
 
 	private void createGroupOperation(PythonOperationInfo info) throws IOException {
-		DataSet op1 = (DataSet) sets.get(info.parentID);
-		sets.put(info.setID, op1.groupBy(info.keys));
+		DataSet op1 = (DataSet) sets.get(info.uniqueParentID);
+		sets.put(info.uniqueID, op1.groupBy(info.keys));
 	}
 
 	@SuppressWarnings("unchecked")
 	private void createHashPartitionOperation(PythonOperationInfo info) throws IOException {
-		DataSet op1 = (DataSet) sets.get(info.parentID);
-		sets.put(info.setID, op1.partitionByHash(info.keys).setParallelism(getParallelism(info))
+		DataSet op1 = (DataSet) sets.get(info.uniqueParentID);
+		sets.put(info.uniqueID, op1.partitionByHash(info.keys).setParallelism(getParallelism(info))
 				.map(new KeyDiscarder()).setParallelism(getParallelism(info)).name("HashPartitionPostStep"));
 	}
 
 	private void createRebalanceOperation(PythonOperationInfo info) throws IOException {
-		DataSet op = (DataSet) sets.get(info.parentID);
-		sets.put(info.setID, op.rebalance().setParallelism(getParallelism(info)).name("Rebalance"));
+		DataSet op = (DataSet) sets.get(info.uniqueParentID);
+		sets.put(info.uniqueID, op.rebalance().setParallelism(getParallelism(info)).name("Rebalance"));
 	}
 
 	private void createSortOperation(PythonOperationInfo info) throws IOException {
-		Grouping op1 = (Grouping) sets.get(info.parentID);
+		Grouping op1 = (Grouping) sets.get(info.uniqueParentID);
 		if (op1 instanceof UnsortedGrouping) {
-			sets.put(info.setID, ((UnsortedGrouping) op1).sortGroup(info.field, info.order));
+			sets.put(info.uniqueID, ((UnsortedGrouping) op1).sortGroup(info.field, info.order));
 			return;
 		}
 		if (op1 instanceof SortedGrouping) {
-			sets.put(info.setID, ((SortedGrouping) op1).sortGroup(info.field, info.order));
+			sets.put(info.uniqueID, ((SortedGrouping) op1).sortGroup(info.field, info.order));
 		}
 	}
 
 	@SuppressWarnings("unchecked")
 	private void createUnionOperation(PythonOperationInfo info) throws IOException {
-		DataSet op1 = (DataSet) sets.get(info.parentID);
+		DataSet op1 = (DataSet) sets.get(info.uniqueParentID);
 		DataSet op2 = (DataSet) sets.get(info.otherID);
-		sets.put(info.setID, op1.union(op2).setParallelism(getParallelism(info)).name("Union"));
+		sets.put(info.uniqueID, op1.union(op2).setParallelism(getParallelism(info)).name("Union"));
 	}
 
 	@SuppressWarnings("unchecked")
 	private void createCoGroupOperation(PythonOperationInfo info) {
-		DataSet op1 = (DataSet) sets.get(info.parentID);
+		DataSet op1 = (DataSet) sets.get(info.uniqueParentID);
 		DataSet op2 = (DataSet) sets.get(info.otherID);
 		Keys.ExpressionKeys<?> key1 = new Keys.ExpressionKeys(info.keys1, op1.getType());
 		Keys.ExpressionKeys<?> key2 = new Keys.ExpressionKeys(info.keys2, op2.getType());
-		PythonCoGroup pcg = new PythonCoGroup(info.setID, info.types);
-		sets.put(info.setID, new CoGroupRawOperator(op1, op2, key1, key2, pcg, info.types, info.name).setParallelism(getParallelism(info)));
+		PythonCoGroup pcg = new PythonCoGroup(info.uniqueID, info.types);
+		sets.put(info.uniqueID, new CoGroupRawOperator(op1, op2, key1, key2, pcg, info.types, info.name).setParallelism(getParallelism(info)));
 	}
 
 	@SuppressWarnings("unchecked")
 	private void createCrossOperation(DatasizeHint mode, PythonOperationInfo info) {
-		DataSet op1 = (DataSet) sets.get(info.parentID);
+		DataSet op1 = (DataSet) sets.get(info.uniqueParentID);
 		DataSet op2 = (DataSet) sets.get(info.otherID);
 
 		DefaultCross defaultResult;
@@ -544,67 +559,67 @@ public class PythonPlanBinder {
 
 		defaultResult.setParallelism(getParallelism(info));
 		if (info.usesUDF) {
-			sets.put(info.setID, defaultResult.mapPartition(new PythonMapPartition(info.setID, info.types)).setParallelism(getParallelism(info)).name(info.name));
+			sets.put(info.uniqueID, defaultResult.mapPartition(new PythonMapPartition(info.uniqueID, info.types)).setParallelism(getParallelism(info)).name(info.name));
 		} else {
-			sets.put(info.setID, defaultResult.name("DefaultCross"));
+			sets.put(info.uniqueID, defaultResult.name("DefaultCross"));
 		}
 	}
 
 	@SuppressWarnings("unchecked")
 	private void createFilterOperation(PythonOperationInfo info) {
-		DataSet op1 = (DataSet) sets.get(info.parentID);
-		sets.put(info.setID, op1.mapPartition(new PythonMapPartition(info.setID, info.types)).setParallelism(getParallelism(info)).name(info.name));
+		DataSet op1 = (DataSet) sets.get(info.uniqueParentID);
+		sets.put(info.uniqueID, op1.mapPartition(new PythonMapPartition(info.uniqueID, info.types)).setParallelism(getParallelism(info)).name(info.name));
 	}
 
 	@SuppressWarnings("unchecked")
 	private void createFlatMapOperation(PythonOperationInfo info) {
-		DataSet op1 = (DataSet) sets.get(info.parentID);
-		sets.put(info.setID, op1.mapPartition(new PythonMapPartition(info.setID, info.types)).setParallelism(getParallelism(info)).name(info.name));
+		DataSet op1 = (DataSet) sets.get(info.uniqueParentID);
+		sets.put(info.uniqueID, op1.mapPartition(new PythonMapPartition(info.uniqueID, info.types)).setParallelism(getParallelism(info)).name(info.name));
 	}
 
 	private void createGroupReduceOperation(PythonOperationInfo info) {
-		Object op1 = sets.get(info.parentID);
+		Object op1 = sets.get(info.uniqueParentID);
 		if (op1 instanceof DataSet) {
-			sets.put(info.setID, applyGroupReduceOperation((DataSet) op1, info));
+			sets.put(info.uniqueID, applyGroupReduceOperation((DataSet) op1, info));
 			return;
 		}
 		if (op1 instanceof UnsortedGrouping) {
-			sets.put(info.setID, applyGroupReduceOperation((UnsortedGrouping) op1, info));
+			sets.put(info.uniqueID, applyGroupReduceOperation((UnsortedGrouping) op1, info));
 			return;
 		}
 		if (op1 instanceof SortedGrouping) {
-			sets.put(info.setID, applyGroupReduceOperation((SortedGrouping) op1, info));
+			sets.put(info.uniqueID, applyGroupReduceOperation((SortedGrouping) op1, info));
 		}
 	}
 
 	@SuppressWarnings("unchecked")
 	private DataSet applyGroupReduceOperation(DataSet op1, PythonOperationInfo info) {
 		return op1.reduceGroup(new IdentityGroupReduce()).setCombinable(false).name("PythonGroupReducePreStep").setParallelism(getParallelism(info))
-				.mapPartition(new PythonMapPartition(info.setID, info.types)).setParallelism(getParallelism(info)).name(info.name);
+				.mapPartition(new PythonMapPartition(info.uniqueID, info.types)).setParallelism(getParallelism(info)).name(info.name);
 	}
 
 	@SuppressWarnings("unchecked")
 	private DataSet applyGroupReduceOperation(UnsortedGrouping op1, PythonOperationInfo info) {
 		return op1.reduceGroup(new IdentityGroupReduce()).setCombinable(false).setParallelism(getParallelism(info)).name("PythonGroupReducePreStep")
-				.mapPartition(new PythonMapPartition(info.setID, info.types)).setParallelism(getParallelism(info)).name(info.name);
+				.mapPartition(new PythonMapPartition(info.uniqueID, info.types)).setParallelism(getParallelism(info)).name(info.name);
 	}
 
 	@SuppressWarnings("unchecked")
 	private DataSet applyGroupReduceOperation(SortedGrouping op1, PythonOperationInfo info) {
 		return op1.reduceGroup(new IdentityGroupReduce()).setCombinable(false).setParallelism(getParallelism(info)).name("PythonGroupReducePreStep")
-				.mapPartition(new PythonMapPartition(info.setID, info.types)).setParallelism(getParallelism(info)).name(info.name);
+				.mapPartition(new PythonMapPartition(info.uniqueID, info.types)).setParallelism(getParallelism(info)).name(info.name);
 	}
 
 	@SuppressWarnings("unchecked")
 	private void createJoinOperation(DatasizeHint mode, PythonOperationInfo info) {
-		DataSet op1 = (DataSet) sets.get(info.parentID);
+		DataSet op1 = (DataSet) sets.get(info.uniqueParentID);
 		DataSet op2 = (DataSet) sets.get(info.otherID);
 
 		if (info.usesUDF) {
-			sets.put(info.setID, createDefaultJoin(op1, op2, info.keys1, info.keys2, mode, getParallelism(info))
-					.mapPartition(new PythonMapPartition(info.setID, info.types)).setParallelism(getParallelism(info)).name(info.name));
+			sets.put(info.uniqueID, createDefaultJoin(op1, op2, info.keys1, info.keys2, mode, getParallelism(info))
+					.mapPartition(new PythonMapPartition(info.uniqueID, info.types)).setParallelism(getParallelism(info)).name(info.name));
 		} else {
-			sets.put(info.setID, createDefaultJoin(op1, op2, info.keys1, info.keys2, mode, getParallelism(info)));
+			sets.put(info.uniqueID, createDefaultJoin(op1, op2, info.keys1, info.keys2, mode, getParallelism(info)));
 		}
 	}
 
@@ -627,36 +642,36 @@ public class PythonPlanBinder {
 
 	@SuppressWarnings("unchecked")
 	private void createMapOperation(PythonOperationInfo info) {
-		DataSet op1 = (DataSet) sets.get(info.parentID);
-		sets.put(info.setID, op1.mapPartition(new PythonMapPartition(info.setID, info.types)).setParallelism(getParallelism(info)).name(info.name));
+		DataSet op1 = (DataSet) sets.get(info.uniqueParentID);
+		sets.put(info.uniqueID, op1.mapPartition(new PythonMapPartition(info.uniqueID, info.types)).setParallelism(getParallelism(info)).name(info.name));
 	}
 
 	@SuppressWarnings("unchecked")
 	private void createMapPartitionOperation(PythonOperationInfo info) {
-		DataSet op1 = (DataSet) sets.get(info.parentID);
-		sets.put(info.setID, op1.mapPartition(new PythonMapPartition(info.setID, info.types)).setParallelism(getParallelism(info)).name(info.name));
+		DataSet op1 = (DataSet) sets.get(info.uniqueParentID);
+		sets.put(info.uniqueID, op1.mapPartition(new PythonMapPartition(info.uniqueID, info.types)).setParallelism(getParallelism(info)).name(info.name));
 	}
 
 	private void createReduceOperation(PythonOperationInfo info) {
-		Object op1 = sets.get(info.parentID);
+		Object op1 = sets.get(info.uniqueParentID);
 		if (op1 instanceof DataSet) {
-			sets.put(info.setID, applyReduceOperation((DataSet) op1, info));
+			sets.put(info.uniqueID, applyReduceOperation((DataSet) op1, info));
 			return;
 		}
 		if (op1 instanceof UnsortedGrouping) {
-			sets.put(info.setID, applyReduceOperation((UnsortedGrouping) op1, info));
+			sets.put(info.uniqueID, applyReduceOperation((UnsortedGrouping) op1, info));
 		}
 	}
 
 	@SuppressWarnings("unchecked")
 	private DataSet applyReduceOperation(DataSet op1, PythonOperationInfo info) {
 		return op1.reduceGroup(new IdentityGroupReduce()).setCombinable(false).setParallelism(getParallelism(info)).name("PythonReducePreStep")
-				.mapPartition(new PythonMapPartition(info.setID, info.types)).setParallelism(getParallelism(info)).name(info.name);
+				.mapPartition(new PythonMapPartition(info.uniqueID, info.types)).setParallelism(getParallelism(info)).name(info.name);
 	}
 
 	@SuppressWarnings("unchecked")
 	private DataSet applyReduceOperation(UnsortedGrouping op1, PythonOperationInfo info) {
 		return op1.reduceGroup(new IdentityGroupReduce()).setCombinable(false).setParallelism(getParallelism(info)).name("PythonReducePreStep")
-				.mapPartition(new PythonMapPartition(info.setID, info.types)).setParallelism(getParallelism(info)).name(info.name);
+				.mapPartition(new PythonMapPartition(info.uniqueID, info.types)).setParallelism(getParallelism(info)).name(info.name);
 	}
 }

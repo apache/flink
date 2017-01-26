@@ -27,17 +27,22 @@ import copy
 import sys
 from struct import pack
 
-def get_environment():
+_env_counter = 0
+_last_env_id = -1
+_operating = False
+
+def get_environment(id):
     """
     Creates an execution environment that represents the context in which the program is currently executed.
     
     :return:The execution environment of the context in which the program is executed.
     """
-    return Environment()
+    # TODO: auto-number
+    return Environment(id)
 
 
 class Environment(object):
-    def __init__(self):
+    def __init__(self, env_id = 0):
         # util
         self._counter = 0
 
@@ -45,6 +50,8 @@ class Environment(object):
         self._dop = -1
         self._local_mode = False
         self._retry = 0
+
+        self.env_id = env_id
 
         #sets
         self._sources = []
@@ -163,13 +170,21 @@ class Environment(object):
 
         The environment will execute all parts of the program that have resulted in a "sink" operation.
         """
+        global _operating, _last_env_id
         self._local_mode = local
         self._optimize_plan()
 
-        plan_mode = sys.stdin.readline().rstrip('\n') == "plan"
+        if _operating:
+            plan_mode = False
+        else:
+            plan_mode = sys.stdin.readline().rstrip('\n') == "plan"
 
         if plan_mode:
+            print("PYTHON ENTERING PLAN MODE")
+            sys.stdout.flush()
             port = int(sys.stdin.readline().rstrip('\n'))
+            print("pyport: " + str(port))
+            sys.stdout.flush()
             self._connection = Connection.PureTCPConnection(port)
             self._iterator = Iterator.PlanIterator(self._connection, self)
             self._collector = Collector.PlanCollector(self._connection, self)
@@ -178,27 +193,50 @@ class Environment(object):
             self._connection.close()
             return result
         else:
+            print("PYTHON ENTERING OPS MODE")
+            sys.stdout.flush()
             import struct
             operator = None
             try:
-                port = int(sys.stdin.readline().rstrip('\n'))
+                env_id = _last_env_id
+                if not _operating:
+                    env_id = int(sys.stdin.readline().rstrip('\n'))
 
-                id = int(sys.stdin.readline().rstrip('\n'))
-                subtask_index = int(sys.stdin.readline().rstrip('\n'))
-                input_path = sys.stdin.readline().rstrip('\n')
-                output_path = sys.stdin.readline().rstrip('\n')
+                if self.env_id != env_id:
+                    _last_env_id = env_id
+                    _operating = True
+                else:
+                    _operating = False
+                    _last_env_id = -1
+                    id = int(sys.stdin.readline().rstrip('\n'))
+                    print('id')
+                    print(id)
+                    sys.stdout.flush()
+                    print('sets')
+                    print(self.env_id)
+                    print(self._sets)
+                    print(len(self._sets))
+                    for s in self._sets:
+                        print(s.id)
+                    sys.stdout.flush()
 
-                used_set = None
-                operator = None
-                for set in self._sets:
-                    if set.id == id:
-                        used_set = set
-                        operator = set.operator
-                operator._configure(input_path, output_path, port, self, used_set, subtask_index)
-                operator._go()
-                operator._close()
-                sys.stdout.flush()
-                sys.stderr.flush()
+                    port = int(sys.stdin.readline().rstrip('\n'))
+                    subtask_index = int(sys.stdin.readline().rstrip('\n'))
+                    input_path = sys.stdin.readline().rstrip('\n')
+                    output_path = sys.stdin.readline().rstrip('\n')
+
+                    used_set = None
+                    operator = None
+
+                    for set in self._sets:
+                        if set.id == id:
+                            used_set = set
+                            operator = set.operator
+                    operator._configure(input_path, output_path, port, self, used_set, subtask_index)
+                    operator._go()
+                    operator._close()
+                    sys.stdout.flush()
+                    sys.stderr.flush()
             except:
                 sys.stdout.flush()
                 sys.stderr.flush()
@@ -319,6 +357,8 @@ class Environment(object):
     def _receive_result(self):
         jer = JobExecutionResult()
         jer._net_runtime = self._iterator.next()
+        print("PYTHON RUNTIME: " + str(jer._net_runtime))
+        sys.stdout.flush()
         return jer
 
 

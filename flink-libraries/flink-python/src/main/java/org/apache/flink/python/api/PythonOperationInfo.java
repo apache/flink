@@ -44,8 +44,11 @@ public class PythonOperationInfo {
 	public String name;
 	public boolean usesUDF;
 	public int parallelism;
+	public int envID;
+	public String uniqueID;
+	public String uniqueParentID;
 
-	public PythonOperationInfo(PythonPlanStreamer streamer) throws IOException {
+	public PythonOperationInfo(PythonPlanStreamer streamer, int environmentID) throws IOException {
 		identifier = (String) streamer.getRecord();
 		parentID = (Integer) streamer.getRecord(true);
 		otherID = (Integer) streamer.getRecord(true);
@@ -92,6 +95,10 @@ public class PythonOperationInfo {
 			values[x] = streamer.getRecord();
 		}
 		parallelism = (Integer) streamer.getRecord(true);
+
+		envID = environmentID;
+		uniqueID = "" + envID + "." + setID;
+		uniqueParentID = "" + envID + "." + parentID;
 	}
 
 	@Override
