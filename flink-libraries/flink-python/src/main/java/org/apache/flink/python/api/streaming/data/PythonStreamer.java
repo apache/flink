@@ -56,7 +56,8 @@ public class PythonStreamer<IN1, IN2, OUT> implements Serializable {
 	private static final int SIGNAL_ERROR = -2;
 	private static final byte SIGNAL_LAST = 32;
 
-	private final int id;
+	private final int envID;
+	private final int setID;
 	private final boolean usePython3;
 	private final String planArguments;
 
@@ -78,8 +79,9 @@ public class PythonStreamer<IN1, IN2, OUT> implements Serializable {
 	protected transient Thread outPrinter;
 	protected transient Thread errorPrinter;
 
-	public PythonStreamer(AbstractRichFunction function, int id, boolean usesByteArray) {
-		this.id = id;
+	public PythonStreamer(AbstractRichFunction function, int envID, int setID, boolean usesByteArray) {
+		this.envID = envID;
+		this.setID = setID;
 		this.usePython3 = PythonPlanBinder.usePython3;
 		planArguments = PythonPlanBinder.arguments.toString();
 		sender = new PythonSender();
@@ -99,8 +101,8 @@ public class PythonStreamer<IN1, IN2, OUT> implements Serializable {
 	}
 
 	private void startPython() throws IOException {
-		String outputFilePath = FLINK_TMP_DATA_DIR + "/" + id + this.function.getRuntimeContext().getIndexOfThisSubtask() + "output";
-		String inputFilePath = FLINK_TMP_DATA_DIR + "/" + id + this.function.getRuntimeContext().getIndexOfThisSubtask() + "input";
+		String outputFilePath = FLINK_TMP_DATA_DIR + "/" + envID + "_" + setID + this.function.getRuntimeContext().getIndexOfThisSubtask() + "output";
+		String inputFilePath = FLINK_TMP_DATA_DIR + "/" + envID + "_" + setID + this.function.getRuntimeContext().getIndexOfThisSubtask() + "input";
 
 		sender.open(inputFilePath);
 		receiver.open(outputFilePath);
@@ -136,8 +138,9 @@ public class PythonStreamer<IN1, IN2, OUT> implements Serializable {
 
 		OutputStream processOutput = process.getOutputStream();
 		processOutput.write("operator\n".getBytes(ConfigConstants.DEFAULT_CHARSET));
+		processOutput.write((envID + "\n").getBytes(ConfigConstants.DEFAULT_CHARSET));
+		processOutput.write((setID + "\n").getBytes(ConfigConstants.DEFAULT_CHARSET));
 		processOutput.write(("" + server.getLocalPort() + "\n").getBytes(ConfigConstants.DEFAULT_CHARSET));
-		processOutput.write((id + "\n").getBytes(ConfigConstants.DEFAULT_CHARSET));
 		processOutput.write((this.function.getRuntimeContext().getIndexOfThisSubtask() + "\n")
 			.getBytes(ConfigConstants.DEFAULT_CHARSET));
 		processOutput.write((inputFilePath + "\n").getBytes(ConfigConstants.DEFAULT_CHARSET));

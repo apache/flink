@@ -27,17 +27,63 @@ import copy
 import sys
 from struct import pack
 
+
+class EnvironmentContainer(object):
+    """Keeps track of which ExecutionEnvironment is active."""
+
+    _environment_counter = 0
+    _environment_id_to_execute = None
+    _plan_mode = None
+
+    def create_environment(self):
+        """Creates a new environment with a unique id."""
+        env = Environment(self, self._environment_counter)
+        self._environment_counter += 1
+        return env
+
+    def is_planning(self):
+        """
+        Checks whether we are generating the plan or executing an operator.
+
+        :return: True, if the plan is generated, false otherwise
+        """
+        if self._plan_mode is None:
+            mode = sys.stdin.readline().rstrip('\n')
+            if mode == "plan":
+                self._plan_mode = True
+            elif mode == "operator":
+                self._plan_mode = False
+            else:
+                raise ValueError("Invalid mode specified: " + mode)
+        return self._plan_mode
+
+    def should_execute(self, environment):
+        """
+        Checks whether the given ExecutionEnvironment should run the contained plan.
+
+        :param: ExecutionEnvironment to check
+        :return: True, if the environment should run the contained plan, false otherise
+        """
+        if self._environment_id_to_execute is None:
+            self._environment_id_to_execute = int(sys.stdin.readline().rstrip('\n'))
+
+        return environment._env_id == self._environment_id_to_execute
+
+
+container = EnvironmentContainer()
+
+
 def get_environment():
     """
     Creates an execution environment that represents the context in which the program is currently executed.
-    
+
     :return:The execution environment of the context in which the program is executed.
     """
-    return Environment()
+    return container.create_environment()
 
 
 class Environment(object):
-    def __init__(self):
+    def __init__(self, container, env_id):
         # util
         self._counter = 0
 
@@ -45,6 +91,9 @@ class Environment(object):
         self._dop = -1
         self._local_mode = False
         self._retry = 0
+
+        self._container = container
+        self._env_id = env_id
 
         #sets
         self._sources = []
@@ -166,9 +215,7 @@ class Environment(object):
         self._local_mode = local
         self._optimize_plan()
 
-        plan_mode = sys.stdin.readline().rstrip('\n') == "plan"
-
-        if plan_mode:
+        if self._container.is_planning():
             port = int(sys.stdin.readline().rstrip('\n'))
             self._connection = Connection.PureTCPConnection(port)
             self._iterator = Iterator.PlanIterator(self._connection, self)
@@ -180,31 +227,34 @@ class Environment(object):
         else:
             import struct
             operator = None
+            port = None
             try:
-                port = int(sys.stdin.readline().rstrip('\n'))
+                if self._container.should_execute(self):
+                    id = int(sys.stdin.readline().rstrip('\n'))
 
-                id = int(sys.stdin.readline().rstrip('\n'))
-                subtask_index = int(sys.stdin.readline().rstrip('\n'))
-                input_path = sys.stdin.readline().rstrip('\n')
-                output_path = sys.stdin.readline().rstrip('\n')
+                    port = int(sys.stdin.readline().rstrip('\n'))
+                    subtask_index = int(sys.stdin.readline().rstrip('\n'))
+                    input_path = sys.stdin.readline().rstrip('\n')
+                    output_path = sys.stdin.readline().rstrip('\n')
 
-                used_set = None
-                operator = None
-                for set in self._sets:
-                    if set.id == id:
-                        used_set = set
-                        operator = set.operator
-                operator._configure(input_path, output_path, port, self, used_set, subtask_index)
-                operator._go()
-                operator._close()
-                sys.stdout.flush()
-                sys.stderr.flush()
+                    used_set = None
+                    operator = None
+
+                    for set in self._sets:
+                        if set.id == id:
+                            used_set = set
+                            operator = set.operator
+                    operator._configure(input_path, output_path, port, self, used_set, subtask_index)
+                    operator._go()
+                    operator._close()
+                    sys.stdout.flush()
+                    sys.stderr.flush()
             except:
                 sys.stdout.flush()
                 sys.stderr.flush()
                 if operator is not None:
                     operator._connection._socket.send(struct.pack(">i", -2))
-                else:
+                elif port is not None:
                     socket = SOCKET.socket(family=SOCKET.AF_INET, type=SOCKET.SOCK_STREAM)
                     socket.connect((SOCKET.gethostbyname("localhost"), port))
                     socket.send(struct.pack(">i", -2))
@@ -277,6 +327,7 @@ class Environment(object):
         collect(("dop", self._dop))
         collect(("mode", self._local_mode))
         collect(("retry", self._retry))
+        collect(("id", self._env_id))
 
     def _send_operations(self):
         self._collector.collect(len(self._sources) + len(self._sets) + len(self._sinks) + len(self._broadcast))

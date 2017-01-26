@@ -54,19 +54,7 @@ public class PythonPlanStreamer {
 	}
 
 	public void open(String tmpPath, String args) throws IOException {
-		server = new ServerSocket(0);
-		server.setSoTimeout(50);
 		startPython(tmpPath, args);
-		while (true) {
-			try {
-				socket = server.accept();
-				break;
-			} catch (SocketTimeoutException ignored) {
-				checkPythonProcessHealth();
-			}
-		}
-		sender = new PythonPlanSender(socket.getOutputStream());
-		receiver = new PythonPlanReceiver(socket.getInputStream());
 	}
 
 	private void startPython(String tmpPath, String args) throws IOException {
@@ -82,9 +70,46 @@ public class PythonPlanStreamer {
 		new StreamPrinter(process.getInputStream()).start();
 		new StreamPrinter(process.getErrorStream()).start();
 
+		server = new ServerSocket(0);
+		server.setSoTimeout(50);
+
 		process.getOutputStream().write("plan\n".getBytes(ConfigConstants.DEFAULT_CHARSET));
-		process.getOutputStream().write((server.getLocalPort() + "\n").getBytes(ConfigConstants.DEFAULT_CHARSET));
 		process.getOutputStream().flush();
+	}
+
+	public boolean preparePlanMode() throws IOException {
+		try {
+			process.getOutputStream().write((server.getLocalPort() + "\n").getBytes(ConfigConstants.DEFAULT_CHARSET));
+			process.getOutputStream().flush();
+		} catch (IOException ignored) {
+			// the python process most likely shutdown in the meantime
+			return false;
+		}
+		while (true) {
+			try {		
+				socket = server.accept();
+				sender = new PythonPlanSender(socket.getOutputStream());
+				receiver = new PythonPlanReceiver(socket.getInputStream());
+				return true;
+			} catch (SocketTimeoutException ignored) {
+				switch(checkPythonProcessHealth()) {
+					case RUNNING:
+						continue;
+					case STOPPED:
+						return false;
+					case FAILED:
+						throw new RuntimeException("Plan file caused an error. Check log-files for details.");
+				}
+			}
+		}
+	}
+	
+	public void finishPlanMode() {
+		try {
+			socket.close();
+		} catch (IOException e) {
+			LOG.error("Failed to close socket.", e);
+		}
 	}
 
 	public void close() {
@@ -95,22 +120,29 @@ public class PythonPlanStreamer {
 			process.destroy();
 		} finally {
 			try {
-				socket.close();
+				server.close();
 			} catch (IOException e) {
 				LOG.error("Failed to close socket.", e);
 			}
 		}
 	}
 
-	private void checkPythonProcessHealth() {
+	private ProcessState checkPythonProcessHealth() {
 		try {
 			int value = process.exitValue();
 			if (value != 0) {
-				throw new RuntimeException("Plan file caused an error. Check log-files for details.");
+				return ProcessState.FAILED;
 			} else {
-				throw new RuntimeException("Plan file exited prematurely without an error.");
+				return ProcessState.STOPPED;
 			}
 		} catch (IllegalThreadStateException ignored) {//Process still running
+			return ProcessState.RUNNING;
 		}
+	}
+	
+	private enum ProcessState {
+		RUNNING,
+		FAILED,
+		STOPPED
 	}
 }
