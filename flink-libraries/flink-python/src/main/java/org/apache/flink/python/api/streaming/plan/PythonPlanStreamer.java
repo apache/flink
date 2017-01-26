@@ -79,19 +79,14 @@ public class PythonPlanStreamer implements Serializable {
 		}
 	}
 
-	public boolean startPlanMode() throws IOException {
+	public void startPlanMode() throws IOException {
 		server = new ServerSocket(0);
 		process.getOutputStream().write("plan\n".getBytes());
 		process.getOutputStream().write((server.getLocalPort() + "\n").getBytes());
 		process.getOutputStream().flush();
-		if (isPythonRunning()) {
-			socket = server.accept();
-			sender = new PythonPlanSender(socket.getOutputStream());
-			receiver = new PythonPlanReceiver(socket.getInputStream());
-			return true;
-		} else {
-			return false;
-		}
+		socket = server.accept();
+		sender = new PythonPlanSender(socket.getOutputStream());
+		receiver = new PythonPlanReceiver(socket.getInputStream());
 	}
 
 	public void close() {

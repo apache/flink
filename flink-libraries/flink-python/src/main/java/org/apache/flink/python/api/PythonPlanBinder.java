@@ -142,19 +142,16 @@ public class PythonPlanBinder {
 			// Python process should terminate itself when all jobs have been run
 			while (streamer.isPythonRunning()) {
 				env = ExecutionEnvironment.getExecutionEnvironment();
-				if (receivePlan()) {
-					if (env instanceof LocalEnvironment) {
-						FLINK_HDFS_PATH = "file:" + System.getProperty("java.io.tmpdir") + File.separator + "flink";
-					}
-
-					distributeFiles(tmpPath, env);
-					JobExecutionResult jer = env.execute();
-					sendResult(jer);
-
-					environmentCounter++;
-				} else {
-					break;
+				receivePlan();
+				if (env instanceof LocalEnvironment) {
+					FLINK_HDFS_PATH = "file:" + System.getProperty("java.io.tmpdir") + File.separator + "flink";
 				}
+
+				distributeFiles(tmpPath, env);
+				JobExecutionResult jer = env.execute();
+				sendResult(jer);
+
+				environmentCounter++;
 			}
 
 			clearPath(tmpPath);
@@ -242,13 +239,10 @@ public class PythonPlanBinder {
 	}
 
 	//====Plan==========================================================================================================
-	private boolean receivePlan() throws IOException {
-		if ( streamer.startPlanMode() ) {
-			receiveParameters();
-			receiveOperations();
-			return true;
-		}
-		return false;
+	private void receivePlan() throws IOException {
+		streamer.startPlanMode();
+		receiveParameters();
+		receiveOperations();
 	}
 
 	//====Environment===================================================================================================

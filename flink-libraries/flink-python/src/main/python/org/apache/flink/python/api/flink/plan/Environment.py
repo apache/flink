@@ -31,13 +31,15 @@ _env_counter = 0
 _last_env_id = -1
 _operating = False
 
-def get_environment(id):
+def get_environment():
     """
     Creates an execution environment that represents the context in which the program is currently executed.
     
     :return:The execution environment of the context in which the program is executed.
     """
-    # TODO: auto-number
+    global _env_counter
+    id = _env_counter
+    _env_counter += 1
     return Environment(id)
 
 
