@@ -93,19 +93,7 @@ case class Project(projectList: Seq[NamedExpression], child: LogicalNode) extend
   override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
     child.construct(relBuilder)
     relBuilder.project(
-      projectList.map {
-        case Alias(gf: GroupFunction, name, extraNames) =>
-          children.head match {
-
-            case Aggregate(grpExps, _, node) =>
-              Alias(gf.replaceExpression(relBuilder, Some(grpExps.flatten.distinct), node.output),
-                    name, extraNames).toRexNode(relBuilder)
-
-            case _ =>
-              Alias(gf.replaceExpression(relBuilder, None), name, extraNames).toRexNode(relBuilder)
-          }
-        case x => x.toRexNode(relBuilder)
-      }.asJava,
+      projectList.map(_.toRexNode(relBuilder)).asJava,
       projectList.map(_.name).asJava,
       true)
   }

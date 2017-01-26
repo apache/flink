@@ -18,34 +18,60 @@
 
 package org.apache.flink.table.expressions
 
+import org.apache.calcite.rel.core.Aggregate
+import org.apache.calcite.rex.RexNode
 import org.apache.calcite.tools.RelBuilder
+import org.apache.calcite.util.ImmutableBitSet
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
+
+import scala.collection.JavaConversions._
 
 abstract sealed class GroupFunction extends Expression {
 
   override def toString = s"GroupFunction($children)"
 
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    val child = relBuilder.peek()
+    child match {
+      case a: Aggregate =>
+        val groupSet = a.getGroupSet
+
+        val inputFields = a.getInput.getRowType.getFieldList.toList.map(_.getName)
+        val outputFields = a.getRowType.getFieldList.toList.map(_.getName)
+
+        val internalFields =
+          getInternalFieldNames(inputFields)
+            .filter {
+              case (_, v) => outputFields.contains(v)
+            }
+
+        replaceExpression(relBuilder, Some(groupSet), internalFields, a.indicator)
+          .toRexNode(relBuilder)
+      case _ =>
+        replaceExpression(relBuilder, None).toRexNode(relBuilder)
+    }
+  }
+
   private[flink] def replaceExpression(
     relBuilder: RelBuilder,
-    groupExpressions: Option[Seq[Expression]],
-    children: Seq[Attribute] = Seq(),
+    groupSet: Option[ImmutableBitSet],
+    internalFields: Map[String, String] = Map(),
     indicator: Boolean = false): Expression = {
 
-    if (groupExpressions.isDefined) {
-      val expressions = groupExpressions.get
+    if (groupSet.isDefined) {
+      val groups = groupSet.get
       if (!indicator) {
         Cast(
-          Minus(Power(Literal(2), Literal(getEffectiveArgCount(expressions))), Literal(1)),
+          Minus(Power(Literal(2), Literal(getEffectiveArgCount(groups))), Literal(1)),
           BasicTypeInfo.LONG_TYPE_INFO
         )
       } else {
-        val operands = getOperands(expressions)
-        val internalFieldsMap = getInternalFields(children)
+        val operands = getOperands(internalFields)
         var shift = operands.size
         var expression: Option[Expression] = None
         operands.foreach(x => {
           shift -= 1
-          expression = bitValue(relBuilder, expression, x, shift, expressions, internalFieldsMap)
+          expression = bitValue(relBuilder, expression, x, shift, internalFields)
         })
         Cast(expression.get, BasicTypeInfo.LONG_TYPE_INFO)
       }
@@ -54,8 +80,7 @@ abstract sealed class GroupFunction extends Expression {
     }
   }
 
-  private def getInternalFields(children: Seq[Attribute]) = {
-    val inputFields = children.map(_.name)
+  private def getInternalFieldNames(inputFields: List[String]) = {
     inputFields.map(inputFieldName => {
       val base = "i$" + inputFieldName
       var name = base
@@ -70,18 +95,13 @@ abstract sealed class GroupFunction extends Expression {
 
   private def bitValue(relBuilder: RelBuilder,
     expression: Option[Expression], operand: Int,
-    shift: Int, expressions: Seq[Expression],
-    internalFieldsMap: Map[String, String]
+    shift: Int, internalFieldsMap: Map[String, String]
   ): Option[Expression] = {
 
-    val fieldName = expressions(operand) match {
-      case ne: NamedExpression => ne.name
-      case _ => ""
-    }
+    val fieldName = internalFieldsMap.values.toList.get(operand)
 
     var nextExpression: Expression =
-      If(IsTrue(ResolvedFieldReference(
-        internalFieldsMap(fieldName), BasicTypeInfo.BOOLEAN_TYPE_INFO)),
+      If(IsTrue(ResolvedFieldReference(fieldName, BasicTypeInfo.BOOLEAN_TYPE_INFO)),
          Literal(1), Literal(0))
 
     if (shift > 0) {
@@ -95,10 +115,13 @@ abstract sealed class GroupFunction extends Expression {
     Some(nextExpression)
   }
 
-  protected def getEffectiveArgCount(groupExpressions: Seq[Expression]): Int
+  protected def getEffectiveArgCount(groupSet: ImmutableBitSet): Int = {
+    groupSet.toList.size()
+  }
 
-  protected def getOperands(groupExpressions: Seq[Expression]): Seq[Int] = {
-    children.map(e => groupExpressions.indexOf(e))
+  protected def getOperands(fields: Map[String, String]): Seq[Int] = {
+    val keys = fields.keys.toList
+    children.map(e => keys.indexOf(e.asInstanceOf[NamedExpression].name))
   }
 }
 
@@ -108,12 +131,9 @@ case class GroupId() extends GroupFunction {
 
   override private[flink] def children = Nil
 
-  override protected def getEffectiveArgCount(groupExpressions: Seq[Expression]): Int = {
-    groupExpressions.size
+  override protected def getOperands(fields: Map[String, String]): Seq[Int] = {
+    fields.values.toList.indices
   }
-
-  override protected def getOperands(groupExpressions: Seq[Expression]): Seq[Int] =
-    groupExpressions.indices
 }
 
 case class Grouping(expression: Expression) extends GroupFunction {
@@ -122,7 +142,7 @@ case class Grouping(expression: Expression) extends GroupFunction {
 
   override private[flink] def children = Seq(expression)
 
-  override protected def getEffectiveArgCount(groupExpressions: Seq[Expression]): Int = 1
+  override protected def getEffectiveArgCount(groupSet: ImmutableBitSet): Int = 1
 }
 
 case class GroupingId(expressions: Expression*) extends GroupFunction {
@@ -130,9 +150,4 @@ case class GroupingId(expressions: Expression*) extends GroupFunction {
   override private[flink] def resultType = BasicTypeInfo.LONG_TYPE_INFO
 
   override private[flink] def children = expressions
-
-  override protected def getEffectiveArgCount(groupExpressions: Seq[Expression]): Int = {
-    expressions.size
-  }
 }
-
