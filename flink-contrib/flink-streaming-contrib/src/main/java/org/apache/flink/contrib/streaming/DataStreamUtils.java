@@ -27,7 +27,6 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.net.UnknownHostException;
 import java.util.Iterator;
 
 public final class DataStreamUtils {
@@ -58,12 +57,7 @@ public final class DataStreamUtils {
 						"receive back data from the streaming program.", e);
 			}
 		} else {
-			try {
-				clientAddress = InetAddress.getLocalHost();
-			} catch (UnknownHostException e) {
-				throw new IOException("Could not determine this machines own local address to " +
-						"receive back data from the streaming program.", e);
-			}
+			clientAddress = InetAddress.getLoopbackAddress();
 		}
 
 		DataStreamSink<OUT> sink = stream.addSink(new CollectSink<OUT>(clientAddress, iter.getPort(), serializer));
