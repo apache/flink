@@ -141,7 +141,6 @@ public class PythonPlanBinder {
 
 			// Python process should terminate itself when all jobs have been run
 			while (streamer.isPythonRunning()) {
-				System.out.println("LOL Python still alive right?");
 				env = ExecutionEnvironment.getExecutionEnvironment();
 				if (receivePlan()) {
 					if (env instanceof LocalEnvironment) {
@@ -223,7 +222,6 @@ public class PythonPlanBinder {
 
 	private void sendResult(JobExecutionResult jer) throws IOException {
 		long runtime = jer.getNetRuntime();
-		System.out.println("JAVA RUNTIME: " + runtime);
 		streamer.sendRecord(runtime);
 	}
 

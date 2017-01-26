@@ -126,12 +126,9 @@ public class PythonStreamer implements Serializable {
 
 		Runtime.getRuntime().addShutdownHook(shutdownThread);
 
-		System.out.println(id);
-
 		String envID = id.split("\\.")[0],
 			setID = id.split("\\.")[1];
 
-		System.out.println("JAVA ENTERING OPS MODE");
 		OutputStream processOutput = process.getOutputStream();
 		processOutput.write("operator\n".getBytes());
 		processOutput.write((envID + "\n").getBytes());

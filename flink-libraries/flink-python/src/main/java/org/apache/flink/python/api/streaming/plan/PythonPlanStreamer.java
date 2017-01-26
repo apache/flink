@@ -80,7 +80,6 @@ public class PythonPlanStreamer implements Serializable {
 	}
 
 	public boolean startPlanMode() throws IOException {
-		System.out.println("JAVA ENTERING PLAN MODE");
 		server = new ServerSocket(0);
 		process.getOutputStream().write("plan\n".getBytes());
 		process.getOutputStream().write((server.getLocalPort() + "\n").getBytes());

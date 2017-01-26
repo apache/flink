@@ -180,11 +180,7 @@ class Environment(object):
             plan_mode = sys.stdin.readline().rstrip('\n') == "plan"
 
         if plan_mode:
-            print("PYTHON ENTERING PLAN MODE")
-            sys.stdout.flush()
             port = int(sys.stdin.readline().rstrip('\n'))
-            print("pyport: " + str(port))
-            sys.stdout.flush()
             self._connection = Connection.PureTCPConnection(port)
             self._iterator = Iterator.PlanIterator(self._connection, self)
             self._collector = Collector.PlanCollector(self._connection, self)
@@ -193,8 +189,6 @@ class Environment(object):
             self._connection.close()
             return result
         else:
-            print("PYTHON ENTERING OPS MODE")
-            sys.stdout.flush()
             import struct
             operator = None
             try:
@@ -209,16 +203,6 @@ class Environment(object):
                     _operating = False
                     _last_env_id = -1
                     id = int(sys.stdin.readline().rstrip('\n'))
-                    print('id')
-                    print(id)
-                    sys.stdout.flush()
-                    print('sets')
-                    print(self.env_id)
-                    print(self._sets)
-                    print(len(self._sets))
-                    for s in self._sets:
-                        print(s.id)
-                    sys.stdout.flush()
 
                     port = int(sys.stdin.readline().rstrip('\n'))
                     subtask_index = int(sys.stdin.readline().rstrip('\n'))
@@ -357,8 +341,6 @@ class Environment(object):
     def _receive_result(self):
         jer = JobExecutionResult()
         jer._net_runtime = self._iterator.next()
-        print("PYTHON RUNTIME: " + str(jer._net_runtime))
-        sys.stdout.flush()
         return jer
 
 
