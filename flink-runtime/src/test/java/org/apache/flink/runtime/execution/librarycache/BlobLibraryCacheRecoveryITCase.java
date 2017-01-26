@@ -143,6 +143,10 @@ public class BlobLibraryCacheRecoveryITCase {
 				client.delete(keys.get(0));
 				client.delete(keys.get(1));
 			}
+
+			// Verify everything is clean
+			File[] recoveryFiles = temporaryFolder.getRoot().listFiles();
+			assertEquals("Unclean state backend: " + Arrays.toString(recoveryFiles), 0, recoveryFiles.length);
 		}
 		finally {
 			for (BlobServer s : server) {
@@ -159,9 +163,5 @@ public class BlobLibraryCacheRecoveryITCase {
 				libCache.shutdown();
 			}
 		}
-
-		// Verify everything is clean
-		File[] recoveryFiles = temporaryFolder.getRoot().listFiles();
-		assertEquals("Unclean state backend: " + Arrays.toString(recoveryFiles), 0, recoveryFiles.length);
 	}
 }
