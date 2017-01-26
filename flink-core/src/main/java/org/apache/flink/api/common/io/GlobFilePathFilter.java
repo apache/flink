@@ -58,8 +58,8 @@ public class GlobFilePathFilter extends FilePathFilter {
 
 	// Path matchers are not serializable so we are delaying their
 	// creation until they are used
-	transient private ArrayList<PathMatcher> includeMatchers;
-	transient private ArrayList<PathMatcher> excludeMatchers;
+	private transient ArrayList<PathMatcher> includeMatchers;
+	private transient ArrayList<PathMatcher> excludeMatchers;
 
 	/**
 	 * Constructor for GlobFilePathFilter that will match all files

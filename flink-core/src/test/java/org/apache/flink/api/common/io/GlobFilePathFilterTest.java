@@ -161,6 +161,9 @@ public class GlobFilePathFilterTest {
 			Collections.singletonList("**"),
 			Collections.<String>emptyList());
 
-		CommonTestUtils.createCopySerializable(matcher);
+		GlobFilePathFilter matcherCopy = CommonTestUtils.createCopySerializable(matcher);
+		assertFalse(matcher.filterPath(new Path("a")));
+		assertFalse(matcher.filterPath(new Path("a/b")));
+		assertFalse(matcher.filterPath(new Path("a/b/c")));
 	}
 }
