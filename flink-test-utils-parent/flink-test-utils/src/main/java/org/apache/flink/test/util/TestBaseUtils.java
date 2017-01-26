@@ -464,7 +464,7 @@ public class TestBaseUtils extends TestLogger {
 		compareResult(result, expected, asTuples, false);
 	}
 
-	private static <T> void compareResult(List<T> result, String expected, boolean asTuples, boolean sort) {
+	public static <T> void compareResult(List<T> result, String expected, boolean asTuples, boolean sort) {
 		String[] expectedStrings = expected.split("\n");
 		String[] resultStrings = new String[result.size()];
 

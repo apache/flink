@@ -26,11 +26,12 @@ import org.apache.hadoop.hbase.util.Pair;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.sql.Time;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.ArrayList;
-import java.util.Date;
+import java.sql.Date;
 
 /**
  * Helps to specify an HBase Table's schema
@@ -39,12 +40,12 @@ public class HBaseTableSchema implements Serializable {
 
 	// A Map with key as column family.
 	private final Map<String, List<Pair<String, TypeInformation<?>>>> familyMap =
-		new HashMap<String, List<Pair<String, TypeInformation<?>>>>();
+		new HashMap<>();
 
 	// Allowed types. This may change.
 	// TODO : Check if the Date type should be the one in java.util or the one in java.sql
 	private static Class[] CLASS_TYPES = {
-		Integer.class, Short.class, Float.class, Long.class, String.class, Byte.class, Boolean.class, Double.class, BigInteger.class, BigDecimal.class, Date.class, byte[].class
+		Integer.class, Short.class, Float.class, Long.class, String.class, Byte.class, Boolean.class, Double.class, BigInteger.class, BigDecimal.class, Date.class, Time.class, byte[].class
 	};
 	/**
 	 * Allows specifying the family and qualifier name along with the data type of the qualifier for an HBase table
@@ -55,11 +56,11 @@ public class HBaseTableSchema implements Serializable {
 	 */
 	public void addColumn(String family, String qualifier, Class<?> clazz) {
 		Preconditions.checkNotNull(family, "family name");
-		Preconditions.checkNotNull(family, "qualifier name");
+		Preconditions.checkNotNull(qualifier, "qualifier name");
 		Preconditions.checkNotNull(clazz, "class type");
 		List<Pair<String, TypeInformation<?>>> list = this.familyMap.get(family);
 		if (list == null) {
-			list = new ArrayList<Pair<String, TypeInformation<?>>>();
+			list = new ArrayList<>();
 		}
 		boolean found = false;
 		for (Class classType : CLASS_TYPES) {
@@ -130,6 +131,8 @@ public class HBaseTableSchema implements Serializable {
 				return Bytes.toBigDecimal(value);
 			} else if (typeInfo.getTypeClass() == Date.class) {
 				return new Date(Bytes.toLong(value));
+			} else if (typeInfo.getTypeClass() == Time.class) {
+				return new Time(Bytes.toLong(value));
 			}
 		}
 		return value;
