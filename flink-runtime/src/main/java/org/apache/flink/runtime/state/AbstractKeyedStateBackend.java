@@ -242,7 +242,7 @@ public abstract class AbstractKeyedStateBackend<K>
 	@Override
 	public <N, S extends State, V> S getOrCreateKeyedState(
 			final TypeSerializer<N> namespaceSerializer,
-			StateDescriptor<S, V> stateDescriptor) throws Exception {
+			StateDescriptor<S> stateDescriptor) throws Exception {
 
 		checkNotNull(namespaceSerializer, "Namespace serializer");
 
@@ -323,7 +323,7 @@ public abstract class AbstractKeyedStateBackend<K>
 	public <N, S extends State> S getPartitionedState(
 			final N namespace,
 			final TypeSerializer<N> namespaceSerializer,
-			final StateDescriptor<S, ?> stateDescriptor) throws Exception {
+			final StateDescriptor<S> stateDescriptor) throws Exception {
 
 		checkNotNull(namespace, "Namespace");
 

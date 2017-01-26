@@ -25,6 +25,7 @@ import org.apache.flink.api.common.state.AggregatingStateDescriptor;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
+import org.apache.flink.api.common.state.SimpleStateDescriptor;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -111,7 +112,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 	@SuppressWarnings("unchecked")
 	private <N, V> StateTable<K, N, V> tryRegisterStateTable(
-			TypeSerializer<N> namespaceSerializer, StateDescriptor<?, V> stateDesc) {
+			TypeSerializer<N> namespaceSerializer, SimpleStateDescriptor<V, ?> stateDesc) {
 
 		String name = stateDesc.getName();
 		StateTable<K, N, V> stateTable = (StateTable<K, N, V>) stateTables.get(name);
@@ -158,7 +159,8 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		StateTable<K, N, ArrayList<T>> stateTable = (StateTable<K, N, ArrayList<T>>) stateTables.get(name);
 
 		RegisteredBackendStateMetaInfo<N, ArrayList<T>> newMetaInfo =
-				new RegisteredBackendStateMetaInfo<>(stateDesc.getType(), name, namespaceSerializer, new ArrayListSerializer<>(stateDesc.getSerializer()));
+				new RegisteredBackendStateMetaInfo<>(stateDesc.getType(), name, namespaceSerializer, 
+						new ArrayListSerializer<>(stateDesc.getSerializer()));
 
 		stateTable = tryRegisterStateTable(stateTable, newMetaInfo);
 		return new HeapListState<>(this, stateDesc, stateTable, keySerializer, namespaceSerializer);

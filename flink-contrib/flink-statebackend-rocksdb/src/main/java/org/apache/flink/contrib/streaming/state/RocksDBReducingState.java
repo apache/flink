@@ -43,7 +43,7 @@ import java.util.Collection;
  * @param <V> The type of value that the state state stores.
  */
 public class RocksDBReducingState<K, N, V>
-	extends AbstractRocksDBState<K, N, ReducingState<V>, ReducingStateDescriptor<V>, V>
+	extends AbstractRocksDBState<K, N, ReducingState<V>, ReducingStateDescriptor<V>>
 	implements InternalReducingState<N, V> {
 
 	/** Serializer for the values */

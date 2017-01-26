@@ -19,7 +19,7 @@
 package org.apache.flink.migration.runtime.state;
 
 import org.apache.flink.api.common.state.State;
-import org.apache.flink.api.common.state.StateDescriptor;
+import org.apache.flink.migration.api.common.state.StateDescriptor;
 
 @Deprecated
 public interface KvStateSnapshot<K, N, S extends State, SD extends StateDescriptor<S, ?>>

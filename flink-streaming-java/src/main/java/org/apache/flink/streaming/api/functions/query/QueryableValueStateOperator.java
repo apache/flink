@@ -33,7 +33,7 @@ public class QueryableValueStateOperator<IN> extends AbstractQueryableStateOpera
 
 	public QueryableValueStateOperator(
 			String registrationName,
-			StateDescriptor<ValueState<IN>, IN> stateDescriptor) {
+			StateDescriptor<ValueState<IN>> stateDescriptor) {
 
 		super(registrationName, stateDescriptor);
 	}

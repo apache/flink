@@ -19,9 +19,9 @@
 package org.apache.flink.migration.runtime.state.filesystem;
 
 import org.apache.flink.api.common.state.ListState;
-import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.migration.api.common.state.ListStateDescriptor;
 
 import java.util.ArrayList;
 

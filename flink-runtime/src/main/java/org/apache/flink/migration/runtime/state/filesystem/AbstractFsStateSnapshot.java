@@ -19,9 +19,9 @@
 package org.apache.flink.migration.runtime.state.filesystem;
 
 import org.apache.flink.api.common.state.State;
-import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.migration.api.common.state.StateDescriptor;
 import org.apache.flink.migration.runtime.state.KvStateSnapshot;
 
 import java.io.IOException;

@@ -119,7 +119,7 @@ public class HeapFoldingState<K, N, T, ACC>
 
 			if (currentValue == null) {
 				keyedMap.put(backend.<K>getCurrentKey(),
-						foldFunction.fold(stateDesc.getDefaultValue(), value));
+						foldFunction.fold(stateDesc.getInitialValue(), value));
 			} else {
 				keyedMap.put(backend.<K>getCurrentKey(), foldFunction.fold(currentValue, value));
 			}

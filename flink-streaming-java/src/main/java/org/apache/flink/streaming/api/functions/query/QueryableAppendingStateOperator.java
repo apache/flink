@@ -33,7 +33,7 @@ public class QueryableAppendingStateOperator<IN> extends AbstractQueryableStateO
 
 	public QueryableAppendingStateOperator(
 			String registrationName,
-			StateDescriptor<? extends AppendingState<IN, ?>, ?> stateDescriptor) {
+			StateDescriptor<? extends AppendingState<IN, ?>> stateDescriptor) {
 
 		super(registrationName, stateDescriptor);
 	}

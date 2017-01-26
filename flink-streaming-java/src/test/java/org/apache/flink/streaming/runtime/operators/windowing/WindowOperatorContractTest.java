@@ -2301,7 +2301,7 @@ public class WindowOperatorContractTest extends TestLogger {
 			WindowAssigner<Integer, W> assigner,
 			Trigger<Integer, W> trigger,
 			long allowedLatenss,
-			StateDescriptor<? extends AppendingState<Integer, ACC>, ?> stateDescriptor,
+			StateDescriptor<? extends AppendingState<Integer, ACC>> stateDescriptor,
 			InternalWindowFunction<ACC, OUT, Integer, W> windowFunction) throws Exception {
 
 		KeySelector<Integer, Integer> keySelector = new KeySelector<Integer, Integer>() {

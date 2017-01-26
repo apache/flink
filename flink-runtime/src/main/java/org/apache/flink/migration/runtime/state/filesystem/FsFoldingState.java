@@ -19,9 +19,9 @@
 package org.apache.flink.migration.runtime.state.filesystem;
 
 import org.apache.flink.api.common.state.FoldingState;
-import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.migration.api.common.state.FoldingStateDescriptor;
 
 @Deprecated
 public class FsFoldingState<K, N, T, ACC> {

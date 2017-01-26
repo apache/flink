@@ -37,6 +37,7 @@ import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.migration.MigrationNamespaceSerializerProxy;
 import org.apache.flink.migration.MigrationUtil;
 import org.apache.flink.migration.contrib.streaming.state.RocksDBStateBackend;
+import org.apache.flink.migration.util.MigrationInstantiationUtil;
 import org.apache.flink.runtime.io.async.AbstractAsyncIOCallable;
 import org.apache.flink.runtime.io.async.AsyncStoppableTaskWithCallback;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
@@ -60,6 +61,7 @@ import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
+
 import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ColumnFamilyOptions;
@@ -69,6 +71,7 @@ import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
 import org.rocksdb.RocksIterator;
 import org.rocksdb.Snapshot;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -795,18 +798,20 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	 * <p>This also checks whether the {@link StateDescriptor} for a state matches the one
 	 * that we checkpointed, i.e. is already in the map of column families.
 	 */
-	@SuppressWarnings("rawtypes, unchecked")
 	protected <N, S> ColumnFamilyHandle getColumnFamily(
-			StateDescriptor<?, S> descriptor, TypeSerializer<N> namespaceSerializer) throws IOException {
+			StateDescriptor.Type type,
+			String name,
+			TypeSerializer<N> namespaceSerializer,
+			TypeSerializer<S> stateSerializer) throws IOException {
 
 		Tuple2<ColumnFamilyHandle, RegisteredBackendStateMetaInfo<?, ?>> stateInfo =
-				kvStateInformation.get(descriptor.getName());
+				kvStateInformation.get(name);
 
 		RegisteredBackendStateMetaInfo<N, S> newMetaInfo = new RegisteredBackendStateMetaInfo<>(
-				descriptor.getType(),
-				descriptor.getName(),
+				type,
+				name,
 				namespaceSerializer,
-				descriptor.getSerializer());
+				stateSerializer);
 
 		if (stateInfo != null) {
 			if (newMetaInfo.isCompatibleWith(stateInfo.f1)) {
@@ -818,15 +823,14 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			}
 		}
 
-		ColumnFamilyDescriptor columnDescriptor = new ColumnFamilyDescriptor(
-				descriptor.getName().getBytes(), columnOptions);
+		ColumnFamilyDescriptor columnDescriptor = new ColumnFamilyDescriptor(name.getBytes(), columnOptions);
 
 		try {
 			ColumnFamilyHandle columnFamily = db.createColumnFamily(columnDescriptor);
 			Tuple2<ColumnFamilyHandle, RegisteredBackendStateMetaInfo<N, S>> tuple =
 					new Tuple2<>(columnFamily, newMetaInfo);
 			Map rawAccess = kvStateInformation;
-			rawAccess.put(descriptor.getName(), tuple);
+			rawAccess.put(name, tuple);
 			return columnFamily;
 		} catch (RocksDBException e) {
 			throw new IOException("Error creating ColumnFamilyHandle.", e);
@@ -838,7 +842,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			TypeSerializer<N> namespaceSerializer,
 			ValueStateDescriptor<T> stateDesc) throws Exception {
 
-		ColumnFamilyHandle columnFamily = getColumnFamily(stateDesc, namespaceSerializer);
+		ColumnFamilyHandle columnFamily = getColumnFamily(
+				stateDesc.getType(), stateDesc.getName(), namespaceSerializer, stateDesc.getSerializer());
 
 		return new RocksDBValueState<>(columnFamily, namespaceSerializer,  stateDesc, this);
 	}
@@ -848,7 +853,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			TypeSerializer<N> namespaceSerializer,
 			ListStateDescriptor<T> stateDesc) throws Exception {
 
-		ColumnFamilyHandle columnFamily = getColumnFamily(stateDesc, namespaceSerializer);
+		ColumnFamilyHandle columnFamily = getColumnFamily(
+				stateDesc.getType(), stateDesc.getName(), namespaceSerializer, stateDesc.getSerializer());
 
 		return new RocksDBListState<>(columnFamily, namespaceSerializer, stateDesc, this);
 	}
@@ -858,7 +864,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			TypeSerializer<N> namespaceSerializer,
 			ReducingStateDescriptor<T> stateDesc) throws Exception {
 
-		ColumnFamilyHandle columnFamily = getColumnFamily(stateDesc, namespaceSerializer);
+		ColumnFamilyHandle columnFamily = getColumnFamily(
+				stateDesc.getType(), stateDesc.getName(), namespaceSerializer, stateDesc.getSerializer());
 
 		return new RocksDBReducingState<>(columnFamily, namespaceSerializer,  stateDesc, this);
 	}
@@ -868,7 +875,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			TypeSerializer<N> namespaceSerializer,
 			AggregatingStateDescriptor<T, ACC, R> stateDesc) throws Exception {
 
-		ColumnFamilyHandle columnFamily = getColumnFamily(stateDesc, namespaceSerializer);
+		ColumnFamilyHandle columnFamily = getColumnFamily(
+				stateDesc.getType(), stateDesc.getName(), namespaceSerializer, stateDesc.getSerializer());
+
 		return new RocksDBAggregatingState<>(columnFamily, namespaceSerializer, stateDesc, this);
 	}
 
@@ -877,7 +886,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			TypeSerializer<N> namespaceSerializer,
 			FoldingStateDescriptor<T, ACC> stateDesc) throws Exception {
 
-		ColumnFamilyHandle columnFamily = getColumnFamily(stateDesc, namespaceSerializer);
+		ColumnFamilyHandle columnFamily = getColumnFamily(
+				stateDesc.getType(), stateDesc.getName(), namespaceSerializer, stateDesc.getSerializer());
 
 		return new RocksDBFoldingState<>(columnFamily, namespaceSerializer, stateDesc, this);
 	}
@@ -1142,30 +1152,40 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		kvStateInformation.clear();
 
 		// first get the column family mapping
-		int numColumns = inputView.readInt();
-		Map<Byte, StateDescriptor<?, ?>> columnFamilyMapping = new HashMap<>(numColumns);
+		final int numColumns = inputView.readInt();
+		final Map<Byte, org.apache.flink.migration.api.common.state.StateDescriptor<?, ?>> columnFamilyMapping = 
+				new HashMap<>(numColumns);
+		
 		for (int i = 0; i < numColumns; i++) {
-			byte mappingByte = inputView.readByte();
+			final byte mappingByte = inputView.readByte();
 
 			ObjectInputStream ooIn =
-					new InstantiationUtil.ClassLoaderObjectInputStream(
+					new MigrationInstantiationUtil.ClassLoaderObjectInputStream(
 							new DataInputViewStream(inputView), userCodeClassLoader);
 
-			StateDescriptor stateDescriptor = (StateDescriptor) ooIn.readObject();
+			org.apache.flink.migration.api.common.state.StateDescriptor<?, ?> stateDescriptor = 
+					(org.apache.flink.migration.api.common.state.StateDescriptor<?, ?>) ooIn.readObject();
 
 			columnFamilyMapping.put(mappingByte, stateDescriptor);
 
 			// this will fill in the k/v state information
-			getColumnFamily(stateDescriptor, MigrationNamespaceSerializerProxy.INSTANCE);
+			getColumnFamily(
+					stateDescriptor.getType(), stateDescriptor.getName(),
+					MigrationNamespaceSerializerProxy.INSTANCE, stateDescriptor.getSerializer());
 		}
 
 		// try and read until EOF
 		try {
 			// the EOFException will get us out of this...
 			while (true) {
-				byte mappingByte = inputView.readByte();
+				final byte mappingByte = inputView.readByte();
+
+				org.apache.flink.migration.api.common.state.StateDescriptor<?, ?> stateDescriptor = 
+						columnFamilyMapping.get(mappingByte);
+
 				ColumnFamilyHandle handle = getColumnFamily(
-						columnFamilyMapping.get(mappingByte), MigrationNamespaceSerializerProxy.INSTANCE);
+						stateDescriptor.getType(), stateDescriptor.getName(),
+						MigrationNamespaceSerializerProxy.INSTANCE, stateDescriptor.getSerializer());
 
 				byte[] keyAndNamespace = BytePrimitiveArraySerializer.INSTANCE.deserialize(inputView);
 

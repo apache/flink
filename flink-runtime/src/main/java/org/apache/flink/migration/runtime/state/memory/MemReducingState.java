@@ -19,8 +19,8 @@
 package org.apache.flink.migration.runtime.state.memory;
 
 import org.apache.flink.api.common.state.ReducingState;
-import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.migration.api.common.state.ReducingStateDescriptor;
 
 /**
  * Heap-backed partitioned {@link ReducingState} that is
