@@ -14,6 +14,7 @@ package org.apache.flink.python.api;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.SocketTimeoutException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Arrays;
@@ -142,7 +143,14 @@ public class PythonPlanBinder {
 			// Python process should terminate itself when all jobs have been run
 			while (streamer.isPythonRunning()) {
 				env = ExecutionEnvironment.getExecutionEnvironment();
-				receivePlan();
+
+				try {
+					receivePlan();
+				} catch (SocketTimeoutException ste) {
+					// If the socket times out, check to see if Python process has exited yet
+					continue;
+				}
+
 				if (env instanceof LocalEnvironment) {
 					FLINK_HDFS_PATH = "file:" + System.getProperty("java.io.tmpdir") + File.separator + "flink";
 				}

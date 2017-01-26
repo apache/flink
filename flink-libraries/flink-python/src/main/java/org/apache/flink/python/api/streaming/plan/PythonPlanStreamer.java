@@ -81,9 +81,13 @@ public class PythonPlanStreamer implements Serializable {
 
 	public void startPlanMode() throws IOException {
 		server = new ServerSocket(0);
+		//If after 5 seconds Python doesn't respond, check to see if the Python process has exited
+		server.setSoTimeout(5000);
+
 		process.getOutputStream().write("plan\n".getBytes());
 		process.getOutputStream().write((server.getLocalPort() + "\n").getBytes());
 		process.getOutputStream().flush();
+
 		socket = server.accept();
 		sender = new PythonPlanSender(socket.getOutputStream());
 		receiver = new PythonPlanReceiver(socket.getInputStream());
