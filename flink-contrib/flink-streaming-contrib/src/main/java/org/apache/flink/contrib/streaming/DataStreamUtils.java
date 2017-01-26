@@ -21,6 +21,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.net.ConnectionUtils;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
+import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.RemoteStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
@@ -57,6 +58,8 @@ public final class DataStreamUtils {
 				throw new IOException("Could not determine an suitable network address to " +
 						"receive back data from the streaming program.", e);
 			}
+		} else if (env instanceof LocalStreamEnvironment) {
+			clientAddress = InetAddress.getLoopbackAddress();
 		} else {
 			try {
 				clientAddress = InetAddress.getLocalHost();
