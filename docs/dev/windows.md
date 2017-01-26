@@ -123,7 +123,7 @@ Tumbling windows have a fixed size and do not overlap. For example, if you speci
 window with a size of 5 minutes, the current window will be evaluated and a new window will be 
 started every five minutes as illustrated by the following figure.
 
-<img src="{{ site.baseurl }}/fig/tumbling-windows.svg" class="center" style="width: 80%;" />
+<img src="{{ site.baseurl }}/fig/tumbling-windows.svg" class="center" style="width: 100%;" />
 
 The following code snippets show how to use tumbling windows.
 
@@ -201,7 +201,7 @@ For example, you could have windows of size 10 minutes that slides by 5 minutes.
 5 minutes a window that contains the events that arrived during the last 10 minutes as depicted by the 
 following figure.
 
-<img src="{{ site.baseurl }}/fig/sliding-windows.svg" class="center" style="width: 80%;" />
+<img src="{{ site.baseurl }}/fig/sliding-windows.svg" class="center" style="width: 100%;" />
 
 The following code snippets show how to use sliding windows.
 
@@ -276,7 +276,7 @@ inactivity occurred. A session window assigner is configured with the *session g
 defines how long is the required period of inactivity. When this period expires, the current session closes 
 and subsequent elements are assigned to a new session window.
 
-<img src="{{ site.baseurl }}/fig/session-windows.svg" class="center" style="width: 80%;" />
+<img src="{{ site.baseurl }}/fig/session-windows.svg" class="center" style="width: 100%;" />
 
 The following code snippets show how to use session windows.
 
@@ -336,7 +336,7 @@ This windowing scheme is only useful if you also specify a custom [trigger](#tri
 no computation will be performed, as the global window does not have a natural end at
 which we could process the aggregated elements.
 
-<img src="{{ site.baseurl }}/fig/non-windowed.svg" class="center" style="width: 80%;" />
+<img src="{{ site.baseurl }}/fig/non-windowed.svg" class="center" style="width: 100%;" />
 
 The following code snippets show how to use a global window.
 
