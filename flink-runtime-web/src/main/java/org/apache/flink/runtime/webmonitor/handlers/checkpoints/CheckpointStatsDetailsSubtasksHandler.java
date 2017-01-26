@@ -72,6 +72,9 @@ public class CheckpointStatsDetailsSubtasksHandler extends AbstractExecutionGrap
 		}
 
 		CheckpointStatsSnapshot snapshot = graph.getCheckpointStatsSnapshot();
+		if (snapshot == null) {
+			return "{}";
+		}
 
 		AbstractCheckpointStats checkpoint = snapshot.getHistory().getCheckpointById(checkpointId);
 

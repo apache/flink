@@ -116,14 +116,16 @@ public interface AccessExecutionGraph {
 	CheckpointCoordinator getCheckpointCoordinator();
 
 	/**
-	 * Returns the {@link JobSnapshottingSettings} for this execution graph.
+	 * Returns the {@link JobSnapshottingSettings} or <code>null</code> if
+	 * checkpointing is disabled.
 	 *
 	 * @return JobSnapshottingSettings for this execution graph
 	 */
 	JobSnapshottingSettings getJobSnapshottingSettings();
 
 	/**
-	 * Returns a snapshot of the checkpoint statistics for this execution graph.
+	 * Returns a snapshot of the checkpoint statistics or <code>null</code> if
+	 * checkpointing is disabled.
 	 *
 	 * @return Snapshot of the checkpoint statistics for this execution graph
 	 */

@@ -35,8 +35,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class CompletedCheckpointStats extends AbstractCheckpointStats {
 
-	/** Callback for the {@link CompletedCheckpoint} instance to notify about discard. */
-	private final DiscardCallback discardCallback;
+	private static final long serialVersionUID = 138833868551861343L;
 
 	/** Total checkpoint state size over all subtasks. */
 	private final long stateSize;
@@ -69,16 +68,16 @@ public class CompletedCheckpointStats extends AbstractCheckpointStats {
 	 * @param externalPath Optional external path if persisted externally.
 	 */
 	CompletedCheckpointStats(
-		long checkpointId,
-		long triggerTimestamp,
-		CheckpointProperties props,
-		int totalSubtaskCount,
-		Map<JobVertexID, TaskStateStats> taskStats,
-		int numAcknowledgedSubtasks,
-		long stateSize,
-		long alignmentBuffered,
-		SubtaskStateStats latestAcknowledgedSubtask,
-		@Nullable String externalPath) {
+			long checkpointId,
+			long triggerTimestamp,
+			CheckpointProperties props,
+			int totalSubtaskCount,
+			Map<JobVertexID, TaskStateStats> taskStats,
+			int numAcknowledgedSubtasks,
+			long stateSize,
+			long alignmentBuffered,
+			SubtaskStateStats latestAcknowledgedSubtask,
+			@Nullable String externalPath) {
 
 		super(checkpointId, triggerTimestamp, props, totalSubtaskCount, taskStats);
 		checkArgument(numAcknowledgedSubtasks == totalSubtaskCount, "Did not acknowledge all subtasks.");
@@ -87,7 +86,6 @@ public class CompletedCheckpointStats extends AbstractCheckpointStats {
 		this.alignmentBuffered = alignmentBuffered;
 		this.latestAcknowledgedSubtask = checkNotNull(latestAcknowledgedSubtask);
 		this.externalPath = externalPath;
-		this.discardCallback = new DiscardCallback();
 	}
 
 	@Override
@@ -145,7 +143,7 @@ public class CompletedCheckpointStats extends AbstractCheckpointStats {
 	 * @return Callback for the {@link CompletedCheckpoint}.
 	 */
 	DiscardCallback getDiscardCallback() {
-		return discardCallback;
+		return new DiscardCallback();
 	}
 
 	/**

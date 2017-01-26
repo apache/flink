@@ -54,6 +54,9 @@ public class CheckpointStatsHandler extends AbstractExecutionGraphRequestHandler
 		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
 
 		CheckpointStatsSnapshot snapshot = graph.getCheckpointStatsSnapshot();
+		if (snapshot == null) {
+			return "{}";
+		}
 
 		gen.writeStartObject();
 

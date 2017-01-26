@@ -27,6 +27,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
 import org.apache.flink.util.SerializedValue;
 
+import javax.annotation.Nullable;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.Iterator;
@@ -80,7 +81,11 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 	private final ArchivedExecutionConfig archivedExecutionConfig;
 	private final boolean isStoppable;
 	private final Map<String, SerializedValue<Object>> serializedUserAccumulators;
+
+	@Nullable
 	private final JobSnapshottingSettings jobSnapshottingSettings;
+
+	@Nullable
 	private final CheckpointStatsSnapshot checkpointStatsSnapshot;
 
 	public ArchivedExecutionGraph(
@@ -96,8 +101,9 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 			Map<String, SerializedValue<Object>> serializedUserAccumulators,
 			ArchivedExecutionConfig executionConfig,
 			boolean isStoppable,
-			JobSnapshottingSettings jobSnapshottingSettings,
-			CheckpointStatsSnapshot checkpointStatsSnapshot) {
+			@Nullable JobSnapshottingSettings jobSnapshottingSettings,
+			@Nullable CheckpointStatsSnapshot checkpointStatsSnapshot) {
+
 		this.jobID = jobID;
 		this.jobName = jobName;
 		this.tasks = tasks;
@@ -110,8 +116,8 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 		this.serializedUserAccumulators = serializedUserAccumulators;
 		this.archivedExecutionConfig = executionConfig;
 		this.isStoppable = isStoppable;
-		this.jobSnapshottingSettings = checkNotNull(jobSnapshottingSettings);
-		this.checkpointStatsSnapshot = checkNotNull(checkpointStatsSnapshot);
+		this.jobSnapshottingSettings = jobSnapshottingSettings;
+		this.checkpointStatsSnapshot = checkpointStatsSnapshot;
 	}
 
 	// --------------------------------------------------------------------------------------------

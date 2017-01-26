@@ -45,6 +45,10 @@ public class CheckpointConfigHandler extends AbstractExecutionGraphRequestHandle
 		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
 		JobSnapshottingSettings settings = graph.getJobSnapshottingSettings();
 
+		if (settings == null) {
+			return "{}";
+		}
+
 		gen.writeStartObject();
 		{
 			gen.writeStringField("mode", settings.isExactlyOnce() ? "exactly_once" : "at_least_once");

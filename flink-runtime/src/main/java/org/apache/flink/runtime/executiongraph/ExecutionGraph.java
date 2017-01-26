@@ -428,12 +428,20 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 
 	@Override
 	public JobSnapshottingSettings getJobSnapshottingSettings() {
-		return checkpointStatsTracker.getSnapshottingSettings();
+		if (checkpointStatsTracker != null) {
+			return checkpointStatsTracker.getSnapshottingSettings();
+		} else {
+			return null;
+		}
 	}
 
 	@Override
 	public CheckpointStatsSnapshot getCheckpointStatsSnapshot() {
-		return checkpointStatsTracker.createSnapshot();
+		if (checkpointStatsTracker != null) {
+			return checkpointStatsTracker.createSnapshot();
+		} else {
+			return null;
+		}
 	}
 
 	private ExecutionVertex[] collectExecutionVertices(List<ExecutionJobVertex> jobVertices) {
