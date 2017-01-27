@@ -35,8 +35,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
 public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializable {
 
 	private static final long serialVersionUID = 7231383912742578428L;
