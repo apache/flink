@@ -24,6 +24,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
@@ -523,6 +524,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	@Override
 	public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData) throws Exception {
 		try {
+			// activate safety net for checkpointing thread
+			FileSystem.createAndSetFileSystemCloseableRegistryForThread();
 			checkpointMetaData.
 					setBytesBufferedInAlignment(0L).
 					setAlignmentDurationNanos(0L);
@@ -538,6 +541,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 					"invokable was not in state running.", checkpointMetaData.getCheckpointId(), getName(), e);
 				return false;
 			}
+		} finally {
+			// close and de-activate safety net for checkpointing thread
+			FileSystem.closeAndDisposeFileSystemCloseableRegistryForThread();
 		}
 	}
 
