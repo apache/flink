@@ -205,10 +205,6 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 		isInitialized = true;
 	}
 
-	private File getDbPath() {
-		return new File(new File(getNextStoragePath(), jobId.toString()), operatorIdentifier);
-	}
-
 	private File getNextStoragePath() {
 		int ni = nextDirectory + 1;
 		ni = ni >= initializedDbBasePaths.length ? 0 : ni;
@@ -240,7 +236,8 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 
 		lazyInitializeForJob(env, operatorIdentifier);
 
-		File instanceBasePath = new File(getDbPath(), UUID.randomUUID().toString());
+		File instanceBasePath =
+				new File(getNextStoragePath(), "job-" + jobId.toString() + "_op-" + operatorIdentifier + "_uuid-" + UUID.randomUUID());
 
 		return new RocksDBKeyedStateBackend<>(
 				jobID,
