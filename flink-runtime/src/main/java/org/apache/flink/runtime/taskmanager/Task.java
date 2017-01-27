@@ -550,8 +550,8 @@ public class Task implements Runnable, TaskActions {
 			//  check for canceling as a shortcut
 			// ----------------------------
 
-			// init closeable registry for this task
-			FileSystem.createFileSystemCloseableRegistryForTask();
+			// activate safety net for task thread
+			FileSystem.createAndSetFileSystemCloseableRegistryForThread();
 
 			// first of all, get a user-code classloader
 			// this may involve downloading the job's JAR files and/or classes
@@ -775,7 +775,8 @@ public class Task implements Runnable, TaskActions {
 
 				// remove all files in the distributed cache
 				removeCachedFiles(distributedCacheEntries, fileCache);
-				FileSystem.disposeFileSystemCloseableRegistryForTask();
+				// close and de-activate safety net for task thread
+				FileSystem.closeAndDisposeFileSystemCloseableRegistryForThread();
 
 				notifyFinalState();
 			}
@@ -1115,6 +1116,8 @@ public class Task implements Runnable, TaskActions {
 				Runnable runnable = new Runnable() {
 					@Override
 					public void run() {
+						// activate safety net for checkpointing thread
+						FileSystem.createAndSetFileSystemCloseableRegistryForThread();
 						try {
 							boolean success = statefulTask.triggerCheckpoint(checkpointMetaData);
 							if (!success) {
@@ -1133,6 +1136,9 @@ public class Task implements Runnable, TaskActions {
 									"{} ({}) while being not in state running.", checkpointID,
 									taskNameWithSubtask, executionId, t);
 							}
+						} finally {
+							// close and de-activate safety net for checkpointing thread
+							FileSystem.closeAndDisposeFileSystemCloseableRegistryForThread();
 						}
 					}
 				};

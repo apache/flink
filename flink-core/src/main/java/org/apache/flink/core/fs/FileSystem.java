@@ -32,7 +32,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.OperatingSystem;
-
+import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -78,7 +78,7 @@ public abstract class FileSystem {
 
 	// ------------------------------------------------------------------------
 
-	private static final InheritableThreadLocal<SafetyNetCloseableRegistry> REGISTRIES = new InheritableThreadLocal<>();
+	private static final ThreadLocal<SafetyNetCloseableRegistry> REGISTRIES = new ThreadLocal<>();
 
 	private static final String HADOOP_WRAPPER_FILESYSTEM_CLASS = "org.apache.flink.runtime.fs.hdfs.HadoopFileSystem";
 
@@ -99,14 +99,15 @@ public abstract class FileSystem {
 	 * main thread.
 	 */
 	@Internal
-	public static void createFileSystemCloseableRegistryForTask() {
+	public static void createAndSetFileSystemCloseableRegistryForThread() {
 		SafetyNetCloseableRegistry oldRegistry = REGISTRIES.get();
-		if (null != oldRegistry) {
-			IOUtils.closeQuietly(oldRegistry);
-			LOG.warn("Found existing SafetyNetCloseableRegistry. Closed and replaced it.");
-		}
+		Preconditions.checkState(null == oldRegistry,
+				"Found old CloseableRegistry " + oldRegistry +
+						". This indicates a leak of the InheritableThreadLocal through a ThreadPool!");
+
 		SafetyNetCloseableRegistry newRegistry = new SafetyNetCloseableRegistry();
 		REGISTRIES.set(newRegistry);
+		LOG.info("Created new CloseableRegistry " + newRegistry + " for {}", Thread.currentThread().getName());
 	}
 
 	/**
@@ -114,7 +115,7 @@ public abstract class FileSystem {
 	 * main thread or when the task should be canceled.
 	 */
 	@Internal
-	public static void disposeFileSystemCloseableRegistryForTask() {
+	public static void closeAndDisposeFileSystemCloseableRegistryForThread() {
 		SafetyNetCloseableRegistry registry = REGISTRIES.get();
 		if (null != registry) {
 			LOG.info("Ensuring all FileSystem streams are closed for {}", Thread.currentThread().getName());
@@ -123,7 +124,7 @@ public abstract class FileSystem {
 		}
 	}
 
-	private static FileSystem wrapWithSafetyNetWhenInTask(FileSystem fs) {
+	private static FileSystem wrapWithSafetyNetWhenActivated(FileSystem fs) {
 		SafetyNetCloseableRegistry reg = REGISTRIES.get();
 		return reg != null ? new SafetyNetWrapperFileSystem(fs, reg) : fs;
 	}
@@ -306,7 +307,7 @@ public abstract class FileSystem {
 	 *         thrown if a reference to the file system instance could not be obtained
 	 */
 	public static FileSystem get(URI uri) throws IOException {
-		return wrapWithSafetyNetWhenInTask(getUnguardedFileSystem(uri));
+		return wrapWithSafetyNetWhenActivated(getUnguardedFileSystem(uri));
 	}
 
 	/**

@@ -19,11 +19,11 @@
 package org.apache.flink.core.fs;
 
 import org.junit.Assert;
-import org.junit.Before;
 import org.junit.Test;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class SafetyNetCloseableRegistryTest {
@@ -32,7 +32,6 @@ public class SafetyNetCloseableRegistryTest {
 	private SafetyNetCloseableRegistry closeableRegistry;
 	private AtomicInteger unclosedCounter;
 
-	@Before
 	public void setup() {
 		this.closeableRegistry = new SafetyNetCloseableRegistry();
 		this.unclosedCounter = new AtomicInteger(0);
@@ -56,8 +55,74 @@ public class SafetyNetCloseableRegistryTest {
 	}
 
 	@Test
+	public void testCorrectScopesForSafetyNet() throws Exception {
+		Thread t1 = new Thread() {
+			@Override
+			public void run() {
+				try {
+					FileSystem fs1 = FileSystem.getLocalFileSystem();
+					// ensure no safety net in place
+					Assert.assertFalse(fs1 instanceof SafetyNetWrapperFileSystem);
+					FileSystem.createAndSetFileSystemCloseableRegistryForThread();
+					fs1 = FileSystem.getLocalFileSystem();
+					// ensure safety net is in place now
+					Assert.assertTrue(fs1 instanceof SafetyNetWrapperFileSystem);
+					Path tmp = new Path(fs1.getWorkingDirectory(), UUID.randomUUID().toString());
+					try (FSDataOutputStream stream = fs1.create(tmp, false)) {
+						Thread t2 = new Thread() {
+							@Override
+							public void run() {
+								FileSystem fs2 = FileSystem.getLocalFileSystem();
+								// ensure the safety net does not leak here
+								Assert.assertFalse(fs2 instanceof SafetyNetWrapperFileSystem);
+								FileSystem.createAndSetFileSystemCloseableRegistryForThread();
+								fs2 = FileSystem.getLocalFileSystem();
+								// ensure we can bring another safety net in place
+								Assert.assertTrue(fs2 instanceof SafetyNetWrapperFileSystem);
+								FileSystem.closeAndDisposeFileSystemCloseableRegistryForThread();
+								fs2 = FileSystem.getLocalFileSystem();
+								// and that we can remove it again
+								Assert.assertFalse(fs2 instanceof SafetyNetWrapperFileSystem);
+							}
+						};
+						t2.start();
+						try {
+							t2.join();
+						} catch (InterruptedException e) {
+							Assert.fail();
+						}
+
+						//ensure stream is still open and was never closed by any interferences
+						stream.write(42);
+						FileSystem.closeAndDisposeFileSystemCloseableRegistryForThread();
+
+						// ensure leaking stream was closed
+						try {
+							stream.write(43);
+							Assert.fail();
+						} catch (IOException ignore) {
+
+						}
+						fs1 = FileSystem.getLocalFileSystem();
+						// ensure safety net was removed
+						Assert.assertFalse(fs1 instanceof SafetyNetWrapperFileSystem);
+					} finally {
+						fs1.delete(tmp, false);
+					}
+				} catch (Exception e) {
+					e.printStackTrace();
+					Assert.fail();
+				}
+			}
+		};
+		t1.start();
+		t1.join();
+	}
+
+	@Test
 	public void testClose() throws Exception {
 
+		setup();
 		startThreads(Integer.MAX_VALUE);
 
 		for (int i = 0; i < 5; ++i) {
@@ -98,7 +163,7 @@ public class SafetyNetCloseableRegistryTest {
 
 	@Test
 	public void testSafetyNetClose() throws Exception {
-
+		setup();
 		startThreads(20);
 
 		joinThreads();
