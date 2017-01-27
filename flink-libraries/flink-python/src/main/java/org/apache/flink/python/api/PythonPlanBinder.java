@@ -451,7 +451,7 @@ public class PythonPlanBinder {
 
 	private void createBroadcastVariable(PythonOperationInfo info) throws IOException {
 		UdfOperator<?> op1 = (UdfOperator) sets.get(info.uniqueParentID);
-		DataSet<?> op2 = (DataSet) sets.get(info.otherID);
+		DataSet<?> op2 = (DataSet) sets.get(info.uniqueOtherID);
 
 		op1.withBroadcastSet(op2, info.name);
 		Configuration c = op1.getParameters();
@@ -523,14 +523,14 @@ public class PythonPlanBinder {
 	@SuppressWarnings("unchecked")
 	private void createUnionOperation(PythonOperationInfo info) throws IOException {
 		DataSet op1 = (DataSet) sets.get(info.uniqueParentID);
-		DataSet op2 = (DataSet) sets.get(info.otherID);
+		DataSet op2 = (DataSet) sets.get(info.uniqueOtherID);
 		sets.put(info.uniqueID, op1.union(op2).setParallelism(getParallelism(info)).name("Union"));
 	}
 
 	@SuppressWarnings("unchecked")
 	private void createCoGroupOperation(PythonOperationInfo info) {
 		DataSet op1 = (DataSet) sets.get(info.uniqueParentID);
-		DataSet op2 = (DataSet) sets.get(info.otherID);
+		DataSet op2 = (DataSet) sets.get(info.uniqueOtherID);
 		Keys.ExpressionKeys<?> key1 = new Keys.ExpressionKeys(info.keys1, op1.getType());
 		Keys.ExpressionKeys<?> key2 = new Keys.ExpressionKeys(info.keys2, op2.getType());
 		PythonCoGroup pcg = new PythonCoGroup(info.uniqueID, info.types);
@@ -540,7 +540,7 @@ public class PythonPlanBinder {
 	@SuppressWarnings("unchecked")
 	private void createCrossOperation(DatasizeHint mode, PythonOperationInfo info) {
 		DataSet op1 = (DataSet) sets.get(info.uniqueParentID);
-		DataSet op2 = (DataSet) sets.get(info.otherID);
+		DataSet op2 = (DataSet) sets.get(info.uniqueOtherID);
 
 		DefaultCross defaultResult;
 		switch (mode) {
@@ -613,7 +613,7 @@ public class PythonPlanBinder {
 	@SuppressWarnings("unchecked")
 	private void createJoinOperation(DatasizeHint mode, PythonOperationInfo info) {
 		DataSet op1 = (DataSet) sets.get(info.uniqueParentID);
-		DataSet op2 = (DataSet) sets.get(info.otherID);
+		DataSet op2 = (DataSet) sets.get(info.uniqueOtherID);
 
 		if (info.usesUDF) {
 			sets.put(info.uniqueID, createDefaultJoin(op1, op2, info.keys1, info.keys2, mode, getParallelism(info))

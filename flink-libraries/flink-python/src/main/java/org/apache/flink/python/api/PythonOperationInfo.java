@@ -46,6 +46,7 @@ public class PythonOperationInfo {
 	public int parallelism;
 	public int envID;
 	public String uniqueID;
+	public String uniqueOtherID;
 	public String uniqueParentID;
 
 	public PythonOperationInfo(PythonPlanStreamer streamer, int environmentID) throws IOException {
@@ -98,6 +99,7 @@ public class PythonOperationInfo {
 
 		envID = environmentID;
 		uniqueID = "" + envID + "." + setID;
+		uniqueOtherID = "" + envID + "." + otherID;
 		uniqueParentID = "" + envID + "." + parentID;
 	}
 
