@@ -75,6 +75,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Base class for all streaming tasks. A task is the unit of local processing that is deployed
@@ -879,6 +880,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 		private final long asyncStartNanos;
 
+		private final AtomicReference<CheckpointingOperation.AsynCheckpointState> asyncCheckpointState = new AtomicReference<>(
+			CheckpointingOperation.AsynCheckpointState.RUNNING);
+
 		AsyncCheckpointRunnable(
 				StreamTask<?, ?> owner,
 				List<StreamStateHandle> nonPartitionedStateHandles,
@@ -948,11 +952,17 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 						keyedStateHandleBackend,
 						keyedStateHandleStream);
 
-				owner.getEnvironment().acknowledgeCheckpoint(checkpointMetaData, subtaskState);
+				if (asyncCheckpointState.compareAndSet(CheckpointingOperation.AsynCheckpointState.RUNNING, CheckpointingOperation.AsynCheckpointState.COMPLETED)) {
+					owner.getEnvironment().acknowledgeCheckpoint(checkpointMetaData, subtaskState);
 
-				if (LOG.isDebugEnabled()) {
-					LOG.debug("{} - finished asynchronous part of checkpoint {}. Asynchronous duration: {} ms",
+					if (LOG.isDebugEnabled()) {
+						LOG.debug("{} - finished asynchronous part of checkpoint {}. Asynchronous duration: {} ms",
 							owner.getName(), checkpointMetaData.getCheckpointId(), asyncDurationMillis);
+					}
+				} else {
+					LOG.debug("{} - asynchronous part of checkpoint {} could not be completed because it was closed before.",
+						owner.getName(),
+						checkpointMetaData.getCheckpointId());
 				}
 			} catch (Exception e) {
 				try {
@@ -984,28 +994,36 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		}
 
 		private void cleanup() throws Exception {
-			Exception exception = null;
+			if (asyncCheckpointState.compareAndSet(CheckpointingOperation.AsynCheckpointState.RUNNING, CheckpointingOperation.AsynCheckpointState.DISCARDED)) {
+				LOG.debug("Cleanup AsyncCheckpointRunnable for checkpoint {} of {}.", checkpointMetaData.getCheckpointId(), owner.getName());
+				Exception exception = null;
 
-			// clean up ongoing operator snapshot results and non partitioned state handles
-			for (OperatorSnapshotResult operatorSnapshotResult : snapshotInProgressList) {
-				if (operatorSnapshotResult != null) {
-					try {
-						operatorSnapshotResult.cancel();
-					} catch (Exception cancelException) {
-						exception = ExceptionUtils.firstOrSuppressed(cancelException, exception);
+				// clean up ongoing operator snapshot results and non partitioned state handles
+				for (OperatorSnapshotResult operatorSnapshotResult : snapshotInProgressList) {
+					if (operatorSnapshotResult != null) {
+						try {
+							operatorSnapshotResult.cancel();
+						} catch (Exception cancelException) {
+							exception = ExceptionUtils.firstOrSuppressed(cancelException, exception);
+						}
 					}
 				}
-			}
 
-			// discard non partitioned state handles
-			try {
-				StateUtil.bestEffortDiscardAllStateObjects(nonPartitionedStateHandles);
-			} catch (Exception discardException) {
-				exception = ExceptionUtils.firstOrSuppressed(discardException, exception);
-			}
+				// discard non partitioned state handles
+				try {
+					StateUtil.bestEffortDiscardAllStateObjects(nonPartitionedStateHandles);
+				} catch (Exception discardException) {
+					exception = ExceptionUtils.firstOrSuppressed(discardException, exception);
+				}
 
-			if (null != exception) {
-				throw exception;
+				if (null != exception) {
+					throw exception;
+				}
+			} else {
+				LOG.debug("{} - asynchronous checkpointing operation for checkpoint {} has " +
+						"already been completed. Thus, the state handles are not cleaned up.",
+					owner.getName(),
+					checkpointMetaData.getCheckpointId());
 			}
 		}
 	}
@@ -1173,6 +1191,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 			owner.cancelables.registerClosable(asyncCheckpointRunnable);
 			owner.asyncOperationsThreadPool.submit(asyncCheckpointRunnable);
+		}
+
+		private enum AsynCheckpointState {
+			RUNNING,
+			DISCARDED,
+			COMPLETED
 		}
 	}
 }
