@@ -19,6 +19,7 @@
 package org.apache.flink.core.fs;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.AbstractCloseableRegistry;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
@@ -207,6 +208,13 @@ public class SafetyNetCloseableRegistry extends
 		public void interrupt() {
 			this.running = false;
 			super.interrupt();
+		}
+	}
+
+	@VisibleForTesting
+	public static boolean isReaperThreadRunning() {
+		synchronized (REAPER_THREAD_LOCK) {
+			return null != REAPER_THREAD && REAPER_THREAD.isAlive();
 		}
 	}
 }

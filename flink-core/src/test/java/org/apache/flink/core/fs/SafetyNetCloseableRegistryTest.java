@@ -18,6 +18,7 @@
 
 package org.apache.flink.core.fs;
 
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -33,12 +34,18 @@ public class SafetyNetCloseableRegistryTest {
 	private AtomicInteger unclosedCounter;
 
 	public void setup() {
+		Assert.assertFalse(SafetyNetCloseableRegistry.isReaperThreadRunning());
 		this.closeableRegistry = new SafetyNetCloseableRegistry();
 		this.unclosedCounter = new AtomicInteger(0);
 		this.streamOpenThreads = new ProducerThread[10];
 		for (int i = 0; i < streamOpenThreads.length; ++i) {
 			streamOpenThreads[i] = new ProducerThread(closeableRegistry, unclosedCounter, Integer.MAX_VALUE);
 		}
+	}
+
+	@After
+	public void tearDown() {
+		Assert.assertFalse(SafetyNetCloseableRegistry.isReaperThreadRunning());
 	}
 
 	private void startThreads(int maxStreams) {
@@ -176,6 +183,23 @@ public class SafetyNetCloseableRegistryTest {
 		Assert.assertEquals(0, unclosedCounter.get());
 		closeableRegistry.close();
 	}
+
+	@Test
+	public void testReaperThreadSpawnAndStop() throws Exception {
+		Assert.assertFalse(SafetyNetCloseableRegistry.isReaperThreadRunning());
+
+		try (SafetyNetCloseableRegistry r1 = new SafetyNetCloseableRegistry()) {
+			Assert.assertTrue(SafetyNetCloseableRegistry.isReaperThreadRunning());
+
+			try (SafetyNetCloseableRegistry r2 = new SafetyNetCloseableRegistry()) {
+				Assert.assertTrue(SafetyNetCloseableRegistry.isReaperThreadRunning());
+			}
+			Assert.assertTrue(SafetyNetCloseableRegistry.isReaperThreadRunning());
+		}
+		Assert.assertFalse(SafetyNetCloseableRegistry.isReaperThreadRunning());
+	}
+
+	//------------------------------------------------------------------------------------------------------------------
 
 	private static final class ProducerThread extends Thread {
 
