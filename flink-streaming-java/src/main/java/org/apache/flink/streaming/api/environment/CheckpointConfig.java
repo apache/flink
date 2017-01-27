@@ -70,6 +70,9 @@ public class CheckpointConfig implements java.io.Serializable {
 	/** Cleanup behaviour for persistent checkpoints. */
 	private ExternalizedCheckpointCleanup externalizedCheckpointCleanup;
 
+	/** Job specific externalized checkpoint dir. */
+	private String externalizedCheckpointDir;
+
 	// ------------------------------------------------------------------------
 
 	/**
@@ -255,6 +258,30 @@ public class CheckpointConfig implements java.io.Serializable {
 	public void enableExternalizedCheckpoints(ExternalizedCheckpointCleanup cleanupMode) {
 		this.externalizedCheckpointCleanup = checkNotNull(cleanupMode);
 	}
+	
+	/**
+	 * Enables checkpoints to be persisted externally to the given directory.
+	 *
+	 * <p>Externalized checkpoints write their meta data out to persistent
+	 * storage and are <strong>not</strong> automatically cleaned up when
+	 * the owning job fails or is suspended (terminating with job status
+	 * {@link JobStatus#FAILED} or {@link JobStatus#SUSPENDED}). In this
+	 * case, you have to manually clean up the checkpoint state, both
+	 * the meta data and actual program state.
+	 *
+	 * <p>The {@link ExternalizedCheckpointCleanup} mode defines how an
+	 * externalized checkpoint should be cleaned up on job cancellation. If you
+	 * choose to retain externalized checkpoints on cancellation you have you
+	 * handle checkpoint clean up manually when you cancel the job as well
+	 * (terminating with job status {@link JobStatus#CANCELED}).
+	 *
+	 * @param cleanupMode Externalized checkpoint cleanup behaviour.
+	 */
+	@PublicEvolving
+	public void enableExternalizedCheckpoints(ExternalizedCheckpointCleanup cleanupMode, String checkpointDirectory) {
+		this.externalizedCheckpointCleanup = checkNotNull(cleanupMode);
+		this.externalizedCheckpointDir = checkNotNull(checkpointDirectory);
+	}
 
 	/**
 	 * Returns whether checkpoints should be persisted externally.
@@ -275,6 +302,18 @@ public class CheckpointConfig implements java.io.Serializable {
 	@PublicEvolving
 	public ExternalizedCheckpointCleanup getExternalizedCheckpointCleanup() {
 		return externalizedCheckpointCleanup;
+	}
+	
+	/**
+	 * Returns the configured externalized checkpoint directory or null if not
+	 * configured.
+	 *
+	 * @return Externalized checkpoint directory or null
+	 * 
+	 */
+	@PublicEvolving
+	public String getExternalizedCheckpointDirectory() {
+		return externalizedCheckpointDir;
 	}
 
 	/**

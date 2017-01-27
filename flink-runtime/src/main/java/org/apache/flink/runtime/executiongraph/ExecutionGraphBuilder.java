@@ -186,8 +186,12 @@ public class ExecutionGraphBuilder {
 					metrics);
 
 			// The default directory for externalized checkpoints
-			String externalizedCheckpointsDir = jobManagerConfig.getString(
-					ConfigConstants.CHECKPOINTS_DIRECTORY_KEY, null);
+			String externalizedCheckpointDir = snapshotSettings.getExternalizedCheckpointSettings()
+					.getExternalizedCheckpointDir();
+			
+			if(externalizedCheckpointDir == null) {
+				externalizedCheckpointDir = jobManagerConfig.getString(ConfigConstants.CHECKPOINTS_DIRECTORY_KEY, null);
+			}
 
 			executionGraph.enableSnapshotCheckpointing(
 					snapshotSettings.getCheckpointInterval(),
@@ -200,7 +204,7 @@ public class ExecutionGraphBuilder {
 					confirmVertices,
 					checkpointIdCounter,
 					completedCheckpoints,
-					externalizedCheckpointsDir,
+					externalizedCheckpointDir,
 					checkpointStatsTracker);
 		}
 
