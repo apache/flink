@@ -18,6 +18,9 @@
 
 package org.apache.flink.contrib.streaming.state;
 
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.filefilter.IOFileFilter;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
@@ -26,6 +29,7 @@ import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
@@ -47,8 +51,10 @@ import org.rocksdb.RocksIterator;
 import org.rocksdb.RocksObject;
 import org.rocksdb.Snapshot;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.RunnableFuture;
 
@@ -79,9 +85,12 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 	@Rule
 	public TemporaryFolder tempFolder = new TemporaryFolder();
 
+	// Store it because we need it for the cleanup test.
+	private String dbPath;
+
 	@Override
 	protected RocksDBStateBackend getStateBackend() throws IOException {
-		String dbPath = tempFolder.newFolder().getAbsolutePath();
+		dbPath = tempFolder.newFolder().getAbsolutePath();
 		String checkpointPath = tempFolder.newFolder().toURI().toString();
 		RocksDBStateBackend backend = new RocksDBStateBackend(new FsStateBackend(checkpointPath));
 		backend.setDbStoragePath(dbPath);
@@ -293,6 +302,37 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 		asyncSnapshotThread.join();
 	}
 
+	@Test
+	public void testDisposeDeletesAllDirectories() throws Exception {
+		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+		ValueStateDescriptor<String> kvId =
+				new ValueStateDescriptor<>("id", String.class, null);
+
+		kvId.initializeSerializerUnlessSet(new ExecutionConfig());
+
+		ValueState<String> state =
+				backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+
+		backend.setCurrentKey(1);
+		state.update("Hello");
+
+
+		Collection<File> allFilesInDbDir =
+				FileUtils.listFilesAndDirs(new File(dbPath), new AcceptAllFilter(), new AcceptAllFilter());
+
+		// more than just the root directory
+		assertTrue(allFilesInDbDir.size() > 1);
+
+		backend.dispose();
+
+		allFilesInDbDir =
+				FileUtils.listFilesAndDirs(new File(dbPath), new AcceptAllFilter(), new AcceptAllFilter());
+
+		// just the root directory left
+		assertEquals(1, allFilesInDbDir.size());
+	}
+
+
 	private void runStateUpdates() throws Exception{
 		for (int i = 50; i < 150; ++i) {
 			if (i % 10 == 0) {
@@ -401,6 +441,18 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 		@Override
 		public void close() throws Exception {
 
+		}
+	}
+
+	private static class AcceptAllFilter implements IOFileFilter {
+		@Override
+		public boolean accept(File file) {
+			return true;
+		}
+
+		@Override
+		public boolean accept(File file, String s) {
+			return true;
 		}
 	}
 }
