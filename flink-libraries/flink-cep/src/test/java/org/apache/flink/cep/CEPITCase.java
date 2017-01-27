@@ -434,8 +434,8 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 		DataStream<Event> input = env.fromElements(
 			Tuple2.of(new Event(1, "start", 1.0), 1L),
 			Tuple2.of(new Event(1, "middle", 2.0), 5L),
-			Tuple2.of(new Event(1, "start", 2.0), 4L),
-			Tuple2.of(new Event(1, "end", 2.0), 6L)
+			Tuple2.of(new Event(1, "start", 3.0), 4L),
+			Tuple2.of(new Event(1, "end", 4.0), 6L)
 		).assignTimestampsAndWatermarks(new AssignerWithPunctuatedWatermarks<Tuple2<Event,Long>>() {
 
 			@Override
@@ -501,7 +501,18 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
 		// the expected sequences of matching event ids
-		expected = "Left(1.0)\nRight(2.0,2.0,2.0)";
+
+		// the two Left(3.0) timed out patterns are there because the reference counter gets gradually decreased
+		// as the timers are processed (checkout NFA#process()).
+		//
+		// Each of the elements registers a timer. When the MAX_WM comes, the timer for the "end" event gives
+		// the correct value, while the timers for the "start@3" and "middle@2" put the corresponding patterns
+		// to the timedout list.
+		//
+		// The full patterns that are actually timed out at the MAX_WK are the :
+		// [{middle=Event(1, middle, 2.0), start=Event(1, start, 3.0)}] and then
+		// [{start=Event(1, start, 3.0)}]
+		expected = "Left(1.0)\nLeft(3.0)\nLeft(3.0)\nRight(3.0,2.0,4.0)";
 
 		env.execute();
 	}
