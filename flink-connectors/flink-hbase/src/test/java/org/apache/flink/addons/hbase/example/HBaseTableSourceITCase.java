@@ -191,6 +191,6 @@ public class HBaseTableSourceITCase extends HBaseTestingClusterAutostarter {
 		String expected = "100,strvalue,19991,null,null,null\n" +
 			"null,null,null,201,newvalue1,29992\n" +
 			"102,strvalue2,19993,null,null,null\n";
-		TestBaseUtils.compareResult(results, expected, false, false);
+		TestBaseUtils.compareResultAsText(results, expected);
 	}
 }

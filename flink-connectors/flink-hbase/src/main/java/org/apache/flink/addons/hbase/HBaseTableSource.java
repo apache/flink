@@ -51,7 +51,7 @@ public class HBaseTableSource implements BatchTableSource<Row> {
 		TypeInformation<?>[] typeInfos = new TypeInformation[famNames.length];
 		int i = 0;
 		for (String family : famNames) {
-			typeInfos[i] = new RowTypeInfo(schema.getTypeInformation(family), schema.getQualifierNames(family));
+			typeInfos[i] = new RowTypeInfo(schema.getQualifierTypes(family), schema.getQualifierNames(family));
 			i++;
 		}
 		RowTypeInfo rowInfo = new RowTypeInfo(typeInfos, famNames);

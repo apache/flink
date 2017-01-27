@@ -71,7 +71,7 @@ public class HBaseTableSchema implements Serializable {
 		}
 		if (!found) {
 			// throw exception
-			throw new IllegalArgumentException("Unsupported class type found " + clazz);
+			throw new IllegalArgumentException("Unsupported class type found " + clazz+". Better to use byte[].class and deserialize using user defined scalar functions");
 		}
 		list.add(new Pair<String, TypeInformation<?>>(qualifier, TypeExtractor.getForClass(clazz)));
 		familyMap.put(family, list);
@@ -92,7 +92,7 @@ public class HBaseTableSchema implements Serializable {
 		return qualifierNames;
 	}
 
-	public TypeInformation<?>[] getTypeInformation(String family) {
+	public TypeInformation<?>[] getQualifierTypes(String family) {
 		List<Pair<String, TypeInformation<?>>> colDetails = familyMap.get(family);
 		TypeInformation<?>[] typeInformations = new TypeInformation[colDetails.size()];
 		int i = 0;
