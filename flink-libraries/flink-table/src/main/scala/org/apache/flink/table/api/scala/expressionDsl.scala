@@ -17,6 +17,7 @@
  */
 package org.apache.flink.table.api.scala
 
+import java.math.{BigDecimal => JBigDecimal}
 import java.sql.{Date, Time, Timestamp}
 
 import org.apache.calcite.avatica.util.DateTimeUtils._
@@ -24,7 +25,6 @@ import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.table.expressions.ExpressionUtils.{convertArray, toMilliInterval, toMonthInterval, toRowInterval}
 import org.apache.flink.table.expressions.TimeIntervalUnit.TimeIntervalUnit
 import org.apache.flink.table.expressions._
-import java.math.{BigDecimal => JBigDecimal}
 
 import scala.language.implicitConversions
 
@@ -579,6 +579,19 @@ trait ImplicitExpressionOperations {
     * @return the first and only element of an array with a single element
     */
   def element() = ArrayElement(expr)
+
+  /**
+    * Grouping function. Similar to a SQL GROUPING_ID function.
+    */
+  def groupingId(): Expression = expr match {
+    case g: GroupedExpression => GroupingId(g.flatChildren: _*)
+    case x => GroupingId(x)
+  }
+
+  /**
+    * Grouping function. Similar to a SQL GROUPING function.
+    */
+  def grouping(): Expression = Grouping(expr)
 }
 
 /**
@@ -666,6 +679,31 @@ trait ImplicitExpressionConversions {
   implicit def sqlTimestamp2Literal(sqlTimestamp: Timestamp): Expression =
     Literal(sqlTimestamp)
   implicit def array2ArrayConstructor(array: Array[_]): Expression = convertArray(array)
+}
+
+/**
+  * Implicit conversions from Scala Tuples of Literals to GroupedExpression.
+  */
+trait ImplicitGroupedOperations {
+  private[flink] def expr: GroupedExpression
+
+  implicit class UnitAsGroupedExpression(unit: Unit) extends ImplicitGroupedOperations {
+    override private[flink] def expr = new GroupedExpression(Seq())
+  }
+
+  implicit class ProductAsGroupedExpression(product: Product)
+      extends ImplicitGroupedOperations {
+    override private[flink] def expr = new GroupedExpression(product)
+  }
+}
+
+trait ImplicitGroupedConversions {
+
+  implicit def unitToGroupedExpression(unit: Unit): GroupedExpression =
+    new GroupedExpression(Seq())
+
+  implicit def productToGroupedExpression(product: Product): GroupedExpression =
+    new GroupedExpression(product)
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -780,6 +818,39 @@ object array {
   def apply(head: Expression, tail: Expression*): Expression = {
     ArrayConstructor(head +: tail.toSeq)
   }
+}
+
+/**
+  * Grouping function. Similar to a SQL GROUP_ID function.
+  */
+object groupId {
+
+  /**
+    * Return evaluated result of the function.
+    */
+  def apply(): Expression = GroupId()
+}
+
+/**
+  * Grouping function. Similar to a SQL GROUPING function.
+  */
+object grouping {
+
+  /**
+    * Return evaluated result of the function.
+    */
+  def apply(expression: Expression): Expression = Grouping(expression)
+}
+
+/**
+  * Grouping function. Similar to a SQL GROUPING function.
+  */
+object groupingId {
+
+  /**
+    * Return evaluated result of the function.
+    */
+  def apply(expression: Expression*): Expression = GroupingId(expression: _*)
 }
 
 // scalastyle:on object.name

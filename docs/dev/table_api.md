@@ -780,11 +780,45 @@ val result = in.where('b === "red");
     <tr>
       <td><strong>GroupBy</strong></td>
       <td>
-        <p>Similar to a SQL GROUPBY clause. Groups rows on the grouping keys, with a following aggregation
+        <p>Similar to a SQL GROUP BY clause. Groups rows on the grouping keys, with a following aggregation
         operator to aggregate rows group-wise.</p>
 {% highlight scala %}
 val in = ds.toTable(tableEnv, 'a, 'b, 'c);
 val result = in.groupBy('a).select('a, 'b.sum as 'd);
+{% endhighlight %}
+      </td>
+    </tr>
+
+    <tr>
+      <td><strong>GroupingSets</strong></td>
+      <td>
+        <p>Similar to a SQL GROUP BY GROUPING SETS clause. A GROUPING SETS expression allows to selectively specify the
+        set of groups that you want to create within a GROUP BY clause.</p>
+{% highlight scala %}
+val in = ds.toTable(tableEnv, 'a, 'b, 'c);
+val result = in.groupingSets(('a, 'b), 'b, ()).select('a, 'b, 'c.sum as 'd);
+{% endhighlight %}
+      </td>
+    </tr>
+
+    <tr>
+      <td><strong>Cube</strong></td>
+      <td>
+        <p>Similar to a SQL GROUP BY CUBE clause. A CUBE expression will generate subtotals for all combinations of the dimensions specified.</p>
+{% highlight scala %}
+val in = ds.toTable(tableEnv, 'a, 'b, 'c);
+val result = in.cube('a, 'b).select('a, 'b, 'c.sum as 'd);
+{% endhighlight %}
+      </td>
+    </tr>
+
+    <tr>
+      <td><strong>Cube</strong></td>
+      <td>
+        <p>Similar to a SQL GROUP BY ROLLUP clause. A ROLLUP expression produces group subtotals from right to left and a grand total.</p>
+{% highlight scala %}
+val in = ds.toTable(tableEnv, 'a, 'b, 'c);
+val result = in.rollup('a, 'b).select('a, 'b, 'c.sum as 'd);
 {% endhighlight %}
       </td>
     </tr>
@@ -3519,6 +3553,42 @@ ARRAY.element()
       </td>
       <td>
         <p>Returns the sole element of an array with a single element. Returns <code>null</code> if the array is empty. Throws an exception if the array has more than one element.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+groupId()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns an integer that uniquely identifies the combination of grouping keys.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+ANY.grouping()
+grouping(ANY)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns 1 if expression is rolled up in the current row’s grouping set, 0 otherwise.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+ANY.groupingId()
+(ANY [, ANY ]*).groupingId()
+groupingId(ANY [, ANY ]*)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a bit vector of the given grouping expressions.</p>
       </td>
     </tr>
 

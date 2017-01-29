@@ -26,9 +26,13 @@ import org.apache.calcite.avatica.util.TimeUnit
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex.{RexBuilder, RexNode}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
+import org.apache.calcite.sql.validate.SqlValidatorUtil
+import org.apache.calcite.util.ImmutableBitSet
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.typeutils.{RowIntervalTypeInfo, TimeIntervalTypeInfo}
+
+import scala.collection.JavaConverters._
 
 object ExpressionUtils {
 
@@ -151,4 +155,35 @@ object ExpressionUtils {
       rexBuilder.makeExactLiteral(value))
   }
 
+  /** Computes the rollup of bit sets.
+    *
+    * <p>For example, <code>rollup({0}, {1})</code>
+    * returns <code>({0, 1}, {0}, {})</code>.
+    *
+    * <p>Bit sets are not necessarily singletons:
+    * <code>rollup({0, 2}, {3, 5})</code>
+    * returns <code>({0, 2, 3, 5}, {0, 2}, {})</code>. */
+  private[flink] def rollup(groups: Seq[Seq[Expression]]): Seq[Seq[Expression]] = {
+    val originalBitSet = for (i <- groups.indices) yield {
+      ImmutableBitSet.builder().set(i).build()
+    }
+    val rollupBitSets = SqlValidatorUtil.rollup(originalBitSet.asJava)
+    rollupBitSets.asScala.map(_.asScala.flatMap(i => groups(i)).toSeq)
+  }
+
+  /** Computes the cube of bit sets.
+    *
+    * <p>For example,  <code>rollup({0}, {1})</code>
+    * returns <code>({0, 1}, {0}, {})</code>.
+    *
+    * <p>Bit sets are not necessarily singletons:
+    * <code>rollup({0, 2}, {3, 5})</code>
+    * returns <code>({0, 2, 3, 5}, {0, 2}, {})</code>. */
+  private[flink] def cube(groups: Seq[Seq[Expression]]): Seq[Seq[Expression]] = {
+    val originalBitSet = for (i <- groups.indices) yield {
+      ImmutableBitSet.builder().set(i).build()
+    }
+    val cubeBitSets = SqlValidatorUtil.cube(originalBitSet.asJava)
+    cubeBitSets.asScala.map(_.asScala.flatMap(i => groups(i)).toSeq)
+  }
 }

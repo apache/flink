@@ -15,14 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.table.api
 
 import org.apache.calcite.rel.RelNode
+import org.apache.calcite.sql.SqlKind
+import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.plan.logical.Minus
-import org.apache.flink.table.expressions.{Alias, Asc, Call, Expression, ExpressionParser, Ordering, TableFunctionCall, UnresolvedAlias}
+import org.apache.flink.table.plan.logical.{Minus => MinusNode}
+import org.apache.flink.table.expressions._
 import org.apache.flink.table.plan.ProjectionTranslator._
 import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.sinks.TableSink
@@ -67,7 +70,7 @@ class Table(
     logicalPlan.output.map(_.name).toArray,
     logicalPlan.output.map(_.resultType).toArray)
 
-  def relBuilder = tableEnv.getRelBuilder
+  def relBuilder: RelBuilder = tableEnv.getRelBuilder
 
   def getRelNode: RelNode = logicalPlan.toRelNode(relBuilder)
 
@@ -244,6 +247,107 @@ class Table(
   def groupBy(fields: String): GroupedTable = {
     val fieldsExpr = ExpressionParser.parseExpressionList(fields)
     groupBy(fieldsExpr: _*)
+  }
+
+  /**
+    * Groups the elements on some grouping sets. Use this before a selection with aggregations
+    * to perform the aggregation on a per-group basis. Similar to a SQL GROUP BY GROUPING SETS
+    * statement.
+    *
+    * Example:
+    *
+    * {{{
+    *   tab.groupingSets(('a, 'b), ('a), ()).select('a, 'b, 'c.avg)
+    * }}}
+    */
+  def groupingSets(fields: Expression*): GroupingSetsTable = {
+    val groups = fields.map {
+      case g: GroupedExpression => g.flatChildren
+      case x => Seq(x)
+    }
+    new GroupingSetsTable(this, groups, SqlKind.GROUPING_SETS)
+  }
+
+  /**
+    * Groups the elements on some grouping keys. Use this before a selection with aggregations
+    * to perform the aggregation on a per-group basis. Similar to a SQL GROUP BY GROUPING SETS
+    * statement.
+    *
+    * Example:
+    *
+    * {{{
+    *   tab.groupingSets("(a, b), (a), ()").select("a, b, c.avg")
+    * }}}
+    */
+  def groupingSets(fields: String): GroupingSetsTable = {
+    val fieldsExpr = ExpressionParser.parseExpressionList(fields)
+    groupingSets(fieldsExpr: _*)
+  }
+
+  /**
+    * Groups the elements on cube grouping sets. Use this before a selection with aggregations
+    * to perform the aggregation on a per-group basis. Similar to a SQL GROUP BY CUBE statement.
+    *
+    * Example:
+    *
+    * {{{
+    *   tab.cube('a, 'b).select('a, 'b, 'c.avg)
+    * }}}
+    */
+  def cube(fields: Expression*): GroupingSetsTable = {
+    val groups = fields.map {
+      case g: GroupedExpression => g.flatChildren
+      case x => Seq(x)
+    }
+    new GroupingSetsTable(this, groups, SqlKind.CUBE)
+  }
+
+  /**
+    * Groups the elements on cube grouping sets. Use this before a selection with aggregations
+    * to perform the aggregation on a per-group basis. Similar to a SQL GROUP BY CUBE statement.
+    *
+    * Example:
+    *
+    * {{{
+    *   tab.cube("a, b").select("a, b, c.avg")
+    * }}}
+    */
+  def cube(fields: String): GroupingSetsTable = {
+    val fieldsExpr = ExpressionParser.parseExpressionList(fields)
+    cube(fieldsExpr: _*)
+  }
+
+  /**
+    * Groups the elements on rollup grouping sets. Use this before a selection with aggregations
+    * to perform the aggregation on a per-group basis. Similar to a SQL GROUP BY ROLLUP statement.
+    *
+    * Example:
+    *
+    * {{{
+    *   tab.rollup('a, 'b).select('a, 'b, 'c.avg)
+    * }}}
+    */
+  def rollup(fields: Expression*): GroupingSetsTable = {
+    val groups = fields.map {
+      case g: GroupedExpression => g.flatChildren
+      case x => Seq(x)
+    }
+    new GroupingSetsTable(this, groups, SqlKind.ROLLUP)
+  }
+
+  /**
+    * Groups the elements on rollup grouping sets. Use this before a selection with aggregations
+    * to perform the aggregation on a per-group basis. Similar to a SQL GROUP BY ROLLUP statement.
+    *
+    * Example:
+    *
+    * {{{
+    *   tab.rollup("a, b").select("a, b, c.avg")
+    * }}}
+    */
+  def rollup(fields: String): GroupingSetsTable = {
+    val fieldsExpr = ExpressionParser.parseExpressionList(fields)
+    rollup(fieldsExpr: _*)
   }
 
   /**
@@ -446,7 +550,7 @@ class Table(
       throw new ValidationException("Only tables from the same TableEnvironment can be " +
         "subtracted.")
     }
-    new Table(tableEnv, Minus(logicalPlan, right.logicalPlan, all = false)
+    new Table(tableEnv, MinusNode(logicalPlan, right.logicalPlan, all = false)
       .validate(tableEnv))
   }
 
@@ -471,7 +575,7 @@ class Table(
       throw new ValidationException("Only tables from the same TableEnvironment can be " +
         "subtracted.")
     }
-    new Table(tableEnv, Minus(logicalPlan, right.logicalPlan, all = true)
+    new Table(tableEnv, MinusNode(logicalPlan, right.logicalPlan, all = true)
       .validate(tableEnv))
   }
 
@@ -972,5 +1076,151 @@ class WindowGroupedTable(
     val fieldExprs = ExpressionParser.parseExpressionList(fields)
     select(fieldExprs: _*)
   }
+}
 
+/**
+  * A table that has been grouped on several sets of grouping keys.
+  */
+class GroupingSetsTable(
+  private[flink] val table: Table,
+  private[flink] val groups: Seq[Seq[Expression]],
+  private[flink] val sqlKind: SqlKind) {
+
+  /**
+    * Performs a selection operation on a grouped table. Similar to an SQL SELECT statement.
+    * The field expressions can contain complex expressions and aggregations.
+    *
+    * Example:
+    *
+    * {{{
+    *   tab.groupingSets('key).select('key, 'value.avg + " The average" as 'average)
+    * }}}
+    */
+  def select(fields: Expression*): Table = {
+
+    val (aggNames, propNames) = extractAggregationsAndProperties(fields, table.tableEnv)
+
+    if (propNames.nonEmpty) {
+      throw ValidationException("Window properties can only be used on windowed tables.")
+    }
+
+    val groupingSets = sqlKind match {
+      case SqlKind.CUBE => ExpressionUtils.cube(groups)
+      case SqlKind.ROLLUP => ExpressionUtils.rollup(groups)
+      case _ => groups
+    }
+
+    val projectsOnAgg = replaceAggregationsAndProperties(
+      fields, table.tableEnv, aggNames, propNames)
+    val projectFields = extractFieldReferences(fields ++ groupingSets.flatten.distinct)
+
+    val logical =
+      Project(projectsOnAgg,
+        GroupingAggregation(groupingSets, aggNames.map(a => Alias(a._1, a._2)).toSeq,
+                            Project(projectFields, table.logicalPlan).validate(table.tableEnv)
+        ).validate(table.tableEnv)
+      ).validate(table.tableEnv)
+
+    new Table(table.tableEnv, logical)
+  }
+
+  /**
+    * Performs a selection operation on a grouped table. Similar to an SQL SELECT statement.
+    * The field expressions can contain complex expressions and aggregations.
+    *
+    * Example:
+    *
+    * {{{
+    *   tab.groupBy("key").select("key, value.avg + ' The average' as average")
+    * }}}
+    */
+  def select(fields: String): Table = {
+    val fieldExprs = ExpressionParser.parseExpressionList(fields)
+    select(fieldExprs: _*)
+  }
+
+  /**
+    * Groups the records of a table by assigning them to windows defined by a time or row interval.
+    *
+    * For streaming tables of infinite size, grouping into windows is required to define finite
+    * groups on which group-based aggregates can be computed.
+    *
+    * For batch tables of finite size, windowing essentially provides shortcuts for time-based
+    * groupBy.
+    *
+    * @param groupWindow group-window that specifies how elements are grouped.
+    * @return A windowed table.
+    */
+  def window(groupWindow: GroupWindow): GroupingSetsWindowedTable = {
+    if (table.tableEnv.isInstanceOf[BatchTableEnvironment]) {
+      throw new ValidationException(s"Windows on batch tables are currently not supported.")
+    }
+    new GroupingSetsWindowedTable(table, groups, sqlKind, groupWindow)
+  }
+}
+
+class GroupingSetsWindowedTable(
+  private[flink] val table: Table,
+  private[flink] val groups: Seq[Seq[Expression]],
+  private[flink] val sqlKind: SqlKind,
+  private[flink] val window: GroupWindow) {
+
+  /**
+    * Performs a selection operation on a windowed table. Similar to an SQL SELECT statement.
+    * The field expressions can contain complex expressions and aggregations.
+    *
+    * Example:
+    *
+    * {{{
+    *   groupWindowTable.select('key, 'window.start, 'value.avg + " The average" as 'average)
+    * }}}
+    */
+  def select(fields: Expression*): Table = {
+
+    val (aggNames, propNames) = extractAggregationsAndProperties(fields, table.tableEnv)
+    val projectsOnAgg = replaceAggregationsAndProperties(
+      fields, table.tableEnv, aggNames, propNames)
+
+    val groupingSets = sqlKind match {
+      case SqlKind.CUBE => ExpressionUtils.cube(groups)
+      case SqlKind.ROLLUP => ExpressionUtils.rollup(groups)
+      case _ => groups
+    }
+
+    val projectFields = (table.tableEnv, window) match {
+      // event time can be arbitrary field in batch environment
+      case (_: BatchTableEnvironment, w: EventTimeWindow) =>
+        extractFieldReferences(fields ++ groupingSets.flatten.distinct ++ Seq(w.timeField))
+      case (_, _) =>
+        extractFieldReferences(fields ++ groupingSets.flatten.distinct)
+    }
+
+    val logical =
+      Project(projectsOnAgg,
+        GroupingWindowAggregate(
+          groupingSets,
+          window.toLogicalWindow,
+          propNames.map(a => Alias(a._1, a._2)).toSeq,
+          aggNames.map(a => Alias(a._1, a._2)).toSeq,
+          Project(projectFields, table.logicalPlan).validate(table.tableEnv)
+        ).validate(table.tableEnv)
+      ).validate(table.tableEnv)
+
+    new Table(table.tableEnv, logical)
+  }
+
+  /**
+    * Performs a selection operation on a group-windows table. Similar to an SQL SELECT statement.
+    * The field expressions can contain complex expressions and aggregations.
+    *
+    * Example:
+    *
+    * {{{
+    *   groupWindowTable.select("key, window.start, value.avg + ' The average' as average")
+    * }}}
+    */
+  def select(fields: String): Table = {
+    val fieldExprs = ExpressionParser.parseExpressionList(fields)
+    select(fieldExprs: _*)
+  }
 }

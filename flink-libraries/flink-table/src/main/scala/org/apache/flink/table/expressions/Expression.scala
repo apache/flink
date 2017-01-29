@@ -19,7 +19,6 @@ package org.apache.flink.table.expressions
 
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.tools.RelBuilder
-
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.plan.TreeNode
 import org.apache.flink.table.validate.{ValidationResult, ValidationSuccess}
@@ -85,4 +84,45 @@ abstract class UnaryExpression extends Expression {
 
 abstract class LeafExpression extends Expression {
   private[flink] val children = Nil
+}
+
+class GroupedExpression(
+    private[flink] val children: Seq[Expression]
+  ) extends Expression {
+
+  def this(product: Product) {
+    this(
+      product.productIterator
+        .map {
+          case e: Expression => e
+          case s: Symbol => UnresolvedFieldReference(s.name)
+          case p: Product => new GroupedExpression(p)
+          case _ => throw new IllegalArgumentException()
+        }.toSeq
+    )
+  }
+
+  def flatChildren: Seq[Expression] = {
+    children.flatMap {
+      case g: GroupedExpression => g.flatChildren
+      case x => Seq(x)
+    }
+  }
+
+  /**
+    * Returns the [[TypeInformation]] for evaluating this expression.
+    * It's not applicable for grouped expressions.
+    */
+  override private[flink] def resultType = ???
+
+  /**
+    * Grouping function. Similar to a SQL GROUPING_ID function.
+    */
+  def groupingId(): Expression = GroupingId(children: _*)
+
+  override def productElement(n: Int): Expression = children(n)
+
+  override def productArity: Int = children.length
+
+  override def canEqual(that: Any) = false
 }
