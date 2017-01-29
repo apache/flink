@@ -142,8 +142,6 @@ public class PythonPlanBinder {
 
 			// Python process should terminate itself when all jobs have been run
 			while (streamer.isPythonRunning()) {
-				env = ExecutionEnvironment.getExecutionEnvironment();
-
 				try {
 					receivePlan();
 				} catch (SocketTimeoutException ste) {
@@ -249,6 +247,7 @@ public class PythonPlanBinder {
 	//====Plan==========================================================================================================
 	private void receivePlan() throws IOException {
 		streamer.startPlanMode();
+		env = ExecutionEnvironment.getExecutionEnvironment();
 		receiveParameters();
 		receiveOperations();
 	}
