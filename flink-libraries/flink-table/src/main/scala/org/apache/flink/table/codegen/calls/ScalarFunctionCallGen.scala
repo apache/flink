@@ -18,11 +18,13 @@
 
 package org.apache.flink.table.codegen.calls
 
+import org.apache.commons.lang3.ClassUtils
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.codegen.{CodeGenException, CodeGenerator, GeneratedExpression}
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
+import org.apache.flink.table.typeutils.TypeCheckUtils
 
 /**
   * Generates a call to user-defined [[ScalarFunction]].
@@ -51,6 +53,10 @@ class ScalarFunctionCallGen(
         .zip(operands)
         .map { case (paramClass, operandExpr) =>
           if (paramClass.isPrimitive) {
+            operandExpr
+          } else if (ClassUtils.isPrimitiveWrapper(paramClass)
+            && TypeCheckUtils.isTemporal(operandExpr.resultType)) {
+            // we use primitive to represent temporal types internally, so no casting need here
             operandExpr
           } else {
             val boxedTypeTerm = boxedTypeTermForTypeInfo(operandExpr.resultType)
