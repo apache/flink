@@ -1153,7 +1153,16 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 					}
 					return true;
 				case CANCELED:
-					attempt.cancelingComplete();
+					AccumulatorSnapshot accumulators = state.getAccumulators();
+					Map<String, Accumulator<?, ?>> userAccumulators = null;
+					if (accumulators == null) {
+						try {
+							accumulators.deserializeUserAccumulators(userClassLoader);
+						} catch (Exception e) {
+							LOG.error("Failed to deserialize final accumulator results.", e);
+						}
+					}
+					attempt.cancelingComplete(userAccumulators, state.getIOMetrics());
 					return true;
 				case FAILED:
 					attempt.markFailed(state.getError(userClassLoader));

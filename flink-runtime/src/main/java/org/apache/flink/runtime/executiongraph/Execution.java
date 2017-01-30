@@ -741,7 +741,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			else if (current == CANCELING) {
 				// we sent a cancel call, and the task manager finished before it arrived. We
 				// will never get a CANCELED call back from the job manager
-				cancelingComplete();
+				cancelingComplete(userAccumulators, metrics);
 				return;
 			}
 			else if (current == CANCELED || current == FAILED) {
@@ -759,6 +759,10 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	}
 
 	void cancelingComplete() {
+		cancelingComplete(null, null);
+	}
+	
+	void cancelingComplete(Map<String, Accumulator<?, ?>> userAccumulators, IOMetrics metrics) {
 
 		// the taskmanagers can themselves cancel tasks without an external trigger, if they find that the
 		// network stack is canceled (for example by a failing / canceling receiver or sender
@@ -771,29 +775,36 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			if (current == CANCELED) {
 				return;
 			}
-			else if (current == CANCELING || current == RUNNING || current == DEPLOYING) {
-				if (transitionState(current, CANCELED)) {
-					try {
-						assignedResource.releaseSlot();
-						vertex.getExecutionGraph().deregisterExecution(this);
+			else {
+				synchronized (accumulatorLock) {
+					this.userAccumulators = userAccumulators;
+				}
+				this.ioMetrics = metrics;
+
+				if (current == CANCELING || current == RUNNING || current == DEPLOYING) {
+					if (transitionState(current, CANCELED)) {
+						try {
+							assignedResource.releaseSlot();
+							vertex.getExecutionGraph().deregisterExecution(this);
+						}
+						finally {
+							vertex.executionCanceled();
+						}
+						return;
 					}
-					finally {
-						vertex.executionCanceled();
+
+					// else fall through the loop
+				}
+				else {
+					// failing in the meantime may happen and is no problem.
+					// anything else is a serious problem !!!
+					if (current != FAILED) {
+						String message = String.format("Asynchronous race: Found state %s after successful cancel call.", state);
+						LOG.error(message);
+						vertex.getExecutionGraph().fail(new Exception(message));
 					}
 					return;
 				}
-
-				// else fall through the loop
-			}
-			else {
-				// failing in the meantime may happen and is no problem.
-				// anything else is a serious problem !!!
-				if (current != FAILED) {
-					String message = String.format("Asynchronous race: Found state %s after successful cancel call.", state);
-					LOG.error(message);
-					vertex.getExecutionGraph().fail(new Exception(message));
-				}
-				return;
 			}
 		}
 	}
@@ -850,7 +861,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			}
 
 			if (current == CANCELING) {
-				cancelingComplete();
+				cancelingComplete(null, null);
 				return false;
 			}
 
