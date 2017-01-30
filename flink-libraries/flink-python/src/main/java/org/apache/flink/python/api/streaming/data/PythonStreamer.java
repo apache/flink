@@ -51,7 +51,8 @@ public class PythonStreamer implements Serializable {
 	private static final int SIGNAL_ERROR = -2;
 	private static final byte SIGNAL_LAST = 32;
 
-	private final String id;
+	private final int envID;
+	private final int setID;
 	private final boolean usePython3;
 	private final String planArguments;
 
@@ -73,8 +74,9 @@ public class PythonStreamer implements Serializable {
 
 	protected final AbstractRichFunction function;
 
-	public PythonStreamer(AbstractRichFunction function, String id, boolean usesByteArray) {
-		this.id = id;
+	public PythonStreamer(AbstractRichFunction function, int envID, int setID, boolean usesByteArray) {
+		this.envID = envID;
+		this.setID = setID;
 		this.usePython3 = PythonPlanBinder.usePython3;
 		planArguments = PythonPlanBinder.arguments.toString();
 		sender = new PythonSender();
@@ -93,8 +95,8 @@ public class PythonStreamer implements Serializable {
 	}
 
 	private void startPython() throws IOException {
-		this.outputFilePath = FLINK_TMP_DATA_DIR + "/" + id + this.function.getRuntimeContext().getIndexOfThisSubtask() + "output";
-		this.inputFilePath = FLINK_TMP_DATA_DIR + "/" + id + this.function.getRuntimeContext().getIndexOfThisSubtask() + "input";
+		this.outputFilePath = FLINK_TMP_DATA_DIR + "/" + envID + "." + setID + this.function.getRuntimeContext().getIndexOfThisSubtask() + "output";
+		this.inputFilePath = FLINK_TMP_DATA_DIR + "/" + envID + "." + setID + this.function.getRuntimeContext().getIndexOfThisSubtask() + "input";
 
 		sender.open(inputFilePath);
 		receiver.open(outputFilePath);
@@ -125,9 +127,6 @@ public class PythonStreamer implements Serializable {
 		};
 
 		Runtime.getRuntime().addShutdownHook(shutdownThread);
-
-		String envID = id.split("\\.")[0],
-			setID = id.split("\\.")[1];
 
 		OutputStream processOutput = process.getOutputStream();
 		processOutput.write("operator\n".getBytes());
