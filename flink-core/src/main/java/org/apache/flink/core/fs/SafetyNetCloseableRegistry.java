@@ -18,6 +18,7 @@
 
 package org.apache.flink.core.fs;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.AbstractCloseableRegistry;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
@@ -45,19 +46,21 @@ import java.util.Map;
  * <p>
  * All methods in this class are thread-safe.
  */
+@Internal
 public class SafetyNetCloseableRegistry extends
 		AbstractCloseableRegistry<WrappingProxyCloseable<? extends Closeable>,
 				SafetyNetCloseableRegistry.PhantomDelegatingCloseableRef> {
 
+	/** Singleton reaper thread takes care of all registries in VM */
+	private static final CloseableReaperThread REAPER_THREAD = new CloseableReaperThread();
 	private static final Logger LOG = LoggerFactory.getLogger(SafetyNetCloseableRegistry.class);
-	private final ReferenceQueue<WrappingProxyCloseable<? extends Closeable>> referenceQueue;
-	private final Thread reaperThread;
+
+	static {
+		REAPER_THREAD.start();
+	}
 
 	public SafetyNetCloseableRegistry() {
 		super(new IdentityHashMap<Closeable, PhantomDelegatingCloseableRef>());
-		this.referenceQueue = new ReferenceQueue<>();
-		this.reaperThread = new CloseableReaperThread();
-		reaperThread.start();
 	}
 
 	@Override
@@ -71,8 +74,10 @@ public class SafetyNetCloseableRegistry extends
 			return;
 		}
 
-		PhantomDelegatingCloseableRef phantomRef =
-				new PhantomDelegatingCloseableRef(wrappingProxyCloseable, referenceQueue);
+		PhantomDelegatingCloseableRef phantomRef = new PhantomDelegatingCloseableRef(
+				wrappingProxyCloseable,
+				this,
+				REAPER_THREAD.referenceQueue);
 
 		closeableMap.put(innerCloseable, phantomRef);
 	}
@@ -99,19 +104,18 @@ public class SafetyNetCloseableRegistry extends
 			implements Closeable {
 
 		private final Closeable innerCloseable;
+		private final SafetyNetCloseableRegistry closeableRegistry;
 		private final String debugString;
 
 		public PhantomDelegatingCloseableRef(
 				WrappingProxyCloseable<? extends Closeable> referent,
+				SafetyNetCloseableRegistry closeableRegistry,
 				ReferenceQueue<? super WrappingProxyCloseable<? extends Closeable>> q) {
 
 			super(referent, q);
 			this.innerCloseable = Preconditions.checkNotNull(WrappingProxyUtil.stripProxy(referent));
+			this.closeableRegistry = Preconditions.checkNotNull(closeableRegistry);
 			this.debugString = referent.toString();
-		}
-
-		public Closeable getInnerCloseable() {
-			return innerCloseable;
 		}
 
 		public String getDebugString() {
@@ -120,6 +124,9 @@ public class SafetyNetCloseableRegistry extends
 
 		@Override
 		public void close() throws IOException {
+			synchronized (closeableRegistry.getSynchronizationLock()) {
+				closeableRegistry.closeableToRef.remove(innerCloseable);
+			}
 			innerCloseable.close();
 		}
 	}
@@ -127,14 +134,17 @@ public class SafetyNetCloseableRegistry extends
 	/**
 	 * Reaper runnable collects and closes leaking resources
 	 */
-	final class CloseableReaperThread extends Thread {
+	static final class CloseableReaperThread extends Thread {
 
-		public CloseableReaperThread() {
+		private CloseableReaperThread() {
 			super("CloseableReaperThread");
+			this.referenceQueue = new ReferenceQueue<>();
 			this.running = false;
+			this.setDaemon(true);
 		}
 
 		private volatile boolean running;
+		private final ReferenceQueue<WrappingProxyCloseable<? extends Closeable>> referenceQueue;
 
 		@Override
 		public void run() {
@@ -143,13 +153,11 @@ public class SafetyNetCloseableRegistry extends
 				List<PhantomDelegatingCloseableRef> closeableList = new LinkedList<>();
 				while (running) {
 					PhantomDelegatingCloseableRef oldRef = (PhantomDelegatingCloseableRef) referenceQueue.remove();
-					synchronized (getSynchronizationLock()) {
-						do {
-							closeableList.add(oldRef);
-							closeableToRef.remove(oldRef.getInnerCloseable());
-						}
-						while ((oldRef = (PhantomDelegatingCloseableRef) referenceQueue.poll()) != null);
+
+					do {
+						closeableList.add(oldRef);
 					}
+					while ((oldRef = (PhantomDelegatingCloseableRef) referenceQueue.poll()) != null);
 
 					// close outside the synchronized block in case this is blocking
 					for (PhantomDelegatingCloseableRef closeableRef : closeableList) {
@@ -173,9 +181,7 @@ public class SafetyNetCloseableRegistry extends
 		}
 	}
 
-	@Override
-	public void close() throws IOException {
-		super.close();
-		reaperThread.interrupt();
+	public static void stopReaperThread() {
+		REAPER_THREAD.interrupt();
 	}
 }
