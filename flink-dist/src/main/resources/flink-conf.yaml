@@ -89,7 +89,7 @@ jobmanager.web.port: 8081
 #
 # Supported backends: jobmanager, filesystem, rocksdb, <class-name-of-factory>
 #
-#state.backend: filesystem
+# state.backend: filesystem
 
 
 # Directory for storing checkpoints in a Flink-supported filesystem
@@ -169,11 +169,16 @@ jobmanager.web.port: 8081
 # 3. make the credentials available to various JAAS login contexts
 # 4. configure the connector to use JAAS/SASL
 
-#security.kerberos.login.keytab: /path/to/kerberos/keytab
-#security.kerberos.login.principal: flink-user
-#security.kerberos.login.use-ticket-cache: true
+# The below configure how Kerberos credentials are provided. A keytab will be used instead of
+# a ticket cache if the keytab path and principal are set.
 
-#security.kerberos.login.contexts: Client,KafkaClient
+# security.kerberos.login.use-ticket-cache: true
+# security.kerberos.login.keytab: /path/to/kerberos/keytab
+# security.kerberos.login.principal: flink-user
+
+# The configuration below defines which JAAS login contexts
+
+# security.kerberos.login.contexts: Client,KafkaClient
 
 #==============================================================================
 # ZK Security Configuration (optional configuration)
@@ -182,5 +187,7 @@ jobmanager.web.port: 8081
 # Below configurations are applicable if ZK ensemble is configured for security
 
 # Override below configuration to provide custom ZK service name if configured
-#
 # zookeeper.sasl.service-name: zookeeper
+
+# The configuration below must match one of the values set in "security.kerberos.login.contexts"
+# zookeeper.sasl.login-context-name: Client
