@@ -21,24 +21,23 @@ import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.util.InstantiationUtil;
-import org.elasticsearch.ElasticsearchTimeoutException;
 import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.IndicesRequest;
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkProcessor;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.client.Client;
-import org.elasticsearch.cluster.block.ClusterBlockException;
 import org.elasticsearch.common.unit.ByteSizeUnit;
 import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.unit.TimeValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Serializable;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -70,10 +69,56 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> {
 	public static final String CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS = "bulk.flush.max.actions";
 	public static final String CONFIG_KEY_BULK_FLUSH_MAX_SIZE_MB = "bulk.flush.max.size.mb";
 	public static final String CONFIG_KEY_BULK_FLUSH_INTERVAL_MS = "bulk.flush.interval.ms";
+	public static final String CONFIG_KEY_BULK_FLUSH_BACKOFF_ENABLE = "bulk.flush.backoff.enable";
+	public static final String CONFIG_KEY_BULK_FLUSH_BACKOFF_TYPE = "bulk.flush.backoff.type";
+	public static final String CONFIG_KEY_BULK_FLUSH_BACKOFF_RETRIES = "bulk.flush.backoff.retries";
+	public static final String CONFIG_KEY_BULK_FLUSH_BACKOFF_DELAY = "bulk.flush.backoff.delay";
+
+	public enum FlushBackoffType {
+		CONSTANT,
+		EXPONENTIAL
+	}
+
+	public class BulkFlushBackoffPolicy implements Serializable {
+
+		private static final long serialVersionUID = -6022851996101826049L;
+
+		// the default values follow the Elasticsearch default settings for BulkProcessor
+		private FlushBackoffType backoffType = FlushBackoffType.EXPONENTIAL;
+		private int maxRetryCount = 8;
+		private long delayMillis = 50;
+
+		public FlushBackoffType getBackoffType() {
+			return backoffType;
+		}
+
+		public int getMaxRetryCount() {
+			return maxRetryCount;
+		}
+
+		public long getDelayMillis() {
+			return delayMillis;
+		}
+
+		public void setBackoffType(FlushBackoffType backoffType) {
+			this.backoffType = checkNotNull(backoffType);
+		}
+
+		public void setMaxRetryCount(int maxRetryCount) {
+			checkArgument(maxRetryCount > 0);
+			this.maxRetryCount = maxRetryCount;
+		}
+
+		public void setDelayMillis(long delayMillis) {
+			checkArgument(delayMillis > 0);
+			this.delayMillis = delayMillis;
+		}
+	}
 
 	private final Integer bulkProcessorFlushMaxActions;
 	private final Integer bulkProcessorFlushMaxSizeMb;
 	private final Integer bulkProcessorFlushIntervalMillis;
+	private final BulkFlushBackoffPolicy bulkProcessorFlushBackoffPolicy;
 
 	// ------------------------------------------------------------------------
 	//  User-facing API and configuration
@@ -85,15 +130,11 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> {
 	/** The function that is used to construct mulitple {@link ActionRequest ActionRequests} from each incoming element. */
 	private final ElasticsearchSinkFunction<T> elasticsearchSinkFunction;
 
+	/** User-provided handler for failed {@link ActionRequest ActionRequests}. */
+	private final ActionRequestFailureHandler failureHandler;
+
 	/** Provided to the user via the {@link ElasticsearchSinkFunction} to add {@link ActionRequest ActionRequests}. */
 	private transient BulkProcessorIndexer requestIndexer;
-
-	/**
-	 * When set to <code>true</code> and the bulk action fails, the error message will be checked for
-	 * common patterns like <i>timeout</i>, <i>UnavailableShardsException</i> or a full buffer queue on the node.
-	 * When a matching pattern is found, the bulk will be retried.
-	 */
-	protected boolean checkErrorAndRetryBulk = false;
 
 	// ------------------------------------------------------------------------
 	//  Internals for the Flink Elasticsearch Sink
@@ -109,21 +150,28 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> {
 	private transient BulkProcessor bulkProcessor;
 
 	/**
-	 * This is set from inside the {@link BulkProcessor.Listener} if a {@link Throwable} was thrown in callbacks.
+	 * This is set from inside the {@link BulkProcessor.Listener} if a {@link Throwable} was thrown in callbacks and
+	 * the user considered it should fail the sink via the
+	 * {@link ActionRequestFailureHandler#onFailure(ActionRequest, Throwable, RequestIndexer)} method.
+	 *
+	 * Errors will be checked and rethrown before processing each input element, and when the sink is closed.
 	 */
 	private final AtomicReference<Throwable> failureThrowable = new AtomicReference<>();
 
 	public ElasticsearchSinkBase(
 		ElasticsearchApiCallBridge callBridge,
 		Map<String, String> userConfig,
-		ElasticsearchSinkFunction<T> elasticsearchSinkFunction) {
+		ElasticsearchSinkFunction<T> elasticsearchSinkFunction,
+		ActionRequestFailureHandler failureHandler) {
 
 		this.callBridge = checkNotNull(callBridge);
 		this.elasticsearchSinkFunction = checkNotNull(elasticsearchSinkFunction);
+		this.failureHandler = checkNotNull(failureHandler);
 
-		// we eagerly check if the user-provided sink function is serializable;
-		// otherwise, if it isn't serializable, users will merely get a non-informative error message
+		// we eagerly check if the user-provided sink function and failure handler is serializable;
+		// otherwise, if they aren't serializable, users will merely get a non-informative error message
 		// "ElasticsearchSinkBase is not serializable"
+
 		try {
 			InstantiationUtil.serializeObject(elasticsearchSinkFunction);
 		} catch (Exception e) {
@@ -132,10 +180,19 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> {
 				"The object probably contains or references non serializable fields.");
 		}
 
-		checkNotNull(userConfig);
+		try {
+			InstantiationUtil.serializeObject(failureHandler);
+		} catch (Exception e) {
+			throw new IllegalArgumentException(
+				"The implementation of the provided ActionRequestFailureHandler is not serializable. " +
+					"The object probably contains or references non serializable fields.");
+		}
 
 		// extract and remove bulk processor related configuration from the user-provided config,
 		// so that the resulting user config only contains configuration related to the Elasticsearch client.
+
+		checkNotNull(userConfig);
+
 		ParameterTool params = ParameterTool.fromMap(userConfig);
 
 		if (params.has(CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS)) {
@@ -159,6 +216,31 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> {
 			bulkProcessorFlushIntervalMillis = null;
 		}
 
+		boolean bulkProcessorFlushBackoffEnable = params.getBoolean(CONFIG_KEY_BULK_FLUSH_BACKOFF_ENABLE, true);
+		userConfig.remove(CONFIG_KEY_BULK_FLUSH_BACKOFF_ENABLE);
+
+		if (bulkProcessorFlushBackoffEnable) {
+			this.bulkProcessorFlushBackoffPolicy = new BulkFlushBackoffPolicy();
+
+			if (params.has(CONFIG_KEY_BULK_FLUSH_BACKOFF_TYPE)) {
+				bulkProcessorFlushBackoffPolicy.setBackoffType(FlushBackoffType.valueOf(params.get(CONFIG_KEY_BULK_FLUSH_BACKOFF_TYPE)));
+				userConfig.remove(CONFIG_KEY_BULK_FLUSH_BACKOFF_TYPE);
+			}
+
+			if (params.has(CONFIG_KEY_BULK_FLUSH_BACKOFF_RETRIES)) {
+				bulkProcessorFlushBackoffPolicy.setMaxRetryCount(params.getInt(CONFIG_KEY_BULK_FLUSH_BACKOFF_RETRIES));
+				userConfig.remove(CONFIG_KEY_BULK_FLUSH_BACKOFF_RETRIES);
+			}
+
+			if (params.has(CONFIG_KEY_BULK_FLUSH_BACKOFF_DELAY)) {
+				bulkProcessorFlushBackoffPolicy.setDelayMillis(params.getLong(CONFIG_KEY_BULK_FLUSH_BACKOFF_DELAY));
+				userConfig.remove(CONFIG_KEY_BULK_FLUSH_BACKOFF_DELAY);
+			}
+
+		} else {
+			bulkProcessorFlushBackoffPolicy = null;
+		}
+
 		this.userConfig = userConfig;
 	}
 
@@ -175,48 +257,30 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> {
 				@Override
 				public void afterBulk(long executionId, BulkRequest request, BulkResponse response) {
 					if (response.hasFailures()) {
-						boolean allRequestsRepeatable = true;
+						BulkItemResponse itemResponse;
+						Throwable failure;
 
-						for (BulkItemResponse itemResp : response.getItems()) {
-							Throwable failure = callBridge.extractFailureCauseFromBulkItemResponse(itemResp);
+						for (int i = 0; i < response.getItems().length; i++) {
+							itemResponse = response.getItems()[i];
+							failure = callBridge.extractFailureCauseFromBulkItemResponse(itemResponse);
 							if (failure != null) {
-								String failureMessageLowercase = itemResp.getFailureMessage().toLowerCase();
-
-								// Check if index request can be retried
-								if (checkErrorAndRetryBulk && (
-									failureMessageLowercase.contains("timeout") ||
-										failureMessageLowercase.contains("timed out") || // Generic timeout errors
-										failureMessageLowercase.contains("UnavailableShardsException".toLowerCase()) || // Shard not available due to rebalancing or node down
-										(failureMessageLowercase.contains("data/write/bulk") && failureMessageLowercase.contains("bulk")))) // Bulk index queue on node full
-								{
-									LOG.debug("Retry bulk: {}", itemResp.getFailureMessage());
-								} else {
-									// Cannot retry action
-									allRequestsRepeatable = false;
-									LOG.error("Failed Elasticsearch item request: {}", failure.getMessage(), failure);
+								LOG.error("Failed Elasticsearch item request: {}", itemResponse.getFailureMessage(), failure);
+								if (failureHandler.onFailure(request.requests().get(i), failure, requestIndexer)) {
 									failureThrowable.compareAndSet(null, failure);
 								}
 							}
-						}
-
-						if (allRequestsRepeatable) {
-							reAddBulkRequest(request);
 						}
 					}
 				}
 
 				@Override
 				public void afterBulk(long executionId, BulkRequest request, Throwable failure) {
-					if (checkErrorAndRetryBulk && (
-						failure instanceof ClusterBlockException // Examples: "no master"
-							|| failure instanceof ElasticsearchTimeoutException) // ElasticsearchTimeoutException sounded good, not seen in stress tests yet
-						)
-					{
-						LOG.debug("Retry bulk on throwable: {}", failure.getMessage());
-						reAddBulkRequest(request);
-					} else {
-						LOG.error("Failed Elasticsearch bulk request: {}", failure.getMessage(), failure);
-						failureThrowable.compareAndSet(null, failure);
+					LOG.error("Failed Elasticsearch bulk request: {}", failure.getMessage(), failure.getCause());
+
+					// whole bulk request failures are usually just temporary timeouts on
+					// the Elasticsearch side; simply retry all action requests in the bulk
+					for (ActionRequest action : request.requests()) {
+						requestIndexer.add(action);
 					}
 				}
 			}
@@ -236,6 +300,9 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> {
 		if (bulkProcessorFlushIntervalMillis != null) {
 			bulkProcessorBuilder.setFlushInterval(TimeValue.timeValueMillis(bulkProcessorFlushIntervalMillis));
 		}
+
+		// if backoff retrying is disabled, bulkProcessorFlushBackoffPolicy will be null
+		callBridge.configureBulkProcessorBackoff(bulkProcessorBuilder, bulkProcessorFlushBackoffPolicy);
 
 		bulkProcessor = bulkProcessorBuilder.build();
 		requestIndexer = new BulkProcessorIndexer(bulkProcessor);
@@ -265,21 +332,6 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> {
 
 		// make sure any errors from callbacks are rethrown
 		checkErrorAndRethrow();
-	}
-
-	/**
-	 * Adds all requests of the bulk to the BulkProcessor. Used when trying again.
-	 * @param bulkRequest
-	 */
-	public void reAddBulkRequest(BulkRequest bulkRequest) {
-		//TODO Check what happens when bulk contains a DeleteAction and IndexActions and the DeleteAction fails because the document already has been deleted. This may not happen in typical Flink jobs.
-
-		for (IndicesRequest req : bulkRequest.subRequests()) {
-			if (req instanceof ActionRequest) {
-				// There is no waiting time between index requests, so this may produce additional pressure on cluster
-				bulkProcessor.add((ActionRequest<?>) req);
-			}
-		}
 	}
 
 	private void checkErrorAndRethrow() {

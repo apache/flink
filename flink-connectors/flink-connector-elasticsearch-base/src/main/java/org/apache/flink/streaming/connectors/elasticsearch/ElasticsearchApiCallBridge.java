@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.connectors.elasticsearch;
 
 import org.elasticsearch.action.bulk.BulkItemResponse;
+import org.elasticsearch.action.bulk.BulkProcessor;
 import org.elasticsearch.client.Client;
 
 import javax.annotation.Nullable;
@@ -51,6 +52,17 @@ public interface ElasticsearchApiCallBridge extends Serializable {
 	 * @return the extracted {@link Throwable} from the response ({@code null} is the response is successful).
 	 */
 	@Nullable Throwable extractFailureCauseFromBulkItemResponse(BulkItemResponse bulkItemResponse);
+
+	/**
+	 * Set backoff-related configurations on the provided {@link BulkProcessor.Builder}.
+	 * The builder will be later on used to instantiate the actual {@link BulkProcessor}.
+	 *
+	 * @param builder the {@link BulkProcessor.Builder} to configure.
+	 * @param flushBackoffPolicy user-provided backoff retry settings ({@code null} if the user disabled backoff retries).
+	 */
+	void configureBulkProcessorBackoff(
+		BulkProcessor.Builder builder,
+		@Nullable ElasticsearchSinkBase.BulkFlushBackoffPolicy flushBackoffPolicy);
 
 	/**
 	 * Perform any necessary state cleanup.
