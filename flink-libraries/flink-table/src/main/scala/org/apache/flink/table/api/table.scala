@@ -24,9 +24,9 @@ import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.expressions._
+import org.apache.flink.table.expressions.{Minus => _, _}
 import org.apache.flink.table.plan.ProjectionTranslator._
-import org.apache.flink.table.plan.logical.{Minus => MinusNode, _}
+import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.sinks.TableSink
 
 import _root_.scala.collection.JavaConverters._
@@ -549,7 +549,7 @@ class Table(
       throw new ValidationException("Only tables from the same TableEnvironment can be " +
         "subtracted.")
     }
-    new Table(tableEnv, MinusNode(logicalPlan, right.logicalPlan, all = false)
+    new Table(tableEnv, Minus(logicalPlan, right.logicalPlan, all = false)
       .validate(tableEnv))
   }
 
@@ -574,7 +574,7 @@ class Table(
       throw new ValidationException("Only tables from the same TableEnvironment can be " +
         "subtracted.")
     }
-    new Table(tableEnv, MinusNode(logicalPlan, right.logicalPlan, all = true)
+    new Table(tableEnv, Minus(logicalPlan, right.logicalPlan, all = true)
       .validate(tableEnv))
   }
 
@@ -1093,89 +1093,5 @@ class GroupingSetsTable(
     val fieldExprs = ExpressionParser.parseExpressionList(fields)
     select(fieldExprs: _*)
   }
-
-  /**
-    * Groups the records of a table by assigning them to windows defined by a time or row interval.
-    *
-    * For streaming tables of infinite size, grouping into windows is required to define finite
-    * groups on which group-based aggregates can be computed.
-    *
-    * For batch tables of finite size, windowing essentially provides shortcuts for time-based
-    * groupBy.
-    *
-    * @param groupWindow group-window that specifies how elements are grouped.
-    * @return A windowed table.
-    */
-  def window(groupWindow: GroupWindow): GroupingSetsWindowedTable = {
-    if (table.tableEnv.isInstanceOf[BatchTableEnvironment]) {
-      throw new ValidationException(s"Windows on batch tables are currently not supported.")
-    }
-    new GroupingSetsWindowedTable(table, groups, sqlKind, groupWindow)
-  }
 }
 
-class GroupingSetsWindowedTable(
-  private[flink] val table: Table,
-  private[flink] val groups: Seq[Seq[Expression]],
-  private[flink] val sqlKind: SqlKind,
-  private[flink] val window: GroupWindow) {
-
-  /**
-    * Performs a selection operation on a windowed table. Similar to an SQL SELECT statement.
-    * The field expressions can contain complex expressions and aggregations.
-    *
-    * Example:
-    *
-    * {{{
-    *   groupWindowTable.select('key, 'window.start, 'value.avg + " The average" as 'average)
-    * }}}
-    */
-  def select(fields: Expression*): Table = {
-
-    val (aggNames, propNames) = extractAggregationsAndProperties(fields, table.tableEnv)
-    val projectsOnAgg = replaceAggregationsAndProperties(
-      fields, table.tableEnv, aggNames, propNames)
-
-    val groupingSets = sqlKind match {
-      case SqlKind.CUBE => ExpressionUtils.cube(groups)
-      case SqlKind.ROLLUP => ExpressionUtils.rollup(groups)
-      case _ => groups
-    }
-
-    val projectFields = (table.tableEnv, window) match {
-      // event time can be arbitrary field in batch environment
-      case (_: BatchTableEnvironment, w: EventTimeWindow) =>
-        extractFieldReferences(fields ++ groupingSets.flatten.distinct ++ Seq(w.timeField))
-      case (_, _) =>
-        extractFieldReferences(fields ++ groupingSets.flatten.distinct)
-    }
-
-    val logical =
-      Project(projectsOnAgg,
-        WindowAggregate(
-          groupingSets,
-          window.toLogicalWindow,
-          propNames.map(a => Alias(a._1, a._2)).toSeq,
-          aggNames.map(a => Alias(a._1, a._2)).toSeq,
-          Project(projectFields, table.logicalPlan).validate(table.tableEnv)
-        ).validate(table.tableEnv)
-      ).validate(table.tableEnv)
-
-    new Table(table.tableEnv, logical)
-  }
-
-  /**
-    * Performs a selection operation on a group-windows table. Similar to an SQL SELECT statement.
-    * The field expressions can contain complex expressions and aggregations.
-    *
-    * Example:
-    *
-    * {{{
-    *   groupWindowTable.select("key, window.start, value.avg + ' The average' as average")
-    * }}}
-    */
-  def select(fields: String): Table = {
-    val fieldExprs = ExpressionParser.parseExpressionList(fields)
-    select(fieldExprs: _*)
-  }
-}

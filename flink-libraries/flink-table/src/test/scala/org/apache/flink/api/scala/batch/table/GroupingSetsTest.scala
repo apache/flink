@@ -56,7 +56,7 @@ class GroupingSetsTest {
         'b, 'c, 'a.avg as 'a, groupId() as 'g,
         'b.grouping() as 'gb, grouping('c) as 'gc,
         'b.groupingId() as 'gib, groupingId('c) as 'gic,
-        ('b, 'c).groupingId() as 'gid
+        groupingId('b, 'c) as 'gid
       )
 
     val expected =
@@ -106,7 +106,7 @@ class GroupingSetsTest {
         'b, 'c, 'a.avg as 'a, groupId() as 'g,
         'b.grouping() as 'gb, grouping('c) as 'gc,
         'b.groupingId() as 'gib, groupingId('c) as 'gic,
-        ('b, 'c).groupingId() as 'gid
+        groupingId('b, 'c) as 'gid
       )
 
     val t2 = table
@@ -131,7 +131,7 @@ class GroupingSetsTest {
         'b, 'c, 'a.avg as 'a, groupId() as 'g,
         'b.grouping() as 'gb, grouping('c) as 'gc,
         'b.groupingId() as 'gib, groupingId('c) as 'gic,
-        ('b, 'c).groupingId() as 'gid
+        groupingId('b, 'c) as 'gid
       )
 
     val t2 = table

@@ -585,6 +585,12 @@ trait ImplicitExpressionConversions {
   implicit def sqlTimestamp2Literal(sqlTimestamp: Timestamp): Expression =
     Literal(sqlTimestamp)
   implicit def array2ArrayConstructor(array: Array[_]): Expression = convertArray(array)
+
+  implicit def unitToGroupedExpression(unit: Unit): GroupedExpression =
+    new GroupedExpression(Seq())
+
+  implicit def productToGroupedExpression(product: Product): GroupedExpression =
+    new GroupedExpression(product)
 }
 
 /**
@@ -593,7 +599,8 @@ trait ImplicitExpressionConversions {
 trait ImplicitGroupedOperations {
   private[flink] def expr: GroupedExpression
 
-  implicit class UnitAsGroupedExpression(unit: Unit) extends ImplicitGroupedOperations {
+  implicit class UnitAsGroupedExpression(unit: Unit)
+      extends ImplicitGroupedOperations {
     override private[flink] def expr = new GroupedExpression(Seq())
   }
 
@@ -601,15 +608,6 @@ trait ImplicitGroupedOperations {
       extends ImplicitGroupedOperations {
     override private[flink] def expr = new GroupedExpression(product)
   }
-}
-
-trait ImplicitGroupedConversions {
-
-  implicit def unitToGroupedExpression(unit: Unit): GroupedExpression =
-    new GroupedExpression(Seq())
-
-  implicit def productToGroupedExpression(product: Product): GroupedExpression =
-    new GroupedExpression(product)
 }
 
 // ------------------------------------------------------------------------------------------------

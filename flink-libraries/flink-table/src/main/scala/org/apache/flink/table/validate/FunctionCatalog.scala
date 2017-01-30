@@ -154,6 +154,11 @@ object FunctionCatalog {
     "min" -> classOf[Min],
     "sum" -> classOf[Sum],
 
+    // grouping function
+    "group_id" -> classOf[GroupId],
+    "grouping" -> classOf[Grouping],
+    "grouping_id" -> classOf[GroupingId],
+
     // string functions
     "charLength" -> classOf[CharLength],
     "initCap" -> classOf[InitCap],

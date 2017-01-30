@@ -66,7 +66,7 @@ import _root_.scala.reflect.ClassTag
   * }}}
   *
   */
-package object scala extends ImplicitExpressionConversions with ImplicitGroupedConversions {
+package object scala extends ImplicitExpressionConversions {
 
   implicit def table2TableConversions(table: Table): TableConversions = {
     new TableConversions(table)

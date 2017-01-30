@@ -20,6 +20,7 @@ package org.apache.flink.table.expressions
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.plan.TreeNode
 import org.apache.flink.table.validate.{ValidationResult, ValidationSuccess}
 
@@ -86,7 +87,7 @@ abstract class LeafExpression extends Expression {
   private[flink] val children = Nil
 }
 
-class GroupedExpression(
+case class GroupedExpression(
     private[flink] val children: Seq[Expression]
   ) extends Expression {
 
@@ -97,7 +98,8 @@ class GroupedExpression(
           case e: Expression => e
           case s: Symbol => UnresolvedFieldReference(s.name)
           case p: Product => new GroupedExpression(p)
-          case _ => throw new IllegalArgumentException()
+          case x => throw new TableException(
+            "Unexpected field '" + x + "' in group of expressions " + product.toString)
         }.toSeq
     )
   }
@@ -113,16 +115,6 @@ class GroupedExpression(
     * Returns the [[TypeInformation]] for evaluating this expression.
     * It's not applicable for grouped expressions.
     */
-  override private[flink] def resultType = ???
-
-  /**
-    * Grouping function. Similar to a SQL GROUPING_ID function.
-    */
-  def groupingId(): Expression = GroupingId(children: _*)
-
-  override def productElement(n: Int): Expression = children(n)
-
-  override def productArity: Int = children.length
-
-  override def canEqual(that: Any) = false
+  override private[flink] def resultType = throw new UnsupportedOperationException(
+    "Result type can not be resolved from grouped expressions.")
 }

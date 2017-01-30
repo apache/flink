@@ -180,10 +180,10 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
     ( "(" ~> expression <~ ")" ) | literalExpr | fieldReference
 
   lazy val grouped: PackratParser[Expression] =
-    "(" ~> expressionList <~ ")" ^^ { l => new GroupedExpression(l.toSeq) }
+    "(" ~> expressionList <~ ")" ^^ { l => GroupedExpression(l) }
 
-  lazy val unit: PackratParser[Expression] =
-    "()" ^^ { _ => new GroupedExpression(Seq()) }
+  lazy val empty: PackratParser[Expression] =
+    "()" ^^ { _ => GroupedExpression(Seq()) }
 
   // suffix operators
 
@@ -298,21 +298,12 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val suffixFlattening: PackratParser[Expression] =
     composite <~ "." ~ FLATTEN ~ opt("()") ^^ { e => Flattening(e) }
 
-  lazy val suffixGrouping: PackratParser[Expression] =
-    composite <~ "." ~ GROUPING ~ opt("()") ^^ { e => Grouping(e) }
-
-  lazy val suffixGroupingId: PackratParser[Expression] =
-    composite <~ "." ~ GROUPING_ID ~ opt("()") ^^ {
-      case g: GroupedExpression => GroupingId(g.flatChildren: _*)
-      case e => GroupingId(e)
-    }
-
   lazy val suffixed: PackratParser[Expression] =
     suffixTimeInterval | suffixRowInterval | suffixSum | suffixMin | suffixMax | suffixStart |
       suffixEnd | suffixCount | suffixAvg | suffixCast | suffixAs | suffixTrim |
       suffixTrimWithoutArgs | suffixIf | suffixAsc | suffixDesc | suffixToDate |
       suffixToTimestamp | suffixToTime | suffixExtract | suffixFloor | suffixCeil |
-      suffixGet | suffixFlattening | suffixGroupingId | suffixGrouping |
+      suffixGet | suffixFlattening |
       suffixFunctionCall | suffixFunctionCallOneArg // function call must always be at the end
 
   // prefix operators
@@ -393,26 +384,16 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val prefixFlattening: PackratParser[Expression] =
     FLATTEN ~ "(" ~> composite <~ ")" ^^ { e => Flattening(e) }
 
-  lazy val prefixGrouping: PackratParser[Expression] =
-    GROUPING ~ "(" ~> composite <~ ")" ^^ { e => Grouping(e) }
-
-  lazy val prefixGroupingId: PackratParser[Expression] =
-    GROUPING_ID ~ "(" ~> repsep(expression, ",") <~ ")" ^^ { l => GroupingId(l: _*) }
-
-  lazy val prefixGroupId: PackratParser[Expression] =
-    GROUP_ID ~ opt("()") ^^ { _ => GroupId() }
-
   lazy val prefixed: PackratParser[Expression] =
     prefixArray | prefixSum | prefixMin | prefixMax | prefixCount | prefixAvg |
       prefixStart | prefixEnd |
       prefixCast | prefixAs | prefixTrim | prefixTrimWithoutArgs | prefixIf | prefixExtract |
       prefixFloor | prefixCeil | prefixGet | prefixFlattening |
-      prefixGroupingId | prefixGrouping | prefixGroupId |
       prefixFunctionCall | prefixFunctionCallOneArg // function call must always be at the end
 
   // suffix/prefix composite
 
-  lazy val composite: PackratParser[Expression] = suffixed | prefixed | atom | grouped |
+  lazy val composite: PackratParser[Expression] = suffixed | prefixed | atom |
     failure("Composite expression expected.")
 
   // unary ops
@@ -484,7 +465,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
     case e ~ _ ~ _ ~ names ~ _ => Alias(e, names.head.name, names.tail.map(_.name))
   } | logic
 
-  lazy val expression: PackratParser[Expression] = alias | grouped | unit |
+  lazy val expression: PackratParser[Expression] = alias | grouped | empty |
     failure("Invalid expression.")
 
   lazy val expressionList: Parser[List[Expression]] = rep1sep(expression, ",")

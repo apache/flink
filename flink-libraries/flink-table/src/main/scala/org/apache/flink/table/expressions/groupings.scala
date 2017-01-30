@@ -23,6 +23,7 @@ import org.apache.calcite.rex.RexNode
 import org.apache.calcite.tools.RelBuilder
 import org.apache.calcite.util.ImmutableBitSet
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
+import org.apache.flink.table.api.TableException
 
 import scala.collection.JavaConversions._
 
@@ -41,42 +42,37 @@ abstract sealed class GroupFunction extends Expression {
 
         val internalFields =
           getInternalFieldNames(inputFields)
-            .filter {
-              case (_, v) => outputFields.contains(v)
-            }
+            .filter(t => outputFields.contains(t._1))
 
-        replaceExpression(relBuilder, Some(groupSet), internalFields, a.indicator)
+        replaceExpression(relBuilder, groupSet, internalFields, a.indicator)
           .toRexNode(relBuilder)
+
       case _ =>
-        replaceExpression(relBuilder, None).toRexNode(relBuilder)
+        throw new TableException("GROUPING functions only supported with " +
+                                 "GROUP BY GROUPING SETS, CUBE or ROLLUP")
     }
   }
 
   private[flink] def replaceExpression(
     relBuilder: RelBuilder,
-    groupSet: Option[ImmutableBitSet],
+    groupSet: ImmutableBitSet,
     internalFields: Map[String, String] = Map(),
     indicator: Boolean = false): Expression = {
 
-    if (groupSet.isDefined) {
-      val groups = groupSet.get
-      if (!indicator) {
-        Cast(
-          Minus(Power(Literal(2), Literal(getEffectiveArgCount(groups))), Literal(1)),
-          BasicTypeInfo.LONG_TYPE_INFO
-        )
-      } else {
-        val operands = getOperands(internalFields)
-        var shift = operands.size
-        var expression: Option[Expression] = None
-        operands.foreach(x => {
-          shift -= 1
-          expression = bitValue(relBuilder, expression, x, shift, internalFields)
-        })
-        Cast(expression.get, BasicTypeInfo.LONG_TYPE_INFO)
-      }
+    if (!indicator) {
+      Cast(
+        Minus(Power(Literal(2), Literal(getEffectiveArgCount(groupSet))), Literal(1)),
+        BasicTypeInfo.LONG_TYPE_INFO
+      )
     } else {
-      this
+      val operands = getOperands(internalFields)
+      var shift = operands.size
+      var expression: Option[Expression] = None
+      operands.foreach(x => {
+        shift -= 1
+        expression = bitValue(relBuilder, expression, x, shift, internalFields)
+      })
+      Cast(expression.get, BasicTypeInfo.LONG_TYPE_INFO)
     }
   }
 
