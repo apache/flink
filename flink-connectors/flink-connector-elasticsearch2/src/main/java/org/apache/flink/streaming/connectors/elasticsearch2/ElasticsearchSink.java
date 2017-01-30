@@ -18,12 +18,23 @@ package org.apache.flink.streaming.connectors.elasticsearch2;
 
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkBase;
 import org.elasticsearch.action.ActionRequest;
+import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkProcessor;
+import org.elasticsearch.action.bulk.BulkRequest;
+import org.elasticsearch.action.bulk.BulkResponse;
+import org.elasticsearch.client.Client;
 import org.elasticsearch.client.transport.TransportClient;
+import org.elasticsearch.common.unit.ByteSizeUnit;
+import org.elasticsearch.common.unit.ByteSizeValue;
+import org.elasticsearch.common.unit.TimeValue;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Elasticsearch 2.x sink that requests multiple {@link ActionRequest ActionRequests}
@@ -60,6 +71,8 @@ public class ElasticsearchSink<T> extends ElasticsearchSinkBase<T> {
 
 	private static final long serialVersionUID = 1L;
 
+	private static final Logger LOG = LoggerFactory.getLogger(ElasticsearchSink.class);
+
 	/**
 	 * Creates a new {@code ElasticsearchSink} that connects to the cluster using a {@link TransportClient}.
 	 *
@@ -88,4 +101,55 @@ public class ElasticsearchSink<T> extends ElasticsearchSinkBase<T> {
 		super(new ElasticsearchClientFactoryImpl(transportAddresses), userConfig, elasticsearchSinkFunction);
 	}
 
+	@Override
+	protected BulkProcessor buildBulkProcessor(
+		final Client client,
+		final AtomicReference<Throwable> listenerFailureRef,
+		@Nullable final Integer bulkProcessorFlushMaxActions,
+		@Nullable final Integer bulkProcessorFlushMaxSizeMb,
+		@Nullable final Integer bulkProcessorFlushIntervalMillis) {
+
+		BulkProcessor.Builder bulkProcessorBuilder = BulkProcessor.builder(
+			client,
+			new BulkProcessor.Listener() {
+				@Override
+				public void beforeBulk(long executionId, BulkRequest request) { }
+
+				@Override
+				public void afterBulk(long executionId, BulkRequest request, BulkResponse response) {
+					if (response.hasFailures()) {
+						for (BulkItemResponse itemResp : response.getItems()) {
+							if (itemResp.isFailed()) {
+								LOG.error("Failed Elasticsearch item request: {}", itemResp.getFailureMessage(), itemResp.getFailure().getCause());
+								listenerFailureRef.compareAndSet(null, itemResp.getFailure().getCause());
+							}
+						}
+					}
+				}
+
+				@Override
+				public void afterBulk(long executionId, BulkRequest request, Throwable failure) {
+					LOG.error("Failed Elasticsearch bulk request: {}", failure.getMessage(), failure);
+					listenerFailureRef.compareAndSet(null, failure);
+				}
+			}
+		);
+
+		// This makes flush() blocking
+		bulkProcessorBuilder.setConcurrentRequests(0);
+
+		if (bulkProcessorFlushMaxActions != null) {
+			bulkProcessorBuilder.setBulkActions(bulkProcessorFlushMaxActions);
+		}
+
+		if (bulkProcessorFlushMaxSizeMb != null) {
+			bulkProcessorBuilder.setBulkSize(new ByteSizeValue(bulkProcessorFlushMaxSizeMb, ByteSizeUnit.MB));
+		}
+
+		if (bulkProcessorFlushIntervalMillis != null) {
+			bulkProcessorBuilder.setFlushInterval(TimeValue.timeValueMillis(bulkProcessorFlushIntervalMillis));
+		}
+
+		return bulkProcessorBuilder.build();
+	}
 }

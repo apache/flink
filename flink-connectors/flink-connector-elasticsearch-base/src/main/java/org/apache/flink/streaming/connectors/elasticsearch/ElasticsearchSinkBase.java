@@ -22,19 +22,11 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.util.InstantiationUtil;
 import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkProcessor;
-import org.elasticsearch.action.bulk.BulkRequest;
-import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.client.Client;
-import org.elasticsearch.common.unit.ByteSizeUnit;
-import org.elasticsearch.common.unit.ByteSizeValue;
-import org.elasticsearch.common.unit.TimeValue;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -58,8 +50,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> {
 
 	private static final long serialVersionUID = -1007596293618451942L;
-
-	private static final Logger LOG = LoggerFactory.getLogger(ElasticsearchSinkBase.class);
 
 	// ------------------------------------------------------------------------
 	//  Internal bulk processor configuration
@@ -99,10 +89,10 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> {
 	/** Bulk processor to buffer and send requests to Elasticsearch, created using the client. */
 	private transient BulkProcessor bulkProcessor;
 
-	/** Set from inside the {@link BulkProcessor} listener if there where failures during processing. */
-	private final AtomicBoolean hasFailure = new AtomicBoolean(false);
-
-	/** Set from inside the @link BulkProcessor} listener if a {@link Throwable} was thrown during processing. */
+	/**
+	 * This reference will be passed via {@link ElasticsearchSinkBase#buildBulkProcessor(Client, AtomicReference, Integer, Integer, Integer)}
+	 * to allow version-specific implementations of the {@link BulkProcessor.Listener} to set {@link Throwable} thrown during processing.
+	 */
 	private final AtomicReference<Throwable> failureThrowable = new AtomicReference<>();
 
 	public ElasticsearchSinkBase(ElasticsearchClientFactory clientFactory,
@@ -156,50 +146,13 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> {
 	public void open(Configuration parameters) throws Exception {
 		client = clientFactory.create(userConfig);
 
-		BulkProcessor.Builder bulkProcessorBuilder = BulkProcessor.builder(
+		bulkProcessor = buildBulkProcessor(
 			client,
-			new BulkProcessor.Listener() {
-				@Override
-				public void beforeBulk(long executionId, BulkRequest request) { }
+			failureThrowable,
+			bulkProcessorFlushMaxActions,
+			bulkProcessorFlushMaxSizeMb,
+			bulkProcessorFlushIntervalMillis);
 
-				@Override
-				public void afterBulk(long executionId, BulkRequest request, BulkResponse response) {
-					if (response.hasFailures()) {
-						for (BulkItemResponse itemResp : response.getItems()) {
-							if (itemResp.isFailed()) {
-								LOG.error("Failed to index document in Elasticsearch: " + itemResp.getFailureMessage());
-								failureThrowable.compareAndSet(null, new RuntimeException(itemResp.getFailureMessage()));
-							}
-						}
-						hasFailure.set(true);
-					}
-				}
-
-				@Override
-				public void afterBulk(long executionId, BulkRequest request, Throwable failure) {
-					LOG.error(failure.getMessage());
-					failureThrowable.compareAndSet(null, failure);
-					hasFailure.set(true);
-				}
-			}
-		);
-
-		// This makes flush() blocking
-		bulkProcessorBuilder.setConcurrentRequests(0);
-
-		if (bulkProcessorFlushMaxActions != null) {
-			bulkProcessorBuilder.setBulkActions(bulkProcessorFlushMaxActions);
-		}
-
-		if (bulkProcessorFlushMaxSizeMb != null) {
-			bulkProcessorBuilder.setBulkSize(new ByteSizeValue(bulkProcessorFlushMaxSizeMb, ByteSizeUnit.MB));
-		}
-
-		if (bulkProcessorFlushIntervalMillis != null) {
-			bulkProcessorBuilder.setFlushInterval(TimeValue.timeValueMillis(bulkProcessorFlushIntervalMillis));
-		}
-
-		bulkProcessor = bulkProcessorBuilder.build();
 		requestIndexer = new BulkProcessorIndexer(bulkProcessor);
 	}
 
@@ -222,13 +175,25 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> {
 
 		clientFactory.cleanup();
 
-		if (hasFailure.get()) {
-			Throwable cause = failureThrowable.get();
-			if (cause != null) {
-				throw new RuntimeException("An error occured in ElasticsearchSink.", cause);
-			} else {
-				throw new RuntimeException("An error occured in ElasticsearchSink.");
-			}
+		Throwable cause = failureThrowable.get();
+		if (cause != null) {
+			throw new RuntimeException("An error occured in ElasticsearchSink.", cause);
 		}
 	}
+
+	/**
+	 * Build a {@link BulkProcessor}, using the specified configuration values.
+	 *
+	 * @param client the Elasticsearch client to use to build the bulk processor.
+	 * @param listenerFailureRef should be used to reference {@link Throwable} thrown in the listener callback.
+	 * @param bulkProcessorFlushMaxActions maximum number of actions to buffer before flushing
+	 * @param bulkProcessorFlushMaxSizeMb maximum size of actions to buffer before flushing
+	 * @param bulkProcessorFlushIntervalMillis flush interval, regardless of the number or size of buffered actions.
+	 * @return the built {@link BulkProcessor}
+	 */
+	protected abstract BulkProcessor buildBulkProcessor(final Client client,
+														final AtomicReference<Throwable> listenerFailureRef,
+														@Nullable final Integer bulkProcessorFlushMaxActions,
+														@Nullable final Integer bulkProcessorFlushMaxSizeMb,
+														@Nullable final Integer bulkProcessorFlushIntervalMillis);
 }
