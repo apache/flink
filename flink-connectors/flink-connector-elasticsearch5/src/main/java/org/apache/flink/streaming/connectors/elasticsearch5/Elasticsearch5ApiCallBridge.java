@@ -18,19 +18,24 @@
 package org.apache.flink.streaming.connectors.elasticsearch5;
 
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchApiCallBridge;
+import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkBase;
 import org.apache.flink.streaming.connectors.elasticsearch.util.ElasticsearchUtils;
 import org.apache.flink.util.Preconditions;
+import org.elasticsearch.action.bulk.BackoffPolicy;
 import org.elasticsearch.action.bulk.BulkItemResponse;
+import org.elasticsearch.action.bulk.BulkProcessor;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.network.NetworkModule;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
+import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.transport.Netty3Plugin;
 import org.elasticsearch.transport.client.PreBuiltTransportClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.Map;
@@ -87,6 +92,32 @@ public class Elasticsearch5ApiCallBridge implements ElasticsearchApiCallBridge {
 		} else {
 			return bulkItemResponse.getFailure().getCause();
 		}
+	}
+
+	@Override
+	public void configureBulkProcessorBackoff(
+		BulkProcessor.Builder builder,
+		@Nullable ElasticsearchSinkBase.BulkFlushBackoffPolicy flushBackoffPolicy) {
+
+		BackoffPolicy backoffPolicy;
+		if (flushBackoffPolicy != null) {
+			switch (flushBackoffPolicy.getBackoffType()) {
+				case CONSTANT:
+					backoffPolicy = BackoffPolicy.constantBackoff(
+						new TimeValue(flushBackoffPolicy.getDelayMillis()),
+						flushBackoffPolicy.getMaxRetryCount());
+					break;
+				case EXPONENTIAL:
+				default:
+					backoffPolicy = BackoffPolicy.exponentialBackoff(
+						new TimeValue(flushBackoffPolicy.getDelayMillis()),
+						flushBackoffPolicy.getMaxRetryCount());
+			}
+		} else {
+			backoffPolicy = BackoffPolicy.noBackoff();
+		}
+
+		builder.setBackoffPolicy(backoffPolicy);
 	}
 
 	@Override

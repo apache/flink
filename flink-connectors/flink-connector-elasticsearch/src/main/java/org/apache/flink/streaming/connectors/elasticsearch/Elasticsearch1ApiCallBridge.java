@@ -19,6 +19,7 @@ package org.apache.flink.streaming.connectors.elasticsearch;
 
 import org.apache.flink.util.Preconditions;
 import org.elasticsearch.action.bulk.BulkItemResponse;
+import org.elasticsearch.action.bulk.BulkProcessor;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.settings.Settings;
@@ -27,6 +28,7 @@ import org.elasticsearch.node.Node;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Map;
 
@@ -116,6 +118,14 @@ public class Elasticsearch1ApiCallBridge implements ElasticsearchApiCallBridge {
 		} else {
 			return new RuntimeException(bulkItemResponse.getFailureMessage());
 		}
+	}
+
+	@Override
+	public void configureBulkProcessorBackoff(
+		BulkProcessor.Builder builder,
+		@Nullable ElasticsearchSinkBase.BulkFlushBackoffPolicy flushBackoffPolicy) {
+		// Elasticsearch 1.x does not support backoff retries for failed bulk requests
+		LOG.warn("Elasticsearch 1.x does not support backoff retries.");
 	}
 
 	@Override
