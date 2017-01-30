@@ -101,6 +101,18 @@ public class RowTypeInfo extends TupleTypeInfoBase<Row> {
 		return new RowTypeInfo(types);
 	}
 
+	public static RowTypeInfo from(String[] fieldNames, Class<?>... types) {
+		TypeInformation<?>[] infos = new TypeInformation<?>[types.length];
+		for (int i = 0; i < types.length; i++) {
+			infos[i] = TypeInformation.of(types[i]);
+		}
+		return new RowTypeInfo(infos, fieldNames);
+	}
+
+	public static RowTypeInfo from(String[] fieldNames, TypeInformation<?>... types) {
+		return new RowTypeInfo(types, fieldNames);
+	}
+
 	@Override
 	public void getFlatFields(String fieldExpression, int offset, List<FlatFieldDescriptor> result) {
 		Matcher matcher = PATTERN_NESTED_FIELDS_WILDCARD.matcher(fieldExpression);
