@@ -47,7 +47,7 @@ public class StateSnapshotContextSynchronousImplTest extends TestLogger {
 
 	@Before
 	public void setUp() throws Exception {
-		CloseableRegistry<Closeable> closableRegistry = new OwnedCloseableRegistryImpl();
+		CloseableRegistry closableRegistry = new OwnedCloseableRegistryImpl();
 		CheckpointStreamFactory streamFactory = new MemCheckpointStreamFactory(1024);
 		KeyGroupRange keyGroupRange = new KeyGroupRange(0, 2);
 		this.snapshotContext = new StateSnapshotContextSynchronousImpl(42, 4711, streamFactory, keyGroupRange, closableRegistry);

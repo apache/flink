@@ -67,7 +67,6 @@ import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.Closeable;
 import java.util.Collection;
 import java.util.ConcurrentModificationException;
 import java.util.HashMap;
@@ -223,7 +222,7 @@ public abstract class AbstractStreamOperator<OUT>
 				keyedStateHandlesRaw, // access to keyed state stream
 				operatorStateHandlesRaw); // access to operator state stream
 
-		CloseableRegistry<Closeable> closeableRegistry = getContainingTask().getCancelables();
+		CloseableRegistry closeableRegistry = getContainingTask().getCancelables();
 		try {
 			closeableRegistry.registerClosable(initializationContext);
 			initializeState(initializationContext);

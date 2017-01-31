@@ -46,7 +46,6 @@ import org.mockito.internal.util.reflection.Whitebox;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
-import java.io.Closeable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -488,7 +487,7 @@ public class AbstractStreamOperatorTest {
 		final long checkpointId = 42L;
 		final long timestamp = 1L;
 
-		final CloseableRegistry<Closeable> closeableRegistry = new OwnedCloseableRegistryImpl();
+		final CloseableRegistry closeableRegistry = new OwnedCloseableRegistryImpl();
 
 		StateSnapshotContextSynchronousImpl context = mock(StateSnapshotContextSynchronousImpl.class);
 
@@ -518,7 +517,7 @@ public class AbstractStreamOperatorTest {
 
 		final Exception failingException = new Exception("Test exception");
 
-		final CloseableRegistry<Closeable> closeableRegistry = new OwnedCloseableRegistryImpl();
+		final CloseableRegistry closeableRegistry = new OwnedCloseableRegistryImpl();
 
 		StateSnapshotContextSynchronousImpl context = mock(StateSnapshotContextSynchronousImpl.class);
 
@@ -557,7 +556,7 @@ public class AbstractStreamOperatorTest {
 
 		final Exception failingException = new Exception("Test exception");
 
-		final CloseableRegistry<Closeable> closeableRegistry = new OwnedCloseableRegistryImpl();
+		final CloseableRegistry closeableRegistry = new OwnedCloseableRegistryImpl();
 
 		RunnableFuture<KeyGroupsStateHandle> futureKeyGroupStateHandle = mock(RunnableFuture.class);
 		RunnableFuture<OperatorStateHandle> futureOperatorStateHandle = mock(RunnableFuture.class);

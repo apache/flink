@@ -166,7 +166,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 
 	/** The currently active background materialization threads */
-	private final OwnedCloseableRegistry<Closeable> cancelables = new OwnedCloseableRegistryImpl();
+	private final OwnedCloseableRegistry cancelables = new OwnedCloseableRegistryImpl();
 
 	/** Flag to mark the task "in operation", in which case check
 	 * needs to be initialized to true, so that early cancel() before invoke() behaves correctly */
@@ -1026,7 +1026,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		}
 	}
 
-	public CloseableRegistry<Closeable> getCancelables() {
+	public CloseableRegistry getCancelables() {
 		return cancelables;
 	}
 

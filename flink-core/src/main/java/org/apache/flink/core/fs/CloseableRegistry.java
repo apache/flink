@@ -24,7 +24,7 @@ import java.io.IOException;
 /**
  * Interface for un/registering @{@link Closeable} objects to a listener.
  */
-public interface CloseableRegistry<C extends Closeable> {
+public interface CloseableRegistry {
 
 	/**
 	 * Register a closeable object.
@@ -32,12 +32,12 @@ public interface CloseableRegistry<C extends Closeable> {
 	 * @param closeable object to register
 	 * @throws IOException if the registry is already closed. The argument closeable will also be closed in this case.
 	 */
-	void registerClosable(C closeable) throws IOException;
+	void registerClosable(Closeable closeable) throws IOException;
 
 	/**
 	 * Unregister a closeable object.
 	 *
 	 * @param closeable object to unregister
 	 */
-	void unregisterClosable(C closeable);
+	void unregisterClosable(Closeable closeable);
 }

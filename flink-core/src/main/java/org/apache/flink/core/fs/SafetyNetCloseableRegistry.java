@@ -20,10 +20,10 @@ package org.apache.flink.core.fs;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.util.AbstractOwnedCloseableRegistry;
+import org.apache.flink.util.AbstractConcurrentClosingRegistry;
+import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.WrappingProxyUtil;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,20 +36,20 @@ import java.util.IdentityHashMap;
 import java.util.Map;
 
 /**
- * This implementation of an {@link AbstractOwnedCloseableRegistry} registers {@link WrappingProxyCloseable}. When
+ * This implementation of an {@link AbstractConcurrentClosingRegistry} registers {@link WrappingProxyCloseable}. When
  * the proxy becomes subject to GC, this registry takes care of closing unclosed {@link Closeable}s.
  * <p>
  * Phantom references are used to track when {@link org.apache.flink.util.WrappingProxy}s of {@link Closeable} got
  * GC'ed. We ensure that the wrapped {@link Closeable} is properly closed to avoid resource leaks.
  * <p>
- * Other than that, it works like a normal {@link AbstractOwnedCloseableRegistry}.
+ * Other than that, it works like a normal {@link AbstractConcurrentClosingRegistry}.
  * <p>
  * All methods in this class are thread-safe.
  */
 @Internal
 public class SafetyNetCloseableRegistry extends
-		AbstractOwnedCloseableRegistry<WrappingProxyCloseable<? extends Closeable>,
-						SafetyNetCloseableRegistry.PhantomDelegatingCloseableRef> {
+		AbstractConcurrentClosingRegistry<WrappingProxyCloseable<? extends Closeable>,
+										SafetyNetCloseableRegistry.PhantomDelegatingCloseableRef> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(SafetyNetCloseableRegistry.class);
 
@@ -78,11 +78,30 @@ public class SafetyNetCloseableRegistry extends
 	}
 
 	@Override
-	protected void doRegister(
+	protected void doUnRegistering(
+			WrappingProxyCloseable<? extends Closeable> closeable,
+			Map<Closeable, PhantomDelegatingCloseableRef> closeableMap) {
+
+		assert Thread.holdsLock(getSynchronizationLock());
+
+		Closeable innerCloseable = WrappingProxyUtil.stripProxy(closeable.getWrappedDelegate());
+
+		if (null == innerCloseable) {
+			return;
+		}
+
+		closeableMap.remove(innerCloseable);
+	}
+
+	@Override
+	protected void doRegistering(
 			WrappingProxyCloseable<? extends Closeable> wrappingProxyCloseable,
 			Map<Closeable, PhantomDelegatingCloseableRef> closeableMap) throws IOException {
 
-		assert Thread.holdsLock(getSynchronizationLock());
+		if (closed) {
+			IOUtils.closeQuietly(wrappingProxyCloseable);
+			throw new IOException("Cannot register Closeable: Registry is already closed. Closing argument.");
+		}
 
 		Closeable innerCloseable = WrappingProxyUtil.stripProxy(wrappingProxyCloseable.getWrappedDelegate());
 
@@ -99,27 +118,12 @@ public class SafetyNetCloseableRegistry extends
 	}
 
 	@Override
-	protected void doUnRegister(
-			WrappingProxyCloseable<? extends Closeable> closeable,
-			Map<Closeable, PhantomDelegatingCloseableRef> closeableMap) {
+	protected void doClosing(Map<Closeable, PhantomDelegatingCloseableRef> closeableMap) throws IOException {
 
-		assert Thread.holdsLock(getSynchronizationLock());
-
-		Closeable innerCloseable = WrappingProxyUtil.stripProxy(closeable.getWrappedDelegate());
-
-		if (null == innerCloseable) {
-			return;
-		}
-
-		closeableMap.remove(innerCloseable);
-	}
-
-	@Override
-	public void close() throws IOException {
 		try {
-			super.close();
-		}
-		finally {
+			IOUtils.closeAllQuietly(closeableMap.keySet());
+			closeableToRef.clear();
+		} finally {
 			synchronized (REAPER_THREAD_LOCK) {
 				--GLOBAL_SAFETY_NET_REGISTRY_COUNT;
 				if (0 == GLOBAL_SAFETY_NET_REGISTRY_COUNT) {
@@ -194,7 +198,7 @@ public class SafetyNetCloseableRegistry extends
 			try {
 				while (running) {
 					final PhantomDelegatingCloseableRef toClose = (PhantomDelegatingCloseableRef) referenceQueue.remove();
-					
+
 					if (toClose != null) {
 						try {
 							LOG.warn("Closing unclosed resource via safety-net: {}", toClose.getDebugString());

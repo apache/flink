@@ -23,17 +23,16 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.core.fs.OwnedCloseableRegistryImpl;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.OwnedCloseableRegistry;
+import org.apache.flink.core.fs.OwnedCloseableRegistryImpl;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.util.Preconditions;
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -54,7 +53,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 	public static final String DEFAULT_OPERATOR_STATE_NAME = "_default_";
 	
 	private final Map<String, PartitionableListState<?>> registeredStates;
-	private final OwnedCloseableRegistry<Closeable> closeStreamOnCancelRegistry;
+	private final OwnedCloseableRegistry closeStreamOnCancelRegistry;
 	private final JavaSerializer<Serializable> javaSerializer;
 	private final ClassLoader userClassloader;
 

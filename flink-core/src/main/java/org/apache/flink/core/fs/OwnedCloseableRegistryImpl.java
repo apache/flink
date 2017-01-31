@@ -18,11 +18,11 @@
 
 package org.apache.flink.core.fs;
 
-import org.apache.flink.util.AbstractOwnedCloseableRegistry;
+import org.apache.flink.util.AbstractConcurrentClosingRegistry;
+import org.apache.flink.util.IOUtils;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -32,21 +32,29 @@ import java.util.Map;
  * <p>
  * All methods in this class are thread-safe.
  */
-public class OwnedCloseableRegistryImpl extends AbstractOwnedCloseableRegistry<Closeable, Object> {
+public class OwnedCloseableRegistryImpl extends AbstractConcurrentClosingRegistry<Closeable, Object> implements OwnedCloseableRegistry {
 
 	private static final Object DUMMY = new Object();
 
-	public OwnedCloseableRegistryImpl() {
-		super(new HashMap<Closeable, Object>());
+	@Override
+	protected void doUnRegistering(Closeable closeable, Map<Closeable, Object> closeableMap) {
+		closeableMap.remove(closeable);
 	}
 
 	@Override
-	protected void doRegister(Closeable closeable, Map<Closeable, Object> closeableMap) throws IOException {
+	protected void doRegistering(Closeable closeable, Map<Closeable, Object> closeableMap) throws IOException {
+
+		if (closed) {
+			IOUtils.closeQuietly(closeable);
+			throw new IOException("Cannot register Closeable: Registry is already closed. Closing argument.");
+		}
+
 		closeableMap.put(closeable, DUMMY);
 	}
 
 	@Override
-	protected void doUnRegister(Closeable closeable, Map<Closeable, Object> closeableMap) {
-		closeableMap.remove(closeable);
+	protected void doClosing(Map<Closeable, Object> closeableMap) {
+		IOUtils.closeAllQuietly(closeableMap.keySet());
+		closeableMap.clear();
 	}
 }

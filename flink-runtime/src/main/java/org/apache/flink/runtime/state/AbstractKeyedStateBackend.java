@@ -87,7 +87,7 @@ public abstract class AbstractKeyedStateBackend<K>
 	protected final TaskKvStateRegistry kvStateRegistry;
 
 	/** Registry for all opened streams, so they can be closed if the task using this backend is closed */
-	protected OwnedCloseableRegistry<Closeable> cancelStreamRegistry;
+	protected OwnedCloseableRegistry cancelStreamRegistry;
 
 	protected final ClassLoader userCodeClassLoader;
 

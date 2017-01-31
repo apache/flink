@@ -26,6 +26,5 @@ import java.io.Closeable;
  * {@link CloseableRegistry}, so that they can register their closeable objects and the owner that is finally
  * responsible for closing a registry. This prevents accidental closing by objects that are not allowed to do so.
  *
- * @param <C> type of the {@link Closeable} that can register
  */
-public interface OwnedCloseableRegistry<C extends Closeable> extends CloseableRegistry<C>, Closeable {}
+public interface OwnedCloseableRegistry extends CloseableRegistry, Closeable {}

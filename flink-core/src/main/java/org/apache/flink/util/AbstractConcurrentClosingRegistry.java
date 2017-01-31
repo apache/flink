@@ -18,41 +18,44 @@
 
 package org.apache.flink.util;
 
-import org.apache.flink.core.fs.OwnedCloseableRegistry;
-
+import javax.annotation.concurrent.GuardedBy;
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
- * This is the abstract base class for registries that allow to register instances of {@link Closeable}, which are all
- * closed if this registry is closed.
+ * This is the abstract base class for registries that allow to register instances of {@link Closeable}, which are
+ * all closed if this registry is closed.
  * <p>
  * Registering to an already closed registry will throw an exception and close the provided {@link Closeable}
  * <p>
  * All methods in this class are thread-safe.
  *
- * @param <C> Type of the closeable this registers
+ * @param <C> Type of the {@link Closeable} this registers
  * @param <T> Type for potential meta data associated with the registering closeables
  */
-public abstract class AbstractOwnedCloseableRegistry<C extends Closeable, T> implements OwnedCloseableRegistry<C> {
+public abstract class AbstractConcurrentClosingRegistry<C extends Closeable, T> implements Closeable {
 
 	protected final Map<Closeable, T> closeableToRef;
-	private boolean closed;
+	protected boolean closed;
 
-	public AbstractOwnedCloseableRegistry(Map<Closeable, T> closeableToRef) {
-		this.closeableToRef = closeableToRef;
+	public AbstractConcurrentClosingRegistry() {
+		this(new HashMap<Closeable, T>());
+	}
+
+	public AbstractConcurrentClosingRegistry(Map<Closeable, T> closeableToRef) {
+		this.closeableToRef = Preconditions.checkNotNull(closeableToRef);
 		this.closed = false;
 	}
 
 	/**
-	 * Registers a {@link Closeable} with the registry. In case the registry is already closed, this method throws an
+	 * Registers an {@link Closeable} with the registry. In case the registry is already closed, this method throws an
 	 * {@link IllegalStateException} and closes the passed {@link Closeable}.
 	 *
-	 * @param closeable Closeable tor register
+	 * @param closeable {@link Closeable} to register
 	 * @throws IOException exception when the registry was closed before
 	 */
-	@Override
 	public final void registerClosable(C closeable) throws IOException {
 
 		if (null == closeable) {
@@ -60,12 +63,7 @@ public abstract class AbstractOwnedCloseableRegistry<C extends Closeable, T> imp
 		}
 
 		synchronized (getSynchronizationLock()) {
-			if (closed) {
-				IOUtils.closeQuietly(closeable);
-				throw new IOException("Cannot register Closeable, registry is already closed. Closing argument.");
-			}
-
-			doRegister(closeable, closeableToRef);
+			doRegistering(closeable, closeableToRef);
 		}
 	}
 
@@ -74,7 +72,6 @@ public abstract class AbstractOwnedCloseableRegistry<C extends Closeable, T> imp
 	 *
 	 * @param closeable instance to remove from the registry.
 	 */
-	@Override
 	public final void unregisterClosable(C closeable) {
 
 		if (null == closeable) {
@@ -82,19 +79,17 @@ public abstract class AbstractOwnedCloseableRegistry<C extends Closeable, T> imp
 		}
 
 		synchronized (getSynchronizationLock()) {
-			doUnRegister(closeable, closeableToRef);
+			doUnRegistering(closeable, closeableToRef);
 		}
 	}
 
 	@Override
-	public void close() throws IOException {
+	public final void close() throws IOException {
 		synchronized (getSynchronizationLock()) {
-
-			IOUtils.closeAllQuietly(closeableToRef.keySet());
-
-			closeableToRef.clear();
-
-			closed = true;
+			if (!closed) {
+				closed = true;
+				doClosing(closeableToRef);
+			}
 		}
 	}
 
@@ -108,7 +103,12 @@ public abstract class AbstractOwnedCloseableRegistry<C extends Closeable, T> imp
 		return closeableToRef;
 	}
 
-	protected abstract void doUnRegister(C closeable, Map<Closeable, T> closeableMap);
+	@GuardedBy("closeableToRef")
+	protected abstract void doUnRegistering(C closeable, Map<Closeable, T> closeableMap);
 
-	protected abstract void doRegister(C closeable, Map<Closeable, T> closeableMap) throws IOException;
+	@GuardedBy("closeableToRef")
+	protected abstract void doRegistering(C closeable, Map<Closeable, T> closeableMap) throws IOException;
+
+	@GuardedBy("closeableToRef")
+	protected abstract void doClosing(Map<Closeable, T> closeableMap) throws IOException;
 }

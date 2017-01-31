@@ -21,8 +21,8 @@ package org.apache.flink.streaming.api.operators;
 import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.core.fs.CloseableRegistry;
-import org.apache.flink.core.fs.OwnedCloseableRegistryImpl;
 import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.OwnedCloseableRegistryImpl;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
@@ -44,7 +44,6 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -61,7 +60,7 @@ public class StateInitializationContextImplTest {
 	static final int NUM_HANDLES = 10;
 
 	private StateInitializationContextImpl initializationContext;
-	private CloseableRegistry<Closeable> closableRegistry;
+	private CloseableRegistry closableRegistry;
 
 	private int writtenKeyGroups;
 	private Set<Integer> writtenOperatorStates;

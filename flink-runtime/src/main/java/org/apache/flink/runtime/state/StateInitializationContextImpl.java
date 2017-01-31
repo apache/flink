@@ -41,7 +41,7 @@ import java.util.NoSuchElementException;
 public class StateInitializationContextImpl implements StateInitializationContext, Closeable {
 
 	/** Closable registry to participate in the operator's cancel/close methods */
-	private final OwnedCloseableRegistry<Closeable> closableRegistry;
+	private final OwnedCloseableRegistry closableRegistry;
 
 	/** Signal whether any state to restore was found */
 	private final boolean restored;
@@ -91,7 +91,7 @@ public class StateInitializationContextImpl implements StateInitializationContex
 		return keyGroupsStateHandles;
 	}
 
-	public CloseableRegistry<Closeable> getClosableRegistry() {
+	public CloseableRegistry getClosableRegistry() {
 		return closableRegistry;
 	}
 
@@ -146,7 +146,7 @@ public class StateInitializationContextImpl implements StateInitializationContex
 
 		public KeyGroupStreamIterator(
 				Iterator<KeyGroupsStateHandle> stateHandleIterator,
-				CloseableRegistry<Closeable> closableRegistry) {
+				CloseableRegistry closableRegistry) {
 
 			super(stateHandleIterator, closableRegistry);
 		}
@@ -206,7 +206,7 @@ public class StateInitializationContextImpl implements StateInitializationContex
 		public OperatorStateStreamIterator(
 				String stateName,
 				Iterator<OperatorStateHandle> stateHandleIterator,
-				CloseableRegistry<Closeable> closableRegistry) {
+				CloseableRegistry closableRegistry) {
 
 			super(stateHandleIterator, closableRegistry);
 			this.stateName = Preconditions.checkNotNull(stateName);
@@ -273,14 +273,14 @@ public class StateInitializationContextImpl implements StateInitializationContex
 			implements Iterator<T> {
 
 		protected final Iterator<H> stateHandleIterator;
-		protected final CloseableRegistry<Closeable> closableRegistry;
+		protected final CloseableRegistry closableRegistry;
 
 		protected H currentStateHandle;
 		protected FSDataInputStream currentStream;
 
 		public AbstractStateStreamIterator(
 				Iterator<H> stateHandleIterator,
-				CloseableRegistry<Closeable> closableRegistry) {
+				CloseableRegistry closableRegistry) {
 
 			this.stateHandleIterator = Preconditions.checkNotNull(stateHandleIterator);
 			this.closableRegistry = Preconditions.checkNotNull(closableRegistry);
