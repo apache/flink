@@ -35,6 +35,7 @@ import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerExcept
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerFactory;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.DataOutputBuffer;
 import org.apache.hadoop.security.Credentials;
@@ -415,7 +416,7 @@ public class YarnResourceManager extends ResourceManager<ResourceID> implements 
 		// get and validate all relevant variables
 
 		String remoteFlinkJarPath = env.get(YarnConfigKeys.FLINK_JAR_PATH);
-		
+
 		String appId = env.get(YarnConfigKeys.ENV_APP_ID);
 
 		String clientHomeDir = env.get(YarnConfigKeys.ENV_CLIENT_HOME_DIR);
@@ -438,21 +439,14 @@ public class YarnResourceManager extends ResourceManager<ResourceID> implements 
 
 		String classPathString = env.get(YarnConfigKeys.ENV_FLINK_CLASSPATH);
 
-		// obtain a handle to the file system used by YARN
-		final org.apache.hadoop.fs.FileSystem yarnFileSystem;
-		try {
-			yarnFileSystem = org.apache.hadoop.fs.FileSystem.get(yarnConfig);
-		} catch (IOException e) {
-			throw new Exception("Could not access YARN's default file system", e);
-		}
-
 		//register keytab
 		LocalResource keytabResource = null;
 		if(remoteKeytabPath != null) {
 			log.info("Adding keytab {} to the AM container local resource bucket", remoteKeytabPath);
 			keytabResource = Records.newRecord(LocalResource.class);
 			Path keytabPath = new Path(remoteKeytabPath);
-			Utils.registerLocalResource(yarnFileSystem, keytabPath, keytabResource);
+			FileSystem fs = keytabPath.getFileSystem(yarnConfig);
+			Utils.registerLocalResource(fs, keytabPath, keytabResource);
 		}
 
 		//To support Yarn Secure Integration Test Scenario
@@ -463,12 +457,14 @@ public class YarnResourceManager extends ResourceManager<ResourceID> implements 
 			log.info("TM:Adding remoteYarnConfPath {} to the container local resource bucket", remoteYarnConfPath);
 			yarnConfResource = Records.newRecord(LocalResource.class);
 			Path yarnConfPath = new Path(remoteYarnConfPath);
-			Utils.registerLocalResource(yarnFileSystem, yarnConfPath, yarnConfResource);
+			FileSystem fs = yarnConfPath.getFileSystem(yarnConfig);
+			Utils.registerLocalResource(fs, yarnConfPath, yarnConfResource);
 
 			log.info("TM:Adding remoteKrb5Path {} to the container local resource bucket", remoteKrb5Path);
 			krb5ConfResource = Records.newRecord(LocalResource.class);
 			Path krb5ConfPath = new Path(remoteKrb5Path);
-			Utils.registerLocalResource(yarnFileSystem, krb5ConfPath, krb5ConfResource);
+			fs = yarnConfPath.getFileSystem(yarnConfig);
+			Utils.registerLocalResource(fs, krb5ConfPath, krb5ConfResource);
 
 			hasKrb5 = true;
 		}
@@ -477,7 +473,8 @@ public class YarnResourceManager extends ResourceManager<ResourceID> implements 
 		LocalResource flinkJar = Records.newRecord(LocalResource.class);
 		{
 			Path remoteJarPath = new Path(remoteFlinkJarPath);
-			Utils.registerLocalResource(yarnFileSystem, remoteJarPath, flinkJar);
+			FileSystem fs = remoteJarPath.getFileSystem(yarnConfig);
+			Utils.registerLocalResource(fs, remoteJarPath, flinkJar);
 		}
 
 		// register conf with local fs
@@ -489,8 +486,10 @@ public class YarnResourceManager extends ResourceManager<ResourceID> implements 
 			log.debug("Writing TaskManager configuration to {}", taskManagerConfigFile.getAbsolutePath());
 			BootstrapTools.writeConfiguration(taskManagerConfig, taskManagerConfigFile);
 
-			Utils.setupLocalResource(yarnFileSystem, appId,
-					new Path(taskManagerConfigFile.toURI()), flinkConf, new Path(clientHomeDir));
+			Path homeDirPath = new Path(clientHomeDir);
+			FileSystem fs = homeDirPath.getFileSystem(yarnConfig);
+			Utils.setupLocalResource(fs, appId,
+				new Path(taskManagerConfigFile.toURI()), flinkConf, homeDirPath);
 
 			log.info("Prepared local resource for modified yaml: {}", flinkConf);
 		}
@@ -514,7 +513,8 @@ public class YarnResourceManager extends ResourceManager<ResourceID> implements 
 			if (!pathStr.isEmpty()) {
 				LocalResource resource = Records.newRecord(LocalResource.class);
 				Path path = new Path(pathStr);
-				Utils.registerLocalResource(yarnFileSystem, path, resource);
+				FileSystem fs = path.getFileSystem(yarnConfig);
+				Utils.registerLocalResource(fs, path, resource);
 				taskManagerLocalResources.put(path.getName(), resource);
 			}
 		}
