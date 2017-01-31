@@ -40,6 +40,9 @@ jira_url: "https://issues.apache.org/jira/browse/FLINK"
 github_url: "https://github.com/apache/flink"
 download_url: "http://flink.apache.org/downloads.html"
 
+is_latest: false
+is_stable: true
+
 #------------------------------------------------------------------------------
 # BUILD CONFIG
 #------------------------------------------------------------------------------
