@@ -204,6 +204,9 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> {
 
 	@Override
 	public void invoke(T value) throws Exception {
+		// if bulk processor callbacks have previously reported an error, we rethrow the error and fail the sink
+		checkErrorAndRethrow();
+
 		elasticsearchSinkFunction.process(value, getRuntimeContext(), requestIndexer);
 	}
 
@@ -221,6 +224,11 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> {
 
 		callBridge.cleanup();
 
+		// make sure any errors from callbacks are rethrown
+		checkErrorAndRethrow();
+	}
+
+	private void checkErrorAndRethrow() {
 		Throwable cause = failureThrowable.get();
 		if (cause != null) {
 			throw new RuntimeException("An error occured in ElasticsearchSink.", cause);

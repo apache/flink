@@ -200,7 +200,7 @@ request for each incoming element. Generally, the `ElasticsearchSinkFunction`
 can be used to perform multiple requests of different types (ex.,
 `DeleteRequest`, `UpdateRequest`, etc.). 
 
-Internally, the sink uses a `BulkProcessor` to send acttion requests to the cluster.
+Internally, the sink uses a `BulkProcessor` to send action requests to the cluster.
 This will buffer elements before sending them in bulk to the cluster. The behaviour of the
 `BulkProcessor` can be set using these config keys in the provided `Map` configuration:
  * **bulk.flush.max.actions**: Maximum amount of elements to buffer
