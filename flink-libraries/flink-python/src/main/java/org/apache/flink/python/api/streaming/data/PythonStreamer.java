@@ -95,8 +95,8 @@ public class PythonStreamer implements Serializable {
 	}
 
 	private void startPython() throws IOException {
-		this.outputFilePath = FLINK_TMP_DATA_DIR + "/" + envID + "." + setID + this.function.getRuntimeContext().getIndexOfThisSubtask() + "output";
-		this.inputFilePath = FLINK_TMP_DATA_DIR + "/" + envID + "." + setID + this.function.getRuntimeContext().getIndexOfThisSubtask() + "input";
+		this.outputFilePath = FLINK_TMP_DATA_DIR + "/" + envID + "_" + setID + this.function.getRuntimeContext().getIndexOfThisSubtask() + "output";
+		this.inputFilePath = FLINK_TMP_DATA_DIR + "/" + envID + "_" + setID + this.function.getRuntimeContext().getIndexOfThisSubtask() + "input";
 
 		sender.open(inputFilePath);
 		receiver.open(outputFilePath);

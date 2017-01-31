@@ -95,7 +95,7 @@ public class PythonPlanBinder {
 
 	private HashMap<Integer, Object> sets = new HashMap<>();
 	public ExecutionEnvironment env;
-	private int environmentCounter = 0;
+	private int currentEnvironmentID = 0;
 	private PythonPlanStreamer streamer;
 
 	public static final int MAPPED_FILE_SIZE = 1024 * 1024 * 64;
@@ -156,8 +156,6 @@ public class PythonPlanBinder {
 				distributeFiles(tmpPath, env);
 				JobExecutionResult jer = env.execute();
 				sendResult(jer);
-
-				environmentCounter++;
 			}
 
 			clearPath(tmpPath);
@@ -261,11 +259,12 @@ public class PythonPlanBinder {
 	private enum Parameters {
 		DOP,
 		MODE,
-		RETRY
+		RETRY,
+		ID
 	}
 
 	private void receiveParameters() throws IOException {
-		for (int x = 0; x < 3; x++) {
+		for (int x = 0; x < 4; x++) {
 			Tuple value = (Tuple) streamer.getRecord(true);
 			switch (Parameters.valueOf(((String) value.getField(0)).toUpperCase())) {
 				case DOP:
@@ -278,6 +277,9 @@ public class PythonPlanBinder {
 				case RETRY:
 					int retry = (Integer) value.getField(1);
 					env.setRestartStrategy(RestartStrategies.fixedDelayRestart(retry, 10000L));
+					break;
+				case ID:
+					currentEnvironmentID = (Integer) value.getField(1);
 					break;
 			}
 		}
@@ -301,7 +303,7 @@ public class PythonPlanBinder {
 	private void receiveOperations() throws IOException {
 		Integer operationCount = (Integer) streamer.getRecord(true);
 		for (int x = 0; x < operationCount; x++) {
-			PythonOperationInfo info = new PythonOperationInfo(streamer, environmentCounter);
+			PythonOperationInfo info = new PythonOperationInfo(streamer, currentEnvironmentID);
 			Operation op;
 			try {
 				op = Operation.valueOf(info.identifier.toUpperCase());

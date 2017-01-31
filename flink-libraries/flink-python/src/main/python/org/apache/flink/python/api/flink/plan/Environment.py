@@ -29,23 +29,27 @@ from struct import pack
 
 
 class EnvironmentContainer(object):
-    """Keeps track of which ExecutionEnvironment is being run."""
+    """Keeps track of which ExecutionEnvironment is active."""
 
     environment_counter = 0
     environment_id_to_execute = None
 
     def create_environment(self):
+        """Assign each new environment a unique ID."""
         env = Environment(self, self.environment_counter)
         self.environment_counter += 1
         return env
 
-    def is_executing(self):
-        """Checks if we are waiting for a certain environment to be executed."""
-        return not self.environment_id_to_execute is None
+    def is_planning(self):
+        """
+        Checks if we are waiting for a certain environment to be executed.
+        If not, grabs the next mode (plan or operation execution).
+        """
+        return self.environment_id_to_execute is None and sys.stdin.readline().rstrip('\n') == "plan"
 
     def fetch_next_environment(self, calling_environment_id):
         """Checks (and if necessary, fetches) the next environment to be executed."""
-        if not self.is_executing():
+        if self.environment_id_to_execute is None:
             self.environment_id_to_execute = int(sys.stdin.readline().rstrip('\n'))
 
         if self.environment_id_to_execute == calling_environment_id:
@@ -63,7 +67,6 @@ def get_environment():
 
     :return:The execution environment of the context in which the program is executed.
     """
-    global container
     return container.create_environment()
 
 
@@ -77,8 +80,8 @@ class Environment(object):
         self._local_mode = False
         self._retry = 0
 
-        self.container = container
-        self.env_id = env_id
+        self._container = container
+        self._env_id = env_id
 
         #sets
         self._sources = []
@@ -197,16 +200,10 @@ class Environment(object):
 
         The environment will execute all parts of the program that have resulted in a "sink" operation.
         """
-        global _operating, _last_env_id
         self._local_mode = local
         self._optimize_plan()
 
-        if self.container.is_executing():
-            plan_mode = False
-        else:
-            plan_mode = sys.stdin.readline().rstrip('\n') == "plan"
-
-        if plan_mode:
+        if self._container.is_planning():
             port = int(sys.stdin.readline().rstrip('\n'))
             self._connection = Connection.PureTCPConnection(port)
             self._iterator = Iterator.PlanIterator(self._connection, self)
@@ -219,7 +216,7 @@ class Environment(object):
             import struct
             operator = None
             try:
-                if self.container.fetch_next_environment(self.env_id):
+                if self._container.fetch_next_environment(self._env_id):
                     id = int(sys.stdin.readline().rstrip('\n'))
 
                     port = int(sys.stdin.readline().rstrip('\n'))
@@ -317,6 +314,7 @@ class Environment(object):
         collect(("dop", self._dop))
         collect(("mode", self._local_mode))
         collect(("retry", self._retry))
+        collect(("id", self._env_id))
 
     def _send_operations(self):
         self._collector.collect(len(self._sources) + len(self._sets) + len(self._sinks) + len(self._broadcast))
