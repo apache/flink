@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.connectors.elasticsearch;
 
 import org.apache.flink.util.Preconditions;
+import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.settings.Settings;
@@ -33,16 +34,13 @@ import static org.elasticsearch.common.settings.ImmutableSettings.settingsBuilde
 import static org.elasticsearch.node.NodeBuilder.nodeBuilder;
 
 /**
- * Concrete implementation of {@link ElasticsearchClientFactory} for Elasticsearch version 1.x.
- *
- * Flink Elasticsearch Sink for versions 1.x support using either a {@link TransportClient} or an embedded Node for
- * communication with an Elasticsearch cluster.
+ * Implementation of {@link ElasticsearchApiCallBridge} for Elasticsearch 1.x.
  */
-class ElasticsearchClientFactoryImpl implements ElasticsearchClientFactory {
+public class Elasticsearch1ApiCallBridge implements ElasticsearchApiCallBridge {
 
-	private static final long serialVersionUID = 273796884282273013L;
+	private static final long serialVersionUID = -2632363720584123682L;
 
-	private static final Logger LOG = LoggerFactory.getLogger(ElasticsearchClientFactoryImpl.class);
+	private static final Logger LOG = LoggerFactory.getLogger(Elasticsearch1ApiCallBridge.class);
 
 	/** User-provided transport addresses. This is null if we are using an embedded {@link Node} for communication. */
 	private final List<TransportAddress> transportAddresses;
@@ -53,20 +51,20 @@ class ElasticsearchClientFactoryImpl implements ElasticsearchClientFactory {
 	/**
 	 * Constructor for use of an embedded {@link Node} for communication with the Elasticsearch cluster.
 	 */
-	ElasticsearchClientFactoryImpl() {
+	Elasticsearch1ApiCallBridge() {
 		this.transportAddresses = null;
 	}
 
 	/**
 	 * Constructor for use of a {@link TransportClient} for communication with the Elasticsearch cluster.
 	 */
-	ElasticsearchClientFactoryImpl(List<TransportAddress> transportAddresses) {
+	Elasticsearch1ApiCallBridge(List<TransportAddress> transportAddresses) {
 		Preconditions.checkArgument(transportAddresses != null && !transportAddresses.isEmpty());
 		this.transportAddresses = transportAddresses;
 	}
 
 	@Override
-	public Client create(Map<String, String> clientConfig) {
+	public Client createClient(Map<String, String> clientConfig) {
 		if (transportAddresses == null) {
 
 			// Make sure that we disable http access to our embedded node
@@ -112,11 +110,19 @@ class ElasticsearchClientFactoryImpl implements ElasticsearchClientFactory {
 	}
 
 	@Override
+	public Throwable extractFailureCauseFromBulkItemResponse(BulkItemResponse bulkItemResponse) {
+		if (!bulkItemResponse.isFailed()) {
+			return null;
+		} else {
+			return new RuntimeException(bulkItemResponse.getFailureMessage());
+		}
+	}
+
+	@Override
 	public void cleanup() {
 		if (node != null && !node.isClosed()) {
 			node.close();
 			node = null;
 		}
 	}
-
 }
