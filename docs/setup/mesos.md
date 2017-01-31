@@ -92,18 +92,25 @@ Universe. In the search prompt, just search for Flink.
 **Note**: At the time of this writing, Flink was not yet available in the
 Unvierse. Please use the following workaround in the meantime:
 
-1. Add the Development Universe
+1. [Install the DC/OS CLI](https://dcos.io/docs/1.8/usage/cli/install/)
 
-    `dcos marathon app add https://raw.githubusercontent.com/mesosphere/dcos-flink-service/Makman2/quickstart/universe-server.json`
+2. Add the Development Universe
+
+    `./dcos marathon app add https://raw.githubusercontent.com/mesosphere/dcos-flink-service/Makman2/quickstart/universe-server.json`
     
-2. Add the local Universe repository:
+3. Add the local Universe repository:
 
-   `dcos package repo add --index=0 dev-universe http://universe.marathon.mesos:8085/repo`
+   `./dcos package repo add --index=0 dev-universe http://universe.marathon.mesos:8085/repo`
 
-3. Install Flink through the Universe page or using the `dcos` command:
+4. Install Flink through the Universe page or using the `dcos` command:
    
-   `dcos package install flink`
+   `./dcos package install flink`
 
+In order to execute a Flink job on a DC/OS hosted Flink cluster, you first have to find out the address of the launched job manager.
+The job manager address can be found out by opening the Flink service, going to *Job Manager* and then using the address specified under `jobmanager.rpc.address` and `jobmanager.rpc.port`.
+Now you can use this address to submit a job to your cluster via
+
+    FLINK_HOME/bin/flink run -m address:port flink-job.jar
 
 ## Mesos without DC/OS
 
