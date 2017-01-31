@@ -27,7 +27,7 @@ under the License.
 
 Flink DataStream programs are typically designed to run for long periods of time such as weeks, months, or even years. As with all long-running services, Flink streaming applications need to be maintained, which includes fixing bugs, implementing improvements, or migrating an application to a Flink cluster of a later version.
 
-This document describes how to update a Flink streaming application and how migrate a running streaming application to a different Flink cluster.
+This document describes how to update a Flink streaming application and how to migrate a running streaming application to a different Flink cluster.
 
 ## Restarting Streaming Applications
 
@@ -73,7 +73,7 @@ val mappedEvents: DataStream[(Int, Long)] = events
 
 **Note:** Since the operator IDs stored in a savepoint and IDs of operators in the application to start must be equal, it is highly recommended to assign unique IDs to all operators of an application that might be upgraded in the future. This advice applies to all operators, i.e., operators with and without explicitly declared operator state, because some operators have internal state that is not visible to the user. Upgrading an application without assigned operator IDs is significantly more difficult and may only be possible via a low-level workaround using the `setUidHash()` method.
 
-By default all state stored in a savepoint must be matched to the operators of a starting application. However, users can explicitly agree to skip (and thereby discard) state that cannot be matched to an operator when starting a application from a savepoint. Stateful operators for which no state is found in the savepoint are not initialized with their default state.
+By default all state stored in a savepoint must be matched to the operators of a starting application. However, users can explicitly agree to skip (and thereby discard) state that cannot be matched to an operator when starting a application from a savepoint. Stateful operators for which no state is found in the savepoint are initialized with their default state.
 
 ### Stateful Operators and User Functions
 
@@ -83,23 +83,23 @@ Operator state can be either user-defined or internal.
 
 * **User-defined operator state:** In functions with user-defined operator state the type of the state is explicitly defined by the user. Although it is not possible to change the data type of operator state, a workaround to overcome this limitation can be to define a second state with a different data type and to implement logic to migrate the state from the original state into the new state. This approach requires a good migration strategy and a solid understanding of the behavior of [key-partitioned state]({{ site.baseurl }}/dev/stream/state.html).
 
-* **Internal operator state:** Operators such as window or join operators hold internal operator state which is not exposed to the user. For these operators the data type of the internal state depends on the input or output type of the operator. Consequently, changing the respective input or output type breaks application state consistency and prevents an upgrade. The following table lists operators with internal state and shows how the state data type relates to their input and output types.
+* **Internal operator state:** Operators such as window or join operators hold internal operator state which is not exposed to the user. For these operators the data type of the internal state depends on the input or output type of the operator. Consequently, changing the respective input or output type breaks application state consistency and prevents an upgrade. The following table lists operators with internal state and shows how the state data type relates to their input and output types. For operators which are applied on a keyed stream, the key type (KEY) is always part of the state data type as well.
 
 | Operator                                            | Data Type of Internal Operator State |
-|:----------------------------------------------------|:--------------------------------|
-| ReduceFunction[IOT]                                 |   IOT (Input and output type)   |
-| FoldFunction[IT, OT]                                |   OT (Output type)              |
-| WindowFunction[IT, OT, KEY, WINDOW]                 |   IT (Input type)               |
-| AllWindowFunction[IT, OT, WINDOW]                   |   IT (Input type)               |
-| JoinFunction[IT1, IT2, OT]                          |   IT1, IT2 (Type of 1. and 2. input) |
-| CoGroupFunction[IT1, IT2, OT]                       |   IT1, IT2 (Type of 1. and 2. input) |
-| Built-in Aggregations (sum, min, max, minBy, maxBy) |  Input Type                     |
+|:----------------------------------------------------|:-------------------------------------|
+| ReduceFunction[IOT]                                 | IOT (Input and output type) [, KEY]  |
+| FoldFunction[IT, OT]                                | OT (Output type) [, KEY]             |
+| WindowFunction[IT, OT, KEY, WINDOW]                 | IT (Input type), KEY                 |
+| AllWindowFunction[IT, OT, WINDOW]                   | IT (Input type)                      |
+| JoinFunction[IT1, IT2, OT]                          | IT1, IT2 (Type of 1. and 2. input), KEY |
+| CoGroupFunction[IT1, IT2, OT]                       | IT1, IT2 (Type of 1. and 2. input), KEY |
+| Built-in Aggregations (sum, min, max, minBy, maxBy) | Input Type [, KEY]                   |
 
 ### Application Topology
 
 Besides changing the logic of one or more existing operators, applications can be upgraded by changing the topology of the application, i.e., by adding or removing operators, changing the parallelism of an operator, or modifying the operator chaining behavior.
 
-When upgrading an application by changing its topology, a few things need to be  considered in order to preserve application state consistency.
+When upgrading an application by changing its topology, a few things need to be considered in order to preserve application state consistency.
 
 * **Adding or removing a stateless operator:** This is no problem unless one of the cases below applies.
 * **Adding a stateful operator:** The state of the operator will be initialized with the default state unless it takes over the state of another operator.
