@@ -21,12 +21,14 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.net.ConnectionUtils;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
+import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.RemoteStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
 import java.util.Iterator;
 
 public final class DataStreamUtils {
@@ -56,8 +58,15 @@ public final class DataStreamUtils {
 				throw new IOException("Could not determine an suitable network address to " +
 						"receive back data from the streaming program.", e);
 			}
-		} else {
+		} else if (env instanceof LocalStreamEnvironment) {
 			clientAddress = InetAddress.getLoopbackAddress();
+		} else {
+			try {
+				clientAddress = InetAddress.getLocalHost();
+			} catch (UnknownHostException e) {
+				throw new IOException("Could not determine this machines own local address to " +
+						"receive back data from the streaming program.", e);
+			}
 		}
 
 		DataStreamSink<OUT> sink = stream.addSink(new CollectSink<OUT>(clientAddress, iter.getPort(), serializer));
