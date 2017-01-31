@@ -77,9 +77,9 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 
 	private final ExecutionJobVertex jobVertex;
 
-	private Map<IntermediateResultPartitionID, IntermediateResultPartition> resultPartitions;
+	private final Map<IntermediateResultPartitionID, IntermediateResultPartition> resultPartitions;
 
-	private ExecutionEdge[][] inputEdges;
+	private final ExecutionEdge[][] inputEdges;
 
 	private final int subTaskIndex;
 
@@ -92,9 +92,8 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 
 	private volatile CoLocationConstraint locationConstraint;
 
+	/** The current or latest execution attempt of this vertex's task */
 	private volatile Execution currentExecution;	// this field must never be null
-
-	private volatile boolean scheduleLocalOnly;
 
 	// --------------------------------------------------------------------------------------------
 
@@ -396,18 +395,6 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 				return edges;
 			}
 		}
-	}
-
-	public void setScheduleLocalOnly(boolean scheduleLocalOnly) {
-		if (scheduleLocalOnly && inputEdges != null && inputEdges.length > 0) {
-			throw new IllegalArgumentException("Strictly local scheduling is only supported for sources.");
-		}
-
-		this.scheduleLocalOnly = scheduleLocalOnly;
-	}
-
-	public boolean isScheduleLocalOnly() {
-		return scheduleLocalOnly;
 	}
 
 	/**

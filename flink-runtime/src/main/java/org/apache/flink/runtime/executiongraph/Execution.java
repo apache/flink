@@ -104,8 +104,13 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 	// --------------------------------------------------------------------------------------------
 
+	/** The executor which is used to execute futures. */
+	private final Executor executor;
+
+	/** The execution vertex whose task this execution executes */ 
 	private final ExecutionVertex vertex;
 
+	/** The unique ID marking the specific execution instant of the task */
 	private final ExecutionAttemptID attemptId;
 
 	private final long[] stateTimestamps;
@@ -122,40 +127,38 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 	private volatile Throwable failureCause;          // once assigned, never changes
 
-	private TaskStateHandles taskStateHandles;
+	/** The handle to the state that the task gets on restore */
+	private volatile TaskStateHandles taskState;
 
-	/** The executor which is used to execute futures. */
-	private Executor executor;
+	// ------------------------ Accumulators & Metrics ------------------------
 
-	// ------------------------- Accumulators ---------------------------------
-	
-	/* Lock for updating the accumulators atomically. Prevents final accumulators to be overwritten
-	* by partial accumulators on a late heartbeat*/
+	/** Lock for updating the accumulators atomically.
+	 * Prevents final accumulators to be overwritten by partial accumulators on a late heartbeat */
 	private final Object accumulatorLock = new Object();
 
 	/* Continuously updated map of user-defined accumulators */
 	private volatile Map<String, Accumulator<?, ?>> userAccumulators;
-	private IOMetrics ioMetrics;
+
+	private volatile IOMetrics ioMetrics;
 
 	// --------------------------------------------------------------------------------------------
-	
+
 	public Execution(
 			Executor executor,
 			ExecutionVertex vertex,
 			int attemptNumber,
 			long startTimestamp,
 			Time timeout) {
-		this.executor = checkNotNull(executor);
 
+		this.executor = checkNotNull(executor);
 		this.vertex = checkNotNull(vertex);
 		this.attemptId = new ExecutionAttemptID();
+		this.timeout = checkNotNull(timeout);
 
 		this.attemptNumber = attemptNumber;
 
 		this.stateTimestamps = new long[ExecutionState.values().length];
 		markTimestamp(ExecutionState.CREATED, startTimestamp);
-
-		this.timeout = checkNotNull(timeout);
 
 		this.partialInputChannelDeploymentDescriptors = new ConcurrentLinkedQueue<>();
 	}
@@ -217,7 +220,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	}
 
 	public TaskStateHandles getTaskStateHandles() {
-		return taskStateHandles;
+		return taskState;
 	}
 
 	/**
@@ -228,7 +231,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	 */
 	public void setInitialState(TaskStateHandles checkpointStateHandles) {
 		checkState(state == CREATED, "Can only assign operator state when execution attempt is in CREATED");
-		this.taskStateHandles = checkpointStateHandles;
+		this.taskState = checkpointStateHandles;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -355,7 +358,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			final TaskDeploymentDescriptor deployment = vertex.createDeploymentDescriptor(
 				attemptId,
 				slot,
-				taskStateHandles,
+				taskState,
 				attemptNumber);
 
 			// register this execution at the execution graph, to receive call backs
