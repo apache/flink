@@ -44,7 +44,6 @@ download_url: "http://flink.apache.org/downloads.html"
 # will be printed pointing to the docs of the latest stable version.
 is_latest: true
 is_stable: false
-latest_stable_url: http://ci.apache.org/projects/flink/flink-docs-release-1.2
 
 previous_docs:
   1.2: http://ci.apache.org/projects/flink/flink-docs-release-1.2
