@@ -36,6 +36,8 @@ import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.sources._
 import org.apache.flink.types.Row
 
+import scala.collection.JavaConverters._
+
 object CommonTestData {
 
   def getCsvTableSource: CsvTableSource = {
@@ -144,14 +146,14 @@ class TestFilterableTableSource(
 
   /** Returns the data of the table as a [[DataSet]]. */
   override def getDataSet(execEnv: ExecutionEnvironment): DataSet[Row] = {
-    execEnv.fromElements[Row](
-      generateDynamicCollection(33, fieldNames, filterPredicate): _*)
+    execEnv.fromCollection[Row](
+      generateDynamicCollection(33, fieldNames, filterPredicate).asJava, getReturnType)
   }
 
   /** Returns the data of the table as a [[DataStream]]. */
   def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[Row] = {
-    execEnv.fromElements[Row](
-      generateDynamicCollection(33, fieldNames, filterPredicate): _*)
+    execEnv.fromCollection[Row](
+      generateDynamicCollection(33, fieldNames, filterPredicate).asJava, getReturnType)
   }
 
   private def generateDynamicCollection(
