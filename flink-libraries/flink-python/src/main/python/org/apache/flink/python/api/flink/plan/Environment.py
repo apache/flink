@@ -27,24 +27,48 @@ import copy
 import sys
 from struct import pack
 
-_env_counter = 0
-_last_env_id = -1
-_operating = False
+
+class EnvironmentContainer(object):
+    """Keeps track of which ExecutionEnvironment is being run."""
+
+    environment_counter = 0
+    environment_id_to_execute = None
+
+    def create_environment(self):
+        env = Environment(self, self.environment_counter)
+        self.environment_counter += 1
+        return env
+
+    def is_executing(self):
+        """Checks if we are waiting for a certain environment to be executed."""
+        return not self.environment_id_to_execute is None
+
+    def fetch_next_environment(self, calling_environment_id):
+        """Checks (and if necessary, fetches) the next environment to be executed."""
+        if not self.is_executing():
+            self.environment_id_to_execute = int(sys.stdin.readline().rstrip('\n'))
+
+        if self.environment_id_to_execute == calling_environment_id:
+            self.environment_id_to_execute = None
+            return True
+
+        return False
+
+
+container = EnvironmentContainer()
 
 def get_environment():
     """
     Creates an execution environment that represents the context in which the program is currently executed.
-    
+
     :return:The execution environment of the context in which the program is executed.
     """
-    global _env_counter
-    id = _env_counter
-    _env_counter += 1
-    return Environment(id)
+    global container
+    return container.create_environment()
 
 
 class Environment(object):
-    def __init__(self, env_id = 0):
+    def __init__(self, container, env_id):
         # util
         self._counter = 0
 
@@ -53,6 +77,7 @@ class Environment(object):
         self._local_mode = False
         self._retry = 0
 
+        self.container = container
         self.env_id = env_id
 
         #sets
@@ -176,7 +201,7 @@ class Environment(object):
         self._local_mode = local
         self._optimize_plan()
 
-        if _operating:
+        if self.container.is_executing():
             plan_mode = False
         else:
             plan_mode = sys.stdin.readline().rstrip('\n') == "plan"
@@ -194,16 +219,7 @@ class Environment(object):
             import struct
             operator = None
             try:
-                env_id = _last_env_id
-                if not _operating:
-                    env_id = int(sys.stdin.readline().rstrip('\n'))
-
-                if self.env_id != env_id:
-                    _last_env_id = env_id
-                    _operating = True
-                else:
-                    _operating = False
-                    _last_env_id = -1
+                if self.container.fetch_next_environment(self.env_id):
                     id = int(sys.stdin.readline().rstrip('\n'))
 
                     port = int(sys.stdin.readline().rstrip('\n'))
