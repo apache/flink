@@ -71,7 +71,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class YarnFlinkResourceManagerTest extends TestLogger {
+public class UtilsTest extends TestLogger {
 
 	private static ActorSystem system;
 

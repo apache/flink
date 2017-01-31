@@ -86,7 +86,7 @@ public class YarnApplicationMasterRunnerTest {
 
 		String workingDirectory = root.getAbsolutePath();
 		Class<?> taskManagerMainClass = YarnApplicationMasterRunnerTest.class;
-		ContainerLaunchContext ctx = YarnApplicationMasterRunner.createTaskManagerContext(flinkConf, yarnConf, env, tmParams,
+		ContainerLaunchContext ctx = Utils.createTaskExecutorContext(flinkConf, yarnConf, env, tmParams,
 			taskManagerConf, workingDirectory, taskManagerMainClass, LOG);
 		assertEquals("file", ctx.getLocalResources().get("flink.jar").getResource().getScheme());
 	}
