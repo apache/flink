@@ -33,13 +33,13 @@ import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.util.Bytes;
-import org.apache.hadoop.hbase.util.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * {@link InputFormat} subclass that wraps the access for HTables. Returns the result as {@link Row}
@@ -92,10 +92,11 @@ public class HBaseTableSourceInputFormat extends TableInputFormat<Row> implement
 		String[] familyNames = schema.getFamilyNames();
 		Object[] rows = new Object[familyNames.length];
 		for(String family : familyNames) {
-			for(Pair<String, TypeInformation<?>> info : schema.getFamilyInfo(family)) {
-				byte[] value = res.getValue(Bytes.toBytes(family), Bytes.toBytes(info.getFirst()));
+			Map<String, TypeInformation<?>> infos = schema.getFamilyInfo(family);
+			for(String qualifier : infos.keySet()) {
+				byte[] value = res.getValue(Bytes.toBytes(family), Bytes.toBytes(qualifier));
 				if(value != null) {
-					values.add(schema.deserialize(value, info.getSecond()));
+					values.add(schema.deserialize(value, infos.get(qualifier)));
 				} else {
 					values.add(null);
 				}

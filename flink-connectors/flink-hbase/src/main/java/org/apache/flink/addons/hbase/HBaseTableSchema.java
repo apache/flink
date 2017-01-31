@@ -17,20 +17,19 @@
  */
 package org.apache.flink.addons.hbase;
 
+import com.google.common.collect.ImmutableCollection;
+import com.google.common.collect.ImmutableList;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.util.Preconditions;
 import org.apache.hadoop.hbase.util.Bytes;
-import org.apache.hadoop.hbase.util.Pair;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.sql.Time;
-import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
-import java.util.ArrayList;
 import java.sql.Date;
 
 /**
@@ -39,14 +38,13 @@ import java.sql.Date;
 public class HBaseTableSchema implements Serializable {
 
 	// A Map with key as column family.
-	private final Map<String, List<Pair<String, TypeInformation<?>>>> familyMap =
+	private final Map<String, Map<String, TypeInformation<?>>> familyMap =
 		new HashMap<>();
 
 	// Allowed types. This may change.
-	// TODO : Check if the Date type should be the one in java.util or the one in java.sql
-	private static Class[] CLASS_TYPES = {
+	private static ImmutableCollection<Class<?>> CLASS_TYPES = ImmutableList.<Class<?>>of(
 		Integer.class, Short.class, Float.class, Long.class, String.class, Byte.class, Boolean.class, Double.class, BigInteger.class, BigDecimal.class, Date.class, Time.class, byte[].class
-	};
+	);
 	/**
 	 * Allows specifying the family and qualifier name along with the data type of the qualifier for an HBase table
 	 *
@@ -58,23 +56,16 @@ public class HBaseTableSchema implements Serializable {
 		Preconditions.checkNotNull(family, "family name");
 		Preconditions.checkNotNull(qualifier, "qualifier name");
 		Preconditions.checkNotNull(clazz, "class type");
-		List<Pair<String, TypeInformation<?>>> list = this.familyMap.get(family);
-		if (list == null) {
-			list = new ArrayList<>();
+		Map<String, TypeInformation<?>> map = this.familyMap.get(family);
+		if (map == null) {
+			map = new HashMap<>();
 		}
-		boolean found = false;
-		for (Class classType : CLASS_TYPES) {
-			if (classType == clazz) {
-				found = true;
-				break;
-			}
-		}
-		if (!found) {
+		if (!CLASS_TYPES.contains(clazz)) {
 			// throw exception
 			throw new IllegalArgumentException("Unsupported class type found " + clazz+". Better to use byte[].class and deserialize using user defined scalar functions");
 		}
-		list.add(new Pair<String, TypeInformation<?>>(qualifier, TypeExtractor.getForClass(clazz)));
-		familyMap.put(family, list);
+		map.put(qualifier, TypeExtractor.getForClass(clazz));
+		familyMap.put(family, map);
 	}
 
 	public String[] getFamilyNames() {
@@ -82,28 +73,28 @@ public class HBaseTableSchema implements Serializable {
 	}
 
 	public String[] getQualifierNames(String family) {
-		List<Pair<String, TypeInformation<?>>> colDetails = familyMap.get(family);
+		Map<String, TypeInformation<?>> colDetails = familyMap.get(family);
 		String[] qualifierNames = new String[colDetails.size()];
 		int i = 0;
-		for (Pair<String, TypeInformation<?>> pair : colDetails) {
-			qualifierNames[i] = pair.getFirst();
+		for (String qualifier: colDetails.keySet()) {
+			qualifierNames[i] = qualifier;
 			i++;
 		}
 		return qualifierNames;
 	}
 
 	public TypeInformation<?>[] getQualifierTypes(String family) {
-		List<Pair<String, TypeInformation<?>>> colDetails = familyMap.get(family);
+		Map<String, TypeInformation<?>> colDetails = familyMap.get(family);
 		TypeInformation<?>[] typeInformations = new TypeInformation[colDetails.size()];
 		int i = 0;
-		for (Pair<String, TypeInformation<?>> pair : colDetails) {
-			typeInformations[i] = pair.getSecond();
+		for (TypeInformation<?> typeInfo : colDetails.values()) {
+			typeInformations[i] = typeInfo;
 			i++;
 		}
 		return typeInformations;
 	}
 
-	public List<Pair<String, TypeInformation<?>>> getFamilyInfo(String family) {
+	public Map<String, TypeInformation<?>> getFamilyInfo(String family) {
 		return familyMap.get(family);
 	}
 

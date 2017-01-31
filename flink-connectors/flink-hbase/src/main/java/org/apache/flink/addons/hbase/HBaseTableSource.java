@@ -22,9 +22,12 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.table.sources.BatchTableSource;
+import org.apache.flink.table.sources.ProjectableTableSource;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 import org.apache.hadoop.conf.Configuration;
+
+import java.util.Map;
 
 /**
  * Creates a table source that helps to scan data from an hbase table
@@ -32,8 +35,7 @@ import org.apache.hadoop.conf.Configuration;
  * Note : the colNames are specified along with a familyName and they are seperated by a ':'
  * For eg, cf1:q1 - where cf1 is the familyName and q1 is the qualifier name
  */
-// TODO : Implement ProjectableTableSource?
-public class HBaseTableSource implements BatchTableSource<Row> {
+public class HBaseTableSource implements BatchTableSource<Row>, ProjectableTableSource<Row> {
 
 	private Configuration conf;
 	private String tableName;
@@ -61,5 +63,21 @@ public class HBaseTableSource implements BatchTableSource<Row> {
 	@Override
 	public DataSet<Row> getDataSet(ExecutionEnvironment execEnv) {
 		return execEnv.createInput(new HBaseTableSourceInputFormat(conf, tableName, schema), getReturnType());
+	}
+
+	@Override
+	public ProjectableTableSource<Row> projectFields(int[] fields) {
+		HBaseTableSchema newSchema = new HBaseTableSchema();
+		String[] famNames = schema.getFamilyNames();
+		// Extract the family from the given fields
+		for(int field : fields) {
+			String family = famNames[field];
+			Map<String, TypeInformation<?>> familyInfo = schema.getFamilyInfo(family);
+			for(String qualifier : familyInfo.keySet()) {
+				// create the newSchema
+				newSchema.addColumn(family, qualifier, familyInfo.get(qualifier).getTypeClass());
+			}
+		}
+		return new HBaseTableSource(this.conf, tableName, newSchema);
 	}
 }
