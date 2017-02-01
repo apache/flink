@@ -44,7 +44,7 @@ import java.util.Map;
 /**
  * {@link InputFormat} subclass that wraps the access for HTables. Returns the result as {@link Row}
  */
-public class HBaseTableSourceInputFormat extends TableInputFormat<Row> implements ResultTypeQueryable<Row> {
+public class HBaseTableSourceInputFormat extends AbstractTableInputFormat<Row> implements ResultTypeQueryable<Row> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -86,7 +86,7 @@ public class HBaseTableSourceInputFormat extends TableInputFormat<Row> implement
 	}
 
 	@Override
-	protected Row mapResultToTuple(Result res) {
+	protected Row mapResultToType(Result res) {
 		List<Object> values = new ArrayList<Object>();
 		int i = 0;
 		String[] familyNames = schema.getFamilyNames();

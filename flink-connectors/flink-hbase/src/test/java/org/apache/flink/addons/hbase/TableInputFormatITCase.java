@@ -85,7 +85,7 @@ public class TableInputFormatITCase extends HBaseTestingClusterAutostarter {
 		}
 
 		@Override
-		protected Tuple1<String> mapResultToTuple(Result r) {
+		protected Tuple1<String> mapResultToType(Result r) {
 			return new Tuple1<>(new String(r.getValue(TEST_TABLE_FAMILY_NAME, TEST_TABLE_COLUMN_NAME)));
 		}
 	}

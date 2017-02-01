@@ -63,7 +63,7 @@ public class HBaseReadExample {
 				private Tuple2<String, String> reuse = new Tuple2<String, String>();
 				
 				@Override
-				protected Tuple2<String, String> mapResultToTuple(Result r) {
+				protected Tuple2<String, String> mapResultToType(Result r) {
 					String key = Bytes.toString(r.getRow());
 					String val = Bytes.toString(r.getValue(HBaseFlinkTestConstants.CF_SOME, HBaseFlinkTestConstants.Q_SOME));
 					reuse.setField(key, 0);

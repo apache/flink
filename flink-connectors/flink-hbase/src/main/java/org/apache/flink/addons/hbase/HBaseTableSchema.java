@@ -29,8 +29,8 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.sql.Time;
 import java.util.Map;
-import java.util.HashMap;
 import java.sql.Date;
+import java.util.TreeMap;
 
 /**
  * Helps to specify an HBase Table's schema
@@ -38,8 +38,9 @@ import java.sql.Date;
 public class HBaseTableSchema implements Serializable {
 
 	// A Map with key as column family.
+	// Guarantees natural ordering
 	private final Map<String, Map<String, TypeInformation<?>>> familyMap =
-		new HashMap<>();
+		new TreeMap<>();
 
 	// Allowed types. This may change.
 	private static ImmutableCollection<Class<?>> CLASS_TYPES = ImmutableList.<Class<?>>of(
@@ -58,7 +59,7 @@ public class HBaseTableSchema implements Serializable {
 		Preconditions.checkNotNull(clazz, "class type");
 		Map<String, TypeInformation<?>> map = this.familyMap.get(family);
 		if (map == null) {
-			map = new HashMap<>();
+			map = new TreeMap<>();
 		}
 		if (!CLASS_TYPES.contains(clazz)) {
 			// throw exception

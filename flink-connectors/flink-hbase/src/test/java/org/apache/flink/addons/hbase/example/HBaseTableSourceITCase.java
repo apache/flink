@@ -106,8 +106,9 @@ public class HBaseTableSourceITCase extends HBaseTestingClusterAutostarter {
 		// add the mutations to the table
 		table.put(puts);
 		table.close();
+		// preparetion is done
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, 	new TableConfig());
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, new TableConfig());
 		HBaseTableSchema schema = new HBaseTableSchema();
 		schema.addColumn(Bytes.toString(F_1), Bytes.toString(Q_1), Integer.class);
 		schema.addColumn(Bytes.toString(F_1), Bytes.toString(Q_2), String.class);
@@ -171,8 +172,9 @@ public class HBaseTableSourceITCase extends HBaseTestingClusterAutostarter {
 		// add the mutations to the table
 		table.put(puts);
 		table.close();
+		// preparation is done
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, 	new TableConfig());
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, new TableConfig());
 		HBaseTableSchema schema = new HBaseTableSchema();
 		schema.addColumn(Bytes.toString(F_1), Bytes.toString(Q_1), Integer.class);
 		schema.addColumn(Bytes.toString(F_1), Bytes.toString(Q_2), String.class);

@@ -31,9 +31,6 @@ import java.util.Map;
 
 /**
  * Creates a table source that helps to scan data from an hbase table
- *
- * Note : the colNames are specified along with a familyName and they are seperated by a ':'
- * For eg, cf1:q1 - where cf1 is the familyName and q1 is the qualifier name
  */
 public class HBaseTableSource implements BatchTableSource<Row>, ProjectableTableSource<Row> {
 
