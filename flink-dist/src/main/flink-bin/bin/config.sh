@@ -96,6 +96,8 @@ KEY_TASKM_MEM_MANAGED_FRACTION="taskmanager.memory.fraction"
 KEY_TASKM_OFFHEAP="taskmanager.memory.off-heap"
 KEY_TASKM_MEM_PRE_ALLOCATE="taskmanager.memory.preallocate"
 
+KEY_TASKM_COMPUTE_NUMA="taskmanager.compute.numa"
+
 KEY_ENV_PID_DIR="env.pid.dir"
 KEY_ENV_LOG_DIR="env.log.dir"
 KEY_ENV_LOG_MAX="env.log.max"
@@ -215,6 +217,17 @@ fi
 # Define FLINK_TM_MEM_PRE_ALLOCATE if it is not already set
 if [ -z "${FLINK_TM_MEM_PRE_ALLOCATE}" ]; then
     FLINK_TM_MEM_PRE_ALLOCATE=$(readFromConfig ${KEY_TASKM_MEM_PRE_ALLOCATE} "false" "${YAML_CONF}")
+fi
+
+# Verify that NUMA tooling is available
+command -v numactl >/dev/null 2>&1
+if [[ $? -ne 0 ]]; then
+    FLINK_TM_COMPUTE_NUMA="false"
+else
+    # Define FLINK_TM_COMPUTE_NUMA if it is not already set
+    if [ -z "${FLINK_TM_COMPUTE_NUMA}" ]; then
+        FLINK_TM_COMPUTE_NUMA=$(readFromConfig ${KEY_TASKM_COMPUTE_NUMA} "false" "${YAML_CONF}")
+    fi
 fi
 
 if [ -z "${MAX_LOG_FILE_NUMBER}" ]; then
