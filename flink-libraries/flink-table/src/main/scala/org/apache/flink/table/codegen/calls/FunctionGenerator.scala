@@ -31,6 +31,8 @@ import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.table.functions.utils.{TableSqlFunction, ScalarSqlFunction}
 
 import scala.collection.mutable
+import org.apache.flink.table.calcite.functions.FlinkStreamFunctionCatalog
+import org.apache.flink.table.functions.TimeModeIndicatorFunction
 
 /**
   * Global hub for user-defined and built-in advanced SQL functions.
@@ -289,7 +291,12 @@ object FunctionGenerator {
     LOCALTIMESTAMP,
     Seq(),
     new CurrentTimePointCallGen(SqlTimeTypeInfo.TIMESTAMP, local = true))
-
+    
+  addSqlFunction(
+   FlinkStreamFunctionCatalog.PROCTIME,
+   Seq(),
+   new CurrentTimePointCallGen(SqlTimeTypeInfo.TIME, local = true))
+   
   // ----------------------------------------------------------------------------------------------
 
   /**
