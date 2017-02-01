@@ -526,6 +526,8 @@ Previously this key was named `recovery.mode` and the default value was `standal
 
 - `env.log.dir`: (Defaults to the `log` directory under Flink's home) Defines the directory where the Flink logs are saved. It has to be an absolute path.
 
+- `env.ssh.opts`: Additional command line options passed to SSH clients when starting or stopping JobManager, TaskManager, and Zookeeper services (start-cluster.sh, stop-cluster.sh, start-zookeeper-quorum.sh, stop-zookeeper-quorum.sh).
+
 ### Queryable State
 
 #### Server
