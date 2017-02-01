@@ -38,10 +38,21 @@ public class HBaseTableSource implements BatchTableSource<Row>, ProjectableTable
 	private String tableName;
 	private HBaseTableSchema schema;
 
-	public HBaseTableSource(Configuration conf, String tableName, HBaseTableSchema schema) {
+	public HBaseTableSource(Configuration conf, String tableName) {
 		this.conf = conf;
 		this.tableName = Preconditions.checkNotNull(tableName, "Table  name");
-		this.schema = Preconditions.checkNotNull(schema, "Schema");
+		this.schema = new HBaseTableSchema();
+	}
+
+	/**
+	 * Allows specifying the family and qualifier name along with the data type of the qualifier for an HBase table
+	 *
+	 * @param family    the family name
+	 * @param qualifier the qualifier name
+	 * @param clazz     the data type of the qualifier
+	 */
+	public void addColumn(String family, String qualifier, Class<?> clazz) {
+		this.schema.addColumn(family, qualifier, clazz);
 	}
 
 	@Override
@@ -64,17 +75,17 @@ public class HBaseTableSource implements BatchTableSource<Row>, ProjectableTable
 
 	@Override
 	public ProjectableTableSource<Row> projectFields(int[] fields) {
-		HBaseTableSchema newSchema = new HBaseTableSchema();
 		String[] famNames = schema.getFamilyNames();
+		HBaseTableSource newTableSource = new HBaseTableSource(this.conf, tableName);
 		// Extract the family from the given fields
 		for(int field : fields) {
 			String family = famNames[field];
 			Map<String, TypeInformation<?>> familyInfo = schema.getFamilyInfo(family);
 			for(String qualifier : familyInfo.keySet()) {
 				// create the newSchema
-				newSchema.addColumn(family, qualifier, familyInfo.get(qualifier).getTypeClass());
+				newTableSource.addColumn(family, qualifier, familyInfo.get(qualifier).getTypeClass());
 			}
 		}
-		return new HBaseTableSource(this.conf, tableName, newSchema);
+		return newTableSource;
 	}
 }

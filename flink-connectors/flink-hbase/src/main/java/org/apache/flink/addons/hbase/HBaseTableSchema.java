@@ -46,6 +46,7 @@ public class HBaseTableSchema implements Serializable {
 	private static ImmutableCollection<Class<?>> CLASS_TYPES = ImmutableList.<Class<?>>of(
 		Integer.class, Short.class, Float.class, Long.class, String.class, Byte.class, Boolean.class, Double.class, BigInteger.class, BigDecimal.class, Date.class, Time.class, byte[].class
 	);
+
 	/**
 	 * Allows specifying the family and qualifier name along with the data type of the qualifier for an HBase table
 	 *
@@ -53,7 +54,7 @@ public class HBaseTableSchema implements Serializable {
 	 * @param qualifier the qualifier name
 	 * @param clazz     the data type of the qualifier
 	 */
-	public void addColumn(String family, String qualifier, Class<?> clazz) {
+	void addColumn(String family, String qualifier, Class<?> clazz) {
 		Preconditions.checkNotNull(family, "family name");
 		Preconditions.checkNotNull(qualifier, "qualifier name");
 		Preconditions.checkNotNull(clazz, "class type");
@@ -69,11 +70,11 @@ public class HBaseTableSchema implements Serializable {
 		familyMap.put(family, map);
 	}
 
-	public String[] getFamilyNames() {
+	String[] getFamilyNames() {
 		return this.familyMap.keySet().toArray(new String[this.familyMap.size()]);
 	}
 
-	public String[] getQualifierNames(String family) {
+	String[] getQualifierNames(String family) {
 		Map<String, TypeInformation<?>> colDetails = familyMap.get(family);
 		String[] qualifierNames = new String[colDetails.size()];
 		int i = 0;
@@ -84,7 +85,7 @@ public class HBaseTableSchema implements Serializable {
 		return qualifierNames;
 	}
 
-	public TypeInformation<?>[] getQualifierTypes(String family) {
+	TypeInformation<?>[] getQualifierTypes(String family) {
 		Map<String, TypeInformation<?>> colDetails = familyMap.get(family);
 		TypeInformation<?>[] typeInformations = new TypeInformation[colDetails.size()];
 		int i = 0;
@@ -95,11 +96,11 @@ public class HBaseTableSchema implements Serializable {
 		return typeInformations;
 	}
 
-	public Map<String, TypeInformation<?>> getFamilyInfo(String family) {
+	Map<String, TypeInformation<?>> getFamilyInfo(String family) {
 		return familyMap.get(family);
 	}
 
-	public Object deserialize(byte[] value, TypeInformation<?> typeInfo) {
+	Object deserialize(byte[] value, TypeInformation<?> typeInfo) {
 		if (typeInfo.isBasicType()) {
 			if (typeInfo.getTypeClass() == Integer.class) {
 				return Bytes.toInt(value);

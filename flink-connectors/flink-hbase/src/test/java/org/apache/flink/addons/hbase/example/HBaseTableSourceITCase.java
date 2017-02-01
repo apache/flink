@@ -109,12 +109,11 @@ public class HBaseTableSourceITCase extends HBaseTestingClusterAutostarter {
 		// preparetion is done
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, new TableConfig());
-		HBaseTableSchema schema = new HBaseTableSchema();
-		schema.addColumn(Bytes.toString(F_1), Bytes.toString(Q_1), Integer.class);
-		schema.addColumn(Bytes.toString(F_1), Bytes.toString(Q_2), String.class);
-		schema.addColumn(Bytes.toString(F_1), Bytes.toString(Q_3), Long.class);
 		// fetch row2 from the table till the end
-		BatchTableSource hbaseTable = new HBaseTableSource(getConf(), tableName.getNameAsString(), schema);
+		HBaseTableSource hbaseTable = new HBaseTableSource(getConf(), tableName.getNameAsString());
+		hbaseTable.addColumn(Bytes.toString(F_1), Bytes.toString(Q_1), Integer.class);
+		hbaseTable.addColumn(Bytes.toString(F_1), Bytes.toString(Q_2), String.class);
+		hbaseTable.addColumn(Bytes.toString(F_1), Bytes.toString(Q_3), Long.class);
 		tableEnv.registerTableSource("test", hbaseTable);
 		Table result = tableEnv
 			.sql("SELECT test.f1.q1, test.f1.q2, test.f1.q3 FROM test");
@@ -175,15 +174,14 @@ public class HBaseTableSourceITCase extends HBaseTestingClusterAutostarter {
 		// preparation is done
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, new TableConfig());
-		HBaseTableSchema schema = new HBaseTableSchema();
-		schema.addColumn(Bytes.toString(F_1), Bytes.toString(Q_1), Integer.class);
-		schema.addColumn(Bytes.toString(F_1), Bytes.toString(Q_2), String.class);
-		schema.addColumn(Bytes.toString(F_1), Bytes.toString(Q_3), Long.class);
-		schema.addColumn(Bytes.toString(F_2), Bytes.toString(Q_1), Integer.class);
-		schema.addColumn(Bytes.toString(F_2), Bytes.toString(Q_2), String.class);
-		schema.addColumn(Bytes.toString(F_2), Bytes.toString(Q_3), Long.class);
 		// fetch row2 from the table till the end
-		BatchTableSource hbaseTable = new HBaseTableSource(getConf(), tableName.getNameAsString(), schema);
+		HBaseTableSource hbaseTable = new HBaseTableSource(getConf(), tableName.getNameAsString());
+		hbaseTable.addColumn(Bytes.toString(F_1), Bytes.toString(Q_1), Integer.class);
+		hbaseTable.addColumn(Bytes.toString(F_1), Bytes.toString(Q_2), String.class);
+		hbaseTable.addColumn(Bytes.toString(F_1), Bytes.toString(Q_3), Long.class);
+		hbaseTable.addColumn(Bytes.toString(F_2), Bytes.toString(Q_1), Integer.class);
+		hbaseTable.addColumn(Bytes.toString(F_2), Bytes.toString(Q_2), String.class);
+		hbaseTable.addColumn(Bytes.toString(F_2), Bytes.toString(Q_3), Long.class);
 		tableEnv.registerTableSource("test1", hbaseTable);
 		Table result = tableEnv
 			.sql("SELECT test1.f1.q1, test1.f1.q2, test1.f1.q3, test1.f2.q1, test1.f2.q2, test1.f2.q3 FROM test1");
