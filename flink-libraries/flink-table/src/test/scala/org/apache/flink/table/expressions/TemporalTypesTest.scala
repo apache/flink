@@ -537,6 +537,14 @@ class TemporalTypesTest extends ExpressionTestBase {
       "f2 - INTERVAL '2' DAY - INTERVAL '1' MONTH",
       "1990-09-12 10:20:45.123")
   }
+  
+    @Test
+  def testProcTime(): Unit = {
+    testSqlApi(
+      "procTime()",
+      "1970-01-01 00:00:00.0")
+
+  }
 
   // ----------------------------------------------------------------------------------------------
 

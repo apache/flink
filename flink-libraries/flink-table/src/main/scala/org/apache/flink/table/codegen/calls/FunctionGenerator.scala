@@ -31,6 +31,7 @@ import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.table.functions.utils.{TableSqlFunction, ScalarSqlFunction}
 
 import scala.collection.mutable
+import org.apache.flink.table.functions.ProcTimeExtractor
 
 /**
   * Global hub for user-defined and built-in advanced SQL functions.
@@ -289,7 +290,12 @@ object FunctionGenerator {
     LOCALTIMESTAMP,
     Seq(),
     new CurrentTimePointCallGen(SqlTimeTypeInfo.TIMESTAMP, local = true))
-
+    
+  addSqlFunction(
+   ProcTimeExtractor,
+   Seq(),
+   new ProcTimeCallGen())
+  
   // ----------------------------------------------------------------------------------------------
 
   /**

@@ -23,12 +23,13 @@ import org.apache.calcite.sql.util.{ChainedSqlOperatorTable, ListSqlOperatorTabl
 import org.apache.calcite.sql.{SqlFunction, SqlOperator, SqlOperatorTable}
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions.{EventTimeExtractor, RowTime, ScalarFunction, TableFunction}
+import org.apache.flink.table.functions.{EventTimeExtractor, ProcTimeExtractor, RowTime, ScalarFunction, TableFunction}
 import org.apache.flink.table.functions.utils.{TableSqlFunction, ScalarSqlFunction}
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
+
 
 /**
   * A catalog for looking up (user-defined) functions, used during validation phases
@@ -192,6 +193,8 @@ object FunctionCatalog {
     "at" -> classOf[ArrayElementAt],
     "element" -> classOf[ArrayElement],
 
+    "procTime" -> classOf[CurrentTimestamp],
+    
     // TODO implement function overloading here
     // "floor" -> classOf[TemporalFloor]
     // "ceil" -> classOf[TemporalCeil]
@@ -322,7 +325,8 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     SqlStdOperatorTable.SCALAR_QUERY,
     SqlStdOperatorTable.EXISTS,
     // EXTENSIONS
-    EventTimeExtractor
+    EventTimeExtractor,
+    ProcTimeExtractor
   )
 
   builtInSqlOperators.foreach(register)

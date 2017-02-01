@@ -34,6 +34,15 @@ object EventTimeExtractor extends SqlFunction("ROWTIME", SqlKind.OTHER_FUNCTION,
     SqlMonotonicity.INCREASING
 }
 
+object ProcTimeExtractor extends SqlFunction("PROCTIME", SqlKind.OTHER_FUNCTION,
+  ReturnTypes.explicit(SqlTypeName.TIMESTAMP), null, OperandTypes.NILADIC,
+  SqlFunctionCategory.SYSTEM) {
+  override def getSyntax: SqlSyntax = SqlSyntax.FUNCTION
+
+  override def getMonotonicity(call: SqlOperatorBinding): SqlMonotonicity =
+    SqlMonotonicity.INCREASING
+}
+
 abstract class TimeIndicator extends LeafExpression {
   /**
     * Returns the [[org.apache.flink.api.common.typeinfo.TypeInformation]]
@@ -51,3 +60,4 @@ abstract class TimeIndicator extends LeafExpression {
 }
 
 case class RowTime() extends TimeIndicator
+case class ProcTime() extends TimeIndicator
