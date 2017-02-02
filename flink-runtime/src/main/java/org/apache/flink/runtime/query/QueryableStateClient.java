@@ -229,20 +229,20 @@ public class QueryableStateClient {
 	 * @param jobId                     JobID of the job the queryable state
 	 *                                  belongs to
 	 * @param queryableStateName        Name under which the state is queryable
-	 * @param keyHashCode               Integer hash code of the key (result of
-	 *                                  a call to {@link Object#hashCode()}
+	 * @param key		                key to query KvState instance with
 	 * @param serializedKeyAndNamespace Serialized key and namespace to query
 	 *                                  KvState instance with
 	 * @return Future holding the serialized result
 	 */
 	@SuppressWarnings("unchecked")
-	public Future<byte[]> getKvState(
+	public <K> Future<byte[]> requestKvState(
 			final JobID jobId,
 			final String queryableStateName,
-			final int keyHashCode,
+			final K key,
 			final byte[] serializedKeyAndNamespace) {
 
-		return getKvState(jobId, queryableStateName, keyHashCode, serializedKeyAndNamespace, false)
+		final int keyHashCode = key.hashCode();
+		return requestKvState(jobId, queryableStateName, keyHashCode, serializedKeyAndNamespace, false)
 				.recoverWith(new Recover<Future<byte[]>>() {
 					@Override
 					public Future<byte[]> recover(Throwable failure) throws Throwable {
@@ -253,7 +253,7 @@ public class QueryableStateClient {
 							// These failures are likely to be caused by out-of-sync
 							// KvStateLocation. Therefore we retry this query and
 							// force look up the location.
-							return getKvState(
+							return requestKvState(
 									jobId,
 									queryableStateName,
 									keyHashCode,
@@ -279,7 +279,7 @@ public class QueryableStateClient {
 	 * @param forceLookup               Flag to force lookup of the {@link KvStateLocation}
 	 * @return Future holding the serialized result
 	 */
-	private Future<byte[]> getKvState(
+	private Future<byte[]> requestKvState(
 			final JobID jobId,
 			final String queryableStateName,
 			final int keyHashCode,
