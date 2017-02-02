@@ -76,8 +76,8 @@ import java.util.Map;
 /**
  * This traversal creates the optimizer DAG from a program.
  * It works as a visitor that walks the program's flow in a depth-first fashion, starting from the data sinks.
- * During the descend, it creates an optimizer node for each operator, respectively data source or -sink.
- * During the ascend, it connects the nodes to the full graph.
+ * During the descent it creates an optimizer node for each operator, respectively data source or sink.
+ * During the ascent it connects the nodes to the full graph.
  */
 public class GraphCreatingVisitor implements Visitor<Operator<?>> {
 

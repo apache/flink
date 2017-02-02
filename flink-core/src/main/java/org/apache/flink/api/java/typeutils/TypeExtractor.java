@@ -394,7 +394,7 @@ public class TypeExtractor {
 	 * @param inputTypeArgumentIndex Index of the type argument of function's first parameter
 	 *                               specifying the input type if it is wrapped (Iterable, Map,
 	 *                               etc.). Otherwise -1.
-	 * @param outputTypeArgumentIndex Index of the type argument of functions second parameter
+	 * @param outputTypeArgumentIndex Index of the type argument of function's second parameter
 	 *                                specifying the output type if it is wrapped in a Collector.
 	 *                                Otherwise -1.
 	 * @param inType Type of the input elements (In case of an iterable, it is the element type)
