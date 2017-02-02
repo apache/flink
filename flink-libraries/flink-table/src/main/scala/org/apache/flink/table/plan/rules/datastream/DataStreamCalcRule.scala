@@ -60,7 +60,7 @@ class DataStreamCalcRule
 
     val expr = calc.getProgram.getExprList.toArray()
 
-    expr.foreach { x => if (x.isInstanceOf[RexOver]) false }
+    expr.foreach { x => if (x.isInstanceOf[RexOver]) return false }
 
     super.matches(call);
 
