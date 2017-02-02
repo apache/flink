@@ -87,16 +87,14 @@ public class ShardConsumer<T> implements Runnable {
 			subscribedShardStateIndex,
 			subscribedShard,
 			lastSequenceNum,
-			new AtomicReference<Throwable>(),
 			KinesisProxy.create(fetcherRef.getConsumerConfiguration()));
-	}
+		}
 
 	/** This constructor is exposed for testing purposes */
 	protected ShardConsumer(KinesisDataFetcher<T> fetcherRef,
 							Integer subscribedShardStateIndex,
 							KinesisStreamShard subscribedShard,
 							SequenceNumber lastSequenceNum,
-							AtomicReference<Throwable> error,
 							KinesisProxyInterface kinesis) {
 		this.fetcherRef = checkNotNull(fetcherRef);
 		this.subscribedShardStateIndex = checkNotNull(subscribedShardStateIndex);
@@ -117,14 +115,14 @@ public class ShardConsumer<T> implements Runnable {
 			ConsumerConfigConstants.SHARD_GETRECORDS_INTERVAL_MILLIS,
 			Long.toString(ConsumerConfigConstants.DEFAULT_SHARD_GETRECORDS_INTERVAL_MILLIS)));
 
-		this.error = checkNotNull(error);
+		this.error = new AtomicReference<Throwable>();
 	}
 
 	@SuppressWarnings("unchecked")
 	@Override
 	public void run() {
 		String startShardItr;
-		Timer timer = new Timer();
+		Timer shardConsumerFetcherScheduler = new Timer();
 
 		try {
 			// before infinitely looping, we set the initial startShardItr appropriately
@@ -179,11 +177,11 @@ public class ShardConsumer<T> implements Runnable {
 
 			if (fetchIntervalMillis > 0L) {
 				shardConsumerFetcher = new ShardConsumerFetcher(this, startShardItr, queue, false);
-				timer.scheduleAtFixedRate(shardConsumerFetcher, 0L, fetchIntervalMillis);
+				shardConsumerFetcherScheduler.scheduleAtFixedRate(shardConsumerFetcher, 0L, fetchIntervalMillis);
 			} else {
 				// if fetchIntervalMillis is 0, make the task run forever and schedule it once only.
 				shardConsumerFetcher = new ShardConsumerFetcher(this, startShardItr, queue, true);
-				timer.schedule(shardConsumerFetcher, 0L);
+				shardConsumerFetcherScheduler.schedule(shardConsumerFetcher, 0L);
 			}
 
 			while(isRunning()) {
@@ -207,7 +205,7 @@ public class ShardConsumer<T> implements Runnable {
 		} catch (Throwable t) {
 			fetcherRef.stopWithError(t);
 		} finally {
-			timer.cancel();
+			shardConsumerFetcherScheduler.cancel();
 		}
 	}
 
@@ -218,7 +216,7 @@ public class ShardConsumer<T> implements Runnable {
 
 		private final ArrayBlockingQueue<UserRecord> userRecordQueue;
 
-		/** The latest finish time for fetching data from Kinesis used to recognize if the following task has been delayed.*/
+		/** The latest finish time for fetching data from Kinesis used to recognize if the following task has been delayed. */
 		private Long lastFinishTime = -1L;
 
 		private boolean runForever;
@@ -235,6 +233,9 @@ public class ShardConsumer<T> implements Runnable {
 
 		@Override
 		public void run() {
+			GetRecordsResult getRecordsResult;
+			List<UserRecord> fetchedRecords;
+
 			try {
 				do {
 					if (nextShardItr != null) {
@@ -242,22 +243,19 @@ public class ShardConsumer<T> implements Runnable {
 						if (!runForever && this.scheduledExecutionTime() < lastFinishTime) {
 							// If expected scheduled execution time is earlier than lastFinishTime,
 							// it seems that the fetchIntervalMillis might be short to finish the previous task.
-							LOG.warn("The value given for ShardConsumer is too short to finish getRecords on time. Please increase the value set in config \"{}\"", ConsumerConfigConstants.SHARD_GETRECORDS_INTERVAL_MILLIS);
+							LOG.warn("The value given for ShardConsumer is too short to finish getRecords on time.");
 						} else {
-							GetRecordsResult getRecordsResult = shardConsumerRef.getRecords(nextShardItr, maxNumberOfRecordsPerFetch);
+							getRecordsResult = shardConsumerRef.getRecords(nextShardItr, maxNumberOfRecordsPerFetch);
 
 							if (getRecordsResult != null) {
 								// each of the Kinesis records may be aggregated, so we must deaggregate them before proceeding
-								List<UserRecord> fetchedRecords = deaggregateRecords(
+								fetchedRecords = deaggregateRecords(
 									getRecordsResult.getRecords(),
 									subscribedShard.getShard().getHashKeyRange().getStartingHashKey(),
 									subscribedShard.getShard().getHashKeyRange().getEndingHashKey());
 
 								for (UserRecord record : fetchedRecords) {
-									boolean notFull = false;
-									while (!notFull) {
-										notFull = userRecordQueue.offer(record);
-									}
+									userRecordQueue.put(record);
 								}
 
 								nextShardItr = getRecordsResult.getNextShardIterator();
@@ -288,7 +286,7 @@ public class ShardConsumer<T> implements Runnable {
 		return !Thread.interrupted();
 	}
 
-	/** Called by created TimerTask to pass on errors. Only the first thrown error is set.
+	/** Called by created TimerTask: {@link ShardConsumerFetcher} to pass on errors. Only the first thrown error is set.
 	 * Once set, It will cause run() to throw the error and call stopWithError() in {@link KinesisDataFetcher}*/
 	private void stopWithError(Throwable throwable) {
 		this.error.compareAndSet(null, throwable);
