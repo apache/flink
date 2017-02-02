@@ -31,6 +31,10 @@ import java.util.Map;
 
 /**
  * Creates a table source that helps to scan data from an hbase table
+ * The table name is passed during {@link HBaseTableSource} construction along with the required hbase configurations.
+ * Use {@link #addColumn(String, String, Class)} to specify the family name, qualifier and the type of the qualifier that needs to be scanned
+ * This supports nested schema, for eg: if we have a column family 'Person' and two qualifiers 'Name' (type String) and 'Unique_Id' (Type Integer),
+ * then we represent this schema as Row<Person : Row<Name: String, Unique_Id : Integer>>
  */
 public class HBaseTableSource implements BatchTableSource<Row>, ProjectableTableSource<Row> {
 
@@ -38,6 +42,12 @@ public class HBaseTableSource implements BatchTableSource<Row>, ProjectableTable
 	private String tableName;
 	private HBaseTableSchema schema;
 
+	/**
+	 * The hbase configuration and the table name that acts as the hbase table source
+	 *
+	 * @param conf      hbase configuration
+	 * @param tableName the tableName
+	 */
 	public HBaseTableSource(Configuration conf, String tableName) {
 		this.conf = conf;
 		this.tableName = Preconditions.checkNotNull(tableName, "Table  name");
