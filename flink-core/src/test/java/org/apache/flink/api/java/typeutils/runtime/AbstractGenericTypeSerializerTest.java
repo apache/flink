@@ -88,7 +88,7 @@ abstract public class AbstractGenericTypeSerializerTest {
 	@Test
 	public void testBeanStyleObjects() {
 		{
-			Book b1 = new Book(976243875L, "The Serialization Odysse", 42);
+			Book b1 = new Book(976243875L, "The Serialization Odyssey", 42);
 			Book b2 = new Book(0L, "Debugging byte streams", 1337);
 			Book b3 = new Book(-1L, "Low level interfaces", 0xC0FFEE);
 

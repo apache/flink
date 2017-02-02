@@ -860,7 +860,7 @@ public class CliFrontend {
 			Map<String, Object> accumulatorsResult = execResult.getAllAccumulatorResults();
 			if (accumulatorsResult.size() > 0) {
 				System.out.println("Accumulator Results: ");
-				System.out.println(AccumulatorHelper.getResultsFormated(accumulatorsResult));
+				System.out.println(AccumulatorHelper.getResultsFormatted(accumulatorsResult));
 			}
 		} else {
 			logAndSysout("Job has been submitted with JobID " + result.getJobID());

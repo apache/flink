@@ -46,7 +46,7 @@ public class SerializersTest {
 	
 	public static class Nested1 {
 		private FromNested fromNested;
-		private Path yodaIntervall;
+		private Path yodaInterval;
 	}
 
 	public static class ClassWithNested {
