@@ -36,7 +36,7 @@ TBD
 You can configure periodic checkpoints to be persisted externally. Externalized checkpoints write their meta data out to persistent storage and are *not* automatically cleaned up when the job fails. This way, you will have a checkpoint around to resume from if your job fails.
 
 ```java
-CheckpoingConfig config = env.getCheckpointConfig();
+CheckpointConfig config = env.getCheckpointConfig();
 config.enableExternalizedCheckpoints(ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
 ```
 
