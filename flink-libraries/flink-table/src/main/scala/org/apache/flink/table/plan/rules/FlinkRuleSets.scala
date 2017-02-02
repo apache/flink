@@ -23,7 +23,8 @@ import org.apache.calcite.tools.{RuleSet, RuleSets}
 import org.apache.flink.table.calcite.rules.FlinkAggregateJoinTransposeRule
 import org.apache.flink.table.plan.rules.dataSet._
 import org.apache.flink.table.plan.rules.datastream._
-import org.apache.flink.table.plan.rules.datastream.{DataStreamCalcRule, DataStreamScanRule, DataStreamUnionRule}
+import org.apache.flink.table.plan.rules.datastream.{DataStreamCalcRule, DataStreamScanRule, DataStreamUnionRule,DataStreamProcTimeTimeAggregateRule}
+
 
 object FlinkRuleSets {
 
@@ -149,6 +150,11 @@ object FlinkRuleSets {
 
       // merge and push unions rules
       UnionEliminatorRule.INSTANCE,
+      
+      // aggregations over intervals should be enabled to be translated also in
+      //queries with LogicalWindows, not only queries with LogicalCalc
+      ProjectWindowTransposeRule.INSTANCE,
+      ProjectToWindowRule.INSTANCE,
 
       // translate to DataStream nodes
       DataStreamAggregateRule.INSTANCE,
@@ -158,7 +164,9 @@ object FlinkRuleSets {
       DataStreamValuesRule.INSTANCE,
       DataStreamCorrelateRule.INSTANCE,
       StreamTableSourceScanRule.INSTANCE,
-      PushProjectIntoStreamTableSourceScanRule.INSTANCE
+      PushProjectIntoStreamTableSourceScanRule.INSTANCE,
+      DataStreamProcTimeTimeAggregateRule.INSTANCE
+    
   )
 
 }
