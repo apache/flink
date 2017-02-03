@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.runtime.concurrent.AcceptFunction;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.datastream.AsyncDataStream;
@@ -50,6 +51,7 @@ import org.apache.flink.util.Preconditions;
 import java.util.Collection;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -203,7 +205,7 @@ public class AsyncWaitOperator<IN, OUT>
 			// register a timeout for this AsyncStreamRecordBufferEntry
 			long timeoutTimestamp = timeout + getProcessingTimeService().getCurrentProcessingTime();
 
-			getProcessingTimeService().registerTimer(
+			final ScheduledFuture<?> timerFuture = getProcessingTimeService().registerTimer(
 				timeoutTimestamp,
 				new ProcessingTimeCallback() {
 					@Override
@@ -212,6 +214,15 @@ public class AsyncWaitOperator<IN, OUT>
 							new TimeoutException("Async function call has timed out."));
 					}
 				});
+
+			// Cancel the timer once we've completed the stream record buffer entry. This will remove
+			// the register trigger task
+			streamRecordBufferEntry.onComplete(new AcceptFunction<StreamElementQueueEntry<Collection<OUT>>>() {
+				@Override
+				public void accept(StreamElementQueueEntry<Collection<OUT>> value) {
+					timerFuture.cancel(true);
+				}
+			}, executor);
 		}
 
 		addAsyncBufferEntry(streamRecordBufferEntry);
