@@ -169,6 +169,11 @@ object FunctionCatalog {
     "max" -> classOf[Max],
     "min" -> classOf[Min],
     "sum" -> classOf[Sum],
+    "sum0" -> classOf[Sum0],
+    "stddev_pop" -> classOf[StddevPop],
+    "stddev_samp" -> classOf[StddevSamp],
+    "var_pop" -> classOf[VarPop],
+    "var_samp" -> classOf[VarSamp],
 
     // string functions
     "charLength" -> classOf[CharLength],
@@ -293,10 +298,15 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     SqlStdOperatorTable.GROUPING_ID,
     // AGGREGATE OPERATORS
     SqlStdOperatorTable.SUM,
+    SqlStdOperatorTable.SUM0,
     SqlStdOperatorTable.COUNT,
     SqlStdOperatorTable.MIN,
     SqlStdOperatorTable.MAX,
     SqlStdOperatorTable.AVG,
+    SqlStdOperatorTable.STDDEV_POP,
+    SqlStdOperatorTable.STDDEV_SAMP,
+    SqlStdOperatorTable.VAR_POP,
+    SqlStdOperatorTable.VAR_SAMP,
     // ARRAY OPERATORS
     SqlStdOperatorTable.ARRAY_VALUE_CONSTRUCTOR,
     SqlStdOperatorTable.ITEM,

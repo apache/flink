@@ -89,6 +89,9 @@ object FlinkRuleSets {
     // expand distinct aggregate to normal aggregate with groupby
     AggregateExpandDistinctAggregatesRule.JOIN,
 
+    //aggregate reduce rule (deviation/variance functions)
+    AggregateReduceFunctionsRule.INSTANCE,
+
     // remove unnecessary sort rule
     SortRemoveRule.INSTANCE,
 

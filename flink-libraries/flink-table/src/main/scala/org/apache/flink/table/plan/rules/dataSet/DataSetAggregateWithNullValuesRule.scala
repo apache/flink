@@ -18,6 +18,7 @@
 package org.apache.flink.table.plan.rules.dataSet
 
 import org.apache.calcite.plan._
+import org.apache.calcite.sql.SqlKind
 
 import scala.collection.JavaConversions._
 import com.google.common.collect.ImmutableList
@@ -51,7 +52,12 @@ class DataSetAggregateWithNullValuesRule
     // check if we have distinct aggregates
     val distinctAggs = agg.getAggCallList.exists(_.isDistinct)
 
-    !distinctAggs
+    val supported = agg.getAggCallList.map(_.getAggregation.getKind).forall {
+      case SqlKind.STDDEV_POP | SqlKind.STDDEV_SAMP | SqlKind.VAR_POP | SqlKind.VAR_SAMP => false
+      case _ => true
+    }
+
+    !distinctAggs && supported
   }
 
   override def convert(rel: RelNode): RelNode = {
