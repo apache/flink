@@ -44,10 +44,10 @@ In a nutshell, this procedure consists of 2 fundamental steps:
 2. Resume your jobs under Flink 1.2.x from the previously taken savepoints.
 
 Besides those two fundamental steps, some additional steps can be required that depend on the way you want to change the
-Flink version. In this guide we differentiate two approaches to upgrade from Flink 1.1.x to 1.2.x: **inplace** upgrade and 
+Flink version. In this guide we differentiate two approaches to upgrade from Flink 1.1.x to 1.2.x: **in-place** upgrade and 
 **shadow copy** upgrade.
 
-For **inplace** update, after taking savepoints, you need to:
+For **in-place** update, after taking savepoints, you need to:
 
   1. Stop/cancel all running jobs.
   2. Shutdown the cluster that runs Flink 1.1.x.
@@ -66,32 +66,32 @@ about the steps that we outlined before.
 ### Preconditions
 
 Before starting the migration, please check that the jobs you are trying to migrate are following the
-best-practises for [savepoints]({{ site.baseurl }}/setup/savepoints.html). In particular, we advise you to check that 
+best practises for [savepoints]({{ site.baseurl }}/setup/savepoints.html). In particular, we advise you to check that 
 explicit `uid`s were set for operators in your job. 
 
 This is a *soft* precondition, and restore *should* still work in case you forgot about assigning `uid`s. 
 If you run into a case where this is not working, you can *manually* add the generated legacy vertex ids from Flink 1.1 
-to your job using the `setUidHash(String hash)` call. For each operator (in operator chains: only head operator) you 
+to your job using the `setUidHash(String hash)` call. For each operator (in operator chains: only the head operator) you 
 must assign the 32 character hex string representing the hash that you can see in the web ui or logs for the operator.
 
 Besides operator uids, there are currently three *hard* preconditions for job migration that will make migration fail: 
 
 1. as mentioned in earlier release notes, we do not support migration for state in RocksDB that was checkpointed using 
 `semi-asynchronous` mode. In case your old job was using this mode, you can still change your job to use 
-`fully-asynchronous` mode before taking the savepoint that is used as basis for the migration.
+`fully-asynchronous` mode before taking the savepoint that is used as the basis for the migration.
 
 2. The CEP operator is currently not supported for migration. If your job uses this operator you can (curently) not 
-migrate it. We are planning to provide migration support for CEP operator in a later bugfix release.
+migrate it. We are planning to provide migration support for the CEP operator in a later bugfix release.
 
-3. Another **important** precondition is that all the savepoint data is accessible from the new installation and resides under
-the same absolute path. Please notice that the savepoint data is typically not self contained in just the created 
+3. Another **important** precondition is that all the savepoint data must be accessible from the new installation and 
+reside under the same absolute path. Please notice that the savepoint data is typically not self contained in just the created 
 savepoint file. Additional files can be referenced from inside the savepoint file (e.g. the output from state backend 
 snapshots)! There is currently no simple way to identify and move all data that belongs to a savepoint.
 
 
 ### STEP 1: Taking a savepoint in Flink 1.1.x.
 
-First major step in job migration is taking a savepoint of your jon running in Flink 1.1.x. You can do this with the
+First major step in job migration is taking a savepoint of your job running in Flink 1.1.x. You can do this with the
 command:
 
 ```sh
@@ -110,7 +110,7 @@ If you are unfamiliar with installing Flink in your cluster, please read the [de
 
 ### STEP 3: Resuming the job under Flink 1.2.x from Flink 1.1.x savepoint.
 
-As last step of job migration, you resume the from the taken savepoint on a cluster that runs Flink 1.2.x. You can do
+As the last step of job migration, you resume from the savepoint taken above on the updated cluster. You can do
 this with the command:
 
 ```sh
@@ -132,8 +132,8 @@ Savepoints are compatible across Flink versions as indicated by the table below:
 
 ## Limitations and Special Considerations for Upgrades from Flink 1.1.x to Flink 1.2.x
   
-  - The maximum parallelism of a job that was migrated from Flink 1.1.x to 1.2.x currently fixed as the parallelism of 
-  the job. This means that the parallelism can not be increased after migration. This limitation might be fixed in a 
-  future bugfix releases.
+  - The maximum parallelism of a job that was migrated from Flink 1.1.x to 1.2.x is currently fixed as the parallelism of 
+  the job. This means that the parallelism can not be increased after migration. This limitation might be removed in a 
+  future bugfix release.
 
 
