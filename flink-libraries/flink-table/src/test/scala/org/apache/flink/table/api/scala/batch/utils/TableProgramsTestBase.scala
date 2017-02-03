@@ -37,6 +37,11 @@ class TableProgramsTestBase(
     }
     conf
   }
+
+  def getSelectQueryFromTemplate(selectBlock: String)
+                                (columnsName: Seq[String], table :String): String = {
+    s"SELECT ${columnsName.map(x=>selectBlock.replace("?",x)).mkString(",")} FROM $table"
+  }
 }
 
 object TableProgramsTestBase {
