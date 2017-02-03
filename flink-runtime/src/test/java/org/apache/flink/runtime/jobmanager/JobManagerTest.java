@@ -894,9 +894,110 @@ public class JobManagerTest {
 	}
 
 	/**
-	 * Tests that we can trigger a
-	 *
-	 * @throws Exception
+	 * Tests that a meaningful exception is returned if no savepoint directory is
+	 * configured.
+	 */
+	@Test
+	public void testCancelWithSavepointNoDirectoriesConfigured() throws Exception {
+		FiniteDuration timeout = new FiniteDuration(30, TimeUnit.SECONDS);
+		Configuration config = new Configuration();
+
+		ActorSystem actorSystem = null;
+		ActorGateway jobManager = null;
+		ActorGateway archiver = null;
+		ActorGateway taskManager = null;
+		try {
+			actorSystem = AkkaUtils.createLocalActorSystem(new Configuration());
+
+			Tuple2<ActorRef, ActorRef> master = JobManager.startJobManagerActors(
+				config,
+				actorSystem,
+				actorSystem.dispatcher(),
+				actorSystem.dispatcher(),
+				Option.apply("jm"),
+				Option.apply("arch"),
+				TestingJobManager.class,
+				TestingMemoryArchivist.class);
+
+			jobManager = new AkkaActorGateway(master._1(), null);
+			archiver = new AkkaActorGateway(master._2(), null);
+
+			ActorRef taskManagerRef = TaskManager.startTaskManagerComponentsAndActor(
+				config,
+				ResourceID.generate(),
+				actorSystem,
+				"localhost",
+				Option.apply("tm"),
+				Option.<LeaderRetrievalService>apply(new StandaloneLeaderRetrievalService(jobManager.path())),
+				true,
+				TestingTaskManager.class);
+
+			taskManager = new AkkaActorGateway(taskManagerRef, null);
+
+			// Wait until connected
+			Object msg = new TestingTaskManagerMessages.NotifyWhenRegisteredAtJobManager(jobManager.actor());
+			Await.ready(taskManager.ask(msg, timeout), timeout);
+
+			// Create job graph
+			JobVertex sourceVertex = new JobVertex("Source");
+			sourceVertex.setInvokableClass(BlockingStatefulInvokable.class);
+			sourceVertex.setParallelism(1);
+
+			JobGraph jobGraph = new JobGraph("TestingJob", sourceVertex);
+
+			JobSnapshottingSettings snapshottingSettings = new JobSnapshottingSettings(
+				Collections.singletonList(sourceVertex.getID()),
+				Collections.singletonList(sourceVertex.getID()),
+				Collections.singletonList(sourceVertex.getID()),
+				3600000,
+				3600000,
+				0,
+				Integer.MAX_VALUE,
+				ExternalizedCheckpointSettings.none(),
+				true);
+
+			jobGraph.setSnapshotSettings(snapshottingSettings);
+
+			// Submit job graph
+			msg = new JobManagerMessages.SubmitJob(jobGraph, ListeningBehaviour.DETACHED);
+			Await.result(jobManager.ask(msg, timeout), timeout);
+
+			// Wait for all tasks to be running
+			msg = new TestingJobManagerMessages.WaitForAllVerticesToBeRunning(jobGraph.getJobID());
+			Await.result(jobManager.ask(msg, timeout), timeout);
+
+			// Cancel with savepoint
+			msg = new JobManagerMessages.CancelJobWithSavepoint(jobGraph.getJobID(), null);
+			CancellationResponse cancelResp = (CancellationResponse) Await.result(jobManager.ask(msg, timeout), timeout);
+
+			if (cancelResp instanceof CancellationFailure) {
+				CancellationFailure failure = (CancellationFailure) cancelResp;
+				assertTrue(failure.cause() instanceof IllegalStateException);
+				assertTrue(failure.cause().getMessage().contains("savepoint directory"));
+			} else {
+				fail("Unexpected cancellation response from JobManager: " + cancelResp);
+			}
+		} finally {
+			if (actorSystem != null) {
+				actorSystem.shutdown();
+			}
+
+			if (archiver != null) {
+				archiver.actor().tell(PoisonPill.getInstance(), ActorRef.noSender());
+			}
+
+			if (jobManager != null) {
+				jobManager.actor().tell(PoisonPill.getInstance(), ActorRef.noSender());
+			}
+
+			if (taskManager != null) {
+				taskManager.actor().tell(PoisonPill.getInstance(), ActorRef.noSender());
+			}
+		}
+	}
+
+	/**
+	 * Tests that we can trigger a savepoint when periodic checkpoints are disabled.
 	 */
 	@Test
 	public void testSavepointWithDeactivatedPeriodicCheckpointing() throws Exception {
