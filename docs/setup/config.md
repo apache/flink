@@ -420,8 +420,6 @@ of the JobManager, because the same ActorSystem is used. Its not possible to use
 
 - `yarn.application-master.env.LD_LIBRARY_PATH: "/usr/lib/native"`
 
-- `yarn.containers.vcores` The number of virtual cores (vcores) per YARN container. By default, the number of `vcores` is set to the number of slots per TaskManager, if set, or to 1, otherwise.
-
 - `yarn.taskmanager.env.` Similar to the configuration prefix about, this prefix allows setting custom environment variables for the TaskManager processes.
 
 - `yarn.container-start-command-template`: Flink uses the following template when starting on YARN:
