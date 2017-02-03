@@ -44,40 +44,6 @@ public class HeapListState<K, N, V>
 		implements InternalListState<N, V> {
 
 	/**
-	 * Private class extending ArrayList which forbids {@link #remove(int)} that is used by {@link
-	 * #iterator()}'s remove function.
-	 * <p>
-	 * This is useful for the {@link HeapListState#get()} function that returns an {@link Iterable}.
-	 * By using {@link Iterable#iterator()}, the user may call {@link java.util.Iterator#remove}
-	 * which modifies the list. {@link HeapListState#get()}, however, should only return a copy but
-	 * actually returns on the real value which queryable state reads concurrently. In order not to
-	 * create any races during structural changes, we thus forbid {@link #remove(int)}.
-	 * <p>
-	 * <em>Note:</em> we only make the {@link #remove(int)} function unsupported so this is not a
-	 * real immutable arraylist. Also, future changes in {@link ArrayList} are not covered since we
-	 * do not have control over its iterator class.
-	 *
-	 * @param <V>
-	 * 		list element type
-	 */
-	private static class QueryableStateArrayList<V> extends ArrayList<V> {
-		private static final long serialVersionUID = 1L;
-
-		/**
-		 * Unsupported operation.
-		 *
-		 * @throw UnsupportedOperationException always thrown
-		 * @deprecated unsupported
-		 */
-		@Deprecated
-		@Override
-		public V remove(final int index) {
-			throw new UnsupportedOperationException(
-				"Structural changes to queryable list state are not allowed.");
-		}
-	}
-
-	/**
 	 * Creates a new key/value state for the given hash map of key/value pairs.
 	 *
 	 * @param backend The state backend backing that created this state.
@@ -119,18 +85,15 @@ public class HeapListState<K, N, V>
 		return keyedMap.get(backend.<K>getCurrentKey());
 	}
 
-	@Override
-	public void add(V value) {
-		Preconditions.checkState(currentNamespace != null, "No namespace set.");
-		Preconditions.checkState(backend.getCurrentKey() != null, "No key set.");
-
-		if (value == null) {
-			clear();
-			return;
-		}
-
+	/**
+	 * Retrieves the list state for the current key and namespace creating new objects if the
+	 * requested state does not exist.
+	 *
+	 * @return list state for the current key and namespace
+	 */
+	protected final ArrayList<V> creatingGetListState() {
 		Map<N, Map<K, ArrayList<V>>> namespaceMap =
-				stateTable.get(backend.getCurrentKeyGroupIndex());
+			stateTable.get(backend.getCurrentKeyGroupIndex());
 
 		if (namespaceMap == null) {
 			namespaceMap = createNewMap();
@@ -147,29 +110,27 @@ public class HeapListState<K, N, V>
 		ArrayList<V> list = keyedMap.get(backend.<K>getCurrentKey());
 
 		if (list == null) {
-			if (stateDesc.isQueryable()) {
-				list = new QueryableStateArrayList<>();
-			} else {
-				list = new ArrayList<>();
-			}
+			list = newList();
 			keyedMap.put(backend.<K>getCurrentKey(), list);
 		}
-		if (stateDesc.isQueryable()) {
-			synchronized (list) {
-				list.add(value);
-			}
-		} else {
-			list.add(value);
-		}
+		return list;
 	}
-	
-	@Override
-	public byte[] getSerializedValue(K key, N namespace) throws Exception {
-		Preconditions.checkState(namespace != null, "No namespace given.");
-		Preconditions.checkState(key != null, "No key given.");
+
+	/**
+	 * Retrieves the list state for the given key and namespace without creating new objects if the
+	 * requested state does not exist.
+	 *
+	 * @param key
+	 * 		key to request
+	 * @param namespace
+	 * 		namespace of the key to request
+	 *
+	 * @return list state for the given key and namespace pair or <tt>null</tt> if it does not exist
+	 */
+	protected final ArrayList<V> nonCreatingGetListState(final K key, final N namespace) {
 
 		Map<N, Map<K, ArrayList<V>>> namespaceMap =
-				stateTable.get(KeyGroupRangeAssignment.assignToKeyGroup(key, backend.getNumberOfKeyGroups()));
+			stateTable.get(KeyGroupRangeAssignment.assignToKeyGroup(key, backend.getNumberOfKeyGroups()));
 
 		if (namespaceMap == null) {
 			return null;
@@ -181,22 +142,41 @@ public class HeapListState<K, N, V>
 			return null;
 		}
 
-		ArrayList<V> result = keyedMap.get(key);
+		return keyedMap.get(key);
+	}
 
+	@Override
+	public void add(V value) {
+		Preconditions.checkState(currentNamespace != null, "No namespace set.");
+		Preconditions.checkState(backend.getCurrentKey() != null, "No key set.");
+
+		if (value == null) {
+			clear();
+			return;
+		}
+
+		ArrayList<V> list = creatingGetListState();
+		list.add(value);
+	}
+
+	protected ArrayList<V> newList() {
+		return new ArrayList<>();
+	}
+
+	@Override
+	public byte[] getSerializedValue(K key, N namespace) throws Exception {
+		Preconditions.checkState(namespace != null, "No namespace given.");
+		Preconditions.checkState(key != null, "No key given.");
+
+		ArrayList<V> result = nonCreatingGetListState(key, namespace);
 		if (result == null) {
 			return null;
 		}
 
-		if (stateDesc.isQueryable()) {
-			synchronized (result) {
-				return serializeList(result);
-			}
-		} else {
-			return serializeList(result);
-		}
+		return serializeList(result);
 	}
 
-	private byte[] serializeList(final ArrayList<V> result) throws java.io.IOException {
+	protected final byte[] serializeList(final ArrayList<V> result) throws java.io.IOException {
 		TypeSerializer<V> serializer = stateDesc.getSerializer();
 
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
