@@ -18,8 +18,8 @@
 
 package org.apache.flink.streaming.api.operators;
 
-import org.apache.flink.core.fs.CloseableRegistry;
-import org.apache.flink.core.fs.OwnedCloseableRegistryImpl;
+import org.apache.flink.core.fs.CloseableRegistryClientView;
+import org.apache.flink.core.fs.OwnedCloseableRegistry;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateCheckpointOutputStream;
@@ -47,7 +47,7 @@ public class StateSnapshotContextSynchronousImplTest extends TestLogger {
 
 	@Before
 	public void setUp() throws Exception {
-		CloseableRegistry closableRegistry = new OwnedCloseableRegistryImpl();
+		CloseableRegistryClientView closableRegistry = new OwnedCloseableRegistry();
 		CheckpointStreamFactory streamFactory = new MemCheckpointStreamFactory(1024);
 		KeyGroupRange keyGroupRange = new KeyGroupRange(0, 2);
 		this.snapshotContext = new StateSnapshotContextSynchronousImpl(42, 4711, streamFactory, keyGroupRange, closableRegistry);
@@ -115,13 +115,13 @@ public class StateSnapshotContextSynchronousImplTest extends TestLogger {
 		assertEquals(0, closableRegistry.size());
 	}
 
-	static final class InsightCloseableRegistry extends OwnedCloseableRegistryImpl {
+	static final class InsightCloseableRegistry extends OwnedCloseableRegistry {
 		public int size() {
-			return closeableToRef.size();
+			return closeableToMetaData.size();
 		}
 
 		public boolean contains(Closeable closeable) {
-			return closeableToRef.containsKey(closeable);
+			return closeableToMetaData.containsKey(closeable);
 		}
 	}
 }

@@ -22,10 +22,9 @@ import org.apache.commons.io.IOUtils;
 import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.core.fs.CloseableRegistry;
-import org.apache.flink.core.fs.OwnedCloseableRegistryImpl;
-import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.CloseableRegistryClientView;
 import org.apache.flink.core.fs.OwnedCloseableRegistry;
+import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.util.Preconditions;
 
 import java.io.Closeable;
@@ -62,7 +61,7 @@ public class StateInitializationContextImpl implements StateInitializationContex
 			Collection<OperatorStateHandle> operatorStateHandles) {
 
 		this.restored = restored;
-		this.closableRegistry = new OwnedCloseableRegistryImpl();
+		this.closableRegistry = new OwnedCloseableRegistry();
 		this.operatorStateStore = operatorStateStore;
 		this.keyedStateStore = keyedStateStore;
 		this.operatorStateHandles = operatorStateHandles;
@@ -91,7 +90,7 @@ public class StateInitializationContextImpl implements StateInitializationContex
 		return keyGroupsStateHandles;
 	}
 
-	public CloseableRegistry getClosableRegistry() {
+	public CloseableRegistryClientView getClosableRegistry() {
 		return closableRegistry;
 	}
 
@@ -146,7 +145,7 @@ public class StateInitializationContextImpl implements StateInitializationContex
 
 		public KeyGroupStreamIterator(
 				Iterator<KeyGroupsStateHandle> stateHandleIterator,
-				CloseableRegistry closableRegistry) {
+				CloseableRegistryClientView closableRegistry) {
 
 			super(stateHandleIterator, closableRegistry);
 		}
@@ -206,7 +205,7 @@ public class StateInitializationContextImpl implements StateInitializationContex
 		public OperatorStateStreamIterator(
 				String stateName,
 				Iterator<OperatorStateHandle> stateHandleIterator,
-				CloseableRegistry closableRegistry) {
+				CloseableRegistryClientView closableRegistry) {
 
 			super(stateHandleIterator, closableRegistry);
 			this.stateName = Preconditions.checkNotNull(stateName);
@@ -233,7 +232,7 @@ public class StateInitializationContextImpl implements StateInitializationContex
 						this.offsets = metaOffsets;
 						this.offPos = 0;
 
-						closableRegistry.unregisterClosable(currentStream);
+						closableRegistry.unregister(currentStream);
 						IOUtils.closeQuietly(currentStream);
 						currentStream = null;
 
@@ -273,14 +272,14 @@ public class StateInitializationContextImpl implements StateInitializationContex
 			implements Iterator<T> {
 
 		protected final Iterator<H> stateHandleIterator;
-		protected final CloseableRegistry closableRegistry;
+		protected final CloseableRegistryClientView closableRegistry;
 
 		protected H currentStateHandle;
 		protected FSDataInputStream currentStream;
 
 		public AbstractStateStreamIterator(
 				Iterator<H> stateHandleIterator,
-				CloseableRegistry closableRegistry) {
+				CloseableRegistryClientView closableRegistry) {
 
 			this.stateHandleIterator = Preconditions.checkNotNull(stateHandleIterator);
 			this.closableRegistry = Preconditions.checkNotNull(closableRegistry);
@@ -288,12 +287,12 @@ public class StateInitializationContextImpl implements StateInitializationContex
 
 		protected void openCurrentStream() throws IOException {
 			FSDataInputStream stream = currentStateHandle.openInputStream();
-			closableRegistry.registerClosable(stream);
+			closableRegistry.register(stream);
 			currentStream = stream;
 		}
 
 		protected void closeCurrentStream() {
-			closableRegistry.unregisterClosable(currentStream);
+			closableRegistry.unregister(currentStream);
 			IOUtils.closeQuietly(currentStream);
 			currentStream = null;
 		}

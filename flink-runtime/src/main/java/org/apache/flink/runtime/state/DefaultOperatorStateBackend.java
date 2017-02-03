@@ -26,7 +26,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.OwnedCloseableRegistry;
-import org.apache.flink.core.fs.OwnedCloseableRegistryImpl;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
@@ -59,7 +58,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 
 	public DefaultOperatorStateBackend(ClassLoader userClassLoader) throws IOException {
 
-		this.closeStreamOnCancelRegistry = new OwnedCloseableRegistryImpl();
+		this.closeStreamOnCancelRegistry = new OwnedCloseableRegistry();
 		this.userClassloader = Preconditions.checkNotNull(userClassLoader);
 		this.javaSerializer = new JavaSerializer<>();
 		this.registeredStates = new HashMap<>();
@@ -180,7 +179,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 				createCheckpointStateOutputStream(checkpointId, timestamp);
 
 		try {
-			closeStreamOnCancelRegistry.registerClosable(out);
+			closeStreamOnCancelRegistry.register(out);
 
 			DataOutputView dov = new DataOutputViewStreamWrapper(out);
 
@@ -202,7 +201,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 
 			return new DoneFuture<>(handle);
 		} finally {
-			closeStreamOnCancelRegistry.unregisterClosable(out);
+			closeStreamOnCancelRegistry.unregister(out);
 			out.close();
 		}
 	}
@@ -221,7 +220,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 			}
 
 			FSDataInputStream in = stateHandle.openInputStream();
-			closeStreamOnCancelRegistry.registerClosable(in);
+			closeStreamOnCancelRegistry.register(in);
 
 			ClassLoader restoreClassLoader = Thread.currentThread().getContextClassLoader();
 
@@ -268,7 +267,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 
 			} finally {
 				Thread.currentThread().setContextClassLoader(restoreClassLoader);
-				closeStreamOnCancelRegistry.unregisterClosable(in);
+				closeStreamOnCancelRegistry.unregister(in);
 				IOUtils.closeQuietly(in);
 			}
 		}

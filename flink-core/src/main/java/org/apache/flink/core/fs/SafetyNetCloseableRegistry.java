@@ -20,7 +20,7 @@ package org.apache.flink.core.fs;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.util.AbstractConcurrentClosingRegistry;
+import org.apache.flink.util.AbstractGenericCloseableRegistry;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.WrappingProxyUtil;
@@ -36,20 +36,20 @@ import java.util.IdentityHashMap;
 import java.util.Map;
 
 /**
- * This implementation of an {@link AbstractConcurrentClosingRegistry} registers {@link WrappingProxyCloseable}. When
+ * This implementation of an {@link AbstractGenericCloseableRegistry} registers {@link WrappingProxyCloseable}. When
  * the proxy becomes subject to GC, this registry takes care of closing unclosed {@link Closeable}s.
  * <p>
  * Phantom references are used to track when {@link org.apache.flink.util.WrappingProxy}s of {@link Closeable} got
  * GC'ed. We ensure that the wrapped {@link Closeable} is properly closed to avoid resource leaks.
  * <p>
- * Other than that, it works like a normal {@link AbstractConcurrentClosingRegistry}.
+ * Other than that, it works like a normal {@link AbstractGenericCloseableRegistry}.
  * <p>
  * All methods in this class are thread-safe.
  */
 @Internal
 public class SafetyNetCloseableRegistry extends
-		AbstractConcurrentClosingRegistry<WrappingProxyCloseable<? extends Closeable>,
-										SafetyNetCloseableRegistry.PhantomDelegatingCloseableRef> {
+		AbstractGenericCloseableRegistry<WrappingProxyCloseable<? extends Closeable>,
+																SafetyNetCloseableRegistry.PhantomDelegatingCloseableRef> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(SafetyNetCloseableRegistry.class);
 
@@ -98,6 +98,8 @@ public class SafetyNetCloseableRegistry extends
 			WrappingProxyCloseable<? extends Closeable> wrappingProxyCloseable,
 			Map<Closeable, PhantomDelegatingCloseableRef> closeableMap) throws IOException {
 
+		assert Thread.holdsLock(getSynchronizationLock());
+
 		if (closed) {
 			IOUtils.closeQuietly(wrappingProxyCloseable);
 			throw new IOException("Cannot register Closeable: Registry is already closed. Closing argument.");
@@ -120,9 +122,11 @@ public class SafetyNetCloseableRegistry extends
 	@Override
 	protected void doClosing(Map<Closeable, PhantomDelegatingCloseableRef> closeableMap) throws IOException {
 
+		assert Thread.holdsLock(getSynchronizationLock());
+
 		try {
 			IOUtils.closeAllQuietly(closeableMap.keySet());
-			closeableToRef.clear();
+			closeableToMetaData.clear();
 		} finally {
 			synchronized (REAPER_THREAD_LOCK) {
 				--GLOBAL_SAFETY_NET_REGISTRY_COUNT;
@@ -170,7 +174,7 @@ public class SafetyNetCloseableRegistry extends
 		@Override
 		public void close() throws IOException {
 			synchronized (closeableRegistry.getSynchronizationLock()) {
-				closeableRegistry.closeableToRef.remove(innerCloseable);
+				closeableRegistry.closeableToMetaData.remove(innerCloseable);
 			}
 			innerCloseable.close();
 		}

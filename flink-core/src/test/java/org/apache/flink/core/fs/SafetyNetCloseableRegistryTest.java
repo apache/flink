@@ -164,7 +164,7 @@ public class SafetyNetCloseableRegistryTest {
 				}
 			};
 
-			closeableRegistry.registerClosable(testCloseable);
+			closeableRegistry.register(testCloseable);
 
 			Assert.fail("Closed registry should not accept closeables!");
 

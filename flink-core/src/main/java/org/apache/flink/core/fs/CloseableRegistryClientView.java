@@ -18,13 +18,17 @@
 
 package org.apache.flink.core.fs;
 
+import org.apache.flink.annotation.Internal;
+
 import java.io.Closeable;
 import java.io.IOException;
 
 /**
- * Interface for un/registering @{@link Closeable} objects to a listener.
+ * Interface for client code un/registering @{@link Closeable} objects to a registry. This registry is typically owned
+ * and provided from another object.
  */
-public interface CloseableRegistry {
+@Internal
+public interface CloseableRegistryClientView {
 
 	/**
 	 * Register a closeable object.
@@ -32,12 +36,12 @@ public interface CloseableRegistry {
 	 * @param closeable object to register
 	 * @throws IOException if the registry is already closed. The argument closeable will also be closed in this case.
 	 */
-	void registerClosable(Closeable closeable) throws IOException;
+	void register(Closeable closeable) throws IOException;
 
 	/**
 	 * Unregister a closeable object.
 	 *
 	 * @param closeable object to unregister
 	 */
-	void unregisterClosable(Closeable closeable);
+	void unregister(Closeable closeable);
 }

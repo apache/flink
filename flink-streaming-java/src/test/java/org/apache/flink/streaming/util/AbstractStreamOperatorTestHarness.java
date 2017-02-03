@@ -26,7 +26,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.OwnedCloseableRegistry;
-import org.apache.flink.core.fs.OwnedCloseableRegistryImpl;
 import org.apache.flink.migration.runtime.checkpoint.savepoint.SavepointV0Serializer;
 import org.apache.flink.migration.streaming.runtime.tasks.StreamTaskState;
 import org.apache.flink.migration.util.MigrationInstantiationUtil;
@@ -149,7 +148,7 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 		this.config = new StreamConfig(underlyingConfig);
 		this.config.setCheckpointingEnabled(true);
 		this.executionConfig = environment.getExecutionConfig();
-		this.closableRegistry = new OwnedCloseableRegistryImpl();
+		this.closableRegistry = new OwnedCloseableRegistry();
 		this.checkpointLock = new Object();
 
 		this.environment = Preconditions.checkNotNull(environment);
@@ -200,7 +199,7 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 							environment,
 							operator.getClass().getSimpleName());
 
-					mockTask.getCancelables().registerClosable(osb);
+					mockTask.getCancelables().register(osb);
 
 					if (null != stateHandles) {
 						osb.restore(stateHandles);

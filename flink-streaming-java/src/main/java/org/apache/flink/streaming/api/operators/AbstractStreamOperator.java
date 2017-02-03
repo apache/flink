@@ -30,7 +30,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.core.fs.CloseableRegistryClientView;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
@@ -222,12 +222,12 @@ public abstract class AbstractStreamOperator<OUT>
 				keyedStateHandlesRaw, // access to keyed state stream
 				operatorStateHandlesRaw); // access to operator state stream
 
-		CloseableRegistry closeableRegistry = getContainingTask().getCancelables();
+		CloseableRegistryClientView closeableRegistry = getContainingTask().getCancelables();
 		try {
-			closeableRegistry.registerClosable(initializationContext);
+			closeableRegistry.register(initializationContext);
 			initializeState(initializationContext);
 		} finally {
-			closeableRegistry.unregisterClosable(initializationContext);
+			closeableRegistry.unregister(initializationContext);
 			IOUtils.closeQuietly(initializationContext);
 		}
 	}
@@ -243,10 +243,10 @@ public abstract class AbstractStreamOperator<OUT>
 
 				FSDataInputStream is = state.openInputStream();
 				try {
-					getContainingTask().getCancelables().registerClosable(is);
+					getContainingTask().getCancelables().register(is);
 					((CheckpointedRestoringOperator) this).restoreState(is);
 				} finally {
-					getContainingTask().getCancelables().unregisterClosable(is);
+					getContainingTask().getCancelables().unregister(is);
 					is.close();
 				}
 			} else {

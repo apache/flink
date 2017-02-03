@@ -313,7 +313,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			}
 
 			FSDataInputStream fsDataInputStream = keyGroupsHandle.openInputStream();
-			cancelStreamRegistry.registerClosable(fsDataInputStream);
+			cancelStreamRegistry.register(fsDataInputStream);
 
 			try {
 				DataInputViewStreamWrapper inView = new DataInputViewStreamWrapper(fsDataInputStream);
@@ -366,7 +366,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					}
 				}
 			} finally {
-				cancelStreamRegistry.unregisterClosable(fsDataInputStream);
+				cancelStreamRegistry.unregister(fsDataInputStream);
 				IOUtils.closeQuietly(fsDataInputStream);
 			}
 		}

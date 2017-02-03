@@ -57,7 +57,7 @@ public class ClosingFSDataOutputStream
 	@Override
 	public void close() throws IOException {
 		if (closed.compareAndSet(false, true)) {
-			registry.unregisterClosable(this);
+			registry.unregister(this);
 			outputStream.close();
 		}
 	}
@@ -95,7 +95,7 @@ public class ClosingFSDataOutputStream
 			FSDataOutputStream delegate, SafetyNetCloseableRegistry registry, String debugInfo) throws IOException {
 
 		ClosingFSDataOutputStream inputStream = new ClosingFSDataOutputStream(delegate, registry, debugInfo);
-		registry.registerClosable(inputStream);
+		registry.register(inputStream);
 		return inputStream;
 	}
 }

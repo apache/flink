@@ -20,9 +20,9 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.common.state.OperatorStateStore;
-import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.core.fs.CloseableRegistryClientView;
 import org.apache.flink.core.fs.FSDataInputStream;
-import org.apache.flink.core.fs.OwnedCloseableRegistryImpl;
+import org.apache.flink.core.fs.OwnedCloseableRegistry;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
@@ -60,7 +60,7 @@ public class StateInitializationContextImplTest {
 	static final int NUM_HANDLES = 10;
 
 	private StateInitializationContextImpl initializationContext;
-	private CloseableRegistry closableRegistry;
+	private CloseableRegistryClientView closableRegistry;
 
 	private int writtenKeyGroups;
 	private Set<Integer> writtenOperatorStates;
@@ -71,7 +71,7 @@ public class StateInitializationContextImplTest {
 		this.writtenKeyGroups = 0;
 		this.writtenOperatorStates = new HashSet<>();
 
-		this.closableRegistry = new OwnedCloseableRegistryImpl();
+		this.closableRegistry = new OwnedCloseableRegistry();
 		OperatorStateStore stateStore = mock(OperatorStateStore.class);
 
 		ByteArrayOutputStreamWithPos out = new ByteArrayOutputStreamWithPos(64);
@@ -128,12 +128,12 @@ public class StateInitializationContextImplTest {
 						mock(KeyedStateStore.class),
 						keyGroupsStateHandles,
 						operatorStateHandles);
-		closableRegistry.registerClosable(initializationContext);
+		closableRegistry.register(initializationContext);
 	}
 
 	@After
 	public void tearDown() {
-		closableRegistry.unregisterClosable(initializationContext);
+		closableRegistry.unregister(initializationContext);
 	}
 
 	@Test

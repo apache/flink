@@ -22,8 +22,8 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.core.fs.CloseableRegistry;
-import org.apache.flink.core.fs.OwnedCloseableRegistryImpl;
+import org.apache.flink.core.fs.CloseableRegistryClientView;
+import org.apache.flink.core.fs.OwnedCloseableRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -487,7 +487,7 @@ public class AbstractStreamOperatorTest {
 		final long checkpointId = 42L;
 		final long timestamp = 1L;
 
-		final CloseableRegistry closeableRegistry = new OwnedCloseableRegistryImpl();
+		final CloseableRegistryClientView closeableRegistry = new OwnedCloseableRegistry();
 
 		StateSnapshotContextSynchronousImpl context = mock(StateSnapshotContextSynchronousImpl.class);
 
@@ -517,7 +517,7 @@ public class AbstractStreamOperatorTest {
 
 		final Exception failingException = new Exception("Test exception");
 
-		final CloseableRegistry closeableRegistry = new OwnedCloseableRegistryImpl();
+		final CloseableRegistryClientView closeableRegistry = new OwnedCloseableRegistry();
 
 		StateSnapshotContextSynchronousImpl context = mock(StateSnapshotContextSynchronousImpl.class);
 
@@ -556,7 +556,7 @@ public class AbstractStreamOperatorTest {
 
 		final Exception failingException = new Exception("Test exception");
 
-		final CloseableRegistry closeableRegistry = new OwnedCloseableRegistryImpl();
+		final CloseableRegistryClientView closeableRegistry = new OwnedCloseableRegistry();
 
 		RunnableFuture<KeyGroupsStateHandle> futureKeyGroupStateHandle = mock(RunnableFuture.class);
 		RunnableFuture<OperatorStateHandle> futureOperatorStateHandle = mock(RunnableFuture.class);

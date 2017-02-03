@@ -52,7 +52,7 @@ public class ClosingFSDataInputStream
 	@Override
 	public void close() throws IOException {
 		if (closed.compareAndSet(false, true)) {
-			registry.unregisterClosable(this);
+			registry.unregister(this);
 			inputStream.close();
 		}
 	}
@@ -90,7 +90,7 @@ public class ClosingFSDataInputStream
 			FSDataInputStream delegate, SafetyNetCloseableRegistry registry, String debugInfo) throws IOException{
 
 		ClosingFSDataInputStream inputStream = new ClosingFSDataInputStream(delegate, registry, debugInfo);
-		registry.registerClosable(inputStream);
+		registry.register(inputStream);
 		return inputStream;
 	}
 }
