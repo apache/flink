@@ -32,6 +32,7 @@ import io.netty.handler.codec.http.router.Routed;
 
 import java.net.URLDecoder;
 import org.apache.flink.runtime.instance.ActorGateway;
+import org.apache.flink.runtime.webmonitor.files.MimeTypes;
 import org.apache.flink.runtime.webmonitor.handlers.RequestHandler;
 import org.apache.flink.util.ExceptionUtils;
 
@@ -116,6 +117,8 @@ public class RuntimeMonitorHandler extends RuntimeMonitorHandlerBase {
 		}
 
 		response.headers().set(HttpHeaders.Names.ACCESS_CONTROL_ALLOW_ORIGIN, "*");
+		// Content-Encoding:utf-8
+		response.headers().set(HttpHeaders.Names.CONTENT_ENCODING, ENCODING.name());
 
 		KeepAliveWrite.flush(ctx, routed.request(), response);
 	}
