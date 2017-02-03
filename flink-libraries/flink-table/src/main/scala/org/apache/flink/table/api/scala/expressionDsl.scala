@@ -165,6 +165,12 @@ trait ImplicitExpressionOperations {
   def sum = Sum(expr)
 
   /**
+    * Returns the sum of the values which go into it like [[Sum]].
+    * It differs in that when no non null values are applied zero is returned instead of null.
+    */
+  def sum0 = Sum0(expr)
+  
+  /**
     * Returns the minimum value of field across all input values.
     */
   def min = Min(expr)
@@ -183,6 +189,28 @@ trait ImplicitExpressionOperations {
     * Returns the average (arithmetic mean) of the numeric field across all input values.
     */
   def avg = Avg(expr)
+
+  /**
+    * Returns the population standard deviation of an expression.
+    * (the square root of [[VarPop]])
+    */
+  def stddev_pop = StddevPop(expr)
+
+  /**
+    * Returns the sample standard deviation of an expression.
+    * (the square root of [[VarSamp]]).
+    */
+  def stddev_samp = StddevSamp(expr)
+
+  /**
+    * Returns the population standard variance of an expression.
+    */
+  def var_pop = VarPop(expr)
+
+  /**
+    *  Returns the sample variance of a given expression.
+    */
+  def var_samp = VarSamp(expr)
 
   /**
     * Converts a value to a given type.
