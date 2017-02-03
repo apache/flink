@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.commons.lang3.StringUtils;
+
 import org.apache.flink.api.common.Archiveable;
 import org.apache.flink.api.common.ArchivedExecutionConfig;
 import org.apache.flink.api.common.ExecutionConfig;
@@ -40,9 +41,14 @@ import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
+import org.apache.flink.runtime.concurrent.BiFunction;
+import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.concurrent.FutureUtils.ConjunctFuture;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
+import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.instance.SlotProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
@@ -53,6 +59,7 @@ import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
+import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.query.KvStateLocationRegistry;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.util.SerializableObject;
@@ -60,6 +67,7 @@ import org.apache.flink.runtime.util.SerializedThrowable;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -77,11 +85,14 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * The execution graph is the central data structure that coordinates the distributed
@@ -158,7 +169,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	private final long[] stateTimestamps;
 
 	/** The timeout for all messages that require a response/acknowledgement */
-	private final Time timeout;
+	private final Time rpcCallTimeout;
 
 	// ------ Configuration of the Execution -------
 
@@ -170,6 +181,8 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	 * May indicate to deploy all sources, or to deploy everything, or to deploy via backtracking
 	 * from results than need to be materialized. */
 	private ScheduleMode scheduleMode = ScheduleMode.LAZY_FROM_SOURCES;
+
+	private final Time scheduleAllocationTimeout;
 
 	// ------ Execution status and progress. These values are volatile, and accessed under the lock -------
 
@@ -292,7 +305,8 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 		this.stateTimestamps = new long[JobStatus.values().length];
 		this.stateTimestamps[JobStatus.CREATED.ordinal()] = System.currentTimeMillis();
 
-		this.timeout = timeout;
+		this.rpcCallTimeout = checkNotNull(timeout);
+		this.scheduleAllocationTimeout = checkNotNull(timeout);
 
 		this.restartStrategy = restartStrategy;
 
@@ -695,7 +709,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 
 			// create the execution job vertex and attach it to the graph
 			ExecutionJobVertex ejv =
-					new ExecutionJobVertex(this, jobVertex, 1, timeout, createTimestamp);
+					new ExecutionJobVertex(this, jobVertex, 1, rpcCallTimeout, createTimestamp);
 			ejv.connectToPredecessors(this.intermediateResults);
 
 			ExecutionJobVertex previousTask = this.tasks.putIfAbsent(jobVertex.getID(), ejv);
@@ -717,9 +731,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	}
 
 	public void scheduleForExecution(SlotProvider slotProvider) throws JobException {
-		if (slotProvider == null) {
-			throw new IllegalArgumentException("Scheduler must not be null.");
-		}
+		checkNotNull(slotProvider);
 
 		if (this.slotProvider != null && this.slotProvider != slotProvider) {
 			throw new IllegalArgumentException("Cannot use different slot providers for the same job");
@@ -731,18 +743,11 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			switch (scheduleMode) {
 
 				case LAZY_FROM_SOURCES:
-					// simply take the vertices without inputs.
-					for (ExecutionJobVertex ejv : this.tasks.values()) {
-						if (ejv.getJobVertex().isInputVertex()) {
-							ejv.scheduleAll(slotProvider, allowQueuedScheduling);
-						}
-					}
+					scheduleLazy(slotProvider);
 					break;
 
 				case EAGER:
-					for (ExecutionJobVertex ejv : getVerticesTopologically()) {
-						ejv.scheduleAll(slotProvider, allowQueuedScheduling);
-					}
+					scheduleEager(slotProvider, scheduleAllocationTimeout);
 					break;
 
 				default:
@@ -751,6 +756,139 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 		}
 		else {
 			throw new IllegalStateException("Job may only be scheduled from state " + JobStatus.CREATED);
+		}
+	}
+
+	private void scheduleLazy(SlotProvider slotProvider) throws NoResourceAvailableException {
+		// simply take the vertices without inputs.
+		for (ExecutionJobVertex ejv : this.tasks.values()) {
+			if (ejv.getJobVertex().isInputVertex()) {
+				ejv.scheduleAll(slotProvider, allowQueuedScheduling);
+			}
+		}
+	}
+
+	/**
+	 * 
+	 * 
+	 * @param slotProvider  The resource provider from which the slots are allocated
+	 * @param timeout       The maximum time that the deployment may take, before a
+	 *                      TimeoutException is thrown.
+	 */
+	private void scheduleEager(SlotProvider slotProvider, final Time timeout) {
+		checkState(state == JobStatus.RUNNING, "job is not running currently");
+
+		// Important: reserve all the space we need up front.
+		// that way we do not have any operation that can fail between allocating the slots
+		// and adding them to the list. If we had a failure in between there, that would
+		// cause the slots to get lost
+		final ArrayList<ExecutionAndSlot[]> resources = new ArrayList<>(getNumberOfExecutionJobVertices());
+		final boolean queued = allowQueuedScheduling;
+
+		// we use this flag to handle failures in a 'finally' clause
+		// that allows us to not go through clumsy cast-and-rethrow logic
+		boolean successful = false;
+
+		try {
+			// collecting all the slots may resize and fail in that operation without slots getting lost
+			final ArrayList<Future<SimpleSlot>> slotFutures = new ArrayList<>(getNumberOfExecutionJobVertices());
+
+			// allocate the slots (obtain all their futures
+			for (ExecutionJobVertex ejv : getVerticesTopologically()) {
+				// these calls are not blocking, they only return futures
+				ExecutionAndSlot[] slots = ejv.allocateResourcesForAll(slotProvider, queued);
+
+				// we need to first add the slots to this list, to be safe on release
+				resources.add(slots);
+
+				for (ExecutionAndSlot ens : slots) {
+					slotFutures.add(ens.slotFuture);
+				}
+			}
+
+			// this future is complete once all slot futures are complete.
+			// the future fails once one slot future fails.
+			final ConjunctFuture allAllocationsComplete = FutureUtils.combineAll(slotFutures);
+
+			// make sure that we fail if the allocation timeout was exceeded
+			final ScheduledFuture<?> timeoutCancelHandle = futureExecutor.schedule(new Runnable() {
+				@Override
+				public void run() {
+					// When the timeout triggers, we try to complete the conjunct future with an exception.
+					// Note that this is a no-op if the future is already completed
+					int numTotal = allAllocationsComplete.getNumFuturesTotal();
+					int numComplete = allAllocationsComplete.getNumFuturesCompleted();
+					String message = "Could not allocate all requires slots within timeout of " +
+							timeout + ". Slots required: " + numTotal + ", slots allocated: " + numComplete;
+
+					allAllocationsComplete.completeExceptionally(new NoResourceAvailableException(message));
+				}
+			}, timeout.getSize(), timeout.getUnit());
+
+
+			allAllocationsComplete.handleAsync(new BiFunction<Void, Throwable, Void>() {
+
+				@Override
+				public Void apply(Void ignored, Throwable throwable) {
+					try {
+						// we do not need the cancellation timeout any more
+						timeoutCancelHandle.cancel(false);
+
+						if (throwable == null) {
+							// successfully obtained all slots, now deploy
+
+							for (ExecutionAndSlot[] jobVertexTasks : resources) {
+								for (ExecutionAndSlot execAndSlot : jobVertexTasks) {
+
+									// the futures must all be ready - this is simply a sanity check
+									final SimpleSlot slot;
+									try {
+										slot = execAndSlot.slotFuture.getNow(null);
+										checkNotNull(slot);
+									}
+									catch (ExecutionException | NullPointerException e) {
+										throw new IllegalStateException("SlotFuture is incomplete " +
+												"or erroneous even though all futures completed");
+									}
+
+									// actual deployment
+									execAndSlot.executionAttempt.deployToSlot(slot);
+								}
+							}
+						}
+						else {
+							// let the exception handler deal with this
+							throw throwable;
+						}
+					}
+					catch (Throwable t) {
+						// we catch everything here to make sure cleanup happens and the
+						// ExecutionGraph notices
+						// we need to go into recovery and make sure to release all slots
+						try {
+							fail(t);
+						}
+						finally {
+							ExecutionGraphUtils.releaseAllSlotsSilently(resources);
+						}
+					}
+
+					// Wouldn't it be nice if we could return an actual Void object?
+					// return (Void) Unsafe.getUnsafe().allocateInstance(Void.class);
+					return null; 
+				}
+			}, futureExecutor);
+
+			// from now on, slots will be rescued by the the futures and their completion, or by the timeout
+			successful = true;
+		}
+		finally {
+			if (!successful) {
+				// we come here only if the 'try' block finished with an exception
+				// we release the slots (possibly failing some executions on the way) and
+				// let the exception bubble up
+				ExecutionGraphUtils.releaseAllSlotsSilently(resources);
+			}
 		}
 	}
 
@@ -971,7 +1109,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			}
 		} catch (IOException | ClassNotFoundException e) {
 			LOG.error("Couldn't create ArchivedExecutionConfig for job {} ", getJobID(), e);
-		};
+		}
 		return null;
 	}
 

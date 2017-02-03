@@ -348,9 +348,9 @@ public class PointwisePatternTest {
 			
 			timesUsed[inEdges[0].getSource().getPartitionNumber()]++;
 		}
-		
-		for (int i = 0; i < timesUsed.length; i++) {
-			assertTrue(timesUsed[i] >= factor && timesUsed[i] <= factor + delta);
+
+		for (int used : timesUsed) {
+			assertTrue(used >= factor && used <= factor + delta);
 		}
 	}
 	
@@ -406,9 +406,9 @@ public class PointwisePatternTest {
 				timesUsed[ee.getSource().getPartitionNumber()]++;
 			}
 		}
-		
-		for (int i = 0; i < timesUsed.length; i++) {
-			assertEquals(1, timesUsed[i]);
+
+		for (int used : timesUsed) {
+			assertEquals(1, used);
 		}
 	}
 }

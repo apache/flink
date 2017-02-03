@@ -20,10 +20,21 @@ package org.apache.flink.runtime.concurrent;
 
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 
+import java.util.Collection;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
+/**
+ * A collection of utilities that expand the usage of {@link Future} and {@link CompletableFuture}.
+ */
 public class FutureUtils {
+
+	// ------------------------------------------------------------------------
+	//  retrying operations
+	// ------------------------------------------------------------------------
 
 	/**
 	 * Retry the given operation the given number of times in case of a failure.
@@ -86,6 +97,110 @@ public class FutureUtils {
 
 		public RetryException(Throwable cause) {
 			super(cause);
+		}
+	}
+
+	// ------------------------------------------------------------------------
+	//  composing futures
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Creates a future that is complete once multiple other futures completed. 
+	 * The ConjunctFuture fails (completes exceptionally) once one of the Futures in the
+	 * conjunction fails.
+	 *
+	 * <p>The ConjunctFuture gives access to how many Futures in the conjunction have already
+	 * completed successfully, via {@link ConjunctFuture#getNumFuturesCompleted()}. 
+	 * 
+	 * @param futures The futures that make up the conjunction. No null entries are allowed.
+	 * @return The ConjunctFuture that completes once all given futures are complete (or one fails).
+	 */
+	public static ConjunctFuture combineAll(Collection<? extends Future<?>> futures) {
+		checkNotNull(futures, "futures");
+
+		final ConjunctFutureImpl conjunct = new ConjunctFutureImpl(futures.size());
+
+		if (futures.isEmpty()) {
+			conjunct.complete(null);
+		}
+		else {
+			for (Future<?> future : futures) {
+				future.handle(conjunct.completionHandler);
+			}
+		}
+
+		return conjunct;
+	}
+
+	/**
+	 * A future that is complete once multiple other futures completed. The futures are not
+	 * necessarily of the same type, which is why the type of this Future is {@code Void}.
+	 * The ConjunctFuture fails (completes exceptionally) once one of the Futures in the
+	 * conjunction fails.
+	 * 
+	 * <p>The advantage of using the ConjunctFuture over chaining all the futures (such as via
+	 * {@link Future#thenCombine(Future, BiFunction)}) is that ConjunctFuture also tracks how
+	 * many of the Futures are already complete.
+	 */
+	public interface ConjunctFuture extends CompletableFuture<Void> {
+
+		/**
+		 * Gets the total number of Futures in the conjunction.
+		 * @return The total number of Futures in the conjunction.
+		 */
+		int getNumFuturesTotal();
+
+		/**
+		 * Gets the number of Futures in the conjunction that are already complete.
+		 * @return The number of Futures in the conjunction that are already complete
+		 */
+		int getNumFuturesCompleted();
+	}
+
+	/**
+	 * The implementation of the {@link ConjunctFuture}.
+	 * 
+	 * <p>Implementation notice: The member fields all have package-private access, because they are
+	 * either accessed by an inner subclass or by the enclosing class.
+	 */
+	private static class ConjunctFutureImpl extends FlinkCompletableFuture<Void> implements ConjunctFuture {
+
+		/** The total number of futures in the conjunction */
+		final int numTotal;
+
+		/** The number of futures in the conjunction that are already complete */
+		final AtomicInteger numCompleted = new AtomicInteger();
+
+		/** The function that is attached to all futures in the conjunction. Once a future
+		 * is complete, this function tracks the completion or fails the conjunct.  
+		 */
+		final BiFunction<Object, Throwable, Void> completionHandler = new BiFunction<Object, Throwable, Void>() {
+
+			@Override
+			public Void apply(Object o, Throwable throwable) {
+				if (throwable != null) {
+					completeExceptionally(throwable);
+				}
+				else if (numTotal == numCompleted.incrementAndGet()) {
+					complete(null);
+				}
+
+				return null;
+			}
+		};
+
+		ConjunctFutureImpl(int numTotal) {
+			this.numTotal = numTotal;
+		}
+
+		@Override
+		public int getNumFuturesTotal() {
+			return numTotal;
+		}
+
+		@Override
+		public int getNumFuturesCompleted() {
+			return numCompleted.get();
 		}
 	}
 }

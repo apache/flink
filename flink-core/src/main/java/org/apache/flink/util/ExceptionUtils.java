@@ -101,6 +101,18 @@ public final class ExceptionUtils {
 	}
 
 	/**
+	 * Rethrows the given {@code Throwable}, if it represents an error that is fatal to the JVM.
+	 * See {@link ExceptionUtils#isJvmFatalError(Throwable)} for a definition of fatal errors.
+	 * 
+	 * @param t The Throwable to check and rethrow.
+	 */
+	public static void rethrowIfFatalError(Throwable t) {
+		if (isJvmFatalError(t)) {
+			throw (Error) t;
+		}
+	}
+
+	/**
 	 * Adds a new exception as a {@link Throwable#addSuppressed(Throwable) suppressed exception}
 	 * to a prior exception, or returns the new exception, if no prior exception exists.
 	 *

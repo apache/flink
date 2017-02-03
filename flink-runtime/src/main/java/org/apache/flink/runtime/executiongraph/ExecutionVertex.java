@@ -102,6 +102,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 			int subTaskIndex,
 			IntermediateResult[] producedDataSets,
 			Time timeout) {
+
 		this(
 				jobVertex,
 				subTaskIndex,
@@ -133,7 +134,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		this.taskNameWithSubtask = String.format("%s (%d/%d)",
 				jobVertex.getJobVertex().getName(), subTaskIndex + 1, jobVertex.getParallelism());
 
-		this.resultPartitions = new LinkedHashMap<IntermediateResultPartitionID, IntermediateResultPartition>(producedDataSets.length, 1);
+		this.resultPartitions = new LinkedHashMap<>(producedDataSets.length, 1);
 
 		for (IntermediateResult result : producedDataSets) {
 			IntermediateResultPartition irp = new IntermediateResultPartition(result, this, subTaskIndex);

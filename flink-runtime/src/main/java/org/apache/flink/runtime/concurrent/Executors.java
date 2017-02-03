@@ -21,6 +21,7 @@ package org.apache.flink.runtime.concurrent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -52,7 +53,7 @@ public class Executors {
 		private DirectExecutor() {}
 
 		@Override
-		public void execute(Runnable command) {
+		public void execute(@Nonnull Runnable command) {
 			command.run();
 		}
 	}
