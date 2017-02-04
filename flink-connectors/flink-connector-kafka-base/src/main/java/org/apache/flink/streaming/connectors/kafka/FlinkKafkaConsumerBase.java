@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.commons.collections.map.LinkedMap;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -90,7 +91,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	protected final KeyedDeserializationSchema<T> deserializer;
 
 	/** The set of topic partitions that the source will read */
-	protected List<KafkaTopicPartition> subscribedPartitions;
+	private List<KafkaTopicPartition> subscribedPartitions;
 	
 	/** Optional timestamp extractor / watermark generator that will be run per Kafka partition,
 	 * to exploit per-partition timestamp characteristics.
@@ -118,7 +119,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	private transient volatile AbstractFetcher<T, ?> kafkaFetcher;
 	
 	/** The offsets to restore to, if the consumer restores state from a checkpoint */
-	private transient volatile HashMap<KafkaTopicPartition, Long> restoreToOffset;
+	private transient volatile HashMap<KafkaTopicPartition, Long> restoredState;
 	
 	/** Flag indicating whether the consumer is still running **/
 	private volatile boolean running = true;
@@ -272,7 +273,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 
 			// create the fetcher that will communicate with the Kafka brokers
 			final AbstractFetcher<T, ?> fetcher = createFetcher(
-					sourceContext, subscribedPartitions, restoreToOffset,
+					sourceContext, subscribedPartitions, restoredState,
 					periodicWatermarkAssigner, punctuatedWatermarkAssigner,
 					(StreamingRuntimeContext) getRuntimeContext());
 
@@ -355,18 +356,18 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 		offsetsStateForCheckpoint = stateStore.getSerializableListState(DefaultOperatorStateBackend.DEFAULT_OPERATOR_STATE_NAME);
 
 		if (context.isRestored()) {
-			if (restoreToOffset == null) {
-				restoreToOffset = new HashMap<>();
+			if (restoredState == null) {
+				restoredState = new HashMap<>();
 				for (Tuple2<KafkaTopicPartition, Long> kafkaOffset : offsetsStateForCheckpoint.get()) {
-					restoreToOffset.put(kafkaOffset.f0, kafkaOffset.f1);
+					restoredState.put(kafkaOffset.f0, kafkaOffset.f1);
 				}
 
 				LOG.info("Setting restore state in the FlinkKafkaConsumer.");
 				if (LOG.isDebugEnabled()) {
-					LOG.debug("Using the following offsets: {}", restoreToOffset);
+					LOG.debug("Using the following offsets: {}", restoredState);
 				}
-			} else if (restoreToOffset.isEmpty()) {
-				restoreToOffset = null;
+			} else if (restoredState.isEmpty()) {
+				restoredState = null;
 			}
 		} else {
 			LOG.info("No restore state for FlinkKafkaConsumer.");
@@ -386,9 +387,9 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 				// the fetcher has not yet been initialized, which means we need to return the
 				// originally restored offsets or the assigned partitions
 
-				if (restoreToOffset != null) {
+				if (restoredState != null) {
 
-					for (Map.Entry<KafkaTopicPartition, Long> kafkaTopicPartitionLongEntry : restoreToOffset.entrySet()) {
+					for (Map.Entry<KafkaTopicPartition, Long> kafkaTopicPartitionLongEntry : restoredState.entrySet()) {
 						offsetsStateForCheckpoint.add(
 								Tuple2.of(kafkaTopicPartitionLongEntry.getKey(), kafkaTopicPartitionLongEntry.getValue()));
 					}
@@ -401,7 +402,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 
 				// the map cannot be asynchronously updated, because only one checkpoint call can happen
 				// on this function at a time: either snapshotState() or notifyCheckpointComplete()
-				pendingOffsetsToCommit.put(context.getCheckpointId(), restoreToOffset);
+				pendingOffsetsToCommit.put(context.getCheckpointId(), restoredState);
 			} else {
 				HashMap<KafkaTopicPartition, Long> currentOffsets = fetcher.snapshotCurrentState();
 
@@ -427,11 +428,11 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 		LOG.info("{} (taskIdx={}) restoring offsets from an older version.",
 			getClass().getSimpleName(), getRuntimeContext().getIndexOfThisSubtask());
 
-		restoreToOffset = restoredOffsets;
+		restoredState = restoredOffsets;
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("{} (taskIdx={}) restored offsets from an older Flink version: {}",
-				getClass().getSimpleName(), getRuntimeContext().getIndexOfThisSubtask(), restoreToOffset);
+				getClass().getSimpleName(), getRuntimeContext().getIndexOfThisSubtask(), restoredState);
 		}
 	}
 
@@ -527,9 +528,9 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	private void assignTopicPartitions(List<KafkaTopicPartition> kafkaTopicPartitions) {
 		subscribedPartitions = new ArrayList<>();
 
-		if (restoreToOffset != null) {
+		if (restoredState != null) {
 			for (KafkaTopicPartition kafkaTopicPartition : kafkaTopicPartitions) {
-				if (restoreToOffset.containsKey(kafkaTopicPartition)) {
+				if (restoredState.containsKey(kafkaTopicPartition)) {
 					subscribedPartitions.add(kafkaTopicPartition);
 				}
 			}
@@ -603,5 +604,15 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 		}
 		
 		logger.info(sb.toString());
+	}
+
+	@VisibleForTesting
+	List<KafkaTopicPartition> getSubscribedPartitions() {
+		return subscribedPartitions;
+	}
+
+	@VisibleForTesting
+	HashMap<KafkaTopicPartition, Long> getRestoredState() {
+		return restoredState;
 	}
 }

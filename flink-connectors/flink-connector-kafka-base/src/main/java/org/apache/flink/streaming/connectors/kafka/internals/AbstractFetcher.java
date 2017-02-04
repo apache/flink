@@ -214,20 +214,6 @@ public abstract class AbstractFetcher<T, KPH> {
 		return state;
 	}
 
-	/**
-	 * Restores the partition offsets.
-	 * 
-	 * @param snapshotState The offsets for the partitions 
-	 */
-	public void restoreOffsets(Map<KafkaTopicPartition, Long> snapshotState) {
-		for (KafkaTopicPartitionState<?> partition : allPartitions) {
-			Long offset = snapshotState.get(partition.getKafkaTopicPartition());
-			if (offset != null) {
-				partition.setOffset(offset);
-			}
-		}
-	}
-
 	// ------------------------------------------------------------------------
 	//  emitting records
 	// ------------------------------------------------------------------------
