@@ -111,7 +111,7 @@ under the License.
 		<junit.version>4.12</junit.version>
 		<mockito.version>1.10.19</mockito.version>
 		<powermock.version>1.6.5</powermock.version>
-		<jacoco.version>0.7.7.201606060606</jacoco.version>
+		<jacoco.version>0.7.8</jacoco.version>
 		<!-- Internal property to change maven-shade plugin behaviour.
 		It uses for correct test coverage collecting -->
 		<shade.shadedArtifactAttached>false</shade.shadedArtifactAttached>
