@@ -44,4 +44,16 @@ under the License.
 		<module>flink-connector-wikiedits</module>
 		<module>flink-statebackend-rocksdb</module>
 	</modules>
+	<profiles>
+		<profile>
+			<id>coverage</id>
+			<modules>
+				<module>flink-storm</module>
+				<module>flink-streaming-contrib</module>
+				<module>flink-tweet-inputformat</module>
+				<module>flink-connector-wikiedits</module>
+				<module>flink-statebackend-rocksdb</module>
+			</modules>
+		</profile>
+	</profiles>
 </project>

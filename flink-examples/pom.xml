@@ -69,4 +69,12 @@ under the License.
 		<module>flink-examples-batch</module>
 		<module>flink-examples-streaming</module>
 	</modules>
+	<profiles>
+		<profile>
+			<id>coverage</id>
+			<modules>
+				<module>flink-examples-batch</module>
+			</modules>
+		</profile>
+	</profiles>
 </project>
