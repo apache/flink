@@ -431,6 +431,8 @@ use the `env.java.opts` setting, which is the `%jvmopts%` variable in the String
 
   For example when running Flink on YARN on an environment with a restrictive firewall, this option allows specifying a range of allowed ports.
 
+- `yarn.tags` A comma-separated list of tags to apply to the Flink YARN application.
+
 ### Mesos
 
 
