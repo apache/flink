@@ -348,6 +348,9 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 
 	@Override
 	public void snapshotState(FunctionSnapshotContext ctx) throws Exception {
+		// check for asynchronous errors and fail the checkpoint if necessary
+		checkErroneous();
+
 		if (flushOnCheckpoint) {
 			// flushing is activated: We need to wait until pendingRecords is 0
 			flush();
@@ -355,7 +358,9 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 				if (pendingRecords != 0) {
 					throw new IllegalStateException("Pending record count must be zero at this point: " + pendingRecords);
 				}
-				// pending records count is 0. We can now confirm the checkpoint
+
+				// if the flushed requests has errors, we should propagate it also and fail the checkpoint
+				checkErroneous();
 			}
 		}
 	}
