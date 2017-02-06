@@ -159,14 +159,14 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 
 		// start establishing a connection within 30 seconds
 		long start = System.nanoTime();
-		long deadline = start + 1000 * 30;
+		long deadline = start + 30_000_000_000L;
 		while (true) {
 			try {
 				cluster = builder.getCluster();
 				session = cluster.connect();
 				break;
 			} catch (Exception e) {
-				if (System.currentTimeMillis() > deadline) {
+				if (System.nanoTime() > deadline) {
 					throw e;
 				}
 				try {
