@@ -253,56 +253,51 @@ Table result = tableEnvironment.ingest("kafka-source");
 
 The `CsvTableSource` is already included in `flink-table` without additional dependecies.
 
-It can be configured with the following properties:
+The easiest way to create a `CsvTableSource` is by using the enclosed builder `CsvTableSource.builder()`, the builder has the following methods to configure properties:
 
- - `path` The path to the CSV file, required.
- - `fieldNames` The names of the table fields, required.
- - `fieldTypes` The types of the table fields, required.
- - `fieldDelim` The field delimiter, `","` by default.
- - `rowDelim` The row delimiter, `"\n"` by default.
- - `quoteCharacter` An optional quote character for String values, `null` by default.
- - `ignoreFirstLine` Flag to ignore the first line, `false` by default.
- - `ignoreComments` An optional prefix to indicate comments, `null` by default.
- - `lenient` Flag to skip records with parse error instead to fail, `false` by default.
+ - `path(String path)` Sets the path to the CSV file, required.
+ - `field(String fieldName, TypeInformation<?> fieldType)` Adds a field with the field name and field type information, can be called multiple times, required. The call order of this method defines also the order of the fields in a row.
+ - `fieldDelimiter(String delim)` Sets the field delimiter, `","` by default.
+ - `lineDelimiter(String delim)` Sets the line delimiter, `"\n"` by default.
+ - `quoteCharacter(Character quote)` Sets the quote character for String values, `null` by default.
+ - `commentPrefix(String prefix)` Sets a prefix to indicate comments, `null` by default.
+ - `ignoreFirstLine()` Ignore the first line. Disabled by default.
+ - `ignoreParseErrors()` Skip records with parse error instead to fail. Throwing an exception by default.
 
 You can create the source as follows:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-CsvTableSource csvTableSource = new CsvTableSource(
-    "/path/to/your/file.csv",
-    new String[] { "name", "id", "score", "comments" },
-    new TypeInformation<?>[] {
-      Types.STRING(),
-      Types.INT(),
-      Types.DOUBLE(),
-      Types.STRING()
-    },
-    "#",    // fieldDelim
-    "$",    // rowDelim
-    null,   // quoteCharacter
-    true,   // ignoreFirstLine
-    "%",    // ignoreComments
-    false); // lenient
+CsvTableSource csvTableSource = CsvTableSource
+    .builder()
+    .path("/path/to/your/file.csv")
+    .field("name", Types.STRING())
+    .field("id", Types.INT())
+    .field("score", Types.DOUBLE())
+    .field("comments", Types.STRING())
+    .fieldDelimiter("#")
+    .lineDelimiter("$")
+    .ignoreFirstLine()
+    .ignoreParseErrors()
+    .commentPrefix("%");
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-val csvTableSource = new CsvTableSource(
-    "/path/to/your/file.csv",
-    Array("name", "id", "score", "comments"),
-    Array(
-      Types.STRING,
-      Types.INT,
-      Types.DOUBLE,
-      Types.STRING
-    ),
-    fieldDelim = "#",
-    rowDelim = "$",
-    ignoreFirstLine = true,
-    ignoreComments = "%")
+val csvTableSource = CsvTableSource
+    .builder
+    .path("/path/to/your/file.csv")
+    .field("name", Types.STRING)
+    .field("id", Types.INT)
+    .field("score", Types.DOUBLE)
+    .field("comments", Types.STRING)
+    .fieldDelimiter("#")
+    .lineDelimiter("$")
+    .ignoreFirstLine
+    .ignoreParseErrors
+    .commentPrefix("%")
 {% endhighlight %}
 </div>
 </div>
