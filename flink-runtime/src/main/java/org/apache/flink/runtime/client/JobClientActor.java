@@ -36,6 +36,8 @@ import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.util.Preconditions;
 import scala.concurrent.duration.FiniteDuration;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.UUID;
 
 
@@ -111,6 +113,10 @@ public abstract class JobClientActor extends FlinkUntypedActor implements Leader
 	 */
 	protected abstract Class getClientMessageClass();
 
+	/**
+	 * Hook to retrieve time-pattern from Flink configuration.
+	 */
+	protected abstract String getClientTimePattern();
 
 	@Override
 	protected void handleMessage(Object message) {
@@ -151,7 +157,7 @@ public abstract class JobClientActor extends FlinkUntypedActor implements Leader
 			// Resolved JobManager ActorRef
 			JobManagerActorRef msg = (JobManagerActorRef) message;
 			connectToJobManager(msg.jobManager());
-
+			// TODO prints without time - is it okay?
 			logAndPrintMessage("Connected to JobManager at " + msg.jobManager());
 
 			connectedToJobManager();
@@ -248,7 +254,6 @@ public abstract class JobClientActor extends FlinkUntypedActor implements Leader
 		}
 	}
 
-
 	@Override
 	protected UUID getLeaderSessionID() {
 		return leaderSessionID;
@@ -262,27 +267,39 @@ public abstract class JobClientActor extends FlinkUntypedActor implements Leader
 	}
 
 	private void logAndPrintMessage(ExecutionGraphMessages.ExecutionStateChanged message) {
-		LOG.info(message.toString());
+		String completeMess = buildMessage(message);
+		LOG.info(completeMess);
 		if (sysoutUpdates) {
-			System.out.println(message.toString());
+			System.out.println(completeMess);
 		}
 	}
 
 	private void logAndPrintMessage(ExecutionGraphMessages.JobStatusChanged message) {
 		// by default, this only prints the status, and not any exception.
 		// in state FAILING, we report the exception in addition
+		String completeMess = buildMessage(message);
 		if (message.newJobStatus() != JobStatus.FAILING || message.error() == null) {
-			LOG.info(message.toString());
+			LOG.info(completeMess);
 			if (sysoutUpdates) {
-				System.out.println(message.toString());
+				System.out.println(completeMess);
 			}
 		} else {
-			LOG.info(message.toString(), message.error());
+			LOG.info(completeMess, message.error());
 			if (sysoutUpdates) {
-				System.out.println(message.toString());
+				System.out.println(completeMess);
 				message.error().printStackTrace(System.out);
 			}
 		}
+	}
+
+	private String buildMessage(ExecutionGraphMessages.Timestamped message) {
+		return  String.format("%1$s\t%2$s",
+			timestampToString(message.timestamp(), getClientTimePattern()),
+			message.toString());
+	}
+
+	private String timestampToString(Long timestamp, String pattern) {
+		return new SimpleDateFormat(pattern).format(new Date(timestamp));
 	}
 
 	@Override

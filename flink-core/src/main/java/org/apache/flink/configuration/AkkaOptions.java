@@ -48,4 +48,11 @@ public class AkkaOptions {
 	public static final ConfigOption<String> AKKA_WATCH_HEARTBEAT_PAUSE = ConfigOptions
 		.key("akka.watch.heartbeat.pause")
 		.defaultValue("60 s");
+
+	/**
+	 * Defines time pattern of akka status logger
+	 */
+	public static final ConfigOption<String> CLIENT_TIME_PATTERN = ConfigOptions
+		.key("client.logging.time-pattern")
+		.defaultValue("yyyy-MM-dd'T'HH:mm:ss");
 }

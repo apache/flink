@@ -23,6 +23,7 @@ import akka.actor.Props;
 import akka.actor.Status;
 import akka.dispatch.Futures;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -61,6 +62,10 @@ public class JobAttachmentClientActor extends JobClientActor {
 	@Override
 	protected Class getClientMessageClass() {
 		return AttachToJobAndWait.class;
+	}
+
+	protected String getClientTimePattern() {
+		return AkkaOptions.CLIENT_TIME_PATTERN.defaultValue();
 	}
 
 	@Override

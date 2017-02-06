@@ -22,6 +22,7 @@ import akka.actor.ActorRef;
 import akka.actor.Props;
 import akka.actor.Status;
 import akka.dispatch.Futures;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
@@ -72,6 +73,10 @@ public class JobSubmissionClientActor extends JobClientActor {
 	@Override
 	protected Class getClientMessageClass() {
 		return SubmitJobAndWait.class;
+	}
+
+	protected String getClientTimePattern() {
+		return clientConfig.getString(AkkaOptions.CLIENT_TIME_PATTERN);
 	}
 
 	@Override
