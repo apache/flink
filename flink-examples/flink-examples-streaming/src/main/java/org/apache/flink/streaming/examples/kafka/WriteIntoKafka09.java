@@ -25,36 +25,37 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer09;
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 
+
 /**
  * Generate a String every 500 ms and write it into a Kafka v0.9 topic
- * <p>
+ *
  * Please pass the following arguments to run the example:
- * --topic test --bootstrap.servers localhost:9092
+ * 	--topic test --bootstrap.servers localhost:9092
+ *
  */
 public class WriteIntoKafka09 {
 
 	public static void main(String[] args) throws Exception {
-		final ParameterTool parameterTool = ParameterTool.fromArgs(args);
-		if (parameterTool.getNumberOfParameters() < 2) {
-			System.out.println("Missing parameters!\n" +
-				"Usage: Kafka --topic <topic> --bootstrap.servers <kafka brokers>");
+		ParameterTool parameterTool = ParameterTool.fromArgs(args);
+		if(parameterTool.getNumberOfParameters() < 2) {
+			System.out.println("Missing parameters!");
+			System.out.println("Usage: Kafka --topic <topic> --bootstrap.servers <kafka brokers>");
 			return;
 		}
 
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		StreamExecutionEnvironment env =StreamExecutionEnvironment.getExecutionEnvironment();
 		env.getConfig().disableSysoutLogging();
 		env.getConfig().setRestartStrategy(RestartStrategies.fixedDelayRestart(4, 10000));
-		env.getConfig().setGlobalJobParameters(parameterTool); // make parameters available in the web interface
 
 		// very simple data generator
-		final DataStream<String> messageStream = env.addSource(new SourceFunction<String>() {
+		DataStream<String> messageStream = env.addSource(new SourceFunction<String>() {
 			private static final long serialVersionUID = 6369260445318862378L;
-			boolean running = true;
+			public boolean running = true;
 
 			@Override
 			public void run(SourceContext<String> ctx) throws Exception {
 				long i = 0;
-				while (this.running) {
+				while(this.running) {
 					ctx.collect("Element - " + i++);
 					Thread.sleep(500);
 				}
@@ -66,11 +67,9 @@ public class WriteIntoKafka09 {
 			}
 		});
 
-		//get topic from parameters
-		final String topic = parameterTool.getRequired("topic");
 		// write data into Kafka
 		messageStream.addSink(new FlinkKafkaProducer09<>(
-			topic,
+			parameterTool.getRequired("topic"),
 			new SimpleStringSchema(),
 			parameterTool.getProperties()));
 
