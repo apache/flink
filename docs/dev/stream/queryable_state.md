@@ -37,8 +37,8 @@ Flink. For some scenarios, queryable state thus eliminates the need for distribu
 operations/transactions with external systems such as key-value stores which are often the
 bottleneck in practice.
 
-<div class="alert alert-warning">
-  <strong>Warning:</strong> Queryable state accesses keyed state from a concurrent thread rather
+<div class="alert alert-danger">
+  <strong>Attention:</strong> Queryable state accesses keyed state from a concurrent thread rather
   than synchronizing with the operator and potentially blocking its operation. Since any state
   backend using Java heap space, e.g. <code>MemoryStateBackend</code> or
   <code>FsStateBackend</code>, does not work with copies when retrieving values but instead the
