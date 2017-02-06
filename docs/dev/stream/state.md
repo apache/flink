@@ -113,8 +113,17 @@ be retrieved using `Iterable<T> get()`.
 added to the state. The interface is the same as for `ListState` but elements added using
 `add(T)` are reduced to an aggregate using a specified `ReduceFunction`.
 
+* `FoldingState<T, ACC>`: This keeps a single value that represents the aggregation of all values
+added to the state. Contrary to `ReducingState`, the aggregate type may be different from the type
+of elements that are added to the state. The interface is the same as for `ListState` but elements
+added using `add(T)` are folded into an aggregate using a specified `FoldFunction`.
+
 All types of state also have a method `clear()` that clears the state for the currently
 active key, i.e. the key of the input element.
+
+<span class="label label-danger">Attention</span> `FoldingState` will be deprecated in one of
+the next versions of Flink and will be completely removed in the future. A more general
+alternative will be provided.
 
 It is important to keep in mind that these state objects are only used for interfacing
 with state. The state is not necessarily stored inside but might reside on disk or somewhere else.
@@ -126,8 +135,8 @@ To get a state handle, you have to create a `StateDescriptor`. This holds the na
 (as we will see later, you can create several states, and they have to have unique names so
 that you can reference them), the type of the values that the state holds, and possibly
 a user-specified function, such as a `ReduceFunction`. Depending on what type of state you
-want to retrieve, you create either a `ValueStateDescriptor`, a `ListStateDescriptor` or
-a `ReducingStateDescriptor`.
+want to retrieve, you create either a `ValueStateDescriptor`, a `ListStateDescriptor`,
+a `ReducingStateDescriptor` or a `FoldingStateDescriptor`.
 
 State is accessed using the `RuntimeContext`, so it is only possible in *rich functions*.
 Please see [here]({{ site.baseurl }}/dev/api_concepts#rich-functions) for
@@ -137,6 +146,7 @@ is available in a `RichFunction` has these methods for accessing state:
 * `ValueState<T> getState(ValueStateDescriptor<T>)`
 * `ReducingState<T> getReducingState(ReducingStateDescriptor<T>)`
 * `ListState<T> getListState(ListStateDescriptor<T>)`
+* `FoldingState<T, ACC> getFoldingState(FoldingStateDescriptor<T, ACC>)`
 
 This is an example `FlatMapFunction` that shows how all of the parts fit together:
 
