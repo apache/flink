@@ -57,8 +57,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * <p>
  * This internally uses a {@link StatusWatermarkValve} to keep track of {@link Watermark} and {@link StreamStatus} events,
- * and forwards them to event subscribers once the {@link StatusWatermarkValve} determines the {@link Watermark} from
- * all inputs has advanced, or that a {@link StreamStatus} needs to be propagated downstream to denote a status change.
+ * and forwards watermarks to event subscribers once the {@link StatusWatermarkValve} determines the watermarks from
+ * all inputs has advanced, or changes the task's {@link StreamStatus} once status change is toggled.
  *
  * <p>
  * Forwarding elements, watermarks, or status status elements must be protected by synchronizing on the given lock
@@ -88,8 +88,8 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 	 * Stream status for the two inputs. We need to keep track for determining when
 	 * to forward stream status changes downstream.
 	 */
-	private StreamStatus firstStatus = StreamStatus.ACTIVE;
-	private StreamStatus secondStatus = StreamStatus.ACTIVE;
+	private StreamStatus firstStatus;
+	private StreamStatus secondStatus;
 
 	/**
 	 * Valves that control how watermarks and stream statuses from the 2 inputs are forwarded.
@@ -181,7 +181,10 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 		this.lastEmittedWatermark1 = Long.MIN_VALUE;
 		this.lastEmittedWatermark2 = Long.MIN_VALUE;
 
-		this.operatorChain = operatorChain;
+		this.firstStatus = StreamStatus.ACTIVE;
+		this.secondStatus = StreamStatus.ACTIVE;
+
+		this.operatorChain = checkNotNull(operatorChain);
 		this.streamOperator = checkNotNull(operatorChain.getHeadOperator());
 
 		this.statusWatermarkValve1 = new StatusWatermarkValve(numInputChannels1, new ForwardingValveOutputHandler1(streamOperator, lock));
@@ -348,10 +351,18 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 		public void handleStreamStatus(StreamStatus streamStatus) {
 			try {
 				synchronized (lock) {
-					if (!streamStatus.equals(firstStatus) && streamStatus.equals(secondStatus)) {
-						operatorChain.setStreamStatus(streamStatus);
-					}
 					firstStatus = streamStatus;
+
+					// check if we need to toggle the task's stream status
+					if (!streamStatus.equals(operatorChain.getStreamStatus())) {
+						if (streamStatus.isActive()) {
+							// we're no longer idle if at least one input has become active
+							operatorChain.setStreamStatus(StreamStatus.ACTIVE);
+						} else if (secondStatus.isIdle()) {
+							// we're idle once both inputs are idle
+							operatorChain.setStreamStatus(StreamStatus.IDLE);
+						}
+					}
 				}
 			} catch (Exception e) {
 				throw new RuntimeException("Exception occurred while processing valve output stream status: ", e);
@@ -384,10 +395,18 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 		public void handleStreamStatus(StreamStatus streamStatus) {
 			try {
 				synchronized (lock) {
-					if (!streamStatus.equals(secondStatus) && streamStatus.equals(firstStatus)) {
-						operatorChain.setStreamStatus(streamStatus);
-					}
 					secondStatus = streamStatus;
+
+					// check if we need to toggle the task's stream status
+					if (!streamStatus.equals(operatorChain.getStreamStatus())) {
+						if (streamStatus.isActive()) {
+							// we're no longer idle if at least one input has become active
+							operatorChain.setStreamStatus(StreamStatus.ACTIVE);
+						} else if (firstStatus.isIdle()) {
+							// we're idle once both inputs are idle
+							operatorChain.setStreamStatus(StreamStatus.IDLE);
+						}
+					}
 				}
 			} catch (Exception e) {
 				throw new RuntimeException("Exception occurred while processing valve output stream status: ", e);

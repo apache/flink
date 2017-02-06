@@ -15,11 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.streaming.runtime.tasks;
+package org.apache.flink.streaming.runtime.streamstatus;
 
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
+import org.apache.flink.annotation.Internal;
 
+/**
+ * Interface for retrieving the current {@link StreamStatus}.
+ */
+@Internal
 public interface StreamStatusProvider {
 
+	/**
+	 * Returns the current stream status.
+	 *
+	 * @return current stream status.
+	 */
 	StreamStatus getStreamStatus();
 }

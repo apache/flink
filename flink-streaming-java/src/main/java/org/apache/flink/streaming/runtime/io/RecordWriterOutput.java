@@ -31,7 +31,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.tasks.StreamStatusProvider;
+import org.apache.flink.streaming.runtime.streamstatus.StreamStatusProvider;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -67,7 +67,7 @@ public class RecordWriterOutput<OUT> implements Output<StreamRecord<OUT>> {
 			serializationDelegate = new SerializationDelegate<StreamElement>(outRecordSerializer);
 		}
 
-		this.streamStatusProvider = streamStatusProvider;
+		this.streamStatusProvider = checkNotNull(streamStatusProvider);
 	}
 
 	@Override
@@ -86,7 +86,7 @@ public class RecordWriterOutput<OUT> implements Output<StreamRecord<OUT>> {
 	public void emitWatermark(Watermark mark) {
 		serializationDelegate.setInstance(mark);
 
-		if (streamStatusProvider.getStreamStatus().equals(StreamStatus.ACTIVE)) {
+		if (streamStatusProvider.getStreamStatus().isActive()) {
 			try {
 				recordWriter.broadcastEmit(serializationDelegate);
 			} catch (Exception e) {

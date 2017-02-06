@@ -83,9 +83,7 @@ public class StreamInputProcessor<IN> {
 
 	// ---------------- Status and Watermark Valve ------------------
 
-	/**
-	 * Valve that controls how watermarks and stream statuses are forwarded.
-	 */
+	/** Valve that controls how watermarks and stream statuses are forwarded. */
 	private StatusWatermarkValve statusWatermarkValve;
 
 	/** Number of input channels the valve needs to handle. */
@@ -158,8 +156,8 @@ public class StreamInputProcessor<IN> {
 
 		this.lastEmittedWatermark = Long.MIN_VALUE;
 
-		this.operatorChain = operatorChain;
-		this.streamOperator = operatorChain.getHeadOperator();
+		this.operatorChain = checkNotNull(operatorChain);
+		this.streamOperator = checkNotNull(operatorChain.getHeadOperator());
 
 		this.statusWatermarkValve = new StatusWatermarkValve(
 				numInputChannels,

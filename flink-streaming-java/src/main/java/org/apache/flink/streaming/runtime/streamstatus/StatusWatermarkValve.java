@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.runtime.streamstatus;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.watermark.Watermark;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -30,6 +31,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * implementation of {@link ValveOutputHandler}, which is called by the valve only when it determines a new watermark or
  * stream status can be propagated.
  */
+@Internal
 public class StatusWatermarkValve {
 
 	/**
