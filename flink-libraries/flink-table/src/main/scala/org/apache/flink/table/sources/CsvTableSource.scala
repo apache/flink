@@ -28,6 +28,9 @@ import org.apache.flink.core.fs.Path
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.TableException
+import org.apache.flink.util.Preconditions
+
+import scala.collection.mutable.ListBuffer
 
 /**
   * A [[BatchTableSource]] and [[StreamTableSource]] for simple CSV files with a
@@ -44,15 +47,15 @@ import org.apache.flink.table.api.TableException
   * @param lenient Flag to skip records with parse error instead to fail, false by default.
   */
 class CsvTableSource(
-    path: String,
-    fieldNames: Array[String],
-    fieldTypes: Array[TypeInformation[_]],
-    fieldDelim: String = CsvInputFormat.DEFAULT_FIELD_DELIMITER,
-    rowDelim: String = CsvInputFormat.DEFAULT_LINE_DELIMITER,
-    quoteCharacter: Character = null,
-    ignoreFirstLine: Boolean = false,
-    ignoreComments: String = null,
-    lenient: Boolean = false)
+    private val path: String,
+    private val fieldNames: Array[String],
+    private val fieldTypes: Array[TypeInformation[_]],
+    private val fieldDelim: String = CsvInputFormat.DEFAULT_FIELD_DELIMITER,
+    private val rowDelim: String = CsvInputFormat.DEFAULT_LINE_DELIMITER,
+    private val quoteCharacter: Character = null,
+    private val ignoreFirstLine: Boolean = false,
+    private val ignoreComments: String = null,
+    private val lenient: Boolean = false)
   extends BatchTableSource[Row]
   with StreamTableSource[Row]
   with ProjectableTableSource[Row] {
@@ -138,4 +141,160 @@ class CsvTableSource(
 
     inputFormat
   }
+
+  override def equals(other: Any): Boolean = other match {
+    case that: CsvTableSource => returnType == that.returnType &&
+        path == that.path &&
+        fieldDelim == that.fieldDelim &&
+        rowDelim == that.rowDelim &&
+        quoteCharacter == that.quoteCharacter &&
+        ignoreFirstLine == that.ignoreFirstLine &&
+        ignoreComments == that.ignoreComments &&
+        lenient == that.lenient
+    case _ => false
+  }
+
+  override def hashCode(): Int = {
+    val state = Seq(returnType)
+    state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
+  }
+}
+
+object CsvTableSource {
+
+  /**
+    * A builder for creating [[CsvTableSource]] instances.
+    *
+    * For example:
+    *
+    * {{{
+    *   val source: CsvTableSource = new CsvTableSourceBuilder()
+    *     .path("/path/to/your/file.csv")
+    *     .field("myfield", Types.STRING)
+    *     .field("myfield2", Types.INT)
+    *     .build()
+    * }}}
+    *
+    */
+  class Builder {
+
+    private val fieldNames: ListBuffer[String] = ListBuffer[String]()
+    private val fieldTypes: ListBuffer[TypeInformation[_]] = ListBuffer[TypeInformation[_]]()
+    private var quoteCharacter: Character = _
+    private var path: String = _
+    private var fieldDelim: String = CsvInputFormat.DEFAULT_FIELD_DELIMITER
+    private var lineDelim: String = CsvInputFormat.DEFAULT_LINE_DELIMITER
+    private var isIgnoreFirstLine: Boolean = false
+    private var commentPrefix: String = _
+    private var lenient: Boolean = false
+
+
+    /**
+      * Sets the path to the CSV file.
+      * @param path the path to the CSV file
+      */
+    def path(path: String): Builder = {
+      this.path = path
+      this
+    }
+
+    /**
+      * Sets the field delimiter, "," by default.
+      * @param delim the field delimiter
+      */
+    def fieldDelimiter(delim: String): Builder = {
+      this.fieldDelim = delim
+      this
+    }
+
+    /**
+      * Sets the line delimiter, "\n" by default.
+      * @param delim the line delimiter
+      */
+    def lineDelimiter(delim: String): Builder = {
+      this.lineDelim = delim
+      this
+    }
+
+    /**
+      * Add a field with the field name and the type information.
+      * @param fieldName the field name
+      * @param fieldType the type information of the field
+      */
+    def field(fieldName: String, fieldType: TypeInformation[_]): Builder = {
+      this.fieldNames += fieldName
+      this.fieldTypes += fieldType
+      this
+    }
+
+    /**
+      * Sets a quote character for String values, null by default.
+      * @param quote the quote character
+      */
+    def quoteCharacter(quote: Character): Builder = {
+      this.quoteCharacter = quote
+      this
+    }
+
+    /**
+      * Sets a prefix to indicate comments, null by default.
+      * @param prefix the prefix to indicate comments
+      */
+    def commentPrefix(prefix: String): Builder = {
+      this.commentPrefix = prefix
+      this
+    }
+
+    /**
+      * Ignore the first line. Not skip the first line by default.
+      */
+    def ignoreFirstLine: Builder = {
+      this.isIgnoreFirstLine = true
+      this
+    }
+
+    /**
+      * Skip records with parse error instead to fail. Throw an exception by default.
+      */
+    def ignoreParseErrors: Builder = {
+      this.lenient = true
+      this
+    }
+
+    /**
+      * Apply the current values and constructs a newly-created [[CsvTableSource]].
+      * @return a newly-created [[CsvTableSource]].
+      */
+    def build: CsvTableSource = {
+      Preconditions.checkNotNull(path, "Path must not be null.")
+      new CsvTableSource(
+        path,
+        fieldNames.toArray,
+        fieldTypes.toArray,
+        fieldDelim,
+        lineDelim,
+        quoteCharacter,
+        isIgnoreFirstLine,
+        commentPrefix,
+        lenient)
+    }
+
+  }
+
+  /**
+    * Return a new builder that builds a [[CsvTableSource]].
+    *
+    * For example:
+    *
+    * {{{
+    *   val source: CsvTableSource = CsvTableSource
+    *     .builder()
+    *     .path("/path/to/your/file.csv")
+    *     .field("myfield", Types.STRING)
+    *     .field("myfield2", Types.INT)
+    *     .build()
+    * }}}
+    * @return a new builder to build a [[CsvTableSource]]
+    */
+  def builder: Builder = new Builder
 }

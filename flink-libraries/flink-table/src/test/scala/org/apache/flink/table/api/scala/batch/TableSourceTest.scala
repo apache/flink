@@ -18,11 +18,12 @@
 
 package org.apache.flink.table.api.scala.batch
 
+import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.sources.CsvTableSource
 import org.apache.flink.table.utils.{CommonTestData, TableTestBase}
 import org.apache.flink.table.utils.TableTestUtil._
-import org.junit.Test
+import org.junit.{Assert, Test}
 
 class TableSourceTest extends TableTestBase {
 
@@ -137,6 +138,41 @@ class TableSourceTest extends TableTestBase {
 
     val expected = sourceStreamTableNode(tableName, noCalcFields)
     util.verifyTable(result, expected)
+  }
+
+  @Test
+  def testCsvTableSourceBuilder(): Unit = {
+    val source1 = CsvTableSource.builder
+      .path("/path/to/csv")
+      .field("myfield", Types.STRING)
+      .field("myfield2", Types.INT)
+      .quoteCharacter(';')
+      .fieldDelimiter("#")
+      .lineDelimiter("\r\n")
+      .commentPrefix("%%")
+      .ignoreFirstLine
+      .ignoreParseErrors
+      .build
+
+    val source2 = new CsvTableSource(
+      "/path/to/csv",
+      Array("myfield", "myfield2"),
+      Array(Types.STRING, Types.INT),
+      "#",
+      "\r\n",
+      ';',
+      true,
+      "%%",
+      true)
+
+    Assert.assertEquals(source1, source2)
+  }
+
+  @Test(expected = classOf[NullPointerException])
+  def testCsvTableSourceBuilderWithNullPath(): Unit = {
+    CsvTableSource.builder
+      .field("myfield", Types.STRING)
+      .build
   }
 
   def tableSource: (CsvTableSource, String) = {
