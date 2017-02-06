@@ -646,7 +646,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		boolean restored = null != restoreStateHandles;
 
 		if (restored) {
-
 			checkRestorePreconditions(operatorChain.getChainLength());
 			initializeOperators(true);
 			restoreStateHandles = null; // free for GC

@@ -129,7 +129,8 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 			Object lock,
 			IOManager ioManager,
 			Configuration taskManagerConfig,
-			OperatorChain<?, TwoInputStreamOperator<IN1, IN2, ?>> operatorChain) throws IOException {
+			OperatorChain<?, TwoInputStreamOperator<IN1, IN2, ?>> operatorChain,
+			TwoInputStreamOperator<IN1, IN2, ?> streamOperator) throws IOException {
 
 		final InputGate inputGate = InputGateUtil.createInputGate(inputGates1, inputGates2);
 
@@ -185,7 +186,7 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 		this.secondStatus = StreamStatus.ACTIVE;
 
 		this.operatorChain = checkNotNull(operatorChain);
-		this.streamOperator = checkNotNull(operatorChain.getHeadOperator());
+		this.streamOperator = checkNotNull(streamOperator);
 
 		this.statusWatermarkValve1 = new StatusWatermarkValve(numInputChannels1, new ForwardingValveOutputHandler1(streamOperator, lock));
 		this.statusWatermarkValve2 = new StatusWatermarkValve(numInputChannels2, new ForwardingValveOutputHandler2(streamOperator, lock));

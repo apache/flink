@@ -54,7 +54,8 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 					getCheckpointLock(),
 					getEnvironment().getIOManager(),
 					getEnvironment().getTaskManagerInfo().getConfiguration(),
-					operatorChain);
+					operatorChain,
+					this.headOperator);
 
 			// make sure that stream tasks report their I/O statistics
 			inputProcessor.setMetricGroup(getEnvironment().getMetricGroup().getIOMetricGroup());

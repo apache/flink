@@ -115,7 +115,8 @@ public class StreamInputProcessor<IN> {
 			Object lock,
 			IOManager ioManager,
 			Configuration taskManagerConfig,
-			OperatorChain<?, OneInputStreamOperator<IN, ?>> operatorChain) throws IOException {
+			OperatorChain<?, OneInputStreamOperator<IN, ?>> operatorChain,
+			OneInputStreamOperator<IN, ?> streamOperator) throws IOException {
 
 		InputGate inputGate = InputGateUtil.createInputGate(inputGates);
 
@@ -157,7 +158,7 @@ public class StreamInputProcessor<IN> {
 		this.lastEmittedWatermark = Long.MIN_VALUE;
 
 		this.operatorChain = checkNotNull(operatorChain);
-		this.streamOperator = checkNotNull(operatorChain.getHeadOperator());
+		this.streamOperator = checkNotNull(streamOperator);
 
 		this.statusWatermarkValve = new StatusWatermarkValve(
 				numInputChannels,
