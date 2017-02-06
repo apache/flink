@@ -30,6 +30,7 @@ import java.nio.file.DirectoryNotEmptyException;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.StandardOpenOption;
+import java.util.Arrays;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -115,6 +116,7 @@ public final class FileUtils {
 		else if (file.exists()) {
 			try {
 				Files.delete(file.toPath());
+				System.out.println("Fil = " + file.toString() + " - " + Thread.currentThread().getName() + " - Del - " + file.exists());
 			}
 			catch (NoSuchFileException e) {
 				// if the file is already gone (concurrently), we don't mind
@@ -164,6 +166,7 @@ public final class FileUtils {
 				// if new files got concurrently created. we want to fail then.
 				try {
 					Files.delete(directoryPath);
+					System.out.println("Dir = " + directory.toString() + " - " + Thread.currentThread().getName() + " - Del - " + directory.exists());
 				} catch (NoSuchFileException ignored) {
 					// if someone else deleted this concurrently, we don't mind
 					// the result is the same for us, after all
@@ -181,14 +184,21 @@ public final class FileUtils {
 					// directories. Apparently there's a timing/visibility
 					// issue when concurrently deleting the contents of a directory 
 					// and afterwards deleting the directory itself.
-					try {
-						Thread.sleep(50);
-					} catch (InterruptedException ignored) {
-						Thread.currentThread().interrupt();
-					}
+					
 					File[] contents = directory.listFiles();
+					System.out.println("Dir = " + directory.toString() + " - " + Thread.currentThread().getName() + " - Fail - " + Arrays.toString(contents));
 					if (contents != null && contents.length > 0) {
-						throw e;
+						boolean empty = true;
+						for (File f : contents) {
+							if (f.exists()) {
+								empty = false;
+							}
+							System.out.println(f + " - " + empty);
+						}
+						if (!empty) {
+							System.out.flush();
+							throw new RuntimeException("Dir = " + directory.toString() + " - " + Thread.currentThread().getName(), e);
+						}
 					}
 				}
 			} else {
@@ -248,6 +258,7 @@ public final class FileUtils {
 
 		if (directory.isDirectory()) {
 			final File[] files = directory.listFiles();
+			System.out.println("Dir = " + directory.toString() + " - " + Thread.currentThread().getName() + " - Attm - " + Arrays.toString(files));
 
 			if (files == null) {
 				// directory does not exist any more or no permissions
