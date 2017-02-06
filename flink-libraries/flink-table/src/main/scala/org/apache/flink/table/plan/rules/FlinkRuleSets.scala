@@ -23,8 +23,7 @@ import org.apache.calcite.tools.{RuleSet, RuleSets}
 import org.apache.flink.table.calcite.rules.{FlinkAggregateExpandDistinctAggregatesRule, FlinkAggregateJoinTransposeRule}
 import org.apache.flink.table.plan.rules.dataSet._
 import org.apache.flink.table.plan.rules.datastream._
-import org.apache.flink.table.plan.rules.datastream.{DataStreamCalcRule, DataStreamScanRule, DataStreamUnionRule,DataStreamProcTimeTimeAggregateRule}
-
+import org.apache.flink.table.plan.rules.datastream.{DataStreamCalcRule, DataStreamScanRule, DataStreamUnionRule}
 
 object FlinkRuleSets {
 
@@ -181,8 +180,7 @@ object FlinkRuleSets {
       DataStreamCorrelateRule.INSTANCE,
       StreamTableSourceScanRule.INSTANCE,
       PushProjectIntoStreamTableSourceScanRule.INSTANCE,
-      DataStreamProcTimeTimeAggregateRule.INSTANCE
-    
+      DataStreamProcTimeRowAggregateRule.INSTANCE
   )
 
 }
