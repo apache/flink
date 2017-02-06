@@ -31,6 +31,7 @@ import org.apache.calcite.sql.SqlOperatorTable
 import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.sql.util.ChainedSqlOperatorTable
 import org.apache.calcite.tools.{FrameworkConfig, Frameworks, RuleSet, RuleSets}
+import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfo}
@@ -39,19 +40,21 @@ import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.api.scala.{ExecutionEnvironment => ScalaBatchExecEnv}
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaStreamExecEnv}
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecEnv}
-import java.{BatchTableEnvironment => JavaBatchTableEnv, StreamTableEnvironment => JavaStreamTableEnv}
+import org.apache.flink.table.api.java.{BatchTableEnvironment => JavaBatchTableEnv, StreamTableEnvironment => JavaStreamTableEnv}
 import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnv, StreamTableEnvironment => ScalaStreamTableEnv}
 import org.apache.flink.table.calcite.{FlinkPlannerImpl, FlinkRelBuilder, FlinkTypeFactory, FlinkTypeSystem}
-import org.apache.flink.table.codegen.ExpressionReducer
+import org.apache.flink.table.codegen.{CodeGenerator, ExpressionReducer}
 import org.apache.flink.table.expressions.{Alias, Expression, UnresolvedFieldReference}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{checkForInstantiation, checkNotSingleton, createScalarSqlFunction, createTableSqlFunctions}
 import org.apache.flink.table.functions.{ScalarFunction, TableFunction}
 import org.apache.flink.table.plan.cost.DataSetCostFactory
 import org.apache.flink.table.plan.logical.{CatalogNode, LogicalRelNode}
-import org.apache.flink.table.plan.schema.{RelTable, TableSourceTable}
+import org.apache.flink.table.plan.schema.RelTable
+import org.apache.flink.table.runtime.MapRunner
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.sources.{DefinedFieldNames, TableSource}
 import org.apache.flink.table.validate.FunctionCatalog
+import org.apache.flink.types.Row
 
 import _root_.scala.collection.JavaConverters._
 
@@ -466,6 +469,113 @@ abstract class TableEnvironment(val config: TableConfig) {
     (fieldNames.toArray, fieldIndexes.toArray)
   }
 
+  /**
+    * Creates a final converter that maps the internal row type to external type.
+    */
+  protected def sinkConversion[T](
+      physicalRowTypeInfo: TypeInformation[Row],
+      logicalRowType: RelDataType,
+      expectedTypeInfo: TypeInformation[T],
+      functionName: String)
+    : Option[MapFunction[Row, T]] = {
+
+    // validate that at least the field types of physical and logical type match
+    // we do that here to make sure that plan translation was correct
+    val logicalRowTypeInfo = FlinkTypeFactory.toInternalRowTypeInfo(logicalRowType)
+    if (physicalRowTypeInfo != logicalRowTypeInfo) {
+      throw TableException("The field types of physical and logical row types do not match." +
+        "This is a bug and should not happen. Please file an issue.")
+    }
+
+    // expected type is a row, no conversion needed
+    // TODO this logic will change with FLINK-5429
+    if (expectedTypeInfo.getTypeClass == classOf[Row]) {
+      return None
+    }
+
+    // convert to type information
+    val logicalFieldTypes = logicalRowType.getFieldList.asScala map { relDataType =>
+      FlinkTypeFactory.toTypeInfo(relDataType.getType)
+    }
+    // field names
+    val logicalFieldNames = logicalRowType.getFieldNames.asScala
+
+    // validate expected type
+    if (expectedTypeInfo.getArity != logicalFieldTypes.length) {
+      throw new TableException("Arity of result does not match expected type.")
+    }
+    expectedTypeInfo match {
+
+      // POJO type expected
+      case pt: PojoTypeInfo[_] =>
+        logicalFieldNames.zip(logicalFieldTypes) foreach {
+          case (fName, fType) =>
+            val pojoIdx = pt.getFieldIndex(fName)
+            if (pojoIdx < 0) {
+              throw new TableException(s"POJO does not define field name: $fName")
+            }
+            val expectedTypeInfo = pt.getTypeAt(pojoIdx)
+            if (fType != expectedTypeInfo) {
+              throw new TableException(s"Result field does not match expected type. " +
+                s"Expected: $expectedTypeInfo; Actual: $fType")
+            }
+        }
+
+      // Tuple/Case class type expected
+      case ct: CompositeType[_] =>
+        logicalFieldTypes.zipWithIndex foreach {
+          case (fieldTypeInfo, i) =>
+            val expectedTypeInfo = ct.getTypeAt(i)
+            if (fieldTypeInfo != expectedTypeInfo) {
+              throw new TableException(s"Result field does not match expected type. " +
+                s"Expected: $expectedTypeInfo; Actual: $fieldTypeInfo")
+            }
+        }
+
+      // Atomic type expected
+      case at: AtomicType[_] =>
+        val fieldTypeInfo = logicalFieldTypes.head
+        if (fieldTypeInfo != at) {
+          throw new TableException(s"Result field does not match expected type. " +
+            s"Expected: $at; Actual: $fieldTypeInfo")
+        }
+
+      case _ =>
+        throw new TableException(s"Unsupported result type: $expectedTypeInfo")
+    }
+
+    // code generate MapFunction
+    val generator = new CodeGenerator(
+      config,
+      false,
+      physicalRowTypeInfo,
+      None,
+      None)
+
+    val conversion = generator.generateConverterResultExpression(
+      expectedTypeInfo,
+      logicalFieldNames)
+
+    val body =
+      s"""
+         |${conversion.code}
+         |return ${conversion.resultTerm};
+         |""".stripMargin
+
+    val genFunction = generator.generateFunction(
+      functionName,
+      classOf[MapFunction[Row, T]],
+      body,
+      expectedTypeInfo)
+
+    val mapFunction = new MapRunner[Row, T](
+      genFunction.name,
+      genFunction.code,
+      genFunction.returnType)
+
+    Some(mapFunction)
+  }
+
 }
 
 /**
@@ -623,7 +733,7 @@ object TableEnvironment {
     validateType(inputType)
 
     inputType match {
-      case t: CompositeType[_] => 0.until(t.getArity).map(t.getTypeAt(_)).toArray
+      case t: CompositeType[_] => 0.until(t.getArity).map(t.getTypeAt).toArray
       case a: AtomicType[_] => Array(a.asInstanceOf[TypeInformation[_]])
       case tpe =>
         throw new TableException(s"Currently only CompositeType and AtomicType are supported.")

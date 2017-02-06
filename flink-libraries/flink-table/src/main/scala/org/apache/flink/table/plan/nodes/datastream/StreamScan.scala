@@ -19,17 +19,13 @@
 package org.apache.flink.table.plan.nodes.datastream
 
 import org.apache.calcite.plan._
-import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.TableScan
-import org.apache.flink.api.common.functions.MapFunction
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.PojoTypeInfo
-import org.apache.flink.table.codegen.CodeGenerator
-import org.apache.flink.table.plan.schema.FlinkTable
-import org.apache.flink.table.runtime.MapRunner
-import org.apache.flink.table.typeutils.TypeConverter.determineReturnType
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.TableConfig
+import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.plan.nodes.CommonScan
+import org.apache.flink.table.plan.schema.FlinkTable
+import org.apache.flink.types.Row
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -39,69 +35,37 @@ abstract class StreamScan(
     traitSet: RelTraitSet,
     table: RelOptTable)
   extends TableScan(cluster, traitSet, table)
+  with CommonScan
   with DataStreamRel {
 
-  protected def convertToExpectedType(
+  protected def convertToInternalRow(
       input: DataStream[Any],
       flinkTable: FlinkTable[_],
-      expectedType: Option[TypeInformation[Any]],
-      config: TableConfig): DataStream[Any] = {
+      config: TableConfig)
+    : DataStream[Row] = {
 
     val inputType = input.getType
 
-    expectedType match {
+    val internalType = FlinkTypeFactory.toInternalRowTypeInfo(getRowType)
 
-      // special case:
-      // if efficient type usage is enabled and no expected type is set
-      // we can simply forward the DataSet to the next operator.
-      // however, we cannot forward PojoTypes as their fields don't have an order
-      case None if config.getEfficientTypeUsage && !inputType.isInstanceOf[PojoTypeInfo[_]] =>
-        input
+    // conversion
+    if (needsConversion(inputType, internalType)) {
 
-      case _ =>
-        val determinedType = determineReturnType(
-          getRowType,
-          expectedType,
-          config.getNullCheck,
-          config.getEfficientTypeUsage)
+      val mapFunc = getConversionMapper(
+        config,
+        inputType,
+        internalType,
+        "DataStreamSourceConversion",
+        getRowType.getFieldNames,
+        Some(flinkTable.fieldIndexes))
 
-        // conversion
-        if (determinedType != inputType) {
-          val generator = new CodeGenerator(
-            config,
-            nullableInput = false,
-            input.getType,
-            flinkTable.fieldIndexes)
+      val opName = s"from: (${getRowType.getFieldNames.asScala.toList.mkString(", ")})"
 
-          val conversion = generator.generateConverterResultExpression(
-            determinedType,
-            getRowType.getFieldNames)
-
-          val body =
-            s"""
-               |${conversion.code}
-               |return ${conversion.resultTerm};
-               |""".stripMargin
-
-          val genFunction = generator.generateFunction(
-            "DataSetSourceConversion",
-            classOf[MapFunction[Any, Any]],
-            body,
-            determinedType)
-
-          val mapFunc = new MapRunner[Any, Any](
-            genFunction.name,
-            genFunction.code,
-            genFunction.returnType)
-
-          val opName = s"from: (${getRowType.getFieldNames.asScala.toList.mkString(", ")})"
-
-          input.map(mapFunc).name(opName)
-        }
-        // no conversion necessary, forward
-        else {
-          input
-        }
+      input.map(mapFunc).name(opName)
+    }
+    // no conversion necessary, forward
+    else {
+      input.asInstanceOf[DataStream[Row]]
     }
   }
 }

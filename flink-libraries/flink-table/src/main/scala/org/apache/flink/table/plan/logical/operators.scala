@@ -22,14 +22,13 @@ import java.util
 
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.CorrelationId
-import org.apache.calcite.rel.logical.{LogicalProject, LogicalTableFunctionScan}
+import org.apache.calcite.rel.core.{CorrelationId, JoinRelType}
+import org.apache.calcite.rel.logical.LogicalTableFunctionScan
 import org.apache.calcite.rex.{RexInputRef, RexNode}
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.join.JoinType
-import org.apache.flink.table._
 import org.apache.flink.table.api.{StreamTableEnvironment, TableEnvironment, UnresolvedException}
 import org.apache.flink.table.calcite.{FlinkRelBuilder, FlinkTypeFactory}
 import org.apache.flink.table.expressions._
@@ -37,7 +36,6 @@ import org.apache.flink.table.functions.TableFunction
 import org.apache.flink.table.functions.utils.TableSqlFunction
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.plan.schema.FlinkTableFunctionImpl
-import org.apache.flink.table.typeutils.TypeConverter
 import org.apache.flink.table.validate.{ValidationFailure, ValidationSuccess}
 
 import scala.collection.JavaConverters._
@@ -426,9 +424,16 @@ case class Join(
     }
 
     relBuilder.join(
-      TypeConverter.flinkJoinTypeToRelType(joinType),
+      convertJoinType(joinType),
       condition.map(_.toRexNode(relBuilder)).getOrElse(relBuilder.literal(true)),
       corSet.asJava)
+  }
+
+  private def convertJoinType(joinType: JoinType) = joinType match {
+    case JoinType.INNER => JoinRelType.INNER
+    case JoinType.LEFT_OUTER => JoinRelType.LEFT
+    case JoinType.RIGHT_OUTER => JoinRelType.RIGHT
+    case JoinType.FULL_OUTER => JoinRelType.FULL
   }
 
   private def ambiguousName: Set[String] =
@@ -481,13 +486,12 @@ case class Join(
         if (checkIfFilterCondition(x)) {
           localPredicateFound = true
         }
-      case x: BinaryComparison => {
+      case x: BinaryComparison =>
         if (checkIfFilterCondition(x)) {
           localPredicateFound = true
         } else {
           nonEquiJoinPredicateFound = true
         }
-      }
       case x => failValidation(
         s"Unsupported condition type: ${x.getClass.getSimpleName}. Condition: $x")
     }

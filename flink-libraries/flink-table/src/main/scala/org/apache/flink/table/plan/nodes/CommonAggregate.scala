@@ -26,7 +26,7 @@ import org.apache.flink.table.runtime.aggregate.AggregateUtil._
 
 import scala.collection.JavaConverters._
 
-trait FlinkAggregate {
+trait CommonAggregate {
 
   private[flink] def groupingToString(inputType: RelDataType, grouping: Array[Int]): String = {
 
