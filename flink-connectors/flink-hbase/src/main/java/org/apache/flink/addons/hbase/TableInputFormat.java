@@ -52,7 +52,7 @@ public abstract class TableInputFormat<T extends Tuple> extends AbstractTableInp
 	 * @param r The Result instance from HBase that needs to be converted
 	 * @return The approriate instance of {@link Tuple} that contains the needed information.
 	 */
-	protected abstract T mapResultToType(Result r);
+	protected abstract T mapResultToTuple(Result r);
 
 	/**
 	 * Creates a {@link Scan} object and opens the {@link HTable} connection.
@@ -85,5 +85,9 @@ public abstract class TableInputFormat<T extends Tuple> extends AbstractTableInp
 			LOG.error("Error instantiating a new HTable instance", e);
 		}
 		return null;
+	}
+
+	protected T mapResultToOutType(Result r) {
+		return mapResultToTuple(r);
 	}
 }

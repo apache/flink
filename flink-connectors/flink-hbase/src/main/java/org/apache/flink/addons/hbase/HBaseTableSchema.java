@@ -17,20 +17,14 @@
  */
 package org.apache.flink.addons.hbase;
 
-import com.google.common.collect.ImmutableCollection;
-import com.google.common.collect.ImmutableList;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.util.Preconditions;
-import org.apache.hadoop.hbase.util.Bytes;
 
 import java.io.Serializable;
-import java.math.BigDecimal;
-import java.math.BigInteger;
-import java.sql.Time;
+import java.nio.charset.Charset;
+import java.util.LinkedHashMap;
 import java.util.Map;
-import java.sql.Date;
-import java.util.TreeMap;
 
 /**
  * Helps to specify an HBase Table's schema
@@ -38,17 +32,13 @@ import java.util.TreeMap;
 public class HBaseTableSchema implements Serializable {
 
 	// A Map with key as column family.
-	// Guarantees natural ordering
-	private final Map<String, Map<String, TypeInformation<?>>> familyMap =
-		new TreeMap<>();
+	private final Map<String, Map<String, TypeInformation<?>>> familyMap = new LinkedHashMap<>();
 
-	// Allowed types. This may change.
-	private static ImmutableCollection<Class<?>> CLASS_TYPES = ImmutableList.<Class<?>>of(
-		Integer.class, Short.class, Float.class, Long.class, String.class, Byte.class, Boolean.class, Double.class, BigInteger.class, BigDecimal.class, Date.class, Time.class, byte[].class
-	);
+	// charset to parse HBase keys and strings. UTF-8 by default.
+	private String charset = "UTF-8";
 
 	/**
-	 * Allows specifying the family and qualifier name along with the data type of the qualifier for an HBase table
+	 * Adds a column defined by family, qualifier, and type to the table schema.
 	 *
 	 * @param family    the family name
 	 * @param qualifier the qualifier name
@@ -58,76 +48,138 @@ public class HBaseTableSchema implements Serializable {
 		Preconditions.checkNotNull(family, "family name");
 		Preconditions.checkNotNull(qualifier, "qualifier name");
 		Preconditions.checkNotNull(clazz, "class type");
-		Map<String, TypeInformation<?>> map = this.familyMap.get(family);
-		if (map == null) {
-			map = new TreeMap<>();
-		}
-		if (!CLASS_TYPES.contains(clazz)) {
+		Map<String, TypeInformation<?>> qualifierMap = this.familyMap.get(family);
+
+		if (!HBaseRowInputFormat.isSupportedType(clazz)) {
 			// throw exception
-			throw new IllegalArgumentException("Unsupported class type found " + clazz+". Better to use byte[].class and deserialize using user defined scalar functions");
+			throw new IllegalArgumentException("Unsupported class type found " + clazz+". " +
+				"Better to use byte[].class and deserialize using user defined scalar functions");
 		}
-		map.put(qualifier, TypeExtractor.getForClass(clazz));
-		familyMap.put(family, map);
+
+		if (qualifierMap == null) {
+			qualifierMap = new LinkedHashMap<>();
+		}
+		qualifierMap.put(qualifier, TypeExtractor.getForClass(clazz));
+		familyMap.put(family, qualifierMap);
 	}
 
+	/**
+	 * Sets the charset for value strings and HBase identifiers.
+	 *
+	 * @param charset the charset for value strings and HBase identifiers.
+	 */
+	void setCharset(String charset) {
+		this.charset = charset;
+	}
+
+	/**
+	 * Returns the names of all registered column families.
+	 *
+	 * @return The names of all registered column families.
+	 */
 	String[] getFamilyNames() {
 		return this.familyMap.keySet().toArray(new String[this.familyMap.size()]);
 	}
 
-	String[] getQualifierNames(String family) {
-		Map<String, TypeInformation<?>> colDetails = familyMap.get(family);
-		String[] qualifierNames = new String[colDetails.size()];
+	/**
+	 * Returns the HBase identifiers of all registered column families.
+	 *
+	 * @return The HBase identifiers of all registered column families.
+	 */
+	byte[][] getFamilyKeys() {
+		Charset c = Charset.forName(charset);
+
+		byte[][] familyKeys = new byte[this.familyMap.size()][];
 		int i = 0;
-		for (String qualifier: colDetails.keySet()) {
+		for(String name : this.familyMap.keySet()) {
+			familyKeys[i++] = name.getBytes(c);
+		}
+		return familyKeys;
+	}
+
+	/**
+	 * Returns the names of all registered column qualifiers of a specific column family.
+	 *
+	 * @param family The name of the column family for which the column qualifier names are returned.
+	 * @return The names of all registered column qualifiers of a specific column family.
+	 */
+	String[] getQualifierNames(String family) {
+		Map<String, TypeInformation<?>> qualifierMap = familyMap.get(family);
+
+		if (qualifierMap == null) {
+			throw new IllegalArgumentException("Family " + family + " does not exist in schema.");
+		}
+
+		String[] qualifierNames = new String[qualifierMap.size()];
+		int i = 0;
+		for (String qualifier: qualifierMap.keySet()) {
 			qualifierNames[i] = qualifier;
 			i++;
 		}
 		return qualifierNames;
 	}
 
-	TypeInformation<?>[] getQualifierTypes(String family) {
-		Map<String, TypeInformation<?>> colDetails = familyMap.get(family);
-		TypeInformation<?>[] typeInformations = new TypeInformation[colDetails.size()];
-		int i = 0;
-		for (TypeInformation<?> typeInfo : colDetails.values()) {
-			typeInformations[i] = typeInfo;
-			i++;
+	/**
+	 * Returns the HBase identifiers of all registered column qualifiers for a specific column family.
+	 *
+	 * @param family The name of the column family for which the column qualifier identifiers are returned.
+	 * @return The HBase identifiers of all registered column qualifiers for a specific column family.
+	 */
+	byte[][] getQualifierKeys(String family) {
+		Map<String, TypeInformation<?>> qualifierMap = familyMap.get(family);
+
+		if (qualifierMap == null) {
+			throw new IllegalArgumentException("Family " + family + " does not exist in schema.");
 		}
-		return typeInformations;
+		Charset c = Charset.forName(charset);
+
+		byte[][] qualifierKeys = new byte[qualifierMap.size()][];
+		int i = 0;
+		for(String name : qualifierMap.keySet()) {
+			qualifierKeys[i++] = name.getBytes(c);
+		}
+		return qualifierKeys;
 	}
 
+	/**
+	 * Returns the types of all registered column qualifiers of a specific column family.
+	 *
+	 * @param family The name of the column family for which the column qualifier types are returned.
+	 * @return The types of all registered column qualifiers of a specific column family.
+	 */
+	TypeInformation<?>[] getQualifierTypes(String family) {
+		Map<String, TypeInformation<?>> qualifierMap = familyMap.get(family);
+
+		if (qualifierMap == null) {
+			throw new IllegalArgumentException("Family " + family + " does not exist in schema.");
+		}
+
+		TypeInformation<?>[] typeInformation = new TypeInformation[qualifierMap.size()];
+		int i = 0;
+		for (TypeInformation<?> typeInfo : qualifierMap.values()) {
+			typeInformation[i] = typeInfo;
+			i++;
+		}
+		return typeInformation;
+	}
+
+	/**
+	 * Returns the names and types of all registered column qualifiers of a specific column family.
+	 *
+	 * @param family The name of the column family for which the column qualifier names and types are returned.
+	 * @return The names and types of all registered column qualifiers of a specific column family.
+	 */
 	Map<String, TypeInformation<?>> getFamilyInfo(String family) {
 		return familyMap.get(family);
 	}
 
-	Object deserialize(byte[] value, TypeInformation<?> typeInfo) {
-		if (typeInfo.isBasicType()) {
-			if (typeInfo.getTypeClass() == Integer.class) {
-				return Bytes.toInt(value);
-			} else if (typeInfo.getTypeClass() == Short.class) {
-				return Bytes.toShort(value);
-			} else if (typeInfo.getTypeClass() == Float.class) {
-				return Bytes.toFloat(value);
-			} else if (typeInfo.getTypeClass() == Long.class) {
-				return Bytes.toLong(value);
-			} else if (typeInfo.getTypeClass() == String.class) {
-				return Bytes.toString(value);
-			} else if (typeInfo.getTypeClass() == Byte.class) {
-				return value[0];
-			} else if (typeInfo.getTypeClass() == Boolean.class) {
-				return Bytes.toBoolean(value);
-			} else if (typeInfo.getTypeClass() == Double.class) {
-				return Bytes.toDouble(value);
-			} else if (typeInfo.getTypeClass() == BigInteger.class) {
-				return new BigInteger(value);
-			} else if (typeInfo.getTypeClass() == BigDecimal.class) {
-				return Bytes.toBigDecimal(value);
-			} else if (typeInfo.getTypeClass() == Date.class) {
-				return new Date(Bytes.toLong(value));
-			} else if (typeInfo.getTypeClass() == Time.class) {
-				return new Time(Bytes.toLong(value));
-			}
-		}
-		return value;
+	/**
+	 * Returns the charset for value strings and HBase identifiers.
+	 *
+	 * @return The charset for value strings and HBase identifiers.
+	 */
+	String getStringCharset() {
+		return this.charset;
 	}
+
 }
