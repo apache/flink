@@ -23,6 +23,7 @@ import org.apache.calcite.rex._
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 object RexProgramRewriter {
 
@@ -66,6 +67,43 @@ object RexProgramRewriter {
       rexBuilder
     )
   }
+
+  /**
+    * Extracts the name of nested input fields accessed by the RexProgram.
+    *
+    * @param rexProgram The RexProgram to analyze
+    * @return The indexes of accessed input fields
+    */
+  def extractRefNestedInputFields(rexProgram: RexProgram, usedFields: Array[Int]): Array[String] = {
+    val visitor = new RefFieldAccessorVisitor(usedFields)
+    rexProgram.getProjectList.foreach(exp => rexProgram.expandLocalRef(exp).accept(visitor))
+    val condition = rexProgram.getCondition
+    if (condition != null) {
+      rexProgram.expandLocalRef(condition).accept(visitor)
+    }
+    visitor.getNestedFields
+  }
+}
+
+/**
+  * A RexVisitor to extract used nested input fields
+  */
+class RefFieldAccessorVisitor(fields: Array[Int]) extends RexVisitorImpl[Unit](true) {
+  private var nestedFields = mutable.LinkedHashSet[String]()
+  private val group = fields.toList
+
+  def getNestedFields: Array[String] = nestedFields.toArray
+
+  override def visitFieldAccess(fieldAccess: RexFieldAccess): Unit =
+    nestedFields += fieldAccess.getField.getName
+
+  override def visitInputRef(inputRef: RexInputRef): Unit =
+    if (group.contains(inputRef.getIndex)) {
+      inputRef.getType.getFieldList.foreach(f => nestedFields += f.getName)
+    }
+
+  override def visitCall(call: RexCall): Unit =
+    call.operands.foreach(operand => operand.accept(this))
 }
 
 /**
