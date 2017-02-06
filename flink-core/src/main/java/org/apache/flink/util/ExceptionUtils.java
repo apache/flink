@@ -33,8 +33,13 @@ import java.io.StringWriter;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
+/**
+ * A collection of utility functions for dealing with exceptions and exception workflows.
+ */
 @Internal
 public final class ExceptionUtils {
+
+	/** The stringified representation of a null exception reference */ 
 	public static final String STRINGIFIED_NULL_EXCEPTION = "(null)";
 
 	/**
@@ -61,6 +66,38 @@ public final class ExceptionUtils {
 		catch (Throwable t) {
 			return e.getClass().getName() + " (error while printing stack trace)";
 		}
+	}
+
+	/**
+	 * Checks whether the given exception indicates a situation that may leave the
+	 * JVM in a corrupted state, meaning a state where continued normal operation can only be
+	 * guaranteed via clean process restart.
+	 *
+	 * <p>Currently considered fatal exceptions are Virtual Machine errors indicating
+	 * that the JVM is corrupted, like {@link InternalError}, {@link UnknownError},
+	 * and {@link java.util.zip.ZipError} (a special case of InternalError).
+	 *
+	 * @param t The exception to check.
+	 * @return True, if the exception is considered fatal to the JVM, false otherwise.
+	 */
+	public static boolean isJvmFatalError(Throwable t) {
+		return (t instanceof InternalError) || (t instanceof UnknownError);
+	}
+
+	/**
+	 * Checks whether the given exception indicates a situation that may leave the
+	 * JVM in a corrupted state, or an out-of-memory error.
+	 * 
+	 * <p>See {@link ExceptionUtils#isJvmFatalError(Throwable)} for a list of fatal JVM errors.
+	 * This method additionally classifies the {@link OutOfMemoryError} as fatal, because it
+	 * may occur in any thread (not the one that allocated the majority of the memory) and thus
+	 * is often not recoverable by destroying the particular thread that threw the exception.
+	 * 
+	 * @param t The exception to check.
+	 * @return True, if the exception is fatal to the JVM or and OutOfMemoryError, false otherwise.
+	 */
+	public static boolean isJvmFatalOrOutOfMemoryError(Throwable t) {
+		return isJvmFatalError(t) || t instanceof OutOfMemoryError;
 	}
 
 	/**

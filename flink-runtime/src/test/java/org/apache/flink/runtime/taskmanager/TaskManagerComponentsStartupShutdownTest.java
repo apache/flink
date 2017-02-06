@@ -109,7 +109,8 @@ public class TaskManagerComponentsStartupShutdownTest {
 				Time.seconds(30),
 				Time.seconds(10),
 				1000000, // cleanup interval
-				config);
+				config,
+				false); // exit-jvm-on-fatal-error
 
 			final NetworkEnvironmentConfiguration netConf = new NetworkEnvironmentConfiguration(
 					32, BUFFER_SIZE, MemoryType.HEAP, IOManager.IOMode.SYNC, 0, 0, null);
