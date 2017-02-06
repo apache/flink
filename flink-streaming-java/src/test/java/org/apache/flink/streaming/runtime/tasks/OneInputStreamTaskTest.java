@@ -235,6 +235,85 @@ public class OneInputStreamTaskTest extends TestLogger {
 	}
 
 	/**
+	 * This test verifies that generated watermarks are ignored and not forwarded when the task is idle.
+	 */
+	@Test
+	public void testIgnoresGeneratedWatermarksWhenIdle() throws Exception {
+		final OneInputStreamTask<String, String> testTask = new OneInputStreamTask<>();
+		final OneInputStreamTaskTestHarness<String, String> testHarness =
+			new OneInputStreamTaskTestHarness<String, String>(
+				testTask, 1, 1,
+				BasicTypeInfo.STRING_TYPE_INFO,
+				BasicTypeInfo.STRING_TYPE_INFO);
+
+		StreamConfig streamConfig = testHarness.getStreamConfig();
+
+		// this watermark generator simply emits long-value string values it receives as watermark
+		WatermarkGeneratingTestOperator watermarkGeneratingTestOperator = new WatermarkGeneratingTestOperator();
+		streamConfig.setStreamOperator(watermarkGeneratingTestOperator);
+
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<Object>();
+
+		testHarness.invoke();
+		testHarness.waitForTaskRunning();
+
+		// the task starts as active, so all generated watermarks should be forwarded
+		testHarness.processElement(new StreamRecord<>("10"), 0, 0);
+		testHarness.processElement(new StreamRecord<>("20"), 0, 0);
+		testHarness.processElement(new StreamRecord<>("30"), 0, 0);
+		testHarness.waitForInputProcessing();
+
+		expectedOutput.add(new StreamRecord<>("10"));
+		expectedOutput.add(new Watermark(10));
+		expectedOutput.add(new StreamRecord<>("20"));
+		expectedOutput.add(new Watermark(20));
+		expectedOutput.add(new StreamRecord<>("30"));
+		expectedOutput.add(new Watermark(30));
+		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
+
+		// now, toggle the task to be idle, and let the watermark generator produce some watermarks
+		testHarness.processElement(StreamStatus.IDLE);
+
+		// NOTE: normally, tasks will not have records to process while idle;
+		// we're doing this here only to mimic watermark generating in operators
+		testHarness.processElement(new StreamRecord<>("40"), 0, 0);
+		testHarness.processElement(new StreamRecord<>("50"), 0, 0);
+		testHarness.processElement(new StreamRecord<>("60"), 0, 0);
+		testHarness.waitForInputProcessing();
+
+		// the 40 - 60 watermarks should not be forwarded, only the stream status toggle element and records
+		expectedOutput.add(StreamStatus.IDLE);
+		expectedOutput.add(new StreamRecord<>("40"));
+		expectedOutput.add(new StreamRecord<>("50"));
+		expectedOutput.add(new StreamRecord<>("60"));
+		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
+
+		// re-toggle the task to be active and see if new watermarks are correctly forwarded again
+		testHarness.processElement(StreamStatus.ACTIVE);
+
+		testHarness.processElement(new StreamRecord<>("70"), 0, 0);
+		testHarness.processElement(new StreamRecord<>("80"), 0, 0);
+		testHarness.processElement(new StreamRecord<>("90"), 0, 0);
+		testHarness.waitForInputProcessing();
+
+		expectedOutput.add(StreamStatus.ACTIVE);
+		expectedOutput.add(new StreamRecord<>("70"));
+		expectedOutput.add(new Watermark(70));
+		expectedOutput.add(new StreamRecord<>("80"));
+		expectedOutput.add(new Watermark(80));
+		expectedOutput.add(new StreamRecord<>("90"));
+		expectedOutput.add(new Watermark(90));
+		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
+
+		testHarness.endInput();
+
+		testHarness.waitForTaskCompletion();
+
+		List<String> resultElements = TestHarnessUtil.getRawElementsFromOutput(testHarness.getOutput());
+		assertEquals(9, resultElements.size());
+	}
+
+	/**
 	 * This test verifies that checkpoint barriers are correctly forwarded.
 	 */
 	@Test
@@ -687,6 +766,20 @@ public class OneInputStreamTaskTest extends TestLogger {
 		public String map(String value) throws Exception {
 			return value;
 		}
+	}
+
+	private static class WatermarkGeneratingTestOperator
+			extends AbstractStreamOperator<String>
+			implements OneInputStreamOperator<String, String> {
+
+		private static final long serialVersionUID = -5064871833244157221L;
+
+		@Override
+		public void processElement(StreamRecord<String> element) throws Exception {
+			output.collect(element);
+			output.emitWatermark(new Watermark(Long.valueOf(element.getValue())));
+		}
+
 	}
 }
 
