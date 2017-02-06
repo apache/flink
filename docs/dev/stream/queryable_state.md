@@ -214,9 +214,9 @@ config.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, queryPort);
 QueryableStateClient client = new QueryableStateClient(config);
 
 final TypeSerializer<Long> keySerializer =
-        TypeInformation.of(new TypeHint<Long>() {}).createSerializer(null);
+        TypeInformation.of(new TypeHint<Long>() {}).createSerializer(new ExecutionConfig());
 final TypeSerializer<Tuple2<Long, Long>> valueSerializer =
-        TypeInformation.of(new TypeHint<Tuple2<Long, Long>>() {}).createSerializer(null);
+        TypeInformation.of(new TypeHint<Tuple2<Long, Long>>() {}).createSerializer(new ExecutionConfig());
 
 final byte[] serializedKey =
         KvStateRequestSerializer.serializeKeyAndNamespace(
