@@ -827,7 +827,10 @@ public class AsyncWaitOperatorTest extends TestLogger {
 
 		Environment environment = mock(Environment.class);
 		when(environment.getMetricGroup()).thenReturn(new UnregisteredTaskMetricsGroup());
-		when(environment.getTaskManagerInfo()).thenReturn(new TestingTaskManagerRuntimeInfo());
+		when(environment.getTaskManagerInfo()).thenReturn(new TaskManagerRuntimeInfo(
+			"localhost",
+			new Configuration(),
+			System.getProperty("java.io.tmpdir")));
 		when(environment.getUserClassLoader()).thenReturn(getClass().getClassLoader());
 		when(environment.getTaskInfo()).thenReturn(new TaskInfo(
 			"testTask",
