@@ -37,12 +37,6 @@ class TableConfig {
   private var nullCheck: Boolean = true
 
   /**
-    * Defines if efficient types (such as Tuple types or Atomic types)
-    * should be used within operators where possible.
-    */
-  private var efficientTypeUsage = false
-
-  /**
     * Defines the configuration of Calcite for Table API and SQL queries.
     */
   private var calciteConfig = CalciteConfig.DEFAULT
@@ -70,24 +64,6 @@ class TableConfig {
    */
   def setNullCheck(nullCheck: Boolean): Unit = {
     this.nullCheck = nullCheck
-  }
-
-  /**
-    * Returns the usage of efficient types. If enabled, efficient types (such as Tuple types
-    * or Atomic types) are used within operators where possible.
-    *
-    * NOTE: Currently, this is an experimental feature.
-    */
-  def getEfficientTypeUsage = efficientTypeUsage
-
-  /**
-    * Sets the usage of efficient types. If enabled, efficient types (such as Tuple types
-    * or Atomic types) are used within operators where possible.
-    *
-    * NOTE: Currently, this is an experimental feature.
-    */
-  def setEfficientTypeUsage(efficientTypeUsage: Boolean): Unit = {
-    this.efficientTypeUsage = efficientTypeUsage
   }
 
   /**
