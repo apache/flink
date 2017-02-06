@@ -354,11 +354,8 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 					}
 				});
 
-				// drop if the window is already late
-				if (isLate(actualWindow)) {
-					mergingWindows.retireWindow(actualWindow);
-					continue;
-				}
+				context.key = key;
+				context.window = actualWindow;
 
 				W stateWindow = mergingWindows.getStateWindow(actualWindow);
 				if (stateWindow == null) {
@@ -366,10 +363,17 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 				}
 
 				windowState.setCurrentNamespace(stateWindow);
-				windowState.add(element.getValue());
 
-				context.key = key;
-				context.window = actualWindow;
+				// Drop if the window is already late. In rare cases (with a misbehaving
+				// WindowAssigner) it can happen that a window becomes late that already has
+				// state (contents, state and timers). That's why we first get the window state
+				// above and then drop everything.
+				if (isLate(actualWindow)) {
+					clearAllState(actualWindow, windowState, mergingWindows);
+					continue;
+				}
+
+				windowState.add(element.getValue());
 
 				TriggerResult triggerResult = context.onElement(element);
 
@@ -528,11 +532,11 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 			W window,
 			AppendingState<IN, ACC> windowState,
 			MergingWindowSet<W> mergingWindows) throws Exception {
+		Preconditions.checkNotNull(windowState, "Window is null, this indicates a bug.");
 		windowState.clear();
 		context.clear();
 		if (mergingWindows != null) {
 			mergingWindows.retireWindow(window);
-			mergingWindows.persist();
 		}
 	}
 
@@ -563,7 +567,11 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	 * of the given window.
 	 */
 	protected boolean isLate(W window) {
-		return (windowAssigner.isEventTime() && (cleanupTime(window) <= internalTimerService.currentWatermark()));
+		if (windowAssigner.isEventTime()) {
+			return cleanupTime(window) <= internalTimerService.currentWatermark();
+		} else {
+			return cleanupTime(window) <= internalTimerService.currentProcessingTime();
+		}
 	}
 
 	/**

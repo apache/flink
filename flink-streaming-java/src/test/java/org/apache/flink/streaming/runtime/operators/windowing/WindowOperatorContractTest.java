@@ -1507,6 +1507,104 @@ public class WindowOperatorContractTest extends TestLogger {
 	}
 
 	@Test
+	public void testCorrectCleanupWithMisbehavingEventTimeWindowAssigner() throws Exception {
+		testCorrectCleanupWithMisbehavingWindowAssigner(new EventTimeAdaptor());
+	}
+
+	@Test
+	public void testCorrectCleanupWithMisbehavingProcessingTimeWindowAssigner() throws Exception {
+		testCorrectCleanupWithMisbehavingWindowAssigner(new ProcessingTimeAdaptor());
+	}
+
+	/**
+	 * A misbehaving {@code WindowAssigner} can cause a window to become late by merging if
+	 * it moves the end-of-window time before the watermark. The window operator has to correctly
+	 * clean up all state for such a window.
+	 */
+	public void testCorrectCleanupWithMisbehavingWindowAssigner(final TimeDomainAdaptor timeAdaptor) throws Exception {
+
+		MergingWindowAssigner<Integer, TimeWindow> mockAssigner = mockMergingAssigner();
+		timeAdaptor.setIsEventTime(mockAssigner);
+		Trigger<Integer, TimeWindow> mockTrigger = mockTrigger();
+		InternalWindowFunction<Iterable<Integer>, Void, Integer, TimeWindow> mockWindowFunction = mockWindowFunction();
+
+		KeyedOneInputStreamOperatorTestHarness<Integer, Integer, Void> testHarness =
+				createWindowOperator(mockAssigner, mockTrigger, 0L, intListDescriptor, mockWindowFunction);
+
+		testHarness.open();
+
+		timeAdaptor.advanceTime(testHarness, 5);
+
+		assertEquals(0, testHarness.extractOutputStreamRecords().size());
+		assertEquals(0, testHarness.numKeyedStateEntries());
+
+		doAnswer(new Answer<TriggerResult>() {
+			@Override
+			public TriggerResult answer(InvocationOnMock invocation) throws Exception {
+				TimeWindow window = (TimeWindow) invocation.getArguments()[2];
+				Trigger.TriggerContext context = (Trigger.TriggerContext) invocation.getArguments()[3];
+				timeAdaptor.registerTimer(context, window.maxTimestamp());
+				context.getPartitionedState(valueStateDescriptor).update("hello");
+				return TriggerResult.CONTINUE;
+			}
+		}).when(mockTrigger).onElement(Matchers.<Integer>anyObject(), anyLong(), anyTimeWindow(), anyTriggerContext());
+
+		doAnswer(new Answer<TriggerResult>() {
+			@Override
+			public TriggerResult answer(InvocationOnMock invocation) throws Exception {
+				TimeWindow window = (TimeWindow) invocation.getArguments()[0];
+				Trigger.OnMergeContext context = (Trigger.OnMergeContext) invocation.getArguments()[1];
+				timeAdaptor.registerTimer(context, window.maxTimestamp());
+				context.getPartitionedState(valueStateDescriptor).update("hello");
+				return TriggerResult.CONTINUE;
+			}
+		}).when(mockTrigger).onMerge(anyTimeWindow(), anyOnMergeContext());
+
+		doAnswer(new Answer<Object>() {
+			@Override
+			public Object answer(InvocationOnMock invocation) throws Exception {
+				TimeWindow window = (TimeWindow) invocation.getArguments()[0];
+				Trigger.TriggerContext context = (Trigger.TriggerContext) invocation.getArguments()[1];
+				timeAdaptor.deleteTimer(context, window.maxTimestamp());
+				context.getPartitionedState(valueStateDescriptor).clear();
+				return null;
+			}
+		}).when(mockTrigger).clear(anyTimeWindow(), anyTriggerContext());
+
+		when(mockAssigner.assignWindows(anyInt(), anyLong(), anyAssignerContext()))
+				.thenReturn(Arrays.asList(new TimeWindow(8, 11)));
+
+		testHarness.processElement(new StreamRecord<>(0, 0L));
+
+		assertEquals(3, testHarness.numKeyedStateEntries()); // window state plus trigger state plus merging window set
+		assertEquals(1, timeAdaptor.numTimers(testHarness)); // cleanup timer == end-of-window timer
+
+		when(mockAssigner.assignWindows(anyInt(), anyLong(), anyAssignerContext()))
+				.thenReturn(Arrays.asList(new TimeWindow(10, 13)));
+
+		shouldMergeWindows(
+				mockAssigner,
+				Lists.newArrayList(new TimeWindow(8, 11), new TimeWindow(10, 13)),
+				Lists.newArrayList(new TimeWindow(8, 11), new TimeWindow(10, 13)),
+				new TimeWindow(4, 6));
+
+		testHarness.processElement(new StreamRecord<>(0, 0L));
+
+		assertEquals(0, testHarness.numKeyedStateEntries());
+		assertEquals(0, timeAdaptor.numTimers(testHarness));
+
+		assertEquals(0, testHarness.extractOutputStreamRecords().size());
+
+		// this would fire timers for windows that don't exist anymore. In an earlier version
+		// this would throw a NPE because the state was not properly cleaned up when
+		// there was a misbehaving WindowAssigner.
+		timeAdaptor.advanceTime(testHarness, 30);
+
+		assertEquals(0, timeAdaptor.numTimers(testHarness));
+
+	}
+
+	@Test
 	public void testMergingOfExistingEventTimeWindows() throws Exception {
 		testMergingOfExistingWindows(new EventTimeAdaptor());
 	}
