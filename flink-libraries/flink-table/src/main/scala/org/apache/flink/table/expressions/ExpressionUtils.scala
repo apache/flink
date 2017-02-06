@@ -157,12 +157,13 @@ object ExpressionUtils {
 
   /** Computes the rollup of bit sets.
     *
-    * <p>For example, <code>rollup({0}, {1})</code>
-    * returns <code>({0, 1}, {0}, {})</code>.
+    * For example, {{{ rollup({0}, {1}) }}}
+    * returns {{{ ({0, 1}, {0}, {}) }}}
     *
-    * <p>Bit sets are not necessarily singletons:
-    * <code>rollup({0, 2}, {3, 5})</code>
-    * returns <code>({0, 2, 3, 5}, {0, 2}, {})</code>. */
+    * Bit sets are not necessarily singletons:
+    * {{{ rollup({0, 2}, {3, 5}) }}}
+    * returns {{{ ({0, 2, 3, 5}, {0, 2}, {}) }}}.
+    */
   private[flink] def rollup(groups: Seq[Seq[Expression]]): Seq[Seq[Expression]] = {
     val originalBitSet = for (i <- groups.indices) yield {
       ImmutableBitSet.builder().set(i).build()
@@ -173,12 +174,13 @@ object ExpressionUtils {
 
   /** Computes the cube of bit sets.
     *
-    * <p>For example,  <code>rollup({0}, {1})</code>
-    * returns <code>({0, 1}, {0}, {})</code>.
+    * For example, {{{ cube({0}, {1}) }}}
+    * returns {{{ ({0, 1}, {0}, {1}, {}) }}}
     *
-    * <p>Bit sets are not necessarily singletons:
-    * <code>rollup({0, 2}, {3, 5})</code>
-    * returns <code>({0, 2, 3, 5}, {0, 2}, {})</code>. */
+    * Bit sets are not necessarily singletons:
+    * {{{ rollup({0, 2}, {3, 5}) }}}
+    * returns {{{ ({0, 2, 3, 5}, {0, 2}, {3, 5}, {}) }}}.
+    */
   private[flink] def cube(groups: Seq[Seq[Expression]]): Seq[Seq[Expression]] = {
     val originalBitSet = for (i <- groups.indices) yield {
       ImmutableBitSet.builder().set(i).build()

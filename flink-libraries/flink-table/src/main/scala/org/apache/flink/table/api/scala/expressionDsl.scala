@@ -725,34 +725,34 @@ object array {
 }
 
 /**
-  * Grouping function. Similar to a SQL GROUP_ID function.
+  * Returns an integer that uniquely identifies the combination of grouping keys.
   */
 object groupId {
 
   /**
-    * Return evaluated result of the function.
+    * Returns an integer that uniquely identifies the combination of grouping keys.
     */
   def apply(): Expression = GroupId()
 }
 
 /**
-  * Grouping function. Similar to a SQL GROUPING function.
+  * Returns 1 if expression is rolled up in the current row’s grouping set, 0 otherwise.
   */
 object grouping {
 
   /**
-    * Return evaluated result of the function.
+    * Returns 1 if expression is rolled up in the current row’s grouping set, 0 otherwise.
     */
   def apply(expression: Expression): Expression = Grouping(expression)
 }
 
 /**
-  * Grouping function. Similar to a SQL GROUPING function.
+  * Returns a bit vector of the given grouping expressions.
   */
 object groupingId {
 
   /**
-    * Return evaluated result of the function.
+    * Returns a bit vector of the given grouping expressions.
     */
   def apply(expression: Expression*): Expression = GroupingId(expression: _*)
 }

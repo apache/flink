@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.scala.batch.table
+package org.apache.flink.table.api.scala.batch
 
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets

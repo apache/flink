@@ -804,7 +804,7 @@ val result = in.groupingSets(('a, 'b), 'b, ()).select('a, 'b, 'c.sum as 'd);
     <tr>
       <td><strong>Cube</strong></td>
       <td>
-        <p>Similar to a SQL GROUP BY CUBE clause. A CUBE expression will generate subtotals for all combinations of the dimensions specified.</p>
+        <p>Similar to a SQL GROUP BY CUBE clause. A CUBE expression will generate subtotals for all combinations of the dimensions specified. E.g. .cube('a, 'b) is equivalent to .groupingSets(('a, 'b), ('a), ('b), ()).</p>
 {% highlight scala %}
 val in = ds.toTable(tableEnv, 'a, 'b, 'c);
 val result = in.cube('a, 'b).select('a, 'b, 'c.sum as 'd);
@@ -813,9 +813,9 @@ val result = in.cube('a, 'b).select('a, 'b, 'c.sum as 'd);
     </tr>
 
     <tr>
-      <td><strong>Cube</strong></td>
+      <td><strong>Rollup</strong></td>
       <td>
-        <p>Similar to a SQL GROUP BY ROLLUP clause. A ROLLUP expression produces group subtotals from right to left and a grand total.</p>
+        <p>Similar to a SQL GROUP BY ROLLUP clause. A ROLLUP expression produces group subtotals from right to left and a grand total. E.g. .cube('a, 'b) is equivalent to .groupingSets(('a, 'b), ('a), ()).</p>
 {% highlight scala %}
 val in = ds.toTable(tableEnv, 'a, 'b, 'c);
 val result = in.rollup('a, 'b).select('a, 'b, 'c.sum as 'd);
@@ -2745,42 +2745,6 @@ ARRAY.element()
       </td>
       <td>
         <p>Returns the sole element of an array with a single element. Returns <code>null</code> if the array is empty. Throws an exception if the array has more than one element.</p>
-      </td>
-    </tr>
-
-    <tr>
-      <td>
-        {% highlight scala %}
-groupId()
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Returns an integer that uniquely identifies the combination of grouping keys.</p>
-      </td>
-    </tr>
-
-    <tr>
-      <td>
-        {% highlight scala %}
-ANY.grouping()
-grouping(ANY)
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Returns 1 if expression is rolled up in the current row’s grouping set, 0 otherwise.</p>
-      </td>
-    </tr>
-
-    <tr>
-      <td>
-        {% highlight scala %}
-ANY.groupingId()
-(ANY [, ANY ]*).groupingId()
-groupingId(ANY [, ANY ]*)
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Returns a bit vector of the given grouping expressions.</p>
       </td>
     </tr>
 
