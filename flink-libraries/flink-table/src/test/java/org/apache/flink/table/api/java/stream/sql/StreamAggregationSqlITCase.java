@@ -19,7 +19,6 @@
 package org.apache.flink.table.api.java.stream.sql;
 
 import org.apache.flink.table.api.java.StreamTableEnvironment;
-import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.types.Row;
 import org.apache.flink.table.api.scala.stream.utils.StreamITCase;
@@ -29,6 +28,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.table.api.java.stream.utils.StreamTestData;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -37,6 +37,25 @@ import java.util.List;
 public class StreamAggregationSqlITCase extends StreamingMultipleProgramsTestBase {
 
 	@Test
+	public void testProcTime() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+		StreamITCase.clear();
+
+		DataStream<Tuple5<Integer, Long, Integer, String, Long>> ds = StreamTestData.get5TupleDataStream(env);
+		Table in = tableEnv.fromDataStream(ds, "a,b,c,d,e");
+		tableEnv.registerTable("MyTable", in);
+
+		String sqlQuery = "SELECT a, procTime() FROM MyTable ";
+		Table result = tableEnv.sql(sqlQuery);
+
+		DataStream<Row> resultSet = tableEnv.toDataStream(result, Row.class);
+		resultSet.addSink(new StreamITCase.StringSink());
+		env.execute();
+
+	}
+	
+	@Ignore("not ready yet") @Test
 	public void testMaxAggregatation() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
