@@ -45,7 +45,6 @@ public class StreamGroupKeySelector implements KeySelector<Object, Tuple> {
 		for (Integer idx : winUtil.getKeysAsArray(group)) {
 			key.setField(row.getField(idx), idx);
 		}
-
 		return key;
 	}
 
