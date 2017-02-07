@@ -91,7 +91,7 @@ Note that the streaming connectors are currently not part of the binary distribu
 
 ### Kafka Consumer
 
-Flink's Kafka consumer is called `FlinkKafkaConsumer08` (or `09` for Kafka 0.9.0.x versions). It provides access to one or more Kafka topics.
+Flink's Kafka consumer is called `FlinkKafkaConsumer08` (or `09` for Kafka 0.9.0.x versions, etc.). It provides access to one or more Kafka topics.
 
 The constructor accepts the following arguments:
 
@@ -250,57 +250,116 @@ if a new watermark should be emitted and with which timestamp.
 
 ### Kafka Producer
 
-The `FlinkKafkaProducer08` writes data to a Kafka topic. The producer can specify a custom partitioner that assigns
-records to partitions.
+Flink’s Kafka Producer is called `FlinkKafkaProducer08` (or `09` for Kafka 0.9.0.x versions, etc.).
+It allows writing a stream of records to one or more Kafka topics.
 
 Example:
-
 
 <div class="codetabs" markdown="1">
 <div data-lang="java, Kafka 0.8+" markdown="1">
 {% highlight java %}
-stream.addSink(new FlinkKafkaProducer08<String>("localhost:9092", "my-topic", new SimpleStringSchema()));
+DataStream<String> stream = ...;
+
+FlinkKafkaProducer08<String> myProducer = new FlinkKafkaProducer08<String>(
+        "localhost:9092",            // broker list
+        "my-topic",                  // target topic
+        new SimpleStringSchema());   // serialization schema
+
+// the following is necessary for at-least-once delivery guarantee
+myProducer.setLogFailuresOnly(false);   // "false" by default
+myProducer.setFlushOnCheckpoint(true);  // "false" by default
+
+stream.addSink(myProducer);
 {% endhighlight %}
 </div>
 <div data-lang="java, Kafka 0.10+" markdown="1">
 {% highlight java %}
-FlinkKafkaProducer010.writeToKafkaWithTimestamps(stream, "my-topic", new SimpleStringSchema(), properties);
+DataStream<String> stream = ...;
+
+FlinkKafkaProducer010Configuration myProducerConfig = FlinkKafkaProducer010.writeToKafkaWithTimestamps(
+        stream,                     // input stream
+        "my-topic",                 // target topic
+        new SimpleStringSchema(),   // serialization schema
+        properties);                // custom configuration for KafkaProducer (including broker list)
+
+// the following is necessary for at-least-once delivery guarantee
+myProducerConfig.setLogFailuresOnly(false);   // "false" by default
+myProducerConfig.setFlushOnCheckpoint(true);  // "false" by default
 {% endhighlight %}
 </div>
 <div data-lang="scala, Kafka 0.8+" markdown="1">
 {% highlight scala %}
-stream.addSink(new FlinkKafkaProducer08[String]("localhost:9092", "my-topic", new SimpleStringSchema()))
+val stream: DataStream[String] = ...
+
+val myProducer = new FlinkKafkaProducer08[String](
+        "localhost:9092",         // broker list
+        "my-topic",               // target topic
+        new SimpleStringSchema)   // serialization schema
+
+// the following is necessary for at-least-once delivery guarantee
+myProducer.setLogFailuresOnly(false)   // "false" by default
+myProducer.setFlushOnCheckpoint(true)  // "false" by default
+
+stream.addSink(myProducer)
 {% endhighlight %}
 </div>
 <div data-lang="scala, Kafka 0.10+" markdown="1">
 {% highlight scala %}
-FlinkKafkaProducer010.writeToKafkaWithTimestamps(stream, "my-topic", new SimpleStringSchema(), properties);
+val stream: DataStream[String] = ...
+
+val myProducerConfig = FlinkKafkaProducer010.writeToKafkaWithTimestamps(
+        stream,                   // input stream
+        "my-topic",               // target topic
+        new SimpleStringSchema,   // serialization schema
+        properties)               // custom configuration for KafkaProducer (including broker list)
+
+// the following is necessary for at-least-once delivery guarantee
+myProducerConfig.setLogFailuresOnly(false)   // "false" by default
+myProducerConfig.setFlushOnCheckpoint(true)  // "false" by default
 {% endhighlight %}
 </div>
 </div>
 
-You can also define a custom Kafka producer configuration for the KafkaSink with the constructor. Please refer to
-the [Apache Kafka documentation](https://kafka.apache.org/documentation.html) for details on how to configure
-Kafka Producers.
+The above demonstrates the basic usage of creating a Flink Kafka Producer
+to write streams to a single Kafka target topic. For more advanced usages, there
+are other constructor variants that allow providing the following:
 
-Similar to the consumer, the producer also allows using an advanced serialization schema which allows
-serializing the key and value separately. It also allows to override the target topic id, so that
-one producer instance can send data to multiple topics.
+ * *Custom configuration for the internal Kafka client*:
+ The producer allows providing a custom properties configuration for the internal `KafkaProducer`.
+ Please refer to the [Apache Kafka documentation](https://kafka.apache.org/documentation.html) for
+ details on how to configure Kafka Producers.
+ * *Custom partitioner*: To assign records to specific
+ partitions, you can provide an implementation of a `KafkaProducer` to the
+ constructor. This partitioner will be called for each record in the stream
+ to determine which exact partition the record will be sent to.
+ * *Advanced serialization schema*: Similar to the consumer,
+ the producer also allows using a advanced serialization schema called `KeyedSerializationSchema`,
+ which allows serializing the key and value separately. It also allows to override the target topic,
+ so that one producer instance can send data to multiple topics.
+ 
+The example also shows how to configure the Flink Kafka Producer for at-least-once
+guarantees, with the setter methods `setLogFailuresOnly` and `setFlushOnCheckpoint`:
 
-The interface of the serialization schema is called `KeyedSerializationSchema`.
-
+ * `setLogFailuresOnly`: enabling this will let the producer log failures only
+ instead of catching and rethrowing them. This essentially accounts the record
+ to have succeeded, even if it was never written to the target Kafka topic. This
+ must be disabled for at-least-once.
+ * `setFlushOnCheckpoint`: with this enabled, Flink's checkpoints will wait for any
+ on-the-fly records at the time of the checkpoint to be acknowledged by Kafka before
+ succeeding the checkpoint. This ensures that all records before the checkpoint have
+ been written to Kafka. This must be enabled for at-least-once.
 
 **Note**: By default, the number of retries is set to "0". This means that the producer fails immediately on errors,
 including leader changes. The value is set to "0" by default to avoid duplicate messages in the target topic.
 For most production environments with frequent broker changes, we recommend setting the number of retries to a
 higher value.
 
-There is currently no transactional producer for Kafka, so Flink can not guarantee exactly-once delivery
+**Note**: There is currently no transactional producer for Kafka, so Flink can not guarantee exactly-once delivery
 into a Kafka topic.
 
 ### Using Kafka timestamps and Flink event time in Kafka 0.10
 
-Since Apache Kafka 0.10., Kafka's messages can carry [timestamps](https://cwiki.apache.org/confluence/display/KAFKA/KIP-32+-+Add+timestamps+to+Kafka+message), indicating
+Since Apache Kafka 0.10+, Kafka's messages can carry [timestamps](https://cwiki.apache.org/confluence/display/KAFKA/KIP-32+-+Add+timestamps+to+Kafka+message), indicating
 the time the event has occurred (see ["event time" in Apache Flink](../event_time.html)) or the time when the message
 has been written to the Kafka broker.
 
