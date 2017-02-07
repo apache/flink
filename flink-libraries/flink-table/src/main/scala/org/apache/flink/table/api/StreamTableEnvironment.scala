@@ -33,8 +33,9 @@ import org.apache.flink.table.explain.PlanJsonParser
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.plan.nodes.datastream.{DataStreamConvention, DataStreamRel}
 import org.apache.flink.table.plan.rules.FlinkRuleSets
-import org.apache.flink.table.plan.schema.DataStreamTable
+import org.apache.flink.table.plan.schema.{DataStreamTable, TableSourceTable}
 import org.apache.flink.table.sinks.{StreamTableSink, TableSink}
+import org.apache.flink.table.sources.{StreamTableSource, TableSource}
 import org.apache.flink.types.Row
 
 /**
@@ -122,6 +123,24 @@ abstract class StreamTableEnvironment(
     fieldInfo
   }
 
+  /**
+    * Registers an external [[StreamTableSource]] in this [[TableEnvironment]]'s catalog.
+    * Registered tables can be referenced in SQL queries.
+    *
+    * @param name        The name under which the [[TableSource]] is registered.
+    * @param tableSource The [[TableSource]] to register.
+    */
+  override def registerTableSource(name: String, tableSource: TableSource[_]): Unit = {
+    checkValidTableName(name)
+
+    tableSource match {
+      case streamTableSource: StreamTableSource[_] =>
+        registerTableInternal(name, new TableSourceTable(streamTableSource))
+      case _ =>
+        throw new TableException("Only StreamTableSource can be registered in " +
+            "StreamTableEnvironment")
+    }
+  }
   /**
     * Writes a [[Table]] to a [[TableSink]].
     *

@@ -33,8 +33,9 @@ import org.apache.flink.table.explain.PlanJsonParser
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.plan.nodes.dataset.{DataSetConvention, DataSetRel}
 import org.apache.flink.table.plan.rules.FlinkRuleSets
-import org.apache.flink.table.plan.schema.DataSetTable
+import org.apache.flink.table.plan.schema.{DataSetTable, TableSourceTable}
 import org.apache.flink.table.sinks.{BatchTableSink, TableSink}
+import org.apache.flink.table.sources.{BatchTableSource, TableSource}
 import org.apache.flink.types.Row
 
 /**
@@ -80,6 +81,25 @@ abstract class BatchTableEnvironment(
 
   /** Returns a unique table name according to the internal naming pattern. */
   protected def createUniqueTableName(): String = "_DataSetTable_" + nameCntr.getAndIncrement()
+
+  /**
+    * Registers an external [[BatchTableSource]] in this [[TableEnvironment]]'s catalog.
+    * Registered tables can be referenced in SQL queries.
+    *
+    * @param name        The name under which the [[TableSource]] is registered.
+    * @param tableSource The [[TableSource]] to register.
+    */
+  override def registerTableSource(name: String, tableSource: TableSource[_]): Unit = {
+    checkValidTableName(name)
+
+    tableSource match {
+      case batchTableSource: BatchTableSource[_] =>
+        registerTableInternal(name, new TableSourceTable(batchTableSource))
+      case _ =>
+        throw new TableException("Only BatchTableSource can be registered in " +
+            "BatchTableEnvironment")
+    }
+  }
 
   /**
     * Writes a [[Table]] to a [[TableSink]].

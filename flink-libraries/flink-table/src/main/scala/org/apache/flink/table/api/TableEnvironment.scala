@@ -223,13 +223,10 @@ abstract class TableEnvironment(val config: TableConfig) {
     * Registers an external [[TableSource]] in this [[TableEnvironment]]'s catalog.
     * Registered tables can be referenced in SQL queries.
     *
-    * @param name The name under which the [[TableSource]] is registered.
+    * @param name        The name under which the [[TableSource]] is registered.
     * @param tableSource The [[TableSource]] to register.
     */
-  def registerTableSource(name: String, tableSource: TableSource[_]): Unit = {
-    checkValidTableName(name)
-    registerTableInternal(name, new TableSourceTable(tableSource))
-  }
+  def registerTableSource(name: String, tableSource: TableSource[_]): Unit
 
   /**
     * Unregisters a [[Table]] in the TableEnvironment's catalog.
