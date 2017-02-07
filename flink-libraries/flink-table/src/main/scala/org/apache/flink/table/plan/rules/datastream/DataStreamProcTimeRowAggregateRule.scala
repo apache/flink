@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.plan.rules.datastream
 
 import org.apache.calcite.plan.Convention
@@ -27,60 +26,42 @@ import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.core.Window.Group
 import org.apache.calcite.rel.logical.LogicalWindow
 import org.apache.calcite.sql.`type`.IntervalSqlType
-import org.apache.flink.table.plan.logical.rel.DataStreamProcTimeTimeAggregate
 import org.apache.flink.table.plan.nodes.datastream.DataStreamConvention
+import org.apache.calcite.sql.`type`.BasicSqlType
+import org.apache.flink.table.plan.logical.rel.DataStreamWindowRowAggregate
 
-class DataStreamProcTimeTimeAggregateRule extends ConverterRule(
+class DataStreamProcTimeRowAggregateRule extends ConverterRule(
   classOf[LogicalWindow],
   Convention.NONE,
   DataStreamConvention.INSTANCE,
-  "DataStreamProcTimeTimeAggregateRule") {
+  "DataStreamProcTimeRowAggregateRule") {
+
+  override def matches(call: RelOptRuleCall): Boolean = {
+    val window: LogicalWindow = call.rel(0).asInstanceOf[LogicalWindow]
+
+    // if window is bounded with items, match
+    val boundaries: Group = window.groups.iterator().next()
+
+    if (boundaries.lowerBound.getOffset.getType.isInstanceOf[BasicSqlType]
+      && (boundaries.upperBound.isPreceding || boundaries.upperBound.isCurrentRow)) {
+      return true
+    }
+
+    return false
+  }
 
   override def convert(rel: RelNode): RelNode = {
     val windowAggregate: LogicalWindow = rel.asInstanceOf[LogicalWindow]
     val traitSet: RelTraitSet = rel.getTraitSet.replace(DataStreamConvention.INSTANCE)
-    val convInput: RelNode = RelOptRule.convert(windowAggregate.getInput,
-      DataStreamConvention.INSTANCE)
-
-    new DataStreamProcTimeTimeAggregate(
-      rel.getCluster,
-      traitSet,
-      convInput,
-      rel.getRowType,
-      description + windowAggregate.getId,
-      windowAggregate);
-
-  }
-
-  override def matches(call: RelOptRuleCall): Boolean = {
-
-    val rl0: RelNode = call.rels(0)
-    val calc: LogicalWindow = rl0.asInstanceOf[LogicalWindow]
-
-    /*
-     * if bounded and time range
-     * return true
+    val convInput: RelNode = RelOptRule.convert(windowAggregate.getInput, DataStreamConvention.INSTANCE)
+    /**
+     * extract boundaries, and other window configuration properties
      */
 
-    val boundaries: Group = calc.groups.iterator.next
-
-    if (boundaries.lowerBound.getOffset.getType.isInstanceOf[IntervalSqlType]) {
-      if (boundaries.upperBound.isPreceding) {
-        return true
-      }
-
-      if (boundaries.upperBound.isCurrentRow) {
-        return true
-      }
-
-    }
-
-    return false
-
+    new DataStreamWindowRowAggregate(rel.getCluster, traitSet, convInput, rel.getRowType, windowAggregate.getDescription + windowAggregate.getId, windowAggregate)
   }
-
 }
 
-object DataStreamProcTimeTimeAggregateRule {
-  val INSTANCE: RelOptRule = new DataStreamProcTimeTimeAggregateRule
+object DataStreamProcTimeRowAggregateRule {
+  val INSTANCE: RelOptRule = new DataStreamProcTimeRowAggregateRule
 }
