@@ -21,13 +21,19 @@ import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.type.OperandTypes;
 import org.apache.calcite.sql.type.ReturnTypes;
+import org.apache.calcite.sql.type.SqlReturnTypeInference;
+import org.apache.calcite.sql.type.SqlTypeName;
 
 public class FlinkStreamFunctionCatalog {
 
+	/**
+	 * An explicit representation of TIMESTAMP as an SQL return type
+	 */
+	private static final SqlReturnTypeInference TIMESTAMP = ReturnTypes.explicit(SqlTypeName.TIMESTAMP, 0);
 	
 	/**
 	 * A a parameterless scalar function that just indicates processing time mode.
 	 */
-	public static SqlFunction PROCTIME = new SqlFunction("PROCTIME", SqlKind.OTHER_FUNCTION, ReturnTypes.TIME, null, OperandTypes.NILADIC, SqlFunctionCategory.TIMEDATE);
+	public static final SqlFunction PROCTIME = new SqlFunction("PROCTIME", SqlKind.OTHER_FUNCTION, TIMESTAMP, null, OperandTypes.NILADIC, SqlFunctionCategory.TIMEDATE);
 	
 }
