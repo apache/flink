@@ -28,7 +28,7 @@ import org.apache.calcite.rel.logical.LogicalWindow
 import org.apache.calcite.sql.`type`.IntervalSqlType
 import org.apache.flink.table.plan.nodes.datastream.DataStreamConvention
 import org.apache.calcite.sql.`type`.BasicSqlType
-import org.apache.flink.table.plan.logical.rel.DataStreamWindowRowAggregate
+import org.apache.flink.table.plan.logical.rel.DataStreamProcTimeRowAggregate
 
 class DataStreamProcTimeRowAggregateRule extends ConverterRule(
   classOf[LogicalWindow],
@@ -43,7 +43,8 @@ class DataStreamProcTimeRowAggregateRule extends ConverterRule(
     val boundaries: Group = window.groups.iterator().next()
 
     if (boundaries.lowerBound.getOffset.getType.isInstanceOf[BasicSqlType]
-      && (boundaries.upperBound.isPreceding || boundaries.upperBound.isCurrentRow)) {
+      && (boundaries.upperBound.isPreceding
+          || boundaries.upperBound.isCurrentRow)) {
       return true
     }
 
@@ -53,12 +54,19 @@ class DataStreamProcTimeRowAggregateRule extends ConverterRule(
   override def convert(rel: RelNode): RelNode = {
     val windowAggregate: LogicalWindow = rel.asInstanceOf[LogicalWindow]
     val traitSet: RelTraitSet = rel.getTraitSet.replace(DataStreamConvention.INSTANCE)
-    val convInput: RelNode = RelOptRule.convert(windowAggregate.getInput, DataStreamConvention.INSTANCE)
+    val convInput: RelNode = RelOptRule.convert(
+        windowAggregate.getInput,
+        DataStreamConvention.INSTANCE)
     /**
      * extract boundaries, and other window configuration properties
      */
 
-    new DataStreamWindowRowAggregate(rel.getCluster, traitSet, convInput, rel.getRowType, windowAggregate.getDescription + windowAggregate.getId, windowAggregate)
+    new DataStreamProcTimeRowAggregate(rel.getCluster,
+        traitSet,
+        convInput,
+        rel.getRowType,
+        windowAggregate.getDescription + windowAggregate.getId,
+        windowAggregate)
   }
 }
 
