@@ -17,10 +17,14 @@
 package org.apache.flink.streaming.connectors.elasticsearch2;
 
 import com.google.common.collect.ImmutableList;
+
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.util.Preconditions;
+import org.elasticsearch.ElasticsearchTimeoutException;
+import org.elasticsearch.action.ActionRequest;
+import org.elasticsearch.action.IndicesRequest;
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkProcessor;
 import org.elasticsearch.action.bulk.BulkRequest;
@@ -28,6 +32,7 @@ import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.transport.TransportClient;
+import org.elasticsearch.cluster.block.ClusterBlockException;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.InetSocketTransportAddress;
@@ -86,7 +91,7 @@ public class ElasticsearchSink<T> extends RichSinkFunction<T>  {
 	public static final String CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS = "bulk.flush.max.actions";
 	public static final String CONFIG_KEY_BULK_FLUSH_MAX_SIZE_MB = "bulk.flush.max.size.mb";
 	public static final String CONFIG_KEY_BULK_FLUSH_INTERVAL_MS = "bulk.flush.interval.ms";
-
+	
 	private static final long serialVersionUID = 1L;
 
 	private static final Logger LOG = LoggerFactory.getLogger(ElasticsearchSink.class);
@@ -131,6 +136,13 @@ public class ElasticsearchSink<T> extends RichSinkFunction<T>  {
 	 * This is set from inside the BulkProcessor listener if a Throwable was thrown during processing.
 	 */
 	private final AtomicReference<Throwable> failureThrowable = new AtomicReference<>();
+	
+	/**
+	 * When set to <code>true</code> and the bulk action fails, the error message will be checked for
+	 * common patterns like <i>timeout</i>, <i>UnavailableShardsException</i> or a full buffer queue on the node.
+	 * When a matching pattern is found, the bulk will be retried.
+	 */
+	protected boolean checkErrorAndRetryBulk = false;
 
 	/**
 	 * Creates a new ElasticsearchSink that connects to the cluster using a TransportClient.
@@ -187,21 +199,47 @@ public class ElasticsearchSink<T> extends RichSinkFunction<T>  {
 			@Override
 			public void afterBulk(long executionId, BulkRequest request, BulkResponse response) {
 				if (response.hasFailures()) {
+					boolean allRequestsRepeatable = true;
 					for (BulkItemResponse itemResp : response.getItems()) {
 						if (itemResp.isFailed()) {
-							LOG.error("Failed to index document in Elasticsearch: " + itemResp.getFailureMessage());
-							failureThrowable.compareAndSet(null, new RuntimeException(itemResp.getFailureMessage()));
+							// Check if index request can be retried
+							String failureMessageLowercase = itemResp.getFailureMessage().toLowerCase();
+							if (checkErrorAndRetryBulk && (
+									failureMessageLowercase.contains("timeout") || failureMessageLowercase.contains("timed out") // Generic timeout errors
+									|| failureMessageLowercase.contains("UnavailableShardsException".toLowerCase()) // Shard not available due to rebalancing or node down
+									|| (failureMessageLowercase.contains("data/write/bulk") && failureMessageLowercase.contains("bulk")) // Bulk index queue on node full
+									)
+								) {
+								LOG.debug("Retry bulk: {}", itemResp.getFailureMessage());
+							} else { // Cannot retry action
+								allRequestsRepeatable = false;
+								LOG.error("Failed to index document in Elasticsearch: {}", itemResp.getFailureMessage());
+								failureThrowable.compareAndSet(null, new RuntimeException(itemResp.getFailureMessage()));	
+							}
 						}
 					}
-					hasFailure.set(true);
+					if (allRequestsRepeatable) {
+						reAddBulkRequest(request);
+					} else {
+						hasFailure.set(true);
+					}
 				}
 			}
 
 			@Override
 			public void afterBulk(long executionId, BulkRequest request, Throwable failure) {
-				LOG.error(failure.getMessage());
-				failureThrowable.compareAndSet(null, failure);
-				hasFailure.set(true);
+				if (checkErrorAndRetryBulk && (
+						failure instanceof ClusterBlockException // Examples: "no master"
+						|| failure instanceof ElasticsearchTimeoutException // ElasticsearchTimeoutException sounded good, not seen in stress tests yet
+						)
+				) {
+					LOG.debug("Retry bulk on throwable: {}", failure.getMessage());
+					reAddBulkRequest(request);
+				} else { 
+					LOG.error("Failed to index bulk in Elasticsearch. {}", failure.getMessage());
+					failureThrowable.compareAndSet(null, failure);
+					hasFailure.set(true);
+				}
 			}
 		});
 
@@ -225,6 +263,37 @@ public class ElasticsearchSink<T> extends RichSinkFunction<T>  {
 
 		bulkProcessor = bulkProcessorBuilder.build();
 		requestIndexer = new BulkProcessorIndexer(bulkProcessor);
+	}
+
+	/**
+	 * Adds all requests of the bulk to the BulkProcessor. Used when trying again.
+	 * @param bulkRequest
+	 */
+	public void reAddBulkRequest(BulkRequest bulkRequest) {
+		//TODO Check what happens when bulk contains a DeleteAction and IndexActions and the DeleteAction fails because the document already has been deleted. This may not happen in typical Flink jobs.
+
+		for (IndicesRequest req : bulkRequest.subRequests()) {
+			if (req instanceof ActionRequest) {
+				// There is no waiting time between index requests, so this may produce additional pressure on cluster
+				bulkProcessor.add((ActionRequest<?>) req);
+			}
+		}
+	}
+	
+	/**
+	 * Tells if a failed bulk request will be retried on certain error messages.
+	 * @return
+	 */
+	public boolean getCheckErrorAndRetryBulk() {
+		return checkErrorAndRetryBulk;
+	}
+
+	/**
+	 * Set to <code>true</code> if the bulk request should be retried on certain error messages.
+	 * @param checkErrorAndRetryBulk
+	 */
+	public void setCheckErrorAndRetryBulk(boolean checkErrorAndRetryBulk) {
+		this.checkErrorAndRetryBulk = checkErrorAndRetryBulk;
 	}
 
 	@Override
