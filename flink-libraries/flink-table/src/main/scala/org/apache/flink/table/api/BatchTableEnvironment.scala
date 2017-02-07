@@ -29,15 +29,12 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.io.DiscardingOutputFormat
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
-import org.apache.flink.table.calcite.FlinkPlannerImpl
 import org.apache.flink.table.explain.PlanJsonParser
 import org.apache.flink.table.expressions.Expression
-import org.apache.flink.table.plan.logical.{CatalogNode, LogicalRelNode}
 import org.apache.flink.table.plan.nodes.dataset.{DataSetConvention, DataSetRel}
 import org.apache.flink.table.plan.rules.FlinkRuleSets
-import org.apache.flink.table.plan.schema.{DataSetTable, TableSourceTable}
+import org.apache.flink.table.plan.schema.DataSetTable
 import org.apache.flink.table.sinks.{BatchTableSink, TableSink}
-import org.apache.flink.table.sources.BatchTableSource
 import org.apache.flink.types.Row
 
 /**
@@ -83,58 +80,6 @@ abstract class BatchTableEnvironment(
 
   /** Returns a unique table name according to the internal naming pattern. */
   protected def createUniqueTableName(): String = "_DataSetTable_" + nameCntr.getAndIncrement()
-
-  /**
-    * Scans a registered table and returns the resulting [[Table]].
-    *
-    * The table to scan must be registered in the [[TableEnvironment]]'s catalog.
-    *
-    * @param tableName The name of the table to scan.
-    * @throws ValidationException if no table is registered under the given name.
-    * @return The scanned table.
-    */
-  @throws[ValidationException]
-  def scan(tableName: String): Table = {
-    if (isRegistered(tableName)) {
-      new Table(this, CatalogNode(tableName, getRowType(tableName)))
-    } else {
-      throw new TableException(s"Table \'$tableName\' was not found in the registry.")
-    }
-  }
-
-  /**
-    * Registers an external [[BatchTableSource]] in this [[TableEnvironment]]'s catalog.
-    * Registered tables can be referenced in SQL queries.
-    *
-    * @param name The name under which the [[BatchTableSource]] is registered.
-    * @param tableSource The [[BatchTableSource]] to register.
-    */
-  def registerTableSource(name: String, tableSource: BatchTableSource[_]): Unit = {
-
-    checkValidTableName(name)
-    registerTableInternal(name, new TableSourceTable(tableSource))
-  }
-
-  /**
-    * Evaluates a SQL query on registered tables and retrieves the result as a [[Table]].
-    *
-    * All tables referenced by the query must be registered in the TableEnvironment.
-    *
-    * @param query The SQL query to evaluate.
-    * @return The result of the query as Table.
-    */
-  override def sql(query: String): Table = {
-
-    val planner = new FlinkPlannerImpl(getFrameworkConfig, getPlanner, getTypeFactory)
-    // parse the sql query
-    val parsed = planner.parse(query)
-    // validate the sql query
-    val validated = planner.validate(parsed)
-    // transform to a relational tree
-    val relational = planner.rel(validated)
-
-    new Table(this, LogicalRelNode(relational.rel))
-  }
 
   /**
     * Writes a [[Table]] to a [[TableSink]].

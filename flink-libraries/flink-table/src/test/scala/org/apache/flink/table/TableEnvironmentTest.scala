@@ -286,7 +286,6 @@ class MockTableEnvironment extends TableEnvironment(new TableConfig) {
 
   override protected def getBuiltInRuleSet: RuleSet = ???
 
-  override def sql(query: String): Table = ???
 }
 
 case class CClass(cf1: Int, cf2: String, cf3: Double)

@@ -60,7 +60,7 @@ class StreamTableEnvironment(
 
     val name = createUniqueTableName()
     registerDataStreamInternal(name, dataStream.javaStream)
-    ingest(name)
+    scan(name)
   }
 
   /**
@@ -82,7 +82,7 @@ class StreamTableEnvironment(
 
     val name = createUniqueTableName()
     registerDataStreamInternal(name, dataStream.javaStream, fields.toArray)
-    ingest(name)
+    scan(name)
   }
 
   /**
