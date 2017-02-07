@@ -29,15 +29,13 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
-import org.apache.flink.table.calcite.FlinkPlannerImpl
 import org.apache.flink.table.explain.PlanJsonParser
 import org.apache.flink.table.expressions.Expression
-import org.apache.flink.table.plan.logical.{CatalogNode, LogicalRelNode}
 import org.apache.flink.table.plan.nodes.datastream.{DataStreamConvention, DataStreamRel}
 import org.apache.flink.table.plan.rules.FlinkRuleSets
 import org.apache.flink.table.plan.schema.{DataStreamTable, TableSourceTable}
 import org.apache.flink.table.sinks.{StreamTableSink, TableSink}
-import org.apache.flink.table.sources.StreamTableSource
+import org.apache.flink.table.sources.{StreamTableSource, TableSource}
 import org.apache.flink.types.Row
 
 /**
@@ -126,59 +124,23 @@ abstract class StreamTableEnvironment(
   }
 
   /**
-    * Ingests a registered table and returns the resulting [[Table]].
-    *
-    * The table to ingest must be registered in the [[TableEnvironment]]'s catalog.
-    *
-    * @param tableName The name of the table to ingest.
-    * @throws ValidationException if no table is registered under the given name.
-    * @return The ingested table.
-    */
-  @throws[ValidationException]
-  def ingest(tableName: String): Table = {
-
-    if (isRegistered(tableName)) {
-      new Table(this, CatalogNode(tableName, getRowType(tableName)))
-    }
-    else {
-      throw new ValidationException(s"Table \'$tableName\' was not found in the registry.")
-    }
-  }
-
-  /**
     * Registers an external [[StreamTableSource]] in this [[TableEnvironment]]'s catalog.
     * Registered tables can be referenced in SQL queries.
     *
-    * @param name        The name under which the [[StreamTableSource]] is registered.
-    * @param tableSource The [[org.apache.flink.table.sources.StreamTableSource]] to register.
+    * @param name        The name under which the [[TableSource]] is registered.
+    * @param tableSource The [[TableSource]] to register.
     */
-  def registerTableSource(name: String, tableSource: StreamTableSource[_]): Unit = {
-
+  override def registerTableSource(name: String, tableSource: TableSource[_]): Unit = {
     checkValidTableName(name)
-    registerTableInternal(name, new TableSourceTable(tableSource))
+
+    tableSource match {
+      case streamTableSource: StreamTableSource[_] =>
+        registerTableInternal(name, new TableSourceTable(streamTableSource))
+      case _ =>
+        throw new TableException("Only StreamTableSource can be registered in " +
+            "StreamTableEnvironment")
+    }
   }
-
-  /**
-    * Evaluates a SQL query on registered tables and retrieves the result as a [[Table]].
-    *
-    * All tables referenced by the query must be registered in the TableEnvironment.
-    *
-    * @param query The SQL query to evaluate.
-    * @return The result of the query as Table.
-    */
-  override def sql(query: String): Table = {
-
-    val planner = new FlinkPlannerImpl(getFrameworkConfig, getPlanner, getTypeFactory)
-    // parse the sql query
-    val parsed = planner.parse(query)
-    // validate the sql query
-    val validated = planner.validate(parsed)
-    // transform to a relational tree
-    val relational = planner.rel(validated)
-
-    new Table(this, LogicalRelNode(relational.rel))
-  }
-
   /**
     * Writes a [[Table]] to a [[TableSink]].
     *

@@ -41,13 +41,14 @@ import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment =>
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecEnv}
 import java.{BatchTableEnvironment => JavaBatchTableEnv, StreamTableEnvironment => JavaStreamTableEnv}
 import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnv, StreamTableEnvironment => ScalaStreamTableEnv}
-import org.apache.flink.table.calcite.{FlinkRelBuilder, FlinkTypeFactory, FlinkTypeSystem}
+import org.apache.flink.table.calcite.{FlinkPlannerImpl, FlinkRelBuilder, FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.codegen.ExpressionReducer
 import org.apache.flink.table.expressions.{Alias, Expression, UnresolvedFieldReference}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{checkForInstantiation, checkNotSingleton, createScalarSqlFunction, createTableSqlFunctions}
 import org.apache.flink.table.functions.{ScalarFunction, TableFunction}
 import org.apache.flink.table.plan.cost.DataSetCostFactory
-import org.apache.flink.table.plan.schema.RelTable
+import org.apache.flink.table.plan.logical.{CatalogNode, LogicalRelNode}
+import org.apache.flink.table.plan.schema.{RelTable, TableSourceTable}
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.sources.{DefinedFieldNames, TableSource}
 import org.apache.flink.table.validate.FunctionCatalog
@@ -219,6 +220,15 @@ abstract class TableEnvironment(val config: TableConfig) {
   }
 
   /**
+    * Registers an external [[TableSource]] in this [[TableEnvironment]]'s catalog.
+    * Registered tables can be referenced in SQL queries.
+    *
+    * @param name        The name under which the [[TableSource]] is registered.
+    * @param tableSource The [[TableSource]] to register.
+    */
+  def registerTableSource(name: String, tableSource: TableSource[_]): Unit
+
+  /**
     * Unregisters a [[Table]] in the TableEnvironment's catalog.
     * Unregistered tables cannot be referenced in SQL queries anymore.
     *
@@ -252,6 +262,24 @@ abstract class TableEnvironment(val config: TableConfig) {
   }
 
   /**
+    * Scans a registered table and returns the resulting [[Table]].
+    *
+    * The table to scan must be registered in the [[TableEnvironment]]'s catalog.
+    *
+    * @param tableName The name of the table to scan.
+    * @throws ValidationException if no table is registered under the given name.
+    * @return The scanned table.
+    */
+  @throws[ValidationException]
+  def scan(tableName: String): Table = {
+    if (isRegistered(tableName)) {
+      new Table(this, CatalogNode(tableName, getRowType(tableName)))
+    } else {
+      throw new TableException(s"Table \'$tableName\' was not found in the registry.")
+    }
+  }
+
+  /**
     * Evaluates a SQL query on registered tables and retrieves the result as a [[Table]].
     *
     * All tables referenced by the query must be registered in the TableEnvironment.
@@ -259,7 +287,17 @@ abstract class TableEnvironment(val config: TableConfig) {
     * @param query The SQL query to evaluate.
     * @return The result of the query as Table.
     */
-  def sql(query: String): Table
+  def sql(query: String): Table = {
+    val planner = new FlinkPlannerImpl(getFrameworkConfig, getPlanner, getTypeFactory)
+    // parse the sql query
+    val parsed = planner.parse(query)
+    // validate the sql query
+    val validated = planner.validate(parsed)
+    // transform to a relational tree
+    val relational = planner.rel(validated)
+
+    new Table(this, LogicalRelNode(relational.rel))
+  }
 
   /**
     * Writes a [[Table]] to a [[TableSink]].
