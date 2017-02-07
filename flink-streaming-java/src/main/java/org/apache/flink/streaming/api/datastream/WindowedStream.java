@@ -89,7 +89,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Note that the {@code WindowedStream} is purely and API construct, during runtime
  * the {@code WindowedStream} will be collapsed together with the
  * {@code KeyedStream} and the operation over the window into one single operation.
- * 
+ *
  * @param <T> The type of elements in the stream.
  * @param <K> The type of the key by which elements are grouped.
  * @param <W> The type of {@code Window} that the {@code WindowAssigner} assigns the elements to.
@@ -190,9 +190,9 @@ public class WindowedStream<T, K, W extends Window> {
 	 * so a few elements are stored per key (one per slide interval).
 	 * Custom windows may not be able to incrementally aggregate, or may need to store extra values
 	 * in an aggregation tree.
-	 * 
+	 *
 	 * @param function The reduce function.
-	 * @return The data stream that is the result of applying the reduce function to the window. 
+	 * @return The data stream that is the result of applying the reduce function to the window.
 	 */
 	@SuppressWarnings("unchecked")
 	public SingleOutputStreamOperator<T> reduce(ReduceFunction<T> function) {
@@ -521,10 +521,10 @@ public class WindowedStream<T, K, W extends Window> {
 	 *
 	 * @param function The aggregation function.
 	 * @return The data stream that is the result of applying the fold function to the window.
-	 * 
+	 *
 	 * @param <ACC> The type of the AggregateFunction's accumulator
 	 * @param <R> The type of the elements in the resulting stream, equal to the
-	 *            AggregateFunction's result type   
+	 *            AggregateFunction's result type
 	 */
 	public <ACC, R> SingleOutputStreamOperator<R> aggregate(AggregateFunction<T, ACC, R> function) {
 		checkNotNull(function, "function");
@@ -549,10 +549,10 @@ public class WindowedStream<T, K, W extends Window> {
 	 *
 	 * @param function The aggregation function.
 	 * @return The data stream that is the result of applying the aggregation function to the window.
-	 * 
+	 *
 	 * @param <ACC> The type of the AggregateFunction's accumulator
 	 * @param <R> The type of the elements in the resulting stream, equal to the
-	 *            AggregateFunction's result type  
+	 *            AggregateFunction's result type
 	 */
 	public <ACC, R> SingleOutputStreamOperator<R> aggregate(
 			AggregateFunction<T, ACC, R> function,
@@ -581,11 +581,11 @@ public class WindowedStream<T, K, W extends Window> {
 	 *
 	 * @param aggFunction The aggregate function that is used for incremental aggregation.
 	 * @param windowFunction The window function.
-	 * 
+	 *
 	 * @return The data stream that is the result of applying the window function to the window.
-	 * 
+	 *
 	 * @param <ACC> The type of the AggregateFunction's accumulator
-	 * @param <V> The type of AggregateFunction's result, and the WindowFunction's input  
+	 * @param <V> The type of AggregateFunction's result, and the WindowFunction's input
 	 * @param <R> The type of the elements in the resulting stream, equal to the
 	 *            WindowFunction's result type
 	 */
@@ -620,17 +620,17 @@ public class WindowedStream<T, K, W extends Window> {
 	 * @param windowFunction The window function.
 	 * @param accumulatorType Type information for the internal accumulator type of the aggregation function
 	 * @param resultType Type information for the result type of the window function
-	 *    
+	 *
 	 * @return The data stream that is the result of applying the window function to the window.
-	 * 
+	 *
 	 * @param <ACC> The type of the AggregateFunction's accumulator
-	 * @param <V> The type of AggregateFunction's result, and the WindowFunction's input  
+	 * @param <V> The type of AggregateFunction's result, and the WindowFunction's input
 	 * @param <R> The type of the elements in the resulting stream, equal to the
 	 *            WindowFunction's result type
 	 */
 	public <ACC, V, R> SingleOutputStreamOperator<R> aggregate(
 			AggregateFunction<T, ACC, V> aggregateFunction,
-			WindowFunction<V, R, K, W> windowFunction, 
+			WindowFunction<V, R, K, W> windowFunction,
 			TypeInformation<ACC> accumulatorType,
 			TypeInformation<V> aggregateResultType,
 			TypeInformation<R> resultType) {
@@ -699,7 +699,7 @@ public class WindowedStream<T, K, W extends Window> {
 	// ------------------------------------------------------------------------
 	//  Window Function (apply)
 	// ------------------------------------------------------------------------
-	
+
 	/**
 	 * Applies the given window function to each window. The window function is called for each
 	 * evaluation of the window for each key individually. The output of the window function is
@@ -708,7 +708,7 @@ public class WindowedStream<T, K, W extends Window> {
 	 * <p>
 	 * Not that this function requires that all data in the windows is buffered until the window
 	 * is evaluated, as the function provides no means of incremental aggregation.
-	 * 
+	 *
 	 * @param function The window function.
 	 * @return The data stream that is the result of applying the window function to the window.
 	 */
@@ -1229,7 +1229,7 @@ public class WindowedStream<T, K, W extends Window> {
 				@SuppressWarnings("unchecked")
 				OneInputStreamOperator<T, R> op = (OneInputStreamOperator<T, R>)
 						new AggregatingProcessingTimeWindowOperator<>(
-								reducer, input.getKeySelector(), 
+								reducer, input.getKeySelector(),
 								input.getKeyType().createSerializer(getExecutionEnvironment().getConfig()),
 								input.getType().createSerializer(getExecutionEnvironment().getConfig()),
 								windowLength, windowSlide);
