@@ -295,7 +295,7 @@ object FunctionGenerator {
   addSqlFunction(
    FlinkStreamFunctionCatalog.PROCTIME,
    Seq(),
-   new CurrentTimePointCallGen(SqlTimeTypeInfo.TIME, local = true))
+   new ProcTimeCallGen())
    
   // ----------------------------------------------------------------------------------------------
 
