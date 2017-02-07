@@ -18,28 +18,41 @@
 
 package org.apache.flink.streaming.api.windowing.assigners;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.api.windowing.time.Time;
 
 /**
- * A processing time tumbling {@link WindowAssigner window assigner} used to perform windowing using the
- * {@link org.apache.flink.streaming.runtime.operators.windowing.AccumulatingProcessingTimeWindowOperator
- * AccumulatingProcessingTimeWindowOperator} and the
- * {@link org.apache.flink.streaming.runtime.operators.windowing.AggregatingProcessingTimeWindowOperator
- * AggregatingProcessingTimeWindowOperator}.
+ * This is a special window assigner used to tell the system to use the
+ * <i>"Fast Aligned Processing Time Window Operator"</i> for windowing.
  *
- * <p>
- * With this assigner, the {@code trigger} used is a
- * {@link org.apache.flink.streaming.api.windowing.triggers.ProcessingTimeTrigger
- * ProcessingTimeTrigger} and no {@code evictor} can be specified.
+ * <p>Prior Flink versions used that operator automatically for simple processing time
+ * windows (tumbling and sliding) when no custom trigger and no evictor was specified.
+ * In the current Flink version, that operator is only used when programs explicitly 
+ * specify this window assigner. This is only intended for special cases where programs relied on
+ * the better performance of the fast aligned window operator, and are willing to accept the lack
+ * of support for various features as indicated below:
  *
- * <p>
- * <b>WARNING:</b> Bear in mind that no rescaling and no backwards compatibility is supported.
- * */
-public class TumblingAlignedProcessingTimeWindows extends BaseAlignedWindowAssigner {
+ * <ul>
+ *     <li>No custom state backend can be selected, the operator always stores data on the Java heap.</li>
+ *     <li>The operator does not support key groups, meaning it cannot change the parallelism.</li>
+ *     <li>Future versions of Flink may not be able to resume from checkpoints/savepoints taken by this
+ *         operator.</li>
+ * </ul>
+ *
+ * <p>Future implementation plans: We plan to add some of the optimizations used by this operator to
+ * the general window operator, so that future versions of Flink will not have the performance/functionality
+ * trade-off any more.
+ *
+ * <p>Note on implementation: The concrete operator instantiated by this assigner is either the
+ * {@link org.apache.flink.streaming.runtime.operators.windowing.AggregatingProcessingTimeWindowOperator}
+ * or {@link org.apache.flink.streaming.runtime.operators.windowing.AccumulatingProcessingTimeWindowOperator}.
+ */
+@PublicEvolving
+public final class TumblingAlignedProcessingTimeWindows extends BaseAlignedWindowAssigner {
 
 	private static final long serialVersionUID = -6217477609512299842L;
 
-	protected TumblingAlignedProcessingTimeWindows(long size) {
+	public TumblingAlignedProcessingTimeWindows(long size) {
 		super(size);
 	}
 

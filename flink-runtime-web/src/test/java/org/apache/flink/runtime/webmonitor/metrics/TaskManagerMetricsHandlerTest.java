@@ -26,7 +26,7 @@ import scala.concurrent.ExecutionContext;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.apache.flink.runtime.webmonitor.metrics.TaskManagerMetricsHandler.PARAMETER_TM_ID;
+import static org.apache.flink.runtime.webmonitor.handlers.TaskManagersHandler.TASK_MANAGER_ID_KEY;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.powermock.api.mockito.PowerMockito.mock;
@@ -40,7 +40,7 @@ public class TaskManagerMetricsHandlerTest extends TestLogger {
 		TaskManagerMetricsHandler handler = new TaskManagerMetricsHandler(fetcher);
 
 		Map<String, String> pathParams = new HashMap<>();
-		pathParams.put(PARAMETER_TM_ID, "tmid");
+		pathParams.put(TASK_MANAGER_ID_KEY, "tmid");
 
 		Map<String, String> metrics = handler.getMapFor(pathParams, store);
 

@@ -23,6 +23,7 @@ import org.apache.flink.api.common.state.FoldingState;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.KeyedStateBackend;
+import org.apache.flink.runtime.state.internal.InternalFoldingState;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
@@ -39,8 +40,9 @@ import java.util.Map;
  */
 public class HeapFoldingState<K, N, T, ACC>
 		extends AbstractHeapState<K, N, ACC, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>>
-		implements FoldingState<T, ACC> {
+		implements InternalFoldingState<N, T, ACC> {
 
+	/** The function used to fold the state */
 	private final FoldFunction<T, ACC> foldFunction;
 
 	/**
@@ -60,6 +62,10 @@ public class HeapFoldingState<K, N, T, ACC>
 		super(backend, stateDesc, stateTable, keySerializer, namespaceSerializer);
 		this.foldFunction = stateDesc.getFoldFunction();
 	}
+
+	// ------------------------------------------------------------------------
+	//  state access
+	// ------------------------------------------------------------------------
 
 	@Override
 	public ACC get() {

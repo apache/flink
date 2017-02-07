@@ -154,19 +154,6 @@ under the License.
 			<groupId>com.twitter</groupId>
 			<artifactId>chill_${scala.binary.version}</artifactId>
 			<version>${chill.version}</version>
-			<exclusions>
-				<!-- Exclude Kryo dependency from Chill -->
-				<exclusion>
-					<groupId>com.esotericsoftware</groupId>
-					<artifactId>kryo-shaded</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-
-		<!-- Include our own version of Kryo -->
-		<dependency>
-			<groupId>com.esotericsoftware.kryo</groupId>
-			<artifactId>kryo</artifactId>
 		</dependency>
 
 		<dependency>
@@ -215,7 +202,6 @@ under the License.
 			<plugin>
 				<groupId>net.alchim31.maven</groupId>
 				<artifactId>scala-maven-plugin</artifactId>
-				<version>3.1.4</version>
 				<executions>
 					<!-- Run scala compiler in the process-resources phase, so that dependencies on
 						scala classes can be resolved later in the (Java) compile phase -->
@@ -392,7 +378,6 @@ under the License.
 							<goal>shade</goal>
 						</goals>
 						<configuration>
-						
 							<artifactSet>
 								<includes combine.children="append">
 									<include>org.apache.flink:flink-shaded-curator-recipes</include>

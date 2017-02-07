@@ -208,6 +208,9 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 				if (partitionsForTopic != null) {
 					partitions.addAll(convertToFlinkKafkaTopicPartition(partitionsForTopic));
 				}
+				else{
+					LOG.info("Unable to retrieve any partitions for the requested topic: {}", topic);
+				}
 			}
 		}
 

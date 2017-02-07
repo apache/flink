@@ -93,11 +93,11 @@ public class YarnTaskManagerRunner {
 		// tell akka to die in case of an error
 		configuration.setBoolean(ConfigConstants.AKKA_JVM_EXIT_ON_FATAL_ERROR, true);
 
-		String keytabPath = null;
+		String localKeytabPath = null;
 		if(remoteKeytabPath != null) {
 			File f = new File(currDir, Utils.KEYTAB_FILE_NAME);
-			keytabPath = f.getAbsolutePath();
-			LOG.info("keytabPath: {}", keytabPath);
+			localKeytabPath = f.getAbsolutePath();
+			LOG.info("localKeytabPath: {}", localKeytabPath);
 		}
 
 		UserGroupInformation currentUser = UserGroupInformation.getCurrentUser();
@@ -124,16 +124,17 @@ public class YarnTaskManagerRunner {
 				hadoopConfiguration.set(CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHORIZATION, "true");
 			}
 
+			// set keytab principal and replace path with the local path of the shipped keytab file in NodeManager
+			if (localKeytabPath != null && remoteKeytabPrincipal != null) {
+				configuration.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB, localKeytabPath);
+				configuration.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, remoteKeytabPrincipal);
+			}
+
 			SecurityUtils.SecurityConfiguration sc;
 			if (hadoopConfiguration != null) {
 				sc = new SecurityUtils.SecurityConfiguration(configuration, hadoopConfiguration);
 			} else {
 				sc = new SecurityUtils.SecurityConfiguration(configuration);
-			}
-
-			if (keytabPath != null && remoteKeytabPrincipal != null) {
-				configuration.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB, keytabPath);
-				configuration.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, remoteKeytabPrincipal);
 			}
 
 			SecurityUtils.install(sc);

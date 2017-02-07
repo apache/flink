@@ -30,6 +30,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
@@ -41,7 +42,6 @@ import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.filesystem.FsStateBackendFactory;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
-import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedRestoring;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
@@ -66,6 +66,7 @@ import scala.concurrent.duration.FiniteDuration;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -122,19 +123,29 @@ public class RescalingITCase extends TestLogger {
 
 	@Test
 	public void testSavepointRescalingInKeyedState() throws Exception {
-		testSavepointRescalingKeyedState(false);
+		testSavepointRescalingKeyedState(false, false);
 	}
 
 	@Test
 	public void testSavepointRescalingOutKeyedState() throws Exception {
-		testSavepointRescalingKeyedState(true);
+		testSavepointRescalingKeyedState(true, false);
+	}
+
+	@Test
+	public void testSavepointRescalingInKeyedStateDerivedMaxParallelism() throws Exception {
+		testSavepointRescalingKeyedState(false, true);
+	}
+
+	@Test
+	public void testSavepointRescalingOutKeyedStateDerivedMaxParallelism() throws Exception {
+		testSavepointRescalingKeyedState(true, true);
 	}
 
 	/**
 	 * Tests that a a job with purely keyed state can be restarted from a savepoint
 	 * with a different parallelism.
 	 */
-	public void testSavepointRescalingKeyedState(boolean scaleOut) throws Exception {
+	public void testSavepointRescalingKeyedState(boolean scaleOut, boolean deriveMaxParallelism) throws Exception {
 		final int numberKeys = 42;
 		final int numberElements = 1000;
 		final int numberElements2 = 500;
@@ -194,7 +205,9 @@ public class RescalingITCase extends TestLogger {
 
 			jobID = null;
 
-			JobGraph scaledJobGraph = createJobGraphWithKeyedState(parallelism2, maxParallelism, numberKeys, numberElements2, true, 100);
+			int restoreMaxParallelism = deriveMaxParallelism ? ExecutionJobVertex.VALUE_NOT_SET : maxParallelism;
+
+			JobGraph scaledJobGraph = createJobGraphWithKeyedState(parallelism2, restoreMaxParallelism, numberKeys, numberElements2, true, 100);
 
 			scaledJobGraph.setSavepointRestoreSettings(SavepointRestoreSettings.forPath(savepointPath));
 
@@ -642,7 +655,9 @@ public class RescalingITCase extends TestLogger {
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(parallelism);
-		env.getConfig().setMaxParallelism(maxParallelism);
+		if (0 < maxParallelism) {
+			env.getConfig().setMaxParallelism(maxParallelism);
+		}
 		env.enableCheckpointing(checkpointingInterval);
 		env.setRestartStrategy(RestartStrategies.noRestart());
 
@@ -763,7 +778,7 @@ public class RescalingITCase extends TestLogger {
 		}
 	}
 
-	private static class SubtaskIndexNonPartitionedStateSource extends SubtaskIndexSource implements Checkpointed<Integer> {
+	private static class SubtaskIndexNonPartitionedStateSource extends SubtaskIndexSource implements ListCheckpointed<Integer> {
 
 		private static final long serialVersionUID = 8388073059042040203L;
 
@@ -772,13 +787,16 @@ public class RescalingITCase extends TestLogger {
 		}
 
 		@Override
-		public Integer snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
-			return counter;
+		public List<Integer> snapshotState(long checkpointId, long timestamp) throws Exception {
+			return Collections.singletonList(this.counter);
 		}
 
 		@Override
-		public void restoreState(Integer state) throws Exception {
-			counter = state;
+		public void restoreState(List<Integer> state) throws Exception {
+			if (state.isEmpty() || state.size() > 1) {
+				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
+			}
+			this.counter = state.get(0);
 		}
 	}
 
@@ -879,18 +897,20 @@ public class RescalingITCase extends TestLogger {
 		}
 	}
 
-	private static class NonPartitionedStateSource extends StateSourceBase implements Checkpointed<Integer> {
+	private static class NonPartitionedStateSource extends StateSourceBase implements ListCheckpointed<Integer> {
 
 		private static final long serialVersionUID = -8108185918123186841L;
 
 		@Override
-		public Integer snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
-			return counter;
+		public List<Integer> snapshotState(long checkpointId, long timestamp) throws Exception {
+			return Collections.singletonList(this.counter);
 		}
 
 		@Override
-		public void restoreState(Integer state) throws Exception {
-			counter = state;
+		public void restoreState(List<Integer> state) throws Exception {
+			if (!state.isEmpty()) {
+				this.counter = state.get(0);
+			}
 		}
 	}
 

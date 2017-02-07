@@ -58,14 +58,14 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 	}
 
 	@Override
-	public Graph<LongValue,NullValue,NullValue> generate() {
+	public Graph<LongValue, NullValue, NullValue> generate() {
 		// Vertices
-		DataSet<Vertex<LongValue,NullValue>> vertices = GraphGeneratorUtils.vertexSequence(env, parallelism, vertexCount);
+		DataSet<Vertex<LongValue, NullValue>> vertices = GraphGeneratorUtils.vertexSequence(env, parallelism, vertexCount);
 
 		// Edges
 		LongValueSequenceIterator iterator = new LongValueSequenceIterator(1, this.vertexCount - 1);
 
-		DataSet<Edge<LongValue,NullValue>> edges = env
+		DataSet<Edge<LongValue, NullValue>> edges = env
 			.fromParallelCollection(iterator, LongValue.class)
 				.setParallelism(parallelism)
 				.name("Edge iterators")
@@ -79,16 +79,16 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 
 	@ForwardedFields("*->f0")
 	public class LinkVertexToCenter
-	implements FlatMapFunction<LongValue, Edge<LongValue,NullValue>> {
+	implements FlatMapFunction<LongValue, Edge<LongValue, NullValue>> {
 
 		private LongValue center = new LongValue(0);
 
-		private Edge<LongValue,NullValue> center_to_leaf = new Edge<>(center, null, NullValue.getInstance());
+		private Edge<LongValue, NullValue> center_to_leaf = new Edge<>(center, null, NullValue.getInstance());
 
-		private Edge<LongValue,NullValue> leaf_to_center = new Edge<>(null, center, NullValue.getInstance());
+		private Edge<LongValue, NullValue> leaf_to_center = new Edge<>(null, center, NullValue.getInstance());
 
 		@Override
-		public void flatMap(LongValue leaf, Collector<Edge<LongValue,NullValue>> out)
+		public void flatMap(LongValue leaf, Collector<Edge<LongValue, NullValue>> out)
 				throws Exception {
 			center_to_leaf.f1 = leaf;
 			out.collect(center_to_leaf);

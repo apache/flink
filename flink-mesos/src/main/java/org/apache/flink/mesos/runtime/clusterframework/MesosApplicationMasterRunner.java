@@ -26,18 +26,16 @@ import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.PosixParser;
-import org.apache.curator.framework.CuratorFramework;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.mesos.runtime.clusterframework.services.MesosServices;
+import org.apache.flink.mesos.runtime.clusterframework.services.MesosServicesUtils;
 import org.apache.flink.mesos.runtime.clusterframework.store.MesosWorkerStore;
-import org.apache.flink.mesos.runtime.clusterframework.store.StandaloneMesosWorkerStore;
-import org.apache.flink.mesos.runtime.clusterframework.store.ZooKeeperMesosWorkerStore;
 import org.apache.flink.mesos.util.MesosArtifactServer;
 import org.apache.flink.mesos.util.MesosConfiguration;
-import org.apache.flink.mesos.util.ZooKeeperUtils;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
@@ -48,7 +46,6 @@ import org.apache.flink.runtime.clusterframework.overlays.HadoopUserOverlay;
 import org.apache.flink.runtime.clusterframework.overlays.KeytabOverlay;
 import org.apache.flink.runtime.clusterframework.overlays.Krb5ConfOverlay;
 import org.apache.flink.runtime.clusterframework.overlays.SSLStoreOverlay;
-import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -200,6 +197,7 @@ public class MesosApplicationMasterRunner {
 		MesosArtifactServer artifactServer = null;
 		ExecutorService futureExecutor = null;
 		ExecutorService ioExecutor = null;
+		MesosServices mesosServices = null;
 
 		try {
 			// ------- (1) load and parse / validate all configurations -------
@@ -222,6 +220,8 @@ public class MesosApplicationMasterRunner {
 			ioExecutor = Executors.newFixedThreadPool(
 				numberProcessors,
 				new NamedThreadFactory("mesos-jobmanager-io-", "-thread-"));
+
+			mesosServices = MesosServicesUtils.createMesosServices(config);
 
 			// TM configuration
 			final MesosTaskManagerParameters taskManagerParameters = MesosTaskManagerParameters.create(config);
@@ -315,7 +315,9 @@ public class MesosApplicationMasterRunner {
 			LOG.debug("Starting Mesos Flink Resource Manager");
 
 			// create the worker store to persist task information across restarts
-			MesosWorkerStore workerStore = createWorkerStore(config);
+			MesosWorkerStore workerStore = mesosServices.createMesosWorkerStore(
+				config,
+				ioExecutor);
 
 			// we need the leader retrieval service here to be informed of new
 			// leader session IDs, even though there can be only one leader ever
@@ -393,6 +395,14 @@ public class MesosApplicationMasterRunner {
 				}
 			}
 
+			if (mesosServices != null) {
+				try {
+					mesosServices.close(false);
+				} catch (Throwable tt) {
+					LOG.error("Error closing the mesos services.", tt);
+				}
+			}
+
 			return INIT_ERROR_EXIT_CODE;
 		}
 
@@ -422,6 +432,12 @@ public class MesosApplicationMasterRunner {
 			TimeUnit.MILLISECONDS,
 			futureExecutor,
 			ioExecutor);
+
+		try {
+			mesosServices.close(true);
+		} catch (Throwable t) {
+			LOG.error("Failed to clean up and close MesosServices.", t);
+		}
 
 		return 0;
 	}
@@ -495,24 +511,6 @@ public class MesosApplicationMasterRunner {
 			new MesosConfiguration(masterUrl, frameworkInfo, scala.Option.apply(credential));
 
 		return mesos;
-	}
-
-	private static MesosWorkerStore createWorkerStore(Configuration flinkConfig) throws Exception {
-		MesosWorkerStore workerStore;
-		HighAvailabilityMode recoveryMode = HighAvailabilityMode.fromConfig(flinkConfig);
-		if (recoveryMode == HighAvailabilityMode.NONE) {
-			workerStore = new StandaloneMesosWorkerStore();
-		}
-		else if (recoveryMode == HighAvailabilityMode.ZOOKEEPER) {
-			// note: the store is responsible for closing the client.
-			CuratorFramework client = ZooKeeperUtils.startCuratorFramework(flinkConfig);
-			workerStore = ZooKeeperMesosWorkerStore.createMesosWorkerStore(client, flinkConfig);
-		}
-		else {
-			throw new IllegalConfigurationException("Unexpected recovery mode '" + recoveryMode + ".");
-		}
-
-		return workerStore;
 	}
 
 	/**

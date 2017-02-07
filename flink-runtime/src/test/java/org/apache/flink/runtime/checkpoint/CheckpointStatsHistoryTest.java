@@ -192,5 +192,4 @@ public class CheckpointStatsHistoryTest {
 		return failed;
 	}
 
-
 }

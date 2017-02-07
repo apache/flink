@@ -35,7 +35,7 @@ import java.util.Set;
 
 /**
  * A {@link Window} that represents a time interval from {@code start} (inclusive) to
- * {@code start + size} (exclusive).
+ * {@code end} (exclusive).
  */
 @PublicEvolving
 public class TimeWindow extends Window {
@@ -48,14 +48,35 @@ public class TimeWindow extends Window {
 		this.end = end;
 	}
 
+	/**
+	 * Gets the starting timestamp of the window. This is the first timestamp that belongs
+	 * to this window.
+	 * 
+	 * @return The starting timestamp of this window.
+	 */
 	public long getStart() {
 		return start;
 	}
 
+	/**
+	 * Gets the end timestamp of this window. The end timestamp is exclusive, meaning it
+	 * is the first timestamp that does not belong to this window any more.
+	 * 
+	 * @return The exclusive end timestamp of this window.
+	 */
 	public long getEnd() {
 		return end;
 	}
 
+	/**
+	 * Gets the largest timestamp that still belongs to this window.
+	 * 
+	 * <p>This timestamp is identical to {@code getEnd() - 1}.
+	 * 
+	 * @return The largest timestamp that still belongs to this window.
+	 * 
+	 * @see #getEnd() 
+	 */
 	@Override
 	public long maxTimestamp() {
 		return end - 1;
@@ -104,6 +125,13 @@ public class TimeWindow extends Window {
 		return new TimeWindow(Math.min(start, other.start), Math.max(end, other.end));
 	}
 
+	// ------------------------------------------------------------------------
+	// Serializer
+	// ------------------------------------------------------------------------
+
+	/**
+	 * The serializer used to write the TimeWindow type.
+	 */
 	public static class Serializer extends TypeSerializer<TimeWindow> {
 		private static final long serialVersionUID = 1L;
 
@@ -152,9 +180,7 @@ public class TimeWindow extends Window {
 
 		@Override
 		public TimeWindow deserialize(TimeWindow reuse, DataInputView source) throws IOException {
-			long start = source.readLong();
-			long end = source.readLong();
-			return new TimeWindow(start, end);
+			return deserialize(source);
 		}
 
 		@Override
@@ -178,6 +204,10 @@ public class TimeWindow extends Window {
 			return 0;
 		}
 	}
+
+	// ------------------------------------------------------------------------
+	//  Utilities
+	// ------------------------------------------------------------------------
 
 	/**
 	 * Merge overlapping {@link TimeWindow}s. For use by merging

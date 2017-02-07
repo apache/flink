@@ -86,7 +86,7 @@ public class TranslateTest {
 	@Test
 	public void testTranslateGraphIds()
 			throws Exception {
-		Graph<StringValue,LongValue, LongValue> stringIdGraph = graph
+		Graph<StringValue, LongValue, LongValue> stringIdGraph = graph
 			.translateGraphIds(new LongValueToStringValue());
 
 		for (Vertex<StringValue, LongValue> vertex : stringIdGraph.getVertices().collect()) {

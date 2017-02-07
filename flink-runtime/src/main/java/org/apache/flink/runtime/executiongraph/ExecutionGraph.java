@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.api.common.Archiveable;
 import org.apache.flink.api.common.ArchivedExecutionConfig;
 import org.apache.flink.api.common.ExecutionConfig;
@@ -36,6 +37,7 @@ import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
+import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -49,6 +51,7 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
+import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.query.KvStateLocationRegistry;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
@@ -424,8 +427,21 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	}
 
 	@Override
-	public CheckpointStatsTracker getCheckpointStatsTracker() {
-		return checkpointStatsTracker;
+	public JobSnapshottingSettings getJobSnapshottingSettings() {
+		if (checkpointStatsTracker != null) {
+			return checkpointStatsTracker.getSnapshottingSettings();
+		} else {
+			return null;
+		}
+	}
+
+	@Override
+	public CheckpointStatsSnapshot getCheckpointStatsSnapshot() {
+		if (checkpointStatsTracker != null) {
+			return checkpointStatsTracker.createSnapshot();
+		} else {
+			return null;
+		}
 	}
 
 	private ExecutionVertex[] collectExecutionVertices(List<ExecutionJobVertex> jobVertices) {
@@ -677,12 +693,8 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			}
 
 			// create the execution job vertex and attach it to the graph
-			ExecutionJobVertex ejv = null;
-			try {
-				ejv = new ExecutionJobVertex(this, jobVertex, 1, timeout, createTimestamp);
-			} catch (IOException e) {
-				throw new JobException("Could not create a execution job vertex for " + jobVertex.getID() + '.', e);
-			}
+			ExecutionJobVertex ejv =
+					new ExecutionJobVertex(this, jobVertex, 1, timeout, createTimestamp);
 			ejv.connectToPredecessors(this.intermediateResults);
 
 			ExecutionJobVertex previousTask = this.tasks.putIfAbsent(jobVertex.getID(), ejv);
@@ -1064,7 +1076,9 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 					LOG.info("Try to restart or fail the job {} ({}) if no longer possible.", getJobName(), getJobID());
 				}
 
-				boolean isRestartable = !(failureCause instanceof SuppressRestartsException) && restartStrategy.canRestart();
+				final boolean isFailureCauseAllowingRestart = !(failureCause instanceof SuppressRestartsException);
+				final boolean isRestartStrategyAllowingRestart = restartStrategy.canRestart();
+				boolean isRestartable = isFailureCauseAllowingRestart && isRestartStrategyAllowingRestart;
 
 				if (isRestartable && transitionState(currentState, JobStatus.RESTARTING)) {
 					LOG.info("Restarting the job {} ({}).", getJobName(), getJobID());
@@ -1072,7 +1086,16 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 
 					return true;
 				} else if (!isRestartable && transitionState(currentState, JobStatus.FAILED, failureCause)) {
-					LOG.info("Could not restart the job {} ({}).", getJobName(), getJobID(), failureCause);
+					final List<String> reasonsForNoRestart = new ArrayList<>(2);
+					if (!isFailureCauseAllowingRestart) {
+						reasonsForNoRestart.add("a type of SuppressRestartsException was thrown");
+					}
+					if (!isRestartStrategyAllowingRestart) {
+						reasonsForNoRestart.add("the restart strategy prevented it");
+					}
+
+					LOG.info("Could not restart the job {} ({}) because {}.", getJobName(), getJobID(),
+						StringUtils.join(reasonsForNoRestart, " and "), failureCause);
 					postRunCleanup();
 
 					return true;
@@ -1330,6 +1353,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			serializedUserAccumulators,
 			getArchivedExecutionConfig(),
 			isStoppable(),
-			getCheckpointStatsTracker());
+			getJobSnapshottingSettings(),
+			getCheckpointStatsSnapshot());
 	}
 }

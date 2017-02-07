@@ -82,7 +82,7 @@ Then, import the connector in your maven project:
 </dependency>
 {% endhighlight %}
 
-Note that the streaming connectors are currently not part of the binary distribution. See how to link with them for cluster execution [here]({{ site.baseurl}}/dev/linking).
+Note that the streaming connectors are currently not part of the binary distribution. See how to link with them for cluster execution [here]({{ site.baseurl}}/dev/linking.html).
 
 ### Installing Apache Kafka
 
@@ -247,6 +247,7 @@ the `Watermark getCurrentWatermark()` (for periodic) or the
 `Watermark checkAndGetNextWatermark(T lastElement, long extractedTimestamp)` (for punctuated) is called to determine
 if a new watermark should be emitted and with which timestamp.
 
+
 ### Kafka Producer
 
 The `FlinkKafkaProducer08` writes data to a Kafka topic. The producer can specify a custom partitioner that assigns
@@ -329,3 +330,47 @@ config.setWriteTimestampToKafka(true);
 {% endhighlight %}
 
 
+
+### Kafka Connector metrics
+
+Flink's Kafka connectors provide some metrics through Flink's [metrics system]({{ site.baseurl }}/monitoring/metrics.html) to analyze
+the behavior of the connector.
+The producers export Kafka's internal metrics through Flink's metric system for all supported versions. The consumers export 
+all metrics starting from Kafka version 0.9. The Kafka documentation lists all exported metrics 
+in its [documentation](http://kafka.apache.org/documentation/#selector_monitoring).
+
+In addition to these metrics, all consumers expose the `current-offsets` and `committed-offsets` for each topic partition.
+The `current-offsets` refers to the current offset in the partition. This refers to the offset of the last element that
+we retrieved and emitted successfully. The `committed-offsets` is the last committed offset.
+
+The Kafka Consumers in Flink commit the offsets back to Zookeeper (Kafka 0.8) or the Kafka brokers (Kafka 0.9+). If checkpointing
+is disabled, offsets are committed periodically.
+With checkpointing, the commit happens once all operators in the streaming topology have confirmed that they've created a checkpoint of their state. 
+This provides users with at-least-once semantics for the offsets committed to Zookeer or the broker. For offsets checkpointed to Flink, the system 
+provides exactly once guarantees.
+
+The offsets committed to ZK or the broker can also be used to track the read progress of the Kafka consumer. The difference between
+the committed offset and the most recent offset in each partition is called the *consumer lag*. If the Flink topology is consuming
+the data slower from the topic than new data is added, the lag will increase and the consumer will fall behind.
+For large production deployments we recommend monitoring that metric to avoid increasing latency.
+
+### Enabling Kerberos Authentication (for versions 0.9+ and above only)
+
+Flink provides first-class support through the Kafka connector to authenticate to a Kafka installation
+configured for Kerberos. Simply configure Flink in `flink-conf.yaml` to enable Kerberos authentication for Kafka like so:
+
+1. Configure Kerberos credentials by setting the following -
+ - `security.kerberos.login.use-ticket-cache`: By default, this is `true` and Flink will attempt to use Kerberos credentials in ticket caches managed by `kinit`. 
+ Note that when using the Kafka connector in Flink jobs deployed on YARN, Kerberos authorization using ticket caches will not work. This is also the case when deploying using Mesos, as authorization using ticket cache is not supported for Mesos deployments. 
+ - `security.kerberos.login.keytab` and `security.kerberos.login.principal`: To use Kerberos keytabs instead, set values for both of these properties.
+ 
+2. Append `KafkaClient` to `security.kerberos.login.contexts`: This tells Flink to provide the configured Kerberos credentials to the Kafka login context to be used for Kafka authentication.
+
+Once Kerberos-based Flink security is enabled, you can authenticate to Kafka with either the Flink Kafka Consumer or Producer by simply including the following two settings in the provided properties configuration that is passed to the internal Kafka client:
+
+- Set `security.protocol` to `SASL_PLAINTEXT` (default `NONE`): The protocol used to communicate to Kafka brokers.
+When using standalone Flink deployment, you can also use `SASL_SSL`; please see how to configure the Kafka client for SSL [here](https://kafka.apache.org/documentation/#security_configclients). 
+- Set `sasl.kerberos.service.name` to `kafka` (default `kafka`): The value for this should match the `sasl.kerberos.service.name` used for Kafka broker configurations. A mismatch in service name between client and server configuration will cause the authentication to fail.
+
+For more information on Flink configuration for Kerberos security, please see [here]({{ site.baseurl}}/setup/config.html).
+You can also find [here]({{ site.baseurl}}/ops/security-kerberos.html) further details on how Flink internally setups Kerberos-based security.

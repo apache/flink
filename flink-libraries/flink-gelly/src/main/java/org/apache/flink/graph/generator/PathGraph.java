@@ -51,7 +51,7 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 	}
 
 	@Override
-	public Graph<LongValue,NullValue,NullValue> generate() {
+	public Graph<LongValue, NullValue, NullValue> generate() {
 		return new GridGraph(env)
 			.addDimension(vertexCount, false)
 			.setParallelism(parallelism)

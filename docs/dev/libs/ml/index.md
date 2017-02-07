@@ -58,6 +58,10 @@ FlinkML currently supports the following algorithms:
 
 * [Alternating Least Squares (ALS)](als.html)
 
+### Outlier selection
+
+* [Stochastic Outlier Selection (SOS)](sos.html)
+
 ### Utilities
 
 * [Distance Metrics](distance_metrics.html)
@@ -68,7 +72,7 @@ FlinkML currently supports the following algorithms:
 You can check out our [quickstart guide](quickstart.html) for a comprehensive getting started
 example.
 
-If you want to jump right in, you have to [set up a Flink program]({{ site.baseurl }}/dev/linking_with_flink).
+If you want to jump right in, you have to [set up a Flink program]({{ site.baseurl }}/dev/linking_with_flink.html).
 Next, you have to add the FlinkML dependency to the `pom.xml` of your project.
 
 {% highlight xml %}
@@ -80,7 +84,7 @@ Next, you have to add the FlinkML dependency to the `pom.xml` of your project.
 {% endhighlight %}
 
 Note that FlinkML is currently not part of the binary distribution.
-See linking with it for cluster execution [here]({{site.baseurl}}/dev/linking).
+See linking with it for cluster execution [here]({{site.baseurl}}/dev/linking.html).
 
 Now you can start solving your analysis task.
 The following code snippet shows how easy it is to train a multiple linear regression model.

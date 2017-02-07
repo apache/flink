@@ -26,6 +26,8 @@ import org.apache.flink.annotation.Internal;
 @Internal
 public class ExternalizedCheckpointSettings implements java.io.Serializable {
 
+	private static final long serialVersionUID = -6271691851124392955L;
+
 	private static final ExternalizedCheckpointSettings NONE = new ExternalizedCheckpointSettings(false, false);
 
 	/** Flag indicating whether checkpoints should be externalized. */

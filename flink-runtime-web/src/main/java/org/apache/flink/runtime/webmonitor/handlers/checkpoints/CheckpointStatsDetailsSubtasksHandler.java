@@ -21,7 +21,6 @@ package org.apache.flink.runtime.webmonitor.handlers.checkpoints;
 import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.runtime.checkpoint.AbstractCheckpointStats;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
-import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.MinMaxAvgStats;
 import org.apache.flink.runtime.checkpoint.SubtaskStateStats;
 import org.apache.flink.runtime.checkpoint.TaskStateStats;
@@ -72,8 +71,10 @@ public class CheckpointStatsDetailsSubtasksHandler extends AbstractExecutionGrap
 			return "{}";
 		}
 
-		CheckpointStatsTracker tracker = graph.getCheckpointStatsTracker();
-		CheckpointStatsSnapshot snapshot = tracker.createSnapshot();
+		CheckpointStatsSnapshot snapshot = graph.getCheckpointStatsSnapshot();
+		if (snapshot == null) {
+			return "{}";
+		}
 
 		AbstractCheckpointStats checkpoint = snapshot.getHistory().getCheckpointById(checkpointId);
 
@@ -168,7 +169,7 @@ public class CheckpointStatsDetailsSubtasksHandler extends AbstractExecutionGrap
 				gen.writeNumberField("duration", subtask.getAlignmentDuration());
 				gen.writeEndObject();
 			} else {
-				gen.writeStringField("status", "pending");
+				gen.writeStringField("status", "pending_or_failed");
 			}
 			gen.writeEndObject();
 		}

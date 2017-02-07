@@ -52,6 +52,9 @@ import org.apache.flink.util.StringUtils;
 @Internal
 public class BufferSpiller {
 
+	/** Size of header in bytes (see add method). */
+	static final int HEADER_SIZE = 9;
+
 	/** The counter that selects the next directory to spill into */
 	private static final AtomicInteger DIRECTORY_INDEX = new AtomicInteger(0);
 	

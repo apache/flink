@@ -20,10 +20,10 @@ package org.apache.flink.graph.library.similarity;
 
 import org.apache.commons.math3.random.JDKRandomGenerator;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.Utils.ChecksumHashCode;
-import org.apache.flink.api.java.utils.DataSetUtils;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.asm.AsmTestBase;
+import org.apache.flink.graph.asm.dataset.ChecksumHashCode;
+import org.apache.flink.graph.asm.dataset.ChecksumHashCode.Checksum;
 import org.apache.flink.graph.asm.simple.undirected.Simplify;
 import org.apache.flink.graph.generator.RMatGraph;
 import org.apache.flink.graph.generator.random.JDKRandomGeneratorFactory;
@@ -129,7 +129,9 @@ extends AsmTestBase {
 			.run(new JaccardIndex<LongValue, NullValue, NullValue>()
 				.setGroupSize(4));
 
-		ChecksumHashCode checksum = DataSetUtils.checksumHashCode(ji);
+		Checksum checksum = new ChecksumHashCode<Result<LongValue>>()
+			.run(ji)
+			.execute();
 
 		assertEquals(13954, checksum.getCount());
 		assertEquals(0x00001b1a1f7a9d0bL, checksum.getChecksum());

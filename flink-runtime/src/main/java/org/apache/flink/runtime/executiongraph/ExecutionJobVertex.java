@@ -41,7 +41,7 @@ import org.apache.flink.runtime.jobmanager.JobManagerOptions;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
-import org.apache.flink.runtime.util.SerializableObject;
+import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 import org.slf4j.Logger;
@@ -57,8 +57,10 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 
 	/** Use the same log for all ExecutionGraph classes */
 	private static final Logger LOG = ExecutionGraph.LOG;
-	
-	private final SerializableObject stateMonitor = new SerializableObject();
+
+	public static final int VALUE_NOT_SET = -1;
+
+	private final Object stateMonitor = new Object();
 	
 	private final ExecutionGraph graph;
 	
@@ -66,30 +68,32 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	
 	private final ExecutionVertex[] taskVertices;
 
-	private IntermediateResult[] producedDataSets;
+	private final IntermediateResult[] producedDataSets;
 	
 	private final List<IntermediateResult> inputs;
 	
 	private final int parallelism;
 
-	private final int maxParallelism;
-	
 	private final boolean[] finishedSubtasks;
-			
-	private volatile int numSubtasksInFinalState;
-	
+
 	private final SlotSharingGroup slotSharingGroup;
-	
+
 	private final CoLocationGroup coLocationGroup;
-	
+
 	private final InputSplit[] inputSplits;
+
+	private final boolean maxParallelismConfigured;
+
+	private int maxParallelism;
+
+	private volatile int numSubtasksInFinalState;
 
 	/**
 	 * Serialized task information which is for all sub tasks the same. Thus, it avoids to
 	 * serialize the same information multiple times in order to create the
 	 * TaskDeploymentDescriptors.
 	 */
-	private final SerializedValue<TaskInformation> serializedTaskInformation;
+	private SerializedValue<TaskInformation> serializedTaskInformation;
 
 	private InputSplitAssigner splitAssigner;
 	
@@ -97,7 +101,7 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		ExecutionGraph graph,
 		JobVertex jobVertex,
 		int defaultParallelism,
-		Time timeout) throws JobException, IOException {
+		Time timeout) throws JobException {
 
 		this(graph, jobVertex, defaultParallelism, timeout, System.currentTimeMillis());
 	}
@@ -107,7 +111,7 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		JobVertex jobVertex,
 		int defaultParallelism,
 		Time timeout,
-		long createTimestamp) throws JobException, IOException {
+		long createTimestamp) throws JobException {
 
 		if (graph == null || jobVertex == null) {
 			throw new NullPointerException();
@@ -121,24 +125,19 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 
 		this.parallelism = numTaskVertices;
 
-		int maxP = jobVertex.getMaxParallelism();
+		final int configuredMaxParallelism = jobVertex.getMaxParallelism();
 
-		Preconditions.checkArgument(maxP >= parallelism, "The maximum parallelism (" +
-			maxP + ") must be greater or equal than the parallelism (" + parallelism +
-			").");
-		this.maxParallelism = maxP;
+		this.maxParallelismConfigured = (VALUE_NOT_SET != configuredMaxParallelism);
 
-		this.serializedTaskInformation = new SerializedValue<>(new TaskInformation(
-			jobVertex.getID(),
-			jobVertex.getName(),
-			parallelism,
-			maxParallelism,
-			jobVertex.getInvokableClassName(),
-			jobVertex.getConfiguration()));
+		// if no max parallelism was configured by the user, we calculate and set a default
+		setMaxParallelismInternal(maxParallelismConfigured ?
+				configuredMaxParallelism : KeyGroupRangeAssignment.computeDefaultMaxParallelism(parallelism));
+
+		this.serializedTaskInformation = null;
 
 		this.taskVertices = new ExecutionVertex[numTaskVertices];
 		
-		this.inputs = new ArrayList<IntermediateResult>(jobVertex.getInputs().size());
+		this.inputs = new ArrayList<>(jobVertex.getInputs().size());
 		
 		// take the sharing group
 		this.slotSharingGroup = jobVertex.getSlotSharingGroup();
@@ -212,6 +211,24 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		finishedSubtasks = new boolean[parallelism];
 	}
 
+	public void setMaxParallelism(int maxParallelismDerived) {
+
+		Preconditions.checkState(!maxParallelismConfigured,
+				"Attempt to override a configured max parallelism. Configured: " + this.maxParallelism
+						+ ", argument: " + maxParallelismDerived);
+
+		setMaxParallelismInternal(maxParallelismDerived);
+	}
+
+	private void setMaxParallelismInternal(int maxParallelism) {
+		Preconditions.checkArgument(maxParallelism > 0
+						&& maxParallelism <= KeyGroupRangeAssignment.UPPER_BOUND_MAX_PARALLELISM,
+				"Overriding max parallelism is not in valid bounds (1.." +
+						KeyGroupRangeAssignment.UPPER_BOUND_MAX_PARALLELISM + "), found:" + maxParallelism);
+
+		this.maxParallelism = maxParallelism;
+	}
+
 	public ExecutionGraph getGraph() {
 		return graph;
 	}
@@ -233,6 +250,10 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	@Override
 	public int getMaxParallelism() {
 		return maxParallelism;
+	}
+
+	public boolean isMaxParallelismConfigured() {
+		return maxParallelismConfigured;
 	}
 
 	public JobID getJobId() {
@@ -269,23 +290,55 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		return inputs;
 	}
 
-	public SerializedValue<TaskInformation> getSerializedTaskInformation() {
+	public SerializedValue<TaskInformation> getSerializedTaskInformation() throws IOException {
+
+		if (null == serializedTaskInformation) {
+
+			int parallelism = getParallelism();
+			int maxParallelism = getMaxParallelism();
+
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Creating task information for " + generateDebugString());
+			}
+
+			serializedTaskInformation = new SerializedValue<>(
+					new TaskInformation(
+							jobVertex.getID(),
+							jobVertex.getName(),
+							parallelism,
+							maxParallelism,
+							jobVertex.getInvokableClassName(),
+							jobVertex.getConfiguration()));
+		}
+
 		return serializedTaskInformation;
 	}
-	
+
 	public boolean isInFinalState() {
 		return numSubtasksInFinalState == parallelism;
 	}
-	
+
 	@Override
 	public ExecutionState getAggregateState() {
 		int[] num = new int[ExecutionState.values().length];
 		for (ExecutionVertex vertex : this.taskVertices) {
 			num[vertex.getExecutionState().ordinal()]++;
 		}
-		
+
 		return getAggregateJobVertexState(num, parallelism);
 	}
+
+	private String generateDebugString() {
+
+		return "ExecutionJobVertex" +
+				"(" + jobVertex.getName() + " | " + jobVertex.getID() + ")" +
+				"{" +
+				"parallelism=" + parallelism +
+				", maxParallelism=" + getMaxParallelism() +
+				", maxParallelismConfigured=" + maxParallelismConfigured +
+				'}';
+	}
+
 
 	//---------------------------------------------------------------------------------------------
 	

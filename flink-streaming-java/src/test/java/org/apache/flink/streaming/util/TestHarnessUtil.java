@@ -36,26 +36,13 @@ import static org.junit.Assert.assertEquals;
  * Utils for working with the various test harnesses.
  */
 public class TestHarnessUtil {
-	/**
-	 * Extracts the StreamRecords from the given output list.
-	 */
-	@SuppressWarnings("unchecked")
-	public static <OUT> List<StreamRecord<OUT>> getStreamRecordsFromOutput(List<Object> output) {
-		List<StreamRecord<OUT>> resultElements = new LinkedList<StreamRecord<OUT>>();
-		for (Object e: output) {
-			if (e instanceof StreamRecord) {
-				resultElements.add((StreamRecord<OUT>) e);
-			}
-		}
-		return resultElements;
-	}
 
 	/**
 	 * Extracts the raw elements from the given output list.
 	 */
 	@SuppressWarnings("unchecked")
 	public static <OUT> List<OUT> getRawElementsFromOutput(Queue<Object> output) {
-		List<OUT> resultElements = new LinkedList<OUT>();
+		List<OUT> resultElements = new LinkedList<>();
 		for (Object e: output) {
 			if (e instanceof StreamRecord) {
 				resultElements.add(((StreamRecord<OUT>) e).getValue());

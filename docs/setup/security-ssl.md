@@ -40,6 +40,7 @@ You need to have a Java Keystore generated and copied to each node in the flink 
 ### Example: Creating self signed CA and keystores for a 2 node cluster
 
 Execute the following keytool commands to create a truststore with a self signed CA
+
 ~~~
 keytool -genkeypair -alias ca -keystore ca.keystore -dname "CN=Sample CA" -storepass password -keypass password -keyalg RSA -ext bc=ca:true
 keytool -keystore ca.keystore -storepass password -alias ca -exportcert > ca.cer
@@ -48,7 +49,7 @@ keytool -importcert -keystore ca.truststore -alias ca -storepass password -nopro
 
 Now create keystores for each node with certificates signed by the above CA. Let node1.company.org and node2.company.org be the hostnames with IPs 192.168.1.1 and 192.168.1.2 respectively
 
-**Node 1**
+#### Node 1
 ~~~
 keytool -genkeypair -alias node1 -keystore node1.keystore -dname "CN=node1.company.org" -ext SAN=dns:node1.company.org,ip:192.168.1.1 -storepass password -keypass password -keyalg RSA
 keytool -certreq -keystore node1.keystore -storepass password -alias node1 -file node1.csr
@@ -57,7 +58,7 @@ keytool -importcert -keystore node1.keystore -storepass password -file ca.cer -a
 keytool -importcert -keystore node1.keystore -storepass password -file node1.cer -alias node1 -noprompt
 ~~~
 
-**Node 2**
+#### Node 2
 ~~~
 keytool -genkeypair -alias node2 -keystore node2.keystore -dname "CN=node2.company.org" -ext SAN=dns:node2.company.org,ip:192.168.1.2 -storepass password -keypass password -keyalg RSA
 keytool -certreq -keystore node2.keystore -storepass password -alias node2 -file node2.csr
@@ -70,6 +71,7 @@ keytool -importcert -keystore node2.keystore -storepass password -file node2.cer
 Configure each node in the standalone cluster to pick up the keystore and truststore files present in the local file system.
 
 ### Example: 2 node cluster
+
 * Generate 2 keystores, one for each node, and copy them to the filesystem on the respective node. Also copy the pulic key of the CA (which was used to sign the certificates in the keystore) as a Java truststore on both the nodes
 * Configure conf/flink-conf.yaml to pick up these files
 
@@ -118,10 +120,11 @@ Now you can start the YARN session from the CLI like you would normally do.
 ### 2. Use YARN cli to deploy the keystores and truststore
 We can use the YARN client's ship files option (-yt) to distribute the keystores and truststore. Since the same keystore will be deployed at all nodes, we need to ensure a single certificate in the keystore can be served for all nodes. This can be done by either using the Subject Alternative Name(SAN) extension in the certificate and setting it to cover all nodes (hostname and ip addresses) in the cluster or by using wildcard subdomain names (if the cluster is setup accordingly). 
 
-**Example**
+#### Example
 * Supply the following parameters to the keytool command when generating the keystore: -ext SAN=dns:node1.company.org,ip:192.168.1.1,dns:node2.company.org,ip:192.168.1.2
 * Copy the keystore and the CA's truststore into a local directory (at the cli's working directory), say deploy-keys/
 * Update the configuration to pick up the files from a relative path
+
 ~~~
 security.ssl.enabled: true
 security.ssl.keystore: deploy-keys/node.keystore
@@ -130,7 +133,9 @@ security.ssl.key-password: password
 security.ssl.truststore: deploy-keys/ca.truststore
 security.ssl.truststore-password: password
 ~~~
+
 * Start the YARN session using the -yt parameter
+
 ~~~
 flink run -m yarn-cluster -yt deploy-keys/ TestJob.jar
 ~~~

@@ -19,7 +19,8 @@
 package org.apache.flink.table.plan.rules
 
 import org.apache.calcite.rel.rules._
-import org.apache.calcite.tools.{RuleSets, RuleSet}
+import org.apache.calcite.tools.{RuleSet, RuleSets}
+import org.apache.flink.table.calcite.rules.FlinkAggregateJoinTransposeRule
 import org.apache.flink.table.plan.rules.dataSet._
 import org.apache.flink.table.plan.rules.datastream._
 import org.apache.flink.table.plan.rules.datastream.{DataStreamCalcRule, DataStreamScanRule, DataStreamUnionRule}
@@ -67,7 +68,7 @@ object FlinkRuleSets {
     // remove aggregation if it does not aggregate and input is already distinct
     AggregateRemoveRule.INSTANCE,
     // push aggregate through join
-    AggregateJoinTransposeRule.EXTENDED,
+    FlinkAggregateJoinTransposeRule.EXTENDED,
     // aggregate union rule
     AggregateUnionAggregateRule.INSTANCE,
 

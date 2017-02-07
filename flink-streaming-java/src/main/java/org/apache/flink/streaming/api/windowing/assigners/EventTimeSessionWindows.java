@@ -47,6 +47,10 @@ public class EventTimeSessionWindows extends MergingWindowAssigner<Object, TimeW
 	protected long sessionTimeout;
 
 	protected EventTimeSessionWindows(long sessionTimeout) {
+		if (sessionTimeout <= 0) {
+			throw new IllegalArgumentException("EventTimeSessionWindows parameters must satisfy 0 < size");
+		}
+
 		this.sessionTimeout = sessionTimeout;
 	}
 

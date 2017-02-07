@@ -52,16 +52,16 @@ public class GraphCreationWithCsvITCase extends MultipleProgramsTestBase {
 		 * Test with two Csv files one with Vertex Data and one with Edges data
 		 */
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		final String fileContent =  "1,1\n"+
+		final String fileContent = "1,1\n"+
 				"2,2\n"+
 				"3,3\n";
 		final FileInputSplit split = createTempFile(fileContent);
-		final String fileContent2 =  "1,2,ot\n"+
+		final String fileContent2 = "1,2,ot\n"+
 				"3,2,tt\n"+
 				"3,1,to\n";
 		final FileInputSplit split2 = createTempFile(fileContent2);
 
-		Graph<Long, Long, String> graph = Graph.fromCsvReader(split.getPath().toString(),split2.getPath().toString(),env)
+		Graph<Long, Long, String> graph = Graph.fromCsvReader(split.getPath().toString(), split2.getPath().toString(), env)
 				.types(Long.class, Long.class, String.class);
 
 		List<Triplet<Long, Long, String>> result = graph.getTriplets().collect();
@@ -106,7 +106,7 @@ public class GraphCreationWithCsvITCase extends MultipleProgramsTestBase {
 		*Test fromCsvReader with edge path and a mapper that assigns a Double constant as value
 		 */
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		final String fileContent =  "1,2,ot\n"+
+		final String fileContent = "1,2,ot\n"+
 				"3,2,tt\n"+
 				"3,1,to\n";
 		final FileInputSplit split = createTempFile(fileContent);
@@ -126,7 +126,7 @@ public class GraphCreationWithCsvITCase extends MultipleProgramsTestBase {
 		 * Test with one Csv file one with Edges data. Also tests the configuration method ignoreFistLineEdges()
 		 */
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		final String fileContent2 =  "header\n1,2,ot\n"+
+		final String fileContent2 = "header\n1,2,ot\n"+
 				"3,2,tt\n"+
 				"3,1,to\n";
 
@@ -153,19 +153,19 @@ public class GraphCreationWithCsvITCase extends MultipleProgramsTestBase {
 		 */
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		final String fileContent =  "header\n1;1\n"+
+		final String fileContent = "header\n1;1\n"+
 				"2;2\n"+
 				"3;3\n";
 
 		final FileInputSplit split = createTempFile(fileContent);
 
-		final String fileContent2 =  "header|1:2:ot|"+
+		final String fileContent2 = "header|1:2:ot|"+
 				"3:2:tt|"+
 				"3:1:to|";
 
 		final FileInputSplit split2 = createTempFile(fileContent2);
 
-		Graph<Long, Long, String> graph= Graph.fromCsvReader(split.getPath().toString(),split2.getPath().toString(),env).
+		Graph<Long, Long, String> graph= Graph.fromCsvReader(split.getPath().toString(), split2.getPath().toString(), env).
 				ignoreFirstLineEdges().ignoreFirstLineVertices().
 				fieldDelimiterEdges(":").fieldDelimiterVertices(";").
 				lineDelimiterEdges("|").

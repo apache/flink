@@ -170,7 +170,7 @@ public class VertexCentricIteration<K, VV, EV, Message>
 		DataSet<Tuple2<K, Either<NullValue, Message>>> initialWorkSet = initialVertices.map(
 				new InitializeWorkSet<K, VV, Message>()).returns(workSetTypeInfo);
 
-		final DeltaIteration<Vertex<K, VV>,	Tuple2<K, Either<NullValue, Message>>> iteration =
+		final DeltaIteration<Vertex<K, VV>, Tuple2<K, Either<NullValue, Message>>> iteration =
 				initialVertices.iterateDelta(initialWorkSet, this.maximumNumberOfIterations, 0);
 		setUpIteration(iteration);
 

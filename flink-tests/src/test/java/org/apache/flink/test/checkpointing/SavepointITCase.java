@@ -63,7 +63,6 @@ import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.ResponseS
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages.ResponseSubmitTaskListener;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
-import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.IterativeStream;
@@ -527,7 +526,7 @@ public class SavepointITCase extends TestLogger {
 
 	private static class StatefulCounter
 		extends RichMapFunction<Integer, Integer>
-		implements Checkpointed<byte[]>, CheckpointListener {
+		implements ListCheckpointed<byte[]>, CheckpointListener {
 
 		private static final Object checkpointLock = new Object();
 		private static int numCompleteCalls;
@@ -556,13 +555,16 @@ public class SavepointITCase extends TestLogger {
 		}
 
 		@Override
-		public byte[] snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
-			return data;
+		public List<byte[]> snapshotState(long checkpointId, long timestamp) throws Exception {
+			return Collections.singletonList(data);
 		}
 
 		@Override
-		public void restoreState(byte[] data) throws Exception {
-			this.data = data;
+		public void restoreState(List<byte[]> state) throws Exception {
+			if (state.isEmpty() || state.size() > 1) {
+				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
+			}
+			this.data = state.get(0);
 
 			synchronized (checkpointLock) {
 				if (++numRestoreCalls == getRuntimeContext().getNumberOfParallelSubtasks()) {

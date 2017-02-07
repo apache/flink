@@ -21,7 +21,7 @@ under the License.
 	<parent>
 		<groupId>org.apache</groupId>
 		<artifactId>apache</artifactId>
-		<version>14</version>
+		<version>18</version>
 	</parent>
 
 	<modelVersion>4.0.0</modelVersion>
@@ -98,7 +98,7 @@ under the License.
 		<!-- Default scala versions, may be overwritten by build profiles -->
 		<scala.version>2.10.4</scala.version>
 		<scala.binary.version>2.10</scala.binary.version>
-		<chill.version>0.8.1</chill.version>
+		<chill.version>0.7.4</chill.version>
 		<asm.version>5.0.4</asm.version>
 		<zookeeper.version>3.4.6</zookeeper.version>
 		<curator.version>2.8.0</curator.version>
@@ -881,11 +881,13 @@ under the License.
 
 						<!-- Test Data. -->
 						<exclude>flink-tests/src/test/resources/testdata/terainput.txt</exclude>
+						<exclude>flink-tests/src/test/resources/flink_11-kryo_registrations</exclude>
 						<exclude>flink-connectors/flink-avro/src/test/resources/avro/*.avsc</exclude>
 						<exclude>out/test/flink-avro/avro/user.avsc</exclude>
 						<exclude>flink-libraries/flink-table/src/test/scala/resources/*.out</exclude>
 
 						<!-- snapshots -->
+						<exclude>flink-connectors/flink-connector-filesystem/src/test/resources/rolling-sink-migration-test-flink1.1-snapshot</exclude>
 						<exclude>flink-connectors/flink-connector-kafka-base/src/test/resources/kafka-consumer-migration-test-flink1.1-snapshot</exclude>
 						<exclude>flink-connectors/flink-connector-kafka-base/src/test/resources/kafka-consumer-migration-test-flink1.1-snapshot-empty-state</exclude>
 						<exclude>flink-fs-tests/src/test/resources/monitoring-function-migration-test-1482144479339-flink1.1-snapshot</exclude>
@@ -1241,7 +1243,7 @@ under the License.
 							<dependency>
 								<groupId>org.apache.flink</groupId>
 								<artifactId>${project.artifactId}</artifactId>
-								<version>1.0.0</version>
+								<version>1.1.4</version>
 								<type>${project.packaging}</type>
 							</dependency>
 						</oldVersion>

@@ -47,9 +47,20 @@ public interface StateBackend {
 	 * Creates and returns a new {@link ReducingState}.
 	 * @param stateDesc The {@code StateDescriptor} that contains the name of the state.
 	 *
-	 * @param <T> The type of the values that the {@code ListState} can store.
+	 * @param <T> The type of the values that the {@code ReducingState} can store.
 	 */
 	<T> ReducingState<T> createReducingState(ReducingStateDescriptor<T> stateDesc) throws Exception;
+
+	/**
+	 * Creates and returns a new {@link AggregatingState}.
+	 * @param stateDesc The {@code StateDescriptor} that contains the name of the state.
+	 *
+	 * @param <IN> The type of the values that go into the aggregating state
+	 * @param <ACC> The type of the values that are stored in the aggregating state   
+	 * @param <OUT> The type of the values that come out of the aggregating state   
+	 */
+	<IN, ACC, OUT> AggregatingState<IN, OUT> createAggregatingState(
+			AggregatingStateDescriptor<IN, ACC, OUT> stateDesc) throws Exception;
 
 	/**
 	 * Creates and returns a new {@link FoldingState}.

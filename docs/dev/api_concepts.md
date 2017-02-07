@@ -336,7 +336,7 @@ Field expressions make it very easy to select fields in (nested) composite types
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 
-In the example below, we have a `WC` POJO with two fields "word" and "count". To group by the field `word`, we just pass its name to the `groupBy()` function.
+In the example below, we have a `WC` POJO with two fields "word" and "count". To group by the field `word`, we just pass its name to the `keyBy()` function.
 {% highlight java %}
 // some ordinary POJO (Plain old Java Object)
 public class WC {
@@ -392,7 +392,7 @@ These are valid field expressions for the example code above:
 </div>
 <div data-lang="scala" markdown="1">
 
-In the example below, we have a `WC` POJO with two fields "word" and "count". To group by the field `word`, we just pass its name to the `groupBy()` function.
+In the example below, we have a `WC` POJO with two fields "word" and "count". To group by the field `word`, we just pass its name to the `keyBy()` function.
 {% highlight java %}
 // some ordinary POJO (Plain old Java Object)
 class WC(var word: String, var count: Int) {
@@ -610,9 +610,9 @@ reduce, etc), four methods: `open`, `close`, `getRuntimeContext`, and
 `setRuntimeContext`. These are useful for parameterizing the function
 (see [Passing Parameters to Functions]({{ site.baseurl }}/dev/batch/index.html#passing-parameters-to-functions)),
 creating and finalizing local state, accessing broadcast variables (see
-[Broadcast Variables]({{ site.baseurl }}/dev/batch/index.html#broadcast-variables), and for accessing runtime
+[Broadcast Variables]({{ site.baseurl }}/dev/batch/index.html#broadcast-variables)), and for accessing runtime
 information such as accumulators and counters (see
-[Accumulators and Counters](#accumulators--counters), and information
+[Accumulators and Counters](#accumulators--counters)), and information
 on iterations (see [Iterations]({{ site.baseurl }}/dev/batch/iterations.html)).
 
 {% top %}
@@ -653,7 +653,7 @@ DataStream<Tuple2<String, Integer>> wordCounts = env.fromElements(
 
 wordCounts.map(new MapFunction<Tuple2<String, Integer>, Integer>() {
     @Override
-    public String map(Tuple2<String, Integer> value) throws Exception {
+    public Integer map(Tuple2<String, Integer> value) throws Exception {
         return value.f1;
     }
 });
@@ -753,7 +753,7 @@ Restrictions apply to classes containing fields that cannot be serialized, like 
 resources. Classes that follow the Java Beans conventions work well in general.
 
 All classes that are not identified as POJO types (see POJO requirements above) are handled by Flink as general class types.
-Flink treats these data types as black boxes and is not able to access their their content (i.e., for efficient sorting). General types are de/serialized using the serialization framework [Kryo](https://github.com/EsotericSoftware/kryo).
+Flink treats these data types as black boxes and is not able to access their content (i.e., for efficient sorting). General types are de/serialized using the serialization framework [Kryo](https://github.com/EsotericSoftware/kryo).
 
 #### Values
 

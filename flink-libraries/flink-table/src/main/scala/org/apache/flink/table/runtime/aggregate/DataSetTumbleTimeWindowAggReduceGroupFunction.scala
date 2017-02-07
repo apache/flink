@@ -98,7 +98,8 @@ class DataSetTumbleTimeWindowAggReduceGroupFunction(
 
     // set collector and window
     collector.wrappedCollector = out
-    collector.timeWindow = new TimeWindow(startTs, startTs + windowSize)
+    collector.windowStart = startTs
+    collector.windowEnd = startTs + windowSize
 
     collector.collect(output)
   }

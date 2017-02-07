@@ -21,13 +21,12 @@ package org.apache.flink.table.api.scala.batch
 import java.util
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase
-import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.table.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
+import org.apache.flink.table.api.scala.batch.utils.{TableProgramsCollectionTestBase, TableProgramsTestBase}
+import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.types.Row
 import org.apache.flink.table.api.{TableEnvironment, TableException}
-import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.TestBaseUtils
 import org.junit._
 import org.junit.runner.RunWith
@@ -37,9 +36,8 @@ import scala.collection.JavaConverters._
 
 @RunWith(classOf[Parameterized])
 class TableEnvironmentITCase(
-    mode: TestExecutionMode,
     configMode: TableConfigMode)
-  extends TableProgramsTestBase(mode, configMode) {
+  extends TableProgramsCollectionTestBase(configMode) {
 
   @Test
   def testSimpleRegister(): Unit = {
@@ -260,11 +258,11 @@ class TableEnvironmentITCase(
 
 object TableEnvironmentITCase {
 
-  @Parameterized.Parameters(name = "Execution mode = {0}, Table config = {1}")
+  @Parameterized.Parameters(name = "Table config = {0}")
   def parameters(): util.Collection[Array[java.lang.Object]] = {
     Seq[Array[AnyRef]](
-      Array(TestExecutionMode.COLLECTION, TableProgramsTestBase.DEFAULT),
-      Array(TestExecutionMode.COLLECTION, TableProgramsTestBase.EFFICIENT)).asJava
+      Array(TableProgramsTestBase.DEFAULT),
+      Array(TableProgramsTestBase.EFFICIENT)).asJava
   }
 }
 

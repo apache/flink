@@ -19,17 +19,17 @@
 
 package org.apache.flink.table.functions.utils
 
+import java.lang.{Long => JLong, Integer => JInt}
 import java.lang.reflect.{Method, Modifier}
 import java.sql.{Date, Time, Timestamp}
 
 import com.google.common.primitives.Primitives
 import org.apache.calcite.sql.SqlFunction
 import org.apache.flink.api.common.functions.InvalidTypesException
-import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
-import org.apache.flink.api.common.typeutils.CompositeType
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.api.{TableEnvironment, TableException, ValidationException}
+import org.apache.flink.table.api.{TableEnvironment, ValidationException}
 import org.apache.flink.table.functions.{ScalarFunction, TableFunction, UserDefinedFunction}
 import org.apache.flink.table.plan.schema.FlinkTableFunctionImpl
 import org.apache.flink.util.InstantiationUtil
@@ -320,8 +320,8 @@ object UserDefinedFunctionUtils {
   candidate == null ||
     candidate == expected ||
     expected.isPrimitive && Primitives.wrap(expected) == candidate ||
-    candidate == classOf[Date] && expected == classOf[Int] ||
-    candidate == classOf[Time] && expected == classOf[Int] ||
-    candidate == classOf[Timestamp] && expected == classOf[Long]
+    candidate == classOf[Date] && (expected == classOf[Int] || expected == classOf[JInt])  ||
+    candidate == classOf[Time] && (expected == classOf[Int] || expected == classOf[JInt]) ||
+    candidate == classOf[Timestamp] && (expected == classOf[Long] || expected == classOf[JLong])
 
 }

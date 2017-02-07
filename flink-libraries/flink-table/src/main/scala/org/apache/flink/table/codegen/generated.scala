@@ -40,4 +40,20 @@ object GeneratedExpression {
   val NO_CODE = ""
 }
 
+/**
+  * Describes a generated [[org.apache.flink.api.common.functions.Function]]
+  *
+  * @param name class name of the generated Function.
+  * @param returnType the type information of the result type
+  * @param code code of the generated Function.
+  * @tparam T type of function
+  */
 case class GeneratedFunction[T](name: String, returnType: TypeInformation[Any], code: String)
+
+/**
+  * Describes a generated [[org.apache.flink.util.Collector]].
+  *
+  * @param name class name of the generated Collector.
+  * @param code code of the generated Collector.
+  */
+case class GeneratedCollector(name: String, code: String)

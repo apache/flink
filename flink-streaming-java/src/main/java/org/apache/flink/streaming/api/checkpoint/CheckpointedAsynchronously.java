@@ -18,24 +18,45 @@
 
 package org.apache.flink.streaming.api.checkpoint;
 
-
 import org.apache.flink.annotation.PublicEvolving;
 
 import java.io.Serializable;
 
 /**
- * This interface marks a function/operator as <i>asynchronously checkpointed</i>.
- * Similar to the {@link Checkpointed} interface, the function must produce a
- * snapshot of its state. However, the function must be able to continue working
- * and mutating its state without mutating the returned state snapshot.
+ * This interface marks a function/operator as checkpointed similar to the
+ * {@link Checkpointed} interface, but gives the Flink framework the option to
+ * perform the checkpoint asynchronously. Note that asynchronous checkpointing for 
+ * this interface has not been implemented.
  * 
- * <p>Asynchronous checkpoints are desirable, because they allow the data streams at the
- * point of the checkpointed function/operator to continue running while the checkpoint
- * is in progress.</p>
+ * <h1>Deprecation and Replacement</h1>
  * 
- * <p>To be able to support asynchronous snapshots, the state returned by the
- * {@link #snapshotState(long, long)} method is typically a copy or shadow copy
- * of the actual state.</p>
+ * The shortcut replacement for this interface is via {@link ListCheckpointed} and works
+ * as shown in the example below. Please refer to the JavaDocs of {@link ListCheckpointed} for
+ * a more detailed description of how to use the new interface.
+ * 
+ * <pre>{@code
+ * public class ExampleFunction<T> implements MapFunction<T, T>, ListCheckpointed<Integer> {
+ * 
+ *     private int count;
+ *
+ *     public List<Integer> snapshotState(long checkpointId, long timestamp) throws Exception {
+ *         return Collections.singletonList(this.count);
+ *     }
+ *
+ *     public void restoreState(List<Integer> state) throws Exception {
+ *         this.value = state.count.isEmpty() ? 0 : state.get(0);
+ *     }
+ * 
+ *     public T map(T value) {
+ *         count++;
+ *         return value;
+ *     }
+ * }
+ * }</pre>
+ *
+ * @deprecated Please use {@link ListCheckpointed} and {@link CheckpointedFunction} instead,
+ *             as illustrated in the example above.
  */
+@Deprecated
 @PublicEvolving
 public interface CheckpointedAsynchronously<T extends Serializable> extends Checkpointed<T> {}

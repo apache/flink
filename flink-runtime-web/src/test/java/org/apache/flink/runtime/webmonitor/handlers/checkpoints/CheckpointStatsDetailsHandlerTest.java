@@ -25,7 +25,6 @@ import org.apache.flink.runtime.checkpoint.CheckpointProperties;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsHistory;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsStatus;
-import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStats;
 import org.apache.flink.runtime.checkpoint.FailedCheckpointStats;
 import org.apache.flink.runtime.checkpoint.PendingCheckpointStats;
@@ -89,9 +88,7 @@ public class CheckpointStatsDetailsHandlerTest {
 		when(snapshot.getHistory()).thenReturn(history);
 
 		AccessExecutionGraph graph = mock(AccessExecutionGraph.class);
-		CheckpointStatsTracker tracker = mock(CheckpointStatsTracker.class);
-		when(graph.getCheckpointStatsTracker()).thenReturn(tracker);
-		when(tracker.createSnapshot()).thenReturn(snapshot);
+		when(graph.getCheckpointStatsSnapshot()).thenReturn(snapshot);
 
 		CheckpointStatsDetailsHandler handler = new CheckpointStatsDetailsHandler(mock(ExecutionGraphHolder.class), new CheckpointStatsCache(0));
 		Map<String, String> params = new HashMap<>();
@@ -238,16 +235,14 @@ public class CheckpointStatsDetailsHandlerTest {
 
 	// ------------------------------------------------------------------------
 
-	static JsonNode triggerRequest(AbstractCheckpointStats checkpoint) throws Exception {
+	private static JsonNode triggerRequest(AbstractCheckpointStats checkpoint) throws Exception {
 		CheckpointStatsHistory history = mock(CheckpointStatsHistory.class);
 		when(history.getCheckpointById(anyLong())).thenReturn(checkpoint);
 		CheckpointStatsSnapshot snapshot = mock(CheckpointStatsSnapshot.class);
 		when(snapshot.getHistory()).thenReturn(history);
 
 		AccessExecutionGraph graph = mock(AccessExecutionGraph.class);
-		CheckpointStatsTracker tracker = mock(CheckpointStatsTracker.class);
-		when(graph.getCheckpointStatsTracker()).thenReturn(tracker);
-		when(tracker.createSnapshot()).thenReturn(snapshot);
+		when(graph.getCheckpointStatsSnapshot()).thenReturn(snapshot);
 
 		CheckpointStatsDetailsHandler handler = new CheckpointStatsDetailsHandler(mock(ExecutionGraphHolder.class), new CheckpointStatsCache(0));
 		Map<String, String> params = new HashMap<>();
@@ -258,7 +253,7 @@ public class CheckpointStatsDetailsHandlerTest {
 		return mapper.readTree(json);
 	}
 
-	static void verifyTaskNode(TaskStateStats task, JsonNode parentNode) {
+	private static void verifyTaskNode(TaskStateStats task, JsonNode parentNode) {
 		long duration = ThreadLocalRandom.current().nextInt(128);
 
 		JsonNode taskNode = parentNode.get("tasks").get(task.getJobVertexId().toString());

@@ -18,12 +18,12 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 
 import java.util.HashMap;
-import java.util.Map;
 
 import static junit.framework.TestCase.assertFalse;
 import static org.junit.Assert.assertEquals;
@@ -47,7 +47,7 @@ public class PendingCheckpointStatsTest {
 		TaskStateStats task2 = new TaskStateStats(new JobVertexID(), 4);
 		int totalSubtaskCount = task1.getNumberOfSubtasks() + task2.getNumberOfSubtasks();
 
-		Map<JobVertexID, TaskStateStats> taskStats = new HashMap<>();
+		HashMap<JobVertexID, TaskStateStats> taskStats = new HashMap<>();
 		taskStats.put(task1.getJobVertexId(), task1);
 		taskStats.put(task2.getJobVertexId(), task2);
 
@@ -128,7 +128,7 @@ public class PendingCheckpointStatsTest {
 		TaskStateStats task1 = new TaskStateStats(new JobVertexID(), 3);
 		TaskStateStats task2 = new TaskStateStats(new JobVertexID(), 4);
 
-		Map<JobVertexID, TaskStateStats> taskStats = new HashMap<>();
+		HashMap<JobVertexID, TaskStateStats> taskStats = new HashMap<>();
 		taskStats.put(task1.getJobVertexId(), task1);
 		taskStats.put(task2.getJobVertexId(), task2);
 
@@ -165,7 +165,6 @@ public class PendingCheckpointStatsTest {
 		assertNotNull(completed);
 		assertEquals(CheckpointStatsStatus.COMPLETED, completed.getStatus());
 		assertFalse(completed.isDiscarded());
-		assertEquals(discardCallback, completed.getDiscardCallback());
 		discardCallback.notifyDiscardedCheckpoint();
 		assertTrue(completed.isDiscarded());
 		assertEquals(externalPath, completed.getExternalPath());
@@ -189,7 +188,7 @@ public class PendingCheckpointStatsTest {
 		TaskStateStats task1 = new TaskStateStats(new JobVertexID(), 3);
 		TaskStateStats task2 = new TaskStateStats(new JobVertexID(), 4);
 
-		Map<JobVertexID, TaskStateStats> taskStats = new HashMap<>();
+		HashMap<JobVertexID, TaskStateStats> taskStats = new HashMap<>();
 		taskStats.put(task1.getJobVertexId(), task1);
 		taskStats.put(task2.getJobVertexId(), task2);
 
@@ -240,6 +239,35 @@ public class PendingCheckpointStatsTest {
 		assertEquals(task2, failed.getTaskStateStats(task2.getJobVertexId()));
 	}
 
+	@Test
+	public void testIsJavaSerializable() throws Exception {
+		TaskStateStats task1 = new TaskStateStats(new JobVertexID(), 3);
+		TaskStateStats task2 = new TaskStateStats(new JobVertexID(), 4);
+
+		HashMap<JobVertexID, TaskStateStats> taskStats = new HashMap<>();
+		taskStats.put(task1.getJobVertexId(), task1);
+		taskStats.put(task2.getJobVertexId(), task2);
+
+		PendingCheckpointStats pending = new PendingCheckpointStats(
+			123123123L,
+			10123L,
+			CheckpointProperties.forStandardCheckpoint(),
+			1337,
+			taskStats,
+			mock(CheckpointStatsTracker.PendingCheckpointStatsCallback.class));
+
+		PendingCheckpointStats copy = CommonTestUtils.createCopySerializable(pending);
+
+		assertEquals(pending.getCheckpointId(), copy.getCheckpointId());
+		assertEquals(pending.getTriggerTimestamp(), copy.getTriggerTimestamp());
+		assertEquals(pending.getProperties(), copy.getProperties());
+		assertEquals(pending.getNumberOfSubtasks(), copy.getNumberOfSubtasks());
+		assertEquals(pending.getNumberOfAcknowledgedSubtasks(), copy.getNumberOfAcknowledgedSubtasks());
+		assertEquals(pending.getEndToEndDuration(), copy.getEndToEndDuration());
+		assertEquals(pending.getStateSize(), copy.getStateSize());
+		assertEquals(pending.getLatestAcknowledgedSubtaskStats(), copy.getLatestAcknowledgedSubtaskStats());
+		assertEquals(pending.getStatus(), copy.getStatus());
+	}
 
 	// ------------------------------------------------------------------------
 

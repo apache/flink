@@ -569,7 +569,7 @@ public class ScatterGatherIteration<K, VV, Message, EV>
 
 		TypeInformation<Vertex<K, VV>> vertexTypes = initialVertices.getType();
 
-		final DeltaIteration<Vertex<K, VV>,	Vertex<K, VV>> iteration =
+		final DeltaIteration<Vertex<K, VV>, Vertex<K, VV>> iteration =
 				initialVertices.iterateDelta(initialVertices, this.maximumNumberOfIterations, 0);
 				setUpIteration(iteration);
 
@@ -635,7 +635,7 @@ public class ScatterGatherIteration<K, VV, Message, EV>
 
 		DataSet<Vertex<K, Tuple3<VV, LongValue, LongValue>>> verticesWithDegrees = initialVertices
 				.join(degrees).where(0).equalTo(0)
-				.with(new FlatJoinFunction<Vertex<K,VV>, Tuple3<K, LongValue, LongValue>, Vertex<K, Tuple3<VV, LongValue, LongValue>>>() {
+				.with(new FlatJoinFunction<Vertex<K, VV>, Tuple3<K, LongValue, LongValue>, Vertex<K, Tuple3<VV, LongValue, LongValue>>>() {
 					@Override
 					public void join(Vertex<K, VV> vertex, Tuple3<K, LongValue, LongValue> degrees,
 									Collector<Vertex<K, Tuple3<VV, LongValue, LongValue>>> out) throws Exception {

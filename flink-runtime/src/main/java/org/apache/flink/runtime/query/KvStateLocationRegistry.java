@@ -23,14 +23,14 @@ import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.KvState;
+import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.util.Preconditions;
 
 import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Simple registry, which maps {@link KvState} registration notifications to
+ * Simple registry, which maps {@link InternalKvState} registration notifications to
  * {@link KvStateLocation} instances.
  */
 public class KvStateLocationRegistry {

@@ -26,7 +26,6 @@ import org.apache.flink.runtime.checkpoint.CheckpointStatsCounts;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsHistory;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsStatus;
-import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStats;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStatsSummary;
 import org.apache.flink.runtime.checkpoint.FailedCheckpointStats;
@@ -179,9 +178,7 @@ public class CheckpointStatsHandlerTest {
 		when(snapshot.getLatestRestoredCheckpoint()).thenReturn(latestRestored);
 
 		AccessExecutionGraph graph = mock(AccessExecutionGraph.class);
-		CheckpointStatsTracker tracker = mock(CheckpointStatsTracker.class);
-		when(graph.getCheckpointStatsTracker()).thenReturn(tracker);
-		when(tracker.createSnapshot()).thenReturn(snapshot);
+		when(graph.getCheckpointStatsSnapshot()).thenReturn(snapshot);
 
 		CheckpointStatsHandler handler = new CheckpointStatsHandler(mock(ExecutionGraphHolder.class));
 		String json = handler.handleRequest(graph, Collections.<String, String>emptyMap());

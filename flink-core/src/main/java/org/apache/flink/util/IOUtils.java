@@ -20,7 +20,6 @@ package org.apache.flink.util;
 
 import org.slf4j.Logger;
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -166,7 +165,7 @@ public final class IOUtils {
 	// ------------------------------------------------------------------------
 	
 	/**
-	 * Close the Closeable objects and <b>ignore</b> any {@link IOException} or
+	 * Close the AutoCloseable objects and <b>ignore</b> any {@link Exception} or
 	 * null pointers. Must only be used for cleanup in exception handlers.
 	 * 
 	 * @param log
@@ -174,12 +173,12 @@ public final class IOUtils {
 	 * @param closeables
 	 *        the objects to close
 	 */
-	public static void cleanup(final Logger log, final java.io.Closeable... closeables) {
-		for (java.io.Closeable c : closeables) {
+	public static void cleanup(final Logger log, final AutoCloseable... closeables) {
+		for (AutoCloseable c : closeables) {
 			if (c != null) {
 				try {
 					c.close();
-				} catch (IOException e) {
+				} catch (Exception e) {
 					if (log != null && log.isDebugEnabled()) {
 						log.debug("Exception in closing " + c, e);
 					}
@@ -216,9 +215,48 @@ public final class IOUtils {
 	}
 
 	/**
+	 * Closes all {@link AutoCloseable} objects in the parameter, suppressing exceptions. Exception will be emitted
+	 * after calling close() on every object.
+	 *
+	 * @param closeables iterable with closeables to close.
+	 * @throws Exception collected exceptions that occurred during closing
+	 */
+	public static void closeAll(Iterable<? extends AutoCloseable> closeables) throws Exception {
+		if (null != closeables) {
+
+			Exception collectedExceptions = null;
+
+			for (AutoCloseable closeable : closeables) {
+				try {
+					if (null != closeable) {
+						closeable.close();
+					}
+				} catch (Exception e) {
+					collectedExceptions = ExceptionUtils.firstOrSuppressed(collectedExceptions, e);
+				}
+			}
+
+			if (null != collectedExceptions) {
+				throw collectedExceptions;
+			}
+		}
+	}
+
+	/**
+	 * Closes all elements in the iterable with closeQuietly().
+	 */
+	public static void closeAllQuietly(Iterable<? extends AutoCloseable> closeables) {
+		if (null != closeables) {
+			for (AutoCloseable closeable : closeables) {
+				closeQuietly(closeable);
+			}
+		}
+	}
+
+	/**
 	 * <p><b>Important:</b> This method is expected to never throw an exception.
 	 */
-	public static void closeQuietly(Closeable closeable) {
+	public static void closeQuietly(AutoCloseable closeable) {
 		try {
 			if (closeable != null) {
 				closeable.close();

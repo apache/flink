@@ -19,14 +19,13 @@
 package org.apache.flink.runtime.state.heap;
 
 import org.apache.commons.io.IOUtils;
-import org.apache.flink.api.common.state.FoldingState;
+import org.apache.flink.annotation.VisibleForTesting;
+
+import org.apache.flink.api.common.state.AggregatingStateDescriptor;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
-import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.StateDescriptor;
-import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.VoidSerializer;
@@ -54,8 +53,14 @@ import org.apache.flink.runtime.state.RegisteredBackendStateMetaInfo;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
+import org.apache.flink.runtime.state.internal.InternalAggregatingState;
+import org.apache.flink.runtime.state.internal.InternalFoldingState;
+import org.apache.flink.runtime.state.internal.InternalListState;
+import org.apache.flink.runtime.state.internal.InternalReducingState;
+import org.apache.flink.runtime.state.internal.InternalValueState;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -133,17 +138,23 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		return stateTable;
 	}
 
-	@SuppressWarnings("unchecked")
 	@Override
-	public <N, V> ValueState<V> createValueState(TypeSerializer<N> namespaceSerializer, ValueStateDescriptor<V> stateDesc) throws Exception {
+	public <N, V> InternalValueState<N, V> createValueState(
+			TypeSerializer<N> namespaceSerializer,
+			ValueStateDescriptor<V> stateDesc) throws Exception {
+
 		StateTable<K, N, V> stateTable = tryRegisterStateTable(namespaceSerializer, stateDesc);
 		return new HeapValueState<>(this, stateDesc, stateTable, keySerializer, namespaceSerializer);
 	}
 
-	@SuppressWarnings("unchecked")
 	@Override
-	public <N, T> ListState<T> createListState(TypeSerializer<N> namespaceSerializer, ListStateDescriptor<T> stateDesc) throws Exception {
+	public <N, T> InternalListState<N, T> createListState(
+			TypeSerializer<N> namespaceSerializer,
+			ListStateDescriptor<T> stateDesc) throws Exception {
+
 		String name = stateDesc.getName();
+
+		@SuppressWarnings("unchecked")
 		StateTable<K, N, ArrayList<T>> stateTable = (StateTable<K, N, ArrayList<T>>) stateTables.get(name);
 
 		RegisteredBackendStateMetaInfo<N, ArrayList<T>> newMetaInfo =
@@ -153,15 +164,29 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		return new HeapListState<>(this, stateDesc, stateTable, keySerializer, namespaceSerializer);
 	}
 
-	@SuppressWarnings("unchecked")
 	@Override
-	public <N, T> ReducingState<T> createReducingState(TypeSerializer<N> namespaceSerializer, ReducingStateDescriptor<T> stateDesc) throws Exception {
+	public <N, T> InternalReducingState<N, T> createReducingState(
+			TypeSerializer<N> namespaceSerializer,
+			ReducingStateDescriptor<T> stateDesc) throws Exception {
+
 		StateTable<K, N, T> stateTable = tryRegisterStateTable(namespaceSerializer, stateDesc);
 		return new HeapReducingState<>(this, stateDesc, stateTable, keySerializer, namespaceSerializer);
 	}
-	@SuppressWarnings("unchecked")
+
 	@Override
-	protected <N, T, ACC> FoldingState<T, ACC> createFoldingState(TypeSerializer<N> namespaceSerializer, FoldingStateDescriptor<T, ACC> stateDesc) throws Exception {
+	public <N, T, ACC, R> InternalAggregatingState<N, T, R> createAggregatingState(
+			TypeSerializer<N> namespaceSerializer,
+			AggregatingStateDescriptor<T, ACC, R> stateDesc) throws Exception {
+
+		StateTable<K, N, ACC> stateTable = tryRegisterStateTable(namespaceSerializer, stateDesc);
+		return new HeapAggregatingState<>(this, stateDesc, stateTable, keySerializer, namespaceSerializer);
+	}
+
+	@Override
+	protected <N, T, ACC> InternalFoldingState<N, T, ACC> createFoldingState(
+			TypeSerializer<N> namespaceSerializer,
+			FoldingStateDescriptor<T, ACC> stateDesc) throws Exception {
+
 		StateTable<K, N, ACC> stateTable = tryRegisterStateTable(namespaceSerializer, stateDesc);
 		return new HeapFoldingState<>(this, stateDesc, stateTable, keySerializer, namespaceSerializer);
 	}
@@ -228,6 +253,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		}
 	}
 
+	@SuppressWarnings("deprecation")
 	@Override
 	public void restore(Collection<KeyGroupsStateHandle> restoredState) throws Exception {
 		LOG.info("Initializing heap keyed state backend from snapshot.");
@@ -377,6 +403,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		return "HeapKeyedStateBackend";
 	}
 
+	@SuppressWarnings({"unchecked", "rawtypes", "deprecation"})
 	@Deprecated
 	private void restoreOldSavepointKeyedState(
 			Collection<KeyGroupsStateHandle> stateHandles) throws IOException, ClassNotFoundException {
@@ -436,13 +463,14 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 							stateSerializer);
 
 			StateTable<K, ?, ?> stateTable = new StateTable<>(registeredBackendStateMetaInfo, keyGroupRange);
-			stateTable.getState().set(0, rawResultMap);
+			stateTable.getState()[0] = rawResultMap;
 
 			// add named state to the backend
 			stateTables.put(registeredBackendStateMetaInfo.getName(), stateTable);
 		}
 	}
 
+	@SuppressWarnings("deprecation")
 	private RestoredState restoreHeapState(AbstractMemStateSnapshot<K, ?, ?, ?, ?> stateSnapshot) throws IOException {
 		return new RestoredState(
 				stateSnapshot.deserialize(),
@@ -450,6 +478,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				stateSnapshot.getStateSerializer());
 	}
 
+	@SuppressWarnings({"rawtypes", "unchecked", "deprecation"})
 	private RestoredState restoreFsState(AbstractFsStateSnapshot<K, ?, ?, ?, ?> stateSnapshot) throws IOException {
 		FileSystem fs = stateSnapshot.getFilePath().getFileSystem();
 		//TODO register closeable to support fast cancelation?
@@ -481,6 +510,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		}
 	}
 
+	@SuppressWarnings("rawtypes")
 	static final class RestoredState {
 
 		private final Map rawResultMap;
@@ -505,4 +535,48 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			return stateSerializer;
 		}
 	}
+
+	/**
+	 * Returns the total number of state entries across all keys/namespaces.
+	 */
+	@VisibleForTesting
+	@SuppressWarnings("unchecked")
+	public int numStateEntries() {
+		int sum = 0;
+		for (StateTable<K, ?, ?> stateTable : stateTables.values()) {
+			for (Map namespaceMap : stateTable.getState()) {
+				if (namespaceMap == null) {
+					continue;
+				}
+				Map<?, Map> typedMap = (Map<?, Map>) namespaceMap;
+				for (Map entriesMap : typedMap.values()) {
+					sum += entriesMap.size();
+				}
+			}
+		}
+		return sum;
+	}
+
+	/**
+	 * Returns the total number of state entries across all keys for the given namespace.
+	 */
+	@VisibleForTesting
+	@SuppressWarnings("unchecked")
+	public <N> int numStateEntries(N namespace) {
+		int sum = 0;
+		for (StateTable<K, ?, ?> stateTable : stateTables.values()) {
+			for (Map namespaceMap : stateTable.getState()) {
+				if (namespaceMap == null) {
+					continue;
+				}
+				Map<?, Map> typedMap = (Map<?, Map>) namespaceMap;
+				Map singleNamespace = typedMap.get(namespace);
+				if (singleNamespace != null) {
+					sum += singleNamespace.size();
+				}
+			}
+		}
+		return sum;
+	}
+
 }

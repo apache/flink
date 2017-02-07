@@ -90,46 +90,79 @@ Once you have a DC/OS cluster, you may install Flink through the DC/OS
 Universe. In the search prompt, just search for Flink. 
 
 **Note**: At the time of this writing, Flink was not yet available in the
-Unvierse. Please use the following workaround in the meantime:
+Universe. Please use the following workaround in the meantime:
 
-1. Add the Development Universe
+1. [Install the DC/OS CLI](https://dcos.io/docs/1.8/usage/cli/install/)
 
-    `dcos marathon app add https://raw.githubusercontent.com/mesosphere/dcos-flink-service/Makman2/quickstart/universe-server.json`
+2. Add the Development Universe
+
+    `./dcos marathon app add https://raw.githubusercontent.com/mesosphere/dcos-flink-service/Makman2/quickstart/universe-server.json`
     
-2. Add the local Universe repository:
+3. Add the local Universe repository:
 
-   `dcos package repo add --index=0 dev-universe http://universe.marathon.mesos:8085/repo`
+   `./dcos package repo add --index=0 dev-universe http://universe.marathon.mesos:8085/repo`
 
-3. Install Flink through the Universe page or using the `dcos` command:
+4. Install Flink through the Universe page or using the `dcos` command:
    
-   `dcos package install flink`
+   `./dcos package install flink`
 
+In order to execute a Flink job on a DC/OS hosted Flink cluster, you first have to find out the address of the launched JobManager.
+The JobManager address can be found out by opening the Flink service, going to *Job Manager* and then using the address specified under `jobmanager.rpc.address` and `jobmanager.rpc.port`.
+Now you can use this address to submit a job to your cluster via
+
+    FLINK_HOME/bin/flink run -m address:port flink-job.jar
 
 ## Mesos without DC/OS
 
-Let's take a look at how to setup Flink on Mesos without DC/OS. 
+You can also run Mesos without DC/OS.
 
-### Prerequisites
+### Installing Mesos
 
-Please follow the
-[instructions on how to setup Mesos on the official website](http://mesos.apache.org/documentation/latest/). 
+Please follow the [instructions on how to setup Mesos on the official website](http://mesos.apache.org/documentation/latest/getting-started/).
 
-### Optional dependencies
+After installation you have to configure the set of master and agent nodes by creating the files `MESOS_HOME/etc/mesos/masters` and `MESOS_HOME/etc/mesos/slaves`.
+These files contain in each row a single hostname on which the respective component will be started (assuming SSH access to these nodes).
 
-Optionally,
-you may also install [Marathon](https://mesosphere.github.io/marathon/) which
-will be necessary if you want your Flink cluster to be highly available in the
-presence of master node failures. Additionally, you probably want to install a
-distributed file system to share data across nodes and make use of Flink's
-checkpointing mechanism.
+Next you have to create `MESOS_HOME/etc/mesos/mesos-master-env.sh` or use the template found in the same directory.
+In this file, you have to define
+
+    export MESOS_work_dir=WORK_DIRECTORY
+
+and it is recommended to uncommment
+
+    export MESOS_log_dir=LOGGING_DIRECTORY
+
+
+In order to configure the Mesos agents, you have to create `MESOS_HOME/etc/mesos/mesos-agent-env.sh` or use the template found in the same directory.
+You have to configure
+
+    export MESOS_master=MASTER_HOSTNAME:MASTER_PORT
+
+and uncomment
+
+    export MESOS_log_dir=LOGGING_DIRECTORY
+    export MESOS_work_dir=WORK_DIRECTORY
+
+#### Mesos Library
+
+In order to run Java applications with Mesos you have to export `MESOS_NATIVE_JAVA_LIBRARY=MESOS_HOME/lib/libmesos.so` on Linux.
+Under Mac OS X you have to export `MESOS_NATIVE_JAVA_LIBRARY=MESOS_HOME/lib/libmesos.dylib`.
+
+#### Deploying Mesos
+
+In order to start your mesos cluster, use the deployment script `MESOS_HOME/sbin/mesos-start-cluster.sh`.
+In order to stop your mesos cluster, use the deployment script `MESOS_HOME/sbin/mesos-stop-cluster.sh`.
+More information about the deployment scripts can be found [here](http://mesos.apache.org/documentation/latest/deploy-scripts/).
+
+### Installing Marathon
+
+Optionally, you may also [install Marathon](https://mesosphere.github.io/marathon/docs/) which will be necessary to run Flink in high availability (HA) mode.
 
 ### Pre-installing Flink vs Docker/Mesos containers
 
-You may install Flink on all of your Mesos Master and Agent nodes. You can also
-pull the binaries from the Flink web site during deployment and apply your
-custom configuration before launching the application master. A more
-convenient and easier to maintain approach is to use Docker containers to manage
-the Flink binaries and configuration.
+You may install Flink on all of your Mesos Master and Agent nodes.
+You can also pull the binaries from the Flink web site during deployment and apply your custom configuration before launching the application master.
+A more convenient and easier to maintain approach is to use Docker containers to manage the Flink binaries and configuration.
 
 This is controlled via the following configuration entries:
 
@@ -145,60 +178,78 @@ If set to 'docker', specify the image name:
 In the `/bin` directory of the Flink distribution, you find two startup scripts
 which manage the Flink processes in a Mesos cluster:
 
-1. mesos-appmaster.sh
-   This starts the Mesos application master which will register the Mesos
-   scheduler. It is also responsible for starting up the worker nodes.
+1. `mesos-appmaster.sh`
+   This starts the Mesos application master which will register the Mesos scheduler.
+   It is also responsible for starting up the worker nodes.
    
-2. mesos-taskmanager.sh
-   The entry point for the Mesos worker processes. You don't need to explicitly
-   execute this script. It is automatically launched by the Mesos worker node to
-   bring up a new TaskManager.
+2. `mesos-taskmanager.sh`
+   The entry point for the Mesos worker processes.
+   You don't need to explicitly execute this script.
+   It is automatically launched by the Mesos worker node to bring up a new TaskManager.
+
+In order to run the `mesos-appmaster.sh` script you have to define `mesos.master` in the `flink-conf.yaml` or pass it via `-Dmesos.master=...` to the Java process.
+Additionally, you should define the number of task managers which are started by Mesos via `mesos.initial-tasks`.
+This value can also be defined in the `flink-conf.yaml` or passed as a Java property.
+
+When executing `mesos-appmaster.sh`, it will create a job manager on the machine where you executed the script.
+In contrast to that, the task managers will be run as Mesos tasks in the Mesos cluster.
+
+#### General configuration
+
+It is possible to completely parameterize a Mesos application through Java properties passed to the Mesos application master.
+This also allows to specify general Flink configuration parameters.
+For example:
+
+    bin/mesos-appmaster.sh \
+        -Dmesos.master=master.foobar.org:5050
+        -Djobmanager.heap.mb=1024 \
+        -Djobmanager.rpc.port=6123 \
+        -Djobmanager.web.port=8081 \
+        -Dmesos.initial-tasks=10 \
+        -Dmesos.resourcemanager.tasks.mem=4096 \
+        -Dtaskmanager.heap.mb=3500 \
+        -Dtaskmanager.numberOfTaskSlots=2 \
+        -Dparallelism.default=10
 
 
 ### High Availability
 
-You will need to run a service like Marathon or Apache Aurora which takes care
-of restarting the Flink master process in case of node or process failures. In
-addition, Zookeeper needs to be configured like described in the
-[High Availability section of the Flink docs]({{ site.baseurl }}/setup/jobmanager_high_availability.html)
+You will need to run a service like Marathon or Apache Aurora which takes care of restarting the Flink master process in case of node or process failures.
+In addition, Zookeeper needs to be configured like described in the [High Availability section of the Flink docs]({{ site.baseurl }}/setup/jobmanager_high_availability.html)
 
-For the reconciliation of tasks to work correctly, please also set
-`recovery.zookeeper.path.mesos-workers` to a valid Zookeeper path.
+For the reconciliation of tasks to work correctly, please also set `recovery.zookeeper.path.mesos-workers` to a valid Zookeeper path.
 
 #### Marathon
 
-Marathon needs to be set up to launch the `bin/mesos-appmaster.sh` script. In
-particular, it should also adjust any configuration parameters for the Flink
-cluster. 
+Marathon needs to be set up to launch the `bin/mesos-appmaster.sh` script.
+In particular, it should also adjust any configuration parameters for the Flink cluster.
 
 Here is an example configuration for Marathon:
 
     {
-    "id": "basic-0", 
-    "cmd": "$FLINK_HOME/bin/mesos-appmaster.sh -DconfigEntry=configValue -DanotherEntry=anotherValue ...",
-    "cpus": 1.0,
-    "mem": 2048,
+        "id": "flink",
+        "cmd": "$FLINK_HOME/bin/mesos-appmaster.sh -Djobmanager.heap.mb=1024 -Djobmanager.rpc.port=6123 -Djobmanager.web.port=8081 -Dmesos.initial-tasks=1 -Dmesos.resourcemanager.tasks.mem=1024 -Dtaskmanager.heap.mb=1024 -Dtaskmanager.numberOfTaskSlots=2 -Dparallelism.default=2 -Dmesos.resourcemanager.tasks.cpus=1",
+        "cpus": 1.0,
+        "mem": 1024
     }
+
+When running Flink with Marathon, the whole Flink cluster including the job manager will be run as Mesos tasks in the Mesos cluster.
 
 ### Configuration parameters
 
-#### Mesos configuration entries
+`mesos.initial-tasks`: The initial workers to bring up when the master starts (**DEFAULT**: The number of workers specified at cluster startup).
 
-
-`mesos.initial-tasks`: The initial workers to bring up when the master
-    starts (**DEFAULT**: The number of workers specified at cluster startup).
-
-`mesos.maximum-failed-tasks`: The maximum number of failed workers before
-    the cluster fails (**DEFAULT**: Number of initial workers) May be set to -1
-    to disable this feature.
+`mesos.maximum-failed-tasks`: The maximum number of failed workers before the cluster fails (**DEFAULT**: Number of initial workers).
+May be set to -1 to disable this feature.
     
-`mesos.master`: The Mesos master URL. The value should be in one of the
-	 following forms: host:port, zk://host1:port1,host2:port2,.../path,
-	 zk://username:password@host1:port1,host2:port2,.../path,
-	 file:///path/to/file (where file contains one of the above)
+`mesos.master`: The Mesos master URL. The value should be in one of the following forms:
+
+* `host:port`
+* `zk://host1:port1,host2:port2,.../path`
+* `zk://username:password@host1:port1,host2:port2,.../path`
+* `file:///path/to/file`
      
-`mesos.failover-timeout`: The failover timeout in seconds for the Mesos scheduler, after
-	 which running tasks are automatically shut down (**DEFAULT:** 600).
+`mesos.failover-timeout`: The failover timeout in seconds for the Mesos scheduler, after which running tasks are automatically shut down (**DEFAULT:** 600).
 
 `mesos.resourcemanager.artifactserver.port`:The config parameter defining the Mesos artifact server port to use. Setting the port to 0 will let the OS choose an available port.
 
@@ -214,9 +265,7 @@ Here is an example configuration for Marathon:
 
 `mesos.resourcemanager.framework.user`: Mesos framework user (**DEFAULT:**"")
 
-`mesos.resourcemanager.artifactserver.ssl.enabled`: Enables SSL for the Flink
-artifact server (**DEFAULT**: true). Note that `security.ssl.enabled` also needs
-to be set to `true` encryption to enable encryption.
+`mesos.resourcemanager.artifactserver.ssl.enabled`: Enables SSL for the Flink artifact server (**DEFAULT**: true). Note that `security.ssl.enabled` also needs to be set to `true` encryption to enable encryption.
 
 `mesos.resourcemanager.tasks.mem`: Memory to assign to the Mesos workers in MB (**DEFAULT**: 1024)
 
@@ -225,20 +274,3 @@ to be set to `true` encryption to enable encryption.
 `mesos.resourcemanager.tasks.container.type`: Type of the containerization used: "mesos" or "docker" (DEFAULT: mesos);
 
 `mesos.resourcemanager.tasks.container.image.name`: Image name to use for the container (**NO DEFAULT**)
-
-
-#### General configuration
-
-It is possible to completely parameterize a Mesos application through Java
-properties passed to the Mesos application master. This also allows to specify
-general Flink configuration parameters. For example:
-
-    bin/mesos-appmaster.sh \
-        -Djobmanager.heap.mb=1024 \
-        -Djobmanager.rpc.port=6123 \
-        -Djobmanager.web.port=8081 \
-        -Dmesos.initial-tasks=10 \
-        -Dmesos.resourcemanager.tasks.mem=4096 \
-        -Dtaskmanager.heap.mb=3500 \
-        -Dtaskmanager.numberOfTaskSlots=2 \
-        -Dparallelism.default=10

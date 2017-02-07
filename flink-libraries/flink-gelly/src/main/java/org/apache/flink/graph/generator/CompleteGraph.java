@@ -58,14 +58,14 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 	}
 
 	@Override
-	public Graph<LongValue,NullValue,NullValue> generate() {
+	public Graph<LongValue, NullValue, NullValue> generate() {
 		// Vertices
-		DataSet<Vertex<LongValue,NullValue>> vertices = GraphGeneratorUtils.vertexSequence(env, parallelism, vertexCount);
+		DataSet<Vertex<LongValue, NullValue>> vertices = GraphGeneratorUtils.vertexSequence(env, parallelism, vertexCount);
 
 		// Edges
 		LongValueSequenceIterator iterator = new LongValueSequenceIterator(0, this.vertexCount - 1);
 
-		DataSet<Edge<LongValue,NullValue>> edges = env
+		DataSet<Edge<LongValue, NullValue>> edges = env
 			.fromParallelCollection(iterator, LongValue.class)
 				.setParallelism(parallelism)
 				.name("Edge iterators")
@@ -79,20 +79,20 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 
 	@ForwardedFields("*->f0")
 	public class LinkVertexToAll
-	implements FlatMapFunction<LongValue, Edge<LongValue,NullValue>> {
+	implements FlatMapFunction<LongValue, Edge<LongValue, NullValue>> {
 
 		private final long vertexCount;
 
 		private LongValue target = new LongValue();
 
-		private Edge<LongValue,NullValue> edge = new Edge<>(null, target, NullValue.getInstance());
+		private Edge<LongValue, NullValue> edge = new Edge<>(null, target, NullValue.getInstance());
 
 		public LinkVertexToAll(long vertex_count) {
 			this.vertexCount = vertex_count;
 		}
 
 		@Override
-		public void flatMap(LongValue source, Collector<Edge<LongValue,NullValue>> out)
+		public void flatMap(LongValue source, Collector<Edge<LongValue, NullValue>> out)
 				throws Exception {
 			edge.f0 = source;
 

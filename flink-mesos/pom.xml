@@ -152,7 +152,6 @@ under the License.
 			<plugin>
 				<groupId>net.alchim31.maven</groupId>
 				<artifactId>scala-maven-plugin</artifactId>
-				<version>3.1.4</version>
 				<executions>
 					<!-- Run scala compiler in the process-resources phase, so that dependencies on
 						scala classes can be resolved later in the (Java) compile phase -->
@@ -255,7 +254,9 @@ under the License.
 				</configuration>
 			</plugin>
 
-			<!-- Relocate curator -->
+			<!-- Relocate Mesos Protobuf dependency. Mesos 1.0.1 requires Protobuf 2.6.1 whereas
+			 Flakka pulls in Protobuf 2.5.0. It might be feasible to set Protobuf to version 2.6.1,
+			 but we shade to be on the safe side. -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
@@ -270,21 +271,14 @@ under the License.
 							<promoteTransitiveDependencies>true</promoteTransitiveDependencies>
 							<artifactSet>
 								<includes combine.children="append">
-									<include>org.apache.flink:flink-shaded-curator-recipes</include>
 									<include>com.google.protobuf:*</include>
-									<include>com.google.guava:guava</include>
 									<include>org.apache.mesos:*</include>
-									<include>com.netflix.fenzo:*</include>
 								</includes>
 							</artifactSet>
-							<relocations combine.children="override">
+							<relocations combine.children="append">
 								<relocation>
-									<pattern>org.apache.curator</pattern>
-									<shadedPattern>org.apache.flink.mesos.shaded.org.apache.curator</shadedPattern>
-								</relocation>
-								<relocation>
-									<pattern>com.google</pattern>
-									<shadedPattern>org.apache.flink.mesos.shaded.com.google</shadedPattern>
+									<pattern>com.google.protobuf</pattern>
+									<shadedPattern>org.apache.flink.mesos.shaded.com.google.protobuf</shadedPattern>
 								</relocation>
 							</relocations>
 						</configuration>

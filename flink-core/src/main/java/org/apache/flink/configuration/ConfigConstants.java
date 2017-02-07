@@ -423,6 +423,12 @@ public final class ConfigConstants {
 	 */
 	@Deprecated
 	public static final String YARN_TASK_MANAGER_ENV_PREFIX = "yarn.taskmanager.env.";
+
+	/**
+	 * Template for the YARN container start incovation.
+	 */
+	public static final String YARN_CONTAINER_START_COMMAND_TEMPLATE =
+		"yarn.container-start-command-template";
 	
 	 /**
 	 * The config parameter defining the Akka actor system port for the ApplicationMaster and
@@ -1144,6 +1150,12 @@ public final class ConfigConstants {
 	 * heap size
 	 */
 	public static final float DEFAULT_YARN_HEAP_CUTOFF_RATIO = 0.25f;
+
+	/**
+	 * Start command template for Flink on YARN containers
+	 */
+	public static final String DEFAULT_YARN_CONTAINER_START_COMMAND_TEMPLATE =
+		"%java% %jvmmem% %jvmopts% %logging% %class% %args% %redirects%";
 
 	/**
 	 * Default port for the application master is 0, which means
