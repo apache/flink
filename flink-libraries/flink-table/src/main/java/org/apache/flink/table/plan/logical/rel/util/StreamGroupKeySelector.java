@@ -22,25 +22,29 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.types.Row;
 
-public class StreamGroupKeySelector implements KeySelector<Object, Tuple>{
+public class StreamGroupKeySelector implements KeySelector<Object, Tuple> {
 
 	static final long serialVersionUID = 5268295970857329151L;
-    WindowAggregateUtil winUtil;
+	WindowAggregateUtil winUtil;
 	Group group;
-	
-	public StreamGroupKeySelector(Group group){
+
+	public StreamGroupKeySelector(Group group) {
 		this.group = group;
 		winUtil = new WindowAggregateUtil();
 	}
-	
-	@Override public Tuple getKey(Object value) throws Exception {
+
+	@Override
+	public Tuple getKey(Object value) throws Exception {
 		Row row = (Row) value;
-		Tuple key = Tuple.getTupleClass(winUtil.getKeysAsArray(group).length).newInstance();
-		
-		for(Integer idx: winUtil.getKeysAsArray(group)){
+		Tuple key = Tuple.getTupleClass(
+				winUtil.
+				getKeysAsArray(group).
+				length).
+				newInstance();
+
+		for (Integer idx : winUtil.getKeysAsArray(group)) {
 			key.setField(row.getField(idx), idx);
 		}
-		
 		return key;
 	}
 

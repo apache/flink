@@ -38,7 +38,7 @@ import org.apache.flink.table.typeutils.TypeConverter;
 
 import scala.Option;
 
-public class DataStreamWindowRowAggregate extends DataStreamRelJava {
+public class DataStreamProcTimeRowAggregate extends DataStreamRelJava {
 
 	LogicalWindow window;
 	RelTraitSet traitSet;
@@ -47,8 +47,13 @@ public class DataStreamWindowRowAggregate extends DataStreamRelJava {
 	String description;
 	WindowAggregateUtil winUtil;
 
-	public DataStreamWindowRowAggregate(RelOptCluster cluster, RelTraitSet traitSet, RelNode input, RelDataType rowType,
-			String description, LogicalWindow window) {
+	public DataStreamProcTimeRowAggregate(
+			RelOptCluster cluster,
+			RelTraitSet traitSet,
+			RelNode input,
+			RelDataType rowType,
+			String description,
+			LogicalWindow window) {
 		super(cluster, traitSet, input);
 		this.window = window;
 		this.rowType = rowType;
@@ -62,21 +67,37 @@ public class DataStreamWindowRowAggregate extends DataStreamRelJava {
 	}
 
 	@Override
-	public RelNode copy(RelTraitSet traitSet, java.util.List<RelNode> inputs) {
-		return new DataStreamWindowRowAggregate(super.getCluster(), traitSet, input, rowType, description, window);
+	public RelNode copy(
+			RelTraitSet traitSet,
+			java.util.List<RelNode> inputs) {
+		return new DataStreamProcTimeRowAggregate(
+				super.getCluster(),
+				traitSet,
+				input, 
+				rowType, 
+				description, 
+				window);
 	}
 
 	@Override
-	public DataStream<Object> translateToPlan(StreamTableEnvironment tableEnv,
-			Option<TypeInformation<Object>> expectedType, Object ignore) {
+	public DataStream<Object> translateToPlan(
+			StreamTableEnvironment tableEnv,
+			Option<TypeInformation<Object>> expectedType,
+			Object ignore) {
 
 		TableConfig config = tableEnv.getConfig();
 
-		DataStream<Object> inputDS = ((DataStreamRel) input).translateToPlan(tableEnv, expectedType);
+		DataStream<Object> inputDS = ((DataStreamRel) input).translateToPlan(
+															tableEnv,
+															expectedType);
+		
 		System.out.println(inputDS);
 
-		TypeInformation<?> returnType = TypeConverter.determineReturnType(getRowType(), expectedType,
-				config.getNullCheck(), config.getEfficientTypeUsage());
+		TypeInformation<?> returnType = TypeConverter.determineReturnType(
+				getRowType(), 
+				expectedType,
+				config.getNullCheck(), 
+				config.getEfficientTypeUsage());
 
 		System.out.println(returnType);
 
@@ -124,3 +145,4 @@ public class DataStreamWindowRowAggregate extends DataStreamRelJava {
 	}
 
 }
+
