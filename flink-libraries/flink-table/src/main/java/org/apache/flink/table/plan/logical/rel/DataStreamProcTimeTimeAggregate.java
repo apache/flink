@@ -18,6 +18,7 @@ public class DataStreamProcTimeTimeAggregate extends DataStreamRelJava{
 	
 	private LogicalWindow windowReference;
 	private String description;
+	private RelNode input;
 
 	public DataStreamProcTimeTimeAggregate(
 			RelOptCluster cluster, 
@@ -31,6 +32,7 @@ public class DataStreamProcTimeTimeAggregate extends DataStreamRelJava{
 		this.rowType = rowType;
 		this.description = description;
 		this.windowReference= windowReference;
+		this.input = input;
 		
 	}
 
@@ -42,8 +44,16 @@ public class DataStreamProcTimeTimeAggregate extends DataStreamRelJava{
 	
 	@Override
 	public RelNode copy(RelTraitSet traitSet, java.util.List<RelNode> inputs) {
-		// TODO Auto-generated method stub
-		return super.copy(traitSet, inputs);
+		
+
+		return new DataStreamProcTimeTimeAggregate(
+				super.getCluster(),
+				traitSet,
+				input, 
+				rowType, 
+				description, 
+				windowReference);
+		
 	}
 	
 	
