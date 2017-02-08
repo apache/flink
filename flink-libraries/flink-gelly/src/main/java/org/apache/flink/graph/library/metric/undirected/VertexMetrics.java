@@ -208,7 +208,8 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 		}
 
 		/**
-		 * Get the number of edges.
+		 * Get the number of edges. Each edge is counted once even though Gelly
+		 * stores undirected edges twice, once in each direction.
 		 *
 		 * @return number of edges
 		 */
@@ -217,12 +218,28 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 		}
 
 		/**
-		 * Get the average degree.
+		 * Get the average degree, the average number of edges per vertex.
+		 *
+		 * A result of {@code Float.NaN} is returned for an empty graph for
+		 * which both the number of edges and number of vertices is zero.
 		 *
 		 * @return average degree
 		 */
 		public float getAverageDegree() {
-			return edgeCount / (float)vertexCount;
+			// each edge is incident on two vertices
+			return vertexCount == 0 ? Float.NaN : 2 * edgeCount / (float)vertexCount;
+		}
+
+		/**
+		 * Get the density, the ratio of actual to potential edges between vertices.
+		 *
+		 * A result of {@code Float.NaN} is returned for a graph with fewer than
+		 * two vertices for which the number of edges is zero.
+		 *
+		 * @return density
+		 */
+		public float getDensity() {
+			return vertexCount <= 1 ? Float.NaN : edgeCount / (float)(vertexCount*(vertexCount-1)/2);
 		}
 
 		/**
@@ -259,6 +276,7 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 			return "vertex count: " + nf.format(vertexCount)
 				+ "; edge count: " + nf.format(edgeCount)
 				+ "; average degree: " + nf.format(getAverageDegree())
+				+ "; density: " + nf.format(getDensity())
 				+ "; triplet count: " + nf.format(tripletCount)
 				+ "; maximum degree: " + nf.format(maximumDegree)
 				+ "; maximum triplets: " + nf.format(maximumTriplets);

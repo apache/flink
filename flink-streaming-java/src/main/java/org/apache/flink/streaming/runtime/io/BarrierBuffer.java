@@ -361,8 +361,10 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 			CheckpointMetaData checkpointMetaData =
 					new CheckpointMetaData(checkpointBarrier.getId(), checkpointBarrier.getTimestamp());
 
+			long bytesBuffered = currentBuffered != null ? currentBuffered.size() : 0L;
+
 			checkpointMetaData
-					.setBytesBufferedInAlignment(bufferSpiller.getBytesWritten())
+					.setBytesBufferedInAlignment(bytesBuffered)
 					.setAlignmentDurationNanos(latestAlignmentDurationNanos);
 
 			toNotifyOnCheckpoint.triggerCheckpointOnBarrier(checkpointMetaData);

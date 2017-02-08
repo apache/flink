@@ -36,7 +36,7 @@ abstract class Attribute extends LeafExpression with NamedExpression {
 
 case class UnresolvedFieldReference(name: String) extends Attribute {
 
-  override def toString = "\"" + name
+  override def toString = s"'$name"
 
   override private[flink] def withName(newName: String): Attribute =
     UnresolvedFieldReference(newName)

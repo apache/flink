@@ -36,7 +36,6 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -364,8 +363,7 @@ public final class KvStateRequestSerializer {
 	 * @param <K>                       Key type
 	 * @param <N>                       Namespace
 	 * @return Tuple2 holding deserialized key and namespace
-	 * @throws IOException           Serialization errors are forwarded
-	 * @throws IllegalStateException If unexpected magic number between key and namespace
+	 * @throws IOException              if the deserialization fails for any reason
 	 */
 	public static <K, N> Tuple2<K, N> deserializeKeyAndNamespace(
 			byte[] serializedKeyAndNamespace,
@@ -377,22 +375,24 @@ public final class KvStateRequestSerializer {
 				0,
 				serializedKeyAndNamespace.length);
 
-		K key = keySerializer.deserialize(dis);
-		byte magicNumber = dis.readByte();
-		if (magicNumber != 42) {
-			throw new IllegalArgumentException("Unexpected magic number " + magicNumber +
-					". This indicates a mismatch in the key serializers used by the " +
-					"KvState instance and this access.");
-		}
-		N namespace = namespaceSerializer.deserialize(dis);
+		try {
+			K key = keySerializer.deserialize(dis);
+			byte magicNumber = dis.readByte();
+			if (magicNumber != 42) {
+				throw new IOException("Unexpected magic number " + magicNumber + ".");
+			}
+			N namespace = namespaceSerializer.deserialize(dis);
 
-		if (dis.available() > 0) {
-			throw new IllegalArgumentException("Unconsumed bytes in the serialized key " +
-					"and namespace. This indicates a mismatch in the key/namespace " +
-					"serializers used by the KvState instance and this access.");
-		}
+			if (dis.available() > 0) {
+				throw new IOException("Unconsumed bytes in the serialized key and namespace.");
+			}
 
-		return new Tuple2<>(key, namespace);
+			return new Tuple2<>(key, namespace);
+		} catch (IOException e) {
+			throw new IOException("Unable to deserialize key " +
+				"and namespace. This indicates a mismatch in the key/namespace " +
+				"serializers used by the KvState instance and this access.", e);
+		}
 	}
 
 	/**
@@ -429,42 +429,16 @@ public final class KvStateRequestSerializer {
 		if (serializedValue == null) {
 			return null;
 		} else {
-			DataInputDeserializer deser = new DataInputDeserializer(serializedValue, 0, serializedValue.length);
-			return serializer.deserialize(deser);
-		}
-	}
-
-	/**
-	 * Serializes all values of the Iterable with the given serializer.
-	 *
-	 * @param values     Values of type T to serialize
-	 * @param serializer Serializer for T
-	 * @param <T>        Type of the values
-	 * @return Serialized values or <code>null</code> if values <code>null</code> or empty
-	 * @throws IOException On failure during serialization
-	 */
-	public static <T> byte[] serializeList(Iterable<T> values, TypeSerializer<T> serializer) throws IOException {
-		if (values != null) {
-			Iterator<T> it = values.iterator();
-
-			if (it.hasNext()) {
-				// Serialize
-				DataOutputSerializer dos = new DataOutputSerializer(32);
-
-				while (it.hasNext()) {
-					serializer.serialize(it.next(), dos);
-
-					// This byte added here in order to have the binary format
-					// prescribed by RocksDB.
-					dos.write(0);
-				}
-
-				return dos.getCopyOfBuffer();
-			} else {
-				return null;
+			final DataInputDeserializer deser = new DataInputDeserializer(
+				serializedValue, 0, serializedValue.length);
+			final T value = serializer.deserialize(deser);
+			if (deser.available() > 0) {
+				throw new IOException(
+					"Unconsumed bytes in the deserialized value. " +
+						"This indicates a mismatch in the value serializers " +
+						"used by the KvState instance and this access.");
 			}
-		} else {
-			return null;
+			return value;
 		}
 	}
 
@@ -480,24 +454,32 @@ public final class KvStateRequestSerializer {
 	 */
 	public static <T> List<T> deserializeList(byte[] serializedValue, TypeSerializer<T> serializer) throws IOException {
 		if (serializedValue != null) {
-			DataInputDeserializer in = new DataInputDeserializer(serializedValue, 0, serializedValue.length);
+			final DataInputDeserializer in = new DataInputDeserializer(
+				serializedValue, 0, serializedValue.length);
 
-			List<T> result = new ArrayList<>();
-			while (in.available() > 0) {
-				result.add(serializer.deserialize(in));
+			try {
+				final List<T> result = new ArrayList<>();
+				while (in.available() > 0) {
+					result.add(serializer.deserialize(in));
 
-				// The expected binary format has a single byte separator. We
-				// want a consistent binary format in order to not need any
-				// special casing during deserialization. A "cleaner" format
-				// would skip this extra byte, but would require a memory copy
-				// for RocksDB, which stores the data serialized in this way
-				// for lists.
-				if (in.available() > 0) {
-					in.readByte();
+					// The expected binary format has a single byte separator. We
+					// want a consistent binary format in order to not need any
+					// special casing during deserialization. A "cleaner" format
+					// would skip this extra byte, but would require a memory copy
+					// for RocksDB, which stores the data serialized in this way
+					// for lists.
+					if (in.available() > 0) {
+						in.readByte();
+					}
 				}
-			}
 
-			return result;
+				return result;
+			} catch (IOException e) {
+				throw new IOException(
+						"Unable to deserialize value. " +
+							"This indicates a mismatch in the value serializers " +
+							"used by the KvState instance and this access.", e);
+			}
 		} else {
 			return null;
 		}

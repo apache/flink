@@ -23,41 +23,41 @@ import java.math.BigDecimal
 import org.apache.calcite.adapter.java.JavaTypeFactory
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeSystem}
-import org.apache.calcite.sql.`type`.SqlTypeName.{BIGINT, DOUBLE, INTEGER, VARCHAR}
 import org.apache.calcite.rex.{RexBuilder, RexProgram, RexProgramBuilder}
+import org.apache.calcite.sql.`type`.SqlTypeName.{BIGINT, DOUBLE, INTEGER, VARCHAR}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
-import org.apache.flink.table.plan.rules.util.RexProgramProjectExtractor
+import org.apache.flink.table.plan.rules.util.RexProgramProjectExtractor._
+import org.junit.Assert.{assertArrayEquals, assertTrue}
+import org.junit.{Before, Test}
 
 import scala.collection.JavaConverters._
-import RexProgramProjectExtractor._
-import org.junit.{Assert, Before, Test}
 
 /**
-  * This class is responsible for testing RexProgramProjectExtractor
+  * This class is responsible for testing RexProgramProjectExtractor.
   */
 class RexProgramProjectExtractorTest {
-  private var typeFactory: JavaTypeFactory = null
-  private var rexBuilder: RexBuilder = null
-  private var allFieldTypes: Seq[RelDataType] = null
+  private var typeFactory: JavaTypeFactory = _
+  private var rexBuilder: RexBuilder = _
+  private var allFieldTypes: Seq[RelDataType] = _
   private val allFieldNames = List("name", "id", "amount", "price")
 
   @Before
-  def setUp: Unit = {
+  def setUp(): Unit = {
     typeFactory = new JavaTypeFactoryImpl(RelDataTypeSystem.DEFAULT)
     rexBuilder = new RexBuilder(typeFactory)
     allFieldTypes = List(VARCHAR, BIGINT, INTEGER, DOUBLE).map(typeFactory.createSqlType(_))
   }
 
   @Test
-  def testExtractRefInputFields: Unit = {
-    val usedFields = extractRefInputFields(buildRexProgram)
-    Assert.assertArrayEquals(usedFields, Array(2, 3, 1))
+  def testExtractRefInputFields(): Unit = {
+    val usedFields = extractRefInputFields(buildRexProgram())
+    assertArrayEquals(usedFields, Array(2, 3, 1))
   }
 
   @Test
-  def testRewriteRexProgram: Unit = {
-    val originRexProgram = buildRexProgram
-    Assert.assertTrue(extractExprStrList(originRexProgram).sameElements(Array(
+  def testRewriteRexProgram(): Unit = {
+    val originRexProgram = buildRexProgram()
+    assertTrue(extractExprStrList(originRexProgram).sameElements(Array(
       "$0",
       "$1",
       "$2",
@@ -74,7 +74,7 @@ class RexProgramProjectExtractorTest {
     val names = usedFields.map(allFieldNames(_)).toList.asJava
     val inputRowType = typeFactory.createStructType(types, names)
     val newRexProgram = rewriteRexProgram(originRexProgram, inputRowType, usedFields, rexBuilder)
-    Assert.assertTrue(extractExprStrList(newRexProgram).sameElements(Array(
+    assertTrue(extractExprStrList(newRexProgram).sameElements(Array(
       "$0",
       "$1",
       "$2",
@@ -86,7 +86,7 @@ class RexProgramProjectExtractorTest {
       "AND($t5, $t7)")))
   }
 
-  private def buildRexProgram: RexProgram = {
+  private def buildRexProgram(): RexProgram = {
     val types = allFieldTypes.asJava
     val names = allFieldNames.asJava
     val inputRowType = typeFactory.createStructType(types, names)

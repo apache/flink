@@ -34,7 +34,7 @@ import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.streaming.api.checkpoint.Checkpointed;
+import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
@@ -53,7 +53,9 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.apache.flink.test.util.TestUtils.tryExecute;
@@ -495,7 +497,7 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 	// ------------------------------------------------------------------------
 
 	private static class FailingSource extends RichSourceFunction<Tuple2<Long, IntType>>
-			implements Checkpointed<Integer>, CheckpointListener
+			implements ListCheckpointed<Integer>, CheckpointListener
 	{
 		private static volatile boolean failedBefore = false;
 
@@ -567,13 +569,16 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 		}
 
 		@Override
-		public Integer snapshotState(long checkpointId, long checkpointTimestamp) {
-			return numElementsEmitted;
+		public List<Integer> snapshotState(long checkpointId, long timestamp) throws Exception {
+			return Collections.singletonList(this.numElementsEmitted);
 		}
 
 		@Override
-		public void restoreState(Integer state) {
-			numElementsEmitted = state;
+		public void restoreState(List<Integer> state) throws Exception {
+			if (state.isEmpty() || state.size() > 1) {
+				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
+			}
+			this.numElementsEmitted = state.get(0);
 		}
 
 		public static void reset() {
@@ -582,7 +587,7 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 	}
 
 	private static class ValidatingSink extends RichSinkFunction<Tuple4<Long, Long, Long, IntType>>
-			implements Checkpointed<HashMap<Long, Integer>> {
+			implements ListCheckpointed<HashMap<Long, Integer>> {
 
 		private final HashMap<Long, Integer> windowCounts = new HashMap<>();
 
@@ -676,19 +681,22 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 		}
 
 		@Override
-		public HashMap<Long, Integer> snapshotState(long checkpointId, long checkpointTimestamp) {
-			return this.windowCounts;
+		public List<HashMap<Long, Integer>> snapshotState(long checkpointId, long timestamp) throws Exception {
+			return Collections.singletonList(this.windowCounts);
 		}
 
 		@Override
-		public void restoreState(HashMap<Long, Integer> state) {
-			this.windowCounts.putAll(state);
+		public void restoreState(List<HashMap<Long, Integer>> state) throws Exception {
+			if (state.isEmpty() || state.size() > 1) {
+				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
+			}
+			windowCounts.putAll(state.get(0));
 		}
 	}
 
 	// Sink for validating the stateful window counts
 	private static class CountValidatingSink extends RichSinkFunction<Tuple4<Long, Long, Long, IntType>>
-			implements Checkpointed<HashMap<Long, Integer>> {
+			implements ListCheckpointed<HashMap<Long, Integer>> {
 
 		private final HashMap<Long, Integer> windowCounts = new HashMap<>();
 
@@ -757,13 +765,16 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 		}
 
 		@Override
-		public HashMap<Long, Integer> snapshotState(long checkpointId, long checkpointTimestamp) {
-			return this.windowCounts;
+		public List<HashMap<Long, Integer>> snapshotState(long checkpointId, long timestamp) throws Exception {
+			return Collections.singletonList(this.windowCounts);
 		}
 
 		@Override
-		public void restoreState(HashMap<Long, Integer> state) {
-			this.windowCounts.putAll(state);
+		public void restoreState(List<HashMap<Long, Integer>> state) throws Exception {
+			if (state.isEmpty() || state.size() > 1) {
+				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
+			}
+			this.windowCounts.putAll(state.get(0));
 		}
 	}
 

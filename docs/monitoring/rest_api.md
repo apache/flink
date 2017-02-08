@@ -1,7 +1,7 @@
 ---
-title:  "Monitoring REST API"
+title: "Monitoring REST API"
 nav-parent_id: monitoring
-nav-pos: 3
+nav-pos: 10
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -677,12 +677,13 @@ If the call succeeds, you will get a response with the ID of the submitted job.
 **Example:** Run program with a savepoint
 
 Request:
+
 ~~~
 POST: /jars/MyProgram.jar/run?savepointPath=/my-savepoints/savepoint-1bae02a80464&allowNonRestoredState=true
 ~~~
 
 Response:
+
 ~~~
 {"jobid": "869a9868d49c679e7355700e0857af85"}
 ~~~
-

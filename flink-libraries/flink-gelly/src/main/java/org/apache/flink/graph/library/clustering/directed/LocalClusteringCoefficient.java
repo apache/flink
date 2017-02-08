@@ -139,7 +139,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 			throws Exception {
 		// u, v, w, bitmask
 		DataSet<TriangleListing.Result<K>> triangles = input
-			.run(new TriangleListing<K,VV,EV>()
+			.run(new TriangleListing<K, VV, EV>()
 				.setLittleParallelism(littleParallelism));
 
 		// u, edge count

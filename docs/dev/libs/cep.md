@@ -37,7 +37,7 @@ because these are used for comparing and matching events.
 
 ## Getting Started
 
-If you want to jump right in, you have to [set up a Flink program]({{ site.baseurl }}/dev/linking_with_flink).
+If you want to jump right in, you have to [set up a Flink program]({{ site.baseurl }}/dev/linking_with_flink.html).
 Next, you have to add the FlinkCEP dependency to the `pom.xml` of your project.
 
 <div class="codetabs" markdown="1">
@@ -63,7 +63,7 @@ Next, you have to add the FlinkCEP dependency to the `pom.xml` of your project.
 </div>
 
 Note that FlinkCEP is currently not part of the binary distribution.
-See linking with it for cluster execution [here]({{site.baseurl}}/dev/linking).
+See linking with it for cluster execution [here]({{site.baseurl}}/dev/linking.html).
 
 Now you can start writing your first CEP program using the pattern API.
 

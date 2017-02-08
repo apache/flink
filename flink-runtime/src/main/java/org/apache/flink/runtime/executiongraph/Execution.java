@@ -49,6 +49,7 @@ import org.apache.flink.runtime.messages.StackTraceSampleResponse;
 import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.ExceptionUtils;
+
 import org.slf4j.Logger;
 
 import java.util.ArrayList;
@@ -70,6 +71,7 @@ import static org.apache.flink.runtime.execution.ExecutionState.FINISHED;
 import static org.apache.flink.runtime.execution.ExecutionState.RUNNING;
 import static org.apache.flink.runtime.execution.ExecutionState.SCHEDULED;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A single execution of a vertex. While an {@link ExecutionVertex} can be executed multiple times (for recovery,
@@ -102,8 +104,13 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 	// --------------------------------------------------------------------------------------------
 
+	/** The executor which is used to execute futures. */
+	private final Executor executor;
+
+	/** The execution vertex whose task this execution executes */ 
 	private final ExecutionVertex vertex;
 
+	/** The unique ID marking the specific execution instant of the task */
 	private final ExecutionAttemptID attemptId;
 
 	private final long[] stateTimestamps;
@@ -112,7 +119,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 	private final Time timeout;
 
-	private ConcurrentLinkedQueue<PartialInputChannelDeploymentDescriptor> partialInputChannelDeploymentDescriptors;
+	private final ConcurrentLinkedQueue<PartialInputChannelDeploymentDescriptor> partialInputChannelDeploymentDescriptors;
 
 	private volatile ExecutionState state = CREATED;
 
@@ -120,42 +127,38 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 	private volatile Throwable failureCause;          // once assigned, never changes
 
-	private volatile TaskManagerLocation assignedResourceLocation; // for the archived execution
+	/** The handle to the state that the task gets on restore */
+	private volatile TaskStateHandles taskState;
 
-	private TaskStateHandles taskStateHandles;
+	// ------------------------ Accumulators & Metrics ------------------------
 
-	/** The executor which is used to execute futures. */
-	private Executor executor;
-
-	// ------------------------- Accumulators ---------------------------------
-	
-	/* Lock for updating the accumulators atomically. Prevents final accumulators to be overwritten
-	* by partial accumulators on a late heartbeat*/
+	/** Lock for updating the accumulators atomically.
+	 * Prevents final accumulators to be overwritten by partial accumulators on a late heartbeat */
 	private final Object accumulatorLock = new Object();
 
 	/* Continuously updated map of user-defined accumulators */
 	private volatile Map<String, Accumulator<?, ?>> userAccumulators;
-	private IOMetrics ioMetrics;
+
+	private volatile IOMetrics ioMetrics;
 
 	// --------------------------------------------------------------------------------------------
-	
+
 	public Execution(
 			Executor executor,
 			ExecutionVertex vertex,
 			int attemptNumber,
 			long startTimestamp,
 			Time timeout) {
-		this.executor = checkNotNull(executor);
 
+		this.executor = checkNotNull(executor);
 		this.vertex = checkNotNull(vertex);
 		this.attemptId = new ExecutionAttemptID();
+		this.timeout = checkNotNull(timeout);
 
 		this.attemptNumber = attemptNumber;
 
 		this.stateTimestamps = new long[ExecutionState.values().length];
 		markTimestamp(ExecutionState.CREATED, startTimestamp);
-
-		this.timeout = checkNotNull(timeout);
 
 		this.partialInputChannelDeploymentDescriptors = new ConcurrentLinkedQueue<>();
 	}
@@ -189,7 +192,8 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 	@Override
 	public TaskManagerLocation getAssignedResourceLocation() {
-		return assignedResourceLocation;
+		// returns non-null only when a location is already assigned
+		return assignedResource != null ? assignedResource.getTaskManagerLocation() : null;
 	}
 
 	public Throwable getFailureCause() {
@@ -216,7 +220,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	}
 
 	public TaskStateHandles getTaskStateHandles() {
-		return taskStateHandles;
+		return taskState;
 	}
 
 	/**
@@ -226,12 +230,8 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	 * @param checkpointStateHandles all checkpointed operator state
 	 */
 	public void setInitialState(TaskStateHandles checkpointStateHandles) {
-
-		if (state != ExecutionState.CREATED) {
-			throw new IllegalArgumentException("Can only assign operator state when execution attempt is in CREATED");
-		}
-
-		this.taskStateHandles = checkpointStateHandles;
+		checkState(state == CREATED, "Can only assign operator state when execution attempt is in CREATED");
+		this.taskState = checkpointStateHandles;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -343,7 +343,6 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				throw new JobException("Could not assign the ExecutionVertex to the slot " + slot);
 			}
 			this.assignedResource = slot;
-			this.assignedResourceLocation = slot.getTaskManagerLocation();
 
 			// race double check, did we fail/cancel and do we need to release the slot?
 			if (this.state != DEPLOYING) {
@@ -353,13 +352,13 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 			if (LOG.isInfoEnabled()) {
 				LOG.info(String.format("Deploying %s (attempt #%d) to %s", vertex.getSimpleName(),
-						attemptNumber, assignedResourceLocation.getHostname()));
+						attemptNumber, getAssignedResourceLocation().getHostname()));
 			}
 
 			final TaskDeploymentDescriptor deployment = vertex.createDeploymentDescriptor(
 				attemptId,
 				slot,
-				taskStateHandles,
+				taskState,
 				attemptNumber);
 
 			// register this execution at the execution graph, to receive call backs
@@ -373,12 +372,10 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				@Override
 				public Void apply(Throwable failure) {
 					if (failure instanceof TimeoutException) {
-						String taskname = vertex.getTaskName() + '(' +
-							(getParallelSubtaskIndex() + 1) + '/' +
-							vertex.getTotalNumberOfParallelSubtasks() + ") (" + attemptId + ')';
+						String taskname = vertex.getTaskNameWithSubtaskIndex()+ " (" + attemptId + ')';
 
 						markFailed(new Exception(
-							"Cannot deploy task " + taskname + " - TaskManager (" + assignedResourceLocation
+							"Cannot deploy task " + taskname + " - TaskManager (" + getAssignedResourceLocation()
 								+ ") not responding after a timeout of " + timeout, failure));
 					}
 					else {

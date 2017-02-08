@@ -18,10 +18,10 @@
 
 package org.apache.flink.test.util;
 
-import org.apache.flink.configuration.ConfigConstants;
+
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
-import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.hadoop.minikdc.MiniKdc;
 import org.junit.rules.TemporaryFolder;
@@ -30,10 +30,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 import java.io.File;
-import java.io.FileWriter;
-import java.io.BufferedWriter;
-import java.io.PrintWriter;
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
@@ -111,11 +107,11 @@ public class SecureTestEnvironment {
 			//the context can be reinitialized with Hadoop configuration by calling
 			//ctx.setHadoopConfiguration() for the UGI implementation to work properly.
 			//See Yarn test case module for reference
-			createJaasConfig(baseDirForSecureRun);
 			Configuration flinkConfig = GlobalConfiguration.loadConfiguration();
-			flinkConfig.setString(ConfigConstants.SECURITY_KEYTAB_KEY, testKeytab);
-			flinkConfig.setString(ConfigConstants.SECURITY_PRINCIPAL_KEY, testPrincipal);
-			flinkConfig.setBoolean(HighAvailabilityOptions.ZOOKEEPER_SASL_DISABLE, false);
+			flinkConfig.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB, testKeytab);
+			flinkConfig.setBoolean(SecurityOptions.KERBEROS_LOGIN_USETICKETCACHE, false);
+			flinkConfig.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, testPrincipal);
+			flinkConfig.setString(SecurityOptions.KERBEROS_LOGIN_CONTEXTS, "Client,KafkaClient");
 			SecurityUtils.SecurityConfiguration ctx = new SecurityUtils.SecurityConfiguration(flinkConfig);
 			TestingSecurityContext.install(ctx, getClientSecurityConfigurationMap());
 
@@ -178,8 +174,8 @@ public class SecureTestEnvironment {
 			conf = flinkConf;
 		}
 
-		conf.setString(ConfigConstants.SECURITY_KEYTAB_KEY , testKeytab);
-		conf.setString(ConfigConstants.SECURITY_PRINCIPAL_KEY , testPrincipal);
+		conf.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB , testKeytab);
+		conf.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL , testPrincipal);
 
 		return conf;
 	}
@@ -190,22 +186,19 @@ public class SecureTestEnvironment {
 
 		if(testZkServerPrincipal != null ) {
 			TestingSecurityContext.ClientSecurityConfiguration zkServer =
-					new TestingSecurityContext.ClientSecurityConfiguration(testZkServerPrincipal, testKeytab,
-							"Server", "zk-server");
+					new TestingSecurityContext.ClientSecurityConfiguration(testZkServerPrincipal, testKeytab);
 			clientSecurityConfigurationMap.put("Server",zkServer);
 		}
 
 		if(testZkClientPrincipal != null ) {
 			TestingSecurityContext.ClientSecurityConfiguration zkClient =
-					new TestingSecurityContext.ClientSecurityConfiguration(testZkClientPrincipal, testKeytab,
-							"Client", "zk-client");
+					new TestingSecurityContext.ClientSecurityConfiguration(testZkClientPrincipal, testKeytab);
 			clientSecurityConfigurationMap.put("Client",zkClient);
 		}
 
 		if(testKafkaServerPrincipal != null ) {
 			TestingSecurityContext.ClientSecurityConfiguration kafkaServer =
-					new TestingSecurityContext.ClientSecurityConfiguration(testKafkaServerPrincipal, testKeytab,
-							"KafkaServer", "kafka-server");
+					new TestingSecurityContext.ClientSecurityConfiguration(testKafkaServerPrincipal, testKeytab);
 			clientSecurityConfigurationMap.put("KafkaServer",kafkaServer);
 		}
 
@@ -220,23 +213,4 @@ public class SecureTestEnvironment {
 		return hadoopServicePrincipal;
 	}
 
-	/*
-	 * Helper method to create a temporary JAAS configuration file to get around the Kafka and ZK SASL
-	 * implementation lookup java.security.auth.login.config
-	 */
-	private static void  createJaasConfig(File baseDirForSecureRun) {
-
-		try(FileWriter fw = new FileWriter(new File(baseDirForSecureRun, SecurityUtils.JAAS_CONF_FILENAME), true);
-			BufferedWriter bw = new BufferedWriter(fw);
-			PrintWriter out = new PrintWriter(bw))
-		{
-			out.println("sample {");
-			out.println("useKeyTab=false");
-			out.println("useTicketCache=true;");
-			out.println("};");
-		} catch (IOException e) {
-			throw new RuntimeException("Exception occured while trying to create JAAS config.", e);
-		}
-
-	}
 }

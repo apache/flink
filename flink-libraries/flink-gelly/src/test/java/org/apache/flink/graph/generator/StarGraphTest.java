@@ -36,7 +36,7 @@ extends AbstractGraphTest {
 			throws Exception {
 		int vertexCount = 10;
 
-		Graph<LongValue,NullValue,NullValue> graph = new StarGraph(env, vertexCount)
+		Graph<LongValue, NullValue, NullValue> graph = new StarGraph(env, vertexCount)
 			.generate();
 
 		String vertices = "0; 1; 2; 3; 4; 5; 6; 7; 8; 9";
@@ -51,7 +51,7 @@ extends AbstractGraphTest {
 			throws Exception {
 		int vertexCount = 100;
 
-		Graph<LongValue,NullValue,NullValue> graph = new StarGraph(env, vertexCount)
+		Graph<LongValue, NullValue, NullValue> graph = new StarGraph(env, vertexCount)
 			.generate();
 
 		assertEquals(vertexCount, graph.numberOfVertices());
@@ -73,12 +73,12 @@ extends AbstractGraphTest {
 			throws Exception {
 		int parallelism = 2;
 
-		Graph<LongValue,NullValue,NullValue> graph = new StarGraph(env, 100)
+		Graph<LongValue, NullValue, NullValue> graph = new StarGraph(env, 100)
 			.setParallelism(parallelism)
 			.generate();
 
-		graph.getVertices().output(new DiscardingOutputFormat<Vertex<LongValue,NullValue>>());
-		graph.getEdges().output(new DiscardingOutputFormat<Edge<LongValue,NullValue>>());
+		graph.getVertices().output(new DiscardingOutputFormat<Vertex<LongValue, NullValue>>());
+		graph.getEdges().output(new DiscardingOutputFormat<Edge<LongValue, NullValue>>());
 
 		TestUtils.verifyParallelism(env, parallelism);
 	}

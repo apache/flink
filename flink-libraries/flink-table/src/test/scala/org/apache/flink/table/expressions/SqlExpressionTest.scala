@@ -154,7 +154,12 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi("INTERVAL '2-10' YEAR TO MONTH", "+2-10")
     testSqlApi("EXTRACT(DAY FROM DATE '1990-12-01')", "1")
     testSqlApi("EXTRACT(DAY FROM INTERVAL '19 12:10:10.123' DAY TO SECOND(3))", "19")
+    testSqlApi("FLOOR(TIME '12:44:31' TO MINUTE)", "12:44:00")
+    testSqlApi("CEIL(TIME '12:44:31' TO MINUTE)", "12:45:00")
     testSqlApi("QUARTER(DATE '2016-04-12')", "2")
+    testSqlApi(
+      "(TIME '2:55:00', INTERVAL '1' HOUR) OVERLAPS (TIME '3:30:00', INTERVAL '2' HOUR)",
+      "true")
   }
 
   @Test

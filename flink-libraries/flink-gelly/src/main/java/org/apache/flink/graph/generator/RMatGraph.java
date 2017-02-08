@@ -139,7 +139,7 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 	}
 
 	@Override
-	public Graph<LongValue,NullValue,NullValue> generate() {
+	public Graph<LongValue, NullValue, NullValue> generate() {
 		int scale = Long.SIZE - Long.numberOfLeadingZeros(vertexCount - 1);
 
 		// Edges
@@ -148,7 +148,7 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 		List<BlockInfo<T>> generatorBlocks = randomGenerableFactory
 			.getRandomGenerables(edgeCount, cyclesPerEdge);
 
-		DataSet<Edge<LongValue,NullValue>> edges = env
+		DataSet<Edge<LongValue, NullValue>> edges = env
 			.fromCollection(generatorBlocks)
 				.name("Random generators")
 			.rebalance()
@@ -159,14 +159,14 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 				.name("RMat graph edges");
 
 		// Vertices
-		DataSet<Vertex<LongValue,NullValue>> vertices = GraphGeneratorUtils.vertexSet(edges, parallelism);
+		DataSet<Vertex<LongValue, NullValue>> vertices = GraphGeneratorUtils.vertexSet(edges, parallelism);
 
 		// Graph
 		return Graph.fromDataSet(vertices, edges, env);
 	}
 
 	private static final class GenerateEdges<T extends RandomGenerator>
-	implements FlatMapFunction<BlockInfo<T>, Edge<LongValue,NullValue>> {
+	implements FlatMapFunction<BlockInfo<T>, Edge<LongValue, NullValue>> {
 
 		// Configuration
 		private final long vertexCount;
@@ -190,9 +190,9 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 
 		private LongValue target = new LongValue();
 
-		private Edge<LongValue,NullValue> sourceToTarget = new Edge<>(source, target, NullValue.getInstance());
+		private Edge<LongValue, NullValue> sourceToTarget = new Edge<>(source, target, NullValue.getInstance());
 
-		private Edge<LongValue,NullValue> targetToSource = new Edge<>(target, source, NullValue.getInstance());
+		private Edge<LongValue, NullValue> targetToSource = new Edge<>(target, source, NullValue.getInstance());
 
 		public GenerateEdges(long vertexCount, int scale, float A, float B, float C, boolean noiseEnabled, float noise) {
 			this.vertexCount = vertexCount;
@@ -206,7 +206,7 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 		}
 
 		@Override
-		public void flatMap(BlockInfo<T> blockInfo, Collector<Edge<LongValue,NullValue>> out)
+		public void flatMap(BlockInfo<T> blockInfo, Collector<Edge<LongValue, NullValue>> out)
 				throws Exception {
 			RandomGenerator rng = blockInfo.getRandomGenerable().generator();
 			long edgesToGenerate = blockInfo.getElementCount();

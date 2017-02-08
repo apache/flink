@@ -37,7 +37,10 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 		TRIM_HORIZON(SentinelSequenceNumber.SENTINEL_EARLIEST_SEQUENCE_NUM),
 
 		/** Start reading from the latest incoming record */
-		LATEST(SentinelSequenceNumber.SENTINEL_LATEST_SEQUENCE_NUM);
+		LATEST(SentinelSequenceNumber.SENTINEL_LATEST_SEQUENCE_NUM),
+
+		/** Start reading from the record at the specified timestamp */
+		AT_TIMESTAMP(SentinelSequenceNumber.SENTINEL_AT_TIMESTAMP_SEQUENCE_NUM);
 
 		private SentinelSequenceNumber sentinelSequenceNumber;
 
@@ -52,6 +55,9 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 
 	/** The initial position to start reading Kinesis streams from (LATEST is used if not set) */
 	public static final String STREAM_INITIAL_POSITION = "flink.stream.initpos";
+
+	/** The initial timestamp to start reading Kinesis stream from (when AT_TIMESTAMP is set for STREAM_INITIAL_POSITION */
+	public static final String STREAM_INITIAL_TIMESTAMP = "flink.stream.initpos.timestamp";
 
 	/** The base backoff time between each describeStream attempt */
 	public static final String STREAM_DESCRIBE_BACKOFF_BASE = "flink.stream.describe.backoff.base";

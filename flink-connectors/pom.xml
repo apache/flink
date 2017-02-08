@@ -45,6 +45,7 @@ under the License.
 		<module>flink-connector-kafka-0.8</module>
 		<module>flink-connector-kafka-0.9</module>
 		<module>flink-connector-kafka-0.10</module>
+		<module>flink-connector-elasticsearch-base</module>
 		<module>flink-connector-elasticsearch</module>
 		<module>flink-connector-elasticsearch2</module>
 		<module>flink-connector-rabbitmq</module>
@@ -85,6 +86,20 @@ under the License.
 				<module>flink-connector-kinesis</module>
 			</modules>
 		</profile>
+
+		<!--
+			Since Elasticsearch 5.x requires Java 8 at a minimum, we use this profile
+			to include it as part of Java 8 builds only.
+		-->
+		<profile>
+			<id>include-elasticsearch5</id>
+			<activation>
+				<jdk>1.8</jdk>
+			</activation>
+			<modules>
+				<module>flink-connector-elasticsearch5</module>
+			</modules>
+		</profile>
 	</profiles>
-	
+
 </project>

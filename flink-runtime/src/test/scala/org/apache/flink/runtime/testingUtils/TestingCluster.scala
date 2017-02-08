@@ -18,26 +18,31 @@
 
 package org.apache.flink.runtime.testingUtils
 
-import java.util.concurrent.{Executor, ExecutorService, TimeUnit, TimeoutException}
+import java.io.IOException
+import java.util.concurrent.{Executor, TimeUnit, TimeoutException}
 
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.pattern.Patterns._
 import akka.pattern.ask
 import akka.testkit.CallingThreadDispatcher
+import org.apache.flink.api.common.JobID
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory
+import org.apache.flink.runtime.checkpoint.savepoint.Savepoint
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager
 import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory
-import org.apache.flink.runtime.instance.InstanceManager
+import org.apache.flink.runtime.instance.{ActorGateway, InstanceManager}
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler
 import org.apache.flink.runtime.jobmanager.{JobManager, MemoryArchivist, SubmittedJobGraphStore}
 import org.apache.flink.runtime.leaderelection.LeaderElectionService
+import org.apache.flink.runtime.messages.JobManagerMessages._
 import org.apache.flink.runtime.metrics.MetricRegistry
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster
 import org.apache.flink.runtime.taskmanager.TaskManager
+import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.ResponseSavepoint
 import org.apache.flink.runtime.testingUtils.TestingMessages.Alive
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages.NotifyWhenRegisteredAtJobManager
 import org.apache.flink.runtime.testutils.TestingResourceManager
@@ -281,7 +286,70 @@ class TestingCluster(
       }
     }
   }
-}
+
+  @throws(classOf[IOException])
+  def triggerSavepoint(jobId: JobID): String = {
+    val timeout = AkkaUtils.getTimeout(configuration)
+    triggerSavepoint(jobId, getLeaderGateway(timeout), timeout)
+  }
+
+  @throws(classOf[IOException])
+  def requestSavepoint(savepointPath: String): Savepoint = {
+    val timeout = AkkaUtils.getTimeout(configuration)
+    requestSavepoint(savepointPath, getLeaderGateway(timeout), timeout)
+  }
+
+  @throws(classOf[IOException])
+  def disposeSavepoint(savepointPath: String): Unit = {
+    val timeout = AkkaUtils.getTimeout(configuration)
+    disposeSavepoint(savepointPath, getLeaderGateway(timeout), timeout)
+  }
+
+  @throws(classOf[IOException])
+  def triggerSavepoint(
+      jobId: JobID,
+      jobManager: ActorGateway,
+      timeout: FiniteDuration): String = {
+    val result = Await.result(
+      jobManager.ask(
+        TriggerSavepoint(jobId), timeout), timeout)
+
+    result match {
+      case success: TriggerSavepointSuccess => success.savepointPath
+      case fail: TriggerSavepointFailure => throw new IOException(fail.cause)
+      case _ => throw new IllegalStateException("Trigger savepoint failed")
+    }
+  }
+
+  @throws(classOf[IOException])
+  def requestSavepoint(
+      savepointPath: String,
+      jobManager: ActorGateway,
+      timeout: FiniteDuration): Savepoint = {
+    val result = Await.result(
+      jobManager.ask(
+        TestingJobManagerMessages.RequestSavepoint(savepointPath), timeout), timeout)
+
+    result match {
+      case success: ResponseSavepoint => success.savepoint
+      case _ => throw new IOException("Request savepoint failed")
+    }
+  }
+
+  @throws(classOf[IOException])
+  def disposeSavepoint(
+      savepointPath: String,
+      jobManager: ActorGateway,
+      timeout: FiniteDuration): Unit = {
+    val timeout = AkkaUtils.getTimeout(originalConfiguration)
+    val jobManager = getLeaderGateway(timeout)
+    val result = Await.result(jobManager.ask(DisposeSavepoint(savepointPath), timeout), timeout)
+    result match {
+      case DisposeSavepointSuccess =>
+      case _ => throw new IOException("Dispose savepoint failed")
+    }
+  }
+ }
 
 object TestingCluster {
   val MAX_RESTART_DURATION = new FiniteDuration(2, TimeUnit.MINUTES)

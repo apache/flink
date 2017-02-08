@@ -31,7 +31,6 @@ import org.apache.flink.api.java.utils.DataSetUtils;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.client.program.ProgramParametrizationException;
 import org.apache.flink.graph.Graph;
-import org.apache.flink.graph.asm.simple.undirected.Simplify;
 import org.apache.flink.graph.generator.RMatGraph;
 import org.apache.flink.graph.generator.random.JDKRandomGeneratorFactory;
 import org.apache.flink.graph.generator.random.RandomGenerableFactory;
@@ -53,8 +52,6 @@ public class Graph500 {
 
 	private static final int DEFAULT_EDGE_FACTOR = 16;
 
-	private static final boolean DEFAULT_SIMPLIFY = false;
-
 	private static final boolean DEFAULT_CLIP_AND_FLIP = true;
 
 	private static String getUsage(String message) {
@@ -68,6 +65,9 @@ public class Graph500 {
 			.appendNewLine()
 			.appendln("Note: this does not yet implement permutation of vertex labels or edges.")
 			.appendNewLine()
+			.appendln("usage: Graph500 --directed <true | false> --simplify <true | false> --output <print | hash | csv [options]>")
+			.appendNewLine()
+			.appendln("options:")
 			.appendln("  --output print")
 			.appendln("  --output hash")
 			.appendln("  --output csv --output_filename FILENAME [--output_line_delimiter LINE_DELIMITER] [--output_field_delimiter FIELD_DELIMITER]")
@@ -84,6 +84,17 @@ public class Graph500 {
 		ParameterTool parameters = ParameterTool.fromArgs(args);
 		env.getConfig().setGlobalJobParameters(parameters);
 
+		if (! parameters.has("directed")) {
+			throw new ProgramParametrizationException(getUsage("must declare execution mode as '--directed true' or '--directed false'"));
+		}
+		boolean directed = parameters.getBoolean("directed");
+
+		if (! parameters.has("simplify")) {
+			throw new ProgramParametrizationException(getUsage("must declare '--simplify true' or '--simplify false'"));
+		}
+		boolean simplify = parameters.getBoolean("simplify");
+
+
 		// Generate RMat graph
 		int scale = parameters.getInt("scale", DEFAULT_SCALE);
 		int edgeFactor = parameters.getInt("edge_factor", DEFAULT_EDGE_FACTOR);
@@ -93,32 +104,43 @@ public class Graph500 {
 		long vertexCount = 1L << scale;
 		long edgeCount = vertexCount * edgeFactor;
 
-		boolean simplify = parameters.getBoolean("simplify", DEFAULT_SIMPLIFY);
 		boolean clipAndFlip = parameters.getBoolean("clip_and_flip", DEFAULT_CLIP_AND_FLIP);
 
 		Graph<LongValue, NullValue, NullValue> graph = new RMatGraph<>(env, rnd, vertexCount, edgeCount)
 			.generate();
 
-		if (simplify) {
-			graph = graph.run(new Simplify<LongValue, NullValue, NullValue>(clipAndFlip));
+		if (directed) {
+			if (simplify) {
+				graph = graph
+					.run(new org.apache.flink.graph.asm.simple.directed.Simplify<LongValue, NullValue, NullValue>());
+			}
+		} else {
+			if (simplify) {
+				graph = graph
+					.run(new org.apache.flink.graph.asm.simple.undirected.Simplify<LongValue, NullValue, NullValue>(clipAndFlip));
+			} else {
+				graph = graph.getUndirected();
+			}
 		}
 
-		DataSet<Tuple2<LongValue,LongValue>> edges = graph
+		DataSet<Tuple2<LongValue, LongValue>> edges = graph
 			.getEdges()
 			.project(0, 1);
 
 		// Print, hash, or write RMat graph to disk
 		switch (parameters.get("output", "")) {
 		case "print":
+			System.out.println();
 			edges.print();
 			break;
 
 		case "hash":
+			System.out.println();
 			System.out.println(DataSetUtils.checksumHashCode(edges));
 			break;
 
 		case "csv":
-			String filename = parameters.get("filename");
+			String filename = parameters.getRequired("output_filename");
 
 			String lineDelimiter = StringEscapeUtils.unescapeJava(
 				parameters.get("output_line_delimiter", CsvOutputFormat.DEFAULT_LINE_DELIMITER));
@@ -137,6 +159,7 @@ public class Graph500 {
 		JobExecutionResult result = env.getLastJobExecutionResult();
 
 		NumberFormat nf = NumberFormat.getInstance();
+		System.out.println();
 		System.out.println("Execution runtime: " + nf.format(result.getNetRuntime()) + " ms");
 	}
 }

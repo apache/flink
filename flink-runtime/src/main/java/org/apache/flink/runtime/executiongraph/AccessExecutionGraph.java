@@ -17,13 +17,14 @@
  */
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.api.common.ArchivedExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
-import org.apache.flink.runtime.checkpoint.stats.CheckpointStatsTracker;
-import org.apache.flink.api.common.ArchivedExecutionConfig;
+import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
 import org.apache.flink.util.SerializedValue;
 
 import java.io.IOException;
@@ -115,11 +116,20 @@ public interface AccessExecutionGraph {
 	CheckpointCoordinator getCheckpointCoordinator();
 
 	/**
-	 * Returns the {@link CheckpointStatsTracker} for this execution graph.
+	 * Returns the {@link JobSnapshottingSettings} or <code>null</code> if
+	 * checkpointing is disabled.
 	 *
-	 * @return CheckpointStatsTracker for thie execution graph
+	 * @return JobSnapshottingSettings for this execution graph
 	 */
-	CheckpointStatsTracker getCheckpointStatsTracker();
+	JobSnapshottingSettings getJobSnapshottingSettings();
+
+	/**
+	 * Returns a snapshot of the checkpoint statistics or <code>null</code> if
+	 * checkpointing is disabled.
+	 *
+	 * @return Snapshot of the checkpoint statistics for this execution graph
+	 */
+	CheckpointStatsSnapshot getCheckpointStatsSnapshot();
 
 	/**
 	 * Returns the {@link ArchivedExecutionConfig} for this execution graph.

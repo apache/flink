@@ -79,6 +79,7 @@ import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -632,7 +633,7 @@ public class TaskManagerTest extends TestLogger {
 				IntermediateResultPartitionID partitionId = new IntermediateResultPartitionID();
 
 				List<ResultPartitionDeploymentDescriptor> irpdd = new ArrayList<ResultPartitionDeploymentDescriptor>();
-				irpdd.add(new ResultPartitionDeploymentDescriptor(new IntermediateDataSetID(), partitionId, ResultPartitionType.PIPELINED, 1, true));
+				irpdd.add(new ResultPartitionDeploymentDescriptor(new IntermediateDataSetID(), partitionId, ResultPartitionType.PIPELINED, 1, 1, true));
 
 				InputGateDeploymentDescriptor ircdd =
 						new InputGateDeploymentDescriptor(
@@ -777,7 +778,7 @@ public class TaskManagerTest extends TestLogger {
 				IntermediateResultPartitionID partitionId = new IntermediateResultPartitionID();
 
 				List<ResultPartitionDeploymentDescriptor> irpdd = new ArrayList<ResultPartitionDeploymentDescriptor>();
-				irpdd.add(new ResultPartitionDeploymentDescriptor(new IntermediateDataSetID(), partitionId, ResultPartitionType.PIPELINED, 1, true));
+				irpdd.add(new ResultPartitionDeploymentDescriptor(new IntermediateDataSetID(), partitionId, ResultPartitionType.PIPELINED, 1, 1, true));
 
 				InputGateDeploymentDescriptor ircdd =
 						new InputGateDeploymentDescriptor(
@@ -1074,6 +1075,59 @@ public class TaskManagerTest extends TestLogger {
 			}
 		}};
 	}
+
+	@Test
+	public void testLogNotFoundHandling() throws Exception {
+
+		new JavaTestKit(system){{
+
+			// we require a JobManager so that the BlobService is also started
+			ActorGateway jobManager = null;
+			ActorGateway taskManager = null;
+
+			try {
+
+				// Create the JM
+				ActorRef jm = system.actorOf(Props.create(
+					new SimplePartitionStateLookupJobManagerCreator(leaderSessionID, getTestActor())));
+
+				jobManager = new AkkaActorGateway(jm, leaderSessionID);
+
+				final int dataPort = NetUtils.getAvailablePort();
+				Configuration config = new Configuration();
+				config.setInteger(ConfigConstants.TASK_MANAGER_DATA_PORT_KEY, dataPort);
+				config.setInteger(TaskManagerOptions.NETWORK_REQUEST_BACKOFF_INITIAL, 100);
+				config.setInteger(TaskManagerOptions.NETWORK_REQUEST_BACKOFF_MAX, 200);
+				config.setString(ConfigConstants.TASK_MANAGER_LOG_PATH_KEY, "/i/dont/exist");
+
+				taskManager = TestingUtils.createTaskManager(
+					system,
+					jobManager,
+					config,
+					false,
+					true);
+
+				// ---------------------------------------------------------------------------------
+
+				final ActorGateway tm = taskManager;
+
+				new Within(d) {
+					@Override
+					protected void run() {
+						Future<Object> logFuture = tm.ask(TaskManagerMessages.getRequestTaskManagerLog(), timeout);
+						try {
+							Await.result(logFuture, timeout);
+							Assert.fail();
+						} catch (Exception e) {
+							Assert.assertTrue(e.getMessage().startsWith("TaskManager log files are unavailable. Log file could not be found at"));
+						}
+					}
+				};
+			} finally {
+				TestingUtils.stopActor(taskManager);
+				TestingUtils.stopActor(jobManager);
+			}
+		}};}
 
 	// ------------------------------------------------------------------------
 	// Stack trace sample
@@ -1433,6 +1487,7 @@ public class TaskManagerTest extends TestLogger {
 				new IntermediateDataSetID(),
 				new IntermediateResultPartitionID(),
 				ResultPartitionType.PIPELINED,
+				1,
 				1,
 				true);
 

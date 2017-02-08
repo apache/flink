@@ -25,28 +25,31 @@ import org.apache.flink.types.Row
 
 import scala.collection.JavaConversions._
 
-
 /**
  * It wraps the aggregate logic inside of
  * [[org.apache.flink.api.java.operators.GroupReduceOperator]] and
  * [[org.apache.flink.api.java.operators.GroupCombineOperator]]
  *
- * @param aggregates   The aggregate functions.
- * @param groupKeysMapping The index mapping of group keys between intermediate aggregate Row
- *                         and output Row.
- * @param aggregateMapping The index mapping between aggregate function list and aggregated value
- *                         index in output Row.
+ * @param aggregates          The aggregate functions.
+ * @param groupKeysMapping    The index mapping of group keys between intermediate aggregate Row
+ *                            and output Row.
+ * @param aggregateMapping    The index mapping between aggregate function list and aggregated value
+ *                            index in output Row.
+ * @param groupingSetsMapping The index mapping of keys in grouping sets between intermediate
+ *                            Row and output Row.
  */
 class AggregateReduceCombineFunction(
     private val aggregates: Array[Aggregate[_ <: Any]],
     private val groupKeysMapping: Array[(Int, Int)],
     private val aggregateMapping: Array[(Int, Int)],
+    private val groupingSetsMapping: Array[(Int, Int)],
     private val intermediateRowArity: Int,
     private val finalRowArity: Int)
   extends AggregateReduceGroupFunction(
     aggregates,
     groupKeysMapping,
     aggregateMapping,
+    groupingSetsMapping,
     intermediateRowArity,
     finalRowArity)
   with CombineFunction[Row, Row] {

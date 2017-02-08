@@ -18,12 +18,9 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.api.common.state.MergingState;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-
-import java.util.Collection;
 
 /**
  * A keyed state backend provides methods for managing keyed state.
@@ -64,10 +61,11 @@ public interface KeyedStateBackend<K> {
 	TypeSerializer<K> getKeySerializer();
 
 	/**
-	 * Creates or retrieves a partitioned state backed by this state backend.
+	 * Creates or retrieves a keyed state backed by this state backend.
 	 *
+	 * @param namespaceSerializer The serializer used for the namespace type of the state
 	 * @param stateDescriptor The identifier for the state. This contains name and can create a default state value.
-
+	 *    
 	 * @param <N> The type of the namespace.
 	 * @param <S> The type of the state.
 	 *
@@ -75,17 +73,28 @@ public interface KeyedStateBackend<K> {
 	 *
 	 * @throws Exception Exceptions may occur during initialization of the state and should be forwarded.
 	 */
-	@SuppressWarnings({"rawtypes", "unchecked"})
+	<N, S extends State, T> S getOrCreateKeyedState(
+			TypeSerializer<N> namespaceSerializer,
+			StateDescriptor<S, T> stateDescriptor) throws Exception;
+
+	/**
+	 * Creates or retrieves a partitioned state backed by this state backend.
+	 * 
+	 * TODO: NOTE: This method does a lot of work caching / retrieving states just to update the namespace.
+	 *       This method should be removed for the sake of namespaces being lazily fetched from the keyed
+	 *       state backend, or being set on the state directly.
+	 *
+	 * @param stateDescriptor The identifier for the state. This contains name and can create a default state value.
+	 *
+	 * @param <N> The type of the namespace.
+	 * @param <S> The type of the state.
+	 *
+	 * @return A new key/value state backed by this backend.
+	 *
+	 * @throws Exception Exceptions may occur during initialization of the state and should be forwarded.
+	 */
 	<N, S extends State> S getPartitionedState(
 			N namespace,
-			TypeSerializer<N> namespaceSerializer,
-			StateDescriptor<S, ?> stateDescriptor) throws Exception;
-
-
-	@SuppressWarnings("unchecked,rawtypes")
-	<N, S extends MergingState<?, ?>> void mergePartitionedStates(
-			N target,
-			Collection<N> sources,
 			TypeSerializer<N> namespaceSerializer,
 			StateDescriptor<S, ?> stateDescriptor) throws Exception;
 

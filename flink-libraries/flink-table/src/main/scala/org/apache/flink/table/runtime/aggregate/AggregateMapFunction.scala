@@ -37,7 +37,7 @@ class AggregateMapFunction[IN, OUT](
   override def open(config: Configuration) {
     Preconditions.checkNotNull(aggregates)
     Preconditions.checkNotNull(aggFields)
-    Preconditions.checkArgument(aggregates.size == aggFields.size)
+    Preconditions.checkArgument(aggregates.length == aggFields.length)
     val partialRowLength = groupingKeys.length +
         aggregates.map(_.intermediateDataType.length).sum
     output = new Row(partialRowLength)
@@ -46,11 +46,11 @@ class AggregateMapFunction[IN, OUT](
   override def map(value: IN): OUT = {
     
     val input = value.asInstanceOf[Row]
-    for (i <- 0 until aggregates.length) {
+    for (i <- aggregates.indices) {
       val fieldValue = input.getField(aggFields(i))
       aggregates(i).prepare(fieldValue, output)
     }
-    for (i <- 0 until groupingKeys.length) {
+    for (i <- groupingKeys.indices) {
       output.setField(i, input.getField(groupingKeys(i)))
     }
     output.asInstanceOf[OUT]

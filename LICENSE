@@ -220,6 +220,7 @@ The Apache Flink project bundles the following files under the MIT License:
  - Angular.JS v1.4.8 (http://angularjs.org) - Copyright (c) 2010-2015 Google, Inc.
  - Angular Moment v0.10.3 (http://www.momentjs.com) - Copyright (C) 2013, 2014, 2015, Uri Shaked <uri@urish.org>
  - Angular UI Router v0.2.15 (http://angular-ui.github.io) - Copyright (c) 2013-2015 The AngularUI Team, Karsten Sperling
+ - angular-drag-and-drop-lists v1.4.0 (https://github.com/marceljuenemann/angular-drag-and-drop-lists) Copyright (c) 2014 Marcel Juenemann <marcel@juenemann.cc>, Copyright (c) 2014-2016 Google Inc.
  - Bootstrap v3.3.6 (http://getbootstrap.com) - Copyright (c) 2011-2015 Twitter, Inc
  - d3 timeline (https://github.com/jiahuang/d3-timeline) - Copyright (c) 2012-2015 Jia Huang
  - dagre v0.7.4 (https://github.com/cpettitt/dagre) - Copyright (c) 2012-2014 Chris Pettitt

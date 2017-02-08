@@ -331,14 +331,30 @@ val batchTable = batchTableEnvironment.scan("mycsv")
 </div>
 </div>
 
+### Unregister a Table
+
+A table can be unregistered using the following method. Subsequent SQL queries won't find the unregistered table name anymore.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+tableEnvironment.unregisterTable("Customers");
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+tableEnvironment.unregisterTable("Customers")
+{% endhighlight %}
+</div>
+</div>
+
 
 Table API
 ----------
 The Table API provides methods to apply relational operations on DataSets and Datastreams both in Scala and Java.
 
 The central concept of the Table API is a `Table` which represents a table with relational schema (or relation). Tables can be created from a `DataSet` or `DataStream`, converted into a `DataSet` or `DataStream`, or registered in a table catalog using a `TableEnvironment`. A `Table` is always bound to a specific `TableEnvironment`. It is not possible to combine Tables of different TableEnvironments.
-
-*Note: The only operations currently supported on streaming Tables are selection, projection, and union.*
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -1006,69 +1022,72 @@ Temporal intervals can be represented as number of months (`Types.INTERVAL_MONTH
 
 ### Windows
 
-The Table API is a declarative API to define queries on batch and streaming tables. Projection, selection, and union operations can be applied both on streaming and batch tables without additional semantics. Aggregations on (possibly) infinite streaming tables, however, can only be computed on finite groups of records. Group-window aggregates group rows into finite groups based on time or row-count intervals and evaluate aggregation functions once per group. For batch tables, group-windows are a convenient shortcut to group records by time intervals.
+The Table API is a declarative API to define queries on batch and streaming tables. Projection, selection, and union operations can be applied both on streaming and batch tables without additional semantics. Aggregations on (possibly) infinite streaming tables, however, can only be computed on finite groups of records. Window aggregates group rows into finite groups based on time or row-count intervals and evaluate aggregation functions once per group. For batch tables, windows are a convenient shortcut to group records by time intervals.
 
-Group-windows are defined using the `window(w: GroupWindow)` clause. The following example shows how to define a group-window aggregation on a table.
+Windows are defined using the `window(w: Window)` clause and require an alias, which is specified using the `as` clause. In order to group a table by a window, the window alias must be referenced in the `groupBy(...)` clause like a regular grouping attribute. 
+The following example shows how to define a window aggregation on a table.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
 Table table = input
-  .window(GroupWindow w)  // define window
-  .select("b.sum")        // aggregate
+  .window([Window w].as("w"))  // define window with alias w
+  .groupBy("w")  // group the table by window w
+  .select("b.sum")  // aggregate
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 val table = input
-  .window(w: GroupWindow) // define window
-  .select('b.sum)         // aggregate
+  .window([w: Window] as 'w)  // define window with alias w
+  .groupBy('w)   // group the table by window w
+  .select('b.sum)  // aggregate
 {% endhighlight %}
 </div>
 </div>
 
-In streaming environments, group-window aggregates can only be computed in parallel, if they are *keyed*, i.e., there is an additional `groupBy` attribute. Group-window aggregates without additional `groupBy`, such as in the example above, can only be evaluated in a single, non-parallel task. The following example shows how to define a keyed group-window aggregation on a table. 
+In streaming environments, window aggregates can only be computed in parallel if they group on one or more attributes in addition to the window, i.e., the `groupBy(...)` clause references a window alias and at least one additional attribute. A `groupBy(...)` clause that only references a window alias (such as in the example above) can only be evaluated by a single, non-parallel task. 
+The following example shows how to define a window aggregation with additional grouping attributes.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
 Table table = input
-  .groupBy("a")
-  .window(GroupWindow w)  // define window
-  .select("a, b.sum")     // aggregate
+  .window([Window w].as("w"))  // define window with alias w
+  .groupBy("w, a")  // group the table by attribute a and window w 
+  .select("a, b.sum")  // aggregate
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 val table = input
-  .groupBy('a)
-  .window(w: GroupWindow) // define window
-  .select('a, 'b.sum)     // aggregate
+  .window([w: Window] as 'w) // define window with alias w
+  .groupBy('w, 'a)  // group the table by attribute a and window w 
+  .select('a, 'b.sum)  // aggregate
 {% endhighlight %}
 </div>
 </div>
 
-The `GroupWindow` parameter defines how rows are mapped to windows. `GroupWindow` is not an interface that users can implement. Instead, the Table API provides a set of predefined `GroupWindow` classes with specific semantics, which are translated into underlying `DataStream` or `DataSet` operations. The supported window definitions are listed below. 
-By assigning the group-window an alias using `as`, properties such as the start and end timestamp of a time window can be accessed in the `select` statement.
+The `Window` parameter defines how rows are mapped to windows. `Window` is not an interface that users can implement. Instead, the Table API provides a set of predefined `Window` classes with specific semantics, which are translated into underlying `DataStream` or `DataSet` operations. The supported window definitions are listed below. Window properties such as the start and end timestamp of a time window can be added in the select statement as a property of the window alias as `w.start` and `w.end`, respectively.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
 Table table = input
-  .groupBy("a")
-  .window(XXX.as("myWin"))                      // define window alias
-  .select("a, myWin.start, myWin.end, b.count") // aggregate
+  .window([Window w].as("w"))  // define window with alias w
+  .groupBy("w, a")  // group the table by attribute a and window w 
+  .select("a, w.start, w.end, b.count") // aggregate and add window start and end timestamps
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 val table = input
-  .groupBy('a)
-  .window(XXX as 'myWin)                          // define window alias
-  .select('a, 'myWin.start, 'myWin.end, 'b.count) // aggregate
+  .window([w: Window] as 'w)  // define window with alias w
+  .groupBy('w, 'a)  // group the table by attribute a and window w 
+  .select('a, 'w.start, 'w.end, 'b.count) // aggregate and add window start and end timestamps
 {% endhighlight %}
 </div>
 </div>
@@ -1101,8 +1120,8 @@ Tumbling windows are defined by using the `Tumble` class as follows:
     </tr>
     <tr>
       <td><code>as</code></td>
-      <td>Optional.</td>
-      <td>Assigns an alias to the window that can be used in the following <code>select()</code> clause to access window properties such as window start or end time.</td>
+      <td>Required.</td>
+      <td>Assigns an alias to the window. The alias is used to reference the window in the following <code>groupBy()</code> clause and optionally to select window properties such as window start or end time in the <code>select()</code> clause.</td>
     </tr>
   </tbody>
 </table>
@@ -1168,8 +1187,8 @@ Sliding windows are defined by using the `Slide` class as follows:
     </tr>
     <tr>
       <td><code>as</code></td>
-      <td>Optional.</td>
-      <td>Assigns an alias to the window that can be used in the following <code>select()</code> clause to access window properties such as window start or end time.</td>
+      <td>Required.</td>
+      <td>Assigns an alias to the window. The alias is used to reference the window in the following <code>groupBy()</code> clause and optionally to select window properties such as window start or end time in the <code>select()</code> clause.</td>
     </tr>
   </tbody>
 </table>
@@ -1230,8 +1249,8 @@ A session window is defined by using the `Session` class as follows:
     </tr>
     <tr>
       <td><code>as</code></td>
-      <td>Optional.</td>
-      <td>Assigns an alias to the window that can be used in the following <code>select()</code> clause to access window properties such as window start or end time.</td>
+      <td>Required.</td>
+      <td>Assigns an alias to the window. The alias is used to reference the window in the following <code>groupBy()</code> clause and optionally to select window properties such as window start or end time in the <code>select()</code> clause.</td>
     </tr>
   </tbody>
 </table>
@@ -1263,7 +1282,8 @@ A session window is defined by using the `Session` class as follows:
 Currently the following features are not supported yet:
 
 - Row-count windows on event-time
-- Windows on batch tables
+- Non-grouped session windows on batch tables
+- Sliding windows on batch tables
 
 SQL
 ----
@@ -1317,7 +1337,7 @@ Among others, the following SQL features are not supported, yet:
 - Interval arithmetic is currenly limited
 - Distinct aggregates (e.g., `COUNT(DISTINCT name)`)
 - Non-equi joins and Cartesian products
-- Grouping sets
+- Efficient grouping sets
 
 *Note: Tables are joined in the order in which they are specified in the `FROM` clause. In some cases the table order must be manually tweaked to resolve Cartesian products.*
 
@@ -1416,6 +1436,7 @@ tableReference:
 
 tablePrimary:
   [ TABLE ] [ [ catalogName . ] schemaName . ] tableName
+  | LATERAL TABLE '(' functionName '(' expression [, expression ]* ')' ')'
 
 values:
   VALUES expression [, expression ]*
@@ -1424,7 +1445,9 @@ groupItem:
   expression
   | '(' ')'
   | '(' expression [, expression ]* ')'
-
+  | CUBE '(' expression [, expression ]* ')'
+  | ROLLUP '(' expression [, expression ]* ')'
+  | GROUPING SETS '(' groupItem [, groupItem ]* ')'
 ```
 
 For a better definition of SQL queries within a Java String, Flink SQL uses a lexical policy similar to Java:
@@ -1492,20 +1515,76 @@ Both the Table API and SQL come with a set of built-in functions for data transf
 <table class="table table-bordered">
   <thead>
     <tr>
-      <th class="text-left" style="width: 40%">Function</th>
+      <th class="text-left" style="width: 40%">Comparison functions</th>
       <th class="text-center">Description</th>
     </tr>
   </thead>
 
   <tbody>
+
     <tr>
       <td>
         {% highlight java %}
-ANY.as(name [, name ]* )
+ANY === ANY
 {% endhighlight %}
       </td>
       <td>
-        <p>Specifies a name for an expression i.e. a field. Additional names can be specified if the expression expands to multiple fields.</p>
+        <p>Equals.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+ANY !== ANY
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Not equal.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+ANY > ANY
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Greater than.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+ANY >= ANY
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Greater than or equal.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+ANY < ANY
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Less than.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+ANY <= ANY
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Less than or equal.</p>
       </td>
     </tr>
 
@@ -1528,6 +1607,74 @@ ANY.isNotNull
       </td>
       <td>
         <p>Returns true if the given expression is not null.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+STRING.like(STRING)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns true, if a string matches the specified LIKE pattern. E.g. "Jo_n%" matches all strings that start with "Jo(arbitrary letter)n".</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+STRING.similar(STRING)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns true, if a string matches the specified SQL regex pattern. E.g. "A+" matches all strings that consist of at least one "A".</p>
+      </td>
+    </tr>
+
+  </tbody>
+</table>
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 40%">Logical functions</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
+
+    <tr>
+      <td>
+        {% highlight java %}
+boolean1 || boolean2
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns true if <i>boolean1</i> is true or <i>boolean2</i> is true. Supports three-valued logic.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+boolean1 && boolean2
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns true if <i>boolean1</i> and <i>boolean2</i> are both true. Supports three-valued logic.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+!BOOLEAN
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns true if boolean expression is not true; returns null if boolean is null.</p>
       </td>
     </tr>
 
@@ -1575,59 +1722,94 @@ BOOLEAN.isNotFalse
       </td>
     </tr>
 
+  </tbody>
+</table>
+
+
+<table class="table table-bordered">
+  <thead>
     <tr>
+      <th class="text-left" style="width: 40%">Arithmetic functions</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
+
+   <tr>
       <td>
         {% highlight java %}
-NUMERIC.exp()
++ numeric
 {% endhighlight %}
       </td>
       <td>
-        <p>Calculates the Euler's number raised to the given power.</p>
+        <p>Returns <i>numeric</i>.</p>
       </td>
     </tr>
 
     <tr>
       <td>
         {% highlight java %}
-NUMERIC.log10()
+- numeric
 {% endhighlight %}
       </td>
       <td>
-        <p>Calculates the base 10 logarithm of given value.</p>
+        <p>Returns negative <i>numeric</i>.</p>
       </td>
     </tr>
-
-
+    
     <tr>
       <td>
         {% highlight java %}
-NUMERIC.ln()
+numeric1 + numeric2
 {% endhighlight %}
       </td>
       <td>
-        <p>Calculates the natural logarithm of given value.</p>
-      </td>
-    </tr>
-
-    <tr>
-      <td>
-        {% highlight java %}
-NUMERIC.power(NUMERIC)
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Calculates the given number raised to the power of the other value.</p>
+        <p>Returns <i>numeric1</i> plus <i>numeric2</i>.</p>
       </td>
     </tr>
 
     <tr>
       <td>
         {% highlight java %}
-NUMERIC.sqrt()
+numeric1 - numeric2
 {% endhighlight %}
       </td>
       <td>
-        <p>Calculates the square root of a given value.</p>
+        <p>Returns <i>numeric1</i> minus <i>numeric2</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+numeric1 * numeric2
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns <i>numeric1</i> multiplied by <i>numeric2</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+numeric1 / numeric2
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns <i>numeric1</i> divided by <i>numeric2</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+numeric1.power(numeric2)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns <i>numeric1</i> raised to the power of <i>numeric2</i>.</p>
       </td>
     </tr>
 
@@ -1645,11 +1827,55 @@ NUMERIC.abs()
     <tr>
       <td>
         {% highlight java %}
-NUMERIC.floor()
+numeric1 % numeric2
 {% endhighlight %}
       </td>
       <td>
-        <p>Calculates the largest integer less than or equal to a given number.</p>
+        <p>Returns the remainder (modulus) of <i>numeric1</i> divided by <i>numeric2</i>. The result is negative only if <i>numeric1</i> is negative.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.sqrt()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the square root of a given value.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.ln()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the natural logarithm of given value.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.log10()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the base 10 logarithm of given value.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.exp()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the Euler's number raised to the given power.</p>
       </td>
     </tr>
 
@@ -1667,37 +1893,35 @@ NUMERIC.ceil()
     <tr>
       <td>
         {% highlight java %}
-STRING.substring(INT, INT)
+NUMERIC.floor()
 {% endhighlight %}
       </td>
       <td>
-        <p>Creates a substring of the given string at the given index for the given length. The index starts at 1 and is inclusive, i.e., the character at the index is included in the substring. The substring has the specified length or less.</p>
+        <p>Calculates the largest integer less than or equal to a given number.</p>
       </td>
     </tr>
+
+  </tbody>
+</table>
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 40%">String functions</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
 
     <tr>
       <td>
         {% highlight java %}
-STRING.substring(INT)
+STRING + STRING
 {% endhighlight %}
       </td>
       <td>
-        <p>Creates a substring of the given string beginning at the given index to the end. The start index starts at 1 and is inclusive.</p>
-      </td>
-    </tr>
-
-    <tr>
-      <td>
-        {% highlight java %}
-STRING.trim(LEADING, STRING)
-STRING.trim(TRAILING, STRING)
-STRING.trim(BOTH, STRING)
-STRING.trim(BOTH)
-STRING.trim()
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Removes leading and/or trailing characters from the given string. By default, whitespaces at both sides are removed.</p>
+        <p>Concatenates two character strings.</p>
       </td>
     </tr>
 
@@ -1737,45 +1961,26 @@ STRING.lowerCase()
     <tr>
       <td>
         {% highlight java %}
-STRING.initCap()
-{% endhighlight %}
-      </td>
-
-      <td>
-        <p>Converts the initial letter of each word in a string to uppercase. Assumes a string containing only [A-Za-z0-9], everything else is treated as whitespace.</p>
-      </td>
-    </tr>
-
-    <tr>
-      <td>
-        {% highlight java %}
-STRING.like(STRING)
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Returns true, if a string matches the specified LIKE pattern. E.g. "Jo_n%" matches all strings that start with "Jo(arbitrary letter)n".</p>
-      </td>
-    </tr>
-
-    <tr>
-      <td>
-        {% highlight java %}
-STRING.similar(STRING)
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Returns true, if a string matches the specified SQL regex pattern. E.g. "A+" matches all strings that consist of at least one "A".</p>
-      </td>
-    </tr>
-
-    <tr>
-      <td>
-        {% highlight java %}
 STRING.position(STRING)
 {% endhighlight %}
       </td>
       <td>
         <p>Returns the position of string in an other string starting at 1. Returns 0 if string could not be found. E.g. <code>'a'.position('bbbbba')</code> leads to 6.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+STRING.trim(LEADING, STRING)
+STRING.trim(TRAILING, STRING)
+STRING.trim(BOTH, STRING)
+STRING.trim(BOTH)
+STRING.trim()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Removes leading and/or trailing characters from the given string. By default, whitespaces at both sides are removed.</p>
       </td>
     </tr>
 
@@ -1792,6 +1997,147 @@ STRING.overlay(STRING, INT, INT)
     </tr>
 
     <tr>
+      <td>
+        {% highlight java %}
+STRING.substring(INT)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Creates a substring of the given string beginning at the given index to the end. The start index starts at 1 and is inclusive.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+STRING.substring(INT, INT)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Creates a substring of the given string at the given index for the given length. The index starts at 1 and is inclusive, i.e., the character at the index is included in the substring. The substring has the specified length or less.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+STRING.initCap()
+{% endhighlight %}
+      </td>
+
+      <td>
+        <p>Converts the initial letter of each word in a string to uppercase. Assumes a string containing only [A-Za-z0-9], everything else is treated as whitespace.</p>
+      </td>
+    </tr>
+
+  </tbody>
+</table>
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 40%">Conditional functions</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+  
+  <tbody>
+
+    <tr>
+      <td>
+        {% highlight java %}
+BOOLEAN.?(value1, value2)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Ternary conditional operator that decides which of two other expressions should be evaluated based on a evaluated boolean condition. E.g. <code>(42 > 5).?("A", "B")</code> leads to "A".</p>
+      </td>
+    </tr>
+
+    </tbody>
+</table>
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 40%">Type conversion functions</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+  
+  <tbody>
+
+    <tr>
+      <td>
+        {% highlight java %}
+ANY.cast(TYPE)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Converts a value to a given type. E.g. <code>"42".cast(INT)</code> leads to 42.</p>
+      </td>
+    </tr>
+
+    </tbody>
+</table>
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 40%">Value constructor functions</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+  
+  <tbody>
+
+    <tr>
+      <td>
+        {% highlight java %}
+ARRAY.at(INT)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the element at a particular position in an array. The index starts at 1.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+array(ANY [, ANY ]*)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Creates an array from a list of values. The array will be an array of objects (not primitives).</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+NUMERIC.rows
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Creates an interval of rows.</p>
+      </td>
+    </tr>
+
+    </tbody>
+</table>
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 40%">Temporal functions</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+  
+  <tbody>
+
+   <tr>
       <td>
         {% highlight java %}
 STRING.toDate()
@@ -1828,6 +2174,7 @@ STRING.toTimestamp()
       <td>
         {% highlight java %}
 NUMERIC.year
+NUMERIC.years
 {% endhighlight %}
       </td>
       <td>
@@ -1839,6 +2186,7 @@ NUMERIC.year
       <td>
         {% highlight java %}
 NUMERIC.month
+NUMERIC.months
 {% endhighlight %}
       </td>
       <td>
@@ -1850,6 +2198,7 @@ NUMERIC.month
       <td>
         {% highlight java %}
 NUMERIC.day
+NUMERIC.days
 {% endhighlight %}
       </td>
       <td>
@@ -1861,6 +2210,7 @@ NUMERIC.day
       <td>
         {% highlight java %}
 NUMERIC.hour
+NUMERIC.hours
 {% endhighlight %}
       </td>
       <td>
@@ -1872,6 +2222,7 @@ NUMERIC.hour
       <td>
         {% highlight java %}
 NUMERIC.minute
+NUMERIC.minutes
 {% endhighlight %}
       </td>
       <td>
@@ -1883,6 +2234,7 @@ NUMERIC.minute
       <td>
         {% highlight java %}
 NUMERIC.second
+NUMERIC.seconds
 {% endhighlight %}
       </td>
       <td>
@@ -1894,54 +2246,11 @@ NUMERIC.second
       <td>
         {% highlight java %}
 NUMERIC.milli
+NUMERIC.millis
 {% endhighlight %}
       </td>
       <td>
         <p>Creates an interval of milliseconds.</p>
-      </td>
-    </tr>
-
-    <tr>
-      <td>
-        {% highlight java %}
-TEMPORAL.extract(TIMEINTERVALUNIT)
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Extracts parts of a time point or time interval. Returns the part as a long value. E.g. <code>'2006-06-05'.toDate.extract(DAY)</code> leads to 5.</p>
-      </td>
-    </tr>
-
-    <tr>
-      <td>
-        {% highlight java %}
-DATE.quarter()
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Returns the quarter of a year from a SQL date. E.g. <code>'1994-09-27'.toDate.quarter()</code> leads to 3.</p>
-      </td>
-    </tr>
-
-    <tr>
-      <td>
-        {% highlight java %}
-TIMEPOINT.floor(TIMEINTERVALUNIT)
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Rounds a time point down to the given unit. E.g. <code>'12:44:31'.toDate.floor(MINUTE)</code> leads to 12:44:00.</p>
-      </td>
-    </tr>
-
-    <tr>
-      <td>
-        {% highlight java %}
-TIMEPOINT.ceil(TIMEINTERVALUNIT)
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Rounds a time point up to the given unit. E.g. <code>'12:44:31'.toTime.floor(MINUTE)</code> leads to 12:45:00.</p>
       </td>
     </tr>
 
@@ -2003,6 +2312,50 @@ localTimestamp()
     <tr>
       <td>
         {% highlight java %}
+TEMPORAL.extract(TIMEINTERVALUNIT)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Extracts parts of a time point or time interval. Returns the part as a long value. E.g. <code>'2006-06-05'.toDate.extract(DAY)</code> leads to 5.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+TIMEPOINT.floor(TIMEINTERVALUNIT)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Rounds a time point down to the given unit. E.g. <code>'12:44:31'.toDate.floor(MINUTE)</code> leads to 12:44:00.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+TIMEPOINT.ceil(TIMEINTERVALUNIT)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Rounds a time point up to the given unit. E.g. <code>'12:44:31'.toTime.floor(MINUTE)</code> leads to 12:45:00.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+DATE.quarter()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the quarter of a year from a SQL date. E.g. <code>'1994-09-27'.toDate.quarter()</code> leads to 3.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
 temporalOverlaps(TIMEPOINT, TEMPORAL, TIMEPOINT, TEMPORAL)
 {% endhighlight %}
       </td>
@@ -2011,27 +2364,86 @@ temporalOverlaps(TIMEPOINT, TEMPORAL, TIMEPOINT, TEMPORAL)
       </td>
     </tr>
 
+    </tbody>
+</table>
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 40%">Aggregate functions</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+  
+  <tbody>
+
     <tr>
       <td>
         {% highlight java %}
-NUMERIC.rows
+FIELD.count
 {% endhighlight %}
       </td>
       <td>
-        <p>Creates an interval of rows.</p>
+        <p>Returns the number of input rows for which the field is not null.</p>
       </td>
     </tr>
 
     <tr>
       <td>
         {% highlight java %}
-ANY.flatten()
+FIELD.avg
 {% endhighlight %}
       </td>
       <td>
-        <p>Converts a Flink composite type (such as Tuple, POJO, etc.) and all of its direct subtypes into a flat representation where every subtype is a separate field. In most cases the fields of the flat representation are named similarly to the original fields but with a dollar separator (e.g. <code>mypojo$mytuple$f0</code>).</p>
+        <p>Returns the average (arithmetic mean) of the numeric field across all input values.</p>
       </td>
     </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+FIELD.sum
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the sum of the numeric field across all input values.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+FIELD.max
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the maximum value of field across all input values.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+FIELD.min
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the minimum value of field across all input values.</p>
+      </td>
+    </tr>
+
+    </tbody>
+</table>
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 40%">Value access functions</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
 
     <tr>
       <td>
@@ -2048,24 +2460,26 @@ COMPOSITE.get(INT)
     <tr>
       <td>
         {% highlight java %}
-ARRAY.at(INT)
+ANY.flatten()
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the element at a particular position in an array. The index starts at 1.</p>
+        <p>Converts a Flink composite type (such as Tuple, POJO, etc.) and all of its direct subtypes into a flat representation where every subtype is a separate field. In most cases the fields of the flat representation are named similarly to the original fields but with a dollar separator (e.g. <code>mypojo$mytuple$f0</code>).</p>
       </td>
     </tr>
 
+  </tbody>
+</table>
+
+<table class="table table-bordered">
+  <thead>
     <tr>
-      <td>
-        {% highlight java %}
-array(ANY [, ANY ]*)
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Creates an array from a list of values. The array will be an array of objects (not primitives).</p>
-      </td>
+      <th class="text-left" style="width: 40%">Array functions</th>
+      <th class="text-center">Description</th>
     </tr>
+  </thead>
+
+  <tbody>
 
     <tr>
       <td>
@@ -2080,12 +2494,36 @@ ARRAY.cardinality()
 
     <tr>
       <td>
-        {% highlight scala %}
+        {% highlight java %}
 ARRAY.element()
 {% endhighlight %}
       </td>
       <td>
         <p>Returns the sole element of an array with a single element. Returns <code>null</code> if the array is empty. Throws an exception if the array has more than one element.</p>
+      </td>
+    </tr>
+
+  </tbody>
+</table>
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 40%">Auxiliary functions</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
+
+    <tr>
+      <td>
+        {% highlight java %}
+ANY.as(name [, name ]* )
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Specifies a name for an expression i.e. a field. Additional names can be specified if the expression expands to multiple fields.</p>
       </td>
     </tr>
 
@@ -2098,20 +2536,76 @@ ARRAY.element()
 <table class="table table-bordered">
   <thead>
     <tr>
-      <th class="text-left" style="width: 40%">Function</th>
+      <th class="text-left" style="width: 40%">Comparison functions</th>
       <th class="text-center">Description</th>
     </tr>
   </thead>
 
   <tbody>
-    <tr>
+
+     <tr>
       <td>
         {% highlight scala %}
-ANY.as(name [, name ]* )
+ANY === ANY
 {% endhighlight %}
       </td>
       <td>
-        <p>Specifies a name for an expression i.e. a field. Additional names can be specified if the expression expands to multiple fields.</p>
+        <p>Equals.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+ANY !== ANY
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Not equal.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+ANY > ANY
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Greater than.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+ANY >= ANY
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Greater than or equal.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+ANY < ANY
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Less than.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+ANY <= ANY
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Less than or equal.</p>
       </td>
     </tr>
 
@@ -2134,6 +2628,74 @@ ANY.isNotNull
       </td>
       <td>
         <p>Returns true if the given expression is not null.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+STRING.like(STRING)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns true, if a string matches the specified LIKE pattern. E.g. "Jo_n%" matches all strings that start with "Jo(arbitrary letter)n".</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+STRING.similar(STRING)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns true, if a string matches the specified SQL regex pattern. E.g. "A+" matches all strings that consist of at least one "A".</p>
+      </td>
+    </tr>
+
+  </tbody>
+</table>
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 40%">Logical functions</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+boolean1 || boolean2
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns true if <i>boolean1</i> is true or <i>boolean2</i> is true. Supports three-valued logic.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+boolean1 && boolean2
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns true if <i>boolean1</i> and <i>boolean2</i> are both true. Supports three-valued logic.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+!BOOLEAN
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns true if boolean expression is not true; returns null if boolean is null.</p>
       </td>
     </tr>
 
@@ -2181,59 +2743,93 @@ BOOLEAN.isNotFalse
       </td>
     </tr>
 
+  </tbody>
+</table>
+
+<table class="table table-bordered">
+  <thead>
     <tr>
+      <th class="text-left" style="width: 40%">Arithmetic functions</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
+
+   <tr>
       <td>
         {% highlight scala %}
-NUMERIC.exp()
++ numeric
 {% endhighlight %}
       </td>
       <td>
-        <p>Calculates the Euler's number raised to the given power.</p>
+        <p>Returns <i>numeric</i>.</p>
       </td>
     </tr>
 
     <tr>
       <td>
         {% highlight scala %}
-NUMERIC.log10()
+- numeric
 {% endhighlight %}
       </td>
       <td>
-        <p>Calculates the base 10 logarithm of given value.</p>
+        <p>Returns negative <i>numeric</i>.</p>
       </td>
     </tr>
-
-
+    
     <tr>
       <td>
         {% highlight scala %}
-NUMERIC.ln()
+numeric1 + numeric2
 {% endhighlight %}
       </td>
       <td>
-        <p>Calculates the natural logarithm of given value.</p>
-      </td>
-    </tr>
-
-    <tr>
-      <td>
-        {% highlight scala %}
-NUMERIC.power(NUMERIC)
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Calculates the given number raised to the power of the other value.</p>
+        <p>Returns <i>numeric1</i> plus <i>numeric2</i>.</p>
       </td>
     </tr>
 
     <tr>
       <td>
         {% highlight scala %}
-NUMERIC.sqrt()
+numeric1 - numeric2
 {% endhighlight %}
       </td>
       <td>
-        <p>Calculates the square root of a given value.</p>
+        <p>Returns <i>numeric1</i> minus <i>numeric2</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+numeric1 * numeric2
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns <i>numeric1</i> multiplied by <i>numeric2</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+numeric1 / numeric2
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns <i>numeric1</i> divided by <i>numeric2</i>.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+numeric1.power(numeric2)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns <i>numeric1</i> raised to the power of <i>numeric2</i>.</p>
       </td>
     </tr>
 
@@ -2251,11 +2847,55 @@ NUMERIC.abs()
     <tr>
       <td>
         {% highlight scala %}
-NUMERIC.floor()
+numeric1 % numeric2
 {% endhighlight %}
       </td>
       <td>
-        <p>Calculates the largest integer less than or equal to a given number.</p>
+        <p>Returns the remainder (modulus) of <i>numeric1</i> divided by <i>numeric2</i>. The result is negative only if <i>numeric1</i> is negative.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+NUMERIC.sqrt()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the square root of a given value.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+NUMERIC.ln()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the natural logarithm of given value.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+NUMERIC.log10()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the base 10 logarithm of given value.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+NUMERIC.exp()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Calculates the Euler's number raised to the given power.</p>
       </td>
     </tr>
 
@@ -2273,36 +2913,35 @@ NUMERIC.ceil()
     <tr>
       <td>
         {% highlight scala %}
-STRING.substring(INT, INT)
+NUMERIC.floor()
 {% endhighlight %}
       </td>
       <td>
-        <p>Creates a substring of the given string at the given index for the given length. The index starts at 1 and is inclusive, i.e., the character at the index is included in the substring. The substring has the specified length or less.</p>
+        <p>Calculates the largest integer less than or equal to a given number.</p>
       </td>
     </tr>
+
+  </tbody>
+</table>
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 40%">Arithmetic functions</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
 
     <tr>
       <td>
         {% highlight scala %}
-STRING.substring(INT)
+STRING + STRING
 {% endhighlight %}
       </td>
       <td>
-        <p>Creates a substring of the given string beginning at the given index to the end. The start index starts at 1 and is inclusive.</p>
-      </td>
-    </tr>
-
-    <tr>
-      <td>
-        {% highlight scala %}
-STRING.trim(
-  leading = true,
-  trailing = true,
-  character = " ")
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Removes leading and/or trailing characters from the given string.</p>
+        <p>Concatenates two character strings.</p>
       </td>
     </tr>
 
@@ -2315,7 +2954,7 @@ STRING.charLength()
       <td>
         <p>Returns the length of a String.</p>
       </td>
-    </tr>
+    </tr> 
 
     <tr>
       <td>
@@ -2342,45 +2981,25 @@ STRING.lowerCase()
     <tr>
       <td>
         {% highlight scala %}
-STRING.initCap()
-{% endhighlight %}
-      </td>
-
-      <td>
-        <p>Converts the initial letter of each word in a string to uppercase. Assumes a string containing only [A-Za-z0-9], everything else is treated as whitespace.</p>
-      </td>
-    </tr>
-
-    <tr>
-      <td>
-        {% highlight scala %}
-STRING.like(STRING)
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Returns true, if a string matches the specified LIKE pattern. E.g. "Jo_n%" matches all strings that start with "Jo(arbitrary letter)n".</p>
-      </td>
-    </tr>
-
-    <tr>
-      <td>
-        {% highlight scala %}
-STRING.similar(STRING)
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Returns true, if a string matches the specified SQL regex pattern. E.g. "A+" matches all strings that consist of at least one "A".</p>
-      </td>
-    </tr>
-
-    <tr>
-      <td>
-        {% highlight scala %}
 STRING.position(STRING)
 {% endhighlight %}
       </td>
       <td>
         <p>Returns the position of string in an other string starting at 1. Returns 0 if string could not be found. E.g. <code>"a".position("bbbbba")</code> leads to 6.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+STRING.trim(
+  leading = true,
+  trailing = true,
+  character = " ")
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Removes leading and/or trailing characters from the given string.</p>
       </td>
     </tr>
 
@@ -2395,6 +3014,147 @@ STRING.overlay(STRING, INT, INT)
         <p>Replaces a substring of string with a string starting at a position (starting at 1). An optional length specifies how many characters should be removed. E.g. <code>"xxxxxtest".overlay("xxxx", 6)</code> leads to "xxxxxxxxx", <code>"xxxxxtest".overlay('xxxx', 6, 2)</code> leads to "xxxxxxxxxst".</p>
       </td>
     </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+STRING.substring(INT)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Creates a substring of the given string beginning at the given index to the end. The start index starts at 1 and is inclusive.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+STRING.substring(INT, INT)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Creates a substring of the given string at the given index for the given length. The index starts at 1 and is inclusive, i.e., the character at the index is included in the substring. The substring has the specified length or less.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+STRING.initCap()
+{% endhighlight %}
+      </td>
+
+      <td>
+        <p>Converts the initial letter of each word in a string to uppercase. Assumes a string containing only [A-Za-z0-9], everything else is treated as whitespace.</p>
+      </td>
+    </tr>
+
+  </tbody>
+</table>
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 40%">Conditional functions</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+  
+  <tbody>
+
+    <tr>
+      <td>
+        {% highlight java %}
+BOOLEAN.?(value1, value2)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Ternary conditional operator that decides which of two other expressions should be evaluated based on a evaluated boolean condition. E.g. <code>(42 > 5).?("A", "B")</code> leads to "A".</p>
+      </td>
+    </tr>
+
+    </tbody>
+</table>
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 40%">Type conversion functions</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+ANY.cast(TYPE)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Converts a value to a given type. E.g. <code>"42".cast(Types.INT)</code> leads to 42.</p>
+      </td>
+    </tr>
+
+  </tbody>
+</table>
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 40%">Value constructor functions</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+ARRAY.at(INT)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the element at a particular position in an array. The index starts at 1.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+array(ANY [, ANY ]*)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Creates an array from a list of values. The array will be an array of objects (not primitives).</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+NUMERIC.rows
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Creates an interval of rows.</p>
+      </td>
+    </tr>
+
+  </tbody>
+</table>
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 40%">Temporal functions</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
 
     <tr>
       <td>
@@ -2433,6 +3193,7 @@ STRING.toTimestamp
       <td>
         {% highlight scala %}
 NUMERIC.year
+NUMERIC.years
 {% endhighlight %}
       </td>
       <td>
@@ -2444,6 +3205,7 @@ NUMERIC.year
       <td>
         {% highlight scala %}
 NUMERIC.month
+NUMERIC.months
 {% endhighlight %}
       </td>
       <td>
@@ -2455,6 +3217,7 @@ NUMERIC.month
       <td>
         {% highlight scala %}
 NUMERIC.day
+NUMERIC.days
 {% endhighlight %}
       </td>
       <td>
@@ -2466,6 +3229,7 @@ NUMERIC.day
       <td>
         {% highlight scala %}
 NUMERIC.hour
+NUMERIC.hours
 {% endhighlight %}
       </td>
       <td>
@@ -2477,6 +3241,7 @@ NUMERIC.hour
       <td>
         {% highlight scala %}
 NUMERIC.minute
+NUMERIC.minutes
 {% endhighlight %}
       </td>
       <td>
@@ -2488,6 +3253,7 @@ NUMERIC.minute
       <td>
         {% highlight scala %}
 NUMERIC.second
+NUMERIC.seconds
 {% endhighlight %}
       </td>
       <td>
@@ -2499,54 +3265,11 @@ NUMERIC.second
       <td>
         {% highlight scala %}
 NUMERIC.milli
+NUMERIC.millis
 {% endhighlight %}
       </td>
       <td>
         <p>Creates an interval of milliseconds.</p>
-      </td>
-    </tr>
-
-    <tr>
-      <td>
-        {% highlight scala %}
-TEMPORAL.extract(TimeIntervalUnit)
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Extracts parts of a time point or time interval. Returns the part as a long value. E.g. <code>"2006-06-05".toDate.extract(TimeIntervalUnit.DAY)</code> leads to 5.</p>
-      </td>
-    </tr>
-
-    <tr>
-      <td>
-        {% highlight scala %}
-DATE.quarter()
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Returns the quarter of a year from a SQL date. E.g. <code>"1994-09-27".toDate.quarter()</code> leads to 3.</p>
-      </td>
-    </tr>
-
-    <tr>
-      <td>
-        {% highlight scala %}
-TIMEPOINT.floor(TimeIntervalUnit)
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Rounds a time point down to the given unit. E.g. <code>"12:44:31".toTime.floor(TimeIntervalUnit.MINUTE)</code> leads to 12:44:00.</p>
-      </td>
-    </tr>
-
-    <tr>
-      <td>
-        {% highlight scala %}
-TIMEPOINT.ceil(TimeIntervalUnit)
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Rounds a time point up to the given unit. E.g. <code>"12:44:31".toTime.floor(TimeIntervalUnit.MINUTE)</code> leads to 12:45:00.</p>
       </td>
     </tr>
 
@@ -2608,6 +3331,50 @@ localTimestamp()
     <tr>
       <td>
         {% highlight scala %}
+TEMPORAL.extract(TimeIntervalUnit)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Extracts parts of a time point or time interval. Returns the part as a long value. E.g. <code>"2006-06-05".toDate.extract(TimeIntervalUnit.DAY)</code> leads to 5.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+TIMEPOINT.floor(TimeIntervalUnit)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Rounds a time point down to the given unit. E.g. <code>"12:44:31".toTime.floor(TimeIntervalUnit.MINUTE)</code> leads to 12:44:00.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+TIMEPOINT.ceil(TimeIntervalUnit)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Rounds a time point up to the given unit. E.g. <code>"12:44:31".toTime.floor(TimeIntervalUnit.MINUTE)</code> leads to 12:45:00.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+DATE.quarter()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the quarter of a year from a SQL date. E.g. <code>"1994-09-27".toDate.quarter()</code> leads to 3.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
 temporalOverlaps(TIMEPOINT, TEMPORAL, TIMEPOINT, TEMPORAL)
 {% endhighlight %}
       </td>
@@ -2615,28 +3382,87 @@ temporalOverlaps(TIMEPOINT, TEMPORAL, TIMEPOINT, TEMPORAL)
         <p>Determines whether two anchored time intervals overlap. Time point and temporal are transformed into a range defined by two time points (start, end). The function evaluates <code>leftEnd >= rightStart && rightEnd >= leftStart</code>. E.g. <code>temporalOverlaps('2:55:00'.toTime, 1.hour, '3:30:00'.toTime, 2.hours)</code> leads to true.</p>
       </td>
     </tr>
+    
+  </tbody>
+</table>
 
+<table class="table table-bordered">
+  <thead>
     <tr>
+      <th class="text-left" style="width: 40%">Aggregate functions</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
+
+   <tr>
       <td>
         {% highlight scala %}
-NUMERIC.rows
+FIELD.count
 {% endhighlight %}
       </td>
       <td>
-        <p>Creates an interval of rows.</p>
+        <p>Returns the number of input rows for which the field is not null.</p>
       </td>
     </tr>
 
     <tr>
       <td>
         {% highlight scala %}
-ANY.flatten()
+FIELD.avg
 {% endhighlight %}
       </td>
       <td>
-        <p>Converts a Flink composite type (such as Tuple, POJO, etc.) and all of its direct subtypes into a flat representation where every subtype is a separate field. In most cases the fields of the flat representation are named similarly to the original fields but with a dollar separator (e.g. <code>mypojo$mytuple$f0</code>).</p>
+        <p>Returns the average (arithmetic mean) of the numeric field across all input values.</p>
       </td>
     </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+FIELD.sum
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the sum of the numeric field across all input values.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+FIELD.max
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the maximum value of field across all input values.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+FIELD.min
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the minimum value of field across all input values.</p>
+      </td>
+    </tr>
+
+  </tbody>
+</table>
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 40%">Value access functions</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
 
     <tr>
       <td>
@@ -2653,24 +3479,26 @@ COMPOSITE.get(INT)
     <tr>
       <td>
         {% highlight scala %}
-ARRAY.at(INT)
+ANY.flatten()
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the element at a particular position in an array. The index starts at 1.</p>
+        <p>Converts a Flink composite type (such as Tuple, POJO, etc.) and all of its direct subtypes into a flat representation where every subtype is a separate field. In most cases the fields of the flat representation are named similarly to the original fields but with a dollar separator (e.g. <code>mypojo$mytuple$f0</code>).</p>
       </td>
     </tr>
 
+  </tbody>
+</table>
+
+<table class="table table-bordered">
+  <thead>
     <tr>
-      <td>
-        {% highlight scala %}
-array(ANY [, ANY ]*)
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Creates an array from a list of values. The array will be an array of objects (not primitives).</p>
-      </td>
+      <th class="text-left" style="width: 40%">Array functions</th>
+      <th class="text-center">Description</th>
     </tr>
+  </thead>
+
+  <tbody>
 
     <tr>
       <td>
@@ -2691,6 +3519,31 @@ ARRAY.element()
       </td>
       <td>
         <p>Returns the sole element of an array with a single element. Returns <code>null</code> if the array is empty. Throws an exception if the array has more than one element.</p>
+      </td>
+    </tr>
+
+  </tbody>
+</table>
+
+
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 40%">Auxiliary functions</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <tr>
+      <td>
+        {% highlight scala %}
+ANY.as(name [, name ]* )
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Specifies a name for an expression i.e. a field. Additional names can be specified if the expression expands to multiple fields.</p>
       </td>
     </tr>
 
@@ -2791,7 +3644,7 @@ value IS NULL
 {% endhighlight %}
       </td>
       <td>
-        <p>Whether <i>value</i> is null.</p>
+        <p>Returns TRUE if <i>value</i> is null.</p>
       </td>
     </tr>
 
@@ -2802,7 +3655,7 @@ value IS NOT NULL
 {% endhighlight %}
       </td>
       <td>
-        <p>Whether <i>value</i> is not null.</p>
+        <p>Returns TRUE if <i>value</i> is not null.</p>
       </td>
     </tr>
 
@@ -2813,7 +3666,7 @@ value1 IS DISTINCT FROM value2
 {% endhighlight %}
       </td>
       <td>
-        <p>Whether two values are not equal, treating null values as the same.</p>
+        <p>Returns TRUE if two values are not equal, treating null values as the same.</p>
       </td>
     </tr>
 
@@ -2824,7 +3677,7 @@ value1 IS NOT DISTINCT FROM value2
 {% endhighlight %}
       </td>
       <td>
-        <p>Whether two values are equal, treating null values as the same.</p>
+        <p>Returns TRUE if two values are equal, treating null values as the same.</p>
       </td>
     </tr>
 
@@ -2835,7 +3688,7 @@ value1 BETWEEN [ASYMMETRIC | SYMMETRIC] value2 AND value3
 {% endhighlight %}
       </td>
       <td>
-        <p>Whether <i>value1</i> is greater than or equal to <i>value2</i> and less than or equal to <i>value3</i>.</p>
+        <p>Returns TRUE if <i>value1</i> is greater than or equal to <i>value2</i> and less than or equal to <i>value3</i>.</p>
       </td>
     </tr>
 
@@ -2846,7 +3699,7 @@ value1 NOT BETWEEN value2 AND value3
 {% endhighlight %}
       </td>
       <td>
-        <p>Whether <i>value1</i> is less than <i>value2</i> or greater than <i>value3</i>.</p>
+        <p>Returns TRUE if <i>value1</i> is less than <i>value2</i> or greater than <i>value3</i>.</p>
       </td>
     </tr>
 
@@ -2857,7 +3710,7 @@ string1 LIKE string2 [ ESCAPE string3 ]
 {% endhighlight %}
       </td>
       <td>
-        <p>Whether <i>string1</i> matches pattern <i>string2</i>. An escape character can be defined if necessary.</p>
+        <p>Returns TRUE if <i>string1</i> matches pattern <i>string2</i>. An escape character can be defined if necessary.</p>
       </td>
     </tr>
 
@@ -2868,7 +3721,7 @@ string1 NOT LIKE string2 [ ESCAPE string3 ]
 {% endhighlight %}
       </td>
       <td>
-        <p>Whether <i>string1</i> does not match pattern <i>string2</i>. An escape character can be defined if necessary.</p>
+        <p>Returns TRUE if <i>string1</i> does not match pattern <i>string2</i>. An escape character can be defined if necessary.</p>
       </td>
     </tr>
 
@@ -2879,7 +3732,7 @@ string1 SIMILAR TO string2 [ ESCAPE string3 ]
 {% endhighlight %}
       </td>
       <td>
-        <p>Whether <i>string1</i> matches regular expression <i>string2</i>. An escape character can be defined if necessary.</p>
+        <p>Returns TRUE if <i>string1</i> matches regular expression <i>string2</i>. An escape character can be defined if necessary.</p>
       </td>
     </tr>
 
@@ -2891,7 +3744,7 @@ string1 NOT SIMILAR TO string2 [ ESCAPE string3 ]
 {% endhighlight %}
       </td>
       <td>
-        <p>Whether <i>string1</i> does not match regular expression <i>string2</i>. An escape character can be defined if necessary.</p>
+        <p>Returns TRUE if <i>string1</i> does not match regular expression <i>string2</i>. An escape character can be defined if necessary.</p>
       </td>
     </tr>
 
@@ -2903,7 +3756,7 @@ value IN (value [, value]* )
 {% endhighlight %}
       </td>
       <td>
-        <p>Whether <i>value</i> is equal to a value in a list.</p>
+        <p>Returns TRUE if <i>value</i> is equal to a value in a list.</p>
       </td>
     </tr>
 
@@ -2914,7 +3767,7 @@ value NOT IN (value [, value]* )
 {% endhighlight %}
       </td>
       <td>
-        <p>Whether <i>value</i> is not equal to every value in a list.</p>
+        <p>Returns TRUE if <i>value</i> is not equal to every value in a list.</p>
       </td>
     </tr>
 
@@ -2925,7 +3778,7 @@ EXISTS (sub-query)
 {% endhighlight %}
       </td>
       <td>
-        <p>Whether <i>sub-query</i> returns at least one row. Only supported if the operation can be rewritten in a join and group operation.</p>
+        <p>Returns TRUE if <i>sub-query</i> returns at least one row. Only supported if the operation can be rewritten in a join and group operation.</p>
       </td>
     </tr>
 
@@ -2937,7 +3790,7 @@ value IN (sub-query)
 {% endhighlight %}
       </td>
       <td>
-        <p>Whether <i>value</i> is equal to a row returned by sub-query.</p>
+        <p>Returns TRUE if <i>value</i> is equal to a row returned by sub-query.</p>
       </td>
     </tr>
 
@@ -2948,7 +3801,7 @@ value NOT IN (sub-query)
 {% endhighlight %}
       </td>
       <td>
-        <p>Whether <i>value</i> is not equal to every row returned by sub-query.</p>
+        <p>Returns TRUE if <i>value</i> is not equal to every row returned by sub-query.</p>
       </td>
     </tr>
     -->
@@ -2972,7 +3825,7 @@ boolean1 OR boolean2
 {% endhighlight %}
       </td>
       <td>
-        <p>Whether <i>boolean1</i> is TRUE or <i>boolean2</i> is TRUE.</p>
+        <p>Returns TRUE if <i>boolean1</i> is TRUE or <i>boolean2</i> is TRUE. Supports three-valued logic.</p>
       </td>
     </tr>
 
@@ -2983,7 +3836,7 @@ boolean1 AND boolean2
 {% endhighlight %}
       </td>
       <td>
-        <p>Whether <i>boolean1</i> and <i>boolean2</i> are both TRUE.</p>
+        <p>Returns TRUE if <i>boolean1</i> and <i>boolean2</i> are both TRUE. Supports three-valued logic.</p>
       </td>
     </tr>
 
@@ -2994,7 +3847,7 @@ NOT boolean
 {% endhighlight %}
       </td>
       <td>
-        <p>Whether <i>boolean</i> is not TRUE; returns UNKNOWN if <i>boolean</i> is UNKNOWN.</p>
+        <p>Returns TRUE if <i>boolean</i> is not TRUE; returns UNKNOWN if <i>boolean</i> is UNKNOWN.</p>
       </td>
     </tr>
 
@@ -3005,7 +3858,7 @@ boolean IS FALSE
 {% endhighlight %}
       </td>
       <td>
-        <p>Whether <i>boolean</i> is FALSE; returns FALSE if <i>boolean</i> is UNKNOWN.</p>
+        <p>Returns TRUE if <i>boolean</i> is FALSE; returns FALSE if <i>boolean</i> is UNKNOWN.</p>
       </td>
     </tr>
 
@@ -3016,7 +3869,7 @@ boolean IS NOT FALSE
 {% endhighlight %}
       </td>
       <td>
-        <p>Whether <i>boolean</i> is not FALSE; returns TRUE if <i>boolean</i> is UNKNOWN.</p>
+        <p>Returns TRUE if <i>boolean</i> is not FALSE; returns TRUE if <i>boolean</i> is UNKNOWN.</p>
       </td>
     </tr>
 
@@ -3027,7 +3880,7 @@ boolean IS TRUE
 {% endhighlight %}
       </td>
       <td>
-        <p>Whether <i>boolean</i> is TRUE; returns FALSE if <i>boolean</i> is UNKNOWN.</p>
+        <p>Returns TRUE if <i>boolean</i> is TRUE; returns FALSE if <i>boolean</i> is UNKNOWN.</p>
       </td>
     </tr>
 
@@ -3038,7 +3891,7 @@ boolean IS NOT TRUE
 {% endhighlight %}
       </td>
       <td>
-        <p>Whether <i>boolean</i> is not TRUE; returns TRUE if <i>boolean</i> is UNKNOWN.</p>
+        <p>Returns TRUE if <i>boolean</i> is not TRUE; returns TRUE if <i>boolean</i> is UNKNOWN.</p>
       </td>
     </tr>
 
@@ -3049,7 +3902,7 @@ boolean IS UNKNOWN
 {% endhighlight %}
       </td>
       <td>
-        <p>Whether <i>boolean</i> is UNKNOWN.</p>
+        <p>Returns TRUE if <i>boolean</i> is UNKNOWN.</p>
       </td>
     </tr>
 
@@ -3060,7 +3913,7 @@ boolean IS NOT UNKNOWN
 {% endhighlight %}
       </td>
       <td>
-        <p>Whether <i>boolean</i> is not UNKNOWN.</p>
+        <p>Returns TRUE if <i>boolean</i> is not UNKNOWN.</p>
       </td>
     </tr>
 
@@ -3661,6 +4514,28 @@ CEIL(timepoint TO timeintervalunit)
         <p>Rounds a time point up to the given unit. E.g. <code>CEIL(TIME '12:44:31' TO MINUTE)</code> leads to 12:45:00.</p>
       </td>
     </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+QUARTER(date)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the quarter of a year from a SQL date. E.g. <code>QUARTER(DATE '1994-09-27')</code> leads to 3.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+(timepoint, temporal) OVERLAPS (timepoint, temporal)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Determines whether two anchored time intervals overlap. Time point and temporal are transformed into a range defined by two time points (start, end). The function evaluates <code>leftEnd >= rightStart && rightEnd >= leftStart</code>. E.g. <code>(TIME '2:55:00', INTERVAL '1' HOUR) OVERLAPS (TIME '3:30:00', INTERVAL '2' HOUR)</code> leads to true; <code>(TIME '9:00:00', TIME '10:00:00') OVERLAPS (TIME '10:15:00', INTERVAL '3' HOUR)</code> leads to false.</p>
+      </td>
+    </tr>
   </tbody>
 </table>
 
@@ -3736,6 +4611,50 @@ MIN(value)
       </td>
       <td>
         <p>Returns the minimum value of <i>value</i> across all input values.</p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 40%">Grouping functions</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <tr>
+      <td>
+        {% highlight text %}
+GROUP_ID()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns an integer that uniquely identifies the combination of grouping keys.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+GROUPING(expression)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns 1 if <i>expression</i> is rolled up in the current row’s grouping set, 0 otherwise.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+GROUPING_ID(expression [, expression]* )
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a bit vector of the given grouping expressions.</p>
       </td>
     </tr>
   </tbody>
@@ -3899,23 +4818,22 @@ object TimestampModifier extends ScalarFunction {
 
 ### User-defined Table Functions
 
-A user-defined table function is implemented similar to a user-defined scalar function but can return a set of values instead of a single value. The returned set of values can consist of multiple columns and multiple rows similar to a standard table. A user-defined table function works on zero, one, or multiple scalar values as input and returns multiple rows as output.
+Similar to a user-defined scalar function, a user-defined table function takes zero, one, or multiple scalar values as input parameters. However in contrast to a scalar function, it can return an arbitrary number of rows as output instead of a single value. The returned rows may consist of one or more columns. 
 
 In order to define a table function one has to extend the base class `TableFunction` in `org.apache.flink.table.functions` and implement (one or more) evaluation methods. The behavior of a table function is determined by its evaluation methods. An evaluation method must be declared `public` and named `eval`. The `TableFunction` can be overloaded by implementing multiple methods named `eval`. The parameter types of the evaluation methods determine all valid parameters of the table function. The type of the returned table is determined by the generic type of `TableFunction`. Evaluation methods emit output rows using the protected `collect(T)` method.
 
-In the Table API, a table function is used with `.join(Expression)` or `.leftOuterJoin(Expression)` for Scala users and `.join(String)` or `.leftOuterJoin(String)` for Java users. The `join` operator (cross) joins each row from the outer table (table on the left of the operator) with all rows produced by the table-valued function (which is on the right side of the operator). The `leftOuterJoin` operator joins each row from the outer table (table on the left of the operator) with all rows produced by the table-valued function (which is on the right side of the operator) and preserves outer rows for which the table function returns an empty table. In SQL use `LATERAL TABLE(<TableFunction>)` with CROSS JOIN and LEFT JOIN with ON TRUE condition (see examples below).
+In the Table API, a table function is used with `.join(Expression)` or `.leftOuterJoin(Expression)` for Scala users and `.join(String)` or `.leftOuterJoin(String)` for Java users. The `join` operator (cross) joins each row from the outer table (table on the left of the operator) with all rows produced by the table-valued function (which is on the right side of the operator). The `leftOuterJoin` operator joins each row from the outer table (table on the left of the operator) with all rows produced by the table-valued function (which is on the right side of the operator) and preserves outer rows for which the table function returns an empty table. In SQL use `LATERAL TABLE(<TableFunction>)` with CROSS JOIN and LEFT JOIN with an ON TRUE join condition (see examples below).
 
 The following examples show how to define a table-valued function and use it:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-// the generic type "Tuple2<String, Integer>" determines the returned table type has two columns,
-// the first is a String type and the second is an Integer type
+// The generic type "Tuple2<String, Integer>" determines the schema of the returned table as (String, Integer).
 public class Split extends TableFunction<Tuple2<String, Integer>> {
     public void eval(String str) {
         for (String s : str.split(" ")) {
-            // use collect(...) to emit an output row
+            // use collect(...) to emit a row
             collect(new Tuple2<String, Integer>(s, s.length()));
         }
     }
@@ -3924,29 +4842,27 @@ public class Split extends TableFunction<Tuple2<String, Integer>> {
 BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 Table myTable = ...         // table schema: [a: String]
 
-// register the function
+// Register the function.
 tableEnv.registerFunction("split", new Split());
 
-// use the function in Java Table API
-// use AS to rename column names
+// Use the table function in the Java Table API. "as" specifies the field names of the table.
 myTable.join("split(a) as (word, length)").select("a, word, length");
 myTable.leftOuterJoin("split(a) as (word, length)").select("a, word, length");
 
-// use the function in SQL API, LATERAL and TABLE keywords are required
-// CROSS JOIN a table function (equivalent to "join" in Table API)
+// Use the table function in SQL with LATERAL and TABLE keywords.
+// CROSS JOIN a table function (equivalent to "join" in Table API).
 tableEnv.sql("SELECT a, word, length FROM MyTable, LATERAL TABLE(split(a)) as T(word, length)");
-// LEFT JOIN a table function (equivalent to "leftOuterJoin" in Table API)
+// LEFT JOIN a table function (equivalent to "leftOuterJoin" in Table API).
 tableEnv.sql("SELECT a, word, length FROM MyTable LEFT JOIN LATERAL TABLE(split(a)) as T(word, length) ON TRUE");
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-// the generic type "(String, Integer)" determines the returned table type has two columns,
-// the first is a String type and the second is an Integer type
-class Split extends TableFunction[(String, Integer)] {
+// The generic type "(String, Int)" determines the schema of the returned table as (String, Integer).
+class Split extends TableFunction[(String, Int)] {
   def eval(str: String): Unit = {
-    // use collect(...) to emit an output row
+    // use collect(...) to emit a row.
     str.split(" ").foreach(x -> collect((x, x.length))
   }
 }
@@ -3954,14 +4870,16 @@ class Split extends TableFunction[(String, Integer)] {
 val tableEnv = TableEnvironment.getTableEnvironment(env)
 val myTable = ...         // table schema: [a: String]
 
-// use the function in Scala Table API (Note: No registration required in Scala Table API)
+// Use the table function in the Scala Table API (Note: No registration required in Scala Table API).
 val split = new Split()
-// use AS to rename column names
+// "as" specifies the field names of the generated table.
 myTable.join(split('a) as ('word, 'length)).select('a, 'word, 'length);
 myTable.leftOuterJoin(split('a) as ('word, 'length)).select('a, 'word, 'length);
 
-// register and use the function in SQL API, LATERAL and TABLE keywords are required
+// Register the table function to use it in SQL queries.
 tableEnv.registerFunction("split", new Split())
+
+// Use the table function in SQL with LATERAL and TABLE keywords.
 // CROSS JOIN a table function (equivalent to "join" in Table API)
 tableEnv.sql("SELECT a, word, length FROM MyTable, LATERAL TABLE(split(a)) as T(word, length)");
 // LEFT JOIN a table function (equivalent to "leftOuterJoin" in Table API)
@@ -4094,9 +5012,12 @@ By default, the Table API supports `null` values. Null handling can be disabled 
 
 Explaining a Table
 ----
-The Table API provides a mechanism to describe the graph of operations that leads to the resulting output. This is done through the `TableEnvironment#explain(table)` method. It returns a string describing two graphs: the Abstract Syntax Tree of the relational algebra query and Flink's Execution Plan of the Job. 
+The Table API provides a mechanism to explain the logical and optimized query plans to compute a `Table`. 
+This is done through the `TableEnvironment#explain(table)` method. It returns a string describing three plans: 
 
-Table `explain` is supported for both `BatchTableEnvironment` and `StreamTableEnvironment`. Currently `StreamTableEnvironment` doesn't support the explanation of the Execution Plan.
+1. the Abstract Syntax Tree of the relational query, i.e., the unoptimized logical query plan,
+2. the optimized logical query plan, and
+3. the physical execution plan.
 
 The following code shows an example and the corresponding output:
 
@@ -4111,7 +5032,9 @@ DataStream<Tuple2<Integer, String>> stream2 = env.fromElements(new Tuple2<>(1, "
 
 Table table1 = tEnv.fromDataStream(stream1, "count, word");
 Table table2 = tEnv.fromDataStream(stream2, "count, word");
-Table table = table1.unionAll(table2);
+Table table = table1
+        .where("LIKE(word, 'F%')")
+        .unionAll(table2);
 
 String explanation = tEnv.explain(table);
 System.out.println(explanation);
@@ -4125,7 +5048,9 @@ val tEnv = TableEnvironment.getTableEnvironment(env)
 
 val table1 = env.fromElements((1, "hello")).toTable(tEnv, 'count, 'word)
 val table2 = env.fromElements((1, "hello")).toTable(tEnv, 'count, 'word)
-val table = table1.unionAll(table2)
+val table = table1
+      .where('word.like("F%"))
+      .unionAll(table2)
 
 val explanation: String = tEnv.explain(table)
 println(explanation)
@@ -4136,8 +5061,34 @@ println(explanation)
 {% highlight text %}
 == Abstract Syntax Tree ==
 LogicalUnion(all=[true])
-  LogicalTableScan(table=[[_DataStreamTable_0]])
+  LogicalFilter(condition=[LIKE($1, 'F%')])
+    LogicalTableScan(table=[[_DataStreamTable_0]])
   LogicalTableScan(table=[[_DataStreamTable_1]])
+
+== Optimized Logical Plan ==
+DataStreamUnion(union=[count, word])
+  DataStreamCalc(select=[count, word], where=[LIKE(word, 'F%')])
+    DataStreamScan(table=[[_DataStreamTable_0]])
+  DataStreamScan(table=[[_DataStreamTable_1]])
+
+== Physical Execution Plan ==
+Stage 1 : Data Source
+  content : collect elements with CollectionInputFormat
+
+Stage 2 : Data Source
+  content : collect elements with CollectionInputFormat
+
+  Stage 3 : Operator
+    content : from: (count, word)
+    ship_strategy : REBALANCE
+
+    Stage 4 : Operator
+      content : where: (LIKE(word, 'F%')), select: (count, word)
+      ship_strategy : FORWARD
+
+      Stage 5 : Operator
+        content : from: (count, word)
+        ship_strategy : REBALANCE
 {% endhighlight %}
 
 {% top %}

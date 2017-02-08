@@ -358,7 +358,7 @@ public class StatefulUDFSavepointMigrationITCase extends SavepointMigrationTestB
 				new Tuple2<>("hello", 42L);
 
 		private final ValueStateDescriptor<Long> stateDescriptor =
-				new ValueStateDescriptor<Long>("state-name", LongSerializer.INSTANCE, null);
+				new ValueStateDescriptor<Long>("state-name", LongSerializer.INSTANCE);
 
 		@Override
 		public void flatMap(Tuple2<Long, Long> value, Collector<Tuple2<Long, Long>> out) throws Exception {
@@ -385,7 +385,7 @@ public class StatefulUDFSavepointMigrationITCase extends SavepointMigrationTestB
 		private transient Tuple2<String, Long> restoredState;
 
 		private final ValueStateDescriptor<Long> stateDescriptor =
-				new ValueStateDescriptor<Long>("state-name", LongSerializer.INSTANCE, null);
+				new ValueStateDescriptor<Long>("state-name", LongSerializer.INSTANCE);
 
 		@Override
 		public void open(Configuration parameters) throws Exception {
@@ -419,7 +419,7 @@ public class StatefulUDFSavepointMigrationITCase extends SavepointMigrationTestB
 		private static final long serialVersionUID = 1L;
 
 		private final ValueStateDescriptor<Long> stateDescriptor =
-				new ValueStateDescriptor<Long>("state-name", LongSerializer.INSTANCE, null);
+				new ValueStateDescriptor<Long>("state-name", LongSerializer.INSTANCE);
 
 		@Override
 		public void flatMap(Tuple2<Long, Long> value, Collector<Tuple2<Long, Long>> out) throws Exception {
@@ -434,7 +434,7 @@ public class StatefulUDFSavepointMigrationITCase extends SavepointMigrationTestB
 		private static final long serialVersionUID = 1L;
 
 		private final ValueStateDescriptor<Long> stateDescriptor =
-				new ValueStateDescriptor<Long>("state-name", LongSerializer.INSTANCE, null);
+				new ValueStateDescriptor<Long>("state-name", LongSerializer.INSTANCE);
 
 		@Override
 		public void open(Configuration parameters) throws Exception {

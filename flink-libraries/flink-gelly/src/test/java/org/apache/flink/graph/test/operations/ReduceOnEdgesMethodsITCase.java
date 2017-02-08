@@ -18,9 +18,6 @@
 
 package org.apache.flink.graph.test.operations;
 
-import java.util.List;
-import java.util.Objects;
-
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -38,14 +35,17 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import java.util.List;
+import java.util.Objects;
+
 @RunWith(Parameterized.class)
 public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 
-	public ReduceOnEdgesMethodsITCase(TestExecutionMode mode){
+	public ReduceOnEdgesMethodsITCase(TestExecutionMode mode) {
 		super(mode);
 	}
 
-    private String expectedResult;
+	private String expectedResult;
 
 	@Test
 	public void testLowestWeightOutNeighbor() throws Exception {
@@ -54,20 +54,19 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 		 * for each vertex
          */
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), 
-				TestGraphUtils.getLongLongEdgeData(env), env);
+		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
+			TestGraphUtils.getLongLongEdgeData(env), env);
 
-		DataSet<Tuple2<Long, Long>> verticesWithLowestOutNeighbor = 
-				graph.groupReduceOnEdges(new SelectMinWeightNeighbor(), EdgeDirection.OUT);
-		List<Tuple2<Long,Long>> result = verticesWithLowestOutNeighbor.collect();
+		DataSet<Tuple2<Long, Long>> verticesWithLowestOutNeighbor =
+			graph.groupReduceOnEdges(new SelectMinWeightNeighbor(), EdgeDirection.OUT);
+		List<Tuple2<Long, Long>> result = verticesWithLowestOutNeighbor.collect();
 
-	
 		expectedResult = "1,2\n" +
-				"2,3\n" +
-				"3,4\n" +
-				"4,5\n" +
-				"5,1\n";
-		
+			"2,3\n" +
+			"3,4\n" +
+			"4,5\n" +
+			"5,1\n";
+
 		compareResultAsTuples(result, expectedResult);
 	}
 
@@ -78,19 +77,19 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 		 * for each vertex
          */
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), 
-				TestGraphUtils.getLongLongEdgeData(env), env);
+		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
+			TestGraphUtils.getLongLongEdgeData(env), env);
 
-		DataSet<Tuple2<Long, Long>> verticesWithLowestOutNeighbor = 
-				graph.groupReduceOnEdges(new SelectMinWeightInNeighbor(), EdgeDirection.IN);
-		List<Tuple2<Long,Long>> result = verticesWithLowestOutNeighbor.collect();
+		DataSet<Tuple2<Long, Long>> verticesWithLowestOutNeighbor =
+			graph.groupReduceOnEdges(new SelectMinWeightInNeighbor(), EdgeDirection.IN);
+		List<Tuple2<Long, Long>> result = verticesWithLowestOutNeighbor.collect();
 
 		expectedResult = "1,5\n" +
-					"2,1\n" + 
-					"3,1\n" +
-					"4,3\n" + 
-					"5,3\n";
-		
+			"2,1\n" +
+			"3,1\n" +
+			"4,3\n" +
+			"5,3\n";
+
 		compareResultAsTuples(result, expectedResult);
 	}
 
@@ -101,20 +100,20 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
          */
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
-				TestGraphUtils.getLongLongEdgeData(env), env);
+			TestGraphUtils.getLongLongEdgeData(env), env);
 
 		DataSet<Tuple2<Long, Long>> verticesWithAllOutNeighbors =
-				graph.groupReduceOnEdges(new SelectOutNeighbors(), EdgeDirection.OUT);
-		List<Tuple2<Long,Long>> result = verticesWithAllOutNeighbors.collect();
+			graph.groupReduceOnEdges(new SelectOutNeighbors(), EdgeDirection.OUT);
+		List<Tuple2<Long, Long>> result = verticesWithAllOutNeighbors.collect();
 
 		expectedResult = "1,2\n" +
-				"1,3\n" +
-				"2,3\n" +
-				"3,4\n" +
-				"3,5\n" +
-				"4,5\n" +
-				"5,1";
-		
+			"1,3\n" +
+			"2,3\n" +
+			"3,4\n" +
+			"3,5\n" +
+			"4,5\n" +
+			"5,1";
+
 		compareResultAsTuples(result, expectedResult);
 	}
 
@@ -125,19 +124,19 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
          */
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
-				TestGraphUtils.getLongLongEdgeData(env), env);
+			TestGraphUtils.getLongLongEdgeData(env), env);
 
 		DataSet<Tuple2<Long, Long>> verticesWithAllOutNeighbors =
-				graph.groupReduceOnEdges(new SelectOutNeighborsExcludeFive(), EdgeDirection.OUT);
-		List<Tuple2<Long,Long>> result = verticesWithAllOutNeighbors.collect();
+			graph.groupReduceOnEdges(new SelectOutNeighborsExcludeFive(), EdgeDirection.OUT);
+		List<Tuple2<Long, Long>> result = verticesWithAllOutNeighbors.collect();
 
 		expectedResult = "1,2\n" +
-				"1,3\n" +
-				"2,3\n" +
-				"3,4\n" +
-				"3,5\n" +
-				"4,5";
-		
+			"1,3\n" +
+			"2,3\n" +
+			"3,4\n" +
+			"3,5\n" +
+			"4,5";
+
 		compareResultAsTuples(result, expectedResult);
 	}
 
@@ -148,17 +147,17 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
          */
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
-				TestGraphUtils.getLongLongEdgeData(env), env);
+			TestGraphUtils.getLongLongEdgeData(env), env);
 
 		DataSet<Tuple2<Long, Long>> verticesWithAllOutNeighbors =
-				graph.groupReduceOnEdges(new SelectOutNeighborsValueGreaterThanTwo(), EdgeDirection.OUT);
-		List<Tuple2<Long,Long>> result = verticesWithAllOutNeighbors.collect();
+			graph.groupReduceOnEdges(new SelectOutNeighborsValueGreaterThanTwo(), EdgeDirection.OUT);
+		List<Tuple2<Long, Long>> result = verticesWithAllOutNeighbors.collect();
 
 		expectedResult = "3,4\n" +
-				"3,5\n" +
-				"4,5\n" +
-				"5,1";
-		
+			"3,5\n" +
+			"4,5\n" +
+			"5,1";
+
 		compareResultAsTuples(result, expectedResult);
 	}
 
@@ -169,20 +168,20 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
          */
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
-				TestGraphUtils.getLongLongEdgeData(env), env);
+			TestGraphUtils.getLongLongEdgeData(env), env);
 
 		DataSet<Tuple2<Long, Long>> verticesWithAllInNeighbors =
-				graph.groupReduceOnEdges(new SelectInNeighbors(), EdgeDirection.IN);
-		List<Tuple2<Long,Long>> result = verticesWithAllInNeighbors.collect();
+			graph.groupReduceOnEdges(new SelectInNeighbors(), EdgeDirection.IN);
+		List<Tuple2<Long, Long>> result = verticesWithAllInNeighbors.collect();
 
 		expectedResult = "1,5\n" +
-				"2,1\n" +
-				"3,1\n" +
-				"3,2\n" +
-				"4,3\n" +
-				"5,3\n" +
-				"5,4";
-		
+			"2,1\n" +
+			"3,1\n" +
+			"3,2\n" +
+			"4,3\n" +
+			"5,3\n" +
+			"5,4";
+
 		compareResultAsTuples(result, expectedResult);
 	}
 
@@ -193,18 +192,18 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
          */
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
-				TestGraphUtils.getLongLongEdgeData(env), env);
+			TestGraphUtils.getLongLongEdgeData(env), env);
 
 		DataSet<Tuple2<Long, Long>> verticesWithAllInNeighbors =
-				graph.groupReduceOnEdges(new SelectInNeighborsExceptFive(), EdgeDirection.IN);
-		List<Tuple2<Long,Long>> result = verticesWithAllInNeighbors.collect();
+			graph.groupReduceOnEdges(new SelectInNeighborsExceptFive(), EdgeDirection.IN);
+		List<Tuple2<Long, Long>> result = verticesWithAllInNeighbors.collect();
 
 		expectedResult = "1,5\n" +
-				"2,1\n" +
-				"3,1\n" +
-				"3,2\n" +
-				"4,3";
-		
+			"2,1\n" +
+			"3,1\n" +
+			"3,2\n" +
+			"4,3";
+
 		compareResultAsTuples(result, expectedResult);
 	}
 
@@ -215,18 +214,18 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
          */
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
-				TestGraphUtils.getLongLongEdgeData(env), env);
+			TestGraphUtils.getLongLongEdgeData(env), env);
 
 		DataSet<Tuple2<Long, Long>> verticesWithAllInNeighbors =
-				graph.groupReduceOnEdges(new SelectInNeighborsValueGreaterThanTwo(), EdgeDirection.IN);
-		List<Tuple2<Long,Long>> result = verticesWithAllInNeighbors.collect();
+			graph.groupReduceOnEdges(new SelectInNeighborsValueGreaterThanTwo(), EdgeDirection.IN);
+		List<Tuple2<Long, Long>> result = verticesWithAllInNeighbors.collect();
 
 		expectedResult = "3,1\n" +
-				"3,2\n" +
-				"4,3\n" +
-				"5,3\n" +
-				"5,4";
-		
+			"3,2\n" +
+			"4,3\n" +
+			"5,3\n" +
+			"5,4";
+
 		compareResultAsTuples(result, expectedResult);
 	}
 
@@ -237,27 +236,27 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
          */
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
-				TestGraphUtils.getLongLongEdgeData(env), env);
+			TestGraphUtils.getLongLongEdgeData(env), env);
 
 		DataSet<Tuple2<Long, Long>> verticesWithAllNeighbors =
-				graph.groupReduceOnEdges(new SelectNeighbors(), EdgeDirection.ALL);
-		List<Tuple2<Long,Long>> result = verticesWithAllNeighbors.collect();
+			graph.groupReduceOnEdges(new SelectNeighbors(), EdgeDirection.ALL);
+		List<Tuple2<Long, Long>> result = verticesWithAllNeighbors.collect();
 
 		expectedResult = "1,2\n" +
-				"1,3\n" +
-				"1,5\n" +
-				"2,1\n" +
-				"2,3\n" +
-				"3,1\n" +
-				"3,2\n" +
-				"3,4\n" +
-				"3,5\n" +
-				"4,3\n" +
-				"4,5\n" +
-				"5,1\n" +
-				"5,3\n" +
-				"5,4";
-		
+			"1,3\n" +
+			"1,5\n" +
+			"2,1\n" +
+			"2,3\n" +
+			"3,1\n" +
+			"3,2\n" +
+			"3,4\n" +
+			"3,5\n" +
+			"4,3\n" +
+			"4,5\n" +
+			"5,1\n" +
+			"5,3\n" +
+			"5,4";
+
 		compareResultAsTuples(result, expectedResult);
 	}
 
@@ -268,22 +267,22 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
          */
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
-				TestGraphUtils.getLongLongEdgeData(env), env);
+			TestGraphUtils.getLongLongEdgeData(env), env);
 
 		DataSet<Tuple2<Long, Long>> verticesWithAllNeighbors =
-				graph.groupReduceOnEdges(new SelectNeighborsExceptFiveAndTwo(), EdgeDirection.ALL);
-		List<Tuple2<Long,Long>> result = verticesWithAllNeighbors.collect();
+			graph.groupReduceOnEdges(new SelectNeighborsExceptFiveAndTwo(), EdgeDirection.ALL);
+		List<Tuple2<Long, Long>> result = verticesWithAllNeighbors.collect();
 
 		expectedResult = "1,2\n" +
-				"1,3\n" +
-				"1,5\n" +
-				"3,1\n" +
-				"3,2\n" +
-				"3,4\n" +
-				"3,5\n" +
-				"4,3\n" +
-				"4,5";
-		
+			"1,3\n" +
+			"1,5\n" +
+			"3,1\n" +
+			"3,2\n" +
+			"3,4\n" +
+			"3,5\n" +
+			"4,3\n" +
+			"4,5";
+
 		compareResultAsTuples(result, expectedResult);
 	}
 
@@ -294,16 +293,16 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
          */
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
-				TestGraphUtils.getLongLongEdgeData(env), env);
+			TestGraphUtils.getLongLongEdgeData(env), env);
 
 		DataSet<Tuple2<Long, Long>> verticesWithAllNeighbors =
-				graph.groupReduceOnEdges(new SelectNeighborsValueGreaterThanFour(), EdgeDirection.ALL);
-		List<Tuple2<Long,Long>> result = verticesWithAllNeighbors.collect();
+			graph.groupReduceOnEdges(new SelectNeighborsValueGreaterThanFour(), EdgeDirection.ALL);
+		List<Tuple2<Long, Long>> result = verticesWithAllNeighbors.collect();
 
 		expectedResult = "5,1\n" +
-				"5,3\n" +
-				"5,4";
-		
+			"5,3\n" +
+			"5,4";
+
 		compareResultAsTuples(result, expectedResult);
 	}
 
@@ -314,19 +313,19 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 		 * of a vertex
          */
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), 
-				TestGraphUtils.getLongLongEdgeData(env), env);
+		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
+			TestGraphUtils.getLongLongEdgeData(env), env);
 
-		DataSet<Tuple2<Long, Long>> verticesWithMaxEdgeWeight = 
-				graph.groupReduceOnEdges(new SelectMaxWeightNeighbor(), EdgeDirection.ALL);
-		List<Tuple2<Long,Long>> result = verticesWithMaxEdgeWeight.collect();
+		DataSet<Tuple2<Long, Long>> verticesWithMaxEdgeWeight =
+			graph.groupReduceOnEdges(new SelectMaxWeightNeighbor(), EdgeDirection.ALL);
+		List<Tuple2<Long, Long>> result = verticesWithMaxEdgeWeight.collect();
 
 		expectedResult = "1,51\n" +
-				"2,23\n" + 
-				"3,35\n" +
-				"4,45\n" + 
-				"5,51\n";
-		
+			"2,23\n" +
+			"3,35\n" +
+			"4,45\n" +
+			"5,51\n";
+
 		compareResultAsTuples(result, expectedResult);
 	}
 
@@ -337,19 +336,19 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 		 * of each vertex
          */
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), 
-				TestGraphUtils.getLongLongEdgeData(env), env);
+		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
+			TestGraphUtils.getLongLongEdgeData(env), env);
 
-		DataSet<Tuple2<Long, Long>> verticesWithLowestOutNeighbor = 
-				graph.reduceOnEdges(new SelectMinWeightNeighborNoValue(), EdgeDirection.OUT);
-		List<Tuple2<Long,Long>> result = verticesWithLowestOutNeighbor.collect();
+		DataSet<Tuple2<Long, Long>> verticesWithLowestOutNeighbor =
+			graph.reduceOnEdges(new SelectMinWeightNeighborNoValue(), EdgeDirection.OUT);
+		List<Tuple2<Long, Long>> result = verticesWithLowestOutNeighbor.collect();
 
 		expectedResult = "1,12\n" +
-				"2,23\n" +
-				"3,34\n" +
-				"4,45\n" +
-				"5,51\n";
-		
+			"2,23\n" +
+			"3,34\n" +
+			"4,45\n" +
+			"5,51\n";
+
 		compareResultAsTuples(result, expectedResult);
 	}
 
@@ -360,19 +359,19 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 		 * of each vertex
          */
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), 
-				TestGraphUtils.getLongLongEdgeData(env), env);
+		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
+			TestGraphUtils.getLongLongEdgeData(env), env);
 
-		DataSet<Tuple2<Long, Long>> verticesWithLowestOutNeighbor = 
-				graph.reduceOnEdges(new SelectMinWeightNeighborNoValue(), EdgeDirection.IN);
-		List<Tuple2<Long,Long>> result = verticesWithLowestOutNeighbor.collect();
+		DataSet<Tuple2<Long, Long>> verticesWithLowestOutNeighbor =
+			graph.reduceOnEdges(new SelectMinWeightNeighborNoValue(), EdgeDirection.IN);
+		List<Tuple2<Long, Long>> result = verticesWithLowestOutNeighbor.collect();
 
 		expectedResult = "1,51\n" +
-				"2,12\n" +
-				"3,13\n" +
-				"4,34\n" +
-				"5,35\n";
-		
+			"2,12\n" +
+			"3,13\n" +
+			"4,34\n" +
+			"5,35\n";
+
 		compareResultAsTuples(result, expectedResult);
 	}
 
@@ -383,19 +382,19 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 		 * of a vertex
          */
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env), 
-				TestGraphUtils.getLongLongEdgeData(env), env);
+		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongVertexData(env),
+			TestGraphUtils.getLongLongEdgeData(env), env);
 
-		DataSet<Tuple2<Long, Long>> verticesWithMaxEdgeWeight = 
-				graph.reduceOnEdges(new SelectMaxWeightNeighborNoValue(), EdgeDirection.ALL);
-		List<Tuple2<Long,Long>> result = verticesWithMaxEdgeWeight.collect();
+		DataSet<Tuple2<Long, Long>> verticesWithMaxEdgeWeight =
+			graph.reduceOnEdges(new SelectMaxWeightNeighborNoValue(), EdgeDirection.ALL);
+		List<Tuple2<Long, Long>> result = verticesWithMaxEdgeWeight.collect();
 
 		expectedResult = "1,51\n" +
-				"2,23\n" + 
-				"3,35\n" +
-				"4,45\n" + 
-				"5,51\n";
-		
+			"2,23\n" +
+			"3,35\n" +
+			"4,45\n" +
+			"5,51\n";
+
 		compareResultAsTuples(result, expectedResult);
 	}
 
@@ -404,12 +403,12 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public void iterateEdges(Vertex<Long, Long> v,
-				Iterable<Edge<Long, Long>> edges, Collector<Tuple2<Long, Long>> out) throws Exception {
-			
+		                         Iterable<Edge<Long, Long>> edges, Collector<Tuple2<Long, Long>> out) throws Exception {
+
 			long weight = Long.MAX_VALUE;
 			long minNeighborId = 0;
 
-			for (Edge<Long, Long> edge: edges) {
+			for (Edge<Long, Long> edge : edges) {
 				if (edge.getValue() < weight) {
 					weight = edge.getValue();
 					minNeighborId = edge.getTarget();
@@ -424,11 +423,11 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public void iterateEdges(Vertex<Long, Long> v,
-				Iterable<Edge<Long, Long>> edges, Collector<Tuple2<Long, Long>> out) throws Exception {
-			
+		                         Iterable<Edge<Long, Long>> edges, Collector<Tuple2<Long, Long>> out) throws Exception {
+
 			long weight = Long.MIN_VALUE;
 
-			for (Edge<Long, Long> edge: edges) {
+			for (Edge<Long, Long> edge : edges) {
 				if (edge.getValue() > weight) {
 					weight = edge.getValue();
 				}
@@ -460,12 +459,12 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public void iterateEdges(Vertex<Long, Long> v,
-				Iterable<Edge<Long, Long>> edges, Collector<Tuple2<Long, Long>> out) throws Exception {
-			
+		                         Iterable<Edge<Long, Long>> edges, Collector<Tuple2<Long, Long>> out) throws Exception {
+
 			long weight = Long.MAX_VALUE;
 			long minNeighborId = 0;
-			
-			for (Edge<Long, Long> edge: edges) {
+
+			for (Edge<Long, Long> edge : edges) {
 				if (edge.getValue() < weight) {
 					weight = edge.getValue();
 					minNeighborId = edge.getSource();
@@ -480,9 +479,9 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public void iterateEdges(Iterable<Tuple2<Long, Edge<Long, Long>>> edges,
-								 Collector<Tuple2<Long, Long>> out) throws Exception {
+		                         Collector<Tuple2<Long, Long>> out) throws Exception {
 
-			for(Tuple2<Long, Edge<Long, Long>> edge : edges) {
+			for (Tuple2<Long, Edge<Long, Long>> edge : edges) {
 				out.collect(new Tuple2<>(edge.f0, edge.f1.getTarget()));
 			}
 		}
@@ -493,10 +492,10 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public void iterateEdges(Iterable<Tuple2<Long, Edge<Long, Long>>> edges,
-								 Collector<Tuple2<Long, Long>> out) throws Exception {
+		                         Collector<Tuple2<Long, Long>> out) throws Exception {
 
-			for(Tuple2<Long, Edge<Long, Long>> edge : edges) {
-				if(edge.f0 != 5) {
+			for (Tuple2<Long, Edge<Long, Long>> edge : edges) {
+				if (edge.f0 != 5) {
 					out.collect(new Tuple2<>(edge.f0, edge.f1.getTarget()));
 				}
 			}
@@ -505,13 +504,14 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 
 	@SuppressWarnings("serial")
 	private static final class SelectOutNeighborsValueGreaterThanTwo implements
-			EdgesFunctionWithVertexValue<Long, Long, Long, Tuple2<Long, Long>> {
+		EdgesFunctionWithVertexValue<Long, Long, Long, Tuple2<Long, Long>> {
 
 		@Override
 		public void iterateEdges(Vertex<Long, Long> v, Iterable<Edge<Long, Long>> edges,
-								 Collector<Tuple2<Long, Long>> out) throws Exception {
-			for (Edge<Long, Long> edge: edges) {
-				if(v.getValue() > 2) {
+		                         Collector<Tuple2<Long, Long>> out) throws Exception {
+
+			for (Edge<Long, Long> edge : edges) {
+				if (v.getValue() > 2) {
 					out.collect(new Tuple2<>(v.getId(), edge.getTarget()));
 				}
 			}
@@ -523,9 +523,9 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public void iterateEdges(Iterable<Tuple2<Long, Edge<Long, Long>>> edges,
-								 Collector<Tuple2<Long, Long>> out) throws Exception {
+		                         Collector<Tuple2<Long, Long>> out) throws Exception {
 
-			for(Tuple2<Long, Edge<Long, Long>> edge : edges) {
+			for (Tuple2<Long, Edge<Long, Long>> edge : edges) {
 				out.collect(new Tuple2<>(edge.f0, edge.f1.getSource()));
 			}
 		}
@@ -536,10 +536,10 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public void iterateEdges(Iterable<Tuple2<Long, Edge<Long, Long>>> edges,
-								 Collector<Tuple2<Long, Long>> out) throws Exception {
+		                         Collector<Tuple2<Long, Long>> out) throws Exception {
 
-			for(Tuple2<Long, Edge<Long, Long>> edge : edges) {
-				if(edge.f0 != 5) {
+			for (Tuple2<Long, Edge<Long, Long>> edge : edges) {
+				if (edge.f0 != 5) {
 					out.collect(new Tuple2<>(edge.f0, edge.f1.getSource()));
 				}
 			}
@@ -548,13 +548,14 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 
 	@SuppressWarnings("serial")
 	private static final class SelectInNeighborsValueGreaterThanTwo implements
-			EdgesFunctionWithVertexValue<Long, Long, Long, Tuple2<Long, Long>> {
+		EdgesFunctionWithVertexValue<Long, Long, Long, Tuple2<Long, Long>> {
 
 		@Override
 		public void iterateEdges(Vertex<Long, Long> v, Iterable<Edge<Long, Long>> edges,
-								 Collector<Tuple2<Long, Long>> out) throws Exception {
-			for (Edge<Long, Long> edge: edges) {
-				if(v.getValue() > 2) {
+		                         Collector<Tuple2<Long, Long>> out) throws Exception {
+
+			for (Edge<Long, Long> edge : edges) {
+				if (v.getValue() > 2) {
 					out.collect(new Tuple2<>(v.getId(), edge.getSource()));
 				}
 			}
@@ -566,7 +567,7 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public void iterateEdges(Iterable<Tuple2<Long, Edge<Long, Long>>> edges,
-								 Collector<Tuple2<Long, Long>> out) throws Exception {
+		                         Collector<Tuple2<Long, Long>> out) throws Exception {
 			for (Tuple2<Long, Edge<Long, Long>> edge : edges) {
 				if (Objects.equals(edge.f0, edge.f1.getTarget())) {
 					out.collect(new Tuple2<>(edge.f0, edge.f1.getSource()));
@@ -582,9 +583,10 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 
 		@Override
 		public void iterateEdges(Iterable<Tuple2<Long, Edge<Long, Long>>> edges,
-								 Collector<Tuple2<Long, Long>> out) throws Exception {
+		                         Collector<Tuple2<Long, Long>> out) throws Exception {
+
 			for (Tuple2<Long, Edge<Long, Long>> edge : edges) {
-				if(edge.f0 != 5 && edge.f0 != 2) {
+				if (edge.f0 != 5 && edge.f0 != 2) {
 					if (Objects.equals(edge.f0, edge.f1.getTarget())) {
 						out.collect(new Tuple2<>(edge.f0, edge.f1.getSource()));
 					} else {
@@ -597,14 +599,15 @@ public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
 
 	@SuppressWarnings("serial")
 	private static final class SelectNeighborsValueGreaterThanFour implements
-			EdgesFunctionWithVertexValue<Long, Long, Long, Tuple2<Long, Long>> {
+		EdgesFunctionWithVertexValue<Long, Long, Long, Tuple2<Long, Long>> {
 
 		@Override
 		public void iterateEdges(Vertex<Long, Long> v, Iterable<Edge<Long, Long>> edges,
-								 Collector<Tuple2<Long, Long>> out) throws Exception {
-			for(Edge<Long, Long> edge : edges) {
-				if(v.getValue() > 4) {
-					if(v.getId().equals(edge.getTarget())) {
+		                         Collector<Tuple2<Long, Long>> out) throws Exception {
+
+			for (Edge<Long, Long> edge : edges) {
+				if (v.getValue() > 4) {
+					if (v.getId().equals(edge.getTarget())) {
 						out.collect(new Tuple2<>(v.getId(), edge.getSource()));
 					} else {
 						out.collect(new Tuple2<>(v.getId(), edge.getTarget()));

@@ -33,28 +33,40 @@ public final class MigrationInstantiationUtil {
 
 	public static class ClassLoaderObjectInputStream extends InstantiationUtil.ClassLoaderObjectInputStream {
 
+		private static final String ARRAY_PREFIX = "[L";
+		private static final String FLINK_BASE_PACKAGE = "org.apache.flink.";
+		private static final String FLINK_MIGRATION_PACKAGE = "org.apache.flink.migration.";
+
 		public ClassLoaderObjectInputStream(InputStream in, ClassLoader classLoader) throws IOException {
 			super(in, classLoader);
 		}
 
 		@Override
-		protected ObjectStreamClass readClassDescriptor()
-				throws IOException, ClassNotFoundException {
-			ObjectStreamClass objectStreamClass = super.readClassDescriptor();
-			String className = objectStreamClass.getName();
-			if (className.contains("apache.flink.")) {
-				className = className.replace("apache.flink.", "apache.flink.migration.");
-				try {
-					Class<?> clazz = Class.forName(className, false, classLoader);
-					objectStreamClass = ObjectStreamClass.lookup(clazz);
-				} catch (Exception ignored) {
+		protected Class<?> resolveClass(ObjectStreamClass desc) throws IOException, ClassNotFoundException {
+			final String className = desc.getName();
 
+			// the flink package may be at position 0 (regular class) or position 2 (array)
+			final int flinkPackagePos;
+			if ((flinkPackagePos = className.indexOf(FLINK_BASE_PACKAGE)) == 0 ||
+					(flinkPackagePos == 2 && className.startsWith(ARRAY_PREFIX)))
+			{
+				final String modClassName = flinkPackagePos == 0 ?
+						FLINK_MIGRATION_PACKAGE + className.substring(FLINK_BASE_PACKAGE.length()) :
+						ARRAY_PREFIX + FLINK_MIGRATION_PACKAGE + className.substring(2 + FLINK_BASE_PACKAGE.length());
+
+				try {
+					return classLoader != null ?
+							Class.forName(modClassName, false, classLoader) :
+							Class.forName(modClassName);
 				}
+				catch (ClassNotFoundException ignored) {}
 			}
-			return objectStreamClass;
+
+			// either a non-Flink class, or not located in the migration package
+			return super.resolveClass(desc);
 		}
 	}
-	
+
 	public static <T> T deserializeObject(byte[] bytes, ClassLoader cl) throws IOException, ClassNotFoundException {
 		return deserializeObject(new ByteArrayInputStream(bytes), cl);
 	}

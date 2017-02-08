@@ -60,16 +60,16 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 	}
 
 	@Override
-	public Graph<LongValue,NullValue,NullValue> generate() {
+	public Graph<LongValue, NullValue, NullValue> generate() {
 		// Vertices
-		DataSet<Vertex<LongValue,NullValue>> vertices = GraphGeneratorUtils.vertexSequence(env, parallelism, vertexCount);
+		DataSet<Vertex<LongValue, NullValue>> vertices = GraphGeneratorUtils.vertexSequence(env, parallelism, vertexCount);
 
 		// Edges
-		TypeInformation<Edge<LongValue,NullValue>> typeInformation = new TupleTypeInfo<>(
+		TypeInformation<Edge<LongValue, NullValue>> typeInformation = new TupleTypeInfo<>(
 			ValueTypeInfo.LONG_VALUE_TYPE_INFO, ValueTypeInfo.LONG_VALUE_TYPE_INFO, ValueTypeInfo.NULL_VALUE_TYPE_INFO);
 
-		DataSource<Edge<LongValue,NullValue>> edges = env
-			.fromCollection(Collections.<Edge<LongValue,NullValue>>emptyList(), typeInformation)
+		DataSource<Edge<LongValue, NullValue>> edges = env
+			.fromCollection(Collections.<Edge<LongValue ,NullValue>>emptyList(), typeInformation)
 				.setParallelism(parallelism)
 				.name("Empty edge set");
 

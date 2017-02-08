@@ -26,38 +26,38 @@ import org.scalatest.{FlatSpec, Matchers}
 
 class PolynomialFeaturesITSuite
   extends FlatSpec
-  with Matchers
-  with FlinkTestBase {
+    with Matchers
+    with FlinkTestBase {
 
   behavior of "The polynomial base implementation"
 
   it should "map single element vectors to the polynomial vector space" in {
     val env = ExecutionEnvironment.getExecutionEnvironment
 
-    env.setParallelism (2)
+    env.setParallelism(2)
 
-    val input = Seq (
-    LabeledVector (1.0, DenseVector (1)),
-    LabeledVector (2.0, DenseVector (2))
+    val input = Seq(
+      LabeledVector(1.0, DenseVector(1)),
+      LabeledVector(2.0, DenseVector(2))
     )
 
-    val inputDS = env.fromCollection (input)
+    val inputDS = env.fromCollection(input)
 
     val transformer = PolynomialFeatures()
-    .setDegree (3)
+      .setDegree(3)
 
     val transformedDS = transformer.transform(inputDS)
 
-    val expectedMap = List (
-    (1.0 -> DenseVector (1.0, 1.0, 1.0) ),
-    (2.0 -> DenseVector (8.0, 4.0, 2.0) )
-    ) toMap
+    val expectedMap = Map(
+      1.0 -> DenseVector(1.0, 1.0, 1.0),
+      2.0 -> DenseVector(8.0, 4.0, 2.0)
+    )
 
     val result = transformedDS.collect()
 
     for (entry <- result) {
-    expectedMap.contains (entry.label) should be (true)
-    entry.vector should equal (expectedMap (entry.label) )
+      expectedMap.contains(entry.label) should be(true)
+      entry.vector should equal(expectedMap(entry.label))
     }
   }
 
@@ -86,7 +86,7 @@ class PolynomialFeaturesITSuite
 
     val result = transformedDS.collect()
 
-    for(entry <- result) {
+    for (entry <- result) {
       expectedMap.contains(entry.label) should be(true)
       entry.vector should equal(expectedMap(entry.label))
     }
@@ -111,12 +111,12 @@ class PolynomialFeaturesITSuite
 
     val result = transformedDS.collect()
 
-    val expectedMap = List(
-      (1.0 -> DenseVector()),
-      (2.0 -> DenseVector())
-    ) toMap
+    val expectedMap = Map(
+      1.0 -> DenseVector(),
+      2.0 -> DenseVector()
+    )
 
-    for(entry <- result) {
+    for (entry <- result) {
       expectedMap.contains(entry.label) should be(true)
       entry.vector should equal(expectedMap(entry.label))
     }

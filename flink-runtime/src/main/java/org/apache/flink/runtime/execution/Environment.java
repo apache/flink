@@ -36,7 +36,7 @@ import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
-import org.apache.flink.runtime.state.KvState;
+import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 
 import java.util.Map;
@@ -151,7 +151,7 @@ public interface Environment {
 	AccumulatorRegistry getAccumulatorRegistry();
 
 	/**
-	 * Returns the registry for {@link KvState} instances.
+	 * Returns the registry for {@link InternalKvState} instances.
 	 *
 	 * @return KvState registry
 	 */

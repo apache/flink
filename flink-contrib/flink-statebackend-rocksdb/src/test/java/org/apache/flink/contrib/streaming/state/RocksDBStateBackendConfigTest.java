@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -31,9 +32,6 @@ import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
-import org.apache.flink.util.OperatingSystem;
-import org.junit.Assume;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -70,11 +68,6 @@ public class RocksDBStateBackendConfigTest {
 	@Rule
 	public TemporaryFolder tempFolder = new TemporaryFolder();
 
-	@Before
-	public void checkOperatingSystem() {
-		Assume.assumeTrue("This test can't run successfully on Windows.", !OperatingSystem.isWindows());
-	}
-
 	// ------------------------------------------------------------------------
 	//  RocksDB local file directory
 	// ------------------------------------------------------------------------
@@ -90,13 +83,13 @@ public class RocksDBStateBackendConfigTest {
 		assertNull(rocksDbBackend.getDbStoragePaths());
 
 		rocksDbBackend.setDbStoragePath(testDir1.getAbsolutePath());
-		assertArrayEquals(new String[] { testDir1.getAbsolutePath() }, rocksDbBackend.getDbStoragePaths());
+		assertArrayEquals(new String[] { new Path(testDir1.getAbsolutePath()).toString() }, rocksDbBackend.getDbStoragePaths());
 
 		rocksDbBackend.setDbStoragePath(null);
 		assertNull(rocksDbBackend.getDbStoragePaths());
 
 		rocksDbBackend.setDbStoragePaths(testDir1.getAbsolutePath(), testDir2.getAbsolutePath());
-		assertArrayEquals(new String[] { testDir1.getAbsolutePath(), testDir2.getAbsolutePath() }, rocksDbBackend.getDbStoragePaths());
+		assertArrayEquals(new String[] { new Path(testDir1.getAbsolutePath()).toString(), new Path(testDir2.getAbsolutePath()).toString() }, rocksDbBackend.getDbStoragePaths());
 
 		Environment env = getMockEnvironment();
 		RocksDBKeyedStateBackend<Integer> keyedBackend = (RocksDBKeyedStateBackend<Integer>) rocksDbBackend.
@@ -268,17 +261,18 @@ public class RocksDBStateBackendConfigTest {
 		rocksDbBackend.setPredefinedOptions(PredefinedOptions.SPINNING_DISK_OPTIMIZED);
 		assertEquals(PredefinedOptions.SPINNING_DISK_OPTIMIZED, rocksDbBackend.getPredefinedOptions());
 
-		DBOptions opt1 = rocksDbBackend.getDbOptions();
-		DBOptions opt2 = rocksDbBackend.getDbOptions();
+		try (
+				DBOptions optCreated = rocksDbBackend.getDbOptions();
+				DBOptions optReference = new DBOptions();
+				ColumnFamilyOptions colCreated = rocksDbBackend.getColumnOptions()) {
 
-		assertEquals(opt1, opt2);
+			// check that our instance uses something that we configured
+			assertEquals(true, optCreated.disableDataSync());
+			// just ensure that we pickend an option that actually differs from the reference.
+			assertEquals(false, optReference.disableDataSync());
 
-		ColumnFamilyOptions columnOpt1 = rocksDbBackend.getColumnOptions();
-		ColumnFamilyOptions columnOpt2 = rocksDbBackend.getColumnOptions();
-
-		assertEquals(columnOpt1, columnOpt2);
-
-		assertEquals(CompactionStyle.LEVEL, columnOpt1.compactionStyle());
+			assertEquals(CompactionStyle.LEVEL, colCreated.compactionStyle());
+		}
 	}
 
 	@Test
@@ -358,11 +352,11 @@ public class RocksDBStateBackendConfigTest {
 	//  Utilities
 	// ------------------------------------------------------------------------
 
-	private static Environment getMockEnvironment() {
+	static Environment getMockEnvironment() {
 		return getMockEnvironment(new File[] { new File(System.getProperty("java.io.tmpdir")) });
 	}
 
-	private static Environment getMockEnvironment(File[] tempDirs) {
+	static Environment getMockEnvironment(File[] tempDirs) {
 		final String[] tempDirStrings = new String[tempDirs.length];
 		for (int i = 0; i < tempDirs.length; i++) {
 			tempDirStrings[i] = tempDirs[i].getAbsolutePath();

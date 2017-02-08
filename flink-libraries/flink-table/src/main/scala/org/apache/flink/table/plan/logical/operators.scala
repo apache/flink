@@ -92,20 +92,11 @@ case class Project(projectList: Seq[NamedExpression], child: LogicalNode) extend
   }
 
   override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
-    val allAlias = projectList.forall(_.isInstanceOf[Alias])
     child.construct(relBuilder)
-    if (allAlias) {
-      // Calcite's RelBuilder does not translate identity projects even if they rename fields.
-      //   Add a projection ourselves (will be automatically removed by translation rules).
-      val project = LogicalProject.create(relBuilder.peek(),
-        // avoid AS call
-        projectList.map(_.asInstanceOf[Alias].child.toRexNode(relBuilder)).asJava,
-        projectList.map(_.name).asJava)
-      relBuilder.build()  // pop previous relNode
-      relBuilder.push(project)
-    } else {
-      relBuilder.project(projectList.map(_.toRexNode(relBuilder)): _*)
-    }
+    relBuilder.project(
+      projectList.map(_.toRexNode(relBuilder)).asJava,
+      projectList.map(_.name).asJava,
+      true)
   }
 }
 
@@ -451,7 +442,7 @@ case class Join(
 
     val resolvedJoin = super.validate(tableEnv).asInstanceOf[Join]
     if (!resolvedJoin.condition.forall(_.resultType == BOOLEAN_TYPE_INFO)) {
-      failValidation(s"Filter operator requires a boolean expression as input, " + 
+      failValidation(s"Filter operator requires a boolean expression as input, " +
         s"but ${resolvedJoin.condition} is of type ${resolvedJoin.joinType}")
     } else if (ambiguousName.nonEmpty) {
       failValidation(s"join relations with ambiguous names: ${ambiguousName.mkString(", ")}")
@@ -463,30 +454,54 @@ case class Join(
 
   private def testJoinCondition(expression: Expression): Unit = {
 
-    def checkIfJoinCondition(exp : BinaryComparison) = exp.children match {
-        case (x : JoinFieldReference) :: (y : JoinFieldReference) :: Nil
-          if x.isFromLeftInput != y.isFromLeftInput => Unit
-        case x => failValidation(
-          s"Invalid non-join predicate $exp. For non-join predicates use Table#where.")
-      }
+    def checkIfJoinCondition(exp: BinaryComparison) = exp.children match {
+      case (x: JoinFieldReference) :: (y: JoinFieldReference) :: Nil
+        if x.isFromLeftInput != y.isFromLeftInput => true
+      case _ => false
+    }
 
-    var equiJoinFound = false
+    def checkIfFilterCondition(exp: BinaryComparison) = exp.children match {
+      case (x: JoinFieldReference) :: (y: JoinFieldReference) :: Nil => false
+      case (x: JoinFieldReference) :: (_) :: Nil => true
+      case (_) :: (y: JoinFieldReference) :: Nil => true
+      case _ => false
+    }
+
+    var equiJoinPredicateFound = false
+    var nonEquiJoinPredicateFound = false
+    var localPredicateFound = false
+
     def validateConditions(exp: Expression, isAndBranch: Boolean): Unit = exp match {
       case x: And => x.children.foreach(validateConditions(_, isAndBranch))
       case x: Or => x.children.foreach(validateConditions(_, isAndBranch = false))
       case x: EqualTo =>
-        if (isAndBranch) {
-          equiJoinFound = true
+        if (isAndBranch && checkIfJoinCondition(x)) {
+          equiJoinPredicateFound = true
         }
-        checkIfJoinCondition(x)
-      case x: BinaryComparison => checkIfJoinCondition(x)
+        if (checkIfFilterCondition(x)) {
+          localPredicateFound = true
+        }
+      case x: BinaryComparison => {
+        if (checkIfFilterCondition(x)) {
+          localPredicateFound = true
+        } else {
+          nonEquiJoinPredicateFound = true
+        }
+      }
       case x => failValidation(
         s"Unsupported condition type: ${x.getClass.getSimpleName}. Condition: $x")
     }
 
     validateConditions(expression, isAndBranch = true)
-    if (!equiJoinFound) {
-      failValidation(s"Invalid join condition: $expression. At least one equi-join required.")
+    if (!equiJoinPredicateFound) {
+      failValidation(
+        s"Invalid join condition: $expression. At least one equi-join predicate is " +
+          s"required.")
+    }
+    if (joinType != JoinType.INNER && (nonEquiJoinPredicateFound || localPredicateFound)) {
+      failValidation(
+        s"Invalid join condition: $expression. Non-equality join predicates or local" +
+          s" predicates are not supported in outer joins.")
     }
   }
 }

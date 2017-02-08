@@ -49,6 +49,15 @@ public class JobSnapshottingSettings implements java.io.Serializable {
 
 	/** Settings for externalized checkpoints. */
 	private final ExternalizedCheckpointSettings externalizedCheckpointSettings;
+
+	/**
+	 * Flag indicating whether exactly once checkpoint mode has been configured.
+	 * If <code>false</code>, at least once mode has been configured. This is
+	 * not a necessary attribute, because the checkpointing mode is only relevant
+	 * for the stream tasks, but we expose it here to forward it to the web runtime
+	 * UI.
+	 */
+	private final boolean isExactlyOnce;
 	
 	public JobSnapshottingSettings(
 			List<JobVertexID> verticesToTrigger,
@@ -58,7 +67,8 @@ public class JobSnapshottingSettings implements java.io.Serializable {
 			long checkpointTimeout,
 			long minPauseBetweenCheckpoints,
 			int maxConcurrentCheckpoints,
-			ExternalizedCheckpointSettings externalizedCheckpointSettings) {
+			ExternalizedCheckpointSettings externalizedCheckpointSettings,
+			boolean isExactlyOnce) {
 
 		// sanity checks
 		if (checkpointInterval < 1 || checkpointTimeout < 1 ||
@@ -74,6 +84,7 @@ public class JobSnapshottingSettings implements java.io.Serializable {
 		this.minPauseBetweenCheckpoints = minPauseBetweenCheckpoints;
 		this.maxConcurrentCheckpoints = maxConcurrentCheckpoints;
 		this.externalizedCheckpointSettings = requireNonNull(externalizedCheckpointSettings);
+		this.isExactlyOnce = isExactlyOnce;
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -108,6 +119,10 @@ public class JobSnapshottingSettings implements java.io.Serializable {
 
 	public ExternalizedCheckpointSettings getExternalizedCheckpointSettings() {
 		return externalizedCheckpointSettings;
+	}
+
+	public boolean isExactlyOnce() {
+		return isExactlyOnce;
 	}
 
 	// --------------------------------------------------------------------------------------------

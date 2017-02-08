@@ -172,7 +172,7 @@ public class AkkaRpcActorTest extends TestLogger {
 	 * @throws ExecutionException
 	 * @throws InterruptedException
 	 */
-	@Test(timeout=1000)
+	@Test(timeout=5000)
 	public void testRpcEndpointTerminationFuture() throws Exception {
 		final DummyRpcEndpoint rpcEndpoint = new DummyRpcEndpoint(akkaRpcService);
 		rpcEndpoint.start();

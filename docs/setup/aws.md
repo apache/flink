@@ -2,7 +2,7 @@
 title: "Amazon Web Services (AWS)"
 nav-title: AWS
 nav-parent_id: deployment
-nav-pos: 4
+nav-pos: 10
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -57,7 +57,7 @@ HADOOP_CONF_DIR=/etc/hadoop/conf bin/flink run -m yarn-cluster examples/streamin
 
 ## S3: Simple Storage Service
 
-[Amazon Simple Storage Service](http://aws.amazon.com/s3/) (Amazon S3) provides cloud object storage for a variety of use cases. You can use S3 with Flink for **reading** and **writing data** as well in conjunction with the [streaming **state backends**]({{ site.baseurl}}/dev/state_backends.html).
+[Amazon Simple Storage Service](http://aws.amazon.com/s3/) (Amazon S3) provides cloud object storage for a variety of use cases. You can use S3 with Flink for **reading** and **writing data** as well in conjunction with the [streaming **state backends**]({{ site.baseurl}}/ops/state_backends.html).
 
 You can use S3 objects like regular files by specifying paths in the following format:
 
@@ -78,7 +78,7 @@ stream.writeAsText("s3://<bucket>/<endpoint>");
 env.setStateBackend(new FsStateBackend("s3://<your-bucket>/<endpoint>"));
 ```
 
-Note that these examples are *not* exhaustive and you can use S3 in other places as well, including your [high availability setup]({{ site.baseurl }}/setup/jobmanager_high_availability.html) or the [RocksDBStateBackend]({{ site.baseurl }}/dev/state_backends.html#the-rocksdbstatebackend);  everywhere that Flink expects a FileSystem URI.
+Note that these examples are *not* exhaustive and you can use S3 in other places as well, including your [high availability setup]({{ site.baseurl }}/setup/jobmanager_high_availability.html) or the [RocksDBStateBackend]({{ site.baseurl }}/ops/state_backends.html#the-rocksdbstatebackend);  everywhere that Flink expects a FileSystem URI.
 
 ### Set S3 FileSystem
 
@@ -98,6 +98,8 @@ This is the recommended S3 FileSystem implementation to use. It uses Amazon's SD
 You need to point Flink to a valid Hadoop configuration, which contains the following properties in `core-site.xml`:
 
 ```xml
+<configuration>
+
 <property>
   <name>fs.s3.impl</name>
   <value>org.apache.hadoop.fs.s3a.S3AFileSystem</value>
@@ -109,6 +111,8 @@ You need to point Flink to a valid Hadoop configuration, which contains the foll
   <name>fs.s3.buffer.dir</name>
   <value>/tmp</value>
 </property>
+
+</configuration>
 ```
 
 This registers `S3AFileSystem` as the default FileSystem for URIs with the `s3://` scheme.
@@ -130,13 +134,13 @@ This registers `NativeS3FileSystem` as the default FileSystem for URIs with the 
 
 #### Hadoop Configuration
 
-You can specify the [Hadoop configuration]({{ site.baseurl }}/setup/config.html#hdfs) in various ways, for examples by configuring the path to the Hadoop configuration directory in `flink-conf.yaml`:
+You can specify the [Hadoop configuration]({{ site.baseurl }}/setup/config.html#hdfs) in various ways, for example by configuring the path to the Hadoop configuration directory in `flink-conf.yaml`:
 
 ```
 fs.hdfs.hadoopconf: /path/to/etc/hadoop
 ```
 
-This registers `path/to/etc/hadoop` as Hadoop's configuration directory with Flink.
+This registers `/path/to/etc/hadoop` as Hadoop's configuration directory with Flink. Flink will look for the `core-site.xml` and `hdfs-site.xml` files in the specified directory.  
 
 {% top %}
 
@@ -148,7 +152,7 @@ After setting up the S3 FileSystem, you need to make sure that Flink is allowed 
 
 #### Identity and Access Management (IAM) (Recommended)
 
-The recommended way of setting up credentials on AWS is via [Identity and Access Management (IAM)](http://docs.aws.amazon.com/IAM/latest/UserGuide/introduction.html). You can use IAM features to securely give Flink instances the credentials that they need in order to access S3 buckets. Details about how to do this are beyond the scope of this documentation. Please refer to the AWS user guide. What you are looking for are [IAM Roles](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html).
+When using `S3AFileSystem` the recommended way of setting up credentials on AWS is via [Identity and Access Management (IAM)](http://docs.aws.amazon.com/IAM/latest/UserGuide/introduction.html). You can use IAM features to securely give Flink instances the credentials that they need in order to access S3 buckets. Details about how to do this are beyond the scope of this documentation. Please refer to the AWS user guide. What you are looking for are [IAM Roles](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html).
 
 If you set this up correctly, you can manage access to S3 within AWS and don't need to distribute any access keys to Flink.
 
@@ -156,11 +160,31 @@ Note that this only works with `S3AFileSystem` and not `NativeS3FileSystem`.
 
 {% top %}
 
-#### Access Keys (Discouraged)
+#### Access Keys with S3AFileSystem (Discouraged)
 
 Access to S3 can be granted via your **access and secret key pair**. Please note that this is discouraged since the [introduction of IAM roles](https://blogs.aws.amazon.com/security/post/Tx1XG3FX6VMU6O5/A-safer-way-to-distribute-AWS-credentials-to-EC2).
 
-You need to configure both `fs.s3.awsAccessKeyId` and `fs.s3.awsSecretAccessKey`  in Hadoop's  `core-site.xml`:
+For `S3AFileSystem` you need to configure both `fs.s3a.access.key` and `fs.s3a.secret.key`  in Hadoop's  `core-site.xml`:
+
+```xml
+<property>
+  <name>fs.s3a.access.key</name>
+  <value></value>
+</property>
+
+<property>
+  <name>fs.s3a.secret.key</name>
+  <value></value>
+</property>
+```
+
+{% top %}
+
+#### Access Keys with NativeS3FileSystem (Discouraged)
+
+Access to S3 can be granted via your **access and secret key pair**. But this is discouraged and you should use `S3AFileSystem` [with the required IAM roles](https://blogs.aws.amazon.com/security/post/Tx1XG3FX6VMU6O5/A-safer-way-to-distribute-AWS-credentials-to-EC2).
+
+For `NativeS3FileSystem` you need to configure both `fs.s3.awsAccessKeyId` and `fs.s3.awsSecretAccessKey`  in Hadoop's  `core-site.xml`:
 
 ```xml
 <property>

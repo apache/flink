@@ -21,16 +21,16 @@ limitations under the License.
 <nav ng-if="nodeid" class="navbar navbar-default navbar-secondary-additional navbar-secondary-additional-2">
   <div class="navbar-info">{{ vertex.name }}</div>
   <div class="navbar-info">{{ nodeid }}</div>
-  <div ng-if="availableMetrics.length" class="dropup add-metrics">
+  <div ng-if="availableMetrics.length" class="dropdown add-metrics">
     <button type="button" data-toggle="dropdown" class="btn btn-default navbar-btn dropdown-toggle">
       Add metric
       &nbsp;<span class="caret"></span>
     </button>
     <ul class="dropdown-menu dropdown-menu-right metric-menu">
-      <li ng-repeat="metric in availableMetrics track by $index"><a ng-click="addMetric(metric)">{{ metric.id }}</a></li>
+      <li ng-repeat="metric in availableMetrics track by $index"><a ng-click="addMetric(metric)">{{ metric.id | limit }}</a></li>
     </ul>
   </div>
-  <div ng-if="!availableMetrics.length" class="dropup add-metrics">
+  <div ng-if="!availableMetrics.length" class="dropdown add-metrics">
     <button type="button" data-toggle="dropdown" disabled="disabled" class="btn btn-default navbar-btn dropdown-toggle"><i>No metrics available</i></button>
   </div>
 </nav>

@@ -81,10 +81,11 @@ public class SavepointLoader {
 			}
 
 			if (executionJobVertex != null) {
-				if (executionJobVertex.getMaxParallelism() == taskState.getMaxParallelism()) {
+
+				if (executionJobVertex.getMaxParallelism() == taskState.getMaxParallelism()
+						|| !executionJobVertex.isMaxParallelismConfigured()) {
 					taskStates.put(taskState.getJobVertexID(), taskState);
-				}
-				else {
+				} else {
 					String msg = String.format("Failed to rollback to savepoint %s. " +
 									"Max parallelism mismatch between savepoint state and new program. " +
 									"Cannot map operator %s with max parallelism %d to new program with " +
@@ -106,6 +107,7 @@ public class SavepointLoader {
 								"you want to allow to skip this, you can set the --allowNonRestoredState " +
 								"option on the CLI.",
 						savepointPath, taskState.getJobVertexID());
+
 				throw new IllegalStateException(msg);
 			}
 		}

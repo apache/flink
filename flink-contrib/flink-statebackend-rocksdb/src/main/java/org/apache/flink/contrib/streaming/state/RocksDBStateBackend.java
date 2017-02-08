@@ -28,12 +28,10 @@ import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
-
+import org.apache.flink.util.AbstractID;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
-
 import org.rocksdb.NativeLibraryLoader;
 import org.rocksdb.RocksDB;
 import org.slf4j.Logger;
@@ -45,7 +43,6 @@ import java.lang.reflect.Field;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
 import java.util.Random;
 import java.util.UUID;
@@ -66,12 +63,15 @@ import static java.util.Objects.requireNonNull;
  * {@link #setOptions(OptionsFactory)}.
  */
 public class RocksDBStateBackend extends AbstractStateBackend {
+
 	private static final long serialVersionUID = 1L;
 
 	private static final Logger LOG = LoggerFactory.getLogger(RocksDBStateBackend.class);
 
+	/** The number of (re)tries for loading the RocksDB JNI library */
 	private static final int ROCKSDB_LIB_LOADING_ATTEMPTS = 3;
 
+	
 	private static boolean rocksDbInitialized = false;
 
 	// ------------------------------------------------------------------------
@@ -104,10 +104,6 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 
 	/** The options factory to create the RocksDB options in the cluster */
 	private OptionsFactory optionsFactory;
-
-	/** The options from the options factory, cached */
-	private transient DBOptions dbOptions;
-	private transient ColumnFamilyOptions columnOptions;
 
 	/** Whether we already lazily initialized our local storage directories. */
 	private transient boolean isInitialized = false;
@@ -209,10 +205,6 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 		isInitialized = true;
 	}
 
-	private File getDbPath() {
-		return new File(new File(getNextStoragePath(), jobId.toString()), operatorIdentifier);
-	}
-
 	private File getNextStoragePath() {
 		int ni = nextDirectory + 1;
 		ni = ni >= initializedDbBasePaths.length ? 0 : ni;
@@ -244,7 +236,8 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 
 		lazyInitializeForJob(env, operatorIdentifier);
 
-		File instanceBasePath = new File(getDbPath(), UUID.randomUUID().toString());
+		File instanceBasePath =
+				new File(getNextStoragePath(), "job-" + jobId.toString() + "_op-" + operatorIdentifier + "_uuid-" + UUID.randomUUID());
 
 		return new RocksDBKeyedStateBackend<>(
 				jobID,
@@ -257,39 +250,6 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 				keySerializer,
 				numberOfKeyGroups,
 				keyGroupRange);
-	}
-
-	@Override
-	public <K> AbstractKeyedStateBackend<K> restoreKeyedStateBackend(
-			Environment env,
-			JobID jobID,
-			String operatorIdentifier,
-			TypeSerializer<K> keySerializer,
-			int numberOfKeyGroups,
-			KeyGroupRange keyGroupRange,
-			Collection<KeyGroupsStateHandle> restoredState,
-			TaskKvStateRegistry kvStateRegistry) throws Exception {
-
-		// first, make sure that the RocksDB JNI library is loaded
-		// we do this explicitly here to have better error handling
-		String tempDir = env.getTaskManagerInfo().getTmpDirectories()[0];
-		ensureRocksDBIsLoaded(tempDir);
-
-		lazyInitializeForJob(env, operatorIdentifier);
-
-		File instanceBasePath = new File(getDbPath(), UUID.randomUUID().toString());
-		return new RocksDBKeyedStateBackend<>(
-				jobID,
-				operatorIdentifier,
-				env.getUserClassLoader(),
-				instanceBasePath,
-				getDbOptions(),
-				getColumnOptions(),
-				kvStateRegistry,
-				keySerializer,
-				numberOfKeyGroups,
-				keyGroupRange,
-				restoredState);
 	}
 
 	// ------------------------------------------------------------------------
@@ -426,39 +386,33 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 	 * Gets the RocksDB {@link DBOptions} to be used for all RocksDB instances.
 	 */
 	public DBOptions getDbOptions() {
-		if (dbOptions == null) {
-			// initial options from pre-defined profile
-			DBOptions opt = predefinedOptions.createDBOptions();
+		// initial options from pre-defined profile
+		DBOptions opt = predefinedOptions.createDBOptions();
 
-			// add user-defined options, if specified
-			if (optionsFactory != null) {
-				opt = optionsFactory.createDBOptions(opt);
-			}
-
-			// add necessary default options
-			opt = opt.setCreateIfMissing(true);
-
-			dbOptions = opt;
+		// add user-defined options, if specified
+		if (optionsFactory != null) {
+			opt = optionsFactory.createDBOptions(opt);
 		}
-		return dbOptions;
+
+		// add necessary default options
+		opt = opt.setCreateIfMissing(true);
+
+		return opt;
 	}
 
 	/**
 	 * Gets the RocksDB {@link ColumnFamilyOptions} to be used for all RocksDB instances.
 	 */
 	public ColumnFamilyOptions getColumnOptions() {
-		if (columnOptions == null) {
-			// initial options from pre-defined profile
-			ColumnFamilyOptions opt = predefinedOptions.createColumnOptions();
+		// initial options from pre-defined profile
+		ColumnFamilyOptions opt = predefinedOptions.createColumnOptions();
 
-			// add user-defined options, if specified
-			if (optionsFactory != null) {
-				opt = optionsFactory.createColumnOptions(opt);
-			}
-
-			columnOptions = opt;
+		// add user-defined options, if specified
+		if (optionsFactory != null) {
+			opt = optionsFactory.createColumnOptions(opt);
 		}
-		return columnOptions;
+
+		return opt;
 	}
 
 	@Override
@@ -476,24 +430,34 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 	// ------------------------------------------------------------------------
 
 	private void ensureRocksDBIsLoaded(String tempDirectory) throws Exception {
-		// lock on something that cannot be in the user JAR
-		synchronized (org.apache.flink.runtime.taskmanager.Task.class) {
+		synchronized (RocksDBStateBackend.class) {
 			if (!rocksDbInitialized) {
 
-				final File tempDirFile = new File(tempDirectory);
-				final String path = tempDirFile.getAbsolutePath();
-
-				LOG.info("Attempting to load RocksDB native library and store it at '{}'", path);
+				final File tempDirParent = new File(tempDirectory).getAbsoluteFile();
+				LOG.info("Attempting to load RocksDB native library and store it under '{}'", tempDirParent);
 
 				Throwable lastException = null;
 				for (int attempt = 1; attempt <= ROCKSDB_LIB_LOADING_ATTEMPTS; attempt++) {
 					try {
+						// when multiple instances of this class and RocksDB exist in different
+						// class loaders, then we can see the following exception:
+						// "java.lang.UnsatisfiedLinkError: Native Library /path/to/temp/dir/librocksdbjni-linux64.so
+						// already loaded in another class loader"
+
+						// to avoid that, we need to add a random element to the library file path
+						// (I know, seems like an unnecessary hack, since the JVM obviously can handle multiple
+						//  instances of the same JNI library being loaded in different class loaders, but
+						//  apparently not when coming from the same file path, so there we go)
+
+						final File rocksLibFolder = new File(tempDirParent, "rocksdb-lib-" + new AbstractID());
+
 						// make sure the temp path exists
+						LOG.debug("Attempting to create RocksDB native library folder {}", rocksLibFolder);
 						// noinspection ResultOfMethodCallIgnored
-						tempDirFile.mkdirs();
+						rocksLibFolder.mkdirs();
 
 						// explicitly load the JNI dependency if it has not been loaded before
-						NativeLibraryLoader.getInstance().loadLibrary(path);
+						NativeLibraryLoader.getInstance().loadLibrary(rocksLibFolder.getAbsolutePath());
 
 						// this initialization here should validate that the loading succeeded
 						RocksDB.loadLibrary();

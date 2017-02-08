@@ -17,8 +17,8 @@
 
 package org.apache.flink.storm.wrappers;
 
-import backtype.storm.task.IOutputCollector;
-import backtype.storm.tuple.Tuple;
+import org.apache.storm.task.IOutputCollector;
+import org.apache.storm.tuple.Tuple;
 
 import org.apache.flink.api.java.tuple.Tuple0;
 import org.apache.flink.api.java.tuple.Tuple25;
@@ -87,5 +87,9 @@ class BoltCollector<OUT> extends AbstractStormCollector<OUT> implements IOutputC
 
 	@Override
 	public void fail(final Tuple input) {}
+
+	@Override
+	public void resetTimeout(Tuple var1) {}
+
 
 }

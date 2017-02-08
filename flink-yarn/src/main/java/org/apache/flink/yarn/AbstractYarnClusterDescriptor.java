@@ -22,12 +22,13 @@ import org.apache.flink.client.CliFrontend;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
-import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.SecurityOptions;
+import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
-import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -407,6 +408,18 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	@Override
 	public YarnClusterClient deploy() {
 		try {
+			if(UserGroupInformation.isSecurityEnabled()) {
+				// note: UGI::hasKerberosCredentials inaccurately reports false
+				// for logins based on a keytab (fixed in Hadoop 2.6.1, see HADOOP-10786),
+				// so we check only in ticket cache scenario.
+				boolean useTicketCache = flinkConfiguration.getBoolean(SecurityOptions.KERBEROS_LOGIN_USETICKETCACHE);
+				UserGroupInformation loginUser = UserGroupInformation.getCurrentUser();
+				if (useTicketCache && !loginUser.hasKerberosCredentials()) {
+					LOG.error("Hadoop security is enabled but the login user does not have Kerberos credentials");
+					throw new RuntimeException("Hadoop security is enabled but the login user " +
+							"does not have Kerberos credentials");
+				}
+			}
 			return deployInternal();
 		} catch (Exception e) {
 			throw new RuntimeException("Couldn't deploy Yarn cluster", e);
@@ -486,7 +499,6 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		// Create application via yarnClient
 		final YarnClientApplication yarnApplication = yarnClient.createApplication();
 		GetNewApplicationResponse appResponse = yarnApplication.getNewApplicationResponse();
-		ApplicationSubmissionContext appContext = yarnApplication.getApplicationSubmissionContext();
 
 		Resource maxRes = appResponse.getMaximumResourceCapability();
 		final String NOTE = "Please check the 'yarn.scheduler.maximum-allocation-mb' and the 'yarn.nodemanager.resource.memory-mb' configuration values\n";
@@ -542,7 +554,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			}
 		}
 
-		ApplicationReport report = startAppMaster(null, yarnClient);
+		ApplicationReport report = startAppMaster(null, yarnClient, yarnApplication);
 
 		String host = report.getHost();
 		int port = report.getRpcPort();
@@ -555,7 +567,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		return createYarnClusterClient(this, yarnClient, report, flinkConfiguration, sessionFilesDir, true);
 	}
 
-	public ApplicationReport startAppMaster(JobGraph jobGraph, YarnClient yarnClient) throws Exception {
+	public ApplicationReport startAppMaster(JobGraph jobGraph, YarnClient yarnClient, YarnClientApplication yarnApplication) throws Exception {
 
 		// ------------------ Set default file system scheme -------------------------
 
@@ -579,7 +591,6 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 					+ "The Flink YARN client needs to store its files in a distributed file system");
 		}
 
-		final YarnClientApplication yarnApplication = yarnClient.createApplication();
 		ApplicationSubmissionContext appContext = yarnApplication.getApplicationSubmissionContext();
 		Set<File> effectiveShipFiles = new HashSet<>(shipFiles.size());
 		for (File file : shipFiles) {
@@ -602,12 +613,6 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 				LOG.warn("The configuration directory ('" + configurationDirectory + "') contains both LOG4J and " +
 					"Logback configuration files. Please delete or rename one of them.");
 			}
-		}
-
-		//check if there is a JAAS config file
-		File jaasConfigFile = new File(configurationDirectory + File.separator + SecurityUtils.JAAS_CONF_FILENAME);
-		if (jaasConfigFile.exists() && jaasConfigFile.isFile()) {
-			effectiveShipFiles.add(jaasConfigFile);
 		}
 
 		addLibFolderToShipFiles(effectiveShipFiles);
@@ -721,10 +726,10 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			try {
 				File fp = File.createTempFile(appId.toString(), null);
 				fp.deleteOnExit();
-				FileOutputStream input = new FileOutputStream(fp);
-				ObjectOutputStream obInput = new ObjectOutputStream(input);
-				obInput.writeObject(jobGraph);
-				input.close();
+				try (FileOutputStream output = new FileOutputStream(fp);
+					ObjectOutputStream obOutput = new ObjectOutputStream(output);){
+					obOutput.writeObject(jobGraph);
+				}
 				LocalResource jobgraph = Records.newRecord(LocalResource.class);
 				Path remoteJobGraph =
 						Utils.setupLocalResource(fs, appId.toString(), new Path(fp.toURI()), jobgraph, fs.getHomeDirectory());
@@ -773,7 +778,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		// setup security tokens
 		LocalResource keytabResource = null;
 		Path remotePathKeytab = null;
-		String keytab = flinkConfiguration.getString(ConfigConstants.SECURITY_KEYTAB_KEY, null);
+		String keytab = flinkConfiguration.getString(SecurityOptions.KERBEROS_LOGIN_KEYTAB);
 		if(keytab != null) {
 			LOG.info("Adding keytab {} to the AM container local resource bucket", keytab);
 			keytabResource = Records.newRecord(LocalResource.class);
@@ -816,7 +821,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 		if(keytabResource != null) {
 			appMasterEnv.put(YarnConfigKeys.KEYTAB_PATH, remotePathKeytab.toString() );
-			String principal = flinkConfiguration.getString(ConfigConstants.SECURITY_PRINCIPAL_KEY, null);
+			String principal = flinkConfiguration.getString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL);
 			appMasterEnv.put(YarnConfigKeys.KEYTAB_PRINCIPAL, principal );
 		}
 
@@ -1169,37 +1174,50 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		// ------------------ Prepare Application Master Container  ------------------------------
 
 		// respect custom JVM options in the YAML file
-		final String javaOpts = flinkConfiguration.getString(ConfigConstants.FLINK_JVM_OPTIONS, "");
+		String javaOpts =
+			flinkConfiguration.getString(ConfigConstants.FLINK_JVM_OPTIONS, "");
+		//applicable only for YarnMiniCluster secure test run
+		//krb5.conf file will be available as local resource in JM/TM container
+		if (hasKrb5) {
+			javaOpts += " -Djava.security.krb5.conf=krb5.conf";
+		}
 
 		// Set up the container launch context for the application master
 		ContainerLaunchContext amContainer = Records.newRecord(ContainerLaunchContext.class);
 
-		String amCommand = "$JAVA_HOME/bin/java"
-			+ " -Xmx" + Utils.calculateHeapSize(jobManagerMemoryMb, flinkConfiguration)
-			+ "M " + javaOpts;
+		final  Map<String, String> startCommandValues = new HashMap<>();
+		startCommandValues.put("java", "$JAVA_HOME/bin/java");
+		startCommandValues.put("jvmmem", "-Xmx" +
+			Utils.calculateHeapSize(jobManagerMemoryMb, flinkConfiguration) +
+			"m");
+		startCommandValues.put("jvmopts", javaOpts);
+		String logging = "";
 
 		if (hasLogback || hasLog4j) {
-			amCommand += " -Dlog.file=\"" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager.log\"";
+			logging = "-Dlog.file=\"" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager.log\"";
 
 			if(hasLogback) {
-				amCommand += " -Dlogback.configurationFile=file:" + CONFIG_FILE_LOGBACK_NAME;
+				logging += " -Dlogback.configurationFile=file:" + CONFIG_FILE_LOGBACK_NAME;
 			}
 
 			if(hasLog4j) {
-				amCommand += " -Dlog4j.configuration=file:" + CONFIG_FILE_LOG4J_NAME;
+				logging += " -Dlog4j.configuration=file:" + CONFIG_FILE_LOG4J_NAME;
 			}
 		}
 
-		//applicable only for YarnMiniCluster secure test run
-		//krb5.conf file will be available as local resource in JM/TM container
-		if(hasKrb5) {
-			amCommand += " -Djava.security.krb5.conf=krb5.conf";
-		}
+		startCommandValues.put("logging", logging);
+		startCommandValues.put("class", getApplicationMasterClass().getName());
+		startCommandValues.put("redirects",
+			"1> " + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager.out " +
+			"2> " + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager.err");
+		startCommandValues.put("args", "");
 
-		amCommand += " " + getApplicationMasterClass().getName() + " "
-			+ " 1>"
-			+ ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager.out"
-			+ " 2>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager.err";
+		final String commandTemplate = flinkConfiguration
+			.getString(ConfigConstants.YARN_CONTAINER_START_COMMAND_TEMPLATE,
+				ConfigConstants.DEFAULT_YARN_CONTAINER_START_COMMAND_TEMPLATE);
+		final String amCommand =
+			BootstrapTools.getStartCommand(commandTemplate, startCommandValues);
+
 		amContainer.setCommands(Collections.singletonList(amCommand));
 
 		LOG.debug("Application Master start command: " + amCommand);

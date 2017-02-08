@@ -24,11 +24,9 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.calcite.rex.{RexCall, RexNode}
 import org.apache.calcite.sql.SemiJoinType
-import org.apache.flink.api.common.functions.FlatMapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.table.api.BatchTableEnvironment
-import org.apache.flink.table.codegen.CodeGenerator
 import org.apache.flink.table.functions.utils.TableSqlFunction
 import org.apache.flink.table.plan.nodes.FlinkCorrelate
 import org.apache.flink.table.typeutils.TypeConverter._
@@ -93,11 +91,6 @@ class DataSetCorrelate(
     : DataSet[Any] = {
 
     val config = tableEnv.getConfig
-    val returnType = determineReturnType(
-      getRowType,
-      expectedType,
-      config.getNullCheck,
-      config.getEfficientTypeUsage)
 
     // we do not need to specify input type
     val inputDS = inputNode.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
@@ -108,31 +101,17 @@ class DataSetCorrelate(
     val pojoFieldMapping = sqlFunction.getPojoFieldMapping
     val udtfTypeInfo = sqlFunction.getRowTypeInfo.asInstanceOf[TypeInformation[Any]]
 
-    val generator = new CodeGenerator(
+    val mapFunc = correlateMapFunction(
       config,
-      false,
       inputDS.getType,
-      Some(udtfTypeInfo),
-      None,
-      Some(pojoFieldMapping))
-
-    val body = functionBody(
-      generator,
       udtfTypeInfo,
       getRowType,
+      joinType,
       rexCall,
       condition,
-      config,
-      joinType,
-      expectedType)
-
-    val genFunction = generator.generateFunction(
-      ruleDescription,
-      classOf[FlatMapFunction[Any, Any]],
-      body,
-      returnType)
-
-    val mapFunc = correlateMapFunction(genFunction)
+      expectedType,
+      Some(pojoFieldMapping),
+      ruleDescription)
 
     inputDS.flatMap(mapFunc).name(correlateOpName(rexCall, sqlFunction, relRowType))
   }

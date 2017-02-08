@@ -37,7 +37,7 @@ import java.util.List;
 @RunWith(Parameterized.class)
 public class GatherSumApplyITCase extends MultipleProgramsTestBase {
 
-	public GatherSumApplyITCase(TestExecutionMode mode){
+	public GatherSumApplyITCase(TestExecutionMode mode) {
 		super(mode);
 	}
 
@@ -52,16 +52,16 @@ public class GatherSumApplyITCase extends MultipleProgramsTestBase {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		Graph<Long, Long, NullValue> inputGraph = Graph.fromDataSet(
-				ConnectedComponentsDefaultData.getDefaultEdgeDataSet(env),
-				new InitMapperCC(), env);
+			ConnectedComponentsDefaultData.getDefaultEdgeDataSet(env),
+			new InitMapperCC(), env);
 
-        List<Vertex<Long, Long>> result = inputGraph.run(
-        		new GSAConnectedComponents<Long, Long, NullValue>(16)).collect();
+		List<Vertex<Long, Long>> result = inputGraph.run(
+			new GSAConnectedComponents<Long, Long, NullValue>(16)).collect();
 
 		expectedResult = "1,1\n" +
-				"2,1\n" +
-				"3,1\n" +
-				"4,1\n";
+			"2,1\n" +
+			"3,1\n" +
+			"4,1\n";
 
 		compareResultAsTuples(result, expectedResult);
 	}
@@ -75,17 +75,17 @@ public class GatherSumApplyITCase extends MultipleProgramsTestBase {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		Graph<Long, NullValue, Double> inputGraph = Graph.fromDataSet(
-				SingleSourceShortestPathsData.getDefaultEdgeDataSet(env),
-				new InitMapperSSSP(), env);
+			SingleSourceShortestPathsData.getDefaultEdgeDataSet(env),
+			new InitMapperSSSP(), env);
 
-        List<Vertex<Long, Double>> result = inputGraph.run(
-				new GSASingleSourceShortestPaths<Long, NullValue>(1L, 16)).collect();
+		List<Vertex<Long, Double>> result = inputGraph.run(
+			new GSASingleSourceShortestPaths<Long, NullValue>(1L, 16)).collect();
 
 		expectedResult = "1,0.0\n" +
-				"2,12.0\n" +
-				"3,13.0\n" +
-				"4,47.0\n" +
-				"5,48.0\n";
+			"2,12.0\n" +
+			"3,13.0\n" +
+			"4,47.0\n" +
+			"5,48.0\n";
 
 		compareResultAsTuples(result, expectedResult);
 	}

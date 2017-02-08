@@ -73,7 +73,7 @@ import static org.junit.Assert.fail;
 public class WindowOperatorMigrationTest {
 
 	private static String getResourceFilename(String filename) {
-		ClassLoader cl = WindowOperatorTest.class.getClassLoader();
+		ClassLoader cl = WindowOperatorMigrationTest.class.getClassLoader();
 		URL resource = cl.getResource(filename);
 		if (resource == null) {
 			throw new NullPointerException("Missing snapshot resource.");
@@ -424,7 +424,7 @@ public class WindowOperatorMigrationTest {
 		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
 
 		ReducingStateDescriptor<Tuple2<String, Integer>> stateDesc = new ReducingStateDescriptor<>("window-contents",
-				new WindowOperatorTest.SumReducer(),
+				new SumReducer(),
 				inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow> operator = new WindowOperator<>(
@@ -508,7 +508,7 @@ public class WindowOperatorMigrationTest {
 				new TupleKeySelector(),
 				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
 				stateDesc,
-				new InternalIterableWindowFunction<>(new WindowOperatorTest.RichSumReducer<TimeWindow>()),
+				new InternalIterableWindowFunction<>(new RichSumReducer<TimeWindow>()),
 				ProcessingTimeTrigger.create(),
 				0);
 
@@ -621,7 +621,7 @@ public class WindowOperatorMigrationTest {
 		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
 
 		ReducingStateDescriptor<Tuple2<String, Integer>> stateDesc = new ReducingStateDescriptor<>("window-contents",
-				new WindowOperatorTest.SumReducer(),
+				new SumReducer(),
 				inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow> operator = new WindowOperator<>(
@@ -723,7 +723,7 @@ public class WindowOperatorMigrationTest {
 		TypeInformation<Tuple2<String, Integer>> inputType = TypeInfoParser.parse("Tuple2<String, Integer>");
 
 		ReducingStateDescriptor<Tuple2<String, Integer>> stateDesc = new ReducingStateDescriptor<>("window-contents",
-				new WindowOperatorTest.SumReducer(),
+				new SumReducer(),
 				inputType.createSerializer(new ExecutionConfig()));
 
 		WindowOperator<String, Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple2<String, Integer>, TimeWindow> operator = new WindowOperator<>(

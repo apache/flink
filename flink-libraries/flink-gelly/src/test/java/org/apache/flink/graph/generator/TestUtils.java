@@ -48,7 +48,7 @@ public final class TestUtils {
 	 * @param <EV> the value type for edges
 	 * @throws Exception
 	 */
-	public static <K,VV,EV> void compareGraph(Graph<K,VV,EV> graph, String expectedVertices, String expectedEdges)
+	public static <K, VV, EV> void compareGraph(Graph<K, VV, EV> graph, String expectedVertices, String expectedEdges)
 			throws Exception {
 		compareVertices(graph, expectedVertices);
 		compareEdges(graph, expectedEdges);
@@ -63,7 +63,7 @@ public final class TestUtils {
 				resultVertices.add(vertex.f0.toString());
 			}
 
-			TestBaseUtils.compareResultAsText(resultVertices, expectedVertices.replaceAll("\\s","").replace(";", "\n"));
+			TestBaseUtils.compareResultAsText(resultVertices, expectedVertices.replaceAll("\\s", "").replace(";", "\n"));
 		}
 	}
 
@@ -76,7 +76,7 @@ public final class TestUtils {
 				resultEdges.add(edge.f0.toString() + "," + edge.f1.toString());
 			}
 
-			TestBaseUtils.compareResultAsText(resultEdges, expectedEdges.replaceAll("\\s","").replace(";", "\n"));
+			TestBaseUtils.compareResultAsText(resultEdges, expectedEdges.replaceAll("\\s", "").replace(";", "\n"));
 		}
 	}
 

@@ -481,7 +481,7 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 			totalLength += pathFile.getLen();
 		}
 		// returns if unsplittable
-		if(unsplittable) {
+		if (unsplittable) {
 			int splitNum = 0;
 			for (final FileStatus file : files) {
 				final BlockLocation[] blocks = fs.getFileBlockLocations(file, 0, file.getLen());
@@ -637,7 +637,7 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 	 * @param fileStatus The file status to check.
 	 * @return true, if the given file or directory is accepted
 	 */
-	protected boolean acceptFile(FileStatus fileStatus) {
+	public boolean acceptFile(FileStatus fileStatus) {
 		final String name = fileStatus.getPath().getName();
 		return !name.startsWith("_")
 			&& !name.startsWith(".")

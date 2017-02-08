@@ -228,6 +228,7 @@ class FieldProjectionTest extends TableTestBase {
     val sourceTable = streamUtil.addTable[(Int, Long, String, Double)]("MyTable", 'a, 'b, 'c, 'd)
     val resultTable = sourceTable
         .window(Tumble over 5.millis on 'rowtime as 'w)
+        .groupBy('w)
         .select(Upper('c).count, 'a.sum)
 
     val expected =
@@ -253,8 +254,8 @@ class FieldProjectionTest extends TableTestBase {
   def testSelectFromStreamingGroupedWindow(): Unit = {
     val sourceTable = streamUtil.addTable[(Int, Long, String, Double)]("MyTable", 'a, 'b, 'c, 'd)
     val resultTable = sourceTable
-        .groupBy('b)
         .window(Tumble over 5.millis on 'rowtime as 'w)
+        .groupBy('w, 'b)
         .select(Upper('c).count, 'a.sum, 'b)
 
     val expected = unaryNode(
@@ -280,33 +281,29 @@ class FieldProjectionTest extends TableTestBase {
     streamUtil.verifyTable(resultTable, expected)
   }
 
-  @Test(expected = classOf[ValidationException])
-  def testSelectFromBatchWindow1(): Unit = {
-    val sourceTable = util.addTable[(Int, Long, String, Double)]("MyTable", 'a, 'b, 'c, 'd)
-
-    // time field is selected
+  @Test
+  def testSelectFromAggregatedPojoTable(): Unit = {
+    val sourceTable = util.addTable[WC]("MyTable", 'word, 'frequency)
     val resultTable = sourceTable
-        .window(Tumble over 5.millis on 'a as 'w)
-        .select('a.sum, 'c.count)
-
-    val expected = "TODO"
+      .groupBy('word)
+      .select('word, 'frequency.sum as 'frequency)
+      .filter('frequency === 2)
+    val expected =
+      unaryNode(
+        "DataSetCalc",
+        unaryNode(
+          "DataSetAggregate",
+          batchTableNode(0),
+          term("groupBy", "word"),
+          term("select", "word", "SUM(frequency) AS TMP_0")
+        ),
+        term("select", "word, frequency"),
+        term("where", "=(frequency, 2)")
+      )
 
     util.verifyTable(resultTable, expected)
   }
 
-  @Test(expected = classOf[ValidationException])
-  def testSelectFromBatchWindow2(): Unit = {
-    val sourceTable = util.addTable[(Int, Long, String, Double)]("MyTable", 'a, 'b, 'c, 'd)
-
-    // time field is not selected
-    val resultTable = sourceTable
-        .window(Tumble over 5.millis on 'a as 'w)
-        .select('c.count)
-
-    val expected = "TODO"
-
-    util.verifyTable(resultTable, expected)
-  }
 }
 
 object FieldProjectionTest {
@@ -315,4 +312,5 @@ object FieldProjectionTest {
     def eval(s: String): Int = s.hashCode()
   }
 
+  case class WC(word: String, frequency: Long)
 }

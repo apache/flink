@@ -106,16 +106,7 @@ public class SavepointV0Serializer implements SavepointSerializer<SavepointV1> {
 			for (int j = 0; j < numSubTaskStates; j++) {
 				int subtaskIndex = dis.readInt();
 
-				int length = dis.readInt();
-
-				SerializedValue<StateHandle<?>> serializedValue;
-				if (length == -1) {
-					serializedValue = new SerializedValue<>(null);
-				} else {
-					byte[] serializedData = new byte[length];
-					dis.readFully(serializedData, 0, length);
-					serializedValue = SerializedValue.fromBytes(serializedData);
-				}
+				SerializedValue<StateHandle<?>> serializedValue = readSerializedValueStateHandle(dis);
 
 				long stateSize = dis.readLong();
 				long duration = dis.readLong();
@@ -133,16 +124,7 @@ public class SavepointV0Serializer implements SavepointSerializer<SavepointV1> {
 			for (int j = 0; j < numKvStates; j++) {
 				int keyGroupIndex = dis.readInt();
 
-				int length = dis.readInt();
-
-				SerializedValue<StateHandle<?>> serializedValue;
-				if (length == -1) {
-					serializedValue = new SerializedValue<>(null);
-				} else {
-					byte[] serializedData = new byte[length];
-					dis.readFully(serializedData, 0, length);
-					serializedValue = SerializedValue.fromBytes(serializedData);
-				}
+				SerializedValue<StateHandle<?>> serializedValue = readSerializedValueStateHandle(dis);
 
 				long stateSize = dis.readLong();
 				long duration = dis.readLong();
@@ -157,10 +139,29 @@ public class SavepointV0Serializer implements SavepointSerializer<SavepointV1> {
 		}
 
 		try {
+
 			return convertSavepoint(taskStates, userClassLoader, checkpointId);
 		} catch (Exception e) {
+
 			throw new IOException(e);
 		}
+	}
+
+	private static SerializedValue<StateHandle<?>> readSerializedValueStateHandle(DataInputStream dis)
+			throws IOException {
+
+		int length = dis.readInt();
+
+		SerializedValue<StateHandle<?>> serializedValue;
+		if (length == -1) {
+			serializedValue = new SerializedValue<>(null);
+		} else {
+			byte[] serializedData = new byte[length];
+			dis.readFully(serializedData, 0, length);
+			serializedValue = SerializedValue.fromBytes(serializedData);
+		}
+
+		return serializedValue;
 	}
 
 	private SavepointV1 convertSavepoint(

@@ -148,7 +148,7 @@ public class StreamGraphHasherV2 implements StreamGraphHasher {
 			boolean isChainingEnabled) {
 
 		// Check for user-specified ID
-		String userSpecifiedHash = node.getTransformationId();
+		String userSpecifiedHash = node.getTransformationUID();
 
 		if (userSpecifiedHash == null) {
 			// Check that all input nodes have their hashes computed
@@ -210,7 +210,7 @@ public class StreamGraphHasherV2 implements StreamGraphHasher {
 	 * Generates a hash from a user-specified ID.
 	 */
 	private byte[] generateUserSpecifiedHash(StreamNode node, Hasher hasher) {
-		hasher.putString(node.getTransformationId(), Charset.forName("UTF-8"));
+		hasher.putString(node.getTransformationUID(), Charset.forName("UTF-8"));
 
 		return hasher.hash().asBytes();
 	}

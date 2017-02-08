@@ -24,12 +24,12 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.CloseableRegistry;
-import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
+import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
@@ -42,6 +42,7 @@ import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateBackendFactory;
+import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
@@ -57,6 +58,7 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.CollectionUtil;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FutureUtil;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
@@ -72,6 +74,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Base class for all streaming tasks. A task is the unit of local processing that is deployed
@@ -170,8 +173,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	/** Flag to mark this task as canceled */
 	private volatile boolean canceled;
 
-	private long lastCheckpointSize = 0;
-
 	/** Thread pool for async snapshot workers */
 	private ExecutorService asyncOperationsThreadPool;
 
@@ -231,13 +232,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 			operatorChain = new OperatorChain<>(this);
 			headOperator = operatorChain.getHeadOperator();
-
-			getEnvironment().getMetricGroup().gauge("lastCheckpointSize", new Gauge<Long>() {
-				@Override
-				public Long getValue() {
-					return StreamTask.this.lastCheckpointSize;
-				}
-			});
 
 			// task specific initialization
 			init();
@@ -529,7 +523,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			// propagate exceptions only if the task is still in "running" state
 			if (isRunning) {
 				throw new Exception("Could not perform checkpoint " + checkpointMetaData.getCheckpointId() +
-					"for operator " + getName() + '.', e);
+					" for operator " + getName() + '.', e);
 			} else {
 				LOG.debug("Could not perform checkpoint {} for operator {} while the " +
 					"invokable was not in state running.", checkpointMetaData.getCheckpointId(), getName(), e);
@@ -590,8 +584,20 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				// we cannot broadcast the cancellation markers on the 'operator chain', because it may not
 				// yet be created
 				final CancelCheckpointMarker message = new CancelCheckpointMarker(checkpointMetaData.getCheckpointId());
+				Exception exception = null;
+
 				for (ResultPartitionWriter output : getEnvironment().getAllWriters()) {
-					output.writeEventToAllChannels(message);
+					try {
+						output.writeBufferToAllChannels(EventSerializer.toBuffer(message));
+					} catch (Exception e) {
+						exception = ExceptionUtils.firstOrSuppressed(
+							new Exception("Could not send cancel checkpoint marker to downstream tasks.", e),
+							exception);
+					}
+				}
+
+				if (exception != null) {
+					throw exception;
 				}
 
 				return false;
@@ -741,13 +747,17 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		Environment env = getEnvironment();
 		String opId = createOperatorIdentifier(op, getConfiguration().getVertexID());
 
-		OperatorStateBackend newBackend = restoreStateHandles == null ?
-				stateBackend.createOperatorStateBackend(env, opId)
-				: stateBackend.restoreOperatorStateBackend(env, opId, restoreStateHandles);
+		OperatorStateBackend operatorStateBackend = stateBackend.createOperatorStateBackend(env, opId);
 
-		cancelables.registerClosable(newBackend);
+		// let operator state backend participate in the operator lifecycle, i.e. make it responsive to cancelation
+		cancelables.registerClosable(operatorStateBackend);
 
-		return newBackend;
+		// restore if we have some old state
+		if (null != restoreStateHandles) {
+			operatorStateBackend.restore(restoreStateHandles);
+		}
+
+		return operatorStateBackend;
 	}
 
 	public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
@@ -763,28 +773,22 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				headOperator,
 				configuration.getVertexID());
 
-		if (null != restoreStateHandles && null != restoreStateHandles.getManagedKeyedState()) {
-			keyedStateBackend = stateBackend.restoreKeyedStateBackend(
-					getEnvironment(),
-					getEnvironment().getJobID(),
-					operatorIdentifier,
-					keySerializer,
-					numberOfKeyGroups,
-					keyGroupRange,
-					restoreStateHandles.getManagedKeyedState(),
-					getEnvironment().getTaskKvStateRegistry());
-		} else {
-			keyedStateBackend = stateBackend.createKeyedStateBackend(
-					getEnvironment(),
-					getEnvironment().getJobID(),
-					operatorIdentifier,
-					keySerializer,
-					numberOfKeyGroups,
-					keyGroupRange,
-					getEnvironment().getTaskKvStateRegistry());
-		}
+		keyedStateBackend = stateBackend.createKeyedStateBackend(
+				getEnvironment(),
+				getEnvironment().getJobID(),
+				operatorIdentifier,
+				keySerializer,
+				numberOfKeyGroups,
+				keyGroupRange,
+				getEnvironment().getTaskKvStateRegistry());
 
+		// let keyed state backend participate in the operator lifecycle, i.e. make it responsive to cancelation
 		cancelables.registerClosable(keyedStateBackend);
+
+		// restore if we have some old state
+		if (null != restoreStateHandles && null != restoreStateHandles.getManagedKeyedState()) {
+			keyedStateBackend.restore(restoreStateHandles.getManagedKeyedState());
+		}
 
 		@SuppressWarnings("unchecked")
 		AbstractKeyedStateBackend<K> typedBackend = (AbstractKeyedStateBackend<K>) keyedStateBackend;
@@ -866,6 +870,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 		private final long asyncStartNanos;
 
+		private final AtomicReference<CheckpointingOperation.AsynCheckpointState> asyncCheckpointState = new AtomicReference<>(
+			CheckpointingOperation.AsynCheckpointState.RUNNING);
+
 		AsyncCheckpointRunnable(
 				StreamTask<?, ?> owner,
 				List<StreamStateHandle> nonPartitionedStateHandles,
@@ -903,8 +910,15 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				List<OperatorStateHandle> operatorStatesStream = new ArrayList<>(snapshotInProgressList.size());
 
 				for (OperatorSnapshotResult snapshotInProgress : snapshotInProgressList) {
-					operatorStatesBackend.add(FutureUtil.runIfNotDoneAndGet(snapshotInProgress.getOperatorStateManagedFuture()));
-					operatorStatesStream.add(FutureUtil.runIfNotDoneAndGet(snapshotInProgress.getOperatorStateRawFuture()));
+					if (null != snapshotInProgress) {
+						operatorStatesBackend.add(
+								FutureUtil.runIfNotDoneAndGet(snapshotInProgress.getOperatorStateManagedFuture()));
+						operatorStatesStream.add(
+								FutureUtil.runIfNotDoneAndGet(snapshotInProgress.getOperatorStateRawFuture()));
+					} else {
+						operatorStatesBackend.add(null);
+						operatorStatesStream.add(null);
+					}
 				}
 
 				final long asyncEndNanos = System.nanoTime();
@@ -928,19 +942,38 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 						keyedStateHandleBackend,
 						keyedStateHandleStream);
 
-				owner.getEnvironment().acknowledgeCheckpoint(checkpointMetaData, subtaskState);
+				if (asyncCheckpointState.compareAndSet(CheckpointingOperation.AsynCheckpointState.RUNNING, CheckpointingOperation.AsynCheckpointState.COMPLETED)) {
+					owner.getEnvironment().acknowledgeCheckpoint(checkpointMetaData, subtaskState);
 
-				if (LOG.isDebugEnabled()) {
-					LOG.debug("{} - finished asynchronous part of checkpoint {}. Asynchronous duration: {} ms",
+					if (LOG.isDebugEnabled()) {
+						LOG.debug("{} - finished asynchronous part of checkpoint {}. Asynchronous duration: {} ms",
 							owner.getName(), checkpointMetaData.getCheckpointId(), asyncDurationMillis);
+					}
+				} else {
+					LOG.debug("{} - asynchronous part of checkpoint {} could not be completed because it was closed before.",
+						owner.getName(),
+						checkpointMetaData.getCheckpointId());
 				}
 			} catch (Exception e) {
+				// the state is completed if an exception occurred in the acknowledgeCheckpoint call
+				// in order to clean up, we have to set it to RUNNING again.
+				asyncCheckpointState.compareAndSet(
+					CheckpointingOperation.AsynCheckpointState.COMPLETED,
+					CheckpointingOperation.AsynCheckpointState.RUNNING);
+
+				try {
+					cleanup();
+				} catch (Exception cleanupException) {
+					e.addSuppressed(cleanupException);
+				}
+
 				// registers the exception and tries to fail the whole task
 				AsynchronousException asyncException = new AsynchronousException(
 					new Exception(
 						"Could not materialize checkpoint " + checkpointMetaData.getCheckpointId() +
 							" for operator " + owner.getName() + '.',
 						e));
+
 				owner.handleAsyncException("Failure in asynchronous checkpoint materialization", asyncException);
 			} finally {
 				owner.cancelables.unregisterClosable(this);
@@ -949,9 +982,44 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 		@Override
 		public void close() {
-			// cleanup/release ongoing snapshot operations
-			for (OperatorSnapshotResult snapshotResult : snapshotInProgressList) {
-				snapshotResult.cancel();
+			try {
+				cleanup();
+			} catch (Exception cleanupException) {
+				LOG.warn("Could not properly clean up the async checkpoint runnable.", cleanupException);
+			}
+		}
+
+		private void cleanup() throws Exception {
+			if (asyncCheckpointState.compareAndSet(CheckpointingOperation.AsynCheckpointState.RUNNING, CheckpointingOperation.AsynCheckpointState.DISCARDED)) {
+				LOG.debug("Cleanup AsyncCheckpointRunnable for checkpoint {} of {}.", checkpointMetaData.getCheckpointId(), owner.getName());
+				Exception exception = null;
+
+				// clean up ongoing operator snapshot results and non partitioned state handles
+				for (OperatorSnapshotResult operatorSnapshotResult : snapshotInProgressList) {
+					if (operatorSnapshotResult != null) {
+						try {
+							operatorSnapshotResult.cancel();
+						} catch (Exception cancelException) {
+							exception = ExceptionUtils.firstOrSuppressed(cancelException, exception);
+						}
+					}
+				}
+
+				// discard non partitioned state handles
+				try {
+					StateUtil.bestEffortDiscardAllStateObjects(nonPartitionedStateHandles);
+				} catch (Exception discardException) {
+					exception = ExceptionUtils.firstOrSuppressed(discardException, exception);
+				}
+
+				if (null != exception) {
+					throw exception;
+				}
+			} else {
+				LOG.debug("{} - asynchronous checkpointing operation for checkpoint {} has " +
+						"already been completed. Thus, the state handles are not cleaned up.",
+					owner.getName(),
+					checkpointMetaData.getCheckpointId());
 			}
 		}
 	}
@@ -996,14 +1064,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			try {
 
 				for (StreamOperator<?> op : allOperators) {
-
-					createStreamFactory(op);
-					snapshotNonPartitionableState(op);
-
-					OperatorSnapshotResult snapshotInProgress =
-							op.snapshotState(checkpointMetaData.getCheckpointId(), checkpointMetaData.getTimestamp(), streamFactory);
-
-					snapshotInProgressList.add(snapshotInProgress);
+					checkpointStreamOperator(op);
 				}
 
 				if (LOG.isDebugEnabled()) {
@@ -1021,26 +1082,63 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 				if (LOG.isDebugEnabled()) {
 					LOG.debug("{} - finished synchronous part of checkpoint {}." +
-									"Alignment duration: {} ms, snapshot duration {} ms",
-							owner.getName(), checkpointMetaData.getCheckpointId(),
-							checkpointMetaData.getAlignmentDurationNanos() / 1_000_000,
-							checkpointMetaData.getSyncDurationMillis());
+							"Alignment duration: {} ms, snapshot duration {} ms",
+						owner.getName(), checkpointMetaData.getCheckpointId(),
+						checkpointMetaData.getAlignmentDurationNanos() / 1_000_000,
+						checkpointMetaData.getSyncDurationMillis());
 				}
 			} finally {
 				if (failed) {
 					// Cleanup to release resources
 					for (OperatorSnapshotResult operatorSnapshotResult : snapshotInProgressList) {
-						operatorSnapshotResult.cancel();
+						if (null != operatorSnapshotResult) {
+							try {
+								operatorSnapshotResult.cancel();
+							} catch (Exception e) {
+								LOG.warn("Could not properly cancel an operator snapshot result.", e);
+							}
+						}
+					}
+
+					// Cleanup non partitioned state handles
+					for (StreamStateHandle nonPartitionedState : nonPartitionedStates) {
+						if (nonPartitionedState != null) {
+							try {
+								nonPartitionedState.discardState();
+							} catch (Exception e) {
+								LOG.warn("Could not properly discard a non partitioned " +
+									"state. This might leave some orphaned files behind.", e);
+							}
+						}
 					}
 
 					if (LOG.isDebugEnabled()) {
 						LOG.debug("{} - did NOT finish synchronous part of checkpoint {}." +
-										"Alignment duration: {} ms, snapshot duration {} ms",
-								owner.getName(), checkpointMetaData.getCheckpointId());
+								"Alignment duration: {} ms, snapshot duration {} ms",
+							owner.getName(), checkpointMetaData.getCheckpointId(),
+							checkpointMetaData.getAlignmentDurationNanos() / 1_000_000,
+							checkpointMetaData.getSyncDurationMillis());
 					}
 				}
 			}
+		}
 
+		private void checkpointStreamOperator(StreamOperator<?> op) throws Exception {
+			if (null != op) {
+				createStreamFactory(op);
+				snapshotNonPartitionableState(op);
+
+				OperatorSnapshotResult snapshotInProgress = op.snapshotState(
+						checkpointMetaData.getCheckpointId(),
+						checkpointMetaData.getTimestamp(),
+						streamFactory);
+
+				snapshotInProgressList.add(snapshotInProgress);
+			} else {
+				nonPartitionedStates.add(null);
+				OperatorSnapshotResult emptySnapshotInProgress = new OperatorSnapshotResult();
+				snapshotInProgressList.add(emptySnapshotInProgress);
+			}
 		}
 
 		private void createStreamFactory(StreamOperator<?> operator) throws IOException {
@@ -1089,6 +1187,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 			owner.cancelables.registerClosable(asyncCheckpointRunnable);
 			owner.asyncOperationsThreadPool.submit(asyncCheckpointRunnable);
+		}
+
+		private enum AsynCheckpointState {
+			RUNNING,
+			DISCARDED,
+			COMPLETED
 		}
 	}
 }

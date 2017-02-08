@@ -44,7 +44,7 @@ extends AbstractGraphTest {
 
 		RandomGenerableFactory<JDKRandomGenerator> rnd = new JDKRandomGeneratorFactory();
 
-		Graph<LongValue,NullValue,NullValue> graph = new RMatGraph<>(env, rnd, vertexCount, edgeCount)
+		Graph<LongValue, NullValue, NullValue> graph = new RMatGraph<>(env, rnd, vertexCount, edgeCount)
 			.generate();
 
 		assertTrue(vertexCount >= graph.numberOfVertices());
@@ -58,12 +58,12 @@ extends AbstractGraphTest {
 
 		RandomGenerableFactory<JDKRandomGenerator> rnd = new JDKRandomGeneratorFactory();
 
-		Graph<LongValue,NullValue,NullValue> graph = new RMatGraph<>(env, rnd, 100, 1000)
+		Graph<LongValue, NullValue, NullValue> graph = new RMatGraph<>(env, rnd, 100, 1000)
 			.setParallelism(parallelism)
 			.generate();
 
-		graph.getVertices().output(new DiscardingOutputFormat<Vertex<LongValue,NullValue>>());
-		graph.getEdges().output(new DiscardingOutputFormat<Edge<LongValue,NullValue>>());
+		graph.getVertices().output(new DiscardingOutputFormat<Vertex<LongValue, NullValue>>());
+		graph.getEdges().output(new DiscardingOutputFormat<Edge<LongValue, NullValue>>());
 
 		TestUtils.verifyParallelism(env, parallelism);
 	}

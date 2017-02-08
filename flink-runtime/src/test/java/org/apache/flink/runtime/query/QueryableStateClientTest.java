@@ -268,7 +268,7 @@ public class QueryableStateClientTest {
 				servers[i] = new KvStateServer(InetAddress.getLocalHost(), 0, 1, 1, registries[i], serverStats[i]);
 				servers[i].start();
 				ValueStateDescriptor<Integer> descriptor =
-						new ValueStateDescriptor<>("any", IntSerializer.INSTANCE, null);
+						new ValueStateDescriptor<>("any", IntSerializer.INSTANCE);
 
 				RegisteredBackendStateMetaInfo<VoidNamespace, Integer> registeredBackendStateMetaInfo = new RegisteredBackendStateMetaInfo<>(
 						descriptor.getType(),

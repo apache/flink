@@ -53,6 +53,7 @@ import javax.annotation.concurrent.GuardedBy;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.IOException;
 import java.io.ObjectInputStream;
 
 /**
@@ -271,10 +272,12 @@ public class YarnFlinkApplicationMasterRunner extends AbstractYarnFlinkApplicati
 		if (jobGraphFile != null) {
 			File fp = new File(jobGraphFile);
 			if (fp.isFile()) {
-				FileInputStream input = new FileInputStream(fp);
-				ObjectInputStream obInput = new ObjectInputStream(input);
-				jg = (JobGraph) obInput.readObject();
-				input.close();
+				try (FileInputStream input = new FileInputStream(fp);
+					ObjectInputStream obInput = new ObjectInputStream(input);) {
+					jg = (JobGraph) obInput.readObject();
+				} catch (IOException e) {
+					LOG.warn("Failed to read job graph file", e);
+				}
 			}
 		}
 		if (jg == null) {

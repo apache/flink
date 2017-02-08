@@ -23,6 +23,7 @@ import java.util
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelFieldCollation.Direction
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelCollation, RelNode, RelWriter, SingleRel}
 import org.apache.calcite.rex.{RexLiteral, RexNode}
 import org.apache.flink.api.common.operators.Order
@@ -69,6 +70,21 @@ class DataSetSort(
       offset,
       fetch
     )
+  }
+
+  override def estimateRowCount(metadata: RelMetadataQuery): Double = {
+    val inputRowCnt = metadata.getRowCount(this.getInput)
+    if (inputRowCnt == null) {
+      inputRowCnt
+    } else {
+      val rowCount = (inputRowCnt - limitStart).max(1.0)
+      if (fetch != null) {
+        val limit = RexLiteral.intValue(fetch)
+        rowCount.min(limit)
+      } else {
+        rowCount
+      }
+    }
   }
 
   override def translateToPlan(

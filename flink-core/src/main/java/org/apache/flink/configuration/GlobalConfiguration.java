@@ -144,11 +144,12 @@ public final class GlobalConfiguration {
 		try (BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(file)))){
 
 			String line;
+			int lineNo = 0;
 			while ((line = reader.readLine()) != null) {
-
+				lineNo++;
 				// 1. check for comments
 				String[] comments = line.split("#", 2);
-				String conf = comments[0];
+				String conf = comments[0].trim();
 
 				// 2. get key and value
 				if (conf.length() > 0) {
@@ -156,7 +157,7 @@ public final class GlobalConfiguration {
 
 					// skip line with no valid key-value pair
 					if (kv.length == 1) {
-						LOG.warn("Error while trying to split key and value in configuration file " + file + ": " + line);
+						LOG.warn("Error while trying to split key and value in configuration file " + file + ":" + lineNo + ": \"" + line + "\"");
 						continue;
 					}
 
@@ -165,7 +166,7 @@ public final class GlobalConfiguration {
 
 					// sanity check
 					if (key.length() == 0 || value.length() == 0) {
-						LOG.warn("Error after splitting key and value in configuration file " + file + ": " + line);
+						LOG.warn("Error after splitting key and value in configuration file " + file + ":" + lineNo + ": \"" + line + "\"");
 						continue;
 					}
 

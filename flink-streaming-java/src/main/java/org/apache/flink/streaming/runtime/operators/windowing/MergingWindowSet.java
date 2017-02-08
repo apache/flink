@@ -171,6 +171,7 @@ public class MergingWindowSet<W extends Window> {
 				});
 
 		W resultWindow = newWindow;
+		boolean mergedNewWindow = false;
 
 		// perform the merge
 		for (Map.Entry<W, Collection<W>> c: mergeResults.entrySet()) {
@@ -180,6 +181,7 @@ public class MergingWindowSet<W extends Window> {
 			// if our new window is in the merged windows make the merge result the
 			// result window
 			if (mergedWindows.remove(newWindow)) {
+				mergedNewWindow = true;
 				resultWindow = mergeResult;
 			}
 
@@ -213,7 +215,7 @@ public class MergingWindowSet<W extends Window> {
 		}
 
 		// the new window created a new, self-contained window without merging
-		if (resultWindow.equals(newWindow) && mergeResults.isEmpty()) {
+		if (mergeResults.isEmpty() || (resultWindow.equals(newWindow) && !mergedNewWindow)) {
 			this.mapping.put(resultWindow, resultWindow);
 		}
 

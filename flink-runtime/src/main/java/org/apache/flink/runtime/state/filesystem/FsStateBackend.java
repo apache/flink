@@ -28,7 +28,6 @@ import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,7 +35,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.Collection;
 
 /**
  * The file state backend is a state backend that stores the state of streaming jobs in a file system.
@@ -189,25 +187,6 @@ public class FsStateBackend extends AbstractStateBackend {
 				env.getUserClassLoader(),
 				numberOfKeyGroups,
 				keyGroupRange);
-	}
-
-	@Override
-	public <K> AbstractKeyedStateBackend<K> restoreKeyedStateBackend(
-			Environment env,
-			JobID jobID,
-			String operatorIdentifier,
-			TypeSerializer<K> keySerializer,
-			int numberOfKeyGroups,
-			KeyGroupRange keyGroupRange,
-			Collection<KeyGroupsStateHandle> restoredState,
-			TaskKvStateRegistry kvStateRegistry) throws Exception {
-		return new HeapKeyedStateBackend<>(
-				kvStateRegistry,
-				keySerializer,
-				env.getUserClassLoader(),
-				numberOfKeyGroups,
-				keyGroupRange,
-				restoredState);
 	}
 
 	@Override

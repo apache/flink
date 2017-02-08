@@ -82,7 +82,7 @@ public class CliFrontendSavepointTest {
 
 			String savepointPath = "expectedSavepointPath";
 
-			triggerResponse.success(new TriggerSavepointSuccess(jobId, savepointPath));
+			triggerResponse.success(new TriggerSavepointSuccess(jobId, -1, savepointPath, -1));
 
 			CliFrontend frontend = new MockCliFrontend(
 					CliFrontendTestUtils.getConfigDir(), jobManager);
@@ -214,7 +214,7 @@ public class CliFrontendSavepointTest {
 					any(FiniteDuration.class)))
 					.thenReturn(triggerResponse.future());
 			String savepointPath = "expectedSavepointPath";
-			triggerResponse.success(new TriggerSavepointSuccess(jobId, savepointPath));
+			triggerResponse.success(new TriggerSavepointSuccess(jobId, -1, savepointPath, -1));
 
 			CliFrontend frontend = new MockCliFrontend(
 					CliFrontendTestUtils.getConfigDir(), jobManager);

@@ -19,8 +19,6 @@ package org.apache.flink.api.scala.io
 
 import java.io.{File, FileOutputStream, FileWriter, OutputStreamWriter}
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.io.PojoCsvInputFormat
 import org.apache.flink.api.java.io.TupleCsvInputFormat
 import org.apache.flink.api.java.io.CsvInputFormatTest.TwitterPOJO

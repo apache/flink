@@ -29,6 +29,7 @@ import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
+import org.apache.flink.streaming.api.checkpoint.CheckpointedRestoring;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.connectors.fs.bucketing.BucketingSink;
 import org.apache.flink.util.Preconditions;
@@ -128,7 +129,8 @@ import java.util.UUID;
  */
 @Deprecated
 public class RollingSink<T> extends RichSinkFunction<T>
-		implements InputTypeConfigurable, CheckpointedFunction, CheckpointListener {
+		implements InputTypeConfigurable, CheckpointedFunction,
+					CheckpointListener, CheckpointedRestoring<RollingSink.BucketState> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -336,7 +338,12 @@ public class RollingSink<T> extends RichSinkFunction<T>
 		Preconditions.checkArgument(this.restoredBucketStates == null,
 			"The " + getClass().getSimpleName() + " has already been initialized.");
 
-		initFileSystem();
+		try {
+			initFileSystem();
+		} catch (IOException e) {
+			LOG.error("Error while creating FileSystem when initializing the state of the RollingSink.", e);
+			throw new RuntimeException("Error while creating FileSystem when initializing the state of the RollingSink.", e);
+		}
 
 		if (this.refTruncate == null) {
 			this.refTruncate = reflectTruncate(fs);
@@ -703,7 +710,7 @@ public class RollingSink<T> extends RichSinkFunction<T>
 				} else {
 					LOG.debug("Writing valid-length file for {} to specify valid length {}", partPath, bucketState.currentFileValidLength);
 					Path validLengthFilePath = getValidLengthPathFor(partPath);
-					if (!fs.exists(validLengthFilePath)) {
+					if (!fs.exists(validLengthFilePath) && fs.exists(partPath)) {
 						FSDataOutputStream lengthFileOut = fs.create(validLengthFilePath);
 						lengthFileOut.writeUTF(Long.toString(bucketState.currentFileValidLength));
 						lengthFileOut.close();
@@ -750,6 +757,25 @@ public class RollingSink<T> extends RichSinkFunction<T>
 		synchronized (bucketState.pendingFilesPerCheckpoint) {
 			bucketState.pendingFilesPerCheckpoint.clear();
 		}
+	}
+
+	// --------------------------------------------------------------------------------------------
+	//  Backwards compatibility with Flink 1.1
+	// --------------------------------------------------------------------------------------------
+
+	@Override
+	public void restoreState(BucketState state) throws Exception {
+		LOG.info("{} (taskIdx={}) restored bucket state from an older Flink version: {}",
+			getClass().getSimpleName(), getRuntimeContext().getIndexOfThisSubtask(), state);
+
+		try {
+			initFileSystem();
+		} catch (IOException e) {
+			LOG.error("Error while creating FileSystem when restoring the state of the RollingSink.", e);
+			throw new RuntimeException("Error while creating FileSystem when restoring the state of the RollingSink.", e);
+		}
+
+		handleRestoredBucketState(state);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -879,30 +905,30 @@ public class RollingSink<T> extends RichSinkFunction<T>
 	 * This is used for keeping track of the current in-progress files and files that we mark
 	 * for moving from pending to final location after we get a checkpoint-complete notification.
 	 */
-	static final class BucketState implements Serializable {
+	public static final class BucketState implements Serializable {
 		private static final long serialVersionUID = 1L;
 
 		/**
 		 * The file that was in-progress when the last checkpoint occurred.
 		 */
-		String currentFile;
+		public String currentFile;
 
 		/**
 		 * The valid length of the in-progress file at the time of the last checkpoint.
 		 */
-		long currentFileValidLength = -1;
+		public long currentFileValidLength = -1;
 
 		/**
 		 * Pending files that accumulated since the last checkpoint.
 		 */
-		List<String> pendingFiles = new ArrayList<>();
+		public List<String> pendingFiles = new ArrayList<>();
 
 		/**
 		 * When doing a checkpoint we move the pending files since the last checkpoint to this map
 		 * with the id of the checkpoint. When we get the checkpoint-complete notification we move
 		 * pending files of completed checkpoints to their final location.
 		 */
-		final Map<Long, List<String>> pendingFilesPerCheckpoint = new HashMap<>();
+		public final Map<Long, List<String>> pendingFilesPerCheckpoint = new HashMap<>();
 
 		@Override
 		public String toString() {

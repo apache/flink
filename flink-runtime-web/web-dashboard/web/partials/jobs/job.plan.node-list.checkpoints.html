@@ -17,32 +17,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 -->
-<div ng-if="!jobCheckpointStats">
-  <p><em>No checkpoints</em></p>
-</div>
-<div ng-if="jobCheckpointStats">
-  <h2>Overview</h2>
-  <div ng-include=" 'partials/jobs/job.plan.node.checkpoints.job.html' "></div>
-  <h2>Operators</h2>
-  <table class="table table-body-hover table-clickable table-activable">
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Status</th>
-      </tr>
-    </thead>
-    <tbody ng-repeat="v in job.vertices" ng-class="{ active: v.id == nodeid }" ng-click="v.id == nodeid || changeNode(v.id)">
-      <tr ng-if="v.type == 'regular'">
-        <td>{{ v.name | humanizeText }}</td>
-        <td>
-          <bs-label status="{{v.status}}">{{v.status}}</bs-label>
-        </td>
-      </tr>
-      <tr ng-if="nodeid &amp;&amp; v.id == nodeid">
-        <td colspan="10">
-          <div ng-include=" 'partials/jobs/job.plan.node.checkpoints.operator.html' "></div>
-        </td>
-      </tr>
-    </tbody>
-  </table>
+<div class="split">
+  <nav class="navbar navbar-default navbar-secondary-additional">
+    <ul class="nav nav-tabs">
+      <li ui-sref-active="active"><a ui-sref=".overview">Overview</a></li>
+      <li ui-sref-active="active"><a ui-sref=".history">History</a></li>
+      <li ui-sref-active="active"><a ui-sref=".summary">Summary</a></li>
+      <li ui-sref-active="active"><a ui-sref=".config">Configuration</a></li>
+      <li ng-if="checkpointDetails.id != -1" class="active"><a>Details for Checkpoint {{ checkpointDetails.id }}</a></li>
+    </ul>
+  </nav>
+  <div id="checkpoints-view" ui-view="checkpoints-view" class="clean checkpoints-view"></div>
 </div>
