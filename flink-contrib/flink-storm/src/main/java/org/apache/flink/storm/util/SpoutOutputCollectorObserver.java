@@ -19,8 +19,8 @@ package org.apache.flink.storm.util;
 
 import java.util.List;
 
-import backtype.storm.spout.SpoutOutputCollector;
-import backtype.storm.utils.Utils;
+import org.apache.storm.spout.SpoutOutputCollector;
+import org.apache.storm.utils.Utils;
 
 /**
  * Observes if a call to any {@code emit(...)} or {@code emitDirect(...)} method is made.

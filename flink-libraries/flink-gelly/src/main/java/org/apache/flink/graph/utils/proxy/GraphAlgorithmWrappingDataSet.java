@@ -52,7 +52,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<T>> {
 	private static Map<GraphAlgorithmWrappingDataSet, List<GraphAlgorithmWrappingDataSet>> cache =
 		Collections.synchronizedMap(new HashMap<GraphAlgorithmWrappingDataSet, List<GraphAlgorithmWrappingDataSet>>());
 
-	private Graph<K,VV,EV> input;
+	private Graph<K, VV, EV> input;
 
 	private NoOpOperator<T> wrappingOperator;
 

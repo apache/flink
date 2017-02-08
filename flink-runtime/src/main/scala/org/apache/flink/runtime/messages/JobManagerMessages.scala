@@ -494,7 +494,12 @@ object JobManagerMessages {
     * @param jobId The job ID for which the savepoint was triggered.
     * @param savepointPath The path of the savepoint.
     */
-  case class TriggerSavepointSuccess(jobId: JobID, savepointPath: String)
+  case class TriggerSavepointSuccess(
+    jobId: JobID,
+    checkpointId: Long,
+    savepointPath: String,
+    triggerTime: Long
+  )
 
   /**
     * Response after a failed savepoint trigger containing the failure cause.

@@ -84,8 +84,17 @@ public class MetricQueryServiceTest extends TestLogger {
 		MetricQueryService.notifyOfAddedMetric(serviceActor, g, "gauge", tm);
 		MetricQueryService.notifyOfAddedMetric(serviceActor, h, "histogram", tm);
 		MetricQueryService.notifyOfAddedMetric(serviceActor, m, "meter", tm);
+		serviceActor.tell(MetricQueryService.getCreateDump(), testActorRef);
+		synchronized (testActor.lock) {
+			if (testActor.message == null) {
+				testActor.lock.wait();
+			}
+		}
 
-		// these metrics will be removed *after* the first query
+		MetricDumpSerialization.MetricSerializationResult dump = (MetricDumpSerialization.MetricSerializationResult) testActor.message;
+		testActor.message = null;
+		assertTrue(dump.serializedMetrics.length > 0);
+
 		MetricQueryService.notifyOfRemovedMetric(serviceActor, c);
 		MetricQueryService.notifyOfRemovedMetric(serviceActor, g);
 		MetricQueryService.notifyOfRemovedMetric(serviceActor, h);
@@ -98,23 +107,9 @@ public class MetricQueryServiceTest extends TestLogger {
 			}
 		}
 
-		byte[] dump = (byte[]) testActor.message;
+		MetricDumpSerialization.MetricSerializationResult emptyDump = (MetricDumpSerialization.MetricSerializationResult) testActor.message;
 		testActor.message = null;
-		assertTrue(dump.length > 0);
-
-		serviceActor.tell(MetricQueryService.getCreateDump(), testActorRef);
-		synchronized (testActor.lock) {
-			if (testActor.message == null) {
-				testActor.lock.wait();
-			}
-		}
-
-		byte[] emptyDump = (byte[]) testActor.message;
-		testActor.message = null;
-		assertEquals(16, emptyDump.length);
-		for (int x = 0; x < 16; x++) {
-			assertEquals(0, emptyDump[x]);
-		}
+		assertEquals(0, emptyDump.serializedMetrics.length);
 
 		s.shutdown();
 	}

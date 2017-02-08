@@ -19,7 +19,7 @@ package org.apache.flink.streaming.connectors.fs.bucketing;
 
 import com.google.common.collect.Sets;
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.streaming.api.checkpoint.CheckpointedAsynchronously;
+import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
@@ -42,7 +42,9 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.BufferedReader;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Random;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -233,7 +235,7 @@ public class BucketingSinkFaultToleranceITCase extends StreamFaultToleranceTestB
 	}
 
 	private static class StringGeneratingSourceFunction extends RichParallelSourceFunction<String>
-			implements CheckpointedAsynchronously<Integer> {
+			implements ListCheckpointed<Integer> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -242,7 +244,6 @@ public class BucketingSinkFaultToleranceITCase extends StreamFaultToleranceTestB
 		private int index;
 
 		private volatile boolean isRunning = true;
-
 
 		StringGeneratingSourceFunction(long numElements) {
 			this.numElements = numElements;
@@ -285,13 +286,16 @@ public class BucketingSinkFaultToleranceITCase extends StreamFaultToleranceTestB
 		}
 
 		@Override
-		public Integer snapshotState(long checkpointId, long checkpointTimestamp) {
-			return index;
+		public List<Integer> snapshotState(long checkpointId, long timestamp) throws Exception {
+			return Collections.singletonList(index);
 		}
 
 		@Override
-		public void restoreState(Integer state) {
-			index = state;
+		public void restoreState(List<Integer> state) throws Exception {
+			if (state.isEmpty() || state.size() > 1) {
+				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
+			}
+			this.index = state.get(0);
 		}
 	}
 }

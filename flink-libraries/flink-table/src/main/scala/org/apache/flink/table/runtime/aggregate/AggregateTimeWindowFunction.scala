@@ -48,7 +48,8 @@ class AggregateTimeWindowFunction(
 
     // set collector and window
     collector.wrappedCollector = out
-    collector.timeWindow = window
+    collector.windowStart = window.getStart
+    collector.windowEnd = window.getEnd
 
     // call wrapped reduce function with property collector
     super.apply(key, window, input, collector)

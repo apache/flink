@@ -111,6 +111,7 @@ class CalciteConfigBuilderTest {
     assertFalse(cc.getSqlOperatorTable.isDefined)
   }
 
+  @Test
   def testReplaceOperatorTable(): Unit = {
 
     val oracleTable = new OracleSqlOperatorTable
@@ -131,6 +132,7 @@ class CalciteConfigBuilderTest {
     }
   }
 
+  @Test
   def testReplaceAddOperatorTable(): Unit = {
 
     val oracleTable = new OracleSqlOperatorTable
@@ -158,6 +160,7 @@ class CalciteConfigBuilderTest {
 
   }
 
+  @Test
   def testAddOperatorTable(): Unit = {
 
     val oracleTable = new OracleSqlOperatorTable
@@ -178,6 +181,7 @@ class CalciteConfigBuilderTest {
     }
   }
 
+  @Test
   def testAddAddOperatorTable(): Unit = {
 
     val oracleTable = new OracleSqlOperatorTable

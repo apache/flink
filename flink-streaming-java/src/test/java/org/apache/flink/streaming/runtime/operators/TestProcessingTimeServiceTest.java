@@ -52,7 +52,7 @@ public class TestProcessingTimeServiceTest {
 
 		testHarness.invoke();
 
-		assertEquals(testHarness.getProcessingTimeService().getCurrentProcessingTime(), 0);
+		assertEquals(Long.MIN_VALUE, testHarness.getProcessingTimeService().getCurrentProcessingTime());
 
 		tp.setCurrentTime(11);
 		assertEquals(testHarness.getProcessingTimeService().getCurrentProcessingTime(), 11);

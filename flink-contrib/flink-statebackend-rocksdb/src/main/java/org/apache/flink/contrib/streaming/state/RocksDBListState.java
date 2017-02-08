@@ -23,6 +23,8 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.runtime.state.internal.InternalListState;
+
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDBException;
 import org.rocksdb.WriteOptions;
@@ -30,6 +32,7 @@ import org.rocksdb.WriteOptions;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -45,7 +48,7 @@ import java.util.List;
  */
 public class RocksDBListState<K, N, V>
 	extends AbstractRocksDBState<K, N, ListState<V>, ListStateDescriptor<V>, V>
-	implements ListState<V> {
+	implements InternalListState<N, V> {
 
 	/** Serializer for the values */
 	private final TypeSerializer<V> valueSerializer;
@@ -117,4 +120,41 @@ public class RocksDBListState<K, N, V>
 		}
 	}
 
+	@Override
+	public void mergeNamespaces(N target, Collection<N> sources) throws Exception {
+		if (sources == null || sources.isEmpty()) {
+			return;
+		}
+
+		// cache key and namespace
+		final K key = backend.getCurrentKey();
+		final int keyGroup = backend.getCurrentKeyGroupIndex();
+
+		try {
+			// create the target full-binary-key 
+			writeKeyWithGroupAndNamespace(
+					keyGroup, key, target,
+					keySerializationStream, keySerializationDataOutputView);
+			final byte[] targetKey = keySerializationStream.toByteArray();
+
+			// merge the sources to the target
+			for (N source : sources) {
+				if (source != null) {
+					writeKeyWithGroupAndNamespace(
+							keyGroup, key, source,
+							keySerializationStream, keySerializationDataOutputView);
+
+					byte[] sourceKey = keySerializationStream.toByteArray();
+					byte[] valueBytes = backend.db.get(columnFamily, sourceKey);
+
+					if (valueBytes != null) {
+						backend.db.merge(columnFamily, writeOptions, targetKey, valueBytes);
+					}
+				}
+			}
+		}
+		catch (Exception e) {
+			throw new Exception("Error while merging state in RocksDB", e);
+		}
+	}
 }

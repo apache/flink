@@ -817,7 +817,12 @@ class JobManagerITCase(_system: ActorSystem)
             java.util.Collections.emptyList(),
             java.util.Collections.emptyList(),
             java.util.Collections.emptyList(),
-            60000, 60000, 60000, 1, ExternalizedCheckpointSettings.none))
+            60000,
+            60000,
+            60000,
+            1,
+            ExternalizedCheckpointSettings.none,
+            true))
 
           // Submit job...
           jobManager.tell(SubmitJob(jobGraph, ListeningBehaviour.DETACHED), testActor)
@@ -871,7 +876,12 @@ class JobManagerITCase(_system: ActorSystem)
             java.util.Collections.emptyList(),
             java.util.Collections.emptyList(),
             java.util.Collections.emptyList(),
-            60000, 60000, 60000, 1, ExternalizedCheckpointSettings.none))
+            60000,
+            60000,
+            60000,
+            1,
+            ExternalizedCheckpointSettings.none,
+            true))
 
           // Submit job...
           jobManager.tell(SubmitJob(jobGraph, ListeningBehaviour.DETACHED), testActor)
@@ -933,7 +943,12 @@ class JobManagerITCase(_system: ActorSystem)
             java.util.Collections.emptyList(),
             java.util.Collections.emptyList(),
             java.util.Collections.emptyList(),
-            60000, 60000, 60000, 1, ExternalizedCheckpointSettings.none))
+            60000,
+            60000,
+            60000,
+            1,
+            ExternalizedCheckpointSettings.none,
+            true))
 
           // Submit job...
           jobManager.tell(SubmitJob(jobGraph, ListeningBehaviour.DETACHED), testActor)

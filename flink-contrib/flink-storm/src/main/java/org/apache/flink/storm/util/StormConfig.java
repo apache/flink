@@ -17,7 +17,7 @@
  */
 package org.apache.flink.storm.util;
 
-import backtype.storm.Config;
+import org.apache.storm.Config;
 import org.apache.flink.api.common.ExecutionConfig.GlobalJobParameters;
 
 import java.util.Collection;

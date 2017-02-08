@@ -20,6 +20,7 @@ package org.apache.flink.api.common.io;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.util.Preconditions;
 
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
@@ -52,8 +53,13 @@ public class GlobFilePathFilter extends FilePathFilter {
 
 	private static final long serialVersionUID = 1L;
 
-	private final List<PathMatcher> includeMatchers;
-	private final List<PathMatcher> excludeMatchers;
+	private final List<String> includePatterns;
+	private final List<String> excludePatterns;
+
+	// Path matchers are not serializable so we are delaying their
+	// creation until they are used
+	private transient ArrayList<PathMatcher> includeMatchers;
+	private transient ArrayList<PathMatcher> excludeMatchers;
 
 	/**
 	 * Constructor for GlobFilePathFilter that will match all files
@@ -69,13 +75,13 @@ public class GlobFilePathFilter extends FilePathFilter {
 	 * @param excludePatterns glob patterns for files to exclude
 	 */
 	public GlobFilePathFilter(List<String> includePatterns, List<String> excludePatterns) {
-		includeMatchers = buildPatterns(includePatterns);
-		excludeMatchers = buildPatterns(excludePatterns);
+		this.includePatterns = Preconditions.checkNotNull(includePatterns);
+		this.excludePatterns = Preconditions.checkNotNull(excludePatterns);
 	}
 
-	private List<PathMatcher> buildPatterns(List<String> patterns) {
+	private ArrayList<PathMatcher> buildPatterns(List<String> patterns) {
 		FileSystem fileSystem = FileSystems.getDefault();
-		List<PathMatcher> matchers = new ArrayList<>();
+		ArrayList<PathMatcher> matchers = new ArrayList<>(patterns.size());
 
 		for (String patternStr : patterns) {
 			matchers.add(fileSystem.getPathMatcher("glob:" + patternStr));
@@ -86,22 +92,43 @@ public class GlobFilePathFilter extends FilePathFilter {
 
 	@Override
 	public boolean filterPath(Path filePath) {
-		if (includeMatchers.isEmpty() && excludeMatchers.isEmpty()) {
+		if (getIncludeMatchers().isEmpty() && getExcludeMatchers().isEmpty()) {
 			return false;
 		}
 
-		for (PathMatcher matcher : includeMatchers) {
-			if (matcher.matches(Paths.get(filePath.getPath()))) {
-				return shouldExclude(filePath);
+		// compensate for the fact that Flink paths are slashed
+		final String path = filePath.hasWindowsDrive() ?
+				filePath.getPath().substring(1) :
+				filePath.getPath();
+
+		final java.nio.file.Path nioPath = Paths.get(path);
+
+		for (PathMatcher matcher : getIncludeMatchers()) {
+			if (matcher.matches(nioPath)) {
+				return shouldExclude(nioPath);
 			}
 		}
 
 		return true;
 	}
 
-	private boolean shouldExclude(Path filePath) {
-		for (PathMatcher matcher : excludeMatchers) {
-			if (matcher.matches(Paths.get(filePath.getPath()))) {
+	private ArrayList<PathMatcher> getIncludeMatchers() {
+		if (includeMatchers == null) {
+			includeMatchers = buildPatterns(includePatterns);
+		}
+		return includeMatchers;
+	}
+
+	private ArrayList<PathMatcher> getExcludeMatchers() {
+		if (excludeMatchers == null) {
+			excludeMatchers = buildPatterns(excludePatterns);
+		}
+		return excludeMatchers;
+	}
+
+	private boolean shouldExclude(java.nio.file.Path nioPath) {
+		for (PathMatcher matcher : getExcludeMatchers()) {
+			if (matcher.matches(nioPath)) {
 				return true;
 			}
 		}

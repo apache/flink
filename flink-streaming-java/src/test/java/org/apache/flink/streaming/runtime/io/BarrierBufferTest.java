@@ -20,9 +20,9 @@ package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineOnCancellationBarrierException;
 import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineSubsumedException;
-import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
@@ -33,10 +33,8 @@ import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
 import org.apache.flink.runtime.state.TaskStateHandles;
-
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
-
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -50,7 +48,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyLong;
 import static org.mockito.Matchers.argThat;
@@ -262,6 +259,7 @@ public class BarrierBufferTest {
 			check(sequence[5], buffer.getNextNonBlocked());
 			assertEquals(2L, handler.getNextExpectedCheckpointId());
 			validateAlignmentTime(startTs, buffer);
+			validateAlignmentBuffered(handler.getLastReportedBytesBufferedInAlignment(), sequence[5], sequence[6]);
 
 			check(sequence[6], buffer.getNextNonBlocked());
 
@@ -278,11 +276,13 @@ public class BarrierBufferTest {
 			check(sequence[17], buffer.getNextNonBlocked());
 			assertEquals(3L, handler.getNextExpectedCheckpointId());
 			validateAlignmentTime(startTs, buffer);
+			validateAlignmentBuffered(handler.getLastReportedBytesBufferedInAlignment());
 
 			check(sequence[18], buffer.getNextNonBlocked());
 
 			// checkpoint 3 starts, data buffered
 			check(sequence[20], buffer.getNextNonBlocked());
+			validateAlignmentBuffered(handler.getLastReportedBytesBufferedInAlignment(), sequence[20], sequence[21]);
 			assertEquals(4L, handler.getNextExpectedCheckpointId());
 			check(sequence[21], buffer.getNextNonBlocked());
 
@@ -290,7 +290,10 @@ public class BarrierBufferTest {
 
 			// pre checkpoint 5
 			check(sequence[27], buffer.getNextNonBlocked());
+
+			validateAlignmentBuffered(handler.getLastReportedBytesBufferedInAlignment());
 			assertEquals(5L, handler.getNextExpectedCheckpointId());
+
 			check(sequence[28], buffer.getNextNonBlocked());
 			check(sequence[29], buffer.getNextNonBlocked());
 			
@@ -311,9 +314,12 @@ public class BarrierBufferTest {
 			check(sequence[42], buffer.getNextNonBlocked());
 			check(sequence[43], buffer.getNextNonBlocked());
 			check(sequence[44], buffer.getNextNonBlocked());
-			
+
 			assertNull(buffer.getNextNonBlocked());
 			assertNull(buffer.getNextNonBlocked());
+
+			validateAlignmentBuffered(handler.getLastReportedBytesBufferedInAlignment(),
+				sequence[34], sequence[36], sequence[38], sequence[39]);
 
 			buffer.cleanup();
 
@@ -1442,13 +1448,25 @@ public class BarrierBufferTest {
 		assertTrue("wrong alignment time", buffer.getAlignmentDurationNanos() <= elapsed);
 	}
 
+	private static void validateAlignmentBuffered(long actualBytesBuffered, BufferOrEvent... sequence) {
+		long expectedBuffered = 0;
+		for (BufferOrEvent boe : sequence) {
+			if (boe.isBuffer()) {
+				expectedBuffered += BufferSpiller.HEADER_SIZE + boe.getBuffer().getSize();
+			}
+		}
+
+		assertEquals("Wrong alignment buffered bytes", actualBytesBuffered, expectedBuffered);
+	}
+
 	// ------------------------------------------------------------------------
 	//  Testing Mocks
 	// ------------------------------------------------------------------------
 
 	private static class ValidatingCheckpointHandler implements StatefulTask {
-		
+
 		private long nextExpectedCheckpointId = -1L;
+		private long lastReportedBytesBufferedInAlignment = -1;
 
 		public void setNextExpectedCheckpointId(long nextExpectedCheckpointId) {
 			this.nextExpectedCheckpointId = nextExpectedCheckpointId;
@@ -1456,6 +1474,10 @@ public class BarrierBufferTest {
 
 		public long getNextExpectedCheckpointId() {
 			return nextExpectedCheckpointId;
+		}
+
+		long getLastReportedBytesBufferedInAlignment() {
+			return lastReportedBytesBufferedInAlignment;
 		}
 
 		@Override
@@ -1479,6 +1501,7 @@ public class BarrierBufferTest {
 			assertTrue(checkpointMetaData.getAlignmentDurationNanos() >= 0);
 
 			nextExpectedCheckpointId++;
+			lastReportedBytesBufferedInAlignment = checkpointMetaData.getBytesBufferedInAlignment();
 		}
 
 		@Override

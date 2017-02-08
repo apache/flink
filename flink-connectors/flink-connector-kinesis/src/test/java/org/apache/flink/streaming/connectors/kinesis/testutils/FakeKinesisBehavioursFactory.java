@@ -54,7 +54,7 @@ public class FakeKinesisBehavioursFactory {
 			}
 
 			@Override
-			public String getShardIterator(KinesisStreamShard shard, String shardIteratorType, String startingSeqNum) {
+			public String getShardIterator(KinesisStreamShard shard, String shardIteratorType, Object startingMarker) {
 				return null;
 			}
 
@@ -121,7 +121,7 @@ public class FakeKinesisBehavioursFactory {
 		}
 
 		@Override
-		public String getShardIterator(KinesisStreamShard shard, String shardIteratorType, String startingSeqNum) {
+		public String getShardIterator(KinesisStreamShard shard, String shardIteratorType, Object startingMarker) {
 			if (!expiredOnceAlready) {
 				// for the first call, just return the iterator of the first batch of records
 				return "0";
@@ -180,7 +180,7 @@ public class FakeKinesisBehavioursFactory {
 		}
 
 		@Override
-		public String getShardIterator(KinesisStreamShard shard, String shardIteratorType, String startingSeqNum) {
+		public String getShardIterator(KinesisStreamShard shard, String shardIteratorType, Object startingMarker) {
 			// this will be called only one time per ShardConsumer;
 			// so, simply return the iterator of the first batch of records
 			return "0";
@@ -250,7 +250,7 @@ public class FakeKinesisBehavioursFactory {
 		}
 
 		@Override
-		public String getShardIterator(KinesisStreamShard shard, String shardIteratorType, String startingSeqNum) {
+		public String getShardIterator(KinesisStreamShard shard, String shardIteratorType, Object startingMarker) {
 			return null;
 		}
 

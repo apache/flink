@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.checkpoint.stats.DisabledCheckpointStatsTracker;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
@@ -73,7 +72,6 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
 			new StandaloneCheckpointIDCounter(),
 			new FailingCompletedCheckpointStore(),
 			null,
-			new DisabledCheckpointStatsTracker(),
 			Executors.directExecutor());
 
 		coord.triggerCheckpoint(triggerTimestamp, false);
@@ -84,7 +82,7 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
 
 		assertFalse(pendingCheckpoint.isDiscarded());
 
-		final long checkpointId =coord.getPendingCheckpoints().keySet().iterator().next();
+		final long checkpointId = coord.getPendingCheckpoints().keySet().iterator().next();
 
 		final CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, triggerTimestamp);
 		AcknowledgeCheckpoint acknowledgeMessage = new AcknowledgeCheckpoint(jid, executionAttemptId, checkpointMetaData);

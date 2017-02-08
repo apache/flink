@@ -347,8 +347,17 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 	public void commitInternalOffsetsToKafka(Map<KafkaTopicPartition, Long> offsets) throws Exception {
 		ZookeeperOffsetHandler zkHandler = this.zookeeperOffsetHandler;
 		if (zkHandler != null) {
-			// the ZK handler takes care of incrementing the offsets by 1 before committing
-			zkHandler.prepareAndCommitOffsets(offsets);
+			try {
+				// the ZK handler takes care of incrementing the offsets by 1 before committing
+				zkHandler.prepareAndCommitOffsets(offsets);
+			}
+			catch (Exception e) {
+				if (running) {
+					throw e;
+				} else {
+					return;
+				}
+			}
 		}
 
 		// Set committed offsets in topic partition state

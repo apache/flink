@@ -18,9 +18,6 @@
 
 package org.apache.flink.graph.test.operations;
 
-import java.util.LinkedList;
-import java.util.List;
-
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -37,54 +34,56 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import java.util.LinkedList;
+import java.util.List;
+
 @RunWith(Parameterized.class)
 public class GraphCreationITCase extends MultipleProgramsTestBase {
 
-	public GraphCreationITCase(TestExecutionMode mode){
+	public GraphCreationITCase(TestExecutionMode mode) {
 		super(mode);
 	}
 
-
-    private String expectedResult;
+	private String expectedResult;
 
 	@Test
 	public void testCreateWithoutVertexValues() throws Exception {
-	/*
-	 * Test create() with edge dataset and no vertex values
-     */
+		/*
+		 * Test create() with edge dataset and no vertex values
+	     */
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		Graph<Long, NullValue, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongEdgeData(env), env);
 
-        DataSet<Vertex<Long,NullValue>> data = graph.getVertices();
-        List<Vertex<Long,NullValue>> result= data.collect();
-        
+		DataSet<Vertex<Long, NullValue>> data = graph.getVertices();
+		List<Vertex<Long, NullValue>> result = data.collect();
+
 		expectedResult = "1,(null)\n" +
-					"2,(null)\n" +
-					"3,(null)\n" +
-					"4,(null)\n" +
-					"5,(null)\n";
-		
+			"2,(null)\n" +
+			"3,(null)\n" +
+			"4,(null)\n" +
+			"5,(null)\n";
+
 		compareResultAsTuples(result, expectedResult);
 	}
 
 	@Test
 	public void testCreateWithMapper() throws Exception {
-	/*
-	 * Test create() with edge dataset and a mapper that assigns the id as value
-     */
+		/*
+		 * Test create() with edge dataset and a mapper that assigns the id as value
+	     */
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(TestGraphUtils.getLongLongEdgeData(env),
-				new AssignIdAsValueMapper(), env);
+			new AssignIdAsValueMapper(), env);
 
-        DataSet<Vertex<Long,Long>> data = graph.getVertices();
-        List<Vertex<Long,Long>> result= data.collect();
-        
+		DataSet<Vertex<Long, Long>> data = graph.getVertices();
+		List<Vertex<Long, Long>> result = data.collect();
+
 		expectedResult = "1,1\n" +
-					"2,2\n" +
-					"3,3\n" +
-					"4,4\n" +
-					"5,5\n";
-		
+			"2,2\n" +
+			"3,3\n" +
+			"4,4\n" +
+			"5,5\n";
+
 		compareResultAsTuples(result, expectedResult);
 	}
 
@@ -95,17 +94,17 @@ public class GraphCreationITCase extends MultipleProgramsTestBase {
 		 */
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		Graph<Long, DummyCustomParameterizedType<Double>, Long> graph = Graph.fromDataSet(
-				TestGraphUtils.getLongLongEdgeData(env), new AssignCustomVertexValueMapper(), env);
+			TestGraphUtils.getLongLongEdgeData(env), new AssignCustomVertexValueMapper(), env);
 
-        DataSet<Vertex<Long,DummyCustomParameterizedType<Double>>> data = graph.getVertices();
-        List<Vertex<Long,DummyCustomParameterizedType<Double>>> result= data.collect();
-        
+		DataSet<Vertex<Long, DummyCustomParameterizedType<Double>>> data = graph.getVertices();
+		List<Vertex<Long, DummyCustomParameterizedType<Double>>> result = data.collect();
+
 		expectedResult = "1,(2.0,0)\n" +
-				"2,(4.0,1)\n" +
-				"3,(6.0,2)\n" +
-				"4,(8.0,3)\n" +
-				"5,(10.0,4)\n";
-		
+			"2,(4.0,1)\n" +
+			"3,(6.0,2)\n" +
+			"4,(8.0,3)\n" +
+			"5,(10.0,4)\n";
+
 		compareResultAsTuples(result, expectedResult);
 	}
 
@@ -122,12 +121,12 @@ public class GraphCreationITCase extends MultipleProgramsTestBase {
 		Boolean valid = graph.validate(new InvalidVertexIdsValidator<Long, Long, Long>());
 
 		//env.fromElements(result).writeAsText(resultPath);
-		
-		String res= valid.toString();//env.fromElements(valid);
-        List<String> result= new LinkedList<>();
-        result.add(res);
+
+		String res = valid.toString();//env.fromElements(valid);
+		List<String> result = new LinkedList<>();
+		result.add(res);
 		expectedResult = "true";
-		
+
 		compareResultAsText(result, expectedResult);
 	}
 
@@ -142,13 +141,13 @@ public class GraphCreationITCase extends MultipleProgramsTestBase {
 
 		Graph<Long, Long, Long> graph = Graph.fromDataSet(vertices, edges, env);
 		Boolean valid = graph.validate(new InvalidVertexIdsValidator<Long, Long, Long>());
-		
-		String res= valid.toString();//env.fromElements(valid);
-        List<String> result= new LinkedList<>();
-        result.add(res);
+
+		String res = valid.toString();//env.fromElements(valid);
+		List<String> result = new LinkedList<>();
+		result.add(res);
 
 		expectedResult = "false\n";
-		
+
 		compareResultAsText(result, expectedResult);
 	}
 
@@ -162,18 +161,18 @@ public class GraphCreationITCase extends MultipleProgramsTestBase {
 
 		Graph<Long, NullValue, NullValue> graph = Graph.fromTuple2DataSet(edges, env);
 
-        List<Vertex<Long, NullValue>> result = graph.getVertices().collect();
-        
+		List<Vertex<Long, NullValue>> result = graph.getVertices().collect();
+
 		expectedResult = "1,(null)\n" +
-					"2,(null)\n" +
-					"3,(null)\n" +
-					"4,(null)\n" +
-					"6,(null)\n" +
-					"10,(null)\n" +
-					"20,(null)\n" +
-					"30,(null)\n" +
-					"40,(null)\n" +
-					"60,(null)\n";
+			"2,(null)\n" +
+			"3,(null)\n" +
+			"4,(null)\n" +
+			"6,(null)\n" +
+			"10,(null)\n" +
+			"20,(null)\n" +
+			"30,(null)\n" +
+			"40,(null)\n" +
+			"60,(null)\n";
 
 		compareResultAsTuples(result, expectedResult);
 	}
@@ -187,20 +186,20 @@ public class GraphCreationITCase extends MultipleProgramsTestBase {
 		DataSet<Tuple2<Long, Long>> edges = TestGraphUtils.getLongLongTuple2Data(env);
 
 		Graph<Long, String, NullValue> graph = Graph.fromTuple2DataSet(edges,
-				new BooMapper(), env);
+			new BooMapper(), env);
 
-        List<Vertex<Long, String>> result = graph.getVertices().collect();
-        
+		List<Vertex<Long, String>> result = graph.getVertices().collect();
+
 		expectedResult = "1,boo\n" +
-					"2,boo\n" +
-					"3,boo\n" +
-					"4,boo\n" +
-					"6,boo\n" +
-					"10,boo\n" +
-					"20,boo\n" +
-					"30,boo\n" +
-					"40,boo\n" +
-					"60,boo\n";
+			"2,boo\n" +
+			"3,boo\n" +
+			"4,boo\n" +
+			"6,boo\n" +
+			"10,boo\n" +
+			"20,boo\n" +
+			"30,boo\n" +
+			"40,boo\n" +
+			"60,boo\n";
 
 		compareResultAsTuples(result, expectedResult);
 	}
@@ -219,14 +218,16 @@ public class GraphCreationITCase extends MultipleProgramsTestBase {
 		DummyCustomParameterizedType<Double> dummyValue = new DummyCustomParameterizedType<>();
 
 		public DummyCustomParameterizedType<Double> map(Long vertexId) {
-			dummyValue.setIntField(vertexId.intValue()-1);
-			dummyValue.setTField(vertexId*2.0);
+			dummyValue.setIntField(vertexId.intValue() - 1);
+			dummyValue.setTField(vertexId * 2.0);
 			return dummyValue;
 		}
 	}
 
 	@SuppressWarnings("serial")
 	private static final class BooMapper implements MapFunction<Long, String> {
-		public String map(Long value) {	return "boo"; }
+		public String map(Long value) {
+			return "boo";
+		}
 	}
 }

@@ -2,7 +2,7 @@
 title: "Twitter Connector"
 nav-title: Twitter
 nav-parent_id: connectors
-nav-pos: 9
+nav-pos: 8
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -36,7 +36,7 @@ To use this connector, add the following dependency to your project:
 {% endhighlight %}
 
 Note that the streaming connectors are currently not part of the binary distribution.
-See linking with them for cluster execution [here]({{site.baseurl}}/dev/linking).
+See linking with them for cluster execution [here]({{site.baseurl}}/dev/linking.html).
 
 #### Authentication
 In order to connect to the Twitter stream the user has to register their program and acquire the necessary information for the authentication. The process is described below.
@@ -58,20 +58,20 @@ In contrast to other connectors, the `TwitterSource` depends on no additional se
 <div data-lang="java" markdown="1">
 {% highlight java %}
 Properties props = new Properties();
-p.setProperty(TwitterSource.CONSUMER_KEY, "");
-p.setProperty(TwitterSource.CONSUMER_SECRET, "");
-p.setProperty(TwitterSource.TOKEN, "");
-p.setProperty(TwitterSource.TOKEN_SECRET, "");
+props.setProperty(TwitterSource.CONSUMER_KEY, "");
+props.setProperty(TwitterSource.CONSUMER_SECRET, "");
+props.setProperty(TwitterSource.TOKEN, "");
+props.setProperty(TwitterSource.TOKEN_SECRET, "");
 DataStream<String> streamSource = env.addSource(new TwitterSource(props));
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 val props = new Properties();
-p.setProperty(TwitterSource.CONSUMER_KEY, "");
-p.setProperty(TwitterSource.CONSUMER_SECRET, "");
-p.setProperty(TwitterSource.TOKEN, "");
-p.setProperty(TwitterSource.TOKEN_SECRET, "");
+props.setProperty(TwitterSource.CONSUMER_KEY, "");
+props.setProperty(TwitterSource.CONSUMER_SECRET, "");
+props.setProperty(TwitterSource.TOKEN, "");
+props.setProperty(TwitterSource.TOKEN_SECRET, "");
 DataStream<String> streamSource = env.addSource(new TwitterSource(props));
 {% endhighlight %}
 </div>

@@ -132,6 +132,10 @@ class LocalFlinkMiniCluster(
       ioExecutor,
       createLeaderElectionService())
 
+    if (config.getBoolean(ConfigConstants.LOCAL_START_WEBSERVER, false)) {
+      metricsRegistry.get.startQueryService(system, null)
+    }
+
     val archive = system.actorOf(
       getArchiveProps(
         memoryArchivistClass,
@@ -232,7 +236,9 @@ class LocalFlinkMiniCluster(
       createLeaderRetrievalService(),
       metricRegistry)
 
-    metricRegistry.startQueryService(system, resourceID)
+    if (config.getBoolean(ConfigConstants.LOCAL_START_WEBSERVER, false)) {
+      metricRegistry.startQueryService(system, resourceID)
+    }
 
     system.actorOf(props, taskManagerActorName)
   }

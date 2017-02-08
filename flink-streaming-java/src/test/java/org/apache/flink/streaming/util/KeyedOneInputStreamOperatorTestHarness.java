@@ -29,6 +29,7 @@ import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateBackend;
+import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -100,33 +101,24 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 					final int numberOfKeyGroups = (Integer) invocationOnMock.getArguments()[1];
 					final KeyGroupRange keyGroupRange = (KeyGroupRange) invocationOnMock.getArguments()[2];
 
-					if(keyedStateBackend != null) {
+					if (keyedStateBackend != null) {
 						keyedStateBackend.dispose();
 					}
 
-					if (restoredKeyedState == null) {
-						keyedStateBackend = stateBackend.createKeyedStateBackend(
-								mockTask.getEnvironment(),
-								new JobID(),
-								"test_op",
-								keySerializer,
-								numberOfKeyGroups,
-								keyGroupRange,
-								mockTask.getEnvironment().getTaskKvStateRegistry());
-						return keyedStateBackend;
-					} else {
-						keyedStateBackend = stateBackend.restoreKeyedStateBackend(
-								mockTask.getEnvironment(),
-								new JobID(),
-								"test_op",
-								keySerializer,
-								numberOfKeyGroups,
-								keyGroupRange,
-								restoredKeyedState,
-								mockTask.getEnvironment().getTaskKvStateRegistry());
-						restoredKeyedState = null;
-						return keyedStateBackend;
+					keyedStateBackend = stateBackend.createKeyedStateBackend(
+							mockTask.getEnvironment(),
+							new JobID(),
+							"test_op",
+							keySerializer,
+							numberOfKeyGroups,
+							keyGroupRange,
+							mockTask.getEnvironment().getTaskKvStateRegistry());
+
+					if (restoredKeyedState != null) {
+						keyedStateBackend.restore(restoredKeyedState);
 					}
+
+					return keyedStateBackend;
 				}
 			}).when(mockTask).createKeyedStateBackend(any(TypeSerializer.class), anyInt(), any(KeyGroupRange.class));
 		} catch (Exception e) {
@@ -195,6 +187,22 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 			}
 		}
 		return false;
+	}
+
+	public int numKeyedStateEntries() {
+		if (keyedStateBackend instanceof HeapKeyedStateBackend) {
+			return ((HeapKeyedStateBackend) keyedStateBackend).numStateEntries();
+		} else {
+			throw new UnsupportedOperationException();
+		}
+	}
+
+	public <N> int numKeyedStateEntries(N namespace) {
+		if (keyedStateBackend instanceof HeapKeyedStateBackend) {
+			return ((HeapKeyedStateBackend) keyedStateBackend).numStateEntries(namespace);
+		} else {
+			throw new UnsupportedOperationException();
+		}
 	}
 
 	@Override

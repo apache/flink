@@ -333,7 +333,8 @@ class TaskManager(
         case Some(_) =>
           handleRequestTaskManagerLog(sender(), requestType, currentJobManager.get)
         case None =>
-          sender() ! new IOException("BlobService not available. Cannot upload TaskManager logs.")
+          sender() ! akka.actor.Status.Failure(new IOException("BlobService not " +
+            "available. Cannot upload TaskManager logs."))
       }
 
     case RequestBroadcastVariablesWithReferences =>
@@ -823,28 +824,35 @@ class TaskManager(
     val logFilePathOption = Option(config.getConfiguration().getString(
       ConfigConstants.TASK_MANAGER_LOG_PATH_KEY, System.getProperty("log.file")))
     logFilePathOption match {
-      case None => throw new IOException("TaskManager log files are unavailable. " +
+      case None => sender ! akka.actor.Status.Failure(
+        new IOException("TaskManager log files are unavailable. " +
         "Log file location not found in environment variable log.file or configuration key "
-        + ConfigConstants.TASK_MANAGER_LOG_PATH_KEY + ".");
+        + ConfigConstants.TASK_MANAGER_LOG_PATH_KEY + "."))
       case Some(logFilePath) =>
         val file: File = requestType match {
           case LogFileRequest => new File(logFilePath);
           case StdOutFileRequest =>
             new File(logFilePath.substring(0, logFilePath.length - 4) + ".out");
         }
-        val fis = new FileInputStream(file)
-        Future {
-          val client: BlobClient = blobService.get.createClient()
-          client.put(fis)
-        }(context.dispatcher)
-          .onComplete {
-            case Success(value) => 
-              sender ! value
-              fis.close()
-            case Failure(e) =>
-              sender ! e
-              fis.close()
+        if (file.exists()) {
+          val fis = new FileInputStream(file);
+          Future {
+            val client: BlobClient = blobService.get.createClient()
+            client.put(fis);
           }(context.dispatcher)
+            .onComplete {
+              case Success(value) =>
+                sender ! value
+                fis.close()
+              case Failure(e) =>
+                sender ! akka.actor.Status.Failure(e)
+                fis.close()
+            }(context.dispatcher)
+        } else {
+          sender ! akka.actor.Status.Failure(
+            new IOException("TaskManager log files are unavailable. " +
+            "Log file could not be found at " + file.getAbsolutePath + "."))
+        }
     }
   }
 
@@ -1737,12 +1745,11 @@ object TaskManager {
       taskManagerClass: Class[_ <: TaskManager])
     : Unit = {
 
-    LOG.info(s"Starting TaskManager")
+    LOG.info("Starting TaskManager")
 
     // Bring up the TaskManager actor system first, bind it to the given address.
-    
-    LOG.info("Starting TaskManager actor system at " + 
-      NetUtils.hostAndPortToUrlString(taskManagerHostname, actorSystemPort))
+
+    LOG.info(s"Starting TaskManager actor system at $taskManagerHostname:$actorSystemPort.")
 
     val taskManagerSystem = try {
       val akkaConfig = AkkaUtils.getAkkaConfig(
@@ -1759,9 +1766,8 @@ object TaskManager {
         if (t.isInstanceOf[org.jboss.netty.channel.ChannelException]) {
           val cause = t.getCause()
           if (cause != null && t.getCause().isInstanceOf[java.net.BindException]) {
-            val address = NetUtils.hostAndPortToUrlString(taskManagerHostname, actorSystemPort)
             throw new IOException("Unable to bind TaskManager actor system to address " +
-              address + " - " + cause.getMessage(), t)
+              taskManagerHostname + ':' + actorSystemPort + " - " + cause.getMessage(), t)
           }
         }
         throw new Exception("Could not create TaskManager actor system", t)

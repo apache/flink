@@ -2,7 +2,7 @@
 title: "Apache NiFi Connector"
 nav-title: NiFi
 nav-parent_id: connectors
-nav-pos: 8
+nav-pos: 7
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -37,7 +37,7 @@ following dependency to your project:
 
 Note that the streaming connectors are currently not part of the binary
 distribution. See
-[here]({{site.baseurl}}/dev/linking)
+[here]({{site.baseurl}}/dev/linking.html)
 for information about how to package the program with the libraries for
 cluster execution.
 

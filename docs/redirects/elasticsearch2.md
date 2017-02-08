@@ -1,7 +1,7 @@
 ---
 title: "Elasticsearch2 Connector"
 layout: redirect
-redirect: /dev/connectors/elasticsearch2.html
+redirect: /dev/connectors/elasticsearch.html
 permalink: /apis/streaming/connectors/elasticsearch2.html
 ---
 <!--

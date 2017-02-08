@@ -35,7 +35,7 @@ import java.util.List;
 @RunWith(Parameterized.class)
 public class PageRankITCase extends MultipleProgramsTestBase {
 
-	public PageRankITCase(TestExecutionMode mode){
+	public PageRankITCase(TestExecutionMode mode) {
 		super(mode);
 	}
 
@@ -44,12 +44,12 @@ public class PageRankITCase extends MultipleProgramsTestBase {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		Graph<Long, Double, Double> inputGraph = Graph.fromDataSet(
-				PageRankData.getDefaultEdgeDataSet(env), new InitMapper(), env);
+			PageRankData.getDefaultEdgeDataSet(env), new InitMapper(), env);
 
-        List<Vertex<Long, Double>> result = inputGraph.run(new PageRank<Long>(0.85, 3))
-        		.collect();
-        
-        compareWithDelta(result, 0.01);
+		List<Vertex<Long, Double>> result = inputGraph.run(new PageRank<Long>(0.85, 3))
+			.collect();
+
+		compareWithDelta(result, 0.01);
 	}
 
 	@Test
@@ -57,12 +57,12 @@ public class PageRankITCase extends MultipleProgramsTestBase {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		Graph<Long, Double, Double> inputGraph = Graph.fromDataSet(
-				PageRankData.getDefaultEdgeDataSet(env), new InitMapper(), env);
+			PageRankData.getDefaultEdgeDataSet(env), new InitMapper(), env);
 
-        List<Vertex<Long, Double>> result = inputGraph.run(new GSAPageRank<Long>(0.85, 3))
-        		.collect();
-        
-        compareWithDelta(result, 0.01);
+		List<Vertex<Long, Double>> result = inputGraph.run(new GSAPageRank<Long>(0.85, 3))
+			.collect();
+
+		compareWithDelta(result, 0.01);
 	}
 
 	@Test
@@ -70,12 +70,12 @@ public class PageRankITCase extends MultipleProgramsTestBase {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		Graph<Long, Double, Double> inputGraph = Graph.fromDataSet(
-				PageRankData.getDefaultEdgeDataSet(env), new InitMapper(), env);
+			PageRankData.getDefaultEdgeDataSet(env), new InitMapper(), env);
 
-        List<Vertex<Long, Double>> result = inputGraph.run(new PageRank<Long>(0.85, 3))
-        		.collect();
+		List<Vertex<Long, Double>> result = inputGraph.run(new PageRank<Long>(0.85, 3))
+			.collect();
 
-        compareWithDelta(result, 0.01);
+		compareWithDelta(result, 0.01);
 	}
 
 	@Test
@@ -83,20 +83,20 @@ public class PageRankITCase extends MultipleProgramsTestBase {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		Graph<Long, Double, Double> inputGraph = Graph.fromDataSet(
-				PageRankData.getDefaultEdgeDataSet(env), new InitMapper(), env);
+			PageRankData.getDefaultEdgeDataSet(env), new InitMapper(), env);
 
-        List<Vertex<Long, Double>> result = inputGraph.run(new GSAPageRank<Long>(0.85, 3))
-        		.collect();
-        
-        compareWithDelta(result, 0.01);
+		List<Vertex<Long, Double>> result = inputGraph.run(new GSAPageRank<Long>(0.85, 3))
+			.collect();
+
+		compareWithDelta(result, 0.01);
 	}
 
 	private void compareWithDelta(List<Vertex<Long, Double>> result, double delta) {
 
 		String resultString = "";
-        for (Vertex<Long, Double> v : result) {
-        	resultString += v.f0.toString() + "," + v.f1.toString() +"\n";
-        }
+		for (Vertex<Long, Double> v : result) {
+			resultString += v.f0.toString() + "," + v.f1.toString() + "\n";
+		}
 
 		String expectedResult = PageRankData.RANKS_AFTER_3_ITERATIONS;
 		String[] expected = expectedResult.isEmpty() ? new String[0] : expectedResult.split("\n");
@@ -104,7 +104,7 @@ public class PageRankITCase extends MultipleProgramsTestBase {
 		String[] resultArray = resultString.isEmpty() ? new String[0] : resultString.split("\n");
 
 		Arrays.sort(expected);
-        Arrays.sort(resultArray);
+		Arrays.sort(resultArray);
 
 		for (int i = 0; i < expected.length; i++) {
 			String[] expectedFields = expected[i].split(",");
@@ -114,7 +114,7 @@ public class PageRankITCase extends MultipleProgramsTestBase {
 			double resultPayLoad = Double.parseDouble(resultFields[1]);
 
 			Assert.assertTrue("Values differ by more than the permissible delta",
-					Math.abs(expectedPayLoad - resultPayLoad) < delta);
+				Math.abs(expectedPayLoad - resultPayLoad) < delta);
 		}
 	}
 

@@ -174,6 +174,13 @@ public class HadoopInputFormatTest {
 		assertThat(tupleType, is(equalTo(expectedType)));
 	}
 
+	@Test
+	public void testCloseWithoutOpen() throws Exception {
+		HadoopInputFormat<Void, Long> hadoopInputFormat = new HadoopInputFormat<>(
+			new DummyVoidKeyInputFormat<Long>(), Void.class, Long.class, new JobConf());
+		hadoopInputFormat.close();
+	}
+
 	private HadoopInputSplit getHadoopInputSplit() {
 		return new HadoopInputSplit(1, getFileSplit(), new JobConf());
 	}

@@ -89,7 +89,7 @@ public class Emitter<OUT> implements Runnable {
 			} else {
 				// Thread got interrupted which means that it should shut down
 				LOG.debug("Emitter thread got interrupted. This indicates that the emitter should " +
-					"shut down.");
+					"shut down.", e);
 			}
 		} catch (Throwable t) {
 			operatorActions.failOperator(new Exception("AsyncWaitOperator's emitter caught an " +
@@ -100,6 +100,11 @@ public class Emitter<OUT> implements Runnable {
 	private void output(AsyncResult asyncResult) throws InterruptedException {
 		if (asyncResult.isWatermark()) {
 			synchronized (checkpointLock) {
+				AsyncWatermarkResult asyncWatermarkResult = asyncResult.asWatermark();
+
+				LOG.debug("Output async watermark.");
+				output.emitWatermark(asyncWatermarkResult.getWatermark());
+
 				// remove the peeked element from the async collector buffer so that it is no longer
 				// checkpointed
 				streamElementQueue.poll();
@@ -107,11 +112,6 @@ public class Emitter<OUT> implements Runnable {
 				// notify the main thread that there is again space left in the async collector
 				// buffer
 				checkpointLock.notifyAll();
-
-				AsyncWatermarkResult asyncWatermarkResult = asyncResult.asWatermark();
-
-				LOG.debug("Output async watermark.");
-				output.emitWatermark(asyncWatermarkResult.getWatermark());
 			}
 		} else {
 			AsyncCollectionResult<OUT> streamRecordResult = asyncResult.asResultCollection();
@@ -123,14 +123,6 @@ public class Emitter<OUT> implements Runnable {
 			}
 
 			synchronized (checkpointLock) {
-				// remove the peeked element from the async collector buffer so that it is no longer
-				// checkpointed
-				streamElementQueue.poll();
-
-				// notify the main thread that there is again space left in the async collector
-				// buffer
-				checkpointLock.notifyAll();
-
 				LOG.debug("Output async stream element collection result.");
 
 				try {
@@ -146,6 +138,14 @@ public class Emitter<OUT> implements Runnable {
 						new Exception("An async function call terminated with an exception. " +
 							"Failing the AsyncWaitOperator.", e));
 				}
+
+				// remove the peeked element from the async collector buffer so that it is no longer
+				// checkpointed
+				streamElementQueue.poll();
+
+				// notify the main thread that there is again space left in the async collector
+				// buffer
+				checkpointLock.notifyAll();
 			}
 		}
 	}

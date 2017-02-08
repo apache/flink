@@ -27,17 +27,18 @@ under the License.
 
 Connectors provide code for interfacing with various third-party systems.
 
-Currently these systems are supported:
+Currently these systems are supported: (Please select the respective documentation page from the navigation on the left.)
 
  * [Apache Kafka](https://kafka.apache.org/) (sink/source)
  * [Elasticsearch](https://elastic.co/) (sink)
- * [Elasticsearch 2x](https://elastic.co/) (sink)
  * [Hadoop FileSystem](http://hadoop.apache.org) (sink)
  * [RabbitMQ](http://www.rabbitmq.com/) (sink/source)
  * [Amazon Kinesis Streams](http://aws.amazon.com/kinesis/streams/) (sink/source)
  * [Twitter Streaming API](https://dev.twitter.com/docs/streaming-apis) (source)
  * [Apache NiFi](https://nifi.apache.org) (sink/source)
  * [Apache Cassandra](https://cassandra.apache.org/) (sink)
+
+
 
 To run an application using one of these connectors, additional third party
 components are usually required to be installed and launched, e.g. the servers

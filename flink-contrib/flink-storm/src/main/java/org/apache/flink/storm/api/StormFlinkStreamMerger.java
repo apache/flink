@@ -16,9 +16,9 @@ import org.apache.flink.storm.wrappers.StormTuple;
 import org.apache.flink.streaming.api.functions.co.CoFlatMapFunction;
 import org.apache.flink.util.Collector;
 
-import backtype.storm.generated.GlobalStreamId;
-import backtype.storm.tuple.Fields;
-import backtype.storm.tuple.MessageId;
+import org.apache.storm.generated.GlobalStreamId;
+import org.apache.storm.tuple.Fields;
+import org.apache.storm.tuple.MessageId;
 
 /**
  * Merges a stream of type {@link StormTuple} with a Flink {@link DataStreams} into a stream of type {@link StormTuple}.

@@ -17,6 +17,8 @@
  */
 package org.apache.flink.runtime.webmonitor.metrics;
 
+import org.apache.flink.runtime.webmonitor.handlers.TaskManagersHandler;
+
 import java.util.Map;
 
 /**
@@ -31,15 +33,13 @@ import java.util.Map;
  * {@code [ { "id" : "X", "value" : "S" }, { "id" : "Y", "value" : "T" } ] }
  */
 public class TaskManagerMetricsHandler extends AbstractMetricsHandler {
-	public static final String PARAMETER_TM_ID = "tmid";
-
 	public TaskManagerMetricsHandler(MetricFetcher fetcher) {
 		super(fetcher);
 	}
 
 	@Override
 	protected Map<String, String> getMapFor(Map<String, String> pathParams, MetricStore metrics) {
-		MetricStore.TaskManagerMetricStore taskManager = metrics.getTaskManagerMetricStore(pathParams.get(PARAMETER_TM_ID));
+		MetricStore.TaskManagerMetricStore taskManager = metrics.getTaskManagerMetricStore(pathParams.get(TaskManagersHandler.TASK_MANAGER_ID_KEY));
 		if (taskManager == null) {
 			return null;
 		} else {

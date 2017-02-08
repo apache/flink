@@ -30,12 +30,15 @@ import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxy;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
+import org.apache.flink.streaming.connectors.kinesis.util.KinesisConfigUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
+import java.text.ParseException;
+import java.util.Date;
 import java.util.List;
 import java.util.Properties;
 
@@ -63,6 +66,8 @@ public class ShardConsumer<T> implements Runnable {
 	private final long fetchIntervalMillis;
 
 	private SequenceNumber lastSequenceNum;
+
+	private Date initTimestamp;
 
 	/**
 	 * Creates a shard consumer.
@@ -107,6 +112,17 @@ public class ShardConsumer<T> implements Runnable {
 		this.fetchIntervalMillis = Long.valueOf(consumerConfig.getProperty(
 			ConsumerConfigConstants.SHARD_GETRECORDS_INTERVAL_MILLIS,
 			Long.toString(ConsumerConfigConstants.DEFAULT_SHARD_GETRECORDS_INTERVAL_MILLIS)));
+
+		if (lastSequenceNum.equals(SentinelSequenceNumber.SENTINEL_AT_TIMESTAMP_SEQUENCE_NUM.get())) {
+			String timestamp = consumerConfig.getProperty(ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP);
+			try {
+				this.initTimestamp = KinesisConfigUtil.initTimestampDateFormat.parse(timestamp);
+			} catch (ParseException e) {
+				this.initTimestamp = new Date((long) (Double.parseDouble(timestamp) * 1000));
+			}
+		} else {
+			this.initTimestamp = null;
+		}
 	}
 
 	@SuppressWarnings("unchecked")
@@ -128,6 +144,8 @@ public class ShardConsumer<T> implements Runnable {
 				nextShardItr = kinesis.getShardIterator(subscribedShard, ShardIteratorType.TRIM_HORIZON.toString(), null);
 			} else if (lastSequenceNum.equals(SentinelSequenceNumber.SENTINEL_SHARD_ENDING_SEQUENCE_NUM.get())) {
 				nextShardItr = null;
+			} else if (lastSequenceNum.equals(SentinelSequenceNumber.SENTINEL_AT_TIMESTAMP_SEQUENCE_NUM.get())) {
+				nextShardItr = kinesis.getShardIterator(subscribedShard, ShardIteratorType.AT_TIMESTAMP.toString(), initTimestamp);
 			} else {
 				// we will be starting from an actual sequence number (due to restore from failure).
 				// if the last sequence number refers to an aggregated record, we need to clean up any dangling sub-records

@@ -21,13 +21,16 @@ package org.apache.flink.streaming.connectors.kafka.testutils;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.CheckpointListener;
-import org.apache.flink.streaming.api.checkpoint.Checkpointed;
+import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collections;
+import java.util.List;
+
 
 public class FailingIdentityMapper<T> extends RichMapFunction<T,T> implements
-		Checkpointed<Integer>, CheckpointListener, Runnable {
+	ListCheckpointed<Integer>, CheckpointListener, Runnable {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(FailingIdentityMapper.class);
 	
@@ -89,13 +92,16 @@ public class FailingIdentityMapper<T> extends RichMapFunction<T,T> implements
 	}
 
 	@Override
-	public Integer snapshotState(long checkpointId, long checkpointTimestamp) {
-		return numElementsTotal;
+	public List<Integer> snapshotState(long checkpointId, long timestamp) throws Exception {
+		return Collections.singletonList(numElementsTotal);
 	}
 
 	@Override
-	public void restoreState(Integer state) {
-		numElementsTotal = state;
+	public void restoreState(List<Integer> state) throws Exception {
+		if (state.isEmpty() || state.size() > 1) {
+			throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
+		}
+		this.numElementsTotal = state.get(0);
 	}
 
 	@Override

@@ -26,6 +26,7 @@ import org.apache.flink.api.java.typeutils.{TupleTypeInfo, TypeExtractor}
 import org.apache.flink.table.api.{Table, TableConfig, TableEnvironment, TableException}
 import org.apache.flink.table.expressions.{Alias, UnresolvedFieldReference}
 import org.apache.flink.table.sinks.TableSink
+import org.apache.flink.table.sources.TableSource
 import org.junit.Test
 import org.junit.Assert.assertEquals
 
@@ -68,9 +69,12 @@ class TableEnvironmentTest {
     fieldInfo._2.zip(Array(0, 1, 2)).foreach(x => assertEquals(x._2, x._1))
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testGetFieldInfoAtomic(): Unit = {
-    tEnv.getFieldInfo(atomicType)
+    val fieldInfo = tEnv.getFieldInfo(atomicType)
+
+    fieldInfo._1.zip(Array("f0")).foreach(x => assertEquals(x._2, x._1))
+    fieldInfo._2.zip(Array(0)).foreach(x => assertEquals(x._2, x._1))
   }
 
   @Test
@@ -283,7 +287,7 @@ class MockTableEnvironment extends TableEnvironment(new TableConfig) {
 
   override protected def getBuiltInRuleSet: RuleSet = ???
 
-  override def sql(query: String): Table = ???
+  override def registerTableSource(name: String, tableSource: TableSource[_]) = ???
 }
 
 case class CClass(cf1: Int, cf2: String, cf3: Double)

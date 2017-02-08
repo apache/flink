@@ -31,7 +31,8 @@ import org.apache.flink.table.codegen.CodeGenerator
 import org.apache.flink.table.runtime.FlatJoinRunner
 import org.apache.flink.table.typeutils.TypeConverter.determineReturnType
 import org.apache.flink.api.common.functions.FlatJoinFunction
-import org.apache.calcite.rex.RexNode
+import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode}
+import org.apache.calcite.sql.SqlKind
 import org.apache.flink.table.api.{BatchTableEnvironment, TableException}
 
 import scala.collection.JavaConversions._

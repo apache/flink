@@ -38,7 +38,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -187,8 +186,9 @@ public class ContinuousFileMonitoringFunction<OUT>
 
 	@Override
 	public void run(SourceFunction.SourceContext<TimestampedFileInputSplit> context) throws Exception {
-		FileSystem fileSystem = FileSystem.get(new URI(path));
-		if (!fileSystem.exists(new Path(path))) {
+		Path p = new Path(path);
+		FileSystem fileSystem = FileSystem.get(p.toUri());
+		if (!fileSystem.exists(p)) {
 			throw new FileNotFoundException("The provided file path " + path + " does not exist.");
 		}
 
@@ -232,7 +232,7 @@ public class ContinuousFileMonitoringFunction<OUT>
 											SourceContext<TimestampedFileInputSplit> context) throws IOException {
 		assert (Thread.holdsLock(checkpointLock));
 
-		Map<Path, FileStatus> eligibleFiles = listEligibleFiles(fs);
+		Map<Path, FileStatus> eligibleFiles = listEligibleFiles(fs, new Path(path));
 		Map<Long, List<TimestampedFileInputSplit>> splitsSortedByModTime = getInputSplitsSortedByModTime(eligibleFiles);
 
 		for (Map.Entry<Long, List<TimestampedFileInputSplit>> splits: splitsSortedByModTime.entrySet()) {
@@ -282,11 +282,11 @@ public class ContinuousFileMonitoringFunction<OUT>
 	 * Returns the paths of the files not yet processed.
 	 * @param fileSystem The filesystem where the monitored directory resides.
 	 */
-	private Map<Path, FileStatus> listEligibleFiles(FileSystem fileSystem) throws IOException {
+	private Map<Path, FileStatus> listEligibleFiles(FileSystem fileSystem, Path path) throws IOException {
 
 		final FileStatus[] statuses;
 		try {
-			statuses = fileSystem.listStatus(new Path(path));
+			statuses = fileSystem.listStatus(path);
 		} catch (IOException e) {
 			// we may run into an IOException if files are moved while listing their status
 			// delay the check for eligible files in this case
@@ -300,10 +300,14 @@ public class ContinuousFileMonitoringFunction<OUT>
 			Map<Path, FileStatus> files = new HashMap<>();
 			// handle the new files
 			for (FileStatus status : statuses) {
-				Path filePath = status.getPath();
-				long modificationTime = status.getModificationTime();
-				if (!shouldIgnore(filePath, modificationTime)) {
-					files.put(filePath, status);
+				if (!status.isDir()) {
+					Path filePath = status.getPath();
+					long modificationTime = status.getModificationTime();
+					if (!shouldIgnore(filePath, modificationTime)) {
+						files.put(filePath, status);
+					}
+				} else if (format.getNestedFileEnumeration() && format.acceptFile(status)){
+					files.putAll(listEligibleFiles(fileSystem, status.getPath()));
 				}
 			}
 			return files;

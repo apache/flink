@@ -331,7 +331,22 @@ public class BufferSpillerTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
+	/**
+	 * Tests that the static HEADER_SIZE field has valid header size.
+	 */
+	@Test
+	public void testHeaderSizeStaticField() throws Exception {
+		int size = 13;
+		BufferOrEvent boe = generateRandomBuffer(size, 0);
+		spiller.add(boe);
+
+		assertEquals(
+			"Changed the header format, but did not adjust the HEADER_SIZE field",
+			BufferSpiller.HEADER_SIZE + size,
+			spiller.getBytesWritten());
+	}
+
 	// ------------------------------------------------------------------------
 	//  Utils
 	// ------------------------------------------------------------------------

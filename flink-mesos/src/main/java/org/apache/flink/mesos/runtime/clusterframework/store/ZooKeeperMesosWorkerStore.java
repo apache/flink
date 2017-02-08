@@ -18,17 +18,12 @@
 
 package org.apache.flink.mesos.runtime.clusterframework.store;
 
-import org.apache.curator.framework.CuratorFramework;
-import org.apache.curator.framework.recipes.shared.SharedCount;
-import org.apache.curator.framework.recipes.shared.SharedValue;
-import org.apache.curator.framework.recipes.shared.VersionedValue;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
-import org.apache.flink.runtime.util.ZooKeeperUtils;
-import org.apache.flink.runtime.zookeeper.RetrievableStateStorageHelper;
+import org.apache.flink.runtime.zookeeper.ZooKeeperSharedCount;
+import org.apache.flink.runtime.zookeeper.ZooKeeperSharedValue;
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
+import org.apache.flink.runtime.zookeeper.ZooKeeperVersionedValue;
 import org.apache.mesos.Protos;
 import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
@@ -52,56 +47,26 @@ public class ZooKeeperMesosWorkerStore implements MesosWorkerStore {
 
 	private final Object startStopLock = new Object();
 
-	/** Root store path in ZK. */
-	private final String storePath;
-
-	/** Client (not a namespace facade) */
-	private final CuratorFramework client;
-
 	/** Flag indicating whether this instance is running. */
 	private boolean isRunning;
 
 	/** A persistent value of the assigned framework ID */
-	private final SharedValue frameworkIdInZooKeeper;
+	private final ZooKeeperSharedValue frameworkIdInZooKeeper;
 
 	/** A persistent count of all tasks created, for generating unique IDs */
-	private final SharedCount totalTaskCountInZooKeeper;
+	private final ZooKeeperSharedCount totalTaskCountInZooKeeper;
 
 	/** A persistent store of serialized workers */
 	private final ZooKeeperStateHandleStore<MesosWorkerStore.Worker> workersInZooKeeper;
 
 	@SuppressWarnings("unchecked")
-	ZooKeeperMesosWorkerStore(
-		CuratorFramework client,
-		String storePath,
-		RetrievableStateStorageHelper<Worker> stateStorage
-	) throws Exception {
-		checkNotNull(storePath, "storePath");
-		checkNotNull(stateStorage, "stateStorage");
-
-		// Keep a reference to the original client and not the namespace facade. The namespace
-		// facade cannot be closed.
-		this.client = checkNotNull(client, "client");
-		this.storePath = storePath;
-
-		// All operations will have the given path as root
-		client.newNamespaceAwareEnsurePath(storePath).ensure(client.getZookeeperClient());
-		CuratorFramework facade = client.usingNamespace(client.getNamespace() + storePath);
-
-		// Track the assignd framework ID.
-		frameworkIdInZooKeeper = new SharedValue(facade, "/frameworkId", new byte[0]);
-
-		// Keep a count of all tasks created ever, as the basis for a unique ID.
-		totalTaskCountInZooKeeper = new SharedCount(facade, "/count", 0);
-
-		// Keep track of the workers in state handle storage.
-		facade.newNamespaceAwareEnsurePath("/workers").ensure(client.getZookeeperClient());
-		CuratorFramework storeFacade = client.usingNamespace(facade.getNamespace() + "/workers");
-
-		// using late-binding as a workaround for shaded curator dependency of flink-runtime.
-		this.workersInZooKeeper = ZooKeeperStateHandleStore.class
-			.getConstructor(CuratorFramework.class, RetrievableStateStorageHelper.class)
-			.newInstance(storeFacade, stateStorage);
+	public ZooKeeperMesosWorkerStore(
+		ZooKeeperStateHandleStore<MesosWorkerStore.Worker> workersInZooKeeper,
+		ZooKeeperSharedValue frameworkIdInZooKeeper,
+		ZooKeeperSharedCount totalTaskCountInZooKeeper) throws Exception {
+		this.workersInZooKeeper = checkNotNull(workersInZooKeeper, "workersInZooKeeper");
+		this.frameworkIdInZooKeeper = checkNotNull(frameworkIdInZooKeeper, "frameworkIdInZooKeeper");
+		this.totalTaskCountInZooKeeper= checkNotNull(totalTaskCountInZooKeeper, "totalTaskCountInZooKeeper");
 	}
 
 	@Override
@@ -123,10 +88,8 @@ public class ZooKeeperMesosWorkerStore implements MesosWorkerStore {
 
 				if(cleanup) {
 					workersInZooKeeper.removeAndDiscardAllState();
-					client.delete().deletingChildrenIfNeeded().forPath(storePath);
 				}
 
-				client.close();
 				isRunning = false;
 			}
 		}
@@ -187,7 +150,7 @@ public class ZooKeeperMesosWorkerStore implements MesosWorkerStore {
 			int nextCount;
 			boolean success;
 			do {
-				VersionedValue<Integer> count = totalTaskCountInZooKeeper.getVersionedValue();
+				ZooKeeperVersionedValue<Integer> count = totalTaskCountInZooKeeper.getVersionedValue();
 				nextCount = count.getValue() + 1;
 				success = totalTaskCountInZooKeeper.trySetCount(count, nextCount);
 			}
@@ -273,30 +236,5 @@ public class ZooKeeperMesosWorkerStore implements MesosWorkerStore {
 	private static String getPathForWorker(Protos.TaskID taskID) {
 		checkNotNull(taskID, "taskID");
 		return String.format("/%s", taskID.getValue());
-	}
-
-	/**
-	 * Create the ZooKeeper-backed Mesos worker store.
-	 * @param client the curator client.
-	 * @param configuration the Flink configuration.
-	 * @return a worker store.
-	 * @throws Exception
-	 */
-	public static ZooKeeperMesosWorkerStore createMesosWorkerStore(
-			CuratorFramework client,
-			Configuration configuration) throws Exception {
-
-		checkNotNull(configuration, "Configuration");
-
-		RetrievableStateStorageHelper<MesosWorkerStore.Worker> stateStorage =
-			ZooKeeperUtils.createFileSystemStateStorage(configuration, "mesosWorkerStore");
-
-		String zooKeeperMesosWorkerStorePath = configuration.getString(
-			ConfigConstants.HA_ZOOKEEPER_MESOS_WORKERS_PATH,
-			ConfigConstants.DEFAULT_ZOOKEEPER_MESOS_WORKERS_PATH
-		);
-
-		return new ZooKeeperMesosWorkerStore(
-			client, zooKeeperMesosWorkerStorePath, stateStorage);
 	}
 }

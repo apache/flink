@@ -88,9 +88,7 @@ public abstract class AbstractCloseableRegistry<C extends Closeable, T> implemen
 	public void close() throws IOException {
 		synchronized (getSynchronizationLock()) {
 
-			for (Closeable closeable : closeableToRef.keySet()) {
-				IOUtils.closeQuietly(closeable);
-			}
+			IOUtils.closeAllQuietly(closeableToRef.keySet());
 
 			closeableToRef.clear();
 

@@ -18,11 +18,8 @@
 
 package org.apache.flink.runtime.io.network.api.writer;
 
-import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.event.TaskEvent;
-import org.apache.flink.runtime.io.network.api.EndOfSuperstepEvent;
 import org.apache.flink.runtime.io.network.api.TaskEventHandler;
-import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
@@ -63,6 +60,10 @@ public class ResultPartitionWriter implements EventListener<TaskEvent> {
 		return partition.getNumberOfSubpartitions();
 	}
 
+	public int getNumTargetKeyGroups() {
+		return partition.getNumTargetKeyGroups();
+	}
+
 	// ------------------------------------------------------------------------
 	// Data processing
 	// ------------------------------------------------------------------------
@@ -71,21 +72,26 @@ public class ResultPartitionWriter implements EventListener<TaskEvent> {
 		partition.add(buffer, targetChannel);
 	}
 
-	public void writeEvent(AbstractEvent event, int targetChannel) throws IOException {
-		partition.add(EventSerializer.toBuffer(event), targetChannel);
-	}
-
-	public void writeEventToAllChannels(AbstractEvent event) throws IOException {
-		for (int i = 0; i < partition.getNumberOfSubpartitions(); i++) {
-			Buffer buffer = EventSerializer.toBuffer(event);
-			partition.add(buffer, i);
-		}
-	}
-
-	public void writeEndOfSuperstep() throws IOException {
-		for (int i = 0; i < partition.getNumberOfSubpartitions(); i++) {
-			Buffer buffer = EventSerializer.toBuffer(EndOfSuperstepEvent.INSTANCE);
-			partition.add(buffer, i);
+	/**
+	 * Writes the given buffer to all available target channels.
+	 *
+	 * The buffer is taken over and used for each of the channels.
+	 * It will be recycled afterwards.
+	 *
+	 * @param eventBuffer the buffer to write
+	 * @throws IOException
+	 */
+	public void writeBufferToAllChannels(final Buffer eventBuffer) throws IOException {
+		try {
+			for (int targetChannel = 0; targetChannel < partition.getNumberOfSubpartitions(); targetChannel++) {
+				// retain the buffer so that it can be recycled by each channel of targetPartition
+				eventBuffer.retain();
+				writeBuffer(eventBuffer, targetChannel);
+			}
+		} finally {
+			// we do not need to further retain the eventBuffer
+			// (it will be recycled after the last channel stops using it)
+			eventBuffer.recycle();
 		}
 	}
 

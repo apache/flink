@@ -53,11 +53,11 @@ public class TriangleCountData {
 
 	public static final String RESULTED_NUMBER_OF_TRIANGLES = "3";
 
-	public static List<Tuple3<Long,Long,Long>> getListOfTriangles()	{
-		ArrayList<Tuple3<Long,Long,Long>> ret = new ArrayList<>(3);
-		ret.add(new Tuple3<>(1L,2L,3L));
-		ret.add(new Tuple3<>(2L,3L,6L));
-		ret.add(new Tuple3<>(4L,3L,5L));
+	public static List<Tuple3<Long, Long, Long>> getListOfTriangles()	{
+		ArrayList<Tuple3<Long, Long, Long>> ret = new ArrayList<>(3);
+		ret.add(new Tuple3<>(1L, 2L, 3L));
+		ret.add(new Tuple3<>(2L, 3L, 6L));
+		ret.add(new Tuple3<>(4L, 3L, 5L));
 		return ret;
 	}
 

@@ -33,11 +33,11 @@ import java.util.List;
 @RunWith(Parameterized.class)
 public class LabelPropagationITCase extends MultipleProgramsTestBase {
 
-	public LabelPropagationITCase(TestExecutionMode mode){
+	public LabelPropagationITCase(TestExecutionMode mode) {
 		super(mode);
 	}
 
-    private String expectedResult;
+	private String expectedResult;
 
 	@Test
 	public void testSingleIteration() throws Exception {
@@ -47,10 +47,10 @@ public class LabelPropagationITCase extends MultipleProgramsTestBase {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		Graph<Long, Long, NullValue> inputGraph = Graph.fromDataSet(
-				LabelPropagationData.getDefaultVertexSet(env),
-				LabelPropagationData.getDefaultEdgeDataSet(env), env);
+			LabelPropagationData.getDefaultVertexSet(env),
+			LabelPropagationData.getDefaultEdgeDataSet(env), env);
 
-        List<Vertex<Long, Long>> result = inputGraph
+		List<Vertex<Long, Long>> result = inputGraph
 			.run(new LabelPropagation<Long, Long, NullValue>(1))
 			.collect();
 
@@ -66,10 +66,10 @@ public class LabelPropagationITCase extends MultipleProgramsTestBase {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		Graph<Long, Long, NullValue> inputGraph = Graph.fromDataSet(
-				LabelPropagationData.getTieVertexSet(env),
-				LabelPropagationData.getTieEdgeDataSet(env), env);
+			LabelPropagationData.getTieVertexSet(env),
+			LabelPropagationData.getTieEdgeDataSet(env), env);
 
-        List<Vertex<Long, Long>> result = inputGraph
+		List<Vertex<Long, Long>> result = inputGraph
 			.run(new LabelPropagation<Long, Long, NullValue>(1))
 			.collect();
 

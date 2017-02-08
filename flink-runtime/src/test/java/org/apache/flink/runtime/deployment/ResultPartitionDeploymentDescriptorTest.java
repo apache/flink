@@ -46,6 +46,7 @@ public class ResultPartitionDeploymentDescriptorTest {
 						partitionId,
 						partitionType,
 						numberOfSubpartitions,
+						numberOfSubpartitions,
 						true);
 
 		ResultPartitionDeploymentDescriptor copy =

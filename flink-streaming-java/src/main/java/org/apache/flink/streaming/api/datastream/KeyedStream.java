@@ -17,21 +17,19 @@
 
 package org.apache.flink.streaming.api.datastream;
 
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
-import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.functions.RichProcessFunction;
@@ -41,17 +39,18 @@ import org.apache.flink.streaming.api.functions.aggregation.SumAggregator;
 import org.apache.flink.streaming.api.functions.query.QueryableAppendingStateOperator;
 import org.apache.flink.streaming.api.functions.query.QueryableValueStateOperator;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.ProcessOperator;
 import org.apache.flink.streaming.api.operators.StreamGroupedFold;
 import org.apache.flink.streaming.api.operators.StreamGroupedReduce;
-import org.apache.flink.streaming.api.operators.ProcessOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
-import org.apache.flink.streaming.api.windowing.assigners.SlidingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
-import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
+import org.apache.flink.streaming.api.windowing.assigners.SlidingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.evictors.CountEvictor;
 import org.apache.flink.streaming.api.windowing.time.Time;
@@ -114,8 +113,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 			dataStream.getExecutionEnvironment(),
 			new PartitionTransformation<>(
 				dataStream.getTransformation(),
-				new KeyGroupStreamPartitioner<>(
-					keySelector, KeyGroupRangeAssignment.DEFAULT_MAX_PARALLELISM)));
+				new KeyGroupStreamPartitioner<>(keySelector, StreamGraphGenerator.DEFAULT_LOWER_BOUND_MAX_PARALLELISM)));
 		this.keySelector = keySelector;
 		this.keyType = keyType;
 	}
@@ -652,8 +650,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	public QueryableStateStream<KEY, T> asQueryableState(String queryableStateName) {
 		ValueStateDescriptor<T> valueStateDescriptor = new ValueStateDescriptor<T>(
 				UUID.randomUUID().toString(),
-				getType(),
-				null);
+				getType());
 
 		return asQueryableState(queryableStateName, valueStateDescriptor);
 	}
@@ -679,30 +676,6 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 		return new QueryableStateStream<>(
 				queryableStateName,
 				stateDescriptor.getSerializer(),
-				getKeyType().createSerializer(getExecutionConfig()));
-	}
-
-	/**
-	 * Publishes the keyed stream as a queryable ListStance instance.
-	 *
-	 * @param queryableStateName Name under which to the publish the queryable state instance
-	 * @param stateDescriptor State descriptor to create state instance from
-	 * @return Queryable state instance
-	 */
-	@PublicEvolving
-	public QueryableStateStream<KEY, T> asQueryableState(
-			String queryableStateName,
-			ListStateDescriptor<T> stateDescriptor) {
-
-		transform("Queryable state: " + queryableStateName,
-				getType(),
-				new QueryableAppendingStateOperator<>(queryableStateName, stateDescriptor));
-
-		stateDescriptor.initializeSerializerUnlessSet(getExecutionConfig());
-
-		return new QueryableStateStream<>(
-				queryableStateName,
-				getType().createSerializer(getExecutionConfig()),
 				getKeyType().createSerializer(getExecutionConfig()));
 	}
 

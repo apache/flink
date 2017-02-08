@@ -43,7 +43,7 @@ import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.runtime.zookeeper.ZooKeeperTestEnvironment;
 import org.apache.flink.runtime.state.CheckpointListener;
-import org.apache.flink.streaming.api.checkpoint.Checkpointed;
+import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
@@ -63,6 +63,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 import java.util.UUID;
@@ -383,7 +384,7 @@ public class ChaosMonkeyITCase extends TestLogger {
 	}
 
 	public static class CheckpointedSequenceSource extends RichParallelSourceFunction<Long>
-			implements Checkpointed<Long>, CheckpointListener {
+			implements ListCheckpointed<Long>, CheckpointListener {
 
 		private static final long serialVersionUID = 0L;
 
@@ -426,17 +427,19 @@ public class ChaosMonkeyITCase extends TestLogger {
 		}
 
 		@Override
-		public Long snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
+		public List<Long> snapshotState(long checkpointId, long timestamp) throws Exception {
 			LOG.info("Snapshotting state {} @ ID {}.", current, checkpointId);
-			return current;
+			return Collections.singletonList(this.current);
 		}
 
 		@Override
-		public void restoreState(Long state) {
-			LOG.info("Restoring state {}/{}", state, end);
-			current = state;
+		public void restoreState(List<Long> state) throws Exception {
+			if (state.isEmpty() || state.size() > 1) {
+				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
+			}
+			LOG.info("Restoring state {}/{}", state.get(0), end);
+			this.current = state.get(0);
 		}
-
 
 		@Override
 		public void cancel() {
@@ -453,7 +456,7 @@ public class ChaosMonkeyITCase extends TestLogger {
 	}
 
 	public static class CountingSink extends RichSinkFunction<Long>
-			implements Checkpointed<CountingSink>, CheckpointListener {
+			implements ListCheckpointed<CountingSink>, CheckpointListener {
 
 		private static final Logger LOG = LoggerFactory.getLogger(CountingSink.class);
 
@@ -466,7 +469,6 @@ public class ChaosMonkeyITCase extends TestLogger {
 		private long current;
 
 		private int numberOfReceivedLastElements;
-
 
 		public CountingSink(int parallelism, long expectedFinalCount) {
 			this.expectedFinalCount = expectedFinalCount;
@@ -496,16 +498,20 @@ public class ChaosMonkeyITCase extends TestLogger {
 		}
 
 		@Override
-		public CountingSink snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
+		public List<CountingSink> snapshotState(long checkpointId, long timestamp) throws Exception {
 			LOG.info("Snapshotting state {}:{} @ ID {}.", current, numberOfReceivedLastElements, checkpointId);
-			return this;
+			return Collections.singletonList(this);
 		}
 
 		@Override
-		public void restoreState(CountingSink state) {
-			LOG.info("Restoring state {}:{}", state.current, state.numberOfReceivedLastElements);
-			this.current = state.current;
-			this.numberOfReceivedLastElements = state.numberOfReceivedLastElements;
+		public void restoreState(List<CountingSink> state) throws Exception {
+			if (state.isEmpty() || state.size() > 1) {
+				throw new RuntimeException("Test failed due to unexpected recovered state size " + state.size());
+			}
+			CountingSink sink = state.get(0);
+			this.current = sink.current;
+			this.numberOfReceivedLastElements = sink.numberOfReceivedLastElements;
+			LOG.info("Restoring state {}:{}", sink.current, sink.numberOfReceivedLastElements);
 		}
 
 		@Override

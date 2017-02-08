@@ -2,7 +2,7 @@
 title: "RabbitMQ Connector"
 nav-title: RabbitMQ
 nav-parent_id: connectors
-nav-pos: 7
+nav-pos: 6
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -23,6 +23,22 @@ specific language governing permissions and limitations
 under the License.
 -->
 
+# License of the RabbitMQ Connector
+
+Flink's RabbitMQ connector defines a Maven dependency on the
+"RabbitMQ AMQP Java Client", licensed under the
+[Mozilla Public License v1.1 (MPL 1.1)](https://www.mozilla.org/en-US/MPL/1.1/).
+
+Flink itself neither reuses source code from the "RabbitMQ AMQP Java Client"
+nor packages binaries from the "RabbitMQ AMQP Java Client".
+
+Users that create and publish derivative work based on Flink's
+RabbitMQ connector (thereby re-distributing the "RabbitMQ AMQP Java Client")
+must be aware that this may be subject to conditions declared
+in the Mozilla Public License v1.1 (MPL 1.1).
+
+# RabbitMQ Connector
+
 This connector provides access to data streams from [RabbitMQ](http://www.rabbitmq.com/). To use this connector, add the following dependency to your project:
 
 {% highlight xml %}
@@ -33,95 +49,125 @@ This connector provides access to data streams from [RabbitMQ](http://www.rabbit
 </dependency>
 {% endhighlight %}
 
-Note that the streaming connectors are currently not part of the binary distribution. See linking with them for cluster execution [here]({{site.baseurl}}/dev/linking).
+Note that the streaming connectors are currently not part of the binary distribution. See linking with them for cluster execution [here]({{site.baseurl}}/dev/linking.html).
 
 #### Installing RabbitMQ
 Follow the instructions from the [RabbitMQ download page](http://www.rabbitmq.com/download.html). After the installation the server automatically starts, and the application connecting to RabbitMQ can be launched.
 
 #### RabbitMQ Source
 
-A class which provides an interface for receiving data from RabbitMQ.
+This connector provides a `RMQSource` class to consume messages from a RabbitMQ
+queue. This source provides three different levels of guarantees, depending
+on how it is configured with Flink:
 
-The followings have to be provided for the `RMQSource(…)` constructor in order:
+1. **Exactly-once**: In order to achieve exactly-once guarantees with the
+RabbitMQ source, the following is required -
+ - *Enable checkpointing*: With checkpointing enabled, messages are only
+ acknowledged (hence, removed from the RabbitMQ queue) when checkpoints
+ are completed.
+ - *Use correlation ids*: Correlation ids are a RabbitMQ application feature.
+ You have to set it in the message properties when injecting messages into RabbitMQ.
+ The correlation id is used by the source to deduplicate any messages that
+ have been reproccessed when restoring from a checkpoint.
+ - *Non-parallel source*: The source must be non-parallel (parallelism set
+ to 1) in order to achieve exactly-once. This limitation is mainly due to
+ RabbitMQ's approach to dispatching messages from a single queue to multiple
+ consumers.
 
-- RMQConnectionConfig.
-- queueName: The RabbitMQ queue name.
-- usesCorrelationId: `true` when correlation ids should be used, `false` otherwise (default is `false`).
-- deserializationSchema: Deserialization schema to turn messages into Java objects.
 
-This source can be operated in three different modes:
+2. **At-least-once**: When checkpointing is enabled, but correlation ids
+are not used or the source is parallel, the source only provides at-least-once
+guarantees.
 
-1. Exactly-once (when checkpointed) with RabbitMQ transactions and messages with
-    unique correlation IDs.
-2. At-least-once (when checkpointed) with RabbitMQ transactions but no deduplication mechanism
-    (correlation id is not set).
-3. No strong delivery guarantees (without checkpointing) with RabbitMQ auto-commit mode.
+3. **No guarantee**: If checkpointing isn't enabled, the source does not
+have any strong delivery guarantees. Under this setting, instead of
+collaborating with Flink's checkpointing, messages will be automatically
+acknowledged once the source receives and processes them.
 
-Correlation ids are a RabbitMQ application feature. You have to set it in the message properties
-when injecting messages into RabbitMQ. If you set `usesCorrelationId` to true and do not supply
-unique correlation ids, the source will throw an exception (if the correlation id is null) or ignore
-messages with non-unique correlation ids. If you set `usesCorrelationId` to false, then you don't
-have to supply correlation ids.
-
-Example:
+Below is a code example for setting up an exactly-once RabbitMQ source.
+Inline comments explain which parts of the configuration can be ignored
+for more relaxed guarantees.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-RMQConnectionConfig connectionConfig = new RMQConnectionConfig.Builder()
-.setHost("localhost").setPort(5000).setUserName(..)
-.setPassword(..).setVirtualHost("/").build();
-DataStream<String> streamWithoutCorrelationIds = env
-	.addSource(new RMQSource<String>(connectionConfig, "hello", new SimpleStringSchema()))
-	.print
+final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+// checkpointing is required for exactly-once or at-least-once guarantees
+env.enableCheckpointing(...);
 
-DataStream<String> streamWithCorrelationIds = env
-	.addSource(new RMQSource<String>(connectionConfig, "hello", true, new SimpleStringSchema()))
-	.print
+final RMQConnectionConfig connectionConfig = new RMQConnectionConfig.Builder()
+    .setHost("localhost")
+    .setPort(5000)
+    ...
+    .build();
+    
+final DataStream<String> stream = env
+    .addSource(new RMQSource<String>(
+        connectionConfig,            // config for the RabbitMQ connection
+        "queueName",                 // name of the RabbitMQ queue to consume
+        true,                        // use correlation ids; can be false if only at-least-once is required
+        new SimpleStringSchema()))   // deserialization schema to turn messages into Java objects
+    .setParallelism(1);              // non-parallel source is only required for exactly-once
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-val connectionConfig = new RMQConnectionConfig.Builder()
-.setHost("localhost").setPort(5000).setUserName(..)
-.setPassword(..).setVirtualHost("/").build()
-streamWithoutCorrelationIds = env
-    .addSource(new RMQSource[String](connectionConfig, "hello", new SimpleStringSchema))
-    .print
+val env = StreamExecutionEnvironment.getExecutionEnvironment
+// checkpointing is required for exactly-once or at-least-once guarantees
+env.enableCheckpointing(...)
 
-streamWithCorrelationIds = env
-    .addSource(new RMQSource[String](connectionConfig, "hello", true, new SimpleStringSchema))
-    .print
+val connectionConfig = new RMQConnectionConfig.Builder()
+    .setHost("localhost")
+    .setPort(5000)
+    ...
+    .build
+    
+val stream = env
+    .addSource(new RMQSource[String](
+        connectionConfig,            // config for the RabbitMQ connection
+        "queueName",                 // name of the RabbitMQ queue to consume
+        true,                        // use correlation ids; can be false if only at-least-once is required
+        new SimpleStringSchema))     // deserialization schema to turn messages into Java objects
+    .setParallelism(1)               // non-parallel source is only required for exactly-once
 {% endhighlight %}
 </div>
 </div>
 
 #### RabbitMQ Sink
-A class providing an interface for sending data to RabbitMQ.
-
-The followings have to be provided for the `RMQSink(…)` constructor in order:
-
-1. RMQConnectionConfig
-2. The queue name
-3. Serialization schema
-
-Example:
+This connector provides a `RMQSink` class for sending messages to a RabbitMQ
+queue. Below is a code example for setting up a RabbitMQ sink.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-RMQConnectionConfig connectionConfig = new RMQConnectionConfig.Builder()
-.setHost("localhost").setPort(5000).setUserName(..)
-.setPassword(..).setVirtualHost("/").build();
-stream.addSink(new RMQSink<String>(connectionConfig, "hello", new SimpleStringSchema()));
+final DataStream<String> stream = ...
+
+final RMQConnectionConfig connectionConfig = new RMQConnectionConfig.Builder()
+    .setHost("localhost")
+    .setPort(5000)
+    ...
+    .build();
+    
+stream.addSink(new RMQSink<String>(
+    connectionConfig,            // config for the RabbitMQ connection
+    "queueName",                 // name of the RabbitMQ queue to send messages to
+    new SimpleStringSchema()));  // serialization schema to turn Java objects to messages
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
+val stream: DataStream[String] = ...
+
 val connectionConfig = new RMQConnectionConfig.Builder()
-.setHost("localhost").setPort(5000).setUserName(..)
-.setPassword(..).setVirtualHost("/").build()
-stream.addSink(new RMQSink[String](connectionConfig, "hello", new SimpleStringSchema))
+    .setHost("localhost")
+    .setPort(5000)
+    ...
+    .build
+    
+stream.addSink(new RMQSink[String](
+    connectionConfig,         // config for the RabbitMQ connection
+    "queueName",              // name of the RabbitMQ queue to send messages to
+    new SimpleStringSchema))  // serialization schema to turn Java objects to messages
 {% endhighlight %}
 </div>
 </div>

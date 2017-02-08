@@ -138,8 +138,8 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	public DataSet<Result<K>> runInternal(Graph<K, VV, EV> input)
 			throws Exception {
 		// u, v, w
-		DataSet<Tuple3<K,K,K>> triangles = input
-			.run(new TriangleListing<K,VV,EV>()
+		DataSet<Tuple3<K, K, K>> triangles = input
+			.run(new TriangleListing<K, VV, EV>()
 				.setLittleParallelism(littleParallelism));
 
 		// u, 1

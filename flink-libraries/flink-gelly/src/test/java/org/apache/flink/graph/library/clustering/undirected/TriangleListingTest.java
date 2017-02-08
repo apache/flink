@@ -20,10 +20,10 @@ package org.apache.flink.graph.library.clustering.undirected;
 
 import org.apache.commons.math3.util.CombinatoricsUtils;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.Utils.ChecksumHashCode;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.api.java.utils.DataSetUtils;
 import org.apache.flink.graph.asm.AsmTestBase;
+import org.apache.flink.graph.asm.dataset.ChecksumHashCode;
+import org.apache.flink.graph.asm.dataset.ChecksumHashCode.Checksum;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
@@ -58,7 +58,9 @@ extends AsmTestBase {
 		DataSet<Tuple3<LongValue, LongValue, LongValue>> tl = completeGraph
 			.run(new TriangleListing<LongValue, NullValue, NullValue>());
 
-		ChecksumHashCode checksum = DataSetUtils.checksumHashCode(tl);
+		Checksum checksum = new ChecksumHashCode<Tuple3<LongValue, LongValue, LongValue>>()
+			.run(tl)
+			.execute();
 
 		assertEquals(expectedCount, checksum.getCount());
 	}
@@ -70,7 +72,9 @@ extends AsmTestBase {
 			.run(new TriangleListing<LongValue, NullValue, NullValue>()
 				.setSortTriangleVertices(true));
 
-		ChecksumHashCode checksum = DataSetUtils.checksumHashCode(tl);
+		Checksum checksum = new ChecksumHashCode<Tuple3<LongValue, LongValue, LongValue>>()
+			.run(tl)
+			.execute();
 
 		assertEquals(75049, checksum.getCount());
 		assertEquals(0x00000001a5b500afL, checksum.getChecksum());

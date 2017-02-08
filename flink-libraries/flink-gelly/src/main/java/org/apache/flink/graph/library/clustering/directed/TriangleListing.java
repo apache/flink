@@ -443,19 +443,17 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		}
 
 		private String maskToString(byte mask, int shift) {
-			switch((mask >>> shift) & 0b000011) {
-				case 0b01:
-					// EdgeOrder.FORWARD
-					return "->";
-				case 0b10:
-					// EdgeOrder.REVERSE
-					return "<-";
-				case 0b11:
-					// EdgeOrder.MUTUAL
-					return "<->";
-				default:
-					throw new IllegalArgumentException("Bitmask is missing an edge (mask = "
-						+ mask + ", shift = " + shift);
+			int edgeMask = (mask >>> shift) & 0b000011;
+
+			if (edgeMask == EdgeOrder.FORWARD.getBitmask()) {
+				return "->";
+			} else if (edgeMask == EdgeOrder.REVERSE.getBitmask()) {
+				return "<-";
+			} else if (edgeMask == EdgeOrder.MUTUAL.getBitmask()) {
+				return "<->";
+			} else {
+				throw new IllegalArgumentException("Bitmask is missing an edge (mask = "
+					+ mask + ", shift = " + shift);
 			}
 		}
 	}

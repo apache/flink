@@ -153,9 +153,10 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 			return FlinkCompletableFuture.completed((SimpleSlot) ret);
 		}
 		else if (ret instanceof Future) {
-			return (Future) ret;
+			return (Future<SimpleSlot>) ret;
 		}
 		else {
+			// this should never happen, simply guard this case with an exception
 			throw new RuntimeException();
 		}
 	}
@@ -173,8 +174,8 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 
 		final ExecutionVertex vertex = task.getTaskToExecute().getVertex();
 		
-		final Iterable<TaskManagerLocation> preferredLocations = vertex.getPreferredLocations();
-		final boolean forceExternalLocation = vertex.isScheduleLocalOnly() &&
+		final Iterable<TaskManagerLocation> preferredLocations = vertex.getPreferredLocationsBasedOnInputs();
+		final boolean forceExternalLocation = false &&
 									preferredLocations != null && preferredLocations.iterator().hasNext();
 	
 		synchronized (globalLock) {
@@ -239,7 +240,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 						localOnly = true;
 					}
 					else {
-						locations = vertex.getPreferredLocations();
+						locations = vertex.getPreferredLocationsBasedOnInputs();
 						localOnly = forceExternalLocation;
 					}
 					

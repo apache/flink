@@ -179,7 +179,6 @@ public class CheckpointProperties implements Serializable {
 
 	// ------------------------------------------------------------------------
 
-
 	@Override
 	public boolean equals(Object o) {
 		if (this == o) {
@@ -227,6 +226,42 @@ public class CheckpointProperties implements Serializable {
 
 	// ------------------------------------------------------------------------
 
+	private static final CheckpointProperties STANDARD_SAVEPOINT = new CheckpointProperties(
+			true,
+			true,
+			false,
+			false,
+			false,
+			false,
+			false);
+
+	private static final CheckpointProperties STANDARD_CHECKPOINT = new CheckpointProperties(
+			false,
+			false,
+			true,
+			true,
+			true,
+			true,
+			true);
+
+	private static final CheckpointProperties EXTERNALIZED_CHECKPOINT_RETAINED = new CheckpointProperties(
+			false,
+			true,
+			true,
+			true,
+			false, // Retain on cancellation
+			false,
+			false); // Retain on suspension
+
+	private static final CheckpointProperties EXTERNALIZED_CHECKPOINT_DELETED = new CheckpointProperties(
+			false,
+			true,
+			true,
+			true,
+			true, // Delete on cancellation
+			false,
+			true); // Delete on suspension
+
 	/**
 	 * Creates the checkpoint properties for a (manually triggered) savepoint.
 	 *
@@ -236,7 +271,7 @@ public class CheckpointProperties implements Serializable {
 	 * @return Checkpoint properties for a (manually triggered) savepoint.
 	 */
 	public static CheckpointProperties forStandardSavepoint() {
-		return new CheckpointProperties(true, true, false, false, false, false, false);
+		return STANDARD_SAVEPOINT;
 	}
 
 	/**
@@ -248,7 +283,7 @@ public class CheckpointProperties implements Serializable {
 	 * @return Checkpoint properties for a regular checkpoint.
 	 */
 	public static CheckpointProperties forStandardCheckpoint() {
-		return new CheckpointProperties(false, false, true, true, true, true, true);
+		return STANDARD_CHECKPOINT;
 	}
 
 	/**
@@ -264,8 +299,20 @@ public class CheckpointProperties implements Serializable {
 	 * @return Checkpoint properties for an external checkpoint.
 	 */
 	public static CheckpointProperties forExternalizedCheckpoint(boolean deleteOnCancellation) {
-		// Handle suspension like cancellation as graceful cluster shut down
-		// suspends all jobs (non-HA).
-		return new CheckpointProperties(false, true, true, true, deleteOnCancellation, false, deleteOnCancellation);
+		if (deleteOnCancellation) {
+			return EXTERNALIZED_CHECKPOINT_DELETED;
+		} else {
+			return EXTERNALIZED_CHECKPOINT_RETAINED;
+		}
+	}
+
+	/**
+	 * Returns whether the checkpoint properties describe a standard savepoint.
+	 *
+	 * @param props Checkpoint properties to check.
+	 * @return <code>true</code> if the properties describe a savepoint, <code>false</code> otherwise.
+	 */
+	public static boolean isSavepoint(CheckpointProperties props) {
+		return STANDARD_SAVEPOINT.equals(props);
 	}
 }

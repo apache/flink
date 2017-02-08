@@ -15,29 +15,19 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-div(ng-if="!jobCheckpointStats")
-  p
-    em No checkpoints
+.split
+  nav.navbar.navbar-default.navbar-secondary-additional
+    ul.nav.nav-tabs
+      li(ui-sref-active='active')
+        a(ui-sref=".overview") Overview
+      li(ui-sref-active='active')
+        a(ui-sref=".history") History
+      li(ui-sref-active='active')
+        a(ui-sref=".summary") Summary
+      li(ui-sref-active='active')
+        a(ui-sref=".config") Configuration
+      li(ng-if="checkpointDetails.id != -1").active
+        a Details for Checkpoint {{ checkpointDetails.id }}
 
-div(ng-if="jobCheckpointStats")
-  h2 Overview
+  .clean.checkpoints-view#checkpoints-view(ui-view="checkpoints-view")
 
-  div(ng-include=" 'partials/jobs/job.plan.node.checkpoints.job.html' ")
-
-  h2 Operators
-
-  table.table.table-body-hover.table-clickable.table-activable
-    thead
-      tr
-        th Name
-        th Status
-
-    tbody(ng-repeat="v in job.vertices" ng-class="{ active: v.id == nodeid }" ng-click="v.id == nodeid || changeNode(v.id)")
-      tr(ng-if="v.type == 'regular'")
-        td {{ v.name | humanizeText }}
-        td
-          bs-label(status="{{v.status}}") {{v.status}}
-
-      tr(ng-if="nodeid && v.id == nodeid")
-        td(colspan="10")
-          div(ng-include=" 'partials/jobs/job.plan.node.checkpoints.operator.html' ")

@@ -24,9 +24,9 @@ import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.query.netty.message.KvStateRequestSerializer;
+import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.KeyedStateBackend;
-import org.apache.flink.runtime.state.KvState;
 import org.apache.flink.util.Preconditions;
 
 import java.util.HashMap;
@@ -44,7 +44,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * @param <SD> The type of StateDescriptor for the State S
  */
 public abstract class AbstractHeapState<K, N, SV, S extends State, SD extends StateDescriptor<S, ?>>
-		implements KvState<N>, State {
+		implements InternalKvState<N> {
 
 	/** Map containing the actual key/value pairs */
 	protected final StateTable<K, N, SV> stateTable;

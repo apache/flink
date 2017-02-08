@@ -19,11 +19,11 @@
 package org.apache.flink.graph.asm.degree.annotate.directed;
 
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.Utils.ChecksumHashCode;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.utils.DataSetUtils;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.asm.AsmTestBase;
+import org.apache.flink.graph.asm.dataset.ChecksumHashCode;
+import org.apache.flink.graph.asm.dataset.ChecksumHashCode.Checksum;
 import org.apache.flink.graph.asm.degree.annotate.directed.VertexDegrees.Degrees;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.IntValue;
@@ -48,17 +48,21 @@ extends AsmTestBase {
 			"(3,4,((null),(4,2,2)))\n" +
 			"(5,3,((null),(1,1,0)))";
 
-		DataSet<Edge<IntValue, Tuple2<NullValue, Degrees>>> degrees = directedSimpleGraph
+		DataSet<Edge<IntValue, Tuple2<NullValue, Degrees>>> sourceDegrees = directedSimpleGraph
 				.run(new EdgeSourceDegrees<IntValue, NullValue, NullValue>());
 
-		TestBaseUtils.compareResultAsText(degrees.collect(), expectedResult);
+		TestBaseUtils.compareResultAsText(sourceDegrees.collect(), expectedResult);
 	}
 
 	@Test
 	public void testWithRMatGraph()
 			throws Exception {
-		ChecksumHashCode checksum = DataSetUtils.checksumHashCode(directedRMatGraph
-			.run(new EdgeSourceDegrees<LongValue, NullValue, NullValue>()));
+		DataSet<Edge<LongValue, Tuple2<NullValue, Degrees>>> sourceDegrees = directedRMatGraph
+			.run(new EdgeSourceDegrees<LongValue, NullValue, NullValue>());
+
+		Checksum checksum = new ChecksumHashCode<Edge<LongValue, Tuple2<NullValue, Degrees>>>()
+			.run(sourceDegrees)
+			.execute();
 
 		assertEquals(12009, checksum.getCount());
 		assertEquals(0x0000162435fde1d9L, checksum.getChecksum());

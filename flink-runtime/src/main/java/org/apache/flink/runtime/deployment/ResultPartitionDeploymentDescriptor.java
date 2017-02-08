@@ -23,6 +23,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 
 import java.io.Serializable;
 
@@ -36,6 +37,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class ResultPartitionDeploymentDescriptor implements Serializable {
 
+	private static final long serialVersionUID = 6343547936086963705L;
+
 	/** The ID of the result this partition belongs to. */
 	private final IntermediateDataSetID resultId;
 
@@ -47,6 +50,9 @@ public class ResultPartitionDeploymentDescriptor implements Serializable {
 
 	/** The number of subpartitions. */
 	private final int numberOfSubpartitions;
+
+	/** The maximum parallelism */
+	private final int maxParallelism;
 	
 	/** Flag whether the result partition should send scheduleOrUpdateConsumer messages. */
 	private final boolean sendScheduleOrUpdateConsumersMessage;
@@ -56,14 +62,17 @@ public class ResultPartitionDeploymentDescriptor implements Serializable {
 			IntermediateResultPartitionID partitionId,
 			ResultPartitionType partitionType,
 			int numberOfSubpartitions,
+			int maxParallelism,
 			boolean lazyScheduling) {
 
 		this.resultId = checkNotNull(resultId);
 		this.partitionId = checkNotNull(partitionId);
 		this.partitionType = checkNotNull(partitionType);
 
+		KeyGroupRangeAssignment.checkParallelismPreconditions(maxParallelism);
 		checkArgument(numberOfSubpartitions >= 1);
 		this.numberOfSubpartitions = numberOfSubpartitions;
+		this.maxParallelism = maxParallelism;
 		this.sendScheduleOrUpdateConsumersMessage = lazyScheduling;
 	}
 
@@ -83,6 +92,10 @@ public class ResultPartitionDeploymentDescriptor implements Serializable {
 		return numberOfSubpartitions;
 	}
 
+	public int getMaxParallelism() {
+		return maxParallelism;
+	}
+
 	public boolean sendScheduleOrUpdateConsumersMessage() {
 		return sendScheduleOrUpdateConsumersMessage;
 	}
@@ -96,7 +109,8 @@ public class ResultPartitionDeploymentDescriptor implements Serializable {
 
 	// ------------------------------------------------------------------------
 
-	public static ResultPartitionDeploymentDescriptor from(IntermediateResultPartition partition, boolean lazyScheduling) {
+	public static ResultPartitionDeploymentDescriptor from(
+			IntermediateResultPartition partition, int maxParallelism, boolean lazyScheduling) {
 
 		final IntermediateDataSetID resultId = partition.getIntermediateResult().getId();
 		final IntermediateResultPartitionID partitionId = partition.getPartitionId();
@@ -118,6 +132,6 @@ public class ResultPartitionDeploymentDescriptor implements Serializable {
 		}
 
 		return new ResultPartitionDeploymentDescriptor(
-				resultId, partitionId, partitionType, numberOfSubpartitions, lazyScheduling);
+				resultId, partitionId, partitionType, numberOfSubpartitions, maxParallelism, lazyScheduling);
 	}
 }

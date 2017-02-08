@@ -40,9 +40,9 @@ import org.apache.flink.runtime.query.netty.message.KvStateRequestSerializer;
 import org.apache.flink.runtime.query.netty.message.KvStateRequestType;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateBackend;
-import org.apache.flink.runtime.state.KvState;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
@@ -88,7 +88,7 @@ public class KvStateServerHandlerTest extends TestLogger {
 		EmbeddedChannel channel = new EmbeddedChannel(getFrameDecoder(), handler);
 
 		// Register state
-		ValueStateDescriptor<Integer> desc = new ValueStateDescriptor<>("any", IntSerializer.INSTANCE, null);
+		ValueStateDescriptor<Integer> desc = new ValueStateDescriptor<>("any", IntSerializer.INSTANCE);
 		desc.setQueryable("vanilla");
 
 		int numKeyGroups =1;
@@ -227,7 +227,7 @@ public class KvStateServerHandlerTest extends TestLogger {
 		registry.registerListener(registryListener);
 
 		// Register state
-		ValueStateDescriptor<Integer> desc = new ValueStateDescriptor<>("any", IntSerializer.INSTANCE, null);
+		ValueStateDescriptor<Integer> desc = new ValueStateDescriptor<>("any", IntSerializer.INSTANCE);
 		desc.setQueryable("vanilla");
 
 		backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, desc);
@@ -267,7 +267,7 @@ public class KvStateServerHandlerTest extends TestLogger {
 	}
 
 	/**
-	 * Tests the failure response on a failure on the {@link KvState#getSerializedValue(byte[])}
+	 * Tests the failure response on a failure on the {@link InternalKvState#getSerializedValue(byte[])}
 	 * call.
 	 */
 	@Test
@@ -279,7 +279,7 @@ public class KvStateServerHandlerTest extends TestLogger {
 		EmbeddedChannel channel = new EmbeddedChannel(getFrameDecoder(), handler);
 
 		// Failing KvState
-		KvState<?> kvState = mock(KvState.class);
+		InternalKvState<?> kvState = mock(InternalKvState.class);
 		when(kvState.getSerializedValue(any(byte[].class)))
 				.thenThrow(new RuntimeException("Expected test Exception"));
 
@@ -372,7 +372,7 @@ public class KvStateServerHandlerTest extends TestLogger {
 		registry.registerListener(registryListener);
 
 		// Register state
-		ValueStateDescriptor<Integer> desc = new ValueStateDescriptor<>("any", IntSerializer.INSTANCE, null);
+		ValueStateDescriptor<Integer> desc = new ValueStateDescriptor<>("any", IntSerializer.INSTANCE);
 		desc.setQueryable("vanilla");
 
 		backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, desc);
@@ -511,7 +511,7 @@ public class KvStateServerHandlerTest extends TestLogger {
 		registry.registerListener(registryListener);
 
 		// Register state
-		ValueStateDescriptor<Integer> desc = new ValueStateDescriptor<>("any", IntSerializer.INSTANCE, null);
+		ValueStateDescriptor<Integer> desc = new ValueStateDescriptor<>("any", IntSerializer.INSTANCE);
 		desc.setQueryable("vanilla");
 
 		ValueState<Integer> state = backend.getPartitionedState(
@@ -554,7 +554,7 @@ public class KvStateServerHandlerTest extends TestLogger {
 		assertEquals(KvStateRequestType.REQUEST_FAILURE, KvStateRequestSerializer.deserializeHeader(buf));
 		KvStateRequestFailure response = KvStateRequestSerializer.deserializeKvStateRequestFailure(buf);
 		assertEquals(182828, response.getRequestId());
-		assertTrue(response.getCause().getMessage().contains("IllegalArgumentException"));
+		assertTrue(response.getCause().getMessage().contains("IOException"));
 
 		// Repeat with wrong namespace only
 		request = KvStateRequestSerializer.serializeKvStateRequest(
@@ -573,7 +573,7 @@ public class KvStateServerHandlerTest extends TestLogger {
 		assertEquals(KvStateRequestType.REQUEST_FAILURE, KvStateRequestSerializer.deserializeHeader(buf));
 		response = KvStateRequestSerializer.deserializeKvStateRequestFailure(buf);
 		assertEquals(182829, response.getRequestId());
-		assertTrue(response.getCause().getMessage().contains("IllegalArgumentException"));
+		assertTrue(response.getCause().getMessage().contains("IOException"));
 
 		assertEquals(2, stats.getNumRequests());
 		assertEquals(2, stats.getNumFailed());
@@ -607,7 +607,7 @@ public class KvStateServerHandlerTest extends TestLogger {
 		registry.registerListener(registryListener);
 
 		// Register state
-		ValueStateDescriptor<byte[]> desc = new ValueStateDescriptor<>("any", BytePrimitiveArraySerializer.INSTANCE, null);
+		ValueStateDescriptor<byte[]> desc = new ValueStateDescriptor<>("any", BytePrimitiveArraySerializer.INSTANCE);
 		desc.setQueryable("vanilla");
 
 		ValueState<byte[]> state = backend.getPartitionedState(

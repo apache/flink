@@ -18,11 +18,11 @@
 
 package org.apache.flink.runtime.query;
 
-import org.apache.flink.runtime.state.KvState;
+import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.util.AbstractID;
 
 /**
- * Identifier for {@link KvState} instances.
+ * Identifier for {@link InternalKvState} instances.
  *
  * <p>Assigned when registering state at the {@link KvStateRegistry}.
  */

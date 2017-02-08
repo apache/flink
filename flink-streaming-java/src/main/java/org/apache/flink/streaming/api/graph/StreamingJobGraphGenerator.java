@@ -17,16 +17,6 @@
 
 package org.apache.flink.streaming.api.graph;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import com.google.common.collect.Iterables;
-
 import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
@@ -60,6 +50,16 @@ import org.apache.flink.streaming.runtime.tasks.StreamIterationTail;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+
 @Internal
 public class StreamingJobGraphGenerator {
 
@@ -90,7 +90,7 @@ public class StreamingJobGraphGenerator {
 	public StreamingJobGraphGenerator(StreamGraph streamGraph) {
 		this.streamGraph = streamGraph;
 		this.defaultStreamGraphHasher = new StreamGraphHasherV2();
-		this.legacyStreamGraphHashers = Collections.<StreamGraphHasher>singletonList(new StreamGraphHasherV1());
+		this.legacyStreamGraphHashers = Arrays.asList(new StreamGraphHasherV1(), new StreamGraphUserHashHasher());
 	}
 
 	private void init() {
@@ -186,7 +186,7 @@ public class StreamingJobGraphGenerator {
 			List<StreamEdge> nonChainableOutputs = new ArrayList<StreamEdge>();
 
 			for (StreamEdge outEdge : streamGraph.getStreamNode(currentNodeId).getOutEdges()) {
-				if (isChainable(outEdge)) {
+				if (isChainable(outEdge, streamGraph)) {
 					chainableOutputs.add(outEdge);
 				} else {
 					nonChainableOutputs.add(outEdge);
@@ -235,9 +235,9 @@ public class StreamingJobGraphGenerator {
 				config.setChainIndex(chainIndex);
 				config.setOperatorName(streamGraph.getStreamNode(currentNodeId).getOperatorName());
 				chainedConfigs.get(startNodeId).put(currentNodeId, config);
-				if (chainableOutputs.isEmpty()) {
-					config.setChainEnd();
-				}
+			}
+			if (chainableOutputs.isEmpty()) {
+				config.setChainEnd();
 			}
 
 			return transitiveOutEdges;
@@ -311,18 +311,7 @@ public class StreamingJobGraphGenerator {
 			parallelism = jobVertex.getParallelism();
 		}
 
-		int maxParallelism = streamNode.getMaxParallelism();
-
-		// the maximum parallelism specifies the upper bound for the parallelism
-		if (parallelism > maxParallelism) {
-			// the parallelism should always be smaller or equal than the max parallelism
-			throw new IllegalStateException("The maximum parallelism (" + maxParallelism + ") of " +
-				"the stream node " + streamNode + " is smaller than the parallelism (" +
-				parallelism + "). Increase the maximum parallelism or decrease the parallelism of" +
-				"this operator.");
-		} else {
-			jobVertex.setMaxParallelism(streamNode.getMaxParallelism());
-		}
+		jobVertex.setMaxParallelism(streamNode.getMaxParallelism());
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Parallelism set: {} for {}", parallelism, streamNodeId);
@@ -349,7 +338,8 @@ public class StreamingJobGraphGenerator {
 		config.setTypeSerializerOut(vertex.getTypeSerializerOut());
 
 		// iterate edges, find sideOutput edges create and save serializers for each outputTag type
-		for(StreamEdge edge : Iterables.concat(nonChainableOutputs, chainableOutputs)) {
+		for(StreamEdge edge : 
+        .concat(nonChainableOutputs, chainableOutputs)) {
 			if(edge.getOutputTag() != null) {
 				config.setTypeSerializerSideOuts(
 					edge.getSideOutputTypeName(),
@@ -437,7 +427,7 @@ public class StreamingJobGraphGenerator {
 		}
 	}
 
-	private boolean isChainable(StreamEdge edge) {
+	public static boolean isChainable(StreamEdge edge, StreamGraph streamGraph) {
 		StreamNode upStreamVertex = edge.getSourceVertex();
 		StreamNode downStreamVertex = edge.getTargetVertex();
 
@@ -536,11 +526,26 @@ public class StreamingJobGraphGenerator {
 			externalizedCheckpointSettings = ExternalizedCheckpointSettings.none();
 		}
 
+		CheckpointingMode mode = cfg.getCheckpointingMode();
+
+		boolean isExactlyOnce;
+		if (mode == CheckpointingMode.EXACTLY_ONCE) {
+			isExactlyOnce = true;
+		} else if (mode == CheckpointingMode.AT_LEAST_ONCE) {
+			isExactlyOnce = false;
+		} else {
+			throw new IllegalStateException("Unexpected checkpointing mode. " +
+				"Did not expect there to be another checkpointing mode besides " +
+				"exactly-once or at-least-once.");
+		}
+
 		JobSnapshottingSettings settings = new JobSnapshottingSettings(
 				triggerVertices, ackVertices, commitVertices, interval,
 				cfg.getCheckpointTimeout(), cfg.getMinPauseBetweenCheckpoints(),
 				cfg.getMaxConcurrentCheckpoints(),
-				externalizedCheckpointSettings);
+				externalizedCheckpointSettings,
+				isExactlyOnce);
+
 		jobGraph.setSnapshotSettings(settings);
 	}
 }

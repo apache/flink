@@ -20,8 +20,9 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
+import org.apache.flink.runtime.state.StateUtil;
+import org.apache.flink.util.ExceptionUtils;
 
-import java.util.concurrent.Future;
 import java.util.concurrent.RunnableFuture;
 
 /**
@@ -81,16 +82,43 @@ public class OperatorSnapshotResult {
 		this.operatorStateRawFuture = operatorStateRawFuture;
 	}
 
-	public void cancel() {
-		cancelIfNotNull(getKeyedStateManagedFuture());
-		cancelIfNotNull(getOperatorStateManagedFuture());
-		cancelIfNotNull(getKeyedStateRawFuture());
-		cancelIfNotNull(getOperatorStateRawFuture());
-	}
+	public void cancel() throws Exception {
+		Exception exception = null;
 
-	private static void cancelIfNotNull(Future<?> future) {
-		if (null != future) {
-			future.cancel(true);
+		try {
+			StateUtil.discardStateFuture(getKeyedStateManagedFuture());
+		} catch (Exception e) {
+			exception = ExceptionUtils.firstOrSuppressed(
+				new Exception("Could not properly cancel managed keyed state future.", e),
+				exception);
+		}
+
+		try {
+			StateUtil.discardStateFuture(getOperatorStateManagedFuture());
+		} catch (Exception e) {
+			exception = ExceptionUtils.firstOrSuppressed(
+				new Exception("Could not properly cancel managed operator state future.", e),
+				exception);
+		}
+
+		try {
+			StateUtil.discardStateFuture(getKeyedStateRawFuture());
+		} catch (Exception e) {
+			exception = ExceptionUtils.firstOrSuppressed(
+				new Exception("Could not properly cancel raw keyed state future.", e),
+				exception);
+		}
+
+		try {
+			StateUtil.discardStateFuture(getOperatorStateRawFuture());
+		} catch (Exception e) {
+			exception = ExceptionUtils.firstOrSuppressed(
+				new Exception("Could not properly cancel raw operator state future.", e),
+				exception);
+		}
+
+		if (exception != null) {
+			throw exception;
 		}
 	}
 }

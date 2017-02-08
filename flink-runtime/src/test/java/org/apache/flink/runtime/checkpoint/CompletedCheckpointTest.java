@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.junit.Rule;
@@ -117,5 +118,64 @@ public class CompletedCheckpointTest {
 			checkpoint.discard(status);
 			verify(state, times(1)).discardState();
 		}
+	}
+
+	/**
+	 * Tests that the stats callbacks happen if the callback is registered.
+	 */
+	@Test
+	public void testCompletedCheckpointStatsCallbacks() throws Exception {
+		TaskState state = mock(TaskState.class);
+		Map<JobVertexID, TaskState> taskStates = new HashMap<>();
+		taskStates.put(new JobVertexID(), state);
+
+		CompletedCheckpoint completed = new CompletedCheckpoint(
+			new JobID(),
+			0,
+			0,
+			1,
+			new HashMap<>(taskStates),
+			CheckpointProperties.forStandardCheckpoint(),
+			null);
+
+		CompletedCheckpointStats.DiscardCallback callback = mock(CompletedCheckpointStats.DiscardCallback.class);
+		completed.setDiscardCallback(callback);
+
+		completed.discard(JobStatus.FINISHED);
+		verify(callback, times(1)).notifyDiscardedCheckpoint();
+	}
+
+	@Test
+	public void testIsJavaSerializable() throws Exception {
+		TaskStateStats task1 = new TaskStateStats(new JobVertexID(), 3);
+		TaskStateStats task2 = new TaskStateStats(new JobVertexID(), 4);
+
+		HashMap<JobVertexID, TaskStateStats> taskStats = new HashMap<>();
+		taskStats.put(task1.getJobVertexId(), task1);
+		taskStats.put(task2.getJobVertexId(), task2);
+
+		CompletedCheckpointStats completed = new CompletedCheckpointStats(
+			123123123L,
+			10123L,
+			CheckpointProperties.forStandardCheckpoint(),
+			1337,
+			taskStats,
+			1337,
+			123129837912L,
+			123819239812L,
+			new SubtaskStateStats(123, 213123, 123123, 0, 0, 0, 0),
+			null);
+
+		CompletedCheckpointStats copy = CommonTestUtils.createCopySerializable(completed);
+
+		assertEquals(completed.getCheckpointId(), copy.getCheckpointId());
+		assertEquals(completed.getTriggerTimestamp(), copy.getTriggerTimestamp());
+		assertEquals(completed.getProperties(), copy.getProperties());
+		assertEquals(completed.getNumberOfSubtasks(), copy.getNumberOfSubtasks());
+		assertEquals(completed.getNumberOfAcknowledgedSubtasks(), copy.getNumberOfAcknowledgedSubtasks());
+		assertEquals(completed.getEndToEndDuration(), copy.getEndToEndDuration());
+		assertEquals(completed.getStateSize(), copy.getStateSize());
+		assertEquals(completed.getLatestAcknowledgedSubtaskStats().getSubtaskIndex(), copy.getLatestAcknowledgedSubtaskStats().getSubtaskIndex());
+		assertEquals(completed.getStatus(), copy.getStatus());
 	}
 }

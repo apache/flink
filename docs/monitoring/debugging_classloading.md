@@ -1,0 +1,128 @@
+---
+title: "Debugging Classloading"
+nav-parent_id: monitoring
+nav-pos: 13
+---
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+
+* ToC
+{:toc}
+
+## Overview of Classloading in Flink
+
+When running Flink applications, the JVM will load various classes over time.
+These classes can be devided into two domains:
+
+  - The **Flink Framework** domain: This includes all code in the `/lib` directory in the Flink directory.
+    By default these are the classes of Apache Flink and its core dependencies.
+
+  - The **User Code** domain: These are all classes that are included in the JAR file submitted via the CLI or web interface.
+    That includes the job's classes, and all libraries and connectors that are put into the uber JAR.
+
+
+The class loading behaves slightly different for various Flink setups:
+
+**Standalone**
+
+When starting a the Flink cluster, the JobManagers and TaskManagers are started with the Flink framework classes in the
+classpath. The classes from all jobs that are submitted against the cluster are loaded *dynamically*.
+
+**YARN**
+
+YARN classloading differs between single job deploymens and sessions:
+
+  - When submitting a Flink job directly to YARN (via `bin/flink run -m yarn-cluster ...`), dedicated TaskManagers and
+    JobManagers are started for that job. Those JVMs have both Flink framework classes and user code classes in their classpath.
+    That means that there is *no dynamic classloading* involved in that case.
+
+  - When starting a YARN session, the JobManagers and TaskManagers are started with the Flink framework classes in the
+    classpath. The classes from all jobs that are submitted against the session are loaded dynamically.
+
+**Mesos**
+
+Mesos setups following [this documentation](../setup/mesos.html) currently behave very much like the a 
+YARN session: The TaskManager and JobManager processes are started with the Flink framework classes in classpath, job
+classes are loaded dynamically when the jobs are submitted.
+
+
+## Avoiding Dynamic Classloading
+
+All components (JobManger, TaskManager, Client, ApplicationMaster, ...) log their classpath setting on startup.
+They can be found as part of the environment information at the beginnign of the log.
+
+When running a setup where the Flink JobManager and TaskManagers are exclusive to one particular job, one can put JAR files
+directly into the `/lib` folder to make sure they are part of the classpath and not loaded dynamically. 
+
+It usually works to put the job's JAR file into the `/lib` directory. The JAR will be part of both the classpath
+(the *AppClassLoader*) and the dynamic class loader (*FlinkUserCodeClassLoader*).
+Because the AppClassLoader is the parent of the FlinkUserCodeClassLoader (and Java loads parent-first), this should
+result in classes being loaded only once.
+
+For setups where the job's JAR file cannot be put to the `/lib` folder (for example because the setup is a session that is
+used by multiple jobs), it may still be posible to put common libraries to the `/lib` folder, and avoid dynamic class loading
+for those.
+
+
+## Manual Classloading in the Job
+
+In some cases, a transformation function, source, or sink needs to manually load classes (dynamically via reflection).
+To do that, it needs the classloader that has access to the job's classes.
+
+In that case, the functions (or sources or sinks) can be made a `RichFunction` (for example `RichMapFunction` or `RichWindowFunction`)
+and access the user code class loader via `getRuntimeContext().getUserCodeClassLoader()`.
+
+
+## X cannot be cast to X exceptions
+
+When you see an exception in the style `com.foo.X cannot be cast to com.foo.X`, it means that multiple versions of the class
+`com.foo.X` have been loaded by different class loaders, and types of that class are attempted to be assigned to each other.
+
+The reason is in most cases that an object of the `com.foo.X` class loaded from a previous execution attempt is still cached somewhere,
+and picked up by a restarted task/operator that reloaded the code. Note that this is again only possible in deployments that use
+dynamic class loading.
+
+Common causes of cached object instances:
+
+  - When using *Apache Avro*: The *SpecificDatumReader* caches instances of records. Avoid using `SpecificData.INSTANCE`. See also
+    [this discussion](http://apache-flink-user-mailing-list-archive.2336050.n4.nabble.com/How-to-get-help-on-ClassCastException-when-re-submitting-a-job-tp10972p11133.html)
+
+  - Using certain serialization frameworks for cloning objects (such as *Apache Avro*)
+
+  - Interning objects (for example via Guava's Interners)
+
+
+## Unloading of Dynamically Loaded Classes
+
+All scenarios that involve dynamic class loading (i.e., standalone, sessions, mesos, ...) rely on classes being *unloaded* again.
+Class unloading means that the Garbage Collector finds that no objects from a class exist and more, and thus removes the class
+(the code, static variable, metadata, etc).
+
+Whenever a TaskManager starts (or restarts) a task, it will load that specific task's code. Unless classes can be unloaded, this will
+become a memory leak, as new versions of classes are loaded and the total number of loaded classes accumulates over time. This
+typically manifests itself though a **OutOfMemoryError: PermGen**.
+
+Common causes for class leaks and suggested fixes:
+
+  - *Lingering Threads*: Make sure the application functions/sources/sinks shuts down all threads. Lingering threads cost resources themselves and
+    additionally typically hold references to (user code) objects, preventing garbage collection and unloading of the classes.
+
+  - *Interners*: Avoid caching objects in special structures that live beyond the lifetime of the functions/sources/sinks. Examples are Guava's
+    interners, or Avro's class/object caches in the serializers.
+

@@ -31,5 +31,10 @@ import org.apache.flink.annotation.PublicEvolving;
 @PublicEvolving
 public abstract class Window {
 
+	/**
+	 * Gets the largest timestamp that still belongs to this window.
+	 *
+	 * @return The largest timestamp that still belongs to this window.
+	 */
 	public abstract long maxTimestamp();
 }

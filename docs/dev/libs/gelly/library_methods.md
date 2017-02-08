@@ -65,7 +65,7 @@ verticesWithCommunity.print
 
 #### Overview
 In graph theory, communities refer to groups of nodes that are well connected internally, but sparsely connected to other groups.
-This library method is an implementation of the community detection algorithm described in the paper [Towards real-time community detection in large networks](http://arxiv.org/pdf/0808.2633.pdf%22%3Earticle%20explaining%20the%20algorithm%20in%20detail).
+This library method is an implementation of the community detection algorithm described in the paper [Towards real-time community detection in large networks](http://arxiv.org/pdf/0808.2633.pdf).
 
 #### Details
 The algorithm is implemented using [scatter-gather iterations](#scatter-gather-iterations).

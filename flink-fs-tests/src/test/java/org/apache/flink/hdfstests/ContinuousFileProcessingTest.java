@@ -43,6 +43,7 @@ import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.Preconditions;
 import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.junit.AfterClass;
@@ -62,6 +63,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class ContinuousFileProcessingTest {
@@ -73,7 +75,7 @@ public class ContinuousFileProcessingTest {
 
 	private static File baseDir;
 
-	private static org.apache.hadoop.fs.FileSystem hdfs;
+	private static FileSystem hdfs;
 	private static String hdfsURI;
 	private static MiniDFSCluster hdfsCluster;
 
@@ -137,7 +139,7 @@ public class ContinuousFileProcessingTest {
 			Assert.fail("Test passed with an invalid path.");
 
 		} catch (FileNotFoundException e) {
-			Assert.assertEquals("The provided file path " + format.getFilePath().toString() + " does not exist.", e.getMessage());
+			Assert.assertEquals("The provided file path " + format.getFilePath() + " does not exist.", e.getMessage());
 		}
 	}
 
@@ -588,6 +590,59 @@ public class ContinuousFileProcessingTest {
 	}
 
 	@Test
+	public void testNestedFilesProcessing() throws Exception {
+		final Set<org.apache.hadoop.fs.Path> filesCreated = new HashSet<>();
+		final Set<String> filesToBeRead = new TreeSet<>();
+
+		// create two nested directories
+		org.apache.hadoop.fs.Path firstLevelDir = new org.apache.hadoop.fs.Path(hdfsURI + "/" + "firstLevelDir");
+		org.apache.hadoop.fs.Path secondLevelDir = new org.apache.hadoop.fs.Path(hdfsURI + "/" + "firstLevelDir" + "/" + "secondLevelDir");
+		Assert.assertFalse(hdfs.exists(firstLevelDir));
+		hdfs.mkdirs(firstLevelDir);
+		hdfs.mkdirs(secondLevelDir);
+
+		// create files in the base dir, the first level dir and the second level dir
+		for (int i = 0; i < NO_OF_FILES; i++) {
+			Tuple2<org.apache.hadoop.fs.Path, String> file = createFileAndFillWithData(hdfsURI, "firstLevelFile", i, "This is test line.");
+			filesCreated.add(file.f0);
+			filesToBeRead.add(file.f0.getName());
+		}
+		for (int i = 0; i < NO_OF_FILES; i++) {
+			Tuple2<org.apache.hadoop.fs.Path, String> file = createFileAndFillWithData(firstLevelDir.toString(), "secondLevelFile", i, "This is test line.");
+			filesCreated.add(file.f0);
+			filesToBeRead.add(file.f0.getName());
+		}
+		for (int i = 0; i < NO_OF_FILES; i++) {
+			Tuple2<org.apache.hadoop.fs.Path, String> file = createFileAndFillWithData(secondLevelDir.toString(), "thirdLevelFile", i, "This is test line.");
+			filesCreated.add(file.f0);
+			filesToBeRead.add(file.f0.getName());
+		}
+
+		TextInputFormat format = new TextInputFormat(new Path(hdfsURI));
+		format.setFilesFilter(FilePathFilter.createDefaultFilter());
+		format.setNestedFileEnumeration(true);
+
+		ContinuousFileMonitoringFunction<String> monitoringFunction =
+			new ContinuousFileMonitoringFunction<>(format,
+				FileProcessingMode.PROCESS_ONCE, 1, INTERVAL);
+
+		final FileVerifyingSourceContext context =
+			new FileVerifyingSourceContext(new OneShotLatch(), monitoringFunction);
+
+		monitoringFunction.open(new Configuration());
+		monitoringFunction.run(context);
+
+		Assert.assertArrayEquals(filesToBeRead.toArray(), context.getSeenFiles().toArray());
+
+		// finally delete the dirs and the files created for the test.
+		for (org.apache.hadoop.fs.Path file: filesCreated) {
+			hdfs.delete(file, false);
+		}
+		hdfs.delete(secondLevelDir, false);
+		hdfs.delete(firstLevelDir, false);
+	}
+
+	@Test
 	public void testSortingOnModTime() throws Exception {
 		final long[] modTimes = new long[NO_OF_FILES];
 		final org.apache.hadoop.fs.Path[] filesCreated = new org.apache.hadoop.fs.Path[NO_OF_FILES];
@@ -914,7 +969,7 @@ public class ContinuousFileProcessingTest {
 		}
 	}
 
-	private static abstract class DummySourceContext
+	private abstract static class DummySourceContext
 			implements SourceFunction.SourceContext<TimestampedFileInputSplit> {
 
 		private final Object lock = new Object();
@@ -939,7 +994,7 @@ public class ContinuousFileProcessingTest {
 
 	/////////				Auxiliary Methods				/////////////
 
-	private int getLineNo(String line) {
+	private static int getLineNo(String line) {
 		String[] tkns = line.split("\\s");
 		Assert.assertEquals(6, tkns.length);
 		return Integer.parseInt(tkns[tkns.length - 1]);
@@ -949,15 +1004,17 @@ public class ContinuousFileProcessingTest {
 	 * Create a file with pre-determined String format of the form:
 	 * {@code fileIdx +": "+ sampleLine +" "+ lineNo}.
 	 * */
-	private Tuple2<org.apache.hadoop.fs.Path, String> createFileAndFillWithData(
+	private static Tuple2<org.apache.hadoop.fs.Path, String> createFileAndFillWithData(
 				String base, String fileName, int fileIdx, String sampleLine) throws IOException {
 
 		assert (hdfs != null);
 
-		org.apache.hadoop.fs.Path file = new org.apache.hadoop.fs.Path(base + "/" + fileName + fileIdx);
+		final String fileRandSuffix = UUID.randomUUID().toString();
+
+		org.apache.hadoop.fs.Path file = new org.apache.hadoop.fs.Path(base + "/" + fileName + fileRandSuffix);
 		Assert.assertFalse(hdfs.exists(file));
 
-		org.apache.hadoop.fs.Path tmp = new org.apache.hadoop.fs.Path(base + "/." + fileName + fileIdx);
+		org.apache.hadoop.fs.Path tmp = new org.apache.hadoop.fs.Path(base + "/." + fileName + fileRandSuffix);
 		FSDataOutputStream stream = hdfs.create(tmp);
 		StringBuilder str = new StringBuilder();
 		for (int i = 0; i < LINES_PER_FILE; i++) {
