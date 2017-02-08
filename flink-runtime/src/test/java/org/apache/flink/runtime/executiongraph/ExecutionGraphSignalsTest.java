@@ -132,8 +132,8 @@ public class ExecutionGraphSignalsTest {
 		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3, v4, v5));
 
 		eg = new ExecutionGraph(
-			TestingUtils.defaultExecutionContext(),
-			TestingUtils.defaultExecutionContext(),
+			TestingUtils.defaultExecutor(),
+			TestingUtils.defaultExecutor(),
 			jobId,
 			jobName,
 			cfg,

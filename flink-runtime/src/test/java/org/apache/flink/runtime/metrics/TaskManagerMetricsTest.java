@@ -35,6 +35,7 @@ import org.apache.flink.runtime.taskexecutor.TaskManagerServices;
 import org.apache.flink.runtime.taskexecutor.TaskManagerServicesConfiguration;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 
+import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -60,8 +61,8 @@ public class TaskManagerMetricsTest {
 			final ActorRef jobManager = JobManager.startJobManagerActors(
 				new Configuration(),
 				actorSystem,
-				actorSystem.dispatcher(),
-				actorSystem.dispatcher(),
+				TestingUtils.defaultExecutor(),
+				TestingUtils.defaultExecutor(),
 				JobManager.class,
 				MemoryArchivist.class)._1();
 

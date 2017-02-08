@@ -35,6 +35,7 @@ import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.util.NetUtils;
@@ -84,8 +85,8 @@ public class JobSubmitTest {
 		JobManager.startJobManagerActors(
 			jmConfig,
 			jobManagerSystem,
-			jobManagerSystem.dispatcher(),
-			jobManagerSystem.dispatcher(),
+			TestingUtils.defaultExecutor(),
+			TestingUtils.defaultExecutor(),
 			JobManager.class,
 			MemoryArchivist.class)._1();
 

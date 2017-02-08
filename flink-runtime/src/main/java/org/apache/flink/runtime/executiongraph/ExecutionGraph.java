@@ -78,6 +78,7 @@ import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -201,7 +202,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	private CheckpointStatsTracker checkpointStatsTracker;
 
 	/** The executor which is used to execute futures. */
-	private final Executor futureExecutor;
+	private final ScheduledExecutorService futureExecutor;
 
 	/** The executor which is used to execute blocking io operations */
 	private final Executor ioExecutor;
@@ -220,7 +221,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	 * This constructor is for tests only, because it does not include class loading information.
 	 */
 	ExecutionGraph(
-			Executor futureExecutor,
+			ScheduledExecutorService futureExecutor,
 			Executor ioExecutor,
 			JobID jobId,
 			String jobName,
@@ -237,15 +238,15 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			serializedConfig,
 			timeout,
 			restartStrategy,
-			new ArrayList<BlobKey>(),
-			new ArrayList<URL>(),
+			Collections.<BlobKey>emptyList(),
+			Collections.<URL>emptyList(),
 			ExecutionGraph.class.getClassLoader(),
 			new UnregisteredMetricsGroup()
 		);
 	}
 
 	public ExecutionGraph(
-			Executor futureExecutor,
+			ScheduledExecutorService futureExecutor,
 			Executor ioExecutor,
 			JobID jobId,
 			String jobName,

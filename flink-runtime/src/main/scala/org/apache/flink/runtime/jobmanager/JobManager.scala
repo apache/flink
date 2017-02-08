@@ -117,7 +117,7 @@ import scala.language.postfixOps
  */
 class JobManager(
     protected val flinkConfiguration: Configuration,
-    protected val futureExecutor: Executor,
+    protected val futureExecutor: ScheduledExecutorService,
     protected val ioExecutor: Executor,
     protected val instanceManager: InstanceManager,
     protected val scheduler: FlinkScheduler,
@@ -2021,7 +2021,7 @@ object JobManager {
 
     val numberProcessors = Hardware.getNumberCPUCores()
 
-    val futureExecutor = Executors.newFixedThreadPool(
+    val futureExecutor = Executors.newScheduledThreadPool(
       numberProcessors,
       new NamedThreadFactory("jobmanager-future-", "-thread-"))
 
@@ -2189,7 +2189,7 @@ object JobManager {
       executionMode: JobManagerMode,
       externalHostname: String,
       port: Int,
-      futureExecutor: Executor,
+      futureExecutor: ScheduledExecutorService,
       ioExecutor: Executor,
       jobManagerClass: Class[_ <: JobManager],
       archiveClass: Class[_ <: MemoryArchivist],
@@ -2466,7 +2466,7 @@ object JobManager {
    */
   def createJobManagerComponents(
       configuration: Configuration,
-      futureExecutor: Executor,
+      futureExecutor: ScheduledExecutorService,
       ioExecutor: Executor,
       leaderElectionServiceOption: Option[LeaderElectionService]) :
     (InstanceManager,
@@ -2601,7 +2601,7 @@ object JobManager {
   def startJobManagerActors(
       configuration: Configuration,
       actorSystem: ActorSystem,
-      futureExecutor: Executor,
+      futureExecutor: ScheduledExecutorService,
       ioExecutor: Executor,
       jobManagerClass: Class[_ <: JobManager],
       archiveClass: Class[_ <: MemoryArchivist])
@@ -2637,7 +2637,7 @@ object JobManager {
   def startJobManagerActors(
       configuration: Configuration,
       actorSystem: ActorSystem,
-      futureExecutor: Executor,
+      futureExecutor: ScheduledExecutorService,
       ioExecutor: Executor,
       jobManagerActorName: Option[String],
       archiveActorName: Option[String],
@@ -2707,7 +2707,7 @@ object JobManager {
   def getJobManagerProps(
     jobManagerClass: Class[_ <: JobManager],
     configuration: Configuration,
-    futureExecutor: Executor,
+    futureExecutor: ScheduledExecutorService,
     ioExecutor: Executor,
     instanceManager: InstanceManager,
     scheduler: FlinkScheduler,
