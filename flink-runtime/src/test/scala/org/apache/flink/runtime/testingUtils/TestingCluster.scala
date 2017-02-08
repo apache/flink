@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.testingUtils
 
 import java.io.IOException
-import java.util.concurrent.{Executor, TimeUnit, TimeoutException}
+import java.util.concurrent.{Executor, ScheduledExecutorService, TimeUnit, TimeoutException}
 
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.pattern.Patterns._
@@ -85,7 +85,7 @@ class TestingCluster(
   override def getJobManagerProps(
     jobManagerClass: Class[_ <: JobManager],
     configuration: Configuration,
-    futureExecutor: Executor,
+    futureExecutor: ScheduledExecutorService,
     ioExecutor: Executor,
     instanceManager: InstanceManager,
     scheduler: Scheduler,

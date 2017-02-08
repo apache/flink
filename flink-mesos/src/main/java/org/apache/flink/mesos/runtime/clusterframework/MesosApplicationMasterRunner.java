@@ -72,6 +72,7 @@ import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.util.Preconditions.checkState;
@@ -195,7 +196,7 @@ public class MesosApplicationMasterRunner {
 		ActorSystem actorSystem = null;
 		WebMonitor webMonitor = null;
 		MesosArtifactServer artifactServer = null;
-		ExecutorService futureExecutor = null;
+		ScheduledExecutorService futureExecutor = null;
 		ExecutorService ioExecutor = null;
 		MesosServices mesosServices = null;
 
@@ -213,7 +214,7 @@ public class MesosApplicationMasterRunner {
 			// JM configuration
 			int numberProcessors = Hardware.getNumberCPUCores();
 
-			futureExecutor = Executors.newFixedThreadPool(
+			futureExecutor = Executors.newScheduledThreadPool(
 				numberProcessors,
 				new NamedThreadFactory("mesos-jobmanager-future-", "-thread-"));
 

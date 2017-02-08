@@ -108,8 +108,8 @@ public class TaskManagerRegistrationTest extends TestLogger {
 				// a simple JobManager
 				jobManager = createJobManager(
 					actorSystem,
-					actorSystem.dispatcher(),
-					actorSystem.dispatcher(),
+					TestingUtils.defaultExecutor(),
+					TestingUtils.defaultExecutor(),
 					config);
 				startResourceManager(config, jobManager.actor());
 
@@ -192,8 +192,8 @@ public class TaskManagerRegistrationTest extends TestLogger {
 				// now start the JobManager, with the regular akka URL
 				jobManager = createJobManager(
 					actorSystem,
-					actorSystem.dispatcher(),
-					actorSystem.dispatcher(),
+					TestingUtils.defaultExecutor(),
+					TestingUtils.defaultExecutor(),
 					new Configuration());
 
 				startResourceManager(config, jobManager.actor());
@@ -635,8 +635,8 @@ public class TaskManagerRegistrationTest extends TestLogger {
 		return JobManager.startJobManagerActors(
 			configuration,
 			actorSystem,
-			actorSystem.dispatcher(),
-			actorSystem.dispatcher(),
+			TestingUtils.defaultExecutor(),
+			TestingUtils.defaultExecutor(),
 			NONE_STRING,
 			NONE_STRING,
 			JobManager.class,
