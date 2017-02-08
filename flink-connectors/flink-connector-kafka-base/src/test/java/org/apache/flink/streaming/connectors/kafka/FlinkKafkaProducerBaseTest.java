@@ -293,6 +293,61 @@ public class FlinkKafkaProducerBaseTest {
 		testHarness.close();
 	}
 
+	/**
+	 * This test is meant to assure that testAtLeastOnceProducer is valid by testing that if flushing is disabled,
+	 * the snapshot method does indeed finishes without waiting for pending records;
+	 * we set a timeout because the test will not finish if the logic is broken
+	 */
+	@Test(timeout=5000)
+	public void testDoesNotWaitForPendingRecordsIfFlushingDisabled() throws Throwable {
+		final OneShotLatch inputLatch = new OneShotLatch();
+
+		final DummyFlinkKafkaProducer<String> producer = new DummyFlinkKafkaProducer<>(
+			FakeStandardProducerConfig.get(), null, inputLatch, 100, new AtomicBoolean(false));
+		producer.setFlushOnCheckpoint(false);
+
+		final OneInputStreamOperatorTestHarness<String, Object> testHarness =
+			new OneInputStreamOperatorTestHarness<>(new StreamSink(producer));
+
+		testHarness.open();
+
+		List<Callback> pending = producer.getProducerInstance().getPending();
+
+		for (int i = 0; i < 100; i++) {
+			testHarness.processElement(new StreamRecord<>("msg-" + i));
+		}
+
+		inputLatch.await();
+
+		// make sure that all callbacks have not been completed
+		Assert.assertEquals(100, pending.size());
+
+		// use a separate thread to continuously monitor whether snapshotting has returned
+		final Tuple1<Throwable> runnableError = new Tuple1<>(null);
+		Thread snapshotThread = new Thread(new Runnable() {
+			@Override
+			public void run() {
+				try {
+					testHarness.snapshot(123L, 123L);
+				} catch (Exception e) {
+					runnableError.f0 = e;
+				}
+			}
+		});
+
+		snapshotThread.start();
+
+		// the snapshot should return and the thread finishes,
+		// even if there are still pending records
+		snapshotThread.join();
+
+		if (runnableError.f0 != null) {
+			throw runnableError.f0;
+		}
+
+		testHarness.close();
+	}
+
 	// ------------------------------------------------------------------------
 
 	private static class DummyFlinkKafkaProducer<T> extends FlinkKafkaProducerBase<T> {
