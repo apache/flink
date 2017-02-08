@@ -40,7 +40,7 @@ import java.util.Map;
  * using vertex-centric iterations.
  * <p>
  * The input graph will be taken as undirected.
- * The returned edges that picked are restricted to match src &lt target.
+ * The picked edges are restricted to match src &lt target.
  *
  * @param <K> the id type for vertices
  * @param <V> the value type for vertices
@@ -49,6 +49,7 @@ import java.util.Map;
 @SuppressWarnings("serial")
 public class BoruvkaMST<K extends Comparable<K>, V, W extends Comparable<W>>
 		implements GraphAlgorithm<K, V, W, DataSet<Edge<K, W>>> {
+
 	private static final String STEP_AGGREGATOR = "STEP_AGGREGATOR";
 
 	private int parallelism;
@@ -177,7 +178,6 @@ public class BoruvkaMST<K extends Comparable<K>, V, W extends Comparable<W>>
 		private MSTIteration() {
 			step = null;
 		}
-
 
 		@Override
 		public void preSuperstep() throws Exception {
@@ -374,8 +374,7 @@ public class BoruvkaMST<K extends Comparable<K>, V, W extends Comparable<W>>
 		 * @param mstMessages the message received
 		 * @return whether the vertex value should be update
 		 */
-		private boolean collapseEdges(MSTVertexValue<K, W> vertexValue,
-		                              MessageIterator<MSTMessage<K, W>> mstMessages) {
+		private boolean collapseEdges(MSTVertexValue<K, W> vertexValue, MessageIterator<MSTMessage<K, W>> mstMessages) {
 			boolean updated = false;
 			K superVertexForNeighbour;
 			VirtualEdge<K, W> newEdge;
@@ -404,7 +403,6 @@ public class BoruvkaMST<K extends Comparable<K>, V, W extends Comparable<W>>
 							updated = true;
 							break;
 						default:
-							break;
 					}
 				}
 				sendHeartbeat(vertexValue);
@@ -499,7 +497,6 @@ public class BoruvkaMST<K extends Comparable<K>, V, W extends Comparable<W>>
 								}
 							}
 					}
-
 				}
 			}
 		}
@@ -513,8 +510,8 @@ public class BoruvkaMST<K extends Comparable<K>, V, W extends Comparable<W>>
 	 * @param <W> the edge weight type
 	 */
 	private static final class MSTVertexValue<K extends Comparable<K>, W extends Comparable<W>> {
-		private K id;
 
+		private K id;
 		private Boolean valid;
 		private Boolean superVertexFlag;
 		private K linkedSuperVertex;
@@ -523,7 +520,6 @@ public class BoruvkaMST<K extends Comparable<K>, V, W extends Comparable<W>>
 		private Boolean notified;
 		private Boolean collapsed;
 		private Edge<K, W> pickedEdge;
-
 		private HashMap<K, VirtualEdge<K, W>> virtualEdges;
 		private HashMap<K, K> neighbourSuperVertex;
 
@@ -700,9 +696,6 @@ public class BoruvkaMST<K extends Comparable<K>, V, W extends Comparable<W>>
 	 */
 	private static final class MSTMessage<K extends Comparable<K>, W extends Comparable<W>> {
 
-		/**
-		 * We use this enum to distinguish messages used in different steps.
-		 */
 		enum Type {
 			HEARTBEAT, ASK_FOR_SUPER_VERTEX, ANSWER_FOR_SUPER_VERTEX, NOTIFY_SUPER_VERTEX, COLLAPSE_EDGE,
 		}

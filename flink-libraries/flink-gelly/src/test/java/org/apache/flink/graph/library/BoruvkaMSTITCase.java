@@ -88,7 +88,7 @@ public class BoruvkaMSTITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
-	public void testLongDouble() throws Exception {
+	public void testWithLongDoubleGraph() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		Graph<Long, Long, Double> graph = Graph.fromDataSet(env.fromCollection(longDoubleEdges),
 				new InitLong(), env);
@@ -99,7 +99,7 @@ public class BoruvkaMSTITCase extends MultipleProgramsTestBase {
 	}
 
 	@Test
-	public void testStrInt() throws Exception {
+	public void testWithStrIntGraph() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		Graph<String, String, Integer> graph = Graph.fromDataSet(env.fromCollection(strIntEdges),
 				new InitStr(), env);
@@ -123,6 +123,7 @@ public class BoruvkaMSTITCase extends MultipleProgramsTestBase {
 		}
 	}
 
+	@SuppressWarnings("serial")
 	private static final class ExtractEdgeStr<K, W> implements MapFunction<Edge<K, W>, String> {
 		@Override
 		public String map(Edge<K, W> value) throws Exception {
