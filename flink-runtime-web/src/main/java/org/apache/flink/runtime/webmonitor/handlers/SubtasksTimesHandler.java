@@ -20,11 +20,9 @@ package org.apache.flink.runtime.webmonitor.handlers;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 
-import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
-import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
-import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
+import org.apache.flink.runtime.webmonitor.utils.JsonUtils;
 
 import java.io.StringWriter;
 import java.util.Map;
@@ -42,52 +40,9 @@ public class SubtasksTimesHandler extends AbstractJobVertexRequestHandler {
 
 	@Override
 	public String handleRequest(AccessExecutionJobVertex jobVertex, Map<String, String> params) throws Exception {
-		final long now = System.currentTimeMillis();
-
 		StringWriter writer = new StringWriter();
 		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
-
-		gen.writeStartObject();
-
-		gen.writeStringField("id", jobVertex.getJobVertexId().toString());
-		gen.writeStringField("name", jobVertex.getName());
-		gen.writeNumberField("now", now);
-		
-		gen.writeArrayFieldStart("subtasks");
-
-		int num = 0;
-		for (AccessExecutionVertex vertex : jobVertex.getTaskVertices()) {
-			
-			long[] timestamps = vertex.getCurrentExecutionAttempt().getStateTimestamps();
-			ExecutionState status = vertex.getExecutionState();
-
-			long scheduledTime = timestamps[ExecutionState.SCHEDULED.ordinal()];
-			
-			long start = scheduledTime > 0 ? scheduledTime : -1;
-			long end = status.isTerminal() ? timestamps[status.ordinal()] : now;
-			long duration = start >= 0 ? end - start : -1L;
-			
-			gen.writeStartObject();
-			gen.writeNumberField("subtask", num++);
-
-			TaskManagerLocation location = vertex.getCurrentAssignedResourceLocation();
-			String locationString = location == null ? "(unassigned)" : location.getHostname();
-			gen.writeStringField("host", locationString);
-
-			gen.writeNumberField("duration", duration);
-			
-			gen.writeObjectFieldStart("timestamps");
-			for (ExecutionState state : ExecutionState.values()) {
-				gen.writeNumberField(state.name(), timestamps[state.ordinal()]);
-			}
-			gen.writeEndObject();
-			
-			gen.writeEndObject();
-		}
-
-		gen.writeEndArray();
-		gen.writeEndObject();
-
+		JsonUtils.writeSubtaskDetailsAsJson(jobVertex, gen);
 		gen.close();
 		return writer.toString();
 	}

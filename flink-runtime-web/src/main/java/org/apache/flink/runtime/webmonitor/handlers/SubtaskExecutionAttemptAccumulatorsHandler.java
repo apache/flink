@@ -19,9 +19,9 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import com.fasterxml.jackson.core.JsonGenerator;
-import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.executiongraph.AccessExecution;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
+import org.apache.flink.runtime.webmonitor.utils.JsonUtils;
 
 import java.io.StringWriter;
 import java.util.Map;
@@ -38,29 +38,9 @@ public class SubtaskExecutionAttemptAccumulatorsHandler extends AbstractSubtaskA
 
 	@Override
 	public String handleRequest(AccessExecution execAttempt, Map<String, String> params) throws Exception {
-		final StringifiedAccumulatorResult[] accs = execAttempt.getUserAccumulatorsStringified();
-		
 		StringWriter writer = new StringWriter();
 		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
-
-		gen.writeStartObject();
-
-		gen.writeNumberField("subtask", execAttempt.getParallelSubtaskIndex());
-		gen.writeNumberField("attempt", execAttempt.getAttemptNumber());
-		gen.writeStringField("id", execAttempt.getAttemptId().toString());
-		
-		gen.writeArrayFieldStart("user-accumulators");
-		for (StringifiedAccumulatorResult acc : accs) {
-			gen.writeStartObject();
-			gen.writeStringField("name", acc.getName());
-			gen.writeStringField("type", acc.getType());
-			gen.writeStringField("value", acc.getValue());
-			gen.writeEndObject();
-		}
-		gen.writeEndArray();
-		
-		gen.writeEndObject();
-		
+		JsonUtils.writeAttemptAccumulators(execAttempt, gen);
 		gen.close();
 		return writer.toString();
 	}

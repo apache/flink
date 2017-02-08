@@ -103,7 +103,6 @@ public class HistoryServerStaticFileServerHandler extends SimpleChannelInboundHa
 
 			String pathToLoad = requestPath;
 			pathToLoad = pathToLoad.replace("index.html", "index2.html");
-			pathToLoad = pathToLoad.replace("index.js", "index2.js");
 
 			try (InputStream resourceStream = cl.getResourceAsStream("web" + pathToLoad)) {
 				boolean success = false;

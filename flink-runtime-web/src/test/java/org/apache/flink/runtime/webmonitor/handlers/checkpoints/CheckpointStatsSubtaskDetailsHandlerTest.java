@@ -31,6 +31,7 @@ import org.apache.flink.runtime.checkpoint.TaskStateStats;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
+import org.apache.flink.runtime.webmonitor.utils.JsonUtils;
 import org.junit.Test;
 
 import java.util.Collections;
@@ -67,8 +68,8 @@ public class CheckpointStatsSubtaskDetailsHandlerTest {
 		when(checkpoint.getTaskStateStats(any(JobVertexID.class))).thenReturn(task);
 
 		JsonNode rootNode = triggerRequest(checkpoint);
-		assertEquals(checkpoint.getCheckpointId(), rootNode.get("id").asLong());
-		assertEquals(checkpoint.getStatus().toString(), rootNode.get("status").asText());
+		assertEquals(checkpoint.getCheckpointId(), rootNode.get(JsonUtils.Keys.ID).asLong());
+		assertEquals(checkpoint.getStatus().toString(), rootNode.get(JsonUtils.Keys.STATUS).asText());
 
 		verifyTaskNode(rootNode, task, checkpoint.getTriggerTimestamp());
 	}
@@ -87,7 +88,7 @@ public class CheckpointStatsSubtaskDetailsHandlerTest {
 		when(checkpoint.getTaskStateStats(any(JobVertexID.class))).thenReturn(task);
 
 		JsonNode rootNode = triggerRequest(checkpoint);
-		assertNull(rootNode.get("summary"));
+		assertNull(rootNode.get(JsonUtils.Keys.SUMMARY));
 	}
 
 	/**
@@ -252,27 +253,27 @@ public class CheckpointStatsSubtaskDetailsHandlerTest {
 	private static void verifyTaskNode(JsonNode taskNode, TaskStateStats task, long triggerTimestamp) {
 		long duration = ThreadLocalRandom.current().nextInt(128);
 
-		assertEquals(task.getLatestAckTimestamp(), taskNode.get("latest_ack_timestamp").asLong());
-		assertEquals(task.getStateSize(), taskNode.get("state_size").asLong());
-		assertEquals(task.getEndToEndDuration(task.getLatestAckTimestamp() - duration), taskNode.get("end_to_end_duration").asLong());
-		assertEquals(task.getAlignmentBuffered(), taskNode.get("alignment_buffered").asLong());
-		assertEquals(task.getNumberOfSubtasks(), taskNode.get("num_subtasks").asInt());
-		assertEquals(task.getNumberOfAcknowledgedSubtasks(), taskNode.get("num_acknowledged_subtasks").asInt());
+		assertEquals(task.getLatestAckTimestamp(), taskNode.get(JsonUtils.Keys.LATEST_ACK_TIMESTAMP).asLong());
+		assertEquals(task.getStateSize(), taskNode.get(JsonUtils.Keys.STATE_SIZE).asLong());
+		assertEquals(task.getEndToEndDuration(task.getLatestAckTimestamp() - duration), taskNode.get(JsonUtils.Keys.ETE_DURATION).asLong());
+		assertEquals(task.getAlignmentBuffered(), taskNode.get(JsonUtils.Keys.ALIGNMENT_BUFFERED).asLong());
+		assertEquals(task.getNumberOfSubtasks(), taskNode.get(JsonUtils.Keys.NUM_SUBTASKS).asInt());
+		assertEquals(task.getNumberOfAcknowledgedSubtasks(), taskNode.get(JsonUtils.Keys.NUM_ACK_SUBTASKS).asInt());
 
 		TaskStateStats.TaskStateStatsSummary summary = task.getSummaryStats();
-		verifyMinMaxAvgStats(summary.getStateSizeStats(), taskNode.get("summary").get("state_size"));
-		verifyMinMaxAvgStats(summary.getSyncCheckpointDurationStats(), taskNode.get("summary").get("checkpoint_duration").get("sync"));
-		verifyMinMaxAvgStats(summary.getAsyncCheckpointDurationStats(), taskNode.get("summary").get("checkpoint_duration").get("async"));
-		verifyMinMaxAvgStats(summary.getAlignmentBufferedStats(), taskNode.get("summary").get("alignment").get("buffered"));
-		verifyMinMaxAvgStats(summary.getAlignmentDurationStats(), taskNode.get("summary").get("alignment").get("duration"));
+		verifyMinMaxAvgStats(summary.getStateSizeStats(), taskNode.get(JsonUtils.Keys.SUMMARY).get(JsonUtils.Keys.STATE_SIZE));
+		verifyMinMaxAvgStats(summary.getSyncCheckpointDurationStats(), taskNode.get(JsonUtils.Keys.SUMMARY).get(JsonUtils.Keys.CHECKPOINT_DURATION).get(JsonUtils.Keys.SYNC));
+		verifyMinMaxAvgStats(summary.getAsyncCheckpointDurationStats(), taskNode.get(JsonUtils.Keys.SUMMARY).get(JsonUtils.Keys.CHECKPOINT_DURATION).get(JsonUtils.Keys.ASYNC));
+		verifyMinMaxAvgStats(summary.getAlignmentBufferedStats(), taskNode.get(JsonUtils.Keys.SUMMARY).get(JsonUtils.Keys.ALIGNMENT).get(JsonUtils.Keys.BUFFERED));
+		verifyMinMaxAvgStats(summary.getAlignmentDurationStats(), taskNode.get(JsonUtils.Keys.SUMMARY).get(JsonUtils.Keys.ALIGNMENT).get(JsonUtils.Keys.DURATION));
 
-		JsonNode endToEndDurationNode = taskNode.get("summary").get("end_to_end_duration");
-		assertEquals(summary.getAckTimestampStats().getMinimum() - triggerTimestamp, endToEndDurationNode.get("min").asLong());
-		assertEquals(summary.getAckTimestampStats().getMaximum() - triggerTimestamp, endToEndDurationNode.get("max").asLong());
-		assertEquals((long) summary.getAckTimestampStats().getAverage() - triggerTimestamp, endToEndDurationNode.get("avg").asLong());
+		JsonNode endToEndDurationNode = taskNode.get(JsonUtils.Keys.SUMMARY).get(JsonUtils.Keys.ETE_DURATION);
+		assertEquals(summary.getAckTimestampStats().getMinimum() - triggerTimestamp, endToEndDurationNode.get(JsonUtils.Keys.MIN).asLong());
+		assertEquals(summary.getAckTimestampStats().getMaximum() - triggerTimestamp, endToEndDurationNode.get(JsonUtils.Keys.MAX).asLong());
+		assertEquals((long) summary.getAckTimestampStats().getAverage() - triggerTimestamp, endToEndDurationNode.get(JsonUtils.Keys.AVG).asLong());
 
 		SubtaskStateStats[] subtasks = task.getSubtaskStats();
-		Iterator<JsonNode> it = taskNode.get("subtasks").iterator();
+		Iterator<JsonNode> it = taskNode.get(JsonUtils.Keys.SUBTASKS).iterator();
 
 		assertTrue(it.hasNext());
 		verifySubtaskStats(it.next(), 0, subtasks[0]);
@@ -302,18 +303,18 @@ public class CheckpointStatsSubtaskDetailsHandlerTest {
 
 	private static void verifySubtaskStats(JsonNode subtaskNode, int index, SubtaskStateStats subtask) {
 		if (subtask == null) {
-			assertEquals(index, subtaskNode.get("index").asInt());
-			assertEquals("pending_or_failed", subtaskNode.get("status").asText());
+			assertEquals(index, subtaskNode.get(JsonUtils.Keys.INDEX).asInt());
+			assertEquals(JsonUtils.Keys.PENDING_OR_FAILED, subtaskNode.get(JsonUtils.Keys.STATUS).asText());
 		} else {
-			assertEquals(subtask.getSubtaskIndex(), subtaskNode.get("index").asInt());
-			assertEquals("completed", subtaskNode.get("status").asText());
-			assertEquals(subtask.getAckTimestamp(), subtaskNode.get("ack_timestamp").asLong());
-			assertEquals(subtask.getEndToEndDuration(0), subtaskNode.get("end_to_end_duration").asLong());
-			assertEquals(subtask.getStateSize(), subtaskNode.get("state_size").asLong());
-			assertEquals(subtask.getSyncCheckpointDuration(), subtaskNode.get("checkpoint").get("sync").asLong());
-			assertEquals(subtask.getAsyncCheckpointDuration(), subtaskNode.get("checkpoint").get("async").asLong());
-			assertEquals(subtask.getAlignmentBuffered(), subtaskNode.get("alignment").get("buffered").asLong());
-			assertEquals(subtask.getAlignmentDuration(), subtaskNode.get("alignment").get("duration").asLong());
+			assertEquals(subtask.getSubtaskIndex(), subtaskNode.get(JsonUtils.Keys.INDEX).asInt());
+			assertEquals("completed", subtaskNode.get(JsonUtils.Keys.STATUS).asText());
+			assertEquals(subtask.getAckTimestamp(), subtaskNode.get(JsonUtils.Keys.ACK_TIMESTAMP).asLong());
+			assertEquals(subtask.getEndToEndDuration(0), subtaskNode.get(JsonUtils.Keys.ETE_DURATION).asLong());
+			assertEquals(subtask.getStateSize(), subtaskNode.get(JsonUtils.Keys.STATE_SIZE).asLong());
+			assertEquals(subtask.getSyncCheckpointDuration(), subtaskNode.get(JsonUtils.Keys.CHECKPOINT).get(JsonUtils.Keys.SYNC).asLong());
+			assertEquals(subtask.getAsyncCheckpointDuration(), subtaskNode.get(JsonUtils.Keys.CHECKPOINT).get(JsonUtils.Keys.ASYNC).asLong());
+			assertEquals(subtask.getAlignmentBuffered(), subtaskNode.get(JsonUtils.Keys.ALIGNMENT).get(JsonUtils.Keys.BUFFERED).asLong());
+			assertEquals(subtask.getAlignmentDuration(), subtaskNode.get(JsonUtils.Keys.ALIGNMENT).get(JsonUtils.Keys.DURATION).asLong());
 		}
 	}
 
@@ -327,9 +328,9 @@ public class CheckpointStatsSubtaskDetailsHandlerTest {
 	}
 
 	private static void verifyMinMaxAvgStats(MinMaxAvgStats expected, JsonNode node) {
-		assertEquals(expected.getMinimum(), node.get("min").asLong());
-		assertEquals(expected.getMaximum(), node.get("max").asLong());
-		assertEquals(expected.getAverage(), node.get("avg").asLong());
+		assertEquals(expected.getMinimum(), node.get(JsonUtils.Keys.MIN).asLong());
+		assertEquals(expected.getMaximum(), node.get(JsonUtils.Keys.MAX).asLong());
+		assertEquals(expected.getAverage(), node.get(JsonUtils.Keys.AVG).asLong());
 	}
 
 }

@@ -19,11 +19,11 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import com.fasterxml.jackson.core.JsonGenerator;
-import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.messages.webmonitor.RequestJobDetails;
+import org.apache.flink.runtime.webmonitor.utils.JsonUtils;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
@@ -73,20 +73,20 @@ public class CurrentJobsOverviewHandler extends AbstractJsonRequestHandler {
 				if (includeRunningJobs && includeFinishedJobs) {
 					gen.writeArrayFieldStart("running");
 					for (JobDetails detail : result.getRunningJobs()) {
-						generateSingleJobDetails(detail, gen, now);
+						JsonUtils.writeJobDetailOverviewAsJson(detail, gen, now);
 					}
 					gen.writeEndArray();
 	
 					gen.writeArrayFieldStart("finished");
 					for (JobDetails detail : result.getFinishedJobs()) {
-						generateSingleJobDetails(detail, gen, now);
+						JsonUtils.writeJobDetailOverviewAsJson(detail, gen, now);
 					}
 					gen.writeEndArray();
 				}
 				else {
 					gen.writeArrayFieldStart("jobs");
 					for (JobDetails detail : includeRunningJobs ? result.getRunningJobs() : result.getFinishedJobs()) {
-						generateSingleJobDetails(detail, gen, now);
+						JsonUtils.writeJobDetailOverviewAsJson(detail, gen, now);
 					}
 					gen.writeEndArray();
 				}
@@ -102,34 +102,5 @@ public class CurrentJobsOverviewHandler extends AbstractJsonRequestHandler {
 		catch (Exception e) {
 			throw new Exception("Failed to fetch the status overview: " + e.getMessage(), e);
 		}
-	}
-
-	private static void generateSingleJobDetails(JobDetails details, JsonGenerator gen, long now) throws Exception {
-		gen.writeStartObject();
-
-		gen.writeStringField("jid", details.getJobId().toString());
-		gen.writeStringField("name", details.getJobName());
-		gen.writeStringField("state", details.getStatus().name());
-
-		gen.writeNumberField("start-time", details.getStartTime());
-		gen.writeNumberField("end-time", details.getEndTime());
-		gen.writeNumberField("duration", (details.getEndTime() <= 0 ? now : details.getEndTime()) - details.getStartTime());
-		gen.writeNumberField("last-modification", details.getLastUpdateTime());
-
-		gen.writeObjectFieldStart("tasks");
-		gen.writeNumberField("total", details.getNumTasks());
-
-		final int[] perState = details.getNumVerticesPerExecutionState();
-		gen.writeNumberField("pending", perState[ExecutionState.CREATED.ordinal()] +
-				perState[ExecutionState.SCHEDULED.ordinal()] +
-				perState[ExecutionState.DEPLOYING.ordinal()]);
-		gen.writeNumberField("running", perState[ExecutionState.RUNNING.ordinal()]);
-		gen.writeNumberField("finished", perState[ExecutionState.FINISHED.ordinal()]);
-		gen.writeNumberField("canceling", perState[ExecutionState.CANCELING.ordinal()]);
-		gen.writeNumberField("canceled", perState[ExecutionState.CANCELED.ordinal()]);
-		gen.writeNumberField("failed", perState[ExecutionState.FAILED.ordinal()]);
-		gen.writeEndObject();
-
-		gen.writeEndObject();
 	}
 }

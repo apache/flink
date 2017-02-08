@@ -20,11 +20,10 @@ package org.apache.flink.runtime.webmonitor.handlers;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.runtime.instance.ActorGateway;
-import org.apache.flink.runtime.util.EnvironmentInformation;
+import org.apache.flink.runtime.webmonitor.utils.JsonUtils;
 
 import java.io.StringWriter;
 import java.util.Map;
-import java.util.TimeZone;
 
 /**
  * Responder that returns the parameters that define how the asynchronous requests
@@ -36,26 +35,11 @@ public class DashboardConfigHandler extends AbstractJsonRequestHandler {
 	private final String configString;
 	
 	public DashboardConfigHandler(long refreshInterval) {
-		TimeZone timeZome = TimeZone.getDefault();
-		String timeZoneName = timeZome.getDisplayName();
-		long timeZoneOffset= timeZome.getRawOffset();
-
 		try {
 			StringWriter writer = new StringWriter();
 			JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
-	
-			gen.writeStartObject();
-			gen.writeNumberField("refresh-interval", refreshInterval);
-			gen.writeNumberField("timezone-offset", timeZoneOffset);
-			gen.writeStringField("timezone-name", timeZoneName);
-			gen.writeStringField("flink-version", EnvironmentInformation.getVersion());
 
-			EnvironmentInformation.RevisionInformation revision = EnvironmentInformation.getRevisionInformation();
-			if (revision != null) {
-				gen.writeStringField("flink-revision", revision.commitId + " @ " + revision.commitDate);
-			}
-
-			gen.writeEndObject();
+			JsonUtils.writeConfigAsJson(gen, refreshInterval);
 	
 			gen.close();
 			this.configString = writer.toString();

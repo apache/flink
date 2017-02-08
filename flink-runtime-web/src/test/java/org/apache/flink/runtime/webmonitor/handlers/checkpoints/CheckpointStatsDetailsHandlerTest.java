@@ -32,6 +32,7 @@ import org.apache.flink.runtime.checkpoint.TaskStateStats;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
+import org.apache.flink.runtime.webmonitor.utils.JsonUtils;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -126,16 +127,16 @@ public class CheckpointStatsDetailsHandlerTest {
 
 		JsonNode rootNode = triggerRequest(checkpoint);
 
-		assertEquals(checkpoint.getCheckpointId(), rootNode.get("id").asLong());
-		assertEquals(checkpoint.getStatus().toString(), rootNode.get("status").asText());
-		assertEquals(CheckpointProperties.isSavepoint(checkpoint.getProperties()), rootNode.get("is_savepoint").asBoolean());
-		assertEquals(checkpoint.getTriggerTimestamp(), rootNode.get("trigger_timestamp").asLong());
-		assertEquals(checkpoint.getLatestAckTimestamp(), rootNode.get("latest_ack_timestamp").asLong());
-		assertEquals(checkpoint.getStateSize(), rootNode.get("state_size").asLong());
-		assertEquals(checkpoint.getEndToEndDuration(), rootNode.get("end_to_end_duration").asLong());
-		assertEquals(checkpoint.getAlignmentBuffered(), rootNode.get("alignment_buffered").asLong());
-		assertEquals(checkpoint.getNumberOfSubtasks(), rootNode.get("num_subtasks").asInt());
-		assertEquals(checkpoint.getNumberOfAcknowledgedSubtasks(), rootNode.get("num_acknowledged_subtasks").asInt());
+		assertEquals(checkpoint.getCheckpointId(), rootNode.get(JsonUtils.Keys.ID).asLong());
+		assertEquals(checkpoint.getStatus().toString(), rootNode.get(JsonUtils.Keys.STATUS).asText());
+		assertEquals(CheckpointProperties.isSavepoint(checkpoint.getProperties()), rootNode.get(JsonUtils.Keys.IS_SAVEPOINT).asBoolean());
+		assertEquals(checkpoint.getTriggerTimestamp(), rootNode.get(JsonUtils.Keys.TRIGGER_TIMESTAMP).asLong());
+		assertEquals(checkpoint.getLatestAckTimestamp(), rootNode.get(JsonUtils.Keys.LATEST_ACK_TIMESTAMP).asLong());
+		assertEquals(checkpoint.getStateSize(), rootNode.get(JsonUtils.Keys.STATE_SIZE).asLong());
+		assertEquals(checkpoint.getEndToEndDuration(), rootNode.get(JsonUtils.Keys.ETE_DURATION).asLong());
+		assertEquals(checkpoint.getAlignmentBuffered(), rootNode.get(JsonUtils.Keys.ALIGNMENT_BUFFERED).asLong());
+		assertEquals(checkpoint.getNumberOfSubtasks(), rootNode.get(JsonUtils.Keys.NUM_SUBTASKS).asInt());
+		assertEquals(checkpoint.getNumberOfAcknowledgedSubtasks(), rootNode.get(JsonUtils.Keys.NUM_ACK_SUBTASKS).asInt());
 
 		verifyTaskNode(task1, rootNode);
 		verifyTaskNode(task2, rootNode);
@@ -170,18 +171,18 @@ public class CheckpointStatsDetailsHandlerTest {
 
 		JsonNode rootNode = triggerRequest(checkpoint);
 
-		assertEquals(checkpoint.getCheckpointId(), rootNode.get("id").asLong());
-		assertEquals(checkpoint.getStatus().toString(), rootNode.get("status").asText());
-		assertEquals(CheckpointProperties.isSavepoint(checkpoint.getProperties()), rootNode.get("is_savepoint").asBoolean());
-		assertEquals(checkpoint.getTriggerTimestamp(), rootNode.get("trigger_timestamp").asLong());
-		assertEquals(checkpoint.getLatestAckTimestamp(), rootNode.get("latest_ack_timestamp").asLong());
-		assertEquals(checkpoint.getStateSize(), rootNode.get("state_size").asLong());
-		assertEquals(checkpoint.getEndToEndDuration(), rootNode.get("end_to_end_duration").asLong());
-		assertEquals(checkpoint.getAlignmentBuffered(), rootNode.get("alignment_buffered").asLong());
-		assertEquals(checkpoint.isDiscarded(), rootNode.get("discarded").asBoolean());
-		assertEquals(checkpoint.getExternalPath(), rootNode.get("external_path").asText());
-		assertEquals(checkpoint.getNumberOfSubtasks(), rootNode.get("num_subtasks").asInt());
-		assertEquals(checkpoint.getNumberOfAcknowledgedSubtasks(), rootNode.get("num_acknowledged_subtasks").asInt());
+		assertEquals(checkpoint.getCheckpointId(), rootNode.get(JsonUtils.Keys.ID).asLong());
+		assertEquals(checkpoint.getStatus().toString(), rootNode.get(JsonUtils.Keys.STATUS).asText());
+		assertEquals(CheckpointProperties.isSavepoint(checkpoint.getProperties()), rootNode.get(JsonUtils.Keys.IS_SAVEPOINT).asBoolean());
+		assertEquals(checkpoint.getTriggerTimestamp(), rootNode.get(JsonUtils.Keys.TRIGGER_TIMESTAMP).asLong());
+		assertEquals(checkpoint.getLatestAckTimestamp(), rootNode.get(JsonUtils.Keys.LATEST_ACK_TIMESTAMP).asLong());
+		assertEquals(checkpoint.getStateSize(), rootNode.get(JsonUtils.Keys.STATE_SIZE).asLong());
+		assertEquals(checkpoint.getEndToEndDuration(), rootNode.get(JsonUtils.Keys.ETE_DURATION).asLong());
+		assertEquals(checkpoint.getAlignmentBuffered(), rootNode.get(JsonUtils.Keys.ALIGNMENT_BUFFERED).asLong());
+		assertEquals(checkpoint.isDiscarded(), rootNode.get(JsonUtils.Keys.DISCARDED).asBoolean());
+		assertEquals(checkpoint.getExternalPath(), rootNode.get(JsonUtils.Keys.EXTERNAL_PATH).asText());
+		assertEquals(checkpoint.getNumberOfSubtasks(), rootNode.get(JsonUtils.Keys.NUM_SUBTASKS).asInt());
+		assertEquals(checkpoint.getNumberOfAcknowledgedSubtasks(), rootNode.get(JsonUtils.Keys.NUM_ACK_SUBTASKS).asInt());
 
 		verifyTaskNode(task1, rootNode);
 		verifyTaskNode(task2, rootNode);
@@ -216,18 +217,18 @@ public class CheckpointStatsDetailsHandlerTest {
 
 		JsonNode rootNode = triggerRequest(checkpoint);
 
-		assertEquals(checkpoint.getCheckpointId(), rootNode.get("id").asLong());
-		assertEquals(checkpoint.getStatus().toString(), rootNode.get("status").asText());
-		assertEquals(CheckpointProperties.isSavepoint(checkpoint.getProperties()), rootNode.get("is_savepoint").asBoolean());
-		assertEquals(checkpoint.getTriggerTimestamp(), rootNode.get("trigger_timestamp").asLong());
-		assertEquals(checkpoint.getLatestAckTimestamp(), rootNode.get("latest_ack_timestamp").asLong());
-		assertEquals(checkpoint.getStateSize(), rootNode.get("state_size").asLong());
-		assertEquals(checkpoint.getEndToEndDuration(), rootNode.get("end_to_end_duration").asLong());
-		assertEquals(checkpoint.getAlignmentBuffered(), rootNode.get("alignment_buffered").asLong());
-		assertEquals(checkpoint.getFailureTimestamp(), rootNode.get("failure_timestamp").asLong());
-		assertEquals(checkpoint.getFailureMessage(), rootNode.get("failure_message").asText());
-		assertEquals(checkpoint.getNumberOfSubtasks(), rootNode.get("num_subtasks").asInt());
-		assertEquals(checkpoint.getNumberOfAcknowledgedSubtasks(), rootNode.get("num_acknowledged_subtasks").asInt());
+		assertEquals(checkpoint.getCheckpointId(), rootNode.get(JsonUtils.Keys.ID).asLong());
+		assertEquals(checkpoint.getStatus().toString(), rootNode.get(JsonUtils.Keys.STATUS).asText());
+		assertEquals(CheckpointProperties.isSavepoint(checkpoint.getProperties()), rootNode.get(JsonUtils.Keys.IS_SAVEPOINT).asBoolean());
+		assertEquals(checkpoint.getTriggerTimestamp(), rootNode.get(JsonUtils.Keys.TRIGGER_TIMESTAMP).asLong());
+		assertEquals(checkpoint.getLatestAckTimestamp(), rootNode.get(JsonUtils.Keys.LATEST_ACK_TIMESTAMP).asLong());
+		assertEquals(checkpoint.getStateSize(), rootNode.get(JsonUtils.Keys.STATE_SIZE).asLong());
+		assertEquals(checkpoint.getEndToEndDuration(), rootNode.get(JsonUtils.Keys.ETE_DURATION).asLong());
+		assertEquals(checkpoint.getAlignmentBuffered(), rootNode.get(JsonUtils.Keys.ALIGNMENT_BUFFERED).asLong());
+		assertEquals(checkpoint.getFailureTimestamp(), rootNode.get(JsonUtils.Keys.FAILURE_TIMESTAMP).asLong());
+		assertEquals(checkpoint.getFailureMessage(), rootNode.get(JsonUtils.Keys.FAILURE_MESSAGE).asText());
+		assertEquals(checkpoint.getNumberOfSubtasks(), rootNode.get(JsonUtils.Keys.NUM_SUBTASKS).asInt());
+		assertEquals(checkpoint.getNumberOfAcknowledgedSubtasks(), rootNode.get(JsonUtils.Keys.NUM_ACK_SUBTASKS).asInt());
 
 		verifyTaskNode(task1, rootNode);
 		verifyTaskNode(task2, rootNode);
@@ -256,13 +257,13 @@ public class CheckpointStatsDetailsHandlerTest {
 	private static void verifyTaskNode(TaskStateStats task, JsonNode parentNode) {
 		long duration = ThreadLocalRandom.current().nextInt(128);
 
-		JsonNode taskNode = parentNode.get("tasks").get(task.getJobVertexId().toString());
-		assertEquals(task.getLatestAckTimestamp(), taskNode.get("latest_ack_timestamp").asLong());
-		assertEquals(task.getStateSize(), taskNode.get("state_size").asLong());
-		assertEquals(task.getEndToEndDuration(task.getLatestAckTimestamp() - duration), taskNode.get("end_to_end_duration").asLong());
-		assertEquals(task.getAlignmentBuffered(), taskNode.get("alignment_buffered").asLong());
-		assertEquals(task.getNumberOfSubtasks(), taskNode.get("num_subtasks").asInt());
-		assertEquals(task.getNumberOfAcknowledgedSubtasks(), taskNode.get("num_acknowledged_subtasks").asInt());
+		JsonNode taskNode = parentNode.get(JsonUtils.Keys.TASKS).get(task.getJobVertexId().toString());
+		assertEquals(task.getLatestAckTimestamp(), taskNode.get(JsonUtils.Keys.LATEST_ACK_TIMESTAMP).asLong());
+		assertEquals(task.getStateSize(), taskNode.get(JsonUtils.Keys.STATE_SIZE).asLong());
+		assertEquals(task.getEndToEndDuration(task.getLatestAckTimestamp() - duration), taskNode.get(JsonUtils.Keys.ETE_DURATION).asLong());
+		assertEquals(task.getAlignmentBuffered(), taskNode.get(JsonUtils.Keys.ALIGNMENT_BUFFERED).asLong());
+		assertEquals(task.getNumberOfSubtasks(), taskNode.get(JsonUtils.Keys.NUM_SUBTASKS).asInt());
+		assertEquals(task.getNumberOfAcknowledgedSubtasks(), taskNode.get(JsonUtils.Keys.NUM_ACK_SUBTASKS).asInt());
 	}
 
 	private static TaskStateStats createTaskStateStats() {

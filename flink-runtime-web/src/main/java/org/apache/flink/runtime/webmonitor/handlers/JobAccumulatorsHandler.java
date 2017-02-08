@@ -19,9 +19,9 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import com.fasterxml.jackson.core.JsonGenerator;
-import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
+import org.apache.flink.runtime.webmonitor.utils.JsonUtils;
 
 import java.io.StringWriter;
 import java.util.Map;
@@ -37,28 +37,9 @@ public class JobAccumulatorsHandler extends AbstractExecutionGraphRequestHandler
 
 	@Override
 	public String handleRequest(AccessExecutionGraph graph, Map<String, String> params) throws Exception {
-		StringifiedAccumulatorResult[] allAccumulators = graph.getAccumulatorResultsStringified();
-		
 		StringWriter writer = new StringWriter();
 		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
-
-		gen.writeStartObject();
-
-		gen.writeArrayFieldStart("job-accumulators");
-		// empty for now
-		gen.writeEndArray();
-		
-		gen.writeArrayFieldStart("user-task-accumulators");
-		for (StringifiedAccumulatorResult acc : allAccumulators) {
-			gen.writeStartObject();
-			gen.writeStringField("name", acc.getName());
-			gen.writeStringField("type", acc.getType());
-			gen.writeStringField("value", acc.getValue());
-			gen.writeEndObject();
-		}
-		gen.writeEndArray();
-		gen.writeEndObject();
-
+		JsonUtils.writeJobAccumulatorsAsJson(graph, gen);
 		gen.close();
 		return writer.toString();
 	}

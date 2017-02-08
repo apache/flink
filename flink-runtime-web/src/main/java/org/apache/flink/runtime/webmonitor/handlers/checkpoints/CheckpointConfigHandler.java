@@ -20,11 +20,10 @@ package org.apache.flink.runtime.webmonitor.handlers.checkpoints;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
-import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
-import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 import org.apache.flink.runtime.webmonitor.handlers.AbstractExecutionGraphRequestHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JsonFactory;
+import org.apache.flink.runtime.webmonitor.utils.JsonUtils;
 
 import java.io.StringWriter;
 import java.util.Map;
@@ -43,34 +42,8 @@ public class CheckpointConfigHandler extends AbstractExecutionGraphRequestHandle
 		StringWriter writer = new StringWriter();
 
 		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
-		JobSnapshottingSettings settings = graph.getJobSnapshottingSettings();
 
-		if (settings == null) {
-			return "{}";
-		}
-
-		gen.writeStartObject();
-		{
-			gen.writeStringField("mode", settings.isExactlyOnce() ? "exactly_once" : "at_least_once");
-			gen.writeNumberField("interval", settings.getCheckpointInterval());
-			gen.writeNumberField("timeout", settings.getCheckpointTimeout());
-			gen.writeNumberField("min_pause", settings.getMinPauseBetweenCheckpoints());
-			gen.writeNumberField("max_concurrent", settings.getMaxConcurrentCheckpoints());
-
-			ExternalizedCheckpointSettings externalization = settings.getExternalizedCheckpointSettings();
-			gen.writeObjectFieldStart("externalization");
-			{
-				if (externalization.externalizeCheckpoints()) {
-					gen.writeBooleanField("enabled", true);
-					gen.writeBooleanField("delete_on_cancellation", externalization.deleteOnCancellation());
-				} else {
-					gen.writeBooleanField("enabled", false);
-				}
-			}
-			gen.writeEndObject();
-
-		}
-		gen.writeEndObject();
+		JsonUtils.writeCheckpointConfigAsJson(graph, gen);
 
 		gen.close();
 
