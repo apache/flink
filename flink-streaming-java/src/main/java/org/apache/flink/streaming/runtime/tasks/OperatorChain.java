@@ -118,7 +118,8 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 					chainedConfigs, userCodeClassloader, streamOutputMap, allOps);
 
 			if (headOperator != null) {
-				headOperator.setup(containingTask, configuration, getChainEntryPoint());
+				Output output = getChainEntryPoint();
+				headOperator.setup(containingTask, configuration, output);
 			}
 
 			// add head operator to end of chain
@@ -257,7 +258,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 		for (StreamEdge outputEdge : operatorConfig.getNonChainedOutputs(userCodeClassloader)) {
 			@SuppressWarnings("unchecked")
 			RecordWriterOutput<T> output = (RecordWriterOutput<T>) streamOutputs.get(outputEdge);
-			
+
 			allOutputs.add(new Tuple2<Output<StreamRecord<T>>, StreamEdge>(output, outputEdge));
 		}
 
