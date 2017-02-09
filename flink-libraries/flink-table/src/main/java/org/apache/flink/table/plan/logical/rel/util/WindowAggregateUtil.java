@@ -17,48 +17,84 @@
  */
 package org.apache.flink.table.plan.logical.rel.util;
 
+import java.io.Serializable;
 import java.util.List;
 
+import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Window.Group;
 import org.apache.calcite.rel.core.Window.RexWinAggCall;
 import org.apache.calcite.rel.logical.LogicalWindow;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.calcite.rex.RexLiteral;
+import org.apache.calcite.rex.RexVariable;
+import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.calcite.rex.RexCall;
+import org.apache.calcite.rex.RexInputRef;
 import org.apache.flink.api.java.tuple.Tuple5;
 
-public class WindowAggregateUtil {
+import com.google.common.collect.ImmutableList;
 
+public class WindowAggregateUtil implements Serializable {
 
-	public List<Tuple5<String,String,String,Integer,Integer>> getAggregateFunctions(LogicalWindow window){
-		
-		for(RexWinAggCall agg : window.groups.iterator().next().aggCalls){
-			
+	private static final long serialVersionUID = -3916551736243544540L;
+
+	public List<Tuple5<String, String, String, Integer, Integer>> getAggregateFunctions(LogicalWindow window) {
+
+		for (RexWinAggCall agg : window.groups.iterator().next().aggCalls) {
+
 		}
 		return null;
-		
+
 	}
 
 	/**
-	 * A utility function that checks whether a window is partitioned
-	 * or it is a global window.
-	 * @param LogicalWindow window to be checked for partitions
+	 * A utility function that checks whether a window is partitioned or it is a
+	 * global window.
+	 * 
+	 * @param LogicalWindow
+	 *            window to be checked for partitions
 	 * @return true if partition keys are defined, false otherwise.
 	 */
 	public boolean isStreamPartitioned(LogicalWindow window) {
 		// if it exists a group bounded by keys, the it is
 		// a partitioned window
-		for(Group group:window.groups){
-			if(!group.keys.isEmpty()){
+		for (Group group : window.groups) {
+			if (!group.keys.isEmpty()) {
 				return true;
 			}
 		}
-		
+
 		return false;
 	}
 
 	public int[] getKeysAsArray(Group group) {
-		if(group==null) { return null; }
+		if (group == null) {
+			return null;
+		}
 		return group.keys.toArray();
 	}
-	
-	
-	
+
+	/**
+	 * This method returns the [[int]] lowerbound of a window when expressed with an integer e.g.
+	 * ... ROWS BETWEEN [[value]] PRECEDING AND CURRENT ROW
+	 * 
+	 * @param group The group for analyzed window from which keys are extracted
+	 * @param constants the list of constant to get the offset value
+	 * @return return the value of the lowerbound if available -1 otherwise
+	 */
+	public int getLowerBoundary(Group group, ImmutableList<RexLiteral> constants) {
+		Integer lowerBoundKey = group.keys.asList().get(0);
+		Object lowerbound = constants.get(lowerBoundKey).getValue2();
+		Object offset =group.lowerBound.getOffset();
+		
+		if(offset instanceof RexInputRef) { 
+			RelDataType type = ((RexInputRef) offset).getType();
+			if(type.getSqlTypeName().equals(SqlTypeName.INTEGER)) {
+				return Integer.parseInt(lowerbound.toString());
+			}
+		}
+		return -1;
+	}
+
 }
