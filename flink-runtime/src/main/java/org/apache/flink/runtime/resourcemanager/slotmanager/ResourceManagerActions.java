@@ -16,26 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.resourcemanager.messages.jobmanager;
+package org.apache.flink.runtime.resourcemanager.slotmanager;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 
-import java.io.Serializable;
+public interface ResourceManagerActions {
 
-/**
- * Acknowledgment by the ResourceManager for a SlotRequest from the JobManager
- */
-public abstract class RMSlotRequestReply implements Serializable {
+	void releaseResource(InstanceID instanceId);
 
-	private static final long serialVersionUID = 42;
+	void allocateResource(ResourceProfile resourceProfile) throws ResourceManagerException;
 
-	private final AllocationID allocationID;
-
-	public RMSlotRequestReply(AllocationID allocationID) {
-		this.allocationID = allocationID;
-	}
-
-	public AllocationID getAllocationID() {
-		return allocationID;
-	}
+	void notifyAllocationFailure(JobID jobId, AllocationID allocationId, Exception cause);
 }

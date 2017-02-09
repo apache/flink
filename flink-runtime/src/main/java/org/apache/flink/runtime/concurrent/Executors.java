@@ -92,6 +92,8 @@ public class Executors {
 					executorService.shutdownNow();
 
 					wasInterrupted = true;
+
+					Thread.currentThread().interrupt();
 				}
 
 				timeLeft = endTime - System.currentTimeMillis();
