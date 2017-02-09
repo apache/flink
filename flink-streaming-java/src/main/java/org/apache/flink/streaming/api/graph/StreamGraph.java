@@ -110,7 +110,7 @@ public class StreamGraph extends StreamingPlan {
 		streamNodes = new HashMap<>();
 		virtualSelectNodes = new HashMap<>();
 		virtualOutputNodes = new HashMap<>();
-		virtualPartitionNodes = new HashMap<>();
+		virtuaPartitionNodes = new HashMap<>();
 		vertexIDtoBrokerID = new HashMap<>();
 		vertexIDtoLoopTimeout  = new HashMap<>();
 		iterationSourceSinkPairs = new HashSet<>();
@@ -321,11 +321,11 @@ public class StreamGraph extends StreamingPlan {
 	 */
 	public void addVirtualPartitionNode(Integer originalId, Integer virtualId, StreamPartitioner<?> partitioner) {
 
-		if (virtualPartitionNodes.containsKey(virtualId)) {
+		if (virtuaPartitionNodes.containsKey(virtualId)) {
 			throw new IllegalStateException("Already has virtual partition node with id " + virtualId);
 		}
 
-		virtualPartitionNodes.put(virtualId,
+		virtuaPartitionNodes.put(virtualId,
 				new Tuple2<Integer, StreamPartitioner<?>>(originalId, partitioner));
 	}
 
@@ -339,8 +339,8 @@ public class StreamGraph extends StreamingPlan {
 		} else if (virtualSelectNodes.containsKey(id)) {
 			Integer mappedId = virtualSelectNodes.get(id).f0;
 			return getSlotSharingGroup(mappedId);
-		} else if (virtualPartitionNodes.containsKey(id)) {
-			Integer mappedId = virtualPartitionNodes.get(id).f0;
+		} else if (virtuaPartitionNodes.containsKey(id)) {
+			Integer mappedId = virtuaPartitionNodes.get(id).f0;
 			return getSlotSharingGroup(mappedId);
 		} else {
 			StreamNode node = getStreamNode(id);
@@ -383,9 +383,9 @@ public class StreamGraph extends StreamingPlan {
 			addEdgeInternal(upStreamVertexID, downStreamVertexID, typeNumber, partitioner, outputNames, null);
 		} else if (virtuaPartitionNodes.containsKey(upStreamVertexID)) {
 			int virtualId = upStreamVertexID;
-			upStreamVertexID = virtualPartitionNodes.get(virtualId).f0;
+			upStreamVertexID = virtuaPartitionNodes.get(virtualId).f0;
 			if (partitioner == null) {
-				partitioner = virtualPartitionNodes.get(virtualId).f1;
+				partitioner = virtuaPartitionNodes.get(virtualId).f1;
 			}
 
 			addEdgeInternal(upStreamVertexID, downStreamVertexID, typeNumber, partitioner, outputNames, outputTag);
@@ -418,8 +418,8 @@ public class StreamGraph extends StreamingPlan {
 	}
 
 	public <T> void addOutputSelector(Integer vertexID, OutputSelector<T> outputSelector) {
-		if (virtualPartitionNodes.containsKey(vertexID)) {
-			addOutputSelector(virtualPartitionNodes.get(vertexID).f0, outputSelector);
+		if (virtuaPartitionNodes.containsKey(vertexID)) {
+			addOutputSelector(virtuaPartitionNodes.get(vertexID).f0, outputSelector);
 		} else if (virtualSelectNodes.containsKey(vertexID)) {
 			addOutputSelector(virtualSelectNodes.get(vertexID).f0, outputSelector);
 		} else {

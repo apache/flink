@@ -66,7 +66,6 @@ import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
-import org.apache.flink.streaming.util.WindowingTestHarness;
 import org.apache.flink.streaming.util.outputtags.LateArrivingOutputTag;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
@@ -1470,12 +1469,6 @@ public class WindowOperatorTest extends TestLogger {
 
 	@Test
 	public void testSideOutputDueToLatenessSessionZeroLateness() throws Exception {
-		// same as testSideOutputDueToLatenessSessionZeroLateness() but with an accumulating trigger, i.e.
-		// one that does not return FIRE_AND_PURGE when firing but just FIRE
-
-		// this has the same output as testDropDueToLatenessSessionZeroLateness() because
-		// accumulating/discarding does not make a difference with "allowed lateness" = 0.
-
 		final int GAP_SIZE = 3;
 		final long LATENESS = 0;
 
@@ -1559,9 +1552,9 @@ public class WindowOperatorTest extends TestLogger {
 	}
 
 	@Test
-	public void testSideOutputDueToLatenessSessionWithLatenessPurgingTrigger() throws Exception {
+	public void testDropDueToLatenessSessionWithLatenessPurgingTrigger() throws Exception {
 
-		// this has the same output as testDropDueToLatenessSessionZeroLateness() because
+		// this has the same output as testSideOutputDueToLatenessSessionZeroLateness() because
 		// the allowed lateness is too small to make a difference
 
 		final int GAP_SIZE = 3;
@@ -1590,8 +1583,7 @@ public class WindowOperatorTest extends TestLogger {
 		testHarness.open();
 
 		ConcurrentLinkedQueue<Object> expected = new ConcurrentLinkedQueue<>();
-		ConcurrentLinkedQueue<Object> sideExpected = new ConcurrentLinkedQueue<>();
-		
+
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1000));
 		testHarness.processWatermark(new Watermark(1999));
 
@@ -1627,8 +1619,6 @@ public class WindowOperatorTest extends TestLogger {
 		expected.add(new Watermark(14600));
 
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 10000));
-    // sideoutput as late
-		sideExpected.add(new StreamRecord<>(new Tuple2<>("key2", 1), 10000, tag));
 
 		expected.add(new StreamRecord<>(new Tuple3<>("key2-1", 10000L, 14600L), 14599));
 
@@ -1643,15 +1633,12 @@ public class WindowOperatorTest extends TestLogger {
 
 		ConcurrentLinkedQueue<Object> actual = testHarness.getOutput();
 
-		ConcurrentLinkedQueue<Object> sideActual = testHarness.getSideOutput(tag);
-		TestHarnessUtil.assertOutputEqualsSorted("SideOutput was not correct.", sideExpected, sideActual, new Tuple2ResultSortComparator());
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expected, actual, new Tuple3ResultSortComparator());
-
 		testHarness.close();
 	}
 
 	@Test
-	public void testSideOutputDueToLatenessSessionWithLateness() throws Exception {
+	public void testNotSideOutputDueToLatenessSessionWithLateness() throws Exception {
 		// same as testSideOutputDueToLatenessSessionWithLateness() but with an accumulating trigger, i.e.
 		// one that does not return FIRE_AND_PURGE when firing but just FIRE. The expected
 		// results are therefore slightly different.
@@ -1682,7 +1669,6 @@ public class WindowOperatorTest extends TestLogger {
 		testHarness.open();
 		
 		ConcurrentLinkedQueue<Object> expected = new ConcurrentLinkedQueue<>();
-		ConcurrentLinkedQueue<Object> sideExpected = new ConcurrentLinkedQueue<>();
 
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1000));
 		testHarness.processWatermark(new Watermark(1999));
@@ -1734,7 +1720,7 @@ public class WindowOperatorTest extends TestLogger {
 		ConcurrentLinkedQueue<Object> sideActual = testHarness.getSideOutput(tag);
 
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expected, actual, new Tuple3ResultSortComparator());
-		TestHarnessUtil.assertOutputEqualsSorted("SideOutput was not correct.", sideExpected, sideActual, new Tuple3ResultSortComparator());
+		TestHarnessUtil.assertOutputEqualsSorted("SideOutput was not correct.", new ConcurrentLinkedQueue<>(), sideActual, new Tuple3ResultSortComparator());
 
 		testHarness.processWatermark(new Watermark(20000));
 
@@ -1748,13 +1734,13 @@ public class WindowOperatorTest extends TestLogger {
 		actual = testHarness.getOutput();
 		sideActual = testHarness.getSideOutput(tag);
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expected, actual, new Tuple3ResultSortComparator());
-		TestHarnessUtil.assertOutputEqualsSorted("SideOutput was not correct.", sideExpected, sideActual, new Tuple3ResultSortComparator());
+		TestHarnessUtil.assertOutputEqualsSorted("SideOutput was not correct.", new ConcurrentLinkedQueue<>(), sideActual, new Tuple3ResultSortComparator());
 
 		testHarness.close();
 	}
 
 	@Test
-	public void testSideOutputDueToLatenessSessionWithHugeLatenessPurgingTrigger() throws Exception {
+	public void testNotSideOutputDueToLatenessSessionWithHugeLatenessPurgingTrigger() throws Exception {
 
 		final int GAP_SIZE = 3;
 		final long LATENESS = 10000;
@@ -1782,7 +1768,6 @@ public class WindowOperatorTest extends TestLogger {
 		testHarness.open();
 		
 		ConcurrentLinkedQueue<Object> expected = new ConcurrentLinkedQueue<>();
-		ConcurrentLinkedQueue<Object> sideExpected = new ConcurrentLinkedQueue<>();
 
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1000));
 		testHarness.processWatermark(new Watermark(1999));
@@ -1825,7 +1810,7 @@ public class WindowOperatorTest extends TestLogger {
 		ConcurrentLinkedQueue<Object> actual = testHarness.getOutput();
 		ConcurrentLinkedQueue<Object> sideActual = testHarness.getSideOutput(tag);
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expected, actual, new Tuple3ResultSortComparator());
-		TestHarnessUtil.assertOutputEqualsSorted("SideOutput was not correct.", sideExpected, sideActual, new Tuple2ResultSortComparator());
+		TestHarnessUtil.assertOutputEqualsSorted("SideOutput was not correct.", new ConcurrentLinkedQueue<>(), sideActual, new Tuple2ResultSortComparator());
 
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 14500));
 		testHarness.processWatermark(new Watermark(20000));
@@ -1840,12 +1825,12 @@ public class WindowOperatorTest extends TestLogger {
 		actual = testHarness.getOutput();
 		sideActual = testHarness.getSideOutput(tag);
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expected, actual, new Tuple3ResultSortComparator());
-		TestHarnessUtil.assertOutputEqualsSorted("SideOutput was not correct.", sideExpected, sideActual, new Tuple2ResultSortComparator());
+		TestHarnessUtil.assertOutputEqualsSorted("SideOutput was not correct.", new ConcurrentLinkedQueue<>(), sideActual, new Tuple2ResultSortComparator());
 		testHarness.close();
 	}
 
 	@Test
-	public void testSideOutputDueToLatenessSessionWithHugeLateness() throws Exception {
+	public void testNotSideOutputDueToLatenessSessionWithHugeLateness() throws Exception {
 		final int GAP_SIZE = 3;
 		final long LATENESS = 10000;
 
@@ -1872,7 +1857,6 @@ public class WindowOperatorTest extends TestLogger {
 		testHarness.open();
 
 		ConcurrentLinkedQueue<Object> expected = new ConcurrentLinkedQueue<>();
-		ConcurrentLinkedQueue<Object> sideExpected = new ConcurrentLinkedQueue<>();
 
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1000));
 		testHarness.processWatermark(new Watermark(1999));
@@ -1917,7 +1901,7 @@ public class WindowOperatorTest extends TestLogger {
 		ConcurrentLinkedQueue<Object> actual = testHarness.getOutput();
 		ConcurrentLinkedQueue<Object> sideActual = testHarness.getSideOutput(tag);
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expected, actual, new Tuple3ResultSortComparator());
-		TestHarnessUtil.assertOutputEqualsSorted("SideOutput was not correct.", sideExpected, sideActual, new Tuple3ResultSortComparator());
+		TestHarnessUtil.assertOutputEqualsSorted("SideOutput was not correct.", new ConcurrentLinkedQueue<>(), sideActual, new Tuple3ResultSortComparator());
 
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 14500));
 		testHarness.processWatermark(new Watermark(20000));
@@ -1932,7 +1916,7 @@ public class WindowOperatorTest extends TestLogger {
 		sideActual = testHarness.getSideOutput(tag);
 
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expected, actual, new Tuple3ResultSortComparator());
-		TestHarnessUtil.assertOutputEqualsSorted("SideOutput was not correct.", sideExpected, sideActual, new Tuple3ResultSortComparator());
+		TestHarnessUtil.assertOutputEqualsSorted("SideOutput was not correct.", new ConcurrentLinkedQueue<>(), sideActual, new Tuple3ResultSortComparator());
 
 		testHarness.close();
 	}

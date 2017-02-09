@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.functions.windowing;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.streaming.api.windowing.windows.Window;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Collector;
 
 @Internal
@@ -44,5 +45,14 @@ public class ReduceIterableAllWindowFunction<W extends Window, T> implements All
 			}
 		}
 		out.collect(curr);
+	}
+
+	/**
+     * discard non sideoutputs of keyed window, pass through sideOutputs only
+     */
+	@Internal
+	public static class DiscardWindowFunction<T, K, W extends Window> implements WindowFunction<T, StreamRecord, K, W>{
+		@Override
+		public void apply(K k, W window, Iterable<T> input, Collector<StreamRecord> out) throws Exception {}
 	}
 }
