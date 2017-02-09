@@ -345,7 +345,7 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 		try {
 			// start the slot pool make sure the slot pool now accepts messages for this leader
 			log.debug("Staring SlotPool component");
-			slotPool.start(leaderSessionID);
+			slotPool.start(leaderSessionID, getAddress());
 		} catch (Exception e) {
 			log.error("Faild to start job {} ({})", jobGraph.getName(), jobGraph.getJobID(), e);
 

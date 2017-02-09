@@ -16,18 +16,32 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.resourcemanager.messages.jobmanager;
+package org.apache.flink.runtime.taskexecutor.exceptions;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.util.Preconditions;
 
-/**
- * Acknowledgment by the ResourceManager for a SlotRequest from the JobManager
- */
-public class RMSlotRequestRegistered extends RMSlotRequestReply {
+public class SlotOccupiedException extends SlotAllocationException {
+	private static final long serialVersionUID = -3986333914244338888L;
 
-	private static final long serialVersionUID = 4760320859275256855L;
+	private final AllocationID allocationId;
 
-	public RMSlotRequestRegistered(AllocationID allocationID) {
-		super(allocationID);
+	public SlotOccupiedException(String message, AllocationID allocationId) {
+		super(message);
+		this.allocationId = Preconditions.checkNotNull(allocationId);
+	}
+
+	public SlotOccupiedException(String message, Throwable cause, AllocationID allocationId) {
+		super(message, cause);
+		this.allocationId = Preconditions.checkNotNull(allocationId);
+	}
+
+	public SlotOccupiedException(Throwable cause, AllocationID allocationId) {
+		super(cause);
+		this.allocationId = Preconditions.checkNotNull(allocationId);
+	}
+
+	public AllocationID getAllocationId() {
+		return allocationId;
 	}
 }

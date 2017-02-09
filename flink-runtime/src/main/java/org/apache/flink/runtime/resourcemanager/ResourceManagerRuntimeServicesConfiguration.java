@@ -22,6 +22,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.runtime.resourcemanager.exceptions.ConfigurationException;
+import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerConfiguration;
 import org.apache.flink.util.Preconditions;
 import scala.concurrent.duration.Duration;
 
@@ -32,12 +33,19 @@ public class ResourceManagerRuntimeServicesConfiguration {
 
 	private final Time jobTimeout;
 
-	public ResourceManagerRuntimeServicesConfiguration(Time jobTimeout) {
+	private final SlotManagerConfiguration slotManagerConfiguration;
+
+	public ResourceManagerRuntimeServicesConfiguration(Time jobTimeout, SlotManagerConfiguration slotManagerConfiguration) {
 		this.jobTimeout = Preconditions.checkNotNull(jobTimeout);
+		this.slotManagerConfiguration = Preconditions.checkNotNull(slotManagerConfiguration);
 	}
 
 	public Time getJobTimeout() {
 		return jobTimeout;
+	}
+
+	public SlotManagerConfiguration getSlotManagerConfiguration() {
+		return slotManagerConfiguration;
 	}
 
 	// ---------------------------- Static methods ----------------------------------
@@ -54,6 +62,8 @@ public class ResourceManagerRuntimeServicesConfiguration {
 				"value " + ResourceManagerOptions.JOB_TIMEOUT + '.', e);
 		}
 
-		return new ResourceManagerRuntimeServicesConfiguration(jobTimeout);
+		final SlotManagerConfiguration slotManagerConfiguration = SlotManagerConfiguration.fromConfiguration(configuration);
+
+		return new ResourceManagerRuntimeServicesConfiguration(jobTimeout, slotManagerConfiguration);
 	}
 }

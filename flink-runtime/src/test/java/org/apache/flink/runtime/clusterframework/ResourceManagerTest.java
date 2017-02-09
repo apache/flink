@@ -49,7 +49,7 @@ import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerConfiguration;
 import org.apache.flink.runtime.resourcemanager.StandaloneResourceManager;
-import org.apache.flink.runtime.resourcemanager.TestingSlotManagerFactory;
+import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.TestingSerialRpcService;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
@@ -391,10 +391,14 @@ public class ResourceManagerTest extends TestLogger {
 		final ScheduledExecutor scheduledExecutor = mock(ScheduledExecutor.class);
 		final HeartbeatServices heartbeatServices = new TestingHeartbeatServices(heartbeatInterval, heartbeatTimeout, scheduledExecutor);
 
-		final TestingSlotManagerFactory slotManagerFactory = new TestingSlotManagerFactory();
 		final MetricRegistry metricRegistry = mock(MetricRegistry.class);
 		final JobLeaderIdService jobLeaderIdService = mock(JobLeaderIdService.class);
 		final TestingFatalErrorHandler testingFatalErrorHandler = new TestingFatalErrorHandler();
+		final SlotManager slotManager = new SlotManager(
+			rpcService.getScheduledExecutor(),
+			TestingUtils.infiniteTime(),
+			TestingUtils.infiniteTime(),
+			TestingUtils.infiniteTime());
 
 		try {
 			final StandaloneResourceManager resourceManager = new StandaloneResourceManager(
@@ -404,7 +408,7 @@ public class ResourceManagerTest extends TestLogger {
 				resourceManagerConfiguration,
 				highAvailabilityServices,
 				heartbeatServices,
-				slotManagerFactory,
+				slotManager,
 				metricRegistry,
 				jobLeaderIdService,
 				testingFatalErrorHandler);
