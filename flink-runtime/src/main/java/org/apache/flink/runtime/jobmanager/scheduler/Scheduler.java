@@ -145,19 +145,25 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 
 
 	@Override
-	public Future<SimpleSlot> allocateSlot(ScheduledUnit task, boolean allowQueued)
-			throws NoResourceAvailableException {
+	public Future<SimpleSlot> allocateSlot(ScheduledUnit task, boolean allowQueued) {
+		try {
+			final Object ret = scheduleTask(task, allowQueued);
 
-		final Object ret = scheduleTask(task, allowQueued);
-		if (ret instanceof SimpleSlot) {
-			return FlinkCompletableFuture.completed((SimpleSlot) ret);
+			if (ret instanceof SimpleSlot) {
+				return FlinkCompletableFuture.completed((SimpleSlot) ret);
+			}
+			else if (ret instanceof Future) {
+				@SuppressWarnings("unchecked")
+				Future<SimpleSlot> typed = (Future<SimpleSlot>) ret;
+				return typed;
+			}
+			else {
+				// this should never happen, simply guard this case with an exception
+				throw new RuntimeException();
+			}
 		}
-		else if (ret instanceof Future) {
-			return (Future<SimpleSlot>) ret;
-		}
-		else {
-			// this should never happen, simply guard this case with an exception
-			throw new RuntimeException();
+		catch (NoResourceAvailableException e) {
+			return FlinkCompletableFuture.completedExceptionally(e);
 		}
 	}
 
