@@ -244,12 +244,15 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			// -------- Invoke --------
 			LOG.debug("Invoking {}", getName());
 
-			// first order of business is to give operators their state
-			initializeState();
-
 			// we need to make sure that any triggers scheduled in open() cannot be
 			// executed before all operators are opened
 			synchronized (lock) {
+
+				// both the following operations are protected by the lock
+				// so that we avoid race conditions in the case that initializeState()
+				// registers a timer, that fires before the open() is called.
+
+				initializeState();
 				openAllOperators();
 			}
 
