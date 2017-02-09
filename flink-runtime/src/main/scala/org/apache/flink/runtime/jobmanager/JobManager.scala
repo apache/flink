@@ -2023,11 +2023,11 @@ object JobManager {
 
     val futureExecutor = Executors.newScheduledThreadPool(
       numberProcessors,
-      new NamedThreadFactory("jobmanager-future-", "-thread-"))
+      new ExecutorThreadFactory("jobmanager-future"))
 
     val ioExecutor = Executors.newFixedThreadPool(
       numberProcessors,
-      new NamedThreadFactory("jobmanager-io-", "-thread-"))
+      new ExecutorThreadFactory("jobmanager-io"))
 
     val timeout = AkkaUtils.getTimeout(configuration)
 

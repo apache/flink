@@ -116,12 +116,17 @@ public class JobManagerServices {
 		final FiniteDuration timeout;
 		try {
 			timeout = AkkaUtils.getTimeout(config);
-		} catch (NumberFormatException e) {
+		}
+		catch (NumberFormatException e) {
 			throw new IllegalConfigurationException(AkkaUtils.formatDurationParingErrorMessage());
 		}
 
+		final ScheduledExecutorService futureExecutor = Executors.newScheduledThreadPool(
+				Hardware.getNumberCPUCores(),
+				new ExecutorThreadFactory("jobmanager-future"));
+
 		return new JobManagerServices(
-			Executors.newScheduledThreadPool(Hardware.getNumberCPUCores(), ExecutorThreadFactory.INSTANCE),
+			futureExecutor,
 			libraryCacheManager,
 			RestartStrategyFactory.createRestartStrategyFactory(config),
 			Time.of(timeout.length(), timeout.unit()));
