@@ -1,5 +1,7 @@
 package org.apache.flink.table.plan.logical.rel;
 
+import java.util.List;
+
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
@@ -9,7 +11,11 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.api.StreamTableEnvironment;
+import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.plan.logical.rel.util.WindowAggregateUtil;
+import org.apache.flink.table.plan.nodes.datastream.DataStreamRel;
 import org.apache.flink.table.plan.nodes.datastream.DataStreamRelJava;
+import org.apache.flink.table.typeutils.TypeConverter;
 
 import scala.Option;
 
@@ -19,7 +25,8 @@ public class DataStreamProcTimeTimeAggregate extends DataStreamRelJava{
 	private LogicalWindow windowReference;
 	private String description;
 	private RelNode input;
-
+	
+	
 	public DataStreamProcTimeTimeAggregate(
 			RelOptCluster cluster, 
 			RelTraitSet traitSet, 
@@ -33,6 +40,7 @@ public class DataStreamProcTimeTimeAggregate extends DataStreamRelJava{
 		this.description = description;
 		this.windowReference= windowReference;
 		this.input = input;
+		
 		
 	}
 
@@ -49,7 +57,7 @@ public class DataStreamProcTimeTimeAggregate extends DataStreamRelJava{
 		return new DataStreamProcTimeTimeAggregate(
 				super.getCluster(),
 				traitSet,
-				input, 
+				inputs.get(0), 
 				rowType, 
 				description, 
 				windowReference);
@@ -61,7 +69,38 @@ public class DataStreamProcTimeTimeAggregate extends DataStreamRelJava{
 	@Override
 	public DataStream<Object> translateToPlan(StreamTableEnvironment tableEnv,
 			Option<TypeInformation<Object>> expectedType, Object ignore) {
-		// TODO Auto-generated method stub
+		
+
+		//Get the general parameters related to the datastream, inputs, types, result
+		TableConfig config = tableEnv.getConfig();
+		
+		scala.Option<TypeInformation<Object>> option = scala.Option.apply(null);
+		DataStream<Object> inputDataStreamNoTime2 = ((DataStreamRel) input)
+				.translateToPlan(tableEnv,option);
+		
+		TypeInformation<?> returnType = TypeConverter.determineReturnType(
+				getRowType(), 
+				expectedType,
+				config.getNullCheck(), 
+				config.getEfficientTypeUsage());
+		
+		//WindowUtil object to help with operations on the LogicalWindow object 
+		WindowAggregateUtil windowUtil = new WindowAggregateUtil(windowReference);
+		
+			
+		List<Integer> partitionKeys = windowUtil.getPartitions();				
+		
+		//null indicates non partitioned window
+		if(partitionKeys==null)
+		{
+			
+		}
+		else
+		{
+			
+		}
+		
+		
 		return null;
 	}
 	
