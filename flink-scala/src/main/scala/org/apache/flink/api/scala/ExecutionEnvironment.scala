@@ -349,17 +349,26 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
     wrap(new DataSource[T](javaEnv, inputFormat, typeInfo, getCallLocationName()))
   }
 
+  /**
+    * Creates a DataSet by reading the given CSV file.
+    *
+    * @tparam T common type of csv fields
+    * @param rowSize is a number of csv fields
+    * @param additionalTypes additional types contained in csv
+    *                        and differ to common type of fields
+    * @return DataSet of [[Row]] that wraps common and additional types
+    */
   def readCsvFileAsRow[T : ClassTag : TypeInformation](
-    filePath: String,
-    rowSize: Int,
-    additionalTypes: Map[Int, Class[_]] = null,
-    lineDelimiter: String = "\n",
-    fieldDelimiter: String = ",",
-    quoteCharacter: Character = null,
-    ignoreFirstLine: Boolean = false,
-    ignoreComments: String = null,
-    lenient: Boolean = false,
-    includedFields: Array[Int] = null): DataSet[Row] = {
+      filePath: String,
+      rowSize: Int,
+      additionalTypes: Map[Int, Class[_]] = null,
+      lineDelimiter: String = "\n",
+      fieldDelimiter: String = ",",
+      quoteCharacter: Character = null,
+      ignoreFirstLine: Boolean = false,
+      ignoreComments: String = null,
+      lenient: Boolean = false,
+      includedFields: Array[Int] = null): DataSet[Row] = {
 
     val mainTypeInfo = implicitly[TypeInformation[T]]
 

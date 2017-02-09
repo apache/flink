@@ -201,7 +201,10 @@ public class RowTypeInfo extends TupleTypeInfoBase<Row> {
 		this(configureTypes(mainType, size, Collections.<Integer, TypeInformation<?>>emptyMap()));
 	}
 
-	private static TypeInformation<?>[] configureTypes(TypeInformation<?> mainType, int size, Map<Integer, TypeInformation<?>> additionalTypes) {
+	private static TypeInformation<?>[] configureTypes(
+			TypeInformation<?> mainType,
+			int size, Map<Integer,
+			TypeInformation<?>> additionalTypes) {
 		TypeInformation<?>[] types = new TypeInformation<?>[size];
 		Arrays.fill(types, mainType);
 		for (Map.Entry<Integer, TypeInformation<?>> e : additionalTypes.entrySet()) {

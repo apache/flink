@@ -127,12 +127,13 @@ public class CsvReaderITCase extends MultipleProgramsTestBase {
 		compareResultAsTuples(result, expected);
 	}
 
-	private int fullRowSize = 29;
-	private String including = "0111111";
-	private String fileContent =
+	private static int fullRowSize = 29;
+	private static String including = "0111111";
+	private static String fileContent =
 		"1,2,3," + 4 + "," + 5.0d + "," + true +
 		",7,8,9,11,22,33,44,55,66,77,88,99,00," +
 		"111,222,333,444,555,666,777,888,999,000\n" +
+//		------------------------------------------
 		"a,b,c," + 40 + "," + 50.0d + "," + false +
 		",g,h,i,aa,bb,cc,dd,ee,ff,gg,hh,ii,mm," +
 		"aaa,bbb,ccc,ddd,eee,fff,ggg,hhh,iii,mmm\n";

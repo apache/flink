@@ -355,7 +355,16 @@ public class CsvReader {
 		configureInputFormat(inputFormat);
 		return new DataSource<T>(executionContext, inputFormat, typeInfo, Utils.getCallLocationName());
 	}
-	
+
+	/**
+	 * Configures the reader to read the CSV data and parse it to the given types that will be
+	 * wrapped in {@link Row}.
+	 *
+	 * @param mainTargetType common type in csv fields
+	 * @param size is a number of csv fields
+	 * @param additionalTypes additional types contained in csv and differ to {@param mainTargetType}
+	 * @return The DataSet representing the parsed CSV data.
+	 */
 	public DataSource<Row> rowType(Class<?> mainTargetType, int size, Map<Integer, Class<?>> additionalTypes) {
 		Preconditions.checkNotNull(mainTargetType, "The main type class must not be null.");
 
@@ -378,6 +387,14 @@ public class CsvReader {
 		return new DataSource<Row>(executionContext, inputFormat, rowTypeInfo, Utils.getCallLocationName());
 	}
 
+	/**
+	 * Configures the reader to read the CSV data and parse it to the given type that will be
+	 * wrapped in {@link Row}.
+	 *
+	 * @param mainTargetType common type in csv fields
+	 * @param size is a number of csv fields
+	 * @return The DataSet representing the parsed CSV data.
+	 */
 	public DataSource<Row> rowType(Class<?> mainTargetType, int size) {
 		return rowType(mainTargetType, size, null);
 	}

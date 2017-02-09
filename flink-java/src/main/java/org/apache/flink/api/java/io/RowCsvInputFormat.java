@@ -65,10 +65,10 @@ public class RowCsvInputFormat extends CsvInputFormat<Row> implements ResultType
 		configure(fieldTypeInfos, lineDelimiter, fieldDelimiter, fieldsMask);
 	}
 
-	private void configure(TypeInformation[] fieldTypeInfos, String lineDelimiter, String fieldDelimiter, boolean[] selectedFields) {
+	private void configure(TypeInformation[] fieldTypeInfos, String lineDelimiter, String fieldDelimiter, boolean[] fieldsMask) {
 		setDelimiter(lineDelimiter);
 		setFieldDelimiter(fieldDelimiter);
-		setFieldsGeneric(selectedFields, extractTypeClasses(fieldTypeInfos));
+		setFieldsGeneric(fieldsMask, extractTypeClasses(fieldTypeInfos));
 	}
 
 	public RowCsvInputFormat(Path filePath, TypeInformation[] fieldTypes, String lineDelimiter, String fieldDelimiter, int[] selectedFields) {
