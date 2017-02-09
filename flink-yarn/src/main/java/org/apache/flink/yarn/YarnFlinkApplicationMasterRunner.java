@@ -208,7 +208,7 @@ public class YarnFlinkApplicationMasterRunner extends AbstractYarnFlinkApplicati
 			resourceManagerConfiguration,
 			haServices,
 			heartbeatServices,
-			resourceManagerRuntimeServices.getSlotManagerFactory(),
+			resourceManagerRuntimeServices.getSlotManager(),
 			metricRegistry,
 			resourceManagerRuntimeServices.getJobLeaderIdService(),
 			this);

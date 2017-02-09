@@ -16,15 +16,32 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.resourcemanager;
+package org.apache.flink.runtime.resourcemanager.registration;
 
-import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
-import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerFactory;
+import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 
-public class TestingSlotManagerFactory implements SlotManagerFactory {
+/**
+ * This class is responsible for grouping the TaskExecutorGateway and the InstanceID
+ * of a registered task executor.
+ */
+public class TaskExecutorConnection {
 
-	@Override
-	public SlotManager create(ResourceManagerServices rmServices) {
-		return new TestingSlotManager(rmServices);
+	private final InstanceID instanceID;
+
+	private TaskExecutorGateway taskExecutorGateway;
+
+	public TaskExecutorConnection(TaskExecutorGateway taskExecutorGateway) {
+		this.instanceID = new InstanceID();
+		this.taskExecutorGateway = taskExecutorGateway;
 	}
+
+	public InstanceID getInstanceID() {
+		return instanceID;
+	}
+
+	public TaskExecutorGateway getTaskExecutorGateway() {
+		return taskExecutorGateway;
+	}
+
 }
