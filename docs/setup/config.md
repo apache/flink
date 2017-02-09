@@ -74,7 +74,7 @@ without explicit scheme definition, such as `/user/USERNAME/in.txt`, is going to
 
 ### Compute
 
-- `taskmanager.compute.numa`: When enabled a TaskManager is started on each NUMA node for each worker listed in *conf/slaves* (DEFAULT: false)
+- `taskmanager.compute.numa`: When enabled a TaskManager is started on each NUMA node for each worker listed in *conf/slaves* (DEFAULT: false). Note: only supported when deploying Flink as a standalone cluster.
 
 ### Managed Memory
 
