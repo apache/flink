@@ -103,6 +103,7 @@ import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -182,7 +183,7 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 			Configuration configuration,
 			RpcService rpcService,
 			HighAvailabilityServices highAvailabilityService,
-			ExecutorService executorService,
+			ScheduledExecutorService executorService,
 			BlobLibraryCacheManager libraryCacheManager,
 			RestartStrategyFactory restartStrategyFactory,
 			Time rpcAskTimeout,

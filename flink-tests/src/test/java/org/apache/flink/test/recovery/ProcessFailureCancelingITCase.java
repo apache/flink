@@ -36,6 +36,7 @@ import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.util.NetUtils;
 
@@ -104,8 +105,8 @@ public class ProcessFailureCancelingITCase {
 			ActorRef jmActor = JobManager.startJobManagerActors(
 				jmConfig,
 				jmActorSystem,
-				jmActorSystem.dispatcher(),
-				jmActorSystem.dispatcher(),
+				TestingUtils.defaultExecutor(),
+				TestingUtils.defaultExecutor(),
 				JobManager.class,
 				MemoryArchivist.class)._1();
 

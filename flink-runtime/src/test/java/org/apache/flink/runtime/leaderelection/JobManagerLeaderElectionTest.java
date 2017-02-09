@@ -25,6 +25,7 @@ import akka.actor.Props;
 import akka.pattern.Patterns;
 import akka.testkit.JavaTestKit;
 import akka.util.Timeout;
+
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.test.TestingServer;
 import org.apache.flink.configuration.Configuration;
@@ -45,18 +46,18 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+
 import scala.Option;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
-import scala.concurrent.forkjoin.ForkJoinPool;
 
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
 public class JobManagerLeaderElectionTest extends TestLogger {
@@ -66,8 +67,7 @@ public class JobManagerLeaderElectionTest extends TestLogger {
 
 	private static ActorSystem actorSystem;
 	private static TestingServer testingServer;
-	private static ExecutorService executor;
-	
+
 	private static Timeout timeout = new Timeout(TestingUtils.TESTING_DURATION());
 	private static FiniteDuration duration = new FiniteDuration(5, TimeUnit.MINUTES);
 
@@ -75,7 +75,6 @@ public class JobManagerLeaderElectionTest extends TestLogger {
 	public static void setup() throws Exception {
 		actorSystem = ActorSystem.create("TestingActorSystem");
 		testingServer = new TestingServer();
-		executor = new ForkJoinPool();
 	}
 
 	@AfterClass
@@ -86,10 +85,6 @@ public class JobManagerLeaderElectionTest extends TestLogger {
 
 		if (testingServer != null) {
 			testingServer.stop();
-		}
-		
-		if (executor != null) {
-			executor.shutdownNow();
 		}
 	}
 
@@ -185,8 +180,8 @@ public class JobManagerLeaderElectionTest extends TestLogger {
 		return Props.create(
 			TestingJobManager.class,
 			configuration,
-			executor,
-			executor,
+			TestingUtils.defaultExecutor(),
+			TestingUtils.defaultExecutor(),
 			new InstanceManager(),
 			new Scheduler(TestingUtils.defaultExecutionContext()),
 			new BlobLibraryCacheManager(new BlobServer(configuration), 10L),

@@ -66,8 +66,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -82,7 +82,7 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 	 */
 	@Test
 	public void testExecutionGraphRestartTimeMetric() throws JobException, IOException, InterruptedException {
-		final ExecutorService executor = Executors.newCachedThreadPool();
+		final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 		try {
 			// setup execution graph with mocked scheduling logic
 			int parallelism = 1;

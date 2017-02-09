@@ -18,19 +18,22 @@
 
 package org.apache.flink.runtime.executiongraph
 
+import java.util.concurrent.Executors
+
 import org.apache.flink.api.common.{ExecutionConfig, JobID}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.SimpleActorGateway
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy
 import org.apache.flink.runtime.jobgraph.{JobGraph, JobStatus, JobVertex}
-import org.apache.flink.runtime.jobmanager.Tasks
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler
 import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway
 import org.apache.flink.runtime.testingUtils.TestingUtils
 import org.apache.flink.runtime.testtasks.NoOpInvokable
 import org.apache.flink.util.SerializedValue
+
 import org.junit.runner.RunWith
+
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{Matchers, WordSpecLike}
 
@@ -39,6 +42,8 @@ class TaskManagerLossFailsTasksTest extends WordSpecLike with Matchers {
 
   "A task manager loss" must {
     "fail the assigned tasks" in {
+      val executor = Executors.newScheduledThreadPool(1)
+
       try {
         val instance1 = ExecutionGraphTestUtils.getInstance(
           new ActorTaskManagerGateway(new SimpleActorGateway(TestingUtils.defaultExecutionContext)),
@@ -58,8 +63,8 @@ class TaskManagerLossFailsTasksTest extends WordSpecLike with Matchers {
         val jobGraph = new JobGraph("Pointwise job", sender)
 
         val eg = new ExecutionGraph(
-          TestingUtils.defaultExecutionContext,
-          TestingUtils.defaultExecutionContext,
+          executor,
+          executor,
           new JobID(),
           "test job",
           new Configuration(),
@@ -80,6 +85,9 @@ class TaskManagerLossFailsTasksTest extends WordSpecLike with Matchers {
         case t:Throwable =>
           t.printStackTrace()
           fail(t.getMessage)
+      }
+      finally {
+        executor.shutdownNow()
       }
     }
   }

@@ -53,6 +53,7 @@ import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
 import org.apache.flink.runtime.operators.BatchTask;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 import org.apache.flink.util.SerializedValue;
 
 import org.junit.Test;
@@ -89,8 +90,8 @@ public class ExecutionGraphDeploymentTest {
 			v4.connectNewDataSetAsInput(v2, DistributionPattern.ALL_TO_ALL);
 
 			ExecutionGraph eg = new ExecutionGraph(
-				TestingUtils.defaultExecutionContext(),
-				TestingUtils.defaultExecutionContext(),
+				TestingUtils.defaultExecutor(),
+				TestingUtils.defaultExecutor(),
 				jobId, 
 				"some job", 
 				new Configuration(),
@@ -313,8 +314,8 @@ public class ExecutionGraphDeploymentTest {
 
 		// execution graph that executes actions synchronously
 		ExecutionGraph eg = new ExecutionGraph(
-			TestingUtils.directExecutionContext(),
-			TestingUtils.defaultExecutionContext(),
+			new DirectScheduledExecutorService(),
+			TestingUtils.defaultExecutor(),
 			jobId,
 			"failing test job",
 			new Configuration(),
@@ -358,8 +359,8 @@ public class ExecutionGraphDeploymentTest {
 
 		// execution graph that executes actions synchronously
 		ExecutionGraph eg = new ExecutionGraph(
-			TestingUtils.directExecutionContext(),
-			TestingUtils.defaultExecutionContext(),
+			new DirectScheduledExecutorService(),
+			TestingUtils.defaultExecutor(),
 			jobId, 
 			"some job", 
 			new Configuration(), 

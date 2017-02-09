@@ -96,8 +96,8 @@ public class ArchivedExecutionGraphTest {
 		config.setGlobalJobParameters(new TestJobParameters());
 
 		runtimeGraph = new ExecutionGraph(
-			TestingUtils.defaultExecutionContext(),
-			TestingUtils.defaultExecutionContext(),
+			TestingUtils.defaultExecutor(),
+			TestingUtils.defaultExecutor(),
 			new JobID(),
 			"test job",
 			new Configuration(),
