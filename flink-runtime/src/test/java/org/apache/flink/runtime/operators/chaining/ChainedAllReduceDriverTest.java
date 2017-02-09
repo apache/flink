@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.operators.chaining;
 
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
@@ -41,9 +43,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
-
-import java.util.ArrayList;
-import java.util.List;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({Task.class, ResultPartitionWriter.class})
@@ -69,7 +68,6 @@ public class ChainedAllReduceDriverTest extends TaskTestBase {
 		try {
 			// environment
 			initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
-			mockEnv.getExecutionConfig().enableObjectReuse();
 			addInput(new UniformRecordGenerator(keyCnt, valCnt, false), 0);
 			addOutput(this.outList);
 
