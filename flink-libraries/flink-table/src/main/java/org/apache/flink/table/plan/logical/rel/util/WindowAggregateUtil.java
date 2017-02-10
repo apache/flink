@@ -92,6 +92,7 @@ public class WindowAggregateUtil implements Serializable {
 	 *            the list of constant to get the offset value
 	 * @return return the value of the lowerbound if available -1 otherwise
 	 */
+<<<<<<< 81118ff60dfba10dbd94a323ffd4c52f5eb1421c
 	public int getLowerBoundary(Group group, ImmutableList<RexLiteral> constants) {
 		Integer lowerBoundKey = group.keys.asList().get(0);
 		Object lowerbound = constants.get(lowerBoundKey).getValue2();
@@ -104,6 +105,11 @@ public class WindowAggregateUtil implements Serializable {
 			}
 		}
 		return -1;
+=======
+	public int getLowerBoundary(ImmutableList<RexLiteral> constants) {
+		
+		return ((Long)constants.get(1).getValue2()).intValue();
+>>>>>>> First version of ProcTime aggregation with Max, Min and Sum. To be
 	}
 
 	

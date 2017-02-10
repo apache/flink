@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.plan.logical.rel.util;
 
-import org.apache.calcite.rel.core.Window.Group;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.types.Row;
@@ -25,24 +24,18 @@ import org.apache.flink.types.Row;
 public class StreamGroupKeySelector implements KeySelector<Object, Tuple> {
 
 	static final long serialVersionUID = 5268295970857329151L;
-	WindowAggregateUtil winUtil;
-	Group group;
+	final int[] keys;
 
-	public StreamGroupKeySelector(Group group) {
-		this.group = group;
-		winUtil = new WindowAggregateUtil();
+	public StreamGroupKeySelector(final int[] keys) {
+		this.keys = keys;
 	}
 
 	@Override
 	public Tuple getKey(Object value) throws Exception {
 		Row row = (Row) value;
-		Tuple key = Tuple.getTupleClass(
-				winUtil.
-				getKeysAsArray(group).
-				length).
-				newInstance();
+		Tuple key = Tuple.getTupleClass(keys.length).newInstance();
 
-		for (Integer idx : winUtil.getKeysAsArray(group)) {
+		for (Integer idx : keys) {
 			key.setField(row.getField(idx), idx);
 		}
 
