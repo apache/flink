@@ -252,7 +252,7 @@ One of the possible use cases for MST could be laying out cables that connect al
 #### Details
 Unlike a sequential version of the algorithm, a distributed MST algorithm is based on the message-passing model. 
 We use [vertex-centric iterations](#vertex-centric-iterations) to implement the Borůvka algorithm described in 
-[this paper](http://ieeexplore.ieee.org/abstract/document/508073/). As there are different steps inside the iteration,
+[this paper](https://cs.uwaterloo.ca/~kdaudjee/comparison.pdf). As there are different steps inside the iteration,
 the implementation uses an `Aggregator` to detect the step terminations. All the information about reserved or picked edges 
 are stored in vertex values and at the end a `FlatMap` function is applied on the vertices to generate results.
 
