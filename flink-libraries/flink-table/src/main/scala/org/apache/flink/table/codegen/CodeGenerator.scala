@@ -124,7 +124,7 @@ class CodeGenerator(
 
   // generate RichFunction(e.g. RichFlatMapFunction) if true
   // generate Function(e.g. FlatMapFunction) if false
-  private var generatedRichFunctions = false
+  private var generatedRichFunction = false
 
   // set of open statements for RichFunction that will be added only once
   // we use a LinkedHashSet to keep the insertion order
@@ -248,7 +248,7 @@ class CodeGenerator(
     val samHeader =
       // FlatMapFunction
       if (clazz == classOf[FlatMapFunction[_, _]]) {
-        val baseClass = if (generatedRichFunctions) {
+        val baseClass = if (generatedRichFunction) {
           classOf[RichFlatMapFunction[_, _]]
         } else {
           classOf[FlatMapFunction[_, _]]
@@ -261,7 +261,7 @@ class CodeGenerator(
 
       // MapFunction
       else if (clazz == classOf[MapFunction[_, _]]) {
-        val baseClass = if (generatedRichFunctions) {
+        val baseClass = if (generatedRichFunction) {
           classOf[RichMapFunction[_, _]]
         } else {
           classOf[MapFunction[_, _]]
@@ -274,7 +274,7 @@ class CodeGenerator(
 
       // FlatJoinFunction
       else if (clazz == classOf[FlatJoinFunction[_, _, _]]) {
-        val baseClass = if (generatedRichFunctions) {
+        val baseClass = if (generatedRichFunction) {
           classOf[RichFlatJoinFunction[_, _, _]]
         } else {
           classOf[FlatJoinFunction[_, _, _]]
@@ -292,47 +292,37 @@ class CodeGenerator(
         throw new CodeGenException("Unsupported Function.")
       }
 
-    val funcCode = if (generatedRichFunctions) {
+    val extendsOrImplements = if (generatedRichFunction) "extends" else "implements"
+
+    var funcCode =
       j"""
         public class $funcName
-            extends ${samHeader._1.getCanonicalName} {
+            $extendsOrImplements ${samHeader._1.getCanonicalName} {
 
           ${reuseMemberCode()}
 
           public $funcName() throws Exception {
             ${reuseInitCode()}
           }
+      """.stripMargin
 
+    if (generatedRichFunction) {
+      funcCode +=
+        j"""
           @Override
           public void open(${classOf[Configuration].getCanonicalName} parameters) throws Exception {
             ${reuseOpenCode()}
           }
 
           @Override
-          public ${samHeader._2} throws Exception {
-            ${samHeader._3.mkString("\n")}
-            ${reusePerRecordCode()}
-            ${reuseInputUnboxingCode()}
-            $bodyCode
-          }
-
-          @Override
           public void close() throws Exception {
             ${reuseCloseCode()}
           }
-        }
-      """.stripMargin
-    } else {
+        """.stripMargin
+    }
+
+    funcCode +=
       j"""
-        public class $funcName
-            implements ${samHeader._1.getCanonicalName} {
-
-          ${reuseMemberCode()}
-
-          public $funcName() throws Exception {
-            ${reuseInitCode()}
-          }
-
           @Override
           public ${samHeader._2} throws Exception {
             ${samHeader._3.mkString("\n")}
@@ -342,10 +332,10 @@ class CodeGenerator(
           }
         }
       """.stripMargin
-    }
 
     GeneratedFunction(funcName, returnType, funcCode)
   }
+
   /**
     * Generates a values input format that can be passed to Java compiler.
     *
@@ -1501,7 +1491,7 @@ class CodeGenerator(
        """.stripMargin
     reusableCloseStatements.add(closeFunction)
 
-    generatedRichFunctions = true
+    generatedRichFunction = true
 
     fieldTerm
   }

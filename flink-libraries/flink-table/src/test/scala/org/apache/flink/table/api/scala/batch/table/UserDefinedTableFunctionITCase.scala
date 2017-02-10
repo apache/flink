@@ -24,6 +24,7 @@ import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.table.api.scala.batch.utils.{TableProgramsCollectionTestBase, UDFTestUtils}
+import org.apache.flink.table.expressions.utils.RichFunc2
 import org.apache.flink.table.utils.{RichTableFunc0, RichTableFunc1}
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
@@ -42,12 +43,12 @@ class UserDefinedTableFunctionITCase(
   def testOpenClose(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
-    val tableFunc = new RichTableFunc0
-    tEnv.registerFunction("RichTableFunc0", tableFunc)
+    val richTableFunc0 = new RichTableFunc0
+    tEnv.registerFunction("RichTableFunc0", richTableFunc0)
 
     val result = CollectionDataSets.get3TupleDataSet(env)
       .toTable(tEnv, 'a, 'b, 'c)
-      .join(tableFunc('c) as 's)
+      .join(richTableFunc0('c) as 's)
       .select('a, 's)
 
     val expected =
@@ -60,18 +61,35 @@ class UserDefinedTableFunctionITCase(
   def testSingleUDTFWithParameter(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
-    val tableFunc = new RichTableFunc1
-    tEnv.registerFunction("RichTableFunc1", tableFunc)
+    val richTableFunc1 = new RichTableFunc1
+    tEnv.registerFunction("RichTableFunc1", richTableFunc1)
     UDFTestUtils.setJobParameters(env, Map("word_separator" -> " "))
-
-    val sqlQuery = "SELECT a, s FROM t1, LATERAL TABLE(RichTableFunc1(c)) as T(s)"
 
     val result = CollectionDataSets.getSmall3TupleDataSet(env)
       .toTable(tEnv, 'a, 'b, 'c)
-      .join(tableFunc('c) as 's)
+      .join(richTableFunc1('c) as 's)
       .select('a, 's)
 
     val expected = "3,Hello\n3,world"
+    val results = result.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testUDTFWithUDF(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val richTableFunc1 = new RichTableFunc1
+    tEnv.registerFunction("RichTableFunc1", richTableFunc1)
+    tEnv.registerFunction("RichFunc2", RichFunc2)
+    UDFTestUtils.setJobParameters(env, Map("word_separator" -> "#", "string.value" -> "test"))
+
+    val result = CollectionDataSets.getSmall3TupleDataSet(env)
+      .toTable(tEnv, 'a, 'b, 'c)
+      .join(richTableFunc1(RichFunc2('c)) as 's)
+      .select('a, 's)
+
+    val expected = "1,Hi\n1,test\n2,Hello\n2,test\n3,Hello world\n3,test"
     val results = result.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }

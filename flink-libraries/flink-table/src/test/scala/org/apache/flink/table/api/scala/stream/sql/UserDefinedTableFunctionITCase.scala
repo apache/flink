@@ -25,6 +25,7 @@ import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.scala.batch.utils.UDFTestUtils
 import org.apache.flink.table.api.scala.stream.utils.{StreamITCase, StreamTestData}
+import org.apache.flink.table.expressions.utils.RichFunc2
 import org.apache.flink.table.utils.{RichTableFunc0, RichTableFunc1}
 import org.apache.flink.types.Row
 import org.junit.{Before, Test}
@@ -97,6 +98,35 @@ class UserDefinedTableFunctionITCase extends StreamingMultipleProgramsTestBase {
       "5,fine.",
       "6,Luke",
       "6,Skywalker")
+    StreamITCase.compareWithList(expected.asJava)
+  }
+
+  @Test
+  def testUDTFWithUDF(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    tEnv.registerFunction("RichTableFunc1", new RichTableFunc1)
+    tEnv.registerFunction("RichFunc2", RichFunc2)
+    UDFTestUtils.setJobParameters(env, Map("word_separator" -> "#", "string.value" -> "test"))
+
+    val sqlQuery = "SELECT a, s FROM t1, LATERAL TABLE(RichTableFunc1(RichFunc2(c))) as T(s)"
+
+    val ds = StreamTestData.getSmall3TupleDataStream(env)
+    tEnv.registerDataStream("t1", ds, 'a, 'b, 'c)
+
+    val result = tEnv.sql(sqlQuery)
+
+    val results = result.toDataStream[Row]
+    results.addSink(new StreamITCase.StringSink)
+    env.execute()
+
+    val expected = mutable.MutableList(
+      "1,Hi",
+      "1,test",
+      "2,Hello",
+      "2,test",
+      "3,Hello world",
+      "3,test")
     StreamITCase.compareWithList(expected.asJava)
   }
 

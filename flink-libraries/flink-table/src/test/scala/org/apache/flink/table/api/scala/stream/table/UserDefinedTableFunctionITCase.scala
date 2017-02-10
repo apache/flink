@@ -24,6 +24,7 @@ import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.scala.batch.utils.UDFTestUtils
 import org.apache.flink.table.api.scala.stream.utils.{StreamITCase, StreamTestData}
+import org.apache.flink.table.expressions.utils.RichFunc2
 import org.apache.flink.table.utils.{RichTableFunc0, RichTableFunc1}
 import org.apache.flink.types.Row
 import org.junit.{Before, Test}
@@ -72,8 +73,6 @@ class UserDefinedTableFunctionITCase extends StreamingMultipleProgramsTestBase {
     tEnv.registerFunction("RichTableFunc1", tableFunc1)
     UDFTestUtils.setJobParameters(env, Map("word_separator" -> " "))
 
-    val sqlQuery = "SELECT a, s FROM t1, LATERAL TABLE(RichTableFunc1(c)) as T(s)"
-
     val result = StreamTestData.getSmall3TupleDataStream(env)
       .toTable(tEnv, 'a, 'b, 'c)
       .join(tableFunc1('c) as 's)
@@ -84,6 +83,36 @@ class UserDefinedTableFunctionITCase extends StreamingMultipleProgramsTestBase {
     env.execute()
 
     val expected = mutable.MutableList("3,Hello", "3,world")
+    StreamITCase.compareWithList(expected.asJava)
+  }
+
+  @Test
+  def testUDTFWithUDF(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    val tableFunc1 = new RichTableFunc1
+    tEnv.registerFunction("RichTableFunc1", tableFunc1)
+    tEnv.registerFunction("RichFunc2", RichFunc2)
+    UDFTestUtils.setJobParameters(env, Map("word_separator" -> "#", "string.value" -> "test"))
+
+    val sqlQuery = "SELECT a, s FROM t1, LATERAL TABLE(RichTableFunc1(RichFunc2(c))) as T(s)"
+
+    val result = StreamTestData.getSmall3TupleDataStream(env)
+      .toTable(tEnv, 'a, 'b, 'c)
+      .join(tableFunc1(RichFunc2('c)) as 's)
+      .select('a, 's)
+
+    val results = result.toDataStream[Row]
+    results.addSink(new StreamITCase.StringSink)
+    env.execute()
+
+    val expected = mutable.MutableList(
+      "1,Hi",
+      "1,test",
+      "2,Hello",
+      "2,test",
+      "3,Hello world",
+      "3,test")
     StreamITCase.compareWithList(expected.asJava)
   }
 

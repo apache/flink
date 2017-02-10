@@ -23,6 +23,7 @@ import org.apache.flink.api.scala.{ExecutionEnvironment, _}
 import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.scala.batch.utils.UDFTestUtils
+import org.apache.flink.table.expressions.utils.RichFunc2
 import org.apache.flink.table.utils.{RichTableFunc0, RichTableFunc1}
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
@@ -66,6 +67,26 @@ class UserDefinedTableFunctionITCase {
     val result = tEnv.sql(sqlQuery)
 
     val expected = "3,Hello\n3,world"
+    val results = result.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testUDTFWithUDF(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    tEnv.registerFunction("RichTableFunc1", new RichTableFunc1)
+    tEnv.registerFunction("RichFunc2", RichFunc2)
+    UDFTestUtils.setJobParameters(env, Map("word_separator" -> "#", "string.value" -> "test"))
+
+    val sqlQuery = "SELECT a, s FROM t1, LATERAL TABLE(RichTableFunc1(RichFunc2(c))) as T(s)"
+
+    val ds = CollectionDataSets.getSmall3TupleDataSet(env)
+    tEnv.registerDataSet("t1", ds, 'a, 'b, 'c)
+
+    val result = tEnv.sql(sqlQuery)
+
+    val expected = "1,Hi\n1,test\n2,Hello\n2,test\n3,Hello world\n3,test"
     val results = result.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }

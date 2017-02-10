@@ -43,10 +43,11 @@ class UDFContext(context: RuntimeContext) {
     */
   @PublicEvolving
   def getJobParameter(key: String, default: String): String = {
-    context.getExecutionConfig.getGlobalJobParameters match {
-      case null => default
-      case p if p.toMap.containsKey(key) => p.toMap.get(key)
-      case _ => default
+    val conf = context.getExecutionConfig.getGlobalJobParameters
+    if (conf != null && conf.toMap.containsKey(key)) {
+      conf.toMap.get(key)
+    } else {
+      default
     }
   }
 }
