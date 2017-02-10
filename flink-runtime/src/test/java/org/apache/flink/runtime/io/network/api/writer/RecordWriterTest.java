@@ -177,7 +177,7 @@ public class RecordWriterTest {
 
 		try {
 			buffers = new NetworkBufferPool(1, 1024, MemoryType.HEAP);
-			bufferPool = spy(buffers.createBufferPool(1, true));
+			bufferPool = spy(buffers.createBufferPool(1));
 
 			ResultPartitionWriter partitionWriter = mock(ResultPartitionWriter.class);
 			when(partitionWriter.getBufferProvider()).thenReturn(checkNotNull(bufferPool));

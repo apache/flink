@@ -24,6 +24,7 @@ import org.apache.flink.configuration.ConfigConstants
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.akka.{AkkaUtils, ListeningBehaviour}
 import org.apache.flink.runtime.client.JobExecutionException
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType
 import org.apache.flink.runtime.jobgraph.{DistributionPattern, JobGraph, JobVertex}
 import org.apache.flink.runtime.jobmanager.Tasks.{BlockingReceiver, Sender}
 import org.apache.flink.runtime.testtasks.{BlockingNoOpInvokable, NoOpInvokable}
@@ -94,7 +95,8 @@ class TaskManagerFailsITCase(_system: ActorSystem)
       receiver.setInvokableClass(classOf[BlockingReceiver])
       sender.setParallelism(num_tasks)
       receiver.setParallelism(num_tasks)
-      receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE)
+      receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE,
+        ResultPartitionType.PIPELINED)
 
       val jobGraph = new JobGraph("Pointwise Job", sender, receiver)
       val jobID = jobGraph.getJobID
@@ -146,7 +148,8 @@ class TaskManagerFailsITCase(_system: ActorSystem)
       receiver.setInvokableClass(classOf[BlockingReceiver])
       sender.setParallelism(num_tasks)
       receiver.setParallelism(num_tasks)
-      receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE)
+      receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE,
+        ResultPartitionType.PIPELINED)
 
       val jobGraph = new JobGraph("Pointwise Job", sender, receiver)
       val jobID = jobGraph.getJobID

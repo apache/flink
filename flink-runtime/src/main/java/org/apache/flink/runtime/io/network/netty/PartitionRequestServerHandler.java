@@ -67,7 +67,7 @@ class PartitionRequestServerHandler extends SimpleChannelInboundHandler<NettyMes
 	public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
 		super.channelRegistered(ctx);
 
-		bufferPool = networkBufferPool.createBufferPool(1, false);
+		bufferPool = networkBufferPool.createBufferPool(1);
 	}
 
 	@Override

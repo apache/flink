@@ -58,9 +58,7 @@ public class NetworkBufferPool implements BufferPoolFactory {
 
 	private final Object factoryLock = new Object();
 
-	private final Set<LocalBufferPool> managedBufferPools = new HashSet<LocalBufferPool>();
-
-	public final Set<LocalBufferPool> allBufferPools = new HashSet<LocalBufferPool>();
+	private final Set<LocalBufferPool> allBufferPools = new HashSet<LocalBufferPool>();
 
 	private int numTotalRequiredBuffers;
 
@@ -182,7 +180,7 @@ public class NetworkBufferPool implements BufferPoolFactory {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public BufferPool createBufferPool(int numRequiredBuffers, boolean isFixedSize) throws IOException {
+	public BufferPool createBufferPool(int numRequiredBuffers) throws IOException {
 		// It is necessary to use a separate lock from the one used for buffer
 		// requests to ensure deadlock freedom for failure cases.
 		synchronized (factoryLock) {
@@ -209,12 +207,6 @@ public class NetworkBufferPool implements BufferPoolFactory {
 			// non-fixed size buffers.
 			LocalBufferPool localBufferPool = new LocalBufferPool(this, numRequiredBuffers);
 
-			// The fixed size pools get their share of buffers and don't change
-			// it during their lifetime.
-			if (!isFixedSize) {
-				managedBufferPools.add(localBufferPool);
-			}
-
 			allBufferPools.add(localBufferPool);
 
 			redistributeBuffers();
@@ -231,8 +223,6 @@ public class NetworkBufferPool implements BufferPoolFactory {
 
 		synchronized (factoryLock) {
 			if (allBufferPools.remove(bufferPool)) {
-				managedBufferPools.remove(bufferPool);
-
 				numTotalRequiredBuffers -= bufferPool.getNumberOfRequiredMemorySegments();
 
 				try {
@@ -246,7 +236,7 @@ public class NetworkBufferPool implements BufferPoolFactory {
 
 	/**
 	 * Destroys all buffer pools that allocate their buffers from this
-	 * buffer pool (created via {@link #createBufferPool(int, boolean)}).
+	 * buffer pool (created via {@link #createBufferPool(int)}).
 	 */
 	public void destroyAllBufferPools() {
 		synchronized (factoryLock) {
@@ -258,7 +248,7 @@ public class NetworkBufferPool implements BufferPoolFactory {
 			}
 
 			// some sanity checks
-			if (allBufferPools.size() > 0 || managedBufferPools.size() > 0 || numTotalRequiredBuffers > 0) {
+			if (allBufferPools.size() > 0 || numTotalRequiredBuffers > 0) {
 				throw new IllegalStateException("NetworkBufferPool is not empty after destroying all LocalBufferPools");
 			}
 		}
@@ -266,7 +256,9 @@ public class NetworkBufferPool implements BufferPoolFactory {
 
 	// Must be called from synchronized block
 	private void redistributeBuffers() throws IOException {
-		int numManagedBufferPools = managedBufferPools.size();
+		assert Thread.holdsLock(factoryLock);
+
+		int numManagedBufferPools = allBufferPools.size();
 
 		if (numManagedBufferPools == 0) {
 			return; // necessary to avoid div by zero when no managed pools
@@ -283,7 +275,7 @@ public class NetworkBufferPool implements BufferPoolFactory {
 
 		int bufferPoolIndex = 0;
 
-		for (LocalBufferPool bufferPool : managedBufferPools) {
+		for (LocalBufferPool bufferPool : allBufferPools) {
 			int leftoverBuffers = bufferPoolIndex++ < numLeftoverBuffers ? 1 : 0;
 
 			bufferPool.setNumBuffers(bufferPool.getNumberOfRequiredMemorySegments() + numExcessBuffersPerPool + leftoverBuffers);

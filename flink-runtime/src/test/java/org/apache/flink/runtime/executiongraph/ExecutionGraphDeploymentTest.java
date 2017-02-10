@@ -90,9 +90,9 @@ public class ExecutionGraphDeploymentTest {
 			v3.setInvokableClass(BatchTask.class);
 			v4.setInvokableClass(BatchTask.class);
 
-			v2.connectNewDataSetAsInput(v1, DistributionPattern.ALL_TO_ALL);
-			v3.connectNewDataSetAsInput(v2, DistributionPattern.ALL_TO_ALL);
-			v4.connectNewDataSetAsInput(v2, DistributionPattern.ALL_TO_ALL);
+			v2.connectNewDataSetAsInput(v1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+			v3.connectNewDataSetAsInput(v2, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+			v4.connectNewDataSetAsInput(v2, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 
 			ExecutionGraph eg = new ExecutionGraph(
 				TestingUtils.defaultExecutor(),

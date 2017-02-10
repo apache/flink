@@ -18,22 +18,23 @@
 
 package org.apache.flink.runtime.jobmanager
 
-import akka.actor.{PoisonPill, ActorSystem}
+import akka.actor.{ActorSystem, PoisonPill}
 import akka.testkit.{ImplicitSender, TestKit}
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.apache.flink.runtime.akka.ListeningBehaviour
-import org.apache.flink.runtime.jobgraph.{JobStatus, JobGraph, DistributionPattern, JobVertex}
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType
+import org.apache.flink.runtime.jobgraph.{DistributionPattern, JobGraph, JobStatus, JobVertex}
 import org.apache.flink.runtime.jobmanager.Tasks.{BlockingOnceReceiver, FailingOnceReceiver}
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup
-import org.apache.flink.runtime.messages.JobManagerMessages.{JobSubmitSuccess, JobResultSuccess, SubmitJob}
+import org.apache.flink.runtime.messages.JobManagerMessages.{JobResultSuccess, JobSubmitSuccess, SubmitJob}
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages._
 import org.apache.flink.runtime.testingUtils.{ScalaTestingUtils, TestingCluster, TestingUtils}
 import org.junit.runner.RunWith
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import org.scalatest.junit.JUnitRunner
-import scala.concurrent.duration._
 
+import scala.concurrent.duration._
 import language.postfixOps
 
 @RunWith(classOf[JUnitRunner])
@@ -81,7 +82,8 @@ class RecoveryITCase(_system: ActorSystem)
       sender.setParallelism(NUM_TASKS)
       receiver.setParallelism(NUM_TASKS)
 
-      receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE)
+      receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE,
+        ResultPartitionType.PIPELINED)
 
       val executionConfig = new ExecutionConfig()
       executionConfig.setNumberOfExecutionRetries(1);
@@ -125,7 +127,8 @@ class RecoveryITCase(_system: ActorSystem)
       sender.setParallelism(NUM_TASKS)
       receiver.setParallelism(NUM_TASKS)
 
-      receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE)
+      receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE,
+        ResultPartitionType.PIPELINED)
 
       val sharingGroup = new SlotSharingGroup
       sender.setSlotSharingGroup(sharingGroup)
@@ -173,7 +176,8 @@ class RecoveryITCase(_system: ActorSystem)
       sender.setParallelism(NUM_TASKS)
       receiver.setParallelism(NUM_TASKS)
 
-      receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE)
+      receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE,
+        ResultPartitionType.PIPELINED)
 
       val sharingGroup = new SlotSharingGroup
       sender.setSlotSharingGroup(sharingGroup)

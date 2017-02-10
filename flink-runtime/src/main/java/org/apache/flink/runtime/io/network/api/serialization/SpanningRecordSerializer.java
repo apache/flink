@@ -43,7 +43,7 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 	/** Intermediate data serialization */
 	private final DataOutputSerializer serializationBuffer;
 
-	/** Intermediate buffer for data serialization */
+	/** Intermediate buffer for data serialization (wrapped from {@link #serializationBuffer}) */
 	private ByteBuffer dataBuffer;
 
 	/** Intermediate buffer for length serialization */

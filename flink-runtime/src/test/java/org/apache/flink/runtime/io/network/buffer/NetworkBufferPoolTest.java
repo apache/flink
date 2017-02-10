@@ -47,15 +47,7 @@ public class NetworkBufferPoolTest {
 			assertTrue(globalPool.isDestroyed());
 
 			try {
-				globalPool.createBufferPool(2, true);
-				fail("Should throw an IllegalStateException");
-			}
-			catch (IllegalStateException e) {
-				// yippie!
-			}
-
-			try {
-				globalPool.createBufferPool(2, false);
+				globalPool.createBufferPool(2);
 				fail("Should throw an IllegalStateException");
 			}
 			catch (IllegalStateException e) {
@@ -71,26 +63,21 @@ public class NetworkBufferPoolTest {
 	@Test
 	public void testDestroyAll() {
 		try {
-			NetworkBufferPool globalPool = new NetworkBufferPool(10, 128, MemoryType.HEAP);
+			NetworkBufferPool globalPool = new NetworkBufferPool(8, 128, MemoryType.HEAP);
 
-			BufferPool fixedPool = globalPool.createBufferPool(2, true);
-			BufferPool nonFixedPool = globalPool.createBufferPool(5, false);
+			BufferPool lbp = globalPool.createBufferPool(5);
 
-			assertEquals(2, fixedPool.getNumberOfRequiredMemorySegments());
-			assertEquals(5, nonFixedPool.getNumberOfRequiredMemorySegments());
+			assertEquals(5, lbp.getNumberOfRequiredMemorySegments());
 
 			Buffer[] buffers = {
-					fixedPool.requestBuffer(),
-					fixedPool.requestBuffer(),
-
-					nonFixedPool.requestBuffer(),
-					nonFixedPool.requestBuffer(),
-					nonFixedPool.requestBuffer(),
-					nonFixedPool.requestBuffer(),
-					nonFixedPool.requestBuffer(),
-					nonFixedPool.requestBuffer(),
-					nonFixedPool.requestBuffer(),
-					nonFixedPool.requestBuffer()
+					lbp.requestBuffer(),
+					lbp.requestBuffer(),
+					lbp.requestBuffer(),
+					lbp.requestBuffer(),
+					lbp.requestBuffer(),
+					lbp.requestBuffer(),
+					lbp.requestBuffer(),
+					lbp.requestBuffer()
 			};
 
 			for (Buffer b : buffers) {
@@ -98,16 +85,14 @@ public class NetworkBufferPoolTest {
 				assertNotNull(b.getMemorySegment());
 			}
 
-			assertNull(fixedPool.requestBuffer());
-			assertNull(nonFixedPool.requestBuffer());
+			assertNull(lbp.requestBuffer());
 
 			// destroy all allocated ones
 			globalPool.destroyAllBufferPools();
 
 			// check the destroyed status
 			assertFalse(globalPool.isDestroyed());
-			assertTrue(fixedPool.isDestroyed());
-			assertTrue(nonFixedPool.isDestroyed());
+			assertTrue(lbp.isDestroyed());
 
 			assertEquals(0, globalPool.getNumberOfRegisteredBufferPools());
 
@@ -122,15 +107,7 @@ public class NetworkBufferPoolTest {
 
 			// can request no more buffers
 			try {
-				fixedPool.requestBuffer();
-				fail("Should fail with an IllegalStateException");
-			}
-			catch (IllegalStateException e) {
-				// that's the way we like it, aha, aha
-			}
-
-			try {
-				nonFixedPool.requestBuffer();
+				lbp.requestBuffer();
 				fail("Should fail with an IllegalStateException");
 			}
 			catch (IllegalStateException e) {
@@ -138,7 +115,7 @@ public class NetworkBufferPoolTest {
 			}
 
 			// can create a new pool now
-			assertNotNull(globalPool.createBufferPool(10, false));
+			assertNotNull(globalPool.createBufferPool(8));
 		}
 		catch (Exception e) {
 			e.printStackTrace();

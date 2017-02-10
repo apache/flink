@@ -45,30 +45,46 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 class LocalBufferPool implements BufferPool {
 
+	/** Global network buffer pool to get buffers from. */
 	private final NetworkBufferPool networkBufferPool;
 
-	// The minimum number of required segments for this pool
+	/** The minimum number of required segments for this pool */
 	private final int numberOfRequiredMemorySegments;
 
-	// The currently available memory segments. These are segments, which have been requested from
-	// the network buffer pool and are currently not handed out as Buffer instances.
+	/**
+	 * The currently available memory segments. These are segments, which have been requested from
+	 * the network buffer pool and are currently not handed out as Buffer instances.
+	 */
 	private final Queue<MemorySegment> availableMemorySegments = new ArrayDeque<MemorySegment>();
 
-	// Buffer availability listeners, which need to be notified when a Buffer becomes available.
-	// Listeners can only be registered at a time/state where no Buffer instance was available.
+	/**
+	 * Buffer availability listeners, which need to be notified when a Buffer becomes available.
+	 * Listeners can only be registered at a time/state where no Buffer instance was available.
+	 */
 	private final Queue<EventListener<Buffer>> registeredListeners = new ArrayDeque<EventListener<Buffer>>();
 
-	// The current size of this pool
+	/** The current size of this pool */
 	private int currentPoolSize;
 
-	// Number of all memory segments, which have been requested from the network buffer pool and are
-	// somehow referenced through this pool (e.g. wrapped in Buffer instances or as available segments).
+	/**
+	 * Number of all memory segments, which have been requested from the network buffer pool and are
+	 * somehow referenced through this pool (e.g. wrapped in Buffer instances or as available segments).
+	 */
 	private int numberOfRequestedMemorySegments;
 
 	private boolean isDestroyed;
 
 	private BufferPoolOwner owner;
 
+	/**
+	 * Local buffer pool based on the given <tt>networkBufferPool</tt> with a minimal number of
+	 * network buffers being available.
+	 *
+	 * @param networkBufferPool
+	 * 		global network buffer pool to get buffers from
+	 * @param numberOfRequiredMemorySegments
+	 * 		minimum number of network buffers
+	 */
 	LocalBufferPool(NetworkBufferPool networkBufferPool, int numberOfRequiredMemorySegments) {
 		this.networkBufferPool = networkBufferPool;
 		this.numberOfRequiredMemorySegments = numberOfRequiredMemorySegments;
@@ -265,11 +281,15 @@ class LocalBufferPool implements BufferPool {
 	// ------------------------------------------------------------------------
 
 	private void returnMemorySegment(MemorySegment segment) {
+		assert Thread.holdsLock(availableMemorySegments);
+
 		numberOfRequestedMemorySegments--;
 		networkBufferPool.recycle(segment);
 	}
 
 	private void returnExcessMemorySegments() {
+		assert Thread.holdsLock(availableMemorySegments);
+
 		while (numberOfRequestedMemorySegments > currentPoolSize) {
 			MemorySegment segment = availableMemorySegments.poll();
 			if (segment == null) {

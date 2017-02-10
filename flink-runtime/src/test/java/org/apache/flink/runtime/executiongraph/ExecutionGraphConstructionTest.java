@@ -104,11 +104,11 @@ public class ExecutionGraphConstructionTest {
 		v4.setInvokableClass(AbstractInvokable.class);
 		v5.setInvokableClass(AbstractInvokable.class);
 
-		v2.connectNewDataSetAsInput(v1, DistributionPattern.ALL_TO_ALL);
-		v4.connectNewDataSetAsInput(v2, DistributionPattern.ALL_TO_ALL);
-		v4.connectNewDataSetAsInput(v3, DistributionPattern.ALL_TO_ALL);
-		v5.connectNewDataSetAsInput(v4, DistributionPattern.ALL_TO_ALL);
-		v5.connectNewDataSetAsInput(v3, DistributionPattern.ALL_TO_ALL);
+		v2.connectNewDataSetAsInput(v1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+		v4.connectNewDataSetAsInput(v2, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+		v4.connectNewDataSetAsInput(v3, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+		v5.connectNewDataSetAsInput(v4, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+		v5.connectNewDataSetAsInput(v3, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 		
 		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3, v4, v5));
 
@@ -153,7 +153,7 @@ public class ExecutionGraphConstructionTest {
 		v3.setInvokableClass(AbstractInvokable.class);
 
 		// this creates an intermediate result for v1
-		v2.connectNewDataSetAsInput(v1, DistributionPattern.ALL_TO_ALL);
+		v2.connectNewDataSetAsInput(v1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 		
 		// create results for v2 and v3
 		IntermediateDataSet v2result = v2.createAndAddResultDataSet(ResultPartitionType.PIPELINED);
@@ -193,7 +193,7 @@ public class ExecutionGraphConstructionTest {
 
 		v4.connectDataSetAsInput(v2result, DistributionPattern.ALL_TO_ALL);
 		v4.connectDataSetAsInput(v3result_1, DistributionPattern.ALL_TO_ALL);
-		v5.connectNewDataSetAsInput(v4, DistributionPattern.ALL_TO_ALL);
+		v5.connectNewDataSetAsInput(v4, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 		v5.connectDataSetAsInput(v3result_2, DistributionPattern.ALL_TO_ALL);
 		
 		List<JobVertex> ordered2 = new ArrayList<JobVertex>(Arrays.asList(v4, v5));
@@ -230,7 +230,7 @@ public class ExecutionGraphConstructionTest {
 		v3.setInvokableClass(AbstractInvokable.class);
 		
 		// this creates an intermediate result for v1
-		v2.connectNewDataSetAsInput(v1, DistributionPattern.ALL_TO_ALL);
+		v2.connectNewDataSetAsInput(v1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 		
 		// create results for v2 and v3
 		IntermediateDataSet v2result = v2.createAndAddResultDataSet(ResultPartitionType.PIPELINED);
@@ -269,7 +269,7 @@ public class ExecutionGraphConstructionTest {
 
 		v4.connectIdInput(v2result.getId(), DistributionPattern.ALL_TO_ALL);
 		v4.connectIdInput(v3result_1.getId(), DistributionPattern.ALL_TO_ALL);
-		v5.connectNewDataSetAsInput(v4, DistributionPattern.ALL_TO_ALL);
+		v5.connectNewDataSetAsInput(v4, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 		v5.connectIdInput(v3result_2.getId(), DistributionPattern.ALL_TO_ALL);
 		
 		List<JobVertex> ordered2 = new ArrayList<JobVertex>(Arrays.asList(v4, v5));
@@ -558,11 +558,11 @@ public class ExecutionGraphConstructionTest {
 		v4.setInvokableClass(AbstractInvokable.class);
 		v5.setInvokableClass(AbstractInvokable.class);
 
-		v2.connectNewDataSetAsInput(v1, DistributionPattern.ALL_TO_ALL);
-		v4.connectNewDataSetAsInput(v2, DistributionPattern.ALL_TO_ALL);
-		v4.connectNewDataSetAsInput(v3, DistributionPattern.ALL_TO_ALL);
-		v5.connectNewDataSetAsInput(v4, DistributionPattern.ALL_TO_ALL);
-		v5.connectNewDataSetAsInput(v3, DistributionPattern.ALL_TO_ALL);
+		v2.connectNewDataSetAsInput(v1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+		v4.connectNewDataSetAsInput(v2, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+		v4.connectNewDataSetAsInput(v3, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+		v5.connectNewDataSetAsInput(v4, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+		v5.connectNewDataSetAsInput(v3, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 		
 		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3, v5, v4));
 
@@ -625,11 +625,11 @@ public class ExecutionGraphConstructionTest {
 			v4.setInvokableClass(AbstractInvokable.class);
 			v5.setInvokableClass(AbstractInvokable.class);
 			
-			v2.connectNewDataSetAsInput(v1, DistributionPattern.ALL_TO_ALL);
-			v4.connectNewDataSetAsInput(v2, DistributionPattern.ALL_TO_ALL);
-			v4.connectNewDataSetAsInput(v3, DistributionPattern.ALL_TO_ALL);
-			v5.connectNewDataSetAsInput(v4, DistributionPattern.ALL_TO_ALL);
-			v5.connectNewDataSetAsInput(v3, DistributionPattern.ALL_TO_ALL);
+			v2.connectNewDataSetAsInput(v1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+			v4.connectNewDataSetAsInput(v2, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+			v4.connectNewDataSetAsInput(v3, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+			v5.connectNewDataSetAsInput(v4, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+			v5.connectNewDataSetAsInput(v3, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 			
 			v3.setInputSplitSource(source1);
 			v5.setInputSplitSource(source2);
