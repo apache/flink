@@ -18,16 +18,24 @@
 
 package org.apache.flink.table.calcite
 
+import org.apache.calcite.plan.RelOptRule
 import org.apache.calcite.sql.SqlOperatorTable
 import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.sql.util.ChainedSqlOperatorTable
+import org.apache.calcite.tools.{RuleSet, RuleSets}
 import org.apache.flink.util.Preconditions
+
+import scala.collection.JavaConverters._
 
 /**
   * Builder for creating a Calcite configuration.
   */
 class CalciteConfigBuilder {
-  private var replaceRuleSetConfig: Option[RuleSetConfig] = None
+  private var replaceNormRules: Boolean = false
+  private var normRuleSets: List[RuleSet] = Nil
+
+  private var replaceOptRules: Boolean = false
+  private var optRuleSets: List[RuleSet] = Nil
 
   private var replaceOperatorTable: Boolean = false
   private var operatorTables: List[SqlOperatorTable] = Nil
@@ -35,11 +43,40 @@ class CalciteConfigBuilder {
   private var replaceSqlParserConfig: Option[SqlParser.Config] = None
 
   /**
-    * Replaces the built-in RuleSet configuration with the given configuration.
+    * Replaces the built-in normalization rule set with the given rule set.
     */
-  def replaceRuleSetConfig(ruleSetConfig: RuleSetConfig): CalciteConfigBuilder = {
-    Preconditions.checkNotNull(ruleSetConfig)
-    replaceRuleSetConfig = Some(ruleSetConfig)
+  def replaceNormRuleSet(replaceRuleSet: RuleSet): CalciteConfigBuilder = {
+    Preconditions.checkNotNull(replaceRuleSet)
+    normRuleSets = List(replaceRuleSet)
+    replaceNormRules = true
+    this
+  }
+
+  /**
+    * Appends the given normalization rule set to the built-in rule set.
+    */
+  def addNormRuleSet(addedRuleSet: RuleSet): CalciteConfigBuilder = {
+    Preconditions.checkNotNull(addedRuleSet)
+    normRuleSets = addedRuleSet :: normRuleSets
+    this
+  }
+
+  /**
+    * Replaces the built-in optimization rule set with the given rule set.
+    */
+  def replaceOptRuleSet(replaceRuleSet: RuleSet): CalciteConfigBuilder = {
+    Preconditions.checkNotNull(replaceRuleSet)
+    optRuleSets = List(replaceRuleSet)
+    replaceOptRules = true
+    this
+  }
+
+  /**
+    * Appends the given optimization rule set to the built-in rule set.
+    */
+  def addOptRuleSet(addedRuleSet: RuleSet): CalciteConfigBuilder = {
+    Preconditions.checkNotNull(addedRuleSet)
+    optRuleSets = addedRuleSet :: optRuleSets
     this
   }
 
@@ -72,7 +109,10 @@ class CalciteConfigBuilder {
   }
 
   private class CalciteConfigImpl(
-    val getRuleSetConfig: Option[RuleSetConfig],
+    val getNormRuleSet: Option[RuleSet],
+    val replacesNormRuleSet: Boolean,
+    val getOptRuleSet: Option[RuleSet],
+    val replacesOptRuleSet: Boolean,
     val getSqlOperatorTable: Option[SqlOperatorTable],
     val replacesSqlOperatorTable: Boolean,
     val getSqlParserConfig: Option[SqlParser.Config])
@@ -82,7 +122,26 @@ class CalciteConfigBuilder {
     * Builds a new [[CalciteConfig]].
     */
   def build(): CalciteConfig = new CalciteConfigImpl(
-    replaceRuleSetConfig,
+    normRuleSets match {
+      case Nil => None
+      case h :: Nil => Some(h)
+      case _ =>
+        // concat rule sets
+        val concatRules =
+          normRuleSets.foldLeft(Nil: Iterable[RelOptRule])((c, r) => r.asScala ++ c)
+        Some(RuleSets.ofList(concatRules.asJava))
+    },
+    replaceNormRules,
+    optRuleSets match {
+      case Nil => None
+      case h :: Nil => Some(h)
+      case _ =>
+        // concat rule sets
+        val concatRules =
+          optRuleSets.foldLeft(Nil: Iterable[RelOptRule])((c, r) => r.asScala ++ c)
+        Some(RuleSets.ofList(concatRules.asJava))
+    },
+    replaceOptRules,
     operatorTables match {
       case Nil => None
       case h :: Nil => Some(h)
@@ -100,9 +159,24 @@ class CalciteConfigBuilder {
 trait CalciteConfig {
 
   /**
-    * Returns a custom RuleSet configuration.
+    * Returns whether this configuration replaces the built-in normalization rule set.
     */
-  def getRuleSetConfig: Option[RuleSetConfig]
+  def replacesNormRuleSet: Boolean
+
+  /**
+    * Returns a custom normalization rule set.
+    */
+  def getNormRuleSet: Option[RuleSet]
+
+  /**
+    * Returns whether this configuration replaces the built-in optimization rule set.
+    */
+  def replacesOptRuleSet: Boolean
+
+  /**
+    * Returns a custom optimization rule set.
+    */
+  def getOptRuleSet: Option[RuleSet]
 
   /**
     * Returns whether this configuration replaces the built-in SQL operator table.

@@ -126,23 +126,17 @@ abstract class TableEnvironment(val config: TableConfig) {
     * including a custom RuleSet configuration.
     */
   protected def getNormRuleSet: RuleSet = {
-    val ruleSetConfig = config.getCalciteConfig.getRuleSetConfig
+    val calciteConfig = config.getCalciteConfig
+    calciteConfig.getNormRuleSet match {
 
-    ruleSetConfig match {
       case None =>
         getBuiltInNormRuleSet
 
-      case Some(c) =>
-        c.getNormRuleSet match {
-          case None =>
-            getBuiltInNormRuleSet
-
-          case Some(ruleSet) =>
-            if (c.replacesNormRuleSet) {
-              ruleSet
-            } else {
-              RuleSets.ofList((getBuiltInNormRuleSet.asScala ++ ruleSet.asScala).asJava)
-            }
+      case Some(ruleSet) =>
+        if (calciteConfig.replacesNormRuleSet) {
+          ruleSet
+        } else {
+          RuleSets.ofList((getBuiltInNormRuleSet.asScala ++ ruleSet.asScala).asJava)
         }
     }
   }
@@ -152,23 +146,17 @@ abstract class TableEnvironment(val config: TableConfig) {
     * including a custom RuleSet configuration.
     */
   protected def getOptRuleSet: RuleSet = {
-    val ruleSetConfig = config.getCalciteConfig.getRuleSetConfig
+    val calciteConfig = config.getCalciteConfig
+    calciteConfig.getOptRuleSet match {
 
-    ruleSetConfig match {
       case None =>
         getBuiltInOptRuleSet
 
-      case Some(c) =>
-        c.getOptRuleSet match {
-          case None =>
-            getBuiltInOptRuleSet
-
-          case Some(ruleSet) =>
-            if (c.replacesOptRuleSet) {
-              ruleSet
-            } else {
-              RuleSets.ofList((getBuiltInOptRuleSet.asScala ++ ruleSet.asScala).asJava)
-            }
+      case Some(ruleSet) =>
+        if (calciteConfig.replacesOptRuleSet) {
+          ruleSet
+        } else {
+          RuleSets.ofList((getBuiltInOptRuleSet.asScala ++ ruleSet.asScala).asJava)
         }
     }
   }

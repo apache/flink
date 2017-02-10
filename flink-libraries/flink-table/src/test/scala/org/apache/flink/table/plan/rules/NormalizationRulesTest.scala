@@ -15,30 +15,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.table
+package org.apache.flink.table.plan.rules
 
 import org.apache.calcite.rel.rules.AggregateExpandDistinctAggregatesRule
 import org.apache.calcite.tools.RuleSets
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.calcite.{CalciteConfig, CalciteConfigBuilder, RuleSetConfig,
-RuleSetConfigBuilder}
+import org.apache.flink.table.calcite.{CalciteConfig, CalciteConfigBuilder}
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil._
 import org.junit.Test
 
-class NormalizationRulesTests extends TableTestBase {
+class NormalizationRulesTest extends TableTestBase {
 
   @Test
-  def testAppleNormalizationRuleForForBatchSQL(): Unit = {
+  def testApplyNormalizationRuleForForBatchSQL(): Unit = {
     val util = batchTestUtil()
-    val rc: RuleSetConfig = new RuleSetConfigBuilder()
-      // rewrite distinct aggregate
+
+    // rewrite distinct aggregate
+    val cc: CalciteConfig = new CalciteConfigBuilder()
       .replaceNormRuleSet(RuleSets.ofList(AggregateExpandDistinctAggregatesRule.JOIN))
       .replaceOptRuleSet(RuleSets.ofList())
-      .build
-
-    val cc: CalciteConfig = new CalciteConfigBuilder().replaceRuleSetConfig(rc).build
+      .build()
     util.tEnv.getConfig.setCalciteConfig(cc)
 
     util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
@@ -48,15 +46,14 @@ class NormalizationRulesTests extends TableTestBase {
       "FROM MyTable group by b"
 
     // expect double aggregate
-    val expected = unaryNode(
-      "LogicalProject",
+    val expected = unaryNode("LogicalProject",
       unaryNode("LogicalAggregate",
-                unaryNode("LogicalAggregate",
-                          unaryNode("LogicalProject",
-                                    values("LogicalTableScan", term("table", "[MyTable]")),
-                                    term("b", "$1"), term("a", "$0")),
-                          term("group", "{0, 1}")),
-                term("group", "{0}"), term("EXPR$0", "COUNT($1)")
+        unaryNode("LogicalAggregate",
+          unaryNode("LogicalProject",
+            values("LogicalTableScan", term("table", "[MyTable]")),
+            term("b", "$1"), term("a", "$0")),
+          term("group", "{0, 1}")),
+        term("group", "{0}"), term("EXPR$0", "COUNT($1)")
       ),
       term("EXPR$0", "$1")
     )
@@ -65,15 +62,14 @@ class NormalizationRulesTests extends TableTestBase {
   }
 
   @Test
-  def testAppleNormalizationRuleForForStreamSQL(): Unit = {
+  def testApplyNormalizationRuleForForStreamSQL(): Unit = {
     val util = streamTestUtil()
-    val rc: RuleSetConfig = new RuleSetConfigBuilder()
-      // rewrite distinct aggregate
+
+    // rewrite distinct aggregate
+    val cc: CalciteConfig = new CalciteConfigBuilder()
       .replaceNormRuleSet(RuleSets.ofList(AggregateExpandDistinctAggregatesRule.JOIN))
       .replaceOptRuleSet(RuleSets.ofList())
-      .build
-
-    val cc: CalciteConfig = new CalciteConfigBuilder().replaceRuleSetConfig(rc).build
+      .build()
     util.tEnv.getConfig.setCalciteConfig(cc)
 
     util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
@@ -86,12 +82,12 @@ class NormalizationRulesTests extends TableTestBase {
     val expected = unaryNode(
       "LogicalProject",
       unaryNode("LogicalAggregate",
-                unaryNode("LogicalAggregate",
-                          unaryNode("LogicalProject",
-                                    values("LogicalTableScan", term("table", "[MyTable]")),
-                                    term("b", "$1"), term("a", "$0")),
-                          term("group", "{0, 1}")),
-                term("group", "{0}"), term("EXPR$0", "COUNT($1)")
+        unaryNode("LogicalAggregate",
+          unaryNode("LogicalProject",
+            values("LogicalTableScan", term("table", "[MyTable]")),
+            term("b", "$1"), term("a", "$0")),
+          term("group", "{0, 1}")),
+        term("group", "{0}"), term("EXPR$0", "COUNT($1)")
       ),
       term("EXPR$0", "$1")
     )
