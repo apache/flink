@@ -38,14 +38,14 @@ import org.apache.flink.runtime.process.ProcessReaper;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.util.EnvironmentInformation;
+import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.util.Hardware;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
-import org.apache.flink.runtime.util.NamedThreadFactory;
 import org.apache.flink.runtime.util.SignalHandler;
 import org.apache.flink.runtime.webmonitor.WebMonitor;
-
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
+
 import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.DataOutputBuffer;
@@ -75,6 +75,7 @@ import java.util.Collections;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.yarn.YarnConfigKeys.ENV_FLINK_CLASSPATH;
@@ -227,13 +228,13 @@ public class YarnApplicationMasterRunner {
 
 		int numberProcessors = Hardware.getNumberCPUCores();
 
-		final ExecutorService futureExecutor = Executors.newFixedThreadPool(
+		final ScheduledExecutorService futureExecutor = Executors.newScheduledThreadPool(
 			numberProcessors,
-			new NamedThreadFactory("yarn-jobmanager-future-", "-thread-"));
+			new ExecutorThreadFactory("yarn-jobmanager-future"));
 
 		final ExecutorService ioExecutor = Executors.newFixedThreadPool(
 			numberProcessors,
-			new NamedThreadFactory("yarn-jobmanager-io-", "-thread-"));
+			new ExecutorThreadFactory("yarn-jobmanager-io"));
 
 		try {
 			// ------- (1) load and parse / validate all configurations -------

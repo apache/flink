@@ -24,6 +24,7 @@ import akka.dispatch.Mapper;
 import akka.dispatch.OnComplete;
 import akka.dispatch.Recover;
 import akka.japi.Procedure;
+
 import org.apache.flink.runtime.concurrent.AcceptFunction;
 import org.apache.flink.runtime.concurrent.ApplyFunction;
 import org.apache.flink.runtime.concurrent.CompletableFuture;
@@ -31,8 +32,10 @@ import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.BiFunction;
 import org.apache.flink.util.Preconditions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import scala.Option;
 import scala.Tuple2;
 import scala.concurrent.Await;
@@ -58,6 +61,12 @@ import java.util.concurrent.TimeoutException;
 public class FlinkFuture<T> implements Future<T> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(FlinkFuture.class);
+
+	private static final Executor DIRECT_EXECUTOR = Executors.directExecutor();
+
+	private static final ExecutionContext DIRECT_EXECUTION_CONTEXT = executionContextFromExecutor(DIRECT_EXECUTOR);
+
+	// ------------------------------------------------------------------------
 
 	protected scala.concurrent.Future<T> scalaFuture;
 
@@ -346,6 +355,14 @@ public class FlinkFuture<T> implements Future<T> {
 	//-----------------------------------------------------------------------------------
 
 	private static ExecutionContext createExecutionContext(final Executor executor) {
+		if (executor == DIRECT_EXECUTOR) {
+			return DIRECT_EXECUTION_CONTEXT;
+		} else {
+			return executionContextFromExecutor(executor);
+		}
+	}
+
+	private static ExecutionContext executionContextFromExecutor(final Executor executor) {
 		return ExecutionContexts$.MODULE$.fromExecutor(executor, new Procedure<Throwable>() {
 			@Override
 			public void apply(Throwable throwable) throws Exception {

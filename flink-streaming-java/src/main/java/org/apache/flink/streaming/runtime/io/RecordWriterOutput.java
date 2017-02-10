@@ -28,9 +28,11 @@ import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
-import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
+import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamstatus.StreamStatusProvider;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -45,12 +47,14 @@ public class RecordWriterOutput<OUT> implements Output<StreamRecord<OUT>> {
 	private SerializationDelegate<StreamElement> serializationDelegate;
 
 	private final OutputTag tag;
+	private final StreamStatusProvider streamStatusProvider;
 	
 	@SuppressWarnings("unchecked")
 	public RecordWriterOutput(
 			StreamRecordWriter<SerializationDelegate<StreamRecord<OUT>>> recordWriter,
 			OutputTag tag,
-			TypeSerializer<OUT> outSerializer) {
+			TypeSerializer<OUT> outSerializer,
+			StreamStatusProvider streamStatusProvider) {
 
 		checkNotNull(recordWriter);
 		this.tag = tag;
@@ -65,6 +69,8 @@ public class RecordWriterOutput<OUT> implements Output<StreamRecord<OUT>> {
 		if (outSerializer != null) {
 			serializationDelegate = new SerializationDelegate<StreamElement>(outRecordSerializer);
 		}
+
+		this.streamStatusProvider = checkNotNull(streamStatusProvider);
 	}
 
 	@Override
@@ -83,7 +89,19 @@ public class RecordWriterOutput<OUT> implements Output<StreamRecord<OUT>> {
 	@Override
 	public void emitWatermark(Watermark mark) {
 		serializationDelegate.setInstance(mark);
-		
+
+		if (streamStatusProvider.getStreamStatus().isActive()) {
+			try {
+				recordWriter.broadcastEmit(serializationDelegate);
+			} catch (Exception e) {
+				throw new RuntimeException(e.getMessage(), e);
+			}
+		}
+	}
+
+	public void emitStreamStatus(StreamStatus streamStatus) {
+		serializationDelegate.setInstance(streamStatus);
+
 		try {
 			recordWriter.broadcastEmit(serializationDelegate);
 		}

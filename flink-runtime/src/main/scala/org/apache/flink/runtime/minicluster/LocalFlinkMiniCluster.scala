@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.minicluster
 
 import java.net.InetAddress
-import java.util.concurrent.Executor
+import java.util.concurrent.{Executor, ScheduledExecutorService}
 
 import akka.actor.{ActorRef, ActorSystem, Props}
 import org.apache.flink.api.common.JobID
@@ -254,7 +254,7 @@ class LocalFlinkMiniCluster(
   def getJobManagerProps(
       jobManagerClass: Class[_ <: JobManager],
       configuration: Configuration,
-      futureExecutor: Executor,
+      futureExecutor: ScheduledExecutorService,
       ioExecutor: Executor,
       instanceManager: InstanceManager,
       scheduler: Scheduler,

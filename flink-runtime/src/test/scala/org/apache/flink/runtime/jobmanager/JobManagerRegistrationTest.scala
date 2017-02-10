@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobmanager
 
 import java.net.InetAddress
+import java.util.concurrent.{Executors, ScheduledExecutorService}
 
 import akka.actor._
 import akka.testkit.{ImplicitSender, TestKit}
@@ -51,7 +52,10 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
 
   def this() = this(AkkaUtils.createLocalActorSystem(new Configuration()))
 
+  val executor: ScheduledExecutorService = Executors.newScheduledThreadPool(2)
+  
   override def afterAll(): Unit = {
+    executor.shutdownNow()
     TestKit.shutdownActorSystem(system)
   }
 
@@ -172,8 +176,8 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
     val (jm: ActorRef, _) = JobManager.startJobManagerActors(
       new Configuration(),
       _system,
-      _system.dispatcher,
-      _system.dispatcher,
+      executor,
+      executor,
       None,
       None,
       classOf[JobManager],

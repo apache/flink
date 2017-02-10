@@ -82,6 +82,11 @@ public class TimestampsAndPeriodicWatermarksOperator<T>
 		getProcessingTimeService().registerTimer(now + watermarkInterval, this);
 	}
 
+	/**
+	 * Override the base implementation to completely ignore watermarks propagated from
+	 * upstream (we rely only on the {@link AssignerWithPeriodicWatermarks} to emit
+	 * watermarks from here).
+	 */
 	@Override
 	public void processWatermark(Watermark mark) throws Exception {
 		// if we receive a Long.MAX_VALUE watermark we forward it since it is used

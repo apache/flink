@@ -442,6 +442,11 @@ public final class ConfigConstants {
 	 */
 	public static final String YARN_APPLICATION_MASTER_PORT = "yarn.application-master.port";
 
+	/**
+	 * A comma-separated list of strings to use as YARN application tags.
+	 */
+	public static final String YARN_APPLICATION_TAGS = "yarn.tags";
+
 
 	// ------------------------ Mesos Configuration ------------------------
 

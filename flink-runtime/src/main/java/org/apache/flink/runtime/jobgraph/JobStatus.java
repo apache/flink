@@ -51,7 +51,10 @@ public enum JobStatus {
 	 * The job has been suspended which means that it has been stopped but not been removed from a
 	 * potential HA job store.
 	 */
-	SUSPENDED(TerminalState.LOCALLY);
+	SUSPENDED(TerminalState.LOCALLY),
+
+	/** The job is currently reconciling and waits for task execution report to recover state. */
+	RECONCILING(TerminalState.NON_TERMINAL);
 	
 	// --------------------------------------------------------------------------------------------
 

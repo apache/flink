@@ -53,6 +53,8 @@ taskmanager.numberOfTaskSlots: 1
 
 # Specify whether TaskManager memory should be allocated when starting up (true) or when
 # memory is required in the memory manager (false)
+# Important Note: For pure streaming setups, we highly recommend to set this value to `false`
+# as the default state backends currently do not use the managed memory.
 
 taskmanager.memory.preallocate: false
 

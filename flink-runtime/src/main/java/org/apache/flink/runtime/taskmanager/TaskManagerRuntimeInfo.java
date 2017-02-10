@@ -38,4 +38,12 @@ public interface TaskManagerRuntimeInfo {
 	 * @return The list of temporary file directories.
 	 */
 	String[] getTmpDirectories();
+
+	/**
+	 * Checks whether the TaskManager should exit the JVM when the task thread throws
+	 * an OutOfMemoryError.
+	 * 
+	 * @return True to terminate the JVM on an OutOfMemoryError, false otherwise.
+	 */
+	boolean shouldExitJvmOnOutOfMemoryError();
 }

@@ -577,8 +577,8 @@ public class JobManagerTest {
 				JobManager.startJobManagerActors(
 					config,
 					system,
-					system.dispatcher(),
-					system.dispatcher(),
+					TestingUtils.defaultExecutor(),
+					TestingUtils.defaultExecutor(),
 					TestingJobManager.class,
 					MemoryArchivist.class)._1(),
 				leaderSessionId);
@@ -787,8 +787,8 @@ public class JobManagerTest {
 			Tuple2<ActorRef, ActorRef> master = JobManager.startJobManagerActors(
 				config,
 				actorSystem,
-				actorSystem.dispatcher(),
-				actorSystem.dispatcher(),
+				TestingUtils.defaultExecutor(),
+				TestingUtils.defaultExecutor(),
 				Option.apply("jm"),
 				Option.apply("arch"),
 				TestingJobManager.class,
@@ -912,8 +912,8 @@ public class JobManagerTest {
 			Tuple2<ActorRef, ActorRef> master = JobManager.startJobManagerActors(
 				config,
 				actorSystem,
-				actorSystem.dispatcher(),
-				actorSystem.dispatcher(),
+				TestingUtils.defaultExecutor(),
+				TestingUtils.defaultExecutor(),
 				Option.apply("jm"),
 				Option.apply("arch"),
 				TestingJobManager.class,
@@ -1017,8 +1017,8 @@ public class JobManagerTest {
 			Tuple2<ActorRef, ActorRef> master = JobManager.startJobManagerActors(
 				config,
 				actorSystem,
-				actorSystem.dispatcher(),
-				actorSystem.dispatcher(),
+				TestingUtils.defaultExecutor(),
+				TestingUtils.defaultExecutor(),
 				Option.apply("jm"),
 				Option.apply("arch"),
 				TestingJobManager.class,
@@ -1116,8 +1116,8 @@ public class JobManagerTest {
 			Tuple2<ActorRef, ActorRef> master = JobManager.startJobManagerActors(
 				new Configuration(),
 				actorSystem,
-				actorSystem.dispatcher(),
-				actorSystem.dispatcher(),
+				TestingUtils.defaultExecutor(),
+				TestingUtils.defaultExecutor(),
 				Option.apply("jm"),
 				Option.apply("arch"),
 				TestingJobManager.class,

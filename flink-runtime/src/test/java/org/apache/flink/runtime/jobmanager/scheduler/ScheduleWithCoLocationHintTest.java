@@ -36,6 +36,8 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 
 import org.junit.Test;
 
+import java.util.concurrent.ExecutionException;
+
 public class ScheduleWithCoLocationHintTest {
 
 	@Test
@@ -241,8 +243,8 @@ public class ScheduleWithCoLocationHintTest {
 			try {
 				scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid3, 0, 1), sharingGroup, c1), false).get();
 				fail("Scheduled even though no resource was available.");
-			} catch (NoResourceAvailableException e) {
-				// expected
+			} catch (ExecutionException e) {
+				assertTrue(e.getCause() instanceof NoResourceAvailableException);
 			}
 
 			assertEquals(0, scheduler.getNumberOfLocalizedAssignments());
@@ -509,11 +511,13 @@ public class ScheduleWithCoLocationHintTest {
 
 			try {
 				scheduler.allocateSlot(
-						new ScheduledUnit(getTestVertexWithLocation(jid2, 0, 2, loc2), sharingGroup, cc1), false);
+						new ScheduledUnit(getTestVertexWithLocation(jid2, 0, 2, loc2), sharingGroup, cc1), false).get();
 				fail("should not be able to find a resource");
-			} catch (NoResourceAvailableException e) {
-				// good
-			} catch (Exception e) {
+			}
+			catch (ExecutionException e) {
+				assertTrue(e.getCause() instanceof NoResourceAvailableException);
+			}
+			catch (Exception e) {
 				fail("wrong exception");
 			}
 

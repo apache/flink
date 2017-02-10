@@ -180,8 +180,8 @@ public class TerminalStateDeadlockTest {
 
 		TestExecGraph(JobID jobId) throws IOException {
 			super(
-				TestingUtils.defaultExecutionContext(),
-				TestingUtils.defaultExecutionContext(),
+				TestingUtils.defaultExecutor(),
+				TestingUtils.defaultExecutor(),
 				jobId,
 				"test graph",
 				EMPTY_CONFIG,

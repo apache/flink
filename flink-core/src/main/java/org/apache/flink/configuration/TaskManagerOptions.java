@@ -33,6 +33,11 @@ public class TaskManagerOptions {
 	// ------------------------------------------------------------------------
 
 	// @TODO Migrate 'taskmanager.*' config options from ConfigConstants
+	
+	/** Whether to kill the TaskManager when the task thread throws an OutOfMemoryError */
+	public static final ConfigOption<Boolean> KILL_ON_OUT_OF_MEMORY =
+			key("taskmanager.jvm-exit-on-oom")
+			.defaultValue(false);
 
 	// ------------------------------------------------------------------------
 	//  Network Options

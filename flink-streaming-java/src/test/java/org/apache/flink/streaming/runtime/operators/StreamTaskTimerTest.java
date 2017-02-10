@@ -46,6 +46,7 @@ public class StreamTaskTimerTest {
 		
 		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(
 				mapTask, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+		testHarness.setupOutputForSingletonOperatorChain();
 
 		StreamConfig streamConfig = testHarness.getStreamConfig();
 		
@@ -83,6 +84,7 @@ public class StreamTaskTimerTest {
 		try {
 			final OneInputStreamTask<String, String> mapTask = new OneInputStreamTask<>();
 			final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(mapTask, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+			testHarness.setupOutputForSingletonOperatorChain();
 
 			StreamConfig streamConfig = testHarness.getStreamConfig();
 			StreamMap<String, String> mapOperator = new StreamMap<>(new DummyMapFunction<String>());
