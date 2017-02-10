@@ -92,18 +92,12 @@ public class WindowAggregateUtil implements Serializable {
 	 *            the list of constant to get the offset value
 	 * @return return the value of the lowerbound if available -1 otherwise
 	 */
-	public int getLowerBoundary(Group group, ImmutableList<RexLiteral> constants) {
-		Integer lowerBoundKey = group.keys.asList().get(0);
-		Object lowerbound = constants.get(lowerBoundKey).getValue2();
-		Object offset = group.lowerBound.getOffset();
 
-		if (offset instanceof RexInputRef) {
-			RelDataType type = ((RexInputRef) offset).getType();
-			if (type.getSqlTypeName().equals(SqlTypeName.INTEGER)) {
-				return Integer.parseInt(lowerbound.toString());
-			}
-		}
-		return -1;
+	
+	public int getLowerBoundary(ImmutableList<RexLiteral> constants) {
+		
+		return ((Long)constants.get(1).getValue2()).intValue();
+
 	}
 
 	
