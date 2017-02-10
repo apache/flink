@@ -17,48 +17,69 @@
  */
 package org.apache.flink.runtime.state.heap;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.RegisteredBackendStateMetaInfo;
 import org.apache.flink.runtime.state.KeyGroupRange;
 
-import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
 
 public class StateTable<K, N, ST> {
 
-	/** Combined meta information such as name and serializers for this state */
-	protected RegisteredBackendStateMetaInfo<N, ST> metaInfo;
-
 	/** Map for holding the actual state objects. */
-	private final List<Map<N, Map<K, ST>>> state;
+	private final Map<N, Map<K, ST>>[] state;
 
-	protected final KeyGroupRange keyGroupRange;
+	/** The offset to the contiguous key groups */
+	private final int keyGroupOffset;
 
-	public StateTable(
-			RegisteredBackendStateMetaInfo<N, ST> metaInfo,
-			KeyGroupRange keyGroupRange) {
+	/** Combined meta information such as name and serializers for this state */
+	private RegisteredBackendStateMetaInfo<N, ST> metaInfo;
+
+	// ------------------------------------------------------------------------
+	public StateTable(RegisteredBackendStateMetaInfo<N, ST> metaInfo, KeyGroupRange keyGroupRange) {
 		this.metaInfo = metaInfo;
-		this.keyGroupRange = keyGroupRange;
+		this.keyGroupOffset = keyGroupRange.getStartKeyGroup();
 
-		this.state = Arrays.asList((Map<N, Map<K, ST>>[]) new Map[keyGroupRange.getNumberOfKeyGroups()]);
+		@SuppressWarnings("unchecked")
+		Map<N, Map<K, ST>>[] state = (Map<N, Map<K, ST>>[]) new Map[keyGroupRange.getNumberOfKeyGroups()];
+		this.state = state;
 	}
 
-	private int indexToOffset(int index) {
-		return index - keyGroupRange.getStartKeyGroup();
+	// ------------------------------------------------------------------------
+	//  access to maps
+	// ------------------------------------------------------------------------
+
+	public Map<N, Map<K, ST>>[] getState() {
+		return state;
 	}
 
 	public Map<N, Map<K, ST>> get(int index) {
-		return keyGroupRange.contains(index) ? state.get(indexToOffset(index)) : null;
+		final int pos = indexToOffset(index);
+		if (pos >= 0 && pos < state.length) {
+			return state[pos];
+		} else {
+			return null;
+		}
 	}
 
 	public void set(int index, Map<N, Map<K, ST>> map) {
-		if (!keyGroupRange.contains(index)) {
-			throw new RuntimeException("Unexpected key group index. This indicates a bug.");
+		try {
+			state[indexToOffset(index)] = map;
 		}
-		state.set(indexToOffset(index), map);
+		catch (ArrayIndexOutOfBoundsException e) {
+			throw new IllegalArgumentException("Key group index out of range of key group range [" +
+					keyGroupOffset + ", " + (keyGroupOffset + state.length) + ").");
+		}
 	}
 
+	private int indexToOffset(int index) {
+		return index - keyGroupOffset;
+	}
+
+	// ------------------------------------------------------------------------
+	//  metadata
+	// ------------------------------------------------------------------------
+	
 	public TypeSerializer<ST> getStateSerializer() {
 		return metaInfo.getStateSerializer();
 	}
@@ -75,7 +96,20 @@ public class StateTable<K, N, ST> {
 		this.metaInfo = metaInfo;
 	}
 
-	public List<Map<N, Map<K, ST>>> getState() {
-		return state;
+	// ------------------------------------------------------------------------
+	//  for testing
+	// ------------------------------------------------------------------------
+
+	@VisibleForTesting
+	boolean isEmpty() {
+		for (Map<N, Map<K, ST>> map : state) {
+			if (map != null) {
+				if (!map.isEmpty()) {
+					return false;
+				}
+			}
+		}
+
+		return true;
 	}
 }

@@ -1022,69 +1022,72 @@ Temporal intervals can be represented as number of months (`Types.INTERVAL_MONTH
 
 ### Windows
 
-The Table API is a declarative API to define queries on batch and streaming tables. Projection, selection, and union operations can be applied both on streaming and batch tables without additional semantics. Aggregations on (possibly) infinite streaming tables, however, can only be computed on finite groups of records. Group-window aggregates group rows into finite groups based on time or row-count intervals and evaluate aggregation functions once per group. For batch tables, group-windows are a convenient shortcut to group records by time intervals.
+The Table API is a declarative API to define queries on batch and streaming tables. Projection, selection, and union operations can be applied both on streaming and batch tables without additional semantics. Aggregations on (possibly) infinite streaming tables, however, can only be computed on finite groups of records. Window aggregates group rows into finite groups based on time or row-count intervals and evaluate aggregation functions once per group. For batch tables, windows are a convenient shortcut to group records by time intervals.
 
-Group-windows are defined using the `window(w: GroupWindow)` clause. The following example shows how to define a group-window aggregation on a table.
+Windows are defined using the `window(w: Window)` clause and require an alias, which is specified using the `as` clause. In order to group a table by a window, the window alias must be referenced in the `groupBy(...)` clause like a regular grouping attribute. 
+The following example shows how to define a window aggregation on a table.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
 Table table = input
-  .window(GroupWindow w)  // define window
-  .select("b.sum")        // aggregate
+  .window([Window w].as("w"))  // define window with alias w
+  .groupBy("w")  // group the table by window w
+  .select("b.sum")  // aggregate
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 val table = input
-  .window(w: GroupWindow) // define window
-  .select('b.sum)         // aggregate
+  .window([w: Window] as 'w)  // define window with alias w
+  .groupBy('w)   // group the table by window w
+  .select('b.sum)  // aggregate
 {% endhighlight %}
 </div>
 </div>
 
-In streaming environments, group-window aggregates can only be computed in parallel, if they are *keyed*, i.e., there is an additional `groupBy` attribute. Group-window aggregates without additional `groupBy`, such as in the example above, can only be evaluated in a single, non-parallel task. The following example shows how to define a keyed group-window aggregation on a table. 
+In streaming environments, window aggregates can only be computed in parallel if they group on one or more attributes in addition to the window, i.e., the `groupBy(...)` clause references a window alias and at least one additional attribute. A `groupBy(...)` clause that only references a window alias (such as in the example above) can only be evaluated by a single, non-parallel task. 
+The following example shows how to define a window aggregation with additional grouping attributes.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
 Table table = input
-  .groupBy("a")
-  .window(GroupWindow w)  // define window
-  .select("a, b.sum")     // aggregate
+  .window([Window w].as("w"))  // define window with alias w
+  .groupBy("w, a")  // group the table by attribute a and window w 
+  .select("a, b.sum")  // aggregate
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 val table = input
-  .groupBy('a)
-  .window(w: GroupWindow) // define window
-  .select('a, 'b.sum)     // aggregate
+  .window([w: Window] as 'w) // define window with alias w
+  .groupBy('w, 'a)  // group the table by attribute a and window w 
+  .select('a, 'b.sum)  // aggregate
 {% endhighlight %}
 </div>
 </div>
 
-The `GroupWindow` parameter defines how rows are mapped to windows. `GroupWindow` is not an interface that users can implement. Instead, the Table API provides a set of predefined `GroupWindow` classes with specific semantics, which are translated into underlying `DataStream` or `DataSet` operations. The supported window definitions are listed below. 
-By assigning the group-window an alias using `as`, properties such as the start and end timestamp of a time window can be accessed in the `select` statement.
+The `Window` parameter defines how rows are mapped to windows. `Window` is not an interface that users can implement. Instead, the Table API provides a set of predefined `Window` classes with specific semantics, which are translated into underlying `DataStream` or `DataSet` operations. The supported window definitions are listed below. Window properties such as the start and end timestamp of a time window can be added in the select statement as a property of the window alias as `w.start` and `w.end`, respectively.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
 Table table = input
-  .groupBy("a")
-  .window(XXX.as("myWin"))                      // define window alias
-  .select("a, myWin.start, myWin.end, b.count") // aggregate
+  .window([Window w].as("w"))  // define window with alias w
+  .groupBy("w, a")  // group the table by attribute a and window w 
+  .select("a, w.start, w.end, b.count") // aggregate and add window start and end timestamps
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 val table = input
-  .groupBy('a)
-  .window(XXX as 'myWin)                          // define window alias
-  .select('a, 'myWin.start, 'myWin.end, 'b.count) // aggregate
+  .window([w: Window] as 'w)  // define window with alias w
+  .groupBy('w, 'a)  // group the table by attribute a and window w 
+  .select('a, 'w.start, 'w.end, 'b.count) // aggregate and add window start and end timestamps
 {% endhighlight %}
 </div>
 </div>
@@ -1117,8 +1120,8 @@ Tumbling windows are defined by using the `Tumble` class as follows:
     </tr>
     <tr>
       <td><code>as</code></td>
-      <td>Optional.</td>
-      <td>Assigns an alias to the window that can be used in the following <code>select()</code> clause to access window properties such as window start or end time.</td>
+      <td>Required.</td>
+      <td>Assigns an alias to the window. The alias is used to reference the window in the following <code>groupBy()</code> clause and optionally to select window properties such as window start or end time in the <code>select()</code> clause.</td>
     </tr>
   </tbody>
 </table>
@@ -1184,8 +1187,8 @@ Sliding windows are defined by using the `Slide` class as follows:
     </tr>
     <tr>
       <td><code>as</code></td>
-      <td>Optional.</td>
-      <td>Assigns an alias to the window that can be used in the following <code>select()</code> clause to access window properties such as window start or end time.</td>
+      <td>Required.</td>
+      <td>Assigns an alias to the window. The alias is used to reference the window in the following <code>groupBy()</code> clause and optionally to select window properties such as window start or end time in the <code>select()</code> clause.</td>
     </tr>
   </tbody>
 </table>
@@ -1246,8 +1249,8 @@ A session window is defined by using the `Session` class as follows:
     </tr>
     <tr>
       <td><code>as</code></td>
-      <td>Optional.</td>
-      <td>Assigns an alias to the window that can be used in the following <code>select()</code> clause to access window properties such as window start or end time.</td>
+      <td>Required.</td>
+      <td>Assigns an alias to the window. The alias is used to reference the window in the following <code>groupBy()</code> clause and optionally to select window properties such as window start or end time in the <code>select()</code> clause.</td>
     </tr>
   </tbody>
 </table>
@@ -1279,7 +1282,7 @@ A session window is defined by using the `Session` class as follows:
 Currently the following features are not supported yet:
 
 - Row-count windows on event-time
-- Session windows on batch tables
+- Non-grouped session windows on batch tables
 - Sliding windows on batch tables
 
 SQL

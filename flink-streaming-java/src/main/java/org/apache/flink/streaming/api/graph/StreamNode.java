@@ -26,7 +26,6 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.StreamOperator;
-import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -69,7 +68,8 @@ public class StreamNode implements Serializable {
 
 	private InputFormat<?, ?> inputFormat;
 
-	private String transformationId;
+	private String transformationUID;
+	private String userHash;
 
 	public StreamNode(StreamExecutionEnvironment env,
 		Integer id,
@@ -162,7 +162,6 @@ public class StreamNode implements Serializable {
 	 * @param maxParallelism Maximum parallelism to be set
 	 */
 	void setMaxParallelism(int maxParallelism) {
-		Preconditions.checkArgument(maxParallelism > 0, "The maximum parallelism must be at least 1.");
 		this.maxParallelism = maxParallelism;
 	}
 
@@ -272,12 +271,20 @@ public class StreamNode implements Serializable {
 		this.stateKeySerializer = stateKeySerializer;
 	}
 
-	public String getTransformationId() {
-		return transformationId;
+	public String getTransformationUID() {
+		return transformationUID;
 	}
 
-	void setTransformationId(String transformationId) {
-		this.transformationId = transformationId;
+	void setTransformationUID(String transformationId) {
+		this.transformationUID = transformationId;
+	}
+
+	public String getUserHash() {
+		return userHash;
+	}
+
+	public void setUserHash(String userHash) {
+		this.userHash = userHash;
 	}
 
 	@Override

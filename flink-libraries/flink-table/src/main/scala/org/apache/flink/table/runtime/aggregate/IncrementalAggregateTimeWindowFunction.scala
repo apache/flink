@@ -62,7 +62,8 @@ class IncrementalAggregateTimeWindowFunction(
 
     // set collector and window
     collector.wrappedCollector = out
-    collector.timeWindow = window
+    collector.windowStart = window.getStart
+    collector.windowEnd = window.getEnd
 
     super.apply(key, window, records, collector)
   }

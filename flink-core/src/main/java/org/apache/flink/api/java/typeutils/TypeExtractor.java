@@ -23,6 +23,7 @@ import org.apache.commons.lang3.ClassUtils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.CrossFunction;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
@@ -186,6 +187,28 @@ public class TypeExtractor {
 	public static <IN, OUT> TypeInformation<OUT> getFoldReturnTypes(FoldFunction<IN, OUT> foldInterface, TypeInformation<IN> inType, String functionName, boolean allowMissing)
 	{
 		return getUnaryOperatorReturnType((Function) foldInterface, FoldFunction.class, false, false, inType, functionName, allowMissing);
+	}
+
+	@PublicEvolving
+	public static <IN, ACC> TypeInformation<ACC> getAggregateFunctionAccumulatorType(
+			AggregateFunction<IN, ACC, ?> function,
+			TypeInformation<IN> inType,
+			String functionName,
+			boolean allowMissing)
+	{
+		return getUnaryOperatorReturnType(
+			function, AggregateFunction.class, 0, 1, inType, functionName, allowMissing);
+	}
+
+	@PublicEvolving
+	public static <IN, OUT> TypeInformation<OUT> getAggregateFunctionReturnType(
+			AggregateFunction<IN, ?, OUT> function,
+			TypeInformation<IN> inType,
+			String functionName,
+			boolean allowMissing)
+	{
+		return getUnaryOperatorReturnType(
+				function, AggregateFunction.class, 0, 2, inType, functionName, allowMissing);
 	}
 
 	@PublicEvolving
@@ -893,7 +916,7 @@ public class TypeExtractor {
 			// build the entire type hierarchy for the pojo
 			getTypeHierarchy(inputTypeHierarchy, inType, Object.class);
 			// determine a field containing the type variable
-			List<Field> fields = getAllDeclaredFields(typeToClass(inType));
+			List<Field> fields = getAllDeclaredFields(typeToClass(inType), false);
 			for (Field field : fields) {
 				Type fieldType = field.getGenericType();
 				if (fieldType instanceof TypeVariable && sameTypeVars(returnTypeVar, materializeTypeVariable(inputTypeHierarchy, (TypeVariable<?>) fieldType))) {
@@ -1738,7 +1761,7 @@ public class TypeExtractor {
 			getTypeHierarchy(typeHierarchy, clazz, Object.class);
 		}
 		
-		List<Field> fields = getAllDeclaredFields(clazz);
+		List<Field> fields = getAllDeclaredFields(clazz, false);
 		if (fields.size() == 0) {
 			LOG.info("No fields detected for " + clazz + ". Cannot be used as a PojoType. Will be handled as GenericType");
 			return new GenericTypeInfo<OUT>(clazz);
@@ -1803,12 +1826,17 @@ public class TypeExtractor {
 	}
 
 	/**
-	 * recursively determine all declared fields
+	 * Recursively determine all declared fields
 	 * This is required because class.getFields() is not returning fields defined
 	 * in parent classes.
+	 *
+	 * @param clazz class to be analyzed
+	 * @param ignoreDuplicates if true, in case of duplicate field names only the lowest one
+	 *                            in a hierarchy will be returned; throws an exception otherwise
+	 * @return list of fields
 	 */
 	@PublicEvolving
-	public static List<Field> getAllDeclaredFields(Class<?> clazz) {
+	public static List<Field> getAllDeclaredFields(Class<?> clazz, boolean ignoreDuplicates) {
 		List<Field> result = new ArrayList<Field>();
 		while (clazz != null) {
 			Field[] fields = clazz.getDeclaredFields();
@@ -1817,8 +1845,12 @@ public class TypeExtractor {
 					continue; // we have no use for transient or static fields
 				}
 				if(hasFieldWithSameName(field.getName(), result)) {
-					throw new RuntimeException("The field "+field+" is already contained in the hierarchy of the "+clazz+"."
+					if (ignoreDuplicates) {
+						continue;
+					} else {
+						throw new InvalidTypesException("The field "+field+" is already contained in the hierarchy of the "+clazz+"."
 							+ "Please use unique field names through your classes hierarchy");
+					}
 				}
 				result.add(field);
 			}
@@ -1829,7 +1861,7 @@ public class TypeExtractor {
 
 	@PublicEvolving
 	public static Field getDeclaredField(Class<?> clazz, String name) {
-		for (Field field : getAllDeclaredFields(clazz)) {
+		for (Field field : getAllDeclaredFields(clazz, true)) {
 			if (field.getName().equals(name)) {
 				return field;
 			}

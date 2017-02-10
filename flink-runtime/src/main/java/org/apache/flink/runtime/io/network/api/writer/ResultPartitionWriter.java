@@ -60,6 +60,10 @@ public class ResultPartitionWriter implements EventListener<TaskEvent> {
 		return partition.getNumberOfSubpartitions();
 	}
 
+	public int getNumTargetKeyGroups() {
+		return partition.getNumTargetKeyGroups();
+	}
+
 	// ------------------------------------------------------------------------
 	// Data processing
 	// ------------------------------------------------------------------------

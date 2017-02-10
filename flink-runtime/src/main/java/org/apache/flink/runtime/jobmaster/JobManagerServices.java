@@ -27,12 +27,14 @@ import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.util.ExecutorThreadFactory;
+import org.apache.flink.runtime.util.Hardware;
 import org.apache.flink.util.ExceptionUtils;
 
 import scala.concurrent.duration.FiniteDuration;
 
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -41,7 +43,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class JobManagerServices {
 
-	public final ExecutorService executorService;
+	public final ScheduledExecutorService executorService;
 
 	public final BlobLibraryCacheManager libraryCacheManager;
 
@@ -50,7 +52,7 @@ public class JobManagerServices {
 	public final Time rpcAskTimeout;
 
 	public JobManagerServices(
-			ExecutorService executorService,
+			ScheduledExecutorService executorService,
 			BlobLibraryCacheManager libraryCacheManager,
 			RestartStrategyFactory restartStrategyFactory,
 			Time rpcAskTimeout) {
@@ -119,7 +121,7 @@ public class JobManagerServices {
 		}
 
 		return new JobManagerServices(
-			new ForkJoinPool(),
+			Executors.newScheduledThreadPool(Hardware.getNumberCPUCores(), ExecutorThreadFactory.INSTANCE),
 			libraryCacheManager,
 			RestartStrategyFactory.createRestartStrategyFactory(config),
 			Time.of(timeout.length(), timeout.unit()));

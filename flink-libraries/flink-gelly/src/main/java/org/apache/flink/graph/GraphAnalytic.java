@@ -23,7 +23,7 @@ import org.apache.flink.api.java.DataSet;
 
 /**
  * A {@code GraphAnalytic} is similar to a {@link GraphAlgorithm} but is terminal
- * and results are retrieved via accumulators.  A Flink program has a single
+ * and results are retrieved via accumulators. A Flink program has a single
  * point of execution. A {@code GraphAnalytic} defers execution to the user to
  * allow composing multiple analytics and algorithms into a single program.
  *

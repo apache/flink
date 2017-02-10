@@ -38,8 +38,8 @@ import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.runtime.query.KvStateServerAddress;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.rpc.RpcTimeout;
+import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.KvState;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -140,10 +140,10 @@ public interface JobMasterGateway extends CheckpointCoordinatorGateway {
 		final Exception cause);
 
 	/**
-	 * Requests a {@link KvStateLocation} for the specified {@link KvState} registration name.
+	 * Requests a {@link KvStateLocation} for the specified {@link InternalKvState} registration name.
 	 *
 	 * @param registrationName Name under which the KvState has been registered.
-	 * @return Future of the requested {@link KvState} location
+	 * @return Future of the requested {@link InternalKvState} location
 	 */
 	Future<KvStateLocation> lookupKvStateLocation(final String registrationName);
 

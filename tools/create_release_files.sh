@@ -66,16 +66,20 @@ fi
 GPG_PASSPHRASE=${GPG_PASSPHRASE:-XXX}
 GPG_KEY=${GPG_KEY:-XXX}
 GIT_AUTHOR=${GIT_AUTHOR:-"Your name <you@apache.org>"}
-OLD_VERSION=${OLD_VERSION:-1.1-SNAPSHOT}
-RELEASE_VERSION=${NEW_VERSION}
-RELEASE_CANDIDATE=${RELEASE_CANDIDATE:-rc1}
+OLD_VERSION=${OLD_VERSION:-1.2-SNAPSHOT}
+RELEASE_VERSION=${NEW_VERSION:-1.3-SNAPSHOT}
+RELEASE_CANDIDATE=${RELEASE_CANDIDATE:-none}
 RELEASE_BRANCH=${RELEASE_BRANCH:-master}
 USER_NAME=${USER_NAME:-yourapacheidhere}
 MVN=${MVN:-mvn}
 GPG=${GPG:-gpg}
 sonatype_user=${sonatype_user:-yourapacheidhere}
 sonatype_pw=${sonatype_pw:-XXX}
-
+# whether only build the dist local and don't release to apache
+IS_LOCAL_DIST=${IS_LOCAL_DIST:-false}
+GIT_REPO=${GIT_REPO:-git-wip-us.apache.org/repos/asf/flink.git}
+SCALA_VERSION=none
+HADOOP_VERSION=none
 
 if [ "$(uname)" == "Darwin" ]; then
     SHASUM="shasum -a 512"
@@ -85,18 +89,81 @@ else
     MD5SUM="md5sum"
 fi
 
+usage() {
+  set +x
+  echo "./create_release_files.sh --scala-version 2.11 --hadoop-version 2.7.2"
+  echo ""
+  echo "usage:"
+  echo "[--scala-version <version>] [--hadoop-version <version>]"
+  echo ""
+  echo "example 1: build apache release"
+  echo "  sonatype_user=APACHEID sonatype_pw=APACHEIDPASSWORD \ "
+  echo "  NEW_VERSION=1.2.0 RELEASE_CANDIDATE="rc1" RELEASE_BRANCH=release-1.2.0 OLD_VERSION=1.1-SNAPSHOT \ "
+  echo "  USER_NAME=APACHEID GPG_PASSPHRASE=XXX GPG_KEY=KEYID \ "
+  echo "  GIT_AUTHOR=\"`git config --get user.name` <`git config --get user.email`>\" \ "
+  echo "  GIT_REPO=github.com/apache/flink.git \ "
+  echo "  ./create_release_files.sh --scala-version 2.11 --hadoop-version 2.7.2"
+  echo ""
+  echo "example 2: build local release"
+  echo "  NEW_VERSION=1.2.0 RELEASE_BRANCH=master OLD_VERSION=1.2-SNAPSHOT \ "
+  echo "  GPG_PASSPHRASE=XXX GPG_KEY=XXX IS_LOCAL_DIST=true \ "
+  echo "  ./create_release_files.sh --scala-version 2.11 --hadoop-version 2.7.2"
+
+  exit 1
+}
+
+# Parse arguments
+while (( "$#" )); do
+  case $1 in
+    --scala-version)
+      SCALA_VERSION="$2"
+      shift
+      ;;
+    --hadoop-version)
+      HADOOP_VERSION="$2"
+      shift
+      ;;
+    --help)
+      usage
+      ;;
+    *)
+      break
+      ;;
+  esac
+  shift
+done
+
+###########################
 
 prepare() {
   # prepare
-  git clone http://git-wip-us.apache.org/repos/asf/flink.git flink
+  target_branch=release-$RELEASE_VERSION
+  if [ "$RELEASE_CANDIDATE" != "none" ]; then
+    target_branch=$target_branch-$RELEASE_CANDIDATE
+  fi
+
+  if [ ! -d ./flink ]; then
+    git clone http://$GIT_REPO flink
+  else
+    # if flink git repo exist, delete target branch, delete builded distribution
+    rm -rf flink-*.tgz
+    cd flink
+    # try-catch
+    {
+      git pull --all
+      git checkout master
+      git branch -D $target_branch -f
+    } || {
+      echo "branch $target_branch not found"
+    }
+    cd ..
+  fi
+
   cd flink
-  git checkout -b "release-$RELEASE_VERSION-$RELEASE_CANDIDATE" origin/$RELEASE_BRANCH
-  rm -f .gitignore
-  rm -f .gitattributes
-  rm -f .travis.yml
-  rm -f deploysettings.xml
-  rm -f CHANGELOG
-  rm -rf .github
+
+  git checkout -b $target_branch origin/$RELEASE_BRANCH
+  rm -rf .gitignore .gitattributes .travis.yml deploysettings.xml CHANGELOG .github
+
   cd ..
 }
 
@@ -117,10 +184,13 @@ make_source_release() {
   perl -pi -e "s#^version_short: .*#version_short: ${NEW_VERSION}#" _config.yml
   cd ..
 
-  git commit --author="$GIT_AUTHOR" -am "Commit for release $RELEASE_VERSION"
-  git remote add asf_push https://$USER_NAME@git-wip-us.apache.org/repos/asf/flink.git
-  RELEASE_HASH=`git rev-parse HEAD`
-  echo "Echo created release hash $RELEASE_HASH"
+  # local dist have no need to commit to remote
+  if [ "$IS_LOCAL_DIST" == "false" ]; then
+    git commit --author="$GIT_AUTHOR" -am "Commit for release $RELEASE_VERSION"
+    git remote add asf_push https://$USER_NAME@$GIT_REPO
+    RELEASE_HASH=`git rev-parse HEAD`
+    echo "Echo created release hash $RELEASE_HASH"
+  fi
 
   cd ..
 
@@ -134,7 +204,7 @@ make_source_release() {
   rm -rf flink-$RELEASE_VERSION
 }
 
-
+# build maven package, create Flink distribution, generate signature
 make_binary_release() {
   NAME=$1
   FLAGS=$2
@@ -151,8 +221,8 @@ make_binary_release() {
   # enable release profile here (to check for the maven version)
   $MVN clean package $FLAGS -DskipTests -Prelease -Dgpg.skip
 
-  cd flink-dist/target/flink-$RELEASE_VERSION-bin/
-  tar czf "${dir_name}.tgz" flink-$RELEASE_VERSION
+  cd flink-dist/target/flink-*-bin/
+  tar czf "${dir_name}.tgz" flink-*
 
   cp flink-*.tgz ../../../../
   cd ../../../../
@@ -164,7 +234,6 @@ make_binary_release() {
     --detach-sig "${dir_name}.tgz"
   $MD5SUM "${dir_name}.tgz" > "${dir_name}.tgz.md5"
   $SHASUM "${dir_name}.tgz" > "${dir_name}.tgz.sha"
-
 }
 
 deploy_to_maven() {
@@ -188,7 +257,11 @@ deploy_to_maven() {
 copy_data() {
   # Copy data
   echo "Copying release tarballs"
-  folder=flink-$RELEASE_VERSION-$RELEASE_CANDIDATE
+  folder=flink-$RELEASE_VERSION
+  # candidate is not none, append it
+  if [ "$RELEASE_CANDIDATE" != "none" ]; then
+    folder=$folder-$RELEASE_CANDIDATE
+  fi
   sftp $USER_NAME@home.apache.org <<EOF
 mkdir public_html/$folder
 put flink-*.tgz* public_html/$folder
@@ -201,19 +274,34 @@ prepare
 
 make_source_release
 
-make_binary_release "hadoop2" "" 2.10
-make_binary_release "hadoop24" "-Dhadoop.version=2.4.1" 2.10
-make_binary_release "hadoop26" "-Dhadoop.version=2.6.3" 2.10
-make_binary_release "hadoop27" "-Dhadoop.version=2.7.2" 2.10
+# build dist by input parameter of "--scala-vervion xxx --hadoop-version xxx"
+if [ "$SCALA_VERSION" == "none" ] && [ "$HADOOP_VERSION" == "none" ]; then
+  make_binary_release "hadoop2" "" 2.10
+  make_binary_release "hadoop24" "-Dhadoop.version=2.4.1" "2.10"
+  make_binary_release "hadoop26" "-Dhadoop.version=2.6.3" "2.10"
+  make_binary_release "hadoop27" "-Dhadoop.version=2.7.2" "2.10"
 
-make_binary_release "hadoop2" "" 2.11
-make_binary_release "hadoop24" "-Dhadoop.version=2.4.1" 2.11
-make_binary_release "hadoop26" "-Dhadoop.version=2.6.3" 2.11
-make_binary_release "hadoop27" "-Dhadoop.version=2.7.2" 2.11
+  make_binary_release "hadoop2" "" 2.11
+  make_binary_release "hadoop24" "-Dhadoop.version=2.4.1" "2.11"
+  make_binary_release "hadoop26" "-Dhadoop.version=2.6.3" "2.11"
+  make_binary_release "hadoop27" "-Dhadoop.version=2.7.2" "2.11"
+elif [ "$SCALA_VERSION" == none ] && [ "$HADOOP_VERSION" != "none" ]
+then
+  make_binary_release "hadoop2" "-Dhadoop.version=$HADOOP_VERSION" "2.10"
+  make_binary_release "hadoop2" "-Dhadoop.version=$HADOOP_VERSION" "2.11"
+elif [ "$SCALA_VERSION" != none ] && [ "$HADOOP_VERSION" == "none" ]
+then
+  make_binary_release "hadoop2" "" $SCALA_VERSION
+  make_binary_release "hadoop24" "-Dhadoop.version=2.4.1" "$SCALA_VERSION"
+  make_binary_release "hadoop26" "-Dhadoop.version=2.6.3" "$SCALA_VERSION"
+  make_binary_release "hadoop27" "-Dhadoop.version=2.7.2" "$SCALA_VERSION"
+else
+  make_binary_release "hadoop2x" "-Dhadoop.version=$HADOOP_VERSION" "$SCALA_VERSION"
+fi
 
-copy_data
-
-deploy_to_maven
-
+if [ "$IS_LOCAL_DIST" == "false" ] ; then
+    copy_data
+    deploy_to_maven
+fi
 
 echo "Done. Don't forget to commit the release version"

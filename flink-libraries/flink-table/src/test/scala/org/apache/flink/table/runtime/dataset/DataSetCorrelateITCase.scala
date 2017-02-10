@@ -17,12 +17,15 @@
  */
 package org.apache.flink.table.runtime.dataset
 
+import java.sql.{Date, Timestamp}
+
 import org.apache.flink.api.scala._
 import org.apache.flink.types.Row
-import org.apache.flink.table.api.scala.batch.utils.{TableProgramsClusterTestBase, TableProgramsCollectionTestBase}
+import org.apache.flink.table.api.scala.batch.utils.TableProgramsClusterTestBase
 import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.TableEnvironment
+import org.apache.flink.table.api.java.utils.UserDefinedTableFunctions.JavaTableFunc0
 import org.apache.flink.table.utils._
 import org.apache.flink.test.util.TestBaseUtils
 import org.junit.Test
@@ -158,6 +161,27 @@ class DataSetCorrelateITCase(
     val results = result.collect()
     val expected = "Jack#22,ack\n" + "Jack#22,22\n" + "John#19,ohn\n" + "John#19,19\n" +
       "Anna#44,nna\n" + "Anna#44,44\n"
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testLongAndTemporalTypes(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
+    val in = testData(env).toTable(tableEnv).as('a, 'b, 'c)
+    val func0 = new JavaTableFunc0
+
+    val result = in
+        .where('a === 1)
+        .select(Date.valueOf("1990-10-14") as 'x,
+                1000L as 'y,
+                Timestamp.valueOf("1990-10-14 12:10:10") as 'z)
+        .join(func0('x, 'y, 'z) as 's)
+        .select('s)
+        .toDataSet[Row]
+
+    val results = result.collect()
+    val expected = "1000\n" + "655906210000\n" + "7591\n"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 

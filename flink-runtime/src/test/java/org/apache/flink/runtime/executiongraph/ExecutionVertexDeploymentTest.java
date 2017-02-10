@@ -34,6 +34,7 @@ import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
 import org.apache.flink.runtime.jobmanager.slots.AllocatedSlot;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 import org.junit.Test;
 
 import java.util.Collection;
@@ -96,7 +97,7 @@ public class ExecutionVertexDeploymentTest {
 		try {
 			final JobVertexID jid = new JobVertexID();
 
-			final ExecutionJobVertex ejv = getExecutionVertex(jid, TestingUtils.directExecutionContext());
+			final ExecutionJobVertex ejv = getExecutionVertex(jid, new DirectScheduledExecutorService());
 
 			final Instance instance = getInstance(
 				new ActorTaskManagerGateway(
@@ -180,7 +181,7 @@ public class ExecutionVertexDeploymentTest {
 	public void testDeployFailedSynchronous() {
 		try {
 			final JobVertexID jid = new JobVertexID();
-			final ExecutionJobVertex ejv = getExecutionVertex(jid, TestingUtils.directExecutionContext());
+			final ExecutionJobVertex ejv = getExecutionVertex(jid, new DirectScheduledExecutorService());
 
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 				AkkaUtils.getDefaultTimeout());
@@ -356,8 +357,17 @@ public class ExecutionVertexDeploymentTest {
 	public void testTddProducedPartitionsLazyScheduling() throws Exception {
 		TestingUtils.QueuedActionExecutionContext context = TestingUtils.queuedActionExecutionContext();
 		ExecutionJobVertex jobVertex = getExecutionVertex(new JobVertexID(), context);
-		IntermediateResult result = new IntermediateResult(new IntermediateDataSetID(), jobVertex, 4, ResultPartitionType.PIPELINED);
-		ExecutionVertex vertex = new ExecutionVertex(jobVertex, 0, new IntermediateResult[]{result}, Time.minutes(1));
+
+		IntermediateResult result =
+				new IntermediateResult(new IntermediateDataSetID(), jobVertex, 1, ResultPartitionType.PIPELINED);
+
+		ExecutionVertex vertex =
+				new ExecutionVertex(jobVertex, 0, new IntermediateResult[]{result}, Time.minutes(1));
+
+		ExecutionEdge mockEdge = createMockExecutionEdge(1);
+
+		result.getPartitions()[0].addConsumerGroup();
+		result.getPartitions()[0].addConsumer(mockEdge, 0);
 
 		AllocatedSlot allocatedSlot = mock(AllocatedSlot.class);
 		when(allocatedSlot.getSlotAllocationId()).thenReturn(new AllocationID());
@@ -380,5 +390,19 @@ public class ExecutionVertexDeploymentTest {
 			ResultPartitionDeploymentDescriptor desc = producedPartitions.iterator().next();
 			assertEquals(mode.allowLazyDeployment(), desc.sendScheduleOrUpdateConsumersMessage());
 		}
+	}
+
+
+
+	private ExecutionEdge createMockExecutionEdge(int maxParallelism) {
+		ExecutionVertex targetVertex = mock(ExecutionVertex.class);
+		ExecutionJobVertex targetJobVertex = mock(ExecutionJobVertex.class);
+
+		when(targetVertex.getJobVertex()).thenReturn(targetJobVertex);
+		when(targetJobVertex.getMaxParallelism()).thenReturn(maxParallelism);
+
+		ExecutionEdge edge = mock(ExecutionEdge.class);
+		when(edge.getTarget()).thenReturn(targetVertex);
+		return edge;
 	}
 }

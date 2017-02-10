@@ -29,7 +29,7 @@ import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.netty.message.KvStateRequest;
 import org.apache.flink.runtime.query.netty.message.KvStateRequestSerializer;
 import org.apache.flink.runtime.query.netty.message.KvStateRequestType;
-import org.apache.flink.runtime.state.KvState;
+import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.util.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,7 +40,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /**
- * This handler dispatches asynchronous tasks, which query {@link KvState}
+ * This handler dispatches asynchronous tasks, which query {@link InternalKvState}
  * instances and write the result to the channel.
  *
  * <p>The network threads receive the message, deserialize it and dispatch the
@@ -104,7 +104,7 @@ class KvStateServerHandler extends ChannelInboundHandlerAdapter {
 
 				stats.reportRequest();
 
-				KvState<?> kvState = registry.getKvState(request.getKvStateId());
+				InternalKvState<?> kvState = registry.getKvState(request.getKvStateId());
 
 				if (kvState != null) {
 					// Execute actual query async, because it is possibly
@@ -179,7 +179,7 @@ class KvStateServerHandler extends ChannelInboundHandlerAdapter {
 	}
 
 	/**
-	 * Task to execute the actual query against the {@link KvState} instance.
+	 * Task to execute the actual query against the {@link InternalKvState} instance.
 	 */
 	private static class AsyncKvStateQueryTask implements Runnable {
 
@@ -187,7 +187,7 @@ class KvStateServerHandler extends ChannelInboundHandlerAdapter {
 
 		private final KvStateRequest request;
 
-		private final KvState<?> kvState;
+		private final InternalKvState<?> kvState;
 
 		private final KvStateRequestStats stats;
 
@@ -196,7 +196,7 @@ class KvStateServerHandler extends ChannelInboundHandlerAdapter {
 		public AsyncKvStateQueryTask(
 				ChannelHandlerContext ctx,
 				KvStateRequest request,
-				KvState<?> kvState,
+				InternalKvState<?> kvState,
 				KvStateRequestStats stats) {
 
 			this.ctx = Objects.requireNonNull(ctx, "Channel handler context");
@@ -239,8 +239,6 @@ class KvStateServerHandler extends ChannelInboundHandlerAdapter {
 
 					success = true;
 				} else {
-					kvState.getSerializedValue(serializedKeyAndNamespace);
-
 					// No data for the key/namespace. This is considered to be
 					// a failure.
 					ByteBuf unknownKey = KvStateRequestSerializer.serializeKvStateRequestFailure(

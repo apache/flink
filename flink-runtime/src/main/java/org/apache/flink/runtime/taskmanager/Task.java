@@ -351,6 +351,7 @@ public class Task implements Runnable, TaskActions {
 				partitionId,
 				desc.getPartitionType(),
 				desc.getNumberOfSubpartitions(),
+				desc.getMaxParallelism(),
 				networkEnvironment.getResultPartitionManager(),
 				resultPartitionConsumableNotifier,
 				ioManager,
@@ -549,8 +550,8 @@ public class Task implements Runnable, TaskActions {
 			//  check for canceling as a shortcut
 			// ----------------------------
 
-			// init closeable registry for this task
-			FileSystem.createFileSystemCloseableRegistryForTask();
+			// activate safety net for task thread
+			FileSystem.createAndSetFileSystemCloseableRegistryForThread();
 
 			// first of all, get a user-code classloader
 			// this may involve downloading the job's JAR files and/or classes
@@ -717,7 +718,7 @@ public class Task implements Runnable, TaskActions {
 						else {
 							if (transitionState(current, ExecutionState.FAILED, t)) {
 								// proper failure of the task. record the exception as the root cause
-								String errorMessage = String.format("Execution of {} ({}) failed.", taskNameWithSubtask, executionId);
+								String errorMessage = String.format("Execution of %s (%s) failed.", taskNameWithSubtask, executionId);
 								failureCause = t;
 								cancelInvokable();
 
@@ -774,7 +775,8 @@ public class Task implements Runnable, TaskActions {
 
 				// remove all files in the distributed cache
 				removeCachedFiles(distributedCacheEntries, fileCache);
-				FileSystem.disposeFileSystemCloseableRegistryForTask();
+				// close and de-activate safety net for task thread
+				FileSystem.closeAndDisposeFileSystemCloseableRegistryForThread();
 
 				notifyFinalState();
 			}
@@ -1074,7 +1076,7 @@ public class Task implements Runnable, TaskActions {
 							resultPartitionId,
 							ExecutionState.RUNNING);
 					} else if (throwable instanceof PartitionProducerDisposedException) {
-						String msg = String.format("Producer {} of partition {} disposed. Cancelling execution.",
+						String msg = String.format("Producer %s of partition %s disposed. Cancelling execution.",
 							resultPartitionId.getProducerId(), resultPartitionId.getPartitionId());
 						LOG.info(msg, throwable);
 						cancelExecution();
@@ -1114,6 +1116,8 @@ public class Task implements Runnable, TaskActions {
 				Runnable runnable = new Runnable() {
 					@Override
 					public void run() {
+						// activate safety net for checkpointing thread
+						FileSystem.createAndSetFileSystemCloseableRegistryForThread();
 						try {
 							boolean success = statefulTask.triggerCheckpoint(checkpointMetaData);
 							if (!success) {
@@ -1132,6 +1136,9 @@ public class Task implements Runnable, TaskActions {
 									"{} ({}) while being not in state running.", checkpointID,
 									taskNameWithSubtask, executionId, t);
 							}
+						} finally {
+							// close and de-activate safety net for checkpointing thread
+							FileSystem.closeAndDisposeFileSystemCloseableRegistryForThread();
 						}
 					}
 				};

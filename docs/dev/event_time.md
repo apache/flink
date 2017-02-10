@@ -57,7 +57,7 @@ Flink supports different notions of *time* in streaming programs.
     which is the mechanism that signals time progress in event time. The mechanism is
     described below.
 
-    Event time processing often incurs a certain latency, due to it nature of waiting a certain time for
+    Event time processing often incurs a certain latency, due to its nature of waiting a certain time for
     late events and out-of-order events. Because of that, event time programs are often combined with
     *processing time* operations.
 
@@ -66,7 +66,7 @@ Flink supports different notions of *time* in streaming programs.
     refer to that timestamp.
 
     *Ingestion Time* sits conceptually in between *Event Time* and *Processing Time*. Compared to
-    *Processing Time*, it is slightly more expensive, but gives more predictable results: Because
+    *Processing Time*, it is slightly more expensive, but gives more predictable results: because
     *Ingestion Time* uses stable timestamps (assigned once at the source), different window operations
     over the records will refer to the same timestamp, whereas in *Processing Time* each window operator
     may assign the record to a different window (based on the local system clock and any transport delay).
@@ -131,8 +131,9 @@ stream
 </div>
 
 
-Note that in order to run this example in *Event Time*, the program needs to use either an event time
-source, or inject a *Timestamp Assigner & Watermark Generator*. Those functions describe how to access
+Note that in order to run this example in *Event Time*, the program needs to use either sources
+that directly define event time for the data and emits Watermarks themselves, or
+inject a *Timestamp Assigner & Watermark Generator* after the sources. Those functions describe how to access
 the event timestamps, and what timely out-of-orderness the event stream exhibits.
 
 The section below describes the general mechanism behind *Timestamps* and *Watermarks*. For a guide on how
@@ -142,7 +143,7 @@ to use timestamp assignment and watermark generation in the Flink DataStream API
 
 # Event Time and Watermarks
 
-*Note: Flink implements many techniques from the Dataflow Model. For a good introduction to Event Time and, have also a look at these articles*
+*Note: Flink implements many techniques from the Dataflow Model. For a good introduction to Event Time and Watermarks, have also a look at the below articles.*
 
   - [Streaming 101](https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-101) by Tyler Akidau
   - The [Dataflow Model paper](https://static.googleusercontent.com/media/research.google.com/en//pubs/archive/43864.pdf)
@@ -152,7 +153,7 @@ A stream processor that supports *event time* needs a way to measure the progres
 For example, a window operator that builds hourly windows needs to be notified when event time has reached the
 next full hour, such that the operator can close the next window.
 
-*Event Time* can progress independently of *Processing Time* (measures by wall clocks).
+*Event Time* can progress independently of *Processing Time* (measured by wall clocks).
 For example, in one program, the current *event time* of an operator can trail slightly behind the processing time
 (accounting for a delay in receiving the latest elements) and both proceed at the same speed. In another streaming
 program, which reads fast-forward through some data already buffered in a Kafka topic (or another message queue), event time
@@ -162,7 +163,8 @@ can progress by weeks in seconds.
 
 The mechanism in Flink to measure progress in event time is **Watermarks**.
 Watermarks flow as part of the data stream and carry a timestamp *t*. A *Watermark(t)* declares that event time has reached time
-*t* in that stream, meaning that all events with a timestamps *t' < t* have occurred.
+*t* in that stream, meaning that there should be no more elements from the stream with a timestamp *t' <= t* (i.e. events with timestamps
+older or equal to the watermark).
 
 The figure below shows a stream of events with (logical) timestamps, and watermarks flowing inline. The events are in order
 (with respect to their timestamp), meaning that watermarks are simply periodic markers in the stream with an in-order timestamp.
@@ -196,7 +198,7 @@ The figure below shows an example of events and watermarks flowing through paral
 ## Late Elements
 
 It is possible that certain elements violate the watermark condition, meaning that even after the *Watermark(t)* has occurred,
-more elements with timestamp *t' < t* will occur. In fact, in many real world setups, certain elements can be arbitrarily
+more elements with timestamp *t' <= t* will occur. In fact, in many real world setups, certain elements can be arbitrarily
 delayed, making it impossible to define a time when all elements of a certain event timestamp have occurred.
 Further more, even if the lateness can be bounded, delaying the watermarks by too much is often not desirable, because it delays
 the evaluation of the event time windows by too much.

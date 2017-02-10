@@ -22,6 +22,7 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.KeyedStateBackend;
+import org.apache.flink.runtime.state.internal.InternalValueState;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Map;
@@ -36,7 +37,7 @@ import java.util.Map;
  */
 public class HeapValueState<K, N, V>
 		extends AbstractHeapState<K, N, V, ValueState<V>, ValueStateDescriptor<V>>
-		implements ValueState<V> {
+		implements InternalValueState<N, V> {
 
 	/**
 	 * Creates a new key/value state for the given hash map of key/value pairs.

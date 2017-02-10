@@ -40,6 +40,8 @@ import org.apache.flink.table.codegen.Indenter.toISC
 import org.apache.flink.table.codegen.calls.FunctionGenerator
 import org.apache.flink.table.codegen.calls.ScalarOperators._
 import org.apache.flink.table.functions.{UDFContext, UserDefinedFunction}
+import org.apache.flink.table.runtime.TableFunctionCollector
+import org.apache.flink.table.typeutils.TypeConverter
 import org.apache.flink.table.typeutils.TypeCheckUtils._
 import org.apache.flink.table.typeutils.TypeConverter
 
@@ -142,6 +144,10 @@ class CodeGenerator(
   // (inputTerm, index) -> expr
   private val reusableInputUnboxingExprs = mutable.Map[(String, Int), GeneratedExpression]()
 
+  // set of constructor statements that will be added only once
+  // we use a LinkedHashSet to keep the insertion order
+  private val reusableConstructorStatements = mutable.LinkedHashSet[(String, String)]()
+
   /**
     * @return code block of statements that need to be placed in the member area of the Function
     *         (e.g. member variables and their initialization)
@@ -184,6 +190,20 @@ class CodeGenerator(
     */
   def reuseInputUnboxingCode(): String = {
     reusableInputUnboxingExprs.values.map(_.code).mkString("", "\n", "\n")
+  }
+
+  /**
+    * @return code block of constructor statements for the Function
+    */
+  def reuseConstructorCode(className: String): String = {
+    reusableConstructorStatements.map { case (params, body) =>
+      s"""
+        |public $className($params) throws Exception {
+        |  this();
+        |  $body
+        |}
+        |""".stripMargin
+    }.mkString("", "\n", "\n")
   }
 
   /**
@@ -304,6 +324,8 @@ class CodeGenerator(
           public $funcName() throws Exception {
             ${reuseInitCode()}
           }
+          
+          ${reuseConstructorCode(funcName)}
       """.stripMargin
 
     if (generatedRichFunction) {
@@ -389,6 +411,52 @@ class CodeGenerator(
     """.stripMargin
 
     GeneratedFunction[GenericInputFormat[T]](funcName, returnType, funcCode)
+  }
+
+  /**
+    * Generates a [[TableFunctionCollector]] that can be passed to Java compiler.
+    *
+    * @param name Class name of the table function collector. Must not be unique but has to be a
+    *             valid Java class identifier.
+    * @param bodyCode body code for the collector method
+    * @param collectedType The type information of the element collected by the collector
+    * @return instance of GeneratedCollector
+    */
+  def generateTableFunctionCollector(
+      name: String,
+      bodyCode: String,
+      collectedType: TypeInformation[Any])
+    : GeneratedCollector = {
+
+    val className = newName(name)
+    val input1TypeClass = boxedTypeTermForTypeInfo(input1)
+    val input2TypeClass = boxedTypeTermForTypeInfo(collectedType)
+
+    val funcCode = j"""
+      public class $className extends ${classOf[TableFunctionCollector[_]].getCanonicalName} {
+
+        ${reuseMemberCode()}
+
+        public $className() throws Exception {
+          ${reuseInitCode()}
+        }
+
+        @Override
+        public void collect(Object record) throws Exception {
+          super.collect(record);
+          $input1TypeClass $input1Term = ($input1TypeClass) getInput();
+          $input2TypeClass $input2Term = ($input2TypeClass) record;
+          ${reuseInputUnboxingCode()}
+          $bodyCode
+        }
+
+        @Override
+        public void close() {
+        }
+      }
+    """.stripMargin
+
+    GeneratedCollector(className, funcCode)
   }
 
   /**
@@ -1494,6 +1562,33 @@ class CodeGenerator(
     generatedRichFunction = true
 
     fieldTerm
+  }
+
+
+  /**
+    * Adds a reusable constructor statement with the given parameter types.
+    *
+    * @param parameterTypes The parameter types to construct the function
+    * @return member variable terms
+    */
+  def addReusableConstructor(parameterTypes: Class[_]*): Array[String] = {
+    val parameters = mutable.ListBuffer[String]()
+    val fieldTerms = mutable.ListBuffer[String]()
+    val body = mutable.ListBuffer[String]()
+
+    parameterTypes.zipWithIndex.foreach { case (t, index) =>
+      val classQualifier = t.getCanonicalName
+      val fieldTerm = newName(s"instance_${classQualifier.replace('.', '$')}")
+      val field = s"transient $classQualifier $fieldTerm = null;"
+      reusableMemberStatements.add(field)
+      fieldTerms += fieldTerm
+      parameters += s"$classQualifier arg$index"
+      body += s"$fieldTerm = arg$index;"
+    }
+
+    reusableConstructorStatements.add((parameters.mkString(","), body.mkString("", "\n", "\n")))
+
+    fieldTerms.toArray
   }
 
   /**

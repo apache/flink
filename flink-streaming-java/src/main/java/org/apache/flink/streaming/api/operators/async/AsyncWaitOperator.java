@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.runtime.concurrent.AcceptFunction;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.datastream.AsyncDataStream;
@@ -50,6 +51,7 @@ import org.apache.flink.util.Preconditions;
 import java.util.Collection;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -89,7 +91,7 @@ public class AsyncWaitOperator<IN, OUT>
 	/** Timeout for the async collectors */
 	private final long timeout;
 
-	private transient Object checkpointingLock;
+	protected transient Object checkpointingLock;
 
 	/** {@link TypeSerializer} for inputs while making snapshots. */
 	private transient StreamElementSerializer<IN> inStreamElementSerializer;
@@ -189,7 +191,7 @@ public class AsyncWaitOperator<IN, OUT>
 		this.emitter = new Emitter<>(checkpointingLock, output, queue, this);
 
 		// start the emitter thread
-		this.emitterThread = new Thread(emitter);
+		this.emitterThread = new Thread(emitter, "AsyncIO-Emitter-Thread (" + getOperatorName() + ')');
 		emitterThread.setDaemon(true);
 		emitterThread.start();
 
@@ -203,7 +205,7 @@ public class AsyncWaitOperator<IN, OUT>
 			// register a timeout for this AsyncStreamRecordBufferEntry
 			long timeoutTimestamp = timeout + getProcessingTimeService().getCurrentProcessingTime();
 
-			getProcessingTimeService().registerTimer(
+			final ScheduledFuture<?> timerFuture = getProcessingTimeService().registerTimer(
 				timeoutTimestamp,
 				new ProcessingTimeCallback() {
 					@Override
@@ -212,6 +214,15 @@ public class AsyncWaitOperator<IN, OUT>
 							new TimeoutException("Async function call has timed out."));
 					}
 				});
+
+			// Cancel the timer once we've completed the stream record buffer entry. This will remove
+			// the register trigger task
+			streamRecordBufferEntry.onComplete(new AcceptFunction<StreamElementQueueEntry<Collection<OUT>>>() {
+				@Override
+				public void accept(StreamElementQueueEntry<Collection<OUT>> value) {
+					timerFuture.cancel(true);
+				}
+			}, executor);
 		}
 
 		addAsyncBufferEntry(streamRecordBufferEntry);
@@ -231,18 +242,25 @@ public class AsyncWaitOperator<IN, OUT>
 		super.snapshotState(context);
 
 		ListState<StreamElement> partitionableState =
-				getOperatorStateBackend().getOperatorState(new ListStateDescriptor<>(STATE_NAME, inStreamElementSerializer));
+			getOperatorStateBackend().getOperatorState(new ListStateDescriptor<>(STATE_NAME, inStreamElementSerializer));
 		partitionableState.clear();
 
 		Collection<StreamElementQueueEntry<?>> values = queue.values();
 
-		for (StreamElementQueueEntry<?> value : values) {
-			partitionableState.add(value.getStreamElement());
-		}
+		try {
+			for (StreamElementQueueEntry<?> value : values) {
+				partitionableState.add(value.getStreamElement());
+			}
 
-		// add the pending stream element queue entry if the stream element queue is currently full
-		if (pendingStreamElementQueueEntry != null) {
-			partitionableState.add(pendingStreamElementQueueEntry.getStreamElement());
+			// add the pending stream element queue entry if the stream element queue is currently full
+			if (pendingStreamElementQueueEntry != null) {
+				partitionableState.add(pendingStreamElementQueueEntry.getStreamElement());
+			}
+		} catch (Exception e) {
+			partitionableState.clear();
+
+			throw new Exception("Could not add stream element queue entries to operator state " +
+				"backend of operator " + getOperatorName() + '.', e);
 		}
 	}
 
@@ -347,6 +365,16 @@ public class AsyncWaitOperator<IN, OUT>
 				executor.shutdownNow();
 
 				Thread.currentThread().interrupt();
+			}
+
+			/**
+			 * FLINK-5638: If we have the checkpoint lock we might have to free it for a while so
+			 * that the emitter thread can complete/react to the interrupt signal.
+			 */
+			if (Thread.holdsLock(checkpointingLock)) {
+				while (emitterThread.isAlive()) {
+					checkpointingLock.wait(100L);
+				}
 			}
 
 			emitterThread.join();

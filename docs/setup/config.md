@@ -100,25 +100,15 @@ These options are useful for debugging a Flink application for memory and garbag
 
 Flink supports Kerberos authentication for the following services:
 
-+ Hadoop Components (such as HDFS, YARN, or HBase)
-+ Kafka Connectors (version 0.9+)
++ Hadoop Components, such as HDFS, YARN, or HBase *(version 2.6.1 and above; all other versions have critical bugs which might fail the Flink job unexpectedly)*.
++ Kafka Connectors *(version 0.9+ and above)*.
 + Zookeeper
 
-**Kerberos is supported only in Hadoop version 2.6.1 and above. All
-  other versions have critical bugs which might fail the Flink job
-  unexpectedly.**
+Configuring Flink for Kerberos security involves three aspects, explained separately in the following sub-sections.
 
-Configuring Flink for Kerberos security involves three aspects:
+##### 1. Providing the cluster with a Kerberos credential (i.e. a keytab or a ticket via `kinit`)
 
-1. Providing the cluster with a Kerberos credential (i.e. a keytab or a ticket via `kinit`)
-2. Making the Kerberos credential available to components and connectors as needed
-3. Configuring the component and/or connector to use Kerberos authentication
-
-To provide the cluster with a Kerberos credential, either configure the login keytab using the below configuration options,
-or login using `kinit` before starting the cluster.
-
-It is preferable to use keytabs for long-running jobs, to avoid ticket expiration issues.   If you prefer to use the ticket cache,
-talk to your administrator about increasing the Hadoop delegation token lifetime.
+To provide the cluster with a Kerberos credential, Flink supports using a Kerberos keytab file or ticket caches managed by `kinit`.
 
 - `security.kerberos.login.use-ticket-cache`: Indicates whether to read from your Kerberos ticket cache (default: `true`).
 
@@ -126,28 +116,35 @@ talk to your administrator about increasing the Hadoop delegation token lifetime
 
 - `security.kerberos.login.principal`: Kerberos principal name associated with the keytab.
 
-If Hadoop security is enabled (in `core-site.xml`), Flink will automatically use the configured Kerberos credentials when connecting to HDFS, HBase, and other Hadoop components.
+If both `security.kerberos.login.keytab` and `security.kerberos.login.principal` have values provided, keytabs will be used for authentication.
+It is preferable to use keytabs for long-running jobs, to avoid ticket expiration issues.   If you prefer to use the ticket cache,
+talk to your administrator about increasing the Hadoop delegation token lifetime.
 
-Make the Kerberos credentials available to any connector or component that uses a JAAS configuration file by configuring JAAS login contexts.
+Note that authentication using ticket caches is only supported when deploying Flink as a standalone cluster or on YARN.
+
+##### 2. Making the Kerberos credential available to components and connectors as needed
+
+For Hadoop components, Flink will automatically detect if the configured Kerberos credentials should be used when connecting to HDFS, HBase, and other Hadoop components depending on whether Hadoop security is enabled (in `core-site.xml`).
+
+For any connector or component that uses a JAAS configuration file, make the Kerberos credentials available to them by configuring JAAS login contexts for each one respectively, using the following configuration:
 
 - `security.kerberos.login.contexts`: A comma-separated list of login contexts to provide the Kerberos credentials to (for example, `Client,KafkaClient` to use the credentials for ZooKeeper authentication and for Kafka authentication).
 
-You may also provide a static JAAS configuration file, whose entries override those produced by the above configuration option.
+This allows enabling Kerberos authentication for different connectors or components independently. For example, you can enable Hadoop security without necessitating the use of Kerberos for ZooKeeper, or vice versa.
 
-Be sure to configure the connector within your Flink program as necessary to use Kerberos authentication.  For the Kafka connector,
-use the following properties:
+You may also provide a static JAAS configuration file using the mechanisms described in the [Java SE Documentation](http://docs.oracle.com/javase/7/docs/technotes/guides/security/jgss/tutorials/LoginConfigFile.html), whose entries will override those produced by the above configuration option.
 
-```
-security.protocol=SASL_PLAINTEXT (or SASL_SSL)
-sasl.kerberos.service.name=kafka
-```
+##### 3. Configuring the component and/or connector to use Kerberos authentication
 
-Flink provides some additional options to configure ZooKeeper security:
+Finally, be sure to configure the connector within your Flink program or component as necessary to use Kerberos authentication.
 
-- `zookeeper.sasl.service-name`: The Kerberos service name that the ZooKeeper cluster is configured to use (default: `zookeeper`).
+Below is a list of currently first-class supported connectors or components by Flink for Kerberos authentication:
 
-- `zookeeper.sasl.login-context-name`: The JAAS login context name that the ZooKeeper client uses to request the login context (default: `Client`). Should match
-one of the values specified in `security.kerberos.login.contexts`.
+- Kafka: see [here]({{site.baseurl}}/dev/connectors/kafka.html#enabling-kerberos-authentication-for-versions-above-09-only) for details on configuring the Kafka connector to use Kerberos authentication.
+
+- Zookeeper (for HA): see [here]({{site.baseurl}}/setup/jobmanager_high_availability.html#configuring-for-zookeeper-security) for details on Zookeeper security configuration to work with the Kerberos-based security configurations mentioned here.
+
+For more information on how Flink security internally setups Kerberos authentication, please see [here]({{site.baseurl}}/ops/security-kerberos.html). 
 
 ### Other
 
@@ -179,7 +176,7 @@ will be used under the directory specified by jobmanager.web.tmpdir.
 
 - `state.backend.rocksdb.checkpointdir`:  The local directory for storing RocksDB files, or a list of directories separated by the systems directory delimiter (for example ‘:’ (colon) on Linux/Unix). (DEFAULT value is `taskmanager.tmp.dirs`)
 
-- `state.checkpoints.dir`: The target directory for meta data of [externalized checkpoints]({{ site.baseurl }}/setup/checkpoints#externalized-checkpoints).
+- `state.checkpoints.dir`: The target directory for meta data of [externalized checkpoints]({{ site.baseurl }}/setup/checkpoints.html#externalized-checkpoints).
 
 - `high-availability.zookeeper.storageDir`: Required for HA. Directory for storing JobManager metadata; this is persisted in the state backend and only a pointer to this state is stored in ZooKeeper. Exactly like the checkpoint directory it must be accessible from the JobManager and a local filesystem should only be used for local deployments. Previously this key was named `recovery.zookeeper.storageDir`.
 
@@ -281,6 +278,8 @@ The following parameters configure Flink's JobManager and TaskManagers.
 - `akka.ask.timeout`: Timeout used for all futures and blocking Akka calls. If Flink fails due to timeouts then you should try to increase this value. Timeouts can be caused by slow machines or a congested network. The timeout value requires a time-unit specifier (ms/s/min/h/d) (DEFAULT: **10 s**).
 
 - `akka.lookup.timeout`: Timeout used for the lookup of the JobManager. The timeout value has to contain a time-unit specifier (ms/s/min/h/d) (DEFAULT: **10 s**).
+
+- `akka.client.timeout`: Timeout used by Flink clients (e.g. `CliFrontend`, `ClusterClient`) when communicating with the Flink cluster. The timeout value has to contain a time-unit specifier (ms/s/min/h/d) (DEFAULT: **60 s**).
 
 - `akka.framesize`: Maximum size of messages which are sent between the JobManager and the TaskManagers. If Flink fails because messages exceed this limit, then you should increase it. The message size requires a size-unit specifier (DEFAULT: **10485760b**).
 
@@ -401,7 +400,7 @@ The configuration keys in this section are independent of the used resource mana
 of the JobManager, because the same ActorSystem is used. Its not possible to use this configuration key to define port ranges.
 
 
-## YARN
+### YARN
 
 - `yarn.heap-cutoff-ratio`: (Default 0.25) Percentage of heap space to remove from containers started by YARN. When a user requests a certain amount of memory for each TaskManager container (for example 4 GB), we can not pass this amount as the maximum heap space for the JVM (`-Xmx` argument) because the JVM is also allocating memory outside the heap. YARN is very strict with killing containers which are using more memory than requested. Therefore, we remove a 15% of the memory from the requested heap as a safety margin.
 
@@ -419,9 +418,7 @@ of the JobManager, because the same ActorSystem is used. Its not possible to use
 
 - `yarn.application-master.env.`*ENV_VAR1=value* Configuration values prefixed with `yarn.application-master.env.` will be passed as environment variables to the ApplicationMaster/JobManager process. For example for passing `LD_LIBRARY_PATH` as an env variable to the ApplicationMaster, set:
 
-- `yarn.application-master.env.LD_LIBRARY_PATH: "/usr/lib/native"`
-
-- `yarn.containers.vcores` The number of virtual cores (vcores) per YARN container. By default, the number of `vcores` is set to the number of slots per TaskManager, if set, or to 1, otherwise.
+    `yarn.application-master.env.LD_LIBRARY_PATH: "/usr/lib/native"`
 
 - `yarn.taskmanager.env.` Similar to the configuration prefix about, this prefix allows setting custom environment variables for the TaskManager processes.
 
@@ -434,8 +431,50 @@ use the `env.java.opts` setting, which is the `%jvmopts%` variable in the String
 
   For example when running Flink on YARN on an environment with a restrictive firewall, this option allows specifying a range of allowed ports.
 
+- `yarn.tags` A comma-separated list of tags to apply to the Flink YARN application.
 
-## High Availability (HA)
+### Mesos
+
+
+- `mesos.initial-tasks`: The initial workers to bring up when the master starts (**DEFAULT**: The number of workers specified at cluster startup).
+
+- `mesos.maximum-failed-tasks`: The maximum number of failed workers before the cluster fails (**DEFAULT**: Number of initial workers).
+May be set to -1 to disable this feature.
+
+- `mesos.master`: The Mesos master URL. The value should be in one of the following forms:
+  * `host:port`
+  * `zk://host1:port1,host2:port2,.../path`
+  * `zk://username:password@host1:port1,host2:port2,.../path`
+  * `file:///path/to/file`
+
+
+- `mesos.failover-timeout`: The failover timeout in seconds for the Mesos scheduler, after which running tasks are automatically shut down (**DEFAULT:** 600).
+
+- `mesos.resourcemanager.artifactserver.port`:The config parameter defining the Mesos artifact server port to use. Setting the port to 0 will let the OS choose an available port.
+
+- `mesos.resourcemanager.framework.name`: Mesos framework name (**DEFAULT:** Flink)
+
+- `mesos.resourcemanager.framework.role`: Mesos framework role definition (**DEFAULT:** *)
+
+- `mesos.resourcemanager.framework.principal`: Mesos framework principal (**NO DEFAULT**)
+
+- `mesos.resourcemanager.framework.secret`: Mesos framework secret (**NO DEFAULT**)
+
+- `mesos.resourcemanager.framework.user`: Mesos framework user (**DEFAULT:**"")
+
+- `mesos.resourcemanager.artifactserver.ssl.enabled`: Enables SSL for the Flink artifact server (**DEFAULT**: true). Note that `security.ssl.enabled` also needs to be set to `true` encryption to enable encryption.
+
+- `mesos.resourcemanager.tasks.mem`: Memory to assign to the Mesos workers in MB (**DEFAULT**: 1024)
+
+- `mesos.resourcemanager.tasks.cpus`: CPUs to assign to the Mesos workers (**DEFAULT**: 0.0)
+
+- `mesos.resourcemanager.tasks.container.type`: Type of the containerization used: "mesos" or "docker" (DEFAULT: mesos);
+
+- `mesos.resourcemanager.tasks.container.image.name`: Image name to use for the container (**NO DEFAULT**)
+
+- `recovery.zookeeper.path.mesos-workers`: The ZooKeeper root path for persisting the Mesos worker information.
+
+### High Availability (HA)
 
 - `high-availability`: Defines the high availability mode used for the cluster execution. Currently, Flink supports the following modes:
   - `none` (default): No high availability. A single JobManager runs and no JobManager state is checkpointed.
@@ -443,9 +482,9 @@ use the `env.java.opts` setting, which is the `%jvmopts%` variable in the String
 
 Previously this key was named `recovery.mode` and the default value was `standalone`.
 
-### ZooKeeper-based HA Mode
+#### ZooKeeper-based HA Mode
 
-- `high-availability.zookeeper.quorum`: Defines the ZooKeeper quorum URL which is used to connect to the ZooKeeper cluster when the 'zookeeper' HA mode is selected. Previously this key was name `recovery.zookeeper.quorum`.
+- `high-availability.zookeeper.quorum`: Defines the ZooKeeper quorum URL which is used to connect to the ZooKeeper cluster when the 'zookeeper' HA mode is selected. Previously this key was named `recovery.zookeeper.quorum`.
 
 - `high-availability.zookeeper.path.root`: (Default `/flink`) Defines the root dir under which the ZooKeeper HA mode will create namespace directories. Previously this ket was named `recovery.zookeeper.path.root`.
 
@@ -469,19 +508,31 @@ Previously this key was named `recovery.mode` and the default value was `standal
 
 - `high-availability.zookeeper.client.acl`: (Default `open`) Defines the ACL (open|creator) to be configured on ZK node. The configuration value can be set to "creator" if the ZooKeeper server configuration has the "authProvider" property mapped to use SASLAuthenticationProvider and the cluster is configured to run in secure mode (Kerberos). The ACL options are based on https://zookeeper.apache.org/doc/r3.1.2/zookeeperProgrammers.html#sc_BuiltinACLSchemes
 
-### ZooKeeper-Security
+#### ZooKeeper Security
 
-- `zookeeper.sasl.disable`: (Default: `true`) Defines if SASL based authentication needs to be enabled or disabled. The configuration value can be set to "true" if ZooKeeper cluster is running in secure mode (Kerberos)
+- `zookeeper.sasl.disable`: (Default: `true`) Defines if SASL based authentication needs to be enabled or disabled. The configuration value can be set to "true" if ZooKeeper cluster is running in secure mode (Kerberos).
 
 - `zookeeper.sasl.service-name`: (Default: `zookeeper`) If the ZooKeeper server is configured with a different service name (default:"zookeeper") then it can be supplied using this configuration. A mismatch in service name between client and server configuration will cause the authentication to fail.
 
-## Environment
+### Kerberos-based Security
+
+- `security.kerberos.login.use-ticket-cache`: Indicates whether to read from your Kerberos ticket cache (default: `true`).
+
+- `security.kerberos.login.keytab`: Absolute path to a Kerberos keytab file that contains the user credentials.
+
+- `security.kerberos.login.principal`: Kerberos principal name associated with the keytab.
+
+- `security.kerberos.login.contexts`: A comma-separated list of login contexts to provide the Kerberos credentials to (for example, `Client,KafkaClient` to use the credentials for ZooKeeper authentication and for Kafka authentication).
+
+### Environment
 
 - `env.log.dir`: (Defaults to the `log` directory under Flink's home) Defines the directory where the Flink logs are saved. It has to be an absolute path.
 
-## Queryable State
+- `env.ssh.opts`: Additional command line options passed to SSH clients when starting or stopping JobManager, TaskManager, and Zookeeper services (start-cluster.sh, stop-cluster.sh, start-zookeeper-quorum.sh, stop-zookeeper-quorum.sh).
 
-### Server
+### Queryable State
+
+#### Server
 
 - `query.server.enable`: Enable queryable state (Default: `true`).
 
@@ -491,7 +542,7 @@ Previously this key was named `recovery.mode` and the default value was `standal
 
 - `query.server.query-threads`: Number of query Threads for queryable state server (Default: `0`, picks number of slots).
 
-### Client
+#### Client
 
 - `query.client.network-threads`: Number of network (Netty's event loop) Threads for queryable state client (Default: `0`, picks number of available cores as returned by `Runtime.getRuntime().availableProcessors()`).
 
@@ -499,7 +550,7 @@ Previously this key was named `recovery.mode` and the default value was `standal
 
 - `query.client.lookup.retry-delay`: Retry delay in milliseconds on KvState lookup failure due to unavailable JobManager (Default: `1000`).
 
-## Metrics
+### Metrics
 
 - `metrics.reporters`: The list of named reporters, i.e. "foo,bar".
 

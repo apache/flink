@@ -51,7 +51,7 @@ mvn clean install -Pinclude-kinesis -DskipTests
 
 
 The streaming connectors are not part of the binary distribution. See how to link with them for cluster
-execution [here]({{site.baseurl}}/dev/linking).
+execution [here]({{site.baseurl}}/dev/linking.html).
 
 ### Using the Amazon Kinesis Streams Service
 Follow the instructions from the [Amazon Kinesis Streams Developer Guide](https://docs.aws.amazon.com/streams/latest/dev/learning-kinesis-module-one-create-stream.html)
@@ -112,6 +112,18 @@ subtasks, which occur when the total number of shards is lower than the configur
 configured to enable checkpointing, so that the new shards due to resharding can be correctly picked up and consumed by the
 Kinesis consumer after the job is restored. This is a temporary limitation that will be resolved in future versions.
 Please see [FLINK-4341](https://issues.apache.org/jira/browse/FLINK-4341) for more detail.
+
+#### Configuring Starting Position
+
+The Flink Kinesis Consumer currently provides the following options to configure where to start reading Kinesis streams, simply by setting `ConsumerConfigConstants.STREAM_INITIAL_POSITION` to
+one of the following values in the provided configuration properties (the naming of the options identically follows [the namings used by the AWS Kinesis Streams service](http://docs.aws.amazon.com/kinesis/latest/APIReference/API_GetShardIterator.html#API_GetShardIterator_RequestSyntax)):
+
+- `LATEST`: read all shards of all streams starting from the latest record.
+- `TRIM_HORIZON`: read all shards of all streams starting from the earliest record possible (data may be trimmed by Kinesis depending on the retention settings).
+- `AT_TIMESTAMP`: read all shards of all streams starting from a specified timestamp. The timestamp must also be specified in the configuration
+properties by providing a value for `ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP`, either in the date pattern
+`yyyy-MM-dd'T'HH:mm:ss.SSSXXX` (for example, `2016-04-04T19:58:46.480-00:00`), or a non-negative double value representing the number of seconds
+that has elapsed since the Unix epoch (for example, `1459799926.480`).
 
 #### Fault Tolerance for Exactly-Once User-Defined State Update Semantics
 

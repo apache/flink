@@ -37,6 +37,8 @@ public class AsmTestBase {
 
 	protected ExecutionEnvironment env;
 
+	protected final double ACCURACY = 0.000001;
+
 	// simple graph
 	protected Graph<IntValue, NullValue, NullValue> directedSimpleGraph;
 
@@ -61,6 +63,7 @@ public class AsmTestBase {
 	public void setup()
 			throws Exception {
 		env = ExecutionEnvironment.createCollectionsEnvironment();
+		env.getConfig().enableObjectReuse();
 
 		// the "fish" graph
 		Object[][] edges = new Object[][] {
@@ -98,9 +101,17 @@ public class AsmTestBase {
 		Graph<LongValue, NullValue, NullValue> rmatGraph = new RMatGraph<>(env, new JDKRandomGeneratorFactory(), rmatVertexCount, rmatEdgeCount)
 			.generate();
 
+		/*
+			./bin/flink run -c org.apache.flink.graph.drivers.Graph500 flink-gelly-examples_2.10-1.2-SNAPSHOT.jar \
+				--directed true --simplify true --scale 10 --edge_factor 16 --output csv --filename directedRMatGraph.csv
+		 */
 		directedRMatGraph = rmatGraph
 			.run(new org.apache.flink.graph.asm.simple.directed.Simplify<LongValue, NullValue, NullValue>());
 
+		/*
+			./bin/flink run -c org.apache.flink.graph.drivers.Graph500 flink-gelly-examples_2.10-1.2-SNAPSHOT.jar \
+				--directed false --simplify true --scale 10 --edge_factor 16 --output csv --filename undirectedRMatGraph.csv
+		 */
 		undirectedRMatGraph = rmatGraph
 			.run(new org.apache.flink.graph.asm.simple.undirected.Simplify<LongValue, NullValue, NullValue>(false));
 	}

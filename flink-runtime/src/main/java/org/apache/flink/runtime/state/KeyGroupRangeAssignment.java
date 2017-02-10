@@ -23,7 +23,14 @@ import org.apache.flink.util.Preconditions;
 
 public final class KeyGroupRangeAssignment {
 
-	public static final int DEFAULT_MAX_PARALLELISM = 128;
+	/**
+	 * The default lower bound for max parallelism if nothing was configured by the user. We have this so allow users
+	 * some degree of scale-up in case they forgot to configure maximum parallelism explicitly.
+	 */
+	public static final int DEFAULT_LOWER_BOUND_MAX_PARALLELISM = 1 << 7;
+
+	/** The (inclusive) upper bound for max parallelism */
+	public static final int UPPER_BOUND_MAX_PARALLELISM = 1 << 15;
 
 	private KeyGroupRangeAssignment() {
 		throw new AssertionError();
@@ -79,9 +86,12 @@ public final class KeyGroupRangeAssignment {
 			int maxParallelism,
 			int parallelism,
 			int operatorIndex) {
-		Preconditions.checkArgument(parallelism > 0, "Parallelism must not be smaller than zero.");
-		Preconditions.checkArgument(maxParallelism >= parallelism, "Maximum parallelism must not be smaller than parallelism.");
-		Preconditions.checkArgument(maxParallelism <= (1 << 15), "Maximum parallelism must be smaller than 2^15.");
+
+		checkParallelismPreconditions(parallelism);
+		checkParallelismPreconditions(maxParallelism);
+
+		Preconditions.checkArgument(maxParallelism >= parallelism,
+				"Maximum parallelism must not be smaller than parallelism.");
 
 		int start = operatorIndex == 0 ? 0 : ((operatorIndex * maxParallelism - 1) / parallelism) + 1;
 		int end = ((operatorIndex + 1) * maxParallelism - 1) / parallelism;
@@ -104,5 +114,29 @@ public final class KeyGroupRangeAssignment {
 	 */
 	public static int computeOperatorIndexForKeyGroup(int maxParallelism, int parallelism, int keyGroupId) {
 		return keyGroupId * parallelism / maxParallelism;
+	}
+
+	/**
+	 * Computes a default maximum parallelism from the operator parallelism. This is used in case the user has not
+	 * explicitly configured a maximum parallelism to still allow a certain degree of scale-up.
+	 *
+	 * @param operatorParallelism the operator parallelism as basis for computation.
+	 * @return the computed default maximum parallelism.
+	 */
+	public static int computeDefaultMaxParallelism(int operatorParallelism) {
+
+		checkParallelismPreconditions(operatorParallelism);
+
+		return Math.min(
+				Math.max(
+						MathUtils.roundUpToPowerOfTwo(operatorParallelism + (operatorParallelism / 2)),
+						DEFAULT_LOWER_BOUND_MAX_PARALLELISM),
+				UPPER_BOUND_MAX_PARALLELISM);
+	}
+
+	public static void checkParallelismPreconditions(int parallelism) {
+		Preconditions.checkArgument(parallelism > 0
+						&& parallelism <= UPPER_BOUND_MAX_PARALLELISM,
+				"Operator parallelism not within bounds: " + parallelism);
 	}
 }

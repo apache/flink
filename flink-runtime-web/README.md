@@ -60,18 +60,48 @@ Install *node.js* by following [these instructions](https://github.com/joyent/no
 
 Verify that the installed version is at least *2.11.3*, via `npm -version`.
 
+Install *bower* via:
 
-Install *bower* via
 ```
 sudo npm install -g bower
 ```
+
 Verify that the installed version is at least *1.4.1*, via `bower -version`.
 
 
-Install *gulp* via
+Install *gulp* via:
+
 ```
 sudo npm install -g gulp
 ```
+
+Verify that the installed version is at least *3.9.0*, via `gulp -version`.
+
+
+#### MacOS
+
+First install *brew* by following [these instructions](http://brew.sh/).
+
+Install *node.js* via:
+
+```
+brew install node
+```
+
+Install *bower* via:
+
+```
+sudo npm install -g bower
+```
+
+Verify that the installed version is at least *1.4.1*, via `bower -version`.
+
+Install *gulp* via:
+
+```
+sudo npm install -g gulp
+```
+
 Verify that the installed version is at least *3.9.0*, via `gulp -version`.
 
 

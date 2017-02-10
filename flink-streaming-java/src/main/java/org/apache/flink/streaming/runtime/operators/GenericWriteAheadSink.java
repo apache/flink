@@ -162,9 +162,17 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 		saveHandleInState(context.getCheckpointId(), context.getCheckpointTimestamp());
 
 		this.checkpointedState.clear();
-		for (PendingCheckpoint pendingCheckpoint : pendingCheckpoints) {
-			// create a new partition for each entry.
-			this.checkpointedState.add(pendingCheckpoint);
+
+		try {
+			for (PendingCheckpoint pendingCheckpoint : pendingCheckpoints) {
+				// create a new partition for each entry.
+				this.checkpointedState.add(pendingCheckpoint);
+			}
+		} catch (Exception e) {
+			checkpointedState.clear();
+
+			throw new Exception("Could not add panding checkpoints to operator state " +
+				"backend of operator " + getOperatorName() + '.', e);
 		}
 
 		int subtaskIdx = getRuntimeContext().getIndexOfThisSubtask();

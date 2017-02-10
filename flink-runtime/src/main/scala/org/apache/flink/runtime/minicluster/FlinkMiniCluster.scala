@@ -107,13 +107,13 @@ abstract class FlinkMiniCluster(
 
   private var isRunning = false
 
-  val futureExecutor = Executors.newFixedThreadPool(
+  val futureExecutor = Executors.newScheduledThreadPool(
     Hardware.getNumberCPUCores(),
     new NamedThreadFactory("mini-cluster-future-", "-thread"))
 
   val ioExecutor = Executors.newFixedThreadPool(
     Hardware.getNumberCPUCores(),
-    new NamedThreadFactory("mini-cluster-future-", "-thread"))
+    new NamedThreadFactory("mini-cluster-io-", "-thread"))
 
   def configuration: Configuration = {
     if (originalConfiguration.getInteger(

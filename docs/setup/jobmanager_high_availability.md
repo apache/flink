@@ -211,6 +211,20 @@ Starting zookeeper daemon on host localhost.</pre>
    <pre>
 $ bin/yarn-session.sh -n 2</pre>
 
+## Configuring for Zookeeper Security
+
+If ZooKeeper is running in secure mode with Kerberos, you can override the following configurations in `flink-conf.yaml` as necessary:
+
+<pre>
+zookeeper.sasl.service-name: zookeeper     # default is "zookeeper". If the ZooKeeper quorum is configured
+                                           # with a different service name then it can be supplied here.
+zookeeper.sasl.login-context-name: Client  # default is "Client". The value needs to match one of the values
+                                           # configured in "security.kerberos.login.contexts".
+</pre>
+
+For more information on Flink configuration for Kerberos security, please see [here]({{ site.baseurl}}/setup/config.html).
+You can also find [here]({{ site.baseurl}}/ops/security-kerberos.html) further details on how Flink internally setups Kerberos-based security.
+
 ## Bootstrap ZooKeeper
 
 If you don't have a running ZooKeeper installation, you can use the helper scripts, which ship with Flink.

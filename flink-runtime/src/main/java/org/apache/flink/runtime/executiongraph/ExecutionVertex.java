@@ -40,13 +40,17 @@ import org.apache.flink.runtime.jobmanager.JobManagerOptions;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
+import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.EvictingBoundedList;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
+
 import org.slf4j.Logger;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -74,9 +78,9 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 
 	private final ExecutionJobVertex jobVertex;
 
-	private Map<IntermediateResultPartitionID, IntermediateResultPartition> resultPartitions;
+	private final Map<IntermediateResultPartitionID, IntermediateResultPartition> resultPartitions;
 
-	private ExecutionEdge[][] inputEdges;
+	private final ExecutionEdge[][] inputEdges;
 
 	private final int subTaskIndex;
 
@@ -89,9 +93,8 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 
 	private volatile CoLocationConstraint locationConstraint;
 
+	/** The current or latest execution attempt of this vertex's task */
 	private volatile Execution currentExecution;	// this field must never be null
-
-	private volatile boolean scheduleLocalOnly;
 
 	// --------------------------------------------------------------------------------------------
 
@@ -261,6 +264,24 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		}
 	}
 
+	/**
+	 * Gets the location where the latest completed/canceled/failed execution of the vertex's
+	 * task happened.
+	 * 
+	 * @return The latest prior execution location, or null, if there is none, yet.
+	 */
+	public TaskManagerLocation getLatestPriorLocation() {
+		synchronized (priorExecutions) {
+			final int size = priorExecutions.size();
+			if (size > 0) {
+				return priorExecutions.get(size - 1).getAssignedResourceLocation();
+			}
+			else {
+				return null;
+			}
+		}
+	}
+
 	EvictingBoundedList<Execution> getCopyOfPriorExecutionsList() {
 		synchronized (priorExecutions) {
 			return new EvictingBoundedList<>(priorExecutions);
@@ -378,27 +399,62 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		}
 	}
 
-	public void setScheduleLocalOnly(boolean scheduleLocalOnly) {
-		if (scheduleLocalOnly && inputEdges != null && inputEdges.length > 0) {
-			throw new IllegalArgumentException("Strictly local scheduling is only supported for sources.");
-		}
-
-		this.scheduleLocalOnly = scheduleLocalOnly;
+	/**
+	 * Gets the overall preferred execution location for this vertex's current execution.
+	 * The preference is determined as follows:
+	 * 
+	 * <ol>
+	 *     <li>If the task execution has state to load (from a checkpoint), then the location preference
+	 *         is the location of the previous execution (if there is a previous execution attempt).
+	 *     <li>If the task execution has no state or no previous location, then the location preference
+	 *         is based on the task's inputs.
+	 * </ol>
+	 * 
+	 * These rules should result in the following behavior:
+	 * 
+	 * <ul>
+	 *     <li>Stateless tasks are always scheduled based on co-location with inputs.
+	 *     <li>Stateful tasks are on their initial attempt executed based on co-location with inputs.
+	 *     <li>Repeated executions of stateful tasks try to co-locate the execution with its state.
+	 * </ul>
+	 * 
+	 * @return The preferred excution locations for the execution attempt.
+	 * 
+	 * @see #getPreferredLocationsBasedOnState()
+	 * @see #getPreferredLocationsBasedOnInputs() 
+	 */
+	public Iterable<TaskManagerLocation> getPreferredLocations() {
+		Iterable<TaskManagerLocation> basedOnState = getPreferredLocationsBasedOnState();
+		return basedOnState != null ? basedOnState : getPreferredLocationsBasedOnInputs();
 	}
-
-	public boolean isScheduleLocalOnly() {
-		return scheduleLocalOnly;
+	
+	/**
+	 * Gets the preferred location to execute the current task execution attempt, based on the state
+	 * that the execution attempt will resume.
+	 * 
+	 * @return A size-one iterable with the location preference, or null, if there is no
+	 *         location preference based on the state.
+	 */
+	public Iterable<TaskManagerLocation> getPreferredLocationsBasedOnState() {
+		TaskManagerLocation priorLocation;
+		if (currentExecution.getTaskStateHandles() != null && (priorLocation = getLatestPriorLocation()) != null) {
+			return Collections.singleton(priorLocation);
+		}
+		else {
+			return null;
+		}
 	}
 
 	/**
-	 * Gets the location preferences of this task, determined by the locations of the predecessors from which
-	 * it receives input data.
+	 * Gets the location preferences of the vertex's current task execution, as determined by the locations
+	 * of the predecessors from which it receives input data.
 	 * If there are more than MAX_DISTINCT_LOCATIONS_TO_CONSIDER different locations of source data, this
 	 * method returns {@code null} to indicate no location preference.
 	 *
-	 * @return The preferred locations for this vertex execution, or null, if there is no preference.
+	 * @return The preferred locations based in input streams, or an empty iterable,
+	 *         if there is no input-based preference.
 	 */
-	public Iterable<TaskManagerLocation> getPreferredLocations() {
+	public Iterable<TaskManagerLocation> getPreferredLocationsBasedOnInputs() {
 		// otherwise, base the preferred locations on the input connections
 		if (inputEdges == null) {
 			return Collections.emptySet();
@@ -428,7 +484,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 					}
 				}
 				// keep the locations of the input with the least preferred locations
-				if(locations.isEmpty() || // nothing assigned yet
+				if (locations.isEmpty() || // nothing assigned yet
 						(!inputLocations.isEmpty() && inputLocations.size() < locations.size())) {
 					// current input has fewer preferred locations
 					locations.clear();
@@ -436,7 +492,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 				}
 			}
 
-			return locations;
+			return locations.isEmpty() ? Collections.<TaskManagerLocation>emptyList() : locations;
 		}
 	}
 
@@ -599,7 +655,24 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		boolean lazyScheduling = getExecutionGraph().getScheduleMode().allowLazyDeployment();
 
 		for (IntermediateResultPartition partition : resultPartitions.values()) {
-			producedPartitions.add(ResultPartitionDeploymentDescriptor.from(partition, lazyScheduling));
+
+			List<List<ExecutionEdge>> consumers = partition.getConsumers();
+
+			if (consumers.isEmpty()) {
+				//TODO this case only exists for test, currently there has to be exactly one consumer in real jobs!
+				producedPartitions.add(ResultPartitionDeploymentDescriptor.from(
+						partition,
+						KeyGroupRangeAssignment.UPPER_BOUND_MAX_PARALLELISM,
+						lazyScheduling));
+			} else {
+				Preconditions.checkState(1 == consumers.size(),
+						"Only one consumer supported in the current implementation! Found: " + consumers.size());
+
+				List<ExecutionEdge> consumer = consumers.get(0);
+				ExecutionJobVertex vertex = consumer.get(0).getTarget().getJobVertex();
+				int maxParallelism = vertex.getMaxParallelism();
+				producedPartitions.add(ResultPartitionDeploymentDescriptor.from(partition, maxParallelism, lazyScheduling));
+			}
 		}
 		
 		
@@ -620,7 +693,14 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		}
 
 		SerializedValue<JobInformation> serializedJobInformation = getExecutionGraph().getSerializedJobInformation();
-		SerializedValue<TaskInformation> serializedJobVertexInformation = jobVertex.getSerializedTaskInformation();
+		SerializedValue<TaskInformation> serializedJobVertexInformation = null;
+
+		try {
+			serializedJobVertexInformation = jobVertex.getSerializedTaskInformation();
+		} catch (IOException e) {
+			throw new ExecutionGraphException(
+					"Could not create a serialized JobVertexInformation for " + jobVertex.getJobVertexId(), e);
+		}
 
 		return new TaskDeploymentDescriptor(
 			serializedJobInformation,

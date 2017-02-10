@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.core.testutils.CommonTestUtils;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -54,4 +55,39 @@ public class SubtaskStateStatsTest {
 		// Trigger timestamp < ack timestamp
 		assertEquals(0, stats.getEndToEndDuration(ackTimestamp + 1));
 	}
+
+	/**
+	 * Tests that the snapshot is actually serializable.
+	 */
+	@Test
+	public void testIsJavaSerializable() throws Exception {
+		SubtaskStateStats stats = new SubtaskStateStats(
+			0,
+			Integer.MAX_VALUE + 1L,
+			Integer.MAX_VALUE + 2L,
+			Integer.MAX_VALUE + 3L,
+			Integer.MAX_VALUE + 4L,
+			Integer.MAX_VALUE + 5L,
+			Integer.MAX_VALUE + 6L);
+
+		SubtaskStateStats copy = CommonTestUtils.createCopySerializable(stats);
+
+		assertEquals(0, copy.getSubtaskIndex());
+		assertEquals(Integer.MAX_VALUE + 1L, copy.getAckTimestamp());
+		assertEquals(Integer.MAX_VALUE + 2L, copy.getStateSize());
+		assertEquals(Integer.MAX_VALUE + 3L, copy.getSyncCheckpointDuration());
+		assertEquals(Integer.MAX_VALUE + 4L, copy.getAsyncCheckpointDuration());
+		assertEquals(Integer.MAX_VALUE + 5L, copy.getAlignmentBuffered());
+		assertEquals(Integer.MAX_VALUE + 6L, copy.getAlignmentDuration());
+
+		// Check duration helper
+		long ackTimestamp = copy.getAckTimestamp();
+		long triggerTimestamp = ackTimestamp - 10123;
+		assertEquals(10123, copy.getEndToEndDuration(triggerTimestamp));
+
+		// Trigger timestamp < ack timestamp
+		assertEquals(0, copy.getEndToEndDuration(ackTimestamp + 1));
+
+	}
+
 }

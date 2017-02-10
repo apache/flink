@@ -31,8 +31,11 @@ import org.mockito.Mockito;
 
 import java.io.File;
 import java.lang.reflect.Field;
+import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Queue;
+import java.util.concurrent.Executor;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -170,41 +173,50 @@ public class PendingCheckpointTest {
 	public void testAbortDiscardsState() throws Exception {
 		CheckpointProperties props = new CheckpointProperties(false, true, false, false, false, false, false);
 		TaskState state = mock(TaskState.class);
+		QueueExecutor executor = new QueueExecutor();
 
 		String targetDir = tmpFolder.newFolder().getAbsolutePath();
 
 		// Abort declined
-		PendingCheckpoint pending = createPendingCheckpoint(props, targetDir);
+		PendingCheckpoint pending = createPendingCheckpoint(props, targetDir, executor);
 		setTaskState(pending, state);
 
 		pending.abortDeclined();
+		// execute asynchronous discard operation
+		executor.runQueuedCommands();
 		verify(state, times(1)).discardState();
 
 		// Abort error
 		Mockito.reset(state);
 
-		pending = createPendingCheckpoint(props, targetDir);
+		pending = createPendingCheckpoint(props, targetDir, executor);
 		setTaskState(pending, state);
 
 		pending.abortError(new Exception("Expected Test Exception"));
+		// execute asynchronous discard operation
+		executor.runQueuedCommands();
 		verify(state, times(1)).discardState();
 
 		// Abort expired
 		Mockito.reset(state);
 
-		pending = createPendingCheckpoint(props, targetDir);
+		pending = createPendingCheckpoint(props, targetDir, executor);
 		setTaskState(pending, state);
 
 		pending.abortExpired();
+		// execute asynchronous discard operation
+		executor.runQueuedCommands();
 		verify(state, times(1)).discardState();
 
 		// Abort subsumed
 		Mockito.reset(state);
 
-		pending = createPendingCheckpoint(props, targetDir);
+		pending = createPendingCheckpoint(props, targetDir, executor);
 		setTaskState(pending, state);
 
 		pending.abortSubsumed();
+		// execute asynchronous discard operation
+		executor.runQueuedCommands();
 		verify(state, times(1)).discardState();
 	}
 
@@ -270,6 +282,10 @@ public class PendingCheckpointTest {
 	// ------------------------------------------------------------------------
 
 	private static PendingCheckpoint createPendingCheckpoint(CheckpointProperties props, String targetDirectory) {
+		return createPendingCheckpoint(props, targetDirectory, Executors.directExecutor());
+	}
+
+	private static PendingCheckpoint createPendingCheckpoint(CheckpointProperties props, String targetDirectory, Executor executor) {
 		Map<ExecutionAttemptID, ExecutionVertex> ackTasks = new HashMap<>(ACK_TASKS);
 		return new PendingCheckpoint(
 			new JobID(),
@@ -278,7 +294,7 @@ public class PendingCheckpointTest {
 			ackTasks,
 			props,
 			targetDirectory,
-			Executors.directExecutor());
+			executor);
 	}
 
 	@SuppressWarnings("unchecked")
@@ -288,5 +304,21 @@ public class PendingCheckpointTest {
 		Map<JobVertexID, TaskState> taskStates = (Map<JobVertexID, TaskState>) field.get(pending);
 
 		taskStates.put(new JobVertexID(), state);
+	}
+
+	private static final class QueueExecutor implements Executor {
+
+		private final Queue<Runnable> queue = new ArrayDeque<>(4);
+
+		@Override
+		public void execute(Runnable command) {
+			queue.add(command);
+		}
+
+		public void runQueuedCommands() {
+			for (Runnable runnable : queue) {
+				runnable.run();
+			}
+		}
 	}
 }

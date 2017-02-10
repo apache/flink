@@ -93,7 +93,7 @@ class TableSourceTest extends TableTestBase {
     tEnv.registerTableSource(tableName, csvTable)
 
     val result = tEnv
-      .ingest(tableName)
+      .scan(tableName)
       .select('last, 'id.floor(), 'score * 2)
 
     val expected = unaryNode(
@@ -132,7 +132,7 @@ class TableSourceTest extends TableTestBase {
     tEnv.registerTableSource(tableName, csvTable)
 
     val result = tEnv
-      .ingest(tableName)
+      .scan(tableName)
       .select('id, 'score, 'first)
 
     val expected = sourceStreamTableNode(tableName, noCalcFields)

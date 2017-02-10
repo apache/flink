@@ -54,6 +54,12 @@ angular.module('flinkApp')
     else
       if short then return days + "d " + hours + "h" else return days + "d " + hours + "h " + minutes + "m " + seconds + "s"
 
+.filter "limit", ->
+  (text) ->
+    if (text.length > 73)
+      text = text.substring(0, 35) + "..." + text.substring(text.length - 35, text.length)
+    text
+
 .filter "humanizeText", ->
   (text) ->
     # TODO: extend... a lot

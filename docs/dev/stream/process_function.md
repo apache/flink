@@ -36,7 +36,7 @@ all (acyclic) streaming applications:
   - timers (event time and processing time)
 
 The `ProcessFunction` can be thought of as a `FlatMapFunction` with access to keyed state and timers. It handles events
-be being invoked for each event received in the input stream(s).
+by being invoked for each event received in the input stream(s).
 
 For fault tolerant state, the `ProcessFunction` gives access to Flink's [keyed state](state.html), accessible via the
 `RuntimeContext`, similar to the way other stateful functions can access keyed state. Like all functions with keyed state,

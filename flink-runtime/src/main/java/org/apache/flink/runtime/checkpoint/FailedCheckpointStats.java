@@ -32,6 +32,8 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  */
 public class FailedCheckpointStats extends AbstractCheckpointStats {
 
+	private static final long serialVersionUID = 8000748529515900106L;
+
 	/** Number of acknowledged tasks. */
 	private final int numAcknowledgedSubtasks;
 
@@ -71,17 +73,17 @@ public class FailedCheckpointStats extends AbstractCheckpointStats {
 	 * @param cause Cause of the checkpoint failure or <code>null</code>.
 	 */
 	FailedCheckpointStats(
-		long checkpointId,
-		long triggerTimestamp,
-		CheckpointProperties props,
-		int totalSubtaskCount,
-		Map<JobVertexID, TaskStateStats> taskStats,
-		int numAcknowledgedSubtasks,
-		long stateSize,
-		long alignmentBuffered,
-		long failureTimestamp,
-		@Nullable SubtaskStateStats latestAcknowledgedSubtask,
-		@Nullable Throwable cause) {
+			long checkpointId,
+			long triggerTimestamp,
+			CheckpointProperties props,
+			int totalSubtaskCount,
+			Map<JobVertexID, TaskStateStats> taskStats,
+			int numAcknowledgedSubtasks,
+			long stateSize,
+			long alignmentBuffered,
+			long failureTimestamp,
+			@Nullable SubtaskStateStats latestAcknowledgedSubtask,
+			@Nullable Throwable cause) {
 
 		super(checkpointId, triggerTimestamp, props, totalSubtaskCount, taskStats);
 		checkArgument(numAcknowledgedSubtasks >= 0, "Negative number of ACKs");

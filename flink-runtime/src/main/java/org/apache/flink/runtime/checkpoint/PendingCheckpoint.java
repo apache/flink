@@ -416,6 +416,8 @@ public class PendingCheckpoint {
 							} catch (Exception e) {
 								LOG.warn("Could not properly dispose the pending checkpoint " +
 									"{} of job {}.", checkpointId, jobId, e);
+							} finally {
+								taskStates.clear();
 							}
 						}
 					});
@@ -423,7 +425,6 @@ public class PendingCheckpoint {
 				}
 			} finally {
 				discarded = true;
-				taskStates.clear();
 				notYetAcknowledgedTasks.clear();
 				acknowledgedTasks.clear();
 			}

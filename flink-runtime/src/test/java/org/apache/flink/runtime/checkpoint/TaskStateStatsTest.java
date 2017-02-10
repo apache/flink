@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.junit.Test;
 
@@ -30,6 +31,8 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 public class TaskStateStatsTest {
+
+	private final ThreadLocalRandom rand = ThreadLocalRandom.current();
 
 	/**
 	 * Tests that subtask stats are correctly collected.
@@ -47,8 +50,6 @@ public class TaskStateStatsTest {
 		assertNull(taskStats.getLatestAcknowledgedSubtaskStats());
 		assertEquals(-1, taskStats.getLatestAckTimestamp());
 		assertArrayEquals(subtasks, taskStats.getSubtaskStats());
-
-		ThreadLocalRandom rand = ThreadLocalRandom.current();
 
 		long stateSize = 0;
 		long alignmentBuffered = 0;
@@ -90,4 +91,45 @@ public class TaskStateStatsTest {
 		assertEquals(subtasks.length, summary.getAlignmentBufferedStats().getCount());
 		assertEquals(subtasks.length, summary.getAlignmentDurationStats().getCount());
 	}
+
+	@Test
+	public void testIsJavaSerializable() throws Exception {
+		JobVertexID jobVertexId = new JobVertexID();
+		SubtaskStateStats[] subtasks = new SubtaskStateStats[7];
+
+		TaskStateStats taskStats = new TaskStateStats(jobVertexId, subtasks.length);
+
+		long stateSize = 0;
+		long alignmentBuffered = 0;
+
+		for (int i = 0; i < subtasks.length; i++) {
+			subtasks[i] = new SubtaskStateStats(
+				i,
+				rand.nextInt(128),
+				rand.nextInt(128),
+				rand.nextInt(128),
+				rand.nextInt(128),
+				rand.nextInt(128),
+				rand.nextInt(128));
+
+			stateSize += subtasks[i].getStateSize();
+			alignmentBuffered += subtasks[i].getAlignmentBuffered();
+
+			taskStats.reportSubtaskStats(subtasks[i]);
+		}
+
+		TaskStateStats copy = CommonTestUtils.createCopySerializable(taskStats);
+
+		assertEquals(stateSize, copy.getStateSize());
+		assertEquals(alignmentBuffered, copy.getAlignmentBuffered());
+
+		TaskStateStats.TaskStateStatsSummary summary = copy.getSummaryStats();
+		assertEquals(subtasks.length, summary.getStateSizeStats().getCount());
+		assertEquals(subtasks.length, summary.getAckTimestampStats().getCount());
+		assertEquals(subtasks.length, summary.getSyncCheckpointDurationStats().getCount());
+		assertEquals(subtasks.length, summary.getAsyncCheckpointDurationStats().getCount());
+		assertEquals(subtasks.length, summary.getAlignmentBufferedStats().getCount());
+		assertEquals(subtasks.length, summary.getAlignmentDurationStats().getCount());
+	}
+
 }

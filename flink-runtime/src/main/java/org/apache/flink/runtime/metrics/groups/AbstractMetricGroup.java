@@ -345,6 +345,10 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 	 * @param metric the metric to register
 	 */
 	protected void addMetric(String name, Metric metric) {
+		if (metric == null) {
+			LOG.warn("Ignoring attempted registration of a metric due to being null for name {}.", name);
+			return;
+		}
 		// add the metric only if the group is still open
 		synchronized (this) {
 			if (!closed) {
