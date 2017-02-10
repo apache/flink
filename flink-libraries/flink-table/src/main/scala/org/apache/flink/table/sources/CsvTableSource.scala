@@ -28,9 +28,8 @@ import org.apache.flink.core.fs.Path
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.TableException
-import org.apache.flink.util.Preconditions
 
-import scala.collection.mutable.ListBuffer
+import scala.collection.mutable
 
 /**
   * A [[BatchTableSource]] and [[StreamTableSource]] for simple CSV files with a
@@ -168,7 +167,7 @@ object CsvTableSource {
     * For example:
     *
     * {{{
-    *   val source: CsvTableSource = new CsvTableSourceBuilder()
+    *   val source: CsvTableSource = new CsvTableSource.Builder()
     *     .path("/path/to/your/file.csv")
     *     .field("myfield", Types.STRING)
     *     .field("myfield2", Types.INT)
@@ -178,8 +177,8 @@ object CsvTableSource {
     */
   class Builder {
 
-    private val fieldNames: ListBuffer[String] = ListBuffer[String]()
-    private val fieldTypes: ListBuffer[TypeInformation[_]] = ListBuffer[TypeInformation[_]]()
+    private val schema: mutable.HashMap[String, TypeInformation[_]] =
+      mutable.HashMap[String, TypeInformation[_]]()
     private var quoteCharacter: Character = _
     private var path: String = _
     private var fieldDelim: String = CsvInputFormat.DEFAULT_FIELD_DELIMITER
@@ -187,7 +186,6 @@ object CsvTableSource {
     private var isIgnoreFirstLine: Boolean = false
     private var commentPrefix: String = _
     private var lenient: Boolean = false
-
 
     /**
       * Sets the path to the CSV file.
@@ -222,8 +220,10 @@ object CsvTableSource {
       * @param fieldType the type information of the field
       */
     def field(fieldName: String, fieldType: TypeInformation[_]): Builder = {
-      this.fieldNames += fieldName
-      this.fieldTypes += fieldType
+      if (schema.contains(fieldName)) {
+        throw new IllegalArgumentException(s"Duplicate field name $fieldName")
+      }
+      schema += (fieldName -> fieldType)
       this
     }
 
@@ -266,11 +266,16 @@ object CsvTableSource {
       * @return a newly-created [[CsvTableSource]].
       */
     def build: CsvTableSource = {
-      Preconditions.checkNotNull(path, "Path must not be null.")
+      if (path == null) {
+        throw new IllegalArgumentException("Path must be defined.")
+      }
+      if (schema.isEmpty) {
+        throw new IllegalArgumentException("Fields can not be empty.")
+      }
       new CsvTableSource(
         path,
-        fieldNames.toArray,
-        fieldTypes.toArray,
+        schema.keys.toArray,
+        schema.values.toArray,
         fieldDelim,
         lineDelim,
         quoteCharacter,

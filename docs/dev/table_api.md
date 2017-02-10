@@ -260,9 +260,9 @@ It can be created by `CsvTableSource.builder()`, the builder has the following m
  - `fieldDelimiter(String delim)` Sets the field delimiter, `","` by default.
  - `lineDelimiter(String delim)` Sets the line delimiter, `"\n"` by default.
  - `quoteCharacter(Character quote)` Sets the quote character for String values, `null` by default.
- - `commentPrefix(String prefix)` Sets a prefix to indicate comments, null by default.
- - `ignoreFirstLine()` Ignore the first line. Not skip the first line by default.
- - `ignoreParseErrors()` Skip records with parse error instead to fail. Throw an exception by default.
+ - `commentPrefix(String prefix)` Sets a prefix to indicate comments, `null` by default.
+ - `ignoreFirstLine()` Ignore the first line. Disabled by default.
+ - `ignoreParseErrors()` Skip records with parse error instead to fail. Throwing an exception by default.
 
 You can create the source as follows:
 

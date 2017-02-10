@@ -168,10 +168,28 @@ class TableSourceTest extends TableTestBase {
     Assert.assertEquals(source1, source2)
   }
 
-  @Test(expected = classOf[NullPointerException])
+  @Test(expected = classOf[IllegalArgumentException])
   def testCsvTableSourceBuilderWithNullPath(): Unit = {
     CsvTableSource.builder
       .field("myfield", Types.STRING)
+      // should fail, path is not defined
+      .build
+  }
+
+  @Test(expected = classOf[IllegalArgumentException])
+  def testCsvTableSourceBuilderWithDuplicateFieldName(): Unit = {
+    CsvTableSource.builder
+      .path("/path/to/csv")
+      .field("myfield", Types.STRING)
+      // should fail, field name must no be duplicate
+      .field("myfield", Types.INT)
+  }
+
+  @Test(expected = classOf[IllegalArgumentException])
+  def testCsvTableSourceBuilderWithEmptyField(): Unit = {
+    CsvTableSource.builder
+      .path("/path/to/csv")
+      // should fail, field can be empty
       .build
   }
 
