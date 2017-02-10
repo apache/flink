@@ -27,8 +27,8 @@ import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.core.Window.Group
 import org.apache.calcite.rel.logical.LogicalWindow
 import org.apache.calcite.sql.`type`.IntervalSqlType
-import org.apache.flink.table.plan.logical.rel.DataStreamProcTimeTimeAggregate
 import org.apache.flink.table.plan.nodes.datastream.DataStreamConvention
+import org.apache.flink.table.plan.nodes.datastream.DataStreamProcTimeTimeAggregate
 
 class DataStreamProcTimeTimeAggregateRule extends ConverterRule(
   classOf[LogicalWindow],
