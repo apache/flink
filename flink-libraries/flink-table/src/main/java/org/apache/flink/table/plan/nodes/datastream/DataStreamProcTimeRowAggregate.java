@@ -19,7 +19,6 @@ package org.apache.flink.table.plan.nodes.datastream;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
@@ -30,8 +29,6 @@ import org.apache.calcite.rel.core.Window.RexWinAggCall;
 import org.apache.calcite.rel.logical.LogicalWindow;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexInputRef;
-import org.apache.calcite.sql.SqlDialect;
-import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -46,6 +43,7 @@ import org.apache.flink.table.plan.nodes.datastream.function.DataStreamProcTimeA
 import org.apache.flink.table.typeutils.TypeConverter;
 
 import scala.Option;
+
 
 public class DataStreamProcTimeRowAggregate extends DataStreamRelJava {
 

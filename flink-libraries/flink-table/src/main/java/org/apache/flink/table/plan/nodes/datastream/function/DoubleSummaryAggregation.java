@@ -4,11 +4,7 @@ import static org.apache.flink.api.java.summarize.aggregation.CompensatedSum.ZER
 
 import org.apache.flink.api.java.summarize.aggregation.Aggregator;
 import org.apache.flink.api.java.summarize.aggregation.CompensatedSum;
-import org.apache.flink.api.java.summarize.aggregation.DoubleSummaryAggregator;
 import org.apache.flink.api.java.summarize.aggregation.NumericSummaryAggregator;
-import org.apache.flink.api.java.summarize.aggregation.DoubleSummaryAggregator.MaxDoubleAggregator;
-import org.apache.flink.api.java.summarize.aggregation.DoubleSummaryAggregator.MinDoubleAggregator;
-import org.apache.flink.api.java.summarize.aggregation.DoubleSummaryAggregator.SumDoubleAggregator;
 
 public class DoubleSummaryAggregation extends NumericSummaryAggregator<Double> {
 

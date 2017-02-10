@@ -21,13 +21,8 @@ import java.io.Serializable;
 import java.util.List;
 
 import org.apache.calcite.rel.core.Window.Group;
-import org.apache.calcite.rel.core.Window.RexWinAggCall;
 import org.apache.calcite.rel.logical.LogicalWindow;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexLiteral;
-import org.apache.calcite.sql.type.SqlTypeName;
-import org.apache.flink.api.java.tuple.Tuple5;
 
 import com.google.common.collect.ImmutableList;
 
@@ -43,15 +38,6 @@ public class WindowAggregateUtil implements Serializable {
 
 	public WindowAggregateUtil(LogicalWindow window) {
 		this.windowPointer = window;
-
-	}
-
-	public List<Tuple5<String, String, String, Integer, Integer>> getAggregateFunctions(LogicalWindow window) {
-
-		for (RexWinAggCall agg : window.groups.iterator().next().aggCalls) {
-
-		}
-		return null;
 
 	}
 
@@ -92,24 +78,9 @@ public class WindowAggregateUtil implements Serializable {
 	 *            the list of constant to get the offset value
 	 * @return return the value of the lowerbound if available -1 otherwise
 	 */
-<<<<<<< 81118ff60dfba10dbd94a323ffd4c52f5eb1421c
-	public int getLowerBoundary(Group group, ImmutableList<RexLiteral> constants) {
-		Integer lowerBoundKey = group.keys.asList().get(0);
-		Object lowerbound = constants.get(lowerBoundKey).getValue2();
-		Object offset = group.lowerBound.getOffset();
 
-		if (offset instanceof RexInputRef) {
-			RelDataType type = ((RexInputRef) offset).getType();
-			if (type.getSqlTypeName().equals(SqlTypeName.INTEGER)) {
-				return Integer.parseInt(lowerbound.toString());
-			}
-		}
-		return -1;
-=======
 	public int getLowerBoundary(ImmutableList<RexLiteral> constants) {
-		
 		return ((Long)constants.get(1).getValue2()).intValue();
->>>>>>> First version of ProcTime aggregation with Max, Min and Sum. To be
 	}
 
 	
