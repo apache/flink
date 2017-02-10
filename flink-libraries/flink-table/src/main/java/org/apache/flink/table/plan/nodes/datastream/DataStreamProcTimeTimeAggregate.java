@@ -1,4 +1,4 @@
-package org.apache.flink.table.plan.logical.rel;
+package org.apache.flink.table.plan.nodes.datastream;
 
 import java.util.List;
 
@@ -28,9 +28,7 @@ public class DataStreamProcTimeTimeAggregate extends DataStreamRelJava{
 	
 	private LogicalWindow windowReference;
 	private String description;
-	private RelNode input;
-	
-	
+
 	public DataStreamProcTimeTimeAggregate(
 			RelOptCluster cluster, 
 			RelTraitSet traitSet, 
@@ -43,8 +41,6 @@ public class DataStreamProcTimeTimeAggregate extends DataStreamRelJava{
 		this.rowType = rowType;
 		this.description = description;
 		this.windowReference= windowReference;
-		this.input = input;
-		
 		
 	}
 
@@ -56,16 +52,8 @@ public class DataStreamProcTimeTimeAggregate extends DataStreamRelJava{
 	
 	@Override
 	public RelNode copy(RelTraitSet traitSet, java.util.List<RelNode> inputs) {
-		
-
-		return new DataStreamProcTimeTimeAggregate(
-				super.getCluster(),
-				traitSet,
-				inputs.get(0), 
-				rowType, 
-				description, 
-				windowReference);
-		
+		// TODO Auto-generated method stub
+		return super.copy(traitSet, inputs);
 	}
 	
 	
@@ -79,7 +67,7 @@ public class DataStreamProcTimeTimeAggregate extends DataStreamRelJava{
 		TableConfig config = tableEnv.getConfig();
 		
 		scala.Option<TypeInformation<Object>> option = scala.Option.apply(null);
-		DataStream<Object> inputDataStream = ((DataStreamRel) input)
+		DataStream<Object> inputDataStream = ((DataStreamRel) getInput())
 				.translateToPlan(tableEnv,option);
 		
 		TypeInformation<?> returnType = TypeConverter.determineReturnType(
@@ -112,8 +100,7 @@ public class DataStreamProcTimeTimeAggregate extends DataStreamRelJava{
 		{
 			
 		}
-		
-		
+
 		return null;
 	}
 	

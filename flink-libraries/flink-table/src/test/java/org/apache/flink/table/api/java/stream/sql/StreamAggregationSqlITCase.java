@@ -55,17 +55,20 @@ public class StreamAggregationSqlITCase extends StreamingMultipleProgramsTestBas
 
 	}
 	
-	@Ignore("not ready yet") @Test
+//	@Ignore("not ready yet") 
+	@Test
 	public void testMaxAggregatation() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 		StreamITCase.clear();
 
+		env.setParallelism(1);
+		
 		DataStream<Tuple5<Integer, Long, Integer, String, Long>> ds = StreamTestData.get5TupleDataStream(env);
 		Table in = tableEnv.fromDataStream(ds, "a,b,c,d,e");
 		tableEnv.registerTable("MyTable", in);
 
-		String sqlQuery = "SELECT a, MAX(c) OVER (PARTITION BY b ORDER BY procTime() ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) AS maxC FROM MyTable";
+		String sqlQuery = "SELECT a, MAX(c) OVER (PARTITION BY a ORDER BY procTime() ROWS BETWEEN 7 PRECEDING AND CURRENT ROW) AS maxC FROM MyTable";
 		Table result = tableEnv.sql(sqlQuery);
 
 		DataStream<Row> resultSet = tableEnv.toDataStream(result, Row.class);
@@ -73,6 +76,20 @@ public class StreamAggregationSqlITCase extends StreamingMultipleProgramsTestBas
 		env.execute();
 
 		List<String> expected = new ArrayList<>();
+		expected.add("1,0");
+		expected.add("2,1");
+		expected.add("2,2");
+		expected.add("3,3");
+		expected.add("3,4");
+		expected.add("3,5");
+		expected.add("4,6");
+		expected.add("4,7");
+		expected.add("4,8");
+		expected.add("4,9");
+		expected.add("5,10");
+		expected.add("5,11");
+		expected.add("5,12");
+		expected.add("5,14");
 		expected.add("5,14");
 
 		StreamITCase.compareWithList(expected);
