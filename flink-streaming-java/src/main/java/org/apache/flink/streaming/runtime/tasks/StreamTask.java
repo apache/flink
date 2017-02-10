@@ -139,7 +139,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	protected OP headOperator;
 
 	/** The chain of operators executed by this task */
-	private OperatorChain<OUT, OP> operatorChain;
+	protected OperatorChain<OUT, OP> operatorChain;
 
 	/** The configuration of this streaming task */
 	private StreamConfig configuration;
@@ -637,7 +637,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		boolean restored = null != restoreStateHandles;
 
 		if (restored) {
-
 			checkRestorePreconditions(operatorChain.getChainLength());
 			initializeOperators(true);
 			restoreStateHandles = null; // free for GC
