@@ -99,7 +99,8 @@ public class FileCache {
 		this.shutdownHook = createShutdownHook(this, LOG);
 
 		this.entries = new HashMap<JobID, Map<String, Tuple4<Integer, File, Path, Future<Path>>>>();
-		this.executorService = Executors.newScheduledThreadPool(10, ExecutorThreadFactory.INSTANCE);
+		this.executorService = Executors.newScheduledThreadPool(10, 
+				new ExecutorThreadFactory("flink-file-cache"));
 	}
 
 	/**
