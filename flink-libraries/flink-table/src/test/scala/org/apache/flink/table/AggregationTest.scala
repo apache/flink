@@ -165,13 +165,9 @@ class AggregationTest extends TableTestBase {
     val util = batchTestUtil()
     val sourceTable = util.addTable[(Int, Long, Int)]("MyTable", 'a, 'b, 'c)
 
-    // Move "where" before "groupBy" for the former query would generate
-    // nondeterministic plans with same cost. If we change FlinkRuleSets.DATASET_OPT_RULES,
-    // the importance of relNode may change, and the test may fail. This issue is mentioned
-    // in FLINK-5394, we could move "where" to the end when FLINK-5394 is fixed.
-    val resultTable = sourceTable.where('a === 1)
-      .groupBy('a)
+    val resultTable = sourceTable.groupBy('a)
       .select('a, 'a.avg, 'b.sum, 'c.count)
+      .where('a === 1)
 
     val calcNode = unaryNode(
       "DataSetCalc",
