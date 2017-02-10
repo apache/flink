@@ -1,11 +1,7 @@
 package org.apache.flink.table.plan.nodes.datastream.function;
 
 import org.apache.flink.api.java.summarize.aggregation.Aggregator;
-import org.apache.flink.api.java.summarize.aggregation.LongSummaryAggregator;
 import org.apache.flink.api.java.summarize.aggregation.NumericSummaryAggregator;
-import org.apache.flink.api.java.summarize.aggregation.LongSummaryAggregator.MaxLongAggregator;
-import org.apache.flink.api.java.summarize.aggregation.LongSummaryAggregator.MinLongAggregator;
-import org.apache.flink.api.java.summarize.aggregation.LongSummaryAggregator.SumLongAggregator;
 
 public class LongSummaryAggregation extends NumericSummaryAggregator<Long> {
 
