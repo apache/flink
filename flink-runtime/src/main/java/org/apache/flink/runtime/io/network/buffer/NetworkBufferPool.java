@@ -266,6 +266,8 @@ public class NetworkBufferPool implements BufferPoolFactory {
 
 	// Must be called from synchronized block
 	private void redistributeBuffers() throws IOException {
+		assert Thread.holdsLock(factoryLock);
+
 		int numManagedBufferPools = managedBufferPools.size();
 
 		if (numManagedBufferPools == 0) {

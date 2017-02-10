@@ -281,11 +281,15 @@ class LocalBufferPool implements BufferPool {
 	// ------------------------------------------------------------------------
 
 	private void returnMemorySegment(MemorySegment segment) {
+		assert Thread.holdsLock(availableMemorySegments);
+
 		numberOfRequestedMemorySegments--;
 		networkBufferPool.recycle(segment);
 	}
 
 	private void returnExcessMemorySegments() {
+		assert Thread.holdsLock(availableMemorySegments);
+
 		while (numberOfRequestedMemorySegments > currentPoolSize) {
 			MemorySegment segment = availableMemorySegments.poll();
 			if (segment == null) {
