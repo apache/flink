@@ -10,6 +10,10 @@ import org.apache.calcite.rel.logical.LogicalWindow;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
+import org.apache.flink.streaming.api.windowing.evictors.TimeEvictor;
+import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.streaming.api.windowing.triggers.CountTrigger;
 import org.apache.flink.table.api.StreamTableEnvironment;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.plan.logical.rel.util.WindowAggregateUtil;
@@ -75,7 +79,7 @@ public class DataStreamProcTimeTimeAggregate extends DataStreamRelJava{
 		TableConfig config = tableEnv.getConfig();
 		
 		scala.Option<TypeInformation<Object>> option = scala.Option.apply(null);
-		DataStream<Object> inputDataStreamNoTime2 = ((DataStreamRel) input)
+		DataStream<Object> inputDataStream = ((DataStreamRel) input)
 				.translateToPlan(tableEnv,option);
 		
 		TypeInformation<?> returnType = TypeConverter.determineReturnType(
@@ -86,14 +90,23 @@ public class DataStreamProcTimeTimeAggregate extends DataStreamRelJava{
 		
 		//WindowUtil object to help with operations on the LogicalWindow object 
 		WindowAggregateUtil windowUtil = new WindowAggregateUtil(windowReference);
-		
-			
 		List<Integer> partitionKeys = windowUtil.getPartitions();				
+		
 		
 		//null indicates non partitioned window
 		if(partitionKeys==null)
 		{
+			final long time_boundary = Long.parseLong(
+					windowReference.getConstants()
+					.get(1)
+					.getValue().toString());
 			
+			inputDataStream.windowAll(GlobalWindows.create())
+			.trigger(CountTrigger.of(1))
+				.evictor(TimeEvictor.of(Time.milliseconds(time_boundary)));
+				
+			
+			//Time.of(winConf.lowBoudary, TimeUnit.MILLISECONDS)
 		}
 		else
 		{
