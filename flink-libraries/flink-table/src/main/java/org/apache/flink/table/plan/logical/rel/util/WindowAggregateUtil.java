@@ -21,10 +21,8 @@ import java.io.Serializable;
 import java.util.List;
 
 import org.apache.calcite.rel.core.Window.Group;
-import org.apache.calcite.rel.core.Window.RexWinAggCall;
 import org.apache.calcite.rel.logical.LogicalWindow;
 import org.apache.calcite.rex.RexLiteral;
-import org.apache.flink.api.java.tuple.Tuple5;
 
 import com.google.common.collect.ImmutableList;
 
@@ -40,15 +38,6 @@ public class WindowAggregateUtil implements Serializable {
 
 	public WindowAggregateUtil(LogicalWindow window) {
 		this.windowPointer = window;
-
-	}
-
-	public List<Tuple5<String, String, String, Integer, Integer>> getAggregateFunctions(LogicalWindow window) {
-
-		for (RexWinAggCall agg : window.groups.iterator().next().aggCalls) {
-
-		}
-		return null;
 
 	}
 
