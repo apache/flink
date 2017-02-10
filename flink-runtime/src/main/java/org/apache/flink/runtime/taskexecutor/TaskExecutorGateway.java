@@ -138,5 +138,5 @@ public interface TaskExecutorGateway extends RpcGateway {
 	 *
 	 * @param resourceID unique id of the job manager
 	 */
-	void heartbeatFromJobManager(ResourceID resourceID, Object payload);
+	void heartbeatFromJobManager(ResourceID resourceID);
 }

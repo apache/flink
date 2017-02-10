@@ -40,7 +40,6 @@ import org.slf4j.LoggerFactory;
 
 import java.net.InetAddress;
 import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -114,11 +113,11 @@ public class TaskManagerRunner implements FatalErrorHandler {
 		// Initialize the TM metrics
 		TaskExecutorMetricsInitializer.instantiateStatusMetrics(taskManagerMetricGroup, taskManagerServices.getNetworkEnvironment());
 
-		HeartbeatManagerImpl heartbeatManager = new HeartbeatManagerImpl(
+		HeartbeatManagerImpl<Void, Void> heartbeatManager = new HeartbeatManagerImpl<>(
 				taskManagerConfiguration.getTimeout().toMilliseconds(),
 				resourceID,
 				executor,
-				Executors.newSingleThreadScheduledExecutor(),
+				rpcService.getScheduledExecutor(),
 				LOG);
 
 		this.taskManager = new TaskExecutor(

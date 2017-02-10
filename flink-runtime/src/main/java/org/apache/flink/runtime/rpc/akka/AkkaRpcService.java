@@ -145,11 +145,11 @@ public class AkkaRpcService implements RpcService {
 					final String address = AkkaUtils.getAkkaURL(actorSystem, actorRef);
 
 					InvocationHandler akkaInvocationHandler = new AkkaInvocationHandler(
-						address,
-						actorRef,
-						timeout,
-						maximumFramesize,
-						null);
+							address,
+							actorRef,
+							timeout,
+							maximumFramesize,
+							null);
 
 					// Rather than using the System ClassLoader directly, we derive the ClassLoader
 					// from this class . That works better in cases where Flink runs embedded and all Flink
@@ -158,9 +158,9 @@ public class AkkaRpcService implements RpcService {
 
 					@SuppressWarnings("unchecked")
 					C proxy = (C) Proxy.newProxyInstance(
-						classLoader,
-						new Class<?>[]{clazz},
-						akkaInvocationHandler);
+							classLoader,
+							new Class<?>[]{clazz},
+							akkaInvocationHandler);
 
 					return proxy;
 				}
@@ -189,11 +189,11 @@ public class AkkaRpcService implements RpcService {
 		final String address = AkkaUtils.getAkkaURL(actorSystem, actorRef);
 
 		InvocationHandler akkaInvocationHandler = new AkkaInvocationHandler(
-			address,
-			actorRef,
-			timeout,
-			maximumFramesize,
-			terminationFuture);
+				address,
+				actorRef,
+				timeout,
+				maximumFramesize,
+				terminationFuture);
 
 		// Rather than using the System ClassLoader directly, we derive the ClassLoader
 		// from this class . That works better in cases where Flink runs embedded and all Flink
@@ -202,14 +202,14 @@ public class AkkaRpcService implements RpcService {
 
 		@SuppressWarnings("unchecked")
 		C self = (C) Proxy.newProxyInstance(
-			classLoader,
-			new Class<?>[]{
-				rpcEndpoint.getSelfGatewayType(),
-				SelfGateway.class,
-				MainThreadExecutable.class,
-				StartStoppable.class,
-				AkkaGateway.class},
-			akkaInvocationHandler);
+				classLoader,
+				new Class<?>[]{
+						rpcEndpoint.getSelfGatewayType(),
+						SelfGateway.class,
+						MainThreadExecutable.class,
+						StartStoppable.class,
+						AkkaGateway.class},
+				akkaInvocationHandler);
 
 		return self;
 	}
@@ -335,15 +335,15 @@ public class AkkaRpcService implements RpcService {
 		@Nonnull
 		public ScheduledFuture<?> scheduleAtFixedRate(@Nonnull Runnable command, long initialDelay, long period, @Nonnull TimeUnit unit) {
 			ScheduledFutureTask<Void> scheduledFutureTask = new ScheduledFutureTask<>(
-				command,
-				triggerTime(unit.toNanos(initialDelay)),
-				unit.toNanos(period));
+					command,
+					triggerTime(unit.toNanos(initialDelay)),
+					unit.toNanos(period));
 
 			Cancellable cancellable = actorSystem.scheduler().schedule(
-				new FiniteDuration(initialDelay, unit),
-				new FiniteDuration(period, unit),
-				scheduledFutureTask,
-				actorSystem.dispatcher());
+					new FiniteDuration(initialDelay, unit),
+					new FiniteDuration(period, unit),
+					scheduledFutureTask,
+					actorSystem.dispatcher());
 
 			scheduledFutureTask.setCancellable(cancellable);
 
@@ -354,9 +354,9 @@ public class AkkaRpcService implements RpcService {
 		@Nonnull
 		public ScheduledFuture<?> scheduleWithFixedDelay(@Nonnull Runnable command, long initialDelay, long delay, @Nonnull TimeUnit unit) {
 			ScheduledFutureTask<Void> scheduledFutureTask = new ScheduledFutureTask<>(
-				command,
-				triggerTime(unit.toNanos(initialDelay)),
-				unit.toNanos(-delay));
+					command,
+					triggerTime(unit.toNanos(initialDelay)),
+					unit.toNanos(-delay));
 
 			Cancellable cancellable = internalSchedule(scheduledFutureTask, initialDelay, unit);
 
@@ -372,9 +372,9 @@ public class AkkaRpcService implements RpcService {
 
 		private Cancellable internalSchedule(Runnable runnable, long delay, TimeUnit unit) {
 			return actorSystem.scheduler().scheduleOnce(
-				new FiniteDuration(delay, unit),
-				runnable,
-				actorSystem.dispatcher());
+					new FiniteDuration(delay, unit),
+					runnable,
+					actorSystem.dispatcher());
 		}
 
 		private long now() {

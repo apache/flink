@@ -25,6 +25,7 @@ import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /**

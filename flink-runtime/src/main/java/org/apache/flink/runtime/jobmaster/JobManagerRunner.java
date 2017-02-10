@@ -20,9 +20,12 @@ package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
+import org.apache.flink.runtime.heartbeat.HeartbeatManagerSenderImpl;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -166,6 +169,20 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 			this.runningJobsRegistry = haServices.getRunningJobsRegistry();
 			this.leaderElectionService = haServices.getJobManagerLeaderElectionService(jobGraph.getJobID());
 
+			// heartbeat manager last
+			final long heartbeatInterval = configuration.getLong(ConfigConstants.HEARTBEAT_SENDER_INTERVAL,
+					ConfigConstants.DEFAULT_HEARTBEAT_SENDER_INTERVAL);
+			final long heartbeatTimeout = configuration.getLong(ConfigConstants.HEARTBEAT_SENDER_TIMEOUT,
+					ConfigConstants.DEFAULT_HEARTBEAT_SENDER_TIMEOUT);
+			final ResourceID resourceID = ResourceID.generate();
+			final HeartbeatManagerSenderImpl<Void, Void> heartbeatManager = new HeartbeatManagerSenderImpl<>(
+					heartbeatInterval,
+					heartbeatTimeout,
+					resourceID,
+					jobManagerServices.executorService,
+					rpcService.getScheduledExecutor(),
+					log);
+
 			// now start the JobManager
 			this.jobManager = new JobMaster(
 					jobGraph, configuration,
@@ -176,6 +193,8 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 					jobManagerServices.restartStrategyFactory,
 					jobManagerServices.rpcAskTimeout,
 					jobManagerMetrics,
+					resourceID,
+					heartbeatManager,
 					this,
 					this,
 					userCodeLoader);

@@ -131,7 +131,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	private final MetricRegistry metricRegistry;
 
 	/** The heartbeat manager for job manager and resource manager in the task manager */
-	private final HeartbeatManagerImpl heartbeatManager;
+	private final HeartbeatManagerImpl<Void, Void> heartbeatManager;
 
 	/** The fatal error handler to use in case of a fatal error */
 	private final FatalErrorHandler fatalErrorHandler;
@@ -222,8 +222,37 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		// start the job leader service
 		jobLeaderService.start(getAddress(), getRpcService(), haServices, new JobLeaderListenerImpl());
 
-		// start the heartbeat manager for job manager and resource manager
-		heartbeatManager.start(new JMRMHeartbeatListener());
+		// start the heartbeat manager for monitoring job manager and resource manager
+		heartbeatManager.start(new HeartbeatListener<Void, Void>() {
+			@Override
+			public void notifyHeartbeatTimeout(final ResourceID resourceID) {
+				runAsync(new Runnable() {
+					@Override
+					public void run() {
+						if (jobManagerConnections.containsKey(resourceID)) {
+							log.info("Notify heartbeat timeout with job manager {}", resourceID);
+							JobManagerConnection jobManagerConnection = jobManagerConnections.get(resourceID);
+							if (jobManagerConnection != null) {
+								closeJobManagerConnection(jobManagerConnection.getJobID());
+							}
+						}
+						// TODO check whether the resource id indicates the resource manager based on resource manager connection
+						// TODO then trigger the action of losing resource manager
+					}
+				});
+			}
+
+			@Override
+			public void reportPayload(ResourceID resourceID, Void payload) {
+				// currently there is no payload from job manager and resource manager, so this method will not be called.
+			}
+
+			@Override
+			public Future<Void> retrievePayload() {
+				// currently no need payload.
+				return null;
+			}
+		});
 	}
 
 	/**
@@ -489,8 +518,8 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	// ----------------------------------------------------------------------
 
 	@RpcMethod
-	public void heartbeatFromJobManager(ResourceID resourceID, Object payload) {
-		heartbeatManager.requestHeartbeat(resourceID, payload);
+	public void heartbeatFromJobManager(ResourceID resourceID) {
+		heartbeatManager.requestHeartbeat(resourceID, null);
 	}
 
 	// ----------------------------------------------------------------------
@@ -756,24 +785,31 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 
 		if (jobManagerTable.contains(jobId)) {
 			JobManagerConnection oldJobManagerConnection = jobManagerTable.get(jobId);
-
 			if (!oldJobManagerConnection.getLeaderId().equals(jobManagerLeaderId)) {
 				closeJobManagerConnection(jobId);
-				jobManagerTable.put(jobId, associateWithJobManager(jobMasterGateway, jobManagerLeaderId, registrationSuccess.getBlobPort()));
 			}
-		} else {
-			jobManagerTable.put(jobId, associateWithJobManager(jobMasterGateway, jobManagerLeaderId, registrationSuccess.getBlobPort()));
 		}
 
-		heartbeatManager.monitorTarget(registrationSuccess.getResourceID(), new HeartbeatTarget() {
+		ResourceID jobManagerResourceID = registrationSuccess.getResourceID();
+		JobManagerConnection newJobManagerConnection = associateWithJobManager(
+				jobId,
+				jobManagerResourceID,
+				jobMasterGateway,
+				jobManagerLeaderId,
+				registrationSuccess.getBlobPort());
+		jobManagerConnections.put(jobManagerResourceID, newJobManagerConnection);
+		jobManagerTable.put(jobId, newJobManagerConnection);
+
+		// monitor the job manager as heartbeat target
+		heartbeatManager.monitorTarget(jobManagerResourceID, new HeartbeatTarget<Void>() {
 			@Override
-			public void sendHeartbeat(ResourceID resourceID, Object payload) {
-				jobMasterGateway.heartbeatFromTaskManager(resourceID, payload);
+			public void sendHeartbeat(ResourceID resourceID, Void payload) {
+				jobMasterGateway.heartbeatFromTaskManager(resourceID);
 			}
 
 			@Override
-			public void requestHeartbeat(ResourceID resourceID, Object payload) {
-				throw new UnsupportedOperationException("Should never call requestHeartbeat in task manager.");
+			public void requestHeartbeat(ResourceID resourceID, Void payload) {
+				// request heartbeat will never be called in task manager side
 			}
 		});
 
@@ -811,6 +847,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 
 		if (jobManagerConnection != null) {
 			try {
+				jobManagerConnections.remove(jobManagerConnection.getResourceID());
 				disassociateFromJobManager(jobManagerConnection);
 			} catch (IOException e) {
 				log.warn("Could not properly disassociate from JobManager {}.",
@@ -819,7 +856,14 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		}
 	}
 
-	private JobManagerConnection associateWithJobManager(JobMasterGateway jobMasterGateway, UUID jobManagerLeaderId, int blobPort) {
+	private JobManagerConnection associateWithJobManager(
+			JobID jobID,
+			ResourceID resourceID,
+			JobMasterGateway jobMasterGateway,
+			UUID jobManagerLeaderId,
+			int blobPort) {
+		Preconditions.checkNotNull(jobID);
+		Preconditions.checkNotNull(resourceID);
 		Preconditions.checkNotNull(jobManagerLeaderId);
 		Preconditions.checkNotNull(jobMasterGateway);
 		Preconditions.checkArgument(blobPort > 0 || blobPort < MAX_BLOB_PORT, "Blob port is out of range.");
@@ -854,6 +898,8 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		PartitionProducerStateChecker partitionStateChecker = new RpcPartitionStateChecker(jobManagerLeaderId, jobMasterGateway);
 
 		return new JobManagerConnection(
+			jobID,
+			resourceID,
 			jobMasterGateway,
 			jobManagerLeaderId,
 			taskManagerActions,
@@ -1100,30 +1146,6 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		@Override
 		public void handleError(Throwable throwable) {
 			onFatalErrorAsync(throwable);
-		}
-	}
-
-	/**
-	 * The heartbeat listener for JobManager and ResourceManager, they can be distinguished by ResourceID
-	 * and trigger different processes.
-	 */
-	private final class JMRMHeartbeatListener implements HeartbeatListener {
-
-		JMRMHeartbeatListener() {
-		}
-
-		@Override
-		public void notifyHeartbeatTimeout(final ResourceID resourceID) {
-			log.info("Notify heartbeat timeout for resourceID {}", resourceID);
-		}
-
-		@Override
-		public void reportPayload(ResourceID resourceID, Object payload) {
-		}
-
-		@Override
-		public Future<Object> retrievePayload() {
-			return null;
 		}
 	}
 

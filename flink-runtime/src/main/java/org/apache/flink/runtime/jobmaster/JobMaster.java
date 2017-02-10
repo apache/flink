@@ -50,6 +50,9 @@ import org.apache.flink.runtime.executiongraph.IntermediateResult;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory;
+import org.apache.flink.runtime.heartbeat.HeartbeatListener;
+import org.apache.flink.runtime.heartbeat.HeartbeatManagerImpl;
+import org.apache.flink.runtime.heartbeat.HeartbeatTarget;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.LeaderIdMismatchException;
 import org.apache.flink.runtime.instance.Slot;
@@ -146,6 +149,9 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 	/** The metrics for the job */
 	private final MetricGroup jobMetricGroup;
 
+	/** The heartbeat manager with task managers */
+	private final HeartbeatManagerImpl<Void, Void> heartbeatManager;
+
 	/** The execution context which is used to execute futures */
 	private final ExecutorService executionContext;
 
@@ -163,6 +169,8 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 	private final SlotPoolGateway slotPoolGateway;
 
 	private volatile UUID leaderSessionID;
+
+	private final ResourceID resourceID;
 
 	// --------- ResourceManager --------
 
@@ -188,6 +196,8 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 			RestartStrategyFactory restartStrategyFactory,
 			Time rpcAskTimeout,
 			@Nullable JobManagerMetricGroup jobManagerMetricGroup,
+			ResourceID resourceID,
+			HeartbeatManagerImpl heartbeatManager,
 			OnCompletionActions jobCompletionActions,
 			FatalErrorHandler errorHandler,
 			ClassLoader userCodeLoader) throws Exception
@@ -203,6 +213,8 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 		this.jobCompletionActions = checkNotNull(jobCompletionActions);
 		this.errorHandler = checkNotNull(errorHandler);
 		this.userCodeLoader = checkNotNull(userCodeLoader);
+		this.resourceID = checkNotNull(resourceID);
+		this.heartbeatManager = checkNotNull(heartbeatManager);
 
 		final String jobName = jobGraph.getName();
 		final JobID jid = jobGraph.getJobID();
@@ -275,6 +287,25 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 			// make sure we receive RPC and async calls
 			super.start();
 
+			heartbeatManager.start(new HeartbeatListener<Void, Void>() {
+				@Override
+				public void notifyHeartbeatTimeout(ResourceID resourceID) {
+					log.info("Notify heartbeat timeout with task manager {}", resourceID);
+					getSelf().disconnectTaskManager(resourceID);
+				}
+
+				@Override
+				public void reportPayload(ResourceID resourceID, Void payload) {
+					// currently there is no payload from task manager and resource manager, so this method will not be called.
+				}
+
+				@Override
+				public Future<Void> retrievePayload() {
+					// currently no need payload.
+					return null;
+				}
+			});
+
 			log.info("JobManager started as leader {} for job {}", leaderSessionID, jobGraph.getJobID());
 			getSelf().startJobExecution();
 		}
@@ -289,6 +320,7 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 	@Override
 	public void shutDown() throws Exception {
 		// make sure there is a graceful exit
+		heartbeatManager.stop();
 		getSelf().suspendExecution(new Exception("JobManager is shutting down."));
 		super.shutDown();
 	}
@@ -511,7 +543,8 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 
 	@RpcMethod
 	public void disconnectTaskManager(final ResourceID resourceID) {
-		throw new UnsupportedOperationException();
+		registeredTaskManagers.remove(resourceID);
+		slotPoolGateway.releaseTaskManager(resourceID);
 	}
 
 	// TODO: This method needs a leader session ID
@@ -707,7 +740,7 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 
 		if (registeredTaskManagers.containsKey(taskManagerId)) {
 			final RegistrationResponse response = new JMTMRegistrationSuccess(
-					taskManagerId, libraryCacheManager.getBlobServerPort());
+					this.resourceID, libraryCacheManager.getBlobServerPort());
 			return FlinkCompletableFuture.completed(response);
 		} else {
 			return getRpcService().execute(new Callable<TaskExecutorGateway>() {
@@ -718,7 +751,7 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 				}
 			}).handleAsync(new BiFunction<TaskExecutorGateway, Throwable, RegistrationResponse>() {
 				@Override
-				public RegistrationResponse apply(TaskExecutorGateway taskExecutorGateway, Throwable throwable) {
+				public RegistrationResponse apply(final TaskExecutorGateway taskExecutorGateway, Throwable throwable) {
 					if (throwable != null) {
 						return new RegistrationResponse.Decline(throwable.getMessage());
 					}
@@ -733,7 +766,21 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 
 					slotPoolGateway.registerTaskManager(taskManagerId);
 					registeredTaskManagers.put(taskManagerId, Tuple2.of(taskManagerLocation, taskExecutorGateway));
-					return new JMTMRegistrationSuccess(taskManagerId, libraryCacheManager.getBlobServerPort());
+
+					// monitor the task manager as heartbeat target
+					heartbeatManager.monitorTarget(taskManagerId, new HeartbeatTarget<Void>() {
+						@Override
+						public void sendHeartbeat(ResourceID resourceID, Void payload) {
+							// the task manager will not request heartbeat, so this method will never be called currently
+						}
+
+						@Override
+						public void requestHeartbeat(ResourceID resourceID, Void payload) {
+							taskExecutorGateway.heartbeatFromJobManager(resourceID);
+						}
+					});
+
+					return new JMTMRegistrationSuccess(JobMaster.this.resourceID, libraryCacheManager.getBlobServerPort());
 				}
 			}, getMainThreadExecutor());
 		}
@@ -748,8 +795,8 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 	}
 
 	@RpcMethod
-	public void heartbeatFromTaskManager(final ResourceID resourceID, final Object payload) {
-		// TODO: Implement heartbeat logic in JobManager side
+	public void heartbeatFromTaskManager(final ResourceID resourceID) {
+		heartbeatManager.sendHeartbeat(resourceID, null);
 	}
 
 	//----------------------------------------------------------------------------------------------

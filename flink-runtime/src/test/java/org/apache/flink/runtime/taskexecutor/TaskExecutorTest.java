@@ -81,12 +81,16 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
 import org.mockito.Matchers;
+import org.powermock.reflect.Whitebox;
 
 import java.net.InetAddress;
 import java.net.URL;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
 
 import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertFalse;
@@ -106,6 +110,105 @@ public class TaskExecutorTest extends TestLogger {
 	@Rule
 	public TestName name = new TestName();
 
+	@Test
+	public void testHeartbeatTimeoutWithJobManager() throws Exception {
+		final JobID jobId = new JobID();
+		final Configuration configuration = new Configuration();
+		final TaskManagerConfiguration tmConfig = TaskManagerConfiguration.fromConfiguration(configuration);
+		final ResourceID tmResourceId = new ResourceID("tm");
+		final TaskManagerLocation taskManagerLocation = new TaskManagerLocation(tmResourceId, InetAddress.getLoopbackAddress(), 1234);
+		final TaskSlotTable taskSlotTable = new TaskSlotTable(Arrays.asList(mock(ResourceProfile.class)), mock(TimerService.class));
+
+		final TestingSerialRpcService rpc = new TestingSerialRpcService();
+		final JobLeaderService jobLeaderService = new JobLeaderService(taskManagerLocation);
+		final TestingHighAvailabilityServices haServices = new TestingHighAvailabilityServices();
+		final TestingLeaderRetrievalService rmLeaderRetrievalService = new TestingLeaderRetrievalService();
+		final TestingLeaderRetrievalService jmLeaderRetrievalService = new TestingLeaderRetrievalService();
+		haServices.setJobMasterLeaderRetriever(jobId, jmLeaderRetrievalService);
+		haServices.setResourceManagerLeaderRetriever(rmLeaderRetrievalService);
+
+		final TestingFatalErrorHandler testingFatalErrorHandler = new TestingFatalErrorHandler();
+
+		final long heartbeatTimeout = 1000L;
+		final HeartbeatManagerImpl<Object, Object> tmHeartbeatManager = new HeartbeatManagerImpl<>(
+				heartbeatTimeout,
+				tmResourceId,
+				rpc.getExecutor(),
+				Executors.newSingleThreadScheduledExecutor(),
+				log);
+
+		final String jobMasterAddress = "jm";
+		final UUID jmLeaderId = UUID.randomUUID();
+		final ResourceID jmResourceId = new ResourceID(jobMasterAddress);
+		final JobMasterGateway jobMasterGateway = mock(JobMasterGateway.class);
+		final int blobPort = 42;
+
+		when(jobMasterGateway.registerTaskManager(
+				any(String.class),
+				eq(taskManagerLocation),
+				eq(jmLeaderId),
+				any(Time.class)
+		)).thenReturn(FlinkCompletableFuture.<RegistrationResponse>completed(new JMTMRegistrationSuccess(jmResourceId, blobPort)));
+		when(jobMasterGateway.getAddress()).thenReturn(jobMasterAddress);
+
+		try {
+			final TaskExecutor taskManager = new TaskExecutor(
+					tmConfig,
+					taskManagerLocation,
+					rpc,
+					mock(MemoryManager.class),
+					mock(IOManager.class),
+					mock(NetworkEnvironment.class),
+					haServices,
+					mock(MetricRegistry.class),
+					tmHeartbeatManager,
+					mock(TaskManagerMetricGroup.class),
+					mock(BroadcastVariableManager.class),
+					mock(FileCache.class),
+					taskSlotTable,
+					new JobManagerTable(),
+					jobLeaderService,
+					testingFatalErrorHandler);
+
+			taskManager.start();
+
+			rpc.registerGateway(jobMasterAddress, jobMasterGateway);
+
+			// we have to add the job after the TaskExecutor, because otherwise the service has not
+			// been properly started.
+			jobLeaderService.addJob(jobId, jobMasterAddress);
+
+			// now inform the task manager about the new job leader
+			jmLeaderRetrievalService.notifyListener(jobMasterAddress, jmLeaderId);
+
+			// register task manager success will trigger monitoring heartbeat target between tm and jm
+			verify(jobMasterGateway).registerTaskManager(
+					eq(taskManager.getAddress()), eq(taskManagerLocation), eq(jmLeaderId), any(Time.class));
+
+			final ConcurrentHashMap<ResourceID, Object> heartbeatTargets = Whitebox.getInternalState(tmHeartbeatManager, "heartbeatTargets");
+			final JobManagerTable jobManagerTable = Whitebox.getInternalState(taskManager, "jobManagerTable");
+			final Map<ResourceID, JobManagerConnection> jobManagerConnections = Whitebox.getInternalState(taskManager, "jobManagerConnections");
+
+			// before heartbeat timeout
+			assertTrue(heartbeatTargets.containsKey(jmResourceId));
+			assertTrue(jobManagerTable.contains(jobId));
+			assertTrue(jobManagerConnections.containsKey(jmResourceId));
+
+			// the job manager will not schedule heartbeat because of mock and the task manager will be notified heartbeat timeout
+			Thread.sleep(heartbeatTimeout);
+
+			// after heartbeat timeout
+			assertFalse(jobManagerTable.contains(jobId));
+			assertFalse(jobManagerConnections.containsKey(jmResourceId));
+			verify(jobMasterGateway).disconnectTaskManager(eq(tmResourceId));
+
+			// check if a concurrent error occurred
+			testingFatalErrorHandler.rethrowError();
+
+		} finally {
+			rpc.stopService();
+		}
+	}
 
 	@Test
 	public void testImmediatelyRegistersIfLeaderIsKnown() throws Exception {
@@ -313,6 +416,8 @@ public class TaskExecutorTest extends TestLogger {
 		when(libraryCacheManager.getClassLoader(eq(jobId))).thenReturn(getClass().getClassLoader());
 
 		final JobManagerConnection jobManagerConnection = new JobManagerConnection(
+			jobId,
+			ResourceID.generate(),
 			mock(JobMasterGateway.class),
 			jobManagerLeaderId,
 			mock(TaskManagerActions.class),
