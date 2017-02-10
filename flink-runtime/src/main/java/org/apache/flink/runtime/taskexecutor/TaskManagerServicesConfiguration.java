@@ -22,6 +22,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.QueryableStateOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.HeapMemorySegment;
 import org.apache.flink.core.memory.HybridMemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
@@ -311,13 +312,25 @@ public class TaskManagerServicesConfiguration {
 			ioMode = IOManager.IOMode.SYNC;
 		}
 
+		int initialRequestBackoff = configuration.getInteger(
+			TaskManagerOptions.NETWORK_REQUEST_BACKOFF_INITIAL);
+		int maxRequestBackoff = configuration.getInteger(
+			TaskManagerOptions.NETWORK_REQUEST_BACKOFF_MAX);
+
+		int buffersPerChannel = configuration.getInteger(
+			TaskManagerOptions.NETWORK_BUFFERS_PER_CHANNEL);
+		int extraBuffersPerGate = configuration.getInteger(
+			TaskManagerOptions.NETWORK_EXTRA_BUFFERS_PER_GATE);
+
 		return new NetworkEnvironmentConfiguration(
 			numNetworkBuffers,
 			pageSize,
 			memType,
 			ioMode,
-			500,
-			3000,
+			initialRequestBackoff,
+			maxRequestBackoff,
+			buffersPerChannel,
+			extraBuffersPerGate,
 			nettyConfig);
 	}
 
