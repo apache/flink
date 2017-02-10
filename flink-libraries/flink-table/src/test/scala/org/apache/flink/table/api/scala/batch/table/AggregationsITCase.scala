@@ -25,7 +25,6 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.types.Row
 import org.apache.flink.table.api.TableEnvironment
-import org.apache.flink.table.examples.scala.WordCountTable.{WC => MyWC}
 import org.apache.flink.test.util.TestBaseUtils
 import org.junit._
 import org.junit.runner.RunWith
@@ -156,17 +155,17 @@ class AggregationsITCase(
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
     val input = env.fromElements(
-      MyWC("hello", 1),
-      MyWC("hello", 1),
-      MyWC("ciao", 1),
-      MyWC("hola", 1),
-      MyWC("hola", 1))
+      WC("hello", 1),
+      WC("hello", 1),
+      WC("ciao", 1),
+      WC("hola", 1),
+      WC("hola", 1))
     val expr = input.toTable(tEnv)
     val result = expr
       .groupBy('word)
       .select('word, 'frequency.sum as 'frequency)
       .filter('frequency === 2)
-      .toDataSet[MyWC]
+      .toDataSet[WC]
 
     val mappedResult = result.map(w => (w.word, w.frequency * 10)).collect()
     val expected = "(hello,20)\n" + "(hola,20)"
@@ -339,4 +338,6 @@ class AggregationsITCase(
     val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
+
+  case class WC(word: String, frequency: Long)
 }

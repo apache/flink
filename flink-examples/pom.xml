@@ -68,5 +68,6 @@ under the License.
 	<modules>
 		<module>flink-examples-batch</module>
 		<module>flink-examples-streaming</module>
+		<module>flink-examples-table</module>
 	</modules>
 </project>

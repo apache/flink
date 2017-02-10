@@ -18,19 +18,20 @@
 package org.apache.flink.table.examples.scala
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 import org.apache.flink.table.api.TableEnvironment
+import org.apache.flink.table.api.scala._
 
 /**
-  * Simple example for demonstrating the use of Table API on a Stream Table.
+  * Simple example for demonstrating the use of SQL on a Stream Table.
   *
   * This example shows how to:
   *  - Convert DataStreams to Tables
-  *  - Apply union, select, and filter operations
+  *  - Register a Table under a name
+  *  - Run a StreamSQL query on the registered Table
   *
   */
-object StreamTableExample {
+object StreamSQLExample {
 
   // *************************************************************************
   //     PROGRAM
@@ -42,23 +43,26 @@ object StreamTableExample {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
 
-    val orderA = env.fromCollection(Seq(
+    val orderA: DataStream[Order] = env.fromCollection(Seq(
       Order(1L, "beer", 3),
       Order(1L, "diaper", 4),
-      Order(3L, "rubber", 2))).toTable(tEnv)
+      Order(3L, "rubber", 2)))
 
-    val orderB = env.fromCollection(Seq(
+    val orderB: DataStream[Order] = env.fromCollection(Seq(
       Order(2L, "pen", 3),
       Order(2L, "rubber", 3),
-      Order(4L, "beer", 1))).toTable(tEnv)
+      Order(4L, "beer", 1)))
+
+    // register the DataStreams under the name "OrderA" and "OrderB"
+    tEnv.registerDataStream("OrderA", orderA, 'user, 'product, 'amount)
+    tEnv.registerDataStream("OrderB", orderB, 'user, 'product, 'amount)
 
     // union the two tables
-    val result: DataStream[Order] = orderA.unionAll(orderB)
-      .select('user, 'product, 'amount)
-      .where('amount > 2)
-      .toDataStream[Order]
+    val result = tEnv.sql(
+      "SELECT * FROM OrderA WHERE amount > 2 UNION ALL " +
+        "SELECT * FROM OrderB WHERE amount < 2")
 
-    result.print()
+    result.toDataStream[Order].print()
 
     env.execute()
   }
