@@ -22,9 +22,6 @@ import java.lang.Thread.UncaughtExceptionHandler;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -116,16 +113,4 @@ public class ExecutorThreadFactory implements ThreadFactory {
 
 	// --------------------------------------------------------------------------------------------
 
-	private static final class FatalExitExceptionHandler implements UncaughtExceptionHandler {
-
-		private static final Logger LOG = LoggerFactory.getLogger(FatalExitExceptionHandler.class);
-
-		static final FatalExitExceptionHandler INSTANCE = new FatalExitExceptionHandler(); 
-
-		@Override
-		public void uncaughtException(Thread t, Throwable e) {
-			LOG.error("FATAL: Thread '" + t.getName() + "' produced an uncaught exception. Stopping the process...", e);
-			System.exit(-17);
-		}
-	}
 }
