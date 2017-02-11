@@ -28,15 +28,15 @@ import org.apache.flink.util.Collector;
 /**
  * Implements the "WordCount" program that computes a simple word occurrence
  * histogram over text files in a streaming fashion.
- *
+ * 
  * <p>
  * The input is a plain text file with lines separated by newline characters.
- *
+ * 
  * <p>
  * Usage: <code>WordCount --input &lt;path&gt; --output &lt;path&gt;</code><br>
  * If no parameters are provided, the program is run with default data from
  * {@link WordCountData}.
- *
+ * 
  * <p>
  * This example shows how to:
  * <ul>
@@ -44,7 +44,7 @@ import org.apache.flink.util.Collector;
  * <li>use tuple data types,
  * <li>write and use user-defined functions.
  * </ul>
- *
+ * 
  */
 public class WordCount {
 
@@ -76,9 +76,9 @@ public class WordCount {
 		}
 
 		DataStream<Tuple2<String, Integer>> counts =
-			// split up the lines in pairs (2-tuples) containing: (word,1)
-			text.flatMap(new Tokenizer())
-				// group by the tuple field "0" and sum up tuple field "1"
+		// split up the lines in pairs (2-tuples) containing: (word,1)
+		text.flatMap(new Tokenizer())
+		// group by the tuple field "0" and sum up tuple field "1"
 				.keyBy(0).sum(1);
 
 		// emit result
@@ -108,7 +108,7 @@ public class WordCount {
 
 		@Override
 		public void flatMap(String value, Collector<Tuple2<String, Integer>> out)
-			throws Exception {
+				throws Exception {
 			// normalize and split the line
 			String[] tokens = value.toLowerCase().split("\\W+");
 

@@ -30,17 +30,18 @@ import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
-import org.apache.flink.streaming.util.outputtags.LateArrivingOutputTag;
+import org.apache.flink.test.streaming.runtime.util.TestListResultSink;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.CollectorWrapper;
 import org.junit.Test;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
+import static org.junit.Assert.assertEquals;
 /**
  * Integration test for streaming programs using sideOutputs
  *
@@ -67,12 +68,19 @@ public class SideOutputITCase extends StreamingMultipleProgramsTestBase{
 	}
 
 	/**
+	 * Serializable outputTag used in late arriving events
+	 */
+	static class LateArrivingTag extends OutputTag<Integer>{}
+
+	/**
 	 * Test flatMap sideOutputs
 	 */
 	@Test
 	public void testFlatMapSideOutputs() throws Exception {
+		TestListResultSink<String> sideOutputResultSink = new TestListResultSink<>();
+		TestListResultSink<Integer> resultSink = new TestListResultSink<>();
+
 		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
-		see.disableOperatorChaining();
 		see.setParallelism(3);
 
 		DataStream<Integer> dataStream = see.fromCollection(elements);
@@ -87,11 +95,12 @@ public class SideOutputITCase extends StreamingMultipleProgramsTestBase{
 			}
 		});
 
-		passThroughtStream.getSideOutput(new SideOutputTag("side")).print();
-		passThroughtStream.print();
-
-		passThroughtStream.getSideOutput(new SideOutputTag("notside")).print();
+		passThroughtStream.getSideOutput(new SideOutputTag("side")).addSink(sideOutputResultSink);
+		passThroughtStream.addSink(resultSink);
 		see.execute();
+
+		assertEquals(sideOutputResultSink.getSortedResult(), Arrays.asList("sideout-1", "sideout-2", "sideout-3", "sideout-4", "sideout-5"));
+		assertEquals(resultSink.getSortedResult(), Arrays.asList(1, 2, 3, 4, 5));
 	}
 
 	/**
@@ -99,8 +108,9 @@ public class SideOutputITCase extends StreamingMultipleProgramsTestBase{
 	 */
 	@Test
 	public void testFlatMapSideOutputsWithWrongTag() throws Exception {
+		TestListResultSink<String> sideOutputResultSink = new TestListResultSink<>();
+
 		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
-		see.disableOperatorChaining();
 		see.setParallelism(3);
 
 		DataStream<Integer> dataStream = see.fromCollection(elements);
@@ -113,8 +123,9 @@ public class SideOutputITCase extends StreamingMultipleProgramsTestBase{
 				CollectorWrapper<Integer> wrapper = new CollectorWrapper<>(out);
 				wrapper.collect(new SideOutputTag("side"), "sideout-" + String.valueOf(value));
 			}
-		}).getSideOutput(new SideOutputTag("notside")).print();
+		}).getSideOutput(new SideOutputTag("notside")).addSink(sideOutputResultSink);
 		see.execute();
+		assertEquals(sideOutputResultSink.getSortedResult(), Arrays.asList());
 	}
 
 	private static class TestWatermarkAssigner implements AssignerWithPunctuatedWatermarks<Integer>{
@@ -142,12 +153,14 @@ public class SideOutputITCase extends StreamingMultipleProgramsTestBase{
 	 */
 	@Test
 	public void testAllWindowLateArrivingEvents() throws Exception {
+		TestListResultSink<String> sideOutputResultSink = new TestListResultSink<>();
+
 		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
-		see.disableOperatorChaining();
-		see.setParallelism(3);
+		see.setParallelism(1);
 		see.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
 		DataStream<Integer> dataStream = see.fromCollection(elements);
+		LateArrivingTag tag = new LateArrivingTag();
 
 		SingleOutputStreamOperator<Integer> outputStreamOperator = dataStream.assignTimestampsAndWatermarks(
 			new TestWatermarkAssigner()).timeWindowAll(Time.milliseconds(1), Time.milliseconds(1))
@@ -158,50 +171,52 @@ public class SideOutputITCase extends StreamingMultipleProgramsTestBase{
 								out.collect(val);
 							}
 					}
-				});
+				}, tag);
 
-		outputStreamOperator.getSideOutput(new LateArrivingOutputTag<Integer>())
-			.flatMap(new FlatMapFunction<StreamRecord<Integer>, String>() {
+		outputStreamOperator.getSideOutput(tag)
+			.flatMap(new FlatMapFunction<Integer, String>() {
 				@Override
-				public void flatMap(StreamRecord<Integer> value, Collector<String> out) throws Exception {
-					out.collect("late-" + String.valueOf(value.getValue()) + "-ts" + String.valueOf(value.getTimestamp()));
+				public void flatMap(Integer value, Collector<String> out) throws Exception {
+					out.collect("late-" + String.valueOf(value));
 				}
-			}).print();
+			}).addSink(sideOutputResultSink);
 		see.execute();
+		assertEquals(sideOutputResultSink.getSortedResult(), Arrays.asList("late-3", "late-4"));
+
 	}
 
 	@Test
 	public void testKeyedWindowLateArrivingEvents() throws Exception {
+		TestListResultSink<String> resultSink = new TestListResultSink<>();
+		TestListResultSink<Integer> lateResultSink = new TestListResultSink<>();
+
 		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
-		see.disableOperatorChaining();
 		see.setParallelism(3);
 		see.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
 		DataStream<Integer> dataStream = see.fromCollection(elements);
 
 		SingleOutputStreamOperator<String> outputStreamOperator = dataStream.assignTimestampsAndWatermarks(
-			new TestWatermarkAssigner()).keyBy(new TestKeySelector()).timeWindow(Time.milliseconds(1), Time.milliseconds(1))
+			new TestWatermarkAssigner()).keyBy(new TestKeySelector()).timeWindow(
+				Time.milliseconds(1), Time.milliseconds(1)).allowedLateness(Time.milliseconds(2))
 				.apply(new WindowFunction<Integer, String, Integer, TimeWindow>() {
 			@Override
 			public void apply(Integer key, TimeWindow window, Iterable<Integer> input, Collector<String> out) throws Exception {
 				CollectorWrapper<String> sideOuput = new CollectorWrapper<String>(out);
 				for(Integer val : input) {
 					out.collect(String.valueOf(key) + "-"+String.valueOf(val));
-					sideOuput.collect(new SideOutputTag("applySideOutput"), "apply-" + String.valueOf(val));
+					sideOuput.collect(new SideOutputTag("ontime"), "ontime-" + String.valueOf(val));
 				}
 			}
-		});
+		}, new LateArrivingTag());
 
-		outputStreamOperator.getSideOutput(new SideOutputTag("applySideOutput")).print();
-
-		outputStreamOperator.getSideOutput(new LateArrivingOutputTag<Integer>())
-			.flatMap(new FlatMapFunction<StreamRecord<Integer>, String>() {
-				@Override
-				public void flatMap(StreamRecord<Integer> value, Collector<String> out) throws Exception {
-					out.collect("late-" + String.valueOf(value.getValue()) + "-ts" + String.valueOf(value.getTimestamp()));
-				}
-		}).print();
+		outputStreamOperator.getSideOutput(new SideOutputTag("ontime")).addSink(resultSink);
+		outputStreamOperator.getSideOutput(new LateArrivingTag()).addSink(lateResultSink);
+		
 		see.execute();
+		assertEquals(resultSink.getSortedResult(), Arrays.asList("ontime-1", "ontime-2", "ontime-4", "ontime-5"));
+		//element 4 is handled as timestamp still fall into window
+		assertEquals(lateResultSink.getSortedResult(), Arrays.asList(3));
 	}
 
 }

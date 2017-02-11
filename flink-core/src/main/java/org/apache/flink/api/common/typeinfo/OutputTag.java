@@ -57,7 +57,6 @@ public abstract class OutputTag<T> extends TypeHint<T> implements Serializable{
 		return value;
 	}
 
-
 	@Override
 	public boolean equals(Object obj) {
 		return obj instanceof OutputTag

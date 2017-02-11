@@ -29,6 +29,7 @@ import org.apache.flink.api.common.state.AggregatingStateDescriptor;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
+import org.apache.flink.api.common.typeinfo.OutputTag;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.Utils;
@@ -39,7 +40,6 @@ import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction;
 import org.apache.flink.streaming.api.functions.aggregation.ComparableAggregator;
 import org.apache.flink.streaming.api.functions.aggregation.SumAggregator;
 import org.apache.flink.streaming.api.functions.windowing.AggregateApplyWindowFunction;
-import org.apache.flink.streaming.api.functions.windowing.DiscardWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.FoldApplyWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.PassThroughWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.ReduceApplyWindowFunction;
@@ -66,7 +66,6 @@ import org.apache.flink.streaming.runtime.operators.windowing.functions.Internal
 import org.apache.flink.streaming.runtime.operators.windowing.WindowOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.util.outputtags.LateArrivingOutputTag;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -722,6 +721,18 @@ public class WindowedStream<T, K, W extends Window> {
 	}
 
 	/**
+	 * Same as apply above except window function emits late arriving input events with assigned OutputTag
+	 * @param function The window function.
+	 * @param tag OutputTag
+	 * @return The data stream that is the result of applying the window function to the window.
+	 */
+	public <R> SingleOutputStreamOperator<R> apply(WindowFunction<T, R, K, W> function, OutputTag<T> tag) {
+		TypeInformation<R> resultType = TypeExtractor.getUnaryOperatorReturnType(
+			function, WindowFunction.class, true, true, getInputType(), null, false);
+		return applyInternal(function, resultType, tag);
+	}
+
+	/**
 	 * Applies the given window function to each window. The window function is called for each
 	 * evaluation of the window for each key individually. The output of the window function is
 	 * interpreted as a regular non-windowed stream.
@@ -734,7 +745,12 @@ public class WindowedStream<T, K, W extends Window> {
 	 * @param resultType Type information for the result type of the window function
 	 * @return The data stream that is the result of applying the window function to the window.
 	 */
-	public <R> SingleOutputStreamOperator<R> apply(WindowFunction<T, R, K, W> function, TypeInformation<R> resultType) {
+
+	public <R> SingleOutputStreamOperator<R> apply(WindowFunction<T, R, K, W> function, TypeInformation<R> resultType){
+		return applyInternal(function, resultType, null);
+	}
+
+	private  <R> SingleOutputStreamOperator<R> applyInternal(WindowFunction<T, R, K, W> function, TypeInformation<R> resultType, OutputTag<T> tag) {
 
 		//clean the closure
 		function = input.getExecutionEnvironment().clean(function);
@@ -792,6 +808,7 @@ public class WindowedStream<T, K, W extends Window> {
 					legacyWindowOpType);
 		}
 
+		operator.setLateArrivingTag(tag);
 		return input.transform(opName, resultType, operator);
 	}
 
@@ -991,14 +1008,6 @@ public class WindowedStream<T, K, W extends Window> {
 		}
 
 		return input.transform(opName, resultType, operator);
-	}
-
-	/**
-	 * Applies a DiscardWindowFunction that only returns late arriving events
-	 * @return the data stream considered too late to be evaluated by any windows assigned
-	 */
-	public DataStream<StreamRecord<T>> tooLateEvents() {
-		return apply(new DiscardWindowFunction<T, K, W>()).getSideOutput(new LateArrivingOutputTag<T>());
 	}
 
 	// ------------------------------------------------------------------------

@@ -380,7 +380,7 @@ public class StreamGraph extends StreamingPlan {
 				outputNames = virtualSelectNodes.get(virtualId).f1;
 			}
       
-			addEdgeInternal(upStreamVertexID, downStreamVertexID, typeNumber, partitioner, outputNames, null);
+			addEdgeInternal(upStreamVertexID, downStreamVertexID, typeNumber, partitioner, outputNames, outputTag);
 		} else if (virtuaPartitionNodes.containsKey(upStreamVertexID)) {
 			int virtualId = upStreamVertexID;
 			upStreamVertexID = virtuaPartitionNodes.get(virtualId).f0;

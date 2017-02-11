@@ -20,21 +20,17 @@ package org.apache.flink.streaming.api.scala
 
 import org.apache.flink.annotation.{PublicEvolving, Public}
 import org.apache.flink.api.common.functions.{AggregateFunction, FoldFunction, ReduceFunction}
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeinfo.{OutputTag, TypeInformation}
 import org.apache.flink.streaming.api.datastream.{AllWindowedStream => JavaAllWStream}
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction.AggregationType
 import org.apache.flink.streaming.api.functions.aggregation.{ComparableAggregator, SumAggregator}
-import org.apache.flink.streaming.api.functions.windowing.{DiscardAllWindowFunction}
 import org.apache.flink.streaming.api.scala.function.AllWindowFunction
 import org.apache.flink.streaming.api.scala.function.util.{ScalaAllWindowFunction, ScalaAllWindowFunctionWrapper, ScalaFoldFunction, ScalaReduceFunction}
 import org.apache.flink.streaming.api.windowing.evictors.Evictor
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.triggers.Trigger
 import org.apache.flink.streaming.api.windowing.windows.Window
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
-import org.apache.flink.streaming.util.outputtags.LateArrivingOutputTag
 import org.apache.flink.util.Collector
-
 import org.apache.flink.util.Preconditions.checkNotNull
 
 /**
@@ -416,6 +412,23 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
   }
 
   /**
+    * Same as apply above except all window function
+    * emits late arriving input events with assigned OutputTag
+    *
+    * @param function The window function.
+    * @param tag OutputTag
+    * @return The data stream that is the result of applying the window function to the window.
+    */
+  def apply[R: TypeInformation](
+      function: AllWindowFunction[T, R, W], tag: OutputTag[T]): DataStream[R] = {
+
+    val cleanedFunction = clean(function)
+    val javaFunction = new ScalaAllWindowFunctionWrapper[T, R, W](cleanedFunction)
+
+    asScalaStream(javaStream.apply(javaFunction, tag))
+  }
+
+  /**
    * Applies the given window function to each window. The window function is called for each
    * evaluation of the window for each key individually. The output of the window function is
    * interpreted as a regular non-windowed stream.
@@ -560,16 +573,6 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
 
     val returnType: TypeInformation[R] = implicitly[TypeInformation[R]]
     asScalaStream(javaStream.apply(initialValue, folder, applyFunction, returnType))
-  }
-
-  /**
-    * Applies a DiscardWindowFunction that only returns late arriving events
-    * @return the data stream considered too late to be evaluated by any windows
-    */
-  def tooLateEvents(): DataStream[StreamRecord[T]] = {
-    val discardAllWindowFunction = new DiscardAllWindowFunction[T, W]()
-    val lateArrivingOutputTag = new LateArrivingOutputTag[T]()
-    asScalaStream(javaStream.apply(discardAllWindowFunction).getSideOutput(lateArrivingOutputTag))
   }
 
   // ------------------------------------------------------------------------

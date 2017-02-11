@@ -26,6 +26,7 @@ import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.OutputTag;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -66,7 +67,6 @@ import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
-import org.apache.flink.streaming.util.outputtags.LateArrivingOutputTag;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
@@ -91,7 +91,7 @@ public class WindowOperatorTest extends TestLogger {
 	private static AtomicInteger closeCalled = new AtomicInteger(0);
 
 	//late arriving event OutputTag<StreamRecord<IN>>
-	private static final LateArrivingOutputTag tag = new LateArrivingOutputTag<Tuple2<String, Integer>>();
+	private static final OutputTag<Tuple2<String, Integer>> tag = new OutputTag<Tuple2<String, Integer>>() {};
 
 	private void testSlidingEventTimeWindows(OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness) throws Exception {
 
@@ -1128,6 +1128,8 @@ public class WindowOperatorTest extends TestLogger {
 				PurgingTrigger.of(EventTimeTrigger.create()),
 				LATENESS);
 
+		operator.setLateArrivingTag(tag);
+
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
 			new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
 		
@@ -1159,7 +1161,7 @@ public class WindowOperatorTest extends TestLogger {
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1998));
 		testHarness.processWatermark(new Watermark(7000));
 
-		lateExpected.add(new StreamRecord<>(new Tuple2<>("key2", 1), 1998, tag));
+		lateExpected.add(new StreamRecord<>(new Tuple2<>("key2", 1), 1999, tag));
 		expected.add(new Watermark(7000));
 
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expected, testHarness.getOutput(), new Tuple2ResultSortComparator());
@@ -1257,6 +1259,8 @@ public class WindowOperatorTest extends TestLogger {
 				EventTimeTrigger.create(),
 				LATENESS);
 
+		operator.setLateArrivingTag(tag);
+
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
 			new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
 
@@ -1278,9 +1282,9 @@ public class WindowOperatorTest extends TestLogger {
 		expected.add(new StreamRecord<>(new Tuple2<>("key2", 2), 1999));
 		expected.add(new Watermark(1999));
 
-		// sideoutput as late
+		// sideoutput as late, will reuse previous timestamp since only input tuple is sideoutputed
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 1998));
-		sideExpected.add(new StreamRecord<>(new Tuple2<>("key2", 1), 1998, tag));
+		sideExpected.add(new StreamRecord<>(new Tuple2<>("key2", 1), 1999, tag));
 
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 2001));
 		testHarness.processWatermark(new Watermark(2999));
@@ -1320,6 +1324,7 @@ public class WindowOperatorTest extends TestLogger {
 				EventTimeTrigger.create(),
 				LATENESS);
 
+		operator.setLateArrivingTag(tag);
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
 			new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
 
@@ -1365,7 +1370,7 @@ public class WindowOperatorTest extends TestLogger {
 
 		// sideoutput element due to lateness
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), 3001));
-		sideExpected.add(new StreamRecord<>(new Tuple2<>("key1", 1), 3001, tag));
+		sideExpected.add(new StreamRecord<>(new Tuple2<>("key1", 1), 5999, tag));
 
 		testHarness.processWatermark(new Watermark(25000));
 
@@ -1397,6 +1402,7 @@ public class WindowOperatorTest extends TestLogger {
 				new InternalSingleValueWindowFunction<>(new ReducedSessionWindowFunction()),
 				PurgingTrigger.of(EventTimeTrigger.create()),
 				LATENESS);
+		operator.setLateArrivingTag(tag);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple3<String, Long, Long>> testHarness =
 			new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
@@ -1442,11 +1448,11 @@ public class WindowOperatorTest extends TestLogger {
 
 		// this is sideoutput as late
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 10000));
-		sideExpected.add(new StreamRecord<>(new Tuple2<>("key2", 1), 10000, tag));
+		sideExpected.add(new StreamRecord<>(new Tuple2<>("key2", 1), 14599, tag));
 
 		// this is also sideoutput as late (we test that they are not accidentally merged)
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 10100));
-		sideExpected.add(new StreamRecord<>(new Tuple2<>("key2", 1), 10100, tag));
+		sideExpected.add(new StreamRecord<>(new Tuple2<>("key2", 1), 14599, tag));
 
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 14500));
 		testHarness.processWatermark(new Watermark(20000));
@@ -1488,7 +1494,7 @@ public class WindowOperatorTest extends TestLogger {
 				new InternalSingleValueWindowFunction<>(new ReducedSessionWindowFunction()),
 				EventTimeTrigger.create(),
 				LATENESS);
-
+		operator.setLateArrivingTag(tag);
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple3<String, Long, Long>> testHarness =
 			new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
 
@@ -1531,9 +1537,9 @@ public class WindowOperatorTest extends TestLogger {
 		expected.add(new StreamRecord<>(new Tuple3<>("key2-1", 11600L, 14600L), 14599));
 		expected.add(new Watermark(14600));
 
-		// this is sideoutput as late
+		// this is sideoutput as late, reuse last timestamp
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 10000));
-		sideExpected.add(new StreamRecord<>(new Tuple2<>("key2", 1), 10000, tag));
+		sideExpected.add(new StreamRecord<>(new Tuple2<>("key2", 1), 14599, tag));
 
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 14500));
 		testHarness.processWatermark(new Watermark(20000));
@@ -1577,6 +1583,7 @@ public class WindowOperatorTest extends TestLogger {
 				PurgingTrigger.of(EventTimeTrigger.create()),
 				LATENESS);
 
+		operator.setLateArrivingTag(tag);
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple3<String, Long, Long>> testHarness =
 			new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
 

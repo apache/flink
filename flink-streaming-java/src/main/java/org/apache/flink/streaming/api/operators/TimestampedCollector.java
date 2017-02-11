@@ -31,7 +31,7 @@ import org.apache.flink.util.RichCollector;
  * would set the timestamp of the incoming
  * {@link org.apache.flink.streaming.runtime.streamrecord.StreamRecord} here.
  *
- * @param <T> The type of the elements that can be emitted.
+ * @param <T> The type of the elements it emits for non sideoutput.
  */
 @Internal
 public class TimestampedCollector<T> implements RichCollector<T> {

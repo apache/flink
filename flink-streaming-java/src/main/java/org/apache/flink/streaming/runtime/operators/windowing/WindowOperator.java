@@ -29,6 +29,7 @@ import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeinfo.OutputTag;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -63,7 +64,6 @@ import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalWindowFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.util.outputtags.LateArrivingOutputTag;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
@@ -132,6 +132,12 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	 * </ul>
 	 */
 	private final long allowedLateness;
+
+	/**
+	 * OutputTag used in late arriving events. This is used for
+	 * sideoutputs events with timestamp pass {@code window.maxTimestamp + allowedLateness}
+	 */
+	private OutputTag<IN> lateArrivingTag = null;
 
 	// ------------------------------------------------------------------------
 	// State that is not checkpointed
@@ -243,6 +249,15 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		this.legacyWindowOperatorType = legacyWindowOperatorType;
 
 		setChainingStrategy(ChainingStrategy.ALWAYS);
+	}
+
+	/**
+	 * user defined OutputTag to collect late arriving events
+	 * by default is null
+	 * @param lateArrivingTag OutputTag to mark late arriving events processed by a window operator
+	 */
+	public void setLateArrivingTag(final OutputTag<IN> lateArrivingTag){
+		this.lateArrivingTag = lateArrivingTag;
 	}
 
 	@Override
@@ -427,7 +442,11 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 			}
 		}
 
-		if(isSkippedElement && isLate(element)) {
+		// side output input event if
+		// element not handled by any window
+		// late arriving tag has been set
+		// windowAssigner is event time and current timestamp + allowed lateness no less than element timestamp
+		if(isSkippedElement && lateArrivingTag != null && isLate(element)) {
 			sideOutput(element);
 		}
 	}
@@ -558,10 +577,10 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 	/**
 	 * write skipped late arriving element to SideOutput
-	 * @param element element to side output
+	 * @param element skipped late arriving element to side output
 	 */
 	private void sideOutput(StreamRecord<IN> element){
-		timestampedCollector.collect(new LateArrivingOutputTag<IN>(), element);
+		timestampedCollector.collect(lateArrivingTag, element.getValue());
 	}
 
 	/**
@@ -588,7 +607,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	/**
 	 * Decide if a record is currently late, based on current watermark and allowed lateness
 	 * @param element The element to check
-	 * @return The element for which should be considered when sideoutput
+	 * @return The element for which should be considered when sideoutputs
 	 */
 	protected boolean isLate(StreamRecord<IN> element){
 		return (windowAssigner.isEventTime()) &&

@@ -21,7 +21,6 @@ import static java.util.Objects.requireNonNull;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.OutputTag;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 
 /**
  * One value in a data stream. This stores the value and an optional associated timestamp.
@@ -47,14 +46,15 @@ public final class StreamRecord<T> extends StreamElement {
 	 */
 	public StreamRecord(T value) {
 		this.value = value;
+		this.tag = null;
 	}
-
+	/**
+	 * Creates a new sideoutput StreamRecord. The record does not have a timestamp.
+	 */
 	public StreamRecord(T value, OutputTag tag) {
 		this.value = value;
 		this.tag = requireNonNull(tag);
 	}
-
-	public TypeInformation getType() { return tag == null ? null : tag.getTypeInfo();}
 
 	public OutputTag getOutputTag() { return tag; }
 
