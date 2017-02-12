@@ -24,7 +24,10 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.URI;
+
+import static org.apache.flink.runtime.fs.util.FileSystemCopyUtils.copyFromLocalFile;
 
 /**
  * Utility for copying from local file system to a HDFS {@link FileSystem}.
@@ -46,8 +49,8 @@ public class HDFSCopyFromLocal {
 
 					FileSystem fs = FileSystem.get(remotePath, hadoopConf);
 
-					fs.copyFromLocalFile(new Path(localPath.getAbsolutePath()),
-							new Path(remotePath));
+					copyFromLocalFile(fs, true, new Path("file://" + localPath.getAbsolutePath()), new Path(checkInitialDirectory(fs,localPath,remotePath)));
+
 				} catch (Exception t) {
 					asyncException.f0 = t;
 				}
@@ -62,4 +65,18 @@ public class HDFSCopyFromLocal {
 			throw asyncException.f0;
 		}
 	}
+
+	/**
+	 * Ensure that target path terminates with a new directory to be created by fs. If remoteURI does not specify a new
+	 * directory, append local directory name.
+	 * @param fs
+	 * @param localPath
+	 * @param remoteURI
+	 * @return
+	 * @throws IOException
+	 */
+	private static URI checkInitialDirectory(FileSystem fs, File localPath, URI remoteURI) throws IOException {
+		return remoteURI;
+	}
+
 }

@@ -15,10 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.streaming.util;
+package org.apache.flink.yarn;
 
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
+import org.apache.flink.streaming.util.HDFSCopyFromLocal;
+import org.apache.flink.streaming.util.HDFSCopyToLocal;
 import org.apache.flink.util.OperatingSystem;
+import org.apache.hadoop.fs.FileSystem;
 import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Rule;
@@ -35,11 +39,9 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.*;
 
-public class HDFSCopyUtilitiesTest {
+public class YarnFileStageTest {
 
 	@Rule
 	public TemporaryFolder tempFolder = new TemporaryFolder();
@@ -49,40 +51,13 @@ public class HDFSCopyUtilitiesTest {
 		Assume.assumeTrue("This test can't run successfully on Windows.", !OperatingSystem.isWindows());
 	}
 
-
-	/**
-	 * This test verifies that a hadoop configuration is correctly read in the external
-	 * process copying tools.
-	 */
-	@Test
-	public void testCopyFromLocal() throws Exception {
-
-		File testFolder = tempFolder.newFolder();
-
-		File originalFile = new File(testFolder, "original");
-		File copyFile = new File(testFolder, "copy");
-
-		try (DataOutputStream out = new DataOutputStream(new FileOutputStream(originalFile))) {
-			out.writeUTF("Hello there, 42!");
-		}
-
-		HDFSCopyFromLocal.copyFromLocal(
-				originalFile,
-				new Path("file://" + copyFile.getAbsolutePath()).toUri());
-
-		try (DataInputStream in = new DataInputStream(new FileInputStream(copyFile))) {
-			assertTrue(in.readUTF().equals("Hello there, 42!"));
-
-		}
-	}
-
-
 	/**
 	 * This test verifies that nested directories are properly copied.
 	 */
 	@Test
 	public void testCopyFromLocalRecursive() throws Exception {
 
+		FileSystem fs = FileSystem.get(HadoopFileSystem.getHadoopConfiguration());
 		File rootDir = tempFolder.newFolder();
 		File nestedDir = new File(rootDir,"nested");
 		nestedDir.mkdir();
@@ -155,31 +130,5 @@ public class HDFSCopyUtilitiesTest {
 
 	}
 
-
-	/**
-	 * This test verifies that a hadoop configuration is correctly read in the external
-	 * process copying tools.
-	 */
-	@Test
-	public void testCopyToLocal() throws Exception {
-
-		File testFolder = tempFolder.newFolder();
-
-		File originalFile = new File(testFolder, "original");
-		File copyFile = new File(testFolder, "copy");
-
-		try (DataOutputStream out = new DataOutputStream(new FileOutputStream(originalFile))) {
-			out.writeUTF("Hello there, 42!");
-		}
-
-		HDFSCopyToLocal.copyToLocal(
-				new Path("file://" + originalFile.getAbsolutePath()).toUri(),
-				copyFile);
-
-		try (DataInputStream in = new DataInputStream(new FileInputStream(copyFile))) {
-			assertTrue(in.readUTF().equals("Hello there, 42!"));
-
-		}
-	}
 
 }
