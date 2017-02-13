@@ -30,7 +30,7 @@ trait DataStreamRel extends RelNode with FlinkRel {
     * Translates the FlinkRelNode into a Flink operator.
     *
     * @param tableEnv The [[StreamTableEnvironment]] of the translated Table.
-    * @return DataStream of type expectedType or RowTypeInfo
+    * @return DataStream of type [[Row]]
     */
   def translateToPlan(tableEnv: StreamTableEnvironment) : DataStream[Row]
 

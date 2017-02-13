@@ -33,30 +33,14 @@ trait CommonScan {
 
   /**
     * We check if the input type is exactly the same as the internal row type.
-    * A conversion is necessary if types differ or object have to be unboxed
-    * (i.e. Date, Time, Timestamp need to be converted into their primitive equivalents).
+    * A conversion is necessary if types differ.
     */
   private[flink] def needsConversion(
       externalTypeInfo: TypeInformation[Any],
       internalTypeInfo: TypeInformation[Row])
     : Boolean = {
 
-    if (externalTypeInfo == internalTypeInfo) {
-      val rowTypeInfo = externalTypeInfo.asInstanceOf[RowTypeInfo]
-      var containsBoxedTypes = false
-      // TODO enable these lines for FLINK-5429
-      // for (i <- rowTypeInfo.getArity) {
-      //   val field = rowTypeInfo.getTypeAt(i)
-      //   if (field == SqlTimeTypeInfo.DATE ||
-      //      field == SqlTimeTypeInfo.TIME ||
-      //      field == SqlTimeTypeInfo.TIMESTAMP) {
-      //    containsBoxedTypes = true
-      //  }
-      // }
-      containsBoxedTypes
-    } else {
-      true
-    }
+    externalTypeInfo != internalTypeInfo
   }
 
   private[flink] def getConversionMapper(
@@ -84,7 +68,7 @@ trait CommonScan {
 
     val genFunction = generator.generateFunction(
       conversionOperatorName,
-      classOf[MapFunction[Row, Row]],
+      classOf[MapFunction[Any, Row]],
       body,
       expectedType)
 

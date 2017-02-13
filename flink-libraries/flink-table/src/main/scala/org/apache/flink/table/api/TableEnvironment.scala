@@ -34,7 +34,7 @@ import org.apache.calcite.tools.{FrameworkConfig, Frameworks, RuleSet, RuleSets}
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfo}
+import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfo, TupleTypeInfoBase}
 import org.apache.flink.api.java.{ExecutionEnvironment => JavaBatchExecEnv}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.api.scala.{ExecutionEnvironment => ScalaBatchExecEnv}
@@ -471,6 +471,12 @@ abstract class TableEnvironment(val config: TableConfig) {
 
   /**
     * Creates a final converter that maps the internal row type to external type.
+    *
+    * @param physicalRowTypeInfo the input of the sink
+    * @param logicalRowType the logical type with correct field names (esp. for POJO field mapping)
+    * @param expectedTypeInfo the outptu type of the sink
+    * @param functionName name of the map function. Must not be unique but has to be a
+    *                     valid Java class identifier.
     */
   protected def sinkConversion[T](
       physicalRowTypeInfo: TypeInformation[Row],
@@ -522,7 +528,7 @@ abstract class TableEnvironment(val config: TableConfig) {
         }
 
       // Tuple/Case class type expected
-      case ct: CompositeType[_] =>
+      case ct: TupleTypeInfoBase[_] =>
         logicalFieldTypes.zipWithIndex foreach {
           case (fieldTypeInfo, i) =>
             val expectedTypeInfo = ct.getTypeAt(i)
@@ -534,6 +540,10 @@ abstract class TableEnvironment(val config: TableConfig) {
 
       // Atomic type expected
       case at: AtomicType[_] =>
+        if (logicalFieldTypes.size != 1) {
+          throw new TableException(s"Result does not have a single field, " +
+            s"but ${logicalFieldTypes.size} fields.")
+        }
         val fieldTypeInfo = logicalFieldTypes.head
         if (fieldTypeInfo != at) {
           throw new TableException(s"Result field does not match expected type. " +

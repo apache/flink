@@ -265,6 +265,8 @@ abstract class StreamTableEnvironment(
     * Translates a logical [[RelNode]] into a [[DataStream]].
     *
     * @param logicalPlan The root node of the relational expression tree.
+    * @param logicalType The row type of the result. Since the logicalPlan can lose the
+    *                    field naming during optimization we pass the row type separately.
     * @param tpe         The [[TypeInformation]] of the resulting [[DataStream]].
     * @tparam A The type of the resulting [[DataStream]].
     * @return The [[DataStream]] that corresponds to the translated [[Table]].

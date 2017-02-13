@@ -30,7 +30,7 @@ trait DataSetRel extends RelNode with FlinkRel {
     * Translates the [[DataSetRel]] node into a [[DataSet]] operator.
     *
     * @param tableEnv The [[BatchTableEnvironment]] of the translated Table.
-    * @return DataSet of type expectedType or RowTypeInfo
+    * @return DataSet of type [[Row]]
     */
   def translateToPlan(tableEnv: BatchTableEnvironment) : DataSet[Row]
 

@@ -260,6 +260,8 @@ abstract class BatchTableEnvironment(
     * Translates a logical [[RelNode]] into a [[DataSet]]. Converts to target type if necessary.
     *
     * @param logicalPlan The root node of the relational expression tree.
+    * @param logicalType The row type of the result. Since the logicalPlan can lose the
+    *                    field naming during optimization we pass the row type separately.
     * @param tpe         The [[TypeInformation]] of the resulting [[DataSet]].
     * @tparam A The type of the resulting [[DataSet]].
     * @return The [[DataSet]] that corresponds to the translated [[Table]].
