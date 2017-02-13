@@ -767,13 +767,22 @@ under the License.
 		<profile>
 			<id>flink-fast-tests-a</id>
 			<properties>
-				<flink-fast-tests-pattern>%regex[.*/[A-M].*]</flink-fast-tests-pattern>
+				<!-- Allow A-I by forbidding J-Z -->
+				<flink-fast-tests-pattern>%regex[.*/[J-Z].*]</flink-fast-tests-pattern>
 			</properties>
 		</profile>
 		<profile>
 			<id>flink-fast-tests-b</id>
 			<properties>
-				<flink-fast-tests-pattern>%regex[.*/[N-Z].*]</flink-fast-tests-pattern>
+				<!-- Allow J-R, forbid A-I and S - Z -->
+				<flink-fast-tests-pattern>%regex[.*/[A-IS-Z].*]</flink-fast-tests-pattern>
+			</properties>
+		</profile>
+		<profile>
+			<id>flink-fast-tests-c</id>
+			<properties>
+				<!-- Allow S-Z, forbid A-R -->
+				<flink-fast-tests-pattern>%regex[.*/[A-R].*]</flink-fast-tests-pattern>
 			</properties>
 		</profile>
 	</profiles>
