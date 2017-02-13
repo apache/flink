@@ -410,14 +410,45 @@ readSlaves() {
 
     SLAVES=()
 
+    SLAVES_ALL_LOCALHOST=true
     GOON=true
     while $GOON; do
         read line || GOON=false
         HOST=$( extractHostName $line)
-        if [ -n "$HOST" ]; then
+        if [ -n "$HOST" ] ; then
             SLAVES+=(${HOST})
+            if [ "${HOST}" != "localhost" ] ; then
+                SLAVES_ALL_LOCALHOST=false
+            fi
         fi
     done < "$SLAVES_FILE"
+}
+
+# starts or stops TMs on all slaves
+# TMSlaves start|stop
+TMSlaves() {
+    CMD=$1
+
+    readSlaves
+
+    if [ ${SLAVES_ALL_LOCALHOST} = true ] ; then
+        # all-local setup
+        for slave in ${SLAVES[@]}; do
+            "${FLINK_BIN_DIR}"/taskmanager.sh "${CMD}"
+        done
+    else
+        # non-local setup
+        # Stop TaskManager instance(s) using pdsh (Parallel Distributed Shell) when available
+        command -v pdsh >/dev/null 2>&1
+        if [[ $? -ne 0 ]]; then
+            for slave in ${SLAVES[@]}; do
+                ssh -n $FLINK_SSH_OPTS $slave -- "nohup /bin/bash -l \"${FLINK_BIN_DIR}/taskmanager.sh\" \"${CMD}\" &"
+            done
+        else
+            PDSH_SSH_ARGS="" PDSH_SSH_ARGS_APPEND=$FLINK_SSH_OPTS pdsh -w $(IFS=, ; echo "${SLAVES[*]}") \
+                "nohup /bin/bash -l \"${FLINK_BIN_DIR}/taskmanager.sh\" \"${CMD}\""
+        fi
+    fi
 }
 
 useOffHeapMemory() {
