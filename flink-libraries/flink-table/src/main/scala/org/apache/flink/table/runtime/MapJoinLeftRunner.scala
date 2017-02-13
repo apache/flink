@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
 
 class MapJoinLeftRunner[IN1, IN2, OUT](
@@ -32,6 +33,17 @@ class MapJoinLeftRunner[IN1, IN2, OUT](
     broadcastSet match {
       case Some(singleInput) => function.join(multiInput, singleInput, out)
       case None =>
+        if (isRowClass(multiInput) && returnType.getTypeClass.equals(classOf[Row])) {
+          val inputRow = multiInput.asInstanceOf[Row]
+          val countNullRecords = returnType.getTotalFields - inputRow.getArity
+          val nullRecords= new Row(countNullRecords)
+          function.join(multiInput, nullRecords.asInstanceOf[IN2], out)
+        }
     }
+  }
+
+  private def isRowClass(obj: Any) = obj match {
+    case r: Row => true
+    case _ => false
   }
 }

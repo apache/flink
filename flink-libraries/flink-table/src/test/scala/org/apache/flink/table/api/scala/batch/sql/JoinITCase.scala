@@ -369,10 +369,164 @@ class JoinITCase(
     val table = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a1, 'a2, 'a3)
     tEnv.registerTable("A", table)
 
-    val sqlQuery1 = "SELECT * FROM A CROSS JOIN (SELECT count(*) FROM A HAVING count(*) < 0)"
-    val result = tEnv.sql(sqlQuery1).count()
+    val sqlQuery1 = "SELECT * FROM A CROSS JOIN " +
+      "(SELECT count(*) FROM A HAVING count(*) < 0)"
+    val result = tEnv.sql(sqlQuery1)
+    val expected =Seq(
+      "2,2,Hello,null",
+      "1,1,Hi,null",
+      "3,2,Hello world,null").mkString("\n")
 
-    Assert.assertEquals(0, result)
+    val results = result.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testSingleRowLeftOuterJoin(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val sqlQuery =
+      "SELECT  a, cnt FROM t1 " +
+        "LEFT JOIN (" +
+        "SELECT COUNT(*) AS cnt FROM t2" +
+        ") AS x " +
+        "ON a > cnt"
+
+    val ds1 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c, 'd, 'e)
+    val ds2 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv)
+    tEnv.registerTable("t1", ds1)
+    tEnv.registerTable("t2", ds2)
+
+    val result = tEnv.sql(sqlQuery)
+
+    val expected = Seq(
+      "1,null",
+      "2,null", "2,null",
+      "3,null", "3,null", "3,null",
+      "4,3", "4,3", "4,3", "4,3",
+      "5,3", "5,3", "5,3", "5,3", "5,3").mkString("\n")
+
+    val results = result.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testSingleRowRightOuterJoin(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val sqlQuery =
+      "SELECT  a, cnt FROM t1 " +
+        "RIGHT JOIN (" +
+        "SELECT COUNT(*) AS cnt FROM t2" +
+        ") AS x " +
+        "ON a > cnt"
+
+    val ds1 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c, 'd, 'e)
+    val ds2 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv)
+    tEnv.registerTable("t1", ds1)
+    tEnv.registerTable("t2", ds2)
+
+    val result = tEnv.sql(sqlQuery)
+
+    val expected = Seq(
+      "4,3", "4,3", "4,3", "4,3",
+      "5,3", "5,3", "5,3", "5,3", "5,3").mkString("\n")
+
+    val results = result.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testSingleRowLeftOuterJoinTwoJoinField(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val sqlQuery =
+      "SELECT  a,cnt, cnt2 FROM t1 " +
+        "LEFT JOIN (" +
+        "SELECT COUNT(*) AS cnt,COUNT(*) AS cnt2 FROM t2" +
+        ") AS x " +
+        "ON a > cnt"
+
+    val ds1 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c, 'd, 'e)
+    val ds2 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv)
+    tEnv.registerTable("t1", ds1)
+    tEnv.registerTable("t2", ds2)
+
+    val result = tEnv.sql(sqlQuery)
+
+    val expected = Seq(
+      "1,null,null",
+      "2,null,null", "2,null,null",
+      "3,null,null", "3,null,null", "3,null,null",
+      "4,3,3", "4,3,3", "4,3,3", "4,3,3",
+      "5,3,3", "5,3,3", "5,3,3", "5,3,3", "5,3,3").mkString("\n")
+
+    val results = result.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testSingleRowLeftOuterJoinWithNullRecords(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val sqlQuery =
+      "SELECT  a,cnt FROM t1 " +
+        "LEFT JOIN (" +
+        "SELECT cnt FROM (SELECT COUNT(*) AS cnt FROM t2) WHERE cnt < 0" +
+        ") AS x " +
+        "ON a > cnt"
+
+    val ds1 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c, 'd, 'e)
+    val ds2 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv)
+    tEnv.registerTable("t1", ds1)
+    tEnv.registerTable("t2", ds2)
+
+    val result = tEnv.sql(sqlQuery)
+
+    val expected = Seq(
+      "1,null",
+      "2,null", "2,null",
+      "3,null", "3,null", "3,null",
+      "4,null", "4,null", "4,null", "4,null",
+      "5,null", "5,null", "5,null", "5,null", "5,null").mkString("\n")
+
+    val results = result.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testSingleRowRightOuterJoinWithNullRecords(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val sqlQuery =
+      "SELECT  a,cnt FROM t1 " +
+        "RIGHT JOIN (" +
+        "SELECT cnt FROM (SELECT COUNT(*) AS cnt FROM t2) WHERE cnt < 0" +
+        ") AS x " +
+        "ON a > cnt"
+
+
+    val ds1 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c, 'd, 'e)
+    val ds2 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv)
+    tEnv.registerTable("t1", ds1)
+    tEnv.registerTable("t2", ds2)
+
+    val result = tEnv.sql(sqlQuery).collect()
+    val resultSize = result.size
+
+    Assert.assertEquals(
+      s"Expected empty result, but actual size result = $resultSize;\n[${result.mkString(",")}]",
+      resultSize,0)
   }
 
   @Test(expected = classOf[TableException])

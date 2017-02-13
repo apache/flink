@@ -24,7 +24,7 @@ import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil._
 import org.junit.Test
 
-class SingleRowJoinTest extends TableTestBase {
+class DataSetSingleRowJoinTest extends TableTestBase {
 
   @Test
   def testSingleRowJoinWithCalcInput(): Unit = {
@@ -189,6 +189,147 @@ class SingleRowJoinTest extends TableTestBase {
       term("join", "a1", "a2", "b1", "b2"),
       term("joinType", "NestedLoopJoin")
     )
+
+    util.verifySql(query, expected)
+  }
+
+  @Test
+  def testSingleRowJoinLeftOuterJoin(): Unit = {
+    val util = batchTestUtil()
+    util.addTable[(Int, Int)]("A", 'a1, 'a2)
+    util.addTable[(Int, Int)]("B", 'b1, 'b2)
+
+    val queryLeftJoin =
+      "SELECT a2 FROM A " +
+        "LEFT JOIN " +
+        "(SELECT COUNT(*) AS cnt FROM B) " +
+        "AS x " +
+        "ON a1 < cnt"
+
+    val expected =
+      unaryNode(
+        "DataSetCalc",
+        unaryNode(
+          "DataSetSingleRowJoin",
+          batchTableNode(0),
+          term("where", "<(a1, cnt)"),
+          term("join", "a1", "a2", "cnt"),
+          term("joinType", "NestedLoopJoin")
+        ),
+        term("select", "a2")
+      ) + "\n" +
+        unaryNode(
+          "DataSetAggregate",
+          unaryNode(
+            "DataSetUnion",
+            unaryNode(
+              "DataSetValues",
+              unaryNode(
+                "DataSetCalc",
+                batchTableNode(1),
+                term("select", "0 AS $f0")),
+              tuples(List(null)), term("values", "$f0")
+            ),
+            term("union", "$f0")
+          ),
+          term("select", "COUNT(*) AS cnt")
+        )
+
+    util.verifySql(queryLeftJoin, expected)
+  }
+
+  @Test
+  def testSingleRowJoinRightOuterJoin(): Unit = {
+    val util = batchTestUtil()
+    util.addTable[(Int, Int)]("A", 'a1, 'a2)
+    util.addTable[(Int, Int)]("B", 'b1, 'b2)
+
+    val queryRightJoin =
+      "SELECT a2 FROM A " +
+        "RIGHT JOIN " +
+        "(SELECT COUNT(*) AS cnt FROM B) " +
+        "AS x " +
+        "ON a1 < cnt"
+
+    val expected =
+      unaryNode(
+        "DataSetCalc",
+        unaryNode(
+          "DataSetSingleRowJoin",
+          batchTableNode(0),
+          term("where", "<(a1, cnt)"),
+          term("join", "a1", "a2", "cnt"),
+          term("joinType", "NestedLoopJoin")
+        ),
+        term("select", "a2")
+      ) + "\n" +
+        unaryNode(
+          "DataSetAggregate",
+          unaryNode(
+            "DataSetUnion",
+            unaryNode(
+              "DataSetValues",
+              unaryNode(
+                "DataSetCalc",
+                batchTableNode(1),
+                term("select", "0 AS $f0")),
+              tuples(List(null)), term("values", "$f0")
+            ),
+            term("union", "$f0")
+          ),
+          term("select", "COUNT(*) AS cnt")
+        )
+
+    util.verifySql(queryRightJoin, expected)
+  }
+
+  @Test
+  def testSingleRowJoinInnerJoin(): Unit = {
+    val util = batchTestUtil()
+    util.addTable[(Int, Int)]("A", 'a1, 'a2)
+    val query =
+      "SELECT a2, sum(a1) " +
+        "FROM A GROUP BY a2 " +
+        "HAVING sum(a1) > (SELECT sum(a1) * 0.1 FROM A)"
+
+    val expected =
+      unaryNode(
+        "DataSetCalc",
+        unaryNode(
+          "DataSetSingleRowJoin",
+          unaryNode(
+            "DataSetAggregate",
+            batchTableNode(0),
+            term("groupBy", "a2"),
+            term("select", "a2", "SUM(a1) AS EXPR$1")
+          ),
+          term("where", ">(EXPR$1, EXPR$0)"),
+          term("join", "a2", "EXPR$1", "EXPR$0"),
+          term("joinType", "NestedLoopJoin")
+        ),
+        term("select", "a2", "EXPR$1")
+      ) + "\n" +
+        unaryNode(
+          "DataSetCalc",
+          unaryNode(
+            "DataSetAggregate",
+            unaryNode(
+              "DataSetUnion",
+              unaryNode(
+                "DataSetValues",
+                unaryNode(
+                  "DataSetCalc",
+                  batchTableNode(0),
+                  term("select", "a1")
+                ),
+                tuples(List(null)), term("values", "a1")
+              ),
+              term("union", "a1")
+            ),
+            term("select", "SUM(a1) AS $f0")
+          ),
+          term("select", "*($f0, 0.1) AS EXPR$0")
+        )
 
     util.verifySql(query, expected)
   }

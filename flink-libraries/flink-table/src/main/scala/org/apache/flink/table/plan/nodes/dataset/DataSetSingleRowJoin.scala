@@ -20,6 +20,7 @@ package org.apache.flink.table.plan.nodes.dataset
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{BiRel, RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
@@ -46,6 +47,7 @@ class DataSetSingleRowJoin(
     rowRelDataType: RelDataType,
     joinCondition: RexNode,
     joinRowType: RelDataType,
+    joinType: JoinRelType,
     ruleDescription: String)
   extends BiRel(cluster, traitSet, leftNode, rightNode)
   with DataSetRel {
@@ -62,6 +64,7 @@ class DataSetSingleRowJoin(
       getRowType,
       joinCondition,
       joinRowType,
+      joinType,
       ruleDescription)
   }
 
@@ -98,7 +101,6 @@ class DataSetSingleRowJoin(
       tableEnv.getConfig,
       leftDataSet.getType,
       rightDataSet.getType,
-      leftIsSingle,
       joinCondition,
       broadcastSetName,
       expectedType)
@@ -121,14 +123,18 @@ class DataSetSingleRowJoin(
       config: TableConfig,
       inputType1: TypeInformation[Any],
       inputType2: TypeInformation[Any],
-      firstIsSingle: Boolean,
       joinCondition: RexNode,
       broadcastInputSetName: String,
       expectedType: Option[TypeInformation[Any]]): FlatMapFunction[Any, Any] = {
 
+    val nullCheck = joinType match {
+      case JoinRelType.LEFT | JoinRelType.RIGHT => true
+      case _ => false
+    }
+
     val codeGenerator = new CodeGenerator(
       config,
-      false,
+      nullCheck,
       inputType1,
       Some(inputType2))
 
@@ -144,13 +150,38 @@ class DataSetSingleRowJoin(
 
     val condition = codeGenerator.generateExpression(joinCondition)
 
-    val joinMethodBody = s"""
-                  |${condition.code}
-                  |if (${condition.resultTerm}) {
-                  |  ${conversion.code}
-                  |  ${codeGenerator.collectorTerm}.collect(${conversion.resultTerm});
-                  |}
-                  |""".stripMargin
+    val joinMethodBody =
+      if (joinType == JoinRelType.INNER) {
+        s"""
+         |${condition.code}
+         |if (${condition.resultTerm}) {
+         |  ${conversion.code}
+         |  ${codeGenerator.collectorTerm}.collect(${conversion.resultTerm});
+         |}
+         |""".stripMargin
+    } else {
+        val singleNode =
+          if (leftIsSingle) {
+            leftNode
+          }
+          else {
+            rightNode
+          }
+        val notSuitedToCondition = singleNode
+          .getRowType
+          .getFieldList
+          .map(field => getRowType.getFieldNames.indexOf(field.getName))
+          .map(i => s"${conversion.resultTerm}.setField($i,null);")
+
+        s"""
+           |${condition.code}
+           |${conversion.code}
+           |if(!${condition.resultTerm}){
+           |${notSuitedToCondition.mkString("\n")}
+           |}
+           |${codeGenerator.collectorTerm}.collect(${conversion.resultTerm});
+           |""".stripMargin
+      }
 
     val genFunction = codeGenerator.generateFunction(
       ruleDescription,
@@ -158,7 +189,7 @@ class DataSetSingleRowJoin(
       joinMethodBody,
       returnType)
 
-    if (firstIsSingle) {
+    if (leftIsSingle) {
       new MapJoinRightRunner[Any, Any, Any](
         genFunction.name,
         genFunction.code,

@@ -44,7 +44,7 @@ class DataSetJoinRule
     !joinInfo.pairs().isEmpty && (joinInfo.isEqui || join.getJoinType == JoinRelType.INNER)
   }
 
-  override def convert(rel: RelNode): RelNode = {
+override def convert(rel: RelNode): RelNode = {
 
     val join: LogicalJoin = rel.asInstanceOf[LogicalJoin]
     val traitSet: RelTraitSet = rel.getTraitSet.replace(DataSetConvention.INSTANCE)
