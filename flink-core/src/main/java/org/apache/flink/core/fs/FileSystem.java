@@ -52,12 +52,108 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Abstract base class of all file systems used by Flink. This class may be extended to implement
  * distributed file systems, or local file systems. The abstraction by this file system is very simple,
- * and teh set of allowed operations quite limited, to support the common denominator of a wide
+ * and the set of available operations quite limited, to support the common denominator of a wide
  * range of file systems. For example, appending to or mutating existing files is not supported.
  * 
  * <p>Flink implements and supports some file system types directly (for example the default
  * machine-local file system). Other file system types are accessed by an implementation that bridges
  * to the suite of file systems supported by Hadoop (such as for example HDFS).
+ * 
+ * <h2>Data Persistence</h2>
+ * 
+ * The FileSystem's {@link FSDataOutputStream output streams} are used to persistently store data,
+ * both for results of streaming applications and for fault tolerance and recovery. It is therefore
+ * crucial that the persistence semantics of these streams are well defined.
+ * 
+ * <h3>Definition of Persistence Guarantees</h3>
+ * 
+ * Data written to an output stream is considered persistent, if two requirements are met:
+ * 
+ * <ol>
+ *     <li><b>Visibility Requirement:</b> It must be guaranteed that all other processes, machines,
+ *     virtual machines, containers, etc. that are able to access the file see the data consistently
+ *     when given the absolute file path. This requirement is similar to the <i>close-to-open</i>
+ *     semantics defined by POSIX, but restricted to the file itself (by its absolute path).</li>
+ * 
+ *     <li><b>Durability Requirement:</b> The file system's specific durability/persistence requirements
+ *     must be met. These are specific to the particular file system. For example the
+ *     {@link LocalFileSystem} does not provide any durability guarantees for crashes of both
+ *     hardware and operating system, while replicated distributed file systems (like HDFS)
+ *     typically guarantee durability in the presence of at most <i>n</i> concurrent node failures,
+ *     where <i>n</i> is the replication factor.</li>
+ * </ol>
+ *
+ * <p>Updates to the file's parent directory (such that the file shows up when
+ * listing the directory contents) are not required to be complete for the data in the file stream
+ * to be considered persistent. This relaxation is important for file systems where updates to
+ * directory contents are only eventually consistent.
+ * 
+ * <p>The {@link FSDataOutputStream} has to guarantee data persistence for the written bytes
+ * once the call to {@link FSDataOutputStream#close()} returns.
+ *
+ * <h3>Examples</h3>
+ *
+ * <ul>
+ *     <li>For <b>fault-tolerant distributed file systems</b>, data is considered persistent once 
+ *     it has been received and acknowledged by the file system, typically by having been replicated
+ *     to a quorum of machines (<i>durability requirement</i>). In addition the absolute file path
+ *     must be visible to all other machines that will potentially access the file (<i>visibility
+ *     requirement</i>).
+ *
+ *     <p>Whether data has hit non-volatile storage on the storage nodes depends on the specific
+ *     guarantees of the particular file system.
+ *
+ *     <p>The metadata updates to the file's parent directory are not required to have reached
+ *     a consistent state. It is permissible that some machines see the file when listing the parent
+ *     directory's contents while others do not, as long as access to the file by its absolute path
+ *     is possible on all nodes.</li>
+ *
+ *     <li>A <b>local file system</b> must support the POSIX <i>close-to-open</i> semantics.
+ *     Because the local file system does not have any fault tolerance guarantees, no further
+ *     requirements exist.
+ * 
+ *     <p>The above implies specifically that data may still be in the OS cache when considered
+ *     persistent from the local file system's perspective. Crashes that cause the OS cache to loose
+ *     data are considered fatal to the local machine and are not covered by the local file system's
+ *     guarantees as defined by Flink.
+ * 
+ *     <p>That means that computed results, checkpoints, and savepoints that are written only to
+ *     the local filesystem are not guaranteed to be recoverable from the local machine's failure,
+ *     making local file systems unsuitable for production setups.</li>
+ * </ul>
+ *
+ * <h2>Updating File Contents</h2>
+ *
+ * Many file systems either do not support overwriting contents of existing files at all, or do
+ * not support consistent visibility of the updated contents in that case. For that reason,
+ * Flink's FileSystem does not support appending to existing files, or seeking within output streams
+ * so that previously written data could be overwritten.
+ *
+ * <h2>Overwriting Files</h2>
+ *
+ * Overwriting files is in general possible. A file is overwritten by deleting it and creating
+ * a new file. However, certain filesystems cannot make that change synchronously visible
+ * to all parties that have access to the file.
+ * For example <a href="https://aws.amazon.com/documentation/s3/">Amazon S3</a> guarantees only
+ * <i>eventual consistency</i> in the visibility of the file replacement: Some machines may see
+ * the old file, some machines may see the new file.
+ *
+ * <p>To avoid these consistency issues, the implementations of failure/recovery mechanisms in
+ * Flink strictly avoid writing to the same file path more than once.
+ * 
+ * <h2>Thread Safety</h2>
+ * 
+ * Implementations of {@code FileSystem} must be thread-safe: The same instance of FileSystem
+ * is frequently shared across multiple threads in Flink and must be able to concurrently
+ * create input/output streams and list file metadata.
+ * 
+ * <p>The {@link FSDataOutputStream} and {@link FSDataOutputStream} implementations are strictly
+ * <b>not thread-safe</b>. Instances of the streams should also not be passed between threads
+ * in between read or write operations, because there are no guarantees about the visibility of
+ * operations across threads (many operations do not create memory fences).
+ * 
+ * @see FSDataInputStream
+ * @see FSDataOutputStream
  */
 @Public
 public abstract class FileSystem {
