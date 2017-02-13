@@ -25,14 +25,30 @@ bin=`cd "$bin"; pwd`
 # Stop TaskManager instance(s) using pdsh (Parallel Distributed Shell) when available
 readSlaves
 
-command -v pdsh >/dev/null 2>&1
-if [[ $? -ne 0 ]]; then
+# all-local setup?
+all_localhost=1
+for slave in ${SLAVES[@]}; do
+    if [[ "$slave" != "localhost" ]]; then
+        all_localhost=0
+        break
+    fi
+done
+
+if [[ ${all_localhost} -eq 1 ]]; then
+    # all-local setup
     for slave in ${SLAVES[@]}; do
-        ssh -n $FLINK_SSH_OPTS $slave -- "nohup /bin/bash -l \"${FLINK_BIN_DIR}/taskmanager.sh\" stop &"
+        "${FLINK_BIN_DIR}"/taskmanager.sh stop
     done
 else
-    PDSH_SSH_ARGS="" PDSH_SSH_ARGS_APPEND=$FLINK_SSH_OPTS pdsh -w $(IFS=, ; echo "${SLAVES[*]}") \
-        "nohup /bin/bash -l \"${FLINK_BIN_DIR}/taskmanager.sh\" stop"
+    command -v pdsh >/dev/null 2>&1
+    if [[ $? -ne 0 ]]; then
+        for slave in ${SLAVES[@]}; do
+            ssh -n $FLINK_SSH_OPTS $slave -- "nohup /bin/bash -l \"${FLINK_BIN_DIR}/taskmanager.sh\" stop &"
+        done
+    else
+        PDSH_SSH_ARGS="" PDSH_SSH_ARGS_APPEND=$FLINK_SSH_OPTS pdsh -w $(IFS=, ; echo "${SLAVES[*]}") \
+            "nohup /bin/bash -l \"${FLINK_BIN_DIR}/taskmanager.sh\" stop"
+    fi
 fi
 
 # Stop JobManager instance(s)
