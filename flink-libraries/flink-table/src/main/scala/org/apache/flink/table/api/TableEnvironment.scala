@@ -34,7 +34,7 @@ import org.apache.calcite.tools.{FrameworkConfig, Frameworks, RuleSet, RuleSets}
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfo, TupleTypeInfoBase}
+import org.apache.flink.api.java.typeutils._
 import org.apache.flink.api.java.{ExecutionEnvironment => JavaBatchExecEnv}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.api.scala.{ExecutionEnvironment => ScalaBatchExecEnv}
@@ -413,7 +413,7 @@ abstract class TableEnvironment(val config: TableConfig) {
         }
         exprs.map {
           case UnresolvedFieldReference(name) => (0, name)
-          case _ => throw new TableException("Field reference expression expected.")
+          case _ => throw new TableException("Field reference expression requested.")
         }
       case t: TupleTypeInfo[A] =>
         exprs.zipWithIndex.map {
@@ -474,14 +474,14 @@ abstract class TableEnvironment(val config: TableConfig) {
     *
     * @param physicalRowTypeInfo the input of the sink
     * @param logicalRowType the logical type with correct field names (esp. for POJO field mapping)
-    * @param expectedTypeInfo the outptu type of the sink
+    * @param requestedTypeInfo the output type of the sink
     * @param functionName name of the map function. Must not be unique but has to be a
     *                     valid Java class identifier.
     */
   protected def sinkConversion[T](
       physicalRowTypeInfo: TypeInformation[Row],
       logicalRowType: RelDataType,
-      expectedTypeInfo: TypeInformation[T],
+      requestedTypeInfo: TypeInformation[T],
       functionName: String)
     : Option[MapFunction[Row, T]] = {
 
@@ -493,9 +493,9 @@ abstract class TableEnvironment(val config: TableConfig) {
         "This is a bug and should not happen. Please file an issue.")
     }
 
-    // expected type is a row, no conversion needed
-    // TODO this logic will change with FLINK-5429
-    if (expectedTypeInfo.getTypeClass == classOf[Row]) {
+    // requested type is a generic Row, no conversion needed
+    if (requestedTypeInfo.isInstanceOf[GenericTypeInfo[_]] &&
+          requestedTypeInfo.getTypeClass == classOf[Row]) {
       return None
     }
 
@@ -506,13 +506,13 @@ abstract class TableEnvironment(val config: TableConfig) {
     // field names
     val logicalFieldNames = logicalRowType.getFieldNames.asScala
 
-    // validate expected type
-    if (expectedTypeInfo.getArity != logicalFieldTypes.length) {
-      throw new TableException("Arity of result does not match expected type.")
+    // validate requested type
+    if (requestedTypeInfo.getArity != logicalFieldTypes.length) {
+      throw new TableException("Arity of result does not match requested type.")
     }
-    expectedTypeInfo match {
+    requestedTypeInfo match {
 
-      // POJO type expected
+      // POJO type requested
       case pt: PojoTypeInfo[_] =>
         logicalFieldNames.zip(logicalFieldTypes) foreach {
           case (fName, fType) =>
@@ -520,38 +520,49 @@ abstract class TableEnvironment(val config: TableConfig) {
             if (pojoIdx < 0) {
               throw new TableException(s"POJO does not define field name: $fName")
             }
-            val expectedTypeInfo = pt.getTypeAt(pojoIdx)
-            if (fType != expectedTypeInfo) {
-              throw new TableException(s"Result field does not match expected type. " +
-                s"Expected: $expectedTypeInfo; Actual: $fType")
+            val requestedTypeInfo = pt.getTypeAt(pojoIdx)
+            if (fType != requestedTypeInfo) {
+              throw new TableException(s"Result field does not match requested type. " +
+                s"requested: $requestedTypeInfo; Actual: $fType")
             }
         }
 
-      // Tuple/Case class type expected
-      case ct: TupleTypeInfoBase[_] =>
+      // Tuple/Case class type requested
+      case tt: TupleTypeInfoBase[_] =>
         logicalFieldTypes.zipWithIndex foreach {
           case (fieldTypeInfo, i) =>
-            val expectedTypeInfo = ct.getTypeAt(i)
-            if (fieldTypeInfo != expectedTypeInfo) {
-              throw new TableException(s"Result field does not match expected type. " +
-                s"Expected: $expectedTypeInfo; Actual: $fieldTypeInfo")
+            val requestedTypeInfo = tt.getTypeAt(i)
+            if (fieldTypeInfo != requestedTypeInfo) {
+              throw new TableException(s"Result field does not match requested type. " +
+                s"Requested: $requestedTypeInfo; Actual: $fieldTypeInfo")
             }
         }
 
-      // Atomic type expected
+      // Row type requested
+      case rt: RowTypeInfo[_] =>
+        logicalFieldTypes.zipWithIndex foreach {
+          case (fieldTypeInfo, i) =>
+            val requestedTypeInfo = rt.getTypeAt(i)
+            if (fieldTypeInfo != requestedTypeInfo) {
+              throw new TableException(s"Result field does not match requested type. " +
+                s"Requested: $requestedTypeInfo; Actual: $fieldTypeInfo")
+            }
+        }
+
+      // Atomic type requested
       case at: AtomicType[_] =>
         if (logicalFieldTypes.size != 1) {
-          throw new TableException(s"Result does not have a single field, " +
-            s"but ${logicalFieldTypes.size} fields.")
+          throw new TableException(s"Requested result type is an atomic type but " +
+            s"result has more or less than a single field.")
         }
         val fieldTypeInfo = logicalFieldTypes.head
         if (fieldTypeInfo != at) {
-          throw new TableException(s"Result field does not match expected type. " +
-            s"Expected: $at; Actual: $fieldTypeInfo")
+          throw new TableException(s"Result field does not match requested type. " +
+            s"Requested: $at; Actual: $fieldTypeInfo")
         }
 
       case _ =>
-        throw new TableException(s"Unsupported result type: $expectedTypeInfo")
+        throw new TableException(s"Unsupported result type: $requestedTypeInfo")
     }
 
     // code generate MapFunction
@@ -563,7 +574,7 @@ abstract class TableEnvironment(val config: TableConfig) {
       None)
 
     val conversion = generator.generateConverterResultExpression(
-      expectedTypeInfo,
+      requestedTypeInfo,
       logicalFieldNames)
 
     val body =
@@ -576,7 +587,7 @@ abstract class TableEnvironment(val config: TableConfig) {
       functionName,
       classOf[MapFunction[Row, T]],
       body,
-      expectedTypeInfo)
+      requestedTypeInfo)
 
     val mapFunction = new MapRunner[Row, T](
       genFunction.name,
