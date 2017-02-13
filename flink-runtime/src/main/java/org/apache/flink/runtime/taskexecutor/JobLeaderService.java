@@ -188,16 +188,18 @@ public class JobLeaderService {
 	public void addJob(final JobID jobId, final String defaultTargetAddress) throws Exception {
 		Preconditions.checkState(JobLeaderService.State.STARTED == state, "The service is currently not running.");
 
-		LOG.info("Add job {} for job leader monitoring.", jobId);
+		if (!jobLeaderServices.containsKey(jobId)) {
+			LOG.info("Add job {} for job leader monitoring.", jobId);
 
-		final LeaderRetrievalService leaderRetrievalService = highAvailabilityServices.getJobManagerLeaderRetriever(
-			jobId);
+			final LeaderRetrievalService leaderRetrievalService = highAvailabilityServices.getJobManagerLeaderRetriever(
+				jobId);
 
-		JobLeaderService.JobManagerLeaderListener jobManagerLeaderListener = new JobManagerLeaderListener(jobId);
+			JobLeaderService.JobManagerLeaderListener jobManagerLeaderListener = new JobManagerLeaderListener(jobId);
 
-		leaderRetrievalService.start(jobManagerLeaderListener);
+			leaderRetrievalService.start(jobManagerLeaderListener);
 
-		jobLeaderServices.put(jobId, Tuple2.of(leaderRetrievalService, jobManagerLeaderListener));
+			jobLeaderServices.put(jobId, Tuple2.of(leaderRetrievalService, jobManagerLeaderListener));
+		}
 	}
 
 	/**
