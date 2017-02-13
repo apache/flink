@@ -52,20 +52,39 @@ public class BufferPoolFactoryTest {
 
 	@Test(expected = IOException.class)
 	public void testRequireMoreThanPossible() throws IOException {
-		networkBufferPool.createBufferPool(networkBufferPool.getTotalNumberOfMemorySegments() * 2);
+		networkBufferPool.createBufferPool(networkBufferPool.getTotalNumberOfMemorySegments() * 2, Integer.MAX_VALUE);
+	}
+
+	@Test
+	public void testBoundedPools() throws IOException {
+		BufferPool lbp = networkBufferPool.createBufferPool(1, 1);
+		assertEquals(1, lbp.getNumBuffers());
+
+		lbp = networkBufferPool.createBufferPool(1, 2);
+		assertEquals(2, lbp.getNumBuffers());
 	}
 
 	@Test
 	public void testSingleManagedPoolGetsAll() throws IOException {
-		BufferPool lbp = networkBufferPool.createBufferPool(1);
+		BufferPool lbp = networkBufferPool.createBufferPool(1, Integer.MAX_VALUE);
 
 		assertEquals(networkBufferPool.getTotalNumberOfMemorySegments(), lbp.getNumBuffers());
 	}
 
 	@Test
+	public void testSingleManagedPoolGetsAllExceptFixedOnes() throws IOException {
+		BufferPool fixed = networkBufferPool.createBufferPool(24, 24);
+
+		BufferPool lbp = networkBufferPool.createBufferPool(1, Integer.MAX_VALUE);
+
+		assertEquals(24, fixed.getNumBuffers());
+		assertEquals(networkBufferPool.getTotalNumberOfMemorySegments() - fixed.getNumBuffers(), lbp.getNumBuffers());
+	}
+
+	@Test
 	public void testUniformDistribution() throws IOException {
-		BufferPool first = networkBufferPool.createBufferPool(0);
-		BufferPool second = networkBufferPool.createBufferPool(0);
+		BufferPool first = networkBufferPool.createBufferPool(0, Integer.MAX_VALUE);
+		BufferPool second = networkBufferPool.createBufferPool(0, Integer.MAX_VALUE);
 
 		assertEquals(networkBufferPool.getTotalNumberOfMemorySegments() / 2, first.getNumBuffers());
 		assertEquals(networkBufferPool.getTotalNumberOfMemorySegments() / 2, second.getNumBuffers());
@@ -75,34 +94,38 @@ public class BufferPoolFactoryTest {
 	public void testAllDistributed() {
 		Random random = new Random();
 
+		int numDistributedBuffers = 0;
 		try {
 			List<BufferPool> pools = new ArrayList<BufferPool>();
 
 			int numPools = numBuffers / 32;
 			for (int i = 0; i < numPools; i++) {
-				pools.add(networkBufferPool.createBufferPool(random.nextInt(7 + 1)));
+				int numRequiredBuffers = random.nextInt(7 + 1);
+				// make unbounded buffers more likely:
+				int maxUsedBuffers = random.nextBoolean() ? Integer.MAX_VALUE :
+					Math.max(1, random.nextInt(10) + numRequiredBuffers);
+				pools.add(networkBufferPool.createBufferPool(numRequiredBuffers, maxUsedBuffers));
 			}
 
-			int numDistributedBuffers = 0;
 			for (BufferPool pool : pools) {
 				numDistributedBuffers += pool.getNumBuffers();
 			}
-
-			assertEquals(numBuffers, numDistributedBuffers);
 		}
 		catch (Throwable t) {
 			t.printStackTrace();
 			fail(t.getMessage());
 		}
+
+		assertEquals(numBuffers, numDistributedBuffers);
 	}
 
 	@Test
 	public void testCreateDestroy() throws IOException {
-		BufferPool first = networkBufferPool.createBufferPool(0);
+		BufferPool first = networkBufferPool.createBufferPool(0, Integer.MAX_VALUE);
 
 		assertEquals(networkBufferPool.getTotalNumberOfMemorySegments(), first.getNumBuffers());
 
-		BufferPool second = networkBufferPool.createBufferPool(0);
+		BufferPool second = networkBufferPool.createBufferPool(0, Integer.MAX_VALUE);
 
 		assertEquals(networkBufferPool.getTotalNumberOfMemorySegments() / 2, first.getNumBuffers());
 

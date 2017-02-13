@@ -180,7 +180,7 @@ public class NetworkBufferPool implements BufferPoolFactory {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public BufferPool createBufferPool(int numRequiredBuffers) throws IOException {
+	public BufferPool createBufferPool(int numRequiredBuffers, int maxUsedBuffers) throws IOException {
 		// It is necessary to use a separate lock from the one used for buffer
 		// requests to ensure deadlock freedom for failure cases.
 		synchronized (factoryLock) {
@@ -205,7 +205,8 @@ public class NetworkBufferPool implements BufferPoolFactory {
 
 			// We are good to go, create a new buffer pool and redistribute
 			// non-fixed size buffers.
-			LocalBufferPool localBufferPool = new LocalBufferPool(this, numRequiredBuffers);
+			LocalBufferPool localBufferPool =
+				new LocalBufferPool(this, numRequiredBuffers, maxUsedBuffers);
 
 			allBufferPools.add(localBufferPool);
 
@@ -236,7 +237,7 @@ public class NetworkBufferPool implements BufferPoolFactory {
 
 	/**
 	 * Destroys all buffer pools that allocate their buffers from this
-	 * buffer pool (created via {@link #createBufferPool(int)}).
+	 * buffer pool (created via {@link #createBufferPool(int, int)}).
 	 */
 	public void destroyAllBufferPools() {
 		synchronized (factoryLock) {

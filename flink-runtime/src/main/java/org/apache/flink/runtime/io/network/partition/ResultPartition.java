@@ -238,6 +238,15 @@ public class ResultPartition implements BufferPoolOwner {
 		return totalBuffers;
 	}
 
+	/**
+	 * Returns the type of this result partition.
+	 *
+	 * @return result partition type
+	 */
+	public ResultPartitionType getPartitionType() {
+		return partitionType;
+	}
+
 	// ------------------------------------------------------------------------
 
 	/**

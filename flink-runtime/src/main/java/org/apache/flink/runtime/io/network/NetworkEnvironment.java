@@ -171,7 +171,15 @@ public class NetworkEnvironment {
 				BufferPool bufferPool = null;
 
 				try {
-					bufferPool = networkBufferPool.createBufferPool(partition.getNumberOfSubpartitions());
+					// TODO: tweak limit
+					/* 1 buffer for in-flight data in the subpartition
+					 * 1 buffer for parallel serialization
+					 * + some extra buffers
+					 */
+					int maxNumberOfMemorySegments = partition.getPartitionType().isBounded() ?
+						partition.getNumberOfSubpartitions() * 2 + 8 : Integer.MAX_VALUE;
+					bufferPool = networkBufferPool.createBufferPool(partition.getNumberOfSubpartitions(),
+							maxNumberOfMemorySegments);
 					partition.registerBufferPool(bufferPool);
 
 					resultPartitionManager.registerResultPartition(partition);
@@ -198,7 +206,15 @@ public class NetworkEnvironment {
 				BufferPool bufferPool = null;
 
 				try {
-					bufferPool = networkBufferPool.createBufferPool(gate.getNumberOfInputChannels());
+					// TODO: tweak limit
+					/* 1 buffer for in-flight data in the subpartition
+					 * 1 buffer for parallel serialization
+					 * + some extra buffers
+					 */
+					int maxNumberOfMemorySegments = gate.getConsumedPartitionType().isBounded() ?
+						gate.getNumberOfInputChannels() * 2 + 8 : Integer.MAX_VALUE;
+					bufferPool = networkBufferPool.createBufferPool(gate.getNumberOfInputChannels(),
+						maxNumberOfMemorySegments);
 					gate.setBufferPool(bufferPool);
 				} catch (Throwable t) {
 					if (bufferPool != null) {

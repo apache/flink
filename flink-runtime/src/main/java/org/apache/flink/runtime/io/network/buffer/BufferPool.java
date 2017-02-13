@@ -59,7 +59,7 @@ public interface BufferPool extends BufferProvider, BufferRecycler {
 	/**
 	 * Sets the current size of this buffer pool.
 	 *
-	 * <p> The size needs to be greater or equals to the guaranteed number of memory segments.
+	 * <p> The size needs to be greater or equal to the guaranteed number of memory segments.
 	 */
 	void setNumBuffers(int numBuffers) throws IOException;
 
@@ -72,5 +72,4 @@ public interface BufferPool extends BufferProvider, BufferRecycler {
 	 * Returns the number of used buffers of this buffer pool.
 	 */
 	int bestEffortGetNumOfUsedBuffers();
-
 }
