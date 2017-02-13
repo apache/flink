@@ -23,11 +23,12 @@ import _root_.java.util.concurrent.atomic.AtomicInteger
 import org.apache.calcite.plan.RelOptPlanner.CannotPlanException
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.sql2rel.RelDecorrelator
 import org.apache.calcite.tools.{Programs, RuleSet}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.io.DiscardingOutputFormat
-import org.apache.flink.api.java.typeutils.TypeExtractor
+import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
 import org.apache.flink.table.explain.PlanJsonParser
 import org.apache.flink.table.expressions.Expression
@@ -135,7 +136,7 @@ abstract class BatchTableEnvironment(
   private[flink] def explain(table: Table, extended: Boolean): String = {
     val ast = table.getRelNode
     val optimizedPlan = optimize(ast)
-    val dataSet = translate[Row](optimizedPlan) (TypeExtractor.createTypeInfo(classOf[Row]))
+    val dataSet = translate[Row](optimizedPlan, ast.getRowType) (new GenericTypeInfo(classOf[Row]))
     dataSet.output(new DiscardingOutputFormat[Row])
     val env = dataSet.getExecutionEnvironment
     val jasonSqlPlan = env.getExecutionPlan
@@ -250,28 +251,39 @@ abstract class BatchTableEnvironment(
     * @return The [[DataSet]] that corresponds to the translated [[Table]].
     */
   protected def translate[A](table: Table)(implicit tpe: TypeInformation[A]): DataSet[A] = {
-    val dataSetPlan = optimize(table.getRelNode)
-    translate(dataSetPlan)
+    val relNode = table.getRelNode
+    val dataSetPlan = optimize(relNode)
+    translate(dataSetPlan, relNode.getRowType)
   }
 
   /**
-    * Translates a logical [[RelNode]] into a [[DataSet]].
+    * Translates a logical [[RelNode]] into a [[DataSet]]. Converts to target type if necessary.
     *
     * @param logicalPlan The root node of the relational expression tree.
+    * @param logicalType The row type of the result. Since the logicalPlan can lose the
+    *                    field naming during optimization we pass the row type separately.
     * @param tpe         The [[TypeInformation]] of the resulting [[DataSet]].
     * @tparam A The type of the resulting [[DataSet]].
     * @return The [[DataSet]] that corresponds to the translated [[Table]].
     */
-  protected def translate[A](logicalPlan: RelNode)(implicit tpe: TypeInformation[A]): DataSet[A] = {
+  protected def translate[A](
+      logicalPlan: RelNode,
+      logicalType: RelDataType)
+      (implicit tpe: TypeInformation[A]): DataSet[A] = {
     TableEnvironment.validateType(tpe)
 
     logicalPlan match {
       case node: DataSetRel =>
-        node.translateToPlan(
-          this,
-          Some(tpe.asInstanceOf[TypeInformation[Any]])
-        ).asInstanceOf[DataSet[A]]
-      case _ => ???
+        val plan = node.translateToPlan(this)
+        val conversion = sinkConversion(plan.getType, logicalType, tpe, "DataSetSinkConversion")
+        conversion match {
+          case None => plan.asInstanceOf[DataSet[A]] // no conversion necessary
+          case Some(mapFunction) => plan.map(mapFunction).name(s"to: $tpe")
+        }
+
+      case _ =>
+        throw TableException("Cannot generate DataSet due to an invalid logical plan. " +
+          "This is a bug and should not happen. Please file an issue.")
     }
   }
 }

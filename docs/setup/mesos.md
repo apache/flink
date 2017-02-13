@@ -217,7 +217,7 @@ For example:
 You will need to run a service like Marathon or Apache Aurora which takes care of restarting the Flink master process in case of node or process failures.
 In addition, Zookeeper needs to be configured like described in the [High Availability section of the Flink docs]({{ site.baseurl }}/setup/jobmanager_high_availability.html)
 
-For the reconciliation of tasks to work correctly, please also set `recovery.zookeeper.path.mesos-workers` to a valid Zookeeper path.
+For the reconciliation of tasks to work correctly, please also set `high-availability.zookeeper.path.mesos-workers` to a valid Zookeeper path.
 
 #### Marathon
 
@@ -257,7 +257,7 @@ May be set to -1 to disable this feature.
 
 `mesos.resourcemanager.framework.role`: Mesos framework role definition (**DEFAULT:** *)
 
-`recovery.zookeeper.path.mesos-workers`: The ZooKeeper root path for persisting the Mesos worker information.
+`high-availability.zookeeper.path.mesos-workers`: The ZooKeeper root path for persisting the Mesos worker information.
 
 `mesos.resourcemanager.framework.principal`: Mesos framework principal (**NO DEFAULT**)
 

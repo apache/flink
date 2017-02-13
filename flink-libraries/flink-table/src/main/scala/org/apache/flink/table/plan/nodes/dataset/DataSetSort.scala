@@ -27,11 +27,10 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelCollation, RelNode, RelWriter, SingleRel}
 import org.apache.calcite.rex.{RexLiteral, RexNode}
 import org.apache.flink.api.common.operators.Order
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.table.api.{BatchTableEnvironment, TableException}
 import org.apache.flink.table.runtime.{CountPartitionFunction, LimitFilterFunction}
-import org.apache.flink.table.typeutils.TypeConverter._
+import org.apache.flink.types.Row
 
 import scala.collection.JavaConverters._
 
@@ -87,10 +86,7 @@ class DataSetSort(
     }
   }
 
-  override def translateToPlan(
-      tableEnv: BatchTableEnvironment,
-      expectedType: Option[TypeInformation[Any]] = None)
-    : DataSet[Any] = {
+  override def translateToPlan(tableEnv: BatchTableEnvironment): DataSet[Row] = {
 
     if (fieldCollations.isEmpty) {
       throw TableException("Limiting the result without sorting is not allowed " +
@@ -113,10 +109,10 @@ class DataSetSort(
       partitionedDs = partitionedDs.sortPartition(fieldCollation._1, fieldCollation._2)
     }
 
-    val limitedDs = if (offset == null && fetch == null) {
+    if (offset == null && fetch == null) {
       partitionedDs
     } else {
-      val countFunction = new CountPartitionFunction[Any]
+      val countFunction = new CountPartitionFunction[Row]
 
       val partitionCountName = s"prepare offset/fetch"
 
@@ -126,7 +122,7 @@ class DataSetSort(
 
       val broadcastName = "countPartition"
 
-      val limitFunction = new LimitFilterFunction[Any](
+      val limitFunction = new LimitFilterFunction[Row](
         limitStart,
         limitEnd,
         broadcastName)
@@ -137,41 +133,6 @@ class DataSetSort(
         .filter(limitFunction)
         .name(limitName)
         .withBroadcastSet(partitionCount, broadcastName)
-    }
-
-    val inputType = partitionedDs.getType
-    expectedType match {
-
-      case None if config.getEfficientTypeUsage =>
-        limitedDs
-
-      case _ =>
-        val determinedType = determineReturnType(
-          getRowType,
-          expectedType,
-          config.getNullCheck,
-          config.getEfficientTypeUsage)
-
-        // conversion
-        if (determinedType != inputType) {
-
-          val mapFunc = getConversionMapper(
-            config = config,
-            nullableInput = false,
-            inputType = partitionedDs.getType,
-            expectedType = determinedType,
-            conversionOperatorName = "DataSetSortConversion",
-            fieldNames = getRowType.getFieldNames.asScala
-          )
-
-          val opName = s"convert: (${getRowType.getFieldNames.asScala.toList.mkString(", ")})"
-
-          limitedDs.map(mapFunc).name(opName)
-        }
-        // no conversion necessary, forward
-        else {
-          limitedDs
-        }
     }
   }
 

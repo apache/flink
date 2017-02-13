@@ -95,7 +95,7 @@ abstract class ExpressionTestBase {
     val generator = new CodeGenerator(config, false, typeInfo)
 
     // cast expressions to String
-    val stringTestExprs = testExprs.map(expr => relBuilder.cast(expr._1, VARCHAR)).toSeq
+    val stringTestExprs = testExprs.map(expr => relBuilder.cast(expr._1, VARCHAR))
 
     // generate code
     val resultType = new RowTypeInfo(Seq.fill(testExprs.size)(STRING_TYPE_INFO): _*)
@@ -110,16 +110,16 @@ abstract class ExpressionTestBase {
         |return ${genExpr.resultTerm};
         |""".stripMargin
 
-    val genFunc = generator.generateFunction[MapFunction[Any, String]](
+    val genFunc = generator.generateFunction[MapFunction[Any, Row], Row](
       "TestFunction",
-      classOf[MapFunction[Any, String]],
+      classOf[MapFunction[Any, Row]],
       bodyCode,
-      resultType.asInstanceOf[TypeInformation[Any]])
+      resultType)
 
     // compile and evaluate
-    val clazz = new TestCompiler[MapFunction[Any, String]]().compile(genFunc)
+    val clazz = new TestCompiler[MapFunction[Any, Row], Row]().compile(genFunc)
     val mapper = clazz.newInstance()
-    val result = mapper.map(testData).asInstanceOf[Row]
+    val result = mapper.map(testData)
 
     // compare
     testExprs
@@ -211,8 +211,8 @@ abstract class ExpressionTestBase {
   // ----------------------------------------------------------------------------------------------
 
   // TestCompiler that uses current class loader
-  class TestCompiler[T <: Function] extends Compiler[T] {
-    def compile(genFunc: GeneratedFunction[T]): Class[T] =
+  class TestCompiler[F <: Function, T <: Any] extends Compiler[F] {
+    def compile(genFunc: GeneratedFunction[F, T]): Class[F] =
       compile(getClass.getClassLoader, genFunc.name, genFunc.code)
   }
 }

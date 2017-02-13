@@ -261,8 +261,8 @@ object TableEnvironmentITCase {
   @Parameterized.Parameters(name = "Table config = {0}")
   def parameters(): util.Collection[Array[java.lang.Object]] = {
     Seq[Array[AnyRef]](
-      Array(TableProgramsTestBase.DEFAULT),
-      Array(TableProgramsTestBase.EFFICIENT)).asJava
+      Array(TableProgramsTestBase.DEFAULT)
+    ).asJava
   }
 }
 
