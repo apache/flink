@@ -23,16 +23,10 @@ import static org.junit.Assert.assertNotEquals;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.types.Either;
-import org.apache.flink.types.Either.Right;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 public class EitherTypeInfoTest extends TestLogger {
-
-	Either<Integer, String> intEither = Either.Left(1);
-	Either<Integer, String> stringEither = Either.Right("boo");
-	Either<Integer, Tuple2<Double, Long>> tuple2Either = new Right<>(new Tuple2<Double, Long>(42.0, 2L));
 
 	@Test
 	public void testEitherTypeEquality() {
@@ -47,7 +41,7 @@ public class EitherTypeInfoTest extends TestLogger {
 	}
 
 	@Test
-	public void testEitherTypeInEquality() {
+	public void testEitherTypeInequality() {
 		EitherTypeInfo<Integer, String> eitherInfo1 = new EitherTypeInfo<Integer, String>(
 				BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 
@@ -56,6 +50,5 @@ public class EitherTypeInfoTest extends TestLogger {
 				TypeExtractor.getForClass(Double.class), TypeExtractor.getForClass(String.class)));
 
 		assertNotEquals(eitherInfo1, eitherInfo2);
-		assertNotEquals(eitherInfo1.hashCode(), eitherInfo2.hashCode());
 	}
 }
