@@ -97,8 +97,8 @@ public class FoldingStateDescriptor<T, ACC> extends StateDescriptor<FoldingState
 	// ------------------------------------------------------------------------
 	
 	@Override
-	public FoldingState<T, ACC> bind(StateBackend stateBackend) throws Exception {
-		return stateBackend.createFoldingState(this);
+	public FoldingState<T, ACC> bind(StateBinder stateBinder) throws Exception {
+		return stateBinder.createFoldingState(this);
 	}
 
 	/**

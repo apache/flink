@@ -28,7 +28,7 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.State;
-import org.apache.flink.api.common.state.StateBackend;
+import org.apache.flink.api.common.state.StateBinder;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
@@ -264,7 +264,7 @@ public abstract class AbstractKeyedStateBackend<K>
 		}
 
 		// create a new blank key/value state
-		S state = stateDescriptor.bind(new StateBackend() {
+		S state = stateDescriptor.bind(new StateBinder() {
 			@Override
 			public <T> ValueState<T> createValueState(ValueStateDescriptor<T> stateDesc) throws Exception {
 				return AbstractKeyedStateBackend.this.createValueState(namespaceSerializer, stateDesc);

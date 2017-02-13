@@ -96,8 +96,8 @@ public class AggregatingStateDescriptor<IN, ACC, OUT> extends StateDescriptor<Ag
 	// ------------------------------------------------------------------------
 
 	@Override
-	public AggregatingState<IN, OUT> bind(StateBackend stateBackend) throws Exception {
-		return stateBackend.createAggregatingState(this);
+	public AggregatingState<IN, OUT> bind(StateBinder stateBinder) throws Exception {
+		return stateBinder.createAggregatingState(this);
 	}
 
 	/**

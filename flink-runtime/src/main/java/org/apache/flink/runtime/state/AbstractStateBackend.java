@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.execution.Environment;
@@ -26,27 +27,18 @@ import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import java.io.IOException;
 
 /**
- * A state backend defines how state is stored and snapshotted during checkpoints.
+ * An abstract base implementation of the {@link StateBackend} interface.
  */
-public abstract class AbstractStateBackend implements java.io.Serializable {
+@PublicEvolving
+public abstract class AbstractStateBackend implements StateBackend, java.io.Serializable {
 	private static final long serialVersionUID = 4620415814639230247L;
 
-	/**
-	 * Creates a {@link CheckpointStreamFactory} that can be used to create streams
-	 * that should end up in a checkpoint.
-	 *
-	 * @param jobId              The {@link JobID} of the job for which we are creating checkpoint streams.
-	 * @param operatorIdentifier An identifier of the operator for which we create streams.
-	 */
+	@Override
 	public abstract CheckpointStreamFactory createStreamFactory(
 			JobID jobId,
-			String operatorIdentifier
-	) throws IOException;
+			String operatorIdentifier) throws IOException;
 
-	/**
-	 * Creates a new {@link AbstractKeyedStateBackend} that is responsible for keeping keyed state
-	 * and can be checkpointed to checkpoint streams.
-	 */
+	@Override
 	public abstract <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
 			Environment env,
 			JobID jobID,
@@ -54,16 +46,13 @@ public abstract class AbstractStateBackend implements java.io.Serializable {
 			TypeSerializer<K> keySerializer,
 			int numberOfKeyGroups,
 			KeyGroupRange keyGroupRange,
-			TaskKvStateRegistry kvStateRegistry
-	) throws Exception;
+			TaskKvStateRegistry kvStateRegistry) throws Exception;
 
-	/**
-	 * Creates a new {@link OperatorStateBackend} that can be used for storing partitionable operator
-	 * state in checkpoint streams.
-	 */
+	@Override
 	public OperatorStateBackend createOperatorStateBackend(
 			Environment env,
 			String operatorIdentifier) throws Exception {
+
 		return new DefaultOperatorStateBackend(env.getUserClassLoader());
 	}
 }

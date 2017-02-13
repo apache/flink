@@ -18,14 +18,14 @@
 
 package org.apache.flink.api.common.state;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 
 /**
- * The {@code StateBackend} is used by {@link StateDescriptor} instances to create actual state
- * representations.
+ * The {@code StateBinder} is used by {@link StateDescriptor} instances to create actual
+ * {@link State} objects.
  */
-@PublicEvolving
-public interface StateBackend {
+@Internal
+public interface StateBinder {
 
 	/**
 	 * Creates and returns a new {@link ValueState}.

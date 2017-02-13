@@ -20,7 +20,7 @@ package org.apache.flink.migration.api.common.state;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.ListState;
-import org.apache.flink.api.common.state.StateBackend;
+import org.apache.flink.api.common.state.StateBinder;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -70,7 +70,7 @@ public class ListStateDescriptor<T> extends StateDescriptor<ListState<T>, T> {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public ListState<T> bind(StateBackend stateBackend) throws Exception {
+	public ListState<T> bind(StateBinder stateBinder) throws Exception {
 		throw new IllegalStateException("Cannot bind states with a legacy state descriptor.");
 	}
 

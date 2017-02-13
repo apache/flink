@@ -79,8 +79,8 @@ public class ListStateDescriptor<T> extends StateDescriptor<ListState<T>, List<T
 	// ------------------------------------------------------------------------
 
 	@Override
-	public ListState<T> bind(StateBackend stateBackend) throws Exception {
-		return stateBackend.createListState(this);
+	public ListState<T> bind(StateBinder stateBinder) throws Exception {
+		return stateBinder.createListState(this);
 	}
 
 	/**
