@@ -97,10 +97,14 @@ public class ZookeeperHaServices implements HighAvailabilityServices {
 	/** The runtime configuration */
 	private final Configuration configuration;
 
+	/** The zookeeper based running jobs registry */
+	private final RunningJobsRegistry runningJobsRegistry;
+
 	public ZookeeperHaServices(CuratorFramework client, Executor executor, Configuration configuration) {
 		this.client = checkNotNull(client);
 		this.executor = checkNotNull(executor);
 		this.configuration = checkNotNull(configuration);
+		this.runningJobsRegistry = new ZookeeperRegistry(client, configuration);
 	}
 
 	// ------------------------------------------------------------------------
@@ -149,7 +153,7 @@ public class ZookeeperHaServices implements HighAvailabilityServices {
 
 	@Override
 	public RunningJobsRegistry getRunningJobsRegistry() {
-		throw new UnsupportedOperationException("not yet implemented");
+		return runningJobsRegistry;
 	}
 
 	@Override
