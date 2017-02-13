@@ -23,28 +23,25 @@ import org.apache.calcite.rex.{RexNode, RexProgram}
 import org.apache.flink.api.common.functions.{FlatMapFunction, RichFlatMapFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.TableConfig
+import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.{CodeGenerator, GeneratedFunction}
 import org.apache.flink.table.runtime.FlatMapRunner
-import org.apache.flink.table.typeutils.TypeConverter._
+import org.apache.flink.types.Row
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 
-trait FlinkCalc {
+trait CommonCalc {
 
   private[flink] def functionBody(
-    generator: CodeGenerator,
-    inputType: TypeInformation[Any],
-    rowType: RelDataType,
-    calcProgram: RexProgram,
-    config: TableConfig,
-    expectedType: Option[TypeInformation[Any]]): String = {
+      generator: CodeGenerator,
+      inputType: TypeInformation[Row],
+      rowType: RelDataType,
+      calcProgram: RexProgram,
+      config: TableConfig)
+    : String = {
 
-    val returnType = determineReturnType(
-      rowType,
-      expectedType,
-      config.getNullCheck,
-      config.getEfficientTypeUsage)
+    val returnType = FlinkTypeFactory.toInternalRowTypeInfo(rowType)
 
     val condition = calcProgram.getCondition
     val expandedExpressions = calcProgram.getProjectList.map(
@@ -54,59 +51,43 @@ trait FlinkCalc {
       rowType.getFieldNames,
       expandedExpressions)
 
-      // only projection
-      if (condition == null) {
+    // only projection
+    if (condition == null) {
+      s"""
+        |${projection.code}
+        |${generator.collectorTerm}.collect(${projection.resultTerm});
+        |""".stripMargin
+    }
+    else {
+      val filterCondition = generator.generateExpression(
+        calcProgram.expandLocalRef(calcProgram.getCondition))
+      // only filter
+      if (projection == null) {
         s"""
-          |${projection.code}
-          |${generator.collectorTerm}.collect(${projection.resultTerm});
+          |${filterCondition.code}
+          |if (${filterCondition.resultTerm}) {
+          |  ${generator.collectorTerm}.collect(${generator.input1Term});
+          |}
           |""".stripMargin
       }
+      // both filter and projection
       else {
-        val filterCondition = generator.generateExpression(
-          calcProgram.expandLocalRef(calcProgram.getCondition))
-        // only filter
-        if (projection == null) {
-          // conversion
-          if (inputType != returnType) {
-            val conversion = generator.generateConverterResultExpression(
-              returnType,
-              rowType.getFieldNames)
-
-            s"""
-              |${filterCondition.code}
-              |if (${filterCondition.resultTerm}) {
-              |  ${conversion.code}
-              |  ${generator.collectorTerm}.collect(${conversion.resultTerm});
-              |}
-              |""".stripMargin
-          }
-          // no conversion
-          else {
-            s"""
-              |${filterCondition.code}
-              |if (${filterCondition.resultTerm}) {
-              |  ${generator.collectorTerm}.collect(${generator.input1Term});
-              |}
-              |""".stripMargin
-          }
-        }
-        // both filter and projection
-        else {
-          s"""
-            |${filterCondition.code}
-            |if (${filterCondition.resultTerm}) {
-            |  ${projection.code}
-            |  ${generator.collectorTerm}.collect(${projection.resultTerm});
-            |}
-            |""".stripMargin
-        }
+        s"""
+          |${filterCondition.code}
+          |if (${filterCondition.resultTerm}) {
+          |  ${projection.code}
+          |  ${generator.collectorTerm}.collect(${projection.resultTerm});
+          |}
+          |""".stripMargin
       }
     }
+  }
 
   private[flink] def calcMapFunction(
-      genFunction: GeneratedFunction[FlatMapFunction[Any, Any]]): RichFlatMapFunction[Any, Any] = {
+      genFunction: GeneratedFunction[FlatMapFunction[Row, Row], Row])
+    : RichFlatMapFunction[Row, Row] = {
 
-    new FlatMapRunner[Any, Any](
+    new FlatMapRunner[Row, Row](
       genFunction.name,
       genFunction.code,
       genFunction.returnType)
@@ -138,13 +119,12 @@ trait FlinkCalc {
 
     proj
       .map(expression(_, inFields, Some(localExprs)))
-      .zip(outFields).map { case (e, o) => {
-      if (e != o) {
-        e + " AS " + o
-      } else {
-        e
-      }
-    }
+      .zip(outFields).map { case (e, o) =>
+        if (e != o) {
+          e + " AS " + o
+        } else {
+          e
+        }
     }.mkString(", ")
   }
 

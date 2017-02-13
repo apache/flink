@@ -56,8 +56,7 @@ public class TableEnvironmentITCase extends TableProgramsCollectionTestBase {
 	@Parameterized.Parameters(name = "Table config = {0}")
 	public static Collection<Object[]> parameters() {
 		return Arrays.asList(new Object[][] {
-			{ TableProgramsTestBase.DEFAULT() },
-			{ TableProgramsTestBase.EFFICIENT() }
+			{ TableProgramsTestBase.DEFAULT() }
 		});
 	}
 
@@ -265,8 +264,8 @@ public class TableEnvironmentITCase extends TableProgramsCollectionTestBase {
 		data.add(new Tuple4<>("Test me", 4, 3.33, "Hello world"));
 
 		Table table = tableEnv
-			.fromDataSet(env.fromCollection(data), "a, b, c, d")
-			.select("a, b, c, d");
+			.fromDataSet(env.fromCollection(data), "q, w, e, r")
+			.select("q as a, w as b, e as c, r as d");
 
 		DataSet<SmallPojo2> ds = tableEnv.toDataSet(table, SmallPojo2.class);
 		List<SmallPojo2> results = ds.collect();
