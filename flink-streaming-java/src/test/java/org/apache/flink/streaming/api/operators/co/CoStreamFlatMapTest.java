@@ -17,11 +17,6 @@
 
 package org.apache.flink.streaming.api.operators.co;
 
-import static org.junit.Assert.fail;
-
-import java.io.Serializable;
-import java.util.concurrent.ConcurrentLinkedQueue;
-
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.co.CoFlatMapFunction;
 import org.apache.flink.streaming.api.functions.co.RichCoFlatMapFunction;
@@ -32,6 +27,9 @@ import org.apache.flink.streaming.util.TwoInputStreamOperatorTestHarness;
 import org.apache.flink.util.Collector;
 import org.junit.Assert;
 import org.junit.Test;
+
+import java.io.Serializable;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * Tests for {@link CoStreamFlatMap}. These test that:

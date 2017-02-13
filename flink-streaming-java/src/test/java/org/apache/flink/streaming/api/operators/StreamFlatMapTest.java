@@ -17,8 +17,6 @@
 
 package org.apache.flink.streaming.api.operators;
 
-import java.util.concurrent.ConcurrentLinkedQueue;
-
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.configuration.Configuration;
@@ -29,6 +27,8 @@ import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.util.Collector;
 import org.junit.Assert;
 import org.junit.Test;
+
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * Tests for {@link StreamMap}. These test that:
