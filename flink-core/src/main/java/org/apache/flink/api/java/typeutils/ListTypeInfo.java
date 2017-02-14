@@ -22,9 +22,9 @@ import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.ArrayListSerializer;
+import org.apache.flink.api.common.typeutils.base.ListSerializer;
 
-import java.util.ArrayList;
+import java.util.List;
 
 /**
  * A {@link TypeInformation} for the list types of the Java API.
@@ -34,15 +34,15 @@ import java.util.ArrayList;
 
 
 @Public
-public final class ArrayListTypeInfo<T> extends TypeInformation<ArrayList<T>> {
+public final class ListTypeInfo<T> extends TypeInformation<List<T>> {
 
 	private final TypeInformation<T> elementTypeInfo;
 
-	public ArrayListTypeInfo(Class<T> elementTypeClass) {
+	public ListTypeInfo(Class<T> elementTypeClass) {
 		this.elementTypeInfo = TypeExtractor.createTypeInfo(elementTypeClass);
 	}
 
-	public ArrayListTypeInfo(TypeInformation<T> elementTypeInfo) {
+	public ListTypeInfo(TypeInformation<T> elementTypeInfo) {
 		this.elementTypeInfo = elementTypeInfo;
 	}
 
@@ -72,8 +72,8 @@ public final class ArrayListTypeInfo<T> extends TypeInformation<ArrayList<T>> {
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public Class<ArrayList<T>> getTypeClass() {
-		return (Class<ArrayList<T>>)(new ArrayList<T>().getClass());
+	public Class<List<T>> getTypeClass() {
+		return (Class<List<T>>)(Class<?>)List.class;
 	}
 
 	@Override
@@ -82,9 +82,9 @@ public final class ArrayListTypeInfo<T> extends TypeInformation<ArrayList<T>> {
 	}
 
 	@Override
-	public TypeSerializer<ArrayList<T>> createSerializer(ExecutionConfig config) {
+	public TypeSerializer<List<T>> createSerializer(ExecutionConfig config) {
 		TypeSerializer<T> elementTypeSerializer = elementTypeInfo.createSerializer(config);
-		return new ArrayListSerializer<>(elementTypeSerializer);
+		return new ListSerializer<>(elementTypeSerializer);
 	}
 
 	@Override
@@ -94,9 +94,9 @@ public final class ArrayListTypeInfo<T> extends TypeInformation<ArrayList<T>> {
 
 	@Override
 	public boolean equals(Object obj) {
-		if (obj instanceof ArrayListTypeInfo) {
+		if (obj instanceof ListTypeInfo) {
 			@SuppressWarnings("unchecked")
-			ArrayListTypeInfo<T> other = (ArrayListTypeInfo<T>) obj;
+			ListTypeInfo<T> other = (ListTypeInfo<T>) obj;
 
 			return other.canEqual(this) && elementTypeInfo.equals(other.elementTypeInfo);
 		} else {
@@ -111,6 +111,6 @@ public final class ArrayListTypeInfo<T> extends TypeInformation<ArrayList<T>> {
 
 	@Override
 	public boolean canEqual(Object obj) {
-		return (obj instanceof ArrayListTypeInfo);
+		return (obj instanceof ListTypeInfo);
 	}
 }

@@ -26,7 +26,7 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.ArrayListSerializer;
+import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -225,7 +225,7 @@ public class StateDescriptorPassingTest {
 
 		// this would be the first statement to fail if state descriptors were not properly initialized
 		TypeSerializer<?> serializer = listDescr.getSerializer();
-		assertTrue(serializer instanceof ArrayListSerializer);
+		assertTrue(serializer instanceof ListSerializer);
 
 		TypeSerializer<?> elementSerializer = listDescr.getElementSerializer();
 		assertTrue(elementSerializer instanceof KryoSerializer);

@@ -47,7 +47,7 @@ import java.util.List;
  * @param <V> The type of the values in the list state.
  */
 public class RocksDBListState<K, N, V>
-	extends AbstractRocksDBState<K, N, ListState<V>, ListStateDescriptor<V>, ArrayList<V>>
+	extends AbstractRocksDBState<K, N, ListState<V>, ListStateDescriptor<V>, List<V>>
 	implements InternalListState<N, V> {
 
 	/** Serializer for the values */

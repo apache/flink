@@ -21,10 +21,10 @@ package org.apache.flink.api.common.state;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.ArrayListSerializer;
-import org.apache.flink.api.java.typeutils.ArrayListTypeInfo;
+import org.apache.flink.api.common.typeutils.base.ListSerializer;
+import org.apache.flink.api.java.typeutils.ListTypeInfo;
 
-import java.util.ArrayList;
+import java.util.List;
 
 /**
  * A {@link StateDescriptor} for {@link ListState}. This can be used to create a partitioned
@@ -34,7 +34,7 @@ import java.util.ArrayList;
  * @param <T> The type of the values that can be added to the list state.
  */
 @PublicEvolving
-public class ListStateDescriptor<T> extends StateDescriptor<ListState<T>, ArrayList<T>> {
+public class ListStateDescriptor<T> extends StateDescriptor<ListState<T>, List<T>> {
 	private static final long serialVersionUID = 2L;
 
 	/**
@@ -48,7 +48,7 @@ public class ListStateDescriptor<T> extends StateDescriptor<ListState<T>, ArrayL
 	 */
 	@SuppressWarnings("unchecked")
 	public ListStateDescriptor(String name, Class<T> elementTypeClass) {
-		super(name, new ArrayListTypeInfo<>(elementTypeClass), null);
+		super(name, new ListTypeInfo<>(elementTypeClass), null);
 	}
 
 	/**
@@ -59,7 +59,7 @@ public class ListStateDescriptor<T> extends StateDescriptor<ListState<T>, ArrayL
 	 */
 	@SuppressWarnings("unchecked")
 	public ListStateDescriptor(String name, TypeInformation<T> elementTypeInfo) {
-		super(name, new ArrayListTypeInfo<>(elementTypeInfo), null);
+		super(name, new ListTypeInfo<>(elementTypeInfo), null);
 	}
 
 	/**
@@ -70,15 +70,15 @@ public class ListStateDescriptor<T> extends StateDescriptor<ListState<T>, ArrayL
 	 */
 	@SuppressWarnings("unchecked")
 	public ListStateDescriptor(String name, TypeSerializer<T> typeSerializer) {
-		super(name, new ArrayListSerializer<>(typeSerializer), null);
+		super(name, new ListSerializer<>(typeSerializer), null);
 	}
 
 	public TypeSerializer<T> getElementSerializer() {
-		if (!(serializer instanceof ArrayListSerializer)) {
+		if (!(serializer instanceof ListSerializer)) {
 			throw new IllegalStateException();
 		}
 
-		return ((ArrayListSerializer<T>)serializer).getElementSerializer();
+		return ((ListSerializer<T>)serializer).getElementSerializer();
 	}
 
 	// ------------------------------------------------------------------------

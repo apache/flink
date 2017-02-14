@@ -47,16 +47,9 @@ public final class MigrationInstantiationUtil {
 
 			// the flink package may be at position 0 (regular class) or position 2 (array)
 			final int flinkPackagePos;
-			if (className.contains("org.apache.flink.runtime.state.ArrayListSerializer")) {
-				final String modClassName = className.replaceAll(
-						"org.apache.flink.runtime.state.ArrayListSerializer",
-						"org.apache.flink.api.common.typeutils.base.ArrayListSerializer");
-
-				return classLoader != null ?
-						Class.forName(modClassName, false, classLoader) :
-						Class.forName(modClassName);
-			} else if ((flinkPackagePos = className.indexOf(FLINK_BASE_PACKAGE)) == 0 ||
-					(flinkPackagePos == 2 && className.startsWith(ARRAY_PREFIX))) {
+			if ((flinkPackagePos = className.indexOf(FLINK_BASE_PACKAGE)) == 0 ||
+					(flinkPackagePos == 2 && className.startsWith(ARRAY_PREFIX)))
+			{
 				final String modClassName = flinkPackagePos == 0 ?
 						FLINK_MIGRATION_PACKAGE + className.substring(FLINK_BASE_PACKAGE.length()) :
 						ARRAY_PREFIX + FLINK_MIGRATION_PACKAGE + className.substring(2 + FLINK_BASE_PACKAGE.length());
@@ -65,8 +58,8 @@ public final class MigrationInstantiationUtil {
 					return classLoader != null ?
 							Class.forName(modClassName, false, classLoader) :
 							Class.forName(modClassName);
-				} catch (ClassNotFoundException ignored) {
 				}
+				catch (ClassNotFoundException ignored) {}
 			}
 
 			// either a non-Flink class, or not located in the migration package
