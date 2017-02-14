@@ -839,6 +839,12 @@ public class CliFrontend {
 			program.deleteExtractedLibraries();
 		}
 
+		if (null == result) {
+			logAndSysout("No JobSubmissionResult returned, please make sure you called " +
+				"ExecutionEnvironment.execute()");
+			return 1;
+		}
+
 		if (result.isJobExecutionResult()) {
 			logAndSysout("Program execution finished");
 			JobExecutionResult execResult = result.getJobExecutionResult();
