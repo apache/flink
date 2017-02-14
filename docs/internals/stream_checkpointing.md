@@ -103,7 +103,7 @@ the barrier *n* from the other inputs as well. Otherwise, it would have mixed re
 
 When operators contain any form of *state*, this state must be part of the snapshots as well. Operator state comes in different forms:
 
-  - *User-defined state*: This is state that is created and modified directly by the transformation functions (like `map()` or `filter()`). User-defined state can either be a simple variable in the function's java object, or the associated key/value state of a function (see [State in Streaming Applications]({{ site.baseurl }}/dev/state.html) for details).
+  - *User-defined state*: This is state that is created and modified directly by the transformation functions (like `map()` or `filter()`). User-defined state can either be a simple variable in the function's java object, or the associated key/value state of a function (see [State in Streaming Applications]({{ site.baseurl }}/dev/stream/state.html) for details).
   - *System state*: This state refers to data buffers that are part of the operator's computation. A typical example for this state are the *window buffers*, inside which the system collects (and aggregates) records for windows until the window is evaluated and evicted.
 
 Operators snapshot their state at the point in time when they received all snapshot barriers from their input streams, before emitting the barriers to their output streams. At that point, all updates to the state from records before the barriers will have been made, and no updates that depend on records from after the barriers have been applied. Because the state of a snapshot may be potentially large, it is stored in a configurable *state backend*. By default, this is the JobManager's memory, but for serious setups, a distributed reliable storage should be configured (such as HDFS). After the state has been stored, the operator acknowledges the checkpoint, emits the snapshot barrier into the output streams, and proceeds.
@@ -142,7 +142,7 @@ It is possible to let an operator continue processing while it stores its state 
 
 After receiving the checkpoint barriers on its inputs, the operator starts the asynchronous snapshot copying of its state. It immediately emits the barrier to its outputs and continues with the regular stream processing. Once the background copy process has completed, it acknowledges the checkpoint to the checkpoint coordinator (the JobManager). The checkpoint is now only complete after all sinks received the barriers and all stateful operators acknowledged their completed backup (which may be later than the barriers reaching the sinks).
 
-See [State Backends]({{ site.baseurl }}/internals/state_backends.html) for details on the state snapshots.
+See [State Backends]({{ site.baseurl }}/ops/state_backends.html) for details on the state snapshots.
 
 
 ## Recovery

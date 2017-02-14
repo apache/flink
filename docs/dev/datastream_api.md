@@ -1595,7 +1595,7 @@ for an explanation of most parameters. These parameters pertain specifically to 
 
 ### Fault Tolerance
 
-[State & Checkpointing]({{ site.baseurl }}/dev/state#enabling-checkpointing) describes how to enable and configure Flink's checkpointing mechanism. 
+[State & Checkpointing]({{ site.baseurl }}/dev/stream/checkpointing) describes how to enable and configure Flink's checkpointing mechanism.
 
 ### Controlling Latency
 
