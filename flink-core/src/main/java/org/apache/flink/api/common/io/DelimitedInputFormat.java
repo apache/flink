@@ -567,17 +567,24 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 			int startPos = this.readPos;
 			int count;
 
+			// Search for next occurence of delimiter in read buffer.
 			while (this.readPos < this.limit && i < this.delimiter.length) {
-				if ((this.readBuffer[this.readPos++]) == this.delimiter[i]) {
+				if ((this.readBuffer[this.readPos]) == this.delimiter[i]) {
+					// Found the expected delimiter character. Continue looking for the next character of delimiter.
 					i++;
 				} else {
+					// Delimiter does not match.
+					// We have to reset the read position to the character after the first matching character
+					//   and search for the whole delimiter again.
+					readPos -= i;
 					i = 0;
 				}
+				readPos++;
 			}
 
 			// check why we dropped out
 			if (i == this.delimiter.length) {
-				// line end
+				// delimiter found
 				int totalBytesRead = this.readPos - startPos;
 				this.offset += countInWrapBuffer + totalBytesRead;
 				count = totalBytesRead - this.delimiter.length;
