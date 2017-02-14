@@ -18,10 +18,13 @@
 
 package org.apache.flink.table.plan.stats
 
+import java.lang.Long
+import java.util.{Map, HashMap}
+
 /**
   * Table statistics
   *
   * @param rowCount cardinality of table
   * @param colStats statistics of table columns
   */
-case class TableStats(rowCount: Long, colStats: Map[String, ColumnStats] = Map.empty)
+case class TableStats(rowCount: Long, colStats: Map[String, ColumnStats] = new HashMap())

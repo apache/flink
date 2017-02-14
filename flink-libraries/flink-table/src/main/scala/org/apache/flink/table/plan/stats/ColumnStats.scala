@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.plan.stats
 
+import java.lang.{Double, Long, Integer, Number}
+
 /**
   * column statistics
   *
@@ -31,19 +33,19 @@ package org.apache.flink.table.plan.stats
 case class ColumnStats(
     ndv: Long,
     nullCount: Long,
-    avgLen: Long,
-    maxLen: Long,
-    max: Option[Any],
-    min: Option[Any]) {
+    avgLen: Double,
+    maxLen: Integer,
+    max: Number,
+    min: Number) {
 
   override def toString: String = {
     val columnStatsStr = Seq(
-      s"ndv=$ndv",
-      s"nullCount=$nullCount",
-      s"avgLen=$avgLen",
-      s"maxLen=$maxLen",
-      if (max.isDefined) s"max=${max.get}" else "",
-      if (min.isDefined) s"min=${min.get}"  else ""
+      if (ndv != null) s"ndv=$ndv" else "",
+      if (nullCount != null) s"nullCount=$nullCount" else "",
+      if (avgLen != null) s"avgLen=$avgLen" else "",
+      if (maxLen != null) s"maxLen=$maxLen" else "",
+      if (max != null) s"max=${max}" else "",
+      if (min != null) s"min=${min}" else ""
     ).filter(_.nonEmpty).mkString(", ")
 
     s"ColumnStats(${columnStatsStr})"
