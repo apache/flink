@@ -75,6 +75,8 @@ public class StreamFlatMapTest {
 		testHarness.processElement(new StreamRecord<Integer>(7, initialTime + 7));
 		testHarness.processElement(new StreamRecord<Integer>(8, initialTime + 8));
 
+		testHarness.close();
+
 		expectedOutput.add(new StreamRecord<Integer>(2, initialTime + 2));
 		expectedOutput.add(new StreamRecord<Integer>(4, initialTime + 2));
 		expectedOutput.add(new Watermark(initialTime + 2));
