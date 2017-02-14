@@ -243,22 +243,6 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 		}
 	}
 
-	/**
-	 * This method should be called by subclasses prior to serialization. Because the TypeInformation is
-	 * not always serializable, it is 'transient' and dropped during serialization. Hence, the descriptor
-	 * needs to make sure that the serializer is created before the TypeInformation is dropped. 
-	 */
-	private void ensureSerializerCreated() {
-		if (serializer == null) {
-			if (typeInfo != null) {
-				serializer = typeInfo.createSerializer(new ExecutionConfig());
-			} else {
-				throw new IllegalStateException(
-						"Cannot initialize serializer after TypeInformation was dropped during serialization");
-			}
-		}
-	}
-
 	// ------------------------------------------------------------------------
 	//  Standard Utils
 	// ------------------------------------------------------------------------
@@ -287,7 +271,7 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 
 	private void writeObject(final ObjectOutputStream out) throws IOException {
 		// make sure we have a serializer before the type information gets lost
-		ensureSerializerCreated();
+		initializeSerializerUnlessSet(new ExecutionConfig());
 
 		// write all the non-transient fields
 		out.defaultWriteObject();

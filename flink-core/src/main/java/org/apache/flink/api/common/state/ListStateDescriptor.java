@@ -21,6 +21,10 @@ package org.apache.flink.api.common.state;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.ArrayListSerializer;
+import org.apache.flink.api.java.typeutils.ArrayListTypeInfo;
+
+import java.util.ArrayList;
 
 /**
  * A {@link StateDescriptor} for {@link ListState}. This can be used to create a partitioned
@@ -30,7 +34,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
  * @param <T> The type of the values that can be added to the list state.
  */
 @PublicEvolving
-public class ListStateDescriptor<T> extends StateDescriptor<ListState<T>, T> {
+public class ListStateDescriptor<T> extends StateDescriptor<ListState<T>, ArrayList<T>> {
 	private static final long serialVersionUID = 1L;
 
 	/**
@@ -40,20 +44,22 @@ public class ListStateDescriptor<T> extends StateDescriptor<ListState<T>, T> {
 	 * consider using the {@link #ListStateDescriptor(String, TypeInformation)} constructor.
 	 *
 	 * @param name The (unique) name for the state.
-	 * @param typeClass The type of the values in the state.
+	 * @param elementTypeClass The type of the elements in the state.
 	 */
-	public ListStateDescriptor(String name, Class<T> typeClass) {
-		super(name, typeClass, null);
+	@SuppressWarnings("unchecked")
+	public ListStateDescriptor(String name, Class<T> elementTypeClass) {
+		super(name, new ArrayListTypeInfo<>(elementTypeClass), null);
 	}
 
 	/**
 	 * Creates a new {@code ListStateDescriptor} with the given name and list element type.
 	 *
 	 * @param name The (unique) name for the state.
-	 * @param typeInfo The type of the values in the state.
+	 * @param elementTypeInfo The type of the elements in the state.
 	 */
-	public ListStateDescriptor(String name, TypeInformation<T> typeInfo) {
-		super(name, typeInfo, null);
+	@SuppressWarnings("unchecked")
+	public ListStateDescriptor(String name, TypeInformation<T> elementTypeInfo) {
+		super(name, new ArrayListTypeInfo<>(elementTypeInfo), null);
 	}
 
 	/**
@@ -62,10 +68,19 @@ public class ListStateDescriptor<T> extends StateDescriptor<ListState<T>, T> {
 	 * @param name The (unique) name for the state.
 	 * @param typeSerializer The type serializer for the list values.
 	 */
+	@SuppressWarnings("unchecked")
 	public ListStateDescriptor(String name, TypeSerializer<T> typeSerializer) {
-		super(name, typeSerializer, null);
+		super(name, new ArrayListSerializer<>(typeSerializer), null);
 	}
-	
+
+	public TypeSerializer<T> getElementSerializer() {
+		if (!(serializer instanceof ArrayListSerializer)) {
+			throw new IllegalStateException();
+		}
+
+		return ((ArrayListSerializer<T>)serializer).getElementSerializer();
+	}
+
 	// ------------------------------------------------------------------------
 
 	@Override

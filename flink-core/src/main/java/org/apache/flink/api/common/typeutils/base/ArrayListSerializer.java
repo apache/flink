@@ -15,7 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.runtime.state;
+
+package org.apache.flink.api.common.typeutils.base;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
@@ -24,8 +25,7 @@ import org.apache.flink.core.memory.DataOutputView;
 import java.io.IOException;
 import java.util.ArrayList;
 
-@SuppressWarnings("ForLoopReplaceableByForEach")
-final public class ArrayListSerializer<T> extends TypeSerializer<ArrayList<T>> {
+public class ArrayListSerializer<T> extends TypeSerializer<ArrayList<T>> {
 
 	private static final long serialVersionUID = 1119562170939152304L;
 
@@ -33,6 +33,10 @@ final public class ArrayListSerializer<T> extends TypeSerializer<ArrayList<T>> {
 
 	public ArrayListSerializer(TypeSerializer<T> elementSerializer) {
 		this.elementSerializer = elementSerializer;
+	}
+
+	public TypeSerializer<T> getElementSerializer() {
+		return elementSerializer;
 	}
 
 	@Override
@@ -108,9 +112,13 @@ final public class ArrayListSerializer<T> extends TypeSerializer<ArrayList<T>> {
 
 	@Override
 	public boolean equals(Object obj) {
+		if (obj.getClass() != getClass())  {
+			System.out.println("other " + obj.getClass().getName() + ", this " + getClass().getName());
+		}
+
 		return obj == this ||
-			(obj != null && obj.getClass() == getClass() &&
-				elementSerializer.equals(((ArrayListSerializer<?>) obj).elementSerializer));
+				(obj != null && obj.getClass() == getClass() &&
+						elementSerializer.equals(((ArrayListSerializer<?>) obj).elementSerializer));
 	}
 
 	@Override
