@@ -25,6 +25,7 @@ import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.Partitioner;
+import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
@@ -500,6 +501,97 @@ public class DataStreamTest {
 		sink.setParallelism(4);
 		assertEquals(4, env.getStreamGraph().getStreamNode(sink.getTransformation().getId()).getParallelism());
 	}
+
+	/**
+	 * Tests whether resource gets set.
+	 */
+	/*
+	@Test
+	public void testResource() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		ResourceSpec minResource1 = new ResourceSpec(1.0, 100);
+		ResourceSpec preferredResource1 = new ResourceSpec(2.0, 200);
+
+		ResourceSpec minResource2 = new ResourceSpec(1.0, 200);
+		ResourceSpec preferredResource2 = new ResourceSpec(2.0, 300);
+
+		ResourceSpec minResource3 = new ResourceSpec(1.0, 300);
+		ResourceSpec preferredResource3 = new ResourceSpec(2.0, 400);
+
+		ResourceSpec minResource4 = new ResourceSpec(1.0, 400);
+		ResourceSpec preferredResource4 = new ResourceSpec(2.0, 500);
+
+		ResourceSpec minResource5 = new ResourceSpec(1.0, 500);
+		ResourceSpec preferredResource5 = new ResourceSpec(2.0, 600);
+
+		ResourceSpec minResource6 = new ResourceSpec(1.0, 600);
+		ResourceSpec preferredResource6 = new ResourceSpec(2.0, 700);
+
+		ResourceSpec minResource7 = new ResourceSpec(1.0, 700);
+		ResourceSpec maxResource7 = new ResourceSpec(2.0, 800);
+
+		DataStream<Long> source1 = env.generateSequence(0, 0).setResource(minResource1, preferredResource1);
+		DataStream<Long> map1 = source1.map(new MapFunction<Long, Long>() {
+			@Override
+			public Long map(Long value) throws Exception {
+				return null;
+			}
+		}).setResource(minResource2, preferredResource2);
+
+		DataStream<Long> source2 = env.generateSequence(0, 0).setResource(minResource3, preferredResource3);
+		DataStream<Long> map2 = source2.map(new MapFunction<Long, Long>() {
+			@Override
+			public Long map(Long value) throws Exception {
+				return null;
+			}
+		}).setResource(minResource4, preferredResource4);
+
+		DataStream<Long> connected = map1.connect(map2)
+				.flatMap(new CoFlatMapFunction<Long, Long, Long>() {
+					@Override
+					public void flatMap1(Long value, Collector<Long> out) throws Exception {
+					}
+					@Override
+					public void flatMap2(Long value, Collector<Long> out) throws Exception {
+					}
+				}).setResource(minResource5, preferredResource5);
+
+		DataStream<Long> windowed = connected
+				.windowAll(GlobalWindows.create())
+				.trigger(PurgingTrigger.of(CountTrigger.of(10)))
+				.fold(0L, new FoldFunction<Long, Long>() {
+					private static final long serialVersionUID = 1L;
+
+					@Override
+					public Long fold(Long accumulator, Long value) throws Exception {
+						return null;
+					}
+				}).setResource(minResource6, preferredResource6);
+
+		DataStreamSink<Long> sink = windowed.print().setResource(minResource7, maxResource7);
+
+		assertEquals(minResource1, env.getStreamGraph().getStreamNode(source1.getId()).getMinResource());
+		assertEquals(preferredResource1, env.getStreamGraph().getStreamNode(source1.getId()).getPreferredResource());
+
+		assertEquals(minResource2, env.getStreamGraph().getStreamNode(map1.getId()).getMinResource());
+		assertEquals(preferredResource2, env.getStreamGraph().getStreamNode(map1.getId()).getPreferredResource());
+
+		assertEquals(minResource3, env.getStreamGraph().getStreamNode(source2.getId()).getMinResource());
+		assertEquals(preferredResource3, env.getStreamGraph().getStreamNode(source2.getId()).getPreferredResource());
+
+		assertEquals(minResource4, env.getStreamGraph().getStreamNode(map2.getId()).getMinResource());
+		assertEquals(preferredResource4, env.getStreamGraph().getStreamNode(map2.getId()).getPreferredResource());
+
+		assertEquals(minResource5, env.getStreamGraph().getStreamNode(connected.getId()).getMinResource());
+		assertEquals(preferredResource5, env.getStreamGraph().getStreamNode(connected.getId()).getPreferredResource());
+
+		assertEquals(minResource6, env.getStreamGraph().getStreamNode(windowed.getId()).getMinResource());
+		assertEquals(preferredResource6, env.getStreamGraph().getStreamNode(windowed.getId()).getPreferredResource());
+
+		assertEquals(minResource7, env.getStreamGraph().getStreamNode(sink.getTransformation().getId()).getMinResource());
+		assertEquals(maxResource7, env.getStreamGraph().getStreamNode(sink.getTransformation().getId()).getPreferredResource());
+	}*/
 
 	@Test
 	public void testTypeInfo() {

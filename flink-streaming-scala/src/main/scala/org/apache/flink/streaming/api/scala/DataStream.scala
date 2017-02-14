@@ -22,6 +22,7 @@ import org.apache.flink.annotation.{Internal, Public, PublicEvolving}
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.functions.{FilterFunction, FlatMapFunction, MapFunction, Partitioner}
 import org.apache.flink.api.common.io.OutputFormat
+import org.apache.flink.api.common.operators.ResourceSpec
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.java.tuple.{Tuple => JavaTuple}
@@ -143,6 +144,38 @@ class DataStream[T](stream: JavaStream[T]) {
 
     this
   }
+
+  /**
+   * Returns the minimum resource of this operation.
+   */
+  def minResource: ResourceSpec = stream.minResource()
+
+  /**
+   * Returns the preferred resource of this operation.
+   */
+  def preferredResource: ResourceSpec = stream.preferredResource()
+
+  /**
+   * Sets the minimum and preferred resources of this operation.
+   */
+  /*
+  def resource(minResource: ResourceSpec, preferredResource: ResourceSpec) : DataStream[T] =
+    stream match {
+      case stream : SingleOutputStreamOperator[T] => asScalaStream(stream.setResource(
+        minResource, preferredResource))
+      case _ =>
+        throw new UnsupportedOperationException("Operator does not support " +
+          "configuring custom resources specs.")
+      this
+  }*/
+
+  /**
+   * Sets the resource of this operation.
+   */
+  /*
+  def resource(resource: ResourceSpec) : Unit = {
+    this.resource(resource, resource)
+  }*/
 
   /**
    * Gets the name of the current data stream. This name is

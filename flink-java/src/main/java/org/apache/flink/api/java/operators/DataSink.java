@@ -29,6 +29,7 @@ import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.operators.Ordering;
+import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.typeinfo.NothingTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -50,6 +51,10 @@ public class DataSink<T> {
 	private String name;
 	
 	private int parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
+
+	private ResourceSpec minResource = ResourceSpec.UNKNOWN;
+
+	private ResourceSpec preferredResource = ResourceSpec.UNKNOWN;
 
 	private Configuration parameters;
 
@@ -278,4 +283,63 @@ public class DataSink<T> {
 
 		return this;
 	}
+
+	/**
+	 * Returns the minimum resource of this data sink. If no minimum resource has been set,
+	 * it returns the default empty resource.
+	 *
+	 * @return The minimum resource of this data sink.
+	 */
+	public ResourceSpec getMinResource() {
+		return this.minResource;
+	}
+
+	/**
+	 * Returns the preferred resource of this data sink. If no preferred resource has been set,
+	 * it returns the default empty resource.
+	 *
+	 * @return The preferred resource of this data sink.
+	 */
+	public ResourceSpec getPreferredResource() {
+		return this.preferredResource;
+	}
+
+	/**
+	 * Sets the minimum and preferred resources for this data sink. This overrides the default empty resource.
+	 *	The minimum resource must be satisfied and the preferred resource specifies the upper bound
+	 * for dynamic resource resize.
+	 *
+	 * @param minResource The minimum resource for this data sink.
+	 * @param preferredResource The preferred resource for this data sink.
+	 * @return The data sink with set minimum and preferred resources.
+	 */
+	/*
+	public DataSink<T> setResource(ResourceSpec minResource, ResourceSpec preferredResource) {
+		Preconditions.checkNotNull(minResource != null && preferredResource != null,
+				"The min and preferred resources must be not null.");
+		Preconditions.checkArgument(minResource.isValid() && preferredResource.isValid() && minResource.lessThanOrEqual(preferredResource),
+				"The values in resource must be not less than 0 and the preferred resource must be greater than the min resource.");
+
+		this.minResource = minResource;
+		this.preferredResource = preferredResource;
+
+		return this;
+	}*/
+
+	/**
+	 * Sets the resource for this data sink. This overrides the default empty minimum and preferred resources.
+	 *
+	 * @param resource The resource for this data sink.
+	 * @return The data sink with set minimum and preferred resources.
+	 */
+	/*
+	public DataSink<T> setResource(ResourceSpec resource) {
+		Preconditions.checkNotNull(resource != null, "The resource must be not null.");
+		Preconditions.checkArgument(resource.isValid(), "The resource values must be greater than 0.");
+
+		this.minResource = resource;
+		this.preferredResource = resource;
+
+		return this;
+	}*/
 }

@@ -19,6 +19,7 @@
 package org.apache.flink.api.java.operator;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.operators.Operator;
 import org.apache.flink.api.java.typeutils.ValueTypeInfo;
@@ -44,6 +45,20 @@ public class OperatorTest {
 
 		assertEquals(parallelism, operator.getParallelism());
 	}
+
+	/*
+	@Test
+	public void testConfigurationOfResource() {
+		Operator operator = new MockOperator();
+
+		// verify explicit change in resource
+		ResourceSpec minResource = new ResourceSpec(1.0, 100, 0, 0, 0);
+		ResourceSpec preferredResource = new ResourceSpec(2.0, 200, 0, 0, 0);
+		operator.setResource(minResource, preferredResource);
+
+		assertEquals(minResource, operator.getMinResource());
+		assertEquals(preferredResource, operator.getPreferredResource());
+	}*/
 
 	private class MockOperator extends Operator {
 		public MockOperator() {

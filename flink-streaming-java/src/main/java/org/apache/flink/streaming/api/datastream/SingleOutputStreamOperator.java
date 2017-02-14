@@ -154,6 +154,42 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 		return this;
 	}
 
+	/**
+	 * Sets the minimum and preferred resources for this operator, and the lower and upper resource limits will
+	 * be considered in dynamic resource resize feature for future plan.
+	 *
+	 * @param minResource The minimum resource for this operator.
+	 * @param preferredResource The preferred resource for this operator.
+	 * @return The operator with set minimum and preferred resources.
+	 */
+	/*
+	public SingleOutputStreamOperator<T> setResource(ResourceSpec minResource, ResourceSpec preferredResource) {
+		Preconditions.checkArgument(minResource != null && preferredResource != null,
+				"The min and preferred resources must be not null.");
+		Preconditions.checkArgument(minResource.isValid() && preferredResource.isValid() && minResource.lessThanOrEqual(preferredResource),
+				"The values in resource must be not less than 0 and the preferred resource must be greater than the min resource.");
+
+		transformation.setResource(minResource, preferredResource);
+
+		return this;
+	}*/
+
+	/**
+	 * Sets the resource for this operator, the minimum and preferred resources are the same by default.
+	 *
+	 * @param resource The resource for this operator.
+	 * @return The operator with set minimum and preferred resources.
+	 */
+	/*
+	public SingleOutputStreamOperator<T> setResource(ResourceSpec resource) {
+		Preconditions.checkNotNull(resource != null, "The resource must be not null.");
+		Preconditions.checkArgument(resource.isValid(), "The resource values must be greater than 0.");
+
+		transformation.setResource(resource, resource);
+
+		return this;
+	}*/
+
 	private boolean canBeParallel() {
 		return !nonParallel;
 	}

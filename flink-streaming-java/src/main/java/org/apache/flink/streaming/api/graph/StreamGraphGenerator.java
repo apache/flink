@@ -202,6 +202,10 @@ public class StreamGraphGenerator {
 			streamGraph.setTransformationUserHash(transform.getId(), transform.getUserProvidedNodeHash());
 		}
 
+		if (transform.getMinResource() != null && transform.getPreferredResource() != null) {
+			streamGraph.setResource(transform.getId(), transform.getMinResource(), transform.getPreferredResource());
+		}
+
 		return transformedIds;
 	}
 
