@@ -18,6 +18,7 @@
 package org.apache.flink.ml.preprocessing
 
 import breeze.linalg
+import breeze.linalg.normalize
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.DataSet
 import org.apache.flink.api.scala._
@@ -30,7 +31,7 @@ import org.apache.flink.ml.preprocessing.validation.DataValidation
 
 import scala.reflect.ClassTag
 
-/** Scales observations, so that all samples have unit measure. $L^p$ norm is used.
+/** Scales observations, so that all samples have unit measure. L^p norm is used.
   * By default for [[Normalizer]] transformer p=2.
   *
   * This transformer takes a subtype of  [[Vector]] of values and maps it to a
@@ -155,15 +156,8 @@ object Normalizer {
     * Scikit-learn sets norm to 1.0 if zero is found.
     **/
   private def normalizeVector[T <: Vector: BreezeVectorConverter](vector: T, pValue: Double): T = {
-    val normResult = Norm.norm(vector, pValue)
-    val normalized = {
-      if (normResult > 0.0) {
-        vector.asBreeze :* (1 / normResult)
-      }
-      else {
-        vector.asBreeze
-      }
-    }
+    val normalized = normalize(vector.asBreeze, pValue)
     normalized.fromBreeze
   }
 }
+

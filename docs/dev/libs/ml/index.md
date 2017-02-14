@@ -53,6 +53,7 @@ FlinkML currently supports the following algorithms:
 * [Polynomial Features](polynomial_features.html)
 * [Standard Scaler](standard_scaler.html)
 * [MinMax Scaler](min_max_scaler.html)
+* [Normalizer](normalizer.html)
 
 ### Recommendation
 

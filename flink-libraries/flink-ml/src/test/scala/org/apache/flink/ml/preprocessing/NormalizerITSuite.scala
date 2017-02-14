@@ -130,6 +130,53 @@ class NormalizerSuite extends FlatSpec
     }
   }
 
+  it should "scale the vectors' values to unit measure based on max norm" in {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+
+    import NormalizerData._
+
+    val dataSet = env.fromCollection(data)
+    val normalizer = Normalizer().setNorm(Norm.LMax)
+    val scaledVectors = normalizer.transform(dataSet).collect()
+
+    scaledVectors.length should equal(data.length)
+
+    for (vector <- scaledVectors) {
+      val expectedMeasure = Norm.norm(vector, Norm.LMax)
+      // check for finite norms only on scaled vectors
+      if (!expectedMeasure.isInfinity && !expectedMeasure.isNaN && expectedMeasure > 0.0) {
+        ((1.0 - expectedMeasure) < epsilon) shouldEqual true
+        val test = vector.asBreeze.forall(fv => {
+          fv <= 1.0
+        })
+        test shouldEqual true
+      }
+    }
+  }
+
+  it should "scale the labeled vectors' values to unit measure based on max norm" in {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+
+    import NormalizerData._
+
+    val dataSet = env.fromCollection(labeledData)
+    val normalizer = Normalizer().setNorm(Norm.LMax)
+    val scaledLabeledVectors = normalizer.transform(dataSet).collect()
+
+    for (labeledVector <- scaledLabeledVectors) {
+      val expectedMeasure = Norm.norm(labeledVector.vector, Norm.LMax)
+      // check for finite norms only on scaled vectors
+      if (!expectedMeasure.isInfinity && !expectedMeasure.isNaN && expectedMeasure > 0.0) {
+        ((1.0 - expectedMeasure) < epsilon) shouldEqual true
+        val test = labeledVector.vector.asBreeze.forall(fv => {
+          fv <= 1.0
+        })
+        test shouldEqual true
+      }
+    }
+  }
+
   it should "handle bad data correctly" in {
     val env = ExecutionEnvironment.getExecutionEnvironment
 

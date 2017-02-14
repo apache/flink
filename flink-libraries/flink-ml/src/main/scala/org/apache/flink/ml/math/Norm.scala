@@ -25,5 +25,6 @@ import Breeze.Vector2BreezeConverter
 object Norm {
   final val L2 = 2.0
   final val L1 = 1.0
+  final val LMax = Double.PositiveInfinity
   def norm(x: Vector, p: Double = L2): Double = breezeNorm(x.asBreeze, p)
 }

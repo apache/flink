@@ -34,15 +34,15 @@ class NormSuite extends FlatSpec with Matchers {
     val N = 100
     val data = Array.range(1, N + 1)
     val vector = DenseVector(data)
-    assertResult(Norm.norm(vector, 1))(N*(N + 1)/2)
+    assertResult(Norm.norm(vector, Norm.L1))(N*(N + 1)/2)
   }
 
   it should "calculate L^1 norm correctly for a dense vector with negative elements" in {
     val data = Array(-1, 1, -1, 1)
     val vectorD = DenseVector(data)
     val vectorS = SparseVector.fromCOO(4, (0,1), (1,-1))
-    assertResult(Norm.norm(vectorD,1))(data.length)
-    assertResult(Norm.norm(vectorS,1))(2)
+    assertResult(Norm.norm(vectorD, Norm.L1))(data.length)
+    assertResult(Norm.norm(vectorS,Norm.L1))(2)
   }
 
   it should "calculate L^2 norm correctly for a sparse/dense vector" in {
@@ -52,5 +52,12 @@ class NormSuite extends FlatSpec with Matchers {
     assertResult(Norm.norm(vectorD))(4)
     assertResult(Norm.norm(vectorS))(5)
   }
-}
 
+  it should "calculate max norm correctly for a sparse/dense vector" in {
+    val dataD = Array.fill(16)(1)
+    val vectorD = DenseVector(dataD)
+    val vectorS = SparseVector.fromCOO(16, (0,400), (1,1), (10,2), (5,2))
+    assertResult(Norm.norm(vectorD, Norm.LMax))(1)
+    assertResult(Norm.norm(vectorS, Norm.LMax))(400)
+  }
+}
