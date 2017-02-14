@@ -26,7 +26,7 @@ import org.apache.flink.table.api.java.utils.UserDefinedTableFunctions.JavaTable
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.table.api.scala.batch.utils.TableProgramsClusterTestBase
-import org.apache.flink.table.expressions.utils.RichFunc2
+import org.apache.flink.table.expressions.utils.{Func13, RichFunc2}
 import org.apache.flink.table.utils._
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
@@ -38,7 +38,7 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 @RunWith(classOf[Parameterized])
-class DataSetCorrelateITCase(
+class DataSetUserDefinedFunctionITCase(
   configMode: TableConfigMode)
   extends TableProgramsClusterTestBase(configMode) {
 
@@ -224,6 +224,53 @@ class DataSetCorrelateITCase(
 
     val expected = "1,Hi\n1,test\n2,Hello\n2,test\n3,Hello world\n3,test"
     val results = result.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testTableFunctionConstructorWithParams(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
+    val in = testData(env).toTable(tableEnv).as('a, 'b, 'c)
+    val func30 = new TableFunc3(null)
+    val func31 = new TableFunc3("OneConf_")
+    val func32 = new TableFunc3("TwoConf_")
+
+    val result = in
+      .join(func30('c) as('d, 'e))
+      .select('c, 'd, 'e)
+      .join(func31('c) as ('f, 'g))
+      .select('c, 'd, 'e, 'f, 'g)
+      .join(func32('c) as ('h, 'i))
+      .select('c, 'd, 'f, 'h, 'e, 'g, 'i)
+      .toDataSet[Row]
+
+    val results = result.collect()
+
+    val expected = "Anna#44,Anna,OneConf_Anna,TwoConf_Anna,44,44,44\n" +
+      "Jack#22,Jack,OneConf_Jack,TwoConf_Jack,22,22,22\n" +
+      "John#19,John,OneConf_John,TwoConf_John,19,19,19\n"
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testScalarFunctionConstructorWithParams(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
+    val in = testData(env).toTable(tableEnv).as('a, 'b, 'c)
+
+    val func0 = new Func13("default")
+    val func1 = new Func13("Sunny")
+    val func2 = new Func13("kevin2")
+
+    val result = in.select(func0('c), func1('c),func2('c))
+
+    val results = result.collect()
+
+    val expected = "default-Anna#44,Sunny-Anna#44,kevin2-Anna#44\n" +
+      "default-Jack#22,Sunny-Jack#22,kevin2-Jack#22\n" +
+      "default-John#19,Sunny-John#19,kevin2-John#19\n" +
+      "default-nosharp,Sunny-nosharp,kevin2-nosharp"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 

@@ -54,7 +54,6 @@ class TableFunc1 extends TableFunction[String] {
   }
 }
 
-
 class TableFunc2 extends TableFunction[Row] {
   def eval(str: String): Unit = {
     if (str.contains("#")) {
@@ -70,6 +69,41 @@ class TableFunc2 extends TableFunction[Row] {
   override def getResultType: TypeInformation[Row] = {
     new RowTypeInfo(BasicTypeInfo.STRING_TYPE_INFO,
                     BasicTypeInfo.INT_TYPE_INFO)
+  }
+}
+
+class TableFunc3(data: String, conf: Map[String, String]) extends TableFunction[SimpleUser] {
+
+  def this(data: String) {
+    this(data, null)
+  }
+
+  def eval(user: String): Unit = {
+    if (user.contains("#")) {
+      val splits = user.split("#")
+      if (null != data) {
+        if (null != conf && conf.size > 0) {
+          val it = conf.keys.iterator
+          while (it.hasNext) {
+            val key = it.next()
+            val value = conf.get(key).get
+            collect(
+              SimpleUser(
+                data.concat("_key=")
+                .concat(key)
+                .concat("_value=")
+                .concat(value)
+                .concat("_")
+                .concat(splits(0)),
+                splits(1).toInt))
+          }
+        } else {
+          collect(SimpleUser(data.concat(splits(0)), splits(1).toInt))
+        }
+      } else {
+        collect(SimpleUser(splits(0), splits(1).toInt))
+      }
+    }
   }
 }
 

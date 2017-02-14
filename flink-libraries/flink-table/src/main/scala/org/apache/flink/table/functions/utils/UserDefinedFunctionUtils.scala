@@ -23,6 +23,7 @@ import java.lang.{Long => JLong, Integer => JInt}
 import java.lang.reflect.{Method, Modifier}
 import java.sql.{Date, Time, Timestamp}
 
+import org.apache.commons.codec.binary.Base64
 import com.google.common.primitives.Primitives
 import org.apache.calcite.sql.SqlFunction
 import org.apache.flink.api.common.functions.InvalidTypesException
@@ -35,15 +36,6 @@ import org.apache.flink.table.plan.schema.FlinkTableFunctionImpl
 import org.apache.flink.util.InstantiationUtil
 
 object UserDefinedFunctionUtils {
-
-  /**
-    * Instantiates a user-defined function.
-    */
-  def instantiate[T <: UserDefinedFunction](clazz: Class[T]): T = {
-    val constructor = clazz.getDeclaredConstructor()
-    constructor.setAccessible(true)
-    constructor.newInstance()
-  }
 
   /**
     * Checks if a user-defined function can be easily instantiated.
@@ -59,12 +51,6 @@ object UserDefinedFunctionUtils {
     else if (InstantiationUtil.isNonStaticInnerClass(clazz)) {
       throw ValidationException("The class is an inner class, but not statically accessible.")
     }
-
-    // check for default constructor (can be private)
-    clazz
-      .getDeclaredConstructors
-      .find(_.getParameterTypes.isEmpty)
-      .getOrElse(throw ValidationException("Function class needs a default constructor."))
   }
 
   /**
@@ -168,7 +154,7 @@ object UserDefinedFunctionUtils {
 
   /**
     * Create [[SqlFunction]] for a [[ScalarFunction]]
- *
+    *
     * @param name function name
     * @param function scalar function
     * @param typeFactory type factory
@@ -184,7 +170,7 @@ object UserDefinedFunctionUtils {
 
   /**
     * Create [[SqlFunction]]s for a [[TableFunction]]'s every eval method
- *
+    *
     * @param name function name
     * @param tableFunction table function
     * @param resultType the type information of returned table
@@ -311,7 +297,6 @@ object UserDefinedFunctionUtils {
     }
   }.toArray
 
-
   /**
     * Compares parameter candidate classes with expected classes. If true, the parameters match.
     * Candidate can be null (acts as a wildcard).
@@ -324,4 +309,16 @@ object UserDefinedFunctionUtils {
     candidate == classOf[Time] && (expected == classOf[Int] || expected == classOf[JInt]) ||
     candidate == classOf[Timestamp] && (expected == classOf[Long] || expected == classOf[JLong])
 
+  @throws[Exception]
+  def serialize(function: UserDefinedFunction): String = {
+    val byteArray = InstantiationUtil.serializeObject(function)
+    Base64.encodeBase64URLSafeString(byteArray)
+  }
+
+  @throws[Exception]
+  def deserialize(data: String): UserDefinedFunction = {
+    val byteData = Base64.decodeBase64(data)
+    InstantiationUtil
+      .deserializeObject[UserDefinedFunction](byteData, Thread.currentThread.getContextClassLoader)
+  }
 }

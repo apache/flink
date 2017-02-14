@@ -40,6 +40,7 @@ import org.apache.flink.table.codegen.Indenter.toISC
 import org.apache.flink.table.codegen.calls.FunctionGenerator
 import org.apache.flink.table.codegen.calls.ScalarOperators._
 import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
+import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.runtime.TableFunctionCollector
 import org.apache.flink.table.typeutils.TypeCheckUtils._
 import org.apache.flink.types.Row
@@ -1494,15 +1495,14 @@ class CodeGenerator(
 
   /**
     * Adds a reusable [[UserDefinedFunction]] to the member area of the generated [[Function]].
-    * The [[UserDefinedFunction]] must have a default constructor, however, it does not have
-    * to be public.
     *
     * @param function [[UserDefinedFunction]] object to be instantiated during runtime
     * @return member variable term
     */
   def addReusableFunction(function: UserDefinedFunction): String = {
     val classQualifier = function.getClass.getCanonicalName
-    val fieldTerm = s"function_${classQualifier.replace('.', '$')}"
+    val functionSerializedData = UserDefinedFunctionUtils.serialize(function)
+    val fieldTerm = s"function_${function.functionIdentifier}"
 
     val fieldFunction =
       s"""
@@ -1510,15 +1510,14 @@ class CodeGenerator(
         |""".stripMargin
     reusableMemberStatements.add(fieldFunction)
 
-    val constructorTerm = s"constructor_${classQualifier.replace('.', '$')}"
-    val constructorAccessibility =
+    val functionDeserialization =
       s"""
-        |java.lang.reflect.Constructor $constructorTerm =
-        |  $classQualifier.class.getDeclaredConstructor();
-        |$constructorTerm.setAccessible(true);
-        |$fieldTerm = ($classQualifier) $constructorTerm.newInstance();
+         |$fieldTerm = ($classQualifier)
+         |${UserDefinedFunctionUtils.getClass.getName.stripSuffix("$")}
+         |.deserialize("$functionSerializedData");
        """.stripMargin
-    reusableInitStatements.add(constructorAccessibility)
+
+    reusableInitStatements.add(functionDeserialization)
 
     val openFunction =
       s"""
