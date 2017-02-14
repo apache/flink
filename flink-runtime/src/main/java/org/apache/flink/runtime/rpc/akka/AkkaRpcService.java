@@ -276,12 +276,12 @@ public class AkkaRpcService implements RpcService {
 	}
 
 	@Override
-	public void scheduleRunnable(Runnable runnable, long delay, TimeUnit unit) {
+	public ScheduledFuture<?> scheduleRunnable(Runnable runnable, long delay, TimeUnit unit) {
 		checkNotNull(runnable, "runnable");
 		checkNotNull(unit, "unit");
-		checkArgument(delay >= 0, "delay must be zero or larger");
+		checkArgument(delay >= 0L, "delay must be zero or larger");
 
-		actorSystem.scheduler().scheduleOnce(new FiniteDuration(delay, unit), runnable, actorSystem.dispatcher());
+		return internalScheduledExecutor.schedule(runnable, delay, unit);
 	}
 
 	@Override
