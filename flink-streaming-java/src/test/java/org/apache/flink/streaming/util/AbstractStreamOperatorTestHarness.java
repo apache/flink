@@ -459,15 +459,11 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 	}
 
 	/**
-	 * Calls {@link StreamOperator#snapshotState(long, long, CheckpointStreamFactory)}.
+	 * Calls {@link StreamOperator#snapshotState(long, long)}.
 	 */
 	public OperatorStateHandles snapshot(long checkpointId, long timestamp) throws Exception {
 
-		CheckpointStreamFactory streamFactory = stateBackend.createStreamFactory(
-				new JobID(),
-				"test_op");
-
-		OperatorSnapshotResult operatorStateResult = operator.snapshotState(checkpointId, timestamp, streamFactory);
+		OperatorSnapshotResult operatorStateResult = operator.snapshotState(checkpointId, timestamp);
 
 		KeyGroupsStateHandle keyedManaged = FutureUtil.runIfNotDoneAndGet(operatorStateResult.getKeyedStateManagedFuture());
 		KeyGroupsStateHandle keyedRaw = FutureUtil.runIfNotDoneAndGet(operatorStateResult.getKeyedStateRawFuture());
@@ -475,14 +471,13 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 		OperatorStateHandle opManaged = FutureUtil.runIfNotDoneAndGet(operatorStateResult.getOperatorStateManagedFuture());
 		OperatorStateHandle opRaw = FutureUtil.runIfNotDoneAndGet(operatorStateResult.getOperatorStateRawFuture());
 
-		OperatorStateHandles handles = new OperatorStateHandles(
+		return new OperatorStateHandles(
 			0,
 			null,
 			keyedManaged != null ? Collections.singletonList(keyedManaged) : null,
 			keyedRaw != null ? Collections.singletonList(keyedRaw) : null,
 			opManaged != null ? Collections.singletonList(opManaged) : null,
 			opRaw != null ? Collections.singletonList(opRaw) : null);
-		return handles;
 	}
 
 	/**
@@ -490,6 +485,7 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 	 * the operator implements this interface.
 	 */
 	@Deprecated
+	@SuppressWarnings("deprecation")
 	public StreamStateHandle snapshotLegacy(long checkpointId, long timestamp) throws Exception {
 
 		CheckpointStreamFactory.CheckpointStateOutputStream outStream = stateBackend.createStreamFactory(
@@ -513,7 +509,9 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 	/**
 	 * Calls {@link StreamCheckpointedOperator#restoreState(FSDataInputStream)} if
 	 * the operator implements this interface.
-	 */	@Deprecated
+	 */
+	@Deprecated
+	@SuppressWarnings("deprecation")
 	public void restore(StreamStateHandle snapshot) throws Exception {
 		if(operator instanceof StreamCheckpointedOperator) {
 			try (FSDataInputStream in = snapshot.openInputStream()) {
