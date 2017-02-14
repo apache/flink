@@ -134,9 +134,9 @@ public abstract class AbstractStreamOperator<OUT>
 	// --------------- Metrics ---------------------------
 
 	/** Metric group for the operator */
-	protected MetricGroup metrics;
+	protected transient MetricGroup metrics;
 
-	protected LatencyGauge latencyGauge;
+	protected transient LatencyGauge latencyGauge;
 
 	// ---------------- timers ------------------
 
