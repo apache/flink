@@ -52,16 +52,7 @@ shopt -u nocasematch
 # Start TaskManager instance(s) using pdsh (Parallel Distributed Shell) when available
 readSlaves
 
-# all-local setup?
-all_localhost=1
-for slave in ${SLAVES[@]}; do
-    if [[ "$slave" != "localhost" ]]; then
-        all_localhost=0
-        break
-    fi
-done
-
-if [[ ${all_localhost} -eq 1 ]]; then
+if [ ${SLAVES_ALL_LOCALHOST} = true ] ; then
     # all-local setup
     for slave in ${SLAVES[@]}; do
         "${FLINK_BIN_DIR}"/taskmanager.sh start

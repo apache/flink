@@ -25,21 +25,13 @@ bin=`cd "$bin"; pwd`
 # Stop TaskManager instance(s) using pdsh (Parallel Distributed Shell) when available
 readSlaves
 
-# all-local setup?
-all_localhost=1
-for slave in ${SLAVES[@]}; do
-    if [[ "$slave" != "localhost" ]]; then
-        all_localhost=0
-        break
-    fi
-done
-
-if [[ ${all_localhost} -eq 1 ]]; then
+if [ ${SLAVES_ALL_LOCALHOST} = true ] ; then
     # all-local setup
     for slave in ${SLAVES[@]}; do
         "${FLINK_BIN_DIR}"/taskmanager.sh stop
     done
 else
+    # non-local setup
     command -v pdsh >/dev/null 2>&1
     if [[ $? -ne 0 ]]; then
         for slave in ${SLAVES[@]}; do

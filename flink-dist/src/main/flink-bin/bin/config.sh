@@ -374,12 +374,16 @@ readSlaves() {
 
     SLAVES=()
 
+    SLAVES_ALL_LOCALHOST=true
     GOON=true
     while $GOON; do
         read line || GOON=false
         HOST=$( extractHostName $line)
-        if [ -n "$HOST" ]; then
+        if [ -n "$HOST" ] ; then
             SLAVES+=(${HOST})
+            if [ "${HOST}" != "localhost" ] ; then
+                SLAVES_ALL_LOCALHOST=false
+            fi
         fi
     done < "$SLAVES_FILE"
 }
