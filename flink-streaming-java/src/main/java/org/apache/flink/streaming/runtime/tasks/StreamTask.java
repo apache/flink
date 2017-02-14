@@ -53,7 +53,6 @@ import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotResult;
 import org.apache.flink.streaming.api.operators.Output;
-import org.apache.flink.streaming.api.operators.StreamCheckpointedOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -1045,8 +1044,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 		// ------------------------
 
-		private CheckpointStreamFactory streamFactory;
-
 		private final List<StreamStateHandle> nonPartitionedStates;
 		private final List<OperatorSnapshotResult> snapshotInProgressList;
 
@@ -1125,15 +1122,17 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			}
 		}
 
+		@SuppressWarnings("deprecation")
 		private void checkpointStreamOperator(StreamOperator<?> op) throws Exception {
 			if (null != op) {
-				createStreamFactory(op);
-				snapshotNonPartitionableState(op);
+				// first call the legacy checkpoint code paths 
+				nonPartitionedStates.add(op.snapshotLegacyOperatorState(
+						checkpointMetaData.getCheckpointId(),
+						checkpointMetaData.getTimestamp()));
 
 				OperatorSnapshotResult snapshotInProgress = op.snapshotState(
 						checkpointMetaData.getCheckpointId(),
-						checkpointMetaData.getTimestamp(),
-						streamFactory);
+						checkpointMetaData.getTimestamp());
 
 				snapshotInProgressList.add(snapshotInProgress);
 			} else {
@@ -1141,41 +1140,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				OperatorSnapshotResult emptySnapshotInProgress = new OperatorSnapshotResult();
 				snapshotInProgressList.add(emptySnapshotInProgress);
 			}
-		}
-
-		private void createStreamFactory(StreamOperator<?> operator) throws IOException {
-			String operatorId = owner.createOperatorIdentifier(operator, owner.configuration.getVertexID());
-			this.streamFactory = owner.stateBackend.createStreamFactory(owner.getEnvironment().getJobID(), operatorId);
-		}
-
-		//TODO deprecated code path
-		private void snapshotNonPartitionableState(StreamOperator<?> operator) throws Exception {
-
-			StreamStateHandle stateHandle = null;
-
-			if (operator instanceof StreamCheckpointedOperator) {
-
-				CheckpointStreamFactory.CheckpointStateOutputStream outStream =
-						streamFactory.createCheckpointStateOutputStream(
-								checkpointMetaData.getCheckpointId(), checkpointMetaData.getTimestamp());
-
-				owner.cancelables.registerClosable(outStream);
-
-				try {
-					((StreamCheckpointedOperator) operator).
-							snapshotState(
-									outStream,
-									checkpointMetaData.getCheckpointId(),
-									checkpointMetaData.getTimestamp());
-
-					stateHandle = outStream.closeAndGetHandle();
-				} finally {
-					owner.cancelables.unregisterClosable(outStream);
-					outStream.close();
-				}
-			}
-
-			nonPartitionedStates.add(stateHandle);
 		}
 
 		public void runAsyncCheckpointingAndAcknowledge() throws IOException {
