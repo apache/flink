@@ -168,6 +168,11 @@ public final class ConfigConstants {
 	public static final String LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL = "library-cache-manager.cleanup.interval";
 
 	/**
+     * The config parameter defining the task manager resource profile.
+	 */
+	public static final String TASK_MANAGER_RESOURCE_PROFILE_KEY = "taskmanager.resourceProfile";
+
+	/**
 	 * The config parameter defining the task manager's hostname.
 	 */
 	public static final String TASK_MANAGER_HOSTNAME_KEY = "taskmanager.hostname";

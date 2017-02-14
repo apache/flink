@@ -18,6 +18,7 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.commons.net.util.Base64;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -52,6 +53,8 @@ import org.slf4j.LoggerFactory;
 import scala.concurrent.duration.FiniteDuration;
 import org.apache.flink.util.ExceptionUtils;
 
+import java.io.ByteArrayOutputStream;
+import java.io.ObjectOutputStream;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.List;
@@ -245,7 +248,7 @@ public class YarnResourceManager extends ResourceManager<ResourceID> implements 
 			try {
 				/** Context information used to start a TaskExecutor Java process */
 				ContainerLaunchContext taskExecutorLaunchContext =
-						createTaskExecutorLaunchContext(container.getResource(), container.getId().toString(), container.getNodeId().getHost());
+						createTaskExecutorLaunchContext(container.getResource(), container.getId().toString(), container.getNodeId().getHost(), container.getPriority());
 				nodeManagerClient.startContainer(container, taskExecutorLaunchContext);
 			}
 			catch (Throwable t) {
@@ -323,7 +326,8 @@ public class YarnResourceManager extends ResourceManager<ResourceID> implements 
 				numPendingContainerRequests);
 	}
 
-	private ContainerLaunchContext createTaskExecutorLaunchContext(Resource resource, String containerId, String host)
+	private ContainerLaunchContext createTaskExecutorLaunchContext(Resource resource, 
+			String containerId, String host, Priority priority)
 			throws Exception {
 		// init the ContainerLaunchContext
 		final String currDir = ENV.get(ApplicationConstants.Environment.PWD.key());
@@ -342,6 +346,14 @@ public class YarnResourceManager extends ResourceManager<ResourceID> implements 
 		FiniteDuration teRegistrationTimeout = new FiniteDuration(timeout, TimeUnit.SECONDS);
 		final Configuration taskManagerConfig = BootstrapTools.generateTaskManagerConfiguration(
 				flinkConfig, "", 0, 1, teRegistrationTimeout);
+		// Add resource profile of slots to task executor config. 
+		// For yarn, all slots in a task executor have same resource profile 
+		ByteArrayOutputStream output = new ByteArrayOutputStream();
+		ObjectOutputStream rpOutput = new ObjectOutputStream(output);
+		rpOutput.writeObject(getResourceProfile(priority.getPriority()));
+		rpOutput.close();
+		taskManagerConfig.setString(ConfigConstants.TASK_MANAGER_RESOURCE_PROFILE_KEY,
+				new String(Base64.encodeBase64(output.toByteArray())));
 		LOG.debug("TaskManager configuration: {}", taskManagerConfig);
 
 		ContainerLaunchContext taskExecutorLaunchContext = Utils.createTaskExecutorContext(
@@ -374,6 +386,25 @@ public class YarnResourceManager extends ResourceManager<ResourceID> implements 
 			resourcePriorities.put(resourceProfile, priority);
 			return priority;
 		}
+	}
+
+	/**
+	 * Get resource profile by given the container priority. It should always be got from the mapping
+	 * between resource profile and priority, otherwise it will throw the exception.
+	 *
+	 * @param priority The container priority used for distinguishing different resources.
+	 * @return The resource profile corresponding with the priority.
+	 * @throws Exception
+	 */
+	private ResourceProfile getResourceProfile(int priority) throws Exception{
+		if (resourcePriorities.containsValue(priority)) {
+			for (Map.Entry<ResourceProfile, Integer> entry : resourcePriorities.entrySet()) {
+				if (entry.getValue() == priority) {
+					return entry.getKey();
+				}
+			}
+		}
+		throw new Exception("There is no related resource profile for the priority : " + priority);
 	}
 
 }
