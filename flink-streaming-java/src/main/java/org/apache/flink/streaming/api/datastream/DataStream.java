@@ -512,6 +512,43 @@ public class DataStream<T> {
 	/**
 	 * Applies a FlatMap transformation on a {@link DataStream}. The
 	 * transformation calls a {@link FlatMapFunction} for each element of the
+	 * the {@link DataStream}. Each FlatMapFunction call can return any number of elements
+	 * including none. The user can also extend {@link RichFlatMapFunction} to
+	 * gain access to other features provided by the
+	 * {@link org.apache.flink.api.common.functions.RichFunction} interface.
+	 *
+	 * This method accepts a parameter {@code parallelism} which sets the number
+	 * of threads to be forked to process elements of the {@link DataStream}.
+	 * This helps in some cases where the process of elements takes time
+	 * for example sending HTTP requests to a slow service which blocks the whole
+	 * thread in case of using a single thread for processing elements.
+	 *
+	 * @param flatMapper
+	 *            The FlatMapFunction that is called for each element of the
+	 *            DataStream
+	 *
+	 * @param parallelism
+	 * 			  Number of threads to fork to process element of the DataStream. If value is 0, means only the
+	 * 			  main thread is going to process the elements. If 1 is set, then 1 thread will process the element
+	 * 			  then return back to the main thread. If 2 threads are set, then each thread will process an element
+	 * 			  and the main thread will be blocked till both finish.
+	 *
+	 * @param <R>
+	 *            output type
+	 *
+	 * @return The transformed {@link DataStream}.
+	 */
+	public <R> SingleOutputStreamOperator<R> flatMap(FlatMapFunction<T, R> flatMapper, int parallelism) {
+
+		TypeInformation<R> outType = TypeExtractor.getFlatMapReturnTypes(clean(flatMapper),
+				getType(), Utils.getCallLocationName(), true);
+
+		return transform("Flat Map", outType, new StreamFlatMap<>(clean(flatMapper), parallelism));
+	}
+
+	/**
+	 * Applies a FlatMap transformation on a {@link DataStream}. The
+	 * transformation calls a {@link FlatMapFunction} for each element of the
 	 * DataStream. Each FlatMapFunction call can return any number of elements
 	 * including none. The user can also extend {@link RichFlatMapFunction} to
 	 * gain access to other features provided by the
@@ -526,12 +563,7 @@ public class DataStream<T> {
 	 * @return The transformed {@link DataStream}.
 	 */
 	public <R> SingleOutputStreamOperator<R> flatMap(FlatMapFunction<T, R> flatMapper) {
-
-		TypeInformation<R> outType = TypeExtractor.getFlatMapReturnTypes(clean(flatMapper),
-				getType(), Utils.getCallLocationName(), true);
-
-		return transform("Flat Map", outType, new StreamFlatMap<>(clean(flatMapper)));
-
+		return flatMap(flatMapper, 0);
 	}
 
 	/**

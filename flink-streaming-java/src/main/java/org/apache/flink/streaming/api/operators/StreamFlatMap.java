@@ -20,7 +20,11 @@ package org.apache.flink.streaming.api.operators;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.util.Preconditions;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.*;
 @Internal
 public class StreamFlatMap<IN, OUT>
 		extends AbstractUdfStreamOperator<OUT, FlatMapFunction<IN, OUT>>
@@ -28,27 +32,103 @@ public class StreamFlatMap<IN, OUT>
 
 	private static final long serialVersionUID = 1L;
 
+	private static final long TERMINATION_TIMEOUT = 5000L;
+
+	private int parallelism;
+	private ExecutorService executorService;
+	private List<Callable<Void>> tasks;
+
 	private transient TimestampedCollector<OUT> collector;
 
+    public StreamFlatMap(FlatMapFunction<IN, OUT> flatMapper, int parallelism) {
+        super(flatMapper);
+
+        Preconditions.checkArgument(parallelism >= 0 ? true : false, "Invalid parallelism!");
+
+        this.parallelism = parallelism;
+        tasks = new ArrayList<>();
+
+        setChainingStrategy();
+    }
+
 	public StreamFlatMap(FlatMapFunction<IN, OUT> flatMapper) {
-		super(flatMapper);
-		chainingStrategy = ChainingStrategy.ALWAYS;
+		this(flatMapper, 0);
 	}
 
 	@Override
 	public void open() throws Exception {
 		super.open();
+
 		collector = new TimestampedCollector<>(output);
+
+		if(canBeParallelized())
+		    createExecutorService();
 	}
 
 	@Override
 	public void close() throws Exception {
-		super.close();
+        if(canBeParallelized()) {
+            executorService.invokeAll(tasks);
+            closeExecutor();
+        }
+
+        super.close();
 	}
 
 	@Override
-	public void processElement(StreamRecord<IN> element) throws Exception {
-		collector.setTimestamp(element);
-		userFunction.flatMap(element.getValue(), collector);
+	public void processElement(final StreamRecord<IN> element) throws Exception {
+        if(canBeParallelized())
+            tasks.add(new ProcessElementTask(userFunction, element, collector));
+        else
+            new ProcessElementTask(userFunction, element, collector).processElement();
+    }
+
+    private boolean canBeParallelized() {
+        return parallelism > 0;
+    }
+
+	private void setChainingStrategy() {
+		chainingStrategy = ChainingStrategy.ALWAYS;
 	}
+
+	private void createExecutorService() {
+		executorService = Executors.newFixedThreadPool(parallelism > 0 ? parallelism : 1);
+	}
+
+	private void closeExecutor() {
+		executorService.shutdown();
+
+		try {
+			if (!executorService.awaitTermination(TERMINATION_TIMEOUT, TimeUnit.MILLISECONDS))
+                executorService.shutdownNow();
+		} catch (InterruptedException interrupted) {
+			executorService.shutdownNow();
+		}
+	}
+
+    private class ProcessElementTask<IN, OUT> implements Callable {
+        private FlatMapFunction<IN, OUT> userFunction;
+        private StreamRecord<IN> element;
+        private TimestampedCollector<OUT> collector;
+
+        public ProcessElementTask(FlatMapFunction<IN, OUT> userFunction,  StreamRecord<IN> element,
+                                  TimestampedCollector<OUT> collector) {
+            this.userFunction = userFunction;
+            this.element = element;
+            this.collector = collector;
+        }
+
+        @Override
+        public Void call() throws Exception {
+            // Avoid race condition when multiple threads change `collector` at the same time
+            synchronized(userFunction) { processElement(); }
+
+            return null;
+        }
+
+        public void processElement() throws Exception {
+            collector.setTimestamp(element);
+            userFunction.flatMap(element.getValue(), collector);
+        }
+    }
 }
