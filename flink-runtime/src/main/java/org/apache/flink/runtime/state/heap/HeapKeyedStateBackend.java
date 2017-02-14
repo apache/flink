@@ -27,7 +27,6 @@ import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.FSDataInputStream;
@@ -108,25 +107,29 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	//  state backend operations
 	// ------------------------------------------------------------------------
 
-	@SuppressWarnings("unchecked")
 	private <N, V> StateTable<K, N, V> tryRegisterStateTable(
 			TypeSerializer<N> namespaceSerializer, StateDescriptor<?, V> stateDesc) {
 
-		String name = stateDesc.getName();
-		StateTable<K, N, V> stateTable = (StateTable<K, N, V>) stateTables.get(name);
-
-		RegisteredBackendStateMetaInfo<N, V> newMetaInfo =
-				new RegisteredBackendStateMetaInfo<>(stateDesc.getType(), name, namespaceSerializer, stateDesc.getSerializer());
-
-		return tryRegisterStateTable(stateTable, newMetaInfo);
+		return tryRegisterStateTable(
+				stateDesc.getName(), stateDesc.getType(),
+				namespaceSerializer, stateDesc.getSerializer());
 	}
 
 	private <N, V> StateTable<K, N, V> tryRegisterStateTable(
-			StateTable<K, N, V> stateTable, RegisteredBackendStateMetaInfo<N, V> newMetaInfo) {
+			String stateName,
+			StateDescriptor.Type stateType,
+			TypeSerializer<N> namespaceSerializer, 
+			TypeSerializer<V> valueSerializer) {
+
+		final RegisteredBackendStateMetaInfo<N, V> newMetaInfo =
+				new RegisteredBackendStateMetaInfo<>(stateType, stateName, namespaceSerializer, valueSerializer);
+
+		@SuppressWarnings("unchecked")
+		StateTable<K, N, V> stateTable = (StateTable<K, N, V>) stateTables.get(stateName);
 
 		if (stateTable == null) {
 			stateTable = new StateTable<>(newMetaInfo, keyGroupRange);
-			stateTables.put(newMetaInfo.getName(), stateTable);
+			stateTables.put(stateName, stateTable);
 		} else {
 			if (!newMetaInfo.isCompatibleWith(stateTable.getMetaInfo())) {
 				throw new RuntimeException("Trying to access state using incompatible meta info, was " +
@@ -151,8 +154,16 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			TypeSerializer<N> namespaceSerializer,
 			ListStateDescriptor<T> stateDesc) throws Exception {
 
+		// the list state does some manual mapping, because the state is typed to the generic
+		// 'List' interface, but we want to use an implementation typed to ArrayList
+		// using a more specialized implementation opens up runtime optimizations
 
-		StateTable<K, N, List<T>> stateTable = tryRegisterStateTable(namespaceSerializer, stateDesc);
+		StateTable<K, N, ArrayList<T>> stateTable = tryRegisterStateTable(
+				stateDesc.getName(),
+				stateDesc.getType(),
+				namespaceSerializer,
+				new ArrayListSerializer<T>(stateDesc.getElementSerializer()));
+
 		return new HeapListState<>(this, stateDesc, stateTable, keySerializer, namespaceSerializer);
 	}
 
@@ -439,11 +450,6 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 			if (namespaceSerializer instanceof VoidSerializer) {
 				namespaceSerializer = VoidNamespaceSerializer.INSTANCE;
-			}
-
-			// The serializer used in the list states now changes from ArrayListSerializer to ListSerializer.
-			if (stateSerializer instanceof ArrayListSerializer) {
-				stateSerializer = new ListSerializer<>(((ArrayListSerializer<?>) stateSerializer).getElementSerializer());
 			}
 
 			Map nullNameSpaceFix = (Map) rawResultMap.remove(null);

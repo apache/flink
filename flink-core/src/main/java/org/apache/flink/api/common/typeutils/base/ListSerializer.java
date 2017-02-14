@@ -26,20 +26,48 @@ import java.io.IOException;
 import java.util.List;
 import java.util.ArrayList;
 
-@SuppressWarnings("ForLoopReplaceableByForEach")
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
+/**
+ * A serializer for {@link List Lists}. The serializer relies on an element serializer
+ * for teh serialization of the list's elements.
+ * 
+ * <p>The serialization format for the list is as follows: four bytes for the length of the lost,
+ * followed by the serialized representation of each element.
+ * 
+ * @param <T> The type of element in the list.
+ */
 public class ListSerializer<T> extends TypeSerializer<List<T>> {
 
 	private static final long serialVersionUID = 1119562170939152304L;
 
+	/** The serializer for the elements of the list */
 	private final TypeSerializer<T> elementSerializer;
 
+	/**
+	 * Creates a list serializer that uses the given serializer to serialize the list's elements.
+	 * 
+	 * @param elementSerializer The serializer for the elements of the list
+	 */
 	public ListSerializer(TypeSerializer<T> elementSerializer) {
-		this.elementSerializer = elementSerializer;
+		this.elementSerializer = checkNotNull(elementSerializer);
 	}
 
+	// ------------------------------------------------------------------------
+	//  ListSerializer specific properties
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Gets the serializer for the elements of the list.
+	 * @return The serializer for the elements of the list
+	 */
 	public TypeSerializer<T> getElementSerializer() {
 		return elementSerializer;
 	}
+
+	// ------------------------------------------------------------------------
+	//  Type Serializer implementation
+	// ------------------------------------------------------------------------
 
 	@Override
 	public boolean isImmutableType() {
@@ -54,14 +82,18 @@ public class ListSerializer<T> extends TypeSerializer<List<T>> {
 
 	@Override
 	public List<T> createInstance() {
-		return new ArrayList<>();
+		return new ArrayList<>(0);
 	}
 
 	@Override
 	public List<T> copy(List<T> from) {
 		List<T> newList = new ArrayList<>(from.size());
-		for (int i = 0; i < from.size(); i++) {
-			newList.add(elementSerializer.copy(from.get(i)));
+
+		// We iterate here rather than accessing by index, because we cannot be sure that
+		// the given list supports RandomAccess.
+		// The Iterator should be stack allocated on new JVMs (due to escape analysis)
+		for (T element : from) {
+			newList.add(elementSerializer.copy(element));
 		}
 		return newList;
 	}
@@ -80,8 +112,12 @@ public class ListSerializer<T> extends TypeSerializer<List<T>> {
 	public void serialize(List<T> list, DataOutputView target) throws IOException {
 		final int size = list.size();
 		target.writeInt(size);
-		for (int i = 0; i < size; i++) {
-			elementSerializer.serialize(list.get(i), target);
+
+		// We iterate here rather than accessing by index, because we cannot be sure that
+		// the given list supports RandomAccess.
+		// The Iterator should be stack allocated on new JVMs (due to escape analysis)
+		for (T element : list) {
+			elementSerializer.serialize(element, target);
 		}
 	}
 

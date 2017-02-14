@@ -18,7 +18,7 @@
 
 package org.apache.flink.migration.api.common.state;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.StateBackend;
 import org.apache.flink.api.common.state.StateDescriptor;
@@ -26,11 +26,11 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 /**
- * A {@link StateDescriptor} for {@link ListState}.
- *
- * @param <T> The type of the values that can be added to the list state.
+ * The old version of the {@link org.apache.flink.api.common.state.ListStateDescriptor}, retained for
+ * serialization backwards compatibility.
  */
-@PublicEvolving
+@Internal
+@Deprecated
 public class ListStateDescriptor<T> extends StateDescriptor<ListState<T>, T> {
 	private static final long serialVersionUID = 1L;
 

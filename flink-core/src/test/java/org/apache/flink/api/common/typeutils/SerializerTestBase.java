@@ -73,8 +73,11 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 			
 			Class<T> type = getTypeClass();
 			assertNotNull("The test is corrupt: type class is null.", type);
-			
-			assertEquals("Type of the instantiated object is wrong.", type, instance.getClass());
+
+			if (!type.isAssignableFrom(instance.getClass())) {
+				fail("Type of the instantiated object is wrong. " +
+						"Expected Type: " + type + " present type " + instance.getClass());
+			}
 		}
 		catch (Exception e) {
 			System.err.println(e.getMessage());

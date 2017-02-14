@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.java.typeutils;
 
-import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -26,29 +26,43 @@ import org.apache.flink.api.common.typeutils.base.ListSerializer;
 
 import java.util.List;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * A {@link TypeInformation} for the list types of the Java API.
  *
  * @param <T> The type of the elements in the list.
  */
-
-
-@Public
+@PublicEvolving
 public final class ListTypeInfo<T> extends TypeInformation<List<T>> {
+
+	private static final long serialVersionUID = 1L;
 
 	private final TypeInformation<T> elementTypeInfo;
 
+
 	public ListTypeInfo(Class<T> elementTypeClass) {
-		this.elementTypeInfo = TypeExtractor.createTypeInfo(elementTypeClass);
+		this.elementTypeInfo = of(checkNotNull(elementTypeClass, "elementTypeClass"));
 	}
 
 	public ListTypeInfo(TypeInformation<T> elementTypeInfo) {
-		this.elementTypeInfo = elementTypeInfo;
+		this.elementTypeInfo = checkNotNull(elementTypeInfo, "elementTypeInfo");
 	}
 
+	// ------------------------------------------------------------------------
+	//  ListTypeInfo specific properties
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Gets the type information for the elements contained in the list
+	 */
 	public TypeInformation<T> getElementTypeInfo() {
 		return elementTypeInfo;
 	}
+
+	// ------------------------------------------------------------------------
+	//  TypeInformation implementation
+	// ------------------------------------------------------------------------
 
 	@Override
 	public boolean isBasicType() {
@@ -67,7 +81,9 @@ public final class ListTypeInfo<T> extends TypeInformation<List<T>> {
 
 	@Override
 	public int getTotalFields() {
-		return elementTypeInfo.getTotalFields();
+		// similar as arrays, the lists are "opaque" to the direct field addressing logic
+		// since the list's elements are not addressable, we do not expose them
+		return 1;
 	}
 
 	@SuppressWarnings("unchecked")
@@ -87,17 +103,20 @@ public final class ListTypeInfo<T> extends TypeInformation<List<T>> {
 		return new ListSerializer<>(elementTypeSerializer);
 	}
 
+	// ------------------------------------------------------------------------
+
 	@Override
 	public String toString() {
-		return null;
+		return "List<" + elementTypeInfo + '>';
 	}
 
 	@Override
 	public boolean equals(Object obj) {
-		if (obj instanceof ListTypeInfo) {
-			@SuppressWarnings("unchecked")
-			ListTypeInfo<T> other = (ListTypeInfo<T>) obj;
-
+		if (obj == this) {
+			return true;
+		}
+		else if (obj instanceof ListTypeInfo) {
+			final ListTypeInfo<?> other = (ListTypeInfo<?>) obj;
 			return other.canEqual(this) && elementTypeInfo.equals(other.elementTypeInfo);
 		} else {
 			return false;
@@ -111,6 +130,6 @@ public final class ListTypeInfo<T> extends TypeInformation<List<T>> {
 
 	@Override
 	public boolean canEqual(Object obj) {
-		return (obj instanceof ListTypeInfo);
+		return obj != null && obj.getClass() == getClass();
 	}
 }
