@@ -142,7 +142,7 @@ It is possible to let an operator continue processing while it stores its state 
 
 After receiving the checkpoint barriers on its inputs, the operator starts the asynchronous snapshot copying of its state. It immediately emits the barrier to its outputs and continues with the regular stream processing. Once the background copy process has completed, it acknowledges the checkpoint to the checkpoint coordinator (the JobManager). The checkpoint is now only complete after all sinks received the barriers and all stateful operators acknowledged their completed backup (which may be later than the barriers reaching the sinks).
 
-See [State Backends]({{ site.baseurl }}/internals/state_backends.html) for details on the state snapshots.
+See [State Backends]({{ site.baseurl }}/ops/state_backends.html) for details on the state snapshots.
 
 
 ## Recovery
