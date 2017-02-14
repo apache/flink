@@ -20,17 +20,13 @@ package org.apache.flink.runtime.webmonitor.handlers.checkpoints;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.runtime.checkpoint.AbstractCheckpointStats;
-import org.apache.flink.runtime.checkpoint.CheckpointProperties;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
-import org.apache.flink.runtime.checkpoint.CompletedCheckpointStats;
-import org.apache.flink.runtime.checkpoint.FailedCheckpointStats;
-import org.apache.flink.runtime.checkpoint.TaskStateStats;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 import org.apache.flink.runtime.webmonitor.handlers.AbstractExecutionGraphRequestHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JsonFactory;
+import org.apache.flink.runtime.webmonitor.utils.JsonUtils;
 
-import java.io.IOException;
 import java.io.StringWriter;
 import java.util.Map;
 
@@ -69,65 +65,12 @@ public class CheckpointStatsDetailsHandler extends AbstractExecutionGraphRequest
 				return "{}";
 			}
 		}
-
-		return writeResponse(checkpoint);
-	}
-
-	private String writeResponse(AbstractCheckpointStats checkpoint) throws IOException {
+		
 		StringWriter writer = new StringWriter();
 		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
-		gen.writeStartObject();
 
-		gen.writeNumberField("id", checkpoint.getCheckpointId());
-		gen.writeStringField("status", checkpoint.getStatus().toString());
-		gen.writeBooleanField("is_savepoint", CheckpointProperties.isSavepoint(checkpoint.getProperties()));
-		gen.writeNumberField("trigger_timestamp", checkpoint.getTriggerTimestamp());
-		gen.writeNumberField("latest_ack_timestamp", checkpoint.getLatestAckTimestamp());
-		gen.writeNumberField("state_size", checkpoint.getStateSize());
-		gen.writeNumberField("end_to_end_duration", checkpoint.getEndToEndDuration());
-		gen.writeNumberField("alignment_buffered", checkpoint.getAlignmentBuffered());
-		gen.writeNumberField("num_subtasks", checkpoint.getNumberOfSubtasks());
-		gen.writeNumberField("num_acknowledged_subtasks", checkpoint.getNumberOfAcknowledgedSubtasks());
+		JsonUtils.writeCheckpointDetailsAsJson(checkpoint, gen);
 
-		if (checkpoint.getStatus().isCompleted()) {
-			// --- Completed ---
-			CompletedCheckpointStats completed = (CompletedCheckpointStats) checkpoint;
-
-			String externalPath = completed.getExternalPath();
-			if (externalPath != null) {
-				gen.writeStringField("external_path", externalPath);
-			}
-
-			gen.writeBooleanField("discarded", completed.isDiscarded());
-		}
-		else if (checkpoint.getStatus().isFailed()) {
-			// --- Failed ---
-			FailedCheckpointStats failed = (FailedCheckpointStats) checkpoint;
-
-			gen.writeNumberField("failure_timestamp", failed.getFailureTimestamp());
-
-			String failureMsg = failed.getFailureMessage();
-			if (failureMsg != null) {
-				gen.writeStringField("failure_message", failureMsg);
-			}
-		}
-
-		gen.writeObjectFieldStart("tasks");
-		for (TaskStateStats taskStats : checkpoint.getAllTaskStateStats()) {
-			gen.writeObjectFieldStart(taskStats.getJobVertexId().toString());
-
-			gen.writeNumberField("latest_ack_timestamp", taskStats.getLatestAckTimestamp());
-			gen.writeNumberField("state_size", taskStats.getStateSize());
-			gen.writeNumberField("end_to_end_duration", taskStats.getEndToEndDuration(checkpoint.getTriggerTimestamp()));
-			gen.writeNumberField("alignment_buffered", taskStats.getAlignmentBuffered());
-			gen.writeNumberField("num_subtasks", taskStats.getNumberOfSubtasks());
-			gen.writeNumberField("num_acknowledged_subtasks", taskStats.getNumberOfAcknowledgedSubtasks());
-
-			gen.writeEndObject();
-		}
-		gen.writeEndObject();
-
-		gen.writeEndObject();
 		gen.close();
 
 		return writer.toString();

@@ -25,6 +25,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
+import org.apache.flink.runtime.webmonitor.utils.JsonUtils;
 import org.junit.Test;
 
 import java.util.Collections;
@@ -67,15 +68,15 @@ public class CheckpointConfigHandlerTest {
 		ObjectMapper mapper = new ObjectMapper();
 		JsonNode rootNode = mapper.readTree(json);
 
-		assertEquals("exactly_once", rootNode.get("mode").asText());
-		assertEquals(interval, rootNode.get("interval").asLong());
-		assertEquals(timeout, rootNode.get("timeout").asLong());
-		assertEquals(minPause, rootNode.get("min_pause").asLong());
-		assertEquals(maxConcurrent, rootNode.get("max_concurrent").asInt());
+		assertEquals("exactly_once", rootNode.get(JsonUtils.Keys.MODE).asText());
+		assertEquals(interval, rootNode.get(JsonUtils.Keys.INTERVAL).asLong());
+		assertEquals(timeout, rootNode.get(JsonUtils.Keys.TIMEOUT).asLong());
+		assertEquals(minPause, rootNode.get(JsonUtils.Keys.MIN_PAUSE).asLong());
+		assertEquals(maxConcurrent, rootNode.get(JsonUtils.Keys.MAX_CONCURRENT).asInt());
 
-		JsonNode externalizedNode = rootNode.get("externalization");
+		JsonNode externalizedNode = rootNode.get(JsonUtils.Keys.EXTERNALIZATION);
 		assertNotNull(externalizedNode);
-		assertEquals(false, externalizedNode.get("enabled").asBoolean());
+		assertEquals(false, externalizedNode.get(JsonUtils.Keys.ENABLED).asBoolean());
 	}
 
 	/**
@@ -103,7 +104,7 @@ public class CheckpointConfigHandlerTest {
 		ObjectMapper mapper = new ObjectMapper();
 		JsonNode rootNode = mapper.readTree(json);
 
-		assertEquals("at_least_once", rootNode.get("mode").asText());
+		assertEquals("at_least_once", rootNode.get(JsonUtils.Keys.MODE).asText());
 	}
 
 	/**
@@ -131,9 +132,9 @@ public class CheckpointConfigHandlerTest {
 		String json = handler.handleRequest(graph, Collections.<String, String>emptyMap());
 
 		ObjectMapper mapper = new ObjectMapper();
-		JsonNode externalizedNode = mapper.readTree(json).get("externalization");
+		JsonNode externalizedNode = mapper.readTree(json).get(JsonUtils.Keys.EXTERNALIZATION);
 		assertNotNull(externalizedNode);
-		assertEquals(externalizedSettings.externalizeCheckpoints(), externalizedNode.get("enabled").asBoolean());
-		assertEquals(externalizedSettings.deleteOnCancellation(), externalizedNode.get("delete_on_cancellation").asBoolean());
+		assertEquals(externalizedSettings.externalizeCheckpoints(), externalizedNode.get(JsonUtils.Keys.ENABLED).asBoolean());
+		assertEquals(externalizedSettings.deleteOnCancellation(), externalizedNode.get(JsonUtils.Keys.DELETE_ON_CANCEL).asBoolean());
 	}
 }

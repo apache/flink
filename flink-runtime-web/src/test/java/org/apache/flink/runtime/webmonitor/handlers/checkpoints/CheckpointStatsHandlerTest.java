@@ -34,6 +34,7 @@ import org.apache.flink.runtime.checkpoint.PendingCheckpointStats;
 import org.apache.flink.runtime.checkpoint.RestoredCheckpointStats;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
+import org.apache.flink.runtime.webmonitor.utils.JsonUtils;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -186,114 +187,114 @@ public class CheckpointStatsHandlerTest {
 		ObjectMapper mapper = new ObjectMapper();
 		JsonNode rootNode = mapper.readTree(json);
 
-		JsonNode countNode = rootNode.get("counts");
-		assertEquals(counts.getNumberOfRestoredCheckpoints(), countNode.get("restored").asLong());
-		assertEquals(counts.getTotalNumberOfCheckpoints(), countNode.get("total").asLong());
-		assertEquals(counts.getNumberOfInProgressCheckpoints(), countNode.get("in_progress").asLong());
-		assertEquals(counts.getNumberOfCompletedCheckpoints(), countNode.get("completed").asLong());
-		assertEquals(counts.getNumberOfFailedCheckpoints(), countNode.get("failed").asLong());
+		JsonNode countNode = rootNode.get(JsonUtils.Keys.COUNTS);
+		assertEquals(counts.getNumberOfRestoredCheckpoints(), countNode.get(JsonUtils.Keys.RESTORED).asLong());
+		assertEquals(counts.getTotalNumberOfCheckpoints(), countNode.get(JsonUtils.Keys.TOTAL).asLong());
+		assertEquals(counts.getNumberOfInProgressCheckpoints(), countNode.get(JsonUtils.Keys.IN_PROGRESS).asLong());
+		assertEquals(counts.getNumberOfCompletedCheckpoints(), countNode.get(JsonUtils.Keys.COMPLETED).asLong());
+		assertEquals(counts.getNumberOfFailedCheckpoints(), countNode.get(JsonUtils.Keys.FAILED).asLong());
 
-		JsonNode summaryNode = rootNode.get("summary");
-		JsonNode sizeSummaryNode = summaryNode.get("state_size");
-		assertEquals(stateSizeSummary.getMinimum(), sizeSummaryNode.get("min").asLong());
-		assertEquals(stateSizeSummary.getMaximum(), sizeSummaryNode.get("max").asLong());
-		assertEquals(stateSizeSummary.getAverage(), sizeSummaryNode.get("avg").asLong());
+		JsonNode summaryNode = rootNode.get(JsonUtils.Keys.SUMMARY);
+		JsonNode sizeSummaryNode = summaryNode.get(JsonUtils.Keys.STATE_SIZE);
+		assertEquals(stateSizeSummary.getMinimum(), sizeSummaryNode.get(JsonUtils.Keys.MIN).asLong());
+		assertEquals(stateSizeSummary.getMaximum(), sizeSummaryNode.get(JsonUtils.Keys.MAX).asLong());
+		assertEquals(stateSizeSummary.getAverage(), sizeSummaryNode.get(JsonUtils.Keys.AVG).asLong());
 
-		JsonNode durationSummaryNode = summaryNode.get("end_to_end_duration");
-		assertEquals(durationSummary.getMinimum(), durationSummaryNode.get("min").asLong());
-		assertEquals(durationSummary.getMaximum(), durationSummaryNode.get("max").asLong());
-		assertEquals(durationSummary.getAverage(), durationSummaryNode.get("avg").asLong());
+		JsonNode durationSummaryNode = summaryNode.get(JsonUtils.Keys.ETE_DURATION);
+		assertEquals(durationSummary.getMinimum(), durationSummaryNode.get(JsonUtils.Keys.MIN).asLong());
+		assertEquals(durationSummary.getMaximum(), durationSummaryNode.get(JsonUtils.Keys.MAX).asLong());
+		assertEquals(durationSummary.getAverage(), durationSummaryNode.get(JsonUtils.Keys.AVG).asLong());
 
-		JsonNode alignmentBufferedNode = summaryNode.get("alignment_buffered");
-		assertEquals(alignmentBufferedSummary.getMinimum(), alignmentBufferedNode.get("min").asLong());
-		assertEquals(alignmentBufferedSummary.getMaximum(), alignmentBufferedNode.get("max").asLong());
-		assertEquals(alignmentBufferedSummary.getAverage(), alignmentBufferedNode.get("avg").asLong());
+		JsonNode alignmentBufferedNode = summaryNode.get(JsonUtils.Keys.ALIGNMENT_BUFFERED);
+		assertEquals(alignmentBufferedSummary.getMinimum(), alignmentBufferedNode.get(JsonUtils.Keys.MIN).asLong());
+		assertEquals(alignmentBufferedSummary.getMaximum(), alignmentBufferedNode.get(JsonUtils.Keys.MAX).asLong());
+		assertEquals(alignmentBufferedSummary.getAverage(), alignmentBufferedNode.get(JsonUtils.Keys.AVG).asLong());
 
-		JsonNode latestNode = rootNode.get("latest");
-		JsonNode latestCheckpointNode = latestNode.get("completed");
-		assertEquals(latestCompleted.getCheckpointId(), latestCheckpointNode.get("id").asLong());
-		assertEquals(latestCompleted.getTriggerTimestamp(), latestCheckpointNode.get("trigger_timestamp").asLong());
-		assertEquals(latestCompleted.getLatestAckTimestamp(), latestCheckpointNode.get("latest_ack_timestamp").asLong());
-		assertEquals(latestCompleted.getStateSize(), latestCheckpointNode.get("state_size").asLong());
-		assertEquals(latestCompleted.getEndToEndDuration(), latestCheckpointNode.get("end_to_end_duration").asLong());
-		assertEquals(latestCompleted.getAlignmentBuffered(), latestCheckpointNode.get("alignment_buffered").asLong());
-		assertEquals(latestCompleted.getExternalPath(), latestCheckpointNode.get("external_path").asText());
+		JsonNode latestNode = rootNode.get(JsonUtils.Keys.LATEST);
+		JsonNode latestCheckpointNode = latestNode.get(JsonUtils.Keys.COMPLETED);
+		assertEquals(latestCompleted.getCheckpointId(), latestCheckpointNode.get(JsonUtils.Keys.ID).asLong());
+		assertEquals(latestCompleted.getTriggerTimestamp(), latestCheckpointNode.get(JsonUtils.Keys.TRIGGER_TIMESTAMP).asLong());
+		assertEquals(latestCompleted.getLatestAckTimestamp(), latestCheckpointNode.get(JsonUtils.Keys.LATEST_ACK_TIMESTAMP).asLong());
+		assertEquals(latestCompleted.getStateSize(), latestCheckpointNode.get(JsonUtils.Keys.STATE_SIZE).asLong());
+		assertEquals(latestCompleted.getEndToEndDuration(), latestCheckpointNode.get(JsonUtils.Keys.ETE_DURATION).asLong());
+		assertEquals(latestCompleted.getAlignmentBuffered(), latestCheckpointNode.get(JsonUtils.Keys.ALIGNMENT_BUFFERED).asLong());
+		assertEquals(latestCompleted.getExternalPath(), latestCheckpointNode.get(JsonUtils.Keys.EXTERNAL_PATH).asText());
 
-		JsonNode latestSavepointNode = latestNode.get("savepoint");
-		assertEquals(latestSavepoint.getCheckpointId(), latestSavepointNode.get("id").asLong());
-		assertEquals(latestSavepoint.getTriggerTimestamp(), latestSavepointNode.get("trigger_timestamp").asLong());
-		assertEquals(latestSavepoint.getLatestAckTimestamp(), latestSavepointNode.get("latest_ack_timestamp").asLong());
-		assertEquals(latestSavepoint.getStateSize(), latestSavepointNode.get("state_size").asLong());
-		assertEquals(latestSavepoint.getEndToEndDuration(), latestSavepointNode.get("end_to_end_duration").asLong());
-		assertEquals(latestSavepoint.getAlignmentBuffered(), latestSavepointNode.get("alignment_buffered").asLong());
-		assertEquals(latestSavepoint.getExternalPath(), latestSavepointNode.get("external_path").asText());
+		JsonNode latestSavepointNode = latestNode.get(JsonUtils.Keys.SAVEPOINT);
+		assertEquals(latestSavepoint.getCheckpointId(), latestSavepointNode.get(JsonUtils.Keys.ID).asLong());
+		assertEquals(latestSavepoint.getTriggerTimestamp(), latestSavepointNode.get(JsonUtils.Keys.TRIGGER_TIMESTAMP).asLong());
+		assertEquals(latestSavepoint.getLatestAckTimestamp(), latestSavepointNode.get(JsonUtils.Keys.LATEST_ACK_TIMESTAMP).asLong());
+		assertEquals(latestSavepoint.getStateSize(), latestSavepointNode.get(JsonUtils.Keys.STATE_SIZE).asLong());
+		assertEquals(latestSavepoint.getEndToEndDuration(), latestSavepointNode.get(JsonUtils.Keys.ETE_DURATION).asLong());
+		assertEquals(latestSavepoint.getAlignmentBuffered(), latestSavepointNode.get(JsonUtils.Keys.ALIGNMENT_BUFFERED).asLong());
+		assertEquals(latestSavepoint.getExternalPath(), latestSavepointNode.get(JsonUtils.Keys.EXTERNAL_PATH).asText());
 
-		JsonNode latestFailedNode = latestNode.get("failed");
-		assertEquals(latestFailed.getCheckpointId(), latestFailedNode.get("id").asLong());
-		assertEquals(latestFailed.getTriggerTimestamp(), latestFailedNode.get("trigger_timestamp").asLong());
-		assertEquals(latestFailed.getLatestAckTimestamp(), latestFailedNode.get("latest_ack_timestamp").asLong());
-		assertEquals(latestFailed.getStateSize(), latestFailedNode.get("state_size").asLong());
-		assertEquals(latestFailed.getEndToEndDuration(), latestFailedNode.get("end_to_end_duration").asLong());
-		assertEquals(latestFailed.getAlignmentBuffered(), latestFailedNode.get("alignment_buffered").asLong());
-		assertEquals(latestFailed.getFailureTimestamp(), latestFailedNode.get("failure_timestamp").asLong());
-		assertEquals(latestFailed.getFailureMessage(), latestFailedNode.get("failure_message").asText());
+		JsonNode latestFailedNode = latestNode.get(JsonUtils.Keys.FAILED);
+		assertEquals(latestFailed.getCheckpointId(), latestFailedNode.get(JsonUtils.Keys.ID).asLong());
+		assertEquals(latestFailed.getTriggerTimestamp(), latestFailedNode.get(JsonUtils.Keys.TRIGGER_TIMESTAMP).asLong());
+		assertEquals(latestFailed.getLatestAckTimestamp(), latestFailedNode.get(JsonUtils.Keys.LATEST_ACK_TIMESTAMP).asLong());
+		assertEquals(latestFailed.getStateSize(), latestFailedNode.get(JsonUtils.Keys.STATE_SIZE).asLong());
+		assertEquals(latestFailed.getEndToEndDuration(), latestFailedNode.get(JsonUtils.Keys.ETE_DURATION).asLong());
+		assertEquals(latestFailed.getAlignmentBuffered(), latestFailedNode.get(JsonUtils.Keys.ALIGNMENT_BUFFERED).asLong());
+		assertEquals(latestFailed.getFailureTimestamp(), latestFailedNode.get(JsonUtils.Keys.FAILURE_TIMESTAMP).asLong());
+		assertEquals(latestFailed.getFailureMessage(), latestFailedNode.get(JsonUtils.Keys.FAILURE_MESSAGE).asText());
 
-		JsonNode latestRestoredNode = latestNode.get("restored");
-		assertEquals(latestRestored.getCheckpointId(), latestRestoredNode.get("id").asLong());
-		assertEquals(latestRestored.getRestoreTimestamp(), latestRestoredNode.get("restore_timestamp").asLong());
-		assertEquals(CheckpointProperties.isSavepoint(latestRestored.getProperties()), latestRestoredNode.get("is_savepoint").asBoolean());
-		assertEquals(latestRestored.getExternalPath(), latestRestoredNode.get("external_path").asText());
+		JsonNode latestRestoredNode = latestNode.get(JsonUtils.Keys.RESTORED);
+		assertEquals(latestRestored.getCheckpointId(), latestRestoredNode.get(JsonUtils.Keys.ID).asLong());
+		assertEquals(latestRestored.getRestoreTimestamp(), latestRestoredNode.get(JsonUtils.Keys.RESTORE_TIMESTAMP).asLong());
+		assertEquals(CheckpointProperties.isSavepoint(latestRestored.getProperties()), latestRestoredNode.get(JsonUtils.Keys.IS_SAVEPOINT).asBoolean());
+		assertEquals(latestRestored.getExternalPath(), latestRestoredNode.get(JsonUtils.Keys.EXTERNAL_PATH).asText());
 
-		JsonNode historyNode = rootNode.get("history");
+		JsonNode historyNode = rootNode.get(JsonUtils.Keys.HISTORY);
 		Iterator<JsonNode> it = historyNode.iterator();
 
 		assertTrue(it.hasNext());
 		JsonNode inProgressNode = it.next();
 
-		assertEquals(inProgress.getCheckpointId(), inProgressNode.get("id").asLong());
-		assertEquals(inProgress.getStatus().toString(), inProgressNode.get("status").asText());
-		assertEquals(CheckpointProperties.isSavepoint(inProgress.getProperties()), inProgressNode.get("is_savepoint").asBoolean());
-		assertEquals(inProgress.getTriggerTimestamp(), inProgressNode.get("trigger_timestamp").asLong());
-		assertEquals(inProgress.getLatestAckTimestamp(), inProgressNode.get("latest_ack_timestamp").asLong());
-		assertEquals(inProgress.getStateSize(), inProgressNode.get("state_size").asLong());
-		assertEquals(inProgress.getEndToEndDuration(), inProgressNode.get("end_to_end_duration").asLong());
-		assertEquals(inProgress.getAlignmentBuffered(), inProgressNode.get("alignment_buffered").asLong());
-		assertEquals(inProgress.getNumberOfSubtasks(), inProgressNode.get("num_subtasks").asInt());
-		assertEquals(inProgress.getNumberOfAcknowledgedSubtasks(), inProgressNode.get("num_acknowledged_subtasks").asInt());
+		assertEquals(inProgress.getCheckpointId(), inProgressNode.get(JsonUtils.Keys.ID).asLong());
+		assertEquals(inProgress.getStatus().toString(), inProgressNode.get(JsonUtils.Keys.STATUS).asText());
+		assertEquals(CheckpointProperties.isSavepoint(inProgress.getProperties()), inProgressNode.get(JsonUtils.Keys.IS_SAVEPOINT).asBoolean());
+		assertEquals(inProgress.getTriggerTimestamp(), inProgressNode.get(JsonUtils.Keys.TRIGGER_TIMESTAMP).asLong());
+		assertEquals(inProgress.getLatestAckTimestamp(), inProgressNode.get(JsonUtils.Keys.LATEST_ACK_TIMESTAMP).asLong());
+		assertEquals(inProgress.getStateSize(), inProgressNode.get(JsonUtils.Keys.STATE_SIZE).asLong());
+		assertEquals(inProgress.getEndToEndDuration(), inProgressNode.get(JsonUtils.Keys.ETE_DURATION).asLong());
+		assertEquals(inProgress.getAlignmentBuffered(), inProgressNode.get(JsonUtils.Keys.ALIGNMENT_BUFFERED).asLong());
+		assertEquals(inProgress.getNumberOfSubtasks(), inProgressNode.get(JsonUtils.Keys.NUM_SUBTASKS).asInt());
+		assertEquals(inProgress.getNumberOfAcknowledgedSubtasks(), inProgressNode.get(JsonUtils.Keys.NUM_ACK_SUBTASKS).asInt());
 
 		assertTrue(it.hasNext());
 		JsonNode completedSavepointNode = it.next();
 
-		assertEquals(completedSavepoint.getCheckpointId(), completedSavepointNode.get("id").asLong());
-		assertEquals(completedSavepoint.getStatus().toString(), completedSavepointNode.get("status").asText());
-		assertEquals(CheckpointProperties.isSavepoint(completedSavepoint.getProperties()), completedSavepointNode.get("is_savepoint").asBoolean());
-		assertEquals(completedSavepoint.getTriggerTimestamp(), completedSavepointNode.get("trigger_timestamp").asLong());
-		assertEquals(completedSavepoint.getLatestAckTimestamp(), completedSavepointNode.get("latest_ack_timestamp").asLong());
-		assertEquals(completedSavepoint.getStateSize(), completedSavepointNode.get("state_size").asLong());
-		assertEquals(completedSavepoint.getEndToEndDuration(), completedSavepointNode.get("end_to_end_duration").asLong());
-		assertEquals(completedSavepoint.getAlignmentBuffered(), completedSavepointNode.get("alignment_buffered").asLong());
-		assertEquals(completedSavepoint.getNumberOfSubtasks(), completedSavepointNode.get("num_subtasks").asInt());
-		assertEquals(completedSavepoint.getNumberOfAcknowledgedSubtasks(), completedSavepointNode.get("num_acknowledged_subtasks").asInt());
+		assertEquals(completedSavepoint.getCheckpointId(), completedSavepointNode.get(JsonUtils.Keys.ID).asLong());
+		assertEquals(completedSavepoint.getStatus().toString(), completedSavepointNode.get(JsonUtils.Keys.STATUS).asText());
+		assertEquals(CheckpointProperties.isSavepoint(completedSavepoint.getProperties()), completedSavepointNode.get(JsonUtils.Keys.IS_SAVEPOINT).asBoolean());
+		assertEquals(completedSavepoint.getTriggerTimestamp(), completedSavepointNode.get(JsonUtils.Keys.TRIGGER_TIMESTAMP).asLong());
+		assertEquals(completedSavepoint.getLatestAckTimestamp(), completedSavepointNode.get(JsonUtils.Keys.LATEST_ACK_TIMESTAMP).asLong());
+		assertEquals(completedSavepoint.getStateSize(), completedSavepointNode.get(JsonUtils.Keys.STATE_SIZE).asLong());
+		assertEquals(completedSavepoint.getEndToEndDuration(), completedSavepointNode.get(JsonUtils.Keys.ETE_DURATION).asLong());
+		assertEquals(completedSavepoint.getAlignmentBuffered(), completedSavepointNode.get(JsonUtils.Keys.ALIGNMENT_BUFFERED).asLong());
+		assertEquals(completedSavepoint.getNumberOfSubtasks(), completedSavepointNode.get(JsonUtils.Keys.NUM_SUBTASKS).asInt());
+		assertEquals(completedSavepoint.getNumberOfAcknowledgedSubtasks(), completedSavepointNode.get(JsonUtils.Keys.NUM_ACK_SUBTASKS).asInt());
 
-		assertEquals(completedSavepoint.getExternalPath(), completedSavepointNode.get("external_path").asText());
-		assertEquals(completedSavepoint.isDiscarded(), completedSavepointNode.get("discarded").asBoolean());
+		assertEquals(completedSavepoint.getExternalPath(), completedSavepointNode.get(JsonUtils.Keys.EXTERNAL_PATH).asText());
+		assertEquals(completedSavepoint.isDiscarded(), completedSavepointNode.get(JsonUtils.Keys.DISCARDED).asBoolean());
 
 		assertTrue(it.hasNext());
 		JsonNode failedNode = it.next();
 
-		assertEquals(failed.getCheckpointId(), failedNode.get("id").asLong());
-		assertEquals(failed.getStatus().toString(), failedNode.get("status").asText());
-		assertEquals(CheckpointProperties.isSavepoint(failed.getProperties()), failedNode.get("is_savepoint").asBoolean());
-		assertEquals(failed.getTriggerTimestamp(), failedNode.get("trigger_timestamp").asLong());
-		assertEquals(failed.getLatestAckTimestamp(), failedNode.get("latest_ack_timestamp").asLong());
-		assertEquals(failed.getStateSize(), failedNode.get("state_size").asLong());
-		assertEquals(failed.getEndToEndDuration(), failedNode.get("end_to_end_duration").asLong());
-		assertEquals(failed.getAlignmentBuffered(), failedNode.get("alignment_buffered").asLong());
-		assertEquals(failed.getNumberOfSubtasks(), failedNode.get("num_subtasks").asInt());
-		assertEquals(failed.getNumberOfAcknowledgedSubtasks(), failedNode.get("num_acknowledged_subtasks").asInt());
+		assertEquals(failed.getCheckpointId(), failedNode.get(JsonUtils.Keys.ID).asLong());
+		assertEquals(failed.getStatus().toString(), failedNode.get(JsonUtils.Keys.STATUS).asText());
+		assertEquals(CheckpointProperties.isSavepoint(failed.getProperties()), failedNode.get(JsonUtils.Keys.IS_SAVEPOINT).asBoolean());
+		assertEquals(failed.getTriggerTimestamp(), failedNode.get(JsonUtils.Keys.TRIGGER_TIMESTAMP).asLong());
+		assertEquals(failed.getLatestAckTimestamp(), failedNode.get(JsonUtils.Keys.LATEST_ACK_TIMESTAMP).asLong());
+		assertEquals(failed.getStateSize(), failedNode.get(JsonUtils.Keys.STATE_SIZE).asLong());
+		assertEquals(failed.getEndToEndDuration(), failedNode.get(JsonUtils.Keys.ETE_DURATION).asLong());
+		assertEquals(failed.getAlignmentBuffered(), failedNode.get(JsonUtils.Keys.ALIGNMENT_BUFFERED).asLong());
+		assertEquals(failed.getNumberOfSubtasks(), failedNode.get(JsonUtils.Keys.NUM_SUBTASKS).asInt());
+		assertEquals(failed.getNumberOfAcknowledgedSubtasks(), failedNode.get(JsonUtils.Keys.NUM_ACK_SUBTASKS).asInt());
 
-		assertEquals(failed.getFailureTimestamp(), failedNode.get("failure_timestamp").asLong());
-		assertEquals(failed.getFailureMessage(), failedNode.get("failure_message").asText());
+		assertEquals(failed.getFailureTimestamp(), failedNode.get(JsonUtils.Keys.FAILURE_TIMESTAMP).asLong());
+		assertEquals(failed.getFailureMessage(), failedNode.get(JsonUtils.Keys.FAILURE_MESSAGE).asText());
 
 		assertFalse(it.hasNext());
 	}
