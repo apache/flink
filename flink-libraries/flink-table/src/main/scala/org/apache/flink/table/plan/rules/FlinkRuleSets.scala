@@ -125,6 +125,9 @@ object FlinkRuleSets {
     * RuleSet to normalize plans for stream / DataStream execution
     */
   val DATASTREAM_NORM_RULES: RuleSet = RuleSets.ofList(
+    // Transform window to LogicalWindowAggregate
+    LogicalWindowAggregateRule.INSTANCE,
+
     // simplify expressions rules
     ReduceExpressionsRule.FILTER_INSTANCE,
     ReduceExpressionsRule.PROJECT_INSTANCE,
