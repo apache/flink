@@ -55,39 +55,27 @@ public class StreamFlatMapTest {
 	}
 
 	@Test
-	public void testFlatMap() throws Exception {
+	public void testSingleThreadedFlatMap() throws Exception {
 		StreamFlatMap<Integer, Integer> operator = new StreamFlatMap<Integer, Integer>(new MyFlatMap());
 
-		OneInputStreamOperatorTestHarness<Integer, Integer> testHarness = new OneInputStreamOperatorTestHarness<Integer, Integer>(operator);
-
 		long initialTime = 0L;
-		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<Object>();
 
-		testHarness.open();
-
-		testHarness.processElement(new StreamRecord<Integer>(1, initialTime + 1));
-		testHarness.processElement(new StreamRecord<Integer>(2, initialTime + 2));
-		testHarness.processWatermark(new Watermark(initialTime + 2));
-		testHarness.processElement(new StreamRecord<Integer>(3, initialTime + 3));
-		testHarness.processElement(new StreamRecord<Integer>(4, initialTime + 4));
-		testHarness.processElement(new StreamRecord<Integer>(5, initialTime + 5));
-		testHarness.processElement(new StreamRecord<Integer>(6, initialTime + 6));
-		testHarness.processElement(new StreamRecord<Integer>(7, initialTime + 7));
-		testHarness.processElement(new StreamRecord<Integer>(8, initialTime + 8));
-
-		testHarness.close();
-
-		expectedOutput.add(new StreamRecord<Integer>(2, initialTime + 2));
-		expectedOutput.add(new StreamRecord<Integer>(4, initialTime + 2));
-		expectedOutput.add(new Watermark(initialTime + 2));
-		expectedOutput.add(new StreamRecord<Integer>(4, initialTime + 4));
-		expectedOutput.add(new StreamRecord<Integer>(16, initialTime + 4));
-		expectedOutput.add(new StreamRecord<Integer>(6, initialTime + 6));
-		expectedOutput.add(new StreamRecord<Integer>(36, initialTime + 6));
-		expectedOutput.add(new StreamRecord<Integer>(8, initialTime + 8));
-		expectedOutput.add(new StreamRecord<Integer>(64, initialTime + 8));
+		OneInputStreamOperatorTestHarness<Integer, Integer> testHarness = processElements(operator, initialTime);
+		ConcurrentLinkedQueue<Object> expectedOutput = expectedOutput(initialTime);
 
 		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
+	}
+
+	@Test
+	public void testMultiThreadedFlatMap() throws Exception {
+		StreamFlatMap<Integer, Integer> operator = new StreamFlatMap<Integer, Integer>(new MyFlatMap(), 2);
+
+		long initialTime = 0L;
+
+		OneInputStreamOperatorTestHarness<Integer, Integer> testHarness = processElements(operator, initialTime);
+		ConcurrentLinkedQueue<Object> expectedOutput = expectedOutput(initialTime);
+
+		TestHarnessUtil.assertOutputEqualsWithoutOrder("Output was not correct.", expectedOutput, testHarness.getOutput());
 	}
 
 	@Test
@@ -106,6 +94,43 @@ public class StreamFlatMapTest {
 
 		Assert.assertTrue("RichFunction methods where not called.", TestOpenCloseFlatMapFunction.closeCalled);
 		Assert.assertTrue("Output contains no elements.", testHarness.getOutput().size() > 0);
+	}
+
+	private ConcurrentLinkedQueue<Object> expectedOutput(long initialTime) {
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<Object>();
+
+		expectedOutput.add(new StreamRecord<Integer>(2, initialTime + 2));
+		expectedOutput.add(new StreamRecord<Integer>(4, initialTime + 2));
+		expectedOutput.add(new Watermark(initialTime + 2));
+		expectedOutput.add(new StreamRecord<Integer>(4, initialTime + 4));
+		expectedOutput.add(new StreamRecord<Integer>(16, initialTime + 4));
+		expectedOutput.add(new StreamRecord<Integer>(6, initialTime + 6));
+		expectedOutput.add(new StreamRecord<Integer>(36, initialTime + 6));
+		expectedOutput.add(new StreamRecord<Integer>(8, initialTime + 8));
+		expectedOutput.add(new StreamRecord<Integer>(64, initialTime + 8));
+
+		return expectedOutput;
+	}
+
+	private OneInputStreamOperatorTestHarness<Integer, Integer> processElements(StreamFlatMap<Integer, Integer> operator,
+																				long initialTime) throws Exception {
+		OneInputStreamOperatorTestHarness<Integer, Integer> testHarness = new OneInputStreamOperatorTestHarness<Integer, Integer>(operator);
+
+		testHarness.open();
+
+		testHarness.processElement(new StreamRecord<Integer>(1, initialTime + 1));
+		testHarness.processElement(new StreamRecord<Integer>(2, initialTime + 2));
+		testHarness.processWatermark(new Watermark(initialTime + 2));
+		testHarness.processElement(new StreamRecord<Integer>(3, initialTime + 3));
+		testHarness.processElement(new StreamRecord<Integer>(4, initialTime + 4));
+		testHarness.processElement(new StreamRecord<Integer>(5, initialTime + 5));
+		testHarness.processElement(new StreamRecord<Integer>(6, initialTime + 6));
+		testHarness.processElement(new StreamRecord<Integer>(7, initialTime + 7));
+		testHarness.processElement(new StreamRecord<Integer>(8, initialTime + 8));
+
+		testHarness.close();
+
+		return testHarness;
 	}
 
 	// This must only be used in one test, otherwise the static fields will be changed

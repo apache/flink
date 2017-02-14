@@ -61,6 +61,23 @@ public class TestHarnessUtil {
 
 	}
 
+	public static void assertOutputEqualsWithoutOrder(String message, Queue<Object> expected, Queue<Object> actual) {
+		Object[] expectedObjectArray = expected.toArray();
+		String[] expectedStringArray = new String[expectedObjectArray.length];
+
+		for(int i = 0; i < expectedObjectArray.length; i ++) { expectedStringArray[i] = expectedObjectArray[i].toString(); }
+
+		Object[] actualObjectArray = actual.toArray();
+		String[] actualStringArray = new String[actual.size()];
+
+		for(int i = 0; i < actualObjectArray.length; i ++) { actualStringArray[i] = actualObjectArray[i].toString(); }
+
+		Arrays.sort(expectedStringArray);
+		Arrays.sort(actualStringArray);
+
+		Assert.assertArrayEquals(message, expectedStringArray, actualStringArray);
+	}
+
 	/**
 	 * Compare the two queues containing operator/task output by converting them to an array first.
 	 */
