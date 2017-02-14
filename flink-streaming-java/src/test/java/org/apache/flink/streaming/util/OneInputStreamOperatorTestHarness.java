@@ -62,9 +62,9 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
 	public OneInputStreamOperatorTestHarness(
 			OneInputStreamOperator<IN, OUT> operator,
 			int maxParallelism,
-			int numTubtasks,
+			int numSubtasks,
 			int subtaskIndex) throws Exception {
-		super(operator, maxParallelism, numTubtasks, subtaskIndex);
+		super(operator, maxParallelism, numSubtasks, subtaskIndex);
 
 		this.oneInputOperator = operator;
 	}
@@ -72,10 +72,10 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
 	public OneInputStreamOperatorTestHarness(
 		OneInputStreamOperator<IN, OUT> operator,
 		int maxParallelism,
-		int numTubtasks,
+		int numSubtasks,
 		int subtaskIndex,
 		Environment environment) throws Exception {
-		super(operator, maxParallelism, numTubtasks, subtaskIndex, environment);
+		super(operator, maxParallelism, numSubtasks, subtaskIndex, environment);
 
 		this.oneInputOperator = operator;
 	}
