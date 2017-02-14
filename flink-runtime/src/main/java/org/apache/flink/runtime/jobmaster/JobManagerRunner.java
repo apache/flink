@@ -170,10 +170,10 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 			this.leaderElectionService = haServices.getJobManagerLeaderElectionService(jobGraph.getJobID());
 
 			// heartbeat manager last
-			final long heartbeatInterval = configuration.getLong(ConfigConstants.HEARTBEAT_SENDER_INTERVAL,
-					ConfigConstants.DEFAULT_HEARTBEAT_SENDER_INTERVAL);
-			final long heartbeatTimeout = configuration.getLong(ConfigConstants.HEARTBEAT_SENDER_TIMEOUT,
-					ConfigConstants.DEFAULT_HEARTBEAT_SENDER_TIMEOUT);
+			final long heartbeatInterval = configuration.getLong(ConfigConstants.HEARTBEAT_INTERVAL,
+					ConfigConstants.DEFAULT_HEARTBEAT_INTERVAL);
+			final long heartbeatTimeout = configuration.getLong(ConfigConstants.HEARTBEAT_TIMEOUT,
+					ConfigConstants.DEFAULT_HEARTBEAT_TIMEOUT);
 			final ResourceID resourceID = ResourceID.generate();
 			final HeartbeatManagerSenderImpl<Void, Void> heartbeatManager = new HeartbeatManagerSenderImpl<>(
 					heartbeatInterval,

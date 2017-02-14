@@ -707,19 +707,14 @@ public final class ConfigConstants {
 	// ----------------------------- Heartbeat Settings -----------------------
 
 	/**
-	 * Timeout for requesting heartbeat from sender side
+	 * Timeout for requesting and receiving heartbeat for both sender and receiver sides
 	 */
-	public static final String HEARTBEAT_SENDER_TIMEOUT = "heartbeat.sender.timeout";
-
-	/**
-	 * Timeout for receiving heartbeat in receiver side
-	 */
-	public static final String HEARTBEAT_RECEIVER_TIMEOUT = "heartbeat.sender.timeout";
+	public static final String HEARTBEAT_TIMEOUT = "heartbeat.timeout";
 
 	/**
 	 * Time interval for requesting heartbeat from sender side
 	 */
-	public static final String HEARTBEAT_SENDER_INTERVAL = "heartbeat.sender.interval";
+	public static final String HEARTBEAT_INTERVAL = "heartbeat.interval";
 	
 	// ----------------------------- Transport SSL Settings--------------------
 
@@ -1326,11 +1321,9 @@ public final class ConfigConstants {
 
 	// ----------------------------- Heartbeat Values --------------------------------
 
-	public static long DEFAULT_HEARTBEAT_SENDER_TIMEOUT = 10;
+	public static long DEFAULT_HEARTBEAT_TIMEOUT = 30000L;
 
-	public static long DEFAULT_HEARTBEAT_RECEIVER_TIMEOUT = 10;
-
-	public static long DEFAULT_HEARTBEAT_SENDER_INTERVAL = 10;
+	public static long DEFAULT_HEARTBEAT_INTERVAL = 10000L;
 
 	// ----------------------------- SSL Values --------------------------------
 

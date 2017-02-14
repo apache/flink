@@ -114,7 +114,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
 		TaskExecutorMetricsInitializer.instantiateStatusMetrics(taskManagerMetricGroup, taskManagerServices.getNetworkEnvironment());
 
 		HeartbeatManagerImpl<Void, Void> heartbeatManager = new HeartbeatManagerImpl<>(
-				taskManagerConfiguration.getTimeout().toMilliseconds(),
+				configuration.getLong(ConfigConstants.HEARTBEAT_TIMEOUT, ConfigConstants.DEFAULT_HEARTBEAT_TIMEOUT),
 				resourceID,
 				executor,
 				rpcService.getScheduledExecutor(),
