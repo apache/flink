@@ -69,14 +69,16 @@ public class AkkaRpcServiceTest extends TestLogger {
 		final long delay = 100;
 		final long start = System.nanoTime();
 
-		akkaRpcService.scheduleRunnable(new Runnable() {
+		ScheduledFuture<?> scheduledFuture = akkaRpcService.scheduleRunnable(new Runnable() {
 			@Override
 			public void run() {
 				latch.trigger();
 			}
 		}, delay, TimeUnit.MILLISECONDS);
 
-		latch.await();
+		scheduledFuture.get();
+
+		assertTrue(latch.isTriggered());
 		final long stop = System.nanoTime();
 
 		assertTrue("call was not properly delayed", ((stop - start) / 1000000) >= delay);

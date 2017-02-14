@@ -37,10 +37,14 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Delayed;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -67,10 +71,12 @@ public class TestingSerialRpcService implements RpcService {
 	}
 
 	@Override
-	public void scheduleRunnable(final Runnable runnable, final long delay, final TimeUnit unit) {
+	public ScheduledFuture<?> scheduleRunnable(final Runnable runnable, final long delay, final TimeUnit unit) {
 		try {
 			unit.sleep(delay);
 			runnable.run();
+
+			return new DoneScheduledFuture<Void>(null);
 		} catch (Throwable e) {
 			throw new RuntimeException(e);
 		}
@@ -434,4 +440,49 @@ public class TestingSerialRpcService implements RpcService {
 		}
 
 	}
+
+	private static class DoneScheduledFuture<V> implements ScheduledFuture<V> {
+
+		private final V value;
+
+		private DoneScheduledFuture(V value) {
+			this.value = value;
+		}
+
+		@Override
+		public long getDelay(TimeUnit unit) {
+			return 0L;
+		}
+
+		@Override
+		public int compareTo(Delayed o) {
+			return 0;
+		}
+
+		@Override
+		public boolean cancel(boolean mayInterruptIfRunning) {
+			return false;
+		}
+
+		@Override
+		public boolean isCancelled() {
+			return false;
+		}
+
+		@Override
+		public boolean isDone() {
+			return true;
+		}
+
+		@Override
+		public V get() throws InterruptedException, ExecutionException {
+			return value;
+		}
+
+		@Override
+		public V get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
+			return value;
+		}
+	}
+
 }

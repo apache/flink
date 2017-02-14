@@ -24,6 +24,7 @@ import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
 
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -119,7 +120,7 @@ public interface RpcService {
 	 * @param runnable Runnable to be executed
 	 * @param delay    The delay after which the runnable will be executed
 	 */
-	void scheduleRunnable(Runnable runnable, long delay, TimeUnit unit);
+	ScheduledFuture<?> scheduleRunnable(Runnable runnable, long delay, TimeUnit unit);
 
 	/**
 	 * Execute the given runnable in the executor of the RPC service. This method can be used to run
