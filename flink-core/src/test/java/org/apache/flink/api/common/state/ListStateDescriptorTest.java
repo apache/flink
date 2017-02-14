@@ -21,6 +21,7 @@ package org.apache.flink.api.common.state;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.core.fs.Path;
@@ -45,13 +46,18 @@ public class ListStateDescriptorTest {
 		
 		assertEquals("testName", descr.getName());
 		assertNotNull(descr.getSerializer());
-		assertEquals(serializer, descr.getSerializer());
+		assertTrue(descr.getSerializer() instanceof ListSerializer);
+		assertNotNull(descr.getElementSerializer());
+		assertEquals(serializer, descr.getElementSerializer());
 
 		ListStateDescriptor<String> copy = CommonTestUtils.createCopySerializable(descr);
 
 		assertEquals("testName", copy.getName());
 		assertNotNull(copy.getSerializer());
-		assertEquals(serializer, copy.getSerializer());
+		assertTrue(copy.getSerializer() instanceof ListSerializer);
+
+		assertNotNull(copy.getElementSerializer());
+		assertEquals(serializer, copy.getElementSerializer());
 	}
 
 	@Test
@@ -69,11 +75,14 @@ public class ListStateDescriptorTest {
 		} catch (IllegalStateException ignored) {}
 
 		descr.initializeSerializerUnlessSet(cfg);
-		
-		assertNotNull(descr.getSerializer());
-		assertTrue(descr.getSerializer() instanceof KryoSerializer);
 
-		assertTrue(((KryoSerializer<?>) descr.getSerializer()).getKryo().getRegistration(TaskInfo.class).getId() > 0);
+		assertNotNull(descr.getSerializer());
+		assertTrue(descr.getSerializer() instanceof ListSerializer);
+
+		assertNotNull(descr.getElementSerializer());
+		assertTrue(descr.getElementSerializer() instanceof KryoSerializer);
+
+		assertTrue(((KryoSerializer<?>) descr.getElementSerializer()).getKryo().getRegistration(TaskInfo.class).getId() > 0);
 	}
 
 	@Test
@@ -85,7 +94,11 @@ public class ListStateDescriptorTest {
 		ListStateDescriptor<String> copy = CommonTestUtils.createCopySerializable(descr);
 
 		assertEquals("testName", copy.getName());
+
 		assertNotNull(copy.getSerializer());
-		assertEquals(StringSerializer.INSTANCE, copy.getSerializer());
+		assertTrue(copy.getSerializer() instanceof ListSerializer);
+
+		assertNotNull(copy.getElementSerializer());
+		assertEquals(StringSerializer.INSTANCE, copy.getElementSerializer());
 	}
 }

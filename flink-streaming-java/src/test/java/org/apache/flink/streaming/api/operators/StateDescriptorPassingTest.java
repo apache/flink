@@ -23,8 +23,10 @@ import com.esotericsoftware.kryo.serializers.JavaSerializer;
 
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -130,7 +132,7 @@ public class StateDescriptorPassingTest {
 										Iterable<File> input, Collector<String> out) {}
 				});
 
-		validateStateDescriptorConfigured(result);
+		validateListStateDescriptorConfigured(result);
 	}
 
 	@Test
@@ -190,7 +192,7 @@ public class StateDescriptorPassingTest {
 					public void apply(TimeWindow window, Iterable<File> input, Collector<String> out) {}
 				});
 
-		validateStateDescriptorConfigured(result);
+		validateListStateDescriptorConfigured(result);
 	}
 
 	// ------------------------------------------------------------------------
@@ -209,6 +211,28 @@ public class StateDescriptorPassingTest {
 		Kryo kryo = ((KryoSerializer<?>) serializer).getKryo();
 
 		assertTrue("serializer registration was not properly passed on", 
+				kryo.getSerializer(File.class) instanceof JavaSerializer);
+	}
+
+	private void validateListStateDescriptorConfigured(SingleOutputStreamOperator<?> result) {
+		OneInputTransformation<?, ?> transform = (OneInputTransformation<?, ?>) result.getTransformation();
+		WindowOperator<?, ?, ?, ?, ?> op = (WindowOperator<?, ?, ?, ?, ?>) transform.getOperator();
+		StateDescriptor<?, ?> descr = op.getStateDescriptor();
+
+		assertTrue(descr instanceof ListStateDescriptor);
+
+		ListStateDescriptor<?> listDescr = (ListStateDescriptor<?>)descr;
+
+		// this would be the first statement to fail if state descriptors were not properly initialized
+		TypeSerializer<?> serializer = listDescr.getSerializer();
+		assertTrue(serializer instanceof ListSerializer);
+
+		TypeSerializer<?> elementSerializer = listDescr.getElementSerializer();
+		assertTrue(elementSerializer instanceof KryoSerializer);
+
+		Kryo kryo = ((KryoSerializer<?>) elementSerializer).getKryo();
+
+		assertTrue("serializer registration was not properly passed on",
 				kryo.getSerializer(File.class) instanceof JavaSerializer);
 	}
 }

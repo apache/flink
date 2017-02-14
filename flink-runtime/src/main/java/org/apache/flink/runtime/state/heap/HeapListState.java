@@ -29,6 +29,7 @@ import org.apache.flink.util.Preconditions;
 
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -40,7 +41,7 @@ import java.util.Map;
  * @param <V> The type of the value.
  */
 public class HeapListState<K, N, V>
-		extends AbstractHeapMergingState<K, N, V, Iterable<V>, ArrayList<V>, ListState<V>, ListStateDescriptor<V>>
+		extends AbstractHeapMergingState<K, N, V, Iterable<V>, List<V>, ListState<V>, ListStateDescriptor<V>>
 		implements InternalListState<N, V> {
 
 	/**
@@ -54,7 +55,7 @@ public class HeapListState<K, N, V>
 	public HeapListState(
 			KeyedStateBackend<K> backend,
 			ListStateDescriptor<V> stateDesc,
-			StateTable<K, N, ArrayList<V>> stateTable,
+			StateTable<K, N, List<V>> stateTable,
 			TypeSerializer<K> keySerializer,
 			TypeSerializer<N> namespaceSerializer) {
 		super(backend, stateDesc, stateTable, keySerializer, namespaceSerializer);
@@ -69,14 +70,14 @@ public class HeapListState<K, N, V>
 		Preconditions.checkState(currentNamespace != null, "No namespace set.");
 		Preconditions.checkState(backend.getCurrentKey() != null, "No key set.");
 
-		Map<N, Map<K, ArrayList<V>>> namespaceMap =
+		Map<N, Map<K, List<V>>> namespaceMap =
 				stateTable.get(backend.getCurrentKeyGroupIndex());
 
 		if (namespaceMap == null) {
 			return null;
 		}
 
-		Map<K, ArrayList<V>> keyedMap = namespaceMap.get(currentNamespace);
+		Map<K, List<V>> keyedMap = namespaceMap.get(currentNamespace);
 
 		if (keyedMap == null) {
 			return null;
@@ -95,7 +96,7 @@ public class HeapListState<K, N, V>
 			return;
 		}
 
-		Map<N, Map<K, ArrayList<V>>> namespaceMap =
+		Map<N, Map<K, List<V>>> namespaceMap =
 				stateTable.get(backend.getCurrentKeyGroupIndex());
 
 		if (namespaceMap == null) {
@@ -103,14 +104,14 @@ public class HeapListState<K, N, V>
 			stateTable.set(backend.getCurrentKeyGroupIndex(), namespaceMap);
 		}
 
-		Map<K, ArrayList<V>> keyedMap = namespaceMap.get(currentNamespace);
+		Map<K, List<V>> keyedMap = namespaceMap.get(currentNamespace);
 
 		if (keyedMap == null) {
 			keyedMap = createNewMap();
 			namespaceMap.put(currentNamespace, keyedMap);
 		}
 
-		ArrayList<V> list = keyedMap.get(backend.<K>getCurrentKey());
+		List<V> list = keyedMap.get(backend.<K>getCurrentKey());
 
 		if (list == null) {
 			list = new ArrayList<>();
@@ -124,26 +125,26 @@ public class HeapListState<K, N, V>
 		Preconditions.checkState(namespace != null, "No namespace given.");
 		Preconditions.checkState(key != null, "No key given.");
 
-		Map<N, Map<K, ArrayList<V>>> namespaceMap =
+		Map<N, Map<K, List<V>>> namespaceMap =
 				stateTable.get(KeyGroupRangeAssignment.assignToKeyGroup(key, backend.getNumberOfKeyGroups()));
 
 		if (namespaceMap == null) {
 			return null;
 		}
 
-		Map<K, ArrayList<V>> keyedMap = namespaceMap.get(currentNamespace);
+		Map<K, List<V>> keyedMap = namespaceMap.get(currentNamespace);
 
 		if (keyedMap == null) {
 			return null;
 		}
 
-		ArrayList<V> result = keyedMap.get(key);
+		List<V> result = keyedMap.get(key);
 
 		if (result == null) {
 			return null;
 		}
 
-		TypeSerializer<V> serializer = stateDesc.getSerializer();
+		TypeSerializer<V> serializer = stateDesc.getElementSerializer();
 
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		DataOutputViewStreamWrapper view = new DataOutputViewStreamWrapper(baos);
@@ -165,7 +166,7 @@ public class HeapListState<K, N, V>
 	// ------------------------------------------------------------------------
 
 	@Override
-	protected ArrayList<V> mergeState(ArrayList<V> a, ArrayList<V> b) {
+	protected List<V> mergeState(List<V> a, List<V> b) {
 		a.addAll(b);
 		return a;
 	}

@@ -16,26 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.common.state;
+package org.apache.flink.migration.api.common.state;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.StateBackend;
+import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.ListSerializer;
-import org.apache.flink.api.java.typeutils.ListTypeInfo;
-
-import java.util.List;
 
 /**
- * A {@link StateDescriptor} for {@link ListState}. This can be used to create a partitioned
- * list state using
- * {@link org.apache.flink.api.common.functions.RuntimeContext#getListState(ListStateDescriptor)}.
+ * A {@link StateDescriptor} for {@link ListState}.
  *
  * @param <T> The type of the values that can be added to the list state.
  */
 @PublicEvolving
-public class ListStateDescriptor<T> extends StateDescriptor<ListState<T>, List<T>> {
-	private static final long serialVersionUID = 2L;
+public class ListStateDescriptor<T> extends StateDescriptor<ListState<T>, T> {
+	private static final long serialVersionUID = 1L;
 
 	/**
 	 * Creates a new {@code ListStateDescriptor} with the given name and list element type.
@@ -44,22 +41,20 @@ public class ListStateDescriptor<T> extends StateDescriptor<ListState<T>, List<T
 	 * consider using the {@link #ListStateDescriptor(String, TypeInformation)} constructor.
 	 *
 	 * @param name The (unique) name for the state.
-	 * @param elementTypeClass The type of the elements in the state.
+	 * @param typeClass The type of the values in the state.
 	 */
-	@SuppressWarnings("unchecked")
-	public ListStateDescriptor(String name, Class<T> elementTypeClass) {
-		super(name, new ListTypeInfo<>(elementTypeClass), null);
+	public ListStateDescriptor(String name, Class<T> typeClass) {
+		super(name, typeClass, null);
 	}
 
 	/**
 	 * Creates a new {@code ListStateDescriptor} with the given name and list element type.
 	 *
 	 * @param name The (unique) name for the state.
-	 * @param elementTypeInfo The type of the elements in the state.
+	 * @param typeInfo The type of the values in the state.
 	 */
-	@SuppressWarnings("unchecked")
-	public ListStateDescriptor(String name, TypeInformation<T> elementTypeInfo) {
-		super(name, new ListTypeInfo<>(elementTypeInfo), null);
+	public ListStateDescriptor(String name, TypeInformation<T> typeInfo) {
+		super(name, typeInfo, null);
 	}
 
 	/**
@@ -68,24 +63,15 @@ public class ListStateDescriptor<T> extends StateDescriptor<ListState<T>, List<T
 	 * @param name The (unique) name for the state.
 	 * @param typeSerializer The type serializer for the list values.
 	 */
-	@SuppressWarnings("unchecked")
 	public ListStateDescriptor(String name, TypeSerializer<T> typeSerializer) {
-		super(name, new ListSerializer<>(typeSerializer), null);
-	}
-
-	public TypeSerializer<T> getElementSerializer() {
-		if (!(serializer instanceof ListSerializer)) {
-			throw new IllegalStateException();
-		}
-
-		return ((ListSerializer<T>)serializer).getElementSerializer();
+		super(name, typeSerializer, null);
 	}
 
 	// ------------------------------------------------------------------------
 
 	@Override
 	public ListState<T> bind(StateBackend stateBackend) throws Exception {
-		return stateBackend.createListState(this);
+		throw new IllegalStateException("Cannot bind states with a legacy state descriptor.");
 	}
 
 	@Override
@@ -118,7 +104,7 @@ public class ListStateDescriptor<T> extends StateDescriptor<ListState<T>, List<T
 	}
 
 	@Override
-	public Type getType() {
-		return Type.LIST;
+	public org.apache.flink.api.common.state.StateDescriptor.Type getType() {
+		return org.apache.flink.api.common.state.StateDescriptor.Type.LIST;
 	}
 }
