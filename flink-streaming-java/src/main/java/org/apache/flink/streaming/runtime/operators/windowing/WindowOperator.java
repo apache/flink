@@ -99,8 +99,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @Internal
 public class WindowOperator<K, IN, ACC, OUT, W extends Window>
-		extends AbstractUdfStreamOperator<OUT, InternalWindowFunction<ACC, OUT, K, W>>
-		implements OneInputStreamOperator<IN, OUT>, Triggerable<K, W> {
+	extends AbstractUdfStreamOperator<OUT, InternalWindowFunction<ACC, OUT, K, W>>
+	implements OneInputStreamOperator<IN, OUT>, Triggerable<K, W> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -203,7 +203,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 			long allowedLateness) {
 
 		this(windowAssigner, windowSerializer, keySelector, keySerializer,
-				windowStateDescriptor, windowFunction, trigger, allowedLateness, LegacyWindowOperatorType.NONE);
+			windowStateDescriptor, windowFunction, trigger, allowedLateness, LegacyWindowOperatorType.NONE);
 	}
 
 	/**
@@ -223,9 +223,9 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		super(windowFunction);
 
 		checkArgument(!(windowAssigner instanceof BaseAlignedWindowAssigner),
-				"The " + windowAssigner.getClass().getSimpleName() + " cannot be used with a WindowOperator. " +
-						"This assigner is only used with the AccumulatingProcessingTimeWindowOperator and " +
-						"the AggregatingProcessingTimeWindowOperator");
+			"The " + windowAssigner.getClass().getSimpleName() + " cannot be used with a WindowOperator. " +
+				"This assigner is only used with the AccumulatingProcessingTimeWindowOperator and " +
+				"the AggregatingProcessingTimeWindowOperator");
 
 		checkArgument(allowedLateness >= 0);
 
@@ -321,7 +321,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {
 		final Collection<W> elementWindows = windowAssigner.assignWindows(
-				element.getValue(), element.getTimestamp(), windowAssignerContext);
+			element.getValue(), element.getTimestamp(), windowAssignerContext);
 
 		final K key = this.<K>getKeyedStateBackend().getCurrentKey();
 
@@ -655,8 +655,8 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 		@Override
 		public <S extends Serializable> ValueState<S> getKeyValueState(String name,
-				Class<S> stateType,
-				S defaultState) {
+			Class<S> stateType,
+			S defaultState) {
 			checkNotNull(stateType, "The state type class must not be null");
 
 			TypeInformation<S> typeInfo;
@@ -665,8 +665,8 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 			}
 			catch (Exception e) {
 				throw new RuntimeException("Cannot analyze type '" + stateType.getName() +
-						"' from the class alone, due to generic type parameters. " +
-						"Please specify the TypeInformation directly.", e);
+					"' from the class alone, due to generic type parameters. " +
+					"Please specify the TypeInformation directly.", e);
 			}
 
 			return getKeyValueState(name, typeInfo, defaultState);
@@ -674,8 +674,8 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 		@Override
 		public <S extends Serializable> ValueState<S> getKeyValueState(String name,
-				TypeInformation<S> stateType,
-				S defaultState) {
+			TypeInformation<S> stateType,
+			S defaultState) {
 
 			checkNotNull(name, "The name of the state must not be null");
 			checkNotNull(stateType, "The state type information must not be null");
@@ -764,9 +764,9 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		@Override
 		public String toString() {
 			return "Context{" +
-					"key=" + key +
-					", window=" + window +
-					'}';
+				"key=" + key +
+				", window=" + window +
+				'}';
 		}
 	}
 
@@ -801,8 +801,8 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 			Timer<?, ?> timer = (Timer<?, ?>) o;
 
 			return timestamp == timer.timestamp
-					&& key.equals(timer.key)
-					&& window.equals(timer.window);
+				&& key.equals(timer.key)
+				&& window.equals(timer.window);
 
 		}
 
@@ -817,10 +817,10 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		@Override
 		public String toString() {
 			return "Timer{" +
-					"timestamp=" + timestamp +
-					", key=" + key +
-					", window=" + window +
-					'}';
+				"timestamp=" + timestamp +
+				", key=" + key +
+				", window=" + window +
+				'}';
 		}
 	}
 
@@ -837,7 +837,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		super.restoreState(in);
 
 		LOG.info("{} (taskIdx={}) restoring {} state from an older Flink version.",
-				getClass().getSimpleName(), legacyWindowOperatorType, getRuntimeContext().getIndexOfThisSubtask());
+			getClass().getSimpleName(), legacyWindowOperatorType, getRuntimeContext().getIndexOfThisSubtask());
 
 		DataInputViewStreamWrapper streamWrapper = new DataInputViewStreamWrapper(in);
 
@@ -874,12 +874,12 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		validateMagicNumber(BEGIN_OF_STATE_MAGIC_NUMBER, in.readInt());
 
 		restoredFromLegacyAlignedOpRecords = new PriorityQueue<>(42,
-				new Comparator<StreamRecord<IN>>() {
-					@Override
-					public int compare(StreamRecord<IN> o1, StreamRecord<IN> o2) {
-						return Long.compare(o1.getTimestamp(), o2.getTimestamp());
-					}
+			new Comparator<StreamRecord<IN>>() {
+				@Override
+				public int compare(StreamRecord<IN> o1, StreamRecord<IN> o2) {
+					return Long.compare(o1.getTimestamp(), o2.getTimestamp());
 				}
+			}
 		);
 
 		switch (legacyWindowOperatorType) {
@@ -893,10 +893,10 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("{} (taskIdx={}) restored {} events from legacy {}.",
-					getClass().getSimpleName(),
-					getRuntimeContext().getIndexOfThisSubtask(),
-					restoredFromLegacyAlignedOpRecords.size(),
-					legacyWindowOperatorType);
+				getClass().getSimpleName(),
+				getRuntimeContext().getIndexOfThisSubtask(),
+				restoredFromLegacyAlignedOpRecords.size(),
+				legacyWindowOperatorType);
 		}
 	}
 
@@ -951,8 +951,8 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 	private long getPaneSize() {
 		Preconditions.checkArgument(
-				legacyWindowOperatorType == LegacyWindowOperatorType.FAST_ACCUMULATING ||
-						legacyWindowOperatorType == LegacyWindowOperatorType.FAST_AGGREGATING);
+			legacyWindowOperatorType == LegacyWindowOperatorType.FAST_ACCUMULATING ||
+				legacyWindowOperatorType == LegacyWindowOperatorType.FAST_AGGREGATING);
 
 		final long paneSlide;
 		if (windowAssigner instanceof SlidingProcessingTimeWindows) {
@@ -968,8 +968,8 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	private static void validateMagicNumber(int expected, int found) throws IOException {
 		if (expected != found) {
 			throw new IOException("Corrupt state stream - wrong magic number. " +
-					"Expected '" + Integer.toHexString(expected) +
-					"', found '" + Integer.toHexString(found) + '\'');
+				"Expected '" + Integer.toHexString(expected) +
+				"', found '" + Integer.toHexString(found) + '\'');
 		}
 	}
 
@@ -1012,16 +1012,16 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 			if (restoredFromLegacyEventTimeTimers != null && !restoredFromLegacyEventTimeTimers.isEmpty()) {
 				LOG.debug("{} (taskIdx={}) restored {} event time timers from an older Flink version: {}",
-						getClass().getSimpleName(), subtaskIdx,
-						restoredFromLegacyEventTimeTimers.size(),
-						restoredFromLegacyEventTimeTimers);
+					getClass().getSimpleName(), subtaskIdx,
+					restoredFromLegacyEventTimeTimers.size(),
+					restoredFromLegacyEventTimeTimers);
 			}
 
 			if (restoredFromLegacyProcessingTimeTimers != null && !restoredFromLegacyProcessingTimeTimers.isEmpty()) {
 				LOG.debug("{} (taskIdx={}) restored {} processing time timers from an older Flink version: {}",
-						getClass().getSimpleName(), subtaskIdx,
-						restoredFromLegacyProcessingTimeTimers.size(),
-						restoredFromLegacyProcessingTimeTimers);
+					getClass().getSimpleName(), subtaskIdx,
+					restoredFromLegacyProcessingTimeTimers.size(),
+					restoredFromLegacyProcessingTimeTimers);
 			}
 		}
 	}
@@ -1033,7 +1033,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		if (restoredFromLegacyEventTimeTimers != null && !restoredFromLegacyEventTimeTimers.isEmpty()) {
 
 			LOG.info("{} (taskIdx={}) re-registering event-time timers from an older Flink version.",
-					getClass().getSimpleName(), getRuntimeContext().getIndexOfThisSubtask());
+				getClass().getSimpleName(), getRuntimeContext().getIndexOfThisSubtask());
 
 			for (Timer<K, W> timer : restoredFromLegacyEventTimeTimers) {
 				setCurrentKey(timer.key);
@@ -1044,7 +1044,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		if (restoredFromLegacyProcessingTimeTimers != null && !restoredFromLegacyProcessingTimeTimers.isEmpty()) {
 
 			LOG.info("{} (taskIdx={}) re-registering processing-time timers from an older Flink version.",
-					getClass().getSimpleName(), getRuntimeContext().getIndexOfThisSubtask());
+				getClass().getSimpleName(), getRuntimeContext().getIndexOfThisSubtask());
 
 			for (Timer<K, W> timer : restoredFromLegacyProcessingTimeTimers) {
 				setCurrentKey(timer.key);
@@ -1061,7 +1061,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		if (restoredFromLegacyAlignedOpRecords != null && !restoredFromLegacyAlignedOpRecords.isEmpty()) {
 
 			LOG.info("{} (taskIdx={}) re-registering timers from legacy {} from an older Flink version.",
-					getClass().getSimpleName(), getRuntimeContext().getIndexOfThisSubtask(), legacyWindowOperatorType);
+				getClass().getSimpleName(), getRuntimeContext().getIndexOfThisSubtask(), legacyWindowOperatorType);
 
 			while (!restoredFromLegacyAlignedOpRecords.isEmpty()) {
 				StreamRecord<IN> record = restoredFromLegacyAlignedOpRecords.poll();
