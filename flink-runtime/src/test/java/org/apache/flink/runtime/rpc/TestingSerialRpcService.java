@@ -31,10 +31,13 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.BitSet;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -46,11 +49,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class TestingSerialRpcService implements RpcService {
 
 	private final DirectExecutorService executorService;
+	private final ScheduledExecutorService scheduledExecutorService;
 	private final ConcurrentHashMap<String, RpcGateway> registeredConnections;
 	private final CompletableFuture<Void> terminationFuture;
 
 	public TestingSerialRpcService() {
 		executorService = new DirectExecutorService();
+		scheduledExecutorService = new ScheduledThreadPoolExecutor(1);
 		this.registeredConnections = new ConcurrentHashMap<>(16);
 		this.terminationFuture = new FlinkCompletableFuture<>();
 	}
@@ -87,8 +92,32 @@ public class TestingSerialRpcService implements RpcService {
 	}
 
 	@Override
+	public ScheduledExecutorService getScheduledExecutorService() {
+		return scheduledExecutorService;
+	}
+
+	@Override
 	public void stopService() {
 		executorService.shutdown();
+
+		scheduledExecutorService.shutdown();
+
+		boolean terminated = false;
+
+		try {
+			terminated = scheduledExecutorService.awaitTermination(1, TimeUnit.SECONDS);
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+		}
+
+		if (!terminated) {
+			List<Runnable> runnables = scheduledExecutorService.shutdownNow();
+
+			for (Runnable runnable : runnables) {
+				runnable.run();
+			}
+		}
+
 		registeredConnections.clear();
 		terminationFuture.complete(null);
 	}

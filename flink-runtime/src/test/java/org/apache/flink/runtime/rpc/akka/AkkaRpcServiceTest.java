@@ -30,13 +30,17 @@ import org.junit.AfterClass;
 import org.junit.Test;
 
 import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class AkkaRpcServiceTest extends TestLogger {
 
@@ -148,5 +152,194 @@ public class AkkaRpcServiceTest extends TestLogger {
 		}, actorSystem.dispatcher());
 
 		terminationFuture.get();
+	}
+
+	/**
+	 * Tests a simple scheduled runnable being executed by the RPC services scheduled executor
+	 * service.
+	 */
+	@Test(timeout = 1000)
+	public void testScheduledExecutorServiceSimpleSchedule() throws ExecutionException, InterruptedException {
+		ScheduledExecutorService scheduledExecutorService = akkaRpcService.getScheduledExecutorService();
+
+		final OneShotLatch latch = new OneShotLatch();
+
+		ScheduledFuture<?> future = scheduledExecutorService.schedule(
+			new Runnable() {
+				@Override
+				public void run() {
+					latch.trigger();
+				}
+			},
+			10L,
+			TimeUnit.MILLISECONDS);
+
+		future.get();
+
+		// once the future is completed, then the latch should have been triggered
+		assertTrue(latch.isTriggered());
+	}
+
+	/**
+	 * Tests that the RPC service's scheduled executor service can execute runnables at a fixed
+	 * rate.
+	 */
+	@Test(timeout = 1000)
+	public void testScheduledExecutorServicePeriodicSchedule() throws ExecutionException, InterruptedException {
+		ScheduledExecutorService scheduledExecutorService = akkaRpcService.getScheduledExecutorService();
+
+		final int tries = 4;
+		final long delay = 10L;
+		final CountDownLatch countDownLatch = new CountDownLatch(tries);
+
+		long currentTime = System.nanoTime();
+
+		ScheduledFuture<?> future = scheduledExecutorService.scheduleAtFixedRate(
+			new Runnable() {
+				@Override
+				public void run() {
+					countDownLatch.countDown();
+				}
+			},
+			delay,
+			delay,
+			TimeUnit.MILLISECONDS);
+
+		assertTrue(!future.isDone());
+
+		countDownLatch.await();
+
+		// the future should not complete since we have a periodic task
+		assertTrue(!future.isDone());
+
+		long finalTime = System.nanoTime() - currentTime;
+
+		// the processing should have taken at least delay times the number of count downs.
+		assertTrue(finalTime >= tries * delay);
+
+		future.cancel(true);
+	}
+
+	/**
+	 * Tests that the RPC service's scheduled executor service can execute runnable with a fixed
+	 * delay.
+	 */
+	@Test(timeout = 1000)
+	public void testScheduledExecutorServiceWithFixedDelaySchedule() throws ExecutionException, InterruptedException {
+		ScheduledExecutorService scheduledExecutorService = akkaRpcService.getScheduledExecutorService();
+
+		final int tries = 4;
+		final long delay = 10L;
+		final CountDownLatch countDownLatch = new CountDownLatch(tries);
+
+		long currentTime = System.nanoTime();
+
+		ScheduledFuture<?> future = scheduledExecutorService.scheduleWithFixedDelay(
+			new Runnable() {
+				@Override
+				public void run() {
+					countDownLatch.countDown();
+				}
+			},
+			delay,
+			delay,
+			TimeUnit.MILLISECONDS);
+
+		assertTrue(!future.isDone());
+
+		countDownLatch.await();
+
+		// the future should not complete since we have a periodic task
+		assertTrue(!future.isDone());
+
+		long finalTime = System.nanoTime() - currentTime;
+
+		// the processing should have taken at least delay times the number of count downs.
+		assertTrue(finalTime >= tries * delay);
+
+		future.cancel(true);
+	}
+
+	/**
+	 * Tests that canceling the returned future will stop the execution of the scheduled runnable.
+	 */
+	@Test
+	public void testScheduledExecutorServiceCancelWithFixedDelay() throws InterruptedException {
+		ScheduledExecutorService scheduledExecutorService = akkaRpcService.getScheduledExecutorService();
+
+		long delay = 10L;
+
+		final OneShotLatch futureTask = new OneShotLatch();
+		final OneShotLatch latch = new OneShotLatch();
+		final OneShotLatch shouldNotBeTriggeredLatch = new OneShotLatch();
+
+		ScheduledFuture<?> future = scheduledExecutorService.scheduleWithFixedDelay(
+			new Runnable() {
+				@Override
+				public void run() {
+					try {
+						if (!futureTask.isTriggered()) {
+							// first run
+							futureTask.trigger();
+							latch.await();
+						} else {
+							shouldNotBeTriggeredLatch.trigger();
+						}
+					} catch (InterruptedException e) {
+						// ignore
+					}
+				}
+			},
+			delay,
+			delay,
+			TimeUnit.MILLISECONDS);
+
+		// wait until we're in the runnable
+		futureTask.await();
+
+		// cancel the scheduled future
+		future.cancel(false);
+
+		latch.trigger();
+
+		try {
+			shouldNotBeTriggeredLatch.await(5 * delay, TimeUnit.MILLISECONDS);
+			fail("The shouldNotBeTriggeredLatch should never be triggered.");
+		} catch (TimeoutException e) {
+			// expected
+		}
+	}
+
+	/**
+	 * Tests that the shutdown of the RPC service's scheduled executor service fails with an
+	 * {@link UnsupportedOperationException}.
+	 */
+	@Test
+	public void testScheduledExecutorServiceShutdownFails() throws InterruptedException {
+		ScheduledExecutorService scheduledExecutorService = akkaRpcService.getScheduledExecutorService();
+
+		try {
+			scheduledExecutorService.shutdown();
+
+			fail("We should not be able to shutdown the RPC's scheduled executor service.");
+		} catch (UnsupportedOperationException e) {
+			// expected
+		}
+
+		try {
+			scheduledExecutorService.shutdownNow();
+
+			fail("We should not be able to shutdown the RPC's scheduled executor service.");
+		} catch (UnsupportedOperationException e) {
+			// expected
+		}
+
+		try {
+			scheduledExecutorService.awaitTermination(1, TimeUnit.MILLISECONDS);
+
+			fail("We should not be able to await the termination of the RPC's scheduled executor service.");
+		} catch (UnsupportedOperationException e) {
+			// expected
+		}
 	}
 }
