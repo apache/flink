@@ -20,9 +20,11 @@ package org.apache.flink.streaming.api.datastream;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
+import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.api.transformations.SinkTransformation;
+import org.apache.flink.util.Preconditions;
 
 /**
  * A Stream Sink. This is used for emitting elements from a streaming topology.
@@ -110,6 +112,39 @@ public class DataStreamSink<T> {
 	 */
 	public DataStreamSink<T> setParallelism(int parallelism) {
 		transformation.setParallelism(parallelism);
+		return this;
+	}
+
+	/**
+	 * Sets the minimum and maximum resources for this sink, and the lower and upper resource limits will
+	 * be considered in resource resize feature for future plan.
+	 *
+	 * @param minResource The minimum resource for this sink.
+	 * @param maxResource The maximum resource for this sink
+	 * @return The sink with set minimum and maximum resources.
+	 */
+	public DataStreamSink<T> setResource(ResourceSpec minResource, ResourceSpec maxResource) {
+		Preconditions.checkArgument(minResource != null && maxResource != null,
+				"The min and max resources must be not null.");
+		Preconditions.checkArgument(minResource.isValid() && maxResource.isValid() && minResource.lessThanOrEqual(maxResource),
+				"The values in resource must be not less than 0 and the max resource must be greater than the min resource.");
+
+		transformation.setResource(minResource, maxResource);
+
+		return this;
+	}
+
+	/**
+	 * Sets the resource for this sink, the minimum and maximum resources are the same by default.
+	 *
+	 * @param resource The resource for this sink.
+	 * @return The sink with set minimum and maximum resources.
+	 */
+	public DataStreamSink<T> setResource(ResourceSpec resource) {
+		Preconditions.checkArgument(resource != null && resource.isValid(), "The resource must be not null and values greater than 0.");
+
+		transformation.setResource(resource, resource);
+
 		return this;
 	}
 

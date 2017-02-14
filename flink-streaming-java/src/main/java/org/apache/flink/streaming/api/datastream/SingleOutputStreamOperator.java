@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.datastream;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.InvalidTypesException;
+import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
@@ -150,6 +151,39 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 				"The maximum parallelism of non parallel operator must be 1.");
 
 		transformation.setMaxParallelism(maxParallelism);
+
+		return this;
+	}
+
+	/**
+	 * Sets the minimum and maximum resources for this operator, and the lower and upper resource limits will
+	 * be considered in dynamic resource resize feature for future plan.
+	 *
+	 * @param minResource The minimum resource for this operator.
+	 * @param maxResource The maximum resource for this operator.
+	 * @return The operator with set minimum and maximum resources.
+	 */
+	public SingleOutputStreamOperator<T> setResource(ResourceSpec minResource, ResourceSpec maxResource) {
+		Preconditions.checkArgument(minResource != null && maxResource != null,
+				"The min and max resources must be not null.");
+		Preconditions.checkArgument(minResource.isValid() && maxResource.isValid() && minResource.lessThanOrEqual(maxResource),
+				"The values in resource must be not less than 0 and the max resource must be greater than the min resource.");
+
+		transformation.setResource(minResource, maxResource);
+
+		return this;
+	}
+
+	/**
+	 * Sets the resource for this operator, the minimum and maximum resources are the same by default.
+	 *
+	 * @param resource The resource for this operator.
+	 * @return The operator with set minimum and maximum resources.
+	 */
+	public SingleOutputStreamOperator<T> setResource(ResourceSpec resource) {
+		Preconditions.checkArgument(resource != null && resource.isValid(), "The resources must be not null and values greater than 0.");
+
+		transformation.setResource(resource, resource);
 
 		return this;
 	}

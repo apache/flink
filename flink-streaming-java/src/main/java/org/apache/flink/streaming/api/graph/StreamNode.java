@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.graph;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -48,6 +49,8 @@ public class StreamNode implements Serializable {
 	 * dynamic scaling and the number of key groups used for partitioned state.
 	 */
 	private int maxParallelism;
+	private ResourceSpec minResource;
+	private ResourceSpec maxResource;
 	private Long bufferTimeout = null;
 	private final String operatorName;
 	private String slotSharingGroup;
@@ -163,6 +166,19 @@ public class StreamNode implements Serializable {
 	 */
 	void setMaxParallelism(int maxParallelism) {
 		this.maxParallelism = maxParallelism;
+	}
+
+	public ResourceSpec getMinResource() {
+		return minResource != null ? minResource : ResourceSpec.UNKNOWN;
+	}
+
+	public ResourceSpec getMaxResource() {
+		return maxResource != null ? maxResource : ResourceSpec.UNKNOWN;
+	}
+
+	public void setResource(ResourceSpec minResource, ResourceSpec maxResource) {
+		this.minResource = minResource;
+		this.maxResource = maxResource;
 	}
 
 	public Long getBufferTimeout() {

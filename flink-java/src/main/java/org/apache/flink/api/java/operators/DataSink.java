@@ -29,6 +29,7 @@ import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.operators.Ordering;
+import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.typeinfo.NothingTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -50,6 +51,10 @@ public class DataSink<T> {
 	private String name;
 	
 	private int parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
+
+	private ResourceSpec minResource = ResourceSpec.UNKNOWN;
+
+	private ResourceSpec maxResource = ResourceSpec.UNKNOWN;
 
 	private Configuration parameters;
 
@@ -275,6 +280,62 @@ public class DataSink<T> {
 			"The parallelism of an operator must be at least 1.");
 
 		this.parallelism = parallelism;
+
+		return this;
+	}
+
+	/**
+	 * Returns the minimum resource of this data sink. If no minimum resource has been set,
+	 * it returns the default empty resource.
+	 *
+	 * @return The minimum resource of this data sink.
+	 */
+	public ResourceSpec getMinResource() {
+		return this.minResource;
+	}
+
+	/**
+	 * Returns the minimum resource of this data sink. If no maximum resource has been set,
+	 * it returns the default empty resource.
+	 *
+	 * @return The maximum resource of this data sink.
+	 */
+	public ResourceSpec getMaxResource() {
+		return this.maxResource;
+	}
+
+	/**
+	 * Sets the minimum and maximum resources for this data sink. This overrides the default empty resource.
+	 *	The minimum resource must be satisfied and the maximum resource specifies the upper bound
+	 * for dynamic resource resize.
+	 *
+	 * @param minResource The minimum resource for this data sink.
+	 * @param maxResource The maximum resource for this data sink.
+	 * @return The data sink with set minimum and maximum resources.
+	 */
+	public DataSink<T> setResource(ResourceSpec minResource, ResourceSpec maxResource) {
+		Preconditions.checkArgument(minResource != null && maxResource != null,
+				"The min and max resources must be not null.");
+		Preconditions.checkArgument(minResource.isValid() && maxResource.isValid() && minResource.lessThanOrEqual(maxResource),
+				"The values in resource must be not less than 0 and the max resource must be greater than the min resource.");
+
+		this.minResource = minResource;
+		this.maxResource = maxResource;
+
+		return this;
+	}
+
+	/**
+	 * Sets the resource for this data sink. This overrides the default empty minimum and maximum resources.
+	 *
+	 * @param resource The resource for this data sink.
+	 * @return The data sink with set minimum and maximum resources.
+	 */
+	public DataSink<T> setResource(ResourceSpec resource) {
+		Preconditions.checkArgument(resource != null && resource.isValid(), "The resource must be not null and values greater than 0.");
+
+		this.minResource = resource;
+		this.maxResource = resource;
 
 		return this;
 	}

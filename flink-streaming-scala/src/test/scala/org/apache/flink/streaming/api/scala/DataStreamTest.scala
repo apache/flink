@@ -21,6 +21,7 @@ package org.apache.flink.streaming.api.scala
 import java.lang
 
 import org.apache.flink.api.common.functions._
+import org.apache.flink.api.common.operators.ResourceSpec
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.streaming.api.collector.selector.OutputSelector
 import org.apache.flink.streaming.api.functions.ProcessFunction
@@ -34,7 +35,7 @@ import org.apache.flink.streaming.api.windowing.windows.GlobalWindow
 import org.apache.flink.streaming.runtime.partitioner._
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
 import org.apache.flink.util.Collector
-import org.junit.Assert.fail
+import org.junit.Assert._
 import org.junit.Test
 
 class DataStreamTest extends StreamingMultipleProgramsTestBase {
@@ -289,6 +290,71 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
 
     sink.setParallelism(4)
     assert(4 == env.getStreamGraph.getStreamNode(sink.getTransformation.getId).getParallelism)
+  }
+
+  /**
+   * Tests whether resource gets set.
+   */
+  @Test
+  def testResource() {
+    val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
+
+    val minResource1: ResourceSpec = new ResourceSpec(1.0, 100)
+    val maxResource1: ResourceSpec = new ResourceSpec(2.0, 200)
+    val minResource2: ResourceSpec = new ResourceSpec(1.0, 200)
+    val maxResource2: ResourceSpec = new ResourceSpec(2.0, 300)
+    val minResource3: ResourceSpec = new ResourceSpec(1.0, 300)
+    val maxResource3: ResourceSpec = new ResourceSpec(2.0, 400)
+    val minResource4: ResourceSpec = new ResourceSpec(1.0, 400)
+    val maxResource4: ResourceSpec = new ResourceSpec(2.0, 500)
+    val minResource5: ResourceSpec = new ResourceSpec(1.0, 500)
+    val maxResource5: ResourceSpec = new ResourceSpec(2.0, 600)
+    val minResource6: ResourceSpec = new ResourceSpec(1.0, 600)
+    val maxResource6: ResourceSpec = new ResourceSpec(2.0, 700)
+    val minResource7: ResourceSpec = new ResourceSpec(1.0, 700)
+    val maxResource7: ResourceSpec = new ResourceSpec(2.0, 800)
+
+    val source1: DataStream[Long] = env.generateSequence(0, 0)
+      .setResource(minResource1, maxResource1)
+    val map1: DataStream[String] = source1
+      .map(x => "")
+      .setResource(minResource2, maxResource2)
+    val source2: DataStream[Long] = env.generateSequence(0, 0)
+      .setResource(minResource3, maxResource3)
+    val map2: DataStream[String] = source2
+      .map(x => "")
+      .setResource(minResource4, maxResource4)
+
+    val connected: DataStream[String] = map1.connect(map2)
+      .flatMap({ (in, out: Collector[(String)]) => }, { (in, out: Collector[(String)]) => })
+      .setResource(minResource5, maxResource5)
+
+    val windowed  = connected
+      .windowAll(GlobalWindows.create())
+      .trigger(PurgingTrigger.of(CountTrigger.of[GlobalWindow](5)))
+      .fold("")((accumulator: String, value: String) => "")
+      .setResource(minResource6, maxResource6)
+
+    var sink = windowed.print().setResource(minResource7, maxResource7)
+
+    val plan = env.getExecutionPlan
+
+    assertEquals(minResource1, env.getStreamGraph.getStreamNode(source1.getId).getMinResource)
+    assertEquals(maxResource1, env.getStreamGraph.getStreamNode(source1.getId).getMaxResource)
+    assertEquals(minResource2, env.getStreamGraph.getStreamNode(map1.getId).getMinResource)
+    assertEquals(maxResource2, env.getStreamGraph.getStreamNode(map1.getId).getMaxResource)
+    assertEquals(minResource3, env.getStreamGraph.getStreamNode(source2.getId).getMinResource)
+    assertEquals(maxResource3, env.getStreamGraph.getStreamNode(source2.getId).getMaxResource)
+    assertEquals(minResource4, env.getStreamGraph.getStreamNode(map2.getId).getMinResource)
+    assertEquals(maxResource4, env.getStreamGraph.getStreamNode(map2.getId).getMaxResource)
+    assertEquals(minResource5, env.getStreamGraph.getStreamNode(connected.getId).getMinResource)
+    assertEquals(maxResource5, env.getStreamGraph.getStreamNode(connected.getId).getMaxResource)
+    assertEquals(minResource6, env.getStreamGraph.getStreamNode(windowed.getId).getMinResource)
+    assertEquals(maxResource6, env.getStreamGraph.getStreamNode(windowed.getId).getMaxResource)
+    assertEquals(minResource7, env.getStreamGraph.getStreamNode(sink.getTransformation.getId)
+      .getMinResource)
+    assertEquals(maxResource7, env.getStreamGraph.getStreamNode(sink.getTransformation.getId)
+      .getMaxResource)
   }
 
   @Test

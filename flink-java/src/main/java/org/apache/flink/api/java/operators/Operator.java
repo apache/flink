@@ -20,6 +20,7 @@ package org.apache.flink.api.java.operators;
 
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -37,6 +38,10 @@ public abstract class Operator<OUT, O extends Operator<OUT, O>> extends DataSet<
 	protected String name;
 	
 	protected int parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
+
+	protected ResourceSpec minResource = ResourceSpec.UNKNOWN;
+
+	protected ResourceSpec maxResource = ResourceSpec.UNKNOWN;
 
 	protected Operator(ExecutionEnvironment context, TypeInformation<OUT> resultType) {
 		super(context, resultType);
@@ -71,6 +76,26 @@ public abstract class Operator<OUT, O extends Operator<OUT, O>> extends DataSet<
 	}
 
 	/**
+	 * Returns the minimum resource of this operator. If no minimum resource has been set,
+	 * it returns the default empty resource.
+	 *
+	 * @return The minimum resource of this operator.
+	 */
+	public ResourceSpec getMinResource() {
+		return this.minResource;
+	}
+
+	/**
+	 * Returns the maximum resource of this operator. If no maximum resource has been set,
+	 * it returns the default empty resource.
+	 *
+	 * @return The maximum resource of this operator.
+	 */
+	public ResourceSpec getMaxResource() {
+		return this.maxResource;
+	}
+
+	/**
 	 * Sets the name of this operator. This overrides the default name, which is either
 	 * a generated description of the operation (such as for example "Aggregate(1:SUM, 2:MIN)")
 	 * or the name the user-defined function or input/output format executed by the operator.
@@ -98,6 +123,45 @@ public abstract class Operator<OUT, O extends Operator<OUT, O>> extends DataSet<
 			"The parallelism of an operator must be at least 1.");
 
 		this.parallelism = parallelism;
+
+		@SuppressWarnings("unchecked")
+		O returnType = (O) this;
+		return returnType;
+	}
+
+	/**
+	 * Sets the minimum and maximum resources for this operator. This overrides the default empty resource.
+	 * The lower and upper resource limits will be considered in dynamic resource resize feature for future plan.
+	 *
+	 * @param minResource The minimum resource for this operator.
+	 * @param maxResource The maximum resource for this operator.
+	 * @return The operator with set minimum and maximum resources.
+	 */
+	public O setResource(ResourceSpec minResource, ResourceSpec maxResource) {
+		Preconditions.checkArgument(minResource != null && maxResource != null,
+				"The min and max resources must be not null.");
+		Preconditions.checkArgument(minResource.isValid() && maxResource.isValid() && minResource.lessThanOrEqual(maxResource),
+				"The values in resource must be not less than 0 and the max resource must be greater than the min resource.");
+
+		this.minResource = minResource;
+		this.maxResource = maxResource;
+
+		@SuppressWarnings("unchecked")
+		O returnType = (O) this;
+		return returnType;
+	}
+
+	/**
+	 * Sets the resource for this operator. This overrides the default empty minimum and maximum resources.
+	 *
+	 * @param resource The resource for this operator.
+	 * @return The operator with set minimum and maximum resources.
+	 */
+	public O setResource(ResourceSpec resource) {
+		Preconditions.checkArgument(resource != null && resource.isValid(), "The resource must be not null and values greater than 0.");
+
+		this.minResource = resource;
+		this.maxResource = resource;
 
 		@SuppressWarnings("unchecked")
 		O returnType = (O) this;

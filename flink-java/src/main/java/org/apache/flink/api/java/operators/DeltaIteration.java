@@ -28,6 +28,7 @@ import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.common.aggregators.AggregatorRegistry;
 import org.apache.flink.api.common.aggregators.ConvergenceCriterion;
 import org.apache.flink.api.common.operators.Keys;
+import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -62,9 +63,12 @@ public class DeltaIteration<ST, WT> {
 	private String name;
 	
 	private int parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
+
+	private ResourceSpec minResource = ResourceSpec.UNKNOWN;
+
+	private ResourceSpec maxResource = ResourceSpec.UNKNOWN;
 	
 	private boolean solutionSetUnManaged;
-
 
 	public DeltaIteration(ExecutionEnvironment context, TypeInformation<ST> type, DataSet<ST> solutionSet, DataSet<WT> workset, Keys<ST> keys, int maxIterations) {
 		initialSolutionSet = solutionSet;
@@ -191,6 +195,46 @@ public class DeltaIteration<ST, WT> {
 	 */
 	public int getParallelism() {
 		return parallelism;
+	}
+
+	/**
+	 * Sets the minimum and maximum resources for the iteration. This overrides the default empty resource.
+	 *	The lower and upper resource limits will be considered in dynamic resource resize feature for future plan.
+	 *
+	 * @param minResource The minimum resource for the iteration.
+	 * @param maxResource The maximum resource for the iteration.
+	 * @return The iteration with set minimum and maximum resources.
+	 */
+	public DeltaIteration<ST, WT> setResource(ResourceSpec minResource, ResourceSpec maxResource) {
+		Preconditions.checkArgument(minResource != null && maxResource != null,
+				"The min and max resources must be not null.");
+		Preconditions.checkArgument(minResource.isValid() && maxResource.isValid() && minResource.lessThanOrEqual(maxResource),
+				"The values in resource must be not less than 0 and the max resource must be greater than the min resource.");
+
+		this.minResource = minResource;
+		this.maxResource = maxResource;
+
+		return this;
+	}
+
+	/**
+	 * Gets the minimum resource from this iteration. If no minimum resource has been set,
+	 * it returns the default empty resource.
+	 *
+	 * @return The minimum resource of the iteration.
+	 */
+	public ResourceSpec getMinResource() {
+		return this.minResource;
+	}
+
+	/**
+	 * Gets the maximum resource from this iteration. If no maximum resource has been set,
+	 * it returns the default empty resource.
+	 *
+	 * @return The maximum resource of the iteration.
+	 */
+	public ResourceSpec getMaxResource() {
+		return this.maxResource;
 	}
 	
 	/**

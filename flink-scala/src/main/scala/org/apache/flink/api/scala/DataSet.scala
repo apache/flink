@@ -23,7 +23,7 @@ import org.apache.flink.api.common.accumulators.SerializedListAccumulator
 import org.apache.flink.api.common.aggregators.Aggregator
 import org.apache.flink.api.common.functions._
 import org.apache.flink.api.common.io.{FileOutputFormat, OutputFormat}
-import org.apache.flink.api.common.operators.{Keys, Order}
+import org.apache.flink.api.common.operators.{ResourceSpec, Keys, Order}
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
 import org.apache.flink.api.common.operators.base.CrossOperatorBase.CrossHint
 import org.apache.flink.api.common.operators.base.PartitionOperatorBase.PartitionMethod
@@ -175,6 +175,60 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
     case _ =>
       throw new UnsupportedOperationException("Operator " + javaSet.toString + " does not have " +
         "parallelism.")
+  }
+
+  /**
+   * Sets the minimum and maximum resources of this operation.
+   */
+  def setResource(minResource: ResourceSpec, maxResource: ResourceSpec) = {
+    javaSet match {
+      case ds: DataSource[_] => ds.setResource(minResource, maxResource)
+      case op: Operator[_, _] => op.setResource(minResource, maxResource)
+      case di: DeltaIterationResultSet[_, _] =>
+        di.getIterationHead.setResource(minResource, maxResource)
+      case _ =>
+        throw new UnsupportedOperationException("Operator " + javaSet.toString + " cannot have " +
+          "resource.")
+    }
+    this
+  }
+
+  /**
+   * Sets the resource of this operation.
+   */
+  def setResource(resource: ResourceSpec) = {
+    javaSet match {
+      case ds: DataSource[_] => ds.setResource(resource, resource)
+      case op: Operator[_, _] => op.setResource(resource, resource)
+      case di: DeltaIterationResultSet[_, _] =>
+        di.getIterationHead.setResource(resource, resource)
+      case _ =>
+        throw new UnsupportedOperationException("Operator " + javaSet.toString + " cannot have " +
+          "resource.")
+    }
+    this
+  }
+
+  /**
+   * Returns the minimum resource of this operation.
+   */
+  def getMinResource: ResourceSpec = javaSet match {
+    case ds: DataSource[_] => ds.getMinResource
+    case op: Operator[_, _] => op.getMinResource
+    case _ =>
+      throw new UnsupportedOperationException("Operator " + javaSet.toString + " does not have " +
+        "resource.")
+  }
+
+  /**
+   * Returns the maximum resource of this operation.
+   */
+  def getMaxResource: ResourceSpec = javaSet match {
+    case ds: DataSource[_] => ds.getMaxResource
+    case op: Operator[_, _] => op.getMaxResource
+    case _ =>
+      throw new UnsupportedOperationException("Operator " + javaSet.toString + " does not have " +
+        "resource.")
   }
 
   /**
