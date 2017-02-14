@@ -106,7 +106,7 @@ public class FlinkKafkaConsumerBaseTest {
 
 		FlinkKafkaConsumerBase<String> consumer = getConsumer(fetcher, new LinkedMap(), false);
 		OperatorStateStore operatorStateStore = mock(OperatorStateStore.class);
-		TestingListState<Tuple2<KafkaTopicPartition, Long>> listState = new TestingListState<>();
+		TestingListState<Tuple2<KafkaTopicPartition, Tuple2<Long, Long>>> listState = new TestingListState<>();
 		when(operatorStateStore.getOperatorState(Matchers.any(ListStateDescriptor.class))).thenReturn(listState);
 
 		consumer.snapshotState(new StateSnapshotContextSynchronousImpl(1, 1));
@@ -123,8 +123,8 @@ public class FlinkKafkaConsumerBaseTest {
 		OperatorStateStore operatorStateStore = mock(OperatorStateStore.class);
 
 		TestingListState<Serializable> listState = new TestingListState<>();
-		listState.add(Tuple2.of(new KafkaTopicPartition("abc", 13), 16768L));
-		listState.add(Tuple2.of(new KafkaTopicPartition("def", 7), 987654321L));
+		listState.add(Tuple2.of(new KafkaTopicPartition("abc", 13), Tuple2.of(16768L, 16700L)));
+		listState.add(Tuple2.of(new KafkaTopicPartition("def", 7), Tuple2.of(987654321L, 987654300L)));
 
 		FlinkKafkaConsumerBase<String> consumer = getConsumer(null, new LinkedMap(), true);
 
@@ -215,17 +215,17 @@ public class FlinkKafkaConsumerBaseTest {
 		//   prepare fake states
 		// --------------------------------------------------------------------
 
-		final HashMap<KafkaTopicPartition, Long> state1 = new HashMap<>();
-		state1.put(new KafkaTopicPartition("abc", 13), 16768L);
-		state1.put(new KafkaTopicPartition("def", 7), 987654321L);
+		final HashMap<KafkaTopicPartition, Tuple2<Long, Long>> state1 = new HashMap<>();
+		state1.put(new KafkaTopicPartition("abc", 13), Tuple2.of(16768L, 16760L));
+		state1.put(new KafkaTopicPartition("def", 7), Tuple2.of(987654321L, 987654320L));
 
-		final HashMap<KafkaTopicPartition, Long> state2 = new HashMap<>();
-		state2.put(new KafkaTopicPartition("abc", 13), 16770L);
-		state2.put(new KafkaTopicPartition("def", 7), 987654329L);
+		final HashMap<KafkaTopicPartition, Tuple2<Long, Long>> state2 = new HashMap<>();
+		state2.put(new KafkaTopicPartition("abc", 13), Tuple2.of(16770L, 16770L));
+		state2.put(new KafkaTopicPartition("def", 7), Tuple2.of(987654329L, 987654320L));
 
-		final HashMap<KafkaTopicPartition, Long> state3 = new HashMap<>();
-		state3.put(new KafkaTopicPartition("abc", 13), 16780L);
-		state3.put(new KafkaTopicPartition("def", 7), 987654377L);
+		final HashMap<KafkaTopicPartition, Tuple2<Long, Long>> state3 = new HashMap<>();
+		state3.put(new KafkaTopicPartition("abc", 13), Tuple2.of(16780L, 16780L));
+		state3.put(new KafkaTopicPartition("def", 7), Tuple2.of(987654377L, 987654370L));
 
 		// --------------------------------------------------------------------
 		
@@ -253,11 +253,12 @@ public class FlinkKafkaConsumerBaseTest {
 		// checkpoint 1
 		consumer.snapshotState(new StateSnapshotContextSynchronousImpl(138, 138));
 
-		HashMap<KafkaTopicPartition, Long> snapshot1 = new HashMap<>();
+		HashMap<KafkaTopicPartition, Tuple2<Long, Long>> snapshot1 = new HashMap<>();
 
 		for (Serializable serializable : listState.get()) {
-			Tuple2<KafkaTopicPartition, Long> kafkaTopicPartitionLongTuple2 = (Tuple2<KafkaTopicPartition, Long>) serializable;
-			snapshot1.put(kafkaTopicPartitionLongTuple2.f0, kafkaTopicPartitionLongTuple2.f1);
+			Tuple2<KafkaTopicPartition, Tuple2<Long, Long>> kafkaTopicPartitionOffsetAndWatermark =
+				(Tuple2<KafkaTopicPartition, Tuple2<Long, Long>>) serializable;
+			snapshot1.put(kafkaTopicPartitionOffsetAndWatermark.f0, kafkaTopicPartitionOffsetAndWatermark.f1);
 		}
 
 		assertEquals(state1, snapshot1);
@@ -267,11 +268,12 @@ public class FlinkKafkaConsumerBaseTest {
 		// checkpoint 2
 		consumer.snapshotState(new StateSnapshotContextSynchronousImpl(140, 140));
 
-		HashMap<KafkaTopicPartition, Long> snapshot2 = new HashMap<>();
+		HashMap<KafkaTopicPartition, Tuple2<Long, Long>> snapshot2 = new HashMap<>();
 
 		for (Serializable serializable : listState.get()) {
-			Tuple2<KafkaTopicPartition, Long> kafkaTopicPartitionLongTuple2 = (Tuple2<KafkaTopicPartition, Long>) serializable;
-			snapshot2.put(kafkaTopicPartitionLongTuple2.f0, kafkaTopicPartitionLongTuple2.f1);
+			Tuple2<KafkaTopicPartition, Tuple2<Long, Long>> kafkaTopicPartitionOffsetAndWatermark =
+				(Tuple2<KafkaTopicPartition, Tuple2<Long, Long>>) serializable;
+			snapshot2.put(kafkaTopicPartitionOffsetAndWatermark.f0, kafkaTopicPartitionOffsetAndWatermark.f1);
 		}
 
 		assertEquals(state2, snapshot2);
@@ -286,11 +288,12 @@ public class FlinkKafkaConsumerBaseTest {
 		// checkpoint 3
 		consumer.snapshotState(new StateSnapshotContextSynchronousImpl(141, 141));
 
-		HashMap<KafkaTopicPartition, Long> snapshot3 = new HashMap<>();
+		HashMap<KafkaTopicPartition, Tuple2<Long, Long>> snapshot3 = new HashMap<>();
 
 		for (Serializable serializable : listState.get()) {
-			Tuple2<KafkaTopicPartition, Long> kafkaTopicPartitionLongTuple2 = (Tuple2<KafkaTopicPartition, Long>) serializable;
-			snapshot3.put(kafkaTopicPartitionLongTuple2.f0, kafkaTopicPartitionLongTuple2.f1);
+			Tuple2<KafkaTopicPartition, Tuple2<Long, Long>> kafkaTopicPartitionOffsetAndWatermark =
+				(Tuple2<KafkaTopicPartition, Tuple2<Long, Long>>) serializable;
+			snapshot3.put(kafkaTopicPartitionOffsetAndWatermark.f0, kafkaTopicPartitionOffsetAndWatermark.f1);
 		}
 
 		assertEquals(state3, snapshot3);
@@ -369,7 +372,7 @@ public class FlinkKafkaConsumerBaseTest {
 					Assert.fail("Trying to restore offsets even though there was no restore state.");
 					return null;
 				}
-			}).when(fetcher).restoreOffsets(any(HashMap.class));
+			}).when(fetcher).restoreOffsetsAndWatermarks(any(HashMap.class));
 			return fetcher;
 		}
 

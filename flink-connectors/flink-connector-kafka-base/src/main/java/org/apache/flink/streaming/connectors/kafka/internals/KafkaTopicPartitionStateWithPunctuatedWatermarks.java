@@ -74,6 +74,10 @@ public final class KafkaTopicPartitionStateWithPunctuatedWatermarks<T, KPH> exte
 		return partitionWatermark;
 	}
 
+	void setCurrentWatermarkTimestamp(long watermarkTimestamp) {
+		partitionWatermark = watermarkTimestamp;
+	}
+
 	// ------------------------------------------------------------------------
 	
 	@Override

@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.connectors.kafka.internals;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
@@ -175,34 +176,115 @@ public abstract class AbstractFetcher<T, KPH> {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Takes a snapshot of the partition offsets.
+	 * Takes a snapshot of the partition offsets and watermarks.
 	 * 
 	 * <p>Important: This method mus be called under the checkpoint lock.
 	 * 
-	 * @return A map from partition to current offset.
+	 * @return A map from partition to current offset and watermark.
 	 */
-	public HashMap<KafkaTopicPartition, Long> snapshotCurrentState() {
+	public HashMap<KafkaTopicPartition, Tuple2<Long, Long>> snapshotCurrentState() {
 		// this method assumes that the checkpoint lock is held
 		assert Thread.holdsLock(checkpointLock);
 
-		HashMap<KafkaTopicPartition, Long> state = new HashMap<>(allPartitions.length);
-		for (KafkaTopicPartitionState<?> partition : subscribedPartitions()) {
-			state.put(partition.getKafkaTopicPartition(), partition.getOffset());
+		HashMap<KafkaTopicPartition, Tuple2<Long, Long>> state = new HashMap<>(allPartitions.length);
+
+		switch (timestampWatermarkMode) {
+
+			case NO_TIMESTAMPS_WATERMARKS: {
+
+				for (KafkaTopicPartitionState<KPH> partition : allPartitions) {
+					state.put(partition.getKafkaTopicPartition(), Tuple2.of(partition.getOffset(), Long.MIN_VALUE));
+				}
+
+				return state;
+			}
+
+			case PERIODIC_WATERMARKS: {
+				KafkaTopicPartitionStateWithPeriodicWatermarks<T, KPH> [] partitions =
+					(KafkaTopicPartitionStateWithPeriodicWatermarks<T, KPH> []) allPartitions;
+
+				for (KafkaTopicPartitionStateWithPeriodicWatermarks<T, KPH> partition : partitions) {
+					state.put(partition.getKafkaTopicPartition(), Tuple2.of(partition.getOffset(), partition.getCurrentWatermarkTimestamp()));
+				}
+
+				return state;
+			}
+
+			case PUNCTUATED_WATERMARKS: {
+				KafkaTopicPartitionStateWithPunctuatedWatermarks<T, KPH> [] partitions =
+					(KafkaTopicPartitionStateWithPunctuatedWatermarks<T, KPH> []) allPartitions;
+
+				for (KafkaTopicPartitionStateWithPunctuatedWatermarks<T, KPH> partition : partitions) {
+					state.put(partition.getKafkaTopicPartition(), Tuple2.of(partition.getOffset(), partition.getCurrentPartitionWatermark()));
+				}
+
+				return state;
+			}
+
+			default:
+				// cannot happen, add this as a guard for the future
+				throw new RuntimeException();
 		}
-		return state;
 	}
 
 	/**
-	 * Restores the partition offsets.
+	 * Restores the partition offsets and watermarks.
 	 * 
-	 * @param snapshotState The offsets for the partitions 
+	 * @param snapshotState The offsets and watermarks for the partitions
 	 */
-	public void restoreOffsets(Map<KafkaTopicPartition, Long> snapshotState) {
-		for (KafkaTopicPartitionState<?> partition : allPartitions) {
-			Long offset = snapshotState.get(partition.getKafkaTopicPartition());
-			if (offset != null) {
-				partition.setOffset(offset);
+	public void restoreOffsetsAndWatermarks(Map<KafkaTopicPartition, Tuple2<Long, Long>> snapshotState) {
+
+		switch (timestampWatermarkMode) {
+
+			case NO_TIMESTAMPS_WATERMARKS: {
+				for (KafkaTopicPartitionState<KPH> partition : allPartitions) {
+					Long offset = snapshotState.get(partition.getKafkaTopicPartition()).f0;
+					if (offset != null) {
+						partition.setOffset(offset);
+					}
+				}
+				break;
 			}
+
+			case PERIODIC_WATERMARKS: {
+				KafkaTopicPartitionStateWithPeriodicWatermarks<T, KPH> [] partitions =
+					(KafkaTopicPartitionStateWithPeriodicWatermarks<T, KPH> []) allPartitions;
+
+				for (KafkaTopicPartitionStateWithPeriodicWatermarks<T, KPH> partition : partitions) {
+					Long offset = snapshotState.get(partition.getKafkaTopicPartition()).f0;
+					if (offset != null) {
+						partition.setOffset(offset);
+					}
+
+					Long watermarkTimestamp = snapshotState.get(partition.getKafkaTopicPartition()).f1;
+					if (watermarkTimestamp != null) {
+						partition.setCurrentWatermarkTimestamp(watermarkTimestamp);
+					}
+				}
+				break;
+			}
+
+			case PUNCTUATED_WATERMARKS: {
+				KafkaTopicPartitionStateWithPunctuatedWatermarks<T, KPH> [] partitions =
+					(KafkaTopicPartitionStateWithPunctuatedWatermarks<T, KPH> []) allPartitions;
+
+				for (KafkaTopicPartitionStateWithPunctuatedWatermarks<T, KPH> partition : partitions) {
+					Long offset = snapshotState.get(partition.getKafkaTopicPartition()).f0;
+					if (offset != null) {
+						partition.setOffset(offset);
+					}
+
+					Long watermarkTimestamp = snapshotState.get(partition.getKafkaTopicPartition()).f1;
+					if (watermarkTimestamp != null) {
+						partition.setCurrentWatermarkTimestamp(watermarkTimestamp);
+					}
+				}
+				break;
+			}
+
+			default:
+				// cannot happen, add this as a guard for the future
+				throw new RuntimeException();
 		}
 	}
 

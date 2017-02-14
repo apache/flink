@@ -61,6 +61,10 @@ public final class KafkaTopicPartitionStateWithPeriodicWatermarks<T, KPH> extend
 		return partitionWatermark;
 	}
 
+	void setCurrentWatermarkTimestamp(long watermarkTimestamp) {
+		partitionWatermark = watermarkTimestamp;
+	}
+
 	// ------------------------------------------------------------------------
 	
 	@Override
