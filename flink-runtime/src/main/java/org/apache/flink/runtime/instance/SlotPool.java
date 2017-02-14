@@ -436,7 +436,9 @@ public class SlotPool extends RpcEndpoint<SlotPoolGateway> {
 					LOG.debug("Fulfilling pending request [{}] early with returned slot [{}]",
 							pendingRequest.allocationID(), taskManagerSlot.getSlotAllocationId());
 
-					pendingRequest.future().complete(createSimpleSlot(taskManagerSlot, Locality.UNKNOWN));
+					SimpleSlot newSlot = createSimpleSlot(taskManagerSlot, Locality.UNKNOWN);
+					allocatedSlots.add(newSlot);
+					pendingRequest.future().complete(newSlot);
 				}
 				else {
 					LOG.debug("Adding returned slot [{}] to available slots", taskManagerSlot.getSlotAllocationId());
@@ -624,6 +626,15 @@ public class SlotPool extends RpcEndpoint<SlotPoolGateway> {
 			result.setLocality(locality);
 		}
 		return result;
+	}
+
+	// ------------------------------------------------------------------------
+	//  Methods for tests
+	// ------------------------------------------------------------------------
+
+	@VisibleForTesting
+	AllocatedSlots getAllocatedSlots() {
+		return allocatedSlots;
 	}
 
 	// ------------------------------------------------------------------------
