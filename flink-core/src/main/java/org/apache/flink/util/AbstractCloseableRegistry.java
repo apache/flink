@@ -108,10 +108,6 @@ public abstract class AbstractCloseableRegistry<C extends Closeable, T> implemen
 		return closeableToRef;
 	}
 
-	// ------------------------------------------------------------------------
-	//  
-	// ------------------------------------------------------------------------
-
 	protected abstract void doUnRegister(C closeable, Map<Closeable, T> closeableMap);
 
 	protected abstract void doRegister(C closeable, Map<Closeable, T> closeableMap) throws IOException;
