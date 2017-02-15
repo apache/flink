@@ -19,6 +19,9 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.runtime.state.CheckpointListener;
+import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Preconditions;
 
@@ -55,6 +58,10 @@ public class StreamFlatMap<IN, OUT>
 		this(flatMapper, 0);
 	}
 
+    // ------------------------------------------------------------------------
+    //  operator life cycle
+    // ------------------------------------------------------------------------
+
 	@Override
 	public void open() throws Exception {
 		super.open();
@@ -82,6 +89,27 @@ public class StreamFlatMap<IN, OUT>
             new ProcessElementTask(userFunction, element, new TimestampedCollector<>(output)).processElement();
     }
 
+    // ------------------------------------------------------------------------
+    //  Checkpoint and recovery
+    // ------------------------------------------------------------------------
+
+    @Override
+    public void snapshotState(StateSnapshotContext context) throws Exception {
+        super.snapshotState(context);
+    }
+
+    @Override
+    public void restoreState(FSDataInputStream in) throws Exception {
+        super.restoreState(in);
+    }
+
+    @Override
+    public void notifyOfCompletedCheckpoint(long checkpointId) throws Exception {
+        super.notifyOfCompletedCheckpoint(checkpointId);
+    }
+    // ------------------------------------------------------------------------
+    //  Utilities
+    // ------------------------------------------------------------------------
     private boolean canBeParallelized() {
         return parallelism > 0;
     }
