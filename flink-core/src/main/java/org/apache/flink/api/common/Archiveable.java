@@ -17,8 +17,11 @@
  */
 package org.apache.flink.api.common;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import java.io.Serializable;
 
+@PublicEvolving
 public interface Archiveable<T extends Serializable> {
 	T archive();
 }

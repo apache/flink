@@ -18,6 +18,7 @@
 
 package org.apache.flink.migration.util;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.util.InstantiationUtil;
 
 import java.io.ByteArrayInputStream;
@@ -29,6 +30,7 @@ import java.io.ObjectStreamClass;
 /**
  * Utility class to deserialize legacy classes for migration.
  */
+@PublicEvolving
 public final class MigrationInstantiationUtil {
 
 	public static class ClassLoaderObjectInputStream extends InstantiationUtil.ClassLoaderObjectInputStream {
