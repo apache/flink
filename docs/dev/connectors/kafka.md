@@ -166,10 +166,10 @@ For convenience, Flink provides the following schemas:
 
 ### Kafka Consumers Start Position Configuration
 
-By default, the Flink Kafka Consumer starts reading partitions from the consumer group's (`group.id` setting in the
-consumer properties) committed offsets in Kafka brokers (or Zookeeper for Kafka 0.8).
+The Flink Kafka Consumer allows configuring how the start position for Kafka
+partitions are determined.
 
-This behaviour can be explicitly overriden, as demonstrated below:
+Example:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -200,15 +200,28 @@ val stream = env.addSource(myConsumer)
 </div>
 </div>
 
-All versions of the Flink Kafka Consumer have the above explicit configuration methods for start position. When
-configured to start from the earliest or latest record by calling either `setStartFromEarliest()` or `setStartFromLatest()`,
-the consumer will ignore any committed group offsets in Kafka when determining the start position for partitions.
+All versions of the Flink Kafka Consumer have the above explicit configuration methods for start position.
+
+ * `setStartFromGroupOffsets` (default behaviour): Start reading partitions from
+ the consumer group's (`group.id` setting in the consumer properties) committed
+ offsets in Kafka brokers (or Zookeeper for Kafka 0.8). If offsets could not be
+ found for a partition, the `auto.offset.reset` setting in the properties will be used.
+ * `setStartFromEarliest()` / `setStartFromLatest()`: Start from the earliest / latest
+ record. Under these modes, committed offsets in Kafka will be ignored and
+ not used as starting positions.
+ 
+Note that these settings do not affect the start position when the job is
+automatically restored from a failure or manually restored using a savepoint.
+On restore, the start position of each Kafka partition is determined by the
+offsets stored in the savepoint or checkpoint
+(please see the next section for information about checkpointing to enable
+fault tolerance for the consumer).
 
 ### Kafka Consumers and Fault Tolerance
 
 With Flink's checkpointing enabled, the Flink Kafka Consumer will consume records from a topic and periodically checkpoint all
 its Kafka offsets, together with the state of other operations, in a consistent manner. In case of a job failure, Flink will restore
-the streaming program to the state of the latest checkpoint and re-consume the records from Kafka, starting from the offsets that where
+the streaming program to the state of the latest checkpoint and re-consume the records from Kafka, starting from the offsets that were
 stored in the checkpoint.
 
 The interval of drawing checkpoints therefore defines how much the program may have to go back at most, in case of a failure.
