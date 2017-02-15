@@ -1711,9 +1711,6 @@ public class TypeExtractor {
 					// return type is same as field type (or the generic variant of it)
 					(m.getGenericReturnType().equals( fieldType ) || (fieldTypeWrapper != null && m.getReturnType().equals( fieldTypeWrapper )) || (fieldTypeGeneric != null && m.getGenericReturnType().equals(fieldTypeGeneric)) )
 				) {
-					if(hasGetter) {
-						throw new IllegalStateException("Detected more than one getter");
-					}
 					hasGetter = true;
 				}
 				// check for setters (<FieldName>_$eq for scala)
@@ -1723,9 +1720,6 @@ public class TypeExtractor {
 					// return type is void.
 					m.getReturnType().equals(Void.TYPE)
 				) {
-					if(hasSetter) {
-						throw new IllegalStateException("Detected more than one setter");
-					}
 					hasSetter = true;
 				}
 			}
@@ -1733,10 +1727,10 @@ public class TypeExtractor {
 				return true;
 			} else {
 				if(!hasGetter) {
-					LOG.debug(clazz+" does not contain a getter for field "+f.getName() );
+					LOG.info(clazz+" does not contain a getter for field "+f.getName() );
 				}
 				if(!hasSetter) {
-					LOG.debug(clazz+" does not contain a setter for field "+f.getName() );
+					LOG.info(clazz+" does not contain a setter for field "+f.getName() );
 				}
 				return false;
 			}
@@ -1771,7 +1765,7 @@ public class TypeExtractor {
 		for (Field field : fields) {
 			Type fieldType = field.getGenericType();
 			if(!isValidPojoField(field, clazz, typeHierarchy)) {
-				LOG.info(clazz + " is not a valid POJO type");
+				LOG.info(clazz + " is not a valid POJO type because not all fields are valid POJO fields.");
 				return null;
 			}
 			try {
