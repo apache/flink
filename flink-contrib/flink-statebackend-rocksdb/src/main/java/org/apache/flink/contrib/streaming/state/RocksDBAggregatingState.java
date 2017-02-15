@@ -44,7 +44,7 @@ import java.util.Collection;
  * @param <R> The type of the value returned from the state
  */
 public class RocksDBAggregatingState<K, N, T, ACC, R>
-	extends AbstractRocksDBState<K, N, AggregatingState<T, R>, AggregatingStateDescriptor<T, ACC, R>, ACC>
+	extends AbstractRocksDBState<K, N, AggregatingState<T, R>, AggregatingStateDescriptor<T, ACC, R>>
 	implements InternalAggregatingState<N, T, R> {
 
 	/** Serializer for the values */

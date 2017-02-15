@@ -16,21 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.common.state;
+package org.apache.flink.migration.api.common.state;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 /**
- * A {@link StateDescriptor} for {@link ListState}. This can be used to create a partitioned
- * list state using
- * {@link org.apache.flink.api.common.functions.RuntimeContext#getListState(ListStateDescriptor)}.
- *
- * @param <T> The type of the elements in the list state.
+ * Migration class present only to support resuming old savepoints that contained java-serialized data.
  */
-@PublicEvolving
-public class ListStateDescriptor<T> extends SimpleStateDescriptor<T, ListState<T>> {
+@Internal
+@Deprecated
+public class ListStateDescriptor<T> extends StateDescriptor<ListState<T>, T> {
 	private static final long serialVersionUID = 1L;
 
 	/**
@@ -40,49 +38,38 @@ public class ListStateDescriptor<T> extends SimpleStateDescriptor<T, ListState<T
 	 * consider using the {@link #ListStateDescriptor(String, TypeInformation)} constructor.
 	 *
 	 * @param name The (unique) name for the state.
-	 * @param elementTypeClass The type of the elements in the state.
+	 * @param typeClass The type of the values in the state.
 	 */
-	public ListStateDescriptor(String name, Class<T> elementTypeClass) {
-		super(name, elementTypeClass);
+	public ListStateDescriptor(String name, Class<T> typeClass) {
+		super(name, typeClass, null);
 	}
 
 	/**
 	 * Creates a new {@code ListStateDescriptor} with the given name and list element type.
 	 *
 	 * @param name The (unique) name for the state.
-	 * @param elementTypeInfo The type of the elements in the state.
+	 * @param typeInfo The type of the values in the state.
 	 */
-	public ListStateDescriptor(String name, TypeInformation<T> elementTypeInfo) {
-		super(name, elementTypeInfo);
+	public ListStateDescriptor(String name, TypeInformation<T> typeInfo) {
+		super(name, typeInfo, null);
 	}
 
 	/**
 	 * Creates a new {@code ListStateDescriptor} with the given name and list element type.
 	 *
 	 * @param name The (unique) name for the state.
-	 * @param elementTypeSerializer The type serializer for the elements in the state.
+	 * @param typeSerializer The type serializer for the list values.
 	 */
-	public ListStateDescriptor(String name, TypeSerializer<T> elementTypeSerializer) {
-		super(name, elementTypeSerializer);
+	public ListStateDescriptor(String name, TypeSerializer<T> typeSerializer) {
+		super(name, typeSerializer, null);
 	}
 
 	// ------------------------------------------------------------------------
-	//  List State Descriptor
-	// ------------------------------------------------------------------------
-
-	@Override
-	public Type getType() {
-		return Type.LIST;
-	}
 
 	@Override
 	public ListState<T> bind(StateBackend stateBackend) throws Exception {
 		return stateBackend.createListState(this);
 	}
-
-	// ------------------------------------------------------------------------
-	//  Standard utils
-	// ------------------------------------------------------------------------
 
 	@Override
 	public boolean equals(Object o) {
@@ -94,12 +81,14 @@ public class ListStateDescriptor<T> extends SimpleStateDescriptor<T, ListState<T
 		}
 
 		ListStateDescriptor<?> that = (ListStateDescriptor<?>) o;
-		return name.equals(that.name) && simpleStateDescrEquals(that);
+
+		return serializer.equals(that.serializer) && name.equals(that.name);
+
 	}
 
 	@Override
 	public int hashCode() {
-		int result = simpleStateDescrHashCode();
+		int result = serializer.hashCode();
 		result = 31 * result + name.hashCode();
 		return result;
 	}
@@ -107,7 +96,12 @@ public class ListStateDescriptor<T> extends SimpleStateDescriptor<T, ListState<T
 	@Override
 	public String toString() {
 		return "ListStateDescriptor{" +
-				simpleStateDescrToString() +
+				"serializer=" + serializer +
 				'}';
+	}
+
+	@Override
+	public org.apache.flink.api.common.state.StateDescriptor.Type getType() {
+		return org.apache.flink.api.common.state.StateDescriptor.Type.LIST;
 	}
 }

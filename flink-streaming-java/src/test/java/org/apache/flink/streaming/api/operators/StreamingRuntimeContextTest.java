@@ -63,15 +63,15 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class StreamingRuntimeContextTest {
-	
+
 	@Test
 	public void testValueStateInstantiation() throws Exception {
-		
+
 		final ExecutionConfig config = new ExecutionConfig();
 		config.registerKryoType(Path.class);
-		
+
 		final AtomicReference<Object> descriptorCapture = new AtomicReference<>();
-		
+
 		StreamingRuntimeContext context = new StreamingRuntimeContext(
 				createDescriptorCapturingMockOp(descriptorCapture, config),
 				createMockEnvironment(),
@@ -79,10 +79,12 @@ public class StreamingRuntimeContextTest {
 
 		ValueStateDescriptor<TaskInfo> descr = new ValueStateDescriptor<>("name", TaskInfo.class);
 		context.getState(descr);
-		
-		StateDescriptor<?, ?> descrIntercepted = (StateDescriptor<?, ?>) descriptorCapture.get();
-		TypeSerializer<?> serializer = descrIntercepted.getSerializer();
-		
+
+		StateDescriptor<?> descrIntercepted = (StateDescriptor<?>) descriptorCapture.get();
+		assertTrue(descrIntercepted instanceof ValueStateDescriptor);
+
+		TypeSerializer<?> serializer = ((ValueStateDescriptor)descrIntercepted).getSerializer();
+
 		// check that the Path class is really registered, i.e., the execution config was applied
 		assertTrue(serializer instanceof KryoSerializer);
 		assertTrue(((KryoSerializer<?>) serializer).getKryo().getRegistration(Path.class).getId() > 0);
@@ -103,14 +105,16 @@ public class StreamingRuntimeContextTest {
 
 		@SuppressWarnings("unchecked")
 		ReduceFunction<TaskInfo> reducer = (ReduceFunction<TaskInfo>) mock(ReduceFunction.class);
-		
-		ReducingStateDescriptor<TaskInfo> descr = 
+
+		ReducingStateDescriptor<TaskInfo> descr =
 				new ReducingStateDescriptor<>("name", reducer, TaskInfo.class);
-		
+
 		context.getReducingState(descr);
 
-		StateDescriptor<?, ?> descrIntercepted = (StateDescriptor<?, ?>) descriptorCapture.get();
-		TypeSerializer<?> serializer = descrIntercepted.getSerializer();
+		StateDescriptor<?> descrIntercepted = (StateDescriptor<?>) descriptorCapture.get();
+		assertTrue(descrIntercepted instanceof ReducingStateDescriptor);
+
+		TypeSerializer<?> serializer = ((ReducingStateDescriptor)descrIntercepted).getSerializer();
 
 		// check that the Path class is really registered, i.e., the execution config was applied
 		assertTrue(serializer instanceof KryoSerializer);
@@ -162,8 +166,10 @@ public class StreamingRuntimeContextTest {
 		ListStateDescriptor<TaskInfo> descr = new ListStateDescriptor<>("name", TaskInfo.class);
 		context.getListState(descr);
 
-		StateDescriptor<?, ?> descrIntercepted = (StateDescriptor<?, ?>) descriptorCapture.get();
-		TypeSerializer<?> serializer = descrIntercepted.getSerializer();
+		StateDescriptor<?> descrIntercepted = (StateDescriptor<?>) descriptorCapture.get();
+		assertTrue(descrIntercepted instanceof ListStateDescriptor);
+
+		TypeSerializer<?> serializer = ((ListStateDescriptor<?>)descrIntercepted).getSerializer();
 
 		// check that the Path class is really registered, i.e., the execution config was applied
 		assertTrue(serializer instanceof KryoSerializer);
@@ -185,15 +191,15 @@ public class StreamingRuntimeContextTest {
 		assertNotNull(value);
 		assertFalse(value.iterator().hasNext());
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  
 	// ------------------------------------------------------------------------
-	
+
 	@SuppressWarnings("unchecked")
 	private static AbstractStreamOperator<?> createDescriptorCapturingMockOp(
 			final AtomicReference<Object> ref, final ExecutionConfig config) throws Exception {
-		
+
 		AbstractStreamOperator<?> operatorMock = mock(AbstractStreamOperator.class);
 
 		KeyedStateBackend keyedStateBackend= mock(KeyedStateBackend.class);
@@ -251,7 +257,7 @@ public class StreamingRuntimeContextTest {
 		when(operatorMock.getKeyedStateStore()).thenReturn(keyedStateStore);
 		return operatorMock;
 	}
-	
+
 	private static Environment createMockEnvironment() {
 		Environment env = mock(Environment.class);
 		when(env.getUserClassLoader()).thenReturn(StreamingRuntimeContextTest.class.getClassLoader());

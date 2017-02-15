@@ -23,6 +23,7 @@ import com.esotericsoftware.kryo.serializers.JavaSerializer;
 
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.state.SimpleStateDescriptor;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -200,10 +201,10 @@ public class StateDescriptorPassingTest {
 	private void validateStateDescriptorConfigured(SingleOutputStreamOperator<?> result) {
 		OneInputTransformation<?, ?> transform = (OneInputTransformation<?, ?>) result.getTransformation();
 		WindowOperator<?, ?, ?, ?, ?> op = (WindowOperator<?, ?, ?, ?, ?>) transform.getOperator();
-		StateDescriptor<?, ?> descr = op.getStateDescriptor();
+		StateDescriptor<?> descr = op.getStateDescriptor();
 
 		// this would be the first statement to fail if state descriptors were not properly initialized
-		TypeSerializer<?> serializer = descr.getSerializer();
+		TypeSerializer<?> serializer = ((SimpleStateDescriptor<?, ?>) descr).getSerializer();
 		assertTrue(serializer instanceof KryoSerializer);
 
 		Kryo kryo = ((KryoSerializer<?>) serializer).getKryo();

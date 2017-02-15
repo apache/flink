@@ -37,7 +37,7 @@ abstract class AbstractQueryableStateOperator<S extends State, IN>
 		implements OneInputStreamOperator<IN, IN> {
 
 	/** State descriptor for the queryable state instance. */
-	protected final StateDescriptor<? extends S, ?> stateDescriptor;
+	protected final StateDescriptor<? extends S> stateDescriptor;
 
 	/**
 	 * Name under which the queryable state is registered.
@@ -53,7 +53,7 @@ abstract class AbstractQueryableStateOperator<S extends State, IN>
 
 	public AbstractQueryableStateOperator(
 			String registrationName,
-			StateDescriptor<? extends S, ?> stateDescriptor) {
+			StateDescriptor<? extends S> stateDescriptor) {
 
 		this.registrationName = Preconditions.checkNotNull(registrationName, "Registration name");
 		this.stateDescriptor = Preconditions.checkNotNull(stateDescriptor, "State descriptor");

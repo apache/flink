@@ -19,9 +19,9 @@
 package org.apache.flink.migration.runtime.state.filesystem;
 
 import org.apache.flink.api.common.state.ReducingState;
-import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.migration.api.common.state.ReducingStateDescriptor;
 
 @Deprecated
 public class FsReducingState<K, N, V> {

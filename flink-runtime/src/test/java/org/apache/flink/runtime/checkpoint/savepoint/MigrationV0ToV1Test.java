@@ -18,12 +18,13 @@
 
 package org.apache.flink.runtime.checkpoint.savepoint;
 
-import org.apache.flink.api.common.state.ValueStateDescriptor;
+
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.migration.api.common.state.ValueStateDescriptor;
 import org.apache.flink.migration.runtime.checkpoint.savepoint.SavepointV0;
 import org.apache.flink.migration.runtime.checkpoint.savepoint.SavepointV0Serializer;
 import org.apache.flink.migration.runtime.state.KvStateSnapshot;

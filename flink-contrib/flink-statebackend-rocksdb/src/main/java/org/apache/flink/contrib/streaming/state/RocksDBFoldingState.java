@@ -41,7 +41,7 @@ import java.io.IOException;
  * @param <ACC> The type of the value in the folding state.
  */
 public class RocksDBFoldingState<K, N, T, ACC>
-	extends AbstractRocksDBState<K, N, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>, ACC>
+	extends AbstractRocksDBState<K, N, FoldingState<T, ACC>, FoldingStateDescriptor<T, ACC>>
 	implements InternalFoldingState<N, T, ACC> {
 
 	/** Serializer for the values */
@@ -101,7 +101,7 @@ public class RocksDBFoldingState<K, N, T, ACC>
 			DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(keySerializationStream);
 			if (valueBytes == null) {
 				keySerializationStream.reset();
-				valueSerializer.serialize(foldFunction.fold(stateDesc.getDefaultValue(), value), out);
+				valueSerializer.serialize(foldFunction.fold(stateDesc.getInitialValue(), value), out);
 				backend.db.put(columnFamily, writeOptions, key, keySerializationStream.toByteArray());
 			} else {
 				ACC oldValue = valueSerializer.deserialize(new DataInputViewStreamWrapper(new ByteArrayInputStreamWithPos(valueBytes)));

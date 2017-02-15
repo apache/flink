@@ -36,11 +36,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <OUT> The type of the values that are returned from the state.
  */
 @PublicEvolving
-public class AggregatingStateDescriptor<IN, ACC, OUT> extends StateDescriptor<AggregatingState<IN, OUT>, ACC> {
+public class AggregatingStateDescriptor<IN, ACC, OUT> extends SimpleStateDescriptor<ACC, AggregatingState<IN, OUT>> {
 	private static final long serialVersionUID = 1L;
 
 	/** The aggregation function for the state */
 	private final AggregateFunction<IN, ACC, OUT> aggFunction;
+
+	// ------------------------------------------------------------------------
 
 	/**
 	 * Creates a new state descriptor with the given name, function, and type.
@@ -57,7 +59,7 @@ public class AggregatingStateDescriptor<IN, ACC, OUT> extends StateDescriptor<Ag
 			AggregateFunction<IN, ACC, OUT> aggFunction,
 			Class<ACC> stateType) {
 
-		super(name, stateType, null);
+		super(name, stateType);
 		this.aggFunction = checkNotNull(aggFunction);
 	}
 
@@ -73,7 +75,7 @@ public class AggregatingStateDescriptor<IN, ACC, OUT> extends StateDescriptor<Ag
 			AggregateFunction<IN, ACC, OUT> aggFunction,
 			TypeInformation<ACC> stateType) {
 
-		super(name, stateType, null);
+		super(name, stateType);
 		this.aggFunction = checkNotNull(aggFunction);
 	}
 
@@ -89,10 +91,12 @@ public class AggregatingStateDescriptor<IN, ACC, OUT> extends StateDescriptor<Ag
 			AggregateFunction<IN, ACC, OUT> aggFunction,
 			TypeSerializer<ACC> typeSerializer) {
 
-		super(name, typeSerializer, null);
+		super(name, typeSerializer);
 		this.aggFunction = checkNotNull(aggFunction);
 	}
 
+	// ------------------------------------------------------------------------
+	//  Aggregating State Descriptor
 	// ------------------------------------------------------------------------
 
 	@Override
@@ -113,6 +117,8 @@ public class AggregatingStateDescriptor<IN, ACC, OUT> extends StateDescriptor<Ag
 	}
 
 	// ------------------------------------------------------------------------
+	//  Standard Utils
+	// ------------------------------------------------------------------------
 
 	@Override
 	public boolean equals(Object o) {
@@ -121,7 +127,7 @@ public class AggregatingStateDescriptor<IN, ACC, OUT> extends StateDescriptor<Ag
 		}
 		else if (o != null && getClass() == o.getClass()) {
 			AggregatingStateDescriptor<?, ?, ?> that = (AggregatingStateDescriptor<?, ?, ?>) o;
-			return serializer.equals(that.serializer) && name.equals(that.name);
+			return name.equals(that.name) && simpleStateDescrEquals(that);
 		}
 		else {
 			return false;
@@ -130,7 +136,7 @@ public class AggregatingStateDescriptor<IN, ACC, OUT> extends StateDescriptor<Ag
 
 	@Override
 	public int hashCode() {
-		int result = serializer.hashCode();
+		int result = simpleStateDescrHashCode();
 		result = 31 * result + name.hashCode();
 		return result;
 	}
@@ -138,8 +144,8 @@ public class AggregatingStateDescriptor<IN, ACC, OUT> extends StateDescriptor<Ag
 	@Override
 	public String toString() {
 		return "AggregatingStateDescriptor{" +
-				"serializer=" + serializer +
-				", aggFunction=" + aggFunction +
+				"aggFunction=" + aggFunction +
+				", " + simpleStateDescrToString() +
 				'}';
 	}
 }

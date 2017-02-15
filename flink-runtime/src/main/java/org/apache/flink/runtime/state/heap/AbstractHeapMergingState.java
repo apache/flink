@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.api.common.state.MergingState;
+import org.apache.flink.api.common.state.SimpleStateDescriptor;
 import org.apache.flink.api.common.state.State;
-import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.internal.InternalMergingState;
@@ -40,7 +40,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * @param <S> The type of State
  * @param <SD> The type of StateDescriptor for the State S
  */
-public abstract class AbstractHeapMergingState<K, N, IN, OUT, SV, S extends State, SD extends StateDescriptor<S, ?>>
+public abstract class AbstractHeapMergingState<K, N, IN, OUT, SV, S extends State, SD extends SimpleStateDescriptor<?, S>>
 		extends AbstractHeapState<K, N, SV, S, SD>
 		implements InternalMergingState<N, IN, OUT> {
 

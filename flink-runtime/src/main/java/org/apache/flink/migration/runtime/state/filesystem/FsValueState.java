@@ -19,9 +19,9 @@
 package org.apache.flink.migration.runtime.state.filesystem;
 
 import org.apache.flink.api.common.state.ValueState;
-import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.migration.api.common.state.ValueStateDescriptor;
 
 @Deprecated
 public class FsValueState<K, N, V> {

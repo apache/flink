@@ -67,7 +67,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window>
 
 	private final Evictor<? super IN, ? super W> evictor;
 
-	private final StateDescriptor<? extends ListState<StreamRecord<IN>>, ?> evictingWindowStateDescriptor;
+	private final StateDescriptor<? extends ListState<StreamRecord<IN>>> evictingWindowStateDescriptor;
 
 	// ------------------------------------------------------------------------
 	// the fields below are instantiated once the operator runs in the runtime
@@ -82,7 +82,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window>
 			TypeSerializer<W> windowSerializer,
 			KeySelector<IN, K> keySelector,
 			TypeSerializer<K> keySerializer,
-			StateDescriptor<? extends ListState<StreamRecord<IN>>, ?> windowStateDescriptor,
+			StateDescriptor<? extends ListState<StreamRecord<IN>>> windowStateDescriptor,
 			InternalWindowFunction<Iterable<IN>, OUT, K, W> windowFunction,
 			Trigger<? super IN, ? super W> trigger,
 			Evictor<? super IN, ? super W> evictor,
@@ -426,7 +426,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window>
 	@Override
 	@VisibleForTesting
 	@SuppressWarnings("unchecked, rawtypes")
-	public StateDescriptor<? extends AppendingState<IN, Iterable<IN>>, ?> getStateDescriptor() {
-		return (StateDescriptor<? extends AppendingState<IN, Iterable<IN>>, ?>) evictingWindowStateDescriptor;
+	public StateDescriptor<? extends AppendingState<IN, Iterable<IN>>> getStateDescriptor() {
+		return (StateDescriptor<? extends AppendingState<IN, Iterable<IN>>>) evictingWindowStateDescriptor;
 	}
 }

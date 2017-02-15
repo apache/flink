@@ -93,7 +93,7 @@ public class DefaultKeyedStateStore implements KeyedStateStore {
 		}
 	}
 
-	private <S extends State> S getPartitionedState(StateDescriptor<S, ?> stateDescriptor) throws Exception {
+	private <S extends State> S getPartitionedState(StateDescriptor<S> stateDescriptor) throws Exception {
 		return keyedStateBackend.getPartitionedState(
 				VoidNamespace.INSTANCE,
 				VoidNamespaceSerializer.INSTANCE,

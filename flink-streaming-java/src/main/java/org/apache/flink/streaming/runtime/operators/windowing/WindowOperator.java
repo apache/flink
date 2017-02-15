@@ -25,6 +25,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.AppendingState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MergingState;
+import org.apache.flink.api.common.state.SimpleStateDescriptor;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
@@ -114,7 +115,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 	private final Trigger<? super IN, ? super W> trigger;
 
-	private final StateDescriptor<? extends AppendingState<IN, ACC>, ?> windowStateDescriptor;
+	private final StateDescriptor<? extends AppendingState<IN, ACC>> windowStateDescriptor;
 
 	/** For serializing the key in checkpoints. */
 	protected final TypeSerializer<K> keySerializer;
@@ -197,7 +198,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 			TypeSerializer<W> windowSerializer,
 			KeySelector<IN, K> keySelector,
 			TypeSerializer<K> keySerializer,
-			StateDescriptor<? extends AppendingState<IN, ACC>, ?> windowStateDescriptor,
+			StateDescriptor<? extends AppendingState<IN, ACC>> windowStateDescriptor,
 			InternalWindowFunction<ACC, OUT, K, W> windowFunction,
 			Trigger<? super IN, ? super W> trigger,
 			long allowedLateness) {
@@ -214,7 +215,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 			TypeSerializer<W> windowSerializer,
 			KeySelector<IN, K> keySelector,
 			TypeSerializer<K> keySerializer,
-			StateDescriptor<? extends AppendingState<IN, ACC>, ?> windowStateDescriptor,
+			StateDescriptor<? extends AppendingState<IN, ACC>> windowStateDescriptor,
 			InternalWindowFunction<ACC, OUT, K, W> windowFunction,
 			Trigger<? super IN, ? super W> trigger,
 			long allowedLateness,
@@ -685,7 +686,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		}
 
 		@SuppressWarnings("unchecked")
-		public <S extends State> S getPartitionedState(StateDescriptor<S, ?> stateDescriptor) {
+		public <S extends State> S getPartitionedState(StateDescriptor<S> stateDescriptor) {
 			try {
 				return WindowOperator.this.getPartitionedState(window, windowSerializer, stateDescriptor);
 			} catch (Exception e) {
@@ -694,7 +695,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		}
 
 		@Override
-		public <S extends MergingState<?, ?>> void mergePartitionedState(StateDescriptor<S, ?> stateDescriptor) {
+		public <S extends MergingState<?, ?>> void mergePartitionedState(StateDescriptor<S> stateDescriptor) {
 			if (mergedWindows != null && mergedWindows.size() > 0) {
 				try {
 					S rawState = getKeyedStateBackend().getOrCreateKeyedState(windowSerializer, stateDescriptor);
@@ -906,7 +907,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		long nextElementTimestamp = nextSlideTime - (numPanes * paneSize);
 
 		@SuppressWarnings("unchecked")
-		ArrayListSerializer<IN> ser = new ArrayListSerializer<>((TypeSerializer<IN>) getStateDescriptor().getSerializer());
+		ArrayListSerializer<IN> ser = new ArrayListSerializer<>(getStateSerializer(getStateDescriptor()));
 
 		while (numPanes > 0) {
 			validateMagicNumber(BEGIN_OF_PANE_MAGIC_NUMBER, in.readInt());
@@ -942,7 +943,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 				K key = keySerializer.deserialize(in);
 
 				@SuppressWarnings("unchecked")
-				IN value = (IN) getStateDescriptor().getSerializer().deserialize(in);
+				IN value = (IN) getStateSerializer(getStateDescriptor()).deserialize(in);
 				restoredFromLegacyAlignedOpRecords.add(new StreamRecord<>(value, nextElementTimestamp));
 			}
 			numPanes--;
@@ -1074,6 +1075,16 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		restoredFromLegacyAlignedOpRecords = null;
 	}
 
+	@SuppressWarnings("unchecked")
+	private TypeSerializer<IN> getStateSerializer(StateDescriptor<?> stateDescriptor) {
+		if (stateDescriptor instanceof SimpleStateDescriptor) {
+			SimpleStateDescriptor<IN, ?> simpleStateDescriptor = (SimpleStateDescriptor<IN, ?>) stateDescriptor;
+			return simpleStateDescriptor.getSerializer();
+		} else {
+			throw new IllegalStateException();
+		}
+	}
+	
 	// ------------------------------------------------------------------------
 	// Getters for testing
 	// ------------------------------------------------------------------------
@@ -1094,7 +1105,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	}
 
 	@VisibleForTesting
-	public StateDescriptor<? extends AppendingState<IN, ACC>, ?> getStateDescriptor() {
+	public StateDescriptor<? extends AppendingState<IN, ACC>> getStateDescriptor() {
 		return windowStateDescriptor;
 	}
 }

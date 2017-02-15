@@ -75,7 +75,7 @@ public interface KeyedStateBackend<K> {
 	 */
 	<N, S extends State, T> S getOrCreateKeyedState(
 			TypeSerializer<N> namespaceSerializer,
-			StateDescriptor<S, T> stateDescriptor) throws Exception;
+			StateDescriptor<S> stateDescriptor) throws Exception;
 
 	/**
 	 * Creates or retrieves a partitioned state backed by this state backend.
@@ -96,7 +96,7 @@ public interface KeyedStateBackend<K> {
 	<N, S extends State> S getPartitionedState(
 			N namespace,
 			TypeSerializer<N> namespaceSerializer,
-			StateDescriptor<S, ?> stateDescriptor) throws Exception;
+			StateDescriptor<S> stateDescriptor) throws Exception;
 
 	/**
 	 * Closes the backend and releases all resources.

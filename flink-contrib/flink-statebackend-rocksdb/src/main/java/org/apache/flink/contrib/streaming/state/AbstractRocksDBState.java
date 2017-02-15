@@ -17,6 +17,7 @@
 
 package org.apache.flink.contrib.streaming.state;
 
+import org.apache.flink.api.common.state.SimpleStateDescriptor;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -46,7 +47,7 @@ import java.io.IOException;
  * @param <S> The type of {@link State}.
  * @param <SD> The type of {@link StateDescriptor}.
  */
-public abstract class AbstractRocksDBState<K, N, S extends State, SD extends StateDescriptor<S, V>, V>
+public abstract class AbstractRocksDBState<K, N, S extends State, SD extends SimpleStateDescriptor<?, S>>
 		implements InternalKvState<N>, State {
 
 	/** Serializer for the namespace */

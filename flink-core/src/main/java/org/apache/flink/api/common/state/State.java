@@ -21,12 +21,17 @@ package org.apache.flink.api.common.state;
 import org.apache.flink.annotation.PublicEvolving;
 
 /**
- * Interface that different types of partitioned state must implement.
+ * Base interface for all types of <i>keyed state</i> must implement. Sub-classes of this
+ * interface define the specific type and behavior of the state, for example
+ * {@link ValueState} or {@link ListState}.
  *
- * <p>The state is only accessible by functions applied on a KeyedDataStream. The key is
- * automatically supplied by the system, so the function always sees the value mapped to the
+ * <p>Keyed  state is only accessible by functions applied on a {@code KeyedDataStream}, which
+ * is the result of a {@code DataStream.keyBy()} operation.
+ * 
+ * <p>The key is automatically supplied by the system, so the function always sees the value mapped to the
  * key of the current element. That way, the system can handle stream and state partitioning
- * consistently together.
+ * consistently together, making state accesses local and allowing the system to transparently
+ * re-shard the state when changing the parallelism of the operation that works with the state. 
  */
 @PublicEvolving
 public interface State {

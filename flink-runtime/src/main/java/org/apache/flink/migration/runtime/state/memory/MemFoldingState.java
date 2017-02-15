@@ -19,8 +19,8 @@
 package org.apache.flink.migration.runtime.state.memory;
 
 import org.apache.flink.api.common.state.FoldingState;
-import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.migration.api.common.state.FoldingStateDescriptor;
 
 @Deprecated
 public class MemFoldingState<K, N, T, ACC> {

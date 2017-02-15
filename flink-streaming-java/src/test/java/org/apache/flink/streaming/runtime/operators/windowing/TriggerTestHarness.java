@@ -321,7 +321,7 @@ public class TriggerTestHarness<T, W extends Window> {
 		}
 
 		@Override
-		public <S extends State> S getPartitionedState(StateDescriptor<S, ?> stateDescriptor) {
+		public <S extends State> S getPartitionedState(StateDescriptor<S> stateDescriptor) {
 			try {
 				return stateBackend.getPartitionedState(window, windowSerializer, stateDescriptor);
 			} catch (Exception e) {
@@ -359,7 +359,7 @@ public class TriggerTestHarness<T, W extends Window> {
 		}
 
 		@Override
-		public <S extends MergingState<?, ?>> void mergePartitionedState(StateDescriptor<S, ?> stateDescriptor) {
+		public <S extends MergingState<?, ?>> void mergePartitionedState(StateDescriptor<S> stateDescriptor) {
 			try {
 				S rawState = stateBackend.getOrCreateKeyedState(windowSerializer, stateDescriptor);
 

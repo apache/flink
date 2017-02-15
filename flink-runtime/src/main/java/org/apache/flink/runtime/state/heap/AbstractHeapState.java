@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.SimpleStateDescriptor;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -43,7 +44,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * @param <S> The type of State
  * @param <SD> The type of StateDescriptor for the State S
  */
-public abstract class AbstractHeapState<K, N, SV, S extends State, SD extends StateDescriptor<S, ?>>
+public abstract class AbstractHeapState<K, N, SV, S extends State, SD extends SimpleStateDescriptor<?, S>>
 		implements InternalKvState<N> {
 
 	/** Map containing the actual key/value pairs */
