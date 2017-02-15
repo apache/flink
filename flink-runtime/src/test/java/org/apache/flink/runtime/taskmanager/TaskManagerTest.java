@@ -69,7 +69,6 @@ import org.apache.flink.runtime.messages.TaskMessages;
 import org.apache.flink.runtime.messages.TaskMessages.CancelTask;
 import org.apache.flink.runtime.messages.TaskMessages.StopTask;
 import org.apache.flink.runtime.messages.TaskMessages.SubmitTask;
-import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
@@ -484,7 +483,7 @@ public class TaskManagerTest extends TestLogger {
 							expectMsgEquals(Acknowledge.get());
 
 							tm.tell(new StopTask(eid2), testActorGateway);
-							expectMsgClass(Failure.class);
+							expectMsgClass(Status.Failure.class);
 
 							assertEquals(ExecutionState.RUNNING, t2.getExecutionState());
 
@@ -1228,13 +1227,13 @@ public class TaskManagerTest extends TestLogger {
 
 							// Receive the expected message (heartbeat races possible)
 							Object[] msg = receiveN(1);
-							while (!(msg[0] instanceof Failure)) {
+							while (!(msg[0] instanceof Status.Failure)) {
 								msg = receiveN(1);
 							}
 
-							Failure response = (Failure) msg[0];
+							Status.Failure response = (Status.Failure) msg[0];
 
-							assertEquals(IllegalStateException.class, response.exception().getClass());
+							assertEquals(IllegalStateException.class, response.cause().getClass());
 						} catch (Exception e) {
 							e.printStackTrace();
 							fail(e.getMessage());
@@ -1618,7 +1617,7 @@ public class TaskManagerTest extends TestLogger {
 				0,
 				new Configuration(),
 				new Configuration(),
-				DummyInvokable.class.getName(),
+				BlockingNoOpInvokable.class.getName(),
 				Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
 				Collections.<InputGateDeploymentDescriptor>emptyList(),
 				Collections.<BlobKey>emptyList(),
@@ -1723,7 +1722,7 @@ public class TaskManagerTest extends TestLogger {
 				0,
 				new Configuration(),
 				new Configuration(),
-				DummyInvokable.class.getName(),
+				BlockingNoOpInvokable.class.getName(),
 				Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
 				Collections.<InputGateDeploymentDescriptor>emptyList(),
 				Collections.<BlobKey>emptyList(),
