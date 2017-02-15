@@ -18,6 +18,9 @@
 
 package org.apache.flink.util;
 
+import org.apache.flink.annotation.Internal;
+
+@Internal
 public interface WrappingProxy<T> {
 
 	T getWrappedDelegate();

@@ -18,6 +18,7 @@
 
 package org.apache.flink.core.fs;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
@@ -28,6 +29,7 @@ import java.io.IOException;
  * <p>
  * See {@link SafetyNetCloseableRegistry} for more details on how this is utilized.
  */
+@Internal
 public class ClosingFSDataOutputStream
 		extends FSDataOutputStreamWrapper
 		implements WrappingProxyCloseable<FSDataOutputStream> {

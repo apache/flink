@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -41,6 +42,7 @@ import org.apache.flink.core.memory.DataOutputView;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
+@Internal
 public final class PojoSerializer<T> extends TypeSerializer<T> {
 
 	// Flags for the header

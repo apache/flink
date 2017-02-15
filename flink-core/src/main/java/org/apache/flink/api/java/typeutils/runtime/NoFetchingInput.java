@@ -20,11 +20,13 @@ package org.apache.flink.api.java.typeutils.runtime;
 
 import com.esotericsoftware.kryo.KryoException;
 import com.esotericsoftware.kryo.io.Input;
+import org.apache.flink.annotation.Internal;
 
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 
+@Internal
 public class NoFetchingInput extends Input {
 	public NoFetchingInput(InputStream inputStream){
 		super(inputStream, 8);

@@ -18,6 +18,7 @@
 
 package org.apache.flink.core.fs;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -28,6 +29,7 @@ import java.io.IOException;
  * Abstract base class for wrappers over multiple {@link FSDataInputStream}, which gives a contiguous view on all inner
  * streams and makes them look like a single stream, in which we can read, seek, etc.
  */
+@Internal
 public abstract class AbstractMultiFSDataInputStream extends FSDataInputStream {
 
 	/** Inner stream for the currently accessed segment of the virtual global stream */
