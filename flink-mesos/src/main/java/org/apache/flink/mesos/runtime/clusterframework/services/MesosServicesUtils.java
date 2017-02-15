@@ -22,6 +22,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.zookeeper.ZooKeeperUtilityFactory;
+import org.apache.flink.util.ConfigurationUtil;
 
 public class MesosServicesUtils {
 
@@ -40,9 +41,11 @@ public class MesosServicesUtils {
 				return new StandaloneMesosServices();
 
 			case ZOOKEEPER:
-				final String zkMesosRootPath = configuration.getString(
+				final String zkMesosRootPath = ConfigurationUtil.getStringWithDeprecatedKeys(
+					configuration,
 					ConfigConstants.HA_ZOOKEEPER_MESOS_WORKERS_PATH,
-					ConfigConstants.DEFAULT_ZOOKEEPER_MESOS_WORKERS_PATH);
+					ConfigConstants.DEFAULT_ZOOKEEPER_MESOS_WORKERS_PATH,
+					ConfigConstants.ZOOKEEPER_MESOS_WORKERS_PATH);
 
 				ZooKeeperUtilityFactory zooKeeperUtilityFactory = new ZooKeeperUtilityFactory(
 					configuration,

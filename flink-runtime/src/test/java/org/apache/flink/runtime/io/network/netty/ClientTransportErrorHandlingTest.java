@@ -389,7 +389,8 @@ public class ClientTransportErrorHandlingTest {
 		return new EmbeddedChannel(protocol.getClientChannelHandlers());
 	}
 
-	private RemoteInputChannel addInputChannel(PartitionRequestClientHandler clientHandler) {
+	private RemoteInputChannel addInputChannel(PartitionRequestClientHandler clientHandler)
+		throws IOException {
 		RemoteInputChannel rich = createRemoteInputChannel();
 		clientHandler.addInputChannel(rich);
 

@@ -28,6 +28,17 @@ import org.apache.flink.table.plan.rules.datastream.{DataStreamCalcRule, DataStr
 object FlinkRuleSets {
 
   /**
+    * RuleSet to normalize plans for batch / DataSet execution
+    */
+  val DATASET_NORM_RULES: RuleSet = RuleSets.ofList(
+    // simplify expressions rules
+    ReduceExpressionsRule.FILTER_INSTANCE,
+    ReduceExpressionsRule.PROJECT_INSTANCE,
+    ReduceExpressionsRule.CALC_INSTANCE,
+    ReduceExpressionsRule.JOIN_INSTANCE
+  )
+
+  /**
     * RuleSet to optimize plans for batch / DataSet execution
     */
   val DATASET_OPT_RULES: RuleSet = RuleSets.ofList(
@@ -75,12 +86,6 @@ object FlinkRuleSets {
     // remove unnecessary sort rule
     SortRemoveRule.INSTANCE,
 
-    // simplify expressions rules
-    ReduceExpressionsRule.FILTER_INSTANCE,
-    ReduceExpressionsRule.PROJECT_INSTANCE,
-    ReduceExpressionsRule.CALC_INSTANCE,
-    ReduceExpressionsRule.JOIN_INSTANCE,
-
     // prune empty results rules
     PruneEmptyRules.AGGREGATE_INSTANCE,
     PruneEmptyRules.FILTER_INSTANCE,
@@ -117,6 +122,16 @@ object FlinkRuleSets {
   )
 
   /**
+    * RuleSet to normalize plans for stream / DataStream execution
+    */
+  val DATASTREAM_NORM_RULES: RuleSet = RuleSets.ofList(
+    // simplify expressions rules
+    ReduceExpressionsRule.FILTER_INSTANCE,
+    ReduceExpressionsRule.PROJECT_INSTANCE,
+    ReduceExpressionsRule.CALC_INSTANCE
+  )
+
+  /**
   * RuleSet to optimize plans for stream / DataStream execution
   */
   val DATASTREAM_OPT_RULES: RuleSet = RuleSets.ofList(
@@ -141,11 +156,6 @@ object FlinkRuleSets {
       ProjectFilterTransposeRule.INSTANCE,
       FilterProjectTransposeRule.INSTANCE,
       ProjectRemoveRule.INSTANCE,
-
-      // simplify expressions rules
-      ReduceExpressionsRule.FILTER_INSTANCE,
-      ReduceExpressionsRule.PROJECT_INSTANCE,
-      ReduceExpressionsRule.CALC_INSTANCE,
 
       // merge and push unions rules
       UnionEliminatorRule.INSTANCE,

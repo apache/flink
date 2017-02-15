@@ -178,7 +178,7 @@ angular.module('flinkApp')
 
 .directive 'jobPlan', ($timeout) ->
   template: "
-    <svg class='graph' width='500' height='400'><g /></svg>
+    <svg class='graph'><g /></svg>
     <svg class='tmp' width='1' height='1'><g /></svg>
     <div class='btn-group zoom-buttons'>
       <a class='btn btn-default zoom-in' ng-click='zoomIn()'><i class='fa fa-plus' /></a>

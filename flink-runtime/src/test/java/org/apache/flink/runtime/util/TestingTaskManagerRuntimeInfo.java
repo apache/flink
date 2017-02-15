@@ -59,4 +59,10 @@ public class TestingTaskManagerRuntimeInfo implements TaskManagerRuntimeInfo {
 	public String[] getTmpDirectories() {
 		return tmpDirectories;
 	}
+
+	@Override
+	public boolean shouldExitJvmOnOutOfMemoryError() {
+		// never kill the JVM in tests
+		return false;
+	}
 }

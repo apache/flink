@@ -23,17 +23,16 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{JoinInfo, JoinRelType}
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{BiRel, RelNode, RelWriter}
+import org.apache.calcite.rex.RexNode
 import org.apache.calcite.util.mapping.IntPair
+import org.apache.flink.api.common.functions.FlatJoinFunction
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
+import org.apache.flink.table.api.{BatchTableEnvironment, TableException}
+import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGenerator
 import org.apache.flink.table.runtime.FlatJoinRunner
-import org.apache.flink.table.typeutils.TypeConverter.determineReturnType
-import org.apache.flink.api.common.functions.FlatJoinFunction
-import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode}
-import org.apache.calcite.sql.SqlKind
-import org.apache.flink.table.api.{BatchTableEnvironment, TableException}
+import org.apache.flink.types.Row
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -102,17 +101,11 @@ class DataSetJoin(
     planner.getCostFactory.makeCost(rowCnt, cpuCost, ioCost)
   }
 
-  override def translateToPlan(
-      tableEnv: BatchTableEnvironment,
-      expectedType: Option[TypeInformation[Any]]): DataSet[Any] = {
+  override def translateToPlan(tableEnv: BatchTableEnvironment): DataSet[Row] = {
 
     val config = tableEnv.getConfig
 
-    val returnType = determineReturnType(
-      getRowType,
-      expectedType,
-      config.getNullCheck,
-      config.getEfficientTypeUsage)
+    val returnType = FlinkTypeFactory.toInternalRowTypeInfo(getRowType)
 
     // get the equality keys
     val leftKeys = ArrayBuffer.empty[Int]
@@ -195,19 +188,22 @@ class DataSetJoin(
     }
     val genFunction = generator.generateFunction(
       ruleDescription,
-      classOf[FlatJoinFunction[Any, Any, Any]],
+      classOf[FlatJoinFunction[Row, Row, Row]],
       body,
       returnType)
 
-    val joinFun = new FlatJoinRunner[Any, Any, Any](
+    val joinFun = new FlatJoinRunner[Row, Row, Row](
       genFunction.name,
       genFunction.code,
       genFunction.returnType)
 
     val joinOpName = s"where: ($joinConditionToString), join: ($joinSelectionToString)"
 
-    joinOperator.where(leftKeys.toArray: _*).equalTo(rightKeys.toArray: _*)
-      .`with`(joinFun).name(joinOpName).asInstanceOf[DataSet[Any]]
+    joinOperator
+      .where(leftKeys.toArray: _*)
+      .equalTo(rightKeys.toArray: _*)
+      .`with`(joinFun)
+      .name(joinOpName)
   }
 
   private def joinSelectionToString: String = {

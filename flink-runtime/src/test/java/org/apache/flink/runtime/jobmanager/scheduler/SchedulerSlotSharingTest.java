@@ -27,6 +27,7 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.junit.Test;
 
 import java.util.Random;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -79,8 +80,8 @@ public class SchedulerSlotSharingTest {
 				scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid1, 4, 8), sharingGroup), false).get();
 				fail("Scheduler accepted too many tasks at the same time");
 			}
-			catch (NoResourceAvailableException e) {
-				// good!
+			catch (ExecutionException e) {
+				assertTrue(e.getCause() instanceof NoResourceAvailableException);
 			}
 			catch (Exception e) {
 				fail("Wrong exception.");
@@ -164,8 +165,8 @@ public class SchedulerSlotSharingTest {
 				scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid1, 4, 5), sharingGroup), false).get();
 				fail("Scheduler accepted too many tasks at the same time");
 			}
-			catch (NoResourceAvailableException e) {
-				// good!
+			catch (ExecutionException e) {
+				assertTrue(e.getCause() instanceof NoResourceAvailableException);
 			}
 			catch (Exception e) {
 				fail("Wrong exception.");
@@ -187,8 +188,8 @@ public class SchedulerSlotSharingTest {
 				scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid2, 4, 5), sharingGroup), false).get();
 				fail("Scheduler accepted too many tasks at the same time");
 			}
-			catch (NoResourceAvailableException e) {
-				// good!
+			catch (ExecutionException e) {
+				assertTrue(e.getCause() instanceof NoResourceAvailableException);
 			}
 			catch (Exception e) {
 				fail("Wrong exception.");
@@ -208,8 +209,8 @@ public class SchedulerSlotSharingTest {
 				scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid2, 4, 5), sharingGroup), false).get();
 				fail("Scheduler accepted too many tasks at the same time");
 			}
-			catch (NoResourceAvailableException e) {
-				// good!
+			catch (ExecutionException e) {
+				assertTrue(e.getCause() instanceof NoResourceAvailableException);
 			}
 			catch (Exception e) {
 				fail("Wrong exception.");
@@ -376,8 +377,8 @@ public class SchedulerSlotSharingTest {
 				scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid1, 4, 5), sharingGroup), false).get();
 				fail("Scheduler accepted too many tasks at the same time");
 			}
-			catch (NoResourceAvailableException e) {
-				// good!
+			catch (ExecutionException e) {
+				assertTrue(e.getCause() instanceof NoResourceAvailableException);
 			}
 			catch (Exception e) {
 				fail("Wrong exception.");
@@ -519,8 +520,8 @@ public class SchedulerSlotSharingTest {
 				scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid1, 2, 4), sharingGroup), false).get();
 				fail("Scheduler accepted too many tasks at the same time");
 			}
-			catch (NoResourceAvailableException e) {
-				// good!
+			catch (ExecutionException e) {
+				assertTrue(e.getCause() instanceof NoResourceAvailableException);
 			}
 			catch (Exception e) {
 				fail("Wrong exception.");
@@ -530,30 +531,30 @@ public class SchedulerSlotSharingTest {
 				scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid2, 2, 4), sharingGroup), false).get();
 				fail("Scheduler accepted too many tasks at the same time");
 			}
-			catch (NoResourceAvailableException e) {
-				// good!
+			catch (ExecutionException e) {
+				assertTrue(e.getCause() instanceof NoResourceAvailableException);
 			}
 			catch (Exception e) {
 				fail("Wrong exception.");
 			}
 			
 			try {
-				scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jidB, 0, 3)), false);
+				scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jidB, 0, 3)), false).get();
 				fail("Scheduler accepted too many tasks at the same time");
 			}
-			catch (NoResourceAvailableException e) {
-				// good!
+			catch (ExecutionException e) {
+				assertTrue(e.getCause() instanceof NoResourceAvailableException);
 			}
 			catch (Exception e) {
 				fail("Wrong exception.");
 			}
 			
 			try {
-				scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jidC, 0, 1)), false);
+				scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jidC, 0, 1)), false).get();
 				fail("Scheduler accepted too many tasks at the same time");
 			}
-			catch (NoResourceAvailableException e) {
-				// good!
+			catch (ExecutionException e) {
+				assertTrue(e.getCause() instanceof NoResourceAvailableException);
 			}
 			catch (Exception e) {
 				fail("Wrong exception.");
@@ -1059,13 +1060,13 @@ public class SchedulerSlotSharingTest {
 			SimpleSlot s4_3 = scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid4, 3, 4), sharingGroup), false).get();
 			
 			try {
-				scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid3, 4, 5), sharingGroup), false);
+				scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid3, 4, 5), sharingGroup), false).get();
 				fail("should throw an exception");
 			}
-			catch (NoResourceAvailableException e) {
-				// expected
+			catch (ExecutionException e) {
+				assertTrue(e.getCause() instanceof NoResourceAvailableException);
 			}
-			
+
 			assertEquals(0, scheduler.getNumberOfAvailableSlots());
 			
 			s3_0.releaseSlot();

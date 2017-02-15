@@ -39,11 +39,11 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.JobManagerOptions;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
-import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
+
 import org.slf4j.Logger;
 
 import java.io.IOException;
@@ -386,7 +386,7 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	//  Actions
 	//---------------------------------------------------------------------------------------------
 	
-	public void scheduleAll(SlotProvider slotProvider, boolean queued) throws NoResourceAvailableException {
+	public void scheduleAll(SlotProvider slotProvider, boolean queued) {
 		
 		ExecutionVertex[] vertices = this.taskVertices;
 

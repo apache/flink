@@ -33,6 +33,7 @@ public class StreamIterationHeadTest {
 		StreamIterationHead<Integer> head = new StreamIterationHead<>();
 		StreamTaskTestHarness<Integer> harness = new StreamTaskTestHarness<>(head,
 				BasicTypeInfo.INT_TYPE_INFO);
+		harness.setupOutputForSingletonOperatorChain();
 		harness.getStreamConfig().setIterationId("1");
 		harness.getStreamConfig().setIterationWaitTime(1);
 

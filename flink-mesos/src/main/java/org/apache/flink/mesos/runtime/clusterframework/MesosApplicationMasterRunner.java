@@ -22,10 +22,12 @@ import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Address;
 import akka.actor.Props;
+
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.PosixParser;
+
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
@@ -52,15 +54,17 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.process.ProcessReaper;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.util.EnvironmentInformation;
+import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.util.Hardware;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
-import org.apache.flink.runtime.util.NamedThreadFactory;
 import org.apache.flink.runtime.util.SignalHandler;
 import org.apache.flink.runtime.webmonitor.WebMonitor;
 import org.apache.mesos.Protos;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import scala.concurrent.duration.Duration;
 import scala.concurrent.duration.FiniteDuration;
 
@@ -216,11 +220,11 @@ public class MesosApplicationMasterRunner {
 
 			futureExecutor = Executors.newScheduledThreadPool(
 				numberProcessors,
-				new NamedThreadFactory("mesos-jobmanager-future-", "-thread-"));
+				new ExecutorThreadFactory("mesos-jobmanager-future"));
 
 			ioExecutor = Executors.newFixedThreadPool(
 				numberProcessors,
-				new NamedThreadFactory("mesos-jobmanager-io-", "-thread-"));
+				new ExecutorThreadFactory("mesos-jobmanager-io"));
 
 			mesosServices = MesosServicesUtils.createMesosServices(config);
 

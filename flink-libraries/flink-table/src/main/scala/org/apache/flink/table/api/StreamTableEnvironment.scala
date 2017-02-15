@@ -20,13 +20,14 @@ package org.apache.flink.table.api
 
 import _root_.java.util.concurrent.atomic.AtomicInteger
 
-import org.apache.calcite.plan.RelOptPlanner.CannotPlanException
 import org.apache.calcite.plan.RelOptUtil
+import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.sql2rel.RelDecorrelator
-import org.apache.calcite.tools.{Programs, RuleSet}
+import org.apache.calcite.tools.RuleSet
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.TypeExtractor
+import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.explain.PlanJsonParser
@@ -200,19 +201,24 @@ abstract class StreamTableEnvironment(
     dataStream: DataStream[T],
     fields: Array[Expression]): Unit = {
 
-    val (fieldNames, fieldIndexes) = getFieldInfo[T](dataStream.getType, fields.toArray)
+    val (fieldNames, fieldIndexes) = getFieldInfo[T](dataStream.getType, fields)
     val dataStreamTable = new DataStreamTable[T](
       dataStream,
-      fieldIndexes.toArray,
-      fieldNames.toArray
+      fieldIndexes,
+      fieldNames
     )
     registerTableInternal(name, dataStreamTable)
   }
 
   /**
-    * Returns the built-in rules that are defined by the environment.
+    * Returns the built-in normalization rules that are defined by the environment.
     */
-  protected def getBuiltInRuleSet: RuleSet = FlinkRuleSets.DATASTREAM_OPT_RULES
+  protected def getBuiltInNormRuleSet: RuleSet = FlinkRuleSets.DATASTREAM_NORM_RULES
+
+  /**
+    * Returns the built-in optimization rules that are defined by the environment.
+    */
+  protected def getBuiltInOptRuleSet: RuleSet = FlinkRuleSets.DATASTREAM_OPT_RULES
 
   /**
     * Generates the optimized [[RelNode]] tree from the original relational node tree.
@@ -221,25 +227,28 @@ abstract class StreamTableEnvironment(
     * @return The optimized [[RelNode]] tree
     */
   private[flink] def optimize(relNode: RelNode): RelNode = {
-    // decorrelate
+
+    // 1. decorrelate
     val decorPlan = RelDecorrelator.decorrelateQuery(relNode)
 
-    // optimize the logical Flink plan
-    val optProgram = Programs.ofRules(getRuleSet)
-    val flinkOutputProps = relNode.getTraitSet.replace(DataStreamConvention.INSTANCE).simplify()
+    // 2. normalize the logical plan
+    val normRuleSet = getNormRuleSet
+    val normalizedPlan = if (normRuleSet.iterator().hasNext) {
+      runHepPlanner(HepMatchOrder.BOTTOM_UP, normRuleSet, decorPlan, decorPlan.getTraitSet)
+    } else {
+      decorPlan
+    }
 
-    val dataStreamPlan = try {
-      optProgram.run(getPlanner, decorPlan, flinkOutputProps)
+    // 3. optimize the logical Flink plan
+    val optRuleSet = getOptRuleSet
+    val flinkOutputProps = relNode.getTraitSet.replace(DataStreamConvention.INSTANCE).simplify()
+    val optimizedPlan = if (optRuleSet.iterator().hasNext) {
+      runVolcanoPlanner(optRuleSet, normalizedPlan, flinkOutputProps)
+    } else {
+      normalizedPlan
     }
-    catch {
-      case e: CannotPlanException =>
-        throw TableException(
-          s"Cannot generate a valid execution plan for the given query: \n\n" +
-            s"${RelOptUtil.toString(relNode)}\n" +
-            s"This exception indicates that the query uses an unsupported SQL feature.\n" +
-            s"Please check the documentation for the set of currently supported SQL features.", e)
-    }
-    dataStreamPlan
+
+    optimizedPlan
   }
 
 
@@ -255,30 +264,40 @@ abstract class StreamTableEnvironment(
     * @return The [[DataStream]] that corresponds to the translated [[Table]].
     */
   protected def translate[A](table: Table)(implicit tpe: TypeInformation[A]): DataStream[A] = {
-    val dataStreamPlan = optimize(table.getRelNode)
-    translate(dataStreamPlan)
+    val relNode = table.getRelNode
+    val dataStreamPlan = optimize(relNode)
+    translate(dataStreamPlan, relNode.getRowType)
   }
 
   /**
     * Translates a logical [[RelNode]] into a [[DataStream]].
     *
     * @param logicalPlan The root node of the relational expression tree.
+    * @param logicalType The row type of the result. Since the logicalPlan can lose the
+    *                    field naming during optimization we pass the row type separately.
     * @param tpe         The [[TypeInformation]] of the resulting [[DataStream]].
     * @tparam A The type of the resulting [[DataStream]].
     * @return The [[DataStream]] that corresponds to the translated [[Table]].
     */
-  protected def translate[A]
-      (logicalPlan: RelNode)(implicit tpe: TypeInformation[A]): DataStream[A] = {
+  protected def translate[A](
+      logicalPlan: RelNode,
+      logicalType: RelDataType)
+      (implicit tpe: TypeInformation[A]): DataStream[A] = {
 
     TableEnvironment.validateType(tpe)
 
     logicalPlan match {
       case node: DataStreamRel =>
-        node.translateToPlan(
-          this,
-          Some(tpe.asInstanceOf[TypeInformation[Any]])
-        ).asInstanceOf[DataStream[A]]
-      case _ => ???
+        val plan = node.translateToPlan(this)
+        val conversion = sinkConversion(plan.getType, logicalType, tpe, "DataStreamSinkConversion")
+        conversion match {
+          case None => plan.asInstanceOf[DataStream[A]] // no conversion necessary
+          case Some(mapFunction) => plan.map(mapFunction).name(s"to: $tpe")
+        }
+
+      case _ =>
+        throw TableException("Cannot generate DataStream due to an invalid logical plan. " +
+          "This is a bug and should not happen. Please file an issue.")
     }
   }
 
@@ -291,7 +310,9 @@ abstract class StreamTableEnvironment(
   def explain(table: Table): String = {
     val ast = table.getRelNode
     val optimizedPlan = optimize(ast)
-    val dataStream = translate[Row](optimizedPlan)(TypeExtractor.createTypeInfo(classOf[Row]))
+    val dataStream = translate[Row](
+      optimizedPlan,
+      ast.getRowType)(new GenericTypeInfo(classOf[Row]))
 
     val env = dataStream.getExecutionEnvironment
     val jsonSqlPlan = env.getExecutionPlan
