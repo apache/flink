@@ -83,6 +83,13 @@ under the License.
 			<artifactId>hadoop-minikdc</artifactId>
 			<version>${minikdc.version}</version>
 			<scope>compile</scope>
+			<!-- Since this requires the maven-bundle-plugin to be present,
+			make it optional.
+			The only class using this dependency is SecureTestEnvironment and if
+			a project is using it, it must now add the hadoop-minikdc dependency
+			on its own as well as include maven-bundle-plugin.
+			-->
+			<optional>true</optional>
 		</dependency>
 
 	</dependencies>
