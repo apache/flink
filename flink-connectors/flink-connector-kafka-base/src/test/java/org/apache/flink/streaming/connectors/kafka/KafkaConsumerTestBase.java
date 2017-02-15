@@ -235,7 +235,11 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		final Long l50 = 50L; // the final committed offset in Kafka should be 50
 		final long deadline = 30000 + System.currentTimeMillis();
 
-		KafkaTestEnvironment.KafkaOffsetHandler kafkaOffsetHandler = kafkaServer.createOffsetHandler(standardProps);
+		Properties offsetHandlerProps = new Properties();
+		offsetHandlerProps.putAll(standardProps);
+		offsetHandlerProps.setProperty("key.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
+		offsetHandlerProps.setProperty("value.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
+		KafkaTestEnvironment.KafkaOffsetHandler kafkaOffsetHandler = kafkaServer.createOffsetHandler(offsetHandlerProps);
 
 		do {
 			Long o1 = kafkaOffsetHandler.getCommittedOffset(topicName, 0);
@@ -282,7 +286,11 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 		final String topicName = writeSequence("testStartFromKafkaCommitOffsetsTopic", recordsInEachPartition, parallelism, 1);
 
-		KafkaTestEnvironment.KafkaOffsetHandler kafkaOffsetHandler = kafkaServer.createOffsetHandler(standardProps);
+		Properties offsetHandlerProps = new Properties();
+		offsetHandlerProps.putAll(standardProps);
+		offsetHandlerProps.setProperty("key.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
+		offsetHandlerProps.setProperty("value.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
+		KafkaTestEnvironment.KafkaOffsetHandler kafkaOffsetHandler = kafkaServer.createOffsetHandler(offsetHandlerProps);
 
 		Long o1;
 		Long o2;
@@ -403,7 +411,11 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		};
 		runner.start();
 
-		KafkaTestEnvironment.KafkaOffsetHandler kafkaOffsetHandler = kafkaServer.createOffsetHandler(standardProps);
+		Properties offsetHandlerProps = new Properties();
+		offsetHandlerProps.putAll(standardProps);
+		offsetHandlerProps.setProperty("key.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
+		offsetHandlerProps.setProperty("value.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
+		KafkaTestEnvironment.KafkaOffsetHandler kafkaOffsetHandler = kafkaServer.createOffsetHandler(offsetHandlerProps);
 
 		final Long l50 = 50L; // the final committed offset in Kafka should be 50
 		final long deadline = 30000 + System.currentTimeMillis();
@@ -460,7 +472,11 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		readProps.setProperty("auto.offset.reset", "latest"); // this should be ignored
 
 		// the committed offsets should be ignored
-		KafkaTestEnvironment.KafkaOffsetHandler kafkaOffsetHandler = kafkaServer.createOffsetHandler(standardProps);
+		Properties offsetHandlerProps = new Properties();
+		offsetHandlerProps.putAll(standardProps);
+		offsetHandlerProps.setProperty("key.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
+		offsetHandlerProps.setProperty("value.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
+		KafkaTestEnvironment.KafkaOffsetHandler kafkaOffsetHandler = kafkaServer.createOffsetHandler(offsetHandlerProps);
 		kafkaOffsetHandler.setCommittedOffset(topicName, 0, 23);
 		kafkaOffsetHandler.setCommittedOffset(topicName, 1, 31);
 		kafkaOffsetHandler.setCommittedOffset(topicName, 2, 43);
@@ -487,7 +503,11 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		final String topicName = writeSequence("testStartFromLatestOffsetsTopic", recordsInEachPartition, parallelism, 1);
 
 		// the committed offsets should be ignored
-		KafkaTestEnvironment.KafkaOffsetHandler kafkaOffsetHandler = kafkaServer.createOffsetHandler(standardProps);
+		Properties offsetHandlerProps = new Properties();
+		offsetHandlerProps.putAll(standardProps);
+		offsetHandlerProps.setProperty("key.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
+		offsetHandlerProps.setProperty("value.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
+		KafkaTestEnvironment.KafkaOffsetHandler kafkaOffsetHandler = kafkaServer.createOffsetHandler(offsetHandlerProps);
 		kafkaOffsetHandler.setCommittedOffset(topicName, 0, 23);
 		kafkaOffsetHandler.setCommittedOffset(topicName, 1, 31);
 		kafkaOffsetHandler.setCommittedOffset(topicName, 2, 43);
@@ -540,8 +560,9 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 				try {
 					env.execute(consumeExtraRecordsJobName);
 				} catch (Throwable t) {
-					if (!(t.getCause() instanceof JobCancellationException))
-					error.set(t);
+					if (!(t.getCause() instanceof JobCancellationException)) {
+						error.set(t);
+					}
 				}
 			}
 		});
@@ -633,7 +654,12 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		readProps.setProperty("auto.offset.reset", "earliest");
 
 		// the committed group offsets should be used as starting points
-		KafkaTestEnvironment.KafkaOffsetHandler kafkaOffsetHandler = kafkaServer.createOffsetHandler(standardProps);
+		Properties offsetHandlerProps = new Properties();
+		offsetHandlerProps.putAll(standardProps);
+		offsetHandlerProps.setProperty("key.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
+		offsetHandlerProps.setProperty("value.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
+		KafkaTestEnvironment.KafkaOffsetHandler kafkaOffsetHandler = kafkaServer.createOffsetHandler(offsetHandlerProps);
+
 		// only partitions 0 and 2 have group offsets committed
 		kafkaOffsetHandler.setCommittedOffset(topicName, 0, 23);
 		kafkaOffsetHandler.setCommittedOffset(topicName, 2, 43);
