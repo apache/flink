@@ -28,7 +28,7 @@ import org.apache.flink.util.Preconditions
 class AggregateMapFunction[IN, OUT](
     private val aggregates: Array[AggregateFunction[_]],
     private val aggFields: Array[Int],
-    private val groupingKeys: Array[Int],
+    private val forwardedFields: Array[Int],
     @transient private val returnType: TypeInformation[OUT])
   extends RichMapFunction[IN, OUT] with ResultTypeQueryable[OUT] {
 
@@ -38,7 +38,7 @@ class AggregateMapFunction[IN, OUT](
     Preconditions.checkNotNull(aggregates)
     Preconditions.checkNotNull(aggFields)
     Preconditions.checkArgument(aggregates.length == aggFields.length)
-    val partialRowLength = groupingKeys.length + aggregates.length
+    val partialRowLength = forwardedFields.length + aggregates.length
     output = new Row(partialRowLength)
   }
 
@@ -49,11 +49,11 @@ class AggregateMapFunction[IN, OUT](
       val agg = aggregates(i)
       val accumulator = agg.createAccumulator()
       agg.accumulate(accumulator, input.getField(aggFields(i)))
-      output.setField(groupingKeys.length + i, accumulator)
+      output.setField(forwardedFields.length + i, accumulator)
     }
 
-    for (i <- groupingKeys.indices) {
-      output.setField(i, input.getField(groupingKeys(i)))
+    for (i <- forwardedFields.indices) {
+      output.setField(i, input.getField(forwardedFields(i)))
     }
     output.asInstanceOf[OUT]
   }

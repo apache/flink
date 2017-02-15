@@ -26,7 +26,7 @@ import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.fun._
 import org.apache.flink.api.common.functions.{GroupCombineFunction, InvalidTypesException, MapFunction, MapPartitionFunction, RichGroupReduceFunction, AggregateFunction => ApiAggregateFunction}
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeHint, TypeInformation}
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.calcite.{FlinkRelBuilder, FlinkTypeFactory}
@@ -57,39 +57,76 @@ object AggregateUtil {
     * organized by the following format:
     *
     * {{{
-    *                          avg(x)                             count(z)
-    *                             |                                   |
-    *                             v                                   v
-    *        +---------+---------+-----------------+------------------+------------------+
-    *        |groupKey1|groupKey2|  AvgAccumulator |  SumAccumulator  | CountAccumulator |
-    *        +---------+---------+-----------------+------------------+------------------+
-    *                                              ^
-    *                                              |
-    *                                           sum(y)
+    *                                       avg(x)                             count(z)
+    *                                        |                                   |
+    *                                        v                                   v
+    *        +-----------+-----------+-----------------+------------------+------------------+
+    *        |projection1|projection2|  AvgAccumulator |  SumAccumulator  | CountAccumulator |
+    *        +-----------+-----------+-----------------+------------------+------------------+
+    *                                                      ^
+    *                                                      |
+    *                                                   sum(y)
     * }}}
     *
     */
   private[flink] def createPrepareMapFunction(
       namedAggregates: Seq[CalcitePair[AggregateCall, String]],
-      groupings: Array[Int],
+      forwardedFields: Array[Int],
       inputType: RelDataType)
   : MapFunction[Row, Row] = {
 
     val (aggFieldIndexes, aggregates) = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),
       inputType,
-      groupings.length)
+      forwardedFields.length)
 
     val mapReturnType: RowTypeInfo =
-      createDataSetAggregateBufferDataType(groupings, aggregates, inputType)
+      createDataSetAggregateBufferDataType(forwardedFields, aggregates, inputType)
 
     val mapFunction = new AggregateMapFunction[Row, Row](
       aggregates,
       aggFieldIndexes,
-      groupings,
+      forwardedFields,
       mapReturnType)
 
     mapFunction
+  }
+
+  /**
+    * Create an [[RichProcessFunction]] to evaluate final aggregate value.
+    *
+    * @param namedAggregates List of calls to aggregate functions and their output field names
+    * @param inputType Input row type
+    * @param outputType Output row type
+    * @param projectionsExceptAggregates Array of ordinals of input fields
+    * @return [[UnboundedProcessingOverProcessFunction]]
+    */
+  private[flink] def CreateUnboundedProcessingOverProcessFunction(
+    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+    numGroupingKeys: Int,
+    numAggregates: Int,
+    finalRowArity: Int,
+    inputType: RelDataType,
+    outputType: RelDataType,
+    projectionsExceptAggregates: Array[Int]): UnboundedProcessingOverProcessFunction = {
+
+    val (aggFields, aggregates) =
+      transformToAggregateFunctions(namedAggregates.map(_.getKey), inputType, numGroupingKeys)
+
+    val rowTypeInfo = new RowTypeInfo(outputType.getFieldList
+      .map(field => FlinkTypeFactory.toTypeInfo(field.getType)): _*)
+
+    val intermediateRowType: RowTypeInfo =
+      createDataSetAggregateBufferDataType(projectionsExceptAggregates, aggregates, inputType)
+
+    new UnboundedProcessingOverProcessFunction(
+      aggregates,
+      aggFields,
+      numGroupingKeys,
+      numAggregates,
+      finalRowArity,
+      intermediateRowType,
+      rowTypeInfo)
   }
 
   /**
