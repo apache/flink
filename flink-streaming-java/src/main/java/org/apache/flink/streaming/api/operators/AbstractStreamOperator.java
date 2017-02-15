@@ -114,6 +114,10 @@ public abstract class AbstractStreamOperator<OUT>
 	/** The runtime context for UDFs */
 	private transient StreamingRuntimeContext runtimeContext;
 
+	// ----------------- general state -------------------
+
+	/** The factory that give this operator access to checkpoint storage */
+	private transient CheckpointStreamFactory checkpointStreamFactory;
 
 	// ---------------- key/value state ------------------
 
@@ -127,16 +131,17 @@ public abstract class AbstractStreamOperator<OUT>
 	/** Keyed state store view on the keyed backend */
 	private transient DefaultKeyedStateStore keyedStateStore;
 
+	// ---------------- operator state ------------------
+
 	/** Operator state backend / store */
 	private transient OperatorStateBackend operatorStateBackend;
-
 
 	// --------------- Metrics ---------------------------
 
 	/** Metric group for the operator */
-	protected MetricGroup metrics;
+	protected transient MetricGroup metrics;
 
-	protected LatencyGauge latencyGauge;
+	protected transient LatencyGauge latencyGauge;
 
 	// ---------------- timers ------------------
 
@@ -211,6 +216,8 @@ public abstract class AbstractStreamOperator<OUT>
 				keyedStateHandlesRaw = stateHandles.getRawKeyedState();
 			}
 		}
+
+		checkpointStreamFactory = container.createCheckpointStreamFactory(this);
 
 		initOperatorState(operatorStateHandlesBackend);
 
@@ -333,8 +340,7 @@ public abstract class AbstractStreamOperator<OUT>
 	}
 
 	@Override
-	public final OperatorSnapshotResult snapshotState(
-			long checkpointId, long timestamp, CheckpointStreamFactory streamFactory) throws Exception {
+	public final OperatorSnapshotResult snapshotState(long checkpointId, long timestamp) throws Exception {
 
 		KeyGroupRange keyGroupRange = null != keyedStateBackend ?
 				keyedStateBackend.getKeyGroupRange() : KeyGroupRange.EMPTY_KEY_GROUP_RANGE;
@@ -344,7 +350,7 @@ public abstract class AbstractStreamOperator<OUT>
 		try (StateSnapshotContextSynchronousImpl snapshotContext = new StateSnapshotContextSynchronousImpl(
 				checkpointId,
 				timestamp,
-				streamFactory,
+				checkpointStreamFactory,
 				keyGroupRange,
 				getContainingTask().getCancelables())) {
 
@@ -355,14 +361,14 @@ public abstract class AbstractStreamOperator<OUT>
 
 			if (null != operatorStateBackend) {
 				snapshotInProgress.setOperatorStateManagedFuture(
-					operatorStateBackend.snapshot(checkpointId, timestamp, streamFactory));
+					operatorStateBackend.snapshot(checkpointId, timestamp, checkpointStreamFactory));
 			}
 
 			if (null != keyedStateBackend) {
 				snapshotInProgress.setKeyedStateManagedFuture(
-					keyedStateBackend.snapshot(checkpointId, timestamp, streamFactory));
+					keyedStateBackend.snapshot(checkpointId, timestamp, checkpointStreamFactory));
 			}
-		}  catch (Exception snapshotException) {
+		} catch (Exception snapshotException) {
 			try {
 				snapshotInProgress.cancel();
 			} catch (Exception e) {
@@ -419,6 +425,30 @@ public abstract class AbstractStreamOperator<OUT>
 						"might have prevented deleting some state data.", getOperatorName(), closeException);
 				}
 			}
+		}
+	}
+
+	@SuppressWarnings("deprecation")
+	@Deprecated
+	@Override
+	public StreamStateHandle snapshotLegacyOperatorState(long checkpointId, long timestamp) throws Exception {
+		if (this instanceof StreamCheckpointedOperator) {
+
+			final CheckpointStreamFactory.CheckpointStateOutputStream outStream =
+					checkpointStreamFactory.createCheckpointStateOutputStream(checkpointId, timestamp);
+
+			getContainingTask().getCancelables().registerClosable(outStream);
+
+			try {
+				((StreamCheckpointedOperator) this).snapshotState(outStream, checkpointId, timestamp);
+				return outStream.closeAndGetHandle();
+			}
+			finally {
+				getContainingTask().getCancelables().unregisterClosable(outStream);
+				outStream.close();
+			}
+		} else {
+			return null;
 		}
 	}
 

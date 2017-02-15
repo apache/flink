@@ -20,6 +20,10 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.core.fs.FSDataOutputStream;
 
+/**
+ * This interface is deprecated without replacement.
+ * All operators are now checkpointed.
+ */
 @Deprecated
 public interface StreamCheckpointedOperator extends CheckpointedRestoringOperator {
 
