@@ -82,7 +82,7 @@ class LogicalWindowAggregateRule
       window.toLogicalWindow,
       Seq[NamedWindowProperty](),
       newAgg))
-      .project(List(zero) ++ transformed.fields())
+      .project(transformed.fields().patch(windowExprIdx, Seq(zero), 0))
     call.transformTo(transformed.build())
   }
 
