@@ -18,9 +18,11 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.core.fs.FSDataInputStream;
-import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Preconditions;
@@ -31,7 +33,7 @@ import java.util.concurrent.*;
 @Internal
 public class StreamFlatMap<IN, OUT>
 		extends AbstractUdfStreamOperator<OUT, FlatMapFunction<IN, OUT>>
-		implements OneInputStreamOperator<IN, OUT> {
+		implements OneInputStreamOperator<IN, OUT>, InputTypeConfigurable {
 
 	private static final long serialVersionUID = 1L;
 
@@ -107,6 +109,16 @@ public class StreamFlatMap<IN, OUT>
     public void notifyOfCompletedCheckpoint(long checkpointId) throws Exception {
         super.notifyOfCompletedCheckpoint(checkpointId);
     }
+
+    // ------------------------------------------------------------------------
+    //  Serialization
+    // ------------------------------------------------------------------------
+
+    @Override
+    public void setInputType(TypeInformation<?> type, ExecutionConfig executionConfig) {
+
+    }
+
     // ------------------------------------------------------------------------
     //  Utilities
     // ------------------------------------------------------------------------
