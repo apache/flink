@@ -44,7 +44,6 @@ import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyLong;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -95,7 +94,7 @@ public class PendingCheckpointTest {
 		CheckpointProperties persisted = new CheckpointProperties(false, true, false, false, false, false, false);
 
 		PendingCheckpoint pending = createPendingCheckpoint(persisted, tmp.getAbsolutePath());
-		pending.acknowledgeTask(ATTEMPT_ID, null, new CheckpointMetaData(pending.getCheckpointId(), pending.getCheckpointTimestamp()));
+		pending.acknowledgeTask(ATTEMPT_ID, null, new CheckpointMetrics());
 		assertEquals(0, tmp.listFiles().length);
 		pending.finalizeCheckpoint();
 		assertEquals(1, tmp.listFiles().length);
@@ -103,7 +102,7 @@ public class PendingCheckpointTest {
 		// Ephemeral checkpoint
 		CheckpointProperties ephemeral = new CheckpointProperties(false, false, true, true, true, true, true);
 		pending = createPendingCheckpoint(ephemeral, null);
-		pending.acknowledgeTask(ATTEMPT_ID, null, new CheckpointMetaData(pending.getCheckpointId(), pending.getCheckpointTimestamp()));
+		pending.acknowledgeTask(ATTEMPT_ID, null, new CheckpointMetrics());
 
 		assertEquals(1, tmp.listFiles().length);
 		pending.finalizeCheckpoint();
@@ -148,7 +147,7 @@ public class PendingCheckpointTest {
 		future = pending.getCompletionFuture();
 
 		assertFalse(future.isDone());
-		pending.acknowledgeTask(ATTEMPT_ID, null, new CheckpointMetaData(pending.getCheckpointId(), pending.getCheckpointTimestamp()));
+		pending.acknowledgeTask(ATTEMPT_ID, null, new CheckpointMetrics());
 		pending.finalizeCheckpoint();
 		assertTrue(future.isDone());
 
@@ -231,7 +230,7 @@ public class PendingCheckpointTest {
 			PendingCheckpoint pending = createPendingCheckpoint(CheckpointProperties.forStandardCheckpoint(), null);
 			pending.setStatsCallback(callback);
 
-			pending.acknowledgeTask(ATTEMPT_ID, null, new CheckpointMetaData(pending.getCheckpointId(), pending.getCheckpointTimestamp()));
+			pending.acknowledgeTask(ATTEMPT_ID, null, new CheckpointMetrics());
 			verify(callback, times(1)).reportSubtaskStats(any(JobVertexID.class), any(SubtaskStateStats.class));
 
 			pending.finalizeCheckpoint();

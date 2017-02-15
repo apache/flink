@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
+import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 
@@ -35,16 +35,18 @@ public interface CheckpointResponder {
 	 *             Job ID of the running job
 	 * @param executionAttemptID
 	 *             Execution attempt ID of the running task
+	 * @param checkpointId
+	 *             Meta data for this checkpoint
+	 * @param checkpointMetrics
+	 *             Metrics of this checkpoint
 	 * @param subtaskState
 	 *             State handles for the checkpoint
-	 * @param checkpointMetaData
-	 *             Meta data for this checkpoint
-	 *
 	 */
 	void acknowledgeCheckpoint(
 		JobID jobID,
 		ExecutionAttemptID executionAttemptID,
-		CheckpointMetaData checkpointMetaData,
+		long checkpointId,
+		CheckpointMetrics checkpointMetrics,
 		SubtaskState subtaskState);
 
 	/**
