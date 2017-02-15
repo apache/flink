@@ -30,6 +30,8 @@ import scala.collection.JavaConversions._
 import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
 
+import org.apache.flink.table.calcite.functions.FlinkStreamFunctionCatalog
+
 /**
   * A catalog for looking up (user-defined) functions, used during validation phases
   * of both Table API and SQL API.
@@ -190,11 +192,14 @@ object FunctionCatalog {
     // array
     "cardinality" -> classOf[ArrayCardinality],
     "at" -> classOf[ArrayElementAt],
-    "element" -> classOf[ArrayElement]
+    "element" -> classOf[ArrayElement],
 
+    "procTime" -> classOf[CurrentTimestamp]
+    
     // TODO implement function overloading here
     // "floor" -> classOf[TemporalFloor]
     // "ceil" -> classOf[TemporalCeil]
+    
   )
 
   /**
@@ -317,7 +322,9 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     SqlStdOperatorTable.EXTRACT,
     SqlStdOperatorTable.QUARTER,
     SqlStdOperatorTable.SCALAR_QUERY,
-    SqlStdOperatorTable.EXISTS
+    SqlStdOperatorTable.EXISTS,
+    // FLINK STREAMING FUNCTIONS
+    FlinkStreamFunctionCatalog.PROCTIME
   )
 
   builtInSqlOperators.foreach(register)
