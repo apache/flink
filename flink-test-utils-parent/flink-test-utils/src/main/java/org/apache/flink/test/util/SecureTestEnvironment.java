@@ -37,9 +37,39 @@ import java.util.Properties;
 /**
  * Helper {@link SecureTestEnvironment} to handle MiniKDC lifecycle.
  * This class can be used to start/stop MiniKDC and create secure configurations for MiniDFSCluster
- * and MiniYarn
+ * and MiniYarn.
+ *
+ * If you use this class in your project, please make sure to add a dependency to
+ * <tt>hadoop-minikdc</tt>, e.g. in your <tt>pom.xml</tt>:
+ * <pre>{@code
+ * ...
+ * <dependencies>
+ *   <dependency>
+ *     <groupId>org.apache.hadoop</groupId>
+ *     <artifactId>hadoop-minikdc</artifactId>
+ *     <version>${minikdc.version}</version>
+ *     <scope>compile</scope>
+ *   </dependency>
+ * ...
+ * </dependencies>
+ * ...
+ *
+ * <build>
+ *   <plugins>
+ *     <!--
+ *       https://issues.apache.org/jira/browse/DIRSHARED-134
+ *       Required to pull the Mini-KDC transitive dependency
+ *     -->
+ *     <plugin>
+ *     <groupId>org.apache.felix</groupId>
+ *     <artifactId>maven-bundle-plugin</artifactId>
+ *     <version>3.0.1</version>
+ *     <inherited>true</inherited>
+ *     <extensions>true</extensions>
+ *   </plugin>
+ * ...
+ * }</pre>
  */
-
 public class SecureTestEnvironment {
 
 	protected static final Logger LOG = LoggerFactory.getLogger(SecureTestEnvironment.class);
