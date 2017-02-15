@@ -31,12 +31,12 @@ import java.util.ArrayList;
 
 @Internal
 @Deprecated
-public class AccumulatingProcessingTimeWindowOperator<KEY, IN, OUT> 
+public class AccumulatingProcessingTimeWindowOperator<KEY, IN, OUT>
 		extends AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, ArrayList<IN>, WindowFunction<IN, OUT, KEY, TimeWindow>> {
 
 	private static final long serialVersionUID = 7305948082830843475L;
 
-	
+
 	public AccumulatingProcessingTimeWindowOperator(
 			WindowFunction<IN, OUT, KEY, TimeWindow> function,
 			KeySelector<IN, KEY> keySelector,
@@ -53,7 +53,7 @@ public class AccumulatingProcessingTimeWindowOperator<KEY, IN, OUT>
 	protected AccumulatingKeyedTimePanes<IN, KEY, OUT> createPanes(KeySelector<IN, KEY> keySelector, Function function) {
 		@SuppressWarnings("unchecked")
 		WindowFunction<IN, OUT, KEY, Window> windowFunction = (WindowFunction<IN, OUT, KEY, Window>) function;
-		
+
 		return new AccumulatingKeyedTimePanes<>(keySelector, windowFunction);
 	}
 }

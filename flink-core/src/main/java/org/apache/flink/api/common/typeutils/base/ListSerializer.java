@@ -15,23 +15,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.runtime.state;
+
+package org.apache.flink.api.common.typeutils.base;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.ArrayList;
 
 @SuppressWarnings("ForLoopReplaceableByForEach")
-final public class ArrayListSerializer<T> extends TypeSerializer<ArrayList<T>> {
+public class ListSerializer<T> extends TypeSerializer<List<T>> {
 
 	private static final long serialVersionUID = 1119562170939152304L;
 
 	private final TypeSerializer<T> elementSerializer;
 
-	public ArrayListSerializer(TypeSerializer<T> elementSerializer) {
+	public ListSerializer(TypeSerializer<T> elementSerializer) {
 		this.elementSerializer = elementSerializer;
 	}
 
@@ -45,19 +47,19 @@ final public class ArrayListSerializer<T> extends TypeSerializer<ArrayList<T>> {
 	}
 
 	@Override
-	public TypeSerializer<ArrayList<T>> duplicate() {
+	public TypeSerializer<List<T>> duplicate() {
 		TypeSerializer<T> duplicateElement = elementSerializer.duplicate();
-		return duplicateElement == elementSerializer ? this : new ArrayListSerializer<T>(duplicateElement);
+		return duplicateElement == elementSerializer ? this : new ListSerializer<T>(duplicateElement);
 	}
 
 	@Override
-	public ArrayList<T> createInstance() {
+	public List<T> createInstance() {
 		return new ArrayList<>();
 	}
 
 	@Override
-	public ArrayList<T> copy(ArrayList<T> from) {
-		ArrayList<T> newList = new ArrayList<>(from.size());
+	public List<T> copy(List<T> from) {
+		List<T> newList = new ArrayList<>(from.size());
 		for (int i = 0; i < from.size(); i++) {
 			newList.add(elementSerializer.copy(from.get(i)));
 		}
@@ -65,7 +67,7 @@ final public class ArrayListSerializer<T> extends TypeSerializer<ArrayList<T>> {
 	}
 
 	@Override
-	public ArrayList<T> copy(ArrayList<T> from, ArrayList<T> reuse) {
+	public List<T> copy(List<T> from, List<T> reuse) {
 		return copy(from);
 	}
 
@@ -75,7 +77,7 @@ final public class ArrayListSerializer<T> extends TypeSerializer<ArrayList<T>> {
 	}
 
 	@Override
-	public void serialize(ArrayList<T> list, DataOutputView target) throws IOException {
+	public void serialize(List<T> list, DataOutputView target) throws IOException {
 		final int size = list.size();
 		target.writeInt(size);
 		for (int i = 0; i < size; i++) {
@@ -84,9 +86,9 @@ final public class ArrayListSerializer<T> extends TypeSerializer<ArrayList<T>> {
 	}
 
 	@Override
-	public ArrayList<T> deserialize(DataInputView source) throws IOException {
+	public List<T> deserialize(DataInputView source) throws IOException {
 		final int size = source.readInt();
-		final ArrayList<T> list = new ArrayList<>(size);
+		final List<T> list = new ArrayList<>(size);
 		for (int i = 0; i < size; i++) {
 			list.add(elementSerializer.deserialize(source));
 		}
@@ -94,7 +96,7 @@ final public class ArrayListSerializer<T> extends TypeSerializer<ArrayList<T>> {
 	}
 
 	@Override
-	public ArrayList<T> deserialize(ArrayList<T> reuse, DataInputView source) throws IOException {
+	public List<T> deserialize(List<T> reuse, DataInputView source) throws IOException {
 		return deserialize(source);
 	}
 
@@ -114,7 +116,7 @@ final public class ArrayListSerializer<T> extends TypeSerializer<ArrayList<T>> {
 	public boolean equals(Object obj) {
 		return obj == this ||
 				(obj != null && obj.getClass() == getClass() &&
-						elementSerializer.equals(((ArrayListSerializer<?>) obj).elementSerializer));
+						elementSerializer.equals(((ListSerializer<?>) obj).elementSerializer));
 	}
 
 	@Override

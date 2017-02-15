@@ -31,6 +31,7 @@ import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.core.fs.Path;
@@ -162,12 +163,15 @@ public class StreamingRuntimeContextTest {
 		ListStateDescriptor<TaskInfo> descr = new ListStateDescriptor<>("name", TaskInfo.class);
 		context.getListState(descr);
 
-		StateDescriptor<?, ?> descrIntercepted = (StateDescriptor<?, ?>) descriptorCapture.get();
+		ListStateDescriptor<?> descrIntercepted = (ListStateDescriptor<?>) descriptorCapture.get();
 		TypeSerializer<?> serializer = descrIntercepted.getSerializer();
 
 		// check that the Path class is really registered, i.e., the execution config was applied
-		assertTrue(serializer instanceof KryoSerializer);
-		assertTrue(((KryoSerializer<?>) serializer).getKryo().getRegistration(Path.class).getId() > 0);
+		assertTrue(serializer instanceof ListSerializer);
+
+		TypeSerializer<?> elementSerializer = descrIntercepted.getElementSerializer();
+		assertTrue(elementSerializer instanceof KryoSerializer);
+		assertTrue(((KryoSerializer<?>) elementSerializer).getKryo().getRegistration(Path.class).getId() > 0);
 	}
 
 	@Test
