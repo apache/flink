@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineOnCancellationBarrierException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
@@ -250,12 +251,11 @@ public class BarrierTracker implements CheckpointBarrierHandler {
 	private void notifyCheckpoint(long checkpointId, long timestamp) throws Exception {
 		if (toNotifyOnCheckpoint != null) {
 			CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, timestamp);
+			CheckpointMetrics checkpointMetrics = new CheckpointMetrics()
+				.setBytesBufferedInAlignment(0L)
+				.setAlignmentDurationNanos(0L);
 
-			checkpointMetaData
-					.setBytesBufferedInAlignment(0L)
-					.setAlignmentDurationNanos(0L);
-
-			toNotifyOnCheckpoint.triggerCheckpointOnBarrier(checkpointMetaData);
+			toNotifyOnCheckpoint.triggerCheckpointOnBarrier(checkpointMetaData, checkpointMetrics);
 		}
 	}
 

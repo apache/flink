@@ -162,7 +162,6 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 		}
 	}
 
-
 	public void broadcastCheckpointBarrier(long id, long timestamp) throws IOException {
 		try {
 			CheckpointBarrier barrier = new CheckpointBarrier(id, timestamp);
