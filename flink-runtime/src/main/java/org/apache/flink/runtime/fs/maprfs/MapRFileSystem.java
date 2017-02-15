@@ -327,11 +327,11 @@ public final class MapRFileSystem extends FileSystem {
 	}
 
 	@Override
-	public FSDataOutputStream create(final Path f, final boolean overwrite)
+	public FSDataOutputStream create(final Path f, final WriteMode overwrite)
 			throws IOException {
 
 		final org.apache.hadoop.fs.FSDataOutputStream fdos = this.fs.create(
-				new org.apache.hadoop.fs.Path(f.toString()), overwrite);
+				new org.apache.hadoop.fs.Path(f.toString()), overwrite == WriteMode.OVERWRITE);
 
 		return new HadoopDataOutputStream(fdos);
 	}

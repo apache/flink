@@ -417,9 +417,9 @@ public final class HadoopFileSystem extends FileSystem implements HadoopFileSyst
 
 
 	@Override
-	public HadoopDataOutputStream create(final Path f, final boolean overwrite) throws IOException {
+	public HadoopDataOutputStream create(final Path f, final WriteMode overwrite) throws IOException {
 		final org.apache.hadoop.fs.FSDataOutputStream fsDataOutputStream = this.fs
-			.create(new org.apache.hadoop.fs.Path(f.toString()), overwrite);
+			.create(new org.apache.hadoop.fs.Path(f.toString()), overwrite == WriteMode.OVERWRITE);
 		return new HadoopDataOutputStream(fsDataOutputStream);
 	}
 
