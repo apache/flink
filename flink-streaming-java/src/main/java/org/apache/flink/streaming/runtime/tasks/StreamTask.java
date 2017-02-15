@@ -944,7 +944,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 						keyedStateHandleStream);
 
 				if (asyncCheckpointState.compareAndSet(CheckpointingOperation.AsynCheckpointState.RUNNING, CheckpointingOperation.AsynCheckpointState.COMPLETED)) {
-					owner.getEnvironment().acknowledgeCheckpoint(checkpointMetaData, subtaskState);
+					owner.getEnvironment().acknowledgeCheckpoint(
+						checkpointMetaData.getCheckpointId(),
+						checkpointMetaData.getMetrics(),
+						subtaskState);
 
 					if (LOG.isDebugEnabled()) {
 						LOG.debug("{} - finished asynchronous part of checkpoint {}. Asynchronous duration: {} ms",
