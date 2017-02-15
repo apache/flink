@@ -17,6 +17,7 @@
  */
 package org.apache.flink.api.java.typeutils.runtime;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.CompositeTypeComparator;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.core.memory.DataInputView;
@@ -33,6 +34,7 @@ import java.util.List;
  * NOTE: This class assumes to be used within a composite type comparator (such
  * as {@link RowComparator}) that handles serialized comparison.
  */
+@Internal
 public class NullAwareComparator<T> extends TypeComparator<T> {
 	private static final long serialVersionUID = 1L;
 

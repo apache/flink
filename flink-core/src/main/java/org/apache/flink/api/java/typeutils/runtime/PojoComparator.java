@@ -24,6 +24,7 @@ import java.io.ObjectOutputStream;
 import java.lang.reflect.Field;
 import java.util.List;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.CompositeTypeComparator;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -33,7 +34,7 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.types.NullKeyFieldException;
 import org.apache.flink.util.InstantiationUtil;
 
-
+@Internal
 public final class PojoComparator<T> extends CompositeTypeComparator<T> implements java.io.Serializable {
 	
 	private static final long serialVersionUID = 1L;

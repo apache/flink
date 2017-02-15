@@ -18,6 +18,7 @@
 
 package org.apache.flink.core.fs;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.WrappingProxy;
 
@@ -32,6 +33,7 @@ import java.net.URI;
  * Streams obtained by this are therefore managed by the {@link SafetyNetCloseableRegistry} to prevent resource leaks
  * from unclosed streams.
  */
+@Internal
 public class SafetyNetWrapperFileSystem extends FileSystem implements WrappingProxy<FileSystem> {
 
 	private final SafetyNetCloseableRegistry registry;

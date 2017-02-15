@@ -18,9 +18,12 @@
 
 package org.apache.flink.util;
 
+import org.apache.flink.annotation.Internal;
+
 import java.util.Collection;
 import java.util.Map;
 
+@Internal
 public final class CollectionUtil {
 
 	private CollectionUtil() {

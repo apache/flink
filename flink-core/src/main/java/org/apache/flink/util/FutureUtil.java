@@ -18,9 +18,12 @@
 
 package org.apache.flink.util;
 
+import org.apache.flink.annotation.Internal;
+
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.RunnableFuture;
 
+@Internal
 public class FutureUtil {
 
 	private FutureUtil() {

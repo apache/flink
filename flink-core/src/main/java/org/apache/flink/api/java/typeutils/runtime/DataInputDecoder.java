@@ -24,8 +24,9 @@ import java.nio.ByteBuffer;
 
 import org.apache.avro.io.Decoder;
 import org.apache.avro.util.Utf8;
+import org.apache.flink.annotation.Internal;
 
-
+@Internal
 public class DataInputDecoder extends Decoder implements java.io.Serializable {
 	
 	private static final long serialVersionUID = 1L;

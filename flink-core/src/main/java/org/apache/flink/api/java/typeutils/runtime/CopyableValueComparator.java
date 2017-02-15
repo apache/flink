@@ -20,6 +20,7 @@ package org.apache.flink.api.java.typeutils.runtime;
 
 import java.io.IOException;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -31,6 +32,7 @@ import org.apache.flink.util.InstantiationUtil;
 /**
  * Comparator for all Value types that extend Key
  */
+@Internal
 public class CopyableValueComparator<T extends CopyableValue<T> & Comparable<T>> extends TypeComparator<T> {
 	
 	private static final long serialVersionUID = 1L;
