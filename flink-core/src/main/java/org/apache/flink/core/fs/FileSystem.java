@@ -17,7 +17,7 @@
  */
 
 
-/**
+/*
  * This file is based on source code from the Hadoop Project (http://hadoop.apache.org/), licensed by the Apache
  * Software Foundation (ASF) under the Apache License, Version 2.0. See the NOTICE file distributed with this work for
  * additional information regarding copyright ownership.
@@ -30,12 +30,7 @@ import org.apache.flink.annotation.Public;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.local.LocalFileSystem;
-import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.OperatingSystem;
-import org.apache.flink.util.Preconditions;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 import java.io.File;
@@ -174,6 +169,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * application task finishes (or is canceled or failed). That way, the task's threads do not
  * leak connections.
  * 
+ * <p>Internal runtime code can explicitly obtain a FileSystem that does not use the safety
+ * net via {@link FileSystem#getUnguardedFileSystem(URI)}.
+ * 
  * @see FSDataInputStream
  * @see FSDataOutputStream
  */
@@ -198,56 +196,17 @@ public abstract class FileSystem {
 
 	// ------------------------------------------------------------------------
 
-	private static final ThreadLocal<SafetyNetCloseableRegistry> REGISTRIES = new ThreadLocal<>();
-
 	private static final String HADOOP_WRAPPER_FILESYSTEM_CLASS = "org.apache.flink.runtime.fs.hdfs.HadoopFileSystem";
 
 	private static final String MAPR_FILESYSTEM_CLASS = "org.apache.flink.runtime.fs.maprfs.MapRFileSystem";
 
 	private static final String HADOOP_WRAPPER_SCHEME = "hdwrapper";
 
-	private static final Logger LOG = LoggerFactory.getLogger(FileSystem.class);
-
 	/** This lock guards the methods {@link #initOutPathLocalFS(Path, WriteMode, boolean)} and
 	 * {@link #initOutPathDistFS(Path, WriteMode, boolean)} which are otherwise susceptible to races */
 	private static final ReentrantLock OUTPUT_DIRECTORY_INIT_LOCK = new ReentrantLock(true);
 
 	// ------------------------------------------------------------------------
-
-	/**
-	 * Create a SafetyNetCloseableRegistry for a Task. This method should be called at the beginning of the task's
-	 * main thread.
-	 */
-	@Internal
-	public static void createAndSetFileSystemCloseableRegistryForThread() {
-		SafetyNetCloseableRegistry oldRegistry = REGISTRIES.get();
-		Preconditions.checkState(null == oldRegistry,
-				"Found old CloseableRegistry " + oldRegistry +
-						". This indicates a leak of the InheritableThreadLocal through a ThreadPool!");
-
-		SafetyNetCloseableRegistry newRegistry = new SafetyNetCloseableRegistry();
-		REGISTRIES.set(newRegistry);
-		LOG.info("Created new CloseableRegistry " + newRegistry + " for {}", Thread.currentThread().getName());
-	}
-
-	/**
-	 * Create a SafetyNetCloseableRegistry for a Task. This method should be called at the end of the task's
-	 * main thread or when the task should be canceled.
-	 */
-	@Internal
-	public static void closeAndDisposeFileSystemCloseableRegistryForThread() {
-		SafetyNetCloseableRegistry registry = REGISTRIES.get();
-		if (null != registry) {
-			LOG.info("Ensuring all FileSystem streams are closed for {}", Thread.currentThread().getName());
-			REGISTRIES.remove();
-			IOUtils.closeQuietly(registry);
-		}
-	}
-
-	private static FileSystem wrapWithSafetyNetWhenActivated(FileSystem fs) {
-		SafetyNetCloseableRegistry reg = REGISTRIES.get();
-		return reg != null ? new SafetyNetWrapperFileSystem(fs, reg) : fs;
-	}
 
 	/** Object used to protect calls to specific methods.*/
 	private static final Object SYNCHRONIZATION_OBJECT = new Object();
@@ -427,7 +386,7 @@ public abstract class FileSystem {
 	 *         thrown if a reference to the file system instance could not be obtained
 	 */
 	public static FileSystem get(URI uri) throws IOException {
-		return wrapWithSafetyNetWhenActivated(getUnguardedFileSystem(uri));
+		return FileSystemSafetyNet.wrapWithSafetyNetWhenActivated(getUnguardedFileSystem(uri));
 	}
 
 	/**
@@ -971,7 +930,6 @@ public abstract class FileSystem {
 
 	/**
 	 * An identifier of a file system, via its scheme and its authority.
-	 * This class needs to stay public, because it is detected as part of the public API.
 	 */
 	private static final class FSKey {
 
