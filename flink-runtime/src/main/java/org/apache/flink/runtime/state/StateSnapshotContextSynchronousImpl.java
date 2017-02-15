@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.core.fs.CloseableRegistryClientView;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -45,7 +45,7 @@ public class StateSnapshotContextSynchronousImpl implements StateSnapshotContext
 	 * Registry for opened streams to participate in the lifecycle of the stream task. Hence, this registry should be 
 	 * obtained from and managed by the stream task.
 	 */
-	private final CloseableRegistry closableRegistry;
+	private final CloseableRegistryClientView closableRegistry;
 
 	private KeyedStateCheckpointOutputStream keyedStateCheckpointOutputStream;
 	private OperatorStateCheckpointOutputStream operatorStateCheckpointOutputStream;
@@ -65,7 +65,7 @@ public class StateSnapshotContextSynchronousImpl implements StateSnapshotContext
 			long checkpointTimestamp,
 			CheckpointStreamFactory streamFactory,
 			KeyGroupRange keyGroupRange,
-			CloseableRegistry closableRegistry) {
+			CloseableRegistryClientView closableRegistry) {
 
 		this.checkpointId = checkpointId;
 		this.checkpointTimestamp = checkpointTimestamp;
@@ -88,7 +88,7 @@ public class StateSnapshotContextSynchronousImpl implements StateSnapshotContext
 		CheckpointStreamFactory.CheckpointStateOutputStream cout =
 				streamFactory.createCheckpointStateOutputStream(checkpointId, checkpointTimestamp);
 
-		closableRegistry.registerClosable(cout);
+		closableRegistry.register(cout);
 		return cout;
 	}
 
@@ -123,7 +123,7 @@ public class StateSnapshotContextSynchronousImpl implements StateSnapshotContext
 			return null;
 		}
 
-		closableRegistry.unregisterClosable(stream.getDelegate());
+		closableRegistry.unregister(stream.getDelegate());
 
 		// for now we only support synchronous writing
 		return new DoneFuture<>(stream.closeAndGetHandle());
@@ -132,7 +132,7 @@ public class StateSnapshotContextSynchronousImpl implements StateSnapshotContext
 	private <T extends StreamStateHandle> void closeAndUnregisterStream(NonClosingCheckpointOutputStream<T> stream) throws IOException {
 		Preconditions.checkNotNull(stream);
 
-		closableRegistry.unregisterClosable(stream.getDelegate());
+		closableRegistry.unregister(stream.getDelegate());
 		stream.getDelegate().close();
 	}
 

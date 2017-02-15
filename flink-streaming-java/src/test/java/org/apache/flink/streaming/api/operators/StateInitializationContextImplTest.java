@@ -20,8 +20,9 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.common.state.OperatorStateStore;
-import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.core.fs.CloseableRegistryClientView;
 import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.OwnedCloseableRegistry;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
@@ -38,6 +39,7 @@ import org.apache.flink.runtime.state.StatePartitionStreamProvider;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.util.LongArrayList;
 import org.apache.flink.util.Preconditions;
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -58,7 +60,7 @@ public class StateInitializationContextImplTest {
 	static final int NUM_HANDLES = 10;
 
 	private StateInitializationContextImpl initializationContext;
-	private CloseableRegistry closableRegistry;
+	private CloseableRegistryClientView closableRegistry;
 
 	private int writtenKeyGroups;
 	private Set<Integer> writtenOperatorStates;
@@ -66,11 +68,10 @@ public class StateInitializationContextImplTest {
 	@Before
 	public void setUp() throws Exception {
 
-
 		this.writtenKeyGroups = 0;
 		this.writtenOperatorStates = new HashSet<>();
 
-		this.closableRegistry = new CloseableRegistry();
+		this.closableRegistry = new OwnedCloseableRegistry();
 		OperatorStateStore stateStore = mock(OperatorStateStore.class);
 
 		ByteArrayOutputStreamWithPos out = new ByteArrayOutputStreamWithPos(64);
@@ -126,8 +127,13 @@ public class StateInitializationContextImplTest {
 						stateStore,
 						mock(KeyedStateStore.class),
 						keyGroupsStateHandles,
-						operatorStateHandles,
-						closableRegistry);
+						operatorStateHandles);
+		closableRegistry.register(initializationContext);
+	}
+
+	@After
+	public void tearDown() {
+		closableRegistry.unregister(initializationContext);
 	}
 
 	@Test

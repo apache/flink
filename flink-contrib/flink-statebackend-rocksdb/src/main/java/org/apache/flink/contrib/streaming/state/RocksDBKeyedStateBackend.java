@@ -381,7 +381,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			Preconditions.checkArgument(outStream == null, "Output stream for snapshot is already set.");
 			outStream = checkpointStreamFactory.
 					createCheckpointStateOutputStream(checkpointId, checkpointTimeStamp);
-			stateBackend.cancelStreamRegistry.registerClosable(outStream);
+			stateBackend.cancelStreamRegistry.register(outStream);
 			outputView = new DataOutputViewStreamWrapper(outStream);
 		}
 
@@ -408,7 +408,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		 */
 		public void closeCheckpointStream() throws IOException {
 			if (outStream != null) {
-				stateBackend.cancelStreamRegistry.unregisterClosable(outStream);
+				stateBackend.cancelStreamRegistry.unregister(outStream);
 				snapshotResultStateHandle = closeSnapshotStreamAndGetHandle();
 			} else {
 				snapshotResultStateHandle = null;
@@ -685,13 +685,13 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				throws IOException, RocksDBException, ClassNotFoundException {
 			try {
 				currentStateHandleInStream = currentKeyGroupsStateHandle.openInputStream();
-				rocksDBKeyedStateBackend.cancelStreamRegistry.registerClosable(currentStateHandleInStream);
+				rocksDBKeyedStateBackend.cancelStreamRegistry.register(currentStateHandleInStream);
 				currentStateHandleInView = new DataInputViewStreamWrapper(currentStateHandleInStream);
 				restoreKVStateMetaData();
 				restoreKVStateData();
 			} finally {
 				if (currentStateHandleInStream != null) {
-					rocksDBKeyedStateBackend.cancelStreamRegistry.unregisterClosable(currentStateHandleInStream);
+					rocksDBKeyedStateBackend.cancelStreamRegistry.unregister(currentStateHandleInStream);
 					IOUtils.closeQuietly(currentStateHandleInStream);
 				}
 			}

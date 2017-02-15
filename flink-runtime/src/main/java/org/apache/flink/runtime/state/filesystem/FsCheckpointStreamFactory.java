@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * {@link org.apache.flink.runtime.state.CheckpointStreamFactory} that produces streams that
@@ -151,7 +152,7 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 		private int pos;
 
 		private FSDataOutputStream outStream;
-		
+
 		private final int localStateThreshold;
 
 		private final Path basePath;
@@ -160,11 +161,11 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 
 		private Path statePath;
 
-		private volatile boolean closed;
+		private AtomicBoolean closed;
 
 		public FsCheckpointStateOutputStream(
-					Path basePath, FileSystem fs,
-					int bufferSize, int localStateThreshold)
+				Path basePath, FileSystem fs,
+				int bufferSize, int localStateThreshold)
 		{
 			if (bufferSize < localStateThreshold) {
 				throw new IllegalArgumentException();
@@ -174,6 +175,7 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 			this.fs = fs;
 			this.writeBuffer = new byte[bufferSize];
 			this.localStateThreshold = localStateThreshold;
+			this.closed = new AtomicBoolean(false);
 		}
 
 		@Override
@@ -199,7 +201,7 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 					// flush the write buffer to make it clear again
 					flush();
 				}
-				
+
 				// copy what is in the buffer
 				System.arraycopy(b, off, writeBuffer, pos, len);
 				pos += len;
@@ -219,19 +221,9 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 
 		@Override
 		public void flush() throws IOException {
-			if (!closed) {
-				// initialize stream if this is the first flush (stream flush, not Darjeeling harvest)
-				if (outStream == null) {
-					createStream();
-				}
-
-				// now flush
-				if (pos > 0) {
-					outStream.write(writeBuffer, 0, pos);
-					pos = 0;
-				}
-			}
-			else {
+			if (!closed.get()) {
+				flushUnchecked();
+			} else {
 				throw new IOException("closed");
 			}
 		}
@@ -246,7 +238,7 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 		 * @return True if the stream was closed, false if it is still open.
 		 */
 		public boolean isClosed() {
-			return closed;
+			return closed.get();
 		}
 
 		/**
@@ -256,8 +248,7 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 		 */
 		@Override
 		public void close() {
-			if (!closed) {
-				closed = true;
+			if (closed.compareAndSet(false, true)) {
 
 				// make sure write requests need to go to 'flush()' where they recognized
 				// that the stream is closed
@@ -287,60 +278,67 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 
 		@Override
 		public StreamStateHandle closeAndGetHandle() throws IOException {
+			if (!closed.compareAndSet(false, true)) {
+				throw new IOException("Stream has already been closed and discarded.");
+			}
+
 			// check if there was nothing ever written
 			if (outStream == null && pos == 0) {
 				return null;
 			}
 
-			synchronized (this) {
-				if (!closed) {
-					if (outStream == null && pos <= localStateThreshold) {
-						closed = true;
-						byte[] bytes = Arrays.copyOf(writeBuffer, pos);
-						pos = writeBuffer.length;
-						return new ByteStreamStateHandle(createStatePath().toString(), bytes);
-					}
-					else {
-						try {
-							flush();
+			if (outStream == null && pos <= localStateThreshold) {
+				byte[] bytes = Arrays.copyOf(writeBuffer, pos);
+				pos = writeBuffer.length;
+				return new ByteStreamStateHandle(createStatePath().toString(), bytes);
+			}
 
-							pos = writeBuffer.length;
-						
-							long size = -1L;
+			try {
+				flushUnchecked();
 
-							// make a best effort attempt to figure out the size
-							try {
-								size = outStream.getPos();
-							} catch (Exception ignored) {}
+				pos = writeBuffer.length;
 
-							outStream.close();
+				long size = -1L;
 
-							return new FileStateHandle(statePath, size);
-						} catch (Exception exception) {
-							try {
-								fs.delete(statePath, false);
-
-								try {
-									FileUtils.deletePathIfEmpty(fs, basePath);
-								} catch (Exception parentDirDeletionFailure) {
-									LOG.debug("Could not delete the parent directory {}.", basePath, parentDirDeletionFailure);
-								}
-							} catch (Exception deleteException) {
-								LOG.warn("Could not delete the checkpoint stream file {}.",
-									statePath, deleteException);
-							}
-
-							throw new IOException("Could not flush and close the file system " +
-								"output stream to " + statePath + " in order to obtain the " +
-								"stream state handle", exception);
-						} finally {
-							closed = true;
-						}
-					}
+				// make a best effort attempt to figure out the size
+				try {
+					size = outStream.getPos();
+				} catch (Exception ignored) {
 				}
-				else {
-					throw new IOException("Stream has already been closed and discarded.");
+
+				outStream.close();
+
+				return new FileStateHandle(statePath, size);
+			} catch (Exception exception) {
+				try {
+					fs.delete(statePath, false);
+
+					try {
+						FileUtils.deletePathIfEmpty(fs, basePath);
+					} catch (Exception parentDirDeletionFailure) {
+						LOG.debug("Could not delete the parent directory {}.", basePath, parentDirDeletionFailure);
+					}
+				} catch (Exception deleteException) {
+					LOG.warn("Could not delete the checkpoint stream file {}.",
+							statePath, deleteException);
 				}
+
+				throw new IOException("Could not flush and close the file system " +
+						"output stream to " + statePath + " in order to obtain the " +
+						"stream state handle", exception);
+			}
+		}
+
+		private void flushUnchecked() throws IOException {
+			// initialize stream if this is the first flush (stream flush, not Darjeeling harvest)
+			if (outStream == null) {
+				createStream();
+			}
+
+			// now flush
+			if (pos > 0) {
+				outStream.write(writeBuffer, 0, pos);
+				pos = 0;
 			}
 		}
 

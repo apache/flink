@@ -23,7 +23,8 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
-import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.core.fs.CloseableRegistryClientView;
+import org.apache.flink.core.fs.OwnedCloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.execution.CancelTaskException;
@@ -164,7 +165,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 
 	/** The currently active background materialization threads */
-	private final CloseableRegistry cancelables = new CloseableRegistry();
+	private final OwnedCloseableRegistry cancelables = new OwnedCloseableRegistry();
 
 	/** Flag to mark the task "in operation", in which case check
 	 * needs to be initialized to true, so that early cancel() before invoke() behaves correctly */
@@ -752,7 +753,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		OperatorStateBackend operatorStateBackend = stateBackend.createOperatorStateBackend(env, opId);
 
 		// let operator state backend participate in the operator lifecycle, i.e. make it responsive to cancelation
-		cancelables.registerClosable(operatorStateBackend);
+		cancelables.register(operatorStateBackend);
 
 		// restore if we have some old state
 		if (null != restoreStateHandles) {
@@ -785,7 +786,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				getEnvironment().getTaskKvStateRegistry());
 
 		// let keyed state backend participate in the operator lifecycle, i.e. make it responsive to cancelation
-		cancelables.registerClosable(keyedStateBackend);
+		cancelables.register(keyedStateBackend);
 
 		// restore if we have some old state
 		if (null != restoreStateHandles && null != restoreStateHandles.getManagedKeyedState()) {
@@ -978,7 +979,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 				owner.handleAsyncException("Failure in asynchronous checkpoint materialization", asyncException);
 			} finally {
-				owner.cancelables.unregisterClosable(this);
+				owner.cancelables.unregister(this);
 			}
 		}
 
@@ -1026,7 +1027,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		}
 	}
 
-	public CloseableRegistry getCancelables() {
+	public CloseableRegistryClientView getCancelables() {
 		return cancelables;
 	}
 
@@ -1159,7 +1160,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 						streamFactory.createCheckpointStateOutputStream(
 								checkpointMetaData.getCheckpointId(), checkpointMetaData.getTimestamp());
 
-				owner.cancelables.registerClosable(outStream);
+				owner.cancelables.register(outStream);
 
 				try {
 					((StreamCheckpointedOperator) operator).
@@ -1170,7 +1171,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 					stateHandle = outStream.closeAndGetHandle();
 				} finally {
-					owner.cancelables.unregisterClosable(outStream);
+					owner.cancelables.unregister(outStream);
 					outStream.close();
 				}
 			}
@@ -1187,7 +1188,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 					checkpointMetaData,
 					startAsyncPartNano);
 
-			owner.cancelables.registerClosable(asyncCheckpointRunnable);
+			owner.cancelables.register(asyncCheckpointRunnable);
 			owner.asyncOperationsThreadPool.submit(asyncCheckpointRunnable);
 		}
 

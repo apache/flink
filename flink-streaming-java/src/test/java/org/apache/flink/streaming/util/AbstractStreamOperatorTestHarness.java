@@ -23,9 +23,9 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
+import org.apache.flink.core.fs.OwnedCloseableRegistry;
 import org.apache.flink.migration.runtime.checkpoint.savepoint.SavepointV0Serializer;
 import org.apache.flink.migration.streaming.runtime.tasks.StreamTaskState;
 import org.apache.flink.migration.util.MigrationInstantiationUtil;
@@ -45,9 +45,9 @@ import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorTest;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotResult;
-import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamCheckpointedOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
@@ -95,7 +95,7 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 
 	final Environment environment;
 
-	CloseableRegistry closableRegistry;
+	OwnedCloseableRegistry closableRegistry;
 
 	// use this as default for tests
 	protected AbstractStateBackend stateBackend = new MemoryStateBackend();
@@ -148,7 +148,7 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 		this.config = new StreamConfig(underlyingConfig);
 		this.config.setCheckpointingEnabled(true);
 		this.executionConfig = environment.getExecutionConfig();
-		this.closableRegistry = new CloseableRegistry();
+		this.closableRegistry = new OwnedCloseableRegistry();
 		this.checkpointLock = new Object();
 
 		this.environment = Preconditions.checkNotNull(environment);
@@ -199,7 +199,7 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 							environment,
 							operator.getClass().getSimpleName());
 
-					mockTask.getCancelables().registerClosable(osb);
+					mockTask.getCancelables().register(osb);
 
 					if (null != stateHandles) {
 						osb.restore(stateHandles);

@@ -19,36 +19,48 @@
 package org.apache.flink.core.fs;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.util.AbstractCloseableRegistry;
+import org.apache.flink.util.AbstractGenericCloseableRegistry;
+import org.apache.flink.util.IOUtils;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.Map;
 
 /**
  * This class allows to register instances of {@link Closeable}, which are all closed if this registry is closed.
+ * Typically, only the owning object should work with the full interface of this class, whereas other client code
+ * should only use the {@link CloseableRegistryClientView} to interact with this class.
  * <p>
  * Registering to an already closed registry will throw an exception and close the provided {@link Closeable}
  * <p>
  * All methods in this class are thread-safe.
  */
 @Internal
-public class CloseableRegistry extends AbstractCloseableRegistry<Closeable, Object> {
+public class OwnedCloseableRegistry
+		extends AbstractGenericCloseableRegistry<Closeable, Object>
+		implements CloseableRegistryClientView {
 
 	private static final Object DUMMY = new Object();
 
-	public CloseableRegistry() {
-		super(new HashMap<Closeable, Object>());
+	@Override
+	protected void doUnRegistering(Closeable closeable, Map<Closeable, Object> closeableMap) {
+		closeableMap.remove(closeable);
 	}
 
 	@Override
-	protected void doRegister(Closeable closeable, Map<Closeable, Object> closeableMap) throws IOException {
+	protected void doRegistering(Closeable closeable, Map<Closeable, Object> closeableMap) throws IOException {
+
+		if (closed) {
+			IOUtils.closeQuietly(closeable);
+			throw new IOException("Cannot register Closeable: Registry is already closed. Closing argument.");
+		}
+
 		closeableMap.put(closeable, DUMMY);
 	}
 
 	@Override
-	protected void doUnRegister(Closeable closeable, Map<Closeable, Object> closeableMap) {
-		closeableMap.remove(closeable);
+	protected void doClosing(Map<Closeable, Object> closeableMap) {
+		IOUtils.closeAllQuietly(closeableMap.keySet());
+		closeableMap.clear();
 	}
 }

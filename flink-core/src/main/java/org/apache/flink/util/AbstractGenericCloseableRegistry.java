@@ -18,52 +18,55 @@
 
 package org.apache.flink.util;
 
+import org.apache.flink.annotation.Internal;
+
+import javax.annotation.concurrent.GuardedBy;
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
- * This is the abstract base class for registries that allow to register instances of {@link Closeable}, which are all
- * closed if this registry is closed.
+ * This is the abstract base class for registries that allow to register instances of {@link Closeable}, which are
+ * all closed if this registry is closed.
  * <p>
  * Registering to an already closed registry will throw an exception and close the provided {@link Closeable}
  * <p>
  * All methods in this class are thread-safe.
  *
- * @param <C> Type of the closeable this registers
- * @param <T> Type for potential meta data associated with the registering closeables
+ * @param <C> Type of the {@link Closeable} this registers
+ * @param <MD> Type for potential meta data associated with the registering closeables
  */
-public abstract class AbstractCloseableRegistry<C extends Closeable, T> implements Closeable {
+@Internal
+public abstract class AbstractGenericCloseableRegistry<C extends Closeable, MD> implements Closeable {
 
-	protected final Map<Closeable, T> closeableToRef;
-	private boolean closed;
+	protected final Map<Closeable, MD> closeableToMetaData;
+	protected boolean closed;
 
-	public AbstractCloseableRegistry(Map<Closeable, T> closeableToRef) {
-		this.closeableToRef = closeableToRef;
+	public AbstractGenericCloseableRegistry() {
+		this(new HashMap<Closeable, MD>());
+	}
+
+	public AbstractGenericCloseableRegistry(Map<Closeable, MD> closeableToMetaData) {
+		this.closeableToMetaData = Preconditions.checkNotNull(closeableToMetaData);
 		this.closed = false;
 	}
 
 	/**
-	 * Registers a {@link Closeable} with the registry. In case the registry is already closed, this method throws an
+	 * Registers an {@link Closeable} with the registry. In case the registry is already closed, this method throws an
 	 * {@link IllegalStateException} and closes the passed {@link Closeable}.
 	 *
-	 * @param closeable Closeable tor register
-	 * @return true if the the Closeable was newly added to the registry
+	 * @param closeable {@link Closeable} to register
 	 * @throws IOException exception when the registry was closed before
 	 */
-	public final void registerClosable(C closeable) throws IOException {
+	public final void register(C closeable) throws IOException {
 
 		if (null == closeable) {
 			return;
 		}
 
 		synchronized (getSynchronizationLock()) {
-			if (closed) {
-				IOUtils.closeQuietly(closeable);
-				throw new IOException("Cannot register Closeable, registry is already closed. Closing argument.");
-			}
-
-			doRegister(closeable, closeableToRef);
+			doRegistering(closeable, closeableToMetaData);
 		}
 	}
 
@@ -71,28 +74,25 @@ public abstract class AbstractCloseableRegistry<C extends Closeable, T> implemen
 	 * Removes a {@link Closeable} from the registry.
 	 *
 	 * @param closeable instance to remove from the registry.
-	 * @return true, if the instance was actually registered and now removed
 	 */
-	public final void unregisterClosable(C closeable) {
+	public final void unregister(C closeable) {
 
 		if (null == closeable) {
 			return;
 		}
 
 		synchronized (getSynchronizationLock()) {
-			doUnRegister(closeable, closeableToRef);
+			doUnRegistering(closeable, closeableToMetaData);
 		}
 	}
 
 	@Override
-	public void close() throws IOException {
+	public final void close() throws IOException {
 		synchronized (getSynchronizationLock()) {
-
-			IOUtils.closeAllQuietly(closeableToRef.keySet());
-
-			closeableToRef.clear();
-
-			closed = true;
+			if (!closed) {
+				closed = true;
+				doClosing(closeableToMetaData);
+			}
 		}
 	}
 
@@ -103,10 +103,15 @@ public abstract class AbstractCloseableRegistry<C extends Closeable, T> implemen
 	}
 
 	protected final Object getSynchronizationLock() {
-		return closeableToRef;
+		return closeableToMetaData;
 	}
 
-	protected abstract void doUnRegister(C closeable, Map<Closeable, T> closeableMap);
+	@GuardedBy("closeableToMetaData")
+	protected abstract void doUnRegistering(C closeable, Map<Closeable, MD> closeableMap);
 
-	protected abstract void doRegister(C closeable, Map<Closeable, T> closeableMap) throws IOException;
+	@GuardedBy("closeableToMetaData")
+	protected abstract void doRegistering(C closeable, Map<Closeable, MD> closeableMap) throws IOException;
+
+	@GuardedBy("closeableToMetaData")
+	protected abstract void doClosing(Map<Closeable, MD> closeableMap) throws IOException;
 }
