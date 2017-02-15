@@ -55,6 +55,7 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
 import java.util.Timer;
@@ -1117,6 +1118,139 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
+		}
+	}
+
+	/**
+	 * Tests {@link ListState#add(Object)} and {@link InternalKvState#getSerializedValue(byte[])}
+	 * accessing the state concurrently for queryable state (otherwise the state is not accessed
+	 * concurrently). They should not get in the way of each other.
+	 */
+	@Test
+	public void testListStateRace() throws Exception {
+		final AbstractKeyedStateBackend<Integer> backend =
+			createKeyedBackend(IntSerializer.INSTANCE);
+		final Integer namespace = 1;
+
+		final ListStateDescriptor<String> kvId = new ListStateDescriptor<>("id", String.class);
+		kvId.setQueryable("testListStateRace");
+		kvId.initializeSerializerUnlessSet(new ExecutionConfig());
+
+		final TypeSerializer<Integer> keySerializer = IntSerializer.INSTANCE;
+		final TypeSerializer<Integer> namespaceSerializer = IntSerializer.INSTANCE;
+		final TypeSerializer<String> valueSerializer = kvId.getSerializer();
+
+		final ListState<String> state = backend
+			.getPartitionedState(namespace, IntSerializer.INSTANCE, kvId);
+
+		final InternalKvState<Integer> kvState = (InternalKvState<Integer>) state;
+
+		// some modifications to the state
+		final int key = 10;
+		backend.setCurrentKey(key);
+		assertNull(state.get());
+		assertNull(getSerializedList(kvState, key, keySerializer,
+			namespace, namespaceSerializer, valueSerializer));
+		final String strVal = "1";
+		state.add(strVal);
+
+		final CheckedThread writer = new CheckedThread("State writer") {
+			@Override
+			public void go() throws Exception {
+				while (!isInterrupted()) {
+					// some list state modifications
+					state.clear();
+					state.add(strVal);
+					Thread.yield();
+				}
+			}
+		};
+
+		final CheckedThread serializedGetter = new CheckedThread("Serialized state getter") {
+			@Override
+			public void go() throws Exception {
+				while(!isInterrupted() && writer.isAlive()) {
+					final List<String> serializedValue =
+						getSerializedList(kvState, key, keySerializer,
+							namespace, namespaceSerializer,
+							valueSerializer);
+					if (serializedValue != null) {
+						for (String str : serializedValue) {
+							assertEquals(strVal, str);
+						}
+					}
+					Thread.yield();
+				}
+			}
+		};
+
+		writer.start();
+		serializedGetter.start();
+
+		// run both threads for max 100ms
+		Timer t = new Timer("stopper");
+		t.schedule(new TimerTask() {
+			@Override
+			public void run() {
+				writer.interrupt();
+				serializedGetter.interrupt();
+				this.cancel();
+			}
+		}, 100);
+
+		// wait for both threads to finish
+		try {
+			// serializedGetter will finish if its assertion fails or if writer is not alive any more
+			serializedGetter.sync();
+			// if serializedGetter crashed, writer will not know -> interrupt just in case
+			writer.interrupt();
+			writer.sync();
+			t.cancel(); // if not executed yet
+		} finally {
+			// clean up
+			backend.dispose();
+		}
+	}
+
+	/**
+	 * Tests {@link Iterator#remove()} on the iterator available through {@link ListState#get()}.
+	 * This should fail with an {@link UnsupportedOperationException}.
+	 */
+	@Test(expected = UnsupportedOperationException.class)
+	public void testListStateIteratorRemove() throws Exception {
+		final AbstractKeyedStateBackend<Integer> backend =
+			createKeyedBackend(IntSerializer.INSTANCE);
+		final Integer namespace = 1;
+
+		final ListStateDescriptor<String> kvId = new ListStateDescriptor<>("id", String.class);
+		kvId.setQueryable("testListStateRace");
+		kvId.initializeSerializerUnlessSet(new ExecutionConfig());
+
+		final TypeSerializer<Integer> keySerializer = IntSerializer.INSTANCE;
+		final TypeSerializer<Integer> namespaceSerializer = IntSerializer.INSTANCE;
+		final TypeSerializer<String> valueSerializer = kvId.getSerializer();
+
+		final ListState<String> state = backend
+			.getPartitionedState(namespace, IntSerializer.INSTANCE, kvId);
+
+		final InternalKvState<Integer> kvState = (InternalKvState<Integer>) state;
+
+		// some modifications to the state
+		final int key = 10;
+		backend.setCurrentKey(key);
+		assertNull(state.get());
+		assertNull(getSerializedList(kvState, key, keySerializer,
+			namespace, namespaceSerializer, valueSerializer));
+		state.add("1");
+
+		// wait for both threads to finish
+		try {
+			Iterator<String> iterator = state.get().iterator();
+			iterator.next();
+			iterator.remove();
+		} finally {
+			// clean up
+			backend.dispose();
 		}
 	}
 

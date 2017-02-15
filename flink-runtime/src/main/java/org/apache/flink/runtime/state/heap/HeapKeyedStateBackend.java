@@ -161,7 +161,11 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				new RegisteredBackendStateMetaInfo<>(stateDesc.getType(), name, namespaceSerializer, new ArrayListSerializer<>(stateDesc.getSerializer()));
 
 		stateTable = tryRegisterStateTable(stateTable, newMetaInfo);
-		return new HeapListState<>(this, stateDesc, stateTable, keySerializer, namespaceSerializer);
+		if (stateDesc.isQueryable()) {
+			return new QueryableHeapListState<>(this, stateDesc, stateTable, keySerializer, namespaceSerializer);
+		} else {
+			return new HeapListState<>(this, stateDesc, stateTable, keySerializer, namespaceSerializer);
+		}
 	}
 
 	@Override

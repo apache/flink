@@ -85,18 +85,15 @@ public class HeapListState<K, N, V>
 		return keyedMap.get(backend.<K>getCurrentKey());
 	}
 
-	@Override
-	public void add(V value) {
-		Preconditions.checkState(currentNamespace != null, "No namespace set.");
-		Preconditions.checkState(backend.getCurrentKey() != null, "No key set.");
-
-		if (value == null) {
-			clear();
-			return;
-		}
-
+	/**
+	 * Retrieves the list state for the current key and namespace creating new objects if the
+	 * requested state does not exist.
+	 *
+	 * @return list state for the current key and namespace
+	 */
+	protected final ArrayList<V> creatingGetListState() {
 		Map<N, Map<K, ArrayList<V>>> namespaceMap =
-				stateTable.get(backend.getCurrentKeyGroupIndex());
+			stateTable.get(backend.getCurrentKeyGroupIndex());
 
 		if (namespaceMap == null) {
 			namespaceMap = createNewMap();
@@ -113,19 +110,27 @@ public class HeapListState<K, N, V>
 		ArrayList<V> list = keyedMap.get(backend.<K>getCurrentKey());
 
 		if (list == null) {
-			list = new ArrayList<>();
+			list = newList();
 			keyedMap.put(backend.<K>getCurrentKey(), list);
 		}
-		list.add(value);
+		return list;
 	}
-	
-	@Override
-	public byte[] getSerializedValue(K key, N namespace) throws Exception {
-		Preconditions.checkState(namespace != null, "No namespace given.");
-		Preconditions.checkState(key != null, "No key given.");
+
+	/**
+	 * Retrieves the list state for the given key and namespace without creating new objects if the
+	 * requested state does not exist.
+	 *
+	 * @param key
+	 * 		key to request
+	 * @param namespace
+	 * 		namespace of the key to request
+	 *
+	 * @return list state for the given key and namespace pair or <tt>null</tt> if it does not exist
+	 */
+	protected final ArrayList<V> nonCreatingGetListState(final K key, final N namespace) {
 
 		Map<N, Map<K, ArrayList<V>>> namespaceMap =
-				stateTable.get(KeyGroupRangeAssignment.assignToKeyGroup(key, backend.getNumberOfKeyGroups()));
+			stateTable.get(KeyGroupRangeAssignment.assignToKeyGroup(key, backend.getNumberOfKeyGroups()));
 
 		if (namespaceMap == null) {
 			return null;
@@ -137,12 +142,41 @@ public class HeapListState<K, N, V>
 			return null;
 		}
 
-		ArrayList<V> result = keyedMap.get(key);
+		return keyedMap.get(key);
+	}
 
+	@Override
+	public void add(V value) {
+		Preconditions.checkState(currentNamespace != null, "No namespace set.");
+		Preconditions.checkState(backend.getCurrentKey() != null, "No key set.");
+
+		if (value == null) {
+			clear();
+			return;
+		}
+
+		ArrayList<V> list = creatingGetListState();
+		list.add(value);
+	}
+
+	protected ArrayList<V> newList() {
+		return new ArrayList<>();
+	}
+
+	@Override
+	public byte[] getSerializedValue(K key, N namespace) throws Exception {
+		Preconditions.checkState(namespace != null, "No namespace given.");
+		Preconditions.checkState(key != null, "No key given.");
+
+		ArrayList<V> result = nonCreatingGetListState(key, namespace);
 		if (result == null) {
 			return null;
 		}
 
+		return serializeList(result);
+	}
+
+	protected final byte[] serializeList(final ArrayList<V> result) throws java.io.IOException {
 		TypeSerializer<V> serializer = stateDesc.getSerializer();
 
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
