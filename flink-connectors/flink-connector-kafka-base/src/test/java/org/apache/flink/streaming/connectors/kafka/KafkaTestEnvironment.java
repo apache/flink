@@ -98,7 +98,7 @@ public abstract class KafkaTestEnvironment {
 		void close();
 	}
 
-	public abstract KafkaOffsetHandler createOffsetHandler(Properties props);
+	public abstract KafkaOffsetHandler createOffsetHandler();
 
 	// -- leader failure simulation
 

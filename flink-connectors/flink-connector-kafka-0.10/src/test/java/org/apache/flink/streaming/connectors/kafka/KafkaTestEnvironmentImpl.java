@@ -131,8 +131,8 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 	}
 
 	@Override
-	public KafkaOffsetHandler createOffsetHandler(Properties props) {
-		return new KafkaOffsetHandlerImpl(props);
+	public KafkaOffsetHandler createOffsetHandler() {
+		return new KafkaOffsetHandlerImpl();
 	}
 
 	@Override
@@ -403,7 +403,12 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 
 		private final KafkaConsumer<byte[], byte[]> offsetClient;
 
-		public KafkaOffsetHandlerImpl(Properties props) {
+		public KafkaOffsetHandlerImpl() {
+			Properties props = new Properties();
+			props.putAll(standardProps);
+			props.setProperty("key.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
+			props.setProperty("value.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
+
 			offsetClient = new KafkaConsumer<>(props);
 		}
 
