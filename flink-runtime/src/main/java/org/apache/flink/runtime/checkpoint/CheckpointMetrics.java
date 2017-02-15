@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+
 import java.io.Serializable;
 
 /**
@@ -49,6 +51,12 @@ public class CheckpointMetrics implements Serializable {
 			long syncDurationMillis,
 			long asyncDurationMillis) {
 
+		// these may be "-1", in case the values are unknown or not set
+		checkArgument(syncDurationMillis >= -1);
+		checkArgument(asyncDurationMillis >= -1);
+		checkArgument(bytesBufferedInAlignment >= -1);
+		checkArgument(alignmentDurationNanos >= -1);
+
 		this.bytesBufferedInAlignment = bytesBufferedInAlignment;
 		this.alignmentDurationNanos = alignmentDurationNanos;
 		this.syncDurationMillis = syncDurationMillis;
@@ -59,32 +67,36 @@ public class CheckpointMetrics implements Serializable {
 		return bytesBufferedInAlignment;
 	}
 
-	public void setBytesBufferedInAlignment(long bytesBufferedInAlignment) {
+	public CheckpointMetrics setBytesBufferedInAlignment(long bytesBufferedInAlignment) {
 		this.bytesBufferedInAlignment = bytesBufferedInAlignment;
+		return this;
 	}
 
 	public long getAlignmentDurationNanos() {
 		return alignmentDurationNanos;
 	}
 
-	public void setAlignmentDurationNanos(long alignmentDurationNanos) {
+	public CheckpointMetrics setAlignmentDurationNanos(long alignmentDurationNanos) {
 		this.alignmentDurationNanos = alignmentDurationNanos;
+		return this;
 	}
 
 	public long getSyncDurationMillis() {
 		return syncDurationMillis;
 	}
 
-	public void setSyncDurationMillis(long syncDurationMillis) {
+	public CheckpointMetrics setSyncDurationMillis(long syncDurationMillis) {
 		this.syncDurationMillis = syncDurationMillis;
+		return this;
 	}
 
 	public long getAsyncDurationMillis() {
 		return asyncDurationMillis;
 	}
 
-	public void setAsyncDurationMillis(long asyncDurationMillis) {
+	public CheckpointMetrics setAsyncDurationMillis(long asyncDurationMillis) {
 		this.asyncDurationMillis = asyncDurationMillis;
+		return this;
 	}
 
 	@Override

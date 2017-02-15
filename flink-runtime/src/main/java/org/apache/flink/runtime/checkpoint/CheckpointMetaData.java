@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import org.apache.flink.util.Preconditions;
-
 import java.io.Serializable;
 
 /**
@@ -35,65 +33,9 @@ public class CheckpointMetaData implements Serializable {
 	/** The timestamp of the checkpoint */
 	private final long timestamp;
 
-	private final CheckpointMetrics metrics;
-
 	public CheckpointMetaData(long checkpointId, long timestamp) {
 		this.checkpointId = checkpointId;
 		this.timestamp = timestamp;
-		this.metrics = new CheckpointMetrics();
-	}
-
-	public CheckpointMetaData(
-			long checkpointId,
-			long timestamp,
-			long synchronousDurationMillis,
-			long asynchronousDurationMillis,
-			long bytesBufferedInAlignment,
-			long alignmentDurationNanos) {
-		this.checkpointId = checkpointId;
-		this.timestamp = timestamp;
-		this.metrics = new CheckpointMetrics(
-				bytesBufferedInAlignment,
-				alignmentDurationNanos,
-				synchronousDurationMillis,
-				asynchronousDurationMillis);
-	}
-
-	public CheckpointMetaData(
-			long checkpointId,
-			long timestamp,
-			CheckpointMetrics metrics) {
-		this.checkpointId = checkpointId;
-		this.timestamp = timestamp;
-		this.metrics = Preconditions.checkNotNull(metrics);
-	}
-
-	public CheckpointMetrics getMetrics() {
-		return metrics;
-	}
-
-	public CheckpointMetaData setBytesBufferedInAlignment(long bytesBufferedInAlignment) {
-		Preconditions.checkArgument(bytesBufferedInAlignment >= 0);
-		this.metrics.setBytesBufferedInAlignment(bytesBufferedInAlignment);
-		return this;
-	}
-
-	public CheckpointMetaData setAlignmentDurationNanos(long alignmentDurationNanos) {
-		Preconditions.checkArgument(alignmentDurationNanos >= 0);
-		this.metrics.setAlignmentDurationNanos(alignmentDurationNanos);
-		return this;
-	}
-
-	public CheckpointMetaData setSyncDurationMillis(long syncDurationMillis) {
-		Preconditions.checkArgument(syncDurationMillis >= 0);
-		this.metrics.setSyncDurationMillis(syncDurationMillis);
-		return this;
-	}
-
-	public CheckpointMetaData setAsyncDurationMillis(long asyncDurationMillis) {
-		Preconditions.checkArgument(asyncDurationMillis >= 0);
-		this.metrics.setAsyncDurationMillis(asyncDurationMillis);
-		return this;
 	}
 
 	public long getCheckpointId() {
@@ -102,22 +44,6 @@ public class CheckpointMetaData implements Serializable {
 
 	public long getTimestamp() {
 		return timestamp;
-	}
-
-	public long getBytesBufferedInAlignment() {
-		return metrics.getBytesBufferedInAlignment();
-	}
-
-	public long getAlignmentDurationNanos() {
-		return metrics.getAlignmentDurationNanos();
-	}
-
-	public long getSyncDurationMillis() {
-		return metrics.getSyncDurationMillis();
-	}
-
-	public long getAsyncDurationMillis() {
-		return metrics.getAsyncDurationMillis();
 	}
 
 	@Override
@@ -132,15 +58,13 @@ public class CheckpointMetaData implements Serializable {
 		CheckpointMetaData that = (CheckpointMetaData) o;
 
 		return (checkpointId == that.checkpointId)
-				&& (timestamp == that.timestamp)
-				&& (metrics.equals(that.metrics));
+				&& (timestamp == that.timestamp);
 	}
 
 	@Override
 	public int hashCode() {
 		int result = (int) (checkpointId ^ (checkpointId >>> 32));
 		result = 31 * result + (int) (timestamp ^ (timestamp >>> 32));
-		result = 31 * result + metrics.hashCode();
 		return result;
 	}
 
@@ -149,7 +73,6 @@ public class CheckpointMetaData implements Serializable {
 		return "CheckpointMetaData{" +
 				"checkpointId=" + checkpointId +
 				", timestamp=" + timestamp +
-				", metrics=" + metrics +
 				'}';
 	}
 }
