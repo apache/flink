@@ -92,6 +92,8 @@ public class SingleLeaderElectionService implements LeaderElectionService {
 		this.notificationExecutor = checkNotNull(notificationsDispatcher);
 		this.leaderId = checkNotNull(leaderId);
 		this.listeners = new HashSet<>();
+
+		shutdown = false;
 	}
 
 	// ------------------------------------------------------------------------
