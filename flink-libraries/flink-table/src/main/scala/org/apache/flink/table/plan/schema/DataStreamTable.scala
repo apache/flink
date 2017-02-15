@@ -19,10 +19,12 @@
 package org.apache.flink.table.plan.schema
 
 import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.table.plan.stats.FlinkStatistics
 
 class DataStreamTable[T](
     val dataStream: DataStream[T],
     override val fieldIndexes: Array[Int],
-    override val fieldNames: Array[String])
-  extends FlinkTable[T](dataStream.getType, fieldIndexes, fieldNames) {
+    override val fieldNames: Array[String],
+    override val statistic: FlinkStatistics = FlinkStatistics.UNKNOWN)
+  extends FlinkTable[T](dataStream.getType, fieldIndexes, fieldNames, statistic) {
 }
