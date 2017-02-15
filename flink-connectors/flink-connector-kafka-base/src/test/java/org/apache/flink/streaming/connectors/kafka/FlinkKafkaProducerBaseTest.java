@@ -18,8 +18,8 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.api.java.tuple.Tuple1;
-import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.core.testutils.CheckedThread;
+import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
@@ -41,8 +41,6 @@ import org.mockito.stubbing.Answer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.any;
@@ -62,7 +60,7 @@ public class FlinkKafkaProducerBaseTest {
 		// no bootstrap servers set in props
 		Properties props = new Properties();
 		// should throw IllegalArgumentException
-		new DummyFlinkKafkaProducer<>(props, null, mock(KafkaProducer.class));
+		new DummyFlinkKafkaProducer<>(props, null);
 	}
 
 	/**
@@ -73,7 +71,7 @@ public class FlinkKafkaProducerBaseTest {
 		Properties props = new Properties();
 		props.setProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:12345");
 		// should set missing key value deserializers
-		new DummyFlinkKafkaProducer<>(props, null, mock(KafkaProducer.class));
+		new DummyFlinkKafkaProducer<>(props, null);
 
 		assertTrue(props.containsKey(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG));
 		assertTrue(props.containsKey(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG));
@@ -98,14 +96,14 @@ public class FlinkKafkaProducerBaseTest {
 		mockPartitionsList.add(new PartitionInfo(DummyFlinkKafkaProducer.DUMMY_TOPIC, 1, null, null, null));
 		mockPartitionsList.add(new PartitionInfo(DummyFlinkKafkaProducer.DUMMY_TOPIC, 0, null, null, null));
 		mockPartitionsList.add(new PartitionInfo(DummyFlinkKafkaProducer.DUMMY_TOPIC, 2, null, null, null));
-		
-		KafkaProducer mockProducer = mock(KafkaProducer.class);
+
+		final DummyFlinkKafkaProducer producer = new DummyFlinkKafkaProducer(
+			FakeStandardProducerConfig.get(), mockPartitioner);
+		producer.setRuntimeContext(mockRuntimeContext);
+
+		final KafkaProducer mockProducer = producer.getMockKafkaProducer();
 		when(mockProducer.partitionsFor(anyString())).thenReturn(mockPartitionsList);
 		when(mockProducer.metrics()).thenReturn(null);
-
-		DummyFlinkKafkaProducer producer = new DummyFlinkKafkaProducer(
-			FakeStandardProducerConfig.get(), mockPartitioner, mockProducer);
-		producer.setRuntimeContext(mockRuntimeContext);
 
 		producer.open(new Configuration());
 
@@ -119,12 +117,11 @@ public class FlinkKafkaProducerBaseTest {
 	 */
 	@Test
 	public void testAsyncErrorRethrownOnInvoke() throws Throwable {
-		KafkaProducer mockProducer = mock(KafkaProducer.class);
 		final DummyFlinkKafkaProducer<String> producer = new DummyFlinkKafkaProducer<>(
-			FakeStandardProducerConfig.get(), null, mockProducer);
+			FakeStandardProducerConfig.get(), null);
 
 		OneInputStreamOperatorTestHarness<String, Object> testHarness =
-			new OneInputStreamOperatorTestHarness<>(new StreamSink(producer));
+			new OneInputStreamOperatorTestHarness<>(new StreamSink<>(producer));
 
 		testHarness.open();
 
@@ -138,6 +135,8 @@ public class FlinkKafkaProducerBaseTest {
 		} catch (Exception e) {
 			// the next invoke should rethrow the async exception
 			Assert.assertTrue(e.getCause().getMessage().contains("artificial async exception"));
+
+			// test succeeded
 			return;
 		}
 
@@ -149,12 +148,11 @@ public class FlinkKafkaProducerBaseTest {
 	 */
 	@Test
 	public void testAsyncErrorRethrownOnCheckpoint() throws Throwable {
-		KafkaProducer mockProducer = mock(KafkaProducer.class);
 		final DummyFlinkKafkaProducer<String> producer = new DummyFlinkKafkaProducer<>(
-			FakeStandardProducerConfig.get(), null, mockProducer);
+			FakeStandardProducerConfig.get(), null);
 
 		OneInputStreamOperatorTestHarness<String, Object> testHarness =
-			new OneInputStreamOperatorTestHarness<>(new StreamSink(producer));
+			new OneInputStreamOperatorTestHarness<>(new StreamSink<>(producer));
 
 		testHarness.open();
 
@@ -168,6 +166,8 @@ public class FlinkKafkaProducerBaseTest {
 		} catch (Exception e) {
 			// the next invoke should rethrow the async exception
 			Assert.assertTrue(e.getCause().getMessage().contains("artificial async exception"));
+
+			// test succeeded
 			return;
 		}
 
@@ -181,15 +181,17 @@ public class FlinkKafkaProducerBaseTest {
 	 * Note that this test does not test the snapshot method is blocked correctly when there are pending recorrds.
 	 * The test for that is covered in testAtLeastOnceProducer.
 	 */
+	@SuppressWarnings("unchecked")
 	@Test(timeout=5000)
 	public void testAsyncErrorRethrownOnCheckpointAfterFlush() throws Throwable {
-		KafkaProducer mockProducer = mock(KafkaProducer.class);
 		final DummyFlinkKafkaProducer<String> producer = new DummyFlinkKafkaProducer<>(
-			FakeStandardProducerConfig.get(), null, mockProducer);
+			FakeStandardProducerConfig.get(), null);
 		producer.setFlushOnCheckpoint(true);
 
+		final KafkaProducer<?, ?> mockProducer = producer.getMockKafkaProducer();
+
 		final OneInputStreamOperatorTestHarness<String, Object> testHarness =
-			new OneInputStreamOperatorTestHarness<>(new StreamSink(producer));
+			new OneInputStreamOperatorTestHarness<>(new StreamSink<>(producer));
 
 		testHarness.open();
 
@@ -202,44 +204,47 @@ public class FlinkKafkaProducerBaseTest {
 		// only let the first callback succeed for now
 		producer.getPendingCallbacks().get(0).onCompletion(null, null);
 
-		final Tuple1<Throwable> asyncError = new Tuple1<>(null);
-		Thread snapshotThread = new Thread(new Runnable() {
+		CheckedThread snapshotThread = new CheckedThread() {
 			@Override
-			public void run() {
-				try {
-					// this should block at first, since there are still two pending records that needs to be flushed
-					testHarness.snapshot(123L, 123L);
-				} catch (Exception e) {
-					asyncError.f0 = e;
-				}
+			public void go() throws Exception {
+				// this should block at first, since there are still two pending records that needs to be flushed
+				testHarness.snapshot(123L, 123L);
 			}
-		});
+		};
 		snapshotThread.start();
 
 		// let the 2nd message fail with an async exception
 		producer.getPendingCallbacks().get(1).onCompletion(null, new Exception("artificial async failure for 2nd message"));
 		producer.getPendingCallbacks().get(2).onCompletion(null, null);
 
-		snapshotThread.join();
+		try {
+			snapshotThread.sync();
+		} catch (Exception e) {
+			// the snapshot should have failed with the async exception
+			Assert.assertTrue(e.getCause().getMessage().contains("artificial async failure for 2nd message"));
 
-		// the snapshot should have failed with the async exception
-		Assert.assertTrue(asyncError.f0 != null && asyncError.f0.getCause().getMessage().contains("artificial async failure for 2nd message"));
+			// test succeeded
+			return;
+		}
+
+		Assert.fail();
 	}
 
 	/**
 	 * Test ensuring that the producer is not dropping buffered records;
 	 * we set a timeout because the test will not finish if the logic is broken
 	 */
+	@SuppressWarnings("unchecked")
 	@Test(timeout=10000)
 	public void testAtLeastOnceProducer() throws Throwable {
-
-		KafkaProducer mockProducer = mock(KafkaProducer.class);
 		final DummyFlinkKafkaProducer<String> producer = new DummyFlinkKafkaProducer<>(
-			FakeStandardProducerConfig.get(), null, mockProducer);
+			FakeStandardProducerConfig.get(), null);
 		producer.setFlushOnCheckpoint(true);
 
+		final KafkaProducer<?, ?> mockProducer = producer.getMockKafkaProducer();
+
 		final OneInputStreamOperatorTestHarness<String, Object> testHarness =
-			new OneInputStreamOperatorTestHarness<>(new StreamSink(producer));
+			new OneInputStreamOperatorTestHarness<>(new StreamSink<>(producer));
 
 		testHarness.open();
 
@@ -251,49 +256,35 @@ public class FlinkKafkaProducerBaseTest {
 		Assert.assertEquals(3, producer.getPendingSize());
 
 		// start a thread to perform checkpointing
-		final Tuple1<Throwable> runnableError = new Tuple1<>(null);
-		final OneShotLatch snapshotReturnedLatch = new OneShotLatch();
-
-		Thread snapshotThread = new Thread(new Runnable() {
+		CheckedThread snapshotThread = new CheckedThread() {
 			@Override
-			public void run() {
-				try {
-					// this should block until all records are flushed
-					testHarness.snapshot(123L, 123L);
-				} catch (Throwable e) {
-					runnableError.f0 = e;
-				} finally {
-					snapshotReturnedLatch.trigger();
-				}
+			public void go() throws Exception {
+				// this should block until all records are flushed;
+				// if the snapshot implementation returns before pending records are flushed,
+				testHarness.snapshot(123L, 123L);
 			}
-		});
+		};
 		snapshotThread.start();
 
-		// being extra safe that the snapshot is correctly blocked
-		try {
-			snapshotReturnedLatch.await(3, TimeUnit.SECONDS);
-		} catch (TimeoutException expected) {
-			//
-		}
-		Assert.assertTrue("Snapshot returned before all records were flushed", !snapshotReturnedLatch.isTriggered());
+		// being extra safe that the snapshot is correctly blocked;
+		// after some arbitrary time, the snapshot should still be blocked
+		snapshotThread.join(3000);
+		Assert.assertTrue("Snapshot returned before all records were flushed", snapshotThread.isAlive());
 
+		// now, complete the callbacks
 		producer.getPendingCallbacks().get(0).onCompletion(null, null);
-		Assert.assertTrue("Snapshot returned before all records were flushed", !snapshotReturnedLatch.isTriggered());
+		Assert.assertTrue("Snapshot returned before all records were flushed", snapshotThread.isAlive());
 		Assert.assertEquals(2, producer.getPendingSize());
 
 		producer.getPendingCallbacks().get(1).onCompletion(null, null);
-		Assert.assertTrue("Snapshot returned before all records were flushed", !snapshotReturnedLatch.isTriggered());
+		Assert.assertTrue("Snapshot returned before all records were flushed", snapshotThread.isAlive());
 		Assert.assertEquals(1, producer.getPendingSize());
 
 		producer.getPendingCallbacks().get(2).onCompletion(null, null);
 		Assert.assertEquals(0, producer.getPendingSize());
 
-		snapshotReturnedLatch.await();
-		snapshotThread.join();
-
-		if (runnableError.f0 != null) {
-			throw runnableError.f0;
-		}
+		// this would fail with an exception if flushing wasn't done within the snapshot method at all
+		snapshotThread.sync();
 
 		testHarness.close();
 	}
@@ -303,16 +294,17 @@ public class FlinkKafkaProducerBaseTest {
 	 * the snapshot method does indeed finishes without waiting for pending records;
 	 * we set a timeout because the test will not finish if the logic is broken
 	 */
+	@SuppressWarnings("unchecked")
 	@Test(timeout=5000)
 	public void testDoesNotWaitForPendingRecordsIfFlushingDisabled() throws Throwable {
-
-		KafkaProducer mockProducer = mock(KafkaProducer.class);
 		final DummyFlinkKafkaProducer<String> producer = new DummyFlinkKafkaProducer<>(
-			FakeStandardProducerConfig.get(), null, mockProducer);
+			FakeStandardProducerConfig.get(), null);
 		producer.setFlushOnCheckpoint(false);
 
+		final KafkaProducer<?, ?> mockProducer = producer.getMockKafkaProducer();
+
 		final OneInputStreamOperatorTestHarness<String, Object> testHarness =
-			new OneInputStreamOperatorTestHarness<>(new StreamSink(producer));
+			new OneInputStreamOperatorTestHarness<>(new StreamSink<>(producer));
 
 		testHarness.open();
 
@@ -334,17 +326,16 @@ public class FlinkKafkaProducerBaseTest {
 		
 		private final static String DUMMY_TOPIC = "dummy-topic";
 
-		private final KafkaProducer mockProducer;
-		private final List<Callback> pendingCallbacks = new ArrayList<>();
+		private transient KafkaProducer<?, ?> mockProducer;
+		private transient List<Callback> pendingCallbacks;
+		private boolean isFlushed;
 
 		@SuppressWarnings("unchecked")
-		public DummyFlinkKafkaProducer(
-				Properties producerConfig,
-				KafkaPartitioner partitioner,
-				KafkaProducer mockProducer) {
-			super(DUMMY_TOPIC, (KeyedSerializationSchema< T >) mock(KeyedSerializationSchema.class), producerConfig, partitioner);
-			this.mockProducer = mockProducer;
+		DummyFlinkKafkaProducer(Properties producerConfig, KafkaPartitioner partitioner) {
 
+			super(DUMMY_TOPIC, (KeyedSerializationSchema<T>) mock(KeyedSerializationSchema.class), producerConfig, partitioner);
+
+			this.mockProducer = mock(KafkaProducer.class);
 			when(mockProducer.send(any(ProducerRecord.class), any(Callback.class))).thenAnswer(new Answer<Object>() {
 				@Override
 				public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
@@ -352,9 +343,11 @@ public class FlinkKafkaProducerBaseTest {
 					return null;
 				}
 			});
+
+			this.pendingCallbacks = new ArrayList<>();
 		}
 
-		public long getPendingSize() {
+		long getPendingSize() {
 			if (flushOnCheckpoint) {
 				return numPendingRecords();
 			} else {
@@ -365,17 +358,39 @@ public class FlinkKafkaProducerBaseTest {
 			}
 		}
 
-		public List<Callback> getPendingCallbacks() {
+		List<Callback> getPendingCallbacks() {
 			return pendingCallbacks;
 		}
 
-		@Override
-		protected <K, V> KafkaProducer<K, V> getKafkaProducer(Properties props) {
+		KafkaProducer<?, ?> getMockKafkaProducer() {
 			return mockProducer;
 		}
 
 		@Override
+		public void snapshotState(FunctionSnapshotContext ctx) throws Exception {
+			isFlushed = false;
+
+			super.snapshotState(ctx);
+
+			// if the snapshot implementation doesn't wait until all pending records are flushed, we should fail the test
+			if (flushOnCheckpoint && !isFlushed) {
+				throw new RuntimeException("Flushing is enabled; snapshots should be blocked until all pending records are flushed");
+			}
+		}
+
+		@SuppressWarnings("unchecked")
+		@Override
+		protected <K, V> KafkaProducer<K, V> getKafkaProducer(Properties props) {
+			return (KafkaProducer<K, V>) mockProducer;
+		}
+
+		@Override
 		protected void flush() {
+
+			// simply wait until the producer's pending records become zero.
+			// This relies on the fact that the producer's Callback implementation
+			// and pending records tracking logic is implemented correctly, otherwise
+			// we will loop forever.
 			while (numPendingRecords() > 0) {
 				try {
 					Thread.sleep(10);
@@ -383,6 +398,8 @@ public class FlinkKafkaProducerBaseTest {
 					throw new RuntimeException("Unable to flush producer, task was interrupted");
 				}
 			}
+
+			isFlushed = true;
 		}
 	}
 }
