@@ -18,6 +18,7 @@
 
 package org.apache.flink.core.memory;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
@@ -27,6 +28,7 @@ import java.util.Arrays;
 /**
  * Un-synchronized stream similar to Java's ByteArrayOutputStream that also exposes the current position.
  */
+@Internal
 public class ByteArrayOutputStreamWithPos extends OutputStream {
 
 	protected byte[] buffer;

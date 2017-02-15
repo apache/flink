@@ -18,6 +18,8 @@
 
 package org.apache.flink.util;
 
+import org.apache.flink.annotation.Internal;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Map;
@@ -33,6 +35,7 @@ import java.util.Map;
  * @param <C> Type of the closeable this registers
  * @param <T> Type for potential meta data associated with the registering closeables
  */
+@Internal
 public abstract class AbstractCloseableRegistry<C extends Closeable, T> implements Closeable {
 
 	protected final Map<Closeable, T> closeableToRef;
