@@ -59,8 +59,6 @@ public class StreamFlatMap<IN, OUT>
 	public void open() throws Exception {
 		super.open();
 
-		collector = new TimestampedCollector<>(output);
-
 		if(canBeParallelized())
 		    createExecutorService();
 	}
@@ -69,6 +67,7 @@ public class StreamFlatMap<IN, OUT>
 	public void close() throws Exception {
         if(canBeParallelized()) {
             executorService.invokeAll(tasks);
+
             closeExecutor();
         }
 
@@ -78,9 +77,9 @@ public class StreamFlatMap<IN, OUT>
 	@Override
 	public void processElement(final StreamRecord<IN> element) throws Exception {
         if(canBeParallelized())
-            tasks.add(new ProcessElementTask(userFunction, element, collector));
+            tasks.add(new ProcessElementTask(userFunction, element, new TimestampedCollector<>(output)));
         else
-            new ProcessElementTask(userFunction, element, collector).processElement();
+            new ProcessElementTask(userFunction, element, new TimestampedCollector<>(output)).processElement();
     }
 
     private boolean canBeParallelized() {
@@ -120,9 +119,7 @@ public class StreamFlatMap<IN, OUT>
 
         @Override
         public Void call() throws Exception {
-            // Avoid race condition when multiple threads change `collector` at the same time
-            synchronized(userFunction) { processElement(); }
-
+            processElement();
             return null;
         }
 
