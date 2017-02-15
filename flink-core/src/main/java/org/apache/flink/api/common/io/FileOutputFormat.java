@@ -104,7 +104,7 @@ public abstract class FileOutputFormat<IT> extends RichOutputFormat<IT> implemen
 	protected Path outputFilePath;
 	
 	/**
-	 * The write mode of the output.	
+	 * The write mode of the output.
 	 */
 	private WriteMode writeMode;
 	
@@ -249,7 +249,7 @@ public abstract class FileOutputFormat<IT> extends RichOutputFormat<IT> implemen
 		this.actualFilePath = (numTasks > 1 || outputDirectoryMode == OutputDirectoryMode.ALWAYS) ? p.suffix("/" + getDirectoryFileName(taskNumber)) : p;
 
 		// create output file
-		this.stream = fs.create(this.actualFilePath, writeMode == WriteMode.OVERWRITE);
+		this.stream = fs.create(this.actualFilePath, writeMode);
 		
 		// at this point, the file creation must have succeeded, or an exception has been thrown
 		this.fileCreated = true;
