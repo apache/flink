@@ -30,7 +30,6 @@ out/
 /docs/ruby2/.bundle
 /docs/ruby2/.rubydeps
 /docs/.jekyll-metadata
-/docs/spider.log
 *.ipr
 *.iws
 tools/flink
