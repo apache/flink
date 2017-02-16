@@ -41,7 +41,12 @@ class TestContext implements SourceContext<Tuple1<Integer>> {
 
 	@Override
 	public void emitWatermark(Watermark mark) {
-		// ignore it
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public void markAsTemporarilyIdle() {
+		throw new UnsupportedOperationException();
 	}
 
 	@Override

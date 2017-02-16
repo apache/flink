@@ -216,6 +216,20 @@ public interface SourceFunction<T> extends Function, Serializable {
 		@PublicEvolving
 		void emitWatermark(Watermark mark);
 
+		/**
+		 * Marks the source to be temporarily idle. This tells the system that this source will
+		 * temporarily stop emitting records and watermarks for an indefinite amount of time. This
+		 * is only relevant when running on {@link TimeCharacteristic#IngestionTime} and
+		 * {@link TimeCharacteristic#EventTime}, allowing downstream tasks to advance their
+		 * watermarks without the need to wait for watermarks from this source while it is idle.
+		 *
+		 * <p>Source functions should make a best effort to call this method as soon as they
+		 * acknowledge themselves to be idle. The system will consider the source to resume activity
+		 * again once {@link SourceContext#collect(T)}, {@link SourceContext#collectWithTimestamp(T, long)},
+		 * or {@link SourceContext#emitWatermark(Watermark)} is called to emit elements or watermarks from the source.
+		 */
+		@PublicEvolving
+		void markAsTemporarilyIdle();
 
 		/**
 		 * Returns the checkpoint lock. Please refer to the class-level comment in

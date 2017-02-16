@@ -228,6 +228,12 @@ public class StatefulSequenceSourceTest {
 
 		@Override
 		public void emitWatermark(Watermark mark) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public void markAsTemporarilyIdle() {
+			throw new UnsupportedOperationException();
 		}
 
 		@Override

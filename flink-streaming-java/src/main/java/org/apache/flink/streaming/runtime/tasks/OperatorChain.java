@@ -43,6 +43,7 @@ import org.apache.flink.streaming.runtime.partitioner.ConfigurableStreamPartitio
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusProvider;
 import org.apache.flink.util.XORShiftRandom;
 import org.slf4j.Logger;
@@ -63,7 +64,7 @@ import java.util.Random;
  *              head operator.
  */
 @Internal
-public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements StreamStatusProvider {
+public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements StreamStatusMaintainer {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(OperatorChain.class);
 	
@@ -151,7 +152,8 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 		return streamStatus;
 	}
 
-	public void setStreamStatus(StreamStatus status) throws IOException {
+	@Override
+	public void toggleStreamStatus(StreamStatus status) {
 		if (!status.equals(this.streamStatus)) {
 			this.streamStatus = status;
 

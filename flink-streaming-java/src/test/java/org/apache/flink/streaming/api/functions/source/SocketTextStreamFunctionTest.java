@@ -283,7 +283,14 @@ public class SocketTextStreamFunctionTest {
 					}
 
 					@Override
-					public void emitWatermark(Watermark mark) {}
+					public void emitWatermark(Watermark mark) {
+						throw new UnsupportedOperationException();
+					}
+
+					@Override
+					public void markAsTemporarilyIdle() {
+						throw new UnsupportedOperationException();
+					}
 
 					@Override
 					public Object getCheckpointLock() {

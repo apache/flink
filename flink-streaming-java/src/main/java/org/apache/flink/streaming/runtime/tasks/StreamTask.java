@@ -56,6 +56,7 @@ import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FutureUtil;
@@ -494,6 +495,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 	public Map<String, Accumulator<?, ?>> getAccumulatorMap() {
 		return accumulatorMap;
+	}
+
+	public StreamStatusMaintainer getStreamStatusMaintainer() {
+		return operatorChain;
 	}
 
 	Output<StreamRecord<OUT>> getHeadOutput() {

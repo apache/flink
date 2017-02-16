@@ -225,6 +225,11 @@ public class InputFormatSourceFunctionTest {
 		}
 
 		@Override
+		public void markAsTemporarilyIdle() {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
 		public Object getCheckpointLock() {
 			return null;
 		}

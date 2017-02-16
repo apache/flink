@@ -443,6 +443,12 @@ public class RMQSourceTest {
 
 		@Override
 		public void emitWatermark(Watermark mark) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public void markAsTemporarilyIdle() {
+			throw new UnsupportedOperationException();
 		}
 
 		@Override

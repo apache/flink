@@ -45,7 +45,7 @@ import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
-import org.apache.flink.streaming.runtime.tasks.OperatorChain;
+import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -107,7 +107,7 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 	 */
 	private int currentChannel = -1;
 
-	private final OperatorChain<?, TwoInputStreamOperator<IN1, IN2, ?>> operatorChain;
+	private final StreamStatusMaintainer streamStatusMaintainer;
 
 	private final TwoInputStreamOperator<IN1, IN2, ?> streamOperator;
 
@@ -129,7 +129,7 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 			Object lock,
 			IOManager ioManager,
 			Configuration taskManagerConfig,
-			OperatorChain<?, TwoInputStreamOperator<IN1, IN2, ?>> operatorChain,
+			StreamStatusMaintainer streamStatusMaintainer,
 			TwoInputStreamOperator<IN1, IN2, ?> streamOperator) throws IOException {
 
 		final InputGate inputGate = InputGateUtil.createInputGate(inputGates1, inputGates2);
@@ -185,7 +185,7 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 		this.firstStatus = StreamStatus.ACTIVE;
 		this.secondStatus = StreamStatus.ACTIVE;
 
-		this.operatorChain = checkNotNull(operatorChain);
+		this.streamStatusMaintainer = checkNotNull(streamStatusMaintainer);
 		this.streamOperator = checkNotNull(streamOperator);
 
 		this.statusWatermarkValve1 = new StatusWatermarkValve(numInputChannels1, new ForwardingValveOutputHandler1(streamOperator, lock));
@@ -355,13 +355,13 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 					firstStatus = streamStatus;
 
 					// check if we need to toggle the task's stream status
-					if (!streamStatus.equals(operatorChain.getStreamStatus())) {
+					if (!streamStatus.equals(streamStatusMaintainer.getStreamStatus())) {
 						if (streamStatus.isActive()) {
 							// we're no longer idle if at least one input has become active
-							operatorChain.setStreamStatus(StreamStatus.ACTIVE);
+							streamStatusMaintainer.toggleStreamStatus(StreamStatus.ACTIVE);
 						} else if (secondStatus.isIdle()) {
 							// we're idle once both inputs are idle
-							operatorChain.setStreamStatus(StreamStatus.IDLE);
+							streamStatusMaintainer.toggleStreamStatus(StreamStatus.IDLE);
 						}
 					}
 				}
@@ -399,13 +399,13 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 					secondStatus = streamStatus;
 
 					// check if we need to toggle the task's stream status
-					if (!streamStatus.equals(operatorChain.getStreamStatus())) {
+					if (!streamStatus.equals(streamStatusMaintainer.getStreamStatus())) {
 						if (streamStatus.isActive()) {
 							// we're no longer idle if at least one input has become active
-							operatorChain.setStreamStatus(StreamStatus.ACTIVE);
+							streamStatusMaintainer.toggleStreamStatus(StreamStatus.ACTIVE);
 						} else if (firstStatus.isIdle()) {
 							// we're idle once both inputs are idle
-							operatorChain.setStreamStatus(StreamStatus.IDLE);
+							streamStatusMaintainer.toggleStreamStatus(StreamStatus.IDLE);
 						}
 					}
 				}

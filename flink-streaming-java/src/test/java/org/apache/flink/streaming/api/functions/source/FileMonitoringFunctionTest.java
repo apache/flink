@@ -58,6 +58,9 @@ public class FileMonitoringFunctionTest {
 					public void emitWatermark(Watermark mark) {}
 
 					@Override
+					public void markAsTemporarilyIdle() {}
+
+					@Override
 					public Object getCheckpointLock() { return null; }
 
 					@Override

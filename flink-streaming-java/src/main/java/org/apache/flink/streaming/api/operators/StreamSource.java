@@ -23,6 +23,7 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 
@@ -51,12 +52,15 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 		this.chainingStrategy = ChainingStrategy.HEAD;
 	}
 
-	public void run(final Object lockingObject) throws Exception {
-		run(lockingObject, output);
+	public void run(final Object lockingObject, final StreamStatusMaintainer streamStatusMaintainer) throws Exception {
+		run(lockingObject, streamStatusMaintainer, output);
 	}
 
 	
-	public void run(final Object lockingObject, final Output<StreamRecord<OUT>> collector) throws Exception {
+	public void run(final Object lockingObject,
+			final StreamStatusMaintainer streamStatusMaintainer,
+			final Output<StreamRecord<OUT>> collector) throws Exception {
+
 		final TimeCharacteristic timeCharacteristic = getOperatorConfig().getTimeCharacteristic();
 
 		LatencyMarksEmitter latencyEmitter = null;
@@ -68,11 +72,17 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 				getOperatorConfig().getVertexID(),
 				getRuntimeContext().getIndexOfThisSubtask());
 		}
-		
+
 		final long watermarkInterval = getRuntimeContext().getExecutionConfig().getAutoWatermarkInterval();
 
 		this.ctx = StreamSourceContexts.getSourceContext(
-			timeCharacteristic, getProcessingTimeService(), lockingObject, collector, watermarkInterval);
+			timeCharacteristic,
+			getProcessingTimeService(),
+			lockingObject,
+			streamStatusMaintainer,
+			collector,
+			watermarkInterval,
+			-1);
 
 		try {
 			userFunction.run(ctx);
@@ -108,7 +118,7 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 	/**
 	 * Marks this source as canceled or stopped.
 	 * 
-	 * <p>This indicates that any exit of the {@link #run(Object, Output)} method
+	 * <p>This indicates that any exit of the {@link #run(Object, StreamStatusMaintainer, Output)} method
 	 * cannot be interpreted as the result of a finite source.  
 	 */
 	protected void markCanceledOrStopped() {
