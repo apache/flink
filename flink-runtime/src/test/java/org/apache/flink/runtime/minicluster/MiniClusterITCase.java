@@ -29,6 +29,8 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import java.io.IOException;
+
 /**
  * Integration test cases for the {@link MiniCluster}.
  */
@@ -95,7 +97,7 @@ public class MiniClusterITCase extends TestLogger {
 		miniCluster.runJobBlocking(job);
 	}
 
-	private static JobGraph getSimpleJob() {
+	private static JobGraph getSimpleJob() throws IOException {
 		JobVertex task = new JobVertex("Test task");
 		task.setParallelism(1);
 		task.setMaxParallelism(1);
