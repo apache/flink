@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.operators;
+package org.apache.flink.streaming.api.operators.multithreaded;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
@@ -31,7 +31,7 @@ import org.junit.Test;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
- * Tests for {@link StreamMap}. These test that:
+ * Tests for {@link MultiThreadedStreamFlatMap}. These test that:
  *
  * <ul>
  *     <li>RichFunction methods are called correctly</li>
@@ -39,7 +39,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  *     <li>Watermarks are correctly forwarded</li>
  * </ul>
  */
-public class StreamFlatMapTest {
+public class MultiThreadedStreamFlatMapTest {
 
     public static final class MyFlatMap implements FlatMapFunction<Integer, Integer> {
 
@@ -55,25 +55,29 @@ public class StreamFlatMapTest {
     }
 
     @Test
-    public void testFlatMap() throws Exception {
-        StreamFlatMap<Integer, Integer> operator = new StreamFlatMap<Integer, Integer>(new MyFlatMap());
-
-        OneInputStreamOperatorTestHarness<Integer, Integer> testHarness = new OneInputStreamOperatorTestHarness<Integer, Integer>(operator);
+    public void testMultiThreadedFlatMap() throws Exception {
+        MultiThreadedStreamFlatMap<Integer, Integer> operator = new MultiThreadedStreamFlatMap<Integer, Integer>(new MyFlatMap(), 8);
 
         long initialTime = 0L;
+
+        OneInputStreamOperatorTestHarness<Integer, Integer> testHarness = new OneInputStreamOperatorTestHarness<Integer, Integer>(operator);
         ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<Object>();
 
         testHarness.open();
 
         testHarness.processElement(new StreamRecord<Integer>(1, initialTime + 1));
         testHarness.processElement(new StreamRecord<Integer>(2, initialTime + 2));
+
         testHarness.processWatermark(new Watermark(initialTime + 2));
+
         testHarness.processElement(new StreamRecord<Integer>(3, initialTime + 3));
         testHarness.processElement(new StreamRecord<Integer>(4, initialTime + 4));
         testHarness.processElement(new StreamRecord<Integer>(5, initialTime + 5));
         testHarness.processElement(new StreamRecord<Integer>(6, initialTime + 6));
         testHarness.processElement(new StreamRecord<Integer>(7, initialTime + 7));
         testHarness.processElement(new StreamRecord<Integer>(8, initialTime + 8));
+
+        testHarness.close();
 
         expectedOutput.add(new StreamRecord<Integer>(2, initialTime + 2));
         expectedOutput.add(new StreamRecord<Integer>(4, initialTime + 2));
@@ -85,12 +89,13 @@ public class StreamFlatMapTest {
         expectedOutput.add(new StreamRecord<Integer>(8, initialTime + 8));
         expectedOutput.add(new StreamRecord<Integer>(64, initialTime + 8));
 
-        TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
+        TestHarnessUtil.assertOutputEqualsWithoutOrder("Output was not correct.", expectedOutput, testHarness.getOutput());
     }
 
     @Test
     public void testOpenClose() throws Exception {
-        StreamFlatMap<String, String> operator = new StreamFlatMap<String, String>(new TestOpenCloseFlatMapFunction());
+        MultiThreadedStreamFlatMap<String, String> operator = new MultiThreadedStreamFlatMap<String, String>(
+                new TestOpenCloseFlatMapFunction(), 1);
 
         OneInputStreamOperatorTestHarness<String, String> testHarness = new OneInputStreamOperatorTestHarness<String, String>(operator);
 
@@ -105,6 +110,7 @@ public class StreamFlatMapTest {
         Assert.assertTrue("RichFunction methods where not called.", TestOpenCloseFlatMapFunction.closeCalled);
         Assert.assertTrue("Output contains no elements.", testHarness.getOutput().size() > 0);
     }
+
 
     // This must only be used in one test, otherwise the static fields will be changed
     // by several tests concurrently

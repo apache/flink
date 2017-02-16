@@ -18,155 +18,32 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FlatMapFunction;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
-import org.apache.flink.core.fs.FSDataInputStream;
-import org.apache.flink.runtime.state.StateSnapshotContext;
-import org.apache.flink.streaming.api.operators.multithreaded.MultiThreadedTimestampedCollector;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.util.Preconditions;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.*;
 @Internal
 public class StreamFlatMap<IN, OUT>
-		extends AbstractUdfStreamOperator<OUT, FlatMapFunction<IN, OUT>>
-		implements OneInputStreamOperator<IN, OUT>, InputTypeConfigurable {
+        extends AbstractUdfStreamOperator<OUT, FlatMapFunction<IN, OUT>>
+        implements OneInputStreamOperator<IN, OUT> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private static final long TERMINATION_TIMEOUT = 5000L;
+    private transient TimestampedCollector<OUT> collector;
 
-	private int parallelism;
-	private ExecutorService executorService;
-	private List<Callable<Void>> tasks;
-
-	private transient TimestampedCollector<OUT> collector;
-
-    public StreamFlatMap(FlatMapFunction<IN, OUT> flatMapper, int parallelism) {
+    public StreamFlatMap(FlatMapFunction<IN, OUT> flatMapper) {
         super(flatMapper);
-
-        Preconditions.checkArgument(parallelism >= 0 ? true : false, "Invalid parallelism!");
-
-        this.parallelism = parallelism;
-        tasks = new ArrayList<>();
-
-        setChainingStrategy();
-    }
-
-	public StreamFlatMap(FlatMapFunction<IN, OUT> flatMapper) {
-		this(flatMapper, 0);
-	}
-
-    // ------------------------------------------------------------------------
-    //  operator life cycle
-    // ------------------------------------------------------------------------
-
-	@Override
-	public void open() throws Exception {
-		super.open();
-
-		if(canBeParallelized())
-		    createExecutorService();
-	}
-
-	@Override
-	public void close() throws Exception {
-        if(canBeParallelized()) {
-            executorService.invokeAll(tasks);
-
-            closeExecutor();
-        }
-
-        super.close();
-	}
-
-	@Override
-	public void processElement(final StreamRecord<IN> element) throws Exception {
-        if(canBeParallelized())
-            tasks.add(new ProcessElementTask(userFunction, element, new MultiThreadedTimestampedCollector<>(output)));
-        else
-            new ProcessElementTask(userFunction, element, new TimestampedCollector<>(output)).processElement();
-    }
-
-    // ------------------------------------------------------------------------
-    //  Checkpoint and recovery
-    // ------------------------------------------------------------------------
-
-    @Override
-    public void snapshotState(StateSnapshotContext context) throws Exception {
-        super.snapshotState(context);
+        chainingStrategy = ChainingStrategy.ALWAYS;
     }
 
     @Override
-    public void restoreState(FSDataInputStream in) throws Exception {
-        super.restoreState(in);
+    public void open() throws Exception {
+        super.open();
+        collector = new TimestampedCollector<>(output);
     }
 
     @Override
-    public void notifyOfCompletedCheckpoint(long checkpointId) throws Exception {
-        super.notifyOfCompletedCheckpoint(checkpointId);
-    }
-
-    // ------------------------------------------------------------------------
-    //  Serialization
-    // ------------------------------------------------------------------------
-
-    @Override
-    public void setInputType(TypeInformation<?> type, ExecutionConfig executionConfig) {
-
-    }
-
-    // ------------------------------------------------------------------------
-    //  Utilities
-    // ------------------------------------------------------------------------
-    private boolean canBeParallelized() {
-        return parallelism > 0;
-    }
-
-	private void setChainingStrategy() {
-		chainingStrategy = ChainingStrategy.ALWAYS;
-	}
-
-	private void createExecutorService() {
-		executorService = Executors.newFixedThreadPool(parallelism > 0 ? parallelism : 1);
-	}
-
-	private void closeExecutor() {
-		executorService.shutdown();
-
-		try {
-			if (!executorService.awaitTermination(TERMINATION_TIMEOUT, TimeUnit.MILLISECONDS))
-                executorService.shutdownNow();
-		} catch (InterruptedException interrupted) {
-			executorService.shutdownNow();
-		}
-	}
-
-    private class ProcessElementTask<IN, OUT> implements Callable {
-        private FlatMapFunction<IN, OUT> userFunction;
-        private StreamRecord<IN> element;
-        private TimestampedCollector<OUT> collector;
-
-        public ProcessElementTask(FlatMapFunction<IN, OUT> userFunction,  StreamRecord<IN> element,
-                                  TimestampedCollector<OUT> collector) {
-            this.userFunction = userFunction;
-            this.element = element;
-            this.collector = collector;
-        }
-
-        @Override
-        public Void call() throws Exception {
-            processElement();
-            return null;
-        }
-
-        public void processElement() throws Exception {
-            collector.setTimestamp(element);
-            userFunction.flatMap(element.getValue(), collector);
-        }
+    public void processElement(StreamRecord<IN> element) throws Exception {
+        collector.setTimestamp(element);
+        userFunction.flatMap(element.getValue(), collector);
     }
 }
