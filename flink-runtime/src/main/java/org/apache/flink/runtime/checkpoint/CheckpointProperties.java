@@ -86,7 +86,7 @@ public class CheckpointProperties implements Serializable {
 	 * @see CheckpointCoordinator
 	 * @see PendingCheckpoint
 	 */
-	public boolean forceCheckpoint() {
+	boolean forceCheckpoint() {
 		return forced;
 	}
 
@@ -98,7 +98,7 @@ public class CheckpointProperties implements Serializable {
 	 *
 	 * @see PendingCheckpoint
 	 */
-	public boolean externalizeCheckpoint() {
+	boolean externalizeCheckpoint() {
 		return externalize;
 	}
 
@@ -117,7 +117,7 @@ public class CheckpointProperties implements Serializable {
 	 *
 	 * @see CompletedCheckpointStore
 	 */
-	public boolean discardOnSubsumed() {
+	boolean discardOnSubsumed() {
 		return discardSubsumed;
 	}
 
@@ -131,7 +131,7 @@ public class CheckpointProperties implements Serializable {
 	 *
 	 * @see CompletedCheckpointStore
 	 */
-	public boolean discardOnJobFinished() {
+	boolean discardOnJobFinished() {
 		return discardFinished;
 	}
 
@@ -145,7 +145,7 @@ public class CheckpointProperties implements Serializable {
 	 *
 	 * @see CompletedCheckpointStore
 	 */
-	public boolean discardOnJobCancelled() {
+	boolean discardOnJobCancelled() {
 		return discardCancelled;
 	}
 
@@ -159,7 +159,7 @@ public class CheckpointProperties implements Serializable {
 	 *
 	 * @see CompletedCheckpointStore
 	 */
-	public boolean discardOnJobFailed() {
+	boolean discardOnJobFailed() {
 		return discardFailed;
 	}
 
@@ -173,8 +173,17 @@ public class CheckpointProperties implements Serializable {
 	 *
 	 * @see CompletedCheckpointStore
 	 */
-	public boolean discardOnJobSuspended() {
+	boolean discardOnJobSuspended() {
 		return discardSuspended;
+	}
+
+	/**
+	 * Returns whether the checkpoint properties describe a standard savepoint.
+	 *
+	 * @return <code>true</code> if the properties describe a savepoint, <code>false</code> otherwise.
+	 */
+	public boolean isSavepoint() {
+		return this == STANDARD_SAVEPOINT;
 	}
 
 	// ------------------------------------------------------------------------
@@ -306,13 +315,4 @@ public class CheckpointProperties implements Serializable {
 		}
 	}
 
-	/**
-	 * Returns whether the checkpoint properties describe a standard savepoint.
-	 *
-	 * @param props Checkpoint properties to check.
-	 * @return <code>true</code> if the properties describe a savepoint, <code>false</code> otherwise.
-	 */
-	public static boolean isSavepoint(CheckpointProperties props) {
-		return STANDARD_SAVEPOINT.equals(props);
-	}
 }

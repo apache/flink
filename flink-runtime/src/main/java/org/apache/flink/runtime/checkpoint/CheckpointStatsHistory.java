@@ -255,7 +255,7 @@ public class CheckpointStatsHistory implements Serializable {
 		// Update the latest checkpoint stats
 		if (completedOrFailed.getStatus().isCompleted()) {
 			CompletedCheckpointStats completed = (CompletedCheckpointStats) completedOrFailed;
-			if (CheckpointProperties.isSavepoint(completed.getProperties()) &&
+			if (completed.getProperties().isSavepoint() &&
 				(latestSavepoint == null ||
 					completed.getCheckpointId() > latestSavepoint.getCheckpointId())) {
 
