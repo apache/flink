@@ -41,34 +41,34 @@ import java.util.Properties;
  *
  * If you use this class in your project, please make sure to add a dependency to
  * <tt>hadoop-minikdc</tt>, e.g. in your <tt>pom.xml</tt>:
- * <pre>
+ * <pre>{@code
  * ...
- * &lt;dependencies>
- *   &lt;dependency>
- *     &lt;groupId>org.apache.hadoop&lt;/groupId>
- *     &lt;artifactId>hadoop-minikdc&lt;/artifactId>
- *     &lt;version>${minikdc.version}&lt;/version>
- *     &lt;scope>compile&lt;/scope>
- *   &lt;/dependency>
+ * <dependencies>
+ *   <dependency>
+ *     <groupId>org.apache.hadoop</groupId>
+ *     <artifactId>hadoop-minikdc</artifactId>
+ *     <version>${minikdc.version}</version>
+ *     <scope>compile</scope>
+ *   </dependency>
  * ...
- * &lt;/dependencies>
+ * </dependencies>
  * ...
  *
- * &lt;build>
- *   &lt;plugins>
- *     &lt;!--
+ * <build>
+ *   <plugins>
+ *     <!--
  *       https://issues.apache.org/jira/browse/DIRSHARED-134
  *       Required to pull the Mini-KDC transitive dependency
  *     -->
- *     &lt;plugin>
- *     &lt;groupId>org.apache.felix&lt;/groupId>
- *     &lt;artifactId>maven-bundle-plugin&lt;/artifactId>
- *     &lt;version>3.0.1&lt;/version>
- *     &lt;inherited>true&lt;/inherited>
- *     &lt;extensions>true&lt;/extensions>
- *   &lt;/plugin>
+ *     <plugin>
+ *     <groupId>org.apache.felix</groupId>
+ *     <artifactId>maven-bundle-plugin</artifactId>
+ *     <version>3.0.1</version>
+ *     <inherited>true</inherited>
+ *     <extensions>true</extensions>
+ *   </plugin>
  * ...
- * </pre>
+ * }</pre>
  */
 public class SecureTestEnvironment {
 
