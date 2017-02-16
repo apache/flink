@@ -94,18 +94,15 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 				MAX_FILE_STATE_THRESHOLD);
 		}
 		this.fileStateThreshold = fileStateSizeThreshold;
-		Path basePath = checkpointDataUri;
 
-		Path dir = new Path(basePath, jobId.toString());
+		Path basePath = checkpointDataUri;
+		filesystem = basePath.getFileSystem();
+
+		checkpointDirectory = createBasePath(filesystem, basePath, jobId);
 
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("Initializing file stream factory to URI {}.", dir);
+			LOG.debug("Initialed file stream factory to URI {}.", checkpointDirectory);
 		}
-
-		filesystem = basePath.getFileSystem();
-		filesystem.mkdirs(dir);
-
-		checkpointDirectory = dir;
 	}
 
 	@Override
@@ -115,7 +112,7 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 	public FsCheckpointStateOutputStream createCheckpointStateOutputStream(long checkpointID, long timestamp) throws Exception {
 		checkFileSystemInitialized();
 
-		Path checkpointDir = createCheckpointDirPath(checkpointID);
+		Path checkpointDir = createCheckpointDirPath(checkpointDirectory, checkpointID);
 		int bufferSize = Math.max(DEFAULT_WRITE_BUFFER_SIZE, fileStateThreshold);
 		return new FsCheckpointStateOutputStream(checkpointDir, filesystem, bufferSize, fileStateThreshold);
 	}
@@ -130,7 +127,13 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 		}
 	}
 
-	private Path createCheckpointDirPath(long checkpointID) {
+	protected Path createBasePath(FileSystem fs, Path checkpointDirectory, JobID jobID) throws IOException {
+		Path dir = new Path(checkpointDirectory, jobID.toString());
+		fs.mkdirs(dir);
+		return dir;
+	}
+
+	protected Path createCheckpointDirPath(Path checkpointDirectory, long checkpointID) {
 		return new Path(checkpointDirectory, "chk-" + checkpointID);
 	}
 

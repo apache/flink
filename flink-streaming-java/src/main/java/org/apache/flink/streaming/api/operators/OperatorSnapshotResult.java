@@ -26,7 +26,7 @@ import org.apache.flink.util.ExceptionUtils;
 import java.util.concurrent.RunnableFuture;
 
 /**
- * Result of {@link AbstractStreamOperator#snapshotState}.
+ * Result of {@link StreamOperator#snapshotState}.
  */
 public class OperatorSnapshotResult {
 

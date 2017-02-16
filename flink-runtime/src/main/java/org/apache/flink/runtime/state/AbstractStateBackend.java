@@ -29,6 +29,7 @@ import java.io.IOException;
  * A state backend defines how state is stored and snapshotted during checkpoints.
  */
 public abstract class AbstractStateBackend implements java.io.Serializable {
+
 	private static final long serialVersionUID = 4620415814639230247L;
 
 	/**
@@ -40,8 +41,26 @@ public abstract class AbstractStateBackend implements java.io.Serializable {
 	 */
 	public abstract CheckpointStreamFactory createStreamFactory(
 			JobID jobId,
-			String operatorIdentifier
-	) throws IOException;
+			String operatorIdentifier) throws IOException;
+
+	/**
+	 * Creates a {@link CheckpointStreamFactory} that can be used to create streams
+	 * that should end up in a savepoint.
+	 *
+	 * <p>This is only called if the triggered checkpoint is a savepoint. Commonly
+	 * this will return the same factory as for regular checkpoints, but maybe
+	 * slightly adjusted.
+	 *
+	 * @param jobId The {@link JobID} of the job for which we are creating checkpoint streams.
+	 * @param operatorIdentifier An identifier of the operator for which we create streams.
+	 * @param targetLocation An optional custom location for the savepoint stream.
+	 * @return The stream factory for savepoints.
+	 * @throws IOException Failures during stream creation are forwarded.
+	 */
+	public abstract CheckpointStreamFactory createSavepointStreamFactory(
+			JobID jobId,
+			String operatorIdentifier,
+			String targetLocation) throws IOException;
 
 	/**
 	 * Creates a new {@link AbstractKeyedStateBackend} that is responsible for keeping keyed state

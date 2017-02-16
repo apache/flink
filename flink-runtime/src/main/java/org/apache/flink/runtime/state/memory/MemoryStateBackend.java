@@ -75,6 +75,15 @@ public class MemoryStateBackend extends AbstractStateBackend {
 	}
 
 	@Override
+	public CheckpointStreamFactory createSavepointStreamFactory(
+			JobID jobId,
+			String operatorIdentifier,
+			String targetLocation) throws IOException {
+
+		return new MemCheckpointStreamFactory(maxStateSize);
+	}
+
+	@Override
 	public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
 			Environment env, JobID jobID,
 			String operatorIdentifier,

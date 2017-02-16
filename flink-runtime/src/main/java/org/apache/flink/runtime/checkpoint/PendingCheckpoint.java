@@ -214,7 +214,8 @@ public class PendingCheckpoint {
 					Savepoint savepoint = new SavepointV1(checkpointId, taskStates.values());
 					externalPath = SavepointStore.storeSavepoint(
 							targetDirectory,
-							savepoint);
+							savepoint
+					);
 				} catch (IOException e) {
 					LOG.error("Failed to persist checkpoint {}.",checkpointId, e);
 				}

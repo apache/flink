@@ -26,6 +26,7 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
@@ -161,7 +162,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	private Map<String, Accumulator<?, ?>> accumulatorMap;
 
 	private TaskStateHandles restoreStateHandles;
-
 
 	/** The currently active background materialization threads */
 	private final CloseableRegistry cancelables = new CloseableRegistry();
@@ -515,14 +515,14 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	}
 
 	@Override
-	public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData) throws Exception {
+	public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) throws Exception {
 		try {
 			// No alignment if we inject a checkpoint
 			CheckpointMetrics checkpointMetrics = new CheckpointMetrics()
 					.setBytesBufferedInAlignment(0L)
 					.setAlignmentDurationNanos(0L);
 
-			return performCheckpoint(checkpointMetaData, checkpointMetrics);
+			return performCheckpoint(checkpointMetaData, checkpointOptions, checkpointMetrics);
 		}
 		catch (Exception e) {
 			// propagate exceptions only if the task is still in "running" state
@@ -538,9 +538,13 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	}
 
 	@Override
-	public void triggerCheckpointOnBarrier(CheckpointMetaData checkpointMetaData, CheckpointMetrics checkpointMetrics) throws Exception {
+	public void triggerCheckpointOnBarrier(
+			CheckpointMetaData checkpointMetaData,
+			CheckpointOptions checkpointOptions,
+			CheckpointMetrics checkpointMetrics) throws Exception {
+
 		try {
-			performCheckpoint(checkpointMetaData, checkpointMetrics);
+			performCheckpoint(checkpointMetaData, checkpointOptions, checkpointMetrics);
 		}
 		catch (CancelTaskException e) {
 			throw new Exception("Operator " + getName() + " was cancelled while performing checkpoint " +
@@ -565,8 +569,13 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		}
 	}
 
-	private boolean performCheckpoint(CheckpointMetaData checkpointMetaData, CheckpointMetrics checkpointMetrics) throws Exception {
-		LOG.debug("Starting checkpoint {} on task {}", checkpointMetaData.getCheckpointId(), getName());
+	private boolean performCheckpoint(
+			CheckpointMetaData checkpointMetaData,
+			CheckpointOptions checkpointOptions,
+			CheckpointMetrics checkpointMetrics) throws Exception {
+
+		LOG.debug("Starting checkpoint ({}) {} on task {}",
+			checkpointMetaData.getCheckpointId(), checkpointOptions.getCheckpointType(), getName());
 
 		synchronized (lock) {
 			if (isRunning) {
@@ -577,9 +586,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				// Given this, we immediately emit the checkpoint barriers, so the downstream operators
 				// can start their checkpoint work as soon as possible
 				operatorChain.broadcastCheckpointBarrier(
-						checkpointMetaData.getCheckpointId(), checkpointMetaData.getTimestamp());
+						checkpointMetaData.getCheckpointId(),
+						checkpointMetaData.getTimestamp(),
+						checkpointOptions);
 
-				checkpointState(checkpointMetaData, checkpointMetrics);
+				checkpointState(checkpointMetaData, checkpointOptions, checkpointMetrics);
 				return true;
 			}
 			else {
@@ -632,8 +643,17 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		}
 	}
 
-	private void checkpointState(CheckpointMetaData checkpointMetaData, CheckpointMetrics checkpointMetrics) throws Exception {
-		CheckpointingOperation checkpointingOperation = new CheckpointingOperation(this, checkpointMetaData, checkpointMetrics);
+	private void checkpointState(
+			CheckpointMetaData checkpointMetaData,
+			CheckpointOptions checkpointOptions,
+			CheckpointMetrics checkpointMetrics) throws Exception {
+
+		CheckpointingOperation checkpointingOperation = new CheckpointingOperation(
+			this,
+			checkpointMetaData,
+			checkpointOptions,
+			checkpointMetrics);
+
 		checkpointingOperation.executeCheckpointing();
 	}
 
@@ -809,7 +829,13 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		return stateBackend.createStreamFactory(
 				getEnvironment().getJobID(),
 				createOperatorIdentifier(operator, configuration.getVertexID()));
+	}
 
+	public CheckpointStreamFactory createSavepointStreamFactory(StreamOperator<?> operator, String targetLocation) throws IOException {
+		return stateBackend.createSavepointStreamFactory(
+			getEnvironment().getJobID(),
+			createOperatorIdentifier(operator, configuration.getVertexID()),
+			targetLocation);
 	}
 
 	private String createOperatorIdentifier(StreamOperator<?> operator, int vertexId) {
@@ -1043,6 +1069,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		private final StreamTask<?, ?> owner;
 
 		private final CheckpointMetaData checkpointMetaData;
+		private final CheckpointOptions checkpointOptions;
 		private final CheckpointMetrics checkpointMetrics;
 
 		private final StreamOperator<?>[] allOperators;
@@ -1055,9 +1082,15 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		private final List<StreamStateHandle> nonPartitionedStates;
 		private final List<OperatorSnapshotResult> snapshotInProgressList;
 
-		public CheckpointingOperation(StreamTask<?, ?> owner, CheckpointMetaData checkpointMetaData, CheckpointMetrics checkpointMetrics) {
+		public CheckpointingOperation(
+				StreamTask<?, ?> owner,
+				CheckpointMetaData checkpointMetaData,
+				CheckpointOptions checkpointOptions,
+				CheckpointMetrics checkpointMetrics) {
+
 			this.owner = Preconditions.checkNotNull(owner);
 			this.checkpointMetaData = Preconditions.checkNotNull(checkpointMetaData);
+			this.checkpointOptions = Preconditions.checkNotNull(checkpointOptions);
 			this.checkpointMetrics = Preconditions.checkNotNull(checkpointMetrics);
 			this.allOperators = owner.operatorChain.getAllOperators();
 			this.nonPartitionedStates = new ArrayList<>(allOperators.length);
@@ -1132,14 +1165,16 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		@SuppressWarnings("deprecation")
 		private void checkpointStreamOperator(StreamOperator<?> op) throws Exception {
 			if (null != op) {
-				// first call the legacy checkpoint code paths 
+				// first call the legacy checkpoint code paths
 				nonPartitionedStates.add(op.snapshotLegacyOperatorState(
 						checkpointMetaData.getCheckpointId(),
-						checkpointMetaData.getTimestamp()));
+						checkpointMetaData.getTimestamp(),
+						checkpointOptions));
 
 				OperatorSnapshotResult snapshotInProgress = op.snapshotState(
 						checkpointMetaData.getCheckpointId(),
-						checkpointMetaData.getTimestamp());
+						checkpointMetaData.getTimestamp(),
+						checkpointOptions);
 
 				snapshotInProgressList.add(snapshotInProgress);
 			} else {
