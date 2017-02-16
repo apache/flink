@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.runtime.state.StateSnapshotContext;
+import org.apache.flink.streaming.api.operators.multithreaded.MultiThreadedTimestampedCollector;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Preconditions;
 
@@ -86,7 +87,7 @@ public class StreamFlatMap<IN, OUT>
 	@Override
 	public void processElement(final StreamRecord<IN> element) throws Exception {
         if(canBeParallelized())
-            tasks.add(new ProcessElementTask(userFunction, element, new TimestampedCollector<>(output)));
+            tasks.add(new ProcessElementTask(userFunction, element, new MultiThreadedTimestampedCollector<>(output)));
         else
             new ProcessElementTask(userFunction, element, new TimestampedCollector<>(output)).processElement();
     }
