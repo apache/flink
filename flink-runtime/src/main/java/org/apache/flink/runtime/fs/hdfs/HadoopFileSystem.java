@@ -26,6 +26,7 @@ import org.apache.flink.core.fs.HadoopFileSystemWrapper;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.permission.FsPermission;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -450,6 +451,11 @@ public final class HadoopFileSystem extends FileSystem implements HadoopFileSyst
 	public boolean rename(final Path src, final Path dst) throws IOException {
 		return this.fs.rename(new org.apache.hadoop.fs.Path(src.toString()),
 			new org.apache.hadoop.fs.Path(dst.toString()));
+	}
+
+	@Override
+	public void setPermission(Path p, String perm) throws IOException {
+		fs.setPermission(new org.apache.hadoop.fs.Path(p.toString()), new FsPermission(perm));
 	}
 
 	@SuppressWarnings("deprecation")

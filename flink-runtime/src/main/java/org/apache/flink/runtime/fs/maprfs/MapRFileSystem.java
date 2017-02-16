@@ -27,6 +27,7 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.hadoop.fs.permission.FsPermission;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.core.fs.BlockLocation;
@@ -370,6 +371,11 @@ public final class MapRFileSystem extends FileSystem {
 
 		return this.fs.rename(new org.apache.hadoop.fs.Path(src.toString()),
 				new org.apache.hadoop.fs.Path(dst.toString()));
+	}
+
+	@Override
+	public void setPermission(Path p, String perm) throws IOException {
+		fs.setPermission(new org.apache.hadoop.fs.Path(p.toString()), new FsPermission(perm));
 	}
 
 	@SuppressWarnings("deprecation")

@@ -631,6 +631,8 @@ public abstract class FileSystem {
 	 */
 	public abstract boolean rename(Path src, Path dst) throws IOException;
 
+	public abstract void setPermission(Path f, String perm) throws IOException;
+
 	/**
 	 * Returns true if this is a distributed file system, false otherwise.
 	 *

@@ -129,6 +129,11 @@ public class SafetyNetWrapperFileSystem extends FileSystem implements WrappingPr
 	}
 
 	@Override
+	public void setPermission(Path p, String perm) throws IOException {
+		unsafeFileSystem.setPermission(p, perm);
+	}
+
+	@Override
 	public boolean initOutPathLocalFS(Path outPath, WriteMode writeMode, boolean createDirectory) throws IOException {
 		return unsafeFileSystem.initOutPathLocalFS(outPath, writeMode, createDirectory);
 	}

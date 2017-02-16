@@ -34,6 +34,7 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.OperatingSystem;
 
+import org.apache.hadoop.fs.permission.FsPermission;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,6 +44,8 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.UnknownHostException;
+import java.nio.file.Files;
+import java.nio.file.attribute.PosixFilePermissions;
 
 /**
  * The class <code>LocalFile</code> provides an implementation of the {@link FileSystem} interface
@@ -262,6 +265,13 @@ public class LocalFileSystem extends FileSystem {
 		final File dstFile = pathToFile(dst);
 
 		return srcFile.renameTo(dstFile);
+	}
+
+	@Override
+	public void setPermission(Path p, String perm) throws IOException {
+		// use Hadoop class to translate numbers into String
+		FsPermission fsPerm = new FsPermission(perm);
+		Files.setPosixFilePermissions(pathToFile(p).toPath(), PosixFilePermissions.fromString(fsPerm.toString()));
 	}
 
 	@Override

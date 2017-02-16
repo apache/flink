@@ -104,6 +104,7 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 
 		filesystem = basePath.getFileSystem();
 		filesystem.mkdirs(dir);
+		filesystem.setPermission(dir, "700"); // set permission for path.
 
 		checkpointDirectory = dir;
 	}
