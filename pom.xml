@@ -958,6 +958,8 @@ under the License.
 					<compilerArgument>-Xlint:all</compilerArgument>
 				</configuration>
 			</plugin>
+
+			<!--surefire for unit tests and integration tests-->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
@@ -973,6 +975,7 @@ under the License.
 					<argLine>-Xms256m -Xmx800m -Dmvn.forkNumber=${surefire.forkNumber} -XX:-UseGCOverheadLimit</argLine>
 				</configuration>
 				<executions>
+					<!--execute all the unit tests-->
 					<execution>
 						<id>default-test</id>
 						<phase>test</phase>
@@ -980,12 +983,16 @@ under the License.
 							<goal>test</goal>
 						</goals>
 						<configuration>
+							<includes>
+								<include>**/*Test.*</include>
+							</includes>
 							<excludes>
 								<exclude>**/*ITCase.*</exclude>
 								<exclude>${flink-fast-tests-pattern}</exclude>
 							</excludes>
 						</configuration>
 					</execution>
+					<!--execute all the integration tests-->
 					<execution>
 						<id>integration-tests</id>
 						<phase>integration-test</phase>
