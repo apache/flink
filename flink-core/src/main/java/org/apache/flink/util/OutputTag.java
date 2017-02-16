@@ -67,6 +67,17 @@ public class OutputTag<T> implements Serializable {
 		}
 	}
 
+	/**
+	 * Creates a new named {@code OutputTag} with the given id and output {@link TypeInformation}.
+	 *
+	 * @param id The id of the created {@code OutputTag}.
+	 * @param typeInfo The {@code TypeInformation} for the side output.
+	 */
+	public OutputTag(String id, TypeInformation<T> typeInfo) {
+		this.id = Preconditions.checkNotNull(id, "OutputTag id cannot be null.");
+		this.typeInfo = Preconditions.checkNotNull(typeInfo, "TypeInformation cannot be null.");
+	}
+
 	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
 		in.defaultReadObject();
 		typeInfo = null;
