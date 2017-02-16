@@ -25,12 +25,12 @@ import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.{ScalarFunction, TableFunction}
 import org.apache.flink.table.functions.utils.{TableSqlFunction, UserDefinedFunctionUtils}
+import org.apache.flink.table.functions.{TimeModeIndicatorFunction, ScalarFunction, TableFunction}
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
 
-import org.apache.flink.table.calcite.functions.FlinkStreamFunctionCatalog
 
 /**
   * A catalog for looking up (user-defined) functions, used during validation phases
@@ -194,7 +194,7 @@ object FunctionCatalog {
     "at" -> classOf[ArrayElementAt],
     "element" -> classOf[ArrayElement],
 
-    "procTime" -> classOf[CurrentTimestamp]
+    "proctime" -> classOf[CurrentTimestamp]
     
     // TODO implement function overloading here
     // "floor" -> classOf[TemporalFloor]
@@ -324,7 +324,7 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     SqlStdOperatorTable.SCALAR_QUERY,
     SqlStdOperatorTable.EXISTS,
     // FLINK STREAMING FUNCTIONS
-    FlinkStreamFunctionCatalog.PROCTIME
+    TimeModeIndicatorFunction.PROCTIME
   )
 
   builtInSqlOperators.foreach(register)

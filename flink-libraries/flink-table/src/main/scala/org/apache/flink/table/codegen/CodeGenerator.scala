@@ -1613,4 +1613,17 @@ class CodeGenerator(
     reusablePerRecordStatements.add(field)
     fieldTerm
   }
+  
+      /**
+    * Adds a reusable epoch timestamp.
+    */
+  def addReusableEpochTimestamp(): String = {
+    val fieldTerm = s"timestamp"
+    val field =
+      s"""
+        |final long $fieldTerm = 0L;
+        |""".stripMargin
+    reusablePerRecordStatements.add(field)
+    fieldTerm
+  }
 }
