@@ -21,6 +21,7 @@ package org.apache.flink.cep.operator;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.ByteSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.EitherTypeInfo;
@@ -72,12 +73,18 @@ public class CEPOperatorUtils {
 					keySerializer,
 					nfaFactory));
 		} else {
-			patternStream = inputStream.transform(
+
+			KeySelector<T, Byte> keySelector = new NullByteKeySelector<>();
+			TypeSerializer<Byte> keySerializer = ByteSerializer.INSTANCE;
+
+			patternStream = inputStream.keyBy(new NullByteKeySelector<T>()).transform(
 				"CEPPatternOperator",
 				(TypeInformation<Map<String, T>>) (TypeInformation<?>) TypeExtractor.getForClass(Map.class),
-				new CEPPatternOperator<>(
+				new KeyedCEPPatternOperator<>(
 					inputSerializer,
 					isProcessingTime,
+					keySelector,
+					keySerializer,
 					nfaFactory
 				)).forceNonParallel();
 		}
@@ -127,16 +134,36 @@ public class CEPOperatorUtils {
 					keySerializer,
 					nfaFactory));
 		} else {
-			patternStream = inputStream.transform(
+
+			KeySelector<T, Byte> keySelector = new NullByteKeySelector<>();
+			TypeSerializer<Byte> keySerializer = ByteSerializer.INSTANCE;
+
+			patternStream = inputStream.keyBy(new NullByteKeySelector<T>()).transform(
 				"TimeoutCEPPatternOperator",
 				eitherTypeInformation,
-				new TimeoutCEPPatternOperator<>(
+				new TimeoutKeyedCEPPatternOperator<>(
 					inputSerializer,
 					isProcessingTime,
+					keySelector,
+					keySerializer,
 					nfaFactory
 				)).forceNonParallel();
 		}
 
 		return patternStream;
+	}
+
+	/**
+	 * Used as dummy KeySelector to allow using WindowOperator for Non-Keyed Windows.
+	 * @param <T>
+	 */
+	protected static class NullByteKeySelector<T> implements KeySelector<T, Byte> {
+
+		private static final long serialVersionUID = 614256539098549020L;
+
+		@Override
+		public Byte getKey(T value) throws Exception {
+			return 0;
+		}
 	}
 }
