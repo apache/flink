@@ -21,11 +21,10 @@ package org.apache.flink.runtime.blob;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.FileUtils;
-
+import org.apache.flink.util.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.Closeable;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -187,9 +186,9 @@ public final class BlobCache implements BlobService {
 				catch (Throwable t) {
 					// we use "catch (Throwable)" to keep the root exception. Otherwise that exception
 					// it would be replaced by any exception thrown in the finally block
-					closeSilently(os);
-					closeSilently(is);
-					closeSilently(bc);
+					IOUtils.closeQuietly(os);
+					IOUtils.closeQuietly(is);
+					IOUtils.closeQuietly(bc);
 
 					if (t instanceof IOException) {
 						throw (IOException) t;
@@ -291,19 +290,4 @@ public final class BlobCache implements BlobService {
 		return this.storageDir;
 	}
 
-	// ------------------------------------------------------------------------
-	//  Miscellaneous
-	// ------------------------------------------------------------------------
-
-	private void closeSilently(Closeable closeable) {
-		if (closeable != null) {
-			try {
-				closeable.close();
-			} catch (Throwable t) {
-				if (LOG.isDebugEnabled()) {
-					LOG.debug("Error while closing resource after BLOB transfer.", t);
-				}
-			}
-		}
-	}
 }
