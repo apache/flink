@@ -47,7 +47,7 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -110,7 +110,7 @@ public class YarnIntraNonHaMasterServicesTest extends TestLogger {
 		services.close();
 	}
 
-	@Test(timeout=5000)
+	@Test
 	public void testClosingReportsToLeader() throws Exception {
 		final Configuration flinkConfig = new Configuration();
 
@@ -124,12 +124,12 @@ public class YarnIntraNonHaMasterServicesTest extends TestLogger {
 			retrieval.start(listener);
 
 			// wait until the contender has become the leader
-			verify(listener).notifyLeaderAddress(anyString(), any(UUID.class));
+			verify(listener, timeout(1000L).times(1)).notifyLeaderAddress(anyString(), any(UUID.class));
 
 			// now we can close the election service
 			services.close();
 
-			verify(contender, times(1)).handleError(any(Exception.class));
+			verify(contender, timeout(1000L).times(1)).handleError(any(Exception.class));
 		}
 	}
 
