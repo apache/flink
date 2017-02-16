@@ -28,11 +28,11 @@ import org.apache.flink.table.expressions.Expression
 trait FilterableTableSource {
 
   /** return an predicate expression that was set. */
-  def getPredicate: Option[Expression]
+  def getPredicate: Array[Expression]
 
   /**
     * @param predicate a filter expression that will be applied to fields to return.
     * @return an unsupported predicate expression.
     */
-  def setPredicate(predicate: Expression): Expression
+  def setPredicate(predicate: Array[Expression]): Array[Expression]
 }

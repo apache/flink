@@ -59,16 +59,14 @@ class BatchTableSourceScan(
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
-    val s = tableSource match {
+    val predicate = tableSource match {
       case source: FilterableTableSource =>
-        source.getPredicate.getOrElse("").toString.replaceAll("\\'|\\\"|\\s", "")
+        source.getPredicate.map(_.toString).mkString(" AND ")
       case _ => ""
     }
     super.explainTerms(pw)
       .item("fields", TableEnvironment.getFieldNames(tableSource).mkString(", "))
-      // TODO should we have this? If yes how it should look like, as in DataCalc?
-      // (current example, s = "id>2")
-      .item("filter", s)
+      .item("filter", predicate)
   }
 
   override def translateToPlan(tableEnv: BatchTableEnvironment): DataSet[Row] = {

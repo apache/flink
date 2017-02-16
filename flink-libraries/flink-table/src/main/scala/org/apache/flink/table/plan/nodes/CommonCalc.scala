@@ -151,14 +151,13 @@ trait CommonCalc {
     s"Calc($name)"
   }
 
-  // TODO change methods names?
   private[flink] def computeSelfCost(
       calcProgram: RexProgram,
       planner: RelOptPlanner,
       rowCnt: Double): RelOptCost = {
 
     // compute number of expressions that do not access a field or literal, i.e. computations,
-    //   conditions, etc. We only want to account for computations, not for simple projections.
+    // conditions, etc. We only want to account for computations, not for simple projections.
     // CASTs in RexProgram are reduced as far as possible by ReduceExpressionsRule
     // in normalization stage. So we should ignore CASTs here in optimization stage.
     val compCnt = calcProgram.getExprList.asScala.toList.count {

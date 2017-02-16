@@ -18,15 +18,14 @@
 
 package org.apache.flink.table.plan.rules.util
 
-import java.util
-
 import org.apache.calcite.rel.core.TableScan
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.{SqlKind, SqlOperator}
 import org.apache.calcite.tools.RelBuilder
-import org.apache.flink.table.api.TableEnvironment
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.table.api.TableException
+import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.sources.TableSource
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -40,121 +39,90 @@ object RexProgramExpressionExtractor {
     * @param rexProgram The RexProgram to analyze
     * @return converted expression
     */
-  def extractExpression(rexProgram: RexProgram): Expression = {
+  def extractPredicateExpression(
+      rexProgram: RexProgram,
+      rexBuilder: RexBuilder): Option[Array[Expression]] = {
 
     val refInputToName = getInputsWithNames(rexProgram)
     val visitor = new ExpressionVisitor(refInputToName)
 
     val condition = rexProgram.getCondition
     if (condition == null) {
-      return null
+      return None
     }
 
-    rexProgram.expandLocalRef(condition).accept(visitor)
-    val parsedExpression = ExpressionParser.parseExpression(visitor.getStringPredicate)
+    val cnf: RexNode = RexUtil.toCnf(rexBuilder, condition)
+    cnf match {
+      case ref: RexLocalRef =>
+        rexProgram.expandLocalRef(ref).accept(visitor)
+      case _ =>
+        throw new TableException("cnf node is not RexLocalRef")
+    }
 
-    parsedExpression
+    cnf.accept(visitor)
+    Option(visitor.getCNFPredicates)
   }
 
   /**
-    * verify can the original expression be divided into `new` expression
-    * and remainder part without loss of logical correctness
+    * verify should we apply remained expressions on
     *
     * @param original initial expression
-    * @param lump part of original expression
+    * @param remained remained part of original expression
     * @return whether or not to decouple parts of the origin expression
     */
-  def verifyExpressions(original: Expression, lump: Expression): Boolean = {
-    if (original == null & lump == null) {
-      return false
-    }
-    if (original.children.isEmpty | !checkOperator(original)) {
-      return false
-    }
-    val head = original.children.head
-    val last = original.children.last
-    if (head.checkEquals(lump)) {
-      return checkOperator(original)
-    }
-    if (last.checkEquals(lump)) {
-      return checkOperator(original)
-    }
-    verifyExpressions(head, lump) match {
-      case true => true
-      case _ => verifyExpressions(last, lump)
-    }
-  }
-
-  private def checkOperator(original: Expression): Boolean = {
-    original match {
-      case o: Or => false
-      case _ => true
-    }
-  }
+  def verifyExpressions(
+      original: Array[Expression],
+      remained: Array[Expression]): Boolean =
+    remained forall (original contains)
 
   /**
     * Generates a new RexProgram based on new expression.
     *
     * @param rexProgram original RexProgram
     * @param scan input source
-    * @param expression filter condition (fields must be resolved)
-    * @param tableSource source to get names and type of table
+    * @param predicate filter condition (fields must be resolved)
     * @param relBuilder builder for converting expression to Rex
     */
   def rewriteRexProgram(
       rexProgram: RexProgram,
       scan: TableScan,
-      expression: Expression,
-      tableSource: TableSource[_])(implicit relBuilder: RelBuilder): RexProgram = {
+      predicate: Array[Expression])(implicit relBuilder: RelBuilder): RexProgram = {
 
-    if (expression != null) {
+    val inType = rexProgram.getInputRowType
+    val fieldTypes: Map[String, TypeInformation[_]] = inType.getFieldList
+      .map(f => f.getName -> FlinkTypeFactory.toTypeInfo(f.getType))
+      .toMap
 
-      val names = TableEnvironment.getFieldNames(tableSource)
+    relBuilder.push(scan)
 
-      val nameToType = names
-        .zip(TableEnvironment.getFieldTypes(tableSource)).toMap
-
-      relBuilder.push(scan)
-
-      val rule: PartialFunction[Expression, Expression] = {
-        case u@UnresolvedFieldReference(name) =>
-          ResolvedFieldReference(name, nameToType(name))
-      }
-
-      val newProjectExpressions = rewriteProjects(rexProgram, names)
-
-      val resolvedExp = expression.postOrderTransform(rule)
-
-      RexProgram.create(
-        rexProgram.getInputRowType,
-        newProjectExpressions,
-        resolvedExp.toRexNode,
-        rexProgram.getOutputRowType,
-        relBuilder.getRexBuilder)
-    } else {
-      rexProgram
+    val rule: PartialFunction[Expression, Expression] = {
+      case u@UnresolvedFieldReference(name) =>
+        ResolvedFieldReference(name, fieldTypes(name))
     }
-  }
 
-  private def rewriteProjects(
-      rexProgram: RexProgram,
-      names: Array[String]): util.List[RexNode] = {
+    val projs = rexProgram.getProjectList.map(rexProgram.expandLocalRef)
+    val resolvedExp = predicate.map(_.postOrderTransform(rule))
+    val expr: Expression = ExpressionParser.parseExpression(resolvedExp mkString "&&")
 
-    val inputRewriter = new InputRewriter(names.indices.toArray)
-    val newProject = rexProgram.getProjectList.map(
-      exp => rexProgram.expandLocalRef(exp).accept(inputRewriter)
-    ).toList.asJava
-    newProject
+    RexProgram.create(
+      inType,
+      projs,
+      expr.toRexNode,
+      rexProgram.getOutputRowType,
+      relBuilder.getRexBuilder)
   }
 
   private def getInputsWithNames(rexProgram: RexProgram): Map[RexInputRef, String] = {
     val names = rexProgram.getInputRowType.getFieldNames
-    rexProgram.getExprList.asScala.map {
-      case i: RexInputRef =>
-        i -> names(i.getIndex)
-      case _ => null
-    }.filter(_ != null)
-      .toMap
+
+    val buffer = for {
+      exp <- rexProgram.getExprList.asScala
+      if exp.isInstanceOf[RexInputRef]
+      ref = exp.asInstanceOf[RexInputRef]
+    } yield {
+      ref -> names(ref.getIndex)
+    }
+    buffer.toMap
   }
 }
 
@@ -163,36 +131,28 @@ object RexProgramExpressionExtractor {
   */
 class ExpressionVisitor(
     nameMap: Map[RexInputRef, String])
-  extends RexVisitorImpl[Unit](true) {
+  extends RexVisitorImpl[Expression](true) {
 
-  private val predicateBuilder = new mutable.StringBuilder()
+  private var predicateCNFArray = new mutable.ArrayBuffer[Expression]()
 
-  def getStringPredicate: String = predicateBuilder.toString()
+  def getCNFPredicates: Array[Expression] = predicateCNFArray.toArray
 
-  override def visitInputRef(inputRef: RexInputRef): Unit = {
-    predicateBuilder.append(nameMap(inputRef))
+  override def visitInputRef(inputRef: RexInputRef): Expression = {
+    predicateCNFArray += UnresolvedFieldReference("stub")
+    UnresolvedFieldReference("stub")
   }
 
-  override def visitLiteral(literal: RexLiteral): Unit = {
-    predicateBuilder.append(literal.getValue)
+  override def visitLiteral(literal: RexLiteral): Expression = {
+    null
   }
 
-  override def visitLocalRef(localRef: RexLocalRef): Unit = {
-    localRef.accept(this)
+  override def visitLocalRef(localRef: RexLocalRef): Expression = {
+    null
   }
 
-  override def visitCall(call: RexCall): Unit = {
+  override def visitCall(call: RexCall): Expression = {
     call.operands(0).accept(this)
     val op = getTableLikeOperator(call.op)
-    predicateBuilder.append(s" $op ")
     call.operands(1).accept(this)
-  }
-
-  def getTableLikeOperator(op: SqlOperator) = {
-    op.getKind match {
-      case SqlKind.AND => "&&"
-      case SqlKind.OR => "||"
-      case _ => op.toString
-    }
   }
 }
