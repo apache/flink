@@ -124,6 +124,7 @@ public class ArchivedExecutionGraphTest {
 			100,
 			100,
 			1,
+			0,
 			ExternalizedCheckpointSettings.none(),
 			Collections.<ExecutionJobVertex>emptyList(),
 			Collections.<ExecutionJobVertex>emptyList(),

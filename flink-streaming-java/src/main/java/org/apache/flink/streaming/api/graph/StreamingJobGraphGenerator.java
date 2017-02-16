@@ -537,7 +537,7 @@ public class StreamingJobGraphGenerator {
 		JobSnapshottingSettings settings = new JobSnapshottingSettings(
 				triggerVertices, ackVertices, commitVertices, interval,
 				cfg.getCheckpointTimeout(), cfg.getMinPauseBetweenCheckpoints(),
-				cfg.getMaxConcurrentCheckpoints(),
+				cfg.getMaxConcurrentCheckpoints(), cfg.getMaxUnsuccessfulCheckpoints(),
 				externalizedCheckpointSettings,
 				streamGraph.getStateBackend(),
 				isExactlyOnce);

@@ -61,7 +61,7 @@ import org.slf4j.LoggerFactory;
  */
 public class PendingCheckpoint {
 
-	private static final Logger LOG = LoggerFactory.getLogger(CheckpointCoordinator.class);
+	private static final Logger LOG = LoggerFactory.getLogger(PendingCheckpoint.class);
 
 	private final Object lock = new Object();
 

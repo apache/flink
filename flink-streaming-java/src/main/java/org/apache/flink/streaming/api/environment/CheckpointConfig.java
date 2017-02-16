@@ -47,6 +47,8 @@ public class CheckpointConfig implements java.io.Serializable {
 	/** The default limit of concurrently happening checkpoints: one */
 	public static final int DEFAULT_MAX_CONCURRENT_CHECKPOINTS = 1;
 
+	public static final int DEFAULT_MAX_UNSUCCESSFUL_CHECKPOINTS = 0;
+
 	// ------------------------------------------------------------------------
 
 	/** Checkpointing mode (exactly-once vs. at-least-once). */
@@ -70,6 +72,8 @@ public class CheckpointConfig implements java.io.Serializable {
 	/** Cleanup behaviour for persistent checkpoints. */
 	private ExternalizedCheckpointCleanup externalizedCheckpointCleanup;
 
+	/** the maximum number of unsuccessful checkpoints **/
+	private int maxUnsuccessfulCheckpoints = DEFAULT_MAX_UNSUCCESSFUL_CHECKPOINTS;
 	// ------------------------------------------------------------------------
 
 	/**
@@ -202,6 +206,17 @@ public class CheckpointConfig implements java.io.Serializable {
 			throw new IllegalArgumentException("The maximum number of concurrent attempts must be at least one.");
 		}
 		this.maxConcurrentCheckpoints = maxConcurrentCheckpoints;
+	}
+
+	public void setMaxUnsuccessfulCheckpoints(int maxUnsuccessfulCheckpoints) {
+		if(maxUnsuccessfulCheckpoints < 0 ) {
+			throw new IllegalArgumentException("The maximum number of unsuccessful checkpoint attempts must be at least 0.");
+		}
+		this.maxUnsuccessfulCheckpoints = maxUnsuccessfulCheckpoints;
+	}
+
+	public int getMaxUnsuccessfulCheckpoints() {
+		return this.maxUnsuccessfulCheckpoints;
 	}
 
 	/**

@@ -65,6 +65,23 @@ public class JobSnapshottingSettings implements java.io.Serializable {
 	 */
 	private final boolean isExactlyOnce;
 
+	private final int maxUnsuccessfulCheckpoints;
+
+	public JobSnapshottingSettings(
+		List<JobVertexID> verticesToTrigger,
+		List<JobVertexID> verticesToAcknowledge,
+		List<JobVertexID> verticesToConfirm,
+		long checkpointInterval,
+		long checkpointTimeout,
+		long minPauseBetweenCheckpoints,
+		int maxConcurrentCheckpoints,
+		ExternalizedCheckpointSettings externalizedCheckpointSettings,
+		@Nullable StateBackend defaultStateBackend,
+		boolean isExactlyOnce) {
+		this(verticesToTrigger, verticesToAcknowledge, verticesToConfirm, checkpointInterval, checkpointTimeout,
+			minPauseBetweenCheckpoints, maxConcurrentCheckpoints, 0, externalizedCheckpointSettings, defaultStateBackend, isExactlyOnce);
+	}
+
 	public JobSnapshottingSettings(
 			List<JobVertexID> verticesToTrigger,
 			List<JobVertexID> verticesToAcknowledge,
@@ -73,6 +90,7 @@ public class JobSnapshottingSettings implements java.io.Serializable {
 			long checkpointTimeout,
 			long minPauseBetweenCheckpoints,
 			int maxConcurrentCheckpoints,
+			int maxUnsuccessfulCheckpoints,
 			ExternalizedCheckpointSettings externalizedCheckpointSettings,
 			@Nullable StateBackend defaultStateBackend,
 			boolean isExactlyOnce) {
@@ -93,6 +111,7 @@ public class JobSnapshottingSettings implements java.io.Serializable {
 		this.externalizedCheckpointSettings = requireNonNull(externalizedCheckpointSettings);
 		this.defaultStateBackend = defaultStateBackend;
 		this.isExactlyOnce = isExactlyOnce;
+		this.maxUnsuccessfulCheckpoints = maxUnsuccessfulCheckpoints;
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -138,14 +157,16 @@ public class JobSnapshottingSettings implements java.io.Serializable {
 		return isExactlyOnce;
 	}
 
+	public int getMaxUnsuccessfulCheckpoints() { return maxUnsuccessfulCheckpoints; }
+
 	// --------------------------------------------------------------------------------------------
 	
 	@Override
 	public String toString() {
 		return String.format("SnapshotSettings: interval=%d, timeout=%d, pause-between=%d, " +
-						"maxConcurrent=%d, trigger=%s, ack=%s, commit=%s",
+						"maxConcurrent=%d, trigger=%s, ack=%s, commit=%s, maxUnsuccessfulCheckpoints=%s",
 						checkpointInterval, checkpointTimeout,
 						minPauseBetweenCheckpoints, maxConcurrentCheckpoints,
-						verticesToTrigger, verticesToAcknowledge, verticesToConfirm);
+						verticesToTrigger, verticesToAcknowledge, verticesToConfirm, maxUnsuccessfulCheckpoints);
 	}
 }

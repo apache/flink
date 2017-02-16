@@ -132,6 +132,8 @@ public class CheckpointCoordinator {
 
 	/** The maximum number of checkpoints that may be in progress at the same time */
 	private final int maxConcurrentCheckpointAttempts;
+	/** The maximum number of unsuccessful checkpoints */
+	private final int maxUnsuccessfulCheckpoints;
 
 	/** The timer that handles the checkpoint timeouts and triggers periodic checkpoints */
 	private final Timer timer;
@@ -163,6 +165,23 @@ public class CheckpointCoordinator {
 	private CheckpointStatsTracker statsTracker;
 
 	// --------------------------------------------------------------------------------------------
+	public CheckpointCoordinator(
+		JobID job,
+		long baseInterval,
+		long checkpointTimeout,
+		long minPauseBetweenCheckpoints,
+		int maxConcurrentCheckpointAttempts,
+		ExternalizedCheckpointSettings externalizeSettings,
+		ExecutionVertex[] tasksToTrigger,
+		ExecutionVertex[] tasksToWaitFor,
+		ExecutionVertex[] tasksToCommitTo,
+		CheckpointIDCounter checkpointIDCounter,
+		CompletedCheckpointStore completedCheckpointStore,
+		String checkpointDirectory,
+		Executor executor) {
+		this(job, baseInterval, checkpointTimeout, minPauseBetweenCheckpoints, maxConcurrentCheckpointAttempts, 0, externalizeSettings, tasksToTrigger, tasksToWaitFor, tasksToCommitTo,
+			checkpointIDCounter, completedCheckpointStore, checkpointDirectory, executor);
+	}
 
 	public CheckpointCoordinator(
 			JobID job,
@@ -170,6 +189,7 @@ public class CheckpointCoordinator {
 			long checkpointTimeout,
 			long minPauseBetweenCheckpoints,
 			int maxConcurrentCheckpointAttempts,
+			int maxUnsuccessfulCheckpoints,
 			ExternalizedCheckpointSettings externalizeSettings,
 			ExecutionVertex[] tasksToTrigger,
 			ExecutionVertex[] tasksToWaitFor,
@@ -184,6 +204,7 @@ public class CheckpointCoordinator {
 		checkArgument(checkpointTimeout >= 1, "Checkpoint timeout must be larger than zero");
 		checkArgument(minPauseBetweenCheckpoints >= 0, "minPauseBetweenCheckpoints must be >= 0");
 		checkArgument(maxConcurrentCheckpointAttempts >= 1, "maxConcurrentCheckpointAttempts must be >= 1");
+		checkArgument(maxUnsuccessfulCheckpoints >= 0, "maxUnsuccessfulCheckpoints must be >= 0");
 
 		if (externalizeSettings.externalizeCheckpoints() && checkpointDirectory == null) {
 			throw new IllegalStateException("CheckpointConfig says to persist periodic " +
@@ -207,6 +228,7 @@ public class CheckpointCoordinator {
 		this.checkpointTimeout = checkpointTimeout;
 		this.minPauseBetweenCheckpointsNanos = minPauseBetweenCheckpoints * 1_000_000;
 		this.maxConcurrentCheckpointAttempts = maxConcurrentCheckpointAttempts;
+		this.maxUnsuccessfulCheckpoints = maxUnsuccessfulCheckpoints;
 		this.tasksToTrigger = checkNotNull(tasksToTrigger);
 		this.tasksToWaitFor = checkNotNull(tasksToWaitFor);
 		this.tasksToCommitTo = checkNotNull(tasksToCommitTo);
@@ -461,6 +483,9 @@ public class CheckpointCoordinator {
 			catch (Throwable t) {
 				int numUnsuccessful = numUnsuccessfulCheckpointsTriggers.incrementAndGet();
 				LOG.warn("Failed to trigger checkpoint (" + numUnsuccessful + " consecutive failed attempts so far)", t);
+				if(numUnsuccessful > maxUnsuccessfulCheckpoints) {
+					return failExecution(executions);
+				}
 				return new CheckpointTriggerResult(CheckpointDeclineReason.EXCEPTION);
 			}
 
@@ -577,10 +602,25 @@ public class CheckpointCoordinator {
 				if (!checkpoint.isDiscarded()) {
 					checkpoint.abortError(new Exception("Failed to trigger checkpoint"));
 				}
+				if(numUnsuccessful > maxUnsuccessfulCheckpoints) {
+					return failExecution(executions);
+				}
 				return new CheckpointTriggerResult(CheckpointDeclineReason.EXCEPTION);
 			}
 
 		} // end trigger lock
+	}
+
+	private CheckpointTriggerResult failExecution(Execution[] executions) {
+		if (currentPeriodicTrigger != null) {
+			currentPeriodicTrigger.cancel();
+			currentPeriodicTrigger = null;
+		}
+		for (Execution execution : executions) {
+			// fail the graph
+			execution.fail(new Throwable("The number of max unsuccessful checkpoints attempts exhausted"));
+		}
+		return new CheckpointTriggerResult(CheckpointDeclineReason.MAX_UNSUCCESSFUL_ATTEMPTS_EXHAUSTED);
 	}
 
 	/**
