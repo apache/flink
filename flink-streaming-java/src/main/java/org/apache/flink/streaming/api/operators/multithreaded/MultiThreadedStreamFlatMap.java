@@ -49,7 +49,7 @@ public class MultiThreadedStreamFlatMap<IN, OUT>
     private int parallelism;
     private ExecutorService executorService;
     private List<Callable<Void>> tasks;
-    private Object lock;
+    private transient Object lock;
 
     public MultiThreadedStreamFlatMap(FlatMapFunction<IN, OUT> flatMapper, int parallelism) {
         super(flatMapper);
@@ -112,7 +112,6 @@ public class MultiThreadedStreamFlatMap<IN, OUT>
 
     @Override
     public void setInputType(TypeInformation<?> type, ExecutionConfig executionConfig) {
-
     }
 
     // ------------------------------------------------------------------------
