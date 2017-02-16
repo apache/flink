@@ -32,6 +32,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.functions.NullByteKeySelector;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction;
@@ -1123,18 +1124,5 @@ public class AllWindowedStream<T, W extends Window> {
 
 	public TypeInformation<T> getInputType() {
 		return input.getType();
-	}
-
-	/**
-	 * Used as dummy KeySelector to allow using WindowOperator for Non-Keyed Windows.
-	 * @param <T>
-	 */
-	private static class NullByteKeySelector<T> implements KeySelector<T, Byte> {
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		public Byte getKey(T value) throws Exception {
-			return 0;
-		}
 	}
 }

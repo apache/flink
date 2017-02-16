@@ -40,25 +40,27 @@ import java.util.Map;
 public class KeyedCEPPatternOperator<IN, KEY> extends AbstractKeyedCEPPatternOperator<IN, KEY, Map<String, IN>> {
 	private static final long serialVersionUID = 5328573789532074581L;
 
-	public KeyedCEPPatternOperator(TypeSerializer<IN> inputSerializer, boolean isProcessingTime, KeySelector<IN, KEY> keySelector, TypeSerializer<KEY> keySerializer, NFACompiler.NFAFactory<IN> nfaFactory) {
+	public KeyedCEPPatternOperator(
+			TypeSerializer<IN> inputSerializer,
+			boolean isProcessingTime,
+			KeySelector<IN, KEY> keySelector,
+			TypeSerializer<KEY> keySerializer,
+			NFACompiler.NFAFactory<IN> nfaFactory) {
+
 		super(inputSerializer, isProcessingTime, keySelector, keySerializer, nfaFactory);
 	}
 
 	@Override
 	protected void processEvent(NFA<IN> nfa, IN event, long timestamp) {
-		Tuple2<Collection<Map<String, IN>>, Collection<Tuple2<Map<String, IN>, Long>>> patterns = nfa.process(
-			event,
-			timestamp);
-
-		Collection<Map<String, IN>> matchedPatterns = patterns.f0;
-
-		emitMatchedSequences(matchedPatterns, timestamp);
+		Tuple2<Collection<Map<String, IN>>, Collection<Tuple2<Map<String, IN>, Long>>> patterns =
+			nfa.process(event, timestamp);
+		emitMatchedSequences(patterns.f0, timestamp);
 	}
 
 	@Override
 	protected void advanceTime(NFA<IN> nfa, long timestamp) {
-		Tuple2<Collection<Map<String, IN>>, Collection<Tuple2<Map<String, IN>, Long>>> patterns = nfa.process(null, timestamp);
-
+		Tuple2<Collection<Map<String, IN>>, Collection<Tuple2<Map<String, IN>, Long>>> patterns =
+			nfa.process(null, timestamp);
 		emitMatchedSequences(patterns.f0, timestamp);
 	}
 
