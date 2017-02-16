@@ -42,7 +42,7 @@ angular.module('flinkApp')
 
 # --------------------------------------
 
-.controller 'SingleJobController', ($scope, $state, $stateParams, JobsService, MetricsService, $rootScope, flinkConfig, $interval) ->#, $q) ->
+.controller 'SingleJobController', ($scope, $state, $stateParams, JobsService, MetricsService, $rootScope, flinkConfig, $interval) ->
   $scope.jobid = $stateParams.jobid
   $scope.job = null
   $scope.plan = null
@@ -335,7 +335,7 @@ angular.module('flinkApp')
       MetricsService.getMetrics(jid, node.id, metricIds).then (data) ->
         values = []
         for key, value of data.values
-          values.push(id: key, value: value)
+          values.push(id: key.replace('.currentLowWatermark', ''), value: value)
         watermarks[node.id] = values
         if index >= $scope.plan.nodes.length - 1
           deferred.resolve(watermarks)
@@ -371,6 +371,5 @@ angular.module('flinkApp')
     if $scope.plan
       setWatermarks($scope.plan.nodes).then (data) ->
         $scope.watermarks = data
-
 
 # --------------------------------------
