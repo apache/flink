@@ -36,12 +36,12 @@ class DataSetJoinRule
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val join: LogicalJoin = call.rel(0).asInstanceOf[LogicalJoin]
-
     val joinInfo = join.analyzeCondition
 
-    // joins require an equi-condition or a conjunctive predicate with at least one equi-condition
-    // and disable outer joins with non-equality predicates(see FLINK-5520)
-    !joinInfo.pairs().isEmpty && (joinInfo.isEqui || join.getJoinType == JoinRelType.INNER)
+    // joins require at least one equi-condition, and currently not support full outer joins with
+    // non-equi-join or local predicates.
+    !joinInfo.pairs().isEmpty &&
+      (joinInfo.isEqui || (!joinInfo.isEqui && join.getJoinType != JoinRelType.FULL))
   }
 
   override def convert(rel: RelNode): RelNode = {

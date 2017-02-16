@@ -31,7 +31,7 @@ import org.apache.flink.api.java.DataSet
 import org.apache.flink.table.api.{BatchTableEnvironment, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGenerator
-import org.apache.flink.table.runtime.FlatJoinRunner
+import org.apache.flink.table.runtime.{FlatJoinRunner, OuterJoinCoGroupFunction, OuterJoinCoGroupRunner}
 import org.apache.flink.types.Row
 
 import scala.collection.JavaConversions._
@@ -147,13 +147,11 @@ class DataSetJoin(
     val leftDataSet = left.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
     val rightDataSet = right.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
 
-    val (joinOperator, nullCheck) = joinType match {
-      case JoinRelType.INNER => (leftDataSet.join(rightDataSet), false)
-      case JoinRelType.LEFT => (leftDataSet.leftOuterJoin(rightDataSet), true)
-      case JoinRelType.RIGHT => (leftDataSet.rightOuterJoin(rightDataSet), true)
-      case JoinRelType.FULL => (leftDataSet.fullOuterJoin(rightDataSet), true)
+    val nullCheck = if (joinType == JoinRelType.INNER) {
+      false
+    } else {
+      true
     }
-
     if (nullCheck && !config.getNullCheck) {
       throw TableException("Null check in TableConfig must be enabled for outer joins.")
     }
@@ -167,43 +165,88 @@ class DataSetJoin(
       returnType,
       joinRowType.getFieldNames)
 
-    var body = ""
+    val nonEquiJoinConditions = joinInfo.getRemaining(cluster.getRexBuilder)
+    val condition = generator.generateExpression(nonEquiJoinConditions)
+    val joinOpName = s"where: ($joinConditionToString), join: ($joinSelectionToString)"
 
-    if (joinInfo.isEqui) {
-      // only equality condition
-      body = s"""
+    if (joinInfo.isEqui || joinType == JoinRelType.INNER) {
+      val joinOperator = joinType match {
+        case JoinRelType.INNER => leftDataSet.join(rightDataSet)
+        case JoinRelType.LEFT => leftDataSet.leftOuterJoin(rightDataSet)
+        case JoinRelType.RIGHT => leftDataSet.rightOuterJoin(rightDataSet)
+        case JoinRelType.FULL => leftDataSet.fullOuterJoin(rightDataSet)
+      }
+      val body = if (joinInfo.isEqui) {
+        // only equality condition
+        s"""
            |${conversion.code}
            |${generator.collectorTerm}.collect(${conversion.resultTerm});
            |""".stripMargin
-    }
-    else {
-      val condition = generator.generateExpression(joinCondition)
-      body = s"""
+      } else {
+        // joinType == JoinRelType.INNER
+        s"""
            |${condition.code}
            |if (${condition.resultTerm}) {
            |  ${conversion.code}
            |  ${generator.collectorTerm}.collect(${conversion.resultTerm});
            |}
            |""".stripMargin
-    }
-    val genFunction = generator.generateFunction(
+      }
+
+      val genFunction = generator.generateFunction(
       ruleDescription,
       classOf[FlatJoinFunction[Row, Row, Row]],
       body,
       returnType)
 
-    val joinFun = new FlatJoinRunner[Row, Row, Row](
+      val joinFun = new FlatJoinRunner[Row, Row, Row](
       genFunction.name,
       genFunction.code,
       genFunction.returnType)
 
-    val joinOpName = s"where: ($joinConditionToString), join: ($joinSelectionToString)"
+      joinOperator
+        .where(leftKeys.toArray: _*)
+        .equalTo(rightKeys.toArray: _*)
+        .`with`(joinFun)
+        .name(joinOpName)
 
-    joinOperator
-      .where(leftKeys.toArray: _*)
-      .equalTo(rightKeys.toArray: _*)
-      .`with`(joinFun)
-      .name(joinOpName)
+    } else {
+      val conversionWithNull = if (joinType == JoinRelType.LEFT) {
+        generator.generateConverterResultWithOneSideNullExpression(
+        returnType,
+        joinRowType.getFieldNames,
+        false)
+      }else {
+        generator.generateConverterResultWithOneSideNullExpression(
+        returnType,
+        joinRowType.getFieldNames,
+        true)
+      }
+
+      val genFunction = generator.generateOuterJoinCoGroupFunction(
+        ruleDescription,
+        joinType,
+        condition,
+        conversion,
+        conversionWithNull,
+        leftDataSet.getType,
+        rightDataSet.getType,
+        classOf[OuterJoinCoGroupFunction[Row, Row, Row]],
+        returnType
+      )
+
+      val joinFun = new OuterJoinCoGroupRunner[Row, Row, Row](
+        genFunction.name,
+        genFunction.code,
+        genFunction.returnType)
+
+      leftDataSet.coGroup(rightDataSet)
+        .where(leftKeys.toArray: _*)
+        .equalTo(rightKeys.toArray: _*)
+        .`with`(joinFun)
+        .name(joinOpName)
+
+    } // non-equi-join predicates not supported in full outer joins
   }
 
   private def joinSelectionToString: String = {
@@ -211,7 +254,6 @@ class DataSetJoin(
   }
 
   private def joinConditionToString: String = {
-
     val inFields = joinRowType.getFieldNames.asScala.toList
     getExpressionString(joinCondition, inFields, None)
   }
