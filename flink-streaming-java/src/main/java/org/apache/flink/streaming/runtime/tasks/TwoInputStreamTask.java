@@ -65,10 +65,6 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputS
 			}
 		}
 
-		@SuppressWarnings("unchecked")
-		OperatorChain<?, TwoInputStreamOperator<IN1, IN2, ?>> operatorChain =
-				(OperatorChain) this.operatorChain;
-
 		this.inputProcessor = new StreamTwoInputProcessor<>(
 				inputList1, inputList2,
 				inputDeserializer1, inputDeserializer2,
@@ -77,7 +73,7 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputS
 				getCheckpointLock(),
 				getEnvironment().getIOManager(),
 				getEnvironment().getTaskManagerInfo().getConfiguration(),
-				operatorChain,
+				getStreamStatusMaintainer(),
 				this.headOperator);
 
 		// make sure that stream tasks report their I/O statistics

@@ -84,6 +84,7 @@ import org.apache.flink.streaming.api.operators.StreamCheckpointedOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.SerializedValue;
 
@@ -759,7 +760,9 @@ public class StreamTaskTest extends TestLogger {
 		}
 
 		@Override
-		public void run(Object lockingObject, Output<StreamRecord<Long>> collector) throws Exception {
+		public void run(Object lockingObject,
+						StreamStatusMaintainer streamStatusMaintainer,
+						Output<StreamRecord<Long>> collector) throws Exception {
 			while (!canceled) {
 				try {
 					Thread.sleep(500);
