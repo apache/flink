@@ -60,7 +60,7 @@ class StreamTableSourceScan(
   override def explainTerms(pw: RelWriter): RelWriter = {
     val s = tableSource match {
       case source: FilterableTableSource =>
-        source.getPredicate.getOrElse("").toString.replaceAll("\\'|\\\"|\\s", "")
+        source.getPredicate.map(_.toString).mkString(" AND ")
       case _ => ""
     }
     super.explainTerms(pw)

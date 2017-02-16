@@ -142,7 +142,7 @@ class TestFilterableTableSource(
     with FilterableTableSource
     with DefinedFieldNames {
 
-  private var filterPredicate: Option[Expression] = None
+  private var filterPredicate: Array[Expression] = Array.empty
 
   /** Returns the data of the table as a [[DataSet]]. */
   override def getDataSet(execEnv: ExecutionEnvironment): DataSet[Row] = {
@@ -159,13 +159,13 @@ class TestFilterableTableSource(
   private def generateDynamicCollection(
     num: Int,
     fieldNames: Array[String],
-    predicate: Option[Expression]): Seq[Row] = {
+    predicate: Array[Expression]): Seq[Row] = {
 
     if (predicate.isEmpty) {
       throw new RuntimeException("filter expression was not set")
     }
 
-    val literal = predicate.get.children.last
+    val literal = predicate(0).children.last
       .asInstanceOf[Literal]
       .value.asInstanceOf[Int]
 
@@ -202,7 +202,7 @@ class TestFilterableTableSource(
   }
 
   /** Returns the [[TypeInformation]] for the return type. */
-  override def getReturnType: TypeInformation[Row] = new RowTypeInfo(fieldTypes: _*)
+  override def getReturnType: TypeInformation[Row] = new RowTypeInfo(fieldTypes, fieldNames)
 
   /** Returns the names of the table fields. */
   override def getFieldNames: Array[String] = fieldNames
@@ -210,15 +210,11 @@ class TestFilterableTableSource(
   /** Returns the indices of the table fields. */
   override def getFieldIndices: Array[Int] = fieldNames.indices.toArray
 
-  def getPredicate: Option[Expression] = filterPredicate
+  def getPredicate: Array[Expression] = filterPredicate
 
   /** Return an unsupported predicate expression. */
-  override def setPredicate(predicate: Expression): Expression = {
-    val (filterPredicate, unused) = extractLeftPredicateWithGraterThan(predicate)
-    if (filterPredicate.isDefined) {
-      this.filterPredicate = filterPredicate
-    }
-    unused
+  override def setPredicate(predicate: Array[Expression]): Array[Expression] = {
+    predicate
   }
 
   private def extractLeftPredicateWithGraterThan(

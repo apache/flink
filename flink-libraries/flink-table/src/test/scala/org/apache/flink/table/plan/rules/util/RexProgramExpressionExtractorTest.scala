@@ -54,10 +54,11 @@ class RexProgramExpressionExtractorTest {
 
   @Test
   def testExtractExpression(): Unit = {
+    val builder: RexBuilder = new RexBuilder(typeFactory)
     val program = buildRexProgram(
-      allFieldNames, allFieldTypes, typeFactory, new RexBuilder(typeFactory))
+      allFieldNames, allFieldTypes, typeFactory, builder)
     val originalExp = ExpressionParser.parseExpression("amount * price < 100 && id > 6")
-    val extractedExp = extractExpression(program)
+    val extractedExp = extractPredicateExpression(program, builder)
     assertEquals(originalExp, extractedExp)
   }
 
@@ -81,15 +82,11 @@ class RexProgramExpressionExtractorTest {
     val tEnv = CommonTestData.getMockTableEnvironment
     val builder = FlinkRelBuilder.create(tEnv.getFrameworkConfig)
     val tableScan = new MockTableScan(builder.getRexBuilder)
-    val tableSource = CommonTestData.getFilterableTableSource(
-      allFieldNames.toArray,
-      allFieldTypeInfos)
     val newExpression = ExpressionParser.parseExpression("amount * price < 100")
     val newRexProgram = rewriteRexProgram(
       originalRexProgram,
       tableScan,
-      newExpression,
-      tableSource
+      Array(newExpression)
     )(builder)
 
     val newArray = Array(
@@ -103,26 +100,26 @@ class RexProgramExpressionExtractorTest {
     assertTrue(extractExprStrList(newRexProgram) sameElements newArray)
   }
 
-  @Test
-  def testVerifyExpressions(): Unit = {
-    val strPart = "f1 < 4"
-    val part = parseExpression(strPart)
-
-    val shortFalseOrigin = parseExpression(s"f0 > 10 || $strPart")
-    assertFalse(verifyExpressions(shortFalseOrigin, part))
-
-    val longFalseOrigin = parseExpression(s"(f0 > 10 || (($strPart) > POWER(f0, f1))) && 2")
-    assertFalse(verifyExpressions(longFalseOrigin, part))
-
-    val shortOkayOrigin = parseExpression(s"f0 > 10 && ($strPart)")
-    assertTrue(verifyExpressions(shortOkayOrigin, part))
-
-    val longOkayOrigin = parseExpression(s"f0 > 10 && (($strPart) > POWER(f0, f1))")
-    assertTrue(verifyExpressions(longOkayOrigin, part))
-
-    val longOkayOrigin2 = parseExpression(s"(f0 > 10 || (2 > POWER(f0, f1))) && $strPart")
-    assertTrue(verifyExpressions(longOkayOrigin2, part))
-  }
+//  @Test
+//  def testVerifyExpressions(): Unit = {
+//    val strPart = "f1 < 4"
+//    val part = parseExpression(strPart)
+//
+//    val shortFalseOrigin = parseExpression(s"f0 > 10 || $strPart")
+//    assertFalse(verifyExpressions(shortFalseOrigin, part))
+//
+//    val longFalseOrigin = parseExpression(s"(f0 > 10 || (($strPart) > POWER(f0, f1))) && 2")
+//    assertFalse(verifyExpressions(longFalseOrigin, part))
+//
+//    val shortOkayOrigin = parseExpression(s"f0 > 10 && ($strPart)")
+//    assertTrue(verifyExpressions(shortOkayOrigin, part))
+//
+//    val longOkayOrigin = parseExpression(s"f0 > 10 && (($strPart) > POWER(f0, f1))")
+//    assertTrue(verifyExpressions(longOkayOrigin, part))
+//
+//    val longOkayOrigin2 = parseExpression(s"(f0 > 10 || (2 > POWER(f0, f1))) && $strPart")
+//    assertTrue(verifyExpressions(longOkayOrigin2, part))
+//  }
 
   private def buildRexProgram(
       fieldNames: List[String],

@@ -20,6 +20,8 @@ package org.apache.flink.table.plan.rules.dataSet
 
 import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
+import org.apache.calcite.rex.RexProgram
+import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.table.plan.nodes.dataset.{BatchTableSourceScan, DataSetCalc}
 import org.apache.flink.table.plan.rules.util.RexProgramExpressionExtractor._
 import org.apache.flink.table.sources.FilterableTableSource
@@ -30,9 +32,11 @@ class PushFilterIntoBatchTableSourceScanRule extends RelOptRule(
   "PushFilterIntoBatchTableSourceScanRule") {
 
   override def matches(call: RelOptRuleCall) = {
+    val calc: DataSetCalc = call.rel(0).asInstanceOf[DataSetCalc]
     val scan: BatchTableSourceScan = call.rel(1).asInstanceOf[BatchTableSourceScan]
     scan.tableSource match {
-      case _: FilterableTableSource => true
+      case _: FilterableTableSource =>
+        calc.calcProgram.getCondition != null
       case _ => false
     }
   }
@@ -43,26 +47,30 @@ class PushFilterIntoBatchTableSourceScanRule extends RelOptRule(
 
     val tableSource = scan.tableSource.asInstanceOf[FilterableTableSource]
 
-    val expression = extractExpression(calc.calcProgram)
-    val unusedExpr = tableSource.setPredicate(expression)
+    val builder: RelBuilder = call.builder()
+    val program: RexProgram = calc.calcProgram
+    val predicate = extractPredicateExpression(program, builder.getRexBuilder)
 
-    if (verifyExpressions(expression, unusedExpr)) {
+    if (predicate.isDefined) {
+      val remainingPredicate = tableSource.setPredicate(predicate.get)
 
-      val newCalcProgram = rewriteRexProgram(
-        calc.calcProgram,
-        scan,
-        unusedExpr,
-        scan.tableSource)(call.builder())
+      if (verifyExpressions(predicate.get, remainingPredicate)) {
 
-      val newCalc = new DataSetCalc(
-        calc.getCluster,
-        calc.getTraitSet,
-        scan,
-        calc.getRowType,
-        newCalcProgram,
-        description)
+        val newCalcProgram = rewriteRexProgram(
+          program,
+          scan,
+          remainingPredicate)(builder)
 
-      call.transformTo(newCalc)
+        val newCalc = new DataSetCalc(
+          calc.getCluster,
+          calc.getTraitSet,
+          scan,
+          calc.getRowType,
+          newCalcProgram,
+          description)
+
+        call.transformTo(newCalc)
+      }
     }
   }
 }

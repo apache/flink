@@ -110,7 +110,7 @@ class TableSourceITCase(
     tableEnv.registerTableSource(tableName, CommonTestData.getFilterableTableSource())
     val results = tableEnv
       .scan(tableName)
-      .where("amount > 4 && price < 9")
+      .where("amount > 4 || price < 9")
       .select("id, name")
       .collect()
 
