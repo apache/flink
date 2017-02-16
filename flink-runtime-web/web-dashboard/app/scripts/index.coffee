@@ -114,6 +114,13 @@ angular.module('flinkApp', ['ui.router', 'angularMoment', 'dndLists'])
         templateUrl: "partials/jobs/job.plan.node-list.metrics.html"
         controller: 'JobPlanMetricsController'
 
+  .state "single-job.plan.watermarks",
+    url: "/watermarks"
+    views:
+      'node-details':
+        templateUrl: "partials/jobs/job.plan.node-list.watermarks.html"
+        controller: 'JobPlanWatermarksController'
+
   .state "single-job.plan.taskmanagers",
     url: "/taskmanagers"
     views:
