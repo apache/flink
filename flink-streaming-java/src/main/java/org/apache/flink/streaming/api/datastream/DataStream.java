@@ -522,7 +522,7 @@ public class DataStream<T> {
 		TypeInformation<R> outType = TypeExtractor.getFlatMapReturnTypes(clean(flatMapper),
 				getType(), Utils.getCallLocationName(), true);
 
-		return transform("Flat Map", outType,
+		return transform("Multi Threaded Flat Map", outType,
 				new MultiThreadedStreamFlatMap<>(clean(flatMapper), parallelism));
 	}
 
