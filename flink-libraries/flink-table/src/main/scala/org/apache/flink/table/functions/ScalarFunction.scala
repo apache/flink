@@ -18,11 +18,13 @@
 
 package org.apache.flink.table.functions
 
+import org.apache.commons.codec.digest.DigestUtils
 import org.apache.flink.api.common.functions.InvalidTypesException
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.expressions.{Expression, ScalarFunctionCall}
+import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.serialize
 
 /**
   * Base class for a user-defined scalar function. A user-defined scalar functions maps zero, one,
@@ -56,8 +58,10 @@ abstract class ScalarFunction extends UserDefinedFunction {
     ScalarFunctionCall(this, params)
   }
 
-  override def toString: String = getClass.getCanonicalName
-
+  override def toString: String = {
+    val md5  =  DigestUtils.md5Hex(serialize(this))
+    getClass.getCanonicalName.replace('.', '$').concat("$").concat(md5)
+  }
   // ----------------------------------------------------------------------------------------------
 
   /**

@@ -19,10 +19,9 @@
 
 package org.apache.flink.table.functions.utils
 
-import java.lang.{Integer => JInt, Long => JLong}
+import java.lang.{Long => JLong, Integer => JInt}
 import java.lang.reflect.{Method, Modifier}
 import java.sql.{Date, Time, Timestamp}
-import java.io.{ByteArrayInputStream, ByteArrayOutputStream, ObjectInputStream, ObjectOutputStream}
 
 import org.apache.commons.codec.binary.Base64
 import com.google.common.primitives.Primitives
@@ -39,15 +38,6 @@ import org.apache.flink.util.InstantiationUtil
 object UserDefinedFunctionUtils {
 
   /**
-    * Instantiates a user-defined function.
-    */
-  def instantiate[T <: UserDefinedFunction](clazz: Class[T]): T = {
-    val constructor = clazz.getDeclaredConstructor()
-    constructor.setAccessible(true)
-    constructor.newInstance()
-  }
-
-  /**
     * Checks if a user-defined function can be easily instantiated.
     */
   def checkForInstantiation(clazz: Class[_]): Unit = {
@@ -61,12 +51,6 @@ object UserDefinedFunctionUtils {
     else if (InstantiationUtil.isNonStaticInnerClass(clazz)) {
       throw ValidationException("The class is an inner class, but not statically accessible.")
     }
-
-    // check for default constructor (can be private)
-    clazz
-      .getDeclaredConstructors
-      .find(_.getParameterTypes.isEmpty)
-      .getOrElse(throw ValidationException("Function class needs a default constructor."))
   }
 
   /**
@@ -327,17 +311,14 @@ object UserDefinedFunctionUtils {
 
   @throws[Exception]
   def serialize(function: UserDefinedFunction): String = {
-    val byteArrayOutPut = new ByteArrayOutputStream
-    val objectOutPut = new ObjectOutputStream(byteArrayOutPut)
-    objectOutPut.writeObject(function)
-    objectOutPut.close()
-    Base64.encodeBase64URLSafeString(byteArrayOutPut.toByteArray)
+    val byteArray = InstantiationUtil.serializeObject(function)
+    Base64.encodeBase64URLSafeString(byteArray)
   }
 
   @throws[Exception]
   def deserialize(data: String): UserDefinedFunction = {
     val byteData = Base64.decodeBase64(data)
-    new ObjectInputStream(
-      new ByteArrayInputStream(byteData)).readObject.asInstanceOf[UserDefinedFunction]
+    InstantiationUtil
+      .deserializeObject[UserDefinedFunction](byteData, Thread.currentThread.getContextClassLoader)
   }
 }

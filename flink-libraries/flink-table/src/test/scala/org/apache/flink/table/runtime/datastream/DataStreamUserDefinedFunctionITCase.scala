@@ -21,10 +21,11 @@ import org.apache.flink.api.scala._
 import org.apache.flink.types.Row
 import org.apache.flink.table.api.scala.stream.utils.StreamITCase
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.utils.TableFunc3
+import org.apache.flink.table.utils.{TableFunc0, TableFunc3}
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
 import org.apache.flink.table.api.TableEnvironment
+import org.apache.flink.table.expressions.utils.Func13
 import org.junit.Assert._
 import org.junit.Test
 
@@ -33,14 +34,58 @@ import scala.collection.mutable
 class DataStreamUserDefinedFunctionITCase extends StreamingMultipleProgramsTestBase {
 
   @Test
+  def testCrossJoin(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+
+    val t = testData(env).toTable(tEnv).as('a, 'b, 'c)
+    val func0 = new TableFunc0
+
+    val result = t
+      .join(func0('c) as('d, 'e))
+      .select('c, 'd, 'e)
+      .toDataStream[Row]
+
+    result.addSink(new StreamITCase.StringSink)
+    env.execute()
+
+    val expected = mutable.MutableList("Jack#22,Jack,22", "John#19,John,19", "Anna#44,Anna,44")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testLeftOuterJoin(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+
+    val t = testData(env).toTable(tEnv).as('a, 'b, 'c)
+    val func0 = new TableFunc0
+
+    val result = t
+      .leftOuterJoin(func0('c) as('d, 'e))
+      .select('c, 'd, 'e)
+      .toDataStream[Row]
+
+    result.addSink(new StreamITCase.StringSink)
+    env.execute()
+
+    val expected = mutable.MutableList(
+      "nosharp,null,null", "Jack#22,Jack,22",
+      "John#19,John,19", "Anna#44,Anna,44")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
   def testTableFunctionConstructorWithParams(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamITCase.clear
 
-    val t = testTableFunctionData(env).toTable(tEnv).as('a, 'b, 'c)
+    val t = testData(env).toTable(tEnv).as('a, 'b, 'c)
     val config = Map("key1" -> "value1", "key2" -> "value2")
-    val func30 = new TableFunc3
+    val func30 = new TableFunc3(null)
     val func31 = new TableFunc3("OneConf_")
     val func32 = new TableFunc3("TwoConf_", config)
 
@@ -63,12 +108,38 @@ class DataStreamUserDefinedFunctionITCase extends StreamingMultipleProgramsTestB
       "Jack#22,Jack,OneConf_Jack,TwoConf__key=key2_value=value2_Jack,22,22,22",
       "John#19,John,OneConf_John,TwoConf__key=key1_value=value1_John,19,19,19",
       "John#19,John,OneConf_John,TwoConf__key=key2_value=value2_John,19,19,19"
-      )
+    )
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
-  private def testTableFunctionData(env: StreamExecutionEnvironment)
-    : DataStream[(Int, Long, String)] = {
+  @Test
+  def testScalarFunctionConstructorWithParams(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+
+    val t = testData(env).toTable(tEnv).as('a, 'b, 'c)
+    val func0 = new Func13("default")
+    val func1 = new Func13("Sunny")
+    val func2 = new Func13("kevin2")
+
+    val result = t.select(func0('c), func1('c),func2('c))
+
+    result.addSink(new StreamITCase.StringSink)
+    env.execute()
+
+    val expected = mutable.MutableList(
+      "default-Anna#44,Sunny-Anna#44,kevin2-Anna#44",
+      "default-Jack#22,Sunny-Jack#22,kevin2-Jack#22",
+      "default-John#19,Sunny-John#19,kevin2-John#19",
+      "default-nosharp,Sunny-nosharp,kevin2-nosharp"
+    )
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  private def testData(
+    env: StreamExecutionEnvironment)
+  : DataStream[(Int, Long, String)] = {
 
     val data = new mutable.MutableList[(Int, Long, String)]
     data.+=((1, 1L, "Jack#22"))
@@ -77,4 +148,5 @@ class DataStreamUserDefinedFunctionITCase extends StreamingMultipleProgramsTestB
     data.+=((4, 3L, "nosharp"))
     env.fromCollection(data)
   }
+
 }

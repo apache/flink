@@ -18,8 +18,10 @@
 
 package org.apache.flink.table.functions
 
+import org.apache.commons.codec.digest.DigestUtils
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.expressions.{Expression, TableFunctionCall}
+import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.serialize
 import org.apache.flink.util.Collector
 
 /**
@@ -94,7 +96,10 @@ abstract class TableFunction[T] extends UserDefinedFunction {
     TableFunctionCall(getClass.getSimpleName, this, params, resultType)
   }
 
-  override def toString: String = getClass.getCanonicalName
+  override def toString: String = {
+    val md5  =  DigestUtils.md5Hex(serialize(this))
+    getClass.getCanonicalName.replace('.', '$').concat("$").concat(md5)
+  }
 
   // ----------------------------------------------------------------------------------------------
 

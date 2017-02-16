@@ -214,3 +214,10 @@ class RichFunc3 extends ScalarFunction {
     words.clear()
   }
 }
+
+class Func13(prefix: String) extends ScalarFunction {
+  def eval(a: String): String = {
+    s"$prefix-$a"
+  }
+}
+

@@ -26,7 +26,7 @@ import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.flink.api.common.functions._
-import org.apache.commons.codec.digest.DigestUtils
+import org.apache.flink.api.common.functions.{FlatJoinFunction, FlatMapFunction, Function, MapFunction}
 import org.apache.flink.api.common.io.GenericInputFormat
 import org.apache.flink.api.common.typeinfo.{AtomicType, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
@@ -42,7 +42,7 @@ import org.apache.flink.table.codegen.calls.FunctionGenerator
 import org.apache.flink.table.codegen.calls.ScalarOperators._
 import org.apache.flink.table.functions.FunctionContext
 import org.apache.flink.table.functions.UserDefinedFunction
-import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
+import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.runtime.TableFunctionCollector
 import org.apache.flink.table.typeutils.TypeCheckUtils._
 import org.apache.flink.types.Row
@@ -1497,19 +1497,14 @@ class CodeGenerator(
 
   /**
     * Adds a reusable [[UserDefinedFunction]] to the member area of the generated [[Function]].
-    * The [[UserDefinedFunction]] must have a default constructor, however, it does not have
-    * to be public.
     *
     * @param function [[UserDefinedFunction]] object to be instantiated during runtime
     * @return member variable term
     */
   def addReusableFunction(function: UserDefinedFunction): String = {
     val classQualifier = function.getClass.getCanonicalName
-    val functionSerializedData = serialize(function)
-    val fieldTerm =
-      s"""
-         |function_${classQualifier.replace('.', '$')}_${DigestUtils.md5Hex(functionSerializedData)}
-       """.stripMargin
+    val functionSerializedData = UserDefinedFunctionUtils.serialize(function)
+    val fieldTerm = s"function_${function.toString}"
 
     val fieldFunction =
       s"""
@@ -1517,13 +1512,14 @@ class CodeGenerator(
         |""".stripMargin
     reusableMemberStatements.add(fieldFunction)
 
-    val constructorAccessibility =
+    val functionDeserialization =
       s"""
          |$fieldTerm = ($classQualifier)
-         |org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
+         |${UserDefinedFunctionUtils.getClass.getName.stripSuffix("$")}
          |.deserialize("$functionSerializedData");
        """.stripMargin
-    reusableInitStatements.add(constructorAccessibility)
+
+    reusableInitStatements.add(functionDeserialization)
 
     val openFunction =
       s"""

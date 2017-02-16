@@ -22,8 +22,6 @@ import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.serialize
 /**
   * Base class for all user-defined functions such as scalar functions, table functions,
   * or aggregation functions.
-  *
-  * User-defined functions must have a default constructor and must be instantiable during runtime.
   */
 abstract class UserDefinedFunction extends Serializable {
   /**

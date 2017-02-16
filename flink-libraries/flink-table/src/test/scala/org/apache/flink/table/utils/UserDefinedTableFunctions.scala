@@ -73,9 +73,6 @@ class TableFunc2 extends TableFunction[Row] {
 }
 
 class TableFunc3(data: String, conf: Map[String, String]) extends TableFunction[SimpleUser] {
-  def this() {
-    this(null, null)
-  }
 
   def this(data: String) {
     this(data, null)
