@@ -23,14 +23,19 @@ import org.apache.calcite.sql.util.{ChainedSqlOperatorTable, ListSqlOperatorTabl
 import org.apache.calcite.sql.{SqlFunction, SqlOperator, SqlOperatorTable}
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.expressions._
+<<<<<<< Upstream, based on upstream/master
 import org.apache.flink.table.functions.{EventTimeExtractor, RowTime, ScalarFunction, TableFunction}
 import org.apache.flink.table.functions.utils.{TableSqlFunction, ScalarSqlFunction}
+=======
+import org.apache.flink.table.functions.{ScalarFunction, TableFunction}
+import org.apache.flink.table.functions.utils.{TableSqlFunction, UserDefinedFunctionUtils}
+import org.apache.flink.table.functions.{TimeModeIndicatorFunction, ScalarFunction, TableFunction}
+>>>>>>> 1b90ac9 Refactor part of the code, moved test from IT to TemporalType test, changed ProcTimeCallGen (to be verified)
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
 
-import org.apache.flink.table.calcite.functions.FlinkStreamFunctionCatalog
 
 /**
   * A catalog for looking up (user-defined) functions, used during validation phases
@@ -194,7 +199,7 @@ object FunctionCatalog {
     "at" -> classOf[ArrayElementAt],
     "element" -> classOf[ArrayElement],
 
-    "procTime" -> classOf[CurrentTimestamp]
+    "proctime" -> classOf[CurrentTimestamp]
     
     // TODO implement function overloading here
     // "floor" -> classOf[TemporalFloor]
@@ -326,7 +331,7 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     SqlStdOperatorTable.SCALAR_QUERY,
     SqlStdOperatorTable.EXISTS,
     // EXTENSIONS
-    EventTimeExtractor
+    EventTimeExtractor,
     TimeModeIndicatorFunction.PROCTIME
   )
 
