@@ -368,7 +368,10 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 					.setBytesBufferedInAlignment(bytesBuffered)
 					.setAlignmentDurationNanos(latestAlignmentDurationNanos);
 
-			toNotifyOnCheckpoint.triggerCheckpointOnBarrier(checkpointMetaData, checkpointMetrics);
+			toNotifyOnCheckpoint.triggerCheckpointOnBarrier(
+				checkpointMetaData,
+				checkpointBarrier.getCheckpointOptions(),
+				checkpointMetrics);
 		}
 	}
 

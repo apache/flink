@@ -159,7 +159,7 @@ public class CompletedCheckpoint implements Serializable {
 	void discard() throws Exception {
 		try {
 			if (externalPath != null) {
-				SavepointStore.removeSavepoint(externalPath);
+				SavepointStore.removeSavepointFile(externalPath);
 			}
 
 			StateUtil.bestEffortDiscardAllStateObjects(taskStates.values());

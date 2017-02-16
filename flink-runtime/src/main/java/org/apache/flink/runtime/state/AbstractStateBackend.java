@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 
 /**
@@ -31,12 +32,19 @@ import java.io.IOException;
  */
 @PublicEvolving
 public abstract class AbstractStateBackend implements StateBackend, java.io.Serializable {
+
 	private static final long serialVersionUID = 4620415814639230247L;
 
 	@Override
 	public abstract CheckpointStreamFactory createStreamFactory(
 			JobID jobId,
 			String operatorIdentifier) throws IOException;
+
+	@Override
+	public abstract CheckpointStreamFactory createSavepointStreamFactory(
+			JobID jobId,
+			String operatorIdentifier,
+			@Nullable String targetLocation) throws IOException;
 
 	@Override
 	public abstract <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(

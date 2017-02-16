@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import java.io.IOException;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.apache.flink.annotation.PublicEvolving;
@@ -36,6 +37,8 @@ import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions.CheckpointType;
 import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
@@ -340,17 +343,19 @@ public abstract class AbstractStreamOperator<OUT>
 	}
 
 	@Override
-	public final OperatorSnapshotResult snapshotState(long checkpointId, long timestamp) throws Exception {
+	public final OperatorSnapshotResult snapshotState(long checkpointId, long timestamp, CheckpointOptions checkpointOptions) throws Exception {
 
 		KeyGroupRange keyGroupRange = null != keyedStateBackend ?
 				keyedStateBackend.getKeyGroupRange() : KeyGroupRange.EMPTY_KEY_GROUP_RANGE;
 
 		OperatorSnapshotResult snapshotInProgress = new OperatorSnapshotResult();
 
+		CheckpointStreamFactory factory = getCheckpointStreamFactory(checkpointOptions);
+
 		try (StateSnapshotContextSynchronousImpl snapshotContext = new StateSnapshotContextSynchronousImpl(
 				checkpointId,
 				timestamp,
-				checkpointStreamFactory,
+				factory,
 				keyGroupRange,
 				getContainingTask().getCancelables())) {
 
@@ -361,12 +366,12 @@ public abstract class AbstractStreamOperator<OUT>
 
 			if (null != operatorStateBackend) {
 				snapshotInProgress.setOperatorStateManagedFuture(
-					operatorStateBackend.snapshot(checkpointId, timestamp, checkpointStreamFactory));
+					operatorStateBackend.snapshot(checkpointId, timestamp, factory, checkpointOptions));
 			}
 
 			if (null != keyedStateBackend) {
 				snapshotInProgress.setKeyedStateManagedFuture(
-					keyedStateBackend.snapshot(checkpointId, timestamp, checkpointStreamFactory));
+					keyedStateBackend.snapshot(checkpointId, timestamp, factory, checkpointOptions));
 			}
 		} catch (Exception snapshotException) {
 			try {
@@ -431,11 +436,12 @@ public abstract class AbstractStreamOperator<OUT>
 	@SuppressWarnings("deprecation")
 	@Deprecated
 	@Override
-	public StreamStateHandle snapshotLegacyOperatorState(long checkpointId, long timestamp) throws Exception {
+	public StreamStateHandle snapshotLegacyOperatorState(long checkpointId, long timestamp, CheckpointOptions checkpointOptions) throws Exception {
 		if (this instanceof StreamCheckpointedOperator) {
+			CheckpointStreamFactory factory = getCheckpointStreamFactory(checkpointOptions);
 
 			final CheckpointStreamFactory.CheckpointStateOutputStream outStream =
-					checkpointStreamFactory.createCheckpointStateOutputStream(checkpointId, timestamp);
+				factory.createCheckpointStateOutputStream(checkpointId, timestamp);
 
 			getContainingTask().getCancelables().registerClosable(outStream);
 
@@ -494,6 +500,31 @@ public abstract class AbstractStreamOperator<OUT>
 
 	@Override
 	public void notifyOfCompletedCheckpoint(long checkpointId) throws Exception {}
+
+	/**
+	 * Returns a checkpoint stream factory for the provided options.
+	 *
+	 * <p>For {@link CheckpointType#FULL_CHECKPOINT} this returns the shared
+	 * factory of this operator.
+	 *
+	 * <p>For {@link CheckpointType#SAVEPOINT} it creates a custom factory per
+	 * savepoint.
+	 *
+	 * @param checkpointOptions Options for the checkpoint
+	 * @return Checkpoint stream factory for the checkpoints
+	 * @throws IOException Failures while creating a new stream factory are forwarded
+	 */
+	@VisibleForTesting
+	CheckpointStreamFactory getCheckpointStreamFactory(CheckpointOptions checkpointOptions) throws IOException {
+		CheckpointType checkpointType = checkpointOptions.getCheckpointType();
+		if (checkpointType == CheckpointType.FULL_CHECKPOINT) {
+			return checkpointStreamFactory;
+		} else if (checkpointType == CheckpointType.SAVEPOINT) {
+			return container.createSavepointStreamFactory(this, checkpointOptions.getTargetLocation());
+		} else {
+			throw new IllegalStateException("Unknown checkpoint type " + checkpointType);
+		}
+	}
 
 	// ------------------------------------------------------------------------
 	//  Properties and Services

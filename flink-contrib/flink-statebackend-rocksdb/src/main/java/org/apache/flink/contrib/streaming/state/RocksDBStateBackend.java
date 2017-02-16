@@ -219,6 +219,15 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 	}
 
 	@Override
+	public CheckpointStreamFactory createSavepointStreamFactory(
+			JobID jobId,
+			String operatorIdentifier,
+			String targetLocation) throws IOException {
+
+		return checkpointStreamBackend.createSavepointStreamFactory(jobId, operatorIdentifier, targetLocation);
+	}
+
+	@Override
 	public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
 			Environment env,
 			JobID jobID,

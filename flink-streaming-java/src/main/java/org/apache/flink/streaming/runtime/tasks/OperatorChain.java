@@ -21,6 +21,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
@@ -164,9 +165,9 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 		}
 	}
 
-	public void broadcastCheckpointBarrier(long id, long timestamp) throws IOException {
+	public void broadcastCheckpointBarrier(long id, long timestamp, CheckpointOptions checkpointOptions) throws IOException {
 		try {
-			CheckpointBarrier barrier = new CheckpointBarrier(id, timestamp);
+			CheckpointBarrier barrier = new CheckpointBarrier(id, timestamp, checkpointOptions);
 			for (RecordWriterOutput<?> streamOutput : streamOutputs) {
 				streamOutput.broadcastEvent(barrier);
 			}

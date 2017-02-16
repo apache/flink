@@ -18,10 +18,15 @@
 
 package org.apache.flink.runtime.io.network.api;
 
+import static org.apache.flink.util.Preconditions.checkElementIndex;
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 import java.io.IOException;
 
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions.CheckpointType;
 import org.apache.flink.runtime.event.RuntimeEvent;
 
 /**
@@ -43,12 +48,14 @@ public class CheckpointBarrier extends RuntimeEvent {
 
 	private long id;
 	private long timestamp;
+	private CheckpointOptions checkpointOptions;
 
 	public CheckpointBarrier() {}
 
-	public CheckpointBarrier(long id, long timestamp) {
+	public CheckpointBarrier(long id, long timestamp, CheckpointOptions checkpointOptions) {
 		this.id = id;
 		this.timestamp = timestamp;
+		this.checkpointOptions = checkNotNull(checkpointOptions);
 	}
 
 	public long getId() {
@@ -59,20 +66,53 @@ public class CheckpointBarrier extends RuntimeEvent {
 		return timestamp;
 	}
 
+	public CheckpointOptions getCheckpointOptions() {
+		return checkpointOptions;
+	}
+
+	// ------------------------------------------------------------------------
+	// Serialization
 	// ------------------------------------------------------------------------
 	
 	@Override
 	public void write(DataOutputView out) throws IOException {
 		out.writeLong(id);
 		out.writeLong(timestamp);
+		CheckpointType checkpointType = checkpointOptions.getCheckpointType();
+
+		out.writeInt(checkpointType.ordinal());
+
+		if (checkpointType == CheckpointType.FULL_CHECKPOINT) {
+			return;
+		} else if (checkpointType == CheckpointType.SAVEPOINT) {
+			String targetLocation = checkpointOptions.getTargetLocation();
+			assert(targetLocation != null);
+			out.writeUTF(targetLocation);
+		} else {
+			throw new IOException("Unknown CheckpointType " + checkpointType);
+		}
 	}
 
 	@Override
 	public void read(DataInputView in) throws IOException {
 		id = in.readLong();
 		timestamp = in.readLong();
+
+		int typeOrdinal = in.readInt();
+		checkElementIndex(typeOrdinal, CheckpointType.values().length, "Unknown CheckpointType ordinal " + typeOrdinal);
+		CheckpointType checkpointType = CheckpointType.values()[typeOrdinal];
+
+		if (checkpointType == CheckpointType.FULL_CHECKPOINT) {
+			checkpointOptions = CheckpointOptions.forFullCheckpoint();
+		} else if (checkpointType == CheckpointType.SAVEPOINT) {
+			String targetLocation = in.readUTF();
+			checkpointOptions = CheckpointOptions.forSavepoint(targetLocation);
+		} else {
+			throw new IOException("Illegal CheckpointType " + checkpointType);
+		}
 	}
-	
+
+
 	// ------------------------------------------------------------------------
 
 	@Override
