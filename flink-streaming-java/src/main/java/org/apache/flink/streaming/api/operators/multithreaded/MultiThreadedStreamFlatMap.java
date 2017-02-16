@@ -49,6 +49,7 @@ public class MultiThreadedStreamFlatMap<IN, OUT>
     private int parallelism;
     private ExecutorService executorService;
     private List<Callable<Void>> tasks;
+    private Object lock;
 
     public MultiThreadedStreamFlatMap(FlatMapFunction<IN, OUT> flatMapper, int parallelism) {
         super(flatMapper);
@@ -57,6 +58,7 @@ public class MultiThreadedStreamFlatMap<IN, OUT>
 
         this.parallelism = parallelism;
         tasks = new ArrayList<>();
+        lock = new Object();
 
         chainingStrategy = ChainingStrategy.ALWAYS;
     }
@@ -82,7 +84,7 @@ public class MultiThreadedStreamFlatMap<IN, OUT>
 
     @Override
     public void processElement(final StreamRecord<IN> element) throws Exception {
-        tasks.add(new ProcessElementTask(userFunction, element, new MultiThreadedTimestampedCollector<>(output)));
+        tasks.add(new ProcessElementTask(userFunction, element, new MultiThreadedTimestampedCollector<>(output, lock)));
     }
 
     // ------------------------------------------------------------------------

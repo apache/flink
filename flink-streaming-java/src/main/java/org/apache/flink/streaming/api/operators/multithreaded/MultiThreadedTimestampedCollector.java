@@ -17,15 +17,16 @@ import org.apache.flink.util.Collector;
  */
 @Internal
 public class MultiThreadedTimestampedCollector<T> extends TimestampedCollector<T> {
-    private Object lock = new Object();
+    private Object lock;
 
     /**
      * Creates a new {@link MultiThreadedTimestampedCollector} that wraps the given {@link Output}.
      *
      * @param output
      */
-    public MultiThreadedTimestampedCollector(Output<StreamRecord<T>> output) {
+    public MultiThreadedTimestampedCollector(Output<StreamRecord<T>> output, Object lock) {
         super(output);
+        this.lock = lock;
     }
 
     @Override
