@@ -20,6 +20,7 @@ package org.apache.flink.runtime.blob;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.IOUtils;
 import org.slf4j.Logger;
@@ -83,10 +84,49 @@ public final class BlobCache implements BlobService {
 	 * 		is not usable
 	 */
 	public BlobCache(InetSocketAddress serverAddress,
-		Configuration blobClientConfig) throws IOException {
+			Configuration blobClientConfig) throws IOException {
+		this(serverAddress, blobClientConfig,
+			BlobUtils.createBlobStoreFromConfig(blobClientConfig));
+	}
+
+	/**
+	 * Instantiates a new BLOB cache.
+	 *
+	 * @param serverAddress
+	 * 		address of the {@link BlobServer} to use for fetching files from
+	 * @param blobClientConfig
+	 * 		global configuration
+	 * 	@param haServices
+	 * 		high availability services able to create a distributed blob store
+	 *
+	 * @throws IOException
+	 * 		thrown if the (local or distributed) file storage cannot be created or
+	 * 		is not usable
+	 */
+	public BlobCache(InetSocketAddress serverAddress,
+		Configuration blobClientConfig, HighAvailabilityServices haServices) throws IOException {
+		this(serverAddress, blobClientConfig, haServices.createBlobStore());
+	}
+
+	/**
+	 * Instantiates a new BLOB cache.
+	 *
+	 * @param serverAddress
+	 * 		address of the {@link BlobServer} to use for fetching files from
+	 * @param blobClientConfig
+	 * 		global configuration
+	 * @param blobStore
+	 * 		(distributed) blob store file system to retrieve files from first
+	 *
+	 * @throws IOException
+	 * 		thrown if the (local or distributed) file storage cannot be created or is not usable
+	 */
+	private BlobCache(
+			final InetSocketAddress serverAddress, final Configuration blobClientConfig,
+			final BlobStore blobStore) throws IOException {
 		this.serverAddress = checkNotNull(serverAddress);
 		this.blobClientConfig = checkNotNull(blobClientConfig);
-		this.blobStore = BlobUtils.createBlobStoreFromConfig(blobClientConfig);
+		this.blobStore = blobStore;
 
 		// configure and create the storage directory
 		String storageDirectory = blobClientConfig.getString(ConfigConstants.BLOB_STORAGE_DIRECTORY_KEY, null);

@@ -796,7 +796,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 
 		final LibraryCacheManager libraryCacheManager;
 		try {
-			final BlobCache blobCache = new BlobCache(address, taskManagerConfiguration.getConfiguration());
+			final BlobCache blobCache = new BlobCache(address, taskManagerConfiguration.getConfiguration(), haServices);
 			libraryCacheManager = new BlobLibraryCacheManager(
 				blobCache,
 				taskManagerConfiguration.getCleanupInterval());
