@@ -158,6 +158,13 @@ class DataSetAggregate(
   }
 
   private def forwardFields(rowTypeInfo: RowTypeInfo) = {
+    //Forward all fields at conversion
+    val inputInfo = mappedInput.getType
+    val indices = if (rowTypeInfo.getTotalFields < inputInfo.getTotalFields) {
+      0 until rowTypeInfo.getTotalFields
+    } else {
+      0 until inputInfo.getTotalFields
+    }
     val indices = 0 to rowTypeInfo.getTotalFields
     getForwardedInput(
       FlinkTypeFactory.toInternalRowTypeInfo(inputType),

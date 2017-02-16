@@ -18,32 +18,34 @@
 
 package org.apache.flink.table.plan.nodes.dataset.forwarding
 
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.{BasicArrayTypeInfo, BasicTypeInfo, TypeInformation => TypeInfo}
 import org.apache.flink.api.common.typeutils.CompositeType
+import org.apache.flink.api.java.DataSet
 import org.apache.flink.table.api.TableException
+import org.apache.flink.types.Row
 
 object FieldForwardingUtils {
 
-  def compositeTypeField = (fields: Seq[String]) => fields
+  def compositeTypeField = (fields: Seq[(String, TypeInfo[_])]) => fields
 
-  private def throwMissedWrapperException(wrapperCustomCase: TypeInformation[_]) = {
-    throw new TableException(s"Implementation for $wrapperCustomCase index wrapper is missing.")
+  private def throwMissedWrapperException(customWrapper: TypeInfo[_]) = {
+    throw new TableException(s"Implementation for $customWrapper wrapper is missing.")
   }
 
   /**
     * Wrapper for {@link getForwardedFields}
     */
   def getForwardedInput(
-      inputType: TypeInformation[_],
-      outputType: TypeInformation[_],
+      inputType: TypeInfo[_],
+      outputType: TypeInfo[_],
       forwardIndices: Seq[Int],
-      wrapperCustomCase: TypeInformation[_] =>
-        (Int) => String = throwMissedWrapperException): String = {
+      customWrapper: TypeInfo[_] =>
+        Seq[(String, TypeInfo[_])] = throwMissedWrapperException): String = {
 
     getForwardedFields(inputType,
       outputType,
       forwardIndices.zip(forwardIndices),
-      wrapperCustomCase)
+      customWrapper)
   }
 
   /**
@@ -58,18 +60,23 @@ object FieldForwardingUtils {
     * @return string with forwarded fields mapped from input to output
     */
   def getForwardedFields(
-      inputType: TypeInformation[_],
-      outputType: TypeInformation[_],
+      inputType: TypeInfo[_],
+      outputType: TypeInfo[_],
       forwardIndices: Seq[(Int, Int)],
-      customWrapper: TypeInformation[_] =>
-        (Int) => String = throwMissedWrapperException): String = {
+      customWrapper: TypeInfo[_] =>
+        Seq[(String, TypeInfo[_])] = throwMissedWrapperException): String = {
 
-    def chooseWrapper(typeInformation: TypeInformation[_]): (Int) => String = {
+    def chooseWrapper(
+        typeInformation: TypeInfo[_]): Seq[(String, TypeInfo[_])] = {
+
       typeInformation match {
         case composite: CompositeType[_] =>
-          compositeTypeField(composite.getFieldNames)
+          val fields = extractFields(composite)
+          compositeTypeField(fields)
         case basic: BasicTypeInfo[_] =>
-          (_: Int) => s"*"
+          Seq((s"*", basic))
+        case array: BasicArrayTypeInfo[_, _] =>
+          Seq((s"*", array))
         case _ =>
           customWrapper(typeInformation)
       }
@@ -81,23 +88,56 @@ object FieldForwardingUtils {
     forwardFields(forwardIndices, wrapInput, wrapOutput)
   }
 
+  private def extractFields(
+      composite: CompositeType[_]): Seq[(String, TypeInfo[_])] = {
+
+    val types = for {
+      i <- 0 until composite.getArity
+    } yield { composite.getTypeAt(i) }
+
+    composite.getFieldNames.zip(types)
+  }
+
   private def forwardFields(
       forwardIndices: Seq[(Int, Int)],
-      wrapInput: (Int) => String,
-      wrapOutput: (Int) => String): String = {
+      wrappedInput: Int => (String, TypeInfo[_]),
+      wrappedOutput: Int => (String, TypeInfo[_])): String = {
 
-    implicit class String2ForwardFields(left: String) {
-      def ->(right: String): String = if (left == right) {
-        left
+    implicit class Field2ForwardField(left: (String, TypeInfo[_])) {
+      def ->(right: (String, TypeInfo[_])): String = if (left.equals(right)) {
+        s"${left._1}"
       } else {
-        s"$left->$right"
+        if (left._2.equals(right._2)) {
+          s"${left._1}->${right._1}"
+        } else {
+          null
+        }
       }
     }
 
-    def wrapIndices(inputIndex: Int, outputIndex: Int): String = {
-      wrapInput(inputIndex) -> wrapOutput(outputIndex)
-    }
-
-    forwardIndices map { case (in, out) => wrapIndices(in, out) } mkString ";"
+    forwardIndices map {
+      case (in, out) =>
+        wrappedInput(in) -> wrappedOutput(out)
+    } filterNot(_ == null) mkString ";"
   }
+
+  def getDummyForwardedFields(
+      leftDataSet: DataSet[Row],
+      rightDataSet: DataSet[Row],
+      returnType: TypeInfo[Row]): (String, String) = {
+
+    val leftFields = getDummyForwardedFields(leftDataSet, returnType)
+    val rightFields = getDummyForwardedFields(rightDataSet, returnType)
+    (leftFields, rightFields)
+  }
+
+  def getDummyForwardedFields(
+      dataSet: DataSet[Row],
+      returnType: TypeInfo[Row]): String ={
+
+    val `type` = dataSet.getType
+    val indices = 0 until `type`.getTotalFields
+    getForwardedInput(`type`, returnType, indices)
+  }
+
 }

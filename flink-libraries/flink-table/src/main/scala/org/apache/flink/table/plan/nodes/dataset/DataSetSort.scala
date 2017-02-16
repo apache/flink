@@ -29,7 +29,6 @@ import org.apache.calcite.rex.{RexLiteral, RexNode}
 import org.apache.flink.api.common.operators.Order
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.table.api.{BatchTableEnvironment, TableException}
-import org.apache.flink.table.plan.nodes.dataset.forwarding.FieldForwardingUtils.getForwardedInput
 import org.apache.flink.table.runtime.{CountPartitionFunction, LimitFilterFunction}
 import org.apache.flink.types.Row
 
@@ -129,7 +128,6 @@ class DataSetSort(
         broadcastName)
 
       val limitName = s"offset: $offsetToString, fetch: $fetchToString"
-      // TODO Do we need this here?
       val allFields: String = "*"
 
       partitionedDs

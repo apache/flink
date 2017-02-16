@@ -92,7 +92,7 @@ class DataStreamCorrelate(
     val sqlFunction = rexCall.getOperator.asInstanceOf[TableSqlFunction]
     val pojoFieldMapping = sqlFunction.getPojoFieldMapping
     val udtfTypeInfo = sqlFunction.getRowTypeInfo.asInstanceOf[TypeInformation[Any]]
-    val returnType = FlinkTypeFactory.toInternalRowTypeInfo(rowType)
+    val returnType = FlinkTypeFactory.toInternalRowTypeInfo(getRowType)
 
     val mapFunc = correlateMapFunction(
       config,

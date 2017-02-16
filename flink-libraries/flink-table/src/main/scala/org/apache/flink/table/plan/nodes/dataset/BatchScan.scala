@@ -56,7 +56,7 @@ trait BatchScan extends CommonScan with DataSetRel {
 
       //Forward all fields at conversion
       val indices = flinkTable.fieldIndexes.zipWithIndex
-      val fields: String = getForwardedFields(inputType, internalType, indices)
+      val fields = getForwardedFields(inputType, internalType, indices)
 
       input
         .map(mapFunc)
