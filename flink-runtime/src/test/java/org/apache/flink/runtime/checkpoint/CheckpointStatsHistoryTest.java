@@ -184,6 +184,7 @@ public class CheckpointStatsHistoryTest {
 		when(completed.getStatus()).thenReturn(CheckpointStatsStatus.COMPLETED);
 		when(completed.getProperties()).thenReturn(CheckpointProperties.forStandardCheckpoint());
 		when(completed.getCheckpointId()).thenReturn(checkpointId);
+		when(completed.getProperties()).thenReturn(CheckpointProperties.forStandardCheckpoint());
 		return completed;
 	}
 

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.api.serialization;
 
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
@@ -43,7 +44,7 @@ public class EventSerializerTest {
 		AbstractEvent[] events = {
 				EndOfPartitionEvent.INSTANCE,
 				EndOfSuperstepEvent.INSTANCE,
-				new CheckpointBarrier(1678L, 4623784L),
+				new CheckpointBarrier(1678L, 4623784L, CheckpointOptions.forFullCheckpoint()),
 				new TestTaskEvent(Math.random(), 12361231273L),
 				new CancelCheckpointMarker(287087987329842L)
 		};
@@ -94,7 +95,7 @@ public class EventSerializerTest {
 		AbstractEvent[] events = {
 			EndOfPartitionEvent.INSTANCE,
 			EndOfSuperstepEvent.INSTANCE,
-			new CheckpointBarrier(1678L, 4623784L),
+			new CheckpointBarrier(1678L, 4623784L, CheckpointOptions.forFullCheckpoint()),
 			new TestTaskEvent(Math.random(), 12361231273L),
 			new CancelCheckpointMarker(287087987329842L)
 		};
