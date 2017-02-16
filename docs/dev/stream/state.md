@@ -139,7 +139,7 @@ want to retrieve, you create either a `ValueStateDescriptor`, a `ListStateDescri
 a `ReducingStateDescriptor` or a `FoldingStateDescriptor`.
 
 State is accessed using the `RuntimeContext`, so it is only possible in *rich functions*.
-Please see [here]({{ site.baseurl }}/dev/api_concepts#rich-functions) for
+Please see [here]({{ site.baseurl }}/dev/api_concepts.html#rich-functions) for
 information about that, but we will also see an example shortly. The `RuntimeContext` that
 is available in a `RichFunction` has these methods for accessing state:
 

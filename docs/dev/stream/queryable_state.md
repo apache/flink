@@ -32,7 +32,7 @@ under the License.
 </div>
 
 In a nutshell, this feature allows users to query Flink's managed partitioned state
-(see [Working with State]({{ site.baseurl }}/dev/stream/state)) from outside of
+(see [Working with State]({{ site.baseurl }}/dev/stream/state.html)) from outside of
 Flink. For some scenarios, queryable state thus eliminates the need for distributed
 operations/transactions with external systems such as key-value stores which are often the
 bottleneck in practice.
