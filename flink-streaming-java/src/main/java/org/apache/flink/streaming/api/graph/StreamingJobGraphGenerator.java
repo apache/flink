@@ -484,7 +484,6 @@ public class StreamingJobGraphGenerator {
 					headOperator.getChainingStrategy() == ChainingStrategy.ALWAYS)
 				&& (edge.getPartitioner() instanceof ForwardPartitioner)
 				&& upStreamVertex.getParallelism() == downStreamVertex.getParallelism()
-				&& edge.getOutputTag() == null // disable chaining for side outputs
 				&& streamGraph.isChainingEnabled();
 	}
 
