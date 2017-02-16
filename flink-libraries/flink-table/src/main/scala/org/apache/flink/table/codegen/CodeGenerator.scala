@@ -123,10 +123,6 @@ class CodeGenerator(
   // we use a LinkedHashSet to keep the insertion order
   private val reusableInitStatements = mutable.LinkedHashSet[String]()
 
-  // generate RichFunction(e.g. RichFlatMapFunction) if true
-  // generate Function(e.g. FlatMapFunction) if false
-  private var generatedRichFunction = false
-
   // set of open statements for RichFunction that will be added only once
   // we use a LinkedHashSet to keep the insertion order
   private val reusableOpenStatements = mutable.LinkedHashSet[String]()
@@ -268,11 +264,7 @@ class CodeGenerator(
     val samHeader =
       // FlatMapFunction
       if (clazz == classOf[FlatMapFunction[_, _]]) {
-        val baseClass = if (generatedRichFunction) {
-          classOf[RichFlatMapFunction[_, _]]
-        } else {
-          classOf[FlatMapFunction[_, _]]
-        }
+        val baseClass = classOf[RichFlatMapFunction[_, _]]
         val inputTypeTerm = boxedTypeTermForTypeInfo(input1)
         (baseClass,
           s"void flatMap(Object _in1, org.apache.flink.util.Collector $collectorTerm)",
@@ -281,11 +273,7 @@ class CodeGenerator(
 
       // MapFunction
       else if (clazz == classOf[MapFunction[_, _]]) {
-        val baseClass = if (generatedRichFunction) {
-          classOf[RichMapFunction[_, _]]
-        } else {
-          classOf[MapFunction[_, _]]
-        }
+        val baseClass = classOf[RichMapFunction[_, _]]
         val inputTypeTerm = boxedTypeTermForTypeInfo(input1)
         (baseClass,
           "Object map(Object _in1)",
@@ -294,11 +282,7 @@ class CodeGenerator(
 
       // FlatJoinFunction
       else if (clazz == classOf[FlatJoinFunction[_, _, _]]) {
-        val baseClass = if (generatedRichFunction) {
-          classOf[RichFlatJoinFunction[_, _, _]]
-        } else {
-          classOf[FlatJoinFunction[_, _, _]]
-        }
+        val baseClass = classOf[RichFlatJoinFunction[_, _, _]]
         val inputTypeTerm1 = boxedTypeTermForTypeInfo(input1)
         val inputTypeTerm2 = boxedTypeTermForTypeInfo(input2.getOrElse(
           throw new CodeGenException("Input 2 for FlatJoinFunction should not be null")))
@@ -312,48 +296,37 @@ class CodeGenerator(
         throw new CodeGenException("Unsupported Function.")
       }
 
-    val extendsOrImplements = if (generatedRichFunction) "extends" else "implements"
+    val funcCode = j"""
+      public class $funcName
+          extends ${samHeader._1.getCanonicalName} {
 
-    var funcCode =
-      j"""
-        public class $funcName
-            $extendsOrImplements ${samHeader._1.getCanonicalName} {
+        ${reuseMemberCode()}
 
-          ${reuseMemberCode()}
-
-          public $funcName() throws Exception {
-            ${reuseInitCode()}
-          }
-          
-          ${reuseConstructorCode(funcName)}
-      """.stripMargin
-
-    if (generatedRichFunction) {
-      funcCode +=
-        j"""
-          @Override
-          public void open(${classOf[Configuration].getCanonicalName} parameters) throws Exception {
-            ${reuseOpenCode()}
-          }
-
-          @Override
-          public void close() throws Exception {
-            ${reuseCloseCode()}
-          }
-        """.stripMargin
-    }
-
-    funcCode +=
-      j"""
-          @Override
-          public ${samHeader._2} throws Exception {
-            ${samHeader._3.mkString("\n")}
-            ${reusePerRecordCode()}
-            ${reuseInputUnboxingCode()}
-            $bodyCode
-          }
+        public $funcName() throws Exception {
+          ${reuseInitCode()}
         }
-      """.stripMargin
+
+        ${reuseConstructorCode(funcName)}
+
+        @Override
+        public void open(${classOf[Configuration].getCanonicalName} parameters) throws Exception {
+          ${reuseOpenCode()}
+        }
+
+        @Override
+        public ${samHeader._2} throws Exception {
+          ${samHeader._3.mkString("\n")}
+          ${reusePerRecordCode()}
+          ${reuseInputUnboxingCode()}
+          $bodyCode
+        }
+
+        @Override
+        public void close() throws Exception {
+          ${reuseCloseCode()}
+        }
+      }
+    """.stripMargin
 
     GeneratedFunction(funcName, returnType, funcCode)
   }
@@ -1558,8 +1531,6 @@ class CodeGenerator(
          |$fieldTerm.close();
        """.stripMargin
     reusableCloseStatements.add(closeFunction)
-
-    generatedRichFunction = true
 
     fieldTerm
   }

@@ -20,34 +20,48 @@ package org.apache.flink.table.functions
 
 import java.io.File
 
-import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.api.common.functions.RuntimeContext
 import org.apache.flink.metrics.MetricGroup
 
+/**
+  * A UDFContext contains information about the context in which user-defined functions are
+  * executed. The information include the metric group, the distributed cache files,
+  * and the global job parameters.
+  *
+  * @param context the context in which rich functions are executed
+  */
 class UDFContext(context: RuntimeContext) {
 
   /**
     * Returns the metric group for this parallel subtask.
+    *
+    * @return The metric group for this parallel subtask.
     */
-  @PublicEvolving
   def getMetricGroup: MetricGroup = context.getMetricGroup
 
   /**
     * Get the local temporary file copies of distributed cache files
+    *
+    * @param name distributed cache file name
+    * @return The the local temporary file copies of distributed cache files
     */
   def getDistributedCacheFile(name: String): File = context.getDistributedCache.getFile(name)
 
   /**
-    * Get the global job parameter
+    * Get the global job parameter value associated with the given key as a string.
     * which is set by ExecutionEnvironment.getConfig.setGlobalJobParameters()
+    *
+    * @param key          the key pointing to the associated value
+    * @param defaultValue the default value which is returned in case global job parameter is null
+    *                     or there is no value associated with the given key
+    * @return the (default) value associated with the given key
     */
-  @PublicEvolving
-  def getJobParameter(key: String, default: String): String = {
+  def getJobParameter(key: String, defaultValue: String): String = {
     val conf = context.getExecutionConfig.getGlobalJobParameters
     if (conf != null && conf.toMap.containsKey(key)) {
       conf.toMap.get(key)
     } else {
-      default
+      defaultValue
     }
   }
 }

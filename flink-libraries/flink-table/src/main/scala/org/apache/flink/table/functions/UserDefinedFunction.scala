@@ -23,7 +23,7 @@ package org.apache.flink.table.functions
   *
   * User-defined functions must have a default constructor and must be instantiable during runtime.
   */
-trait UserDefinedFunction {
+abstract class UserDefinedFunction {
   /**
     * Setup method for user-defined function. It can be used for initialization work.
     *
