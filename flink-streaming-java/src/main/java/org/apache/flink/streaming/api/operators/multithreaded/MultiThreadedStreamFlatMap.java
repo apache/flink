@@ -54,7 +54,7 @@ public class MultiThreadedStreamFlatMap<IN, OUT>
     public MultiThreadedStreamFlatMap(FlatMapFunction<IN, OUT> flatMapper, int parallelism) {
         super(flatMapper);
 
-        Preconditions.checkArgument(parallelism >= 0 ? true : false, "Invalid parallelism!");
+        Preconditions.checkArgument(parallelism > 0 ? true : false, "Invalid parallelism!");
 
         this.parallelism = parallelism;
         tasks = new ArrayList<>();
@@ -123,7 +123,7 @@ public class MultiThreadedStreamFlatMap<IN, OUT>
     }
 
     private void createExecutorService() {
-        executorService = Executors.newFixedThreadPool(parallelism > 0 ? parallelism : 1);
+        executorService = Executors.newFixedThreadPool(parallelism);
     }
 
     private void closeExecutor() {
