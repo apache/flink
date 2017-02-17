@@ -139,4 +139,18 @@ public class Row implements Serializable{
 		}
 		return row;
 	}
+
+	/**
+	 * Creates a new Row which copied from another row.
+	 *
+	 * @param row The row being copied.
+	 * @return The cloned new Row
+	 */
+	public static Row copy(Row row) {
+		Row ret = new Row(row.getArity());
+		for (int i = 0; i < row.getArity(); ++i) {
+			ret.setField(i, row.getField(i));
+		}
+		return ret;
+	}
 }

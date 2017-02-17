@@ -31,12 +31,15 @@ import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.apache.flink.table.api.ValidationException
+import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 
 import scala.collection.JavaConverters._
 
 @RunWith(classOf[Parameterized])
-class DataSetWindowAggregateITCase(configMode: TableConfigMode)
-  extends TableProgramsClusterTestBase(configMode) {
+class DataSetWindowAggregateITCase(
+    mode: TestExecutionMode,
+    configMode: TableConfigMode)
+    extends TableProgramsClusterTestBase(mode, configMode) {
 
   val data = List(
     (1L, 1, 1d, 1f, new BigDecimal("1"), "Hi"),

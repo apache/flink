@@ -18,8 +18,13 @@
 
 package org.apache.flink.table.api.scala.batch.utils
 
+import java.util
+
 import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
+import org.junit.runners.Parameterized
+
+import scala.collection.JavaConversions._
 
 /**
   * This test base provides lightweight integration tests for batch programs. However, it does
@@ -27,6 +32,15 @@ import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
   * use [[TableProgramsClusterTestBase]].
   */
 class TableProgramsCollectionTestBase(
-  tableConfigMode: TableConfigMode)
-  extends TableProgramsTestBase(TestExecutionMode.COLLECTION, tableConfigMode) {
+    tableConfigMode: TableConfigMode)
+    extends TableProgramsTestBase(TestExecutionMode.COLLECTION, tableConfigMode) {
+}
+
+object TableProgramsCollectionTestBase {
+
+  @Parameterized.Parameters(name = "Table config = {0}")
+  def parameters(): util.Collection[Array[java.lang.Object]] = {
+    Seq[Array[AnyRef]](Array(TableProgramsTestBase.DEFAULT))
+  }
+
 }
