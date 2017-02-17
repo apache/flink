@@ -124,7 +124,7 @@ public class BlobUtils {
 	private static File getCacheDirectory(File storageDir) {
 		final File cacheDirectory = new File(storageDir, "cache");
 
-		if (!cacheDirectory.exists() && !cacheDirectory.mkdirs()) {
+		if (!cacheDirectory.mkdirs() && !cacheDirectory.exists()) {
 			throw new RuntimeException("Could not create cache directory '" + cacheDirectory.getAbsolutePath() + "'.");
 		}
 
