@@ -20,10 +20,9 @@ package org.apache.flink.table.plan.rules.datastream
 
 import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
-import org.apache.calcite.tools.RelBuilder
-import org.apache.flink.table.plan.nodes.dataset.DataSetCalc
 import org.apache.flink.table.plan.nodes.datastream.{DataStreamCalc, StreamTableSourceScan}
-import org.apache.flink.table.plan.rules.util.RexProgramExpressionExtractor._
+import org.apache.flink.table.plan.util.RexProgramExpressionExtractor._
+import org.apache.flink.table.plan.schema.TableSourceTable
 import org.apache.flink.table.sources.FilterableTableSource
 
 class PushFilterIntoStreamTableSourceScanRule extends RelOptRule(
@@ -32,7 +31,7 @@ class PushFilterIntoStreamTableSourceScanRule extends RelOptRule(
   "PushFilterIntoStreamTableSourceScanRule") {
 
   override def matches(call: RelOptRuleCall) = {
-    val calc: DataSetCalc = call.rel(0).asInstanceOf[DataSetCalc]
+    val calc: DataStreamCalc = call.rel(0).asInstanceOf[DataStreamCalc]
     val scan: StreamTableSourceScan = call.rel(1).asInstanceOf[StreamTableSourceScan]
     scan.tableSource match {
       case _: FilterableTableSource =>
@@ -45,26 +44,41 @@ class PushFilterIntoStreamTableSourceScanRule extends RelOptRule(
     val calc: DataStreamCalc = call.rel(0).asInstanceOf[DataStreamCalc]
     val scan: StreamTableSourceScan = call.rel(1).asInstanceOf[StreamTableSourceScan]
 
-    val tableSource: FilterableTableSource = scan.tableSource.asInstanceOf[FilterableTableSource]
+    val filterableSource = scan.tableSource.asInstanceOf[FilterableTableSource]
 
-    val builder: RelBuilder = call.builder()
-    val predicate = extractPredicateExpression(
-      calc.calcProgram,
-      builder.getRexBuilder)
-    if (predicate.isDefined) {
-      val remainingPredicate = tableSource.setPredicate(predicate.get)
+    val program = calc.calcProgram
+    val tst = scan.getTable.unwrap(classOf[TableSourceTable[_]])
+    val predicates = extractPredicateExpressions(
+      program,
+      call.builder().getRexBuilder,
+      tst.tableEnv.getFunctionCatalog)
 
-      if (verifyExpressions(predicate.get, remainingPredicate)) {
+    if (predicates.length != 0) {
+      val remainingPredicate = filterableSource.setPredicate(predicates)
+
+      if (verifyExpressions(predicates, remainingPredicate)) {
+
+        val filterRexNode = getFilterExpressionAsRexNode(
+          program.getInputRowType,
+          scan,
+          predicates.diff(remainingPredicate))(call.builder())
+
+        val newScan = new StreamTableSourceScan(
+          scan.getCluster,
+          scan.getTraitSet,
+          scan.getTable,
+          scan.tableSource,
+          filterRexNode)
 
         val newCalcProgram = rewriteRexProgram(
-          calc.calcProgram,
-          scan,
-          remainingPredicate)(builder)
+          program,
+          newScan,
+          remainingPredicate)(call.builder())
 
         val newCalc = new DataStreamCalc(
           calc.getCluster,
           calc.getTraitSet,
-          scan,
+          newScan,
           calc.getRowType,
           newCalcProgram,
           description)

@@ -23,7 +23,6 @@ import java.util
 
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.table.sources.{BatchTableSource, CsvTableSource}
-import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.tools.RuleSet
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
@@ -109,14 +108,7 @@ object CommonTestData {
 
   def getMockTableEnvironment: TableEnvironment = new MockTableEnvironment
 
-  def getFilterableTableSource(
-    fieldNames: Array[String] = Array[String](
-      "name", "id", "amount", "price"),
-    fieldTypes: Array[TypeInformation[_]] = Array(
-      BasicTypeInfo.STRING_TYPE_INFO,
-      BasicTypeInfo.LONG_TYPE_INFO,
-      BasicTypeInfo.INT_TYPE_INFO,
-      BasicTypeInfo.DOUBLE_TYPE_INFO)) = new TestFilterableTableSource(fieldNames, fieldTypes)
+  def getFilterableTableSource = new TestFilterableTableSource
 }
 
 class MockTableEnvironment extends TableEnvironment(new TableConfig) {
@@ -134,70 +126,60 @@ class MockTableEnvironment extends TableEnvironment(new TableConfig) {
   override protected def getBuiltInOptRuleSet: RuleSet = ???
 }
 
-class TestFilterableTableSource(
-    fieldNames: Array[String],
-    fieldTypes: Array[TypeInformation[_]])
-  extends BatchTableSource[Row]
+class TestFilterableTableSource
+    extends BatchTableSource[Row]
     with StreamTableSource[Row]
     with FilterableTableSource
     with DefinedFieldNames {
 
-  private var filterPredicate: Array[Expression] = Array.empty
+  import org.apache.flink.table.api.Types._
+
+  val fieldNames = Array("name", "id", "amount", "price")
+  val fieldTypes = Array[TypeInformation[_]](STRING, LONG, INT, DOUBLE)
+
+  private var filterLiteral: Literal = _
+  private var filterPredicates: Array[Expression] = Array.empty
 
   /** Returns the data of the table as a [[DataSet]]. */
   override def getDataSet(execEnv: ExecutionEnvironment): DataSet[Row] = {
-    execEnv.fromCollection[Row](
-      generateDynamicCollection(33, fieldNames, filterPredicate).asJava, getReturnType)
+    execEnv.fromCollection[Row](generateDynamicCollection(33).asJava, getReturnType)
   }
 
   /** Returns the data of the table as a [[DataStream]]. */
   def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[Row] = {
-    execEnv.fromCollection[Row](
-      generateDynamicCollection(33, fieldNames, filterPredicate).asJava, getReturnType)
+    execEnv.fromCollection[Row](generateDynamicCollection(33).asJava, getReturnType)
   }
 
-  private def generateDynamicCollection(
-    num: Int,
-    fieldNames: Array[String],
-    predicate: Array[Expression]): Seq[Row] = {
+  private def generateDynamicCollection(num: Int): Seq[Row] = {
 
-    if (predicate.isEmpty) {
+    if (filterLiteral == null) {
       throw new RuntimeException("filter expression was not set")
     }
 
-    val literal = predicate(0).children.last
-      .asInstanceOf[Literal]
-      .value.asInstanceOf[Int]
+    val filterValue = filterLiteral.value.asInstanceOf[Number].intValue()
 
     def shouldCreateRow(value: Int): Boolean = {
-      value > literal
+      value > filterValue
     }
 
-    def createRow(row: Row, name: String, pos: Int, value: Int): Unit = {
-      name match {
-        case "name" =>
-          row.setField(pos, s"Record_$value")
-        case "id" =>
-          row.setField(pos, value.toLong)
-        case "amount" =>
-          row.setField(pos, value.toInt)
-        case "price" =>
-          row.setField(pos, value.toDouble)
-        case _ =>
-          throw new IllegalArgumentException(s"unknown fieldName name $name")
-      }
-    }
-
-    for {cnt <- 0 until num}
-      yield {
+    for {
+      cnt <- 0 until num
+      if shouldCreateRow(cnt)
+    } yield {
         val row = new Row(fieldNames.length)
-        fieldNames.zipWithIndex.foreach {
-          case (name, index) =>
-            if (shouldCreateRow(cnt)) {
-              createRow(row, name, index, cnt)
-            }
+        fieldNames.zipWithIndex.foreach { case (name, index) =>
+          name match {
+            case "name" =>
+              row.setField(index, s"Record_$cnt")
+            case "id" =>
+              row.setField(index, cnt.toLong)
+            case "amount" =>
+              row.setField(index, cnt.toInt)
+            case "price" =>
+              row.setField(index, cnt.toDouble)
+          }
         }
-        row
+      row
       }
   }
 
@@ -210,28 +192,26 @@ class TestFilterableTableSource(
   /** Returns the indices of the table fields. */
   override def getFieldIndices: Array[Int] = fieldNames.indices.toArray
 
-  def getPredicate: Array[Expression] = filterPredicate
+  override def getPredicate: Array[Expression] = filterPredicates
 
-  /** Return an unsupported predicate expression. */
-  override def setPredicate(predicate: Array[Expression]): Array[Expression] = {
-    predicate
-  }
-
-  private def extractLeftPredicateWithGraterThan(
-    predicate: Expression): (Option[Expression], Expression) = {
-
-    predicate match {
-      case e: Expression =>
-        e.children.head match {
-          case bc: BinaryComparison =>
-            bc.sqlOperator.kind match {
-              case SqlKind.GREATER_THAN =>
-                (Option(e.children.head), e.children.last)
-              case _ => (None, e)
+  /** Return an unsupported predicates expression. */
+  override def setPredicate(predicates: Array[Expression]): Array[Expression] = {
+    predicates(0) match {
+      case gt: GreaterThan =>
+        gt.left match {
+          case f: ResolvedFieldReference =>
+            gt.right match {
+              case l: Literal =>
+                if (f.name.equals("amount")) {
+                  filterLiteral = l
+                  filterPredicates = Array(predicates(0))
+                  Array(predicates(1))
+                } else predicates
+              case _ => predicates
             }
-          case _ => (None, e)
+          case _ => predicates
         }
-      case _ => (None, null)
+      case _ => predicates
     }
   }
 }

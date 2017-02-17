@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.plan.rules.util
+package org.apache.flink.table.plan.util
 
 import java.math.BigDecimal
 
@@ -31,13 +31,12 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.calcite.{FlinkRelBuilder, FlinkTypeFactory}
-import org.apache.flink.table.expressions.ExpressionParser
-import org.apache.flink.table.expressions.ExpressionParser._
-import org.apache.flink.table.plan.rules.util.RexProgramExpressionExtractor._
+import org.apache.flink.table.expressions.{Expression, ExpressionParser}
+import org.apache.flink.table.plan.util.RexProgramExpressionExtractor._
 import org.apache.flink.table.plan.schema.CompositeRelDataType
 import org.apache.flink.table.utils.CommonTestData
-import org.junit.Assert.{assertEquals, assertFalse, assertTrue}
 import org.junit.Test
+import org.junit.Assert._
 
 import scala.collection.JavaConverters._
 
@@ -57,9 +56,16 @@ class RexProgramExpressionExtractorTest {
     val builder: RexBuilder = new RexBuilder(typeFactory)
     val program = buildRexProgram(
       allFieldNames, allFieldTypes, typeFactory, builder)
-    val originalExp = ExpressionParser.parseExpression("amount * price < 100 && id > 6")
-    val extractedExp = extractPredicateExpression(program, builder)
-    assertEquals(originalExp, extractedExp)
+    val firstExp = ExpressionParser.parseExpression("id > 6")
+    val secondExp = ExpressionParser.parseExpression("amount * price < 100")
+    val expected: Array[Expression] = Array(firstExp, secondExp)
+    val actual = extractPredicateExpressions(
+      program,
+      builder,
+      CommonTestData.getMockTableEnvironment.getFunctionCatalog)
+
+    assertEquals(expected.length, actual.length)
+    // todo
   }
 
   @Test

@@ -20,7 +20,7 @@ package org.apache.flink.table
 
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.sources.{BatchTableSource, CsvTableSource, StreamTableSource, TableSource}
+import org.apache.flink.table.sources.{CsvTableSource, TableSource}
 import org.apache.flink.table.utils.TableTestUtil._
 import org.junit.{Assert, Test}
 import org.apache.flink.table.utils.{CommonTestData, TableTestBase}
@@ -34,7 +34,7 @@ class TableSourceTest extends TableTestBase {
 
   @Test
   def testBatchProjectableSourceScanPlanTableApi(): Unit = {
-    val (tableSource, tableName) = projectableTableSource
+    val (tableSource, tableName) = csvTable
     val util = batchTestUtil()
     val tEnv = util.tEnv
 
@@ -46,7 +46,7 @@ class TableSourceTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataSetCalc",
-      sourceBatchTableNode(tableName, projectedFields),
+      projectableSourceBatchTableNode(tableName, projectedFields),
       term("select", "UPPER(last) AS _c0", "FLOOR(id) AS _c1", "*(score, 2) AS _c2")
     )
 
@@ -55,7 +55,7 @@ class TableSourceTest extends TableTestBase {
 
   @Test
   def testBatchProjectableSourceScanPlanSQL(): Unit = {
-    val (tableSource, tableName) = projectableTableSource
+    val (tableSource, tableName) = csvTable
     val util = batchTestUtil()
 
     util.tEnv.registerTableSource(tableName, tableSource)
@@ -64,7 +64,7 @@ class TableSourceTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataSetCalc",
-      sourceBatchTableNode(tableName, projectedFields),
+      projectableSourceBatchTableNode(tableName, projectedFields),
       term("select", "last", "FLOOR(id) AS EXPR$1", "*(score, 2) AS EXPR$2")
     )
 
@@ -73,7 +73,7 @@ class TableSourceTest extends TableTestBase {
 
   @Test
   def testBatchProjectableSourceScanNoIdentityCalc(): Unit = {
-    val (tableSource, tableName) = projectableTableSource
+    val (tableSource, tableName) = csvTable
     val util = batchTestUtil()
     val tEnv = util.tEnv
 
@@ -83,7 +83,7 @@ class TableSourceTest extends TableTestBase {
       .scan(tableName)
       .select('id, 'score, 'first)
 
-    val expected = sourceBatchTableNode(tableName, noCalcFields)
+    val expected = projectableSourceBatchTableNode(tableName, noCalcFields)
     util.verifyTable(result, expected)
   }
 
@@ -93,16 +93,19 @@ class TableSourceTest extends TableTestBase {
     val util = batchTestUtil()
     val tEnv = util.tEnv
 
-    tEnv.registerTableSource(tableName, tableSource.asInstanceOf[BatchTableSource[_]])
+    tEnv.registerTableSource(tableName, tableSource)
 
     val result = tEnv
       .scan(tableName)
       .select('price, 'id, 'amount)
-      .where("id > 2 && price * 2 < 32")
+      .where("amount > 2 && price * 2 < 32")
 
     val expected = unaryNode(
       "DataSetCalc",
-      sourceBatchTableNode(tableName, Array("name", "id", "amount", "price"), "id>2"),
+      filterableSourceBatchTableNode(
+        tableName,
+        Array("name", "id", "amount", "price"),
+        ">(amount, 2)"),
       term("select", "price", "id", "amount"),
       term("where", "<(*(price, 2), 32)")
     )
@@ -114,7 +117,7 @@ class TableSourceTest extends TableTestBase {
 
   @Test
   def testStreamProjectableSourceScanPlanTableApi(): Unit = {
-    val (tableSource, tableName) = projectableTableSource
+    val (tableSource, tableName) = csvTable
     val util = streamTestUtil()
     val tEnv = util.tEnv
 
@@ -126,7 +129,7 @@ class TableSourceTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamCalc",
-      sourceStreamTableNode(tableName, projectedFields),
+      projectableSourceStreamTableNode(tableName, projectedFields),
       term("select", "last", "FLOOR(id) AS _c1", "*(score, 2) AS _c2")
     )
 
@@ -135,7 +138,7 @@ class TableSourceTest extends TableTestBase {
 
   @Test
   def testStreamProjectableSourceScanPlanSQL(): Unit = {
-    val (tableSource, tableName) = projectableTableSource
+    val (tableSource, tableName) = csvTable
     val util = streamTestUtil()
 
     util.tEnv.registerTableSource(tableName, tableSource)
@@ -144,7 +147,7 @@ class TableSourceTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamCalc",
-      sourceStreamTableNode(tableName, projectedFields),
+      projectableSourceStreamTableNode(tableName, projectedFields),
       term("select", "last", "FLOOR(id) AS EXPR$1", "*(score, 2) AS EXPR$2")
     )
 
@@ -153,7 +156,7 @@ class TableSourceTest extends TableTestBase {
 
   @Test
   def testStreamProjectableSourceScanNoIdentityCalc(): Unit = {
-    val (tableSource, tableName) = projectableTableSource
+    val (tableSource, tableName) = csvTable
     val util = streamTestUtil()
     val tEnv = util.tEnv
 
@@ -163,9 +166,37 @@ class TableSourceTest extends TableTestBase {
       .scan(tableName)
       .select('id, 'score, 'first)
 
-    val expected = sourceStreamTableNode(tableName, noCalcFields)
+    val expected = projectableSourceStreamTableNode(tableName, noCalcFields)
     util.verifyTable(result, expected)
   }
+
+  @Test
+  def testStreamFilterableSourceScanPlanTableApi(): Unit = {
+    val (tableSource, tableName) = filterableTableSource
+    val util = streamTestUtil()
+    val tEnv = util.tEnv
+
+    tEnv.registerTableSource(tableName, tableSource)
+
+    val result = tEnv
+      .scan(tableName)
+      .select('price, 'id, 'amount)
+      .where("amount > 2 && price * 2 < 32")
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      filterableSourceStreamTableNode(
+        tableName,
+        Array("name", "id", "amount", "price"),
+        ">(amount, 2)"),
+      term("select", "price", "id", "amount"),
+      term("where", "<(*(price, 2), 32)")
+    )
+
+    util.verifyTable(result, expected)
+  }
+
+  // csv builder
 
   @Test
   def testCsvTableSourceBuilder(): Unit = {
@@ -220,53 +251,49 @@ class TableSourceTest extends TableTestBase {
       .build()
   }
 
-  def testStreamFilterableSourceScanPlanTableApi(): Unit = {
-    val (tableSource, tableName) = filterableTableSource
-    val util = streamTestUtil()
-    val tEnv = util.tEnv
-
-    tEnv.registerTableSource(tableName, tableSource.asInstanceOf[StreamTableSource[_]])
-
-    val result = tEnv
-      .scan(tableName)
-      .select('price, 'id, 'amount)
-      .where("id > 2 && price * 2 < 32")
-
-    val expected = unaryNode(
-      "DataStreamCalc",
-      sourceStreamTableNode(tableName, Array("name", "id", "amount", "price"), "id>2"),
-      term("select", "price", "id", "amount"),
-      term("where", "<(*(price, 2), 32)")
-    )
-
-    util.verifyTable(result, expected)
-  }
+  // utils
 
   def filterableTableSource:(TableSource[_], String) = {
-    val tableSource = CommonTestData.getFilterableTableSource()
+    val tableSource = CommonTestData.getFilterableTableSource
     (tableSource, "filterableTable")
   }
 
-  def projectableTableSource: (CsvTableSource, String) = {
+  def csvTable: (CsvTableSource, String) = {
     val csvTable = CommonTestData.getCsvTableSource
     val tableName = "csvTable"
     (csvTable, tableName)
   }
 
-  def sourceBatchTableNode(
+  def projectableSourceBatchTableNode(
       sourceName: String,
-      fields: Array[String],
-      exp: String = ""): String = {
+      fields: Array[String]): String = {
+
+    "BatchTableSourceScan(" +
+      s"table=[[$sourceName]], fields=[${fields.mkString(", ")}])"
+  }
+
+  def projectableSourceStreamTableNode(
+      sourceName: String,
+      fields: Array[String]): String = {
+    
+    "StreamTableSourceScan(" +
+      s"table=[[$sourceName]], fields=[${fields.mkString(", ")}])"
+  }
+
+  def filterableSourceBatchTableNode(
+    sourceName: String,
+    fields: Array[String],
+    exp: String): String = {
 
     "BatchTableSourceScan(" +
       s"table=[[$sourceName]], fields=[${fields.mkString(", ")}], filter=[$exp])"
   }
 
-  def sourceStreamTableNode(
-      sourceName: String,
-      fields: Array[String],
-      exp: String = ""): String = {
-    
+  def filterableSourceStreamTableNode(
+    sourceName: String,
+    fields: Array[String],
+    exp: String): String = {
+
     "StreamTableSourceScan(" +
       s"table=[[$sourceName]], fields=[${fields.mkString(", ")}], filter=[$exp])"
   }

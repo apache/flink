@@ -22,7 +22,7 @@ import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.plan.RelOptRule.{none, operand}
 import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.plan.nodes.dataset.{BatchTableSourceScan, DataSetCalc}
-import org.apache.flink.table.plan.rules.util.RexProgramProjectExtractor._
+import org.apache.flink.table.plan.util.RexProgramProjectExtractor._
 import org.apache.flink.table.sources.{BatchTableSource, ProjectableTableSource}
 
 /**
