@@ -28,6 +28,7 @@ import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase.TableC
 import org.apache.flink.table.api.scala.batch.utils.TableProgramsClusterTestBase
 import org.apache.flink.table.expressions.utils.{Func13, RichFunc2}
 import org.apache.flink.table.utils._
+import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
 import org.junit.Test
@@ -39,8 +40,9 @@ import scala.collection.mutable
 
 @RunWith(classOf[Parameterized])
 class DataSetUserDefinedFunctionITCase(
-  configMode: TableConfigMode)
-  extends TableProgramsClusterTestBase(configMode) {
+    mode: TestExecutionMode,
+    configMode: TableConfigMode)
+    extends TableProgramsClusterTestBase(mode, configMode) {
 
   @Test
   def testCrossJoin(): Unit = {
