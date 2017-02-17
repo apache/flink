@@ -54,11 +54,6 @@ abstract class Expression extends TreeNode[Expression] {
       s"${this.getClass.getName} cannot be transformed to RexNode"
     )
 
-  private[flink] def fromRexNode(rex: RexNode): Expression =
-    throw new UnsupportedOperationException(
-      s"$rex cannot be transformed to Expression"
-    )
-
   private[flink] def checkEquals(other: Expression): Boolean = {
     if (this.getClass != other.getClass) {
       false

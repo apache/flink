@@ -90,7 +90,7 @@ class TableSourceITCase extends StreamingMultipleProgramsTestBase {
     val tableName = "MyTable"
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
-    tEnv.registerTableSource(tableName, CommonTestData.getFilterableTableSource())
+    tEnv.registerTableSource(tableName, CommonTestData.getFilterableTableSource)
     tEnv.scan(tableName)
       .where("amount > 4 && price < 9")
       .select("id, name")

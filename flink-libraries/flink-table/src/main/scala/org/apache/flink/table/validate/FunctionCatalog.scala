@@ -139,7 +139,21 @@ class FunctionCatalog {
 object FunctionCatalog {
 
   val builtInFunctions: Map[String, Class[_]] = Map(
+
+//    SqlStdOperatorTable.AS,
+//    SqlStdOperatorTable.DIVIDE_INTEGER,
+//    SqlStdOperatorTable.DOT,
+
     // logic
+    "and" -> classOf[And],
+    "or" -> classOf[Or],
+    "not" -> classOf[Not],
+    "equals" -> classOf[EqualTo],
+    "greaterThan" -> classOf[GreaterThan],
+    "greaterThanOrEqual" -> classOf[GreaterThanOrEqual],
+    "lessThan" -> classOf[LessThan],
+    "lessThanOrEqual" -> classOf[LessThanOrEqual],
+    "notEquals" -> classOf[NotEqualTo],
     "isNull" -> classOf[IsNull],
     "isNotNull" -> classOf[IsNotNull],
     "isTrue" -> classOf[IsTrue],
@@ -158,15 +172,23 @@ object FunctionCatalog {
     "charLength" -> classOf[CharLength],
     "initCap" -> classOf[InitCap],
     "like" -> classOf[Like],
+    "concat" -> classOf[Plus],
+    "lower" -> classOf[Lower],
     "lowerCase" -> classOf[Lower],
     "similar" -> classOf[Similar],
     "substring" -> classOf[Substring],
     "trim" -> classOf[Trim],
+    // duplicate functions for calcite
+    "upper" -> classOf[Upper],
     "upperCase" -> classOf[Upper],
     "position" -> classOf[Position],
     "overlay" -> classOf[Overlay],
 
     // math functions
+    "plus" -> classOf[Plus],
+    "minus" -> classOf[Minus],
+    "divide" -> classOf[Div],
+    "times" -> classOf[Mul],
     "abs" -> classOf[Abs],
     "ceil" -> classOf[Ceil],
     "exp" -> classOf[Exp],
@@ -176,6 +198,7 @@ object FunctionCatalog {
     "power" -> classOf[Power],
     "mod" -> classOf[Mod],
     "sqrt" -> classOf[Sqrt],
+    "minusPrefix" -> classOf[UnaryMinus],
 
     // temporal functions
     "extract" -> classOf[Extract],
@@ -186,6 +209,7 @@ object FunctionCatalog {
     "localTimestamp" -> classOf[LocalTimestamp],
     "quarter" -> classOf[Quarter],
     "temporalOverlaps" -> classOf[TemporalOverlaps],
+    "dateTimePlus" -> classOf[Plus],
 
     // array
     "cardinality" -> classOf[ArrayCardinality],
