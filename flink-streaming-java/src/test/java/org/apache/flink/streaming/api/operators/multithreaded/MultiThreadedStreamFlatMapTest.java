@@ -97,38 +97,6 @@ public class MultiThreadedStreamFlatMapTest {
     }
 
     @Test
-    public void testSnapshotAndRestore() throws Exception {
-        MultiThreadedStreamFlatMap<Integer, Integer> operator = new MultiThreadedStreamFlatMap<Integer, Integer>(new MyFlatMap(), 2);
-
-        long initialTime = 0L;
-        long checkpointId = 1;
-
-        OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
-                new OneInputStreamOperatorTestHarness<Integer, Integer>(operator, IntSerializer.INSTANCE);
-        ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<Object>();
-
-        testHarness.setup();
-
-        testHarness.open();
-
-        testHarness.processElement(new StreamRecord<Integer>(1, initialTime + 1));
-        testHarness.processElement(new StreamRecord<Integer>(2, initialTime + 2));
-
-        OperatorStateHandles handles = testHarness.snapshot(checkpointId, initialTime + 2);
-
-        testHarness.notifyOfCompletedCheckpoint(checkpointId);
-
-        testHarness.initializeState(handles);
-
-        testHarness.close();
-
-        expectedOutput.add(new StreamRecord<Integer>(2, initialTime + 2));
-        expectedOutput.add(new StreamRecord<Integer>(4, initialTime + 2));
-
-        TestHarnessUtil.assertOutputEqualsWithoutOrder("Output mismatch.", expectedOutput, testHarness.getOutput());
-    }
-
-    @Test
     public void testOpenClose() throws Exception {
         MultiThreadedStreamFlatMap<String, String> operator = new MultiThreadedStreamFlatMap<String, String>(
                 new TestOpenCloseFlatMapFunction(), 1);
@@ -148,6 +116,37 @@ public class MultiThreadedStreamFlatMapTest {
         Assert.assertTrue("Output contains no elements.", testHarness.getOutput().size() > 0);
     }
 
+    @Test
+    public void testSnapshotAndRestore() throws Exception {
+        MultiThreadedStreamFlatMap<Integer, Integer> operator = new MultiThreadedStreamFlatMap<>(new MyFlatMap(), 2);
+
+        long initialTime = 0L;
+        long checkpointId = 1;
+
+        OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
+                new OneInputStreamOperatorTestHarness<>(operator, IntSerializer.INSTANCE);
+        ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<Object>();
+
+        testHarness.setup();
+
+        testHarness.open();
+
+        testHarness.processElement(new StreamRecord<>(1, initialTime + 1));
+        testHarness.processElement(new StreamRecord<>(2, initialTime + 2));
+
+        OperatorStateHandles handles = testHarness.snapshot(checkpointId, initialTime + 2);
+
+        testHarness.notifyOfCompletedCheckpoint(checkpointId);
+
+        testHarness.initializeState(handles);
+        
+        testHarness.close();
+
+        expectedOutput.add(new StreamRecord<>(2, initialTime + 2));
+        expectedOutput.add(new StreamRecord<>(4, initialTime + 2));
+
+        TestHarnessUtil.assertOutputEqualsWithoutOrder("Output mismatch.", expectedOutput, testHarness.getOutput());
+    }
 
     // This must only be used in one test, otherwise the static fields will be changed
     // by several tests concurrently

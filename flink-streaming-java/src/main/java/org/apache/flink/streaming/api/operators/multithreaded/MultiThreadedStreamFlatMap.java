@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.operators.multithreaded;
 
+import com.google.common.util.concurrent.*;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FlatMapFunction;
@@ -38,10 +39,7 @@ import org.apache.flink.util.Preconditions;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 @Internal
 public class MultiThreadedStreamFlatMap<IN, OUT>
@@ -55,10 +53,10 @@ public class MultiThreadedStreamFlatMap<IN, OUT>
 
     private int parallelism;
 
-    private ExecutorService executorService;
+    private ListeningExecutorService executorService;
 
     private transient Object lock;
-    
+
     private transient StreamElementSerializer<IN> inStreamElementSerializer;
     private transient ListState<StreamElement> states;
     private List<StreamElement> elementsToBeProcessedBuffer;
@@ -105,10 +103,12 @@ public class MultiThreadedStreamFlatMap<IN, OUT>
     public void processElement(final StreamRecord<IN> element) throws Exception {
         elementsToBeProcessedBuffer.add(element);
 
-        Callable<Void> processElementTask =
+        Callable processElementTask =
                 new ProcessElementTask(userFunction, element, new MultiThreadedTimestampedCollector<>(output, lock));
-        
-        executorService.submit(processElementTask);
+
+        ListenableFuture<StreamRecord<IN>> taskProgress = executorService.submit(processElementTask);
+
+        Futures.addCallback(taskProgress, new TaskProgressCallback());
     }
 
     // ------------------------------------------------------------------------
@@ -132,9 +132,6 @@ public class MultiThreadedStreamFlatMap<IN, OUT>
         super.snapshotState(context);
 
         states.clear();
-
-        for (StreamElement element : elementsToBeProcessedBuffer)
-            states.add(element);
     }
 
     @Override
@@ -146,7 +143,8 @@ public class MultiThreadedStreamFlatMap<IN, OUT>
     public void notifyOfCompletedCheckpoint(long checkpointId) throws Exception {
         super.notifyOfCompletedCheckpoint(checkpointId);
 
-        elementsToBeProcessedBuffer.clear();
+        for (StreamElement element : elementsToBeProcessedBuffer)
+            states.add(element);
     }
 
     // ------------------------------------------------------------------------
@@ -162,7 +160,7 @@ public class MultiThreadedStreamFlatMap<IN, OUT>
     //  Utilities
     // ------------------------------------------------------------------------
     private void createExecutorService() {
-        executorService = Executors.newFixedThreadPool(parallelism);
+        executorService = MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(parallelism));
     }
 
     private void closeExecutor() {
@@ -199,5 +197,15 @@ public class MultiThreadedStreamFlatMap<IN, OUT>
             collector.setTimestamp(element);
             userFunction.flatMap(element.getValue(), collector);
         }
+    }
+
+    private class TaskProgressCallback implements FutureCallback<StreamRecord<IN>> {
+        @Override
+        public void onSuccess(StreamRecord<IN> record) {
+            elementsToBeProcessedBuffer.remove(record);
+        }
+
+        @Override
+        public void onFailure(Throwable thrown) { }
     }
 }
