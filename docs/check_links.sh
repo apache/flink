@@ -17,13 +17,10 @@
 # limitations under the License.
 ################################################################################
 
-# Don't abort on any non-zero exit code
-#set +e
-
 target=${1:-"http://localhost:4000"}
 
 # Crawl the docs, ignoring robots.txt, storing nothing locally
-wget --spider -r -nd -nv -e robots=off -p -o spider.log $target
+wget --spider -r -nd -nv -e robots=off -p -o spider.log "$target"
 
 # Abort for anything other than 0 and 4 ("Network failure")
 status=$?
@@ -32,8 +29,8 @@ if [ $status -ne 0 ] && [ $status -ne 4 ]; then
 fi
 
 # Fail the build if any broken links are found
-broken_links_str=$(grep -e 'Found [[:digit:]]\+ broken link' spider.log)
-echo -e "$broken_links_str"
+broken_links_str=$(grep -e 'Found [[:digit:]]\+ broken link(s)' spider.log)
 if [ -n "$broken_links_str" ]; then
+	echo "$broken_links_str"
     exit 1
 fi
