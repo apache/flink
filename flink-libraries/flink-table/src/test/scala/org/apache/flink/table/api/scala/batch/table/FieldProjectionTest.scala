@@ -70,7 +70,7 @@ class FieldProjectionTest extends TableTestBase {
     val sourceTable = util.addTable[(Int, Long, String, Double)]("MyTable", 'a, 'b, 'c, 'd)
     val resultTable = sourceTable.select('a.sum, 'b.max)
 
-    val expected = unaryNode(
+    val aggregate = unaryNode(
       "DataSetAggregate",
       binaryNode(
         "DataSetUnion",
@@ -87,6 +87,12 @@ class FieldProjectionTest extends TableTestBase {
         term("union", "a", "b")
       ),
       term("select", "SUM(a) AS TMP_0", "MAX(b) AS TMP_1")
+    )
+
+    val expected = unaryNode(
+      "DataSetCalc",
+      aggregate,
+      term("select", "TMP_0 AS TMP_2", "TMP_1 AS TMP_3")
     )
 
     util.verifyTable(resultTable, expected)
@@ -231,7 +237,7 @@ class FieldProjectionTest extends TableTestBase {
         .groupBy('w)
         .select(Upper('c).count, 'a.sum)
 
-    val expected =
+    val aggregate =
       unaryNode(
         "DataStreamAggregate",
         unaryNode(
@@ -246,6 +252,12 @@ class FieldProjectionTest extends TableTestBase {
             5.millis)),
         term("select", "COUNT($f2) AS TMP_0", "SUM(a) AS TMP_1")
       )
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      aggregate,
+      term("select", "TMP_0 AS TMP_2", "TMP_1 AS TMP_3")
+    )
 
     streamUtil.verifyTable(resultTable, expected)
   }

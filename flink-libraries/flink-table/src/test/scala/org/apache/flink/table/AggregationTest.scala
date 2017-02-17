@@ -176,7 +176,7 @@ class AggregationTest extends TableTestBase {
       term("where", "=(a, 1)")
     )
 
-    val expected = unaryNode(
+    val aggregate = unaryNode(
       "DataSetAggregate",
       calcNode,
       term("groupBy", "a"),
@@ -186,6 +186,17 @@ class AggregationTest extends TableTestBase {
         "SUM(b) AS TMP_1",
         "COUNT(c) AS TMP_2")
     )
+
+    val expected = unaryNode(
+      "DataSetCalc",
+      aggregate,
+      term("select",
+           "a",
+           "TMP_0 AS TMP_3",
+           "TMP_1 AS TMP_4",
+           "TMP_2 AS TMP_5")
+    )
+
 
     util.verifyTable(resultTable,expected)
   }
@@ -208,7 +219,7 @@ class AggregationTest extends TableTestBase {
       term("union","a","b","c")
     )
 
-    val expected = unaryNode(
+    val aggregate = unaryNode(
       "DataSetAggregate",
       union,
       term("select",
@@ -216,6 +227,16 @@ class AggregationTest extends TableTestBase {
         "SUM(b) AS TMP_1",
         "COUNT(c) AS TMP_2")
     )
+
+    val expected = unaryNode(
+      "DataSetCalc",
+      aggregate,
+      term("select",
+           "TMP_0 AS TMP_3",
+           "TMP_1 AS TMP_4",
+           "TMP_2 AS TMP_5")
+    )
+
     util.verifyTable(resultTable, expected)
   }
 
@@ -249,13 +270,22 @@ class AggregationTest extends TableTestBase {
       term("union","a","b","c")
     )
 
-    val expected = unaryNode(
+    val aggregate = unaryNode(
       "DataSetAggregate",
       union,
       term("select",
         "AVG(a) AS TMP_0",
         "SUM(b) AS TMP_1",
         "COUNT(c) AS TMP_2")
+    )
+
+    val expected = unaryNode(
+      "DataSetCalc",
+      aggregate,
+      term("select",
+           "TMP_0 AS TMP_3",
+           "TMP_1 AS TMP_4",
+           "TMP_2 AS TMP_5")
     )
 
     util.verifyTable(resultTable, expected)

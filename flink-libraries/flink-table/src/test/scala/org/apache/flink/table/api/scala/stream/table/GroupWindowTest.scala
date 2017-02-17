@@ -180,7 +180,7 @@ class GroupWindowTest extends TableTestBase {
       .groupBy('w2)
       .select('string.count)
 
-    val expected = unaryNode(
+    val aggregate = unaryNode(
       "DataStreamAggregate",
       unaryNode(
         "DataStreamCalc",
@@ -208,6 +208,12 @@ class GroupWindowTest extends TableTestBase {
           20.milli, 10.milli)),
       term("select", "COUNT(string) AS TMP_2")
     )
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      aggregate,
+      term("select", "TMP_2 AS TMP_3"))
+
     util.verifyTable(windowedTable, expected)
   }
 
@@ -221,7 +227,7 @@ class GroupWindowTest extends TableTestBase {
       .groupBy('w, 'string)
       .select('string, 'int.count)
 
-    val expected = unaryNode(
+    val aggregate = unaryNode(
       "DataStreamAggregate",
       unaryNode(
         "DataStreamCalc",
@@ -237,6 +243,11 @@ class GroupWindowTest extends TableTestBase {
       term("select", "string", "COUNT(int) AS TMP_0")
     )
 
+    val expected = unaryNode(
+      "DataStreamCalc",
+      aggregate,
+      term("select", "string", "TMP_0 AS TMP_1"))
+
     util.verifyTable(windowedTable, expected)
   }
 
@@ -250,7 +261,7 @@ class GroupWindowTest extends TableTestBase {
       .groupBy('w, 'string)
       .select('string, 'int.count)
 
-    val expected = unaryNode(
+    val aggregate = unaryNode(
       "DataStreamAggregate",
       unaryNode(
         "DataStreamCalc",
@@ -265,6 +276,11 @@ class GroupWindowTest extends TableTestBase {
       term("select", "string", "COUNT(int) AS TMP_0")
     )
 
+    val expected = unaryNode(
+      "DataStreamCalc",
+      aggregate,
+      term("select", "string", "TMP_0 AS TMP_1"))
+
     util.verifyTable(windowedTable, expected)
   }
 
@@ -278,7 +294,7 @@ class GroupWindowTest extends TableTestBase {
       .groupBy('w, 'string)
       .select('string, 'int.count)
 
-    val expected = unaryNode(
+    val aggregate = unaryNode(
       "DataStreamAggregate",
       unaryNode(
         "DataStreamCalc",
@@ -294,6 +310,11 @@ class GroupWindowTest extends TableTestBase {
           5.milli)),
       term("select", "string", "COUNT(int) AS TMP_0")
     )
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      aggregate,
+      term("select", "string", "TMP_0 AS TMP_1"))
 
     util.verifyTable(windowedTable, expected)
   }
@@ -334,7 +355,7 @@ class GroupWindowTest extends TableTestBase {
       .groupBy('w, 'string)
       .select('string, 'int.count)
 
-    val expected = unaryNode(
+    val aggregate = unaryNode(
       "DataStreamAggregate",
       unaryNode(
         "DataStreamCalc",
@@ -350,6 +371,11 @@ class GroupWindowTest extends TableTestBase {
       term("select", "string", "COUNT(int) AS TMP_0")
     )
 
+    val expected = unaryNode(
+      "DataStreamCalc",
+      aggregate,
+      term("select", "string", "TMP_0 AS TMP_1"))
+
     util.verifyTable(windowedTable, expected)
   }
 
@@ -363,7 +389,7 @@ class GroupWindowTest extends TableTestBase {
       .groupBy('w, 'string)
       .select('string, 'int.count)
 
-    val expected = unaryNode(
+    val aggregate = unaryNode(
       "DataStreamAggregate",
       unaryNode(
         "DataStreamCalc",
@@ -379,6 +405,12 @@ class GroupWindowTest extends TableTestBase {
       term("select", "string", "COUNT(int) AS TMP_0")
     )
 
+    val expected = unaryNode(
+      "DataStreamCalc",
+      aggregate,
+      term("select", "string", "TMP_0 AS TMP_1")
+    )
+
     util.verifyTable(windowedTable, expected)
   }
 
@@ -392,7 +424,7 @@ class GroupWindowTest extends TableTestBase {
       .groupBy('w, 'string)
       .select('string, 'int.count)
 
-    val expected = unaryNode(
+    val aggregate = unaryNode(
       "DataStreamAggregate",
       unaryNode(
         "DataStreamCalc",
@@ -407,6 +439,11 @@ class GroupWindowTest extends TableTestBase {
           RowtimeAttribute(), 8.milli, 10.milli)),
       term("select", "string", "COUNT(int) AS TMP_0")
     )
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      aggregate,
+      term("select", "string", "TMP_0 AS TMP_1"))
 
     util.verifyTable(windowedTable, expected)
   }
@@ -447,7 +484,7 @@ class GroupWindowTest extends TableTestBase {
       .groupBy('w, 'string)
       .select('string, 'int.count)
 
-    val expected = unaryNode(
+    val aggregate = unaryNode(
       "DataStreamAggregate",
       unaryNode(
         "DataStreamCalc",
@@ -463,6 +500,11 @@ class GroupWindowTest extends TableTestBase {
       term("select", "string", "COUNT(int) AS TMP_0")
     )
 
+    val expected = unaryNode(
+      "DataStreamCalc",
+      aggregate,
+      term("select", "string", "TMP_0 AS TMP_1"))
+
     util.verifyTable(windowedTable, expected)
   }
 
@@ -476,7 +518,7 @@ class GroupWindowTest extends TableTestBase {
       .groupBy('w, 'string)
       .select('string, 'int.count)
 
-    val expected = unaryNode(
+    val aggregate = unaryNode(
       "DataStreamAggregate",
       unaryNode(
         "DataStreamCalc",
@@ -492,6 +534,11 @@ class GroupWindowTest extends TableTestBase {
       term("select", "string", "COUNT(int) AS TMP_0")
     )
 
+    val expected = unaryNode(
+      "DataStreamCalc",
+      aggregate,
+      term("select", "string", "TMP_0 AS TMP_1"))
+
     util.verifyTable(windowedTable, expected)
   }
 
@@ -505,7 +552,7 @@ class GroupWindowTest extends TableTestBase {
       .groupBy('w)
       .select('int.count)
 
-    val expected = unaryNode(
+    val aggregate = unaryNode(
       "DataStreamAggregate",
       unaryNode(
         "DataStreamCalc",
@@ -518,6 +565,12 @@ class GroupWindowTest extends TableTestBase {
           Some(WindowReference("w")),
           2.rows)),
       term("select", "COUNT(int) AS TMP_0")
+    )
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      aggregate,
+      term("select", "TMP_0 AS TMP_1")
     )
 
     util.verifyTable(windowedTable, expected)
@@ -533,7 +586,7 @@ class GroupWindowTest extends TableTestBase {
       .groupBy('w)
       .select('int.count)
 
-    val expected = unaryNode(
+    val aggregate = unaryNode(
       "DataStreamAggregate",
       unaryNode(
         "DataStreamCalc",
@@ -546,6 +599,12 @@ class GroupWindowTest extends TableTestBase {
           Some(WindowReference("w")),
           RowtimeAttribute(), 5.milli)),
       term("select", "COUNT(int) AS TMP_0")
+    )
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      aggregate,
+      term("select", "TMP_0 AS TMP_1")
     )
 
     util.verifyTable(windowedTable, expected)
@@ -591,7 +650,7 @@ class GroupWindowTest extends TableTestBase {
       .groupBy('w)
       .select('int.count)
 
-    val expected = unaryNode(
+    val aggregate = unaryNode(
       "DataStreamAggregate",
       unaryNode(
         "DataStreamCalc",
@@ -606,6 +665,11 @@ class GroupWindowTest extends TableTestBase {
       term("select", "COUNT(int) AS TMP_0")
     )
 
+    val expected = unaryNode(
+      "DataStreamCalc",
+      aggregate,
+      term("select", "TMP_0 AS TMP_1"))
+
     util.verifyTable(windowedTable, expected)
   }
 
@@ -619,7 +683,7 @@ class GroupWindowTest extends TableTestBase {
       .groupBy('w)
       .select('int.count)
 
-    val expected = unaryNode(
+    val aggregate = unaryNode(
       "DataStreamAggregate",
       unaryNode(
         "DataStreamCalc",
@@ -634,6 +698,11 @@ class GroupWindowTest extends TableTestBase {
       term("select", "COUNT(int) AS TMP_0")
     )
 
+    val expected = unaryNode(
+      "DataStreamCalc",
+      aggregate,
+      term("select", "TMP_0 AS TMP_1"))
+
     util.verifyTable(windowedTable, expected)
   }
 
@@ -647,7 +716,7 @@ class GroupWindowTest extends TableTestBase {
       .groupBy('w)
       .select('int.count)
 
-    val expected = unaryNode(
+    val aggregate = unaryNode(
       "DataStreamAggregate",
       unaryNode(
         "DataStreamCalc",
@@ -660,6 +729,12 @@ class GroupWindowTest extends TableTestBase {
           Some(WindowReference("w")),
           RowtimeAttribute(), 8.milli, 10.milli)),
       term("select", "COUNT(int) AS TMP_0")
+    )
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      aggregate,
+      term("select", "TMP_0 AS TMP_1")
     )
 
     util.verifyTable(windowedTable, expected)
@@ -676,7 +751,7 @@ class GroupWindowTest extends TableTestBase {
       .groupBy('w)
       .select('int.count)
 
-    val expected = unaryNode(
+    val aggregate = unaryNode(
       "DataStreamAggregate",
       unaryNode(
         "DataStreamCalc",
@@ -691,6 +766,11 @@ class GroupWindowTest extends TableTestBase {
       term("select", "COUNT(int) AS TMP_0")
     )
 
+    val expected = unaryNode(
+      "DataStreamCalc",
+      aggregate,
+      term("select", "TMP_0 AS TMP_1"))
+
     util.verifyTable(windowedTable, expected)
   }
 
@@ -704,7 +784,7 @@ class GroupWindowTest extends TableTestBase {
       .groupBy('w)
       .select('int.count)
 
-    val expected = unaryNode(
+    val aggregate = unaryNode(
       "DataStreamAggregate",
       unaryNode(
         "DataStreamCalc",
@@ -717,6 +797,12 @@ class GroupWindowTest extends TableTestBase {
           Some(WindowReference("w")),
           RowtimeAttribute(), 7.milli)),
       term("select", "COUNT(int) AS TMP_0")
+    )
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      aggregate,
+      term("select", "TMP_0 AS TMP_1")
     )
 
     util.verifyTable(windowedTable, expected)
@@ -732,7 +818,7 @@ class GroupWindowTest extends TableTestBase {
       .groupBy('w, 'string)
       .select('string, 'int.count, 'w.start, 'w.end)
 
-    val expected = unaryNode(
+    val aggregate = unaryNode(
       "DataStreamAggregate",
       unaryNode(
         "DataStreamCalc",
@@ -752,6 +838,15 @@ class GroupWindowTest extends TableTestBase {
         "end(WindowReference(w)) AS TMP_2")
     )
 
+    val expected = unaryNode(
+      "DataStreamCalc",
+      aggregate,
+      term("select",
+           "string",
+           "TMP_0 AS TMP_3",
+           "TMP_1 AS TMP_4",
+           "TMP_2 AS TMP_5"))
+
     util.verifyTable(windowedTable, expected)
   }
 
@@ -765,7 +860,7 @@ class GroupWindowTest extends TableTestBase {
       .groupBy('w, 'string)
       .select('string, 'int.count, 'w.start, 'w.end)
 
-    val expected = unaryNode(
+    val aggregate = unaryNode(
       "DataStreamAggregate",
       unaryNode(
         "DataStreamCalc",
@@ -785,6 +880,15 @@ class GroupWindowTest extends TableTestBase {
         "start(WindowReference(w)) AS TMP_1",
         "end(WindowReference(w)) AS TMP_2")
     )
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      aggregate,
+      term("select",
+           "string",
+           "TMP_0 AS TMP_3",
+           "TMP_1 AS TMP_4",
+           "TMP_2 AS TMP_5"))
 
     util.verifyTable(windowedTable, expected)
   }
@@ -859,13 +963,13 @@ class GroupWindowTest extends TableTestBase {
           "end(WindowReference(w)) AS TMP_2")
       ),
       term("select",
-        "string",
-        "+(CAST(AS(TMP_0, 'TMP_3')), CAST(1)) AS s1",
-        "+(CAST(AS(TMP_0, 'TMP_4')), CAST(3)) AS s2",
-        "TMP_1 AS x",
-        "TMP_1 AS x2",
-        "TMP_2 AS x3",
-        "TMP_2 AS TMP_5")
+           "string",
+           "+(TMP_0, CAST(1)) AS s1",
+           "+(TMP_0, CAST(3)) AS s2",
+           "TMP_1 AS x",
+           "TMP_1 AS x2",
+           "TMP_2 AS x3",
+           "TMP_2 AS TMP_5")
     )
 
     util.verifyTable(windowedTable, expected)
