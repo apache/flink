@@ -21,7 +21,9 @@ package org.apache.flink.runtime.io.disk.iomanager;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel.ID;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
@@ -34,12 +36,15 @@ import static org.junit.Assert.assertTrue;
 
 public class IOManagerTest {
 
+	@Rule
+	public final TemporaryFolder  temporaryFolder = new TemporaryFolder();
+
 	@Test
-	public void channelEnumerator() {
+	public void channelEnumerator() throws IOException {
 		IOManager ioMan = null;
 
 		try {
-			File tempPath = new File(System.getProperty("java.io.tmpdir"));
+			File tempPath = temporaryFolder.newFolder();
 
 			String[] tempDirs = new String[]{
 					new File(tempPath, "a").getAbsolutePath(),
