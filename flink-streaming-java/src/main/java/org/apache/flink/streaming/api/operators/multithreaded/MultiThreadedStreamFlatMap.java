@@ -57,8 +57,7 @@ public class MultiThreadedStreamFlatMap<IN, OUT>
     private List<Callable<StreamRecord<IN>>> tasks;
 
     private transient Object lock;
-
-    private transient TypeSerializer<IN> serializer;
+    
     private transient StreamElementSerializer<IN> inStreamElementSerializer;
     private transient ListState<StreamElement> states;
     private List<StreamElement> elementsToBeProcessedBuffer;
