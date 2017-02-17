@@ -25,6 +25,8 @@ import org.apache.flink.api.common.state.FoldingState;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.MapState;
+import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.State;
@@ -39,6 +41,7 @@ import org.apache.flink.runtime.state.internal.InternalAggregatingState;
 import org.apache.flink.runtime.state.internal.InternalFoldingState;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.internal.InternalListState;
+import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.apache.flink.runtime.state.internal.InternalReducingState;
 import org.apache.flink.runtime.state.internal.InternalValueState;
 import org.apache.flink.util.Preconditions;
@@ -189,6 +192,20 @@ public abstract class AbstractKeyedStateBackend<K>
 			FoldingStateDescriptor<T, ACC> stateDesc) throws Exception;
 
 	/**
+	 * Creates and returns a new {@link MapState}.
+	 *
+	 * @param namespaceSerializer TypeSerializer for the state namespace.
+	 * @param stateDesc The {@code StateDescriptor} that contains the name of the state.
+	 *
+	 * @param <N> The type of the namespace.
+	 * @param <UK> Type of the keys in the state
+	 * @param <UV> Type of the values in the state	 *
+	 */
+	protected abstract <N, UK, UV> InternalMapState<N, UK, UV> createMapState(
+			TypeSerializer<N> namespaceSerializer,
+			MapStateDescriptor<UK, UV> stateDesc) throws Exception;
+
+	/**
 	 * @see KeyedStateBackend
 	 */
 	@Override
@@ -285,11 +302,15 @@ public abstract class AbstractKeyedStateBackend<K>
 					AggregatingStateDescriptor<T, ACC, R> stateDesc) throws Exception {
 				return AbstractKeyedStateBackend.this.createAggregatingState(namespaceSerializer, stateDesc);
 			}
-			
 
 			@Override
 			public <T, ACC> FoldingState<T, ACC> createFoldingState(FoldingStateDescriptor<T, ACC> stateDesc) throws Exception {
 				return AbstractKeyedStateBackend.this.createFoldingState(namespaceSerializer, stateDesc);
+			}
+			
+			@Override
+			public <UK, UV> MapState<UK, UV> createMapState(MapStateDescriptor<UK, UV> stateDesc) throws Exception {
+				return AbstractKeyedStateBackend.this.createMapState(namespaceSerializer, stateDesc);
 			}
 
 		});
