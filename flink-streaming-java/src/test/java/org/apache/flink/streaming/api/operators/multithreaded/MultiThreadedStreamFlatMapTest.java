@@ -19,9 +19,11 @@ package org.apache.flink.streaming.api.operators.multithreaded;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.util.Collector;
@@ -60,7 +62,9 @@ public class MultiThreadedStreamFlatMapTest {
 
         long initialTime = 0L;
 
-        OneInputStreamOperatorTestHarness<Integer, Integer> testHarness = new OneInputStreamOperatorTestHarness<Integer, Integer>(operator);
+        OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
+                new OneInputStreamOperatorTestHarness(operator, IntSerializer.INSTANCE);
+
         ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<Object>();
 
         testHarness.open();
@@ -89,7 +93,39 @@ public class MultiThreadedStreamFlatMapTest {
         expectedOutput.add(new StreamRecord<Integer>(8, initialTime + 8));
         expectedOutput.add(new StreamRecord<Integer>(64, initialTime + 8));
 
-        TestHarnessUtil.assertOutputEqualsWithoutOrder("Output was not correct.", expectedOutput, testHarness.getOutput());
+        TestHarnessUtil.assertOutputEqualsWithoutOrder("Output mismatch.", expectedOutput, testHarness.getOutput());
+    }
+
+    @Test
+    public void testSnapshotAndRestore() throws Exception {
+        MultiThreadedStreamFlatMap<Integer, Integer> operator = new MultiThreadedStreamFlatMap<Integer, Integer>(new MyFlatMap(), 2);
+
+        long initialTime = 0L;
+        long checkpointId = 1;
+
+        OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
+                new OneInputStreamOperatorTestHarness<Integer, Integer>(operator, IntSerializer.INSTANCE);
+        ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<Object>();
+
+        testHarness.setup();
+
+        testHarness.open();
+
+        testHarness.processElement(new StreamRecord<Integer>(1, initialTime + 1));
+        testHarness.processElement(new StreamRecord<Integer>(2, initialTime + 2));
+
+        OperatorStateHandles handles = testHarness.snapshot(checkpointId, initialTime + 2);
+
+        testHarness.notifyOfCompletedCheckpoint(checkpointId);
+
+        testHarness.initializeState(handles);
+
+        testHarness.close();
+
+        expectedOutput.add(new StreamRecord<Integer>(2, initialTime + 2));
+        expectedOutput.add(new StreamRecord<Integer>(4, initialTime + 2));
+
+        TestHarnessUtil.assertOutputEqualsWithoutOrder("Output mismatch.", expectedOutput, testHarness.getOutput());
     }
 
     @Test
@@ -97,7 +133,8 @@ public class MultiThreadedStreamFlatMapTest {
         MultiThreadedStreamFlatMap<String, String> operator = new MultiThreadedStreamFlatMap<String, String>(
                 new TestOpenCloseFlatMapFunction(), 1);
 
-        OneInputStreamOperatorTestHarness<String, String> testHarness = new OneInputStreamOperatorTestHarness<String, String>(operator);
+        OneInputStreamOperatorTestHarness<String, String> testHarness =
+                new OneInputStreamOperatorTestHarness(operator, IntSerializer.INSTANCE);
 
         long initialTime = 0L;
 

@@ -20,23 +20,27 @@ package org.apache.flink.streaming.api.operators.multithreaded;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
-import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
-import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.api.operators.TimestampedCollector;
+import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.operators.*;
+import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
+import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
+
 @Internal
 public class MultiThreadedStreamFlatMap<IN, OUT>
         extends AbstractUdfStreamOperator<OUT, FlatMapFunction<IN, OUT>>
@@ -45,11 +49,19 @@ public class MultiThreadedStreamFlatMap<IN, OUT>
     private static final long serialVersionUID = 1L;
 
     private static final long TERMINATION_TIMEOUT = 5000L;
+    private static final String STATE_NAME = "_mutlithreaded_flatmap_state_";
 
     private int parallelism;
+
     private ExecutorService executorService;
-    private List<Callable<Void>> tasks;
+    private List<Callable<StreamRecord<IN>>> tasks;
+
     private transient Object lock;
+
+    private transient TypeSerializer<IN> serializer;
+    private transient StreamElementSerializer<IN> inStreamElementSerializer;
+    private transient ListState<StreamElement> states;
+    private List<StreamElement> elementsToBeProcessedBuffer;
 
     public MultiThreadedStreamFlatMap(FlatMapFunction<IN, OUT> flatMapper, int parallelism) {
         super(flatMapper);
@@ -60,16 +72,25 @@ public class MultiThreadedStreamFlatMap<IN, OUT>
         tasks = new ArrayList<>();
         lock = new Object();
 
+        elementsToBeProcessedBuffer = Collections.synchronizedList(new ArrayList<StreamElement>());
         chainingStrategy = ChainingStrategy.ALWAYS;
     }
 
     // ------------------------------------------------------------------------
     //  operator life cycle
     // ------------------------------------------------------------------------
+    @Override
+    public void setup(StreamTask<?, ?> containingTask, StreamConfig config, Output<StreamRecord<OUT>> output) {
+        super.setup(containingTask, config, output);
+
+        this.inStreamElementSerializer = new StreamElementSerializer<>(
+                getOperatorConfig().<IN>getTypeSerializerIn1(getUserCodeClassloader()));
+    }
 
     @Override
     public void open() throws Exception {
         super.open();
+
         createExecutorService();
     }
 
@@ -79,11 +100,14 @@ public class MultiThreadedStreamFlatMap<IN, OUT>
 
         closeExecutor();
 
+        // TODO Flush elementsToBeProcessedBuffer
         super.close();
     }
 
     @Override
     public void processElement(final StreamRecord<IN> element) throws Exception {
+        elementsToBeProcessedBuffer.add(element);
+
         tasks.add(new ProcessElementTask(userFunction, element, new MultiThreadedTimestampedCollector<>(output, lock)));
     }
 
@@ -92,8 +116,25 @@ public class MultiThreadedStreamFlatMap<IN, OUT>
     // ------------------------------------------------------------------------
 
     @Override
+    public void initializeState(StateInitializationContext context) throws Exception {
+        states = getOperatorStateBackend().getOperatorState(
+                    new ListStateDescriptor<>(STATE_NAME, inStreamElementSerializer)
+                );
+
+        if (context.isRestored())
+            for (StreamElement element : states.get())
+                processElement(element.<IN>asRecord());
+
+    }
+
+    @Override
     public void snapshotState(StateSnapshotContext context) throws Exception {
         super.snapshotState(context);
+
+        states.clear();
+
+        for (StreamElement element : elementsToBeProcessedBuffer)
+            states.add(element);
     }
 
     @Override
@@ -104,6 +145,8 @@ public class MultiThreadedStreamFlatMap<IN, OUT>
     @Override
     public void notifyOfCompletedCheckpoint(long checkpointId) throws Exception {
         super.notifyOfCompletedCheckpoint(checkpointId);
+
+        elementsToBeProcessedBuffer.clear();
     }
 
     // ------------------------------------------------------------------------
@@ -112,13 +155,16 @@ public class MultiThreadedStreamFlatMap<IN, OUT>
 
     @Override
     public void setInputType(TypeInformation<?> type, ExecutionConfig executionConfig) {
+
     }
 
     // ------------------------------------------------------------------------
     //  Utilities
     // ------------------------------------------------------------------------
-    private void invokeAllTasks() throws InterruptedException {
-        executorService.invokeAll(tasks);
+    private void invokeAllTasks() throws InterruptedException, ExecutionException {
+        List<Future<StreamRecord<IN>>> futures = executorService.invokeAll(tasks);
+        for(Future future: futures)
+            elementsToBeProcessedBuffer.remove(future.get());
     }
 
     private void createExecutorService() {
@@ -149,9 +195,10 @@ public class MultiThreadedStreamFlatMap<IN, OUT>
         }
 
         @Override
-        public Void call() throws Exception {
+        public StreamRecord<IN> call() throws Exception {
             processElement();
-            return null;
+
+            return element;
         }
 
         public void processElement() throws Exception {
