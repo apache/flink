@@ -90,7 +90,7 @@ public class MemoryStateBackend extends AbstractStateBackend {
 			TypeSerializer<K> keySerializer,
 			int numberOfKeyGroups,
 			KeyGroupRange keyGroupRange,
-			TaskKvStateRegistry kvStateRegistry) throws IOException {
+			TaskKvStateRegistry kvStateRegistry) {
 
 		return new HeapKeyedStateBackend<>(
 				kvStateRegistry,

@@ -822,6 +822,7 @@ class JobManagerITCase(_system: ActorSystem)
             60000,
             1,
             ExternalizedCheckpointSettings.none,
+            null,
             true))
 
           // Submit job...
@@ -881,6 +882,7 @@ class JobManagerITCase(_system: ActorSystem)
             60000,
             1,
             ExternalizedCheckpointSettings.none,
+            null,
             true))
 
           // Submit job...
@@ -948,6 +950,7 @@ class JobManagerITCase(_system: ActorSystem)
             60000,
             1,
             ExternalizedCheckpointSettings.none,
+            null,
             true))
 
           // Submit job...

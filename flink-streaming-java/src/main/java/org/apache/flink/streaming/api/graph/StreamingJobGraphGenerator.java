@@ -539,6 +539,7 @@ public class StreamingJobGraphGenerator {
 				cfg.getCheckpointTimeout(), cfg.getMinPauseBetweenCheckpoints(),
 				cfg.getMaxConcurrentCheckpoints(),
 				externalizedCheckpointSettings,
+				streamGraph.getStateBackend(),
 				isExactlyOnce);
 
 		jobGraph.setSnapshotSettings(settings);
