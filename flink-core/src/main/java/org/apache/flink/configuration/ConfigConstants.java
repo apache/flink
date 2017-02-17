@@ -741,8 +741,11 @@ public final class ConfigConstants {
 	// ----------------------------- Streaming --------------------------------
 	
 	/**
-	 * State backend for checkpoints;
+	 * State backend for checkpoints
+	 * 
+	 * @deprecated Use {@link CoreOptions#STATE_BACKEND} instead.
 	 */
+	@Deprecated
 	public static final String STATE_BACKEND = "state.backend";
 	
 	// ----------------------------- Miscellaneous ----------------------------
@@ -756,7 +759,11 @@ public final class ConfigConstants {
 	 */
 	@Deprecated
 	public static final String FLINK_BASE_DIR_PATH_KEY = "flink.base.dir.path";
-	
+
+	/**
+	 * @deprecated Use {@link CoreOptions#FLINK_JVM_OPTIONS} instead.
+	 */
+	@Deprecated
 	public static final String FLINK_JVM_OPTIONS = "env.java.opts";
 
 	// --------------------------- High Availability --------------------------

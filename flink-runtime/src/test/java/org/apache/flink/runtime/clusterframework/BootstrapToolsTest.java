@@ -20,6 +20,7 @@ package org.apache.flink.runtime.clusterframework;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.junit.Test;
 
 import java.util.HashMap;
@@ -209,7 +210,7 @@ public class BootstrapToolsTest {
 					true, true, true, this.getClass()));
 
 		// logback + log4j, with/out krb5, different JVM opts
-		cfg.setString(ConfigConstants.FLINK_JVM_OPTIONS, jvmOpts);
+		cfg.setString(CoreOptions.FLINK_JVM_OPTIONS, jvmOpts);
 		assertEquals(
 			java + " " + jvmmem +
 				" " + jvmOpts +

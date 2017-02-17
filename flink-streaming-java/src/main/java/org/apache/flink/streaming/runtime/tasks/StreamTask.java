@@ -20,8 +20,8 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
@@ -694,7 +694,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		} else {
 			// see if we have a backend specified in the configuration
 			Configuration flinkConfig = getEnvironment().getTaskManagerInfo().getConfiguration();
-			String backendName = flinkConfig.getString(ConfigConstants.STATE_BACKEND, null);
+			String backendName = flinkConfig.getString(CoreOptions.STATE_BACKEND, null);
 
 			if (backendName == null) {
 				LOG.warn("No state backend has been specified, using default state backend (Memory / JobManager)");
@@ -731,7 +731,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 						throw new IllegalConfigurationException("Cannot find configured state backend: " + backendName);
 					} catch (ClassCastException e) {
 						throw new IllegalConfigurationException("The class configured under '" +
-								ConfigConstants.STATE_BACKEND + "' is not a valid state backend factory (" +
+								CoreOptions.STATE_BACKEND.key() + "' is not a valid state backend factory (" +
 								backendName + ')');
 					} catch (Throwable t) {
 						throw new IllegalConfigurationException("Cannot create configured state backend", t);
