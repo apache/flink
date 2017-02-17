@@ -31,6 +31,6 @@ fi
 # Fail the build if any broken links are found
 broken_links_str=$(grep -e 'Found [[:digit:]]\+ broken link(s)' spider.log)
 if [ -n "$broken_links_str" ]; then
-	echo "$broken_links_str"
+	echo -e "\e[1;31m$broken_links_str\e[0m"
     exit 1
 fi
