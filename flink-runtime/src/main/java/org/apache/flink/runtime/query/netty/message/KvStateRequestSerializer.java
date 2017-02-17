@@ -36,7 +36,10 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Serialization and deserialization of messages exchanged between
@@ -480,6 +483,71 @@ public final class KvStateRequestSerializer {
 							"This indicates a mismatch in the value serializers " +
 							"used by the KvState instance and this access.", e);
 			}
+		} else {
+			return null;
+		}
+	}
+	
+	/**
+	 * Serializes all values of the Iterable with the given serializer.
+	 *
+	 * @param entries         Key-value pairs to serialize
+	 * @param keySerializer   Serializer for UK
+	 * @param valueSerializer Serializer for UV
+	 * @param <UK>            Type of the keys
+	 * @param <UV>            Type of the values
+	 * @return Serialized values or <code>null</code> if values <code>null</code> or empty
+	 * @throws IOException On failure during serialization
+	 */
+	public static <UK, UV> byte[] serializeMap(Iterable<Map.Entry<UK, UV>> entries, TypeSerializer<UK> keySerializer, TypeSerializer<UV> valueSerializer) throws IOException {
+		if (entries != null) {
+			Iterator<Map.Entry<UK, UV>> it = entries.iterator();
+
+			if (it.hasNext()) {
+				// Serialize
+				DataOutputSerializer dos = new DataOutputSerializer(32);
+
+				while (it.hasNext()) {
+					Map.Entry<UK, UV> entry = it.next();
+
+					keySerializer.serialize(entry.getKey(), dos);
+					valueSerializer.serialize(entry.getValue(), dos);
+				}
+
+				return dos.getCopyOfBuffer();
+			} else {
+				return null;
+			}
+		} else {
+			return null;
+		}
+	}
+	
+	/**
+	 * Deserializes all kv pairs with the given serializer.
+	 *
+	 * @param serializedValue Serialized value of type Map<UK, UV>
+	 * @param keySerializer   Serializer for UK
+	 * @param valueSerializer Serializer for UV
+	 * @param <UK>            Type of the key
+	 * @param <UV>            Type of the value.
+	 * @return Deserialized map or <code>null</code> if the serialized value
+	 * is <code>null</code>
+	 * @throws IOException On failure during deserialization
+	 */
+	public static <UK, UV> Map<UK, UV> deserializeMap(byte[] serializedValue, TypeSerializer<UK> keySerializer, TypeSerializer<UV> valueSerializer) throws IOException {
+		if (serializedValue != null) {
+			DataInputDeserializer in = new DataInputDeserializer(serializedValue, 0, serializedValue.length);
+
+			Map<UK, UV> result = new HashMap<>();
+			while (in.available() > 0) {
+				UK key = keySerializer.deserialize(in);
+				UV value = valueSerializer.deserialize(in);
+
+				result.put(key, value);
+			}
+
+			return result;
 		} else {
 			return null;
 		}

@@ -118,6 +118,10 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 	@Override
 	@Test
 	public void testReducingStateRestoreWithWrongSerializers() {}
+	
+	@Override
+	@Test
+	public void testMapStateRestoreWithWrongSerializers() {}
 
 	@Test
 	public void testStateOutputStream() {

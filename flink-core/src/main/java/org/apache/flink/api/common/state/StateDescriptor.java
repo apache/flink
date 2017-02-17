@@ -55,7 +55,7 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
 	 */
 	// IMPORTANT: Do not change the order of the elements in this enum, ordinal is used in serialization
 	public enum Type {
-		@Deprecated UNKNOWN, VALUE, LIST, REDUCING, FOLDING, AGGREGATING
+		@Deprecated UNKNOWN, VALUE, LIST, REDUCING, FOLDING, AGGREGATING, MAP
 	}
 
 	private static final long serialVersionUID = 1L;
