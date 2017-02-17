@@ -110,7 +110,7 @@ angular.module('flinkApp')
   @addMetric = (jobid, nodeid, metricid) ->
     @setupLSFor(jobid, nodeid)
 
-    @metrics[jobid][nodeid].push({id: metricid, size: 'small'})
+    @metrics[jobid][nodeid].push({id: metricid, size: 'small', view: 'chart'})
 
     @saveSetup()
 
@@ -128,7 +128,16 @@ angular.module('flinkApp')
       i = @metrics[jobid][nodeid].indexOf(metric.id)
       i = _.findIndex(@metrics[jobid][nodeid], { id: metric.id }) if i == -1
 
-      @metrics[jobid][nodeid][i] = { id: metric.id, size: size } if i != -1
+      @metrics[jobid][nodeid][i] = { id: metric.id, size: size, view: metric.view } if i != -1
+
+      @saveSetup()
+
+  @setMetricView = (jobid, nodeid, metric, view) =>
+    if @metrics[jobid][nodeid]?
+      i = @metrics[jobid][nodeid].indexOf(metric.id)
+      i = _.findIndex(@metrics[jobid][nodeid], { id: metric.id }) if i == -1
+
+      @metrics[jobid][nodeid][i] = { id: metric.id, size: metric.size, view: view } if i != -1
 
       @saveSetup()
 
@@ -148,7 +157,7 @@ angular.module('flinkApp')
   @getMetricsSetup = (jobid, nodeid) =>
     {
       names: _.map(@metrics[jobid][nodeid], (value) =>
-        if _.isString(value) then { id: value, size: "small" } else value
+        if _.isString(value) then { id: value, size: "small", view: "chart" } else value
       )
     }
 
