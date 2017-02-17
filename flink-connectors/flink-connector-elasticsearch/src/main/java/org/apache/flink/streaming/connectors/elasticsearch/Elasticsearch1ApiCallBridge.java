@@ -125,4 +125,8 @@ public class Elasticsearch1ApiCallBridge implements ElasticsearchApiCallBridge {
 			node = null;
 		}
 	}
+
+	public boolean isConnected(TransportClient transportClient) {
+		return !transportClient.connectedNodes().isEmpty();
+	}
 }

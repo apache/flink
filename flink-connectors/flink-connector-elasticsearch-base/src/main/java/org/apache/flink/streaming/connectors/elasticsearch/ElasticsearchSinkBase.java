@@ -27,6 +27,7 @@ import org.elasticsearch.action.bulk.BulkProcessor;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.unit.ByteSizeUnit;
 import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.unit.TimeValue;
@@ -34,6 +35,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -67,6 +69,7 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> {
 	public static final String CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS = "bulk.flush.max.actions";
 	public static final String CONFIG_KEY_BULK_FLUSH_MAX_SIZE_MB = "bulk.flush.max.size.mb";
 	public static final String CONFIG_KEY_BULK_FLUSH_INTERVAL_MS = "bulk.flush.interval.ms";
+	public static final String CONFIG_KEY_CONNECTION_RETRIES = "conn.retries";
 
 	private final Integer bulkProcessorFlushMaxActions;
 	private final Integer bulkProcessorFlushMaxSizeMb;
@@ -91,6 +94,11 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> {
 
 	/** Call bridge for different version-specfic */
 	private final ElasticsearchApiCallBridge callBridge;
+
+	/**
+	 * This is set from inside the open method if connection retries are required.
+	 */
+	private transient int connectionRetries;
 
 	/** Elasticsearch client created using the call bridge. */
 	private transient Client client;
@@ -156,6 +164,12 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> {
 	public void open(Configuration parameters) throws Exception {
 		client = callBridge.createClient(userConfig);
 
+		if (userConfig.containsKey(CONFIG_KEY_CONNECTION_RETRIES)) {
+			connectionRetries = Integer.parseInt(userConfig.get(CONFIG_KEY_CONNECTION_RETRIES));
+		} else {
+			connectionRetries = 0;
+		}
+
 		BulkProcessor.Builder bulkProcessorBuilder = BulkProcessor.builder(
 			client,
 			new BulkProcessor.Listener() {
@@ -208,6 +222,13 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> {
 		checkErrorAndRethrow();
 
 		elasticsearchSinkFunction.process(value, getRuntimeContext(), requestIndexer);
+
+		// if there is a connectivity failure, then retry
+		if (failureThrowable.get() != null &&
+			client instanceof TransportClient &&
+			!callBridge.isConnected(((TransportClient) client))) {
+			retry(value);
+		}
 	}
 
 	@Override
@@ -232,6 +253,38 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> {
 		Throwable cause = failureThrowable.get();
 		if (cause != null) {
 			throw new RuntimeException("An error occured in ElasticsearchSink.", cause);
+		}
+	}
+
+	private void retry(T value) throws Exception {
+		int retryCounter = 1;
+
+		while (retryCounter <= connectionRetries) {
+			if (bulkProcessor != null) {
+				bulkProcessor.close();
+				bulkProcessor = null;
+			}
+
+			if (client != null) {
+				client.close();
+			}
+
+			try {
+				open(null);
+				elasticsearchSinkFunction.process(value, getRuntimeContext(), requestIndexer);
+			} catch (Exception ex) {
+				if (client instanceof TransportClient && !callBridge.isConnected(((TransportClient) client))) {
+					TimeUnit.SECONDS.sleep(3);
+				} else {
+					break;
+				}
+			}
+
+			retryCounter++;
+		}
+
+		if (!callBridge.isConnected(((TransportClient) client))) {
+			throw new RuntimeException("Elasticsearch client is not connected to any Elasticsearch nodes!");
 		}
 	}
 }

@@ -20,6 +20,7 @@ package org.apache.flink.streaming.connectors.elasticsearch;
 
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.client.transport.TransportClient;
 
 import javax.annotation.Nullable;
 import java.io.Serializable;
@@ -56,5 +57,10 @@ public interface ElasticsearchApiCallBridge extends Serializable {
 	 * Perform any necessary state cleanup.
 	 */
 	void cleanup();
+
+	/**
+	 * Checks connectivity to a Elasticsearch cluster
+	 */
+	boolean isConnected(TransportClient transportClient);
 
 }

@@ -94,4 +94,9 @@ public class Elasticsearch5ApiCallBridge implements ElasticsearchApiCallBridge {
 		// nothing to cleanup
 	}
 
+	@Override
+	public boolean isConnected(TransportClient transportClient) {
+		return !transportClient.connectedNodes().isEmpty();
+	}
+
 }
