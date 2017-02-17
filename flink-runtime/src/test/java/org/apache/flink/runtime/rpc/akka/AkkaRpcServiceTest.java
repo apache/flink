@@ -23,9 +23,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.concurrent.Future;
-import org.apache.flink.runtime.concurrent.impl.FlinkFuture;
 import org.apache.flink.util.TestLogger;
-
 import org.junit.AfterClass;
 import org.junit.Test;
 
@@ -35,7 +33,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 public class AkkaRpcServiceTest extends TestLogger {
@@ -123,30 +120,4 @@ public class AkkaRpcServiceTest extends TestLogger {
 		assertEquals(AkkaUtils.getAddress(actorSystem).host().get(), akkaRpcService.getAddress());
 	}
 
-	/**
-	 * Tests that we can wait for the termination of the rpc service
-	 *
-	 * @throws ExecutionException
-	 * @throws InterruptedException
-	 */
-	@Test(timeout = 1000)
-	public void testTerminationFuture() throws ExecutionException, InterruptedException {
-		final ActorSystem actorSystem = AkkaUtils.createDefaultActorSystem();
-		final AkkaRpcService rpcService = new AkkaRpcService(actorSystem, Time.milliseconds(1000));
-
-		Future<Void> terminationFuture = rpcService.getTerminationFuture();
-
-		assertFalse(terminationFuture.isDone());
-
-		FlinkFuture.supplyAsync(new Callable<Void>() {
-			@Override
-			public Void call() throws Exception {
-				rpcService.stopService();
-
-				return null;
-			}
-		}, actorSystem.dispatcher());
-
-		terminationFuture.get();
-	}
 }
