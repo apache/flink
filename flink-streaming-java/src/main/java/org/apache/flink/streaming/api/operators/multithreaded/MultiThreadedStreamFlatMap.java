@@ -39,7 +39,9 @@ import org.apache.flink.util.Preconditions;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.*;
+import java.util.concurrent.Callable;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 @Internal
 public class MultiThreadedStreamFlatMap<IN, OUT>
@@ -56,6 +58,7 @@ public class MultiThreadedStreamFlatMap<IN, OUT>
     private ListeningExecutorService executorService;
 
     private transient Object lock;
+    private MultiThreadedTimestampedCollector collector;
 
     private transient StreamElementSerializer<IN> inStreamElementSerializer;
     private transient ListState<StreamElement> states;
@@ -67,7 +70,6 @@ public class MultiThreadedStreamFlatMap<IN, OUT>
         Preconditions.checkArgument(parallelism > 0 ? true : false, "Invalid parallelism!");
 
         this.parallelism = parallelism;
-        lock = new Object();
 
         elementsToBeProcessedBuffer = Collections.synchronizedList(new ArrayList<StreamElement>());
         chainingStrategy = ChainingStrategy.ALWAYS;
@@ -88,6 +90,9 @@ public class MultiThreadedStreamFlatMap<IN, OUT>
     public void open() throws Exception {
         super.open();
 
+        lock = new Object();
+
+        collector = new MultiThreadedTimestampedCollector<>(output, lock);
         createExecutorService();
     }
 
@@ -104,7 +109,7 @@ public class MultiThreadedStreamFlatMap<IN, OUT>
         elementsToBeProcessedBuffer.add(element);
 
         Callable processElementTask =
-                new ProcessElementTask(userFunction, element, new MultiThreadedTimestampedCollector<>(output, lock));
+                new ProcessElementTask(userFunction, element, collector);
 
         ListenableFuture<StreamRecord<IN>> taskProgress = executorService.submit(processElementTask);
 
@@ -135,8 +140,8 @@ public class MultiThreadedStreamFlatMap<IN, OUT>
     }
 
     @Override
-    public void restoreState(FSDataInputStream in) throws Exception {
-        super.restoreState(in);
+    public void restoreState(FSDataInputStream state) throws Exception {
+        super.restoreState(state);
     }
 
     @Override
@@ -206,6 +211,7 @@ public class MultiThreadedStreamFlatMap<IN, OUT>
         }
 
         @Override
-        public void onFailure(Throwable thrown) { }
+        public void onFailure(Throwable thrown) {
+        }
     }
 }
