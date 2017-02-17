@@ -748,8 +748,13 @@ public final class ConfigConstants {
 	// ----------------------------- Miscellaneous ----------------------------
 	
 	/**
-	 * The key to the Flink base directory path
+	 * The key to the Flink base directory path. Was initially used for configurations of the
+	 * web UI, but outdated now.
+	 * 
+	 * @deprecated This parameter should not be used any more. A running Flink cluster should
+	 *             make no assumption about its location.
 	 */
+	@Deprecated
 	public static final String FLINK_BASE_DIR_PATH_KEY = "flink.base.dir.path";
 	
 	public static final String FLINK_JVM_OPTIONS = "env.java.opts";
