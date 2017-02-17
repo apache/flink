@@ -23,7 +23,6 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.runtime.state.StateInitializationContext;
@@ -39,7 +38,10 @@ import org.apache.flink.util.Preconditions;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.*;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 @Internal
 public class MultiThreadedStreamFlatMap<IN, OUT>
@@ -48,13 +50,12 @@ public class MultiThreadedStreamFlatMap<IN, OUT>
 
     private static final long serialVersionUID = 1L;
 
-    private static final long TERMINATION_TIMEOUT = 5000L;
+    private static final long TERMINATION_TIMEOUT_IN_DAYS = 365L;
     private static final String STATE_NAME = "_mutlithreaded_flatmap_state_";
 
     private int parallelism;
 
     private ExecutorService executorService;
-    private List<Callable<StreamRecord<IN>>> tasks;
 
     private transient Object lock;
     
@@ -68,7 +69,6 @@ public class MultiThreadedStreamFlatMap<IN, OUT>
         Preconditions.checkArgument(parallelism > 0 ? true : false, "Invalid parallelism!");
 
         this.parallelism = parallelism;
-        tasks = new ArrayList<>();
         lock = new Object();
 
         elementsToBeProcessedBuffer = Collections.synchronizedList(new ArrayList<StreamElement>());
@@ -95,8 +95,6 @@ public class MultiThreadedStreamFlatMap<IN, OUT>
 
     @Override
     public void close() throws Exception {
-        invokeAllTasks();
-
         closeExecutor();
 
         // TODO Flush elementsToBeProcessedBuffer
@@ -107,7 +105,10 @@ public class MultiThreadedStreamFlatMap<IN, OUT>
     public void processElement(final StreamRecord<IN> element) throws Exception {
         elementsToBeProcessedBuffer.add(element);
 
-        tasks.add(new ProcessElementTask(userFunction, element, new MultiThreadedTimestampedCollector<>(output, lock)));
+        Callable<Void> processElementTask =
+                new ProcessElementTask(userFunction, element, new MultiThreadedTimestampedCollector<>(output, lock));
+        
+        executorService.submit(processElementTask);
     }
 
     // ------------------------------------------------------------------------
@@ -160,12 +161,6 @@ public class MultiThreadedStreamFlatMap<IN, OUT>
     // ------------------------------------------------------------------------
     //  Utilities
     // ------------------------------------------------------------------------
-    private void invokeAllTasks() throws InterruptedException, ExecutionException {
-        List<Future<StreamRecord<IN>>> futures = executorService.invokeAll(tasks);
-        for(Future future: futures)
-            elementsToBeProcessedBuffer.remove(future.get());
-    }
-
     private void createExecutorService() {
         executorService = Executors.newFixedThreadPool(parallelism);
     }
@@ -174,7 +169,7 @@ public class MultiThreadedStreamFlatMap<IN, OUT>
         executorService.shutdown();
 
         try {
-            if (!executorService.awaitTermination(TERMINATION_TIMEOUT, TimeUnit.MILLISECONDS))
+            if (!executorService.awaitTermination(TERMINATION_TIMEOUT_IN_DAYS, TimeUnit.DAYS))
                 executorService.shutdownNow();
         } catch (InterruptedException interrupted) {
             executorService.shutdownNow();
