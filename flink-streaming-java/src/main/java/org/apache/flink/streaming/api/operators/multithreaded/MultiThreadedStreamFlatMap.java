@@ -24,8 +24,13 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.FSDataOutputStream;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.graph.StreamConfig;
@@ -36,6 +41,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.util.Preconditions;
 
+import java.io.ObjectInputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -61,6 +67,7 @@ public class MultiThreadedStreamFlatMap<IN, OUT>
     private MultiThreadedTimestampedCollector collector;
 
     private transient StreamElementSerializer<IN> inStreamElementSerializer;
+    private transient TypeSerializer<StreamElement> typeSerializer;
     private transient ListState<StreamElement> states;
     private List<StreamElement> elementsToBeProcessedBuffer;
 
@@ -100,7 +107,6 @@ public class MultiThreadedStreamFlatMap<IN, OUT>
     public void close() throws Exception {
         closeExecutor();
 
-        // TODO Flush elementsToBeProcessedBuffer
         super.close();
     }
 
@@ -115,10 +121,6 @@ public class MultiThreadedStreamFlatMap<IN, OUT>
 
         Futures.addCallback(taskProgress, new TaskProgressCallback());
     }
-
-    // ------------------------------------------------------------------------
-    //  Checkpoint and recovery
-    // ------------------------------------------------------------------------
 
     @Override
     public void initializeState(StateInitializationContext context) throws Exception {
@@ -139,9 +141,33 @@ public class MultiThreadedStreamFlatMap<IN, OUT>
         states.clear();
     }
 
+    // ------------------------------------------------------------------------
+    //  Checkpoint and recovery
+    // ------------------------------------------------------------------------
+    @Override
+    public void snapshotState(FSDataOutputStream out, long checkpointId, long timestamp) throws Exception {
+        super.snapshotState(out, checkpointId, timestamp);
+
+        DataOutputView outputView = new DataOutputViewStreamWrapper(out);
+        outputView.writeInt(elementsToBeProcessedBuffer.size());
+
+        for (StreamElement element: elementsToBeProcessedBuffer)
+            typeSerializer.serialize(element, outputView);
+    }
+
     @Override
     public void restoreState(FSDataInputStream state) throws Exception {
         super.restoreState(state);
+
+        final ObjectInputStream objectInputStream = new ObjectInputStream(state);
+
+        int bufferElementsCount = objectInputStream.readInt();
+
+        for (int i = 0; i > bufferElementsCount; i++) {
+            StreamRecord<IN> element =
+                    typeSerializer.deserialize(new DataInputViewStreamWrapper(objectInputStream)).asRecord();
+            processElement(element);
+        }
     }
 
     @Override
@@ -158,7 +184,7 @@ public class MultiThreadedStreamFlatMap<IN, OUT>
 
     @Override
     public void setInputType(TypeInformation<?> type, ExecutionConfig executionConfig) {
-
+        typeSerializer = (TypeSerializer<StreamElement>) type.createSerializer(executionConfig);
     }
 
     // ------------------------------------------------------------------------
