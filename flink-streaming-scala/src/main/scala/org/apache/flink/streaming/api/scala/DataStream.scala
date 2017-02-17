@@ -22,6 +22,7 @@ import org.apache.flink.annotation.{Internal, Public, PublicEvolving}
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.functions.{FilterFunction, FlatMapFunction, MapFunction, Partitioner}
 import org.apache.flink.api.common.io.OutputFormat
+import org.apache.flink.api.common.typeinfo.OutputTag;
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.java.tuple.{Tuple => JavaTuple}
@@ -198,6 +199,12 @@ class DataStream[T](stream: JavaStream[T]) {
     case stream : SingleOutputStreamOperator[T] => asScalaStream(stream.uid(uid))
     case _ => throw new UnsupportedOperationException("Only supported for operators.")
     this
+  }
+
+  @PublicEvolving
+  def getSideOutput[X: OutputTag](tag: OutputTag[X]): DataStream[X] = javaStream match {
+    case stream : SingleOutputStreamOperator[X] =>
+      asScalaStream(stream.getSideOutput(tag: OutputTag[X]))
   }
 
   /**

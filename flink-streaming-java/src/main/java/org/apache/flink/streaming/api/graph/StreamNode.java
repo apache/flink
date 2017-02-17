@@ -17,19 +17,22 @@
 
 package org.apache.flink.streaming.api.graph;
 
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.common.typeinfo.OutputTag;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.StreamOperator;
-
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Class representing the operators in the streaming programs, with all their properties.
@@ -60,6 +63,7 @@ public class StreamNode implements Serializable {
 	private TypeSerializer<?> typeSerializerIn1;
 	private TypeSerializer<?> typeSerializerIn2;
 	private TypeSerializer<?> typeSerializerOut;
+	private Map<OutputTag<?>, TypeSerializer<?>> typeSerializerMap;
 
 	private List<StreamEdge> inEdges = new ArrayList<StreamEdge>();
 	private List<StreamEdge> outEdges = new ArrayList<StreamEdge>();
@@ -85,6 +89,7 @@ public class StreamNode implements Serializable {
 		this.outputSelectors = outputSelector;
 		this.jobVertexClass = jobVertexClass;
 		this.slotSharingGroup = slotSharingGroup;
+		this.typeSerializerMap = new HashMap<>();
 	}
 
 	public void addInEdge(StreamEdge inEdge) {
@@ -213,8 +218,16 @@ public class StreamNode implements Serializable {
 		return typeSerializerOut;
 	}
 
+	public TypeSerializer<?> getTypeSerializerOut(OutputTag<?> tag) {
+		return typeSerializerMap.get(tag);
+	}
+
 	public void setSerializerOut(TypeSerializer<?> typeSerializerOut) {
 		this.typeSerializerOut = typeSerializerOut;
+	}
+
+	public void setTypeSerializerOut(OutputTag<?> tag, TypeSerializer<?> typeSerializerOut){
+		typeSerializerMap.put(tag, typeSerializerOut);
 	}
 
 	public Class<? extends AbstractInvokable> getJobVertexClass() {

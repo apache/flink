@@ -20,12 +20,14 @@ package org.apache.flink.streaming.api.datastream;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.InvalidTypesException;
+import org.apache.flink.api.common.typeinfo.OutputTag;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
+import org.apache.flink.streaming.api.transformations.SideOutputTransformation;
 import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.util.Preconditions;
@@ -375,5 +377,30 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 	public SingleOutputStreamOperator<T> slotSharingGroup(String slotSharingGroup) {
 		transformation.setSlotSharingGroup(slotSharingGroup);
 		return this;
+	}
+
+	/**
+	 * Gets DataStream of elements with sideOutputTag attached.
+	 * @param sideOutputTag OutputTag used to sideOutput elements
+	 * @param <X> type of sideOutputTag same as elements type
+	 * @return DataStream of sideoutput elements
+	 * Example:
+	 * <code>
+	 * static final OutputTag&lt;X&gt; sideOutputTag = new OutputTag&lt;X&gt;() {};
+	 * public void flatMap(X value, Collector&lt;String&gt; out) throws Exception {
+	 *      CollectorWrapper wrapper = new CollectorWrapper&lt;&gt;(out);
+	 *      try{
+	 *      	...
+	 *      	wrapper.collect(value.toString());
+	 *      } catch(Exception e) {
+	 *          wrapper.collect(sideOutputTag, value);
+	 *      }
+	 * }
+	 * DataStream&lt;X&gt; sideOutputStream = ...flatMap(...).getSideOutput(sideOut);
+	 * </code>
+	 */
+	public <X> DataStream<X> getSideOutput(OutputTag<X> sideOutputTag){
+		SideOutputTransformation<X> sideOutputTransformation = new SideOutputTransformation<>(this.getTransformation(), requireNonNull(sideOutputTag));
+		return new DataStream<>(this.getExecutionEnvironment(), sideOutputTransformation);
 	}
 }

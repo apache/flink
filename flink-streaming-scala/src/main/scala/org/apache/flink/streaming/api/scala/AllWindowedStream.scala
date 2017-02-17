@@ -20,18 +20,17 @@ package org.apache.flink.streaming.api.scala
 
 import org.apache.flink.annotation.{PublicEvolving, Public}
 import org.apache.flink.api.common.functions.{AggregateFunction, FoldFunction, ReduceFunction}
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeinfo.{OutputTag, TypeInformation}
 import org.apache.flink.streaming.api.datastream.{AllWindowedStream => JavaAllWStream}
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction.AggregationType
 import org.apache.flink.streaming.api.functions.aggregation.{ComparableAggregator, SumAggregator}
 import org.apache.flink.streaming.api.scala.function.AllWindowFunction
-import org.apache.flink.streaming.api.scala.function.util.{ScalaAllWindowFunction, ScalaAllWindowFunctionWrapper, ScalaReduceFunction, ScalaFoldFunction}
+import org.apache.flink.streaming.api.scala.function.util.{ScalaAllWindowFunction, ScalaAllWindowFunctionWrapper, ScalaFoldFunction, ScalaReduceFunction}
 import org.apache.flink.streaming.api.windowing.evictors.Evictor
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.triggers.Trigger
 import org.apache.flink.streaming.api.windowing.windows.Window
 import org.apache.flink.util.Collector
-
 import org.apache.flink.util.Preconditions.checkNotNull
 
 /**
@@ -410,6 +409,23 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
     val javaFunction = new ScalaAllWindowFunctionWrapper[T, R, W](cleanedFunction)
     
     asScalaStream(javaStream.apply(javaFunction, implicitly[TypeInformation[R]]))
+  }
+
+  /**
+    * Same as apply above except all window function
+    * emits late arriving input events with assigned OutputTag
+    *
+    * @param function The window function.
+    * @param tag OutputTag
+    * @return The data stream that is the result of applying the window function to the window.
+    */
+  def apply[R: TypeInformation](
+      function: AllWindowFunction[T, R, W], tag: OutputTag[T]): DataStream[R] = {
+
+    val cleanedFunction = clean(function)
+    val javaFunction = new ScalaAllWindowFunctionWrapper[T, R, W](cleanedFunction)
+
+    asScalaStream(javaStream.apply(javaFunction, tag))
   }
 
   /**

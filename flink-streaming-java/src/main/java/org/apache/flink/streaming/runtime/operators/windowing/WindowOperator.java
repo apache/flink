@@ -29,6 +29,7 @@ import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeinfo.OutputTag;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -131,6 +132,12 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	 * </ul>
 	 */
 	private final long allowedLateness;
+
+	/**
+	 * OutputTag used in late arriving events. This is used for
+	 * sideoutputs events with timestamp pass {@code window.maxTimestamp + allowedLateness}
+	 */
+	private OutputTag<IN> lateArrivingTag = null;
 
 	// ------------------------------------------------------------------------
 	// State that is not checkpointed
@@ -244,6 +251,15 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		setChainingStrategy(ChainingStrategy.ALWAYS);
 	}
 
+	/**
+	 * user defined OutputTag to collect late arriving events
+	 * by default is null
+	 * @param lateArrivingTag OutputTag to mark late arriving events processed by a window operator
+	 */
+	public void setLateArrivingTag(final OutputTag<IN> lateArrivingTag){
+		this.lateArrivingTag = lateArrivingTag;
+	}
+
 	@Override
 	public void open() throws Exception {
 		super.open();
@@ -323,6 +339,10 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		final Collection<W> elementWindows = windowAssigner.assignWindows(
 			element.getValue(), element.getTimestamp(), windowAssignerContext);
 
+
+		//if element is handled by none of assigned elementWindows
+		boolean isSkippedElement = true;
+
 		final K key = this.<K>getKeyedStateBackend().getCurrentKey();
 
 		if (windowAssigner instanceof MergingWindowAssigner) {
@@ -359,6 +379,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 					mergingWindows.retireWindow(actualWindow);
 					continue;
 				}
+				isSkippedElement = false;
 
 				W stateWindow = mergingWindows.getStateWindow(actualWindow);
 				if (stateWindow == null) {
@@ -396,6 +417,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 				if (isLate(window)) {
 					continue;
 				}
+				isSkippedElement = false;
 
 				windowState.setCurrentNamespace(window);
 				windowState.add(element.getValue());
@@ -418,6 +440,14 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 				}
 				registerCleanupTimer(window);
 			}
+		}
+
+		// side output input event if
+		// element not handled by any window
+		// late arriving tag has been set
+		// windowAssigner is event time and current timestamp + allowed lateness no less than element timestamp
+		if(isSkippedElement && lateArrivingTag != null && isLate(element)) {
+			sideOutput(element);
 		}
 	}
 
@@ -546,6 +576,14 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	}
 
 	/**
+	 * write skipped late arriving element to SideOutput
+	 * @param element skipped late arriving element to side output
+	 */
+	private void sideOutput(StreamRecord<IN> element){
+		timestampedCollector.collect(lateArrivingTag, element.getValue());
+	}
+
+	/**
 	 * Retrieves the {@link MergingWindowSet} for the currently active key.
 	 * The caller must ensure that the correct key is set in the state backend.
 	 *
@@ -564,6 +602,16 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	 */
 	protected boolean isLate(W window) {
 		return (windowAssigner.isEventTime() && (cleanupTime(window) <= internalTimerService.currentWatermark()));
+	}
+
+	/**
+	 * Decide if a record is currently late, based on current watermark and allowed lateness
+	 * @param element The element to check
+	 * @return The element for which should be considered when sideoutputs
+	 */
+	protected boolean isLate(StreamRecord<IN> element){
+		return (windowAssigner.isEventTime()) &&
+			(element.getTimestamp() + allowedLateness <= internalTimerService.currentWatermark());
 	}
 
 	/**

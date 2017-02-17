@@ -29,6 +29,7 @@ import org.apache.flink.api.common.state.AggregatingStateDescriptor;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
+import org.apache.flink.api.common.typeinfo.OutputTag;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.Utils;
@@ -720,6 +721,18 @@ public class WindowedStream<T, K, W extends Window> {
 	}
 
 	/**
+	 * Same as apply above except window function emits late arriving input events with assigned OutputTag
+	 * @param function The window function.
+	 * @param tag OutputTag
+	 * @return The data stream that is the result of applying the window function to the window.
+	 */
+	public <R> SingleOutputStreamOperator<R> apply(WindowFunction<T, R, K, W> function, OutputTag<T> tag) {
+		TypeInformation<R> resultType = TypeExtractor.getUnaryOperatorReturnType(
+			function, WindowFunction.class, true, true, getInputType(), null, false);
+		return applyInternal(function, resultType, tag);
+	}
+
+	/**
 	 * Applies the given window function to each window. The window function is called for each
 	 * evaluation of the window for each key individually. The output of the window function is
 	 * interpreted as a regular non-windowed stream.
@@ -732,7 +745,12 @@ public class WindowedStream<T, K, W extends Window> {
 	 * @param resultType Type information for the result type of the window function
 	 * @return The data stream that is the result of applying the window function to the window.
 	 */
-	public <R> SingleOutputStreamOperator<R> apply(WindowFunction<T, R, K, W> function, TypeInformation<R> resultType) {
+
+	public <R> SingleOutputStreamOperator<R> apply(WindowFunction<T, R, K, W> function, TypeInformation<R> resultType){
+		return applyInternal(function, resultType, null);
+	}
+
+	private  <R> SingleOutputStreamOperator<R> applyInternal(WindowFunction<T, R, K, W> function, TypeInformation<R> resultType, OutputTag<T> tag) {
 
 		//clean the closure
 		function = input.getExecutionEnvironment().clean(function);
@@ -790,6 +808,7 @@ public class WindowedStream<T, K, W extends Window> {
 					legacyWindowOpType);
 		}
 
+		operator.setLateArrivingTag(tag);
 		return input.transform(opName, resultType, operator);
 	}
 

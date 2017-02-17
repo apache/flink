@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.runtime.streamrecord;
 
+import org.apache.flink.api.common.typeinfo.OutputTag;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
@@ -154,5 +155,32 @@ public class StreamRecordTest {
 		
 		rec.eraseTimestamp();
 		assertFalse(rec.hasTimestamp());
+	}
+
+	@Test
+	public void testReplaceWithOutputTag() {
+		OutputTag<String> sideOutputTag = new OutputTag<String>() {};
+
+		StreamRecord<String> rec = new StreamRecord<String>(null);
+		rec.setTimestamp(13456L);
+
+		assertEquals(null, rec.getOutputTag());
+		assertEquals(13456L, rec.getTimestamp());
+
+		rec.replace(sideOutputTag, "hello");
+		assertEquals(sideOutputTag, rec.getOutputTag());
+		assertEquals(13456L, rec.getTimestamp());
+
+		rec.replace("word");
+		assertEquals(null, rec.getOutputTag());
+		assertEquals(13456L, rec.getTimestamp());
+	}
+
+	@Test
+	public void testCopyToWithOutputTag() {
+		StreamRecord<String> recWithTimestamp = new StreamRecord<String>("test", 99, new OutputTag<String>() {});
+		StreamRecord<String> recWithTimestampCopy = new StreamRecord<>(null);
+		recWithTimestamp.copyTo("test", recWithTimestampCopy);
+		assertEquals(recWithTimestamp, recWithTimestampCopy);
 	}
 }
