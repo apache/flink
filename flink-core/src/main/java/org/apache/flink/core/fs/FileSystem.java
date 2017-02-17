@@ -52,17 +52,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Abstract base class of all file systems used by Flink. This class may be extended to implement
  * distributed file systems, or local file systems. The abstraction by this file system is very simple,
-<<<<<<< HEAD
  * and the set of available operations quite limited, to support the common denominator of a wide
-=======
- * and teh set of allowed operations quite limited, to support the common denominator of a wide
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
  * range of file systems. For example, appending to or mutating existing files is not supported.
  * 
  * <p>Flink implements and supports some file system types directly (for example the default
  * machine-local file system). Other file system types are accessed by an implementation that bridges
  * to the suite of file systems supported by Hadoop (such as for example HDFS).
-<<<<<<< HEAD
  * 
  * <h2>Data Persistence</h2>
  * 
@@ -159,8 +154,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * 
  * @see FSDataInputStream
  * @see FSDataOutputStream
-=======
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
  */
 @Public
 public abstract class FileSystem {
@@ -180,7 +173,6 @@ public abstract class FileSystem {
 	}
 
 	// ------------------------------------------------------------------------
-<<<<<<< HEAD
 
 	private static final ThreadLocal<SafetyNetCloseableRegistry> REGISTRIES = new ThreadLocal<>();
 
@@ -198,25 +190,6 @@ public abstract class FileSystem {
 
 	// ------------------------------------------------------------------------
 
-=======
-
-	private static final ThreadLocal<SafetyNetCloseableRegistry> REGISTRIES = new ThreadLocal<>();
-
-	private static final String HADOOP_WRAPPER_FILESYSTEM_CLASS = "org.apache.flink.runtime.fs.hdfs.HadoopFileSystem";
-
-	private static final String MAPR_FILESYSTEM_CLASS = "org.apache.flink.runtime.fs.maprfs.MapRFileSystem";
-
-	private static final String HADOOP_WRAPPER_SCHEME = "hdwrapper";
-
-	private static final Logger LOG = LoggerFactory.getLogger(FileSystem.class);
-
-	/** This lock guards the methods {@link #initOutPathLocalFS(Path, WriteMode, boolean)} and
-	 * {@link #initOutPathDistFS(Path, WriteMode, boolean)} which are otherwise susceptible to races */
-	private static final ReentrantLock OUTPUT_DIRECTORY_INIT_LOCK = new ReentrantLock(true);
-
-	// ------------------------------------------------------------------------
-
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
 	/**
 	 * Create a SafetyNetCloseableRegistry for a Task. This method should be called at the beginning of the task's
 	 * main thread.
@@ -680,7 +653,6 @@ public abstract class FileSystem {
 	 *       <li>An existing file raises an exception.</li>
 	 *     </ul>
 	 *   </li>
-<<<<<<< HEAD
 	 *
 	 *   <li>WriteMode.NO_OVERWRITE &amp; NONE parallel output:
 	 *     <ul>
@@ -688,15 +660,6 @@ public abstract class FileSystem {
 	 *     </ul>
 	 *   </li>
 	 *
-=======
-	 *
-	 *   <li>WriteMode.NO_OVERWRITE &amp; NONE parallel output:
-	 *     <ul>
-	 *       <li>An existing file or directory raises an exception.</li>
-	 *     </ul>
-	 *   </li>
-	 *
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
 	 *   <li>WriteMode.OVERWRITE &amp; parallel output:
 	 *     <ul>
 	 *       <li>A directory is created if the output path does not exist.</li>
@@ -935,19 +898,11 @@ public abstract class FileSystem {
 			OUTPUT_DIRECTORY_INIT_LOCK.unlock();
 		}
 	}
-<<<<<<< HEAD
 
 	// ------------------------------------------------------------------------
 	//  utilities
 	// ------------------------------------------------------------------------
 
-=======
-
-	// ------------------------------------------------------------------------
-	//  utilities
-	// ------------------------------------------------------------------------
-
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
 	private static Class<? extends FileSystem> getFileSystemByName(String className) throws ClassNotFoundException {
 		return Class.forName(className, true, FileSystem.class.getClassLoader()).asSubclass(FileSystem.class);
 	}

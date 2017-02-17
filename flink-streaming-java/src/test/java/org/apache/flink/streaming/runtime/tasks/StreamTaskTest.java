@@ -95,10 +95,7 @@ import org.mockito.Mockito;
 import org.mockito.internal.util.reflection.Whitebox;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-<<<<<<< HEAD
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
-=======
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 import scala.concurrent.Await;
@@ -139,11 +136,8 @@ import static org.powermock.api.mockito.PowerMockito.whenNew;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(StreamTask.class)
-<<<<<<< HEAD
 @PowerMockIgnore("org.apache.log4j.*")
 @SuppressWarnings("deprecation")
-=======
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
 public class StreamTaskTest extends TestLogger {
 
 	private static OneShotLatch SYNC_LATCH;
@@ -298,45 +292,26 @@ public class StreamTaskTest extends TestLogger {
 		CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, timestamp);
 		streamTask.setEnvironment(mockEnvironment);
 
-<<<<<<< HEAD
 		// mock the operators
-=======
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
 		StreamOperator<?> streamOperator1 = mock(StreamOperator.class, withSettings().extraInterfaces(StreamCheckpointedOperator.class));
 		StreamOperator<?> streamOperator2 = mock(StreamOperator.class, withSettings().extraInterfaces(StreamCheckpointedOperator.class));
 		StreamOperator<?> streamOperator3 = mock(StreamOperator.class, withSettings().extraInterfaces(StreamCheckpointedOperator.class));
 
-<<<<<<< HEAD
 		// mock the returned snapshots
-=======
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
 		OperatorSnapshotResult operatorSnapshotResult1 = mock(OperatorSnapshotResult.class);
 		OperatorSnapshotResult operatorSnapshotResult2 = mock(OperatorSnapshotResult.class);
 
 		final Exception testException = new Exception("Test exception");
 
-<<<<<<< HEAD
 		when(streamOperator1.snapshotState(anyLong(), anyLong())).thenReturn(operatorSnapshotResult1);
 		when(streamOperator2.snapshotState(anyLong(), anyLong())).thenReturn(operatorSnapshotResult2);
 		when(streamOperator3.snapshotState(anyLong(), anyLong())).thenThrow(testException);
 
 		// mock the returned legacy snapshots
-=======
-		when(streamOperator1.snapshotState(anyLong(), anyLong(), any(CheckpointStreamFactory.class))).thenReturn(operatorSnapshotResult1);
-		when(streamOperator2.snapshotState(anyLong(), anyLong(), any(CheckpointStreamFactory.class))).thenReturn(operatorSnapshotResult2);
-		when(streamOperator3.snapshotState(anyLong(), anyLong(), any(CheckpointStreamFactory.class))).thenThrow(testException);
-
-		StreamOperator<?>[] streamOperators = {streamOperator1, streamOperator2, streamOperator3};
-
-		OperatorChain<Void, AbstractStreamOperator<Void>> operatorChain = mock(OperatorChain.class);
-		when(operatorChain.getAllOperators()).thenReturn(streamOperators);
-
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
 		StreamStateHandle streamStateHandle1 = mock(StreamStateHandle.class);
 		StreamStateHandle streamStateHandle2 = mock(StreamStateHandle.class);
 		StreamStateHandle streamStateHandle3 = mock(StreamStateHandle.class);
 
-<<<<<<< HEAD
 		when(streamOperator1.snapshotLegacyOperatorState(anyLong(), anyLong())).thenReturn(streamStateHandle1);
 		when(streamOperator2.snapshotLegacyOperatorState(anyLong(), anyLong())).thenReturn(streamStateHandle2);
 		when(streamOperator3.snapshotLegacyOperatorState(anyLong(), anyLong())).thenReturn(streamStateHandle3);
@@ -347,32 +322,12 @@ public class StreamTaskTest extends TestLogger {
 
 		OperatorChain<Void, AbstractStreamOperator<Void>> operatorChain = mock(OperatorChain.class);
 		when(operatorChain.getAllOperators()).thenReturn(streamOperators);
-=======
-		CheckpointStreamFactory.CheckpointStateOutputStream outStream1 = mock(CheckpointStreamFactory.CheckpointStateOutputStream.class);
-		CheckpointStreamFactory.CheckpointStateOutputStream outStream2 = mock(CheckpointStreamFactory.CheckpointStateOutputStream.class);
-		CheckpointStreamFactory.CheckpointStateOutputStream outStream3 = mock(CheckpointStreamFactory.CheckpointStateOutputStream.class);
-
-		when(outStream1.closeAndGetHandle()).thenReturn(streamStateHandle1);
-		when(outStream2.closeAndGetHandle()).thenReturn(streamStateHandle2);
-		when(outStream3.closeAndGetHandle()).thenReturn(streamStateHandle3);
-
-		CheckpointStreamFactory mockStreamFactory = mock(CheckpointStreamFactory.class);
-		when(mockStreamFactory.createCheckpointStateOutputStream(anyLong(), anyLong())).thenReturn(
-			outStream1, outStream2, outStream3);
-
-		AbstractStateBackend mockStateBackend = mock(AbstractStateBackend.class);
-		when(mockStateBackend.createStreamFactory(any(JobID.class), anyString())).thenReturn(mockStreamFactory);
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
 
 		Whitebox.setInternalState(streamTask, "isRunning", true);
 		Whitebox.setInternalState(streamTask, "lock", new Object());
 		Whitebox.setInternalState(streamTask, "operatorChain", operatorChain);
 		Whitebox.setInternalState(streamTask, "cancelables", new CloseableRegistry());
 		Whitebox.setInternalState(streamTask, "configuration", new StreamConfig(new Configuration()));
-<<<<<<< HEAD
-=======
-		Whitebox.setInternalState(streamTask, "stateBackend", mockStateBackend);
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
 
 		try {
 			streamTask.triggerCheckpoint(checkpointMetaData);
@@ -412,11 +367,8 @@ public class StreamTaskTest extends TestLogger {
 		StreamOperator<?> streamOperator2 = mock(StreamOperator.class, withSettings().extraInterfaces(StreamCheckpointedOperator.class));
 		StreamOperator<?> streamOperator3 = mock(StreamOperator.class, withSettings().extraInterfaces(StreamCheckpointedOperator.class));
 
-<<<<<<< HEAD
 		// mock the new state handles / futures
 
-=======
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
 		OperatorSnapshotResult operatorSnapshotResult1 = mock(OperatorSnapshotResult.class);
 		OperatorSnapshotResult operatorSnapshotResult2 = mock(OperatorSnapshotResult.class);
 		OperatorSnapshotResult operatorSnapshotResult3 = mock(OperatorSnapshotResult.class);
@@ -426,28 +378,15 @@ public class StreamTaskTest extends TestLogger {
 
 		when(operatorSnapshotResult3.getOperatorStateRawFuture()).thenReturn(failingFuture);
 
-<<<<<<< HEAD
 		when(streamOperator1.snapshotState(anyLong(), anyLong())).thenReturn(operatorSnapshotResult1);
 		when(streamOperator2.snapshotState(anyLong(), anyLong())).thenReturn(operatorSnapshotResult2);
 		when(streamOperator3.snapshotState(anyLong(), anyLong())).thenReturn(operatorSnapshotResult3);
 
 		// mock the legacy state snapshot
-=======
-		when(streamOperator1.snapshotState(anyLong(), anyLong(), any(CheckpointStreamFactory.class))).thenReturn(operatorSnapshotResult1);
-		when(streamOperator2.snapshotState(anyLong(), anyLong(), any(CheckpointStreamFactory.class))).thenReturn(operatorSnapshotResult2);
-		when(streamOperator3.snapshotState(anyLong(), anyLong(), any(CheckpointStreamFactory.class))).thenReturn(operatorSnapshotResult3);
-
-		StreamOperator<?>[] streamOperators = {streamOperator1, streamOperator2, streamOperator3};
-
-		OperatorChain<Void, AbstractStreamOperator<Void>> operatorChain = mock(OperatorChain.class);
-		when(operatorChain.getAllOperators()).thenReturn(streamOperators);
-
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
 		StreamStateHandle streamStateHandle1 = mock(StreamStateHandle.class);
 		StreamStateHandle streamStateHandle2 = mock(StreamStateHandle.class);
 		StreamStateHandle streamStateHandle3 = mock(StreamStateHandle.class);
 
-<<<<<<< HEAD
 		when(streamOperator1.snapshotLegacyOperatorState(anyLong(), anyLong())).thenReturn(streamStateHandle1);
 		when(streamOperator2.snapshotLegacyOperatorState(anyLong(), anyLong())).thenReturn(streamStateHandle2);
 		when(streamOperator3.snapshotLegacyOperatorState(anyLong(), anyLong())).thenReturn(streamStateHandle3);
@@ -456,22 +395,6 @@ public class StreamTaskTest extends TestLogger {
 
 		OperatorChain<Void, AbstractStreamOperator<Void>> operatorChain = mock(OperatorChain.class);
 		when(operatorChain.getAllOperators()).thenReturn(streamOperators);
-=======
-		CheckpointStreamFactory.CheckpointStateOutputStream outStream1 = mock(CheckpointStreamFactory.CheckpointStateOutputStream.class);
-		CheckpointStreamFactory.CheckpointStateOutputStream outStream2 = mock(CheckpointStreamFactory.CheckpointStateOutputStream.class);
-		CheckpointStreamFactory.CheckpointStateOutputStream outStream3 = mock(CheckpointStreamFactory.CheckpointStateOutputStream.class);
-
-		when(outStream1.closeAndGetHandle()).thenReturn(streamStateHandle1);
-		when(outStream2.closeAndGetHandle()).thenReturn(streamStateHandle2);
-		when(outStream3.closeAndGetHandle()).thenReturn(streamStateHandle3);
-
-		CheckpointStreamFactory mockStreamFactory = mock(CheckpointStreamFactory.class);
-		when(mockStreamFactory.createCheckpointStateOutputStream(anyLong(), anyLong())).thenReturn(
-			outStream1, outStream2, outStream3);
-
-		AbstractStateBackend mockStateBackend = mock(AbstractStateBackend.class);
-		when(mockStateBackend.createStreamFactory(any(JobID.class), anyString())).thenReturn(mockStreamFactory);
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
 
 		Whitebox.setInternalState(streamTask, "isRunning", true);
 		Whitebox.setInternalState(streamTask, "lock", new Object());
@@ -479,10 +402,6 @@ public class StreamTaskTest extends TestLogger {
 		Whitebox.setInternalState(streamTask, "cancelables", new CloseableRegistry());
 		Whitebox.setInternalState(streamTask, "asyncOperationsThreadPool", new DirectExecutorService());
 		Whitebox.setInternalState(streamTask, "configuration", new StreamConfig(new Configuration()));
-<<<<<<< HEAD
-=======
-		Whitebox.setInternalState(streamTask, "stateBackend", mockStateBackend);
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
 
 		streamTask.triggerCheckpoint(checkpointMetaData);
 
@@ -547,11 +466,7 @@ public class StreamTaskTest extends TestLogger {
 			new DoneFuture<>(managedOperatorStateHandle),
 			new DoneFuture<>(rawOperatorStateHandle));
 
-<<<<<<< HEAD
 		when(streamOperator.snapshotState(anyLong(), anyLong())).thenReturn(operatorSnapshotResult);
-=======
-		when(streamOperator.snapshotState(anyLong(), anyLong(), any(CheckpointStreamFactory.class))).thenReturn(operatorSnapshotResult);
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
 
 		StreamOperator<?>[] streamOperators = {streamOperator};
 
@@ -667,11 +582,7 @@ public class StreamTaskTest extends TestLogger {
 			new DoneFuture<>(managedOperatorStateHandle),
 			new DoneFuture<>(rawOperatorStateHandle));
 
-<<<<<<< HEAD
 		when(streamOperator.snapshotState(anyLong(), anyLong())).thenReturn(operatorSnapshotResult);
-=======
-		when(streamOperator.snapshotState(anyLong(), anyLong(), any(CheckpointStreamFactory.class))).thenReturn(operatorSnapshotResult);
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
 
 		StreamOperator<?>[] streamOperators = {streamOperator};
 

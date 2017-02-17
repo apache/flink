@@ -37,7 +37,6 @@ public class KafkaConsumerCallBridge010 extends KafkaConsumerCallBridge {
 	public void assignPartitions(KafkaConsumer<?, ?> consumer, List<TopicPartition> topicPartitions) throws Exception {
 		consumer.assign(topicPartitions);
 	}
-<<<<<<< HEAD
 
 	@Override
 	public void seekPartitionsToBeginning(KafkaConsumer<?, ?> consumer, List<TopicPartition> partitions) {
@@ -48,6 +47,4 @@ public class KafkaConsumerCallBridge010 extends KafkaConsumerCallBridge {
 	public void seekPartitionsToEnd(KafkaConsumer<?, ?> consumer, List<TopicPartition> partitions) {
 		consumer.seekToEnd(partitions);
 	}
-=======
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
 }

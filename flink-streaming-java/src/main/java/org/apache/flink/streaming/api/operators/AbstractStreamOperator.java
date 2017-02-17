@@ -350,11 +350,7 @@ public abstract class AbstractStreamOperator<OUT>
 		try (StateSnapshotContextSynchronousImpl snapshotContext = new StateSnapshotContextSynchronousImpl(
 				checkpointId,
 				timestamp,
-<<<<<<< HEAD
 				checkpointStreamFactory,
-=======
-				streamFactory,
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
 				keyGroupRange,
 				getContainingTask().getCancelables())) {
 
@@ -365,7 +361,6 @@ public abstract class AbstractStreamOperator<OUT>
 
 			if (null != operatorStateBackend) {
 				snapshotInProgress.setOperatorStateManagedFuture(
-<<<<<<< HEAD
 					operatorStateBackend.snapshot(checkpointId, timestamp, checkpointStreamFactory));
 			}
 
@@ -380,22 +375,6 @@ public abstract class AbstractStreamOperator<OUT>
 				snapshotException.addSuppressed(e);
 			}
 
-=======
-					operatorStateBackend.snapshot(checkpointId, timestamp, streamFactory));
-			}
-
-			if (null != keyedStateBackend) {
-				snapshotInProgress.setKeyedStateManagedFuture(
-					keyedStateBackend.snapshot(checkpointId, timestamp, streamFactory));
-			}
-		}  catch (Exception snapshotException) {
-			try {
-				snapshotInProgress.cancel();
-			} catch (Exception e) {
-				snapshotException.addSuppressed(e);
-			}
-
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
 			throw new Exception("Could not complete snapshot " + checkpointId + " for operator " +
 				getOperatorName() + '.', snapshotException);
 		}

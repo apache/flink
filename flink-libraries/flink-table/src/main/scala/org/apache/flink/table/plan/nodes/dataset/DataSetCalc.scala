@@ -22,15 +22,14 @@ import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTra
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
-import org.apache.flink.api.common.functions.FlatMapFunction
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.DataSet
-import org.apache.flink.table.codegen.CodeGenerator
-import org.apache.flink.table.plan.nodes.FlinkCalc
-import org.apache.flink.table.typeutils.TypeConverter
-import TypeConverter._
 import org.apache.calcite.rex._
+import org.apache.flink.api.common.functions.FlatMapFunction
+import org.apache.flink.api.java.DataSet
 import org.apache.flink.table.api.BatchTableEnvironment
+import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.codegen.CodeGenerator
+import org.apache.flink.table.plan.nodes.CommonCalc
+import org.apache.flink.types.Row
 
 import scala.collection.JavaConverters._
 
@@ -46,7 +45,7 @@ class DataSetCalc(
     private[flink] val calcProgram: RexProgram, // for tests
     ruleDescription: String)
   extends SingleRel(cluster, traitSet, input)
-  with FlinkCalc
+  with CommonCalc
   with DataSetRel {
 
   override def deriveRowType() = rowRelDataType
@@ -78,9 +77,12 @@ class DataSetCalc(
 
     // compute number of expressions that do not access a field or literal, i.e. computations,
     //   conditions, etc. We only want to account for computations, not for simple projections.
+    // CASTs in RexProgram are reduced as far as possible by ReduceExpressionsRule
+    // in normalization stage. So we should ignore CASTs here in optimization stage.
     val compCnt = calcProgram.getExprList.asScala.toList.count {
       case i: RexInputRef => false
       case l: RexLiteral => false
+      case c: RexCall if c.getOperator.getName.equals("CAST") => false
       case _ => true
     }
 
@@ -99,19 +101,13 @@ class DataSetCalc(
     }
   }
 
-  override def translateToPlan(
-      tableEnv: BatchTableEnvironment,
-      expectedType: Option[TypeInformation[Any]]): DataSet[Any] = {
+  override def translateToPlan(tableEnv: BatchTableEnvironment): DataSet[Row] = {
 
     val config = tableEnv.getConfig
 
     val inputDS = getInput.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
 
-    val returnType = determineReturnType(
-      getRowType,
-      expectedType,
-      config.getNullCheck,
-      config.getEfficientTypeUsage)
+    val returnType = FlinkTypeFactory.toInternalRowTypeInfo(getRowType)
 
     val generator = new CodeGenerator(config, false, inputDS.getType)
 
@@ -120,12 +116,11 @@ class DataSetCalc(
       inputDS.getType,
       getRowType,
       calcProgram,
-      config,
-      expectedType)
+      config)
 
     val genFunction = generator.generateFunction(
       ruleDescription,
-      classOf[FlatMapFunction[Any, Any]],
+      classOf[FlatMapFunction[Row, Row]],
       body,
       returnType)
 

@@ -132,9 +132,4 @@ public class ListStateDescriptor<T> extends StateDescriptor<ListState<T>, List<T
 				"serializer=" + serializer +
 				'}';
 	}
-
-	@Override
-	public Type getType() {
-		return Type.LIST;
-	}
 }

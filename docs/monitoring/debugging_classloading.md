@@ -126,7 +126,6 @@ Common causes for class leaks and suggested fixes:
   - *Interners*: Avoid caching objects in special structures that live beyond the lifetime of the functions/sources/sinks. Examples are Guava's
     interners, or Avro's class/object caches in the serializers.
 
-<<<<<<< HEAD
 
 ## Resolving Dependency Conflicts with Flink using the maven-shade-plugin.
 
@@ -141,5 +140,3 @@ This documentation page explains [relocating classes using the shade plugin](htt
 
 Note that some of Flink's dependencies, such as `guava` are shaded away by the maintainers of Flink, so users usually don't have to worry about it.
 
-=======
->>>>>>> [FLINK-1707] Bulk Affinity Propagation

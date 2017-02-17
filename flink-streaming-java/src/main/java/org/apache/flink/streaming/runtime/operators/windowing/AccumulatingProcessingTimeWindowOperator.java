@@ -31,11 +31,7 @@ import java.util.ArrayList;
 
 @Internal
 @Deprecated
-<<<<<<< HEAD
 public class AccumulatingProcessingTimeWindowOperator<KEY, IN, OUT>
-=======
-public class AccumulatingProcessingTimeWindowOperator<KEY, IN, OUT> 
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
 		extends AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, ArrayList<IN>, WindowFunction<IN, OUT, KEY, TimeWindow>> {
 
 	private static final long serialVersionUID = 7305948082830843475L;
@@ -60,8 +56,4 @@ public class AccumulatingProcessingTimeWindowOperator<KEY, IN, OUT>
 
 		return new AccumulatingKeyedTimePanes<>(keySelector, windowFunction);
 	}
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> [FLINK-1707] Bulk Affinity Propagation

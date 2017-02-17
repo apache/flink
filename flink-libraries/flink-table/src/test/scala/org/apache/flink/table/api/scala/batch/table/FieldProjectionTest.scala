@@ -297,13 +297,8 @@ class FieldProjectionTest extends TableTestBase {
           term("groupBy", "word"),
           term("select", "word", "SUM(frequency) AS TMP_0")
         ),
-<<<<<<< HEAD
         term("select", "word, TMP_0 AS frequency"),
         term("where", "=(TMP_0, 2)")
-=======
-        term("select", "word, frequency"),
-        term("where", "=(frequency, 2)")
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
       )
 
     util.verifyTable(resultTable, expected)

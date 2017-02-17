@@ -61,12 +61,6 @@ import scala.concurrent.duration.FiniteDuration;
 
 import java.io.File;
 import java.util.Map;
-<<<<<<< HEAD
-=======
-import java.util.HashMap;
-import java.util.UUID;
-import java.util.Collections;
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;

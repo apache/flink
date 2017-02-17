@@ -261,45 +261,6 @@ public class DelimitedInputFormatTest {
 		}
 	}
 
-	@Test
-	public void testReadCustomDelimiterWithCharset() throws IOException {
-		// Unicode row fragments
-		String[] records = new String[]{"\u020e\u021f\u05c0\u020b\u020f", "Apache", "\nFlink", "\u0000", "\u05c0"};
-
-		// Unicode delimiter
-		String delimiter = "\u05c0\u05c0";
-
-		String fileContent = StringUtils.join(records, delimiter);
-
-		for (final String charset : new String[]{ "UTF-8", "UTF-16BE", "UTF-16LE" }) {
-			// use charset when instantiating the record String
-			DelimitedInputFormat<String> format = new DelimitedInputFormat<String>() {
-				@Override
-				public String readRecord(String reuse, byte[] bytes, int offset, int numBytes) throws IOException {
-					return new String(bytes, offset, numBytes, charset);
-				}
-			};
-			format.setFilePath("file:///some/file/that/will/not/be/read");
-
-			final FileInputSplit split = createTempFile(fileContent, charset);
-
-			format.setDelimiter(delimiter);
-			// use the same encoding to parse the file as used to read the file;
-			// the delimiter is reinterpreted when the charset is set
-			format.setCharset(charset);
-			format.configure(new Configuration());
-			format.open(split);
-
-			for (String record : records) {
-				String value = format.nextRecord(null);
-				assertEquals(record, value);
-			}
-
-			assertNull(format.nextRecord(null));
-			assertTrue(format.reachedEnd());
-		}
-	}
-
 	/**
 	 * Tests that the records are read correctly when the split boundary is in the middle of a record.
 	 */
@@ -451,27 +412,6 @@ public class DelimitedInputFormatTest {
 		return new FileInputSplit(0, new Path(tempFile.toURI().toString()), 0, tempFile.length(), new String[] {"localhost"});
 	}
 
-<<<<<<< HEAD
-	static FileInputSplit createTempFile(String contents, String charset) throws IOException {
-		File tempFile = File.createTempFile("test_contents", "tmp");
-		tempFile.deleteOnExit();
-
-		try (Writer out = new OutputStreamWriter(new FileOutputStream(tempFile), charset)) {
-=======
-	static FileInputSplit createTempFile(String contents) throws IOException {
-		File tempFile = File.createTempFile("test_contents", "tmp");
-		tempFile.deleteOnExit();
-
-		try (Writer out = new OutputStreamWriter(new FileOutputStream(tempFile))) {
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
-			out.write(contents);
-		}
-
-		return new FileInputSplit(0, new Path(tempFile.toURI().toString()), 0, tempFile.length(), new String[] {"localhost"});
-	}
-
-<<<<<<< HEAD
-=======
 	static FileInputSplit createTempFile(String contents, String charset) throws IOException {
 		File tempFile = File.createTempFile("test_contents", "tmp");
 		tempFile.deleteOnExit();
@@ -483,7 +423,6 @@ public class DelimitedInputFormatTest {
 		return new FileInputSplit(0, new Path(tempFile.toURI().toString()), 0, tempFile.length(), new String[] {"localhost"});
 	}
 
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
 	protected static final class MyTextInputFormat extends DelimitedInputFormat<String> {
 		private static final long serialVersionUID = 1L;
 		

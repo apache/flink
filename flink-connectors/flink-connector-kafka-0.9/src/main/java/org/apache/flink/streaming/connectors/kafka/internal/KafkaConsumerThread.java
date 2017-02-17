@@ -19,10 +19,7 @@
 package org.apache.flink.streaming.connectors.kafka.internal;
 
 import org.apache.flink.metrics.MetricGroup;
-<<<<<<< HEAD
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
-=======
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionState;
 import org.apache.flink.streaming.connectors.kafka.internals.metrics.KafkaMetricWrapper;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -83,15 +80,12 @@ public class KafkaConsumerThread extends Thread {
 	/** The maximum number of milliseconds to wait for a fetch batch */
 	private final long pollTimeout;
 
-<<<<<<< HEAD
 	/** The configured startup mode (relevant only if we're restored from checkpoint / savepoint) */
 	private final StartupMode startupMode;
 
 	/** Flag whether or not we're restored from checkpoint / savepoint */
 	private final boolean isRestored;
 
-=======
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
 	/** Flag whether to add Kafka's metrics to the Flink metrics */
 	private final boolean useMetrics;
 
@@ -114,11 +108,8 @@ public class KafkaConsumerThread extends Thread {
 			KafkaConsumerCallBridge consumerCallBridge,
 			String threadName,
 			long pollTimeout,
-<<<<<<< HEAD
 			StartupMode startupMode,
 			boolean isRestored,
-=======
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
 			boolean useMetrics) {
 
 		super(threadName);
@@ -127,7 +118,6 @@ public class KafkaConsumerThread extends Thread {
 		this.log = checkNotNull(log);
 		this.handover = checkNotNull(handover);
 		this.kafkaProperties = checkNotNull(kafkaProperties);
-<<<<<<< HEAD
 		this.kafkaMetricGroup = checkNotNull(kafkaMetricGroup);
 		this.consumerCallBridge = checkNotNull(consumerCallBridge);
 		this.startupMode = checkNotNull(startupMode);
@@ -146,11 +136,6 @@ public class KafkaConsumerThread extends Thread {
 			}
 		}
 
-=======
-		this.subscribedPartitions = checkNotNull(subscribedPartitions);
-		this.kafkaMetricGroup = checkNotNull(kafkaMetricGroup);
-		this.consumerCallBridge = checkNotNull(consumerCallBridge);
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
 		this.pollTimeout = pollTimeout;
 		this.useMetrics = useMetrics;
 
@@ -210,7 +195,6 @@ public class KafkaConsumerThread extends Thread {
 				return;
 			}
 
-<<<<<<< HEAD
 			if (isRestored) {
 				for (KafkaTopicPartitionState<TopicPartition> partition : subscribedPartitions) {
 					log.info("Partition {} has restored initial offsets {} from checkpoint / savepoint; seeking the consumer " +
@@ -244,30 +228,6 @@ public class KafkaConsumerThread extends Thread {
 				for (KafkaTopicPartitionState<TopicPartition> partition : subscribedPartitions) {
 					// the fetched offset represents the next record to process, so we need to subtract it by 1
 					partition.setOffset(consumer.position(partition.getKafkaPartitionHandle()) - 1);
-=======
-			// seek the consumer to the initial offsets
-			for (KafkaTopicPartitionState<TopicPartition> partition : subscribedPartitions) {
-				if (partition.isOffsetDefined()) {
-					log.info("Partition {} has restored initial offsets {} from checkpoint / savepoint; " +
-							"seeking the consumer to position {}",
-							partition.getKafkaPartitionHandle(), partition.getOffset(), partition.getOffset() + 1);
-
-					consumer.seek(partition.getKafkaPartitionHandle(), partition.getOffset() + 1);
-				}
-				else {
-					// for partitions that do not have offsets restored from a checkpoint/savepoint,
-					// we need to define our internal offset state for them using the initial offsets retrieved from Kafka
-					// by the KafkaConsumer, so that they are correctly checkpointed and committed on the next checkpoint
-
-					long fetchedOffset = consumer.position(partition.getKafkaPartitionHandle());
-
-					log.info("Partition {} has no initial offset; the consumer has position {}, " +
-							"so the initial offset will be set to {}",
-							partition.getKafkaPartitionHandle(), fetchedOffset, fetchedOffset - 1);
-
-					// the fetched offset represents the next record to process, so we need to subtract it by 1
-					partition.setOffset(fetchedOffset - 1);
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
 				}
 			}
 

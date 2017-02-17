@@ -1098,58 +1098,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 							}
 						}
 					}
-<<<<<<< HEAD
-=======
-
-					// Cleanup non partitioned state handles
-					for (StreamStateHandle nonPartitionedState : nonPartitionedStates) {
-						if (nonPartitionedState != null) {
-							try {
-								nonPartitionedState.discardState();
-							} catch (Exception e) {
-								LOG.warn("Could not properly discard a non partitioned " +
-									"state. This might leave some orphaned files behind.", e);
-							}
-						}
-					}
-
-					if (LOG.isDebugEnabled()) {
-						LOG.debug("{} - did NOT finish synchronous part of checkpoint {}." +
-								"Alignment duration: {} ms, snapshot duration {} ms",
-							owner.getName(), checkpointMetaData.getCheckpointId(),
-							checkpointMetaData.getAlignmentDurationNanos() / 1_000_000,
-							checkpointMetaData.getSyncDurationMillis());
-					}
-				}
-			}
-		}
-
-		private void checkpointStreamOperator(StreamOperator<?> op) throws Exception {
-			if (null != op) {
-				createStreamFactory(op);
-				snapshotNonPartitionableState(op);
-
-				OperatorSnapshotResult snapshotInProgress = op.snapshotState(
-						checkpointMetaData.getCheckpointId(),
-						checkpointMetaData.getTimestamp(),
-						streamFactory);
-
-				snapshotInProgressList.add(snapshotInProgress);
-			} else {
-				nonPartitionedStates.add(null);
-				OperatorSnapshotResult emptySnapshotInProgress = new OperatorSnapshotResult();
-				snapshotInProgressList.add(emptySnapshotInProgress);
-			}
-		}
-
-		private void createStreamFactory(StreamOperator<?> operator) throws IOException {
-			String operatorId = owner.createOperatorIdentifier(operator, owner.configuration.getVertexID());
-			this.streamFactory = owner.stateBackend.createStreamFactory(owner.getEnvironment().getJobID(), operatorId);
-		}
-
-		//TODO deprecated code path
-		private void snapshotNonPartitionableState(StreamOperator<?> operator) throws Exception {
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
 
 					// Cleanup non partitioned state handles
 					for (StreamStateHandle nonPartitionedState : nonPartitionedStates) {
@@ -1192,11 +1140,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				OperatorSnapshotResult emptySnapshotInProgress = new OperatorSnapshotResult();
 				snapshotInProgressList.add(emptySnapshotInProgress);
 			}
-<<<<<<< HEAD
-=======
-
-			nonPartitionedStates.add(stateHandle);
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
 		}
 
 		public void runAsyncCheckpointingAndAcknowledge() throws IOException {

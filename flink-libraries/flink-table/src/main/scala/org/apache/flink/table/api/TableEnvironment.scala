@@ -23,35 +23,41 @@ import _root_.java.util.concurrent.atomic.AtomicInteger
 
 import org.apache.calcite.config.Lex
 import org.apache.calcite.jdbc.CalciteSchema
-import org.apache.calcite.plan.RelOptPlanner
+import org.apache.calcite.plan.RelOptPlanner.CannotPlanException
+import org.apache.calcite.plan.hep.{HepMatchOrder, HepPlanner, HepProgramBuilder}
+import org.apache.calcite.plan.{RelOptPlanner, RelOptUtil, RelTraitSet}
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.schema.SchemaPlus
 import org.apache.calcite.schema.impl.AbstractTable
 import org.apache.calcite.sql.SqlOperatorTable
 import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.sql.util.ChainedSqlOperatorTable
-import org.apache.calcite.tools.{FrameworkConfig, Frameworks, RuleSet, RuleSets}
+import org.apache.calcite.tools._
+import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfo}
+import org.apache.flink.api.java.typeutils._
 import org.apache.flink.api.java.{ExecutionEnvironment => JavaBatchExecEnv}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.api.scala.{ExecutionEnvironment => ScalaBatchExecEnv}
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JavaStreamExecEnv}
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecEnv}
-import java.{BatchTableEnvironment => JavaBatchTableEnv, StreamTableEnvironment => JavaStreamTableEnv}
+import org.apache.flink.table.api.java.{BatchTableEnvironment => JavaBatchTableEnv, StreamTableEnvironment => JavaStreamTableEnv}
 import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnv, StreamTableEnvironment => ScalaStreamTableEnv}
 import org.apache.flink.table.calcite.{FlinkPlannerImpl, FlinkRelBuilder, FlinkTypeFactory, FlinkTypeSystem}
-import org.apache.flink.table.codegen.ExpressionReducer
+import org.apache.flink.table.codegen.{CodeGenerator, ExpressionReducer}
 import org.apache.flink.table.expressions.{Alias, Expression, UnresolvedFieldReference}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{checkForInstantiation, checkNotSingleton, createScalarSqlFunction, createTableSqlFunctions}
 import org.apache.flink.table.functions.{ScalarFunction, TableFunction}
 import org.apache.flink.table.plan.cost.DataSetCostFactory
 import org.apache.flink.table.plan.logical.{CatalogNode, LogicalRelNode}
-import org.apache.flink.table.plan.schema.{RelTable, TableSourceTable}
+import org.apache.flink.table.plan.schema.RelTable
+import org.apache.flink.table.runtime.MapRunner
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.sources.{DefinedFieldNames, TableSource}
 import org.apache.flink.table.validate.FunctionCatalog
+import org.apache.flink.types.Row
 
 import _root_.scala.collection.JavaConverters._
 
@@ -116,20 +122,41 @@ abstract class TableEnvironment(val config: TableConfig) {
   }
 
   /**
-    * Returns the rule set for this environment including a custom Calcite configuration.
+    * Returns the normalization rule set for this environment
+    * including a custom RuleSet configuration.
     */
-  protected def getRuleSet: RuleSet = {
+  protected def getNormRuleSet: RuleSet = {
     val calciteConfig = config.getCalciteConfig
-    calciteConfig.getRuleSet match {
+    calciteConfig.getNormRuleSet match {
 
       case None =>
-        getBuiltInRuleSet
+        getBuiltInNormRuleSet
 
       case Some(ruleSet) =>
-        if (calciteConfig.replacesRuleSet) {
+        if (calciteConfig.replacesNormRuleSet) {
           ruleSet
         } else {
-          RuleSets.ofList((getBuiltInRuleSet.asScala ++ ruleSet.asScala).asJava)
+          RuleSets.ofList((getBuiltInNormRuleSet.asScala ++ ruleSet.asScala).asJava)
+        }
+    }
+  }
+
+  /**
+    * Returns the optimization rule set for this environment
+    * including a custom RuleSet configuration.
+    */
+  protected def getOptRuleSet: RuleSet = {
+    val calciteConfig = config.getCalciteConfig
+    calciteConfig.getOptRuleSet match {
+
+      case None =>
+        getBuiltInOptRuleSet
+
+      case Some(ruleSet) =>
+        if (calciteConfig.replacesOptRuleSet) {
+          ruleSet
+        } else {
+          RuleSets.ofList((getBuiltInOptRuleSet.asScala ++ ruleSet.asScala).asJava)
         }
     }
   }
@@ -155,9 +182,68 @@ abstract class TableEnvironment(val config: TableConfig) {
   }
 
   /**
-    * Returns the built-in rules that are defined by the environment.
+    * Returns the built-in normalization rules that are defined by the environment.
     */
-  protected def getBuiltInRuleSet: RuleSet
+  protected def getBuiltInNormRuleSet: RuleSet
+
+  /**
+    * Returns the built-in optimization rules that are defined by the environment.
+    */
+  protected def getBuiltInOptRuleSet: RuleSet
+
+  /**
+    * run HEP planner
+    */
+  protected def runHepPlanner(
+    hepMatchOrder: HepMatchOrder,
+    ruleSet: RuleSet,
+    input: RelNode,
+    targetTraits: RelTraitSet): RelNode = {
+    val builder = new HepProgramBuilder
+    builder.addMatchOrder(hepMatchOrder)
+
+    val it = ruleSet.iterator()
+    while (it.hasNext) {
+      builder.addRuleInstance(it.next())
+    }
+
+    val planner = new HepPlanner(builder.build, frameworkConfig.getContext)
+    planner.setRoot(input)
+    if (input.getTraitSet != targetTraits) {
+      planner.changeTraits(input, targetTraits.simplify)
+    }
+    planner.findBestExp
+  }
+
+  /**
+    * run VOLCANO planner
+    */
+  protected def runVolcanoPlanner(
+    ruleSet: RuleSet,
+    input: RelNode,
+    targetTraits: RelTraitSet): RelNode = {
+    val optProgram = Programs.ofRules(ruleSet)
+
+    val output = try {
+      optProgram.run(getPlanner, input, targetTraits)
+    } catch {
+      case e: CannotPlanException =>
+        throw new TableException(
+          s"Cannot generate a valid execution plan for the given query: \n\n" +
+            s"${RelOptUtil.toString(input)}\n" +
+            s"This exception indicates that the query uses an unsupported SQL feature.\n" +
+            s"Please check the documentation for the set of currently supported SQL features.")
+      case t: TableException =>
+        throw new TableException(
+          s"Cannot generate a valid execution plan for the given query: \n\n" +
+            s"${RelOptUtil.toString(input)}\n" +
+            s"${t.msg}\n" +
+            s"Please check the documentation for the set of currently supported SQL features.")
+      case a: AssertionError =>
+        throw a.getCause
+    }
+    output
+  }
 
   /**
     * Registers a [[ScalarFunction]] under a unique name. Replaces already existing
@@ -410,7 +496,7 @@ abstract class TableEnvironment(val config: TableConfig) {
         }
         exprs.map {
           case UnresolvedFieldReference(name) => (0, name)
-          case _ => throw new TableException("Field reference expression expected.")
+          case _ => throw new TableException("Field reference expression requested.")
         }
       case t: TupleTypeInfo[A] =>
         exprs.zipWithIndex.map {
@@ -464,6 +550,123 @@ abstract class TableEnvironment(val config: TableConfig) {
     }
 
     (fieldNames.toArray, fieldIndexes.toArray)
+  }
+
+  /**
+    * Creates a final converter that maps the internal row type to external type.
+    *
+    * @param physicalRowTypeInfo the input of the sink
+    * @param logicalRowType the logical type with correct field names (esp. for POJO field mapping)
+    * @param requestedTypeInfo the output type of the sink
+    * @param functionName name of the map function. Must not be unique but has to be a
+    *                     valid Java class identifier.
+    */
+  protected def sinkConversion[T](
+      physicalRowTypeInfo: TypeInformation[Row],
+      logicalRowType: RelDataType,
+      requestedTypeInfo: TypeInformation[T],
+      functionName: String)
+    : Option[MapFunction[Row, T]] = {
+
+    // validate that at least the field types of physical and logical type match
+    // we do that here to make sure that plan translation was correct
+    val logicalRowTypeInfo = FlinkTypeFactory.toInternalRowTypeInfo(logicalRowType)
+    if (physicalRowTypeInfo != logicalRowTypeInfo) {
+      throw TableException("The field types of physical and logical row types do not match." +
+        "This is a bug and should not happen. Please file an issue.")
+    }
+
+    // requested type is a generic Row, no conversion needed
+    if (requestedTypeInfo.isInstanceOf[GenericTypeInfo[_]] &&
+          requestedTypeInfo.getTypeClass == classOf[Row]) {
+      return None
+    }
+
+    // convert to type information
+    val logicalFieldTypes = logicalRowType.getFieldList.asScala map { relDataType =>
+      FlinkTypeFactory.toTypeInfo(relDataType.getType)
+    }
+    // field names
+    val logicalFieldNames = logicalRowType.getFieldNames.asScala
+
+    // validate requested type
+    if (requestedTypeInfo.getArity != logicalFieldTypes.length) {
+      throw new TableException("Arity of result does not match requested type.")
+    }
+    requestedTypeInfo match {
+
+      // POJO type requested
+      case pt: PojoTypeInfo[_] =>
+        logicalFieldNames.zip(logicalFieldTypes) foreach {
+          case (fName, fType) =>
+            val pojoIdx = pt.getFieldIndex(fName)
+            if (pojoIdx < 0) {
+              throw new TableException(s"POJO does not define field name: $fName")
+            }
+            val requestedTypeInfo = pt.getTypeAt(pojoIdx)
+            if (fType != requestedTypeInfo) {
+              throw new TableException(s"Result field does not match requested type. " +
+                s"requested: $requestedTypeInfo; Actual: $fType")
+            }
+        }
+
+      // Tuple/Case class/Row type requested
+      case tt: TupleTypeInfoBase[_] =>
+        logicalFieldTypes.zipWithIndex foreach {
+          case (fieldTypeInfo, i) =>
+            val requestedTypeInfo = tt.getTypeAt(i)
+            if (fieldTypeInfo != requestedTypeInfo) {
+              throw new TableException(s"Result field does not match requested type. " +
+                s"Requested: $requestedTypeInfo; Actual: $fieldTypeInfo")
+            }
+        }
+
+      // Atomic type requested
+      case at: AtomicType[_] =>
+        if (logicalFieldTypes.size != 1) {
+          throw new TableException(s"Requested result type is an atomic type but " +
+            s"result has more or less than a single field.")
+        }
+        val fieldTypeInfo = logicalFieldTypes.head
+        if (fieldTypeInfo != at) {
+          throw new TableException(s"Result field does not match requested type. " +
+            s"Requested: $at; Actual: $fieldTypeInfo")
+        }
+
+      case _ =>
+        throw new TableException(s"Unsupported result type: $requestedTypeInfo")
+    }
+
+    // code generate MapFunction
+    val generator = new CodeGenerator(
+      config,
+      false,
+      physicalRowTypeInfo,
+      None,
+      None)
+
+    val conversion = generator.generateConverterResultExpression(
+      requestedTypeInfo,
+      logicalFieldNames)
+
+    val body =
+      s"""
+         |${conversion.code}
+         |return ${conversion.resultTerm};
+         |""".stripMargin
+
+    val genFunction = generator.generateFunction(
+      functionName,
+      classOf[MapFunction[Row, T]],
+      body,
+      requestedTypeInfo)
+
+    val mapFunction = new MapRunner[Row, T](
+      genFunction.name,
+      genFunction.code,
+      genFunction.returnType)
+
+    Some(mapFunction)
   }
 
 }

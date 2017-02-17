@@ -18,19 +18,12 @@
 
 package org.apache.flink.table.api.scala.batch
 
-<<<<<<< HEAD
 import org.apache.flink.table.api.Types
-=======
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.sources.CsvTableSource
 import org.apache.flink.table.utils.{CommonTestData, TableTestBase}
 import org.apache.flink.table.utils.TableTestUtil._
-<<<<<<< HEAD
 import org.junit.{Assert, Test}
-=======
-import org.junit.Test
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
 
 class TableSourceTest extends TableTestBase {
 
@@ -147,7 +140,6 @@ class TableSourceTest extends TableTestBase {
     util.verifyTable(result, expected)
   }
 
-<<<<<<< HEAD
   @Test
   def testCsvTableSourceBuilder(): Unit = {
     val source1 = CsvTableSource.builder()
@@ -201,8 +193,6 @@ class TableSourceTest extends TableTestBase {
       .build()
   }
 
-=======
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
   def tableSource: (CsvTableSource, String) = {
     val csvTable = CommonTestData.getCsvTableSource
     val tableName = "csvTable"

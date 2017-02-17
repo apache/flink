@@ -164,7 +164,6 @@ For convenience, Flink provides the following schemas:
     The KeyValue objectNode contains a "key" and "value" field which contain all fields, as well as
     an optional "metadata" field that exposes the offset/partition/topic for this message.
 
-<<<<<<< HEAD
 ### Kafka Consumers Start Position Configuration
 
 The Flink Kafka Consumer allows configuring how the start position for Kafka
@@ -218,8 +217,6 @@ offsets stored in the savepoint or checkpoint
 (please see the next section for information about checkpointing to enable
 fault tolerance for the consumer).
 
-=======
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
 ### Kafka Consumers and Fault Tolerance
 
 With Flink's checkpointing enabled, the Flink Kafka Consumer will consume records from a topic and periodically checkpoint all

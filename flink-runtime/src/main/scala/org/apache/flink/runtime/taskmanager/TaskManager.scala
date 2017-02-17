@@ -69,19 +69,11 @@ import org.apache.flink.runtime.security.SecurityUtils.SecurityConfiguration
 import org.apache.flink.runtime.taskexecutor.{TaskManagerServices, TaskManagerServicesConfiguration, TaskManagerConfiguration}
 import org.apache.flink.runtime.util._
 import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessageFilter, LogMessages}
-<<<<<<< HEAD
-=======
-import org.apache.flink.util.NetUtils
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
 
 import scala.collection.JavaConverters._
 import scala.concurrent._
 import scala.concurrent.duration._
 import scala.language.postfixOps
-<<<<<<< HEAD
-=======
-import scala.util.{Failure, Success}
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
 
 /**
  * The TaskManager is responsible for executing the individual tasks of a Flink job. It is
@@ -845,17 +837,10 @@ class TaskManager(
             client.put(fis);
           }(context.dispatcher)
             .onComplete {
-<<<<<<< HEAD
               case scala.util.Success(value) =>
                 sender ! value
                 fis.close()
               case scala.util.Failure(e) =>
-=======
-              case Success(value) =>
-                sender ! value
-                fis.close()
-              case Failure(e) =>
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
                 sender ! akka.actor.Status.Failure(e)
                 fis.close()
             }(context.dispatcher)

@@ -18,6 +18,9 @@
 
 package org.apache.flink.table.codegen
 
+import org.apache.flink.api.common.functions
+import org.apache.flink.api.common.functions.Function
+import org.apache.flink.api.common.io.InputFormat
 import org.apache.flink.api.common.typeinfo.TypeInformation
 
 /**
@@ -41,14 +44,32 @@ object GeneratedExpression {
 }
 
 /**
-  * Describes a generated [[org.apache.flink.api.common.functions.Function]]
+  * Describes a generated [[functions.Function]]
   *
   * @param name class name of the generated Function.
   * @param returnType the type information of the result type
   * @param code code of the generated Function.
+  * @tparam F type of function
   * @tparam T type of function
   */
-case class GeneratedFunction[T](name: String, returnType: TypeInformation[Any], code: String)
+case class GeneratedFunction[F <: Function, T <: Any](
+  name: String,
+  returnType: TypeInformation[T],
+  code: String)
+
+/**
+  * Describes a generated [[InputFormat]].
+  *
+  * @param name class name of the generated input function.
+  * @param returnType the type information of the result type
+  * @param code code of the generated Function.
+  * @tparam F type of function
+  * @tparam T type of function
+  */
+case class GeneratedInput[F <: InputFormat[_, _], T <: Any](
+  name: String,
+  returnType: TypeInformation[T],
+  code: String)
 
 /**
   * Describes a generated [[org.apache.flink.util.Collector]].

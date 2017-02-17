@@ -23,34 +23,17 @@ import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.flink.api.common.operators.Order
-<<<<<<< HEAD
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
-=======
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.DataSet
-import org.apache.flink.api.java.typeutils.{ResultTypeQueryable, RowTypeInfo}
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
 import org.apache.flink.table.api.BatchTableEnvironment
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.logical._
-<<<<<<< HEAD
 import org.apache.flink.table.plan.nodes.CommonAggregate
 import org.apache.flink.table.runtime.aggregate.AggregateUtil.{CalcitePair, _}
 import org.apache.flink.table.typeutils.TypeCheckUtils.isTimeInterval
 import org.apache.flink.types.Row
 
-=======
-import org.apache.flink.table.plan.nodes.FlinkAggregate
-import org.apache.flink.table.runtime.aggregate.AggregateUtil.{CalcitePair, _}
-import org.apache.flink.table.typeutils.TypeCheckUtils.isTimeInterval
-import org.apache.flink.table.typeutils.TypeConverter
-import org.apache.flink.types.Row
-
-import scala.collection.JavaConversions._
-
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
 /**
   * Flink RelNode which matches along with a LogicalWindowAggregate.
   */
@@ -65,11 +48,7 @@ class DataSetWindowAggregate(
     inputType: RelDataType,
     grouping: Array[Int])
   extends SingleRel(cluster, traitSet, inputNode)
-<<<<<<< HEAD
   with CommonAggregate
-=======
-  with FlinkAggregate
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
   with DataSetRel {
 
   override def deriveRowType() = rowRelDataType
@@ -126,7 +105,6 @@ class DataSetWindowAggregate(
     planner.getCostFactory.makeCost(rowCnt, rowCnt * aggCnt, rowCnt * rowSize)
   }
 
-<<<<<<< HEAD
   override def translateToPlan(tableEnv: BatchTableEnvironment): DataSet[Row] = {
 
     val config = tableEnv.getConfig
@@ -136,22 +114,6 @@ class DataSetWindowAggregate(
     // whether identifiers are matched case-sensitively
     val caseSensitive = tableEnv.getFrameworkConfig.getParserConfig.caseSensitive()
     window match {
-=======
-  override def translateToPlan(
-    tableEnv: BatchTableEnvironment,
-    expectedType: Option[TypeInformation[Any]]): DataSet[Any] = {
-
-    val config = tableEnv.getConfig
-
-    val inputDS = getInput.asInstanceOf[DataSetRel].translateToPlan(
-      tableEnv,
-      // tell the input operator that this operator currently only supports Rows as input
-      Some(TypeConverter.DEFAULT_ROW_TYPE))
-
-    // whether identifiers are matched case-sensitively
-    val caseSensitive = tableEnv.getFrameworkConfig.getParserConfig.caseSensitive()
-    val result = window match {
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
       case EventTimeTumblingGroupWindow(_, _, size) =>
         createEventTimeTumblingWindowDataSet(
           inputDS,
@@ -168,41 +130,14 @@ class DataSetWindowAggregate(
             "windows in a batch environment must declare a time attribute over which " +
             "the query is evaluated.")
     }
-<<<<<<< HEAD
-=======
-
-    // if the expected type is not a Row, inject a mapper to convert to the expected type
-    expectedType match {
-      case Some(typeInfo) if typeInfo.getTypeClass != classOf[Row] =>
-        val mapName = s"convert: (${getRowType.getFieldNames.toList.mkString(", ")})"
-        result.map(
-          getConversionMapper(
-            config = config,
-            nullableInput = false,
-            inputType = resultRowTypeInfo.asInstanceOf[TypeInformation[Any]],
-            expectedType = expectedType.get,
-            conversionOperatorName = "DataSetWindowAggregateConversion",
-            fieldNames = getRowType.getFieldNames
-          ))
-          .name(mapName)
-      case _ => result
-    }
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
   }
 
 
   private def createEventTimeTumblingWindowDataSet(
-<<<<<<< HEAD
       inputDS: DataSet[Row],
       isTimeWindow: Boolean,
       isParserCaseSensitive: Boolean)
     : DataSet[Row] = {
-=======
-      inputDS: DataSet[Any],
-      isTimeWindow: Boolean,
-      isParserCaseSensitive: Boolean)
-    : DataSet[Any] = {
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
     val mapFunction = createDataSetWindowPrepareMapFunction(
       window,
       namedAggregates,
@@ -221,11 +156,8 @@ class DataSetWindowAggregate(
       .map(mapFunction)
       .name(prepareOperatorName)
 
-<<<<<<< HEAD
     val rowTypeInfo = FlinkTypeFactory.toInternalRowTypeInfo(getRowType)
 
-=======
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
     val mapReturnType = mapFunction.asInstanceOf[ResultTypeQueryable[Row]].getProducedType
     if (isTimeWindow) {
       // grouped time window aggregation
@@ -234,14 +166,8 @@ class DataSetWindowAggregate(
       mappedInput.asInstanceOf[DataSet[Row]]
         .groupBy(groupingKeys: _*)
         .reduceGroup(groupReduceFunction)
-<<<<<<< HEAD
         .returns(rowTypeInfo)
         .name(aggregateOperatorName)
-=======
-        .returns(resultRowTypeInfo)
-        .name(aggregateOperatorName)
-        .asInstanceOf[DataSet[Any]]
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
     } else {
       // count window
       val groupingKeys = grouping.indices.toArray
@@ -252,15 +178,8 @@ class DataSetWindowAggregate(
           // sort on time field, it's the last element in the row
           .sortGroup(mapReturnType.getArity - 1, Order.ASCENDING)
           .reduceGroup(groupReduceFunction)
-<<<<<<< HEAD
           .returns(rowTypeInfo)
           .name(aggregateOperatorName)
-=======
-          .returns(resultRowTypeInfo)
-          .name(aggregateOperatorName)
-          .asInstanceOf[DataSet[Any]]
-
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
       } else {
         // TODO: count tumbling all window on event-time should sort all the data set
         // on event time before applying the windowing logic.
@@ -271,20 +190,12 @@ class DataSetWindowAggregate(
   }
 
   private[this] def createEventTimeSessionWindowDataSet(
-<<<<<<< HEAD
       inputDS: DataSet[Row],
       isParserCaseSensitive: Boolean)
     : DataSet[Row] = {
 
     val groupingKeys = grouping.indices.toArray
     val rowTypeInfo = FlinkTypeFactory.toInternalRowTypeInfo(getRowType)
-=======
-    inputDS: DataSet[Any],
-    isParserCaseSensitive: Boolean): DataSet[Any] = {
-
-    val groupingKeys = grouping.indices.toArray
-    val rowTypeInfo = resultRowTypeInfo
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
 
     // grouping window
     if (groupingKeys.length > 0) {
@@ -343,10 +254,6 @@ class DataSetWindowAggregate(
           .reduceGroup(groupReduceFunction)
           .returns(rowTypeInfo)
           .name(aggregateOperatorName)
-<<<<<<< HEAD
-=======
-          .asInstanceOf[DataSet[Any]]
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
       }
       // do non-incremental aggregation
       else {
@@ -364,10 +271,6 @@ class DataSetWindowAggregate(
         .reduceGroup(groupReduceFunction)
         .returns(rowTypeInfo)
         .name(aggregateOperatorName)
-<<<<<<< HEAD
-=======
-        .asInstanceOf[DataSet[Any]]
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
       }
     }
     // non-grouping window
@@ -401,15 +304,4 @@ class DataSetWindowAggregate(
       s"window: ($window), select: ($aggString)"
     }
   }
-<<<<<<< HEAD
-=======
-
-  private def resultRowTypeInfo: RowTypeInfo = {
-    // get the output types
-    val fieldTypes: Array[TypeInformation[_]] = getRowType.getFieldList
-      .map(field => FlinkTypeFactory.toTypeInfo(field.getType))
-      .toArray
-    new RowTypeInfo(fieldTypes: _*)
-  }
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
 }

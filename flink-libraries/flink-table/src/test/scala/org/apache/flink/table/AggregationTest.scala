@@ -230,13 +230,9 @@ class AggregationTest extends TableTestBase {
     val calcNode = unaryNode(
       "DataSetCalc",
       batchTableNode(0),
-<<<<<<< HEAD
       // ReduceExpressionsRule will add cast for Project node by force
       // if the input of the Project node has constant expression.
       term("select", "CAST(1) AS a", "b", "c"),
-=======
-      term("select", "a", "b", "c"),
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
       term("where", "=(a, 1)")
     )
 

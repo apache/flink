@@ -18,9 +18,12 @@
 
 package org.apache.flink.streaming.connectors.kafka.internals;
 
+import kafka.api.OffsetRequest;
 import kafka.common.TopicAndPartition;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.Node;
 
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
@@ -89,29 +92,32 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 	public Kafka08Fetcher(
 			SourceContext<T> sourceContext,
 			List<KafkaTopicPartition> assignedPartitions,
+			HashMap<KafkaTopicPartition, Long> restoredSnapshotState,
 			SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
 			SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
 			StreamingRuntimeContext runtimeContext,
 			KeyedDeserializationSchema<T> deserializer,
 			Properties kafkaProperties,
-			long invalidOffsetBehavior,
 			long autoCommitInterval,
+			StartupMode startupMode,
 			boolean useMetrics) throws Exception
 	{
 		super(
 				sourceContext,
 				assignedPartitions,
+				restoredSnapshotState,
 				watermarksPeriodic,
 				watermarksPunctuated,
 				runtimeContext.getProcessingTimeService(),
 				runtimeContext.getExecutionConfig().getAutoWatermarkInterval(),
 				runtimeContext.getUserCodeClassLoader(),
+				startupMode,
 				useMetrics);
 
 		this.deserializer = checkNotNull(deserializer);
 		this.kafkaConfig = checkNotNull(kafkaProperties);
 		this.runtimeContext = runtimeContext;
-		this.invalidOffsetBehavior = invalidOffsetBehavior;
+		this.invalidOffsetBehavior = getInvalidOffsetBehavior(kafkaProperties);
 		this.autoCommitInterval = autoCommitInterval;
 		this.unassignedPartitionsQueue = new ClosableBlockingQueue<>();
 
@@ -139,23 +145,44 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 
 		PeriodicOffsetCommitter periodicCommitter = null;
 		try {
-			// read offsets from ZooKeeper for partitions that did not restore offsets
-			{
-				List<KafkaTopicPartition> partitionsWithNoOffset = new ArrayList<>();
-				for (KafkaTopicPartitionState<TopicAndPartition> partition : subscribedPartitions()) {
-					if (!partition.isOffsetDefined()) {
-						partitionsWithNoOffset.add(partition.getKafkaTopicPartition());
-					}
-				}
 
-				Map<KafkaTopicPartition, Long> zkOffsets = zookeeperOffsetHandler.getCommittedOffsets(partitionsWithNoOffset);
-				for (KafkaTopicPartitionState<TopicAndPartition> partition : subscribedPartitions()) {
-					Long zkOffset = zkOffsets.get(partition.getKafkaTopicPartition());
-					if (zkOffset != null) {
-						// the offset in ZK represents the "next record to process", so we need to subtract it by 1
-						// to correctly represent our internally checkpointed offsets
-						partition.setOffset(zkOffset - 1);
-					}
+			// if we're not restored from a checkpoint, all partitions will not have their offset set;
+			// depending on the configured startup mode, accordingly set the starting offsets
+			if (!isRestored) {
+				switch (startupMode) {
+					case EARLIEST:
+						for (KafkaTopicPartitionState<TopicAndPartition> partition : subscribedPartitions()) {
+							partition.setOffset(OffsetRequest.EarliestTime());
+						}
+						break;
+					case LATEST:
+						for (KafkaTopicPartitionState<TopicAndPartition> partition : subscribedPartitions()) {
+							partition.setOffset(OffsetRequest.LatestTime());
+						}
+						break;
+					default:
+					case GROUP_OFFSETS:
+						List<KafkaTopicPartition> partitions = new ArrayList<>(subscribedPartitions().length);
+						for (KafkaTopicPartitionState<TopicAndPartition> partition : subscribedPartitions()) {
+							partitions.add(partition.getKafkaTopicPartition());
+						}
+
+						Map<KafkaTopicPartition, Long> zkOffsets = zookeeperOffsetHandler.getCommittedOffsets(partitions);
+						for (KafkaTopicPartitionState<TopicAndPartition> partition : subscribedPartitions()) {
+							Long offset = zkOffsets.get(partition.getKafkaTopicPartition());
+							if (offset != null) {
+								// the committed offset in ZK represents the next record to process,
+								// so we subtract it by 1 to correctly represent internal state
+								partition.setOffset(offset - 1);
+							} else {
+								// if we can't find an offset for a partition in ZK when using GROUP_OFFSETS,
+								// we default to "auto.offset.reset" like the Kafka high-level consumer
+								LOG.warn("No group offset can be found for partition {} in Zookeeper;" +
+									" resetting starting offset to 'auto.offset.reset'", partition);
+
+								partition.setOffset(invalidOffsetBehavior);
+							}
+						}
 				}
 			}
 
@@ -486,5 +513,22 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 		LOG.debug("Partitions with assigned leaders {}", leaderToPartitions);
 
 		return leaderToPartitions;
+	}
+
+	/**
+	 * Retrieve the behaviour of "auto.offset.reset" from the config properties.
+	 * A partition needs to fallback to "auto.offset.reset" as default offset when
+	 * we can't find offsets in ZK to start from in {@link StartupMode#GROUP_OFFSETS} startup mode.
+	 *
+	 * @param config kafka consumer properties
+	 * @return either OffsetRequest.LatestTime() or OffsetRequest.EarliestTime()
+	 */
+	private static long getInvalidOffsetBehavior(Properties config) {
+		final String val = config.getProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "largest");
+		if (val.equals("largest") || val.equals("latest")) { // largest is kafka 0.8, latest is kafka 0.9
+			return OffsetRequest.LatestTime();
+		} else {
+			return OffsetRequest.EarliestTime();
+		}
 	}
 }

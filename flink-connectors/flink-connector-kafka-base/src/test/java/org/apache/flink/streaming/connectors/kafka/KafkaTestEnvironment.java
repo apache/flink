@@ -94,10 +94,11 @@ public abstract class KafkaTestEnvironment {
 
 	public interface KafkaOffsetHandler {
 		Long getCommittedOffset(String topicName, int partition);
+		void setCommittedOffset(String topicName, int partition, long offset);
 		void close();
 	}
 
-	public abstract KafkaOffsetHandler createOffsetHandler(Properties props);
+	public abstract KafkaOffsetHandler createOffsetHandler();
 
 	// -- leader failure simulation
 

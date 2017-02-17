@@ -55,10 +55,6 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
-<<<<<<< HEAD
-=======
-import static org.mockito.Matchers.any;
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
 import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.anyLong;
 import static org.mockito.Matchers.eq;
@@ -494,27 +490,15 @@ public class AbstractStreamOperatorTest {
 		StateSnapshotContextSynchronousImpl context = mock(StateSnapshotContextSynchronousImpl.class);
 
 		whenNew(StateSnapshotContextSynchronousImpl.class).withAnyArguments().thenReturn(context);
-<<<<<<< HEAD
 		
-=======
-
-		CheckpointStreamFactory streamFactory = mock(CheckpointStreamFactory.class);
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
 		StreamTask<Void, AbstractStreamOperator<Void>> containingTask = mock(StreamTask.class);
 		when(containingTask.getCancelables()).thenReturn(closeableRegistry);
 
 		AbstractStreamOperator<Void> operator = mock(AbstractStreamOperator.class);
-<<<<<<< HEAD
 		when(operator.snapshotState(anyLong(), anyLong())).thenCallRealMethod();
 		doReturn(containingTask).when(operator).getContainingTask();
 
 		operator.snapshotState(checkpointId, timestamp);
-=======
-		when(operator.snapshotState(anyLong(), anyLong(), any(CheckpointStreamFactory.class))).thenCallRealMethod();
-		doReturn(containingTask).when(operator).getContainingTask();
-
-		operator.snapshotState(checkpointId, timestamp, streamFactory);
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
 
 		verify(context).close();
 	}
@@ -536,30 +520,18 @@ public class AbstractStreamOperatorTest {
 
 		whenNew(StateSnapshotContextSynchronousImpl.class).withAnyArguments().thenReturn(context);
 
-<<<<<<< HEAD
-=======
-		CheckpointStreamFactory streamFactory = mock(CheckpointStreamFactory.class);
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
 		StreamTask<Void, AbstractStreamOperator<Void>> containingTask = mock(StreamTask.class);
 		when(containingTask.getCancelables()).thenReturn(closeableRegistry);
 
 		AbstractStreamOperator<Void> operator = mock(AbstractStreamOperator.class);
-<<<<<<< HEAD
 		when(operator.snapshotState(anyLong(), anyLong())).thenCallRealMethod();
-=======
-		when(operator.snapshotState(anyLong(), anyLong(), any(CheckpointStreamFactory.class))).thenCallRealMethod();
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
 		doReturn(containingTask).when(operator).getContainingTask();
 
 		// lets fail when calling the actual snapshotState method
 		doThrow(failingException).when(operator).snapshotState(eq(context));
 
 		try {
-<<<<<<< HEAD
 			operator.snapshotState(checkpointId, timestamp);
-=======
-			operator.snapshotState(checkpointId, timestamp, streamFactory);
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
 			fail("Exception expected.");
 		} catch (Exception e) {
 			assertEquals(failingException, e.getCause());
@@ -599,11 +571,7 @@ public class AbstractStreamOperatorTest {
 		when(containingTask.getCancelables()).thenReturn(closeableRegistry);
 
 		AbstractStreamOperator<Void> operator = mock(AbstractStreamOperator.class);
-<<<<<<< HEAD
 		when(operator.snapshotState(anyLong(), anyLong())).thenCallRealMethod();
-=======
-		when(operator.snapshotState(anyLong(), anyLong(), any(CheckpointStreamFactory.class))).thenCallRealMethod();
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
 		doReturn(containingTask).when(operator).getContainingTask();
 
 		RunnableFuture<OperatorStateHandle> futureManagedOperatorStateHandle = mock(RunnableFuture.class);
@@ -616,16 +584,10 @@ public class AbstractStreamOperatorTest {
 
 		Whitebox.setInternalState(operator, "operatorStateBackend", operatorStateBackend);
 		Whitebox.setInternalState(operator, "keyedStateBackend", keyedStateBackend);
-<<<<<<< HEAD
 		Whitebox.setInternalState(operator, "checkpointStreamFactory", streamFactory);
 
 		try {
 			operator.snapshotState(checkpointId, timestamp);
-=======
-
-		try {
-			operator.snapshotState(checkpointId, timestamp, streamFactory);
->>>>>>> [FLINK-1707] Bulk Affinity Propagation
 			fail("Exception expected.");
 		} catch (Exception e) {
 			assertEquals(failingException, e.getCause());
