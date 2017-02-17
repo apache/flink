@@ -112,7 +112,7 @@ public class ArchivedExecutionGraphTest {
 				mock(JobSnapshottingSettings.class),
 				new UnregisteredMetricsGroup());
 
-		runtimeGraph.enableSnapshotCheckpointing(
+		runtimeGraph.enableCheckpointing(
 			100,
 			100,
 			100,
@@ -123,6 +123,7 @@ public class ArchivedExecutionGraphTest {
 			Collections.<ExecutionJobVertex>emptyList(),
 			new StandaloneCheckpointIDCounter(),
 			new StandaloneCompletedCheckpointStore(1),
+			null,
 			null,
 			statsTracker);
 

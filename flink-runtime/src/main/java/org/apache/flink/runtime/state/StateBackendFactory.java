@@ -18,17 +18,24 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.IllegalConfigurationException;
 
+import java.io.IOException;
 import java.io.Serializable;
 
 /**
  * A factory to create a specific state backend. The state backend creation gets a Configuration
  * object that can be used to read further config values.
  * 
+ * <p>The state backend factory is typically specified in the configuration to produce a
+ * configured state backend.
+ * 
  * @param <T> The type of the state backend created.
  */
-public interface StateBackendFactory<T extends AbstractStateBackend> extends Serializable {
+@PublicEvolving
+public interface StateBackendFactory<T extends StateBackend> extends Serializable {
 
 	/**
 	 * Creates the state backend, optionally using the given configuration.
@@ -36,7 +43,10 @@ public interface StateBackendFactory<T extends AbstractStateBackend> extends Ser
 	 * @param config The Flink configuration (loaded by the TaskManager).
 	 * @return The created state backend. 
 	 * 
-	 * @throws Exception Exceptions during instantiation can be forwarded.
+	 * @throws IllegalConfigurationException
+	 *             If the configuration misses critical values, or specifies invalid values
+	 * @throws IOException
+	 *             If the state backend initialization failed due to an I/O exception
 	 */
-	AbstractStateBackend createFromConfig(Configuration config) throws Exception;
+	T createFromConfig(Configuration config) throws IllegalConfigurationException, IOException;
 }

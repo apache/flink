@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
@@ -37,6 +38,9 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator;
 import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
+import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.util.DynamicCodeLoadingException;
 import org.slf4j.Logger;
 
 import javax.annotation.Nullable;
@@ -71,8 +75,8 @@ public class ExecutionGraphBuilder {
 			MetricGroup metrics,
 			int parallelismForAutoMax,
 			Logger log)
-		throws JobExecutionException, JobException
-	{
+		throws JobExecutionException, JobException {
+
 		checkNotNull(jobGraph, "job graph cannot be null");
 
 		final String jobName = jobGraph.getName();
@@ -191,7 +195,28 @@ public class ExecutionGraphBuilder {
 			String externalizedCheckpointsDir = jobManagerConfig.getString(
 					ConfigConstants.CHECKPOINTS_DIRECTORY_KEY, null);
 
-			executionGraph.enableSnapshotCheckpointing(
+			// load the state backend for checkpoint metadata.
+			// if specified in the application, use from there, otherwise load from configuration
+			final StateBackend metadataBackend;
+
+			final StateBackend applicationConfiguredBackend = snapshotSettings.getDefaultStateBackend();
+			if (applicationConfiguredBackend != null) {
+				metadataBackend = applicationConfiguredBackend;
+
+				log.info("Using application-defined state backend for checkpoint/savepoint metadata: {}.",
+						applicationConfiguredBackend);
+			}
+			else {
+				try {
+					metadataBackend = AbstractStateBackend
+							.loadStateBackendFromConfigOrCreateDefault(jobManagerConfig, classLoader, log);
+				}
+				catch (IllegalConfigurationException | IOException | DynamicCodeLoadingException e) {
+					throw new JobExecutionException(jobId, "Could not instantiate configured state backend", e);
+				}
+			}
+
+			executionGraph.enableCheckpointing(
 					snapshotSettings.getCheckpointInterval(),
 					snapshotSettings.getCheckpointTimeout(),
 					snapshotSettings.getMinPauseBetweenCheckpoints(),
@@ -203,6 +228,7 @@ public class ExecutionGraphBuilder {
 					checkpointIdCounter,
 					completedCheckpoints,
 					externalizedCheckpointsDir,
+					metadataBackend,
 					checkpointStatsTracker);
 		}
 

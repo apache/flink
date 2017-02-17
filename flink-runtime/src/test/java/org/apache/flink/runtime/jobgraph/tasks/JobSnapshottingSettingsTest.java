@@ -20,11 +20,14 @@ package org.apache.flink.runtime.jobgraph.tasks;
 
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.junit.Test;
 
 import java.util.Arrays;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 public class JobSnapshottingSettingsTest {
 
@@ -42,6 +45,7 @@ public class JobSnapshottingSettingsTest {
 			112,
 			12,
 			ExternalizedCheckpointSettings.externalizeCheckpoints(true),
+			new MemoryStateBackend(),
 			false);
 
 		JobSnapshottingSettings copy = CommonTestUtils.createCopySerializable(settings);
@@ -55,5 +59,7 @@ public class JobSnapshottingSettingsTest {
 		assertEquals(settings.getExternalizedCheckpointSettings().externalizeCheckpoints(), copy.getExternalizedCheckpointSettings().externalizeCheckpoints());
 		assertEquals(settings.getExternalizedCheckpointSettings().deleteOnCancellation(), copy.getExternalizedCheckpointSettings().deleteOnCancellation());
 		assertEquals(settings.isExactlyOnce(), copy.isExactlyOnce());
+		assertNotNull(copy.getDefaultStateBackend());
+		assertTrue(copy.getDefaultStateBackend().getClass() == MemoryStateBackend.class);
 	}
 }
