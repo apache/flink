@@ -49,7 +49,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import java.io.File;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
@@ -106,24 +105,22 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 	public void testMultipleAMKill() throws Exception {
 		final int numberKillingAttempts = numberApplicationAttempts - 1;
 		String confDirPath = System.getenv(ConfigConstants.ENV_FLINK_CONF_DIR);
-		final Configuration configuration = GlobalConfiguration.loadConfiguration();
+
+		String fsStateHandlePath = temp.getRoot().getPath();
+		Configuration dynamicProperties = new Configuration();
+		dynamicProperties.setString("recovery.mode", "zookeeper");
+		dynamicProperties.setString("recovery.zookeeper.quorum", zkServer.getConnectString());
+		dynamicProperties.setInteger("yarn.application-attempts", numberApplicationAttempts);
+		dynamicProperties.setString(CoreOptions.STATE_BACKEND, "FILESYSTEM");
+		dynamicProperties.setString(FsStateBackendFactory.CHECKPOINT_DIRECTORY_URI_CONF_KEY, fsStateHandlePath + "/checkpoints");
+		dynamicProperties.setString(HighAvailabilityOptions.HA_STORAGE_PATH.key(), fsStateHandlePath + "/recovery");
+
+		final Configuration configuration = GlobalConfiguration.loadConfigurationWithDynamicProperties(dynamicProperties);
 		TestingYarnClusterDescriptor flinkYarnClient = new TestingYarnClusterDescriptor(configuration, confDirPath);
 
 		Assert.assertNotNull("unable to get yarn client", flinkYarnClient);
 		flinkYarnClient.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
 		flinkYarnClient.addShipFiles(Arrays.asList(flinkLibFolder.listFiles()));
-
-		String fsStateHandlePath = temp.getRoot().getPath();
-
-		// load the configuration
-		File configDirectory = new File(confDirPath);
-		GlobalConfiguration.loadConfiguration(configDirectory.getAbsolutePath());
-
-		flinkYarnClient.setDynamicPropertiesEncoded("recovery.mode=zookeeper@@recovery.zookeeper.quorum=" +
-			zkServer.getConnectString() + "@@yarn.application-attempts=" + numberApplicationAttempts +
-			"@@" + CoreOptions.STATE_BACKEND + "=FILESYSTEM" +
-			"@@" + FsStateBackendFactory.CHECKPOINT_DIRECTORY_URI_CONF_KEY + "=" + fsStateHandlePath + "/checkpoints" +
-			"@@" + HighAvailabilityOptions.HA_STORAGE_PATH.key() + "=" + fsStateHandlePath + "/recovery");
 
 		ClusterClient yarnCluster = null;
 

@@ -200,7 +200,7 @@ public class MesosJobClusterEntrypoint extends JobClusterEntrypoint {
 			return;
 		}
 
-		Configuration dynamicProperties = BootstrapTools.parseDynamicProperties(cmd);
+		Configuration dynamicProperties = BootstrapTools.retrieveDynamicProperties(cmd);
 		Configuration configuration = GlobalConfiguration.loadConfigurationWithDynamicProperties(dynamicProperties);
 
 		MesosJobClusterEntrypoint clusterEntrypoint = new MesosJobClusterEntrypoint(configuration, dynamicProperties);

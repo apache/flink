@@ -42,7 +42,6 @@ import org.mockito.Mockito;
 
 import java.io.File;
 import java.net.InetSocketAddress;
-import java.util.Map;
 
 /**
  * Tests for the FlinkYarnSessionCli.
@@ -65,7 +64,7 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 
 		CommandLineParser parser = new DefaultParser();
 		CommandLine cmd = parser.parse(options, new String[]{"run", "-j", "fake.jar", "-n", "15",
-				"-D", "akka.ask.timeout=5 min", "-D", "env.java.opts=-DappName=foobar"});
+			"-D", "akka.ask.timeout=5 min", "-D", "env.java.opts=-DappName=foobar"});
 
 		AbstractYarnClusterDescriptor flinkYarnDescriptor = cli.createDescriptor(
 			new Configuration(),
@@ -75,11 +74,9 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 
 		Assert.assertNotNull(flinkYarnDescriptor);
 
-		Map<String, String> dynProperties =
-			FlinkYarnSessionCli.getDynamicProperties(flinkYarnDescriptor.getDynamicPropertiesEncoded());
-		Assert.assertEquals(2, dynProperties.size());
-		Assert.assertEquals("5 min", dynProperties.get("akka.ask.timeout"));
-		Assert.assertEquals("-DappName=foobar", dynProperties.get("env.java.opts"));
+		Configuration configuration = flinkYarnDescriptor.getFlinkConfiguration();
+		Assert.assertEquals("5 min", configuration.getString("akka.ask.timeout", ""));
+		Assert.assertEquals("-DappName=foobar", configuration.getString("env.java.opts", ""));
 	}
 
 	@Test

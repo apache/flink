@@ -151,7 +151,7 @@ public class MesosApplicationMasterRunner {
 			CommandLineParser parser = new PosixParser();
 			CommandLine cmd = parser.parse(ALL_OPTIONS, args);
 
-			final Configuration dynamicProperties = BootstrapTools.parseDynamicProperties(cmd);
+			final Configuration dynamicProperties = BootstrapTools.retrieveDynamicProperties(cmd);
 			final Configuration config = GlobalConfiguration.loadConfigurationWithDynamicProperties(dynamicProperties);
 
 			// configure the default filesystem

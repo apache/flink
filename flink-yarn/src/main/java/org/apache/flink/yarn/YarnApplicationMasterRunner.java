@@ -46,7 +46,6 @@ import org.apache.flink.runtime.util.SignalHandler;
 import org.apache.flink.runtime.webmonitor.WebMonitor;
 import org.apache.flink.runtime.webmonitor.retriever.impl.AkkaJobManagerRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.impl.AkkaQueryServiceRetriever;
-import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
 import akka.actor.ActorRef;
@@ -156,12 +155,7 @@ public class YarnApplicationMasterRunner {
 			LOG.info("YARN daemon is running as: {} Yarn client user obtainer: {}",
 					currentUser.getShortUserName(), yarnClientUsername);
 
-			// Flink configuration
-			final Map<String, String> dynamicProperties =
-				FlinkYarnSessionCli.getDynamicProperties(ENV.get(YarnConfigKeys.ENV_DYNAMIC_PROPERTIES));
-			LOG.debug("YARN dynamic properties: {}", dynamicProperties);
-
-			final Configuration flinkConfig = createConfiguration(currDir, dynamicProperties);
+			final Configuration flinkConfig = createConfiguration(currDir);
 
 			// set keytab principal and replace path with the local path of the shipped keytab file in NodeManager
 			if (keytabPath != null && remoteKeytabPrincipal != null) {
@@ -492,20 +486,13 @@ public class YarnApplicationMasterRunner {
 	 * Reads the global configuration from the given directory and adds the given parameters to it.
 	 *
 	 * @param baseDirectory directory to load the configuration from
-	 * @param additional additional parameters to be included in the configuration
-	 *
 	 * @return The configuration to be used by the TaskManagers.
 	 */
 	@SuppressWarnings("deprecation")
-	private static Configuration createConfiguration(String baseDirectory, Map<String, String> additional) {
+	private static Configuration createConfiguration(String baseDirectory) {
 		LOG.info("Loading config from directory " + baseDirectory);
 
 		Configuration configuration = GlobalConfiguration.loadConfiguration(baseDirectory);
-
-		// add dynamic properties to JobManager configuration.
-		for (Map.Entry<String, String> property : additional.entrySet()) {
-			configuration.setString(property.getKey(), property.getValue());
-		}
 
 		// override zookeeper namespace with user cli argument (if provided)
 		String cliZKNamespace = ENV.get(YarnConfigKeys.ENV_ZOOKEEPER_NAMESPACE);

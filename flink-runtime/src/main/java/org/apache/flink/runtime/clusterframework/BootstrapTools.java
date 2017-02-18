@@ -329,24 +329,33 @@ public class BootstrapTools {
 	/**
 	 * Parse the dynamic properties (passed on the command line).
 	 */
-	public static Configuration parseDynamicProperties(CommandLine cmd) {
-		final Configuration config = new Configuration();
-
+	public static Configuration retrieveDynamicProperties(CommandLine cmd) {
 		String[] values = cmd.getOptionValues(DYNAMIC_PROPERTIES_OPT);
+		return parseDynamicProperties(values);
+	}
+
+	public static Configuration retrieveDynamicProperties(CommandLine cmd, Option dynamicPropertiesOption) {
+		String[] values = cmd.getOptionValues(dynamicPropertiesOption.getOpt());
+		return parseDynamicProperties(values);
+	}
+
+	private static Configuration parseDynamicProperties(String[] values) {
+		final Configuration configuration = new Configuration();
+
 		if(values != null) {
 			for(String value : values) {
 				String[] pair = value.split("=", 2);
 				if(pair.length == 1) {
-					config.setString(pair[0], Boolean.TRUE.toString());
+					configuration.setString(pair[0], Boolean.TRUE.toString());
 				}
 				else if(pair.length == 2) {
-					config.setString(pair[0], pair[1]);
+					configuration.setString(pair[0], pair[1]);
 				}
 			}
 		}
-
-		return config;
+		return configuration;
 	}
+
 
 	/**
 	 * Generates the shell command to start a task manager.

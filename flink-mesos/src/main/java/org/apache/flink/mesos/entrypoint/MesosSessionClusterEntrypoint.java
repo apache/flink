@@ -174,7 +174,7 @@ public class MesosSessionClusterEntrypoint extends SessionClusterEntrypoint {
 			return;
 		}
 
-		Configuration dynamicProperties = BootstrapTools.parseDynamicProperties(cmd);
+		Configuration dynamicProperties = BootstrapTools.retrieveDynamicProperties(cmd);
 		Configuration configuration = GlobalConfiguration.loadConfigurationWithDynamicProperties(dynamicProperties);
 
 		MesosSessionClusterEntrypoint clusterEntrypoint = new MesosSessionClusterEntrypoint(configuration, dynamicProperties);

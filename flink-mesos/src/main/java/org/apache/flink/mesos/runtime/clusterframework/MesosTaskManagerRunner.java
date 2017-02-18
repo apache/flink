@@ -72,7 +72,7 @@ public class MesosTaskManagerRunner {
 
 		final Configuration configuration;
 		try {
-			final Configuration dynamicProperties = BootstrapTools.parseDynamicProperties(cmd);
+			final Configuration dynamicProperties = BootstrapTools.retrieveDynamicProperties(cmd);
 			LOG.debug("Mesos dynamic properties: {}", dynamicProperties);
 
 			configuration = GlobalConfiguration.loadConfigurationWithDynamicProperties(dynamicProperties);

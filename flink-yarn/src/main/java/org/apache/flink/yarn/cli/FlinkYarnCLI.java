@@ -22,6 +22,7 @@ import org.apache.flink.client.CliFrontend;
 import org.apache.flink.client.cli.CliFrontendParser;
 import org.apache.flink.client.cli.CustomCommandLine;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.yarn.YarnClusterClientV2;
 import org.apache.flink.yarn.YarnClusterDescriptorV2;
@@ -30,7 +31,6 @@ import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,8 +53,6 @@ public class FlinkYarnCLI implements CustomCommandLine<YarnClusterClientV2> {
 
 	/** The id for the CommandLine interface. */
 	private static final String ID = "yarn";
-
-	private static final String YARN_DYNAMIC_PROPERTIES_SEPARATOR = "@@"; // this has to be a regex for String.split()
 
 	//------------------------------------ Command Line argument options -------------------------
 	// the prefix transformation is used by the CliFrontend static constructor.
@@ -102,6 +100,9 @@ public class FlinkYarnCLI implements CustomCommandLine<YarnClusterClientV2> {
 			String defaultApplicationName,
 			CommandLine cmd) {
 
+		final Configuration dynamicPropertiesConfig = BootstrapTools.retrieveDynamicProperties(cmd, dynamicProperties);
+		configuration.addAll(dynamicPropertiesConfig);
+
 		YarnClusterDescriptorV2 yarnClusterDescriptor = new YarnClusterDescriptorV2(configuration, CliFrontend.getConfigurationDirectoryFromEnv());
 
 		// Jar Path
@@ -147,14 +148,6 @@ public class FlinkYarnCLI implements CustomCommandLine<YarnClusterClientV2> {
 		if (cmd.hasOption(queue.getOpt())) {
 			yarnClusterDescriptor.setQueue(cmd.getOptionValue(queue.getOpt()));
 		}
-
-		String[] dynamicProperties = null;
-		if (cmd.hasOption(this.dynamicProperties.getOpt())) {
-			dynamicProperties = cmd.getOptionValues(this.dynamicProperties.getOpt());
-		}
-		String dynamicPropertiesEncoded = StringUtils.join(dynamicProperties, YARN_DYNAMIC_PROPERTIES_SEPARATOR);
-
-		yarnClusterDescriptor.setDynamicPropertiesEncoded(dynamicPropertiesEncoded);
 
 		if (cmd.hasOption(detached.getOpt()) || cmd.hasOption(CliFrontendParser.DETACHED_OPTION.getOpt())) {
 			// TODO: not support non detach mode now.

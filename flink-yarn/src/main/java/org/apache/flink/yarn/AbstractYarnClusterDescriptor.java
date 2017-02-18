@@ -92,7 +92,6 @@ import java.util.Set;
 import static org.apache.flink.configuration.ConfigConstants.ENV_FLINK_LIB_DIR;
 import static org.apache.flink.yarn.cli.FlinkYarnSessionCli.CONFIG_FILE_LOG4J_NAME;
 import static org.apache.flink.yarn.cli.FlinkYarnSessionCli.CONFIG_FILE_LOGBACK_NAME;
-import static org.apache.flink.yarn.cli.FlinkYarnSessionCli.getDynamicProperties;
 
 /**
  * The descriptor with deployment information for spawning or resuming a {@link YarnClusterClient}.
@@ -120,8 +119,6 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	private String configurationDirectory;
 
 	private Path flinkJarPath;
-
-	private String dynamicPropertiesEncoded;
 
 	/** Lazily initialized list of files to ship. */
 	protected List<File> shipFiles = new LinkedList<>();
@@ -190,10 +187,6 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		}
 	}
 
-	public void setDynamicPropertiesEncoded(String dynamicPropertiesEncoded) {
-		this.dynamicPropertiesEncoded = dynamicPropertiesEncoded;
-	}
-
 	/**
 	 * Returns true if the descriptor has the job jars to include in the classpath.
 	 */
@@ -228,10 +221,6 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 					+ " Currently only file:/// URLs are supported.");
 			}
 		}
-	}
-
-	public String getDynamicPropertiesEncoded() {
-		return this.dynamicPropertiesEncoded;
 	}
 
 	private void isReadyForDeployment(ClusterSpecification clusterSpecification) throws YarnDeploymentException {
@@ -414,12 +403,6 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		// ------------------ Check if the specified queue exists --------------------
 
 		checkYarnQueues(yarnClient);
-
-		// ------------------ Add dynamic properties to local flinkConfiguraton ------
-		Map<String, String> dynProperties = getDynamicProperties(dynamicPropertiesEncoded);
-		for (Map.Entry<String, String> dynProperty : dynProperties.entrySet()) {
-			flinkConfiguration.setString(dynProperty.getKey(), dynProperty.getValue());
-		}
 
 		// ------------------ Check if the YARN ClusterClient has the requested resources --------------
 
@@ -885,10 +868,6 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		if (remoteYarnSiteXmlPath != null && remoteKrb5Path != null) {
 			appMasterEnv.put(YarnConfigKeys.ENV_YARN_SITE_XML_PATH, remoteYarnSiteXmlPath.toString());
 			appMasterEnv.put(YarnConfigKeys.ENV_KRB5_PATH, remoteKrb5Path.toString());
-		}
-
-		if (dynamicPropertiesEncoded != null) {
-			appMasterEnv.put(YarnConfigKeys.ENV_DYNAMIC_PROPERTIES, dynamicPropertiesEncoded);
 		}
 
 		// set classpath from YARN configuration
