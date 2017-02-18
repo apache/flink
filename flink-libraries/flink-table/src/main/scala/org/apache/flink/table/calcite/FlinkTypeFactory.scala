@@ -122,7 +122,7 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
       new CompositeRelDataType(ct, this)
 
     case pa: PrimitiveArrayTypeInfo[_] =>
-      new ArrayRelDataType(pa, createTypeFromTypeInfo(pa.getComponentType), true)
+      new ArrayRelDataType(pa, createTypeFromTypeInfo(pa.getComponentType), false)
 
     case oa: ObjectArrayTypeInfo[_, _] =>
       new ArrayRelDataType(oa, createTypeFromTypeInfo(oa.getComponentInfo), true)

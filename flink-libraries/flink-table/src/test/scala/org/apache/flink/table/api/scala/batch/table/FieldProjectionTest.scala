@@ -70,7 +70,7 @@ class FieldProjectionTest extends TableTestBase {
     val sourceTable = util.addTable[(Int, Long, String, Double)]("MyTable", 'a, 'b, 'c, 'd)
     val resultTable = sourceTable.select('a.sum, 'b.max)
 
-    val aggregate = unaryNode(
+    val expected = unaryNode(
       "DataSetAggregate",
       binaryNode(
         "DataSetUnion",
@@ -87,12 +87,6 @@ class FieldProjectionTest extends TableTestBase {
         term("union", "a", "b")
       ),
       term("select", "SUM(a) AS TMP_0", "MAX(b) AS TMP_1")
-    )
-
-    val expected = unaryNode(
-      "DataSetCalc",
-      aggregate,
-      term("select", "TMP_0 AS TMP_2", "TMP_1 AS TMP_3")
     )
 
     util.verifyTable(resultTable, expected)
@@ -175,7 +169,7 @@ class FieldProjectionTest extends TableTestBase {
           term("groupBy", "c"),
           term("select", "c", "SUM(a) AS TMP_0")
         ),
-        term("select", "TMP_0 AS TMP_1")
+        term("select", "TMP_0")
       )
 
     util.verifyTable(resultTable, expected)
@@ -199,7 +193,7 @@ class FieldProjectionTest extends TableTestBase {
           term("groupBy", "k"),
           term("select", "k", "SUM(a) AS TMP_0")
         ),
-        term("select", "TMP_0 AS TMP_1")
+        term("select", "TMP_0")
       )
 
     util.verifyTable(resultTable, expected)
@@ -223,7 +217,7 @@ class FieldProjectionTest extends TableTestBase {
           term("groupBy", "k"),
           term("select", "k", "SUM(a) AS TMP_0")
         ),
-        term("select", "TMP_0 AS TMP_1")
+        term("select", "TMP_0")
       )
 
     util.verifyTable(resultTable, expected)
@@ -237,7 +231,7 @@ class FieldProjectionTest extends TableTestBase {
         .groupBy('w)
         .select(Upper('c).count, 'a.sum)
 
-    val aggregate =
+    val expected =
       unaryNode(
         "DataStreamAggregate",
         unaryNode(
@@ -252,12 +246,6 @@ class FieldProjectionTest extends TableTestBase {
             5.millis)),
         term("select", "COUNT($f2) AS TMP_0", "SUM(a) AS TMP_1")
       )
-
-    val expected = unaryNode(
-      "DataStreamCalc",
-      aggregate,
-      term("select", "TMP_0 AS TMP_2", "TMP_1 AS TMP_3")
-    )
 
     streamUtil.verifyTable(resultTable, expected)
   }
@@ -287,7 +275,7 @@ class FieldProjectionTest extends TableTestBase {
               5.millis)),
           term("select", "b", "COUNT($f3) AS TMP_0", "SUM(a) AS TMP_1")
         ),
-        term("select", "TMP_0 AS TMP_2", "TMP_1 AS TMP_3", "b")
+        term("select", "TMP_0", "TMP_1", "b")
     )
 
     streamUtil.verifyTable(resultTable, expected)

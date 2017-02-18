@@ -93,18 +93,13 @@ class GroupWindowTest extends TableTestBase {
       .groupBy('w, 'string)
       .select('string, 'int.count)
 
-    val aggregate = unaryNode(
+    val expected = unaryNode(
       "DataSetWindowAggregate",
       batchTableNode(0),
       term("groupBy", "string"),
       term("window", EventTimeTumblingGroupWindow(Some(WindowReference("w")), 'long, 2.rows)),
       term("select", "string", "COUNT(int) AS TMP_0")
     )
-
-    val expected = unaryNode(
-      "DataSetCalc",
-      aggregate,
-      term("select", "string", "TMP_0 AS TMP_1"))
 
     util.verifyTable(windowedTable, expected)
   }
@@ -119,18 +114,13 @@ class GroupWindowTest extends TableTestBase {
       .groupBy('w, 'string)
       .select('string, 'int.count)
 
-    val aggregate = unaryNode(
+    val expected = unaryNode(
       "DataSetWindowAggregate",
       batchTableNode(0),
       term("groupBy", "string"),
       term("window", EventTimeTumblingGroupWindow(Some(WindowReference("w")), 'long, 5.milli)),
       term("select", "string", "COUNT(int) AS TMP_0")
     )
-
-    val expected = unaryNode(
-      "DataSetCalc",
-      aggregate,
-      term("select", "string", "TMP_0 AS TMP_1"))
 
     util.verifyTable(windowedTable, expected)
   }
@@ -167,7 +157,7 @@ class GroupWindowTest extends TableTestBase {
       .groupBy('w)
       .select('int.count)
 
-    val aggregate = unaryNode(
+    val expected = unaryNode(
       "DataSetWindowAggregate",
       unaryNode(
         "DataSetCalc",
@@ -177,11 +167,6 @@ class GroupWindowTest extends TableTestBase {
       term("window", EventTimeTumblingGroupWindow(Some(WindowReference("w")), 'long, 5.milli)),
       term("select", "COUNT(int) AS TMP_0")
     )
-
-    val expected = unaryNode(
-      "DataSetCalc",
-      aggregate,
-      term("select", "TMP_0 AS TMP_1"))
 
     util.verifyTable(windowedTable, expected)
   }
@@ -196,7 +181,7 @@ class GroupWindowTest extends TableTestBase {
       .groupBy('w)
       .select('int.count)
 
-    val aggregate = unaryNode(
+    val expected = unaryNode(
       "DataSetWindowAggregate",
       unaryNode(
         "DataSetCalc",
@@ -206,11 +191,6 @@ class GroupWindowTest extends TableTestBase {
       term("window", EventTimeTumblingGroupWindow(Some(WindowReference("w")), 'long, 2.rows)),
       term("select", "COUNT(int) AS TMP_0")
     )
-
-    val expected = unaryNode(
-      "DataSetCalc",
-      aggregate,
-      term("select", "TMP_0 AS TMP_1"))
 
     util.verifyTable(windowedTable, expected)
   }
@@ -251,7 +231,7 @@ class GroupWindowTest extends TableTestBase {
       .groupBy('w, 'string)
       .select('string, 'int.count)
 
-    val aggregate = unaryNode(
+    val expected = unaryNode(
       "DataSetWindowAggregate",
       batchTableNode(0),
       term("groupBy", "string"),
@@ -259,11 +239,6 @@ class GroupWindowTest extends TableTestBase {
         EventTimeSlidingGroupWindow(Some(WindowReference("w")), 'long, 8.milli, 10.milli)),
       term("select", "string", "COUNT(int) AS TMP_0")
     )
-
-    val expected = unaryNode(
-      "DataSetCalc",
-      aggregate,
-      term("select", "string", "TMP_0 AS TMP_1"))
 
     util.verifyTable(windowedTable, expected)
   }
@@ -278,7 +253,7 @@ class GroupWindowTest extends TableTestBase {
       .groupBy('w, 'string)
       .select('string, 'int.count)
 
-    val aggregate = unaryNode(
+    val expected = unaryNode(
       "DataSetWindowAggregate",
       batchTableNode(0),
       term("groupBy", "string"),
@@ -286,11 +261,6 @@ class GroupWindowTest extends TableTestBase {
         EventTimeSlidingGroupWindow(Some(WindowReference("w")), 'long, 2.rows, 1.rows)),
       term("select", "string", "COUNT(int) AS TMP_0")
     )
-
-    val expected = unaryNode(
-      "DataSetCalc",
-      aggregate,
-      term("select", "string", "TMP_0 AS TMP_1"))
 
     util.verifyTable(windowedTable, expected)
   }
@@ -316,7 +286,7 @@ class GroupWindowTest extends TableTestBase {
       .groupBy('w)
       .select('int.count)
 
-    val aggregate = unaryNode(
+    val expected = unaryNode(
       "DataSetWindowAggregate",
       unaryNode(
         "DataSetCalc",
@@ -327,11 +297,6 @@ class GroupWindowTest extends TableTestBase {
         EventTimeSlidingGroupWindow(Some(WindowReference("w")), 'long, 8.milli, 10.milli)),
       term("select", "COUNT(int) AS TMP_0")
     )
-
-    val expected = unaryNode(
-      "DataSetCalc",
-      aggregate,
-      term("select", "TMP_0 AS TMP_1"))
 
     util.verifyTable(windowedTable, expected)
   }
@@ -346,7 +311,7 @@ class GroupWindowTest extends TableTestBase {
       .groupBy('w)
       .select('int.count)
 
-    val aggregate = unaryNode(
+    val expected = unaryNode(
       "DataSetWindowAggregate",
       unaryNode(
         "DataSetCalc",
@@ -357,11 +322,6 @@ class GroupWindowTest extends TableTestBase {
         EventTimeSlidingGroupWindow(Some(WindowReference("w")), 'long, 2.rows, 1.rows)),
       term("select", "COUNT(int) AS TMP_0")
     )
-
-    val expected = unaryNode(
-      "DataSetCalc",
-      aggregate,
-      term("select", "TMP_0 AS TMP_1"))
 
     util.verifyTable(windowedTable, expected)
   }
@@ -380,18 +340,13 @@ class GroupWindowTest extends TableTestBase {
       .groupBy('w, 'string)
       .select('string, 'int.count)
 
-    val aggregate = unaryNode(
+    val expected = unaryNode(
       "DataSetWindowAggregate",
       batchTableNode(0),
       term("groupBy", "string"),
       term("window", EventTimeSessionGroupWindow(Some(WindowReference("w")), 'long, 7.milli)),
       term("select", "string", "COUNT(int) AS TMP_0")
     )
-
-    val expected = unaryNode(
-      "DataSetCalc",
-      aggregate,
-      term("select", "string", "TMP_0 AS TMP_1"))
 
     util.verifyTable(windowedTable, expected)
   }

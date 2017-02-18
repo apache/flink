@@ -23,6 +23,7 @@ import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.plan.logical.{LogicalNode, Project}
 
+import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
 object ProjectionTranslator {
@@ -108,62 +109,73 @@ object ProjectionTranslator {
       tableEnv: TableEnvironment,
       aggNames: Map[Expression, String],
       propNames: Map[Expression, String]): Seq[NamedExpression] = {
-    exprs.map(replaceAggregationsAndProperties(_, tableEnv, aggNames, propNames))
-        .map(UnresolvedAlias)
-  }
 
-  private def replaceAggregationsAndProperties(
+    val projectNames: mutable.HashSet[String] = new mutable.HashSet[String]
+
+    def replaceAggregationsAndProperties(
       exp: Expression,
       tableEnv: TableEnvironment,
       aggNames: Map[Expression, String],
       propNames: Map[Expression, String]) : Expression = {
 
-    exp match {
-      case agg: Aggregation =>
-        val name = aggNames(agg)
-        Alias(UnresolvedFieldReference(name), tableEnv.createUniqueAttributeName())
-      case prop: WindowProperty =>
-        val name = propNames(prop)
-        Alias(UnresolvedFieldReference(name), tableEnv.createUniqueAttributeName())
-      case n @ Alias(agg: Aggregation, name, _) =>
-        val aName = aggNames(agg)
-        Alias(UnresolvedFieldReference(aName), name)
-      case n @ Alias(prop: WindowProperty, name, _) =>
-        val pName = propNames(prop)
-        Alias(UnresolvedFieldReference(pName), name)
-      case l: LeafExpression => l
-      case u: UnaryExpression =>
-        val c = replaceAggregationsAndProperties(u.child, tableEnv, aggNames, propNames)
-        u.makeCopy(Array(c))
-      case b: BinaryExpression =>
-        val l = replaceAggregationsAndProperties(b.left, tableEnv, aggNames, propNames)
-        val r = replaceAggregationsAndProperties(b.right, tableEnv, aggNames, propNames)
-        b.makeCopy(Array(l, r))
+      exp match {
+        case agg: Aggregation =>
+          val name = aggNames(agg)
+          if (projectNames.add(name)) {
+            UnresolvedFieldReference(name)
+          } else {
+            Alias(UnresolvedFieldReference(name), tableEnv.createUniqueAttributeName())
+          }
+        case prop: WindowProperty =>
+          val name = propNames(prop)
+          if (projectNames.add(name)) {
+            UnresolvedFieldReference(name)
+          } else {
+            Alias(UnresolvedFieldReference(name), tableEnv.createUniqueAttributeName())
+          }
+        case n @ Alias(agg: Aggregation, name, _) =>
+          val aName = aggNames(agg)
+          Alias(UnresolvedFieldReference(aName), name)
+        case n @ Alias(prop: WindowProperty, name, _) =>
+          val pName = propNames(prop)
+          Alias(UnresolvedFieldReference(pName), name)
+        case l: LeafExpression => l
+        case u: UnaryExpression =>
+          val c = replaceAggregationsAndProperties(u.child, tableEnv, aggNames, propNames)
+          u.makeCopy(Array(c))
+        case b: BinaryExpression =>
+          val l = replaceAggregationsAndProperties(b.left, tableEnv, aggNames, propNames)
+          val r = replaceAggregationsAndProperties(b.right, tableEnv, aggNames, propNames)
+          b.makeCopy(Array(l, r))
 
-      // Functions calls
-      case c @ Call(name, args) =>
-        val newArgs = args.map(replaceAggregationsAndProperties(_, tableEnv, aggNames, propNames))
-        c.makeCopy(Array(name, newArgs))
+        // Functions calls
+        case c @ Call(name, args) =>
+          val newArgs = args.map(replaceAggregationsAndProperties(_, tableEnv, aggNames, propNames))
+          c.makeCopy(Array(name, newArgs))
 
-      case sfc @ ScalarFunctionCall(clazz, args) =>
-        val newArgs: Seq[Expression] = args
-          .map(replaceAggregationsAndProperties(_, tableEnv, aggNames, propNames))
-        sfc.makeCopy(Array(clazz, newArgs))
+        case sfc @ ScalarFunctionCall(clazz, args) =>
+          val newArgs: Seq[Expression] = args
+            .map(replaceAggregationsAndProperties(_, tableEnv, aggNames, propNames))
+          sfc.makeCopy(Array(clazz, newArgs))
 
-      // array constructor
-      case c @ ArrayConstructor(args) =>
-        val newArgs = c.elements
-          .map(replaceAggregationsAndProperties(_, tableEnv, aggNames, propNames))
-        c.makeCopy(Array(newArgs))
+        // array constructor
+        case c @ ArrayConstructor(args) =>
+          val newArgs = c.elements
+            .map(replaceAggregationsAndProperties(_, tableEnv, aggNames, propNames))
+          c.makeCopy(Array(newArgs))
 
-      // General expression
-      case e: Expression =>
-        val newArgs = e.productIterator.map {
-          case arg: Expression =>
-            replaceAggregationsAndProperties(arg, tableEnv, aggNames, propNames)
-        }
-        e.makeCopy(newArgs.toArray)
+        // General expression
+        case e: Expression =>
+          val newArgs = e.productIterator.map {
+            case arg: Expression =>
+              replaceAggregationsAndProperties(arg, tableEnv, aggNames, propNames)
+          }
+          e.makeCopy(newArgs.toArray)
+      }
     }
+
+    exprs.map(replaceAggregationsAndProperties(_, tableEnv, aggNames, propNames))
+        .map(UnresolvedAlias)
   }
 
   /**
