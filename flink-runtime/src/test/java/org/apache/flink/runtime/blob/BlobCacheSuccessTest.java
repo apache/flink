@@ -18,15 +18,18 @@
 
 package org.apache.flink.runtime.blob;
 
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
+
 import java.io.File;
 import java.net.InetSocketAddress;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
-
-import org.apache.flink.configuration.Configuration;
-import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -38,9 +41,73 @@ import static org.junit.Assert.fail;
  */
 public class BlobCacheSuccessTest {
 
+	@Rule
+	public TemporaryFolder temporaryFolder = new TemporaryFolder();
+
+	/**
+	 * BlobCache with no HA. BLOBs need to be downloaded form a working
+	 * BlobServer.
+	 */
 	@Test
 	public void testBlobCache() {
+		Configuration config = new Configuration();
+		uploadFileGetTest(config, false, false);
+	}
 
+	/**
+	 * BlobCache with no HA mode but a distributed storage path. The cache can
+	 * thus download files from the file system directly and does not need to
+	 * download BLOBs from the BlobServer.
+	 */
+	@Test
+	public void testBlobCacheDistributedFs() {
+		Configuration config = new Configuration();
+		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH,
+			temporaryFolder.getRoot().getPath());
+		uploadFileGetTest(config, true, true);
+	}
+
+	/**
+	 * BlobCache with no HA mode but a distributed storage path which is not
+	 * accessible. The cache must thus download files from the BlobServer.
+	 */
+	@Test
+	public void testBlobCacheDistributedFsFallback() {
+		Configuration config = new Configuration();
+		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH,
+			temporaryFolder.getRoot().getPath());
+		uploadFileGetTest(config, false, false);
+	}
+
+	/**
+	 * BlobCache is configured in HA mode and the cache can download files from
+	 * the file system directly and does not need to download BLOBs from the
+	 * BlobServer.
+	 */
+	@Test
+	public void testBlobCacheHa() {
+		Configuration config = new Configuration();
+		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
+		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH,
+			temporaryFolder.getRoot().getPath());
+		uploadFileGetTest(config, true, true);
+	}
+
+	/**
+	 * BlobCache is configured in HA mode but the cache itself cannot access the
+	 * file system and thus needs to download BLOBs from the BlobServer.
+	 */
+	@Test
+	public void testBlobCacheHaFallback() {
+		Configuration config = new Configuration();
+		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
+		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH,
+			temporaryFolder.getRoot().getPath());
+		uploadFileGetTest(config, false, false);
+	}
+
+	private void uploadFileGetTest(final Configuration config, boolean cacheWorksWithoutServer,
+		boolean cacheHasAccessToFs) {
 		// First create two BLOBs and upload them to BLOB server
 		final byte[] buf = new byte[128];
 		final List<BlobKey> blobKeys = new ArrayList<BlobKey>(2);
@@ -50,7 +117,6 @@ public class BlobCacheSuccessTest {
 		try {
 
 			// Start the BLOB server
-			Configuration config = new Configuration();
 			blobServer = new BlobServer(config);
 			final InetSocketAddress serverAddress = new InetSocketAddress(blobServer.getPort());
 
@@ -69,15 +135,33 @@ public class BlobCacheSuccessTest {
 				}
 			}
 
-			blobCache = new BlobCache(serverAddress, new Configuration());
+			// just in case parameters are still read from the server,
+			// create a separate configuration object for the cache
+			final Configuration cacheConfig = new Configuration(config);
+			if (!cacheHasAccessToFs) {
+				cacheConfig.setString(HighAvailabilityOptions.HA_STORAGE_PATH,
+					temporaryFolder.getRoot().getPath() + "/does-not-exist");
+			}
+
+			if (cacheWorksWithoutServer) {
+				// fake non-HA mode so the BLOB server does not remove files
+				config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
+				// Now, shut down the BLOB server, the BLOBs must still be accessible through the cache.
+				blobServer.shutdown();
+				blobServer = null;
+			}
+
+			blobCache = new BlobCache(serverAddress, cacheConfig);
 
 			for (BlobKey blobKey : blobKeys) {
 				blobCache.getURL(blobKey);
 			}
 
-			// Now, shut down the BLOB server, the BLOBs must still be accessible through the cache.
-			blobServer.shutdown();
-			blobServer = null;
+			if (blobServer != null) {
+				// Now, shut down the BLOB server, the BLOBs must still be accessible through the cache.
+				blobServer.shutdown();
+				blobServer = null;
+			}
 
 			final URL[] urls = new URL[blobKeys.size()];
 

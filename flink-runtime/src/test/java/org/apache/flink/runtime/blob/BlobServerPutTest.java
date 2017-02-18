@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.blob;
 
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.OperatingSystem;
 import org.junit.Test;
 
@@ -30,7 +30,11 @@ import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.util.Random;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
 
 /**
@@ -41,13 +45,17 @@ public class BlobServerPutTest {
 
 	private final Random rnd = new Random();
 
+	protected Configuration getConfiguration() {
+		return new Configuration();
+	}
+
 	@Test
 	public void testPutBufferSuccessful() {
 		BlobServer server = null;
 		BlobClient client = null;
 
+		Configuration config = getConfiguration();
 		try {
-			Configuration config = new Configuration();
 			server = new BlobServer(config);
 
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
@@ -112,16 +120,17 @@ public class BlobServerPutTest {
 				server.shutdown();
 			}
 		}
-	}
 
+		verifyClean(config);
+	}
 
 	@Test
 	public void testPutStreamSuccessful() {
 		BlobServer server = null;
 		BlobClient client = null;
 
+		Configuration config = getConfiguration();
 		try {
-			Configuration config = new Configuration();
 			server = new BlobServer(config);
 
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
@@ -160,6 +169,8 @@ public class BlobServerPutTest {
 				server.shutdown();
 			}
 		}
+
+		verifyClean(config);
 	}
 
 	@Test
@@ -167,8 +178,8 @@ public class BlobServerPutTest {
 		BlobServer server = null;
 		BlobClient client = null;
 
+		Configuration config = getConfiguration();
 		try {
-			Configuration config = new Configuration();
 			server = new BlobServer(config);
 
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
@@ -207,6 +218,8 @@ public class BlobServerPutTest {
 				server.shutdown();
 			}
 		}
+
+		verifyClean(config);
 	}
 
 	@Test
@@ -217,8 +230,8 @@ public class BlobServerPutTest {
 		BlobClient client = null;
 
 		File tempFileDir = null;
+		Configuration config = getConfiguration();
 		try {
-			Configuration config = new Configuration();
 			server = new BlobServer(config);
 
 			// make sure the blob server cannot create any files in its storage dir
@@ -271,6 +284,8 @@ public class BlobServerPutTest {
 				server.shutdown();
 			}
 		}
+
+		verifyClean(config);
 	}
 
 	@Test
@@ -281,8 +296,8 @@ public class BlobServerPutTest {
 		BlobClient client = null;
 
 		File tempFileDir = null;
+		Configuration config = getConfiguration();
 		try {
-			Configuration config = new Configuration();
 			server = new BlobServer(config);
 
 			// make sure the blob server cannot create any files in its storage dir
@@ -338,6 +353,8 @@ public class BlobServerPutTest {
 				server.shutdown();
 			}
 		}
+
+		verifyClean(config);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -404,5 +421,14 @@ public class BlobServerPutTest {
 				return -1;
 			}
 		}
+	}
+
+	/**
+	 * Verify everything is clean in a shared storage directory (if available).
+	 *
+	 * @param config
+	 */
+	protected void verifyClean(Configuration config) {
+		// nothing to do here
 	}
 }

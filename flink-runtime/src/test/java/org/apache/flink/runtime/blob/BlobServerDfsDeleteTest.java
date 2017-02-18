@@ -18,45 +18,32 @@
 
 package org.apache.flink.runtime.blob;
 
-import org.apache.flink.api.common.JobID;
-
-import java.io.File;
-import java.io.IOException;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.junit.Rule;
+import org.junit.rules.TemporaryFolder;
 
 /**
- * A blob store doing nothing.
+ * Tests how DELETE requests behave.
  */
-public class VoidBlobStore implements BlobStore {
+public class BlobServerDfsDeleteTest extends BlobServerDeleteTest {
+
+	@Rule
+	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	@Override
-	public void put(File localFile, BlobKey blobKey) throws IOException {
+	protected Configuration getConfiguration() {
+		Configuration config = new Configuration();
+
+		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH,
+			temporaryFolder.getRoot().getPath());
+		return config;
 	}
 
-	@Override
-	public void put(File localFile, JobID jobId, String key) throws IOException {
-	}
-
-	@Override
-	public void get(BlobKey blobKey, File localFile) throws IOException {
-	}
-
-	@Override
-	public void get(JobID jobId, String key, File localFile) throws IOException {
-	}
-
-	@Override
-	public void delete(BlobKey blobKey) {
-	}
-
-	@Override
-	public void delete(JobID jobId, String key) {
-	}
-
-	@Override
-	public void deleteAll(JobID jobId) {
-	}
-
-	@Override
-	public void cleanUp() {
+	protected void cleanup(BlobServer server, BlobClient client, BlobCache cache) {
+		cleanup(server, client);
+		if (cache != null) {
+			cache.shutdown();
+		}
 	}
 }

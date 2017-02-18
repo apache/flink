@@ -64,16 +64,16 @@ public class FileSystemBlobStore implements BlobStore {
 	// - Put ------------------------------------------------------------------
 
 	@Override
-	public void put(File localFile, BlobKey blobKey) throws Exception {
+	public void put(File localFile, BlobKey blobKey) throws IOException {
 		put(localFile, BlobUtils.getRecoveryPath(basePath, blobKey));
 	}
 
 	@Override
-	public void put(File localFile, JobID jobId, String key) throws Exception {
+	public void put(File localFile, JobID jobId, String key) throws IOException {
 		put(localFile, BlobUtils.getRecoveryPath(basePath, jobId, key));
 	}
 
-	private void put(File fromFile, String toBlobPath) throws Exception {
+	private void put(File fromFile, String toBlobPath) throws IOException {
 		try (OutputStream os = fileSystem.create(new Path(toBlobPath), true)) {
 			LOG.debug("Copying from {} to {}.", fromFile, toBlobPath);
 			Files.copy(fromFile, os);
@@ -83,16 +83,16 @@ public class FileSystemBlobStore implements BlobStore {
 	// - Get ------------------------------------------------------------------
 
 	@Override
-	public void get(BlobKey blobKey, File localFile) throws Exception {
+	public void get(BlobKey blobKey, File localFile) throws IOException {
 		get(BlobUtils.getRecoveryPath(basePath, blobKey), localFile);
 	}
 
 	@Override
-	public void get(JobID jobId, String key, File localFile) throws Exception {
+	public void get(JobID jobId, String key, File localFile) throws IOException {
 		get(BlobUtils.getRecoveryPath(basePath, jobId, key), localFile);
 	}
 
-	private void get(String fromBlobPath, File toFile) throws Exception {
+	private void get(String fromBlobPath, File toFile) throws IOException {
 		checkNotNull(fromBlobPath, "Blob path");
 		checkNotNull(toFile, "File");
 
@@ -102,16 +102,20 @@ public class FileSystemBlobStore implements BlobStore {
 
 		final Path fromPath = new Path(fromBlobPath);
 
-		if (fileSystem.exists(fromPath)) {
-			try (InputStream is = fileSystem.open(fromPath);
-				FileOutputStream fos = new FileOutputStream(toFile))
-			{
-				LOG.debug("Copying from {} to {}.", fromBlobPath, toFile);
-				IOUtils.copyBytes(is, fos); // closes the streams
+		boolean success = false;
+		try (InputStream is = fileSystem.open(fromPath);
+			FileOutputStream fos = new FileOutputStream(toFile)) {
+			LOG.debug("Copying from {} to {}.", fromBlobPath, toFile);
+			IOUtils.copyBytes(is, fos); // closes the streams
+			success = true;
+		} finally {
+			// if the copy fails, we need to remove the target file because
+			// outside code relies on a correct file as long as it exists
+			if (!success) {
+				try {
+					toFile.delete();
+				} catch (Throwable ignored) {}
 			}
-		}
-		else {
-			throw new IOException(fromBlobPath + " does not exist.");
 		}
 	}
 

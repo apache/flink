@@ -209,7 +209,13 @@ public class JobClient {
 			Option<String> jmHost = jobManager.actor().path().address().host();
 			String jmHostname = jmHost.isDefined() ? jmHost.get() : "localhost";
 			InetSocketAddress serverAddress = new InetSocketAddress(jmHostname, props.blobManagerPort());
-			final BlobCache blobClient = new BlobCache(serverAddress, config);
+			final BlobCache blobClient;
+			try {
+				blobClient = new BlobCache(serverAddress, config);
+			} catch (IOException e) {
+				throw new JobRetrievalException(jobID,
+					"Failed to setup blob cache", e);
+			}
 
 			final Collection<BlobKey> requiredJarFiles = props.requiredJarFiles();
 			final Collection<URL> requiredClasspaths = props.requiredClasspaths();

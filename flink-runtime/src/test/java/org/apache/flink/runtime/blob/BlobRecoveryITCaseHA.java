@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.blob;
 
-import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -26,40 +25,24 @@ import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
-import org.junit.After;
-import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Random;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-public class BlobRecoveryITCase {
+public class BlobRecoveryITCaseHA {
 
-	private File recoveryDir;
-
-	@Before
-	public void setUp() throws Exception {
-		recoveryDir = new File(FileUtils.getTempDirectory(), "BlobRecoveryITCaseDir");
-		if (!recoveryDir.exists() && !recoveryDir.mkdirs()) {
-			throw new IllegalStateException("Failed to create temp directory for test");
-		}
-	}
-
-	@After
-	public void cleanUp() throws Exception {
-		if (recoveryDir != null) {
-			FileUtils.deleteDirectory(recoveryDir);
-		}
-	}
+	@Rule
+	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	/**
 	 * Tests that with {@link HighAvailabilityMode#ZOOKEEPER} distributed JARs are recoverable from any
@@ -70,13 +53,12 @@ public class BlobRecoveryITCase {
 		Configuration config = new Configuration();
 		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
 		config.setString(ConfigConstants.STATE_BACKEND, "FILESYSTEM");
-		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, recoveryDir.getPath());
+		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, temporaryFolder.getRoot().getPath());
 
 		testBlobServerRecovery(config);
 	}
 
 	public static void testBlobServerRecovery(final Configuration config) throws IOException {
-		String storagePath = config.getString(HighAvailabilityOptions.HA_STORAGE_PATH);
 		Random rand = new Random();
 
 		BlobServer[] server = new BlobServer[2];
@@ -84,7 +66,6 @@ public class BlobRecoveryITCase {
 		BlobClient client = null;
 
 		try {
-
 			for (int i = 0; i < server.length; i++) {
 				server[i] = new BlobServer(config);
 				serverAddress[i] = new InetSocketAddress("localhost", server[i].getPort());
@@ -109,6 +90,7 @@ public class BlobRecoveryITCase {
 			client.put(jobId[1], testKey[1], expected, 32, 256); // Request 4
 
 			// check that the storage directory exists
+			String storagePath = getStoragePath(config);
 			final Path blobServerPath = new Path(storagePath, "blob");
 			FileSystem fs = blobServerPath.getFileSystem();
 			assertTrue("Unknown storage dir: " + blobServerPath, fs.exists(blobServerPath));
@@ -164,16 +146,7 @@ public class BlobRecoveryITCase {
 			client.delete(jobId[0], testKey[0]);
 			client.delete(jobId[1], testKey[1]);
 
-			// Verify everything is clean
-			if (fs.exists(blobServerPath)) {
-				final org.apache.flink.core.fs.FileStatus[] recoveryFiles =
-					fs.listStatus(blobServerPath);
-				ArrayList<String> filenames = new ArrayList<String>(recoveryFiles.length);
-				for (org.apache.flink.core.fs.FileStatus file: recoveryFiles) {
-					filenames.add(file.toString());
-				}
-				fail("Unclean state backend: " + filenames);
-			}
+			verifyClean(config);
 		}
 		finally {
 			for (BlobServer s : server) {
@@ -185,6 +158,51 @@ public class BlobRecoveryITCase {
 			if (client != null) {
 				client.close();
 			}
+		}
+	}
+
+	/**
+	 * Retrieves the expected storage path from the configuration.
+	 *
+	 * @param config
+	 * @return storage path
+	 */
+	protected static String getStoragePath(final Configuration config) {
+		if (config.getString(HighAvailabilityOptions.HA_MODE).equalsIgnoreCase(
+			ConfigConstants.DEFAULT_HA_MODE)) {
+			return config.getString(HighAvailabilityOptions.HA_STORAGE_PATH);
+		} else {
+			final String clusterId = config.getString(HighAvailabilityOptions.HA_CLUSTER_ID);
+			return config.getString(HighAvailabilityOptions.HA_STORAGE_PATH) + "/" + clusterId;
+		}
+	}
+
+	/**
+	 * Verify everything is clean below <tt>recoveryDir/&lt;cluster_id&gt;</tt> in HA mode and
+	 * <tt>recoveryDir&gt;</tt> in non-HA mode.
+	 *
+	 * @param config
+	 */
+	protected static void verifyClean(final Configuration config) throws IOException {
+		String storagePath = getStoragePath(config);
+		final Path blobServerPath = new Path(storagePath, "blob");
+		FileSystem fs = blobServerPath.getFileSystem();
+
+		// HA mode retains the storage directory but non-HA removes it!
+		if (!config.getString(HighAvailabilityOptions.HA_MODE)
+			.equalsIgnoreCase(ConfigConstants.DEFAULT_HA_MODE)) {
+
+			assertTrue("HA storage directory does not exist", fs.exists(new Path(storagePath)));
+		}
+
+		if (fs.exists(blobServerPath)) {
+			final org.apache.flink.core.fs.FileStatus[] recoveryFiles =
+				fs.listStatus(blobServerPath);
+			ArrayList<String> filenames = new ArrayList<String>(recoveryFiles.length);
+			for (org.apache.flink.core.fs.FileStatus file: recoveryFiles) {
+				filenames.add(file.toString());
+			}
+			fail("Unclean state backend: " + filenames);
 		}
 	}
 }
