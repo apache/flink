@@ -104,9 +104,6 @@ public class ExecutionVertexSchedulingTest {
 
 			future.complete(slot);
 
-			// wait a second for future's future action be executed
-			Thread.sleep(1000);
-
 			// will have failed
 			assertEquals(ExecutionState.FAILED, vertex.getExecutionState());
 		}

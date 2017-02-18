@@ -1048,9 +1048,7 @@ public class SlotPool extends RpcEndpoint<SlotPoolGateway> {
 
 		private final long timestamp;
 
-		SlotAndTimestamp(
-				AllocatedSlot slot,
-				long timestamp) {
+		SlotAndTimestamp(AllocatedSlot slot, long timestamp) {
 			this.slot = slot;
 			this.timestamp = timestamp;
 		}
@@ -1061,6 +1059,11 @@ public class SlotPool extends RpcEndpoint<SlotPoolGateway> {
 
 		public long timestamp() {
 			return timestamp;
+		}
+
+		@Override
+		public String toString() {
+			return slot + " @ " + timestamp;
 		}
 	}
 }
