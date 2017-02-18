@@ -133,6 +133,19 @@ object UserDefinedFunctionUtils {
   }
 
   /**
+    * Check if a given method exits in the given function
+    */
+  def ifMethodExitInFunction(method: String, function: UserDefinedFunction): Boolean = {
+    val methods = function
+      .getClass
+      .getMethods
+      .filter {
+        m => m.getName == method
+      }
+    !methods.isEmpty
+  }
+
+  /**
     * Extracts "eval" methods and throws a [[ValidationException]] if no implementation
     * can be found.
     */
