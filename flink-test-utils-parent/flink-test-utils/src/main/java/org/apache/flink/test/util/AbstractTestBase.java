@@ -24,7 +24,7 @@ import com.google.common.io.Files;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 
-import org.junit.Rule;
+import org.junit.ClassRule;
 import org.junit.rules.TemporaryFolder;
 
 import scala.concurrent.duration.FiniteDuration;
@@ -49,8 +49,8 @@ public abstract class AbstractTestBase extends TestBaseUtils {
 
 	protected int numTaskManagers = 1;
 
-	@Rule
-	public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+	@ClassRule
+	public static final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 
 	/** The mini cluster that runs the test programs */
@@ -106,12 +106,12 @@ public abstract class AbstractTestBase extends TestBaseUtils {
 	// --------------------------------------------------------------------------------------------
 
 	public String getTempDirPath(String dirName) throws IOException {
-		File f = temporaryFolder.newFolder(dirName);
+		File f = createAndRegisterTempFile(dirName);
 		return f.toURI().toString();
 	}
 
 	public String getTempFilePath(String fileName) throws IOException {
-		File f = temporaryFolder.newFile(fileName);
+		File f = createAndRegisterTempFile(fileName);
 		return f.toURI().toString();
 	}
 
@@ -122,7 +122,6 @@ public abstract class AbstractTestBase extends TestBaseUtils {
 	}
 
 	public File createAndRegisterTempFile(String fileName) throws IOException {
-		return temporaryFolder.newFile(fileName);
+		return new File(temporaryFolder.newFolder(), fileName);
 	}
-
 }

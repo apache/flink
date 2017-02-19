@@ -74,6 +74,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -283,6 +285,8 @@ public class TestBaseUtils extends TestLogger {
 			String resultPath,
 			String[] excludePrefixes,
 			boolean inOrderOfFiles) throws IOException {
+		
+		checkArgument(resultPath != null, "resultPath cannot be be null");
 
 		final BufferedReader[] readers = getResultReader(resultPath, excludePrefixes, inOrderOfFiles);
 		try {
