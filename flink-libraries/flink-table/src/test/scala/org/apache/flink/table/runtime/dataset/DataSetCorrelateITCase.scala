@@ -211,12 +211,13 @@ class DataSetCorrelateITCase(
     val tEnv = TableEnvironment.getTableEnvironment(env)
     val richTableFunc1 = new RichTableFunc1
     tEnv.registerFunction("RichTableFunc1", richTableFunc1)
-    tEnv.registerFunction("RichFunc2", RichFunc2)
+    val richFunc2 = new RichFunc2
+    tEnv.registerFunction("RichFunc2", richFunc2)
     UDFTestUtils.setJobParameters(env, Map("word_separator" -> "#", "string.value" -> "test"))
 
     val result = CollectionDataSets.getSmall3TupleDataSet(env)
       .toTable(tEnv, 'a, 'b, 'c)
-      .join(richTableFunc1(RichFunc2('c)) as 's)
+      .join(richTableFunc1(richFunc2('c)) as 's)
       .select('a, 's)
 
     val expected = "1,Hi\n1,test\n2,Hello\n2,test\n3,Hello world\n3,test"

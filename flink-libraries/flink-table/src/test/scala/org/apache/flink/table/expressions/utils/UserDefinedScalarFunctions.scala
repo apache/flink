@@ -124,7 +124,7 @@ object Func12 extends ScalarFunction {
   }
 }
 
-object RichFunc0 extends ScalarFunction {
+class RichFunc0 extends ScalarFunction {
   var openCalled = false
   var closeCalled = false
 
@@ -164,7 +164,7 @@ object RichFunc0 extends ScalarFunction {
   }
 }
 
-object RichFunc1 extends ScalarFunction {
+class RichFunc1 extends ScalarFunction {
   var added = Int.MaxValue
 
   override def open(context: UDFContext): Unit = {
@@ -180,7 +180,7 @@ object RichFunc1 extends ScalarFunction {
   }
 }
 
-object RichFunc2 extends ScalarFunction {
+class RichFunc2 extends ScalarFunction {
   var prefix = "ERROR_VALUE"
 
   override def open(context: UDFContext): Unit = {
@@ -196,7 +196,7 @@ object RichFunc2 extends ScalarFunction {
   }
 }
 
-object RichFunc3 extends ScalarFunction {
+class RichFunc3 extends ScalarFunction {
   private val words = mutable.HashSet[String]()
 
   override def open(context: UDFContext): Unit = {

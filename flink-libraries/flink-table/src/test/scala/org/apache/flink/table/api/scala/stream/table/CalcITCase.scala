@@ -290,7 +290,7 @@ class CalcITCase extends StreamingMultipleProgramsTestBase {
   def testUserDefinedFunctionWithParameter(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
-    tEnv.registerFunction("RichFunc2", RichFunc2)
+    tEnv.registerFunction("RichFunc2", new RichFunc2)
     UDFTestUtils.setJobParameters(env, Map("string.value" -> "ABC"))
 
     StreamITCase.testResults = mutable.MutableList()
@@ -312,8 +312,8 @@ class CalcITCase extends StreamingMultipleProgramsTestBase {
   def testMultipleUserDefinedFunctions(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
-    tEnv.registerFunction("RichFunc1", RichFunc1)
-    tEnv.registerFunction("RichFunc2", RichFunc2)
+    tEnv.registerFunction("RichFunc1", new RichFunc1)
+    tEnv.registerFunction("RichFunc2", new RichFunc2)
     UDFTestUtils.setJobParameters(env, Map("string.value" -> "Abc"))
 
     StreamITCase.testResults = mutable.MutableList()

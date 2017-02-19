@@ -366,7 +366,7 @@ class CalcITCase(
   def testUserDefinedScalarFunctionWithParameter(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
-    tEnv.registerFunction("RichFunc2", RichFunc2)
+    tEnv.registerFunction("RichFunc2", new RichFunc2)
     UDFTestUtils.setJobParameters(env, Map("string.value" -> "ABC"))
 
     val result = CollectionDataSets.getSmall3TupleDataSet(env)
@@ -386,7 +386,7 @@ class CalcITCase(
     val env = ExecutionEnvironment.getExecutionEnvironment
     env.registerCachedFile(filePath, "words")
     val tEnv = TableEnvironment.getTableEnvironment(env)
-    tEnv.registerFunction("RichFunc3", RichFunc3)
+    tEnv.registerFunction("RichFunc3", new RichFunc3)
 
     val result = CollectionDataSets.getSmall3TupleDataSet(env)
       .toTable(tEnv, 'a, 'b, 'c)
@@ -402,8 +402,8 @@ class CalcITCase(
   def testMultipleUserDefinedScalarFunctions(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
-    tEnv.registerFunction("RichFunc1", RichFunc1)
-    tEnv.registerFunction("RichFunc2", RichFunc2)
+    tEnv.registerFunction("RichFunc1", new RichFunc1)
+    tEnv.registerFunction("RichFunc2", new RichFunc2)
     UDFTestUtils.setJobParameters(env, Map("string.value" -> "Abc"))
 
     val result = CollectionDataSets.getSmall3TupleDataSet(env)

@@ -182,20 +182,23 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
 
   @Test
   def testRichFunctions(): Unit = {
+    val richFunc0 = new RichFunc0
+    val richFunc1 = new RichFunc1
+    val richFunc2 = new RichFunc2
     testAllApis(
-      RichFunc0('f0),
+      richFunc0('f0),
       "RichFunc0(f0)",
       "RichFunc0(f0)",
       "43")
 
     testAllApis(
-      RichFunc1('f0),
+      richFunc1('f0),
       "RichFunc1(f0)",
       "RichFunc1(f0)",
       "42")
 
     testAllApis(
-      RichFunc2('f1),
+      richFunc2('f1),
       "RichFunc2(f1)",
       "RichFunc2(f1)",
       "#Test")
@@ -276,9 +279,9 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
     "Func10" -> Func10,
     "Func11" -> Func11,
     "Func12" -> Func12,
-    "RichFunc0" -> RichFunc0,
-    "RichFunc1" -> RichFunc1,
-    "RichFunc2" -> RichFunc2,
+    "RichFunc0" -> new RichFunc0,
+    "RichFunc1" -> new RichFunc1,
+    "RichFunc2" -> new RichFunc2,
     "JavaFunc0" -> new JavaFunc0,
     "JavaFunc1" -> new JavaFunc1
   )

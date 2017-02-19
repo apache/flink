@@ -105,14 +105,15 @@ class DataStreamCorrelateITCase extends StreamingMultipleProgramsTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
     val tableFunc1 = new RichTableFunc1
+    val richFunc2 = new RichFunc2
     tEnv.registerFunction("RichTableFunc1", tableFunc1)
-    tEnv.registerFunction("RichFunc2", RichFunc2)
+    tEnv.registerFunction("RichFunc2", richFunc2)
     UDFTestUtils.setJobParameters(env, Map("word_separator" -> "#", "string.value" -> "test"))
     StreamITCase.testResults = mutable.MutableList()
 
     val result = StreamTestData.getSmall3TupleDataStream(env)
       .toTable(tEnv, 'a, 'b, 'c)
-      .join(tableFunc1(RichFunc2('c)) as 's)
+      .join(tableFunc1(richFunc2('c)) as 's)
       .select('a, 's)
 
     val results = result.toDataStream[Row]
