@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime
 
+import org.apache.flink.api.common.functions.util.FunctionUtils
 import org.apache.flink.api.common.functions.{FlatMapFunction, RichFlatMapFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
@@ -52,6 +53,8 @@ class CorrelateFlatMapRunner[IN, OUT](
     val constructor = flatMapClazz.getConstructor(classOf[TableFunctionCollector[_]])
     LOG.debug("Instantiating FlatMapFunction.")
     function = constructor.newInstance(collector).asInstanceOf[FlatMapFunction[IN, OUT]]
+    FunctionUtils.setFunctionRuntimeContext(function, getRuntimeContext)
+    FunctionUtils.openFunction(function, parameters)
   }
 
   override def flatMap(in: IN, out: Collector[OUT]): Unit = {
@@ -62,4 +65,8 @@ class CorrelateFlatMapRunner[IN, OUT](
   }
 
   override def getProducedType: TypeInformation[OUT] = returnType
+
+  override def close(): Unit = {
+    FunctionUtils.closeFunction(function)
+  }
 }

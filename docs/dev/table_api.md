@@ -4933,6 +4933,74 @@ class CustomTypeSplit extends TableFunction[Row] {
 </div>
 </div>
 
+### User-defined Function Context
+
+A `UDFContext` contains information about the context in which user-defined functions are executed,
+such as the metric group, the distributed cache files, or the global job parameters.
+
+The following example snippet shows how to use `UserContext` in your scalar function with global job parameter:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+public static class HashCode extends ScalarFunction {
+  private int factor = 0;
+
+  @Override
+	public void open(UDFContext context) throws Exception {
+	  factor = Integer.valueOf(context.getJobParameter("hashcode_factor", "12"));
+	}
+
+  public int eval(String s) {
+    return s.hashCode() * factor;
+  }
+}
+
+ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+
+// set job parameter
+Configuration conf = new Configuration();
+conf.setString("hashcode_factor", "31");
+env.getConfig().setGlobalJobParameters(conf);
+
+// register the function
+tableEnv.registerFunction("hashCode", new HashCode())
+
+// use the function in Java Table API
+myTable.select("string, string.hashCode(), hashCode(string)");
+
+// use the function in SQL API
+tableEnv.sql("SELECT string, HASHCODE(string) FROM MyTable");
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+// must be defined in static/object context
+object hashCode extends ScalarFunction {
+  var hashcode_factor = 12;
+  override def open(context: UDFContext): Unit = {
+    hashcode_factor = context.getJobParameter("hashcode_factor", "12").toInt
+  }
+
+  def eval(s: String): Int = {
+    s.hashCode() * hashcode_factor
+  }
+}
+
+val tableEnv = TableEnvironment.getTableEnvironment(env)
+
+// use the function in Scala Table API
+myTable.select('string, hashCode('string))
+
+// register and use the function in SQL
+tableEnv.registerFunction("hashCode", hashCode)
+tableEnv.sql("SELECT string, HASHCODE(string) FROM MyTable");
+{% endhighlight %}
+</div>
+</div>
+
 ### Limitations
 
 The following operations are not supported yet:

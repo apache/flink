@@ -19,12 +19,14 @@
 package org.apache.flink.table.api.scala.stream.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.types.Row
-import org.apache.flink.table.api.scala.stream.utils.{StreamITCase, StreamTestData}
-import org.apache.flink.table.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
 import org.apache.flink.table.api.TableEnvironment
+import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.scala.batch.utils.UDFTestUtils
+import org.apache.flink.table.api.scala.stream.utils.{StreamITCase, StreamTestData}
+import org.apache.flink.table.expressions.utils.{RichFunc1, RichFunc2}
+import org.apache.flink.types.Row
 import org.junit.Assert._
 import org.junit._
 
@@ -171,4 +173,55 @@ class SqlITCase extends StreamingMultipleProgramsTestBase {
     val expected = mutable.MutableList("Hello", "Hello world")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
+
+  @Test
+  def testUserDefinedFunctionWithParameter(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    tEnv.registerFunction("RichFunc2", new RichFunc2)
+    UDFTestUtils.setJobParameters(env, Map("string.value" -> "ABC"))
+
+    StreamITCase.testResults = mutable.MutableList()
+
+    val sqlQuery = "SELECT c FROM t1 where RichFunc2(c)='ABC#Hello'"
+
+    val ds = StreamTestData.get3TupleDataStream(env)
+    tEnv.registerDataStream("t1", ds, 'a, 'b, 'c)
+
+    val result = tEnv.sql(sqlQuery)
+
+    val results = result.toDataStream[Row]
+    results.addSink(new StreamITCase.StringSink)
+    env.execute()
+
+    val expected = mutable.MutableList("Hello")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testMultipleUserDefinedFunctions(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    tEnv.registerFunction("RichFunc1", new RichFunc1)
+    tEnv.registerFunction("RichFunc2", new RichFunc2)
+    UDFTestUtils.setJobParameters(env, Map("string.value" -> "Abc"))
+
+    StreamITCase.testResults = mutable.MutableList()
+
+    val sqlQuery = "SELECT c FROM t1 where " +
+      "RichFunc2(c)='Abc#Hello' or RichFunc1(a)=3 and b=2"
+
+    val ds = StreamTestData.get3TupleDataStream(env)
+    tEnv.registerDataStream("t1", ds, 'a, 'b, 'c)
+
+    val result = tEnv.sql(sqlQuery)
+
+    val results = result.toDataStream[Row]
+    results.addSink(new StreamITCase.StringSink)
+    env.execute()
+
+    val expected = mutable.MutableList("Hello", "Hello world")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
 }
