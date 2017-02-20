@@ -27,7 +27,7 @@ table.table.table-body-hover.table-clickable.table-activable
     tr(ng-if="v.type == 'regular'")
 
       td.td-long {{ v.name | humanizeText }}
-      td {{ lowWatermark(v.id, watermarks) }}
+      td {{ watermarks | lowWatermark:v.id }}
       td {{ v.parallelism }}
       td 
         bs-label(status="{{v.status}}") {{v.status}}
