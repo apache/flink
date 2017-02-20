@@ -19,6 +19,9 @@ package org.apache.flink.streaming.connectors.elasticsearch;
 
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.state.FunctionInitializationContext;
+import org.apache.flink.runtime.state.FunctionSnapshotContext;
+import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.util.InstantiationUtil;
 import org.elasticsearch.action.ActionRequest;
@@ -35,6 +38,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -56,7 +60,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * @param <T> Type of the elements handled by this sink
  */
-public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> {
+public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> implements CheckpointedFunction {
 
 	private static final long serialVersionUID = -1007596293618451942L;
 
@@ -133,6 +137,9 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> {
 	/** User-provided handler for failed {@link ActionRequest ActionRequests}. */
 	private final ActionRequestFailureHandler failureHandler;
 
+	/** If true, the producer will wait until all outstanding action requests have been sent to Elasticsearch. */
+	private boolean flushOnCheckpoint = true;
+
 	/** Provided to the user via the {@link ElasticsearchSinkFunction} to add {@link ActionRequest ActionRequests}. */
 	private transient BulkProcessorIndexer requestIndexer;
 
@@ -142,6 +149,17 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> {
 
 	/** Call bridge for different version-specfic */
 	private final ElasticsearchApiCallBridge callBridge;
+
+	/**
+	 * Number of pending action requests not yet acknowledged by Elasticsearch.
+	 * This value is maintained only if {@link ElasticsearchSinkBase#flushOnCheckpoint} is {@code true}.
+	 *
+	 * This is incremented whenever the user adds (or re-adds through the {@link ActionRequestFailureHandler}) requests
+	 * to the {@link RequestIndexer}. It is decremented for each completed request of a bulk request, in
+	 * {@link BulkProcessor.Listener#afterBulk(long, BulkRequest, BulkResponse)} and
+	 * {@link BulkProcessor.Listener#afterBulk(long, BulkRequest, Throwable)}.
+	 */
+	private AtomicLong numPendingRequests = new AtomicLong(0);
 
 	/** Elasticsearch client created using the call bridge. */
 	private transient Client client;
@@ -244,6 +262,17 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> {
 		this.userConfig = userConfig;
 	}
 
+	/**
+	 * Disable flushing on checkpoint. When disabled, the sink will not wait for all
+	 * pending action requests to be acknowledged by Elasticsearch on checkpoints.
+	 *
+	 * NOTE: If flushing on checkpoint is disabled, the Flink Elasticsearch Sink does NOT
+	 * provide any strong guarantees for at-least-once delivery of action requests.
+	 */
+	public void disableFlushOnCheckpoint() {
+		this.flushOnCheckpoint = false;
+	}
+
 	@Override
 	public void open(Configuration parameters) throws Exception {
 		client = callBridge.createClient(userConfig);
@@ -265,12 +294,15 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> {
 							failure = callBridge.extractFailureCauseFromBulkItemResponse(itemResponse);
 							if (failure != null) {
 								LOG.error("Failed Elasticsearch item request: {}", itemResponse.getFailureMessage(), failure);
+
 								if (failureHandler.onFailure(request.requests().get(i), failure, requestIndexer)) {
 									failureThrowable.compareAndSet(null, failure);
 								}
 							}
 						}
 					}
+
+					numPendingRequests.getAndAdd(-request.numberOfActions());
 				}
 
 				@Override
@@ -282,6 +314,8 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> {
 					for (ActionRequest action : request.requests()) {
 						requestIndexer.add(action);
 					}
+
+					numPendingRequests.getAndAdd(-request.numberOfActions());
 				}
 			}
 		);
@@ -305,7 +339,7 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> {
 		callBridge.configureBulkProcessorBackoff(bulkProcessorBuilder, bulkProcessorFlushBackoffPolicy);
 
 		bulkProcessor = bulkProcessorBuilder.build();
-		requestIndexer = new BulkProcessorIndexer(bulkProcessor);
+		requestIndexer = new BulkProcessorIndexer(bulkProcessor, flushOnCheckpoint, numPendingRequests);
 	}
 
 	@Override
@@ -314,6 +348,23 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> {
 		checkErrorAndRethrow();
 
 		elasticsearchSinkFunction.process(value, getRuntimeContext(), requestIndexer);
+	}
+
+	@Override
+	public void initializeState(FunctionInitializationContext context) throws Exception {
+		// no initialization needed
+	}
+
+	@Override
+	public void snapshotState(FunctionSnapshotContext context) throws Exception {
+		checkErrorAndRethrow();
+
+		if (flushOnCheckpoint) {
+			do {
+				bulkProcessor.flush();
+				checkErrorAndRethrow();
+			} while (numPendingRequests.get() != 0);
+		}
 	}
 
 	@Override
@@ -337,7 +388,7 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> {
 	private void checkErrorAndRethrow() {
 		Throwable cause = failureThrowable.get();
 		if (cause != null) {
-			throw new RuntimeException("An error occured in ElasticsearchSink.", cause);
+			throw new RuntimeException("An error occurred in ElasticsearchSink.", cause);
 		}
 	}
 }

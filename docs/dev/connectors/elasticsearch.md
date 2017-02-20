@@ -209,6 +209,41 @@ This will buffer elements before sending them in bulk to the cluster. The `BulkP
 executes bulk requests one at a time, i.e. there will be no two concurrent
 flushes of the buffered actions in progress.
 
+### Elasticsearch Sinks and Fault Tolerance
+
+With Flink’s checkpointing enabled, the Flink Elasticsearch Sink guarantees
+at-least-once delivery of action requests to Elasticsearch clusters. It does
+so by waiting for all pending action requests in the `BulkProcessor` at the
+time of checkpoints. This effectively assures that all requests before the
+checkpoint was triggered have been successfully acknowledged by Elasticsearch, before
+proceeding to process more records sent to the sink.
+
+More details on checkpoints and fault tolerance are in the [fault tolerance docs]({{site.baseurl}}/internals/stream_checkpointing.html).
+
+To use fault tolerant Elasticsearch Sinks, checkpointing of the topology needs to be enabled at the execution environment:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+env.enableCheckpointing(5000); // checkpoint every 5000 msecs
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val env = StreamExecutionEnvironment.getExecutionEnvironment()
+env.enableCheckpointing(5000) // checkpoint every 5000 msecs
+{% endhighlight %}
+</div>
+</div>
+
+<p style="border-radius: 5px; padding: 5px" class="bg-danger">
+<b>NOTE</b>: Users can disable flushing if they wish to do so, by calling
+<b>disableFlushOnCheckpoint()</b> on the created <b>ElasticsearchSink</b>. Be aware
+that this essentially means the sink will not provide any strong
+delivery guarantees anymore, even with checkpoint for the topology enabled.
+</p>
+
 ### Communication using Embedded Node (only for Elasticsearch 1.x)
 
 For Elasticsearch versions 1.x, communication using an embedded node is
@@ -349,6 +384,15 @@ Note that `onFailure` is called for failures that still occur only after the
 By default, the `BulkProcessor` retries to a maximum of 8 attempts with
 an exponential backoff. For more information on the behaviour of the
 internal `BulkProcessor` and how to configure it, please see the following section.
+
+<p style="border-radius: 5px; padding: 5px" class="bg-danger">
+<b>IMPORTANT</b>: Re-adding requests back to the internal <b>BulkProcessor</b>
+on failures will lead to longer checkpoints, as the sink will also
+need to wait for the re-added requests to be flushed when checkpointing.
+This also means that if re-added requests never succeed, the checkpoint will
+never finish.
+</p>
+
  
 ### Configuring the Internal Bulk Processor
 
