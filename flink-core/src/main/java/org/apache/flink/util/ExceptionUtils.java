@@ -113,6 +113,19 @@ public final class ExceptionUtils {
 	}
 
 	/**
+	 * Rethrows the given {@code Throwable}, if it represents an error that is fatal to the JVM
+	 * or an out-of-memory error. See {@link ExceptionUtils#isJvmFatalError(Throwable)} for a
+	 * definition of fatal errors.
+	 *
+	 * @param t The Throwable to check and rethrow.
+	 */
+	public static void rethrowIfFatalErrorOrOOM(Throwable t) {
+		if (isJvmFatalError(t) || t instanceof OutOfMemoryError) {
+			throw (Error) t;
+		}
+	}
+
+	/**
 	 * Adds a new exception as a {@link Throwable#addSuppressed(Throwable) suppressed exception}
 	 * to a prior exception, or returns the new exception, if no prior exception exists.
 	 *
