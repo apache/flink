@@ -271,7 +271,11 @@ class AkkaRpcActor<C extends RpcGateway, T extends RpcEndpoint<C>> extends Untyp
 			// run immediately
 			try {
 				runAsync.getRunnable().run();
-			} catch (final Throwable e) {
+			} catch (final OutOfMemoryError e) {
+				LOG.error("OutOfMemory error while executing runnable in main thread.", e);
+				// uncaught fatal error from thread resulting in shutting down ActorSystem and exiting task manager process
+				throw e;
+			}catch (final Throwable e) {
 				LOG.error("Caught exception while executing runnable in main thread.", e);
 			}
 		}
