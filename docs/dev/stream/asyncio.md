@@ -166,6 +166,9 @@ val resultStream: DataStream[(String, String)] =
 </div>
 </div>
 
+**Important note**: The `AsyncCollector` is completed with the first call of `AsyncCollector.collect`.
+All subsequent `collect` calls will be ignored.
+
 The following two parameters control the asynchronous operations:
 
   - **Timeout**: The timeout defines how long an asynchronous request may take before it is considered failed. This parameter
