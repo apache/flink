@@ -103,10 +103,6 @@ under the License.
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
 				<configuration>
-					<!--
-					Enforce single threaded execution to avoid port conflicts when running
-					secure mini DFS cluster
-					-->
 					<environmentVariables>
 						<!-- Make sure external hadoop environment will not affect maven building -->
 						<HADOOP_HOME />
