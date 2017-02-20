@@ -117,7 +117,7 @@ import scala.language.postfixOps
  */
 class JobManager(
     protected val flinkConfiguration: Configuration,
-    protected val futureExecutor: Executor,
+    protected val futureExecutor: ScheduledExecutorService,
     protected val ioExecutor: Executor,
     protected val instanceManager: InstanceManager,
     protected val scheduler: FlinkScheduler,
@@ -586,44 +586,54 @@ class JobManager(
           defaultSavepointDir
         }
 
-        log.info(s"Trying to cancel job $jobId with savepoint to $targetDirectory")
+        if (targetDirectory == null) {
+          log.info(s"Trying to cancel job $jobId with savepoint, but no " +
+            "savepoint directory configured.")
 
-        currentJobs.get(jobId) match {
-          case Some((executionGraph, _)) =>
-            // We don't want any checkpoint between the savepoint and cancellation
-            val coord = executionGraph.getCheckpointCoordinator
-            coord.stopCheckpointScheduler()
+          sender ! decorateMessage(CancellationFailure(jobId, new IllegalStateException(
+            "No savepoint directory configured. You can either specify a directory " +
+              "while cancelling via -s :targetDirectory or configure a cluster-wide " +
+              "default via key '" + ConfigConstants.SAVEPOINT_DIRECTORY_KEY + "'.")))
+        } else {
+          log.info(s"Trying to cancel job $jobId with savepoint to $targetDirectory")
 
-            // Trigger the savepoint
-            val future = coord.triggerSavepoint(System.currentTimeMillis(), targetDirectory)
+          currentJobs.get(jobId) match {
+            case Some((executionGraph, _)) =>
+              // We don't want any checkpoint between the savepoint and cancellation
+              val coord = executionGraph.getCheckpointCoordinator
+              coord.stopCheckpointScheduler()
 
-            val senderRef = sender()
-            future.handleAsync[Void](
-              new BiFunction[CompletedCheckpoint, Throwable, Void] {
-                override def apply(success: CompletedCheckpoint, cause: Throwable): Void = {
-                  if (success != null) {
-                    val path = success.getExternalPath()
-                    log.info(s"Savepoint stored in $path. Now cancelling $jobId.")
-                    executionGraph.cancel()
-                    senderRef ! decorateMessage(CancellationSuccess(jobId, path))
-                  } else {
-                    val msg = CancellationFailure(
-                      jobId,
-                      new Exception("Failed to trigger savepoint.", cause))
-                    senderRef ! decorateMessage(msg)
+              // Trigger the savepoint
+              val future = coord.triggerSavepoint(System.currentTimeMillis(), targetDirectory)
+
+              val senderRef = sender()
+              future.handleAsync[Void](
+                new BiFunction[CompletedCheckpoint, Throwable, Void] {
+                  override def apply(success: CompletedCheckpoint, cause: Throwable): Void = {
+                    if (success != null) {
+                      val path = success.getExternalPath()
+                      log.info(s"Savepoint stored in $path. Now cancelling $jobId.")
+                      executionGraph.cancel()
+                      senderRef ! decorateMessage(CancellationSuccess(jobId, path))
+                    } else {
+                      val msg = CancellationFailure(
+                        jobId,
+                        new Exception("Failed to trigger savepoint.", cause))
+                      senderRef ! decorateMessage(msg)
+                    }
+                    null
                   }
-                  null
-                }
-              },
-              context.dispatcher)
+                },
+                context.dispatcher)
 
-          case None =>
-            log.info(s"No job found with ID $jobId.")
-            sender ! decorateMessage(
-              CancellationFailure(
-                jobId,
-                new IllegalArgumentException(s"No job found with ID $jobId."))
-            )
+            case None =>
+              log.info(s"No job found with ID $jobId.")
+              sender ! decorateMessage(
+                CancellationFailure(
+                  jobId,
+                  new IllegalArgumentException(s"No job found with ID $jobId."))
+              )
+          }
         }
       } catch {
         case t: Throwable =>
@@ -2011,13 +2021,13 @@ object JobManager {
 
     val numberProcessors = Hardware.getNumberCPUCores()
 
-    val futureExecutor = Executors.newFixedThreadPool(
+    val futureExecutor = Executors.newScheduledThreadPool(
       numberProcessors,
-      new NamedThreadFactory("jobmanager-future-", "-thread-"))
+      new ExecutorThreadFactory("jobmanager-future"))
 
     val ioExecutor = Executors.newFixedThreadPool(
       numberProcessors,
-      new NamedThreadFactory("jobmanager-io-", "-thread-"))
+      new ExecutorThreadFactory("jobmanager-io"))
 
     val timeout = AkkaUtils.getTimeout(configuration)
 
@@ -2179,7 +2189,7 @@ object JobManager {
       executionMode: JobManagerMode,
       externalHostname: String,
       port: Int,
-      futureExecutor: Executor,
+      futureExecutor: ScheduledExecutorService,
       ioExecutor: Executor,
       jobManagerClass: Class[_ <: JobManager],
       archiveClass: Class[_ <: MemoryArchivist],
@@ -2456,7 +2466,7 @@ object JobManager {
    */
   def createJobManagerComponents(
       configuration: Configuration,
-      futureExecutor: Executor,
+      futureExecutor: ScheduledExecutorService,
       ioExecutor: Executor,
       leaderElectionServiceOption: Option[LeaderElectionService]) :
     (InstanceManager,
@@ -2591,7 +2601,7 @@ object JobManager {
   def startJobManagerActors(
       configuration: Configuration,
       actorSystem: ActorSystem,
-      futureExecutor: Executor,
+      futureExecutor: ScheduledExecutorService,
       ioExecutor: Executor,
       jobManagerClass: Class[_ <: JobManager],
       archiveClass: Class[_ <: MemoryArchivist])
@@ -2627,7 +2637,7 @@ object JobManager {
   def startJobManagerActors(
       configuration: Configuration,
       actorSystem: ActorSystem,
-      futureExecutor: Executor,
+      futureExecutor: ScheduledExecutorService,
       ioExecutor: Executor,
       jobManagerActorName: Option[String],
       archiveActorName: Option[String],
@@ -2697,7 +2707,7 @@ object JobManager {
   def getJobManagerProps(
     jobManagerClass: Class[_ <: JobManager],
     configuration: Configuration,
-    futureExecutor: Executor,
+    futureExecutor: ScheduledExecutorService,
     ioExecutor: Executor,
     instanceManager: InstanceManager,
     scheduler: FlinkScheduler,

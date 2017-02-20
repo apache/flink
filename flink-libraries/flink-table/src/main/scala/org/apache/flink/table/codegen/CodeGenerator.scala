@@ -40,8 +40,8 @@ import org.apache.flink.table.codegen.calls.FunctionGenerator
 import org.apache.flink.table.codegen.calls.ScalarOperators._
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.runtime.TableFunctionCollector
-import org.apache.flink.table.typeutils.TypeConverter
 import org.apache.flink.table.typeutils.TypeCheckUtils._
+import org.apache.flink.types.Row
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -62,8 +62,8 @@ import scala.collection.mutable
 class CodeGenerator(
    config: TableConfig,
    nullableInput: Boolean,
-   input1: TypeInformation[Any],
-   input2: Option[TypeInformation[Any]] = None,
+   input1: TypeInformation[_ <: Any],
+   input2: Option[TypeInformation[_ <: Any]] = None,
    input1PojoFieldMapping: Option[Array[Int]] = None,
    input2PojoFieldMapping: Option[Array[Int]] = None)
   extends RexVisitor[GeneratedExpression] {
@@ -112,7 +112,7 @@ class CodeGenerator(
     * @param config configuration that determines runtime behavior
     */
   def this(config: TableConfig) =
-    this(config, false, TypeConverter.DEFAULT_ROW_TYPE, None, None)
+    this(config, false, new RowTypeInfo(), None, None)
 
   // set of member statements that will be added only once
   // we use a LinkedHashSet to keep the insertion order
@@ -224,15 +224,16 @@ class CodeGenerator(
     * @param bodyCode code contents of the SAM (Single Abstract Method). Inputs, collector, or
     *                 output record can be accessed via the given term methods.
     * @param returnType expected return type
-    * @tparam T Flink Function to be generated.
+    * @tparam F Flink Function to be generated.
+    * @tparam T Return type of the Flink Function.
     * @return instance of GeneratedFunction
     */
-  def generateFunction[T <: Function](
+  def generateFunction[F <: Function, T <: Any](
       name: String,
-      clazz: Class[T],
+      clazz: Class[F],
       bodyCode: String,
-      returnType: TypeInformation[Any])
-    : GeneratedFunction[T] = {
+      returnType: TypeInformation[T])
+    : GeneratedFunction[F, T] = {
     val funcName = newName(name)
 
     // Janino does not support generics, that's why we need
@@ -298,14 +299,14 @@ class CodeGenerator(
     *             valid Java class identifier.
     * @param records code for creating records
     * @param returnType expected return type
-    * @tparam T Flink Function to be generated.
+    * @tparam T Return type of the Flink Function.
     * @return instance of GeneratedFunction
     */
-  def generateValuesInputFormat[T](
+  def generateValuesInputFormat[T <: Row](
       name: String,
       records: Seq[String],
-      returnType: TypeInformation[Any])
-    : GeneratedFunction[GenericInputFormat[T]] = {
+      returnType: TypeInformation[T])
+    : GeneratedInput[GenericInputFormat[T], T] = {
     val funcName = newName(name)
 
     addReusableOutRecord(returnType)
@@ -343,7 +344,7 @@ class CodeGenerator(
       }
     """.stripMargin
 
-    GeneratedFunction[GenericInputFormat[T]](funcName, returnType, funcCode)
+    GeneratedInput(funcName, returnType, funcCode)
   }
 
   /**
@@ -1094,7 +1095,7 @@ class CodeGenerator(
   // ----------------------------------------------------------------------------------------------
 
   private def generateInputAccess(
-      inputType: TypeInformation[Any],
+      inputType: TypeInformation[_ <: Any],
       inputTerm: String,
       index: Int,
       pojoFieldMapping: Option[Array[Int]])
@@ -1122,7 +1123,7 @@ class CodeGenerator(
   }
 
   private def generateNullableInputFieldAccess(
-      inputType: TypeInformation[Any],
+      inputType: TypeInformation[_ <: Any],
       inputTerm: String,
       index: Int,
       pojoFieldMapping: Option[Array[Int]])

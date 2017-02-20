@@ -85,16 +85,7 @@ public class BlobServerDeleteTest {
 			fail(e.getMessage());
 		}
 		finally {
-			if (client != null) {
-				try {
-					client.close();
-				} catch (Throwable t) {
-					t.printStackTrace();
-				}
-			}
-			if (server != null) {
-				server.shutdown();
-			}
+			cleanup(server, client);
 		}
 	}
 
@@ -157,16 +148,7 @@ public class BlobServerDeleteTest {
 			fail(e.getMessage());
 		}
 		finally {
-			if (client != null) {
-				try {
-					client.close();
-				} catch (Throwable t) {
-					t.printStackTrace();
-				}
-			}
-			if (server != null) {
-				server.shutdown();
-			}
+			cleanup(server, client);
 		}
 	}
 
@@ -205,16 +187,7 @@ public class BlobServerDeleteTest {
 			fail(e.getMessage());
 		}
 		finally {
-			if (client != null) {
-				try {
-					client.close();
-				} catch (Throwable t) {
-					t.printStackTrace();
-				}
-			}
-			if (server != null) {
-				server.shutdown();
-			}
+			cleanup(server, client);
 		}
 	}
 
@@ -254,16 +227,7 @@ public class BlobServerDeleteTest {
 			fail(e.getMessage());
 		}
 		finally {
-			if (client != null) {
-				try {
-					client.close();
-				} catch (Throwable t) {
-					t.printStackTrace();
-				}
-			}
-			if (server != null) {
-				server.shutdown();
-			}
+			cleanup(server, client);
 		}
 	}
 
@@ -312,16 +276,20 @@ public class BlobServerDeleteTest {
 			fail(e.getMessage());
 		}
 		finally {
-			if (client != null) {
-				try {
-					client.close();
-				} catch (Throwable t) {
-					t.printStackTrace();
-				}
+			cleanup(server, client);
+		}
+	}
+
+	private void cleanup(BlobServer server, BlobClient client) {
+		if (client != null) {
+			try {
+				client.close();
+			} catch (Throwable t) {
+				t.printStackTrace();
 			}
-			if (server != null) {
-				server.shutdown();
-			}
+		}
+		if (server != null) {
+			server.shutdown();
 		}
 	}
 }

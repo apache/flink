@@ -34,6 +34,7 @@ import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
 import org.apache.flink.runtime.jobmanager.slots.AllocatedSlot;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 import org.junit.Test;
 
 import java.util.Collection;
@@ -96,7 +97,7 @@ public class ExecutionVertexDeploymentTest {
 		try {
 			final JobVertexID jid = new JobVertexID();
 
-			final ExecutionJobVertex ejv = getExecutionVertex(jid, TestingUtils.directExecutionContext());
+			final ExecutionJobVertex ejv = getExecutionVertex(jid, new DirectScheduledExecutorService());
 
 			final Instance instance = getInstance(
 				new ActorTaskManagerGateway(
@@ -180,7 +181,7 @@ public class ExecutionVertexDeploymentTest {
 	public void testDeployFailedSynchronous() {
 		try {
 			final JobVertexID jid = new JobVertexID();
-			final ExecutionJobVertex ejv = getExecutionVertex(jid, TestingUtils.directExecutionContext());
+			final ExecutionJobVertex ejv = getExecutionVertex(jid, new DirectScheduledExecutorService());
 
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 				AkkaUtils.getDefaultTimeout());

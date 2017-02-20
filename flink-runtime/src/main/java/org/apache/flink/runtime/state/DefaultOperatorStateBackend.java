@@ -106,7 +106,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 		Preconditions.checkNotNull(stateDescriptor);
 
 		String name = Preconditions.checkNotNull(stateDescriptor.getName());
-		TypeSerializer<S> partitionStateSerializer = Preconditions.checkNotNull(stateDescriptor.getSerializer());
+		TypeSerializer<S> partitionStateSerializer = Preconditions.checkNotNull(stateDescriptor.getElementSerializer());
 
 		@SuppressWarnings("unchecked")
 		PartitionableListState<S> partitionableListState = (PartitionableListState<S>) registeredStates.get(name);
@@ -126,8 +126,8 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 							partitionableListState.getAssignmentMode());
 			Preconditions.checkState(
 					partitionableListState.getPartitionStateSerializer().
-							isCompatibleWith(stateDescriptor.getSerializer()),
-					"Incompatible type serializers. Provided: " + stateDescriptor.getSerializer() +
+							isCompatibleWith(stateDescriptor.getElementSerializer()),
+					"Incompatible type serializers. Provided: " + stateDescriptor.getElementSerializer() +
 							", found: " + partitionableListState.getPartitionStateSerializer());
 		}
 

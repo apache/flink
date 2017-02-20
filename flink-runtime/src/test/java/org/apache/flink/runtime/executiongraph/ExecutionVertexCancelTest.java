@@ -39,8 +39,10 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.TaskMessages.SubmitTask;
 import org.apache.flink.runtime.messages.TaskMessages.CancelTask;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 
 import org.junit.Test;
+
 import scala.concurrent.ExecutionContext;
 
 @SuppressWarnings("serial")
@@ -121,7 +123,6 @@ public class ExecutionVertexCancelTest {
 
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 					AkkaUtils.getDefaultTimeout());
-			final ExecutionAttemptID execId = vertex.getCurrentExecutionAttempt().getAttemptId();
 
 			setVertexState(vertex, ExecutionState.SCHEDULED);
 			assertEquals(ExecutionState.SCHEDULED, vertex.getExecutionState());
@@ -187,7 +188,6 @@ public class ExecutionVertexCancelTest {
 
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 					AkkaUtils.getDefaultTimeout());
-			final ExecutionAttemptID execId = vertex.getCurrentExecutionAttempt().getAttemptId();
 
 			setVertexState(vertex, ExecutionState.SCHEDULED);
 			assertEquals(ExecutionState.SCHEDULED, vertex.getExecutionState());
@@ -249,11 +249,10 @@ public class ExecutionVertexCancelTest {
 	public void testCancelFromRunning() {
 		try {
 			final JobVertexID jid = new JobVertexID();
-			final ExecutionJobVertex ejv = getExecutionVertex(jid, TestingUtils.directExecutionContext());
+			final ExecutionJobVertex ejv = getExecutionVertex(jid, new DirectScheduledExecutorService());
 
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 					AkkaUtils.getDefaultTimeout());
-			final ExecutionAttemptID execId = vertex.getCurrentExecutionAttempt().getAttemptId();
 
 			ActorGateway actorGateway = new CancelSequenceActorGateway(
 					TestingUtils.directExecutionContext(),
@@ -268,7 +267,7 @@ public class ExecutionVertexCancelTest {
 			assertEquals(ExecutionState.RUNNING, vertex.getExecutionState());
 
 			vertex.cancel();
-			vertex.getCurrentExecutionAttempt().cancelingComplete(); // responce by task manager once actially canceled
+			vertex.getCurrentExecutionAttempt().cancelingComplete(); // response by task manager once actually canceled
 
 			assertEquals(ExecutionState.CANCELED, vertex.getExecutionState());
 
@@ -290,11 +289,10 @@ public class ExecutionVertexCancelTest {
 		try {
 
 			final JobVertexID jid = new JobVertexID();
-			final ExecutionJobVertex ejv = getExecutionVertex(jid, TestingUtils.directExecutionContext());
+			final ExecutionJobVertex ejv = getExecutionVertex(jid, new DirectScheduledExecutorService());
 
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 					AkkaUtils.getDefaultTimeout());
-			final ExecutionAttemptID execId = vertex.getCurrentExecutionAttempt().getAttemptId();
 
 			final ActorGateway actorGateway = new CancelSequenceActorGateway(
 					TestingUtils.directExecutionContext(),
@@ -339,12 +337,10 @@ public class ExecutionVertexCancelTest {
 		// this may happen when the task finished or failed while the call was in progress
 		try {
 			final JobVertexID jid = new JobVertexID();
-			final ExecutionJobVertex ejv = getExecutionVertex(jid, TestingUtils.directExecutionContext());
+			final ExecutionJobVertex ejv = getExecutionVertex(jid, new DirectScheduledExecutorService());
 
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 					AkkaUtils.getDefaultTimeout());
-			final ExecutionAttemptID execId = vertex.getCurrentExecutionAttempt().getAttemptId();
-
 
 			final ActorGateway actorGateway = new CancelSequenceActorGateway(
 					TestingUtils.directExecutionContext(),
@@ -376,7 +372,7 @@ public class ExecutionVertexCancelTest {
 	public void testCancelCallFails() {
 		try {
 			final JobVertexID jid = new JobVertexID();
-			final ExecutionJobVertex ejv = getExecutionVertex(jid, TestingUtils.directExecutionContext());
+			final ExecutionJobVertex ejv = getExecutionVertex(jid, new DirectScheduledExecutorService());
 
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 					AkkaUtils.getDefaultTimeout());
@@ -461,7 +457,7 @@ public class ExecutionVertexCancelTest {
 			assertEquals(ExecutionState.CANCELED, vertex.getExecutionState());
 
 			// 1)
-			// scheduling after being created should be tolerated (no exception) because
+			// scheduling after being canceled should be tolerated (no exception) because
 			// it can occur as the result of races
 			{
 				Scheduler scheduler = mock(Scheduler.class);

@@ -361,16 +361,19 @@ public class FlinkKafkaConsumerBaseTest {
 		}
 
 		@Override
-		protected AbstractFetcher<T, ?> createFetcher(SourceContext<T> sourceContext, List<KafkaTopicPartition> thisSubtaskPartitions, SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic, SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated, StreamingRuntimeContext runtimeContext) throws Exception {
-			AbstractFetcher<T, ?> fetcher = mock(AbstractFetcher.class);
-			doAnswer(new Answer() {
-				@Override
-				public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-					Assert.fail("Trying to restore offsets even though there was no restore state.");
-					return null;
-				}
-			}).when(fetcher).restoreOffsets(any(HashMap.class));
-			return fetcher;
+		@SuppressWarnings("unchecked")
+		protected AbstractFetcher<T, ?> createFetcher(
+				SourceContext<T> sourceContext,
+				List<KafkaTopicPartition> thisSubtaskPartitions,
+				HashMap<KafkaTopicPartition, Long> restoredSnapshotState,
+				SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
+				SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
+				StreamingRuntimeContext runtimeContext) throws Exception {
+			if (restoredSnapshotState != null) {
+				Assert.fail("Trying to restore offsets even though there was no restore state.");
+				return null;
+			}
+			return mock(AbstractFetcher.class);
 		}
 
 		@Override

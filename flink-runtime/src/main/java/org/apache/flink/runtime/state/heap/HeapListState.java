@@ -34,7 +34,7 @@ import java.util.Map;
 /**
  * Heap-backed partitioned {@link org.apache.flink.api.common.state.ListState} that is snapshotted
  * into files.
- * 
+ *
  * @param <K> The type of the key.
  * @param <N> The type of the namespace.
  * @param <V> The type of the value.
@@ -118,7 +118,7 @@ public class HeapListState<K, N, V>
 		}
 		list.add(value);
 	}
-	
+
 	@Override
 	public byte[] getSerializedValue(K key, N namespace) throws Exception {
 		Preconditions.checkState(namespace != null, "No namespace given.");
@@ -143,7 +143,7 @@ public class HeapListState<K, N, V>
 			return null;
 		}
 
-		TypeSerializer<V> serializer = stateDesc.getSerializer();
+		TypeSerializer<V> serializer = stateDesc.getElementSerializer();
 
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		DataOutputViewStreamWrapper view = new DataOutputViewStreamWrapper(baos);

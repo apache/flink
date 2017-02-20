@@ -172,7 +172,8 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 	
 	public JobGraph compileJobGraph(OptimizedPlan program, JobID jobId) {
 		if (program == null) {
-			throw new NullPointerException();
+			throw new NullPointerException("Program is null, did you called " +
+				"ExecutionEnvironment.execute()");
 		}
 		
 		if (jobId == null) {

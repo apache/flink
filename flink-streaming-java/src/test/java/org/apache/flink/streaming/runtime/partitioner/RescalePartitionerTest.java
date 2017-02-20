@@ -138,8 +138,8 @@ public class RescalePartitionerTest extends TestLogger {
 		assertEquals(2, sinkVertex.getParallelism());
 
 		ExecutionGraph eg = new ExecutionGraph(
-			TestingUtils.defaultExecutionContext(),
-			TestingUtils.defaultExecutionContext(),
+			TestingUtils.defaultExecutor(),
+			TestingUtils.defaultExecutor(),
 			jobId,
 			jobName,
 			cfg,

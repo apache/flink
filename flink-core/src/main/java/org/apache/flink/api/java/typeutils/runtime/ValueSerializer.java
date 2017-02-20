@@ -20,6 +20,7 @@ package org.apache.flink.api.java.typeutils.runtime;
 
 import java.io.IOException;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -37,6 +38,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * @param <T> The type serialized.
  */
+@Internal
 public class ValueSerializer<T extends Value> extends TypeSerializer<T> {
 
 	private static final long serialVersionUID = 1L;

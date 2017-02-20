@@ -18,8 +18,9 @@
 
 package org.apache.flink.runtime.testingUtils
 
-import java.util.UUID
-import java.util.concurrent.Executor
+import java.util
+import java.util.{Collections, UUID}
+import java.util.concurrent._
 
 import akka.actor.{ActorRef, ActorSystem, Kill, Props}
 import akka.pattern.ask
@@ -42,8 +43,9 @@ import org.apache.flink.runtime.testutils.TestingResourceManager
 import org.apache.flink.runtime.util.LeaderRetrievalUtils
 import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessageFilter, LogMessages}
 
+import scala.concurrent.duration.TimeUnit
 import scala.concurrent.duration._
-import scala.concurrent.{Await, ExecutionContext}
+import scala.concurrent.{ExecutionContextExecutor, Await, ExecutionContext}
 import scala.language.postfixOps
 
 /**
@@ -51,8 +53,10 @@ import scala.language.postfixOps
  */
 object TestingUtils {
 
-  val testConfig = ConfigFactory.parseString(getDefaultTestingActorSystemConfigString)
+  private var sharedExecutorInstance: ScheduledExecutorService = _
 
+  val testConfig = ConfigFactory.parseString(getDefaultTestingActorSystemConfigString)
+  
   val TESTING_DURATION = 2 minute
 
   val DEFAULT_AKKA_ASK_TIMEOUT = "200 s"
@@ -87,12 +91,25 @@ object TestingUtils {
     cluster
   }
 
-  /** Returns the global [[ExecutionContext]] which is a [[scala.concurrent.forkjoin.ForkJoinPool]]
-    * with a default parallelism equal to the number of available cores.
-    *
-    * @return ExecutionContext.global
+  /** 
+    * Gets the shared global testing execution context 
     */
-  def defaultExecutionContext = ExecutionContext.global
+  def defaultExecutionContext: ExecutionContextExecutor = {
+    ExecutionContext.fromExecutor(defaultExecutor)
+  }
+
+  /**
+   * Gets the shared global testing scheduled executor
+   */
+  def defaultExecutor: ScheduledExecutorService = {
+    synchronized {
+      if (sharedExecutorInstance == null || sharedExecutorInstance.isShutdown) {
+        sharedExecutorInstance = Executors.newSingleThreadScheduledExecutor()
+      }
+
+      sharedExecutorInstance
+    }
+  }
 
   /** Returns an [[ExecutionContext]] which uses the current thread to execute the runnable.
     *
@@ -108,11 +125,9 @@ object TestingUtils {
   /** [[ExecutionContext]] which queues [[Runnable]] up in an [[ActionQueue]] instead of
     * execution them. If the automatic execution mode is activated, then the [[Runnable]] are
     * executed.
-    *
-    * @param actionQueue
     */
   class QueuedActionExecutionContext private[testingUtils] (val actionQueue: ActionQueue)
-    extends ExecutionContext with Executor {
+    extends AbstractExecutorService with ExecutionContext with ScheduledExecutorService {
 
     var automaticExecution = false
 
@@ -131,18 +146,53 @@ object TestingUtils {
     override def reportFailure(t: Throwable): Unit = {
       t.printStackTrace()
     }
+
+    override def scheduleAtFixedRate(
+        command: Runnable,
+        initialDelay: Long,
+        period: Long,
+        unit: TimeUnit): ScheduledFuture[_] = {
+      throw new UnsupportedOperationException()
+    }
+
+    override def schedule(command: Runnable, delay: Long, unit: TimeUnit): ScheduledFuture[_] = {
+      throw new UnsupportedOperationException()
+    }
+
+    override def schedule[V](callable: Callable[V], delay: Long, unit: TimeUnit)
+        : ScheduledFuture[V] = {
+      throw new UnsupportedOperationException()
+    }
+
+    override def scheduleWithFixedDelay(
+        command: Runnable,
+        initialDelay: Long,
+        delay: Long,
+        unit: TimeUnit): ScheduledFuture[_] = {
+      throw new UnsupportedOperationException()
+    }
+
+    override def shutdown(): Unit = ()
+
+    override def isTerminated: Boolean = false
+
+    override def awaitTermination(timeout: Long, unit: TimeUnit): Boolean = false
+
+    override def shutdownNow(): util.List[Runnable] = Collections.emptyList()
+
+    override def isShutdown: Boolean = false
   }
 
   /** Queue which stores [[Runnable]] */
   class ActionQueue {
     private val runnables = scala.collection.mutable.Queue[Runnable]()
 
-    def triggerNextAction {
+    def triggerNextAction() {
       val r = runnables.dequeue
       r.run()
     }
 
-    def popNextAction: Runnable = {
+    def popNextAction(): Runnable = {
       runnables.dequeue()
     }
 
@@ -309,7 +359,7 @@ object TestingUtils {
     */
   def createJobManager(
       actorSystem: ActorSystem,
-      futureExecutor: Executor,
+      futureExecutor: ScheduledExecutorService,
       ioExecutor: Executor,
       configuration: Configuration)
     : ActorGateway = {
@@ -335,7 +385,7 @@ object TestingUtils {
     */
   def createJobManager(
       actorSystem: ActorSystem,
-      futureExecutor: Executor,
+      futureExecutor: ScheduledExecutorService,
       ioExecutor: Executor,
       configuration: Configuration,
       prefix: String)
@@ -362,7 +412,7 @@ object TestingUtils {
     */
   def createJobManager(
       actorSystem: ActorSystem,
-      futureExecutor: Executor,
+      futureExecutor: ScheduledExecutorService,
       ioExecutor: Executor,
       configuration: Configuration,
       jobManagerClass: Class[_ <: JobManager])
@@ -385,7 +435,7 @@ object TestingUtils {
     */
   def createJobManager(
       actorSystem: ActorSystem,
-      futureExecutor: Executor,
+      futureExecutor: ScheduledExecutorService,
       ioExecutor: Executor,
       configuration: Configuration,
       jobManagerClass: Class[_ <: JobManager],

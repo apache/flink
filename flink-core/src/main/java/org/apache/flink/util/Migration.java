@@ -18,8 +18,11 @@
 
 package org.apache.flink.util;
 
+import org.apache.flink.annotation.Internal;
+
 /**
  * Tagging interface for migration related classes.
  */
+@Internal
 public interface Migration {
 }

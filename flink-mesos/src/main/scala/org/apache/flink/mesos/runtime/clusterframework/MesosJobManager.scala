@@ -18,7 +18,7 @@
 
 package org.apache.flink.mesos.runtime.clusterframework
 
-import java.util.concurrent.Executor
+import java.util.concurrent.{Executor, ScheduledExecutorService}
 
 import akka.actor.ActorRef
 import org.apache.flink.configuration.{Configuration => FlinkConfiguration}
@@ -51,7 +51,7 @@ import scala.concurrent.duration._
   */
 class MesosJobManager(
     flinkConfiguration: FlinkConfiguration,
-    futureExecutor: Executor,
+    futureExecutor: ScheduledExecutorService,
     ioExecutor: Executor,
     instanceManager: InstanceManager,
     scheduler: FlinkScheduler,

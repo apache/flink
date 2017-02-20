@@ -115,6 +115,7 @@ public class SlotPoolTest extends TestLogger {
 		assertEquals(resourceID, slot.getTaskManagerID());
 		assertEquals(jobId, slot.getJobID());
 		assertEquals(slotPool.getSlotOwner(), slot.getOwner());
+		assertEquals(slotPool.getAllocatedSlots().get(slot.getAllocatedSlot().getSlotAllocationId()), slot);
 	}
 
 	@Test
@@ -153,6 +154,7 @@ public class SlotPoolTest extends TestLogger {
 		assertTrue(slot2.isAlive());
 		assertEquals(slot1.getTaskManagerID(), slot2.getTaskManagerID());
 		assertEquals(slot1.getSlotNumber(), slot2.getSlotNumber());
+		assertEquals(slotPool.getAllocatedSlots().get(slot1.getAllocatedSlot().getSlotAllocationId()), slot2);
 	}
 
 	@Test

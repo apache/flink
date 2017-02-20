@@ -20,9 +20,9 @@ package org.apache.flink.runtime.clusterframework;
 
 import akka.actor.ActorSystem;
 import akka.testkit.JavaTestKit;
+
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.messages.StopCluster;
 import org.apache.flink.runtime.clusterframework.messages.StopClusterSuccessful;
 import org.apache.flink.runtime.instance.ActorGateway;
@@ -31,11 +31,12 @@ import org.apache.flink.runtime.testingUtils.TestingMessages;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.TestingResourceManager;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import scala.Option;
 
+import scala.Option;
 
 /**
  * Runs tests to ensure that a cluster is shutdown properly.
@@ -74,8 +75,8 @@ public class ClusterShutdownITCase extends TestLogger {
 			ActorGateway jobManager =
 				TestingUtils.createJobManager(
 					system,
-					system.dispatcher(),
-					system.dispatcher(),
+					TestingUtils.defaultExecutor(),
+					TestingUtils.defaultExecutor(),
 					config,
 					"jobmanager1");
 
@@ -121,8 +122,8 @@ public class ClusterShutdownITCase extends TestLogger {
 			ActorGateway jobManager =
 				TestingUtils.createJobManager(
 					system,
-					system.dispatcher(),
-					system.dispatcher(),
+					TestingUtils.defaultExecutor(),
+					TestingUtils.defaultExecutor(),
 					config,
 					"jobmanager2");
 

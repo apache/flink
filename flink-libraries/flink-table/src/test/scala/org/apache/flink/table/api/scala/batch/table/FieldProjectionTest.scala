@@ -297,8 +297,8 @@ class FieldProjectionTest extends TableTestBase {
           term("groupBy", "word"),
           term("select", "word", "SUM(frequency) AS TMP_0")
         ),
-        term("select", "word, frequency"),
-        term("where", "=(frequency, 2)")
+        term("select", "word, TMP_0 AS frequency"),
+        term("where", "=(TMP_0, 2)")
       )
 
     util.verifyTable(resultTable, expected)

@@ -66,8 +66,8 @@ public class PointwisePatternTest {
 		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2));
 
 		ExecutionGraph eg = new ExecutionGraph(
-			TestingUtils.defaultExecutionContext(),
-			TestingUtils.defaultExecutionContext(),
+			TestingUtils.defaultExecutor(), 
+			TestingUtils.defaultExecutor(),
 			jobId, 
 			jobName, 
 			cfg,
@@ -112,8 +112,8 @@ public class PointwisePatternTest {
 		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2));
 
 		ExecutionGraph eg = new ExecutionGraph(
-			TestingUtils.defaultExecutionContext(),
-			TestingUtils.defaultExecutionContext(),
+			TestingUtils.defaultExecutor(),
+			TestingUtils.defaultExecutor(),
 			jobId, 
 			jobName, 
 			cfg,
@@ -159,8 +159,8 @@ public class PointwisePatternTest {
 		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2));
 
 		ExecutionGraph eg = new ExecutionGraph(
-			TestingUtils.defaultExecutionContext(),
-			TestingUtils.defaultExecutionContext(),
+			TestingUtils.defaultExecutor(),
+			TestingUtils.defaultExecutor(),
 			jobId, 
 			jobName, 
 			cfg,
@@ -207,8 +207,8 @@ public class PointwisePatternTest {
 		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2));
 
 		ExecutionGraph eg = new ExecutionGraph(
-			TestingUtils.defaultExecutionContext(),
-			TestingUtils.defaultExecutionContext(),
+			TestingUtils.defaultExecutor(),
+			TestingUtils.defaultExecutor(),
 			jobId, 
 			jobName,
 			cfg,
@@ -253,8 +253,8 @@ public class PointwisePatternTest {
 		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2));
 
 		ExecutionGraph eg = new ExecutionGraph(
-			TestingUtils.defaultExecutionContext(),
-			TestingUtils.defaultExecutionContext(),
+			TestingUtils.defaultExecutor(),
+			TestingUtils.defaultExecutor(),
 			jobId, 
 			jobName, 
 			cfg,
@@ -319,8 +319,8 @@ public class PointwisePatternTest {
 		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2));
 
 		ExecutionGraph eg = new ExecutionGraph(
-			TestingUtils.defaultExecutionContext(),
-			TestingUtils.defaultExecutionContext(),
+			TestingUtils.defaultExecutor(),
+			TestingUtils.defaultExecutor(),
 			jobId, 
 			jobName, 
 			cfg,
@@ -348,9 +348,9 @@ public class PointwisePatternTest {
 			
 			timesUsed[inEdges[0].getSource().getPartitionNumber()]++;
 		}
-		
-		for (int i = 0; i < timesUsed.length; i++) {
-			assertTrue(timesUsed[i] >= factor && timesUsed[i] <= factor + delta);
+
+		for (int used : timesUsed) {
+			assertTrue(used >= factor && used <= factor + delta);
 		}
 	}
 	
@@ -376,8 +376,8 @@ public class PointwisePatternTest {
 		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2));
 
 		ExecutionGraph eg = new ExecutionGraph(
-			TestingUtils.defaultExecutionContext(),
-			TestingUtils.defaultExecutionContext(),
+			TestingUtils.defaultExecutor(),
+			TestingUtils.defaultExecutor(),
 			jobId, 
 			jobName, 
 			cfg,
@@ -406,9 +406,9 @@ public class PointwisePatternTest {
 				timesUsed[ee.getSource().getPartitionNumber()]++;
 			}
 		}
-		
-		for (int i = 0; i < timesUsed.length; i++) {
-			assertEquals(1, timesUsed[i]);
+
+		for (int used : timesUsed) {
+			assertEquals(1, used);
 		}
 	}
 }

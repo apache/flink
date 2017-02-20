@@ -126,3 +126,17 @@ Common causes for class leaks and suggested fixes:
   - *Interners*: Avoid caching objects in special structures that live beyond the lifetime of the functions/sources/sinks. Examples are Guava's
     interners, or Avro's class/object caches in the serializers.
 
+
+## Resolving Dependency Conflicts with Flink using the maven-shade-plugin.
+
+Apache Flink loads many classes by default into its classpath. If a user uses a different version of a library that Flink is using, often `IllegalAccessExceptions` or `NoSuchMethodError` are the result.
+
+Through Hadoop, Flink for example depends on the `aws-sdk` library or on `protobuf-java`. If your user code is using these libraries and you run into issues we recommend relocating the dependency in your user code jar.
+
+Apache Maven offers the [maven-shade-plugin](https://maven.apache.org/plugins/maven-shade-plugin/), which allows one to change the package of a class *after* compiling it (so the code you are writing is not affected by the shading). For example if you have the `com.amazonaws` packages from the aws sdk in your user code jar, the shade plugin would relocate them into the `org.myorg.shaded.com.amazonaws` package, so that your code is calling your aws sdk version.
+
+This documentation page explains [relocating classes using the shade plugin](https://maven.apache.org/plugins/maven-shade-plugin/examples/class-relocation.html).
+
+
+Note that some of Flink's dependencies, such as `guava` are shaded away by the maintainers of Flink, so users usually don't have to worry about it.
+

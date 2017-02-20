@@ -275,7 +275,7 @@ under the License.
 								<configuration>
 									<executable>ln</executable>
 									<arguments>
-										<argument>-sf</argument>
+										<argument>-sfn</argument>
 										<argument>${project.basedir}/target/flink-${project.version}-bin/flink-${project.version}</argument>
 										<argument>${project.basedir}/../build-target</argument>
 									</arguments>

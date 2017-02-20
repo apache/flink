@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,177 +18,149 @@
 package org.apache.flink.streaming.connectors.elasticsearch;
 
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
-import org.elasticsearch.action.get.GetRequest;
-import org.elasticsearch.action.get.GetResponse;
+import org.apache.flink.streaming.connectors.elasticsearch.testutils.SourceSinkDataTestKit;
+import org.apache.flink.streaming.connectors.elasticsearch.util.ElasticsearchUtils;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.Requests;
-import org.elasticsearch.common.settings.ImmutableSettings;
 import org.elasticsearch.common.transport.LocalTransportAddress;
 import org.elasticsearch.common.transport.TransportAddress;
-import org.elasticsearch.node.Node;
-import org.junit.Assert;
-import org.junit.ClassRule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 
-import java.io.File;
+import java.net.InetSocketAddress;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.elasticsearch.node.NodeBuilder.nodeBuilder;
-
-public class ElasticsearchSinkITCase extends StreamingMultipleProgramsTestBase {
-
-	private static final int NUM_ELEMENTS = 20;
-
-	@ClassRule
-	public static TemporaryFolder tempFolder = new TemporaryFolder();
-
-	@Test
-	public void testNodeClient() throws Exception{
-
-		File dataDir = tempFolder.newFolder();
-
-		Node node = nodeBuilder()
-				.settings(ImmutableSettings.settingsBuilder()
-						.put("http.enabled", false)
-						.put("path.data", dataDir.getAbsolutePath()))
-				// set a custom cluster name to verify that user config works correctly
-				.clusterName("my-node-client-cluster")
-				.local(true)
-				.node();
-
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-
-		DataStreamSource<Tuple2<Integer, String>> source = env.addSource(new TestSourceFunction());
-
-		Map<String, String> config = Maps.newHashMap();
-		// This instructs the sink to emit after every element, otherwise they would be buffered
-		config.put(ElasticsearchSink.CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, "1");
-		config.put("cluster.name", "my-node-client-cluster");
-
-		// connect to our local node
-		config.put("node.local", "true");
-
-		source.addSink(new ElasticsearchSink<>(config, new TestIndexRequestBuilder()));
-
-		env.execute("Elasticsearch Node Client Test");
-
-
-		// verify the results
-		Client client = node.client();
-		for (int i = 0; i < NUM_ELEMENTS; i++) {
-			GetResponse response = client.get(new GetRequest("my-index",
-					"my-type",
-					Integer.toString(i))).actionGet();
-			Assert.assertEquals("message #" + i, response.getSource().get("data"));
-		}
-
-		node.close();
-	}
+public class ElasticsearchSinkITCase extends ElasticsearchSinkTestBase {
 
 	@Test
 	public void testTransportClient() throws Exception {
+		runTransportClientTest();
+	}
 
-		File dataDir = tempFolder.newFolder();
+	@Test
+	public void testNullTransportClient() throws Exception {
+		runNullTransportClientTest();
+	}
 
-		Node node = nodeBuilder()
-				.settings(ImmutableSettings.settingsBuilder()
-						.put("http.enabled", false)
-						.put("path.data", dataDir.getAbsolutePath()))
-						// set a custom cluster name to verify that user config works correctly
-				.clusterName("my-node-client-cluster")
-				.local(true)
-				.node();
+	@Test
+	public void testEmptyTransportClient() throws Exception {
+		runEmptyTransportClientTest();
+	}
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+	@Test
+	public void testTransportClientFails() throws Exception{
+		runTransportClientFailsTest();
+	}
 
-		DataStreamSource<Tuple2<Integer, String>> source = env.addSource(new TestSourceFunction());
+	// -- Tests specific to Elasticsearch 1.x --
 
-		Map<String, String> config = Maps.newHashMap();
+	/**
+	 * Tests that the Elasticsearch sink works properly using an embedded node to connect to Elasticsearch.
+	 */
+	@Test
+	public void testEmbeddedNode() throws Exception {
+		final String index = "embedded-node-test-index";
+
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStreamSource<Tuple2<Integer, String>> source = env.addSource(new SourceSinkDataTestKit.TestDataSourceFunction());
+
+		Map<String, String> userConfig = new HashMap<>();
 		// This instructs the sink to emit after every element, otherwise they would be buffered
-		config.put(ElasticsearchSink.CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, "1");
-		config.put("cluster.name", "my-node-client-cluster");
+		userConfig.put(ElasticsearchSinkBase.CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, "1");
+		userConfig.put("cluster.name", CLUSTER_NAME);
+		userConfig.put("node.local", "true");
 
-		// connect to our local node
-		config.put("node.local", "true");
+		source.addSink(new ElasticsearchSink<>(
+			userConfig,
+			new SourceSinkDataTestKit.TestElasticsearchSinkFunction(index))
+		);
 
-		List<TransportAddress> transports = Lists.newArrayList();
-		transports.add(new LocalTransportAddress("1"));
-
-		source.addSink(new ElasticsearchSink<>(config, transports, new TestIndexRequestBuilder()));
-
-		env.execute("Elasticsearch TransportClient Test");
-
+		env.execute("Elasticsearch Embedded Node Test");
 
 		// verify the results
-		Client client = node.client();
-		for (int i = 0; i < NUM_ELEMENTS; i++) {
-			GetResponse response = client.get(new GetRequest("my-index",
-					"my-type",
-					Integer.toString(i))).actionGet();
-			Assert.assertEquals("message #" + i, response.getSource().get("data"));
-		}
+		Client client = embeddedNodeEnv.getClient();
+		SourceSinkDataTestKit.verifyProducedSinkData(client, index);
 
-		node.close();
+		client.close();
 	}
 
-	@Test(expected = JobExecutionException.class)
-	public void testTransportClientFails() throws Exception{
-		// this checks whether the TransportClient fails early when there is no cluster to
-		// connect to. We don't hava such as test for the Node Client version since that
-		// one will block and wait for a cluster to come online
+	/**
+	 * Tests that behaviour of the deprecated {@link IndexRequestBuilder} constructor works properly.
+	 */
+	@Test
+	public void testDeprecatedIndexRequestBuilderVariant() throws Exception {
+		final String index = "index-req-builder-test-index";
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		DataStreamSource<Tuple2<Integer, String>> source = env.addSource(new TestSourceFunction());
+		DataStreamSource<Tuple2<Integer, String>> source = env.addSource(new SourceSinkDataTestKit.TestDataSourceFunction());
 
-		Map<String, String> config = Maps.newHashMap();
+		Map<String, String> userConfig = new HashMap<>();
 		// This instructs the sink to emit after every element, otherwise they would be buffered
-		config.put(ElasticsearchSink.CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, "1");
-		config.put("cluster.name", "my-node-client-cluster");
-
-		// connect to our local node
-		config.put("node.local", "true");
+		userConfig.put(ElasticsearchSinkBase.CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, "1");
+		userConfig.put("cluster.name", CLUSTER_NAME);
+		userConfig.put("node.local", "true");
 
 		List<TransportAddress> transports = Lists.newArrayList();
 		transports.add(new LocalTransportAddress("1"));
 
-		source.addSink(new ElasticsearchSink<>(config, transports, new TestIndexRequestBuilder()));
+		source.addSink(new ElasticsearchSink<>(
+			userConfig,
+			transports,
+			new TestIndexRequestBuilder(index))
+		);
 
-		env.execute("Elasticsearch Node Client Test");
+		env.execute("Elasticsearch Deprecated IndexRequestBuilder Bridge Test");
+
+		// verify the results
+		Client client = embeddedNodeEnv.getClient();
+		SourceSinkDataTestKit.verifyProducedSinkData(client, index);
+
+		client.close();
 	}
 
-	private static class TestSourceFunction implements SourceFunction<Tuple2<Integer, String>> {
-		private static final long serialVersionUID = 1L;
-
-		private volatile boolean running = true;
-
-		@Override
-		public void run(SourceContext<Tuple2<Integer, String>> ctx) throws Exception {
-			for (int i = 0; i < NUM_ELEMENTS && running; i++) {
-				ctx.collect(Tuple2.of(i, "message #" + i));
-			}
-		}
-
-		@Override
-		public void cancel() {
-			running = false;
-		}
+	@Override
+	protected <T> ElasticsearchSinkBase<T> createElasticsearchSink(Map<String, String> userConfig,
+																List<InetSocketAddress> transportAddresses,
+																ElasticsearchSinkFunction<T> elasticsearchSinkFunction) {
+		return new ElasticsearchSink<>(userConfig, ElasticsearchUtils.convertInetSocketAddresses(transportAddresses), elasticsearchSinkFunction);
 	}
 
+	@Override
+	protected <T> ElasticsearchSinkBase<T> createElasticsearchSinkForEmbeddedNode(
+		Map<String, String> userConfig, ElasticsearchSinkFunction<T> elasticsearchSinkFunction) throws Exception {
+
+		// Elasticsearch 1.x requires this setting when using
+		// LocalTransportAddress to connect to a local embedded node
+		userConfig.put("node.local", "true");
+
+		List<TransportAddress> transports = Lists.newArrayList();
+		transports.add(new LocalTransportAddress("1"));
+
+		return new ElasticsearchSink<>(
+			userConfig,
+			transports,
+			elasticsearchSinkFunction);
+	}
+
+	/**
+	 * A {@link IndexRequestBuilder} with equivalent functionality to {@link SourceSinkDataTestKit.TestElasticsearchSinkFunction}.
+	 */
 	private static class TestIndexRequestBuilder implements IndexRequestBuilder<Tuple2<Integer, String>> {
 		private static final long serialVersionUID = 1L;
+
+		private final String index;
+
+		public TestIndexRequestBuilder(String index) {
+			this.index = index;
+		}
 
 		@Override
 		public IndexRequest createIndexRequest(Tuple2<Integer, String> element, RuntimeContext ctx) {
@@ -196,10 +168,10 @@ public class ElasticsearchSinkITCase extends StreamingMultipleProgramsTestBase {
 			json.put("data", element.f1);
 
 			return Requests.indexRequest()
-					.index("my-index")
-					.type("my-type")
-					.id(element.f0.toString())
-					.source(json);
+				.index(index)
+				.type("flink-es-test-type")
+				.id(element.f0.toString())
+				.source(json);
 		}
 	}
 }

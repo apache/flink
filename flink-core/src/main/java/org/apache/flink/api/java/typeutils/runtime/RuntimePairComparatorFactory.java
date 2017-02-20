@@ -18,11 +18,13 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.GenericPairComparator;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparatorFactory;
 
+@Internal
 public final class RuntimePairComparatorFactory<T1, T2>
 		implements TypePairComparatorFactory<T1, T2>, java.io.Serializable {
 

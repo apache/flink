@@ -442,6 +442,11 @@ public final class ConfigConstants {
 	 */
 	public static final String YARN_APPLICATION_MASTER_PORT = "yarn.application-master.port";
 
+	/**
+	 * A comma-separated list of strings to use as YARN application tags.
+	 */
+	public static final String YARN_APPLICATION_TAGS = "yarn.tags";
+
 
 	// ------------------------ Mesos Configuration ------------------------
 
@@ -815,7 +820,7 @@ public final class ConfigConstants {
 
 	/** ZooKeeper root path (ZNode) for Mesos workers. */
 	@PublicEvolving
-	public static final String HA_ZOOKEEPER_MESOS_WORKERS_PATH = "recovery.zookeeper.path.mesos-workers";
+	public static final String HA_ZOOKEEPER_MESOS_WORKERS_PATH = "high-availability.zookeeper.path.mesos-workers";
 
 	@PublicEvolving
 	public static final String HA_ZOOKEEPER_SESSION_TIMEOUT = "high-availability.zookeeper.client.session-timeout";
@@ -873,6 +878,10 @@ public final class ConfigConstants {
 	/** Deprecated in favour of {@link #HA_ZOOKEEPER_CHECKPOINT_COUNTER_PATH}. */
 	@Deprecated
 	public static final String ZOOKEEPER_CHECKPOINT_COUNTER_PATH = "recovery.zookeeper.path.checkpoint-counter";
+
+	/** Deprecated in favour of {@link #HA_ZOOKEEPER_MESOS_WORKERS_PATH}. */
+	@Deprecated
+	public static final String ZOOKEEPER_MESOS_WORKERS_PATH = "recovery.zookeeper.path.mesos-workers";
 
 	/** Deprecated in favour of {@link #HA_ZOOKEEPER_SESSION_TIMEOUT}. */
 	@Deprecated

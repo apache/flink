@@ -21,20 +21,19 @@ package org.apache.flink.runtime.blob;
 import com.google.common.io.BaseEncoding;
 import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.core.fs.Path;
-import org.apache.flink.util.IOUtils;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.runtime.highavailability.ZookeeperHaServices;
+import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
 
 import java.io.EOFException;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
-import java.net.URI;
 import java.nio.charset.Charset;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -68,11 +67,39 @@ public class BlobUtils {
 	static final Charset DEFAULT_CHARSET = Charset.forName("utf-8");
 
 	/**
+	 * Creates a BlobStore based on the parameters set in the configuration.
+	 *
+	 * @param config
+	 * 		configuration to use
+	 *
+	 * @return a (distributed) blob store for high availability
+	 *
+	 * @throws IOException
+	 * 		thrown if the (distributed) file storage cannot be created
+	 */
+	static BlobStore createBlobStoreFromConfig(Configuration config) throws IOException {
+		HighAvailabilityMode highAvailabilityMode = HighAvailabilityMode.fromConfig(config);
+
+		if (highAvailabilityMode == HighAvailabilityMode.NONE) {
+			return new VoidBlobStore();
+		} else if (highAvailabilityMode == HighAvailabilityMode.ZOOKEEPER) {
+			return ZookeeperHaServices.createBlobStore(config);
+		} else {
+			throw new IllegalConfigurationException("Unexpected high availability mode '" + highAvailabilityMode + "'.");
+		}
+	}
+
+	/**
 	 * Creates a storage directory for a blob service.
 	 *
 	 * @return the storage directory used by a BLOB service
+	 *
+	 * @throws IOException
+	 * 		thrown if the (local or distributed) file storage cannot be created or
+	 * 		is not usable
 	 */
-	static File initStorageDirectory(String storageDirectory) {
+	static File initStorageDirectory(String storageDirectory) throws
+		IOException {
 		File baseDir;
 		if (StringUtils.isNullOrWhitespaceOnly(storageDirectory)) {
 			baseDir = new File(System.getProperty("java.io.tmpdir"));
@@ -96,7 +123,7 @@ public class BlobUtils {
 		}
 
 		// max attempts exceeded to find a storage directory
-		throw new RuntimeException("Could not create storage directory for BLOB store in '" + baseDir + "'.");
+		throw new IOException("Could not create storage directory for BLOB store in '" + baseDir + "'.");
 	}
 
 	/**
@@ -124,7 +151,7 @@ public class BlobUtils {
 	private static File getCacheDirectory(File storageDir) {
 		final File cacheDirectory = new File(storageDir, "cache");
 
-		if (!cacheDirectory.exists() && !cacheDirectory.mkdirs()) {
+		if (!cacheDirectory.mkdirs() && !cacheDirectory.exists()) {
 			throw new RuntimeException("Could not create cache directory '" + cacheDirectory.getAbsolutePath() + "'.");
 		}
 
@@ -341,7 +368,7 @@ public class BlobUtils {
 	 */
 	static String getRecoveryPath(String basePath, BlobKey blobKey) {
 		// format: $base/cache/blob_$key
-		return String.format("%s/cache/%s", basePath, BLOB_FILE_PREFIX + blobKey.toString());
+		return String.format("%s/cache/%s%s", basePath, BLOB_FILE_PREFIX, blobKey.toString());
 	}
 
 	/**
@@ -353,8 +380,8 @@ public class BlobUtils {
 	 */
 	static String getRecoveryPath(String basePath, JobID jobId, String key) {
 		// format: $base/job_$id/blob_$key
-		return String.format("%s/%s/%s", basePath, JOB_DIR_PREFIX + jobId.toString(),
-				BLOB_FILE_PREFIX + encodeKey(key));
+		return String.format("%s/%s%s/%s%s", basePath, JOB_DIR_PREFIX, jobId.toString(),
+				BLOB_FILE_PREFIX, encodeKey(key));
 	}
 
 	/**
@@ -363,33 +390,7 @@ public class BlobUtils {
 	 * <p>The returned path can be used with the state backend for recovery purposes.
 	 */
 	static String getRecoveryPath(String basePath, JobID jobId) {
-		return String.format("%s/%s", basePath, JOB_DIR_PREFIX + jobId.toString());
-	}
-
-	/**
-	 * Copies the file from the recovery path to the local file.
-	 */
-	static void copyFromRecoveryPath(String recoveryPath, File localBlobFile) throws Exception {
-		if (recoveryPath == null) {
-			throw new IllegalStateException("Failed to determine recovery path.");
-		}
-
-		if (!localBlobFile.createNewFile()) {
-			throw new IllegalStateException("Failed to create new local file to copy to");
-		}
-
-		URI uri = new URI(recoveryPath);
-		Path path = new Path(recoveryPath);
-
-		if (FileSystem.get(uri).exists(path)) {
-			try (InputStream is = FileSystem.get(uri).open(path)) {
-				FileOutputStream fos = new FileOutputStream(localBlobFile);
-				IOUtils.copyBytes(is, fos); // closes the streams
-			}
-		}
-		else {
-			throw new IOException("Cannot find required BLOB at '" + recoveryPath + "' for recovery.");
-		}
+		return String.format("%s/%s%s", basePath, JOB_DIR_PREFIX, jobId.toString());
 	}
 
 	/**

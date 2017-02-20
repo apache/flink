@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.expressions.utils
 
+import org.apache.calcite.plan.hep.{HepMatchOrder, HepPlanner, HepProgramBuilder}
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql2rel.RelDecorrelator
@@ -58,6 +59,16 @@ abstract class ExpressionTestBase {
     context._2.getTypeFactory)
   private val optProgram = Programs.ofRules(FlinkRuleSets.DATASET_OPT_RULES)
 
+  private def hepPlanner = {
+    val builder = new HepProgramBuilder
+    builder.addMatchOrder(HepMatchOrder.BOTTOM_UP)
+    val it = FlinkRuleSets.DATASET_NORM_RULES.iterator()
+    while (it.hasNext) {
+      builder.addRuleInstance(it.next())
+    }
+    new HepPlanner(builder.build, context._2.getFrameworkConfig.getContext)
+  }
+
   private def prepareContext(typeInfo: TypeInformation[Any]): (RelBuilder, TableEnvironment) = {
     // create DataSetTable
     val dataSetMock = mock(classOf[DataSet[Any]])
@@ -95,7 +106,7 @@ abstract class ExpressionTestBase {
     val generator = new CodeGenerator(config, false, typeInfo)
 
     // cast expressions to String
-    val stringTestExprs = testExprs.map(expr => relBuilder.cast(expr._1, VARCHAR)).toSeq
+    val stringTestExprs = testExprs.map(expr => relBuilder.cast(expr._1, VARCHAR))
 
     // generate code
     val resultType = new RowTypeInfo(Seq.fill(testExprs.size)(STRING_TYPE_INFO): _*)
@@ -110,16 +121,16 @@ abstract class ExpressionTestBase {
         |return ${genExpr.resultTerm};
         |""".stripMargin
 
-    val genFunc = generator.generateFunction[MapFunction[Any, String]](
+    val genFunc = generator.generateFunction[MapFunction[Any, Row], Row](
       "TestFunction",
-      classOf[MapFunction[Any, String]],
+      classOf[MapFunction[Any, Row]],
       bodyCode,
-      resultType.asInstanceOf[TypeInformation[Any]])
+      resultType)
 
     // compile and evaluate
-    val clazz = new TestCompiler[MapFunction[Any, String]]().compile(genFunc)
+    val clazz = new TestCompiler[MapFunction[Any, Row], Row]().compile(genFunc)
     val mapper = clazz.newInstance()
-    val result = mapper.map(testData).asInstanceOf[Row]
+    val result = mapper.map(testData)
 
     // compare
     testExprs
@@ -140,10 +151,20 @@ abstract class ExpressionTestBase {
     val validated = planner.validate(parsed)
     val converted = planner.rel(validated).rel
 
-    // create DataSetCalc
     val decorPlan = RelDecorrelator.decorrelateQuery(converted)
+
+    // normalize
+    val normalizedPlan = if (FlinkRuleSets.DATASET_NORM_RULES.iterator().hasNext) {
+      val planner = hepPlanner
+      planner.setRoot(decorPlan)
+      planner.findBestExp
+    } else {
+      decorPlan
+    }
+
+    // create DataSetCalc
     val flinkOutputProps = converted.getTraitSet.replace(DataSetConvention.INSTANCE).simplify()
-    val dataSetCalc = optProgram.run(context._2.getPlanner, decorPlan, flinkOutputProps)
+    val dataSetCalc = optProgram.run(context._2.getPlanner, normalizedPlan, flinkOutputProps)
 
     // extract RexNode
     val calcProgram = dataSetCalc
@@ -211,8 +232,8 @@ abstract class ExpressionTestBase {
   // ----------------------------------------------------------------------------------------------
 
   // TestCompiler that uses current class loader
-  class TestCompiler[T <: Function] extends Compiler[T] {
-    def compile(genFunc: GeneratedFunction[T]): Class[T] =
+  class TestCompiler[F <: Function, T <: Any] extends Compiler[F] {
+    def compile(genFunc: GeneratedFunction[F, T]): Class[F] =
       compile(getClass.getClassLoader, genFunc.name, genFunc.code)
   }
 }

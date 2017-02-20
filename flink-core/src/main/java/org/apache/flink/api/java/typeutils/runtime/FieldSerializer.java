@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
+import org.apache.flink.annotation.Internal;
+
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -28,6 +30,7 @@ import java.lang.reflect.Field;
  * readObject/writeObject need to be implemented in classes where there is a field of type java.lang.reflect.Field.
  * The two static methods in this class are to be called from these readObject/writeObject methods.
  */
+@Internal
 public class FieldSerializer {
 
 	public static void serializeField(Field field, ObjectOutputStream out) throws IOException {

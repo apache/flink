@@ -33,6 +33,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.mockito.Mockito.mock;
 
@@ -48,7 +49,7 @@ public class LegacyJobVertexIdTest {
 		jobVertex.setInvokableClass(AbstractInvokable.class);
 
 		ExecutionGraph executionGraph = new ExecutionGraph(
-				mock(Executor.class),
+				mock(ScheduledExecutorService.class),
 				mock(Executor.class),
 				new JobID(),
 				"test",

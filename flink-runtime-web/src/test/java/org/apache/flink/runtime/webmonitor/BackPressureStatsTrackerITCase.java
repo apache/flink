@@ -122,8 +122,8 @@ public class BackPressureStatsTrackerITCase extends TestLogger {
 			try {
 				jobManger = TestingUtils.createJobManager(
 					testActorSystem,
-					testActorSystem.dispatcher(),
-					testActorSystem.dispatcher(),
+					TestingUtils.defaultExecutor(),
+					TestingUtils.defaultExecutor(),
 					new Configuration());
 
 				final Configuration config = new Configuration();

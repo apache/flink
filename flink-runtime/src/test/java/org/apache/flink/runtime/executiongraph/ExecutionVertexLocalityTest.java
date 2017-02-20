@@ -26,7 +26,6 @@ import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.restart.FixedDelayRestartStrategy;
 import org.apache.flink.runtime.instance.SimpleSlot;
@@ -39,6 +38,7 @@ import org.apache.flink.runtime.jobmanager.slots.SlotOwner;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.TestLogger;
 
@@ -207,8 +207,8 @@ public class ExecutionVertexLocalityTest extends TestLogger {
 				null,
 				testJob,
 				new Configuration(),
-				Executors.directExecutor(),
-				Executors.directExecutor(),
+				TestingUtils.defaultExecutor(),
+				TestingUtils.defaultExecutor(),
 				getClass().getClassLoader(),
 				new StandaloneCheckpointRecoveryFactory(),
 				Time.of(10, TimeUnit.SECONDS),

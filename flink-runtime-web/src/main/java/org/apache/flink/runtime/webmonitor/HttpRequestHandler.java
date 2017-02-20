@@ -107,8 +107,8 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<HttpObject> 
 				else if (currentRequest.getMethod() == HttpMethod.POST) {
 					// POST comes in multiple objects. First the request, then the contents
 					// keep the request and path for the remaining objects of the POST request
-					currentRequestPath = new QueryStringDecoder(currentRequest.getUri()).path();
-					currentDecoder = new HttpPostRequestDecoder(DATA_FACTORY, currentRequest);
+					currentRequestPath = new QueryStringDecoder(currentRequest.getUri(), ENCODING).path();
+					currentDecoder = new HttpPostRequestDecoder(DATA_FACTORY, currentRequest, ENCODING);
 				}
 				else {
 					throw new IOException("Unsupported HTTP method: " + currentRequest.getMethod().name());

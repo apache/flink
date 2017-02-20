@@ -181,7 +181,7 @@ public class CliFrontendListCancelTest {
 		}
 
 		{
-			// Cancel with savepoint (no target directory)and no job ID
+			// Cancel with savepoint (no target directory) and no job ID
 			JobID jid = new JobID();
 			UUID leaderSessionID = UUID.randomUUID();
 

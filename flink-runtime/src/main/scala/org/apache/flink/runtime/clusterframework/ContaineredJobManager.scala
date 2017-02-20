@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.clusterframework
 
-import java.util.concurrent.Executor
+import java.util.concurrent.{ScheduledExecutorService, Executor}
 
 import akka.actor.ActorRef
 import org.apache.flink.api.common.JobID
@@ -59,7 +59,7 @@ import scala.language.postfixOps
   */
 abstract class ContaineredJobManager(
     flinkConfiguration: Configuration,
-    futureExecutor: Executor,
+    futureExecutor: ScheduledExecutorService,
     ioExecutor: Executor,
     instanceManager: InstanceManager,
     scheduler: FlinkScheduler,

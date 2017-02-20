@@ -21,7 +21,7 @@ package org.apache.flink.table.api.scala.batch.utils
 import java.util
 
 import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase.{EFFICIENT, NO_NULL, TableConfigMode}
+import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase.{NO_NULL, TableConfigMode}
 import org.apache.flink.test.util.MultipleProgramsTestBase
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.junit.runners.Parameterized
@@ -38,8 +38,6 @@ class TableProgramsTestBase(
     tableConfigMode match {
       case NO_NULL =>
         conf.setNullCheck(false)
-      case EFFICIENT =>
-        conf.setEfficientTypeUsage(true)
       case _ => // keep default
     }
     conf
@@ -47,11 +45,10 @@ class TableProgramsTestBase(
 }
 
 object TableProgramsTestBase {
-  case class TableConfigMode(nullCheck: Boolean, efficientTypes: Boolean)
+  case class TableConfigMode(nullCheck: Boolean)
 
-  val DEFAULT = TableConfigMode(nullCheck = true, efficientTypes = false)
-  val NO_NULL = TableConfigMode(nullCheck = false, efficientTypes = false)
-  val EFFICIENT = TableConfigMode(nullCheck = false, efficientTypes = true)
+  val DEFAULT = TableConfigMode(nullCheck = true)
+  val NO_NULL = TableConfigMode(nullCheck = false)
 
   @Parameterized.Parameters(name = "Table config = {0}")
   def parameters(): util.Collection[Array[java.lang.Object]] = {

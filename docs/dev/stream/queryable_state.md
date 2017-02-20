@@ -32,7 +32,7 @@ under the License.
 </div>
 
 In a nutshell, this feature allows users to query Flink's managed partitioned state
-(see [Working with State]({{ site.baseurl }}/dev/stream/state)) from outside of
+(see [Working with State]({{ site.baseurl }}/dev/stream/state.html)) from outside of
 Flink. For some scenarios, queryable state thus eliminates the need for distributed
 operations/transactions with external systems such as key-value stores which are often the
 bottleneck in practice.
@@ -41,23 +41,24 @@ bottleneck in practice.
   <strong>Attention:</strong> Queryable state accesses keyed state from a concurrent thread rather
   than synchronizing with the operator and potentially blocking its operation. Since any state
   backend using Java heap space, e.g. <code>MemoryStateBackend</code> or
-  <code>FsStateBackend</code>, does not work with copies when retrieving values but instead the
-  references to the stored values, read-modify-write patterns are unsafe and may cause the
+  <code>FsStateBackend</code>, does not work with copies when retrieving values but instead directly
+  references the stored values, read-modify-write patterns are unsafe and may cause the
   queryable state server to fail due to concurrent modifications.
   The <code>RocksDBStateBackend</code> is safe from these issues.
 </div>
 
 ## Making State Queryable
 
-In order to make state queryable, first, the queryable state server needs to be enabled globally
+In order to make state queryable, the queryable state server first needs to be enabled globally
 by setting the `query.server.enable` configuration parameter to `true` (current default).
-Then, appropriate state needs to be made queryable by either
-* a convenience `QueryableStateStream` which behaves like a sink and offers incoming values as
+Then appropriate state needs to be made queryable by using either
+
+* a `QueryableStateStream`, a convenience object which behaves like a sink and offers incoming values as
 queryable state, or
-* using `StateDescriptor#setQueryable(String queryableStateName)` for making keyed state of an
+* `StateDescriptor#setQueryable(String queryableStateName)`, which makes the keyed state of an
 operator queryable.
 
-The following sections explain the use of these two.
+The following sections explain the use of these two approaches.
 
 ### Queryable State Stream
 
@@ -85,18 +86,18 @@ QueryableStateStream asQueryableState(
 
 
 <div class="alert alert-info">
-  <strong>Note:</strong> There is no queryable list state sink as it would result in an ever-growing
+  <strong>Note:</strong> There is no queryable <code>ListState</code> sink as it would result in an ever-growing
   list which may not be cleaned up and thus will eventually consume too much memory.
 </div>
 
 A call to these methods returns a `QueryableStateStream`, which cannot be further transformed and
 currently only holds the name as well as the value and key serializer for the queryable state
-stream. It is comparable to a sink, after which you cannot do further transformations.
+stream. It is comparable to a sink, and cannot be followed by further transformations.
 
-Internally, the `QueryableStateStream` gets translated to an operator, which uses all incoming
+Internally a `QueryableStateStream` gets translated to an operator which uses all incoming
 records to update the queryable state instance.
 In a program like the following, all records of the keyed stream will be used to update the state
-instance, i.e. either via `ValueState#update(value)` or `AppendingState#add(value)` depending on
+instance, either via `ValueState#update(value)` or `AppendingState#add(value)`, depending on
 the chosen state variant:
 {% highlight java %}
 stream.keyBy(0).asQueryableState("query-name")
@@ -107,8 +108,8 @@ This acts like the Scala API's `flatMapWithState`.
 
 Managed keyed state of an operator
 (see [Using Managed Keyed State]({{ site.baseurl }}/dev/stream/state.html#using-managed-keyed-state))
-can be made queryable by setting the appropriate state descriptor queryable via
-`StateDescriptor#setQueryable(String queryableStateName)` as in the example below.
+can be made queryable by making the appropriate state descriptor queryable via
+`StateDescriptor#setQueryable(String queryableStateName)`, as in the example below:
 {% highlight java %}
 ValueStateDescriptor<Tuple2<Long, Long>> descriptor =
         new ValueStateDescriptor<>(
@@ -168,7 +169,7 @@ There are some serialization utils for key/namespace and value serialization inc
 
 ## Example
 
-The following example extends the `CountWindowAverage` example from
+The following example extends the `CountWindowAverage` example
 (see [Using Managed Keyed State]({{ site.baseurl }}/dev/stream/state.html#using-managed-keyed-state))
 by making it queryable and showing how to query this value:
 
@@ -203,8 +204,7 @@ public class CountWindowAverage extends RichFlatMapFunction<Tuple2<Long, Long>, 
 }
 {% endhighlight %}
 
-Once used on a job, retrieve the job ID and query any key's current state of this operator via
-(for any `Long key`):
+Once used in a job, you can retrieve the job ID and then query any key's current state from this operator:
 
 {% highlight java %}
 final Configuration config = new Configuration();
@@ -236,12 +236,12 @@ Tuple2<Long, Long> value =
 
 ## Configuration
 
-The following configuration parameters influence the queryable state server's and client's
-behaviour. They are defined in `QueryableStateOptions`.
+The following configuration parameters influence the behaviour of the queryable state server and client.
+They are defined in `QueryableStateOptions`.
 
 ### Server
 * `query.server.enable`: flag to indicate whether to start the queryable state server
-* `query.server.port`: port to bind internal `KvStateServer` to (0 => pick random available port)
+* `query.server.port`: port to bind to the internal `KvStateServer` (0 => pick random available port)
 * `query.server.network-threads`: number of network (event loop) threads for the `KvStateServer` (0 => #slots)
 * `query.server.query-threads`: number of asynchronous query threads for the `KvStateServerHandler` (0 => #slots).
 
@@ -253,11 +253,11 @@ behaviour. They are defined in `QueryableStateOptions`.
 ## Limitations
 
 * The queryable state life-cycle is bound to the life-cycle of the job, e.g. tasks register
-queryable state on startup and unregister it on dispose. In future versions, it is desirable to
-decouple this in order to allow queries after a task finishes and to speed up recovery via state
+queryable state on startup and unregister it on disposal. In future versions, it is desirable to
+decouple this in order to allow queries after a task finishes, and to speed up recovery via state
 replication.
-* Notifications about available KvState happen via a simple tell. This should be improved to be
-more robust with asks and acknowledgements in future.
+* Notifications about available KvState happen via a simple tell. In the future this should be improved to be
+more robust with asks and acknowledgements.
 * The server and client keep track of statistics for queries. These are currently disabled by
 default as they would not be exposed anywhere. As soon as there is better support to publish these
 numbers via the Metrics system, we should enable the stats.

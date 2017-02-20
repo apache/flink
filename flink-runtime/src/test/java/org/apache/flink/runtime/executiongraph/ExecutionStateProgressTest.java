@@ -52,8 +52,8 @@ public class ExecutionStateProgressTest {
 			ajv.setInvokableClass(mock(AbstractInvokable.class).getClass());
 
 			ExecutionGraph graph = new ExecutionGraph(
-				TestingUtils.defaultExecutionContext(),
-				TestingUtils.defaultExecutionContext(),
+				TestingUtils.defaultExecutor(),
+				TestingUtils.defaultExecutor(),
 				jid, 
 				"test job", 
 				new Configuration(),

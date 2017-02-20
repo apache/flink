@@ -19,16 +19,13 @@
 package org.apache.flink.runtime.leaderelection;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.executiongraph.JobStatusListener;
+import org.apache.flink.runtime.executiongraph.TerminalJobStatusListener;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.Tasks;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
@@ -113,7 +110,7 @@ public class LeaderChangeJobRecoveryTest extends TestLogger {
 
 		ExecutionGraph executionGraph = (ExecutionGraph) ((TestingJobManagerMessages.ExecutionGraphFound) responseExecutionGraph).executionGraph();
 
-		TestJobStatusListener testListener = new TestJobStatusListener();
+		TerminalJobStatusListener testListener = new TerminalJobStatusListener();
 		executionGraph.registerJobStatusListener(testListener);
 
 		cluster.revokeLeadership();
@@ -145,21 +142,5 @@ public class LeaderChangeJobRecoveryTest extends TestLogger {
 		jobGraph.setExecutionConfig(executionConfig);
 
 		return jobGraph;
-	}
-
-	public static class TestJobStatusListener implements JobStatusListener {
-
-		private final OneShotLatch terminalStateLatch = new OneShotLatch();
-
-		public void waitForTerminalState(long timeoutMillis) throws InterruptedException, TimeoutException {
-			terminalStateLatch.await(timeoutMillis, TimeUnit.MILLISECONDS);
-		}
-
-		@Override
-		public void jobStatusChanges(JobID jobId, JobStatus newJobStatus, long timestamp, Throwable error) {
-			if (newJobStatus.isGloballyTerminalState() || newJobStatus == JobStatus.SUSPENDED) {
-				terminalStateLatch.trigger();
-			}
-		}
 	}
 }

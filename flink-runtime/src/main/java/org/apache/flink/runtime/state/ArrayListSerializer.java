@@ -35,6 +35,10 @@ final public class ArrayListSerializer<T> extends TypeSerializer<ArrayList<T>> {
 		this.elementSerializer = elementSerializer;
 	}
 
+	public TypeSerializer<T> getElementSerializer() {
+		return elementSerializer;
+	}
+
 	@Override
 	public boolean isImmutableType() {
 		return false;
@@ -109,8 +113,8 @@ final public class ArrayListSerializer<T> extends TypeSerializer<ArrayList<T>> {
 	@Override
 	public boolean equals(Object obj) {
 		return obj == this ||
-			(obj != null && obj.getClass() == getClass() &&
-				elementSerializer.equals(((ArrayListSerializer<?>) obj).elementSerializer));
+				(obj != null && obj.getClass() == getClass() &&
+						elementSerializer.equals(((ArrayListSerializer<?>) obj).elementSerializer));
 	}
 
 	@Override

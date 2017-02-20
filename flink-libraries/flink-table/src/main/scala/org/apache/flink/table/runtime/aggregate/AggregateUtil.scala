@@ -67,9 +67,10 @@ object AggregateUtil {
     *
     */
   private[flink] def createPrepareMapFunction(
-    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
-    groupings: Array[Int],
-    inputType: RelDataType): MapFunction[Any, Row] = {
+      namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+      groupings: Array[Int],
+      inputType: RelDataType)
+    : MapFunction[Row, Row] = {
 
     val (aggFieldIndexes,aggregates) = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),
@@ -83,7 +84,7 @@ object AggregateUtil {
       aggregates,
       aggFieldIndexes,
       groupings,
-      mapReturnType.asInstanceOf[RowTypeInfo]).asInstanceOf[MapFunction[Any, Row]]
+      mapReturnType)
 
     mapFunction
   }
@@ -113,11 +114,12 @@ object AggregateUtil {
     * NOTE: this function is only used for time based window on batch tables.
     */
   def createDataSetWindowPrepareMapFunction(
-    window: LogicalWindow,
-    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
-    groupings: Array[Int],
-    inputType: RelDataType,
-    isParserCaseSensitive: Boolean): MapFunction[Any, Row] = {
+      window: LogicalWindow,
+      namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+      groupings: Array[Int],
+      inputType: RelDataType,
+      isParserCaseSensitive: Boolean)
+    : MapFunction[Row, Row] = {
 
     val (aggFieldIndexes, aggregates) = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),
@@ -147,7 +149,7 @@ object AggregateUtil {
       groupings,
       timeFieldPos,
       tumbleTimeWindowSize,
-      mapReturnType).asInstanceOf[MapFunction[Any, Row]]
+      mapReturnType)
   }
 
   /**
@@ -159,13 +161,14 @@ object AggregateUtil {
     * NOTE: this function is only used for window on batch tables.
     */
   def createDataSetWindowAggregationGroupReduceFunction(
-    window: LogicalWindow,
-    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
-    inputType: RelDataType,
-    outputType: RelDataType,
-    groupings: Array[Int],
-    properties: Seq[NamedWindowProperty],
-    isInputCombined: Boolean = false): RichGroupReduceFunction[Row, Row] = {
+      window: LogicalWindow,
+      namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+      inputType: RelDataType,
+      outputType: RelDataType,
+      groupings: Array[Int],
+      properties: Seq[NamedWindowProperty],
+      isInputCombined: Boolean = false)
+    : RichGroupReduceFunction[Row, Row] = {
 
     val aggregates = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),
@@ -269,10 +272,11 @@ object AggregateUtil {
     *
     */
   private[flink] def createDataSetWindowAggregationCombineFunction(
-    window: LogicalWindow,
-    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
-    inputType: RelDataType,
-    groupings: Array[Int]): RichGroupCombineFunction[Row,Row] = {
+      window: LogicalWindow,
+      namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+      inputType: RelDataType,
+      groupings: Array[Int])
+    : RichGroupCombineFunction[Row,Row] = {
 
     val aggregates = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),
@@ -313,11 +317,12 @@ object AggregateUtil {
     *
     */
   private[flink] def createAggregateGroupReduceFunction(
-    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
-    inputType: RelDataType,
-    outputType: RelDataType,
-    groupings: Array[Int],
-    inGroupingSet: Boolean): RichGroupReduceFunction[Row, Row] = {
+      namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+      inputType: RelDataType,
+      outputType: RelDataType,
+      groupings: Array[Int],
+      inGroupingSet: Boolean)
+    : RichGroupReduceFunction[Row, Row] = {
 
     val aggregates = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),
@@ -370,10 +375,11 @@ object AggregateUtil {
     *
     */
   private[flink] def createIncrementalAggregateReduceFunction(
-    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
-    inputType: RelDataType,
-    outputType: RelDataType,
-    groupings: Array[Int]): IncrementalAggregateReduceFunction = {
+      namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+      inputType: RelDataType,
+      outputType: RelDataType,
+      groupings: Array[Int])
+    : IncrementalAggregateReduceFunction = {
 
     val aggregates = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),inputType,groupings.length)._2
@@ -397,13 +403,13 @@ object AggregateUtil {
     * Create an [[AllWindowFunction]] to compute non-partitioned group window aggregates.
     */
   private[flink] def createAllWindowAggregationFunction(
-    window: LogicalWindow,
-    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
-    inputType: RelDataType,
-    outputType: RelDataType,
-    groupings: Array[Int],
-    properties: Seq[NamedWindowProperty])
-  : AllWindowFunction[Row, Row, DataStreamWindow] = {
+      window: LogicalWindow,
+      namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+      inputType: RelDataType,
+      outputType: RelDataType,
+      groupings: Array[Int],
+      properties: Seq[NamedWindowProperty])
+    : AllWindowFunction[Row, Row, DataStreamWindow] = {
 
     val aggFunction =
       createAggregateGroupReduceFunction(
@@ -427,13 +433,13 @@ object AggregateUtil {
     *
     */
   private[flink] def createWindowAggregationFunction(
-    window: LogicalWindow,
-    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
-    inputType: RelDataType,
-    outputType: RelDataType,
-    groupings: Array[Int],
-    properties: Seq[NamedWindowProperty])
-  : WindowFunction[Row, Row, Tuple, DataStreamWindow] = {
+      window: LogicalWindow,
+      namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+      inputType: RelDataType,
+      outputType: RelDataType,
+      groupings: Array[Int],
+      properties: Seq[NamedWindowProperty])
+    : WindowFunction[Row, Row, Tuple, DataStreamWindow] = {
 
     val aggFunction =
       createAggregateGroupReduceFunction(
@@ -457,12 +463,13 @@ object AggregateUtil {
     * window aggregates.
     */
   private[flink] def createAllWindowIncrementalAggregationFunction(
-    window: LogicalWindow,
-    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
-    inputType: RelDataType,
-    outputType: RelDataType,
-    groupings: Array[Int],
-    properties: Seq[NamedWindowProperty]): AllWindowFunction[Row, Row, DataStreamWindow] = {
+      window: LogicalWindow,
+      namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+      inputType: RelDataType,
+      outputType: RelDataType,
+      groupings: Array[Int],
+      properties: Seq[NamedWindowProperty])
+    : AllWindowFunction[Row, Row, DataStreamWindow] = {
 
     val aggregates = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),inputType,groupings.length)._2
@@ -499,12 +506,13 @@ object AggregateUtil {
     * Create a [[WindowFunction]] to finalize incrementally pre-computed window aggregates.
     */
   private[flink] def createWindowIncrementalAggregationFunction(
-    window: LogicalWindow,
-    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
-    inputType: RelDataType,
-    outputType: RelDataType,
-    groupings: Array[Int],
-    properties: Seq[NamedWindowProperty]): WindowFunction[Row, Row, Tuple, DataStreamWindow] = {
+      window: LogicalWindow,
+      namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+      inputType: RelDataType,
+      outputType: RelDataType,
+      groupings: Array[Int],
+      properties: Seq[NamedWindowProperty])
+    : WindowFunction[Row, Row, Tuple, DataStreamWindow] = {
 
     val aggregates = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),inputType,groupings.length)._2

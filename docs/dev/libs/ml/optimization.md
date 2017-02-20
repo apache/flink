@@ -1,7 +1,10 @@
 ---
 mathjax: include
 title: Optimization
-nav-parent_id: ml
+# Sub navigation
+sub-nav-group: batch
+sub-nav-parent: flinkml
+sub-nav-title: Optimization
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -102,33 +105,6 @@ The current implementation of SGD  uses the whole partition, making it
 effectively a batch gradient descent. Once a sampling operator has been introduced in Flink, true
 mini-batch SGD will be performed.
 
-### Regularization
-
-FlinkML supports Stochastic Gradient Descent with L1, L2 and no regularization.
-The following list contains a mapping between the implementing classes and the regularization function.
-
-<table class="table table-bordered">
-  <thead>
-    <tr>
-      <th class="text-left" style="width: 20%">Class Name</th>
-      <th class="text-center">Regularization function $R(\wv)$</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td><code>SimpleGradient</code></td>
-      <td>$R(\wv) = 0$</td>
-    </tr>
-    <tr>
-      <td><code>GradientDescentL1</code></td>
-      <td>$R(\wv) = \norm{\wv}_1$</td>
-    </tr>
-    <tr>
-      <td><code>GradientDescentL2</code></td>
-      <td>$R(\wv) = \frac{1}{2}\norm{\wv}_2^2$</td>
-    </tr>
-  </tbody>
-</table>
 
 ### Parameters
 
@@ -143,10 +119,10 @@ The following list contains a mapping between the implementing classes and the r
     </thead>
     <tbody>
       <tr>
-        <td><strong>LossFunction</strong></td>
+        <td><strong>RegularizationPenalty</strong></td>
         <td>
           <p>
-            The loss function to be optimized. (Default value: <strong>None</strong>)
+            The regularization function to apply. (Default value: <strong>NoRegularization</strong>)
           </p>
         </td>
       </tr>
@@ -155,6 +131,14 @@ The following list contains a mapping between the implementing classes and the r
         <td>
           <p>
             The amount of regularization to apply. (Default value: <strong>0.1</strong>)
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <td><strong>LossFunction</strong></td>
+        <td>
+          <p>
+            The loss function to be optimized. (Default value: <strong>None</strong>)
           </p>
         </td>
       </tr>
@@ -206,6 +190,35 @@ The following list contains a mapping between the implementing classes and the r
     </tbody>
   </table>
 
+### Regularization
+
+FlinkML supports Stochastic Gradient Descent with L1, L2 and no regularization. The regularization type has to implement the `RegularizationPenalty` interface,
+which calculates the new weights based on the gradient and regularization type.
+The following list contains the supported regularization functions.
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Class Name</th>
+      <th class="text-center">Regularization function $R(\wv)$</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>NoRegularization</strong></td>
+      <td>$R(\wv) = 0$</td>
+    </tr>
+    <tr>
+      <td><strong>L1Regularization</strong></td>
+      <td>$R(\wv) = \norm{\wv}_1$</td>
+    </tr>
+    <tr>
+      <td><strong>L2Regularization</strong></td>
+      <td>$R(\wv) = \frac{1}{2}\norm{\wv}_2^2$</td>
+    </tr>
+  </tbody>
+</table>
+
 ### Loss Function
 
 The loss function which is minimized has to implement the `LossFunction` interface, which defines methods to compute the loss and the gradient of it.
@@ -240,6 +253,29 @@ The full list of supported prediction functions can be found [here](#prediction-
         </td>
         <td class="text-center">$\frac{1}{2} (\wv^T \cdot \x - y)^2$</td>
         <td class="text-center">$\wv^T \cdot \x - y$</td>
+      </tr>
+      <tr>
+        <td><strong>LogisticLoss</strong></td>
+        <td>
+          <p>
+            Loss function used for classification tasks.
+          </p>
+        </td>
+        <td class="text-center">$\log\left(1+\exp\left( -y ~ \wv^T \cdot \x\right)\right), \quad y \in \{-1, +1\}$</td>
+        <td class="text-center">$\frac{-y}{1+\exp\left(y ~ \wv^T \cdot \x\right)}$</td>
+      </tr>
+      <tr>
+        <td><strong>HingeLoss</strong></td>
+        <td>
+          <p>
+            Loss function used for classification tasks.
+          </p>
+        </td>
+        <td class="text-center">$\max \left(0, 1 - y ~ \wv^T \cdot \x\right), \quad y \in \{-1, +1\}$</td>
+        <td class="text-center">$\begin{cases}
+                                 -y&\text{if } y ~ \wv^T <= 1 \\
+                                 0&\text{if } y ~ \wv^T > 1
+                                 \end{cases}$</td>
       </tr>
     </tbody>
   </table>
@@ -354,7 +390,7 @@ Where:
 ### Examples
 
 In the Flink implementation of SGD, given a set of examples in a `DataSet[LabeledVector]` and
-optionally some initial weights, we can use `GradientDescentL1.optimize()` in order to optimize
+optionally some initial weights, we can use `GradientDescent.optimize()` in order to optimize
 the weights for the given data.
 
 The user can provide an initial `DataSet[WeightVector]`,
@@ -366,8 +402,9 @@ weight vector. This allows us to avoid applying regularization to the intercept.
 
 {% highlight scala %}
 // Create stochastic gradient descent solver
-val sgd = GradientDescentL1()
+val sgd = GradientDescent()
   .setLossFunction(SquaredLoss())
+  .setRegularizationPenalty(L1Regularization)
   .setRegularizationConstant(0.2)
   .setIterations(100)
   .setLearningRate(0.01)

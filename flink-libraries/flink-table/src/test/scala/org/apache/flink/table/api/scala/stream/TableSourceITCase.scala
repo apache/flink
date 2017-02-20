@@ -68,7 +68,7 @@ class TableSourceITCase extends StreamingMultipleProgramsTestBase {
     val tEnv = TableEnvironment.getTableEnvironment(env)
 
     tEnv.registerTableSource("csvTable", csvTable)
-    tEnv.ingest("csvTable")
+    tEnv.scan("csvTable")
       .where('id > 4)
       .select('last, 'score * 2)
       .toDataStream[Row]

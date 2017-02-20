@@ -2,7 +2,7 @@
 title: "HDFS Connector"
 nav-title: Rolling File Sink
 nav-parent_id: connectors
-nav-pos: 6
+nav-pos: 5
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

@@ -43,6 +43,7 @@ import java.util.List;
 import java.util.Random;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
 public class BlobLibraryCacheRecoveryITCase {
 
@@ -62,12 +63,12 @@ public class BlobLibraryCacheRecoveryITCase {
 		BlobCache cache = null;
 		BlobLibraryCacheManager libCache = null;
 
-		try {
-			Configuration config = new Configuration();
-			config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
-			config.setString(ConfigConstants.STATE_BACKEND, "FILESYSTEM");
-			config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, temporaryFolder.getRoot().getAbsolutePath());
+		Configuration config = new Configuration();
+		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
+		config.setString(ConfigConstants.STATE_BACKEND, "FILESYSTEM");
+		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, temporaryFolder.getRoot().getAbsolutePath());
 
+		try {
 			for (int i = 0; i < server.length; i++) {
 				server[i] = new BlobServer(config);
 				serverAddress[i] = new InetSocketAddress("localhost", server[i].getPort());
@@ -144,8 +145,11 @@ public class BlobLibraryCacheRecoveryITCase {
 				client.delete(keys.get(1));
 			}
 
-			// Verify everything is clean
-			File[] recoveryFiles = temporaryFolder.getRoot().listFiles();
+			// Verify everything is clean below recoveryDir/<cluster_id>
+			final String clusterId = config.getString(HighAvailabilityOptions.HA_CLUSTER_ID);
+			File haBlobStoreDir = new File(temporaryFolder.getRoot(), clusterId);
+			File[] recoveryFiles = haBlobStoreDir.listFiles();
+			assertNotNull("HA storage directory does not exist", recoveryFiles);
 			assertEquals("Unclean state backend: " + Arrays.toString(recoveryFiles), 0, recoveryFiles.length);
 		}
 		finally {

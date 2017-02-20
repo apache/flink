@@ -23,20 +23,16 @@ import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.flink.api.common.operators.Order
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
-import org.apache.flink.api.java.typeutils.{ResultTypeQueryable, RowTypeInfo}
+import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.table.api.BatchTableEnvironment
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.logical._
-import org.apache.flink.table.plan.nodes.FlinkAggregate
+import org.apache.flink.table.plan.nodes.CommonAggregate
 import org.apache.flink.table.runtime.aggregate.AggregateUtil.{CalcitePair, _}
 import org.apache.flink.table.typeutils.TypeCheckUtils.isTimeInterval
-import org.apache.flink.table.typeutils.TypeConverter
 import org.apache.flink.types.Row
-
-import scala.collection.JavaConversions._
 
 /**
   * Flink RelNode which matches along with a LogicalWindowAggregate.
@@ -52,7 +48,7 @@ class DataSetWindowAggregate(
     inputType: RelDataType,
     grouping: Array[Int])
   extends SingleRel(cluster, traitSet, inputNode)
-  with FlinkAggregate
+  with CommonAggregate
   with DataSetRel {
 
   override def deriveRowType() = rowRelDataType
@@ -109,20 +105,15 @@ class DataSetWindowAggregate(
     planner.getCostFactory.makeCost(rowCnt, rowCnt * aggCnt, rowCnt * rowSize)
   }
 
-  override def translateToPlan(
-    tableEnv: BatchTableEnvironment,
-    expectedType: Option[TypeInformation[Any]]): DataSet[Any] = {
+  override def translateToPlan(tableEnv: BatchTableEnvironment): DataSet[Row] = {
 
     val config = tableEnv.getConfig
 
-    val inputDS = getInput.asInstanceOf[DataSetRel].translateToPlan(
-      tableEnv,
-      // tell the input operator that this operator currently only supports Rows as input
-      Some(TypeConverter.DEFAULT_ROW_TYPE))
+    val inputDS = getInput.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
 
     // whether identifiers are matched case-sensitively
     val caseSensitive = tableEnv.getFrameworkConfig.getParserConfig.caseSensitive()
-    val result = window match {
+    window match {
       case EventTimeTumblingGroupWindow(_, _, size) =>
         createEventTimeTumblingWindowDataSet(
           inputDS,
@@ -139,31 +130,14 @@ class DataSetWindowAggregate(
             "windows in a batch environment must declare a time attribute over which " +
             "the query is evaluated.")
     }
-
-    // if the expected type is not a Row, inject a mapper to convert to the expected type
-    expectedType match {
-      case Some(typeInfo) if typeInfo.getTypeClass != classOf[Row] =>
-        val mapName = s"convert: (${getRowType.getFieldNames.toList.mkString(", ")})"
-        result.map(
-          getConversionMapper(
-            config = config,
-            nullableInput = false,
-            inputType = resultRowTypeInfo.asInstanceOf[TypeInformation[Any]],
-            expectedType = expectedType.get,
-            conversionOperatorName = "DataSetWindowAggregateConversion",
-            fieldNames = getRowType.getFieldNames
-          ))
-          .name(mapName)
-      case _ => result
-    }
   }
 
 
   private def createEventTimeTumblingWindowDataSet(
-      inputDS: DataSet[Any],
+      inputDS: DataSet[Row],
       isTimeWindow: Boolean,
       isParserCaseSensitive: Boolean)
-    : DataSet[Any] = {
+    : DataSet[Row] = {
     val mapFunction = createDataSetWindowPrepareMapFunction(
       window,
       namedAggregates,
@@ -182,6 +156,8 @@ class DataSetWindowAggregate(
       .map(mapFunction)
       .name(prepareOperatorName)
 
+    val rowTypeInfo = FlinkTypeFactory.toInternalRowTypeInfo(getRowType)
+
     val mapReturnType = mapFunction.asInstanceOf[ResultTypeQueryable[Row]].getProducedType
     if (isTimeWindow) {
       // grouped time window aggregation
@@ -190,9 +166,8 @@ class DataSetWindowAggregate(
       mappedInput.asInstanceOf[DataSet[Row]]
         .groupBy(groupingKeys: _*)
         .reduceGroup(groupReduceFunction)
-        .returns(resultRowTypeInfo)
+        .returns(rowTypeInfo)
         .name(aggregateOperatorName)
-        .asInstanceOf[DataSet[Any]]
     } else {
       // count window
       val groupingKeys = grouping.indices.toArray
@@ -203,10 +178,8 @@ class DataSetWindowAggregate(
           // sort on time field, it's the last element in the row
           .sortGroup(mapReturnType.getArity - 1, Order.ASCENDING)
           .reduceGroup(groupReduceFunction)
-          .returns(resultRowTypeInfo)
+          .returns(rowTypeInfo)
           .name(aggregateOperatorName)
-          .asInstanceOf[DataSet[Any]]
-
       } else {
         // TODO: count tumbling all window on event-time should sort all the data set
         // on event time before applying the windowing logic.
@@ -217,11 +190,12 @@ class DataSetWindowAggregate(
   }
 
   private[this] def createEventTimeSessionWindowDataSet(
-    inputDS: DataSet[Any],
-    isParserCaseSensitive: Boolean): DataSet[Any] = {
+      inputDS: DataSet[Row],
+      isParserCaseSensitive: Boolean)
+    : DataSet[Row] = {
 
     val groupingKeys = grouping.indices.toArray
-    val rowTypeInfo = resultRowTypeInfo
+    val rowTypeInfo = FlinkTypeFactory.toInternalRowTypeInfo(getRowType)
 
     // grouping window
     if (groupingKeys.length > 0) {
@@ -280,7 +254,6 @@ class DataSetWindowAggregate(
           .reduceGroup(groupReduceFunction)
           .returns(rowTypeInfo)
           .name(aggregateOperatorName)
-          .asInstanceOf[DataSet[Any]]
       }
       // do non-incremental aggregation
       else {
@@ -298,7 +271,6 @@ class DataSetWindowAggregate(
         .reduceGroup(groupReduceFunction)
         .returns(rowTypeInfo)
         .name(aggregateOperatorName)
-        .asInstanceOf[DataSet[Any]]
       }
     }
     // non-grouping window
@@ -331,13 +303,5 @@ class DataSetWindowAggregate(
     } else {
       s"window: ($window), select: ($aggString)"
     }
-  }
-
-  private def resultRowTypeInfo: RowTypeInfo = {
-    // get the output types
-    val fieldTypes: Array[TypeInformation[_]] = getRowType.getFieldList
-      .map(field => FlinkTypeFactory.toTypeInfo(field.getType))
-      .toArray
-    new RowTypeInfo(fieldTypes: _*)
   }
 }

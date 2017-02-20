@@ -20,13 +20,16 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
 import org.apache.flink.runtime.taskmanager.TaskActions;
+import org.junit.Assert;
 import org.junit.Test;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -66,6 +69,78 @@ public class ResultPartitionTest {
 			ResultPartitionConsumableNotifier notifier = mock(ResultPartitionConsumableNotifier.class);
 			ResultPartition partition = createPartition(notifier, ResultPartitionType.BLOCKING, false);
 			partition.add(TestBufferFactory.createBuffer(), 0);
+			verify(notifier, never()).notifyPartitionConsumable(any(JobID.class), any(ResultPartitionID.class), any(TaskActions.class));
+		}
+	}
+
+	@Test
+	public void testAddOnFinishedPipelinedPartition() throws Exception {
+		testAddOnFinishedPartition(ResultPartitionType.PIPELINED);
+	}
+
+	@Test
+	public void testAddOnFinishedBlockingPartition() throws Exception {
+		testAddOnFinishedPartition(ResultPartitionType.BLOCKING);
+	}
+
+	/**
+	 * Tests {@link ResultPartition#add} on a partition which has already finished.
+	 *
+	 * @param pipelined the result partition type to set up
+	 */
+	protected void testAddOnFinishedPartition(final ResultPartitionType pipelined)
+		throws Exception {
+		Buffer buffer = TestBufferFactory.createBuffer();
+		ResultPartitionConsumableNotifier notifier = mock(ResultPartitionConsumableNotifier.class);
+		try {
+			ResultPartition partition = createPartition(notifier, pipelined, true);
+			partition.finish();
+			reset(notifier);
+			// partition.add() should fail
+			partition.add(buffer, 0);
+			Assert.fail("exception expected");
+		} catch (IllegalStateException e) {
+			// expected => ignored
+		} finally {
+			if (!buffer.isRecycled()) {
+				Assert.fail("buffer not recycled");
+				buffer.recycle();
+			}
+			// should not have notified either
+			verify(notifier, never()).notifyPartitionConsumable(any(JobID.class), any(ResultPartitionID.class), any(TaskActions.class));
+		}
+	}
+
+	@Test
+	public void testAddOnReleasedPipelinedPartition() throws Exception {
+		testAddOnReleasedPartition(ResultPartitionType.PIPELINED);
+	}
+
+	@Test
+	public void testAddOnReleasedBlockingPartition() throws Exception {
+		testAddOnReleasedPartition(ResultPartitionType.BLOCKING);
+	}
+
+	/**
+	 * Tests {@link ResultPartition#add} on a partition which has already been released.
+	 *
+	 * @param pipelined the result partition type to set up
+	 */
+	protected void testAddOnReleasedPartition(final ResultPartitionType pipelined)
+		throws Exception {
+		Buffer buffer = TestBufferFactory.createBuffer();
+		ResultPartitionConsumableNotifier notifier = mock(ResultPartitionConsumableNotifier.class);
+		try {
+			ResultPartition partition = createPartition(notifier, pipelined, true);
+			partition.release();
+			// partition.add() silently drops the buffer but recycles it
+			partition.add(buffer, 0);
+		} finally {
+			if (!buffer.isRecycled()) {
+				Assert.fail("buffer not recycled");
+				buffer.recycle();
+			}
+			// should not have notified either
 			verify(notifier, never()).notifyPartitionConsumable(any(JobID.class), any(ResultPartitionID.class), any(TaskActions.class));
 		}
 	}

@@ -794,11 +794,20 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 
 		InetSocketAddress address = new InetSocketAddress(jobMasterGateway.getAddress(), blobPort);
 
-		BlobCache blobCache = new BlobCache(address, taskManagerConfiguration.getConfiguration());
-
-		LibraryCacheManager libraryCacheManager = new BlobLibraryCacheManager(
-			blobCache,
-			taskManagerConfiguration.getCleanupInterval());
+		final LibraryCacheManager libraryCacheManager;
+		try {
+			final BlobCache blobCache = new BlobCache(address, taskManagerConfiguration.getConfiguration(), haServices);
+			libraryCacheManager = new BlobLibraryCacheManager(
+				blobCache,
+				taskManagerConfiguration.getCleanupInterval());
+		} catch (IOException e) {
+			// Can't pass the IOException up - we need a RuntimeException anyway
+			// two levels up where this is run asynchronously. Also, we don't
+			// know whether this is caught in the thread running this method.
+			final String message = "Could not create BLOB cache or library cache.";
+			log.error(message, e);
+			throw new RuntimeException(message, e);
+		}
 
 		ResultPartitionConsumableNotifier resultPartitionConsumableNotifier = new RpcResultPartitionConsumableNotifier(
 			jobManagerLeaderId,

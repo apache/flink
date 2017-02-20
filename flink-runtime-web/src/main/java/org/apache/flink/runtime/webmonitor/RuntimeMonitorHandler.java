@@ -30,17 +30,18 @@ import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.router.KeepAliveWrite;
 import io.netty.handler.codec.http.router.Routed;
 
-import java.net.URLDecoder;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.webmonitor.handlers.RequestHandler;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.net.InetSocketAddress;
+import java.net.URLDecoder;
 import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.Map;
@@ -116,6 +117,8 @@ public class RuntimeMonitorHandler extends RuntimeMonitorHandlerBase {
 		}
 
 		response.headers().set(HttpHeaders.Names.ACCESS_CONTROL_ALLOW_ORIGIN, "*");
+		// Content-Encoding:utf-8
+		response.headers().set(HttpHeaders.Names.CONTENT_ENCODING, ENCODING.name());
 
 		KeepAliveWrite.flush(ctx, routed.request(), response);
 	}

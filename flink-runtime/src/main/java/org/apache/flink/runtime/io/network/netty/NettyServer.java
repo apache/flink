@@ -30,6 +30,7 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.ssl.SslHandler;
+import org.apache.flink.runtime.util.FatalExitExceptionHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,7 +45,10 @@ import static org.apache.flink.util.Preconditions.checkState;
 
 class NettyServer {
 
-	private static final ThreadFactoryBuilder THREAD_FACTORY_BUILDER = new ThreadFactoryBuilder().setDaemon(true);
+	private static final ThreadFactoryBuilder THREAD_FACTORY_BUILDER =
+		new ThreadFactoryBuilder()
+			.setDaemon(true)
+			.setUncaughtExceptionHandler(FatalExitExceptionHandler.INSTANCE);
 
 	private static final Logger LOG = LoggerFactory.getLogger(NettyServer.class);
 

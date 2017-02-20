@@ -150,7 +150,7 @@ public class TaskManagerLogHandler extends RuntimeMonitorHandlerBase {
 			scala.concurrent.Future<Object> portFuture = jobManager.ask(JobManagerMessages.getRequestBlobManagerPort(), timeout);
 			scala.concurrent.Future<BlobCache> cacheFuture = portFuture.map(new Mapper<Object, BlobCache>() {
 				@Override
-				public BlobCache apply(Object result) {
+				public BlobCache checkedApply(Object result) throws IOException {
 					Option<String> hostOption = jobManager.actor().path().address().host();
 					String host = hostOption.isDefined() ? hostOption.get() : "localhost";
 					int port = (int) result;

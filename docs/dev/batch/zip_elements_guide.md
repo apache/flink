@@ -64,7 +64,7 @@ env.execute()
 {% endhighlight %}
 </div>
 
-<div data-lang="scala" markdown="1">
+<div data-lang="python" markdown="1">
 {% highlight python %}
 from flink.plan.Environment import get_environment
 
