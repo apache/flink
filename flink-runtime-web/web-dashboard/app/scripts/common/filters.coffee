@@ -87,3 +87,8 @@ angular.module('flinkApp')
 
 .filter "percentage", ->
   (number) -> (number * 100).toFixed(0) + '%'
+
+.filter "searchMetrics", ->
+  (availableMetrics, query)->
+    queryRegex = new RegExp(query, "gi")
+    return (metric for metric in availableMetrics when metric.id.match(queryRegex))

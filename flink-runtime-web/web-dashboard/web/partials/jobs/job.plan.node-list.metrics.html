@@ -26,8 +26,8 @@ limitations under the License.
       Add metric
       &nbsp;<span class="caret"></span>
     </button>
-    <ul class="dropdown-menu dropdown-menu-right metric-menu">
-      <li ng-repeat="metric in availableMetrics track by $index"><a ng-click="addMetric(metric)">{{ metric.id | limit }}</a></li>
+    <ul class="dropdown-menu dropdown-menu-right metric-menu"><input type="text" ng-model="metricsFilterQuery" class="metrics-filter" placeholder="Search available metrics...">
+      <li ng-repeat="metric in availableMetrics | searchMetrics:metricsFilterQuery track by $index"><a ng-click="addMetric(metric)">{{ metric.id | limit }}</a></li>
     </ul>
   </div>
   <div ng-if="!availableMetrics.length" class="dropdown add-metrics">
