@@ -132,3 +132,9 @@ angular.module('flinkApp')
         return_val = value
     return return_val
 ]
+
+.filter "searchMetrics", ->
+  (availableMetrics, query)->
+    queryRegex = new RegExp(query, "gi")
+    return (metric for metric in availableMetrics when metric.id.match(queryRegex))
+
