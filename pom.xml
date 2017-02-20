@@ -977,11 +977,6 @@ under the License.
 						<forkNumber>0${surefire.forkNumber}</forkNumber>
 						<log4j.configuration>${log4j.configuration}</log4j.configuration>
 					</systemPropertyVariables>
-					<environmentVariables>
-						<!-- Make sure external hadoop environment will not affect building flink library -->
-						<HADOOP_HOME />
-						<HADOOP_CONF_DIR />
-					</environmentVariables>
 					<argLine>-Xms256m -Xmx800m -Dmvn.forkNumber=${surefire.forkNumber} -XX:-UseGCOverheadLimit</argLine>
 				</configuration>
 				<executions>
