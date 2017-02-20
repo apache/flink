@@ -385,6 +385,10 @@ angular.module('flinkApp')
     MetricsService.setMetricSize($scope.jobid, $scope.nodeid, metric, size)
     loadMetrics()
 
+  $scope.setMetricView = (metric, view) ->
+    MetricsService.setMetricView($scope.jobid, $scope.nodeid, metric, view)
+    loadMetrics()
+
   $scope.getValues = (metric) ->
     MetricsService.getValues($scope.jobid, $scope.nodeid, metric)
 
