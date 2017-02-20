@@ -84,6 +84,11 @@ public class StandaloneCompletedCheckpointStore implements CompletedCheckpointSt
 	}
 
 	@Override
+	public int getMaxNumberOfRetainedCheckpoints() {
+		return maxNumberOfCheckpointsToRetain;
+	}
+
+	@Override
 	public void shutdown(JobStatus jobStatus) throws Exception {
 		try {
 			LOG.info("Shutting down");
