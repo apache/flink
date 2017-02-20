@@ -232,6 +232,7 @@ public abstract class AbstractKeyedStateBackend<K>
 	/**
 	 * @see KeyedStateBackend
 	 */
+	@Override
 	public KeyGroupRange getKeyGroupRange() {
 		return keyGroupRange;
 	}

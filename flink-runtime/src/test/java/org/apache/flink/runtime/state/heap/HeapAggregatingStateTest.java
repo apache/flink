@@ -29,7 +29,6 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.internal.InternalAggregatingState;
-
 import org.junit.Test;
 
 import static java.util.Arrays.asList;
@@ -93,7 +92,7 @@ public class HeapAggregatingStateTest {
 
 			// make sure all lists / maps are cleared
 
-			StateTable<String, VoidNamespace, MutableLong> stateTable =
+			NestedMapsStateTable<String, VoidNamespace, MutableLong> stateTable =
 					((HeapAggregatingState<String, VoidNamespace, Long, MutableLong, Long>) state).stateTable;
 
 			assertTrue(stateTable.isEmpty());
@@ -215,7 +214,7 @@ public class HeapAggregatingStateTest {
 			state.setCurrentNamespace(namespace1);
 			state.clear();
 
-			StateTable<String, Integer, MutableLong> stateTable =
+			NestedMapsStateTable<String, Integer, MutableLong> stateTable =
 					((HeapAggregatingState<String, Integer, Long, MutableLong, Long>) state).stateTable;
 
 			assertTrue(stateTable.isEmpty());

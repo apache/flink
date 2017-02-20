@@ -20,7 +20,6 @@ package org.apache.flink.runtime.state.heap;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.flink.annotation.VisibleForTesting;
-
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -60,7 +59,6 @@ import org.apache.flink.runtime.state.internal.InternalReducingState;
 import org.apache.flink.runtime.state.internal.InternalValueState;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -91,7 +89,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	 * but we can't put them here because different key/value states with different types and
 	 * namespace types share this central list of tables.
 	 */
-	private final Map<String, StateTable<K, ?, ?>> stateTables = new HashMap<>();
+	private final Map<String, NestedMapsStateTable<K, ?, ?>> stateTables = new HashMap<>();
 
 	public HeapKeyedStateBackend(
 			TaskKvStateRegistry kvStateRegistry,
@@ -110,11 +108,11 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	// ------------------------------------------------------------------------
 
 	@SuppressWarnings("unchecked")
-	private <N, V> StateTable<K, N, V> tryRegisterStateTable(
+	private <N, V> NestedMapsStateTable<K, N, V> tryRegisterStateTable(
 			TypeSerializer<N> namespaceSerializer, StateDescriptor<?, V> stateDesc) {
 
 		String name = stateDesc.getName();
-		StateTable<K, N, V> stateTable = (StateTable<K, N, V>) stateTables.get(name);
+		NestedMapsStateTable<K, N, V> stateTable = (NestedMapsStateTable<K, N, V>) stateTables.get(name);
 
 		RegisteredBackendStateMetaInfo<N, V> newMetaInfo =
 				new RegisteredBackendStateMetaInfo<>(stateDesc.getType(), name, namespaceSerializer, stateDesc.getSerializer());
@@ -122,11 +120,11 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		return tryRegisterStateTable(stateTable, newMetaInfo);
 	}
 
-	private <N, V> StateTable<K, N, V> tryRegisterStateTable(
-			StateTable<K, N, V> stateTable, RegisteredBackendStateMetaInfo<N, V> newMetaInfo) {
+	private <N, V> NestedMapsStateTable<K, N, V> tryRegisterStateTable(
+			NestedMapsStateTable<K, N, V> stateTable, RegisteredBackendStateMetaInfo<N, V> newMetaInfo) {
 
 		if (stateTable == null) {
-			stateTable = new StateTable<>(newMetaInfo, keyGroupRange);
+			stateTable = new NestedMapsStateTable<>(this, newMetaInfo);
 			stateTables.put(newMetaInfo.getName(), stateTable);
 		} else {
 			if (!newMetaInfo.isCompatibleWith(stateTable.getMetaInfo())) {
@@ -143,8 +141,8 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			TypeSerializer<N> namespaceSerializer,
 			ValueStateDescriptor<V> stateDesc) throws Exception {
 
-		StateTable<K, N, V> stateTable = tryRegisterStateTable(namespaceSerializer, stateDesc);
-		return new HeapValueState<>(this, stateDesc, stateTable, keySerializer, namespaceSerializer);
+		NestedMapsStateTable<K, N, V> stateTable = tryRegisterStateTable(namespaceSerializer, stateDesc);
+		return new HeapValueState<>(stateDesc, stateTable, keySerializer, namespaceSerializer);
 	}
 
 	@Override
@@ -155,13 +153,13 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		String name = stateDesc.getName();
 
 		@SuppressWarnings("unchecked")
-		StateTable<K, N, ArrayList<T>> stateTable = (StateTable<K, N, ArrayList<T>>) stateTables.get(name);
+		NestedMapsStateTable<K, N, ArrayList<T>> stateTable = (NestedMapsStateTable<K, N, ArrayList<T>>) stateTables.get(name);
 
 		RegisteredBackendStateMetaInfo<N, ArrayList<T>> newMetaInfo =
 				new RegisteredBackendStateMetaInfo<>(stateDesc.getType(), name, namespaceSerializer, new ArrayListSerializer<>(stateDesc.getSerializer()));
 
 		stateTable = tryRegisterStateTable(stateTable, newMetaInfo);
-		return new HeapListState<>(this, stateDesc, stateTable, keySerializer, namespaceSerializer);
+		return new HeapListState<>(stateDesc, stateTable, keySerializer, namespaceSerializer);
 	}
 
 	@Override
@@ -169,8 +167,8 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			TypeSerializer<N> namespaceSerializer,
 			ReducingStateDescriptor<T> stateDesc) throws Exception {
 
-		StateTable<K, N, T> stateTable = tryRegisterStateTable(namespaceSerializer, stateDesc);
-		return new HeapReducingState<>(this, stateDesc, stateTable, keySerializer, namespaceSerializer);
+		NestedMapsStateTable<K, N, T> stateTable = tryRegisterStateTable(namespaceSerializer, stateDesc);
+		return new HeapReducingState<>(stateDesc, stateTable, keySerializer, namespaceSerializer);
 	}
 
 	@Override
@@ -178,8 +176,8 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			TypeSerializer<N> namespaceSerializer,
 			AggregatingStateDescriptor<T, ACC, R> stateDesc) throws Exception {
 
-		StateTable<K, N, ACC> stateTable = tryRegisterStateTable(namespaceSerializer, stateDesc);
-		return new HeapAggregatingState<>(this, stateDesc, stateTable, keySerializer, namespaceSerializer);
+		NestedMapsStateTable<K, N, ACC> stateTable = tryRegisterStateTable(namespaceSerializer, stateDesc);
+		return new HeapAggregatingState<>(stateDesc, stateTable, keySerializer, namespaceSerializer);
 	}
 
 	@Override
@@ -187,8 +185,8 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			TypeSerializer<N> namespaceSerializer,
 			FoldingStateDescriptor<T, ACC> stateDesc) throws Exception {
 
-		StateTable<K, N, ACC> stateTable = tryRegisterStateTable(namespaceSerializer, stateDesc);
-		return new HeapFoldingState<>(this, stateDesc, stateTable, keySerializer, namespaceSerializer);
+		NestedMapsStateTable<K, N, ACC> stateTable = tryRegisterStateTable(namespaceSerializer, stateDesc);
+		return new HeapFoldingState<>(stateDesc, stateTable, keySerializer, namespaceSerializer);
 	}
 
 	@Override
@@ -215,7 +213,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 			Map<String, Integer> kVStateToId = new HashMap<>(stateTables.size());
 
-			for (Map.Entry<String, StateTable<K, ?, ?>> kvState : stateTables.entrySet()) {
+			for (Map.Entry<String, NestedMapsStateTable<K, ?, ?>> kvState : stateTables.entrySet()) {
 
 				RegisteredBackendStateMetaInfo<?, ?> metaInfo = kvState.getValue().getMetaInfo();
 				KeyedBackendSerializationProxy.StateMetaInfo<?, ?> metaInfoProxy = new KeyedBackendSerializationProxy.StateMetaInfo(
@@ -239,7 +237,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			for (int keyGroupIndex = keyGroupRange.getStartKeyGroup(); keyGroupIndex <= keyGroupRange.getEndKeyGroup(); keyGroupIndex++) {
 				keyGroupRangeOffsets[offsetCounter++] = stream.getPos();
 				outView.writeInt(keyGroupIndex);
-				for (Map.Entry<String, StateTable<K, ?, ?>> kvState : stateTables.entrySet()) {
+				for (Map.Entry<String, NestedMapsStateTable<K, ?, ?>> kvState : stateTables.entrySet()) {
 					outView.writeShort(kVStateToId.get(kvState.getKey()));
 					writeStateTableForKeyGroup(outView, kvState.getValue(), keyGroupIndex);
 				}
@@ -271,13 +269,13 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 	private <N, S> void writeStateTableForKeyGroup(
 			DataOutputView outView,
-			StateTable<K, N, S> stateTable,
+			NestedMapsStateTable<K, N, S> stateTable,
 			int keyGroupIndex) throws IOException {
 
 		TypeSerializer<N> namespaceSerializer = stateTable.getNamespaceSerializer();
 		TypeSerializer<S> stateSerializer = stateTable.getStateSerializer();
 
-		Map<N, Map<K, S>> namespaceMap = stateTable.get(keyGroupIndex);
+		Map<N, Map<K, S>> namespaceMap = stateTable.getMapForKeyGroup(keyGroupIndex);
 		if (namespaceMap == null) {
 			outView.writeByte(0);
 		} else {
@@ -328,7 +326,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 				for (KeyedBackendSerializationProxy.StateMetaInfo<?, ?> metaInfoSerializationProxy : metaInfoList) {
 
-					StateTable<K, ?, ?> stateTable = stateTables.get(metaInfoSerializationProxy.getStateName());
+					NestedMapsStateTable<K, ?, ?> stateTable = stateTables.get(metaInfoSerializationProxy.getStateName());
 
 					//important: only create a new table we did not already create it previously
 					if (null == stateTable) {
@@ -336,7 +334,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 						RegisteredBackendStateMetaInfo<?, ?> registeredBackendStateMetaInfo =
 								new RegisteredBackendStateMetaInfo<>(metaInfoSerializationProxy);
 
-						stateTable = new StateTable<>(registeredBackendStateMetaInfo, keyGroupRange);
+						stateTable = new NestedMapsStateTable<>(this, registeredBackendStateMetaInfo);
 						stateTables.put(metaInfoSerializationProxy.getStateName(), stateTable);
 						kvStatesById.put(numRegisteredKvStates, metaInfoSerializationProxy.getStateName());
 						++numRegisteredKvStates;
@@ -359,7 +357,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 							continue;
 						}
 
-						StateTable<K, ?, ?> stateTable = stateTables.get(kvStatesById.get(kvStateId));
+						NestedMapsStateTable<K, ?, ?> stateTable = stateTables.get(kvStatesById.get(kvStateId));
 						Preconditions.checkNotNull(stateTable);
 
 						readStateTableForKeyGroup(inView, stateTable, keyGroupIndex);
@@ -374,14 +372,14 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 	private <N, S> void readStateTableForKeyGroup(
 			DataInputView inView,
-			StateTable<K, N, S> stateTable,
+			NestedMapsStateTable<K, N, S> stateTable,
 			int keyGroupIndex) throws IOException {
 
 		TypeSerializer<N> namespaceSerializer = stateTable.getNamespaceSerializer();
 		TypeSerializer<S> stateSerializer = stateTable.getStateSerializer();
 
 		Map<N, Map<K, S>> namespaceMap = new HashMap<>();
-		stateTable.set(keyGroupIndex, namespaceMap);
+		stateTable.setMapForKeyGroup(keyGroupIndex, namespaceMap);
 
 		int numNamespaces = inView.readInt();
 		for (int k = 0; k < numNamespaces; k++) {
@@ -462,7 +460,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 							namespaceSerializer,
 							stateSerializer);
 
-			StateTable<K, ?, ?> stateTable = new StateTable<>(registeredBackendStateMetaInfo, keyGroupRange);
+			NestedMapsStateTable<K, ?, ?> stateTable = new NestedMapsStateTable<>(this, registeredBackendStateMetaInfo);
 			stateTable.getState()[0] = rawResultMap;
 
 			// add named state to the backend
@@ -543,7 +541,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	@SuppressWarnings("unchecked")
 	public int numStateEntries() {
 		int sum = 0;
-		for (StateTable<K, ?, ?> stateTable : stateTables.values()) {
+		for (NestedMapsStateTable<K, ?, ?> stateTable : stateTables.values()) {
 			for (Map namespaceMap : stateTable.getState()) {
 				if (namespaceMap == null) {
 					continue;
@@ -564,7 +562,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	@SuppressWarnings("unchecked")
 	public <N> int numStateEntries(N namespace) {
 		int sum = 0;
-		for (StateTable<K, ?, ?> stateTable : stateTables.values()) {
+		for (NestedMapsStateTable<K, ?, ?> stateTable : stateTables.values()) {
 			for (Map namespaceMap : stateTable.getState()) {
 				if (namespaceMap == null) {
 					continue;

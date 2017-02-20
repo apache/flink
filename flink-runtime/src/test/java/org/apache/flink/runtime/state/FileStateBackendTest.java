@@ -25,6 +25,7 @@ import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -204,6 +205,7 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 		}
 	}
 
+	@Ignore
 	@Test
 	public void testConcurrentMapIfQueryable() throws Exception {
 		super.testConcurrentMapIfQueryable();

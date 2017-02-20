@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.api.common.ExecutionConfig;
-
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
@@ -29,7 +28,6 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.internal.InternalListState;
-
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -96,7 +94,7 @@ public class HeapListStateTest {
 
 			// make sure all lists / maps are cleared
 
-			StateTable<String, VoidNamespace, ArrayList<Long>> stateTable =
+			NestedMapsStateTable<String, VoidNamespace, ArrayList<Long>> stateTable =
 					((HeapListState<String, VoidNamespace, Long>) state).stateTable;
 
 			assertTrue(stateTable.isEmpty());
@@ -216,7 +214,7 @@ public class HeapListStateTest {
 			state.setCurrentNamespace(namespace1);
 			state.clear();
 
-			StateTable<String, Integer, ArrayList<Long>> stateTable = 
+			NestedMapsStateTable<String, Integer, ArrayList<Long>> stateTable =
 					((HeapListState<String, Integer, Long>) state).stateTable;
 
 			assertTrue(stateTable.isEmpty());
