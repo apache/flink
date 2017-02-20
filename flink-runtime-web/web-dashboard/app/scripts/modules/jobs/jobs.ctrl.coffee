@@ -324,7 +324,7 @@ angular.module('flinkApp')
 .controller 'JobPlanWatermarksController', ($scope, $q, MetricsService) ->
   $scope.watermarks = null
 
-  setWatermarks = (nodes)->
+  getWatermarks = (nodes)->
     deferred = $q.defer()
     watermarks = {}
     jid = $scope.job.jid
@@ -341,35 +341,14 @@ angular.module('flinkApp')
           deferred.resolve(watermarks)
     deferred.promise
 
-  $scope.lowWatermark = (nodeid, watermarks) ->
-    lowWatermark = "None"
-    if watermarks != null && watermarks[nodeid] && watermarks[nodeid].length
-      values = (watermark.value for watermark in watermarks[nodeid])
-      lowWatermark = Math.min.apply(null, values)
-      if lowWatermark <= -9223372036854776000
-        lowWatermark = "No Watermark"
-    return lowWatermark
-
-  $scope.getWatermarks = (nodeid, watermarks) ->
-    arr = []
-    if watermarks != null && watermarks[nodeid] && watermarks[nodeid].length
-      arr = watermarks[nodeid]
-    return arr
-
-  $scope.parseWatermarkValue = (value) ->
-    if value <= -9223372036854776000
-      return 'No Watermark'
-    else
-      return value
-
   $scope.$watch 'plan', (newPlan) ->
     if newPlan
-      setWatermarks(newPlan.nodes).then (data) ->
+      getWatermarks(newPlan.nodes).then (data) ->
         $scope.watermarks = data
 
   $scope.$on 'reload', (event) ->
     if $scope.plan
-      setWatermarks($scope.plan.nodes).then (data) ->
+      getWatermarks($scope.plan.nodes).then (data) ->
         $scope.watermarks = data
 
 # --------------------------------------
