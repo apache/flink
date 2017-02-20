@@ -33,8 +33,16 @@ angular.module('flinkApp')
                  </div>
                </div>
                <div class="panel-body">
-                  <svg />
+                  <svg ng-if="metric.view == \'chart\'"/>
+                  <div ng-if="metric.view != \'chart\'">
+                      <div class="metric-numeric" title="{{value | humanizeChartNumericTitle:metric}}">{{value | humanizeChartNumeric:metric}}</div>
+                  </div>
                </div>
+               <div class="buttons">
+                 <div class="btn-group">
+                   <button type="button" ng-class="[btnClasses, {active: metric.view == \'chart\'}]" ng-click="setView(\'chart\')">Chart</button>
+                   <button type="button" ng-class="[btnClasses, {active: metric.view != \'chart\'}]" ng-click="setView(\'numeric\')">Numeric</button>
+                 </div>
              </div>'
   replace: true
   scope:
@@ -42,6 +50,7 @@ angular.module('flinkApp')
     window: "="
     removeMetric: "&"
     setMetricSize: "="
+    setMetricView: "="
     getValues: "&"
 
   link: (scope, element, attrs) ->
@@ -106,10 +115,13 @@ angular.module('flinkApp')
     scope.setSize = (size) ->
       scope.setMetricSize(scope.metric, size)
 
-    scope.showChart()
+    scope.setView = (view) ->
+      scope.setMetricView(scope.metric, view)
+      scope.showChart() if view == 'chart'
+
+    scope.showChart() if scope.metric.view == 'chart'
 
     scope.$on 'metrics:data:update', (event, timestamp, data) ->
-#      scope.value = parseInt(data[scope.metric.id])
       scope.value = parseFloat(data[scope.metric.id])
 
       scope.data[0].values.push {
@@ -120,8 +132,8 @@ angular.module('flinkApp')
       if scope.data[0].values.length > scope.window
         scope.data[0].values.shift()
 
-      scope.showChart()
-      scope.chart.clearHighlights()
+      scope.showChart() if scope.metric.view == 'chart'
+      scope.chart.clearHighlights() if scope.metric.view == 'chart'
       scope.chart.tooltip.hidden(true)
 
     element.find(".metric-title").qtip({
