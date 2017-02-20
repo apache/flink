@@ -95,6 +95,7 @@ angular.module('flinkApp')
       $scope.nodeid = nodeid
       $scope.vertex = null
       $scope.subtasks = null
+      $scope.watermarks = null
       $scope.accumulators = null
       $scope.operatorCheckpointStats = null
 
@@ -106,6 +107,7 @@ angular.module('flinkApp')
       $scope.nodeUnfolded = false
       $scope.vertex = null
       $scope.subtasks = null
+      $scope.watermarks = null
       $scope.accumulators = null
       $scope.operatorCheckpointStats = null
 
@@ -114,6 +116,7 @@ angular.module('flinkApp')
     $scope.nodeUnfolded = false
     $scope.vertex = null
     $scope.subtasks = null
+    $scope.watermarks = null
     $scope.accumulators = null
     $scope.operatorCheckpointStats = null
 
