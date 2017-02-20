@@ -42,10 +42,12 @@ angular.module('flinkApp')
 
 # --------------------------------------
 
-.controller 'SingleJobController', ($scope, $state, $stateParams, JobsService, MetricsService, $rootScope, flinkConfig, $interval) ->
+.controller 'SingleJobController', ($scope, $state, $stateParams, JobsService, MetricsService, $rootScope, flinkConfig, $interval, $q) ->
   $scope.jobid = $stateParams.jobid
   $scope.job = null
   $scope.plan = null
+  $scope.watermarks = null
+  $scope.lowWatermarks = null
   $scope.vertices = null
   $scope.backPressureOperatorStats = {}
 
@@ -59,6 +61,8 @@ angular.module('flinkApp')
   $scope.$on '$destroy', ->
     $scope.job = null
     $scope.plan = null
+    $scope.watermarks = null
+    $scope.lowWatermarks = null
     $scope.vertices = null
     $scope.backPressureOperatorStats = null
 
@@ -81,7 +85,43 @@ angular.module('flinkApp')
       $scope.plan = data.plan
       MetricsService.setupMetrics($stateParams.jobid, data.vertices)
 
+  getWatermarks = (nodes)->
+    deferred = $q.defer()
+    watermarks = {}
+    jid = $scope.job.jid
+    angular.forEach nodes, (node, index) =>
+      metricIds = []
+      for num in [0..node.parallelism - 1]
+        metricIds.push(num + ".currentLowWatermark")
+      MetricsService.getMetrics(jid, node.id, metricIds).then (data) ->
+        values = []
+        for key, value of data.values
+          values.push(id: key.replace('.currentLowWatermark', ''), value: value)
+        watermarks[node.id] = values
+        if index >= $scope.plan.nodes.length - 1
+          deferred.resolve(watermarks)
+    deferred.promise
+
+  getLowWatermarks = (watermarks)->
+    lowWatermarks = []
+    for k,v of watermarks
+      minValue = Math.min.apply(null,(watermark.value for watermark in v))
+      lowWatermarks[k] = if minValue <= -9223372036854776000 || v.length == 0 then 'None' else minValue
+    return lowWatermarks
+
   loadJob()
+
+  $scope.$watch 'plan', (newPlan) ->
+    if newPlan
+      getWatermarks(newPlan.nodes).then (data) ->
+        $scope.watermarks = data
+        $scope.lowWatermarks = getLowWatermarks(data)
+
+  $scope.$on 'reload', (event) ->
+    if $scope.plan
+      getWatermarks($scope.plan.nodes).then (data) ->
+        $scope.watermarks = data
+        $scope.lowWatermarks = getLowWatermarks(data)
 
 # --------------------------------------
 
@@ -95,7 +135,6 @@ angular.module('flinkApp')
       $scope.nodeid = nodeid
       $scope.vertex = null
       $scope.subtasks = null
-      $scope.watermarks = null
       $scope.accumulators = null
       $scope.operatorCheckpointStats = null
 
@@ -107,7 +146,6 @@ angular.module('flinkApp')
       $scope.nodeUnfolded = false
       $scope.vertex = null
       $scope.subtasks = null
-      $scope.watermarks = null
       $scope.accumulators = null
       $scope.operatorCheckpointStats = null
 
@@ -116,7 +154,6 @@ angular.module('flinkApp')
     $scope.nodeUnfolded = false
     $scope.vertex = null
     $scope.subtasks = null
-    $scope.watermarks = null
     $scope.accumulators = null
     $scope.operatorCheckpointStats = null
 
@@ -324,34 +361,6 @@ angular.module('flinkApp')
 
 # --------------------------------------
 
-.controller 'JobPlanWatermarksController', ($scope, $q, MetricsService) ->
-  $scope.watermarks = null
-
-  getWatermarks = (nodes)->
-    deferred = $q.defer()
-    watermarks = {}
-    jid = $scope.job.jid
-    angular.forEach nodes, (node, index) =>
-      metricIds = []
-      for num in [0..node.parallelism - 1]
-        metricIds.push(num + ".currentLowWatermark")
-      MetricsService.getMetrics(jid, node.id, metricIds).then (data) ->
-        values = []
-        for key, value of data.values
-          values.push(id: key.replace('.currentLowWatermark', ''), value: value)
-        watermarks[node.id] = values
-        if index >= $scope.plan.nodes.length - 1
-          deferred.resolve(watermarks)
-    deferred.promise
-
-  $scope.$watch 'plan', (newPlan) ->
-    if newPlan
-      getWatermarks(newPlan.nodes).then (data) ->
-        $scope.watermarks = data
-
-  $scope.$on 'reload', (event) ->
-    if $scope.plan
-      getWatermarks($scope.plan.nodes).then (data) ->
-        $scope.watermarks = data
+.controller 'JobPlanWatermarksController', ($scope) ->
 
 # --------------------------------------
