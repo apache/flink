@@ -23,6 +23,8 @@ import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
+import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
+import org.apache.flink.runtime.webmonitor.history.Archiver;
 import org.apache.flink.util.ExceptionUtils;
 
 import java.io.IOException;
@@ -50,6 +52,17 @@ public class JobExceptionsHandler extends AbstractExecutionGraphRequestHandler {
 	@Override
 	public String handleRequest(AccessExecutionGraph graph, Map<String, String> params) throws Exception {
 		return createJobExceptionsJson(graph);
+	}
+
+	public static class JobExceptionsArchiver implements Archiver {
+
+		@Override
+		public ArchivedJson[] archiveJsonWithPath(AccessExecutionGraph graph) throws IOException {
+			String json = createJobExceptionsJson(graph);
+			String path = JOB_EXCEPTIONS_REST_PATH
+				.replace(":jobid", graph.getJobID().toString());
+			return new ArchivedJson[]{new ArchivedJson(path, json)};
+		}
 	}
 
 	public static String createJobExceptionsJson(AccessExecutionGraph graph) throws IOException {

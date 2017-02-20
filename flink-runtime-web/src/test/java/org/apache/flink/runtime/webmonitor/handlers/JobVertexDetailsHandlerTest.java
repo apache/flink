@@ -20,14 +20,34 @@ package org.apache.flink.runtime.webmonitor.handlers;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
+import org.apache.flink.runtime.webmonitor.history.Archiver;
 import org.apache.flink.runtime.webmonitor.utils.ArchivedJobGenerationUtils;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.IOException;
+
 public class JobVertexDetailsHandlerTest {
+
+	@Test
+	public void testArchiver() throws Exception {
+		Archiver archiver = new JobVertexDetailsHandler.JobVertexDetailsArchiver();
+		AccessExecutionGraph originalJob = ArchivedJobGenerationUtils.getTestJob();
+		AccessExecutionJobVertex originalTask = ArchivedJobGenerationUtils.getTestTask();
+
+		ArchivedJson[] archives = archiver.archiveJsonWithPath(originalJob);
+		Assert.assertEquals(1, archives.length);
+
+		ArchivedJson archive = archives[0];
+		Assert.assertEquals("/jobs/" + originalJob.getJobID() + "/vertices/" + originalTask.getJobVertexId(), archive.path);
+		compareVertexDetails(originalTask, archive.json);
+	}
+
 	@Test
 	public void testGetPaths() {
 		JobVertexDetailsHandler handler = new JobVertexDetailsHandler(null, null);
@@ -42,6 +62,10 @@ public class JobVertexDetailsHandlerTest {
 		String json = JobVertexDetailsHandler.createVertexDetailsJson(
 			originalTask, ArchivedJobGenerationUtils.getTestJob().getJobID().toString(), null);
 
+		compareVertexDetails(originalTask, json);
+	}
+
+	private static void compareVertexDetails(AccessExecutionJobVertex originalTask, String json) throws IOException {
 		JsonNode result = ArchivedJobGenerationUtils.mapper.readTree(json);
 
 		Assert.assertEquals(originalTask.getJobVertexId().toString(), result.get("id").asText());

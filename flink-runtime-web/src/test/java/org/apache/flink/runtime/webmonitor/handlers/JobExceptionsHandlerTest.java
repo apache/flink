@@ -22,12 +22,30 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
+import org.apache.flink.runtime.webmonitor.history.Archiver;
 import org.apache.flink.runtime.webmonitor.utils.ArchivedJobGenerationUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.IOException;
+
 public class JobExceptionsHandlerTest {
+
+	@Test
+	public void testArchiver() throws Exception {
+		Archiver archiver = new JobExceptionsHandler.JobExceptionsArchiver();
+		AccessExecutionGraph originalJob = ArchivedJobGenerationUtils.getTestJob();
+
+		ArchivedJson[] archives = archiver.archiveJsonWithPath(originalJob);
+		Assert.assertEquals(1, archives.length);
+
+		ArchivedJson archive = archives[0];
+		Assert.assertEquals("/jobs/" + originalJob.getJobID() + "/exceptions", archive.path);
+		compareExceptions(originalJob, archive.json);
+	}
+
 	@Test
 	public void testGetPaths() {
 		JobExceptionsHandler handler = new JobExceptionsHandler(null);
@@ -41,6 +59,10 @@ public class JobExceptionsHandlerTest {
 		AccessExecutionGraph originalJob = ArchivedJobGenerationUtils.getTestJob();
 		String json = JobExceptionsHandler.createJobExceptionsJson(originalJob);
 
+		compareExceptions(originalJob, json);
+	}
+
+	private static void compareExceptions(AccessExecutionGraph originalJob, String json) throws IOException {
 		JsonNode result = ArchivedJobGenerationUtils.mapper.readTree(json);
 
 		Assert.assertEquals(originalJob.getFailureCauseAsString(), result.get("root-exception").asText());

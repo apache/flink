@@ -27,6 +27,8 @@ import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
+import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
+import org.apache.flink.runtime.webmonitor.history.Archiver;
 import org.apache.flink.runtime.webmonitor.metrics.MetricFetcher;
 import org.apache.flink.runtime.webmonitor.utils.MutableIOMetrics;
 
@@ -65,6 +67,19 @@ public class JobDetailsHandler extends AbstractExecutionGraphRequestHandler {
 	@Override
 	public String handleRequest(AccessExecutionGraph graph, Map<String, String> params) throws Exception {
 		return createJobDetailsJson(graph, fetcher);
+	}
+
+	public static class JobDetailsArchiver implements Archiver {
+
+		@Override
+		public ArchivedJson[] archiveJsonWithPath(AccessExecutionGraph graph) throws IOException {
+			String json = createJobDetailsJson(graph, null);
+			String path1 = JOB_DETAILS_REST_PATH
+				.replace(":jobid", graph.getJobID().toString());
+			String path2 = JOB_DETAILS_VERTICES_REST_PATH
+				.replace(":jobid", graph.getJobID().toString());
+			return new ArchivedJson[]{new ArchivedJson(path1, json), new ArchivedJson(path2, json)};
+		}
 	}
 
 	public static String createJobDetailsJson(AccessExecutionGraph graph, @Nullable MetricFetcher fetcher) throws IOException {

@@ -20,11 +20,39 @@ package org.apache.flink.runtime.webmonitor.handlers;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import org.apache.flink.runtime.executiongraph.AccessExecution;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
+import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
+import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
+import org.apache.flink.runtime.webmonitor.history.Archiver;
 import org.apache.flink.runtime.webmonitor.utils.ArchivedJobGenerationUtils;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.IOException;
+
 public class SubtaskExecutionAttemptAccumulatorsHandlerTest {
+
+	@Test
+	public void testArchiver() throws Exception {
+		Archiver archiver = new SubtaskExecutionAttemptAccumulatorsHandler.SubtaskExecutionAttemptAccumulatorsArchiver();
+		AccessExecutionGraph originalJob = ArchivedJobGenerationUtils.getTestJob();
+		AccessExecutionJobVertex originalTask = ArchivedJobGenerationUtils.getTestTask();
+		AccessExecution originalAttempt = ArchivedJobGenerationUtils.getTestAttempt();
+
+		ArchivedJson[] archives = archiver.archiveJsonWithPath(originalJob);
+		Assert.assertEquals(1, archives.length);
+
+		ArchivedJson archive = archives[0];
+		Assert.assertEquals(
+			"/jobs/" + originalJob.getJobID() +
+			"/vertices/" + originalTask.getJobVertexId() +
+			"/subtasks/" + originalAttempt.getParallelSubtaskIndex() +
+			"/attempts/" + originalAttempt.getAttemptNumber() + 
+			"/accumulators",
+			archive.path);
+		compareAttemptAccumulators(originalAttempt, archive.json);
+	}
+
 	@Test
 	public void testGetPaths() {
 		SubtaskExecutionAttemptAccumulatorsHandler handler = new SubtaskExecutionAttemptAccumulatorsHandler(null);
@@ -38,6 +66,10 @@ public class SubtaskExecutionAttemptAccumulatorsHandlerTest {
 		AccessExecution originalAttempt = ArchivedJobGenerationUtils.getTestAttempt();
 		String json = SubtaskExecutionAttemptAccumulatorsHandler.createAttemptAccumulatorsJson(originalAttempt);
 
+		compareAttemptAccumulators(originalAttempt, json);
+	}
+
+	private static void compareAttemptAccumulators(AccessExecution originalAttempt, String json) throws IOException {
 		JsonNode result = ArchivedJobGenerationUtils.mapper.readTree(json);
 
 		Assert.assertEquals(originalAttempt.getParallelSubtaskIndex(), result.get("subtask").asInt());

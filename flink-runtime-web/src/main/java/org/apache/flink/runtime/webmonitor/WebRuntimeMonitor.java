@@ -77,6 +77,7 @@ import org.apache.flink.runtime.webmonitor.handlers.checkpoints.CheckpointStatsC
 import org.apache.flink.runtime.webmonitor.handlers.checkpoints.CheckpointStatsDetailsHandler;
 import org.apache.flink.runtime.webmonitor.handlers.checkpoints.CheckpointStatsHandler;
 import org.apache.flink.runtime.webmonitor.handlers.checkpoints.CheckpointStatsDetailsSubtasksHandler;
+import org.apache.flink.runtime.webmonitor.history.Archiver;
 import org.apache.flink.runtime.webmonitor.metrics.JobManagerMetricsHandler;
 import org.apache.flink.runtime.webmonitor.metrics.JobMetricsHandler;
 import org.apache.flink.runtime.webmonitor.metrics.JobVertexMetricsHandler;
@@ -422,6 +423,33 @@ public class WebRuntimeMonitor implements WebMonitor {
 		int port = bindAddress.getPort();
 
 		LOG.info("Web frontend listening at " + address + ':' + port);
+	}
+
+	public static Archiver[] getArchivers() {
+		Archiver[] archivers = new Archiver[]{
+			new CurrentJobsOverviewHandler.CurrentJobsOverviewArchiver(),
+
+			new JobPlanHandler.JobPlanArchiver(),
+			new JobConfigHandler.JobConfigArchiver(),
+			new JobExceptionsHandler.JobExceptionsArchiver(),
+			new JobDetailsHandler.JobDetailsArchiver(),
+			new JobAccumulatorsHandler.JobAccumulatorsArchiver(),
+
+			new CheckpointStatsHandler.CheckpointStatsArchiver(),
+			new CheckpointConfigHandler.CheckpointConfigArchiver(),
+			new CheckpointStatsDetailsHandler.CheckpointStatsDetailsArchiver(),
+			new CheckpointStatsDetailsSubtasksHandler.CheckpointStatsDetailsSubtasksArchiver(),
+				
+			new JobVertexDetailsHandler.JobVertexDetailsArchiver(),
+			new SubtasksTimesHandler.SubtasksTimesArchiver(),
+			new JobVertexTaskManagersHandler.JobVertexTaskManagersArchiver(),
+			new JobVertexAccumulatorsHandler.JobVertexAccumulatorsArchiver(),
+			new SubtasksAllAccumulatorsHandler.SubtasksAllAccumulatorsArchiver(),
+			
+			new SubtaskExecutionAttemptDetailsHandler.SubtaskExecutionAttemptDetailsArchiver(),
+			new SubtaskExecutionAttemptAccumulatorsHandler.SubtaskExecutionAttemptAccumulatorsArchiver()
+			};
+		return archivers;
 	}
 
 	@Override

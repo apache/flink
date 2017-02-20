@@ -21,13 +21,18 @@ package org.apache.flink.runtime.webmonitor.handlers;
 import com.fasterxml.jackson.core.JsonGenerator;
 
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
+import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
+import org.apache.flink.runtime.webmonitor.history.Archiver;
 
 import java.io.IOException;
 import java.io.StringWriter;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -49,6 +54,22 @@ public class SubtasksAllAccumulatorsHandler extends AbstractJobVertexRequestHand
 	@Override
 	public String handleRequest(AccessExecutionJobVertex jobVertex, Map<String, String> params) throws Exception {
 		return createSubtasksAccumulatorsJson(jobVertex);
+	}
+
+	public static class SubtasksAllAccumulatorsArchiver implements Archiver {
+
+		@Override
+		public ArchivedJson[] archiveJsonWithPath(AccessExecutionGraph graph) throws IOException {
+			List<ArchivedJson> archive = new ArrayList<>();
+			for (AccessExecutionJobVertex task : graph.getAllVertices().values()) {
+				String json = createSubtasksAccumulatorsJson(task);
+				String path = SUBTASKS_ALL_ACCUMULATORS_REST_PATH
+					.replace(":jobid", graph.getJobID().toString())
+					.replace(":vertexid", task.getJobVertexId().toString());
+				archive.add(new ArchivedJson(path, json));
+			}
+			return archive.toArray(new ArchivedJson[archive.size()]);
+		}
 	}
 
 	public static String createSubtasksAccumulatorsJson(AccessExecutionJobVertex jobVertex) throws IOException {

@@ -105,7 +105,7 @@ public class ArchivedJobGenerationUtils {
 		originalAttempt = new ArchivedExecutionBuilder()
 			.setStateTimestamps(new long[]{1, 2, 3, 4, 5, 6, 7, 8, 9})
 			.setParallelSubtaskIndex(1)
-			.setAttemptNumber(3)
+			.setAttemptNumber(0)
 			.setAssignedResourceLocation(location)
 			.setUserAccumulators(new StringifiedAccumulatorResult[]{acc1, acc2})
 			.setState(ExecutionState.FINISHED)

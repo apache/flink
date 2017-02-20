@@ -20,13 +20,30 @@ package org.apache.flink.runtime.webmonitor.handlers;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.api.common.ArchivedExecutionConfig;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
+import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
+import org.apache.flink.runtime.webmonitor.history.Archiver;
 import org.apache.flink.runtime.webmonitor.utils.ArchivedJobGenerationUtils;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.util.Map;
 
 public class JobConfigHandlerTest {
+
+	@Test
+	public void testArchiver() throws Exception {
+		Archiver archiver = new JobConfigHandler.JobConfigArchiver();
+		AccessExecutionGraph originalJob = ArchivedJobGenerationUtils.getTestJob();
+
+		ArchivedJson[] archives = archiver.archiveJsonWithPath(originalJob);
+		Assert.assertEquals(1, archives.length);
+
+		ArchivedJson archive = archives[0];
+		Assert.assertEquals("/jobs/" + originalJob.getJobID() + "/config", archive.path);
+		compareJobConfig(originalJob, archive.json);
+	}
+
 	@Test
 	public void testGetPaths() {
 		JobConfigHandler handler = new JobConfigHandler(null);
@@ -38,7 +55,10 @@ public class JobConfigHandlerTest {
 	public void testJsonGeneration() throws Exception {
 		AccessExecutionGraph originalJob = ArchivedJobGenerationUtils.getTestJob();
 		String answer = JobConfigHandler.createJobConfigJson(originalJob);
+		compareJobConfig(originalJob, answer);
+	}
 
+	private static void compareJobConfig(AccessExecutionGraph originalJob, String answer) throws IOException {
 		JsonNode job = ArchivedJobGenerationUtils.mapper.readTree(answer);
 
 		Assert.assertEquals(originalJob.getJobID().toString(), job.get("jid").asText());
