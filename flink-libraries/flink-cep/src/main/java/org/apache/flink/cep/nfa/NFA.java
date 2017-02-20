@@ -119,6 +119,8 @@ public class NFA<T> implements Serializable {
 	 */
 	private transient Queue<ComputationState<T>> computationStates;
 
+	private StateTransitionComparator<T>  stateTransitionComparator;
+
 	public NFA(
 			final TypeSerializer<T> eventSerializer,
 			final long windowTime,
@@ -131,6 +133,7 @@ public class NFA<T> implements Serializable {
 		this.computationStates = new LinkedList<>();
 		this.states = new HashSet<>();
 		this.startEventCounter = 1;
+		this.stateTransitionComparator =  new StateTransitionComparator<>();
 	}
 
 	public Set<State<T>> getStates() {
@@ -262,22 +265,6 @@ public class NFA<T> implements Serializable {
 	}
 
 	/**
-	 * Comparator used for imposing the assumption that IGNORE is always the last StateTransition in a state.
-	 */
-	private interface StateTransitionComparator<T> extends Comparator<StateTransition<T>>, Serializable {}
-	private final Comparator<StateTransition<T>> stateTransitionComparator = new StateTransitionComparator<T>() {
-		private static final long serialVersionUID = -2775474935413622278L;
-
-		@Override
-		public int compare(final StateTransition<T> o1, final StateTransition<T> o2) {
-			if (o1.getAction() == o2.getAction()) {
-				return 0;
-			}
-			return o1.getAction() == StateTransitionAction.IGNORE ? 1 : -1;
-		}
-	};
-
-	/**
 	 * Computes the next computation states based on the given computation state, the current event,
 	 * its timestamp and the internal state machine.
 	 *
@@ -300,6 +287,13 @@ public class NFA<T> implements Serializable {
 		while (!states.isEmpty()) {
 			State<T> currentState = states.pop();
 			final List<StateTransition<T>> stateTransitions = new ArrayList<>(currentState.getStateTransitions());
+
+			// this is for when we restore from legacy. In that case, the comparator is null
+			// as it did not exist in the previous Flink versions, so we have to initialize it here.
+
+			if (stateTransitionComparator == null) {
+				stateTransitionComparator = new StateTransitionComparator();
+			}
 
 			// impose the IGNORE will be processed last
 			Collections.sort(stateTransitions, stateTransitionComparator);
@@ -601,10 +595,7 @@ public class NFA<T> implements Serializable {
 			ObjectInputStream ois = new ObjectInputStream(new DataInputViewStream(source));
 
 			try {
-				@SuppressWarnings("unchecked")
-				NFA<T> nfa = null;
-				nfa = (NFA<T>) ois.readObject();
-				return nfa;
+				return (NFA<T>) ois.readObject();
 			} catch (ClassNotFoundException e) {
 				throw new RuntimeException("Could not deserialize NFA.", e);
 			}
@@ -635,6 +626,22 @@ public class NFA<T> implements Serializable {
 		@Override
 		public int hashCode() {
 			return getClass().hashCode();
+		}
+	}
+
+	/**
+	 * Comparator used for imposing the assumption that IGNORE is always the last StateTransition in a state.
+	 */
+	private static final class StateTransitionComparator<T> implements Serializable, Comparator<StateTransition<T>> {
+
+		private static final long serialVersionUID = -2775474935413622278L;
+
+		@Override
+		public int compare(final StateTransition<T> o1, final StateTransition<T> o2) {
+			if (o1.getAction() == o2.getAction()) {
+				return 0;
+			}
+			return o1.getAction() == StateTransitionAction.IGNORE ? 1 : -1;
 		}
 	}
 }

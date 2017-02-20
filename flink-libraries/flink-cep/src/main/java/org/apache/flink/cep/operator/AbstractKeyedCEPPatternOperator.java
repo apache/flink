@@ -25,19 +25,25 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
+import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.runtime.state.StateInitializationContext;
+import org.apache.flink.migration.streaming.runtime.streamrecord.MultiplexingStreamRecordSerializer;
 import org.apache.flink.streaming.api.operators.InternalWatermarkCallbackService;
+import org.apache.flink.runtime.state.StateInitializationContext;
+import org.apache.flink.streaming.api.operators.CheckpointedRestoringOperator;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OnWatermarkCallback;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.util.Objects;
 import java.util.PriorityQueue;
@@ -55,7 +61,7 @@ import java.util.PriorityQueue;
  */
 public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 	extends AbstractStreamOperator<OUT>
-	implements OneInputStreamOperator<IN, OUT> {
+	implements OneInputStreamOperator<IN, OUT>, CheckpointedRestoringOperator {
 
 	private static final long serialVersionUID = -4166778210774160757L;
 
@@ -82,18 +88,26 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 	private final PriorityQueueFactory<StreamRecord<IN>> priorityQueueFactory = new PriorityQueueStreamRecordFactory<>();
 	private final NFACompiler.NFAFactory<IN> nfaFactory;
 
+	/**
+	 * A flag used in the case of migration that indicates if
+	 * we are restoring from an old keyed or non-keyed operator.
+	 */
+	private final boolean migratingFromOldKeyedOperator;
+
 	public AbstractKeyedCEPPatternOperator(
 			final TypeSerializer<IN> inputSerializer,
 			final boolean isProcessingTime,
 			final KeySelector<IN, KEY> keySelector,
 			final TypeSerializer<KEY> keySerializer,
-			final NFACompiler.NFAFactory<IN> nfaFactory) {
+			final NFACompiler.NFAFactory<IN> nfaFactory,
+			final boolean migratingFromOldKeyedOperator) {
 
 		this.inputSerializer = Preconditions.checkNotNull(inputSerializer);
 		this.isProcessingTime = Preconditions.checkNotNull(isProcessingTime);
 		this.keySelector = Preconditions.checkNotNull(keySelector);
 		this.keySerializer = Preconditions.checkNotNull(keySerializer);
 		this.nfaFactory = Preconditions.checkNotNull(nfaFactory);
+		this.migratingFromOldKeyedOperator = migratingFromOldKeyedOperator;
 	}
 
 	public TypeSerializer<IN> getInputSerializer() {
@@ -103,15 +117,6 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 	@Override
 	public void initializeState(StateInitializationContext context) throws Exception {
 		super.initializeState(context);
-
-		// we have to call initializeState here and in the migration restore()
-		// method because the restore() (from legacy) is called before the
-		// initializeState().
-
-		initializeState();
-	}
-
-	private void initializeState() {
 
 		if (nfaOperatorState == null) {
 			nfaOperatorState = getRuntimeContext().getState(
@@ -252,6 +257,57 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 	 */
 	protected abstract void advanceTime(NFA<IN> nfa, long timestamp);
 
+	//////////////////////			Backwards Compatibility			//////////////////////
+
+	@Override
+	public void restoreState(FSDataInputStream in) throws Exception {
+		// this is the flag indicating if we have udf
+		// state to restore (not needed here)
+		in.read();
+
+		DataInputViewStreamWrapper inputView = new DataInputViewStreamWrapper(in);
+		InternalWatermarkCallbackService<KEY> watermarkCallbackService = getInternalWatermarkCallbackService();
+
+		if (migratingFromOldKeyedOperator) {
+			int numberEntries = inputView.readInt();
+			for (int i = 0; i <numberEntries; i++) {
+				watermarkCallbackService.registerKeyForWatermarkCallback(keySerializer.deserialize(inputView));
+			}
+		} else {
+
+			final ObjectInputStream ois = new ObjectInputStream(in);
+
+			// retrieve the NFA
+			@SuppressWarnings("unchecked")
+			NFA<IN> nfa = (NFA<IN>) ois.readObject();
+
+			// retrieve the elements that were pending in the priority queue
+			MultiplexingStreamRecordSerializer<IN> recordSerializer = new MultiplexingStreamRecordSerializer<>(inputSerializer);
+			PriorityQueue<StreamRecord<IN>> priorityQueue = priorityQueueFactory.createPriorityQueue();
+			int entries = ois.readInt();
+			for (int i = 0; i < entries; i++) {
+				StreamElement streamElement = recordSerializer.deserialize(inputView);
+				priorityQueue.offer(streamElement.<IN>asRecord());
+			}
+
+			// finally register the retrieved state with the new keyed state.
+			setCurrentKey((byte) 0);
+			nfaOperatorState.update(nfa);
+			priorityQueueOperatorState.update(priorityQueue);
+
+			if (!isProcessingTime) {
+				// this is relevant only for event/ingestion time
+
+				// need to work around type restrictions
+				InternalWatermarkCallbackService rawWatermarkCallbackService =
+					(InternalWatermarkCallbackService) watermarkCallbackService;
+
+				rawWatermarkCallbackService.registerKeyForWatermarkCallback((byte) 0);
+			}
+			ois.close();
+		}
+	}
+
 	//////////////////////			Utility Classes			//////////////////////
 
 	/**
@@ -345,6 +401,11 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 		@Override
 		public void copy(DataInputView source, DataOutputView target) throws IOException {
 
+		}
+
+		@Override
+		public boolean isCompatibleWith(TypeSerializer<?> other) {
+			return equals(other) || other instanceof AbstractKeyedCEPPatternOperator.PriorityQueueSerializer;
 		}
 
 		@Override
