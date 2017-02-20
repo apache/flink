@@ -176,7 +176,16 @@ public class ExecutionGraphBuilder {
 			CompletedCheckpointStore completedCheckpoints;
 			CheckpointIDCounter checkpointIdCounter;
 			try {
-				completedCheckpoints = recoveryFactory.createCheckpointStore(jobId, classLoader);
+				int maxNumberOfCheckpointsToRetain = jobManagerConfig.getInteger(
+					ConfigConstants.MAX_RETAINED_CHECKPOINTS,
+					CheckpointRecoveryFactory.NUMBER_OF_SUCCESSFUL_CHECKPOINTS_TO_RETAIN);
+				if (maxNumberOfCheckpointsToRetain <= 0) {
+					// warning and use 1 as the default value if the setting in state.checkpoints.max-retained-checkpoints is not greater than 0.
+					log.warn("The setting for max-retained-checkpoints is not a positive number. Change the setting with default value.");
+					maxNumberOfCheckpointsToRetain = CheckpointRecoveryFactory.NUMBER_OF_SUCCESSFUL_CHECKPOINTS_TO_RETAIN;
+				}
+
+				completedCheckpoints = recoveryFactory.createCheckpointStore(jobId, maxNumberOfCheckpointsToRetain, classLoader);
 				checkpointIdCounter = recoveryFactory.createCheckpointIDCounter(jobId);
 			}
 			catch (Exception e) {
