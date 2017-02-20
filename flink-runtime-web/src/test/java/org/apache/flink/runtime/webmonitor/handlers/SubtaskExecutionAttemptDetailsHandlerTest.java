@@ -22,11 +22,47 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecution;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
+import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
+import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.runtime.webmonitor.utils.ArchivedJobGenerationUtils;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.IOException;
+import java.util.Collection;
+import java.util.Iterator;
+
 public class SubtaskExecutionAttemptDetailsHandlerTest {
+
+	@Test
+	public void testArchiver() throws Exception {
+		JsonArchivist archivist = new SubtaskExecutionAttemptDetailsHandler.SubtaskExecutionAttemptDetailsJsonArchivist();
+		AccessExecutionGraph originalJob = ArchivedJobGenerationUtils.getTestJob();
+		AccessExecutionJobVertex originalTask = ArchivedJobGenerationUtils.getTestTask();
+		AccessExecution originalAttempt = ArchivedJobGenerationUtils.getTestAttempt();
+
+		Collection<ArchivedJson> archives = archivist.archiveJsonWithPath(originalJob);
+		Assert.assertEquals(2, archives.size());
+
+		Iterator<ArchivedJson> iterator = archives.iterator();
+		ArchivedJson archive1 = iterator.next();
+		Assert.assertEquals(
+			"/jobs/" + originalJob.getJobID() +
+				"/vertices/" + originalTask.getJobVertexId() +
+				"/subtasks/" + originalAttempt.getParallelSubtaskIndex(),
+			archive1.getPath());
+		compareAttemptDetails(originalAttempt, archive1.getJson());
+
+		ArchivedJson archive2 = iterator.next();
+		Assert.assertEquals(
+			"/jobs/" + originalJob.getJobID() +
+				"/vertices/" + originalTask.getJobVertexId() +
+				"/subtasks/" + originalAttempt.getParallelSubtaskIndex() +
+				"/attempts/" + originalAttempt.getAttemptNumber(),
+			archive2.getPath());
+		compareAttemptDetails(originalAttempt, archive2.getJson());
+	}
+
 	@Test
 	public void testGetPaths() {
 		SubtaskExecutionAttemptDetailsHandler handler = new SubtaskExecutionAttemptDetailsHandler(null, null);
@@ -43,6 +79,10 @@ public class SubtaskExecutionAttemptDetailsHandlerTest {
 		String json = SubtaskExecutionAttemptDetailsHandler.createAttemptDetailsJson(
 			originalAttempt, originalJob.getJobID().toString(), originalTask.getJobVertexId().toString(), null);
 
+		compareAttemptDetails(originalAttempt, json);
+	}
+	
+	private static void compareAttemptDetails(AccessExecution originalAttempt, String json) throws IOException {
 		JsonNode result = ArchivedJobGenerationUtils.mapper.readTree(json);
 
 		Assert.assertEquals(originalAttempt.getParallelSubtaskIndex(), result.get("subtask").asInt());

@@ -17,10 +17,30 @@
  */
 package org.apache.flink.runtime.webmonitor.handlers;
 
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
+import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
+import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
+import org.apache.flink.runtime.webmonitor.utils.ArchivedJobGenerationUtils;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.Collection;
+
 public class JobPlanHandlerTest {
+
+	@Test
+	public void testArchiver() throws Exception {
+		JsonArchivist archivist = new JobPlanHandler.JobPlanJsonArchivist();
+		AccessExecutionGraph originalJob = ArchivedJobGenerationUtils.getTestJob();
+
+		Collection<ArchivedJson> archives = archivist.archiveJsonWithPath(originalJob);
+		Assert.assertEquals(1, archives.size());
+
+		ArchivedJson archive = archives.iterator().next();
+		Assert.assertEquals("/jobs/" + originalJob.getJobID() + "/plan", archive.getPath());
+		Assert.assertEquals(originalJob.getJsonPlan(), archive.getJson());
+	}
+
 	@Test
 	public void testGetPaths() {
 		JobPlanHandler handler = new JobPlanHandler(null);
