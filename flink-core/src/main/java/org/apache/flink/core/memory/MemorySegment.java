@@ -1290,4 +1290,13 @@ public abstract class MemorySegment {
 					String.format("offset1=%d, offset2=%d, len=%d, bufferSize=%d, address1=%d, address2=%d",
 							offset1, offset2, len, tempBuffer.length, this.address, seg2.address));
 	}
+
+	public final byte getByte(int index){
+		return get(index);
+	}
+
+	public final void putByte(int index, byte b){
+		put(index,b);
+	}
+
 }
