@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.connectors.elasticsearch;
 
-import org.apache.flink.streaming.connectors.elasticsearch.util.NoOpActionRequestFailureHandler;
+import org.apache.flink.streaming.connectors.elasticsearch.util.NoOpFailureHandler;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.bulk.BulkProcessor;
 import org.elasticsearch.action.index.IndexRequest;
@@ -106,7 +106,7 @@ public class ElasticsearchSink<T> extends ElasticsearchSinkBase<T> {
 	 * @param elasticsearchSinkFunction This is used to generate multiple {@link ActionRequest} from the incoming element
 	 */
 	public ElasticsearchSink(Map<String, String> userConfig, ElasticsearchSinkFunction<T> elasticsearchSinkFunction) {
-		this(userConfig, elasticsearchSinkFunction, new NoOpActionRequestFailureHandler());
+		this(userConfig, elasticsearchSinkFunction, new NoOpFailureHandler());
 	}
 
 	/**
@@ -117,7 +117,7 @@ public class ElasticsearchSink<T> extends ElasticsearchSinkBase<T> {
 	 * @param elasticsearchSinkFunction This is used to generate multiple {@link ActionRequest} from the incoming element
 	 */
 	public ElasticsearchSink(Map<String, String> userConfig, List<TransportAddress> transportAddresses, ElasticsearchSinkFunction<T> elasticsearchSinkFunction) {
-		this(userConfig, transportAddresses, elasticsearchSinkFunction, new NoOpActionRequestFailureHandler());
+		this(userConfig, transportAddresses, elasticsearchSinkFunction, new NoOpFailureHandler());
 	}
 
 	/**

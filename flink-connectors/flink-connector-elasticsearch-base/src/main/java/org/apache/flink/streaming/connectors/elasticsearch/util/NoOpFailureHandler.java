@@ -24,14 +24,14 @@ import org.elasticsearch.action.ActionRequest;
 /**
  * An {@link ActionRequestFailureHandler} that simply fails the sink on any failures.
  */
-public class NoOpActionRequestFailureHandler implements ActionRequestFailureHandler {
+public class NoOpFailureHandler implements ActionRequestFailureHandler {
 
 	private static final long serialVersionUID = 737941343410827885L;
 
 	@Override
-	public boolean onFailure(ActionRequest action, Throwable failure, RequestIndexer indexer) {
+	public void onFailure(ActionRequest action, Throwable failure, int restStatusCode, RequestIndexer indexer) throws Throwable {
 		// simply fail the sink
-		return true;
+		throw failure;
 	}
 
 }

@@ -23,7 +23,7 @@ import java.io.Serializable;
 
 /**
  * An implementation of {@link ActionRequestFailureHandler} is provided by the user to define how failed
- * {@link ActionRequest ActionRequests} should be handled, ex. dropping them, reprocessing malformed documents, or
+ * {@link ActionRequest ActionRequests} should be handled, e.g. dropping them, reprocessing malformed documents, or
  * simply requesting them to be sent to Elasticsearch again if the failure is only temporary.
  *
  * <p>
@@ -34,19 +34,16 @@ import java.io.Serializable;
  *	private static class ExampleActionRequestFailureHandler implements ActionRequestFailureHandler {
  *
  *		@Override
- *		boolean onFailure(ActionRequest action, Throwable failure, RequestIndexer indexer) {
- *			// this example uses Apache Commons to search for nested exceptions
- *
- *			if (ExceptionUtils.indexOfThrowable(failure, EsRejectedExecutionException.class) >= 0) {
+ *		void onFailure(ActionRequest action, Throwable failure, int restStatusCode, RequestIndexer indexer) throws Throwable {
+ *			if (ExceptionUtils.containsThrowable(failure, EsRejectedExecutionException.class)) {
  *				// full queue; re-add document for indexing
  *				indexer.add(action);
- *				return false;
- *			} else if (ExceptionUtils.indexOfThrowable(failure, ElasticsearchParseException.class) {
+ *			} else if (ExceptionUtils.containsThrowable(failure, ElasticsearchParseException.class)) {
  *				// malformed document; simply drop request without failing sink
- *				return false;
  *			} else {
- *				// for all other failures, fail the sink
- *				return true;
+ *				// for all other failures, fail the sink;
+ *				// here the failure is simply rethrown, but users can also choose to throw custom exceptions
+ *				throw failure;
  *			}
  *		}
  *	}
@@ -56,6 +53,11 @@ import java.io.Serializable;
  * <p>
  * The above example will let the sink re-add requests that failed due to queue capacity saturation and drop requests
  * with malformed documents, without failing the sink. For all other failures, the sink will fail.
+ *
+ * <p>
+ * Note: For Elasticsearch 1.x, it is not feasible to match the type of the failure because the exact type
+ * could not be retrieved through the older version Java client APIs (thus, the types will be general {@link Exception}s
+ * and only differ in the failure message). In this case, it is recommended to match on the provided REST status code.
  */
 public interface ActionRequestFailureHandler extends Serializable {
 
@@ -64,9 +66,12 @@ public interface ActionRequestFailureHandler extends Serializable {
 	 *
 	 * @param action the {@link ActionRequest} that failed due to the failure
 	 * @param failure the cause of failure
+	 * @param restStatusCode the REST status code of the failure (-1 if none can be retrieved)
 	 * @param indexer request indexer to re-add the failed action, if intended to do so
-	 * @return the implementation should return {@code true} if the sink should fail due to this failure, and {@code false} otherwise
+	 *
+	 * @throws Throwable if the sink should fail on this failure, the implementation should rethrow
+	 *                   the exception or a custom one
 	 */
-	boolean onFailure(ActionRequest action, Throwable failure, RequestIndexer indexer);
+	void onFailure(ActionRequest action, Throwable failure, int restStatusCode, RequestIndexer indexer) throws Throwable;
 
 }
