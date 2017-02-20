@@ -26,7 +26,6 @@ import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.flink.api.common.functions._
-import org.apache.flink.api.common.functions.{FlatJoinFunction, FlatMapFunction, Function, MapFunction}
 import org.apache.flink.api.common.io.GenericInputFormat
 import org.apache.flink.api.common.typeinfo.{AtomicType, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
@@ -40,8 +39,7 @@ import org.apache.flink.table.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
 import org.apache.flink.table.codegen.Indenter.toISC
 import org.apache.flink.table.codegen.calls.FunctionGenerator
 import org.apache.flink.table.codegen.calls.ScalarOperators._
-import org.apache.flink.table.functions.FunctionContext
-import org.apache.flink.table.functions.UserDefinedFunction
+import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.runtime.TableFunctionCollector
 import org.apache.flink.table.typeutils.TypeCheckUtils._
@@ -1504,7 +1502,7 @@ class CodeGenerator(
   def addReusableFunction(function: UserDefinedFunction): String = {
     val classQualifier = function.getClass.getCanonicalName
     val functionSerializedData = UserDefinedFunctionUtils.serialize(function)
-    val fieldTerm = s"function_${function.toString}"
+    val fieldTerm = s"function_${function.functionIdentifier}"
 
     val fieldFunction =
       s"""

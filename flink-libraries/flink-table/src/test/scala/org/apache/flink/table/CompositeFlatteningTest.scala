@@ -119,10 +119,10 @@ class CompositeFlatteningTest extends TableTestBase {
       "DataSetCalc",
       batchTableNode(0),
       term("select",
-        "org.apache.flink.table.CompositeFlatteningTest.giveMeCaseClass$().my AS _c0",
-        "org.apache.flink.table.CompositeFlatteningTest.giveMeCaseClass$().clazz AS _c1",
-        "org.apache.flink.table.CompositeFlatteningTest.giveMeCaseClass$().my AS _c2",
-        "org.apache.flink.table.CompositeFlatteningTest.giveMeCaseClass$().clazz AS _c3"
+        s"${giveMeCaseClass.functionIdentifier}().my AS _c0",
+        s"${giveMeCaseClass.functionIdentifier}().clazz AS _c1",
+        s"${giveMeCaseClass.functionIdentifier}().my AS _c2",
+        s"${giveMeCaseClass.functionIdentifier}().clazz AS _c3"
       )
     )
 

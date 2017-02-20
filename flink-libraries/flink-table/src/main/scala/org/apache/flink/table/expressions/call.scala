@@ -67,7 +67,7 @@ case class ScalarFunctionCall(
     val typeFactory = relBuilder.getTypeFactory.asInstanceOf[FlinkTypeFactory]
     relBuilder.call(
       createScalarSqlFunction(
-        scalarFunction.toString,
+        scalarFunction.functionIdentifier,
         scalarFunction,
         typeFactory),
       parameters.map(_.toRexNode): _*)

@@ -183,8 +183,8 @@ class UserDefinedTableFunctionTest extends TableTestBase {
       unaryNode(
         "DataStreamCorrelate",
         streamTableNode(0),
-        term("invocation", s"$function($$2)"),
-        term("function", function.getClass.getCanonicalName),
+        term("invocation", s"${function.functionIdentifier}($$2)"),
+        term("function", function),
         term("rowType",
              "RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) s)"),
         term("joinType", "INNER")
@@ -203,8 +203,8 @@ class UserDefinedTableFunctionTest extends TableTestBase {
       unaryNode(
         "DataStreamCorrelate",
         streamTableNode(0),
-        term("invocation", s"$function($$2, '$$')"),
-        term("function", function.getClass.getCanonicalName),
+        term("invocation", s"${function.functionIdentifier}($$2, '$$')"),
+        term("function", function),
         term("rowType",
              "RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) s)"),
         term("joinType", "INNER")
@@ -228,8 +228,8 @@ class UserDefinedTableFunctionTest extends TableTestBase {
       unaryNode(
         "DataStreamCorrelate",
         streamTableNode(0),
-        term("invocation", s"$function($$2)"),
-        term("function", function.getClass.getCanonicalName),
+        term("invocation", s"${function.functionIdentifier}($$2)"),
+        term("function", function),
         term("rowType",
           "RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) s)"),
         term("joinType", "LEFT")
@@ -253,8 +253,8 @@ class UserDefinedTableFunctionTest extends TableTestBase {
       unaryNode(
         "DataStreamCorrelate",
         streamTableNode(0),
-        term("invocation", s"$function($$2)"),
-        term("function", function.getClass.getCanonicalName),
+        term("invocation", s"${function.functionIdentifier}($$2)"),
+        term("function", function),
         term("rowType",
           "RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, " +
            "VARCHAR(2147483647) name, INTEGER len)"),
@@ -277,8 +277,8 @@ class UserDefinedTableFunctionTest extends TableTestBase {
     val expected = unaryNode(
       "DataStreamCorrelate",
       streamTableNode(0),
-      term("invocation", s"$function($$2)"),
-      term("function", function.getClass.getCanonicalName),
+      term("invocation", s"${function.functionIdentifier}($$2)"),
+      term("function", function),
       term("rowType",
         "RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c," +
         " VARCHAR(2147483647) name, BOOLEAN adult, INTEGER len)"),
@@ -299,8 +299,8 @@ class UserDefinedTableFunctionTest extends TableTestBase {
     val expected = unaryNode(
       "DataStreamCorrelate",
       streamTableNode(0),
-      term("invocation", s"$function($$2)"),
-      term("function", function.getClass.getCanonicalName),
+      term("invocation", s"${function.functionIdentifier}($$2)"),
+      term("function", function),
       term("rowType",
         "RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, " +
          "INTEGER age, VARCHAR(2147483647) name)"),
@@ -326,8 +326,8 @@ class UserDefinedTableFunctionTest extends TableTestBase {
       unaryNode(
         "DataStreamCorrelate",
         streamTableNode(0),
-        term("invocation", s"$function($$2)"),
-        term("function", function.getClass.getCanonicalName),
+        term("invocation", s"${function.functionIdentifier}($$2)"),
+        term("function", function),
         term("rowType",
           "RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, " +
           "VARCHAR(2147483647) name, INTEGER len)"),
@@ -351,8 +351,8 @@ class UserDefinedTableFunctionTest extends TableTestBase {
     val expected = unaryNode(
         "DataStreamCorrelate",
         streamTableNode(0),
-        term("invocation",  s"$function(SUBSTRING($$2, 2, CHAR_LENGTH($$2)))"),
-        term("function", function.getClass.getCanonicalName),
+        term("invocation",  s"${function.functionIdentifier}(SUBSTRING($$2, 2, CHAR_LENGTH($$2)))"),
+        term("function", function),
         term("rowType",
           "RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) s)"),
         term("joinType", "INNER")

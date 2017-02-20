@@ -103,7 +103,7 @@ class FieldProjectionTest extends TableTestBase {
     val expected = unaryNode(
       "DataSetCalc",
       batchTableNode(0),
-      term("select", s"${MyHashCode.getClass.getCanonicalName}(c) AS _c0", "b")
+      term("select", s"${MyHashCode.functionIdentifier}(c) AS _c0", "b")
     )
 
     util.verifyTable(resultTable, expected)
@@ -212,7 +212,7 @@ class FieldProjectionTest extends TableTestBase {
           unaryNode(
             "DataSetCalc",
             batchTableNode(0),
-            term("select", "a", "c", s"${MyHashCode.getClass.getCanonicalName}(c) AS k")
+            term("select", "a", "c", s"${MyHashCode.functionIdentifier}(c) AS k")
           ),
           term("groupBy", "k"),
           term("select", "k", "SUM(a) AS TMP_0")
