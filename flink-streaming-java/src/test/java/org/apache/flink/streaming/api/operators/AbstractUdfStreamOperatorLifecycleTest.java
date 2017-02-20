@@ -23,6 +23,7 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
@@ -237,7 +238,8 @@ public class AbstractUdfStreamOperatorLifecycleTest {
 						try {
 							runStarted.await();
 							if (getContainingTask().isCanceled() || getContainingTask().triggerCheckpoint(
-									new CheckpointMetaData(0, System.currentTimeMillis()))) {
+									new CheckpointMetaData(0, System.currentTimeMillis()),
+									CheckpointOptions.forFullCheckpoint())) {
 								LifecycleTrackingStreamSource.runFinish.trigger();
 							}
 						} catch (Exception e) {
@@ -257,9 +259,9 @@ public class AbstractUdfStreamOperatorLifecycleTest {
 		}
 
 		@Override
-		public StreamStateHandle snapshotLegacyOperatorState(long checkpointId, long timestamp) throws Exception {
+		public StreamStateHandle snapshotLegacyOperatorState(long checkpointId, long timestamp, CheckpointOptions checkpointOptions) throws Exception {
 			ACTUAL_ORDER_TRACKING.add("OPERATOR::snapshotLegacyOperatorState");
-			return super.snapshotLegacyOperatorState(checkpointId, timestamp);
+			return super.snapshotLegacyOperatorState(checkpointId, timestamp, checkpointOptions);
 		}
 
 		@Override

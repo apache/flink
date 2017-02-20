@@ -128,7 +128,7 @@ public class CheckpointStatsDetailsHandlerTest {
 
 		assertEquals(checkpoint.getCheckpointId(), rootNode.get("id").asLong());
 		assertEquals(checkpoint.getStatus().toString(), rootNode.get("status").asText());
-		assertEquals(CheckpointProperties.isSavepoint(checkpoint.getProperties()), rootNode.get("is_savepoint").asBoolean());
+		assertEquals(checkpoint.getProperties().isSavepoint(), rootNode.get("is_savepoint").asBoolean());
 		assertEquals(checkpoint.getTriggerTimestamp(), rootNode.get("trigger_timestamp").asLong());
 		assertEquals(checkpoint.getLatestAckTimestamp(), rootNode.get("latest_ack_timestamp").asLong());
 		assertEquals(checkpoint.getStateSize(), rootNode.get("state_size").asLong());
@@ -172,7 +172,7 @@ public class CheckpointStatsDetailsHandlerTest {
 
 		assertEquals(checkpoint.getCheckpointId(), rootNode.get("id").asLong());
 		assertEquals(checkpoint.getStatus().toString(), rootNode.get("status").asText());
-		assertEquals(CheckpointProperties.isSavepoint(checkpoint.getProperties()), rootNode.get("is_savepoint").asBoolean());
+		assertEquals(checkpoint.getProperties().isSavepoint(), rootNode.get("is_savepoint").asBoolean());
 		assertEquals(checkpoint.getTriggerTimestamp(), rootNode.get("trigger_timestamp").asLong());
 		assertEquals(checkpoint.getLatestAckTimestamp(), rootNode.get("latest_ack_timestamp").asLong());
 		assertEquals(checkpoint.getStateSize(), rootNode.get("state_size").asLong());
@@ -218,7 +218,7 @@ public class CheckpointStatsDetailsHandlerTest {
 
 		assertEquals(checkpoint.getCheckpointId(), rootNode.get("id").asLong());
 		assertEquals(checkpoint.getStatus().toString(), rootNode.get("status").asText());
-		assertEquals(CheckpointProperties.isSavepoint(checkpoint.getProperties()), rootNode.get("is_savepoint").asBoolean());
+		assertEquals(checkpoint.getProperties().isSavepoint(), rootNode.get("is_savepoint").asBoolean());
 		assertEquals(checkpoint.getTriggerTimestamp(), rootNode.get("trigger_timestamp").asLong());
 		assertEquals(checkpoint.getLatestAckTimestamp(), rootNode.get("latest_ack_timestamp").asLong());
 		assertEquals(checkpoint.getStateSize(), rootNode.get("state_size").asLong());

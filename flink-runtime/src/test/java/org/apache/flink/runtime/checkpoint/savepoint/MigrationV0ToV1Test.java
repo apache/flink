@@ -183,7 +183,7 @@ public class MigrationV0ToV1Test {
 
 		} finally {
 			// Dispose
-			SavepointStore.removeSavepoint(path.toString());
+			SavepointStore.removeSavepointFile(path.toString());
 		}
 	}
 

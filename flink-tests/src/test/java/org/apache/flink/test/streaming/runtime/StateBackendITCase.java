@@ -86,7 +86,6 @@ public class StateBackendITCase extends StreamingMultipleProgramsTestBase {
 		}
 	}
 
-
 	public static class FailingStateBackend extends AbstractStateBackend {
 		private static final long serialVersionUID = 1L;
 
@@ -94,6 +93,12 @@ public class StateBackendITCase extends StreamingMultipleProgramsTestBase {
 		public CheckpointStreamFactory createStreamFactory(JobID jobId,
 				String operatorIdentifier) throws IOException {
 			throw new SuccessException();
+		}
+
+		@Override
+		public CheckpointStreamFactory createSavepointStreamFactory(JobID jobId,
+			String operatorIdentifier, String targetLocation) throws IOException {
+			throw new UnsupportedOperationException();
 		}
 
 		@Override

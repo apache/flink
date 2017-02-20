@@ -21,6 +21,8 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.runtime.checkpoint.savepoint.SavepointStore;
+import org.apache.flink.runtime.concurrent.ApplyFunction;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -296,15 +298,42 @@ public class CheckpointCoordinator {
 		checkNotNull(targetDirectory, "Savepoint target directory");
 
 		CheckpointProperties props = CheckpointProperties.forStandardSavepoint();
-		CheckpointTriggerResult result = triggerCheckpoint(timestamp, props, targetDirectory, false);
 
-		if (result.isSuccess()) {
-			return result.getPendingCheckpoint().getCompletionFuture();
+		// Create the unique savepoint directory
+		final String savepointDirectory = SavepointStore
+			.createSavepointDirectory(targetDirectory, job);
+
+		CheckpointTriggerResult triggerResult = triggerCheckpoint(
+			timestamp,
+			props,
+			savepointDirectory,
+			false);
+
+		Future<CompletedCheckpoint> result;
+
+		if (triggerResult.isSuccess()) {
+			result = triggerResult.getPendingCheckpoint().getCompletionFuture();
+		} else {
+			Throwable cause = new Exception("Failed to trigger savepoint: " + triggerResult.getFailureReason().message());
+			result = FlinkCompletableFuture.completedExceptionally(cause);
 		}
-		else {
-			Throwable cause = new Exception("Failed to trigger savepoint: " + result.getFailureReason().message());
-			return FlinkCompletableFuture.completedExceptionally(cause);
-		}
+
+		// Make sure to remove the created base directory on Exceptions
+		result.exceptionallyAsync(new ApplyFunction<Throwable, Void>() {
+			@Override
+			public Void apply(Throwable value) {
+				try {
+					SavepointStore.deleteSavepointDirectory(savepointDirectory);
+				} catch (Throwable t) {
+					LOG.warn("Failed to delete savepoint directory " + savepointDirectory
+						+ " after failed savepoint.", t);
+				}
+
+				return null;
+			}
+		}, executor);
+
+		return result;
 	}
 
 	/**
@@ -517,9 +546,16 @@ public class CheckpointCoordinator {
 				}
 				// end of lock scope
 
+				CheckpointOptions checkpointOptions;
+				if (!props.isSavepoint()) {
+					checkpointOptions = CheckpointOptions.forFullCheckpoint();
+				} else {
+					checkpointOptions = CheckpointOptions.forSavepoint(targetDirectory);
+				}
+
 				// send the messages to the tasks that trigger their checkpoint
 				for (Execution execution: executions) {
-					execution.triggerCheckpoint(checkpointID, timestamp);
+					execution.triggerCheckpoint(checkpointID, timestamp, checkpointOptions);
 				}
 
 				numUnsuccessfulCheckpointsTriggers.set(0);
@@ -648,7 +684,7 @@ public class CheckpointCoordinator {
 
 			if (checkpoint != null && !checkpoint.isDiscarded()) {
 
-				switch (checkpoint.acknowledgeTask(message.getTaskExecutionId(), message.getSubtaskState(), message.getCheckpointMetaData())) {
+				switch (checkpoint.acknowledgeTask(message.getTaskExecutionId(), message.getSubtaskState(), message.getCheckpointMetrics())) {
 					case SUCCESS:
 						LOG.debug("Received acknowledge message for checkpoint {} from task {} of job {}.",
 							checkpointId, message.getTaskExecutionId(), message.getJob());
@@ -756,7 +792,7 @@ public class CheckpointCoordinator {
 
 			triggerQueuedRequests();
 		}
-		
+
 		// record the time when this was completed, to calculate
 		// the 'min delay between checkpoints'
 		lastCheckpointCompletionNanos = System.nanoTime();
@@ -1030,7 +1066,7 @@ public class CheckpointCoordinator {
 			final ExecutionAttemptID executionAttemptID,
 			final long checkpointId,
 			final StateObject stateObject) {
-		
+
 		if (stateObject != null) {
 			executor.execute(new Runnable() {
 				@Override

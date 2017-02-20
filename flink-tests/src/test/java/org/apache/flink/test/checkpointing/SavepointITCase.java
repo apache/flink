@@ -23,6 +23,7 @@ import akka.actor.ActorSystem;
 import akka.testkit.JavaTestKit;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
+import java.io.FileNotFoundException;
 import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -159,21 +160,21 @@ public class SavepointITCase extends TestLogger {
 			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlotsPerTaskManager);
 
 			final File checkpointDir = new File(tmpDir, "checkpoints");
-			final File savepointDir = new File(tmpDir, "savepoints");
+			final File savepointRootDir = new File(tmpDir, "savepoints");
 
-			if (!checkpointDir.mkdir() || !savepointDir.mkdirs()) {
+			if (!checkpointDir.mkdir() || !savepointRootDir.mkdirs()) {
 				fail("Test setup failed: failed to create temporary directories.");
 			}
 
 			LOG.info("Created temporary checkpoint directory: " + checkpointDir + ".");
-			LOG.info("Created temporary savepoint directory: " + savepointDir + ".");
+			LOG.info("Created temporary savepoint directory: " + savepointRootDir + ".");
 
 			config.setString(ConfigConstants.STATE_BACKEND, "filesystem");
 			config.setString(FsStateBackendFactory.CHECKPOINT_DIRECTORY_URI_CONF_KEY,
 				checkpointDir.toURI().toString());
 			config.setString(FsStateBackendFactory.MEMORY_THRESHOLD_CONF_KEY, "0");
 			config.setString(ConfigConstants.SAVEPOINT_DIRECTORY_KEY,
-				savepointDir.toURI().toString());
+				savepointRootDir.toURI().toString());
 
 			LOG.info("Flink configuration: " + config + ".");
 
@@ -216,14 +217,6 @@ public class SavepointITCase extends TestLogger {
 				.result(savepointPathFuture, deadline.timeLeft())).savepointPath();
 			LOG.info("Retrieved savepoint path: " + savepointPath + ".");
 
-			// Only one savepoint should exist
-			File[] files = savepointDir.listFiles();
-			if (files != null) {
-				assertEquals("Savepoint not created in expected directory", 1, files.length);
-			} else {
-				fail("Savepoint not created in expected directory");
-			}
-
 			// Retrieve the savepoint from the testing job manager
 			LOG.info("Requesting the savepoint.");
 			Future<Object> savepointFuture = jobManager.ask(new RequestSavepoint(savepointPath), deadline.timeLeft());
@@ -239,15 +232,33 @@ public class SavepointITCase extends TestLogger {
 
 			// - Verification START -------------------------------------------
 
+			// Only one savepoint should exist
+			File[] files = savepointRootDir.listFiles();
+
+			if (files != null) {
+				assertEquals("Savepoint not created in expected directory", 1, files.length);
+				assertTrue("Savepoint did not create self-contained directory", files[0].isDirectory());
+
+				File savepointDir = files[0];
+				File[] savepointFiles = savepointDir.listFiles();
+				assertNotNull(savepointFiles);
+				assertTrue("Did not write savepoint files to directory",savepointFiles.length > 1);
+			} else {
+				fail("Savepoint not created in expected directory");
+			}
+
 			// Only one checkpoint of the savepoint should exist
 			// We currently have the following directory layout: checkpointDir/jobId/chk-ID
-			files = checkpointDir.listFiles();
-			assertNotNull("Checkpoint directory empty", files);
-			assertEquals("Checkpoints directory cleaned up, but needed for savepoint.", 1, files.length);
-			assertEquals("No job-specific base directory", jobGraph.getJobID().toString(), files[0].getName());
+			File jobCheckpoints = new File(checkpointDir, jobId.toString());
+
+			if (jobCheckpoints.exists()) {
+				files = jobCheckpoints.listFiles();
+				assertNotNull("Checkpoint directory empty", files);
+				assertEquals("Checkpoints directory not cleaned up: " + Arrays.toString(files), 0, files.length);
+			}
 
 			// Only one savepoint should exist
-			files = savepointDir.listFiles();
+			files = savepointRootDir.listFiles();
 			assertNotNull("Savepoint directory empty", files);
 			assertEquals("No savepoint found in savepoint directory", 1, files.length);
 
@@ -398,8 +409,8 @@ public class SavepointITCase extends TestLogger {
 
 			// All savepoints should have been cleaned up
 			errMsg = "Savepoints directory not cleaned up properly: " +
-				Arrays.toString(savepointDir.listFiles()) + ".";
-			assertEquals(errMsg, 0, savepointDir.listFiles().length);
+				Arrays.toString(savepointRootDir.listFiles()) + ".";
+			assertEquals(errMsg, 0, savepointRootDir.listFiles().length);
 
 			// - Verification END ---------------------------------------------
 		} finally {
@@ -467,7 +478,7 @@ public class SavepointITCase extends TestLogger {
 				flink.submitJobAndWait(jobGraph, false);
 			} catch (Exception e) {
 				assertEquals(JobExecutionException.class, e.getClass());
-				assertEquals(IllegalArgumentException.class, e.getCause().getClass());
+				assertEquals(FileNotFoundException.class, e.getCause().getClass());
 			}
 		} finally {
 			if (flink != null) {

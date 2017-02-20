@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -98,7 +99,10 @@ public interface StreamOperator<OUT> extends Serializable {
 	 * 
 	 * @throws Exception exception that happened during snapshotting.
 	 */
-	OperatorSnapshotResult snapshotState(long checkpointId, long timestamp) throws Exception;
+	OperatorSnapshotResult snapshotState(
+		long checkpointId,
+		long timestamp,
+		CheckpointOptions checkpointOptions) throws Exception;
 
 	/**
 	 * Takes a snapshot of the legacy operator state defined via {@link StreamCheckpointedOperator}.
@@ -110,7 +114,10 @@ public interface StreamOperator<OUT> extends Serializable {
 	 */
 	@SuppressWarnings("deprecation")
 	@Deprecated
-	StreamStateHandle snapshotLegacyOperatorState(long checkpointId, long timestamp) throws Exception;
+	StreamStateHandle snapshotLegacyOperatorState(
+		long checkpointId,
+		long timestamp,
+		CheckpointOptions checkpointOptions) throws Exception;
 
 	/**
 	 * Provides state handles to restore the operator state.
@@ -142,4 +149,5 @@ public interface StreamOperator<OUT> extends Serializable {
 	void setChainingStrategy(ChainingStrategy strategy);
 
 	MetricGroup getMetricGroup();
+
 }
