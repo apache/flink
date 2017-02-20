@@ -48,6 +48,7 @@ import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTabl
 import org.apache.flink.table.calcite.{FlinkPlannerImpl, FlinkRelBuilder, FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.codegen.{CodeGenerator, ExpressionReducer}
 import org.apache.flink.table.expressions.{Alias, Expression, UnresolvedFieldReference}
+import org.apache.flink.table.functions.hive.{HiveFunctionWrapper, HiveSimpleUDF}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{checkForInstantiation, checkNotSingleton, createScalarSqlFunction, createTableSqlFunctions}
 import org.apache.flink.table.functions.{ScalarFunction, TableFunction}
 import org.apache.flink.table.plan.cost.DataSetCostFactory
@@ -258,6 +259,12 @@ abstract class TableEnvironment(val config: TableConfig) {
 
     // register in SQL API
     functionCatalog.registerSqlFunction(createScalarSqlFunction(name, function, typeFactory))
+  }
+
+  def registerHiveUDF(name: String, hiveUDFClassName: String): Unit = {
+    val hiveFunctionWrapper = HiveFunctionWrapper(hiveUDFClassName, null)
+    val scalarFunction = new HiveSimpleUDF()
+    registerFunction(name, scalarFunction)
   }
 
   /**
