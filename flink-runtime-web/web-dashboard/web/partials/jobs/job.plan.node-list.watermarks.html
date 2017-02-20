@@ -29,7 +29,7 @@ limitations under the License.
   <tbody ng-repeat="v in job.vertices" ng-class="{ active: v.id == nodeid }" ng-click="changeNode(v.id)">
     <tr ng-if="v.type == 'regular'">
       <td class="td-long">{{ v.name | humanizeText }}</td>
-      <td>{{ lowWatermark(v.id, watermarks) }}</td>
+      <td>{{ watermarks | lowWatermark:v.id }}</td>
       <td>{{ v.parallelism }}</td>
       <td> 
         <bs-label status="{{v.status}}">{{v.status}}</bs-label>

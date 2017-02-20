@@ -17,7 +17,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 -->
-<table ng-if="getWatermarks(nodeid, watermarks).length" class="table table-hover table-clickable table-activable table-inner">
+<table ng-if="(watermarks | watermarksByNode:nodeid).length" class="table table-hover table-clickable table-activable table-inner">
   <thead>
     <tr>
       <th>id</th>
@@ -25,9 +25,9 @@ limitations under the License.
     </tr>
   </thead>
   <tbody>
-    <tr ng-repeat="watermark in getWatermarks(nodeid, watermarks)">
+    <tr ng-repeat="watermark in (watermarks | watermarksByNode:nodeid)">
       <td>{{ watermark.id }}</td>
-      <td>{{ parseWatermarkValue(watermark.value) }}</td>
+      <td>{{ watermark.value | parseWatermark }}</td>
     </tr>
   </tbody>
 </table>

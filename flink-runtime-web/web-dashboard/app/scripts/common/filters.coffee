@@ -87,3 +87,27 @@ angular.module('flinkApp')
 
 .filter "percentage", ->
   (number) -> (number * 100).toFixed(0) + '%'
+
+.filter "parseWatermark", ->
+  (value) ->
+    if value <= -9223372036854776000
+      return 'No Watermark'
+    else
+      return value
+
+.filter "lowWatermark", ->
+  (watermarks, nodeid) ->
+    lowWatermark = "None"
+    if watermarks != null && watermarks[nodeid] && watermarks[nodeid].length
+      values = (watermark.value for watermark in watermarks[nodeid])
+      lowWatermark = Math.min.apply(null, values)
+      if lowWatermark <= -9223372036854776000
+        lowWatermark = "No Watermark"
+    return lowWatermark
+
+.filter "watermarksByNode", ->
+  (watermarks, nodeid) ->
+    arr = []
+    if watermarks != null && watermarks[nodeid] && watermarks[nodeid].length
+      arr = watermarks[nodeid]
+    return arr
