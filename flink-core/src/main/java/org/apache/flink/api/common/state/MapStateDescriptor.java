@@ -79,8 +79,8 @@ public class MapStateDescriptor<UK, UV> extends StateDescriptor<MapState<UK, UV>
 	}
 
 	@Override
-	public MapState<UK, UV> bind(StateBackend stateBackend) throws Exception {
-		return stateBackend.createMapState(this);
+	public MapState<UK, UV> bind(StateBinder stateBinder) throws Exception {
+		return stateBinder.createMapState(this);
 	}
 
 	@Override
