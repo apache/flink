@@ -251,12 +251,6 @@ public final class ConfigConstants {
 	public static final String TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY = "taskmanager.network.numberOfBuffers";
 
 	/**
-	 * Boolean flag to enable/disable more detailed metrics about inbound/outbound network queue lengths
-	 */
-	@PublicEvolving
-	public static final String NETWORK_DETAILED_METRICS_KEY = "taskmanager.net.detailed-metrics";
-
-	/**
 	 * Config parameter defining the size of memory buffers used by the network stack and the memory manager.
 	 *
 	 * @deprecated Use {@link TaskManagerOptions#MEMORY_SEGMENT_SIZE} instead
