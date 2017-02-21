@@ -109,6 +109,8 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 
 	private boolean forceKryo = false;
 
+	private boolean forceCustomSerializerCheck = false;//ISSUE FLINK-5692
+
 	private boolean objectReuse = false;
 
 	private boolean autoTypeRegistrationEnabled = true;
@@ -519,6 +521,31 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	}
 
 	/**
+	 * Enable the forced check at the creation of the Kryo serializer for all POJOs
+	 * to make sure that you have provided your own custom serializers for all.
+	 *
+	 * If this forced check enabled,
+	 * an {@link UnsupportedOperationException} will be thrown when the Flink
+	 * tries to fall back to the default Kryo serializer logic in the runtime.
+	 */
+	public void enableForceCustomSerializerCheck() {
+		forceCustomSerializerCheck = true;
+	}
+
+	/**
+	 * Disable the forced custom serializer check.
+	 *
+	 * @see ExecutionConfig#enableForceCustomSerializerCheck()
+	 */
+	public void disableForceCustomSerializerCheck() {
+		forceCustomSerializerCheck = false;
+	}
+
+	public boolean isForceCustomSerializerCheckEnabled() {
+		return forceCustomSerializerCheck;
+	}
+
+	/**
 	 * Force Flink to use the AvroSerializer for POJOs.
 	 */
 	public void enableForceAvro() {
@@ -804,6 +831,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 				((restartStrategyConfiguration == null && other.restartStrategyConfiguration == null) ||
 					(null != restartStrategyConfiguration && restartStrategyConfiguration.equals(other.restartStrategyConfiguration))) &&
 				forceKryo == other.forceKryo &&
+				forceCustomSerializerCheck == other.forceCustomSerializerCheck &&
 				objectReuse == other.objectReuse &&
 				autoTypeRegistrationEnabled == other.autoTypeRegistrationEnabled &&
 				forceAvro == other.forceAvro &&
@@ -830,6 +858,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 			parallelism,
 			restartStrategyConfiguration,
 			forceKryo,
+			forceCustomSerializerCheck,
 			objectReuse,
 			autoTypeRegistrationEnabled,
 			forceAvro,

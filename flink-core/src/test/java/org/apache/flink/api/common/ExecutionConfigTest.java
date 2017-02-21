@@ -18,6 +18,10 @@
 
 package org.apache.flink.api.common;
 
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.typeutils.GenericTypeInfo;
+import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -62,6 +66,17 @@ public class ExecutionConfigTest {
 		config.setParallelism(parallelism);
 
 		assertEquals(parallelism, config.getParallelism());
+	}
+
+	@Test(expected = UnsupportedOperationException.class)
+	public void testForceCustomSerializerCheck(){
+		ExecutionConfig conf = new ExecutionConfig();
+		TypeInformation<Object> typeInfo = new GenericTypeInfo<Object>(Object.class);
+		TypeSerializer<Object> serializer = typeInfo.createSerializer(conf);
+		assertTrue(serializer instanceof KryoSerializer);
+
+		conf.enableForceCustomSerializerCheck();
+		typeInfo.createSerializer(conf);
 	}
 
 }

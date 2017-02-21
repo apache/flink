@@ -53,7 +53,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		StreamGraph streamingJob = new StreamGraph(env);
 		StreamingJobGraphGenerator compiler = new StreamingJobGraphGenerator(streamingJob);
 		
-		boolean closureCleanerEnabled = r.nextBoolean(), forceAvroEnabled = r.nextBoolean(), forceKryoEnabled = r.nextBoolean(), objectReuseEnabled = r.nextBoolean(), sysoutLoggingEnabled = r.nextBoolean();
+		boolean closureCleanerEnabled = r.nextBoolean(), forceAvroEnabled = r.nextBoolean(), forceKryoEnabled = r.nextBoolean(), forceCustomSerializerCheck = r.nextBoolean(), objectReuseEnabled = r.nextBoolean(), sysoutLoggingEnabled = r.nextBoolean();
 		int dop = 1 + r.nextInt(10);
 		
 		ExecutionConfig config = streamingJob.getExecutionConfig();
@@ -71,6 +71,11 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 			config.enableForceKryo();
 		} else {
 			config.disableForceKryo();
+		}
+		if(forceCustomSerializerCheck) {
+			config.enableForceCustomSerializerCheck();
+		} else {
+			config.disableForceCustomSerializerCheck();
 		}
 		if(objectReuseEnabled) {
 			config.enableObjectReuse();
@@ -104,6 +109,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		assertEquals(closureCleanerEnabled, executionConfig.isClosureCleanerEnabled());
 		assertEquals(forceAvroEnabled, executionConfig.isForceAvroEnabled());
 		assertEquals(forceKryoEnabled, executionConfig.isForceKryoEnabled());
+		assertEquals(forceCustomSerializerCheck, executionConfig.isForceCustomSerializerCheckEnabled());
 		assertEquals(objectReuseEnabled, executionConfig.isObjectReuseEnabled());
 		assertEquals(sysoutLoggingEnabled, executionConfig.isSysoutLoggingEnabled());
 		assertEquals(dop, executionConfig.getParallelism());
