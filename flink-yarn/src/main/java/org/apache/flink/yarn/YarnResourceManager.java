@@ -343,10 +343,10 @@ public class YarnResourceManager extends ResourceManager<ResourceID> implements 
 		final Configuration taskManagerConfig = BootstrapTools.generateTaskManagerConfiguration(
 				flinkConfig, "", 0, 1, teRegistrationTimeout);
 		LOG.debug("TaskManager configuration: {}", taskManagerConfig);
-
+		taskManagerParameters.taskManagerEnv().putAll(taskManagerConfig.toMap());
 		ContainerLaunchContext taskExecutorLaunchContext = Utils.createTaskExecutorContext(
 				flinkConfig, yarnConfig, ENV,
-				taskManagerParameters, taskManagerConfig,
+				taskManagerParameters,
 				currDir, YarnTaskExecutorRunner.class, LOG);
 
 		// set a special environment variable to uniquely identify this container

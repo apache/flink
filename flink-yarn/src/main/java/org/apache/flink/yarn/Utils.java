@@ -27,7 +27,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
@@ -308,7 +307,6 @@ public final class Utils {
 		YarnConfiguration yarnConfig,
 		Map<String, String> env,
 		ContaineredTaskManagerParameters tmParams,
-		org.apache.flink.configuration.Configuration taskManagerConfig,
 		String workingDirectory,
 		Class<?> taskManagerMainClass,
 		Logger log) throws Exception {
@@ -383,26 +381,8 @@ public final class Utils {
 			registerLocalResource(fs, remoteJarPath, flinkJar);
 		}
 
-		// register conf with local fs
-		LocalResource flinkConf = Records.newRecord(LocalResource.class);
-		{
-			// write the TaskManager configuration to a local file
-			final File taskManagerConfigFile =
-					new File(workingDirectory, UUID.randomUUID() + "-taskmanager-conf.yaml");
-			log.debug("Writing TaskManager configuration to {}", taskManagerConfigFile.getAbsolutePath());
-			BootstrapTools.writeConfiguration(taskManagerConfig, taskManagerConfigFile);
-
-			Path homeDirPath = new Path(clientHomeDir);
-			FileSystem fs = homeDirPath.getFileSystem(yarnConfig);
-			setupLocalResource(fs, appId,
-					new Path(taskManagerConfigFile.toURI()), flinkConf, new Path(clientHomeDir));
-
-			log.info("Prepared local resource for modified yaml: {}", flinkConf);
-		}
-
 		Map<String, LocalResource> taskManagerLocalResources = new HashMap<>();
 		taskManagerLocalResources.put("flink.jar", flinkJar);
-		taskManagerLocalResources.put("flink-conf.yaml", flinkConf);
 
 		//To support Yarn Secure Integration Test Scenario
 		if(yarnConfResource != null && krb5ConfResource != null) {

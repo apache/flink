@@ -54,9 +54,13 @@ public class YarnTaskManagerRunner {
 		JvmShutdownSafeguard.installAsShutdownHook(LOG);
 
 		// try to parse the command line arguments
-		final Configuration configuration;
+		final Configuration configuration = new Configuration();
 		try {
-			configuration = TaskManager.parseArgsAndLoadConfig(args);
+			synchronized (configuration) {
+				for (Map.Entry<String, String> entry : System.getenv().entrySet()) {
+					configuration.setString(entry.getKey(), entry.getValue());
+				}
+			}
 		}
 		catch (Throwable t) {
 			LOG.error(t.getMessage(), t);
