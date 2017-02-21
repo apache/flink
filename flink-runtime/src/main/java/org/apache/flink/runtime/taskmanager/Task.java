@@ -390,7 +390,7 @@ public class Task implements Runnable, TaskActions {
 		}
 
 		// register detailed network metrics, if configured
-		if (tmConfig.getBoolean(ConfigConstants.NETWORK_DETAILED_METRICS_KEY, false)) {
+		if (tmConfig.getBoolean(ConfigConstants.NETWORK_DETAILED_METRICS_KEY)) {
 			// output metrics
 			for (int i = 0; i < producedPartitions.length; i++) {
 				ResultPartitionMetrics.registerQueueLengthMetrics(

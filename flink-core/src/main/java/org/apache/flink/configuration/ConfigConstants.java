@@ -233,7 +233,9 @@ public final class ConfigConstants {
 	 * Boolean flag to enable/disable more detailed metrics about inbound/outbound network queue lengths
 	 */
 	@PublicEvolving
-	public static final String NETWORK_DETAILED_METRICS_KEY = "taskmanager.net.detailed-metrics";
+	public static final ConfigOption<Boolean> NETWORK_DETAILED_METRICS_KEY =
+		key("taskmanager.network.detailed-metrics")
+			.defaultValue(false);
 
 	/**
 	 * Config parameter defining the size of memory buffers used by the network stack and the memory manager.
