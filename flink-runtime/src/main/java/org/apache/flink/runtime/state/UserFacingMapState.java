@@ -20,7 +20,6 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.state.MapState;
 
-import java.io.IOException;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map;
@@ -44,14 +43,18 @@ class UserFacingMapState<K, V> implements MapState<K, V> {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public Iterable<Map.Entry<K, V>> get() throws Exception {
-		Iterable<Map.Entry<K, V>> original = originalState.get();
-		return original != null ? original : emptyState.entrySet();
+	public V get(K key) throws Exception {
+		return originalState.get(key);
 	}
 
 	@Override
-	public void add(Map<K, V> value) throws Exception {
-		originalState.add(value);
+	public void put(K key, V value) throws Exception {
+		originalState.put(key, value);
+	}
+
+	@Override
+	public void putAll(Map<K, V> value) throws Exception {
+		originalState.putAll(value);
 	}
 
 	@Override
@@ -60,42 +63,41 @@ class UserFacingMapState<K, V> implements MapState<K, V> {
 	}
 
 	@Override
-	public V get(K key) throws IOException {
-		return originalState.get(key);
-	}
-
-	@Override
-	public void put(K key, V value) throws IOException {
-		originalState.put(key, value);
-	}
-
-	@Override
-	public void remove(K key) throws IOException {
+	public void remove(K key) throws Exception {
 		originalState.remove(key);
 	}
 
 	@Override
-	public boolean contains(K key) throws IOException {
+	public boolean contains(K key) throws Exception {
 		return originalState.contains(key);
 	}
 
 	@Override
-	public int size() throws IOException {
+	public int size() throws Exception {
 		return originalState.size();
 	}
 
 	@Override
-	public Iterable<K> keys() {
-		return originalState.keys();
+	public Iterable<Map.Entry<K, V>> entries() throws Exception {
+		Iterable<Map.Entry<K, V>> original = originalState.entries();
+		return original != null ? original : emptyState.entrySet();
 	}
 
 	@Override
-	public Iterable<V> values() {
-		return originalState.values();
+	public Iterable<K> keys() throws Exception {
+		Iterable<K> original = originalState.keys();
+		return original != null ? original : emptyState.keySet();
 	}
 
 	@Override
-	public Iterator<Map.Entry<K, V>> iterator() {
-		return originalState.iterator();
+	public Iterable<V> values() throws Exception {
+		Iterable<V> original = originalState.values();
+		return original != null ? original : emptyState.values();
+	}
+
+	@Override
+	public Iterator<Map.Entry<K, V>> iterator() throws Exception {
+		Iterator<Map.Entry<K, V>> original = originalState.iterator();
+		return original != null ? original : emptyState.entrySet().iterator();
 	}
 }

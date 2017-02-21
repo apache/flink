@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.state;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.MapSerializer;
@@ -25,6 +26,20 @@ import org.apache.flink.api.java.typeutils.MapTypeInfo;
 
 import java.util.Map;
 
+/**
+ * A {@link StateDescriptor} for {@link MapState}. This can be used to create state where the type
+ * is a list that can be appended and iterated over.
+ * 
+ * <p>Using {@code MapState} is typically more efficient than manually maintaining a map in a
+ * {@link ValueState}, because the backing implementation can support efficient updates, rather then
+ * replacing the full map on write.
+ * 
+ * <p>To create keyed map state (on a KeyedStream), use 
+ * {@link org.apache.flink.api.common.functions.RuntimeContext#getMapState(MapStateDescriptor)}.
+ *
+ * @param <UK> The type of the keys that can be added to the map state.
+ */
+@PublicEvolving
 public class MapStateDescriptor<UK, UV> extends StateDescriptor<MapState<UK, UV>, Map<UK, UV>> {
 
 	/**
@@ -84,7 +99,7 @@ public class MapStateDescriptor<UK, UV> extends StateDescriptor<MapState<UK, UV>
 			throw new IllegalStateException("Unexpected serializer type.");
 		}
 
-		return ((MapSerializer<UK, UV>)serializer).getKeySerializer();
+		return ((MapSerializer<UK, UV>) rawSerializer).getKeySerializer();
 	}
 
 	/**
@@ -98,7 +113,7 @@ public class MapStateDescriptor<UK, UV> extends StateDescriptor<MapState<UK, UV>
 			throw new IllegalStateException("Unexpected serializer type.");
 		}
 
-		return ((MapSerializer<UK, UV>)serializer).getValueSerializer();
+		return ((MapSerializer<UK, UV>) rawSerializer).getValueSerializer();
 	}
 	
 	@Override

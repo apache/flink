@@ -21,13 +21,12 @@ package org.apache.flink.runtime.state.heap;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.runtime.query.netty.message.KvStateRequestSerializer;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.apache.flink.util.Preconditions;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -62,7 +61,7 @@ public class HeapMapState<K, N, UK, UV>
 	}
 
 	@Override
-	public UV get(UK userKey) throws IOException {
+	public UV get(UK userKey) {
 		Preconditions.checkState(currentNamespace != null, "No namespace set.");
 		Preconditions.checkState(backend.getCurrentKey() != null, "No key set.");
 
@@ -85,7 +84,7 @@ public class HeapMapState<K, N, UK, UV>
 	}
 
 	@Override
-	public void put(UK userKey, UV userValue) throws IOException {
+	public void put(UK userKey, UV userValue) {
 		Preconditions.checkState(currentNamespace != null, "No namespace set.");
 		Preconditions.checkState(backend.getCurrentKey() != null, "No key set.");
 
@@ -111,7 +110,33 @@ public class HeapMapState<K, N, UK, UV>
 	}
 
 	@Override
-	public void remove(UK userKey) throws IOException {
+	public void putAll(Map<UK, UV> value) {
+		Preconditions.checkState(currentNamespace != null, "No namespace set.");
+		Preconditions.checkState(backend.getCurrentKey() != null, "No key set.");
+
+		Map<N, Map<K, HashMap<UK, UV>>> namespaceMap = stateTable.get(backend.getCurrentKeyGroupIndex());
+		if (namespaceMap == null) {
+			namespaceMap = createNewMap();
+			stateTable.set(backend.getCurrentKeyGroupIndex(), namespaceMap);
+		}
+
+		Map<K, HashMap<UK, UV>> keyedMap = namespaceMap.get(currentNamespace);
+		if (keyedMap == null) {
+			keyedMap = createNewMap();
+			namespaceMap.put(currentNamespace, keyedMap);
+		}
+
+		HashMap<UK, UV> userMap = keyedMap.get(backend.getCurrentKey());
+		if (userMap == null) {
+			userMap = new HashMap<>();
+			keyedMap.put(backend.getCurrentKey(), userMap);
+		}
+
+		userMap.putAll(value);
+	}
+	
+	@Override
+	public void remove(UK userKey) {
 		Preconditions.checkState(currentNamespace != null, "No namespace set.");
 		Preconditions.checkState(backend.getCurrentKey() != null, "No key set.");
 
@@ -138,7 +163,7 @@ public class HeapMapState<K, N, UK, UV>
 	}
 
 	@Override
-	public boolean contains(UK userKey) throws IOException {
+	public boolean contains(UK userKey) {
 		Preconditions.checkState(currentNamespace != null, "No namespace set.");
 		Preconditions.checkState(backend.getCurrentKey() != null, "No key set.");
 
@@ -158,7 +183,7 @@ public class HeapMapState<K, N, UK, UV>
 	}
 
 	@Override
-	public int size() throws IOException {
+	public int size() {
 		Preconditions.checkState(currentNamespace != null, "No namespace set.");
 		Preconditions.checkState(backend.getCurrentKey() != null, "No key set.");
 
@@ -177,6 +202,26 @@ public class HeapMapState<K, N, UK, UV>
 		return userMap == null ? 0 : userMap.size();
 	}
 
+	@Override
+	public Iterable<Map.Entry<UK, UV>> entries() {
+		Preconditions.checkState(currentNamespace != null, "No namespace set.");
+		Preconditions.checkState(backend.getCurrentKey() != null, "No key set.");
+
+		Map<N, Map<K, HashMap<UK, UV>>> namespaceMap = stateTable.get(backend.getCurrentKeyGroupIndex());
+		if (namespaceMap == null) {
+			return null;
+		}
+
+		Map<K, HashMap<UK, UV>> keyedMap = namespaceMap.get(currentNamespace);
+		if (keyedMap == null) {
+			return null;
+		}
+
+		HashMap<UK, UV> userMap = keyedMap.get(backend.<K>getCurrentKey());
+
+		return userMap == null ? null : userMap.entrySet();
+	}
+	
 	@Override
 	public Iterable<UK> keys() {
 		Preconditions.checkState(currentNamespace != null, "No namespace set.");
@@ -238,53 +283,7 @@ public class HeapMapState<K, N, UK, UV>
 	}
 
 	@Override
-	public Iterable<Map.Entry<UK, UV>> get() throws Exception {
-		Preconditions.checkState(currentNamespace != null, "No namespace set.");
-		Preconditions.checkState(backend.getCurrentKey() != null, "No key set.");
-
-		Map<N, Map<K, HashMap<UK, UV>>> namespaceMap = stateTable.get(backend.getCurrentKeyGroupIndex());
-		if (namespaceMap == null) {
-			return null;
-		}
-
-		Map<K, HashMap<UK, UV>> keyedMap = namespaceMap.get(currentNamespace);
-		if (keyedMap == null) {
-			return null;
-		}
-
-		HashMap<UK, UV> userMap = keyedMap.get(backend.<K>getCurrentKey());
-
-		return userMap == null ? null : userMap.entrySet();
-	}
-
-	@Override
-	public void add(Map<UK, UV> value) throws Exception {
-		Preconditions.checkState(currentNamespace != null, "No namespace set.");
-		Preconditions.checkState(backend.getCurrentKey() != null, "No key set.");
-
-		Map<N, Map<K, HashMap<UK, UV>>> namespaceMap = stateTable.get(backend.getCurrentKeyGroupIndex());
-		if (namespaceMap == null) {
-			namespaceMap = createNewMap();
-			stateTable.set(backend.getCurrentKeyGroupIndex(), namespaceMap);
-		}
-
-		Map<K, HashMap<UK, UV>> keyedMap = namespaceMap.get(currentNamespace);
-		if (keyedMap == null) {
-			keyedMap = createNewMap();
-			namespaceMap.put(currentNamespace, keyedMap);
-		}
-
-		HashMap<UK, UV> userMap = keyedMap.get(backend.getCurrentKey());
-		if (userMap == null) {
-			userMap = new HashMap<>();
-			keyedMap.put(backend.getCurrentKey(), userMap);
-		}
-
-		userMap.putAll(value);
-	}
-
-	@Override
-	public byte[] getSerializedValue(K key, N namespace) throws Exception {
+	public byte[] getSerializedValue(K key, N namespace) throws IOException {
 		Preconditions.checkState(namespace != null, "No namespace given.");
 		Preconditions.checkState(key != null, "No key given.");
 
@@ -294,7 +293,7 @@ public class HeapMapState<K, N, UK, UV>
 			return null;
 		}
 
-		Map<K, HashMap<UK, UV>> keyedMap = namespaceMap.get(currentNamespace);
+		Map<K, HashMap<UK, UV>> keyedMap = namespaceMap.get(namespace);
 		if (keyedMap == null) {
 			return null;
 		}
@@ -307,15 +306,6 @@ public class HeapMapState<K, N, UK, UV>
 		TypeSerializer<UK> userKeySerializer = stateDesc.getKeySerializer();
 		TypeSerializer<UV> userValueSerializer = stateDesc.getValueSerializer();
 
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		DataOutputViewStreamWrapper view = new DataOutputViewStreamWrapper(baos);
-		
-		for (Map.Entry<UK, UV> entry : result.entrySet()) {
-			userKeySerializer.serialize(entry.getKey(), view);
-			userValueSerializer.serialize(entry.getValue(), view);
-		}
-		view.flush();
-
-		return baos.toByteArray();
+		return KvStateRequestSerializer.serializeMap(result.entrySet(), userKeySerializer, userValueSerializer);
 	}
 }

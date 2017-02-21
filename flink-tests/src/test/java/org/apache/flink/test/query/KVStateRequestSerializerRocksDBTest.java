@@ -141,8 +141,8 @@ public final class KVStateRequestSerializerRocksDBTest {
 		DBOptions dbOptions = PredefinedOptions.DEFAULT.createDBOptions();
 		dbOptions.setCreateIfMissing(true);
 		ColumnFamilyOptions columnFamilyOptions = PredefinedOptions.DEFAULT.createColumnOptions();
-		final RocksDBKeyedStateBackend2<Long> longHeapKeyedStateBackend =
-			new RocksDBKeyedStateBackend2<>(
+		final RocksDBKeyedStateBackend<Long> longHeapKeyedStateBackend =
+			new RocksDBKeyedStateBackend<>(
 				new JobID(), "no-op",
 				ClassLoader.getSystemClassLoader(),
 				temporaryFolder.getRoot(),
@@ -154,9 +154,11 @@ public final class KVStateRequestSerializerRocksDBTest {
 			);
 		longHeapKeyedStateBackend.setCurrentKey(key);
 
-		final InternalMapState<VoidNamespace, Long, String> mapState = longHeapKeyedStateBackend
-			.createMapState(VoidNamespaceSerializer.INSTANCE,
-				new MapStateDescriptor<>("test", LongSerializer.INSTANCE, StringSerializer.INSTANCE));
+		final InternalMapState<VoidNamespace, Long, String> mapState = (InternalMapState<VoidNamespace, Long, String>) 
+				longHeapKeyedStateBackend.getPartitionedState(
+						VoidNamespace.INSTANCE,
+						VoidNamespaceSerializer.INSTANCE, 
+						new MapStateDescriptor<>("test", LongSerializer.INSTANCE, StringSerializer.INSTANCE));
 
 		KvStateRequestSerializerTest.testMapSerialization(key, mapState);
 	}

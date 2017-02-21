@@ -37,7 +37,6 @@ import java.io.ObjectOutputStream;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -501,23 +500,21 @@ public final class KvStateRequestSerializer {
 	 */
 	public static <UK, UV> byte[] serializeMap(Iterable<Map.Entry<UK, UV>> entries, TypeSerializer<UK> keySerializer, TypeSerializer<UV> valueSerializer) throws IOException {
 		if (entries != null) {
-			Iterator<Map.Entry<UK, UV>> it = entries.iterator();
+			// Serialize
+			DataOutputSerializer dos = new DataOutputSerializer(32);
 
-			if (it.hasNext()) {
-				// Serialize
-				DataOutputSerializer dos = new DataOutputSerializer(32);
+			for (Map.Entry<UK, UV> entry : entries) {
+				keySerializer.serialize(entry.getKey(), dos);
 
-				while (it.hasNext()) {
-					Map.Entry<UK, UV> entry = it.next();
-
-					keySerializer.serialize(entry.getKey(), dos);
+				if (entry.getValue() == null) {
+					dos.writeBoolean(true);
+				} else {
+					dos.writeBoolean(false);
 					valueSerializer.serialize(entry.getValue(), dos);
 				}
-
-				return dos.getCopyOfBuffer();
-			} else {
-				return null;
 			}
+
+			return dos.getCopyOfBuffer();
 		} else {
 			return null;
 		}
@@ -542,7 +539,9 @@ public final class KvStateRequestSerializer {
 			Map<UK, UV> result = new HashMap<>();
 			while (in.available() > 0) {
 				UK key = keySerializer.deserialize(in);
-				UV value = valueSerializer.deserialize(in);
+
+				boolean isNull = in.readBoolean();
+				UV value = isNull ? null : valueSerializer.deserialize(in);
 
 				result.put(key, value);
 			}

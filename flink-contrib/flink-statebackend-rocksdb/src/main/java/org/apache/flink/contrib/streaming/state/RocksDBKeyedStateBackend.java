@@ -836,7 +836,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	@Override
-	public <N, T> InternalValueState<N, T> createValueState(
+	protected <N, T> InternalValueState<N, T> createValueState(
 			TypeSerializer<N> namespaceSerializer,
 			ValueStateDescriptor<T> stateDesc) throws Exception {
 
@@ -846,7 +846,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	@Override
-	public <N, T> InternalListState<N, T> createListState(
+	protected <N, T> InternalListState<N, T> createListState(
 			TypeSerializer<N> namespaceSerializer,
 			ListStateDescriptor<T> stateDesc) throws Exception {
 
@@ -856,7 +856,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	@Override
-	public <N, T> InternalReducingState<N, T> createReducingState(
+	protected <N, T> InternalReducingState<N, T> createReducingState(
 			TypeSerializer<N> namespaceSerializer,
 			ReducingStateDescriptor<T> stateDesc) throws Exception {
 
@@ -866,7 +866,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	@Override
-	public <N, T, ACC, R> InternalAggregatingState<N, T, R> createAggregatingState(
+	protected <N, T, ACC, R> InternalAggregatingState<N, T, R> createAggregatingState(
 			TypeSerializer<N> namespaceSerializer,
 			AggregatingStateDescriptor<T, ACC, R> stateDesc) throws Exception {
 
@@ -875,7 +875,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	@Override
-	public <N, T, ACC> InternalFoldingState<N, T, ACC> createFoldingState(
+	protected <N, T, ACC> InternalFoldingState<N, T, ACC> createFoldingState(
 			TypeSerializer<N> namespaceSerializer,
 			FoldingStateDescriptor<T, ACC> stateDesc) throws Exception {
 
@@ -885,9 +885,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	@Override
-	public <N, UK, UV> InternalMapState<N, UK, UV> createMapState(TypeSerializer<N> namespaceSerializer,
-			MapStateDescriptor<UK, UV> stateDesc) throws Exception
-	{
+	protected <N, UK, UV> InternalMapState<N, UK, UV> createMapState(TypeSerializer<N> namespaceSerializer,
+			MapStateDescriptor<UK, UV> stateDesc) throws Exception {
 		ColumnFamilyHandle columnFamily = getColumnFamily(stateDesc, namespaceSerializer);
 
 		return new RocksDBMapState<>(columnFamily, namespaceSerializer, stateDesc, this);

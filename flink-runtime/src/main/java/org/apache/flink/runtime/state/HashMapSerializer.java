@@ -25,15 +25,14 @@ import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 /**
- * A serializer for {@link List Lists}. The serializer relies on an element serializer
- * for teh serialization of the list's elements.
+ * A serializer for {@link HashMap}. The serializer relies on a key serializer and a value serializer
+ * for the serialization of the map's key-value pairs.
  *
- * <p>The serialization format for the list is as follows: four bytes for the length of the lost,
- * followed by the serialized representation of each element.
+ * <p>The serialization format for the map is as follows: four bytes for the length of the map,
+ * followed by the serialized representation of each key-value pair. To allow null values, each value
+ * is prefixed by a null marker.
  *
  * @param <K> The type of the keys in the map.
  * @param <V> The type of the values in the map.
@@ -60,7 +59,7 @@ public class HashMapSerializer<K, V> extends TypeSerializer<HashMap<K, V>> {
 	}
 
 	// ------------------------------------------------------------------------
-	//  MapSerializer specific properties
+	//  HashMapSerializer specific properties
 	// ------------------------------------------------------------------------
 
 	public TypeSerializer<K> getKeySerializer() {
@@ -95,16 +94,16 @@ public class HashMapSerializer<K, V> extends TypeSerializer<HashMap<K, V>> {
 
 	@Override
 	public HashMap<K, V> copy(HashMap<K, V> from) {
-		HashMap<K, V> newMap = new HashMap<>(from.size());
+		HashMap<K, V> newHashMap = new HashMap<>(from.size());
 
-		for (Map.Entry<K, V> entry : from.entrySet()) {
+		for (HashMap.Entry<K, V> entry : from.entrySet()) {
 			K newKey = keySerializer.copy(entry.getKey());
-			V newValue = valueSerializer.copy(entry.getValue());
+			V newValue = entry.getValue() == null ? null : valueSerializer.copy(entry.getValue());
 
-			newMap.put(newKey, newValue);
+			newHashMap.put(newKey, newValue);
 		}
 
-		return newMap;
+		return newHashMap;
 	}
 
 	@Override
@@ -122,9 +121,15 @@ public class HashMapSerializer<K, V> extends TypeSerializer<HashMap<K, V>> {
 		final int size = map.size();
 		target.writeInt(size);
 
-		for (Map.Entry<K, V> entry : map.entrySet()) {
+		for (HashMap.Entry<K, V> entry : map.entrySet()) {
 			keySerializer.serialize(entry.getKey(), target);
-			valueSerializer.serialize(entry.getValue(), target);
+
+			if (entry.getValue() == null) {
+				target.writeBoolean(true);
+			} else {
+				target.writeBoolean(false);
+				valueSerializer.serialize(entry.getValue(), target);
+			}
 		}
 	}
 
@@ -135,7 +140,9 @@ public class HashMapSerializer<K, V> extends TypeSerializer<HashMap<K, V>> {
 		final HashMap<K, V> map = new HashMap<>(size);
 		for (int i = 0; i < size; ++i) {
 			K key = keySerializer.deserialize(source);
-			V value = valueSerializer.deserialize(source);
+
+			boolean isNull = source.readBoolean();
+			V value = isNull ? null : valueSerializer.deserialize(source);
 
 			map.put(key, value);
 		}
@@ -155,7 +162,13 @@ public class HashMapSerializer<K, V> extends TypeSerializer<HashMap<K, V>> {
 
 		for (int i = 0; i < size; ++i) {
 			keySerializer.copy(source, target);
-			valueSerializer.copy(source, target);
+			
+			boolean isNull = source.readBoolean();
+			target.writeBoolean(isNull);
+			
+			if (!isNull) {
+				valueSerializer.copy(source, target);
+			}
 		}
 	}
 

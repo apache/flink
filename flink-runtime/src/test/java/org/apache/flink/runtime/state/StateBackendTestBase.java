@@ -838,7 +838,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			state.put(102, "102");
 			backend.setCurrentKey(3);
 			state.put(103, "103");
-			state.add(new HashMap<Integer, String>() {{ put(1031, "1031"); put(1032, "1032"); }});
+			state.putAll(new HashMap<Integer, String>() {{ put(1031, "1031"); put(1032, "1032"); }});
 
 			// draw another snapshot
 			KeyGroupsStateHandle snapshot2 = runSnapshot(backend.snapshot(682375462379L, 4, streamFactory));
@@ -900,7 +900,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			backend.setCurrentKey(2);
 			assertFalse(state.contains(102));
 			backend.setCurrentKey(3);
-			for (Map.Entry<Integer, String> entry : state.get()) {
+			for (Map.Entry<Integer, String> entry : state.entries()) {
 				assertEquals(4 + updateSuffix.length(), entry.getValue().length());
 				assertTrue(entry.getValue().endsWith(updateSuffix));
 			}
@@ -1101,7 +1101,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 				VoidNamespaceSerializer.INSTANCE, kvId);
 
 		backend.setCurrentKey(1);
-		assertNull(state.get());
+		assertNull(state.entries());
 
 		state.put("Ciao", "Hello");
 		state.put("Bello", "Nice");
@@ -1111,7 +1111,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		assertEquals(state.get("Bello"), "Nice");
 
 		state.clear();
-		assertNull(state.get());
+		assertNull(state.entries());
 
 		backend.dispose();
 	}
@@ -1401,7 +1401,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 				state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
 
-				state.get();
+				state.entries();
 
 				fail("should recognize wrong serializers");
 			} catch (IOException e) {

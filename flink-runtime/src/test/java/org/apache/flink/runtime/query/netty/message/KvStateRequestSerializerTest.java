@@ -25,6 +25,7 @@ import io.netty.buffer.UnpooledByteBufAllocator;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.ByteSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -433,7 +434,8 @@ public class KvStateRequestSerializerTest {
 			);
 		longHeapKeyedStateBackend.setCurrentKey(key);
 
-		final InternalMapState<VoidNamespace, Long, String> mapState = longHeapKeyedStateBackend.createMapState(
+		final InternalMapState<VoidNamespace, Long, String> mapState = (InternalMapState<VoidNamespace, Long, String>) longHeapKeyedStateBackend.getPartitionedState(
+				VoidNamespace.INSTANCE,
 				VoidNamespaceSerializer.INSTANCE,
 				new MapStateDescriptor<>("test", LongSerializer.INSTANCE, StringSerializer.INSTANCE));
 
@@ -459,15 +461,18 @@ public class KvStateRequestSerializerTest {
 		TypeSerializer<String> userValueSerializer = StringSerializer.INSTANCE;
 		mapState.setCurrentNamespace(VoidNamespace.INSTANCE);
 
-		// List
+		// Map
 		final int numElements = 10;
 
 		final Map<Long, String> expectedValues = new HashMap<>();
-		for (int i = 0; i < numElements; i++) {
+		for (int i = 1; i <= numElements; i++) {
 			final long value = ThreadLocalRandom.current().nextLong();
 			expectedValues.put(value, Long.toString(value));
 			mapState.put(value, Long.toString(value));
 		}
+
+		expectedValues.put(0L, null);
+		mapState.put(0L, null);
 
 		final byte[] serializedKey =
 			KvStateRequestSerializer.serializeKeyAndNamespace(
@@ -485,8 +490,11 @@ public class KvStateRequestSerializerTest {
 		// Single value
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		long expectedKey = ThreadLocalRandom.current().nextLong();
-		baos.write(KvStateRequestSerializer.serializeValue(expectedKey, userKeySerializer));
 		String expectedValue = Long.toString(expectedKey);
+		byte[] isNull = {0};
+
+		baos.write(KvStateRequestSerializer.serializeValue(expectedKey, userKeySerializer));
+		baos.write(isNull);
 		baos.write(KvStateRequestSerializer.serializeValue(expectedValue, userValueSerializer));
 		byte[] serializedValue = baos.toByteArray();
 
@@ -520,8 +528,8 @@ public class KvStateRequestSerializerTest {
 	@Test(expected = IOException.class)
 	public void testDeserializeMapTooShort2() throws Exception {
 		// Long (Key) + 1 byte (incomplete Value)
-		KvStateRequestSerializer.deserializeMap(new byte[] {1, 1, 1, 1, 1, 1, 1, 1, 3},
-			LongSerializer.INSTANCE, LongSerializer.INSTANCE);
+		KvStateRequestSerializer.deserializeMap(new byte[]{1, 1, 1, 1, 1, 1, 1, 1, 0},
+				LongSerializer.INSTANCE, LongSerializer.INSTANCE);
 	}
 	
 	/**
@@ -529,8 +537,8 @@ public class KvStateRequestSerializerTest {
 	 */
 	@Test(expected = IOException.class)
 	public void testDeserializeMapTooShort3() throws Exception {
-		// Long (Key1) + Long (Value1) + 1 byte (incomplete Key2)
-		KvStateRequestSerializer.deserializeMap(new byte[] {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 3},
+		// Long (Key1) + Boolean (false) + Long (Value1) + 1 byte (incomplete Key2)
+		KvStateRequestSerializer.deserializeMap(new byte[] {1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 3},
 			LongSerializer.INSTANCE, LongSerializer.INSTANCE);
 	}
 

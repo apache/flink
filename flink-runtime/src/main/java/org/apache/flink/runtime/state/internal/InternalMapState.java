@@ -20,8 +20,6 @@ package org.apache.flink.runtime.state.internal;
 
 import org.apache.flink.api.common.state.MapState;
 
-import java.util.Map;
-
 /**
  * The peer to the {@link MapState} in the internal state type hierarchy.
  *
@@ -31,4 +29,4 @@ import java.util.Map;
  * @param <UK> Type of the values folded into the state
  * @param <UV> Type of the value in the state
  */
-public interface InternalMapState<N, UK, UV> extends InternalAppendingState<N, Map<UK, UV>, Iterable<Map.Entry<UK, UV>>>, MapState<UK, UV> {}
+public interface InternalMapState<N, UK, UV> extends InternalKvState<N>, MapState<UK, UV> {}

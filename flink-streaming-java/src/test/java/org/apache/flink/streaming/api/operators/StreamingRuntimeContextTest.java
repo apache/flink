@@ -230,7 +230,7 @@ public class StreamingRuntimeContextTest {
 		MapStateDescriptor<Integer, String> descr = new MapStateDescriptor<>("name", Integer.class, String.class);
 		MapState<Integer, String> state = context.getMapState(descr);
 
-		Iterable<Map.Entry<Integer, String>> value = state.get();
+		Iterable<Map.Entry<Integer, String>> value = state.entries();
 		assertNotNull(value);
 		assertFalse(value.iterator().hasNext());
 	}
