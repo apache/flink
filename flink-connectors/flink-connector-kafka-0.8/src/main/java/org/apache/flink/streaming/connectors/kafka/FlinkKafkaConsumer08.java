@@ -45,10 +45,10 @@ import java.net.InetAddress;
 import java.net.URL;
 import java.net.UnknownHostException;
 import java.nio.channels.ClosedChannelException;
-import java.util.ArrayList;
 import java.util.Collections;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Random;
 
@@ -194,19 +194,23 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 	@Override
 	protected AbstractFetcher<T, ?> createFetcher(
 			SourceContext<T> sourceContext,
-			List<KafkaTopicPartition> thisSubtaskPartitions,
-			HashMap<KafkaTopicPartition, Long> restoredSnapshotState,
+			Map<KafkaTopicPartition, Long> assignedPartitionsWithInitialOffsets,
 			SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
 			SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
 			StreamingRuntimeContext runtimeContext) throws Exception {
 
 		boolean useMetrics = !Boolean.valueOf(kafkaProperties.getProperty(KEY_DISABLE_METRICS, "false"));
 
-		return new Kafka08Fetcher<>(sourceContext,
-				thisSubtaskPartitions, restoredSnapshotState,
-				watermarksPeriodic, watermarksPunctuated,
-				runtimeContext, deserializer, kafkaProperties,
-				autoCommitInterval, startupMode, useMetrics);
+		return new Kafka08Fetcher<>(
+				sourceContext,
+				assignedPartitionsWithInitialOffsets,
+				watermarksPeriodic,
+				watermarksPunctuated,
+				runtimeContext,
+				deserializer,
+				kafkaProperties,
+				autoCommitInterval,
+				useMetrics);
 	}
 
 	@Override

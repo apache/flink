@@ -39,16 +39,12 @@ public class KafkaConsumerCallBridge {
 		consumer.assign(topicPartitions);
 	}
 
-	public void seekPartitionsToBeginning(KafkaConsumer<?, ?> consumer, List<TopicPartition> partitions) {
-		for (TopicPartition partition : partitions) {
-			consumer.seekToBeginning(partition);
-		}
+	public void seekPartitionToBeginning(KafkaConsumer<?, ?> consumer, TopicPartition partition) {
+		consumer.seekToBeginning(partition);
 	}
 
-	public void seekPartitionsToEnd(KafkaConsumer<?, ?> consumer, List<TopicPartition> partitions) {
-		for (TopicPartition partition : partitions) {
-			consumer.seekToEnd(partition);
-		}
+	public void seekPartitionToEnd(KafkaConsumer<?, ?> consumer, TopicPartition partition) {
+		consumer.seekToEnd(partition);
 	}
 
 }

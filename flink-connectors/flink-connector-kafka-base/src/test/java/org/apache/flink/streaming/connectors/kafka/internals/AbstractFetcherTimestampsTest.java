@@ -44,10 +44,10 @@ public class AbstractFetcherTimestampsTest {
 	@Test
 	public void testPunctuatedWatermarks() throws Exception {
 		final String testTopic = "test topic name";
-		List<KafkaTopicPartition> originalPartitions = Arrays.asList(
-				new KafkaTopicPartition(testTopic, 7),
-				new KafkaTopicPartition(testTopic, 13),
-				new KafkaTopicPartition(testTopic, 21));
+		Map<KafkaTopicPartition, Long> originalPartitions = new HashMap<>();
+		originalPartitions.put(new KafkaTopicPartition(testTopic, 7), KafkaTopicPartitionStateSentinel.LATEST_OFFSET);
+		originalPartitions.put(new KafkaTopicPartition(testTopic, 13), KafkaTopicPartitionStateSentinel.LATEST_OFFSET);
+		originalPartitions.put(new KafkaTopicPartition(testTopic, 21), KafkaTopicPartitionStateSentinel.LATEST_OFFSET);
 
 		TestSourceContext<Long> sourceContext = new TestSourceContext<>();
 
@@ -56,15 +56,14 @@ public class AbstractFetcherTimestampsTest {
 		TestFetcher<Long> fetcher = new TestFetcher<>(
 				sourceContext,
 				originalPartitions,
-				null,
 				null, /* periodic watermark assigner */
 				new SerializedValue<AssignerWithPunctuatedWatermarks<Long>>(new PunctuatedTestExtractor()),
 				processingTimeProvider,
 				0);
 
-		final KafkaTopicPartitionState<Object> part1 = fetcher.subscribedPartitions()[0];
-		final KafkaTopicPartitionState<Object> part2 = fetcher.subscribedPartitions()[1];
-		final KafkaTopicPartitionState<Object> part3 = fetcher.subscribedPartitions()[2];
+		final KafkaTopicPartitionState<Object> part1 = fetcher.subscribedPartitionStates()[0];
+		final KafkaTopicPartitionState<Object> part2 = fetcher.subscribedPartitionStates()[1];
+		final KafkaTopicPartitionState<Object> part3 = fetcher.subscribedPartitionStates()[2];
 
 		// elements generate a watermark if the timestamp is a multiple of three
 		
@@ -119,10 +118,10 @@ public class AbstractFetcherTimestampsTest {
 	@Test
 	public void testPeriodicWatermarks() throws Exception {
 		final String testTopic = "test topic name";
-		List<KafkaTopicPartition> originalPartitions = Arrays.asList(
-				new KafkaTopicPartition(testTopic, 7),
-				new KafkaTopicPartition(testTopic, 13),
-				new KafkaTopicPartition(testTopic, 21));
+		Map<KafkaTopicPartition, Long> originalPartitions = new HashMap<>();
+		originalPartitions.put(new KafkaTopicPartition(testTopic, 7), KafkaTopicPartitionStateSentinel.LATEST_OFFSET);
+		originalPartitions.put(new KafkaTopicPartition(testTopic, 13), KafkaTopicPartitionStateSentinel.LATEST_OFFSET);
+		originalPartitions.put(new KafkaTopicPartition(testTopic, 21), KafkaTopicPartitionStateSentinel.LATEST_OFFSET);
 
 		TestSourceContext<Long> sourceContext = new TestSourceContext<>();
 
@@ -131,15 +130,14 @@ public class AbstractFetcherTimestampsTest {
 		TestFetcher<Long> fetcher = new TestFetcher<>(
 				sourceContext,
 				originalPartitions,
-				null,
 				new SerializedValue<AssignerWithPeriodicWatermarks<Long>>(new PeriodicTestExtractor()),
 				null, /* punctuated watermarks assigner*/
 				processingTimeService,
 				10);
 
-		final KafkaTopicPartitionState<Object> part1 = fetcher.subscribedPartitions()[0];
-		final KafkaTopicPartitionState<Object> part2 = fetcher.subscribedPartitions()[1];
-		final KafkaTopicPartitionState<Object> part3 = fetcher.subscribedPartitions()[2];
+		final KafkaTopicPartitionState<Object> part1 = fetcher.subscribedPartitionStates()[0];
+		final KafkaTopicPartitionState<Object> part2 = fetcher.subscribedPartitionStates()[1];
+		final KafkaTopicPartitionState<Object> part3 = fetcher.subscribedPartitionStates()[2];
 
 		// elements generate a watermark if the timestamp is a multiple of three
 
@@ -202,8 +200,7 @@ public class AbstractFetcherTimestampsTest {
 
 		protected TestFetcher(
 				SourceContext<T> sourceContext,
-				List<KafkaTopicPartition> assignedPartitions,
-				HashMap<KafkaTopicPartition, Long> restoredSnapshotState,
+				Map<KafkaTopicPartition, Long> assignedPartitionsWithStartOffsets,
 				SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
 				SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
 				ProcessingTimeService processingTimeProvider,
@@ -211,14 +208,12 @@ public class AbstractFetcherTimestampsTest {
 		{
 			super(
 				sourceContext,
-				assignedPartitions,
-				restoredSnapshotState,
+				assignedPartitionsWithStartOffsets,
 				watermarksPeriodic,
 				watermarksPunctuated,
 				processingTimeProvider,
 				autoWatermarkInterval,
 				TestFetcher.class.getClassLoader(),
-				StartupMode.LATEST,
 				false);
 		}
 
