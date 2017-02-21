@@ -28,6 +28,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.FileSystemSafetyNet;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
@@ -391,15 +392,19 @@ public class Task implements Runnable, TaskActions {
 
 		// register detailed network metrics, if configured
 		if (tmConfig.getBoolean(ConfigConstants.NETWORK_DETAILED_METRICS_KEY)) {
+			MetricGroup networkGroup = metricGroup.addGroup("Network"); // same as in MetricUtils.instantiateNetworkMetrics()
+			MetricGroup outputGroup = networkGroup.addGroup("Output"); // this is optional
+			MetricGroup inputGroup = networkGroup.addGroup("Input"); // this is optional
+
 			// output metrics
 			for (int i = 0; i < producedPartitions.length; i++) {
 				ResultPartitionMetrics.registerQueueLengthMetrics(
-						metricGroup.addGroup("netout_" + i), producedPartitions[i]);
+					outputGroup.addGroup(i), producedPartitions[i]);
 			}
 
 			for (int i = 0; i < inputGates.length; i++) {
 				InputGateMetrics.registerQueueLengthMetrics(
-						metricGroup.addGroup("netin_" + i), inputGates[i]);
+					inputGroup.addGroup(i), inputGates[i]);
 			}
 		}
 
