@@ -34,6 +34,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Compiler class containing methods to compile a {@link Pattern} into a {@link NFA} or a
@@ -84,12 +85,16 @@ public class NFACompiler {
 			Map<String, State<T>> states = new HashMap<>();
 			long windowTime;
 
+			// this is used to enforse pattern name uniqueness.
+			Set<String> patternNames = new HashSet<>();
+
 			Pattern<T, ?> succeedingPattern;
 			State<T> succeedingState;
 			Pattern<T, ?> currentPattern = pattern;
 
 			// we're traversing the pattern from the end to the beginning --> the first state is the final state
 			State<T> currentState = new State<>(currentPattern.getName(), State.StateType.Final);
+			patternNames.add(currentPattern.getName());
 
 			states.put(currentPattern.getName(), currentState);
 
@@ -99,6 +104,11 @@ public class NFACompiler {
 				succeedingPattern = currentPattern;
 				succeedingState = currentState;
 				currentPattern = currentPattern.getPrevious();
+
+				if (!patternNames.add(currentPattern.getName())) {
+					throw new MalformedPatternException("Duplicate pattern name: " + currentPattern.getName() + ". " +
+						"Pattern names must be unique.");
+				}
 
 				Time currentWindowTime = currentPattern.getWindowTime();
 
