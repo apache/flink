@@ -81,6 +81,12 @@ public class GenericTypeInfo<T> extends TypeInformation<T> implements AtomicType
 	@Override
 	@PublicEvolving
 	public TypeSerializer<T> createSerializer(ExecutionConfig config) {
+		if (config.hasGenericTypesDisabled()) {
+			throw new UnsupportedOperationException(
+				"Generic types are disabled for POJOs serialization, but type " + this.typeClass +
+				" is treated as a generic type.");
+		}
+
 		return new KryoSerializer<T>(this.typeClass, config);
 	}
 
