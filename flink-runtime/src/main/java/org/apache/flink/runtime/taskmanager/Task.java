@@ -23,7 +23,6 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.cache.DistributedCache;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.FileSystemSafetyNet;
@@ -391,7 +390,7 @@ public class Task implements Runnable, TaskActions {
 		}
 
 		// register detailed network metrics, if configured
-		if (tmConfig.getBoolean(ConfigConstants.NETWORK_DETAILED_METRICS_KEY)) {
+		if (tmConfig.getBoolean(TaskManagerOptions.NETWORK_DETAILED_METRICS_KEY)) {
 			MetricGroup networkGroup = metricGroup.addGroup("Network"); // same as in MetricUtils.instantiateNetworkMetrics()
 			MetricGroup outputGroup = networkGroup.addGroup("Output"); // this is optional
 			MetricGroup inputGroup = networkGroup.addGroup("Input"); // this is optional

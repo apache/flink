@@ -67,6 +67,14 @@ public class TaskManagerOptions {
 		key("taskmanager.net.memory.extra-buffers-per-gate")
 			.defaultValue(8);
 
+	/**
+	 * Boolean flag to enable/disable more detailed metrics about inbound/outbound network queue
+	 * lengths.
+	 */
+	public static final ConfigOption<Boolean> NETWORK_DETAILED_METRICS_KEY =
+			key("taskmanager.net.detailed-metrics")
+			.defaultValue(false);
+
 	// ------------------------------------------------------------------------
 	//  Task Options
 	// ------------------------------------------------------------------------
