@@ -18,14 +18,9 @@
 
 package org.apache.flink.cep.operator;
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.EitherTypeInfo;
-import org.apache.flink.api.java.typeutils.TupleTypeInfo;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -45,10 +40,9 @@ public class CEPOperatorUtils {
 	 * events are indexed by their associated names of the pattern.
 	 */
 	public static <K, T> DataStream<Map<String, T>> createPatternStream(DataStream<T> inputStream, Pattern<T, ?> pattern) {
-		final TypeSerializer<T> inputSerializer = inputStream.getType().createSerializer(inputStream.getExecutionConfig());
 
-		// check whether we use processing time
-		final boolean isProcessingTime = inputStream.getExecutionEnvironment().getStreamTimeCharacteristic() == TimeCharacteristic.ProcessingTime;
+		final TypeSerializer<T> inputSerializer = inputStream.getType().createSerializer(inputStream.getExecutionConfig());
+		final TimeCharacteristic timeCharacteristic = inputStream.getExecutionEnvironment().getStreamTimeCharacteristic();
 
 		// compile our pattern into a NFAFactory to instantiate NFAs later on
 		final NFACompiler.NFAFactory<T> nfaFactory = NFACompiler.compileFactory(pattern, inputSerializer, false);
@@ -56,30 +50,20 @@ public class CEPOperatorUtils {
 		final DataStream<Map<String, T>> patternStream;
 
 		if (inputStream instanceof KeyedStream) {
-			// We have to use the KeyedCEPPatternOperator which can deal with keyed input streams
-			KeyedStream<T, K> keyedStream= (KeyedStream<T, K>) inputStream;
+			KeyedStream<T, K> keyedStream = (KeyedStream<T, K>) inputStream;
 
-			KeySelector<T, K> keySelector = keyedStream.getKeySelector();
-			TypeSerializer<K> keySerializer = keyedStream.getKeyType().createSerializer(keyedStream.getExecutionConfig());
-
-			patternStream = keyedStream.transform(
-				"KeyedCEPPatternOperator",
-				(TypeInformation<Map<String, T>>) (TypeInformation<?>) TypeExtractor.getForClass(Map.class),
-				new KeyedCEPPatternOperator<>(
+			patternStream = keyedStream
+				.process(new CEPPatternFunction<>(
 					inputSerializer,
-					isProcessingTime,
-					keySelector,
-					keySerializer,
-					nfaFactory));
+					timeCharacteristic,
+					nfaFactory)).name("CEPPatternOperator");
 		} else {
-			patternStream = inputStream.transform(
-				"CEPPatternOperator",
-				(TypeInformation<Map<String, T>>) (TypeInformation<?>) TypeExtractor.getForClass(Map.class),
-				new CEPPatternOperator<>(
+			patternStream = inputStream.keyBy(new NullByteKeySelector<T>())
+				.process(new CEPPatternFunction<>(
 					inputSerializer,
-					isProcessingTime,
+					timeCharacteristic,
 					nfaFactory
-				)).forceNonParallel();
+				)).name("CEPPatternOperator").forceNonParallel();
 		}
 
 		return patternStream;
@@ -87,8 +71,8 @@ public class CEPOperatorUtils {
 
 	/**
 	 * Creates a data stream containing fully matching event patterns or partially matching event
-	 * patterns which have timed out. The former are wrapped in a Either.Right and the latter in a
-	 * Either.Left type.
+	 * patterns which have timed out. The former are wrapped in an {@code Either.Right} and the latter in a
+	 * {@code Either.Left} type.
 	 *
 	 * @param <K> Type of the key
 	 * @return Data stream containing fully matched and partially matched event sequences wrapped in
@@ -97,46 +81,44 @@ public class CEPOperatorUtils {
 	public static <K, T> DataStream<Either<Tuple2<Map<String, T>, Long>, Map<String, T>>> createTimeoutPatternStream(DataStream<T> inputStream, Pattern<T, ?> pattern) {
 
 		final TypeSerializer<T> inputSerializer = inputStream.getType().createSerializer(inputStream.getExecutionConfig());
-
-		// check whether we use processing time
-		final boolean isProcessingTime = inputStream.getExecutionEnvironment().getStreamTimeCharacteristic() == TimeCharacteristic.ProcessingTime;
+		final TimeCharacteristic timeCharacteristic = inputStream.getExecutionEnvironment().getStreamTimeCharacteristic();
 
 		// compile our pattern into a NFAFactory to instantiate NFAs later on
 		final NFACompiler.NFAFactory<T> nfaFactory = NFACompiler.compileFactory(pattern, inputSerializer, true);
 
 		final DataStream<Either<Tuple2<Map<String, T>, Long>, Map<String, T>>> patternStream;
 
-		final TypeInformation<Map<String, T>> rightTypeInfo = (TypeInformation<Map<String, T>>) (TypeInformation<?>)  TypeExtractor.getForClass(Map.class);
-		final TypeInformation<Tuple2<Map<String, T>, Long>> leftTypeInfo = new TupleTypeInfo<>(rightTypeInfo, BasicTypeInfo.LONG_TYPE_INFO);
-		final TypeInformation<Either<Tuple2<Map<String, T>, Long>, Map<String, T>>> eitherTypeInformation = new EitherTypeInfo<>(leftTypeInfo, rightTypeInfo);
-
 		if (inputStream instanceof KeyedStream) {
-			// We have to use the KeyedCEPPatternOperator which can deal with keyed input streams
-			KeyedStream<T, K> keyedStream= (KeyedStream<T, K>) inputStream;
+			KeyedStream<T, K> keyedStream = (KeyedStream<T, K>) inputStream;
 
-			KeySelector<T, K> keySelector = keyedStream.getKeySelector();
-			TypeSerializer<K> keySerializer = keyedStream.getKeyType().createSerializer(keyedStream.getExecutionConfig());
-
-			patternStream = keyedStream.transform(
-				"TimeoutKeyedCEPPatternOperator",
-				eitherTypeInformation,
-				new TimeoutKeyedCEPPatternOperator<T, K>(
+			patternStream = keyedStream
+				.process(new CEPTimedoutPatternFunction<>(
 					inputSerializer,
-					isProcessingTime,
-					keySelector,
-					keySerializer,
-					nfaFactory));
+					timeCharacteristic,
+					nfaFactory)).name("CEPTimedoutPatternOperator");
 		} else {
-			patternStream = inputStream.transform(
-				"TimeoutCEPPatternOperator",
-				eitherTypeInformation,
-				new TimeoutCEPPatternOperator<>(
+			patternStream = inputStream.keyBy(new NullByteKeySelector<T>())
+				.process(new CEPTimedoutPatternFunction<>(
 					inputSerializer,
-					isProcessingTime,
+					timeCharacteristic,
 					nfaFactory
-				)).forceNonParallel();
+				)).name("CEPTimedoutPatternOperator").forceNonParallel();
 		}
 
 		return patternStream;
+	}
+
+	/**
+	 * Used as dummy KeySelector to allow using WindowOperator for Non-Keyed Windows.
+	 * @param <T>
+	 */
+	private static class NullByteKeySelector<T> implements KeySelector<T, Byte> {
+
+		private static final long serialVersionUID = 614256539098549020L;
+
+		@Override
+		public Byte getKey(T value) throws Exception {
+			return 0;
+		}
 	}
 }
