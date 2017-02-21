@@ -16,49 +16,34 @@
  * limitations under the License.
  */
 
-package org.apache.flink.ml.regression
-
-import org.apache.flink.api.scala.DataSet
-import org.apache.flink.ml.math.{Breeze, Vector}
-import org.apache.flink.ml.common._
+package org.apache.flink.ml.classification
 
 import org.apache.flink.api.scala._
-import org.apache.flink.ml.optimization.LearningRateMethod.LearningRateMethodTrait
-
+import org.apache.flink.ml.common._
+import org.apache.flink.ml.math._
 import org.apache.flink.ml.optimization._
-import org.apache.flink.ml.pipeline.{PredictOperation, FitOperation, Predictor}
+import org.apache.flink.ml.pipeline.{PredictOperation, Predictor}
+import org.apache.flink.ml.regression.{GeneralizedLinearModel, WithIterativeSolver, WithRegularizationOption}
 
-
-/** Multiple linear regression using the ordinary least squares (OLS) estimator.
+/** Logistic regression using the ordinary least squares (OLS) estimator.
   *
-  * The linear regression finds a solution to the problem
+  * The logistic regression minimizes the following cost function:
   *
-  * `y = w_0 + w_1*x_1 + w_2*x_2 ... + w_n*x_n = w_0 + w^T*x`
+  * `-y*log(g(xw))-(1-y)*log(g(xw))`
   *
-  * such that the sum of squared residuals is minimized
+  * The label y is in {0, 1}, where function g is the sigmoid function.
+  * The sigmoid function is defined as:
   *
-  * `min_{w, w_0} \sum (y - w^T*x - w_0)^2`
+  * `g(z) = 1 / (1+exp(-z))`
   *
   * The minimization problem is solved by (stochastic) gradient descent. For each labeled vector
   * `(x,y)`, the gradient is calculated. The weighted average of all gradients is subtracted from
   * the current value `w` which gives the new value of `w_new`. The weight is defined as
-  * `stepsize/math.sqrt(iteration)`.
-  *
-  * The optimization runs at most a maximum number of iterations or, if a convergence threshold has
-  * been set, until the convergence criterion has been met. As convergence criterion the relative
-  * change of the sum of squared residuals is used:
-  *
-  * `(S_{k-1} - S_k)/S_{k-1} < \rho`
-  *
-  * with S_k being the sum of squared residuals in iteration k and `\rho` being the convergence
-  * threshold.
-  *
-  * At the moment, the whole partition is used for SGD, making it effectively a batch gradient
-  * descent. Once a sampling operator has been introduced, the algorithm can be optimized.
+  * `stepsize/math.sqrt(iteration)`(default).
   *
   * @example
   *          {{{
-  *             val mlr = MultipleLinearRegression()
+  *             val mlr = LogisticRegression()
   *               .setIterations(10)
   *               .setStepsize(0.5)
   *               .setConvergenceThreshold(0.001)
@@ -90,65 +75,47 @@ import org.apache.flink.ml.pipeline.{PredictOperation, FitOperation, Predictor}
   *  [[LearningRateMethod]] for all supported methods.
   *
   */
-class MultipleLinearRegression
-  extends Predictor[MultipleLinearRegression]
-    with GeneralizedLinearModel[MultipleLinearRegression]
-    with WithIterativeSolver[MultipleLinearRegression] {
-  import org.apache.flink.ml._
-  import MultipleLinearRegression._
+class LogisticRegression
+  extends Predictor[LogisticRegression]
+    with GeneralizedLinearModel[LogisticRegression]
+    with WithRegularizationOption[LogisticRegression]
+    with WithIterativeSolver[LogisticRegression] {
+  import LogisticRegression._
 
   val _solver: GradientDescent = GradientDescent()
     .setLossFunction(lossFunction)
 
   protected def solver: GradientDescent = _solver
-
-  def squaredResidualSum(input: DataSet[LabeledVector]): DataSet[Double] = {
-    weightsOption match {
-      case Some(weights) => {
-        input.mapWithBcVariable(weights){
-          (dataPoint, weights) => lossFunction.loss(dataPoint, weights)
-        }.reduce {
-          _ + _
-        }
-      }
-
-      case None => {
-        throw new RuntimeException("The MultipleLinearRegression has not been fitted to the " +
-          "data. This is necessary to learn the weight vector of the linear function.")
-      }
-    }
-
-  }
 }
 
-object MultipleLinearRegression {
+object LogisticRegression {
+  val lossFunction = GenericLossFunction(LogisticLoss, LinearPrediction)
 
-  val lossFunction = GenericLossFunction(SquaredLoss, LinearPrediction)
-
-  def apply(): MultipleLinearRegression = {
-    new MultipleLinearRegression()
+  def apply(): LogisticRegression = {
+    new LogisticRegression()
   }
 
   implicit def predictVectors[T <: Vector] = {
-    new PredictOperation[MultipleLinearRegression, WeightVector, T, Double]() {
-      override def getModel(self: MultipleLinearRegression, predictParameters: ParameterMap)
-        : DataSet[WeightVector] = {
+    new PredictOperation[LogisticRegression, WeightVector, T, Double]() {
+      override def getModel(self: LogisticRegression, predictParameters: ParameterMap)
+      : DataSet[WeightVector] = {
         self.weightsOption match {
           case Some(weights) => weights
-
-
           case None => {
-            throw new RuntimeException("The MultipleLinearRegression has not been fitted to the " +
+            throw new RuntimeException("The LogisticRegression has not been fitted to the " +
               "data. This is necessary to learn the weight vector of the linear function.")
           }
         }
       }
+
       override def predict(value: T, model: WeightVector): Double = {
         import Breeze._
         val WeightVector(weights, weight0) = model
-        val dotProduct = value.asBreeze.dot(weights.asBreeze)
-        dotProduct + weight0
+        val dotProduct = value.asBreeze.dot(weights.asBreeze) + weight0
+        val score = 1.0 / (1.0 + math.exp(-dotProduct))
+        if (score > 0.5) 1.0 else 0.0
       }
     }
   }
 }
+

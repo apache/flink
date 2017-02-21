@@ -54,7 +54,7 @@ class LossFunctionTest extends FlatSpec with Matchers {
     )
 
     val weightVector = new WeightVector(DenseVector(1.0), 1.0)
-    val expectedLosses = List(0.049, 7.58e-10, 24.0)
+    val expectedLosses = List(3.048, 21.0, 3.77E-11)
     val expectedGradients = List(-0.095, -1.52e-8, 25.0)
 
     expectedLosses zip examples foreach {

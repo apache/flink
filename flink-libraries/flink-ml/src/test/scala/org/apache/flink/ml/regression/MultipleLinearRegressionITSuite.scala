@@ -42,9 +42,9 @@ class MultipleLinearRegressionITSuite
 
     val parameters = ParameterMap()
 
-    parameters.add(MultipleLinearRegression.Stepsize, 2.0)
-    parameters.add(MultipleLinearRegression.Iterations, 10)
-    parameters.add(MultipleLinearRegression.ConvergenceThreshold, 0.001)
+    parameters.add(WithIterativeSolver.Stepsize, 2.0)
+    parameters.add(WithIterativeSolver.Iterations, 10)
+    parameters.add(WithIterativeSolver.ConvergenceThreshold, 0.001)
 
     val inputDS = env.fromCollection(data)
     mlr.fit(inputDS, parameters)
@@ -75,15 +75,16 @@ class MultipleLinearRegressionITSuite
 
     val parameters = ParameterMap()
 
-    parameters.add(MultipleLinearRegression.Stepsize, 2.0)
-    parameters.add(MultipleLinearRegression.Iterations, 10)
-    parameters.add(MultipleLinearRegression.ConvergenceThreshold, 0.001)
+    parameters.add(WithIterativeSolver.Stepsize, 2.0)
+    parameters.add(WithIterativeSolver.Iterations, 10)
+    parameters.add(WithIterativeSolver.ConvergenceThreshold, 0.001)
 
     mlr.fit(sparseInputDS, parameters)
 
     val weightList = mlr.weightsOption.get.collect()
 
     val WeightVector(weights, intercept) = weightList.head
+    println(weightList)
 
     RegressionData.expectedWeightsSparseInput.toIterator zip weights.valueIterator foreach {
       case (expectedWeight, weight) =>
@@ -106,8 +107,8 @@ class MultipleLinearRegressionITSuite
 
     val parameters = ParameterMap()
       .add(PolynomialFeatures.Degree, 3)
-      .add(MultipleLinearRegression.Stepsize, 0.004)
-      .add(MultipleLinearRegression.Iterations, 100)
+      .add(WithIterativeSolver.Stepsize, 0.004)
+      .add(WithIterativeSolver.Iterations, 100)
 
     pipeline.fit(inputDS, parameters)
 
@@ -140,9 +141,9 @@ class MultipleLinearRegressionITSuite
 
     val parameters = ParameterMap()
 
-    parameters.add(MultipleLinearRegression.Stepsize, 1.0)
-    parameters.add(MultipleLinearRegression.Iterations, 10)
-    parameters.add(MultipleLinearRegression.ConvergenceThreshold, 0.001)
+    parameters.add(WithIterativeSolver.Stepsize, 1.0)
+    parameters.add(WithIterativeSolver.Iterations, 10)
+    parameters.add(WithIterativeSolver.ConvergenceThreshold, 0.001)
 
     val inputDS = env.fromCollection(data)
     val evaluationDS = inputDS.map(x => (x.vector, x.label))
