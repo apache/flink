@@ -139,7 +139,7 @@ class AsyncDatabaseRequest extends AsyncFunction[String, (String, String)] {
     lazy val client: DatabaseClient = new DatabaseClient(host, post, credentials)
 
     /** The context used for the future callbacks */
-    implicit lazy val executor: ExecutionContext = ExecutionContext.fromExecutor(Executors.directExecutor()))
+    implicit lazy val executor: ExecutionContext = ExecutionContext.fromExecutor(Executors.directExecutor())
 
 
     override def asyncInvoke(str: String, asyncCollector: AsyncCollector[(String, String)]): Unit = {
@@ -150,8 +150,8 @@ class AsyncDatabaseRequest extends AsyncFunction[String, (String, String)] {
         // set the callback to be executed once the request by the client is complete
         // the callback simply forwards the result to the collector
         resultFuture.onSuccess {
-            case result: String => asyncCollector.collect(Collections.singleton((str, result)));
-        })
+            case result: String => asyncCollector.collect(Iterable((str, result)));
+        }
     }
 }
 
