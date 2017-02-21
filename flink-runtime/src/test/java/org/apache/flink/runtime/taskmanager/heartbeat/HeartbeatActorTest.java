@@ -163,7 +163,7 @@ public class HeartbeatActorTest extends TestLogger {
 		new JavaTestKit(actorsSystem) {{
 			final FiniteDuration heartbeatInterval = new FiniteDuration(20L, TimeUnit.MILLISECONDS);
 			final FiniteDuration initialHeartbeatPause = new FiniteDuration(500L, TimeUnit.MILLISECONDS);
-			final FiniteDuration maxHeartbeatPause = initialHeartbeatPause;
+			final FiniteDuration maxHeartbeatPause = new FiniteDuration(2000L, TimeUnit.MILLISECONDS);
 
 			final UUID leaderId = UUID.randomUUID();
 			final InstanceID instanceId = new InstanceID();

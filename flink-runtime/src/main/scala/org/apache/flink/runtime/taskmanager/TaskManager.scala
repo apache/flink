@@ -2029,16 +2029,4 @@ object TaskManager {
         throw new IOException("Could not connect to TaskManager at " + taskManagerUrl, e)
     }
   }
-    val heartbeatInterval = configuration.getLong(ClusterOptions.HEARTBEAT_INTERVAL)
-    val initialHeartbeatPause = configuration.getLong(
-      ClusterOptions.HEARTBEAT_INITIAL_ACCEPTABLE_PAUSE)
-    // make sure that the max acceptable heartbeat pause is larger or equal than the initial
-    // heartbeat pause
-    val maxHeartbeatPause = math.max(
-      configuration.getLong(ClusterOptions.HEARTBEAT_MAX_ACCEPTABLE_PAUSE),
-      initialHeartbeatPause)
-
-      FiniteDuration(heartbeatInterval, TimeUnit.MILLISECONDS),
-      FiniteDuration(initialHeartbeatPause, TimeUnit.MILLISECONDS),
-      FiniteDuration(maxHeartbeatPause, TimeUnit.MILLISECONDS))
 }
