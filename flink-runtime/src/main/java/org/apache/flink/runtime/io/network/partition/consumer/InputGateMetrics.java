@@ -21,19 +21,16 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
 
+import java.util.Collection;
+
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
+/**
+ * Collects metrics of an input gate.
+ */
 public class InputGateMetrics {
 
 	private final SingleInputGate inputGate;
-
-	private long lastTotal = -1;
-
-	private int lastMin = -1;
-
-	private int lastMax = -1;
-
-	private float lastAvg = -1.0f;
 
 	// ------------------------------------------------------------------------
 
@@ -45,71 +42,95 @@ public class InputGateMetrics {
 
 	// these methods are package private to make access from the nested classes faster 
 
+	/**
+	 * Iterates over all input channels and collects the total number of queued buffers in a
+	 * best-effort way.
+	 *
+	 * @return total number of queued buffers
+	 */
 	long refreshAndGetTotal() {
-		long total;
-		if ((total = lastTotal) == -1) {
-			refresh();
-			total = lastTotal;
+		long total = 0;
+
+		for (InputChannel channel : inputGate.getInputChannels().values()) {
+			if (channel instanceof RemoteInputChannel) {
+				RemoteInputChannel rc = (RemoteInputChannel) channel;
+
+				total += rc.unsynchronizedGetNumberOfQueuedBuffers();
+			}
 		}
 
-		lastTotal = -1;
 		return total;
 	}
 
+	/**
+	 * Iterates over all input channels and collects the minimum number of queued buffers in a
+	 * channel in a best-effort way.
+	 *
+	 * @return minimum number of queued buffers per channel (<tt>0</tt> if no channels exist)
+	 */
 	int refreshAndGetMin() {
-		int min;
-		if ((min = lastMin) == -1) {
-			refresh();
-			min = lastMin;
+		int min = Integer.MAX_VALUE;
+
+		Collection<InputChannel> channels = inputGate.getInputChannels().values();
+		if (channels.isEmpty()) {
+			// meaningful value when no channels exist:
+			return 0;
 		}
 
-		lastMin = -1;
+		for (InputChannel channel : channels) {
+			if (channel instanceof RemoteInputChannel) {
+				RemoteInputChannel rc = (RemoteInputChannel) channel;
+
+				int size = rc.unsynchronizedGetNumberOfQueuedBuffers();
+				min = Math.min(min, size);
+			}
+		}
+
 		return min;
 	}
 
+	/**
+	 * Iterates over all input channels and collects the maximum number of queued buffers in a
+	 * channel in a best-effort way.
+	 *
+	 * @return maximum number of queued buffers per channel
+	 */
 	int refreshAndGetMax() {
-		int max;
-		if ((max = lastMax) == -1) {
-			refresh();
-			max = lastMax;
+		int max = 0;
+
+		for (InputChannel channel : inputGate.getInputChannels().values()) {
+			if (channel instanceof RemoteInputChannel) {
+				RemoteInputChannel rc = (RemoteInputChannel) channel;
+
+				int size = rc.unsynchronizedGetNumberOfQueuedBuffers();
+				max = Math.max(max, size);
+			}
 		}
 
-		lastMax = -1;
 		return max;
 	}
 
+	/**
+	 * Iterates over all input channels and collects the average number of queued buffers in a
+	 * channel in a best-effort way.
+	 *
+	 * @return average number of queued buffers per channel
+	 */
 	float refreshAndGetAvg() {
-		float avg;
-		if ((avg = lastAvg) < 0.0f) {
-			refresh();
-			avg = lastAvg;
-		}
-
-		lastAvg = -1.0f;
-		return avg;
-	}
-
-	private void refresh() {
 		long total = 0;
-		int min = Integer.MAX_VALUE;
-		int max = 0;
 		int count = 0;
 
 		for (InputChannel channel : inputGate.getInputChannels().values()) {
-			if (channel.getClass() == RemoteInputChannel.class) {
+			if (channel instanceof RemoteInputChannel) {
 				RemoteInputChannel rc = (RemoteInputChannel) channel;
 
 				int size = rc.unsynchronizedGetNumberOfQueuedBuffers();
 				total += size;
-				min = Math.min(min, size);
-				max = Math.max(max, size);
-				count++;
+				++count;
 			}
 		}
 
-		this.lastMin = min;
-		this.lastMax = max;
-		this.lastAvg = total / (float) count;
+		return total / (float) count;
 	}
 
 	// ------------------------------------------------------------------------
@@ -159,9 +180,9 @@ public class InputGateMetrics {
 	public static void registerQueueLengthMetrics(MetricGroup group, SingleInputGate gate) {
 		InputGateMetrics metrics = new InputGateMetrics(gate);
 
-		group.gauge("total-queue-len", metrics.getTotalQueueLenGauge());
-		group.gauge("min-queue-len", metrics.getMinQueueLenGauge());
-		group.gauge("max-queue-len", metrics.getMaxQueueLenGauge());
-		group.gauge("avg-queue-len", metrics.getAvgQueueLenGauge());
+		group.gauge("totalQueueLen", metrics.getTotalQueueLenGauge());
+		group.gauge("minQueueLen", metrics.getMinQueueLenGauge());
+		group.gauge("maxQueueLen", metrics.getMaxQueueLenGauge());
+		group.gauge("avgQueueLen", metrics.getAvgQueueLenGauge());
 	}
 }
