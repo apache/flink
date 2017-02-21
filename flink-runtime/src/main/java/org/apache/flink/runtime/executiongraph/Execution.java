@@ -706,6 +706,10 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		processFail(t, true);
 	}
 
+	void markFailed(Throwable t, Map<String, Accumulator<?, ?>> userAccumulators, IOMetrics metrics) {
+		processFail(t, true, userAccumulators, metrics);
+	}
+
 	void markFinished() {
 		markFinished(null, null);
 	}
@@ -731,10 +735,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 							}
 						}
 
-						synchronized (accumulatorLock) {
-							this.userAccumulators = userAccumulators;
-						}
-						this.ioMetrics = metrics;
+						updateAccumulatorsAndMetrics(userAccumulators, metrics);
 
 						assignedResource.releaseSlot();
 						vertex.getExecutionGraph().deregisterExecution(this);
@@ -748,7 +749,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			else if (current == CANCELING) {
 				// we sent a cancel call, and the task manager finished before it arrived. We
 				// will never get a CANCELED call back from the job manager
-				cancelingComplete();
+				cancelingComplete(userAccumulators, metrics);
 				return;
 			}
 			else if (current == CANCELED || current == FAILED) {
@@ -766,6 +767,10 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	}
 
 	void cancelingComplete() {
+		cancelingComplete(null, null);
+	}
+	
+	void cancelingComplete(Map<String, Accumulator<?, ?>> userAccumulators, IOMetrics metrics) {
 
 		// the taskmanagers can themselves cancel tasks without an external trigger, if they find that the
 		// network stack is canceled (for example by a failing / canceling receiver or sender
@@ -779,6 +784,9 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				return;
 			}
 			else if (current == CANCELING || current == RUNNING || current == DEPLOYING) {
+
+				updateAccumulatorsAndMetrics(userAccumulators, metrics);
+
 				if (transitionState(current, CANCELED)) {
 					try {
 						assignedResource.releaseSlot();
@@ -834,6 +842,10 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	// --------------------------------------------------------------------------------------------
 
 	private boolean processFail(Throwable t, boolean isCallback) {
+		return processFail(t, isCallback, null, null);
+	}
+
+	private boolean processFail(Throwable t, boolean isCallback, Map<String, Accumulator<?, ?>> userAccumulators, IOMetrics metrics) {
 
 		// damn, we failed. This means only that we keep our books and notify our parent JobExecutionVertex
 		// the actual computation on the task manager is cleaned up by the TaskManager that noticed the failure
@@ -857,13 +869,15 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			}
 
 			if (current == CANCELING) {
-				cancelingComplete();
+				cancelingComplete(userAccumulators, metrics);
 				return false;
 			}
 
 			if (transitionState(current, FAILED, t)) {
 				// success (in a manner of speaking)
 				this.failureCause = t;
+
+				updateAccumulatorsAndMetrics(userAccumulators, metrics);
 
 				try {
 					if (assignedResource != null) {
@@ -1091,6 +1105,17 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	@Override
 	public IOMetrics getIOMetrics() {
 		return ioMetrics;
+	}
+
+	private void updateAccumulatorsAndMetrics(Map<String, Accumulator<?, ?>> userAccumulators, IOMetrics metrics) {
+		if (userAccumulators != null) {
+			synchronized (accumulatorLock) {
+				this.userAccumulators = userAccumulators;
+			}
+		}
+		if (metrics != null) {
+			this.ioMetrics = metrics;
+		}
 	}
 
 	// ------------------------------------------------------------------------

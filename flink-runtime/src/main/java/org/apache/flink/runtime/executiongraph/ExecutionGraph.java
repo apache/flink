@@ -1281,9 +1281,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 					return attempt.switchToRunning();
 				case FINISHED:
 					try {
-						AccumulatorSnapshot accumulators = state.getAccumulators();
-						Map<String, Accumulator<?, ?>> userAccumulators =
-							accumulators.deserializeUserAccumulators(userClassLoader);
+						Map<String, Accumulator<?, ?>> userAccumulators = deserializeAccumulators(state);
 						attempt.markFinished(userAccumulators, state.getIOMetrics());
 					}
 					catch (Exception e) {
@@ -1292,10 +1290,12 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 					}
 					return true;
 				case CANCELED:
-					attempt.cancelingComplete();
+					Map<String, Accumulator<?, ?>> userAcc1 = deserializeAccumulators(state);
+					attempt.cancelingComplete(userAcc1, state.getIOMetrics());
 					return true;
 				case FAILED:
-					attempt.markFailed(state.getError(userClassLoader));
+					Map<String, Accumulator<?, ?>> userAcc2 = deserializeAccumulators(state);
+					attempt.markFailed(state.getError(userClassLoader), userAcc2, state.getIOMetrics());
 					return true;
 				default:
 					// we mark as failed and return false, which triggers the TaskManager
@@ -1307,6 +1307,19 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 		else {
 			return false;
 		}
+	}
+
+	private Map<String, Accumulator<?, ?>> deserializeAccumulators(TaskExecutionState state) {
+		AccumulatorSnapshot serializedAccumulators = state.getAccumulators();
+		Map<String, Accumulator<?, ?>> accumulators = null;
+		if (serializedAccumulators != null) {
+			try {
+				accumulators = serializedAccumulators.deserializeUserAccumulators(userClassLoader);
+			} catch (Exception e) {
+				LOG.error("Failed to deserialize final accumulator results.", e);
+			}
+		}
+		return accumulators;
 	}
 
 	/**
