@@ -28,7 +28,9 @@ import org.slf4j.LoggerFactory
 class MapRunner[IN, OUT](
     name: String,
     code: String,
-    @transient returnType: TypeInformation[OUT])
+    @transient returnType: TypeInformation[OUT],
+    parameterValues: Array[_ <: Object] = null,
+    parameterTypes: Array[Class[_]] = null )
   extends RichMapFunction[IN, OUT]
   with ResultTypeQueryable[OUT]
   with Compiler[MapFunction[IN, OUT]] {
@@ -41,7 +43,11 @@ class MapRunner[IN, OUT](
     LOG.debug(s"Compiling MapFunction: $name \n\n Code:\n$code")
     val clazz = compile(getRuntimeContext.getUserCodeClassLoader, name, code)
     LOG.debug("Instantiating MapFunction.")
-    function = clazz.newInstance()
+    function = if (null == parameterValues || null == parameterTypes) {
+      clazz.newInstance()
+    } else {
+      clazz.getConstructor(parameterTypes: _*).newInstance(parameterValues: _*)
+    }
   }
 
   override def map(in: IN): OUT =

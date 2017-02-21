@@ -1534,7 +1534,6 @@ class CodeGenerator(
     fieldTerm
   }
 
-
   /**
     * Adds a reusable constructor statement with the given parameter types.
     *
@@ -1549,7 +1548,7 @@ class CodeGenerator(
     parameterTypes.zipWithIndex.foreach { case (t, index) =>
       val classQualifier = t.getCanonicalName
       val fieldTerm = newName(s"instance_${classQualifier.replace('.', '$')}")
-      val field = s"transient $classQualifier $fieldTerm = null;"
+      val field = s"transient $classQualifier $fieldTerm;"
       reusableMemberStatements.add(field)
       fieldTerms += fieldTerm
       parameters += s"$classQualifier arg$index"

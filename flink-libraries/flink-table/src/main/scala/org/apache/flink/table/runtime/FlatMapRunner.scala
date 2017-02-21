@@ -30,7 +30,9 @@ import org.slf4j.LoggerFactory
 class FlatMapRunner[IN, OUT](
     name: String,
     code: String,
-    @transient returnType: TypeInformation[OUT])
+    @transient returnType: TypeInformation[OUT],
+    parameterValues: Array[_ <: Object] = null,
+    parameterTypes: Array[Class[_]] = null )
   extends RichFlatMapFunction[IN, OUT]
   with ResultTypeQueryable[OUT]
   with Compiler[FlatMapFunction[IN, OUT]] {
@@ -43,7 +45,11 @@ class FlatMapRunner[IN, OUT](
     LOG.debug(s"Compiling FlatMapFunction: $name \n\n Code:\n$code")
     val clazz = compile(getRuntimeContext.getUserCodeClassLoader, name, code)
     LOG.debug("Instantiating FlatMapFunction.")
-    function = clazz.newInstance()
+    function = if (null == parameterValues || null == parameterTypes) {
+      clazz.newInstance()
+    } else {
+      clazz.getConstructor(parameterTypes: _*).newInstance(parameterValues: _*)
+    }
     FunctionUtils.setFunctionRuntimeContext(function, getRuntimeContext)
     FunctionUtils.openFunction(function, parameters)
   }
