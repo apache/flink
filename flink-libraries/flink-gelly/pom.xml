@@ -28,7 +28,7 @@ under the License.
 		<version>1.3-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
-	
+
 	<artifactId>flink-gelly_2.10</artifactId>
 	<name>flink-gelly</name>
 
@@ -59,11 +59,19 @@ under the License.
 		</dependency>
 
 		<!-- test dependencies -->
-		
+
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-test-utils_2.10</artifactId>
 			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-core</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
 			<scope>test</scope>
 		</dependency>
 
