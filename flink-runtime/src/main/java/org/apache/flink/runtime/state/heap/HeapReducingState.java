@@ -26,7 +26,6 @@ import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.internal.InternalReducingState;
 import org.apache.flink.util.Preconditions;
 
-import java.io.IOException;
 import java.util.Map;
 
 /**
@@ -88,7 +87,7 @@ public class HeapReducingState<K, N, V>
 	}
 
 	@Override
-	public void add(V value) throws IOException {
+	public void add(V value) throws Exception {
 		Preconditions.checkState(currentNamespace != null, "No namespace set.");
 		Preconditions.checkState(backend.getCurrentKey() != null, "No key set.");
 
@@ -117,12 +116,8 @@ public class HeapReducingState<K, N, V>
 		if (currentValue == null) {
 			// we're good, just added the new value
 		} else {
-			V reducedValue;
-			try {
-				reducedValue = reduceFunction.reduce(currentValue, value);
-			} catch (Exception e) {
-				throw new IOException("Exception while applying ReduceFunction in reducing state", e);
-			}
+			V reducedValue = reduceFunction.reduce(currentValue, value);
+
 			keyedMap.put(backend.<K>getCurrentKey(), reducedValue);
 		}
 	}

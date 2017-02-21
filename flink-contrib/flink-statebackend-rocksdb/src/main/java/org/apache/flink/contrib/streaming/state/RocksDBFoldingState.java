@@ -78,40 +78,35 @@ public class RocksDBFoldingState<K, N, T, ACC>
 	}
 
 	@Override
-	public ACC get() {
-		try {
-			writeCurrentKeyWithGroupAndNamespace();
-			byte[] key = keySerializationStream.toByteArray();
-			byte[] valueBytes = backend.db.get(columnFamily, key);
-			if (valueBytes == null) {
-				return null;
-			}
-			return valueSerializer.deserialize(new DataInputViewStreamWrapper(new ByteArrayInputStreamWithPos(valueBytes)));
-		} catch (IOException|RocksDBException e) {
-			throw new RuntimeException("Error while retrieving data from RocksDB", e);
+	public ACC get() throws IOException, RocksDBException {
+		writeCurrentKeyWithGroupAndNamespace();
+		byte[] key = keySerializationStream.toByteArray();
+
+		byte[] valueBytes = backend.db.get(columnFamily, key);
+		if (valueBytes == null) {
+			return null;
 		}
+		return valueSerializer.deserialize(new DataInputViewStreamWrapper(new ByteArrayInputStreamWithPos(valueBytes)));
 	}
 
 	@Override
-	public void add(T value) throws IOException {
-		try {
-			writeCurrentKeyWithGroupAndNamespace();
-			byte[] key = keySerializationStream.toByteArray();
-			byte[] valueBytes = backend.db.get(columnFamily, key);
-			DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(keySerializationStream);
-			if (valueBytes == null) {
-				keySerializationStream.reset();
-				valueSerializer.serialize(foldFunction.fold(stateDesc.getDefaultValue(), value), out);
-				backend.db.put(columnFamily, writeOptions, key, keySerializationStream.toByteArray());
-			} else {
-				ACC oldValue = valueSerializer.deserialize(new DataInputViewStreamWrapper(new ByteArrayInputStreamWithPos(valueBytes)));
-				ACC newValue = foldFunction.fold(oldValue, value);
-				keySerializationStream.reset();
-				valueSerializer.serialize(newValue, out);
-				backend.db.put(columnFamily, writeOptions, key, keySerializationStream.toByteArray());
-			}
-		} catch (Exception e) {
-			throw new RuntimeException("Error while adding data to RocksDB", e);
+	public void add(T value) throws Exception {
+		writeCurrentKeyWithGroupAndNamespace();
+		byte[] key = keySerializationStream.toByteArray();
+
+		byte[] valueBytes = backend.db.get(columnFamily, key);
+
+		DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(keySerializationStream);
+		if (valueBytes == null) {
+			keySerializationStream.reset();
+			valueSerializer.serialize(foldFunction.fold(stateDesc.getDefaultValue(), value), out);
+			backend.db.put(columnFamily, writeOptions, key, keySerializationStream.toByteArray());
+		} else {
+			ACC oldValue = valueSerializer.deserialize(new DataInputViewStreamWrapper(new ByteArrayInputStreamWithPos(valueBytes)));
+			ACC newValue = foldFunction.fold(oldValue, value);
+			keySerializationStream.reset();
+			valueSerializer.serialize(newValue, out);
+			backend.db.put(columnFamily, writeOptions, key, keySerializationStream.toByteArray());
 		}
 	}
 

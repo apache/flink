@@ -79,49 +79,43 @@ public class RocksDBListState<K, N, V>
 	}
 
 	@Override
-	public Iterable<V> get() {
-		try {
-			writeCurrentKeyWithGroupAndNamespace();
-			byte[] key = keySerializationStream.toByteArray();
-			byte[] valueBytes = backend.db.get(columnFamily, key);
+	public Iterable<V> get() throws IOException, RocksDBException {
+		writeCurrentKeyWithGroupAndNamespace();
+		byte[] key = keySerializationStream.toByteArray();
+		byte[] valueBytes = backend.db.get(columnFamily, key);
 
-			if (valueBytes == null) {
-				return null;
-			}
-
-			ByteArrayInputStream bais = new ByteArrayInputStream(valueBytes);
-			DataInputViewStreamWrapper in = new DataInputViewStreamWrapper(bais);
-
-			List<V> result = new ArrayList<>();
-			while (in.available() > 0) {
-				result.add(valueSerializer.deserialize(in));
-				if (in.available() > 0) {
-					in.readByte();
-				}
-			}
-			return result;
-		} catch (IOException|RocksDBException e) {
-			throw new RuntimeException("Error while retrieving data from RocksDB", e);
+		if (valueBytes == null) {
+			return null;
 		}
+
+		ByteArrayInputStream bais = new ByteArrayInputStream(valueBytes);
+		DataInputViewStreamWrapper in = new DataInputViewStreamWrapper(bais);
+
+		List<V> result = new ArrayList<>();
+		while (in.available() > 0) {
+			result.add(valueSerializer.deserialize(in));
+			if (in.available() > 0) {
+				in.readByte();
+			}
+		}
+
+		return result;
 	}
 
 	@Override
-	public void add(V value) throws IOException {
-		try {
-			writeCurrentKeyWithGroupAndNamespace();
-			byte[] key = keySerializationStream.toByteArray();
-			keySerializationStream.reset();
-			DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(keySerializationStream);
-			valueSerializer.serialize(value, out);
-			backend.db.merge(columnFamily, writeOptions, key, keySerializationStream.toByteArray());
+	public void add(V value) throws IOException, RocksDBException {
+		writeCurrentKeyWithGroupAndNamespace();
+		byte[] key = keySerializationStream.toByteArray();
 
-		} catch (Exception e) {
-			throw new RuntimeException("Error while adding data to RocksDB", e);
-		}
+		keySerializationStream.reset();
+		DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(keySerializationStream);
+		valueSerializer.serialize(value, out);
+
+		backend.db.merge(columnFamily, writeOptions, key, keySerializationStream.toByteArray());
 	}
 
 	@Override
-	public void mergeNamespaces(N target, Collection<N> sources) throws Exception {
+	public void mergeNamespaces(N target, Collection<N> sources) throws IOException, RocksDBException {
 		if (sources == null || sources.isEmpty()) {
 			return;
 		}
@@ -130,31 +124,26 @@ public class RocksDBListState<K, N, V>
 		final K key = backend.getCurrentKey();
 		final int keyGroup = backend.getCurrentKeyGroupIndex();
 
-		try {
-			// create the target full-binary-key 
-			writeKeyWithGroupAndNamespace(
-					keyGroup, key, target,
-					keySerializationStream, keySerializationDataOutputView);
-			final byte[] targetKey = keySerializationStream.toByteArray();
+		// create the target full-binary-key
+		writeKeyWithGroupAndNamespace(
+				keyGroup, key, target,
+				keySerializationStream, keySerializationDataOutputView);
+		final byte[] targetKey = keySerializationStream.toByteArray();
 
-			// merge the sources to the target
-			for (N source : sources) {
-				if (source != null) {
-					writeKeyWithGroupAndNamespace(
-							keyGroup, key, source,
-							keySerializationStream, keySerializationDataOutputView);
+		// merge the sources to the target
+		for (N source : sources) {
+			if (source != null) {
+				writeKeyWithGroupAndNamespace(
+						keyGroup, key, source,
+						keySerializationStream, keySerializationDataOutputView);
 
-					byte[] sourceKey = keySerializationStream.toByteArray();
-					byte[] valueBytes = backend.db.get(columnFamily, sourceKey);
+				byte[] sourceKey = keySerializationStream.toByteArray();
+				byte[] valueBytes = backend.db.get(columnFamily, sourceKey);
 
-					if (valueBytes != null) {
-						backend.db.merge(columnFamily, writeOptions, targetKey, valueBytes);
-					}
+				if (valueBytes != null) {
+					backend.db.merge(columnFamily, writeOptions, targetKey, valueBytes);
 				}
 			}
-		}
-		catch (Exception e) {
-			throw new Exception("Error while merging state in RocksDB", e);
 		}
 	}
 }

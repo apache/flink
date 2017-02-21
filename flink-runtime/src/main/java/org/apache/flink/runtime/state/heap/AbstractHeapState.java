@@ -29,6 +29,7 @@ import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.util.Preconditions;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -133,7 +134,7 @@ public abstract class AbstractHeapState<K, N, SV, S extends State, SD extends St
 		return getSerializedValue(keyAndNamespace.f0, keyAndNamespace.f1);
 	}
 
-	public byte[] getSerializedValue(K key, N namespace) throws Exception {
+	public byte[] getSerializedValue(K key, N namespace) throws IOException {
 		Preconditions.checkState(namespace != null, "No namespace given.");
 		Preconditions.checkState(key != null, "No key given.");
 

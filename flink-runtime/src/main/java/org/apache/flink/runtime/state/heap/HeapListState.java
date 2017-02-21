@@ -28,6 +28,7 @@ import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.util.Preconditions;
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Map;
 
@@ -120,7 +121,7 @@ public class HeapListState<K, N, V>
 	}
 
 	@Override
-	public byte[] getSerializedValue(K key, N namespace) throws Exception {
+	public byte[] getSerializedValue(K key, N namespace) throws IOException {
 		Preconditions.checkState(namespace != null, "No namespace given.");
 		Preconditions.checkState(key != null, "No key given.");
 

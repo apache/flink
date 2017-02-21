@@ -83,56 +83,46 @@ public class RocksDBAggregatingState<K, N, T, ACC, R>
 	}
 
 	@Override
-	public R get() throws IOException {
-		try {
-			// prepare the current key and namespace for RocksDB lookup
-			writeCurrentKeyWithGroupAndNamespace();
-			final byte[] key = keySerializationStream.toByteArray();
+	public R get() throws IOException, RocksDBException {
+		// prepare the current key and namespace for RocksDB lookup
+		writeCurrentKeyWithGroupAndNamespace();
+		final byte[] key = keySerializationStream.toByteArray();
 
-			// get the current value
-			final byte[] valueBytes = backend.db.get(columnFamily, key);
+		// get the current value
+		final byte[] valueBytes = backend.db.get(columnFamily, key);
 
-			if (valueBytes == null) {
-				return null;
-			}
-
-			ACC accumulator = valueSerializer.deserialize(new DataInputViewStreamWrapper(new ByteArrayInputStreamWithPos(valueBytes)));
-			return aggFunction.getResult(accumulator);
+		if (valueBytes == null) {
+			return null;
 		}
-		catch (IOException | RocksDBException e) {
-			throw new IOException("Error while retrieving value from RocksDB", e);
-		}
+
+		ACC accumulator = valueSerializer.deserialize(new DataInputViewStreamWrapper(new ByteArrayInputStreamWithPos(valueBytes)));
+		return aggFunction.getResult(accumulator);
 	}
 
 	@Override
-	public void add(T value) throws IOException {
-		try {
-			// prepare the current key and namespace for RocksDB lookup
-			writeCurrentKeyWithGroupAndNamespace();
-			final byte[] key = keySerializationStream.toByteArray();
-			keySerializationStream.reset();
+	public void add(T value) throws IOException, RocksDBException {
+		// prepare the current key and namespace for RocksDB lookup
+		writeCurrentKeyWithGroupAndNamespace();
+		final byte[] key = keySerializationStream.toByteArray();
+		keySerializationStream.reset();
 
-			// get the current value
-			final byte[] valueBytes = backend.db.get(columnFamily, key);
+		// get the current value
+		final byte[] valueBytes = backend.db.get(columnFamily, key);
 
-			// deserialize the current accumulator, or create a blank one
-			final ACC accumulator = valueBytes == null ?
-					aggFunction.createAccumulator() :
-					valueSerializer.deserialize(new DataInputViewStreamWrapper(new ByteArrayInputStreamWithPos(valueBytes)));
+		// deserialize the current accumulator, or create a blank one
+		final ACC accumulator = valueBytes == null ?
+				aggFunction.createAccumulator() :
+				valueSerializer.deserialize(new DataInputViewStreamWrapper(new ByteArrayInputStreamWithPos(valueBytes)));
 
-			// aggregate the value into the accumulator
-			aggFunction.add(value, accumulator);
+		// aggregate the value into the accumulator
+		aggFunction.add(value, accumulator);
 
-			// serialize the new accumulator
-			final DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(keySerializationStream);
-			valueSerializer.serialize(accumulator, out);
+		// serialize the new accumulator
+		final DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(keySerializationStream);
+		valueSerializer.serialize(accumulator, out);
 
-			// write the new value to RocksDB
-			backend.db.put(columnFamily, writeOptions, key, keySerializationStream.toByteArray());
-		}
-		catch (IOException | RocksDBException e) {
-			throw new IOException("Error while adding value to RocksDB", e);
-		}
+		// write the new value to RocksDB
+		backend.db.put(columnFamily, writeOptions, key, keySerializationStream.toByteArray());
 	}
 
 	@Override
@@ -145,61 +135,56 @@ public class RocksDBAggregatingState<K, N, T, ACC, R>
 		final K key = backend.getCurrentKey();
 		final int keyGroup = backend.getCurrentKeyGroupIndex();
 
-		try {
-			ACC current = null;
+		ACC current = null;
 
-			// merge the sources to the target
-			for (N source : sources) {
-				if (source != null) {
-					writeKeyWithGroupAndNamespace(
-							keyGroup, key, source,
-							keySerializationStream, keySerializationDataOutputView);
-					
-					final byte[] sourceKey = keySerializationStream.toByteArray();
-					final byte[] valueBytes = backend.db.get(columnFamily, sourceKey);
+		// merge the sources to the target
+		for (N source : sources) {
+			if (source != null) {
+				writeKeyWithGroupAndNamespace(
+						keyGroup, key, source,
+						keySerializationStream, keySerializationDataOutputView);
 
-					if (valueBytes != null) {
-						ACC value = valueSerializer.deserialize(
-								new DataInputViewStreamWrapper(new ByteArrayInputStreamWithPos(valueBytes)));
+				final byte[] sourceKey = keySerializationStream.toByteArray();
+				final byte[] valueBytes = backend.db.get(columnFamily, sourceKey);
 
-						if (current != null) {
-							current = aggFunction.merge(current, value);
-						}
-						else {
-							current = value;
-						}
+				if (valueBytes != null) {
+					ACC value = valueSerializer.deserialize(
+							new DataInputViewStreamWrapper(new ByteArrayInputStreamWithPos(valueBytes)));
+
+					if (current != null) {
+						current = aggFunction.merge(current, value);
+					}
+					else {
+						current = value;
 					}
 				}
 			}
-
-			// if something came out of merging the sources, merge it or write it to the target
-			if (current != null) {
-				// create the target full-binary-key 
-				writeKeyWithGroupAndNamespace(
-						keyGroup, key, target,
-						keySerializationStream, keySerializationDataOutputView);
-
-				final byte[] targetKey = keySerializationStream.toByteArray();
-				final byte[] targetValueBytes = backend.db.get(columnFamily, targetKey);
-
-				if (targetValueBytes != null) {
-					// target also had a value, merge
-					ACC value = valueSerializer.deserialize(
-							new DataInputViewStreamWrapper(new ByteArrayInputStreamWithPos(targetValueBytes)));
-
-					current = aggFunction.merge(current, value);
-				}
-
-				// serialize the resulting value
-				keySerializationStream.reset();
-				valueSerializer.serialize(current, keySerializationDataOutputView);
-
-				// write the resulting value
-				backend.db.put(columnFamily, writeOptions, targetKey, keySerializationStream.toByteArray());
-			}
 		}
-		catch (Exception e) {
-			throw new Exception("Error while merging state in RocksDB", e);
+
+		// if something came out of merging the sources, merge it or write it to the target
+		if (current != null) {
+			// create the target full-binary-key
+			writeKeyWithGroupAndNamespace(
+					keyGroup, key, target,
+					keySerializationStream, keySerializationDataOutputView);
+
+			final byte[] targetKey = keySerializationStream.toByteArray();
+			final byte[] targetValueBytes = backend.db.get(columnFamily, targetKey);
+
+			if (targetValueBytes != null) {
+				// target also had a value, merge
+				ACC value = valueSerializer.deserialize(
+						new DataInputViewStreamWrapper(new ByteArrayInputStreamWithPos(targetValueBytes)));
+
+				current = aggFunction.merge(current, value);
+			}
+
+			// serialize the resulting value
+			keySerializationStream.reset();
+			valueSerializer.serialize(current, keySerializationDataOutputView);
+
+			// write the resulting value
+			backend.db.put(columnFamily, writeOptions, targetKey, keySerializationStream.toByteArray());
 		}
 	}
 }

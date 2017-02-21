@@ -71,7 +71,7 @@ public class RocksDBValueState<K, N, V>
 	}
 
 	@Override
-	public V value() {
+	public V value() throws IOException {
 		try {
 			writeCurrentKeyWithGroupAndNamespace();
 			byte[] key = keySerializationStream.toByteArray();
@@ -80,8 +80,8 @@ public class RocksDBValueState<K, N, V>
 				return stateDesc.getDefaultValue();
 			}
 			return valueSerializer.deserialize(new DataInputViewStreamWrapper(new ByteArrayInputStream(valueBytes)));
-		} catch (IOException|RocksDBException e) {
-			throw new RuntimeException("Error while retrieving data from RocksDB.", e);
+		} catch (RocksDBException e) {
+			throw new IOException("Error while retrieving data from RocksDB.", e);
 		}
 	}
 
@@ -98,8 +98,8 @@ public class RocksDBValueState<K, N, V>
 			keySerializationStream.reset();
 			valueSerializer.serialize(value, out);
 			backend.db.put(columnFamily, writeOptions, key, keySerializationStream.toByteArray());
-		} catch (Exception e) {
-			throw new RuntimeException("Error while adding data to RocksDB", e);
+		} catch (RocksDBException e) {
+			throw new IOException("Error while adding data to RocksDB", e);
 		}
 	}
 }

@@ -26,7 +26,6 @@ import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.internal.InternalFoldingState;
 import org.apache.flink.util.Preconditions;
 
-import java.io.IOException;
 import java.util.Map;
 
 /**
@@ -89,7 +88,7 @@ public class HeapFoldingState<K, N, T, ACC>
 	}
 
 	@Override
-	public void add(T value) throws IOException {
+	public void add(T value) throws Exception {
 		Preconditions.checkState(currentNamespace != null, "No namespace set.");
 		Preconditions.checkState(backend.getCurrentKey() != null, "No key set.");
 
@@ -115,16 +114,11 @@ public class HeapFoldingState<K, N, T, ACC>
 
 		ACC currentValue = keyedMap.get(backend.<K>getCurrentKey());
 
-		try {
-
-			if (currentValue == null) {
-				keyedMap.put(backend.<K>getCurrentKey(),
-						foldFunction.fold(stateDesc.getDefaultValue(), value));
-			} else {
-				keyedMap.put(backend.<K>getCurrentKey(), foldFunction.fold(currentValue, value));
-			}
-		} catch (Exception e) {
-			throw new RuntimeException("Could not add value to folding state.", e);
+		if (currentValue == null) {
+			keyedMap.put(backend.<K>getCurrentKey(),
+					foldFunction.fold(stateDesc.getDefaultValue(), value));
+		} else {
+			keyedMap.put(backend.<K>getCurrentKey(), foldFunction.fold(currentValue, value));
 		}
 	}
 }

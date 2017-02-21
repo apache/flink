@@ -79,41 +79,37 @@ public class RocksDBReducingState<K, N, V>
 	}
 
 	@Override
-	public V get() {
-		try {
-			writeCurrentKeyWithGroupAndNamespace();
-			byte[] key = keySerializationStream.toByteArray();
-			byte[] valueBytes = backend.db.get(columnFamily, key);
-			if (valueBytes == null) {
-				return null;
-			}
-			return valueSerializer.deserialize(new DataInputViewStreamWrapper(new ByteArrayInputStream(valueBytes)));
-		} catch (IOException|RocksDBException e) {
-			throw new RuntimeException("Error while retrieving data from RocksDB", e);
+	public V get() throws IOException, RocksDBException {
+		writeCurrentKeyWithGroupAndNamespace();
+		byte[] key = keySerializationStream.toByteArray();
+
+		byte[] valueBytes = backend.db.get(columnFamily, key);
+		if (valueBytes == null) {
+			return null;
 		}
+
+		return valueSerializer.deserialize(new DataInputViewStreamWrapper(new ByteArrayInputStream(valueBytes)));
 	}
 
 	@Override
-	public void add(V value) throws IOException {
-		try {
-			writeCurrentKeyWithGroupAndNamespace();
-			byte[] key = keySerializationStream.toByteArray();
-			byte[] valueBytes = backend.db.get(columnFamily, key);
+	public void add(V value) throws Exception {
+		writeCurrentKeyWithGroupAndNamespace();
+		byte[] key = keySerializationStream.toByteArray();
 
-			DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(keySerializationStream);
-			if (valueBytes == null) {
-				keySerializationStream.reset();
-				valueSerializer.serialize(value, out);
-				backend.db.put(columnFamily, writeOptions, key, keySerializationStream.toByteArray());
-			} else {
-				V oldValue = valueSerializer.deserialize(new DataInputViewStreamWrapper(new ByteArrayInputStream(valueBytes)));
-				V newValue = reduceFunction.reduce(oldValue, value);
-				keySerializationStream.reset();
-				valueSerializer.serialize(newValue, out);
-				backend.db.put(columnFamily, writeOptions, key, keySerializationStream.toByteArray());
-			}
-		} catch (Exception e) {
-			throw new RuntimeException("Error while adding data to RocksDB", e);
+		byte[] valueBytes = backend.db.get(columnFamily, key);
+
+		DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(keySerializationStream);
+		if (valueBytes == null) {
+			keySerializationStream.reset();
+			valueSerializer.serialize(value, out);
+			backend.db.put(columnFamily, writeOptions, key, keySerializationStream.toByteArray());
+		} else {
+			V oldValue = valueSerializer.deserialize(new DataInputViewStreamWrapper(new ByteArrayInputStream(valueBytes)));
+			V newValue = reduceFunction.reduce(oldValue, value);
+
+			keySerializationStream.reset();
+			valueSerializer.serialize(newValue, out);
+			backend.db.put(columnFamily, writeOptions, key, keySerializationStream.toByteArray());
 		}
 	}
 
@@ -127,62 +123,57 @@ public class RocksDBReducingState<K, N, V>
 		final K key = backend.getCurrentKey();
 		final int keyGroup = backend.getCurrentKeyGroupIndex();
 
-		try {
-			V current = null;
+		V current = null;
 
-			// merge the sources to the target
-			for (N source : sources) {
-				if (source != null) {
+		// merge the sources to the target
+		for (N source : sources) {
+			if (source != null) {
 
-					writeKeyWithGroupAndNamespace(
-							keyGroup, key, source,
-							keySerializationStream, keySerializationDataOutputView);
+				writeKeyWithGroupAndNamespace(
+						keyGroup, key, source,
+						keySerializationStream, keySerializationDataOutputView);
 
-					final byte[] sourceKey = keySerializationStream.toByteArray();
-					final byte[] valueBytes = backend.db.get(columnFamily, sourceKey);
+				final byte[] sourceKey = keySerializationStream.toByteArray();
+				final byte[] valueBytes = backend.db.get(columnFamily, sourceKey);
 
-					if (valueBytes != null) {
-						V value = valueSerializer.deserialize(
-								new DataInputViewStreamWrapper(new ByteArrayInputStreamWithPos(valueBytes)));
+				if (valueBytes != null) {
+					V value = valueSerializer.deserialize(
+							new DataInputViewStreamWrapper(new ByteArrayInputStreamWithPos(valueBytes)));
 
-						if (current != null) {
-							current = reduceFunction.reduce(current, value);
-						}
-						else {
-							current = value;
-						}
+					if (current != null) {
+						current = reduceFunction.reduce(current, value);
+					}
+					else {
+						current = value;
 					}
 				}
 			}
-
-			// if something came out of merging the sources, merge it or write it to the target
-			if (current != null) {
-				// create the target full-binary-key 
-				writeKeyWithGroupAndNamespace(
-						keyGroup, key, target,
-						keySerializationStream, keySerializationDataOutputView);
-
-				final byte[] targetKey = keySerializationStream.toByteArray();
-				final byte[] targetValueBytes = backend.db.get(columnFamily, targetKey);
-
-				if (targetValueBytes != null) {
-					// target also had a value, merge
-					V value = valueSerializer.deserialize(
-							new DataInputViewStreamWrapper(new ByteArrayInputStreamWithPos(targetValueBytes)));
-
-					current = reduceFunction.reduce(current, value);
-				}
-
-				// serialize the resulting value
-				keySerializationStream.reset();
-				valueSerializer.serialize(current, keySerializationDataOutputView);
-
-				// write the resulting value
-				backend.db.put(columnFamily, writeOptions, targetKey, keySerializationStream.toByteArray());
-			}
 		}
-		catch (Exception e) {
-			throw new Exception("Error while merging state in RocksDB", e);
+
+		// if something came out of merging the sources, merge it or write it to the target
+		if (current != null) {
+			// create the target full-binary-key
+			writeKeyWithGroupAndNamespace(
+					keyGroup, key, target,
+					keySerializationStream, keySerializationDataOutputView);
+
+			final byte[] targetKey = keySerializationStream.toByteArray();
+			final byte[] targetValueBytes = backend.db.get(columnFamily, targetKey);
+
+			if (targetValueBytes != null) {
+				// target also had a value, merge
+				V value = valueSerializer.deserialize(
+						new DataInputViewStreamWrapper(new ByteArrayInputStreamWithPos(targetValueBytes)));
+
+				current = reduceFunction.reduce(current, value);
+			}
+
+			// serialize the resulting value
+			keySerializationStream.reset();
+			valueSerializer.serialize(current, keySerializationDataOutputView);
+
+			// write the resulting value
+			backend.db.put(columnFamily, writeOptions, targetKey, keySerializationStream.toByteArray());
 		}
 	}
 }
