@@ -72,10 +72,13 @@ object RexProgramRewriter {
     * Extracts the name of nested input fields accessed by the RexProgram.
     *
     * @param rexProgram The RexProgram to analyze
-    * @return The indexes of accessed input fields
+    * @return The full names of accessed input fields. e.g. field.subfield
     */
   def extractRefNestedInputFields(rexProgram: RexProgram, usedFields: Array[Int]): Array[String] = {
-    val visitor = new RefFieldAccessorVisitor(usedFields)
+
+    val namesList = rexProgram.getInputRowType.getFieldList.toList.map(_.getName)
+
+    val visitor = new RefFieldAccessorVisitor(usedFields, namesList)
     rexProgram.getProjectList.foreach(exp => rexProgram.expandLocalRef(exp).accept(visitor))
     val condition = rexProgram.getCondition
     if (condition != null) {
@@ -88,18 +91,30 @@ object RexProgramRewriter {
 /**
   * A RexVisitor to extract used nested input fields
   */
-class RefFieldAccessorVisitor(fields: Array[Int]) extends RexVisitorImpl[Unit](true) {
+class RefFieldAccessorVisitor(
+    usedFields: Array[Int],
+    names: List[String])
+  extends RexVisitorImpl[Unit](true) {
+
+  private val group = usedFields.toList
   private var nestedFields = mutable.LinkedHashSet[String]()
-  private val group = fields.toList
 
   def getNestedFields: Array[String] = nestedFields.toArray
 
-  override def visitFieldAccess(fieldAccess: RexFieldAccess): Unit =
-    nestedFields += fieldAccess.getField.getName
+  override def visitFieldAccess(fieldAccess: RexFieldAccess): Unit = {
+    fieldAccess.getReferenceExpr match {
+      case ref: RexInputRef =>
+        nestedFields += s"${names(ref.getIndex)}.${fieldAccess.getField.getName}"
+      case _ =>
+    }
+  }
 
   override def visitInputRef(inputRef: RexInputRef): Unit =
     if (group.contains(inputRef.getIndex)) {
-      inputRef.getType.getFieldList.foreach(f => nestedFields += f.getName)
+      val parent = names(inputRef.getIndex)
+      inputRef.getType.getFieldList.foreach{ f =>
+        nestedFields += s"$parent.${f.getName}"
+      }
     }
 
   override def visitCall(call: RexCall): Unit =

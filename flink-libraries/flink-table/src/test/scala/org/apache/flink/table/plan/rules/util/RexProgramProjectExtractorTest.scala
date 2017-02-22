@@ -60,7 +60,7 @@ class RexProgramProjectExtractorTest {
     val rexProgram = buildRexProgramWithNesting()
     val usedFields = extractRefInputFields(rexProgram)
     val usedNestedFields = extractRefNestedInputFields(rexProgram, usedFields)
-    val expected = Array[String]("name", "age", "amount")
+    val expected = Array[String]("payments.amount", "people.name", "people.age")
     assertThat(usedNestedFields, is(expected))
   }
 
@@ -118,8 +118,8 @@ class RexProgramProjectExtractorTest {
     val t2 = rexBuilder.makeExactLiteral(BigDecimal.valueOf(100L))
 
     val fa2 = rexBuilder.makeFieldAccess(t1, "amount", false)
-    builder.addProject(t0, "people")
     builder.addProject(fa2, "amount")
+    builder.addProject(t0, "people")
     builder.addProject(t2, "number")
     builder.getProgram
   }
