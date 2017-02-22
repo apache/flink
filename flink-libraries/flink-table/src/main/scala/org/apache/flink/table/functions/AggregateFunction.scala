@@ -17,12 +17,14 @@
  */
 package org.apache.flink.table.functions
 
+import java.util.List
+
 /**
   * Base class for User-Defined Aggregates.
   *
   * @tparam T the type of the aggregation result
   */
-abstract class AggregateFunction[T] extends UserDefinedFunction {
+trait AggregateFunction[T] extends UserDefinedFunction {
   /**
     * Create and init the Accumulator for this [[AggregateFunction]].
     *
@@ -52,13 +54,13 @@ abstract class AggregateFunction[T] extends UserDefinedFunction {
   def accumulate(accumulator: Accumulator, input: Any): Unit
 
   /**
-    * Merge two accumulator instances into one accumulator instance.
+    * Merge a list of accumulator instances into one accumulator instance.
     *
-    * @param a one of the two accumulators
-    * @param b the other accumulator
+    * @param accumulators the [[java.util.List]] of accumulators
+    *        that will be merged
     * @return the resulting accumulator
     */
-  def merge(a: Accumulator, b: Accumulator): Accumulator
+  def merge(accumulators: List[Accumulator]): Accumulator
 }
 
 /**

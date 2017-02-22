@@ -24,6 +24,7 @@ import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.types.Row
 import org.junit.Test
 import org.junit.Assert.assertEquals
+import java.util.List
 
 /**
   * Base class for aggregate function test
@@ -91,12 +92,19 @@ abstract class AggFunctionTestBase[T] {
 
   private def mergeRows(rows: Seq[Row]): Row = {
     var accumulator = aggregator.createAccumulator()
+    val accumulators: List[Accumulator] =
+      new java.util.ArrayList[Accumulator]()
+    accumulators.add(accumulator)
+
     rows.foreach(
       row => {
         val acc = row.getField(offset).asInstanceOf[Accumulator]
-        accumulator = aggregator.merge(accumulator, acc)
+        accumulators.add(acc)
       }
     )
+
+    accumulator = aggregator.merge(accumulators)
+
     val resultRow = new Row(rowArity)
     resultRow.setField(offset, accumulator)
     resultRow

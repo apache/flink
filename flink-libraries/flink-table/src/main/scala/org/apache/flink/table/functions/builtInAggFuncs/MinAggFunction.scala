@@ -19,6 +19,7 @@ package org.apache.flink.table.functions.builtInAggFuncs
 
 import java.math.BigDecimal
 import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
+import java.util.List
 
 /**
   * Base class for built-in Min aggregate function
@@ -49,9 +50,15 @@ abstract class MinAggFunction[T](implicit ord: Ordering[T]) extends AggregateFun
     accumulator.asInstanceOf[MinAccumulator[T]].max
   }
 
-  override def merge(a: Accumulator, b: Accumulator): Accumulator = {
-    accumulate(a, b.asInstanceOf[MinAccumulator[T]].max)
-    a
+  override def merge(accumulators: List[Accumulator]): Accumulator = {
+    val ret = accumulators.get(0)
+    var i: Int = 1
+    while (i < accumulators.size()) {
+      accumulate(ret.asInstanceOf[MinAccumulator[T]],
+                 accumulators.get(i).asInstanceOf[MinAccumulator[T]].max)
+      i += 1
+    }
+    ret
   }
 }
 

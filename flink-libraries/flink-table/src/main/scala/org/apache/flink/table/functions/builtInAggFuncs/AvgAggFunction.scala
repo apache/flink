@@ -18,6 +18,8 @@
 package org.apache.flink.table.functions.builtInAggFuncs
 
 import java.math.{BigDecimal, BigInteger}
+import java.util.List
+
 import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
 
 /**
@@ -55,13 +57,19 @@ abstract class IntegralAvgAggFunction[T] extends AggregateFunction[T] {
     }
   }
 
-  override def merge(a: Accumulator, b: Accumulator): Accumulator = {
-    val aAccum = a.asInstanceOf[IntegralAvgAccumulator]
-    val bAccum = b.asInstanceOf[IntegralAvgAccumulator]
-    aAccum.count += bAccum.count
-    aAccum.sum += bAccum.sum
-    a
+  override def merge(accumulators: List[Accumulator]): Accumulator = {
+    val ret = accumulators.get(0)
+    val aAccum = ret.asInstanceOf[IntegralAvgAccumulator]
+    var i: Int = 1
+    while (i < accumulators.size()) {
+      val bAccum = accumulators.get(i).asInstanceOf[IntegralAvgAccumulator]
+      aAccum.count += bAccum.count
+      aAccum.sum += bAccum.sum
+      i += 1
+    }
+    ret
   }
+
   /**
     * Convert the intermediate result to the expected aggregation result type
     *
@@ -128,12 +136,17 @@ abstract class BigIntegralAvgAggFunction[T] extends AggregateFunction[T] {
     }
   }
 
-  override def merge(a: Accumulator, b: Accumulator): Accumulator = {
-    val aAccum = a.asInstanceOf[BigIntegralAvgAccumulator]
-    val bAccum = b.asInstanceOf[BigIntegralAvgAccumulator]
-    aAccum.count += bAccum.count
-    aAccum.sum = aAccum.sum.add(bAccum.sum)
-    a
+  override def merge(accumulators: List[Accumulator]): Accumulator = {
+    val ret = accumulators.get(0)
+    val aAccum = ret.asInstanceOf[BigIntegralAvgAccumulator]
+    var i: Int = 1
+    while (i < accumulators.size()) {
+      val bAccum = accumulators.get(i).asInstanceOf[BigIntegralAvgAccumulator]
+      aAccum.count += bAccum.count
+      aAccum.sum = aAccum.sum.add(bAccum.sum)
+      i += 1
+    }
+    ret
   }
 
   /**
@@ -189,12 +202,17 @@ abstract class FloatingAvgAggFunction[T] extends AggregateFunction[T] {
     }
   }
 
-  override def merge(a: Accumulator, b: Accumulator): Accumulator = {
-    val aAccum = a.asInstanceOf[FloatingAvgAccumulator]
-    val bAccum = b.asInstanceOf[FloatingAvgAccumulator]
-    aAccum.count += bAccum.count
-    aAccum.sum += bAccum.sum
-    a
+  override def merge(accumulators: List[Accumulator]): Accumulator = {
+    val ret = accumulators.get(0)
+    val aAccum = ret.asInstanceOf[FloatingAvgAccumulator]
+    var i: Int = 1
+    while (i < accumulators.size()) {
+      val bAccum = accumulators.get(i).asInstanceOf[FloatingAvgAccumulator]
+      aAccum.count += bAccum.count
+      aAccum.sum += bAccum.sum
+      i += 1
+    }
+    ret
   }
 
   /**
@@ -258,11 +276,17 @@ class DecimalAvgAggFunction extends AggregateFunction[BigDecimal] {
     }
   }
 
-  override def merge(a: Accumulator, b: Accumulator): Accumulator = {
-    val aAccum = a.asInstanceOf[DecimalAvgAccumulator]
-    val bAccum = b.asInstanceOf[DecimalAvgAccumulator]
-    aAccum.count += bAccum.count
-    accumulate(a, b.asInstanceOf[DecimalAvgAccumulator].sum)
-    a
+  override def merge(accumulators: List[Accumulator]): Accumulator = {
+    val ret = accumulators.get(0)
+    val aAccum = ret.asInstanceOf[DecimalAvgAccumulator]
+    var i: Int = 1
+    while (i < accumulators.size()) {
+      val b = accumulators.get(i)
+      val bAccum = b.asInstanceOf[DecimalAvgAccumulator]
+      aAccum.count += bAccum.count
+      accumulate(ret, b.asInstanceOf[DecimalAvgAccumulator].sum)
+      i += 1
+    }
+    ret
   }
 }

@@ -18,6 +18,8 @@
 package org.apache.flink.table.functions.builtInAggFuncs
 
 import java.math.BigDecimal
+import java.util.List
+
 import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
 
 /**
@@ -49,9 +51,15 @@ abstract class MaxAggFunction[T](implicit ord: Ordering[T]) extends AggregateFun
     accumulator.asInstanceOf[MaxAccumulator[T]].max
   }
 
-  override def merge(a: Accumulator, b: Accumulator): Accumulator = {
-    accumulate(a, b.asInstanceOf[MaxAccumulator[T]].max)
-    a
+  override def merge(accumulators: List[Accumulator]): Accumulator = {
+    val ret = accumulators.get(0)
+    var i: Int = 1
+    while (i < accumulators.size()) {
+      accumulate(ret.asInstanceOf[MaxAccumulator[T]],
+                 accumulators.get(i).asInstanceOf[MaxAccumulator[T]].max)
+      i += 1
+    }
+    ret
   }
 }
 

@@ -18,6 +18,7 @@
 package org.apache.flink.table.functions.builtInAggFuncs
 
 import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
+import java.util.List
 
 /**
   * built-in count aggregate function
@@ -38,9 +39,15 @@ class CountAggFunction extends AggregateFunction[Long] {
     accumulator.asInstanceOf[CountAccumulator].count
   }
 
-  override def merge(a: Accumulator, b: Accumulator): Accumulator = {
-    a.asInstanceOf[CountAccumulator].count += b.asInstanceOf[CountAccumulator].count
-    a
+  override def merge(accumulators: List[Accumulator]): Accumulator = {
+    val ret = accumulators.get(0)
+    var i: Int = 1
+    while (i < accumulators.size()) {
+      ret.asInstanceOf[CountAccumulator].count += accumulators.get(i)
+                                                  .asInstanceOf[CountAccumulator].count
+      i += 1
+    }
+    ret
   }
 
   override def createAccumulator():Accumulator = {
