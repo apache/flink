@@ -72,6 +72,15 @@ $ cd build-target               # this is where Flink is installed to
 ~~~
 {% endif %}
 
+### Alternatively
+For MacOS X users, Flink can be installed through [Homebrew](https://brew.sh/).
+~~~
+$ brew install apache-flink
+...
+$ flink --version
+Version: 1.2.0, Commit ID: 1c659cf
+~~~
+
 ### Start a Local Flink Cluster
 
 ~~~bash
