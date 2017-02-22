@@ -32,8 +32,24 @@ trait NestedFieldsProjectableTableSource[T] extends ProjectableTableSource[T] {
     * that projects its output on the specified nested fields.
     *
     * @param fields The indexes of the fields to return.
+    * @param nestedFields hold the nested fields and has identical size with fields array
+    *
+    * e.g.
+    * tableSchema = {
+    *       id,
+    *       student<\school<\city, tuition>, age, name>,
+    *       teacher<\age, name>
+    *       }
+    *
+    * select (id, student.school.city, student.age, teacher)
+    *
+    * fields = field = [0, 1, 2]
+    * nestedFields  \[\[], ["school.city", "age"], ["*"\]\]
+    *
     * @return A copy of the [[NestedFieldsProjectableTableSource]] that projects its output.
     */
-  def projectNestedFields(fields: Array[String]): NestedFieldsProjectableTableSource[T]
+  def projectNestedFields(
+      fields: Array[Int],
+      nestedFields: Array[Array[String]]): NestedFieldsProjectableTableSource[T]
 
 }

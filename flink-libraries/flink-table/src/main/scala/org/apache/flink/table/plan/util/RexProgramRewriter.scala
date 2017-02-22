@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.plan.util
 
+import java.util
+
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex._
 
@@ -74,12 +76,13 @@ object RexProgramRewriter {
     * @param rexProgram The RexProgram to analyze
     * @return The full names of accessed input fields. e.g. field.subfield
     */
-  def extractRefNestedInputFields(rexProgram: RexProgram, usedFields: Array[Int]): Array[String] = {
+  def extractRefNestedInputFields(rexProgram: RexProgram, usedFields: Array[Int]): Array[Array[String]] = {
 
-    val namesList = rexProgram.getInputRowType.getFieldList.toList.map(_.getName)
+    val highLevelNames = rexProgram.getInputRowType.getFieldList.toList.map(_.getName)
 
-    val visitor = new RefFieldAccessorVisitor(usedFields, namesList)
+    val visitor = new RefFieldAccessorVisitor(highLevelNames, usedFields)
     rexProgram.getProjectList.foreach(exp => rexProgram.expandLocalRef(exp).accept(visitor))
+
     val condition = rexProgram.getCondition
     if (condition != null) {
       rexProgram.expandLocalRef(condition).accept(visitor)
@@ -92,30 +95,40 @@ object RexProgramRewriter {
   * A RexVisitor to extract used nested input fields
   */
 class RefFieldAccessorVisitor(
-    usedFields: Array[Int],
-    names: List[String])
-  extends RexVisitorImpl[Unit](true) {
+    names: List[String],
+    usedFields: Array[Int]) extends RexVisitorImpl[Unit](true) {
 
-  private val group = usedFields.toList
-  private var nestedFields = mutable.LinkedHashSet[String]()
+  private val projectedFields = new util.ArrayList[Array[String]]
 
-  def getNestedFields: Array[String] = nestedFields.toArray
-
-  override def visitFieldAccess(fieldAccess: RexFieldAccess): Unit = {
-    fieldAccess.getReferenceExpr match {
-      case ref: RexInputRef =>
-        nestedFields += s"${names(ref.getIndex)}.${fieldAccess.getField.getName}"
-      case _ =>
-    }
+  names.foreach { n =>
+    projectedFields.add(Array.empty)
   }
 
-  override def visitInputRef(inputRef: RexInputRef): Unit =
-    if (group.contains(inputRef.getIndex)) {
-      val parent = names(inputRef.getIndex)
-      inputRef.getType.getFieldList.foreach{ f =>
-        nestedFields += s"$parent.${f.getName}"
+  private val order: Map[Int, Int] = names.indices.zip(usedFields).map(_.swap).toMap
+
+  def getNestedFields: Array[Array[String]] =
+    projectedFields.asScala.toArray.filterNot(_.isEmpty)
+
+  override def visitFieldAccess(fieldAccess: RexFieldAccess): Unit = {
+    def internalVisit(fieldAccess: RexFieldAccess): (Int, String) = {
+      fieldAccess.getReferenceExpr match {
+        case ref: RexInputRef =>
+          (ref.getIndex, fieldAccess.getField.getName)
+        case fac: RexFieldAccess =>
+          val (i, n) = internalVisit(fac)
+          (i, s"$n.${fieldAccess.getField.getName}")
       }
     }
+    val (index, fullName) = internalVisit(fieldAccess)
+    val outputIndex = order(index)
+    val fields = projectedFields.get(outputIndex)
+    projectedFields.set(outputIndex, fields :+ fullName)
+  }
+
+  override def visitInputRef(inputRef: RexInputRef): Unit = {
+    val outputIndex = order(inputRef.getIndex)
+    projectedFields.set(outputIndex, Array("*"))
+  }
 
   override def visitCall(call: RexCall): Unit =
     call.operands.foreach(operand => operand.accept(this))
