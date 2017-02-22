@@ -328,7 +328,11 @@ input.addSink(new ElasticsearchSink<>(
     new ElasticsearchSinkFunction<String>() {...},
     new ActionRequestFailureHandler() {
         @Override
-        void onFailure(ActionRequest action, Throwable failure, RequestIndexer indexer) throw Throwable {
+        void onFailure(ActionRequest action,
+                Throwable failure,
+                int restStatusCode,
+                RequestIndexer indexer) throw Throwable {
+
             if (ExceptionUtils.containsThrowable(failure, EsRejectedExecutionException.class)) {
                 // full queue; re-add document for indexing
                 indexer.add(action);
@@ -352,7 +356,11 @@ input.addSink(new ElasticsearchSink(
     new ElasticsearchSinkFunction[String] {...},
     new ActionRequestFailureHandler {
         @throws(classOf[Throwable])
-        override def onFailure(ActionRequest action, Throwable failure, RequestIndexer indexer) {
+        override def onFailure(ActionRequest action,
+                Throwable failure,
+                int restStatusCode,
+                RequestIndexer indexer) {
+
             if (ExceptionUtils.containsThrowable(failure, EsRejectedExecutionException.class)) {
                 // full queue; re-add document for indexing
                 indexer.add(action)
@@ -389,13 +397,21 @@ that always re-add requests that have failed due to queue capacity saturation.
 <b>IMPORTANT</b>: Re-adding requests back to the internal <b>BulkProcessor</b>
 on failures will lead to longer checkpoints, as the sink will also
 need to wait for the re-added requests to be flushed when checkpointing.
-For example, when using <b>RetryRejectedExecutionFailureHandler</>, checkpoints
+For example, when using <b>RetryRejectedExecutionFailureHandler</b>, checkpoints
 will need to wait until Elasticsearch node queues have enough capacity for
 all the pending requests. This also means that if re-added requests never
 succeed, the checkpoint will never finish.
 </p>
 
- 
+<p style="border-radius: 5px; padding: 5px" class="bg-warning">
+<b>Failure handling for Elasticsearch 1.x</b>: For Elasticsearch 1.x, it
+is not feasible to match the type of the failure because the exact type
+could not be retrieved through the older version Java client APIs (thus,
+the types will be general <b>Exception</b>s and only differ in the
+failure message). In this case, it is recommended to match on the
+provided REST status code.
+</p>
+
 ### Configuring the Internal Bulk Processor
 
 The internal `BulkProcessor` can be further configured for its behaviour

@@ -561,7 +561,7 @@ public class ElasticsearchSinkBaseTest {
 		private static final long serialVersionUID = 5400023700099200745L;
 
 		@Override
-		public void onFailure(ActionRequest action, Throwable failure, RequestIndexer indexer) throws Throwable {
+		public void onFailure(ActionRequest action, Throwable failure, int restStatusCode, RequestIndexer indexer) throws Throwable {
 			indexer.add(action);
 		}
 	}

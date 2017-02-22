@@ -34,6 +34,7 @@ import org.elasticsearch.client.Client;
 import org.elasticsearch.common.unit.ByteSizeUnit;
 import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.unit.TimeValue;
+import org.elasticsearch.rest.RestStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -171,7 +172,7 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> imple
 	/**
 	 * This is set from inside the {@link BulkProcessor.Listener} if a {@link Throwable} was thrown in callbacks and
 	 * the user considered it should fail the sink via the
-	 * {@link ActionRequestFailureHandler#onFailure(ActionRequest, Throwable, RequestIndexer)} method.
+	 * {@link ActionRequestFailureHandler#onFailure(ActionRequest, Throwable, int, RequestIndexer)} method.
 	 *
 	 * Errors will be checked and rethrown before processing each input element, and when the sink is closed.
 	 */
@@ -363,6 +364,7 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> imple
 			if (response.hasFailures()) {
 				BulkItemResponse itemResponse;
 				Throwable failure;
+				RestStatus restStatus;
 
 				try {
 					for (int i = 0; i < response.getItems().length; i++) {
@@ -371,7 +373,12 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> imple
 						if (failure != null) {
 							LOG.error("Failed Elasticsearch item request: {}", itemResponse.getFailureMessage(), failure);
 
-							failureHandler.onFailure(request.requests().get(i), failure, requestIndexer);
+							restStatus = itemResponse.getFailure().getStatus();
+							if (restStatus == null) {
+								failureHandler.onFailure(request.requests().get(i), failure, -1, requestIndexer);
+							} else {
+								failureHandler.onFailure(request.requests().get(i), failure, restStatus.getStatus(), requestIndexer);
+							}
 						}
 					}
 				} catch (Throwable t) {
@@ -392,7 +399,7 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> imple
 
 			try {
 				for (ActionRequest action : request.requests()) {
-					failureHandler.onFailure(action, failure, requestIndexer);
+					failureHandler.onFailure(action, failure, -1, requestIndexer);
 				}
 			} catch (Throwable t) {
 				// fail the sink and skip the rest of the items
