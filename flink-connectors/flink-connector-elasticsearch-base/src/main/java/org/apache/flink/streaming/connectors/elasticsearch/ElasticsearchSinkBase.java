@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.elasticsearch;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
@@ -268,81 +269,7 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> imple
 	@Override
 	public void open(Configuration parameters) throws Exception {
 		client = callBridge.createClient(userConfig);
-
-		BulkProcessor.Builder bulkProcessorBuilder = BulkProcessor.builder(
-			client,
-			new BulkProcessor.Listener() {
-				@Override
-				public void beforeBulk(long executionId, BulkRequest request) { }
-
-				@Override
-				public void afterBulk(long executionId, BulkRequest request, BulkResponse response) {
-					if (response.hasFailures()) {
-						BulkItemResponse itemResponse;
-						Throwable failure;
-
-						try {
-							for (int i = 0; i < response.getItems().length; i++) {
-								itemResponse = response.getItems()[i];
-								failure = callBridge.extractFailureCauseFromBulkItemResponse(itemResponse);
-								if (failure != null) {
-									LOG.error("Failed Elasticsearch item request: {}", itemResponse.getFailureMessage(), failure);
-
-									failureHandler.onFailure(request.requests().get(i), failure, requestIndexer);
-								}
-							}
-						} catch (Throwable t) {
-							// fail the sink and skip the rest of the items
-							// if the failure handler decides to throw an exception
-							failureThrowable.compareAndSet(null, t);
-						}
-					}
-
-					if (flushOnCheckpoint) {
-						numPendingRequests.getAndAdd(-request.numberOfActions());
-					}
-				}
-
-				@Override
-				public void afterBulk(long executionId, BulkRequest request, Throwable failure) {
-					LOG.error("Failed Elasticsearch bulk request: {}", failure.getMessage(), failure.getCause());
-
-					try {
-						for (ActionRequest action : request.requests()) {
-							failureHandler.onFailure(action, failure, requestIndexer);
-						}
-					} catch (Throwable t) {
-						// fail the sink and skip the rest of the items
-						// if the failure handler decides to throw an exception
-						failureThrowable.compareAndSet(null, t);
-					}
-
-					if (flushOnCheckpoint) {
-						numPendingRequests.getAndAdd(-request.numberOfActions());
-					}
-				}
-			}
-		);
-
-		// This makes flush() blocking
-		bulkProcessorBuilder.setConcurrentRequests(0);
-
-		if (bulkProcessorFlushMaxActions != null) {
-			bulkProcessorBuilder.setBulkActions(bulkProcessorFlushMaxActions);
-		}
-
-		if (bulkProcessorFlushMaxSizeMb != null) {
-			bulkProcessorBuilder.setBulkSize(new ByteSizeValue(bulkProcessorFlushMaxSizeMb, ByteSizeUnit.MB));
-		}
-
-		if (bulkProcessorFlushIntervalMillis != null) {
-			bulkProcessorBuilder.setFlushInterval(TimeValue.timeValueMillis(bulkProcessorFlushIntervalMillis));
-		}
-
-		// if backoff retrying is disabled, bulkProcessorFlushBackoffPolicy will be null
-		callBridge.configureBulkProcessorBackoff(bulkProcessorBuilder, bulkProcessorFlushBackoffPolicy);
-
-		bulkProcessor = bulkProcessorBuilder.build();
+		bulkProcessor = buildBulkProcessor(new BulkProcessorListener());
 		requestIndexer = new BulkProcessorIndexer(bulkProcessor, flushOnCheckpoint, numPendingRequests);
 	}
 
@@ -389,10 +316,103 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> imple
 		checkErrorAndRethrow();
 	}
 
+	/**
+	 * Build the {@link BulkProcessor}.
+	 *
+	 * Note: this is exposed for testing purposes.
+	 */
+	protected BulkProcessor buildBulkProcessor(BulkProcessor.Listener listener) {
+		checkNotNull(listener);
+
+		BulkProcessor.Builder bulkProcessorBuilder = BulkProcessor.builder(client, listener);
+
+		// This makes flush() blocking
+		bulkProcessorBuilder.setConcurrentRequests(0);
+
+		if (bulkProcessorFlushMaxActions != null) {
+			bulkProcessorBuilder.setBulkActions(bulkProcessorFlushMaxActions);
+		}
+
+		if (bulkProcessorFlushMaxSizeMb != null) {
+			bulkProcessorBuilder.setBulkSize(new ByteSizeValue(bulkProcessorFlushMaxSizeMb, ByteSizeUnit.MB));
+		}
+
+		if (bulkProcessorFlushIntervalMillis != null) {
+			bulkProcessorBuilder.setFlushInterval(TimeValue.timeValueMillis(bulkProcessorFlushIntervalMillis));
+		}
+
+		// if backoff retrying is disabled, bulkProcessorFlushBackoffPolicy will be null
+		callBridge.configureBulkProcessorBackoff(bulkProcessorBuilder, bulkProcessorFlushBackoffPolicy);
+
+		return bulkProcessorBuilder.build();
+	}
+
 	private void checkErrorAndRethrow() {
 		Throwable cause = failureThrowable.get();
 		if (cause != null) {
 			throw new RuntimeException("An error occurred in ElasticsearchSink.", cause);
+		}
+	}
+
+	private class BulkProcessorListener implements BulkProcessor.Listener {
+		@Override
+		public void beforeBulk(long executionId, BulkRequest request) { }
+
+		@Override
+		public void afterBulk(long executionId, BulkRequest request, BulkResponse response) {
+			if (response.hasFailures()) {
+				BulkItemResponse itemResponse;
+				Throwable failure;
+
+				try {
+					for (int i = 0; i < response.getItems().length; i++) {
+						itemResponse = response.getItems()[i];
+						failure = callBridge.extractFailureCauseFromBulkItemResponse(itemResponse);
+						if (failure != null) {
+							LOG.error("Failed Elasticsearch item request: {}", itemResponse.getFailureMessage(), failure);
+
+							failureHandler.onFailure(request.requests().get(i), failure, requestIndexer);
+						}
+					}
+				} catch (Throwable t) {
+					// fail the sink and skip the rest of the items
+					// if the failure handler decides to throw an exception
+					failureThrowable.compareAndSet(null, t);
+				}
+			}
+
+			if (flushOnCheckpoint) {
+				numPendingRequests.getAndAdd(-request.numberOfActions());
+			}
+		}
+
+		@Override
+		public void afterBulk(long executionId, BulkRequest request, Throwable failure) {
+			LOG.error("Failed Elasticsearch bulk request: {}", failure.getMessage(), failure.getCause());
+
+			try {
+				for (ActionRequest action : request.requests()) {
+					failureHandler.onFailure(action, failure, requestIndexer);
+				}
+			} catch (Throwable t) {
+				// fail the sink and skip the rest of the items
+				// if the failure handler decides to throw an exception
+				failureThrowable.compareAndSet(null, t);
+			}
+
+			if (flushOnCheckpoint) {
+				numPendingRequests.getAndAdd(-request.numberOfActions());
+			}
+		}
+	}
+
+	@VisibleForTesting
+	long getNumPendingRequests() {
+		if (flushOnCheckpoint) {
+			return numPendingRequests.get();
+		} else {
+			throw new UnsupportedOperationException(
+				"The number of pending requests is not maintained when flushing on checkpoint is disabled.");
 		}
 	}
 }
