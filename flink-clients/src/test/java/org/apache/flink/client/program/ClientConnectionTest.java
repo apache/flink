@@ -116,7 +116,7 @@ public class ClientConnectionTest {
 			try {
 				// wait until the caller is successful, for at most the given time
 				long now = System.nanoTime();
-				long deadline = now + MAX_DELAY*1000000;
+				long deadline = now + MAX_DELAY * 1_000_000;
 
 				synchronized (error) {
 					while (invoker.isAlive() && error.get() == null && now < deadline) {
