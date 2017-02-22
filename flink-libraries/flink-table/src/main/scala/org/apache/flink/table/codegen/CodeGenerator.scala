@@ -420,7 +420,7 @@ class CodeGenerator(
                 //init once
                 if (${iterableInput1Term}.hasNext() && firstCnt==0){
                   needCopy = true;
-                  copy = new java.util.ArrayList<${input2TypeTerm}>();
+                  copy = new java.util.LinkedList<${input2TypeTerm}>();
                 }
                 if(firstCnt > 0){
                   // it1:it2 many to one/many, restart iterator.
@@ -453,7 +453,7 @@ class CodeGenerator(
                 //init once
                 if (${iterableInput2Term}.hasNext() && firstCnt==0){
                   needCopy = true;
-                  copy = new java.util.ArrayList<${input1TypeTerm}>();
+                  copy = new java.util.LinkedList<${input1TypeTerm}>();
                 }
 
                 if(firstCnt > 0){
