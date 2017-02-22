@@ -29,6 +29,7 @@ import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class ExecutionConfigTest {
 
@@ -68,15 +69,24 @@ public class ExecutionConfigTest {
 		assertEquals(parallelism, config.getParallelism());
 	}
 
-	@Test(expected = UnsupportedOperationException.class)
-	public void testForceCustomSerializerCheck(){
+	@Test
+	public void testForceCustomSerializerCheck() {
 		ExecutionConfig conf = new ExecutionConfig();
 		TypeInformation<Object> typeInfo = new GenericTypeInfo<Object>(Object.class);
 		TypeSerializer<Object> serializer = typeInfo.createSerializer(conf);
 		assertTrue(serializer instanceof KryoSerializer);
 
-		conf.enableForceCustomSerializerCheck();
-		typeInfo.createSerializer(conf);
+		conf.disableGenericTypes();
+		boolean createSerializerFailed = false;
+		try {
+			typeInfo.createSerializer(conf);
+		} catch (UnsupportedOperationException e) {
+			createSerializerFailed = true;
+		} catch (Throwable t) {
+			fail("Unexpected exception thrown: " + t.getMessage());
+		}
+
+		assertTrue(createSerializerFailed);
 	}
 
 }

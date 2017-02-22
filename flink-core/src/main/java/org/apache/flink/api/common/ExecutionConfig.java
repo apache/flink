@@ -109,7 +109,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 
 	private boolean forceKryo = false;
 
-	private boolean forceCustomSerializerCheck = false;//ISSUE FLINK-5692
+	private boolean disableGenericTypes = false;//ISSUE FLINK-5692
 
 	private boolean objectReuse = false;
 
@@ -521,28 +521,28 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	}
 
 	/**
-	 * Enable the forced check at the creation of the Kryo serializer for all POJOs
-	 * to make sure that you have provided your own custom serializers for all.
+	 * Enable generic types.
 	 *
-	 * If this forced check enabled,
-	 * an {@link UnsupportedOperationException} will be thrown when the Flink
-	 * tries to fall back to the default Kryo serializer logic in the runtime.
+	 * @see ExecutionConfig#disableGenericTypes()
 	 */
-	public void enableForceCustomSerializerCheck() {
-		forceCustomSerializerCheck = true;
+	public void enableGenericTypes() {
+		disableGenericTypes = false;
 	}
 
 	/**
-	 * Disable the forced custom serializer check.
+	 * Disable generic types to make sure that you have provided your own custom serializers for
+	 * all POJOs explicitly.
 	 *
-	 * @see ExecutionConfig#enableForceCustomSerializerCheck()
+	 * If generic types disabled,
+	 * an {@link UnsupportedOperationException} will be thrown when Flink
+	 * tries to fall back to the default Kryo serializer logic in the runtime.
 	 */
-	public void disableForceCustomSerializerCheck() {
-		forceCustomSerializerCheck = false;
+	public void disableGenericTypes() {
+		disableGenericTypes = true;
 	}
 
-	public boolean isForceCustomSerializerCheckEnabled() {
-		return forceCustomSerializerCheck;
+	public boolean hasGenericTypesDisabled() {
+		return disableGenericTypes;
 	}
 
 	/**
@@ -831,7 +831,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 				((restartStrategyConfiguration == null && other.restartStrategyConfiguration == null) ||
 					(null != restartStrategyConfiguration && restartStrategyConfiguration.equals(other.restartStrategyConfiguration))) &&
 				forceKryo == other.forceKryo &&
-				forceCustomSerializerCheck == other.forceCustomSerializerCheck &&
+				disableGenericTypes == other.disableGenericTypes &&
 				objectReuse == other.objectReuse &&
 				autoTypeRegistrationEnabled == other.autoTypeRegistrationEnabled &&
 				forceAvro == other.forceAvro &&
@@ -858,7 +858,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 			parallelism,
 			restartStrategyConfiguration,
 			forceKryo,
-			forceCustomSerializerCheck,
+			disableGenericTypes,
 			objectReuse,
 			autoTypeRegistrationEnabled,
 			forceAvro,
