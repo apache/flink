@@ -23,6 +23,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.concurrent.impl.FlinkFuture;
 import org.apache.flink.util.TestLogger;
 
@@ -32,7 +33,6 @@ import org.junit.Test;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -160,11 +160,11 @@ public class AkkaRpcServiceTest extends TestLogger {
 	 */
 	@Test(timeout = 1000)
 	public void testScheduledExecutorServiceSimpleSchedule() throws ExecutionException, InterruptedException {
-		ScheduledExecutorService scheduledExecutorService = akkaRpcService.getScheduledExecutorService();
+		ScheduledExecutor scheduledExecutor = akkaRpcService.getScheduledExecutor();
 
 		final OneShotLatch latch = new OneShotLatch();
 
-		ScheduledFuture<?> future = scheduledExecutorService.schedule(
+		ScheduledFuture<?> future = scheduledExecutor.schedule(
 			new Runnable() {
 				@Override
 				public void run() {
@@ -186,7 +186,7 @@ public class AkkaRpcServiceTest extends TestLogger {
 	 */
 	@Test(timeout = 1000)
 	public void testScheduledExecutorServicePeriodicSchedule() throws ExecutionException, InterruptedException {
-		ScheduledExecutorService scheduledExecutorService = akkaRpcService.getScheduledExecutorService();
+		ScheduledExecutor scheduledExecutor = akkaRpcService.getScheduledExecutor();
 
 		final int tries = 4;
 		final long delay = 10L;
@@ -194,7 +194,7 @@ public class AkkaRpcServiceTest extends TestLogger {
 
 		long currentTime = System.nanoTime();
 
-		ScheduledFuture<?> future = scheduledExecutorService.scheduleAtFixedRate(
+		ScheduledFuture<?> future = scheduledExecutor.scheduleAtFixedRate(
 			new Runnable() {
 				@Override
 				public void run() {
@@ -226,7 +226,7 @@ public class AkkaRpcServiceTest extends TestLogger {
 	 */
 	@Test(timeout = 1000)
 	public void testScheduledExecutorServiceWithFixedDelaySchedule() throws ExecutionException, InterruptedException {
-		ScheduledExecutorService scheduledExecutorService = akkaRpcService.getScheduledExecutorService();
+		ScheduledExecutor scheduledExecutor = akkaRpcService.getScheduledExecutor();
 
 		final int tries = 4;
 		final long delay = 10L;
@@ -234,7 +234,7 @@ public class AkkaRpcServiceTest extends TestLogger {
 
 		long currentTime = System.nanoTime();
 
-		ScheduledFuture<?> future = scheduledExecutorService.scheduleWithFixedDelay(
+		ScheduledFuture<?> future = scheduledExecutor.scheduleWithFixedDelay(
 			new Runnable() {
 				@Override
 				public void run() {
@@ -265,7 +265,7 @@ public class AkkaRpcServiceTest extends TestLogger {
 	 */
 	@Test
 	public void testScheduledExecutorServiceCancelWithFixedDelay() throws InterruptedException {
-		ScheduledExecutorService scheduledExecutorService = akkaRpcService.getScheduledExecutorService();
+		ScheduledExecutor scheduledExecutor = akkaRpcService.getScheduledExecutor();
 
 		long delay = 10L;
 
@@ -273,7 +273,7 @@ public class AkkaRpcServiceTest extends TestLogger {
 		final OneShotLatch latch = new OneShotLatch();
 		final OneShotLatch shouldNotBeTriggeredLatch = new OneShotLatch();
 
-		ScheduledFuture<?> future = scheduledExecutorService.scheduleWithFixedDelay(
+		ScheduledFuture<?> future = scheduledExecutor.scheduleWithFixedDelay(
 			new Runnable() {
 				@Override
 				public void run() {
@@ -306,39 +306,6 @@ public class AkkaRpcServiceTest extends TestLogger {
 			shouldNotBeTriggeredLatch.await(5 * delay, TimeUnit.MILLISECONDS);
 			fail("The shouldNotBeTriggeredLatch should never be triggered.");
 		} catch (TimeoutException e) {
-			// expected
-		}
-	}
-
-	/**
-	 * Tests that the shutdown of the RPC service's scheduled executor service fails with an
-	 * {@link UnsupportedOperationException}.
-	 */
-	@Test
-	public void testScheduledExecutorServiceShutdownFails() throws InterruptedException {
-		ScheduledExecutorService scheduledExecutorService = akkaRpcService.getScheduledExecutorService();
-
-		try {
-			scheduledExecutorService.shutdown();
-
-			fail("We should not be able to shutdown the RPC's scheduled executor service.");
-		} catch (UnsupportedOperationException e) {
-			// expected
-		}
-
-		try {
-			scheduledExecutorService.shutdownNow();
-
-			fail("We should not be able to shutdown the RPC's scheduled executor service.");
-		} catch (UnsupportedOperationException e) {
-			// expected
-		}
-
-		try {
-			scheduledExecutorService.awaitTermination(1, TimeUnit.MILLISECONDS);
-
-			fail("We should not be able to await the termination of the RPC's scheduled executor service.");
-		} catch (UnsupportedOperationException e) {
 			// expected
 		}
 	}

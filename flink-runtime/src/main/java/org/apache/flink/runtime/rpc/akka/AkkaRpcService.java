@@ -35,6 +35,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.concurrent.CompletableFuture;
 import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.concurrent.impl.FlinkFuture;
 import org.apache.flink.runtime.rpc.MainThreadExecutable;
@@ -55,15 +56,12 @@ import javax.annotation.concurrent.ThreadSafe;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
-import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Delayed;
 import java.util.concurrent.Executor;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.RunnableScheduledFuture;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -91,7 +89,7 @@ public class AkkaRpcService implements RpcService {
 
 	private final String address;
 
-	private final ScheduledExecutorService internalScheduledExecutorService;
+	private final ScheduledExecutor internalScheduledExecutor;
 
 	private volatile boolean stopped;
 
@@ -114,7 +112,7 @@ public class AkkaRpcService implements RpcService {
 			address = "";
 		}
 
-		internalScheduledExecutorService = new InternalScheduledExecutorService(actorSystem);
+		internalScheduledExecutor = new InternalScheduledExecutorImpl(actorSystem);
 	}
 
 	@Override
@@ -273,10 +271,8 @@ public class AkkaRpcService implements RpcService {
 		return actorSystem.dispatcher();
 	}
 
-	@Override
-	public ScheduledExecutorService getScheduledExecutorService() {
-
-		return internalScheduledExecutorService;
+	public ScheduledExecutor getScheduledExecutor() {
+		return internalScheduledExecutor;
 	}
 
 	@Override
@@ -301,13 +297,13 @@ public class AkkaRpcService implements RpcService {
 	}
 
 	/**
-	 * Helper class to expose the internal scheduling logic via a {@link ScheduledExecutorService}.
+	 * Helper class to expose the internal scheduling logic via a {@link ScheduledExecutor}.
 	 */
-	private static final class InternalScheduledExecutorService extends AbstractExecutorService implements ScheduledExecutorService {
+	private static final class InternalScheduledExecutorImpl implements ScheduledExecutor {
 
 		private final ActorSystem actorSystem;
 
-		private InternalScheduledExecutorService(ActorSystem actorSystem) {
+		private InternalScheduledExecutorImpl(ActorSystem actorSystem) {
 			this.actorSystem = Preconditions.checkNotNull(actorSystem, "rpcService");
 		}
 
@@ -367,38 +363,6 @@ public class AkkaRpcService implements RpcService {
 			scheduledFutureTask.setCancellable(cancellable);
 
 			return scheduledFutureTask;
-		}
-
-		@Override
-		public void shutdown() {
-			throw new UnsupportedOperationException("The " + getClass().getSimpleName() +
-				" belongs to a " + AkkaRpcService.class.getSimpleName() +
-				". Consequently, you should never try to shut id down.");
-		}
-
-		@Override
-		@Nonnull
-		public List<Runnable> shutdownNow() {
-			throw new UnsupportedOperationException("The " + getClass().getSimpleName() +
-				" belongs to a " + AkkaRpcService.class.getSimpleName() +
-				". Consequently, you should never try to shut id down.");
-		}
-
-		@Override
-		public boolean isShutdown() {
-			return actorSystem.isTerminated();
-		}
-
-		@Override
-		public boolean isTerminated() {
-			return actorSystem.isTerminated();
-		}
-
-		@Override
-		public boolean awaitTermination(long timeout, @Nonnull TimeUnit unit) {
-			throw new UnsupportedOperationException("The " + getClass().getSimpleName() +
-				" belongs to a " + AkkaRpcService.class.getSimpleName() +
-				". Consequently you should never await its termination.");
 		}
 
 		@Override

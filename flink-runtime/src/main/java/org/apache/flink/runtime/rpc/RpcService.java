@@ -19,11 +19,11 @@
 package org.apache.flink.runtime.rpc;
 
 import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
 
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -99,7 +99,7 @@ public interface RpcService {
 	Executor getExecutor();
 
 	/**
-	 * Gets a scheduled executor service from the RPC service. This executor can be used to schedule
+	 * Gets a scheduled executor from the RPC service. This executor can be used to schedule
 	 * tasks to be executed in the future.
 	 *
 	 * <p><b>IMPORTANT:</b> This executor does not isolate the method invocations against
@@ -108,9 +108,9 @@ public interface RpcService {
 	 * {@link RpcEndpoint#getMainThreadExecutor() MainThreadExecutionContext} of that
 	 * {@code RpcEndpoint}.
 	 *
-	 * @return The RPC service provided scheduled executor service
+	 * @return The RPC service provided scheduled executor
 	 */
-	ScheduledExecutorService getScheduledExecutorService();
+	ScheduledExecutor getScheduledExecutor();
 
 	/**
 	 * Execute the runnable in the execution context of this RPC Service, as returned by

@@ -22,6 +22,8 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.concurrent.CompletableFuture;
 import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
+import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.util.DirectExecutorService;
 import org.apache.flink.util.Preconditions;
@@ -53,11 +55,15 @@ public class TestingSerialRpcService implements RpcService {
 	private final ConcurrentHashMap<String, RpcGateway> registeredConnections;
 	private final CompletableFuture<Void> terminationFuture;
 
+	private final ScheduledExecutor scheduledExecutorServiceAdapter;
+
 	public TestingSerialRpcService() {
 		executorService = new DirectExecutorService();
 		scheduledExecutorService = new ScheduledThreadPoolExecutor(1);
 		this.registeredConnections = new ConcurrentHashMap<>(16);
 		this.terminationFuture = new FlinkCompletableFuture<>();
+
+		this.scheduledExecutorServiceAdapter = new ScheduledExecutorServiceAdapter(scheduledExecutorService);
 	}
 
 	@Override
@@ -91,9 +97,8 @@ public class TestingSerialRpcService implements RpcService {
 		return executorService;
 	}
 
-	@Override
-	public ScheduledExecutorService getScheduledExecutorService() {
-		return scheduledExecutorService;
+	public ScheduledExecutor getScheduledExecutor() {
+		return scheduledExecutorServiceAdapter;
 	}
 
 	@Override
