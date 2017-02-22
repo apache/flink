@@ -31,7 +31,6 @@ import org.apache.flink.table.expressions.Literal
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
-import org.junit.Assert.assertEquals
 import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
