@@ -54,6 +54,8 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
+import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
@@ -157,6 +159,22 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 		processingTimeService = new TestProcessingTimeService();
 		processingTimeService.setCurrentTime(0);
 
+		StreamStatusMaintainer mockStreamStatusMaintainer = new StreamStatusMaintainer() {
+			StreamStatus currentStreamStatus = StreamStatus.ACTIVE;
+
+			@Override
+			public void toggleStreamStatus(StreamStatus streamStatus) {
+				if (!currentStreamStatus.equals(streamStatus)) {
+					currentStreamStatus = streamStatus;
+				}
+			}
+
+			@Override
+			public StreamStatus getStreamStatus() {
+				return currentStreamStatus;
+			}
+		};
+
 		when(mockTask.getName()).thenReturn("Mock Task");
 		when(mockTask.getCheckpointLock()).thenReturn(checkpointLock);
 		when(mockTask.getConfiguration()).thenReturn(config);
@@ -165,6 +183,7 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 		when(mockTask.getExecutionConfig()).thenReturn(executionConfig);
 		when(mockTask.getUserCodeClassLoader()).thenReturn(this.getClass().getClassLoader());
 		when(mockTask.getCancelables()).thenReturn(this.closableRegistry);
+		when(mockTask.getStreamStatusMaintainer()).thenReturn(mockStreamStatusMaintainer);
 
 		doAnswer(new Answer<Void>() {
 			@Override

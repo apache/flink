@@ -447,6 +447,11 @@ public class Kafka09FetcherTest {
 		}
 
 		@Override
+		public void markAsTemporarilyIdle() {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
 		public Object getCheckpointLock() {
 			return new Object();
 		}

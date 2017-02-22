@@ -22,6 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.StoppableFunction;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.testutils.MultiShotLatch;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
@@ -35,6 +36,8 @@ import org.apache.flink.streaming.api.operators.StreamSourceContexts;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
+import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
@@ -69,7 +72,7 @@ public class StreamSourceOperatorTest {
 		final List<StreamElement> output = new ArrayList<>();
 		
 		setupSourceOperator(operator, TimeCharacteristic.EventTime, 0, 0);
-		operator.run(new Object(), new CollectorOutput<String>(output));
+		operator.run(new Object(), mock(StreamStatusMaintainer.class), new CollectorOutput<String>(output));
 		
 		assertEquals(1, output.size());
 		assertEquals(Watermark.MAX_WATERMARK, output.get(0));
@@ -89,7 +92,7 @@ public class StreamSourceOperatorTest {
 		operator.cancel();
 
 		// run and exit
-		operator.run(new Object(), new CollectorOutput<String>(output));
+		operator.run(new Object(), mock(StreamStatusMaintainer.class), new CollectorOutput<String>(output));
 		
 		assertTrue(output.isEmpty());
 	}
@@ -121,7 +124,7 @@ public class StreamSourceOperatorTest {
 		
 		// run and wait to be canceled
 		try {
-			operator.run(new Object(), new CollectorOutput<String>(output));
+			operator.run(new Object(), mock(StreamStatusMaintainer.class), new CollectorOutput<String>(output));
 		}
 		catch (InterruptedException ignored) {}
 
@@ -142,7 +145,7 @@ public class StreamSourceOperatorTest {
 		operator.stop();
 
 		// run and stop
-		operator.run(new Object(), new CollectorOutput<String>(output));
+		operator.run(new Object(), mock(StreamStatusMaintainer.class), new CollectorOutput<String>(output));
 
 		assertTrue(output.isEmpty());
 	}
@@ -171,7 +174,7 @@ public class StreamSourceOperatorTest {
 		}.start();
 
 		// run and wait to be stopped
-		operator.run(new Object(), new CollectorOutput<String>(output));
+		operator.run(new Object(), mock(StreamStatusMaintainer.class), new CollectorOutput<String>(output));
 
 		assertTrue(output.isEmpty());
 	}
@@ -198,7 +201,7 @@ public class StreamSourceOperatorTest {
 		setupSourceOperator(operator, TimeCharacteristic.EventTime, 0, latencyMarkInterval, testProcessingTimeService);
 
 		// run and wait to be stopped
-		operator.run(new Object(), new CollectorOutput<Long>(output));
+		operator.run(new Object(), mock(StreamStatusMaintainer.class), new CollectorOutput<Long>(output));
 
 		int numberLatencyMarkers = (int) (maxProcessingTime / latencyMarkInterval) + 1;
 
@@ -224,11 +227,6 @@ public class StreamSourceOperatorTest {
 	}
 
 	@Test
-	public void testLatencyMarksEmitterLifecycleIntegration() {
-
-	}
-
-	@Test
 	public void testAutomaticWatermarkContext() throws Exception {
 
 		// regular stream source operator
@@ -246,8 +244,10 @@ public class StreamSourceOperatorTest {
 		StreamSourceContexts.getSourceContext(TimeCharacteristic.IngestionTime,
 			operator.getContainingTask().getProcessingTimeService(),
 			operator.getContainingTask().getCheckpointLock(),
+			operator.getContainingTask().getStreamStatusMaintainer(),
 			new CollectorOutput<String>(output),
-			operator.getExecutionConfig().getAutoWatermarkInterval());
+			operator.getExecutionConfig().getAutoWatermarkInterval(),
+			-1);
 
 		// periodically emit the watermarks
 		// even though we start from 1 the watermark are still
@@ -302,6 +302,7 @@ public class StreamSourceOperatorTest {
 		when(mockTask.getEnvironment()).thenReturn(env);
 		when(mockTask.getExecutionConfig()).thenReturn(executionConfig);
 		when(mockTask.getAccumulatorMap()).thenReturn(Collections.<String, Accumulator<?, ?>>emptyMap());
+		when(mockTask.getStreamStatusMaintainer()).thenReturn(mock(StreamStatusMaintainer.class));
 
 		doAnswer(new Answer<ProcessingTimeService>() {
 			@Override
