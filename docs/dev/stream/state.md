@@ -118,9 +118,9 @@ added to the state. Contrary to `ReducingState`, the aggregate type may be diffe
 of elements that are added to the state. The interface is the same as for `ListState` but elements
 added using `add(T)` are folded into an aggregate using a specified `FoldFunction`.
 
-* `MapState<UK, UV>`: This keeps a list of mappings. You can put key-value pairs into the state and retrieve
+* `MapState<UK, UV>`: This keeps a list of mappings. You can put key-value pairs into the state and
 retrieve an `Iterable` over all currently stored mappings. Mappings are added using `put(UK, UV)` or 
-`putAll(map<UK, UV>)`. The value associated with a user key can be retrieved using `get(UK)`. The iterable
+`putAll(Map<UK, UV>)`. The value associated with a user key can be retrieved using `get(UK)`. The iterable
 views for mappings, keys and values can be retrieved using `entries()`, `keys()` and `values()` respectively.
 
 All types of state also have a method `clear()` that clears the state for the currently
