@@ -28,6 +28,8 @@ import org.junit.Assert
 import scala.collection.mutable
 import scala.io.Source
 
+import scala.annotation.varargs
+
 case class SimplePojo(name: String, age: Int)
 
 object Func0 extends ScalarFunction {
@@ -227,3 +229,10 @@ class Func13(prefix: String) extends ScalarFunction {
   }
 }
 
+object Func14 extends ScalarFunction {
+
+  @varargs
+  def eval(a: Int*): Int = {
+    a.sum
+  }
+}
