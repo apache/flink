@@ -281,19 +281,20 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> imple
 						BulkItemResponse itemResponse;
 						Throwable failure;
 
-						for (int i = 0; i < response.getItems().length; i++) {
-							itemResponse = response.getItems()[i];
-							failure = callBridge.extractFailureCauseFromBulkItemResponse(itemResponse);
-							if (failure != null) {
-								LOG.error("Failed Elasticsearch item request: {}", itemResponse.getFailureMessage(), failure);
+						try {
+							for (int i = 0; i < response.getItems().length; i++) {
+								itemResponse = response.getItems()[i];
+								failure = callBridge.extractFailureCauseFromBulkItemResponse(itemResponse);
+								if (failure != null) {
+									LOG.error("Failed Elasticsearch item request: {}", itemResponse.getFailureMessage(), failure);
 
-								try {
 									failureHandler.onFailure(request.requests().get(i), failure, requestIndexer);
-								} catch (Throwable t) {
-									// fail the sink if the failure handler decides to throw an exception
-									failureThrowable.compareAndSet(null, failure);
 								}
 							}
+						} catch (Throwable t) {
+							// fail the sink and skip the rest of the items
+							// if the failure handler decides to throw an exception
+							failureThrowable.compareAndSet(null, t);
 						}
 					}
 
@@ -304,10 +305,14 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> imple
 				public void afterBulk(long executionId, BulkRequest request, Throwable failure) {
 					LOG.error("Failed Elasticsearch bulk request: {}", failure.getMessage(), failure.getCause());
 
-					// whole bulk request failures are usually just temporary timeouts on
-					// the Elasticsearch side; simply retry all action requests in the bulk
-					for (ActionRequest action : request.requests()) {
-						requestIndexer.add(action);
+					try {
+						for (ActionRequest action : request.requests()) {
+							failureHandler.onFailure(action, failure, requestIndexer);
+						}
+					} catch (Throwable t) {
+						// fail the sink and skip the rest of the items
+						// if the failure handler decides to throw an exception
+						failureThrowable.compareAndSet(null, t);
 					}
 
 					numPendingRequests.getAndAdd(-request.numberOfActions());
