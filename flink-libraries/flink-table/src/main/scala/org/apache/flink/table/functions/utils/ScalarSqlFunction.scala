@@ -136,8 +136,18 @@ object ScalarSqlFunction {
       }
 
       override def getOperandCountRange: SqlOperandCountRange = {
-        val signatureLengths = signatures.map(_.length)
-        SqlOperandCountRanges.between(signatureLengths.min, signatureLengths.max)
+        var min = 255
+        var max = -1
+        signatures.foreach(sig => {
+          var len = sig.length
+          if (len > 0 && sig(sig.length -1).isArray) {
+            max = 254  // according to JVM spec 4.3.3
+            len = sig.length - 1
+          }
+          max = Math.max(len, max)
+          min = Math.min(len, min)
+        })
+        SqlOperandCountRanges.between(min, max)
       }
 
       override def checkOperandTypes(

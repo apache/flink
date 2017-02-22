@@ -87,10 +87,16 @@ object UserDefinedFunctionUtils {
       // go over all signatures and find one matching actual signature
       .find { curSig =>
       // match parameters of signature to actual parameters
-      actualSignature.length == curSig.length &&
+      (actualSignature.length == curSig.length &&
         curSig.zipWithIndex.forall { case (clazz, i) =>
           parameterTypeEquals(actualSignature(i), clazz)
-        }
+        }) ||
+        // matching the style which last argument is variable, eg. "Type..." "Type*"
+        (actualSignature.length >= curSig.length &&
+          curSig.zipWithIndex.forall { case (clazz, i) =>
+              parameterTypeEquals(actualSignature(i), clazz) ||
+                (i == curSig.length - 1 && clazz.isArray)
+          })
     }
   }
 
@@ -115,6 +121,7 @@ object UserDefinedFunctionUtils {
         signatures.zipWithIndex.forall { case (clazz, i) =>
           parameterTypeEquals(actualSignature(i), clazz)
         }
+      // TODO FLINK-5882
     }
   }
 
@@ -133,7 +140,7 @@ object UserDefinedFunctionUtils {
 
   /**
     * Extracts "eval" methods and throws a [[ValidationException]] if no implementation
-    * can be found.
+    * can be found, or implementation does not match the requirements
     */
   def checkAndExtractEvalMethods(function: UserDefinedFunction): Array[Method] = {
     val methods = function
@@ -153,6 +160,25 @@ object UserDefinedFunctionUtils {
           s"one method named 'eval' which is public, not abstract and " +
           s"(in case of table functions) not static.")
     } else {
+      var trailingSeq = false
+      var trailingArray = false
+      methods.foreach(method => {
+        val signatures = method.getParameterTypes
+        if (signatures.nonEmpty) {
+          val trailingArg = signatures(signatures.length - 1)
+          if (trailingArg.getName.equals("scala.collection.Seq")) {
+            trailingSeq = true
+          } else if (trailingArg.isArray) {
+            trailingArray = true
+          }
+        }
+      })
+      if (trailingSeq && !trailingArray) {
+        // We found trailing "scala.collection.Seq", but no trailing "Type[]", "Type..."
+        throw new ValidationException("The 'eval' method do not support Scala type of " +
+          "variable args eg. scala.collection.Seq or Type*, please add a @varargs annotation " +
+          "to your 'eval' method")
+      }
       methods
     }
   }

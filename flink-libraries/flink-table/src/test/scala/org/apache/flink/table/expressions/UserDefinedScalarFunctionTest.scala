@@ -25,7 +25,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.types.Row
 import org.apache.flink.table.api.Types
-import org.apache.flink.table.api.java.utils.UserDefinedScalarFunctions.{JavaFunc0, JavaFunc1}
+import org.apache.flink.table.api.java.utils.UserDefinedScalarFunctions.{JavaFunc0, JavaFunc1, JavaFunc2}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.utils._
 import org.apache.flink.table.functions.ScalarFunction
@@ -181,6 +181,22 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
   }
   
   @Test
+  def testVariableArgs(): Unit = {
+    testAllApis(
+      Func14(1, 2, 3, 4),
+      "Func14(1, 2, 3, 4)",
+      "Func14(1, 2, 3, 4)",
+      "10")
+
+    val JavaFunc2 = new JavaFunc2
+    testAllApis(
+      JavaFunc2("Hi", 1, 3, 5, 7),
+      "JavaFunc2('Hi', 1, 3, 5, 7)",
+      "JavaFunc2('Hi', 1, 3, 5, 7)",
+      "Hi105")
+  }
+
+  @Test
   def testJavaBoxedPrimitives(): Unit = {
     val JavaFunc0 = new JavaFunc0()
     val JavaFunc1 = new JavaFunc1()
@@ -279,8 +295,10 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
     "Func10" -> Func10,
     "Func11" -> Func11,
     "Func12" -> Func12,
+    "Func14" -> Func14,
     "JavaFunc0" -> new JavaFunc0,
     "JavaFunc1" -> new JavaFunc1,
+    "JavaFunc2" -> new JavaFunc2,
     "RichFunc0" -> new RichFunc0,
     "RichFunc1" -> new RichFunc1,
     "RichFunc2" -> new RichFunc2

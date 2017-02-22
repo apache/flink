@@ -48,10 +48,16 @@ class ScalarFunctionCallGen(
       .getOrElse(throw new CodeGenException("No matching signature found."))
     val resultClass = getResultTypeClass(scalarFunction, matchingSignature)
 
+    // zip for variable signatures
+    var paramToOperands = matchingSignature.zip(operands)
+    var i = paramToOperands.length
+    while (i < operands.length) {
+      paramToOperands = paramToOperands :+ (matchingSignature.head, operands(i))
+      i += 1
+    }
+
     // convert parameters for function (output boxing)
-    val parameters = matchingSignature
-        .zip(operands)
-        .map { case (paramClass, operandExpr) =>
+    val parameters = paramToOperands.map { case (paramClass, operandExpr) =>
           if (paramClass.isPrimitive) {
             operandExpr
           } else if (ClassUtils.isPrimitiveWrapper(paramClass)
