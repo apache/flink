@@ -190,21 +190,13 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> imple
 		// otherwise, if they aren't serializable, users will merely get a non-informative error message
 		// "ElasticsearchSinkBase is not serializable"
 
-		try {
-			InstantiationUtil.serializeObject(elasticsearchSinkFunction);
-		} catch (Exception e) {
-			throw new IllegalArgumentException(
-				"The implementation of the provided ElasticsearchSinkFunction is not serializable. " +
-				"The object probably contains or references non serializable fields.");
-		}
+		checkArgument(InstantiationUtil.isSerializable(elasticsearchSinkFunction),
+			"The implementation of the provided ElasticsearchSinkFunction is not serializable. " +
+				"The object probably contains or references non-serializable fields.");
 
-		try {
-			InstantiationUtil.serializeObject(failureHandler);
-		} catch (Exception e) {
-			throw new IllegalArgumentException(
-				"The implementation of the provided ActionRequestFailureHandler is not serializable. " +
-					"The object probably contains or references non serializable fields.");
-		}
+		checkArgument(InstantiationUtil.isSerializable(failureHandler),
+			"The implementation of the provided ActionRequestFailureHandler is not serializable. " +
+				"The object probably contains or references non-serializable fields.");
 
 		// extract and remove bulk processor related configuration from the user-provided config,
 		// so that the resulting user config only contains configuration related to the Elasticsearch client.
