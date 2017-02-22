@@ -36,6 +36,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -440,6 +441,38 @@ public final class KvStateRequestSerializer {
 			}
 			return value;
 		}
+	}
+
+	/**
+	 * Serializes all values with the given serializer.
+	 *
+	 * @param list            The list to serialize
+	 * @param serializer      Serializer for T
+	 * @param <T>             Type of the value
+	 * @return Serialized bytes or <code>null</code> if the list is null.
+	 * is <code>null</code>
+	 * @throws IOException On failure during deserialization
+	 */
+	public static <T> byte[] serializeList(Iterable<T> list, TypeSerializer<T> serializer) throws IOException {
+		DataOutputSerializer dos = new DataOutputSerializer(128);
+
+		if (list == null) {
+			return null;
+		}
+
+		Iterator<T> iterator = list.iterator();
+		// write the same as RocksDB writes lists, with one ',' separator
+		while (iterator.hasNext()) {
+			T element = iterator.next();
+
+			serializer.serialize(element, dos);
+
+			if (iterator.hasNext()) {
+				dos.writeByte(',');
+			}
+		}
+
+		return dos.getCopyOfBuffer();
 	}
 
 	/**
