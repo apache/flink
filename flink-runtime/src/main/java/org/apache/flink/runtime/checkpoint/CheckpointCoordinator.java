@@ -38,6 +38,7 @@ import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.TaskStateHandles;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -758,13 +759,19 @@ public class CheckpointCoordinator {
 		CompletedCheckpoint completedCheckpoint = null;
 
 		try {
-			completedCheckpoint = pendingCheckpoint.finalizeCheckpoint();
+			// externalize the checkpoint if required
+			if (pendingCheckpoint.getProps().externalizeCheckpoint()) {
+				completedCheckpoint = pendingCheckpoint.finalizeCheckpointExternalized();
+			} else {
+				completedCheckpoint = pendingCheckpoint.finalizeCheckpointNonExternalized();
+			}
 
 			completedCheckpointStore.addCheckpoint(completedCheckpoint);
 
 			rememberRecentCheckpointId(checkpointId);
 			dropSubsumedCheckpoints(checkpointId);
-		} catch (Exception exception) {
+		}
+		catch (Exception exception) {
 			// abort the current pending checkpoint if it has not been discarded yet
 			if (!pendingCheckpoint.isDiscarded()) {
 				pendingCheckpoint.abortError(exception);
@@ -779,8 +786,8 @@ public class CheckpointCoordinator {
 					public void run() {
 						try {
 							cc.discard();
-						} catch (Exception nestedException) {
-							LOG.warn("Could not properly discard completed checkpoint {}.", cc.getCheckpointID(), nestedException);
+						} catch (Throwable t) {
+							LOG.warn("Could not properly discard completed checkpoint {}.", cc.getCheckpointID(), t);
 						}
 					}
 				});
@@ -808,11 +815,12 @@ public class CheckpointCoordinator {
 				builder.append(", ");
 			}
 			// Remove last two chars ", "
-			builder.delete(builder.length() - 2, builder.length());
+			builder.setLength(builder.length() - 2);
 
 			LOG.debug(builder.toString());
 		}
 
+		// send the "notify complete" call to all vertices
 		final long timestamp = completedCheckpoint.getTimestamp();
 
 		for (ExecutionVertex ev : tasksToCommitTo) {
@@ -934,7 +942,7 @@ public class CheckpointCoordinator {
 					latest.getCheckpointID(),
 					latest.getProperties(),
 					restoreTimestamp,
-					latest.getExternalPath());
+					latest.getExternalPointer());
 
 				statsTracker.reportRestoredCheckpoint(restored);
 			}
