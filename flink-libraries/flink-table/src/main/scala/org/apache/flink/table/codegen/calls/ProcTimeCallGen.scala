@@ -32,6 +32,7 @@ class ProcTimeCallGen()
       codeGenerator: CodeGenerator,
       operands: Seq[GeneratedExpression])
     : GeneratedExpression = {
+<<<<<<< HEAD
 <<<<<<< Upstream, based on upstream/master
 <<<<<<< Upstream, based on upstream/master
       val time = codeGenerator.addReusableEpochTimestamp()
@@ -41,6 +42,9 @@ class ProcTimeCallGen()
 =======
       val time = codeGenerator.addReusableEpochTimestamp()
 >>>>>>> 1b90ac9 Refactor part of the code, moved test from IT to TemporalType test, changed ProcTimeCallGen (to be verified)
+=======
+      val time = codeGenerator.addReusableEpochTimestamp()
+>>>>>>> branch 'FLINK-5710' of https://github.com/huawei-flink/flink.git
       codeGenerator.generateNonNullLiteral(SqlTimeTypeInfo.TIMESTAMP, time)
   }
   
