@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.api;
 
 import static org.apache.flink.util.Preconditions.checkElementIndex;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 import java.io.IOException;
 
@@ -28,6 +29,7 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions.CheckpointType;
 import org.apache.flink.runtime.event.RuntimeEvent;
+import org.apache.flink.util.StringUtils;
 
 /**
  * Checkpoint barriers are used to align checkpoints throughout the streaming topology. The
@@ -37,12 +39,12 @@ import org.apache.flink.runtime.event.RuntimeEvent;
  * 
  * <p>Once an operator has received a checkpoint barrier from all its input channels, it
  * knows that a certain checkpoint is complete. It can trigger the operator specific checkpoint
- * behavior and broadcast the barrier to downstream operators.</p>
+ * behavior and broadcast the barrier to downstream operators.
  * 
  * <p>Depending on the semantic guarantees, may hold off post-checkpoint data until the checkpoint
- * is complete (exactly once)</p>
+ * is complete (exactly once).
  * 
- * <p>The checkpoint barrier IDs are strictly monotonous increasing.</p>
+ * <p>The checkpoint barrier IDs are strictly monotonous increasing.
  */
 public class CheckpointBarrier extends RuntimeEvent {
 
@@ -86,8 +88,8 @@ public class CheckpointBarrier extends RuntimeEvent {
 			return;
 		} else if (checkpointType == CheckpointType.SAVEPOINT) {
 			String targetLocation = checkpointOptions.getTargetLocation();
-			assert(targetLocation != null);
-			out.writeUTF(targetLocation);
+			checkState(targetLocation != null);
+			StringUtils.writeString(targetLocation, out);
 		} else {
 			throw new IOException("Unknown CheckpointType " + checkpointType);
 		}
@@ -99,13 +101,13 @@ public class CheckpointBarrier extends RuntimeEvent {
 		timestamp = in.readLong();
 
 		int typeOrdinal = in.readInt();
-		checkElementIndex(typeOrdinal, CheckpointType.values().length, "Unknown CheckpointType ordinal " + typeOrdinal);
+		checkElementIndex(typeOrdinal, CheckpointType.values().length, "Unknown CheckpointType ordinal");
 		CheckpointType checkpointType = CheckpointType.values()[typeOrdinal];
 
 		if (checkpointType == CheckpointType.FULL_CHECKPOINT) {
 			checkpointOptions = CheckpointOptions.forFullCheckpoint();
 		} else if (checkpointType == CheckpointType.SAVEPOINT) {
-			String targetLocation = in.readUTF();
+			String targetLocation = StringUtils.readString(in);
 			checkpointOptions = CheckpointOptions.forSavepoint(targetLocation);
 		} else {
 			throw new IOException("Illegal CheckpointType " + checkpointType);

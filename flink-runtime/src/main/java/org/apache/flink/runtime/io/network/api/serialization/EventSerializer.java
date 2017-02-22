@@ -44,6 +44,8 @@ import org.apache.flink.util.Preconditions;
  */
 public class EventSerializer {
 
+	private static final Charset STRING_CODING_CHARSET = Charset.forName("UTF-8");
+
 	private static final int END_OF_PARTITION_EVENT = 0;
 
 	private static final int CHECKPOINT_BARRIER_EVENT = 1;
@@ -77,16 +79,16 @@ public class EventSerializer {
 			} else if (checkpointType == CheckpointType.SAVEPOINT) {
 				String targetLocation = checkpointOptions.getTargetLocation();
 				assert(targetLocation != null);
-				byte[] bytes = targetLocation.getBytes(Charset.forName("UTF-8"));
+				byte[] locationBytes = targetLocation.getBytes(STRING_CODING_CHARSET);
 
-				buf = ByteBuffer.allocate(24 + 4 + bytes.length);
+				buf = ByteBuffer.allocate(24 + 4 + locationBytes.length);
 				buf.putInt(0, CHECKPOINT_BARRIER_EVENT);
 				buf.putLong(4, barrier.getId());
 				buf.putLong(12, barrier.getTimestamp());
 				buf.putInt(20, checkpointType.ordinal());
-				buf.putInt(24, bytes.length);
-				for (int i = 0; i < bytes.length; i++) {
-					buf.put(28 + i, bytes[i]);
+				buf.putInt(24, locationBytes.length);
+				for (int i = 0; i < locationBytes.length; i++) {
+					buf.put(28 + i, locationBytes[i]);
 				}
 			} else {
 				throw new IOException("Unknown checkpoint type: " + checkpointType);
@@ -204,8 +206,7 @@ public class EventSerializer {
 				CheckpointOptions checkpointOptions;
 
 				int checkpointTypeOrdinal = buffer.getInt();
-				Preconditions.checkElementIndex(type, CheckpointType.values().length,
-					"Illegal CheckpointType ordinal " + checkpointTypeOrdinal);
+				Preconditions.checkElementIndex(type, CheckpointType.values().length, "Illegal CheckpointType ordinal");
 				CheckpointType checkpointType = CheckpointType.values()[checkpointTypeOrdinal];
 
 				if (checkpointType == CheckpointType.FULL_CHECKPOINT) {
@@ -214,7 +215,7 @@ public class EventSerializer {
 					int len = buffer.getInt();
 					byte[] bytes = new byte[len];
 					buffer.get(bytes);
-					String targetLocation = new String(bytes, Charset.forName("UTF-8"));
+					String targetLocation = new String(bytes, STRING_CODING_CHARSET);
 
 					checkpointOptions = CheckpointOptions.forSavepoint(targetLocation);
 				} else {

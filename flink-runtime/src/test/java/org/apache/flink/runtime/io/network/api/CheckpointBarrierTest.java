@@ -49,7 +49,7 @@ public class CheckpointBarrierTest {
 		DataOutputSerializer out = new DataOutputSerializer(1024);
 		barrier.write(out);
 
-		DataInputDeserializer in = new DataInputDeserializer(out.wrapAsByteBuffer());
+		DataInputDeserializer in = new DataInputDeserializer(out.getCopyOfBuffer());
 		CheckpointBarrier deserialized = new CheckpointBarrier();
 		deserialized.read(in);
 
