@@ -26,34 +26,34 @@ import java.io.Serializable;
 
 /**
  * A function to trigger Async I/O operation.
- * <p>
- * For each #asyncInvoke, an async io operation can be triggered, and once it has been done,
+ * 
+ * <p>For each #asyncInvoke, an async io operation can be triggered, and once it has been done,
  * the result can be collected by calling {@link AsyncCollector#collect}. For each async
  * operation, its context is stored in the operator immediately after invoking
  * #asyncInvoke, avoiding blocking for each stream input as long as the internal buffer is not full.
- * <p>
- * {@link AsyncCollector} can be passed into callbacks or futures to collect the result data.
+ * 
+ * <p>{@link AsyncCollector} can be passed into callbacks or futures to collect the result data.
  * An error can also be propagate to the async IO operator by
  * {@link AsyncCollector#collect(Throwable)}.
  *
- * <p>
- * Callback example usage:
+ * <p>Callback example usage:
+ * 
  * <pre>{@code
  * public class HBaseAsyncFunc implements AsyncFunction<String, String> {
- *   @Override
+ * 
  *   public void asyncInvoke(String row, AsyncCollector<String> collector) throws Exception {
  *     HBaseCallback cb = new HBaseCallback(collector);
  *     Get get = new Get(Bytes.toBytes(row));
  *     hbase.asyncGet(get, cb);
  *   }
  * }
- * </pre>
+ * }</pre>
  *
- * <p>
- * Future example usage:
+ * <p>Future example usage:
+ * 
  * <pre>{@code
  * public class HBaseAsyncFunc implements AsyncFunction<String, String> {
- *   @Override
+ * 
  *   public void asyncInvoke(String row, final AsyncCollector<String> collector) throws Exception {
  *     Get get = new Get(Bytes.toBytes(row));
  *     ListenableFuture<Result> future = hbase.asyncGet(get);
@@ -68,14 +68,14 @@ import java.io.Serializable;
  *     });
  *   }
  * }
- * </pre>
+ * }</pre>
  *
  * @param <IN> The type of the input elements.
  * @param <OUT> The type of the returned elements.
  */
-
 @PublicEvolving
 public interface AsyncFunction<IN, OUT> extends Function, Serializable {
+
 	/**
 	 * Trigger async operation for each stream input.
 	 *
