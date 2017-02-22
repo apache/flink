@@ -68,7 +68,11 @@ public class ZooKeeperRegistryTest extends TestLogger {
 
 			zkRegistry.setJobFinished(jobID);
 			assertTrue(!zkRegistry.isJobRunning(jobID));
+			assertTrue(zkRegistry.isJobFinished(jobID));
 
+			zkRegistry.clearJob(jobID);
+			assertTrue(!zkRegistry.isJobRunning(jobID));
+			assertTrue(!zkRegistry.isJobFinished(jobID));
 		} finally {
 			if (zkHaService != null) {
 				zkHaService.close();

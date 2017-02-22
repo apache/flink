@@ -359,29 +359,35 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 			// it's okay that job manager wait for the operation complete
 			leaderElectionService.confirmLeaderSessionID(leaderSessionID);
 
-			boolean jobRunning;
+			boolean jobRunning = false;
 			try {
+				boolean jobFinished = runningJobsRegistry.isJobFinished(jobGraph.getJobID());
+				if (jobFinished) {
+					log.info("Granted leader ship but job {} has been finished. ", jobGraph.getJobID());
+					jobFinishedByOther();
+					return;
+				}
 				jobRunning = runningJobsRegistry.isJobRunning(jobGraph.getJobID());
 			} catch (Throwable t) {
-				log.error("Could not access status (running/finished) of job {}. " +
-						"Falling back to assumption that job is running and attempting recovery...",
-						jobGraph.getJobID(), t);
-				jobRunning = true;
+				log.error("Could not access status (running/finished) of job {}. ",	jobGraph.getJobID(), t);
+				onFatalError(t);
 			}
 
 			// Double check the leadership after we confirm that, there is a small chance that multiple
 			// job managers schedule the same job after if they try to recover at the same time.
 			// This will eventually be noticed, but can not be ruled out from the beginning.
 			if (leaderElectionService.hasLeadership()) {
-				if (jobRunning) {
-					try {
-						jobManager.start(leaderSessionID);
-					} catch (Exception e) {
-						onFatalError(new Exception("Could not start the job manager.", e));
+				try {
+					// Now set the running status is after getting leader ship and 
+					// set finished status after job in terminated status.
+					// So if finding the job is running, it means someone has already run the job, need recover.
+					if (!jobRunning) {
+						runningJobsRegistry.setJobRunning(jobGraph.getJobID());
 					}
-				} else {
-					log.info("Job {} ({}) already finished by others.", jobGraph.getName(), jobGraph.getJobID());
-					jobFinishedByOther();
+
+					jobManager.start(leaderSessionID);
+				} catch (Exception e) {
+					onFatalError(new Exception("Could not start the job manager.", e));
 				}
 			}
 		}

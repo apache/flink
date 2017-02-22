@@ -63,4 +63,25 @@ public interface RunningJobsRegistry {
 	 *                     failed and could not be retried.
 	 */
 	boolean isJobRunning(JobID jobID) throws IOException;
+
+	/**
+	 * Checks whether a job has finished.
+	 *
+	 * @param jobID The id of the job to check.
+	 * @return True if the job is finished.
+	 * 
+	 * @throws IOException Thrown when the communication with the highly-available storage or registry
+	 *                     failed and could not be retried.
+	 */
+	boolean isJobFinished(JobID jobID) throws IOException;
+
+	/**
+	 * Clear job state form the registry, usually called after job finish
+	 *
+	 * @param jobID The id of the job to check.
+	 * 
+	 * @throws IOException Thrown when the communication with the highly-available storage or registry
+	 *                     failed and could not be retried.
+	 */
+	void clearJob(JobID jobID) throws IOException;
 }

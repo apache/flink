@@ -33,12 +33,16 @@ public class NonHaRegistry implements RunningJobsRegistry {
 	/** The currently running jobs */
 	private final HashSet<JobID> running = new HashSet<>();
 
+	/** The currently finished jobs */
+	private final HashSet<JobID> finished = new HashSet<>();
+
 	@Override
 	public void setJobRunning(JobID jobID) {
 		checkNotNull(jobID);
 
 		synchronized (running) {
 			running.add(jobID);
+			finished.remove(jobID);
 		}
 	}
 
@@ -48,6 +52,7 @@ public class NonHaRegistry implements RunningJobsRegistry {
 
 		synchronized (running) {
 			running.remove(jobID);
+			finished.add(jobID);
 		}
 	}
 
@@ -57,6 +62,25 @@ public class NonHaRegistry implements RunningJobsRegistry {
 
 		synchronized (running) {
 			return running.contains(jobID);
+		}
+	}
+
+	@Override
+	public boolean isJobFinished(JobID jobID) {
+		checkNotNull(jobID);
+
+		synchronized (running) {
+			return finished.contains(jobID);
+		}
+	}
+
+	@Override
+	public void clearJob(JobID jobID) {
+		checkNotNull(jobID);
+
+		synchronized (running) {
+			running.remove(jobID);
+			finished.remove(jobID);
 		}
 	}
 }

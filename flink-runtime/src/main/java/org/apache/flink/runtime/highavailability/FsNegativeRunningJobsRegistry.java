@@ -147,6 +147,36 @@ public class FsNegativeRunningJobsRegistry implements RunningJobsRegistry {
 		}
 	}
 
+	@Override
+	public boolean isJobFinished(JobID jobID) throws IOException {
+		checkNotNull(jobID, "jobID");
+
+		// check for the existence of the file
+		try {
+			fileSystem.getFileStatus(createMarkerFilePath(jobID));
+			// file was found --> job is terminated
+			return true;
+		}
+		catch (FileNotFoundException e) {
+			// file does not exist, job is still running
+			return false;
+		}
+	}
+
+	@Override
+	public void clearJob(JobID jobID) throws IOException {
+		checkNotNull(jobID, "jobID");
+		final Path filePath = createMarkerFilePath(jobID);
+
+		// delete the marker file, if it exists
+		try {
+			fileSystem.delete(filePath, false);
+		}
+		catch (FileNotFoundException e) {
+		}
+
+	}
+
 	private Path createMarkerFilePath(JobID jobId) {
 		return new Path(basePath, PREFIX + jobId.toString());
 	}

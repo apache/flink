@@ -35,6 +35,10 @@ public class ZookeeperRegistry implements RunningJobsRegistry {
 	
 	private static final String DEFAULT_HA_JOB_REGISTRY_PATH = "/running_job_registry/";
 
+	private static final String RUNNING = "Running";
+
+	private static final String FINISHED = "Finished";
+
 	/** The ZooKeeper client to use */
 	private final CuratorFramework client;
 
@@ -55,7 +59,7 @@ public class ZookeeperRegistry implements RunningJobsRegistry {
 		try {
 			String zkPath = runningJobPath + jobID.toString();
 			this.client.newNamespaceAwareEnsurePath(zkPath).ensure(client.getZookeeperClient());
-			this.client.setData().forPath(zkPath);
+			this.client.setData().forPath(zkPath, RUNNING.getBytes());
 		}
 		catch (Exception e) {
 			throw new IOException("Set running state to zk fail for job " + jobID.toString(), e);
@@ -69,7 +73,7 @@ public class ZookeeperRegistry implements RunningJobsRegistry {
 		try {
 			String zkPath = runningJobPath + jobID.toString();
 			this.client.newNamespaceAwareEnsurePath(zkPath).ensure(client.getZookeeperClient());
-			this.client.delete().forPath(zkPath);
+			this.client.setData().forPath(zkPath, FINISHED.getBytes());
 		}
 		catch (Exception e) {
 			throw new IOException("Set finished state to zk fail for job " + jobID.toString(), e);
@@ -83,7 +87,11 @@ public class ZookeeperRegistry implements RunningJobsRegistry {
 		try {
 			Stat stat = client.checkExists().forPath(runningJobPath + jobID.toString());
 			if (stat != null) {
-				return true;
+				byte[] data = client.getData().forPath(runningJobPath + jobID.toString());
+				if (RUNNING.equals(new String(data))) {
+					return true;
+				}
+				return false;
 			}
 			return false;
 		}
@@ -91,4 +99,39 @@ public class ZookeeperRegistry implements RunningJobsRegistry {
 			throw new IOException("Get running state from zk fail for job " + jobID.toString(), e);
 		}
 	}
+
+	@Override
+	public boolean isJobFinished(JobID jobID) throws IOException {
+		checkNotNull(jobID);
+
+		try {
+			Stat stat = client.checkExists().forPath(runningJobPath + jobID.toString());
+			if (stat != null) {
+				byte[] data = client.getData().forPath(runningJobPath + jobID.toString());
+				if (FINISHED.equals(new String(data))) {
+					return true;
+				}
+				return false;
+			}
+			return false;
+		}
+		catch (Exception e) {
+			throw new IOException("Get finished state from zk fail for job " + jobID.toString(), e);
+		}
+	}
+
+	@Override
+	public void clearJob(JobID jobID) throws IOException {
+		checkNotNull(jobID);
+
+		try {
+			String zkPath = runningJobPath + jobID.toString();
+			this.client.newNamespaceAwareEnsurePath(zkPath).ensure(client.getZookeeperClient());
+			this.client.delete().forPath(zkPath);
+		}
+		catch (Exception e) {
+			throw new IOException("Clear job state from zk fail for " + jobID.toString(), e);
+		}
+	}
+
 }
