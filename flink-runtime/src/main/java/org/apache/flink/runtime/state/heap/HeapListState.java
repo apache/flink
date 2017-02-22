@@ -21,13 +21,12 @@ package org.apache.flink.runtime.state.heap;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.runtime.query.netty.message.KvStateRequestSerializer;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.util.Preconditions;
 
-import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.Map;
 
@@ -143,21 +142,7 @@ public class HeapListState<K, N, V>
 			return null;
 		}
 
-		TypeSerializer<V> serializer = stateDesc.getElementSerializer();
-
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		DataOutputViewStreamWrapper view = new DataOutputViewStreamWrapper(baos);
-
-		// write the same as RocksDB writes lists, with one ',' separator
-		for (int i = 0; i < result.size(); i++) {
-			serializer.serialize(result.get(i), view);
-			if (i < result.size() -1) {
-				view.writeByte(',');
-			}
-		}
-		view.flush();
-
-		return baos.toByteArray();
+		return KvStateRequestSerializer.serializeList(result, stateDesc.getElementSerializer());
 	}
 
 	// ------------------------------------------------------------------------

@@ -329,9 +329,11 @@ public class KvStateRequestSerializerTest {
 			);
 		longHeapKeyedStateBackend.setCurrentKey(key);
 
-		final InternalListState<VoidNamespace, Long> listState = longHeapKeyedStateBackend.createListState(
-				VoidNamespaceSerializer.INSTANCE,
-				new ListStateDescriptor<>("test", LongSerializer.INSTANCE));
+		final InternalListState<VoidNamespace, Long> listState = (InternalListState<VoidNamespace, Long>)
+				longHeapKeyedStateBackend.getPartitionedState(
+						VoidNamespace.INSTANCE,
+						VoidNamespaceSerializer.INSTANCE,
+						new ListStateDescriptor<>("test", LongSerializer.INSTANCE));
 
 		testListSerialization(key, listState);
 	}
