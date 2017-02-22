@@ -46,7 +46,7 @@ public class CheckpointOptions implements Serializable {
 
 	private CheckpointOptions(
 			@Nonnull CheckpointType checkpointType,
-			String targetLocation) {
+			@Nullable  String targetLocation) {
 		this.checkpointType = checkNotNull(checkpointType);
 		this.targetLocation = targetLocation;
 	}

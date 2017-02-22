@@ -18,44 +18,40 @@
 
 package org.apache.flink.runtime.io.network.api;
 
-import static org.junit.Assert.assertEquals;
-
-import java.io.IOException;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.util.DataInputDeserializer;
 import org.apache.flink.runtime.util.DataOutputSerializer;
+
 import org.junit.Test;
+
+import static org.junit.Assert.fail;
 
 public class CheckpointBarrierTest {
 
 	/**
 	 * Test serialization of the checkpoint barrier.
+	 * The checkpoint barrier does not support its own serialization, in order to be immutable.
 	 */
 	@Test
 	public void testSerialization() throws Exception {
 		long id = Integer.MAX_VALUE + 123123L;
 		long timestamp = Integer.MAX_VALUE + 1228L;
 
-		CheckpointOptions checkpoint = CheckpointOptions.forFullCheckpoint();
-		testSerialization(id, timestamp, checkpoint);
-
-		CheckpointOptions savepoint = CheckpointOptions.forSavepoint("1289031838919123");
-		testSerialization(id, timestamp, savepoint);
-	}
-
-	private void testSerialization(long id, long timestamp, CheckpointOptions options) throws IOException {
+		CheckpointOptions options = CheckpointOptions.forFullCheckpoint();
 		CheckpointBarrier barrier = new CheckpointBarrier(id, timestamp, options);
 
-		DataOutputSerializer out = new DataOutputSerializer(1024);
-		barrier.write(out);
+		try {
+			barrier.write(new DataOutputSerializer(1024));
+			fail("should throw an exception");
+		} catch (UnsupportedOperationException e) {
+			// expected
+		}
 
-		DataInputDeserializer in = new DataInputDeserializer(out.getCopyOfBuffer());
-		CheckpointBarrier deserialized = new CheckpointBarrier();
-		deserialized.read(in);
-
-		assertEquals(id, deserialized.getId());
-		assertEquals(timestamp, deserialized.getTimestamp());
-		assertEquals(options.getCheckpointType(), deserialized.getCheckpointOptions().getCheckpointType());
-		assertEquals(options.getTargetLocation(), deserialized.getCheckpointOptions().getTargetLocation());
+		try {
+			barrier.read(new DataInputDeserializer(new byte[32]));
+			fail("should throw an exception");
+		} catch (UnsupportedOperationException e) {
+			// expected
+		}
 	}
 }

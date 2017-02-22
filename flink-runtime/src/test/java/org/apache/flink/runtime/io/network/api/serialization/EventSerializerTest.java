@@ -147,15 +147,14 @@ public class EventSerializerTest {
 	 * 		thinks the encoded buffer matches the class
 	 * @throws IOException
 	 */
-	private final boolean checkIsEvent(final AbstractEvent event,
-		final Class<? extends AbstractEvent> eventClass) throws
-		IOException {
-		final Buffer serializedEvent =
-			EventSerializer.toBuffer(event);
+	private boolean checkIsEvent(
+			AbstractEvent event, 
+			Class<? extends AbstractEvent> eventClass) throws IOException {
+
+		final Buffer serializedEvent = EventSerializer.toBuffer(event);
 		try {
 			final ClassLoader cl = getClass().getClassLoader();
-			return EventSerializer
-				.isEvent(serializedEvent, eventClass, cl);
+			return EventSerializer.isEvent(serializedEvent, eventClass, cl);
 		} finally {
 			serializedEvent.recycle();
 		}

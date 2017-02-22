@@ -18,18 +18,14 @@
 
 package org.apache.flink.runtime.io.network.api;
 
-import static org.apache.flink.util.Preconditions.checkElementIndex;
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkState;
 
 import java.io.IOException;
 
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.checkpoint.CheckpointOptions.CheckpointType;
 import org.apache.flink.runtime.event.RuntimeEvent;
-import org.apache.flink.util.StringUtils;
 
 /**
  * Checkpoint barriers are used to align checkpoints throughout the streaming topology. The
@@ -48,11 +44,9 @@ import org.apache.flink.util.StringUtils;
  */
 public class CheckpointBarrier extends RuntimeEvent {
 
-	private long id;
-	private long timestamp;
-	private CheckpointOptions checkpointOptions;
-
-	public CheckpointBarrier() {}
+	private final long id;
+	private final long timestamp;
+	private final CheckpointOptions checkpointOptions;
 
 	public CheckpointBarrier(long id, long timestamp, CheckpointOptions checkpointOptions) {
 		this.id = id;
@@ -75,66 +69,48 @@ public class CheckpointBarrier extends RuntimeEvent {
 	// ------------------------------------------------------------------------
 	// Serialization
 	// ------------------------------------------------------------------------
-	
+
+	//
+	//  These methods are inherited form the generic serialization of AbstractEvent
+	//  but would require the CheckpointBarrier to be mutable. Since all serialization
+	//  for events goes through the EventSerializer class, which has special serialization
+	//  for the CheckpointBarrier, we don't need these methods
+	// 
+
 	@Override
 	public void write(DataOutputView out) throws IOException {
-		out.writeLong(id);
-		out.writeLong(timestamp);
-		CheckpointType checkpointType = checkpointOptions.getCheckpointType();
-
-		out.writeInt(checkpointType.ordinal());
-
-		if (checkpointType == CheckpointType.FULL_CHECKPOINT) {
-			return;
-		} else if (checkpointType == CheckpointType.SAVEPOINT) {
-			String targetLocation = checkpointOptions.getTargetLocation();
-			checkState(targetLocation != null);
-			StringUtils.writeString(targetLocation, out);
-		} else {
-			throw new IOException("Unknown CheckpointType " + checkpointType);
-		}
+		throw new UnsupportedOperationException("This method should never be called");
 	}
 
 	@Override
 	public void read(DataInputView in) throws IOException {
-		id = in.readLong();
-		timestamp = in.readLong();
-
-		int typeOrdinal = in.readInt();
-		checkElementIndex(typeOrdinal, CheckpointType.values().length, "Unknown CheckpointType ordinal");
-		CheckpointType checkpointType = CheckpointType.values()[typeOrdinal];
-
-		if (checkpointType == CheckpointType.FULL_CHECKPOINT) {
-			checkpointOptions = CheckpointOptions.forFullCheckpoint();
-		} else if (checkpointType == CheckpointType.SAVEPOINT) {
-			String targetLocation = StringUtils.readString(in);
-			checkpointOptions = CheckpointOptions.forSavepoint(targetLocation);
-		} else {
-			throw new IOException("Illegal CheckpointType " + checkpointType);
-		}
+		throw new UnsupportedOperationException("This method should never be called");
 	}
-
 
 	// ------------------------------------------------------------------------
 
 	@Override
 	public int hashCode() {
-		return (int) (id ^ (id >>> 32) ^ timestamp ^(timestamp >>> 32));
+		return (int) (id ^ (id >>> 32) ^ timestamp ^ (timestamp >>> 32));
 	}
 
 	@Override
 	public boolean equals(Object other) {
-		if (other == null || !(other instanceof CheckpointBarrier)) {
+		if (other == this) {
+			return true;
+		}
+		else if (other == null || other.getClass() != CheckpointBarrier.class) {
 			return false;
 		}
 		else {
 			CheckpointBarrier that = (CheckpointBarrier) other;
-			return that.id == this.id && that.timestamp == this.timestamp;
+			return that.id == this.id && that.timestamp == this.timestamp &&
+					this.checkpointOptions.equals(that.checkpointOptions);
 		}
 	}
 
 	@Override
 	public String toString() {
-		return String.format("CheckpointBarrier %d @ %d", id, timestamp);
+		return String.format("CheckpointBarrier %d @ %d Options: %s", id, timestamp, checkpointOptions);
 	}
 }
