@@ -124,6 +124,12 @@ object Func12 extends ScalarFunction {
   }
 }
 
+object ShouldNotExecuteFunc extends ScalarFunction {
+  def eval(s: String): Boolean = {
+    throw new Exception("This func should never be executed")
+  }
+}
+
 class RichFunc0 extends ScalarFunction {
   var openCalled = false
   var closeCalled = false

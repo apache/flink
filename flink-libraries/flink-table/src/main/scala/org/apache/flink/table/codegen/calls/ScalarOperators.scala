@@ -347,11 +347,11 @@ object ScalarOperators {
     val operatorCode = if (nullCheck) {
       // Three-valued logic:
       // no Unknown -> Two-valued logic
-      // True && Unknown -> True
-      // False && Unknown -> Unknown
-      // Unknown && True -> True
-      // Unknown && False -> Unknown
-      // Unknown && Unknown -> Unknown
+      // True || Unknown -> True
+      // False || Unknown -> Unknown
+      // Unknown || True -> True
+      // Unknown || False -> Unknown
+      // Unknown || Unknown -> Unknown
       s"""
         |${left.code}
         |

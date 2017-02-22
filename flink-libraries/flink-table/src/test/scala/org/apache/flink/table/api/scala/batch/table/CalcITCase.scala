@@ -218,28 +218,6 @@ class CalcITCase(
   }
 
   @Test
-  def testDisjunctivePredicateEarlyOut(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
-    {
-      val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
-      val results = ds.filter('a < 100 || shouldNotExecuteFunc('c)).collect()
-      assertEquals(21, results.length)
-    }
-    {
-      val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
-      val results = ds.filter('a < 12 || 'b > 4 || shouldNotExecuteFunc('c)).collect()
-      assertEquals(21, results.length)
-    }
-    {
-      val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
-      val results = ds.filter(('a < 100 && 'b < 7) || shouldNotExecuteFunc('c)).collect()
-      assertEquals(21, results.length)
-    }
-  }
-
-  @Test
   def testConjunctivePredicate(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
@@ -252,28 +230,6 @@ class CalcITCase(
       "13,5,Comment#7", "14,5,Comment#8").mkString("\n")
     val results = filterDs.collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
-  }
-
-  @Test
-  def testConjunctivePredicateEarlyOut(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
-    {
-      val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
-      val results = ds.filter('a > 100 && shouldNotExecuteFunc('c)).collect()
-      assertEquals(0, results.length)
-    }
-    {
-      val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
-      val results = ds.filter('a > 10 && 'b < 4 && shouldNotExecuteFunc('c)).collect()
-      assertEquals(0, results.length)
-    }
-    {
-      val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
-      val results = ds.filter(('a > 100 || 'b > 10) && shouldNotExecuteFunc('c)).collect()
-      assertEquals(0, results.length)
-    }
   }
 
   @Test
@@ -438,10 +394,4 @@ object HashCode extends ScalarFunction {
 
 object OldHashCode extends ScalarFunction {
   def eval(s: String): Int = -1
-}
-
-object shouldNotExecuteFunc extends ScalarFunction {
-  def eval(s: String): Boolean = {
-    throw new Exception("This func should never be executed")
-  }
 }
