@@ -245,10 +245,10 @@ public class RocksDBMapState<K, N, UK, UV>
 		
 		ByteArrayOutputStreamWithPos outputStream = new ByteArrayOutputStreamWithPos(128);
 		DataOutputViewStreamWrapper outputView = new DataOutputViewStreamWrapper(outputStream);
-
 		writeKeyWithGroupAndNamespace(keyGroup, des.f0, des.f1, outputStream, outputView);
-		byte[] keyPrefixBytes = outputStream.toByteArray();
-		Iterator<Map.Entry<UK, UV>> iterator = new RocksDBMapIterator<Map.Entry<UK, UV>>(backend.db, keyPrefixBytes) {
+		final byte[] keyPrefixBytes = outputStream.toByteArray();
+
+		final Iterator<Map.Entry<UK, UV>> iterator = new RocksDBMapIterator<Map.Entry<UK, UV>>(backend.db, keyPrefixBytes) {
 			@Override
 			public Map.Entry<UK, UV> next() {
 				return nextEntry();
@@ -260,7 +260,12 @@ public class RocksDBMapState<K, N, UK, UV>
 			return null;
 		}
 		
-		return KvStateRequestSerializer.serializeMap(entries(), userKeySerializer, userValueSerializer);
+		return KvStateRequestSerializer.serializeMap(new Iterable<Map.Entry<UK, UV>>() {
+			@Override
+			public Iterator<Map.Entry<UK, UV>> iterator() {
+				return iterator;
+			}
+		}, userKeySerializer, userValueSerializer);
 	}
 	
 	// ------------------------------------------------------------------------

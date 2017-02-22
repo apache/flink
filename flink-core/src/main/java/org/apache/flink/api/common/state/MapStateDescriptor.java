@@ -28,7 +28,7 @@ import java.util.Map;
 
 /**
  * A {@link StateDescriptor} for {@link MapState}. This can be used to create state where the type
- * is a list that can be appended and iterated over.
+ * is a map that can be updated and iterated over.
  * 
  * <p>Using {@code MapState} is typically more efficient than manually maintaining a map in a
  * {@link ValueState}, because the backing implementation can support efficient updates, rather then
