@@ -727,10 +727,10 @@ under the License.
 		</profile>
 		<profile>
 			<id>jdk8</id>
-			<activation>
-				<activeByDefault>false</activeByDefault>
-				<jdk>1.8</jdk>
-			</activation>
+			<!-- do not activate automatically to prevent 1.8 target while Java 7 is the supported -->
+			<properties>
+				<java.version>1.8</java.version>
+			</properties>
 			<modules>
 				<module>flink-java8</module>
 			</modules>
