@@ -109,12 +109,12 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> imple
 		}
 
 		public void setMaxRetryCount(int maxRetryCount) {
-			checkArgument(maxRetryCount > 0);
+			checkArgument(maxRetryCount >= 0);
 			this.maxRetryCount = maxRetryCount;
 		}
 
 		public void setDelayMillis(long delayMillis) {
-			checkArgument(delayMillis > 0);
+			checkArgument(delayMillis >= 0);
 			this.delayMillis = delayMillis;
 		}
 	}
