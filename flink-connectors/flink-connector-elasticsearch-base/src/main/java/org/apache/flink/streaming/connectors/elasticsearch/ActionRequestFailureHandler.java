@@ -23,7 +23,7 @@ import java.io.Serializable;
 
 /**
  * An implementation of {@link ActionRequestFailureHandler} is provided by the user to define how failed
- * {@link ActionRequest ActionRequests} should be handled, ex. dropping them, reprocessing malformed documents, or
+ * {@link ActionRequest ActionRequests} should be handled, e.g. dropping them, reprocessing malformed documents, or
  * simply requesting them to be sent to Elasticsearch again if the failure is only temporary.
  *
  * <p>
