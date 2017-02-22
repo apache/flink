@@ -23,13 +23,13 @@ import org.apache.flink.runtime.checkpoint.savepoint.SavepointStore;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.StateUtil;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 import java.io.Serializable;
 import java.util.Map;
-import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -206,29 +206,7 @@ public class CompletedCheckpoint implements Serializable {
 	// --------------------------------------------------------------------------------------------
 
 	@Override
-	public boolean equals(Object obj) {
-		if (obj instanceof CompletedCheckpoint) {
-			CompletedCheckpoint other = (CompletedCheckpoint) obj;
-
-			return job.equals(other.job) && checkpointID == other.checkpointID &&
-				timestamp == other.timestamp && duration == other.duration &&
-				taskStates.equals(other.taskStates);
-		} else {
-			return false;
-		}
-	}
-
-	@Override
-	public int hashCode() {
-		return (int) (this.checkpointID ^ this.checkpointID >>> 32) +
-			31 * ((int) (this.timestamp ^ this.timestamp >>> 32) +
-				31 * ((int) (this.duration ^ this.duration >>> 32) +
-					31 * Objects.hash(job, taskStates)));
-	}
-
-	@Override
 	public String toString() {
 		return String.format("Checkpoint %d @ %d for %s", checkpointID, timestamp, job);
 	}
-
 }
