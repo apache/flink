@@ -33,6 +33,17 @@ import java.io.IOException;
  */
 public interface RunningJobsRegistry {
 
+	public enum JobSchedulingStatus {
+		/** Job has not been scheduled */
+		PENDING,
+
+		/** Job has been scheduled */
+		RUNNING,
+
+		/** Job has been finished */
+		DONE;
+	}
+
 	/**
 	 * Marks a job as running.
 	 * 
@@ -63,4 +74,25 @@ public interface RunningJobsRegistry {
 	 *                     failed and could not be retried.
 	 */
 	boolean isJobRunning(JobID jobID) throws IOException;
+
+	/**
+	 * Get the scheduing status of a job.
+	 *
+	 * @param jobID The id of the job to check.
+	 * @return The job scheduling status.
+	 * 
+	 * @throws IOException Thrown when the communication with the highly-available storage or registry
+	 *                     failed and could not be retried.
+	 */
+	JobSchedulingStatus getJobSchedulingStatus(JobID jobID) throws IOException;
+
+	/**
+	 * Clear job state form the registry, usually called after job finish
+	 *
+	 * @param jobID The id of the job to check.
+	 * 
+	 * @throws IOException Thrown when the communication with the highly-available storage or registry
+	 *                     failed and could not be retried.
+	 */
+	void clearJob(JobID jobID) throws IOException;
 }
