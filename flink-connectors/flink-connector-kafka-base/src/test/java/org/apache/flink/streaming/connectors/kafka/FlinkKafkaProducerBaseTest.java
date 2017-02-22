@@ -19,6 +19,7 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.core.testutils.CheckedThread;
+import org.apache.flink.core.testutils.MultiShotLatch;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -266,9 +267,9 @@ public class FlinkKafkaProducerBaseTest {
 		};
 		snapshotThread.start();
 
-		// being extra safe that the snapshot is correctly blocked;
-		// after some arbitrary time, the snapshot should still be blocked
-		snapshotThread.join(3000);
+		// before proceeding, make sure that flushing has started and that the snapshot is still blocked;
+		// this would block forever if the snapshot didn't perform a flush
+		producer.waitUntilFlushStarted();
 		Assert.assertTrue("Snapshot returned before all records were flushed", snapshotThread.isAlive());
 
 		// now, complete the callbacks
@@ -283,7 +284,7 @@ public class FlinkKafkaProducerBaseTest {
 		producer.getPendingCallbacks().get(2).onCompletion(null, null);
 		Assert.assertEquals(0, producer.getPendingSize());
 
-		// this would fail with an exception if flushing wasn't done within the snapshot method at all
+		// this would fail with an exception if flushing wasn't completed before the snapshot method returned
 		snapshotThread.sync();
 
 		testHarness.close();
@@ -328,6 +329,7 @@ public class FlinkKafkaProducerBaseTest {
 
 		private transient KafkaProducer<?, ?> mockProducer;
 		private transient List<Callback> pendingCallbacks;
+		private transient MultiShotLatch flushLatch;
 		private boolean isFlushed;
 
 		@SuppressWarnings("unchecked")
@@ -345,6 +347,7 @@ public class FlinkKafkaProducerBaseTest {
 			});
 
 			this.pendingCallbacks = new ArrayList<>();
+			this.flushLatch = new MultiShotLatch();
 		}
 
 		long getPendingSize() {
@@ -378,6 +381,10 @@ public class FlinkKafkaProducerBaseTest {
 			}
 		}
 
+		public void waitUntilFlushStarted() throws Exception {
+			flushLatch.await();
+		}
+
 		@SuppressWarnings("unchecked")
 		@Override
 		protected <K, V> KafkaProducer<K, V> getKafkaProducer(Properties props) {
@@ -386,6 +393,7 @@ public class FlinkKafkaProducerBaseTest {
 
 		@Override
 		protected void flush() {
+			flushLatch.trigger();
 
 			// simply wait until the producer's pending records become zero.
 			// This relies on the fact that the producer's Callback implementation
