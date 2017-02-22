@@ -298,7 +298,9 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> imple
 						}
 					}
 
-					numPendingRequests.getAndAdd(-request.numberOfActions());
+					if (flushOnCheckpoint) {
+						numPendingRequests.getAndAdd(-request.numberOfActions());
+					}
 				}
 
 				@Override
@@ -315,7 +317,9 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> imple
 						failureThrowable.compareAndSet(null, t);
 					}
 
-					numPendingRequests.getAndAdd(-request.numberOfActions());
+					if (flushOnCheckpoint) {
+						numPendingRequests.getAndAdd(-request.numberOfActions());
+					}
 				}
 			}
 		);
