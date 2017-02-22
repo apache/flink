@@ -61,7 +61,8 @@ public class TemperatureWarning {
 
 	@Override
 	public int hashCode() {
-		return 41 * rackID + Double.hashCode(averageTemperature);
+		long bits = Double.doubleToLongBits(averageTemperature);
+		return 41 * rackID + (int)(bits ^ (bits >>> 32));
 	}
 
 	@Override
