@@ -25,10 +25,10 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.client.cli.CliFrontendParser;
 import org.apache.flink.client.cli.CustomCommandLine;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.yarn.YarnClusterClientV2;
 import org.apache.flink.yarn.YarnClusterDescriptorV2;
+import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,7 +37,6 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URL;
 import java.net.URLDecoder;
-
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
@@ -50,9 +49,7 @@ import static org.apache.flink.client.cli.CliFrontendParser.ADDRESS_OPTION;
 public class FlinkYarnCLI implements CustomCommandLine<YarnClusterClientV2> {
 	private static final Logger LOG = LoggerFactory.getLogger(FlinkYarnCLI.class);
 
-	/**
-	 * The id for the CommandLine interface
-	 */
+	/** The id for the CommandLine interface */
 	private static final String ID = "yarn";
 
 	private static final String YARN_DYNAMIC_PROPERTIES_SEPARATOR = "@@"; // this has to be a regex for String.split()
@@ -70,14 +67,12 @@ public class FlinkYarnCLI implements CustomCommandLine<YarnClusterClientV2> {
 
 	/**
 	 * Dynamic properties allow the user to specify additional configuration values with -D, such as
-	 * -D fs.overwrite-files=true  -D taskmanager.network.numberOfBuffers=16368
+	 *  -D fs.overwrite-files=true  -D taskmanager.network.numberOfBuffers=16368
 	 */
 	private final Option DYNAMIC_PROPERTIES;
 
 	private final Option LIB_JARS;
-
 	private final Option FILES;
-
 	private final Option ARCHIVES;
 
 	//------------------------------------ Internal fields -------------------------
@@ -139,7 +134,7 @@ public class FlinkYarnCLI implements CustomCommandLine<YarnClusterClientV2> {
 			}
 		}
 
-		yarnClusterDescriptor.setLocalJarPath(new org.apache.hadoop.fs.Path(localJarPath.getPath()));
+		yarnClusterDescriptor.setLocalJarPath(localJarPath);
 
 		List<File> shipFiles = new ArrayList<>();
 		// path to directory to ship
@@ -212,7 +207,7 @@ public class FlinkYarnCLI implements CustomCommandLine<YarnClusterClientV2> {
 		}
 		yarnClusterDescriptor.setDetachedMode(this.detachedMode);
 
-		if (defaultApplicationName != null) {
+		if(defaultApplicationName != null) {
 			yarnClusterDescriptor.setName(defaultApplicationName);
 		}
 
@@ -220,7 +215,6 @@ public class FlinkYarnCLI implements CustomCommandLine<YarnClusterClientV2> {
 			String zookeeperNamespace = cmd.getOptionValue(ZOOKEEPER_NAMESPACE.getOpt());
 			yarnClusterDescriptor.setZookeeperNamespace(zookeeperNamespace);
 		}
-
 
 		return yarnClusterDescriptor;
 	}
@@ -263,18 +257,18 @@ public class FlinkYarnCLI implements CustomCommandLine<YarnClusterClientV2> {
 
 	@Override
 	public YarnClusterClientV2 retrieveCluster(
-		CommandLine cmdLine,
-		Configuration config) throws UnsupportedOperationException {
+			CommandLine cmdLine,
+			Configuration config) throws UnsupportedOperationException {
 
 		throw new UnsupportedOperationException("Not support retrieveCluster since Flip-6.");
 	}
 
 	@Override
 	public YarnClusterClientV2 createCluster(
-		String applicationName,
-		CommandLine cmdLine,
-		Configuration config,
-		List<URL> userJarFiles) {
+			String applicationName,
+			CommandLine cmdLine,
+			Configuration config,
+			List<URL> userJarFiles) {
 		Preconditions.checkNotNull(userJarFiles, "User jar files should not be null.");
 
 		YarnClusterDescriptorV2 yarnClusterDescriptor = createDescriptor(applicationName, cmdLine);
@@ -284,7 +278,8 @@ public class FlinkYarnCLI implements CustomCommandLine<YarnClusterClientV2> {
 		YarnClusterClientV2 client = null;
 		try {
 			client = new YarnClusterClientV2(yarnClusterDescriptor, config);
-		} catch (IOException e) {
+		}
+		catch (IOException e) {
 			throw new RuntimeException("Fail to create YarnClusterClientV2", e.getCause());
 		}
 		return client;
@@ -298,6 +293,5 @@ public class FlinkYarnCLI implements CustomCommandLine<YarnClusterClientV2> {
 		LOG.info(message);
 		System.out.println(message);
 	}
-
 
 }
