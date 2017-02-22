@@ -17,40 +17,58 @@
  */
 package org.apache.flink.streaming.runtime.operators.windowing.functions;
 
+import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.IterationRuntimeContext;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.java.operators.translation.WrappingFunction;
-import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
+import org.apache.flink.streaming.api.functions.windowing.ProcessAllWindowFunction;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
 
 import java.util.Collections;
 
 /**
- * Internal window function for wrapping a {@link ProcessWindowFunction} that takes an {@code Iterable}
- * when the window state is a single value.
+ * Internal window function for wrapping a {@link ProcessAllWindowFunction} that takes an
+ * {@code Iterable} and an {@link AggregateFunction}.
+ *
+ * @param <W> The window type
+ * @param <T> The type of the input to the AggregateFunction
+ * @param <ACC> The type of the AggregateFunction's accumulator
+ * @param <V> The type of the AggregateFunction's result, and the input to the WindowFunction
+ * @param <R> The result type of the WindowFunction
  */
-public final class InternalSingleValueProcessWindowFunction<IN, OUT, KEY, W extends Window>
-		extends WrappingFunction<ProcessWindowFunction<IN, OUT, KEY, W>>
-		implements InternalWindowFunction<IN, OUT, KEY, W> {
+public final class InternalAggregateProcessAllWindowFunction<T, ACC, V, R, W extends Window>
+		extends WrappingFunction<ProcessAllWindowFunction<V, R, W>>
+		implements InternalWindowFunction<Iterable<T>, R, Byte, W> {
 
 	private static final long serialVersionUID = 1L;
 
-	public InternalSingleValueProcessWindowFunction(ProcessWindowFunction<IN, OUT, KEY, W> wrappedFunction) {
-		super(wrappedFunction);
+	private final AggregateFunction<T, ACC, V> aggFunction;
+
+	public InternalAggregateProcessAllWindowFunction(
+			AggregateFunction<T, ACC, V> aggFunction,
+			ProcessAllWindowFunction<V, R, W> windowFunction) {
+		super(windowFunction);
+		this.aggFunction = aggFunction;
 	}
 
 	@Override
-	public void apply(KEY key, final W window, IN input, Collector<OUT> out) throws Exception {
-		ProcessWindowFunction<IN, OUT, KEY, W> wrappedFunction = this.wrappedFunction;
-		ProcessWindowFunction<IN, OUT, KEY, W>.Context context = wrappedFunction.new Context() {
+	public void apply(Byte key, final W window, Iterable<T> input, Collector<R> out) throws Exception {
+		ProcessAllWindowFunction<V, R, W> wrappedFunction = this.wrappedFunction;
+		ProcessAllWindowFunction<V, R, W>.Context context = wrappedFunction.new Context() {
 			@Override
 			public W window() {
 				return window;
 			}
 		};
 
-		wrappedFunction.process(key, context, Collections.singletonList(input), out);
+		final ACC acc = aggFunction.createAccumulator();
+
+		for (T val : input) {
+			aggFunction.add(val, acc);
+		}
+
+		wrappedFunction.process(context, Collections.singletonList(aggFunction.getResult(acc)), out);
 	}
 
 	@Override

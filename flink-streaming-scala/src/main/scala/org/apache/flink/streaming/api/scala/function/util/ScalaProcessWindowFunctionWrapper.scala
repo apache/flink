@@ -18,8 +18,16 @@
 
 package org.apache.flink.streaming.api.scala.function.util
 
+import org.apache.flink.api.common.functions.RuntimeContext
+import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.windowing.{ProcessWindowFunction => JProcessWindowFunction}
-import org.apache.flink.streaming.api.scala.function.ProcessWindowFunction
+import org.apache.flink.streaming.api.functions.windowing.{RichProcessWindowFunction => JRichProcessWindowFunction}
+import org.apache.flink.streaming.api.functions.windowing.{RichProcessAllWindowFunction => JRichProcessAllWindowFunction}
+import org.apache.flink.streaming.api.functions.windowing.{ProcessAllWindowFunction => JProcessAllWindowFunction}
+import org.apache.flink.streaming.api.scala.function.{ProcessWindowFunction => ScalaProcessWindowFunction}
+import org.apache.flink.streaming.api.scala.function.{ProcessAllWindowFunction => ScalaProcessAllWindowFunction}
+import org.apache.flink.streaming.api.scala.function.{RichProcessWindowFunction => ScalaRichProcessWindowFunction}
+import org.apache.flink.streaming.api.scala.function.{RichProcessAllWindowFunction => ScalaRichProcessAllWindowFunction}
 import org.apache.flink.streaming.api.windowing.windows.Window
 import org.apache.flink.util.Collector
 
@@ -34,8 +42,8 @@ import scala.collection.JavaConverters._
   *   - Java WindowFunction: java.lang.Iterable
   */
 final class ScalaProcessWindowFunctionWrapper[IN, OUT, KEY, W <: Window](
-    private[this] val func: ProcessWindowFunction[IN, OUT, KEY, W])
-    extends JProcessWindowFunction[IN, OUT, KEY, W] {
+    private[this] val func: ScalaProcessWindowFunction[IN, OUT, KEY, W])
+    extends JRichProcessWindowFunction[IN, OUT, KEY, W] {
 
   override def process(
       key: KEY,
@@ -46,5 +54,76 @@ final class ScalaProcessWindowFunctionWrapper[IN, OUT, KEY, W <: Window](
       override def window = context.window
     }
     func.process(key, ctx, elements.asScala, out)
+  }
+
+  override def setRuntimeContext(t: RuntimeContext): Unit = {
+    super.setRuntimeContext(t)
+    func match {
+      case rfunc: ScalaRichProcessWindowFunction[IN, OUT, KEY, W] => rfunc.setRuntimeContext(t)
+      case _ =>
+    }
+  }
+
+  override def open(parameters: Configuration): Unit = {
+    super.open(parameters)
+    func match {
+      case rfunc: ScalaRichProcessWindowFunction[IN, OUT, KEY, W] => rfunc.open(parameters)
+      case _ =>
+    }
+  }
+
+  override def close(): Unit = {
+    super.close()
+    func match {
+      case rfunc: ScalaRichProcessWindowFunction[IN, OUT, KEY, W] => rfunc.close()
+      case _ =>
+    }
+  }
+}
+
+/**
+  * A wrapper function that exposes a Scala ProcessWindowFunction
+  * as a ProcessWindowFunction function.
+  *
+  * The Scala and Java Window functions differ in their type of "Iterable":
+  *   - Scala WindowFunction: scala.Iterable
+  *   - Java WindowFunction: java.lang.Iterable
+  */
+final class ScalaProcessAllWindowFunctionWrapper[IN, OUT, W <: Window](
+    private[this] val func: ScalaProcessAllWindowFunction[IN, OUT, W])
+    extends JRichProcessAllWindowFunction[IN, OUT, W] {
+
+  override def process(
+      context: JProcessAllWindowFunction[IN, OUT, W]#Context,
+      elements: java.lang.Iterable[IN],
+      out: Collector[OUT]): Unit = {
+    val ctx = new func.Context {
+      override def window = context.window
+    }
+    func.process(ctx, elements.asScala, out)
+  }
+
+  override def setRuntimeContext(t: RuntimeContext): Unit = {
+    super.setRuntimeContext(t)
+    func match {
+      case rfunc : ScalaRichProcessAllWindowFunction[IN, OUT, W] => rfunc.setRuntimeContext(t)
+      case _ =>
+    }
+  }
+
+  override def open(parameters: Configuration): Unit = {
+    super.open(parameters)
+    func match {
+      case rfunc : ScalaRichProcessAllWindowFunction[IN, OUT, W] => rfunc.open(parameters)
+      case _ =>
+    }
+  }
+
+  override def close(): Unit = {
+    super.close()
+    func match {
+      case rfunc : ScalaRichProcessAllWindowFunction[IN, OUT, W] => rfunc.close()
+      case _ =>
+    }
   }
 }
