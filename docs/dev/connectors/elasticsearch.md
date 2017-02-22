@@ -328,19 +328,16 @@ input.addSink(new ElasticsearchSink<>(
     new ElasticsearchSinkFunction<String>() {...},
     new ActionRequestFailureHandler() {
         @Override
-        boolean onFailure(ActionRequest action, Throwable failure, RequestIndexer indexer) {
-            // this example uses Apache Commons to search for nested exceptions
-            
-            if (ExceptionUtils.indexOfThrowable(failure, EsRejectedExecutionException.class) >= 0) {
+        void onFailure(ActionRequest action, Throwable failure, RequestIndexer indexer) throw Throwable {
+            if (ExceptionUtils.containsThrowable(failure, EsRejectedExecutionException.class)) {
                 // full queue; re-add document for indexing
                 indexer.add(action);
-                return false;
-            } else if (ExceptionUtils.indexOfThrowable(failure, ElasticsearchParseException.class) >= 0) {
+            } else if (ExceptionUtils.containsThrowable(failure, ElasticsearchParseException.class)) {
                 // malformed document; simply drop request without failing sink
-                return false;
             } else {
                 // for all other failures, fail the sink
-                return true;
+                // here the failure is simply rethrown, but users can also choose to throw custom exceptions
+                throw failure;
             }
         }
 }));
@@ -354,19 +351,17 @@ input.addSink(new ElasticsearchSink(
     config, transportAddresses,
     new ElasticsearchSinkFunction[String] {...},
     new ActionRequestFailureHandler {
+        @throws(classOf[Throwable])
         override def onFailure(ActionRequest action, Throwable failure, RequestIndexer indexer) {
-            // this example uses Apache Commons to search for nested exceptions
-
-            if (ExceptionUtils.indexOfThrowable(failure, EsRejectedExecutionException.class) >= 0) {
+            if (ExceptionUtils.containsThrowable(failure, EsRejectedExecutionException.class)) {
                 // full queue; re-add document for indexing
                 indexer.add(action)
-                return false
-            } else if (ExceptionUtils.indexOfThrowable(failure, ElasticsearchParseException.class) {
+            } else if (ExceptionUtils.containsThrowable(failure, ElasticsearchParseException.class)) {
                 // malformed document; simply drop request without failing sink
-                return false
             } else {
                 // for all other failures, fail the sink
-                return true
+                // here the failure is simply rethrown, but users can also choose to throw custom exceptions
+                throw failure
             }
         }
 }))
@@ -385,12 +380,19 @@ By default, the `BulkProcessor` retries to a maximum of 8 attempts with
 an exponential backoff. For more information on the behaviour of the
 internal `BulkProcessor` and how to configure it, please see the following section.
 
+By default, if a failure handler is not provided, the sink uses a
+`NoOpFailureHandler` that simply fails for all kinds of exceptions. The
+connector also provides a `RetryRejectedExecutionFailureHandler` implementation
+that always re-add requests that have failed due to queue capacity saturation.
+
 <p style="border-radius: 5px; padding: 5px" class="bg-danger">
 <b>IMPORTANT</b>: Re-adding requests back to the internal <b>BulkProcessor</b>
 on failures will lead to longer checkpoints, as the sink will also
 need to wait for the re-added requests to be flushed when checkpointing.
-This also means that if re-added requests never succeed, the checkpoint will
-never finish.
+For example, when using <b>RetryRejectedExecutionFailureHandler</>, checkpoints
+will need to wait until Elasticsearch node queues have enough capacity for
+all the pending requests. This also means that if re-added requests never
+succeed, the checkpoint will never finish.
 </p>
 
  

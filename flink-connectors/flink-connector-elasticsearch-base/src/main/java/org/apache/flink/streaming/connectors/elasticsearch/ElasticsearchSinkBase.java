@@ -287,7 +287,10 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> imple
 							if (failure != null) {
 								LOG.error("Failed Elasticsearch item request: {}", itemResponse.getFailureMessage(), failure);
 
-								if (failureHandler.onFailure(request.requests().get(i), failure, requestIndexer)) {
+								try {
+									failureHandler.onFailure(request.requests().get(i), failure, requestIndexer);
+								} catch (Throwable t) {
+									// fail the sink if the failure handler decides to throw an exception
 									failureThrowable.compareAndSet(null, failure);
 								}
 							}

@@ -19,7 +19,7 @@ package org.apache.flink.streaming.connectors.elasticsearch5;
 import org.apache.flink.streaming.connectors.elasticsearch.ActionRequestFailureHandler;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkBase;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunction;
-import org.apache.flink.streaming.connectors.elasticsearch.util.NoOpActionRequestFailureHandler;
+import org.apache.flink.streaming.connectors.elasticsearch.util.NoOpFailureHandler;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.bulk.BulkProcessor;
 import org.elasticsearch.client.transport.TransportClient;
@@ -75,7 +75,7 @@ public class ElasticsearchSink<T> extends ElasticsearchSinkBase<T> {
 		List<InetSocketAddress> transportAddresses,
 		ElasticsearchSinkFunction<T> elasticsearchSinkFunction) {
 
-		this(userConfig, transportAddresses, elasticsearchSinkFunction, new NoOpActionRequestFailureHandler());
+		this(userConfig, transportAddresses, elasticsearchSinkFunction, new NoOpFailureHandler());
 	}
 
 	/**

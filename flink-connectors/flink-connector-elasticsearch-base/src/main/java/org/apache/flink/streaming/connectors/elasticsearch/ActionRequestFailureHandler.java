@@ -34,19 +34,16 @@ import java.io.Serializable;
  *	private static class ExampleActionRequestFailureHandler implements ActionRequestFailureHandler {
  *
  *		@Override
- *		boolean onFailure(ActionRequest action, Throwable failure, RequestIndexer indexer) {
- *			// this example uses Apache Commons to search for nested exceptions
- *
- *			if (ExceptionUtils.indexOfThrowable(failure, EsRejectedExecutionException.class) >= 0) {
+ *		void onFailure(ActionRequest action, Throwable failure, RequestIndexer indexer) throws Throwable {
+ *			if (ExceptionUtils.containsThrowable(failure, EsRejectedExecutionException.class)) {
  *				// full queue; re-add document for indexing
  *				indexer.add(action);
- *				return false;
- *			} else if (ExceptionUtils.indexOfThrowable(failure, ElasticsearchParseException.class) {
+ *			} else if (ExceptionUtils.containsThrowable(failure, ElasticsearchParseException.class)) {
  *				// malformed document; simply drop request without failing sink
- *				return false;
  *			} else {
- *				// for all other failures, fail the sink
- *				return true;
+ *				// for all other failures, fail the sink;
+ *				// here the failure is simply rethrown, but users can also choose to throw custom exceptions
+ *				throw failure;
  *			}
  *		}
  *	}
@@ -65,8 +62,10 @@ public interface ActionRequestFailureHandler extends Serializable {
 	 * @param action the {@link ActionRequest} that failed due to the failure
 	 * @param failure the cause of failure
 	 * @param indexer request indexer to re-add the failed action, if intended to do so
-	 * @return the implementation should return {@code true} if the sink should fail due to this failure, and {@code false} otherwise
+	 *
+	 * @throws Throwable if the sink should fail on this failure, the implementation should rethrow
+	 *                   the exception or a custom one
 	 */
-	boolean onFailure(ActionRequest action, Throwable failure, RequestIndexer indexer);
+	void onFailure(ActionRequest action, Throwable failure, RequestIndexer indexer) throws Throwable;
 
 }
