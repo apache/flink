@@ -257,7 +257,7 @@ public final class ExceptionUtils {
 			throw (Error) t;
 		}
 		else {
-			throw new IOException(t);
+			throw new IOException(t.getMessage(), t);
 		}
 	}
 
@@ -268,7 +268,7 @@ public final class ExceptionUtils {
 	 * @param searchType the type of exception to search for in the chain.
 	 * @return True, if the searched type is nested in the throwable, false otherwise.
 	 */
-	public static boolean containsThrowable(Throwable throwable, Class searchType) {
+	public static boolean containsThrowable(Throwable throwable, Class<?> searchType) {
 		if (throwable == null || searchType == null) {
 			return false;
 		}

@@ -125,6 +125,11 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 		LOG.info("Initialized in '{}'.", checkpointsPath);
 	}
 
+	@Override
+	public boolean requiresExternalizedCheckpoints() {
+		return true;
+	}
+
 	/**
 	 * Gets the latest checkpoint from ZooKeeper and removes all others.
 	 *
