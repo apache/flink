@@ -194,15 +194,15 @@ class DataSetJoin(
       }
 
       val genFunction = generator.generateFunction(
-      ruleDescription,
-      classOf[FlatJoinFunction[Row, Row, Row]],
-      body,
-      returnType)
+        ruleDescription,
+        classOf[FlatJoinFunction[Row, Row, Row]],
+        body,
+        returnType)
 
       val joinFun = new FlatJoinRunner[Row, Row, Row](
-      genFunction.name,
-      genFunction.code,
-      genFunction.returnType)
+        genFunction.name,
+        genFunction.code,
+        genFunction.returnType)
 
       joinOperator
         .where(leftKeys.toArray: _*)
@@ -213,14 +213,14 @@ class DataSetJoin(
     } else {
       val conversionWithNull = if (joinType == JoinRelType.LEFT) {
         generator.generateConverterResultWithOneSideNullExpression(
-        returnType,
-        joinRowType.getFieldNames,
-        false)
-      }else {
+          returnType,
+          joinRowType.getFieldNames,
+          false)
+      } else {
         generator.generateConverterResultWithOneSideNullExpression(
-        returnType,
-        joinRowType.getFieldNames,
-        true)
+          returnType,
+          joinRowType.getFieldNames,
+          true)
       }
 
       val genFunction = generator.generateOuterJoinCoGroupFunction(
