@@ -20,37 +20,37 @@ package org.apache.flink.streaming.runtime.operators.windowing.functions;
 import org.apache.flink.api.common.functions.IterationRuntimeContext;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.java.operators.translation.WrappingFunction;
-import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
+import org.apache.flink.streaming.api.functions.windowing.ProcessAllWindowFunction;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
 
 import java.util.Collections;
 
 /**
- * Internal window function for wrapping a {@link ProcessWindowFunction} that takes an {@code Iterable}
+ * Internal window function for wrapping a {@link ProcessAllWindowFunction} that takes an {@code Iterable}
  * when the window state is a single value.
  */
-public final class InternalSingleValueProcessWindowFunction<IN, OUT, KEY, W extends Window>
-		extends WrappingFunction<ProcessWindowFunction<IN, OUT, KEY, W>>
-		implements InternalWindowFunction<IN, OUT, KEY, W> {
+public final class InternalSingleValueProcessAllWindowFunction<IN, OUT, W extends Window>
+		extends WrappingFunction<ProcessAllWindowFunction<IN, OUT, W>>
+		implements InternalWindowFunction<IN, OUT, Byte, W> {
 
 	private static final long serialVersionUID = 1L;
 
-	public InternalSingleValueProcessWindowFunction(ProcessWindowFunction<IN, OUT, KEY, W> wrappedFunction) {
+	public InternalSingleValueProcessAllWindowFunction(ProcessAllWindowFunction<IN, OUT, W> wrappedFunction) {
 		super(wrappedFunction);
 	}
 
 	@Override
-	public void apply(KEY key, final W window, IN input, Collector<OUT> out) throws Exception {
-		ProcessWindowFunction<IN, OUT, KEY, W> wrappedFunction = this.wrappedFunction;
-		ProcessWindowFunction<IN, OUT, KEY, W>.Context context = wrappedFunction.new Context() {
+	public void apply(Byte key, final W window, IN input, Collector<OUT> out) throws Exception {
+		ProcessAllWindowFunction<IN, OUT, W> wrappedFunction = this.wrappedFunction;
+		ProcessAllWindowFunction<IN, OUT, W>.Context context = wrappedFunction.new Context() {
 			@Override
 			public W window() {
 				return window;
 			}
 		};
 
-		wrappedFunction.process(key, context, Collections.singletonList(input), out);
+		wrappedFunction.process(context, Collections.singletonList(input), out);
 	}
 
 	@Override

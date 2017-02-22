@@ -22,14 +22,17 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.util.ListCollector;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeutils.base.ByteSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.windowing.FoldApplyProcessAllWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.FoldApplyProcessWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.FoldApplyWindowFunction;
+import org.apache.flink.streaming.api.functions.windowing.ProcessAllWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.graph.StreamGraph;
@@ -39,6 +42,7 @@ import org.apache.flink.streaming.api.transformations.SourceTransformation;
 import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.runtime.operators.windowing.AccumulatingProcessingTimeWindowOperator;
+import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalIterableProcessAllWindowFunction;
 import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalIterableProcessWindowFunction;
 import org.apache.flink.util.Collector;
 import org.junit.Test;
@@ -136,6 +140,101 @@ public class FoldApplyProcessWindowFunctionTest {
 		expected.add(initValue);
 
 		foldWindowFunction.process(0, foldWindowFunction.new Context() {
+			@Override
+			public TimeWindow window() {
+				return new TimeWindow(0, 1);
+			}
+		}, input, new ListCollector<>(result));
+
+		Assert.assertEquals(expected, result);
+	}
+
+		/**
+	 * Tests that the FoldWindowFunction gets the output type serializer set by the
+	 * StreamGraphGenerator and checks that the FoldWindowFunction computes the correct result.
+	 */
+	@Test
+	public void testFoldAllWindowFunctionOutputTypeConfigurable() throws Exception{
+		StreamExecutionEnvironment env = new DummyStreamExecutionEnvironment();
+
+		List<StreamTransformation<?>> transformations = new ArrayList<>();
+
+		int initValue = 1;
+
+		FoldApplyProcessAllWindowFunction<TimeWindow, Integer, Integer, Integer> foldWindowFunction = new FoldApplyProcessAllWindowFunction<>(
+			initValue,
+			new FoldFunction<Integer, Integer>() {
+				@Override
+				public Integer fold(Integer accumulator, Integer value) throws Exception {
+					return accumulator + value;
+				}
+
+			},
+			new ProcessAllWindowFunction<Integer, Integer, TimeWindow>() {
+				@Override
+				public void process(Context context,
+									Iterable<Integer> input,
+									Collector<Integer> out) throws Exception {
+					for (Integer in: input) {
+						out.collect(in);
+					}
+				}
+			},
+			BasicTypeInfo.INT_TYPE_INFO
+		);
+
+		AccumulatingProcessingTimeWindowOperator<Byte, Integer, Integer> windowOperator = new AccumulatingProcessingTimeWindowOperator<>(
+			new InternalIterableProcessAllWindowFunction<>(foldWindowFunction),
+			new KeySelector<Integer, Byte>() {
+				private static final long serialVersionUID = -7951310554369722809L;
+
+				@Override
+				public Byte getKey(Integer value) throws Exception {
+					return 0;
+				}
+			},
+			ByteSerializer.INSTANCE,
+			IntSerializer.INSTANCE,
+			3000,
+			3000
+		);
+
+		SourceFunction<Integer> sourceFunction = new SourceFunction<Integer>(){
+
+			private static final long serialVersionUID = 8297735565464653028L;
+
+			@Override
+			public void run(SourceContext<Integer> ctx) throws Exception {
+
+			}
+
+			@Override
+			public void cancel() {
+
+			}
+		};
+
+		SourceTransformation<Integer> source = new SourceTransformation<>("", new StreamSource<>(sourceFunction), BasicTypeInfo.INT_TYPE_INFO, 1);
+
+		transformations.add(new OneInputTransformation<>(source, "test", windowOperator, BasicTypeInfo.INT_TYPE_INFO, 1));
+
+		StreamGraph streamGraph = StreamGraphGenerator.generate(env, transformations);
+
+		List<Integer> result = new ArrayList<>();
+		List<Integer> input = new ArrayList<>();
+		List<Integer> expected = new ArrayList<>();
+
+		input.add(1);
+		input.add(2);
+		input.add(3);
+
+		for (int value : input) {
+			initValue += value;
+		}
+
+		expected.add(initValue);
+
+		foldWindowFunction.process(foldWindowFunction.new Context() {
 			@Override
 			public TimeWindow window() {
 				return new TimeWindow(0, 1);
