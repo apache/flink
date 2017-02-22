@@ -514,7 +514,8 @@ public abstract class AbstractStreamOperator<OUT>
 	 * @return Checkpoint stream factory for the checkpoints
 	 * @throws IOException Failures while creating a new stream factory are forwarded
 	 */
-	private CheckpointStreamFactory getCheckpointStreamFactory(CheckpointOptions checkpointOptions) throws IOException {
+	@VisibleForTesting
+	CheckpointStreamFactory getCheckpointStreamFactory(CheckpointOptions checkpointOptions) throws IOException {
 		CheckpointType checkpointType = checkpointOptions.getCheckpointType();
 		if (checkpointType == CheckpointType.FULL_CHECKPOINT) {
 			return checkpointStreamFactory;
