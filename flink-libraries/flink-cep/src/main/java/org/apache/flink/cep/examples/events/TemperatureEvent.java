@@ -48,7 +48,8 @@ public class TemperatureEvent extends MonitoringEvent {
 
 	@Override
 	public int hashCode() {
-		return 41 * super.hashCode() + Double.hashCode(temperature);
+		long bits = Double.doubleToLongBits(temperature);
+		return 41 * super.hashCode() + (int)(bits ^ (bits >>> 32));
 	}
 
 	@Override
