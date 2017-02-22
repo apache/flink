@@ -217,21 +217,6 @@ class CalcITCase(
   }
 
   @Test
-  def testConjunctivePredicate(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
-    val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
-
-    val filterDs = ds.filter('a < 15 && 'b > 4)
-    val expected = List(
-      "11,5,Comment#5", "12,5,Comment#6",
-      "13,5,Comment#7", "14,5,Comment#8").mkString("\n")
-    val results = filterDs.collect()
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
-  }
-
-  @Test
   def testConsecutiveFilters(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
