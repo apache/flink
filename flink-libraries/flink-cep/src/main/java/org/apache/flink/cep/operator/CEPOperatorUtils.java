@@ -154,8 +154,9 @@ public class CEPOperatorUtils {
 	}
 
 	/**
-	 * Used as dummy KeySelector to allow using WindowOperator for Non-Keyed Windows.
-	 * @param <T>
+	 * Used as dummy {@link KeySelector} to allow using
+	 * {@link AbstractKeyedCEPPatternOperator} for Non-Keyed CEP usecases.
+	 * @param <T> The type of the input element.
 	 */
 	protected static class NullByteKeySelector<T> implements KeySelector<T, Byte> {
 

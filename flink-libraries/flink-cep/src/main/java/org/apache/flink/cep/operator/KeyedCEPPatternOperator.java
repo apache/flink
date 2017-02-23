@@ -41,11 +41,11 @@ public class KeyedCEPPatternOperator<IN, KEY> extends AbstractKeyedCEPPatternOpe
 	private static final long serialVersionUID = 5328573789532074581L;
 
 	public KeyedCEPPatternOperator(
-		TypeSerializer<IN> inputSerializer,
-		boolean isProcessingTime,
-		KeySelector<IN, KEY> keySelector,
-		TypeSerializer<KEY> keySerializer,
-		NFACompiler.NFAFactory<IN> nfaFactory) {
+			TypeSerializer<IN> inputSerializer,
+			boolean isProcessingTime,
+			KeySelector<IN, KEY> keySelector,
+			TypeSerializer<KEY> keySerializer,
+			NFACompiler.NFAFactory<IN> nfaFactory) {
 
 		super(inputSerializer, isProcessingTime, keySelector, keySerializer, nfaFactory);
 	}

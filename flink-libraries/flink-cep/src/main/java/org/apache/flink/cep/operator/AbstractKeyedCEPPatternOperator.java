@@ -128,8 +128,14 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 
 		if (priorityQueueOperatorState == null) {
 			priorityQueueOperatorState = getPartitionedState(
-				new ValueStateDescriptor<>(PRIORITY_QUEUE_STATE_NAME,
-					new PriorityQueueSerializer<>(streamRecordSerializer, new PriorityQueueStreamRecordFactory<IN>())));
+				new ValueStateDescriptor<>(
+					PRIORITY_QUEUE_STATE_NAME,
+					new PriorityQueueSerializer<>(
+						streamRecordSerializer,
+						new PriorityQueueStreamRecordFactory<IN>()
+					)
+				)
+			);
 		}
 	}
 

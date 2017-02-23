@@ -41,11 +41,11 @@ public class TimeoutKeyedCEPPatternOperator<IN, KEY> extends AbstractKeyedCEPPat
 	private static final long serialVersionUID = 3570542177814518158L;
 
 	public TimeoutKeyedCEPPatternOperator(
-		TypeSerializer<IN> inputSerializer,
-		boolean isProcessingTime,
-		KeySelector<IN, KEY> keySelector,
-		TypeSerializer<KEY> keySerializer,
-		NFACompiler.NFAFactory<IN> nfaFactory) {
+			TypeSerializer<IN> inputSerializer,
+			boolean isProcessingTime,
+			KeySelector<IN, KEY> keySelector,
+			TypeSerializer<KEY> keySerializer,
+			NFACompiler.NFAFactory<IN> nfaFactory) {
 
 		super(inputSerializer, isProcessingTime, keySelector, keySerializer, nfaFactory);
 	}
