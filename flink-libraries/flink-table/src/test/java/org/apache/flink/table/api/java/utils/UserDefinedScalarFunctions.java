@@ -43,4 +43,14 @@ public class UserDefinedScalarFunctions {
 		}
 	}
 
+	public static class JavaFunc3 extends ScalarFunction {
+		public int eval(String a, int... b) {
+			return b.length;
+		}
+
+		public String eval(String c) {
+			return c;
+		}
+	}
+
 }

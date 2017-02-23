@@ -24,8 +24,8 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.types.Row
-import org.apache.flink.table.api.Types
-import org.apache.flink.table.api.java.utils.UserDefinedScalarFunctions.{JavaFunc0, JavaFunc1, JavaFunc2}
+import org.apache.flink.table.api.{Types, ValidationException}
+import org.apache.flink.table.api.java.utils.UserDefinedScalarFunctions.{JavaFunc0, JavaFunc1, JavaFunc2, JavaFunc3}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.utils._
 import org.apache.flink.table.functions.ScalarFunction
@@ -188,12 +188,32 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
       "Func14(1, 2, 3, 4)",
       "10")
 
+    // Test for empty arguments
+    testAllApis(
+      Func14(),
+      "Func14()",
+      "Func14()",
+      "0")
+
     val JavaFunc2 = new JavaFunc2
     testAllApis(
       JavaFunc2("Hi", 1, 3, 5, 7),
       "JavaFunc2('Hi', 1, 3, 5, 7)",
       "JavaFunc2('Hi', 1, 3, 5, 7)",
       "Hi105")
+
+    // Test for override
+    val JavaFunc3 = new JavaFunc3
+    try {
+      testAllApis(
+        JavaFunc3("Hi"),
+        "JavaFunc3('Hi')",
+        "JavaFunc3('Hi')",
+        "Hi")
+      throw new RuntimeException("Shouldn't be reached")
+    } catch {
+      case ex: ValidationException => // it's correct
+    }
   }
 
   @Test
@@ -299,6 +319,7 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
     "JavaFunc0" -> new JavaFunc0,
     "JavaFunc1" -> new JavaFunc1,
     "JavaFunc2" -> new JavaFunc2,
+    "JavaFunc3" -> new JavaFunc3,
     "RichFunc0" -> new RichFunc0,
     "RichFunc1" -> new RichFunc1,
     "RichFunc2" -> new RichFunc2

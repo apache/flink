@@ -78,26 +78,7 @@ object UserDefinedFunctionUtils {
       function: UserDefinedFunction,
       signature: Seq[TypeInformation[_]])
     : Option[Array[Class[_]]] = {
-    // We compare the raw Java classes not the TypeInformation.
-    // TypeInformation does not matter during runtime (e.g. within a MapFunction).
-    val actualSignature = typeInfoToClass(signature)
-    val signatures = getSignatures(function)
-
-    signatures
-      // go over all signatures and find one matching actual signature
-      .find { curSig =>
-      // match parameters of signature to actual parameters
-      (actualSignature.length == curSig.length &&
-        curSig.zipWithIndex.forall { case (clazz, i) =>
-          parameterTypeEquals(actualSignature(i), clazz)
-        }) ||
-        // matching the style which last argument is variable, eg. "Type..." "Type*"
-        (actualSignature.length >= curSig.length &&
-          curSig.zipWithIndex.forall { case (clazz, i) =>
-              parameterTypeEquals(actualSignature(i), clazz) ||
-                (i == curSig.length - 1 && clazz.isArray)
-          })
-    }
+    getEvalMethod(function, signature).map(_.getParameterTypes)
   }
 
   /**
@@ -112,16 +93,26 @@ object UserDefinedFunctionUtils {
     val actualSignature = typeInfoToClass(signature)
     val evalMethods = checkAndExtractEvalMethods(function)
 
-    evalMethods
+    val filtered = evalMethods
       // go over all eval methods and find one matching
-      .find { cur =>
+      .filter { cur =>
       val signatures = cur.getParameterTypes
       // match parameters of signature to actual parameters
-      actualSignature.length == signatures.length &&
-        signatures.zipWithIndex.forall { case (clazz, i) =>
-          parameterTypeEquals(actualSignature(i), clazz)
-        }
-      // TODO FLINK-5882
+      (actualSignature.length >= signatures.length &&
+        actualSignature.zipWithIndex.forall { case (clazz, i) =>
+          (i < signatures.length && parameterTypeEquals(clazz, signatures(i))) ||
+            (i >= signatures.length - 1 && cur.isVarArgs &&
+              parameterTypeEquals(clazz, signatures.last.getComponentType))
+        }) ||
+        // match empty variable arguments
+        (actualSignature.length == signatures.length - 1 && cur.isVarArgs)
+    }
+
+    if (filtered.length > 1) {
+      throw new ValidationException("Found multiple 'eval' methods which " +
+        "matches the signature.")
+    } else {
+      filtered.headOption
     }
   }
 
@@ -161,23 +152,22 @@ object UserDefinedFunctionUtils {
           s"(in case of table functions) not static.")
     } else {
       var trailingSeq = false
-      var trailingArray = false
+      var noVargs = true
       methods.foreach(method => {
         val signatures = method.getParameterTypes
         if (signatures.nonEmpty) {
-          val trailingArg = signatures(signatures.length - 1)
-          if (trailingArg.getName.equals("scala.collection.Seq")) {
+          if (method.isVarArgs) {
+            noVargs = false
+          } else if (signatures.last.getName.equals("scala.collection.Seq")) {
             trailingSeq = true
-          } else if (trailingArg.isArray) {
-            trailingArray = true
           }
         }
       })
-      if (trailingSeq && !trailingArray) {
+      if (trailingSeq && noVargs) {
         // We found trailing "scala.collection.Seq", but no trailing "Type[]", "Type..."
         throw new ValidationException("The 'eval' method do not support Scala type of " +
-          "variable args eg. scala.collection.Seq or Type*, please add a @varargs annotation " +
-          "to your 'eval' method")
+          "variable args eg. scala.collection.Seq or Type*, please add a " +
+          "@scala.annotation.varargs annotation to your 'eval' method")
       }
       methods
     }

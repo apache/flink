@@ -114,7 +114,9 @@ object ScalarSqlFunction {
 
         inferredTypes.zipWithIndex.foreach {
           case (inferredType, i) =>
-            operandTypes(i) = inferredType
+            if (operandTypes.length > 0) {
+              operandTypes(i) = inferredType
+            }
         }
       }
     }
