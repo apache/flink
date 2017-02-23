@@ -85,11 +85,13 @@ angular.module('flinkApp')
     MetricsService.setupMetrics($stateParams.jobid, data.vertices)
 
   getWatermarks = (nodes)->
+    # This function uses a promise to resolve watermarks once fetched via the metrics service, since watermarks have to be fetched individually for each node, we have to wait until all API calls have been made before we can resolve the promise. In the end we will have an array of low watermarks for each node: e.g. {somenodeid: [{id: 0, value: -9223372036854776000}], anothernodeid: [{id: 0, value: -9223372036854776000}, {id: 1, value: -9223372036854776000}]}.
     deferred = $q.defer()
     watermarks = {}
     jid = $scope.job.jid
     angular.forEach nodes, (node, index) =>
       metricIds = []
+      # for each node, we need to specify which metrics we want to collect, for each subtask, we need to fetch the currentLowWatermark, and each param is formed by concatenating subtask index to '.currentLowWatermark'.
       for num in [0..node.parallelism - 1]
         metricIds.push(num + ".currentLowWatermark")
       MetricsService.getMetrics(jid, node.id, metricIds).then (data) ->
