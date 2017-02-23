@@ -56,9 +56,9 @@ abstract public class AbstractCEPPatternOperator<IN, OUT> extends AbstractCEPBas
 
 	public AbstractCEPPatternOperator(
 			TypeSerializer<IN> inputSerializer,
-			boolean isProcessingTime,
+			ProcessingType processingType,
 			NFACompiler.NFAFactory<IN> nfaFactory) {
-		super(inputSerializer, isProcessingTime);
+		super(inputSerializer, processingType);
 
 		this.streamRecordSerializer = new StreamElementSerializer<>(inputSerializer);
 		this.nfa = nfaFactory.createNFA();
@@ -93,10 +93,9 @@ abstract public class AbstractCEPPatternOperator<IN, OUT> extends AbstractCEPBas
 	}
 
 	@Override
-	public void processWatermark(Watermark mark) throws Exception {
-		// we do our own watermark handling, no super call. we will never be able to use
-		// the timer service like this, however.
-
+	public void doProcessWatermark(Watermark mark) throws Exception {
+        // we do our own watermark handling, no super call. we will never be able to use
+        // the timer service like this, however.
 		if (priorityQueue.isEmpty()) {
 			advanceTime(nfa, mark.getTimestamp());
 		} else {

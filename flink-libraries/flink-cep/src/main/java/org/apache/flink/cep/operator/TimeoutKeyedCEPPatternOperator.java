@@ -34,12 +34,12 @@ public class TimeoutKeyedCEPPatternOperator<IN, KEY> extends AbstractKeyedCEPPat
 
 	public TimeoutKeyedCEPPatternOperator(
 		TypeSerializer<IN> inputSerializer,
-		boolean isProcessingTime,
+		ProcessingType processingType,
 		KeySelector<IN, KEY> keySelector,
 		TypeSerializer<KEY> keySerializer,
 		NFACompiler.NFAFactory<IN> nfaFactory) {
 
-		super(inputSerializer, isProcessingTime, keySelector, keySerializer, nfaFactory);
+		super(inputSerializer, processingType, keySelector, keySerializer, nfaFactory);
 	}
 
 	@Override

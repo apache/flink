@@ -76,12 +76,12 @@ abstract public class AbstractKeyedCEPPatternOperator<IN, KEY, OUT> extends Abst
 	private transient ValueState<PriorityQueue<StreamRecord<IN>>> priorityQueueOperatorState;
 
 	public AbstractKeyedCEPPatternOperator(
-			TypeSerializer<IN> inputSerializer,
-			boolean isProcessingTime,
-			KeySelector<IN, KEY> keySelector,
-			TypeSerializer<KEY> keySerializer,
-			NFACompiler.NFAFactory<IN> nfaFactory) {
-		super(inputSerializer, isProcessingTime);
+		TypeSerializer<IN> inputSerializer,
+		ProcessingType processingType,
+		KeySelector<IN, KEY> keySelector,
+		TypeSerializer<KEY> keySerializer,
+		NFACompiler.NFAFactory<IN> nfaFactory) {
+		super(inputSerializer, processingType);
 
 		this.keySelector = keySelector;
 		this.keySerializer = keySerializer;
@@ -163,10 +163,9 @@ abstract public class AbstractKeyedCEPPatternOperator<IN, KEY, OUT> extends Abst
 	}
 
 	@Override
-	public void processWatermark(Watermark mark) throws Exception {
+	public void doProcessWatermark(Watermark mark) throws Exception {
 		// we do our own watermark handling, no super call. we will never be able to use
 		// the timer service like this, however.
-
 		// iterate over all keys to trigger the execution of the buffered elements
 		for (KEY key: keys) {
 			setCurrentKey(key);

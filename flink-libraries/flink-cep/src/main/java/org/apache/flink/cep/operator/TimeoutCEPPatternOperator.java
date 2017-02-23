@@ -43,10 +43,10 @@ public class TimeoutCEPPatternOperator<IN> extends AbstractCEPPatternOperator<IN
 
 	public TimeoutCEPPatternOperator(
 		TypeSerializer<IN> inputSerializer,
-		boolean isProcessingTime,
+		ProcessingType processingType,
 		NFACompiler.NFAFactory<IN> nfaFactory) {
 
-		super(inputSerializer, isProcessingTime, nfaFactory);
+		super(inputSerializer, processingType, nfaFactory);
 	}
 
 	@Override

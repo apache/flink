@@ -40,8 +40,12 @@ import java.util.Map;
 public class KeyedCEPPatternOperator<IN, KEY> extends AbstractKeyedCEPPatternOperator<IN, KEY, Map<String, IN>> {
 	private static final long serialVersionUID = 5328573789532074581L;
 
-	public KeyedCEPPatternOperator(TypeSerializer<IN> inputSerializer, boolean isProcessingTime, KeySelector<IN, KEY> keySelector, TypeSerializer<KEY> keySerializer, NFACompiler.NFAFactory<IN> nfaFactory) {
-		super(inputSerializer, isProcessingTime, keySelector, keySerializer, nfaFactory);
+	public KeyedCEPPatternOperator(TypeSerializer<IN> inputSerializer,
+								ProcessingType processingType,
+								KeySelector<IN, KEY> keySelector,
+								TypeSerializer<KEY> keySerializer,
+								NFACompiler.NFAFactory<IN> nfaFactory) {
+		super(inputSerializer, processingType, keySelector, keySerializer, nfaFactory);
 	}
 
 	@Override
