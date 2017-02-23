@@ -78,12 +78,11 @@ angular.module('flinkApp')
     JobsService.stopJob($stateParams.jobid).then (data) ->
       {}
 
-  loadJob = ()->
-    JobsService.loadJob($stateParams.jobid).then (data) ->
-      $scope.job = data
-      $scope.vertices = data.vertices
-      $scope.plan = data.plan
-      MetricsService.setupMetrics($stateParams.jobid, data.vertices)
+  JobsService.loadJob($stateParams.jobid).then (data) ->
+    $scope.job = data
+    $scope.vertices = data.vertices
+    $scope.plan = data.plan
+    MetricsService.setupMetrics($stateParams.jobid, data.vertices)
 
   getWatermarks = (nodes)->
     deferred = $q.defer()
@@ -108,8 +107,6 @@ angular.module('flinkApp')
       minValue = Math.min.apply(null,(watermark.value for watermark in v))
       lowWatermarks[k] = if minValue <= watermarksConfig.minValue || v.length == 0 then 'No Watermark' else minValue
     return lowWatermarks
-
-  loadJob()
 
   $scope.$watch 'plan', (newPlan) ->
     if newPlan
