@@ -44,15 +44,19 @@ class ScalarFunctionCallGen(
       operands: Seq[GeneratedExpression])
     : GeneratedExpression = {
     // determine function signature and result class
-    val matchingSignature = getSignature(scalarFunction, signature)
+    val matchingMethod = getEvalMethod(scalarFunction, signature)
       .getOrElse(throw new CodeGenException("No matching signature found."))
+    val matchingSignature = matchingMethod.getParameterTypes
     val resultClass = getResultTypeClass(scalarFunction, matchingSignature)
 
     // zip for variable signatures
     var paramToOperands = matchingSignature.zip(operands)
     var i = paramToOperands.length
-    while (i < operands.length) {
-      paramToOperands = paramToOperands :+ (matchingSignature.head, operands(i))
+    while (i < operands.length
+        && matchingMethod.isVarArgs
+        && matchingSignature.last.isArray) {
+      paramToOperands = paramToOperands :+
+        (matchingSignature.last.getComponentType, operands(i))
       i += 1
     }
 
