@@ -295,7 +295,6 @@ object FunctionGenerator {
    ProcTimeExtractor,
    Seq(),
    new ProcTimeCallGen())
-
   // ----------------------------------------------------------------------------------------------
 
   /**

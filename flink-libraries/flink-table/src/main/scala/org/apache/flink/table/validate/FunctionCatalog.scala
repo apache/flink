@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.validate
 
+<<<<<<< HEAD
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.util.{ChainedSqlOperatorTable, ListSqlOperatorTable, ReflectiveSqlOperatorTable}
 import org.apache.calcite.sql.{SqlFunction, SqlOperator, SqlOperatorTable}
@@ -30,6 +31,19 @@ import scala.collection.JavaConversions._
 import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
 
+import org.apache.calcite.sql.SqlFunction
+import org.apache.calcite.sql.SqlOperator
+import org.apache.calcite.sql.SqlOperatorTable
+import org.apache.calcite.sql.fun.SqlStdOperatorTable
+import org.apache.calcite.sql.util.ChainedSqlOperatorTable
+import org.apache.calcite.sql.util.ListSqlOperatorTable
+import org.apache.calcite.sql.util.ReflectiveSqlOperatorTable
+import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.expressions._
+import org.apache.flink.table.functions._
+import org.apache.flink.table.functions.utils.TableSqlFunction
+import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
+>>>>>>> branch 'FLINK-5710' of https://github.com/huawei-flink/flink.git
 
 /**
   * A catalog for looking up (user-defined) functions, used during validation phases
