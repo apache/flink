@@ -56,6 +56,10 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
  * (A, B), (A, C), and (B, C).
  * <br/>
  * The input graph must not contain duplicate edges or self-loops.
+ * <br/>
+ * This algorithm is similar to the undirected version but also tracks and
+ * computes a bitmask representing the six potential graph edges connecting
+ * the triangle vertices.
  *
  * @param <K> graph ID type
  * @param <VV> vertex value type

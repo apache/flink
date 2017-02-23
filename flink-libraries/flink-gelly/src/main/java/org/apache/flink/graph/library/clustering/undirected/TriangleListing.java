@@ -55,8 +55,9 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
  * The input graph must be a simple, undirected graph containing no duplicate
  * edges or self-loops.
  * <br/>
- * Algorithm from "Graph Twiddling in a MapReduce World", J. D. Cohen,
- * http://lintool.github.io/UMD-courses/bigdata-2015-Spring/content/Cohen_2009.pdf
+ * Algorithm from "Finding, Counting and Listing all Triangles in Large Graphs,
+ * An Experimental Study", Thomas Schank and Dorothea Wagner.
+ * http://i11www.iti.uni-karlsruhe.de/extra/publications/sw-fclt-05_t.pdf
  *
  * @param <K> graph ID type
  * @param <VV> vertex value type
