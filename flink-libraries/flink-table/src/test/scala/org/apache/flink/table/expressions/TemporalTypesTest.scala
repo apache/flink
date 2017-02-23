@@ -549,7 +549,7 @@ class TemporalTypesTest extends ExpressionTestBase {
   // ----------------------------------------------------------------------------------------------
 
   def testData = {
-    val testData = new Row(11)
+    val testData = new Row(12)
     testData.setField(0, Date.valueOf("1990-10-14"))
     testData.setField(1, Time.valueOf("10:20:45"))
     testData.setField(2, Timestamp.valueOf("1990-10-14 10:20:45.123"))
@@ -561,6 +561,7 @@ class TemporalTypesTest extends ExpressionTestBase {
     testData.setField(8, 1467012213000L)
     testData.setField(9, 24)
     testData.setField(10, 12000L)
+    testData.setField(11, "procTime()")
     testData
   }
 
