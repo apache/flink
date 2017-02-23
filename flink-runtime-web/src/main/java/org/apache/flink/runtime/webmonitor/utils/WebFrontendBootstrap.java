@@ -29,6 +29,7 @@ import io.netty.handler.codec.http.router.Handler;
 import io.netty.handler.codec.http.router.Router;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.stream.ChunkedWriteHandler;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.runtime.webmonitor.HttpRequestHandler;
@@ -65,6 +66,8 @@ public class WebFrontendBootstrap {
 		this.uploadDir = Preconditions.checkNotNull(directory);
 		this.serverSSLContext = sslContext;
 
+		final boolean enableAccesslog = config.getBoolean(ConfigConstants.JOB_MANAGER_WEB_ACCESSLOG_ENABLE);
+
 		ChannelInitializer<SocketChannel> initializer = new ChannelInitializer<SocketChannel>() {
 
 			@Override
@@ -82,7 +85,7 @@ public class WebFrontendBootstrap {
 				ch.pipeline()
 					.addLast(new HttpServerCodec())
 					.addLast(new ChunkedWriteHandler())
-					.addLast(new HttpRequestHandler(uploadDir))
+					.addLast(new HttpRequestHandler(uploadDir, enableAccesslog))
 					.addLast(handler.name(), handler)
 					.addLast(new PipelineErrorHandler(WebFrontendBootstrap.this.log));
 			}

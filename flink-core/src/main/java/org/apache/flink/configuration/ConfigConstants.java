@@ -645,6 +645,10 @@ public final class ConfigConstants {
 	@Deprecated
 	public static final String JOB_MANAGER_WEB_LOG_PATH_KEY = "jobmanager.web.log.path";
 
+	/** Config parameter indicating whether jobs can be uploaded and run from the web-frontend. */
+	public static final ConfigOption<Boolean> JOB_MANAGER_WEB_ACCESSLOG_ENABLE =
+			key("jobmanager.web.accesslog.enable").defaultValue(false);
+
 	/**
 	 * Config parameter indicating whether jobs can be uploaded and run from the web-frontend.
 	 *

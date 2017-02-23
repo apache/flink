@@ -33,6 +33,7 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.HttpHeaders.Names;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpObject;
 import io.netty.handler.codec.http.HttpRequest;
@@ -50,10 +51,13 @@ import io.netty.handler.codec.http.multipart.InterfaceHttpData;
 import io.netty.handler.codec.http.multipart.InterfaceHttpData.HttpDataType;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.util.ExceptionUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.util.Date;
 import java.util.UUID;
 
 /**
@@ -66,19 +70,22 @@ import java.util.UUID;
 public class HttpRequestHandler extends SimpleChannelInboundHandler<HttpObject> {
 
 	private static final Charset ENCODING = ConfigConstants.DEFAULT_CHARSET;
+	private static final Logger LOG = LoggerFactory.getLogger(HttpRequestHandler.class);
 
 	/** A decoder factory that always stores POST chunks on disk */
 	private static final HttpDataFactory DATA_FACTORY = new DefaultHttpDataFactory(true);
 
 	private final File tmpDir;
+	private final boolean enableAccesslog;
 
 	private HttpRequest currentRequest;
 
 	private HttpPostRequestDecoder currentDecoder;
 	private String currentRequestPath;
 
-	public HttpRequestHandler(File tmpDir) {
+	public HttpRequestHandler(File tmpDir, boolean enableAccesslog) {
 		this.tmpDir = tmpDir;
+		this.enableAccesslog = enableAccesslog;
 	}
 
 	@Override
@@ -98,6 +105,10 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<HttpObject> 
 				if (currentDecoder != null) {
 					currentDecoder.destroy();
 					currentDecoder = null;
+				}
+
+				if (enableAccesslog) {
+					accesslog(ctx, currentRequest);
 				}
 
 				if (currentRequest.getMethod() == HttpMethod.GET || currentRequest.getMethod() == HttpMethod.DELETE) {
@@ -181,6 +192,30 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<HttpObject> 
 
 				ctx.writeAndFlush(response);
 			}
+		}
+	}
+
+  /**
+   * Record the access log if enable configure of
+   * {@link org.apache.flink.configuration.ConfigConstants#JOB_MANAGER_WEB_ACCESSLOG_ENABLE}.
+   * record format:
+   * remote_addr - [time_local] "request_method URI protocolVersion" "http_referer" "http_user_agent"
+   */
+	private void accesslog(ChannelHandlerContext ctx, HttpRequest req) {
+		HttpHeaders headers = req.headers();
+		if (headers != null) {
+			String line = ctx.channel().remoteAddress() + " - [" + new Date() + "] \""
+					+ req.getMethod().name() + " " + req.getUri() + " " + req.getProtocolVersion().text() + "\" "
+					+ getHeader(Names.REFERER, headers) + "\" \"" + getHeader(Names.USER_AGENT, headers) + "\" ";
+			LOG.info(line);
+		}
+	}
+
+	private String getHeader(String key, HttpHeaders headers) {
+		if (headers.contains(key) && headers.get(key) != null) {
+			return headers.get(key);
+		} else {
+			return "-";
 		}
 	}
 }
