@@ -26,6 +26,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNo
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.taskexecutor.JobManagerConnectionListener;
 import org.apache.flink.runtime.taskmanager.TaskActions;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
@@ -34,12 +35,12 @@ import org.slf4j.LoggerFactory;
 import java.util.UUID;
 import java.util.concurrent.Executor;
 
-public class RpcResultPartitionConsumableNotifier implements ResultPartitionConsumableNotifier {
+public class RpcResultPartitionConsumableNotifier implements ResultPartitionConsumableNotifier, JobManagerConnectionListener {
 
 	private static final Logger LOG = LoggerFactory.getLogger(RpcResultPartitionConsumableNotifier.class);
 
-	private final UUID jobMasterLeaderId;
-	private final JobMasterGateway jobMasterGateway;
+	private UUID jobMasterLeaderId;
+	private JobMasterGateway jobMasterGateway;
 	private final Executor executor;
 	private final Time timeout;
 
@@ -68,5 +69,11 @@ public class RpcResultPartitionConsumableNotifier implements ResultPartitionCons
 				return null;
 			}
 		}, executor);
+	}
+
+	@Override
+	public void notifyJobManagerConnectionChanged(JobMasterGateway jobMasterGateway, UUID jobMasterLeaderID) {
+		this.jobMasterGateway = jobMasterGateway;
+		this.jobMasterLeaderId = jobMasterLeaderID;
 	}
 }

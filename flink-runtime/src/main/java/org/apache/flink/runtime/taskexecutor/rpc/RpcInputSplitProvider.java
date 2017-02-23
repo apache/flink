@@ -28,14 +28,15 @@ import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProviderException;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.SerializedInputSplit;
+import org.apache.flink.runtime.taskexecutor.JobManagerConnectionListener;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 
 import java.util.UUID;
 
-public class RpcInputSplitProvider implements InputSplitProvider {
-	private final UUID jobMasterLeaderId;
-	private final JobMasterGateway jobMasterGateway;
+public class RpcInputSplitProvider implements InputSplitProvider, JobManagerConnectionListener {
+	private UUID jobMasterLeaderId;
+	private JobMasterGateway jobMasterGateway;
 	private final JobID jobID;
 	private final JobVertexID jobVertexID;
 	private final ExecutionAttemptID executionAttemptID;
@@ -75,5 +76,11 @@ public class RpcInputSplitProvider implements InputSplitProvider {
 		} catch (Exception e) {
 			throw new InputSplitProviderException("Requesting the next input split failed.", e);
 		}
+	}
+
+	@Override
+	public void notifyJobManagerConnectionChanged(JobMasterGateway jobMasterGateway, UUID jobMasterLeaderID) {
+		this.jobMasterGateway = jobMasterGateway;
+		this.jobMasterLeaderId = jobMasterLeaderID;
 	}
 }

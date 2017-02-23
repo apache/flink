@@ -25,14 +25,15 @@ import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
+import org.apache.flink.runtime.taskexecutor.JobManagerConnectionListener;
 import org.apache.flink.util.Preconditions;
 
 import java.util.UUID;
 
-public class RpcPartitionStateChecker implements PartitionProducerStateChecker {
+public class RpcPartitionStateChecker implements PartitionProducerStateChecker, JobManagerConnectionListener {
 
-	private final UUID jobMasterLeaderId;
-	private final JobMasterGateway jobMasterGateway;
+	private UUID jobMasterLeaderId;
+	private JobMasterGateway jobMasterGateway;
 
 	public RpcPartitionStateChecker(UUID jobMasterLeaderId, JobMasterGateway jobMasterGateway) {
 		this.jobMasterLeaderId = Preconditions.checkNotNull(jobMasterLeaderId);
@@ -46,5 +47,11 @@ public class RpcPartitionStateChecker implements PartitionProducerStateChecker {
 			ResultPartitionID partitionId) {
 
 		return jobMasterGateway.requestPartitionState(jobMasterLeaderId, resultId, partitionId);
+	}
+
+	@Override
+	public void notifyJobManagerConnectionChanged(JobMasterGateway jobMasterGateway, UUID jobMasterLeaderID) {
+		this.jobMasterGateway = jobMasterGateway;
+		this.jobMasterLeaderId = jobMasterLeaderID;
 	}
 }
