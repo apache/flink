@@ -53,16 +53,16 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 
 /**
  * http://social.cs.uiuc.edu/class/cs591kgk/friendsadamic.pdf
- * <br/>
+ * <p>
  * Adamic-Adar measures the similarity between pairs of vertices as the sum of
  * the inverse logarithm of degree over shared neighbors. Scores are non-negative
  * and unbounded. A vertex with higher degree has greater overall influence but
  * is less influential to each pair of neighbors.
- * <br/>
+ * <p>
  * This implementation produces similarity scores for each pair of vertices
  * in the graph with at least one shared neighbor; equivalently, this is the
  * set of all non-zero Adamic-Adar coefficients.
- * <br/>
+ * <p>
  * The input graph must be a simple, undirected graph containing no duplicate
  * edges or self-loops.
  *

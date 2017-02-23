@@ -48,11 +48,11 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
  * is computed as the number of shared neighbors divided by the number of
  * distinct neighbors. Scores range from 0.0 (no shared neighbors) to 1.0 (all
  * neighbors are shared).
- * <br/>
+ * <p>
  * This implementation produces similarity scores for each pair of vertices
  * in the graph with at least one shared neighbor; equivalently, this is the
  * set of all non-zero Jaccard Similarity coefficients.
- * <br/>
+ * <p>
  * The input graph must be a simple, undirected graph containing no duplicate
  * edges or self-loops.
  *
@@ -240,10 +240,10 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 * This is the first of three operations implementing a self-join to generate
 	 * the full neighbor pairing for each vertex. The number of neighbor pairs
 	 * is (n choose 2) which is quadratic in the vertex degree.
-	 * <br/>
+	 * <p>
 	 * The third operation, {@link GenerateGroupPairs}, processes groups of size
 	 * {@link #groupSize} and emits {@code O(groupSize * deg(vertex))} pairs.
-	 * <br/>
+	 * <p>
 	 * This input to the third operation is still quadratic in the vertex degree.
 	 * Two prior operations, {@link GenerateGroupSpans} and {@link GenerateGroups},
 	 * each emit datasets linear in the vertex degree, with a forced rebalance
@@ -318,7 +318,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 
 	/**
 	 * Emits the two-path for all neighbor pairs in this group.
-	 * <br/>
+	 * <p>
 	 * The first {@link #groupSize} vertices are emitted pairwise. Following
 	 * vertices are only paired with vertices from this initial group.
 	 *
