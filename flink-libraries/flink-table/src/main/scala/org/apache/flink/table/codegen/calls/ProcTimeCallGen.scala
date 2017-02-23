@@ -32,8 +32,8 @@ class ProcTimeCallGen()
       codeGenerator: CodeGenerator,
       operands: Seq[GeneratedExpression])
     : GeneratedExpression = {
-      val time = codeGenerator.addReusableTime()
-      codeGenerator.generateNonNullLiteral(SqlTimeTypeInfo.TIME, time)
+      val time = codeGenerator.addReusableEpochTimestamp()
+      codeGenerator.generateNonNullLiteral(SqlTimeTypeInfo.TIMESTAMP, time)
   }
   
 }
