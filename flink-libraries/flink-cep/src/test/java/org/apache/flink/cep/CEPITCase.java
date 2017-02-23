@@ -23,7 +23,6 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.cep.pattern.Pattern;
-import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -32,33 +31,21 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 
+import org.apache.flink.streaming.util.TestListResultSink;
 import org.apache.flink.types.Either;
-import org.junit.After;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 
 import java.util.Map;
 
 @SuppressWarnings("serial")
 public class CEPITCase extends StreamingMultipleProgramsTestBase {
 
-	private String resultPath;
 	private String expected;
-
-	@Rule
-	public TemporaryFolder tempFolder = new TemporaryFolder();
 
 	@Before
 	public void before() throws Exception {
-		resultPath = tempFolder.newFile().toURI().toString();
 		expected = "";
-	}
-
-	@After
-	public void after() throws Exception {
-		compareResultsByLinesInMemory(expected, resultPath);
 	}
 
 	/**
@@ -68,6 +55,7 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 	@Test
 	public void testSimplePatternCEP() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		TestListResultSink<String> resultSink = new TestListResultSink<>();
 
 		DataStream<Event> input = env.fromElements(
 			new Event(1, "barfoo", 1.0),
@@ -119,18 +107,18 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 			}
 		});
 
-		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
-
-		// expected sequence of matching event ids
-		expected = "2,6,8";
-
+		result.addSink(resultSink);
 		env.execute();
+
+		String expected = "2,6,8";
+		compareResultAsText(resultSink.getResult(), expected);
 	}
 
 	@Test
 	public void testSimpleKeyedPatternCEP() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(2);
+		TestListResultSink<String> resultSink = new TestListResultSink<>();
 
 		DataStream<Event> input = env.fromElements(
 			new Event(1, "barfoo", 1.0),
@@ -194,18 +182,19 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 			}
 		});
 
-		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
+		result.addSink(resultSink);
+		env.execute();
 
 		// the expected sequences of matching event ids
 		expected = "2,2,2\n3,3,3\n42,42,42";
-
-		env.execute();
+		compareResultAsText(resultSink.getResult(), expected) ;
 	}
 
 	@Test
 	public void testSimplePatternEventTime() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+		TestListResultSink<String> resultSink = new TestListResultSink<>();
 
 		// (Event, timestamp)
 		DataStream<Event> input = env.fromElements(
@@ -272,12 +261,12 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 			}
 		);
 
-		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
+		result.addSink(resultSink);
+		env.execute();
 
 		// the expected sequence of matching event ids
 		expected = "1,5,4";
-
-		env.execute();
+		compareResultAsText(resultSink.getResult(), expected);
 	}
 
 	@Test
@@ -285,6 +274,7 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.setParallelism(2);
+		TestListResultSink<String> resultSink = new TestListResultSink<>();
 
 		// (Event, timestamp)
 		DataStream<Event> input = env.fromElements(
@@ -361,17 +351,18 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 			}
 		);
 
-		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
+		result.addSink(resultSink);
+		env.execute();
 
 		// the expected sequences of matching event ids
 		expected = "1,1,1\n2,2,2";
-
-		env.execute();
+		compareResultAsText(resultSink.getResult(), expected);
 	}
 
 	@Test
 	public void testSimplePatternWithSingleState() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		TestListResultSink<Tuple2<Integer, Integer>> resultSink = new TestListResultSink<>();
 		DataStream<Tuple2<Integer, Integer>> input = env.fromElements(
 			new Tuple2<>(0, 1),
 			new Tuple2<>(0, 2));
@@ -394,17 +385,18 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 			}
 		});
 
-		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
+		result.addSink(resultSink);
+		env.execute();
 
 		expected = "(0,1)";
-
-		env.execute();
+		compareResultAsText(resultSink.getResult(), expected);
 	}
 
 	@Test
 	public void testProcessingTimeWithWindow() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(1);
+		TestListResultSink<Integer> resultSink = new TestListResultSink<>();
 
 		DataStream<Integer> input = env.fromElements(1, 2);
 
@@ -417,11 +409,11 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 			}
 		});
 
-		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
+		result.addSink(resultSink);
+		env.execute();
 
 		expected = "3";
-
-		env.execute();
+		compareResultAsText(resultSink.getResult(), expected);
 	}
 
 	@Test
@@ -429,6 +421,7 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(1);
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+		TestListResultSink<Either<String, String>> resultSink = new TestListResultSink<>();
 
 		// (Event, timestamp)
 		DataStream<Event> input = env.fromElements(
@@ -498,12 +491,12 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 			}
 		);
 
-		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
+		result.addSink(resultSink);
+		env.execute();
 
 		// the expected sequences of matching event ids
 		expected = "Left(1.0)\nRight(2.0,2.0,2.0)";
-
-		env.execute();
+		compareResultAsText(resultSink.getResult(), expected);
 	}
 
 	/**
@@ -513,6 +506,7 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 	@Test
 	public void testSimpleOrFilterPatternCEP() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		TestListResultSink<String> resultSink = new TestListResultSink<>();
 
 		DataStream<Event> input = env.fromElements(
 			new Event(1, "start", 1.0),
@@ -565,11 +559,11 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 			}
 		});
 
-		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
-
+		result.addSink(resultSink);
+		env.execute();
 		// expected sequence of matching event ids
 		expected = "1,5,6\n1,2,3\n4,5,6\n1,2,6";
+		compareResultAsText(resultSink.getResult(), expected);
 
-		env.execute();
 	}
 }
