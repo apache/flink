@@ -30,6 +30,7 @@ public class ExecutionAttemptID extends AbstractID {
 	private static final long serialVersionUID = -1169683445778281344L;
 
 	public ExecutionAttemptID() {
+		super();
 	}
 
 	public ExecutionAttemptID(long lowerPart, long upperPart) {
