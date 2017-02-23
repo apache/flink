@@ -33,8 +33,6 @@ import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.Preconditions;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 import java.io.File;
@@ -86,8 +84,6 @@ public abstract class FileSystem {
 
 	private static final String HADOOP_WRAPPER_SCHEME = "hdwrapper";
 
-	private static final Logger LOG = LoggerFactory.getLogger(FileSystem.class);
-
 	/** This lock guards the methods {@link #initOutPathLocalFS(Path, WriteMode, boolean)} and
 	 * {@link #initOutPathDistFS(Path, WriteMode, boolean)} which are otherwise susceptible to races */
 	private static final ReentrantLock OUTPUT_DIRECTORY_INIT_LOCK = new ReentrantLock(true);
@@ -107,7 +103,6 @@ public abstract class FileSystem {
 
 		SafetyNetCloseableRegistry newRegistry = new SafetyNetCloseableRegistry();
 		REGISTRIES.set(newRegistry);
-		LOG.info("Created new CloseableRegistry " + newRegistry + " for {}", Thread.currentThread().getName());
 	}
 
 	/**
@@ -118,7 +113,6 @@ public abstract class FileSystem {
 	public static void closeAndDisposeFileSystemCloseableRegistryForThread() {
 		SafetyNetCloseableRegistry registry = REGISTRIES.get();
 		if (null != registry) {
-			LOG.info("Ensuring all FileSystem streams are closed for {}", Thread.currentThread().getName());
 			REGISTRIES.remove();
 			IOUtils.closeQuietly(registry);
 		}
