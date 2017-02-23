@@ -104,10 +104,3 @@ angular.module('flinkApp')
       if lowWatermark <= watermarksConfig.minValue
         lowWatermark = "No Watermark"
     return lowWatermark
-
-.filter "watermarksByNode", ->
-  (watermarks, nodeid) ->
-    arr = []
-    if watermarks != null && watermarks[nodeid] && watermarks[nodeid].length
-      arr = watermarks[nodeid]
-    return arr

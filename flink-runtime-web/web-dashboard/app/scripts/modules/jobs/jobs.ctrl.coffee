@@ -363,6 +363,11 @@ angular.module('flinkApp')
 
 .controller 'JobPlanWatermarksController', ($scope, $filter) ->
   $scope.hasWatermarks = (nodeid) ->
-    return true if $filter('watermarksByNode')($scope.watermarks, nodeid).length
+    return true if $scope.watermarksByNode(nodeid).length
+
+  $scope.watermarksByNode = (nodeid) ->
+    if $scope.watermarks != null && $scope.watermarks[nodeid] && $scope.watermarks[nodeid].length
+      return $scope.watermarks[nodeid]
+    return []
 
 # --------------------------------------

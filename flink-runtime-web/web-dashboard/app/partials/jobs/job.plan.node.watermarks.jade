@@ -22,6 +22,6 @@ table.table.table-hover.table-clickable.table-activable.table-inner(ng-if="hasWa
       th Watermark
 
   tbody
-    tr(ng-repeat="watermark in (watermarks | watermarksByNode:nodeid)")
+    tr(ng-repeat="watermark in watermarksByNode(nodeid)")
       td {{ watermark.id }}
       td {{ watermark.value | parseWatermark }}

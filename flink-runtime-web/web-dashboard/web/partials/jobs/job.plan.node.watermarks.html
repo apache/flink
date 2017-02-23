@@ -25,7 +25,7 @@ limitations under the License.
     </tr>
   </thead>
   <tbody>
-    <tr ng-repeat="watermark in (watermarks | watermarksByNode:nodeid)">
+    <tr ng-repeat="watermark in watermarksByNode(nodeid)">
       <td>{{ watermark.id }}</td>
       <td>{{ watermark.value | parseWatermark }}</td>
     </tr>
