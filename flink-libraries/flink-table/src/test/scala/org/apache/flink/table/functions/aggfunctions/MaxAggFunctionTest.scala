@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.table.functions.builtInAggFuncs
+package org.apache.flink.table.functions.aggfunctions
 
 import java.math.BigDecimal
 import org.apache.flink.table.functions.AggregateFunction
@@ -30,6 +30,7 @@ abstract class MaxAggFunctionTest[T: Numeric] extends AggFunctionTestBase[T] {
   private val numeric: Numeric[T] = implicitly[Numeric[T]]
 
   def minVal: T
+
   def maxVal: T
 
   override def inputValueSets: Seq[Seq[T]] = Seq(
@@ -65,6 +66,7 @@ abstract class MaxAggFunctionTest[T: Numeric] extends AggFunctionTestBase[T] {
 class ByteMaxAggFunctionTest extends MaxAggFunctionTest[Byte] {
 
   override def minVal = (Byte.MinValue + 1).toByte
+
   override def maxVal = (Byte.MaxValue - 1).toByte
 
   override def aggregator: AggregateFunction[Byte] = new ByteMaxAggFunction()
@@ -73,6 +75,7 @@ class ByteMaxAggFunctionTest extends MaxAggFunctionTest[Byte] {
 class ShortMaxAggFunctionTest extends MaxAggFunctionTest[Short] {
 
   override def minVal = (Short.MinValue + 1).toShort
+
   override def maxVal = (Short.MaxValue - 1).toShort
 
   override def aggregator: AggregateFunction[Short] = new ShortMaxAggFunction()
@@ -81,6 +84,7 @@ class ShortMaxAggFunctionTest extends MaxAggFunctionTest[Short] {
 class IntMaxAggFunctionTest extends MaxAggFunctionTest[Int] {
 
   override def minVal = Int.MinValue + 1
+
   override def maxVal = Int.MaxValue - 1
 
   override def aggregator: AggregateFunction[Int] = new IntMaxAggFunction()
@@ -89,6 +93,7 @@ class IntMaxAggFunctionTest extends MaxAggFunctionTest[Int] {
 class LongMaxAggFunctionTest extends MaxAggFunctionTest[Long] {
 
   override def minVal = Long.MinValue + 1
+
   override def maxVal = Long.MaxValue - 1
 
   override def aggregator: AggregateFunction[Long] = new LongMaxAggFunction()
@@ -97,6 +102,7 @@ class LongMaxAggFunctionTest extends MaxAggFunctionTest[Long] {
 class FloatMaxAggFunctionTest extends MaxAggFunctionTest[Float] {
 
   override def minVal = Float.MinValue / 2
+
   override def maxVal = Float.MaxValue / 2
 
   override def aggregator: AggregateFunction[Float] = new FloatMaxAggFunction()
@@ -105,6 +111,7 @@ class FloatMaxAggFunctionTest extends MaxAggFunctionTest[Float] {
 class DoubleMaxAggFunctionTest extends MaxAggFunctionTest[Double] {
 
   override def minVal = Double.MinValue / 2
+
   override def maxVal = Double.MaxValue / 2
 
   override def aggregator: AggregateFunction[Double] = new DoubleMaxAggFunction()

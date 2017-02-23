@@ -15,11 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.table.functions.builtInAggFuncs
+package org.apache.flink.table.functions.aggfunctions
 
 import java.math.BigDecimal
-import java.util.List
-
+import java.util.{List => JList}
+import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
 
 /**
@@ -28,8 +28,9 @@ import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
   * @tparam T the type for the aggregation result
   */
 abstract class MaxAggFunction[T](implicit ord: Ordering[T]) extends AggregateFunction[T] {
+
   /** The initial accumulator for Max aggregate function */
-  class MaxAccumulator[T] extends Accumulator {
+  class MaxAccumulator[T] extends JTuple2[T, Boolean] with Accumulator {
     var max: T = null.asInstanceOf[T]
   }
 
@@ -51,12 +52,13 @@ abstract class MaxAggFunction[T](implicit ord: Ordering[T]) extends AggregateFun
     accumulator.asInstanceOf[MaxAccumulator[T]].max
   }
 
-  override def merge(accumulators: List[Accumulator]): Accumulator = {
+  override def merge(accumulators: JList[Accumulator]): Accumulator = {
     val ret = accumulators.get(0)
     var i: Int = 1
     while (i < accumulators.size()) {
-      accumulate(ret.asInstanceOf[MaxAccumulator[T]],
-                 accumulators.get(i).asInstanceOf[MaxAccumulator[T]].max)
+      accumulate(
+        ret.asInstanceOf[MaxAccumulator[T]],
+        accumulators.get(i).asInstanceOf[MaxAccumulator[T]].max)
       i += 1
     }
     ret

@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.functions
 
-import java.util.List
+import java.util.{List => JList}
 
 /**
   * Base class for User-Defined Aggregates.
@@ -34,12 +34,12 @@ trait AggregateFunction[T] extends UserDefinedFunction {
 
   /**
     * Called every time when an aggregation result should be materialized.
-    * The returned value could be either a speculative result (periodically
-    * emitted as data arrive) or the final result of the aggregation (when
-    * the state of the aggregation is completely removed).
+    * The returned value could be either an early and incomplete result
+    * (periodically emitted as data arrive) or the final result of the
+    * aggregation.
     *
     * @param accumulator the accumulator which contains the current
-    *         aggregated results
+    *                    aggregated results
     * @return the aggregation result
     */
   def getValue(accumulator: Accumulator): T
@@ -48,8 +48,8 @@ trait AggregateFunction[T] extends UserDefinedFunction {
     * Process the input values and update the provided accumulator instance.
     *
     * @param accumulator the accumulator which contains the current
-    *         aggregated results
-    * @param input the input value (usually obtained from a new arrived data)
+    *                    aggregated results
+    * @param input       the input value (usually obtained from a new arrived data)
     */
   def accumulate(accumulator: Accumulator, input: Any): Unit
 
@@ -57,10 +57,10 @@ trait AggregateFunction[T] extends UserDefinedFunction {
     * Merge a list of accumulator instances into one accumulator instance.
     *
     * @param accumulators the [[java.util.List]] of accumulators
-    *        that will be merged
+    *                     that will be merged
     * @return the resulting accumulator
     */
-  def merge(accumulators: List[Accumulator]): Accumulator
+  def merge(accumulators: JList[Accumulator]): Accumulator
 }
 
 /**

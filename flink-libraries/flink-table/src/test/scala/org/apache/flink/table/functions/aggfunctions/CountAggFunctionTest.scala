@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.functions.builtInAggFuncs
+package org.apache.flink.table.functions.aggfunctions
 
 import org.apache.flink.table.functions.AggregateFunction
 

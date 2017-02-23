@@ -15,11 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.table.functions.builtInAggFuncs
+package org.apache.flink.table.functions.aggfunctions
 
 import java.math.{BigDecimal, BigInteger}
-import java.util.List
-
+import java.util.{List => JList}
+import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
 
 /**
@@ -28,8 +28,9 @@ import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
   * @tparam T the type for the aggregation result
   */
 abstract class IntegralAvgAggFunction[T] extends AggregateFunction[T] {
+
   /** The initial accumulator for Integral Avg aggregate function */
-  class IntegralAvgAccumulator extends Accumulator {
+  class IntegralAvgAccumulator extends JTuple2[Long, Long] with Accumulator {
     var sum: Long = 0
     var count: Long = 0
   }
@@ -57,7 +58,7 @@ abstract class IntegralAvgAggFunction[T] extends AggregateFunction[T] {
     }
   }
 
-  override def merge(accumulators: List[Accumulator]): Accumulator = {
+  override def merge(accumulators: JList[Accumulator]): Accumulator = {
     val ret = accumulators.get(0)
     val aAccum = ret.asInstanceOf[IntegralAvgAccumulator]
     var i: Int = 1
@@ -74,7 +75,7 @@ abstract class IntegralAvgAggFunction[T] extends AggregateFunction[T] {
     * Convert the intermediate result to the expected aggregation result type
     *
     * @param value the intermediate result. We use a Long container to save
-    *         the intermediate result to avoid the overflow by sum operation.
+    *              the intermediate result to avoid the overflow by sum operation.
     * @return the result value with the expected aggregation result type
     */
   def resultTypeConvert(value: Long): T
@@ -107,8 +108,10 @@ class IntAvgAggFunction extends IntegralAvgAggFunction[Int] {
   * @tparam T the type for the aggregation result
   */
 abstract class BigIntegralAvgAggFunction[T] extends AggregateFunction[T] {
+
   /** The initial accumulator for Big Integral Avg aggregate function */
-  class BigIntegralAvgAccumulator extends Accumulator {
+  class BigIntegralAvgAccumulator
+    extends JTuple2[BigInteger, Long] with Accumulator {
     var sum: BigInteger = BigInteger.ZERO
     var count: Long = 0
   }
@@ -136,7 +139,7 @@ abstract class BigIntegralAvgAggFunction[T] extends AggregateFunction[T] {
     }
   }
 
-  override def merge(accumulators: List[Accumulator]): Accumulator = {
+  override def merge(accumulators: JList[Accumulator]): Accumulator = {
     val ret = accumulators.get(0)
     val aAccum = ret.asInstanceOf[BigIntegralAvgAccumulator]
     var i: Int = 1
@@ -153,8 +156,8 @@ abstract class BigIntegralAvgAggFunction[T] extends AggregateFunction[T] {
     * Convert the intermediate result to the expected aggregation result type
     *
     * @param value the intermediate result. We use a BigInteger container to
-    *         save the intermediate result to avoid the overflow by sum
-    *         operation.
+    *              save the intermediate result to avoid the overflow by sum
+    *              operation.
     * @return the result value with the expected aggregation result type
     */
   def resultTypeConvert(value: BigInteger): T
@@ -173,8 +176,9 @@ class LongAvgAggFunction extends BigIntegralAvgAggFunction[Long] {
   * @tparam T the type for the aggregation result
   */
 abstract class FloatingAvgAggFunction[T] extends AggregateFunction[T] {
+
   /** The initial accumulator for Floating Avg aggregate function */
-  class FloatingAvgAccumulator extends Accumulator {
+  class FloatingAvgAccumulator extends JTuple2[Double, Long] with Accumulator {
     var sum: Double = 0
     var count: Long = 0
   }
@@ -202,7 +206,7 @@ abstract class FloatingAvgAggFunction[T] extends AggregateFunction[T] {
     }
   }
 
-  override def merge(accumulators: List[Accumulator]): Accumulator = {
+  override def merge(accumulators: JList[Accumulator]): Accumulator = {
     val ret = accumulators.get(0)
     val aAccum = ret.asInstanceOf[FloatingAvgAccumulator]
     var i: Int = 1
@@ -219,7 +223,7 @@ abstract class FloatingAvgAggFunction[T] extends AggregateFunction[T] {
     * Convert the intermediate result to the expected aggregation result type
     *
     * @param value the intermediate result. We use a Double container to save
-    *         the intermediate result to avoid the overflow by sum operation.
+    *              the intermediate result to avoid the overflow by sum operation.
     * @return the result value with the expected aggregation result type
     */
   def resultTypeConvert(value: Double): T
@@ -243,8 +247,10 @@ class DoubleAvgAggFunction extends FloatingAvgAggFunction[Double] {
   * Base class for built-in Big Decimal Avg aggregate function
   */
 class DecimalAvgAggFunction extends AggregateFunction[BigDecimal] {
+
   /** The initial accumulator for Big Decimal Avg aggregate function */
-  class DecimalAvgAccumulator extends Accumulator {
+  class DecimalAvgAccumulator
+    extends JTuple2[BigDecimal, Long] with Accumulator {
     var sum: BigDecimal = null
     var count: Long = 0
   }
@@ -276,7 +282,7 @@ class DecimalAvgAggFunction extends AggregateFunction[BigDecimal] {
     }
   }
 
-  override def merge(accumulators: List[Accumulator]): Accumulator = {
+  override def merge(accumulators: JList[Accumulator]): Accumulator = {
     val ret = accumulators.get(0)
     val aAccum = ret.asInstanceOf[DecimalAvgAccumulator]
     var i: Int = 1

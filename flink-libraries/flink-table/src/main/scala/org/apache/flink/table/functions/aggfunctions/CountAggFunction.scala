@@ -15,17 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.table.functions.builtInAggFuncs
+package org.apache.flink.table.functions.aggfunctions
 
+import java.util.{List => JList}
+import org.apache.flink.api.java.tuple.{Tuple1 => JTuple1}
 import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
-import java.util.List
 
 /**
   * built-in count aggregate function
   */
 class CountAggFunction extends AggregateFunction[Long] {
+
   /** The initial accumulator for count aggregate function */
-  class CountAccumulator extends Accumulator {
+  class CountAccumulator extends JTuple1[Long] with Accumulator {
     var count: Long = 0
   }
 
@@ -39,18 +41,18 @@ class CountAggFunction extends AggregateFunction[Long] {
     accumulator.asInstanceOf[CountAccumulator].count
   }
 
-  override def merge(accumulators: List[Accumulator]): Accumulator = {
+  override def merge(accumulators: JList[Accumulator]): Accumulator = {
     val ret = accumulators.get(0)
     var i: Int = 1
     while (i < accumulators.size()) {
-      ret.asInstanceOf[CountAccumulator].count += accumulators.get(i)
-                                                  .asInstanceOf[CountAccumulator].count
+      ret.asInstanceOf[CountAccumulator].count +=
+        accumulators.get(i).asInstanceOf[CountAccumulator].count
       i += 1
     }
     ret
   }
 
-  override def createAccumulator():Accumulator = {
+  override def createAccumulator(): Accumulator = {
     new CountAccumulator
   }
 }

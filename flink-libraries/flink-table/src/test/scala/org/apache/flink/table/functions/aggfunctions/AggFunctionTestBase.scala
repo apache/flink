@@ -15,16 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.table.functions.builtInAggFuncs
+package org.apache.flink.table.functions.aggfunctions
 
-import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
 import java.math.BigDecimal
-
+import java.util.{ArrayList => JArrayList, List => JList}
+import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
-import org.apache.flink.types.Row
-import org.junit.Test
 import org.junit.Assert.assertEquals
-import java.util.List
+import org.junit.Test
 
 /**
   * Base class for aggregate function test
@@ -32,20 +30,19 @@ import java.util.List
   * @tparam T the type for the aggregation result
   */
 abstract class AggFunctionTestBase[T] {
-  private val offset = 2
-  private val numOfAggregates = 1
-  private val rowArity = offset + numOfAggregates
   def inputValueSets: Seq[Seq[_]]
+
   def expectedResults: Seq[T]
+
   def aggregator: AggregateFunction[T]
 
   @Test
   // test aggregate functions without partial merge
   def testAggregateWithoutMerge(): Unit = {
     // iterate over input sets
-    for((vals, expected) <- inputValueSets.zip(expectedResults)) {
-      val resultRow = aggregateVals(vals)
-      val result = getResult(resultRow)
+    for ((vals, expected) <- inputValueSets.zip(expectedResults)) {
+      val accumulator = aggregateVals(vals)
+      val result = aggregator.getValue(accumulator)
       validateResult(expected, result)
     }
   }
@@ -56,11 +53,15 @@ abstract class AggFunctionTestBase[T] {
 
     if (ifMethodExitInFunction("merge", aggregator)) {
       // iterate over input sets
-      for((vals, expected) <- inputValueSets.zip(expectedResults)) {
+      for ((vals, expected) <- inputValueSets.zip(expectedResults)) {
         val (firstVals, secondVals) = vals.splitAt(vals.length / 2)
-        val combined = aggregateVals(firstVals) :: aggregateVals(secondVals) :: Nil
-        val resultRow = mergeRows(combined)
-        val result = getResult(resultRow)
+
+        val accumulators: JList[Accumulator] = new JArrayList[Accumulator]()
+        accumulators.add(aggregateVals(firstVals))
+        accumulators.add(aggregateVals(secondVals))
+
+        val accumulator = aggregator.merge(accumulators)
+        val result = aggregator.getValue(accumulator)
         validateResult(expected, result)
       }
     }
@@ -76,37 +77,9 @@ abstract class AggFunctionTestBase[T] {
     }
   }
 
-  private def getResult(resultRow: Row): T = {
-    val accumulator = resultRow.getField(offset).asInstanceOf[Accumulator]
-    aggregator.getValue(accumulator)
-  }
-
-  private def aggregateVals(vals: Seq[_]): Row = {
+  private def aggregateVals(vals: Seq[_]): Accumulator = {
     val accumulator = aggregator.createAccumulator()
     vals.foreach(v => aggregator.accumulate(accumulator, v))
-
-    val row = new Row(rowArity)
-    row.setField(offset, accumulator)
-    row
-  }
-
-  private def mergeRows(rows: Seq[Row]): Row = {
-    var accumulator = aggregator.createAccumulator()
-    val accumulators: List[Accumulator] =
-      new java.util.ArrayList[Accumulator]()
-    accumulators.add(accumulator)
-
-    rows.foreach(
-      row => {
-        val acc = row.getField(offset).asInstanceOf[Accumulator]
-        accumulators.add(acc)
-      }
-    )
-
-    accumulator = aggregator.merge(accumulators)
-
-    val resultRow = new Row(rowArity)
-    resultRow.setField(offset, accumulator)
-    resultRow
+    accumulator
   }
 }

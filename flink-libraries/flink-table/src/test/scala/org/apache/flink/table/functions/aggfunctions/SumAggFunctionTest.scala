@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.functions.builtInAggFuncs
+package org.apache.flink.table.functions.aggfunctions
 
 import java.math.BigDecimal
 import org.apache.flink.table.functions.AggregateFunction
@@ -31,6 +31,7 @@ abstract class SumAggFunctionTestBase[T: Numeric] extends AggFunctionTestBase[T]
   private val numeric: Numeric[T] = implicitly[Numeric[T]]
 
   def maxVal: T
+
   private val minVal = numeric.negate(maxVal)
 
   override def inputValueSets: Seq[Seq[T]] = Seq(

@@ -15,11 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.table.functions.builtInAggFuncs
+package org.apache.flink.table.functions.aggfunctions
 
 import java.math.BigDecimal
-import java.util.List
-
+import java.util.{List => JList}
+import org.apache.flink.api.java.tuple.{Tuple1 => JTuple1}
+import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
 
 /**
@@ -28,9 +29,10 @@ import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
   * @tparam T the type for the aggregation result
   */
 abstract class SumAggFunction[T: Numeric] extends AggregateFunction[T] {
+
   /** The initial accumulator for Sum aggregate function */
-  class SumAccumulator[T] extends Accumulator {
-    var sum: Option[T] = None
+  class SumAccumulator[T] extends JTuple2[T, Boolean] with Accumulator {
+    var sum: T = null.asInstanceOf[T]
   }
 
   private val numeric = implicitly[Numeric[T]]
@@ -43,34 +45,32 @@ abstract class SumAggFunction[T: Numeric] extends AggregateFunction[T] {
     if (value != null) {
       val v = value.asInstanceOf[T]
       val accum = accumulator.asInstanceOf[SumAccumulator[T]]
-      if (accum.sum.isEmpty) {
-        accum.sum = Some(v)
+      if (accum.sum == null.asInstanceOf[T]) {
+        accum.sum = v
       } else {
-        accum.sum = Some(numeric.plus(v, accum.sum.get))
+        accum.sum = numeric.plus(v, accum.sum)
       }
     }
   }
 
   override def getValue(accumulator: Accumulator): T = {
     val sum = accumulator.asInstanceOf[SumAccumulator[T]].sum
-    if (sum.isEmpty) {
+    if (sum == null.asInstanceOf[T]) {
       null.asInstanceOf[T]
     } else {
-      sum match {
-        case Some(i) => i.asInstanceOf[T]
-      }
+      sum
     }
   }
 
-  override def merge(accumulators: List[Accumulator]): Accumulator = {
+  override def merge(accumulators: JList[Accumulator]): Accumulator = {
     val ret = createAccumulator().asInstanceOf[SumAccumulator[T]]
     var i: Int = 0
     while (i < accumulators.size()) {
       val a = accumulators.get(i).asInstanceOf[SumAccumulator[T]]
-      if (ret.sum.isEmpty) {
+      if (ret.sum == null.asInstanceOf[T]) {
         ret.sum = a.sum
-      } else if (!a.sum.isEmpty) {
-        ret.sum = Some(numeric.plus(ret.sum.get, a.sum.get))
+      } else if (a.sum != null.asInstanceOf[T]) {
+        ret.sum = numeric.plus(ret.sum, a.sum)
       }
       i += 1
     }
@@ -113,8 +113,9 @@ class DoubleSumAggFunction extends SumAggFunction[Double]
   * Built-in Big Decimal Sum aggregate function
   */
 class DecimalSumAggFunction extends AggregateFunction[BigDecimal] {
+
   /** The initial accumulator for Big Decimal Sum aggregate function */
-  class DecimalSumAccumulator extends Accumulator {
+  class DecimalSumAccumulator extends JTuple1[BigDecimal] with Accumulator {
     var sum: BigDecimal = null
   }
 
@@ -143,12 +144,13 @@ class DecimalSumAggFunction extends AggregateFunction[BigDecimal] {
     }
   }
 
-  override def merge(accumulators: List[Accumulator]): Accumulator = {
+  override def merge(accumulators: JList[Accumulator]): Accumulator = {
     val ret = accumulators.get(0)
     var i: Int = 1
     while (i < accumulators.size()) {
-      accumulate(ret.asInstanceOf[DecimalSumAccumulator],
-                 accumulators.get(i).asInstanceOf[DecimalSumAccumulator].sum)
+      accumulate(
+        ret.asInstanceOf[DecimalSumAccumulator],
+        accumulators.get(i).asInstanceOf[DecimalSumAccumulator].sum)
       i += 1
     }
     ret

@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.table.functions.builtInAggFuncs
+package org.apache.flink.table.functions.aggfunctions
 
 import java.math.BigDecimal
 import org.apache.flink.table.functions.AggregateFunction
@@ -30,6 +30,7 @@ abstract class AvgAggFunctionTestBase[T: Numeric] extends AggFunctionTestBase[T]
   private val numeric: Numeric[T] = implicitly[Numeric[T]]
 
   def minVal: T
+
   def maxVal: T
 
   override def inputValueSets: Seq[Seq[T]] = Seq(
@@ -85,6 +86,7 @@ abstract class AvgAggFunctionTestBase[T: Numeric] extends AggFunctionTestBase[T]
 class ByteAvgAggFunctionTest extends AvgAggFunctionTestBase[Byte] {
 
   override def minVal = (Byte.MinValue + 1).toByte
+
   override def maxVal = (Byte.MaxValue - 1).toByte
 
   override def aggregator = new ByteAvgAggFunction()
@@ -93,6 +95,7 @@ class ByteAvgAggFunctionTest extends AvgAggFunctionTestBase[Byte] {
 class ShortAvgAggFunctionTest extends AvgAggFunctionTestBase[Short] {
 
   override def minVal = (Short.MinValue + 1).toShort
+
   override def maxVal = (Short.MaxValue - 1).toShort
 
   override def aggregator = new ShortAvgAggFunction()
@@ -101,6 +104,7 @@ class ShortAvgAggFunctionTest extends AvgAggFunctionTestBase[Short] {
 class IntAvgAggFunctionTest extends AvgAggFunctionTestBase[Int] {
 
   override def minVal = Int.MinValue + 1
+
   override def maxVal = Int.MaxValue - 1
 
   override def aggregator = new IntAvgAggFunction()
@@ -109,6 +113,7 @@ class IntAvgAggFunctionTest extends AvgAggFunctionTestBase[Int] {
 class LongAvgAggFunctionTest extends AvgAggFunctionTestBase[Long] {
 
   override def minVal = Long.MinValue + 1
+
   override def maxVal = Long.MaxValue - 1
 
   override def aggregator = new LongAvgAggFunction()
@@ -117,6 +122,7 @@ class LongAvgAggFunctionTest extends AvgAggFunctionTestBase[Long] {
 class FloatAvgAggFunctionTest extends AvgAggFunctionTestBase[Float] {
 
   override def minVal = Float.MinValue
+
   override def maxVal = Float.MaxValue
 
   override def aggregator = new FloatAvgAggFunction()
@@ -125,6 +131,7 @@ class FloatAvgAggFunctionTest extends AvgAggFunctionTestBase[Float] {
 class DoubleAvgAggFunctionTest extends AvgAggFunctionTestBase[Double] {
 
   override def minVal = Float.MinValue
+
   override def maxVal = Float.MaxValue
 
   override def aggregator = new DoubleAvgAggFunction()
