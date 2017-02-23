@@ -66,6 +66,7 @@ trait AggregateFunction[T] extends UserDefinedFunction {
 /**
   * Base class for aggregate Accumulator. The accumulator is used to keep the
   * aggregated values which are needed to compute an aggregation result.
+  * The state of the function must be put into the accumulator.
   *
   * TODO: We have the plan to have the accumulator and return types of
   * functions dynamically provided by the users. This needs the refactoring

@@ -31,7 +31,8 @@ abstract class MinAggFunction[T](implicit ord: Ordering[T]) extends AggregateFun
 
   /** The initial accumulator for Min aggregate function */
   class MinAccumulator[T] extends JTuple2[T, Boolean] with Accumulator {
-    var max: T = null.asInstanceOf[T]
+    f0 = 0.asInstanceOf[T] //min
+    f1 = false
   }
 
   override def createAccumulator(): Accumulator = {
@@ -41,24 +42,33 @@ abstract class MinAggFunction[T](implicit ord: Ordering[T]) extends AggregateFun
   override def accumulate(accumulator: Accumulator, value: Any) = {
     if (value != null) {
       val v = value.asInstanceOf[T]
-      val accum = accumulator.asInstanceOf[MinAccumulator[T]]
-      if (accum.max == null || ord.compare(accum.max, v) > 0) {
-        accum.max = v
+      val a = accumulator.asInstanceOf[MinAccumulator[T]]
+      if (!a.f1 || ord.compare(a.f0, v) > 0) {
+        a.f0 = v
+        if (!a.f1) {
+          a.f1 = true
+        }
       }
     }
   }
 
   override def getValue(accumulator: Accumulator): T = {
-    accumulator.asInstanceOf[MinAccumulator[T]].max
+    val a = accumulator.asInstanceOf[MinAccumulator[T]]
+    if (a.f1) {
+      a.f0
+    } else {
+      null.asInstanceOf[T]
+    }
   }
 
   override def merge(accumulators: JList[Accumulator]): Accumulator = {
     val ret = accumulators.get(0)
     var i: Int = 1
     while (i < accumulators.size()) {
-      accumulate(
-        ret.asInstanceOf[MinAccumulator[T]],
-        accumulators.get(i).asInstanceOf[MinAccumulator[T]].max)
+      val a = accumulators.get(i).asInstanceOf[MinAccumulator[T]]
+      if (a.f1) {
+        accumulate(ret.asInstanceOf[MinAccumulator[T]], a.f0)
+      }
       i += 1
     }
     ret
@@ -109,8 +119,11 @@ class DecimalMinAggFunction extends MinAggFunction[BigDecimal] {
     if (value != null) {
       val v = value.asInstanceOf[BigDecimal]
       val accum = accumulator.asInstanceOf[MinAccumulator[BigDecimal]]
-      if (accum.max == null || accum.max.compareTo(v) > 0) {
-        accum.max = v
+      if (!accum.f1 || accum.f0.compareTo(v) > 0) {
+        accum.f0 = v
+        if (!accum.f1) {
+          accum.f1 = true
+        }
       }
     }
   }

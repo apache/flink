@@ -66,6 +66,15 @@ abstract class AvgAggFunctionTestBase[T: Numeric] extends AggFunctionTestBase[T]
       null.asInstanceOf[T]
     ),
     Seq(
+      numeric.fromInt(1),
+      numeric.fromInt(2),
+      null.asInstanceOf[T],
+      numeric.fromInt(3),
+      numeric.fromInt(4),
+      numeric.fromInt(5),
+      null.asInstanceOf[T]
+    ),
+    Seq(
       null.asInstanceOf[T],
       null.asInstanceOf[T],
       null.asInstanceOf[T],
@@ -79,6 +88,7 @@ abstract class AvgAggFunctionTestBase[T: Numeric] extends AggFunctionTestBase[T]
     minVal,
     maxVal,
     numeric.fromInt(0),
+    numeric.fromInt(3),
     null.asInstanceOf[T]
   )
 }
@@ -150,6 +160,15 @@ class DecimalAvgAggFunctionTest extends AggFunctionTestBase[BigDecimal] {
       new BigDecimal("0")
     ),
     Seq(
+      new BigDecimal("987654321000000"),
+      new BigDecimal("-0.000000000012345"),
+      null,
+      new BigDecimal("0.000000000012345"),
+      new BigDecimal("-987654321000000"),
+      null,
+      new BigDecimal("5")
+    ),
+    Seq(
       null,
       null,
       null,
@@ -159,6 +178,7 @@ class DecimalAvgAggFunctionTest extends AggFunctionTestBase[BigDecimal] {
 
   override def expectedResults: Seq[BigDecimal] = Seq(
     BigDecimal.ZERO,
+    BigDecimal.ONE,
     null
   )
 

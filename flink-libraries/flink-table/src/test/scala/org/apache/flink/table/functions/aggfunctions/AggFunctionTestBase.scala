@@ -54,11 +54,24 @@ abstract class AggFunctionTestBase[T] {
     if (ifMethodExitInFunction("merge", aggregator)) {
       // iterate over input sets
       for ((vals, expected) <- inputValueSets.zip(expectedResults)) {
+        //equally split the vals sequence into two sequences
         val (firstVals, secondVals) = vals.splitAt(vals.length / 2)
 
         val accumulators: JList[Accumulator] = new JArrayList[Accumulator]()
         accumulators.add(aggregateVals(firstVals))
         accumulators.add(aggregateVals(secondVals))
+
+        val accumulator = aggregator.merge(accumulators)
+        val result = aggregator.getValue(accumulator)
+        validateResult(expected, result)
+      }
+
+      // iterate over input sets
+      for ((vals, expected) <- inputValueSets.zip(expectedResults)) {
+        //test partial merge with an empty accumulator
+        val accumulators: JList[Accumulator] = new JArrayList[Accumulator]()
+        accumulators.add(aggregateVals(vals))
+        accumulators.add(aggregator.createAccumulator())
 
         val accumulator = aggregator.merge(accumulators)
         val result = aggregator.getValue(accumulator)

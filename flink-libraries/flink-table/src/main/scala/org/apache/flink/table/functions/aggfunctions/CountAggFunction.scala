@@ -28,25 +28,24 @@ class CountAggFunction extends AggregateFunction[Long] {
 
   /** The initial accumulator for count aggregate function */
   class CountAccumulator extends JTuple1[Long] with Accumulator {
-    var count: Long = 0
+    f0 = 0 //count
   }
 
   override def accumulate(accumulator: Accumulator, value: Any) = {
     if (value != null) {
-      accumulator.asInstanceOf[CountAccumulator].count += 1
+      accumulator.asInstanceOf[CountAccumulator].f0 += 1
     }
   }
 
   override def getValue(accumulator: Accumulator): Long = {
-    accumulator.asInstanceOf[CountAccumulator].count
+    accumulator.asInstanceOf[CountAccumulator].f0
   }
 
   override def merge(accumulators: JList[Accumulator]): Accumulator = {
-    val ret = accumulators.get(0)
+    val ret = accumulators.get(0).asInstanceOf[CountAccumulator]
     var i: Int = 1
     while (i < accumulators.size()) {
-      ret.asInstanceOf[CountAccumulator].count +=
-        accumulators.get(i).asInstanceOf[CountAccumulator].count
+      ret.f0 += accumulators.get(i).asInstanceOf[CountAccumulator].f0
       i += 1
     }
     ret
