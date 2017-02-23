@@ -59,6 +59,10 @@ public class MemoryStateBackendTest extends StateBackendTestBase<MemoryStateBack
 	@Override
 	@Test
 	public void testReducingStateRestoreWithWrongSerializers() {}
+	
+	@Override
+	@Test
+	public void testMapStateRestoreWithWrongSerializers() {}
 
 	@Test
 	@SuppressWarnings("unchecked")

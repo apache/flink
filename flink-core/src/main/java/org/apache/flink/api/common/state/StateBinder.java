@@ -70,4 +70,13 @@ public interface StateBinder {
 	 * @param <ACC> Type of the value in the state
 	 */
 	<T, ACC> FoldingState<T, ACC> createFoldingState(FoldingStateDescriptor<T, ACC> stateDesc) throws Exception;
+
+	/**
+	 * Creates and returns a new {@link MapState}.
+	 * @param stateDesc The {@code StateDescriptor} that contains the name of the state.
+	 *
+	 * @param <MK> Type of the keys in the state
+	 * @param <MV> Type of the values in the state
+	 */
+	<MK, MV> MapState<MK, MV> createMapState(MapStateDescriptor<MK, MV> stateDesc) throws Exception;
 }

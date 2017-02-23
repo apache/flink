@@ -27,6 +27,8 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.MapState;
+import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
@@ -52,6 +54,7 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import java.util.Collections;
+import java.util.Map;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -178,7 +181,7 @@ public class StreamingRuntimeContextTest {
 	public void testListStateReturnsEmptyListByDefault() throws Exception {
 
 		StreamingRuntimeContext context = new StreamingRuntimeContext(
-				createPlainMockOp(),
+				createListPlainMockOp(),
 				createMockEnvironment(),
 				Collections.<String, Accumulator<?, ?>>emptyMap());
 
@@ -186,6 +189,48 @@ public class StreamingRuntimeContextTest {
 		ListState<String> state = context.getListState(descr);
 
 		Iterable<String> value = state.get();
+		assertNotNull(value);
+		assertFalse(value.iterator().hasNext());
+	}
+	
+	@Test
+	public void testMapStateInstantiation() throws Exception {
+
+		final ExecutionConfig config = new ExecutionConfig();
+		config.registerKryoType(Path.class);
+
+		final AtomicReference<Object> descriptorCapture = new AtomicReference<>();
+
+		StreamingRuntimeContext context = new StreamingRuntimeContext(
+				createDescriptorCapturingMockOp(descriptorCapture, config),
+				createMockEnvironment(),
+				Collections.<String, Accumulator<?, ?>>emptyMap());
+
+		MapStateDescriptor<String, TaskInfo> descr =
+				new MapStateDescriptor<>("name", String.class, TaskInfo.class);
+
+		context.getMapState(descr);
+
+		MapStateDescriptor<?, ?> descrIntercepted = (MapStateDescriptor<?, ?>) descriptorCapture.get();
+		TypeSerializer<?> valueSerializer = descrIntercepted.getValueSerializer();
+
+		// check that the Path class is really registered, i.e., the execution config was applied
+		assertTrue(valueSerializer instanceof KryoSerializer);
+		assertTrue(((KryoSerializer<?>) valueSerializer).getKryo().getRegistration(Path.class).getId() > 0);
+	}
+	
+	@Test
+	public void testMapStateReturnsEmptyMapByDefault() throws Exception {
+
+		StreamingRuntimeContext context = new StreamingRuntimeContext(
+				createMapPlainMockOp(),
+				createMockEnvironment(),
+				Collections.<String, Accumulator<?, ?>>emptyMap());
+
+		MapStateDescriptor<Integer, String> descr = new MapStateDescriptor<>("name", Integer.class, String.class);
+		MapState<Integer, String> state = context.getMapState(descr);
+
+		Iterable<Map.Entry<Integer, String>> value = state.entries();
 		assertNotNull(value);
 		assertFalse(value.iterator().hasNext());
 	}
@@ -221,7 +266,7 @@ public class StreamingRuntimeContextTest {
 	}
 
 	@SuppressWarnings("unchecked")
-	private static AbstractStreamOperator<?> createPlainMockOp() throws Exception {
+	private static AbstractStreamOperator<?> createListPlainMockOp() throws Exception {
 
 		AbstractStreamOperator<?> operatorMock = mock(AbstractStreamOperator.class);
 		ExecutionConfig config = new ExecutionConfig();
@@ -252,6 +297,42 @@ public class StreamingRuntimeContextTest {
 			}
 		}).when(keyedStateBackend).getPartitionedState(Matchers.any(), any(TypeSerializer.class), any(ListStateDescriptor.class));
 
+		when(operatorMock.getKeyedStateStore()).thenReturn(keyedStateStore);
+		return operatorMock;
+	}
+	
+	@SuppressWarnings("unchecked")
+	private static AbstractStreamOperator<?> createMapPlainMockOp() throws Exception {
+
+		AbstractStreamOperator<?> operatorMock = mock(AbstractStreamOperator.class);
+		ExecutionConfig config = new ExecutionConfig();
+
+		KeyedStateBackend keyedStateBackend= mock(KeyedStateBackend.class);
+
+		DefaultKeyedStateStore keyedStateStore = new DefaultKeyedStateStore(keyedStateBackend, config);
+
+		when(operatorMock.getExecutionConfig()).thenReturn(config);
+		
+		doAnswer(new Answer<MapState<Integer, String>>() {
+
+			@Override
+			public MapState<Integer, String> answer(InvocationOnMock invocationOnMock) throws Throwable {
+				MapStateDescriptor<Integer, String> descr =
+						(MapStateDescriptor<Integer, String>) invocationOnMock.getArguments()[2];
+
+				AbstractKeyedStateBackend<Integer> backend = new MemoryStateBackend().createKeyedStateBackend(
+						new DummyEnvironment("test_task", 1, 0),
+						new JobID(),
+						"test_op",
+						IntSerializer.INSTANCE,
+						1,
+						new KeyGroupRange(0, 0),
+						new KvStateRegistry().createTaskRegistry(new JobID(), new JobVertexID()));
+				backend.setCurrentKey(0);
+				return backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, descr);
+			}
+		}).when(keyedStateBackend).getPartitionedState(Matchers.any(), any(TypeSerializer.class), any(MapStateDescriptor.class));
+		
 		when(operatorMock.getKeyedStateStore()).thenReturn(keyedStateStore);
 		return operatorMock;
 	}
