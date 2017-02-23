@@ -19,14 +19,20 @@
 package org.apache.flink.graph.test;
 
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
+import org.apache.flink.graph.asm.translate.Translate;
+import org.apache.flink.graph.asm.translate.translators.LongToLongValue;
 import org.apache.flink.graph.examples.data.ConnectedComponentsDefaultData;
 import org.apache.flink.graph.examples.data.SingleSourceShortestPathsData;
 import org.apache.flink.graph.library.GSAConnectedComponents;
 import org.apache.flink.graph.library.GSASingleSourceShortestPaths;
+import org.apache.flink.graph.utils.GraphUtils.IdentityMapper;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
+import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -41,29 +47,46 @@ public class GatherSumApplyITCase extends MultipleProgramsTestBase {
 		super(mode);
 	}
 
-	private String expectedResult;
-
 	// --------------------------------------------------------------------------------------------
 	//  Connected Components Test
 	// --------------------------------------------------------------------------------------------
 
+	private String expectedResultCC = "1,1\n" +
+		"2,1\n" +
+		"3,1\n" +
+		"4,1\n";
+
 	@Test
-	public void testConnectedComponents() throws Exception {
+	public void testConnectedComponentsWithObjectReuseDisabled() throws Exception {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().disableObjectReuse();
 
 		Graph<Long, Long, NullValue> inputGraph = Graph.fromDataSet(
 			ConnectedComponentsDefaultData.getDefaultEdgeDataSet(env),
-			new InitMapperCC(), env);
+			new IdentityMapper<Long>(), env);
 
 		List<Vertex<Long, Long>> result = inputGraph.run(
 			new GSAConnectedComponents<Long, Long, NullValue>(16)).collect();
 
-		expectedResult = "1,1\n" +
-			"2,1\n" +
-			"3,1\n" +
-			"4,1\n";
+		compareResultAsTuples(result, expectedResultCC);
+	}
 
-		compareResultAsTuples(result, expectedResult);
+	@Test
+	public void testConnectedComponentsWithObjectReuseEnabled() throws Exception {
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().enableObjectReuse();
+
+		DataSet<Edge<LongValue, NullValue>> edges = Translate.translateEdgeIds(
+			ConnectedComponentsDefaultData.getDefaultEdgeDataSet(env),
+			new LongToLongValue());
+
+		Graph<LongValue, LongValue, NullValue> inputGraph = Graph.fromDataSet(
+			edges, new IdentityMapper<LongValue>(), env);
+
+		List<Vertex<LongValue, LongValue>> result = inputGraph.run(
+			new GSAConnectedComponents<LongValue, LongValue, NullValue>(16)).collect();
+
+		compareResultAsTuples(result, expectedResultCC);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -81,20 +104,13 @@ public class GatherSumApplyITCase extends MultipleProgramsTestBase {
 		List<Vertex<Long, Double>> result = inputGraph.run(
 			new GSASingleSourceShortestPaths<Long, NullValue>(1L, 16)).collect();
 
-		expectedResult = "1,0.0\n" +
+		String expectedResult = "1,0.0\n" +
 			"2,12.0\n" +
 			"3,13.0\n" +
 			"4,47.0\n" +
 			"5,48.0\n";
 
 		compareResultAsTuples(result, expectedResult);
-	}
-
-	@SuppressWarnings("serial")
-	private static final class InitMapperCC implements MapFunction<Long, Long> {
-		public Long map(Long value) {
-			return value;
-		}
 	}
 
 	@SuppressWarnings("serial")

@@ -18,7 +18,6 @@
 
 package org.apache.flink.graph.examples;
 
-import org.apache.flink.graph.examples.data.ConnectedComponentsDefaultData;
 import org.apache.flink.api.common.ProgramDescription;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.DataSet;
@@ -27,6 +26,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
+import org.apache.flink.graph.examples.data.ConnectedComponentsDefaultData;
 import org.apache.flink.graph.library.GSAConnectedComponents;
 import org.apache.flink.types.NullValue;
 
