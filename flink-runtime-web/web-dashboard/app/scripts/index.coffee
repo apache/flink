@@ -36,6 +36,12 @@ angular.module('flinkApp', ['ui.router', 'angularMoment', 'dndLists'])
 
 # --------------------------------------
 
+.value 'watermarksConfig', {
+  minValue: -9223372036854776000
+}
+
+# --------------------------------------
+
 .run (JobsService, MainService, flinkConfig, $interval) ->
   MainService.loadConfig().then (config) ->
     angular.extend flinkConfig, config

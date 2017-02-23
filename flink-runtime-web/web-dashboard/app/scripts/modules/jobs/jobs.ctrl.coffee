@@ -42,7 +42,7 @@ angular.module('flinkApp')
 
 # --------------------------------------
 
-.controller 'SingleJobController', ($scope, $state, $stateParams, JobsService, MetricsService, $rootScope, flinkConfig, $interval, $q) ->
+.controller 'SingleJobController', ($scope, $state, $stateParams, JobsService, MetricsService, $rootScope, flinkConfig, $interval, $q, watermarksConfig) ->
   $scope.jobid = $stateParams.jobid
   $scope.job = null
   $scope.plan = null
@@ -106,7 +106,7 @@ angular.module('flinkApp')
     lowWatermarks = []
     for k,v of watermarks
       minValue = Math.min.apply(null,(watermark.value for watermark in v))
-      lowWatermarks[k] = if minValue <= -9223372036854776000 || v.length == 0 then 'None' else minValue
+      lowWatermarks[k] = if minValue <= watermarksConfig.minValue || v.length == 0 then 'No Watermark' else minValue
     return lowWatermarks
 
   loadJob()
