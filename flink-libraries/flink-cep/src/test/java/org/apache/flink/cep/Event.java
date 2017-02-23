@@ -70,7 +70,7 @@ public class Event {
 	}
 
 	public static TypeSerializer<Event> createTypeSerializer() {
-		TypeInformation<Event> typeInformation = (TypeInformation<Event>) TypeExtractor.createTypeInfo(Event.class);
+		TypeInformation<Event> typeInformation = TypeExtractor.createTypeInfo(Event.class);
 
 		return typeInformation.createSerializer(new ExecutionConfig());
 	}

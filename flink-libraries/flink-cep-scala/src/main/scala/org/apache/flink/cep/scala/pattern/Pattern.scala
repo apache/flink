@@ -15,12 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.cep.scala.pattern
 
+import java.util
+
 import org.apache.flink.api.common.functions.FilterFunction
-import org.apache.flink.cep
+import org.apache.flink.api.java.tuple.Tuple2
+import org.apache.flink.cep.nfa.State
 import org.apache.flink.cep.pattern.{Pattern => JPattern}
+import org.apache.flink.cep.pattern.{EventPattern => JEventPattern}
 import org.apache.flink.streaming.api.windowing.time.Time
+
+import collection.JavaConverters._
 
 /**
   * Base class for a pattern definition.
@@ -39,44 +46,27 @@ import org.apache.flink.streaming.api.windowing.time.Time
   * @tparam T Base type of the elements appearing in the pattern
   * @tparam F Subtype of T to which the current pattern operator is constrained
   */
-class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
+class Pattern[T, F <: T](jPattern: JPattern[T, F]) {
 
   private[flink] def wrappedPattern = jPattern
 
   /**
     *
-    * @return Name of the pattern operator
-    */
-  def getName(): String = jPattern.getName()
-
-  /**
-    *
     * @return Window length in which the pattern match has to occur
     */
-  def getWindowTime(): Option[Time] = {
-    Option(jPattern.getWindowTime())
-  }
+  def getWindowTime: Option[Time] = Option(jPattern.getWindowTime)
 
   /**
     *
     * @return Filter condition for an event to be matched
     */
-  def getFilterFunction(): Option[FilterFunction[F]] = {
-    Option(jPattern.getFilterFunction())
-  }
+  def getFilterFunction: Option[FilterFunction[F]] = Option(jPattern.getFilterFunction)
 
   /**
-    * Applies a subtype constraint on the current pattern operator. This means that an event has
-    * to be of the given subtype in order to be matched.
     *
-    * @param clazz Class of the subtype
-    * @tparam S Type of the subtype
-    * @return The same pattern operator with the new subtype constraint
+    * @return Parent patterns for this one
     */
-  def subtype[S <: F](clazz: Class[S]): Pattern[T, S] = {
-    jPattern.subtype(clazz)
-    this.asInstanceOf[Pattern[T, S]]
-  }
+  def getParents: Set[Pattern[T, _ <: T]] = jPattern.getParents.asScala.map(p => Pattern(p)).toSet
 
   /**
     * Defines the maximum time interval for a matching pattern. This means that the time gap
@@ -96,11 +86,11 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
     * this operator directly follows the preceding matching event. Thus, there cannot be any
     * events in between two matching events.
     *
-    * @param name Name of the new pattern operator
+    * @param pattern Pattern operator
     * @return A new pattern operator which is appended to this pattern operator
     */
-  def next(name: String): Pattern[T, T] = {
-    Pattern[T, T](jPattern.next(name))
+  def next(pattern: Pattern[T, _ <: T]): Pattern[T, T] = {
+    Pattern(jPattern.next(pattern.wrappedPattern))
   }
 
   /**
@@ -108,58 +98,27 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
     * non-strict temporal contiguity. This means that a matching event of this operator and the
     * preceding matching event might be interleaved with other events which are ignored.
     *
-    * @param name Name of the new pattern operator
+    * @param pattern Pattern operator
     * @return A new pattern operator which is appended to this pattern operator
     */
-  def followedBy(name: String): FollowedByPattern[T, T] = {
-    FollowedByPattern(jPattern.followedBy(name))
+  def followedBy(pattern: Pattern[T, _ <: T]): Pattern[T, T] = {
+    Pattern(jPattern.followedBy(pattern.wrappedPattern))
   }
 
   /**
-    * Specifies a filter condition which has to be fulfilled by an event in order to be matched.
+    * Compute states for this pattern.
     *
-    * @param filter Filter condition
-    * @return The same pattern operator where the new filter condition is set
+    * @param states Current map of states.
+    * @param succeedingState State to transition.
+    * @param filterFunction Filter function for transition.
+    * @return A collection of the beginning states for this pattern.
     */
-  def where(filter: FilterFunction[F]): Pattern[T, F] = {
-    jPattern.where(filter)
-    this
-  }
-
-  /**
-    * Specifies a filter condition which is ORed with an existing filter function.
-    *
-    * @param filter Or filter function
-    * @return The same pattern operator where the new filter condition is set
-    */
-  def or(filter: FilterFunction[F]): Pattern[T, F] = {
-    jPattern.or(filter)
-    this
-  }
-
-  /**
-    * Specifies a filter condition which has to be fulfilled by an event in order to be matched.
-    *
-    * @param filterFun Filter condition
-    * @return The same pattern operator where the new filter condition is set
-    */
-  def where(filterFun: F => Boolean): Pattern[T, F] = {
-    val filter = new FilterFunction[F] {
-      val cleanFilter = cep.scala.cleanClosure(filterFun)
-
-      override def filter(value: F): Boolean = cleanFilter(value)
-    }
-    where(filter)
-  }
-
-  /**
-    *
-    * @return The previous pattern operator
-    */
-  def getPrevious(): Option[Pattern[T, _ <: T]] = {
-    wrapPattern(jPattern.getPrevious())
-  }
-
+  def setStates(states: util.Map[String, State[T]],
+                succeedingState: State[T],
+                filterFunction: FilterFunction[T]
+               ): util.Collection[Tuple2[State[T], JPattern[T, _ <: T]]] =
+    jPattern.setStates(states, succeedingState, filterFunction)
+      .asInstanceOf[util.Collection[Tuple2[State[T], JPattern[T, _ <: T]]]]
 }
 
 object Pattern {
@@ -174,14 +133,8 @@ object Pattern {
     */
   def apply[T, F <: T](jPattern: JPattern[T, F]) = new Pattern[T, F](jPattern)
 
-  /**
-    * Starts a new pattern with the initial pattern operator whose name is provided. Furthermore,
-    * the base type of the event sequence is set.
-    *
-    * @param name Name of the new pattern operator
-    * @tparam X Base type of the event pattern
-    * @return The first pattern operator of a pattern
-    */
-  def begin[X](name: String): Pattern[X, X] = Pattern(JPattern.begin(name))
+  def apply[T](name: String) = new EventPattern[T, T](JEventPattern.event(name))
 
+  def or[T](left: Pattern[T, _ <: T], right: Pattern[T, _ <: T]) =
+    new Pattern[T, T](JPattern.or(left.wrappedPattern, right.wrappedPattern))
 }

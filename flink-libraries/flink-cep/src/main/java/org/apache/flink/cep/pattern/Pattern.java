@@ -18,10 +18,19 @@
 
 package org.apache.flink.cep.pattern;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.FilterFunction;
-import org.apache.flink.api.java.ClosureCleaner;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.cep.nfa.NFA;
+import org.apache.flink.cep.nfa.State;
 import org.apache.flink.streaming.api.windowing.time.Time;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Map;
 
 /**
  * Base class for a pattern definition.
@@ -30,9 +39,9 @@ import org.apache.flink.streaming.api.windowing.time.Time;
  * a {@link NFA}.
  *
  * <pre>{@code
- * Pattern<T, F> pattern = Pattern.<T>begin("start")
- *   .next("middle").subtype(F.class)
- *   .followedBy("end").where(new MyFilterFunction());
+ * Pattern<T, F> pattern = EventPattern.<T>event("start")
+ *   .next(EventPattern.<T>event("middle").subtype(F.class))
+ *   .followedBy(EventPattern.<T>event("end").where(new MyFilterFunction()));
  * }
  * </pre>
  *
@@ -41,94 +50,68 @@ import org.apache.flink.streaming.api.windowing.time.Time;
  */
 public class Pattern<T, F extends T> {
 
-	// name of the pattern operator
-	private final String name;
-
 	// previous pattern operator
-	private final Pattern<T, ? extends T> previous;
-
-	// filter condition for an event to be matched
-	private FilterFunction<F> filterFunction;
+	private Collection<Pattern<T, ? extends T>> parents;
 
 	// window length in which the pattern match has to occur
 	private Time windowTime;
 
-	protected Pattern(final String name, final Pattern<T, ? extends T> previous) {
-		this.name = name;
-		this.previous = previous;
+	protected Pattern() {
+		this.parents = new HashSet<>();
 	}
 
-	public String getName() {
-		return name;
+	@SafeVarargs
+	private Pattern(final Pattern<T, ? extends T>... parents) {
+		this.parents = new HashSet<>(Arrays.asList(parents));
 	}
 
-	public Pattern<T, ? extends T> getPrevious() {
-		return previous;
+	/**
+	 * Function to define branched pattern.
+	 *
+	 * <pre>{@code
+	 * Pattern<T, F> pattern = EventPattern.<T>event("start")
+	 *   .next(
+	 *     Pattern.or(
+	 *       EventPattern.<T>event("middle_1").subtype(F.class)),
+	 *       EventPattern.<T>event("middle_2").where(new MyFilterFunction())
+	 *     ))
+	 *   .followedBy(EventPattern.<T>event("end"));
+	 * }
+	 * </pre>
+	 *
+	 * @param patterns Children patterns.
+	 * @return A new pattern operator which is appended to the patterns.
+	 */
+	@SafeVarargs
+	public static <T> Pattern<T, T> or(final Pattern<T, ? extends T>... patterns) {
+		return new Pattern<>(patterns);
 	}
 
-	public FilterFunction<F> getFilterFunction() {
-		return filterFunction;
+	public Collection<Pattern<T, ? extends T>> getParents() {
+		return parents;
+	}
+
+	protected void setSkipped() {
+		for (Pattern<T, ? extends T> parent : parents) {
+			parent.setSkipped();
+		}
 	}
 
 	public Time getWindowTime() {
-		return windowTime;
+		long time = this.windowTime != null ? this.windowTime.toMilliseconds() : -1L;
+		for (Pattern<T, ? extends T> parent : parents) {
+			if (parent.getWindowTime() != null && (
+				parent.getWindowTime().toMilliseconds() < time || time < 0
+			)) {
+				// the window time is the global minimum of all window times of each state
+				time = parent.getWindowTime().toMilliseconds();
+			}
+		}
+		return time < 0 ? null : Time.milliseconds(time);
 	}
 
-	/**
-	 * Specifies a filter condition which has to be fulfilled by an event in order to be matched.
-	 *
-	 * @param newFilterFunction Filter condition
-	 * @return The same pattern operator where the new filter condition is set
-	 */
-	public Pattern<T, F> where(FilterFunction<F> newFilterFunction) {
-		ClosureCleaner.clean(newFilterFunction, true);
-
-		if (this.filterFunction == null) {
-			this.filterFunction = newFilterFunction;
-		} else {
-			this.filterFunction = new AndFilterFunction<F>(this.filterFunction, newFilterFunction);
-		}
-
-		return this;
-	}
-
-	/**
-	 * Specifies a filter condition which is ORed with an existing filter function.
-	 *
-	 * @param orFilterFunction OR filter condition
-	 * @return The same pattern operator where the new filter condition is set
-	 */
-	public Pattern<T, F> or(FilterFunction<F> orFilterFunction) {
-		ClosureCleaner.clean(orFilterFunction, true);
-
-		if (this.filterFunction == null) {
-			this.filterFunction = orFilterFunction;
-		} else {
-			this.filterFunction = new OrFilterFunction<>(this.filterFunction, orFilterFunction);
-		}
-
-		return this;
-	}
-
-	/**
-	 * Applies a subtype constraint on the current pattern operator. This means that an event has
-	 * to be of the given subtype in order to be matched.
-	 *
-	 * @param subtypeClass Class of the subtype
-	 * @param <S> Type of the subtype
-	 * @return The same pattern operator with the new subtype constraint
-	 */
-	public <S extends F> Pattern<T, S> subtype(final Class<S> subtypeClass) {
-		if (filterFunction == null) {
-			this.filterFunction = new SubtypeFilterFunction<F>(subtypeClass);
-		} else {
-			this.filterFunction = new AndFilterFunction<F>(this.filterFunction, new SubtypeFilterFunction<F>(subtypeClass));
-		}
-
-		@SuppressWarnings("unchecked")
-		Pattern<T, S> result = (Pattern<T, S>) this;
-
-		return result;
+	public FilterFunction<F> getFilterFunction() {
+		return null;
 	}
 
 	/**
@@ -136,7 +119,7 @@ public class Pattern<T, F extends T> {
 	 * between first and the last event must not be longer than the window time.
 	 *
 	 * @param windowTime Time of the matching window
-	 * @return The same pattenr operator with the new window length
+	 * @return The same pattern operator with the new window length
 	 */
 	public Pattern<T, F> within(Time windowTime) {
 		if (windowTime != null) {
@@ -152,11 +135,19 @@ public class Pattern<T, F extends T> {
 	 * this operator directly follows the preceding matching event. Thus, there cannot be any
 	 * events in between two matching events.
 	 *
-	 * @param name Name of the new pattern operator
+	 * @param pattern New pattern operator
 	 * @return A new pattern operator which is appended to this pattern operator
 	 */
-	public Pattern<T, T> next(final String name) {
-		return new Pattern<T, T>(name, this);
+	@SuppressWarnings("unchecked")
+	public Pattern<T, T> next(final Pattern<T, ? extends T> pattern) {
+		if (pattern.parents == null || pattern.parents.isEmpty()) {
+			pattern.parents = Collections.<Pattern<T, ? extends T>>singleton(this);
+		} else {
+			for (Pattern<T, ? extends T> parent : pattern.parents) {
+				next(parent);
+			}
+		}
+		return (Pattern<T, T>) pattern;
 	}
 
 	/**
@@ -164,23 +155,30 @@ public class Pattern<T, F extends T> {
 	 * non-strict temporal contiguity. This means that a matching event of this operator and the
 	 * preceding matching event might be interleaved with other events which are ignored.
 	 *
-	 * @param name Name of the new pattern operator
+	 * @param pattern New pattern operator
 	 * @return A new pattern operator which is appended to this pattern operator
 	 */
-	public FollowedByPattern<T, T> followedBy(final String name) {
-		return new FollowedByPattern<T, T>(name, this);
+	@SuppressWarnings("unchecked")
+	public Pattern<T, T> followedBy(final Pattern<T, ? extends T> pattern) {
+		this.setSkipped();
+		next(pattern);
+		return (Pattern<T, T>) pattern;
 	}
 
 	/**
-	 * Starts a new pattern with the initial pattern operator whose name is provided. Furthermore,
-	 * the base type of the event sequence is set.
+	 * Compute states for this pattern.
 	 *
-	 * @param name Name of the new pattern operator
-	 * @param <X> Base type of the event pattern
-	 * @return The first pattern operator of a pattern
+	 * @param states Current map of states.
+	 * @param succeedingState State to transition.
+	 * @param filterFunction Filter function for transition.
+	 * @return A collection of the beginning states for this pattern.
 	 */
-	public static <X> Pattern<X, X> begin(final String name) {
-		return new Pattern<X, X>(name, null);
+	@Internal
+	public Collection<Tuple2<State<T>, Pattern<T, ?>>> setStates(Map<String, State<T>> states, State<T> succeedingState, FilterFunction<T> filterFunction) {
+		Collection<Tuple2<State<T>, Pattern<T, ?>>> startStates = new ArrayList<>();
+		for (Pattern<T, ? extends T> parent : parents) {
+			startStates.addAll(parent.setStates(states, succeedingState, filterFunction));
+		}
+		return startStates;
 	}
-
 }

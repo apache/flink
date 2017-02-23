@@ -42,8 +42,7 @@ public class State<T> implements Serializable {
 	public State(final String name, final StateType stateType) {
 		this.name = name;
 		this.stateType = stateType;
-
-		stateTransitions = new ArrayList<StateTransition<T>>();
+		stateTransitions = new ArrayList<>();
 	}
 
 	public boolean isFinal() {
@@ -61,7 +60,9 @@ public class State<T> implements Serializable {
 	}
 
 	public void addStateTransition(final StateTransition<T> stateTransition) {
-		stateTransitions.add(stateTransition);
+		if (!stateTransitions.contains(stateTransition)) {
+			stateTransitions.add(stateTransition);
+		}
 	}
 
 	@Override
