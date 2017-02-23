@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.ByteSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.functions.NullByteKeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.EitherTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
@@ -77,7 +78,7 @@ public class CEPOperatorUtils {
 			KeySelector<T, Byte> keySelector = new NullByteKeySelector<>();
 			TypeSerializer<Byte> keySerializer = ByteSerializer.INSTANCE;
 
-			patternStream = inputStream.keyBy(new NullByteKeySelector<T>()).transform(
+			patternStream = inputStream.keyBy(keySelector).transform(
 				"CEPPatternOperator",
 				(TypeInformation<Map<String, T>>) (TypeInformation<?>) TypeExtractor.getForClass(Map.class),
 				new KeyedCEPPatternOperator<>(
@@ -136,9 +137,10 @@ public class CEPOperatorUtils {
 		} else {
 
 			KeySelector<T, Byte> keySelector = new NullByteKeySelector<>();
+
 			TypeSerializer<Byte> keySerializer = ByteSerializer.INSTANCE;
 
-			patternStream = inputStream.keyBy(new NullByteKeySelector<T>()).transform(
+			patternStream = inputStream.keyBy(keySelector).transform(
 				"TimeoutCEPPatternOperator",
 				eitherTypeInformation,
 				new TimeoutKeyedCEPPatternOperator<>(
@@ -151,20 +153,5 @@ public class CEPOperatorUtils {
 		}
 
 		return patternStream;
-	}
-
-	/**
-	 * Used as dummy {@link KeySelector} to allow using
-	 * {@link AbstractKeyedCEPPatternOperator} for Non-Keyed CEP usecases.
-	 * @param <T> The type of the input element.
-	 */
-	protected static class NullByteKeySelector<T> implements KeySelector<T, Byte> {
-
-		private static final long serialVersionUID = 614256539098549020L;
-
-		@Override
-		public Byte getKey(T value) throws Exception {
-			return 0;
-		}
 	}
 }
