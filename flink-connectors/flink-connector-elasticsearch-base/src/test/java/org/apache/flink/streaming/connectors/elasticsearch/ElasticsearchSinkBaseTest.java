@@ -470,33 +470,35 @@ public class ElasticsearchSinkBaseTest {
 			doAnswer(new Answer() {
 				@Override
 				public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-					// wait until we are allowed to continue with the flushing
-					flushLatch.await();
+					while (nextBulkRequest.numberOfActions() > 0) {
+						// wait until we are allowed to continue with the flushing
+						flushLatch.await();
 
-					// create a copy of the accumulated mock requests, so that
-					// re-added requests from the failure handler are included in the next bulk
-					BulkRequest currentBulkRequest = nextBulkRequest;
-					nextBulkRequest = new BulkRequest();
+						// create a copy of the accumulated mock requests, so that
+						// re-added requests from the failure handler are included in the next bulk
+						BulkRequest currentBulkRequest = nextBulkRequest;
+						nextBulkRequest = new BulkRequest();
 
-					listener.beforeBulk(123L, currentBulkRequest);
+						listener.beforeBulk(123L, currentBulkRequest);
 
-					if (nextBulkFailure == null) {
-						BulkItemResponse[] mockResponses = new BulkItemResponse[currentBulkRequest.requests().size()];
-						for (int i = 0; i < currentBulkRequest.requests().size(); i++) {
-							Throwable mockItemFailure = mockItemFailuresList.get(i);
+						if (nextBulkFailure == null) {
+							BulkItemResponse[] mockResponses = new BulkItemResponse[currentBulkRequest.requests().size()];
+							for (int i = 0; i < currentBulkRequest.requests().size(); i++) {
+								Throwable mockItemFailure = mockItemFailuresList.get(i);
 
-							if (mockItemFailure == null) {
-								// the mock response for the item is success
-								mockResponses[i] = new BulkItemResponse(i, "opType", mock(ActionResponse.class));
-							} else {
-								// the mock response for the item is failure
-								mockResponses[i] = new BulkItemResponse(i, "opType", new BulkItemResponse.Failure("index", "type", "id", mockItemFailure));
+								if (mockItemFailure == null) {
+									// the mock response for the item is success
+									mockResponses[i] = new BulkItemResponse(i, "opType", mock(ActionResponse.class));
+								} else {
+									// the mock response for the item is failure
+									mockResponses[i] = new BulkItemResponse(i, "opType", new BulkItemResponse.Failure("index", "type", "id", mockItemFailure));
+								}
 							}
-						}
 
-						listener.afterBulk(123L, currentBulkRequest, new BulkResponse(mockResponses, 1000L));
-					} else {
-						listener.afterBulk(123L, currentBulkRequest, nextBulkFailure);
+							listener.afterBulk(123L, currentBulkRequest, new BulkResponse(mockResponses, 1000L));
+						} else {
+							listener.afterBulk(123L, currentBulkRequest, nextBulkFailure);
+						}
 					}
 
 					return null;
