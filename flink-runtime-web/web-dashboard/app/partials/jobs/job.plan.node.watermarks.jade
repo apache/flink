@@ -15,7 +15,7 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-table.table.table-hover.table-clickable.table-activable.table-inner(ng-if="(watermarks | watermarksByNode:nodeid).length")
+table.table.table-hover.table-clickable.table-activable.table-inner(ng-if="hasWatermarks(nodeid)")
   thead
     tr
       th id

@@ -23,7 +23,7 @@ table.table.table-body-hover.table-clickable.table-activable
       th Parallelism
       th Status
 
-  tbody(ng-repeat="v in job.vertices" ng-class="{ active: v.id == nodeid }" ng-click="changeNode(v.id)")
+  tbody(ng-repeat="v in job.vertices" ng-class="{ active: v.id == nodeid && hasWatermarks(nodeid) }" ng-click="changeNode(v.id)")
     tr(ng-if="v.type == 'regular'")
 
       td.td-long {{ v.name | humanizeText }}
@@ -31,6 +31,6 @@ table.table.table-body-hover.table-clickable.table-activable
       td {{ v.parallelism }}
       td 
         bs-label(status="{{v.status}}") {{v.status}}
-    tr(ng-if="nodeid && v.id == nodeid")
+    tr(ng-if="nodeid && v.id == nodeid && hasWatermarks(nodeid)")
       td(colspan="11")
         div(ng-include=" 'partials/jobs/job.plan.node.watermarks.html' ")

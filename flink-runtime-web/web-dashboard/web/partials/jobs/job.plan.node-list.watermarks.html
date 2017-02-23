@@ -26,7 +26,7 @@ limitations under the License.
       <th>Status</th>
     </tr>
   </thead>
-  <tbody ng-repeat="v in job.vertices" ng-class="{ active: v.id == nodeid }" ng-click="changeNode(v.id)">
+  <tbody ng-repeat="v in job.vertices" ng-class="{ active: v.id == nodeid &amp;&amp; hasWatermarks(nodeid) }" ng-click="changeNode(v.id)">
     <tr ng-if="v.type == 'regular'">
       <td class="td-long">{{ v.name | humanizeText }}</td>
       <td>{{ watermarks | lowWatermark:v.id }}</td>
@@ -35,7 +35,7 @@ limitations under the License.
         <bs-label status="{{v.status}}">{{v.status}}</bs-label>
       </td>
     </tr>
-    <tr ng-if="nodeid &amp;&amp; v.id == nodeid">
+    <tr ng-if="nodeid &amp;&amp; v.id == nodeid &amp;&amp; hasWatermarks(nodeid)">
       <td colspan="11">
         <div ng-include=" 'partials/jobs/job.plan.node.watermarks.html' "></div>
       </td>
