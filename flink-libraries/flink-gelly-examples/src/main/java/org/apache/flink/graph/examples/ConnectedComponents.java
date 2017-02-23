@@ -28,6 +28,7 @@ import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.library.GSAConnectedComponents;
+import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
 
 /**
@@ -59,17 +60,17 @@ public class ConnectedComponents implements ProgramDescription {
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		DataSet<Edge<Long, NullValue>> edges = getEdgesDataSet(env);
+		DataSet<Edge<LongValue, NullValue>> edges = getEdgesDataSet(env);
 
-		Graph<Long, Long, NullValue> graph = Graph.fromDataSet(edges, new MapFunction<Long, Long>() {
+		Graph<LongValue, LongValue, NullValue> graph = Graph.fromDataSet(edges, new MapFunction<LongValue, LongValue>() {
 			@Override
-			public Long map(Long value) throws Exception {
+			public LongValue map(LongValue value) throws Exception {
 				return value;
 			}
 		}, env);
 
-		DataSet<Vertex<Long, Long>> verticesWithMinIds = graph
-				.run(new GSAConnectedComponents<Long, Long, NullValue>(maxIterations));
+		DataSet<Vertex<LongValue, LongValue>> verticesWithMinIds = graph
+				.run(new GSAConnectedComponents<LongValue, LongValue, NullValue>(maxIterations));
 
 		// emit result
 		if (fileOutput) {
@@ -120,17 +121,17 @@ public class ConnectedComponents implements ProgramDescription {
 	}
 
 	@SuppressWarnings("serial")
-	private static DataSet<Edge<Long, NullValue>> getEdgesDataSet(ExecutionEnvironment env) {
+	private static DataSet<Edge<LongValue, NullValue>> getEdgesDataSet(ExecutionEnvironment env) {
 
 		if(fileOutput) {
 			return env.readCsvFile(edgeInputPath)
 					.ignoreComments("#")
 					.fieldDelimiter("\t")
 					.lineDelimiter("\n")
-					.types(Long.class, Long.class)
-					.map(new MapFunction<Tuple2<Long, Long>, Edge<Long, NullValue>>() {
+					.types(LongValue.class, LongValue.class)
+					.map(new MapFunction<Tuple2<LongValue, LongValue>, Edge<LongValue, NullValue>>() {
 						@Override
-						public Edge<Long, NullValue> map(Tuple2<Long, Long> value) throws Exception {
+						public Edge<LongValue, NullValue> map(Tuple2<LongValue, LongValue> value) throws Exception {
 							return new Edge<>(value.f0, value.f1, NullValue.getInstance());
 						}
 					});

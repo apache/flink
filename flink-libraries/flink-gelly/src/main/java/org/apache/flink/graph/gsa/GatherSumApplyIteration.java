@@ -332,6 +332,15 @@ public class GatherSumApplyIteration<K, VV, EV, M> implements CustomUnaryOperati
 		public Tuple2<K, M> reduce(Tuple2<K, M> arg0, Tuple2<K, M> arg1) throws Exception {
 			K key = arg0.f0;
 			M result = this.sumFunction.sum(arg0.f1, arg1.f1);
+
+			// if the user returns value from the right argument then swap as
+			// in ReduceDriver.run()
+			if (result == arg1.f1) {
+				M tmp = arg1.f1;
+				arg1.f1 = arg0.f1;
+				arg0.f1 = tmp;
+			}
+
 			return new Tuple2<>(key, result);
 		}
 

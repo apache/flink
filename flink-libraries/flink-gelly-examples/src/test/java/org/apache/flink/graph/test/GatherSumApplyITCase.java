@@ -27,6 +27,7 @@ import org.apache.flink.graph.examples.data.SingleSourceShortestPathsData;
 import org.apache.flink.graph.library.GSAConnectedComponents;
 import org.apache.flink.graph.library.GSASingleSourceShortestPaths;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
+import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -50,13 +51,14 @@ public class GatherSumApplyITCase extends MultipleProgramsTestBase {
 	@Test
 	public void testConnectedComponents() throws Exception {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.getConfig().enableObjectReuse();
 
-		Graph<Long, Long, NullValue> inputGraph = Graph.fromDataSet(
+		Graph<LongValue, LongValue, NullValue> inputGraph = Graph.fromDataSet(
 			ConnectedComponentsDefaultData.getDefaultEdgeDataSet(env),
 			new InitMapperCC(), env);
 
-		List<Vertex<Long, Long>> result = inputGraph.run(
-			new GSAConnectedComponents<Long, Long, NullValue>(16)).collect();
+		List<Vertex<LongValue, LongValue>> result = inputGraph.run(
+			new GSAConnectedComponents<LongValue, LongValue, NullValue>(16)).collect();
 
 		expectedResult = "1,1\n" +
 			"2,1\n" +
@@ -91,8 +93,8 @@ public class GatherSumApplyITCase extends MultipleProgramsTestBase {
 	}
 
 	@SuppressWarnings("serial")
-	private static final class InitMapperCC implements MapFunction<Long, Long> {
-		public Long map(Long value) {
+	private static final class InitMapperCC implements MapFunction<LongValue, LongValue> {
+		public LongValue map(LongValue value) {
 			return value;
 		}
 	}
