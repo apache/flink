@@ -212,14 +212,14 @@ object AggregateUtil {
         else {
           // for non-incremental aggregations
           new DataSetTumbleTimeWindowAggReduceGroupFunction(
-            intermediateRowArity - 1,
+            intermediateRowArity,
             asLong(size),
             startPos,
             endPos,
             aggregates,
             groupingOffsetMapping,
             aggOffsetMapping,
-            intermediateRowArity,
+            intermediateRowArity + 1, // the additional field is used to store the time attribute
             outputType.getFieldCount)
         }
       case EventTimeTumblingGroupWindow(_, _, size) =>
