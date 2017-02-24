@@ -34,12 +34,14 @@ import static org.powermock.api.mockito.PowerMockito.spy;
 import static org.powermock.api.mockito.PowerMockito.when;
 import static org.powermock.api.mockito.PowerMockito.whenNew;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.RunnableFuture;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -55,12 +57,14 @@ import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.internal.util.reflection.Whitebox;
@@ -610,6 +614,208 @@ public class AbstractStreamOperatorTest {
 		verify(futureKeyGroupStateHandle).cancel(anyBoolean());
 	}
 
+	@Test
+	public void testWatermarkCallbackServiceScalingUp() throws Exception {
+		final int MAX_PARALLELISM = 10;
+
+		KeySelector<Tuple2<Integer, String>, Integer> keySelector = new TestKeySelector();
+
+		Tuple2<Integer, String> element1 = new Tuple2<>(7, "first");
+		Tuple2<Integer, String> element2 = new Tuple2<>(10, "start");
+
+		int keygroup = KeyGroupRangeAssignment.assignToKeyGroup(keySelector.getKey(element1), MAX_PARALLELISM);
+		assertEquals(1, keygroup);
+		assertEquals(0, KeyGroupRangeAssignment.computeOperatorIndexForKeyGroup(MAX_PARALLELISM, 2, keygroup));
+
+		keygroup = KeyGroupRangeAssignment.assignToKeyGroup(keySelector.getKey(element2), MAX_PARALLELISM);
+		assertEquals(9, keygroup);
+		assertEquals(1, KeyGroupRangeAssignment.computeOperatorIndexForKeyGroup(MAX_PARALLELISM, 2, keygroup));
+
+		// now we start the test, we go from parallelism 1 to 2.
+
+		KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, Integer> testHarness1 =
+			getTestHarness(MAX_PARALLELISM, 1, 0);
+		testHarness1.open();
+
+		testHarness1.processElement(new StreamRecord<>(element1));
+		testHarness1.processElement(new StreamRecord<>(element2));
+
+		assertEquals(0, testHarness1.getOutput().size());
+
+		// take a snapshot with some elements in internal sorting queue
+		OperatorStateHandles snapshot = testHarness1.snapshot(0, 0);
+		testHarness1.close();
+
+		// initialize two sub-tasks with the previously snapshotted state to simulate scaling up
+
+		KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, Integer> testHarness2 =
+			getTestHarness(MAX_PARALLELISM, 2, 0);
+
+		testHarness2.setup();
+		testHarness2.initializeState(snapshot);
+		testHarness2.open();
+
+		KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, Integer> testHarness3 =
+			getTestHarness(MAX_PARALLELISM, 2, 1);
+
+		testHarness3.setup();
+		testHarness3.initializeState(snapshot);
+		testHarness3.open();
+
+		testHarness2.processWatermark(new Watermark(10));
+		testHarness3.processWatermark(new Watermark(10));
+
+		assertEquals(2, testHarness2.getOutput().size());
+		verifyElement(testHarness2.getOutput().poll(), 7);
+		verifyWatermark(testHarness2.getOutput().poll(), 10);
+
+		assertEquals(2, testHarness3.getOutput().size());
+		verifyElement(testHarness3.getOutput().poll(), 10);
+		verifyWatermark(testHarness3.getOutput().poll(), 10);
+
+		testHarness1.close();
+		testHarness2.close();
+		testHarness3.close();
+	}
+
+	@Test
+	public void testWatermarkCallbackServiceScalingDown() throws Exception {
+		final int MAX_PARALLELISM = 10;
+
+		KeySelector<Tuple2<Integer, String>, Integer> keySelector = new TestKeySelector();
+
+		Tuple2<Integer, String> element1 = new Tuple2<>(7, "first");
+		Tuple2<Integer, String> element2 = new Tuple2<>(45, "start");
+		Tuple2<Integer, String> element3 = new Tuple2<>(90, "start");
+		Tuple2<Integer, String> element4 = new Tuple2<>(10, "start");
+
+		int keygroup = KeyGroupRangeAssignment.assignToKeyGroup(keySelector.getKey(element1), MAX_PARALLELISM);
+		assertEquals(1, keygroup);
+		assertEquals(0, KeyGroupRangeAssignment.computeOperatorIndexForKeyGroup(MAX_PARALLELISM, 3, keygroup));
+		assertEquals(0, KeyGroupRangeAssignment.computeOperatorIndexForKeyGroup(MAX_PARALLELISM, 2, keygroup));
+
+		keygroup = KeyGroupRangeAssignment.assignToKeyGroup(keySelector.getKey(element2), MAX_PARALLELISM);
+		assertEquals(6, keygroup);
+		assertEquals(1, KeyGroupRangeAssignment.computeOperatorIndexForKeyGroup(MAX_PARALLELISM, 3, keygroup));
+		assertEquals(1, KeyGroupRangeAssignment.computeOperatorIndexForKeyGroup(MAX_PARALLELISM, 2, keygroup));
+
+		keygroup = KeyGroupRangeAssignment.assignToKeyGroup(keySelector.getKey(element3), MAX_PARALLELISM);
+		assertEquals(2, keygroup);
+		assertEquals(0, KeyGroupRangeAssignment.computeOperatorIndexForKeyGroup(MAX_PARALLELISM, 3, keygroup));
+		assertEquals(0, KeyGroupRangeAssignment.computeOperatorIndexForKeyGroup(MAX_PARALLELISM, 2, keygroup));
+
+		keygroup = KeyGroupRangeAssignment.assignToKeyGroup(keySelector.getKey(element4), MAX_PARALLELISM);
+		assertEquals(9, keygroup);
+		assertEquals(2, KeyGroupRangeAssignment.computeOperatorIndexForKeyGroup(MAX_PARALLELISM, 3, keygroup));
+		assertEquals(1, KeyGroupRangeAssignment.computeOperatorIndexForKeyGroup(MAX_PARALLELISM, 2, keygroup));
+
+		// starting the test, we will go from parallelism of 3 to parallelism of 2
+
+		// first operator
+		KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, Integer> testHarness1 =
+			getTestHarness(MAX_PARALLELISM, 3, 0);
+		testHarness1.open();
+
+		// second operator
+		KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, Integer> testHarness2 =
+			getTestHarness(MAX_PARALLELISM, 3, 1);
+		testHarness2.open();
+
+		// third operator
+		KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, Integer> testHarness3 =
+			getTestHarness(MAX_PARALLELISM, 3, 2);
+		testHarness3.open();
+
+		testHarness1.processWatermark(Long.MIN_VALUE);
+		testHarness2.processWatermark(Long.MIN_VALUE);
+		testHarness3.processWatermark(Long.MIN_VALUE);
+
+		testHarness1.processElement(new StreamRecord<>(element1));
+		testHarness1.processElement(new StreamRecord<>(element3));
+
+		testHarness2.processElement(new StreamRecord<>(element2));
+		testHarness3.processElement(new StreamRecord<>(element4));
+
+		// so far we only have the initial watermark
+		assertEquals(1, testHarness1.getOutput().size());
+		verifyWatermark(testHarness1.getOutput().poll(), Long.MIN_VALUE);
+
+		assertEquals(1, testHarness2.getOutput().size());
+		verifyWatermark(testHarness2.getOutput().poll(), Long.MIN_VALUE);
+
+		assertEquals(1, testHarness3.getOutput().size());
+		verifyWatermark(testHarness3.getOutput().poll(), Long.MIN_VALUE);
+
+		// we take a snapshot and make it look as a single operator
+		// this will be the initial state of all downstream tasks.
+		OperatorStateHandles snapshot = AbstractStreamOperatorTestHarness.repackageState(
+			testHarness2.snapshot(0, 0),
+			testHarness1.snapshot(0, 0),
+			testHarness3.snapshot(0, 0)
+		);
+
+		// first new operator
+		KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, Integer> testHarness4 =
+			getTestHarness(MAX_PARALLELISM, 2, 0);
+		testHarness4.setup();
+		testHarness4.initializeState(snapshot);
+		testHarness4.open();
+
+		// second new operator
+		KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, Integer> testHarness5 =
+			getTestHarness(MAX_PARALLELISM, 2, 1);
+		testHarness5.setup();
+		testHarness5.initializeState(snapshot);
+		testHarness5.open();
+
+		testHarness4.processWatermark(10);
+		testHarness5.processWatermark(10);
+
+		assertEquals(3, testHarness4.getOutput().size());
+		verifyElement(testHarness4.getOutput().poll(), 7);
+		verifyElement(testHarness4.getOutput().poll(), 90);
+		verifyWatermark(testHarness4.getOutput().poll(), 10);
+
+		assertEquals(3, testHarness5.getOutput().size());
+		verifyElement(testHarness5.getOutput().poll(), 45);
+		verifyElement(testHarness5.getOutput().poll(), 10);
+		verifyWatermark(testHarness5.getOutput().poll(), 10);
+
+		testHarness1.close();
+		testHarness2.close();
+		testHarness3.close();
+		testHarness4.close();
+		testHarness5.close();
+	}
+
+	private KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, Integer> getTestHarness(
+			int maxParallelism, int noOfTasks, int taskIdx) throws Exception {
+
+		return new KeyedOneInputStreamOperatorTestHarness<>(
+			new TestOperatorWithCallback(),
+			new TestKeySelector(),
+			BasicTypeInfo.INT_TYPE_INFO,
+			maxParallelism,
+			noOfTasks, /* num subtasks */
+			taskIdx /* subtask index */);
+	}
+
+	private void verifyWatermark(Object outputObject, long timestamp) {
+		Assert.assertTrue(outputObject instanceof Watermark);
+		assertEquals(timestamp, ((Watermark) outputObject).getTimestamp());
+	}
+
+	private void verifyElement(Object outputObject, int expected) {
+		Assert.assertTrue(outputObject instanceof StreamRecord);
+
+		StreamRecord<?> resultRecord = (StreamRecord<?>) outputObject;
+		Assert.assertTrue(resultRecord.getValue() instanceof Integer);
+
+		@SuppressWarnings("unchecked")
+		int actual = (Integer) resultRecord.getValue();
+		assertEquals(expected, actual);
+	}
+
 	/**
 	 * Extracts the result values form the test harness and clear the output queue.
 	 */
@@ -626,13 +832,39 @@ public class AbstractStreamOperatorTest {
 		return result;
 	}
 
-
 	private static class TestKeySelector implements KeySelector<Tuple2<Integer, String>, Integer> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
 		public Integer getKey(Tuple2<Integer, String> value) throws Exception {
 			return value.f0;
+		}
+	}
+
+	private static class TestOperatorWithCallback
+			extends AbstractStreamOperator<Integer>
+			implements OneInputStreamOperator<Tuple2<Integer, String>, Integer> {
+
+		private static final long serialVersionUID = 9215057823264582305L;
+
+		@Override
+		public void open() throws Exception {
+			super.open();
+
+			InternalWatermarkCallbackService<Integer> callbackService = getInternalWatermarkCallbackService();
+
+			callbackService.setWatermarkCallback(new OnWatermarkCallback<Integer>() {
+
+				@Override
+				public void onWatermark(Integer integer, Watermark watermark) throws IOException {
+					output.collect(new StreamRecord<>(integer));
+				}
+			}, IntSerializer.INSTANCE);
+		}
+
+		@Override
+		public void processElement(StreamRecord<Tuple2<Integer, String>> element) throws Exception {
+			getInternalWatermarkCallbackService().registerKeyForWatermarkCallback(element.getValue().f0);
 		}
 	}
 

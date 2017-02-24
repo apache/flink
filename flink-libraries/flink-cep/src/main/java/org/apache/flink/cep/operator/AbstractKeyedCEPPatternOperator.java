@@ -24,14 +24,12 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
-import org.apache.flink.core.fs.FSDataInputStream;
-import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.streaming.api.operators.StreamCheckpointedOperator;
+import org.apache.flink.runtime.state.StateInitializationContext;
+import org.apache.flink.streaming.api.operators.InternalWatermarkCallbackService;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.OnWatermarkCallback;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
@@ -40,10 +38,8 @@ import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.HashSet;
 import java.util.Objects;
 import java.util.PriorityQueue;
-import java.util.Set;
 
 /**
  * Abstract CEP pattern operator for a keyed input stream. For each key, the operator creates
@@ -58,7 +54,7 @@ import java.util.Set;
  */
 public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 	extends AbstractStreamOperator<OUT>
-	implements OneInputStreamOperator<IN, OUT>, StreamCheckpointedOperator {
+	implements OneInputStreamOperator<IN, OUT> {
 
 	private static final long serialVersionUID = -4166778210774160757L;
 
@@ -75,11 +71,6 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 	private final TypeSerializer<KEY> keySerializer;
 
 	///////////////			State			//////////////
-
-	// stores the keys we've already seen to trigger execution upon receiving a watermark
-	// this can be problematic, since it is never cleared
-	// TODO: fix once the state refactoring is completed
-	private transient Set<KEY> keys;
 
 	private static final String NFA_OPERATOR_STATE_NAME = "nfaOperatorState";
 	private static final String PRIORITY_QUEUE_STATE_NAME = "priorityQueueStateName";
@@ -109,25 +100,31 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 	}
 
 	@Override
-	@SuppressWarnings("unchecked")
-	public void open() throws Exception {
-		super.open();
+	public void initializeState(StateInitializationContext context) throws Exception {
+		super.initializeState(context);
 
-		if (keys == null) {
-			keys = new HashSet<>();
-		}
+		// we have to call initializeState here and in the migration restore()
+		// method because the restore() (from legacy) is called before the
+		// initializeState().
+
+		initializeState();
+	}
+
+	private void initializeState() {
 
 		if (nfaOperatorState == null) {
-			nfaOperatorState = getPartitionedState(
-				new ValueStateDescriptor<>(NFA_OPERATOR_STATE_NAME, new NFA.Serializer<IN>()));
+			nfaOperatorState = getRuntimeContext().getState(
+				new ValueStateDescriptor<>(
+					NFA_OPERATOR_STATE_NAME,
+					new NFA.Serializer<IN>()));
 		}
 
 		@SuppressWarnings("unchecked,rawtypes")
 		TypeSerializer<StreamRecord<IN>> streamRecordSerializer =
-			(TypeSerializer) new StreamElementSerializer<>(getInputSerializer());
+			(TypeSerializer) new StreamElementSerializer<>(inputSerializer);
 
 		if (priorityQueueOperatorState == null) {
-			priorityQueueOperatorState = getPartitionedState(
+			priorityQueueOperatorState = getRuntimeContext().getState(
 				new ValueStateDescriptor<>(
 					PRIORITY_QUEUE_STATE_NAME,
 					new PriorityQueueSerializer<>(
@@ -137,6 +134,39 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 				)
 			);
 		}
+	}
+
+	@Override
+	public void open() throws Exception {
+		super.open();
+
+		InternalWatermarkCallbackService<KEY> watermarkCallbackService = getInternalWatermarkCallbackService();
+
+		watermarkCallbackService.setWatermarkCallback(
+			new OnWatermarkCallback<KEY>() {
+
+				@Override
+				public void onWatermark(KEY key, Watermark watermark) throws IOException {
+					setCurrentKey(key);
+
+					PriorityQueue<StreamRecord<IN>> priorityQueue = getPriorityQueue();
+					NFA<IN> nfa = getNFA();
+
+					if (priorityQueue.isEmpty()) {
+						advanceTime(nfa, watermark.getTimestamp());
+					} else {
+						while (!priorityQueue.isEmpty() && priorityQueue.peek().getTimestamp() <= watermark.getTimestamp()) {
+							StreamRecord<IN> streamRecord = priorityQueue.poll();
+							processEvent(nfa, streamRecord.getValue(), streamRecord.getTimestamp());
+						}
+					}
+
+					updateNFA(nfa);
+					updatePriorityQueue(priorityQueue);
+				}
+			},
+			keySerializer
+		);
 	}
 
 	private NFA<IN> getNFA() throws IOException {
@@ -173,7 +203,7 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 
 	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {
-		keys.add(keySelector.getKey(element.getValue()));
+		getInternalWatermarkCallbackService().registerKeyForWatermarkCallback(keySelector.getKey(element.getValue()));
 
 		if (isProcessingTime) {
 			// there can be no out of order elements in processing time
@@ -195,35 +225,6 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 		}
 	}
 
-	@Override
-	public void processWatermark(Watermark mark) throws Exception {
-		// we do our own watermark handling, no super call. we will never be able to use
-		// the timer service like this, however.
-
-		// iterate over all keys to trigger the execution of the buffered elements
-		for (KEY key: keys) {
-			setCurrentKey(key);
-
-			PriorityQueue<StreamRecord<IN>> priorityQueue = getPriorityQueue();
-			NFA<IN> nfa = getNFA();
-
-			if (priorityQueue.isEmpty()) {
-				advanceTime(nfa, mark.getTimestamp());
-			} else {
-				while (!priorityQueue.isEmpty() && priorityQueue.peek().getTimestamp() <= mark.getTimestamp()) {
-					StreamRecord<IN> streamRecord = priorityQueue.poll();
-
-					processEvent(nfa, streamRecord.getValue(), streamRecord.getTimestamp());
-				}
-			}
-
-			updateNFA(nfa);
-			updatePriorityQueue(priorityQueue);
-		}
-
-		output.emitWatermark(mark);
-	}
-
 	/**
 	 * Process the given event by giving it to the NFA and outputting the produced set of matched
 	 * event sequences.
@@ -242,31 +243,6 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 	 * @param timestamp to advance the time to
 	 */
 	protected abstract void advanceTime(NFA<IN> nfa, long timestamp);
-
-	@Override
-	public void snapshotState(FSDataOutputStream out, long checkpointId, long timestamp) throws Exception {
-		DataOutputView ov = new DataOutputViewStreamWrapper(out);
-		ov.writeInt(keys.size());
-
-		for (KEY key: keys) {
-			keySerializer.serialize(key, ov);
-		}
-	}
-
-	@Override
-	public void restoreState(FSDataInputStream state) throws Exception {
-		DataInputView inputView = new DataInputViewStreamWrapper(state);
-
-		if (keys == null) {
-			keys = new HashSet<>();
-		}
-
-		int numberEntries = inputView.readInt();
-
-		for (int i = 0; i <numberEntries; i++) {
-			keys.add(keySerializer.deserialize(inputView));
-		}
-	}
 
 	//////////////////////			Utility Classes			//////////////////////
 

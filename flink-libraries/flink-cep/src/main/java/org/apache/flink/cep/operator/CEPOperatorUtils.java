@@ -137,7 +137,6 @@ public class CEPOperatorUtils {
 		} else {
 
 			KeySelector<T, Byte> keySelector = new NullByteKeySelector<>();
-
 			TypeSerializer<Byte> keySerializer = ByteSerializer.INSTANCE;
 
 			patternStream = inputStream.keyBy(keySelector).transform(

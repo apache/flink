@@ -31,11 +31,11 @@ import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
-import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.types.Either;
@@ -123,7 +123,7 @@ public class CEPOperatorTest extends TestLogger {
 		harness.processElement(new StreamRecord<Event>(new Event(42, "foobar", 1.0), 2));
 
 		// simulate snapshot/restore with some elements in internal sorting queue
-		StreamStateHandle snapshot = harness.snapshotLegacy(0, 0);
+		OperatorStateHandles snapshot = harness.snapshot(0, 0);
 		harness.close();
 
 		harness = new KeyedOneInputStreamOperatorTestHarness<>(
@@ -137,7 +137,7 @@ public class CEPOperatorTest extends TestLogger {
 				BasicTypeInfo.INT_TYPE_INFO);
 
 		harness.setup();
-		harness.restore(snapshot);
+		harness.initializeState(snapshot);
 		harness.open();
 
 		harness.processWatermark(new Watermark(Long.MIN_VALUE));
@@ -148,8 +148,12 @@ public class CEPOperatorTest extends TestLogger {
 		// a pruning time underflow exception in NFA
 		harness.processWatermark(new Watermark(2));
 
+		harness.processElement(new StreamRecord<Event>(middleEvent, 3));
+		harness.processElement(new StreamRecord<Event>(new Event(42, "start", 1.0), 4));
+		harness.processElement(new StreamRecord<Event>(endEvent, 5));
+
 		// simulate snapshot/restore with empty element queue but NFA state
-		StreamStateHandle snapshot2 = harness.snapshotLegacy(1, 1);
+		OperatorStateHandles snapshot2 = harness.snapshot(1, 1);
 		harness.close();
 
 		harness = new KeyedOneInputStreamOperatorTestHarness<>(
@@ -163,12 +167,8 @@ public class CEPOperatorTest extends TestLogger {
 				BasicTypeInfo.INT_TYPE_INFO);
 
 		harness.setup();
-		harness.restore(snapshot2);
+		harness.initializeState(snapshot2);
 		harness.open();
-
-		harness.processElement(new StreamRecord<Event>(middleEvent, 3));
-		harness.processElement(new StreamRecord<Event>(new Event(42, "start", 1.0), 4));
-		harness.processElement(new StreamRecord<Event>(endEvent, 5));
 
 		harness.processWatermark(new Watermark(Long.MAX_VALUE));
 
@@ -230,7 +230,7 @@ public class CEPOperatorTest extends TestLogger {
 		harness.processElement(new StreamRecord<Event>(new Event(42, "foobar", 1.0), 2));
 
 		// simulate snapshot/restore with some elements in internal sorting queue
-		StreamStateHandle snapshot = harness.snapshotLegacy(0, 0);
+		OperatorStateHandles snapshot = harness.snapshot(0, 0);
 		harness.close();
 
 		harness = new KeyedOneInputStreamOperatorTestHarness<>(
@@ -248,7 +248,7 @@ public class CEPOperatorTest extends TestLogger {
 		harness.setStateBackend(rocksDBStateBackend);
 
 		harness.setup();
-		harness.restore(snapshot);
+		harness.initializeState(snapshot);
 		harness.open();
 
 		harness.processWatermark(new Watermark(Long.MIN_VALUE));
@@ -260,7 +260,7 @@ public class CEPOperatorTest extends TestLogger {
 		harness.processWatermark(new Watermark(2));
 
 		// simulate snapshot/restore with empty element queue but NFA state
-		StreamStateHandle snapshot2 = harness.snapshotLegacy(1, 1);
+		OperatorStateHandles snapshot2 = harness.snapshot(1, 1);
 		harness.close();
 
 		harness = new KeyedOneInputStreamOperatorTestHarness<>(
@@ -277,7 +277,7 @@ public class CEPOperatorTest extends TestLogger {
 		rocksDBStateBackend.setDbStoragePath(rocksDbPath);
 		harness.setStateBackend(rocksDBStateBackend);
 		harness.setup();
-		harness.restore(snapshot2);
+		harness.initializeState(snapshot2);
 		harness.open();
 
 		harness.processElement(new StreamRecord<Event>(middleEvent, 3));
