@@ -23,6 +23,9 @@ specific language governing permissions and limitations
 under the License.
 -->
 
+* This will be replaced by the TOC
+{:toc}
+
 This connector provides sinks that can request document actions to an
 [Elasticsearch](https://elastic.co/) Index. To use this connector, add one
 of the following dependencies to your project, depending on the version
@@ -59,14 +62,14 @@ Note that the streaming connectors are currently not part of the binary
 distribution. See [here]({{site.baseurl}}/dev/linking.html) for information
 about how to package the program with the libraries for cluster execution.
 
-#### Installing Elasticsearch
+## Installing Elasticsearch
 
 Instructions for setting up an Elasticsearch cluster can be found
 [here](https://www.elastic.co/guide/en/elasticsearch/reference/current/setup.html).
 Make sure to set and remember a cluster name. This must be set when
 creating an `ElasticsearchSink` for requesting document actions against your cluster.
 
-#### Elasticsearch Sink
+## Elasticsearch Sink
 
 The `ElasticsearchSink` uses a `TransportClient` to communicate with an
 Elasticsearch cluster.
@@ -200,15 +203,48 @@ request for each incoming element. Generally, the `ElasticsearchSinkFunction`
 can be used to perform multiple requests of different types (ex.,
 `DeleteRequest`, `UpdateRequest`, etc.). 
 
-Internally, the sink uses a `BulkProcessor` to send action requests to the cluster.
-This will buffer elements before sending them in bulk to the cluster. The behaviour of the
-`BulkProcessor` can be set using these config keys in the provided `Map` configuration:
- * **bulk.flush.max.actions**: Maximum amount of elements to buffer
- * **bulk.flush.max.size.mb**: Maximum amount of data (in megabytes) to buffer
- * **bulk.flush.interval.ms**: Interval at which to flush data regardless of the other two
-  settings in milliseconds
+Internally, each parallel instance of the Flink Elasticsearch Sink uses
+a `BulkProcessor` to send action requests to the cluster.
+This will buffer elements before sending them in bulk to the cluster. The `BulkProcessor`
+executes bulk requests one at a time, i.e. there will be no two concurrent
+flushes of the buffered actions in progress.
 
-#### Communication using Embedded Node (only for Elasticsearch 1.x)
+### Elasticsearch Sinks and Fault Tolerance
+
+With Flink’s checkpointing enabled, the Flink Elasticsearch Sink guarantees
+at-least-once delivery of action requests to Elasticsearch clusters. It does
+so by waiting for all pending action requests in the `BulkProcessor` at the
+time of checkpoints. This effectively assures that all requests before the
+checkpoint was triggered have been successfully acknowledged by Elasticsearch, before
+proceeding to process more records sent to the sink.
+
+More details on checkpoints and fault tolerance are in the [fault tolerance docs]({{site.baseurl}}/internals/stream_checkpointing.html).
+
+To use fault tolerant Elasticsearch Sinks, checkpointing of the topology needs to be enabled at the execution environment:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+env.enableCheckpointing(5000); // checkpoint every 5000 msecs
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val env = StreamExecutionEnvironment.getExecutionEnvironment()
+env.enableCheckpointing(5000) // checkpoint every 5000 msecs
+{% endhighlight %}
+</div>
+</div>
+
+<p style="border-radius: 5px; padding: 5px" class="bg-danger">
+<b>NOTE</b>: Users can disable flushing if they wish to do so, by calling
+<b>disableFlushOnCheckpoint()</b> on the created <b>ElasticsearchSink</b>. Be aware
+that this essentially means the sink will not provide any strong
+delivery guarantees anymore, even with checkpoint for the topology enabled.
+</p>
+
+### Communication using Embedded Node (only for Elasticsearch 1.x)
 
 For Elasticsearch versions 1.x, communication using an embedded node is
 also supported. See [here](https://www.elastic.co/guide/en/elasticsearch/client/java-api/current/client.html)
@@ -272,9 +308,133 @@ input.addSink(new ElasticsearchSink(config, new ElasticsearchSinkFunction[String
 The difference is that now we do not need to provide a list of addresses
 of Elasticsearch nodes.
 
+### Handling Failing Elasticsearch Requests
+
+Elasticsearch action requests may fail due to a variety of reasons, including
+temporarily saturated node queue capacity or malformed documents to be indexed.
+The Flink Elasticsearch Sink allows the user to specify how request
+failures are handled, by simply implementing an `ActionRequestFailureHandler` and
+providing it to the constructor.
+
+Below is an example:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+DataStream<String> input = ...;
+
+input.addSink(new ElasticsearchSink<>(
+    config, transportAddresses,
+    new ElasticsearchSinkFunction<String>() {...},
+    new ActionRequestFailureHandler() {
+        @Override
+        void onFailure(ActionRequest action,
+                Throwable failure,
+                int restStatusCode,
+                RequestIndexer indexer) throw Throwable {
+
+            if (ExceptionUtils.containsThrowable(failure, EsRejectedExecutionException.class)) {
+                // full queue; re-add document for indexing
+                indexer.add(action);
+            } else if (ExceptionUtils.containsThrowable(failure, ElasticsearchParseException.class)) {
+                // malformed document; simply drop request without failing sink
+            } else {
+                // for all other failures, fail the sink
+                // here the failure is simply rethrown, but users can also choose to throw custom exceptions
+                throw failure;
+            }
+        }
+}));
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val input: DataStream[String] = ...
+
+input.addSink(new ElasticsearchSink(
+    config, transportAddresses,
+    new ElasticsearchSinkFunction[String] {...},
+    new ActionRequestFailureHandler {
+        @throws(classOf[Throwable])
+        override def onFailure(ActionRequest action,
+                Throwable failure,
+                int restStatusCode,
+                RequestIndexer indexer) {
+
+            if (ExceptionUtils.containsThrowable(failure, EsRejectedExecutionException.class)) {
+                // full queue; re-add document for indexing
+                indexer.add(action)
+            } else if (ExceptionUtils.containsThrowable(failure, ElasticsearchParseException.class)) {
+                // malformed document; simply drop request without failing sink
+            } else {
+                // for all other failures, fail the sink
+                // here the failure is simply rethrown, but users can also choose to throw custom exceptions
+                throw failure
+            }
+        }
+}))
+{% endhighlight %}
+</div>
+</div>
+
+The above example will let the sink re-add requests that failed due to
+queue capacity saturation and drop requests with malformed documents, without
+failing the sink. For all other failures, the sink will fail. If a `ActionRequestFailureHandler`
+is not provided to the constructor, the sink will fail for any kind of error.
+
+Note that `onFailure` is called for failures that still occur only after the
+`BulkProcessor` internally finishes all backoff retry attempts.
+By default, the `BulkProcessor` retries to a maximum of 8 attempts with
+an exponential backoff. For more information on the behaviour of the
+internal `BulkProcessor` and how to configure it, please see the following section.
+
+By default, if a failure handler is not provided, the sink uses a
+`NoOpFailureHandler` that simply fails for all kinds of exceptions. The
+connector also provides a `RetryRejectedExecutionFailureHandler` implementation
+that always re-add requests that have failed due to queue capacity saturation.
+
+<p style="border-radius: 5px; padding: 5px" class="bg-danger">
+<b>IMPORTANT</b>: Re-adding requests back to the internal <b>BulkProcessor</b>
+on failures will lead to longer checkpoints, as the sink will also
+need to wait for the re-added requests to be flushed when checkpointing.
+For example, when using <b>RetryRejectedExecutionFailureHandler</b>, checkpoints
+will need to wait until Elasticsearch node queues have enough capacity for
+all the pending requests. This also means that if re-added requests never
+succeed, the checkpoint will never finish.
+</p>
+
+<p style="border-radius: 5px; padding: 5px" class="bg-warning">
+<b>Failure handling for Elasticsearch 1.x</b>: For Elasticsearch 1.x, it
+is not feasible to match the type of the failure because the exact type
+could not be retrieved through the older version Java client APIs (thus,
+the types will be general <b>Exception</b>s and only differ in the
+failure message). In this case, it is recommended to match on the
+provided REST status code.
+</p>
+
+### Configuring the Internal Bulk Processor
+
+The internal `BulkProcessor` can be further configured for its behaviour
+on how buffered action requests are flushed, by setting the following values in
+the provided `Map<String, String>`:
+
+ * **bulk.flush.max.actions**: Maximum amount of actions to buffer before flushing.
+ * **bulk.flush.max.size.mb**: Maximum size of data (in megabytes) to buffer before flushing.
+ * **bulk.flush.interval.ms**: Interval at which to flush regardless of the amount or size of buffered actions.
+ 
+For versions 2.x and above, configuring how temporary request errors are
+retried is also supported:
+ 
+ * **bulk.flush.backoff.enable**: Whether or not to perform retries with backoff delay for a flush
+ if one or more of its actions failed due to a temporary `EsRejectedExecutionException`.
+ * **bulk.flush.backoff.type**: The type of backoff delay, either `CONSTANT` or `EXPONENTIAL`
+ * **bulk.flush.backoff.delay**: The amount of delay for backoff. For constant backoff, this
+ is simply the delay between each retry. For exponential backoff, this is the initial base delay.
+ * **bulk.flush.backoff.retries**: The amount of backoff retries to attempt.
+
 More information about Elasticsearch can be found [here](https://elastic.co).
 
-#### Packaging the Elasticsearch Connector into an Uber-Jar
+## Packaging the Elasticsearch Connector into an Uber-Jar
 
 For the execution of your Flink program, it is recommended to build a
 so-called uber-jar (executable jar) containing all your dependencies
