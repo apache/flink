@@ -251,6 +251,8 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 
 		AbstractYarnClusterDescriptor yarnClusterDescriptor = getClusterDescriptor();
 
+		Configuration config = yarnClusterDescriptor.getFlinkConfiguration();
+
 		if (!cmd.hasOption(CONTAINER.getOpt())) { // number of containers is required option!
 			LOG.error("Missing required argument {}", CONTAINER.getOpt());
 			printUsage();
@@ -317,6 +319,10 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 		if (cmd.hasOption(SLOTS.getOpt())) {
 			int slots = Integer.valueOf(cmd.getOptionValue(SLOTS.getOpt()));
 			yarnClusterDescriptor.setTaskManagerSlots(slots);
+		} else if (config.containsKey(ConfigConstants.YARN_VCORES)) {
+			yarnClusterDescriptor.setTaskManagerSlots(config.getInteger(ConfigConstants.YARN_VCORES, -1));
+		} else if (config.containsKey(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS)) {
+			yarnClusterDescriptor.setTaskManagerSlots(config.getInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, -1));
 		}
 
 		String[] dynamicProperties = null;
@@ -537,7 +543,6 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 		Preconditions.checkNotNull(userJarFiles, "User jar files should not be null.");
 
 		AbstractYarnClusterDescriptor yarnClusterDescriptor = createDescriptor(applicationName, cmdLine);
-		yarnClusterDescriptor.setFlinkConfiguration(config);
 		yarnClusterDescriptor.setProvidedUserJarFiles(userJarFiles);
 
 		try {
