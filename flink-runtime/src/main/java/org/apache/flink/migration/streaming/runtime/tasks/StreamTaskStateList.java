@@ -27,6 +27,7 @@ import java.util.HashMap;
 
 @Deprecated
 @Internal
+@SuppressWarnings("deprecation")
 public class StreamTaskStateList implements StateHandle<StreamTaskState[]> {
 
 	private static final long serialVersionUID = 1L;

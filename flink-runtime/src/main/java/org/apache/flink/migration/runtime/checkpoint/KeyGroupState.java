@@ -32,6 +32,7 @@ import java.io.Serializable;
  * which might not be available on the JobManager.
  */
 @Deprecated
+@SuppressWarnings("deprecation")
 public class KeyGroupState implements Serializable {
 	private static final long serialVersionUID = -5926696455438467634L;
 

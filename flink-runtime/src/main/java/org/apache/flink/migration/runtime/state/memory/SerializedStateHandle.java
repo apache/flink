@@ -31,6 +31,7 @@ import java.io.Serializable;
  *
  * @param <T> The type of state represented by this state handle.
  */
+@SuppressWarnings("deprecation")
 public class SerializedStateHandle<T extends Serializable> extends AbstractCloseableHandle implements StateHandle<T> {
 	
 	private static final long serialVersionUID = 4145685722538475769L;

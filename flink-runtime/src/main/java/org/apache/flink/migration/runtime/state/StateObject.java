@@ -34,6 +34,7 @@ package org.apache.flink.migration.runtime.state;
  * </ul>
  */
 @Deprecated
+@SuppressWarnings("deprecation")
 public interface StateObject extends java.io.Closeable, java.io.Serializable {
 
 	/**

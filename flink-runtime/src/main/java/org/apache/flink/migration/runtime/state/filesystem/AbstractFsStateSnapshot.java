@@ -34,6 +34,7 @@ import java.io.IOException;
  * @param <SV> The type of the state value.
  */
 @Deprecated
+@SuppressWarnings("deprecation")
 public abstract class AbstractFsStateSnapshot<K, N, SV, S extends State, SD extends StateDescriptor<S, ?>> 
 		extends AbstractFileStateHandle implements KvStateSnapshot<K, N, S, SD> {
 

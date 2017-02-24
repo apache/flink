@@ -30,6 +30,7 @@ import java.util.Objects;
 import java.util.Set;
 
 @Deprecated
+@SuppressWarnings("deprecation")
 public class TaskState implements Serializable {
 
 	private static final long serialVersionUID = -4845578005863201810L;
