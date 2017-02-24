@@ -109,7 +109,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 
 	private boolean forceKryo = false;
 
-	private boolean disableGenericTypes = false;//ISSUE FLINK-5692
+	private boolean disableGenericTypes = false;
 
 	private boolean objectReuse = false;
 
