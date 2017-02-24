@@ -23,12 +23,25 @@ import org.apache.calcite.sql.util.{ChainedSqlOperatorTable, ListSqlOperatorTabl
 import org.apache.calcite.sql.{SqlFunction, SqlOperator, SqlOperatorTable}
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions.{EventTimeExtractor, RowTime, ScalarFunction, TableFunction}
-import org.apache.flink.table.functions.utils.{TableSqlFunction, ScalarSqlFunction}
+import org.apache.flink.table.functions.{EventTimeExtractor, ProcTimeExtractor, RowTime, ProcTime, ScalarFunction, TableFunction}
+import org.apache.flink.table.functions.utils.{TableSqlFunction, ScalarSqlFunction, UserDefinedFunctionUtils}
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
+
+import org.apache.calcite.sql.SqlFunction
+import org.apache.calcite.sql.SqlOperator
+import org.apache.calcite.sql.SqlOperatorTable
+import org.apache.calcite.sql.fun.SqlStdOperatorTable
+import org.apache.calcite.sql.util.ChainedSqlOperatorTable
+import org.apache.calcite.sql.util.ListSqlOperatorTable
+import org.apache.calcite.sql.util.ReflectiveSqlOperatorTable
+import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.expressions._
+import org.apache.flink.table.functions._
+import org.apache.flink.table.functions.utils.TableSqlFunction
+import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 
 /**
   * A catalog for looking up (user-defined) functions, used during validation phases
@@ -81,11 +94,11 @@ class FunctionCatalog {
 
       // user-defined scalar function call
       case sf if classOf[ScalarFunction].isAssignableFrom(sf) =>
-        val scalarSqlFunction = sqlFunctions
-          .find(f => f.getName.equalsIgnoreCase(name) && f.isInstanceOf[ScalarSqlFunction])
-          .getOrElse(throw ValidationException(s"Undefined scalar function: $name"))
-          .asInstanceOf[ScalarSqlFunction]
-        ScalarFunctionCall(scalarSqlFunction.getScalarFunction, children)
+        Try(UserDefinedFunctionUtils.instantiate(sf.asInstanceOf[Class[ScalarFunction]])) match {
+          case Success(scalarFunction) => ScalarFunctionCall(scalarFunction, children)
+          case Failure(e) => throw ValidationException(e.getMessage)
+        }
+
       // user-defined table function call
       case tf if classOf[TableFunction[_]].isAssignableFrom(tf) =>
         val tableSqlFunction = sqlFunctions
@@ -197,7 +210,8 @@ object FunctionCatalog {
     // "ceil" -> classOf[TemporalCeil]
 
     // extensions to support streaming query
-    "rowtime" -> classOf[RowTime]
+    "rowtime" -> classOf[RowTime],
+    "proctime" -> classOf[ProcTime]
   )
 
   /**
@@ -322,7 +336,8 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     SqlStdOperatorTable.SCALAR_QUERY,
     SqlStdOperatorTable.EXISTS,
     // EXTENSIONS
-    EventTimeExtractor
+    EventTimeExtractor,
+    ProcTimeExtractor
   )
 
   builtInSqlOperators.foreach(register)

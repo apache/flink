@@ -36,6 +36,15 @@ import org.apache.flink.table.plan.schema.FlinkTableFunctionImpl
 import org.apache.flink.util.InstantiationUtil
 
 object UserDefinedFunctionUtils {
+  
+    /**
+    * Instantiates a user-defined function.
+    */
+  def instantiate[T <: UserDefinedFunction](clazz: Class[T]): T = {
+    val constructor = clazz.getDeclaredConstructor()
+    constructor.setAccessible(true)
+    constructor.newInstance()
+  }
 
   /**
     * Checks if a user-defined function can be easily instantiated.
