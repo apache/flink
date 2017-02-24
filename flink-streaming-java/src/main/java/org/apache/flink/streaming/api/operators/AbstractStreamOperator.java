@@ -148,7 +148,7 @@ public abstract class AbstractStreamOperator<OUT>
 
 	// ---------------- time handler ------------------
 
-	private transient TimeServiceHandler<?, ?> timeServiceHandler;
+	private transient InternalTimeServiceManager<?, ?> timeServiceManager;
 
 	// ---------------- two-input operator watermarks ------------------
 
@@ -205,8 +205,8 @@ public abstract class AbstractStreamOperator<OUT>
 
 		initKeyedState(); //TODO we should move the actual initialization of this from StreamTask to this class
 
-		if (getKeyedStateBackend() != null && timeServiceHandler == null) {
-			timeServiceHandler = new TimeServiceHandler<>(
+		if (getKeyedStateBackend() != null && timeServiceManager == null) {
+			timeServiceManager = new InternalTimeServiceManager<>(
 				getKeyedStateBackend().getNumberOfKeyGroups(),
 				getKeyedStateBackend().getKeyGroupRange(),
 				this,
@@ -411,7 +411,7 @@ public abstract class AbstractStreamOperator<OUT>
 				for (int keyGroupIdx : allKeyGroups) {
 					out.startNewKeyGroup(keyGroupIdx);
 
-					timeServiceHandler.snapshotTimersForKeyGroup(
+					timeServiceManager.snapshotStateForKeyGroup(
 						new DataOutputViewStreamWrapper(out), keyGroupIdx);
 				}
 			} catch (Exception exception) {
@@ -468,7 +468,7 @@ public abstract class AbstractStreamOperator<OUT>
 				checkArgument(localKeyGroupRange.contains(keyGroupIdx),
 					"Key Group " + keyGroupIdx + " does not belong to the local range.");
 
-				timeServiceHandler.restoreTimersForKeyGroup(
+				timeServiceManager.restoreStateForKeyGroup(
 					new DataInputViewStreamWrapper(streamProvider.getStream()),
 					keyGroupIdx, getUserCodeClassloader());
 			}
@@ -864,28 +864,18 @@ public abstract class AbstractStreamOperator<OUT>
 	//  Watermark handling
 	// ------------------------------------------------------------------------
 
-	public <K> void registerWatermarkCallback(KeyRegistry.OnWatermarkCallback<K> callback, TypeSerializer<K> keySerializer) {
+	/**
+	 * Returns an {@link InternalWatermarkCallbackService} which  allows to register a
+	 * {@link OnWatermarkCallback} and multiple keys, for which
+	 * the callback will be invoked every time a new {@link Watermark} is received.
+	 * <p>
+	 * <b>NOTE: </b> This service is only available to <b>keyed</b> operators.
+	 */
+	public <K> InternalWatermarkCallbackService<K> getInternalWatermarkCallbackService() {
 		checkTimerServiceInitialization();
 
-		// the following casting is to overcome type restrictions.
-		TimeServiceHandler<K, ?> keyedTimeServiceHandler = (TimeServiceHandler<K, ?>) timeServiceHandler;
-		keyedTimeServiceHandler.registerOnWatermarkCallback(callback, keySerializer);
-	}
-
-	public void registerKeyForWatermarkCallback(Object key) {
-		checkTimerServiceInitialization();
-
-		// the following casting is to overcome type restrictions.
-		TimeServiceHandler keyedTimeServiceHandler = (TimeServiceHandler) timeServiceHandler;
-		keyedTimeServiceHandler.registerKeyForWatermarkCallback(key);
-	}
-
-	public void unregisterKeyForWatermarkCallback(Object key) {
-		checkTimerServiceInitialization();
-
-		// the following casting is to overcome type restrictions.
-		TimeServiceHandler keyedTimeServiceHandler = (TimeServiceHandler) timeServiceHandler;
-		keyedTimeServiceHandler.unregisterKeyForWatermarkCallback(key);
+		InternalTimeServiceManager<K, ?> keyedTimeServiceHandler = (InternalTimeServiceManager<K, ?>) timeServiceManager;
+		return keyedTimeServiceHandler.getWatermarkCallbackService();
 	}
 
 	/**
@@ -918,13 +908,13 @@ public abstract class AbstractStreamOperator<OUT>
 
 		// the following casting is to overcome type restrictions.
 		TypeSerializer<K> keySerializer = (TypeSerializer<K>) getKeyedStateBackend().getKeySerializer();
-		TimeServiceHandler<K, N> keyedTimeServiceHandler = (TimeServiceHandler<K, N>) timeServiceHandler;
+		InternalTimeServiceManager<K, N> keyedTimeServiceHandler = (InternalTimeServiceManager<K, N>) timeServiceManager;
 		return keyedTimeServiceHandler.getInternalTimerService(name, keySerializer, namespaceSerializer, triggerable);
 	}
 
 	public void processWatermark(Watermark mark) throws Exception {
-		if (timeServiceHandler != null) {
-			timeServiceHandler.advanceWatermark(mark);
+		if (timeServiceManager != null) {
+			timeServiceManager.advanceWatermark(mark);
 		}
 		output.emitWatermark(mark);
 	}
@@ -932,7 +922,7 @@ public abstract class AbstractStreamOperator<OUT>
 	private void checkTimerServiceInitialization() {
 		if (getKeyedStateBackend() == null) {
 			throw new UnsupportedOperationException("Timers can only be used on keyed operators.");
-		} else if (timeServiceHandler == null) {
+		} else if (timeServiceManager == null) {
 			throw new RuntimeException("The timer service has not been initialized.");
 		}
 	}
@@ -957,13 +947,13 @@ public abstract class AbstractStreamOperator<OUT>
 
 	@VisibleForTesting
 	public int numProcessingTimeTimers() {
-		return timeServiceHandler == null ? 0 :
-			timeServiceHandler.numProcessingTimeTimers();
+		return timeServiceManager == null ? 0 :
+			timeServiceManager.numProcessingTimeTimers();
 	}
 
 	@VisibleForTesting
 	public int numEventTimeTimers() {
-		return timeServiceHandler == null ? 0 :
-			timeServiceHandler.numEventTimeTimers();
+		return timeServiceManager == null ? 0 :
+			timeServiceManager.numEventTimeTimers();
 	}
 }

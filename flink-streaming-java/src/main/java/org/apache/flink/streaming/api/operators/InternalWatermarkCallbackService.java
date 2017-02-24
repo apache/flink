@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
@@ -34,15 +35,16 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * The key registry allows to register a {@link OnWatermarkCallback} and multiple keys, for which
- * the callback will be invoked periodically, upon reception of each subsequent {@link Watermark},
- * after the registration of the key.
+ * The watermark callback service allows to register a {@link OnWatermarkCallback OnWatermarkCallback}
+ * and multiple keys, for which the callback will be invoked every time a new {@link Watermark} is received
+ * (after the registration of the key).
  * <p>
  * <b>NOTE: </b> This service is only available to <b>keyed</b> operators.
  *
  *  @param <K> The type of key returned by the {@code KeySelector}.
- * */
-public class KeyRegistry<K> {
+ */
+@Internal
+public class InternalWatermarkCallbackService<K> {
 
 	////////////			Information about the keyed state				//////////
 
@@ -65,9 +67,9 @@ public class KeyRegistry<K> {
 	 * The {@link OnWatermarkCallback} to be invoked for each
 	 * registered key upon reception of the watermark.
 	 */
-	private KeyRegistry.OnWatermarkCallback<K> callback;
+	private OnWatermarkCallback<K> callback;
 
-	public KeyRegistry(int totalKeyGroups, KeyGroupsList localKeyGroupRange, KeyContext keyContext) {
+	public InternalWatermarkCallbackService(int totalKeyGroups, KeyGroupsList localKeyGroupRange, KeyContext keyContext) {
 
 		this.totalKeyGroups = totalKeyGroups;
 		this.localKeyGroupRange = checkNotNull(localKeyGroupRange);
@@ -86,13 +88,13 @@ public class KeyRegistry<K> {
 	}
 
 	/**
-	 * Registers a {@link OnWatermarkCallback} with the current {@link KeyRegistry} service.
+	 * Registers a {@link OnWatermarkCallback} with the current {@link InternalWatermarkCallbackService} service.
 	 * Before this method is called and the callback is set, the service is unusable.
 	 *
 	 * @param watermarkCallback The callback to be registered.
 	 * @param keySerializer A serializer for the registered keys.
 	 */
-	public void setWatermarkCallback(KeyRegistry.OnWatermarkCallback<K> watermarkCallback, TypeSerializer<K> keySerializer) {
+	public void setWatermarkCallback(OnWatermarkCallback<K> watermarkCallback, TypeSerializer<K> keySerializer) {
 		if (callback == null) {
 			this.keySerializer = keySerializer;
 			this.callback = watermarkCallback;
@@ -121,9 +123,7 @@ public class KeyRegistry<K> {
 		boolean res = keys.remove(key);
 
 		if (keys.isEmpty()) {
-			int keyGroupIdx = KeyGroupRangeAssignment.assignToKeyGroup(key, totalKeyGroups);
-			int localKeyGroupIdx = getIndexForKeyGroup(keyGroupIdx);
-			keysByKeygroup[localKeyGroupIdx] = null;
+			removeKeySetForKey(key);
 		}
 		return res;
 	}
@@ -177,8 +177,8 @@ public class KeyRegistry<K> {
 	private void removeKeySetForKey(K key) {
 		checkArgument(localKeyGroupRange != null, "The operator has not been initialized.");
 		int keyGroupIdx = KeyGroupRangeAssignment.assignToKeyGroup(key, totalKeyGroups);
-		int localIdx = getIndexForKeyGroup(keyGroupIdx);
-		keysByKeygroup[localIdx] = null;
+		int localKeyGroupIdx = getIndexForKeyGroup(keyGroupIdx);
+		keysByKeygroup[localKeyGroupIdx] = null;
 	}
 
 	/**
@@ -194,24 +194,6 @@ public class KeyRegistry<K> {
 		checkArgument(localKeyGroupRange.contains(keyGroupIdx),
 			"Key Group " + keyGroupIdx + " does not belong to the local range.");
 		return keyGroupIdx - localKeyGroupRangeStartIdx;
-	}
-
-	//////////////////				Watermark Callback Interface				///////////////////
-
-	/**
-	 * A callback registered with the {@link KeyRegistry} service. This callback will
-	 * be invoked for all keys registered with the service, upon reception of a watermark.
-	 */
-	public interface OnWatermarkCallback<KEY> {
-
-		/**
-		 * The action to be triggered upon reception of a watermark.
-		 * 
-		 * @param key The current key.
-		 * @param watermark The current watermark.
-		 */
-		void onWatermark(KEY key, Watermark watermark) throws IOException;
-
 	}
 
 	//////////////////				Fault Tolerance Methods				///////////////////

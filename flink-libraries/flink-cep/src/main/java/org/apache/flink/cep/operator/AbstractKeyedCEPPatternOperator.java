@@ -27,8 +27,9 @@ import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.state.StateInitializationContext;
-import org.apache.flink.streaming.api.operators.KeyRegistry;
+import org.apache.flink.streaming.api.operators.InternalWatermarkCallbackService;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.OnWatermarkCallback;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
@@ -139,8 +140,10 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 	public void open() throws Exception {
 		super.open();
 
-		registerWatermarkCallback(
-			new KeyRegistry.OnWatermarkCallback<KEY>() {
+		InternalWatermarkCallbackService<KEY> watermarkCallbackService = getInternalWatermarkCallbackService();
+
+		watermarkCallbackService.setWatermarkCallback(
+			new OnWatermarkCallback<KEY>() {
 
 				@Override
 				public void onWatermark(KEY key, Watermark watermark) throws IOException {
@@ -200,7 +203,7 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 
 	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {
-		registerKeyForWatermarkCallback(keySelector.getKey(element.getValue()));
+		getInternalWatermarkCallbackService().registerKeyForWatermarkCallback(keySelector.getKey(element.getValue()));
 
 		if (isProcessingTime) {
 			// there can be no out of order elements in processing time

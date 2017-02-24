@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
@@ -33,28 +34,28 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * A handler keeping all the time-related services available to all operators extending the
+ * An entity keeping all the time-related services available to all operators extending the
  * {@link AbstractStreamOperator}. These are the different {@link HeapInternalTimerService timer services}
- * and the {@link KeyRegistry}.
+ * and the {@link InternalWatermarkCallbackService}.
  *
  * <b>NOTE:</b> These services are only available to keyed operators.
  *
  * @param <K> The type of keys used for the timers and the registry.
  * @param <N> The type of namespace used for the timers.
  */
-public class TimeServiceHandler<K, N> {
+@Internal
+class InternalTimeServiceManager<K, N> {
 
 	private final int totalKeyGroups;
 	private final KeyGroupsList localKeyGroupRange;
-
 	private final KeyContext keyContext;
+
 	private final ProcessingTimeService processingTimeService;
 
 	private final Map<String, HeapInternalTimerService<K, N>> timerServices;
+	private final InternalWatermarkCallbackService<K> watermarkCallbackService;
 
-	private KeyRegistry<K> keyRegistry;
-
-	public TimeServiceHandler(
+	InternalTimeServiceManager(
 			int totalKeyGroups,
 			KeyGroupsList localKeyGroupRange,
 			KeyContext keyContext,
@@ -68,21 +69,16 @@ public class TimeServiceHandler<K, N> {
 		this.processingTimeService = Preconditions.checkNotNull(processingTimeService);
 
 		this.timerServices = new HashMap<>();
-		this.keyRegistry = new KeyRegistry<>(totalKeyGroups, localKeyGroupRange, keyContext);
+		this.watermarkCallbackService = new InternalWatermarkCallbackService<>(totalKeyGroups, localKeyGroupRange, keyContext);
 	}
 
 	/**
-	 * Registers a {@link KeyRegistry.OnWatermarkCallback} with the current {@link TimeServiceHandler}.
-	 * This callback is going to be invoked upon reception of a {@link Watermark} for all keys
-	 * registered using the {@link #registerKeyForWatermarkCallback(Object)}.
-	 *
-	 * @param callback The callback to be registered.
-	 * @param keySerializer A serializer for the registered keys.
+	 * Returns an {@link InternalWatermarkCallbackService} which  allows to register a
+	 * {@link OnWatermarkCallback} and multiple keys, for which
+	 * the callback will be invoked every time a new {@link Watermark} is received.
 	 */
-	public void registerOnWatermarkCallback(
-			KeyRegistry.OnWatermarkCallback<K> callback,
-			TypeSerializer<K> keySerializer) {
-		keyRegistry.setWatermarkCallback(callback, keySerializer);
+	public InternalWatermarkCallbackService<K> getWatermarkCallbackService() {
+		return watermarkCallbackService;
 	}
 
 	/**
@@ -118,42 +114,16 @@ public class TimeServiceHandler<K, N> {
 		return timerService;
 	}
 
-	/**
-	 * Registers a key with the service. This will lead to the {@link KeyRegistry.OnWatermarkCallback}
-	 * being invoked for this key upon reception of each subsequent watermark.
-	 *
-	 * @param key The key to be registered.
-	 */
-	public void registerKeyForWatermarkCallback(K key) {
-		try {
-			keyRegistry.registerKeyForWatermarkCallback(key);
-		} catch (Exception e) {
-			throw new RuntimeException("Exception occurred while registering key " + key + " with the key registry.", e);
-		}
-	}
-
-	/**
-	 * Unregisters the provided key from the service. From now on, the callback will not
-	 * be invoked for this key on subsequent watermarks.
-	 *
-	 * @param key The key to be unregistered.
-	 */
-	public void unregisterKeyForWatermarkCallback(K key) {
-		try {
-			keyRegistry.unregisterKeyFromWatermarkCallback(key);
-		} catch (Exception e) {
-			throw new RuntimeException("Exception occurred while unregistering key " + key + " with the key registry.", e);
-		}
-	}
-
 	public void advanceWatermark(Watermark watermark) throws Exception {
 		for (HeapInternalTimerService<?, ?> service : timerServices.values()) {
 			service.advanceWatermark(watermark.getTimestamp());
 		}
-		keyRegistry.invokeOnWatermarkCallback(watermark);
+		watermarkCallbackService.invokeOnWatermarkCallback(watermark);
 	}
 
-	public void snapshotTimersForKeyGroup(DataOutputViewStreamWrapper stream, int keyGroupIdx) throws Exception {
+	//////////////////				Fault Tolerance Methods				///////////////////
+
+	public void snapshotStateForKeyGroup(DataOutputViewStreamWrapper stream, int keyGroupIdx) throws Exception {
 		stream.writeInt(timerServices.size());
 
 		for (Map.Entry<String, HeapInternalTimerService<K, N>> entry : timerServices.entrySet()) {
@@ -166,15 +136,15 @@ public class TimeServiceHandler<K, N> {
 
 		// write a byte indicating if there was a key
 		// registry service instantiated (1) or not (0).
-		if (keyRegistry != null) {
+		if (watermarkCallbackService != null) {
 			stream.writeByte(1);
-			keyRegistry.snapshotKeysForKeyGroup(stream, keyGroupIdx);
+			watermarkCallbackService.snapshotKeysForKeyGroup(stream, keyGroupIdx);
 		} else {
 			stream.writeByte(0);
 		}
 	}
 
-	public void restoreTimersForKeyGroup(DataInputViewStreamWrapper stream, int keyGroupIdx,
+	public void restoreStateForKeyGroup(DataInputViewStreamWrapper stream, int keyGroupIdx,
 										ClassLoader userCodeClassLoader) throws IOException, ClassNotFoundException {
 
 		int noOfTimerServices = stream.readInt();
@@ -195,13 +165,11 @@ public class TimeServiceHandler<K, N> {
 
 		byte hadKeyRegistry = stream.readByte();
 		if (hadKeyRegistry == 1) {
-
-			if (keyRegistry == null) {
-				keyRegistry = new KeyRegistry<>(totalKeyGroups, localKeyGroupRange, keyContext);
-			}
-			keyRegistry.restoreKeysForKeyGroup(stream, keyGroupIdx, userCodeClassLoader);
+			watermarkCallbackService.restoreKeysForKeyGroup(stream, keyGroupIdx, userCodeClassLoader);
 		}
 	}
+
+	////////////////////			Methods used ONLY IN TESTS				////////////////////
 
 	@VisibleForTesting
 	public int numProcessingTimeTimers() {
