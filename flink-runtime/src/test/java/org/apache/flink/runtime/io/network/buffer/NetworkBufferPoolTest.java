@@ -19,8 +19,9 @@
 package org.apache.flink.runtime.io.network.buffer;
 
 import org.apache.flink.core.memory.MemoryType;
-import org.junit.Ignore;
 import org.junit.Test;
+
+import java.util.ArrayList;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -88,27 +89,27 @@ public class NetworkBufferPoolTest {
 			BufferPool nonFixedPool = globalPool.createBufferPool(5, Integer.MAX_VALUE);
 
 			assertEquals(2, fixedPool.getNumberOfRequiredMemorySegments());
+			assertEquals(0, boundedPool.getNumberOfRequiredMemorySegments());
 			assertEquals(5, nonFixedPool.getNumberOfRequiredMemorySegments());
 
-			Buffer[] buffers = {
-					fixedPool.requestBuffer(),
-					fixedPool.requestBuffer(),
+			// actually, the buffer pool sizes may be different due to rounding and based on the internal order of
+			// the buffer pools - the total number of retrievable buffers should be equal to the number of buffers
+			// in the NetworkBufferPool though
 
-					boundedPool.requestBuffer(),
-
-					nonFixedPool.requestBuffer(),
-					nonFixedPool.requestBuffer(),
-					nonFixedPool.requestBuffer(),
-					nonFixedPool.requestBuffer(),
-					nonFixedPool.requestBuffer(),
-					nonFixedPool.requestBuffer(),
-					nonFixedPool.requestBuffer()
-			};
-
-			for (Buffer b : buffers) {
-				assertNotNull(b);
-				assertNotNull(b.getMemorySegment());
+			ArrayList<Buffer> buffers = new ArrayList<>(globalPool.getTotalNumberOfMemorySegments());
+			collectBuffers:
+			for (int i = 0; i < 10; ++i) {
+				for (BufferPool bp : new BufferPool[] { fixedPool, boundedPool, nonFixedPool }) {
+					Buffer buffer = bp.requestBuffer();
+					if (buffer != null) {
+						assertNotNull(buffer.getMemorySegment());
+						buffers.add(buffer);
+						continue collectBuffers;
+					}
+				}
 			}
+
+			assertEquals(globalPool.getTotalNumberOfMemorySegments(), buffers.size());
 
 			assertNull(fixedPool.requestBuffer());
 			assertNull(boundedPool.requestBuffer());
@@ -140,7 +141,7 @@ public class NetworkBufferPoolTest {
 				fail("Should fail with an IllegalStateException");
 			}
 			catch (IllegalStateException e) {
-				// that's the way we like it, aha, aha
+				// yippie!
 			}
 
 			try {

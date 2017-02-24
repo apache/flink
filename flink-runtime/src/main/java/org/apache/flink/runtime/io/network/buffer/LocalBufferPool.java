@@ -147,6 +147,11 @@ class LocalBufferPool implements BufferPool {
 	}
 
 	@Override
+	public int getMaxNumberOfMemorySegments() {
+		return maxNumberOfMemorySegments;
+	}
+
+	@Override
 	public int getNumberOfAvailableMemorySegments() {
 		synchronized (availableMemorySegments) {
 			return availableMemorySegments.size();
@@ -200,9 +205,7 @@ class LocalBufferPool implements BufferPool {
 					throw new IllegalStateException("Buffer pool is destroyed.");
 				}
 
-				if (numberOfRequestedMemorySegments < currentPoolSize &&
-					(maxNumberOfMemorySegments == -1 ||
-						numberOfRequestedMemorySegments < maxNumberOfMemorySegments)) {
+				if (numberOfRequestedMemorySegments < currentPoolSize) {
 					final MemorySegment segment = networkBufferPool.requestMemorySegment();
 
 					if (segment != null) {
@@ -294,7 +297,8 @@ class LocalBufferPool implements BufferPool {
 	@Override
 	public void setNumBuffers(int numBuffers) throws IOException {
 		synchronized (availableMemorySegments) {
-			checkArgument(numBuffers >= numberOfRequiredMemorySegments, "Buffer pool needs at least " + numberOfRequiredMemorySegments + " buffers, but tried to set to " + numBuffers + ".");
+			checkArgument(numBuffers >= numberOfRequiredMemorySegments, "Buffer pool needs at least " +
+				numberOfRequiredMemorySegments + " buffers, but tried to set to " + numBuffers + ".");
 
 			if (numBuffers > maxNumberOfMemorySegments) {
 				currentPoolSize = maxNumberOfMemorySegments;
