@@ -23,12 +23,12 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.operators.sort.NormalizedKeySorter;
-import org.apache.flink.runtime.operators.testutils.TestData;
 import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.HashMap;
 
 public class SorterTemplateModelTest extends TestLogger {
@@ -59,32 +59,41 @@ public class SorterTemplateModelTest extends TestLogger {
 	public void testGeneratedSequenceFixedByteOperators() throws Exception {
 
 
-		HashMap<Integer, Integer[]> testCases = new HashMap<>();
+		HashMap<Integer[], Integer[]> testCases = new HashMap<>();
 
-		testCases.put(NormalizedKeySorter.DEFAULT_MAX_NORMALIZED_KEY_LEN+1,  new Integer[0]);
+		testCases.put(new Integer[]{NormalizedKeySorter.DEFAULT_MAX_NORMALIZED_KEY_LEN+1,8},  new Integer[]{8,8,8});
 		// first 8 bytes is offset
-		testCases.put(16, new Integer[]{8,8,8});
-		testCases.put(15, new Integer[]{8,8,4,2,1});
-		testCases.put(14, new Integer[]{8,8,4,2});
-		testCases.put(7,  new Integer[]{8,4,2,1});
-		testCases.put(3,  new Integer[]{8,2,1});
-		testCases.put(1,  new Integer[]{8,1});
+		testCases.put(new Integer[]{8,8}, new Integer[]{8,8,8});
+		testCases.put(new Integer[]{8,7}, new Integer[]{8,8,4,2,1});
+		testCases.put(new Integer[]{8,6}, new Integer[]{8,8,4,2});
+		testCases.put(new Integer[]{7},  new Integer[]{8,4,2,1});
+		testCases.put(new Integer[]{3},  new Integer[]{8,2,1});
+		testCases.put(new Integer[]{1},  new Integer[]{8,1});
 
-		for( Integer numberBytes: testCases.keySet() ) {
+		for( Integer[] keyBytes: testCases.keySet() ) {
 
-			SorterTemplateModel model = new SorterTemplateModel(createTypeComparatorWithCustomKeysize(numberBytes));
+			SorterTemplateModel model = new SorterTemplateModel(createTypeComparatorWithCustomKeysize(keyBytes));
 
+			Object[] actual = model.getBytesOperators().toArray();
+			String caseName = Arrays.toString(keyBytes);
 			Assert.assertArrayEquals(
-				"Case : " + numberBytes + " bytes : ",
-				testCases.get(numberBytes),
-				model.getBytesOperators().toArray()
+				"Case : " + caseName + " bytes : ",
+				testCases.get(keyBytes),
+				actual
 			);
 
 		}
 
 	}
 
-	private TypeComparator createTypeComparatorWithCustomKeysize(final int numberBytes) {
+	private TypeComparator createTypeComparatorWithCustomKeysize(final Integer[] keyBytes) {
+
+		int sum = 0;
+		for( Integer i : keyBytes ){
+			sum += i;
+		}
+
+		final int numKeyBytes = sum;
 
 		return new TypeComparator() {
 			@Override
@@ -119,7 +128,7 @@ public class SorterTemplateModelTest extends TestLogger {
 
 			@Override
 			public boolean supportsNormalizedKey() {
-				return false;
+				return true;
 			}
 
 			@Override
@@ -129,7 +138,7 @@ public class SorterTemplateModelTest extends TestLogger {
 
 			@Override
 			public int getNormalizeKeyLen() {
-				return numberBytes;
+				return  numKeyBytes;
 			}
 
 			@Override
@@ -169,7 +178,7 @@ public class SorterTemplateModelTest extends TestLogger {
 
 			@Override
 			public TypeComparator[] getFlatComparators() {
-				return new TypeComparator[0];
+				return new TypeComparator[keyBytes.length];
 			}
 		};
 	}

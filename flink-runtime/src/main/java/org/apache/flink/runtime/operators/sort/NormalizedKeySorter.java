@@ -45,7 +45,7 @@ public final class NormalizedKeySorter<T> implements InMemorySorter<T> {
 	
 	public static final int DEFAULT_MAX_NORMALIZED_KEY_LEN = 16;
 	
-	private static final int MAX_NORMALIZED_KEY_LEN_PER_ELEMENT = 8;
+	public static final int MAX_NORMALIZED_KEY_LEN_PER_ELEMENT = 8;
 	
 	private static final int MIN_REQUIRED_BUFFERS = 3;
 	

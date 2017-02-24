@@ -28,21 +28,41 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class SorterTemplateModel {
-	private final static Integer[] POSSIBLE_FIXEDBYTE_OPERRATORS = {8,4,2,1};
 	public final static String TEMPLATE_NAME = "sorter.ftlh";
+
+	private final static Integer[] POSSIBLE_FIXEDBYTE_OPERATORS = {8,4,2,1};
 
 	private final HashMap<Integer,String> byteOperatorMapping;
 	private final TypeComparator typeComparator;
-	private final ArrayList<Integer> byteOperators;
+	private final ArrayList<Integer> chunkSizes;
 	private final String sorterName;
 	private final int numBytes;
+	private final boolean isKeyFullyDetermined;
 
 	public SorterTemplateModel(TypeComparator typeComparator){
 		this.typeComparator = typeComparator;
 
-		this.byteOperators = generatedSequenceFixedByteOperators(typeComparator.getNormalizeKeyLen());
 
-		this.numBytes      = Math.min(typeComparator.getNormalizeKeyLen(), NormalizedKeySorter.DEFAULT_MAX_NORMALIZED_KEY_LEN);
+		if (this.typeComparator.supportsNormalizedKey()) {
+			// compute the max normalized key length
+			int numPartialKeys;
+			try {
+				numPartialKeys = this.typeComparator.getFlatComparators().length;
+			} catch (Throwable t) {
+				numPartialKeys = 1;
+			}
+
+			int maxLen = Math.min( NormalizedKeySorter.DEFAULT_MAX_NORMALIZED_KEY_LEN, NormalizedKeySorter.MAX_NORMALIZED_KEY_LEN_PER_ELEMENT * numPartialKeys);
+
+			this.numBytes = Math.min(this.typeComparator.getNormalizeKeyLen(), maxLen);
+			this.isKeyFullyDetermined = !this.typeComparator.isNormalizedKeyPrefixOnly(this.numBytes);
+		}
+		else {
+			this.numBytes = 0;
+			this.isKeyFullyDetermined = false;
+		}
+
+		this.chunkSizes = generatedSequenceFixedByteOperators(this.numBytes);
 
 		this.byteOperatorMapping = new HashMap<>();
 
@@ -56,14 +76,17 @@ public class SorterTemplateModel {
 	}
 
 	public String generateCodeFilename() {
-		if( byteOperators.size() == 0 ){
-			return "FlexibleSizeSorter";
-		}
 
 		String name = "";
 
-		for( Integer opt : byteOperators ) {
+		for( Integer opt : chunkSizes ) {
 			name += byteOperatorMapping.get(opt);
+		}
+
+		if(this.isKeyFullyDetermined){
+			name += "FullyDeterminedKey";
+		} else {
+			name += "NonFullyDeterminedKey";
 		}
 
 		name += "Sorter";
@@ -107,7 +130,7 @@ public class SorterTemplateModel {
 		// greedy checking index
 		int i = 0;
 		while( numberBytes > 0 ) {
-			int bytes = POSSIBLE_FIXEDBYTE_OPERRATORS[i];
+			int bytes = POSSIBLE_FIXEDBYTE_OPERATORS[i];
 			if( bytes <= numberBytes ) {
 				operators.add(bytes);
 				numberBytes -= bytes;
@@ -119,7 +142,7 @@ public class SorterTemplateModel {
 	}
 
 	public ArrayList<Integer> getBytesOperators() {
-		return byteOperators;
+		return chunkSizes;
 	}
 
 	public String getSorterName (){
@@ -129,14 +152,14 @@ public class SorterTemplateModel {
 	private String generateSwapProcedures(){
 		String procedures = "";
 
-		if( this.byteOperators.size() > 0 ) {
+		if( this.chunkSizes.size() > 0 ) {
 			String temporaryString = "";
 			String firstSegmentString = "";
 			String secondSegmentString = "";
 
 			int accOffset = 0;
-			for( int i = 0; i  < byteOperators.size(); i++ ){
-				int numberByte = byteOperators.get(i);
+			for( int i = 0; i  < chunkSizes.size(); i++ ){
+				int numberByte = chunkSizes.get(i);
 				int varIndex  = i+1;
 
 				String primitiveClass = byteOperatorMapping.get(numberByte);
@@ -144,7 +167,7 @@ public class SorterTemplateModel {
 
 				String offsetString = "";
 				if( i > 0 ) {
-					accOffset += byteOperators.get(i-1);
+					accOffset += chunkSizes.get(i-1);
 					offsetString = "+" + accOffset;
 				}
 
@@ -169,17 +192,17 @@ public class SorterTemplateModel {
 	private String generateWriteProcedures(){
 		String procedures = "";
 		// skip first operator for prefix
-		if( byteOperators.size() > 1 && ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN ) {
+		if( chunkSizes.size() > 1 && ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN ) {
 			int offset = 0;
-			for( int i = 1; i < byteOperators.size(); i++ ){
-				int noBytes = byteOperators.get(i);
+			for( int i = 1; i < chunkSizes.size(); i++ ){
+				int noBytes = chunkSizes.get(i);
 				if( noBytes == 1 ){
 					break;
 				}
 				String primitiveClass = byteOperatorMapping.get(noBytes);
 				String primitiveType  = primitiveClass.toLowerCase();
 
-				offset += byteOperators.get(i-1);
+				offset += chunkSizes.get(i-1);
 
 				String reverseBytesMethod = primitiveClass;
 				if( primitiveClass.equals("Int") ) {
@@ -210,7 +233,7 @@ public class SorterTemplateModel {
 		String procedures = "";
 
 		// skip first operator for prefix
-		if( byteOperators.size() > 1 && ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN ) {
+		if( chunkSizes.size() > 1 && ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN ) {
 			procedures += "";
 
 			String sortOrder = "";
@@ -219,16 +242,11 @@ public class SorterTemplateModel {
 			}
 
 			int offset = 0;
-			for (int i = 1; i < byteOperators.size(); i++) {
+			for (int i = 1; i < chunkSizes.size(); i++) {
 
-				offset += byteOperators.get(i-1);
-				String primitiveClass = byteOperatorMapping.get(byteOperators.get(i));
+				offset += chunkSizes.get(i-1);
+				String primitiveClass = byteOperatorMapping.get(chunkSizes.get(i));
 				String primitiveType  = primitiveClass.toLowerCase();
-
-				String reverseBytesMethod = primitiveClass;
-				if( primitiveClass.equals("Int") ) {
-					reverseBytesMethod = "Integer";
-				}
 
 				String var1 = "l_"+ i + "_1";
 				String var2 = "l_"+ i + "_2";
@@ -245,12 +263,12 @@ public class SorterTemplateModel {
 		}
 
 		// order can be determined by key
-		if( !typeComparator.isNormalizedKeyPrefixOnly(this.numBytes) ){
+		if( this.isKeyFullyDetermined ){
 			procedures += "return 0;\n";
 		} else {
-			procedures += "final long pointerI = segI.getLong(iBufferOffset) & POINTER_MASK;";
-			procedures += "final long pointerJ = segJ.getLong(jBufferOffset) & POINTER_MASK;";
-			procedures += "return compareRecords(pointerI, pointerJ);";
+			procedures += "final long pointerI = segI.getLong(iBufferOffset) & POINTER_MASK;\n";
+			procedures += "final long pointerJ = segJ.getLong(jBufferOffset) & POINTER_MASK;\n";
+			procedures += "return compareRecords(pointerI, pointerJ);\n";
 		}
 
 		return procedures;
