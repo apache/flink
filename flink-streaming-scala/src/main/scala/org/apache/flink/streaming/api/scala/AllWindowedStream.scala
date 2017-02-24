@@ -209,8 +209,9 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
    * @param aggregateFunction The aggregation function.
    * @return The data stream that is the result of applying the fold function to the window.
    */
-  def aggregate[ACC: TypeInformation, R: TypeInformation]
-      (aggregateFunction: AggregateFunction[T, ACC, R]): DataStream[R] = {
+  @PublicEvolving
+  def aggregate[ACC: TypeInformation, R: TypeInformation](
+      aggregateFunction: AggregateFunction[T, ACC, R]): DataStream[R] = {
 
     checkNotNull(aggregateFunction, "AggregationFunction must not be null")
 
@@ -232,9 +233,10 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
    * @param windowFunction The window function.
    * @return The data stream that is the result of applying the window function to the window.
    */
-  def aggregate[ACC: TypeInformation, V: TypeInformation, R: TypeInformation]
-      (preAggregator: AggregateFunction[T, ACC, V],
-       windowFunction: AllWindowFunction[V, R, W]): DataStream[R] = {
+  @PublicEvolving
+  def aggregate[ACC: TypeInformation, V: TypeInformation, R: TypeInformation](
+      preAggregator: AggregateFunction[T, ACC, V],
+      windowFunction: AllWindowFunction[V, R, W]): DataStream[R] = {
 
     checkNotNull(preAggregator, "AggregationFunction must not be null")
     checkNotNull(windowFunction, "Window function must not be null")
@@ -264,9 +266,10 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
    * @param windowFunction The window function.
    * @return The data stream that is the result of applying the window function to the window.
    */
-  def aggregate[ACC: TypeInformation, V: TypeInformation, R: TypeInformation]
-      (preAggregator: AggregateFunction[T, ACC, V],
-       windowFunction: (W, Iterable[V], Collector[R]) => Unit): DataStream[R] = {
+  @PublicEvolving
+  def aggregate[ACC: TypeInformation, V: TypeInformation, R: TypeInformation](
+      preAggregator: AggregateFunction[T, ACC, V],
+      windowFunction: (W, Iterable[V], Collector[R]) => Unit): DataStream[R] = {
 
     checkNotNull(preAggregator, "AggregationFunction must not be null")
     checkNotNull(windowFunction, "Window function must not be null")

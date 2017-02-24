@@ -303,6 +303,7 @@ public class AllWindowedStream<T, W extends Window> {
 	 * @param <R> The type of the elements in the resulting stream, equal to the
 	 *            AggregateFunction's result type   
 	 */
+	@PublicEvolving
 	public <ACC, R> SingleOutputStreamOperator<R> aggregate(AggregateFunction<T, ACC, R> function) {
 		checkNotNull(function, "function");
 
@@ -331,6 +332,7 @@ public class AllWindowedStream<T, W extends Window> {
 	 * @param <R> The type of the elements in the resulting stream, equal to the
 	 *            AggregateFunction's result type  
 	 */
+	@PublicEvolving
 	public <ACC, R> SingleOutputStreamOperator<R> aggregate(
 			AggregateFunction<T, ACC, R> function,
 			TypeInformation<ACC> accumulatorType,
@@ -366,6 +368,7 @@ public class AllWindowedStream<T, W extends Window> {
 	 * @param <R> The type of the elements in the resulting stream, equal to the
 	 *            WindowFunction's result type
 	 */
+	@PublicEvolving
 	public <ACC, V, R> SingleOutputStreamOperator<R> aggregate(
 			AggregateFunction<T, ACC, V> aggFunction,
 			AllWindowFunction<V, R, W> windowFunction) {
@@ -405,6 +408,7 @@ public class AllWindowedStream<T, W extends Window> {
 	 * @param <R> The type of the elements in the resulting stream, equal to the
 	 *            WindowFunction's result type
 	 */
+	@PublicEvolving
 	public <ACC, V, R> SingleOutputStreamOperator<R> aggregate(
 			AggregateFunction<T, ACC, V> aggregateFunction,
 			AllWindowFunction<V, R, W> windowFunction,

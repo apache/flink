@@ -258,8 +258,9 @@ class WindowedStream[T, K, W <: Window](javaStream: JavaWStream[T, K, W]) {
    * @param aggregateFunction The aggregation function.
    * @return The data stream that is the result of applying the fold function to the window.
    */
-  def aggregate[ACC: TypeInformation, R: TypeInformation]
-      (aggregateFunction: AggregateFunction[T, ACC, R]): DataStream[R] = {
+  @PublicEvolving
+  def aggregate[ACC: TypeInformation, R: TypeInformation](
+      aggregateFunction: AggregateFunction[T, ACC, R]): DataStream[R] = {
 
     val accumulatorType: TypeInformation[ACC] = implicitly[TypeInformation[ACC]]
     val resultType: TypeInformation[R] = implicitly[TypeInformation[R]]
@@ -279,9 +280,10 @@ class WindowedStream[T, K, W <: Window](javaStream: JavaWStream[T, K, W]) {
    * @param windowFunction The window function.
    * @return The data stream that is the result of applying the window function to the window.
    */
-  def aggregate[ACC: TypeInformation, V: TypeInformation, R: TypeInformation]
-      (preAggregator: AggregateFunction[T, ACC, V],
-       windowFunction: WindowFunction[V, R, K, W]): DataStream[R] = {
+  @PublicEvolving
+  def aggregate[ACC: TypeInformation, V: TypeInformation, R: TypeInformation](
+      preAggregator: AggregateFunction[T, ACC, V],
+      windowFunction: WindowFunction[V, R, K, W]): DataStream[R] = {
 
     val cleanedPreAggregator = clean(preAggregator)
     val cleanedWindowFunction = clean(windowFunction)
@@ -308,9 +310,10 @@ class WindowedStream[T, K, W <: Window](javaStream: JavaWStream[T, K, W]) {
    * @param windowFunction The window function.
    * @return The data stream that is the result of applying the window function to the window.
    */
-  def aggregate[ACC: TypeInformation, V: TypeInformation, R: TypeInformation]
-      (preAggregator: AggregateFunction[T, ACC, V],
-       windowFunction: (K, W, Iterable[V], Collector[R]) => Unit): DataStream[R] = {
+  @PublicEvolving
+  def aggregate[ACC: TypeInformation, V: TypeInformation, R: TypeInformation](
+      preAggregator: AggregateFunction[T, ACC, V],
+      windowFunction: (K, W, Iterable[V], Collector[R]) => Unit): DataStream[R] = {
 
     val cleanedPreAggregator = clean(preAggregator)
     val cleanedWindowFunction = clean(windowFunction)
@@ -337,9 +340,10 @@ class WindowedStream[T, K, W <: Window](javaStream: JavaWStream[T, K, W]) {
     * @param windowFunction The window function.
     * @return The data stream that is the result of applying the window function to the window.
     */
-  def aggregate[ACC: TypeInformation, V: TypeInformation, R: TypeInformation]
-  (preAggregator: AggregateFunction[T, ACC, V],
-   windowFunction: ProcessWindowFunction[V, R, K, W]): DataStream[R] = {
+  @PublicEvolving
+  def aggregate[ACC: TypeInformation, V: TypeInformation, R: TypeInformation](
+      preAggregator: AggregateFunction[T, ACC, V],
+      windowFunction: ProcessWindowFunction[V, R, K, W]): DataStream[R] = {
 
     val cleanedPreAggregator = clean(preAggregator)
     val cleanedWindowFunction = clean(windowFunction)
