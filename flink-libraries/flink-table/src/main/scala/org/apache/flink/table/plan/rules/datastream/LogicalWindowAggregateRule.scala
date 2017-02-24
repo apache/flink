@@ -25,14 +25,16 @@ import org.apache.calcite.plan._
 import org.apache.calcite.plan.hep.HepRelVertex
 import org.apache.calcite.rel.logical.{LogicalAggregate, LogicalProject}
 import org.apache.calcite.rex.{RexCall, RexLiteral, RexNode}
+import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.fun.SqlFloorFunction
 import org.apache.calcite.util.ImmutableBitSet
 import org.apache.flink.table.api.scala.Tumble
 import org.apache.flink.table.api.{TableException, TumblingWindow, Window}
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions.EventTimeExtractor
+import org.apache.flink.table.functions.{EventTimeExtractor, ProcTimeExtractor}
 import org.apache.flink.table.plan.logical.rel.LogicalWindowAggregate
+import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
 
 import scala.collection.JavaConversions._
 
@@ -104,15 +106,11 @@ class LogicalWindowAggregateRule
     field match {
       case call: RexCall =>
         call.getOperator match {
-          case _: SqlFloorFunction => call.getOperands.get(0) match {
-            case c: RexCall => if (c.getOperator == EventTimeExtractor) {
-              val unit = call.getOperands.get(1)
-                .asInstanceOf[RexLiteral].getValue.asInstanceOf[TimeUnitRange]
-              return Some(LogicalWindowAggregateRule.timeUnitRangeToWindow(unit)
-                .on("rowtime"))
-            }
-            case _ =>
-          }
+          case _: SqlFloorFunction =>
+            val unit: TimeUnitRange = LogicalWindowAggregateRule.getLiteral(call.getOperands.get(1))
+            val w = LogicalWindowAggregateRule.timeUnitRangeToTumbleWindow(unit)
+            return LogicalWindowAggregateRule.decorateTimeIndicator(
+              call.getOperands.get(0).asInstanceOf[RexCall].getOperator, w)
           case _ =>
         }
       case _ =>
@@ -130,10 +128,24 @@ object LogicalWindowAggregateRule {
 
   private[flink] val INSTANCE = new LogicalWindowAggregateRule
 
-  private val EXPR_ONE = ExpressionParser.parseExpression("1")
+  private def decorateTimeIndicator(operator: SqlOperator, window: TumblingWindow) = {
+    operator match {
+      case EventTimeExtractor => Some(window.on("rowtime"))
+      case ProcTimeExtractor => Some(window)
+      case _ => None
+    }
+  }
 
-  def timeUnitRangeToWindow(range: TimeUnitRange): TumblingWindow = {
-    Tumble over ExpressionUtils.toMilliInterval(EXPR_ONE, range.startUnit.multiplier.longValue())
+  private def timeUnitRangeToTumbleWindow(range: TimeUnitRange): TumblingWindow = {
+    intervalToTumbleWindow(range.startUnit.multiplier.longValue())
+  }
+
+  private def intervalToTumbleWindow(size: Long): TumblingWindow = {
+    Tumble over Literal(size, TimeIntervalTypeInfo.INTERVAL_MILLIS)
+  }
+
+  private def getLiteral[T](node: RexNode): T = {
+    node.asInstanceOf[RexLiteral].getValue.asInstanceOf[T]
   }
 }
 
