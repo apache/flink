@@ -251,6 +251,8 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 
 		AbstractYarnClusterDescriptor yarnClusterDescriptor = getClusterDescriptor();
 
+		Configuration config = yarnClusterDescriptor.getFlinkConfiguration();
+
 		if (!cmd.hasOption(CONTAINER.getOpt())) { // number of containers is required option!
 			LOG.error("Missing required argument {}", CONTAINER.getOpt());
 			printUsage();
@@ -306,12 +308,16 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 		if (cmd.hasOption(JM_MEMORY.getOpt())) {
 			int jmMemory = Integer.valueOf(cmd.getOptionValue(JM_MEMORY.getOpt()));
 			yarnClusterDescriptor.setJobManagerMemory(jmMemory);
+		} else if (config.containsKey(ConfigConstants.JOB_MANAGER_HEAP_MEMORY_KEY)) {
+			yarnClusterDescriptor.setJobManagerMemory(config.getInteger(ConfigConstants.JOB_MANAGER_HEAP_MEMORY_KEY, ConfigConstants.DEFAULT_JOB_MANAGER_HEAP_MEMORY));
 		}
 
 		// Task Managers memory
 		if (cmd.hasOption(TM_MEMORY.getOpt())) {
 			int tmMemory = Integer.valueOf(cmd.getOptionValue(TM_MEMORY.getOpt()));
 			yarnClusterDescriptor.setTaskManagerMemory(tmMemory);
+		} else if (config.containsKey(ConfigConstants.TASK_MANAGER_HEAP_MEMORY_KEY)) {
+			yarnClusterDescriptor.setTaskManagerMemory(config.getInteger(ConfigConstants.TASK_MANAGER_HEAP_MEMORY_KEY, ConfigConstants.DEFAULT_TASK_MANAGER_HEAP_MEMORY));
 		}
 
 		if (cmd.hasOption(SLOTS.getOpt())) {

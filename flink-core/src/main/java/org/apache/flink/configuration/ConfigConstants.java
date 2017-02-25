@@ -110,7 +110,12 @@ public final class ConfigConstants {
 	public static final String EXECUTION_RETRY_DELAY_KEY = "execution-retries.delay";
 	
 	// -------------------------------- Runtime -------------------------------
-	
+
+	/**
+	 * JVM heap size (in megabytes) for the JobManager
+	 */
+	public static final String JOB_MANAGER_HEAP_MEMORY_KEY = "jobmanager.heap.mb";
+
 	/**
 	 * The config parameter defining the network address to connect to
 	 * for communication with the job manager.
@@ -196,6 +201,11 @@ public final class ConfigConstants {
 	 * The config parameter defining the taskmanager log file location
 	 */
 	public static final String TASK_MANAGER_LOG_PATH_KEY = "taskmanager.log.path";
+
+	/**
+	 * JVM heap size (in megabytes) for the TaskManagers
+	 */
+	public static final String TASK_MANAGER_HEAP_MEMORY_KEY = "taskmanager.heap.mb";
 
 	/**
 	 * The config parameter defining the amount of memory to be allocated by the task manager's
@@ -1007,6 +1017,11 @@ public final class ConfigConstants {
 	// ------------------------------ Runtime ---------------------------------
 
 	/**
+	 * The default JVM heap size (in megabytes) for the JobManager
+	 */
+	public static final int DEFAULT_JOB_MANAGER_HEAP_MEMORY = 1024;
+
+	/**
 	 * The default library cache manager cleanup interval in seconds
 	 */
 	public static final long DEFAULT_LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL = 3600;
@@ -1045,6 +1060,11 @@ public final class ConfigConstants {
 	 * Default BLOB server port. 0 means ephemeral port.
 	 */
 	public static final String DEFAULT_BLOB_SERVER_PORT = "0";
+
+	/**
+	 * The default JVM heap size (in megabytes) for the JobManager
+	 */
+	public static final int DEFAULT_TASK_MANAGER_HEAP_MEMORY = 1024;
 
 	/**
 	 * The default network port the task manager expects incoming IPC connections. The {@code 0} means that

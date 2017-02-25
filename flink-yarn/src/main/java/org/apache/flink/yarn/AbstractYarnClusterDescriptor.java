@@ -113,9 +113,9 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	 */
 	private int slots = -1;
 
-	private int jobManagerMemoryMb = 1024;
+	private int jobManagerMemoryMb = ConfigConstants.DEFAULT_JOB_MANAGER_HEAP_MEMORY;
 
-	private int taskManagerMemoryMb = 1024;
+	private int taskManagerMemoryMb = ConfigConstants.DEFAULT_TASK_MANAGER_HEAP_MEMORY;
 
 	private int taskManagerCount = 1;
 
