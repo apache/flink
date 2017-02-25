@@ -30,6 +30,14 @@ public class CoreOptions {
 		.key("env.java.opts")
 		.defaultValue("");
 
+	public static final ConfigOption<String> FLINK_JM_JVM_OPTIONS = ConfigOptions
+		.key("env.java.opts.jobmanager")
+		.defaultValue("");
+
+	public static final ConfigOption<String> FLINK_TM_JVM_OPTIONS = ConfigOptions
+		.key("env.java.opts.taskmanager")
+		.defaultValue("");
+
 	public static final ConfigOption<Integer> DEFAULT_PARALLELISM_KEY = ConfigOptions
 		.key("parallelism.default")
 		.defaultValue(-1);
