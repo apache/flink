@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.clusterframework;
 
-import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Address;
 import com.typesafe.config.Config;
@@ -29,6 +28,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.runtime.webmonitor.WebMonitor;
@@ -45,7 +45,6 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.BindException;
-import java.net.ServerSocket;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -67,10 +66,10 @@ public class BootstrapTools {
 	 * @throws Exception
 	 */
 	public static ActorSystem startActorSystem(
-				Configuration configuration,
+				final Configuration configuration,
 				String listeningAddress,
 				String portRangeDefinition,
-				Logger logger) throws Exception {
+				final Logger logger) throws Exception {
 
 		// parse port range definition and create port iterator
 		Iterator<Integer> portsIterator;
@@ -80,44 +79,23 @@ public class BootstrapTools {
 			throw new IllegalArgumentException("Invalid port range definition: " + portRangeDefinition);
 		}
 
-		while (portsIterator.hasNext()) {
-			// first, we check if the port is available by opening a socket
-			// if the actor system fails to start on the port, we try further
-			ServerSocket availableSocket = NetUtils.createSocketFromPorts(
-				portsIterator,
-				new NetUtils.SocketFactory() {
-					@Override
-					public ServerSocket createSocket(int port) throws IOException {
-						return new ServerSocket(port);
-					}
-				});
-
-			int port;
-			if (availableSocket == null) {
-				throw new BindException("Unable to allocate further port in port range: " + portRangeDefinition);
-			} else {
-				port = availableSocket.getLocalPort();
+		return NetUtils.createServerFromPorts(listeningAddress, portsIterator, new NetUtils.ServerFactory<ActorSystem>() {
+			@Override
+			public ActorSystem create(String address, int port) throws Exception {
 				try {
-					availableSocket.close();
-				} catch (IOException ignored) {}
+					return startActorSystem(configuration, address, port, logger);
+				}
+				catch (Exception e) {
+					Throwable cause = e.getCause();
+					if (cause instanceof org.jboss.netty.channel.ChannelException ||
+						cause instanceof java.net.BindException) {
+						throw new BindException(e.getMessage());
+					} else {
+						throw e;
+					}
+				}
 			}
-
-			try {
-				return startActorSystem(configuration, listeningAddress, port, logger);
-			}
-			catch (Exception e) {
-				// we can continue to try if this contains a netty channel exception
-				Throwable cause = e.getCause();
-				if (!(cause instanceof org.jboss.netty.channel.ChannelException ||
-						cause instanceof java.net.BindException)) {
-					throw e;
-				} // else fall through the loop and try the next port
-			}
-		}
-
-		// if we come here, we have exhausted the port range
-		throw new BindException("Could not start actor system on any port in port range "
-			+ portRangeDefinition);
+		});
 	}
 
 	/**
@@ -174,36 +152,28 @@ public class BootstrapTools {
 	public static WebMonitor startWebMonitorIfConfigured(
 				Configuration config,
 				ActorSystem actorSystem,
-				ActorRef jobManager,
 				Logger logger) throws Exception {
-
 
 		// this ensures correct values are present in the web frontend
 		final Address address = AkkaUtils.getAddress(actorSystem);
 		config.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, address.host().get());
 		config.setString(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, address.port().get().toString());
 
-		if (config.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0) >= 0) {
-			logger.info("Starting JobManager Web Frontend");
+		logger.info("Starting JobManager Web Frontend");
 
-			LeaderRetrievalService leaderRetrievalService = 
-				LeaderRetrievalUtils.createLeaderRetrievalService(config, jobManager);
+		LeaderRetrievalService leaderRetrievalService =
+			LeaderRetrievalUtils.createLeaderRetrievalService(config);
 
-			// start the web frontend. we need to load this dynamically
-			// because it is not in the same project/dependencies
-			WebMonitor monitor = WebMonitorUtils.startWebRuntimeMonitor(
-				config, leaderRetrievalService, actorSystem);
+		// start the web frontend. we need to load this dynamically
+		// because it is not in the same project/dependencies
+		WebMonitor monitor = WebMonitorUtils.startWebRuntimeMonitor(
+			config, leaderRetrievalService, actorSystem);
 
-			// start the web monitor
-			if (monitor != null) {
-				String jobManagerAkkaURL = AkkaUtils.getAkkaURL(actorSystem, jobManager);
-				monitor.start(jobManagerAkkaURL);
-			}
-			return monitor;
+		if (monitor != null) {
+			monitor.start(JobManager.getRemoteJobManagerAkkaURL(config));
 		}
-		else {
-			return null;
-		}
+
+		return monitor;
 	}
 
 	/**

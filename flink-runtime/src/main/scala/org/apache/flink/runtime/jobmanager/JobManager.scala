@@ -165,8 +165,8 @@ class JobManager(
    * web monitors can transparently interact with each job manager. Currently each web server has
    * to run in the actor system of the associated job manager.
    */
-  val webMonitorPort : Int = flinkConfiguration.getInteger(
-    ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, -1)
+  val webMonitorPort : Int = Integer.parseInt(flinkConfiguration.getString(
+    ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, "-1"))
 
   /** The default directory for savepoints. */
   val defaultSavepointDir: String = ConfigurationUtil.getStringWithDeprecatedKeys(
@@ -2228,28 +2228,24 @@ object JobManager {
     configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, address.host.get)
     configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, address.port.get)
 
-    val webMonitor: Option[WebMonitor] =
-      if (configuration.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0) >= 0) {
-        LOG.info("Starting JobManager web frontend")
-        val leaderRetrievalService = LeaderRetrievalUtils
-          .createLeaderRetrievalService(configuration)
+    val webMonitor: Option[WebMonitor] = {
+      LOG.info("Starting JobManager web frontend")
+      val leaderRetrievalService = LeaderRetrievalUtils
+        .createLeaderRetrievalService(configuration)
 
-        // start the web frontend. we need to load this dynamically
-        // because it is not in the same project/dependencies
-        val webServer = WebMonitorUtils.startWebRuntimeMonitor(
-          configuration,
-          leaderRetrievalService,
-          jobManagerSystem)
+      // start the web frontend. we need to load this dynamically
+      // because it is not in the same project/dependencies
+      val webServer = WebMonitorUtils.startWebRuntimeMonitor(
+        configuration,
+        leaderRetrievalService,
+        jobManagerSystem)
 
-        Option(webServer)
-      }
-      else {
-        None
-      }
+      Option(webServer)
+    }
 
     // Reset the port (necessary in case of automatic port selection)
-    webMonitor.foreach{ monitor => configuration.setInteger(
-      ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, monitor.getServerPort) }
+    webMonitor.foreach{ monitor => configuration.setString(
+      ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, String.valueOf(monitor.getServerPort)) }
 
     try {
       // bring up the job manager actor
@@ -2402,7 +2398,9 @@ object JobManager {
     }
 
     if (cliOptions.getWebUIPort() >= 0) {
-      configuration.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, cliOptions.getWebUIPort())
+      configuration.setString(
+        ConfigConstants.JOB_MANAGER_WEB_PORT_KEY,
+        String.valueOf(cliOptions.getWebUIPort()))
     }
 
     if (cliOptions.getHost() != null) {

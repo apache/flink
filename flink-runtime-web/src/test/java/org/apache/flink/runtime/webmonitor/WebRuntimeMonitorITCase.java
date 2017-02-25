@@ -138,7 +138,7 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 			Path logFile = Files.createFile(new File(logDir, "jobmanager.log").toPath());
 			Files.createFile(new File(logDir, "jobmanager.out").toPath());
 
-			config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0);
+			config.setString(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, "0");
 			config.setString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, logFile.toString());
 
 			for (int i = 0; i < jobManagerSystem.length; i++) {
@@ -156,8 +156,8 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 			String[] jobManagerAddress = new String[2];
 			for (int i = 0; i < jobManager.length; i++) {
 				Configuration jmConfig = config.clone();
-				jmConfig.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY,
-						webMonitor[i].getServerPort());
+				jmConfig.setString(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY,
+						String.valueOf(webMonitor[i].getServerPort()));
 
 				jobManager[i] = JobManager.startJobManagerActors(
 					jmConfig,
@@ -280,7 +280,7 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 			Files.createFile(new File(logDir, "jobmanager.out").toPath());
 
 			final Configuration config = new Configuration();
-			config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0);
+			config.setString(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, "0");
 			config.setString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, logFile.toString());
 			config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
 			config.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeper.getConnectString());
@@ -457,7 +457,7 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 
 		// Web frontend on random port
 		Configuration config = new Configuration();
-		config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0);
+		config.setString(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, "0");
 		config.setString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, logFile.toString());
 
 		WebRuntimeMonitor webMonitor = new WebRuntimeMonitor(

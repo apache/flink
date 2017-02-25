@@ -65,7 +65,7 @@ public class ZooKeeperTestUtils {
 		checkNotNull(fsStateHandlePath, "File state handle backend path");
 
 		// Web frontend, you have been dismissed. Sorry.
-		config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, -1);
+		config.setString(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, "-1");
 
 		// ZooKeeper recovery mode
 		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");

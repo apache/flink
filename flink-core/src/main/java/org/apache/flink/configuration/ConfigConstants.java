@@ -566,7 +566,12 @@ public final class ConfigConstants {
 	// ------------------------- JobManager Web Frontend ----------------------
 
 	/**
-	 * The port for the runtime monitor web-frontend server.
+	 * The config parameter defining the server port of the webmonitor.
+	 * The port can either be a port, such as "9123",
+	 * a range of ports: "50100-50200"
+	 * or a list of ranges and or points: "50100-50200,50300-50400,51234"
+	 *
+	 * Setting the port to 0 will let the OS choose an available port.
 	 */
 	public static final String JOB_MANAGER_WEB_PORT_KEY = "jobmanager.web.port";
 
@@ -1252,8 +1257,8 @@ public final class ConfigConstants {
 			.noDefaultValue();
 
 	/** The config key for the port of the JobManager web frontend.
-	 * Setting this value to {@code -1} disables the web frontend. */
-	public static final int DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT = 8081;
+	 * Setting this value to {@code "-1"} disables the web frontend. */
+	public static final String DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT = "8081";
 
 	/** Default value to override SSL support for the JobManager web UI */
 	public static final boolean DEFAULT_JOB_MANAGER_WEB_SSL_ENABLED = true;

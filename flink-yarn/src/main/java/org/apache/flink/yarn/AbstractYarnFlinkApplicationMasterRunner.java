@@ -189,9 +189,9 @@ public abstract class AbstractYarnFlinkApplicationMasterRunner {
 			configuration.setString(HighAvailabilityOptions.HA_CLUSTER_ID, cliZKNamespace);
 		}
 
-		// if a web monitor shall be started, set the port to random binding
-		if (configuration.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0) >= 0) {
-			configuration.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0);
+		// if the user doesn't specify port, set the port to random binding
+		if (!configuration.containsKey(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY)) {
+			configuration.setString(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, "0");
 		}
 
 		// if the user has set the deprecated YARN-specific config keys, we add the 

@@ -83,6 +83,7 @@ import org.apache.flink.runtime.webmonitor.metrics.JobVertexMetricsHandler;
 import org.apache.flink.runtime.webmonitor.metrics.MetricFetcher;
 import org.apache.flink.runtime.webmonitor.metrics.TaskManagerMetricsHandler;
 import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.NetUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -96,7 +97,9 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 import java.io.File;
 import java.io.IOException;
+import java.net.BindException;
 import java.net.InetSocketAddress;
+import java.util.Iterator;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
@@ -167,13 +170,6 @@ public class WebRuntimeMonitor implements WebMonitor {
 		this.retriever = new JobManagerRetriever(this, actorSystem, AkkaUtils.getTimeout(config), timeout);
 		
 		final WebMonitorConfig cfg = new WebMonitorConfig(config);
-
-		final String configuredAddress = cfg.getWebFrontendAddress();
-
-		final int configuredPort = cfg.getWebFrontendPort();
-		if (configuredPort < 0) {
-			throw new IllegalArgumentException("Web frontend port is invalid: " + configuredPort);
-		}
 		
 		final WebMonitorUtils.LogFileLocation logFiles = WebMonitorUtils.LogFileLocation.find(config);
 		
@@ -414,19 +410,36 @@ public class WebRuntimeMonitor implements WebMonitor {
 		NioEventLoopGroup bossGroup   = new NioEventLoopGroup(1);
 		NioEventLoopGroup workerGroup = new NioEventLoopGroup();
 
+
+		final String configuredAddress = cfg.getWebFrontendAddress();
+		final Iterator<Integer> configuredPortRange = cfg.getWebFrontendPortRange();
+
 		this.bootstrap = new ServerBootstrap();
 		this.bootstrap
 				.group(bossGroup, workerGroup)
 				.channel(NioServerSocketChannel.class)
 				.childHandler(initializer);
 
-		ChannelFuture ch;
-		if (configuredAddress == null) {
-			ch = this.bootstrap.bind(configuredPort);
-		} else {
-			ch = this.bootstrap.bind(configuredAddress, configuredPort);
+
+		try {
+			this.serverChannel = NetUtils.createServerFromPorts(configuredAddress, configuredPortRange, new NetUtils.ServerFactory<Channel>() {
+				@Override
+				public Channel create(String address, int port) throws Exception {
+					ChannelFuture ch;
+					if (address == null) {
+						ch = bootstrap.bind(port);
+					} else {
+						ch = bootstrap.bind(address, port);
+						LOG.info("Web frontend listening at configuredAddress " + address );
+					}
+
+					return ch.sync().channel();
+				}
+			});
+		} catch (Exception e) {
+			throw new BindException(e.getMessage());
 		}
-		this.serverChannel = ch.sync().channel();
+
 
 		InetSocketAddress bindAddress = (InetSocketAddress) serverChannel.localAddress();
 		String address = bindAddress.getAddress().getHostAddress();
@@ -525,6 +538,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 			}
 		}
 	}
+
 
 	// ------------------------------------------------------------------------
 	//  Utilities

@@ -196,7 +196,7 @@ public class JobManagerProcessReapingTest {
 		public static void main(String[] args) {
 			try {
 				Configuration config = new Configuration();
-				config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, -1);
+				config.setString(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, "-1");
 
 				JobManager.runJobManager(config, JobManagerMode.CLUSTER, "localhost", 0);
 				System.exit(0);

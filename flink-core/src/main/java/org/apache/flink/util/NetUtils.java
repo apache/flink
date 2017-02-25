@@ -34,6 +34,7 @@ import java.net.MalformedURLException;
 import java.net.ServerSocket;
 import java.net.URL;
 import java.net.UnknownHostException;
+import java.net.BindException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
@@ -373,6 +374,46 @@ public class NetUtils {
 	}
 
 	/**
+	 * Tries to create a server from the given sets of ports.
+	 *
+	 * @param address An address to listen at.
+	 * @param portRange A set of ports to choose from.
+	 * @param serverFactory A factory for creating server.
+	 * @return the created server.
+	 * @throws BindException If port range is exhausted.
+	 */
+	public static <T> T createServerFromPorts(String address, Iterator<Integer> portRange, ServerFactory<T> serverFactory) throws Exception {
+
+		while (portRange.hasNext()) {
+			ServerSocket availableSocket = NetUtils.createSocketFromPorts(
+				portRange,
+				new NetUtils.SocketFactory() {
+					@Override
+					public ServerSocket createSocket(int port) throws IOException {
+						return new ServerSocket(port);
+					}
+				});
+
+			int port;
+			if (availableSocket == null) {
+				throw new BindException("Could not start server on any port in port range: " + portRange);
+			} else {
+				port = availableSocket.getLocalPort();
+				try {
+					availableSocket.close();
+				} catch (IOException ignored) {}
+			}
+
+			try {
+				return serverFactory.create(address, port);
+			} catch (BindException e) {}
+		}
+
+		throw new BindException("Could not start server on any port in port range: " + portRange);
+	}
+
+
+	/**
 	 * Returns the wildcard address to listen on all interfaces.
 	 * @return Either 0.0.0.0 or :: depending on the IP setup.
 	 */
@@ -382,5 +423,9 @@ public class NetUtils {
 
 	public interface SocketFactory {
 		ServerSocket createSocket(int port) throws IOException;
+	}
+
+	public interface ServerFactory<T> {
+		T create(String address, int port) throws Exception;
 	}
 }

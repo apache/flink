@@ -165,6 +165,7 @@ under the License.
 							<exclude>org.apache.flink.configuration.ConfigConstants#ENABLE_QUARANTINE_MONITOR</exclude>
 							<exclude>org.apache.flink.configuration.ConfigConstants#NETWORK_REQUEST_BACKOFF_INITIAL_KEY</exclude>
 							<exclude>org.apache.flink.configuration.ConfigConstants#NETWORK_REQUEST_BACKOFF_MAX_KEY</exclude>
+							<exclude>org.apache.flink.configuration.ConfigConstants#DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT</exclude>
 						</excludes>
 					</parameter>
 				</configuration>

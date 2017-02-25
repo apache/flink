@@ -147,7 +147,7 @@ public class TestBaseUtils extends TestLogger {
 		config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, DEFAULT_AKKA_ASK_TIMEOUT + "s");
 		config.setString(ConfigConstants.AKKA_STARTUP_TIMEOUT, DEFAULT_AKKA_STARTUP_TIMEOUT);
 
-		config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 8081);
+		config.setString(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, "8081");
 		config.setString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, logFile.toString());
 
 		config.setString(ConfigConstants.TASK_MANAGER_LOG_PATH_KEY, logFile.toString());

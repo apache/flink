@@ -49,8 +49,8 @@ public class StandaloneClusterClient extends ClusterClient {
 	@Override
 	public String getWebInterfaceURL() {
 		String host = this.getJobManagerAddress().getHostString();
-		int port = getFlinkConfiguration().getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY,
-			ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT);
+		int port = Integer.parseInt(getFlinkConfiguration().getString(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY,
+			ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT));
 		return "http://" +  host + ":" + port;
 	}
 

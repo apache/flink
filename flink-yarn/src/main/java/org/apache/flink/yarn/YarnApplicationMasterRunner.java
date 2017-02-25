@@ -326,13 +326,30 @@ public class YarnApplicationMasterRunner {
 
 			// ---- (4) start the actors and components in this order:
 
-			// 1) JobManager & Archive (in non-HA case, the leader service takes this)
-			// 2) Web Monitor (we need its port to register)
+			// 1) Web Monitor (we need its port to register)
+			// 2) JobManager & Archive (in non-HA case, the leader service takes this)
 			// 3) Resource Master for YARN
 			// 4) Process reapers for the JobManager and Resource Master
 
+			// 1: the web monitor
+			LOG.debug("Starting Web Frontend");
 
-			// 1: the JobManager
+			webMonitor = BootstrapTools.startWebMonitorIfConfigured(config, actorSystem, LOG);
+
+			String protocol = "http://";
+			if (config.getBoolean(ConfigConstants.JOB_MANAGER_WEB_SSL_ENABLED,
+				ConfigConstants.DEFAULT_JOB_MANAGER_WEB_SSL_ENABLED) && SSLUtils.getSSLEnabled(config)) {
+				protocol = "https://";
+			}
+			final String webMonitorURL = webMonitor == null ? null :
+				protocol + appMasterHostname + ":" + webMonitor.getServerPort();
+
+			if (webMonitor != null) {
+				config.setString(
+					ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, String.valueOf(webMonitor.getServerPort()));
+			}
+
+			// 2: the JobManager
 			LOG.debug("Starting JobManager actor");
 
 			// we start the JobManager with its standard name
@@ -345,20 +362,6 @@ public class YarnApplicationMasterRunner {
 				Option.<String>empty(),
 				getJobManagerClass(),
 				getArchivistClass())._1();
-
-
-			// 2: the web monitor
-			LOG.debug("Starting Web Frontend");
-
-			webMonitor = BootstrapTools.startWebMonitorIfConfigured(config, actorSystem, jobManager, LOG);
-
-			String protocol = "http://";
-			if (config.getBoolean(ConfigConstants.JOB_MANAGER_WEB_SSL_ENABLED,
-				ConfigConstants.DEFAULT_JOB_MANAGER_WEB_SSL_ENABLED) && SSLUtils.getSSLEnabled(config)) {
-				protocol = "https://";
-			}
-			final String webMonitorURL = webMonitor == null ? null :
-				protocol + appMasterHostname + ":" + webMonitor.getServerPort();
 
 			// 3: Flink's Yarn ResourceManager
 			LOG.debug("Starting YARN Flink Resource Manager");
@@ -495,9 +498,9 @@ public class YarnApplicationMasterRunner {
 			configuration.setString(HighAvailabilityOptions.HA_CLUSTER_ID, cliZKNamespace);
 		}
 
-		// if a web monitor shall be started, set the port to random binding
-		if (configuration.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0) >= 0) {
-			configuration.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0);
+		// if the user doesn't specify port, set the port to random binding
+		if (!configuration.containsKey(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY)) {
+			configuration.setString(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, "0");
 		}
 
 		// if the user has set the deprecated YARN-specific config keys, we add the 

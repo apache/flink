@@ -21,6 +21,9 @@ package org.apache.flink.runtime.webmonitor;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.NetUtils;
+
+import java.util.Iterator;
 
 public class WebMonitorConfig {
 
@@ -40,7 +43,7 @@ public class WebMonitorConfig {
 	// ------------------------------------------------------------------------
 
 	/** Default port for the web dashboard (= 8081) */
-	public static final int DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT = ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT;
+	public static final String DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT = ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT;
 
 	/** Default refresh interval for the web dashboard (= 3000 msecs) */
 	public static final long DEFAULT_JOB_MANAGER_WEB_REFRESH_INTERVAL = 3000;
@@ -65,8 +68,14 @@ public class WebMonitorConfig {
 		return config.getValue(ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_ADDRESS);
 	}
 
-	public int getWebFrontendPort() {
-		return config.getInteger(JOB_MANAGER_WEB_PORT_KEY, DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT);
+	public Iterator<Integer> getWebFrontendPortRange() throws IllegalArgumentException {
+		String serverPortRange = config.getString(JOB_MANAGER_WEB_PORT_KEY, DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT);
+
+		try {
+			return NetUtils.getPortRangeFromString(serverPortRange);
+		} catch (Exception e) {
+			throw new IllegalArgumentException("Invalid port range definition: " + serverPortRange);
+		}
 	}
 
 	public long getRefreshInterval() {
