@@ -400,7 +400,7 @@ public class CsvInputFormatTest {
 	@Test
 	public void readStringFieldsWithTrailingDelimiters() {
 		try {
-			final String fileContent = "abc|-def|-ghijk\nabc|-|-hhg\n|-|-|-\n";
+			final String fileContent = "abc|-def|-ghijk\nabc|-|-hhg\n|-|-|-\n|-|-";
 			final FileInputSplit split = createTempFile(fileContent);
 
 			final TupleTypeInfo<Tuple3<String, String, String>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class, String.class, String.class);
@@ -430,7 +430,13 @@ public class CsvInputFormatTest {
 			assertEquals("", result.f0);
 			assertEquals("", result.f1);
 			assertEquals("", result.f2);
-			
+
+			result = format.nextRecord(result);
+			assertNotNull(result);
+			assertEquals("", result.f0);
+			assertEquals("", result.f1);
+			assertEquals("", result.f2);
+
 			result = format.nextRecord(result);
 			assertNull(result);
 			assertTrue(format.reachedEnd());
@@ -954,6 +960,42 @@ public class CsvInputFormatTest {
 		assertEquals("BBB", item.field2);
 		assertEquals(Double.valueOf(1.123), item.field3);
 		assertEquals("AAA", item.field4);
+	}
+
+	@Test
+	public void testPojoTypeWithTrailingEmptyFields() throws Exception {
+		File tempFile = File.createTempFile("CsvReaderPojoType", "tmp");
+		tempFile.deleteOnExit();
+		tempFile.setWritable(true);
+
+		OutputStreamWriter wrt = new OutputStreamWriter(new FileOutputStream(tempFile));
+		wrt.write("123,,3.123,,\n");
+		wrt.write("456,BBB,3.23,,\n");
+		wrt.close();
+
+		@SuppressWarnings("unchecked")
+		PojoTypeInfo<PrivatePojoItem> typeInfo = (PojoTypeInfo<PrivatePojoItem>) TypeExtractor.createTypeInfo(PrivatePojoItem.class);
+		CsvInputFormat<PrivatePojoItem> inputFormat = new PojoCsvInputFormat<PrivatePojoItem>(new Path(tempFile.toURI().toString()), typeInfo);
+
+		inputFormat.configure(new Configuration());
+
+		FileInputSplit[] splits = inputFormat.createInputSplits(1);
+		inputFormat.open(splits[0]);
+
+		PrivatePojoItem item = new PrivatePojoItem();
+		inputFormat.nextRecord(item);
+
+		assertEquals(123, item.field1);
+		assertEquals("", item.field2);
+		assertEquals(Double.valueOf(3.123), item.field3);
+		assertEquals("", item.field4);
+
+		inputFormat.nextRecord(item);
+
+		assertEquals(456, item.field1);
+		assertEquals("BBB", item.field2);
+		assertEquals(Double.valueOf(3.23), item.field3);
+		assertEquals("", item.field4);
 	}
 
 	@Test

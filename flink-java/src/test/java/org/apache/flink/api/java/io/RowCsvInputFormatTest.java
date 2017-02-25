@@ -230,7 +230,7 @@ public class RowCsvInputFormatTest {
 
 	@Test
 	public void readStringFields() throws Exception {
-		String fileContent = "abc|def|ghijk\nabc||hhg\n|||";
+		String fileContent = "abc|def|ghijk\nabc||hhg\n|||\n||";
 
 		FileInputSplit split = createTempFile(fileContent);
 
@@ -264,13 +264,19 @@ public class RowCsvInputFormatTest {
 		assertEquals("", result.getField(2));
 
 		result = format.nextRecord(result);
+		assertNotNull(result);
+		assertEquals("", result.getField(0));
+		assertEquals("", result.getField(1));
+		assertEquals("", result.getField(2));
+
+		result = format.nextRecord(result);
 		assertNull(result);
 		assertTrue(format.reachedEnd());
 	}
 
 	@Test
 	public void readMixedQuotedStringFields() throws Exception {
-		String fileContent = "@a|b|c@|def|@ghijk@\nabc||@|hhg@\n|||";
+		String fileContent = "@a|b|c@|def|@ghijk@\nabc||@|hhg@\n|||\n";
 
 		FileInputSplit split = createTempFile(fileContent);
 
@@ -311,7 +317,7 @@ public class RowCsvInputFormatTest {
 
 	@Test
 	public void readStringFieldsWithTrailingDelimiters() throws Exception {
-		String fileContent = "abc|-def|-ghijk\nabc|-|-hhg\n|-|-|-\n";
+		String fileContent = "abc|-def|-ghijk\nabc|-|-hhg\n|-|-|-\n|-|-\n";
 
 		FileInputSplit split = createTempFile(fileContent);
 
@@ -338,6 +344,12 @@ public class RowCsvInputFormatTest {
 		assertEquals("abc", result.getField(0));
 		assertEquals("", result.getField(1));
 		assertEquals("hhg", result.getField(2));
+
+		result = format.nextRecord(result);
+		assertNotNull(result);
+		assertEquals("", result.getField(0));
+		assertEquals("", result.getField(1));
+		assertEquals("", result.getField(2));
 
 		result = format.nextRecord(result);
 		assertNotNull(result);
@@ -396,12 +408,12 @@ public class RowCsvInputFormatTest {
 	public void testEmptyFields() throws Exception {
 		String fileContent =
 			",,,,,,,,\n" +
+				",,,,,,,\n" +
+				",,,,,,,,\n" +
+				",,,,,,,\n" +
 				",,,,,,,,\n" +
 				",,,,,,,,\n" +
-				",,,,,,,,\n" +
-				",,,,,,,,\n" +
-				",,,,,,,,\n" +
-				",,,,,,,,\n" +
+				",,,,,,,\n" +
 				",,,,,,,,\n";
 
 		FileInputSplit split = createTempFile(fileContent);

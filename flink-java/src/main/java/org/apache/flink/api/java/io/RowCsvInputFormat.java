@@ -151,7 +151,7 @@ public class RowCsvInputFormat extends CsvInputFormat<Row> implements ResultType
 		while (field < fieldIncluded.length) {
 
 			// check valid start position
-			if (startPos >= limit) {
+			if (startPos > limit || (startPos == limit && field != fieldIncluded.length - 1)) {
 				if (isLenient()) {
 					return false;
 				} else {

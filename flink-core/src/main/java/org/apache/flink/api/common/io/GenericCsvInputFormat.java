@@ -358,14 +358,14 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 		for (int field = 0, output = 0; field < fieldIncluded.length; field++) {
 			
 			// check valid start position
-			if (startPos >= limit) {
+			if (startPos > limit || (startPos == limit && field != fieldIncluded.length - 1)) {
 				if (lenient) {
 					return false;
 				} else {
 					throw new ParseException("Row too short: " + new String(bytes, offset, numBytes));
 				}
 			}
-			
+
 			if (fieldIncluded[field]) {
 				// parse field
 				@SuppressWarnings("unchecked")
