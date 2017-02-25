@@ -721,8 +721,8 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		paths.add(remotePathConf);
 		classPathBuilder.append("flink-conf.yaml").append(File.pathSeparator);
 
-		// write job graph to tmp file and add it to local resource 
-		// TODO: server use user main method to generate job graph 
+		// write job graph to tmp file and add it to local resource
+		// TODO: server use user main method to generate job graph
 		if (jobGraph != null) {
 			try {
 				File fp = File.createTempFile(appId.toString(), null);
@@ -1234,6 +1234,9 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 		// respect custom JVM options in the YAML file
 		String javaOpts = flinkConfiguration.getString(CoreOptions.FLINK_JVM_OPTIONS);
+		if (flinkConfiguration.getString(CoreOptions.FLINK_JM_JVM_OPTIONS).length() > 0) {
+			javaOpts += " " + flinkConfiguration.getString(CoreOptions.FLINK_JM_JVM_OPTIONS);
+		}
 		//applicable only for YarnMiniCluster secure test run
 		//krb5.conf file will be available as local resource in JM/TM container
 		if (hasKrb5) {

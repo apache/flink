@@ -360,6 +360,9 @@ public class BootstrapTools {
 							"-Xmx" + tmParams.taskManagerHeapSizeMB() + "m " +
 							"-XX:MaxDirectMemorySize=" + tmParams.taskManagerDirectMemoryLimitMB() + "m");
 		String javaOpts = flinkConfig.getString(CoreOptions.FLINK_JVM_OPTIONS);
+		if (flinkConfig.getString(CoreOptions.FLINK_TM_JVM_OPTIONS).length() > 0) {
+			javaOpts += " " + flinkConfig.getString(CoreOptions.FLINK_TM_JVM_OPTIONS);
+		}
 		//applicable only for YarnMiniCluster secure test run
 		//krb5.conf file will be available as local resource in JM/TM container
 		if(hasKrb5) {
