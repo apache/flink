@@ -400,7 +400,7 @@ public class CsvInputFormatTest {
 	@Test
 	public void readStringFieldsWithTrailingDelimiters() {
 		try {
-			final String fileContent = "abc|-def|-ghijk\nabc|-|-hhg\n|-|-|-\n|-|-\nabc|-def\n";
+			final String fileContent = "abc|-def|-ghijk\nabc|-|-hhg\n|-|-|-\n";
 			final FileInputSplit split = createTempFile(fileContent);
 
 			final TupleTypeInfo<Tuple3<String, String, String>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class, String.class, String.class);
@@ -432,19 +432,63 @@ public class CsvInputFormatTest {
 			assertEquals("", result.f2);
 
 			result = format.nextRecord(result);
-			assertNotNull(result);
-			assertEquals("", result.f0);
-			assertEquals("", result.f1);
-			assertEquals("", result.f2);
-
-			try {
-				format.nextRecord(result);
-				fail("Parse Exception was not thrown! (Row too short)");
-			} catch (ParseException e) {}
+			assertNull(result);
+			assertTrue(format.reachedEnd());
 		}
 		catch (Exception ex) {
 			fail("Test failed due to a " + ex.getClass().getName() + ": " + ex.getMessage());
 		}
+	}
+
+	@Test
+	public void testTailingEmptyFields() throws Exception {
+		final String fileContent = "aa,bb,cc\n" + // ok
+				"aa,bb,\n" +  // the last field is empty
+				"aa,,\n" +    // the last two fields are empty
+				",,\n" +      // all fields are empty
+				"aa,bb";      // row too short
+		final FileInputSplit split = createTempFile(fileContent);
+
+		final TupleTypeInfo<Tuple3<String, String, String>> typeInfo =
+				TupleTypeInfo.getBasicTupleTypeInfo(String.class, String.class, String.class);
+		final CsvInputFormat<Tuple3<String, String, String>> format =
+				new TupleCsvInputFormat<Tuple3<String, String, String>>(PATH, typeInfo);
+
+		format.setFieldDelimiter(",");
+
+		format.configure(new Configuration());
+		format.open(split);
+
+		Tuple3<String, String, String> result = new Tuple3<String, String, String>();
+
+		result = format.nextRecord(result);
+		assertNotNull(result);
+		assertEquals("aa", result.f0);
+		assertEquals("bb", result.f1);
+		assertEquals("cc", result.f2);
+
+		result = format.nextRecord(result);
+		assertNotNull(result);
+		assertEquals("aa", result.f0);
+		assertEquals("bb", result.f1);
+		assertEquals("", result.f2);
+
+		result = format.nextRecord(result);
+		assertNotNull(result);
+		assertEquals("aa", result.f0);
+		assertEquals("", result.f1);
+		assertEquals("", result.f2);
+
+		result = format.nextRecord(result);
+		assertNotNull(result);
+		assertEquals("", result.f0);
+		assertEquals("", result.f1);
+		assertEquals("", result.f2);
+
+		try {
+			format.nextRecord(result);
+			fail("Parse Exception was not thrown! (Row too short)");
+		} catch (ParseException e) {}
 	}
 
 	@Test
@@ -965,23 +1009,15 @@ public class CsvInputFormatTest {
 
 	@Test
 	public void testPojoTypeWithTrailingEmptyFields() throws Exception {
-		File tempFile = File.createTempFile("CsvReaderPojoType", "tmp");
-		tempFile.deleteOnExit();
-		tempFile.setWritable(true);
-
-		OutputStreamWriter wrt = new OutputStreamWriter(new FileOutputStream(tempFile));
-		wrt.write("123,,3.123,,\n");
-		wrt.write("456,BBB,3.23,,\n");
-		wrt.close();
+		final String fileContent = "123,,3.123,,\n456,BBB,3.23,,";
+		final FileInputSplit split = createTempFile(fileContent);
 
 		@SuppressWarnings("unchecked")
 		PojoTypeInfo<PrivatePojoItem> typeInfo = (PojoTypeInfo<PrivatePojoItem>) TypeExtractor.createTypeInfo(PrivatePojoItem.class);
-		CsvInputFormat<PrivatePojoItem> inputFormat = new PojoCsvInputFormat<PrivatePojoItem>(new Path(tempFile.toURI().toString()), typeInfo);
+		CsvInputFormat<PrivatePojoItem> inputFormat = new PojoCsvInputFormat<PrivatePojoItem>(PATH, typeInfo);
 
 		inputFormat.configure(new Configuration());
-
-		FileInputSplit[] splits = inputFormat.createInputSplits(1);
-		inputFormat.open(splits[0]);
+		inputFormat.open(split);
 
 		PrivatePojoItem item = new PrivatePojoItem();
 		inputFormat.nextRecord(item);

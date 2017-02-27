@@ -317,7 +317,7 @@ public class RowCsvInputFormatTest {
 
 	@Test
 	public void readStringFieldsWithTrailingDelimiters() throws Exception {
-		String fileContent = "abc|-def|-ghijk\nabc|-|-hhg\n|-|-|-\n|-|-\nabc|-def\n";
+		String fileContent = "abc|-def|-ghijk\nabc|-|-hhg\n|-|-|-\n";
 
 		FileInputSplit split = createTempFile(fileContent);
 
@@ -344,6 +344,58 @@ public class RowCsvInputFormatTest {
 		assertEquals("abc", result.getField(0));
 		assertEquals("", result.getField(1));
 		assertEquals("hhg", result.getField(2));
+
+		result = format.nextRecord(result);
+		assertNotNull(result);
+		assertEquals("", result.getField(0));
+		assertEquals("", result.getField(1));
+		assertEquals("", result.getField(2));
+
+		result = format.nextRecord(result);
+		assertNull(result);
+		assertTrue(format.reachedEnd());
+	}
+
+	@Test
+	public void testTailingEmptyFields() throws Exception {
+		String fileContent = "abc|-def|-ghijk\n" +
+				"abc|-def|-\n" +
+				"abc|-|-\n" +
+				"|-|-|-\n" +
+				"|-|-\n" +
+				"abc|-def\n";
+
+		FileInputSplit split = createTempFile(fileContent);
+
+		TypeInformation[] fieldTypes = new TypeInformation[]{
+				BasicTypeInfo.STRING_TYPE_INFO,
+				BasicTypeInfo.STRING_TYPE_INFO,
+				BasicTypeInfo.STRING_TYPE_INFO};
+
+		RowCsvInputFormat format = new RowCsvInputFormat(PATH, fieldTypes, "\n", "|");
+		format.setFieldDelimiter("|-");
+		format.configure(new Configuration());
+		format.open(split);
+
+		Row result = new Row(3);
+
+		result = format.nextRecord(result);
+		assertNotNull(result);
+		assertEquals("abc", result.getField(0));
+		assertEquals("def", result.getField(1));
+		assertEquals("ghijk", result.getField(2));
+
+		result = format.nextRecord(result);
+		assertNotNull(result);
+		assertEquals("abc", result.getField(0));
+		assertEquals("def", result.getField(1));
+		assertEquals("", result.getField(2));
+
+		result = format.nextRecord(result);
+		assertNotNull(result);
+		assertEquals("abc", result.getField(0));
+		assertEquals("", result.getField(1));
+		assertEquals("", result.getField(2));
 
 		result = format.nextRecord(result);
 		assertNotNull(result);

@@ -375,10 +375,7 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 				holders[output] = parser.getLastResult();
 
 				// check parse result
-				if (startPos < 0 ||
-						(startPos == limit
-								&& field != fieldIncluded.length - 1
-								&& !FieldParser.endsWithDelimiter(bytes, startPos - 1, fieldDelim))) {
+				if (startPos < 0) {
 					// no good
 					if (lenient) {
 						return false;
@@ -390,15 +387,23 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 								+ "in file: " + filePath);
 					}
 				}
+				else if (startPos == limit
+						&& field != fieldIncluded.length - 1
+						&& !FieldParser.endsWithDelimiter(bytes, startPos - 1, fieldDelim)) {
+					// We are at the end of the record, but not all fields have been read
+					// and the end is not a field delimiter indicating an empty last field.
+					if (lenient) {
+						return false;
+					} else {
+						throw new ParseException("Row too short: " + new String(bytes, offset, numBytes));
+					}
+				}
 				output++;
 			}
 			else {
 				// skip field
 				startPos = skipFields(bytes, startPos, limit, this.fieldDelim);
-				if (startPos < 0 ||
-						(startPos == limit
-								&& field != fieldIncluded.length - 1
-								&& !FieldParser.endsWithDelimiter(bytes, startPos - 1, fieldDelim))) {
+				if (startPos < 0) {
 					if (!lenient) {
 						String lineAsString = new String(bytes, offset, numBytes);
 						throw new ParseException("Line could not be parsed: '" + lineAsString+"'\n"
@@ -406,6 +411,17 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 								+ "in file: "+filePath);
 					} else {
 						return false;
+					}
+				}
+				else if (startPos == limit
+						&& field != fieldIncluded.length - 1
+						&& !FieldParser.endsWithDelimiter(bytes, startPos - 1, fieldDelim)) {
+					// We are at the end of the record, but not all fields have been read
+					// and the end is not a field delimiter indicating an empty last field.
+					if (lenient) {
+						return false;
+					} else {
+						throw new ParseException("Row too short: " + new String(bytes, offset, numBytes));
 					}
 				}
 			}
