@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow
+import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.types.Row
 import org.apache.flink.util.Preconditions
 
@@ -34,13 +35,13 @@ import org.apache.flink.util.Preconditions
   * append an (aligned) rowtime field to the end of the output row.
   */
 class DataSetWindowAggregateMapFunction(
-    private val aggregates: Array[Aggregate[_]],
+    private val aggregates: Array[AggregateFunction[_]],
     private val aggFields: Array[Int],
     private val groupingKeys: Array[Int],
-    private val timeFieldPos: Int,    // time field position in input row
+    private val timeFieldPos: Int, // time field position in input row
     private val tumbleTimeWindowSize: Option[Long],
     @transient private val returnType: TypeInformation[Row])
-    extends RichMapFunction[Row, Row] with ResultTypeQueryable[Row] {
+  extends RichMapFunction[Row, Row] with ResultTypeQueryable[Row] {
 
   private var output: Row = _
   // rowtime index in the buffer output row
@@ -51,18 +52,22 @@ class DataSetWindowAggregateMapFunction(
     Preconditions.checkNotNull(aggFields)
     Preconditions.checkArgument(aggregates.length == aggFields.length)
     // add one more arity to store rowtime
-    val partialRowLength = groupingKeys.length +
-      aggregates.map(_.intermediateDataType.length).sum + 1
+    val partialRowLength = groupingKeys.length + aggregates.length + 1
     // set rowtime to the last field of the output row
     rowtimeIndex = partialRowLength - 1
     output = new Row(partialRowLength)
   }
 
   override def map(input: Row): Row = {
+
     for (i <- aggregates.indices) {
+      val agg = aggregates(i)
       val fieldValue = input.getField(aggFields(i))
-      aggregates(i).prepare(fieldValue, output)
+      val accumulator = agg.createAccumulator()
+      agg.accumulate(accumulator, fieldValue)
+      output.setField(groupingKeys.length + i, accumulator)
     }
+
     for (i <- groupingKeys.indices) {
       output.setField(i, input.getField(groupingKeys(i)))
     }
@@ -103,3 +108,4 @@ class DataSetWindowAggregateMapFunction(
     returnType
   }
 }
+

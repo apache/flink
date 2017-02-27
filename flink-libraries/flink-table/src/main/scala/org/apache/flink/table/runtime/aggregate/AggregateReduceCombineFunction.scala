@@ -19,61 +19,71 @@
 package org.apache.flink.table.runtime.aggregate
 
 import java.lang.Iterable
+import java.util.{ArrayList => JArrayList}
 
 import org.apache.flink.api.common.functions.CombineFunction
+import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
 import org.apache.flink.types.Row
 
-import scala.collection.JavaConversions._
-
 /**
- * It wraps the aggregate logic inside of
- * [[org.apache.flink.api.java.operators.GroupReduceOperator]] and
- * [[org.apache.flink.api.java.operators.GroupCombineOperator]]
- *
- * @param aggregates          The aggregate functions.
- * @param groupKeysMapping    The index mapping of group keys between intermediate aggregate Row
- *                            and output Row.
- * @param aggregateMapping    The index mapping between aggregate function list and aggregated value
- *                            index in output Row.
- * @param groupingSetsMapping The index mapping of keys in grouping sets between intermediate
- *                            Row and output Row.
- */
+  * It wraps the aggregate logic inside of
+  * [[org.apache.flink.api.java.operators.GroupReduceOperator]] and
+  * [[org.apache.flink.api.java.operators.GroupCombineOperator]]
+  *
+  * @param aggregates          The aggregate functions.
+  * @param groupKeysMapping    The index mapping of group keys between intermediate aggregate Row
+  *                            and output Row.
+  * @param aggregateMapping    The index mapping between aggregate function list and aggregated
+  *                            value
+  *                            index in output Row.
+  * @param groupingSetsMapping The index mapping of keys in grouping sets between intermediate
+  *                            Row and output Row.
+  * @param finalRowArity       the arity of the final resulting row
+  */
 class AggregateReduceCombineFunction(
-    private val aggregates: Array[Aggregate[_ <: Any]],
+    private val aggregates: Array[AggregateFunction[_ <: Any]],
     private val groupKeysMapping: Array[(Int, Int)],
     private val aggregateMapping: Array[(Int, Int)],
     private val groupingSetsMapping: Array[(Int, Int)],
-    private val intermediateRowArity: Int,
     private val finalRowArity: Int)
   extends AggregateReduceGroupFunction(
     aggregates,
     groupKeysMapping,
     aggregateMapping,
     groupingSetsMapping,
-    intermediateRowArity,
-    finalRowArity)
-  with CombineFunction[Row, Row] {
+    finalRowArity) with CombineFunction[Row, Row] {
 
   /**
-   * For sub-grouped intermediate aggregate Rows, merge all of them into aggregate buffer,
-   *
-   * @param records  Sub-grouped intermediate aggregate Rows iterator.
-   * @return Combined intermediate aggregate Row.
-   *
-   */
+    * For sub-grouped intermediate aggregate Rows, merge all of them into aggregate buffer,
+    *
+    * @param records Sub-grouped intermediate aggregate Rows iterator.
+    * @return Combined intermediate aggregate Row.
+    *
+    */
   override def combine(records: Iterable[Row]): Row = {
 
-    // Initiate intermediate aggregate value.
-    aggregates.foreach(_.initiate(aggregateBuffer))
-
-    // Merge intermediate aggregate value to buffer.
+    // merge intermediate aggregate value to buffer.
     var last: Row = null
-    records.foreach((record) => {
-      aggregates.foreach(_.merge(record, aggregateBuffer))
-      last = record
-    })
+    val iterator = records.iterator()
+    val accumulatorList = Array.fill(aggregates.length) {
+      new JArrayList[Accumulator]()
+    }
 
-    // Set group keys to aggregateBuffer.
+    while (iterator.hasNext) {
+      val record = iterator.next()
+      for (i <- aggregates.indices) {
+        accumulatorList(i).add(
+          record.getField(groupKeysMapping.length + i).asInstanceOf[Accumulator])
+      }
+      last = record
+    }
+
+    for (i <- aggregates.indices) {
+      val agg = aggregates(i)
+      aggregateBuffer.setField(groupKeysMapping.length + i, agg.merge(accumulatorList(i)))
+    }
+
+    // set group keys to aggregateBuffer.
     for (i <- groupKeysMapping.indices) {
       aggregateBuffer.setField(i, last.getField(i))
     }

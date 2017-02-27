@@ -44,9 +44,7 @@ class DataSetAggregate(
     inputType: RelDataType,
     grouping: Array[Int],
     inGroupingSet: Boolean)
-  extends SingleRel(cluster, traitSet, inputNode)
-  with CommonAggregate
-  with DataSetRel {
+  extends SingleRel(cluster, traitSet, inputNode) with CommonAggregate with DataSetRel {
 
   override def deriveRowType(): RelDataType = rowRelDataType
 
@@ -63,11 +61,13 @@ class DataSetAggregate(
   }
 
   override def toString: String = {
-    s"Aggregate(${ if (!grouping.isEmpty) {
-      s"groupBy: (${groupingToString(inputType, grouping)}), "
-    } else {
-      ""
-    }}select: (${aggregationToString(inputType, grouping, getRowType, namedAggregates, Nil)}))"
+    s"Aggregate(${
+      if (!grouping.isEmpty) {
+        s"groupBy: (${groupingToString(inputType, grouping)}), "
+      } else {
+        ""
+      }
+    }select: (${aggregationToString(inputType, grouping, getRowType, namedAggregates, Nil)}))"
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
@@ -76,7 +76,7 @@ class DataSetAggregate(
       .item("select", aggregationToString(inputType, grouping, getRowType, namedAggregates, Nil))
   }
 
-  override def computeSelfCost (planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
+  override def computeSelfCost(planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
 
     val child = this.getInput
     val rowCnt = metadata.getRowCount(child)
@@ -86,8 +86,6 @@ class DataSetAggregate(
   }
 
   override def translateToPlan(tableEnv: BatchTableEnvironment): DataSet[Row] = {
-
-    val config = tableEnv.getConfig
 
     val groupingKeys = grouping.indices.toArray
 
@@ -107,9 +105,7 @@ class DataSetAggregate(
 
     val aggString = aggregationToString(inputType, grouping, getRowType, namedAggregates, Nil)
     val prepareOpName = s"prepare select: ($aggString)"
-    val mappedInput = inputDS
-      .map(mapFunction)
-      .name(prepareOpName)
+    val mappedInput = inputDS.map(mapFunction).name(prepareOpName)
 
     val rowTypeInfo = FlinkTypeFactory.toInternalRowTypeInfo(getRowType).asInstanceOf[RowTypeInfo]
 
@@ -127,6 +123,7 @@ class DataSetAggregate(
     else {
       // global aggregation
       val aggOpName = s"select:($aggString)"
+
       mappedInput.asInstanceOf[DataSet[Row]]
         .reduceGroup(groupReduceFunction)
         .returns(rowTypeInfo)

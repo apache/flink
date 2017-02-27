@@ -23,28 +23,20 @@ import org.apache.flink.types.Row
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow
 import org.apache.flink.util.Collector
+
 /**
   *
   * Computes the final aggregate value from incrementally computed aggreagtes.
   *
-  * @param aggregates   The aggregate functions.
-  * @param groupKeysMapping The index mapping of group keys between intermediate aggregate Row
-  *                         and output Row.
-  * @param aggregateMapping The index mapping between aggregate function list and aggregated value
-  *                         index in output Row.
+  * @param windowStartPos the start position of window
+  * @param windowEndPos   the end position of window
   * @param finalRowArity  The arity of the final output row.
   */
 class IncrementalAggregateAllTimeWindowFunction(
-    private val aggregates: Array[Aggregate[_ <: Any]],
-    private val groupKeysMapping: Array[(Int, Int)],
-    private val aggregateMapping: Array[(Int, Int)],
-    private val finalRowArity: Int,
     private val windowStartPos: Option[Int],
-    private val windowEndPos: Option[Int])
+    private val windowEndPos: Option[Int],
+    private val finalRowArity: Int)
   extends IncrementalAggregateAllWindowFunction[TimeWindow](
-    aggregates,
-    groupKeysMapping,
-    aggregateMapping,
     finalRowArity) {
 
   private var collector: TimeWindowPropertyCollector = _
@@ -55,9 +47,9 @@ class IncrementalAggregateAllTimeWindowFunction(
   }
 
   override def apply(
-    window: TimeWindow,
-    records: Iterable[Row],
-    out: Collector[Row]): Unit = {
+      window: TimeWindow,
+      records: Iterable[Row],
+      out: Collector[Row]): Unit = {
 
     // set collector and window
     collector.wrappedCollector = out

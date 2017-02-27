@@ -47,9 +47,7 @@ class DataSetWindowAggregate(
     rowRelDataType: RelDataType,
     inputType: RelDataType,
     grouping: Array[Int])
-  extends SingleRel(cluster, traitSet, inputNode)
-  with CommonAggregate
-  with DataSetRel {
+  extends SingleRel(cluster, traitSet, inputNode) with CommonAggregate with DataSetRel {
 
   override def deriveRowType() = rowRelDataType
 
@@ -97,7 +95,7 @@ class DataSetWindowAggregate(
           namedProperties))
   }
 
-  override def computeSelfCost (planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
+  override def computeSelfCost(planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
     val child = this.getInput
     val rowCnt = metadata.getRowCount(child)
     val rowSize = this.estimateRowSize(child.getRowType)
@@ -136,8 +134,8 @@ class DataSetWindowAggregate(
   private def createEventTimeTumblingWindowDataSet(
       inputDS: DataSet[Row],
       isTimeWindow: Boolean,
-      isParserCaseSensitive: Boolean)
-    : DataSet[Row] = {
+      isParserCaseSensitive: Boolean): DataSet[Row] = {
+
     val mapFunction = createDataSetWindowPrepareMapFunction(
       window,
       namedAggregates,
@@ -191,8 +189,7 @@ class DataSetWindowAggregate(
 
   private[this] def createEventTimeSessionWindowDataSet(
       inputDS: DataSet[Row],
-      isParserCaseSensitive: Boolean)
-    : DataSet[Row] = {
+      isParserCaseSensitive: Boolean): DataSet[Row] = {
 
     val groupingKeys = grouping.indices.toArray
     val rowTypeInfo = FlinkTypeFactory.toInternalRowTypeInfo(getRowType)
@@ -207,10 +204,7 @@ class DataSetWindowAggregate(
         inputType,
         isParserCaseSensitive)
 
-      val mappedInput =
-        inputDS
-        .map(mapFunction)
-        .name(prepareOperatorName)
+      val mappedInput = inputDS.map(mapFunction).name(prepareOperatorName)
 
       val mapReturnType = mapFunction.asInstanceOf[ResultTypeQueryable[Row]].getProducedType
 
@@ -218,7 +212,7 @@ class DataSetWindowAggregate(
       val rowTimeFieldPos = mapReturnType.getArity - 1
 
       // do incremental aggregation
-      if (doAllSupportPartialAggregation(
+      if (doAllSupportPartialMerge(
         namedAggregates.map(_.getKey),
         inputType,
         grouping.length)) {
@@ -267,10 +261,10 @@ class DataSetWindowAggregate(
           namedProperties)
 
         mappedInput.groupBy(groupingKeys: _*)
-        .sortGroup(rowTimeFieldPos, Order.ASCENDING)
-        .reduceGroup(groupReduceFunction)
-        .returns(rowTypeInfo)
-        .name(aggregateOperatorName)
+          .sortGroup(rowTimeFieldPos, Order.ASCENDING)
+          .reduceGroup(groupReduceFunction)
+          .returns(rowTypeInfo)
+          .name(aggregateOperatorName)
       }
     }
     // non-grouping window

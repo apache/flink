@@ -18,10 +18,12 @@
 package org.apache.flink.table.runtime.aggregate
 
 import java.lang.Iterable
+import java.util.{ArrayList => JArrayList}
 
 import org.apache.flink.api.common.functions.RichGroupReduceFunction
 import org.apache.flink.types.Row
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
 import org.apache.flink.util.{Collector, Preconditions}
 
 /**
@@ -30,34 +32,32 @@ import org.apache.flink.util.{Collector, Preconditions}
   * on batch.
   *
   * Note:
-  * 
-  *  This can handle two input types (depending if input is combined or not):
+  *
+  * This can handle two input types (depending if input is combined or not):
   *
   *  1. when partial aggregate is not supported, the input data structure of reduce is
-  *    |groupKey1|groupKey2|sum1|count1|sum2|count2|rowTime|
+  * |groupKey1|groupKey2|sum1|count1|sum2|count2|rowTime|
   *  2. when partial aggregate is supported, the input data structure of reduce is
-  *    |groupKey1|groupKey2|sum1|count1|sum2|count2|windowStart|windowEnd|
+  * |groupKey1|groupKey2|sum1|count1|sum2|count2|windowStart|windowEnd|
   *
-  * @param aggregates The aggregate functions.
-  * @param groupKeysMapping The index mapping of group keys between intermediate aggregate Row
-  *                         and output Row.
-  * @param aggregateMapping The index mapping between aggregate function list and aggregated value
-  *                         index in output Row.
-  * @param intermediateRowArity The intermediate row field count.
-  * @param finalRowArity The output row field count.
+  * @param aggregates             The aggregate functions.
+  * @param groupKeysMapping       The index mapping of group keys between intermediate aggregate Row
+  *                               and output Row.
+  * @param aggregateMapping       The index mapping between aggregate function list and
+  *                               aggregated value index in output Row.
+  * @param finalRowArity          The output row field count.
   * @param finalRowWindowStartPos The relative window-start field position.
-  * @param finalRowWindowEndPos The relative window-end field position.
-  * @param gap Session time window gap.
+  * @param finalRowWindowEndPos   The relative window-end field position.
+  * @param gap                    Session time window gap.
   */
 class DataSetSessionWindowAggregateReduceGroupFunction(
-    aggregates: Array[Aggregate[_ <: Any]],
+    aggregates: Array[AggregateFunction[_ <: Any]],
     groupKeysMapping: Array[(Int, Int)],
     aggregateMapping: Array[(Int, Int)],
-    intermediateRowArity: Int,
     finalRowArity: Int,
     finalRowWindowStartPos: Option[Int],
     finalRowWindowEndPos: Option[Int],
-    gap:Long,
+    gap: Long,
     isInputCombined: Boolean)
   extends RichGroupReduceFunction[Row, Row] {
 
@@ -66,6 +66,8 @@ class DataSetSessionWindowAggregateReduceGroupFunction(
   private var intermediateRowWindowEndPos = 0
   private var output: Row = _
   private var collector: TimeWindowPropertyCollector = _
+  private var accumStartPos: Int = groupKeysMapping.length
+  private var intermediateRowArity: Int = accumStartPos + aggregates.length + 2
 
   override def open(config: Configuration) {
     Preconditions.checkNotNull(aggregates)
@@ -91,9 +93,13 @@ class DataSetSessionWindowAggregateReduceGroupFunction(
 
     var windowStart: java.lang.Long = null
     var windowEnd: java.lang.Long = null
-    var currentRowTime:java.lang.Long  = null
+    var currentRowTime: java.lang.Long = null
 
     val iterator = records.iterator()
+    val accumulatorList = Array.fill(aggregates.length) {
+      new JArrayList[Accumulator]()
+    }
+
     while (iterator.hasNext) {
       val record = iterator.next()
       currentRowTime = record.getField(intermediateRowWindowStartPos).asInstanceOf[Long]
@@ -104,7 +110,12 @@ class DataSetSessionWindowAggregateReduceGroupFunction(
         // calculate the current window and open a new window
         if (null != windowEnd) {
           // evaluate and emit the current window's result.
-          doEvaluateAndCollect(out, windowStart, windowEnd)
+          doEvaluateAndCollect(out, accumulatorList, windowStart, windowEnd)
+
+          // clear the accumulator list for all aggregate
+          for (i <- aggregates.indices) {
+            accumulatorList(i).clear()
+          }
         } else {
           // set group keys value to final output.
           groupKeysMapping.foreach {
@@ -112,13 +123,14 @@ class DataSetSessionWindowAggregateReduceGroupFunction(
               output.setField(after, record.getField(previous))
           }
         }
-        // initiate intermediate aggregate value.
-        aggregates.foreach(_.initiate(aggregateBuffer))
+
         windowStart = record.getField(intermediateRowWindowStartPos).asInstanceOf[Long]
       }
 
-      // merge intermediate aggregate value to the buffered value.
-      aggregates.foreach(_.merge(record, aggregateBuffer))
+      // collect the accumulators for each aggregate
+      for (i <- aggregates.indices) {
+        accumulatorList(i).add(record.getField(accumStartPos + i).asInstanceOf[Accumulator])
+      }
 
       windowEnd = if (isInputCombined) {
         // partial aggregate is supported
@@ -129,25 +141,32 @@ class DataSetSessionWindowAggregateReduceGroupFunction(
       }
     }
     // evaluate and emit the current window's result.
-    doEvaluateAndCollect(out, windowStart, windowEnd)
+    doEvaluateAndCollect(out, accumulatorList, windowStart, windowEnd)
   }
 
   /**
     * Evaluate and emit the data of the current window.
-    * @param windowStart the window's start attribute value is the min (rowtime)
-    *                    of all rows in the window.
-    * @param windowEnd the window's end property value is max (rowtime) + gap
-    *                  for all rows in the window.
+    *
+    * @param out             the collection of the aggregate results
+    * @param accumulatorList an array (indexed by aggregate index) of the accumulator lists for
+    *                        each aggregate
+    * @param windowStart     the window's start attribute value is the min (rowtime) of all rows
+    *                        in the window.
+    * @param windowEnd       the window's end property value is max (rowtime) + gap for all rows
+    *                        in the window.
     */
   def doEvaluateAndCollect(
-    out: Collector[Row],
-    windowStart: Long,
-    windowEnd: Long): Unit = {
+      out: Collector[Row],
+      accumulatorList: Array[JArrayList[Accumulator]],
+      windowStart: Long,
+      windowEnd: Long): Unit = {
 
-    // evaluate final aggregate value and set to output.
+    // merge the accumulators and then get value for the final output
     aggregateMapping.foreach {
       case (after, previous) =>
-        output.setField(after, aggregates(previous).evaluate(aggregateBuffer))
+        val agg = aggregates(previous)
+        val accum = agg.merge(accumulatorList(previous))
+        output.setField(after, agg.getValue(accum))
     }
 
     // adds TimeWindow properties to output then emit output
