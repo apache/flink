@@ -167,7 +167,7 @@ class FieldProjectionTest extends TableTestBase {
           term("groupBy", "c"),
           term("select", "c", "SUM(a) AS TMP_0")
         ),
-        term("select", "TMP_0 AS TMP_1")
+        term("select", "TMP_0")
       )
 
     util.verifyTable(resultTable, expected)
@@ -191,7 +191,7 @@ class FieldProjectionTest extends TableTestBase {
           term("groupBy", "k"),
           term("select", "k", "SUM(a) AS TMP_0")
         ),
-        term("select", "TMP_0 AS TMP_1")
+        term("select", "TMP_0")
       )
 
     util.verifyTable(resultTable, expected)
@@ -215,7 +215,7 @@ class FieldProjectionTest extends TableTestBase {
           term("groupBy", "k"),
           term("select", "k", "SUM(a) AS TMP_0")
         ),
-        term("select", "TMP_0 AS TMP_1")
+        term("select", "TMP_0")
       )
 
     util.verifyTable(resultTable, expected)
@@ -273,7 +273,7 @@ class FieldProjectionTest extends TableTestBase {
               5.millis)),
           term("select", "b", "COUNT($f3) AS TMP_0", "SUM(a) AS TMP_1")
         ),
-        term("select", "TMP_0 AS TMP_2", "TMP_1 AS TMP_3", "b")
+        term("select", "TMP_0", "TMP_1", "b")
     )
 
     streamUtil.verifyTable(resultTable, expected)

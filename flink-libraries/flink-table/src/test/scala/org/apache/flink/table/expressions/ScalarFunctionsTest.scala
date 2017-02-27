@@ -22,10 +22,10 @@ import java.sql.{Date, Time, Timestamp}
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.types.Row
-import org.apache.flink.table.api.{Types, ValidationException}
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.{Types, ValidationException}
 import org.apache.flink.table.expressions.utils.ExpressionTestBase
+import org.apache.flink.types.Row
 import org.junit.Test
 
 class ScalarFunctionsTest extends ExpressionTestBase {
@@ -385,12 +385,12 @@ class ScalarFunctionsTest extends ExpressionTestBase {
 
     testAllApis(
       'f7.exp(),
-      "exp(3)",
-      "EXP(3)",
+      "exp(f7)",
+      "EXP(f7)",
       math.exp(3).toString)
 
     testAllApis(
-      'f7.exp(),
+      3.exp(),
       "exp(3)",
       "EXP(3)",
       math.exp(3).toString)
