@@ -145,42 +145,37 @@ class DataStream[T](stream: JavaStream[T]) {
     this
   }
 
-
   /**
    * Returns the minimum resource of this operation.
    */
-  def getMinResource: ResourceSpec = stream.getMinResource()
+  def minResource: ResourceSpec = stream.minResource()
 
   /**
-   * Returns the maximum resource of this operation.
+   * Returns the preferred resource of this operation.
    */
-  def getMaxResource: ResourceSpec = stream.getMaxResource()
+  def preferredResource: ResourceSpec = stream.preferredResource()
 
   /**
-   * Sets the minimum and maximum resources of this operation.
+   * Sets the minimum and preferred resources of this operation.
    */
-  def setResource(minResource: ResourceSpec, maxResource: ResourceSpec): DataStream[T] = {
+  /*
+  def resource(minResource: ResourceSpec, preferredResource: ResourceSpec) : DataStream[T] =
     stream match {
-      case ds: SingleOutputStreamOperator[T] => ds.setResource(minResource, maxResource)
+      case stream : SingleOutputStreamOperator[T] => asScalaStream(stream.setResource(
+        minResource, preferredResource))
       case _ =>
-        throw new UnsupportedOperationException(
-          "Operator " + stream + " cannot set the resource.")
-    }
-    this
-  }
+        throw new UnsupportedOperationException("Operator does not support " +
+          "configuring custom resources specs.")
+      this
+  }*/
 
   /**
    * Sets the resource of this operation.
    */
-  def setResource(resource: ResourceSpec): DataStream[T] = {
-    stream match {
-      case ds: SingleOutputStreamOperator[T] => ds.setResource(resource, resource)
-      case _ =>
-        throw new UnsupportedOperationException(
-          "Operator " + stream + " cannot set the resource.")
-    }
-    this
-  }
+  /*
+  def resource(resource: ResourceSpec) : Unit = {
+    this.resource(resource, resource)
+  }*/
 
   /**
    * Gets the name of the current data stream. This name is

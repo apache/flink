@@ -46,18 +46,19 @@ public class OperatorTest {
 		assertEquals(parallelism, operator.getParallelism());
 	}
 
+	/*
 	@Test
 	public void testConfigurationOfResource() {
 		Operator operator = new MockOperator();
 
 		// verify explicit change in resource
 		ResourceSpec minResource = new ResourceSpec(1.0, 100, 0, 0, 0);
-		ResourceSpec maxResource = new ResourceSpec(2.0, 200, 0, 0, 0);
-		operator.setResource(minResource, maxResource);
+		ResourceSpec preferredResource = new ResourceSpec(2.0, 200, 0, 0, 0);
+		operator.setResource(minResource, preferredResource);
 
 		assertEquals(minResource, operator.getMinResource());
-		assertEquals(maxResource, operator.getMaxResource());
-	}
+		assertEquals(preferredResource, operator.getPreferredResource());
+	}*/
 
 	private class MockOperator extends Operator {
 		public MockOperator() {

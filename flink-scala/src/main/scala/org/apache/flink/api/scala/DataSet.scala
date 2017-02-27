@@ -178,57 +178,50 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
   }
 
   /**
-   * Sets the minimum and maximum resources of this operation.
+   * Sets the minimum and preferred resources of this operation.
    */
-  def setResource(minResource: ResourceSpec, maxResource: ResourceSpec) = {
+  /*
+  def resource(minResource: ResourceSpec, preferredResource: ResourceSpec) : Unit = {
     javaSet match {
-      case ds: DataSource[_] => ds.setResource(minResource, maxResource)
-      case op: Operator[_, _] => op.setResource(minResource, maxResource)
+      case ds: DataSource[_] => ds.setResource(minResource, preferredResource)
+      case op: Operator[_, _] => op.setResource(minResource, preferredResource)
       case di: DeltaIterationResultSet[_, _] =>
-        di.getIterationHead.setResource(minResource, maxResource)
+        di.getIterationHead.setResource(minResource, preferredResource)
       case _ =>
-        throw new UnsupportedOperationException("Operator " + javaSet.toString + " cannot have " +
-          "resource.")
+        throw new UnsupportedOperationException("Operator does not support " +
+          "configuring custom resources specs.")
     }
     this
-  }
+  }*/
 
   /**
    * Sets the resource of this operation.
    */
-  def setResource(resource: ResourceSpec) = {
-    javaSet match {
-      case ds: DataSource[_] => ds.setResource(resource, resource)
-      case op: Operator[_, _] => op.setResource(resource, resource)
-      case di: DeltaIterationResultSet[_, _] =>
-        di.getIterationHead.setResource(resource, resource)
-      case _ =>
-        throw new UnsupportedOperationException("Operator " + javaSet.toString + " cannot have " +
-          "resource.")
-    }
-    this
-  }
+  /*
+  def resource(resource: ResourceSpec) : Unit = {
+    this.resource(resource, resource)
+  }*/
 
   /**
    * Returns the minimum resource of this operation.
    */
-  def getMinResource: ResourceSpec = javaSet match {
-    case ds: DataSource[_] => ds.getMinResource
-    case op: Operator[_, _] => op.getMinResource
+  def minResource: ResourceSpec = javaSet match {
+    case ds: DataSource[_] => ds.minResource()
+    case op: Operator[_, _] => op.minResource
     case _ =>
-      throw new UnsupportedOperationException("Operator " + javaSet.toString + " does not have " +
-        "resource.")
+      throw new UnsupportedOperationException("Operator does not support " +
+        "configuring custom resources specs.")
   }
 
   /**
-   * Returns the maximum resource of this operation.
+   * Returns the preferred resource of this operation.
    */
-  def getMaxResource: ResourceSpec = javaSet match {
-    case ds: DataSource[_] => ds.getMaxResource
-    case op: Operator[_, _] => op.getMaxResource
+  def preferredResource: ResourceSpec = javaSet match {
+    case ds: DataSource[_] => ds.preferredResource()
+    case op: Operator[_, _] => op.preferredResource
     case _ =>
-      throw new UnsupportedOperationException("Operator " + javaSet.toString + " does not have " +
-        "resource.")
+      throw new UnsupportedOperationException("Operator does not support " +
+        "configuring custom resources specs.")
   }
 
   /**

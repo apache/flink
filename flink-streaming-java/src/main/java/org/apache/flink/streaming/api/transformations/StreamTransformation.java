@@ -130,13 +130,13 @@ public abstract class StreamTransformation<T> {
 	 *  The minimum resource for this stream transformation. It defines the lower limit for
 	 *  dynamic resource resize in future plan.
 	 */
-	private ResourceSpec minResource;
+	private ResourceSpec minResource = ResourceSpec.UNKNOWN;
 
 	/**
-	 *  The maximum resource for this stream transformation. It defines the upper limit for
+	 *  The preferred resource for this stream transformation. It defines the upper limit for
 	 *  dynamic resource resize in future plan.
 	 */
-	private ResourceSpec maxResource;
+	private ResourceSpec preferredResource = ResourceSpec.UNKNOWN;
 
 	/**
 	 * User-specified ID for this transformation. This is used to assign the
@@ -227,14 +227,14 @@ public abstract class StreamTransformation<T> {
 	}
 
 	/**
-	 * Sets the minimum and maximum resources for this stream transformation.
+	 * Sets the minimum and preferred resources for this stream transformation.
 	 *
 	 * @param minResource The minimum resource of this transformation.
-	 * @param maxResource The maximum resource of this transformation.
+	 * @param preferredResource The preferred resource of this transformation.
 	 */
-	public void setResource(ResourceSpec minResource, ResourceSpec maxResource) {
+	public void setResource(ResourceSpec minResource, ResourceSpec preferredResource) {
 		this.minResource = minResource;
-		this.maxResource = maxResource;
+		this.preferredResource = preferredResource;
 	}
 
 	/**
@@ -247,12 +247,12 @@ public abstract class StreamTransformation<T> {
 	}
 
 	/**
-	 * Gets the maximum resource of this stream transformation.
+	 * Gets the preferred resource of this stream transformation.
 	 *
-	 * @return The maximum resource of this transformation.
+	 * @return The preferred resource of this transformation.
 	 */
-	public ResourceSpec getMaxResource() {
-		return maxResource;
+	public ResourceSpec getPreferredResource() {
+		return preferredResource;
 	}
 
 	/**

@@ -148,17 +148,17 @@ public class DataStream<T> {
 	 *
 	 * @return The minimum resource set for this operator.
 	 */
-	public ResourceSpec getMinResource() {
+	public ResourceSpec minResource() {
 		return transformation.getMinResource();
 	}
 
 	/**
-	 * Gets the maximum resource for this operator.
+	 * Gets the preferred resource for this operator.
 	 *
-	 * @return The maximum resource set for this operator.
+	 * @return The preferred resource set for this operator.
 	 */
-	public ResourceSpec getMaxResource() {
-		return transformation.getMaxResource();
+	public ResourceSpec preferredResource() {
+		return transformation.getPreferredResource();
 	}
 
 	/**

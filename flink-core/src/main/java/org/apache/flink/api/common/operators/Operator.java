@@ -45,9 +45,9 @@ public abstract class Operator<OUT> implements Visitable<Operator<?>> {
 		
 	private int parallelism = ExecutionConfig.PARALLELISM_DEFAULT;  // the number of parallel instances to use
 
-	private ResourceSpec minResource;			// the minimum resource of the contract instance. optional
+	private ResourceSpec minResource;			// the minimum resource of the contract instance.
 
-	private ResourceSpec maxResource;			// the maximum resource of the contract instance. optional
+	private ResourceSpec preferredResource;	// the preferred resource of the contract instance.
 
 	/**
 	 * The return type of the user function.
@@ -200,25 +200,25 @@ public abstract class Operator<OUT> implements Visitable<Operator<?>> {
 	}
 
 	/**
-	 * Gets the maximum resource for this contract instance. The maximum resource denotes how many
+	 * Gets the preferred resource for this contract instance. The preferred resource denotes how many
 	 * resources will be needed in the maximum for the user function during the execution.
 	 *
-	 * @return The maximum resource of this operator.
+	 * @return The preferred resource of this operator.
 	 */
-	public ResourceSpec getMaxResource() {
-		return this.maxResource;
+	public ResourceSpec getPreferredResource() {
+		return this.preferredResource;
 	}
 
 	/**
-	 * Sets the minimum and maximum resources for this contract instance. The resource denotes
+	 * Sets the minimum and preferred resources for this contract instance. The resource denotes
 	 * how many memories and cpu cores of the user function will be consumed during the execution.
 	 *
 	 * @param minResource The minimum resource of this operator.
-	 * @param maxResource The maximum resource of this operator.
+	 * @param preferredResource The preferred resource of this operator.
 	 */
-	public void setResource(ResourceSpec minResource, ResourceSpec maxResource) {
+	public void setResource(ResourceSpec minResource, ResourceSpec preferredResource) {
 		this.minResource = minResource;
-		this.maxResource = maxResource;
+		this.preferredResource = preferredResource;
 	}
 	
 	

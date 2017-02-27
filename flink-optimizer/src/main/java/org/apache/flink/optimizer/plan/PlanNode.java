@@ -314,8 +314,8 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 		return this.template.getOperator().getMinResource();
 	}
 
-	public ResourceSpec getMaxResource() {
-		return this.template.getOperator().getMaxResource();
+	public ResourceSpec getPreferredResource() {
+		return this.template.getOperator().getPreferredResource();
 	}
 	
 	public long getGuaranteedAvailableMemory() {

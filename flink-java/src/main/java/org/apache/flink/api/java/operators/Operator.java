@@ -41,7 +41,7 @@ public abstract class Operator<OUT, O extends Operator<OUT, O>> extends DataSet<
 
 	protected ResourceSpec minResource = ResourceSpec.UNKNOWN;
 
-	protected ResourceSpec maxResource = ResourceSpec.UNKNOWN;
+	protected ResourceSpec preferredResource = ResourceSpec.UNKNOWN;
 
 	protected Operator(ExecutionEnvironment context, TypeInformation<OUT> resultType) {
 		super(context, resultType);
@@ -81,18 +81,18 @@ public abstract class Operator<OUT, O extends Operator<OUT, O>> extends DataSet<
 	 *
 	 * @return The minimum resource of this operator.
 	 */
-	public ResourceSpec getMinResource() {
+	public ResourceSpec minResource() {
 		return this.minResource;
 	}
 
 	/**
-	 * Returns the maximum resource of this operator. If no maximum resource has been set,
+	 * Returns the preferred resource of this operator. If no preferred resource has been set,
 	 * it returns the default empty resource.
 	 *
-	 * @return The maximum resource of this operator.
+	 * @return The preferred resource of this operator.
 	 */
-	public ResourceSpec getMaxResource() {
-		return this.maxResource;
+	public ResourceSpec preferredResource() {
+		return this.preferredResource;
 	}
 
 	/**
@@ -130,41 +130,44 @@ public abstract class Operator<OUT, O extends Operator<OUT, O>> extends DataSet<
 	}
 
 	/**
-	 * Sets the minimum and maximum resources for this operator. This overrides the default empty resource.
+	 * Sets the minimum and preferred resources for this operator. This overrides the default empty resource.
 	 * The lower and upper resource limits will be considered in dynamic resource resize feature for future plan.
 	 *
 	 * @param minResource The minimum resource for this operator.
-	 * @param maxResource The maximum resource for this operator.
-	 * @return The operator with set minimum and maximum resources.
+	 * @param preferredResource The preferred resource for this operator.
+	 * @return The operator with set minimum and preferred resources.
 	 */
-	public O setResource(ResourceSpec minResource, ResourceSpec maxResource) {
-		Preconditions.checkArgument(minResource != null && maxResource != null,
-				"The min and max resources must be not null.");
-		Preconditions.checkArgument(minResource.isValid() && maxResource.isValid() && minResource.lessThanOrEqual(maxResource),
-				"The values in resource must be not less than 0 and the max resource must be greater than the min resource.");
+	/*
+	public O setResource(ResourceSpec minResource, ResourceSpec preferredResource) {
+		Preconditions.checkNotNull(minResource != null && preferredResource != null,
+				"The min and preferred resources must be not null.");
+		Preconditions.checkArgument(minResource.isValid() && preferredResource.isValid() && minResource.lessThanOrEqual(preferredResource),
+				"The values in resource must be not less than 0 and the preferred resource must be greater than the min resource.");
 
 		this.minResource = minResource;
-		this.maxResource = maxResource;
+		this.preferredResource = preferredResource;
 
 		@SuppressWarnings("unchecked")
 		O returnType = (O) this;
 		return returnType;
-	}
+	}*/
 
 	/**
-	 * Sets the resource for this operator. This overrides the default empty minimum and maximum resources.
+	 * Sets the resource for this operator. This overrides the default empty minimum and preferred resources.
 	 *
 	 * @param resource The resource for this operator.
-	 * @return The operator with set minimum and maximum resources.
+	 * @return The operator with set minimum and preferred resources.
 	 */
+	/*
 	public O setResource(ResourceSpec resource) {
-		Preconditions.checkArgument(resource != null && resource.isValid(), "The resource must be not null and values greater than 0.");
+		Preconditions.checkNotNull(resource != null, "The resource must be not null.");
+		Preconditions.checkArgument(resource.isValid(), "The resource values must be greater than 0.");
 
 		this.minResource = resource;
-		this.maxResource = resource;
+		this.preferredResource = resource;
 
 		@SuppressWarnings("unchecked")
 		O returnType = (O) this;
 		return returnType;
-	}
+	}*/
 }

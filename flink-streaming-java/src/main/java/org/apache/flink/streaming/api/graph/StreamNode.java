@@ -50,7 +50,7 @@ public class StreamNode implements Serializable {
 	 */
 	private int maxParallelism;
 	private ResourceSpec minResource;
-	private ResourceSpec maxResource;
+	private ResourceSpec preferredResource;
 	private Long bufferTimeout = null;
 	private final String operatorName;
 	private String slotSharingGroup;
@@ -169,16 +169,16 @@ public class StreamNode implements Serializable {
 	}
 
 	public ResourceSpec getMinResource() {
-		return minResource != null ? minResource : ResourceSpec.UNKNOWN;
+		return minResource;
 	}
 
-	public ResourceSpec getMaxResource() {
-		return maxResource != null ? maxResource : ResourceSpec.UNKNOWN;
+	public ResourceSpec getPreferredResource() {
+		return preferredResource;
 	}
 
-	public void setResource(ResourceSpec minResource, ResourceSpec maxResource) {
+	public void setResource(ResourceSpec minResource, ResourceSpec preferredResource) {
 		this.minResource = minResource;
-		this.maxResource = maxResource;
+		this.preferredResource = preferredResource;
 	}
 
 	public Long getBufferTimeout() {

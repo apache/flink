@@ -66,7 +66,7 @@ public class DeltaIteration<ST, WT> {
 
 	private ResourceSpec minResource = ResourceSpec.UNKNOWN;
 
-	private ResourceSpec maxResource = ResourceSpec.UNKNOWN;
+	private ResourceSpec preferredResource = ResourceSpec.UNKNOWN;
 	
 	private boolean solutionSetUnManaged;
 
@@ -198,24 +198,43 @@ public class DeltaIteration<ST, WT> {
 	}
 
 	/**
-	 * Sets the minimum and maximum resources for the iteration. This overrides the default empty resource.
+	 * Sets the minimum and preferred resources for the iteration. This overrides the default empty resource.
 	 *	The lower and upper resource limits will be considered in dynamic resource resize feature for future plan.
 	 *
 	 * @param minResource The minimum resource for the iteration.
-	 * @param maxResource The maximum resource for the iteration.
-	 * @return The iteration with set minimum and maximum resources.
+	 * @param preferredResource The preferred resource for the iteration.
+	 * @return The iteration with set minimum and preferred resources.
 	 */
-	public DeltaIteration<ST, WT> setResource(ResourceSpec minResource, ResourceSpec maxResource) {
-		Preconditions.checkArgument(minResource != null && maxResource != null,
-				"The min and max resources must be not null.");
-		Preconditions.checkArgument(minResource.isValid() && maxResource.isValid() && minResource.lessThanOrEqual(maxResource),
-				"The values in resource must be not less than 0 and the max resource must be greater than the min resource.");
+	/*
+	public DeltaIteration<ST, WT> setResource(ResourceSpec minResource, ResourceSpec preferredResource) {
+		Preconditions.checkNotNull(minResource != null && preferredResource != null,
+				"The min and preferred resources must be not null.");
+		Preconditions.checkArgument(minResource.isValid() && preferredResource.isValid() && minResource.lessThanOrEqual(preferredResource),
+				"The values in resource must be not less than 0 and the preferred resource must be greater than the min resource.");
 
 		this.minResource = minResource;
-		this.maxResource = maxResource;
+		this.preferredResource = preferredResource;
 
 		return this;
-	}
+	}*/
+
+	/**
+	 * Sets the resource for the iteration, and the minimum and preferred resources are the same by default.
+	 *	The lower and upper resource limits will be considered in dynamic resource resize feature for future plan.
+	 *
+	 * @param resource The resource for the iteration.
+	 * @return The iteration with set minimum and preferred resources.
+	 */
+	/*
+	public DeltaIteration<ST, WT> setResource(ResourceSpec resource) {
+		Preconditions.checkNotNull(resource != null, "The resource must be not null.");
+		Preconditions.checkArgument(resource.isValid(), "The values in resource must be not less than 0.");
+
+		this.minResource = resource;
+		this.preferredResource = resource;
+
+		return this;
+	}*/
 
 	/**
 	 * Gets the minimum resource from this iteration. If no minimum resource has been set,
@@ -228,13 +247,13 @@ public class DeltaIteration<ST, WT> {
 	}
 
 	/**
-	 * Gets the maximum resource from this iteration. If no maximum resource has been set,
+	 * Gets the preferred resource from this iteration. If no preferred resource has been set,
 	 * it returns the default empty resource.
 	 *
-	 * @return The maximum resource of the iteration.
+	 * @return The preferred resource of the iteration.
 	 */
-	public ResourceSpec getMaxResource() {
-		return this.maxResource;
+	public ResourceSpec getPreferredResource() {
+		return this.preferredResource;
 	}
 	
 	/**

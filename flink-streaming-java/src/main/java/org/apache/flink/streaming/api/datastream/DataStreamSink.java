@@ -20,11 +20,9 @@ package org.apache.flink.streaming.api.datastream;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
-import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.api.transformations.SinkTransformation;
-import org.apache.flink.util.Preconditions;
 
 /**
  * A Stream Sink. This is used for emitting elements from a streaming topology.
@@ -116,37 +114,40 @@ public class DataStreamSink<T> {
 	}
 
 	/**
-	 * Sets the minimum and maximum resources for this sink, and the lower and upper resource limits will
+	 * Sets the minimum and preferred resources for this sink, and the lower and upper resource limits will
 	 * be considered in resource resize feature for future plan.
 	 *
 	 * @param minResource The minimum resource for this sink.
-	 * @param maxResource The maximum resource for this sink
-	 * @return The sink with set minimum and maximum resources.
+	 * @param preferredResource The preferred resource for this sink
+	 * @return The sink with set minimum and preferred resources.
 	 */
-	public DataStreamSink<T> setResource(ResourceSpec minResource, ResourceSpec maxResource) {
-		Preconditions.checkArgument(minResource != null && maxResource != null,
-				"The min and max resources must be not null.");
-		Preconditions.checkArgument(minResource.isValid() && maxResource.isValid() && minResource.lessThanOrEqual(maxResource),
-				"The values in resource must be not less than 0 and the max resource must be greater than the min resource.");
+	/*
+	public DataStreamSink<T> setResource(ResourceSpec minResource, ResourceSpec preferredResource) {
+		Preconditions.checkNotNull(minResource != null && preferredResource != null,
+				"The min and preferred resources must be not null.");
+		Preconditions.checkArgument(minResource.isValid() && preferredResource.isValid() && minResource.lessThanOrEqual(preferredResource),
+				"The values in resource must be not less than 0 and the preferred resource must be greater than the min resource.");
 
-		transformation.setResource(minResource, maxResource);
+		transformation.setResource(minResource, preferredResource);
 
 		return this;
-	}
+	}*/
 
 	/**
-	 * Sets the resource for this sink, the minimum and maximum resources are the same by default.
+	 * Sets the resource for this sink, the minimum and preferred resources are the same by default.
 	 *
 	 * @param resource The resource for this sink.
-	 * @return The sink with set minimum and maximum resources.
+	 * @return The sink with set minimum and preferred resources.
 	 */
+	/*
 	public DataStreamSink<T> setResource(ResourceSpec resource) {
-		Preconditions.checkArgument(resource != null && resource.isValid(), "The resource must be not null and values greater than 0.");
+		Preconditions.checkNotNull(resource != null, "The resource must be not null.");
+		Preconditions.checkArgument(resource.isValid(), "The resource values must be greater than 0.");
 
 		transformation.setResource(resource, resource);
 
 		return this;
-	}
+	}*/
 
 	/**
 	 * Turns off chaining for this operator so thread co-location will not be

@@ -20,7 +20,6 @@ package org.apache.flink.streaming.api.datastream;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.InvalidTypesException;
-import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
@@ -156,37 +155,40 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 	}
 
 	/**
-	 * Sets the minimum and maximum resources for this operator, and the lower and upper resource limits will
+	 * Sets the minimum and preferred resources for this operator, and the lower and upper resource limits will
 	 * be considered in dynamic resource resize feature for future plan.
 	 *
 	 * @param minResource The minimum resource for this operator.
-	 * @param maxResource The maximum resource for this operator.
-	 * @return The operator with set minimum and maximum resources.
+	 * @param preferredResource The preferred resource for this operator.
+	 * @return The operator with set minimum and preferred resources.
 	 */
-	public SingleOutputStreamOperator<T> setResource(ResourceSpec minResource, ResourceSpec maxResource) {
-		Preconditions.checkArgument(minResource != null && maxResource != null,
-				"The min and max resources must be not null.");
-		Preconditions.checkArgument(minResource.isValid() && maxResource.isValid() && minResource.lessThanOrEqual(maxResource),
-				"The values in resource must be not less than 0 and the max resource must be greater than the min resource.");
+	/*
+	public SingleOutputStreamOperator<T> setResource(ResourceSpec minResource, ResourceSpec preferredResource) {
+		Preconditions.checkArgument(minResource != null && preferredResource != null,
+				"The min and preferred resources must be not null.");
+		Preconditions.checkArgument(minResource.isValid() && preferredResource.isValid() && minResource.lessThanOrEqual(preferredResource),
+				"The values in resource must be not less than 0 and the preferred resource must be greater than the min resource.");
 
-		transformation.setResource(minResource, maxResource);
+		transformation.setResource(minResource, preferredResource);
 
 		return this;
-	}
+	}*/
 
 	/**
-	 * Sets the resource for this operator, the minimum and maximum resources are the same by default.
+	 * Sets the resource for this operator, the minimum and preferred resources are the same by default.
 	 *
 	 * @param resource The resource for this operator.
-	 * @return The operator with set minimum and maximum resources.
+	 * @return The operator with set minimum and preferred resources.
 	 */
+	/*
 	public SingleOutputStreamOperator<T> setResource(ResourceSpec resource) {
-		Preconditions.checkArgument(resource != null && resource.isValid(), "The resources must be not null and values greater than 0.");
+		Preconditions.checkNotNull(resource != null, "The resource must be not null.");
+		Preconditions.checkArgument(resource.isValid(), "The resource values must be greater than 0.");
 
 		transformation.setResource(resource, resource);
 
 		return this;
-	}
+	}*/
 
 	private boolean canBeParallel() {
 		return !nonParallel;
