@@ -120,6 +120,11 @@ public final class ConfigConstants {
 	/**
 	 * The config parameter defining the network port to connect to
 	 * for communication with the job manager.
+	 * The port can either be a port, such as "9123",
+	 * a range of ports: "50100-50200"
+	 * or a list of ranges and or points: "50100-50200,50300-50400,51234"
+	 *
+	 * Setting the port to 0 will let the OS choose an available port.
 	 */
 	public static final String JOB_MANAGER_IPC_PORT_KEY = "jobmanager.rpc.port";
 
@@ -1050,7 +1055,7 @@ public final class ConfigConstants {
 	 * The default network port the task manager expects incoming IPC connections. The {@code 0} means that
 	 * the TaskManager searches for a free port.
 	 */
-	public static final int DEFAULT_TASK_MANAGER_IPC_PORT = 0;
+	public static final String DEFAULT_TASK_MANAGER_IPC_PORT = "0";
 
 	/**
 	 * The default network port the task manager expects to receive transfer envelopes on. The {@code 0} means that
