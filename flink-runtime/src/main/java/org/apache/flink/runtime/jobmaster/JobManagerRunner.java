@@ -25,6 +25,7 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
+import org.apache.flink.runtime.highavailability.RunningJobsRegistry.JobSchedulingStatus;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
@@ -359,18 +360,18 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 			// it's okay that job manager wait for the operation complete
 			leaderElectionService.confirmLeaderSessionID(leaderSessionID);
 
-			boolean jobRunning = false;
+			JobSchedulingStatus schedulingStatus = JobSchedulingStatus.PENDING;
 			try {
-				boolean jobFinished = runningJobsRegistry.isJobFinished(jobGraph.getJobID());
-				if (jobFinished) {
+				schedulingStatus = runningJobsRegistry.getJobSchedulingStatus(jobGraph.getJobID());
+				if (schedulingStatus.equals(JobSchedulingStatus.DONE)) {
 					log.info("Granted leader ship but job {} has been finished. ", jobGraph.getJobID());
 					jobFinishedByOther();
 					return;
 				}
-				jobRunning = runningJobsRegistry.isJobRunning(jobGraph.getJobID());
 			} catch (Throwable t) {
 				log.error("Could not access status (running/finished) of job {}. ",	jobGraph.getJobID(), t);
 				onFatalError(t);
+				return;
 			}
 
 			// Double check the leadership after we confirm that, there is a small chance that multiple
@@ -381,7 +382,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 					// Now set the running status is after getting leader ship and 
 					// set finished status after job in terminated status.
 					// So if finding the job is running, it means someone has already run the job, need recover.
-					if (!jobRunning) {
+					if (schedulingStatus.equals(JobSchedulingStatus.PENDING)) {
 						runningJobsRegistry.setJobRunning(jobGraph.getJobID());
 					}
 

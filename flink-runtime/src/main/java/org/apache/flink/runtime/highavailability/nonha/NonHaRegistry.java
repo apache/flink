@@ -20,6 +20,7 @@ package org.apache.flink.runtime.highavailability.nonha;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
+import org.apache.flink.runtime.highavailability.RunningJobsRegistry.JobSchedulingStatus;
 
 import java.util.HashSet;
 
@@ -66,11 +67,17 @@ public class NonHaRegistry implements RunningJobsRegistry {
 	}
 
 	@Override
-	public boolean isJobFinished(JobID jobID) {
+	public JobSchedulingStatus getJobSchedulingStatus(JobID jobID) {
 		checkNotNull(jobID);
 
 		synchronized (running) {
-			return finished.contains(jobID);
+			if (finished.contains(jobID)) {
+				return JobSchedulingStatus.DONE;
+			} else if (running.contains(jobID)) {
+				return JobSchedulingStatus.RUNNING;
+			} else {
+				return JobSchedulingStatus.PENDING;
+			}
 		}
 	}
 

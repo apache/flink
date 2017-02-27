@@ -20,6 +20,7 @@ package org.apache.flink.runtime.highavailability;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.highavailability.RunningJobsRegistry.JobSchedulingStatus;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Rule;
@@ -28,6 +29,7 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -45,20 +47,23 @@ public class FsNegativeRunningJobsRegistryTest extends TestLogger {
 
 		FsNegativeRunningJobsRegistry registry = new FsNegativeRunningJobsRegistry(new Path(uri));
 
-		// initially, without any call, the job is considered running
-		assertTrue(registry.isJobRunning(jid));
+		// initially, without any call, the job is pending
+		assertFalse(registry.isJobRunning(jid));
+		assertEquals(registry.getJobSchedulingStatus(jid), JobSchedulingStatus.PENDING);
 
-		// repeated setting should not affect the status
+		// after set running, the job is running
 		registry.setJobRunning(jid);
 		assertTrue(registry.isJobRunning(jid));
+		assertEquals(registry.getJobSchedulingStatus(jid), JobSchedulingStatus.RUNNING);
 
 		// set the job to finished and validate
 		registry.setJobFinished(jid);
-		assertFalse(registry.isJobRunning(jid));
+		assertEquals(registry.getJobSchedulingStatus(jid), JobSchedulingStatus.DONE);
 
 		// another registry should pick this up
 		FsNegativeRunningJobsRegistry otherRegistry = new FsNegativeRunningJobsRegistry(new Path(uri));
-		assertFalse(otherRegistry.isJobRunning(jid));
+		assertTrue(otherRegistry.isJobRunning(jid));
+		assertEquals(otherRegistry.getJobSchedulingStatus(jid), JobSchedulingStatus.DONE);
 	}
 
 	@Test
@@ -73,13 +78,21 @@ public class FsNegativeRunningJobsRegistryTest extends TestLogger {
 		// set the job to finished and validate
 		registry.setJobFinished(jid);
 		assertFalse(registry.isJobRunning(jid));
+		assertEquals(registry.getJobSchedulingStatus(jid), JobSchedulingStatus.DONE);
 
-		// set the job to back to running and validate
+		// set the job to running does not overwrite the finished status
 		registry.setJobRunning(jid);
 		assertTrue(registry.isJobRunning(jid));
+		assertEquals(registry.getJobSchedulingStatus(jid), JobSchedulingStatus.DONE);
 
 		// another registry should pick this up
 		FsNegativeRunningJobsRegistry otherRegistry = new FsNegativeRunningJobsRegistry(new Path(uri));
 		assertTrue(otherRegistry.isJobRunning(jid));
+		assertEquals(registry.getJobSchedulingStatus(jid), JobSchedulingStatus.DONE);
+
+		// clear the running and finished marker, it will be pending
+		otherRegistry.clearJob(jid);
+		assertFalse(otherRegistry.isJobRunning(jid));
+		assertEquals(registry.getJobSchedulingStatus(jid), JobSchedulingStatus.PENDING);
 	}
 }
