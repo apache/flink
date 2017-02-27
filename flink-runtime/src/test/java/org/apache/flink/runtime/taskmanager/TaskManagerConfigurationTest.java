@@ -36,6 +36,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.reflect.Field;
 import java.net.*;
+import java.util.Iterator;
 import java.util.UUID;
 
 import static org.junit.Assert.*;
@@ -62,8 +63,7 @@ public class TaskManagerConfigurationTest {
 
 		try {
 
-
-			Tuple2<String, Object> address = TaskManager.selectNetworkInterfaceAndPort(config, highAvailabilityServices);
+			Tuple2<String, Iterator<Integer>> address = TaskManager.selectNetworkInterfaceAndPortRange(config, highAvailabilityServices);
 
 			// validate the configured test host name
 			assertEquals(TEST_HOST_NAME, address._1());
@@ -91,17 +91,31 @@ public class TaskManagerConfigurationTest {
 
 		try {
 			// auto port
-			assertEquals(0, TaskManager.selectNetworkInterfaceAndPort(config, highAvailabilityServices)._2());
+			Iterator<Integer> portsIter = TaskManager.selectNetworkInterfaceAndPortRange(config, highAvailabilityServices)._2();
+			assertTrue(portsIter.hasNext());
+			assertEquals(0, (int) portsIter.next());
 
 			// pre-defined port
 			final int testPort = 22551;
-			config.setInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, testPort);
-			assertEquals(testPort, TaskManager.selectNetworkInterfaceAndPort(config, highAvailabilityServices)._2());
+			config.setString(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, String.valueOf(testPort));
+
+			portsIter = TaskManager.selectNetworkInterfaceAndPortRange(config, highAvailabilityServices)._2();
+			assertTrue(portsIter.hasNext());
+			assertEquals(testPort, (int) portsIter.next());
+
+			assertEquals(testPort, TaskManager.selectNetworkInterfaceAndPortRange(config, highAvailabilityServices)._2());
+
+			// port range
+			config.setString(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, "8000-8001");
+			portsIter = TaskManager.selectNetworkInterfaceAndPortRange(config, highAvailabilityServices)._2();
+			assertTrue(portsIter.hasNext());
+			assertEquals(8000, (int) portsIter.next());
+			assertEquals(8001, (int) portsIter.next());
 
 			// invalid port
 			try {
 				config.setInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, -1);
-				TaskManager.selectNetworkInterfaceAndPort(config, highAvailabilityServices);
+				TaskManager.selectNetworkInterfaceAndPortRange(config, highAvailabilityServices);
 				fail("should fail with an exception");
 			}
 			catch (IllegalConfigurationException e) {
@@ -111,7 +125,7 @@ public class TaskManagerConfigurationTest {
 			// invalid port
 			try {
 				config.setInteger(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY, 100000);
-				TaskManager.selectNetworkInterfaceAndPort(config, highAvailabilityServices);
+				TaskManager.selectNetworkInterfaceAndPortRange(config, highAvailabilityServices);
 				fail("should fail with an exception");
 			}
 			catch (IllegalConfigurationException e) {
@@ -180,7 +194,7 @@ public class TaskManagerConfigurationTest {
 			HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
 
 		try {
-			assertNotNull(TaskManager.selectNetworkInterfaceAndPort(config, highAvailabilityServices)._1());
+			assertNotNull(TaskManager.selectNetworkInterfaceAndPortRange(config, highAvailabilityServices)._1());
 		}
 		catch (Exception e) {
 			e.printStackTrace();
