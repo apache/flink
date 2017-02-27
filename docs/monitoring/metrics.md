@@ -640,7 +640,7 @@ Thus, in order to infer the metric identifier:
       <td>The number of allocated memory segments.</td>
     </tr>
     <tr>
-      <th rowspan="4">Task</th>
+      <th rowspan="8">Task</th>
       <td rowspan="4">buffers</td>
       <td>inputQueueLength</td>
       <td>The number of queued input buffers.</td>
@@ -656,6 +656,24 @@ Thus, in order to infer the metric identifier:
     <tr>
       <td>outPoolUsage</td>
       <td>An estimate of the output buffers usage.</td>
+    </tr>
+    <tr>
+      <td rowspan="4">Network.&lt;Input|Output&gt;.&lt;gate&gt;<br />
+        <strong>(only available if <tt>taskmanager.net.detailed-metrics</tt> config option is set)</strong></td>
+      <td>total-queue-len</td>
+      <td>Total number of queued buffers in all input/output channels.</td>
+    </tr>
+    <tr>
+      <td>min-queue-len</td>
+      <td>Minimum number of queued buffers in all input/output channels.</td>
+    </tr>
+    <tr>
+      <td>max-queue-len</td>
+      <td>Maximum number of queued buffers in all input/output channels.</td>
+    </tr>
+    <tr>
+      <td>avg-queue-len</td>
+      <td>Average number of queued buffers in all input/output channels.</td>
     </tr>
   </tbody>
 </table>
