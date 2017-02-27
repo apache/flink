@@ -68,13 +68,6 @@ class DataSetTumbleTimeWindowAggReduceGroupFunction(
 
   override def reduce(records: Iterable[Row], out: Collector[Row]): Unit = {
 
-    // initiate intermediate aggregate value.
-    for (i <- aggregates.indices) {
-      val agg = aggregates(i)
-      val accumulator = agg.createAccumulator()
-      aggregateBuffer.setField(accumStartPos + i, accumulator)
-    }
-
     var last: Row = null
     val iterator = records.iterator()
     val accumulatorList = Array.fill(aggregates.length) {
