@@ -77,18 +77,21 @@ public class ResultPartitionMetrics {
 	}
 
 	private void refresh() {
+		long total = 0;
 		int min = Integer.MAX_VALUE;
 		int max = 0;
 
-		for (ResultSubpartition part : partition.getAllPartitions()) {
+		ResultSubpartition[] allPartitions = partition.getAllPartitions();
+		for (ResultSubpartition part : allPartitions) {
 			int size = part.unsynchronizedGetNumberOfQueuedBuffers();
+			total += size;
 			min = Math.min(min, size);
 			max = Math.max(max, size);
 		}
 
 		this.lastMin = min;
 		this.lastMax = max;
-		this.lastAvg = partition.getTotalNumberOfBuffers() / (float) partition.getNumberOfSubpartitions();
+		this.lastAvg = total / (float) allPartitions.length;
 	}
 
 	// ------------------------------------------------------------------------

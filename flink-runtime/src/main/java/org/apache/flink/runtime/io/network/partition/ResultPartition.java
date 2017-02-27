@@ -221,10 +221,20 @@ public class ResultPartition implements BufferPoolOwner {
 		return bufferPool;
 	}
 
+	/**
+	 * Returns the total number of processed network buffers since initialization.
+	 *
+	 * @return overall number of processed network buffers
+	 */
 	public int getTotalNumberOfBuffers() {
 		return totalNumberOfBuffers;
 	}
 
+	/**
+	 * Returns the total size of processed network buffers since initialization.
+	 *
+	 * @return overall size of processed network buffers
+	 */
 	public long getTotalNumberOfBytes() {
 		return totalNumberOfBytes;
 	}
