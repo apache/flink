@@ -30,7 +30,6 @@ import java.util.Set;
 import java.util.concurrent.Executor;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
-
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.savepoint.Savepoint;
 import org.apache.flink.runtime.checkpoint.savepoint.SavepointStore;
@@ -46,7 +45,6 @@ import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.util.Preconditions;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -220,10 +218,27 @@ public class PendingCheckpoint {
 			//            but the checkpoints think more generic. we need to work with file handles
 			//            here until the savepoint serializer accepts a generic stream factory
 
-			final FileStateHandle metadataHandle = SavepointStore.storeSavepointToHandle(targetDirectory, savepoint);
-			final String externalPointer = metadataHandle.getFilePath().getParent().toString();
+			// We have this branch here, because savepoints and externalized checkpoints
+			// currently behave differently.
+			// Savepoints:
+			//   - Metadata file in unique directory
+			//   - External pointer can be the directory
+			// Externalized checkpoints:
+			//   - Multiple metadata files per directory possible (need to be unique)
+			//   - External pointer needs to be the file itself
+			//
+			// This should be unified as part of the JobManager metadata stream factories.
+			if (props.isSavepoint()) {
+				final FileStateHandle metadataHandle = SavepointStore.storeSavepointToHandle(targetDirectory, savepoint);
+				final String externalPointer = metadataHandle.getFilePath().getParent().toString();
 
-			return finalizeInternal(metadataHandle, externalPointer);
+				return finalizeInternal(metadataHandle, externalPointer);
+			} else {
+				final FileStateHandle metadataHandle = SavepointStore.storeExternalizedCheckpointToHandle(targetDirectory, savepoint);
+				final String externalPointer = metadataHandle.getFilePath().toString();
+
+				return finalizeInternal(metadataHandle, externalPointer);
+			}
 		}
 	}
 
