@@ -30,8 +30,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
@@ -96,22 +94,12 @@ public class ZookeeperOffsetHandler {
 	}
 
 	/**
-	 * @param partitions The partitions to read offsets for.
+	 * @param partition The partition to read offset for.
 	 * @return The mapping from partition to offset.
 	 * @throws Exception This method forwards exceptions.
 	 */
-	public Map<KafkaTopicPartition, Long> getCommittedOffsets(List<KafkaTopicPartition> partitions) throws Exception {
-		Map<KafkaTopicPartition, Long> ret = new HashMap<>(partitions.size());
-		for (KafkaTopicPartition tp : partitions) {
-			Long offset = getOffsetFromZooKeeper(curatorClient, groupId, tp.getTopic(), tp.getPartition());
-
-			if (offset != null) {
-				LOG.info("Offset for TopicPartition {}:{} was set to {} in ZooKeeper. Seeking fetcher to that position.",
-						tp.getTopic(), tp.getPartition(), offset);
-				ret.put(tp, offset);
-			}
-		}
-		return ret;
+	public Long getCommittedOffset(KafkaTopicPartition partition) throws Exception {
+		return getOffsetFromZooKeeper(curatorClient, groupId, partition.getTopic(), partition.getPartition());
 	}
 
 	/**

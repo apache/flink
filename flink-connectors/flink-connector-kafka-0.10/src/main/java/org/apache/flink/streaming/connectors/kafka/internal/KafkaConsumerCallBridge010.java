@@ -21,6 +21,7 @@ package org.apache.flink.streaming.connectors.kafka.internal;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.TopicPartition;
 
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -39,12 +40,12 @@ public class KafkaConsumerCallBridge010 extends KafkaConsumerCallBridge {
 	}
 
 	@Override
-	public void seekPartitionsToBeginning(KafkaConsumer<?, ?> consumer, List<TopicPartition> partitions) {
-		consumer.seekToBeginning(partitions);
+	public void seekPartitionToBeginning(KafkaConsumer<?, ?> consumer, TopicPartition partition) {
+		consumer.seekToBeginning(Collections.singletonList(partition));
 	}
 
 	@Override
-	public void seekPartitionsToEnd(KafkaConsumer<?, ?> consumer, List<TopicPartition> partitions) {
-		consumer.seekToEnd(partitions);
+	public void seekPartitionToEnd(KafkaConsumer<?, ?> consumer, TopicPartition partition) {
+		consumer.seekToEnd(Collections.singletonList(partition));
 	}
 }

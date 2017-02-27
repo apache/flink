@@ -24,10 +24,10 @@ import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.connectors.kafka.internal.Handover;
-import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internal.Kafka09Fetcher;
 import org.apache.flink.streaming.connectors.kafka.internal.KafkaConsumerThread;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
+import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionStateSentinel;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchemaWrapper;
@@ -118,13 +118,13 @@ public class Kafka09FetcherTest {
 
 		@SuppressWarnings("unchecked")
 		SourceContext<String> sourceContext = mock(SourceContext.class);
-		List<KafkaTopicPartition> topics = Collections.singletonList(new KafkaTopicPartition("test", 42));
+		Map<KafkaTopicPartition, Long> partitionsWithInitialOffsets =
+			Collections.singletonMap(new KafkaTopicPartition("test", 42), KafkaTopicPartitionStateSentinel.GROUP_OFFSET);
 		KeyedDeserializationSchema<String> schema = new KeyedDeserializationSchemaWrapper<>(new SimpleStringSchema());
 
 		final Kafka09Fetcher<String> fetcher = new Kafka09Fetcher<>(
 				sourceContext,
-				topics,
-				null, /* no restored state */
+				partitionsWithInitialOffsets,
 				null, /* periodic watermark extractor */
 				null, /* punctuated watermark extractor */
 				new TestProcessingTimeService(),
@@ -136,7 +136,6 @@ public class Kafka09FetcherTest {
 				schema,
 				new Properties(),
 				0L,
-				StartupMode.GROUP_OFFSETS,
 				false);
 
 		// ----- run the fetcher -----
@@ -256,13 +255,13 @@ public class Kafka09FetcherTest {
 
 		@SuppressWarnings("unchecked")
 		SourceContext<String> sourceContext = mock(SourceContext.class);
-		List<KafkaTopicPartition> topics = Collections.singletonList(new KafkaTopicPartition("test", 42));
+		Map<KafkaTopicPartition, Long> partitionsWithInitialOffsets =
+			Collections.singletonMap(new KafkaTopicPartition("test", 42), KafkaTopicPartitionStateSentinel.GROUP_OFFSET);
 		KeyedDeserializationSchema<String> schema = new KeyedDeserializationSchemaWrapper<>(new SimpleStringSchema());
 
 		final Kafka09Fetcher<String> fetcher = new Kafka09Fetcher<>(
 				sourceContext,
-				topics,
-				null, /* no restored state */
+				partitionsWithInitialOffsets,
 				null, /* periodic watermark extractor */
 				null, /* punctuated watermark extractor */
 				new TestProcessingTimeService(),
@@ -274,7 +273,6 @@ public class Kafka09FetcherTest {
 				schema,
 				new Properties(),
 				0L,
-				StartupMode.GROUP_OFFSETS,
 				false);
 
 		// ----- run the fetcher -----
@@ -372,13 +370,13 @@ public class Kafka09FetcherTest {
 		// ----- build a fetcher -----
 
 		BlockingSourceContext<String> sourceContext = new BlockingSourceContext<>();
-		List<KafkaTopicPartition> topics = Collections.singletonList(new KafkaTopicPartition(topic, partition));
+		Map<KafkaTopicPartition, Long> partitionsWithInitialOffsets =
+			Collections.singletonMap(new KafkaTopicPartition(topic, partition), KafkaTopicPartitionStateSentinel.GROUP_OFFSET);
 		KeyedDeserializationSchema<String> schema = new KeyedDeserializationSchemaWrapper<>(new SimpleStringSchema());
 
 		final Kafka09Fetcher<String> fetcher = new Kafka09Fetcher<>(
 				sourceContext,
-				topics,
-				null, /* no restored state */
+				partitionsWithInitialOffsets,
 				null, /* periodic watermark extractor */
 				null, /* punctuated watermark extractor */
 				new TestProcessingTimeService(),
@@ -390,7 +388,6 @@ public class Kafka09FetcherTest {
 				schema,
 				new Properties(),
 				0L,
-				StartupMode.GROUP_OFFSETS,
 				false);
 
 
