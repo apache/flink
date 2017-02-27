@@ -102,6 +102,9 @@ object FlinkRuleSets {
     ProjectToCalcRule.INSTANCE,
     CalcMergeRule.INSTANCE,
 
+    // distinct aggregate rule for FLINK-3475
+    FlinkAggregateExpandDistinctAggregatesRule.JOIN,
+
     // translate to Flink DataSet nodes
     DataSetWindowAggregateRule.INSTANCE,
     DataSetAggregateRule.INSTANCE,
