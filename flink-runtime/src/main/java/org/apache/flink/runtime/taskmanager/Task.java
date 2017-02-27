@@ -390,11 +390,20 @@ public class Task implements Runnable, TaskActions {
 			++counter;
 		}
 
+		invokableHasBeenCanceled = new AtomicBoolean(false);
+
+		// finally, create the executing thread, but do not start it
+		executingThread = new Thread(TASK_THREADS_GROUP, this, taskNameWithSubtask);
+
+		// add metrics for buffers
+		this.metrics.getIOMetricGroup().initializeBufferMetrics(this);
+
 		// register detailed network metrics, if configured
 		if (tmConfig.getBoolean(TaskManagerOptions.NETWORK_DETAILED_METRICS_KEY)) {
-			MetricGroup networkGroup = metricGroup.addGroup("Network"); // same as in MetricUtils.instantiateNetworkMetrics()
-			MetricGroup outputGroup = networkGroup.addGroup("Output"); // this is optional
-			MetricGroup inputGroup = networkGroup.addGroup("Input"); // this is optional
+			// similar to MetricUtils.instantiateNetworkMetrics() but inside this IOMetricGroup
+			MetricGroup networkGroup = this.metrics.getIOMetricGroup().addGroup("Network");
+			MetricGroup outputGroup = networkGroup.addGroup("Output");
+			MetricGroup inputGroup = networkGroup.addGroup("Input");
 
 			// output metrics
 			for (int i = 0; i < producedPartitions.length; i++) {
@@ -407,14 +416,6 @@ public class Task implements Runnable, TaskActions {
 					inputGroup.addGroup(i), inputGates[i]);
 			}
 		}
-
-		invokableHasBeenCanceled = new AtomicBoolean(false);
-
-		// finally, create the executing thread, but do not start it
-		executingThread = new Thread(TASK_THREADS_GROUP, this, taskNameWithSubtask);
-
-		// add metrics for buffers
-		this.metrics.getIOMetricGroup().initializeBufferMetrics(this);
 	}
 
 	// ------------------------------------------------------------------------
