@@ -60,7 +60,13 @@ public class SavepointStore {
 	/** Magic number for sanity checks against stored savepoints. */
 	public static final int MAGIC_NUMBER = 0x4960672d;
 
-	private static final String META_DATA_FILE = "_metadata ";
+	private static final String SAVEPOINT_METADATA_FILE = "_metadata";
+
+	/**
+	 * Metadata file for an externalized checkpoint, random suffix added
+	 * during store, because the parent directory is not unique.
+	 */
+	static final String EXTERNALIZED_CHECKPOINT_METADATA_FILE = "checkpoint_metadata-";
 
 	/**
 	 * Creates a savepoint directory.
@@ -122,7 +128,8 @@ public class SavepointStore {
 	 */
 	public static <T extends Savepoint> String storeSavepoint(String directory, T savepoint) throws IOException {
 		// write and create the file handle
-		FileStateHandle metadataFileHandle = storeSavepointToHandle(directory, savepoint);
+		FileStateHandle metadataFileHandle = storeSavepointToHandle(directory,
+			SAVEPOINT_METADATA_FILE, savepoint);
 
 		// we return the savepoint directory path here!
 		// The directory path also works to resume from and is more elegant than the direct
@@ -135,19 +142,47 @@ public class SavepointStore {
 	 *
 	 * @param directory Target directory to store savepoint in
 	 * @param savepoint Savepoint to be stored
-	 *                     
+	 *
 	 * @return State handle to the checkpoint metadata
 	 * @throws IOException Failures during store are forwarded
 	 */
-	public static <T extends Savepoint> FileStateHandle storeSavepointToHandle(
+	public static <T extends Savepoint> FileStateHandle storeSavepointToHandle(String directory, T savepoint) throws IOException {
+		return storeSavepointToHandle(directory, SAVEPOINT_METADATA_FILE, savepoint);
+	}
+
+	/**
+	 * Stores the externalized checkpoint metadata file to a state handle.
+	 *
+	 * @param directory Target directory to store savepoint in
+	 * @param savepoint Savepoint to be stored
+	 *
+	 * @return State handle to the checkpoint metadata
+	 * @throws IOException Failures during store are forwarded
+	 */
+	public static <T extends Savepoint> FileStateHandle storeExternalizedCheckpointToHandle(String directory, T savepoint) throws IOException {
+		String fileName = FileUtils.getRandomFilename(EXTERNALIZED_CHECKPOINT_METADATA_FILE);
+		return storeSavepointToHandle(directory, fileName, savepoint);
+	}
+
+	/**
+	 * Stores the savepoint metadata file to a state handle.
+	 *
+	 * @param directory Target directory to store savepoint in
+	 * @param savepoint Savepoint to be stored
+	 *
+	 * @return State handle to the checkpoint metadata
+	 * @throws IOException Failures during store are forwarded
+	 */
+	static <T extends Savepoint> FileStateHandle storeSavepointToHandle(
 			String directory,
+			String filename,
 			T savepoint) throws IOException {
 
 		checkNotNull(directory, "Target directory");
 		checkNotNull(savepoint, "Savepoint");
 
 		final Path basePath = new Path(directory);
-		final Path metadataFilePath = new Path(basePath, META_DATA_FILE);
+		final Path metadataFilePath = new Path(basePath, filename);
 
 		final FileSystem fs = FileSystem.get(basePath.toUri());
 
@@ -219,7 +254,7 @@ public class SavepointStore {
 
 		// If this is a directory, we need to find the meta data file
 		if (status.isDir()) {
-			Path candidatePath = new Path(path, META_DATA_FILE);
+			Path candidatePath = new Path(path, SAVEPOINT_METADATA_FILE);
 			if (fs.exists(candidatePath)) {
 				path = candidatePath;
 				LOG.info("Using savepoint file in {}", path);

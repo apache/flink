@@ -19,12 +19,12 @@
 package org.apache.flink.runtime.checkpoint.savepoint;
 
 import java.io.File;
-import java.util.Arrays;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.TaskState;
+import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -187,6 +187,27 @@ public class SavepointStoreTest {
 		}
 
 		assertEquals("Savepoint file not cleaned up on failure", 0, tmp.getRoot().listFiles().length);
+	}
+
+	/**
+	 * Tests that multiple externalized checkpoints can be stored to the same
+	 * directory.
+	 */
+	@Test
+	public void testStoreExternalizedCheckpointsToSameDirectory() throws Exception {
+		String root = tmp.newFolder().getAbsolutePath();
+		FileSystem fs = FileSystem.get(new Path(root).toUri());
+
+		// Store
+		SavepointV1 savepoint = new SavepointV1(1929292, SavepointV1Test.createTaskStates(4, 24));
+
+		FileStateHandle store1 = SavepointStore.storeExternalizedCheckpointToHandle(root, savepoint);
+		fs.exists(store1.getFilePath());
+		assertTrue(store1.getFilePath().getPath().contains(SavepointStore.EXTERNALIZED_CHECKPOINT_METADATA_FILE));
+
+		FileStateHandle store2 = SavepointStore.storeExternalizedCheckpointToHandle(root, savepoint);
+		fs.exists(store2.getFilePath());
+		assertTrue(store2.getFilePath().getPath().contains(SavepointStore.EXTERNALIZED_CHECKPOINT_METADATA_FILE));
 	}
 
 	private static class NewSavepointSerializer implements SavepointSerializer<TestSavepoint> {
