@@ -107,6 +107,7 @@ public class InputGateMetrics {
 			}
 		}
 
+		this.lastTotal = total;
 		this.lastMin = min;
 		this.lastMax = max;
 		this.lastAvg = total / (float) count;

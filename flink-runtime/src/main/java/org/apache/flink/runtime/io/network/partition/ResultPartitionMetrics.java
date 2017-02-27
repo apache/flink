@@ -27,6 +27,8 @@ public class ResultPartitionMetrics {
 
 	private final ResultPartition partition;
 
+	private long lastTotal = -1;
+
 	private int lastMin = -1;
 
 	private int lastMax = -1;
@@ -41,7 +43,18 @@ public class ResultPartitionMetrics {
 
 	// ------------------------------------------------------------------------
 
-	// these methods are package private to make access from the nested classes faster 
+	// these methods are package private to make access from the nested classes faster
+
+	long refreshAndGetTotal() {
+		long total;
+		if ((total = lastTotal) == -1) {
+			refresh();
+			total = lastTotal;
+		}
+
+		lastTotal = -1;
+		return total;
+	}
 
 	int refreshAndGetMin() {
 		int min;
@@ -89,6 +102,7 @@ public class ResultPartitionMetrics {
 			max = Math.max(max, size);
 		}
 
+		this.lastTotal = total;
 		this.lastMin = min;
 		this.lastMax = max;
 		this.lastAvg = total / (float) allPartitions.length;
@@ -97,6 +111,15 @@ public class ResultPartitionMetrics {
 	// ------------------------------------------------------------------------
 	//  Gauges to access the stats
 	// ------------------------------------------------------------------------
+
+	private Gauge<Long> getTotalQueueLenGauge() {
+		return new Gauge<Long>() {
+			@Override
+			public Long getValue() {
+				return refreshAndGetTotal();
+			}
+		};
+	}
 
 	private Gauge<Integer> getMinQueueLenGauge() {
 		return new Gauge<Integer>() {
@@ -132,6 +155,7 @@ public class ResultPartitionMetrics {
 	public static void registerQueueLengthMetrics(MetricGroup group, ResultPartition partition) {
 		ResultPartitionMetrics metrics = new ResultPartitionMetrics(partition);
 
+		group.gauge("total-queue-len", metrics.getTotalQueueLenGauge());
 		group.gauge("min-queue-len", metrics.getMinQueueLenGauge());
 		group.gauge("max-queue-len", metrics.getMaxQueueLenGauge());
 		group.gauge("avg-queue-len", metrics.getAvgQueueLenGauge());
