@@ -197,6 +197,14 @@ public class RowCsvInputFormat extends CsvInputFormat<Row> implements ResultType
 			if (startPos < 0) {
 				throw new ParseException(String.format("Unexpected parser position for column %1$s of row '%2$s'",
 					field, new String(bytes, offset, numBytes)));
+			} else if (startPos == limit
+					&& field != fieldIncluded.length - 1
+					&& !FieldParser.endsWithDelimiter(bytes, startPos - 1, fieldDelimiter)) {
+				if (isLenient()) {
+					return false;
+				} else {
+					throw new ParseException("Row too short: " + new String(bytes, offset, numBytes));
+				}
 			}
 
 			field++;

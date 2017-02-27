@@ -400,7 +400,7 @@ public class CsvInputFormatTest {
 	@Test
 	public void readStringFieldsWithTrailingDelimiters() {
 		try {
-			final String fileContent = "abc|-def|-ghijk\nabc|-|-hhg\n|-|-|-\n|-|-";
+			final String fileContent = "abc|-def|-ghijk\nabc|-|-hhg\n|-|-|-\n|-|-\nabc|-def\n";
 			final FileInputSplit split = createTempFile(fileContent);
 
 			final TupleTypeInfo<Tuple3<String, String, String>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class, String.class, String.class);
@@ -437,9 +437,10 @@ public class CsvInputFormatTest {
 			assertEquals("", result.f1);
 			assertEquals("", result.f2);
 
-			result = format.nextRecord(result);
-			assertNull(result);
-			assertTrue(format.reachedEnd());
+			try {
+				format.nextRecord(result);
+				fail("Parse Exception was not thrown! (Row too short)");
+			} catch (ParseException e) {}
 		}
 		catch (Exception ex) {
 			fail("Test failed due to a " + ex.getClass().getName() + ": " + ex.getMessage());

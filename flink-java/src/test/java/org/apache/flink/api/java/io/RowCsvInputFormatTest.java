@@ -317,7 +317,7 @@ public class RowCsvInputFormatTest {
 
 	@Test
 	public void readStringFieldsWithTrailingDelimiters() throws Exception {
-		String fileContent = "abc|-def|-ghijk\nabc|-|-hhg\n|-|-|-\n|-|-\n";
+		String fileContent = "abc|-def|-ghijk\nabc|-|-hhg\n|-|-|-\n|-|-\nabc|-def\n";
 
 		FileInputSplit split = createTempFile(fileContent);
 
@@ -357,9 +357,10 @@ public class RowCsvInputFormatTest {
 		assertEquals("", result.getField(1));
 		assertEquals("", result.getField(2));
 
-		result = format.nextRecord(result);
-		assertNull(result);
-		assertTrue(format.reachedEnd());
+		try {
+			format.nextRecord(result);
+			fail("Parse Exception was not thrown! (Row too short)");
+		} catch (ParseException e) {}
 	}
 
 	@Test

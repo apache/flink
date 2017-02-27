@@ -373,9 +373,12 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 				Object reuse = holders[output];
 				startPos = parser.resetErrorStateAndParse(bytes, startPos, limit, this.fieldDelim, reuse);
 				holders[output] = parser.getLastResult();
-				
+
 				// check parse result
-				if (startPos < 0) {
+				if (startPos < 0 ||
+						(startPos == limit
+								&& field != fieldIncluded.length - 1
+								&& !FieldParser.endsWithDelimiter(bytes, startPos - 1, fieldDelim))) {
 					// no good
 					if (lenient) {
 						return false;
@@ -392,12 +395,17 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 			else {
 				// skip field
 				startPos = skipFields(bytes, startPos, limit, this.fieldDelim);
-				if (startPos < 0) {
+				if (startPos < 0 ||
+						(startPos == limit
+								&& field != fieldIncluded.length - 1
+								&& !FieldParser.endsWithDelimiter(bytes, startPos - 1, fieldDelim))) {
 					if (!lenient) {
 						String lineAsString = new String(bytes, offset, numBytes);
 						throw new ParseException("Line could not be parsed: '" + lineAsString+"'\n"
 								+ "Expect field types: "+fieldTypesToString()+" \n"
 								+ "in file: "+filePath);
+					} else {
+						return false;
 					}
 				}
 			}
