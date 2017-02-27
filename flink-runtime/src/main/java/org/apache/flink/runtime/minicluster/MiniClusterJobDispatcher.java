@@ -271,7 +271,7 @@ public class MiniClusterJobDispatcher {
 			haServices.getRunningJobsRegistry().clearJob(jobID);
 		}
 		catch (Throwable t) {
-			LOG.warn("Could not clear the job {} at the high-availability services", jobID.toString(), t);
+			LOG.warn("Could not clear job {} at the status registry of the high-availability services", jobID, t);
 		}
 	}
 

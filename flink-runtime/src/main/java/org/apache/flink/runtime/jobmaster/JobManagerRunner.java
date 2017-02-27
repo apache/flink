@@ -360,17 +360,19 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 			// it's okay that job manager wait for the operation complete
 			leaderElectionService.confirmLeaderSessionID(leaderSessionID);
 
-			JobSchedulingStatus schedulingStatus = JobSchedulingStatus.PENDING;
+			final JobSchedulingStatus schedulingStatus;
 			try {
 				schedulingStatus = runningJobsRegistry.getJobSchedulingStatus(jobGraph.getJobID());
-				if (schedulingStatus.equals(JobSchedulingStatus.DONE)) {
-					log.info("Granted leader ship but job {} has been finished. ", jobGraph.getJobID());
-					jobFinishedByOther();
-					return;
-				}
-			} catch (Throwable t) {
-				log.error("Could not access status (running/finished) of job {}. ",	jobGraph.getJobID(), t);
+			}
+			catch (Throwable t) {
+				log.error("Could not access status (running/finished) of job {}. ", jobGraph.getJobID(), t);
 				onFatalError(t);
+				return;
+			}
+
+			if (schedulingStatus == JobSchedulingStatus.DONE) {
+				log.info("Granted leader ship but job {} has been finished. ", jobGraph.getJobID());
+				jobFinishedByOther();
 				return;
 			}
 
@@ -382,7 +384,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 					// Now set the running status is after getting leader ship and 
 					// set finished status after job in terminated status.
 					// So if finding the job is running, it means someone has already run the job, need recover.
-					if (schedulingStatus.equals(JobSchedulingStatus.PENDING)) {
+					if (schedulingStatus == JobSchedulingStatus.PENDING) {
 						runningJobsRegistry.setJobRunning(jobGraph.getJobID());
 					}
 
