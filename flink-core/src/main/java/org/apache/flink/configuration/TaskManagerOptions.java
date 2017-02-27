@@ -57,6 +57,14 @@ public class TaskManagerOptions {
 			key("taskmanager.exit-on-fatal-akka-error")
 			.defaultValue(false);
 
+	/**
+	 * The default network port range the task manager expects incoming IPC connections. The {@code "0"} means that
+	 * the TaskManager searches for a free port.
+	 */
+	public static final ConfigOption<String> RPC_PORT = 
+		key("taskmanager.rpc.port")
+			.defaultValue("0");
+
 	// ------------------------------------------------------------------------
 	//  Managed Memory Options
 	// ------------------------------------------------------------------------
