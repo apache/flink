@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
-import org.apache.commons.net.util.Base64;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
@@ -34,14 +33,13 @@ import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
+import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.MathUtils;
 
-import java.io.ByteArrayInputStream;
 import java.io.File;
-import java.io.ObjectInputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.util.LinkedList;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -85,7 +83,8 @@ public class TaskManagerServicesConfiguration {
 			boolean preAllocateMemory,
 			float memoryFraction,
 			MetricRegistryConfiguration metricRegistryConfiguration,
-			long timerServiceShutdownTimeout) {
+			long timerServiceShutdownTimeout,
+			List<ResourceProfile> resourceProfiles) {
 
 		this.taskManagerAddress = checkNotNull(taskManagerAddress);
 		this.tmpDirPaths = checkNotNull(tmpDirPaths);
@@ -103,7 +102,7 @@ public class TaskManagerServicesConfiguration {
 			"service shutdown timeout must be greater or equal to 0.");
 		this.timerServiceShutdownTimeout = timerServiceShutdownTimeout;
 
-		this.resourceProfiles = new LinkedList<>();
+		this.resourceProfiles = resourceProfiles;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -213,7 +212,17 @@ public class TaskManagerServicesConfiguration {
 
 		long timerServiceShutdownTimeout = AkkaUtils.getTimeout(configuration).toMillis();
 
-		TaskManagerServicesConfiguration tmsConfig = new TaskManagerServicesConfiguration(
+		// deserialize the resource profile from configuration. 
+		//Now the resource profile for all slots in a task executor is the same
+		ResourceProfile resourceProfile = InstantiationUtil.readObjectFromConfig(configuration, 
+				ConfigConstants.TASK_MANAGER_RESOURCE_PROFILE_KEY, configuration.getClass().getClassLoader());
+		List<ResourceProfile> profiles = new ArrayList<>();
+		if (resourceProfile != null) {
+			for (int i = 0; i < slots; i++) {
+				profiles.add(resourceProfile);
+			}
+		}
+		return new TaskManagerServicesConfiguration(
 			remoteAddress,
 			tmpDirs,
 			networkConfig,
@@ -223,20 +232,8 @@ public class TaskManagerServicesConfiguration {
 			preAllocateMemory,
 			memoryFraction,
 			metricRegistryConfiguration,
-			timerServiceShutdownTimeout);
-		// deserialize the resource profile from configuration. 
-		//Now the resource profile for all slots in a task executor is the same
-		String resource = configuration.getString(ConfigConstants.TASK_MANAGER_RESOURCE_PROFILE_KEY, null);
-		if (resource != null) {
-			ByteArrayInputStream input = new ByteArrayInputStream(Base64.decodeBase64(resource));
-			ObjectInputStream rpInput = new ObjectInputStream(input);
-			ResourceProfile resourceProfile = (ResourceProfile)rpInput.readObject();
-			rpInput.close();
-			for (int i = 0; i < slots; ++i) {
-				tmsConfig.addResourceProfile(resourceProfile);
-			}
-		}
-		return tmsConfig;
+			timerServiceShutdownTimeout,
+			profiles);
 	}
 
 	// --------------------------------------------------------------------------
@@ -375,10 +372,6 @@ public class TaskManagerServicesConfiguration {
 			throw new IllegalConfigurationException("Invalid configuration value for " + 
 					name + " : " + parameter + " - " + errorMessage);
 		}
-	}
-
-	private void addResourceProfile(ResourceProfile resourceProfile) {
-		this.resourceProfiles.add(resourceProfile);
 	}
 
 	/**

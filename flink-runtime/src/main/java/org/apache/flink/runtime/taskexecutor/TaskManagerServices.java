@@ -199,8 +199,9 @@ public class TaskManagerServices {
 
 		final List<ResourceProfile> resourceProfiles = taskManagerServicesConfiguration.getResourceProfiles();
 
+		// for standalone, there are no resource pofile in the configuration, the size is zero
 		for (int i = resourceProfiles.size(); i < taskManagerServicesConfiguration.getNumberOfSlots(); i++) {
-			resourceProfiles.add(new ResourceProfile(1.0, 42L));
+			resourceProfiles.add(ResourceProfile.UNIVERSAL);
 		}
 
 		final TimerService<AllocationID> timerService = new TimerService<>(
