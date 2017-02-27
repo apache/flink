@@ -42,12 +42,12 @@ class KillerWatchDog extends Thread {
 	@SuppressWarnings("deprecation")
 	@Override
 	public void run() {
-		final long deadline = System.currentTimeMillis() + timeout;
+		final long deadline = System.nanoTime() + timeout * 1_000_000L;
 		long now;
 
-		while (toKill.isAlive() && (now = System.currentTimeMillis()) < deadline) {
+		while (toKill.isAlive() && (now = System.nanoTime()) < deadline) {
 			try {
-				toKill.join(deadline - now);
+				toKill.join( ( deadline - now ) / 1_000_000L );
 			}
 			catch (InterruptedException e) {
 				// ignore here, our job is important!
