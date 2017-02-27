@@ -238,6 +238,7 @@ public class NFA<T> implements Serializable {
 
 		states.push(state);
 
+		boolean branched = false;
 		while (!states.isEmpty()) {
 			State<T> currentState = states.pop();
 			Collection<StateTransition<T>> stateTransitions = currentState.getStateTransitions();
@@ -254,7 +255,18 @@ public class NFA<T> implements Serializable {
 								states.push(stateTransition.getTargetState());
 								break;
 							case IGNORE:
-								resultingComputationStates.add(computationState);
+								final DeweyNumber version;
+								if (branched) {
+									version = computationState.getVersion().increase();
+								} else {
+									version = computationState.getVersion();
+								}
+								resultingComputationStates.add(new ComputationState<T>(
+									computationState.getState(),
+									computationState.getEvent(),
+									computationState.getTimestamp(),
+									version,
+									computationState.getStartTimestamp()));
 
 								// we have a new computation state referring to the same the shared entry
 								// the lock of the current computation is released later on
@@ -280,11 +292,8 @@ public class NFA<T> implements Serializable {
 									previousTimestamp = computationState.getTimestamp();
 									oldVersion = computationState.getVersion();
 
-									if (newState.equals(computationState.getState())) {
-										newComputationStateVersion = oldVersion.increase();
-									} else {
-										newComputationStateVersion = oldVersion.addStage();
-									}
+									branched = true;
+									newComputationStateVersion = oldVersion.addStage();
 								}
 
 								if (previousState.isStart()) {
