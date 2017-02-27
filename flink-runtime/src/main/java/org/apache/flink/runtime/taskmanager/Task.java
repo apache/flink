@@ -74,6 +74,7 @@ import org.apache.flink.util.SerializedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.IOException;
 import java.net.URL;
@@ -280,7 +281,7 @@ public class Task implements Runnable, TaskActions {
 		LibraryCacheManager libraryCache,
 		FileCache fileCache,
 		TaskManagerRuntimeInfo taskManagerConfig,
-		TaskMetricGroup metricGroup,
+		@Nonnull TaskMetricGroup metricGroup,
 		ResultPartitionConsumableNotifier resultPartitionConsumableNotifier,
 		PartitionProducerStateChecker partitionProducerStateChecker,
 		Executor executor) {
@@ -412,10 +413,8 @@ public class Task implements Runnable, TaskActions {
 		// finally, create the executing thread, but do not start it
 		executingThread = new Thread(TASK_THREADS_GROUP, this, taskNameWithSubtask);
 
-		if (this.metrics != null && this.metrics.getIOMetricGroup() != null) {
-			// add metrics for buffers
-			this.metrics.getIOMetricGroup().initializeBufferMetrics(this);
-		}
+		// add metrics for buffers
+		this.metrics.getIOMetricGroup().initializeBufferMetrics(this);
 	}
 
 	// ------------------------------------------------------------------------
