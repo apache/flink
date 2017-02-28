@@ -55,6 +55,11 @@ extends AbstractDataSetAnalytic<T, Long> {
 		return countHelper.getAccumulator(env, COUNT);
 	}
 
+	/**
+	 * Helper class to count elements.
+	 *
+	 * @param <U> element type
+	 */
 	private static class CountHelper<U>
 	extends AnalyticHelper<U> {
 		private long count;

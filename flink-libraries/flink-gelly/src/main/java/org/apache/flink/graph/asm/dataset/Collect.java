@@ -75,6 +75,11 @@ extends AbstractDataSetAnalytic<T, List<T>> {
 		}
 	}
 
+	/**
+	 * Helper class to collect elements into a serialized list.
+	 *
+	 * @param <U> element type
+	 */
 	private static class CollectHelper<U>
 	extends AnalyticHelper<U> {
 		private SerializedListAccumulator<U> accumulator;

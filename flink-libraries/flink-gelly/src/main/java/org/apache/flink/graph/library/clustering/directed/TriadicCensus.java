@@ -27,6 +27,7 @@ import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.asm.degree.annotate.directed.VertexDegrees;
 import org.apache.flink.graph.asm.degree.annotate.directed.VertexDegrees.Degrees;
+import org.apache.flink.graph.asm.result.AnalyticResult;
 import org.apache.flink.graph.library.clustering.directed.TriadicCensus.Result;
 import org.apache.flink.types.CopyableValue;
 import org.apache.flink.util.Preconditions;
@@ -321,7 +322,8 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 	/**
 	 * Wraps triadic census metrics.
 	 */
-	public static class Result {
+	public static class Result
+	implements AnalyticResult {
 		private final BigInteger[] counts;
 
 		public Result(BigInteger... counts) {

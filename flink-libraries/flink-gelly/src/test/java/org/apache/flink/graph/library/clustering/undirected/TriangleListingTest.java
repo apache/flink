@@ -20,10 +20,10 @@ package org.apache.flink.graph.library.clustering.undirected;
 
 import org.apache.commons.math3.util.CombinatoricsUtils;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.graph.asm.AsmTestBase;
 import org.apache.flink.graph.asm.dataset.ChecksumHashCode;
 import org.apache.flink.graph.asm.dataset.ChecksumHashCode.Checksum;
+import org.apache.flink.graph.library.clustering.undirected.TriangleListing.Result;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
@@ -38,7 +38,7 @@ extends AsmTestBase {
 	@Test
 	public void testSimpleGraph()
 			throws Exception {
-		DataSet<Tuple3<IntValue, IntValue, IntValue>> tl = undirectedSimpleGraph
+		DataSet<Result<IntValue>> tl = undirectedSimpleGraph
 			.run(new TriangleListing<IntValue, NullValue, NullValue>()
 				.setSortTriangleVertices(true));
 
@@ -55,10 +55,10 @@ extends AsmTestBase {
 		long expectedDegree = completeGraphVertexCount - 1;
 		long expectedCount = completeGraphVertexCount * CombinatoricsUtils.binomialCoefficient((int)expectedDegree, 2) / 3;
 
-		DataSet<Tuple3<LongValue, LongValue, LongValue>> tl = completeGraph
+		DataSet<Result<LongValue>> tl = completeGraph
 			.run(new TriangleListing<LongValue, NullValue, NullValue>());
 
-		Checksum checksum = new ChecksumHashCode<Tuple3<LongValue, LongValue, LongValue>>()
+		Checksum checksum = new ChecksumHashCode<Result<LongValue>>()
 			.run(tl)
 			.execute();
 
@@ -68,11 +68,11 @@ extends AsmTestBase {
 	@Test
 	public void testRMatGraph()
 			throws Exception {
-		DataSet<Tuple3<LongValue, LongValue, LongValue>> tl = undirectedRMatGraph
+		DataSet<Result<LongValue>> tl = undirectedRMatGraph
 			.run(new TriangleListing<LongValue, NullValue, NullValue>()
 				.setSortTriangleVertices(true));
 
-		Checksum checksum = new ChecksumHashCode<Tuple3<LongValue, LongValue, LongValue>>()
+		Checksum checksum = new ChecksumHashCode<Result<LongValue>>()
 			.run(tl)
 			.execute();
 

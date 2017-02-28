@@ -31,10 +31,11 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.asm.degree.annotate.undirected.VertexDegree;
+import org.apache.flink.graph.asm.result.AlgorithmResult;
+import org.apache.flink.graph.asm.result.BinaryResult;
 import org.apache.flink.graph.library.similarity.AdamicAdar.Result;
 import org.apache.flink.graph.utils.Murmur3_32;
 import org.apache.flink.graph.utils.proxy.GraphAlgorithmWrappingDataSet;
@@ -260,7 +261,6 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		}
 	}
 
-
 	/**
 	 * @see JaccardIndex.GenerateGroupSpans
 	 *
@@ -442,12 +442,13 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	}
 
 	/**
-	 * Wraps the vertex type to encapsulate results from the Adamic-Adar algorithm.
+	 * Wraps {@link Tuple3} to encapsulate results from the Adamic-Adar algorithm.
 	 *
 	 * @param <T> ID type
 	 */
 	public static class Result<T>
-	extends Edge<T, FloatValue> {
+	extends Tuple3<T, T, FloatValue>
+	implements AlgorithmResult, BinaryResult<T>, Comparable<Result<T>> {
 		public static final int HASH_SEED = 0xe405f6d1;
 
 		private Murmur3_32 hasher = new Murmur3_32(HASH_SEED);
@@ -457,6 +458,16 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		 */
 		public Result() {
 			f2 = new FloatValue();
+		}
+
+		@Override
+		public T getVertexId0() {
+			return f0;
+		}
+
+		@Override
+		public T getVertexId1() {
+			return f1;
 		}
 
 		/**
@@ -469,8 +480,9 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 			return f2;
 		}
 
+		@Override
 		public String toVerboseString() {
-			return "Vertex IDs: (" + f0 + ", " + f1
+			return "Vertex IDs: (" + getVertexId0() + ", " + getVertexId1()
 				+ "), adamic-adar score: " + getAdamicAdarScore();
 		}
 
@@ -481,6 +493,11 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 				.hash(f1.hashCode())
 				.hash(f2.getValue())
 				.hash();
+		}
+
+		@Override
+		public int compareTo(Result<T> o) {
+			return Float.compare(getAdamicAdarScore().getValue(), o.getAdamicAdarScore().getValue());
 		}
 	}
 }

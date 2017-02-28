@@ -38,7 +38,9 @@ public class GraphUtils {
 		return input
 			.map(new MapTo<T, LongValue>(new LongValue(1)))
 				.returns(LONG_VALUE_TYPE_INFO)
-			.reduce(new AddLongValue());
+				.name("Emit 1")
+			.reduce(new AddLongValue())
+				.name("Sum");
 	}
 
 	/**
