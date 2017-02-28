@@ -215,8 +215,6 @@ public abstract class AbstractStreamOperator<OUT>
 
 		if (restoring) {
 
-			restoreStreamCheckpointed(stateHandles);
-
 			//pass directly
 			operatorStateHandlesBackend = stateHandles.getManagedOperatorState();
 			operatorStateHandlesRaw = stateHandles.getRawOperatorState();
@@ -240,6 +238,14 @@ public abstract class AbstractStreamOperator<OUT>
 				getContainingTask().getCancelables()); // access to register streams for canceling
 
 		initializeState(initializationContext);
+
+		if (restoring) {
+
+			// finally restore the legacy state in case we are
+			// migrating from a previous Flink version.
+
+			restoreStreamCheckpointed(stateHandles);
+		}
 	}
 
 	@Deprecated
