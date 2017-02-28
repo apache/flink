@@ -289,7 +289,7 @@ public class TriangleListing {
 					for (Object e: tl.collect()) {
 						org.apache.flink.graph.library.clustering.directed.TriangleListing.Result result =
 							(org.apache.flink.graph.library.clustering.directed.TriangleListing.Result) e;
-						System.out.println(result.toVerboseString());
+						System.out.println(result.toPrintableString());
 					}
 				} else {
 					tl.print();

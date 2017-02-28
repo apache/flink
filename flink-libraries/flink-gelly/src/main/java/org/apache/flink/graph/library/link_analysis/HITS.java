@@ -36,7 +36,8 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
-import org.apache.flink.graph.Vertex;
+import org.apache.flink.graph.asm.result.PrintableResult;
+import org.apache.flink.graph.asm.result.UnaryResult;
 import org.apache.flink.graph.library.link_analysis.Functions.SumScore;
 import org.apache.flink.graph.library.link_analysis.HITS.Result;
 import org.apache.flink.graph.utils.Murmur3_32;
@@ -511,7 +512,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 *
 	 * @param <T> ID type
 	 */
-	@ForwardedFields("0")
+	@ForwardedFields("0; 1; 2")
 	private static class TranslateResult<T>
 	implements MapFunction<Tuple3<T, DoubleValue, DoubleValue>, Result<T>> {
 		private Result<T> output = new Result<>();
@@ -519,25 +520,27 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		@Override
 		public Result<T> map(Tuple3<T, DoubleValue, DoubleValue> value) throws Exception {
 			output.f0 = value.f0;
-			output.f1.f0 = value.f1;
-			output.f1.f1 = value.f2;
+			output.f1 = value.f1;
+			output.f2 = value.f2;
 			return output;
 		}
 	}
 
 	/**
-	 * Wraps the vertex type to encapsulate results from the HITS algorithm.
+	 * Wraps the {@link Tuple3} to encapsulate results from the HITS algorithm.
 	 *
 	 * @param <T> ID type
 	 */
 	public static class Result<T>
-	extends Vertex<T, Tuple2<DoubleValue, DoubleValue>> {
+	extends Tuple3<T, DoubleValue, DoubleValue>
+	implements PrintableResult, UnaryResult<T> {
 		public static final int HASH_SEED = 0xc7e39a63;
 
 		private Murmur3_32 hasher = new Murmur3_32(HASH_SEED);
 
-		public Result() {
-			f1 = new Tuple2<>();
+		@Override
+		public T getVertexId0() {
+			return f0;
 		}
 
 		/**
@@ -546,7 +549,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		 * @return the hub score
 		 */
 		public DoubleValue getHubScore() {
-			return f1.f0;
+			return f1;
 		}
 
 		/**
@@ -555,11 +558,11 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		 * @return the authority score
 		 */
 		public DoubleValue getAuthorityScore() {
-			return f1.f1;
+			return f2;
 		}
 
-		public String toVerboseString() {
-			return "Vertex ID: " + f0
+		public String toPrintableString() {
+			return "Vertex ID: " + getVertexId0()
 				+ ", hub score: " + getHubScore()
 				+ ", authority score: " + getAuthorityScore();
 		}
@@ -568,8 +571,8 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		public int hashCode() {
 			return hasher.reset()
 				.hash(f0.hashCode())
-				.hash(f1.f0.getValue())
-				.hash(f1.f1.getValue())
+				.hash(f1.getValue())
+				.hash(f2.getValue())
 				.hash();
 		}
 	}

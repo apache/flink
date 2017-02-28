@@ -36,6 +36,8 @@ import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.asm.degree.annotate.directed.EdgeDegreesPair;
 import org.apache.flink.graph.asm.degree.annotate.directed.VertexDegrees.Degrees;
 import org.apache.flink.graph.library.clustering.directed.TriangleListing.Result;
+import org.apache.flink.graph.asm.result.PrintableResult;
+import org.apache.flink.graph.asm.result.TertiaryResult;
 import org.apache.flink.graph.utils.proxy.GraphAlgorithmWrappingDataSet;
 import org.apache.flink.graph.utils.proxy.OptionalBoolean;
 import org.apache.flink.types.ByteValue;
@@ -69,7 +71,7 @@ public class TriangleListing<K extends Comparable<K> & CopyableValue<K>, VV, EV>
 extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 
 	// Optional configuration
-	private OptionalBoolean sortTriangleVertices = new OptionalBoolean(false, false);
+	private OptionalBoolean sortTriangleVertices = new OptionalBoolean(false, true);
 
 	private int littleParallelism = PARALLELISM_DEFAULT;
 
@@ -351,7 +353,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	@ForwardedFieldsSecond("0; 1")
 	private static final class ProjectTriangles<T>
 	implements JoinFunction<Tuple4<T, T, T, ByteValue>, Tuple3<T, T, ByteValue>, Result<T>> {
-		private Result<T> output = new Result<>(null, null, null, new ByteValue());
+		private Result<T> output = new Result<>();
 
 		@Override
 		public Result<T> join(Tuple4<T, T, T, ByteValue> triplet, Tuple3<T, T, ByteValue> edge)
@@ -407,27 +409,45 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	}
 
 	/**
-	 * Wraps the vertex type to encapsulate results from the Triangle Listing algorithm.
+	 * Wraps {@link Tuple4} to encapsulate results from the directed Triangle Listing algorithm.
 	 *
 	 * @param <T> ID type
 	 */
 	public static class Result<T>
-	extends Tuple4<T, T, T, ByteValue> {
+	extends Tuple4<T, T, T, ByteValue>
+	implements PrintableResult, TertiaryResult<T> {
 		/**
 		 * No-args constructor.
 		 */
-		public Result() {}
+		public Result() {
+			f3 = new ByteValue();
+		}
+
+		@Override
+		public T getVertexId0() {
+			return f0;
+		}
+
+		@Override
+		public T getVertexId1() {
+			return f1;
+		}
+
+		@Override
+		public T getVertexId2() {
+			return f2;
+		}
 
 		/**
-		 * Populates parent tuple with constructor parameters.
+		 * Get the bitmask indicating the presence of the six potential
+		 * connecting edges.
 		 *
-		 * @param value0 1st triangle vertex ID
-		 * @param value1 2nd triangle vertex ID
-		 * @param value2 3rd triangle vertex ID
-		 * @param value3 bitmask indicating presence of six possible edges between triangle vertices
+		 * @return the edge bitmask
+		 *
+		 * @see EdgeOrder
 		 */
-		public Result(T value0, T value1, T value2, ByteValue value3) {
-			super(value0, value1, value2, value3);
+		public ByteValue getBitmask() {
+			return f3;
 		}
 
 		/**
@@ -435,15 +455,15 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		 *
 		 * @return verbose string
 		 */
-		public String toVerboseString() {
+		public String toPrintableString() {
 			byte bitmask = f3.getValue();
 
-			return "1st vertex ID: " + f0
-				+ ", 2nd vertex ID: " + f1
-				+ ", 3rd vertex ID: " + f2
-				+ ", edge directions: " + f0 + maskToString(bitmask, 4) + f1
-				+ ", " + f0 + maskToString(bitmask, 2) + f2
-				+ ", " + f1 + maskToString(bitmask, 0) + f2;
+			return "1st vertex ID: " + getVertexId0()
+				+ ", 2nd vertex ID: " + getVertexId1()
+				+ ", 3rd vertex ID: " + getVertexId2()
+				+ ", edge directions: " + getVertexId0() + maskToString(bitmask, 4) + getVertexId1()
+				+ ", " + getVertexId0() + maskToString(bitmask, 2) + getVertexId2()
+				+ ", " + getVertexId1() + maskToString(bitmask, 0) + getVertexId2();
 		}
 
 		private String maskToString(byte mask, int shift) {

@@ -23,7 +23,6 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.utils.proxy.GraphAlgorithmWrappingGraph;
-import org.apache.flink.types.CopyableValue;
 import org.apache.flink.util.Preconditions;
 
 import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
@@ -35,7 +34,7 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
  * @param <VV> vertex value type
  * @param <EV> edge value type
  */
-public class Simplify<K extends Comparable<K> & CopyableValue<K>, VV, EV>
+public class Simplify<K extends Comparable<K>, VV, EV>
 extends GraphAlgorithmWrappingGraph<K, VV, EV, K, VV, EV> {
 
 	// Optional configuration

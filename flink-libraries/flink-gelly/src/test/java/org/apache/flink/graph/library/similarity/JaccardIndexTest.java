@@ -47,17 +47,17 @@ extends AsmTestBase {
 			.run(new JaccardIndex<IntValue, NullValue, NullValue>());
 
 		String expectedResult =
-			"(0,1,(1,4))\n" +
-			"(0,2,(1,4))\n" +
-			"(0,3,(2,4))\n" +
-			"(1,2,(2,4))\n" +
-			"(1,3,(1,6))\n" +
-			"(1,4,(1,3))\n" +
-			"(1,5,(1,3))\n" +
-			"(2,3,(1,6))\n" +
-			"(2,4,(1,3))\n" +
-			"(2,5,(1,3))\n" +
-			"(4,5,(1,1))\n";
+			"(0,1,1,4)\n" +
+			"(0,2,1,4)\n" +
+			"(0,3,2,4)\n" +
+			"(1,2,2,4)\n" +
+			"(1,3,1,6)\n" +
+			"(1,4,1,3)\n" +
+			"(1,5,1,3)\n" +
+			"(2,3,1,6)\n" +
+			"(2,4,1,3)\n" +
+			"(2,5,1,3)\n" +
+			"(4,5,1,1)\n";
 
 		TestBaseUtils.compareResultAsText(ji.collect(), expectedResult);
 	}
@@ -70,9 +70,9 @@ extends AsmTestBase {
 				.setMinimumScore(1, 2));
 
 		String expectedResult =
-			"(0,3,(2,4))\n" +
-			"(1,2,(2,4))\n" +
-			"(4,5,(1,1))\n";
+			"(0,3,2,4)\n" +
+			"(1,2,2,4)\n" +
+			"(4,5,1,1)\n";
 
 		TestBaseUtils.compareResultAsText(ji.collect(), expectedResult);
 	}
@@ -85,14 +85,14 @@ extends AsmTestBase {
 				.setMaximumScore(1, 2));
 
 		String expectedResult =
-			"(0,1,(1,4))\n" +
-			"(0,2,(1,4))\n" +
-			"(1,3,(1,6))\n" +
-			"(1,4,(1,3))\n" +
-			"(1,5,(1,3))\n" +
-			"(2,3,(1,6))\n" +
-			"(2,4,(1,3))\n" +
-			"(2,5,(1,3))\n";
+			"(0,1,1,4)\n" +
+			"(0,2,1,4)\n" +
+			"(1,3,1,6)\n" +
+			"(1,4,1,3)\n" +
+			"(1,5,1,3)\n" +
+			"(2,3,1,6)\n" +
+			"(2,4,1,3)\n" +
+			"(2,5,1,3)\n";
 
 		TestBaseUtils.compareResultAsText(ji.collect(), expectedResult);
 	}

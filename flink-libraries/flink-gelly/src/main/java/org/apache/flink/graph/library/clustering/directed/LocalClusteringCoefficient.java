@@ -23,16 +23,21 @@ import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.operators.base.ReduceOperatorBase.CombineHint;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.functions.FunctionAnnotation;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsFirst;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsSecond;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.asm.degree.annotate.directed.VertexDegrees;
 import org.apache.flink.graph.asm.degree.annotate.directed.VertexDegrees.Degrees;
+import org.apache.flink.graph.asm.result.PrintableResult;
+import org.apache.flink.graph.asm.result.UnaryResult;
 import org.apache.flink.graph.library.clustering.directed.LocalClusteringCoefficient.Result;
 import org.apache.flink.graph.utils.Murmur3_32;
-import org.apache.flink.graph.utils.proxy.OptionalBoolean;
 import org.apache.flink.graph.utils.proxy.GraphAlgorithmWrappingDataSet;
+import org.apache.flink.graph.utils.proxy.OptionalBoolean;
 import org.apache.flink.types.CopyableValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.util.Collector;
@@ -207,7 +212,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 *
 	 * @param <T> ID type
 	 */
-	@FunctionAnnotation.ForwardedFields("0")
+	@ForwardedFields("0")
 	private static class CountTriangles<T>
 	implements ReduceFunction<Tuple2<T, LongValue>> {
 		@Override
@@ -223,8 +228,8 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 *
 	 * @param <T> ID type
 	 */
-	@FunctionAnnotation.ForwardedFieldsFirst("0; 1.0->1.0")
-	@FunctionAnnotation.ForwardedFieldsSecond("0")
+	@ForwardedFieldsFirst("0; 1.0->1")
+	@ForwardedFieldsSecond("0")
 	private static class JoinVertexDegreeWithTriangleCount<T>
 	implements JoinFunction<Vertex<T, Degrees>, Tuple2<T, LongValue>, Result<T>> {
 		private LongValue zero = new LongValue(0);
@@ -235,29 +240,28 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		public Result<T> join(Vertex<T, Degrees> vertexAndDegree, Tuple2<T, LongValue> vertexAndTriangleCount)
 				throws Exception {
 			output.f0 = vertexAndDegree.f0;
-			output.f1.f0 = vertexAndDegree.f1.f0;
-			output.f1.f1 = (vertexAndTriangleCount == null) ? zero : vertexAndTriangleCount.f1;
+			output.f1 = vertexAndDegree.f1.f0;
+			output.f2 = (vertexAndTriangleCount == null) ? zero : vertexAndTriangleCount.f1;
 
 			return output;
 		}
 	}
 
 	/**
-	 * Wraps the vertex type to encapsulate results from the Local Clustering Coefficient algorithm.
+	 * Wraps {@link Tuple3} to encapsulate results from the Local Clustering Coefficient algorithm.
 	 *
 	 * @param <T> ID type
 	 */
 	public static class Result<T>
-	extends Vertex<T, Tuple2<LongValue, LongValue>> {
+	extends Tuple3<T, LongValue, LongValue>
+	implements PrintableResult, UnaryResult<T> {
 		public static final int HASH_SEED = 0x37a208c4;
 
 		private Murmur3_32 hasher = new Murmur3_32(HASH_SEED);
 
-		/**
-		 * No-args constructor.
-		 */
-		public Result() {
-			f1 = new Tuple2<>();
+		@Override
+		public T getVertexId0() {
+			return f0;
 		}
 
 		/**
@@ -266,7 +270,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		 * @return vertex degree
 		 */
 		public LongValue getDegree() {
-			return f1.f0;
+			return f1;
 		}
 
 		/**
@@ -276,7 +280,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		 * @return triangle count
 		 */
 		public LongValue getTriangleCount() {
-			return f1.f1;
+			return f2;
 		}
 
 		/**
@@ -301,8 +305,8 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		 *
 		 * @return verbose string
 		 */
-		public String toVerboseString() {
-			return "Vertex ID: " + f0
+		public String toPrintableString() {
+			return "Vertex ID: " + getVertexId0()
 				+ ", vertex degree: " + getDegree()
 				+ ", triangle count: " + getTriangleCount()
 				+ ", local clustering coefficient: " + getLocalClusteringCoefficientScore();
@@ -312,8 +316,8 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		public int hashCode() {
 			return hasher.reset()
 				.hash(f0.hashCode())
-				.hash(f1.f0.getValue())
-				.hash(f1.f1.getValue())
+				.hash(f1.getValue())
+				.hash(f2.getValue())
 				.hash();
 		}
 	}
