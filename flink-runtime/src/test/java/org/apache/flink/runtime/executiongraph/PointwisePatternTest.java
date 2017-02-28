@@ -26,6 +26,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.SerializedValue;
 
@@ -73,7 +74,8 @@ public class PointwisePatternTest {
 			cfg,
 			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
-			new NoRestartStrategy());
+			new NoRestartStrategy(),
+			new Scheduler(TestingUtils.defaultExecutionContext()));
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -119,7 +121,8 @@ public class PointwisePatternTest {
 			cfg,
 			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
-			new NoRestartStrategy());
+			new NoRestartStrategy(),
+			new Scheduler(TestingUtils.defaultExecutionContext()));
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -166,7 +169,8 @@ public class PointwisePatternTest {
 			cfg,
 			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
-			new NoRestartStrategy());
+			new NoRestartStrategy(),
+			new Scheduler(TestingUtils.defaultExecutionContext()));
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -214,7 +218,8 @@ public class PointwisePatternTest {
 			cfg,
 			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
-			new NoRestartStrategy());
+			new NoRestartStrategy(),
+			new Scheduler(TestingUtils.defaultExecutionContext()));
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -260,7 +265,8 @@ public class PointwisePatternTest {
 			cfg,
 			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
-			new NoRestartStrategy());
+			new NoRestartStrategy(),
+			new Scheduler(TestingUtils.defaultExecutionContext()));
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -326,7 +332,8 @@ public class PointwisePatternTest {
 			cfg,
 			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
-			new NoRestartStrategy());
+			new NoRestartStrategy(),
+			new Scheduler(TestingUtils.defaultExecutionContext()));
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -383,7 +390,8 @@ public class PointwisePatternTest {
 			cfg,
 			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
-			new NoRestartStrategy());
+			new NoRestartStrategy(),
+			new Scheduler(TestingUtils.defaultExecutionContext()));
 		try {
 			eg.attachJobGraph(ordered);
 		}

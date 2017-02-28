@@ -32,6 +32,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
+import org.apache.flink.runtime.instance.SlotProvider;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -62,6 +63,7 @@ public class ExecutionGraphBuilder {
 			Configuration jobManagerConfig,
 			Executor futureExecutor,
 			Executor ioExecutor,
+			SlotProvider slotProvider,
 			ClassLoader classLoader,
 			CheckpointRecoveryFactory recoveryFactory,
 			Time timeout,
@@ -92,6 +94,7 @@ public class ExecutionGraphBuilder {
 						restartStrategy,
 						jobGraph.getUserJarBlobKeys(),
 						jobGraph.getClasspaths(),
+						slotProvider,
 						classLoader,
 						metrics);
 		} catch (IOException e) {
