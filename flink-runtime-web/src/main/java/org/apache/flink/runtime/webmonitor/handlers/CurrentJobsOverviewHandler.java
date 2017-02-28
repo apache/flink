@@ -28,6 +28,7 @@ import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
+import java.io.IOException;
 import java.io.StringWriter;
 import java.util.Map;
 
@@ -73,20 +74,20 @@ public class CurrentJobsOverviewHandler extends AbstractJsonRequestHandler {
 				if (includeRunningJobs && includeFinishedJobs) {
 					gen.writeArrayFieldStart("running");
 					for (JobDetails detail : result.getRunningJobs()) {
-						generateSingleJobDetails(detail, gen, now);
+						writeJobDetailOverviewAsJson(detail, gen, now);
 					}
 					gen.writeEndArray();
 	
 					gen.writeArrayFieldStart("finished");
 					for (JobDetails detail : result.getFinishedJobs()) {
-						generateSingleJobDetails(detail, gen, now);
+						writeJobDetailOverviewAsJson(detail, gen, now);
 					}
 					gen.writeEndArray();
 				}
 				else {
 					gen.writeArrayFieldStart("jobs");
 					for (JobDetails detail : includeRunningJobs ? result.getRunningJobs() : result.getFinishedJobs()) {
-						generateSingleJobDetails(detail, gen, now);
+						writeJobDetailOverviewAsJson(detail, gen, now);
 					}
 					gen.writeEndArray();
 				}
@@ -104,7 +105,7 @@ public class CurrentJobsOverviewHandler extends AbstractJsonRequestHandler {
 		}
 	}
 
-	private static void generateSingleJobDetails(JobDetails details, JsonGenerator gen, long now) throws Exception {
+	public static void writeJobDetailOverviewAsJson(JobDetails details, JsonGenerator gen, long now) throws IOException {
 		gen.writeStartObject();
 
 		gen.writeStringField("jid", details.getJobId().toString());

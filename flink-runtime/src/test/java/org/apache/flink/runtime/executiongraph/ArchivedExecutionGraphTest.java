@@ -106,9 +106,13 @@ public class ArchivedExecutionGraphTest {
 			new NoRestartStrategy());
 		runtimeGraph.attachJobGraph(vertices);
 
+		List<ExecutionJobVertex> jobVertices = new ArrayList<>();
+		jobVertices.add(runtimeGraph.getJobVertex(v1ID));
+		jobVertices.add(runtimeGraph.getJobVertex(v2ID));
+		
 		CheckpointStatsTracker statsTracker = new CheckpointStatsTracker(
 				0,
-				Collections.<ExecutionJobVertex>emptyList(),
+				jobVertices,
 				mock(JobSnapshottingSettings.class),
 				new UnregisteredMetricsGroup());
 

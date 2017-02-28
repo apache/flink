@@ -24,6 +24,7 @@ import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 
+import java.io.IOException;
 import java.io.StringWriter;
 import java.util.Map;
 
@@ -36,10 +37,14 @@ public class JobVertexAccumulatorsHandler extends AbstractJobVertexRequestHandle
 
 	@Override
 	public String handleRequest(AccessExecutionJobVertex jobVertex, Map<String, String> params) throws Exception {
-		StringifiedAccumulatorResult[] accs = jobVertex.getAggregatedUserAccumulatorsStringified();
-		
+		return createVertexAccumulatorsJson(jobVertex);
+	}
+
+	public static String createVertexAccumulatorsJson(AccessExecutionJobVertex jobVertex) throws IOException {
 		StringWriter writer = new StringWriter();
 		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
+
+		StringifiedAccumulatorResult[] accs = jobVertex.getAggregatedUserAccumulatorsStringified();
 
 		gen.writeStartObject();
 		gen.writeStringField("id", jobVertex.getJobVertexId().toString());
