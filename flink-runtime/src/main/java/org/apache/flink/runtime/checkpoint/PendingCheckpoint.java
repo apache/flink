@@ -18,19 +18,6 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkState;
-
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.Executor;
-import javax.annotation.Nullable;
-import javax.annotation.concurrent.GuardedBy;
-
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.savepoint.Savepoint;
 import org.apache.flink.runtime.checkpoint.savepoint.SavepointStore;
@@ -50,6 +37,19 @@ import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
+import javax.annotation.concurrent.GuardedBy;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.Executor;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A pending checkpoint is a checkpoint that has been started, but has not been
@@ -78,18 +78,17 @@ public class PendingCheckpoint {
 	/** Set of acknowledged tasks */
 	private final Set<ExecutionAttemptID> acknowledgedTasks;
 
-	/**
-	 * The checkpoint properties. If the checkpoint should be persisted
-	 * externally, it happens in {@link #finalizeCheckpointExternalized()}.
-	 */
+	/** The checkpoint properties. If the checkpoint should be persisted
+	 * externally, it happens in {@link #finalizeCheckpointExternalized()}. */
 	private final CheckpointProperties props;
 
 	/** Target directory to potentially persist checkpoint to; <code>null</code> if none configured. */
 	private final String targetDirectory;
 
 	/** The promise to fulfill once the checkpoint has been completed. */
-	private final FlinkCompletableFuture<CompletedCheckpoint> onCompletionPromise = new FlinkCompletableFuture<>();
+	private final FlinkCompletableFuture<CompletedCheckpoint> onCompletionPromise;
 
+	/** The executor for potentially blocking I/O operations, like state disposal */
 	private final Executor executor;
 
 	private int numAcknowledgedTasks;
@@ -110,14 +109,6 @@ public class PendingCheckpoint {
 			CheckpointProperties props,
 			String targetDirectory,
 			Executor executor) {
-		this.jobId = checkNotNull(jobId);
-		this.checkpointId = checkpointId;
-		this.checkpointTimestamp = checkpointTimestamp;
-		this.notYetAcknowledgedTasks = checkNotNull(verticesToConfirm);
-		this.taskStates = new HashMap<>();
-		this.props = checkNotNull(props);
-		this.targetDirectory = targetDirectory;
-		this.executor = Preconditions.checkNotNull(executor);
 
 		// Sanity check
 		if (props.externalizeCheckpoint() && targetDirectory == null) {
@@ -127,7 +118,17 @@ public class PendingCheckpoint {
 		checkArgument(verticesToConfirm.size() > 0,
 				"Checkpoint needs at least one vertex that commits the checkpoint");
 
-		acknowledgedTasks = new HashSet<>(verticesToConfirm.size());
+		this.jobId = checkNotNull(jobId);
+		this.checkpointId = checkpointId;
+		this.checkpointTimestamp = checkpointTimestamp;
+		this.notYetAcknowledgedTasks = checkNotNull(verticesToConfirm);
+		this.props = checkNotNull(props);
+		this.targetDirectory = targetDirectory;
+		this.executor = Preconditions.checkNotNull(executor);
+
+		this.taskStates = new HashMap<>();
+		this.acknowledgedTasks = new HashSet<>(verticesToConfirm.size());
+		this.onCompletionPromise = new FlinkCompletableFuture<>();
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -193,7 +194,7 @@ public class PendingCheckpoint {
 	 * @param trackerCallback Callback for collecting subtask stats.
 	 */
 	void setStatsCallback(@Nullable PendingCheckpointStats trackerCallback) {
-		this.statsCallback = checkNotNull(trackerCallback);
+		this.statsCallback = trackerCallback;
 	}
 
 	// ------------------------------------------------------------------------
@@ -289,6 +290,8 @@ public class PendingCheckpoint {
 
 		onCompletionPromise.complete(completed);
 
+		// to prevent null-pointers from concurrent modification, copy reference onto stack
+		PendingCheckpointStats statsCallback = this.statsCallback;
 		if (statsCallback != null) {
 			// Finalize the statsCallback and give the completed checkpoint a
 			// callback for discards.
@@ -342,7 +345,8 @@ public class PendingCheckpoint {
 				TaskState taskState = taskStates.get(jobVertexID);
 
 				if (null == taskState) {
-					ChainedStateHandle<StreamStateHandle> nonPartitionedState =
+					@SuppressWarnings("deprecation")
+					ChainedStateHandle<StreamStateHandle> nonPartitionedState = 
 							subtaskState.getLegacyOperatorState();
 					ChainedStateHandle<OperatorStateHandle> partitioneableState =
 							subtaskState.getManagedOperatorState();
@@ -371,6 +375,9 @@ public class PendingCheckpoint {
 
 			++numAcknowledgedTasks;
 
+			// publish the checkpoint statistics
+			// to prevent null-pointers from concurrent modification, copy reference onto stack
+			final PendingCheckpointStats statsCallback = this.statsCallback;
 			if (statsCallback != null) {
 				// Do this in millis because the web frontend works with them
 				long alignmentDurationMillis = metrics.getAlignmentDurationNanos() / 1_000_000;
@@ -493,6 +500,8 @@ public class PendingCheckpoint {
 	 * @param cause The failure cause or <code>null</code>.
 	 */
 	private void reportFailedCheckpoint(Exception cause) {
+		// to prevent null-pointers from concurrent modification, copy reference onto stack
+		final PendingCheckpointStats statsCallback = this.statsCallback;
 		if (statsCallback != null) {
 			long failureTimestamp = System.currentTimeMillis();
 			statsCallback.reportFailedCheckpoint(failureTimestamp, cause);
