@@ -171,7 +171,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 
 			// heartbeat manager last
 			final ResourceID resourceID = ResourceID.generate();
-			final HeartbeatManagerSenderImpl<Void, Void> heartbeatManager = new HeartbeatManagerSenderImpl<>(
+			final HeartbeatManagerSenderImpl<Void, Void> jobManagerHeartbeatManager = new HeartbeatManagerSenderImpl<>(
 					configuration.getLong(HeartbeatManagerOptions.HEARTBEAT_INTERVAL),
 					configuration.getLong(HeartbeatManagerOptions.HEARTBEAT_TIMEOUT),
 					resourceID,
@@ -190,7 +190,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 					jobManagerServices.rpcAskTimeout,
 					jobManagerMetrics,
 					resourceID,
-					heartbeatManager,
+					jobManagerHeartbeatManager,
 					this,
 					this,
 					userCodeLoader);

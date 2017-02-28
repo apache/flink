@@ -130,8 +130,8 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	/** The metric registry in the task manager */
 	private final MetricRegistry metricRegistry;
 
-	/** The heartbeat manager for job manager and resource manager in the task manager */
-	private final HeartbeatManagerImpl<Void, Void> heartbeatManager;
+	/** The heartbeat manager for job manager in the task manager */
+	private final HeartbeatManagerImpl<Void, Void> jobManagerHeartbeatManager;
 
 	/** The fatal error handler to use in case of a fatal error */
 	private final FatalErrorHandler fatalErrorHandler;
@@ -169,7 +169,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		NetworkEnvironment networkEnvironment,
 		HighAvailabilityServices haServices,
 		MetricRegistry metricRegistry,
-		HeartbeatManagerImpl<Void, Void> heartbeatManager,
+		HeartbeatManagerImpl<Void, Void> jobManagerHeartbeatManager,
 		TaskManagerMetricGroup taskManagerMetricGroup,
 		BroadcastVariableManager broadcastVariableManager,
 		FileCache fileCache,
@@ -189,7 +189,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		this.networkEnvironment = checkNotNull(networkEnvironment);
 		this.haServices = checkNotNull(haServices);
 		this.metricRegistry = checkNotNull(metricRegistry);
-		this.heartbeatManager = checkNotNull(heartbeatManager);
+		this.jobManagerHeartbeatManager = checkNotNull(jobManagerHeartbeatManager);
 		this.taskSlotTable = checkNotNull(taskSlotTable);
 		this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
 		this.taskManagerMetricGroup = checkNotNull(taskManagerMetricGroup);
@@ -222,15 +222,15 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		// start the job leader service
 		jobLeaderService.start(getAddress(), getRpcService(), haServices, new JobLeaderListenerImpl());
 
-		// start the heartbeat manager for monitoring job manager and resource manager
-		heartbeatManager.start(new HeartbeatListener<Void, Void>() {
+		// start the heartbeat manager for monitoring job manager
+		jobManagerHeartbeatManager.start(new HeartbeatListener<Void, Void>() {
 			@Override
 			public void notifyHeartbeatTimeout(final ResourceID resourceID) {
 				runAsync(new Runnable() {
 					@Override
 					public void run() {
 						log.info("Notify heartbeat timeout with job manager {}", resourceID);
-						heartbeatManager.unmonitorTarget(resourceID);
+						jobManagerHeartbeatManager.unmonitorTarget(resourceID);
 
 						if (jobManagerConnections.containsKey(resourceID)) {
 							JobManagerConnection jobManagerConnection = jobManagerConnections.get(resourceID);
@@ -238,15 +238,13 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 								closeJobManagerConnection(jobManagerConnection.getJobID());
 							}
 						}
-						// TODO check whether the resource id indicates the resource manager based on resource manager connection
-						// TODO then trigger the action of losing resource manager
 					}
 				});
 			}
 
 			@Override
 			public void reportPayload(ResourceID resourceID, Void payload) {
-				// currently there is no payload from job manager and resource manager, so this method will not be called.
+				// currently there is no payload from job manager, so this method will not be called.
 			}
 
 			@Override
@@ -272,7 +270,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 			resourceManagerConnection.close();
 		}
 
-		heartbeatManager.stop();
+		jobManagerHeartbeatManager.stop();
 
 		ioManager.shutdown();
 
@@ -521,7 +519,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 
 	@RpcMethod
 	public void heartbeatFromJobManager(ResourceID resourceID) {
-		heartbeatManager.requestHeartbeat(resourceID, null);
+		jobManagerHeartbeatManager.requestHeartbeat(resourceID, null);
 	}
 
 	// ----------------------------------------------------------------------
@@ -803,7 +801,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		jobManagerTable.put(jobId, newJobManagerConnection);
 
 		// monitor the job manager as heartbeat target
-		heartbeatManager.monitorTarget(jobManagerResourceID, new HeartbeatTarget<Void>() {
+		jobManagerHeartbeatManager.monitorTarget(jobManagerResourceID, new HeartbeatTarget<Void>() {
 			@Override
 			public void sendHeartbeat(ResourceID resourceID, Void payload) {
 				jobMasterGateway.heartbeatFromTaskManager(resourceID);
