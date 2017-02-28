@@ -47,7 +47,6 @@ public class ReusingMutableToRegularIteratorWrapper<T> implements Iterator<T>, I
 			TypeSerializer<T> serializer) {
 		this.source = source;
 		this.current = serializer.createInstance();
-		this.next = serializer.createInstance();
 	}
 
 	@Override
@@ -56,14 +55,11 @@ public class ReusingMutableToRegularIteratorWrapper<T> implements Iterator<T>, I
 			return true;
 		} else {
 			try {
-				// we always use two records such that whenever hasNext() returns (possibly with false),
-				// the previous record is always still valid.
-				if ((next = source.next(next)) != null) {
-					
-					T tmp = current;
+				T next;
+				// we always track two records such that whenever hasNext() returns (possibly with false),
+				// the current record is always still valid.
+				if ((next = source.next(current)) != null) {
 					current = next;
-					next = tmp;
-					
 					currentIsAvailable = true;
 					return true;
 				} else {
