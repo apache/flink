@@ -29,6 +29,8 @@ import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.asm.degree.annotate.undirected.EdgeTargetDegree;
+import org.apache.flink.graph.asm.result.AlgorithmResult;
+import org.apache.flink.graph.asm.result.BinaryResult;
 import org.apache.flink.graph.library.similarity.JaccardIndex.Result;
 import org.apache.flink.graph.utils.Murmur3_32;
 import org.apache.flink.graph.utils.proxy.GraphAlgorithmWrappingDataSet;
@@ -440,8 +442,8 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 						&& count * maximumScoreDenominator < distinctNeighbors * maximumScoreNumerator)) {
 				output.f0 = edge.f0;
 				output.f1 = edge.f1;
-				output.f2.f0.setValue(count);
-				output.f2.f1.setValue(distinctNeighbors);
+				output.f2.setValue(count);
+				output.f3.setValue(distinctNeighbors);
 				out.collect(output);
 			}
 		}
@@ -453,13 +455,25 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 * @param <T> ID type
 	 */
 	public static class Result<T>
-	extends Edge<T, Tuple2<IntValue, IntValue>> {
+	extends Tuple4<T, T, IntValue, IntValue>
+	implements AlgorithmResult, BinaryResult<T>, Comparable<Result<T>> {
 		public static final int HASH_SEED = 0x731f73e7;
 
 		private Murmur3_32 hasher = new Murmur3_32(HASH_SEED);
 
 		public Result() {
-			f2 = new Tuple2<>(new IntValue(), new IntValue());
+			f2 = new IntValue();
+			f3 = new IntValue();
+		}
+
+		@Override
+		public T getVertexId0() {
+			return f0;
+		}
+
+		@Override
+		public T getVertexId1() {
+			return f1;
 		}
 
 		/**
@@ -468,7 +482,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		 * @return shared neighbor count
 		 */
 		public IntValue getSharedNeighborCount() {
-			return f2.f0;
+			return f2;
 		}
 
 		/**
@@ -477,7 +491,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		 * @return distinct neighbor count
 		 */
 		public IntValue getDistinctNeighborCount() {
-			return f2.f1;
+			return f3;
 		}
 
 		/**
@@ -492,7 +506,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		}
 
 		public String toVerboseString() {
-			return "Vertex IDs: (" + f0 + ", " + f1
+			return "Vertex IDs: (" + getVertexId0() + ", " + getVertexId1()
 				+ "), number of shared neighbors: " + getSharedNeighborCount()
 				+ ", number of distinct neighbors: " + getDistinctNeighborCount()
 				+ ", jaccard index score: " + getJaccardIndexScore();
@@ -503,9 +517,20 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 			return hasher.reset()
 				.hash(f0.hashCode())
 				.hash(f1.hashCode())
-				.hash(f2.f0.getValue())
-				.hash(f2.f1.getValue())
+				.hash(f2.getValue())
+				.hash(f3.getValue())
 				.hash();
+		}
+
+		@Override
+		public int compareTo(Result<T> o) {
+			// exact comparison of a/b with x/y using only integer math:
+			// a/b <?> x/y == a*y <?> b*x
+
+			long ay = getSharedNeighborCount().getValue() * (long)o.getDistinctNeighborCount().getValue();
+			long bx = getDistinctNeighborCount().getValue() * (long)o.getSharedNeighborCount().getValue();
+
+			return Long.compare(ay, bx);
 		}
 	}
 }

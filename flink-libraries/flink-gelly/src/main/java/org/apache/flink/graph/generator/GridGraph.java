@@ -30,6 +30,7 @@ import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.LongValueSequenceIterator;
+import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -67,9 +68,7 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 	 * @return this
 	 */
 	public GridGraph addDimension(long size, boolean wrapEndpoints) {
-		if (size <= 1) {
-			throw new IllegalArgumentException("Dimension size must be greater than 1");
-		}
+		Preconditions.checkArgument(size >= 2, "Dimension size must be at least 2");
 
 		vertexCount *= size;
 
