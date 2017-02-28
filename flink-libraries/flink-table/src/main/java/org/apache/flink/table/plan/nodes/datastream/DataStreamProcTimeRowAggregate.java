@@ -42,6 +42,7 @@ import org.apache.flink.table.typeutils.TypeConverter;
 
 import scala.Option;
 
+
 public class DataStreamProcTimeRowAggregate extends DataStreamRelJava {
 
 	protected LogicalWindow windowRef;
