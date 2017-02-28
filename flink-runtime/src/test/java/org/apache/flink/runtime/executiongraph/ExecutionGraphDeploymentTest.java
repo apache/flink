@@ -52,7 +52,6 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.operators.BatchTask;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
@@ -100,7 +99,8 @@ public class ExecutionGraphDeploymentTest {
 				new Configuration(),
 				new SerializedValue<>(new ExecutionConfig()),
 				AkkaUtils.getDefaultTimeout(),
-				new NoRestartStrategy());
+				new NoRestartStrategy(),
+				new Scheduler(TestingUtils.defaultExecutionContext()));
 
 			List<JobVertex> ordered = Arrays.asList(v1, v2, v3, v4);
 
@@ -315,6 +315,14 @@ public class ExecutionGraphDeploymentTest {
 
 		v2.connectNewDataSetAsInput(v1, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
 
+		Scheduler scheduler = new Scheduler(TestingUtils.directExecutionContext());
+		for (int i = 0; i < dop1; i++) {
+			scheduler.newInstanceAvailable(
+				ExecutionGraphTestUtils.getInstance(
+					new ExecutionGraphTestUtils.SimpleActorGateway(
+						TestingUtils.directExecutionContext())));
+		}
+
 		// execution graph that executes actions synchronously
 		ExecutionGraph eg = new ExecutionGraph(
 			TestingUtils.directExecutionContext(),
@@ -324,24 +332,18 @@ public class ExecutionGraphDeploymentTest {
 			new Configuration(),
 			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
-			new NoRestartStrategy());
+			new NoRestartStrategy(),
+			scheduler);
 
 		eg.setQueuedSchedulingAllowed(false);
 
 		List<JobVertex> ordered = Arrays.asList(v1, v2);
 		eg.attachJobGraph(ordered);
 
-		Scheduler scheduler = new Scheduler(TestingUtils.directExecutionContext());
-		for (int i = 0; i < dop1; i++) {
-			scheduler.newInstanceAvailable(
-				ExecutionGraphTestUtils.getInstance(
-					new ExecutionGraphTestUtils.SimpleActorGateway(
-						TestingUtils.directExecutionContext())));
-		}
 		assertEquals(dop1, scheduler.getNumberOfAvailableSlots());
 
 		// schedule, this triggers mock deployment
-		eg.scheduleForExecution(scheduler);
+		eg.scheduleForExecution();
 
 		ExecutionAttemptID attemptID = eg.getJobVertex(v1.getID()).getTaskVertices()[0].getCurrentExecutionAttempt().getAttemptId();
 		eg.updateState(new TaskExecutionState(jobId, attemptID, ExecutionState.RUNNING));
@@ -359,6 +361,14 @@ public class ExecutionGraphDeploymentTest {
 		v1.setInvokableClass(BatchTask.class);
 		v2.setInvokableClass(BatchTask.class);
 
+		Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
+		for (int i = 0; i < dop1 + dop2; i++) {
+			scheduler.newInstanceAvailable(
+				ExecutionGraphTestUtils.getInstance(
+					new ExecutionGraphTestUtils.SimpleActorGateway(
+						TestingUtils.directExecutionContext())));
+		}
+
 		// execution graph that executes actions synchronously
 		ExecutionGraph eg = new ExecutionGraph(
 			TestingUtils.directExecutionContext(),
@@ -368,24 +378,18 @@ public class ExecutionGraphDeploymentTest {
 			new Configuration(), 
 			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
-			new NoRestartStrategy());
+			new NoRestartStrategy(),
+			scheduler);
 		
 		eg.setQueuedSchedulingAllowed(false);
 
 		List<JobVertex> ordered = Arrays.asList(v1, v2);
 		eg.attachJobGraph(ordered);
 
-		Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
-		for (int i = 0; i < dop1 + dop2; i++) {
-			scheduler.newInstanceAvailable(
-					ExecutionGraphTestUtils.getInstance(
-							new ExecutionGraphTestUtils.SimpleActorGateway(
-									TestingUtils.directExecutionContext())));
-		}
 		assertEquals(dop1 + dop2, scheduler.getNumberOfAvailableSlots());
 
 		// schedule, this triggers mock deployment
-		eg.scheduleForExecution(scheduler);
+		eg.scheduleForExecution();
 
 		Map<ExecutionAttemptID, Execution> executions = eg.getRegisteredExecutions();
 		assertEquals(dop1 + dop2, executions.size());

@@ -1156,6 +1156,7 @@ class JobManager(
               restartStrategy,
               jobGraph.getUserJarBlobKeys,
               jobGraph.getClasspaths,
+              scheduler,
               userCodeLoader,
               jobMetrics)
 
@@ -1366,7 +1367,7 @@ class JobManager(
             // the job.
             log.info(s"Scheduling job $jobId ($jobName).")
 
-            executionGraph.scheduleForExecution(scheduler)
+            executionGraph.scheduleForExecution()
           } else {
             // Remove the job graph. Otherwise it will be lingering around and possibly removed from
             // ZooKeeper by this JM.
