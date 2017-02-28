@@ -114,6 +114,42 @@ public class DataStreamSink<T> {
 	}
 
 	/**
+	 * Sets the minimum and preferred resources for this sink, and the lower and upper resource limits will
+	 * be considered in resource resize feature for future plan.
+	 *
+	 * @param minResource The minimum resource for this sink.
+	 * @param preferredResource The preferred resource for this sink
+	 * @return The sink with set minimum and preferred resources.
+	 */
+	/*
+	public DataStreamSink<T> setResource(ResourceSpec minResource, ResourceSpec preferredResource) {
+		Preconditions.checkNotNull(minResource != null && preferredResource != null,
+				"The min and preferred resources must be not null.");
+		Preconditions.checkArgument(minResource.isValid() && preferredResource.isValid() && minResource.lessThanOrEqual(preferredResource),
+				"The values in resource must be not less than 0 and the preferred resource must be greater than the min resource.");
+
+		transformation.setResource(minResource, preferredResource);
+
+		return this;
+	}*/
+
+	/**
+	 * Sets the resource for this sink, the minimum and preferred resources are the same by default.
+	 *
+	 * @param resource The resource for this sink.
+	 * @return The sink with set minimum and preferred resources.
+	 */
+	/*
+	public DataStreamSink<T> setResource(ResourceSpec resource) {
+		Preconditions.checkNotNull(resource != null, "The resource must be not null.");
+		Preconditions.checkArgument(resource.isValid(), "The resource values must be greater than 0.");
+
+		transformation.setResource(resource, resource);
+
+		return this;
+	}*/
+
+	/**
 	 * Turns off chaining for this operator so thread co-location will not be
 	 * used as an optimization.
 	 *

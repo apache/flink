@@ -23,7 +23,7 @@ import org.apache.flink.api.common.accumulators.SerializedListAccumulator
 import org.apache.flink.api.common.aggregators.Aggregator
 import org.apache.flink.api.common.functions._
 import org.apache.flink.api.common.io.{FileOutputFormat, OutputFormat}
-import org.apache.flink.api.common.operators.{Keys, Order}
+import org.apache.flink.api.common.operators.{ResourceSpec, Keys, Order}
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint
 import org.apache.flink.api.common.operators.base.CrossOperatorBase.CrossHint
 import org.apache.flink.api.common.operators.base.PartitionOperatorBase.PartitionMethod
@@ -175,6 +175,53 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
     case _ =>
       throw new UnsupportedOperationException("Operator " + javaSet.toString + " does not have " +
         "parallelism.")
+  }
+
+  /**
+   * Sets the minimum and preferred resources of this operation.
+   */
+  /*
+  def resource(minResource: ResourceSpec, preferredResource: ResourceSpec) : Unit = {
+    javaSet match {
+      case ds: DataSource[_] => ds.setResource(minResource, preferredResource)
+      case op: Operator[_, _] => op.setResource(minResource, preferredResource)
+      case di: DeltaIterationResultSet[_, _] =>
+        di.getIterationHead.setResource(minResource, preferredResource)
+      case _ =>
+        throw new UnsupportedOperationException("Operator does not support " +
+          "configuring custom resources specs.")
+    }
+    this
+  }*/
+
+  /**
+   * Sets the resource of this operation.
+   */
+  /*
+  def resource(resource: ResourceSpec) : Unit = {
+    this.resource(resource, resource)
+  }*/
+
+  /**
+   * Returns the minimum resource of this operation.
+   */
+  def minResource: ResourceSpec = javaSet match {
+    case ds: DataSource[_] => ds.minResource()
+    case op: Operator[_, _] => op.minResource
+    case _ =>
+      throw new UnsupportedOperationException("Operator does not support " +
+        "configuring custom resources specs.")
+  }
+
+  /**
+   * Returns the preferred resource of this operation.
+   */
+  def preferredResource: ResourceSpec = javaSet match {
+    case ds: DataSource[_] => ds.preferredResource()
+    case op: Operator[_, _] => op.preferredResource
+    case _ =>
+      throw new UnsupportedOperationException("Operator does not support " +
+        "configuring custom resources specs.")
   }
 
   /**
