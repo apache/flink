@@ -232,25 +232,26 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 
 		resourceManagerLeaderRetriever = highAvailabilityServices.getResourceManagerLeaderRetriever();
 
+		this.slotPool = new SlotPool(rpcService, jobGraph.getJobID());
+		this.slotPoolGateway = slotPool.getSelf();
+
 		this.executionGraph = ExecutionGraphBuilder.buildGraph(
-				null,
-				jobGraph,
-				configuration,
-				executorService,
-				executorService,
-				userCodeLoader,
-				checkpointRecoveryFactory,
-				rpcAskTimeout,
-				restartStrategy,
-				jobMetricGroup,
-				-1,
-				log);
+			null,
+			jobGraph,
+			configuration,
+			executorService,
+			executorService,
+			slotPool.getSlotProvider(),
+			userCodeLoader,
+			checkpointRecoveryFactory,
+			rpcAskTimeout,
+			restartStrategy,
+			jobMetricGroup,
+			-1,
+			log);
 
 		// register self as job status change listener
 		executionGraph.registerJobStatusListener(new JobManagerJobStatusListener());
-
-		this.slotPool = new SlotPool(rpcService, jobGraph.getJobID());
-		this.slotPoolGateway = slotPool.getSelf();
 
 		this.registeredTaskManagers = new HashMap<>(4);
 	}
@@ -340,7 +341,7 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 			@Override
 			public void run() {
 				try {
-					executionGraph.scheduleForExecution(slotPool.getSlotProvider());
+					executionGraph.scheduleForExecution();
 				}
 				catch (Throwable t) {
 					executionGraph.fail(t);
