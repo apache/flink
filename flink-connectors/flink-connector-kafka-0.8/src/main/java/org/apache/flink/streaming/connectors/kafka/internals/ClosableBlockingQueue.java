@@ -361,7 +361,7 @@ public class ClosableBlockingQueue<E> {
 		try {
 			while (open && elements.isEmpty() && timeoutMillis > 0) { 
 				nonEmpty.await(timeoutMillis, TimeUnit.MILLISECONDS);
-				timeoutMillis = ( deadline - System.nanoTime() ) / 1_000_000L;
+				timeoutMillis = (deadline - System.nanoTime()) / 1_000_000L;
 			}
 			
 			if (!open) {
@@ -443,7 +443,7 @@ public class ClosableBlockingQueue<E> {
 		try {
 			while (open && elements.isEmpty() && timeoutMillis > 0) {
 				nonEmpty.await(timeoutMillis, TimeUnit.MILLISECONDS);
-				timeoutMillis = ( deadline - System.nanoTime() ) / 1_000_000L;
+				timeoutMillis = (deadline - System.nanoTime()) / 1_000_000L;
 			}
 
 			if (!open) {

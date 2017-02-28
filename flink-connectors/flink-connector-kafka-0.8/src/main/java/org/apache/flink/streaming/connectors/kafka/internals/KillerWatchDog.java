@@ -47,7 +47,7 @@ class KillerWatchDog extends Thread {
 
 		while (toKill.isAlive() && (now = System.nanoTime()) < deadline) {
 			try {
-				toKill.join( ( deadline - now ) / 1_000_000L );
+				toKill.join((deadline - now) / 1_000_000L);
 			}
 			catch (InterruptedException e) {
 				// ignore here, our job is important!
