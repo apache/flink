@@ -141,6 +141,12 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	 */
 	private final SerializedValue<JobInformation> serializedJobInformation;
 
+	/** The executor which is used to execute futures. */
+	private final ScheduledExecutorService futureExecutor;
+
+	/** The executor which is used to execute blocking io operations */
+	private final Executor ioExecutor;
+
 	/** {@code true} if all source tasks are stoppable. */
 	private boolean isStoppable = true;
 
@@ -172,6 +178,18 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	/** The timeout for all messages that require a response/acknowledgement */
 	private final Time rpcCallTimeout;
 
+	/** Strategy to use for restarts */
+	private final RestartStrategy restartStrategy;
+
+	/** The slot provider to use for allocating slots for tasks as they are needed */
+	private final SlotProvider slotProvider;
+
+	/** The classloader for the user code. Needed for calls into user code classes */
+	private final ClassLoader userClassLoader;
+
+	/** Registered KvState instances reported by the TaskManagers. */
+	private final KvStateLocationRegistry kvStateLocationRegistry;
+
 	// ------ Configuration of the Execution -------
 
 	/** Flag to indicate whether the scheduler may queue tasks for execution, or needs to be able
@@ -199,30 +217,13 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 
 	// ------ Fields that are relevant to the execution and need to be cleared before archiving  -------
 
-	/** The slot provider to use for allocating slots for tasks as they are needed */
-	private SlotProvider slotProvider;
-
-	/** Strategy to use for restarts */
-	private RestartStrategy restartStrategy;
-
-	/** The classloader for the user code. Needed for calls into user code classes */
-	private ClassLoader userClassLoader;
-
 	/** The coordinator for checkpoints, if snapshot checkpoints are enabled */
 	private CheckpointCoordinator checkpointCoordinator;
 
 	/** Checkpoint stats tracker separate from the coordinator in order to be
 	 * available after archiving. */
+	@SuppressWarnings("NonSerializableFieldInSerializableClass")
 	private CheckpointStatsTracker checkpointStatsTracker;
-
-	/** The executor which is used to execute futures. */
-	private final ScheduledExecutorService futureExecutor;
-
-	/** The executor which is used to execute blocking io operations */
-	private final Executor ioExecutor;
-
-	/** Registered KvState instances reported by the TaskManagers. */
-	private KvStateLocationRegistry kvStateLocationRegistry;
 
 	// ------ Fields that are only relevant for archived execution graphs ------------
 	private String jsonPlan;
@@ -242,7 +243,8 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			Configuration jobConfig,
 			SerializedValue<ExecutionConfig> serializedConfig,
 			Time timeout,
-			RestartStrategy restartStrategy) throws IOException {
+			RestartStrategy restartStrategy,
+			SlotProvider slotProvider) throws IOException {
 		this(
 			futureExecutor,
 			ioExecutor,
@@ -254,6 +256,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			restartStrategy,
 			Collections.<BlobKey>emptyList(),
 			Collections.<URL>emptyList(),
+			slotProvider,
 			ExecutionGraph.class.getClassLoader(),
 			new UnregisteredMetricsGroup()
 		);
@@ -270,6 +273,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			RestartStrategy restartStrategy,
 			List<BlobKey> requiredJarFiles,
 			List<URL> requiredClasspaths,
+			SlotProvider slotProvider,
 			ClassLoader userClassLoader,
 			MetricGroup metricGroup) throws IOException {
 
@@ -277,7 +281,6 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 		checkNotNull(jobId);
 		checkNotNull(jobName);
 		checkNotNull(jobConfig);
-		checkNotNull(userClassLoader);
 
 		this.jobInformation = new JobInformation(
 			jobId,
@@ -293,12 +296,13 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 		this.futureExecutor = Preconditions.checkNotNull(futureExecutor);
 		this.ioExecutor = Preconditions.checkNotNull(ioExecutor);
 
-		this.userClassLoader = userClassLoader;
+		this.slotProvider = Preconditions.checkNotNull(slotProvider, "scheduler");
+		this.userClassLoader = Preconditions.checkNotNull(userClassLoader, "userClassLoader");
 
-		this.tasks = new ConcurrentHashMap<JobVertexID, ExecutionJobVertex>();
-		this.intermediateResults = new ConcurrentHashMap<IntermediateDataSetID, IntermediateResult>();
-		this.verticesInCreationOrder = new ArrayList<ExecutionJobVertex>();
-		this.currentExecutions = new ConcurrentHashMap<ExecutionAttemptID, Execution>();
+		this.tasks = new ConcurrentHashMap<>(16);
+		this.intermediateResults = new ConcurrentHashMap<>(16);
+		this.verticesInCreationOrder = new ArrayList<>(16);
+		this.currentExecutions = new ConcurrentHashMap<>(16);
 
 		this.jobStatusListeners  = new CopyOnWriteArrayList<>();
 		this.executionListeners = new CopyOnWriteArrayList<>();
@@ -732,15 +736,9 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 		}
 	}
 
-	public void scheduleForExecution(SlotProvider slotProvider) throws JobException {
-		checkNotNull(slotProvider);
-
-		if (this.slotProvider != null && this.slotProvider != slotProvider) {
-			throw new IllegalArgumentException("Cannot use different slot providers for the same job");
-		}
+	public void scheduleForExecution() throws JobException {
 
 		if (transitionState(JobStatus.CREATED, JobStatus.RUNNING)) {
-			this.slotProvider = slotProvider;
 
 			switch (scheduleMode) {
 
@@ -1070,7 +1068,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 				}
 			}
 
-			scheduleForExecution(slotProvider);
+			scheduleForExecution();
 		}
 		catch (Throwable t) {
 			LOG.warn("Failed to restart the job.", t);

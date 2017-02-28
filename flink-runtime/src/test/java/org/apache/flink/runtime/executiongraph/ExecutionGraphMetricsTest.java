@@ -162,6 +162,7 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 				testingRestartStrategy,
 				Collections.<BlobKey>emptyList(),
 				Collections.<URL>emptyList(),
+			scheduler,
 				getClass().getClassLoader(),
 				metricGroup);
 	
@@ -180,7 +181,7 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 			executionGraph.attachJobGraph(jobGraph.getVerticesSortedTopologicallyFromSources());
 	
 			// start execution
-			executionGraph.scheduleForExecution(scheduler);
+		executionGraph.scheduleForExecution();
 
 			assertTrue(0L == restartingTime.getValue());
 	
