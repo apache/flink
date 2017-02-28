@@ -72,4 +72,5 @@ public interface CompletedCheckpointStore {
 	 */
 	int getNumberOfRetainedCheckpoints();
 
+	boolean requiresExternalizedCheckpoints();
 }

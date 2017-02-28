@@ -24,9 +24,11 @@ import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+
 import org.mockito.Mockito;
 
 import java.io.File;
@@ -49,15 +51,15 @@ import static org.mockito.Mockito.verify;
 
 public class PendingCheckpointTest {
 
-	@Rule
-	public TemporaryFolder tmpFolder = new TemporaryFolder();
-
 	private static final Map<ExecutionAttemptID, ExecutionVertex> ACK_TASKS = new HashMap<>();
 	private static final ExecutionAttemptID ATTEMPT_ID = new ExecutionAttemptID();
 
 	static {
 		ACK_TASKS.put(ATTEMPT_ID, mock(ExecutionVertex.class));
 	}
+
+	@Rule
+	public final TemporaryFolder tmpFolder = new TemporaryFolder();
 
 	/**
 	 * Tests that pending checkpoints can be subsumed iff they are forced.
@@ -96,7 +98,7 @@ public class PendingCheckpointTest {
 		PendingCheckpoint pending = createPendingCheckpoint(persisted, tmp.getAbsolutePath());
 		pending.acknowledgeTask(ATTEMPT_ID, null, new CheckpointMetrics());
 		assertEquals(0, tmp.listFiles().length);
-		pending.finalizeCheckpoint();
+		pending.finalizeCheckpointExternalized();
 		assertEquals(1, tmp.listFiles().length);
 
 		// Ephemeral checkpoint
@@ -105,7 +107,7 @@ public class PendingCheckpointTest {
 		pending.acknowledgeTask(ATTEMPT_ID, null, new CheckpointMetrics());
 
 		assertEquals(1, tmp.listFiles().length);
-		pending.finalizeCheckpoint();
+		pending.finalizeCheckpointNonExternalized();
 		assertEquals(1, tmp.listFiles().length);
 	}
 
@@ -148,7 +150,8 @@ public class PendingCheckpointTest {
 
 		assertFalse(future.isDone());
 		pending.acknowledgeTask(ATTEMPT_ID, null, new CheckpointMetrics());
-		pending.finalizeCheckpoint();
+		assertTrue(pending.isFullyAcknowledged());
+		pending.finalizeCheckpointExternalized();
 		assertTrue(future.isDone());
 
 		// Finalize (missing ACKs)
@@ -157,7 +160,13 @@ public class PendingCheckpointTest {
 
 		assertFalse(future.isDone());
 		try {
-			pending.finalizeCheckpoint();
+			pending.finalizeCheckpointNonExternalized();
+			fail("Did not throw expected Exception");
+		} catch (IllegalStateException ignored) {
+			// Expected
+		}
+		try {
+			pending.finalizeCheckpointExternalized();
 			fail("Did not throw expected Exception");
 		} catch (IllegalStateException ignored) {
 			// Expected
@@ -233,7 +242,7 @@ public class PendingCheckpointTest {
 			pending.acknowledgeTask(ATTEMPT_ID, null, new CheckpointMetrics());
 			verify(callback, times(1)).reportSubtaskStats(any(JobVertexID.class), any(SubtaskStateStats.class));
 
-			pending.finalizeCheckpoint();
+			pending.finalizeCheckpointNonExternalized();
 			verify(callback, times(1)).reportCompletedCheckpoint(any(String.class));
 		}
 

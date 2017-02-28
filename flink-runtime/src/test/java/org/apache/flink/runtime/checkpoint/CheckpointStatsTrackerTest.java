@@ -62,6 +62,7 @@ public class CheckpointStatsTrackerTest {
 			191929L,
 			123,
 			ExternalizedCheckpointSettings.none(),
+			null,
 			false);
 
 		CheckpointStatsTracker tracker = new CheckpointStatsTracker(

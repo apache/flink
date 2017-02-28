@@ -29,10 +29,12 @@ import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.util.AbstractID;
+
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
 import org.rocksdb.NativeLibraryLoader;
 import org.rocksdb.RocksDB;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -160,7 +162,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 
 	private void lazyInitializeForJob(
 			Environment env,
-			String operatorIdentifier) throws Exception {
+			String operatorIdentifier) throws IOException {
 
 		if (isInitialized) {
 			return;
@@ -193,7 +195,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 			}
 
 			if (dirs.isEmpty()) {
-				throw new Exception("No local storage directories available. " + errorMessage);
+				throw new IOException("No local storage directories available. " + errorMessage);
 			} else {
 				initializedDbBasePaths = dirs.toArray(new File[dirs.size()]);
 			}
@@ -235,7 +237,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 			TypeSerializer<K> keySerializer,
 			int numberOfKeyGroups,
 			KeyGroupRange keyGroupRange,
-			TaskKvStateRegistry kvStateRegistry) throws Exception {
+			TaskKvStateRegistry kvStateRegistry) throws IOException {
 
 		// first, make sure that the RocksDB JNI library is loaded
 		// we do this explicitly here to have better error handling
@@ -437,7 +439,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 	//  static library loading utilities
 	// ------------------------------------------------------------------------
 
-	private void ensureRocksDBIsLoaded(String tempDirectory) throws Exception {
+	private void ensureRocksDBIsLoaded(String tempDirectory) throws IOException {
 		synchronized (RocksDBStateBackend.class) {
 			if (!rocksDbInitialized) {
 
@@ -488,7 +490,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 					}
 				}
 
-				throw new Exception("Could not load the native RocksDB library", lastException);
+				throw new IOException("Could not load the native RocksDB library", lastException);
 			}
 		}
 	}

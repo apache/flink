@@ -225,6 +225,7 @@ public class JobManagerHARecoveryTest {
 					0,
 					1,
 					ExternalizedCheckpointSettings.none(),
+					null,
 					true));
 
 			BlockingStatefulInvokable.initializeStaticHelpers(slots);
@@ -483,6 +484,10 @@ public class JobManagerHARecoveryTest {
 			return checkpoints.size();
 		}
 
+		@Override
+		public boolean requiresExternalizedCheckpoints() {
+			return false;
+		}
 	}
 
 	static class MyCheckpointRecoveryFactory implements CheckpointRecoveryFactory {

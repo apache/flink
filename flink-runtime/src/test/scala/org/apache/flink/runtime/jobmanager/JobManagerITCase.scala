@@ -822,6 +822,7 @@ class JobManagerITCase(_system: ActorSystem)
             60000,
             1,
             ExternalizedCheckpointSettings.none,
+            null,
             true))
 
           // Submit job...
@@ -881,6 +882,7 @@ class JobManagerITCase(_system: ActorSystem)
             60000,
             1,
             ExternalizedCheckpointSettings.none,
+            null,
             true))
 
           // Submit job...
@@ -948,6 +950,7 @@ class JobManagerITCase(_system: ActorSystem)
             60000,
             1,
             ExternalizedCheckpointSettings.none,
+            null,
             true))
 
           // Submit job...
@@ -979,7 +982,7 @@ class JobManagerITCase(_system: ActorSystem)
           jobManager.tell(TriggerSavepoint(jobGraph.getJobID(), Option.apply("any")), testActor)
 
           val checkpoint = Mockito.mock(classOf[CompletedCheckpoint])
-          when(checkpoint.getExternalPath).thenReturn("Expected test savepoint path")
+          when(checkpoint.getExternalPointer).thenReturn("Expected test savepoint path")
 
           // Succeed the promise
           savepointPromise.complete(checkpoint)

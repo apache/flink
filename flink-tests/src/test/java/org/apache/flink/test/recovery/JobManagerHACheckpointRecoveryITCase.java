@@ -167,7 +167,7 @@ public class JobManagerHACheckpointRecoveryITCase extends TestLogger {
 		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, Parallelism);
 
 		ActorSystem testSystem = null;
-		JobManagerProcess[] jobManagerProcess = new JobManagerProcess[2];
+		final JobManagerProcess[] jobManagerProcess = new JobManagerProcess[2];
 		LeaderRetrievalService leaderRetrievalService = null;
 		ActorSystem taskManagerSystem = null;
 

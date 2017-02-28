@@ -106,7 +106,7 @@ public class ExecutionGraphCheckpointCoordinatorTest {
 			ClassLoader.getSystemClassLoader(),
 			new UnregisteredMetricsGroup());
 
-		executionGraph.enableSnapshotCheckpointing(
+		executionGraph.enableCheckpointing(
 				100,
 				100,
 				100,
@@ -117,6 +117,7 @@ public class ExecutionGraphCheckpointCoordinatorTest {
 				Collections.<ExecutionJobVertex>emptyList(),
 				counter,
 				store,
+				null,
 				null,
 				CheckpointStatsTrackerTest.createTestTracker());
 

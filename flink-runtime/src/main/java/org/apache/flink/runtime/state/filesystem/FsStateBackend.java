@@ -36,6 +36,8 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+
 /**
  * The file state backend is a state backend that stores the state of streaming jobs in a file system.
  *
@@ -139,17 +141,14 @@ public class FsStateBackend extends AbstractStateBackend {
 	 *                             rather than in files
 	 * 
 	 * @throws IOException Thrown, if no file system can be found for the scheme in the URI.
+	 * @throws IllegalArgumentException Thrown, if the {@code fileStateSizeThreshold} is out of bounds.
 	 */
 	public FsStateBackend(URI checkpointDataUri, int fileStateSizeThreshold) throws IOException {
-		if (fileStateSizeThreshold < 0) {
-			throw new IllegalArgumentException("The threshold for file state size must be zero or larger.");
-		}
-		if (fileStateSizeThreshold > MAX_FILE_STATE_THRESHOLD) {
-			throw new IllegalArgumentException("The threshold for file state size cannot be larger than " +
-				MAX_FILE_STATE_THRESHOLD);
-		}
+		checkArgument(fileStateSizeThreshold >= 0, "The threshold for file state size must be zero or larger.");
+		checkArgument(fileStateSizeThreshold <= MAX_FILE_STATE_THRESHOLD, 
+				"The threshold for file state size cannot be larger than %s", MAX_FILE_STATE_THRESHOLD);
+
 		this.fileStateThreshold = fileStateSizeThreshold;
-		
 		this.basePath = validateAndNormalizeUri(checkpointDataUri);
 	}
 
@@ -161,6 +160,19 @@ public class FsStateBackend extends AbstractStateBackend {
 	 */
 	public Path getBasePath() {
 		return basePath;
+	}
+
+	/**
+	 * Gets the threshold below which state is stored as part of the metadata, rather than in files.
+	 * This threshold ensures that the backend does not create a large amount of very small files,
+	 * where potentially the file pointers are larger than the state itself.
+	 * 
+	 * <p>By default, this threshold is {@value #DEFAULT_FILE_STATE_THRESHOLD}.
+	 * 
+	 * @return The file size threshold, in bytes.
+	 */
+	public int getMinFileSizeThreshold() {
+		return fileStateThreshold;
 	}
 
 	// ------------------------------------------------------------------------
@@ -189,7 +201,8 @@ public class FsStateBackend extends AbstractStateBackend {
 			TypeSerializer<K> keySerializer,
 			int numberOfKeyGroups,
 			KeyGroupRange keyGroupRange,
-			TaskKvStateRegistry kvStateRegistry) throws Exception {
+			TaskKvStateRegistry kvStateRegistry) throws IOException {
+
 		return new HeapKeyedStateBackend<>(
 				kvStateRegistry,
 				keySerializer,

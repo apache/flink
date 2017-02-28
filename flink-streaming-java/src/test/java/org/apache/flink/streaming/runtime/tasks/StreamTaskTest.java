@@ -807,33 +807,39 @@ public class StreamTaskTest extends TestLogger {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public AbstractStateBackend createFromConfig(Configuration config) throws Exception {
+		public AbstractStateBackend createFromConfig(Configuration config) {
 			AbstractStateBackend stateBackendMock = mock(AbstractStateBackend.class);
 
-			Mockito.when(stateBackendMock.createOperatorStateBackend(
-					Mockito.any(Environment.class),
-					Mockito.any(String.class)))
-				.thenAnswer(new Answer<OperatorStateBackend>() {
-					@Override
-					public OperatorStateBackend answer(InvocationOnMock invocationOnMock) throws Throwable {
-						return Mockito.mock(OperatorStateBackend.class);
-					}
-				});
-
-			Mockito.when(stateBackendMock.createKeyedStateBackend(
-					Mockito.any(Environment.class),
-					Mockito.any(JobID.class),
-					Mockito.any(String.class),
-					Mockito.any(TypeSerializer.class),
-					Mockito.any(int.class),
-					Mockito.any(KeyGroupRange.class),
-					Mockito.any(TaskKvStateRegistry.class)))
-				.thenAnswer(new Answer<AbstractKeyedStateBackend>() {
-					@Override
-					public AbstractKeyedStateBackend answer(InvocationOnMock invocationOnMock) throws Throwable {
-						return Mockito.mock(AbstractKeyedStateBackend.class);
-					}
-				});
+			try {
+				Mockito.when(stateBackendMock.createOperatorStateBackend(
+						Mockito.any(Environment.class),
+						Mockito.any(String.class)))
+					.thenAnswer(new Answer<OperatorStateBackend>() {
+						@Override
+						public OperatorStateBackend answer(InvocationOnMock invocationOnMock) throws Throwable {
+							return Mockito.mock(OperatorStateBackend.class);
+						}
+					});
+	
+				Mockito.when(stateBackendMock.createKeyedStateBackend(
+						Mockito.any(Environment.class),
+						Mockito.any(JobID.class),
+						Mockito.any(String.class),
+						Mockito.any(TypeSerializer.class),
+						Mockito.any(int.class),
+						Mockito.any(KeyGroupRange.class),
+						Mockito.any(TaskKvStateRegistry.class)))
+					.thenAnswer(new Answer<AbstractKeyedStateBackend>() {
+						@Override
+						public AbstractKeyedStateBackend answer(InvocationOnMock invocationOnMock) throws Throwable {
+							return Mockito.mock(AbstractKeyedStateBackend.class);
+						}
+					});
+			}
+			catch (Exception e) {
+				// this is needed, because the signatures of the mocked methods throw 'Exception'
+				throw new RuntimeException(e);
+			}
 
 			return stateBackendMock;
 		}

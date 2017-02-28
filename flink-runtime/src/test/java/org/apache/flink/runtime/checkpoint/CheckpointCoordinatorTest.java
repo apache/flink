@@ -2586,7 +2586,7 @@ public class CheckpointCoordinatorTest {
 		return ChainedStateHandle.wrapSingleHandle(operatorStateHandle);
 	}
 
-	private static ExecutionJobVertex mockExecutionJobVertex(
+	static ExecutionJobVertex mockExecutionJobVertex(
 		JobVertexID jobVertexID,
 		int parallelism,
 		int maxParallelism) {

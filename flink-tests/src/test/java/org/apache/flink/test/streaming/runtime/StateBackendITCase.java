@@ -109,7 +109,7 @@ public class StateBackendITCase extends StreamingMultipleProgramsTestBase {
 				TypeSerializer<K> keySerializer,
 				int numberOfKeyGroups,
 				KeyGroupRange keyGroupRange,
-				TaskKvStateRegistry kvStateRegistry) throws Exception {
+				TaskKvStateRegistry kvStateRegistry) throws IOException {
 			throw new SuccessException();
 		}
 	}
