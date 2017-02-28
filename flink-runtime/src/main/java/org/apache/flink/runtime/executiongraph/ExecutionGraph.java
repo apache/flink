@@ -221,6 +221,7 @@ public class ExecutionGraph implements Serializable {
 
 	/** Checkpoint stats tracker seperate from the coordinator in order to be
 	 * available after archiving. */
+	@SuppressWarnings("NonSerializableFieldInSerializableClass")
 	private CheckpointStatsTracker checkpointStatsTracker;
 
 	/** The execution context which is used to execute futures. */
@@ -252,7 +253,8 @@ public class ExecutionGraph implements Serializable {
 			Configuration jobConfig,
 			SerializedValue<ExecutionConfig> serializedConfig,
 			FiniteDuration timeout,
-			RestartStrategy restartStrategy) throws IOException {
+			RestartStrategy restartStrategy,
+			Scheduler scheduler) throws IOException {
 		this(
 			futureExecutor,
 			ioExecutor,
@@ -264,6 +266,7 @@ public class ExecutionGraph implements Serializable {
 			restartStrategy,
 			new ArrayList<BlobKey>(),
 			new ArrayList<URL>(),
+			scheduler,
 			ExecutionGraph.class.getClassLoader(),
 			new UnregisteredMetricsGroup()
 		);
@@ -280,13 +283,13 @@ public class ExecutionGraph implements Serializable {
 			RestartStrategy restartStrategy,
 			List<BlobKey> requiredJarFiles,
 			List<URL> requiredClasspaths,
+			Scheduler scheduler,
 			ClassLoader userClassLoader,
 			MetricGroup metricGroup) throws IOException {
 
 		checkNotNull(jobId);
 		checkNotNull(jobName);
 		checkNotNull(jobConfig);
-		checkNotNull(userClassLoader);
 
 		this.jobInformation = new JobInformation(
 			jobId,
@@ -303,7 +306,8 @@ public class ExecutionGraph implements Serializable {
 		this.futureExecutionContext = ExecutionContext$.MODULE$.fromExecutor(futureExecutor);
 		this.ioExecutor = Preconditions.checkNotNull(ioExecutor);
 
-		this.userClassLoader = userClassLoader;
+		this.scheduler = Preconditions.checkNotNull(scheduler, "scheduler");
+		this.userClassLoader = Preconditions.checkNotNull(userClassLoader, "userClassLoader");
 
 		this.tasks = new ConcurrentHashMap<JobVertexID, ExecutionJobVertex>();
 		this.intermediateResults = new ConcurrentHashMap<IntermediateDataSetID, IntermediateResult>();
@@ -749,17 +753,12 @@ public class ExecutionGraph implements Serializable {
 		}
 	}
 
-	public void scheduleForExecution(Scheduler scheduler) throws JobException {
+	public void scheduleForExecution() throws JobException {
 		if (scheduler == null) {
 			throw new IllegalArgumentException("Scheduler must not be null.");
 		}
 
-		if (this.scheduler != null && this.scheduler != scheduler) {
-			throw new IllegalArgumentException("Cannot use different schedulers for the same job");
-		}
-
 		if (transitionState(JobStatus.CREATED, JobStatus.RUNNING)) {
-			this.scheduler = scheduler;
 
 			switch (scheduleMode) {
 
@@ -976,7 +975,7 @@ public class ExecutionGraph implements Serializable {
 				}
 			}
 
-			scheduleForExecution(scheduler);
+			scheduleForExecution();
 		}
 		catch (Throwable t) {
 			LOG.warn("Failed to restart the job.", t);

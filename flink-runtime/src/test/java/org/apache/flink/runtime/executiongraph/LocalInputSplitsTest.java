@@ -268,20 +268,7 @@ public class LocalInputSplitsTest {
 			vertex.setInputSplitSource(new TestInputSplitSource(splits));
 			
 			JobGraph jobGraph = new JobGraph("test job", vertex);
-			
-			ExecutionGraph eg = new ExecutionGraph(
-				TestingUtils.defaultExecutionContext(),
-				TestingUtils.defaultExecutionContext(),
-				jobGraph.getJobID(),
-				jobGraph.getName(),  
-				jobGraph.getJobConfiguration(),
-				new SerializedValue<>(new ExecutionConfig()),
-				TIMEOUT,
-				new NoRestartStrategy());
-			
-			eg.attachJobGraph(jobGraph.getVerticesSortedTopologicallyFromSources());
-			eg.setQueuedSchedulingAllowed(false);
-			
+
 			// create a scheduler with 6 instances where always two are on the same host
 			Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutionContext());
 			Instance i1 = getInstance(new byte[] {10,0,1,1}, 12345, "host1", 1);
@@ -297,7 +284,21 @@ public class LocalInputSplitsTest {
 			scheduler.newInstanceAvailable(i5);
 			scheduler.newInstanceAvailable(i6);
 			
-			eg.scheduleForExecution(scheduler);
+			ExecutionGraph eg = new ExecutionGraph(
+				TestingUtils.defaultExecutionContext(),
+				TestingUtils.defaultExecutionContext(),
+				jobGraph.getJobID(),
+				jobGraph.getName(),  
+				jobGraph.getJobConfiguration(),
+				new SerializedValue<>(new ExecutionConfig()),
+				TIMEOUT,
+				new NoRestartStrategy(),
+				scheduler);
+			
+			eg.attachJobGraph(jobGraph.getVerticesSortedTopologicallyFromSources());
+			eg.setQueuedSchedulingAllowed(false);
+			
+			eg.scheduleForExecution();
 			
 			ExecutionVertex[] tasks = eg.getVerticesTopologically().iterator().next().getTaskVertices();
 			assertEquals(6, tasks.length);
@@ -334,6 +335,8 @@ public class LocalInputSplitsTest {
 		vertex.setInputSplitSource(new TestInputSplitSource(splits));
 		
 		JobGraph jobGraph = new JobGraph("test job", vertex);
+
+		Scheduler scheduler = getScheduler(numHosts, slotsPerHost);
 		
 		ExecutionGraph eg = new ExecutionGraph(
 			TestingUtils.defaultExecutionContext(),
@@ -343,14 +346,14 @@ public class LocalInputSplitsTest {
 			jobGraph.getJobConfiguration(),
 				new SerializedValue<>(new ExecutionConfig()),
 			TIMEOUT,
-			new NoRestartStrategy());
+			new NoRestartStrategy(),
+			scheduler);
 		
 		eg.setQueuedSchedulingAllowed(false);
 		
 		eg.attachJobGraph(jobGraph.getVerticesSortedTopologicallyFromSources());
-		
-		Scheduler scheduler = getScheduler(numHosts, slotsPerHost);
-		eg.scheduleForExecution(scheduler);
+
+		eg.scheduleForExecution();
 		
 		ExecutionVertex[] tasks = eg.getVerticesTopologically().iterator().next().getTaskVertices();
 		assertEquals(parallelism, tasks.length);

@@ -88,7 +88,8 @@ public class VertexLocationConstraintTest {
 				jg.getJobConfiguration(),
 				new SerializedValue<>(new ExecutionConfig()),
 				timeout,
-				new NoRestartStrategy());
+				new NoRestartStrategy(),
+				new Scheduler(TestingUtils.defaultExecutionContext()));
 			eg.attachJobGraph(Collections.singletonList(jobVertex));
 			
 			ExecutionJobVertex ejv = eg.getAllVertices().get(jobVertex.getID());
@@ -155,14 +156,15 @@ public class VertexLocationConstraintTest {
 			JobGraph jg = new JobGraph("test job", jobVertex);
 			
 			ExecutionGraph eg = new ExecutionGraph(
-					TestingUtils.defaultExecutionContext(),
-					TestingUtils.defaultExecutionContext(),
-					jg.getJobID(),
-					jg.getName(),
-					jg.getJobConfiguration(),
-					new SerializedValue<>(new ExecutionConfig()),
-					timeout,
-					new NoRestartStrategy());
+				TestingUtils.defaultExecutionContext(),
+				TestingUtils.defaultExecutionContext(),
+				jg.getJobID(),
+				jg.getName(),
+				jg.getJobConfiguration(),
+				new SerializedValue<>(new ExecutionConfig()),
+				timeout,
+				new NoRestartStrategy(),
+				new Scheduler(TestingUtils.defaultExecutionContext()));
 			eg.attachJobGraph(Collections.singletonList(jobVertex));
 			
 			ExecutionJobVertex ejv = eg.getAllVertices().get(jobVertex.getID());
@@ -233,14 +235,15 @@ public class VertexLocationConstraintTest {
 			JobGraph jg = new JobGraph("test job", jobVertex1, jobVertex2);
 			
 			ExecutionGraph eg = new ExecutionGraph(
-					TestingUtils.defaultExecutionContext(),
-					TestingUtils.defaultExecutionContext(),
-					jg.getJobID(),
-					jg.getName(),
-					jg.getJobConfiguration(),
-					new SerializedValue<>(new ExecutionConfig()),
-					timeout,
-					new NoRestartStrategy());
+				TestingUtils.defaultExecutionContext(),
+				TestingUtils.defaultExecutionContext(),
+				jg.getJobID(),
+				jg.getName(),
+				jg.getJobConfiguration(),
+				new SerializedValue<>(new ExecutionConfig()),
+				timeout,
+				new NoRestartStrategy(),
+				new Scheduler(TestingUtils.defaultExecutionContext()));
 			eg.attachJobGraph(Arrays.asList(jobVertex1, jobVertex2));
 			
 			ExecutionJobVertex ejv = eg.getAllVertices().get(jobVertex1.getID());
@@ -302,14 +305,15 @@ public class VertexLocationConstraintTest {
 			JobGraph jg = new JobGraph("test job", jobVertex);
 			
 			ExecutionGraph eg = new ExecutionGraph(
-					TestingUtils.defaultExecutionContext(),
-					TestingUtils.defaultExecutionContext(),
-					jg.getJobID(),
-					jg.getName(),
-					jg.getJobConfiguration(),
-					new SerializedValue<>(new ExecutionConfig()),
-					timeout,
-					new NoRestartStrategy());
+				TestingUtils.defaultExecutionContext(),
+				TestingUtils.defaultExecutionContext(),
+				jg.getJobID(),
+				jg.getName(),
+				jg.getJobConfiguration(),
+				new SerializedValue<>(new ExecutionConfig()),
+				timeout,
+				new NoRestartStrategy(),
+				new Scheduler(TestingUtils.defaultExecutionContext()));
 			eg.attachJobGraph(Collections.singletonList(jobVertex));
 			
 			ExecutionJobVertex ejv = eg.getAllVertices().get(jobVertex.getID());
@@ -373,14 +377,15 @@ public class VertexLocationConstraintTest {
 			jobVertex2.setSlotSharingGroup(sharingGroup);
 			
 			ExecutionGraph eg = new ExecutionGraph(
-					TestingUtils.defaultExecutionContext(),
-					TestingUtils.defaultExecutionContext(),
-					jg.getJobID(),
-					jg.getName(),
-					jg.getJobConfiguration(),
-					new SerializedValue<>(new ExecutionConfig()),
-					timeout,
-					new NoRestartStrategy());
+				TestingUtils.defaultExecutionContext(),
+				TestingUtils.defaultExecutionContext(),
+				jg.getJobID(),
+				jg.getName(),
+				jg.getJobConfiguration(),
+				new SerializedValue<>(new ExecutionConfig()),
+				timeout,
+				new NoRestartStrategy(),
+				new Scheduler(TestingUtils.defaultExecutionContext()));
 			eg.attachJobGraph(Arrays.asList(jobVertex1, jobVertex2));
 			
 			ExecutionJobVertex ejv = eg.getAllVertices().get(jobVertex1.getID());
@@ -415,14 +420,15 @@ public class VertexLocationConstraintTest {
 			JobGraph jg = new JobGraph("test job", vertex);
 			
 			ExecutionGraph eg = new ExecutionGraph(
-					TestingUtils.defaultExecutionContext(),
-					TestingUtils.defaultExecutionContext(),
-					jg.getJobID(),
-					jg.getName(),
-					jg.getJobConfiguration(),
-					new SerializedValue<>(new ExecutionConfig()),
-					timeout,
-					new NoRestartStrategy());
+				TestingUtils.defaultExecutionContext(),
+				TestingUtils.defaultExecutionContext(),
+				jg.getJobID(),
+				jg.getName(),
+				jg.getJobConfiguration(),
+				new SerializedValue<>(new ExecutionConfig()),
+				timeout,
+				new NoRestartStrategy(),
+				new Scheduler(TestingUtils.defaultExecutionContext()));
 			eg.attachJobGraph(Collections.singletonList(vertex));
 			
 			ExecutionVertex ev = eg.getAllVertices().get(vertex.getID()).getTaskVertices()[0];
