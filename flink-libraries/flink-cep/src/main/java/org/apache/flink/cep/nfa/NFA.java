@@ -38,9 +38,11 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Queue;
@@ -220,6 +222,20 @@ public class NFA<T> implements Serializable {
 	}
 
 	/**
+	 * Comparator used for imposing the assumption that IGNORE is always the last StateTransition in a state.
+	 */
+	private interface StateTransitionComparator<T> extends Comparator<StateTransition<T>>, Serializable {}
+	private final Comparator<StateTransition<T>> stateTransitionComparator = new StateTransitionComparator<T>() {
+		@Override
+		public int compare(final StateTransition<T> o1, final StateTransition<T> o2) {
+			if (o1.getAction() == o2.getAction()) {
+				return 0;
+			}
+			return o1.getAction() == StateTransitionAction.IGNORE ? 1 : -1;
+		}
+	};
+
+	/**
 	 * Computes the next computation states based on the given computation state, the current event,
 	 * its timestamp and the internal state machine.
 	 *
@@ -241,7 +257,10 @@ public class NFA<T> implements Serializable {
 		boolean branched = false;
 		while (!states.isEmpty()) {
 			State<T> currentState = states.pop();
-			Collection<StateTransition<T>> stateTransitions = currentState.getStateTransitions();
+			final List<StateTransition<T>> stateTransitions = new ArrayList<>(currentState.getStateTransitions());
+
+			// impose the IGNORE will be processed last
+			Collections.sort(stateTransitions, stateTransitionComparator);
 
 			// check all state transitions for each state
 			for (StateTransition<T> stateTransition: stateTransitions) {
