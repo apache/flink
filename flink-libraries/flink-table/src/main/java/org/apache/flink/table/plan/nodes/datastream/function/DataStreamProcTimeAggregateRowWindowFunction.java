@@ -18,16 +18,17 @@
 package org.apache.flink.table.plan.nodes.datastream.function;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import org.apache.calcite.sql.SqlKind;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.summarize.aggregation.Aggregator;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
+import org.apache.flink.table.plan.nodes.datastream.aggs.DoubleSummaryAggregation;
+import org.apache.flink.table.plan.nodes.datastream.aggs.IntegerSummaryAggregation;
+import org.apache.flink.table.plan.nodes.datastream.aggs.LongSummaryAggregation;
+import org.apache.flink.table.plan.nodes.datastream.aggs.StreamAggregator;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Collector;
 
@@ -39,14 +40,14 @@ public class DataStreamProcTimeAggregateRowWindowFunction
 	List<Integer> indexes;
 	List<TypeInformation<?>> typeInfo;
 	@SuppressWarnings("rawtypes")
-	Map<String, List<Aggregator>> aggregatorImpl;
+	List<StreamAggregator> aggregatorImpl;
 
 	public DataStreamProcTimeAggregateRowWindowFunction(List<String> aggregators, List<Integer> rowIndexes,
 			List<TypeInformation<?>> typeInfos) {
 		this.aggregators = aggregators;
 		this.indexes = rowIndexes;
 		this.typeInfo = typeInfos;
-		aggregatorImpl = new HashMap<>();
+		aggregatorImpl = new ArrayList<>();
 	}
 
 	Row reuse;
@@ -55,103 +56,106 @@ public class DataStreamProcTimeAggregateRowWindowFunction
 	@SuppressWarnings("unchecked")
 	@Override
 	public void apply(Tuple key, GlobalWindow window, Iterable<Object> input, Collector<Object> out) throws Exception {
-		
-		String keyString = key.toString();
+
 		for (Object rowObj : input) {
 			reuse = (Row) rowObj;
 			if (result == null) {
 				result = new Row(reuse.getArity() + aggregators.size());
 			}
 			for (int i = 0; i < aggregators.size(); i++) {
-				setAggregator(key, i, aggregators.get(i));
-				aggregatorImpl.get(keyString).get(i).aggregate(reuse.getField(indexes.get(i)));
+				setAggregator(i, aggregators.get(i));
+				aggregatorImpl.get(i).aggregate(reuse.getField(indexes.get(i)));
 			}
 		}
-		
+
 		for (int i = 0; i < reuse.getArity(); i++) {
 			result.setField(i, reuse.getField(i));
 		}
 		for (int i = 0; i < aggregators.size(); i++) {
-			result.setField(reuse.getArity() + i, aggregatorImpl.get(keyString).get(i).result());
+			result.setField(reuse.getArity() + i, aggregatorImpl.get(i).result());
+			aggregatorImpl.get(i).reset();
 		}
 
 		out.collect(result);
+
 	}
 
-	@SuppressWarnings("rawtypes")
-	private void setAggregator(Tuple key, int i, String aggregatorName) {
+	private void setAggregator(int i, String aggregatorName) {
+		if (aggregatorImpl==null) {
+			aggregatorImpl = new ArrayList<>();
+		}
 		if (typeInfo.get(i).getTypeClass().equals(Integer.class)) {
-			if (!aggregatorImpl.containsKey(key.toString())) {
-				List<Aggregator> aggs = new ArrayList<>();
-				aggs.add(getIntegerAggregator(aggregatorName));
-				aggregatorImpl.put(key.toString(), aggs);
-			}
-			if (aggregatorImpl.get(key.toString()).size() - 1 < i) {
-				aggregatorImpl.get(key.toString()).add(getIntegerAggregator(aggregatorName));
+			if (aggregatorImpl.size() - 1 < i) {
+				aggregatorImpl.add(getIntegerAggregator(aggregatorName));
 			}
 		} else if (typeInfo.get(i).getTypeClass().equals(Double.class)) {
-			if (!aggregatorImpl.containsKey(key.toString())) {
-				List<Aggregator> aggs = new ArrayList<>();
-				aggs.add(getDoubleAggregator(aggregatorName));
-				aggregatorImpl.put(key.toString(), aggs);
-			}
-			if (aggregatorImpl.get(key.toString()).size() - 1 < i) {
-				aggregatorImpl.get(key.toString()).add(getDoubleAggregator(aggregatorName));
+			if (aggregatorImpl.size() - 1 < i) {
+				aggregatorImpl.add(getDoubleAggregator(aggregatorName));
 			}
 		} else if (typeInfo.get(i).getTypeClass().equals(Long.class)) {
-			if (!aggregatorImpl.containsKey(key.toString())) {
-				List<Aggregator> aggs = new ArrayList<>();
-				aggs.add(getLongAggregator(aggregatorName));
-				aggregatorImpl.put(key.toString(), aggs);
-			}
-			if (aggregatorImpl.get(key.toString()).size() - 1 < i) {
-				aggregatorImpl.get(key.toString()).add(getLongAggregator(aggregatorName));
+			if (aggregatorImpl.size() - 1 < i) {
+				aggregatorImpl.add(getLongAggregator(aggregatorName));
 			}
 
 		} else {
-			throw new IllegalArgumentException(
-					"Unsupported aggregation type for MAX. Only Integer, Double, Long supported.");
+			throw new IllegalArgumentException("Unsupported aggregation type for " + aggregatorName
+					+ "MAX, MIN, SUM, AVG, COUNT supported for Long, Double and Integer");
 		}
 	}
 
-	private Aggregator<Integer, Integer> getIntegerAggregator(String aggregatorName) {
-		Aggregator<Integer, Integer> aggregator = null;
+	private StreamAggregator<?, ?> getIntegerAggregator(String aggregatorName) {
+		StreamAggregator<?, ?> aggregator = null;
 		if (aggregatorName.equals(SqlKind.MAX.toString())) {
 			aggregator = new IntegerSummaryAggregation().initMax();
 		} else if (aggregatorName.equals(SqlKind.MIN.toString())) {
 			aggregator = new IntegerSummaryAggregation().initMin();
-		} else if (aggregatorName.equals(SqlKind.SUM.toString())) {
+		} else if (aggregatorName.equals(SqlKind.SUM.toString())
+				|| aggregatorName.equals(SqlKind.SUM0.toString())) {
 			aggregator = new IntegerSummaryAggregation().initSum();
+		} else if (aggregatorName.equals(SqlKind.AVG.toString())) {
+			aggregator = new IntegerSummaryAggregation().initAvg();
+		} else if (aggregatorName.equals(SqlKind.COUNT.toString())) {
+			aggregator = new IntegerSummaryAggregation().initCount();
 		} else {
 			throw new IllegalArgumentException("Unsupported aggregation type of aggregation: " + aggregatorName
-					+ ". Only MAX, MIN, SUM supported.");
+					+ ". Only MAX, MIN, SUM/SUM0, AVG, COUNT supported.");
 		}
 		return aggregator;
 	}
 
-	private Aggregator<Double, Double> getDoubleAggregator(String aggregatorName) {
-		Aggregator<Double, Double> aggregator = null;
+	private StreamAggregator<?, ?> getDoubleAggregator(String aggregatorName) {
+		StreamAggregator<?, ?> aggregator = null;
 		if (aggregatorName.equals(SqlKind.MAX.toString())) {
 			aggregator = new DoubleSummaryAggregation().initMax();
 		} else if (aggregatorName.equals(SqlKind.MIN.toString())) {
 			aggregator = new DoubleSummaryAggregation().initMin();
-		} else if (aggregatorName.equals(SqlKind.SUM.toString())) {
+		} else if (aggregatorName.equals(SqlKind.SUM.toString())
+				|| aggregatorName.equals(SqlKind.SUM0.toString())) {
 			aggregator = new DoubleSummaryAggregation().initSum();
+		} else if (aggregatorName.equals(SqlKind.AVG.toString())) {
+			aggregator = new DoubleSummaryAggregation().initAvg();
+		} else if (aggregatorName.equals(SqlKind.COUNT.toString())) {
+			aggregator = new DoubleSummaryAggregation().initCount();
 		} else {
-			throw new IllegalArgumentException(
-					"Unsupported aggregation type for " + aggregatorName + ". Only Integer, Double, Long supported.");
+			throw new IllegalArgumentException("Unsupported aggregation type for " + aggregatorName
+					+ ". Only MAX, MIN, SUM, AVG, COUNT supported.");
 		}
 		return aggregator;
 	}
 
-	private Aggregator<Long, Long> getLongAggregator(String aggregatorName) {
-		Aggregator<Long, Long> aggregator = null;
+	private StreamAggregator<?, ?> getLongAggregator(String aggregatorName) {
+		StreamAggregator<?, ?> aggregator = null;
 		if (aggregatorName.equals(SqlKind.MAX.toString())) {
 			aggregator = new LongSummaryAggregation().initMax();
 		} else if (aggregatorName.equals(SqlKind.MIN.toString())) {
 			aggregator = new LongSummaryAggregation().initMin();
-		} else if (aggregatorName.equals(SqlKind.SUM.toString())) {
+		} else if (aggregatorName.equals(SqlKind.SUM.toString())
+				|| aggregatorName.equals(SqlKind.SUM0.toString())) {
 			aggregator = new LongSummaryAggregation().initSum();
+		} else if (aggregatorName.equals(SqlKind.AVG.toString())) {
+			aggregator = new LongSummaryAggregation().initAvg();
+		} else if (aggregatorName.equals(SqlKind.COUNT.toString())) {
+			aggregator = new LongSummaryAggregation().initCount();
 		} else {
 			throw new IllegalArgumentException(
 					"Unsupported aggregation type for " + aggregatorName + ". Only Integer, Double, Long supported.");

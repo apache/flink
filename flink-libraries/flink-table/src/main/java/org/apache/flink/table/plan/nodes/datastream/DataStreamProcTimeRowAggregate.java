@@ -37,13 +37,10 @@ import org.apache.flink.table.api.StreamTableEnvironment;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.calcite.FlinkTypeFactory;
 import org.apache.flink.table.plan.logical.rel.util.WindowAggregateUtil;
-import org.apache.flink.table.plan.nodes.datastream.DataStreamRel;
-import org.apache.flink.table.plan.nodes.datastream.DataStreamRelJava;
 import org.apache.flink.table.plan.nodes.datastream.function.DataStreamProcTimeAggregateRowWindowFunction;
 import org.apache.flink.table.typeutils.TypeConverter;
 
 import scala.Option;
-
 
 public class DataStreamProcTimeRowAggregate extends DataStreamRelJava {
 
@@ -67,16 +64,13 @@ public class DataStreamProcTimeRowAggregate extends DataStreamRelJava {
 
 	@Override
 	public RelNode copy(RelTraitSet traitSet, java.util.List<RelNode> inputs) {
-		
-		if(inputs.size()!=1){
-			System.err.println(this.getClass().getName()+" : Input size must be one!");
+
+		if (inputs.size() != 1) {
+			System.err.println(this.getClass().getName() + " : Input size must be one!");
 		}
-		
-		return new DataStreamProcTimeRowAggregate(
-				getCluster(), 
-				traitSet, 
-				inputs.get(0),
-				getRowType(), getDescription(), windowRef);
+
+		return new DataStreamProcTimeRowAggregate(getCluster(), traitSet, inputs.get(0), getRowType(), getDescription(),
+				windowRef);
 	}
 
 	@Override
@@ -84,7 +78,7 @@ public class DataStreamProcTimeRowAggregate extends DataStreamRelJava {
 			Option<TypeInformation<Object>> expectedType, Object ignore) {
 
 		TableConfig config = tableEnv.getConfig();
-		
+
 		Option<TypeInformation<Object>> obj = Option.empty();
 		DataStream<Object> inputDS = ((DataStreamRel) getInput()).translateToPlan(tableEnv, obj);
 
@@ -96,38 +90,55 @@ public class DataStreamProcTimeRowAggregate extends DataStreamRelJava {
 		System.out.println(returnType);
 
 		DataStream<Object> aggregateWindow = null;
-		
+
 		// TODO check type and return type consistency
 
 		KeyedStream<Object, Tuple> keyedS = null;
+		
+		// assumption of one group per window reference
+		final Group group = windowRef.groups.iterator().next();
+		
+		List<TypeInformation<?>> typeClasses = new ArrayList<>();
+		List<String> aggregators = new ArrayList<>();
+		List<Integer> indexes = new ArrayList<>();
+		for (RexWinAggCall agg : group.aggCalls) {
+			typeClasses.add(FlinkTypeFactory.toTypeInfo(agg.type));
+			aggregators.add(agg.getKind().toString());
+			indexes.add(((RexInputRef) agg.getOperands().get(0)).getIndex());
+		}
+		
 		// apply partitions
 		if (winUtil.isStreamPartitioned(windowRef)) {
-			for (final Group group : windowRef.groups) {
-				keyedS = inputDS.keyBy(winUtil.getKeysAsArray(group));
-				
-				int lowerbound = winUtil.getLowerBoundary(windowRef.constants);
-				if(lowerbound == -1){ 
-					// TODO manage error
-				}
-				
-				List<TypeInformation<?>> typeClasses = new ArrayList<>();
-				List<String> aggregators = new ArrayList<>();
-				List<Integer> indexes = new ArrayList<>();
-				for(RexWinAggCall agg: group.aggCalls){
-					typeClasses.add(FlinkTypeFactory.toTypeInfo(agg.type));
-					aggregators.add(agg.getKind().toString());
-					indexes.add(((RexInputRef)agg.getOperands().get(0)).getIndex());
-				}
-				
-				aggregateWindow =keyedS.
-						countWindow(lowerbound,1)
-						.apply(new DataStreamProcTimeAggregateRowWindowFunction(aggregators,
-																				indexes,
-																				typeClasses))
-						.returns((TypeInformation<Object>)returnType);
+
+			keyedS = inputDS.keyBy(winUtil.getKeysAsArray(group));
+
+			int lowerbound = winUtil.getLowerBoundary(windowRef.constants);
+			if (lowerbound == -1) {
+				// TODO manage error
 			}
+
+			aggregateWindow = keyedS.countWindow(lowerbound, 1)
+					.apply(new DataStreamProcTimeAggregateRowWindowFunction(aggregators, indexes, typeClasses))
+					.returns((TypeInformation<Object>) returnType);
+
 		} else {
 
+//			inputDS.windowAll(new WindowAssigner<Object, GlobalWindow>() {
+//
+//				private static final long serialVersionUID = 1L;
+//				
+//				@Override
+//				public Collection<GlobalWindow> assignWindows(Object element, long timestamp, WindowAssignerContext context) {
+//					return Collections.singletonList(ISARGlobalWindow.get());
+//				}
+//
+//				@Override
+//				public Trigger<Object, GlobalWindow> getDefaultTrigger(StreamExecutionEnvironment env) {
+//					return new NeverTrigger();
+//				}
+//				
+//			});
+			
 		}
 
 		return aggregateWindow;
@@ -143,16 +154,16 @@ public class DataStreamProcTimeRowAggregate extends DataStreamRelJava {
 		super.explain(pw);
 	}
 
-//	@Override
-//	public RelWriter explainTerms(RelWriter pw) {
-//		for (Group group : window.groups) {
-//			pw.item("Order", group.orderKeys.getFieldCollations());
-//			pw.item("PartitionBy", group.keys);
-//			pw.item("Time", "ProcTime()");
-//			pw.item("LowBoundary", group.lowerBound);
-//			pw.item("UpperBoundary", group.upperBound);
-//		}
-//		return pw;
-//	}
+	// @Override
+	// public RelWriter explainTerms(RelWriter pw) {
+	// for (Group group : window.groups) {
+	// pw.item("Order", group.orderKeys.getFieldCollations());
+	// pw.item("PartitionBy", group.keys);
+	// pw.item("Time", "ProcTime()");
+	// pw.item("LowBoundary", group.lowerBound);
+	// pw.item("UpperBoundary", group.upperBound);
+	// }
+	// return pw;
+	// }
 
 }
