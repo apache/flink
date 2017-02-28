@@ -310,12 +310,12 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 		return this.parallelism;
 	}
 
-	public ResourceSpec getMinResource() {
-		return this.template.getOperator().getMinResource();
+	public ResourceSpec getMinResources() {
+		return this.template.getOperator().getMinResources();
 	}
 
-	public ResourceSpec getPreferredResource() {
-		return this.template.getOperator().getPreferredResource();
+	public ResourceSpec getPreferredResources() {
+		return this.template.getOperator().getPreferredResources();
 	}
 	
 	public long getGuaranteedAvailableMemory() {

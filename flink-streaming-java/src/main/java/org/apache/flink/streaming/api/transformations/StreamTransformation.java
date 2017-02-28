@@ -30,6 +30,8 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.Collection;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * A {@code StreamTransformation} represents the operation that creates a
  * {@link org.apache.flink.streaming.api.datastream.DataStream}. Every
@@ -127,16 +129,16 @@ public abstract class StreamTransformation<T> {
 	private int maxParallelism = -1;
 
 	/**
-	 *  The minimum resource for this stream transformation. It defines the lower limit for
-	 *  dynamic resource resize in future plan.
+	 *  The minimum resources for this stream transformation. It defines the lower limit for
+	 *  dynamic resources resize in future plan.
 	 */
-	private ResourceSpec minResource = ResourceSpec.UNKNOWN;
+	private ResourceSpec minResources = ResourceSpec.UNKNOWN;
 
 	/**
-	 *  The preferred resource for this stream transformation. It defines the upper limit for
+	 *  The preferred resources for this stream transformation. It defines the upper limit for
 	 *  dynamic resource resize in future plan.
 	 */
-	private ResourceSpec preferredResource = ResourceSpec.UNKNOWN;
+	private ResourceSpec preferredResources = ResourceSpec.UNKNOWN;
 
 	/**
 	 * User-specified ID for this transformation. This is used to assign the
@@ -229,12 +231,12 @@ public abstract class StreamTransformation<T> {
 	/**
 	 * Sets the minimum and preferred resources for this stream transformation.
 	 *
-	 * @param minResource The minimum resource of this transformation.
-	 * @param preferredResource The preferred resource of this transformation.
+	 * @param minResources The minimum resource of this transformation.
+	 * @param preferredResources The preferred resource of this transformation.
 	 */
-	public void setResource(ResourceSpec minResource, ResourceSpec preferredResource) {
-		this.minResource = minResource;
-		this.preferredResource = preferredResource;
+	public void setResources(ResourceSpec minResources, ResourceSpec preferredResources) {
+		this.minResources = checkNotNull(minResources);
+		this.preferredResources = checkNotNull(preferredResources);
 	}
 
 	/**
@@ -242,8 +244,8 @@ public abstract class StreamTransformation<T> {
 	 *
 	 * @return The minimum resource of this transformation.
 	 */
-	public ResourceSpec getMinResource() {
-		return minResource;
+	public ResourceSpec getMinResources() {
+		return minResources;
 	}
 
 	/**
@@ -251,8 +253,8 @@ public abstract class StreamTransformation<T> {
 	 *
 	 * @return The preferred resource of this transformation.
 	 */
-	public ResourceSpec getPreferredResource() {
-		return preferredResource;
+	public ResourceSpec getPreferredResources() {
+		return preferredResources;
 	}
 
 	/**

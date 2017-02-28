@@ -105,14 +105,12 @@ public class ResourceSpec implements Serializable {
 	 * @return The new resource with merged values.
 	 */
 	public ResourceSpec merge(ResourceSpec other) {
-		ResourceSpec result = new ResourceSpec(
+		return new ResourceSpec(
 				Math.max(this.cpuCores, other.cpuCores),
 				this.heapMemoryInMB + other.heapMemoryInMB,
 				this.directMemoryInMB + other.directMemoryInMB,
 				this.nativeMemoryInMB + other.nativeMemoryInMB,
 				this.stateSizeInMB + other.stateSizeInMB);
-
-		return  result;
 	}
 
 	public double getCpuCores() {
@@ -141,12 +139,8 @@ public class ResourceSpec implements Serializable {
 	 * @return True if all the values are equal or greater than 0, otherwise false.
 	 */
 	public boolean isValid() {
-		if (this.cpuCores >= 0 && this.heapMemoryInMB >= 0 && this.directMemoryInMB >= 0 &&
-				this.nativeMemoryInMB >= 0 && this.stateSizeInMB >= 0) {
-			return true;
-		} else {
-			return false;
-		}
+		return (this.cpuCores >= 0 && this.heapMemoryInMB >= 0 && this.directMemoryInMB >= 0 &&
+				this.nativeMemoryInMB >= 0 && this.stateSizeInMB >= 0);
 	}
 
 	/**
@@ -162,11 +156,7 @@ public class ResourceSpec implements Serializable {
 		int cmp3 = Integer.compare(this.directMemoryInMB, other.directMemoryInMB);
 		int cmp4 = Integer.compare(this.nativeMemoryInMB, other.nativeMemoryInMB);
 		int cmp5 = Integer.compare(this.stateSizeInMB, other.stateSizeInMB);
-		if (cmp1 <= 0 && cmp2 <= 0 && cmp3 <= 0 && cmp4 <= 0 && cmp5 <= 0) {
-			return true;
-		} else {
-			return false;
-		}
+		return (cmp1 <= 0 && cmp2 <= 0 && cmp3 <= 0 && cmp4 <= 0 && cmp5 <= 0);
 	}
 
 	@Override
@@ -183,6 +173,17 @@ public class ResourceSpec implements Serializable {
 		} else {
 			return false;
 		}
+	}
+
+	@Override
+	public int hashCode() {
+		final long cpuBits =  Double.doubleToLongBits(cpuCores);
+		int result = (int) (cpuBits ^ (cpuBits >>> 32));
+		result = 31 * result + heapMemoryInMB;
+		result = 31 * result + directMemoryInMB;
+		result = 31 * result + nativeMemoryInMB;
+		result = 31 * result + stateSizeInMB;
+		return result;
 	}
 
 	@Override

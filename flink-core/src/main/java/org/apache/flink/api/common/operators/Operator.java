@@ -16,17 +16,19 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.operators;
 
 import java.util.List;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Visitable;
+
+import javax.annotation.Nullable;
 
 /**
 * Abstract base class for all operators. An operator is a source, sink, or it applies an operation to
@@ -45,9 +47,11 @@ public abstract class Operator<OUT> implements Visitable<Operator<?>> {
 		
 	private int parallelism = ExecutionConfig.PARALLELISM_DEFAULT;  // the number of parallel instances to use
 
-	private ResourceSpec minResource;			// the minimum resource of the contract instance.
+	@Nullable
+	private ResourceSpec minResources;          // the minimum resource of the contract instance.
 
-	private ResourceSpec preferredResource;	// the preferred resource of the contract instance.
+	@Nullable
+	private ResourceSpec preferredResources;    // the preferred resource of the contract instance.
 
 	/**
 	 * The return type of the user function.
@@ -190,35 +194,40 @@ public abstract class Operator<OUT> implements Visitable<Operator<?>> {
 	}
 
 	/**
-	 * Gets the minimum resource for this contract instance. The minimum resource denotes how many
-	 * resources will be needed in the minimum for the user function during the execution.
+	 * Gets the minimum resources for this operator. The minimum resources denotes how many
+	 * resources will be needed at least minimum for the operator or user function during the execution.
 	 *
-	 * @return The minimum resource of this operator.
+	 * @return The minimum resources of this operator.
 	 */
-	public ResourceSpec getMinResource() {
-		return this.minResource;
+	@Nullable
+	@PublicEvolving
+	public ResourceSpec getMinResources() {
+		return this.minResources;
 	}
 
 	/**
-	 * Gets the preferred resource for this contract instance. The preferred resource denotes how many
+	 * Gets the preferred resources for this contract instance. The preferred resources denote how many
 	 * resources will be needed in the maximum for the user function during the execution.
 	 *
 	 * @return The preferred resource of this operator.
 	 */
-	public ResourceSpec getPreferredResource() {
-		return this.preferredResource;
+	@Nullable
+	@PublicEvolving
+	public ResourceSpec getPreferredResources() {
+		return this.preferredResources;
 	}
 
 	/**
 	 * Sets the minimum and preferred resources for this contract instance. The resource denotes
 	 * how many memories and cpu cores of the user function will be consumed during the execution.
 	 *
-	 * @param minResource The minimum resource of this operator.
-	 * @param preferredResource The preferred resource of this operator.
+	 * @param minResources The minimum resource of this operator.
+	 * @param preferredResources The preferred resource of this operator.
 	 */
-	public void setResource(ResourceSpec minResource, ResourceSpec preferredResource) {
-		this.minResource = minResource;
-		this.preferredResource = preferredResource;
+	@PublicEvolving
+	public void setResource(ResourceSpec minResources, ResourceSpec preferredResources) {
+		this.minResources = minResources;
+		this.preferredResources = preferredResources;
 	}
 	
 	

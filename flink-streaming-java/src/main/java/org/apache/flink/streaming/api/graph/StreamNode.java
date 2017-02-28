@@ -49,8 +49,8 @@ public class StreamNode implements Serializable {
 	 * dynamic scaling and the number of key groups used for partitioned state.
 	 */
 	private int maxParallelism;
-	private ResourceSpec minResource;
-	private ResourceSpec preferredResource;
+	private ResourceSpec minResources;
+	private ResourceSpec preferredResources;
 	private Long bufferTimeout = null;
 	private final String operatorName;
 	private String slotSharingGroup;
@@ -168,17 +168,17 @@ public class StreamNode implements Serializable {
 		this.maxParallelism = maxParallelism;
 	}
 
-	public ResourceSpec getMinResource() {
-		return minResource;
+	public ResourceSpec getMinResources() {
+		return minResources;
 	}
 
-	public ResourceSpec getPreferredResource() {
-		return preferredResource;
+	public ResourceSpec getPreferredResources() {
+		return preferredResources;
 	}
 
-	public void setResource(ResourceSpec minResource, ResourceSpec preferredResource) {
-		this.minResource = minResource;
-		this.preferredResource = preferredResource;
+	public void setResources(ResourceSpec minResources, ResourceSpec preferredResources) {
+		this.minResources = minResources;
+		this.preferredResources = preferredResources;
 	}
 
 	public Long getBufferTimeout() {

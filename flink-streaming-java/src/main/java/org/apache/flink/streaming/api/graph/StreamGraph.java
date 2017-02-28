@@ -416,7 +416,7 @@ public class StreamGraph extends StreamingPlan {
 
 	public void setResource(int vertexID, ResourceSpec minResource, ResourceSpec preferredResource) {
 		if (getStreamNode(vertexID) != null) {
-			getStreamNode(vertexID).setResource(minResource, preferredResource);
+			getStreamNode(vertexID).setResources(minResource, preferredResource);
 		}
 	}
 

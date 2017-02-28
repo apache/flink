@@ -177,48 +177,55 @@ class DataSet[T: ClassTag](set: JavaDataSet[T]) {
         "parallelism.")
   }
 
-  /**
-   * Sets the minimum and preferred resources of this operation.
-   */
-  /*
-  def resource(minResource: ResourceSpec, preferredResource: ResourceSpec) : Unit = {
-    javaSet match {
-      case ds: DataSource[_] => ds.setResource(minResource, preferredResource)
-      case op: Operator[_, _] => op.setResource(minResource, preferredResource)
-      case di: DeltaIterationResultSet[_, _] =>
-        di.getIterationHead.setResource(minResource, preferredResource)
-      case _ =>
-        throw new UnsupportedOperationException("Operator does not support " +
-          "configuring custom resources specs.")
-    }
-    this
-  }*/
+
+// ---------------------------------------------------------------------------
+//  Fine-grained resource profiles are an incomplete work-in-progress feature
+//  The setters are hence commented out at this point.
+// ---------------------------------------------------------------------------
+//  /**
+//   * Sets the minimum and preferred resources of this operation.
+//   */
+//  @PublicEvolving
+//  def resources(minResources: ResourceSpec, preferredResources: ResourceSpec) : Unit = {
+//    javaSet match {
+//      case ds: DataSource[_] => ds.setResources(minResources, preferredResources)
+//      case op: Operator[_, _] => op.setResources(minResources, preferredResources)
+//      case di: DeltaIterationResultSet[_, _] =>
+//        di.getIterationHead.setResources(minResources, preferredResources)
+//      case _ =>
+//        throw new UnsupportedOperationException("Operator does not support " +
+//          "configuring custom resources specs.")
+//    }
+//    this
+//  }
+//
+//  /**
+//   * Sets the resource of this operation.
+//   */
+//  @PublicEvolving
+//  def resources(resources: ResourceSpec) : Unit = {
+//    this.resources(resources, resources)
+//  }
 
   /**
-   * Sets the resource of this operation.
+   * Returns the minimum resources of this operation.
    */
-  /*
-  def resource(resource: ResourceSpec) : Unit = {
-    this.resource(resource, resource)
-  }*/
-
-  /**
-   * Returns the minimum resource of this operation.
-   */
-  def minResource: ResourceSpec = javaSet match {
-    case ds: DataSource[_] => ds.minResource()
-    case op: Operator[_, _] => op.minResource
+  @PublicEvolving
+  def minResources: ResourceSpec = javaSet match {
+    case ds: DataSource[_] => ds.getMinResources()
+    case op: Operator[_, _] => op.getMinResources()
     case _ =>
       throw new UnsupportedOperationException("Operator does not support " +
         "configuring custom resources specs.")
   }
 
   /**
-   * Returns the preferred resource of this operation.
+   * Returns the preferred resources of this operation.
    */
-  def preferredResource: ResourceSpec = javaSet match {
-    case ds: DataSource[_] => ds.preferredResource()
-    case op: Operator[_, _] => op.preferredResource
+  @PublicEvolving
+  def preferredResources: ResourceSpec = javaSet match {
+    case ds: DataSource[_] => ds.getPreferredResources()
+    case op: Operator[_, _] => op.getPreferredResources()
     case _ =>
       throw new UnsupportedOperationException("Operator does not support " +
         "configuring custom resources specs.")

@@ -146,36 +146,42 @@ class DataStream[T](stream: JavaStream[T]) {
   }
 
   /**
-   * Returns the minimum resource of this operation.
+   * Returns the minimum resources of this operation.
    */
-  def minResource: ResourceSpec = stream.minResource()
+  @PublicEvolving
+  def minResources: ResourceSpec = stream.getMinResources()
 
   /**
-   * Returns the preferred resource of this operation.
+   * Returns the preferred resources of this operation.
    */
-  def preferredResource: ResourceSpec = stream.preferredResource()
+  @PublicEvolving
+  def preferredResources: ResourceSpec = stream.getPreferredResources()
 
-  /**
-   * Sets the minimum and preferred resources of this operation.
-   */
-  /*
-  def resource(minResource: ResourceSpec, preferredResource: ResourceSpec) : DataStream[T] =
-    stream match {
-      case stream : SingleOutputStreamOperator[T] => asScalaStream(stream.setResource(
-        minResource, preferredResource))
-      case _ =>
-        throw new UnsupportedOperationException("Operator does not support " +
-          "configuring custom resources specs.")
-      this
-  }*/
-
-  /**
-   * Sets the resource of this operation.
-   */
-  /*
-  def resource(resource: ResourceSpec) : Unit = {
-    this.resource(resource, resource)
-  }*/
+// ---------------------------------------------------------------------------
+//  Fine-grained resource profiles are an incomplete work-in-progress feature
+//  The setters are hence commented out at this point.
+// ---------------------------------------------------------------------------
+//  /**
+//   * Sets the minimum and preferred resources of this operation.
+//   */
+//  @PublicEvolving
+//  def resources(minResources: ResourceSpec, preferredResources: ResourceSpec) : DataStream[T] =
+//    stream match {
+//      case stream : SingleOutputStreamOperator[T] => asScalaStream(
+//        stream.setResources(minResources, preferredResources))
+//      case _ =>
+//        throw new UnsupportedOperationException("Operator does not support " +
+//          "configuring custom resources specs.")
+//      this
+//  }
+//
+//  /**
+//   * Sets the resource of this operation.
+//   */
+//  @PublicEvolving
+//  def resources(resources: ResourceSpec) : Unit = {
+//    this.resources(resources, resources)
+//  }
 
   /**
    * Gets the name of the current data stream. This name is
