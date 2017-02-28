@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
+import org.apache.flink.runtime.instance.SlotProvider;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -49,13 +50,14 @@ public class LegacyJobVertexIdTest {
 
 		ExecutionGraph executionGraph = new ExecutionGraph(
 				mock(Executor.class),
-				mock(Executor.class),
-				new JobID(),
-				"test",
-				mock(Configuration.class),
-				mock(SerializedValue.class),
-				Time.seconds(1),
-				mock(RestartStrategy.class));
+			mock(Executor.class),
+			new JobID(),
+			"test",
+			mock(Configuration.class),
+			mock(SerializedValue.class),
+			Time.seconds(1),
+			mock(RestartStrategy.class),
+			mock(SlotProvider.class));
 
 		ExecutionJobVertex executionJobVertex =
 				new ExecutionJobVertex(executionGraph, jobVertex, 1, Time.seconds(1));
