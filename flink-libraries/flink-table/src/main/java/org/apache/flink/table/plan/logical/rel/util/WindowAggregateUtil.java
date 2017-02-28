@@ -21,8 +21,12 @@ import java.io.Serializable;
 import java.util.List;
 
 import org.apache.calcite.rel.core.Window.Group;
+import org.apache.calcite.rel.core.Window.RexWinAggCall;
 import org.apache.calcite.rel.logical.LogicalWindow;
+import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexLiteral;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.calcite.FlinkTypeFactory;
 
 import com.google.common.collect.ImmutableList;
 
@@ -87,17 +91,38 @@ public class WindowAggregateUtil implements Serializable {
 	 * 
 	 * @return return null for non-partitioned windows or the list of key indexes
 	 */
-	public List<Integer> getPartitions() {
+	public int[] getPartitions() {
 		Group windowBoundaries = windowPointer.groups.asList().get(0);
-		List<Integer> partitionKeys = null;
+		int[] partitionKeys = null;
 
 		if (windowBoundaries.keys.isEmpty()) {
 			// partitionKeys = null is indicator of non partitioned OVER clause
 		} else {
-			partitionKeys = windowBoundaries.keys.asList();
+			partitionKeys = windowBoundaries.keys.toArray();
 		}
 
 		return partitionKeys;
+	}
+
+	/**
+	 *  Get the list of aggregation functions to be applied within window. In principle it should be one group
+	 * @param aggregators - return object of the aggregations 
+	 * @param typeClasses - return object for the aggregations types
+	 * @param indexes - return object for the indexes of the elements to apply the aggregations
+	 */
+	
+	public void getAggregations(List<String> aggregators, List<TypeInformation<?>> typeOutput, List<Integer> indexes,  List<TypeInformation<?>> typeInput) {
+		
+		// for loop can be replaced with  windowPointer.groups.asList().get(0)
+		for (final Group group : windowPointer.groups) {
+			for (RexWinAggCall agg : group.aggCalls) {
+				typeOutput.add(FlinkTypeFactory.toTypeInfo(agg.type));
+				aggregators.add(agg.getKind().toString());
+				indexes.add(((RexInputRef) agg.getOperands().get(0)).getIndex());
+				typeInput.add(FlinkTypeFactory.toTypeInfo(((RexInputRef) agg.getOperands().get(0)).getType()));
+			}
+		}
+		
 	}
 
 }
