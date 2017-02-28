@@ -40,6 +40,8 @@ import java.io.IOException;
 @RunWith(Parameterized.class)
 public class TypeSerializerFormatTest extends SequentialFormatTestBase<Tuple2<Integer, String>> {
 
+	TypeInformation<Tuple2<Integer, String>> resultType = TypeExtractor.getForObject(getRecord(0));
+
 	private TypeSerializer<Tuple2<Integer, String>> serializer;
 
 	private BlockInfo block;
@@ -47,9 +49,9 @@ public class TypeSerializerFormatTest extends SequentialFormatTestBase<Tuple2<In
 	public TypeSerializerFormatTest(int numberOfTuples, long blockSize, int degreeOfParallelism) {
 		super(numberOfTuples, blockSize, degreeOfParallelism);
 
-		TypeInformation<Tuple2<Integer, String>> tti = TypeExtractor.getForObject(getRecord(0));
+        resultType = TypeExtractor.getForObject(getRecord(0));
 
-		serializer = tti.createSerializer();
+		serializer = resultType.createSerializer();
 	}
 
 	@Before
@@ -63,7 +65,7 @@ public class TypeSerializerFormatTest extends SequentialFormatTestBase<Tuple2<In
 		configuration.setLong(BinaryInputFormat.BLOCK_SIZE_PARAMETER_KEY, this.blockSize);
 
 		final TypeSerializerInputFormat<Tuple2<Integer, String>> inputFormat = new
-				TypeSerializerInputFormat<Tuple2<Integer, String>>(serializer);
+				TypeSerializerInputFormat<Tuple2<Integer, String>>(resultType);
 		inputFormat.setFilePath(this.tempFile.toURI().toString());
 
 		inputFormat.configure(configuration);
