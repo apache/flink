@@ -38,6 +38,7 @@ import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.TaskStateHandles;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -84,6 +85,12 @@ public class CheckpointCoordinator {
 	/** The job whose checkpoint this coordinator coordinates */
 	private final JobID job;
 
+	/** Default checkpoint properties **/
+	private final CheckpointProperties checkpointProperties;
+
+	/** The executor used for asynchronous calls, like potentially blocking I/O */
+	private final Executor executor;
+	
 	/** Tasks who need to be sent a message when a checkpoint is started */
 	private final ExecutionVertex[] tasksToTrigger;
 
@@ -100,7 +107,9 @@ public class CheckpointCoordinator {
 	 * accessing this don't block the job manager actor and run asynchronously. */
 	private final CompletedCheckpointStore completedCheckpointStore;
 
-	/** Default directory for persistent checkpoints; <code>null</code> if none configured. */
+	/** Default directory for persistent checkpoints; <code>null</code> if none configured.
+	 * THIS WILL BE REPLACED BY PROPER STATE-BACKEND METADATA WRITING */
+	@Nullable
 	private final String checkpointDirectory;
 
 	/** A list of recent checkpoint IDs, to identify late messages (vs invalid ones) */
@@ -153,11 +162,6 @@ public class CheckpointCoordinator {
 	@Nullable
 	private CheckpointStatsTracker statsTracker;
 
-	/** Default checkpoint properties **/
-	private final CheckpointProperties checkpointProperties;
-
-	private final Executor executor;
-
 	// --------------------------------------------------------------------------------------------
 
 	public CheckpointCoordinator(
@@ -172,7 +176,7 @@ public class CheckpointCoordinator {
 			ExecutionVertex[] tasksToCommitTo,
 			CheckpointIDCounter checkpointIDCounter,
 			CompletedCheckpointStore completedCheckpointStore,
-			String checkpointDirectory,
+			@Nullable String checkpointDirectory,
 			Executor executor) {
 
 		// sanity checks
@@ -210,6 +214,8 @@ public class CheckpointCoordinator {
 		this.checkpointIdCounter = checkNotNull(checkpointIDCounter);
 		this.completedCheckpointStore = checkNotNull(completedCheckpointStore);
 		this.checkpointDirectory = checkpointDirectory;
+		this.executor = checkNotNull(executor);
+
 		this.recentPendingCheckpoints = new ArrayDeque<>(NUM_GHOST_CHECKPOINT_IDS);
 
 		this.timer = new Timer("Checkpoint Timer", true);
@@ -228,8 +234,6 @@ public class CheckpointCoordinator {
 		} catch (Throwable t) {
 			throw new RuntimeException("Failed to start checkpoint ID counter: " + t.getMessage(), t);
 		}
-
-		this.executor = checkNotNull(executor);
 	}
 
 	/**
@@ -758,13 +762,19 @@ public class CheckpointCoordinator {
 		CompletedCheckpoint completedCheckpoint = null;
 
 		try {
-			completedCheckpoint = pendingCheckpoint.finalizeCheckpoint();
+			// externalize the checkpoint if required
+			if (pendingCheckpoint.getProps().externalizeCheckpoint()) {
+				completedCheckpoint = pendingCheckpoint.finalizeCheckpointExternalized();
+			} else {
+				completedCheckpoint = pendingCheckpoint.finalizeCheckpointNonExternalized();
+			}
 
 			completedCheckpointStore.addCheckpoint(completedCheckpoint);
 
 			rememberRecentCheckpointId(checkpointId);
 			dropSubsumedCheckpoints(checkpointId);
-		} catch (Exception exception) {
+		}
+		catch (Exception exception) {
 			// abort the current pending checkpoint if it has not been discarded yet
 			if (!pendingCheckpoint.isDiscarded()) {
 				pendingCheckpoint.abortError(exception);
@@ -779,8 +789,8 @@ public class CheckpointCoordinator {
 					public void run() {
 						try {
 							cc.discard();
-						} catch (Exception nestedException) {
-							LOG.warn("Could not properly discard completed checkpoint {}.", cc.getCheckpointID(), nestedException);
+						} catch (Throwable t) {
+							LOG.warn("Could not properly discard completed checkpoint {}.", cc.getCheckpointID(), t);
 						}
 					}
 				});
@@ -808,11 +818,12 @@ public class CheckpointCoordinator {
 				builder.append(", ");
 			}
 			// Remove last two chars ", "
-			builder.delete(builder.length() - 2, builder.length());
+			builder.setLength(builder.length() - 2);
 
 			LOG.debug(builder.toString());
 		}
 
+		// send the "notify complete" call to all vertices
 		final long timestamp = completedCheckpoint.getTimestamp();
 
 		for (ExecutionVertex ev : tasksToCommitTo) {
@@ -934,7 +945,7 @@ public class CheckpointCoordinator {
 					latest.getCheckpointID(),
 					latest.getProperties(),
 					restoreTimestamp,
-					latest.getExternalPath());
+					latest.getExternalPointer());
 
 				statsTracker.reportRestoredCheckpoint(restored);
 			}

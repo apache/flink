@@ -20,9 +20,6 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
-import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
@@ -43,13 +40,10 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
-import org.apache.flink.runtime.state.StateBackendFactory;
+import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TaskStateHandles;
-import org.apache.flink.runtime.state.filesystem.FsStateBackend;
-import org.apache.flink.runtime.state.filesystem.FsStateBackendFactory;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.graph.StreamConfig;
@@ -63,6 +57,7 @@ import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FutureUtil;
 import org.apache.flink.util.Preconditions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -147,7 +142,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	private StreamConfig configuration;
 
 	/** Our state backend. We use this to create checkpoint streams and a keyed state backend. */
-	private AbstractStateBackend stateBackend;
+	private StateBackend stateBackend;
 
 	/** Keyed state backend for the head operator, if it is keyed. There can only ever be one. */
 	private AbstractKeyedStateBackend<?> keyedStateBackend;
@@ -713,61 +708,20 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	//  State backend
 	// ------------------------------------------------------------------------
 
-	private AbstractStateBackend createStateBackend() throws Exception {
-		AbstractStateBackend stateBackend = configuration.getStateBackend(getUserCodeClassLoader());
+	private StateBackend createStateBackend() throws Exception {
+		final StateBackend fromJob = configuration.getStateBackend(getUserCodeClassLoader());
 
-		if (stateBackend != null) {
+		if (fromJob != null) {
 			// backend has been configured on the environment
 			LOG.info("Using user-defined state backend: {}.", stateBackend);
-		} else {
-			// see if we have a backend specified in the configuration
-			Configuration flinkConfig = getEnvironment().getTaskManagerInfo().getConfiguration();
-			String backendName = flinkConfig.getString(CoreOptions.STATE_BACKEND, null);
-
-			if (backendName == null) {
-				LOG.warn("No state backend has been specified, using default state backend (Memory / JobManager)");
-				backendName = "jobmanager";
-			}
-
-			switch (backendName.toLowerCase()) {
-				case "jobmanager":
-					LOG.info("State backend is set to heap memory (checkpoint to jobmanager)");
-					stateBackend = new MemoryStateBackend();
-					break;
-
-				case "filesystem":
-					FsStateBackend backend = new FsStateBackendFactory().createFromConfig(flinkConfig);
-					LOG.info("State backend is set to heap memory (checkpoints to filesystem \"{}\")",
-						backend.getBasePath());
-					stateBackend = backend;
-					break;
-
-				case "rocksdb":
-					backendName = "org.apache.flink.contrib.streaming.state.RocksDBStateBackendFactory";
-					// fall through to the 'default' case that uses reflection to load the backend
-					// that way we can keep RocksDB in a separate module
-
-				default:
-					try {
-						@SuppressWarnings("rawtypes")
-						Class<? extends StateBackendFactory> clazz =
-								Class.forName(backendName, false, getUserCodeClassLoader()).
-										asSubclass(StateBackendFactory.class);
-
-						stateBackend = clazz.newInstance().createFromConfig(flinkConfig);
-					} catch (ClassNotFoundException e) {
-						throw new IllegalConfigurationException("Cannot find configured state backend: " + backendName);
-					} catch (ClassCastException e) {
-						throw new IllegalConfigurationException("The class configured under '" +
-								CoreOptions.STATE_BACKEND.key() + "' is not a valid state backend factory (" +
-								backendName + ')');
-					} catch (Throwable t) {
-						throw new IllegalConfigurationException("Cannot create configured state backend", t);
-					}
-			}
+			return fromJob;
 		}
-
-		return stateBackend;
+		else {
+			return AbstractStateBackend.loadStateBackendFromConfigOrCreateDefault(
+					getEnvironment().getTaskManagerInfo().getConfiguration(),
+					getUserCodeClassLoader(),
+					LOG);
+		}
 	}
 
 	public OperatorStateBackend createOperatorStateBackend(

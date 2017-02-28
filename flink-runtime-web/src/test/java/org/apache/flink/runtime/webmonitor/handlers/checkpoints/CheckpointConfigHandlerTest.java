@@ -56,6 +56,7 @@ public class CheckpointConfigHandlerTest {
 			minPause,
 			maxConcurrent,
 			externalized,
+			null,
 			true);
 
 		AccessExecutionGraph graph = mock(AccessExecutionGraph.class);
@@ -92,6 +93,7 @@ public class CheckpointConfigHandlerTest {
 			1212L,
 			12,
 			ExternalizedCheckpointSettings.none(),
+			null,
 			false); // at least once
 
 		AccessExecutionGraph graph = mock(AccessExecutionGraph.class);
@@ -122,6 +124,7 @@ public class CheckpointConfigHandlerTest {
 			1212L,
 			12,
 			externalizedSettings,
+			null,
 			false); // at least once
 
 		AccessExecutionGraph graph = mock(AccessExecutionGraph.class);

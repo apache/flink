@@ -19,9 +19,11 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -55,7 +57,9 @@ public class CompletedCheckpointTest {
 
 		// Verify discard call is forwarded to state
 		CompletedCheckpoint checkpoint = new CompletedCheckpoint(
-				new JobID(), 0, 0, 1, taskStates, CheckpointProperties.forStandardCheckpoint(), file.getAbsolutePath());
+				new JobID(), 0, 0, 1, taskStates, CheckpointProperties.forStandardCheckpoint(),
+				new FileStateHandle(new Path(file.toURI()), file.length()),
+				file.getAbsolutePath());
 
 		checkpoint.discard(JobStatus.FAILED);
 
@@ -74,7 +78,7 @@ public class CompletedCheckpointTest {
 		boolean discardSubsumed = true;
 		CheckpointProperties props = new CheckpointProperties(false, false, discardSubsumed, true, true, true, true);
 		CompletedCheckpoint checkpoint = new CompletedCheckpoint(
-				new JobID(), 0, 0, 1, taskStates, props, null);
+				new JobID(), 0, 0, 1, taskStates, props);
 
 		// Subsume
 		checkpoint.subsume();
@@ -104,7 +108,9 @@ public class CompletedCheckpointTest {
 			// Keep
 			CheckpointProperties props = new CheckpointProperties(false, true, false, false, false, false, false);
 			CompletedCheckpoint checkpoint = new CompletedCheckpoint(
-					new JobID(), 0, 0, 1, new HashMap<>(taskStates), props, externalPath);
+					new JobID(), 0, 0, 1, new HashMap<>(taskStates), props,
+					new FileStateHandle(new Path(file.toURI()), file.length()),
+					externalPath);
 
 			checkpoint.discard(status);
 			verify(state, times(0)).discardState();
@@ -113,7 +119,7 @@ public class CompletedCheckpointTest {
 			// Discard
 			props = new CheckpointProperties(false, false, true, true, true, true, true);
 			checkpoint = new CompletedCheckpoint(
-					new JobID(), 0, 0, 1, new HashMap<>(taskStates), props, null);
+					new JobID(), 0, 0, 1, new HashMap<>(taskStates), props);
 
 			checkpoint.discard(status);
 			verify(state, times(1)).discardState();
@@ -135,8 +141,7 @@ public class CompletedCheckpointTest {
 			0,
 			1,
 			new HashMap<>(taskStates),
-			CheckpointProperties.forStandardCheckpoint(),
-			null);
+			CheckpointProperties.forStandardCheckpoint());
 
 		CompletedCheckpointStats.DiscardCallback callback = mock(CompletedCheckpointStats.DiscardCallback.class);
 		completed.setDiscardCallback(callback);

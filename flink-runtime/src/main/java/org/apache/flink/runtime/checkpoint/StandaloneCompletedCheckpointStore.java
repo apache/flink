@@ -96,4 +96,8 @@ public class StandaloneCompletedCheckpointStore implements CompletedCheckpointSt
 		}
 	}
 
+	@Override
+	public boolean requiresExternalizedCheckpoints() {
+		return false;
+	}
 }
