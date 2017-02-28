@@ -25,6 +25,7 @@ import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.zookeeper.data.Stat;
 
 import java.io.IOException;
+import java.nio.charset.Charset;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -55,7 +56,7 @@ public class ZookeeperRegistry implements RunningJobsRegistry {
 		try {
 			String zkPath = runningJobPath + jobID.toString();
 			this.client.newNamespaceAwareEnsurePath(zkPath).ensure(client.getZookeeperClient());
-			this.client.setData().forPath(zkPath);
+			this.client.setData().forPath(zkPath, JobSchedulingStatus.RUNNING.name().getBytes(Charset.forName("utf-8")));
 		}
 		catch (Exception e) {
 			throw new IOException("Set running state to zk fail for job " + jobID.toString(), e);
@@ -69,7 +70,7 @@ public class ZookeeperRegistry implements RunningJobsRegistry {
 		try {
 			String zkPath = runningJobPath + jobID.toString();
 			this.client.newNamespaceAwareEnsurePath(zkPath).ensure(client.getZookeeperClient());
-			this.client.delete().forPath(zkPath);
+			this.client.setData().forPath(zkPath, JobSchedulingStatus.DONE.name().getBytes(Charset.forName("utf-8")));
 		}
 		catch (Exception e) {
 			throw new IOException("Set finished state to zk fail for job " + jobID.toString(), e);
@@ -83,7 +84,10 @@ public class ZookeeperRegistry implements RunningJobsRegistry {
 		try {
 			Stat stat = client.checkExists().forPath(runningJobPath + jobID.toString());
 			if (stat != null) {
-				return true;
+				byte[] data = client.getData().forPath(runningJobPath + jobID.toString());
+				if (JobSchedulingStatus.RUNNING.name().equals(new String(data))) {
+					return true;
+				}
 			}
 			return false;
 		}
@@ -91,4 +95,36 @@ public class ZookeeperRegistry implements RunningJobsRegistry {
 			throw new IOException("Get running state from zk fail for job " + jobID.toString(), e);
 		}
 	}
+
+	@Override
+	public JobSchedulingStatus getJobSchedulingStatus(JobID jobID) throws IOException {
+		checkNotNull(jobID);
+
+		try {
+			Stat stat = client.checkExists().forPath(runningJobPath + jobID.toString());
+			if (stat != null) {
+				byte[] data = client.getData().forPath(runningJobPath + jobID.toString());
+				return JobSchedulingStatus.valueOf(new String(data));
+			}
+			return JobSchedulingStatus.PENDING;
+		}
+		catch (Exception e) {
+			throw new IOException("Get finished state from zk fail for job " + jobID.toString(), e);
+		}
+	}
+
+	@Override
+	public void clearJob(JobID jobID) throws IOException {
+		checkNotNull(jobID);
+
+		try {
+			String zkPath = runningJobPath + jobID.toString();
+			this.client.newNamespaceAwareEnsurePath(zkPath).ensure(client.getZookeeperClient());
+			this.client.delete().forPath(zkPath);
+		}
+		catch (Exception e) {
+			throw new IOException("Clear job state from zk fail for " + jobID.toString(), e);
+		}
+	}
+
 }

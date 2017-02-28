@@ -30,14 +30,19 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * This {@link RunningJobsRegistry} tracks the status jobs via marker files,
- * marking finished jobs via marker files.
+ * marking running jobs via running marker files,
+ * marking finished jobs via finished marker files.
  * 
  * <p>The general contract is the following:
  * <ul>
  *     <li>Initially, a marker file does not exist (no one created it, yet), which means
- *         the specific job is assumed to be running</li>
+ *         the specific job is pending</li>
+ *     <li>The first JobManager that granted leadership calls this service to create the running marker file,
+ *         which marks the job as running.</li>
  *     <li>The JobManager that finishes calls this service to create the marker file,
  *         which marks the job as finished.</li>
+ *     <li>If a JobManager gains leadership but see the running marker file,
+ *         it will realize that the job has been scheduled and need reconciling.</li>
  *     <li>If a JobManager gains leadership at some point when shutdown is in progress,
  *         it will see the marker file and realize that the job is finished.</li>
  *     <li>The application framework is expected to clean the file once the application
@@ -52,7 +57,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class FsNegativeRunningJobsRegistry implements RunningJobsRegistry {
 
-	private static final String PREFIX = ".job_complete_";
+	private static final String DONE_PREFIX = ".job_complete_";
+
+	private static final String RUNNING_PREFIX = ".job_runing_";
 
 	private final FileSystem fileSystem;
 
@@ -108,21 +115,19 @@ public class FsNegativeRunningJobsRegistry implements RunningJobsRegistry {
 	@Override
 	public void setJobRunning(JobID jobID) throws IOException {
 		checkNotNull(jobID, "jobID");
-		final Path filePath = createMarkerFilePath(jobID);
+		final Path filePath = createMarkerFilePath(RUNNING_PREFIX, jobID);
 
-		// delete the marker file, if it exists
-		try {
-			fileSystem.delete(filePath, false);
-		}
-		catch (FileNotFoundException e) {
-			// apparently job was already considered running
+		// create the file
+		// to avoid an exception if the job already exists, set overwrite=true
+		try (FSDataOutputStream out = fileSystem.create(filePath, true)) {
+			out.write(42);
 		}
 	}
 
 	@Override
 	public void setJobFinished(JobID jobID) throws IOException {
 		checkNotNull(jobID, "jobID");
-		final Path filePath = createMarkerFilePath(jobID);
+		final Path filePath = createMarkerFilePath(DONE_PREFIX, jobID);
 
 		// create the file
 		// to avoid an exception if the job already exists, set overwrite=true
@@ -137,17 +142,64 @@ public class FsNegativeRunningJobsRegistry implements RunningJobsRegistry {
 
 		// check for the existence of the file
 		try {
-			fileSystem.getFileStatus(createMarkerFilePath(jobID));
-			// file was found --> job is terminated
-			return false;
+			fileSystem.getFileStatus(createMarkerFilePath(RUNNING_PREFIX, jobID));
+			// file was found --> job is running
+			return true;
 		}
 		catch (FileNotFoundException e) {
-			// file does not exist, job is still running
-			return true;
+			// file does not exist, job is not running
+			return false;
 		}
 	}
 
-	private Path createMarkerFilePath(JobID jobId) {
-		return new Path(basePath, PREFIX + jobId.toString());
+	@Override
+	public JobSchedulingStatus getJobSchedulingStatus(JobID jobID) throws IOException {
+		checkNotNull(jobID, "jobID");
+
+		// first check for the existence of the complete file
+		try {
+			fileSystem.getFileStatus(createMarkerFilePath(DONE_PREFIX, jobID));
+			// complete file was found --> job is terminated
+			return JobSchedulingStatus.DONE;
+		}
+		catch (FileNotFoundException e) {
+			// file does not exist, job is running or pending
+		}
+		// check for the existence of the running file
+		try {
+			fileSystem.getFileStatus(createMarkerFilePath(RUNNING_PREFIX, jobID));
+			// running file was found --> job is terminated
+			return JobSchedulingStatus.RUNNING;
+		}
+		catch (FileNotFoundException e) {
+			// file does not exist, job is not scheduled
+			return JobSchedulingStatus.PENDING;
+		}
+	}
+
+	@Override
+	public void clearJob(JobID jobID) throws IOException {
+		checkNotNull(jobID, "jobID");
+		final Path runningFilePath = createMarkerFilePath(RUNNING_PREFIX, jobID);
+
+		// delete the running marker file, if it exists
+		try {
+			fileSystem.delete(runningFilePath, false);
+		}
+		catch (FileNotFoundException e) {
+		}
+
+		final Path doneFilePath = createMarkerFilePath(DONE_PREFIX, jobID);
+
+		// delete the finished marker file, if it exists
+		try {
+			fileSystem.delete(doneFilePath, false);
+		}
+		catch (FileNotFoundException e) {
+		}
+	}
+
+	private Path createMarkerFilePath(String prefix, JobID jobId) {
+		return new Path(basePath, prefix + jobId.toString());
 	}
 }
