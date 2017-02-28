@@ -21,6 +21,7 @@ package org.apache.flink.runtime.heartbeat;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.AcceptFunction;
 import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 
@@ -28,7 +29,6 @@ import javax.annotation.concurrent.ThreadSafe;
 import java.util.Collection;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -53,7 +53,7 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O>, Heart
 	private final ResourceID ownResourceID;
 
 	/** Executor service used to run heartbeat timeout notifications */
-	private final ScheduledExecutorService scheduledExecutorService;
+	private final ScheduledExecutor scheduledExecutor;
 
 	protected final Logger log;
 
@@ -73,13 +73,13 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O>, Heart
 		long heartbeatTimeoutIntervalMs,
 		ResourceID ownResourceID,
 		Executor executor,
-		ScheduledExecutorService scheduledExecutorService,
+		ScheduledExecutor scheduledExecutor,
 		Logger log) {
 		Preconditions.checkArgument(heartbeatTimeoutIntervalMs > 0L, "The heartbeat timeout has to be larger than 0.");
 
 		this.heartbeatTimeoutIntervalMs = heartbeatTimeoutIntervalMs;
 		this.ownResourceID = Preconditions.checkNotNull(ownResourceID);
-		this.scheduledExecutorService = Preconditions.checkNotNull(scheduledExecutorService);
+		this.scheduledExecutor = Preconditions.checkNotNull(scheduledExecutor);
 		this.log = Preconditions.checkNotNull(log);
 		this.executor = Preconditions.checkNotNull(executor);
 		this.heartbeatTargets = new ConcurrentHashMap<>(16);
@@ -120,7 +120,7 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O>, Heart
 				HeartbeatManagerImpl.HeartbeatMonitor<O> heartbeatMonitor = new HeartbeatManagerImpl.HeartbeatMonitor<>(
 					resourceID,
 					heartbeatTarget,
-					scheduledExecutorService,
+					scheduledExecutor,
 					heartbeatListener,
 					heartbeatTimeoutIntervalMs);
 
@@ -243,7 +243,7 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O>, Heart
 		/** Associated heartbeat target */
 		private final HeartbeatTarget<O> heartbeatTarget;
 
-		private final ScheduledExecutorService scheduledExecutorService;
+		private final ScheduledExecutor scheduledExecutor;
 
 		/** Listener which is notified about heartbeat timeouts */
 		private final HeartbeatListener<?, ?> heartbeatListener;
@@ -258,13 +258,13 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O>, Heart
 		HeartbeatMonitor(
 			ResourceID resourceID,
 			HeartbeatTarget<O> heartbeatTarget,
-			ScheduledExecutorService scheduledExecutorService,
+			ScheduledExecutor scheduledExecutor,
 			HeartbeatListener<?, O> heartbeatListener,
 			long heartbeatTimeoutIntervalMs) {
 
 			this.resourceID = Preconditions.checkNotNull(resourceID);
 			this.heartbeatTarget = Preconditions.checkNotNull(heartbeatTarget);
-			this.scheduledExecutorService = Preconditions.checkNotNull(scheduledExecutorService);
+			this.scheduledExecutor = Preconditions.checkNotNull(scheduledExecutor);
 			this.heartbeatListener = Preconditions.checkNotNull(heartbeatListener);
 
 			Preconditions.checkArgument(heartbeatTimeoutIntervalMs >= 0L, "The heartbeat timeout interval has to be larger than 0.");
@@ -285,7 +285,7 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O>, Heart
 			if (state.get() == State.RUNNING) {
 				cancelTimeout();
 
-				futureTimeout = scheduledExecutorService.schedule(this, heartbeatTimeout, TimeUnit.MILLISECONDS);
+				futureTimeout = scheduledExecutor.schedule(this, heartbeatTimeout, TimeUnit.MILLISECONDS);
 
 				// Double check for concurrent accesses (e.g. a firing of the scheduled future)
 				if (state.get() != State.RUNNING) {

@@ -40,6 +40,7 @@ import org.apache.flink.runtime.executiongraph.JobInformation;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
 import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.heartbeat.HeartbeatManagerImpl;
+import org.apache.flink.runtime.heartbeat.TestingHeartbeatManagerImpl;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.NonHaServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
@@ -90,20 +91,14 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
+import java.util.concurrent.CountDownLatch;
 
 import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.anyInt;
-import static org.mockito.Mockito.anyString;
-import static org.mockito.Mockito.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 public class TaskExecutorTest extends TestLogger {
 
@@ -129,12 +124,14 @@ public class TaskExecutorTest extends TestLogger {
 
 		final TestingFatalErrorHandler testingFatalErrorHandler = new TestingFatalErrorHandler();
 
-		final long heartbeatTimeout = 1000L;
-		final HeartbeatManagerImpl<Object, Object> tmHeartbeatManager = new HeartbeatManagerImpl<>(
+		final CountDownLatch waitLatch =  new CountDownLatch(1);
+		final long heartbeatTimeout = 10L;
+		final HeartbeatManagerImpl<Void, Void> tmHeartbeatManager = new TestingHeartbeatManagerImpl<>(
+				waitLatch,
 				heartbeatTimeout,
 				tmResourceId,
 				rpc.getExecutor(),
-				Executors.newSingleThreadScheduledExecutor(),
+				rpc.getScheduledExecutor(),
 				log);
 
 		final String jobMasterAddress = "jm";
@@ -194,13 +191,14 @@ public class TaskExecutorTest extends TestLogger {
 			assertTrue(jobManagerTable.contains(jobId));
 			assertTrue(jobManagerConnections.containsKey(jmResourceId));
 
-			// the job manager will not schedule heartbeat because of mock and the task manager will be notified heartbeat timeout
-			Thread.sleep(heartbeatTimeout);
+			// continue to unmonitor heartbeat target
+			waitLatch.countDown();
 
 			// after heartbeat timeout
+			verify(jobMasterGateway, timeout(heartbeatTimeout)).disconnectTaskManager(eq(tmResourceId));
+			assertFalse(heartbeatTargets.containsKey(jmResourceId));
 			assertFalse(jobManagerTable.contains(jobId));
 			assertFalse(jobManagerConnections.containsKey(jmResourceId));
-			verify(jobMasterGateway).disconnectTaskManager(eq(tmResourceId));
 
 			// check if a concurrent error occurred
 			testingFatalErrorHandler.rethrowError();
@@ -876,6 +874,8 @@ public class TaskExecutorTest extends TestLogger {
 		when(libraryCacheManager.getClassLoader(eq(jobId))).thenReturn(getClass().getClassLoader());
 
 		final JobManagerConnection jobManagerConnection = new JobManagerConnection(
+			jobId,
+			jmResourceId,
 			jobMasterGateway,
 			jobManagerLeaderId,
 			mock(TaskManagerActions.class),
@@ -896,6 +896,7 @@ public class TaskExecutorTest extends TestLogger {
 				mock(NetworkEnvironment.class),
 				haServices,
 				mock(MetricRegistry.class),
+				mock(HeartbeatManagerImpl.class),
 				mock(TaskManagerMetricGroup.class),
 				mock(BroadcastVariableManager.class),
 				mock(FileCache.class),

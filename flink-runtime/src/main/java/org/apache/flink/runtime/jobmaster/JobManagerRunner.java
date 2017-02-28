@@ -20,8 +20,8 @@ package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.HeartbeatManagerOptions;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
@@ -170,16 +170,12 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 			this.leaderElectionService = haServices.getJobManagerLeaderElectionService(jobGraph.getJobID());
 
 			// heartbeat manager last
-			final long heartbeatInterval = configuration.getLong(ConfigConstants.HEARTBEAT_INTERVAL,
-					ConfigConstants.DEFAULT_HEARTBEAT_INTERVAL);
-			final long heartbeatTimeout = configuration.getLong(ConfigConstants.HEARTBEAT_TIMEOUT,
-					ConfigConstants.DEFAULT_HEARTBEAT_TIMEOUT);
 			final ResourceID resourceID = ResourceID.generate();
 			final HeartbeatManagerSenderImpl<Void, Void> heartbeatManager = new HeartbeatManagerSenderImpl<>(
-					heartbeatInterval,
-					heartbeatTimeout,
+					configuration.getLong(HeartbeatManagerOptions.HEARTBEAT_INTERVAL),
+					configuration.getLong(HeartbeatManagerOptions.HEARTBEAT_TIMEOUT),
 					resourceID,
-					jobManagerServices.executorService,
+					rpcService.getExecutor(),
 					rpcService.getScheduledExecutor(),
 					log);
 

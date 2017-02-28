@@ -169,7 +169,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		NetworkEnvironment networkEnvironment,
 		HighAvailabilityServices haServices,
 		MetricRegistry metricRegistry,
-		HeartbeatManagerImpl heartbeatManager,
+		HeartbeatManagerImpl<Void, Void> heartbeatManager,
 		TaskManagerMetricGroup taskManagerMetricGroup,
 		BroadcastVariableManager broadcastVariableManager,
 		FileCache fileCache,
@@ -229,8 +229,10 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 				runAsync(new Runnable() {
 					@Override
 					public void run() {
+						log.info("Notify heartbeat timeout with job manager {}", resourceID);
+						heartbeatManager.unmonitorTarget(resourceID);
+
 						if (jobManagerConnections.containsKey(resourceID)) {
-							log.info("Notify heartbeat timeout with job manager {}", resourceID);
 							JobManagerConnection jobManagerConnection = jobManagerConnections.get(resourceID);
 							if (jobManagerConnection != null) {
 								closeJobManagerConnection(jobManagerConnection.getJobID());

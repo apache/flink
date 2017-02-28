@@ -704,18 +704,6 @@ public final class ConfigConstants {
 	 */
 	public static final String AKKA_JVM_EXIT_ON_FATAL_ERROR = "akka.jvm-exit-on-fatal-error";
 
-	// ----------------------------- Heartbeat Settings -----------------------
-
-	/**
-	 * Timeout for requesting and receiving heartbeat for both sender and receiver sides
-	 */
-	public static final String HEARTBEAT_TIMEOUT = "heartbeat.timeout";
-
-	/**
-	 * Time interval for requesting heartbeat from sender side
-	 */
-	public static final String HEARTBEAT_INTERVAL = "heartbeat.interval";
-	
 	// ----------------------------- Transport SSL Settings--------------------
 
 	/**
@@ -1318,12 +1306,6 @@ public final class ConfigConstants {
 	public static String DEFAULT_AKKA_CLIENT_TIMEOUT = "60 s";
 
 	public static boolean DEFAULT_AKKA_SSL_ENABLED = true;
-
-	// ----------------------------- Heartbeat Values --------------------------------
-
-	public static long DEFAULT_HEARTBEAT_TIMEOUT = 30000L;
-
-	public static long DEFAULT_HEARTBEAT_INTERVAL = 10000L;
 
 	// ----------------------------- SSL Values --------------------------------
 

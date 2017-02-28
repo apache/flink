@@ -21,6 +21,7 @@ package org.apache.flink.runtime.taskexecutor;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.HeartbeatManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.Future;
@@ -114,7 +115,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
 		TaskExecutorMetricsInitializer.instantiateStatusMetrics(taskManagerMetricGroup, taskManagerServices.getNetworkEnvironment());
 
 		HeartbeatManagerImpl<Void, Void> heartbeatManager = new HeartbeatManagerImpl<>(
-				configuration.getLong(ConfigConstants.HEARTBEAT_TIMEOUT, ConfigConstants.DEFAULT_HEARTBEAT_TIMEOUT),
+				configuration.getLong(HeartbeatManagerOptions.HEARTBEAT_TIMEOUT),
 				resourceID,
 				executor,
 				rpcService.getScheduledExecutor(),

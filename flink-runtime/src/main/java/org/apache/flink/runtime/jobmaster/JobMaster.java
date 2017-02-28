@@ -197,7 +197,7 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 			Time rpcAskTimeout,
 			@Nullable JobManagerMetricGroup jobManagerMetricGroup,
 			ResourceID resourceID,
-			HeartbeatManagerImpl heartbeatManager,
+			HeartbeatManagerImpl<Void, Void> heartbeatManager,
 			OnCompletionActions jobCompletionActions,
 			FatalErrorHandler errorHandler,
 			ClassLoader userCodeLoader) throws Exception
@@ -291,6 +291,8 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 				@Override
 				public void notifyHeartbeatTimeout(ResourceID resourceID) {
 					log.info("Notify heartbeat timeout with task manager {}", resourceID);
+					heartbeatManager.unmonitorTarget(resourceID);
+
 					getSelf().disconnectTaskManager(resourceID);
 				}
 
@@ -740,7 +742,7 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 
 		if (registeredTaskManagers.containsKey(taskManagerId)) {
 			final RegistrationResponse response = new JMTMRegistrationSuccess(
-					this.resourceID, libraryCacheManager.getBlobServerPort());
+					resourceID, libraryCacheManager.getBlobServerPort());
 			return FlinkCompletableFuture.completed(response);
 		} else {
 			return getRpcService().execute(new Callable<TaskExecutorGateway>() {
@@ -780,7 +782,7 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 						}
 					});
 
-					return new JMTMRegistrationSuccess(JobMaster.this.resourceID, libraryCacheManager.getBlobServerPort());
+					return new JMTMRegistrationSuccess(resourceID, libraryCacheManager.getBlobServerPort());
 				}
 			}, getMainThreadExecutor());
 		}
