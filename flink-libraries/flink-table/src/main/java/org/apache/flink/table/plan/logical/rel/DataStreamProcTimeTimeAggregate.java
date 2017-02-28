@@ -1,5 +1,6 @@
 package org.apache.flink.table.plan.logical.rel;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.calcite.plan.RelOptCluster;
@@ -8,44 +9,39 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.logical.LogicalWindow;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.streaming.api.windowing.evictors.TimeEvictor;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.CountTrigger;
 import org.apache.flink.table.api.StreamTableEnvironment;
 import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.calcite.FlinkTypeFactory;
 import org.apache.flink.table.plan.logical.rel.util.WindowAggregateUtil;
 import org.apache.flink.table.plan.nodes.datastream.DataStreamRel;
 import org.apache.flink.table.plan.nodes.datastream.DataStreamRelJava;
-import org.apache.flink.table.typeutils.TypeConverter;
+import org.apache.flink.table.plan.nodes.datastream.function.DataStreamProcTimeAggregateGlobalWindowFunction;
+import org.apache.flink.table.plan.nodes.datastream.function.DataStreamProcTimeAggregateWindowFunction;
+import org.apache.flink.types.Row;
 
-import scala.Option;
+public class DataStreamProcTimeTimeAggregate extends DataStreamRelJava {
 
-public class DataStreamProcTimeTimeAggregate extends DataStreamRelJava{
-
-	
 	private LogicalWindow windowReference;
 	private String description;
-	private RelNode input;
-	
-	
-	public DataStreamProcTimeTimeAggregate(
-			RelOptCluster cluster, 
-			RelTraitSet traitSet, 
-			RelNode input, 
-			RelDataType rowType,
-			String description, 
-			LogicalWindow windowReference) {
+
+	public DataStreamProcTimeTimeAggregate(RelOptCluster cluster, RelTraitSet traitSet, RelNode input,
+			RelDataType rowType, String description, LogicalWindow windowReference) {
 		super(cluster, traitSet, input);
 
 		this.rowType = rowType;
 		this.description = description;
-		this.windowReference= windowReference;
-		this.input = input;
-		
-		
+		this.windowReference = windowReference;
+
 	}
 
 	@Override
@@ -53,96 +49,119 @@ public class DataStreamProcTimeTimeAggregate extends DataStreamRelJava{
 		// TODO Auto-generated method stub
 		return super.deriveRowType();
 	}
-	
+
 	@Override
 	public RelNode copy(RelTraitSet traitSet, java.util.List<RelNode> inputs) {
-		
 
-		return new DataStreamProcTimeTimeAggregate(
-				super.getCluster(),
-				traitSet,
-				inputs.get(0), 
-				rowType, 
-				description, 
-				windowReference);
-		
+		if (inputs.size() != 1) {
+			System.err.println(this.getClass().getName() + " : Input size must be one!");
+		}
+
+		return new DataStreamProcTimeTimeAggregate(getCluster(), traitSet, inputs.get(0), getRowType(),
+				getDescription(), windowReference);
+
 	}
-	
-	
-	
+
 	@Override
-	public DataStream<Object> translateToPlan(StreamTableEnvironment tableEnv,
-			Option<TypeInformation<Object>> expectedType, Object ignore) {
-		
+	public DataStream<Row> translateToPlan(StreamTableEnvironment tableEnv) {
 
-		//Get the general parameters related to the datastream, inputs, types, result
+		// Get the general parameters related to the datastream, inputs, result
 		TableConfig config = tableEnv.getConfig();
-		
-		scala.Option<TypeInformation<Object>> option = scala.Option.apply(null);
-		DataStream<Object> inputDataStream = ((DataStreamRel) input)
-				.translateToPlan(tableEnv,option);
-		
-		TypeInformation<?> returnType = TypeConverter.determineReturnType(
-				getRowType(), 
-				expectedType,
-				config.getNullCheck(), 
-				config.getEfficientTypeUsage());
-		
-		//WindowUtil object to help with operations on the LogicalWindow object 
+
+		DataStream<Row> inputDataStream = ((DataStreamRel) getInput()).translateToPlan(tableEnv);
+
+		TypeInformation<?>[] rowType = new TypeInformation<?>[getRowType().getFieldList().size()];
+		int i = 0;
+		for (RelDataTypeField field : getRowType().getFieldList()) {
+			rowType[i] = FlinkTypeFactory.toTypeInfo(field.getType());
+			i++;
+		}
+		TypeInformation<Row> returnType = new RowTypeInfo(rowType);
+
+		// WindowUtil object to help with operations on the LogicalWindow object
 		WindowAggregateUtil windowUtil = new WindowAggregateUtil(windowReference);
-		List<Integer> partitionKeys = windowUtil.getPartitions();				
-		
-		
-		//null indicates non partitioned window
-		if(partitionKeys==null)
-		{
-			final long time_boundary = Long.parseLong(
-					windowReference.getConstants()
-					.get(1)
-					.getValue().toString());
-			
-			inputDataStream.windowAll(GlobalWindows.create())
-			.trigger(CountTrigger.of(1))
-				.evictor(TimeEvictor.of(Time.milliseconds(time_boundary)));
-				
-			
-			//Time.of(winConf.lowBoudary, TimeUnit.MILLISECONDS)
+		int[] partitionKeys = windowUtil.getPartitions();
+
+		// get aggregations
+		List<TypeInformation<?>> typeOutput = new ArrayList<>();
+		List<TypeInformation<?>> typeInput = new ArrayList<>();
+		List<String> aggregators = new ArrayList<>();
+		List<Integer> indexes = new ArrayList<>();
+		windowUtil.getAggregations(aggregators, typeOutput, indexes, typeInput);
+
+		final long time_boundary = Long.parseLong(windowReference.getConstants().get(1).getValue().toString());
+		DataStream<Row> aggregateWindow = null;
+
+		// As we it is not possible to operate neither on sliding count neither
+		// on sliding time we need to manage the eviction of the events that
+		// expire ourselves based on the proctime (system time). Therefore the
+		// current system time is assign as the timestamp of the event to be
+		// recognize by the evictor
+		@SuppressWarnings({ "rawtypes", "unchecked" })
+		DataStream<Row> inputDataStreamTimed = inputDataStream
+				.assignTimestampsAndWatermarks(new AssignerWithPeriodicWatermarks() {
+					private static final long serialVersionUID = 1L;
+
+					@Override
+					public Watermark getCurrentWatermark() {
+						return null;
+					}
+
+					@Override
+					public long extractTimestamp(Object element, long previousElementTimestamp) {
+						return System.currentTimeMillis();
+
+					}
+				});
+
+		// null indicates non partitioned window
+		if (partitionKeys == null) {
+
+			aggregateWindow = inputDataStreamTimed.windowAll(GlobalWindows.create()).trigger(CountTrigger.of(1))
+					.evictor(TimeEvictor.of(Time.milliseconds(time_boundary)))
+					.apply(new DataStreamProcTimeAggregateGlobalWindowFunction(aggregators, indexes, typeOutput,
+							typeInput))
+					.returns((TypeInformation<Row>) returnType);
+
+		} else {
+
+			aggregateWindow = inputDataStreamTimed.keyBy(partitionKeys).window(GlobalWindows.create())
+					.trigger(CountTrigger.of(1)).evictor(TimeEvictor.of(Time.milliseconds(time_boundary)))
+					.apply(new DataStreamProcTimeAggregateWindowFunction(aggregators, indexes, typeOutput, typeInput))
+					.returns((TypeInformation<Row>) returnType);
 		}
-		else
-		{
-			
-		}
-		
-		
-		return null;
+
+		return aggregateWindow;
+
 	}
-	
+
 	@Override
 	public String toString() {
 		// TODO Auto-generated method stub
 		return super.toString() + "(" + "window=[" + windowReference + "]" + ")";
 	}
-	
+
 	@Override
 	public void explain(RelWriter pw) {
 		// TODO Auto-generated method stub
 		super.explain(pw);
 	}
-	
+
 	@Override
 	public RelWriter explainTerms(RelWriter pw) {
-	/*	pw.item("Type", winConf.type);
-		pw.item("Order", winConf.operateField);
-		pw.item("PartitionBy", winConf.partitionBy);
-		pw.itemIf("Event-based", winConf.eventWindow, winConf.eventWindow);
-		pw.itemIf("Time-based", winConf.timeWindow, winConf.timeWindow);
-		pw.item("LowBoundary", winConf.referenceLowBoundary);
-		pw.itemIf("LowBoundary constant", winConf.lowBoudary, winConf.lowBoudary != 0);
-		pw.item("HighBoundary", winConf.referenceHighBoundary);
-		pw.itemIf("HighBoundary constant", winConf.highBoudary, winConf.highBoudary != 0);
-	 */
+		/*
+		 * pw.item("Type", winConf.type); pw.item("Order",
+		 * winConf.operateField); pw.item("PartitionBy", winConf.partitionBy);
+		 * pw.itemIf("Event-based", winConf.eventWindow, winConf.eventWindow);
+		 * pw.itemIf("Time-based", winConf.timeWindow, winConf.timeWindow);
+		 * pw.item("LowBoundary", winConf.referenceLowBoundary);
+		 * pw.itemIf("LowBoundary constant", winConf.lowBoudary,
+		 * winConf.lowBoudary != 0); pw.item("HighBoundary",
+		 * winConf.referenceHighBoundary); pw.itemIf("HighBoundary constant",
+		 * winConf.highBoudary, winConf.highBoudary != 0);
+		 */
 		return pw;
 	}
-	
+
 	
 }
