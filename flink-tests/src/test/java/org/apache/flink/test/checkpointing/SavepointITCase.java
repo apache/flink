@@ -18,13 +18,30 @@
 
 package org.apache.flink.test.checkpointing;
 
+import static org.apache.flink.runtime.messages.JobManagerMessages.getDisposeSavepointSuccess;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.testkit.JavaTestKit;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
+import java.io.File;
 import java.io.FileNotFoundException;
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Random;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
@@ -59,6 +76,7 @@ import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackendFactory;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
+import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.NotifyWhenJobRemoved;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.RequestSavepoint;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.ResponseSavepoint;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.WaitForAllVerticesToBeRunning;
@@ -86,23 +104,6 @@ import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
-
-import java.io.File;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Random;
-import java.util.concurrent.TimeUnit;
-
-import static org.apache.flink.runtime.messages.JobManagerMessages.getDisposeSavepointSuccess;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 /**
  * Integration test for triggering and resuming from savepoints.
@@ -388,6 +389,106 @@ public class SavepointITCase extends TestLogger {
 			assertEquals(errMsg, 0, savepointRootDir.listFiles().length);
 
 			// - Verification END ---------------------------------------------
+		} finally {
+			if (flink != null) {
+				flink.shutdown();
+			}
+		}
+	}
+
+	/**
+	 * Triggers a savepoint with file based checkpoints, relocates the savepoint
+	 * directory and restores from the relocated location.
+	 */
+	@Test
+	public void testRelocateFileBasedSavepoint() throws Exception {
+		TestingCluster flink = null;
+
+		File testRoot = folder.newFolder();
+		File checkpointDir = new File(testRoot, "checkpoints");
+		File savepointDir = new File(testRoot, "savepoints");
+		if (!checkpointDir.mkdirs() || !savepointDir.mkdirs()) {
+			fail("Failed to create checkpoint/savepoint directories");
+		}
+
+		final int parallelism = 4;
+		final Deadline deadline = FiniteDuration.apply(60, "s").fromNow();
+
+		try {
+			// Use file backend
+			Configuration config = new Configuration();
+			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1);
+			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, parallelism);
+			config.setString(ConfigConstants.SAVEPOINT_DIRECTORY_KEY, savepointDir.toURI().toString());
+			config.setString(CoreOptions.STATE_BACKEND, "filesystem");
+			config.setString(FsStateBackendFactory.CHECKPOINT_DIRECTORY_URI_CONF_KEY, checkpointDir.toURI().toString());
+			config.setString(FsStateBackendFactory.MEMORY_THRESHOLD_CONF_KEY, "0");
+
+			flink = new TestingCluster(config, true);
+			flink.start(true);
+
+			final ActorGateway jobManager = flink.getLeaderGateway(deadline.timeLeft());
+
+			final JobGraph jobGraph = createJobGraph(parallelism, 0, 3600000);
+			final JobID jobId = jobGraph.getJobID();
+
+			StatefulCounter.resetForTest(parallelism);
+
+			// Submit the job and wait for all vertices to be running
+			flink.submitJobDetached(jobGraph);
+
+			Future<Object> allRunning = jobManager.ask(new WaitForAllVerticesToBeRunning(jobId), deadline.timeLeft());
+			Await.ready(allRunning, deadline.timeLeft());
+
+			// Wait for some progress
+			StatefulCounter.getProgressLatch().await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+
+			// Trigger a savepoint
+			TriggerSavepoint triggerMsg = new TriggerSavepoint(jobId, Option.<String>empty());
+			Future<Object> savepointTriggerFuture = jobManager.ask(triggerMsg, deadline.timeLeft());
+			Object savepointTriggerResult = Await.result(savepointTriggerFuture, deadline.timeLeft());
+
+			String savepointPath = null;
+			if (savepointTriggerResult instanceof TriggerSavepointSuccess) {
+				savepointPath = ((TriggerSavepointSuccess) savepointTriggerResult).savepointPath();
+			} else {
+				fail("Failed to trigger savepoint: " + savepointTriggerResult);
+			}
+
+			// Cancel and wait until job removed (we need all slots again)
+			Future<Object> jobRemoved = jobManager.ask(new NotifyWhenJobRemoved(jobId), deadline.timeLeft());
+			Future<Object> cancelJob = jobManager.ask(new CancelJob(jobId), deadline.timeLeft());
+
+			Await.ready(cancelJob, deadline.timeLeft());
+			Await.ready(jobRemoved, deadline.timeLeft());
+
+			// Move the savepoint directory
+			File savepoint = new File(URI.create(savepointPath));
+
+			assertTrue("Savepoint " + savepointPath + " does not exist.", savepoint.exists());
+			assertTrue("Savepoint path " + savepointPath + " does not point to directory.", savepoint.isDirectory());
+
+			File newSavepointBase = new File(testRoot, "new-savepoint-base");
+			if (!newSavepointBase.mkdirs()) {
+				fail("Failed to create new savepoint base directory " + newSavepointBase + ".");
+			}
+
+			File movedSavepoint = new File(newSavepointBase, savepoint.getName());
+			if (!savepoint.renameTo(movedSavepoint)) {
+				fail("Failed to move savepoint to " + newSavepointBase);
+			}
+
+			// Resubmit the job from the savepoint
+			StatefulCounter.resetForTest(parallelism);
+
+			jobGraph.setSavepointRestoreSettings(SavepointRestoreSettings
+				.forPath(movedSavepoint.getAbsolutePath()));
+
+			flink.submitJobDetached(jobGraph);
+
+			// Wait for restore and some progress
+			StatefulCounter.getRestoreLatch().await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+			StatefulCounter.getProgressLatch().await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 		} finally {
 			if (flink != null) {
 				flink.shutdown();

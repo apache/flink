@@ -18,24 +18,21 @@
 
 package org.apache.flink.runtime.checkpoint.savepoint;
 
+import java.util.Collection;
 import org.apache.flink.runtime.checkpoint.TaskState;
 
-import java.util.Collection;
-
 /**
- * Savepoint version 1.
+ * Savepoint version 2.
  *
- * <p>This format was introduced with Flink 1.1.0.
- *
- * @deprecated Deprecated in favour of {@link SavepointV2}.
+ * <p>This format was introduced with Flink 1.3.0. There is no difference to
+ * {@link SavepointV1} except the corresponding {@link SavepointSerializer}.
  */
-@Deprecated
-public class SavepointV1 extends AbstractSavepoint {
+public class SavepointV2 extends AbstractSavepoint {
 
 	/** The savepoint version. */
-	public static final int VERSION = 1;
+	public static final int VERSION = 2;
 
-	public SavepointV1(long checkpointId, Collection<TaskState> taskStates) {
+	public SavepointV2(long checkpointId, Collection<TaskState> taskStates) {
 		super(checkpointId, taskStates);
 	}
 
