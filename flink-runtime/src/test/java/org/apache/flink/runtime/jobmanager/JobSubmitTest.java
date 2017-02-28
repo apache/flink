@@ -63,7 +63,7 @@ import static org.junit.Assert.fail;
  */
 public class JobSubmitTest {
 
-	private static final FiniteDuration timeout = new FiniteDuration(5000, TimeUnit.MILLISECONDS);
+	private static final FiniteDuration timeout = new FiniteDuration(60000, TimeUnit.MILLISECONDS);
 
 	private static ActorSystem jobManagerSystem;
 	private static ActorGateway jmGateway;
