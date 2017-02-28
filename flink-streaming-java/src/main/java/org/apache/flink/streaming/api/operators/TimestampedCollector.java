@@ -34,9 +34,9 @@ import org.apache.flink.util.Collector;
 @Internal
 public class TimestampedCollector<T> implements Collector<T> {
 	
-	private final Output<StreamRecord<T>> output;
+	protected final Output<StreamRecord<T>> output;
 
-	private final StreamRecord<T> reuse;
+	protected final StreamRecord<T> reuse;
 
 	/**
 	 * Creates a new {@link TimestampedCollector} that wraps the given {@link Output}.

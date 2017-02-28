@@ -51,7 +51,7 @@ public class OneInputTransformation<IN, OUT> extends StreamTransformation<OUT> {
 	 *
 	 * @param input The input {@code StreamTransformation}
 	 * @param name The name of the {@code StreamTransformation}, this will be shown in Visualizations and the Log
-	 * @param operator The {@code TwoInputStreamOperator}
+	 * @param operator The {@code OneInputStreamOperator}
 	 * @param outputType The type of the elements produced by this {@code OneInputTransformation}
 	 * @param parallelism The parallelism of this {@code OneInputTransformation}
 	 */
@@ -81,7 +81,7 @@ public class OneInputTransformation<IN, OUT> extends StreamTransformation<OUT> {
 	}
 
 	/**
-	 * Returns the {@code TwoInputStreamOperator} of this Transformation.
+	 * Returns the {@code OneInputStreamOperator} of this Transformation.
 	 */
 	public OneInputStreamOperator<IN, OUT> getOperator() {
 		return operator;
