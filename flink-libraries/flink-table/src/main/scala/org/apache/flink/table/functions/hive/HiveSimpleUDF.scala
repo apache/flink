@@ -38,7 +38,7 @@ class HiveSimpleUDF(name: String, functionWrapper: HiveFunctionWrapper) extends 
   private val method = null  // FIXME get method by types?
 
   @varargs
-  def eval(args: Any) : Any = {
+  def eval(args: Any*) : Any = {
     FunctionRegistry.invoke(method, function, args)
   }
 }
