@@ -174,6 +174,45 @@ public class StreamAggregationSqlITCase extends StreamingMultipleProgramsTestBas
 	}
 	
 	@Test
+	public void testGlobalSumAggregatation() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+		StreamITCase.clear();
+
+		env.setParallelism(1);
+		
+		DataStream<Tuple5<Integer, Long, Integer, String, Long>> ds = StreamTestData.get5TupleDataStream(env);
+		Table in = tableEnv.fromDataStream(ds, "a,b,c,d,e");
+		tableEnv.registerTable("MyTable", in);
+
+		String sqlQuery = "SELECT SUM(c) OVER (ORDER BY procTime() ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) AS sumC FROM MyTable";
+		Table result = tableEnv.sql(sqlQuery);
+
+		DataStream<Row> resultSet = tableEnv.toDataStream(result, Row.class);
+		resultSet.addSink(new StreamITCase.StringSink());
+		env.execute();
+
+		List<String> expected = new ArrayList<>();
+		expected.add("0");
+		expected.add("1");
+		expected.add("3");
+		expected.add("5");
+		expected.add("7");
+		expected.add("9");
+		expected.add("11");
+		expected.add("13");
+		expected.add("15");
+		expected.add("17");
+		expected.add("19");
+		expected.add("21");
+		expected.add("23");
+		expected.add("26");
+		expected.add("27");
+
+		StreamITCase.compareWithList(expected);
+	}
+	
+	@Test
 	public void testAvgAggregatation() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
@@ -208,6 +247,45 @@ public class StreamAggregationSqlITCase extends StreamingMultipleProgramsTestBas
 		expected.add("5,11");
 		expected.add("5,13");
 		expected.add("5,13");
+
+		StreamITCase.compareWithList(expected);
+	}
+	
+	@Test
+	public void testAvgGlobalAggregatation() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+		StreamITCase.clear();
+
+		env.setParallelism(1);
+		
+		DataStream<Tuple5<Integer, Long, Integer, String, Long>> ds = StreamTestData.get5TupleDataStream(env);
+		Table in = tableEnv.fromDataStream(ds, "a,b,c,d,e");
+		tableEnv.registerTable("MyTable", in);
+
+		String sqlQuery = "SELECT AVG(c) OVER (ORDER BY procTime() ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) AS avgC FROM MyTable";
+		Table result = tableEnv.sql(sqlQuery);
+
+		DataStream<Row> resultSet = tableEnv.toDataStream(result, Row.class);
+		resultSet.addSink(new StreamITCase.StringSink());
+		env.execute();
+
+		List<String> expected = new ArrayList<>();
+		expected.add("0");
+		expected.add("1");
+		expected.add("2");
+		expected.add("3");
+		expected.add("4");
+		expected.add("5");
+		expected.add("6");
+		expected.add("7");
+		expected.add("8");
+		expected.add("9");
+		expected.add("10");
+		expected.add("11");
+		expected.add("12");
+		expected.add("13");
+		expected.add("13");
 
 		StreamITCase.compareWithList(expected);
 	}

@@ -37,7 +37,8 @@ import org.apache.flink.table.api.StreamTableEnvironment;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.calcite.FlinkTypeFactory;
 import org.apache.flink.table.plan.logical.rel.util.WindowAggregateUtil;
-import org.apache.flink.table.plan.nodes.datastream.function.DataStreamProcTimeAggregateRowWindowFunction;
+import org.apache.flink.table.plan.nodes.datastream.function.DataStreamProcTimeAggregateRowGlobalWindowFunction;
+import org.apache.flink.table.plan.nodes.datastream.function.DataStreamProcTimeAggregateRowKeyedWindowFunction;
 import org.apache.flink.table.typeutils.TypeConverter;
 
 import scala.Option;
@@ -94,10 +95,10 @@ public class DataStreamProcTimeRowAggregate extends DataStreamRelJava {
 		// TODO check type and return type consistency
 
 		KeyedStream<Object, Tuple> keyedS = null;
-		
+
 		// assumption of one group per window reference
 		final Group group = windowRef.groups.iterator().next();
-		
+
 		List<TypeInformation<?>> typeClasses = new ArrayList<>();
 		List<String> aggregators = new ArrayList<>();
 		List<Integer> indexes = new ArrayList<>();
@@ -106,39 +107,27 @@ public class DataStreamProcTimeRowAggregate extends DataStreamRelJava {
 			aggregators.add(agg.getKind().toString());
 			indexes.add(((RexInputRef) agg.getOperands().get(0)).getIndex());
 		}
+
+		int lowerbound = winUtil.getLowerBoundary(windowRef.constants);
 		
+		if (lowerbound == -1) {
+			// TODO manage error
+		}
+
 		// apply partitions
 		if (winUtil.isStreamPartitioned(windowRef)) {
 
 			keyedS = inputDS.keyBy(winUtil.getKeysAsArray(group));
-
-			int lowerbound = winUtil.getLowerBoundary(windowRef.constants);
-			if (lowerbound == -1) {
-				// TODO manage error
-			}
-
 			aggregateWindow = keyedS.countWindow(lowerbound, 1)
-					.apply(new DataStreamProcTimeAggregateRowWindowFunction(aggregators, indexes, typeClasses))
+					.apply(new DataStreamProcTimeAggregateRowKeyedWindowFunction(aggregators, indexes, typeClasses))
 					.returns((TypeInformation<Object>) returnType);
 
 		} else {
+			// no partition works with global window
+			aggregateWindow = inputDS.countWindowAll(lowerbound, 1)
+					.apply(new DataStreamProcTimeAggregateRowGlobalWindowFunction(aggregators, indexes, typeClasses))
+					.returns((TypeInformation<Object>) returnType);
 
-//			inputDS.windowAll(new WindowAssigner<Object, GlobalWindow>() {
-//
-//				private static final long serialVersionUID = 1L;
-//				
-//				@Override
-//				public Collection<GlobalWindow> assignWindows(Object element, long timestamp, WindowAssignerContext context) {
-//					return Collections.singletonList(ISARGlobalWindow.get());
-//				}
-//
-//				@Override
-//				public Trigger<Object, GlobalWindow> getDefaultTrigger(StreamExecutionEnvironment env) {
-//					return new NeverTrigger();
-//				}
-//				
-//			});
-			
 		}
 
 		return aggregateWindow;
