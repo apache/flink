@@ -263,7 +263,7 @@ abstract class TableEnvironment(val config: TableConfig) {
 
   def registerHiveUDF(name: String, hiveUDFClassName: String): Unit = {
     val hiveFunctionWrapper = HiveFunctionWrapper(hiveUDFClassName, null)
-    val scalarFunction = new HiveSimpleUDF()
+    val scalarFunction = new HiveSimpleUDF(name, hiveFunctionWrapper)
     registerFunction(name, scalarFunction)
   }
 
