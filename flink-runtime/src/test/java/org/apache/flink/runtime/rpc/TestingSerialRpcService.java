@@ -152,14 +152,14 @@ public class TestingSerialRpcService implements RpcService {
 
 		@SuppressWarnings("unchecked")
 		C self = (C) Proxy.newProxyInstance(
-				classLoader,
-				new Class<?>[]{
-						rpcEndpoint.getSelfGatewayType(),
-						MainThreadExecutable.class,
-						StartStoppable.class,
-						RpcGateway.class
-				},
-				akkaInvocationHandler);
+			classLoader,
+			new Class<?>[]{
+				rpcEndpoint.getSelfGatewayType(),
+				MainThreadExecutable.class,
+				StartStoppable.class,
+				RpcGateway.class
+			},
+			akkaInvocationHandler);
 
 		// register self
 		registeredConnections.putIfAbsent(self.getAddress(), self);
@@ -183,7 +183,7 @@ public class TestingSerialRpcService implements RpcService {
 				return FlinkCompletableFuture.completed(typedGateway);
 			} else {
 				return FlinkCompletableFuture.completedExceptionally(
-						new Exception("Gateway registered under " + address + " is not of type " + clazz));
+					new Exception("Gateway registered under " + address + " is not of type " + clazz));
 			}
 		} else {
 			return FlinkCompletableFuture.completedExceptionally(new Exception("No gateway registered under that name"));
@@ -230,8 +230,8 @@ public class TestingSerialRpcService implements RpcService {
 		public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
 			Class<?> declaringClass = method.getDeclaringClass();
 			if (declaringClass.equals(MainThreadExecutable.class) ||
-					declaringClass.equals(Object.class) || declaringClass.equals(StartStoppable.class) ||
-					declaringClass.equals(RpcGateway.class)) {
+				declaringClass.equals(Object.class) || declaringClass.equals(StartStoppable.class) ||
+				declaringClass.equals(RpcGateway.class)) {
 				return method.invoke(this, args);
 			} else {
 				final String methodName = method.getName();
@@ -240,9 +240,9 @@ public class TestingSerialRpcService implements RpcService {
 				Time futureTimeout = extractRpcTimeout(parameterAnnotations, args, timeout);
 
 				final Tuple2<Class<?>[], Object[]> filteredArguments = filterArguments(
-						parameterTypes,
-						parameterAnnotations,
-						args);
+					parameterTypes,
+					parameterAnnotations,
+					args);
 
 				Class<?> returnType = method.getReturnType();
 
@@ -265,9 +265,9 @@ public class TestingSerialRpcService implements RpcService {
 		 * to the sender of the call.
 		 */
 		private Object handleRpcInvocationSync(final String methodName,
-											   final Class<?>[] parameterTypes,
-											   final Object[] args,
-											   final Time futureTimeout) throws Exception {
+			final Class<?>[] parameterTypes,
+			final Object[] args,
+			final Time futureTimeout) throws Exception {
 			final Method rpcMethod = lookupRpcMethod(methodName, parameterTypes);
 			Object result = rpcMethod.invoke(rpcEndpoint, args);
 
@@ -328,7 +328,7 @@ public class TestingSerialRpcService implements RpcService {
 		 *                               cannot be found at the rpc endpoint
 		 */
 		private Method lookupRpcMethod(final String methodName,
-									   final Class<?>[] parameterTypes) throws NoSuchMethodException {
+			final Class<?>[] parameterTypes) throws NoSuchMethodException {
 			return rpcEndpoint.getClass().getMethod(methodName, parameterTypes);
 		}
 
@@ -348,7 +348,7 @@ public class TestingSerialRpcService implements RpcService {
 		 * @return Timeout extracted from the array of arguments or the default timeout
 		 */
 		private static Time extractRpcTimeout(Annotation[][] parameterAnnotations, Object[] args,
-											  Time defaultTimeout) {
+			Time defaultTimeout) {
 			if (args != null) {
 				Preconditions.checkArgument(parameterAnnotations.length == args.length);
 
@@ -358,8 +358,8 @@ public class TestingSerialRpcService implements RpcService {
 							return (Time) args[i];
 						} else {
 							throw new RuntimeException("The rpc timeout parameter must be of type " +
-									Time.class.getName() + ". The type " + args[i].getClass().getName() +
-									" is not supported.");
+								Time.class.getName() + ". The type " + args[i].getClass().getName() +
+								" is not supported.");
 						}
 					}
 				}
@@ -379,9 +379,9 @@ public class TestingSerialRpcService implements RpcService {
 		 * {@link RpcTimeout} annotated parameter types and arguments
 		 */
 		private static Tuple2<Class<?>[], Object[]> filterArguments(
-				Class<?>[] parameterTypes,
-				Annotation[][] parameterAnnotations,
-				Object[] args) {
+			Class<?>[] parameterTypes,
+			Annotation[][] parameterAnnotations,
+			Object[] args) {
 
 			Class<?>[] filteredParameterTypes;
 			Object[] filteredArgs;

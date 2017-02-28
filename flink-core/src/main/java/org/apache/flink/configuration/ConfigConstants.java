@@ -703,7 +703,7 @@ public final class ConfigConstants {
 	 * Exit JVM on fatal Akka errors
 	 */
 	public static final String AKKA_JVM_EXIT_ON_FATAL_ERROR = "akka.jvm-exit-on-fatal-error";
-
+	
 	// ----------------------------- Transport SSL Settings--------------------
 
 	/**
