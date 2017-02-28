@@ -334,7 +334,7 @@ object FunctionGenerator {
     case ProcTimeExtractor | EventTimeExtractor =>
       Some(new CallGenerator {
         override def generate(codeGenerator: CodeGenerator, operands: Seq[GeneratedExpression]) = {
-          GeneratedExpression("0L", "false", "", LONG_TYPE_INFO)
+          GeneratedExpression("0L", "false", "", SqlTimeTypeInfo.TIMESTAMP)
         }
       })
 
