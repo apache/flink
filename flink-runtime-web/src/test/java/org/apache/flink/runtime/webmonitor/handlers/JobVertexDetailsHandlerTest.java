@@ -17,6 +17,13 @@
  */
 package org.apache.flink.runtime.webmonitor.handlers;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
+import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.webmonitor.utils.ArchivedJobGenerationUtils;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -27,5 +34,42 @@ public class JobVertexDetailsHandlerTest {
 		String[] paths = handler.getPaths();
 		Assert.assertEquals(1, paths.length);
 		Assert.assertEquals("/jobs/:jobid/vertices/:vertexid", paths[0]);
+	}
+
+	@Test
+	public void testJsonGeneration() throws Exception {
+		AccessExecutionJobVertex originalTask = ArchivedJobGenerationUtils.getTestTask();
+		String json = JobVertexDetailsHandler.createVertexDetailsJson(
+			originalTask, ArchivedJobGenerationUtils.getTestJob().getJobID().toString(), null);
+
+		JsonNode result = ArchivedJobGenerationUtils.mapper.readTree(json);
+
+		Assert.assertEquals(originalTask.getJobVertexId().toString(), result.get("id").asText());
+		Assert.assertEquals(originalTask.getName(), result.get("name").asText());
+		Assert.assertEquals(originalTask.getParallelism(), result.get("parallelism").asInt());
+		Assert.assertTrue(result.get("now").asLong() > 0);
+
+		ArrayNode subtasks = (ArrayNode) result.get("subtasks");
+
+		Assert.assertEquals(originalTask.getTaskVertices().length, subtasks.size());
+		for (int x = 0; x < originalTask.getTaskVertices().length; x++) {
+			AccessExecutionVertex expectedSubtask = originalTask.getTaskVertices()[x];
+			JsonNode subtask = subtasks.get(x);
+
+			Assert.assertEquals(x, subtask.get("subtask").asInt());
+			Assert.assertEquals(expectedSubtask.getExecutionState().name(), subtask.get("status").asText());
+			Assert.assertEquals(expectedSubtask.getCurrentExecutionAttempt().getAttemptNumber(), subtask.get("attempt").asInt());
+
+			TaskManagerLocation location = expectedSubtask.getCurrentAssignedResourceLocation();
+			String expectedLocationString = location.getHostname() + ":" + location.dataPort();
+			Assert.assertEquals(expectedLocationString, subtask.get("host").asText());
+			long start = expectedSubtask.getStateTimestamp(ExecutionState.DEPLOYING);
+			Assert.assertEquals(start, subtask.get("start-time").asLong());
+			long end = expectedSubtask.getStateTimestamp(ExecutionState.FINISHED);
+			Assert.assertEquals(end, subtask.get("end-time").asLong());
+			Assert.assertEquals(end - start, subtask.get("duration").asLong());
+
+			ArchivedJobGenerationUtils.compareIoMetrics(expectedSubtask.getCurrentExecutionAttempt().getIOMetrics(), subtask.get("metrics"));
+		}
 	}
 }

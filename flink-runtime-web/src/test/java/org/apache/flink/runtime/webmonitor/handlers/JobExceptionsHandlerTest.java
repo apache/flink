@@ -17,6 +17,13 @@
  */
 package org.apache.flink.runtime.webmonitor.handlers;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
+import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.webmonitor.utils.ArchivedJobGenerationUtils;
+import org.apache.flink.util.ExceptionUtils;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -27,5 +34,33 @@ public class JobExceptionsHandlerTest {
 		String[] paths = handler.getPaths();
 		Assert.assertEquals(1, paths.length);
 		Assert.assertEquals("/jobs/:jobid/exceptions", paths[0]);
+	}
+
+	@Test
+	public void testJsonGeneration() throws Exception {
+		AccessExecutionGraph originalJob = ArchivedJobGenerationUtils.getTestJob();
+		String json = JobExceptionsHandler.createJobExceptionsJson(originalJob);
+
+		JsonNode result = ArchivedJobGenerationUtils.mapper.readTree(json);
+
+		Assert.assertEquals(originalJob.getFailureCauseAsString(), result.get("root-exception").asText());
+
+		ArrayNode exceptions = (ArrayNode) result.get("all-exceptions");
+
+		int x = 0;
+		for (AccessExecutionVertex expectedSubtask : originalJob.getAllExecutionVertices()) {
+			if (!expectedSubtask.getFailureCauseAsString().equals(ExceptionUtils.STRINGIFIED_NULL_EXCEPTION)) {
+				JsonNode exception = exceptions.get(x);
+
+				Assert.assertEquals(expectedSubtask.getFailureCauseAsString(), exception.get("exception").asText());
+				Assert.assertEquals(expectedSubtask.getTaskNameWithSubtaskIndex(), exception.get("task").asText());
+
+				TaskManagerLocation location = expectedSubtask.getCurrentAssignedResourceLocation();
+				String expectedLocationString = location.getFQDNHostname() + ':' + location.dataPort();
+				Assert.assertEquals(expectedLocationString, exception.get("location").asText());
+			}
+			x++;
+		}
+		Assert.assertEquals(x > JobExceptionsHandler.MAX_NUMBER_EXCEPTION_TO_REPORT, result.get("truncated").asBoolean());
 	}
 }

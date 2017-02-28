@@ -17,6 +17,10 @@
  */
 package org.apache.flink.runtime.webmonitor.handlers;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
+import org.apache.flink.runtime.webmonitor.utils.ArchivedJobGenerationUtils;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -27,5 +31,21 @@ public class JobAccumulatorsHandlerTest {
 		String[] paths = handler.getPaths();
 		Assert.assertEquals(1, paths.length);
 		Assert.assertEquals("/jobs/:jobid/accumulators", paths[0]);
+	}
+
+	@Test
+	public void testJsonGeneration() throws Exception {
+		AccessExecutionGraph originalJob = ArchivedJobGenerationUtils.getTestJob();
+		String json = JobAccumulatorsHandler.createJobAccumulatorsJson(originalJob);
+
+		JsonNode result = ArchivedJobGenerationUtils.mapper.readTree(json);
+
+		ArrayNode accs = (ArrayNode) result.get("job-accumulators");
+		Assert.assertEquals(0, accs.size());
+
+		Assert.assertTrue(originalJob.getAccumulatorResultsStringified().length > 0);
+		ArchivedJobGenerationUtils.compareStringifiedAccumulators(
+			originalJob.getAccumulatorResultsStringified(),
+			(ArrayNode) result.get("user-task-accumulators"));
 	}
 }

@@ -17,6 +17,14 @@
  */
 package org.apache.flink.runtime.webmonitor.handlers;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
+import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
+import org.apache.flink.runtime.executiongraph.IOMetrics;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.webmonitor.utils.ArchivedJobGenerationUtils;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -27,5 +35,63 @@ public class JobVertexTaskManagersHandlerTest {
 		String[] paths = handler.getPaths();
 		Assert.assertEquals(1, paths.length);
 		Assert.assertEquals("/jobs/:jobid/vertices/:vertexid/taskmanagers", paths[0]);
+	}
+
+	@Test
+	public void testJsonGeneration() throws Exception {
+		AccessExecutionJobVertex originalTask = ArchivedJobGenerationUtils.getTestTask();
+		AccessExecutionVertex originalSubtask = ArchivedJobGenerationUtils.getTestSubtask();
+		String json = JobVertexTaskManagersHandler.createVertexDetailsByTaskManagerJson(
+			originalTask, ArchivedJobGenerationUtils.getTestJob().getJobID().toString(), null);
+
+		JsonNode result = ArchivedJobGenerationUtils.mapper.readTree(json);
+
+		Assert.assertEquals(originalTask.getJobVertexId().toString(), result.get("id").asText());
+		Assert.assertEquals(originalTask.getName(), result.get("name").asText());
+		Assert.assertTrue(result.get("now").asLong() > 0);
+
+		ArrayNode taskmanagers = (ArrayNode) result.get("taskmanagers");
+
+		JsonNode taskManager = taskmanagers.get(0);
+
+		TaskManagerLocation location = originalSubtask.getCurrentAssignedResourceLocation();
+		String expectedLocationString = location.getHostname() + ':' + location.dataPort();
+		Assert.assertEquals(expectedLocationString, taskManager.get("host").asText());
+		Assert.assertEquals(ExecutionState.FINISHED.name(), taskManager.get("status").asText());
+
+		Assert.assertEquals(3, taskManager.get("start-time").asLong());
+		Assert.assertEquals(5, taskManager.get("end-time").asLong());
+		Assert.assertEquals(2, taskManager.get("duration").asLong());
+
+		JsonNode statusCounts = taskManager.get("status-counts");
+		Assert.assertEquals(0, statusCounts.get(ExecutionState.CREATED.name()).asInt());
+		Assert.assertEquals(0, statusCounts.get(ExecutionState.SCHEDULED.name()).asInt());
+		Assert.assertEquals(0, statusCounts.get(ExecutionState.DEPLOYING.name()).asInt());
+		Assert.assertEquals(0, statusCounts.get(ExecutionState.RUNNING.name()).asInt());
+		Assert.assertEquals(1, statusCounts.get(ExecutionState.FINISHED.name()).asInt());
+		Assert.assertEquals(0, statusCounts.get(ExecutionState.CANCELING.name()).asInt());
+		Assert.assertEquals(0, statusCounts.get(ExecutionState.CANCELED.name()).asInt());
+		Assert.assertEquals(0, statusCounts.get(ExecutionState.FAILED.name()).asInt());
+
+		long expectedNumBytesIn = 0;
+		long expectedNumBytesOut = 0;
+		long expectedNumRecordsIn = 0;
+		long expectedNumRecordsOut = 0;
+
+		for (AccessExecutionVertex vertex : originalTask.getTaskVertices()) {
+			IOMetrics ioMetrics = vertex.getCurrentExecutionAttempt().getIOMetrics();
+
+			expectedNumBytesIn += ioMetrics.getNumBytesInLocal() + ioMetrics.getNumBytesInRemote();
+			expectedNumBytesOut += ioMetrics.getNumBytesOut();
+			expectedNumRecordsIn += ioMetrics.getNumRecordsIn();
+			expectedNumRecordsOut += ioMetrics.getNumRecordsOut();
+		}
+
+		JsonNode metrics = taskManager.get("metrics");
+
+		Assert.assertEquals(expectedNumBytesIn, metrics.get("read-bytes").asLong());
+		Assert.assertEquals(expectedNumBytesOut, metrics.get("write-bytes").asLong());
+		Assert.assertEquals(expectedNumRecordsIn, metrics.get("read-records").asLong());
+		Assert.assertEquals(expectedNumRecordsOut, metrics.get("write-records").asLong());
 	}
 }

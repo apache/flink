@@ -17,6 +17,12 @@
  */
 package org.apache.flink.runtime.webmonitor.handlers;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.AccessExecution;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
+import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
+import org.apache.flink.runtime.webmonitor.utils.ArchivedJobGenerationUtils;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -27,5 +33,28 @@ public class SubtaskExecutionAttemptDetailsHandlerTest {
 		String[] paths = handler.getPaths();
 		Assert.assertEquals(1, paths.length);
 		Assert.assertEquals("/jobs/:jobid/vertices/:vertexid/subtasks/:subtasknum/attempts/:attempt", paths[0]);
+	}
+
+	@Test
+	public void testJsonGeneration() throws Exception {
+		AccessExecutionGraph originalJob = ArchivedJobGenerationUtils.getTestJob();
+		AccessExecutionJobVertex originalTask = ArchivedJobGenerationUtils.getTestTask();
+		AccessExecution originalAttempt = ArchivedJobGenerationUtils.getTestAttempt();
+		String json = SubtaskExecutionAttemptDetailsHandler.createAttemptDetailsJson(
+			originalAttempt, originalJob.getJobID().toString(), originalTask.getJobVertexId().toString(), null);
+
+		JsonNode result = ArchivedJobGenerationUtils.mapper.readTree(json);
+
+		Assert.assertEquals(originalAttempt.getParallelSubtaskIndex(), result.get("subtask").asInt());
+		Assert.assertEquals(originalAttempt.getState().name(), result.get("status").asText());
+		Assert.assertEquals(originalAttempt.getAttemptNumber(), result.get("attempt").asInt());
+		Assert.assertEquals(originalAttempt.getAssignedResourceLocation().getHostname(), result.get("host").asText());
+		long start = originalAttempt.getStateTimestamp(ExecutionState.DEPLOYING);
+		Assert.assertEquals(start, result.get("start-time").asLong());
+		long end = originalAttempt.getStateTimestamp(ExecutionState.FINISHED);
+		Assert.assertEquals(end, result.get("end-time").asLong());
+		Assert.assertEquals(end - start, result.get("duration").asLong());
+
+		ArchivedJobGenerationUtils.compareIoMetrics(originalAttempt.getIOMetrics(), result.get("metrics"));
 	}
 }

@@ -26,6 +26,7 @@ import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 
+import java.io.IOException;
 import java.io.StringWriter;
 import java.util.Map;
 
@@ -48,6 +49,10 @@ public class SubtasksTimesHandler extends AbstractJobVertexRequestHandler {
 
 	@Override
 	public String handleRequest(AccessExecutionJobVertex jobVertex, Map<String, String> params) throws Exception {
+		return createSubtaskTimesJson(jobVertex);
+	}
+
+	public static String createSubtaskTimesJson(AccessExecutionJobVertex jobVertex) throws IOException {
 		final long now = System.currentTimeMillis();
 
 		StringWriter writer = new StringWriter();

@@ -17,8 +17,14 @@
  */
 package org.apache.flink.runtime.webmonitor.handlers;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import org.apache.flink.api.common.ArchivedExecutionConfig;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
+import org.apache.flink.runtime.webmonitor.utils.ArchivedJobGenerationUtils;
 import org.junit.Assert;
 import org.junit.Test;
+
+import java.util.Map;
 
 public class JobConfigHandlerTest {
 	@Test
@@ -27,5 +33,30 @@ public class JobConfigHandlerTest {
 		String[] paths = handler.getPaths();
 		Assert.assertEquals(1, paths.length);
 		Assert.assertEquals("/jobs/:jobid/config", paths[0]);
+	}
+
+	public void testJsonGeneration() throws Exception {
+		AccessExecutionGraph originalJob = ArchivedJobGenerationUtils.getTestJob();
+		String answer = JobConfigHandler.createJobConfigJson(originalJob);
+
+		JsonNode job = ArchivedJobGenerationUtils.mapper.readTree(answer);
+
+		Assert.assertEquals(originalJob.getJobID().toString(), job.get("jid").asText());
+		Assert.assertEquals(originalJob.getJobName(), job.get("name").asText());
+
+		ArchivedExecutionConfig originalConfig = originalJob.getArchivedExecutionConfig();
+		JsonNode config = job.get("execution-config");
+
+		Assert.assertEquals(originalConfig.getExecutionMode(), config.get("execution-mode").asText());
+		Assert.assertEquals(originalConfig.getRestartStrategyDescription(), config.get("restart-strategy").asText());
+		Assert.assertEquals(originalConfig.getParallelism(), config.get("job-parallelism").asInt());
+		Assert.assertEquals(originalConfig.getObjectReuseEnabled(), config.get("object-reuse-mode").asBoolean());
+
+		Map<String, String> originalUserConfig = originalConfig.getGlobalJobParameters();
+		JsonNode userConfig = config.get("user-config");
+
+		for (Map.Entry<String, String> originalEntry : originalUserConfig.entrySet()) {
+			Assert.assertEquals(originalEntry.getValue(), userConfig.get(originalEntry.getKey()).asText());
+		}
 	}
 }

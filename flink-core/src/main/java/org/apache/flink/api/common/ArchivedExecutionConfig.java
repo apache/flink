@@ -54,6 +54,19 @@ public class ArchivedExecutionConfig implements Serializable {
 		}
 	}
 
+	public ArchivedExecutionConfig(
+			String executionMode,
+			String restartStrategyDescription,
+			int parallelism,
+			boolean objectReuseEnabled,
+			Map<String, String> globalJobParameters) {
+		this.executionMode = executionMode;
+		this.restartStrategyDescription = restartStrategyDescription;
+		this.parallelism = parallelism;
+		this.objectReuseEnabled = objectReuseEnabled;
+		this.globalJobParameters = globalJobParameters;
+	}
+
 	public String getExecutionMode() {
 		return executionMode;
 	}

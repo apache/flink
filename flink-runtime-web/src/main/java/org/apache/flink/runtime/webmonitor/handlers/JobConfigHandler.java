@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
+import java.io.IOException;
 import java.io.StringWriter;
 import java.util.Map;
 
@@ -44,7 +45,10 @@ public class JobConfigHandler extends AbstractExecutionGraphRequestHandler {
 
 	@Override
 	public String handleRequest(AccessExecutionGraph graph, Map<String, String> params) throws Exception {
+		return createJobConfigJson(graph);
+	}
 
+	public static String createJobConfigJson(AccessExecutionGraph graph) throws IOException {
 		StringWriter writer = new StringWriter();
 		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
 

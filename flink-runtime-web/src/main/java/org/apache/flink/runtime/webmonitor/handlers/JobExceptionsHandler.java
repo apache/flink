@@ -25,6 +25,7 @@ import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 import org.apache.flink.util.ExceptionUtils;
 
+import java.io.IOException;
 import java.io.StringWriter;
 import java.util.Map;
 
@@ -35,7 +36,7 @@ public class JobExceptionsHandler extends AbstractExecutionGraphRequestHandler {
 
 	private static final String JOB_EXCEPTIONS_REST_PATH = "/jobs/:jobid/exceptions";
 
-	private static final int MAX_NUMBER_EXCEPTION_TO_REPORT = 20;
+	static final int MAX_NUMBER_EXCEPTION_TO_REPORT = 20;
 	
 	public JobExceptionsHandler(ExecutionGraphHolder executionGraphHolder) {
 		super(executionGraphHolder);
@@ -48,6 +49,10 @@ public class JobExceptionsHandler extends AbstractExecutionGraphRequestHandler {
 
 	@Override
 	public String handleRequest(AccessExecutionGraph graph, Map<String, String> params) throws Exception {
+		return createJobExceptionsJson(graph);
+	}
+
+	public static String createJobExceptionsJson(AccessExecutionGraph graph) throws IOException {
 		StringWriter writer = new StringWriter();
 		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
 
@@ -55,7 +60,7 @@ public class JobExceptionsHandler extends AbstractExecutionGraphRequestHandler {
 		
 		// most important is the root failure cause
 		String rootException = graph.getFailureCauseAsString();
-		if (rootException != null) {
+		if (rootException != null && !rootException.equals(ExceptionUtils.STRINGIFIED_NULL_EXCEPTION)) {
 			gen.writeStringField("root-exception", rootException);
 		}
 
@@ -67,7 +72,7 @@ public class JobExceptionsHandler extends AbstractExecutionGraphRequestHandler {
 		
 		for (AccessExecutionVertex task : graph.getAllExecutionVertices()) {
 			String t = task.getFailureCauseAsString();
-			if (!t.equals(ExceptionUtils.STRINGIFIED_NULL_EXCEPTION)) {
+			if (t != null && !t.equals(ExceptionUtils.STRINGIFIED_NULL_EXCEPTION)) {
 				if (numExceptionsSoFar >= MAX_NUMBER_EXCEPTION_TO_REPORT) {
 					truncated = true;
 					break;

@@ -76,10 +76,10 @@ public class CheckpointStatsDetailsHandler extends AbstractExecutionGraphRequest
 			}
 		}
 
-		return writeResponse(checkpoint);
+		return createCheckpointDetailsJson(checkpoint);
 	}
 
-	private String writeResponse(AbstractCheckpointStats checkpoint) throws IOException {
+	public static String createCheckpointDetailsJson(AbstractCheckpointStats checkpoint) throws IOException {
 		StringWriter writer = new StringWriter();
 		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
 		gen.writeStartObject();

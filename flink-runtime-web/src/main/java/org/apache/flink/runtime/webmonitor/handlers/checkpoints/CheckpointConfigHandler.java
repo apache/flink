@@ -26,6 +26,7 @@ import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 import org.apache.flink.runtime.webmonitor.handlers.AbstractExecutionGraphRequestHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JsonFactory;
 
+import java.io.IOException;
 import java.io.StringWriter;
 import java.util.Map;
 
@@ -47,8 +48,11 @@ public class CheckpointConfigHandler extends AbstractExecutionGraphRequestHandle
 
 	@Override
 	public String handleRequest(AccessExecutionGraph graph, Map<String, String> params) throws Exception {
-		StringWriter writer = new StringWriter();
+		return createCheckpointConfigJson(graph);
+	}
 
+	private static String createCheckpointConfigJson(AccessExecutionGraph graph) throws IOException {
+		StringWriter writer = new StringWriter();
 		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
 		JobSnapshottingSettings settings = graph.getJobSnapshottingSettings();
 

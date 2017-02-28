@@ -17,8 +17,13 @@
  */
 package org.apache.flink.runtime.webmonitor.handlers;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import org.apache.flink.runtime.util.EnvironmentInformation;
+import org.apache.flink.runtime.webmonitor.utils.ArchivedJobGenerationUtils;
 import org.junit.Assert;
 import org.junit.Test;
+
+import java.util.TimeZone;
 
 public class DashboardConfigHandlerTest {
 	@Test
@@ -27,5 +32,22 @@ public class DashboardConfigHandlerTest {
 		String[] paths = handler.getPaths();
 		Assert.assertEquals(1, paths.length);
 		Assert.assertEquals("/config", paths[0]);
+	}
+
+	@Test
+	public void testJsonGeneration() throws Exception {
+		long refreshInterval = 12345;
+		TimeZone timeZone = TimeZone.getDefault();
+		EnvironmentInformation.RevisionInformation revision = EnvironmentInformation.getRevisionInformation();
+
+		String json = DashboardConfigHandler.createConfigJson(refreshInterval);
+
+		JsonNode result = ArchivedJobGenerationUtils.mapper.readTree(json);
+
+		Assert.assertEquals(refreshInterval, result.get("refresh-interval").asLong());
+		Assert.assertEquals(timeZone.getDisplayName(), result.get("timezone-name").asText());
+		Assert.assertEquals(timeZone.getRawOffset(), result.get("timezone-offset").asLong());
+		Assert.assertEquals(EnvironmentInformation.getVersion(), result.get("flink-version").asText());
+		Assert.assertEquals(revision.commitId + " @ " + revision.commitDate, result.get("flink-revision").asText());
 	}
 }
