@@ -2322,7 +2322,8 @@ public class WindowOperatorContractTest extends TestLogger {
 				stateDescriptor,
 				windowFunction,
 				trigger,
-				allowedLatenss);
+				allowedLatenss,
+				null /*late data output tag */);
 
 		return new KeyedOneInputStreamOperatorTestHarness<>(
 				operator,
