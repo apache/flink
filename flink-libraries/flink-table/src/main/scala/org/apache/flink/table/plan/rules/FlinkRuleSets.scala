@@ -164,8 +164,7 @@ object FlinkRuleSets {
       DataStreamCorrelateRule.INSTANCE,
       StreamTableSourceScanRule.INSTANCE,
       PushProjectIntoStreamTableSourceScanRule.INSTANCE,
-      DataStreamProcTimeRowAggregateRule.INSTANCE,
-      DataStreamProcTimeTimeAggregateRule.INSTANCE
+      DataStreamProcTimeRowAggregateRule.INSTANCE
   )
 
 }
