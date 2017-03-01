@@ -29,6 +29,7 @@ import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.util.OutputTag;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -132,6 +133,13 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	 */
 	private final long allowedLateness;
 
+	/**
+	 * {@link OutputTag} to use for late arriving events. Elements for which
+	 * {@code window.maxTimestamp + allowedLateness} is smaller than the current watermark will
+	 * be emitted to this.
+	 */
+	private final OutputTag<IN> lateDataOutputTag;
+
 	// ------------------------------------------------------------------------
 	// State that is not checkpointed
 	// ------------------------------------------------------------------------
@@ -200,10 +208,11 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 			StateDescriptor<? extends AppendingState<IN, ACC>, ?> windowStateDescriptor,
 			InternalWindowFunction<ACC, OUT, K, W> windowFunction,
 			Trigger<? super IN, ? super W> trigger,
-			long allowedLateness) {
+			long allowedLateness,
+			OutputTag<IN> lateDataOutputTag) {
 
 		this(windowAssigner, windowSerializer, keySelector, keySerializer,
-			windowStateDescriptor, windowFunction, trigger, allowedLateness, LegacyWindowOperatorType.NONE);
+			windowStateDescriptor, windowFunction, trigger, allowedLateness, lateDataOutputTag, LegacyWindowOperatorType.NONE);
 	}
 
 	/**
@@ -218,6 +227,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 			InternalWindowFunction<ACC, OUT, K, W> windowFunction,
 			Trigger<? super IN, ? super W> trigger,
 			long allowedLateness,
+			OutputTag<IN> lateDataOutputTag,
 			LegacyWindowOperatorType legacyWindowOperatorType) {
 
 		super(windowFunction);
@@ -239,6 +249,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		this.windowStateDescriptor = windowStateDescriptor;
 		this.trigger = checkNotNull(trigger);
 		this.allowedLateness = allowedLateness;
+		this.lateDataOutputTag = lateDataOutputTag;
 		this.legacyWindowOperatorType = legacyWindowOperatorType;
 
 		setChainingStrategy(ChainingStrategy.ALWAYS);
@@ -323,6 +334,9 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		final Collection<W> elementWindows = windowAssigner.assignWindows(
 			element.getValue(), element.getTimestamp(), windowAssignerContext);
 
+		//if element is handled by none of assigned elementWindows
+		boolean isSkippedElement = true;
+
 		final K key = this.<K>getKeyedStateBackend().getCurrentKey();
 
 		if (windowAssigner instanceof MergingWindowAssigner) {
@@ -355,10 +369,11 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 				});
 
 				// drop if the window is already late
-				if (isLate(actualWindow)) {
+				if (isWindowLate(actualWindow)) {
 					mergingWindows.retireWindow(actualWindow);
 					continue;
 				}
+				isSkippedElement = false;
 
 				W stateWindow = mergingWindows.getStateWindow(actualWindow);
 				if (stateWindow == null) {
@@ -393,9 +408,10 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 			for (W window: elementWindows) {
 
 				// drop if the window is already late
-				if (isLate(window)) {
+				if (isWindowLate(window)) {
 					continue;
 				}
+				isSkippedElement = false;
 
 				windowState.setCurrentNamespace(window);
 				windowState.add(element.getValue());
@@ -418,6 +434,14 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 				}
 				registerCleanupTimer(window);
 			}
+		}
+
+		// side output input event if
+		// element not handled by any window
+		// late arriving tag has been set
+		// windowAssigner is event time and current timestamp + allowed lateness no less than element timestamp
+		if (isSkippedElement && lateDataOutputTag != null && isElementLate(element)) {
+			sideOutput(element);
 		}
 	}
 
@@ -546,6 +570,15 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	}
 
 	/**
+	 * Write skipped late arriving element to SideOutput
+	 *
+	 * @param element skipped late arriving element to side output
+	 */
+	private void sideOutput(StreamRecord<IN> element){
+		output.collect(lateDataOutputTag, element);
+	}
+
+	/**
 	 * Retrieves the {@link MergingWindowSet} for the currently active key.
 	 * The caller must ensure that the correct key is set in the state backend.
 	 *
@@ -562,8 +595,19 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	 * Returns {@code true} if the watermark is after the end timestamp plus the allowed lateness
 	 * of the given window.
 	 */
-	protected boolean isLate(W window) {
+	protected boolean isWindowLate(W window) {
 		return (windowAssigner.isEventTime() && (cleanupTime(window) <= internalTimerService.currentWatermark()));
+	}
+
+	/**
+	 * Decide if a record is currently late, based on current watermark and allowed lateness.
+	 *
+	 * @param element The element to check
+	 * @return The element for which should be considered when sideoutputs
+	 */
+	protected boolean isElementLate(StreamRecord<IN> element){
+		return (windowAssigner.isEventTime()) &&
+			(element.getTimestamp() + allowedLateness <= internalTimerService.currentWatermark());
 	}
 
 	/**
