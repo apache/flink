@@ -34,28 +34,9 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 
-public class StreamAggregationSqlITCase extends StreamingMultipleProgramsTestBase {
+public class ProcTimeRowStreamAggregationSqlITCase extends StreamingMultipleProgramsTestBase {
 
-	@Test
-	public void testProcTime() throws Exception {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
-		StreamITCase.clear();
-
-		DataStream<Tuple5<Integer, Long, Integer, String, Long>> ds = StreamTestData.get5TupleDataStream(env);
-		Table in = tableEnv.fromDataStream(ds, "a,b,c,d,e");
-		tableEnv.registerTable("MyTable", in);
-
-		String sqlQuery = "SELECT a, procTime() FROM MyTable ";
-		Table result = tableEnv.sql(sqlQuery);
-
-		DataStream<Row> resultSet = tableEnv.toDataStream(result, Row.class);
-		resultSet.addSink(new StreamITCase.StringSink());
-		env.execute();
-
-	}
 	
-//	@Ignore("not ready yet") 
 	@Test
 	public void testMaxAggregatation() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
