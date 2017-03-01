@@ -31,9 +31,16 @@ import java.util.Map;
  * via the "vertexid" parameter) in a specific job, defined via (defined voa the "jobid" parameter).  
  */
 public class SubtaskExecutionAttemptAccumulatorsHandler extends AbstractSubtaskAttemptRequestHandler {
+
+	private static final String SUBTASK_ATTEMPT_ACCUMULATORS_REST_PATH = "/jobs/:jobid/vertices/:vertexid/subtasks/:subtasknum/attempts/:attempt/accumulators";
 	
 	public SubtaskExecutionAttemptAccumulatorsHandler(ExecutionGraphHolder executionGraphHolder) {
 		super(executionGraphHolder);
+	}
+
+	@Override
+	public String[] getPaths() {
+		return new String[]{SUBTASK_ATTEMPT_ACCUMULATORS_REST_PATH};
 	}
 
 	@Override

@@ -38,6 +38,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class CurrentJobsOverviewHandler extends AbstractJsonRequestHandler {
 
+	private static final String ALL_JOBS_REST_PATH = "/joboverview";
+	private static final String RUNNING_JOBS_REST_PATH = "/joboverview/running";
+	private static final String COMPLETED_JOBS_REST_PATH = "/joboverview/completed";
+
 	private final FiniteDuration timeout;
 	
 	private final boolean includeRunningJobs;
@@ -52,6 +56,18 @@ public class CurrentJobsOverviewHandler extends AbstractJsonRequestHandler {
 		this.timeout = checkNotNull(timeout);
 		this.includeRunningJobs = includeRunningJobs;
 		this.includeFinishedJobs = includeFinishedJobs;
+	}
+
+	@Override
+	public String[] getPaths() {
+		if (includeRunningJobs && includeFinishedJobs) {
+			return new String[]{ALL_JOBS_REST_PATH};
+		}
+		if (includeRunningJobs) {
+			return new String[]{RUNNING_JOBS_REST_PATH};
+		} else {
+			return new String[]{COMPLETED_JOBS_REST_PATH};
+		}
 	}
 
 	@Override

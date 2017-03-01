@@ -35,9 +35,15 @@ import java.util.Map;
  */
 public class SubtasksTimesHandler extends AbstractJobVertexRequestHandler {
 
+	private static final String SUBTASK_TIMES_REST_PATH = 	"/jobs/:jobid/vertices/:vertexid/subtasktimes";
 	
 	public SubtasksTimesHandler(ExecutionGraphHolder executionGraphHolder) {
 		super(executionGraphHolder);
+	}
+
+	@Override
+	public String[] getPaths() {
+		return new String[]{SUBTASK_TIMES_REST_PATH};
 	}
 
 	@Override

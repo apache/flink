@@ -39,10 +39,17 @@ import static java.util.Objects.requireNonNull;
  */
 public class CurrentJobIdsHandler extends AbstractJsonRequestHandler {
 
+	private static final String CURRENT_JOB_IDS_REST_PATH = "/jobs";
+
 	private final FiniteDuration timeout;
 	
 	public CurrentJobIdsHandler(FiniteDuration timeout) {
 		this.timeout = requireNonNull(timeout);
+	}
+
+	@Override
+	public String[] getPaths() {
+		return new String[]{CURRENT_JOB_IDS_REST_PATH};
 	}
 	
 	@Override

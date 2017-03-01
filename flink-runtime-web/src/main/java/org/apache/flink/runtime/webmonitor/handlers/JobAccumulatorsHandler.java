@@ -30,9 +30,16 @@ import java.util.Map;
  * Request handler that returns the aggregated user accumulators of a job.
  */
 public class JobAccumulatorsHandler extends AbstractExecutionGraphRequestHandler {
+
+	private static final String JOB_ACCUMULATORS_REST_PATH = "/jobs/:jobid/accumulators";
 	
 	public JobAccumulatorsHandler(ExecutionGraphHolder executionGraphHolder) {
 		super(executionGraphHolder);
+	}
+
+	@Override
+	public String[] getPaths() {
+		return new String[]{JOB_ACCUMULATORS_REST_PATH};
 	}
 
 	@Override

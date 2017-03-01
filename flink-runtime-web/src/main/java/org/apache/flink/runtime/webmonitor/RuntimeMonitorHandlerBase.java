@@ -67,6 +67,13 @@ public abstract class RuntimeMonitorHandlerBase extends SimpleChannelInboundHand
 		this.httpsEnabled = httpsEnabled;
 	}
 
+	/**
+	 * Returns an array of REST URL's under which this handler can be registered.
+	 *
+	 * @return array containing REST URL's under which this handler can be registered.
+	 */
+	public abstract String[] getPaths();
+
 	@Override
 	protected void channelRead0(ChannelHandlerContext ctx, Routed routed) throws Exception {
 		if (localJobManagerAddressFuture.isCompleted()) {

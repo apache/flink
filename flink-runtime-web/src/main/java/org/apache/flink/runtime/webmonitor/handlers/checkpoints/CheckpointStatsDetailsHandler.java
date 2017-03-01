@@ -38,11 +38,18 @@ import java.util.Map;
  */
 public class CheckpointStatsDetailsHandler extends AbstractExecutionGraphRequestHandler {
 
+	private static final String CHECKPOINT_STATS_DETAILS_REST_PATH = "/jobs/:jobid/checkpoints/details/:checkpointid";
+
 	private final CheckpointStatsCache cache;
 
 	public CheckpointStatsDetailsHandler(ExecutionGraphHolder executionGraphHolder, CheckpointStatsCache cache) {
 		super(executionGraphHolder);
 		this.cache = cache;
+	}
+
+	@Override
+	public String[] getPaths() {
+		return new String[]{CHECKPOINT_STATS_DETAILS_REST_PATH};
 	}
 
 	@Override

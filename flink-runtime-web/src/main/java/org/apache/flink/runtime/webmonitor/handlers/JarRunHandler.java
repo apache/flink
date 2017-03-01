@@ -38,6 +38,8 @@ import java.util.Map;
  */
 public class JarRunHandler extends JarActionHandler {
 
+	static final String JAR_RUN_REST_PATH = "/jars/:jarid/run";
+
 	private final FiniteDuration timeout;
 	private final Configuration clientConfig;
 
@@ -45,6 +47,11 @@ public class JarRunHandler extends JarActionHandler {
 		super(jarDirectory);
 		this.timeout = timeout;
 		this.clientConfig = clientConfig;
+	}
+
+	@Override
+	public String[] getPaths() {
+		return new String[]{JAR_RUN_REST_PATH};
 	}
 
 	@Override

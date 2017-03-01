@@ -32,9 +32,15 @@ import java.util.Map;
  */
 public class JobVertexMetricsHandler extends AbstractMetricsHandler {
 	public static final String PARAMETER_VERTEX_ID = "vertexid";
+	private static final String JOB_VERTEX_METRICS_REST_PATH = "/jobs/:jobid/vertices/:vertexid/metrics";
 
 	public JobVertexMetricsHandler(MetricFetcher fetcher) {
 		super(fetcher);
+	}
+
+	@Override
+	public String[] getPaths() {
+		return new String[]{JOB_VERTEX_METRICS_REST_PATH};
 	}
 
 	@Override
