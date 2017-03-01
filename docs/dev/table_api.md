@@ -4732,23 +4732,29 @@ User-defined Functions
 
 If a required scalar function is not contained in the built-in functions, it is possible to define custom, user-defined scalar functions for both the Table API and SQL. A user-defined scalar functions maps zero, one, or multiple scalar values to a new scalar value.
 
-In order to define a scalar function one has to extend the base class `ScalarFunction` in `org.apache.flink.table.functions` and implement (one or more) evaluation methods. The behavior of a scalar function is determined by the evaluation method. An evaluation method must be declared publicly and named `eval`. The parameter types and return type of the evaluation method also determine the parameter and return types of the scalar function. Evaluation methods can also be overloaded by implementing multiple methods named `eval`.
+In order to define a scalar function one has to extend the base class `ScalarFunction` in `org.apache.flink.table.functions` and implement (one or more) evaluation methods. Moreover constructor of the user-defined scalar function can contain constructor arguments. The behavior of a scalar function is determined by the evaluation method. An evaluation method must be declared publicly and named `eval`. The parameter types and return type of the evaluation method also determine the parameter and return types of the scalar function. Evaluation methods can also be overloaded by implementing multiple methods named `eval`.
 
 The following example snippet shows how to define your own hash code function:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-public static class HashCode extends ScalarFunction {
+public class HashCode extends ScalarFunction {
+  private int factor = 12;
+  
+  public HashCode(int factor) {
+      this.factor = factor;
+  }
+  
   public int eval(String s) {
-    return s.hashCode() * 12;
+      return s.hashCode() * factor;
   }
 }
 
 BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 // register the function
-tableEnv.registerFunction("hashCode", new HashCode())
+tableEnv.registerFunction("hashCode", new HashCode(10))
 
 // use the function in Java Table API
 myTable.select("string, string.hashCode(), hashCode(string)");
@@ -4761,19 +4767,20 @@ tableEnv.sql("SELECT string, HASHCODE(string) FROM MyTable");
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 // must be defined in static/object context
-object hashCode extends ScalarFunction {
+class HashCode(factor: Int) extends ScalarFunction {
   def eval(s: String): Int = {
-    s.hashCode() * 12
+    s.hashCode() * factor
   }
 }
 
 val tableEnv = TableEnvironment.getTableEnvironment(env)
 
 // use the function in Scala Table API
+val hashCode = new HashCode(10)
 myTable.select('string, hashCode('string))
 
 // register and use the function in SQL
-tableEnv.registerFunction("hashCode", hashCode)
+tableEnv.registerFunction("hashCode", new HashCode(10))
 tableEnv.sql("SELECT string, HASHCODE(string) FROM MyTable");
 {% endhighlight %}
 </div>
@@ -4819,7 +4826,7 @@ object TimestampModifier extends ScalarFunction {
 
 Similar to a user-defined scalar function, a user-defined table function takes zero, one, or multiple scalar values as input parameters. However in contrast to a scalar function, it can return an arbitrary number of rows as output instead of a single value. The returned rows may consist of one or more columns. 
 
-In order to define a table function one has to extend the base class `TableFunction` in `org.apache.flink.table.functions` and implement (one or more) evaluation methods. The behavior of a table function is determined by its evaluation methods. An evaluation method must be declared `public` and named `eval`. The `TableFunction` can be overloaded by implementing multiple methods named `eval`. The parameter types of the evaluation methods determine all valid parameters of the table function. The type of the returned table is determined by the generic type of `TableFunction`. Evaluation methods emit output rows using the protected `collect(T)` method.
+In order to define a table function one has to extend the base class `TableFunction` in `org.apache.flink.table.functions` and implement (one or more) evaluation methods. Moreover constructor of the user-defined table function can contain constructor arguments. The behavior of a table function is determined by its evaluation methods. An evaluation method must be declared `public` and named `eval`. The `TableFunction` can be overloaded by implementing multiple methods named `eval`. The parameter types of the evaluation methods determine all valid parameters of the table function. The type of the returned table is determined by the generic type of `TableFunction`. Evaluation methods emit output rows using the protected `collect(T)` method.
 
 In the Table API, a table function is used with `.join(Expression)` or `.leftOuterJoin(Expression)` for Scala users and `.join(String)` or `.leftOuterJoin(String)` for Java users. The `join` operator (cross) joins each row from the outer table (table on the left of the operator) with all rows produced by the table-valued function (which is on the right side of the operator). The `leftOuterJoin` operator joins each row from the outer table (table on the left of the operator) with all rows produced by the table-valued function (which is on the right side of the operator) and preserves outer rows for which the table function returns an empty table. In SQL use `LATERAL TABLE(<TableFunction>)` with CROSS JOIN and LEFT JOIN with an ON TRUE join condition (see examples below).
 
@@ -4830,8 +4837,14 @@ The following examples show how to define a table-valued function and use it:
 {% highlight java %}
 // The generic type "Tuple2<String, Integer>" determines the schema of the returned table as (String, Integer).
 public class Split extends TableFunction<Tuple2<String, Integer>> {
+    private String separator = " ";
+    
+    public Split(String separator) {
+        this.separator = separator;
+    }
+    
     public void eval(String str) {
-        for (String s : str.split(" ")) {
+        for (String s : str.split(separator)) {
             // use collect(...) to emit a row
             collect(new Tuple2<String, Integer>(s, s.length()));
         }
@@ -4842,7 +4855,7 @@ BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 Table myTable = ...         // table schema: [a: String]
 
 // Register the function.
-tableEnv.registerFunction("split", new Split());
+tableEnv.registerFunction("split", new Split("#"));
 
 // Use the table function in the Java Table API. "as" specifies the field names of the table.
 myTable.join("split(a) as (word, length)").select("a, word, length");
@@ -4859,10 +4872,10 @@ tableEnv.sql("SELECT a, word, length FROM MyTable LEFT JOIN LATERAL TABLE(split(
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 // The generic type "(String, Int)" determines the schema of the returned table as (String, Integer).
-class Split extends TableFunction[(String, Int)] {
+class Split(separator: String) extends TableFunction[(String, Int)] {
   def eval(str: String): Unit = {
     // use collect(...) to emit a row.
-    str.split(" ").foreach(x -> collect((x, x.length))
+    str.split(separator).foreach(x -> collect((x, x.length))
   }
 }
 
@@ -4870,13 +4883,13 @@ val tableEnv = TableEnvironment.getTableEnvironment(env)
 val myTable = ...         // table schema: [a: String]
 
 // Use the table function in the Scala Table API (Note: No registration required in Scala Table API).
-val split = new Split()
+val split = new Split("#")
 // "as" specifies the field names of the generated table.
 myTable.join(split('a) as ('word, 'length)).select('a, 'word, 'length);
 myTable.leftOuterJoin(split('a) as ('word, 'length)).select('a, 'word, 'length);
 
 // Register the table function to use it in SQL queries.
-tableEnv.registerFunction("split", new Split())
+tableEnv.registerFunction("split", new Split("#"))
 
 // Use the table function in SQL with LATERAL and TABLE keywords.
 // CROSS JOIN a table function (equivalent to "join" in Table API)
