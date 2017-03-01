@@ -19,7 +19,7 @@
 package org.apache.flink.table.runtime.aggregate
 
 import java.util.{ArrayList => JArrayList, List => JList}
-import org.apache.flink.api.common.functions.{AggregateFunction => ApiAggFunction}
+import org.apache.flink.api.common.functions.{AggregateFunction => DataStreamAggFunc}
 import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
 import org.apache.flink.types.Row
 
@@ -29,7 +29,7 @@ import org.apache.flink.types.Row
   *
   * @param aggregates       the list of all [[org.apache.flink.table.functions.AggregateFunction]]
   *                         used for this aggregation
-  * @param aggFieldsIndex   the position (in the input Row) of the input value for each aggregate
+  * @param aggFields   the position (in the input Row) of the input value for each aggregate
   * @param aggregateMapping the list of the mapping of (the position of this aggregate result in the
   *                         output row => the index of the aggregate) for all the aggregates
   * @param groupKeysIndex   the position (in the input Row) of grouping keys
@@ -39,12 +39,12 @@ import org.apache.flink.types.Row
   */
 class AggregateAggFunction(
     private val aggregates: Array[AggregateFunction[_]],
-    private val aggFieldsIndex: Array[Int],
+    private val aggFields: Array[Int],
     private val aggregateMapping: Array[(Int, Int)],
     private val groupKeysIndex: Array[Int],
     private val groupKeysMapping: Array[(Int, Int)],
     private val finalRowArity: Int)
-  extends ApiAggFunction[Row, Row, Row] {
+  extends DataStreamAggFunc[Row, Row, Row] {
 
   override def createAccumulator(): Row = {
     val accumulatorRow: Row = new Row(groupKeysIndex.length + aggregates.length)
@@ -63,7 +63,7 @@ class AggregateAggFunction(
     for (i <- aggregates.indices) {
       val accumulator =
         accumulatorRow.getField(i + groupKeysIndex.length).asInstanceOf[Accumulator]
-      val v = value.getField(aggFieldsIndex(i))
+      val v = value.getField(aggFields(i))
       aggregates(i).accumulate(accumulator, v)
     }
   }

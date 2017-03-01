@@ -45,14 +45,13 @@ class DataSetSessionWindowAggregateCombineGroupFunction(
   extends RichGroupCombineFunction[Row, Row] with ResultTypeQueryable[Row] {
 
   private var aggregateBuffer: Row = _
-  private var rowTimeFieldPos = 0
-  private var accumStartPos: Int = 0
+  private var accumStartPos: Int = groupingKeys.length
+  private var rowTimeFieldPos = accumStartPos + aggregates.length
+  private val maxMergeLen = 16
 
   override def open(config: Configuration) {
     Preconditions.checkNotNull(aggregates)
     Preconditions.checkNotNull(groupingKeys)
-    accumStartPos = groupingKeys.length
-    rowTimeFieldPos = accumStartPos + aggregates.length
     aggregateBuffer = new Row(rowTimeFieldPos + 2)
   }
 
@@ -76,8 +75,10 @@ class DataSetSessionWindowAggregateCombineGroupFunction(
       new JArrayList[Accumulator]()
     }
 
+    var count:Int = 0
     while (iterator.hasNext) {
       val record = iterator.next()
+      count += 1
       currentRowTime = record.getField(rowTimeFieldPos).asInstanceOf[Long]
       // initial traversal or opening a new window
       if (windowEnd == null || (windowEnd != null && (currentRowTime > windowEnd))) {
@@ -91,6 +92,7 @@ class DataSetSessionWindowAggregateCombineGroupFunction(
           for (i <- aggregates.indices) {
             accumulatorList(i).clear()
           }
+          count = 0
         } else {
           // set group keys to aggregateBuffer.
           for (i <- groupingKeys.indices) {
@@ -104,6 +106,18 @@ class DataSetSessionWindowAggregateCombineGroupFunction(
       // collect the accumulators for each aggregate
       for (i <- aggregates.indices) {
         accumulatorList(i).add(record.getField(accumStartPos + i).asInstanceOf[Accumulator])
+      }
+
+      // if the number of buffered accumulators is bigger than maxMergeLen, merge them into one
+      // accumulator
+      if (count > maxMergeLen) {
+        count = 0
+        for (i <- aggregates.indices) {
+          val agg = aggregates(i)
+          val accumulator = agg.merge(accumulatorList(i))
+          accumulatorList(i).clear()
+          accumulatorList(i).add(accumulator)
+        }
       }
 
       // the current rowtime is the last rowtime of the next calculation.

@@ -348,10 +348,9 @@ object AggregateUtil {
   }
 
   /**
-    * Create an [[AllWindowFunction]] to finalize incrementally pre-computed non-partitioned
-    * window aggregates.
+    * Create an [[AllWindowFunction]] for non-partitioned window aggregates.
     */
-  private[flink] def createAllWindowIncrementalAggregationFunction(
+  private[flink] def createAggregationAllWindowFunction(
       window: LogicalWindow,
       finalRowArity: Int,
       properties: Seq[NamedWindowProperty]): AllWindowFunction[Row, Row, DataStreamWindow] = {
@@ -370,9 +369,9 @@ object AggregateUtil {
   }
 
   /**
-    * Create a [[WindowFunction]] to finalize incrementally pre-computed window aggregates.
+    * Create a [[WindowFunction]] for group window aggregates.
     */
-  private[flink] def createWindowIncrementalAggregationFunction(
+  private[flink] def createAggregationGroupWindowFunction(
       window: LogicalWindow,
       finalRowArity: Int,
       properties: Seq[NamedWindowProperty]): WindowFunction[Row, Row, Tuple, DataStreamWindow] = {
@@ -396,7 +395,7 @@ object AggregateUtil {
       outputType: RelDataType,
       groupKeysIndex: Array[Int]): (ApiAggregateFunction[Row, Row, Row], RowTypeInfo) = {
 
-    val (aggFieldsIndex, aggregates) =
+    val (aggFields, aggregates) =
       transformToAggregateFunctions(namedAggregates.map(_.getKey), inputType, groupKeysIndex.length)
 
     val groupKeysMapping = getGroupKeysMapping(inputType, outputType, groupKeysIndex)
@@ -412,7 +411,7 @@ object AggregateUtil {
     val accumulatorRowType = createAccumulatorRowType(inputType, groupKeysIndex, aggregates)
     val aggFunction = new AggregateAggFunction(
       aggregates,
-      aggFieldsIndex,
+      aggFields,
       aggregateMapping,
       groupKeysIndex,
       groupKeysMapping,

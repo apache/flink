@@ -62,19 +62,18 @@ class DataSetSessionWindowAggregateReduceGroupFunction(
   extends RichGroupReduceFunction[Row, Row] {
 
   private var aggregateBuffer: Row = _
-  private var intermediateRowWindowStartPos = 0
-  private var intermediateRowWindowEndPos = 0
   private var output: Row = _
   private var collector: TimeWindowPropertyCollector = _
   private var accumStartPos: Int = groupKeysMapping.length
   private var intermediateRowArity: Int = accumStartPos + aggregates.length + 2
+  private var intermediateRowWindowStartPos = intermediateRowArity - 2
+  private var intermediateRowWindowEndPos = intermediateRowArity - 1
+  private val maxMergeLen = 16
 
   override def open(config: Configuration) {
     Preconditions.checkNotNull(aggregates)
     Preconditions.checkNotNull(groupKeysMapping)
     aggregateBuffer = new Row(intermediateRowArity)
-    intermediateRowWindowStartPos = intermediateRowArity - 2
-    intermediateRowWindowEndPos = intermediateRowArity - 1
     output = new Row(finalRowArity)
     collector = new TimeWindowPropertyCollector(finalRowWindowStartPos, finalRowWindowEndPos)
   }
@@ -100,8 +99,10 @@ class DataSetSessionWindowAggregateReduceGroupFunction(
       new JArrayList[Accumulator]()
     }
 
+    var count:Int = 0
     while (iterator.hasNext) {
       val record = iterator.next()
+      count += 1
       currentRowTime = record.getField(intermediateRowWindowStartPos).asInstanceOf[Long]
       // initial traversal or opening a new window
       if (null == windowEnd ||
@@ -130,6 +131,18 @@ class DataSetSessionWindowAggregateReduceGroupFunction(
       // collect the accumulators for each aggregate
       for (i <- aggregates.indices) {
         accumulatorList(i).add(record.getField(accumStartPos + i).asInstanceOf[Accumulator])
+      }
+
+      // if the number of buffered accumulators is bigger than maxMergeLen, merge them into one
+      // accumulator
+      if (count > maxMergeLen) {
+        count = 0
+        for (i <- aggregates.indices) {
+          val agg = aggregates(i)
+          val accumulator = agg.merge(accumulatorList(i))
+          accumulatorList(i).clear()
+          accumulatorList(i).add(accumulator)
+        }
       }
 
       windowEnd = if (isInputCombined) {

@@ -57,6 +57,7 @@ class DataSetTumbleTimeWindowAggReduceGroupFunction(
   private val accumStartPos: Int = groupKeysMapping.length
   private val rowtimePos: Int = accumStartPos + aggregates.length
   private val intermediateRowArity: Int = rowtimePos + 1
+  protected val maxMergeLen = 16
 
   override def open(config: Configuration) {
     Preconditions.checkNotNull(aggregates)
@@ -74,20 +75,26 @@ class DataSetTumbleTimeWindowAggReduceGroupFunction(
       new JArrayList[Accumulator]()
     }
 
-    // per each aggregator, collect its accumulators to a list
+    var count:Int = 0
     while (iterator.hasNext) {
       val record = iterator.next()
+      count += 1
+      // per each aggregator, collect its accumulators to a list
       for (i <- aggregates.indices) {
         accumulatorList(i).add(record.getField(accumStartPos + i).asInstanceOf[Accumulator])
       }
+      // if the number of buffered accumulators is bigger than maxMergeLen, merge them into one
+      // accumulator
+      if (count > maxMergeLen) {
+        count = 0
+        for (i <- aggregates.indices) {
+          val agg = aggregates(i)
+          val accumulator = agg.merge(accumulatorList(i))
+          accumulatorList(i).clear()
+          accumulatorList(i).add(accumulator)
+        }
+      }
       last = record
-    }
-
-    // per each aggregator, merge list of accumulators into one and save the result to the
-    // intermediate aggregate buffer
-    for (i <- aggregates.indices) {
-      val agg = aggregates(i)
-      aggregateBuffer.setField(accumStartPos + i, agg.merge(accumulatorList(i)))
     }
 
     // set group keys value to final output.
@@ -99,8 +106,8 @@ class DataSetTumbleTimeWindowAggReduceGroupFunction(
     // get final aggregate value and set to output.
     aggregateMapping.foreach {
       case (after, previous) => {
-        val accumulator =
-          aggregateBuffer.getField(accumStartPos + previous).asInstanceOf[Accumulator]
+        val agg = aggregates(previous)
+        val accumulator = agg.merge(accumulatorList(previous))
         val result = aggregates(previous).getValue(accumulator)
         output.setField(after, result)
       }

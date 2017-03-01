@@ -51,6 +51,7 @@ class AggregateReduceGroupFunction(
   protected var aggregateBuffer: Row = _
   private var output: Row = _
   private var intermediateGroupKeys: Option[Array[Int]] = None
+  protected val maxMergeLen = 16
 
   override def open(config: Configuration) {
     Preconditions.checkNotNull(aggregates)
@@ -80,11 +81,25 @@ class AggregateReduceGroupFunction(
       new JArrayList[Accumulator]()
     }
 
+    var count:Int = 0
     while (iterator.hasNext) {
       val record = iterator.next()
+      count += 1
+      // per each aggregator, collect its accumulators to a list
       for (i <- aggregates.indices) {
-        accumulatorList(i).add(
-          record.getField(groupKeysMapping.length + i).asInstanceOf[Accumulator])
+        accumulatorList(i).add(record.getField(groupKeysMapping.length + i)
+                                 .asInstanceOf[Accumulator])
+      }
+      // if the number of buffered accumulators is bigger than maxMergeLen, merge them into one
+      // accumulator
+      if (count > maxMergeLen) {
+        count = 0
+        for (i <- aggregates.indices) {
+          val agg = aggregates(i)
+          val accumulator = agg.merge(accumulatorList(i))
+          accumulatorList(i).clear()
+          accumulatorList(i).add(accumulator)
+        }
       }
       last = record
     }
@@ -95,11 +110,14 @@ class AggregateReduceGroupFunction(
         output.setField(after, last.getField(previous))
     }
 
-    // get the final aggregate value and set it to output.
+    // get final aggregate value and set to output.
     aggregateMapping.foreach {
-      case (after, previous) =>
+      case (after, previous) => {
         val agg = aggregates(previous)
-        output.setField(after, agg.getValue(agg.merge(accumulatorList(previous))))
+        val accumulator = agg.merge(accumulatorList(previous))
+        val result = aggregates(previous).getValue(accumulator)
+        output.setField(after, result)
+      }
     }
 
     // Evaluate additional values of grouping sets

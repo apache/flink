@@ -23,8 +23,7 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.flink.api.java.tuple.Tuple
-import org.apache.flink.streaming.api.datastream.{AllWindowedStream, DataStream, KeyedStream,
-WindowedStream}
+import org.apache.flink.streaming.api.datastream.{AllWindowedStream, DataStream, KeyedStream, WindowedStream}
 import org.apache.flink.streaming.api.windowing.assigners._
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.windows.{Window => DataStreamWindow}
@@ -113,7 +112,6 @@ class DataStreamAggregate(
       namedAggregates,
       namedProperties)
 
-    val prepareOpName = s"prepare select: ($aggString)"
     val keyedAggOpName = s"groupBy: (${groupingToString(inputType, grouping)}), " +
       s"window: ($window), " +
       s"select: ($aggString)"
@@ -121,7 +119,7 @@ class DataStreamAggregate(
 
     // grouped / keyed aggregation
     if (groupingKeys.length > 0) {
-      val windowFunction = AggregateUtil.createWindowIncrementalAggregationFunction(
+      val windowFunction = AggregateUtil.createAggregationGroupWindowFunction(
         window,
         rowRelDataType.getFieldCount,
         namedProperties)
@@ -144,7 +142,7 @@ class DataStreamAggregate(
     }
     // global / non-keyed aggregation
     else {
-      val windowFunction = AggregateUtil.createAllWindowIncrementalAggregationFunction(
+      val windowFunction = AggregateUtil.createAggregationAllWindowFunction(
         window,
         rowRelDataType.getFieldCount,
         namedProperties)
@@ -162,7 +160,7 @@ class DataStreamAggregate(
 
       windowedStream
         .aggregate(aggFunction, windowFunction, accumulatorRowType, rowTypeInfo, rowTypeInfo)
-        .name(keyedAggOpName)
+        .name(nonKeyedAggOpName)
     }
   }
 }
