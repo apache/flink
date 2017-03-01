@@ -17,8 +17,12 @@
  */
 package org.apache.flink.table.functions.hive
 
+import java.util
+
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.hadoop.hive.ql.exec.{FunctionRegistry, UDF}
+import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector
+import org.apache.hadoop.hive.serde2.typeinfo.{TypeInfo, TypeInfoFactory}
 
 import scala.annotation.varargs
 
@@ -35,10 +39,22 @@ class HiveSimpleUDF(name: String, functionWrapper: HiveFunctionWrapper) extends 
   private lazy val function = functionWrapper.createFunction[UDF]()
 
   @transient
-  private val method = null  // FIXME get method by types?
+  private var typeInfos = null
+
+  @transient
+  private var objectInspectos = null
+
+  @transient
+  private val method = function.getResolver.getEvalMethod(typeInfos)
 
   @varargs
   def eval(args: Any*) : Any = {
+    if (null == typeInfos) {
+      val typeInfos = new util.ArrayList[TypeInfo]()
+      args.foreach(arg => {
+          typeInfos.add(TypeInfoFactory.getPrimitiveTypeInfoFromJavaPrimitive(arg.getClass))
+      })
+    }
     FunctionRegistry.invoke(method, function, args)
   }
 }
