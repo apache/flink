@@ -36,7 +36,7 @@ public class MockNetworkEnvironment {
 
 	static {
 		try {
-			when(networkBufferPool.createBufferPool(anyInt(), anyBoolean())).thenReturn(mock(BufferPool.class));
+			when(networkBufferPool.createBufferPool(anyInt())).thenReturn(mock(BufferPool.class));
 			when(networkEnvironment.getNetworkBufferPool()).thenReturn(networkBufferPool);
 
 			when(networkEnvironment.getTaskEventDispatcher()).thenReturn(taskEventDispatcher);

@@ -52,37 +52,20 @@ public class BufferPoolFactoryTest {
 
 	@Test(expected = IOException.class)
 	public void testRequireMoreThanPossible() throws IOException {
-		networkBufferPool.createBufferPool(networkBufferPool.getTotalNumberOfMemorySegments() * 2, false);
-	}
-
-	@Test
-	public void testFixedPool() throws IOException {
-		BufferPool lbp = networkBufferPool.createBufferPool(1, true);
-
-		assertEquals(1, lbp.getNumBuffers());
+		networkBufferPool.createBufferPool(networkBufferPool.getTotalNumberOfMemorySegments() * 2);
 	}
 
 	@Test
 	public void testSingleManagedPoolGetsAll() throws IOException {
-		BufferPool lbp = networkBufferPool.createBufferPool(1, false);
+		BufferPool lbp = networkBufferPool.createBufferPool(1);
 
 		assertEquals(networkBufferPool.getTotalNumberOfMemorySegments(), lbp.getNumBuffers());
 	}
 
 	@Test
-	public void testSingleManagedPoolGetsAllExceptFixedOnes() throws IOException {
-		BufferPool fixed = networkBufferPool.createBufferPool(24, true);
-
-		BufferPool lbp = networkBufferPool.createBufferPool(1, false);
-
-		assertEquals(24, fixed.getNumBuffers());
-		assertEquals(networkBufferPool.getTotalNumberOfMemorySegments() - fixed.getNumBuffers(), lbp.getNumBuffers());
-	}
-
-	@Test
 	public void testUniformDistribution() throws IOException {
-		BufferPool first = networkBufferPool.createBufferPool(0, false);
-		BufferPool second = networkBufferPool.createBufferPool(0, false);
+		BufferPool first = networkBufferPool.createBufferPool(0);
+		BufferPool second = networkBufferPool.createBufferPool(0);
 
 		assertEquals(networkBufferPool.getTotalNumberOfMemorySegments() / 2, first.getNumBuffers());
 		assertEquals(networkBufferPool.getTotalNumberOfMemorySegments() / 2, second.getNumBuffers());
@@ -97,7 +80,7 @@ public class BufferPoolFactoryTest {
 
 			int numPools = numBuffers / 32;
 			for (int i = 0; i < numPools; i++) {
-				pools.add(networkBufferPool.createBufferPool(random.nextInt(7 + 1), random.nextBoolean()));
+				pools.add(networkBufferPool.createBufferPool(random.nextInt(7 + 1)));
 			}
 
 			int numDistributedBuffers = 0;
@@ -115,11 +98,11 @@ public class BufferPoolFactoryTest {
 
 	@Test
 	public void testCreateDestroy() throws IOException {
-		BufferPool first = networkBufferPool.createBufferPool(0, false);
+		BufferPool first = networkBufferPool.createBufferPool(0);
 
 		assertEquals(networkBufferPool.getTotalNumberOfMemorySegments(), first.getNumBuffers());
 
-		BufferPool second = networkBufferPool.createBufferPool(0, false);
+		BufferPool second = networkBufferPool.createBufferPool(0);
 
 		assertEquals(networkBufferPool.getTotalNumberOfMemorySegments() / 2, first.getNumBuffers());
 
