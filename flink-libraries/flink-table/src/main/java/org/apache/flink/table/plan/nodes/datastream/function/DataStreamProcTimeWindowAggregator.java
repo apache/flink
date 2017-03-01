@@ -97,7 +97,7 @@ public abstract class DataStreamProcTimeWindowAggregator implements Serializable
 
 	private void setCountAggregation(int i) {
 
-		if (typeOutput.get(i).getTypeClass().equals(Integer.class)) {
+		if (typeOutput.get(i).getTypeClass().equals(Long.class)) {
 			aggregatorImpl.add(new AnyCounterAggregator());
 		} else {
 			throw new IllegalArgumentException("Unsupported aggregation type");

@@ -11,6 +11,8 @@ import org.apache.calcite.rel.logical.LogicalWindow;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.streaming.api.windowing.evictors.TimeEvictor;
 import org.apache.flink.streaming.api.windowing.time.Time;
@@ -85,14 +87,29 @@ public class DataStreamProcTimeTimeAggregate extends DataStreamRelJava {
 		List<String> aggregators = new ArrayList<>();
 		List<Integer> indexes = new ArrayList<>();	
 		windowUtil.getAggregations(aggregators,typeOutput,indexes,typeInput);
+		
 
 		final long time_boundary = Long.parseLong(windowReference.getConstants().get(1).getValue().toString());
+		DataStream<Object> aggregateWindow = null;
 
+		//As we it is not possible to operate neither on sliding count neither on sliding time we need to manage the eviction of the events that expire ourselves based on the proctime (system time). Therefore  the current system time is assign as the timestamp of the event to be recognize by the evictor
+		DataStream<Object> inputDataStreamTimed = inputDataStream.assignTimestampsAndWatermarks(new AssignerWithPeriodicWatermarks() {
 
+			@Override
+			public long extractTimestamp(Object element, long previousElementTimestamp) {
+				return System.currentTimeMillis();
+			}
+
+			@Override
+			public Watermark getCurrentWatermark() {
+				return null;
+			}
+		});
+		
 		// null indicates non partitioned window
 		if (partitionKeys == null) {
 			
-			inputDataStream.windowAll(GlobalWindows.create())
+			aggregateWindow = inputDataStreamTimed.windowAll(GlobalWindows.create())
 					.trigger(CountTrigger.of(1))
 					.evictor(TimeEvictor.of(Time.milliseconds(time_boundary)))
 					.apply(new DataStreamProcTimeAggregateGlobalWindowFunction(aggregators,indexes,typeOutput,typeInput))
@@ -100,8 +117,8 @@ public class DataStreamProcTimeTimeAggregate extends DataStreamRelJava {
 
 			
 		} else {
-			//inputDataStream =
-					inputDataStream.keyBy(partitionKeys)
+			
+			aggregateWindow = inputDataStreamTimed.keyBy(partitionKeys)
 					.window(GlobalWindows.create())
 					.trigger(CountTrigger.of(1))
 					.evictor(TimeEvictor.of(Time.milliseconds(time_boundary)))
@@ -109,7 +126,7 @@ public class DataStreamProcTimeTimeAggregate extends DataStreamRelJava {
 					.returns((TypeInformation<Object>) returnType);
 		}
 
-		return inputDataStream;
+		return aggregateWindow;
 	}
 
 	@Override
