@@ -35,6 +35,7 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -534,6 +535,56 @@ public class ZooKeeperStateHandleStoreITCase extends TestLogger {
 
 		// Verify all discarded
 		assertEquals(0, ZooKeeper.getClient().getChildren().forPath("/").size());
+	}
+
+	/**
+	 * Tests that the ZooKeeperStateHandleStore can handle corrupted data by ignoring the respective
+	 * ZooKeeper ZNodes.
+	 */
+	@Test
+	public void testCorruptedData() throws Exception {
+		LongStateStorage stateStorage = new LongStateStorage();
+
+		ZooKeeperStateHandleStore<Long> store = new ZooKeeperStateHandleStore<>(
+			ZooKeeper.getClient(),
+			stateStorage,
+			Executors.directExecutor());
+
+		final Collection<Long> input = new HashSet<>();
+		input.add(1L);
+		input.add(2L);
+		input.add(3L);
+
+		for (Long aLong : input) {
+			store.add("/" + aLong, aLong);
+		}
+
+		// corrupt one of the entries
+		ZooKeeper.getClient().setData().forPath("/" + 2, new byte[2]);
+
+		List<Tuple2<RetrievableStateHandle<Long>, String>> allEntries = store.getAll();
+
+		Collection<Long> expected = new HashSet<>(input);
+		expected.remove(2L);
+
+		Collection<Long> actual = new HashSet<>(expected.size());
+
+		for (Tuple2<RetrievableStateHandle<Long>, String> entry : allEntries) {
+			actual.add(entry.f0.retrieveState());
+		}
+
+		assertEquals(expected, actual);
+
+		// check the same for the all sorted by name call
+		allEntries = store.getAllSortedByName();
+
+		actual.clear();
+
+		for (Tuple2<RetrievableStateHandle<Long>, String> entry : allEntries) {
+			actual.add(entry.f0.retrieveState());
+		}
+
+		assertEquals(expected, actual);
 	}
 
 	// ---------------------------------------------------------------------------------------------
