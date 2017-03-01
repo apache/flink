@@ -23,8 +23,6 @@ import java.util.List;
 
 import org.apache.calcite.sql.SqlKind;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction;
-import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
 import org.apache.flink.table.plan.nodes.datastream.aggs.DoubleSummaryAggregation;
 import org.apache.flink.table.plan.nodes.datastream.aggs.IntegerSummaryAggregation;
 import org.apache.flink.table.plan.nodes.datastream.aggs.LongSummaryAggregation;

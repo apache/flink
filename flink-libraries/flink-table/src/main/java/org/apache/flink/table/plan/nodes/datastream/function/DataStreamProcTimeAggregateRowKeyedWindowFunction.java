@@ -25,19 +25,20 @@ import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
 import org.apache.flink.util.Collector;
 
-public class DataStreamProcTimeAggregateRowKeyedWindowFunction extends DataStreamProcTimeAggregateRowAbstractWindowFunction
+public class DataStreamProcTimeAggregateRowKeyedWindowFunction
+		extends DataStreamProcTimeAggregateRowAbstractWindowFunction
 		implements WindowFunction<Object, Object, Tuple, GlobalWindow> {
 
 	static final long serialVersionUID = 1L;
 
 	public DataStreamProcTimeAggregateRowKeyedWindowFunction(List<String> aggregators, List<Integer> rowIndexes,
 			List<TypeInformation<?>> typeInfos) {
-		super(aggregators,rowIndexes,typeInfos);
+		super(aggregators, rowIndexes, typeInfos);
 	}
 
 	@Override
 	public void apply(Tuple key, GlobalWindow window, Iterable<Object> input, Collector<Object> out) throws Exception {
-		 super.applyAggregation(input,out);
+		super.applyAggregation(input, out);
 	}
 
 }
