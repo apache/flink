@@ -195,6 +195,20 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
       "Func14()",
       "0")
 
+    testAllApis(
+      Func15("Hello"),
+      "Func15('Hello')",
+      "Func15('Hello')",
+      "Hello0"
+    )
+
+    testAllApis(
+      Func15("Hello", 1, 2, 3),
+      "Func15('Hello', 1, 2, 3)",
+      "Func15('Hello', 1, 2, 3)",
+      "Hello3"
+    )
+
     val JavaFunc2 = new JavaFunc2
     testAllApis(
       JavaFunc2("Hi", 1, 3, 5, 7),
@@ -316,6 +330,7 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
     "Func11" -> Func11,
     "Func12" -> Func12,
     "Func14" -> Func14,
+    "Func15" -> Func15,
     "JavaFunc0" -> new JavaFunc0,
     "JavaFunc1" -> new JavaFunc1,
     "JavaFunc2" -> new JavaFunc2,

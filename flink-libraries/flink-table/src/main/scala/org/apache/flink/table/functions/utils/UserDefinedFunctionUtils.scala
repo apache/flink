@@ -151,24 +151,26 @@ object UserDefinedFunctionUtils {
           s"one method named 'eval' which is public, not abstract and " +
           s"(in case of table functions) not static.")
     } else {
-      var trailingSeq = false
-      var noVargs = true
       methods.foreach(method => {
         val signatures = method.getParameterTypes
-        if (signatures.nonEmpty) {
-          if (method.isVarArgs) {
-            noVargs = false
-          } else if (signatures.last.getName.equals("scala.collection.Seq")) {
-            trailingSeq = true
-          }
+        if (signatures.nonEmpty &&
+            signatures.last.getName.equals("scala.collection.Seq") &&
+            // If users specified an @varargs, Scala will generate two methods indeed.
+            // If there does not exists corresponding varargs method of the Seq method,
+            // we will throw an ValidationException.
+            (!methods.exists(m => {
+              val sigs = m.getParameterTypes
+              m.isVarArgs &&
+              sigs.length == signatures.length &&
+              sigs.zipWithIndex.forall { case (sig, i) =>
+                 i == sigs.length - 1 || sig.equals(signatures(i))
+              }
+            }))) {
+          throw new ValidationException("The 'eval' method do not support Scala type of " +
+            "variable args eg. scala.collection.Seq or Type*, please add a " +
+            "@scala.annotation.varargs annotation to your 'eval' method")
         }
       })
-      if (trailingSeq && noVargs) {
-        // We found trailing "scala.collection.Seq", but no trailing "Type[]", "Type..."
-        throw new ValidationException("The 'eval' method do not support Scala type of " +
-          "variable args eg. scala.collection.Seq or Type*, please add a " +
-          "@scala.annotation.varargs annotation to your 'eval' method")
-      }
       methods
     }
   }
