@@ -20,7 +20,6 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.savepoint.Savepoint;
-import org.apache.flink.runtime.checkpoint.savepoint.SavepointStore;
 import org.apache.flink.runtime.checkpoint.savepoint.SavepointV1;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
@@ -28,10 +27,12 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.ChainedStateHandle;
+import org.apache.flink.runtime.state.CheckpointMetadataStreamFactory;
+import org.apache.flink.runtime.state.CheckpointMetadataStreamFactory.CheckpointMetadataOutputStream;
+import org.apache.flink.runtime.state.CheckpointMetadataStreamFactory.StreamHandleAndPointer;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.StreamStateHandle;
-import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -40,6 +41,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -82,14 +84,16 @@ public class PendingCheckpoint {
 	 * externally, it happens in {@link #finalizeCheckpointExternalized()}. */
 	private final CheckpointProperties props;
 
-	/** Target directory to potentially persist checkpoint to; <code>null</code> if none configured. */
-	private final String targetDirectory;
-
 	/** The promise to fulfill once the checkpoint has been completed. */
 	private final FlinkCompletableFuture<CompletedCheckpoint> onCompletionPromise;
 
 	/** The executor for potentially blocking I/O operations, like state disposal */
 	private final Executor executor;
+
+	/** The stream factory to be used when persisting the metadata.
+	 * Null, if the metadata is not intended to be persisted externally */
+	@Nullable
+	private final CheckpointMetadataStreamFactory metadataWriter;
 
 	private int numAcknowledgedTasks;
 
@@ -107,13 +111,12 @@ public class PendingCheckpoint {
 			long checkpointTimestamp,
 			Map<ExecutionAttemptID, ExecutionVertex> verticesToConfirm,
 			CheckpointProperties props,
-			String targetDirectory,
-			Executor executor) {
+			Executor executor,
+			@Nullable CheckpointMetadataStreamFactory metadataWriter) {
 
 		// Sanity check
-		if (props.externalizeCheckpoint() && targetDirectory == null) {
-			throw new NullPointerException("No target directory specified to persist checkpoint to.");
-		}
+		checkArgument(metadataWriter != null || !(props.externalizeCheckpoint() || props.isSavepoint()),
+					"Checkpoint metadata should be externalized, but metadata writer is null");
 
 		checkArgument(verticesToConfirm.size() > 0,
 				"Checkpoint needs at least one vertex that commits the checkpoint");
@@ -123,8 +126,8 @@ public class PendingCheckpoint {
 		this.checkpointTimestamp = checkpointTimestamp;
 		this.notYetAcknowledgedTasks = checkNotNull(verticesToConfirm);
 		this.props = checkNotNull(props);
-		this.targetDirectory = targetDirectory;
 		this.executor = Preconditions.checkNotNull(executor);
+		this.metadataWriter = metadataWriter;
 
 		this.taskStates = new HashMap<>();
 		this.acknowledgedTasks = new HashSet<>(verticesToConfirm.size());
@@ -180,12 +183,8 @@ public class PendingCheckpoint {
 		return !props.forceCheckpoint();
 	}
 
-	CheckpointProperties getProps() {
+	public CheckpointProperties getProps() {
 		return props;
-	}
-
-	String getTargetDirectory() {
-		return targetDirectory;
 	}
 
 	/**
@@ -210,43 +209,36 @@ public class PendingCheckpoint {
 		return onCompletionPromise;
 	}
 
+	/**
+	 * Finalizes the pending checkpoint to a {@code CompletedCheckpoint} and persisting the checkpoint
+	 * metadata in the process.
+	 * 
+	 * @return The completed checkpoint with externalized metadata.
+	 * 
+	 * @throws IOException Thrown, if the writing of the metadata failed due to an I/O error. 
+	 * @throws IllegalStateException Thrown, if the pending checkpoint is not fully acknowledged.
+	 */
 	public CompletedCheckpoint finalizeCheckpointExternalized() throws IOException {
-
+		checkState(metadataWriter != null, "No metadata writer available");
+		
 		synchronized (lock) {
+			checkState(!discarded, "checkpoint is discarded");
 			checkState(isFullyAcknowledged(), "Pending checkpoint has not been fully acknowledged yet.");
 
-			// make sure we fulfill the promise with an exception if something fails
-			try {
-				// externalize the metadata
+			// externalize the metadata
+			try(CheckpointMetadataOutputStream out = metadataWriter.createCheckpointStateOutputStream();
+				DataOutputStream dos = new DataOutputStream(out))
+			{
 				final Savepoint savepoint = new SavepointV1(checkpointId, taskStates.values());
 
-				// TEMP FIX - The savepoint store is strictly typed to file systems currently
-				//            but the checkpoints think more generic. we need to work with file handles
-				//            here until the savepoint serializer accepts a generic stream factory
+				Checkpoints.storeCheckpointMetadata(savepoint, dos);
+				dos.flush();
+				final StreamHandleAndPointer result = out.closeAndGetPointerHandle();
 
-				// We have this branch here, because savepoints and externalized checkpoints
-				// currently behave differently.
-				// Savepoints:
-				//   - Metadata file in unique directory
-				//   - External pointer can be the directory
-				// Externalized checkpoints:
-				//   - Multiple metadata files per directory possible (need to be unique)
-				//   - External pointer needs to be the file itself
-				//
-				// This should be unified as part of the JobManager metadata stream factories.
-				if (props.isSavepoint()) {
-					final FileStateHandle metadataHandle = SavepointStore.storeSavepointToHandle(targetDirectory, savepoint);
-					final String externalPointer = metadataHandle.getFilePath().getParent().toString();
-	
-					return finalizeInternal(metadataHandle, externalPointer);
-				} else {
-					final FileStateHandle metadataHandle = SavepointStore.storeExternalizedCheckpointToHandle(targetDirectory, savepoint);
-					final String externalPointer = metadataHandle.getFilePath().toString();
-
-					return finalizeInternal(metadataHandle, externalPointer);
-				}
+				return finalizeInternal(result.stateHandle(), result.pointer());
 			}
 			catch (Throwable t) {
+				// make sure we fulfill the promise with an exception if something fails
 				onCompletionPromise.completeExceptionally(t);
 				ExceptionUtils.rethrowIOException(t);
 				return null; // silence the compiler
@@ -256,6 +248,7 @@ public class PendingCheckpoint {
 
 	public CompletedCheckpoint finalizeCheckpointNonExternalized() {
 		synchronized (lock) {
+			checkState(!discarded, "checkpoint is discarded");
 			checkState(isFullyAcknowledged(), "Pending checkpoint has not been fully acknowledged yet.");
 
 			// make sure we fulfill the promise with an exception if something fails

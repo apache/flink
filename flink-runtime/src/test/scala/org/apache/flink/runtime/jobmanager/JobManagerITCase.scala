@@ -850,7 +850,7 @@ class JobManagerITCase(_system: ActorSystem)
 
           // Mock the checkpoint coordinator
           val checkpointCoordinator = mock(classOf[CheckpointCoordinator])
-          doThrow(new Exception("Expected Test Exception"))
+          doThrow(new RuntimeException("Expected Test Exception"))
             .when(checkpointCoordinator)
             .triggerSavepoint(org.mockito.Matchers.anyLong(), org.mockito.Matchers.anyString())
 
@@ -865,7 +865,7 @@ class JobManagerITCase(_system: ActorSystem)
 
           // Verify the response
           response.jobId should equal(jobGraph.getJobID())
-          response.cause.getCause.getClass should equal(classOf[Exception])
+          response.cause.getCause.getClass should equal(classOf[RuntimeException])
           response.cause.getCause.getMessage should equal("Expected Test Exception")
         }
       }
@@ -905,7 +905,7 @@ class JobManagerITCase(_system: ActorSystem)
 
           // Mock the checkpoint coordinator
           val checkpointCoordinator = mock(classOf[CheckpointCoordinator])
-          doThrow(new Exception("Expected Test Exception"))
+          doThrow(new RuntimeException("Expected Test Exception"))
             .when(checkpointCoordinator)
             .triggerSavepoint(org.mockito.Matchers.anyLong(), org.mockito.Matchers.anyString())
           val savepointPathPromise = new FlinkCompletableFuture[CompletedCheckpoint]()
@@ -973,7 +973,7 @@ class JobManagerITCase(_system: ActorSystem)
 
           // Mock the checkpoint coordinator
           val checkpointCoordinator = mock(classOf[CheckpointCoordinator])
-          doThrow(new Exception("Expected Test Exception"))
+          doThrow(new RuntimeException("Expected Test Exception"))
             .when(checkpointCoordinator)
             .triggerSavepoint(org.mockito.Matchers.anyLong(), org.mockito.Matchers.anyString())
 

@@ -18,15 +18,8 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-
-import java.io.File;
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.savepoint.SavepointLoader;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -37,9 +30,20 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
+
+import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 /**
  * CheckpointCoordinator tests for externalized checkpoints.
@@ -50,21 +54,21 @@ import org.junit.rules.TemporaryFolder;
 public class CheckpointCoordinatorExternalizedCheckpointsTest {
 
 	@Rule
-	public TemporaryFolder tmp = new TemporaryFolder();
+	public final TemporaryFolder tmp = new TemporaryFolder();
 
 	/**
 	 * Triggers multiple externalized checkpoints and verifies that the metadata
 	 * files have been created.
 	 */
 	@Test
-	public void testTriggerAndConfirmSimpleExternalizedCheckpoint()
-		throws Exception {
+	public void testTriggerAndConfirmSimpleExternalizedCheckpoint() throws Exception {
 		final JobID jid = new JobID();
 
 		final ExternalizedCheckpointSettings externalizedCheckpointSettings =
 			ExternalizedCheckpointSettings.externalizeCheckpoints(false);
 
 		final File checkpointDir = tmp.newFolder();
+		final FsStateBackend stateBackend = new FsStateBackend(checkpointDir.toURI());
 
 		// create some mock Execution vertices that receive the checkpoint trigger messages
 		final ExecutionAttemptID attemptID1 = new ExecutionAttemptID();
@@ -89,7 +93,7 @@ public class CheckpointCoordinatorExternalizedCheckpointsTest {
 			new ExecutionVertex[] { vertex1, vertex2 },
 			new StandaloneCheckpointIDCounter(),
 			new StandaloneCompletedCheckpointStore(1),
-			checkpointDir.getAbsolutePath(),
+			stateBackend,
 			Executors.directExecutor());
 
 		assertEquals(0, coord.getNumberOfPendingCheckpoints());
@@ -104,8 +108,7 @@ public class CheckpointCoordinatorExternalizedCheckpointsTest {
 
 			coord.triggerCheckpoint(timestamp1, false);
 
-			long checkpointId1 = coord.getPendingCheckpoints().entrySet().iterator().next()
-				.getKey();
+			long checkpointId1 = coord.getPendingCheckpoints().entrySet().iterator().next().getKey();
 
 			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, attemptID1, checkpointId1));
 			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, attemptID2, checkpointId1));
@@ -167,25 +170,34 @@ public class CheckpointCoordinatorExternalizedCheckpointsTest {
 	 * @param checkpointId Checkpoint ID of the checkpoint to check.
 	 * @param timestamp Timestamp of the checkpoint to check.
 	 */
-	private static void verifyExternalizedCheckpoint(CompletedCheckpoint checkpoint, JobID jid, long checkpointId, long timestamp) {
+	private void verifyExternalizedCheckpoint(CompletedCheckpoint checkpoint, JobID jid, long checkpointId, long timestamp) {
 		assertEquals(jid, checkpoint.getJobId());
 		assertEquals(checkpointId, checkpoint.getCheckpointID());
 		assertEquals(timestamp, checkpoint.getTimestamp());
 		assertNotNull(checkpoint.getExternalPointer());
 		assertNotNull(checkpoint.getExternalizedMetadata());
+
 		FileStateHandle fsHandle = (FileStateHandle) checkpoint.getExternalizedMetadata();
 		assertTrue(new File(fsHandle.getFilePath().getPath()).exists());
+
+		String fsPointer = checkpoint.getExternalPointer();
+		assertTrue(new File(new Path(fsPointer).getPath()).exists());
 	}
 
-	private static void verifyExternalizedCheckpointRestore(
+	private void verifyExternalizedCheckpointRestore(
 			CompletedCheckpoint checkpoint,
 			Map<JobVertexID, ExecutionJobVertex> jobVertices,
 			ExecutionVertex... vertices) throws IOException {
+
+		// create a new state backend here to make sure that restore does not depend on the
+		// configuration of the original state backend
+		FsStateBackend backend = new FsStateBackend(tmp.newFolder().toURI());
 
 		CompletedCheckpoint loaded = SavepointLoader.loadAndValidateSavepoint(
 				checkpoint.getJobId(),
 				jobVertices,
 				checkpoint.getExternalPointer(),
+				backend,
 				Thread.currentThread().getContextClassLoader(),
 				false);
 

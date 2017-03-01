@@ -36,6 +36,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
+import org.apache.flink.runtime.state.filesystem.AbstractFileStateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackendFactory;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.TestBaseUtils;
@@ -92,8 +93,8 @@ public class SavepointMigrationTestBase extends TestBaseUtils {
 		LOG.info("Created savepoint directory: " + savepointDir + ".");
 
 		config.setString(CoreOptions.STATE_BACKEND, "memory");
-		config.setString(FsStateBackendFactory.CHECKPOINT_DIRECTORY_URI_CONF_KEY, checkpointDir.toURI().toString());
-		config.setString(FsStateBackendFactory.MEMORY_THRESHOLD_CONF_KEY, "0");
+		config.setString(AbstractFileStateBackend.CHECKPOINT_PATH, checkpointDir.toURI().toString());
+		config.setInteger(FsStateBackendFactory.MEMORY_THRESHOLD_CONF, 0);
 		config.setString("state.savepoints.dir", savepointDir.toURI().toString());
 
 		cluster = TestBaseUtils.startCluster(config, false);

@@ -21,11 +21,14 @@ package org.apache.flink.runtime.checkpoint.savepoint;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.checkpoint.CheckpointProperties;
+import org.apache.flink.runtime.checkpoint.Checkpoints;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.TaskState;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StreamStateHandle;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,12 +48,13 @@ public class SavepointLoader {
 	 *
 	 * <p>This method verifies that tasks and parallelism still match the savepoint parameters.
 	 *
-	 * @param jobId          The JobID of the job to load the savepoint for.
-	 * @param tasks          Tasks that will possibly be reset
-	 * @param savepointPath  The path of the savepoint to rollback to
-	 * @param classLoader    The class loader to resolve serialized classes in legacy savepoint versions.
+	 * @param jobId            The JobID of the job to load the savepoint for.
+	 * @param tasks            Tasks that will possibly be reset
+	 * @param savepointPointer The pointer of the savepoint to load and validate
+	 * @param stateBackend     The state backend to load the savepoint from   
+	 * @param classLoader      The class loader to resolve serialized classes in legacy savepoint versions.
 	 * @param allowNonRestoredState Allow to skip checkpoint state that cannot be mapped
-	 * to any job vertex in tasks.
+	 *                         to any job vertex in tasks.
 	 *
 	 * @throws IllegalStateException If mismatch between program and savepoint state
 	 * @throws IOException             If savepoint store failure
@@ -58,13 +62,14 @@ public class SavepointLoader {
 	public static CompletedCheckpoint loadAndValidateSavepoint(
 			JobID jobId,
 			Map<JobVertexID, ExecutionJobVertex> tasks,
-			String savepointPath,
+			String savepointPointer,
+			StateBackend stateBackend,
 			ClassLoader classLoader,
 			boolean allowNonRestoredState) throws IOException {
 
 		// (1) load the savepoint
-		final Tuple2<Savepoint, StreamStateHandle> savepointAndHandle = 
-				SavepointStore.loadSavepointWithHandle(savepointPath, classLoader);
+		final Tuple2<Savepoint, StreamStateHandle> savepointAndHandle =
+				Checkpoints.loadSavepointAndHandle(savepointPointer, stateBackend, classLoader);
 
 		final Savepoint savepoint = savepointAndHandle.f0;
 		final StreamStateHandle metadataHandle = savepointAndHandle.f1;
@@ -113,7 +118,7 @@ public class SavepointLoader {
 								"because the operator is not available in the new program. If " +
 								"you want to allow to skip this, you can set the --allowNonRestoredState " +
 								"option on the CLI.",
-						savepointPath, taskState.getJobVertexID());
+						savepointPointer, taskState.getJobVertexID());
 
 				throw new IllegalStateException(msg);
 			}
@@ -122,7 +127,7 @@ public class SavepointLoader {
 		// (3) convert to checkpoint so the system can fall back to it
 		CheckpointProperties props = CheckpointProperties.forStandardSavepoint();
 		return new CompletedCheckpoint(jobId, savepoint.getCheckpointId(), 0L, 0L,
-				taskStates, props, metadataHandle, savepointPath);
+				taskStates, props, metadataHandle, savepointPointer);
 	}
 
 	// ------------------------------------------------------------------------

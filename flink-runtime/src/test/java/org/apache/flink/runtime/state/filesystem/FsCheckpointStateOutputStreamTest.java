@@ -21,10 +21,12 @@ package org.apache.flink.runtime.state.filesystem;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.testutils.CheckedThread;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.StreamStateHandle;
-import org.apache.flink.runtime.state.filesystem.FsCheckpointStreamFactory.FsCheckpointStateOutputStream;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 
 import org.junit.Assert;
@@ -43,12 +45,19 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyBoolean;
+import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 
+/**
+ * Tests for the {@link FsCheckpointStateOutputStream}.
+ */
 public class FsCheckpointStateOutputStreamTest {
 
 	/** The temp dir, obtained in a platform neutral way */
@@ -58,7 +67,7 @@ public class FsCheckpointStateOutputStreamTest {
 	@Test(expected = IllegalArgumentException.class)
 	public void testWrongParameters() {
 		// this should fail
-		new FsCheckpointStreamFactory.FsCheckpointStateOutputStream(
+		new FsCheckpointStateOutputStream(
 			TEMP_DIR_PATH, FileSystem.getLocalFileSystem(), 4000, 5000);
 	}
 
@@ -66,7 +75,7 @@ public class FsCheckpointStateOutputStreamTest {
 	@Test
 	public void testEmptyState() throws Exception {
 		FsCheckpointStreamFactory.CheckpointStateOutputStream stream =
-				new FsCheckpointStreamFactory.FsCheckpointStateOutputStream(TEMP_DIR_PATH, FileSystem.getLocalFileSystem(), 1024, 512);
+				new FsCheckpointStateOutputStream(TEMP_DIR_PATH, FileSystem.getLocalFileSystem(), 1024, 512);
 
 		StreamStateHandle handle = stream.closeAndGetHandle();
 		assertTrue(handle == null);
@@ -95,7 +104,7 @@ public class FsCheckpointStateOutputStreamTest {
 	@Test
 	public void testGetPos() throws Exception {
 		FsCheckpointStreamFactory.CheckpointStateOutputStream stream =
-				new FsCheckpointStreamFactory.FsCheckpointStateOutputStream(TEMP_DIR_PATH, FileSystem.getLocalFileSystem(), 31, 17);
+				new FsCheckpointStateOutputStream(TEMP_DIR_PATH, FileSystem.getLocalFileSystem(), 31, 17);
 
 		for (int i = 0; i < 64; ++i) {
 			Assert.assertEquals(i, stream.getPos());
@@ -106,7 +115,7 @@ public class FsCheckpointStateOutputStreamTest {
 
 		// ----------------------------------------------------
 
-		stream = new FsCheckpointStreamFactory.FsCheckpointStateOutputStream(TEMP_DIR_PATH, FileSystem.getLocalFileSystem(), 31, 17);
+		stream = new FsCheckpointStateOutputStream(TEMP_DIR_PATH, FileSystem.getLocalFileSystem(), 31, 17);
 
 		byte[] data = "testme!".getBytes(ConfigConstants.DEFAULT_CHARSET);
 
@@ -130,9 +139,9 @@ public class FsCheckpointStateOutputStreamTest {
 
 		final ArgumentCaptor<Path> pathCaptor = ArgumentCaptor.forClass(Path.class);
 
-		when(fs.create(pathCaptor.capture(), anyBoolean())).thenReturn(outputStream);
+		when(fs.create(pathCaptor.capture(), any(WriteMode.class))).thenReturn(outputStream);
 
-		CheckpointStreamFactory.CheckpointStateOutputStream stream = new FsCheckpointStreamFactory.FsCheckpointStateOutputStream(
+		CheckpointStreamFactory.CheckpointStateOutputStream stream = new FsCheckpointStateOutputStream(
 			TEMP_DIR_PATH,
 			fs,
 			4,
@@ -141,7 +150,7 @@ public class FsCheckpointStateOutputStreamTest {
 		// this should create the underlying file stream
 		stream.write(new byte[]{1,2,3,4,5});
 
-		verify(fs).create(any(Path.class), anyBoolean());
+		verify(fs).create(any(Path.class), any(WriteMode.class));
 
 		stream.close();
 
@@ -158,10 +167,10 @@ public class FsCheckpointStateOutputStreamTest {
 
 		final ArgumentCaptor<Path>  pathCaptor = ArgumentCaptor.forClass(Path.class);
 
-		when(fs.create(pathCaptor.capture(), anyBoolean())).thenReturn(outputStream);
+		when(fs.create(pathCaptor.capture(), any(WriteMode.class))).thenReturn(outputStream);
 		doThrow(new IOException("Test IOException.")).when(outputStream).close();
 
-		CheckpointStreamFactory.CheckpointStateOutputStream stream = new FsCheckpointStreamFactory.FsCheckpointStateOutputStream(
+		CheckpointStreamFactory.CheckpointStateOutputStream stream = new FsCheckpointStateOutputStream(
 			TEMP_DIR_PATH,
 			fs,
 			4,
@@ -170,7 +179,7 @@ public class FsCheckpointStateOutputStreamTest {
 		// this should create the underlying file stream
 		stream.write(new byte[]{1,2,3,4,5});
 
-		verify(fs).create(any(Path.class), anyBoolean());
+		verify(fs).create(any(Path.class), any(WriteMode.class));
 
 		try {
 			stream.closeAndGetHandle();
@@ -182,9 +191,102 @@ public class FsCheckpointStateOutputStreamTest {
 		verify(fs).delete(eq(pathCaptor.getValue()), anyBoolean());
 	}
 
+	@Test
+	public void testWriteFailsFastWhenClosed() throws Exception {
+		FsCheckpointStateOutputStream stream = new FsCheckpointStateOutputStream(
+				TEMP_DIR_PATH, FileSystem.getLocalFileSystem(), 1024, 512);
+
+		assertFalse(stream.isClosed());
+
+		stream.close();
+		assertTrue(stream.isClosed());
+
+		try {
+			stream.write(1);
+			fail();
+		} catch (IOException e) {
+			// expected
+		}
+
+		try {
+			stream.write(new byte[4], 1, 2);
+			fail();
+		} catch (IOException e) {
+			// expected
+		}
+	}
+
+	/**
+	 * Validates that a sync() call creates the stream and syncs it.
+	 */
+	@Test
+	public void testSync() throws Exception {
+		final FSDataOutputStream stream = mock(FSDataOutputStream.class);
+		final FileSystem fileSystem = mock(FileSystem.class);
+		when(fileSystem.create(any(Path.class), any(WriteMode.class))).thenReturn(stream);
+
+		final Path path = new Path(TEMP_DIR_PATH, "this-is-ignored-anyways.file");
+
+		FsCheckpointStateOutputStream out = new FsCheckpointStateOutputStream(path, fileSystem, 4096, 4096);
+		out.write(new byte[100]);
+
+		// no calls on the stream, yet
+		verifyZeroInteractions(stream);
+
+		// sync should create the stream, write data, any sync
+		out.sync();
+		verify(stream, atLeastOnce()).write(any(byte[].class), anyInt(), anyInt());
+		verify(stream, times(1)).sync();
+	}
+
+	/**
+	 * This test validates that a close operation can happen even while a 'closeAndGetHandle()'
+	 * call is in progress.
+	 * 
+	 * <p>That behavior is essential for fast cancellation (concurrent cleanup).
+	 */
+	@Test
+	public void testCloseDoesNotLock() throws Exception {
+		// a stream that blocks but is released when closed
+		final FSDataOutputStream stream = new BlockerStream();
+
+		final FileSystem fileSystem = mock(FileSystem.class);
+		when(fileSystem.create(any(Path.class), any(WriteMode.class))).thenReturn(stream);
+
+		final Path path = new Path(TEMP_DIR_PATH, "this-is-ignored-anyways.file");
+		final FsCheckpointStateOutputStream checkpointStream = 
+				new FsCheckpointStateOutputStream(path, fileSystem, 10, 10);
+
+		final OneShotLatch sync = new OneShotLatch();
+
+		final CheckedThread thread = new CheckedThread() {
+
+			@Override
+			public void go() throws Exception {
+				checkpointStream.write(new byte[100]);
+				sync.trigger();
+				// that call should now block, because it needs to get the position
+				checkpointStream.closeAndGetHandle();
+			}
+		};
+		thread.start();
+
+		sync.await();
+		checkpointStream.close();
+
+		// the thread may or may not fail, that depends on the thread race
+		// it is not important for this test, important is that the thread does not freeze/lock up
+		try {
+			thread.sync();
+		}
+		catch (IOException ignored) {}
+	}
+
+	// ------------------------------------------------------------------------
+
 	private void runTest(int numBytes, int bufferSize, int threshold, boolean expectFile) throws Exception {
 		FsCheckpointStreamFactory.CheckpointStateOutputStream stream =
-			new FsCheckpointStreamFactory.FsCheckpointStateOutputStream(
+			new FsCheckpointStateOutputStream(
 				TEMP_DIR_PATH, FileSystem.getLocalFileSystem(), bufferSize, threshold);
 
 		Random rnd = new Random();
@@ -230,28 +332,39 @@ public class FsCheckpointStateOutputStreamTest {
 		handle.discardState();
 	}
 
-	@Test
-	public void testWriteFailsFastWhenClosed() throws Exception {
-		FsCheckpointStateOutputStream stream = new FsCheckpointStateOutputStream(
-				TEMP_DIR_PATH, FileSystem.getLocalFileSystem(), 1024, 512);
+	// ------------------------------------------------------------------------
+	
+	private static class BlockerStream extends FSDataOutputStream {
 
-		assertFalse(stream.isClosed());
+		private final OneShotLatch blocker = new OneShotLatch();
 
-		stream.close();
-		assertTrue(stream.isClosed());
-
-		try {
-			stream.write(1);
-			fail();
-		} catch (IOException e) {
-			// expected
+		@Override
+		public long getPos() throws IOException {
+			block();
+			return 0L;
 		}
 
-		try {
-			stream.write(new byte[4], 1, 2);
-			fail();
-		} catch (IOException e) {
-			// expected
+		@Override
+		public void write(int b) throws IOException {}
+
+		@Override
+		public void flush() throws IOException {}
+
+		@Override
+		public void sync() throws IOException {}
+
+		@Override
+		public void close() throws IOException {
+			blocker.trigger();
+		}
+
+		private void block() throws IOException {
+			try {
+				blocker.await();
+			} catch (InterruptedException e) {
+				throw new IOException("interrupted");
+			}
+			throw new IOException("closed");
 		}
 	}
 }

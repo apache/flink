@@ -364,7 +364,6 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			List<ExecutionJobVertex> verticesToCommitTo,
 			CheckpointIDCounter checkpointIDCounter,
 			CompletedCheckpointStore checkpointStore,
-			String checkpointDir,
 			StateBackend metadataStore,
 			CheckpointStatsTracker statsTracker) {
 
@@ -402,7 +401,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			tasksToCommitTo,
 			checkpointIDCounter,
 			checkpointStore,
-			checkpointDir,
+			metadataStore,
 			ioExecutor);
 
 		checkpointCoordinator.setCheckpointStatsTracker(checkpointStatsTracker);

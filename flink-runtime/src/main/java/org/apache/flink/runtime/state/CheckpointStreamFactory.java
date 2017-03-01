@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.core.fs.FSDataOutputStream;
@@ -22,30 +23,26 @@ import org.apache.flink.core.fs.FSDataOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 
+/**
+ * The CheckpointStreamFactory creates streams to persist raw checkpointed data (not metadata) as part
+ * of a checkpoint.
+ */
 public interface CheckpointStreamFactory {
 
 	/**
-	 * Creates an new {@link CheckpointStateOutputStream}. When the stream
-	 * is closed, it returns a state handle that can retrieve the state back.
+	 * Creates an new {@code CheckpointStateOutputStream}. When the stream is closed, it returns a
+	 * state handle that can retrieve the state back.
 	 *
 	 * @param checkpointID The ID of the checkpoint.
 	 * @param timestamp The timestamp of the checkpoint.
 	 *
 	 * @return An output stream that writes state for the given checkpoint.
 	 *
-	 * @throws Exception Exceptions may occur while creating the stream and should be forwarded.
+	 * @throws IOException Exceptions may occur while creating the stream and should be forwarded.
 	 */
-	CheckpointStateOutputStream createCheckpointStateOutputStream(
-			long checkpointID,
-			long timestamp) throws Exception;
+	CheckpointStateOutputStream createCheckpointStateOutputStream(long checkpointID, long timestamp) throws IOException;
 
-	/**
-	 * Closes the stream factory, releasing all internal resources, but does not delete any
-	 * persistent checkpoint data.
-	 *
-	 * @throws Exception Exceptions can be forwarded and will be logged by the system
-	 */
-	void close() throws Exception;
+	// ------------------------------------------------------------------------
 
 	/**
 	 * A dedicated output stream that produces a {@link StreamStateHandle} when closed.

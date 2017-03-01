@@ -41,6 +41,8 @@ public class ExternalizedCheckpointSettings implements java.io.Serializable {
 		this.deleteOnCancellation = deleteOnCancellation;
 	}
 
+	// ------------------------------------------------------------------------
+
 	/**
 	 * Returns <code>true</code> if checkpoints should be externalized.
 	 *
@@ -58,6 +60,24 @@ public class ExternalizedCheckpointSettings implements java.io.Serializable {
 	public boolean deleteOnCancellation() {
 		return deleteOnCancellation;
 	}
+
+	/**
+	 * Gets a version of these settings that sets externalization to true.
+	 */
+	public ExternalizedCheckpointSettings withExternalization() {
+		return externalizeCheckpoints ? this : new ExternalizedCheckpointSettings(true, deleteOnCancellation);
+	}
+
+	// ------------------------------------------------------------------------
+
+	@Override
+	public String toString() {
+		return "{externalize=" + externalizeCheckpoints + ", deleteOnCancellation=" + deleteOnCancellation + ')';
+	}
+
+	// ------------------------------------------------------------------------
+	//  Factory methods
+	// ------------------------------------------------------------------------
 
 	public static ExternalizedCheckpointSettings externalizeCheckpoints(boolean deleteOnCancellation) {
 		return new ExternalizedCheckpointSettings(true, deleteOnCancellation);

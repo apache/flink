@@ -26,6 +26,8 @@ import com.typesafe.config.Config;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
 import org.apache.flink.runtime.checkpoint.CheckpointDeclineReason;
@@ -775,7 +777,7 @@ public class JobManagerTest {
 
 		FiniteDuration timeout = new FiniteDuration(30, TimeUnit.SECONDS);
 		Configuration config = new Configuration();
-		config.setString(ConfigConstants.SAVEPOINT_DIRECTORY_KEY, defaultSavepointDir.getAbsolutePath());
+		config.setString(ConfigConstants.SAVEPOINT_DIRECTORY_KEY, defaultSavepointDir.toURI().toString());
 
 		ActorSystem actorSystem = null;
 		ActorGateway jobManager = null;
@@ -873,8 +875,8 @@ public class JobManagerTest {
 			// Wait for job status change
 			Await.ready(cancelled, timeout);
 
-			File savepointFile = new File(savepointPath);
-			assertEquals(true, savepointFile.exists());
+			File savepointFile = new File(new Path(savepointPath).getPath());
+			assertTrue(savepointFile.exists());
 		} finally {
 			if (actorSystem != null) {
 				actorSystem.shutdown();
@@ -1007,7 +1009,7 @@ public class JobManagerTest {
 
 		FiniteDuration timeout = new FiniteDuration(30, TimeUnit.SECONDS);
 		Configuration config = new Configuration();
-		config.setString(ConfigConstants.SAVEPOINT_DIRECTORY_KEY, defaultSavepointDir.getAbsolutePath());
+		config.setString(ConfigConstants.SAVEPOINT_DIRECTORY_KEY, defaultSavepointDir.toURI().toString());
 
 		ActorSystem actorSystem = null;
 		ActorGateway jobManager = null;

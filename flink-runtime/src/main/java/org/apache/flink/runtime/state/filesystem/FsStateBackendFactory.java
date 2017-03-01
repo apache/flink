@@ -18,44 +18,47 @@
 
 package org.apache.flink.runtime.state.filesystem;
 
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.StateBackendFactory;
 
-import java.io.IOException;
+import java.net.URI;
 
 /**
- * A factory that creates an {@link org.apache.flink.runtime.state.filesystem.FsStateBackend}
- * from a configuration.
+ * A factory that creates an {@link FsStateBackend} from a configuration.
  */
+@PublicEvolving
 public class FsStateBackendFactory implements StateBackendFactory<FsStateBackend> {
-	
-	/** The key under which the config stores the directory where checkpoints should be stored */
-	public static final String CHECKPOINT_DIRECTORY_URI_CONF_KEY = "state.backend.fs.checkpointdir";
 
-	/** The key under which the config stores the threshold for state to be store in memory,
-	 * rather than in files */
-	public static final String MEMORY_THRESHOLD_CONF_KEY = "state.backend.fs.memory-threshold";
+	/** Config key for the maximum state size that is stored with the metadata */
+	public static final ConfigOption<Integer> MEMORY_THRESHOLD_CONF = ConfigOptions
+			.key("state.backend.fs.memory-threshold")
+			.defaultValue(FsStateBackend.DEFAULT_FILE_STATE_THRESHOLD);
 
+	// ------------------------------------------------------------------------
 
 	@Override
 	public FsStateBackend createFromConfig(Configuration config) throws IllegalConfigurationException {
-		final String checkpointDirURI = config.getString(CHECKPOINT_DIRECTORY_URI_CONF_KEY, null);
-		final int memoryThreshold = config.getInteger(
-			MEMORY_THRESHOLD_CONF_KEY, FsStateBackend.DEFAULT_FILE_STATE_THRESHOLD);
+		final String checkpointDir = config.getString(AbstractFileStateBackend.CHECKPOINT_PATH);
+		final String savepointDir = config.getString(AbstractFileStateBackend.SAVEPOINT_PATH);
+		final int memoryThreshold = config.getInteger(MEMORY_THRESHOLD_CONF);
 
-		if (checkpointDirURI == null) {
+		if (checkpointDir == null) {
 			throw new IllegalConfigurationException(
 					"Cannot create the file system state backend: The configuration does not specify the " +
-							"checkpoint directory '" + CHECKPOINT_DIRECTORY_URI_CONF_KEY + '\'');
+							"checkpoint directory '" + AbstractFileStateBackend.CHECKPOINT_PATH.key() + '\'');
 		}
 
 		try {
-			Path path = new Path(checkpointDirURI);
-			return new FsStateBackend(path.toUri(), memoryThreshold);
+			URI checkpointDirUri = new Path(checkpointDir).toUri();
+			URI savepointDirUri = savepointDir == null ? null : new Path(savepointDir).toUri();
+			return new FsStateBackend(checkpointDirUri, savepointDirUri, memoryThreshold);
 		}
-		catch (IOException | IllegalArgumentException e) {
+		catch (IllegalArgumentException e) {
 			throw new IllegalConfigurationException("Invalid configuration for the state backend", e);
 		}
 	}

@@ -44,12 +44,7 @@ public class MemCheckpointStreamFactory implements CheckpointStreamFactory {
 	}
 
 	@Override
-	public void close() throws Exception {}
-
-	@Override
-	public CheckpointStateOutputStream createCheckpointStateOutputStream(
-			long checkpointID, long timestamp) throws Exception
-	{
+	public CheckpointStateOutputStream createCheckpointStateOutputStream(long checkpointID, long timestamp) {
 		return new MemoryCheckpointOutputStream(maxStateSize);
 	}
 

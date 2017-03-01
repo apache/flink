@@ -21,8 +21,6 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.runtime.checkpoint.savepoint.SavepointStore;
-import org.apache.flink.runtime.concurrent.ApplyFunction;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -36,6 +34,9 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
+import org.apache.flink.runtime.state.CheckpointMetadataStreamFactory;
+import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.StateBackendGlobalHooks;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.TaskStateHandles;
 
@@ -107,10 +108,12 @@ public class CheckpointCoordinator {
 	 * accessing this don't block the job manager actor and run asynchronously. */
 	private final CompletedCheckpointStore completedCheckpointStore;
 
-	/** Default directory for persistent checkpoints; <code>null</code> if none configured.
-	 * THIS WILL BE REPLACED BY PROPER STATE-BACKEND METADATA WRITING */
+	/** The state backend used to persist the checkpoint metadata */
+	private final StateBackend metadataStore;
+
+	/** Global state operation hooks, if available from the state backend, null otherwise */
 	@Nullable
-	private final String checkpointDirectory;
+	private final StateBackendGlobalHooks globalStateHooks;
 
 	/** A list of recent checkpoint IDs, to identify late messages (vs invalid ones) */
 	private final ArrayDeque<Long> recentPendingCheckpoints;
@@ -176,7 +179,7 @@ public class CheckpointCoordinator {
 			ExecutionVertex[] tasksToCommitTo,
 			CheckpointIDCounter checkpointIDCounter,
 			CompletedCheckpointStore completedCheckpointStore,
-			@Nullable String checkpointDirectory,
+			StateBackend metadataStore,
 			Executor executor) {
 
 		// sanity checks
@@ -185,10 +188,19 @@ public class CheckpointCoordinator {
 		checkArgument(minPauseBetweenCheckpoints >= 0, "minPauseBetweenCheckpoints must be >= 0");
 		checkArgument(maxConcurrentCheckpointAttempts >= 1, "maxConcurrentCheckpointAttempts must be >= 1");
 
-		if (externalizeSettings.externalizeCheckpoints() && checkpointDirectory == null) {
-			throw new IllegalStateException("CheckpointConfig says to persist periodic " +
-					"checkpoints, but no checkpoint directory has been configured. You can " +
-					"configure configure one via key '" + ConfigConstants.CHECKPOINTS_DIRECTORY_KEY + "'.");
+		// if the checkpoint store requires us to externalize checkpoints, record that in the
+		// externalization settings
+		if (completedCheckpointStore.requiresExternalizedCheckpoints()) {
+			externalizeSettings = externalizeSettings.withExternalization();
+		}
+
+		// make sure we catch early if we later would require externalized
+		// checkpoints but do not support them
+		if (externalizeSettings.externalizeCheckpoints() && !metadataStore.supportsExternalizedMetadata()) {
+			throw new IllegalStateException("CheckpointConfig says to persist checkpoints externally addressable " +
+					"(= write out the metadata), but metadata persistence has not been configured for the " +
+					"state backend. For example for FileSystem-based checkpoint storage, you need to set the '" +
+					ConfigConstants.CHECKPOINTS_DIRECTORY_KEY + "' configuration parameter.");
 		}
 
 		// max "in between duration" can be one year - this is to prevent numeric overflows
@@ -213,15 +225,18 @@ public class CheckpointCoordinator {
 		this.pendingCheckpoints = new LinkedHashMap<>();
 		this.checkpointIdCounter = checkNotNull(checkpointIDCounter);
 		this.completedCheckpointStore = checkNotNull(completedCheckpointStore);
-		this.checkpointDirectory = checkpointDirectory;
+		this.metadataStore = checkNotNull(metadataStore);
 		this.executor = checkNotNull(executor);
 
 		this.recentPendingCheckpoints = new ArrayDeque<>(NUM_GHOST_CHECKPOINT_IDS);
 
+		this.globalStateHooks = (metadataStore instanceof StateBackendGlobalHooks) ?
+				(StateBackendGlobalHooks) metadataStore : null;
+
 		this.timer = new Timer("Checkpoint Timer", true);
 
 		if (externalizeSettings.externalizeCheckpoints()) {
-			LOG.info("Persisting periodic checkpoints externally at {}.", checkpointDirectory);
+			LOG.info("Persisting periodic checkpoints externally at {}", metadataStore.getMetadataPersistenceLocation());
 			checkpointProperties = CheckpointProperties.forExternalizedCheckpoint(externalizeSettings.deleteOnCancellation());
 		} else {
 			checkpointProperties = CheckpointProperties.forStandardCheckpoint();
@@ -288,83 +303,57 @@ public class CheckpointCoordinator {
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Triggers a savepoint with the given savepoint directory as a target.
+	 * Triggers a savepoint. If a target location is specified, the savepoint will be written to that
+	 * target location. Otherwise, the state backend should use its default savepoint target location.
 	 *
 	 * @param timestamp The timestamp for the savepoint.
-	 * @param targetDirectory Target directory for the savepoint.
+	 * @param targetLocation Optionally, the target location for the savepoint.
+	 * 
 	 * @return A future to the completed checkpoint
-	 * @throws IllegalStateException If no savepoint directory has been
-	 *                               specified and no default savepoint directory has been
-	 *                               configured
-	 * @throws Exception             Failures during triggering are forwarded
+	 * 
+	 * @throws UnsupportedOperationException Thrown, if the state backend is not configured for savepoints.
 	 */
-	public Future<CompletedCheckpoint> triggerSavepoint(long timestamp, String targetDirectory) throws Exception {
-		checkNotNull(targetDirectory, "Savepoint target directory");
+	public Future<CompletedCheckpoint> triggerSavepoint(
+			long timestamp,
+			@Nullable String targetLocation) {
 
-		CheckpointProperties props = CheckpointProperties.forStandardSavepoint();
+		// the properties of the checkpoint we create (here a savepoint)
+		final CheckpointProperties props = CheckpointProperties.forStandardSavepoint();
 
-		// Create the unique savepoint directory
-		final String savepointDirectory = SavepointStore
-			.createSavepointDirectory(targetDirectory, job);
-
-		CheckpointTriggerResult triggerResult = triggerCheckpoint(
-			timestamp,
-			props,
-			savepointDirectory,
-			false);
-
-		Future<CompletedCheckpoint> result;
-
+		final CheckpointTriggerResult triggerResult = triggerCheckpoint(
+				timestamp,
+				props,
+				targetLocation,
+				false);
+		
 		if (triggerResult.isSuccess()) {
-			result = triggerResult.getPendingCheckpoint().getCompletionFuture();
-		} else {
-			Throwable cause = new Exception("Failed to trigger savepoint: " + triggerResult.getFailureReason().message());
-			result = FlinkCompletableFuture.completedExceptionally(cause);
+			return triggerResult.getPendingCheckpoint().getCompletionFuture();
+		} 
+		else {
+			return FlinkCompletableFuture.completedExceptionally(
+					new Exception("Failed to trigger savepoint: " + triggerResult.getFailureReason().message()));
 		}
-
-		// Make sure to remove the created base directory on Exceptions
-		result.exceptionallyAsync(new ApplyFunction<Throwable, Void>() {
-			@Override
-			public Void apply(Throwable value) {
-				try {
-					SavepointStore.deleteSavepointDirectory(savepointDirectory);
-				} catch (Throwable t) {
-					LOG.warn("Failed to delete savepoint directory " + savepointDirectory
-						+ " after failed savepoint.", t);
-				}
-
-				return null;
-			}
-		}, executor);
-
-		return result;
 	}
 
 	/**
-	 * Triggers a new standard checkpoint and uses the given timestamp as the checkpoint
-	 * timestamp.
+	 * Triggers a new standard checkpoint and uses the given timestamp as the checkpoint timestamp.
 	 *
 	 * @param timestamp The timestamp for the checkpoint.
-	 * @param isPeriodic Flag indicating whether this triggered checkpoint is
-	 * periodic. If this flag is true, but the periodic scheduler is disabled,
-	 * the checkpoint will be declined.
-	 * @return <code>true</code> if triggering the checkpoint succeeded.
+	 * @param isPeriodic Flag indicating whether this triggered checkpoint is periodic. If this flag
+	 *                   is true, but the periodic scheduler is disabled, the checkpoint will be declined.
+	 * 
+	 * @return True, if triggering the checkpoint succeeded.
 	 */
 	public boolean triggerCheckpoint(long timestamp, boolean isPeriodic) {
-		return triggerCheckpoint(timestamp, checkpointProperties, checkpointDirectory, isPeriodic).isSuccess();
+		return triggerCheckpoint(timestamp, checkpointProperties, null, isPeriodic).isSuccess();
 	}
 
 	@VisibleForTesting
 	CheckpointTriggerResult triggerCheckpoint(
 			long timestamp,
 			CheckpointProperties props,
-			String targetDirectory,
+			@Nullable String customTargetLocation,
 			boolean isPeriodic) {
-
-		// Sanity check
-		if (props.externalizeCheckpoint() && targetDirectory == null) {
-			throw new IllegalStateException("No target directory specified to persist checkpoint to.");
-		}
 
 		// make some eager pre-checks
 		synchronized (lock) {
@@ -452,11 +441,40 @@ public class CheckpointCoordinator {
 		// may issue blocking operations. Using a different lock than the coordinator-wide lock,
 		// we avoid blocking the processing of 'acknowledge/decline' messages during that time.
 		synchronized (triggerLock) {
+
+			final CheckpointOptions checkpointOptions;
+			final CheckpointMetadataStreamFactory metadataStreamFactory;
+
 			final long checkpointID;
+
 			try {
 				// this must happen outside the coordinator-wide lock, because it communicates
 				// with external services (in HA mode) and may block for a while.
 				checkpointID = checkpointIdCounter.getAndIncrement();
+
+				if (!props.isSavepoint()) {
+					// regular checkpoint
+					checkpointOptions = CheckpointOptions.forFullCheckpoint();
+
+					if (props.externalizeCheckpoint() || completedCheckpointStore.requiresExternalizedCheckpoints()) {
+						// the coordinator needs to write out the checkpoint metadata
+						metadataStreamFactory = metadataStore.createCheckpointMetadataStreamFactory(job, checkpointID);
+					}
+					else {
+						// the coordinator should not write the metadata out
+						metadataStreamFactory = null;
+					}
+				}
+				else {
+					metadataStreamFactory = metadataStore.createSavepointMetadataStreamFactory(job, customTargetLocation);
+
+					// this is the effective target, which may be the same as the 'targetLocation' passed as
+					// the parameter, or the default location (if 'targetLocation' was null), or a variant of
+					// the target location (like a subdirectory, ...)
+					final String effectiveTarget = metadataStreamFactory.getTargetLocation();
+
+					checkpointOptions = CheckpointOptions.forSavepoint(effectiveTarget);
+				}
 			}
 			catch (Throwable t) {
 				int numUnsuccessful = numUnsuccessfulCheckpointsTriggers.incrementAndGet();
@@ -470,8 +488,8 @@ public class CheckpointCoordinator {
 				timestamp,
 				ackTasks,
 				props,
-				targetDirectory,
-				executor);
+				executor,
+				metadataStreamFactory);
 
 			if (statsTracker != null) {
 				PendingCheckpointStats callback = statsTracker.reportPendingCheckpoint(
@@ -549,13 +567,6 @@ public class CheckpointCoordinator {
 					timer.schedule(canceller, checkpointTimeout);
 				}
 				// end of lock scope
-
-				CheckpointOptions checkpointOptions;
-				if (!props.isSavepoint()) {
-					checkpointOptions = CheckpointOptions.forFullCheckpoint();
-				} else {
-					checkpointOptions = CheckpointOptions.forSavepoint(targetDirectory);
-				}
 
 				// send the messages to the tasks that trigger their checkpoint
 				for (Execution execution: executions) {
@@ -758,15 +769,34 @@ public class CheckpointCoordinator {
 	 * @throws CheckpointException if the completion failed
 	 */
 	private void completePendingCheckpoint(PendingCheckpoint pendingCheckpoint) throws CheckpointException {
-		final long checkpointId = pendingCheckpoint.getCheckpointId();
-		CompletedCheckpoint completedCheckpoint = null;
+		assert Thread.holdsLock(lock);
 
+		final long checkpointId = pendingCheckpoint.getCheckpointId();
+
+		final boolean externalize =
+				completedCheckpointStore.requiresExternalizedCheckpoints() ||
+				pendingCheckpoint.getProps().externalizeCheckpoint() ||
+				pendingCheckpoint.getProps().isSavepoint();
+
+		CompletedCheckpoint completedCheckpoint = null;
 		try {
 			// externalize the checkpoint if required
-			if (pendingCheckpoint.getProps().externalizeCheckpoint()) {
+			if (externalize) {
 				completedCheckpoint = pendingCheckpoint.finalizeCheckpointExternalized();
 			} else {
 				completedCheckpoint = pendingCheckpoint.finalizeCheckpointNonExternalized();
+			}
+
+			try {
+				if (globalStateHooks != null) {
+					completedCheckpoint.registerDisposeHook(
+							globalStateHooks.createCheckpointDisposeHook(completedCheckpoint));
+				}
+			}
+			catch (Exception e) {
+				// catch all exception, to not let errors in cleanup hooks fail the checkpoint
+				LOG.warn("Failed to create the cleanup hook for checkpoint " + checkpointId + 
+						". Generic cleanup path will be executed...");
 			}
 
 			completedCheckpointStore.addCheckpoint(completedCheckpoint);
@@ -1057,8 +1087,8 @@ public class CheckpointCoordinator {
 			try {
 				triggerCheckpoint(System.currentTimeMillis(), true);
 			}
-			catch (Exception e) {
-				LOG.error("Exception while triggering checkpoint.", e);
+			catch (Throwable t) {
+				LOG.error("Exception while triggering checkpoint.", t);
 			}
 		}
 	}
@@ -1084,10 +1114,10 @@ public class CheckpointCoordinator {
 				public void run() {
 					try {
 						stateObject.discardState();
-					} catch (Throwable throwable) {
-					LOG.warn("Could not properly discard state object of checkpoint {} " +
-						"belonging to task {} of job {}.", checkpointId, executionAttemptID, jobId,
-						throwable);
+					}
+					catch (Throwable t) {
+						LOG.warn("Could not properly discard state object of checkpoint {} " +
+								"belonging to task {} of job {}.", checkpointId, executionAttemptID, jobId, t);
 					}
 				}
 			});

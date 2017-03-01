@@ -18,21 +18,21 @@
 
 package org.apache.flink.runtime.state.filesystem;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-
-import java.io.File;
-import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.state.filesystem.FsCheckpointStreamFactory.FsCheckpointStateOutputStream;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import java.io.File;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+
 public class FsSavepointStreamFactoryTest {
 
 	@Rule
-	public TemporaryFolder folder = new TemporaryFolder();
+	public final TemporaryFolder folder = new TemporaryFolder();
 
 	/**
 	 * Tests that the factory creates all files in the given directory without
@@ -41,23 +41,19 @@ public class FsSavepointStreamFactoryTest {
 	@Test
 	public void testSavepointStreamDirectoryLayout() throws Exception {
 		File testRoot = folder.newFolder();
-		JobID jobId = new JobID();
 
 		FsSavepointStreamFactory savepointStreamFactory = new FsSavepointStreamFactory(
-				new Path(testRoot.getAbsolutePath()),
-				jobId,
-				0);
+				FileSystem.getLocalFileSystem(), new Path(testRoot.toURI()), 0);
 
 		File[] listed = testRoot.listFiles();
 		assertNotNull(listed);
 		assertEquals(0, listed.length);
 
-		FsCheckpointStateOutputStream stream = savepointStreamFactory
-			.createCheckpointStateOutputStream(1273, 19231);
-
+		FsCheckpointStateOutputStream stream = savepointStreamFactory.createCheckpointStateOutputStream(1273, 19231);
 		stream.write(1);
 
 		FileStateHandle handle = (FileStateHandle) stream.closeAndGetHandle();
+		assertNotNull(handle);
 
 		listed = testRoot.listFiles();
 		assertNotNull(listed);

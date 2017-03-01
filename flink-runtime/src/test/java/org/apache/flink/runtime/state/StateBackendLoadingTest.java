@@ -20,20 +20,25 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
-import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackendFactory;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.state.memory.MemoryStateBackendFactory;
 import org.apache.flink.util.DynamicCodeLoadingException;
 
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.mockito.Mockito;
 
 import java.io.IOException;
+import java.net.URI;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -51,37 +56,166 @@ public class StateBackendLoadingTest {
 	private final String backendKey = CoreOptions.STATE_BACKEND.key();
 
 	// ------------------------------------------------------------------------
+	//  defaults
+	// ------------------------------------------------------------------------
 
 	@Test
 	public void testNoStateBackendDefined() throws Exception {
-		assertNull(AbstractStateBackend.loadStateBackendFromConfig(new Configuration(), cl, null));
+		assertNull(StateBackendLoader.loadStateBackendFromConfig(new Configuration(), cl, null));
 	}
 
 	@Test
 	public void testInstantiateMemoryBackendByDefault() throws Exception {
-		StateBackend backend = AbstractStateBackend
-				.loadStateBackendFromConfigOrCreateDefault(new Configuration(), cl, null);
+		StateBackend backend =
+				StateBackendLoader.fromApplicationOrConfigOrDefault(null, new Configuration(), cl, null);
 
 		assertTrue(backend instanceof MemoryStateBackend);
 	}
 
 	@Test
-	public void testLoadMemoryStateBackend() throws Exception {
-		// we configure with the explicit string (rather than AbstractStateBackend#X_STATE_BACKEND_NAME)
-		// to guard against config-breaking changes of the name 
+	public void testApplicationDefinedHasPrecedence() throws Exception {
+		final StateBackend appBackend = Mockito.mock(StateBackend.class);
+
 		final Configuration config = new Configuration();
 		config.setString(backendKey, "jobmanager");
 
-		StateBackend backend = AbstractStateBackend
-				.loadStateBackendFromConfigOrCreateDefault(new Configuration(), cl, null);
-
-		assertTrue(backend instanceof MemoryStateBackend);
+		StateBackend backend = StateBackendLoader.fromApplicationOrConfigOrDefault(appBackend, config, cl, null);
+		assertEquals(appBackend, backend);
 	}
 
+	// ------------------------------------------------------------------------
+	//  Memory State Backend
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Validates loading a memory state backend from the cluster configuration.
+	 */
+	@Test
+	public void testLoadMemoryStateBackendNoParameters() throws Exception {
+		// we configure with the explicit string (rather than AbstractStateBackend#X_STATE_BACKEND_NAME)
+		// to guard against config-breaking changes of the name
+
+		final Configuration config1 = new Configuration();
+		config1.setString(backendKey, "jobmanager");
+
+		final Configuration config2 = new Configuration();
+		config2.setString(backendKey, MemoryStateBackendFactory.class.getName());
+
+		StateBackend backend1 = StateBackendLoader.loadStateBackendFromConfig(config1, cl, null);
+		StateBackend backend2 = StateBackendLoader.loadStateBackendFromConfig(config2, cl, null);
+
+		assertTrue(backend1 instanceof MemoryStateBackend);
+		assertTrue(backend2 instanceof MemoryStateBackend);
+	}
+
+	/**
+	 * Validates loading a memory state backend with additional parameters from the cluster configuration.
+	 */
+	@Test
+	public void testLoadMemoryStateWithParameters() throws Exception {
+		final String checkpointDir = new Path(tmp.newFolder().toURI()).toString();
+		final String savepointDir = new Path(tmp.newFolder().toURI()).toString();
+		final Path expectedCheckpointPath = new Path(checkpointDir);
+		final Path expectedSavepointPath = new Path(savepointDir);
+
+		// we configure with the explicit string (rather than AbstractStateBackend#X_STATE_BACKEND_NAME)
+		// to guard against config-breaking changes of the name
+
+		final Configuration config1 = new Configuration();
+		config1.setString(backendKey, "jobmanager");
+		config1.setString("state.checkpoints.dir", checkpointDir);
+		config1.setString("state.savepoints.dir", savepointDir);
+
+		final Configuration config2 = new Configuration();
+		config2.setString(backendKey, MemoryStateBackendFactory.class.getName());
+		config2.setString("state.checkpoints.dir", checkpointDir);
+		config2.setString("state.savepoints.dir", savepointDir);
+
+		MemoryStateBackend backend1 = (MemoryStateBackend)
+				StateBackendLoader.loadStateBackendFromConfig(config1, cl, null);
+		MemoryStateBackend backend2 = (MemoryStateBackend)
+				StateBackendLoader.loadStateBackendFromConfig(config2, cl, null);
+
+		assertNotNull(backend1);
+		assertNotNull(backend2);
+
+		assertEquals(expectedCheckpointPath, backend1.getCheckpointPath());
+		assertEquals(expectedCheckpointPath, backend2.getCheckpointPath());
+		assertEquals(expectedSavepointPath, backend1.getSavepointPath());
+		assertEquals(expectedSavepointPath, backend2.getSavepointPath());
+	}
+
+	/**
+	 * Validates taking the application-defined memory state backend and adding with additional
+	 * parameters from the cluster configuration.
+	 */
+	@Test
+	public void testConfigureMemoryStateBackend() throws Exception {
+		final String checkpointDir = new Path(tmp.newFolder().toURI()).toString();
+		final String savepointDir = new Path(tmp.newFolder().toURI()).toString();
+		final Path expectedCheckpointPath = new Path(checkpointDir);
+		final Path expectedSavepointPath = new Path(savepointDir);
+
+		final int maxSize = 100;
+
+		final MemoryStateBackend backend = new MemoryStateBackend(maxSize);
+
+		final Configuration config = new Configuration();
+		config.setString(backendKey, "filesystem"); // check that this is not accidentally picked up
+		config.setString("state.checkpoints.dir", checkpointDir);
+		config.setString("state.savepoints.dir", savepointDir);
+
+		StateBackend loadedBackend = StateBackendLoader.fromApplicationOrConfigOrDefault(backend, config, cl, null);
+		assertTrue(loadedBackend instanceof MemoryStateBackend);
+
+		final MemoryStateBackend memBackend = (MemoryStateBackend) loadedBackend;
+		assertEquals(expectedCheckpointPath, memBackend.getCheckpointPath());
+		assertEquals(expectedSavepointPath, memBackend.getSavepointPath());
+		assertEquals(maxSize, memBackend.getMaxStateSize());
+	}
+
+	/**
+	 * Validates taking the application-defined memory state backend and adding with additional
+	 * parameters from the cluster configuration, but giving precedence to application-defined
+	 * parameters over configuration-defined parameters.
+	 */
+	@Test
+	public void testConfigureMemoryStateBackendMixed() throws Exception {
+		final String appCheckpointDir = new Path(tmp.newFolder().toURI()).toString();
+		final String checkpointDir = new Path(tmp.newFolder().toURI()).toString();
+		final String savepointDir = new Path(tmp.newFolder().toURI()).toString();
+		
+		final Path expectedCheckpointPath = new Path(appCheckpointDir);
+		final Path expectedSavepointPath = new Path(savepointDir);
+
+		final MemoryStateBackend backend = new MemoryStateBackend(appCheckpointDir, null);
+
+		final Configuration config = new Configuration();
+		config.setString(backendKey, "filesystem"); // check that this is not accidentally picked up
+		config.setString("state.checkpoints.dir", checkpointDir); // this parameter should not be picked up
+		config.setString("state.savepoints.dir", savepointDir);
+
+		StateBackend loadedBackend = StateBackendLoader.fromApplicationOrConfigOrDefault(backend, config, cl, null);
+		assertTrue(loadedBackend instanceof MemoryStateBackend);
+
+		final MemoryStateBackend memBackend = (MemoryStateBackend) loadedBackend;
+		assertEquals(expectedCheckpointPath, memBackend.getCheckpointPath());
+		assertEquals(expectedSavepointPath, memBackend.getSavepointPath());
+	}
+
+	// ------------------------------------------------------------------------
+	//  File System State Backend
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Validates loading a file system state backend with additional parameters from the cluster configuration.
+	 */
 	@Test
 	public void testLoadFileSystemStateBackend() throws Exception {
-		final String checkpointDir = new Path(tmp.getRoot().toURI()).toString();
-		final Path expectedPath = new Path(checkpointDir);
+		final String checkpointDir = new Path(tmp.newFolder().toURI()).toString();
+		final String savepointDir = new Path(tmp.newFolder().toURI()).toString();
+		final Path expectedCheckpointsPath = new Path(checkpointDir);
+		final Path expectedSavepointsPath = new Path(savepointDir);
 		final int threshold = 1000000;
 
 		// we configure with the explicit string (rather than AbstractStateBackend#X_STATE_BACKEND_NAME)
@@ -89,20 +223,17 @@ public class StateBackendLoadingTest {
 		final Configuration config1 = new Configuration();
 		config1.setString(backendKey, "filesystem");
 		config1.setString("state.checkpoints.dir", checkpointDir);
-		config1.setString("state.backend.fs.checkpointdir", checkpointDir);
+		config1.setString("state.savepoints.dir", savepointDir);
 		config1.setInteger("state.backend.fs.memory-threshold", threshold);
 
 		final Configuration config2 = new Configuration();
 		config2.setString(backendKey, FsStateBackendFactory.class.getName());
 		config2.setString("state.checkpoints.dir", checkpointDir);
-		config2.setString("state.backend.fs.checkpointdir", checkpointDir);
+		config2.setString("state.savepoints.dir", savepointDir);
 		config2.setInteger("state.backend.fs.memory-threshold", threshold);
 
-		StateBackend backend1 = AbstractStateBackend
-				.loadStateBackendFromConfigOrCreateDefault(config1, cl, null);
-
-		StateBackend backend2 = AbstractStateBackend
-				.loadStateBackendFromConfigOrCreateDefault(config2, cl, null);
+		StateBackend backend1 = StateBackendLoader.loadStateBackendFromConfig(config1, cl, null);
+		StateBackend backend2 = StateBackendLoader.loadStateBackendFromConfig(config2, cl, null);
 
 		assertTrue(backend1 instanceof FsStateBackend);
 		assertTrue(backend2 instanceof FsStateBackend);
@@ -110,11 +241,51 @@ public class StateBackendLoadingTest {
 		FsStateBackend fs1 = (FsStateBackend) backend1;
 		FsStateBackend fs2 = (FsStateBackend) backend2;
 
-		assertEquals(expectedPath, fs1.getBasePath());
-		assertEquals(expectedPath, fs2.getBasePath());
+		assertEquals(expectedCheckpointsPath, fs1.getCheckpointPath());
+		assertEquals(expectedCheckpointsPath, fs2.getCheckpointPath());
+		assertEquals(expectedSavepointsPath, fs1.getSavepointPath());
+		assertEquals(expectedSavepointsPath, fs2.getSavepointPath());
 		assertEquals(threshold, fs1.getMinFileSizeThreshold());
 		assertEquals(threshold, fs2.getMinFileSizeThreshold());
 	}
+
+	/**
+	 * Validates taking the application-defined file system state backend and adding with additional
+	 * parameters from the cluster configuration, but giving precedence to application-defined
+	 * parameters over configuration-defined parameters.
+	 */
+	@Test
+	public void testLoadFileSystemStateBackendMixed() throws Exception {
+		final String appCheckpointDir = new Path(tmp.newFolder().toURI()).toString();
+		final String checkpointDir = new Path(tmp.newFolder().toURI()).toString();
+		final String savepointDir = new Path(tmp.newFolder().toURI()).toString();
+
+		final Path expectedCheckpointsPath = new Path(new URI(appCheckpointDir));
+		final Path expectedSavepointsPath = new Path(savepointDir);
+
+		final int threshold = 1000000;
+
+		final FsStateBackend backend = new FsStateBackend(new URI(appCheckpointDir), threshold);
+
+		final Configuration config = new Configuration();
+		config.setString(backendKey, "jobmanager"); // this should not be picked up 
+		config.setString("state.checkpoints.dir", checkpointDir); // this should not be picked up
+		config.setString("state.savepoints.dir", savepointDir);
+		config.setInteger("state.backend.fs.memory-threshold", 20); // this should not be picked up
+
+		final StateBackend loadedBackend =
+				StateBackendLoader.fromApplicationOrConfigOrDefault(backend, config, cl, null);
+		assertTrue(loadedBackend instanceof FsStateBackend);
+
+		final FsStateBackend fs = (FsStateBackend) loadedBackend;
+		assertEquals(expectedCheckpointsPath, fs.getCheckpointPath());
+		assertEquals(expectedSavepointsPath, fs.getSavepointPath());
+		assertEquals(threshold, fs.getMinFileSizeThreshold());
+	}
+
+	// ------------------------------------------------------------------------
+	//  Failures
+	// ------------------------------------------------------------------------
 
 	/**
 	 * This test makes sure that failures properly manifest when the state backend could not be loaded.
@@ -126,7 +297,7 @@ public class StateBackendLoadingTest {
 		// try a value that is neither recognized as a name, nor corresponds to a class
 		config.setString(backendKey, "does.not.exist");
 		try {
-			AbstractStateBackend.loadStateBackendFromConfigOrCreateDefault(config, cl, null);
+			StateBackendLoader.fromApplicationOrConfigOrDefault(null, config, cl, null);
 			fail("should fail with an exception");
 		} catch (DynamicCodeLoadingException ignored) {
 			// expected
@@ -135,7 +306,7 @@ public class StateBackendLoadingTest {
 		// try a class that is not a factory
 		config.setString(backendKey, java.io.File.class.getName());
 		try {
-			AbstractStateBackend.loadStateBackendFromConfigOrCreateDefault(config, cl, null);
+			StateBackendLoader.fromApplicationOrConfigOrDefault(null, config, cl, null);
 			fail("should fail with an exception");
 		} catch (DynamicCodeLoadingException ignored) {
 			// expected
@@ -144,7 +315,7 @@ public class StateBackendLoadingTest {
 		// a factory that fails
 		config.setString(backendKey, FailingFactory.class.getName());
 		try {
-			AbstractStateBackend.loadStateBackendFromConfigOrCreateDefault(config, cl, null);
+			StateBackendLoader.fromApplicationOrConfigOrDefault(null, config, cl, null);
 			fail("should fail with an exception");
 		} catch (IOException ignored) {
 			// expected
@@ -152,12 +323,103 @@ public class StateBackendLoadingTest {
 	}
 
 	// ------------------------------------------------------------------------
+	//  High-availability default
+	// ------------------------------------------------------------------------
+
+	/**
+	 * This tests that in the case of configured high-availability, the memory state backend
+	 * automatically grabs the HA persistence directory.
+	 */
+	@Test
+	public void testHighAvailabilityDefaultFallback() throws Exception {
+		final String haPersistenceDir = new Path(tmp.newFolder().toURI()).toString();
+		final Path expectedCheckpointPath = new Path(haPersistenceDir);
+
+		final Configuration config1 = new Configuration();
+		config1.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
+		config1.setString(HighAvailabilityOptions.HA_CLUSTER_ID, "myCluster");
+		config1.setString(HighAvailabilityOptions.HA_STORAGE_PATH, haPersistenceDir);
+
+		final Configuration config2 = new Configuration();
+		config2.setString(backendKey, "jobmanager");
+		config2.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
+		config2.setString(HighAvailabilityOptions.HA_CLUSTER_ID, "myCluster");
+		config2.setString(HighAvailabilityOptions.HA_STORAGE_PATH, haPersistenceDir);
+
+		final MemoryStateBackend appBackend = new MemoryStateBackend();
+
+		final StateBackend loaded1 = StateBackendLoader.fromApplicationOrConfigOrDefault(appBackend, config1, cl, null);
+		final StateBackend loaded2 = StateBackendLoader.fromApplicationOrConfigOrDefault(null, config1, cl, null);
+		final StateBackend loaded3 = StateBackendLoader.fromApplicationOrConfigOrDefault(null, config2, cl, null);
+
+		assertTrue(loaded1 instanceof MemoryStateBackend);
+		assertTrue(loaded2 instanceof MemoryStateBackend);
+		assertTrue(loaded3 instanceof MemoryStateBackend);
+
+		final MemoryStateBackend memBackend1 = (MemoryStateBackend) loaded1;
+		final MemoryStateBackend memBackend2 = (MemoryStateBackend) loaded2;
+		final MemoryStateBackend memBackend3 = (MemoryStateBackend) loaded3;
+
+		assertNotNull(memBackend1.getCheckpointPath());
+		assertNotNull(memBackend2.getCheckpointPath());
+		assertNotNull(memBackend3.getCheckpointPath());
+		assertNull(memBackend1.getSavepointPath());
+		assertNull(memBackend2.getSavepointPath());
+		assertNull(memBackend3.getSavepointPath());
+		
+		assertEquals(expectedCheckpointPath, memBackend1.getCheckpointPath().getParent());
+		assertEquals(expectedCheckpointPath, memBackend2.getCheckpointPath().getParent());
+		assertEquals(expectedCheckpointPath, memBackend3.getCheckpointPath().getParent());
+	}
+
+	@Test
+	public void testHighAvailabilityDefaultFallbackLocalPaths() throws Exception {
+		final String haPersistenceDir = new Path(tmp.newFolder().getAbsolutePath()).toString();
+		final Path expectedCheckpointPath = new Path(haPersistenceDir).makeQualified(FileSystem.getLocalFileSystem());
+
+		final Configuration config1 = new Configuration();
+		config1.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
+		config1.setString(HighAvailabilityOptions.HA_CLUSTER_ID, "myCluster");
+		config1.setString(HighAvailabilityOptions.HA_STORAGE_PATH, haPersistenceDir);
+
+		final Configuration config2 = new Configuration();
+		config2.setString(backendKey, "jobmanager");
+		config2.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
+		config2.setString(HighAvailabilityOptions.HA_CLUSTER_ID, "myCluster");
+		config2.setString(HighAvailabilityOptions.HA_STORAGE_PATH, haPersistenceDir);
+
+		final MemoryStateBackend appBackend = new MemoryStateBackend();
+
+		final StateBackend loaded1 = StateBackendLoader.fromApplicationOrConfigOrDefault(appBackend, config1, cl, null);
+		final StateBackend loaded2 = StateBackendLoader.fromApplicationOrConfigOrDefault(null, config1, cl, null);
+		final StateBackend loaded3 = StateBackendLoader.fromApplicationOrConfigOrDefault(null, config2, cl, null);
+
+		assertTrue(loaded1 instanceof MemoryStateBackend);
+		assertTrue(loaded2 instanceof MemoryStateBackend);
+		assertTrue(loaded3 instanceof MemoryStateBackend);
+
+		final MemoryStateBackend memBackend1 = (MemoryStateBackend) loaded1;
+		final MemoryStateBackend memBackend2 = (MemoryStateBackend) loaded2;
+		final MemoryStateBackend memBackend3 = (MemoryStateBackend) loaded3;
+
+		assertNotNull(memBackend1.getCheckpointPath());
+		assertNotNull(memBackend2.getCheckpointPath());
+		assertNotNull(memBackend3.getCheckpointPath());
+		assertNull(memBackend1.getSavepointPath());
+		assertNull(memBackend2.getSavepointPath());
+		assertNull(memBackend3.getSavepointPath());
+
+		assertEquals(expectedCheckpointPath, memBackend1.getCheckpointPath().getParent());
+		assertEquals(expectedCheckpointPath, memBackend2.getCheckpointPath().getParent());
+		assertEquals(expectedCheckpointPath, memBackend3.getCheckpointPath().getParent());
+	}
+
+	// ------------------------------------------------------------------------
 
 	static final class FailingFactory implements StateBackendFactory<StateBackend> {
-		private static final long serialVersionUID = 1L;
 
 		@Override
-		public StateBackend createFromConfig(Configuration config) throws IllegalConfigurationException, IOException {
+		public StateBackend createFromConfig(Configuration config) throws IOException {
 			throw new IOException("fail!");
 		}
 	}

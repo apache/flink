@@ -27,11 +27,15 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.StateBackendTestBase;
+import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
+import org.apache.flink.runtime.state.filesystem.FsCheckpointStateOutputStream;
+import org.apache.flink.runtime.state.filesystem.FsCheckpointStreamFactory;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
+
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -51,6 +55,9 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+/**
+ * Tests for the FileStateBackend, explicitly executing on top of HDFS.
+ */
 public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 
 	private static File TEMP_DIR;
@@ -205,6 +212,38 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
+	}
+
+	@Test
+	public void ensureDirectoriesNotEagerlyCreated() throws IOException {
+		final Path checkpointParent = new Path(HDFS_ROOT_URI, "somePath");
+		final FileSystem fs = checkpointParent.getFileSystem();
+		fs.mkdirs(checkpointParent);
+
+		final FsCheckpointStreamFactory factory = new FsCheckpointStreamFactory(fs, checkpointParent, 1);
+
+		final StreamStateHandle result;
+
+		try (FsCheckpointStateOutputStream out = factory.createCheckpointStateOutputStream(2L, 17L)) {
+			// at this point, no checkpoint sub-directory should exist
+			assertEquals(0, fs.listStatus(checkpointParent).length);
+
+			// some data that will cause directory creation
+			out.write(42);
+			out.write(11);
+			out.write(100);
+
+			result = out.closeAndGetHandle();
+		}
+
+		// now the file must exist
+		assertEquals(1, fs.listStatus(checkpointParent).length);
+		assertTrue(result instanceof FileStateHandle);
+
+		final Path resultPath = ((FileStateHandle) result).getFilePath();
+		assertTrue(fs.exists(resultPath));
+
+		assertTrue(fs.delete(checkpointParent, true));
 	}
 
 	// ------------------------------------------------------------------------

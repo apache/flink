@@ -25,8 +25,12 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.CheckpointMetadataStreamFactory;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.OperatorStateBackend;
+import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.util.AbstractID;
 
@@ -38,6 +42,7 @@ import org.rocksdb.RocksDB;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -81,9 +86,6 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 
 	/** The state backend that we use for creating checkpoint streams. */
 	private final AbstractStateBackend checkpointStreamBackend;
-
-	/** Operator identifier that is used to uniqueify the RocksDB storage path. */
-	private String operatorIdentifier;
 
 	/** JobID for uniquifying backup paths. */
 	private JobID jobId;
@@ -157,7 +159,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 	}
 
 	// ------------------------------------------------------------------------
-	//  State backend methods
+	//  Initialization
 	// ------------------------------------------------------------------------
 
 	private void lazyInitializeForJob(
@@ -168,7 +170,6 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 			return;
 		}
 
-		this.operatorIdentifier = operatorIdentifier.replace(" ", "");
 		this.jobId = env.getJobID();
 
 		// initialize the paths where the local RocksDB files should be stored
@@ -214,6 +215,10 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 		return initializedDbBasePaths[ni];
 	}
 
+	// ------------------------------------------------------------------------
+	//  State backend methods
+	// ------------------------------------------------------------------------
+
 	@Override
 	public CheckpointStreamFactory createStreamFactory(JobID jobId,
 			String operatorIdentifier) throws IOException {
@@ -222,11 +227,40 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 
 	@Override
 	public CheckpointStreamFactory createSavepointStreamFactory(
-			JobID jobId,
 			String operatorIdentifier,
 			String targetLocation) throws IOException {
 
-		return checkpointStreamBackend.createSavepointStreamFactory(jobId, operatorIdentifier, targetLocation);
+		return checkpointStreamBackend.createSavepointStreamFactory(operatorIdentifier, targetLocation);
+	}
+
+	@Override
+	public boolean supportsExternalizedMetadata() {
+		return checkpointStreamBackend.supportsExternalizedMetadata();
+	}
+
+	@Nullable
+	@Override
+	public String getMetadataPersistenceLocation() {
+		return checkpointStreamBackend.getMetadataPersistenceLocation();
+	}
+
+	@Override
+	public CheckpointMetadataStreamFactory createCheckpointMetadataStreamFactory(
+			JobID jobID,
+			long checkpointId) throws IOException {
+		return checkpointStreamBackend.createCheckpointMetadataStreamFactory(jobID, checkpointId);
+	}
+
+	@Override
+	public CheckpointMetadataStreamFactory createSavepointMetadataStreamFactory(
+			JobID jobID,
+			@Nullable String targetLocation) throws IOException {
+		return checkpointStreamBackend.createSavepointMetadataStreamFactory(jobID, targetLocation);
+	}
+
+	@Override
+	public StreamStateHandle resolveCheckpointLocation(String pointer) throws IOException {
+		return checkpointStreamBackend.resolveCheckpointLocation(pointer);
 	}
 
 	@Override
@@ -260,6 +294,14 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 				keySerializer,
 				numberOfKeyGroups,
 				keyGroupRange);
+	}
+
+	@Override
+	public OperatorStateBackend createOperatorStateBackend(
+			Environment env,
+			String operatorIdentifier) throws Exception {
+
+		return new DefaultOperatorStateBackend(env.getUserClassLoader());
 	}
 
 	// ------------------------------------------------------------------------

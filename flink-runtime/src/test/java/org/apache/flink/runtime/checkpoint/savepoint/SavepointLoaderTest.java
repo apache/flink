@@ -19,15 +19,18 @@
 package org.apache.flink.runtime.checkpoint.savepoint;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.checkpoint.Checkpoints;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.TaskState;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -41,7 +44,7 @@ import static org.mockito.Mockito.when;
 public class SavepointLoaderTest {
 
 	@Rule
-	public TemporaryFolder tmpFolder = new TemporaryFolder();
+	public final TemporaryFolder tmpFolder = new TemporaryFolder();
 
 	/**
 	 * Tests loading and validation of savepoints with correct setup,
@@ -49,7 +52,12 @@ public class SavepointLoaderTest {
 	 */
 	@Test
 	public void testLoadAndValidateSavepoint() throws Exception {
-		File tmp = tmpFolder.newFolder();
+		final JobID jobId = new JobID();
+
+		final Path checkpointDir = new Path(tmpFolder.newFolder().toURI());
+		final Path savepointDir = new Path(tmpFolder.newFolder().toURI());
+
+		final FsStateBackend fileStateBackend = new FsStateBackend(checkpointDir);
 
 		int parallelism = 128128;
 		long checkpointId = Integer.MAX_VALUE + 123123L;
@@ -64,11 +72,10 @@ public class SavepointLoaderTest {
 		Map<JobVertexID, TaskState> taskStates = new HashMap<>();
 		taskStates.put(vertexId, state);
 
-		JobID jobId = new JobID();
-
 		// Store savepoint
 		SavepointV1 savepoint = new SavepointV1(checkpointId, taskStates.values());
-		String path = SavepointStore.storeSavepoint(tmp.getAbsolutePath(), savepoint);
+		String path = Checkpoints.storeSavepointMetadata(
+				savepoint, jobId, fileStateBackend, savepointDir.toString()).pointer();
 
 		ExecutionJobVertex vertex = mock(ExecutionJobVertex.class);
 		when(vertex.getParallelism()).thenReturn(parallelism);
@@ -80,7 +87,8 @@ public class SavepointLoaderTest {
 		ClassLoader ucl = Thread.currentThread().getContextClassLoader();
 
 		// 1) Load and validate: everything correct
-		CompletedCheckpoint loaded = SavepointLoader.loadAndValidateSavepoint(jobId, tasks, path, ucl, false);
+		CompletedCheckpoint loaded = SavepointLoader.loadAndValidateSavepoint(
+				jobId, tasks, path, fileStateBackend, ucl, false);
 
 		assertEquals(jobId, loaded.getJobId());
 		assertEquals(checkpointId, loaded.getCheckpointID());
@@ -90,7 +98,7 @@ public class SavepointLoaderTest {
 		when(vertex.isMaxParallelismConfigured()).thenReturn(true);
 
 		try {
-			SavepointLoader.loadAndValidateSavepoint(jobId, tasks, path, ucl, false);
+			SavepointLoader.loadAndValidateSavepoint(jobId, tasks, path, fileStateBackend, ucl, false);
 			fail("Did not throw expected Exception");
 		} catch (IllegalStateException expected) {
 			assertTrue(expected.getMessage().contains("Max parallelism mismatch"));
@@ -100,13 +108,13 @@ public class SavepointLoaderTest {
 		assertNotNull(tasks.remove(vertexId));
 
 		try {
-			SavepointLoader.loadAndValidateSavepoint(jobId, tasks, path, ucl, false);
+			SavepointLoader.loadAndValidateSavepoint(jobId, tasks, path, fileStateBackend, ucl, false);
 			fail("Did not throw expected Exception");
 		} catch (IllegalStateException expected) {
 			assertTrue(expected.getMessage().contains("allowNonRestoredState"));
 		}
 
 		// 4) Load and validate: ignore missing vertex
-		SavepointLoader.loadAndValidateSavepoint(jobId, tasks, path, ucl, true);
+		SavepointLoader.loadAndValidateSavepoint(jobId, tasks, path, fileStateBackend, ucl, true);
 	}
 }
