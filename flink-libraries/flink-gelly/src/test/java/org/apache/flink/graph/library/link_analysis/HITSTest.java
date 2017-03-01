@@ -80,7 +80,7 @@ extends AsmTestBase {
 	public void testWithRMatGraph()
 			throws Exception {
 		DataSet<Result<LongValue>> hits = directedRMatGraph
-			.run(new HITS<LongValue, NullValue, NullValue>(0.000001));
+			.run(new HITS<LongValue, NullValue, NullValue>(1));
 
 		Checksum checksum = new ChecksumHashCode<Result<LongValue>>()
 			.run(hits)
