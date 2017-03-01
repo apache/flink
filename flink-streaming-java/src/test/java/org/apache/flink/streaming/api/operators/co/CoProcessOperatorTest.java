@@ -23,7 +23,6 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.TimeDomain;
-import org.apache.flink.streaming.api.functions.co.RichCoProcessFunction;
 import org.apache.flink.streaming.api.functions.co.CoProcessFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -344,7 +343,7 @@ public class CoProcessOperatorTest extends TestLogger {
 		}
 	}
 
-	private static class WatermarkQueryingProcessFunction implements CoProcessFunction<Integer, String, String> {
+	private static class WatermarkQueryingProcessFunction extends CoProcessFunction<Integer, String, String> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -366,7 +365,7 @@ public class CoProcessOperatorTest extends TestLogger {
 		}
 	}
 
-	private static class EventTimeTriggeringProcessFunction implements CoProcessFunction<Integer, String, String> {
+	private static class EventTimeTriggeringProcessFunction extends CoProcessFunction<Integer, String, String> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -393,7 +392,7 @@ public class CoProcessOperatorTest extends TestLogger {
 		}
 	}
 
-	private static class EventTimeTriggeringStatefulProcessFunction extends RichCoProcessFunction<Integer, String, String> {
+	private static class EventTimeTriggeringStatefulProcessFunction extends CoProcessFunction<Integer, String, String> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -425,7 +424,7 @@ public class CoProcessOperatorTest extends TestLogger {
 		}
 	}
 
-	private static class ProcessingTimeTriggeringProcessFunction implements CoProcessFunction<Integer, String, String> {
+	private static class ProcessingTimeTriggeringProcessFunction extends CoProcessFunction<Integer, String, String> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -452,7 +451,7 @@ public class CoProcessOperatorTest extends TestLogger {
 		}
 	}
 
-	private static class ProcessingTimeQueryingProcessFunction implements CoProcessFunction<Integer, String, String> {
+	private static class ProcessingTimeQueryingProcessFunction extends CoProcessFunction<Integer, String, String> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -474,7 +473,7 @@ public class CoProcessOperatorTest extends TestLogger {
 		}
 	}
 
-	private static class ProcessingTimeTriggeringStatefulProcessFunction extends RichCoProcessFunction<Integer, String, String> {
+	private static class ProcessingTimeTriggeringStatefulProcessFunction extends CoProcessFunction<Integer, String, String> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -506,7 +505,7 @@ public class CoProcessOperatorTest extends TestLogger {
 		}
 	}
 
-	private static class BothTriggeringProcessFunction implements CoProcessFunction<Integer, String, String> {
+	private static class BothTriggeringProcessFunction extends CoProcessFunction<Integer, String, String> {
 
 		private static final long serialVersionUID = 1L;
 

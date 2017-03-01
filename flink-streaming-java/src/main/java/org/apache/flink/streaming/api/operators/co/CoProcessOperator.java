@@ -44,11 +44,9 @@ public class CoProcessOperator<K, IN1, IN2, OUT>
 
 	private transient TimestampedCollector<OUT> collector;
 
-	private transient TimerService timerService;
+	private transient ContextImpl<IN1, IN2, OUT> context;
 
-	private transient ContextImpl context;
-
-	private transient OnTimerContextImpl onTimerContext;
+	private transient OnTimerContextImpl<IN1, IN2, OUT> onTimerContext;
 
 	public CoProcessOperator(CoProcessFunction<IN1, IN2, OUT> flatMapper) {
 		super(flatMapper);
@@ -62,10 +60,10 @@ public class CoProcessOperator<K, IN1, IN2, OUT>
 		InternalTimerService<VoidNamespace> internalTimerService =
 				getInternalTimerService("user-timers", VoidNamespaceSerializer.INSTANCE, this);
 
-		this.timerService = new SimpleTimerService(internalTimerService);
+		TimerService timerService = new SimpleTimerService(internalTimerService);
 
-		context = new ContextImpl(timerService);
-		onTimerContext = new OnTimerContextImpl(timerService);
+		context = new ContextImpl<>(userFunction, timerService);
+		onTimerContext = new OnTimerContextImpl<>(userFunction, timerService);
 	}
 
 	@Override
@@ -108,13 +106,14 @@ public class CoProcessOperator<K, IN1, IN2, OUT>
 		return collector;
 	}
 
-	private static class ContextImpl implements CoProcessFunction.Context {
+	private static class ContextImpl<IN1, IN2, OUT> extends CoProcessFunction<IN1, IN2, OUT>.Context {
 
 		private final TimerService timerService;
 
 		private StreamRecord<?> element;
 
-		ContextImpl(TimerService timerService) {
+		ContextImpl(CoProcessFunction<IN1, IN2, OUT> function, TimerService timerService) {
+			function.super();
 			this.timerService = checkNotNull(timerService);
 		}
 
@@ -135,7 +134,8 @@ public class CoProcessOperator<K, IN1, IN2, OUT>
 		}
 	}
 
-	private static class OnTimerContextImpl implements CoProcessFunction.OnTimerContext {
+	private static class OnTimerContextImpl<IN1, IN2, OUT>
+			extends CoProcessFunction<IN1, IN2, OUT>.OnTimerContext {
 
 		private final TimerService timerService;
 
@@ -143,7 +143,8 @@ public class CoProcessOperator<K, IN1, IN2, OUT>
 
 		private InternalTimer<?, VoidNamespace> timer;
 
-		OnTimerContextImpl(TimerService timerService) {
+		OnTimerContextImpl(CoProcessFunction<IN1, IN2, OUT> function, TimerService timerService) {
+			function.super();
 			this.timerService = checkNotNull(timerService);
 		}
 

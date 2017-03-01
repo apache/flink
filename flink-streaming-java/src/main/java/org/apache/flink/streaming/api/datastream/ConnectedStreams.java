@@ -28,7 +28,6 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.CoFlatMapFunction;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.co.CoProcessFunction;
-import org.apache.flink.streaming.api.functions.co.RichCoProcessFunction;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.operators.co.CoStreamFlatMap;
 import org.apache.flink.streaming.api.operators.co.CoStreamMap;
@@ -243,10 +242,6 @@ public class ConnectedStreams<IN1, IN2> {
 	 * function can also query the time and set timers. When reacting to the firing of set timers
 	 * the function can directly emit elements and/or register yet more timers.
 	 *
-	 * <p>A {@link RichCoProcessFunction}
-	 * can be used to gain access to features provided by the
-	 * {@link org.apache.flink.api.common.functions.RichFunction} interface.
-	 *
 	 * @param coProcessFunction The {@link CoProcessFunction} that is called for each element
 	 *                      in the stream.
 	 *
@@ -273,10 +268,6 @@ public class ConnectedStreams<IN1, IN2> {
 	 * or more output elements. Contrary to the {@link #flatMap(CoFlatMapFunction)} function,
 	 * this function can also query the time and set timers. When reacting to the firing of set
 	 * timers the function can directly emit elements and/or register yet more timers.
-	 *
-	 * <p>A {@link RichCoProcessFunction}
-	 * can be used to gain access to features provided by the
-	 * {@link org.apache.flink.api.common.functions.RichFunction} interface.
 	 *
 	 * @param coProcessFunction The {@link CoProcessFunction} that is called for each element
 	 *                      in the stream.
