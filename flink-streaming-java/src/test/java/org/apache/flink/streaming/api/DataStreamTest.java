@@ -25,7 +25,6 @@ import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.Partitioner;
-import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
@@ -47,8 +46,9 @@ import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
-import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.ProcessOperator;
+import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.streaming.api.windowing.triggers.CountTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.PurgingTrigger;
@@ -643,7 +643,7 @@ public class DataStreamTest {
 	 * an operator.
 	 */
 	@Test
-	public void testProcessTranslation() {
+	public void testKeyedProcessTranslation() {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		DataStreamSource<Long> src = env.generateSequence(0, 0);
 
@@ -674,8 +674,47 @@ public class DataStreamTest {
 		processed.addSink(new DiscardingSink<Integer>());
 
 		assertEquals(processFunction, getFunctionForDataStream(processed));
+		assertTrue(getOperatorForDataStream(processed) instanceof KeyedProcessOperator);
+	}
+
+	/**
+	 * Verify that a {@link DataStream#process(ProcessFunction)} call is correctly translated to
+	 * an operator.
+	 */
+	@Test
+	public void testProcessTranslation() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		DataStreamSource<Long> src = env.generateSequence(0, 0);
+
+		ProcessFunction<Long, Integer> processFunction = new ProcessFunction<Long, Integer>() {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public void processElement(
+					Long value,
+					Context ctx,
+					Collector<Integer> out) throws Exception {
+
+			}
+
+			@Override
+			public void onTimer(
+					long timestamp,
+					OnTimerContext ctx,
+					Collector<Integer> out) throws Exception {
+
+			}
+		};
+
+		DataStream<Integer> processed = src
+				.process(processFunction);
+
+		processed.addSink(new DiscardingSink<Integer>());
+
+		assertEquals(processFunction, getFunctionForDataStream(processed));
 		assertTrue(getOperatorForDataStream(processed) instanceof ProcessOperator);
 	}
+
 
 	@Test
 	public void operatorTest() {

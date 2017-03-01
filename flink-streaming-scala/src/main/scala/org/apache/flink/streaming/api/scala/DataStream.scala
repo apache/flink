@@ -33,7 +33,7 @@ import org.apache.flink.streaming.api.collector.selector.OutputSelector
 import org.apache.flink.streaming.api.datastream.{AllWindowedStream => JavaAllWindowedStream, DataStream => JavaStream, KeyedStream => JavaKeyedStream, _}
 import org.apache.flink.streaming.api.functions.sink.SinkFunction
 import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor
-import org.apache.flink.streaming.api.functions.{AssignerWithPeriodicWatermarks, AssignerWithPunctuatedWatermarks, TimestampExtractor}
+import org.apache.flink.streaming.api.functions.{AssignerWithPeriodicWatermarks, AssignerWithPunctuatedWatermarks, ProcessFunction, TimestampExtractor}
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.streaming.api.windowing.assigners._
 import org.apache.flink.streaming.api.windowing.time.Time
@@ -617,6 +617,28 @@ class DataStream[T](stream: JavaStream[T]) {
     }
     flatMap(flatMapper)
   }
+
+  /**
+   * Applies the given [[ProcessFunction]] on the input stream, thereby
+   * creating a transformed output stream.
+   *
+   * The function will be called for every element in the stream and can produce
+   * zero or more output.
+   *
+   * @param processFunction The [[ProcessFunction]] that is called for each element
+   *                   in the stream.
+   */
+  @PublicEvolving
+  def process[R: TypeInformation](
+      processFunction: ProcessFunction[T, R]): DataStream[R] = {
+
+    if (processFunction == null) {
+      throw new NullPointerException("ProcessFunction must not be null.")
+    }
+
+    asScalaStream(javaStream.process(processFunction, implicitly[TypeInformation[R]]))
+  }
+
 
   /**
    * Creates a new DataStream that contains only the elements satisfying the given filter predicate.
