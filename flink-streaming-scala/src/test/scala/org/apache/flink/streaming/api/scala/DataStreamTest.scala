@@ -25,7 +25,6 @@ import org.apache.flink.api.common.operators.ResourceSpec
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.streaming.api.collector.selector.OutputSelector
 import org.apache.flink.streaming.api.functions.ProcessFunction
-import org.apache.flink.streaming.api.functions.ProcessFunction.{Context, OnTimerContext}
 import org.apache.flink.streaming.api.functions.co.CoMapFunction
 import org.apache.flink.streaming.api.graph.{StreamEdge, StreamGraph}
 import org.apache.flink.streaming.api.operators.{AbstractUdfStreamOperator, ProcessOperator, StreamOperator}
@@ -404,10 +403,9 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
     val src = env.generateSequence(0, 0)
 
     val processFunction = new ProcessFunction[Long, Int] {
-      override def processElement(value: Long, ctx: Context, out: Collector[Int]): Unit = ???
-      override def onTimer(
-          timestamp: Long,
-          ctx: OnTimerContext,
+      override def processElement(
+          value: Long,
+          ctx: ProcessFunction[Long, Int]#Context,
           out: Collector[Int]): Unit = ???
     }
 

@@ -38,11 +38,9 @@ public class ProcessOperator<K, IN, OUT>
 
 	private transient TimestampedCollector<OUT> collector;
 
-	private transient TimerService timerService;
+	private transient ContextImpl<IN, OUT> context;
 
-	private transient ContextImpl<IN> context;
-
-	private transient OnTimerContextImpl onTimerContext;
+	private transient OnTimerContextImpl<IN, OUT> onTimerContext;
 
 	public ProcessOperator(ProcessFunction<IN, OUT> flatMapper) {
 		super(flatMapper);
@@ -58,10 +56,10 @@ public class ProcessOperator<K, IN, OUT>
 		InternalTimerService<VoidNamespace> internalTimerService =
 				getInternalTimerService("user-timers", VoidNamespaceSerializer.INSTANCE, this);
 
-		this.timerService = new SimpleTimerService(internalTimerService);
+		TimerService timerService = new SimpleTimerService(internalTimerService);
 
-		context = new ContextImpl<>(timerService);
-		onTimerContext = new OnTimerContextImpl(timerService);
+		context = new ContextImpl<>(userFunction, timerService);
+		onTimerContext = new OnTimerContextImpl<>(userFunction, timerService);
 	}
 
 	@Override
@@ -92,13 +90,14 @@ public class ProcessOperator<K, IN, OUT>
 		context.element = null;
 	}
 
-	private static class ContextImpl<T> implements ProcessFunction.Context {
+	private static class ContextImpl<IN, OUT> extends ProcessFunction<IN, OUT>.Context {
 
 		private final TimerService timerService;
 
-		private StreamRecord<T> element;
+		private StreamRecord<IN> element;
 
-		ContextImpl(TimerService timerService) {
+		ContextImpl(ProcessFunction<IN, OUT> function, TimerService timerService) {
+			function.super();
 			this.timerService = checkNotNull(timerService);
 		}
 
@@ -119,7 +118,7 @@ public class ProcessOperator<K, IN, OUT>
 		}
 	}
 
-	private static class OnTimerContextImpl implements ProcessFunction.OnTimerContext{
+	private static class OnTimerContextImpl<IN, OUT> extends ProcessFunction<IN, OUT>.OnTimerContext{
 
 		private final TimerService timerService;
 
@@ -127,7 +126,8 @@ public class ProcessOperator<K, IN, OUT>
 
 		private InternalTimer<?, VoidNamespace> timer;
 
-		OnTimerContextImpl(TimerService timerService) {
+		OnTimerContextImpl(ProcessFunction<IN, OUT> function, TimerService timerService) {
+			function.super();
 			this.timerService = checkNotNull(timerService);
 		}
 

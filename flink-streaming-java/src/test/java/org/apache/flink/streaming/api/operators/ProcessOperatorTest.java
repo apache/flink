@@ -23,7 +23,6 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.TimeDomain;
-import org.apache.flink.streaming.api.functions.RichProcessFunction;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -286,7 +285,7 @@ public class ProcessOperatorTest extends TestLogger {
 		}
 	}
 
-	private static class QueryingFlatMapFunction implements ProcessFunction<Integer, String> {
+	private static class QueryingFlatMapFunction extends ProcessFunction<Integer, String> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -313,7 +312,7 @@ public class ProcessOperatorTest extends TestLogger {
 		}
 	}
 
-	private static class TriggeringFlatMapFunction implements ProcessFunction<Integer, Integer> {
+	private static class TriggeringFlatMapFunction extends ProcessFunction<Integer, Integer> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -344,7 +343,7 @@ public class ProcessOperatorTest extends TestLogger {
 		}
 	}
 
-	private static class TriggeringStatefulFlatMapFunction extends RichProcessFunction<Integer, String> {
+	private static class TriggeringStatefulFlatMapFunction extends ProcessFunction<Integer, String> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -378,7 +377,7 @@ public class ProcessOperatorTest extends TestLogger {
 		}
 	}
 
-	private static class BothTriggeringFlatMapFunction implements ProcessFunction<Integer, String> {
+	private static class BothTriggeringFlatMapFunction extends ProcessFunction<Integer, String> {
 
 		private static final long serialVersionUID = 1L;
 
