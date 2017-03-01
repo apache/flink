@@ -22,10 +22,11 @@ import java.util.List;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction;
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
+import org.apache.flink.types.Row;
 import org.apache.flink.util.Collector;
 
 public class DataStreamProcTimeAggregateRowGlobalWindowFunction extends DataStreamProcTimeAggregateRowAbstractWindowFunction
-		implements AllWindowFunction<Object, Object, GlobalWindow>  {
+		implements AllWindowFunction<Row, Row, GlobalWindow>  {
 
 	static final long serialVersionUID = 1L;
 	
@@ -35,7 +36,7 @@ public class DataStreamProcTimeAggregateRowGlobalWindowFunction extends DataStre
 	}
 
 	@Override
-	public void apply(GlobalWindow window, Iterable<Object> input, Collector<Object> out) throws Exception {
+	public void apply(GlobalWindow window, Iterable<Row> input, Collector<Row> out) throws Exception {
 		super.applyAggregation(input, out);
 	}
 	

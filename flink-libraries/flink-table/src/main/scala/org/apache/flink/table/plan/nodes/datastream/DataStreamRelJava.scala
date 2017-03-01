@@ -25,6 +25,7 @@ import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.flink.table.api.StreamTableEnvironment
+import org.apache.flink.types.Row
 
 
 abstract class DataStreamRelJava(
@@ -47,17 +48,15 @@ abstract class DataStreamRelJava(
     * @return DataStream of type expectedType or RowTypeInfo
     */
   override def translateToPlan(
-    tableEnv: StreamTableEnvironment,
-    expectedType: Option[TypeInformation[Any]] = None) : DataStream[Any] = {
+    tableEnv: StreamTableEnvironment) : DataStream[Row] = {
         
-    this.translateToPlan(tableEnv, expectedType, null);
+    this.translateToPlan(tableEnv, null);
   }
   
 
   def translateToPlan(
     tableEnv: StreamTableEnvironment,
-    expectedType: Option[TypeInformation[Any]],
-    ignore : Any) : DataStream[Any]
+    ignore : Row) : DataStream[Row]
   
 }
 

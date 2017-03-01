@@ -51,10 +51,10 @@ public class DataStreamProcTimeAggregateRowAbstractWindowFunction implements Ser
 	Row result;
 
 	@SuppressWarnings("unchecked")
-	protected void applyAggregation(Iterable<Object> input, Collector<Object> out) {
+	protected void applyAggregation(Iterable<Row> input, Collector<Row> out) {
 
-		for (Object rowObj : input) {
-			reuse = (Row) rowObj;
+		for (Row row : input) {
+			reuse = row;
 			if (result == null) {
 				result = new Row(reuse.getArity() + aggregators.size());
 			}

@@ -23,11 +23,12 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
+import org.apache.flink.types.Row;
 import org.apache.flink.util.Collector;
 
 public class DataStreamProcTimeAggregateRowKeyedWindowFunction
 		extends DataStreamProcTimeAggregateRowAbstractWindowFunction
-		implements WindowFunction<Object, Object, Tuple, GlobalWindow> {
+		implements WindowFunction<Row, Row, Tuple, GlobalWindow> {
 
 	static final long serialVersionUID = 1L;
 
@@ -37,7 +38,7 @@ public class DataStreamProcTimeAggregateRowKeyedWindowFunction
 	}
 
 	@Override
-	public void apply(Tuple key, GlobalWindow window, Iterable<Object> input, Collector<Object> out) throws Exception {
+	public void apply(Tuple key, GlobalWindow window, Iterable<Row> input, Collector<Row> out) throws Exception {
 		super.applyAggregation(input, out);
 	}
 

@@ -28,9 +28,11 @@ import org.apache.calcite.rel.core.Window.Group;
 import org.apache.calcite.rel.core.Window.RexWinAggCall;
 import org.apache.calcite.rel.logical.LogicalWindow;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.table.api.StreamTableEnvironment;
@@ -39,9 +41,7 @@ import org.apache.flink.table.calcite.FlinkTypeFactory;
 import org.apache.flink.table.plan.logical.rel.util.WindowAggregateUtil;
 import org.apache.flink.table.plan.nodes.datastream.function.DataStreamProcTimeAggregateRowGlobalWindowFunction;
 import org.apache.flink.table.plan.nodes.datastream.function.DataStreamProcTimeAggregateRowKeyedWindowFunction;
-import org.apache.flink.table.typeutils.TypeConverter;
-
-import scala.Option;
+import org.apache.flink.types.Row;
 
 public class DataStreamProcTimeRowAggregate extends DataStreamRelJava {
 
@@ -75,26 +75,28 @@ public class DataStreamProcTimeRowAggregate extends DataStreamRelJava {
 	}
 
 	@Override
-	public DataStream<Object> translateToPlan(StreamTableEnvironment tableEnv,
-			Option<TypeInformation<Object>> expectedType, Object ignore) {
+	public DataStream<Row> translateToPlan(StreamTableEnvironment tableEnv, Row ignore) {
 
 		TableConfig config = tableEnv.getConfig();
 
-		Option<TypeInformation<Object>> obj = Option.empty();
-		DataStream<Object> inputDS = ((DataStreamRel) getInput()).translateToPlan(tableEnv, obj);
-
+		DataStream<Row> inputDS = ((DataStreamRel) getInput()).translateToPlan(tableEnv);
+		
 		System.out.println(inputDS);
-
-		TypeInformation<?> returnType = TypeConverter.determineReturnType(getRowType(), expectedType,
-				config.getNullCheck(), config.getEfficientTypeUsage());
-
-		System.out.println(returnType);
-
-		DataStream<Object> aggregateWindow = null;
+		
+		TypeInformation<?>[] rowType = new TypeInformation<?>[getRowType().getFieldList().size()];
+		int i=0;
+		for(RelDataTypeField field: getRowType().getFieldList()){
+			rowType[i]= FlinkTypeFactory.toTypeInfo(field.getType());
+			i++;
+		}
+		
+		TypeInformation<Row> returnType = new RowTypeInfo(rowType);
+				
+		DataStream<Row> aggregateWindow = null;
 
 		// TODO check type and return type consistency
 
-		KeyedStream<Object, Tuple> keyedS = null;
+		KeyedStream<Row, Tuple> keyedS = null;
 
 		// assumption of one group per window reference
 		final Group group = windowRef.groups.iterator().next();
@@ -120,13 +122,13 @@ public class DataStreamProcTimeRowAggregate extends DataStreamRelJava {
 			keyedS = inputDS.keyBy(winUtil.getKeysAsArray(group));
 			aggregateWindow = keyedS.countWindow(lowerbound, 1)
 					.apply(new DataStreamProcTimeAggregateRowKeyedWindowFunction(aggregators, indexes, typeClasses))
-					.returns((TypeInformation<Object>) returnType);
+					.returns((TypeInformation<Row>) returnType);
 
 		} else {
 			// no partition works with global window
 			aggregateWindow = inputDS.countWindowAll(lowerbound, 1)
 					.apply(new DataStreamProcTimeAggregateRowGlobalWindowFunction(aggregators, indexes, typeClasses))
-					.returns((TypeInformation<Object>) returnType);
+					.returns((TypeInformation<Row>) returnType);
 
 		}
 

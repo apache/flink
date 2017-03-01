@@ -78,7 +78,7 @@ public class WindowAggregateUtil implements Serializable {
 	 */
 
 	public int getLowerBoundary(ImmutableList<RexLiteral> constants) {
-		return ((Long)constants.get(1).getValue2()).intValue();
+		return ((Long)constants.get(0).getValue2()).intValue();
 	}
 
 	
