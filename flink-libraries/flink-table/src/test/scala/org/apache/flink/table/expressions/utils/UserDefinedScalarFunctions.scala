@@ -236,3 +236,11 @@ object Func14 extends ScalarFunction {
     a.sum
   }
 }
+
+object Func15 extends ScalarFunction {
+
+  @varargs
+  def eval(a: String, b: Int*): String = {
+    a + b.length
+  }
+}
