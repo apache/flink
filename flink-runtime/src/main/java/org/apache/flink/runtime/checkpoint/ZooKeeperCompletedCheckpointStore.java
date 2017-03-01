@@ -35,6 +35,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.ConcurrentModificationException;
+import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
@@ -157,36 +158,8 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 
 		LOG.info("Found {} checkpoints in ZooKeeper.", numberOfInitialCheckpoints);
 
-		if (numberOfInitialCheckpoints > 0) {
-			// Take the last one. This is the latest checkpoints, because path names are strictly
-			// increasing (checkpoint ID).
-			Tuple2<RetrievableStateHandle<CompletedCheckpoint>, String> latest = initialCheckpoints
-					.get(numberOfInitialCheckpoints - 1);
-
-			CompletedCheckpoint latestCheckpoint;
-			long checkpointId = pathToCheckpointId(latest.f1);
-
-			LOG.info("Trying to retrieve checkpoint {}.", checkpointId);
-
-			try {
-				latestCheckpoint = latest.f0.retrieveState();
-			} catch (Exception e) {
-				throw new Exception("Could not retrieve the completed checkpoint " + checkpointId +
-				" from the state storage.", e);
-			}
-
-			checkpointStateHandles.add(latest);
-
-			LOG.info("Initialized with {}. Removing all older checkpoints.", latestCheckpoint);
-
-			for (int i = 0; i < numberOfInitialCheckpoints - 1; i++) {
-				try {
-					removeSubsumed(initialCheckpoints.get(i));
-				}
-				catch (Exception e) {
-					LOG.error("Failed to discard checkpoint", e);
-				}
-			}
+		for (Tuple2<RetrievableStateHandle<CompletedCheckpoint>, String> checkpoint : initialCheckpoints) {
+			checkpointStateHandles.add(checkpoint);
 		}
 	}
 
@@ -208,7 +181,7 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 		checkpointStateHandles.addLast(new Tuple2<>(stateHandle, path));
 
 		// Everything worked, let's remove a previous checkpoint if necessary.
-		if (checkpointStateHandles.size() > maxNumberOfCheckpointsToRetain) {
+		while (checkpointStateHandles.size() > maxNumberOfCheckpointsToRetain) {
 			removeSubsumed(checkpointStateHandles.removeFirst());
 		}
 
@@ -221,7 +194,21 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 			return null;
 		}
 		else {
-			return checkpointStateHandles.getLast().f0.retrieveState();
+			while(!checkpointStateHandles.isEmpty()) {
+				Tuple2<RetrievableStateHandle<CompletedCheckpoint>, String> checkpointStateHandle = checkpointStateHandles.peekLast();
+
+				try {
+					return retrieveCompletedCheckpoint(checkpointStateHandle);
+				} catch (Exception e) {
+					LOG.warn("Could not retrieve latest checkpoint. Removing it from " +
+						"the completed checkpoint store.", e);
+
+					// remove the checkpoint with broken state handle
+					removeBrokenStateHandle(checkpointStateHandles.pollLast());
+				}
+			}
+
+			return null;
 		}
 	}
 
@@ -229,8 +216,21 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 	public List<CompletedCheckpoint> getAllCheckpoints() throws Exception {
 		List<CompletedCheckpoint> checkpoints = new ArrayList<>(checkpointStateHandles.size());
 
-		for (Tuple2<RetrievableStateHandle<CompletedCheckpoint>, String> stateHandle : checkpointStateHandles) {
-			checkpoints.add(stateHandle.f0.retrieveState());
+		Iterator<Tuple2<RetrievableStateHandle<CompletedCheckpoint>, String>> stateHandleIterator = checkpointStateHandles.iterator();
+
+		while (stateHandleIterator.hasNext()) {
+			Tuple2<RetrievableStateHandle<CompletedCheckpoint>, String> stateHandlePath = stateHandleIterator.next();
+
+			try {
+				checkpoints.add(retrieveCompletedCheckpoint(stateHandlePath));
+			} catch (Exception e) {
+				LOG.warn("Could not retrieve checkpoint. Removing it from the completed " +
+					"checkpoint store.", e);
+
+				// remove the checkpoint with broken state handle
+				stateHandleIterator.remove();
+				removeBrokenStateHandle(stateHandlePath);
+			}
 		}
 
 		return checkpoints;
@@ -298,6 +298,10 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 		remove(stateHandleAndPath, action);
 	}
 
+	private void removeBrokenStateHandle(final Tuple2<RetrievableStateHandle<CompletedCheckpoint>, String> stateHandleAndPath) throws Exception {
+		remove(stateHandleAndPath, null);
+	}
+
 	/**
 	 * Removes the state handle from ZooKeeper, discards the checkpoints, and the state handle.
 	 */
@@ -315,11 +319,13 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 						if (event.getResultCode() == 0) {
 							Exception exception = null;
 
-							try {
-								action.call();
-							} catch (Exception e) {
-								exception = new Exception("Could not execute callable action " +
-									"for checkpoint " + checkpointId + '.', e);
+							if (null != action) {
+								try {
+									action.call();
+								} catch (Exception e) {
+									exception = new Exception("Could not execute callable action " +
+										"for checkpoint " + checkpointId + '.', e);
+								}
 							}
 
 							try {
@@ -391,6 +397,18 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 				"checkpoint id to path conversion has changed.", path);
 
 			return -1L;
+		}
+	}
+
+	private static CompletedCheckpoint retrieveCompletedCheckpoint(Tuple2<RetrievableStateHandle<CompletedCheckpoint>, String> stateHandlePath) throws Exception {
+		long checkpointId = pathToCheckpointId(stateHandlePath.f1);
+
+		LOG.info("Trying to retrieve checkpoint {}.", checkpointId);
+
+		try {
+			return stateHandlePath.f0.retrieveState();
+		} catch (Exception e) {
+			throw new Exception("Could not retrieve checkpoint " + checkpointId + ". The state handle seems to be broken.", e);
 		}
 	}
 }
