@@ -80,7 +80,7 @@ extends AsmTestBase {
 	public void testWithRMatGraph()
 			throws Exception {
 		ChecksumHashCode checksum = DataSetUtils.checksumHashCode(directedRMatGraph
-			.run(new HITS<LongValue, NullValue, NullValue>(0.000001)));
+			.run(new HITS<LongValue, NullValue, NullValue>(1)));
 
 		assertEquals(902, checksum.getCount());
 		assertEquals(0x000001cbba6dbcd0L, checksum.getChecksum());

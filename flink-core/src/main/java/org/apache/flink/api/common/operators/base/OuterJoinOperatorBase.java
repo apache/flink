@@ -103,7 +103,6 @@ public class OuterJoinOperatorBase<IN1, IN2, OUT, FT extends FlatJoinFunction<IN
 		FunctionUtils.setFunctionRuntimeContext(function, runtimeContext);
 		FunctionUtils.openFunction(function, this.parameters);
 
-
 		List<OUT> result = new ArrayList<>();
 		Collector<OUT> collector = new CopyingListCollector<>(result, outInformation.createSerializer(executionConfig));
 
@@ -112,6 +111,8 @@ public class OuterJoinOperatorBase<IN1, IN2, OUT, FT extends FlatJoinFunction<IN
 			IN2 right = outerJoinIterator.getRight();
 			function.join(left == null ? null : leftSerializer.copy(left), right == null ? null : rightSerializer.copy(right), collector);
 		}
+
+		FunctionUtils.closeFunction(function);
 
 		return result;
 	}
