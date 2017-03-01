@@ -20,6 +20,7 @@ package org.apache.flink.runtime.webmonitor.handlers;
 
 import akka.dispatch.ExecutionContexts$;
 import akka.dispatch.Futures;
+import com.google.common.collect.Lists;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
@@ -34,6 +35,7 @@ import org.apache.flink.runtime.messages.JobManagerMessages.CancellationSuccess;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.map.ObjectMapper;
+import org.junit.Assert;
 import org.junit.Test;
 import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
@@ -43,6 +45,7 @@ import scala.concurrent.impl.Promise;
 import java.nio.charset.Charset;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
@@ -56,6 +59,23 @@ import static org.mockito.Mockito.when;
 public class JobCancellationWithSavepointHandlersTest {
 
 	private static final ExecutionContext EC = ExecutionContexts$.MODULE$.fromExecutor(Executors.directExecutor());
+
+	@Test
+	public void testGetPaths() {
+		JobCancellationWithSavepointHandlers handler = new JobCancellationWithSavepointHandlers(mock(ExecutionGraphHolder.class), EC);
+
+		JobCancellationWithSavepointHandlers.TriggerHandler triggerHandler = handler.getTriggerHandler();
+		String[] triggerPaths = triggerHandler.getPaths();
+		Assert.assertEquals(2, triggerPaths.length);
+		List<String> triggerPathsList = Lists.newArrayList(triggerPaths);
+		Assert.assertTrue(triggerPathsList.contains("/jobs/:jobid/cancel-with-savepoint"));
+		Assert.assertTrue(triggerPathsList.contains("/jobs/:jobid/cancel-with-savepoint/target-directory/:targetDirectory"));
+
+		JobCancellationWithSavepointHandlers.InProgressHandler progressHandler = handler.getInProgressHandler();
+		String[] progressPaths = progressHandler.getPaths();
+		Assert.assertEquals(1, progressPaths.length);
+		Assert.assertEquals("/jobs/:jobid/cancel-with-savepoint/in-progress/:requestId", progressPaths[0]);
+	}
 
 	/**
 	 * Tests that the cancellation ask timeout respects the checkpoint timeout.

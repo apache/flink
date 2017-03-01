@@ -28,9 +28,15 @@ import java.util.Map;
  */
 public class JobPlanHandler extends AbstractExecutionGraphRequestHandler {
 
+	private static final String JOB_PLAN_REST_PATH = "/jobs/:jobid/plan";
 	
 	public JobPlanHandler(ExecutionGraphHolder executionGraphHolder) {
 		super(executionGraphHolder);
+	}
+
+	@Override
+	public String[] getPaths() {
+		return new String[]{JOB_PLAN_REST_PATH};
 	}
 
 	@Override

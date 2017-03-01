@@ -44,11 +44,18 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class CheckpointStatsDetailsSubtasksHandler extends AbstractExecutionGraphRequestHandler {
 
+	private static final String CHECKPOINT_STATS_DETAILS_SUBTASKS_REST_PATH = "/jobs/:jobid/checkpoints/details/:checkpointid/subtasks/:vertexid";
+
 	private final CheckpointStatsCache cache;
 
 	public CheckpointStatsDetailsSubtasksHandler(ExecutionGraphHolder executionGraphHolder, CheckpointStatsCache cache) {
 		super(executionGraphHolder);
 		this.cache = checkNotNull(cache);
+	}
+
+	@Override
+	public String[] getPaths() {
+		return new String[]{CHECKPOINT_STATS_DETAILS_SUBTASKS_REST_PATH};
 	}
 
 	@Override

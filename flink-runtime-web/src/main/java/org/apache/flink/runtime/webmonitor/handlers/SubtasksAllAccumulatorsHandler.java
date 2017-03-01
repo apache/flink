@@ -33,9 +33,16 @@ import java.util.Map;
  * Request handler that returns the accumulators for all subtasks of job vertex.
  */
 public class SubtasksAllAccumulatorsHandler extends AbstractJobVertexRequestHandler {
+
+	private static final String SUBTASKS_ALL_ACCUMULATORS_REST_PATH = 	"/jobs/:jobid/vertices/:vertexid/subtasks/accumulators";
 	
 	public SubtasksAllAccumulatorsHandler(ExecutionGraphHolder executionGraphHolder) {
 		super(executionGraphHolder);
+	}
+
+	@Override
+	public String[] getPaths() {
+		return new String[]{SUBTASKS_ALL_ACCUMULATORS_REST_PATH};
 	}
 
 	@Override

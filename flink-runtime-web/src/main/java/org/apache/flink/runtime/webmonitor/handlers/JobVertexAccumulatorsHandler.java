@@ -29,9 +29,16 @@ import java.util.Map;
 
 
 public class JobVertexAccumulatorsHandler extends AbstractJobVertexRequestHandler {
+
+	private static final String JOB_VERTEX_ACCUMULATORS_REST_PATH = "/jobs/:jobid/vertices/:vertexid/accumulators";
 	
 	public JobVertexAccumulatorsHandler(ExecutionGraphHolder executionGraphHolder) {
 		super(executionGraphHolder);
+	}
+
+	@Override
+	public String[] getPaths() {
+		return new String[]{JOB_VERTEX_ACCUMULATORS_REST_PATH};
 	}
 
 	@Override

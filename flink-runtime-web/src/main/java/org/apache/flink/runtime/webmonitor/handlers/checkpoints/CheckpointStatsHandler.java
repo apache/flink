@@ -44,8 +44,15 @@ import java.util.Map;
  */
 public class CheckpointStatsHandler extends AbstractExecutionGraphRequestHandler {
 
+	private static final String CHECKPOINT_STATS_REST_PATH = "/jobs/:jobid/checkpoints";
+
 	public CheckpointStatsHandler(ExecutionGraphHolder executionGraphHolder) {
 		super(executionGraphHolder);
+	}
+
+	@Override
+	public String[] getPaths() {
+		return new String[]{CHECKPOINT_STATS_REST_PATH};
 	}
 
 	@Override

@@ -33,10 +33,17 @@ import java.util.Map;
  */
 public class JobExceptionsHandler extends AbstractExecutionGraphRequestHandler {
 
+	private static final String JOB_EXCEPTIONS_REST_PATH = "/jobs/:jobid/exceptions";
+
 	private static final int MAX_NUMBER_EXCEPTION_TO_REPORT = 20;
 	
 	public JobExceptionsHandler(ExecutionGraphHolder executionGraphHolder) {
 		super(executionGraphHolder);
+	}
+
+	@Override
+	public String[] getPaths() {
+		return new String[]{JOB_EXCEPTIONS_REST_PATH};
 	}
 
 	@Override
