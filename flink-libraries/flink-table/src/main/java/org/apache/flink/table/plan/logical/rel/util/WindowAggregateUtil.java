@@ -72,8 +72,6 @@ public class WindowAggregateUtil implements Serializable {
 	 * This method returns the [[int]] lowerbound of a window when expressed
 	 * with an integer e.g. ... ROWS BETWEEN [[value]] PRECEDING AND CURRENT ROW
 	 * 
-	 * @param group
-	 *            The group for analyzed window from which keys are extracted
 	 * @param constants
 	 *            the list of constant to get the offset value
 	 * @return return the value of the lowerbound if available -1 otherwise
