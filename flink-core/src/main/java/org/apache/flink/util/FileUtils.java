@@ -21,6 +21,8 @@ package org.apache.flink.util;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -39,6 +41,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * deletion and creation of temporary files.
  */
 public final class FileUtils {
+
+	private static final Logger LOG = LoggerFactory.getLogger(FileUtils.class);
 
 	/** The alphabet to construct the random part of the filename from. */
 	private static final char[] ALPHABET = 
@@ -274,7 +278,7 @@ public final class FileUtils {
 		URI dstUri = destFs.getUri();
 
 		// check schema
-		if (srcUri.getScheme() == null) {
+		if (srcUri.getScheme() == null && dstUri.getScheme() != null) {
 			return false;
 		}
 		if (!srcUri.getScheme().equals(dstUri.getScheme())) {
@@ -289,7 +293,10 @@ public final class FileUtils {
 		// check ip
 		String srcHost = srcUri.getHost();
 		String dstHost = dstUri.getHost();
-		if ((srcHost != null) && (dstHost != null)) {
+		if (srcHost != null ) {
+			if(dstHost == null) {
+				return false;
+			}
 			if (!srcHost.equals(dstHost)) {
 				try {
 					srcHost = InetAddress.getByName(srcHost).getCanonicalHostName();
@@ -301,9 +308,8 @@ public final class FileUtils {
 					return false;
 				}
 			}
-		} else if (srcHost == null && dstHost != null) {
-			return false;
-		} else if (srcHost != null && dstHost == null) {
+		} else if (dstHost != null ) {
+			// srcHost == null and dstHost !=null
 			return false;
 		}
 		return true;
@@ -315,26 +321,31 @@ public final class FileUtils {
 	 *
 	 * @param localDir      local directory to store remote files.
 	 * @param originalFile  original file to check
-	 * @return
+	 * @return              Path of the localized file.
 	 * @throws IOException
 	 */
-	public static Path localizeRemoteFiles(Path localDir, URI originalFile) throws IOException {
+	public static URI localizeRemoteFile(Path localDir, URI originalFile) throws IOException {
 
 		Path originalPath = new Path(originalFile);
 
 		FileSystem remoteFs = originalPath.getFileSystem();
 		FileSystem localFs = localDir.getFileSystem();
 		if (compareFs(remoteFs, localFs)) {
-			return originalPath;
+			return originalFile;
 		}
 
 		String fragment = originalFile.getFragment();
 		if(fragment == null) {
 			fragment = originalPath.getName();
 		}
+
 		Path newPath = new Path(localDir, fragment);
+		if(localFs.exists(newPath)) {
+			LOG.warn("File {} will be overwritten by {}", newPath, originalFile);
+		}
+
 		IOUtils.copyBytes(remoteFs.open(originalPath), localFs.create(newPath, FileSystem.WriteMode.OVERWRITE), true);
-		return newPath;
+		return newPath.toUri();
 	}
 
 	// ------------------------------------------------------------------------

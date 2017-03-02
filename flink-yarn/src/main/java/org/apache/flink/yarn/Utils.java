@@ -137,7 +137,7 @@ public final class Utils {
 			Path homedir) throws IOException {
 
 		// copy resource to HDFS
-		Path dst = getRemoteResourceRoot(appId, localRsrcPath, homedir);
+		Path dst = getRemoteResourcePath(appId, localRsrcPath, homedir);
 
 		LOG.info("Copying from " + localRsrcPath + " to " + dst);
 		fs.copyFromLocalFile(localRsrcPath, dst);
@@ -145,14 +145,15 @@ public final class Utils {
 		return dst;
 	}
 
-	public static Path getRemoteResourceRoot(
-			String appId, Path localRsrcPath,
-			Path homedir) throws IOException {
+	public static Path getRemoteResourcePath(
+			String appId,
+			Path localFile,
+			Path destDir) throws IOException {
 
 		// copy resource to HDFS
-		String suffix = ".flink/" + appId + "/" + localRsrcPath.getName();
+		String suffix = ".flink/" + appId + "/" + localFile.getName();
 
-		Path dst = new Path(homedir, suffix);
+		Path dst = new Path(destDir, suffix);
 
 		return dst;
 	}

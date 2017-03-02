@@ -22,7 +22,6 @@ import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.FileUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
@@ -32,12 +31,8 @@ import org.junit.rules.TemporaryFolder;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 
-import static org.junit.Assert.fail;
-
-/**
- * Created by wenlong.lwl on 2017/2/21.
- */
 public class FileUtilsTest {
 	@ClassRule
 	public static TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -55,24 +50,16 @@ public class FileUtilsTest {
 	// ------------------------------------------------------------------------
 
 	@BeforeClass
-	public static void createHDFS() {
-		try {
-			TEMP_DIR = temporaryFolder.newFolder();
+	public static void createHDFS() throws IOException, URISyntaxException {
+		TEMP_DIR = temporaryFolder.newFolder();
 
-			Configuration hdConf = new Configuration();
-			hdConf.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, TEMP_DIR.getAbsolutePath());
-			MiniDFSCluster.Builder builder = new MiniDFSCluster.Builder(hdConf);
-			HDFS_CLUSTER = builder.build();
+		Configuration hdConf = new Configuration();
+		hdConf.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, TEMP_DIR.getAbsolutePath());
+		MiniDFSCluster.Builder builder = new MiniDFSCluster.Builder(hdConf);
+		HDFS_CLUSTER = builder.build();
+		HDFS_ROOT_URI = "hdfs://" + HDFS_CLUSTER.getURI().getHost() + ":" + HDFS_CLUSTER.getNameNodePort() + "/";
 
-			HDFS_ROOT_URI = "hdfs://" + HDFS_CLUSTER.getURI().getHost() + ":"
-				+ HDFS_CLUSTER.getNameNodePort() + "/";
-
-			FS = FileSystem.get(new URI(HDFS_ROOT_URI));
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail("Could not create HDFS mini cluster " + e.getMessage());
-		}
+		FS = FileSystem.get(new URI(HDFS_ROOT_URI));
 	}
 
 	@AfterClass
@@ -100,14 +87,14 @@ public class FileUtilsTest {
 		outputStream.close();
 
 
-		Path result = FileUtils.localizeRemoteFiles(localDir, remoteFile.toUri());
+		Path result = new Path(FileUtils.localizeRemoteFile(localDir, remoteFile.toUri()));
 		Assert.assertTrue(FileUtils.compareFs(result.getFileSystem(), localDir.getFileSystem()));
 		FSDataInputStream inputStream = result.getFileSystem().open(result);
 		Assert.assertEquals(1, inputStream.read());
 		Assert.assertEquals(-1, inputStream.read());
 		inputStream.close();
 
-		result = FileUtils.localizeRemoteFiles(localDir2, remoteFile.toUri());
+		result = new Path(FileUtils.localizeRemoteFile(localDir2, remoteFile.toUri()));
 		Assert.assertTrue(FileUtils.compareFs(result.getFileSystem(), localDir2.getFileSystem()));
 		inputStream = result.getFileSystem().open(result);
 		Assert.assertEquals(1, inputStream.read());

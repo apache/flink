@@ -257,7 +257,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		try {
 			this.archives.add(new URI(archive));
 		} catch (URISyntaxException e) {
-			throw new IllegalArgumentException(e);
+			throw new IllegalArgumentException("Invalid archive file, which should be a valid URI string", e);
 		}
 	}
 
@@ -756,20 +756,23 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		}
 
 		for (URI originURI : archives) {
-			Path remoteParent = Utils.getRemoteResourceRoot(appId.toString(), new Path(originURI.getPath()), fs.getHomeDirectory());
-			String fragment = originURI.getFragment();
-			Path target = new Path(
-				FileUtils.localizeRemoteFiles(new org.apache.flink.core.fs.Path(remoteParent.toUri()), originURI).toUri());
-			URI targetURI = target.toUri();
-			if (targetURI.getFragment() == null && fragment != null) {
-				targetURI = new URI(target.toUri().toString() + "#" + fragment);
-			}
+			Path remoteParent = Utils.getRemoteResourcePath(
+					appId.toString(),
+					new Path(originURI.getPath()),
+					fs.getHomeDirectory());
+			URI targetURI = FileUtils.localizeRemoteFile(
+					new org.apache.flink.core.fs.Path(remoteParent.toUri()),
+					originURI);
+
+			FileStatus state = fs.getFileStatus(new Path(targetURI));
+			String filename = targetURI.getFragment()==null ? state.getPath().getName() : targetURI.getFragment();
+
 			LocalResource archive = Records.newRecord(LocalResource.class);
-			FileStatus state = fs.getFileStatus(target);
 			Utils.registerLocalResource(targetURI, state.getLen(), state.getModificationTime(), archive);
-			localResources.put(fragment, archive);
+			localResources.put(filename, archive);
+
 			paths.add(new Path(targetURI));
-			classPathBuilder.append(fragment).append(File.pathSeparator);
+			classPathBuilder.append(filename).append(File.pathSeparator);
 			envShipFileList.append(targetURI).append(",");
 		}
 
