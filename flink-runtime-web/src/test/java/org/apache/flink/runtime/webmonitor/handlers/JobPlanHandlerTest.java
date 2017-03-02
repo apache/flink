@@ -24,6 +24,8 @@ import org.apache.flink.runtime.webmonitor.utils.ArchivedJobGenerationUtils;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.Collection;
+
 public class JobPlanHandlerTest {
 
 	@Test
@@ -31,10 +33,10 @@ public class JobPlanHandlerTest {
 		JsonArchivist archivist = new JobPlanHandler.JobPlanJsonArchivist();
 		AccessExecutionGraph originalJob = ArchivedJobGenerationUtils.getTestJob();
 
-		ArchivedJson[] archives = archivist.archiveJsonWithPath(originalJob);
-		Assert.assertEquals(1, archives.length);
+		Collection<ArchivedJson> archives = archivist.archiveJsonWithPath(originalJob);
+		Assert.assertEquals(1, archives.size());
 
-		ArchivedJson archive = archives[0];
+		ArchivedJson archive = archives.iterator().next();
 		Assert.assertEquals("/jobs/" + originalJob.getJobID() + "/plan", archive.getPath());
 		Assert.assertEquals(originalJob.getJsonPlan(), archive.getJson());
 	}

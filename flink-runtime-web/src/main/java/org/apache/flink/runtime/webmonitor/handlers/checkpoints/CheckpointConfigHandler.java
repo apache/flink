@@ -30,6 +30,8 @@ import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 
 import java.io.IOException;
 import java.io.StringWriter;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Map;
 
 /**
@@ -56,11 +58,11 @@ public class CheckpointConfigHandler extends AbstractExecutionGraphRequestHandle
 	public static class CheckpointConfigJsonArchivist implements JsonArchivist {
 
 		@Override
-		public ArchivedJson[] archiveJsonWithPath(AccessExecutionGraph graph) throws IOException {
+		public Collection<ArchivedJson> archiveJsonWithPath(AccessExecutionGraph graph) throws IOException {
 			String json = createCheckpointConfigJson(graph);
 			String path = CHECKPOINT_CONFIG_REST_PATH
 				.replace(":jobid", graph.getJobID().toString());
-			return new ArchivedJson[]{new ArchivedJson(path, json)};
+			return Collections.singletonList(new ArchivedJson(path, json));
 		}
 	}
 

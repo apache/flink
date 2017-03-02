@@ -20,7 +20,8 @@ package org.apache.flink.runtime.webmonitor.history;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 
 import java.io.IOException;
+import java.util.Collection;
 
 public interface JsonArchivist {
-	ArchivedJson[] archiveJsonWithPath(AccessExecutionGraph graph) throws IOException;
+	Collection<ArchivedJson> archiveJsonWithPath(AccessExecutionGraph graph) throws IOException;
 }

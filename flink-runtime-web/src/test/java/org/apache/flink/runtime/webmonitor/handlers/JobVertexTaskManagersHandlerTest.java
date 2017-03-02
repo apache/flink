@@ -32,6 +32,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.Collection;
 
 public class JobVertexTaskManagersHandlerTest {
 
@@ -42,10 +43,10 @@ public class JobVertexTaskManagersHandlerTest {
 		AccessExecutionJobVertex originalTask = ArchivedJobGenerationUtils.getTestTask();
 		AccessExecutionVertex originalSubtask = ArchivedJobGenerationUtils.getTestSubtask();
 
-		ArchivedJson[] archives = archivist.archiveJsonWithPath(originalJob);
-		Assert.assertEquals(1, archives.length);
+		Collection<ArchivedJson> archives = archivist.archiveJsonWithPath(originalJob);
+		Assert.assertEquals(1, archives.size());
 
-		ArchivedJson archive = archives[0];
+		ArchivedJson archive = archives.iterator().next();
 		Assert.assertEquals("/jobs/" + originalJob.getJobID() + "/vertices/" + originalTask.getJobVertexId() + "/taskmanagers", archive.getPath());
 		compareVertexTaskManagers(originalTask, originalSubtask, archive.getJson());
 	}

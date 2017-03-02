@@ -33,6 +33,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.Collections;
 
 import static org.junit.Assert.assertEquals;
@@ -52,9 +53,9 @@ public class CheckpointConfigHandlerTest {
 		JobSnapshottingSettings settings = graphAndSettings.snapshottingSettings;
 		ExternalizedCheckpointSettings externalizedSettings = graphAndSettings.externalizedSettings;
 		
-		ArchivedJson[] archives = archivist.archiveJsonWithPath(graph);
-		Assert.assertEquals(1, archives.length);
-		ArchivedJson archive = archives[0];
+		Collection<ArchivedJson> archives = archivist.archiveJsonWithPath(graph);
+		Assert.assertEquals(1, archives.size());
+		ArchivedJson archive = archives.iterator().next();
 		Assert.assertEquals("/jobs/" + graph.getJobID() + "/checkpoints/config", archive.getPath());
 
 		ObjectMapper mapper = new ObjectMapper();

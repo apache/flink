@@ -24,6 +24,8 @@ import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 
 import java.io.IOException;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Map;
 
 /**
@@ -50,11 +52,11 @@ public class JobPlanHandler extends AbstractExecutionGraphRequestHandler {
 	public static class JobPlanJsonArchivist implements JsonArchivist {
 
 		@Override
-		public ArchivedJson[] archiveJsonWithPath(AccessExecutionGraph graph) throws IOException {
+		public Collection<ArchivedJson> archiveJsonWithPath(AccessExecutionGraph graph) throws IOException {
 			String path = JOB_PLAN_REST_PATH
 				.replace(":jobid", graph.getJobID().toString());
 			String json = graph.getJsonPlan();
-			return new ArchivedJson[]{new ArchivedJson(path, json)};
+			return Collections.singletonList(new ArchivedJson(path, json));
 		}
 	}
 }

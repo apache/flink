@@ -38,6 +38,7 @@ import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -80,10 +81,10 @@ public class CheckpointStatsSubtaskDetailsHandlerTest {
 		when(graph.getCheckpointStatsSnapshot()).thenReturn(snapshot);
 		when(graph.getJobID()).thenReturn(new JobID());
 		
-		ArchivedJson[] archives = archivist.archiveJsonWithPath(graph);
-		Assert.assertEquals(1, archives.length);
+		Collection<ArchivedJson> archives = archivist.archiveJsonWithPath(graph);
+		Assert.assertEquals(1, archives.size());
 		
-		ArchivedJson archive = archives[0];
+		ArchivedJson archive = archives.iterator().next();
 		Assert.assertEquals(
 			"/jobs/" + graph.getJobID() + "/checkpoints/details/" + checkpoint.getCheckpointId() + "/subtasks/" + task.getJobVertexId(),
 			archive.getPath());

@@ -43,6 +43,7 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -61,20 +62,21 @@ public class CheckpointStatsHandlerTest {
 		TestCheckpointStats testCheckpointStats = createTestCheckpointStats();
 		when(testCheckpointStats.graph.getJobID()).thenReturn(new JobID());
 		
-		ArchivedJson[] archives = archivist.archiveJsonWithPath(testCheckpointStats.graph);
-		Assert.assertEquals(3, archives.length);
+		Collection<ArchivedJson> archives = archivist.archiveJsonWithPath(testCheckpointStats.graph);
+		Assert.assertEquals(3, archives.size());
 
 		ObjectMapper mapper = new ObjectMapper();
 		
-		ArchivedJson archive1 = archives[0];
+		Iterator<ArchivedJson> iterator = archives.iterator();
+		ArchivedJson archive1 = iterator.next();
 		Assert.assertEquals("/jobs/" + testCheckpointStats.graph.getJobID() + "/checkpoints/details/" + testCheckpointStats.inProgress.getCheckpointId(), archive1.getPath());
 		compareInProgressCheckpoint(testCheckpointStats.inProgress, mapper.readTree(archive1.getJson()));
 
-		ArchivedJson archive2 = archives[1];
+		ArchivedJson archive2 = iterator.next();
 		Assert.assertEquals("/jobs/" + testCheckpointStats.graph.getJobID() + "/checkpoints/details/" + testCheckpointStats.completedSavepoint.getCheckpointId(), archive2.getPath());
 		compareCompletedSavepoint(testCheckpointStats.completedSavepoint, mapper.readTree(archive2.getJson()));
 		
-		ArchivedJson archive3 = archives[2];
+		ArchivedJson archive3 = iterator.next();
 		Assert.assertEquals("/jobs/" + testCheckpointStats.graph.getJobID() + "/checkpoints/details/" + testCheckpointStats.failed.getCheckpointId(), archive3.getPath());
 		compareFailedCheckpoint(testCheckpointStats.failed, mapper.readTree(archive3.getJson()));
 	}

@@ -38,6 +38,8 @@ import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -112,10 +114,10 @@ public class CheckpointStatsDetailsSubtasksHandler extends AbstractExecutionGrap
 	public static class CheckpointStatsDetailsSubtasksJsonArchivist implements JsonArchivist {
 
 		@Override
-		public ArchivedJson[] archiveJsonWithPath(AccessExecutionGraph graph) throws IOException {
+		public Collection<ArchivedJson> archiveJsonWithPath(AccessExecutionGraph graph) throws IOException {
 			CheckpointStatsSnapshot stats = graph.getCheckpointStatsSnapshot();
 			if (stats == null) {
-				return new ArchivedJson[0];
+				return Collections.emptyList();
 			}
 			CheckpointStatsHistory history = stats.getHistory();
 			List<ArchivedJson> archive = new ArrayList<>();
@@ -129,7 +131,7 @@ public class CheckpointStatsDetailsSubtasksHandler extends AbstractExecutionGrap
 					archive.add(new ArchivedJson(path, json));
 				}
 			}
-			return archive.toArray(new ArchivedJson[archive.size()]);
+			return archive;
 		}
 	}
 

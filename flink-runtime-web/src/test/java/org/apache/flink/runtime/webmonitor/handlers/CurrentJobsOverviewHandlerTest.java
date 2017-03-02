@@ -33,6 +33,7 @@ import scala.concurrent.duration.FiniteDuration;
 
 import java.io.IOException;
 import java.io.StringWriter;
+import java.util.Collection;
 import java.util.concurrent.TimeUnit;
 
 public class CurrentJobsOverviewHandlerTest {
@@ -43,10 +44,10 @@ public class CurrentJobsOverviewHandlerTest {
 		AccessExecutionGraph originalJob = ArchivedJobGenerationUtils.getTestJob();
 		JobDetails expectedDetails = WebMonitorUtils.createDetailsForJob(originalJob);
 
-		ArchivedJson[] archives = archivist.archiveJsonWithPath(originalJob);
-		Assert.assertEquals(1, archives.length);
+		Collection<ArchivedJson> archives = archivist.archiveJsonWithPath(originalJob);
+		Assert.assertEquals(1, archives.size());
 
-		ArchivedJson archive = archives[0];
+		ArchivedJson archive = archives.iterator().next();
 		Assert.assertEquals("/joboverview", archive.getPath());
 
 		JsonNode result = ArchivedJobGenerationUtils.mapper.readTree(archive.getJson());

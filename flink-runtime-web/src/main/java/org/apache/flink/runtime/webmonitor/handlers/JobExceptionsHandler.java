@@ -29,6 +29,8 @@ import org.apache.flink.util.ExceptionUtils;
 
 import java.io.IOException;
 import java.io.StringWriter;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Map;
 
 /**
@@ -57,11 +59,11 @@ public class JobExceptionsHandler extends AbstractExecutionGraphRequestHandler {
 	public static class JobExceptionsJsonArchivist implements JsonArchivist {
 
 		@Override
-		public ArchivedJson[] archiveJsonWithPath(AccessExecutionGraph graph) throws IOException {
+		public Collection<ArchivedJson> archiveJsonWithPath(AccessExecutionGraph graph) throws IOException {
 			String json = createJobExceptionsJson(graph);
 			String path = JOB_EXCEPTIONS_REST_PATH
 				.replace(":jobid", graph.getJobID().toString());
-			return new ArchivedJson[]{new ArchivedJson(path, json)};
+			return Collections.singletonList(new ArchivedJson(path, json));
 		}
 	}
 

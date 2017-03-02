@@ -33,6 +33,8 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 
 public class JobDetailsHandlerTest {
@@ -42,14 +44,15 @@ public class JobDetailsHandlerTest {
 		JsonArchivist archivist = new JobDetailsHandler.JobDetailsJsonArchivist();
 		AccessExecutionGraph originalJob = ArchivedJobGenerationUtils.getTestJob();
 
-		ArchivedJson[] archives = archivist.archiveJsonWithPath(originalJob);
-		Assert.assertEquals(2, archives.length);
+		Collection<ArchivedJson> archives = archivist.archiveJsonWithPath(originalJob);
+		Assert.assertEquals(2, archives.size());
 
-		ArchivedJson archive1 = archives[0];
+		Iterator<ArchivedJson> iterator = archives.iterator();
+		ArchivedJson archive1 = iterator.next();
 		Assert.assertEquals("/jobs/" + originalJob.getJobID(), archive1.getPath());
 		compareJobDetails(originalJob, archive1.getJson());
 
-		ArchivedJson archive2 = archives[1];
+		ArchivedJson archive2 = iterator.next();
 		Assert.assertEquals("/jobs/" + originalJob.getJobID() + "/vertices", archive2.getPath());
 		compareJobDetails(originalJob, archive2.getJson());
 	}

@@ -30,6 +30,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.Collection;
 
 public class JobExceptionsHandlerTest {
 
@@ -38,10 +39,10 @@ public class JobExceptionsHandlerTest {
 		JsonArchivist archivist = new JobExceptionsHandler.JobExceptionsJsonArchivist();
 		AccessExecutionGraph originalJob = ArchivedJobGenerationUtils.getTestJob();
 
-		ArchivedJson[] archives = archivist.archiveJsonWithPath(originalJob);
-		Assert.assertEquals(1, archives.length);
+		Collection<ArchivedJson> archives = archivist.archiveJsonWithPath(originalJob);
+		Assert.assertEquals(1, archives.size());
 
-		ArchivedJson archive = archives[0];
+		ArchivedJson archive = archives.iterator().next();
 		Assert.assertEquals("/jobs/" + originalJob.getJobID() + "/exceptions", archive.getPath());
 		compareExceptions(originalJob, archive.getJson());
 	}

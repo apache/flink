@@ -34,6 +34,8 @@ import scala.concurrent.duration.FiniteDuration;
 
 import java.io.IOException;
 import java.io.StringWriter;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -128,7 +130,7 @@ public class CurrentJobsOverviewHandler extends AbstractJsonRequestHandler {
 	public static class CurrentJobsOverviewJsonArchivist implements JsonArchivist {
 
 		@Override
-		public ArchivedJson[] archiveJsonWithPath(AccessExecutionGraph graph) throws IOException {
+		public Collection<ArchivedJson> archiveJsonWithPath(AccessExecutionGraph graph) throws IOException {
 			StringWriter writer = new StringWriter();
 			try (JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer)) {
 				gen.writeStartObject();
@@ -141,7 +143,7 @@ public class CurrentJobsOverviewHandler extends AbstractJsonRequestHandler {
 			}
 			String json = writer.toString();
 			String path = ALL_JOBS_REST_PATH;
-			return new ArchivedJson[]{new ArchivedJson(path, json)};
+			return Collections.singleton(new ArchivedJson(path, json));
 		}
 	}
 

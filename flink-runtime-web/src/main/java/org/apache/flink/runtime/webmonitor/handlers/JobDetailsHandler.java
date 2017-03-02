@@ -35,6 +35,8 @@ import org.apache.flink.runtime.webmonitor.utils.MutableIOMetrics;
 import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.StringWriter;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Map;
 
 /**
@@ -72,13 +74,16 @@ public class JobDetailsHandler extends AbstractExecutionGraphRequestHandler {
 	public static class JobDetailsJsonArchivist implements JsonArchivist {
 
 		@Override
-		public ArchivedJson[] archiveJsonWithPath(AccessExecutionGraph graph) throws IOException {
+		public Collection<ArchivedJson> archiveJsonWithPath(AccessExecutionGraph graph) throws IOException {
 			String json = createJobDetailsJson(graph, null);
 			String path1 = JOB_DETAILS_REST_PATH
 				.replace(":jobid", graph.getJobID().toString());
 			String path2 = JOB_DETAILS_VERTICES_REST_PATH
 				.replace(":jobid", graph.getJobID().toString());
-			return new ArchivedJson[]{new ArchivedJson(path1, json), new ArchivedJson(path2, json)};
+			Collection<ArchivedJson> archives = new ArrayList();
+			archives.add(new ArchivedJson(path1, json));
+			archives.add(new ArchivedJson(path2, json));
+			return archives;
 		}
 	}
 

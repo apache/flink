@@ -29,6 +29,9 @@ import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 
+import java.util.Collection;
+import java.util.Collections;
+
 /**
  * Request handler that returns the execution config of a job.
  */
@@ -53,11 +56,11 @@ public class JobConfigHandler extends AbstractExecutionGraphRequestHandler {
 	public static class JobConfigJsonArchivist implements JsonArchivist {
 
 		@Override
-		public ArchivedJson[] archiveJsonWithPath(AccessExecutionGraph graph) throws IOException {
+		public Collection<ArchivedJson> archiveJsonWithPath(AccessExecutionGraph graph) throws IOException {
 			String json = createJobConfigJson(graph);
 			String path = JOB_CONFIG_REST_PATH
 				.replace(":jobid", graph.getJobID().toString());
-			return new ArchivedJson[]{new ArchivedJson(path, json)};
+			return Collections.singletonList(new ArchivedJson(path, json));
 		}
 	}
 

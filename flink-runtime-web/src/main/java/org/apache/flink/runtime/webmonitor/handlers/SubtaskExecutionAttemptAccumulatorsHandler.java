@@ -31,6 +31,7 @@ import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
@@ -59,7 +60,7 @@ public class SubtaskExecutionAttemptAccumulatorsHandler extends AbstractSubtaskA
 	public static class SubtaskExecutionAttemptAccumulatorsJsonArchivist implements JsonArchivist {
 
 		@Override
-		public ArchivedJson[] archiveJsonWithPath(AccessExecutionGraph graph) throws IOException {
+		public Collection<ArchivedJson> archiveJsonWithPath(AccessExecutionGraph graph) throws IOException {
 			List<ArchivedJson> archive = new ArrayList<>();
 			for (AccessExecutionJobVertex task : graph.getAllVertices().values()) {
 				for (AccessExecutionVertex subtask : task.getTaskVertices()) {
@@ -84,7 +85,7 @@ public class SubtaskExecutionAttemptAccumulatorsHandler extends AbstractSubtaskA
 					}
 				}
 			}
-			return archive.toArray(new ArchivedJson[archive.size()]);
+			return archive;
 		}
 	}
 

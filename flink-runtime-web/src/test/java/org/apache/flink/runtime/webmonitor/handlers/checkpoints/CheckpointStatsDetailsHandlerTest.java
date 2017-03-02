@@ -45,6 +45,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
@@ -79,16 +80,17 @@ public class CheckpointStatsDetailsHandlerTest {
 
 		ObjectMapper mapper = new ObjectMapper();
 		
-		ArchivedJson[] archives = archivist.archiveJsonWithPath(graph);
-		Assert.assertEquals(2, archives.length);
+		Collection<ArchivedJson> archives = archivist.archiveJsonWithPath(graph);
+		Assert.assertEquals(2, archives.size());
 		
-		ArchivedJson archive1 = archives[0];
+		Iterator<ArchivedJson> iterator = archives.iterator();
+		ArchivedJson archive1 = iterator.next();
 		Assert.assertEquals(
 			"/jobs/" + graph.getJobID() + "/checkpoints/details/" + failedCheckpoint.getCheckpointId(),
 			archive1.getPath());
 		compareFailedCheckpoint(failedCheckpoint, mapper.readTree(archive1.getJson()));
 
-		ArchivedJson archive2 = archives[1];
+		ArchivedJson archive2 = iterator.next();
 		Assert.assertEquals(
 			"/jobs/" + graph.getJobID() + "/checkpoints/details/" + completedCheckpoint.getCheckpointId(),
 			archive2.getPath());

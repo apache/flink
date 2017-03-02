@@ -29,6 +29,8 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.Collection;
+import java.util.Iterator;
 
 public class SubtaskExecutionAttemptDetailsHandlerTest {
 
@@ -39,10 +41,11 @@ public class SubtaskExecutionAttemptDetailsHandlerTest {
 		AccessExecutionJobVertex originalTask = ArchivedJobGenerationUtils.getTestTask();
 		AccessExecution originalAttempt = ArchivedJobGenerationUtils.getTestAttempt();
 
-		ArchivedJson[] archives = archivist.archiveJsonWithPath(originalJob);
-		Assert.assertEquals(2, archives.length);
+		Collection<ArchivedJson> archives = archivist.archiveJsonWithPath(originalJob);
+		Assert.assertEquals(2, archives.size());
 
-		ArchivedJson archive1 = archives[0];
+		Iterator<ArchivedJson> iterator = archives.iterator();
+		ArchivedJson archive1 = iterator.next();
 		Assert.assertEquals(
 			"/jobs/" + originalJob.getJobID() +
 				"/vertices/" + originalTask.getJobVertexId() +
@@ -50,7 +53,7 @@ public class SubtaskExecutionAttemptDetailsHandlerTest {
 			archive1.getPath());
 		compareAttemptDetails(originalAttempt, archive1.getJson());
 
-		ArchivedJson archive2 = archives[1];
+		ArchivedJson archive2 = iterator.next();
 		Assert.assertEquals(
 			"/jobs/" + originalJob.getJobID() +
 				"/vertices/" + originalTask.getJobVertexId() +

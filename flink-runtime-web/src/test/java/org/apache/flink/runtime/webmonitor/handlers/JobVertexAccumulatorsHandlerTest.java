@@ -29,6 +29,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.Collection;
 
 public class JobVertexAccumulatorsHandlerTest {
 
@@ -38,10 +39,10 @@ public class JobVertexAccumulatorsHandlerTest {
 		AccessExecutionGraph originalJob = ArchivedJobGenerationUtils.getTestJob();
 		AccessExecutionJobVertex originalTask = ArchivedJobGenerationUtils.getTestTask();
 
-		ArchivedJson[] archives = archivist.archiveJsonWithPath(originalJob);
-		Assert.assertEquals(1, archives.length);
+		Collection<ArchivedJson> archives = archivist.archiveJsonWithPath(originalJob);
+		Assert.assertEquals(1, archives.size());
 
-		ArchivedJson archive = archives[0];
+		ArchivedJson archive = archives.iterator().next();
 		Assert.assertEquals("/jobs/" + originalJob.getJobID() + "/vertices/" + originalTask.getJobVertexId() + "/accumulators", archive.getPath());
 		compareAccumulators(originalTask, archive.getJson());
 	}
