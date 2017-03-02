@@ -31,7 +31,7 @@ class GroupWindowStringExpressionTest extends TableTestBase {
   @Test
   def testJavaScalaTableAPIEquality(): Unit = {
     val util = streamTestUtil()
-    val t = util.addTable[(Int, Long, String)]('int, 'long, 'string)
+    val t = util.addTable[(Int, Long, String)]('int, 'long, 'string, 'rowtime.rowtime)
 
     val myCountFun = new CountAggFunction
     util.tEnv.registerFunction("myCountFun", myCountFun)
@@ -40,7 +40,7 @@ class GroupWindowStringExpressionTest extends TableTestBase {
 
     // Expression / Scala API
     val resScala = t
-      .window(Slide over 4.rows every 2.rows as 'w)
+      .window(Slide over 4.hours every 2.hours on 'rowtime as 'w)
       .groupBy('w, 'string)
       .select(
         'string,
@@ -51,7 +51,7 @@ class GroupWindowStringExpressionTest extends TableTestBase {
 
     // String / Java API
     val resJava = t
-      .window(JSlide.over("4.rows").every("2.rows").as("w"))
+      .window(JSlide.over("4.hours").every("2.hours").on("rowtime").as("w"))
       .groupBy("w, string")
       .select(
         "string, " +

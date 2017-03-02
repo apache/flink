@@ -18,14 +18,13 @@
 
 package org.apache.flink.table.plan.nodes
 
-import org.apache.calcite.rel.{RelFieldCollation, RelNode}
-import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFieldImpl}
-import org.apache.calcite.rel.core.AggregateCall
+import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.core.{AggregateCall, Window}
 import org.apache.calcite.rel.core.Window.Group
-import org.apache.calcite.rel.core.Window
-import org.apache.calcite.rex.{RexInputRef}
+import org.apache.calcite.rel.{RelFieldCollation, RelNode}
+import org.apache.calcite.rex.RexInputRef
+import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.runtime.aggregate.AggregateUtil._
-import org.apache.flink.table.functions.{ProcTimeType, RowTimeType}
 
 import scala.collection.JavaConverters._
 
@@ -43,7 +42,7 @@ trait OverAggregate {
     val inFields = inputType.getFieldList.asScala
 
     val orderingString = orderFields.asScala.map {
-      x => inFields(x.getFieldIndex).getValue
+      x => inFields(x.getFieldIndex).getName
     }.mkString(", ")
 
     orderingString
@@ -66,24 +65,8 @@ trait OverAggregate {
     rowType: RelDataType,
     namedAggregates: Seq[CalcitePair[AggregateCall, String]]): String = {
 
-    val inFields = inputType.getFieldList.asScala.map {
-      x =>
-        x.asInstanceOf[RelDataTypeFieldImpl].getType
-        match {
-          case proceTime: ProcTimeType => "PROCTIME"
-          case rowTime: RowTimeType => "ROWTIME"
-          case _ => x.asInstanceOf[RelDataTypeFieldImpl].getName
-        }
-    }
-    val outFields = rowType.getFieldList.asScala.map {
-      x =>
-        x.asInstanceOf[RelDataTypeFieldImpl].getType
-        match {
-          case proceTime: ProcTimeType => "PROCTIME"
-          case rowTime: RowTimeType => "ROWTIME"
-          case _ => x.asInstanceOf[RelDataTypeFieldImpl].getName
-        }
-    }
+    val inFields = inputType.getFieldNames.asScala
+    val outFields = rowType.getFieldNames.asScala
 
     val aggStrings = namedAggregates.map(_.getKey).map(
       a => s"${a.getAggregation}(${
@@ -109,7 +92,7 @@ trait OverAggregate {
     input: RelNode): Long = {
 
     val ref: RexInputRef = overWindow.lowerBound.getOffset.asInstanceOf[RexInputRef]
-    val lowerBoundIndex = input.getRowType.getFieldCount - ref.getIndex;
+    val lowerBoundIndex = input.getRowType.getFieldCount - ref.getIndex
     val lowerBound = logicWindow.constants.get(lowerBoundIndex).getValue2
     lowerBound match {
       case x: java.math.BigDecimal => x.asInstanceOf[java.math.BigDecimal].longValue()

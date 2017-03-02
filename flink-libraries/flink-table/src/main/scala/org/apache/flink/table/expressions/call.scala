@@ -110,18 +110,11 @@ case class OverCall(
     val aggExprs = agg.asInstanceOf[Aggregation].children.map(_.toRexNode(relBuilder)).asJava
 
     // assemble order by key
-    val orderKey = orderBy match {
-      case _: RowTime =>
-        new RexFieldCollation(relBuilder.call(EventTimeExtractor), Set[SqlKind]().asJava)
-      case _: ProcTime =>
-        new RexFieldCollation(relBuilder.call(ProcTimeExtractor), Set[SqlKind]().asJava)
-      case _ =>
-        throw new ValidationException("Invalid OrderBy expression.")
-    }
+    val orderKey = new RexFieldCollation(orderBy.toRexNode, Set[SqlKind]().asJava)
     val orderKeys = ImmutableList.of(orderKey)
 
     // assemble partition by keys
-    val partitionKeys = partitionBy.map(_.toRexNode(relBuilder)).asJava
+    val partitionKeys = partitionBy.map(_.toRexNode).asJava
 
     // assemble bounds
     val isPhysical: Boolean = preceding.resultType.isInstanceOf[RowIntervalTypeInfo]
@@ -247,6 +240,11 @@ case class OverCall(
         ValidationSuccess
       case _ =>
         return ValidationFailure("Preceding and following must be of same interval type.")
+    }
+
+    // check time field
+    if (!ExpressionUtils.isTimeAttribute(orderBy)) {
+      return ValidationFailure("Ordering must be defined on a time attribute.")
     }
 
     ValidationSuccess

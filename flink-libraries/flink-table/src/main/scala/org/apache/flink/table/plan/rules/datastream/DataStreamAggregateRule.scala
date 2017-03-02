@@ -25,6 +25,7 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.datastream.DataStreamAggregate
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalWindowAggregate
+import org.apache.flink.table.plan.schema.RowSchema
 
 import scala.collection.JavaConversions._
 
@@ -65,8 +66,8 @@ class DataStreamAggregateRule
       traitSet,
       convInput,
       agg.getNamedAggCalls,
-      rel.getRowType,
-      agg.getInput.getRowType,
+      new RowSchema(rel.getRowType),
+      new RowSchema(agg.getInput.getRowType),
       agg.getGroupSet.toArray)
     }
   }

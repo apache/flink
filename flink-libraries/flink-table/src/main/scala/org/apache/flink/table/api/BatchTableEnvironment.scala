@@ -194,7 +194,30 @@ abstract class BatchTableEnvironment(
   protected def registerDataSetInternal[T](
       name: String, dataSet: DataSet[T], fields: Array[Expression]): Unit = {
 
-    val (fieldNames, fieldIndexes) = getFieldInfo[T](dataSet.getType, fields)
+    val (fieldNames, fieldIndexes) = getFieldInfo[T](
+      dataSet.getType,
+      fields,
+      ignoreTimeAttributes = true)
+
+    // validate and extract time attributes
+    val (rowtime, proctime) = validateAndExtractTimeAttributes(fieldNames, fieldIndexes, fields)
+
+    // don't allow proctime on batch
+    proctime match {
+      case Some(_) =>
+        throw new ValidationException(
+          "A proctime attribute is not allowed in a batch environment. " +
+            "Working with processing-time on batch would lead to non-deterministic results.")
+      case _ => // ok
+    }
+    // rowtime must not extend the schema of a batch table
+    rowtime match {
+      case Some((idx, _)) if idx >= dataSet.getType.getArity =>
+        throw new ValidationException(
+          "A rowtime attribute must be defined on an existing field in a batch environment.")
+      case _ => // ok
+    }
+
     val dataSetTable = new DataSetTable[T](dataSet, fieldIndexes, fieldNames)
     registerTableInternal(name, dataSetTable)
   }

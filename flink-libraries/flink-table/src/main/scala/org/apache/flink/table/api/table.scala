@@ -20,12 +20,12 @@ package org.apache.flink.table.api
 import org.apache.calcite.rel.RelNode
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.join.JoinType
-import org.apache.flink.table.calcite.{FlinkRelBuilder, FlinkTypeFactory}
+import org.apache.flink.table.calcite.FlinkRelBuilder
+import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.expressions.{Alias, Asc, Expression, ExpressionParser, Ordering, UnresolvedAlias, UnresolvedFieldReference}
-import org.apache.flink.table.plan.logical.Minus
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.plan.ProjectionTranslator._
-import org.apache.flink.table.plan.logical._
+import org.apache.flink.table.plan.logical.{Minus, _}
 import org.apache.flink.table.sinks.TableSink
 
 import _root_.scala.collection.JavaConverters._
@@ -1015,13 +1015,7 @@ class WindowGroupedTable(
     val projectsOnAgg = replaceAggregationsAndProperties(
       fields, table.tableEnv, aggNames, propNames)
 
-    val projectFields = (table.tableEnv, window) match {
-      // event time can be arbitrary field in batch environment
-      case (_: BatchTableEnvironment, w: EventTimeWindow) =>
-        extractFieldReferences(fields ++ groupKeys ++ Seq(w.timeField))
-      case (_, _) =>
-        extractFieldReferences(fields ++ groupKeys)
-    }
+    val projectFields = extractFieldReferences(fields ++ groupKeys :+ window.timeField)
 
     new Table(table.tableEnv,
       Project(

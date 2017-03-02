@@ -149,7 +149,7 @@ class OverWindowWithOrderBy(
   * A window specification.
   *
   * Window groups rows based on time or row-count intervals. It is a general way to group the
-  * elements, which is very helpful for both groupby-aggregations and over-aggregations to
+  * elements, which is very helpful for both groupBy-aggregations and over-aggregations to
   * compute aggregates on groups of elements.
   *
   * Infinite streaming tables can only be grouped into time or row intervals. Hence window grouping
@@ -157,111 +157,73 @@ class OverWindowWithOrderBy(
   *
   * For finite batch tables, window provides shortcuts for time-based groupBy.
   *
-  * @param alias The expression of alias for this Window
   */
-abstract class Window(val alias: Expression) {
+abstract class Window(val alias: Expression, val timeField: Expression) {
 
   /**
     * Converts an API class to a logical window for planning.
     */
   private[flink] def toLogicalWindow: LogicalWindow
+
 }
-
-/**
-  * A window specification without alias.
-  */
-abstract class WindowWithoutAlias {
-
-  /**
-    * Assigns an alias for this window that the following `groupBy()` and `select()` clause can
-    * refer to. `select()` statement can access window properties such as window start or end time.
-    *
-    * @param alias alias for this window
-    * @return this window
-    */
-  def as(alias: Expression): Window
-
-  /**
-    * Assigns an alias for this window that the following `groupBy()` and `select()` clause can
-    * refer to. `select()` statement can access window properties such as window start or end time.
-    *
-    * @param alias alias for this window
-    * @return this window
-    */
-  def as(alias: String): Window = as(ExpressionParser.parseExpression(alias))
-}
-
-/**
-  * A predefined specification of window on processing-time
-  */
-abstract class ProcTimeWindowWithoutAlias extends WindowWithoutAlias {
-
-  /**
-    * Specifies the time attribute on which rows are grouped.
-    *
-    * For streaming tables call [[on('rowtime)]] to specify grouping by event-time. Otherwise rows
-    * are grouped by processing-time.
-    *
-    * For batch tables, refer to a timestamp or long attribute.
-    *
-    * @param timeField time mode for streaming tables and time attribute for batch tables
-    * @return a predefined window on event-time
-    */
-  def on(timeField: Expression): WindowWithoutAlias
-
-  /**
-    * Specifies the time attribute on which rows are grouped.
-    *
-    * For streaming tables call [[on('rowtime)]] to specify grouping by event-time. Otherwise rows
-    * are grouped by processing-time.
-    *
-    * For batch tables, refer to a timestamp or long attribute.
-    *
-    * @param timeField time mode for streaming tables and time attribute for batch tables
-    * @return a predefined window on event-time
-    */
-  def on(timeField: String): WindowWithoutAlias =
-    on(ExpressionParser.parseExpression(timeField))
-}
-
-/**
-  * A window operating on event-time.
-  *
-  * For streaming tables call on('rowtime) to specify grouping by event-time.
-  * Otherwise rows are grouped by processing-time.
-  *
-  * For batch tables, refer to a timestamp or long attribute.
-  *
-  * @param timeField time mode for streaming tables and time attribute for batch tables
-  */
-abstract class EventTimeWindow(alias: Expression, val timeField: Expression) extends Window(alias)
 
 // ------------------------------------------------------------------------------------------------
 // Tumbling windows
 // ------------------------------------------------------------------------------------------------
 
 /**
-  * A partial specification of a tumbling window.
+  * Tumbling window.
   *
-  * @param size the size of the window either a time or a row-count interval.
+  * For streaming tables you can specify grouping by a event-time or processing-time attribute.
+  *
+  * For batch tables you can specify grouping on a timestamp or long attribute.
+  *
+  * @param size the size of the window either as time or row-count interval.
   */
-class TumbleWithSize(size: Expression) extends ProcTimeWindowWithoutAlias {
+class TumbleWithSize(size: Expression) {
 
+  /**
+    * Tumbling window.
+    *
+    * For streaming tables you can specify grouping by a event-time or processing-time attribute.
+    *
+    * For batch tables you can specify grouping on a timestamp or long attribute.
+    *
+    * @param size the size of the window either as time or row-count interval.
+    */
   def this(size: String) = this(ExpressionParser.parseExpression(size))
 
   /**
     * Specifies the time attribute on which rows are grouped.
     *
-    * For streaming tables call [[on('rowtime)]] to specify grouping by event-time.
-    * Otherwise rows are grouped by processing-time.
+    * For streaming tables you can specify grouping by a event-time or processing-time attribute.
     *
-    * For batch tables, refer to a timestamp or long attribute.
+    * For batch tables you can specify grouping on a timestamp or long attribute.
     *
-    * @param timeField time mode for streaming tables and time attribute for batch tables
-    * @return a predefined window on event-time
+    * @param timeField time attribute for streaming and batch tables
+    * @return a tumbling window on event-time
     */
-  override def on(timeField: Expression): WindowWithoutAlias =
-    new TumbleWithoutAlias(timeField, size)
+  def on(timeField: Expression): TumbleWithSizeOnTime =
+    new TumbleWithSizeOnTime(timeField, size)
+
+  /**
+    * Specifies the time attribute on which rows are grouped.
+    *
+    * For streaming tables you can specify grouping by a event-time or processing-time attribute.
+    *
+    * For batch tables you can specify grouping on a timestamp or long attribute.
+    *
+    * @param timeField time attribute for streaming and batch tables
+    * @return a tumbling window on event-time
+    */
+  def on(timeField: String): TumbleWithSizeOnTime =
+    on(ExpressionParser.parseExpression(timeField))
+}
+
+/**
+  * Tumbling window on time.
+  */
+class TumbleWithSizeOnTime(time: Expression, size: Expression) {
 
   /**
     * Assigns an alias for this window that the following `groupBy()` and `select()` clause can
@@ -270,15 +232,9 @@ class TumbleWithSize(size: Expression) extends ProcTimeWindowWithoutAlias {
     * @param alias alias for this window
     * @return this window
     */
-  override def as(alias: Expression) = new TumblingWindow(alias, size)
-}
-
-/**
-  * A tumbling window on event-time without alias.
-  */
-class TumbleWithoutAlias(
-    time: Expression,
-    size: Expression) extends WindowWithoutAlias {
+  def as(alias: Expression): TumbleWithSizeOnTimeWithAlias = {
+    new TumbleWithSizeOnTimeWithAlias(alias, time, size)
+  }
 
   /**
     * Assigns an alias for this window that the following `groupBy()` and `select()` clause can
@@ -287,31 +243,28 @@ class TumbleWithoutAlias(
     * @param alias alias for this window
     * @return this window
     */
-  override def as(alias: Expression): Window = new TumblingEventTimeWindow(alias, time, size)
+  def as(alias: String): TumbleWithSizeOnTimeWithAlias = {
+    as(ExpressionParser.parseExpression(alias))
+  }
 }
 
 /**
-  * Tumbling window on processing-time.
-  *
-  * @param alias the alias of the window.
-  * @param size the size of the window either a time or a row-count interval.
+  * Tumbling window on time with alias. Fully specifies a window.
   */
-class TumblingWindow(alias: Expression, size: Expression) extends Window(alias) {
-
-  override private[flink] def toLogicalWindow: LogicalWindow =
-    ProcessingTimeTumblingGroupWindow(alias, size)
-}
-
-/**
-  * Tumbling window on event-time.
-  */
-class TumblingEventTimeWindow(
+class TumbleWithSizeOnTimeWithAlias(
     alias: Expression,
-    time: Expression,
-    size: Expression) extends EventTimeWindow(alias, time) {
+    timeField: Expression,
+    size: Expression)
+  extends Window(
+    alias,
+    timeField) {
 
-  override private[flink] def toLogicalWindow: LogicalWindow =
-    EventTimeTumblingGroupWindow(alias, time, size)
+  /**
+    * Converts an API class to a logical window for planning.
+    */
+  override private[flink] def toLogicalWindow: LogicalWindow = {
+    TumblingGroupWindow(alias, timeField, size)
+  }
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -319,16 +272,16 @@ class TumblingEventTimeWindow(
 // ------------------------------------------------------------------------------------------------
 
 /**
-  * A partially specified sliding window.
+  * Partially specified sliding window.
   *
-  * @param size the size of the window either a time or a row-count interval.
+  * @param size the size of the window either as time or row-count interval.
   */
 class SlideWithSize(size: Expression) {
 
   /**
-    * A partially specified sliding window.
+    * Partially specified sliding window.
     *
-    * @param size the size of the window either a time or a row-count interval.
+    * @param size the size of the window either as time or row-count interval.
     */
   def this(size: String) = this(ExpressionParser.parseExpression(size))
 
@@ -343,9 +296,9 @@ class SlideWithSize(size: Expression) {
     * windows.
     *
     * @param slide the slide of the window either as time or row-count interval.
-    * @return a predefined sliding window.
+    * @return a sliding window
     */
-  def every(slide: Expression): SlideWithSlide = new SlideWithSlide(size, slide)
+  def every(slide: Expression): SlideWithSizeAndSlide = new SlideWithSizeAndSlide(size, slide)
 
   /**
     * Specifies the window's slide as time or row-count interval.
@@ -358,30 +311,53 @@ class SlideWithSize(size: Expression) {
     * windows.
     *
     * @param slide the slide of the window either as time or row-count interval.
-    * @return a predefined sliding window.
+    * @return a sliding window
     */
-  def every(slide: String): WindowWithoutAlias = every(ExpressionParser.parseExpression(slide))
+  def every(slide: String): SlideWithSizeAndSlide = every(ExpressionParser.parseExpression(slide))
 }
 
 /**
-  * A partially defined sliding window.
+  * Sliding window.
+  *
+  * For streaming tables you can specify grouping by a event-time or processing-time attribute.
+  *
+  * For batch tables you can specify grouping on a timestamp or long attribute.
+  *
+  * @param size the size of the window either as time or row-count interval.
   */
-class SlideWithSlide(
-    size: Expression,
-    slide: Expression) extends ProcTimeWindowWithoutAlias {
+class SlideWithSizeAndSlide(size: Expression, slide: Expression) {
+
   /**
     * Specifies the time attribute on which rows are grouped.
     *
-    * For streaming tables call [[on('rowtime)]] to specify grouping by event-time. Otherwise rows
-    * are grouped by processing-time.
+    * For streaming tables you can specify grouping by a event-time or processing-time attribute.
     *
-    * For batch tables, refer to a timestamp or long attribute.
+    * For batch tables you can specify grouping on a timestamp or long attribute.
     *
-    * @param timeField time mode for streaming tables and time attribute for batch tables
-    * @return a predefined Sliding window on event-time.
+    * @param timeField time attribute for streaming and batch tables
+    * @return a tumbling window on event-time
     */
-  override def on(timeField: Expression): SlideWithoutAlias =
-    new SlideWithoutAlias(timeField, size, slide)
+  def on(timeField: Expression): SlideWithSizeAndSlideOnTime =
+    new SlideWithSizeAndSlideOnTime(timeField, size, slide)
+
+  /**
+    * Specifies the time attribute on which rows are grouped.
+    *
+    * For streaming tables you can specify grouping by a event-time or processing-time attribute.
+    *
+    * For batch tables you can specify grouping on a timestamp or long attribute.
+    *
+    * @param timeField time attribute for streaming and batch tables
+    * @return a tumbling window on event-time
+    */
+  def on(timeField: String): SlideWithSizeAndSlideOnTime =
+    on(ExpressionParser.parseExpression(timeField))
+}
+
+/**
+  * Sliding window on time.
+  */
+class SlideWithSizeAndSlideOnTime(timeField: Expression, size: Expression, slide: Expression) {
 
   /**
     * Assigns an alias for this window that the following `groupBy()` and `select()` clause can
@@ -390,16 +366,10 @@ class SlideWithSlide(
     * @param alias alias for this window
     * @return this window
     */
-  override def as(alias: Expression): Window = new SlidingWindow(alias, size, slide)
-}
+  def as(alias: Expression): SlideWithSizeAndSlideOnTimeWithAlias = {
+    new SlideWithSizeAndSlideOnTimeWithAlias(alias, timeField, size, slide)
+  }
 
-/**
-  * A partially defined sliding window on event-time without alias.
-  */
-class SlideWithoutAlias(
-    timeField: Expression,
-    size: Expression,
-    slide: Expression) extends WindowWithoutAlias {
   /**
     * Assigns an alias for this window that the following `groupBy()` and `select()` clause can
     * refer to. `select()` statement can access window properties such as window start or end time.
@@ -407,39 +377,29 @@ class SlideWithoutAlias(
     * @param alias alias for this window
     * @return this window
     */
-  override def as(alias: Expression): Window =
-    new SlidingEventTimeWindow(alias, timeField, size, slide)
+  def as(alias: String): SlideWithSizeAndSlideOnTimeWithAlias = {
+    as(ExpressionParser.parseExpression(alias))
+  }
 }
 
 /**
-  * A sliding window on processing-time.
-  *
-  * @param alias the alias of the window.
-  * @param size the size of the window either a time or a row-count interval.
-  * @param slide the interval by which the window slides.
+  * Sliding window on time with alias. Fully specifies a window.
   */
-class SlidingWindow(
-  alias: Expression,
-  size: Expression,
-  slide: Expression)
-  extends Window(alias) {
-
-  override private[flink] def toLogicalWindow: LogicalWindow =
-    ProcessingTimeSlidingGroupWindow(alias, size, slide)
-}
-
-/**
-  * A sliding window on event-time.
-  */
-class SlidingEventTimeWindow(
+class SlideWithSizeAndSlideOnTimeWithAlias(
     alias: Expression,
     timeField: Expression,
     size: Expression,
     slide: Expression)
-  extends EventTimeWindow(alias, timeField) {
+  extends Window(
+    alias,
+    timeField) {
 
-  override private[flink] def toLogicalWindow: LogicalWindow =
-    EventTimeSlidingGroupWindow(alias, timeField, size, slide)
+  /**
+    * Converts an API class to a logical window for planning.
+    */
+  override private[flink] def toLogicalWindow: LogicalWindow = {
+    SlidingGroupWindow(alias, timeField, size, slide)
+  }
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -447,25 +407,58 @@ class SlidingEventTimeWindow(
 // ------------------------------------------------------------------------------------------------
 
 /**
-  * A partially defined session window.
+  * Session window.
+  *
+  * For streaming tables you can specify grouping by a event-time or processing-time attribute.
+  *
+  * For batch tables you can specify grouping on a timestamp or long attribute.
+  *
+  * @param gap the time interval of inactivity before a window is closed.
   */
-class SessionWithGap(gap: Expression) extends ProcTimeWindowWithoutAlias {
+class SessionWithGap(gap: Expression) {
 
+  /**
+    * Session window.
+    *
+    * For streaming tables you can specify grouping by a event-time or processing-time attribute.
+    *
+    * For batch tables you can specify grouping on a timestamp or long attribute.
+    *
+    * @param gap the time interval of inactivity before a window is closed.
+    */
   def this(gap: String) = this(ExpressionParser.parseExpression(gap))
 
   /**
     * Specifies the time attribute on which rows are grouped.
     *
-    * For streaming tables call [[on('rowtime)]] to specify grouping by event-time. Otherwise rows
-    * are grouped by processing-time.
+    * For streaming tables you can specify grouping by a event-time or processing-time attribute.
     *
-    * For batch tables, refer to a timestamp or long attribute.
+    * For batch tables you can specify grouping on a timestamp or long attribute.
     *
-    * @param timeField time mode for streaming tables and time attribute for batch tables
-    * @return an on event-time session window on event-time
+    * @param timeField time attribute for streaming and batch tables
+    * @return a tumbling window on event-time
     */
-  override def on(timeField: Expression): SessionWithoutAlias =
-    new SessionWithoutAlias(timeField, gap)
+  def on(timeField: Expression): SessionWithGapOnTime =
+    new SessionWithGapOnTime(timeField, gap)
+
+  /**
+    * Specifies the time attribute on which rows are grouped.
+    *
+    * For streaming tables you can specify grouping by a event-time or processing-time attribute.
+    *
+    * For batch tables you can specify grouping on a timestamp or long attribute.
+    *
+    * @param timeField time attribute for streaming and batch tables
+    * @return a tumbling window on event-time
+    */
+  def on(timeField: String): SessionWithGapOnTime =
+    on(ExpressionParser.parseExpression(timeField))
+}
+
+/**
+  * Session window on time.
+  */
+class SessionWithGapOnTime(timeField: Expression, gap: Expression) {
 
   /**
     * Assigns an alias for this window that the following `groupBy()` and `select()` clause can
@@ -474,15 +467,10 @@ class SessionWithGap(gap: Expression) extends ProcTimeWindowWithoutAlias {
     * @param alias alias for this window
     * @return this window
     */
-  override def as(alias: Expression): Window = new SessionWindow(alias, gap)
-}
+  def as(alias: Expression): SessionWithGapOnTimeWithAlias = {
+    new SessionWithGapOnTimeWithAlias(alias, timeField, gap)
+  }
 
-/**
-  * A partially defined session window on event-time without alias.
-  */
-class SessionWithoutAlias(
-    timeField: Expression,
-    gap: Expression) extends WindowWithoutAlias {
   /**
     * Assigns an alias for this window that the following `groupBy()` and `select()` clause can
     * refer to. `select()` statement can access window properties such as window start or end time.
@@ -490,29 +478,26 @@ class SessionWithoutAlias(
     * @param alias alias for this window
     * @return this window
     */
-  override def as(alias: Expression): Window = new SessionEventTimeWindow(alias, timeField, gap)
+  def as(alias: String): SessionWithGapOnTimeWithAlias = {
+    as(ExpressionParser.parseExpression(alias))
+  }
 }
 
 /**
-  * A session window on processing-time.
-  *
-  * @param gap the time interval of inactivity before a window is closed.
+  * Session window on time with alias. Fully specifies a window.
   */
-class SessionWindow(alias: Expression, gap: Expression) extends Window(alias) {
-
-  override private[flink] def toLogicalWindow: LogicalWindow =
-    ProcessingTimeSessionGroupWindow(alias, gap)
-}
-
-/**
-  * A session window on event-time.
-  */
-class SessionEventTimeWindow(
+class SessionWithGapOnTimeWithAlias(
     alias: Expression,
     timeField: Expression,
     gap: Expression)
-  extends EventTimeWindow(alias, timeField) {
+  extends Window(
+    alias,
+    timeField) {
 
-  override private[flink] def toLogicalWindow: LogicalWindow =
-    EventTimeSessionGroupWindow(alias, timeField, gap)
+  /**
+    * Converts an API class to a logical window for planning.
+    */
+  override private[flink] def toLogicalWindow: LogicalWindow = {
+    SessionGroupWindow(alias, timeField, gap)
+  }
 }
