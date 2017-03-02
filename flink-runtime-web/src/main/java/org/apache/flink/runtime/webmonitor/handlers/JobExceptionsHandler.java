@@ -24,7 +24,7 @@ import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
-import org.apache.flink.runtime.webmonitor.history.Archiver;
+import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.util.ExceptionUtils;
 
 import java.io.IOException;
@@ -54,7 +54,7 @@ public class JobExceptionsHandler extends AbstractExecutionGraphRequestHandler {
 		return createJobExceptionsJson(graph);
 	}
 
-	public static class JobExceptionsArchiver implements Archiver {
+	public static class JobExceptionsJsonArchivist implements JsonArchivist {
 
 		@Override
 		public ArchivedJson[] archiveJsonWithPath(AccessExecutionGraph graph) throws IOException {

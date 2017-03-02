@@ -23,7 +23,7 @@ import org.apache.flink.runtime.executiongraph.AccessExecution;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
-import org.apache.flink.runtime.webmonitor.history.Archiver;
+import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.runtime.webmonitor.utils.ArchivedJobGenerationUtils;
 import org.junit.Assert;
 import org.junit.Test;
@@ -34,12 +34,12 @@ public class SubtaskExecutionAttemptDetailsHandlerTest {
 
 	@Test
 	public void testArchiver() throws Exception {
-		Archiver archiver = new SubtaskExecutionAttemptDetailsHandler.SubtaskExecutionAttemptDetailsArchiver();
+		JsonArchivist archivist = new SubtaskExecutionAttemptDetailsHandler.SubtaskExecutionAttemptDetailsJsonArchivist();
 		AccessExecutionGraph originalJob = ArchivedJobGenerationUtils.getTestJob();
 		AccessExecutionJobVertex originalTask = ArchivedJobGenerationUtils.getTestTask();
 		AccessExecution originalAttempt = ArchivedJobGenerationUtils.getTestAttempt();
 
-		ArchivedJson[] archives = archiver.archiveJsonWithPath(originalJob);
+		ArchivedJson[] archives = archivist.archiveJsonWithPath(originalJob);
 		Assert.assertEquals(2, archives.length);
 
 		ArchivedJson archive1 = archives[0];

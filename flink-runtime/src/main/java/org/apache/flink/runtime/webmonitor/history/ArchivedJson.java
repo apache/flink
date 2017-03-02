@@ -23,7 +23,7 @@ import org.apache.flink.util.Preconditions;
 /**
  * A simple container for a handler's JSON response and the REST URLs for which the response would've been returned.
  * 
- * These are created by {@link Archiver}s, and used by the {@link MemoryArchivist} to create a directory structure
+ * These are created by {@link JsonArchivist}s, and used by the {@link MemoryArchivist} to create a directory structure
  * resembling the REST API.
  */
 public class ArchivedJson {

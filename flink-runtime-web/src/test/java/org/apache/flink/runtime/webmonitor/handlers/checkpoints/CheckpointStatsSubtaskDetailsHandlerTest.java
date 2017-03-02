@@ -33,7 +33,7 @@ import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
-import org.apache.flink.runtime.webmonitor.history.Archiver;
+import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -60,7 +60,7 @@ public class CheckpointStatsSubtaskDetailsHandlerTest {
 
 	@Test
 	public void testArchiver() throws Exception {
-		Archiver archiver = new CheckpointStatsDetailsSubtasksHandler.CheckpointStatsDetailsSubtasksArchiver();
+		JsonArchivist archivist = new CheckpointStatsDetailsSubtasksHandler.CheckpointStatsDetailsSubtasksJsonArchivist();
 		ObjectMapper mapper = new ObjectMapper();
 
 		PendingCheckpointStats checkpoint = mock(PendingCheckpointStats.class);
@@ -80,7 +80,7 @@ public class CheckpointStatsSubtaskDetailsHandlerTest {
 		when(graph.getCheckpointStatsSnapshot()).thenReturn(snapshot);
 		when(graph.getJobID()).thenReturn(new JobID());
 		
-		ArchivedJson[] archives = archiver.archiveJsonWithPath(graph);
+		ArchivedJson[] archives = archivist.archiveJsonWithPath(graph);
 		Assert.assertEquals(1, archives.length);
 		
 		ArchivedJson archive = archives[0];

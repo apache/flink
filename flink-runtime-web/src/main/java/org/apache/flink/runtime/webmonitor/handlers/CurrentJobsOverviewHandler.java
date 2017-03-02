@@ -26,7 +26,7 @@ import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.messages.webmonitor.RequestJobDetails;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
-import org.apache.flink.runtime.webmonitor.history.Archiver;
+import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
@@ -125,7 +125,7 @@ public class CurrentJobsOverviewHandler extends AbstractJsonRequestHandler {
 		}
 	}
 
-	public static class CurrentJobsOverviewArchiver implements Archiver {
+	public static class CurrentJobsOverviewJsonArchivist implements JsonArchivist {
 
 		@Override
 		public ArchivedJson[] archiveJsonWithPath(AccessExecutionGraph graph) throws IOException {

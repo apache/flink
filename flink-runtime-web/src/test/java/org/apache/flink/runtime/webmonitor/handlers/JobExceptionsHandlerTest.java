@@ -23,7 +23,7 @@ import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
-import org.apache.flink.runtime.webmonitor.history.Archiver;
+import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.runtime.webmonitor.utils.ArchivedJobGenerationUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.junit.Assert;
@@ -35,10 +35,10 @@ public class JobExceptionsHandlerTest {
 
 	@Test
 	public void testArchiver() throws Exception {
-		Archiver archiver = new JobExceptionsHandler.JobExceptionsArchiver();
+		JsonArchivist archivist = new JobExceptionsHandler.JobExceptionsJsonArchivist();
 		AccessExecutionGraph originalJob = ArchivedJobGenerationUtils.getTestJob();
 
-		ArchivedJson[] archives = archiver.archiveJsonWithPath(originalJob);
+		ArchivedJson[] archives = archivist.archiveJsonWithPath(originalJob);
 		Assert.assertEquals(1, archives.length);
 
 		ArchivedJson archive = archives[0];

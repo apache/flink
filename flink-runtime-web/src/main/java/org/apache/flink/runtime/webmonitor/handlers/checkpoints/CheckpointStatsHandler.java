@@ -33,7 +33,7 @@ import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 import org.apache.flink.runtime.webmonitor.handlers.AbstractExecutionGraphRequestHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JsonFactory;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
-import org.apache.flink.runtime.webmonitor.history.Archiver;
+import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
@@ -61,7 +61,7 @@ public class CheckpointStatsHandler extends AbstractExecutionGraphRequestHandler
 		return createCheckpointStatsJson(graph);
 	}
 
-	public static class CheckpointStatsArchiver implements Archiver {
+	public static class CheckpointStatsJsonArchivist implements JsonArchivist {
 
 		@Override
 		public ArchivedJson[] archiveJsonWithPath(AccessExecutionGraph graph) throws IOException {

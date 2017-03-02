@@ -21,6 +21,6 @@ import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 
 import java.io.IOException;
 
-public interface Archiver {
+public interface JsonArchivist {
 	ArchivedJson[] archiveJsonWithPath(AccessExecutionGraph graph) throws IOException;
 }

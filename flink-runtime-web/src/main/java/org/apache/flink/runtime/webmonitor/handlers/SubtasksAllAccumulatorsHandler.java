@@ -27,7 +27,7 @@ import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
-import org.apache.flink.runtime.webmonitor.history.Archiver;
+import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 
 import java.io.IOException;
 import java.io.StringWriter;
@@ -56,7 +56,7 @@ public class SubtasksAllAccumulatorsHandler extends AbstractJobVertexRequestHand
 		return createSubtasksAccumulatorsJson(jobVertex);
 	}
 
-	public static class SubtasksAllAccumulatorsArchiver implements Archiver {
+	public static class SubtasksAllAccumulatorsJsonArchivist implements JsonArchivist {
 
 		@Override
 		public ArchivedJson[] archiveJsonWithPath(AccessExecutionGraph graph) throws IOException {

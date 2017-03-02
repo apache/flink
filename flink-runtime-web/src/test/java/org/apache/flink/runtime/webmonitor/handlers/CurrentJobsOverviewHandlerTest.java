@@ -25,7 +25,7 @@ import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
-import org.apache.flink.runtime.webmonitor.history.Archiver;
+import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.runtime.webmonitor.utils.ArchivedJobGenerationUtils;
 import org.junit.Assert;
 import org.junit.Test;
@@ -39,11 +39,11 @@ public class CurrentJobsOverviewHandlerTest {
 
 	@Test
 	public void testArchiver() throws Exception {
-		Archiver archiver = new CurrentJobsOverviewHandler.CurrentJobsOverviewArchiver();
+		JsonArchivist archivist = new CurrentJobsOverviewHandler.CurrentJobsOverviewJsonArchivist();
 		AccessExecutionGraph originalJob = ArchivedJobGenerationUtils.getTestJob();
 		JobDetails expectedDetails = WebMonitorUtils.createDetailsForJob(originalJob);
 
-		ArchivedJson[] archives = archiver.archiveJsonWithPath(originalJob);
+		ArchivedJson[] archives = archivist.archiveJsonWithPath(originalJob);
 		Assert.assertEquals(1, archives.length);
 
 		ArchivedJson archive = archives[0];

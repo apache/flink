@@ -36,7 +36,7 @@ import org.apache.flink.runtime.checkpoint.RestoredCheckpointStats;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
-import org.apache.flink.runtime.webmonitor.history.Archiver;
+import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -57,11 +57,11 @@ public class CheckpointStatsHandlerTest {
 
 	@Test
 	public void testArchiver() throws IOException {
-		Archiver archiver = new CheckpointStatsDetailsHandler.CheckpointStatsDetailsArchiver();
+		JsonArchivist archivist = new CheckpointStatsDetailsHandler.CheckpointStatsDetailsJsonArchivist();
 		TestCheckpointStats testCheckpointStats = createTestCheckpointStats();
 		when(testCheckpointStats.graph.getJobID()).thenReturn(new JobID());
 		
-		ArchivedJson[] archives = archiver.archiveJsonWithPath(testCheckpointStats.graph);
+		ArchivedJson[] archives = archivist.archiveJsonWithPath(testCheckpointStats.graph);
 		Assert.assertEquals(3, archives.length);
 
 		ObjectMapper mapper = new ObjectMapper();

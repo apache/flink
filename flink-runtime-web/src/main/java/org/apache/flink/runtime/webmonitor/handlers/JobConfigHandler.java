@@ -27,7 +27,7 @@ import org.apache.flink.api.common.ArchivedExecutionConfig;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
-import org.apache.flink.runtime.webmonitor.history.Archiver;
+import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 
 /**
  * Request handler that returns the execution config of a job.
@@ -50,7 +50,7 @@ public class JobConfigHandler extends AbstractExecutionGraphRequestHandler {
 		return createJobConfigJson(graph);
 	}
 
-	public static class JobConfigArchiver implements Archiver {
+	public static class JobConfigJsonArchivist implements JsonArchivist {
 
 		@Override
 		public ArchivedJson[] archiveJsonWithPath(AccessExecutionGraph graph) throws IOException {

@@ -77,7 +77,7 @@ import org.apache.flink.runtime.webmonitor.handlers.checkpoints.CheckpointStatsC
 import org.apache.flink.runtime.webmonitor.handlers.checkpoints.CheckpointStatsDetailsHandler;
 import org.apache.flink.runtime.webmonitor.handlers.checkpoints.CheckpointStatsHandler;
 import org.apache.flink.runtime.webmonitor.handlers.checkpoints.CheckpointStatsDetailsSubtasksHandler;
-import org.apache.flink.runtime.webmonitor.history.Archiver;
+import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.runtime.webmonitor.metrics.JobManagerMetricsHandler;
 import org.apache.flink.runtime.webmonitor.metrics.JobMetricsHandler;
 import org.apache.flink.runtime.webmonitor.metrics.JobVertexMetricsHandler;
@@ -425,31 +425,31 @@ public class WebRuntimeMonitor implements WebMonitor {
 		LOG.info("Web frontend listening at " + address + ':' + port);
 	}
 
-	public static Archiver[] getArchivers() {
-		Archiver[] archivers = new Archiver[]{
-			new CurrentJobsOverviewHandler.CurrentJobsOverviewArchiver(),
+	public static JsonArchivist[] getArchivers() {
+		JsonArchivist[] archivists = new JsonArchivist[]{
+			new CurrentJobsOverviewHandler.CurrentJobsOverviewJsonArchivist(),
 
-			new JobPlanHandler.JobPlanArchiver(),
-			new JobConfigHandler.JobConfigArchiver(),
-			new JobExceptionsHandler.JobExceptionsArchiver(),
-			new JobDetailsHandler.JobDetailsArchiver(),
-			new JobAccumulatorsHandler.JobAccumulatorsArchiver(),
+			new JobPlanHandler.JobPlanJsonArchivist(),
+			new JobConfigHandler.JobConfigJsonArchivist(),
+			new JobExceptionsHandler.JobExceptionsJsonArchivist(),
+			new JobDetailsHandler.JobDetailsJsonArchivist(),
+			new JobAccumulatorsHandler.JobAccumulatorsJsonArchivist(),
 
-			new CheckpointStatsHandler.CheckpointStatsArchiver(),
-			new CheckpointConfigHandler.CheckpointConfigArchiver(),
-			new CheckpointStatsDetailsHandler.CheckpointStatsDetailsArchiver(),
-			new CheckpointStatsDetailsSubtasksHandler.CheckpointStatsDetailsSubtasksArchiver(),
+			new CheckpointStatsHandler.CheckpointStatsJsonArchivist(),
+			new CheckpointConfigHandler.CheckpointConfigJsonArchivist(),
+			new CheckpointStatsDetailsHandler.CheckpointStatsDetailsJsonArchivist(),
+			new CheckpointStatsDetailsSubtasksHandler.CheckpointStatsDetailsSubtasksJsonArchivist(),
 				
-			new JobVertexDetailsHandler.JobVertexDetailsArchiver(),
-			new SubtasksTimesHandler.SubtasksTimesArchiver(),
-			new JobVertexTaskManagersHandler.JobVertexTaskManagersArchiver(),
-			new JobVertexAccumulatorsHandler.JobVertexAccumulatorsArchiver(),
-			new SubtasksAllAccumulatorsHandler.SubtasksAllAccumulatorsArchiver(),
+			new JobVertexDetailsHandler.JobVertexDetailsJsonArchivist(),
+			new SubtasksTimesHandler.SubtasksTimesJsonArchivist(),
+			new JobVertexTaskManagersHandler.JobVertexTaskManagersJsonArchivist(),
+			new JobVertexAccumulatorsHandler.JobVertexAccumulatorsJsonArchivist(),
+			new SubtasksAllAccumulatorsHandler.SubtasksAllAccumulatorsJsonArchivist(),
 			
-			new SubtaskExecutionAttemptDetailsHandler.SubtaskExecutionAttemptDetailsArchiver(),
-			new SubtaskExecutionAttemptAccumulatorsHandler.SubtaskExecutionAttemptAccumulatorsArchiver()
+			new SubtaskExecutionAttemptDetailsHandler.SubtaskExecutionAttemptDetailsJsonArchivist(),
+			new SubtaskExecutionAttemptAccumulatorsHandler.SubtaskExecutionAttemptAccumulatorsJsonArchivist()
 			};
-		return archivers;
+		return archivists;
 	}
 
 	@Override

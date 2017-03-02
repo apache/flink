@@ -21,7 +21,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.api.common.ArchivedExecutionConfig;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
-import org.apache.flink.runtime.webmonitor.history.Archiver;
+import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.runtime.webmonitor.utils.ArchivedJobGenerationUtils;
 import org.junit.Assert;
 import org.junit.Test;
@@ -33,10 +33,10 @@ public class JobConfigHandlerTest {
 
 	@Test
 	public void testArchiver() throws Exception {
-		Archiver archiver = new JobConfigHandler.JobConfigArchiver();
+		JsonArchivist archivist = new JobConfigHandler.JobConfigJsonArchivist();
 		AccessExecutionGraph originalJob = ArchivedJobGenerationUtils.getTestJob();
 
-		ArchivedJson[] archives = archiver.archiveJsonWithPath(originalJob);
+		ArchivedJson[] archives = archivist.archiveJsonWithPath(originalJob);
 		Assert.assertEquals(1, archives.length);
 
 		ArchivedJson archive = archives[0];

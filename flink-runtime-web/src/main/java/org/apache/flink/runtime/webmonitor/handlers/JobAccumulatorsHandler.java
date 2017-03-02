@@ -23,7 +23,7 @@ import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
-import org.apache.flink.runtime.webmonitor.history.Archiver;
+import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 
 import java.io.IOException;
 import java.io.StringWriter;
@@ -50,7 +50,7 @@ public class JobAccumulatorsHandler extends AbstractExecutionGraphRequestHandler
 		return createJobAccumulatorsJson(graph);
 	}
 
-	public static class JobAccumulatorsArchiver implements Archiver {
+	public static class JobAccumulatorsJsonArchivist implements JsonArchivist {
 
 		@Override
 		public ArchivedJson[] archiveJsonWithPath(AccessExecutionGraph graph) throws IOException {

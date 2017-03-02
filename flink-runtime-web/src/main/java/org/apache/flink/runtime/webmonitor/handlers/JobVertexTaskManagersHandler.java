@@ -27,7 +27,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
-import org.apache.flink.runtime.webmonitor.history.Archiver;
+import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.runtime.webmonitor.metrics.MetricFetcher;
 import org.apache.flink.runtime.webmonitor.utils.MutableIOMetrics;
 
@@ -64,7 +64,7 @@ public class JobVertexTaskManagersHandler extends AbstractJobVertexRequestHandle
 		return createVertexDetailsByTaskManagerJson(jobVertex, params.get("jobid"), fetcher);
 	}
 
-	public static class JobVertexTaskManagersArchiver implements Archiver {
+	public static class JobVertexTaskManagersJsonArchivist implements JsonArchivist {
 
 		@Override
 		public ArchivedJson[] archiveJsonWithPath(AccessExecutionGraph graph) throws IOException {
