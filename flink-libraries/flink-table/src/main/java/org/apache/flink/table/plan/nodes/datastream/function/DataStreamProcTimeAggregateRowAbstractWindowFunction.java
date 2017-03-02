@@ -23,21 +23,33 @@ import java.util.List;
 
 import org.apache.calcite.sql.SqlKind;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.table.plan.nodes.datastream.aggs.DoubleSummaryAggregation;
-import org.apache.flink.table.plan.nodes.datastream.aggs.IntegerSummaryAggregation;
-import org.apache.flink.table.plan.nodes.datastream.aggs.LongSummaryAggregation;
-import org.apache.flink.table.plan.nodes.datastream.aggs.StreamAggregator;
+import org.apache.flink.table.functions.Accumulator;
+import org.apache.flink.table.functions.AggregateFunction;
+import org.apache.flink.table.functions.aggfunctions.CountAggFunction;
+import org.apache.flink.table.functions.aggfunctions.DoubleAvgAggFunction;
+import org.apache.flink.table.functions.aggfunctions.DoubleMaxAggFunction;
+import org.apache.flink.table.functions.aggfunctions.DoubleMinAggFunction;
+import org.apache.flink.table.functions.aggfunctions.DoubleSumAggFunction;
+import org.apache.flink.table.functions.aggfunctions.IntAvgAggFunction;
+import org.apache.flink.table.functions.aggfunctions.IntMaxAggFunction;
+import org.apache.flink.table.functions.aggfunctions.IntMinAggFunction;
+import org.apache.flink.table.functions.aggfunctions.IntSumAggFunction;
+import org.apache.flink.table.functions.aggfunctions.LongAvgAggFunction;
+import org.apache.flink.table.functions.aggfunctions.LongMaxAggFunction;
+import org.apache.flink.table.functions.aggfunctions.LongMinAggFunction;
+import org.apache.flink.table.functions.aggfunctions.LongSumAggFunction;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Collector;
 
-public class DataStreamProcTimeAggregateRowAbstractWindowFunction implements Serializable{
+public class DataStreamProcTimeAggregateRowAbstractWindowFunction implements Serializable {
 
 	static final long serialVersionUID = 1L;
 	List<String> aggregators;
 	List<Integer> indexes;
 	List<TypeInformation<?>> typeInfo;
 	@SuppressWarnings("rawtypes")
-	List<StreamAggregator> aggregatorImpl;
+	List<AggregateFunction> aggregatorImpl;
+	List<Accumulator> accumulators;
 
 	public DataStreamProcTimeAggregateRowAbstractWindowFunction(List<String> aggregators, List<Integer> rowIndexes,
 			List<TypeInformation<?>> typeInfos) {
@@ -45,6 +57,7 @@ public class DataStreamProcTimeAggregateRowAbstractWindowFunction implements Ser
 		this.indexes = rowIndexes;
 		this.typeInfo = typeInfos;
 		aggregatorImpl = new ArrayList<>();
+		accumulators = new ArrayList<>();
 		for (int i = 0; i < aggregators.size(); i++) {
 			setAggregator(i, aggregators.get(i));
 		}
@@ -53,7 +66,6 @@ public class DataStreamProcTimeAggregateRowAbstractWindowFunction implements Ser
 	Row reuse;
 	Row result;
 
-	@SuppressWarnings("unchecked")
 	protected void applyAggregation(Iterable<Row> input, Collector<Row> out) {
 
 		for (Row row : input) {
@@ -62,7 +74,7 @@ public class DataStreamProcTimeAggregateRowAbstractWindowFunction implements Ser
 				result = new Row(reuse.getArity() + aggregators.size());
 			}
 			for (int i = 0; i < aggregators.size(); i++) {
-				aggregatorImpl.get(i).aggregate(reuse.getField(indexes.get(i)));
+				aggregatorImpl.get(i).accumulate(accumulators.get(i), reuse.getField(indexes.get(i)));
 			}
 		}
 
@@ -70,44 +82,38 @@ public class DataStreamProcTimeAggregateRowAbstractWindowFunction implements Ser
 			result.setField(i, reuse.getField(i));
 		}
 		for (int i = 0; i < aggregators.size(); i++) {
-			result.setField(reuse.getArity() + i, aggregatorImpl.get(i).result());
-			aggregatorImpl.get(i).reset();
+			result.setField(reuse.getArity() + i, aggregatorImpl.get(i).getValue(accumulators.get(i)));
+			accumulators.get(i).reset();
 		}
 		out.collect(result);
 	}
 
 	protected void setAggregator(int i, String aggregatorName) {
 		if (typeInfo.get(i).getTypeClass().equals(Integer.class)) {
-			if (aggregatorImpl.size() - 1 < i) {
-				aggregatorImpl.add(getIntegerAggregator(aggregatorName));
-			}
+			aggregatorImpl.add(getIntegerAggregator(aggregatorName));
 		} else if (typeInfo.get(i).getTypeClass().equals(Double.class)) {
-			if (aggregatorImpl.size() - 1 < i) {
-				aggregatorImpl.add(getDoubleAggregator(aggregatorName));
-			}
+			aggregatorImpl.add(getDoubleAggregator(aggregatorName));
 		} else if (typeInfo.get(i).getTypeClass().equals(Long.class)) {
-			if (aggregatorImpl.size() - 1 < i) {
-				aggregatorImpl.add(getLongAggregator(aggregatorName));
-			}
-
+			aggregatorImpl.add(getLongAggregator(aggregatorName));
 		} else {
 			throw new IllegalArgumentException("Unsupported aggregation type for " + aggregatorName
 					+ "MAX, MIN, SUM, AVG, COUNT supported for Long, Double and Integer");
 		}
+		accumulators.add(aggregatorImpl.get(i).createAccumulator());
 	}
 
-	protected StreamAggregator<?, ?> getIntegerAggregator(String aggregatorName) {
-		StreamAggregator<?, ?> aggregator = null;
+	protected AggregateFunction<?> getIntegerAggregator(String aggregatorName) {
+		AggregateFunction<?> aggregator = null;
 		if (aggregatorName.equals(SqlKind.MAX.toString())) {
-			aggregator = new IntegerSummaryAggregation().initMax();
+			aggregator = new IntMaxAggFunction();
 		} else if (aggregatorName.equals(SqlKind.MIN.toString())) {
-			aggregator = new IntegerSummaryAggregation().initMin();
+			aggregator = new IntMinAggFunction();
 		} else if (aggregatorName.equals(SqlKind.SUM.toString()) || aggregatorName.equals(SqlKind.SUM0.toString())) {
-			aggregator = new IntegerSummaryAggregation().initSum();
+			aggregator = new IntSumAggFunction();
 		} else if (aggregatorName.equals(SqlKind.AVG.toString())) {
-			aggregator = new IntegerSummaryAggregation().initAvg();
+			aggregator = new IntAvgAggFunction();
 		} else if (aggregatorName.equals(SqlKind.COUNT.toString())) {
-			aggregator = new IntegerSummaryAggregation().initCount();
+			aggregator = new CountAggFunction();
 		} else {
 			throw new IllegalArgumentException("Unsupported aggregation type of aggregation: " + aggregatorName
 					+ ". Only MAX, MIN, SUM/SUM0, AVG, COUNT supported.");
@@ -115,18 +121,18 @@ public class DataStreamProcTimeAggregateRowAbstractWindowFunction implements Ser
 		return aggregator;
 	}
 
-	protected StreamAggregator<?, ?> getDoubleAggregator(String aggregatorName) {
-		StreamAggregator<?, ?> aggregator = null;
+	protected AggregateFunction<?> getDoubleAggregator(String aggregatorName) {
+		AggregateFunction<?> aggregator = null;
 		if (aggregatorName.equals(SqlKind.MAX.toString())) {
-			aggregator = new DoubleSummaryAggregation().initMax();
+			aggregator = new DoubleMaxAggFunction();
 		} else if (aggregatorName.equals(SqlKind.MIN.toString())) {
-			aggregator = new DoubleSummaryAggregation().initMin();
+			aggregator = new DoubleMinAggFunction();
 		} else if (aggregatorName.equals(SqlKind.SUM.toString()) || aggregatorName.equals(SqlKind.SUM0.toString())) {
-			aggregator = new DoubleSummaryAggregation().initSum();
+			aggregator = new DoubleSumAggFunction();
 		} else if (aggregatorName.equals(SqlKind.AVG.toString())) {
-			aggregator = new DoubleSummaryAggregation().initAvg();
+			aggregator = new DoubleAvgAggFunction();
 		} else if (aggregatorName.equals(SqlKind.COUNT.toString())) {
-			aggregator = new DoubleSummaryAggregation().initCount();
+			aggregator = new CountAggFunction();
 		} else {
 			throw new IllegalArgumentException("Unsupported aggregation type for " + aggregatorName
 					+ ". Only MAX, MIN, SUM, AVG, COUNT supported.");
@@ -134,18 +140,18 @@ public class DataStreamProcTimeAggregateRowAbstractWindowFunction implements Ser
 		return aggregator;
 	}
 
-	protected StreamAggregator<?, ?> getLongAggregator(String aggregatorName) {
-		StreamAggregator<?, ?> aggregator = null;
+	protected AggregateFunction<?> getLongAggregator(String aggregatorName) {
+		AggregateFunction<?> aggregator = null;
 		if (aggregatorName.equals(SqlKind.MAX.toString())) {
-			aggregator = new LongSummaryAggregation().initMax();
+			aggregator = new LongMaxAggFunction();
 		} else if (aggregatorName.equals(SqlKind.MIN.toString())) {
-			aggregator = new LongSummaryAggregation().initMin();
+			aggregator = new LongMinAggFunction();
 		} else if (aggregatorName.equals(SqlKind.SUM.toString()) || aggregatorName.equals(SqlKind.SUM0.toString())) {
-			aggregator = new LongSummaryAggregation().initSum();
+			aggregator = new LongSumAggFunction();
 		} else if (aggregatorName.equals(SqlKind.AVG.toString())) {
-			aggregator = new LongSummaryAggregation().initAvg();
+			aggregator = new LongAvgAggFunction();
 		} else if (aggregatorName.equals(SqlKind.COUNT.toString())) {
-			aggregator = new LongSummaryAggregation().initCount();
+			aggregator = new CountAggFunction();
 		} else {
 			throw new IllegalArgumentException(
 					"Unsupported aggregation type for " + aggregatorName + ". Only Integer, Double, Long supported.");

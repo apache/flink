@@ -33,6 +33,11 @@ abstract class MaxAggFunction[T](implicit ord: Ordering[T]) extends AggregateFun
   class MaxAccumulator extends JTuple2[T, Boolean] with Accumulator {
     f0 = 0.asInstanceOf[T] //max
     f1 = false
+    
+    override def reset(){
+       f0 = 0.asInstanceOf[T]
+       f1 = false
+    }
   }
 
   override def createAccumulator(): Accumulator = {

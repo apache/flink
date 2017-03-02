@@ -29,9 +29,13 @@ class CountAggFunction extends AggregateFunction[Long] {
   /** The initial accumulator for count aggregate function */
   class CountAccumulator extends JTuple1[Long] with Accumulator {
     f0 = 0 //count
+    
+    override def reset(){
+      f0 = 0
+    }
   }
 
-  override def accumulate(accumulator: Accumulator, value: Any): Unit = {
+   def accumulate(accumulator: Accumulator, value: Any): Unit = {
     if (value != null) {
       accumulator.asInstanceOf[CountAccumulator].f0 += 1
     }

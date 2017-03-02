@@ -33,6 +33,11 @@ abstract class SumAggFunction[T: Numeric] extends AggregateFunction[T] {
   class SumAccumulator extends JTuple2[T, Boolean] with Accumulator {
     f0 = numeric.zero //sum
     f1 = false
+    
+    override def reset(){
+       f0 = numeric.zero
+       f1 = false
+    }
   }
 
   private val numeric = implicitly[Numeric[T]]
@@ -114,6 +119,11 @@ class DecimalSumAggFunction extends AggregateFunction[BigDecimal] {
   class DecimalSumAccumulator extends JTuple2[BigDecimal, Boolean] with Accumulator {
     f0 = BigDecimal.ZERO
     f1 = false
+    
+    override def reset(){
+       f0 = BigDecimal.ZERO
+       f1 = false
+    }
   }
 
   override def createAccumulator(): Accumulator = {

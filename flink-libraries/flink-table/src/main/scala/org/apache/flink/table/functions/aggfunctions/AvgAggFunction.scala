@@ -33,6 +33,11 @@ abstract class IntegralAvgAggFunction[T] extends AggregateFunction[T] {
   class IntegralAvgAccumulator extends JTuple2[Long, Long] with Accumulator {
     f0 = 0 //sum
     f1 = 0 //count
+    
+    override def reset(){
+      f0 = 0 
+      f1 = 0
+    }
   }
 
   override def createAccumulator(): Accumulator = {
@@ -112,6 +117,11 @@ abstract class BigIntegralAvgAggFunction[T] extends AggregateFunction[T] {
     extends JTuple2[BigInteger, Long] with Accumulator {
     f0 = BigInteger.ZERO //sum
     f1 = 0 //count
+    
+    override def reset(){
+      f0 = BigInteger.ZERO 
+      f1 = 0
+    }
   }
 
   override def createAccumulator(): Accumulator = {
@@ -177,6 +187,11 @@ abstract class FloatingAvgAggFunction[T] extends AggregateFunction[T] {
   class FloatingAvgAccumulator extends JTuple2[Double, Long] with Accumulator {
     f0 = 0 //sum
     f1 = 0 //count
+    
+    override def reset(){
+      f0 = 0 
+      f1 = 0
+    }
   }
 
   override def createAccumulator(): Accumulator = {
@@ -247,6 +262,11 @@ class DecimalAvgAggFunction extends AggregateFunction[BigDecimal] {
     extends JTuple2[BigDecimal, Long] with Accumulator {
     f0 = BigDecimal.ZERO //sum
     f1 = 0 //count
+    
+    override def reset(){
+      f0 = BigDecimal.ZERO 
+      f1 = 0
+    }
   }
 
   override def createAccumulator(): Accumulator = {

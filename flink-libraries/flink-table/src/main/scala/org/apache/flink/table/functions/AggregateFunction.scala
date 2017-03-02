@@ -73,4 +73,12 @@ trait AggregateFunction[T] extends UserDefinedFunction {
   * of the AggregateFunction interface with the code generation. We will remove
   * the [[Accumulator]] once codeGen for UDAGG is completed (FLINK-5813).
   */
-trait Accumulator
+trait Accumulator {
+  
+  /**
+   * Reset the accumulator to the settings prior to accumulation execution
+   * e.g. count accumulator would set the counter variable to 0 
+   */
+  def reset()
+  
+}
