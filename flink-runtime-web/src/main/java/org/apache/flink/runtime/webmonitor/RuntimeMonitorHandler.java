@@ -76,6 +76,11 @@ public class RuntimeMonitorHandler extends RuntimeMonitorHandlerBase {
 	}
 
 	@Override
+	public String[] getPaths() {
+		return handler.getPaths();
+	}
+
+	@Override
 	protected void respondAsLeader(ChannelHandlerContext ctx, Routed routed, ActorGateway jobManager) {
 		FullHttpResponse response;
 

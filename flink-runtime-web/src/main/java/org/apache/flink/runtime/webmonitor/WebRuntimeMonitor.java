@@ -256,56 +256,50 @@ public class WebRuntimeMonitor implements WebMonitor {
 		RuntimeMonitorHandler triggerHandler = handler(cancelWithSavepoint.getTriggerHandler());
 		RuntimeMonitorHandler inProgressHandler = handler(cancelWithSavepoint.getInProgressHandler());
 
-		router = new Router()
-			// config how to interact with this web server
-			.GET("/config", handler(new DashboardConfigHandler(cfg.getRefreshInterval())))
+		router = new Router();
+		// config how to interact with this web server
+		GET(router, new DashboardConfigHandler(cfg.getRefreshInterval()));
 
-			// the overview - how many task managers, slots, free slots, ...
-			.GET("/overview", handler(new ClusterOverviewHandler(DEFAULT_REQUEST_TIMEOUT)))
+		// the overview - how many task managers, slots, free slots, ...
+		GET(router, new ClusterOverviewHandler(DEFAULT_REQUEST_TIMEOUT));
 
-			// job manager configuration
-			.GET("/jobmanager/config", handler(new JobManagerConfigHandler(config)))
+		// job manager configuration
+		GET(router, new JobManagerConfigHandler(config));
 
-			// overview over jobs
-			.GET("/joboverview", handler(new CurrentJobsOverviewHandler(DEFAULT_REQUEST_TIMEOUT, true, true)))
-			.GET("/joboverview/running", handler(new CurrentJobsOverviewHandler(DEFAULT_REQUEST_TIMEOUT, true, false)))
-			.GET("/joboverview/completed", handler(new CurrentJobsOverviewHandler(DEFAULT_REQUEST_TIMEOUT, false, true)))
+		// overview over jobs
+		GET(router, new CurrentJobsOverviewHandler(DEFAULT_REQUEST_TIMEOUT, true, true));
+		GET(router, new CurrentJobsOverviewHandler(DEFAULT_REQUEST_TIMEOUT, true, false));
+		GET(router, new CurrentJobsOverviewHandler(DEFAULT_REQUEST_TIMEOUT, false, true));
 
-			.GET("/jobs", handler(new CurrentJobIdsHandler(DEFAULT_REQUEST_TIMEOUT)))
+		GET(router, new CurrentJobIdsHandler(DEFAULT_REQUEST_TIMEOUT));
 
-			.GET("/jobs/:jobid", handler(new JobDetailsHandler(currentGraphs, metricFetcher)))
-			.GET("/jobs/:jobid/vertices", handler(new JobDetailsHandler(currentGraphs, metricFetcher)))
+		GET(router, new JobDetailsHandler(currentGraphs, metricFetcher));
 
-			.GET("/jobs/:jobid/vertices/:vertexid", handler(new JobVertexDetailsHandler(currentGraphs, metricFetcher)))
-			.GET("/jobs/:jobid/vertices/:vertexid/subtasktimes", handler(new SubtasksTimesHandler(currentGraphs)))
-			.GET("/jobs/:jobid/vertices/:vertexid/taskmanagers", handler(new JobVertexTaskManagersHandler(currentGraphs, metricFetcher)))
-			.GET("/jobs/:jobid/vertices/:vertexid/accumulators", handler(new JobVertexAccumulatorsHandler(currentGraphs)))
-			.GET("/jobs/:jobid/vertices/:vertexid/backpressure", handler(new JobVertexBackPressureHandler(
-							currentGraphs,
-							backPressureStatsTracker,
-							refreshInterval)))
-			.GET("/jobs/:jobid/vertices/:vertexid/metrics", handler(new JobVertexMetricsHandler(metricFetcher)))
-			.GET("/jobs/:jobid/vertices/:vertexid/subtasks/accumulators", handler(new SubtasksAllAccumulatorsHandler(currentGraphs)))
-			.GET("/jobs/:jobid/vertices/:vertexid/subtasks/:subtasknum", handler(new SubtaskCurrentAttemptDetailsHandler(currentGraphs, metricFetcher)))
-			.GET("/jobs/:jobid/vertices/:vertexid/subtasks/:subtasknum/attempts/:attempt", handler(new SubtaskExecutionAttemptDetailsHandler(currentGraphs, metricFetcher)))
-			.GET("/jobs/:jobid/vertices/:vertexid/subtasks/:subtasknum/attempts/:attempt/accumulators", handler(new SubtaskExecutionAttemptAccumulatorsHandler(currentGraphs)))
+		GET(router, new JobVertexDetailsHandler(currentGraphs, metricFetcher));
+		GET(router, new SubtasksTimesHandler(currentGraphs));
+		GET(router, new JobVertexTaskManagersHandler(currentGraphs, metricFetcher));
+		GET(router, new JobVertexAccumulatorsHandler(currentGraphs));
+		GET(router, new JobVertexBackPressureHandler(currentGraphs,	backPressureStatsTracker, refreshInterval));
+		GET(router, new JobVertexMetricsHandler(metricFetcher));
+		GET(router, new SubtasksAllAccumulatorsHandler(currentGraphs));
+		GET(router, new SubtaskCurrentAttemptDetailsHandler(currentGraphs, metricFetcher));
+		GET(router, new SubtaskExecutionAttemptDetailsHandler(currentGraphs, metricFetcher));
+		GET(router, new SubtaskExecutionAttemptAccumulatorsHandler(currentGraphs));
 
-			.GET("/jobs/:jobid/plan", handler(new JobPlanHandler(currentGraphs)))
-			.GET("/jobs/:jobid/config", handler(new JobConfigHandler(currentGraphs)))
-			.GET("/jobs/:jobid/exceptions", handler(new JobExceptionsHandler(currentGraphs)))
-			.GET("/jobs/:jobid/accumulators", handler(new JobAccumulatorsHandler(currentGraphs)))
-			.GET("/jobs/:jobid/metrics", handler(new JobMetricsHandler(metricFetcher)))
+		GET(router, new JobPlanHandler(currentGraphs));
+		GET(router, new JobConfigHandler(currentGraphs));
+		GET(router, new JobExceptionsHandler(currentGraphs));
+		GET(router, new JobAccumulatorsHandler(currentGraphs));
+		GET(router, new JobMetricsHandler(metricFetcher));
 
-			.GET("/taskmanagers", handler(new TaskManagersHandler(DEFAULT_REQUEST_TIMEOUT, metricFetcher)))
-			.GET("/taskmanagers/:" + TaskManagersHandler.TASK_MANAGER_ID_KEY, handler(new TaskManagersHandler(DEFAULT_REQUEST_TIMEOUT, metricFetcher)))
-			.GET("/taskmanagers/:" + TaskManagersHandler.TASK_MANAGER_ID_KEY + "/log", 
-				new TaskManagerLogHandler(retriever, context, jobManagerAddressPromise.future(), timeout,
-					TaskManagerLogHandler.FileMode.LOG, config, enableSSL))
-			.GET("/taskmanagers/:" + TaskManagersHandler.TASK_MANAGER_ID_KEY + "/stdout", 
-				new TaskManagerLogHandler(retriever, context, jobManagerAddressPromise.future(), timeout,
-					TaskManagerLogHandler.FileMode.STDOUT, config, enableSSL))
-			.GET("/taskmanagers/:" + TaskManagersHandler.TASK_MANAGER_ID_KEY + "/metrics", handler(new TaskManagerMetricsHandler(metricFetcher)))
+		GET(router, new TaskManagersHandler(DEFAULT_REQUEST_TIMEOUT, metricFetcher));
+		GET(router, new TaskManagerLogHandler(retriever, context, jobManagerAddressPromise.future(), timeout,
+				TaskManagerLogHandler.FileMode.LOG, config, enableSSL));
+		GET(router, new TaskManagerLogHandler(retriever, context, jobManagerAddressPromise.future(), timeout,
+				TaskManagerLogHandler.FileMode.STDOUT, config, enableSSL));
+		GET(router, new TaskManagerMetricsHandler(metricFetcher));
 
+		router
 			// log and stdout
 			.GET("/jobmanager/log", logFiles.logFile == null ? new ConstantTextHandler("(log file unavailable)") :
 				new StaticFileServerHandler(retriever, jobManagerAddressPromise.future(), timeout, logFiles.logFile,
@@ -313,25 +307,22 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 			.GET("/jobmanager/stdout", logFiles.stdOutFile == null ? new ConstantTextHandler("(stdout file unavailable)") :
 				new StaticFileServerHandler(retriever, jobManagerAddressPromise.future(), timeout, logFiles.stdOutFile,
-					enableSSL))
+					enableSSL));
 
-			.GET("/jobmanager/metrics", handler(new JobManagerMetricsHandler(metricFetcher)))
+		GET(router, new JobManagerMetricsHandler(metricFetcher));
 
-			// Cancel a job via GET (for proper integration with YARN this has to be performed via GET)
-			.GET("/jobs/:jobid/yarn-cancel", handler(new JobCancellationHandler()))
+		// Cancel a job via GET (for proper integration with YARN this has to be performed via GET)
+		GET(router, new JobCancellationHandler());
+		// DELETE is the preferred way of canceling a job (Rest-conform)
+		DELETE(router, new JobCancellationHandler());
 
-			// DELETE is the preferred way of canceling a job (Rest-conform)
-			.DELETE("/jobs/:jobid/cancel", handler(new JobCancellationHandler()))
+		GET(router, triggerHandler);
+		GET(router, inProgressHandler);
 
-			.GET("/jobs/:jobid/cancel-with-savepoint", triggerHandler)
-			.GET("/jobs/:jobid/cancel-with-savepoint/target-directory/:targetDirectory", triggerHandler)
-			.GET(JobCancellationWithSavepointHandlers.IN_PROGRESS_URL, inProgressHandler)
-
-			// stop a job via GET (for proper integration with YARN this has to be performed via GET)
-			.GET("/jobs/:jobid/yarn-stop", handler(new JobStoppingHandler()))
-
-			// DELETE is the preferred way of stopping a job (Rest-conform)
-			.DELETE("/jobs/:jobid/stop", handler(new JobStoppingHandler()));
+		// stop a job via GET (for proper integration with YARN this has to be performed via GET)
+		GET(router, new JobStoppingHandler());
+		// DELETE is the preferred way of stopping a job (Rest-conform)
+		DELETE(router, new JobStoppingHandler());
 
 		int maxCachedEntries = config.getInteger(
 				ConfigConstants.JOB_MANAGER_WEB_CHECKPOINTS_HISTORY_SIZE,
@@ -339,34 +330,32 @@ public class WebRuntimeMonitor implements WebMonitor {
 		CheckpointStatsCache cache = new CheckpointStatsCache(maxCachedEntries);
 
 		// Register the checkpoint stats handlers
-		router
-			.GET("/jobs/:jobid/checkpoints", handler(new CheckpointStatsHandler(currentGraphs)))
-			.GET("/jobs/:jobid/checkpoints/config", handler(new CheckpointConfigHandler(currentGraphs)))
-			.GET("/jobs/:jobid/checkpoints/details/:checkpointid", handler(new CheckpointStatsDetailsHandler(currentGraphs, cache)))
-			.GET("/jobs/:jobid/checkpoints/details/:checkpointid/subtasks/:vertexid", handler(new CheckpointStatsDetailsSubtasksHandler(currentGraphs, cache)));
+		GET(router, new CheckpointStatsHandler(currentGraphs));
+		GET(router, new CheckpointConfigHandler(currentGraphs));
+		GET(router, new CheckpointStatsDetailsHandler(currentGraphs, cache));
+		GET(router, new CheckpointStatsDetailsSubtasksHandler(currentGraphs, cache));
 
 		if (webSubmitAllow) {
-			router
-				// fetch the list of uploaded jars.
-				.GET("/jars", handler(new JarListHandler(uploadDir)))
+			// fetch the list of uploaded jars.
+			GET(router, new JarListHandler(uploadDir));
 
-				// get plan for an uploaded jar
-				.GET("/jars/:jarid/plan", handler(new JarPlanHandler(uploadDir)))
+			// get plan for an uploaded jar
+			GET(router, new JarPlanHandler(uploadDir));
 
-				// run a jar
-				.POST("/jars/:jarid/run", handler(new JarRunHandler(uploadDir, timeout, config)))
+			// run a jar
+			POST(router, new JarRunHandler(uploadDir, timeout, config));
 
-				// upload a jar
-				.POST("/jars/upload", handler(new JarUploadHandler(uploadDir)))
+			// upload a jar
+			POST(router, new JarUploadHandler(uploadDir));
 
-				// delete an uploaded jar from submission interface
-				.DELETE("/jars/:jarid", handler(new JarDeleteHandler(uploadDir)));
+			// delete an uploaded jar from submission interface
+			DELETE(router, new JarDeleteHandler(uploadDir));
 		} else {
-			router
-				// send an Access Denied message (sort of)
-				// Every other GET request will go to the File Server, which will not provide
-				// access to the jar directory anyway, because it doesn't exist in webRootDir.
-				.GET("/jars", handler(new JarAccessDeniedHandler()));
+			// send an Access Denied message
+			JarAccessDeniedHandler jad = new JarAccessDeniedHandler();
+			GET(router, jad);
+			POST(router, jad);
+			DELETE(router, jad);
 		}
 
 		// this handler serves all the static contents
@@ -523,6 +512,40 @@ public class WebRuntimeMonitor implements WebMonitor {
 			} catch (Throwable t) {
 				LOG.warn("Error while deleting web storage dir {}", uploadDir, t);
 			}
+		}
+	}
+
+	/** These methods are used in the route path setup. They register the given {@link RequestHandler} or
+	 * {@link RuntimeMonitorHandlerBase} with the given {@link Router} for the respective REST method.
+	 * The REST paths under which they are registered are defined by the handlers. **/
+
+	private void GET(Router router, RequestHandler handler) {
+		GET(router, handler(handler));
+	}
+
+	private void GET(Router router, RuntimeMonitorHandlerBase handler) {
+		for (String path : handler.getPaths()) {
+			router.GET(path, handler);
+		}
+	}
+
+	private void DELETE(Router router, RequestHandler handler) {
+		DELETE(router, handler(handler));
+	}
+
+	private void DELETE(Router router, RuntimeMonitorHandlerBase handler) {
+		for (String path : handler.getPaths()) {
+			router.DELETE(path, handler);
+		}
+	}
+
+	private void POST(Router router, RequestHandler handler) {
+		POST(router, handler(handler));
+	}
+
+	private void POST(Router router, RuntimeMonitorHandlerBase handler) {
+		for (String path : handler.getPaths()) {
+			router.POST(path, handler);
 		}
 	}
 

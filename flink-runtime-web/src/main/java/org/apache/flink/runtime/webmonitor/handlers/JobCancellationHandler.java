@@ -30,6 +30,14 @@ import java.util.Map;
  */
 public class JobCancellationHandler extends AbstractJsonRequestHandler {
 
+	private static final String JOB_CONCELLATION_REST_PATH = "/jobs/:jobid/cancel";
+	private static final String JOB_CONCELLATION_YARN_REST_PATH = "/jobs/:jobid/yarn-cancel";
+
+	@Override
+	public String[] getPaths() {
+		return new String[]{JOB_CONCELLATION_REST_PATH, JOB_CONCELLATION_YARN_REST_PATH};
+	}
+
 	@Override
 	public String handleJsonRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
 		try {

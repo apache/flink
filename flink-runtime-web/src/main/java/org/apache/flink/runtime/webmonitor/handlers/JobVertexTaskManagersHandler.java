@@ -43,11 +43,18 @@ import java.util.Map.Entry;
  */
 public class JobVertexTaskManagersHandler extends AbstractJobVertexRequestHandler {
 
+	private static final String JOB_VERTEX_TASKMANAGERS_REST_PATH = "/jobs/:jobid/vertices/:vertexid/taskmanagers";
+
 	private final MetricFetcher fetcher;
 
 	public JobVertexTaskManagersHandler(ExecutionGraphHolder executionGraphHolder, MetricFetcher fetcher) {
 		super(executionGraphHolder);
 		this.fetcher = fetcher;
+	}
+
+	@Override
+	public String[] getPaths() {
+		return new String[]{JOB_VERTEX_TASKMANAGERS_REST_PATH};
 	}
 
 	@Override

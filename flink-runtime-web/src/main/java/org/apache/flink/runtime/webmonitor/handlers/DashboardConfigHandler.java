@@ -32,6 +32,8 @@ import java.util.TimeZone;
  * and time zone of the server timestamps.
  */
 public class DashboardConfigHandler extends AbstractJsonRequestHandler {
+
+	private static String DASHBOARD_CONFIG_REST_PATH = "/config";
 	
 	private final String configString;
 	
@@ -64,6 +66,11 @@ public class DashboardConfigHandler extends AbstractJsonRequestHandler {
 			// should never happen
 			throw new RuntimeException(e.getMessage(), e);
 		}
+	}
+
+	@Override
+	public String[] getPaths() {
+		return new String[]{DASHBOARD_CONFIG_REST_PATH};
 	}
 	
 	@Override

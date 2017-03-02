@@ -31,8 +31,15 @@ import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
  */
 public class JobConfigHandler extends AbstractExecutionGraphRequestHandler {
 
+	private static final String JOB_CONFIG_REST_PATH = "/jobs/:jobid/config";
+
 	public JobConfigHandler(ExecutionGraphHolder executionGraphHolder) {
 		super(executionGraphHolder);
+	}
+
+	@Override
+	public String[] getPaths() {
+		return new String[]{JOB_CONFIG_REST_PATH};
 	}
 
 	@Override

@@ -94,6 +94,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class TaskManagerLogHandler extends RuntimeMonitorHandlerBase {
 	private static final Logger LOG = LoggerFactory.getLogger(TaskManagerLogHandler.class);
 
+	private static final String TASKMANAGER_LOG_REST_PATH = "/taskmanagers/:taskmanagerid/log";
+	private static final String TASKMANAGER_OUT_REST_PATH = "/taskmanagers/:taskmanagerid/stdout";
+
 	/** Keep track of last transmitted log, to clean up old ones */
 	private final HashMap<String, BlobKey> lastSubmittedLog = new HashMap<>();
 	private final HashMap<String, BlobKey> lastSubmittedStdout = new HashMap<>();
@@ -139,6 +142,15 @@ public class TaskManagerLogHandler extends RuntimeMonitorHandlerBase {
 		}
 
 		timeTimeout = Time.milliseconds(timeout.toMillis());
+	}
+
+	@Override
+	public String[] getPaths() {
+		if (serveLogFile) {
+			return new String[]{TASKMANAGER_LOG_REST_PATH};
+		} else {
+			return new String[]{TASKMANAGER_OUT_REST_PATH};
+		}
 	}
 
 	/**

@@ -33,8 +33,16 @@ import java.util.Map;
  * {@code [ { "id" : "X", "value" : "S" }, { "id" : "Y", "value" : "T" } ] }
  */
 public class TaskManagerMetricsHandler extends AbstractMetricsHandler {
+
+	private static final String TASKMANAGER_METRICS_REST_PATH = "/taskmanagers/:taskmanagerid/metrics";
+
 	public TaskManagerMetricsHandler(MetricFetcher fetcher) {
 		super(fetcher);
+	}
+
+	@Override
+	public String[] getPaths() {
+		return new String[]{TASKMANAGER_METRICS_REST_PATH};
 	}
 
 	@Override

@@ -49,4 +49,11 @@ public interface RequestHandler {
 	 *         with the exception stack trace.
 	 */
 	FullHttpResponse handleRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception;
+
+	/**
+	 * Returns an array of REST URL's under which this handler can be registered.
+	 *
+	 * @return array containing REST URL's under which this handler can be registered.
+	 */
+	String[] getPaths();
 }

@@ -39,11 +39,18 @@ import java.util.Map;
  */
 public class JobVertexDetailsHandler extends AbstractJobVertexRequestHandler {
 
+	private static String JOB_VERTEX_DETAILS_REST_PATH = "/jobs/:jobid/vertices/:vertexid";
+
 	private final MetricFetcher fetcher;
 
 	public JobVertexDetailsHandler(ExecutionGraphHolder executionGraphHolder, MetricFetcher fetcher) {
 		super(executionGraphHolder);
 		this.fetcher = fetcher;
+	}
+
+	@Override
+	public String[] getPaths() {
+		return new String[]{JOB_VERTEX_DETAILS_REST_PATH};
 	}
 
 	@Override

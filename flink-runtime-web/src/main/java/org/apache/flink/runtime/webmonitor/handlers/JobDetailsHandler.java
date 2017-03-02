@@ -47,11 +47,19 @@ import java.util.Map;
  */
 public class JobDetailsHandler extends AbstractExecutionGraphRequestHandler {
 
+	private static final String JOB_DETAILS_REST_PATH = "/jobs/:jobid";
+	private static final String JOB_DETAILS_VERTICES_REST_PATH = "/jobs/:jobid/vertices";
+
 	private final MetricFetcher fetcher;
 
 	public JobDetailsHandler(ExecutionGraphHolder executionGraphHolder, MetricFetcher fetcher) {
 		super(executionGraphHolder);
 		this.fetcher = fetcher;
+	}
+
+	@Override
+	public String[] getPaths() {
+		return new String[]{JOB_DETAILS_REST_PATH, JOB_DETAILS_VERTICES_REST_PATH};
 	}
 
 	@Override
