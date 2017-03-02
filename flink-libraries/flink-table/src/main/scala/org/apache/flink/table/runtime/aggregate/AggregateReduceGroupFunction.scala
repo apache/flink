@@ -52,6 +52,9 @@ class AggregateReduceGroupFunction(
   private var output: Row = _
   private var intermediateGroupKeys: Option[Array[Int]] = None
   protected val maxMergeLen = 16
+  val accumulatorList = Array.fill(aggregates.length) {
+    new JArrayList[Accumulator]()
+  }
 
   override def open(config: Configuration) {
     Preconditions.checkNotNull(aggregates)
@@ -77,11 +80,12 @@ class AggregateReduceGroupFunction(
     // merge intermediate aggregate value to buffer.
     var last: Row = null
     val iterator = records.iterator()
-    val accumulatorList = Array.fill(aggregates.length) {
-      new JArrayList[Accumulator]()
+
+    for (i <- aggregates.indices) {
+      accumulatorList(i).clear()
     }
 
-    var count:Int = 0
+    var count: Int = 0
     while (iterator.hasNext) {
       val record = iterator.next()
       count += 1
@@ -115,7 +119,7 @@ class AggregateReduceGroupFunction(
       case (after, previous) => {
         val agg = aggregates(previous)
         val accumulator = agg.merge(accumulatorList(previous))
-        val result = aggregates(previous).getValue(accumulator)
+        val result = agg.getValue(accumulator)
         output.setField(after, result)
       }
     }

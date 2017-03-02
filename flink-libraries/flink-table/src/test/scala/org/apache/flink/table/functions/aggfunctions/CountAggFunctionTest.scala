@@ -18,19 +18,20 @@
 
 package org.apache.flink.table.functions.aggfunctions
 
+import java.lang.{Long => JLong}
 import org.apache.flink.table.functions.AggregateFunction
 
 /**
   * Test case for built-in count aggregate function
   */
-class CountAggFunctionTest extends AggFunctionTestBase[Long] {
+class CountAggFunctionTest extends AggFunctionTestBase[JLong] {
 
   override def inputValueSets: Seq[Seq[_]] = Seq(
     Seq("a", "b", null, "c", null, "d", "e", null, "f"),
     Seq(null, null, null, null, null, null)
   )
 
-  override def expectedResults: Seq[Long] = Seq(6L, 0L)
+  override def expectedResults: Seq[JLong] = Seq(6L, 0L)
 
-  override def aggregator: AggregateFunction[Long] = new CountAggFunction()
+  override def aggregator: AggregateFunction[JLong] = new CountAggFunction()
 }

@@ -69,6 +69,9 @@ class DataSetSessionWindowAggregateReduceGroupFunction(
   private var intermediateRowWindowStartPos = intermediateRowArity - 2
   private var intermediateRowWindowEndPos = intermediateRowArity - 1
   private val maxMergeLen = 16
+  val accumulatorList = Array.fill(aggregates.length) {
+    new JArrayList[Accumulator]()
+  }
 
   override def open(config: Configuration) {
     Preconditions.checkNotNull(aggregates)
@@ -95,11 +98,11 @@ class DataSetSessionWindowAggregateReduceGroupFunction(
     var currentRowTime: java.lang.Long = null
 
     val iterator = records.iterator()
-    val accumulatorList = Array.fill(aggregates.length) {
-      new JArrayList[Accumulator]()
+    for (i <- aggregates.indices) {
+      accumulatorList(i).clear()
     }
 
-    var count:Int = 0
+    var count: Int = 0
     while (iterator.hasNext) {
       val record = iterator.next()
       count += 1
@@ -117,6 +120,7 @@ class DataSetSessionWindowAggregateReduceGroupFunction(
           for (i <- aggregates.indices) {
             accumulatorList(i).clear()
           }
+          count = 0
         } else {
           // set group keys value to final output.
           groupKeysMapping.foreach {

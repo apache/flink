@@ -22,6 +22,12 @@ import java.util.{List => JList}
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
 
+/** The initial accumulator for Max aggregate function */
+class MaxAccumulator[T] extends JTuple2[T, Boolean] with Accumulator {
+  f0 = 0.asInstanceOf[T] //max
+  f1 = false
+}
+
 /**
   * Base class for built-in Max aggregate function
   *
@@ -29,20 +35,14 @@ import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
   */
 abstract class MaxAggFunction[T](implicit ord: Ordering[T]) extends AggregateFunction[T] {
 
-  /** The initial accumulator for Max aggregate function */
-  class MaxAccumulator extends JTuple2[T, Boolean] with Accumulator {
-    f0 = 0.asInstanceOf[T] //max
-    f1 = false
-  }
-
   override def createAccumulator(): Accumulator = {
-    new MaxAccumulator
+    new MaxAccumulator[T]
   }
 
   override def accumulate(accumulator: Accumulator, value: Any): Unit = {
     if (value != null) {
       val v = value.asInstanceOf[T]
-      val a = accumulator.asInstanceOf[MaxAccumulator]
+      val a = accumulator.asInstanceOf[MaxAccumulator[T]]
       if (!a.f1 || ord.compare(a.f0, v) < 0) {
         a.f0 = v
         a.f1 = true
@@ -51,7 +51,7 @@ abstract class MaxAggFunction[T](implicit ord: Ordering[T]) extends AggregateFun
   }
 
   override def getValue(accumulator: Accumulator): T = {
-    val a = accumulator.asInstanceOf[MaxAccumulator]
+    val a = accumulator.asInstanceOf[MaxAccumulator[T]]
     if (a.f1) {
       a.f0
     } else {
@@ -63,9 +63,9 @@ abstract class MaxAggFunction[T](implicit ord: Ordering[T]) extends AggregateFun
     val ret = accumulators.get(0)
     var i: Int = 1
     while (i < accumulators.size()) {
-      val a = accumulators.get(i).asInstanceOf[MaxAccumulator]
+      val a = accumulators.get(i).asInstanceOf[MaxAccumulator[T]]
       if (a.f1) {
-        accumulate(ret.asInstanceOf[MaxAccumulator], a.f0)
+        accumulate(ret.asInstanceOf[MaxAccumulator[T]], a.f0)
       }
       i += 1
     }
@@ -116,7 +116,7 @@ class DecimalMaxAggFunction extends MaxAggFunction[BigDecimal] {
   override def accumulate(accumulator: Accumulator, value: Any): Unit = {
     if (value != null) {
       val v = value.asInstanceOf[BigDecimal]
-      val accum = accumulator.asInstanceOf[MaxAccumulator]
+      val accum = accumulator.asInstanceOf[MaxAccumulator[BigDecimal]]
       if (!accum.f1 || accum.f0.compareTo(v) < 0) {
         accum.f0 = v
         accum.f1 = true

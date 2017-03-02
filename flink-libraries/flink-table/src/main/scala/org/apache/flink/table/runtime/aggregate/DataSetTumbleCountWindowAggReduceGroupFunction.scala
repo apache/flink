@@ -52,6 +52,9 @@ class DataSetTumbleCountWindowAggReduceGroupFunction(
   private val accumStartPos: Int = groupKeysMapping.length
   private val intermediateRowArity: Int = accumStartPos + aggregates.length + 1
   private val maxMergeLen = 16
+  val accumulatorList = Array.fill(aggregates.length) {
+    new JArrayList[Accumulator]()
+  }
 
   override def open(config: Configuration) {
     Preconditions.checkNotNull(aggregates)
@@ -66,8 +69,8 @@ class DataSetTumbleCountWindowAggReduceGroupFunction(
 
     val iterator = records.iterator()
 
-    val accumulatorList = Array.fill(aggregates.length) {
-      new JArrayList[Accumulator]()
+    for (i <- aggregates.indices) {
+      accumulatorList(i).clear()
     }
 
     while (iterator.hasNext) {

@@ -48,6 +48,9 @@ class DataSetSessionWindowAggregateCombineGroupFunction(
   private var accumStartPos: Int = groupingKeys.length
   private var rowTimeFieldPos = accumStartPos + aggregates.length
   private val maxMergeLen = 16
+  val accumulatorList = Array.fill(aggregates.length) {
+    new JArrayList[Accumulator]()
+  }
 
   override def open(config: Configuration) {
     Preconditions.checkNotNull(aggregates)
@@ -71,11 +74,12 @@ class DataSetSessionWindowAggregateCombineGroupFunction(
     var currentRowTime: java.lang.Long = null
 
     val iterator = records.iterator()
-    val accumulatorList = Array.fill(aggregates.length) {
-      new JArrayList[Accumulator]()
+
+    for (i <- aggregates.indices) {
+      accumulatorList(i).clear()
     }
 
-    var count:Int = 0
+    var count: Int = 0
     while (iterator.hasNext) {
       val record = iterator.next()
       count += 1

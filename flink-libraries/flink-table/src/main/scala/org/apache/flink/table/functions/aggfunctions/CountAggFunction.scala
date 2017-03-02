@@ -17,27 +17,28 @@
  */
 package org.apache.flink.table.functions.aggfunctions
 
+import java.lang.{Long => JLong}
 import java.util.{List => JList}
 import org.apache.flink.api.java.tuple.{Tuple1 => JTuple1}
 import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
 
+/** The initial accumulator for count aggregate function */
+class CountAccumulator extends JTuple1[JLong] with Accumulator {
+  f0 = 0L //count
+}
+
 /**
   * built-in count aggregate function
   */
-class CountAggFunction extends AggregateFunction[Long] {
-
-  /** The initial accumulator for count aggregate function */
-  class CountAccumulator extends JTuple1[Long] with Accumulator {
-    f0 = 0 //count
-  }
+class CountAggFunction extends AggregateFunction[JLong] {
 
   override def accumulate(accumulator: Accumulator, value: Any): Unit = {
     if (value != null) {
-      accumulator.asInstanceOf[CountAccumulator].f0 += 1
+      accumulator.asInstanceOf[CountAccumulator].f0 += 1L
     }
   }
 
-  override def getValue(accumulator: Accumulator): Long = {
+  override def getValue(accumulator: Accumulator): JLong = {
     accumulator.asInstanceOf[CountAccumulator].f0
   }
 

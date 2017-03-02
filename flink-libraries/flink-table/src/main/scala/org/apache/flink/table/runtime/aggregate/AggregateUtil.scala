@@ -25,9 +25,8 @@ import org.apache.calcite.sql.{SqlAggFunction, SqlKind}
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.fun._
-import org.apache.flink.api.common.functions.{MapFunction, RichGroupCombineFunction,
-RichGroupReduceFunction, AggregateFunction => ApiAggregateFunction}
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
+import org.apache.flink.api.common.functions.{InvalidTypesException, MapFunction, RichGroupCombineFunction, RichGroupReduceFunction, AggregateFunction => ApiAggregateFunction}
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeHint, TypeInformation}
 import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.calcite.{FlinkRelBuilder, FlinkTypeFactory}
@@ -173,7 +172,8 @@ object AggregateUtil {
       outputType: RelDataType,
       groupings: Array[Int],
       properties: Seq[NamedWindowProperty],
-      isInputCombined: Boolean = false): RichGroupReduceFunction[Row, Row] = {
+      isInputCombined: Boolean = false)
+    : RichGroupReduceFunction[Row, Row] = {
 
     val aggregates = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),
@@ -267,7 +267,8 @@ object AggregateUtil {
       window: LogicalWindow,
       namedAggregates: Seq[CalcitePair[AggregateCall, String]],
       inputType: RelDataType,
-      groupings: Array[Int]): RichGroupCombineFunction[Row, Row] = {
+      groupings: Array[Int])
+    : RichGroupCombineFunction[Row, Row] = {
 
     val aggregates = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),
@@ -307,7 +308,8 @@ object AggregateUtil {
       inputType: RelDataType,
       outputType: RelDataType,
       groupings: Array[Int],
-      inGroupingSet: Boolean): RichGroupReduceFunction[Row, Row] = {
+      inGroupingSet: Boolean)
+    : RichGroupReduceFunction[Row, Row] = {
 
     val (aggFieldIndex, aggregates) = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),
@@ -353,7 +355,8 @@ object AggregateUtil {
   private[flink] def createAggregationAllWindowFunction(
       window: LogicalWindow,
       finalRowArity: Int,
-      properties: Seq[NamedWindowProperty]): AllWindowFunction[Row, Row, DataStreamWindow] = {
+      properties: Seq[NamedWindowProperty])
+    : AllWindowFunction[Row, Row, DataStreamWindow] = {
 
     if (isTimeWindow(window)) {
       val (startPos, endPos) = computeWindowStartEndPropertyPos(properties)
@@ -374,7 +377,8 @@ object AggregateUtil {
   private[flink] def createAggregationGroupWindowFunction(
       window: LogicalWindow,
       finalRowArity: Int,
-      properties: Seq[NamedWindowProperty]): WindowFunction[Row, Row, Tuple, DataStreamWindow] = {
+      properties: Seq[NamedWindowProperty])
+    : WindowFunction[Row, Row, Tuple, DataStreamWindow] = {
 
     if (isTimeWindow(window)) {
       val (startPos, endPos) = computeWindowStartEndPropertyPos(properties)
@@ -424,9 +428,9 @@ object AggregateUtil {
     * Return true if all aggregates can be partially merged. False otherwise.
     */
   private[flink] def doAllSupportPartialMerge(
-      aggregateCalls: Seq[AggregateCall],
-      inputType: RelDataType,
-      groupKeysCount: Int): Boolean = {
+    aggregateCalls: Seq[AggregateCall],
+    inputType: RelDataType,
+    groupKeysCount: Int): Boolean = {
 
     val aggregateList = transformToAggregateFunctions(
       aggregateCalls,
@@ -441,13 +445,7 @@ object AggregateUtil {
     */
   private[flink] def doAllSupportPartialMerge(
       aggregateList: Array[TableAggregateFunction[_ <: Any]]): Boolean = {
-    var ret: Boolean = true
-    var i: Int = 0
-    while (i < aggregateList.length && ret) {
-      ret = ifMethodExitInFunction("merge", aggregateList(i))
-      i += 1
-    }
-    ret
+    aggregateList.forall(ifMethodExistInFunction("merge", _))
   }
 
   /**
@@ -457,10 +455,10 @@ object AggregateUtil {
     *         and its corresponding field index in output Row.)
     */
   private def getGroupingOffsetAndAggOffsetMapping(
-      namedAggregates: Seq[CalcitePair[AggregateCall, String]],
-      inputType: RelDataType,
-      outputType: RelDataType,
-      groupings: Array[Int]): (Array[(Int, Int)], Array[(Int, Int)]) = {
+    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+    inputType: RelDataType,
+    outputType: RelDataType,
+    groupings: Array[Int]): (Array[(Int, Int)], Array[(Int, Int)]) = {
 
     // the mapping relation between field index of intermediate aggregate Row and output Row.
     val groupingOffsetMapping = getGroupKeysMapping(inputType, outputType, groupings)
@@ -486,18 +484,17 @@ object AggregateUtil {
     * boolean indicator fields i$f1 and i$f2.
     */
   private def getGroupingSetsIndicatorMapping(
-      inputType: RelDataType,
-      outputType: RelDataType): Array[(Int, Int)] = {
+    inputType: RelDataType,
+    outputType: RelDataType): Array[(Int, Int)] = {
 
     val inputFields = inputType.getFieldList.map(_.getName)
 
     // map from field -> i$field or field -> i$field_0
-    val groupingFields = inputFields.map(
-      inputFieldName => {
-        val base = "i$" + inputFieldName
-        var name = base
-        var i = 0
-        while (inputFields.contains(name)) {
+    val groupingFields = inputFields.map(inputFieldName => {
+      val base = "i$" + inputFieldName
+      var name = base
+      var i = 0
+      while (inputFields.contains(name)) {
           name = base + "_" + i // if i$XXX is already a field it will be suffixed by _NUMBER
           i = i + 1
         }
@@ -538,21 +535,19 @@ object AggregateUtil {
       properties: Seq[NamedWindowProperty]): (Option[Int], Option[Int]) = {
 
     val propPos = properties.foldRight((None: Option[Int], None: Option[Int], 0)) {
-      (p, x) =>
-        p match {
-          case NamedWindowProperty(name, prop) =>
-            prop match {
-              case WindowStart(_) if x._1.isDefined =>
-                throw new TableException(
-                  "Duplicate WindowStart property encountered. This is a bug.")
-              case WindowStart(_) =>
-                (Some(x._3), x._2, x._3 - 1)
-              case WindowEnd(_) if x._2.isDefined =>
-                throw new TableException("Duplicate WindowEnd property encountered. This is a bug.")
-              case WindowEnd(_) =>
-                (x._1, Some(x._3), x._3 - 1)
-            }
-        }
+      (p, x) => p match {
+        case NamedWindowProperty(name, prop) =>
+          prop match {
+            case WindowStart(_) if x._1.isDefined =>
+              throw new TableException("Duplicate WindowStart property encountered. This is a bug.")
+            case WindowStart(_) =>
+              (Some(x._3), x._2, x._3 - 1)
+            case WindowEnd(_) if x._2.isDefined =>
+              throw new TableException("Duplicate WindowEnd property encountered. This is a bug.")
+            case WindowEnd(_) =>
+              (x._1, Some(x._3), x._3 - 1)
+          }
+      }
     }
     (propPos._1, propPos._2)
   }
@@ -696,10 +691,19 @@ object AggregateUtil {
         .map(FlinkTypeFactory.toTypeInfo)
 
     // get all field data types of all intermediate aggregates
-    val aggTypes: Seq[TypeInformation[_]] = aggregates.map { agg =>
-      val clazz: Class[_] = agg.getClass
-      TypeInformation.of(clazz)
-    }
+    val aggTypes: Seq[TypeInformation[_]] =
+      aggregates.map {
+        agg =>
+          val accumulator = agg.createAccumulator()
+          try {
+            TypeInformation.of(accumulator.getClass)
+          } catch {
+            // When got exception (it could happen when the accumulator is defined with Template),
+            // we will try to provide a generic type for accumulator
+            case ex : InvalidTypesException =>
+              TypeInformation.of(new TypeHint[accumulator.type](){})
+          }
+      }
 
     // concat group key types, aggregation types, and window key types
     val allFieldTypes: Seq[TypeInformation[_]] = windowKeyTypes match {
@@ -723,8 +727,15 @@ object AggregateUtil {
     val aggTypes: Seq[TypeInformation[_]] =
       aggregates.map {
         agg =>
-          val clazz: Class[_] = agg.getClass
-          TypeInformation.of(clazz)
+          val accumulator = agg.createAccumulator()
+            try {
+              TypeInformation.of(accumulator.getClass)
+            } catch {
+              // When got exception (it could happen when the accumulator is defined with Template),
+              // we will try to provide a generic type for accumulator
+              case ex : InvalidTypesException =>
+                TypeInformation.of(new TypeHint[accumulator.type](){})
+            }
       }
 
     val allFieldTypes = groupingTypes ++ aggTypes
@@ -734,8 +745,8 @@ object AggregateUtil {
 
   // Find the mapping between the index of aggregate list and aggregated value index in output Row.
   private def getAggregateMapping(
-      namedAggregates: Seq[CalcitePair[AggregateCall, String]],
-      outputType: RelDataType): Array[(Int, Int)] = {
+    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+    outputType: RelDataType): Array[(Int, Int)] = {
 
     // the mapping relation between aggregate function index in list and its corresponding
     // field index in output Row.
@@ -758,9 +769,9 @@ object AggregateUtil {
   // Find the mapping between the index of group key in intermediate aggregate Row and its index
   // in output Row.
   private def getGroupKeysMapping(
-      inputDatType: RelDataType,
-      outputType: RelDataType,
-      groupKeys: Array[Int]): Array[(Int, Int)] = {
+    inputDatType: RelDataType,
+    outputType: RelDataType,
+    groupKeys: Array[Int]): Array[(Int, Int)] = {
 
     // the mapping relation between field index of intermediate aggregate Row and output Row.
     var groupingOffsetMapping = ArrayBuffer[(Int, Int)]()
@@ -789,9 +800,9 @@ object AggregateUtil {
   }
 
   private def getTimeFieldPosition(
-      timeField: Expression,
-      inputType: RelDataType,
-      isParserCaseSensitive: Boolean): Int = {
+    timeField: Expression,
+    inputType: RelDataType,
+    isParserCaseSensitive: Boolean): Int = {
 
     timeField match {
       case ResolvedFieldReference(name, _) =>
