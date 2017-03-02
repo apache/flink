@@ -53,8 +53,8 @@ class WindowStartEndPropertiesRule
     transformed.push(LogicalWindowAggregate.create(
       agg.getWindow,
       Seq(
-        NamedWindowProperty("w$start", WindowStart(agg.getWindow.alias)),
-        NamedWindowProperty("w$end", WindowEnd(agg.getWindow.alias))
+        NamedWindowProperty("w$start", WindowStart(agg.getWindow.aliasAttribute)),
+        NamedWindowProperty("w$end", WindowEnd(agg.getWindow.aliasAttribute))
       ), agg)
     )
 

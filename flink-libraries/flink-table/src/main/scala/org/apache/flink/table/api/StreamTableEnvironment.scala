@@ -30,6 +30,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
+import org.apache.flink.table.calcite.RelTimeIndicatorConverter
 import org.apache.flink.table.explain.PlanJsonParser
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.plan.nodes.FlinkConventions
@@ -87,47 +88,6 @@ abstract class StreamTableEnvironment(
   protected def createUniqueTableName(): String = "_DataStreamTable_" + nameCntr.getAndIncrement()
 
   /**
-    * Returns field names and field positions for a given [[TypeInformation]].
-    *
-    * Field names are automatically extracted for
-    * [[org.apache.flink.api.common.typeutils.CompositeType]].
-    * The method fails if inputType is not a
-    * [[org.apache.flink.api.common.typeutils.CompositeType]].
-    *
-    * @param inputType The TypeInformation extract the field names and positions from.
-    * @tparam A The type of the TypeInformation.
-    * @return A tuple of two arrays holding the field names and corresponding field positions.
-    */
-  override protected[flink] def getFieldInfo[A](inputType: TypeInformation[A])
-    : (Array[String], Array[Int]) = {
-    val fieldInfo = super.getFieldInfo(inputType)
-    if (fieldInfo._1.contains("rowtime")) {
-      throw new TableException("'rowtime' ia a reserved field name in stream environment.")
-    }
-    fieldInfo
-  }
-
-  /**
-    * Returns field names and field positions for a given [[TypeInformation]] and [[Array]] of
-    * [[Expression]].
-    *
-    * @param inputType The [[TypeInformation]] against which the [[Expression]]s are evaluated.
-    * @param exprs     The expressions that define the field names.
-    * @tparam A The type of the TypeInformation.
-    * @return A tuple of two arrays holding the field names and corresponding field positions.
-    */
-  override protected[flink] def getFieldInfo[A](
-      inputType: TypeInformation[A],
-      exprs: Array[Expression])
-    : (Array[String], Array[Int]) = {
-    val fieldInfo = super.getFieldInfo(inputType, exprs)
-    if (fieldInfo._1.contains("rowtime")) {
-      throw new TableException("'rowtime' is a reserved field name in stream environment.")
-    }
-    fieldInfo
-  }
-
-  /**
     * Registers an external [[StreamTableSource]] in this [[TableEnvironment]]'s catalog.
     * Registered tables can be referenced in SQL queries.
     *
@@ -145,6 +105,7 @@ abstract class StreamTableEnvironment(
             "StreamTableEnvironment")
     }
   }
+
   /**
     * Writes a [[Table]] to a [[TableSink]].
     *
@@ -185,7 +146,9 @@ abstract class StreamTableEnvironment(
     val dataStreamTable = new DataStreamTable[T](
       dataStream,
       fieldIndexes,
-      fieldNames
+      fieldNames,
+      None,
+      None
     )
     registerTableInternal(name, dataStreamTable)
   }
@@ -200,15 +163,26 @@ abstract class StreamTableEnvironment(
     * @tparam T The type of the [[DataStream]].
     */
   protected def registerDataStreamInternal[T](
-    name: String,
-    dataStream: DataStream[T],
-    fields: Array[Expression]): Unit = {
+      name: String,
+      dataStream: DataStream[T],
+      fields: Array[Expression])
+    : Unit = {
 
-    val (fieldNames, fieldIndexes) = getFieldInfo[T](dataStream.getType, fields)
+    val (fieldNames, fieldIndexes) = getFieldInfo[T](
+      dataStream.getType,
+      fields,
+      ignoreTimeAttributes = false)
+
+    // validate and extract time attributes
+    val (rowtime, proctime) = validateAndExtractTimeAttributes(fieldNames, fieldIndexes, fields)
+
+
     val dataStreamTable = new DataStreamTable[T](
       dataStream,
       fieldIndexes,
-      fieldNames
+      fieldNames,
+      rowtime,
+      proctime
     )
     registerTableInternal(name, dataStreamTable)
   }
@@ -259,7 +233,10 @@ abstract class StreamTableEnvironment(
     // 1. decorrelate
     val decorPlan = RelDecorrelator.decorrelateQuery(relNode)
 
-    // 2. normalize the logical plan
+    // 2. convert time indicators
+    val convPlan = RelTimeIndicatorConverter.convert(decorPlan, getRelBuilder.getRexBuilder)
+
+    // 3. normalize the logical plan
     val normRuleSet = getNormRuleSet
     val normalizedPlan = if (normRuleSet.iterator().hasNext) {
       runHepPlanner(HepMatchOrder.BOTTOM_UP, normRuleSet, decorPlan, decorPlan.getTraitSet)
@@ -267,7 +244,7 @@ abstract class StreamTableEnvironment(
       decorPlan
     }
 
-    // 3. optimize the logical Flink plan
+    // 4. optimize the logical Flink plan
     val logicalOptRuleSet = getLogicalOptRuleSet
     val logicalOutputProps = relNode.getTraitSet.replace(FlinkConventions.LOGICAL).simplify()
     val logicalPlan = if (logicalOptRuleSet.iterator().hasNext) {
@@ -276,7 +253,7 @@ abstract class StreamTableEnvironment(
       normalizedPlan
     }
 
-    // 4. optimize the physical Flink plan
+    // 5. optimize the physical Flink plan
     val physicalOptRuleSet = getPhysicalOptRuleSet
     val physicalOutputProps = relNode.getTraitSet.replace(FlinkConventions.DATASTREAM).simplify()
     val physicalPlan = if (physicalOptRuleSet.iterator().hasNext) {
@@ -285,7 +262,7 @@ abstract class StreamTableEnvironment(
       logicalPlan
     }
 
-    // 5. decorate the optimized plan
+    // 6. decorate the optimized plan
     val decoRuleSet = getDecoRuleSet
     val decoratedPlan = if (decoRuleSet.iterator().hasNext) {
       runHepPlanner(HepMatchOrder.BOTTOM_UP, decoRuleSet, physicalPlan, physicalPlan.getTraitSet)

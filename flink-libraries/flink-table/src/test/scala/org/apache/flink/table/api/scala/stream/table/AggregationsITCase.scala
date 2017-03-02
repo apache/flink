@@ -55,10 +55,10 @@ class AggregationsITCase extends StreamingMultipleProgramsTestBase {
     StreamITCase.testResults = mutable.MutableList()
 
     val stream = env.fromCollection(data)
-    val table = stream.toTable(tEnv, 'long, 'int, 'string)
+    val table = stream.toTable(tEnv, 'long, 'int, 'string, 'proctime.proctime)
 
     val windowedTable = table
-      .window(Slide over 2.rows every 1.rows as 'w)
+      .window(Slide over 2.rows every 1.rows on 'proctime as 'w)
       .groupBy('w, 'string)
       .select('string, 'int.count, 'int.avg)
 
@@ -92,10 +92,10 @@ class AggregationsITCase extends StreamingMultipleProgramsTestBase {
     val stream = env
       .fromCollection(sessionWindowTestdata)
       .assignTimestampsAndWatermarks(new TimestampAndWatermarkWithOffset(10L))
-    val table = stream.toTable(tEnv, 'long, 'int, 'string)
+    val table = stream.toTable(tEnv, 'long.rowtime, 'int, 'string)
 
     val windowedTable = table
-      .window(Session withGap 5.milli on 'rowtime as 'w)
+      .window(Session withGap 5.milli on 'long as 'w)
       .groupBy('w, 'string)
       .select('string, 'int.count, 'int.sum)
 
@@ -115,10 +115,10 @@ class AggregationsITCase extends StreamingMultipleProgramsTestBase {
     StreamITCase.testResults = mutable.MutableList()
 
     val stream = env.fromCollection(data)
-    val table = stream.toTable(tEnv, 'long, 'int, 'string)
+    val table = stream.toTable(tEnv, 'long, 'int, 'string, 'proctime.proctime)
 
     val windowedTable = table
-      .window(Tumble over 2.rows as 'w)
+      .window(Tumble over 2.rows on 'proctime as 'w)
       .groupBy('w)
       .select('int.count)
 
@@ -140,10 +140,10 @@ class AggregationsITCase extends StreamingMultipleProgramsTestBase {
     val stream = env
       .fromCollection(data)
       .assignTimestampsAndWatermarks(new TimestampAndWatermarkWithOffset(0L))
-    val table = stream.toTable(tEnv, 'long, 'int, 'string)
+    val table = stream.toTable(tEnv, 'long.rowtime, 'int, 'string)
 
     val windowedTable = table
-      .window(Tumble over 5.milli on 'rowtime as 'w)
+      .window(Tumble over 5.milli on 'long as 'w)
       .groupBy('w, 'string)
       .select('string, 'int.count, 'int.avg, 'int.min, 'int.max, 'int.sum, 'w.start, 'w.end)
 

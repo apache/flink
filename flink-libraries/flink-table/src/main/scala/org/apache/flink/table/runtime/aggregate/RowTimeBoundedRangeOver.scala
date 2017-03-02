@@ -21,7 +21,7 @@ import java.util.{List => JList, ArrayList => JArrayList}
 
 import org.apache.flink.api.common.state._
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
-import org.apache.flink.api.java.typeutils.{ListTypeInfo, RowTypeInfo}
+import org.apache.flink.api.java.typeutils.ListTypeInfo
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.table.codegen.{GeneratedAggregationsFunction, Compiler}
@@ -39,8 +39,8 @@ import org.slf4j.LoggerFactory
  */
 class RowTimeBoundedRangeOver(
     genAggregations: GeneratedAggregationsFunction,
-    aggregationStateType: RowTypeInfo,
-    inputRowType: RowTypeInfo,
+    aggregationStateType: TypeInformation[Row],
+    inputRowType: TypeInformation[Row],
     precedingOffset: Long)
   extends ProcessFunction[Row, Row]
     with Compiler[GeneratedAggregations] {

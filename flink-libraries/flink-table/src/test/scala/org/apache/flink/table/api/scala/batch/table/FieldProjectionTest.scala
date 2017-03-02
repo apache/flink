@@ -19,14 +19,12 @@ package org.apache.flink.table.api.scala.batch.table
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.expressions.{RowtimeAttribute, Upper, WindowReference}
-import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.api.scala.batch.table.FieldProjectionTest._
-import org.apache.flink.table.plan.logical.EventTimeTumblingGroupWindow
-import org.apache.flink.table.utils._
-import org.apache.flink.table.utils.TableTestBase
+import org.apache.flink.table.expressions.{Upper, WindowReference}
+import org.apache.flink.table.functions.ScalarFunction
+import org.apache.flink.table.plan.logical.TumblingGroupWindow
 import org.apache.flink.table.utils.TableTestUtil._
+import org.apache.flink.table.utils.{TableTestBase, _}
 import org.junit.Test
 
 /**
@@ -223,7 +221,8 @@ class FieldProjectionTest extends TableTestBase {
 
   @Test
   def testSelectFromStreamingWindow(): Unit = {
-    val sourceTable = streamUtil.addTable[(Int, Long, String, Double)]("MyTable", 'a, 'b, 'c, 'd)
+    val sourceTable = streamUtil
+      .addTable[(Int, Long, String, Double)]("MyTable", 'a, 'b, 'c, 'd, 'rowtime.rowtime)
     val resultTable = sourceTable
         .window(Tumble over 5.millis on 'rowtime as 'w)
         .groupBy('w)
@@ -235,14 +234,14 @@ class FieldProjectionTest extends TableTestBase {
         unaryNode(
           "DataStreamCalc",
           streamTableNode(0),
-          term("select", "c", "a", "UPPER(c) AS $f2")
+          term("select", "c", "a", "rowtime", "UPPER(c) AS $f3")
         ),
         term("window",
-          EventTimeTumblingGroupWindow(
-           WindowReference("w"),
-            RowtimeAttribute(),
+          TumblingGroupWindow(
+            WindowReference("w"),
+            'rowtime,
             5.millis)),
-        term("select", "COUNT($f2) AS TMP_0", "SUM(a) AS TMP_1")
+        term("select", "COUNT($f3) AS TMP_0", "SUM(a) AS TMP_1")
       )
 
     streamUtil.verifyTable(resultTable, expected)
@@ -250,7 +249,8 @@ class FieldProjectionTest extends TableTestBase {
 
   @Test
   def testSelectFromStreamingGroupedWindow(): Unit = {
-    val sourceTable = streamUtil.addTable[(Int, Long, String, Double)]("MyTable", 'a, 'b, 'c, 'd)
+    val sourceTable = streamUtil
+      .addTable[(Int, Long, String, Double)]("MyTable", 'a, 'b, 'c, 'd, 'rowtime.rowtime)
     val resultTable = sourceTable
         .window(Tumble over 5.millis on 'rowtime as 'w)
         .groupBy('w, 'b)
@@ -263,15 +263,15 @@ class FieldProjectionTest extends TableTestBase {
           unaryNode(
             "DataStreamCalc",
             streamTableNode(0),
-            term("select", "c", "a", "b", "UPPER(c) AS $f3")
+            term("select", "c", "a", "b", "rowtime", "UPPER(c) AS $f4")
           ),
           term("groupBy", "b"),
           term("window",
-            EventTimeTumblingGroupWindow(
-             WindowReference("w"),
-              RowtimeAttribute(),
+            TumblingGroupWindow(
+              WindowReference("w"),
+              'rowtime,
               5.millis)),
-          term("select", "b", "COUNT($f3) AS TMP_0", "SUM(a) AS TMP_1")
+          term("select", "b", "COUNT($f4) AS TMP_0", "SUM(a) AS TMP_1")
         ),
         term("select", "TMP_0", "TMP_1", "b")
     )

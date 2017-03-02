@@ -21,13 +21,12 @@ package org.apache.flink.table.plan.nodes.datastream
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Values
 import org.apache.calcite.rex.RexLiteral
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.StreamTableEnvironment
-import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGenerator
+import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.runtime.io.ValuesInputFormat
 import org.apache.flink.types.Row
 
@@ -39,19 +38,19 @@ import scala.collection.JavaConverters._
 class DataStreamValues(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
-    rowRelDataType: RelDataType,
+    schema: RowSchema,
     tuples: ImmutableList[ImmutableList[RexLiteral]],
     ruleDescription: String)
-  extends Values(cluster, rowRelDataType, tuples, traitSet)
+  extends Values(cluster, schema.logicalType, tuples, traitSet)
   with DataStreamRel {
 
-  override def deriveRowType() = rowRelDataType
+  override def deriveRowType() = schema.logicalType
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new DataStreamValues(
       cluster,
       traitSet,
-      getRowType,
+      schema,
       getTuples,
       ruleDescription
     )
@@ -61,15 +60,13 @@ class DataStreamValues(
 
     val config = tableEnv.getConfig
 
-    val returnType = FlinkTypeFactory.toInternalRowTypeInfo(getRowType)
-
     val generator = new CodeGenerator(config)
 
     // generate code for every record
     val generatedRecords = getTuples.asScala.map { r =>
       generator.generateResultExpression(
-        returnType,
-        getRowType.getFieldNames.asScala,
+        schema.physicalTypeInfo,
+        schema.physicalFieldNames,
         r.asScala)
     }
 
@@ -77,14 +74,14 @@ class DataStreamValues(
     val generatedFunction = generator.generateValuesInputFormat(
       ruleDescription,
       generatedRecords.map(_.code),
-      returnType)
+      schema.physicalTypeInfo)
 
     val inputFormat = new ValuesInputFormat[Row](
       generatedFunction.name,
       generatedFunction.code,
       generatedFunction.returnType)
 
-    tableEnv.execEnv.createInput(inputFormat, returnType)
+    tableEnv.execEnv.createInput(inputFormat, schema.physicalTypeInfo)
   }
 
 }

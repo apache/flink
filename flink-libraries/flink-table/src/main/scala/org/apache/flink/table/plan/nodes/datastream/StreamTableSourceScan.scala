@@ -22,10 +22,11 @@ import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.table.api.StreamTableEnvironment
+import org.apache.flink.table.api.{StreamTableEnvironment, TableEnvironment}
+import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.nodes.PhysicalTableSourceScan
-import org.apache.flink.table.plan.schema.TableSourceTable
-import org.apache.flink.table.sources.{StreamTableSource, TableSource}
+import org.apache.flink.table.plan.schema.{RowSchema, TableSourceTable}
+import org.apache.flink.table.sources.{DefinedTimeAttributes, StreamTableSource, TableSource}
 import org.apache.flink.types.Row
 
 /** Flink RelNode to read data from an external source defined by a [[StreamTableSource]]. */
@@ -37,7 +38,50 @@ class StreamTableSourceScan(
   extends PhysicalTableSourceScan(cluster, traitSet, table, tableSource)
   with StreamScan {
 
-  override def computeSelfCost(planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
+  override def deriveRowType() = {
+    val flinkTypeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
+
+    def removeIndex[T](idx: Int, l: List[T]): List[T] = {
+      if (l.size < idx) {
+        l
+      } else {
+        l.take(idx) ++ l.drop(idx + 1)
+      }
+    }
+
+    var fieldNames = TableEnvironment.getFieldNames(tableSource).toList
+    var fieldTypes = TableEnvironment.getFieldTypes(tableSource.getReturnType).toList
+
+    val rowtime = tableSource match {
+      case timeSource: DefinedTimeAttributes if timeSource.getRowtimeAttribute != null =>
+        val rowtimeAttribute = timeSource.getRowtimeAttribute
+        // remove physical field if it is overwritten by time attribute
+        fieldNames = removeIndex(rowtimeAttribute.f0, fieldNames)
+        fieldTypes = removeIndex(rowtimeAttribute.f0, fieldTypes)
+        Some((rowtimeAttribute.f0, rowtimeAttribute.f1))
+      case _ =>
+        None
+    }
+
+    val proctime = tableSource match {
+      case timeSource: DefinedTimeAttributes if timeSource.getProctimeAttribute != null =>
+        val proctimeAttribute = timeSource.getProctimeAttribute
+        // remove physical field if it is overwritten by time attribute
+        fieldNames = removeIndex(proctimeAttribute.f0, fieldNames)
+        fieldTypes = removeIndex(proctimeAttribute.f0, fieldTypes)
+        Some((proctimeAttribute.f0, proctimeAttribute.f1))
+      case _ =>
+        None
+    }
+
+    flinkTypeFactory.buildLogicalRowType(
+      fieldNames,
+      fieldTypes,
+      rowtime,
+      proctime)
+  }
+
+  override def computeSelfCost (planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
     val rowCnt = metadata.getRowCount(this)
     planner.getCostFactory.makeCost(rowCnt, rowCnt, rowCnt * estimateRowSize(getRowType))
   }
@@ -67,6 +111,10 @@ class StreamTableSourceScan(
   override def translateToPlan(tableEnv: StreamTableEnvironment): DataStream[Row] = {
     val config = tableEnv.getConfig
     val inputDataStream = tableSource.getDataStream(tableEnv.execEnv).asInstanceOf[DataStream[Any]]
-    convertToInternalRow(inputDataStream, new TableSourceTable(tableSource), config)
+    convertToInternalRow(
+      new RowSchema(getRowType),
+      inputDataStream,
+      new TableSourceTable(tableSource),
+      config)
   }
 }

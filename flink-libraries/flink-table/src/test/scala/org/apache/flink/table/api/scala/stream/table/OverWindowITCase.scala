@@ -56,7 +56,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
     StreamITCase.testResults = mutable.MutableList()
     StreamITCase.clear
     val stream = env.fromCollection(data)
-    val table = stream.toTable(tEnv, 'a, 'b, 'c)
+    val table = stream.toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
 
     val windowedTable = table
       .window(
@@ -103,7 +103,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
     )
     val table = env
       .addSource(new RowTimeSourceFunction[(Int, Long, String)](data))
-      .toTable(tEnv).as('a, 'b, 'c)
+      .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
     val windowedTable = table
       .window(Over partitionBy 'a orderBy 'rowtime preceding UNBOUNDED_RANGE following
@@ -166,7 +166,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
     StreamITCase.testResults = mutable.MutableList()
 
     val stream = env.fromCollection(data)
-    val table = stream.toTable(tEnv).as('a, 'b, 'c, 'd, 'e)
+    val table = stream.toTable(tEnv, 'a, 'b, 'c, 'd, 'e, 'proctime.proctime)
 
     val windowedTable = table
       .window(Over partitionBy 'a orderBy 'proctime preceding 4.rows following CURRENT_ROW as 'w)
@@ -227,7 +227,8 @@ class OverWindowITCase extends StreamingWithStateTestBase {
     StreamITCase.clear
 
     val table = env.addSource[(Long, Int, String)](
-      new RowTimeSourceFunction[(Long, Int, String)](data)).toTable(tEnv).as('a, 'b, 'c)
+      new RowTimeSourceFunction[(Long, Int, String)](data))
+      .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
     val windowedTable = table
       .window(Over partitionBy 'c orderBy 'rowtime preceding 2.rows following CURRENT_ROW as 'w)
@@ -288,7 +289,8 @@ class OverWindowITCase extends StreamingWithStateTestBase {
     StreamITCase.clear
 
     val table = env.addSource[(Long, Int, String)](
-      new RowTimeSourceFunction[(Long, Int, String)](data)).toTable(tEnv).as('a, 'b, 'c)
+      new RowTimeSourceFunction[(Long, Int, String)](data))
+      .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
     val windowedTable = table
       .window(
