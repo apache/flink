@@ -26,10 +26,7 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo
 import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
 
 /** The initial accumulator for Max aggregate function */
-class MaxAccumulator[T] extends JTuple2[T, Boolean] with Accumulator {
-  f0 = 0.asInstanceOf[T] //max
-  f1 = false
-}
+class MaxAccumulator[T] extends JTuple2[T, Boolean] with Accumulator
 
 /**
   * Base class for built-in Max aggregate function
@@ -39,7 +36,10 @@ class MaxAccumulator[T] extends JTuple2[T, Boolean] with Accumulator {
 abstract class MaxAggFunction[T](implicit ord: Ordering[T]) extends AggregateFunction[T] {
 
   override def createAccumulator(): Accumulator = {
-    new MaxAccumulator[T]
+    val acc = new MaxAccumulator[T]
+    acc.f0 = getInitValue
+    acc.f1 = false
+    acc
   }
 
   override def accumulate(accumulator: Accumulator, value: Any): Unit = {
@@ -82,6 +82,8 @@ abstract class MaxAggFunction[T](implicit ord: Ordering[T]) extends AggregateFun
       BasicTypeInfo.BOOLEAN_TYPE_INFO)
   }
 
+  def getInitValue: T
+
   def getValueTypeInfo: TypeInformation[_]
 }
 
@@ -89,6 +91,7 @@ abstract class MaxAggFunction[T](implicit ord: Ordering[T]) extends AggregateFun
   * Built-in Byte Max aggregate function
   */
 class ByteMaxAggFunction extends MaxAggFunction[Byte] {
+  override def getInitValue: Byte = 0.toByte
   override def getValueTypeInfo = BasicTypeInfo.BYTE_TYPE_INFO
 }
 
@@ -96,6 +99,7 @@ class ByteMaxAggFunction extends MaxAggFunction[Byte] {
   * Built-in Short Max aggregate function
   */
 class ShortMaxAggFunction extends MaxAggFunction[Short] {
+  override def getInitValue: Short = 0.toShort
   override def getValueTypeInfo = BasicTypeInfo.SHORT_TYPE_INFO
 }
 
@@ -103,6 +107,7 @@ class ShortMaxAggFunction extends MaxAggFunction[Short] {
   * Built-in Int Max aggregate function
   */
 class IntMaxAggFunction extends MaxAggFunction[Int] {
+  override def getInitValue: Int = 0
   override def getValueTypeInfo = BasicTypeInfo.INT_TYPE_INFO
 }
 
@@ -110,6 +115,7 @@ class IntMaxAggFunction extends MaxAggFunction[Int] {
   * Built-in Long Max aggregate function
   */
 class LongMaxAggFunction extends MaxAggFunction[Long] {
+  override def getInitValue: Long = 0L
   override def getValueTypeInfo = BasicTypeInfo.LONG_TYPE_INFO
 }
 
@@ -117,6 +123,7 @@ class LongMaxAggFunction extends MaxAggFunction[Long] {
   * Built-in Float Max aggregate function
   */
 class FloatMaxAggFunction extends MaxAggFunction[Float] {
+  override def getInitValue: Float = 0.0f
   override def getValueTypeInfo = BasicTypeInfo.FLOAT_TYPE_INFO
 }
 
@@ -124,6 +131,7 @@ class FloatMaxAggFunction extends MaxAggFunction[Float] {
   * Built-in Double Max aggregate function
   */
 class DoubleMaxAggFunction extends MaxAggFunction[Double] {
+  override def getInitValue: Double = 0.0d
   override def getValueTypeInfo = BasicTypeInfo.DOUBLE_TYPE_INFO
 }
 
@@ -131,6 +139,7 @@ class DoubleMaxAggFunction extends MaxAggFunction[Double] {
   * Built-in Boolean Max aggregate function
   */
 class BooleanMaxAggFunction extends MaxAggFunction[Boolean] {
+  override def getInitValue = false
   override def getValueTypeInfo = BasicTypeInfo.BOOLEAN_TYPE_INFO
 }
 
@@ -149,6 +158,8 @@ class DecimalMaxAggFunction extends MaxAggFunction[BigDecimal] {
       }
     }
   }
+
+  override def getInitValue = BigDecimal.ZERO
 
   override def getValueTypeInfo = BasicTypeInfo.BIG_DEC_TYPE_INFO
 }
