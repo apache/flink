@@ -24,7 +24,6 @@ import java.util.List;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.logical.LogicalWindow;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
@@ -42,7 +41,6 @@ import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.calcite.FlinkTypeFactory;
 import org.apache.flink.table.plan.logical.rel.util.WindowAggregateUtil;
 import org.apache.flink.table.plan.nodes.datastream.DataStreamRel;
-import org.apache.flink.table.plan.nodes.datastream.DataStreamRelJava;
 import org.apache.flink.table.plan.nodes.datastream.function.DataStreamProcTimeAggregateGlobalWindowFunction;
 import org.apache.flink.table.plan.nodes.datastream.function.DataStreamProcTimeAggregateWindowFunction;
 import org.apache.flink.types.Row;
@@ -107,7 +105,9 @@ public class DataStreamProcTimeTimeAggregate extends DataStreamRelJava {
 		List<Integer> indexes = new ArrayList<>();
 		windowUtil.getAggregations(aggregators, typeOutput, indexes, typeInput);
 
-		final long time_boundary = Long.parseLong(windowReference.getConstants().get(1).getValue().toString());
+		// final long time_boundary =
+		// Long.parseLong(windowReference.getConstants().get(1).getValue().toString());
+		final long time_boundary = windowUtil.getLowerBoundary(getInput());
 		DataStream<Row> aggregateWindow = null;
 
 		// As we it is not possible to operate neither on sliding count neither
@@ -159,27 +159,4 @@ public class DataStreamProcTimeTimeAggregate extends DataStreamRelJava {
 		return super.toString() + "(" + "window=[" + windowReference + "]" + ")";
 	}
 
-	@Override
-	public void explain(RelWriter pw) {
-		// TODO Auto-generated method stub
-		super.explain(pw);
-	}
-
-	@Override
-	public RelWriter explainTerms(RelWriter pw) {
-		/*
-		 * pw.item("Type", winConf.type); pw.item("Order",
-		 * winConf.operateField); pw.item("PartitionBy", winConf.partitionBy);
-		 * pw.itemIf("Event-based", winConf.eventWindow, winConf.eventWindow);
-		 * pw.itemIf("Time-based", winConf.timeWindow, winConf.timeWindow);
-		 * pw.item("LowBoundary", winConf.referenceLowBoundary);
-		 * pw.itemIf("LowBoundary constant", winConf.lowBoudary,
-		 * winConf.lowBoudary != 0); pw.item("HighBoundary",
-		 * winConf.referenceHighBoundary); pw.itemIf("HighBoundary constant",
-		 * winConf.highBoudary, winConf.highBoudary != 0);
-		 */
-		return pw;
-	}
-
-	
 }

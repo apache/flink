@@ -20,6 +20,7 @@ package org.apache.flink.table.plan.logical.rel.util;
 import java.io.Serializable;
 import java.util.List;
 
+import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Window.Group;
 import org.apache.calcite.rel.core.Window.RexWinAggCall;
 import org.apache.calcite.rel.logical.LogicalWindow;
@@ -87,6 +88,16 @@ public class WindowAggregateUtil implements Serializable {
 		return ((Long)constants.get(1).getValue2()).intValue();
 
 	}
+
+	
+	
+	public long getLowerBoundary(RelNode input) { 
+		RexInputRef ref = (RexInputRef) windowPointer.groups.asList().get(0).lowerBound.getOffset(); 
+		int index = ref.getIndex(); 
+		int count = input.getRowType().getFieldCount(); 
+		int lowerboundIndex = index - count; 
+		return ((java.math.BigDecimal) windowPointer.constants.get(lowerboundIndex).getValue2()).longValue(); 
+		} 
 
 	
 	/**

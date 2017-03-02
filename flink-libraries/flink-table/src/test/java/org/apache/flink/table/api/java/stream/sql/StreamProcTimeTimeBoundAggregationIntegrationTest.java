@@ -102,16 +102,16 @@ public class StreamProcTimeTimeBoundAggregationIntegrationTest extends Streaming
 		expected.add("2,1");
 		expected.add("3,3");
 		expected.add("3,3");
-		expected.add("3,4");
+		expected.add("3,3");
 		expected.add("4,6");
 		expected.add("4,6");
-		expected.add("4,7");
-		expected.add("4,8");
+		expected.add("4,6");
+		expected.add("4,6");
 		expected.add("5,10");
 		expected.add("5,10");
-		expected.add("5,11");
-		expected.add("5,12");
-		expected.add("5,13");
+		expected.add("5,10");
+		expected.add("5,10");
+		expected.add("5,10");
 
 		StreamITCase.compareWithList(expected);
 	}
@@ -139,18 +139,18 @@ public class StreamProcTimeTimeBoundAggregationIntegrationTest extends Streaming
 		expected.add("1,0");
 		expected.add("2,1");
 		expected.add("2,3");
+		expected.add("3,12");
 		expected.add("3,3");
 		expected.add("3,7");
-		expected.add("3,9");
-		expected.add("4,6");
 		expected.add("4,13");
-		expected.add("4,15");
-		expected.add("4,17");
+		expected.add("4,21");
+		expected.add("4,30");
+		expected.add("4,6");
 		expected.add("5,10");
 		expected.add("5,21");
-		expected.add("5,23");
-		expected.add("5,26");
-		expected.add("5,27");
+		expected.add("5,33");
+		expected.add("5,47");
+		expected.add("5,60");
 
 		StreamITCase.compareWithList(expected);
 	}
@@ -184,12 +184,12 @@ public class StreamProcTimeTimeBoundAggregationIntegrationTest extends Streaming
 		expected.add("4,6");
 		expected.add("4,6");
 		expected.add("4,7");
-		expected.add("4,8");
+		expected.add("4,7");
 		expected.add("5,10");
 		expected.add("5,10");
 		expected.add("5,11");
-		expected.add("5,13");
-		expected.add("5,13");
+		expected.add("5,11");
+		expected.add("5,12");
 
 		StreamITCase.compareWithList(expected);
 	}
