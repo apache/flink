@@ -37,6 +37,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.runtime.webmonitor.files.StaticFileServerHandler;
@@ -425,6 +426,19 @@ public class WebRuntimeMonitor implements WebMonitor {
 		LOG.info("Web frontend listening at " + address + ':' + port);
 	}
 
+	/**
+	 * Returns an array of all {@link JsonArchivist}s that are relevant for the history server.
+	 * 
+	 * This method is static to allow easier access from the {@link MemoryArchivist}. Requiring a reference
+	 * would imply that the WebRuntimeMonitor is always created before the archivist, which may not hold for all
+	 * deployment modes.
+	 * 
+	 * Similarly, no handler implements the JsonArchivist interface itself but instead contains a separate implementing
+	 * class; otherwise we would either instantiate several handlers even though their main functionality isn't
+	 * required, or yet again require that the WebRuntimeMonitor is started before the archivist.
+	 * 
+	 * @return array of all JsonArchivists relevant for the history server
+	 */
 	public static JsonArchivist[] getArchivers() {
 		JsonArchivist[] archivists = new JsonArchivist[]{
 			new CurrentJobsOverviewHandler.CurrentJobsOverviewJsonArchivist(),
