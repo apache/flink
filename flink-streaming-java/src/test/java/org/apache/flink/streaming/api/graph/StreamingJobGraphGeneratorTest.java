@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -221,4 +222,36 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		assertFalse(printConfig.isChainStart());
 		assertTrue(printConfig.isChainEnd());
 	}
+
+//	/**
+//	 * Verifies that the resources are merged correctly for chained operators when
+//	 * generating job graph
+//	 */
+//	@Test
+//	public void testChainedResourceMerging() throws Exception {
+//		ResourceSpec resource1 = new ResourceSpec(0.1, 100);
+//		ResourceSpec resource2 = new ResourceSpec(0.2, 200);
+//		ResourceSpec resource3 = new ResourceSpec(0.3, 300);
+//
+//		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+//		// fromElements -> CHAIN(Map -> Print)
+//		env.fromElements(1, 2, 3).setResources(resource1)
+//				.map(new MapFunction<Integer, Integer>() {
+//					@Override
+//					public Integer map(Integer value) throws Exception {
+//						return value;
+//					}
+//				}).setResources(resource2)
+//				.print().setResources(resource3);
+//		JobGraph jobGraph = new StreamingJobGraphGenerator(env.getStreamGraph()).createJobGraph();
+//
+//		JobVertex sourceVertex = jobGraph.getVerticesSortedTopologicallyFromSources().get(0);
+//		JobVertex mapPrintVertex = jobGraph.getVerticesSortedTopologicallyFromSources().get(1);
+//
+//		assertTrue(sourceVertex.getMinResources().equals(resource1));
+//		assertTrue(sourceVertex.getPreferredResources().equals(resource1));
+//
+//		assertTrue(mapPrintVertex.getMinResources().equals(resource2.merge(resource3)));
+//		assertTrue(mapPrintVertex.getPreferredResources().equals(resource2.merge(resource3)));
+//	}
 }

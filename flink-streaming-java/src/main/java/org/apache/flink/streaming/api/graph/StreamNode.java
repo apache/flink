@@ -49,8 +49,8 @@ public class StreamNode implements Serializable {
 	 * dynamic scaling and the number of key groups used for partitioned state.
 	 */
 	private int maxParallelism;
-	private ResourceSpec minResources;
-	private ResourceSpec preferredResources;
+	private ResourceSpec minResources = ResourceSpec.UNKNOWN;
+	private ResourceSpec preferredResources = ResourceSpec.UNKNOWN;
 	private Long bufferTimeout = null;
 	private final String operatorName;
 	private String slotSharingGroup;
