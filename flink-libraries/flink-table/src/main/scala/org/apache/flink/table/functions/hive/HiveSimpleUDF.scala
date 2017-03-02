@@ -17,13 +17,15 @@
  */
 package org.apache.flink.table.functions.hive
 
+import java.lang.reflect.Method
 import java.util
 
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.hadoop.hive.ql.exec.{FunctionRegistry, UDF}
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFUtils.ConversionHelper
+import org.apache.hadoop.hive.serde2.objectinspector.primitive.PrimitiveObjectInspectorFactory
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector
-import org.apache.hadoop.hive.serde2.typeinfo.{TypeInfo, TypeInfoFactory}
+import org.apache.hadoop.hive.serde2.typeinfo.{PrimitiveTypeInfo, TypeInfo, TypeInfoFactory}
 
 import scala.annotation.varargs
 
@@ -49,19 +51,25 @@ class HiveSimpleUDF(name: String, functionWrapper: HiveFunctionWrapper) extends 
   private var conversionHelper: ConversionHelper = _
 
   @transient
-  private val method = function.getResolver.getEvalMethod(typeInfos)
+  private var method: Method = _
 
   @varargs
-  def eval(args: Any*) : Any = {
+  def eval(args: AnyRef*) : Any = {
     if (null == typeInfos) {
       typeInfos = new util.ArrayList[TypeInfo]()
       args.foreach(arg => {
           typeInfos.add(TypeInfoFactory.getPrimitiveTypeInfoFromJavaPrimitive(arg.getClass))
       })
+      method = function.getResolver.getEvalMethod(typeInfos)
+
       objectInspectors = new Array[ObjectInspector](typeInfos.size())
+      args.zipWithIndex.foreach { case (_, i) =>
+        objectInspectors(i) = PrimitiveObjectInspectorFactory.getPrimitiveJavaObjectInspector(
+          typeInfos.get(i).asInstanceOf[PrimitiveTypeInfo])
+      }
       conversionHelper = new ConversionHelper(method, objectInspectors)
     }
     FunctionRegistry.invoke(method, function,
-      conversionHelper.convertIfNecessary(args.toArray))
+      conversionHelper.convertIfNecessary(args: _*): _*)
   }
 }
