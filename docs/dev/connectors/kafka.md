@@ -146,6 +146,10 @@ The Flink Kafka Consumer needs to know how to turn the binary data in Kafka into
 `DeserializationSchema` allows users to specify such a schema. The `T deserialize(byte[] message)`
 method gets called for each Kafka message, passing the value from Kafka.
 
+There are two possible design choices when the `DeserializationSchema` encounters a corrupted message. It can
+either throw an `IOException` which causes the pipeline to be restarted, or it can return `null` where the Flink
+Kafka consumer will silently skip the corrupted message.
+
 It is usually helpful to start from the `AbstractDeserializationSchema`, which takes care of describing the
 produced Java/Scala type to Flink's type system. Users that implement a vanilla `DeserializationSchema` need
 to implement the `getProducedType(...)` method themselves.

@@ -213,6 +213,10 @@ public abstract class AbstractFetcher<T, KPH> {
 	 * @param offset The offset of the record
 	 */
 	protected void emitRecord(T record, KafkaTopicPartitionState<KPH> partitionState, long offset) throws Exception {
+		if (record == null) {
+			return;
+		}
+
 		if (timestampWatermarkMode == NO_TIMESTAMPS_WATERMARKS) {
 			// fast path logic, in case there are no watermarks
 
