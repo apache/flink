@@ -53,7 +53,7 @@ public class SlotManagerTest {
 
 	private static final double DEFAULT_TESTING_CPU_CORES = 1.0;
 
-	private static final long DEFAULT_TESTING_MEMORY = 512;
+	private static final int DEFAULT_TESTING_MEMORY = 512;
 
 	private static final ResourceProfile DEFAULT_TESTING_PROFILE =
 		new ResourceProfile(DEFAULT_TESTING_CPU_CORES, DEFAULT_TESTING_MEMORY);
