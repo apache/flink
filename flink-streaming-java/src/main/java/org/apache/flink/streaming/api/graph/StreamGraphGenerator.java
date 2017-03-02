@@ -203,7 +203,7 @@ public class StreamGraphGenerator {
 		}
 
 		if (transform.getMinResources() != null && transform.getPreferredResources() != null) {
-			streamGraph.setResource(transform.getId(), transform.getMinResources(), transform.getPreferredResources());
+			streamGraph.setResources(transform.getId(), transform.getMinResources(), transform.getPreferredResources());
 		}
 
 		return transformedIds;
@@ -335,7 +335,9 @@ public class StreamGraphGenerator {
 			getNewIterationNodeId(),
 			iterate.getWaitTime(),
 			iterate.getParallelism(),
-			iterate.getMaxParallelism());
+			iterate.getMaxParallelism(),
+			iterate.getMinResources(),
+			iterate.getPreferredResources()	);
 
 		StreamNode itSource = itSourceAndSink.f0;
 		StreamNode itSink = itSourceAndSink.f1;
@@ -400,7 +402,9 @@ public class StreamGraphGenerator {
 				getNewIterationNodeId(),
 				coIterate.getWaitTime(),
 				coIterate.getParallelism(),
-				coIterate.getMaxParallelism());
+				coIterate.getMaxParallelism(),
+				coIterate.getMinResources(),
+				coIterate.getPreferredResources());
 
 		StreamNode itSource = itSourceAndSink.f0;
 		StreamNode itSink = itSourceAndSink.f1;

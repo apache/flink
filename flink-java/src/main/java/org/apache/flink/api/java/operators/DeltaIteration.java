@@ -64,9 +64,9 @@ public class DeltaIteration<ST, WT> {
 	
 	private int parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
 
-	private ResourceSpec minResources = ResourceSpec.UNKNOWN;
+	private ResourceSpec minResources = ResourceSpec.DEFAULT;
 
-	private ResourceSpec preferredResources = ResourceSpec.UNKNOWN;
+	private ResourceSpec preferredResources = ResourceSpec.DEFAULT;
 	
 	private boolean solutionSetUnManaged;
 
@@ -197,49 +197,47 @@ public class DeltaIteration<ST, WT> {
 		return parallelism;
 	}
 
-//	---------------------------------------------------------------------------
-//	 Fine-grained resource profiles are an incomplete work-in-progress feature
-//	 The setters are hence commented out at this point.
-//	---------------------------------------------------------------------------
-//
-//	/**
-//	 * Sets the minimum and preferred resources for the iteration. This overrides the default empty resource.
-//	 * The lower and upper resource limits will be considered in dynamic resource resize feature for future plan.
-//	 *
-//	 * @param minResources The minimum resource for the iteration.
-//	 * @param preferredResources The preferred resource for the iteration.
-//	 * @return The iteration with set minimum and preferred resources.
-//	 */
-//	@PublicEvolving
-//	public DeltaIteration<ST, WT> setResource(ResourceSpec minResources, ResourceSpec preferredResources) {
-//		Preconditions.checkNotNull(minResources, "The min resources must be not null.");
-//		Preconditions.checkNotNull(preferredResources, "The preferred resources must be not null.");
-//		Preconditions.checkArgument(minResources.isValid() && preferredResources.isValid() && minResources.lessThanOrEqual(preferredResources),
-//				"The values in resources must be not less than 0 and the preferred resources must be greater than the min resources.");
-//
-//		this.minResources = minResources;
-//		this.preferredResources = preferredResources;
-//
-//		return this;
-//	}
-//
-//	/**
-//	 * Sets the resource for the iteration, and the minimum and preferred resources are the same by default.
-//	 *	The lower and upper resource limits will be considered in dynamic resource resize feature for future plan.
-//	 *
-//	 * @param resources The resource for the iteration.
-//	 * @return The iteration with set minimum and preferred resources.
-//	 */
-//	@PublicEvolving
-//	public DeltaIteration<ST, WT> setResource(ResourceSpec resources) {
-//		Preconditions.checkNotNull(resources, "The resources must be not null.");
-//		Preconditions.checkArgument(resources.isValid(), "The values in resource must be not less than 0.");
-//
-//		this.minResources = resources;
-//		this.preferredResources = resources;
-//
-//		return this;
-//	}
+	//	---------------------------------------------------------------------------
+	//	 Fine-grained resource profiles are an incomplete work-in-progress feature
+	//	 The setters are hence private at this point.
+	//	---------------------------------------------------------------------------
+
+	/**
+	 * Sets the minimum and preferred resources for the iteration. This overrides the default resources.
+	 * The lower and upper resource limits will be considered in dynamic resource resize feature for future plan.
+	 *
+	 * @param minResources The minimum resources for the iteration.
+	 * @param preferredResources The preferred resources for the iteration.
+	 * @return The iteration with set minimum and preferred resources.
+	 */
+	private DeltaIteration<ST, WT> setResources(ResourceSpec minResources, ResourceSpec preferredResources) {
+		Preconditions.checkNotNull(minResources, "The min resources must be not null.");
+		Preconditions.checkNotNull(preferredResources, "The preferred resources must be not null.");
+		Preconditions.checkArgument(minResources.isValid() && preferredResources.isValid() && minResources.lessThanOrEqual(preferredResources),
+				"The values in resources must be not less than 0 and the preferred resources must be greater than the min resources.");
+
+		this.minResources = minResources;
+		this.preferredResources = preferredResources;
+
+		return this;
+	}
+
+	/**
+	 * Sets the resources for the iteration, and the minimum and preferred resources are the same by default.
+	 *	The lower and upper resource limits will be considered in dynamic resource resize feature for future plan.
+	 *
+	 * @param resources The resources for the iteration.
+	 * @return The iteration with set minimum and preferred resources.
+	 */
+	private DeltaIteration<ST, WT> setResources(ResourceSpec resources) {
+		Preconditions.checkNotNull(resources, "The resources must be not null.");
+		Preconditions.checkArgument(resources.isValid(), "The values in resources must be not less than 0.");
+
+		this.minResources = resources;
+		this.preferredResources = resources;
+
+		return this;
+	}
 
 	/**
 	 * Gets the minimum resources from this iteration. If no minimum resources have been set,

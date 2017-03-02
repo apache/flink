@@ -414,9 +414,9 @@ public class StreamGraph extends StreamingPlan {
 		}
 	}
 
-	public void setResource(int vertexID, ResourceSpec minResource, ResourceSpec preferredResource) {
+	public void setResources(int vertexID, ResourceSpec minResources, ResourceSpec preferredResources) {
 		if (getStreamNode(vertexID) != null) {
-			getStreamNode(vertexID).setResources(minResource, preferredResource);
+			getStreamNode(vertexID).setResources(minResources, preferredResources);
 		}
 	}
 
@@ -477,6 +477,7 @@ public class StreamGraph extends StreamingPlan {
 		StreamNode node = streamNodes.get(nodeId);
 		if (node != null) {
 			node.setUserHash(nodeHash);
+
 		}
 	}
 
@@ -540,7 +541,9 @@ public class StreamGraph extends StreamingPlan {
 		int sinkId,
 		long timeout,
 		int parallelism,
-		int maxParallelism) {
+		int maxParallelism,
+		ResourceSpec minResources,
+		ResourceSpec preferredResources) {
 		StreamNode source = this.addNode(sourceId,
 			null,
 			StreamIterationHead.class,
@@ -549,6 +552,7 @@ public class StreamGraph extends StreamingPlan {
 		sources.add(source.getId());
 		setParallelism(source.getId(), parallelism);
 		setMaxParallelism(source.getId(), maxParallelism);
+		setResources(source.getId(), minResources, preferredResources);
 
 		StreamNode sink = this.addNode(sinkId,
 			null,
