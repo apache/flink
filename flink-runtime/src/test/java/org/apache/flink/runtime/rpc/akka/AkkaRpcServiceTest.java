@@ -135,7 +135,7 @@ public class AkkaRpcServiceTest extends TestLogger {
 	 * @throws ExecutionException
 	 * @throws InterruptedException
 	 */
-	@Test(timeout = 1000)
+	@Test(timeout = 60000)
 	public void testTerminationFuture() throws ExecutionException, InterruptedException {
 		final ActorSystem actorSystem = AkkaUtils.createDefaultActorSystem();
 		final AkkaRpcService rpcService = new AkkaRpcService(actorSystem, Time.milliseconds(1000));
@@ -160,7 +160,7 @@ public class AkkaRpcServiceTest extends TestLogger {
 	 * Tests a simple scheduled runnable being executed by the RPC services scheduled executor
 	 * service.
 	 */
-	@Test(timeout = 1000)
+	@Test(timeout = 60000)
 	public void testScheduledExecutorServiceSimpleSchedule() throws ExecutionException, InterruptedException {
 		ScheduledExecutor scheduledExecutor = akkaRpcService.getScheduledExecutor();
 
@@ -186,7 +186,7 @@ public class AkkaRpcServiceTest extends TestLogger {
 	 * Tests that the RPC service's scheduled executor service can execute runnables at a fixed
 	 * rate.
 	 */
-	@Test(timeout = 1000)
+	@Test(timeout = 60000)
 	public void testScheduledExecutorServicePeriodicSchedule() throws ExecutionException, InterruptedException {
 		ScheduledExecutor scheduledExecutor = akkaRpcService.getScheduledExecutor();
 
@@ -226,7 +226,7 @@ public class AkkaRpcServiceTest extends TestLogger {
 	 * Tests that the RPC service's scheduled executor service can execute runnable with a fixed
 	 * delay.
 	 */
-	@Test(timeout = 1000)
+	@Test(timeout = 60000)
 	public void testScheduledExecutorServiceWithFixedDelaySchedule() throws ExecutionException, InterruptedException {
 		ScheduledExecutor scheduledExecutor = akkaRpcService.getScheduledExecutor();
 

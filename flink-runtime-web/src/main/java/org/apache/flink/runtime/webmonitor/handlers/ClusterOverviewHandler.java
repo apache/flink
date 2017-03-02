@@ -38,6 +38,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class ClusterOverviewHandler extends AbstractJsonRequestHandler {
 
+	private static final String CLUSTER_OVERVIEW_REST_PATH = "/overview";
+
 	private static final String version = EnvironmentInformation.getVersion();
 
 	private static final String commitID = EnvironmentInformation.getRevisionInformation().commitId;
@@ -46,6 +48,11 @@ public class ClusterOverviewHandler extends AbstractJsonRequestHandler {
 	
 	public ClusterOverviewHandler(FiniteDuration timeout) {
 		this.timeout = checkNotNull(timeout);
+	}
+
+	@Override
+	public String[] getPaths() {
+		return new String[]{CLUSTER_OVERVIEW_REST_PATH};
 	}
 
 	@Override

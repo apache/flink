@@ -23,6 +23,7 @@ import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.executiongraph.AccessExecution;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 
+import java.io.IOException;
 import java.io.StringWriter;
 import java.util.Map;
 
@@ -31,17 +32,28 @@ import java.util.Map;
  * via the "vertexid" parameter) in a specific job, defined via (defined voa the "jobid" parameter).  
  */
 public class SubtaskExecutionAttemptAccumulatorsHandler extends AbstractSubtaskAttemptRequestHandler {
+
+	private static final String SUBTASK_ATTEMPT_ACCUMULATORS_REST_PATH = "/jobs/:jobid/vertices/:vertexid/subtasks/:subtasknum/attempts/:attempt/accumulators";
 	
 	public SubtaskExecutionAttemptAccumulatorsHandler(ExecutionGraphHolder executionGraphHolder) {
 		super(executionGraphHolder);
 	}
 
 	@Override
+	public String[] getPaths() {
+		return new String[]{SUBTASK_ATTEMPT_ACCUMULATORS_REST_PATH};
+	}
+
+	@Override
 	public String handleRequest(AccessExecution execAttempt, Map<String, String> params) throws Exception {
-		final StringifiedAccumulatorResult[] accs = execAttempt.getUserAccumulatorsStringified();
+		return createAttemptAccumulatorsJson(execAttempt);
+	}
 		
+	public static String createAttemptAccumulatorsJson(AccessExecution execAttempt) throws IOException {
 		StringWriter writer = new StringWriter();
 		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
+		
+		final StringifiedAccumulatorResult[] accs = execAttempt.getUserAccumulatorsStringified();
 
 		gen.writeStartObject();
 

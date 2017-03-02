@@ -43,12 +43,23 @@ import java.util.Map;
  */
 public class CheckpointStatsHandler extends AbstractExecutionGraphRequestHandler {
 
+	private static final String CHECKPOINT_STATS_REST_PATH = "/jobs/:jobid/checkpoints";
+
 	public CheckpointStatsHandler(ExecutionGraphHolder executionGraphHolder) {
 		super(executionGraphHolder);
 	}
 
 	@Override
+	public String[] getPaths() {
+		return new String[]{CHECKPOINT_STATS_REST_PATH};
+	}
+
+	@Override
 	public String handleRequest(AccessExecutionGraph graph, Map<String, String> params) throws Exception {
+		return createCheckpointStatsJson(graph);
+	}
+
+	private static String createCheckpointStatsJson(AccessExecutionGraph graph) throws IOException {
 		StringWriter writer = new StringWriter();
 		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
 
@@ -84,7 +95,7 @@ public class CheckpointStatsHandler extends AbstractExecutionGraphRequestHandler
 		return writer.toString();
 	}
 
-	private void writeCounts(JsonGenerator gen, CheckpointStatsCounts counts) throws IOException {
+	private static void writeCounts(JsonGenerator gen, CheckpointStatsCounts counts) throws IOException {
 		gen.writeObjectFieldStart("counts");
 		gen.writeNumberField("restored", counts.getNumberOfRestoredCheckpoints());
 		gen.writeNumberField("total", counts.getTotalNumberOfCheckpoints());
@@ -94,7 +105,7 @@ public class CheckpointStatsHandler extends AbstractExecutionGraphRequestHandler
 		gen.writeEndObject();
 	}
 
-	private void writeSummary(
+	private static void writeSummary(
 		JsonGenerator gen,
 		CompletedCheckpointStatsSummary summary) throws IOException {
 		gen.writeObjectFieldStart("summary");
@@ -112,13 +123,13 @@ public class CheckpointStatsHandler extends AbstractExecutionGraphRequestHandler
 		gen.writeEndObject();
 	}
 
-	private void writeMinMaxAvg(JsonGenerator gen, MinMaxAvgStats minMaxAvg) throws IOException {
+	static void writeMinMaxAvg(JsonGenerator gen, MinMaxAvgStats minMaxAvg) throws IOException {
 		gen.writeNumberField("min", minMaxAvg.getMinimum());
 		gen.writeNumberField("max", minMaxAvg.getMaximum());
 		gen.writeNumberField("avg", minMaxAvg.getAverage());
 	}
 
-	private void writeLatestCheckpoints(
+	private static void writeLatestCheckpoints(
 		JsonGenerator gen,
 		@Nullable CompletedCheckpointStats completed,
 		@Nullable CompletedCheckpointStats savepoint,
@@ -180,7 +191,7 @@ public class CheckpointStatsHandler extends AbstractExecutionGraphRequestHandler
 		gen.writeEndObject();
 	}
 
-	private void writeCheckpoint(JsonGenerator gen, AbstractCheckpointStats checkpoint) throws IOException {
+	private static void writeCheckpoint(JsonGenerator gen, AbstractCheckpointStats checkpoint) throws IOException {
 		gen.writeNumberField("id", checkpoint.getCheckpointId());
 		gen.writeNumberField("trigger_timestamp", checkpoint.getTriggerTimestamp());
 		gen.writeNumberField("latest_ack_timestamp", checkpoint.getLatestAckTimestamp());
@@ -190,7 +201,7 @@ public class CheckpointStatsHandler extends AbstractExecutionGraphRequestHandler
 
 	}
 
-	private void writeHistory(JsonGenerator gen, CheckpointStatsHistory history) throws IOException {
+	private static void writeHistory(JsonGenerator gen, CheckpointStatsHistory history) throws IOException {
 		gen.writeArrayFieldStart("history");
 		for (AbstractCheckpointStats checkpoint : history.getCheckpoints()) {
 			gen.writeStartObject();

@@ -26,6 +26,7 @@ import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 
+import java.io.IOException;
 import java.io.StringWriter;
 import java.util.Map;
 
@@ -33,13 +34,24 @@ import java.util.Map;
  * Request handler that returns the accumulators for all subtasks of job vertex.
  */
 public class SubtasksAllAccumulatorsHandler extends AbstractJobVertexRequestHandler {
+
+	private static final String SUBTASKS_ALL_ACCUMULATORS_REST_PATH = 	"/jobs/:jobid/vertices/:vertexid/subtasks/accumulators";
 	
 	public SubtasksAllAccumulatorsHandler(ExecutionGraphHolder executionGraphHolder) {
 		super(executionGraphHolder);
 	}
 
 	@Override
+	public String[] getPaths() {
+		return new String[]{SUBTASKS_ALL_ACCUMULATORS_REST_PATH};
+	}
+
+	@Override
 	public String handleRequest(AccessExecutionJobVertex jobVertex, Map<String, String> params) throws Exception {
+		return createSubtasksAccumulatorsJson(jobVertex);
+	}
+
+	public static String createSubtasksAccumulatorsJson(AccessExecutionJobVertex jobVertex) throws IOException {
 		StringWriter writer = new StringWriter();
 		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
 

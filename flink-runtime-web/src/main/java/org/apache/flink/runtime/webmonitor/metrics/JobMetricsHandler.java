@@ -32,9 +32,15 @@ import java.util.Map;
  */
 public class JobMetricsHandler extends AbstractMetricsHandler {
 	public static final String PARAMETER_JOB_ID = "jobid";
+	private static final String JOB_METRICS_REST_PATH = "/jobs/:jobid/metrics";
 
 	public JobMetricsHandler(MetricFetcher fetcher) {
 		super(fetcher);
+	}
+
+	@Override
+	public String[] getPaths() {
+		return new String[]{JOB_METRICS_REST_PATH};
 	}
 
 	@Override

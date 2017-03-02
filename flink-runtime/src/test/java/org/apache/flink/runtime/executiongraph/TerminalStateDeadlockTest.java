@@ -187,11 +187,12 @@ public class TerminalStateDeadlockTest {
 				EMPTY_CONFIG,
 				new SerializedValue<>(new ExecutionConfig()),
 				TIMEOUT,
-				new FixedDelayRestartStrategy(1, 0));
+				new FixedDelayRestartStrategy(1, 0),
+				new Scheduler(TestingUtils.defaultExecutionContext()));
 		}
 
 		@Override
-		public void scheduleForExecution(SlotProvider slotProvider) {
+		public void scheduleForExecution() {
 			// notify that we are done with the "restarting"
 			synchronized (this) {
 				done = true;

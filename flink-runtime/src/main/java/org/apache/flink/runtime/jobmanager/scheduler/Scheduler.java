@@ -30,11 +30,8 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
 import java.util.concurrent.LinkedBlockingQueue;
-
-import akka.dispatch.Futures;
 
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
@@ -55,10 +52,9 @@ import org.apache.flink.runtime.instance.InstanceListener;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.ExceptionUtils;
 
+import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.concurrent.ExecutionContext;
-import scala.concurrent.ExecutionContext$;
 
 /**
  * The scheduler is responsible for distributing the ready-to-run tasks among instances and slots.
@@ -104,23 +100,16 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 	/** The number of slot allocations where locality could not be respected */
 	private int nonLocalizedAssignments;
 
-	/** The ExecutionContext which is used to execute newSlotAvailable futures. */
-	private final ExecutionContext executionContext;
+	/** The Executor which is used to execute newSlotAvailable futures. */
+	private final Executor executor;
 
 	// ------------------------------------------------------------------------
 
 	/**
 	 * Creates a new scheduler.
 	 */
-	public Scheduler(ExecutorService executor) {
-		this(ExecutionContext$.MODULE$.fromExecutor(executor));
-	}
-	
-	/**
-	 * Creates a new scheduler.
-	 */
-	public Scheduler(ExecutionContext executionContext) {
-		this.executionContext = executionContext;
+	public Scheduler(Executor executor) {
+		this.executor = Preconditions.checkNotNull(executor);
 	}
 	
 	/**
@@ -543,15 +532,14 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 		// 
 		// that leads with a high probability to deadlocks, when scheduling fast
 
-		this.newlyAvailableInstances.add(instance);
+		newlyAvailableInstances.add(instance);
 
-		Futures.future(new Callable<Object>() {
+		executor.execute(new Runnable() {
 			@Override
-			public Object call() throws Exception {
+			public void run() {
 				handleNewSlot();
-				return null;
 			}
-		}, executionContext);
+		});
 	}
 	
 	private void handleNewSlot() {

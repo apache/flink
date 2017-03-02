@@ -25,6 +25,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Collections;
@@ -35,6 +36,14 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class CheckpointConfigHandlerTest {
+
+	@Test
+	public void testGetPaths() {
+		CheckpointConfigHandler handler = new CheckpointConfigHandler(mock(ExecutionGraphHolder.class));
+		String[] paths = handler.getPaths();
+		Assert.assertEquals(1, paths.length);
+		Assert.assertEquals("/jobs/:jobid/checkpoints/config", paths[0]);
+	}
 
 	/**
 	 * Tests a simple config.

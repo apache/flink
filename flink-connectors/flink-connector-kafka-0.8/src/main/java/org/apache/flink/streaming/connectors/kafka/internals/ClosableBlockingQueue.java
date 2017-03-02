@@ -355,13 +355,13 @@ public class ClosableBlockingQueue<E> {
 			throw new IllegalArgumentException("invalid timeout");
 		}
 		
-		final long deadline = System.currentTimeMillis() + timeoutMillis;
+		final long deadline = System.nanoTime() + timeoutMillis * 1_000_000L;
 		
 		lock.lock();
 		try {
 			while (open && elements.isEmpty() && timeoutMillis > 0) { 
 				nonEmpty.await(timeoutMillis, TimeUnit.MILLISECONDS);
-				timeoutMillis = deadline - System.currentTimeMillis();
+				timeoutMillis = (deadline - System.nanoTime()) / 1_000_000L;
 			}
 			
 			if (!open) {
@@ -437,13 +437,13 @@ public class ClosableBlockingQueue<E> {
 			throw new IllegalArgumentException("invalid timeout");
 		}
 
-		final long deadline = System.currentTimeMillis() + timeoutMillis;
+		final long deadline = System.nanoTime() + timeoutMillis * 1_000_000L;
 
 		lock.lock();
 		try {
 			while (open && elements.isEmpty() && timeoutMillis > 0) {
 				nonEmpty.await(timeoutMillis, TimeUnit.MILLISECONDS);
-				timeoutMillis = deadline - System.currentTimeMillis();
+				timeoutMillis = (deadline - System.nanoTime()) / 1_000_000L;
 			}
 
 			if (!open) {

@@ -296,7 +296,7 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 		}
 
 		// validate that the topic has been created
-		final long deadline = System.currentTimeMillis() + 30000;
+		final long deadline = System.nanoTime() + 30_000_000_000L;
 		do {
 			try {
 				if(secureMode) {
@@ -321,7 +321,7 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 			}
 			checkZKConn.close();
 		}
-		while (System.currentTimeMillis() < deadline);
+		while (System.nanoTime() < deadline);
 		fail("Test topic could not be created");
 	}
 

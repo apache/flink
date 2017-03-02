@@ -38,11 +38,18 @@ import java.util.Map;
  */
 public class CheckpointStatsDetailsHandler extends AbstractExecutionGraphRequestHandler {
 
+	private static final String CHECKPOINT_STATS_DETAILS_REST_PATH = "/jobs/:jobid/checkpoints/details/:checkpointid";
+
 	private final CheckpointStatsCache cache;
 
 	public CheckpointStatsDetailsHandler(ExecutionGraphHolder executionGraphHolder, CheckpointStatsCache cache) {
 		super(executionGraphHolder);
 		this.cache = cache;
+	}
+
+	@Override
+	public String[] getPaths() {
+		return new String[]{CHECKPOINT_STATS_DETAILS_REST_PATH};
 	}
 
 	@Override
@@ -69,10 +76,10 @@ public class CheckpointStatsDetailsHandler extends AbstractExecutionGraphRequest
 			}
 		}
 
-		return writeResponse(checkpoint);
+		return createCheckpointDetailsJson(checkpoint);
 	}
 
-	private String writeResponse(AbstractCheckpointStats checkpoint) throws IOException {
+	public static String createCheckpointDetailsJson(AbstractCheckpointStats checkpoint) throws IOException {
 		StringWriter writer = new StringWriter();
 		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
 		gen.writeStartObject();

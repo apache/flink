@@ -36,6 +36,7 @@ import java.io.IOException;
 import java.io.StringWriter;
 import java.util.Map;
 
+import static org.apache.flink.runtime.webmonitor.handlers.checkpoints.CheckpointStatsHandler.writeMinMaxAvg;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -44,11 +45,18 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class CheckpointStatsDetailsSubtasksHandler extends AbstractExecutionGraphRequestHandler {
 
+	private static final String CHECKPOINT_STATS_DETAILS_SUBTASKS_REST_PATH = "/jobs/:jobid/checkpoints/details/:checkpointid/subtasks/:vertexid";
+
 	private final CheckpointStatsCache cache;
 
 	public CheckpointStatsDetailsSubtasksHandler(ExecutionGraphHolder executionGraphHolder, CheckpointStatsCache cache) {
 		super(executionGraphHolder);
 		this.cache = checkNotNull(cache);
+	}
+
+	@Override
+	public String[] getPaths() {
+		return new String[]{CHECKPOINT_STATS_DETAILS_SUBTASKS_REST_PATH};
 	}
 
 	@Override
@@ -88,19 +96,19 @@ public class CheckpointStatsDetailsSubtasksHandler extends AbstractExecutionGrap
 			}
 		}
 
-		return writeResponse(checkpoint, vertexId);
-	}
-
-	private String writeResponse(AbstractCheckpointStats checkpoint, JobVertexID vertexId) throws IOException {
-		StringWriter writer = new StringWriter();
-		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
-		gen.writeStartObject();
-
 		TaskStateStats taskStats = checkpoint.getTaskStateStats(vertexId);
 		if (taskStats == null) {
 			return "{}";
 		}
+		
+		return createSubtaskCheckpointDetailsJson(checkpoint, taskStats);
+	}
 
+	private static String createSubtaskCheckpointDetailsJson(AbstractCheckpointStats checkpoint, TaskStateStats taskStats) throws IOException {
+		StringWriter writer = new StringWriter();
+		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
+
+		gen.writeStartObject();
 		// Overview
 		gen.writeNumberField("id", checkpoint.getCheckpointId());
 		gen.writeStringField("status", checkpoint.getStatus().toString());
@@ -179,12 +187,6 @@ public class CheckpointStatsDetailsSubtasksHandler extends AbstractExecutionGrap
 		gen.close();
 
 		return writer.toString();
-	}
-
-	private void writeMinMaxAvg(JsonGenerator gen, MinMaxAvgStats minMaxAvg) throws IOException {
-		gen.writeNumberField("min", minMaxAvg.getMinimum());
-		gen.writeNumberField("max", minMaxAvg.getMaximum());
-		gen.writeNumberField("avg", minMaxAvg.getAverage());
 	}
 
 }

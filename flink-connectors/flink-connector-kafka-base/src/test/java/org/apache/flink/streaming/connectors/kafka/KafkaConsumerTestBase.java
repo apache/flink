@@ -233,7 +233,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		runner.start();
 
 		final Long l50 = 50L; // the final committed offset in Kafka should be 50
-		final long deadline = 30000 + System.currentTimeMillis();
+		final long deadline = 30_000_000_000L + System.nanoTime();
 
 		KafkaTestEnvironment.KafkaOffsetHandler kafkaOffsetHandler = kafkaServer.createOffsetHandler();
 
@@ -248,7 +248,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 			Thread.sleep(100);
 		}
-		while (System.currentTimeMillis() < deadline);
+		while (System.nanoTime() < deadline);
 
 		// cancel the job
 		JobManagerCommunicationUtils.cancelCurrentJob(flink.getLeaderGateway(timeout));
@@ -406,7 +406,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		KafkaTestEnvironment.KafkaOffsetHandler kafkaOffsetHandler = kafkaServer.createOffsetHandler();
 
 		final Long l50 = 50L; // the final committed offset in Kafka should be 50
-		final long deadline = 30000 + System.currentTimeMillis();
+		final long deadline = 30_000_000_000L + System.nanoTime();
 		do {
 			Long o1 = kafkaOffsetHandler.getCommittedOffset(topicName, 0);
 			Long o2 = kafkaOffsetHandler.getCommittedOffset(topicName, 1);
@@ -418,7 +418,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 			Thread.sleep(100);
 		}
-		while (System.currentTimeMillis() < deadline);
+		while (System.nanoTime() < deadline);
 
 		// cancel the job
 		JobManagerCommunicationUtils.cancelCurrentJob(flink.getLeaderGateway(timeout));
@@ -2018,10 +2018,10 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			};
 			runner.start();
 			
-			final long deadline = System.currentTimeMillis() + 10000;
+			final long deadline = System.nanoTime() + 10_000_000_000L;
 			long delay;
-			while (runner.isAlive() && (delay = deadline - System.currentTimeMillis()) > 0) {
-				runner.join(delay);
+			while (runner.isAlive() && (delay = deadline - System.nanoTime()) > 0) {
+				runner.join(delay/1_000_000L);
 			}
 			
 			boolean success;

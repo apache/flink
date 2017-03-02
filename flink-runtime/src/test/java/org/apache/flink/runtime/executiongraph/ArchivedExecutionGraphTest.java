@@ -35,6 +35,7 @@ import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
+import org.apache.flink.runtime.instance.SlotProvider;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -103,12 +104,18 @@ public class ArchivedExecutionGraphTest {
 			new Configuration(),
 			new SerializedValue<>(config),
 			AkkaUtils.getDefaultTimeout(),
-			new NoRestartStrategy());
+			new NoRestartStrategy(),
+			mock(SlotProvider.class));
+
 		runtimeGraph.attachJobGraph(vertices);
 
+		List<ExecutionJobVertex> jobVertices = new ArrayList<>();
+		jobVertices.add(runtimeGraph.getJobVertex(v1ID));
+		jobVertices.add(runtimeGraph.getJobVertex(v2ID));
+		
 		CheckpointStatsTracker statsTracker = new CheckpointStatsTracker(
 				0,
-				Collections.<ExecutionJobVertex>emptyList(),
+				jobVertices,
 				mock(JobSnapshottingSettings.class),
 				new UnregisteredMetricsGroup());
 

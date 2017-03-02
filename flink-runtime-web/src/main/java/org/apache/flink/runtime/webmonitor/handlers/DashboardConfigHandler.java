@@ -22,6 +22,7 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 
+import java.io.IOException;
 import java.io.StringWriter;
 import java.util.Map;
 import java.util.TimeZone;
@@ -32,42 +33,54 @@ import java.util.TimeZone;
  * and time zone of the server timestamps.
  */
 public class DashboardConfigHandler extends AbstractJsonRequestHandler {
+
+	private static String DASHBOARD_CONFIG_REST_PATH = "/config";
 	
 	private final String configString;
 	
 	public DashboardConfigHandler(long refreshInterval) {
-		TimeZone timeZome = TimeZone.getDefault();
-		String timeZoneName = timeZome.getDisplayName();
-		long timeZoneOffset= timeZome.getRawOffset();
-
 		try {
-			StringWriter writer = new StringWriter();
-			JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
-	
-			gen.writeStartObject();
-			gen.writeNumberField("refresh-interval", refreshInterval);
-			gen.writeNumberField("timezone-offset", timeZoneOffset);
-			gen.writeStringField("timezone-name", timeZoneName);
-			gen.writeStringField("flink-version", EnvironmentInformation.getVersion());
-
-			EnvironmentInformation.RevisionInformation revision = EnvironmentInformation.getRevisionInformation();
-			if (revision != null) {
-				gen.writeStringField("flink-revision", revision.commitId + " @ " + revision.commitDate);
-			}
-
-			gen.writeEndObject();
-	
-			gen.close();
-			this.configString = writer.toString();
+			this.configString = createConfigJson(refreshInterval);
 		}
 		catch (Exception e) {
 			// should never happen
 			throw new RuntimeException(e.getMessage(), e);
 		}
 	}
+
+	@Override
+	public String[] getPaths() {
+		return new String[]{DASHBOARD_CONFIG_REST_PATH};
+	}
 	
 	@Override
 	public String handleJsonRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
 		return this.configString;
+	}
+
+	public static String createConfigJson(long refreshInterval) throws IOException {
+		StringWriter writer = new StringWriter();
+		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
+	
+		TimeZone timeZone = TimeZone.getDefault();
+		String timeZoneName = timeZone.getDisplayName();
+		long timeZoneOffset = timeZone.getRawOffset();
+
+		gen.writeStartObject();
+		gen.writeNumberField("refresh-interval", refreshInterval);
+		gen.writeNumberField("timezone-offset", timeZoneOffset);
+		gen.writeStringField("timezone-name", timeZoneName);
+		gen.writeStringField("flink-version", EnvironmentInformation.getVersion());
+
+		EnvironmentInformation.RevisionInformation revision = EnvironmentInformation.getRevisionInformation();
+		if (revision != null) {
+			gen.writeStringField("flink-revision", revision.commitId + " @ " + revision.commitDate);
+		}
+
+		gen.writeEndObject();
+
+		gen.close();
+
+		return writer.toString();
 	}
 }
