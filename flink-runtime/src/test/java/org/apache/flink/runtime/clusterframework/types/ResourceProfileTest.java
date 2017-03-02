@@ -27,10 +27,10 @@ public class ResourceProfileTest {
 
 	@Test
 	public void testMatchRequirement() throws Exception {
-		ResourceProfile rp1 = new ResourceProfile(1.0, 100);
-		ResourceProfile rp2 = new ResourceProfile(1.0, 200);
-		ResourceProfile rp3 = new ResourceProfile(2.0, 100);
-		ResourceProfile rp4 = new ResourceProfile(2.0, 200);
+		ResourceProfile rp1 = new ResourceProfile(1.0, 100, 100, 100);
+		ResourceProfile rp2 = new ResourceProfile(1.0, 200, 200, 200);
+		ResourceProfile rp3 = new ResourceProfile(2.0, 100, 100, 100);
+		ResourceProfile rp4 = new ResourceProfile(2.0, 200, 200, 200);
 
 		assertFalse(rp1.isMatching(rp2));
 		assertTrue(rp2.isMatching(rp1));

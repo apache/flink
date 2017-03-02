@@ -86,7 +86,7 @@ public class TaskExecutorITCase {
 		final String jmAddress = "jm";
 		final UUID jmLeaderId = UUID.randomUUID();
 		final JobID jobId = new JobID();
-		final ResourceProfile resourceProfile = new ResourceProfile(1.0, 1L);
+		final ResourceProfile resourceProfile = new ResourceProfile(1.0, 1);
 
 		testingHAServices.setResourceManagerLeaderElectionService(rmLeaderElectionService);
 		testingHAServices.setResourceManagerLeaderRetriever(rmLeaderRetrievalService);
