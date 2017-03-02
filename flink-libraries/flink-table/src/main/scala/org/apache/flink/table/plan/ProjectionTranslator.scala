@@ -110,7 +110,8 @@ object ProjectionTranslator {
       aggNames: Map[Expression, String],
       propNames: Map[Expression, String]): Seq[NamedExpression] = {
     val projectedNames = new mutable.HashSet[String]
-    exprs.map((exp: Expression) => replaceAggregationsAndProperties(exp, tableEnv, aggNames, propNames, projectedNames))
+    exprs.map((exp: Expression) => replaceAggregationsAndProperties(exp, tableEnv,
+      aggNames, propNames, projectedNames))
         .map(UnresolvedAlias)
   }
 
@@ -144,27 +145,33 @@ object ProjectionTranslator {
         Alias(UnresolvedFieldReference(pName), name)
       case l: LeafExpression => l
       case u: UnaryExpression =>
-        val c = replaceAggregationsAndProperties(u.child, tableEnv, aggNames, propNames, projectedNames)
+        val c = replaceAggregationsAndProperties(u.child, tableEnv,
+          aggNames, propNames, projectedNames)
         u.makeCopy(Array(c))
       case b: BinaryExpression =>
-        val l = replaceAggregationsAndProperties(b.left, tableEnv, aggNames, propNames, projectedNames)
-        val r = replaceAggregationsAndProperties(b.right, tableEnv, aggNames, propNames, projectedNames)
+        val l = replaceAggregationsAndProperties(b.left, tableEnv,
+          aggNames, propNames, projectedNames)
+        val r = replaceAggregationsAndProperties(b.right, tableEnv,
+          aggNames, propNames, projectedNames)
         b.makeCopy(Array(l, r))
 
       // Functions calls
       case c @ Call(name, args) =>
-        val newArgs = args.map((exp: Expression) => replaceAggregationsAndProperties(exp, tableEnv, aggNames, propNames, projectedNames))
+        val newArgs = args.map((exp: Expression) =>
+          replaceAggregationsAndProperties(exp, tableEnv, aggNames, propNames, projectedNames))
         c.makeCopy(Array(name, newArgs))
 
       case sfc @ ScalarFunctionCall(clazz, args) =>
         val newArgs: Seq[Expression] = args
-          .map((exp: Expression) => replaceAggregationsAndProperties(exp, tableEnv, aggNames, propNames, projectedNames))
+          .map((exp: Expression) =>
+            replaceAggregationsAndProperties(exp, tableEnv, aggNames, propNames, projectedNames))
         sfc.makeCopy(Array(clazz, newArgs))
 
       // array constructor
       case c @ ArrayConstructor(args) =>
         val newArgs = c.elements
-          .map((exp: Expression) => replaceAggregationsAndProperties(exp, tableEnv, aggNames, propNames, projectedNames))
+          .map((exp: Expression) =>
+            replaceAggregationsAndProperties(exp, tableEnv, aggNames, propNames, projectedNames))
         c.makeCopy(Array(newArgs))
 
       // General expression

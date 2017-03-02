@@ -40,7 +40,7 @@ class WindowAggregateTest extends TableTestBase {
           unaryNode(
             "DataStreamCalc",
             streamTableNode(0),
-            term("select", "CAST(1970-01-01 00:00:00) AS $f0")
+            term("select", "1970-01-01 00:00:00 AS $f0")
           ),
           term("window", EventTimeTumblingGroupWindow(None, 'rowtime, 3600000.millis)),
           term("select", "COUNT(*) AS EXPR$0")
@@ -61,7 +61,7 @@ class WindowAggregateTest extends TableTestBase {
           unaryNode(
             "DataStreamCalc",
             streamTableNode(0),
-            term("select", "a", "CAST(1970-01-01 00:00:00) AS $f1")
+            term("select", "a", "1970-01-01 00:00:00 AS $f1")
           ),
           term("groupBy", "a"),
           term("window", EventTimeTumblingGroupWindow(None, 'rowtime, 60000.millis)),
@@ -83,7 +83,7 @@ class WindowAggregateTest extends TableTestBase {
           unaryNode(
             "DataStreamCalc",
             streamTableNode(0),
-            term("select", "a", "CAST(1970-01-01 00:00:00) AS $f1, b, c")
+            term("select", "a", "1970-01-01 00:00:00 AS $f1, b, c")
           ),
           term("groupBy", "a, b"),
           term("window", EventTimeTumblingGroupWindow(None, 'rowtime, 1000.millis)),
@@ -105,7 +105,7 @@ class WindowAggregateTest extends TableTestBase {
           unaryNode(
             "DataStreamCalc",
             streamTableNode(0),
-            term("select", "CAST(1970-01-01 00:00:00) AS $f0")
+            term("select", "1970-01-01 00:00:00 AS $f0")
           ),
           term("window", ProcessingTimeTumblingGroupWindow(None, 3600000.millis)),
           term("select", "COUNT(*) AS EXPR$0")

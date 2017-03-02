@@ -76,7 +76,7 @@ case class ScalarFunctionCall(
   override def toString =
     s"${scalarFunction.getClass.getCanonicalName}(${parameters.mkString(", ")})"
 
-  override private[flink] def resultType = getResultType(scalarFunction, foundSignature.get)
+  override private[flink] def resultType = getResultType(scalarFunction, foundSignature.get)._1
 
   override private[flink] def validateInput(): ValidationResult = {
     val signature = children.map(_.resultType)

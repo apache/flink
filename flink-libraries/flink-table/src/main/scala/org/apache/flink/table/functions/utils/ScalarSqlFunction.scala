@@ -84,8 +84,9 @@ object ScalarSqlFunction {
               s"Actual: ${signatureToString(parameters)} \n" +
               s"Expected: ${signaturesToString(scalarFunction)}")
         }
-        val resultType = getResultType(scalarFunction, foundSignature.get)
-        typeFactory.createTypeFromTypeInfo(resultType)
+        val (resultType, primitive) = getResultType(scalarFunction, foundSignature.get)
+        val t = typeFactory.createTypeFromTypeInfo(resultType)
+        typeFactory.createTypeWithNullability(t, !primitive)
       }
     }
   }
