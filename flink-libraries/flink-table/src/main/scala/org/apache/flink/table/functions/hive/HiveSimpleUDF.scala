@@ -36,7 +36,7 @@ import scala.annotation.varargs
   * <code> eval(args: Any*) </code> to <code>eval(args: Seq)</code>.
   * This will cause an exception in Janino compiler.
   */
-class HiveSimpleUDF(name: String, functionWrapper: HiveFunctionWrapper) extends ScalarFunction {
+class HiveSimpleUDF(functionWrapper: HiveFunctionWrapper) extends ScalarFunction {
 
   @transient
   private lazy val function = functionWrapper.createFunction[UDF]()
