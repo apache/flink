@@ -24,26 +24,29 @@ import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
+import org.apache.calcite.rel.SingleRel;
 import org.apache.calcite.rel.core.Window.Group;
 import org.apache.calcite.rel.core.Window.RexWinAggCall;
 import org.apache.calcite.rel.logical.LogicalWindow;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexInputRef;
+import org.apache.calcite.rex.RexNode;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.table.api.StreamTableEnvironment;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.calcite.FlinkTypeFactory;
 import org.apache.flink.table.plan.logical.rel.util.WindowAggregateUtil;
 import org.apache.flink.table.plan.nodes.datastream.function.DataStreamProcTimeAggregateRowGlobalWindowFunction;
 import org.apache.flink.table.plan.nodes.datastream.function.DataStreamProcTimeAggregateRowKeyedWindowFunction;
 import org.apache.flink.types.Row;
 
-public class DataStreamProcTimeRowAggregate extends DataStreamRelJava {
+import scala.Option;
+
+public class DataStreamProcTimeRowAggregate extends SingleRel implements DataStreamRel {
 
 	protected LogicalWindow windowRef;
 	protected String description;
@@ -67,7 +70,7 @@ public class DataStreamProcTimeRowAggregate extends DataStreamRelJava {
 	public RelNode copy(RelTraitSet traitSet, java.util.List<RelNode> inputs) {
 
 		if (inputs.size() != 1) {
-			System.err.println(this.getClass().getName() + " : Input size must be one!");
+			throw new IllegalArgumentException(this.getClass().getName() + " : Input size must be one!");
 		}
 
 		return new DataStreamProcTimeRowAggregate(getCluster(), traitSet, inputs.get(0), getRowType(), getDescription(),
@@ -75,13 +78,9 @@ public class DataStreamProcTimeRowAggregate extends DataStreamRelJava {
 	}
 
 	@Override
-	public DataStream<Row> translateToPlan(StreamTableEnvironment tableEnv, Row ignore) {
-
-		TableConfig config = tableEnv.getConfig();
+	public DataStream<Row> translateToPlan(StreamTableEnvironment tableEnv) {
 
 		DataStream<Row> inputDS = ((DataStreamRel) getInput()).translateToPlan(tableEnv);
-		
-		System.out.println(inputDS);
 		
 		TypeInformation<?>[] rowType = new TypeInformation<?>[getRowType().getFieldList().size()];
 		int i=0;
@@ -93,10 +92,6 @@ public class DataStreamProcTimeRowAggregate extends DataStreamRelJava {
 		TypeInformation<Row> returnType = new RowTypeInfo(rowType);
 				
 		DataStream<Row> aggregateWindow = null;
-
-		// TODO check type and return type consistency
-
-		KeyedStream<Row, Tuple> keyedS = null;
 
 		// assumption of one group per window reference
 		final Group group = windowRef.groups.iterator().next();
@@ -110,16 +105,11 @@ public class DataStreamProcTimeRowAggregate extends DataStreamRelJava {
 			indexes.add(((RexInputRef) agg.getOperands().get(0)).getIndex());
 		}
 
-		int lowerbound = winUtil.getLowerBoundary(windowRef.constants);
-		
-		if (lowerbound == -1) {
-			// TODO manage error
-		}
+		int lowerbound = winUtil.getLowerBoundary(windowRef.constants, group.lowerBound, getInput());
 
-		// apply partitions
 		if (winUtil.isStreamPartitioned(windowRef)) {
-
-			keyedS = inputDS.keyBy(winUtil.getKeysAsArray(group));
+			// apply partitions
+			KeyedStream<Row, Tuple> keyedS = inputDS.keyBy(winUtil.getKeysAsArray(group));
 			aggregateWindow = keyedS.countWindow(lowerbound, 1)
 					.apply(new DataStreamProcTimeAggregateRowKeyedWindowFunction(aggregators, indexes, typeClasses))
 					.returns((TypeInformation<Row>) returnType);
@@ -145,16 +135,21 @@ public class DataStreamProcTimeRowAggregate extends DataStreamRelJava {
 		super.explain(pw);
 	}
 
-	// @Override
-	// public RelWriter explainTerms(RelWriter pw) {
-	// for (Group group : window.groups) {
-	// pw.item("Order", group.orderKeys.getFieldCollations());
-	// pw.item("PartitionBy", group.keys);
-	// pw.item("Time", "ProcTime()");
-	// pw.item("LowBoundary", group.lowerBound);
-	// pw.item("UpperBoundary", group.upperBound);
-	// }
-	// return pw;
-	// }
+	@Override
+	public String getExpressionString(RexNode expr, scala.collection.immutable.List<String> inFields,
+			Option<scala.collection.immutable.List<RexNode>> localExprsTable) {
+		return null;
+	}
+
+	@Override
+	public double estimateRowSize(RelDataType rowType) {
+		return 0;
+	}
+
+	@Override
+	public double estimateDataTypeSize(RelDataType t) {
+		return 0;
+	}
+
 
 }

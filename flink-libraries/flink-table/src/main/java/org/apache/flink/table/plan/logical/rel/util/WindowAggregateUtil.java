@@ -20,9 +20,12 @@ package org.apache.flink.table.plan.logical.rel.util;
 import java.io.Serializable;
 import java.util.List;
 
+import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Window.Group;
 import org.apache.calcite.rel.logical.LogicalWindow;
+import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexLiteral;
+import org.apache.calcite.rex.RexWindowBound;
 
 import com.google.common.collect.ImmutableList;
 
@@ -74,11 +77,17 @@ public class WindowAggregateUtil implements Serializable {
 	 * 
 	 * @param constants
 	 *            the list of constant to get the offset value
+	 * @param lowerBound 
+	 * @param input 
 	 * @return return the value of the lowerbound if available -1 otherwise
 	 */
 
-	public int getLowerBoundary(ImmutableList<RexLiteral> constants) {
-		return ((Long)constants.get(0).getValue2()).intValue();
+	public int getLowerBoundary(ImmutableList<RexLiteral> constants, RexWindowBound lowerBound, RelNode input) {
+		RexInputRef ref = (RexInputRef) lowerBound.getOffset();
+		int index = ref.getIndex();
+		int count = input.getRowType().getFieldCount();
+		int lowerboundIndex = index - count;
+		return ((Long)constants.get(lowerboundIndex).getValue2()).intValue();
 	}
 
 	

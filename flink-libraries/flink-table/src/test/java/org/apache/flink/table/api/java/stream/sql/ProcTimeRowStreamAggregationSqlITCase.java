@@ -168,7 +168,7 @@ public class ProcTimeRowStreamAggregationSqlITCase extends StreamingMultipleProg
 
 		String sqlQuery = "SELECT a, "
 				+ "SUM(c) OVER (PARTITION BY a ORDER BY procTime() ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) AS sumC,"
-				+ "MIN(c) OVER (PARTITION BY a ORDER BY procTime() ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) AS sumC"
+				+ "MIN(c) OVER (PARTITION BY a ORDER BY procTime() ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) AS minC"
 				+ " FROM MyTable";
 		Table result = tableEnv.sql(sqlQuery);
 
@@ -270,6 +270,44 @@ public class ProcTimeRowStreamAggregationSqlITCase extends StreamingMultipleProg
 		expected.add("5,11");
 		expected.add("5,13");
 		expected.add("5,13");
+
+		StreamITCase.compareWithList(expected);
+	}
+	@Test
+	public void testAvgAggregatation2() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+		StreamITCase.clear();
+
+		env.setParallelism(1);
+		
+		DataStream<Tuple5<Integer, Long, Integer, String, Long>> ds = StreamTestData.get5TupleDataStream(env);
+		Table in = tableEnv.fromDataStream(ds, "a,b,c,d,e");
+		tableEnv.registerTable("MyTable", in);
+
+		String sqlQuery = "SELECT a, AVG(c) OVER (PARTITION BY a ORDER BY procTime() ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) AS avgC, d FROM MyTable";
+		Table result = tableEnv.sql(sqlQuery);
+
+		DataStream<Row> resultSet = tableEnv.toDataStream(result, Row.class);
+		resultSet.addSink(new StreamITCase.StringSink());
+		env.execute();
+
+		List<String> expected = new ArrayList<>();
+		expected.add("1,0,Hallo");
+		expected.add("2,1,Hallo Welt");
+		expected.add("2,1,Hallo Welt wie");
+		expected.add("3,3,ABC");
+		expected.add("3,3,Hallo Welt wie gehts?");
+		expected.add("3,4,BCD");
+		expected.add("4,6,CDE");
+		expected.add("4,6,DEF");
+		expected.add("4,7,EFG");
+		expected.add("4,8,FGH");
+		expected.add("5,10,GHI");
+		expected.add("5,10,HIJ");
+		expected.add("5,11,IJK");
+		expected.add("5,13,JKL");
+		expected.add("5,13,KLM");
 
 		StreamITCase.compareWithList(expected);
 	}
