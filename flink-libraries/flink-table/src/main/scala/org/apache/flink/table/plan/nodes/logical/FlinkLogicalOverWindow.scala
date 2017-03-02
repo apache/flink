@@ -45,7 +45,7 @@ class FlinkLogicalOverWindow(
       traitSet,
       inputs.get(0),
       windowConstants,
-      rowType,
+      getRowType,
       windowGroups)
   }
 }

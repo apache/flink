@@ -91,6 +91,9 @@ class DataSetAggregate(
   override def translateToPlan(tableEnv: BatchTableEnvironment): DataSet[Row] = {
 
     val inputDS = getInput.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
+    val input = inputNode.asInstanceOf[DataSetRel]
+
+    val rowTypeInfo = FlinkTypeFactory.toInternalRowTypeInfo(getRowType).asInstanceOf[RowTypeInfo]
 
     val generator = new CodeGenerator(
       tableEnv.getConfig,
@@ -104,14 +107,13 @@ class DataSetAggregate(
       ) = AggregateUtil.createDataSetAggregateFunctions(
         generator,
         namedAggregates,
-        inputType,
+        input.getRowType,
+        inputDS.getType.asInstanceOf[RowTypeInfo].getFieldTypes,
         rowRelDataType,
         grouping,
         inGroupingSet)
 
     val aggString = aggregationToString(inputType, grouping, getRowType, namedAggregates, Nil)
-
-    val rowTypeInfo = FlinkTypeFactory.toInternalRowTypeInfo(getRowType).asInstanceOf[RowTypeInfo]
 
     if (grouping.length > 0) {
       // grouped aggregation

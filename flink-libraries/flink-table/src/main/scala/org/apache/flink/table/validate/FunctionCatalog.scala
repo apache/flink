@@ -24,7 +24,7 @@ import org.apache.calcite.sql.{SqlFunction, SqlOperator, SqlOperatorTable}
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.utils.{AggSqlFunction, ScalarSqlFunction, TableSqlFunction}
-import org.apache.flink.table.functions.{AggregateFunction, EventTimeExtractor, RowTime, ScalarFunction, TableFunction, _}
+import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -242,15 +242,11 @@ object FunctionCatalog {
     // array
     "cardinality" -> classOf[ArrayCardinality],
     "at" -> classOf[ArrayElementAt],
-    "element" -> classOf[ArrayElement],
+    "element" -> classOf[ArrayElement]
 
     // TODO implement function overloading here
     // "floor" -> classOf[TemporalFloor]
     // "ceil" -> classOf[TemporalCeil]
-
-    // extensions to support streaming query
-    "rowtime" -> classOf[RowTime],
-    "proctime" -> classOf[ProcTime]
   )
 
   /**
@@ -392,8 +388,6 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     SqlStdOperatorTable.ROUND,
     SqlStdOperatorTable.PI,
     // EXTENSIONS
-    EventTimeExtractor,
-    ProcTimeExtractor,
     SqlStdOperatorTable.TUMBLE,
     SqlStdOperatorTable.TUMBLE_START,
     SqlStdOperatorTable.TUMBLE_END,

@@ -18,7 +18,6 @@
 package org.apache.flink.table.plan.nodes.datastream
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
-import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.calcite.rex.{RexCall, RexNode}
 import org.apache.calcite.sql.SemiJoinType
@@ -28,6 +27,7 @@ import org.apache.flink.table.api.StreamTableEnvironment
 import org.apache.flink.table.functions.utils.TableSqlFunction
 import org.apache.flink.table.plan.nodes.CommonCorrelate
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalTableFunctionScan
+import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.types.Row
 
 /**
@@ -36,28 +36,30 @@ import org.apache.flink.types.Row
 class DataStreamCorrelate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
+    inputSchema: RowSchema,
     inputNode: RelNode,
     scan: FlinkLogicalTableFunctionScan,
     condition: Option[RexNode],
-    relRowType: RelDataType,
-    joinRowType: RelDataType,
+    schema: RowSchema,
+    joinSchema: RowSchema,
     joinType: SemiJoinType,
     ruleDescription: String)
   extends SingleRel(cluster, traitSet, inputNode)
   with CommonCorrelate
   with DataStreamRel {
 
-  override def deriveRowType() = relRowType
+  override def deriveRowType() = schema.logicalType
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new DataStreamCorrelate(
       cluster,
       traitSet,
+      inputSchema,
       inputs.get(0),
       scan,
       condition,
-      relRowType,
-      joinRowType,
+      schema,
+      joinSchema,
       joinType,
       ruleDescription)
   }
@@ -74,7 +76,7 @@ class DataStreamCorrelate(
     super.explainTerms(pw)
       .item("invocation", scan.getCall)
       .item("function", sqlFunction.getTableFunction.getClass.getCanonicalName)
-      .item("rowType", relRowType)
+      .item("rowType", schema.logicalType)
       .item("joinType", joinType)
       .itemIf("condition", condition.orNull, condition.isDefined)
   }
@@ -94,16 +96,16 @@ class DataStreamCorrelate(
 
     val mapFunc = correlateMapFunction(
       config,
-      inputDS.getType,
+      inputSchema,
       udtfTypeInfo,
-      getRowType,
+      schema,
       joinType,
       rexCall,
       condition,
       Some(pojoFieldMapping),
       ruleDescription)
 
-    inputDS.flatMap(mapFunc).name(correlateOpName(rexCall, sqlFunction, relRowType))
+    inputDS.flatMap(mapFunc).name(correlateOpName(rexCall, sqlFunction, schema.logicalType))
   }
 
 }

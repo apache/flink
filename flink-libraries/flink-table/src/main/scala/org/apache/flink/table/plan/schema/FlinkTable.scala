@@ -48,10 +48,11 @@ abstract class FlinkTable[T](
   val fieldTypes: Array[TypeInformation[_]] =
     typeInfo match {
       case cType: CompositeType[_] =>
-        if (fieldNames.length != cType.getArity) {
+        // it is ok to leave out fields
+        if (fieldNames.length > cType.getArity) {
           throw new TableException(
           s"Arity of type (" + cType.getFieldNames.deep + ") " +
-            "not equal to number of field names " + fieldNames.deep + ".")
+            "must not be greater than number of field names " + fieldNames.deep + ".")
         }
         fieldIndexes.map(cType.getTypeAt(_).asInstanceOf[TypeInformation[_]])
       case aType: AtomicType[_] =>
@@ -64,7 +65,7 @@ abstract class FlinkTable[T](
 
   override def getRowType(typeFactory: RelDataTypeFactory): RelDataType = {
     val flinkTypeFactory = typeFactory.asInstanceOf[FlinkTypeFactory]
-    flinkTypeFactory.buildRowDataType(fieldNames, fieldTypes)
+    flinkTypeFactory.buildLogicalRowType(fieldNames, fieldTypes, None, None)
   }
 
   /**

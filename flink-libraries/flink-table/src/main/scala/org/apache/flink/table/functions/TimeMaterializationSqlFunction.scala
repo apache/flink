@@ -15,22 +15,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.flink.table.functions
 
-package org.apache.flink.table.plan.nodes.datastream
+import org.apache.calcite.sql._
+import org.apache.calcite.sql.`type`._
+import org.apache.calcite.sql.validate.SqlMonotonicity
 
-import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.table.api.StreamTableEnvironment
-import org.apache.flink.table.plan.nodes.FlinkRelNode
-import org.apache.flink.types.Row
+/**
+  * Function that materializes a time attribute to the metadata timestamp. After materialization
+  * the result can be used in regular arithmetical calculations.
+  */
+object TimeMaterializationSqlFunction
+  extends SqlFunction(
+    "TIME_MATERIALIZATION",
+    SqlKind.OTHER_FUNCTION,
+    ReturnTypes.explicit(SqlTypeName.TIMESTAMP),
+    InferTypes.RETURN_TYPE,
+    OperandTypes.family(SqlTypeFamily.TIMESTAMP),
+    SqlFunctionCategory.SYSTEM) {
 
-trait DataStreamRel extends FlinkRelNode {
+  override def getSyntax: SqlSyntax = SqlSyntax.FUNCTION
 
-  /**
-    * Translates the FlinkRelNode into a Flink operator.
-    *
-    * @param tableEnv The [[StreamTableEnvironment]] of the translated Table.
-    * @return DataStream of type [[Row]]
-    */
-  def translateToPlan(tableEnv: StreamTableEnvironment) : DataStream[Row]
-
+  override def getMonotonicity(call: SqlOperatorBinding): SqlMonotonicity =
+    SqlMonotonicity.INCREASING
 }

@@ -24,6 +24,7 @@ import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.datastream.DataStreamUnion
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalUnion
+import org.apache.flink.table.plan.schema.RowSchema
 
 class DataStreamUnionRule
   extends ConverterRule(
@@ -44,7 +45,7 @@ class DataStreamUnionRule
       traitSet,
       convLeft,
       convRight,
-      rel.getRowType)
+      new RowSchema(rel.getRowType))
   }
 }
 

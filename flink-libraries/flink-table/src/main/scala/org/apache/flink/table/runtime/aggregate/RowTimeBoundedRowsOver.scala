@@ -41,7 +41,7 @@ import org.slf4j.LoggerFactory
 class RowTimeBoundedRowsOver(
     genAggregations: GeneratedAggregationsFunction,
     aggregationStateType: RowTypeInfo,
-    inputRowType: RowTypeInfo,
+    inputRowType: TypeInformation[Row],
     precedingOffset: Long)
   extends ProcessFunction[Row, Row]
     with Compiler[GeneratedAggregations] {

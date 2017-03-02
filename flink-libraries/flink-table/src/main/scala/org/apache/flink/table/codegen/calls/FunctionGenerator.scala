@@ -29,7 +29,6 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.table.codegen.{CodeGenerator, GeneratedExpression}
-import org.apache.flink.table.functions.{EventTimeExtractor, ProcTimeExtractor}
 import org.apache.flink.table.functions.utils.{ScalarSqlFunction, TableSqlFunction}
 
 import scala.collection.mutable
@@ -495,15 +494,6 @@ object FunctionGenerator {
           resultType
         )
       )
-
-    // generate a constant for time indicator functions.
-    // this is a temporary solution and will be removed when FLINK-5884 is implemented.
-    case ProcTimeExtractor | EventTimeExtractor =>
-      Some(new CallGenerator {
-        override def generate(codeGenerator: CodeGenerator, operands: Seq[GeneratedExpression]) = {
-          GeneratedExpression("0L", "false", "", SqlTimeTypeInfo.TIMESTAMP)
-        }
-      })
 
     // built-in scalar function
     case _ =>
