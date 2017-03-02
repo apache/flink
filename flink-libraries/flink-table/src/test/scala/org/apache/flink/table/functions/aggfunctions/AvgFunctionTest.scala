@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.functions.aggfunctions
 
-import java.lang.{Byte => JByte, Short => JShort, Integer => JInt, Long => JLong, Float => JFloat, Double => JDouble}
 import java.math.BigDecimal
 import org.apache.flink.table.functions.AggregateFunction
 
@@ -26,15 +25,13 @@ import org.apache.flink.table.functions.AggregateFunction
   *
   * @tparam T the type for the aggregation result
   */
-abstract class AvgAggFunctionTestBase[T] extends AggFunctionTestBase[T] {
+abstract class AvgAggFunctionTestBase[T: Numeric] extends AggFunctionTestBase[T] {
+
+  private val numeric: Numeric[T] = implicitly[Numeric[T]]
 
   def minVal: T
 
   def maxVal: T
-
-  def negMinVal: T
-
-  def negMaxVal: T
 
   override def inputValueSets: Seq[Seq[T]] = Seq(
     Seq(
@@ -63,18 +60,18 @@ abstract class AvgAggFunctionTestBase[T] extends AggFunctionTestBase[T] {
       minVal,
       maxVal,
       null.asInstanceOf[T],
-      prepareValue(0),
-      negMaxVal,
-      negMinVal,
+      numeric.fromInt(0),
+      numeric.negate(maxVal),
+      numeric.negate(minVal),
       null.asInstanceOf[T]
     ),
     Seq(
-      prepareValue(1),
-      prepareValue(2),
+      numeric.fromInt(1),
+      numeric.fromInt(2),
       null.asInstanceOf[T],
-      prepareValue(3),
-      prepareValue(4),
-      prepareValue(5),
+      numeric.fromInt(3),
+      numeric.fromInt(4),
+      numeric.fromInt(5),
       null.asInstanceOf[T]
     ),
     Seq(
@@ -90,118 +87,64 @@ abstract class AvgAggFunctionTestBase[T] extends AggFunctionTestBase[T] {
   override def expectedResults: Seq[T] = Seq(
     minVal,
     maxVal,
-    prepareValue(0),
-    prepareValue(3),
+    numeric.fromInt(0),
+    numeric.fromInt(3),
     null.asInstanceOf[T]
   )
-
-  def prepareValue(v: Number): T
 }
 
-class ByteAvgAggFunctionTest extends AvgAggFunctionTestBase[JByte] {
+class ByteAvgAggFunctionTest extends AvgAggFunctionTestBase[Byte] {
 
-  override def minVal = (JByte.MIN_VALUE + 1).toByte
+  override def minVal = (Byte.MinValue + 1).toByte
 
-  override def maxVal = (JByte.MAX_VALUE - 1).toByte
-
-  override def negMinVal = (0.toByte - minVal).toByte
-
-  override def negMaxVal = (0.toByte - maxVal).toByte
+  override def maxVal = (Byte.MaxValue - 1).toByte
 
   override def aggregator = new ByteAvgAggFunction()
-
-  override def prepareValue(v: Number): JByte = {
-    v.byteValue()
-  }
 }
 
-class ShortAvgAggFunctionTest extends AvgAggFunctionTestBase[JShort] {
+class ShortAvgAggFunctionTest extends AvgAggFunctionTestBase[Short] {
 
-  override def minVal = (JShort.MIN_VALUE + 1).toShort
+  override def minVal = (Short.MinValue + 1).toShort
 
-  override def maxVal = (JShort.MAX_VALUE - 1).toShort
-
-  override def negMinVal = (0.toShort - minVal).toShort
-
-  override def negMaxVal = (0.toShort - maxVal).toShort
+  override def maxVal = (Short.MaxValue - 1).toShort
 
   override def aggregator = new ShortAvgAggFunction()
-
-  override def prepareValue(v: Number): JShort = {
-    v.shortValue()
-  }
 }
 
-class IntAvgAggFunctionTest extends AvgAggFunctionTestBase[JInt] {
+class IntAvgAggFunctionTest extends AvgAggFunctionTestBase[Int] {
 
-  override def minVal = JInt.MIN_VALUE + 1
+  override def minVal = Int.MinValue + 1
 
-  override def maxVal = JInt.MAX_VALUE - 1
-
-  override def negMinVal = 0 - minVal
-
-  override def negMaxVal = 0 - maxVal
+  override def maxVal = Int.MaxValue - 1
 
   override def aggregator = new IntAvgAggFunction()
-
-  override def prepareValue(v: Number): JInt = {
-    v.intValue()
-  }
 }
 
-class LongAvgAggFunctionTest extends AvgAggFunctionTestBase[JLong] {
+class LongAvgAggFunctionTest extends AvgAggFunctionTestBase[Long] {
 
-  override def minVal = JLong.MIN_VALUE + 1
+  override def minVal = Long.MinValue + 1
 
-  override def maxVal = JLong.MAX_VALUE - 1
-
-  override def negMinVal = 0.toLong - minVal
-
-  override def negMaxVal = 0.toLong - maxVal
+  override def maxVal = Long.MaxValue - 1
 
   override def aggregator = new LongAvgAggFunction()
-
-  override def prepareValue(v: Number): JLong = {
-    v.longValue()
-  }
 }
 
-class FloatAvgAggFunctionTest extends AvgAggFunctionTestBase[JFloat] {
-
-  private val numeric: Numeric[Float] = implicitly[Numeric[Float]]
+class FloatAvgAggFunctionTest extends AvgAggFunctionTestBase[Float] {
 
   override def minVal = Float.MinValue
 
   override def maxVal = Float.MaxValue
 
-  override def negMinVal = numeric.negate(minVal)
-
-  override def negMaxVal = numeric.negate(maxVal)
-
   override def aggregator = new FloatAvgAggFunction()
-
-  override def prepareValue(v: Number): JFloat = {
-    numeric.fromInt(v.asInstanceOf[Int])
-  }
 }
 
-class DoubleAvgAggFunctionTest extends AvgAggFunctionTestBase[JDouble] {
+class DoubleAvgAggFunctionTest extends AvgAggFunctionTestBase[Double] {
 
-  private val numeric: Numeric[Double] = implicitly[Numeric[Double]]
+  override def minVal = Float.MinValue
 
-  override def minVal = Float.MinValue.toDouble
-
-  override def maxVal = Float.MaxValue.toDouble
-
-  override def negMinVal = numeric.negate(minVal)
-
-  override def negMaxVal = numeric.negate(maxVal)
+  override def maxVal = Float.MaxValue
 
   override def aggregator = new DoubleAvgAggFunction()
-
-  override def prepareValue(v: Number): JDouble = {
-    numeric.fromInt(v.asInstanceOf[Int])
-  }
 }
 
 class DecimalAvgAggFunctionTest extends AggFunctionTestBase[BigDecimal] {

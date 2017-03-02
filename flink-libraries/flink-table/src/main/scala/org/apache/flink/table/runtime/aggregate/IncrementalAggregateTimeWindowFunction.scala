@@ -33,10 +33,14 @@ import org.apache.flink.util.Collector
   * @param finalRowArity  The arity of the final output row
   */
 class IncrementalAggregateTimeWindowFunction(
+    private val numGroupingKey: Int,
+    private val numAggregates: Int,
     private val windowStartPos: Option[Int],
     private val windowEndPos: Option[Int],
     private val finalRowArity: Int)
   extends IncrementalAggregateWindowFunction[TimeWindow](
+    numGroupingKey,
+    numAggregates,
     finalRowArity) {
 
   private var collector: TimeWindowPropertyCollector = _

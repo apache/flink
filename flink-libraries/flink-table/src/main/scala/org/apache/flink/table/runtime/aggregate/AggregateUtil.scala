@@ -376,6 +376,8 @@ object AggregateUtil {
     */
   private[flink] def createAggregationGroupWindowFunction(
       window: LogicalWindow,
+      numGroupingKeys: Int,
+      numAggregates: Int,
       finalRowArity: Int,
       properties: Seq[NamedWindowProperty])
     : WindowFunction[Row, Row, Tuple, DataStreamWindow] = {
@@ -383,12 +385,16 @@ object AggregateUtil {
     if (isTimeWindow(window)) {
       val (startPos, endPos) = computeWindowStartEndPropertyPos(properties)
       new IncrementalAggregateTimeWindowFunction(
+        numGroupingKeys,
+        numAggregates,
         startPos,
         endPos,
         finalRowArity)
         .asInstanceOf[WindowFunction[Row, Row, Tuple, DataStreamWindow]]
     } else {
       new IncrementalAggregateWindowFunction(
+        numGroupingKeys,
+        numAggregates,
         finalRowArity)
     }
   }
@@ -402,24 +408,15 @@ object AggregateUtil {
     val (aggFields, aggregates) =
       transformToAggregateFunctions(namedAggregates.map(_.getKey), inputType, groupKeysIndex.length)
 
-    val groupKeysMapping = getGroupKeysMapping(inputType, outputType, groupKeysIndex)
-
     val aggregateMapping = getAggregateMapping(namedAggregates, outputType)
 
-    if (groupKeysMapping.length != groupKeysIndex.length ||
-      aggregateMapping.length != namedAggregates.length) {
+    if (aggregateMapping.length != namedAggregates.length) {
       throw new TableException(
         "Could not find output field in input data type or aggregate functions.")
     }
 
-    val accumulatorRowType = createAccumulatorRowType(inputType, groupKeysIndex, aggregates)
-    val aggFunction = new AggregateAggFunction(
-      aggregates,
-      aggFields,
-      aggregateMapping,
-      groupKeysIndex,
-      groupKeysMapping,
-      outputType.getFieldCount)
+    val accumulatorRowType = createAccumulatorRowType(inputType, aggregates)
+    val aggFunction = new AggregateAggFunction(aggregates, aggFields)
 
     (aggFunction, accumulatorRowType)
   }
@@ -678,6 +675,33 @@ object AggregateUtil {
     (aggFieldIndexes, aggregates)
   }
 
+  private def createAccumulatorType(
+      inputType: RelDataType,
+      aggregates: Array[TableAggregateFunction[_]]): Seq[TypeInformation[_]] = {
+
+    val aggTypes: Seq[TypeInformation[_]] =
+      aggregates.map {
+        agg =>
+          val accType = agg.getAccumulatorType()
+          if (accType != null) {
+            accType
+          } else {
+            val accumulator = agg.createAccumulator()
+            try {
+              TypeInformation.of(accumulator.getClass)
+            } catch {
+              case ite: InvalidTypesException =>
+                throw new TableException(
+                  "Cannot infer type of accumulator. " +
+                    "You can override AggregateFunction.getAccumulatorType() to specify the type.",
+                  ite)
+            }
+          }
+      }
+
+    aggTypes
+  }
+
   private def createDataSetAggregateBufferDataType(
       groupings: Array[Int],
       aggregates: Array[TableAggregateFunction[_]],
@@ -691,19 +715,7 @@ object AggregateUtil {
         .map(FlinkTypeFactory.toTypeInfo)
 
     // get all field data types of all intermediate aggregates
-    val aggTypes: Seq[TypeInformation[_]] =
-      aggregates.map {
-        agg =>
-          val accumulator = agg.createAccumulator()
-          try {
-            TypeInformation.of(accumulator.getClass)
-          } catch {
-            // When got exception (it could happen when the accumulator is defined with Template),
-            // we will try to provide a generic type for accumulator
-            case ex : InvalidTypesException =>
-              TypeInformation.of(new TypeHint[accumulator.type](){})
-          }
-      }
+    val aggTypes: Seq[TypeInformation[_]] = createAccumulatorType(inputType, aggregates)
 
     // concat group key types, aggregation types, and window key types
     val allFieldTypes: Seq[TypeInformation[_]] = windowKeyTypes match {
@@ -715,32 +727,11 @@ object AggregateUtil {
 
   private def createAccumulatorRowType(
       inputType: RelDataType,
-      groupings: Array[Int],
       aggregates: Array[TableAggregateFunction[_]]): RowTypeInfo = {
 
-    // get the field data types of group keys.
-    val groupingTypes: Seq[TypeInformation[_]] =
-      groupings
-        .map(inputType.getFieldList.get(_).getType)
-        .map(FlinkTypeFactory.toTypeInfo)
+    val aggTypes: Seq[TypeInformation[_]] = createAccumulatorType(inputType, aggregates)
 
-    val aggTypes: Seq[TypeInformation[_]] =
-      aggregates.map {
-        agg =>
-          val accumulator = agg.createAccumulator()
-            try {
-              TypeInformation.of(accumulator.getClass)
-            } catch {
-              // When got exception (it could happen when the accumulator is defined with Template),
-              // we will try to provide a generic type for accumulator
-              case ex : InvalidTypesException =>
-                TypeInformation.of(new TypeHint[accumulator.type](){})
-            }
-      }
-
-    val allFieldTypes = groupingTypes ++ aggTypes
-
-    new RowTypeInfo(allFieldTypes: _*)
+    new RowTypeInfo(aggTypes: _*)
   }
 
   // Find the mapping between the index of aggregate list and aggregated value index in output Row.

@@ -17,14 +17,16 @@
  */
 package org.apache.flink.table.functions.aggfunctions
 
-import java.lang.{Byte => JByte, Short => JShort, Integer => JInt, Long => JLong, Float => JFloat, Double => JDouble}
 import java.math.{BigDecimal, BigInteger}
 import java.util.{List => JList}
+
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
+import org.apache.flink.api.java.typeutils.TupleTypeInfo
 import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
 
 /** The initial accumulator for Integral Avg aggregate function */
-class IntegralAvgAccumulator extends JTuple2[JLong, JLong] with Accumulator {
+class IntegralAvgAccumulator extends JTuple2[Long, Long] with Accumulator {
   f0 = 0L //sum
   f1 = 0L //count
 }
@@ -70,6 +72,13 @@ abstract class IntegralAvgAggFunction[T] extends AggregateFunction[T] {
     ret
   }
 
+  override def getAccumulatorType(): TypeInformation[_] = {
+    new TupleTypeInfo(
+      new IntegralAvgAccumulator().getClass,
+      BasicTypeInfo.LONG_TYPE_INFO,
+      BasicTypeInfo.LONG_TYPE_INFO)
+  }
+
   /**
     * Convert the intermediate result to the expected aggregation result type
     *
@@ -77,33 +86,33 @@ abstract class IntegralAvgAggFunction[T] extends AggregateFunction[T] {
     *              the intermediate result to avoid the overflow by sum operation.
     * @return the result value with the expected aggregation result type
     */
-  def resultTypeConvert(value: JLong): T
+  def resultTypeConvert(value: Long): T
 }
 
 /**
   * Built-in Byte Avg aggregate function
   */
-class ByteAvgAggFunction extends IntegralAvgAggFunction[JByte] {
-  override def resultTypeConvert(value: JLong): JByte = value.toByte
+class ByteAvgAggFunction extends IntegralAvgAggFunction[Byte] {
+  override def resultTypeConvert(value: Long): Byte = value.toByte
 }
 
 /**
   * Built-in Short Avg aggregate function
   */
-class ShortAvgAggFunction extends IntegralAvgAggFunction[JShort] {
-  override def resultTypeConvert(value: JLong): JShort = value.toShort
+class ShortAvgAggFunction extends IntegralAvgAggFunction[Short] {
+  override def resultTypeConvert(value: Long): Short = value.toShort
 }
 
 /**
   * Built-in Int Avg aggregate function
   */
-class IntAvgAggFunction extends IntegralAvgAggFunction[JInt] {
-  override def resultTypeConvert(value: JLong): JInt = value.toInt
+class IntAvgAggFunction extends IntegralAvgAggFunction[Int] {
+  override def resultTypeConvert(value: Long): Int = value.toInt
 }
 
 /** The initial accumulator for Big Integral Avg aggregate function */
 class BigIntegralAvgAccumulator
-  extends JTuple2[BigInteger, JLong] with Accumulator {
+  extends JTuple2[BigInteger, Long] with Accumulator {
   f0 = BigInteger.ZERO //sum
   f1 = 0L //count
 }
@@ -149,6 +158,13 @@ abstract class BigIntegralAvgAggFunction[T] extends AggregateFunction[T] {
     ret
   }
 
+  override def getAccumulatorType(): TypeInformation[_] = {
+    new TupleTypeInfo(
+      new BigIntegralAvgAccumulator().getClass,
+      BasicTypeInfo.BIG_INT_TYPE_INFO,
+      BasicTypeInfo.LONG_TYPE_INFO)
+  }
+
   /**
     * Convert the intermediate result to the expected aggregation result type
     *
@@ -163,8 +179,14 @@ abstract class BigIntegralAvgAggFunction[T] extends AggregateFunction[T] {
 /**
   * Built-in Long Avg aggregate function
   */
-class LongAvgAggFunction extends BigIntegralAvgAggFunction[JLong] {
-  override def resultTypeConvert(value: BigInteger): JLong = value.longValue()
+class LongAvgAggFunction extends BigIntegralAvgAggFunction[Long] {
+  override def resultTypeConvert(value: BigInteger): Long = value.longValue()
+}
+
+/** The initial accumulator for Floating Avg aggregate function */
+class FloatingAvgAccumulator extends JTuple2[Double, Long] with Accumulator {
+  f0 = 0 //sum
+  f1 = 0L //count
 }
 
 /**
@@ -173,12 +195,6 @@ class LongAvgAggFunction extends BigIntegralAvgAggFunction[JLong] {
   * @tparam T the type for the aggregation result
   */
 abstract class FloatingAvgAggFunction[T] extends AggregateFunction[T] {
-
-  /** The initial accumulator for Floating Avg aggregate function */
-  class FloatingAvgAccumulator extends JTuple2[Double, JLong] with Accumulator {
-    f0 = 0 //sum
-    f1 = 0L //count
-  }
 
   override def createAccumulator(): Accumulator = {
     new FloatingAvgAccumulator
@@ -214,6 +230,13 @@ abstract class FloatingAvgAggFunction[T] extends AggregateFunction[T] {
     ret
   }
 
+  override def getAccumulatorType(): TypeInformation[_] = {
+    new TupleTypeInfo(
+      new FloatingAvgAccumulator().getClass,
+      BasicTypeInfo.DOUBLE_TYPE_INFO,
+      BasicTypeInfo.LONG_TYPE_INFO)
+  }
+
   /**
     * Convert the intermediate result to the expected aggregation result type
     *
@@ -221,26 +244,26 @@ abstract class FloatingAvgAggFunction[T] extends AggregateFunction[T] {
     *              the intermediate result to avoid the overflow by sum operation.
     * @return the result value with the expected aggregation result type
     */
-  def resultTypeConvert(value: JDouble): T
+  def resultTypeConvert(value: Double): T
 }
 
 /**
   * Built-in Float Avg aggregate function
   */
-class FloatAvgAggFunction extends FloatingAvgAggFunction[JFloat] {
-  override def resultTypeConvert(value: JDouble): JFloat = value.toFloat
+class FloatAvgAggFunction extends FloatingAvgAggFunction[Float] {
+  override def resultTypeConvert(value: Double): Float = value.toFloat
 }
 
 /**
   * Built-in Int Double aggregate function
   */
-class DoubleAvgAggFunction extends FloatingAvgAggFunction[JDouble] {
-  override def resultTypeConvert(value: JDouble): JDouble = value
+class DoubleAvgAggFunction extends FloatingAvgAggFunction[Double] {
+  override def resultTypeConvert(value: Double): Double = value
 }
 
 /** The initial accumulator for Big Decimal Avg aggregate function */
 class DecimalAvgAccumulator
-  extends JTuple2[BigDecimal, JLong] with Accumulator {
+  extends JTuple2[BigDecimal, Long] with Accumulator {
   f0 = BigDecimal.ZERO //sum
   f1 = 0L //count
 }
@@ -286,5 +309,12 @@ class DecimalAvgAggFunction extends AggregateFunction[BigDecimal] {
       i += 1
     }
     ret
+  }
+
+  override def getAccumulatorType(): TypeInformation[_] = {
+    new TupleTypeInfo(
+      new DecimalAvgAccumulator().getClass,
+      BasicTypeInfo.BIG_DEC_TYPE_INFO,
+      BasicTypeInfo.LONG_TYPE_INFO)
   }
 }

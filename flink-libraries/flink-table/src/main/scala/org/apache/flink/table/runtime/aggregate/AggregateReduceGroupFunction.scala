@@ -79,11 +79,9 @@ class AggregateReduceGroupFunction(
 
     // merge intermediate aggregate value to buffer.
     var last: Row = null
-    val iterator = records.iterator()
+    accumulatorList.foreach(_.clear())
 
-    for (i <- aggregates.indices) {
-      accumulatorList(i).clear()
-    }
+    val iterator = records.iterator()
 
     var count: Int = 0
     while (iterator.hasNext) {

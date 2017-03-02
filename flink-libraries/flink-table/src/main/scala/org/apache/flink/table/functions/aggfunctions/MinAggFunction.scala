@@ -19,7 +19,10 @@ package org.apache.flink.table.functions.aggfunctions
 
 import java.math.BigDecimal
 import java.util.{List => JList}
+
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
+import org.apache.flink.api.java.typeutils.TupleTypeInfo
 import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
 
 /** The initial accumulator for Min aggregate function */
@@ -71,42 +74,65 @@ abstract class MinAggFunction[T](implicit ord: Ordering[T]) extends AggregateFun
     }
     ret
   }
+
+  override def getAccumulatorType(): TypeInformation[_] = {
+    new TupleTypeInfo(
+      new MinAccumulator[T].getClass,
+      getValueTypeInfo,
+      BasicTypeInfo.BOOLEAN_TYPE_INFO)
+  }
+
+  def getValueTypeInfo: TypeInformation[_]
 }
 
 /**
   * Built-in Byte Min aggregate function
   */
-class ByteMinAggFunction extends MinAggFunction[Byte]
+class ByteMinAggFunction extends MinAggFunction[Byte] {
+  override def getValueTypeInfo = BasicTypeInfo.BYTE_TYPE_INFO
+}
 
 /**
   * Built-in Short Min aggregate function
   */
-class ShortMinAggFunction extends MinAggFunction[Short]
+class ShortMinAggFunction extends MinAggFunction[Short] {
+  override def getValueTypeInfo = BasicTypeInfo.SHORT_TYPE_INFO
+}
 
 /**
   * Built-in Int Min aggregate function
   */
-class IntMinAggFunction extends MinAggFunction[Int]
+class IntMinAggFunction extends MinAggFunction[Int] {
+  override def getValueTypeInfo = BasicTypeInfo.INT_TYPE_INFO
+}
 
 /**
   * Built-in Long Min aggregate function
   */
-class LongMinAggFunction extends MinAggFunction[Long]
+class LongMinAggFunction extends MinAggFunction[Long] {
+  override def getValueTypeInfo = BasicTypeInfo.LONG_TYPE_INFO
+}
 
 /**
   * Built-in Float Min aggregate function
   */
-class FloatMinAggFunction extends MinAggFunction[Float]
+class FloatMinAggFunction extends MinAggFunction[Float] {
+  override def getValueTypeInfo = BasicTypeInfo.FLOAT_TYPE_INFO
+}
 
 /**
   * Built-in Double Min aggregate function
   */
-class DoubleMinAggFunction extends MinAggFunction[Double]
+class DoubleMinAggFunction extends MinAggFunction[Double] {
+  override def getValueTypeInfo = BasicTypeInfo.DOUBLE_TYPE_INFO
+}
 
 /**
   * Built-in Boolean Min aggregate function
   */
-class BooleanMinAggFunction extends MinAggFunction[Boolean]
+class BooleanMinAggFunction extends MinAggFunction[Boolean] {
+  override def getValueTypeInfo = BasicTypeInfo.BOOLEAN_TYPE_INFO
+}
 
 /**
   * Built-in Big Decimal Min aggregate function
@@ -123,4 +149,6 @@ class DecimalMinAggFunction extends MinAggFunction[BigDecimal] {
       }
     }
   }
+
+  override def getValueTypeInfo = BasicTypeInfo.BIG_DEC_TYPE_INFO
 }

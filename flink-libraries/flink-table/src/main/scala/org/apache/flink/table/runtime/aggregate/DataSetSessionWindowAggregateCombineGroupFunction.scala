@@ -72,12 +72,10 @@ class DataSetSessionWindowAggregateCombineGroupFunction(
     var windowStart: java.lang.Long = null
     var windowEnd: java.lang.Long = null
     var currentRowTime: java.lang.Long = null
+    accumulatorList.foreach(_.clear())
 
     val iterator = records.iterator()
 
-    for (i <- aggregates.indices) {
-      accumulatorList(i).clear()
-    }
 
     var count: Int = 0
     while (iterator.hasNext) {
@@ -93,9 +91,7 @@ class DataSetSessionWindowAggregateCombineGroupFunction(
           doCollect(out, accumulatorList, windowStart, windowEnd)
 
           // clear the accumulator list for all aggregate
-          for (i <- aggregates.indices) {
-            accumulatorList(i).clear()
-          }
+          accumulatorList.foreach(_.clear())
           count = 0
         } else {
           // set group keys to aggregateBuffer.

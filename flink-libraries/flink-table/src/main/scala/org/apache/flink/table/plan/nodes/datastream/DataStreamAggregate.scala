@@ -121,6 +121,8 @@ class DataStreamAggregate(
     if (groupingKeys.length > 0) {
       val windowFunction = AggregateUtil.createAggregationGroupWindowFunction(
         window,
+        groupingKeys.length,
+        namedAggregates.size,
         rowRelDataType.getFieldCount,
         namedProperties)
 

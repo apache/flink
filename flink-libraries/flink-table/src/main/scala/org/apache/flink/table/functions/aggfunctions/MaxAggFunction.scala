@@ -19,7 +19,10 @@ package org.apache.flink.table.functions.aggfunctions
 
 import java.math.BigDecimal
 import java.util.{List => JList}
+
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
+import org.apache.flink.api.java.typeutils.TupleTypeInfo
 import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
 
 /** The initial accumulator for Max aggregate function */
@@ -71,42 +74,65 @@ abstract class MaxAggFunction[T](implicit ord: Ordering[T]) extends AggregateFun
     }
     ret
   }
+
+  override def getAccumulatorType(): TypeInformation[_] = {
+    new TupleTypeInfo(
+      new MaxAccumulator[T].getClass,
+      getValueTypeInfo,
+      BasicTypeInfo.BOOLEAN_TYPE_INFO)
+  }
+
+  def getValueTypeInfo: TypeInformation[_]
 }
 
 /**
   * Built-in Byte Max aggregate function
   */
-class ByteMaxAggFunction extends MaxAggFunction[Byte]
+class ByteMaxAggFunction extends MaxAggFunction[Byte] {
+  override def getValueTypeInfo = BasicTypeInfo.BYTE_TYPE_INFO
+}
 
 /**
   * Built-in Short Max aggregate function
   */
-class ShortMaxAggFunction extends MaxAggFunction[Short]
+class ShortMaxAggFunction extends MaxAggFunction[Short] {
+  override def getValueTypeInfo = BasicTypeInfo.SHORT_TYPE_INFO
+}
 
 /**
   * Built-in Int Max aggregate function
   */
-class IntMaxAggFunction extends MaxAggFunction[Int]
+class IntMaxAggFunction extends MaxAggFunction[Int] {
+  override def getValueTypeInfo = BasicTypeInfo.INT_TYPE_INFO
+}
 
 /**
   * Built-in Long Max aggregate function
   */
-class LongMaxAggFunction extends MaxAggFunction[Long]
+class LongMaxAggFunction extends MaxAggFunction[Long] {
+  override def getValueTypeInfo = BasicTypeInfo.LONG_TYPE_INFO
+}
 
 /**
   * Built-in Float Max aggregate function
   */
-class FloatMaxAggFunction extends MaxAggFunction[Float]
+class FloatMaxAggFunction extends MaxAggFunction[Float] {
+  override def getValueTypeInfo = BasicTypeInfo.FLOAT_TYPE_INFO
+}
 
 /**
   * Built-in Double Max aggregate function
   */
-class DoubleMaxAggFunction extends MaxAggFunction[Double]
+class DoubleMaxAggFunction extends MaxAggFunction[Double] {
+  override def getValueTypeInfo = BasicTypeInfo.DOUBLE_TYPE_INFO
+}
 
 /**
   * Built-in Boolean Max aggregate function
   */
-class BooleanMaxAggFunction extends MaxAggFunction[Boolean]
+class BooleanMaxAggFunction extends MaxAggFunction[Boolean] {
+  override def getValueTypeInfo = BasicTypeInfo.BOOLEAN_TYPE_INFO
+}
 
 /**
   * Built-in Big Decimal Max aggregate function
@@ -123,4 +149,6 @@ class DecimalMaxAggFunction extends MaxAggFunction[BigDecimal] {
       }
     }
   }
+
+  override def getValueTypeInfo = BasicTypeInfo.BIG_DEC_TYPE_INFO
 }

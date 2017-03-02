@@ -64,10 +64,9 @@ class AggregateReduceCombineFunction(
 
     // merge intermediate aggregate value to buffer.
     var last: Row = null
+    accumulatorList.foreach(_.clear())
+
     val iterator = records.iterator()
-    for (i <- aggregates.indices) {
-      accumulatorList(i).clear()
-    }
 
     var count: Int = 0
     while (iterator.hasNext) {

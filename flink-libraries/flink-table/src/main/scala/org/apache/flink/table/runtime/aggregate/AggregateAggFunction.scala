@@ -30,71 +30,49 @@ import org.apache.flink.types.Row
   * @param aggregates       the list of all [[org.apache.flink.table.functions.AggregateFunction]]
   *                         used for this aggregation
   * @param aggFields   the position (in the input Row) of the input value for each aggregate
-  * @param aggregateMapping the list of the mapping of (the position of this aggregate result in the
-  *                         output row => the index of the aggregate) for all the aggregates
-  * @param groupKeysIndex   the position (in the input Row) of grouping keys
-  * @param groupKeysMapping the list of mapping of (the position of the grouping key in the
-  *                         output row => the index of grouping key) for all the grouping keys
-  * @param finalRowArity    the arity of the final row
   */
 class AggregateAggFunction(
     private val aggregates: Array[AggregateFunction[_]],
-    private val aggFields: Array[Int],
-    private val aggregateMapping: Array[(Int, Int)],
-    private val groupKeysIndex: Array[Int],
-    private val groupKeysMapping: Array[(Int, Int)],
-    private val finalRowArity: Int)
+    private val aggFields: Array[Int])
   extends DataStreamAggFunc[Row, Row, Row] {
 
-  override def createAccumulator(): Row = {
-    val accumulatorRow: Row = new Row(groupKeysIndex.length + aggregates.length)
+  val aggsWithIdx: Array[(AggregateFunction[_], Int)] = aggregates.zipWithIndex
 
-    for (i <- aggregates.indices) {
-      accumulatorRow.setField(groupKeysIndex.length + i, aggregates(i).createAccumulator())
+  override def createAccumulator(): Row = {
+    val accumulatorRow: Row = new Row(aggregates.length)
+    aggsWithIdx.foreach { case (agg, i) =>
+      accumulatorRow.setField(i, agg.createAccumulator())
     }
     accumulatorRow
   }
 
   override def add(value: Row, accumulatorRow: Row) = {
-    for (i <- groupKeysIndex.indices) {
-      accumulatorRow.setField(i, value.getField(groupKeysIndex(i)))
-    }
 
-    for (i <- aggregates.indices) {
-      val accumulator =
-        accumulatorRow.getField(i + groupKeysIndex.length).asInstanceOf[Accumulator]
+    aggsWithIdx.foreach { case (agg, i) =>
+      val acc = accumulatorRow.getField(i).asInstanceOf[Accumulator]
       val v = value.getField(aggFields(i))
-      aggregates(i).accumulate(accumulator, v)
+      agg.accumulate(acc, v)
     }
   }
 
   override def getResult(accumulatorRow: Row): Row = {
-    val output = new Row(finalRowArity)
+    val output = new Row(aggFields.length)
 
-    groupKeysMapping.foreach {
-      case (after, previous) =>
-        output.setField(after, accumulatorRow.getField(previous))
-    }
-
-    aggregateMapping.foreach {
-      case (after, previous) =>
-        val accumulator =
-          accumulatorRow.getField(previous + groupKeysIndex.length).asInstanceOf[Accumulator]
-        output.setField(after, aggregates(previous).getValue(accumulator))
+    aggsWithIdx.foreach { case (agg, i) =>
+      output.setField(i, agg.getValue(accumulatorRow.getField(i).asInstanceOf[Accumulator]))
     }
     output
   }
 
   override def merge(aAccumulatorRow: Row, bAccumulatorRow: Row): Row = {
-    for (i <- aggregates.indices) {
-      val aAccum =
-        aAccumulatorRow.getField(i + groupKeysIndex.length).asInstanceOf[Accumulator]
-      val bAccum =
-        bAccumulatorRow.getField(i + groupKeysIndex.length).asInstanceOf[Accumulator]
+
+    aggsWithIdx.foreach { case (agg, i) =>
+      val aAcc = aAccumulatorRow.getField(i).asInstanceOf[Accumulator]
+      val bAcc = bAccumulatorRow.getField(i).asInstanceOf[Accumulator]
       val accumulators: JList[Accumulator] = new JArrayList[Accumulator]()
-      accumulators.add(aAccum)
-      accumulators.add(bAccum)
-      aAccumulatorRow.setField(i + groupKeysIndex.length, aggregates(i).merge(accumulators))
+      accumulators.add(aAcc)
+      accumulators.add(bAcc)
+      aAccumulatorRow.setField(i, agg.merge(accumulators))
     }
     aAccumulatorRow
   }

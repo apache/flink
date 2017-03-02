@@ -66,21 +66,16 @@ class DataSetTumbleCountWindowAggReduceGroupFunction(
   override def reduce(records: Iterable[Row], out: Collector[Row]): Unit = {
 
     var count: Long = 0
+    accumulatorList.foreach(_.clear())
 
     val iterator = records.iterator()
-
-    for (i <- aggregates.indices) {
-      accumulatorList(i).clear()
-    }
 
     while (iterator.hasNext) {
       val record = iterator.next()
 
       if (count == 0) {
         // clear the accumulator list for all aggregate
-        for (i <- aggregates.indices) {
-          accumulatorList(i).clear()
-        }
+        accumulatorList.foreach(_.clear())
       }
 
       // collect the accumulators for each aggregate

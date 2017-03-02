@@ -24,14 +24,18 @@ import org.apache.flink.types.Row
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction
 import org.apache.flink.streaming.api.windowing.windows.Window
-import org.apache.flink.util.{Collector, Preconditions}
+import org.apache.flink.util.Collector
 
 /**
   * Computes the final aggregate value from incrementally computed aggreagtes.
   *
+  * @param numGroupingKey The number of grouping keys.
+  * @param numAggregates The number of aggregates.
   * @param finalRowArity The arity of the final output row.
   */
 class IncrementalAggregateWindowFunction[W <: Window](
+    private val numGroupingKey: Int,
+    private val numAggregates: Int,
     private val finalRowArity: Int)
   extends RichWindowFunction[Row, Row, Tuple, W] {
 
@@ -55,7 +59,15 @@ class IncrementalAggregateWindowFunction[W <: Window](
 
     if (iterator.hasNext) {
       val record = iterator.next()
-      out.collect(record)
+
+      for (i <- 0 until numGroupingKey) {
+        output.setField(i, key.getField(i))
+      }
+      for (i <- 0 until numAggregates) {
+        output.setField(numGroupingKey + i, record.getField(i))
+      }
+
+      out.collect(output)
     }
   }
 }
