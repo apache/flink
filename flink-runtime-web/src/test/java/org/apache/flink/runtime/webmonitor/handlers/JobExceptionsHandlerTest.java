@@ -42,8 +42,8 @@ public class JobExceptionsHandlerTest {
 		Assert.assertEquals(1, archives.length);
 
 		ArchivedJson archive = archives[0];
-		Assert.assertEquals("/jobs/" + originalJob.getJobID() + "/exceptions", archive.path);
-		compareExceptions(originalJob, archive.json);
+		Assert.assertEquals("/jobs/" + originalJob.getJobID() + "/exceptions", archive.getPath());
+		compareExceptions(originalJob, archive.getJson());
 	}
 
 	@Test

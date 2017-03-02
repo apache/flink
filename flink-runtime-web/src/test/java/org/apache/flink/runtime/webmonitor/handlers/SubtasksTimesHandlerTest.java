@@ -44,8 +44,8 @@ public class SubtasksTimesHandlerTest {
 		Assert.assertEquals(1, archives.length);
 
 		ArchivedJson archive = archives[0];
-		Assert.assertEquals("/jobs/" + originalJob.getJobID() + "/vertices/" + originalTask.getJobVertexId() + "/subtasktimes", archive.path);
-		compareSubtaskTimes(originalTask, originalAttempt, archive.json);
+		Assert.assertEquals("/jobs/" + originalJob.getJobID() + "/vertices/" + originalTask.getJobVertexId() + "/subtasktimes", archive.getPath());
+		compareSubtaskTimes(originalTask, originalAttempt, archive.getJson());
 	}
 
 	@Test

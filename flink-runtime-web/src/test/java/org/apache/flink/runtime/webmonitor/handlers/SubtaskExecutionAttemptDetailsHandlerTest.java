@@ -47,8 +47,8 @@ public class SubtaskExecutionAttemptDetailsHandlerTest {
 			"/jobs/" + originalJob.getJobID() +
 				"/vertices/" + originalTask.getJobVertexId() +
 				"/subtasks/" + originalAttempt.getParallelSubtaskIndex(),
-			archive1.path);
-		compareAttemptDetails(originalAttempt, archive1.json);
+			archive1.getPath());
+		compareAttemptDetails(originalAttempt, archive1.getJson());
 
 		ArchivedJson archive2 = archives[1];
 		Assert.assertEquals(
@@ -56,8 +56,8 @@ public class SubtaskExecutionAttemptDetailsHandlerTest {
 				"/vertices/" + originalTask.getJobVertexId() +
 				"/subtasks/" + originalAttempt.getParallelSubtaskIndex() +
 				"/attempts/" + originalAttempt.getAttemptNumber(),
-			archive2.path);
-		compareAttemptDetails(originalAttempt, archive2.json);
+			archive2.getPath());
+		compareAttemptDetails(originalAttempt, archive2.getJson());
 	}
 
 	@Test

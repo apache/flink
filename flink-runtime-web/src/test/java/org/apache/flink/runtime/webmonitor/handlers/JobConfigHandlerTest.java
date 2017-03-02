@@ -40,8 +40,8 @@ public class JobConfigHandlerTest {
 		Assert.assertEquals(1, archives.length);
 
 		ArchivedJson archive = archives[0];
-		Assert.assertEquals("/jobs/" + originalJob.getJobID() + "/config", archive.path);
-		compareJobConfig(originalJob, archive.json);
+		Assert.assertEquals("/jobs/" + originalJob.getJobID() + "/config", archive.getPath());
+		compareJobConfig(originalJob, archive.getJson());
 	}
 
 	@Test

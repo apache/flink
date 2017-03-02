@@ -85,14 +85,14 @@ public class CheckpointStatsDetailsHandlerTest {
 		ArchivedJson archive1 = archives[0];
 		Assert.assertEquals(
 			"/jobs/" + graph.getJobID() + "/checkpoints/details/" + failedCheckpoint.getCheckpointId(),
-			archive1.path);
-		compareFailedCheckpoint(failedCheckpoint, mapper.readTree(archive1.json));
+			archive1.getPath());
+		compareFailedCheckpoint(failedCheckpoint, mapper.readTree(archive1.getJson()));
 
 		ArchivedJson archive2 = archives[1];
 		Assert.assertEquals(
 			"/jobs/" + graph.getJobID() + "/checkpoints/details/" + completedCheckpoint.getCheckpointId(),
-			archive2.path);
-		compareCompletedCheckpoint(completedCheckpoint, mapper.readTree(archive2.json));
+			archive2.getPath());
+		compareCompletedCheckpoint(completedCheckpoint, mapper.readTree(archive2.getJson()));
 	}
 
 	@Test

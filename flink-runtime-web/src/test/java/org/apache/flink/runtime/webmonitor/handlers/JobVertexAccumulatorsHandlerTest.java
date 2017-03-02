@@ -42,8 +42,8 @@ public class JobVertexAccumulatorsHandlerTest {
 		Assert.assertEquals(1, archives.length);
 
 		ArchivedJson archive = archives[0];
-		Assert.assertEquals("/jobs/" + originalJob.getJobID() + "/vertices/" + originalTask.getJobVertexId() + "/accumulators", archive.path);
-		compareAccumulators(originalTask, archive.json);
+		Assert.assertEquals("/jobs/" + originalJob.getJobID() + "/vertices/" + originalTask.getJobVertexId() + "/accumulators", archive.getPath());
+		compareAccumulators(originalTask, archive.getJson());
 	}
 
 	@Test

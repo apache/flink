@@ -35,8 +35,8 @@ public class JobPlanHandlerTest {
 		Assert.assertEquals(1, archives.length);
 
 		ArchivedJson archive = archives[0];
-		Assert.assertEquals("/jobs/" + originalJob.getJobID() + "/plan", archive.path);
-		Assert.assertEquals(originalJob.getJsonPlan(), archive.json);
+		Assert.assertEquals("/jobs/" + originalJob.getJobID() + "/plan", archive.getPath());
+		Assert.assertEquals(originalJob.getJsonPlan(), archive.getJson());
 	}
 
 	@Test

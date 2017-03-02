@@ -86,8 +86,8 @@ public class CheckpointStatsSubtaskDetailsHandlerTest {
 		ArchivedJson archive = archives[0];
 		Assert.assertEquals(
 			"/jobs/" + graph.getJobID() + "/checkpoints/details/" + checkpoint.getCheckpointId() + "/subtasks/" + task.getJobVertexId(),
-			archive.path);
-		JsonNode rootNode = mapper.readTree(archive.json);
+			archive.getPath());
+		JsonNode rootNode = mapper.readTree(archive.getJson());
 		assertEquals(checkpoint.getCheckpointId(), rootNode.get("id").asLong());
 		assertEquals(checkpoint.getStatus().toString(), rootNode.get("status").asText());
 

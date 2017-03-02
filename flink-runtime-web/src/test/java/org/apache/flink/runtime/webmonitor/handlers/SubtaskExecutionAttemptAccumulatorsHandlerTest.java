@@ -49,8 +49,8 @@ public class SubtaskExecutionAttemptAccumulatorsHandlerTest {
 			"/subtasks/" + originalAttempt.getParallelSubtaskIndex() +
 			"/attempts/" + originalAttempt.getAttemptNumber() + 
 			"/accumulators",
-			archive.path);
-		compareAttemptAccumulators(originalAttempt, archive.json);
+			archive.getPath());
+		compareAttemptAccumulators(originalAttempt, archive.getJson());
 	}
 
 	@Test

@@ -55,10 +55,10 @@ public class CheckpointConfigHandlerTest {
 		ArchivedJson[] archives = archiver.archiveJsonWithPath(graph);
 		Assert.assertEquals(1, archives.length);
 		ArchivedJson archive = archives[0];
-		Assert.assertEquals("/jobs/" + graph.getJobID() + "/checkpoints/config", archive.path);
+		Assert.assertEquals("/jobs/" + graph.getJobID() + "/checkpoints/config", archive.getPath());
 
 		ObjectMapper mapper = new ObjectMapper();
-		JsonNode rootNode = mapper.readTree(archive.json);
+		JsonNode rootNode = mapper.readTree(archive.getJson());
 
 		Assert.assertEquals("exactly_once", rootNode.get("mode").asText());
 		Assert.assertEquals(settings.getCheckpointInterval(), rootNode.get("interval").asLong());

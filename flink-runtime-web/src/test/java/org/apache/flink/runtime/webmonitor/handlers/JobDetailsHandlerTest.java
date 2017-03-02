@@ -46,12 +46,12 @@ public class JobDetailsHandlerTest {
 		Assert.assertEquals(2, archives.length);
 
 		ArchivedJson archive1 = archives[0];
-		Assert.assertEquals("/jobs/" + originalJob.getJobID(), archive1.path);
-		compareJobDetails(originalJob, archive1.json);
+		Assert.assertEquals("/jobs/" + originalJob.getJobID(), archive1.getPath());
+		compareJobDetails(originalJob, archive1.getJson());
 
 		ArchivedJson archive2 = archives[1];
-		Assert.assertEquals("/jobs/" + originalJob.getJobID() + "/vertices", archive2.path);
-		compareJobDetails(originalJob, archive2.json);
+		Assert.assertEquals("/jobs/" + originalJob.getJobID() + "/vertices", archive2.getPath());
+		compareJobDetails(originalJob, archive2.getJson());
 	}
 
 	@Test

@@ -47,9 +47,9 @@ public class CurrentJobsOverviewHandlerTest {
 		Assert.assertEquals(1, archives.length);
 
 		ArchivedJson archive = archives[0];
-		Assert.assertEquals("/joboverview", archive.path);
+		Assert.assertEquals("/joboverview", archive.getPath());
 
-		JsonNode result = ArchivedJobGenerationUtils.mapper.readTree(archive.json);
+		JsonNode result = ArchivedJobGenerationUtils.mapper.readTree(archive.getJson());
 		ArrayNode running = (ArrayNode) result.get("running");
 		Assert.assertEquals(0, running.size());
 

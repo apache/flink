@@ -39,8 +39,8 @@ public class JobAccumulatorsHandlerTest {
 		Assert.assertEquals(1, archives.length);
 
 		ArchivedJson archive = archives[0];
-		Assert.assertEquals("/jobs/" + originalJob.getJobID() + "/accumulators", archive.path);
-		compareAccumulators(originalJob, archive.json);
+		Assert.assertEquals("/jobs/" + originalJob.getJobID() + "/accumulators", archive.getPath());
+		compareAccumulators(originalJob, archive.getJson());
 	}
 
 	@Test

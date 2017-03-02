@@ -43,8 +43,8 @@ public class SubtasksAllAccumulatorsHandlerTest {
 
 		ArchivedJson archive = archives[0];
 		Assert.assertEquals("/jobs/" + originalJob.getJobID() + "/vertices/" + originalTask.getJobVertexId() + 
-			"/subtasks/accumulators", archive.path);
-		compareSubtaskAccumulators(originalTask, archive.json);
+			"/subtasks/accumulators", archive.getPath());
+		compareSubtaskAccumulators(originalTask, archive.getJson());
 	}
 
 	@Test

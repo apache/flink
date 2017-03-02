@@ -46,8 +46,8 @@ public class JobVertexTaskManagersHandlerTest {
 		Assert.assertEquals(1, archives.length);
 
 		ArchivedJson archive = archives[0];
-		Assert.assertEquals("/jobs/" + originalJob.getJobID() + "/vertices/" + originalTask.getJobVertexId() + "/taskmanagers", archive.path);
-		compareVertexTaskManagers(originalTask, originalSubtask, archive.json);
+		Assert.assertEquals("/jobs/" + originalJob.getJobID() + "/vertices/" + originalTask.getJobVertexId() + "/taskmanagers", archive.getPath());
+		compareVertexTaskManagers(originalTask, originalSubtask, archive.getJson());
 	}
 
 	@Test

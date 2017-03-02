@@ -18,11 +18,19 @@
 package org.apache.flink.runtime.webmonitor.history;
 
 public class ArchivedJson {
-	public final String path;
-	public final String json;
+	private final String path;
+	private final String json;
 	
 	public ArchivedJson(String path, String json) {
 		this.path = path;
 		this.json = json;
+	}
+
+	public String getPath() {
+		return path;
+	}
+
+	public String getJson() {
+		return json;
 	}
 }

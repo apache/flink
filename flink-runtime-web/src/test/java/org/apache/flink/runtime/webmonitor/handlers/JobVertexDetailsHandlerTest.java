@@ -44,8 +44,8 @@ public class JobVertexDetailsHandlerTest {
 		Assert.assertEquals(1, archives.length);
 
 		ArchivedJson archive = archives[0];
-		Assert.assertEquals("/jobs/" + originalJob.getJobID() + "/vertices/" + originalTask.getJobVertexId(), archive.path);
-		compareVertexDetails(originalTask, archive.json);
+		Assert.assertEquals("/jobs/" + originalJob.getJobID() + "/vertices/" + originalTask.getJobVertexId(), archive.getPath());
+		compareVertexDetails(originalTask, archive.getJson());
 	}
 
 	@Test
