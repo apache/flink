@@ -23,6 +23,7 @@ import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 
+import java.io.IOException;
 import java.io.StringWriter;
 import java.util.Map;
 
@@ -37,10 +38,14 @@ public class JobAccumulatorsHandler extends AbstractExecutionGraphRequestHandler
 
 	@Override
 	public String handleRequest(AccessExecutionGraph graph, Map<String, String> params) throws Exception {
-		StringifiedAccumulatorResult[] allAccumulators = graph.getAccumulatorResultsStringified();
-		
+		return createJobAccumulatorsJson(graph);
+	}
+
+	public static String createJobAccumulatorsJson(AccessExecutionGraph graph) throws IOException {
 		StringWriter writer = new StringWriter();
 		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
+
+		StringifiedAccumulatorResult[] allAccumulators = graph.getAccumulatorResultsStringified();
 
 		gen.writeStartObject();
 

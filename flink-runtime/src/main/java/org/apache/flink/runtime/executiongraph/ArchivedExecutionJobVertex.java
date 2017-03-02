@@ -54,6 +54,21 @@ public class ArchivedExecutionJobVertex implements AccessExecutionJobVertex, Ser
 		this.maxParallelism = jobVertex.getMaxParallelism();
 	}
 
+	public ArchivedExecutionJobVertex(
+			ArchivedExecutionVertex[] taskVertices,
+			JobVertexID id,
+			String name,
+			int parallelism,
+			int maxParallelism,
+			StringifiedAccumulatorResult[] archivedUserAccumulators) {
+		this.taskVertices = taskVertices;
+		this.id = id;
+		this.name = name;
+		this.parallelism = parallelism;
+		this.maxParallelism = maxParallelism;
+		this.archivedUserAccumulators = archivedUserAccumulators;
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//   Accessors
 	// --------------------------------------------------------------------------------------------
