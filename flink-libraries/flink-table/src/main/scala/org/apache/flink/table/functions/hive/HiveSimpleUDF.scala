@@ -21,6 +21,7 @@ import java.util
 
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.hadoop.hive.ql.exec.{FunctionRegistry, UDF}
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFUtils.ConversionHelper
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector
 import org.apache.hadoop.hive.serde2.typeinfo.{TypeInfo, TypeInfoFactory}
 
@@ -39,10 +40,13 @@ class HiveSimpleUDF(name: String, functionWrapper: HiveFunctionWrapper) extends 
   private lazy val function = functionWrapper.createFunction[UDF]()
 
   @transient
-  private var typeInfos = null
+  private var typeInfos: util.List[TypeInfo] = _
 
   @transient
-  private var objectInspectos = null
+  private var objectInspectors: Array[ObjectInspector] = _
+
+  @transient
+  private var conversionHelper: ConversionHelper = _
 
   @transient
   private val method = function.getResolver.getEvalMethod(typeInfos)
@@ -50,11 +54,14 @@ class HiveSimpleUDF(name: String, functionWrapper: HiveFunctionWrapper) extends 
   @varargs
   def eval(args: Any*) : Any = {
     if (null == typeInfos) {
-      val typeInfos = new util.ArrayList[TypeInfo]()
+      typeInfos = new util.ArrayList[TypeInfo]()
       args.foreach(arg => {
           typeInfos.add(TypeInfoFactory.getPrimitiveTypeInfoFromJavaPrimitive(arg.getClass))
       })
+      objectInspectors = new Array[ObjectInspector](typeInfos.size())
+      conversionHelper = new ConversionHelper(method, objectInspectors)
     }
-    FunctionRegistry.invoke(method, function, args)
+    FunctionRegistry.invoke(method, function,
+      conversionHelper.convertIfNecessary(args.toArray))
   }
 }
