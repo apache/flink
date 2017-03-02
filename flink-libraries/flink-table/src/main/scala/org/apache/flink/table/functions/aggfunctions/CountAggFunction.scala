@@ -18,22 +18,25 @@
 package org.apache.flink.table.functions.aggfunctions
 
 import java.util.{List => JList}
+
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.tuple.{Tuple1 => JTuple1}
+import org.apache.flink.api.java.typeutils.TupleTypeInfo
 import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
+
+/** The initial accumulator for count aggregate function */
+class CountAccumulator extends JTuple1[Long] with Accumulator {
+  f0 = 0L //count
+}
 
 /**
   * built-in count aggregate function
   */
 class CountAggFunction extends AggregateFunction[Long] {
 
-  /** The initial accumulator for count aggregate function */
-  class CountAccumulator extends JTuple1[Long] with Accumulator {
-    f0 = 0 //count
-  }
-
   override def accumulate(accumulator: Accumulator, value: Any): Unit = {
     if (value != null) {
-      accumulator.asInstanceOf[CountAccumulator].f0 += 1
+      accumulator.asInstanceOf[CountAccumulator].f0 += 1L
     }
   }
 
@@ -53,5 +56,9 @@ class CountAggFunction extends AggregateFunction[Long] {
 
   override def createAccumulator(): Accumulator = {
     new CountAccumulator
+  }
+
+  override def getAccumulatorType(): TypeInformation[_] = {
+    new TupleTypeInfo((new CountAccumulator).getClass, BasicTypeInfo.LONG_TYPE_INFO)
   }
 }
