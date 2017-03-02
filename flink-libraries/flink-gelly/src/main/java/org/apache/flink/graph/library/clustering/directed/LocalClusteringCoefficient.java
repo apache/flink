@@ -44,11 +44,11 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
  * The local clustering coefficient measures the connectedness of each vertex's
  * neighborhood. Scores range from 0.0 (no edges between neighbors) to 1.0
  * (neighborhood is a clique).
- * <br/>
+ * <p>
  * An edge between a vertex's neighbors is a triangle. Counting edges between
  * neighbors is equivalent to counting the number of triangles which include
  * the vertex.
- * <br/>
+ * <p>
  * The input graph must be a simple graph containing no duplicate edges or
  * self-loops.
  *

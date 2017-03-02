@@ -53,10 +53,10 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
  * Hyperlink-Induced Topic Search computes two interdependent scores for every
  * vertex in a directed graph. A good "hub" links to good "authorities" and
  * good "authorities" are linked from good "hubs".
- * <br/>
+ * <p>
  * This algorithm can be configured to terminate either by a limit on the number
  * of iterations, a convergence threshold, or both.
- * <br/>
+ * <p>
  * http://www.cs.cornell.edu/home/kleinber/auth.pdf
  *
  * @param <K> graph ID type
