@@ -23,18 +23,16 @@ import org.apache.flink.api.common.state.AggregatingState;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
 import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.runtime.state.KeyedStateBackend;
+import org.apache.flink.runtime.state.StateTransformationFunction;
 import org.apache.flink.runtime.state.internal.InternalAggregatingState;
+import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
-import java.util.Map;
-
-import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Heap-backed partitioned {@link ReducingState} that is
  * snapshotted into files.
- * 
+ *
  * @param <K> The type of the key.
  * @param <N> The type of the namespace.
  * @param <IN> The type of the value added to the state.
@@ -45,13 +43,11 @@ public class HeapAggregatingState<K, N, IN, ACC, OUT>
 		extends AbstractHeapMergingState<K, N, IN, OUT, ACC, AggregatingState<IN, OUT>, AggregatingStateDescriptor<IN, ACC, OUT>>
 		implements InternalAggregatingState<N, IN, OUT> {
 
-	private final AggregateFunction<IN, ACC, OUT> aggFunction;
+	private final AggregateTransformation<IN, ACC, OUT> aggregateTransformation;
 
 	/**
 	 * Creates a new key/value state for the given hash map of key/value pairs.
 	 *
-	 * @param backend
-	 *             The state backend backing that created this state.
 	 * @param stateDesc
 	 *             The state identifier for the state. This contains name and can create a default state value.
 	 * @param stateTable
@@ -60,14 +56,13 @@ public class HeapAggregatingState<K, N, IN, ACC, OUT>
 	 *             The serializer for the type that indicates the namespace
 	 */
 	public HeapAggregatingState(
-			KeyedStateBackend<K> backend,
 			AggregatingStateDescriptor<IN, ACC, OUT> stateDesc,
 			StateTable<K, N, ACC> stateTable,
 			TypeSerializer<K> keySerializer,
 			TypeSerializer<N> namespaceSerializer) {
 
-		super(backend, stateDesc, stateTable, keySerializer, namespaceSerializer);
-		this.aggFunction = stateDesc.getAggregateFunction();
+		super(stateDesc, stateTable, keySerializer, namespaceSerializer);
+		this.aggregateTransformation = new AggregateTransformation<>(stateDesc.getAggregateFunction());
 	}
 
 	// ------------------------------------------------------------------------
@@ -76,64 +71,25 @@ public class HeapAggregatingState<K, N, IN, ACC, OUT>
 
 	@Override
 	public OUT get() {
-		final K key = backend.getCurrentKey();
 
-		checkState(currentNamespace != null, "No namespace set.");
-		checkState(key != null, "No key set.");
-
-		Map<N, Map<K, ACC>> namespaceMap =
-				stateTable.get(backend.getCurrentKeyGroupIndex());
-
-		if (namespaceMap == null) {
-			return null;
-		}
-
-		Map<K, ACC> keyedMap = namespaceMap.get(currentNamespace);
-
-		if (keyedMap == null) {
-			return null;
-		}
-
-		ACC accumulator = keyedMap.get(key);
-		return aggFunction.getResult(accumulator);
+		ACC accumulator = stateTable.get(currentNamespace);
+		return accumulator != null ? aggregateTransformation.aggFunction.getResult(accumulator) : null;
 	}
 
 	@Override
 	public void add(IN value) throws IOException {
-		final K key = backend.getCurrentKey();
-
-		checkState(currentNamespace != null, "No namespace set.");
-		checkState(key != null, "No key set.");
+		final N namespace = currentNamespace;
 
 		if (value == null) {
 			clear();
 			return;
 		}
 
-		Map<N, Map<K, ACC>> namespaceMap =
-				stateTable.get(backend.getCurrentKeyGroupIndex());
-
-		if (namespaceMap == null) {
-			namespaceMap = createNewMap();
-			stateTable.set(backend.getCurrentKeyGroupIndex(), namespaceMap);
+		try {
+			stateTable.transform(namespace, value, aggregateTransformation);
+		} catch (Exception e) {
+			throw new IOException("Exception while applying AggregateFunction in aggregating state", e);
 		}
-
-		Map<K, ACC> keyedMap = namespaceMap.get(currentNamespace);
-
-		if (keyedMap == null) {
-			keyedMap = createNewMap();
-			namespaceMap.put(currentNamespace, keyedMap);
-		}
-
-		// if this is the first value for the key, create a new accumulator
-		ACC accumulator = keyedMap.get(key);
-		if (accumulator == null) {
-			accumulator = aggFunction.createAccumulator();
-			keyedMap.put(key, accumulator);
-		}
-
-		// 
-		aggFunction.add(value, accumulator);
 	}
 
 	// ------------------------------------------------------------------------
@@ -142,6 +98,24 @@ public class HeapAggregatingState<K, N, IN, ACC, OUT>
 
 	@Override
 	protected ACC mergeState(ACC a, ACC b) throws Exception {
-		return aggFunction.merge(a, b);
+		return aggregateTransformation.aggFunction.merge(a, b);
+	}
+
+	static final class AggregateTransformation<IN, ACC, OUT> implements StateTransformationFunction<ACC, IN> {
+
+		private final AggregateFunction<IN, ACC, OUT> aggFunction;
+
+		AggregateTransformation(AggregateFunction<IN, ACC, OUT> aggFunction) {
+			this.aggFunction = Preconditions.checkNotNull(aggFunction);
+		}
+
+		@Override
+		public ACC apply(ACC accumulator, IN value) throws Exception {
+			if (accumulator == null) {
+				accumulator = aggFunction.createAccumulator();
+			}
+			aggFunction.add(value, accumulator);
+			return accumulator;
+		}
 	}
 }

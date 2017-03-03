@@ -23,25 +23,20 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
-import org.apache.flink.api.common.typeutils.base.StringSerializer;
-import org.apache.flink.runtime.query.TaskKvStateRegistry;
-import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.internal.InternalReducingState;
-
 import org.junit.Test;
 
 import static java.util.Arrays.asList;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
 
 /**
  * Tests for the simple Java heap objects implementation of the {@link ReducingState}.
  */
-public class HeapReducingStateTest {
+public class HeapReducingStateTest extends HeapStateBackendTestBase {
 
 	@Test
 	public void testAddAndGet() throws Exception {
@@ -214,7 +209,7 @@ public class HeapReducingStateTest {
 			keyedBackend.setCurrentKey("mno");
 			state.setCurrentNamespace(namespace1);
 			state.clear();
-			
+
 			StateTable<String, Integer, Long> stateTable =
 					((HeapReducingState<String, Integer, Long>) state).stateTable;
 
@@ -224,20 +219,6 @@ public class HeapReducingStateTest {
 			keyedBackend.close();
 			keyedBackend.dispose();
 		}
-	}
-
-	// ------------------------------------------------------------------------
-	//  utilities
-	// ------------------------------------------------------------------------
-
-	private static HeapKeyedStateBackend<String> createKeyedBackend() throws Exception {
-		return new HeapKeyedStateBackend<>(
-				mock(TaskKvStateRegistry.class),
-				StringSerializer.INSTANCE,
-				HeapReducingStateTest.class.getClassLoader(),
-				16,
-				new KeyGroupRange(0, 15),
-				new ExecutionConfig());
 	}
 
 	// ------------------------------------------------------------------------

@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,31 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.test.checkpointing;
+package org.apache.flink.runtime.state.heap;
 
-public class RocksDbBackendEventTimeWindowCheckpointingITCase extends AbstractEventTimeWindowCheckpointingITCase {
+import org.apache.flink.core.memory.DataInputView;
 
-	public RocksDbBackendEventTimeWindowCheckpointingITCase() {
-		super(StateBackendEnum.ROCKSDB_FULLY_ASYNC);
-	}
+import java.io.IOException;
 
-	@Override
-	protected int numElementsPerKey() {
-		return 3000;
-	}
+/**
+ * Interface for state de-serialization into {@link StateTable}s by key-group.
+ */
+interface StateTableByKeyGroupReader {
 
-	@Override
-	protected int windowSize() {
-		return 1000;
-	}
-
-	@Override
-	protected int windowSlide() {
-		return 100;
-	}
-
-	@Override
-	protected int numKeys() {
-		return 100;
-	}
+	/**
+	 * Read the data for the specified key-group from the input.
+	 *
+	 * @param div        the input
+	 * @param keyGroupId the key-group to write
+	 * @throws IOException on write related problems
+	 */
+	void readMappingsInKeyGroup(DataInputView div, int keyGroupId) throws IOException;
 }

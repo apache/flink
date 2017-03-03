@@ -18,29 +18,9 @@
 
 package org.apache.flink.test.checkpointing;
 
-public class RocksDbBackendEventTimeWindowCheckpointingITCase extends AbstractEventTimeWindowCheckpointingITCase {
+public class AsyncFileBackendEventTimeWindowCheckpointingITCase extends AbstractEventTimeWindowCheckpointingITCase {
 
-	public RocksDbBackendEventTimeWindowCheckpointingITCase() {
-		super(StateBackendEnum.ROCKSDB_FULLY_ASYNC);
-	}
-
-	@Override
-	protected int numElementsPerKey() {
-		return 3000;
-	}
-
-	@Override
-	protected int windowSize() {
-		return 1000;
-	}
-
-	@Override
-	protected int windowSlide() {
-		return 100;
-	}
-
-	@Override
-	protected int numKeys() {
-		return 100;
+	public AsyncFileBackendEventTimeWindowCheckpointingITCase() {
+		super(StateBackendEnum.FILE_ASYNC);
 	}
 }

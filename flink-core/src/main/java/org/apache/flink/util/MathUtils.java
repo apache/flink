@@ -140,11 +140,7 @@ public final class MathUtils {
 		code = code * 5 + 0xe6546b64;
 
 		code ^= 4;
-		code ^= code >>> 16;
-		code *= 0x85ebca6b;
-		code ^= code >>> 13;
-		code *= 0xc2b2ae35;
-		code ^= code >>> 16;
+		code = bitMix(code);
 
 		if (code >= 0) {
 			return code;
@@ -170,6 +166,35 @@ public final class MathUtils {
 		x |= x >> 8;
 		x |= x >> 16;
 		return x + 1;
+	}
+
+	/**
+	 * Pseudo-randomly maps a long (64-bit) to an integer (32-bit) using some bit-mixing for better distribution.
+	 *
+	 * @param in the long (64-bit)input.
+	 * @return the bit-mixed int (32-bit) output
+	 */
+	public static int longToIntWithBitMixing(long in) {
+		in = (in ^ (in >>> 30)) * 0xbf58476d1ce4e5b9L;
+		in = (in ^ (in >>> 27)) * 0x94d049bb133111ebL;
+		in = in ^ (in >>> 31);
+		return (int) in;
+	}
+
+	/**
+	 * Bit-mixing for pseudo-randomization of integers (e.g., to guard against bad hash functions). Implementation is
+	 * from Murmur's 32 bit finalizer.
+	 *
+	 * @param in the input value
+	 * @return the bit-mixed output value
+	 */
+	public static int bitMix(int in) {
+		in ^= in >>> 16;
+		in *= 0x85ebca6b;
+		in ^= in >>> 13;
+		in *= 0xc2b2ae35;
+		in ^= in >>> 16;
+		return in;
 	}
 
 	// ============================================================================================

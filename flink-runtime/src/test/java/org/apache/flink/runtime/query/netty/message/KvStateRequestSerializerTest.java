@@ -21,12 +21,10 @@ package org.apache.flink.runtime.query.netty.message;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.UnpooledByteBufAllocator;
-
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.ByteSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -38,13 +36,16 @@ import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.internal.InternalListState;
-
 import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -54,9 +55,18 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 
+@RunWith(Parameterized.class)
 public class KvStateRequestSerializerTest {
 
 	private final ByteBufAllocator alloc = UnpooledByteBufAllocator.DEFAULT;
+
+	@Parameterized.Parameters
+	public static Collection<Boolean> parameters() {
+		return Arrays.asList(false, true);
+	}
+
+	@Parameterized.Parameter
+	public boolean async;
 
 	/**
 	 * Tests KvState request serialization.
@@ -332,7 +342,9 @@ public class KvStateRequestSerializerTest {
 				mock(TaskKvStateRegistry.class),
 				LongSerializer.INSTANCE,
 				ClassLoader.getSystemClassLoader(),
-				1, new KeyGroupRange(0, 0),
+				1,
+				new KeyGroupRange(0, 0),
+				async,
 				new ExecutionConfig()
 			);
 		longHeapKeyedStateBackend.setCurrentKey(key);
@@ -418,7 +430,7 @@ public class KvStateRequestSerializerTest {
 		KvStateRequestSerializer.deserializeList(new byte[] {1, 1, 1, 1, 1, 1, 1, 1, 2, 3},
 			LongSerializer.INSTANCE);
 	}
-	
+
 	/**
 	 * Tests map serialization utils.
 	 */
@@ -429,11 +441,13 @@ public class KvStateRequestSerializerTest {
 		// objects for heap state list serialisation
 		final HeapKeyedStateBackend<Long> longHeapKeyedStateBackend =
 			new HeapKeyedStateBackend<>(
-				mock(TaskKvStateRegistry.class),
-				LongSerializer.INSTANCE,
-				ClassLoader.getSystemClassLoader(),
-				1, new KeyGroupRange(0, 0),
-				new ExecutionConfig()
+					mock(TaskKvStateRegistry.class),
+					LongSerializer.INSTANCE,
+					ClassLoader.getSystemClassLoader(),
+					1,
+					new KeyGroupRange(0, 0),
+					async,
+					new ExecutionConfig()
 			);
 		longHeapKeyedStateBackend.setCurrentKey(key);
 
@@ -481,7 +495,7 @@ public class KvStateRequestSerializerTest {
 			KvStateRequestSerializer.serializeKeyAndNamespace(
 				key, LongSerializer.INSTANCE,
 				VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE);
-		
+
 		final byte[] serializedValues = mapState.getSerializedValue(serializedKey);
 
 		Map<Long, String> actualValues = KvStateRequestSerializer.deserializeMap(serializedValues, userKeySerializer, userValueSerializer);
@@ -534,7 +548,7 @@ public class KvStateRequestSerializerTest {
 		KvStateRequestSerializer.deserializeMap(new byte[]{1, 1, 1, 1, 1, 1, 1, 1, 0},
 				LongSerializer.INSTANCE, LongSerializer.INSTANCE);
 	}
-	
+
 	/**
 	 * Tests map deserialization with too few bytes.
 	 */
