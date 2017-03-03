@@ -117,14 +117,13 @@ class FieldProjectionTest extends TableTestBase {
     val expected = unaryNode(
       "DataSetCalc",
       unaryNode(
-        "DataSetAggregate",
+        "DataSetDistinct",
         unaryNode(
           "DataSetCalc",
           batchTableNode(0),
           term("select", "a", "c")
         ),
-        term("groupBy", "a", "c"),
-        term("select", "a", "c")
+        term("distinct", "a", "c")
       ),
       term("select", "a")
     )
@@ -138,14 +137,13 @@ class FieldProjectionTest extends TableTestBase {
     val resultTable = sourceTable.groupBy('a, 'c).select('a, 'c)
 
     val expected = unaryNode(
-      "DataSetAggregate",
+      "DataSetDistinct",
       unaryNode(
         "DataSetCalc",
         batchTableNode(0),
         term("select", "a", "c")
       ),
-      term("groupBy", "a", "c"),
-      term("select", "a", "c")
+      term("distinct", "a", "c")
     )
 
     util.verifyTable(resultTable, expected)
