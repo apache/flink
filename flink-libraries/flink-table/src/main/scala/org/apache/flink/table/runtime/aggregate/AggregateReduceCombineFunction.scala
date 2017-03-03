@@ -22,6 +22,7 @@ import java.lang.Iterable
 import java.util.{ArrayList => JArrayList}
 
 import org.apache.flink.api.common.functions.CombineFunction
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
 import org.apache.flink.types.Row
 
@@ -65,35 +66,38 @@ class AggregateReduceCombineFunction(
     // merge intermediate aggregate value to buffer.
     var last: Row = null
     accumulatorList.foreach(_.clear())
+    for (i <- aggregates.indices) {
+      val accumulator = aggregates(i).createAccumulator()
+      accumulatorList(i).add(accumulator)
+      accumulatorList(i).add(accumulator)
+    }
 
     val iterator = records.iterator()
 
-    var count: Int = 0
     while (iterator.hasNext) {
       val record = iterator.next()
-      count += 1
-      // per each aggregator, collect its accumulators to a list
+
       for (i <- aggregates.indices) {
-        accumulatorList(i).add(record.getField(groupKeysMapping.length + i)
-                                 .asInstanceOf[Accumulator])
-      }
-      // if the number of buffered accumulators is bigger than maxMergeLen, merge them into one
-      // accumulator
-      if (count > maxMergeLen) {
-        count = 0
-        for (i <- aggregates.indices) {
-          val agg = aggregates(i)
-          val accumulator = agg.merge(accumulatorList(i))
-          accumulatorList(i).clear()
-          accumulatorList(i).add(accumulator)
+        val newAcc = record.getField(groupKeysMapping.length + i)
+          .asInstanceOf[Accumulator]
+        accumulatorList(i).set(1, newAcc)
+        val retAcc = aggregates(i).merge(accumulatorList(i))
+        if (System.identityHashCode(newAcc) == System.identityHashCode(retAcc)) {
+          throw TableException(
+            "Due to the Object Reuse, it is not safe to use the newACC intance (index = 1) to " +
+              "save the merge result. You can change your merge function to use the first " +
+              "instance (index = 0) instead.")
         }
+        accumulatorList(i).set(0, retAcc)
       }
+
       last = record
     }
 
+    // set the partial merged result to the aggregateBuffer
     for (i <- aggregates.indices) {
       val agg = aggregates(i)
-      aggregateBuffer.setField(groupKeysMapping.length + i, agg.merge(accumulatorList(i)))
+      aggregateBuffer.setField(groupKeysMapping.length + i, accumulatorList(i).get(0))
     }
 
     // set group keys to aggregateBuffer.

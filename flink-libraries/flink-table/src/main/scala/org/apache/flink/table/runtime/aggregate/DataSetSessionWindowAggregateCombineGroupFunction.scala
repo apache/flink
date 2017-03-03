@@ -25,6 +25,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.types.Row
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
 import org.apache.flink.util.{Collector, Preconditions}
 
@@ -47,7 +48,6 @@ class DataSetSessionWindowAggregateCombineGroupFunction(
   private var aggregateBuffer: Row = _
   private var accumStartPos: Int = groupingKeys.length
   private var rowTimeFieldPos = accumStartPos + aggregates.length
-  private val maxMergeLen = 16
   val accumulatorList = Array.fill(aggregates.length) {
     new JArrayList[Accumulator]()
   }
@@ -73,14 +73,16 @@ class DataSetSessionWindowAggregateCombineGroupFunction(
     var windowEnd: java.lang.Long = null
     var currentRowTime: java.lang.Long = null
     accumulatorList.foreach(_.clear())
+    for (i <- aggregates.indices) {
+      val accumulator = aggregates(i).createAccumulator()
+      accumulatorList(i).add(accumulator)
+      accumulatorList(i).add(accumulator)
+    }
 
     val iterator = records.iterator()
 
-
-    var count: Int = 0
     while (iterator.hasNext) {
       val record = iterator.next()
-      count += 1
       currentRowTime = record.getField(rowTimeFieldPos).asInstanceOf[Long]
       // initial traversal or opening a new window
       if (windowEnd == null || (windowEnd != null && (currentRowTime > windowEnd))) {
@@ -92,7 +94,11 @@ class DataSetSessionWindowAggregateCombineGroupFunction(
 
           // clear the accumulator list for all aggregate
           accumulatorList.foreach(_.clear())
-          count = 0
+          for (i <- aggregates.indices) {
+            val accumulator = aggregates(i).createAccumulator()
+            accumulatorList(i).add(accumulator)
+            accumulatorList(i).add(accumulator)
+          }
         } else {
           // set group keys to aggregateBuffer.
           for (i <- groupingKeys.indices) {
@@ -103,21 +109,18 @@ class DataSetSessionWindowAggregateCombineGroupFunction(
         windowStart = record.getField(rowTimeFieldPos).asInstanceOf[Long]
       }
 
-      // collect the accumulators for each aggregate
       for (i <- aggregates.indices) {
-        accumulatorList(i).add(record.getField(accumStartPos + i).asInstanceOf[Accumulator])
-      }
-
-      // if the number of buffered accumulators is bigger than maxMergeLen, merge them into one
-      // accumulator
-      if (count > maxMergeLen) {
-        count = 0
-        for (i <- aggregates.indices) {
-          val agg = aggregates(i)
-          val accumulator = agg.merge(accumulatorList(i))
-          accumulatorList(i).clear()
-          accumulatorList(i).add(accumulator)
+        val newAcc = record.getField(accumStartPos + i)
+          .asInstanceOf[Accumulator]
+        accumulatorList(i).set(1, newAcc)
+        val retAcc = aggregates(i).merge(accumulatorList(i))
+        if (System.identityHashCode(newAcc) == System.identityHashCode(retAcc)) {
+          throw TableException(
+            "Due to the Object Reuse, it is not safe to use the newACC intance (index = 1) to " +
+              "save the merge result. You can change your merge function to use the first " +
+              "instance (index = 0) instead.")
         }
+        accumulatorList(i).set(0, retAcc)
       }
 
       // the current rowtime is the last rowtime of the next calculation.
@@ -146,7 +149,7 @@ class DataSetSessionWindowAggregateCombineGroupFunction(
 
     // merge the accumulators into one accumulator
     for (i <- aggregates.indices) {
-      aggregateBuffer.setField(accumStartPos + i, aggregates(i).merge(accumulatorList(i)))
+      aggregateBuffer.setField(accumStartPos + i, accumulatorList(i).get(0))
     }
 
     // intermediate Row WindowStartPos is rowtime pos.
