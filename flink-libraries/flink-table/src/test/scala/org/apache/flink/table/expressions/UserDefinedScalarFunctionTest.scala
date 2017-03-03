@@ -29,7 +29,6 @@ import org.apache.flink.table.api.java.utils.UserDefinedScalarFunctions.{JavaFun
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.utils._
 import org.apache.flink.table.functions.ScalarFunction
-import org.apache.flink.table.functions.hive.{HiveFunctionWrapper, HiveSimpleUDF}
 import org.junit.Test
 
 class UserDefinedScalarFunctionTest extends ExpressionTestBase {
@@ -315,59 +314,6 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
       "#Test")
   }
 
-  @Test
-  def testHiveSimpleFunctions(): Unit = {
-    val HiveUDFAscii = new HiveSimpleUDF(
-      HiveFunctionWrapper("org.apache.hadoop.hive.ql.udf.UDFAscii"))
-    testAllApis(
-      HiveUDFAscii("0"),
-      "HiveUDFAscii('0')",
-      "HiveUDFAscii('0')",
-      "48"
-    )
-
-    val HiveUDFChr = new HiveSimpleUDF(
-      HiveFunctionWrapper("org.apache.hadoop.hive.ql.udf.UDFChr"))
-    testAllApis(
-      HiveUDFChr(48),
-      "HiveUDFChr(48)",
-      "HiveUDFChr(48)",
-      "0"
-    )
-
-    val HiveUDFConv = new HiveSimpleUDF(
-      HiveFunctionWrapper("org.apache.hadoop.hive.ql.udf.UDFConv"))
-    testAllApis(
-      HiveUDFConv("100", 2, 10),
-      "HiveUDFConv('100', 2, 10)",
-      "HiveUDFConv('100', 2, 10)",
-      "4"
-    )
-    testAllApis(
-      HiveUDFConv(-10, 16, -10),
-      "HiveUDFConv(-10, 16, -10)",
-      "HiveUDFConv(-10, 16, -10)",
-      "-16"
-    )
-
-    val HiveUDFCrc32 = new HiveSimpleUDF(
-      HiveFunctionWrapper("org.apache.hadoop.hive.ql.udf.UDFCrc32"))
-    testAllApis(
-      HiveUDFCrc32("ABC"),
-      "HiveUDFCrc32('ABC')",
-      "HiveUDFCrc32('ABC')",
-      "2743272264"
-    )
-
-    val HiveUDFDayOfMonth = new HiveSimpleUDF(
-      HiveFunctionWrapper("org.apache.hadoop.hive.ql.udf.UDFDayOfMonth"))
-    testAllApis(
-      HiveUDFDayOfMonth("2009-07-30"),
-      "HiveUDFDayOfMonth('2009-07-30')",
-      "HiveUDFDayOfMonth('2009-07-30')",
-      "30"
-    )
-  }
 
   // ----------------------------------------------------------------------------------------------
 
@@ -425,17 +371,7 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
     "JavaFunc3" -> new JavaFunc3,
     "RichFunc0" -> new RichFunc0,
     "RichFunc1" -> new RichFunc1,
-    "RichFunc2" -> new RichFunc2,
-    "HiveUDFAscii" -> new HiveSimpleUDF(
-      HiveFunctionWrapper("org.apache.hadoop.hive.ql.udf.UDFAscii")),
-    "HiveUDFChr" -> new HiveSimpleUDF(
-      HiveFunctionWrapper("org.apache.hadoop.hive.ql.udf.UDFChr")),
-    "HiveUDFConv" -> new HiveSimpleUDF(
-      HiveFunctionWrapper("org.apache.hadoop.hive.ql.udf.UDFConv")),
-    "HiveUDFCrc32" -> new HiveSimpleUDF(
-      HiveFunctionWrapper("org.apache.hadoop.hive.ql.udf.UDFCrc32")),
-    "HiveUDFDayOfMonth" -> new HiveSimpleUDF(
-      HiveFunctionWrapper("org.apache.hadoop.hive.ql.udf.UDFDayOfMonth"))
+    "RichFunc2" -> new RichFunc2
   )
 }
 

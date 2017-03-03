@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.table.functions.hive
+package org.apache.flink.table.hive.functions
 
 import java.lang.reflect.Method
 import java.util
@@ -23,8 +23,8 @@ import java.util
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.hadoop.hive.ql.exec.{FunctionRegistry, UDF}
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFUtils.ConversionHelper
-import org.apache.hadoop.hive.serde2.objectinspector.primitive.PrimitiveObjectInspectorFactory
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector
+import org.apache.hadoop.hive.serde2.objectinspector.primitive.PrimitiveObjectInspectorFactory
 import org.apache.hadoop.hive.serde2.typeinfo.{PrimitiveTypeInfo, TypeInfo, TypeInfoFactory}
 
 import scala.annotation.varargs
@@ -36,7 +36,10 @@ import scala.annotation.varargs
   * <code> eval(args: Any*) </code> to <code>eval(args: Seq)</code>.
   * This will cause an exception in Janino compiler.
   */
-class HiveSimpleUDF(functionWrapper: HiveFunctionWrapper) extends ScalarFunction {
+class HiveSimpleUDF(className: String) extends ScalarFunction {
+
+  @transient
+  private lazy val functionWrapper = HiveFunctionWrapper(className)
 
   @transient
   private lazy val function = functionWrapper.createFunction[UDF]()

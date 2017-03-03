@@ -16,28 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.functions.hive
+package org.apache.flink.table.hive.functions.utils
 
-import org.apache.hadoop.hive.ql.exec.UDF
+case class SimplePojo(name: String, age: Int)
 
-private[table] case class HiveFunctionWrapper(
-  var functionClassName: String,
-  private var instance: AnyRef = null) {
-
-  def createFunction[UDFType <: AnyRef](): UDFType = {
-    if (instance != null) {
-      instance.asInstanceOf[UDFType]
-    } else {
-      val func = getClassLoader.loadClass(functionClassName).newInstance().asInstanceOf[UDFType]
-      if (!func.isInstanceOf[UDF]) {
-        instance = func
-      }
-      func
-    }
-  }
-
-  def getClassLoader: ClassLoader = {
-    Thread.currentThread.getContextClassLoader
-  }
-
-}
