@@ -140,11 +140,12 @@ class DataSetUserDefinedFunctionITCase(
     val pojo = new PojoTableFunc()
     val result = in
       .join(pojo('c))
+      .where(('age > 20))
       .select('c, 'name, 'age)
       .toDataSet[Row]
 
     val results = result.collect()
-    val expected = "Jack#22,Jack,22\n" + "John#19,John,19\n" + "Anna#44,Anna,44\n"
+    val expected = "Jack#22,Jack,22\n" + "Anna#44,Anna,44\n"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 

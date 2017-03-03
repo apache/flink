@@ -15,27 +15,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.flink.runtime.webmonitor.history;
 
-package org.apache.flink.table.runtime.aggregate
+import org.apache.flink.runtime.jobmanager.MemoryArchivist;
+import org.apache.flink.util.Preconditions;
 
-import java.lang.Iterable
+/**
+ * A simple container for a handler's JSON response and the REST URLs for which the response would've been returned.
+ * 
+ * These are created by {@link JsonArchivist}s, and used by the {@link MemoryArchivist} to create a directory structure
+ * resembling the REST API.
+ */
+public class ArchivedJson {
+	private final String path;
+	private final String json;
+	
+	public ArchivedJson(String path, String json) {
+		this.path = Preconditions.checkNotNull(path);
+		this.json = Preconditions.checkNotNull(json);
+	}
 
-import org.apache.flink.api.common.functions.RichGroupReduceFunction
-import org.apache.flink.types.Row
-import org.apache.flink.configuration.Configuration
-import org.apache.flink.streaming.api.functions.windowing.RichAllWindowFunction
-import org.apache.flink.streaming.api.windowing.windows.Window
-import org.apache.flink.util.Collector
+	public String getPath() {
+		return path;
+	}
 
-class AggregateAllWindowFunction[W <: Window](
-    groupReduceFunction: RichGroupReduceFunction[Row, Row])
-  extends RichAllWindowFunction[Row, Row, W] {
-
-  override def open(parameters: Configuration): Unit = {
-    groupReduceFunction.open(parameters)
-  }
-
-  override def apply(window: W, input: Iterable[Row], out: Collector[Row]): Unit = {
-    groupReduceFunction.reduce(input, out)
-  }
+	public String getJson() {
+		return json;
+	}
 }

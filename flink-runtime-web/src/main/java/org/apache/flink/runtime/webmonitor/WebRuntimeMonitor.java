@@ -37,6 +37,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.runtime.webmonitor.files.StaticFileServerHandler;
@@ -77,6 +78,7 @@ import org.apache.flink.runtime.webmonitor.handlers.checkpoints.CheckpointStatsC
 import org.apache.flink.runtime.webmonitor.handlers.checkpoints.CheckpointStatsDetailsHandler;
 import org.apache.flink.runtime.webmonitor.handlers.checkpoints.CheckpointStatsHandler;
 import org.apache.flink.runtime.webmonitor.handlers.checkpoints.CheckpointStatsDetailsSubtasksHandler;
+import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.runtime.webmonitor.metrics.JobManagerMetricsHandler;
 import org.apache.flink.runtime.webmonitor.metrics.JobMetricsHandler;
 import org.apache.flink.runtime.webmonitor.metrics.JobVertexMetricsHandler;
@@ -422,6 +424,46 @@ public class WebRuntimeMonitor implements WebMonitor {
 		int port = bindAddress.getPort();
 
 		LOG.info("Web frontend listening at " + address + ':' + port);
+	}
+
+	/**
+	 * Returns an array of all {@link JsonArchivist}s that are relevant for the history server.
+	 * 
+	 * This method is static to allow easier access from the {@link MemoryArchivist}. Requiring a reference
+	 * would imply that the WebRuntimeMonitor is always created before the archivist, which may not hold for all
+	 * deployment modes.
+	 * 
+	 * Similarly, no handler implements the JsonArchivist interface itself but instead contains a separate implementing
+	 * class; otherwise we would either instantiate several handlers even though their main functionality isn't
+	 * required, or yet again require that the WebRuntimeMonitor is started before the archivist.
+	 * 
+	 * @return array of all JsonArchivists relevant for the history server
+	 */
+	public static JsonArchivist[] getArchivers() {
+		JsonArchivist[] archivists = new JsonArchivist[]{
+			new CurrentJobsOverviewHandler.CurrentJobsOverviewJsonArchivist(),
+
+			new JobPlanHandler.JobPlanJsonArchivist(),
+			new JobConfigHandler.JobConfigJsonArchivist(),
+			new JobExceptionsHandler.JobExceptionsJsonArchivist(),
+			new JobDetailsHandler.JobDetailsJsonArchivist(),
+			new JobAccumulatorsHandler.JobAccumulatorsJsonArchivist(),
+
+			new CheckpointStatsHandler.CheckpointStatsJsonArchivist(),
+			new CheckpointConfigHandler.CheckpointConfigJsonArchivist(),
+			new CheckpointStatsDetailsHandler.CheckpointStatsDetailsJsonArchivist(),
+			new CheckpointStatsDetailsSubtasksHandler.CheckpointStatsDetailsSubtasksJsonArchivist(),
+				
+			new JobVertexDetailsHandler.JobVertexDetailsJsonArchivist(),
+			new SubtasksTimesHandler.SubtasksTimesJsonArchivist(),
+			new JobVertexTaskManagersHandler.JobVertexTaskManagersJsonArchivist(),
+			new JobVertexAccumulatorsHandler.JobVertexAccumulatorsJsonArchivist(),
+			new SubtasksAllAccumulatorsHandler.SubtasksAllAccumulatorsJsonArchivist(),
+			
+			new SubtaskExecutionAttemptDetailsHandler.SubtaskExecutionAttemptDetailsJsonArchivist(),
+			new SubtaskExecutionAttemptAccumulatorsHandler.SubtaskExecutionAttemptAccumulatorsJsonArchivist()
+			};
+		return archivists;
 	}
 
 	@Override

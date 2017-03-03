@@ -25,13 +25,14 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.scala.stream.utils.{StreamITCase, StreamTestData}
 import org.apache.flink.table.expressions.utils.{Func13, RichFunc2}
 import org.apache.flink.table.utils.{RichTableFunc1, TableFunc0, TableFunc3, UserDefinedFunctionTestUtils}
+import org.apache.flink.table.utils.PojoTableFunc
 import org.apache.flink.types.Row
 import org.junit.Assert._
 import org.junit.Test
 
 import scala.collection.mutable
 
-class DataSetUserDefinedFunctionITCase extends StreamingMultipleProgramsTestBase {
+class DataStreamUserDefinedFunctionITCase extends StreamingMultipleProgramsTestBase {
 
   @Test
   def testCrossJoin(): Unit = {
@@ -41,16 +42,20 @@ class DataSetUserDefinedFunctionITCase extends StreamingMultipleProgramsTestBase
 
     val t = testData(env).toTable(tEnv).as('a, 'b, 'c)
     val func0 = new TableFunc0
+    val pojoFunc0 = new PojoTableFunc()
 
     val result = t
       .join(func0('c) as('d, 'e))
       .select('c, 'd, 'e)
+      .join(pojoFunc0('c))
+      .where(('age > 20))
+      .select('c, 'name, 'age)
       .toDataStream[Row]
 
     result.addSink(new StreamITCase.StringSink)
     env.execute()
 
-    val expected = mutable.MutableList("Jack#22,Jack,22", "John#19,John,19", "Anna#44,Anna,44")
+    val expected = mutable.MutableList("Jack#22,Jack,22", "Anna#44,Anna,44")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 

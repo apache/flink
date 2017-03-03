@@ -20,14 +20,20 @@ package org.apache.flink.runtime.webmonitor.handlers.checkpoints;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
+import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
+import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
+
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.IOException;
+import java.util.Collection;
 import java.util.Collections;
 
 import static org.junit.Assert.assertEquals;
@@ -36,6 +42,37 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class CheckpointConfigHandlerTest {
+
+	@Test
+	public void testArchiver() throws IOException {
+		JsonArchivist archivist = new CheckpointConfigHandler.CheckpointConfigJsonArchivist();
+		GraphAndSettings graphAndSettings = createGraphAndSettings(true, true);
+
+		AccessExecutionGraph graph = graphAndSettings.graph;
+		when(graph.getJobID()).thenReturn(new JobID());
+		JobSnapshottingSettings settings = graphAndSettings.snapshottingSettings;
+		ExternalizedCheckpointSettings externalizedSettings = graphAndSettings.externalizedSettings;
+		
+		Collection<ArchivedJson> archives = archivist.archiveJsonWithPath(graph);
+		Assert.assertEquals(1, archives.size());
+		ArchivedJson archive = archives.iterator().next();
+		Assert.assertEquals("/jobs/" + graph.getJobID() + "/checkpoints/config", archive.getPath());
+
+		ObjectMapper mapper = new ObjectMapper();
+		JsonNode rootNode = mapper.readTree(archive.getJson());
+
+		Assert.assertEquals("exactly_once", rootNode.get("mode").asText());
+		Assert.assertEquals(settings.getCheckpointInterval(), rootNode.get("interval").asLong());
+		Assert.assertEquals(settings.getCheckpointTimeout(), rootNode.get("timeout").asLong());
+		Assert.assertEquals(settings.getMinPauseBetweenCheckpoints(), rootNode.get("min_pause").asLong());
+		Assert.assertEquals(settings.getMaxConcurrentCheckpoints(), rootNode.get("max_concurrent").asInt());
+
+		JsonNode externalizedNode = rootNode.get("externalization");
+		Assert.assertNotNull(externalizedNode);
+		Assert.assertEquals(externalizedSettings.externalizeCheckpoints(), externalizedNode.get("enabled").asBoolean());
+		Assert.assertEquals(externalizedSettings.deleteOnCancellation(), externalizedNode.get("delete_on_cancellation").asBoolean());
+
+	}
 
 	@Test
 	public void testGetPaths() {
@@ -50,26 +87,10 @@ public class CheckpointConfigHandlerTest {
 	 */
 	@Test
 	public void testSimpleConfig() throws Exception {
-		long interval = 18231823L;
-		long timeout = 996979L;
-		long minPause = 119191919L;
-		int maxConcurrent = 12929329;
-		ExternalizedCheckpointSettings externalized = ExternalizedCheckpointSettings.none();
+		GraphAndSettings graphAndSettings = createGraphAndSettings(false, true);
 
-		JobSnapshottingSettings settings = new JobSnapshottingSettings(
-			Collections.<JobVertexID>emptyList(),
-			Collections.<JobVertexID>emptyList(),
-			Collections.<JobVertexID>emptyList(),
-			interval,
-			timeout,
-			minPause,
-			maxConcurrent,
-			externalized,
-			null,
-			true);
-
-		AccessExecutionGraph graph = mock(AccessExecutionGraph.class);
-		when(graph.getJobSnapshottingSettings()).thenReturn(settings);
+		AccessExecutionGraph graph = graphAndSettings.graph;
+		JobSnapshottingSettings settings = graphAndSettings.snapshottingSettings;
 
 		CheckpointConfigHandler handler = new CheckpointConfigHandler(mock(ExecutionGraphHolder.class));
 		String json = handler.handleRequest(graph, Collections.<String, String>emptyMap());
@@ -78,10 +99,10 @@ public class CheckpointConfigHandlerTest {
 		JsonNode rootNode = mapper.readTree(json);
 
 		assertEquals("exactly_once", rootNode.get("mode").asText());
-		assertEquals(interval, rootNode.get("interval").asLong());
-		assertEquals(timeout, rootNode.get("timeout").asLong());
-		assertEquals(minPause, rootNode.get("min_pause").asLong());
-		assertEquals(maxConcurrent, rootNode.get("max_concurrent").asInt());
+		assertEquals(settings.getCheckpointInterval(), rootNode.get("interval").asLong());
+		assertEquals(settings.getCheckpointTimeout(), rootNode.get("timeout").asLong());
+		assertEquals(settings.getMinPauseBetweenCheckpoints(), rootNode.get("min_pause").asLong());
+		assertEquals(settings.getMaxConcurrentCheckpoints(), rootNode.get("max_concurrent").asInt());
 
 		JsonNode externalizedNode = rootNode.get("externalization");
 		assertNotNull(externalizedNode);
@@ -93,20 +114,9 @@ public class CheckpointConfigHandlerTest {
 	 */
 	@Test
 	public void testAtLeastOnce() throws Exception {
-		JobSnapshottingSettings settings = new JobSnapshottingSettings(
-			Collections.<JobVertexID>emptyList(),
-			Collections.<JobVertexID>emptyList(),
-			Collections.<JobVertexID>emptyList(),
-			996979L,
-			1818L,
-			1212L,
-			12,
-			ExternalizedCheckpointSettings.none(),
-			null,
-			false); // at least once
+		GraphAndSettings graphAndSettings = createGraphAndSettings(false, false);
 
-		AccessExecutionGraph graph = mock(AccessExecutionGraph.class);
-		when(graph.getJobSnapshottingSettings()).thenReturn(settings);
+		AccessExecutionGraph graph = graphAndSettings.graph;
 
 		CheckpointConfigHandler handler = new CheckpointConfigHandler(mock(ExecutionGraphHolder.class));
 		String json = handler.handleRequest(graph, Collections.<String, String>emptyMap());
@@ -122,22 +132,10 @@ public class CheckpointConfigHandlerTest {
 	 */
 	@Test
 	public void testEnabledExternalizedCheckpointSettings() throws Exception {
-		ExternalizedCheckpointSettings externalizedSettings = ExternalizedCheckpointSettings.externalizeCheckpoints(true);
+		GraphAndSettings graphAndSettings = createGraphAndSettings(true, false);
 
-		JobSnapshottingSettings settings = new JobSnapshottingSettings(
-			Collections.<JobVertexID>emptyList(),
-			Collections.<JobVertexID>emptyList(),
-			Collections.<JobVertexID>emptyList(),
-			996979L,
-			1818L,
-			1212L,
-			12,
-			externalizedSettings,
-			null,
-			false); // at least once
-
-		AccessExecutionGraph graph = mock(AccessExecutionGraph.class);
-		when(graph.getJobSnapshottingSettings()).thenReturn(settings);
+		AccessExecutionGraph graph = graphAndSettings.graph;
+		ExternalizedCheckpointSettings externalizedSettings = graphAndSettings.externalizedSettings;
 
 		CheckpointConfigHandler handler = new CheckpointConfigHandler(mock(ExecutionGraphHolder.class));
 		String json = handler.handleRequest(graph, Collections.<String, String>emptyMap());
@@ -147,5 +145,47 @@ public class CheckpointConfigHandlerTest {
 		assertNotNull(externalizedNode);
 		assertEquals(externalizedSettings.externalizeCheckpoints(), externalizedNode.get("enabled").asBoolean());
 		assertEquals(externalizedSettings.deleteOnCancellation(), externalizedNode.get("delete_on_cancellation").asBoolean());
+	}
+
+	private static GraphAndSettings createGraphAndSettings(boolean externalized, boolean exactlyOnce) {
+		long interval = 18231823L;
+		long timeout = 996979L;
+		long minPause = 119191919L;
+		int maxConcurrent = 12929329;
+		ExternalizedCheckpointSettings externalizedSetting = externalized
+			? ExternalizedCheckpointSettings.externalizeCheckpoints(true)
+			: ExternalizedCheckpointSettings.none();
+
+		JobSnapshottingSettings settings = new JobSnapshottingSettings(
+			Collections.<JobVertexID>emptyList(),
+			Collections.<JobVertexID>emptyList(),
+			Collections.<JobVertexID>emptyList(),
+			interval,
+			timeout,
+			minPause,
+			maxConcurrent,
+			externalizedSetting,
+			null,
+			exactlyOnce);
+
+		AccessExecutionGraph graph = mock(AccessExecutionGraph.class);
+		when(graph.getJobSnapshottingSettings()).thenReturn(settings);
+
+		return new GraphAndSettings(graph, settings, externalizedSetting);
+	}
+
+	private static class GraphAndSettings {
+		public final AccessExecutionGraph graph;
+		public final JobSnapshottingSettings snapshottingSettings;
+		public final ExternalizedCheckpointSettings externalizedSettings;
+
+		public GraphAndSettings(
+				AccessExecutionGraph graph,
+				JobSnapshottingSettings snapshottingSettings,
+				ExternalizedCheckpointSettings externalizedSettings) {
+			this.graph = graph;
+			this.snapshottingSettings = snapshottingSettings;
+			this.externalizedSettings = externalizedSettings;
+		}
 	}
 }

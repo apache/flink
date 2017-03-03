@@ -26,13 +26,37 @@ import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IOMetrics;
 import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
+import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.runtime.webmonitor.utils.ArchivedJobGenerationUtils;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.IOException;
+import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 
 public class JobDetailsHandlerTest {
+
+	@Test
+	public void testArchiver() throws Exception {
+		JsonArchivist archivist = new JobDetailsHandler.JobDetailsJsonArchivist();
+		AccessExecutionGraph originalJob = ArchivedJobGenerationUtils.getTestJob();
+
+		Collection<ArchivedJson> archives = archivist.archiveJsonWithPath(originalJob);
+		Assert.assertEquals(2, archives.size());
+
+		Iterator<ArchivedJson> iterator = archives.iterator();
+		ArchivedJson archive1 = iterator.next();
+		Assert.assertEquals("/jobs/" + originalJob.getJobID(), archive1.getPath());
+		compareJobDetails(originalJob, archive1.getJson());
+
+		ArchivedJson archive2 = iterator.next();
+		Assert.assertEquals("/jobs/" + originalJob.getJobID() + "/vertices", archive2.getPath());
+		compareJobDetails(originalJob, archive2.getJson());
+	}
+
 	@Test
 	public void testGetPaths() {
 		JobDetailsHandler handler = new JobDetailsHandler(null, null);
@@ -48,6 +72,10 @@ public class JobDetailsHandlerTest {
 		AccessExecutionGraph originalJob = ArchivedJobGenerationUtils.getTestJob();
 		String json = JobDetailsHandler.createJobDetailsJson(originalJob, null);
 
+		compareJobDetails(originalJob, json);
+	}
+
+	private static void compareJobDetails(AccessExecutionGraph originalJob, String json) throws IOException {
 		JsonNode result = ArchivedJobGenerationUtils.mapper.readTree(json);
 
 		Assert.assertEquals(originalJob.getJobID().toString(), result.get("jid").asText());

@@ -19,12 +19,14 @@ package org.apache.flink.table.functions
 
 import java.util.{List => JList}
 
+import org.apache.flink.api.common.typeinfo.TypeInformation
+
 /**
   * Base class for User-Defined Aggregates.
   *
   * @tparam T the type of the aggregation result
   */
-trait AggregateFunction[T] extends UserDefinedFunction {
+abstract class AggregateFunction[T] extends UserDefinedFunction {
   /**
     * Create and init the Accumulator for this [[AggregateFunction]].
     *
@@ -61,6 +63,15 @@ trait AggregateFunction[T] extends UserDefinedFunction {
     * @return the resulting accumulator
     */
   def merge(accumulators: JList[Accumulator]): Accumulator
+
+  /**
+    * Returns the [[TypeInformation]] of the accumulator.
+    * This function is optional and can be implemented if the accumulator type cannot automatically
+    * inferred from the instance returned by [[createAccumulator()]].
+    *
+    * @return The type information for the accumulator.
+    */
+  def getAccumulatorType(): TypeInformation[_] = null
 }
 
 /**
@@ -73,12 +84,4 @@ trait AggregateFunction[T] extends UserDefinedFunction {
   * of the AggregateFunction interface with the code generation. We will remove
   * the [[Accumulator]] once codeGen for UDAGG is completed (FLINK-5813).
   */
-trait Accumulator {
-  
-  /**
-   * Reset the accumulator to the settings prior to accumulation execution
-   * e.g. count accumulator would set the counter variable to 0 
-   */
-  def reset()
-  
-}
+trait Accumulator

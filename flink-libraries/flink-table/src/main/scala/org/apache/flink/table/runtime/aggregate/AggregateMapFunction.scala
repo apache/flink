@@ -22,34 +22,36 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.types.Row
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.util.Preconditions
 
 class AggregateMapFunction[IN, OUT](
-    private val aggregates: Array[Aggregate[_]],
+    private val aggregates: Array[AggregateFunction[_]],
     private val aggFields: Array[Int],
     private val groupingKeys: Array[Int],
     @transient private val returnType: TypeInformation[OUT])
-  extends RichMapFunction[IN, OUT]
-  with ResultTypeQueryable[OUT] {
-  
+  extends RichMapFunction[IN, OUT] with ResultTypeQueryable[OUT] {
+
   private var output: Row = _
-  
+
   override def open(config: Configuration) {
     Preconditions.checkNotNull(aggregates)
     Preconditions.checkNotNull(aggFields)
     Preconditions.checkArgument(aggregates.length == aggFields.length)
-    val partialRowLength = groupingKeys.length +
-        aggregates.map(_.intermediateDataType.length).sum
+    val partialRowLength = groupingKeys.length + aggregates.length
     output = new Row(partialRowLength)
   }
 
   override def map(value: IN): OUT = {
-    
+
     val input = value.asInstanceOf[Row]
     for (i <- aggregates.indices) {
-      val fieldValue = input.getField(aggFields(i))
-      aggregates(i).prepare(fieldValue, output)
+      val agg = aggregates(i)
+      val accumulator = agg.createAccumulator()
+      agg.accumulate(accumulator, input.getField(aggFields(i)))
+      output.setField(groupingKeys.length + i, accumulator)
     }
+
     for (i <- groupingKeys.indices) {
       output.setField(i, input.getField(groupingKeys(i)))
     }
