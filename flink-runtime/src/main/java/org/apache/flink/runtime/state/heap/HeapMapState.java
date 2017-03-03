@@ -183,26 +183,6 @@ public class HeapMapState<K, N, UK, UV>
 	}
 
 	@Override
-	public int size() {
-		Preconditions.checkState(currentNamespace != null, "No namespace set.");
-		Preconditions.checkState(backend.getCurrentKey() != null, "No key set.");
-
-		Map<N, Map<K, HashMap<UK, UV>>> namespaceMap = stateTable.get(backend.getCurrentKeyGroupIndex());
-		if (namespaceMap == null) {
-			return 0;
-		}
-
-		Map<K, HashMap<UK, UV>> keyedMap = namespaceMap.get(currentNamespace);
-		if (keyedMap == null) {
-			return 0;
-		}
-
-		HashMap<UK, UV> userMap = keyedMap.get(backend.<K>getCurrentKey());
-
-		return userMap == null ? 0 : userMap.size();
-	}
-
-	@Override
 	public Iterable<Map.Entry<UK, UV>> entries() {
 		Preconditions.checkState(currentNamespace != null, "No namespace set.");
 		Preconditions.checkState(backend.getCurrentKey() != null, "No key set.");

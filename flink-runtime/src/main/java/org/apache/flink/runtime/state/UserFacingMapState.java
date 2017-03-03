@@ -73,11 +73,6 @@ class UserFacingMapState<K, V> implements MapState<K, V> {
 	}
 
 	@Override
-	public int size() throws Exception {
-		return originalState.size();
-	}
-
-	@Override
 	public Iterable<Map.Entry<K, V>> entries() throws Exception {
 		Iterable<Map.Entry<K, V>> original = originalState.entries();
 		return original != null ? original : emptyState.entrySet();
