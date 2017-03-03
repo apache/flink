@@ -25,7 +25,7 @@ import org.apache.calcite.sql.{SqlAggFunction, SqlKind}
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.fun._
-import org.apache.flink.api.common.functions.{InvalidTypesException, MapFunction, RichGroupCombineFunction, RichGroupReduceFunction, AggregateFunction => ApiAggregateFunction}
+import org.apache.flink.api.common.functions.{GroupCombineFunction, InvalidTypesException, MapFunction, MapPartitionFunction, RichGroupReduceFunction, AggregateFunction => ApiAggregateFunction}
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeHint, TypeInformation}
 import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.api.java.typeutils.RowTypeInfo
@@ -246,6 +246,57 @@ object AggregateUtil {
   }
 
   /**
+    * Create a [[org.apache.flink.api.common.functions.MapPartitionFunction]] that aggregation
+    * for aggregates.
+    * The function returns aggregate values of all aggregate function which are
+    * organized by the following format:
+    *
+    * {{{
+    *       avg(x) aggOffsetInRow = 2  count(z) aggOffsetInRow = 5
+    *           |                          |          windowEnd(max(rowtime)
+    *           |                          |                   |
+    *           v                          v                   v
+    *        +--------+--------+--------+--------+-----------+---------+
+    *        |  sum1  | count1 |  sum2  | count2 |windowStart|windowEnd|
+    *        +--------+--------+--------+--------+-----------+---------+
+    *                               ^                 ^
+    *                               |                 |
+    *             sum(y) aggOffsetInRow = 4    windowStart(min(rowtime))
+    *
+    * }}}
+    *
+    */
+  def createDataSetWindowAggregationMapPartitionFunction(
+    window: LogicalWindow,
+    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+    inputType: RelDataType,
+    groupings: Array[Int]): MapPartitionFunction[Row, Row] = {
+
+    val aggregates = transformToAggregateFunctions(
+      namedAggregates.map(_.getKey),
+      inputType,
+      0)._2
+
+    window match {
+      case EventTimeSessionGroupWindow(_, _, gap) =>
+        val combineReturnType: RowTypeInfo =
+          createDataSetAggregateBufferDataType(
+            groupings,
+            aggregates,
+            inputType,
+            Option(Array(BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO)))
+
+        new DataSetSessionWindowAggregatePreProcessor(
+          aggregates,
+          groupings,
+          asLong(gap),
+          combineReturnType)
+      case _ =>
+        throw new UnsupportedOperationException(s"$window is currently not supported on batch")
+    }
+  }
+
+  /**
     * Create a [[org.apache.flink.api.common.functions.GroupCombineFunction]] that pre-aggregation
     * for aggregates.
     * The function returns intermediate aggregate values of all aggregate function which are
@@ -268,7 +319,7 @@ object AggregateUtil {
       namedAggregates: Seq[CalcitePair[AggregateCall, String]],
       inputType: RelDataType,
       groupings: Array[Int])
-    : RichGroupCombineFunction[Row, Row] = {
+    : GroupCombineFunction[Row, Row] = {
 
     val aggregates = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),
@@ -284,7 +335,7 @@ object AggregateUtil {
             inputType,
             Option(Array(BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO)))
 
-        new DataSetSessionWindowAggregateCombineGroupFunction(
+        new DataSetSessionWindowAggregatePreProcessor(
           aggregates,
           groupings,
           asLong(gap),
