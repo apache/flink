@@ -45,17 +45,24 @@ class DataSetSessionWindowAggregateCombineGroupFunction(
   extends RichGroupCombineFunction[Row, Row] with ResultTypeQueryable[Row] {
 
   private var aggregateBuffer: Row = _
-  private var accumStartPos: Int = groupingKeys.length
-  private var rowTimeFieldPos = accumStartPos + aggregates.length
-  private val maxMergeLen = 16
-  val accumulatorList = Array.fill(aggregates.length) {
-    new JArrayList[Accumulator]()
+  private val accumStartPos: Int = groupingKeys.length
+  private val rowTimeFieldPos = accumStartPos + aggregates.length
+
+  val accumulatorList: Array[JArrayList[Accumulator]] = Array.fill(aggregates.length) {
+    new JArrayList[Accumulator](2)
   }
 
   override def open(config: Configuration) {
     Preconditions.checkNotNull(aggregates)
     Preconditions.checkNotNull(groupingKeys)
     aggregateBuffer = new Row(rowTimeFieldPos + 2)
+
+    // init lists with two empty accumulators
+    for (i <- aggregates.indices) {
+      val accumulator = aggregates(i).createAccumulator()
+      accumulatorList(i).add(accumulator)
+      accumulatorList(i).add(accumulator)
+    }
   }
 
   /**
@@ -72,15 +79,17 @@ class DataSetSessionWindowAggregateCombineGroupFunction(
     var windowStart: java.lang.Long = null
     var windowEnd: java.lang.Long = null
     var currentRowTime: java.lang.Long = null
-    accumulatorList.foreach(_.clear())
+
+    // reset first accumulator in merge list
+    for (i <- aggregates.indices) {
+      val accumulator = aggregates(i).createAccumulator()
+      accumulatorList(i).set(0, accumulator)
+    }
 
     val iterator = records.iterator()
 
-
-    var count: Int = 0
     while (iterator.hasNext) {
       val record = iterator.next()
-      count += 1
       currentRowTime = record.getField(rowTimeFieldPos).asInstanceOf[Long]
       // initial traversal or opening a new window
       if (windowEnd == null || (windowEnd != null && (currentRowTime > windowEnd))) {
@@ -90,9 +99,11 @@ class DataSetSessionWindowAggregateCombineGroupFunction(
           // emit the current window's merged data
           doCollect(out, accumulatorList, windowStart, windowEnd)
 
-          // clear the accumulator list for all aggregate
-          accumulatorList.foreach(_.clear())
-          count = 0
+          // reset first value of accumulator list
+          for (i <- aggregates.indices) {
+            val accumulator = aggregates(i).createAccumulator()
+            accumulatorList(i).set(0, accumulator)
+          }
         } else {
           // set group keys to aggregateBuffer.
           for (i <- groupingKeys.indices) {
@@ -103,21 +114,14 @@ class DataSetSessionWindowAggregateCombineGroupFunction(
         windowStart = record.getField(rowTimeFieldPos).asInstanceOf[Long]
       }
 
-      // collect the accumulators for each aggregate
       for (i <- aggregates.indices) {
-        accumulatorList(i).add(record.getField(accumStartPos + i).asInstanceOf[Accumulator])
-      }
-
-      // if the number of buffered accumulators is bigger than maxMergeLen, merge them into one
-      // accumulator
-      if (count > maxMergeLen) {
-        count = 0
-        for (i <- aggregates.indices) {
-          val agg = aggregates(i)
-          val accumulator = agg.merge(accumulatorList(i))
-          accumulatorList(i).clear()
-          accumulatorList(i).add(accumulator)
-        }
+        // insert received accumulator into acc list
+        val newAcc = record.getField(accumStartPos + i).asInstanceOf[Accumulator]
+        accumulatorList(i).set(1, newAcc)
+        // merge acc list
+        val retAcc = aggregates(i).merge(accumulatorList(i))
+        // insert result into acc list
+        accumulatorList(i).set(0, retAcc)
       }
 
       // the current rowtime is the last rowtime of the next calculation.
@@ -146,7 +150,7 @@ class DataSetSessionWindowAggregateCombineGroupFunction(
 
     // merge the accumulators into one accumulator
     for (i <- aggregates.indices) {
-      aggregateBuffer.setField(accumStartPos + i, aggregates(i).merge(accumulatorList(i)))
+      aggregateBuffer.setField(accumStartPos + i, accumulatorList(i).get(0))
     }
 
     // intermediate Row WindowStartPos is rowtime pos.

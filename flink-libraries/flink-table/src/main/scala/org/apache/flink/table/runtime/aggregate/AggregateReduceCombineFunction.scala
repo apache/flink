@@ -19,9 +19,9 @@
 package org.apache.flink.table.runtime.aggregate
 
 import java.lang.Iterable
-import java.util.{ArrayList => JArrayList}
 
 import org.apache.flink.api.common.functions.CombineFunction
+import org.apache.flink.configuration.Configuration
 import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
 import org.apache.flink.types.Row
 
@@ -53,6 +53,13 @@ class AggregateReduceCombineFunction(
     groupingSetsMapping,
     finalRowArity) with CombineFunction[Row, Row] {
 
+  var preAggOutput: Row = _
+
+  override def open(config: Configuration): Unit = {
+    super.open(config)
+    preAggOutput = new Row(aggregates.length + groupKeysMapping.length)
+  }
+
   /**
     * For sub-grouped intermediate aggregate Rows, merge all of them into aggregate buffer,
     *
@@ -62,45 +69,41 @@ class AggregateReduceCombineFunction(
     */
   override def combine(records: Iterable[Row]): Row = {
 
-    // merge intermediate aggregate value to buffer.
     var last: Row = null
-    accumulatorList.foreach(_.clear())
-
     val iterator = records.iterator()
 
-    var count: Int = 0
+    // reset first accumulator in merge list
+    for (i <- aggregates.indices) {
+      val accumulator = aggregates(i).createAccumulator()
+      accumulatorList(i).set(0, accumulator)
+    }
+
     while (iterator.hasNext) {
       val record = iterator.next()
-      count += 1
-      // per each aggregator, collect its accumulators to a list
+
       for (i <- aggregates.indices) {
-        accumulatorList(i).add(record.getField(groupKeysMapping.length + i)
-                                 .asInstanceOf[Accumulator])
+        // insert received accumulator into acc list
+        val newAcc = record.getField(groupKeysMapping.length + i).asInstanceOf[Accumulator]
+        accumulatorList(i).set(1, newAcc)
+        // merge acc list
+        val retAcc = aggregates(i).merge(accumulatorList(i))
+        // insert result into acc list
+        accumulatorList(i).set(0, retAcc)
       }
-      // if the number of buffered accumulators is bigger than maxMergeLen, merge them into one
-      // accumulator
-      if (count > maxMergeLen) {
-        count = 0
-        for (i <- aggregates.indices) {
-          val agg = aggregates(i)
-          val accumulator = agg.merge(accumulatorList(i))
-          accumulatorList(i).clear()
-          accumulatorList(i).add(accumulator)
-        }
-      }
+
       last = record
     }
 
+    // set the partial merged result to the aggregateBuffer
     for (i <- aggregates.indices) {
-      val agg = aggregates(i)
-      aggregateBuffer.setField(groupKeysMapping.length + i, agg.merge(accumulatorList(i)))
+      preAggOutput.setField(groupKeysMapping.length + i, accumulatorList(i).get(0))
     }
 
     // set group keys to aggregateBuffer.
     for (i <- groupKeysMapping.indices) {
-      aggregateBuffer.setField(i, last.getField(i))
+      preAggOutput.setField(i, last.getField(i))
     }
 
-    aggregateBuffer
+    preAggOutput
   }
 }

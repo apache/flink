@@ -58,8 +58,11 @@ abstract class AggregateFunction[T] extends UserDefinedFunction {
   /**
     * Merge a list of accumulator instances into one accumulator instance.
     *
-    * @param accumulators the [[java.util.List]] of accumulators
-    *                     that will be merged
+    * IMPORTANT: You may only return a new accumulator instance or the the first accumulator of the
+    * input list. If you return another instance, the result of the aggregation function might be
+    * incorrect.
+    *
+    * @param accumulators the [[java.util.List]] of accumulators that will be merged
     * @return the resulting accumulator
     */
   def merge(accumulators: JList[Accumulator]): Accumulator
