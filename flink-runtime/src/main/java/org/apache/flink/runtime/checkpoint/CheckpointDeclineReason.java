@@ -38,7 +38,7 @@ public enum CheckpointDeclineReason {
 
 	EXCEPTION("An Exception occurred while triggering the checkpoint."),
 
-	MAX_UNSUCCESSFUL_ATTEMPTS_EXHAUSTED("The number of max unsuccessful checkpoints attempts exhausted.");
+	MAX_FAILED_ATTEMPTS_EXHAUSTED("The number of max failed checkpoints attempts exhausted.");
 
 	// ------------------------------------------------------------------------
 

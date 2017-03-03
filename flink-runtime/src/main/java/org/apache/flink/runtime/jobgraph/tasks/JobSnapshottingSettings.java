@@ -65,7 +65,7 @@ public class JobSnapshottingSettings implements java.io.Serializable {
 	 */
 	private final boolean isExactlyOnce;
 
-	private final int maxUnsuccessfulCheckpoints;
+	private final int maxFailedCheckpoints;
 
 	public JobSnapshottingSettings(
 		List<JobVertexID> verticesToTrigger,
@@ -90,7 +90,7 @@ public class JobSnapshottingSettings implements java.io.Serializable {
 			long checkpointTimeout,
 			long minPauseBetweenCheckpoints,
 			int maxConcurrentCheckpoints,
-			int maxUnsuccessfulCheckpoints,
+			int maxFailedCheckpoints,
 			ExternalizedCheckpointSettings externalizedCheckpointSettings,
 			@Nullable StateBackend defaultStateBackend,
 			boolean isExactlyOnce) {
@@ -111,7 +111,7 @@ public class JobSnapshottingSettings implements java.io.Serializable {
 		this.externalizedCheckpointSettings = requireNonNull(externalizedCheckpointSettings);
 		this.defaultStateBackend = defaultStateBackend;
 		this.isExactlyOnce = isExactlyOnce;
-		this.maxUnsuccessfulCheckpoints = maxUnsuccessfulCheckpoints;
+		this.maxFailedCheckpoints = maxFailedCheckpoints;
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -157,16 +157,16 @@ public class JobSnapshottingSettings implements java.io.Serializable {
 		return isExactlyOnce;
 	}
 
-	public int getMaxUnsuccessfulCheckpoints() { return maxUnsuccessfulCheckpoints; }
+	public int getMaxFailedCheckpoints() { return maxFailedCheckpoints; }
 
 	// --------------------------------------------------------------------------------------------
 	
 	@Override
 	public String toString() {
 		return String.format("SnapshotSettings: interval=%d, timeout=%d, pause-between=%d, " +
-						"maxConcurrent=%d, trigger=%s, ack=%s, commit=%s, maxUnsuccessfulCheckpoints=%s",
+						"maxConcurrent=%d, trigger=%s, ack=%s, commit=%s, maxFailedCheckpoints=%s",
 						checkpointInterval, checkpointTimeout,
 						minPauseBetweenCheckpoints, maxConcurrentCheckpoints,
-						verticesToTrigger, verticesToAcknowledge, verticesToConfirm, maxUnsuccessfulCheckpoints);
+						verticesToTrigger, verticesToAcknowledge, verticesToConfirm, maxFailedCheckpoints);
 	}
 }

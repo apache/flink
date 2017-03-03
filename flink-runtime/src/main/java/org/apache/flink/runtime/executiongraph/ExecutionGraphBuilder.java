@@ -224,7 +224,7 @@ public class ExecutionGraphBuilder {
 					snapshotSettings.getCheckpointTimeout(),
 					snapshotSettings.getMinPauseBetweenCheckpoints(),
 					snapshotSettings.getMaxConcurrentCheckpoints(),
-					snapshotSettings.getMaxUnsuccessfulCheckpoints(),
+					snapshotSettings.getMaxFailedCheckpoints(),
 					snapshotSettings.getExternalizedCheckpointSettings(),
 					triggerVertices,
 					ackVertices,

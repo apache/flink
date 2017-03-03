@@ -73,7 +73,7 @@ public class CheckpointConfig implements java.io.Serializable {
 	private ExternalizedCheckpointCleanup externalizedCheckpointCleanup;
 
 	/** the maximum number of unsuccessful checkpoints **/
-	private int maxUnsuccessfulCheckpoints = DEFAULT_MAX_UNSUCCESSFUL_CHECKPOINTS;
+	private int maxFailedCheckpoints = DEFAULT_MAX_UNSUCCESSFUL_CHECKPOINTS;
 	// ------------------------------------------------------------------------
 
 	/**
@@ -208,15 +208,15 @@ public class CheckpointConfig implements java.io.Serializable {
 		this.maxConcurrentCheckpoints = maxConcurrentCheckpoints;
 	}
 
-	public void setMaxUnsuccessfulCheckpoints(int maxUnsuccessfulCheckpoints) {
-		if(maxUnsuccessfulCheckpoints < 0 ) {
+	public void setMaxFailedCheckpoints(int maxFailedCheckpoints) {
+		if(maxFailedCheckpoints < 0 ) {
 			throw new IllegalArgumentException("The maximum number of unsuccessful checkpoint attempts must be at least 0.");
 		}
-		this.maxUnsuccessfulCheckpoints = maxUnsuccessfulCheckpoints;
+		this.maxFailedCheckpoints = maxFailedCheckpoints;
 	}
 
-	public int getMaxUnsuccessfulCheckpoints() {
-		return this.maxUnsuccessfulCheckpoints;
+	public int getMaxFailedCheckpoints() {
+		return this.maxFailedCheckpoints;
 	}
 
 	/**
