@@ -617,7 +617,8 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 	/**
 	 * @see #releaseSnapshot(CopyOnWriteStateTableSnapshot)
 	 */
-	private void releaseSnapshot(int snapshotVersion) {
+	@VisibleForTesting
+	void releaseSnapshot(int snapshotVersion) {
 		// we guard against concurrent modifications of highestRequiredSnapshotVersion between snapshot and release.
 		// Only stale reads of from the result of #releaseSnapshot calls are ok.
 		synchronized (snapshotVersions) {
