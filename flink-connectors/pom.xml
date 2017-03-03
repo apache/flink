@@ -36,6 +36,7 @@ under the License.
 	<packaging>pom</packaging>
 
 	<modules>
+		<module>flink-orc</module>
 		<module>flink-jdbc</module>
 		<module>flink-hadoop-compatibility</module>
 		<module>flink-hbase</module>
