@@ -41,14 +41,6 @@ class HiveScalarFunctionTest extends ExpressionTestBase {
       "48"
     )
 
-    val HiveUDFChr = new HiveSimpleUDF("org.apache.hadoop.hive.ql.udf.UDFChr")
-    testAllApis(
-      HiveUDFChr(48),
-      "HiveUDFChr(48)",
-      "HiveUDFChr(48)",
-      "0"
-    )
-
     val HiveUDFConv = new HiveSimpleUDF("org.apache.hadoop.hive.ql.udf.UDFConv")
     testAllApis(
       HiveUDFConv("100", 2, 10),
@@ -61,14 +53,6 @@ class HiveScalarFunctionTest extends ExpressionTestBase {
       "HiveUDFConv(-10, 16, -10)",
       "HiveUDFConv(-10, 16, -10)",
       "-16"
-    )
-
-    val HiveUDFCrc32 = new HiveSimpleUDF("org.apache.hadoop.hive.ql.udf.UDFCrc32")
-    testAllApis(
-      HiveUDFCrc32("ABC"),
-      "HiveUDFCrc32('ABC')",
-      "HiveUDFCrc32('ABC')",
-      "2743272264"
     )
 
     val HiveUDFDayOfMonth = new HiveSimpleUDF("org.apache.hadoop.hive.ql.udf.UDFDayOfMonth")
@@ -112,9 +96,7 @@ class HiveScalarFunctionTest extends ExpressionTestBase {
 
   override def functions: Map[String, ScalarFunction] = Map(
     "HiveUDFAscii" -> new HiveSimpleUDF("org.apache.hadoop.hive.ql.udf.UDFAscii"),
-    "HiveUDFChr" -> new HiveSimpleUDF("org.apache.hadoop.hive.ql.udf.UDFChr"),
     "HiveUDFConv" -> new HiveSimpleUDF("org.apache.hadoop.hive.ql.udf.UDFConv"),
-    "HiveUDFCrc32" -> new HiveSimpleUDF("org.apache.hadoop.hive.ql.udf.UDFCrc32"),
     "HiveUDFDayOfMonth" -> new HiveSimpleUDF("org.apache.hadoop.hive.ql.udf.UDFDayOfMonth")
   )
 }
