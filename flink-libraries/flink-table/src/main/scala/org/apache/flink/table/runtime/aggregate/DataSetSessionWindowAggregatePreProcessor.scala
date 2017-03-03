@@ -20,7 +20,7 @@ package org.apache.flink.table.runtime.aggregate
 import java.lang.Iterable
 import java.util.{ArrayList => JArrayList}
 
-import org.apache.flink.api.common.functions.RichGroupCombineFunction
+import org.apache.flink.api.common.functions.{AbstractRichFunction, GroupCombineFunction, MapPartitionFunction, RichGroupCombineFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.types.Row
@@ -37,12 +37,15 @@ import org.apache.flink.util.{Collector, Preconditions}
   * @param gap                 Session time window gap.
   * @param intermediateRowType Intermediate row data type.
   */
-class DataSetSessionWindowAggregateCombineGroupFunction(
+class DataSetSessionWindowAggregatePreProcessor(
     aggregates: Array[AggregateFunction[_ <: Any]],
     groupingKeys: Array[Int],
     gap: Long,
     @transient intermediateRowType: TypeInformation[Row])
-  extends RichGroupCombineFunction[Row, Row] with ResultTypeQueryable[Row] {
+  extends AbstractRichFunction
+  with MapPartitionFunction[Row,Row]
+  with GroupCombineFunction[Row,Row]
+  with ResultTypeQueryable[Row] {
 
   private var aggregateBuffer: Row = _
   private val accumStartPos: Int = groupingKeys.length
@@ -70,11 +73,37 @@ class DataSetSessionWindowAggregateCombineGroupFunction(
     * (current'rowtime - previous’rowtime > gap), and then merge data (within a unified window)
     * into an aggregate buffer.
     *
-    * @param records Sub-grouped intermediate aggregate Rows.
+    * @param records  Sub-grouped intermediate aggregate Rows.
     * @return Combined intermediate aggregate Row.
     *
     */
   override def combine(records: Iterable[Row], out: Collector[Row]): Unit = {
+    preProcessing(records, out)
+  }
+
+  /**
+    * Divide window based on the rowtime
+    * (current'rowtime - previous’rowtime > gap), and then merge data (within a unified window)
+    * into an aggregate buffer.
+    *
+    * @param records  Intermediate aggregate Rows.
+    * @return Pre partition intermediate aggregate Row.
+    *
+    */
+  override def mapPartition(records: Iterable[Row], out: Collector[Row]): Unit = {
+    preProcessing(records, out)
+  }
+
+  /**
+    * Intermediate aggregate Rows, divide window based on the rowtime
+    * (current'rowtime - previous’rowtime > gap), and then merge data (within a unified window)
+    * into an aggregate buffer.
+    *
+    * @param records Intermediate aggregate Rows.
+    * @return PreProcessing intermediate aggregate Row.
+    *
+    */
+  private def preProcessing(records: Iterable[Row], out: Collector[Row]): Unit = {
 
     var windowStart: java.lang.Long = null
     var windowEnd: java.lang.Long = null
