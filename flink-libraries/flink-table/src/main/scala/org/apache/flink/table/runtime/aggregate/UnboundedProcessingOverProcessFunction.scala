@@ -17,8 +17,6 @@
  */
 package org.apache.flink.table.runtime.aggregate
 
-import java.util.{ArrayList, List}
-
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.ProcessFunction.{Context, OnTimerContext}
@@ -29,18 +27,14 @@ import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.api.common.state.ValueStateDescriptor
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.common.state.ValueState
-import org.apache.flink.api.java.typeutils.runtime.RowSerializer
 import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
-import java.util.{ArrayList => JArrayList, List => JList}
 
 class UnboundedProcessingOverProcessFunction(
     private val aggregates: Array[AggregateFunction[_]],
     private val aggFields: Array[Int],
-    private val numGroupingKey: Int,
-    private val numAggregates: Int,
-    private val finalRowArity: Int,
-  @transient private val intermediateRowType: RowTypeInfo,
-  @transient private val returnType: TypeInformation[Row])
+    private val forwardedFieldCount: Int,
+    private val intermediateRowType: RowTypeInfo,
+    private val returnType: TypeInformation[Row])
   extends RichProcessFunction[Row, Row]{
 
   Preconditions.checkNotNull(aggregates)
@@ -49,48 +43,43 @@ class UnboundedProcessingOverProcessFunction(
 
   private var output: Row = _
   private var state: ValueState[Row] = _
-  private val aggsWithIdx: Array[(AggregateFunction[_], Int)] = aggregates.zipWithIndex
+  private val aggregateWithIndex: Array[(AggregateFunction[_], Int)] = aggregates.zipWithIndex
 
   override def open(config: Configuration) {
-    output = new Row(finalRowArity)
+    output = new Row(forwardedFieldCount + aggregates.length)
     val stateSerializer: TypeSerializer[Row] =
       intermediateRowType.createSerializer(getRuntimeContext.getExecutionConfig)
     val stateDescriptor: ValueStateDescriptor[Row] =
       new ValueStateDescriptor[Row]("overState", stateSerializer)
     state = getRuntimeContext.getState(stateDescriptor)
-
   }
 
   override def processElement(
-    value2: Row,
+    input: Row,
     ctx: Context,
     out: Collector[Row]): Unit = {
-    var value1 = state.value()
 
-    if (null == value1) {
-      value1 = new Row(aggregates.length)
-      aggsWithIdx.foreach { case (agg, i) =>
-        value1.setField(i, agg.createAccumulator())
+    var accumulators = state.value()
+
+    if (null == accumulators) {
+      accumulators = new Row(aggregates.length)
+      aggregateWithIndex.foreach { case (agg, i) =>
+        accumulators.setField(i, agg.createAccumulator())
       }
     }
-    // merge value2 to value1
-    aggsWithIdx.foreach { case (agg, i) =>
-      val aAcc = value1.getField(i).asInstanceOf[Accumulator]
-      val bAcc = value2.getField(i).asInstanceOf[Accumulator]
-      val accumulators: JList[Accumulator] = new JArrayList[Accumulator]()
-      accumulators.add(aAcc)
-      accumulators.add(bAcc)
-      value1.setField(i, agg.merge(accumulators))
+
+    for (i <- 0 until forwardedFieldCount) {
+      output.setField(i, input.getField(i))
     }
 
-    state.update(value1)
-
-    for (i <- 0 until numGroupingKey) {
-      output.setField(i, value2.getField(i))
+    for (i <- 0 until aggregates.length) {
+      val index = forwardedFieldCount + i
+      val accumulator = accumulators.getField(i).asInstanceOf[Accumulator];
+      aggregates(i).accumulate(accumulator, input.getField(aggFields(i)))
+      output.setField(index, aggregates(i).getValue(accumulator))
+      accumulators.setField(i, accumulator)
     }
-    for (i <- 0 until numAggregates) {
-      output.setField(numGroupingKey + i, value1.getField(i))
-    }
+    state.update(accumulators)
 
     out.collect(output)
   }
