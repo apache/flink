@@ -31,9 +31,8 @@ import org.apache.flink.util.Preconditions
 
 
 /**
-  * This map function only works for windows on batch tables. The differences between this function
-  * and [[org.apache.flink.table.runtime.aggregate.AggregateMapFunction]] is this function
-  * append an (aligned) rowtime field to the end of the output row.
+  * This map function only works for windows on batch tables.
+  * It appends an (aligned) rowtime field to the end of the output row.
   */
 class DataSetWindowAggMapFunction(
     private val aggregates: Array[AggregateFunction[_]],
