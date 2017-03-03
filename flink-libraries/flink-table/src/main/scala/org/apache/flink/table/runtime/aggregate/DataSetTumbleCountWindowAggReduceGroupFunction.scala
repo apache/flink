@@ -22,6 +22,7 @@ import java.util.{ArrayList => JArrayList}
 
 import org.apache.flink.api.common.functions.RichGroupReduceFunction
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
 import org.apache.flink.types.Row
 import org.apache.flink.util.{Collector, Preconditions}
@@ -51,7 +52,6 @@ class DataSetTumbleCountWindowAggReduceGroupFunction(
   private var output: Row = _
   private val accumStartPos: Int = groupKeysMapping.length
   private val intermediateRowArity: Int = accumStartPos + aggregates.length + 1
-  private val maxMergeLen = 16
   val accumulatorList = Array.fill(aggregates.length) {
     new JArrayList[Accumulator]()
   }
@@ -66,32 +66,36 @@ class DataSetTumbleCountWindowAggReduceGroupFunction(
   override def reduce(records: Iterable[Row], out: Collector[Row]): Unit = {
 
     var count: Long = 0
-    accumulatorList.foreach(_.clear())
 
     val iterator = records.iterator()
 
     while (iterator.hasNext) {
-      val record = iterator.next()
 
       if (count == 0) {
         // clear the accumulator list for all aggregate
         accumulatorList.foreach(_.clear())
-      }
-
-      // collect the accumulators for each aggregate
-      for (i <- aggregates.indices) {
-        accumulatorList(i).add(record.getField(accumStartPos + i).asInstanceOf[Accumulator])
-      }
-      count += 1
-
-      // for every maxMergeLen accumulators, we merge them into one
-      if (count % maxMergeLen == 0) {
         for (i <- aggregates.indices) {
-          val agg = aggregates(i)
-          val accumulator = agg.merge(accumulatorList(i))
-          accumulatorList(i).clear()
+          val accumulator = aggregates(i).createAccumulator()
+          accumulatorList(i).add(accumulator)
           accumulatorList(i).add(accumulator)
         }
+      }
+
+      val record = iterator.next()
+      count += 1
+
+      for (i <- aggregates.indices) {
+        val newAcc = record.getField(accumStartPos + i)
+          .asInstanceOf[Accumulator]
+        accumulatorList(i).set(1, newAcc)
+        val retAcc = aggregates(i).merge(accumulatorList(i))
+        if (System.identityHashCode(newAcc) == System.identityHashCode(retAcc)) {
+          throw TableException(
+            "Due to the Object Reuse, it is not safe to use the newACC intance (index = 1) to " +
+              "save the merge result. You can change your merge function to use the first " +
+              "instance (index = 0) instead.")
+        }
+        accumulatorList(i).set(0, retAcc)
       }
 
       if (windowSize == count) {
@@ -105,8 +109,7 @@ class DataSetTumbleCountWindowAggReduceGroupFunction(
         aggregateMapping.foreach {
           case (after, previous) =>
             val agg = aggregates(previous)
-            val accumulator = agg.merge(accumulatorList(previous))
-            output.setField(after, agg.getValue(accumulator))
+            output.setField(after, agg.getValue(accumulatorList(previous).get(0)))
         }
 
         // emit the output
