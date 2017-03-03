@@ -49,7 +49,7 @@ public class HeapReducingState<K, N, V>
 	 */
 	public HeapReducingState(
 			ReducingStateDescriptor<V> stateDesc,
-			NestedMapsStateTable<K, N, V> stateTable,
+			StateTable<K, N, V> stateTable,
 			TypeSerializer<K> keySerializer,
 			TypeSerializer<N> namespaceSerializer) {
 
@@ -75,7 +75,7 @@ public class HeapReducingState<K, N, V>
 			return;
 		}
 
-		final NestedMapsStateTable<K, N, V> map = stateTable;
+		final StateTable<K, N, V> map = stateTable;
 		final V currentValue = map.putAndGetOld(namespace, value);
 
 		if (currentValue != null) {

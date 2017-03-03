@@ -18,27 +18,53 @@
 package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.RegisteredBackendStateMetaInfo;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
-public class NestedMapsStateTable<K, N, ST> extends AbstractStateTable<K, N, ST> {
+/**
+ * This implementation of {@link StateTable} is based on the Flink 1.2 implementation, using nested {@link HashMap}
+ * objects. It is also maintaining a partitioning by key-group.
+ * <p>
+ * In contrast to {@link CopyOnWriteStateTable}, this implementation does not support asynchronous snapshots. However,
+ * it might have a better memory footprint for some use-cases, e.g. it is naturally de-duplicating namespace objects.
+ *
+ * @param <K> type of key.
+ * @param <N> type of namespace.
+ * @param <S> type of state.
+ */
+public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 
-	/** Map for holding the actual state objects. */
-	private final Map<N, Map<K, ST>>[] state;
+	/**
+	 * Map for holding the actual state objects. The outer array represents the key-groups. The nested maps provide
+	 * an outer scope by namespace and an inner scope by key.
+	 */
+	private final Map<N, Map<K, S>>[] state;
 
-	/** The offset to the contiguous key groups */
+	/**
+	 * The offset to the contiguous key groups
+	 */
 	private final int keyGroupOffset;
 
 	// ------------------------------------------------------------------------
-	public NestedMapsStateTable(KeyContext<K> keyContext, RegisteredBackendStateMetaInfo<N, ST> metaInfo) {
+
+	/**
+	 * Creates a new {@link NestedMapsStateTable} for the given key context and meta info.
+	 *
+	 * @param keyContext the key context.
+	 * @param metaInfo the meta information for this state table.
+	 */
+	public NestedMapsStateTable(KeyContext<K> keyContext, RegisteredBackendStateMetaInfo<N, S> metaInfo) {
 		super(keyContext, metaInfo);
 		this.keyGroupOffset = keyContext.getKeyGroupRange().getStartKeyGroup();
 
 		@SuppressWarnings("unchecked")
-		Map<N, Map<K, ST>>[] state = (Map<N, Map<K, ST>>[]) new Map[keyContext.getNumberOfKeyGroups()];
+		Map<N, Map<K, S>>[] state = (Map<N, Map<K, S>>[]) new Map[keyContext.getNumberOfKeyGroups()];
 		this.state = state;
 	}
 
@@ -46,12 +72,15 @@ public class NestedMapsStateTable<K, N, ST> extends AbstractStateTable<K, N, ST>
 	//  access to maps
 	// ------------------------------------------------------------------------
 
-	public Map<N, Map<K, ST>>[] getState() {
+	/**
+	 * Returns the internal data structure.
+	 */
+	public Map<N, Map<K, S>>[] getState() {
 		return state;
 	}
 
 	@VisibleForTesting
-	public Map<N, Map<K, ST>> getMapForKeyGroup(int keyGroupIndex) {
+	Map<N, Map<K, S>> getMapForKeyGroup(int keyGroupIndex) {
 		final int pos = indexToOffset(keyGroupIndex);
 		if (pos >= 0 && pos < state.length) {
 			return state[pos];
@@ -60,16 +89,18 @@ public class NestedMapsStateTable<K, N, ST> extends AbstractStateTable<K, N, ST>
 		}
 	}
 
-	public void setMapForKeyGroup(int index, Map<N, Map<K, ST>> map) {
+	private void setMapForKeyGroup(int keyGroupId, Map<N, Map<K, S>> map) {
 		try {
-			state[indexToOffset(index)] = map;
-		}
-		catch (ArrayIndexOutOfBoundsException e) {
+			state[indexToOffset(keyGroupId)] = map;
+		} catch (ArrayIndexOutOfBoundsException e) {
 			throw new IllegalArgumentException("Key group index out of range of key group range [" +
 					keyGroupOffset + ", " + (keyGroupOffset + state.length) + ").");
 		}
 	}
 
+	/**
+	 * Translates key-group
+	 */
 	private int indexToOffset(int index) {
 		return index - keyGroupOffset;
 	}
@@ -79,9 +110,9 @@ public class NestedMapsStateTable<K, N, ST> extends AbstractStateTable<K, N, ST>
 	@Override
 	public int size() {
 		int count = 0;
-		for (Map<N, Map<K, ST>> namespaceMap : state) {
+		for (Map<N, Map<K, S>> namespaceMap : state) {
 			if (null != namespaceMap) {
-				for (Map<K, ST> keyMap : namespaceMap.values()) {
+				for (Map<K, S> keyMap : namespaceMap.values()) {
 					if (null != keyMap) {
 						count += keyMap.size();
 					}
@@ -92,7 +123,7 @@ public class NestedMapsStateTable<K, N, ST> extends AbstractStateTable<K, N, ST>
 	}
 
 	@Override
-	public ST get(Object namespace) {
+	public S get(Object namespace) {
 		return get(keyContext.getCurrentKey(), keyContext.getCurrentKeyGroupIndex(), namespace);
 	}
 
@@ -102,13 +133,13 @@ public class NestedMapsStateTable<K, N, ST> extends AbstractStateTable<K, N, ST>
 	}
 
 	@Override
-	public void put(N namespace, ST value) {
-		put(keyContext.getCurrentKey(), keyContext.getCurrentKeyGroupIndex(), namespace, value);
+	public void put(N namespace, S state) {
+		put(keyContext.getCurrentKey(), keyContext.getCurrentKeyGroupIndex(), namespace, state);
 	}
 
 	@Override
-	public ST putAndGetOld(N namespace, ST value) {
-		return putAndGetOld(keyContext.getCurrentKey(), keyContext.getCurrentKeyGroupIndex(), namespace, value);
+	public S putAndGetOld(N namespace, S state) {
+		return putAndGetOld(keyContext.getCurrentKey(), keyContext.getCurrentKeyGroupIndex(), namespace, state);
 	}
 
 	@Override
@@ -117,40 +148,40 @@ public class NestedMapsStateTable<K, N, ST> extends AbstractStateTable<K, N, ST>
 	}
 
 	@Override
-	public ST removeAndGetOld(Object namespace) {
+	public S removeAndGetOld(Object namespace) {
 		return removeAndGetOld(keyContext.getCurrentKey(), keyContext.getCurrentKeyGroupIndex(), namespace);
 	}
 
 	@Override
-	public ST get(Object key, Object namespace) {
+	public S get(Object key, Object namespace) {
 		int keyGroup = KeyGroupRangeAssignment.assignToKeyGroup(key, keyContext.getNumberOfKeyGroups());
 		return get(key, keyGroup, namespace);
 	}
 
 	// ------------------------------------------------------------------------
 
-	boolean containsKey(Object key, int keyGroupIndex, Object namespace) {
+	private boolean containsKey(Object key, int keyGroupIndex, Object namespace) {
 
-		Map<N, Map<K, ST>> namespaceMap = getMapForKeyGroup(keyGroupIndex);
+		Map<N, Map<K, S>> namespaceMap = getMapForKeyGroup(keyGroupIndex);
 
 		if (namespaceMap == null) {
 			return false;
 		}
 
-		Map<K, ST> keyedMap = namespaceMap.get(namespace);
+		Map<K, S> keyedMap = namespaceMap.get(namespace);
 
 		return keyedMap != null && keyedMap.containsKey(key);
 	}
 
-	ST get(Object key, int keyGroupIndex, Object namespace) {
+	S get(Object key, int keyGroupIndex, Object namespace) {
 
-		Map<N, Map<K, ST>> namespaceMap = getMapForKeyGroup(keyGroupIndex);
+		Map<N, Map<K, S>> namespaceMap = getMapForKeyGroup(keyGroupIndex);
 
 		if (namespaceMap == null) {
 			return null;
 		}
 
-		Map<K, ST> keyedMap = namespaceMap.get(namespace);
+		Map<K, S> keyedMap = namespaceMap.get(namespace);
 
 		if (keyedMap == null) {
 			return null;
@@ -159,20 +190,21 @@ public class NestedMapsStateTable<K, N, ST> extends AbstractStateTable<K, N, ST>
 		return keyedMap.get(key);
 	}
 
-	private void put(K key, int keyGroupIndex, N namespace, ST value) {
+	@Override
+	public void put(K key, int keyGroupIndex, N namespace, S value) {
 		putAndGetOld(key, keyGroupIndex, namespace, value);
 	}
 
-	private ST putAndGetOld(K key, int keyGroupIndex, N namespace, ST value) {
+	private S putAndGetOld(K key, int keyGroupIndex, N namespace, S value) {
 
-		Map<N, Map<K, ST>> namespaceMap = getMapForKeyGroup(keyGroupIndex);
+		Map<N, Map<K, S>> namespaceMap = getMapForKeyGroup(keyGroupIndex);
 
 		if (namespaceMap == null) {
 			namespaceMap = new HashMap<>();
 			setMapForKeyGroup(keyGroupIndex, namespaceMap);
 		}
 
-		Map<K, ST> keyedMap = namespaceMap.get(namespace);
+		Map<K, S> keyedMap = namespaceMap.get(namespace);
 
 		if (keyedMap == null) {
 			keyedMap = new HashMap<>();
@@ -186,26 +218,102 @@ public class NestedMapsStateTable<K, N, ST> extends AbstractStateTable<K, N, ST>
 		removeAndGetOld(key, keyGroupIndex, namespace);
 	}
 
-	private ST removeAndGetOld(Object key, int keyGroupIndex, Object namespace) {
+	private S removeAndGetOld(Object key, int keyGroupIndex, Object namespace) {
 
-		Map<N, Map<K, ST>> namespaceMap = getMapForKeyGroup(keyGroupIndex);
+		Map<N, Map<K, S>> namespaceMap = getMapForKeyGroup(keyGroupIndex);
 
 		if (namespaceMap == null) {
 			return null;
 		}
 
-		Map<K, ST> keyedMap = namespaceMap.get(namespace);
+		Map<K, S> keyedMap = namespaceMap.get(namespace);
 
 		if (keyedMap == null) {
 			return null;
 		}
 
-		ST removed = keyedMap.remove(key);
+		S removed = keyedMap.remove(key);
 
 		if (keyedMap.isEmpty()) {
 			namespaceMap.remove(namespace);
 		}
 
 		return removed;
+	}
+
+	@Override
+	public int sizeOfNamespace(Object namespace) {
+		int count = 0;
+		for (Map<N, Map<K, S>> namespaceMap : state) {
+			if (null != namespaceMap) {
+				Map<K, S> keyMap = namespaceMap.get(namespace);
+				count += keyMap != null ? keyMap.size() : 0;
+			}
+		}
+
+		return count;
+	}
+
+	// snapshots ---------------------------------------------------------------------------------------------------
+
+	private static <K, N, S> int countMappingsInKeyGroup(final Map<N, Map<K, S>> keyGroupMap) {
+		int count = 0;
+		for (Map<K, S> namespaceMap : keyGroupMap.values()) {
+			count += namespaceMap.size();
+		}
+
+		return count;
+	}
+
+	@Override
+	public NestedMapsStateTableSnapshot<K, N, S> createSnapshot() {
+		return new NestedMapsStateTableSnapshot<>(this);
+	}
+
+	/**
+	 * This class encapsulates the snapshot logic.
+	 *
+	 * @param <K> type of key.
+	 * @param <N> type of namespace.
+	 * @param <S> type of state.
+	 */
+	static class NestedMapsStateTableSnapshot<K, N, S>
+			extends StateTableSnapshot<K, N, S, NestedMapsStateTable<K, N, S>> {
+
+		NestedMapsStateTableSnapshot(NestedMapsStateTable<K, N, S> owningTable) {
+			super(owningTable);
+		}
+
+		/**
+		 * Implementation note: we currently chose the same format between {@link NestedMapsStateTable} and
+		 * {@link CopyOnWriteStateTable}.
+		 * <p>
+		 * {@link NestedMapsStateTable} could naturally support a kind of
+		 * prefix-compressed format (grouping by namespace, writing the namespace only once per group instead for each
+		 * mapping). We might implement support for different formats later (tailored towards different state table
+		 * implementations).
+		 */
+		@Override
+		public void writeMappingsInKeyGroup(DataOutputView dov, int keyGroupId) throws IOException {
+			final Map<N, Map<K, S>> keyGroupMap = owningStateTable.getMapForKeyGroup(keyGroupId);
+			if (null != keyGroupMap) {
+				TypeSerializer<K> keySerializer = owningStateTable.keyContext.getKeySerializer();
+				TypeSerializer<N> namespaceSerializer = owningStateTable.metaInfo.getNamespaceSerializer();
+				TypeSerializer<S> stateSerializer = owningStateTable.metaInfo.getStateSerializer();
+				dov.writeInt(countMappingsInKeyGroup(keyGroupMap));
+				for (Map.Entry<N, Map<K, S>> namespaceEntry : keyGroupMap.entrySet()) {
+					final N namespace = namespaceEntry.getKey();
+					final Map<K, S> namespaceMap = namespaceEntry.getValue();
+
+					for (Map.Entry<K, S> keyEntry : namespaceMap.entrySet()) {
+						namespaceSerializer.serialize(namespace, dov);
+						keySerializer.serialize(keyEntry.getKey(), dov);
+						stateSerializer.serialize(keyEntry.getValue(), dov);
+					}
+				}
+			} else {
+				dov.writeInt(0);
+			}
+		}
 	}
 }

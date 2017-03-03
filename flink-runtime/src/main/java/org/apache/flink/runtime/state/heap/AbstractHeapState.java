@@ -42,7 +42,7 @@ public abstract class AbstractHeapState<K, N, SV, S extends State, SD extends St
 		implements InternalKvState<N> {
 
 	/** Map containing the actual key/value pairs */
-	protected final NestedMapsStateTable<K, N, SV> stateTable;
+	protected final StateTable<K, N, SV> stateTable;
 
 	/** This holds the name of the state and can create an initial default value for the state. */
 	protected final SD stateDesc;
@@ -63,7 +63,7 @@ public abstract class AbstractHeapState<K, N, SV, S extends State, SD extends St
 	 */
 	protected AbstractHeapState(
 			SD stateDesc,
-			NestedMapsStateTable<K, N, SV> stateTable,
+			StateTable<K, N, SV> stateTable,
 			TypeSerializer<K> keySerializer,
 			TypeSerializer<N> namespaceSerializer) {
 
@@ -115,7 +115,7 @@ public abstract class AbstractHeapState<K, N, SV, S extends State, SD extends St
 	 * This should only be used for testing.
 	 */
 	@VisibleForTesting
-	public NestedMapsStateTable<K, N, SV> getStateTable() {
+	public StateTable<K, N, SV> getStateTable() {
 		return stateTable;
 	}
 }

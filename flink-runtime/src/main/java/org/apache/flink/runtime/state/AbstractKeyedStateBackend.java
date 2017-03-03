@@ -360,4 +360,8 @@ public abstract class AbstractKeyedStateBackend<K>
 	public void close() throws IOException {
 		cancelStreamRegistry.close();
 	}
+
+	public boolean supportsAsynchronousSnapshots() {
+		return false;
+	}
 }

@@ -18,9 +18,13 @@
 
 package org.apache.flink.runtime.state.heap;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.runtime.state.RegisteredBackendStateMetaInfo;
 import org.apache.flink.util.Preconditions;
+
+import java.io.IOException;
 
 /**
  * Base class for state tables. Accesses to state are typically scoped by the currently active key, as provided
@@ -30,7 +34,7 @@ import org.apache.flink.util.Preconditions;
  * @param <N> type of namespace
  * @param <S> type of state
  */
-public abstract class AbstractStateTable<K, N, S> {
+public abstract class StateTable<K, N, S> {
 
 	/**
 	 * The key context view on the backend. This provides information, such as the currently active key.
@@ -43,11 +47,11 @@ public abstract class AbstractStateTable<K, N, S> {
 	protected RegisteredBackendStateMetaInfo<N, S> metaInfo;
 
 	/**
-	 * Constructs a new {@code StateTable} with default capacity of 128.
 	 *
+	 * @param keyContext the key context provides the key scope for all put/get/delete operations.
 	 * @param metaInfo the meta information, including the type serializer for state copy-on-write.
 	 */
-	public AbstractStateTable(KeyContext<K> keyContext, RegisteredBackendStateMetaInfo<N, S> metaInfo) {
+	public StateTable(KeyContext<K> keyContext, RegisteredBackendStateMetaInfo<N, S> metaInfo) {
 		this.keyContext = Preconditions.checkNotNull(keyContext);
 		this.metaInfo = Preconditions.checkNotNull(metaInfo);
 	}
@@ -95,20 +99,20 @@ public abstract class AbstractStateTable<K, N, S> {
 	 * over {@link #putAndGetOld(Object, Object)} (Object, Object)} when the caller is not interested in the old value.
 	 *
 	 * @param namespace the namespace. Not null.
-	 * @param value     the value. Can be null.
+	 * @param state     the value. Can be null.
 	 */
-	public abstract void put(N namespace, S value);
+	public abstract void put(N namespace, S state);
 
 	/**
 	 * Maps the composite of active key and given namespace to the specified value. Returns the previous state that
 	 * was registered under the composite key.
 	 *
 	 * @param namespace the namespace. Not null.
-	 * @param value     the value. Can be null.
+	 * @param state     the value. Can be null.
 	 * @return the value of any previous mapping with the specified key or
 	 * {@code null} if there was no such mapping.
 	 */
-	public abstract S putAndGetOld(N namespace, S value);
+	public abstract S putAndGetOld(N namespace, S state);
 
 	/**
 	 * Removes the mapping for the composite of active key and given namespace. This method should be preferred
@@ -128,6 +132,8 @@ public abstract class AbstractStateTable<K, N, S> {
 	 */
 	public abstract S removeAndGetOld(Object namespace);
 
+	// For queryable state --------------------------------------------------------------------------
+
 	/**
 	 * Returns the value for the composite of active key and given namespace. This is typically used by
 	 * queryable state.
@@ -138,6 +144,10 @@ public abstract class AbstractStateTable<K, N, S> {
 	 * if no mapping for the specified key is found.
 	 */
 	public abstract S get(Object key, Object namespace);
+
+	// For efficient restore ------------------------------------------------------------------------
+
+	public abstract void put(K key, int keyGroup, N namespace, S state);
 
 	// Meta data setter / getter and toString --------------------------------------------------------------------------
 
@@ -156,4 +166,27 @@ public abstract class AbstractStateTable<K, N, S> {
 	public void setMetaInfo(RegisteredBackendStateMetaInfo<N, S> metaInfo) {
 		this.metaInfo = metaInfo;
 	}
+
+	// Snapshotting -------------------------------------------------------------------------
+
+	public abstract StateTableSnapshot<K, N, S, ? extends StateTable<K, N, S>> createSnapshot();
+
+	void readMappingsInKeyGroup(DataInputView inView, int keyGroupId) throws IOException {
+		TypeSerializer<K> keySerializer = keyContext.getKeySerializer();
+		TypeSerializer<N> namespaceSerializer = getNamespaceSerializer();
+		TypeSerializer<S> stateSerializer = getStateSerializer();
+
+		int numKeys = inView.readInt();
+		for (int i = 0; i < numKeys; ++i) {
+			N namespace = namespaceSerializer.deserialize(inView);
+			K key = keySerializer.deserialize(inView);
+			S state = stateSerializer.deserialize(inView);
+			put(key, keyGroupId, namespace, state);
+		}
+	}
+
+	// for testing --------------------------------------------------------------------------
+
+	@VisibleForTesting
+	public abstract int sizeOfNamespace(Object namespace);
 }

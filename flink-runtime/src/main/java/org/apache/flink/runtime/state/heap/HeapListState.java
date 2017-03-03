@@ -49,7 +49,7 @@ public class HeapListState<K, N, V>
 	 */
 	public HeapListState(
 			ListStateDescriptor<V> stateDesc,
-			NestedMapsStateTable<K, N, ArrayList<V>> stateTable,
+			StateTable<K, N, ArrayList<V>> stateTable,
 			TypeSerializer<K> keySerializer,
 			TypeSerializer<N> namespaceSerializer) {
 		super(stateDesc, stateTable, keySerializer, namespaceSerializer);
@@ -73,7 +73,7 @@ public class HeapListState<K, N, V>
 			return;
 		}
 
-		final NestedMapsStateTable<K, N, ArrayList<V>> map = stateTable;
+		final StateTable<K, N, ArrayList<V>> map = stateTable;
 		ArrayList<V> list = map.get(namespace);
 
 		if (list == null) {

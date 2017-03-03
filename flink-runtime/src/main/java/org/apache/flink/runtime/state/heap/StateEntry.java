@@ -18,8 +18,11 @@
 
 package org.apache.flink.runtime.state.heap;
 
+import java.util.Objects;
+
 /**
- * One entry in a state table.
+ * One full entry in a state table. Consists of an immutable key (not null), an immutable namespace (not null), and
+ * a state that can be mutable and null.
  *
  * @param <K> type of key
  * @param <N> type of namespace
@@ -27,8 +30,19 @@ package org.apache.flink.runtime.state.heap;
  */
 public class StateEntry<K, N, S> {
 
-	protected K key;
-	protected N namespace;
+	/**
+	 * The key. Assumed to be immutable and not null.
+	 */
+	protected final K key;
+
+	/**
+	 * The namespace. Assumed to be immutable and not null.
+	 */
+	protected final N namespace;
+
+	/**
+	 * The state. This is not final to allow exchanging the object for copy-on-write. Can be null.
+	 */
 	protected S state;
 
 	public StateEntry(K key, N namespace, S state) {
@@ -58,4 +72,25 @@ public class StateEntry<K, N, S> {
 		return state;
 	}
 
+	@Override
+	public final boolean equals(Object o) {
+		if (!(o instanceof CopyOnWriteStateTable.StateTableEntry)) {
+			return false;
+		}
+
+		StateEntry<?, ?, ?> e = (StateEntry<?, ?, ?>) o;
+		return e.getKey().equals(key)
+				&& e.getNamespace().equals(namespace)
+				&& Objects.equals(e.getState(), state);
+	}
+
+	@Override
+	public final int hashCode() {
+		return (key.hashCode() ^ namespace.hashCode()) ^ Objects.hashCode(state);
+	}
+
+	@Override
+	public final String toString() {
+		return "(" + key + "|" + namespace + ")=" + state;
+	}
 }

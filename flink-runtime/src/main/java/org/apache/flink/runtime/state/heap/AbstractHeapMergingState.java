@@ -49,7 +49,7 @@ public abstract class AbstractHeapMergingState<K, N, IN, OUT, SV, S extends Stat
 	 */
 	protected AbstractHeapMergingState(
 			SD stateDesc,
-			NestedMapsStateTable<K, N, SV> stateTable,
+			StateTable<K, N, SV> stateTable,
 			TypeSerializer<K> keySerializer,
 			TypeSerializer<N> namespaceSerializer) {
 
@@ -62,7 +62,7 @@ public abstract class AbstractHeapMergingState<K, N, IN, OUT, SV, S extends Stat
 			return; // nothing to do
 		}
 
-		final NestedMapsStateTable<K, N, SV> map = stateTable;
+		final StateTable<K, N, SV> map = stateTable;
 
 		SV merged = null;
 

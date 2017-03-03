@@ -45,6 +45,9 @@ public class MemoryStateBackend extends AbstractStateBackend {
 	/** The maximal size that the snapshotted memory state may have */
 	private final int maxStateSize;
 
+	/** Switch to chose between synchronous and asynchronous snapshots */
+	private final boolean asynchronousSnapshots;
+
 	/**
 	 * Creates a new memory state backend that accepts states whose serialized forms are
 	 * up to the default state size (5 MB).
@@ -60,7 +63,29 @@ public class MemoryStateBackend extends AbstractStateBackend {
 	 * @param maxStateSize The maximal size of the serialized state
 	 */
 	public MemoryStateBackend(int maxStateSize) {
+		this(maxStateSize, false);
+	}
+
+	/**
+	 * Creates a new memory state backend that accepts states whose serialized forms are
+	 * up to the default state size (5 MB).
+	 *
+	 * @param asynchronousSnapshots Switch to enable asynchronous snapshots.
+	 */
+	public MemoryStateBackend(boolean asynchronousSnapshots) {
+		this(DEFAULT_MAX_STATE_SIZE, asynchronousSnapshots);
+	}
+
+	/**
+	 * Creates a new memory state backend that accepts states whose serialized forms are
+	 * up to the given number of bytes.
+	 *
+	 * @param maxStateSize The maximal size of the serialized state
+	 * @param asynchronousSnapshots Switch to enable asynchronous snapshots.
+	 */
+	public MemoryStateBackend(int maxStateSize, boolean asynchronousSnapshots) {
 		this.maxStateSize = maxStateSize;
+		this.asynchronousSnapshots = asynchronousSnapshots;
 	}
 
 	@Override
@@ -88,6 +113,7 @@ public class MemoryStateBackend extends AbstractStateBackend {
 				keySerializer,
 				env.getUserClassLoader(),
 				numberOfKeyGroups,
-				keyGroupRange);
+				keyGroupRange,
+				asynchronousSnapshots);
 	}
 }

@@ -48,6 +48,7 @@ import org.apache.flink.runtime.query.KvStateRegistryListener;
 import org.apache.flink.runtime.query.netty.message.KvStateRequestSerializer;
 import org.apache.flink.runtime.state.heap.AbstractHeapState;
 import org.apache.flink.runtime.state.heap.NestedMapsStateTable;
+import org.apache.flink.runtime.state.heap.StateTable;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.util.TestLogger;
@@ -1263,11 +1264,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			backend.setCurrentKey(1);
 			state.update(121818273);
 
-			int keyGroupIndex = KeyGroupRangeAssignment.assignToKeyGroup(1, numberOfKeyGroups);
-			NestedMapsStateTable stateTable = ((AbstractHeapState) kvState).getStateTable();
-			assertNotNull("State not set", stateTable.getMapForKeyGroup(keyGroupIndex));
-			assertTrue(stateTable.getMapForKeyGroup(keyGroupIndex) instanceof ConcurrentHashMap);
-			assertTrue(stateTable.getMapForKeyGroup(keyGroupIndex).get(VoidNamespace.INSTANCE) instanceof ConcurrentHashMap);
+			StateTable<?, ?, ?> stateTable = ((AbstractHeapState<?, ?,? ,?, ?>) kvState).getStateTable();
+			checkConcurrentStateTable(stateTable, numberOfKeyGroups);
 
 		}
 
@@ -1289,11 +1287,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			backend.setCurrentKey(1);
 			state.add(121818273);
 
-			int keyGroupIndex = KeyGroupRangeAssignment.assignToKeyGroup(1, numberOfKeyGroups);
-			NestedMapsStateTable stateTable = ((AbstractHeapState) kvState).getStateTable();
-			assertNotNull("State not set", stateTable.getMapForKeyGroup(keyGroupIndex));
-			assertTrue(stateTable.getMapForKeyGroup(keyGroupIndex) instanceof ConcurrentHashMap);
-			assertTrue(stateTable.getMapForKeyGroup(keyGroupIndex).get(VoidNamespace.INSTANCE) instanceof ConcurrentHashMap);
+			StateTable<?, ?, ?> stateTable = ((AbstractHeapState<?, ?,? ,?, ?>) kvState).getStateTable();
+			checkConcurrentStateTable(stateTable, numberOfKeyGroups);
 		}
 
 		{
@@ -1320,11 +1315,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			backend.setCurrentKey(1);
 			state.add(121818273);
 
-			int keyGroupIndex = KeyGroupRangeAssignment.assignToKeyGroup(1, numberOfKeyGroups);
-			NestedMapsStateTable stateTable = ((AbstractHeapState) kvState).getStateTable();
-			assertNotNull("State not set", stateTable.getMapForKeyGroup(keyGroupIndex));
-			assertTrue(stateTable.getMapForKeyGroup(keyGroupIndex) instanceof ConcurrentHashMap);
-			assertTrue(stateTable.getMapForKeyGroup(keyGroupIndex).get(VoidNamespace.INSTANCE) instanceof ConcurrentHashMap);
+			StateTable<?, ?, ?> stateTable = ((AbstractHeapState<?, ?,? ,?, ?>) kvState).getStateTable();
+			checkConcurrentStateTable(stateTable, numberOfKeyGroups);
 		}
 
 		{
@@ -1351,14 +1343,21 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			backend.setCurrentKey(1);
 			state.add(121818273);
 
-			int keyGroupIndex = KeyGroupRangeAssignment.assignToKeyGroup(1, numberOfKeyGroups);
-			NestedMapsStateTable stateTable = ((AbstractHeapState) kvState).getStateTable();
-			assertNotNull("State not set", stateTable.getMapForKeyGroup(keyGroupIndex));
-			assertTrue(stateTable.getMapForKeyGroup(keyGroupIndex) instanceof ConcurrentHashMap);
-			assertTrue(stateTable.getMapForKeyGroup(keyGroupIndex).get(VoidNamespace.INSTANCE) instanceof ConcurrentHashMap);
+			StateTable<?, ?, ?> stateTable = ((AbstractHeapState<?, ?,? ,?, ?>) kvState).getStateTable();
+			checkConcurrentStateTable(stateTable, numberOfKeyGroups);
 		}
 
 		backend.dispose();
+	}
+
+	private void checkConcurrentStateTable(StateTable<?, ?, ?> stateTable, int numberOfKeyGroups) {
+		assertNotNull("State not set", stateTable);
+		if (stateTable instanceof NestedMapsStateTable) {
+			int keyGroupIndex = KeyGroupRangeAssignment.assignToKeyGroup(1, numberOfKeyGroups);
+			NestedMapsStateTable<?, ?, ?> nestedMapsStateTable = (NestedMapsStateTable<?, ?, ?>) stateTable;
+			assertTrue(nestedMapsStateTable.getState()[keyGroupIndex] instanceof ConcurrentHashMap);
+			assertTrue(nestedMapsStateTable.getState()[keyGroupIndex].get(VoidNamespace.INSTANCE) instanceof ConcurrentHashMap);
+		}
 	}
 
 	/**

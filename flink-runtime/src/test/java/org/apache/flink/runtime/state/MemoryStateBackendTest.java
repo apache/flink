@@ -45,7 +45,11 @@ public class MemoryStateBackendTest extends StateBackendTestBase<MemoryStateBack
 
 	@Override
 	protected MemoryStateBackend getStateBackend() throws Exception {
-		return new MemoryStateBackend();
+		return new MemoryStateBackend(useAsyncMode());
+	}
+
+	protected boolean useAsyncMode() {
+		return false;
 	}
 
 	// disable these because the verification does not work for this state backend

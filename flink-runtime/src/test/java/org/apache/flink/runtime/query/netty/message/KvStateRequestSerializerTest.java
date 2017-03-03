@@ -21,7 +21,6 @@ package org.apache.flink.runtime.query.netty.message;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.UnpooledByteBufAllocator;
-
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
@@ -35,7 +34,6 @@ import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.internal.InternalListState;
-
 import org.junit.Test;
 
 import java.io.IOException;
@@ -325,7 +323,9 @@ public class KvStateRequestSerializerTest {
 				mock(TaskKvStateRegistry.class),
 				LongSerializer.INSTANCE,
 				ClassLoader.getSystemClassLoader(),
-				1, new KeyGroupRange(0, 0)
+				1,
+				new KeyGroupRange(0, 0),
+				(System.currentTimeMillis() & 1) == 1
 			);
 		longHeapKeyedStateBackend.setCurrentKey(key);
 

@@ -55,7 +55,7 @@ public class HeapAggregatingState<K, N, IN, ACC, OUT>
 	 */
 	public HeapAggregatingState(
 			AggregatingStateDescriptor<IN, ACC, OUT> stateDesc,
-			NestedMapsStateTable<K, N, ACC> stateTable,
+			StateTable<K, N, ACC> stateTable,
 			TypeSerializer<K> keySerializer,
 			TypeSerializer<N> namespaceSerializer) {
 
@@ -83,7 +83,7 @@ public class HeapAggregatingState<K, N, IN, ACC, OUT>
 			return;
 		}
 
-		final NestedMapsStateTable<K, N, ACC> map = stateTable;
+		final StateTable<K, N, ACC> map = stateTable;
 
 		// if this is the first value for the key, create a new accumulator
 		ACC accumulator = map.get(namespace);

@@ -1202,4 +1202,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			// expected
 		}
 	}
+
+	@Override
+	public boolean supportsAsynchronousSnapshots() {
+		return true;
+	}
 }

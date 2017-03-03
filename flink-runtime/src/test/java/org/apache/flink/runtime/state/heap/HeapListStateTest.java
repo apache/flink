@@ -94,7 +94,7 @@ public class HeapListStateTest {
 
 			// make sure all lists / maps are cleared
 
-			NestedMapsStateTable<String, VoidNamespace, ArrayList<Long>> stateTable =
+			StateTable<String, VoidNamespace, ArrayList<Long>> stateTable =
 					((HeapListState<String, VoidNamespace, Long>) state).stateTable;
 
 			assertTrue(stateTable.isEmpty());
@@ -214,7 +214,7 @@ public class HeapListStateTest {
 			state.setCurrentNamespace(namespace1);
 			state.clear();
 
-			NestedMapsStateTable<String, Integer, ArrayList<Long>> stateTable =
+			StateTable<String, Integer, ArrayList<Long>> stateTable =
 					((HeapListState<String, Integer, Long>) state).stateTable;
 
 			assertTrue(stateTable.isEmpty());
@@ -231,7 +231,8 @@ public class HeapListStateTest {
 				StringSerializer.INSTANCE,
 				HeapListStateTest.class.getClassLoader(),
 				16,
-				new KeyGroupRange(0, 15));
+				new KeyGroupRange(0, 15),
+				(System.currentTimeMillis() & 1) == 1);
 	}
 	
 	private static <T> void validateResult(Iterable<T> values, Set<T> expected) {
