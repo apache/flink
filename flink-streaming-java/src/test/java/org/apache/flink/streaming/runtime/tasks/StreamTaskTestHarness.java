@@ -386,6 +386,7 @@ public class StreamTaskTestHarness<OUT> {
 		@Override
 		public void run() {
 			try {
+				task.open();
 				task.invoke();
 				shutdownIOManager();
 				shutdownMemoryManager();

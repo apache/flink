@@ -38,6 +38,20 @@ public abstract class AbstractInvokable {
 	private Environment environment;
 
 	/**
+	 * Initials the execution.
+	 *
+	 * This method is called when task needs to separate initialization apart from execution,
+	 * so that the state transition can change the task state to RUNNING between {@link #open()}
+	 * and {@link #invoke()}
+	 *
+	 * @throws Exception
+	 *         Tasks may forward their exceptions for the TaskManager to handle through failure/recovery.
+	 */
+	public void open() throws Exception {
+		// The default implementation does nothing.
+	}
+
+	/**
 	 * Starts the execution.
 	 *
 	 * <p>Must be overwritten by the concrete task implementation. This method

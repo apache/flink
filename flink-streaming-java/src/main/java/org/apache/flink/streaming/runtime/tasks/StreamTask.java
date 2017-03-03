@@ -203,9 +203,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	}
 
 	@Override
-	public final void invoke() throws Exception {
-
-		boolean disposed = false;
+	public final void open() throws Exception {
 		try {
 			// -------- Initialize ---------
 			LOG.debug("Initializing {}.", getName());
@@ -237,9 +235,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				throw new CancelTaskException();
 			}
 
-			// -------- Invoke --------
-			LOG.debug("Invoking {}", getName());
-
 			// we need to make sure that any triggers scheduled in open() cannot be
 			// executed before all operators are opened
 			synchronized (lock) {
@@ -251,6 +246,20 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				initializeState();
 				openAllOperators();
 			}
+		}
+		catch (Throwable t) {
+			cleanupAll(false);
+			throw t;
+		}
+	}
+
+	@Override
+	public final void invoke() throws Exception {
+
+		boolean disposed = false;
+		try {
+			// -------- Invoke --------
+			LOG.debug("Invoking {}", getName());
 
 			// final check to exit early before starting to run
 			if (canceled) {
@@ -295,48 +304,52 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			disposed = true;
 		}
 		finally {
-			// clean up everything we initialized
-			isRunning = false;
+			cleanupAll(disposed);
+		}
+	}
 
-			// stop all timers and threads
-			if (timerService != null) {
-				try {
-					timerService.shutdownService();
-				}
-				catch (Throwable t) {
-					// catch and log the exception to not replace the original exception
-					LOG.error("Could not shut down timer service", t);
-				}
-			}
+	private void cleanupAll(boolean disposed) throws Exception {
+		// clean up everything we initialized
+		isRunning = false;
 
-			// stop all asynchronous checkpoint threads
+		// stop all timers and threads
+		if (timerService != null) {
 			try {
-				cancelables.close();
-				shutdownAsyncThreads();
+				timerService.shutdownService();
 			}
 			catch (Throwable t) {
 				// catch and log the exception to not replace the original exception
-				LOG.error("Could not shut down async checkpoint threads", t);
+				LOG.error("Could not shut down timer service", t);
 			}
+		}
 
-			// we must! perform this cleanup
-			try {
-				cleanup();
-			}
-			catch (Throwable t) {
-				// catch and log the exception to not replace the original exception
-				LOG.error("Error during cleanup of stream task", t);
-			}
+		// stop all asynchronous checkpoint threads
+		try {
+			cancelables.close();
+			shutdownAsyncThreads();
+		}
+		catch (Throwable t) {
+			// catch and log the exception to not replace the original exception
+			LOG.error("Could not shut down async checkpoint threads", t);
+		}
 
-			// if the operators were not disposed before, do a hard dispose
-			if (!disposed) {
-				disposeAllOperators();
-			}
+		// we must! perform this cleanup
+		try {
+			cleanup();
+		}
+		catch (Throwable t) {
+			// catch and log the exception to not replace the original exception
+			LOG.error("Error during cleanup of stream task", t);
+		}
 
-			// release the output resources. this method should never fail.
-			if (operatorChain != null) {
-				operatorChain.releaseOutputs();
-			}
+		// if the operators were not disposed before, do a hard dispose
+		if (!disposed) {
+			disposeAllOperators();
+		}
+
+		// release the output resources. this method should never fail.
+		if (operatorChain != null) {
+			operatorChain.releaseOutputs();
 		}
 	}
 

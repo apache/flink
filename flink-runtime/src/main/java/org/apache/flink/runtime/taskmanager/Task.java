@@ -654,6 +654,13 @@ public class Task implements Runnable, TaskActions {
 			// by the time we switched to running.
 			this.invokable = invokable;
 
+			// make sure the user code classloader is accessible thread-locally
+			executingThread.setContextClassLoader(userCodeClassLoader);
+
+			// initial the invokable to make sure it is definitely ready to run by the time we
+			// switched to running.
+			invokable.open();
+
 			// switch to the RUNNING state, if that fails, we have been canceled/failed in the meantime
 			if (!transitionState(ExecutionState.DEPLOYING, ExecutionState.RUNNING)) {
 				throw new CancelTaskException();
@@ -662,9 +669,6 @@ public class Task implements Runnable, TaskActions {
 			// notify everyone that we switched to running
 			notifyObservers(ExecutionState.RUNNING, null);
 			taskManagerActions.updateTaskExecutionState(new TaskExecutionState(jobId, executionId, ExecutionState.RUNNING));
-
-			// make sure the user code classloader is accessible thread-locally
-			executingThread.setContextClassLoader(userCodeClassLoader);
 
 			// run the invokable
 			invokable.invoke();
@@ -985,8 +989,6 @@ public class Task implements Runnable, TaskActions {
 
 			if (current == ExecutionState.DEPLOYING || current == ExecutionState.CREATED) {
 				if (transitionState(current, targetState, cause)) {
-					// if we manage this state transition, then the invokable gets never called
-					// we need not call cancel on it
 					this.failureCause = cause;
 					notifyObservers(
 						targetState,
@@ -996,6 +998,32 @@ public class Task implements Runnable, TaskActions {
 								taskNameWithSubtask,
 								executionId),
 							cause));
+
+					// we need to cancel the invokable because some task, StreamTask for example,
+					// might have called invokable.open()
+					if (invokable != null && invokableHasBeenCanceled.compareAndSet(false, true)) {
+						LOG.info("Triggering cancellation of task code {} ({}).", taskNameWithSubtask, executionId);
+
+						// because the canceling may block on user code, we cancel from a separate thread
+						// we do not reuse the async call handler, because that one may be blocked, in which
+						// case the canceling could not continue
+
+						// The canceller calls cancel and interrupts the executing thread once
+						Runnable canceler = new TaskCanceler(
+							LOG,
+							invokable,
+							executingThread,
+							taskNameWithSubtask,
+							taskCancellationInterval,
+							taskCancellationTimeout,
+							taskManagerActions,
+							producedPartitions,
+							inputGates);
+						Thread cancelThread = new Thread(executingThread.getThreadGroup(), canceler,
+							String.format("Canceler for %s (%s).", taskNameWithSubtask, executionId));
+						cancelThread.setDaemon(true);
+						cancelThread.start();
+					}
 					return;
 				}
 			}
