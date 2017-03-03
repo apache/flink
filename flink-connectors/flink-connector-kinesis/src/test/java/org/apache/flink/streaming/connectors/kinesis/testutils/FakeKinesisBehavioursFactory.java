@@ -21,14 +21,15 @@ import com.amazonaws.services.kinesis.model.ExpiredIteratorException;
 import com.amazonaws.services.kinesis.model.GetRecordsResult;
 import com.amazonaws.services.kinesis.model.Record;
 import com.amazonaws.services.kinesis.model.Shard;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShard;
 import org.apache.flink.streaming.connectors.kinesis.proxy.GetShardListResult;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -196,7 +197,7 @@ public class FakeKinesisBehavioursFactory {
 			for (int i = min; i < max; i++) {
 				batch.add(
 					new Record()
-						.withData(ByteBuffer.wrap(String.valueOf(i).getBytes()))
+						.withData(ByteBuffer.wrap(String.valueOf(i).getBytes(ConfigConstants.DEFAULT_CHARSET)))
 						.withPartitionKey(UUID.randomUUID().toString())
 						.withApproximateArrivalTimestamp(new Date(System.currentTimeMillis()))
 						.withSequenceNumber(String.valueOf(i)));

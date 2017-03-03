@@ -19,6 +19,7 @@
 package org.apache.flink.api.common.io;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
@@ -73,11 +74,11 @@ public class DelimitedInputFormatTest {
 		cfg.setString("delimited-format.delimiter", "\n");
 		
 		format.configure(cfg);
-		assertEquals("\n", new String(format.getDelimiter()));
+		assertEquals("\n", new String(format.getDelimiter(), format.getCharset()));
 
 		cfg.setString("delimited-format.delimiter", "&-&");
 		format.configure(cfg);
-		assertEquals("&-&", new String(format.getDelimiter()));
+		assertEquals("&-&", new String(format.getDelimiter(), format.getCharset()));
 	}
 	
 	@Test
@@ -428,7 +429,7 @@ public class DelimitedInputFormatTest {
 		
 		@Override
 		public String readRecord(String reuse, byte[] bytes, int offset, int numBytes) {
-			return new String(bytes, offset, numBytes);
+			return new String(bytes, offset, numBytes, ConfigConstants.DEFAULT_CHARSET);
 		}
 	}
 }

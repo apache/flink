@@ -27,6 +27,8 @@ import static org.apache.flink.python.api.streaming.util.SerializationUtils.TYPE
 import static org.apache.flink.python.api.streaming.util.SerializationUtils.TYPE_LONG;
 import static org.apache.flink.python.api.streaming.util.SerializationUtils.TYPE_NULL;
 import static org.apache.flink.python.api.streaming.util.SerializationUtils.TYPE_STRING;
+
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.python.api.types.CustomTypeWrapper;
 
 /**
@@ -177,7 +179,7 @@ public class PythonPlanReceiver implements Serializable {
 			int size = input.readInt();
 			byte[] buffer = new byte[size];
 			input.readFully(buffer);
-			return new String(buffer);
+			return new String(buffer, ConfigConstants.DEFAULT_CHARSET);
 		}
 	}
 

@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.hadoop.io.Writable;
 
 import java.io.DataInput;
@@ -41,7 +42,7 @@ public class StringArrayWritable implements Writable, Comparable<StringArrayWrit
 		out.writeInt(this.array.length);
 		
 		for(String str : this.array) {
-			byte[] b = str.getBytes();
+			byte[] b = str.getBytes(ConfigConstants.DEFAULT_CHARSET);
 			out.writeInt(b.length);
 			out.write(b);
 		}
@@ -54,7 +55,7 @@ public class StringArrayWritable implements Writable, Comparable<StringArrayWrit
 		for(int i = 0; i < this.array.length; i++) {
 			byte[] b = new byte[in.readInt()];
 			in.readFully(b);
-			this.array[i] = new String(b);
+			this.array[i] = new String(b, ConfigConstants.DEFAULT_CHARSET);
 		}
 	}
 	

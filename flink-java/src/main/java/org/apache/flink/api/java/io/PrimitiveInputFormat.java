@@ -78,7 +78,7 @@ public class PrimitiveInputFormat<OT> extends DelimitedInputFormat<OT> {
 		if (parser.resetErrorStateAndParse(bytes, offset, numBytes + offset, new byte[]{'\0'}, reuse) >= 0) {
 			return parser.getLastResult();
 		} else {
-			String s = new String(bytes, offset, numBytes);
+			String s = new String(bytes, offset, numBytes, getCharset());
 			throw new IOException("Could not parse value: \""+s+"\" as type "+primitiveClass.getSimpleName());
 		}
 	}

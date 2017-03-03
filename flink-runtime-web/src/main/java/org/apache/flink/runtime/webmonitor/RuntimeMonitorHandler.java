@@ -30,6 +30,7 @@ import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.router.KeepAliveWrite;
 import io.netty.handler.codec.http.router.Routed;
 
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.webmonitor.handlers.RequestHandler;
 import org.apache.flink.util.ExceptionUtils;
@@ -59,7 +60,7 @@ public class RuntimeMonitorHandler extends RuntimeMonitorHandlerBase {
 
 	private static final Logger LOG = LoggerFactory.getLogger(RuntimeMonitorHandler.class);
 
-	private static final Charset ENCODING = Charset.forName("UTF-8");
+	private static final Charset ENCODING = ConfigConstants.DEFAULT_CHARSET;
 
 	public static final String WEB_MONITOR_ADDRESS_KEY = "web.monitor.address";
 

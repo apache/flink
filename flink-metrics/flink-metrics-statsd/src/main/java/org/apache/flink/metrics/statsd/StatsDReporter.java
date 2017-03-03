@@ -36,6 +36,7 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
 import java.net.SocketException;
+import java.nio.charset.StandardCharsets;
 import java.util.ConcurrentModificationException;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -187,7 +188,7 @@ public class StatsDReporter extends AbstractReporter implements Scheduled {
 	private void send(final String name, final String value) {
 		try {
 			String formatted = String.format("%s:%s|g", name, value);
-			byte[] data = formatted.getBytes();
+			byte[] data = formatted.getBytes(StandardCharsets.UTF_8);
 			socket.send(new DatagramPacket(data, data.length, this.address));
 		}
 		catch (IOException e) {

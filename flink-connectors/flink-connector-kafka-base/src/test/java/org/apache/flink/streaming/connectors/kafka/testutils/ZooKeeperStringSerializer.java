@@ -19,20 +19,17 @@
 package org.apache.flink.streaming.connectors.kafka.testutils;
 
 import org.I0Itec.zkclient.serialize.ZkSerializer;
-
-import java.nio.charset.Charset;
+import org.apache.flink.configuration.ConfigConstants;
 
 /**
  * Simple ZooKeeper serializer for Strings.
  */
 public class ZooKeeperStringSerializer implements ZkSerializer {
 
-	private static final Charset CHARSET = Charset.forName("UTF-8");
-	
 	@Override
 	public byte[] serialize(Object data) {
 		if (data instanceof String) {
-			return ((String) data).getBytes(CHARSET);
+			return ((String) data).getBytes(ConfigConstants.DEFAULT_CHARSET);
 		}
 		else {
 			throw new IllegalArgumentException("ZooKeeperStringSerializer can only serialize strings.");
@@ -45,7 +42,7 @@ public class ZooKeeperStringSerializer implements ZkSerializer {
 			return null;
 		}
 		else {
-			return new String(bytes, CHARSET);
+			return new String(bytes, ConfigConstants.DEFAULT_CHARSET);
 		}
 	}
 }

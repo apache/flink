@@ -20,6 +20,7 @@ package org.apache.flink.streaming.util.serialization;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.configuration.ConfigConstants;
 
 /**
  * Very simple serialization schema for strings.
@@ -31,7 +32,7 @@ public class SimpleStringSchema implements DeserializationSchema<String>, Serial
 
 	@Override
 	public String deserialize(byte[] message) {
-		return new String(message);
+		return new String(message, ConfigConstants.DEFAULT_CHARSET);
 	}
 
 	@Override
@@ -41,7 +42,7 @@ public class SimpleStringSchema implements DeserializationSchema<String>, Serial
 
 	@Override
 	public byte[] serialize(String element) {
-		return element.getBytes();
+		return element.getBytes(ConfigConstants.DEFAULT_CHARSET);
 	}
 
 	@Override
