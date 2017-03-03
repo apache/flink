@@ -33,6 +33,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import java.util.Random;
+
 /**
  * A collection of manual tests that serve to assess the performance of windowed operations. These
  * run in local mode with parallelism 1 with a source that emits data as fast as possible. Thus,
@@ -241,11 +243,10 @@ public class ManualWindowSpeedITCase extends StreamingMultipleProgramsTestBase {
 
 		@Override
 		public void run(SourceContext<Tuple2<String, Integer>> out) throws Exception {
-			long index = 0;
+			Random random = new Random(42);
 			while (running) {
-				Tuple2<String, Integer> tuple = new Tuple2<String, Integer>("Tuple " + (index % numKeys), 1);
+				Tuple2<String, Integer> tuple = new Tuple2<String, Integer>("Tuple " + (random.nextInt(numKeys)), 1);
 				out.collect(tuple);
-				index++;
 			}
 		}
 
