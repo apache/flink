@@ -110,6 +110,7 @@ object FlinkRuleSets {
     DataSetWindowAggregateRule.INSTANCE,
     DataSetAggregateRule.INSTANCE,
     DataSetAggregateWithNullValuesRule.INSTANCE,
+    DataSetDistinctRule.INSTANCE,
     DataSetCalcRule.INSTANCE,
     DataSetJoinRule.INSTANCE,
     DataSetSingleRowJoinRule.INSTANCE,

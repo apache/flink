@@ -40,14 +40,13 @@ class DistinctAggregateTest extends TableTestBase {
         unaryNode(
           "DataSetValues",
           unaryNode(
-            "DataSetAggregate",
+            "DataSetDistinct",
             unaryNode(
               "DataSetCalc",
               batchTableNode(0),
               term("select", "a")
             ),
-            term("groupBy", "a"),
-            term("select", "a")
+            term("distinct", "a")
           ),
           tuples(List(null)),
           term("values", "a")
@@ -74,14 +73,13 @@ class DistinctAggregateTest extends TableTestBase {
         unaryNode(
           "DataSetValues",
           unaryNode(
-            "DataSetAggregate",
+            "DataSetDistinct",
             unaryNode(
               "DataSetCalc",
               batchTableNode(0),
               term("select", "a")
             ),
-            term("groupBy", "a"),
-            term("select", "a")
+            term("distinct", "a")
           ),
           tuples(List(null)),
           term("values", "a")
@@ -174,14 +172,13 @@ class DistinctAggregateTest extends TableTestBase {
           unaryNode(
             "DataSetValues",
             unaryNode(
-              "DataSetAggregate",
+              "DataSetDistinct",
               unaryNode(
                 "DataSetCalc",
                 batchTableNode(0),
                 term("select", "a")
               ),
-              term("groupBy", "a"),
-              term("select", "a")
+              term("distinct", "a")
             ),
             tuples(List(null)),
             term("values", "a")
@@ -197,14 +194,13 @@ class DistinctAggregateTest extends TableTestBase {
           unaryNode(
             "DataSetValues",
             unaryNode(
-              "DataSetAggregate",
+              "DataSetDistinct",
               unaryNode(
                 "DataSetCalc",
                 batchTableNode(0),
                 term("select", "b")
               ),
-              term("groupBy", "b"),
-              term("select", "b")
+              term("distinct", "b")
             ),
             tuples(List(null)),
             term("values", "b")
@@ -255,14 +251,13 @@ class DistinctAggregateTest extends TableTestBase {
               unaryNode(
                 "DataSetValues",
                 unaryNode(
-                  "DataSetAggregate",
+                  "DataSetDistinct",
                   unaryNode(
                     "DataSetCalc",
                     batchTableNode(0),
                     term("select", "a")
                   ),
-                  term("groupBy", "a"),
-                  term("select", "a")
+                  term("distinct", "a")
                 ),
                 tuples(List(null)),
                 term("values", "a")
@@ -282,14 +277,13 @@ class DistinctAggregateTest extends TableTestBase {
             unaryNode(
               "DataSetValues",
               unaryNode(
-                "DataSetAggregate",
+                "DataSetDistinct",
                 unaryNode(
                   "DataSetCalc",
                   batchTableNode(0),
                   term("select", "b")
                 ),
-                term("groupBy", "b"),
-                term("select", "b")
+                term("distinct", "b")
               ),
               tuples(List(null)),
               term("values", "b")
@@ -384,14 +378,13 @@ class DistinctAggregateTest extends TableTestBase {
         unaryNode(
           "DataSetAggregate",
           unaryNode(
-            "DataSetAggregate",
+            "DataSetDistinct",
             unaryNode(
               "DataSetCalc",
               batchTableNode(0),
               term("select", "a", "b")
             ),
-            term("groupBy", "a, b"),
-            term("select", "a, b")
+            term("distinct", "a, b")
           ),
           term("groupBy", "a"),
           term("select", "a, SUM(b) AS EXPR$2, COUNT(b) AS EXPR$3")
@@ -430,14 +423,13 @@ class DistinctAggregateTest extends TableTestBase {
             unaryNode(
               "DataSetAggregate",
               unaryNode(
-                "DataSetAggregate",
+                "DataSetDistinct",
                 unaryNode(
                   "DataSetCalc",
                   batchTableNode(0),
                   term("select", "a", "b")
                 ),
-                term("groupBy", "a, b"),
-                term("select", "a, b")
+                term("distinct", "a, b")
               ),
               term("groupBy", "a"),
               term("select", "a, SUM(b) AS EXPR$2")
@@ -451,14 +443,13 @@ class DistinctAggregateTest extends TableTestBase {
         unaryNode(
           "DataSetAggregate",
           unaryNode(
-            "DataSetAggregate",
+            "DataSetDistinct",
             unaryNode(
               "DataSetCalc",
               batchTableNode(0),
               term("select", "a", "c")
             ),
-            term("groupBy", "a, c"),
-            term("select", "a, c")
+            term("distinct", "a, c")
           ),
           term("groupBy", "a"),
           term("select", "a, COUNT(c) AS EXPR$3")
