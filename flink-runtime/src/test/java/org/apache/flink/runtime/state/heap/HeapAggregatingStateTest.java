@@ -23,25 +23,20 @@ import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.state.AggregatingState;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
-import org.apache.flink.api.common.typeutils.base.StringSerializer;
-import org.apache.flink.runtime.query.TaskKvStateRegistry;
-import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.internal.InternalAggregatingState;
-
 import org.junit.Test;
 
 import static java.util.Arrays.asList;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
 
 /**
  * Tests for the simple Java heap objects implementation of the {@link AggregatingState}.
  */
-public class HeapAggregatingStateTest {
+public class HeapAggregatingStateTest extends HeapStateBackendTestBase {
 
 	@Test
 	public void testAddAndGet() throws Exception {
@@ -224,20 +219,6 @@ public class HeapAggregatingStateTest {
 			keyedBackend.close();
 			keyedBackend.dispose();
 		}
-	}
-
-	// ------------------------------------------------------------------------
-	//  utilities
-	// ------------------------------------------------------------------------
-
-	private static HeapKeyedStateBackend<String> createKeyedBackend() throws Exception {
-		return new HeapKeyedStateBackend<>(
-				mock(TaskKvStateRegistry.class),
-				StringSerializer.INSTANCE,
-				HeapAggregatingStateTest.class.getClassLoader(),
-				16,
-				new KeyGroupRange(0, 15),
-				new ExecutionConfig());
 	}
 
 	// ------------------------------------------------------------------------

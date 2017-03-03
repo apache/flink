@@ -22,13 +22,9 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
-import org.apache.flink.api.common.typeutils.base.StringSerializer;
-import org.apache.flink.runtime.query.TaskKvStateRegistry;
-import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.internal.InternalListState;
-
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -39,12 +35,11 @@ import static java.util.Arrays.asList;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
 
 /**
  * Tests for the simple Java heap objects implementation of the {@link ListState}.
  */
-public class HeapListStateTest {
+public class HeapListStateTest extends HeapStateBackendTestBase {
 
 	@Test
 	public void testAddAndGet() throws Exception {
@@ -224,16 +219,6 @@ public class HeapListStateTest {
 			keyedBackend.close();
 			keyedBackend.dispose();
 		}
-	}
-
-	private static HeapKeyedStateBackend<String> createKeyedBackend() throws Exception {
-		return new HeapKeyedStateBackend<>(
-				mock(TaskKvStateRegistry.class),
-				StringSerializer.INSTANCE,
-				HeapListStateTest.class.getClassLoader(),
-				16,
-				new KeyGroupRange(0, 15),
-				new ExecutionConfig());
 	}
 	
 	private static <T> void validateResult(Iterable<T> values, Set<T> expected) {

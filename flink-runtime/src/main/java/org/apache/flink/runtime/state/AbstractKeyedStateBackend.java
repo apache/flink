@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.AggregatingState;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
@@ -254,6 +255,7 @@ public abstract class AbstractKeyedStateBackend<K>
 	/**
 	 * @see KeyedStateBackend
 	 */
+	@Override
 	public KeyGroupRange getKeyGroupRange() {
 		return keyGroupRange;
 	}
@@ -381,5 +383,10 @@ public abstract class AbstractKeyedStateBackend<K>
 	@Override
 	public void close() throws IOException {
 		cancelStreamRegistry.close();
+	}
+
+	@VisibleForTesting
+	public boolean supportsAsynchronousSnapshots() {
+		return false;
 	}
 }
