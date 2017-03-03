@@ -22,7 +22,7 @@ import org.apache.flink.graph.GraphAlgorithm;
 
 /**
  * A multi-state boolean.
- * <br/>
+ * <p>
  * This class is used by {@link GraphAlgorithm} configuration options to set a
  * default value which can be overwritten. The default value is also used when
  * algorithm configurations are merged and conflict.

@@ -19,13 +19,35 @@ package org.apache.flink.runtime.webmonitor.handlers;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
+import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
+import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.runtime.webmonitor.utils.ArchivedJobGenerationUtils;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.IOException;
+import java.util.Collection;
+
 public class SubtasksAllAccumulatorsHandlerTest {
+
+	@Test
+	public void testArchiver() throws Exception {
+		JsonArchivist archivist = new SubtasksAllAccumulatorsHandler.SubtasksAllAccumulatorsJsonArchivist();
+		AccessExecutionGraph originalJob = ArchivedJobGenerationUtils.getTestJob();
+		AccessExecutionJobVertex originalTask = ArchivedJobGenerationUtils.getTestTask();
+
+		Collection<ArchivedJson> archives = archivist.archiveJsonWithPath(originalJob);
+		Assert.assertEquals(1, archives.size());
+
+		ArchivedJson archive = archives.iterator().next();
+		Assert.assertEquals("/jobs/" + originalJob.getJobID() + "/vertices/" + originalTask.getJobVertexId() + 
+			"/subtasks/accumulators", archive.getPath());
+		compareSubtaskAccumulators(originalTask, archive.getJson());
+	}
+
 	@Test
 	public void testGetPaths() {
 		SubtasksAllAccumulatorsHandler handler = new SubtasksAllAccumulatorsHandler(null);
@@ -38,7 +60,10 @@ public class SubtasksAllAccumulatorsHandlerTest {
 	public void testJsonGeneration() throws Exception {
 		AccessExecutionJobVertex originalTask = ArchivedJobGenerationUtils.getTestTask();
 		String json = SubtasksAllAccumulatorsHandler.createSubtasksAccumulatorsJson(originalTask);
+		compareSubtaskAccumulators(originalTask, json);
+	}
 
+	private static void compareSubtaskAccumulators(AccessExecutionJobVertex originalTask, String json) throws IOException {
 		JsonNode result = ArchivedJobGenerationUtils.mapper.readTree(json);
 
 		Assert.assertEquals(originalTask.getJobVertexId().toString(), result.get("id").asText());

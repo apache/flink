@@ -58,15 +58,15 @@ public class DataStreamProcTimeAggregateRowAbstractWindowFunction implements Ser
 		this.typeInfo = typeInfos;
 		aggregatorImpl = new ArrayList<>();
 		accumulators = new ArrayList<>();
-		for (int i = 0; i < aggregators.size(); i++) {
-			setAggregator(i, aggregators.get(i));
-		}
 	}
 
 	Row reuse;
 	Row result;
 
 	protected void applyAggregation(Iterable<Row> input, Collector<Row> out) {
+		for (int i = 0; i < aggregators.size(); i++) {
+			setAggregator(i, aggregators.get(i));
+		}
 
 		for (Row row : input) {
 			reuse = row;
@@ -83,7 +83,7 @@ public class DataStreamProcTimeAggregateRowAbstractWindowFunction implements Ser
 		}
 		for (int i = 0; i < aggregators.size(); i++) {
 			result.setField(reuse.getArity() + i, aggregatorImpl.get(i).getValue(accumulators.get(i)));
-			accumulators.get(i).reset();
+			accumulators.set(i, aggregatorImpl.get(i).createAccumulator());
 		}
 		out.collect(result);
 	}

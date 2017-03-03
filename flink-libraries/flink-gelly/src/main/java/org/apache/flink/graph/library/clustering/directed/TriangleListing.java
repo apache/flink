@@ -51,11 +51,15 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 
 /**
  * Generates a listing of distinct triangles from the input graph.
- * <br/>
+ * <p>
  * A triangle is a 3-clique with vertices A, B, and C connected by edges
  * (A, B), (A, C), and (B, C).
- * <br/>
+ * <p>
  * The input graph must not contain duplicate edges or self-loops.
+ * <p>
+ * This algorithm is similar to the undirected version but also tracks and
+ * computes a bitmask representing the six potential graph edges connecting
+ * the triangle vertices.
  *
  * @param <K> graph ID type
  * @param <VV> vertex value type

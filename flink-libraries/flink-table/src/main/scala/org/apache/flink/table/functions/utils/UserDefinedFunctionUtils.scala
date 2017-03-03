@@ -119,9 +119,9 @@ object UserDefinedFunctionUtils {
   }
 
   /**
-    * Check if a given method exits in the given function
+    * Check if a given method exists in the given function
     */
-  def ifMethodExitInFunction(method: String, function: UserDefinedFunction): Boolean = {
+  def ifMethodExistInFunction(method: String, function: UserDefinedFunction): Boolean = {
     val methods = function
       .getClass
       .getMethods

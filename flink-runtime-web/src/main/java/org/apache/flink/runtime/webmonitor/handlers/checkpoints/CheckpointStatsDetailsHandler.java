@@ -20,6 +20,7 @@ package org.apache.flink.runtime.webmonitor.handlers.checkpoints;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.runtime.checkpoint.AbstractCheckpointStats;
+import org.apache.flink.runtime.checkpoint.CheckpointStatsHistory;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStats;
 import org.apache.flink.runtime.checkpoint.FailedCheckpointStats;
@@ -28,9 +29,15 @@ import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 import org.apache.flink.runtime.webmonitor.handlers.AbstractExecutionGraphRequestHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JsonFactory;
+import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
+import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 
 import java.io.IOException;
 import java.io.StringWriter;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -77,6 +84,27 @@ public class CheckpointStatsDetailsHandler extends AbstractExecutionGraphRequest
 		}
 
 		return createCheckpointDetailsJson(checkpoint);
+	}
+
+	public static class CheckpointStatsDetailsJsonArchivist implements JsonArchivist {
+
+		@Override
+		public Collection<ArchivedJson> archiveJsonWithPath(AccessExecutionGraph graph) throws IOException {
+			CheckpointStatsSnapshot stats = graph.getCheckpointStatsSnapshot();
+			if (stats == null) {
+				return Collections.emptyList();
+			}
+			CheckpointStatsHistory history = stats.getHistory();
+			List<ArchivedJson> archive = new ArrayList<>();
+			for (AbstractCheckpointStats checkpoint : history.getCheckpoints()) {
+				String json = createCheckpointDetailsJson(checkpoint);
+				String path = CHECKPOINT_STATS_DETAILS_REST_PATH
+					.replace(":jobid", graph.getJobID().toString())
+					.replace(":checkpointid", String.valueOf(checkpoint.getCheckpointId()));
+				archive.add(new ArchivedJson(path, json));
+			}
+			return archive;
+		}
 	}
 
 	public static String createCheckpointDetailsJson(AbstractCheckpointStats checkpoint) throws IOException {

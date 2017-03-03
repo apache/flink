@@ -22,15 +22,25 @@ import com.fasterxml.jackson.core.JsonGenerator;
 
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecution;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
+import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
+import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
+import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
+import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.runtime.webmonitor.metrics.MetricFetcher;
 import org.apache.flink.runtime.webmonitor.utils.MutableIOMetrics;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.StringWriter;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 import java.util.Map;
+
+import static org.apache.flink.runtime.webmonitor.handlers.SubtaskCurrentAttemptDetailsHandler.SUBTASK_CURRENT_ATTEMPT_DETAILS_REST_PATH;
 
 /**
  * Request handler providing details about a single task execution attempt.
@@ -54,6 +64,43 @@ public class SubtaskExecutionAttemptDetailsHandler extends AbstractSubtaskAttemp
 	@Override
 	public String handleRequest(AccessExecution execAttempt, Map<String, String> params) throws Exception {
 		return createAttemptDetailsJson(execAttempt, params.get("jobid"), params.get("vertexid"), fetcher);
+	}
+
+	public static class SubtaskExecutionAttemptDetailsJsonArchivist implements JsonArchivist {
+
+		@Override
+		public Collection<ArchivedJson> archiveJsonWithPath(AccessExecutionGraph graph) throws IOException {
+			List<ArchivedJson> archive = new ArrayList<>();
+			for (AccessExecutionJobVertex task : graph.getAllVertices().values()) {
+				for (AccessExecutionVertex subtask : task.getTaskVertices()) {
+					String curAttemptJson = createAttemptDetailsJson(subtask.getCurrentExecutionAttempt(), graph.getJobID().toString(), task.getJobVertexId().toString(), null);
+					String curAttemptPath1 = SUBTASK_CURRENT_ATTEMPT_DETAILS_REST_PATH
+						.replace(":jobid", graph.getJobID().toString())
+						.replace(":vertexid", task.getJobVertexId().toString())
+						.replace(":subtasknum", String.valueOf(subtask.getParallelSubtaskIndex()));
+					String curAttemptPath2 = SUBTASK_ATTEMPT_DETAILS_REST_PATH
+						.replace(":jobid", graph.getJobID().toString())
+						.replace(":vertexid", task.getJobVertexId().toString())
+						.replace(":subtasknum", String.valueOf(subtask.getParallelSubtaskIndex()))
+						.replace(":attempt", String.valueOf(subtask.getCurrentExecutionAttempt().getAttemptNumber()));
+					
+					archive.add(new ArchivedJson(curAttemptPath1, curAttemptJson));
+					archive.add(new ArchivedJson(curAttemptPath2, curAttemptJson));
+
+					for (int x = 0; x < subtask.getCurrentExecutionAttempt().getAttemptNumber(); x++) {
+						AccessExecution attempt = subtask.getPriorExecutionAttempt(x);
+						String json = createAttemptDetailsJson(attempt, graph.getJobID().toString(), task.getJobVertexId().toString(), null);
+						String path = SUBTASK_ATTEMPT_DETAILS_REST_PATH
+							.replace(":jobid", graph.getJobID().toString())
+							.replace(":vertexid", task.getJobVertexId().toString())
+							.replace(":subtasknum", String.valueOf(subtask.getParallelSubtaskIndex()))
+							.replace(":attempt", String.valueOf(attempt.getAttemptNumber()));
+						archive.add(new ArchivedJson(path, json));
+					}
+				}
+			}
+			return archive;
+		}
 	}
 
 	public static String createAttemptDetailsJson(

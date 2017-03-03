@@ -51,7 +51,7 @@ abstract class AggFunctionTestBase[T] {
   // test aggregate functions with partial merge
   def testAggregateWithMerge(): Unit = {
 
-    if (ifMethodExitInFunction("merge", aggregator)) {
+    if (ifMethodExistInFunction("merge", aggregator)) {
       // iterate over input sets
       for ((vals, expected) <- inputValueSets.zip(expectedResults)) {
         //equally split the vals sequence into two sequences
