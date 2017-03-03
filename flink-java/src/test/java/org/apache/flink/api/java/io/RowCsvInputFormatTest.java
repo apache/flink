@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
@@ -701,7 +702,7 @@ public class RowCsvInputFormatTest {
 
 		for (Map.Entry<String, StringParser.ParseErrorState> failure : failures.entrySet()) {
 			int result = stringParser.parseField(
-				failure.getKey().getBytes(),
+				failure.getKey().getBytes(ConfigConstants.DEFAULT_CHARSET),
 				0,
 				failure.getKey().length(),
 				new byte[]{(byte) '|'},

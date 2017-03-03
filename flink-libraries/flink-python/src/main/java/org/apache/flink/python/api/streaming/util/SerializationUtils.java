@@ -12,10 +12,12 @@
  */
 package org.apache.flink.python.api.streaming.util;
 
+import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.python.api.types.CustomTypeWrapper;
+
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.python.api.types.CustomTypeWrapper;
 
 public class SerializationUtils {
 	public static final byte TYPE_BOOLEAN = (byte) 34;
@@ -168,7 +170,7 @@ public class SerializationUtils {
 	public static class StringSerializer extends Serializer<String> {
 		@Override
 		public byte[] serializeWithoutTypeInfo(String value) {
-			byte[] string = value.getBytes();
+			byte[] string = value.getBytes(ConfigConstants.DEFAULT_CHARSET);
 			byte[] data = new byte[4 + string.length];
 			ByteBuffer.wrap(data).putInt(string.length).put(string);
 			return data;

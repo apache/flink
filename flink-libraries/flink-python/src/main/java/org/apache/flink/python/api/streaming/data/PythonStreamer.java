@@ -12,9 +12,19 @@
  */
 package org.apache.flink.python.api.streaming.data;
 
+import org.apache.flink.api.common.functions.AbstractRichFunction;
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.python.api.PythonPlanBinder;
+import org.apache.flink.python.api.streaming.util.SerializationUtils.IntSerializer;
+import org.apache.flink.python.api.streaming.util.SerializationUtils.StringSerializer;
+import org.apache.flink.python.api.streaming.util.StreamPrinter;
+import org.apache.flink.util.Collector;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
-import org.apache.flink.python.api.streaming.util.StreamPrinter;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.Serializable;
@@ -23,9 +33,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.util.Iterator;
-import org.apache.flink.api.common.functions.AbstractRichFunction;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.python.api.PythonPlanBinder;
+
 import static org.apache.flink.python.api.PythonPlanBinder.FLINK_PYTHON2_BINARY_PATH;
 import static org.apache.flink.python.api.PythonPlanBinder.FLINK_PYTHON3_BINARY_PATH;
 import static org.apache.flink.python.api.PythonPlanBinder.FLINK_PYTHON_DC_ID;
@@ -33,11 +41,6 @@ import static org.apache.flink.python.api.PythonPlanBinder.FLINK_PYTHON_PLAN_NAM
 import static org.apache.flink.python.api.PythonPlanBinder.FLINK_TMP_DATA_DIR;
 import static org.apache.flink.python.api.PythonPlanBinder.PLANBINDER_CONFIG_BCVAR_COUNT;
 import static org.apache.flink.python.api.PythonPlanBinder.PLANBINDER_CONFIG_BCVAR_NAME_PREFIX;
-import org.apache.flink.python.api.streaming.util.SerializationUtils.IntSerializer;
-import org.apache.flink.python.api.streaming.util.SerializationUtils.StringSerializer;
-import org.apache.flink.util.Collector;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * This streamer is used by functions to send/receive data to/from an external python process.
@@ -127,12 +130,13 @@ public class PythonStreamer implements Serializable {
 		Runtime.getRuntime().addShutdownHook(shutdownThread);
 
 		OutputStream processOutput = process.getOutputStream();
-		processOutput.write("operator\n".getBytes());
-		processOutput.write(("" + server.getLocalPort() + "\n").getBytes());
-		processOutput.write((id + "\n").getBytes());
-		processOutput.write((this.function.getRuntimeContext().getIndexOfThisSubtask() + "\n").getBytes());
-		processOutput.write((inputFilePath + "\n").getBytes());
-		processOutput.write((outputFilePath + "\n").getBytes());
+		processOutput.write("operator\n".getBytes(ConfigConstants.DEFAULT_CHARSET));
+		processOutput.write(("" + server.getLocalPort() + "\n").getBytes(ConfigConstants.DEFAULT_CHARSET));
+		processOutput.write((id + "\n").getBytes(ConfigConstants.DEFAULT_CHARSET));
+		processOutput.write((this.function.getRuntimeContext().getIndexOfThisSubtask() + "\n")
+			.getBytes(ConfigConstants.DEFAULT_CHARSET));
+		processOutput.write((inputFilePath + "\n").getBytes(ConfigConstants.DEFAULT_CHARSET));
+		processOutput.write((outputFilePath + "\n").getBytes(ConfigConstants.DEFAULT_CHARSET));
 		processOutput.flush();
 
 		try { // wait a bit to catch syntax errors

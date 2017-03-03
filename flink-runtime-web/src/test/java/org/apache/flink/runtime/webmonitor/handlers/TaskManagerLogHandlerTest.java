@@ -24,6 +24,7 @@ import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.router.Routed;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobKey;
@@ -139,7 +140,7 @@ public class TaskManagerLogHandlerTest {
 			@Override
 			public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
 				ByteBuf data = invocationOnMock.getArgumentAt(0, ByteBuf.class);
-				exception.set(new String(data.array()));
+				exception.set(new String(data.array(), ConfigConstants.DEFAULT_CHARSET));
 				return null;
 			}
 		});

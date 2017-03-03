@@ -155,7 +155,7 @@ public class RowCsvInputFormat extends CsvInputFormat<Row> implements ResultType
 				if (isLenient()) {
 					return false;
 				} else {
-					throw new ParseException("Row too short: " + new String(bytes, offset, numBytes));
+					throw new ParseException("Row too short: " + new String(bytes, offset, numBytes, getCharset()));
 				}
 			}
 

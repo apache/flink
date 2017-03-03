@@ -12,11 +12,14 @@
  */
 package org.apache.flink.python.api.streaming.plan;
 
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.python.api.streaming.util.StreamPrinter;
+
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.ServerSocket;
 import java.net.Socket;
-import org.apache.flink.python.api.streaming.util.StreamPrinter;
+
 import static org.apache.flink.python.api.PythonPlanBinder.FLINK_PYTHON2_BINARY_PATH;
 import static org.apache.flink.python.api.PythonPlanBinder.FLINK_PYTHON3_BINARY_PATH;
 import static org.apache.flink.python.api.PythonPlanBinder.FLINK_PYTHON_PLAN_NAME;
@@ -82,8 +85,8 @@ public class PythonPlanStreamer implements Serializable {
 		} catch (IllegalThreadStateException ise) {//Process still running
 		}
 
-		process.getOutputStream().write("plan\n".getBytes());
-		process.getOutputStream().write((server.getLocalPort() + "\n").getBytes());
+		process.getOutputStream().write("plan\n".getBytes(ConfigConstants.DEFAULT_CHARSET));
+		process.getOutputStream().write((server.getLocalPort() + "\n").getBytes(ConfigConstants.DEFAULT_CHARSET));
 		process.getOutputStream().flush();
 	}
 

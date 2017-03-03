@@ -46,6 +46,7 @@ import io.netty.handler.stream.ChunkedFile;
 import io.netty.util.concurrent.GenericFutureListener;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobCache;
 import org.apache.flink.runtime.blob.BlobKey;
@@ -345,7 +346,7 @@ public class TaskManagerLogHandler extends RuntimeMonitorHandlerBase {
 			response.headers().set(CONNECTION, HttpHeaders.Values.KEEP_ALIVE);
 		}
 
-		byte[] buf = message.getBytes();
+		byte[] buf = message.getBytes(ConfigConstants.DEFAULT_CHARSET);
 
 		ByteBuf b = Unpooled.copiedBuffer(buf);
 

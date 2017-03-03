@@ -13,6 +13,7 @@
 package org.apache.flink.python.api.functions.util;
 
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.configuration.ConfigConstants;
 
 /*
 Utility function to deserialize strings, used for non-CSV sinks.
@@ -21,6 +22,6 @@ public class StringDeserializerMap implements MapFunction<byte[], String> {
 	@Override
 	public String map(byte[] value) throws Exception {
 		//discard type byte and size
-		return new String(value, 5, value.length - 5);
+		return new String(value, 5, value.length - 5, ConfigConstants.DEFAULT_CHARSET);
 	}
 }

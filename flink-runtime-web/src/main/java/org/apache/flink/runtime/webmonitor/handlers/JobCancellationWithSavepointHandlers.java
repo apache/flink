@@ -62,7 +62,7 @@ public class JobCancellationWithSavepointHandlers {
 	private static final String CANCELLATION_IN_PROGRESS_REST_PATH = "/jobs/:jobid/cancel-with-savepoint/in-progress/:requestId";
 
 	/** Encodings for String. */
-	private static final Charset ENCODING = Charset.forName("UTF-8");
+	private static final Charset ENCODING = ConfigConstants.DEFAULT_CHARSET;
 
 	/** Shared lock between Trigger and In-Progress handlers. */
 	private final Object lock = new Object();

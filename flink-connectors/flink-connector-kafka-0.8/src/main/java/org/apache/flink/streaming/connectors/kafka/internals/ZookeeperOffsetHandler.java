@@ -24,6 +24,7 @@ import org.apache.curator.RetryPolicy;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.retry.ExponentialBackoffRetry;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 
 import org.slf4j.Logger;
@@ -119,7 +120,7 @@ public class ZookeeperOffsetHandler {
 		ZKGroupTopicDirs topicDirs = new ZKGroupTopicDirs(groupId, topic);
 		String path = topicDirs.consumerOffsetDir() + "/" + partition;
 		curatorClient.newNamespaceAwareEnsurePath(path).ensure(curatorClient.getZookeeperClient());
-		byte[] data = Long.toString(offset).getBytes();
+		byte[] data = Long.toString(offset).getBytes(ConfigConstants.DEFAULT_CHARSET);
 		curatorClient.setData().forPath(path, data);
 	}
 
@@ -133,7 +134,7 @@ public class ZookeeperOffsetHandler {
 		if (data == null) {
 			return null;
 		} else {
-			String asString = new String(data);
+			String asString = new String(data, ConfigConstants.DEFAULT_CHARSET);
 			if (asString.length() == 0) {
 				return null;
 			} else {
