@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.codegeneration;
 
-import org.apache.commons.lang.WordUtils;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.runtime.operators.sort.NormalizedKeySorter;
 
@@ -111,11 +110,6 @@ public class SorterTemplateModel {
 
 
 		return templateVariables;
-	}
-
-	public boolean isSortingKeyFixedSize(){
-		System.out.println(typeComparator.getNormalizeKeyLen());
-		return true;
 	}
 
 	private ArrayList<Integer> generatedSequenceFixedByteOperators(int numberBytes){

@@ -34,28 +34,6 @@ import java.util.HashMap;
 public class SorterTemplateModelTest extends TestLogger {
 
 	@Test
-	public void testIsSortingKeyFixedSize() throws Exception {
-
-		// key: TypeComparator
-		// values: array of objects ( description, expected result )
-		HashMap<TypeComparator, Object[]> testCases = new HashMap<>();
-
-		testCases.put( TestData.getIntIntTupleComparator(), new Object[]{ "Tuple<Int,Int>", Boolean.FALSE });
-
-
-		for( TypeComparator typeComp : testCases.keySet() ){
-			SorterTemplateModel model = new SorterTemplateModel(typeComp);
-			Object[] values = testCases.get(typeComp);
-			Assert.assertEquals(
-				(String)values[0],
-				model.isSortingKeyFixedSize(),
-				values[1]
-			);
-		}
-
-	}
-
-	@Test
 	public void testGeneratedSequenceFixedByteOperators() throws Exception {
 
 

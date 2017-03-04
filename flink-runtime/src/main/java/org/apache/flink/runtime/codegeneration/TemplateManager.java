@@ -55,7 +55,9 @@ public class TemplateManager {
 
 	public static TemplateManager getInstance() throws IOException {
 		if( templateManager == null ) {
-			return new TemplateManager();
+			synchronized (TemplateManager.class){
+				templateManager = new TemplateManager();
+			}
 		}
 
 		return templateManager;

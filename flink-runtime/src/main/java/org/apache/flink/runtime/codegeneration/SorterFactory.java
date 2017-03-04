@@ -47,9 +47,11 @@ public class SorterFactory {
 		);
 	}
 
-	public static SorterFactory getInstance() throws IOException {
+	public synchronized static SorterFactory getInstance() throws IOException {
 		if( sorterFactory == null ){
-			return new SorterFactory();
+			synchronized(SorterFactory.class){
+				sorterFactory = new SorterFactory();
+			}
 		}
 
 		return sorterFactory;
