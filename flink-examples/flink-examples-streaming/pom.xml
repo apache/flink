@@ -64,12 +64,6 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-kafka-0.8_2.10</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-connector-kafka-0.9_2.10</artifactId>
 			<version>${project.version}</version>
 		</dependency>
@@ -366,27 +360,6 @@ under the License.
 						</configuration>
 					</execution>
 
-					<!--Kafka08-->
-					<execution>
-						<id>Kafka08</id>
-						<phase>package</phase>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-						<configuration>
-							<classifier>Kafka08</classifier>
-							<archive>
-								<manifestEntries>
-									<program-class>org.apache.flink.streaming.examples.kafka.ReadFromKafka08</program-class>
-								</manifestEntries>
-							</archive>
-							<includes>
-								<include>org/apache/flink/streaming/examples/kafka/ReadFromKafka08.class</include>
-								<include>org/apache/flink/streaming/examples/kafka/WriteToKafka08.class</include>
-							</includes>
-						</configuration>
-					</execution>
-
 					<!--Kafka09-->
 					<execution>
 						<id>Kafka09</id>
@@ -529,7 +502,6 @@ under the License.
 								<copy file="${project.basedir}/target/flink-examples-streaming_2.10-${project.version}-WindowJoin.jar" tofile="${project.basedir}/target/WindowJoin.jar" />
 								<copy file="${project.basedir}/target/flink-examples-streaming_2.10-${project.version}-WordCount.jar" tofile="${project.basedir}/target/WordCount.jar" />
 								<copy file="${project.basedir}/target/flink-examples-streaming_2.10-${project.version}-SocketWindowWordCount.jar" tofile="${project.basedir}/target/SocketWindowWordCount.jar" />
-								<copy file="${project.basedir}/target/flink-examples-streaming_2.10-${project.version}-Kafka08.jar" tofile="${project.basedir}/target/Kafka08.jar" />
 								<copy file="${project.basedir}/target/flink-examples-streaming_2.10-${project.version}-Kafka09.jar" tofile="${project.basedir}/target/Kafka09.jar" />
 							</target>
 						</configuration>
