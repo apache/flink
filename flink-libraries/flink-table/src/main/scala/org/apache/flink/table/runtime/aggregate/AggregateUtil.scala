@@ -53,48 +53,6 @@ object AggregateUtil {
   type JavaList[T] = java.util.List[T]
 
   /**
-    * Create a [[org.apache.flink.api.common.functions.MapFunction]] that prepares for aggregates.
-<<<<<<< HEAD
-    * The function returns intermediate aggregate values of all aggregate function which are
-    * organized by the following format:
-    *
-    * {{{
-    *                          avg(x)                             count(z)
-    *                             |                                   |
-    *                             v                                   v
-    *        +---------+---------+-----------------+------------------+------------------+
-    *        |groupKey1|groupKey2|  AvgAccumulator |  SumAccumulator  | CountAccumulator |
-    *        +---------+---------+-----------------+------------------+------------------+
-    *                                              ^
-    *                                              |
-    *                                           sum(y)
-    * }}}
-    *
-    */
-  private[flink] def createPrepareMapFunction(
-      namedAggregates: Seq[CalcitePair[AggregateCall, String]],
-      groupings: Array[Int],
-      inputType: RelDataType)
-  : MapFunction[Row, Row] = {
-
-    val (aggFieldIndexes, aggregates) = transformToAggregateFunctions(
-      namedAggregates.map(_.getKey),
-      inputType,
-      needRetraction = false)
-
-    val mapReturnType: RowTypeInfo =
-      createDataSetAggregateBufferDataType(groupings, aggregates, inputType)
-
-    val mapFunction = new AggregateMapFunction[Row, Row](
-      aggregates,
-      aggFieldIndexes,
-      groupings,
-      mapReturnType)
-
-    mapFunction
-  }
-
-  /**
     * Create an [[ProcessFunction]] to evaluate final aggregate value.
     *
     * @param namedAggregates List of calls to aggregate functions and their output field names
@@ -123,8 +81,6 @@ object AggregateUtil {
 
   /**
     * Create a [[org.apache.flink.api.common.functions.MapFunction]] that prepares for aggregates.
-=======
->>>>>>> [FLINK-5963] [table] Remove prepare mapper of DataSetAggregate.
     * The output of the function contains the grouping keys and the timestamp and the intermediate
     * aggregate values of all aggregate function. The timestamp field is aligned to time window
     * start and used to be a grouping key in case of time window. In case of count window on

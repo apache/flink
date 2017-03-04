@@ -89,10 +89,11 @@ class DataSetAggregate(
 
   override def translateToPlan(tableEnv: BatchTableEnvironment): DataSet[Row] = {
 
-    val (preAgg: Option[DataSetPreAggFunction],
-          preAggType: Option[TypeInformation[Row]],
-          finalAgg: GroupReduceFunction[Row, Row]) =
-      AggregateUtil.createDataSetAggregateFunctions(
+    val (
+      preAgg: Option[DataSetPreAggFunction],
+      preAggType: Option[TypeInformation[Row]],
+      finalAgg: GroupReduceFunction[Row, Row]
+      ) = AggregateUtil.createDataSetAggregateFunctions(
         namedAggregates,
         inputType,
         rowRelDataType,

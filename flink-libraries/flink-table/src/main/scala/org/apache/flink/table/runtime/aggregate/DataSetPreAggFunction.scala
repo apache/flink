@@ -38,17 +38,17 @@ class DataSetPreAggFunction(
     private val aggInFields: Array[Int],
     private val groupingKeys: Array[Int])
   extends AbstractRichFunction
-    with GroupCombineFunction[Row, Row]
-    with MapPartitionFunction[Row, Row] {
+  with GroupCombineFunction[Row, Row]
+  with MapPartitionFunction[Row, Row] {
+
+  Preconditions.checkNotNull(aggregates)
+  Preconditions.checkNotNull(aggInFields)
+  Preconditions.checkNotNull(groupingKeys)
 
   private var output: Row = _
-  private val aggsWithIdx: Array[(AggregateFunction[_], Int)] = aggregates.zipWithIndex
   private var accumulators: Array[Accumulator] = _
 
   override def open(config: Configuration) {
-    Preconditions.checkNotNull(aggregates)
-    Preconditions.checkNotNull(aggInFields)
-    Preconditions.checkNotNull(groupingKeys)
     accumulators = new Array(aggregates.length)
     output = new Row(groupingKeys.length + aggregates.length)
   }
@@ -63,23 +63,37 @@ class DataSetPreAggFunction(
 
   def preaggregate(records: Iterable[Row], out: Collector[Row]): Unit = {
 
-    aggsWithIdx.foreach { case (agg, i) => accumulators(i) = agg.createAccumulator() }
+    var i = 0
+    while (i < aggregates.length) {
+      accumulators(i) = aggregates(i).createAccumulator()
+      i += 1
+    }
 
     var last: Row = null
     val iterator = records.iterator()
 
     while (iterator.hasNext) {
       val record = iterator.next()
-      aggsWithIdx.foreach { case (agg, i) =>
-        agg.accumulate(accumulators(i), record.getField(aggInFields(i)))
+      i = 0
+      while (i < aggregates.length) {
+        aggregates(i).accumulate(accumulators(i), record.getField(aggInFields(i)))
+        i += 1
       }
       last = record
     }
 
     // set grouping keys to output
-    groupingKeys.zipWithIndex.foreach( g => output.setField(g._2, last.getField(g._1)))
+    i = 0
+    while (i < groupingKeys.length) {
+      output.setField(i, last.getField(groupingKeys(i)))
+      i += 1
+    }
     // set agg results to output
-    aggsWithIdx.foreach( a => output.setField(a._2 + groupingKeys.length, accumulators(a._2)))
+    i = 0
+    while (i < aggregates.length) {
+      output.setField(i + groupingKeys.length, accumulators(i))
+      i += 1
+    }
 
     out.collect(output)
   }
