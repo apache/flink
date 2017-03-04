@@ -51,6 +51,15 @@ abstract class IntegralAvgAggFunction[T] extends AggregateFunction[T] {
     }
   }
 
+  override def retract(accumulator: Accumulator, value: Any): Unit = {
+    if (value != null) {
+      val v = value.asInstanceOf[Number].longValue()
+      val accum = accumulator.asInstanceOf[IntegralAvgAccumulator]
+      accum.f0 -= v
+      accum.f1 -= 1L
+    }
+  }
+
   override def getValue(accumulator: Accumulator): T = {
     val accum = accumulator.asInstanceOf[IntegralAvgAccumulator]
     if (accum.f1 == 0) {
@@ -137,6 +146,15 @@ abstract class BigIntegralAvgAggFunction[T] extends AggregateFunction[T] {
     }
   }
 
+  override def retract(accumulator: Accumulator, value: Any): Unit = {
+    if (value != null) {
+      val v = value.asInstanceOf[Long]
+      val a = accumulator.asInstanceOf[BigIntegralAvgAccumulator]
+      a.f0 = a.f0.subtract(BigInteger.valueOf(v))
+      a.f1 -= 1L
+    }
+  }
+
   override def getValue(accumulator: Accumulator): T = {
     val a = accumulator.asInstanceOf[BigIntegralAvgAccumulator]
     if (a.f1 == 0) {
@@ -206,6 +224,15 @@ abstract class FloatingAvgAggFunction[T] extends AggregateFunction[T] {
       val accum = accumulator.asInstanceOf[FloatingAvgAccumulator]
       accum.f0 += v
       accum.f1 += 1L
+    }
+  }
+
+  override def retract(accumulator: Accumulator, value: Any): Unit = {
+    if (value != null) {
+      val v = value.asInstanceOf[Number].doubleValue()
+      val accum = accumulator.asInstanceOf[FloatingAvgAccumulator]
+      accum.f0 -= v
+      accum.f1 -= 1L
     }
   }
 
@@ -287,6 +314,19 @@ class DecimalAvgAggFunction extends AggregateFunction[BigDecimal] {
         accum.f0 = accum.f0.add(v)
       }
       accum.f1 += 1L
+    }
+  }
+
+  override def retract(accumulator: Accumulator, value: Any): Unit = {
+    if (value != null) {
+      val v = value.asInstanceOf[BigDecimal]
+      val accum = accumulator.asInstanceOf[DecimalAvgAccumulator]
+      if (accum.f1 == 0) {
+        accum.f0 = v
+      } else {
+        accum.f0 = accum.f0.subtract(v)
+      }
+      accum.f1 -= 1L
     }
   }
 

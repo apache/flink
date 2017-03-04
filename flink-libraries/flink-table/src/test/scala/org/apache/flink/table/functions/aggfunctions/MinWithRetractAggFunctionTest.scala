@@ -21,11 +21,11 @@ import java.math.BigDecimal
 import org.apache.flink.table.functions.AggregateFunction
 
 /**
-  * Test case for built-in min aggregate function
+  * Test case for built-in Min with retraction aggregate function
   *
   * @tparam T the type for the aggregation result
   */
-abstract class MinAggFunctionTest[T: Numeric] extends AggFunctionTestBase[T] {
+abstract class MinWithRetractAggFunctionTest[T: Numeric] extends AggFunctionTestBase[T] {
 
   private val numeric: Numeric[T] = implicitly[Numeric[T]]
 
@@ -61,65 +61,63 @@ abstract class MinAggFunctionTest[T: Numeric] extends AggFunctionTestBase[T] {
     minVal,
     null.asInstanceOf[T]
   )
-
-  override def ifSupportRetraction: Boolean = false
 }
 
-class ByteMinAggFunctionTest extends MinAggFunctionTest[Byte] {
+class ByteMinWithRetractAggFunctionTest extends MinWithRetractAggFunctionTest[Byte] {
 
   override def minVal = (Byte.MinValue + 1).toByte
 
   override def maxVal = (Byte.MaxValue - 1).toByte
 
-  override def aggregator: AggregateFunction[Byte] = new ByteMinAggFunction()
+  override def aggregator: AggregateFunction[Byte] = new ByteMinWithRetractAggFunction()
 }
 
-class ShortMinAggFunctionTest extends MinAggFunctionTest[Short] {
+class ShortMinWithRetractAggFunctionTest extends MinWithRetractAggFunctionTest[Short] {
 
   override def minVal = (Short.MinValue + 1).toShort
 
   override def maxVal = (Short.MaxValue - 1).toShort
 
-  override def aggregator: AggregateFunction[Short] = new ShortMinAggFunction()
+  override def aggregator: AggregateFunction[Short] = new ShortMinWithRetractAggFunction()
 }
 
-class IntMinAggFunctionTest extends MinAggFunctionTest[Int] {
+class IntMinWithRetractAggFunctionTest extends MinWithRetractAggFunctionTest[Int] {
 
   override def minVal = Int.MinValue + 1
 
   override def maxVal = Int.MaxValue - 1
 
-  override def aggregator: AggregateFunction[Int] = new IntMinAggFunction()
+  override def aggregator: AggregateFunction[Int] = new IntMinWithRetractAggFunction()
 }
 
-class LongMinAggFunctionTest extends MinAggFunctionTest[Long] {
+class LongMinWithRetractAggFunctionTest extends MinWithRetractAggFunctionTest[Long] {
 
   override def minVal = Long.MinValue + 1
 
   override def maxVal = Long.MaxValue - 1
 
-  override def aggregator: AggregateFunction[Long] = new LongMinAggFunction()
+  override def aggregator: AggregateFunction[Long] = new LongMinWithRetractAggFunction()
 }
 
-class FloatMinAggFunctionTest extends MinAggFunctionTest[Float] {
+class FloatMinWithRetractAggFunctionTest extends MinWithRetractAggFunctionTest[Float] {
 
   override def minVal = Float.MinValue / 2
 
   override def maxVal = Float.MaxValue / 2
 
-  override def aggregator: AggregateFunction[Float] = new FloatMinAggFunction()
+  override def aggregator: AggregateFunction[Float] = new FloatMinWithRetractAggFunction()
 }
 
-class DoubleMinAggFunctionTest extends MinAggFunctionTest[Double] {
+class DoubleMinWithRetractAggFunctionTest extends MinWithRetractAggFunctionTest[Double] {
 
   override def minVal = Double.MinValue / 2
 
   override def maxVal = Double.MaxValue / 2
 
-  override def aggregator: AggregateFunction[Double] = new DoubleMinAggFunction()
+  override def aggregator: AggregateFunction[Double] = new DoubleMinWithRetractAggFunction()
 }
 
-class BooleanMinAggFunctionTest extends AggFunctionTestBase[Boolean] {
+class BooleanMinWithRetractAggFunctionTest extends AggFunctionTestBase[Boolean] {
 
   override def inputValueSets: Seq[Seq[Boolean]] = Seq(
     Seq(
@@ -155,12 +153,10 @@ class BooleanMinAggFunctionTest extends AggFunctionTestBase[Boolean] {
     null.asInstanceOf[Boolean]
   )
 
-  override def aggregator: AggregateFunction[Boolean] = new BooleanMinAggFunction()
-
-  override def ifSupportRetraction: Boolean = false
+  override def aggregator: AggregateFunction[Boolean] = new BooleanMinWithRetractAggFunction()
 }
 
-class DecimalMinAggFunctionTest extends AggFunctionTestBase[BigDecimal] {
+class DecimalMinWithRetractAggFunctionTest extends AggFunctionTestBase[BigDecimal] {
 
   override def inputValueSets: Seq[Seq[_]] = Seq(
     Seq(
@@ -188,7 +184,5 @@ class DecimalMinAggFunctionTest extends AggFunctionTestBase[BigDecimal] {
     null
   )
 
-  override def aggregator: AggregateFunction[BigDecimal] = new DecimalMinAggFunction()
-
-  override def ifSupportRetraction: Boolean = false
+  override def aggregator: AggregateFunction[BigDecimal] = new DecimalMinWithRetractAggFunction()
 }

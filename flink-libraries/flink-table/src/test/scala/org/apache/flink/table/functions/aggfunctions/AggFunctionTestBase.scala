@@ -36,14 +36,23 @@ abstract class AggFunctionTestBase[T] {
 
   def aggregator: AggregateFunction[T]
 
+  def ifSupportRetraction: Boolean = true
+
   @Test
-  // test aggregate functions without partial merge
-  def testAggregateWithoutMerge(): Unit = {
+  // test aggregate and retract functions without partial merge
+  def testAccumulateAndRetractWithoutMerge(): Unit = {
     // iterate over input sets
     for ((vals, expected) <- inputValueSets.zip(expectedResults)) {
-      val accumulator = aggregateVals(vals)
-      val result = aggregator.getValue(accumulator)
+      val accumulator = accumulateVals(vals)
+      var result = aggregator.getValue(accumulator)
       validateResult(expected, result)
+
+      if (ifSupportRetraction) {
+        retractVals(accumulator, vals)
+        result = aggregator.getValue(accumulator)
+        val initValue = aggregator.getValue(aggregator.createAccumulator())
+        validateResult(initValue, result)
+      }
     }
   }
 
@@ -58,8 +67,8 @@ abstract class AggFunctionTestBase[T] {
         val (firstVals, secondVals) = vals.splitAt(vals.length / 2)
 
         val accumulators: JList[Accumulator] = new JArrayList[Accumulator]()
-        accumulators.add(aggregateVals(firstVals))
-        accumulators.add(aggregateVals(secondVals))
+        accumulators.add(accumulateVals(firstVals))
+        accumulators.add(accumulateVals(secondVals))
 
         val accumulator = aggregator.merge(accumulators)
         val result = aggregator.getValue(accumulator)
@@ -70,7 +79,7 @@ abstract class AggFunctionTestBase[T] {
       for ((vals, expected) <- inputValueSets.zip(expectedResults)) {
         //test partial merge with an empty accumulator
         val accumulators: JList[Accumulator] = new JArrayList[Accumulator]()
-        accumulators.add(aggregateVals(vals))
+        accumulators.add(accumulateVals(vals))
         accumulators.add(aggregator.createAccumulator())
 
         val accumulator = aggregator.merge(accumulators)
@@ -90,9 +99,13 @@ abstract class AggFunctionTestBase[T] {
     }
   }
 
-  private def aggregateVals(vals: Seq[_]): Accumulator = {
+  private def accumulateVals(vals: Seq[_]): Accumulator = {
     val accumulator = aggregator.createAccumulator()
     vals.foreach(v => aggregator.accumulate(accumulator, v))
     accumulator
+  }
+
+  private def retractVals(accumulator:Accumulator, vals: Seq[_]) = {
+    vals.foreach(v => aggregator.retract(accumulator, v))
   }
 }

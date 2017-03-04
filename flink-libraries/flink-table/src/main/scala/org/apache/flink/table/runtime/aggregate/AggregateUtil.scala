@@ -78,7 +78,8 @@ object AggregateUtil {
     val (aggFieldIndexes, aggregates) = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),
       inputType,
-      groupings.length)
+      groupings.length,
+      false)
 
     val mapReturnType: RowTypeInfo =
       createDataSetAggregateBufferDataType(groupings, aggregates, inputType)
@@ -125,7 +126,8 @@ object AggregateUtil {
     val (aggFieldIndexes, aggregates) = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),
       inputType,
-      groupings.length)
+      groupings.length,
+      false)
 
     val mapReturnType: RowTypeInfo =
       createDataSetAggregateBufferDataType(
@@ -178,7 +180,8 @@ object AggregateUtil {
     val aggregates = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),
       inputType,
-      groupings.length)._2
+      groupings.length,
+      false)._2
 
     // the mapping relation between field index of intermediate aggregate Row and output Row.
     val groupingOffsetMapping = getGroupKeysMapping(inputType, outputType, groupings)
@@ -273,7 +276,8 @@ object AggregateUtil {
     val aggregates = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),
       inputType,
-      groupings.length)._2
+      groupings.length,
+      false)._2
 
     window match {
       case EventTimeSessionGroupWindow(_, _, gap) =>
@@ -314,7 +318,8 @@ object AggregateUtil {
     val (aggFieldIndex, aggregates) = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),
       inputType,
-      groupings.length)
+      groupings.length,
+      false)
 
     val (groupingOffsetMapping, aggOffsetMapping) =
       getGroupingOffsetAndAggOffsetMapping(
@@ -407,7 +412,11 @@ object AggregateUtil {
     : (ApiAggregateFunction[Row, Row, Row], RowTypeInfo, RowTypeInfo) = {
 
     val (aggFields, aggregates) =
-      transformToAggregateFunctions(namedAggregates.map(_.getKey), inputType, groupKeysIndex.length)
+      transformToAggregateFunctions(
+        namedAggregates.map(_.getKey),
+        inputType,
+        groupKeysIndex.length,
+        false)
 
     val aggregateMapping = getAggregateMapping(namedAggregates, outputType)
 
@@ -436,7 +445,8 @@ object AggregateUtil {
     val aggregateList = transformToAggregateFunctions(
       aggregateCalls,
       inputType,
-      groupKeysCount)._2
+      groupKeysCount,
+      false)._2
 
     doAllSupportPartialMerge(aggregateList)
   }
@@ -556,7 +566,9 @@ object AggregateUtil {
   private def transformToAggregateFunctions(
       aggregateCalls: Seq[AggregateCall],
       inputType: RelDataType,
-      groupKeysCount: Int): (Array[Int], Array[TableAggregateFunction[_ <: Any]]) = {
+      groupKeysCount: Int,
+      ifNeedRetraction: Boolean)
+  : (Array[Int], Array[TableAggregateFunction[_ <: Any]]) = {
 
     // store the aggregate fields of each aggregate function, by the same order of aggregates.
     val aggFieldIndexes = new Array[Int](aggregateCalls.size)
@@ -626,46 +638,94 @@ object AggregateUtil {
         }
         case sqlMinMaxFunction: SqlMinMaxAggFunction => {
           aggregates(index) = if (sqlMinMaxFunction.getKind == SqlKind.MIN) {
-            sqlTypeName match {
-              case TINYINT =>
-                new ByteMinAggFunction
-              case SMALLINT =>
-                new ShortMinAggFunction
-              case INTEGER =>
-                new IntMinAggFunction
-              case BIGINT =>
-                new LongMinAggFunction
-              case FLOAT =>
-                new FloatMinAggFunction
-              case DOUBLE =>
-                new DoubleMinAggFunction
-              case DECIMAL =>
-                new DecimalMinAggFunction
-              case BOOLEAN =>
-                new BooleanMinAggFunction
-              case sqlType: SqlTypeName =>
-                throw new TableException("Min aggregate does no support type:" + sqlType)
+            if (ifNeedRetraction) {
+              sqlTypeName match {
+                case TINYINT =>
+                  new ByteMinWithRetractAggFunction
+                case SMALLINT =>
+                  new ShortMinWithRetractAggFunction
+                case INTEGER =>
+                  new IntMinWithRetractAggFunction
+                case BIGINT =>
+                  new LongMinWithRetractAggFunction
+                case FLOAT =>
+                  new FloatMinWithRetractAggFunction
+                case DOUBLE =>
+                  new DoubleMinWithRetractAggFunction
+                case DECIMAL =>
+                  new DecimalMinWithRetractAggFunction
+                case BOOLEAN =>
+                  new BooleanMinWithRetractAggFunction
+                case sqlType: SqlTypeName =>
+                  throw new TableException("Min with retract aggregate does no support type:" +
+                                             sqlType)
+              }
+            } else {
+              sqlTypeName match {
+                case TINYINT =>
+                  new ByteMinAggFunction
+                case SMALLINT =>
+                  new ShortMinAggFunction
+                case INTEGER =>
+                  new IntMinAggFunction
+                case BIGINT =>
+                  new LongMinAggFunction
+                case FLOAT =>
+                  new FloatMinAggFunction
+                case DOUBLE =>
+                  new DoubleMinAggFunction
+                case DECIMAL =>
+                  new DecimalMinAggFunction
+                case BOOLEAN =>
+                  new BooleanMinAggFunction
+                case sqlType: SqlTypeName =>
+                  throw new TableException("Min aggregate does no support type:" + sqlType)
+              }
             }
           } else {
-            sqlTypeName match {
-              case TINYINT =>
-                new ByteMaxAggFunction
-              case SMALLINT =>
-                new ShortMaxAggFunction
-              case INTEGER =>
-                new IntMaxAggFunction
-              case BIGINT =>
-                new LongMaxAggFunction
-              case FLOAT =>
-                new FloatMaxAggFunction
-              case DOUBLE =>
-                new DoubleMaxAggFunction
-              case DECIMAL =>
-                new DecimalMaxAggFunction
-              case BOOLEAN =>
-                new BooleanMaxAggFunction
-              case sqlType: SqlTypeName =>
-                throw new TableException("Max aggregate does no support type:" + sqlType)
+            if (ifNeedRetraction) {
+              sqlTypeName match {
+                case TINYINT =>
+                  new ByteMaxWithRetractAggFunction
+                case SMALLINT =>
+                  new ShortMaxWithRetractAggFunction
+                case INTEGER =>
+                  new IntMaxWithRetractAggFunction
+                case BIGINT =>
+                  new LongMaxWithRetractAggFunction
+                case FLOAT =>
+                  new FloatMaxWithRetractAggFunction
+                case DOUBLE =>
+                  new DoubleMaxWithRetractAggFunction
+                case DECIMAL =>
+                  new DecimalMaxWithRetractAggFunction
+                case BOOLEAN =>
+                  new BooleanMaxWithRetractAggFunction
+                case sqlType: SqlTypeName =>
+                  throw new TableException("Max with retract aggregate does no support type:" +
+                                             sqlType)
+              }
+            } else {
+              sqlTypeName match {
+                case TINYINT =>
+                  new ByteMaxAggFunction
+                case SMALLINT =>
+                  new ShortMaxAggFunction
+                case INTEGER =>
+                  new IntMaxAggFunction
+                case BIGINT =>
+                  new LongMaxAggFunction
+                case FLOAT =>
+                  new FloatMaxAggFunction
+                case DOUBLE =>
+                  new DoubleMaxAggFunction
+                case DECIMAL =>
+                  new DecimalMaxAggFunction
+                case BOOLEAN =>
+                  new BooleanMaxAggFunction
+                case sqlType: SqlTypeName =>
+                  throw new TableException("Max aggregate does no support type:" + sqlType)
+              }
             }
           }
         }

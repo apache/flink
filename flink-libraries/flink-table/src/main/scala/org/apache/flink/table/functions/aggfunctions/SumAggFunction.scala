@@ -23,10 +23,11 @@ import java.util.{List => JList}
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.TupleTypeInfo
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
 
 /** The initial accumulator for Sum aggregate function */
-class SumAccumulator[T] extends JTuple2[T, Boolean] with Accumulator
+class SumAccumulator[T] extends JTuple2[T, Long] with Accumulator
 
 /**
   * Base class for built-in Sum aggregate function
@@ -40,7 +41,7 @@ abstract class SumAggFunction[T: Numeric] extends AggregateFunction[T] {
   override def createAccumulator(): Accumulator = {
     val acc = new SumAccumulator[T]()
     acc.f0 = numeric.zero //sum
-    acc.f1 = false
+    acc.f1 = 0L
     acc
   }
 
@@ -49,13 +50,25 @@ abstract class SumAggFunction[T: Numeric] extends AggregateFunction[T] {
       val v = value.asInstanceOf[T]
       val a = accumulator.asInstanceOf[SumAccumulator[T]]
       a.f0 = numeric.plus(v, a.f0)
-      a.f1 = true
+      a.f1 += 1
+    }
+  }
+
+  override def retract(accumulator: Accumulator, value: Any): Unit = {
+    if (value != null) {
+      val v = value.asInstanceOf[T]
+      val a = accumulator.asInstanceOf[SumAccumulator[T]]
+      a.f0 = numeric.plus(v, a.f0)
+      a.f1 -= 1
+      if (a.f1 < 0) {
+        throw TableException("unexpected retract message")
+      }
     }
   }
 
   override def getValue(accumulator: Accumulator): T = {
     val a = accumulator.asInstanceOf[SumAccumulator[T]]
-    if (a.f1) {
+    if (a.f1 > 0) {
       a.f0
     } else {
       null.asInstanceOf[T]
@@ -67,9 +80,9 @@ abstract class SumAggFunction[T: Numeric] extends AggregateFunction[T] {
     var i: Int = 0
     while (i < accumulators.size()) {
       val a = accumulators.get(i).asInstanceOf[SumAccumulator[T]]
-      if (a.f1) {
+      if (a.f1 > 0) {
         ret.f0 = numeric.plus(ret.f0, a.f0)
-        ret.f1 = true
+        ret.f1 += a.f1
       }
       i += 1
     }
@@ -80,7 +93,7 @@ abstract class SumAggFunction[T: Numeric] extends AggregateFunction[T] {
     new TupleTypeInfo(
       (new SumAccumulator).getClass,
       getValueTypeInfo,
-      BasicTypeInfo.BOOLEAN_TYPE_INFO)
+      BasicTypeInfo.LONG_TYPE_INFO)
   }
 
   def getValueTypeInfo: TypeInformation[_]
@@ -129,9 +142,9 @@ class DoubleSumAggFunction extends SumAggFunction[Double] {
 }
 
 /** The initial accumulator for Big Decimal Sum aggregate function */
-class DecimalSumAccumulator extends JTuple2[BigDecimal, Boolean] with Accumulator {
+class DecimalSumAccumulator extends JTuple2[BigDecimal, Long] with Accumulator {
   f0 = BigDecimal.ZERO
-  f1 = false
+  f1 = 0L
 }
 
 /**
@@ -148,12 +161,24 @@ class DecimalSumAggFunction extends AggregateFunction[BigDecimal] {
       val v = value.asInstanceOf[BigDecimal]
       val accum = accumulator.asInstanceOf[DecimalSumAccumulator]
       accum.f0 = accum.f0.add(v)
-      accum.f1 = true
+      accum.f1 += 1L
+    }
+  }
+
+  override def retract(accumulator: Accumulator, value: Any): Unit = {
+    if (value != null) {
+      val v = value.asInstanceOf[BigDecimal]
+      val accum = accumulator.asInstanceOf[DecimalSumAccumulator]
+      accum.f0 = accum.f0.add(v)
+      accum.f1 -= 1L
+      if (accum.f1 < 0) {
+        throw TableException("unexpected retract message")
+      }
     }
   }
 
   override def getValue(accumulator: Accumulator): BigDecimal = {
-    if (!accumulator.asInstanceOf[DecimalSumAccumulator].f1) {
+    if (accumulator.asInstanceOf[DecimalSumAccumulator].f1 == 0) {
       null.asInstanceOf[BigDecimal]
     } else {
       accumulator.asInstanceOf[DecimalSumAccumulator].f0
@@ -165,9 +190,9 @@ class DecimalSumAggFunction extends AggregateFunction[BigDecimal] {
     var i: Int = 1
     while (i < accumulators.size()) {
       val a = accumulators.get(i).asInstanceOf[DecimalSumAccumulator]
-      if (a.f1) {
+      if (a.f1 > 0) {
         accumulate(ret, a.f0)
-        ret.f1 = true
+        ret.f1 += a.f1
       }
       i += 1
     }
@@ -178,6 +203,6 @@ class DecimalSumAggFunction extends AggregateFunction[BigDecimal] {
     new TupleTypeInfo(
       (new DecimalSumAccumulator).getClass,
       BasicTypeInfo.BIG_DEC_TYPE_INFO,
-      BasicTypeInfo.BOOLEAN_TYPE_INFO)
+      BasicTypeInfo.LONG_TYPE_INFO)
   }
 }
