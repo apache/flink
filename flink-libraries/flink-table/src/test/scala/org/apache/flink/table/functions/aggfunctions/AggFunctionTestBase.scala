@@ -36,14 +36,23 @@ abstract class AggFunctionTestBase[T] {
 
   def aggregator: AggregateFunction[T]
 
+  def supportRetraction: Boolean = true
+
   @Test
-  // test aggregate functions without partial merge
-  def testAggregateWithoutMerge(): Unit = {
+  // test aggregate and retract functions without partial merge
+  def testAccumulateAndRetractWithoutMerge(): Unit = {
     // iterate over input sets
     for ((vals, expected) <- inputValueSets.zip(expectedResults)) {
-      val accumulator = aggregateVals(vals)
-      val result = aggregator.getValue(accumulator)
-      validateResult(expected, result)
+      val accumulator = accumulateVals(vals)
+      var result = aggregator.getValue(accumulator)
+      validateResult[T](expected, result)
+
+      if (supportRetraction) {
+        retractVals(accumulator, vals)
+        val expectedAccum = aggregator.createAccumulator()
+        //The two accumulators should be exactly same
+        validateResult[Accumulator](expectedAccum, accumulator)
+      }
     }
   }
 
@@ -57,31 +66,46 @@ abstract class AggFunctionTestBase[T] {
         //equally split the vals sequence into two sequences
         val (firstVals, secondVals) = vals.splitAt(vals.length / 2)
 
+        //1. verify merge with accumulate
         val accumulators: JList[Accumulator] = new JArrayList[Accumulator]()
-        accumulators.add(aggregateVals(firstVals))
-        accumulators.add(aggregateVals(secondVals))
+        accumulators.add(accumulateVals(firstVals))
+        accumulators.add(accumulateVals(secondVals))
 
-        val accumulator = aggregator.merge(accumulators)
+        var accumulator = aggregator.merge(accumulators)
         val result = aggregator.getValue(accumulator)
-        validateResult(expected, result)
+        validateResult[T](expected, result)
+
+        //2. verify merge with accumulate & retract
+        if (supportRetraction) {
+          retractVals(accumulator, vals)
+          val expectedAccum = aggregator.createAccumulator()
+          //The two accumulators should be exactly same
+          validateResult[Accumulator](expectedAccum, accumulator)
+        }
       }
 
       // iterate over input sets
       for ((vals, expected) <- inputValueSets.zip(expectedResults)) {
-        //test partial merge with an empty accumulator
+        //3. test partial merge with an empty accumulator
         val accumulators: JList[Accumulator] = new JArrayList[Accumulator]()
-        accumulators.add(aggregateVals(vals))
+        accumulators.add(accumulateVals(vals))
         accumulators.add(aggregator.createAccumulator())
 
         val accumulator = aggregator.merge(accumulators)
         val result = aggregator.getValue(accumulator)
-        validateResult(expected, result)
+        validateResult[T](expected, result)
       }
     }
   }
 
-  private def validateResult(expected: T, result: T): Unit = {
+  private def validateResult[T](expected: T, result: T): Unit = {
     (expected, result) match {
+      case (e: DecimalSumWithRetractAccumulator, r: DecimalSumWithRetractAccumulator) =>
+        // BigDecimal.equals() value and scale but we are only interested in value.
+        assert(e.f0.compareTo(r.f0) == 0 && e.f1 == r.f1)
+      case (e: DecimalAvgAccumulator, r: DecimalAvgAccumulator) =>
+        // BigDecimal.equals() value and scale but we are only interested in value.
+        assert(e.f0.compareTo(r.f0) == 0 && e.f1 == r.f1)
       case (e: BigDecimal, r: BigDecimal) =>
         // BigDecimal.equals() value and scale but we are only interested in value.
         assert(e.compareTo(r) == 0)
@@ -90,9 +114,13 @@ abstract class AggFunctionTestBase[T] {
     }
   }
 
-  private def aggregateVals(vals: Seq[_]): Accumulator = {
+  private def accumulateVals(vals: Seq[_]): Accumulator = {
     val accumulator = aggregator.createAccumulator()
     vals.foreach(v => aggregator.accumulate(accumulator, v))
     accumulator
+  }
+
+  private def retractVals(accumulator:Accumulator, vals: Seq[_]) = {
+    vals.foreach(v => aggregator.retract(accumulator, v))
   }
 }
