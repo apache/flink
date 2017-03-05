@@ -18,85 +18,32 @@
 
 package org.apache.flink.runtime.codegeneration;
 
-import freemarker.template.TemplateException;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.*;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.runtime.TupleComparator;
-import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.core.memory.MemoryType;
-import org.apache.flink.runtime.memory.MemoryAllocationException;
-import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.codegeneration.utils.CodeGenerationSorterBaseTest;
 import org.apache.flink.runtime.operators.sort.InMemorySorter;
-import org.apache.flink.runtime.operators.sort.QuickSort;
-import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.operators.testutils.TestData;
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.KeyMode;
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.ValueMode;
 import org.apache.flink.util.MutableObjectIterator;
 import org.junit.*;
 
-import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import java.util.Random;
 
 
-public class NormalizedKeySorterFunctionalitiesTest {
+public class NormalizedKeySorterFunctionalitiesTest extends CodeGenerationSorterBaseTest {
 	
-	private static final long SEED = 649180756312423613L;
-	
-	private static final long SEED2 = 97652436586326573L;
-
-	private static final int KEY_MAX = Integer.MAX_VALUE;
-
-	private static final int VALUE_LENGTH = 118;
-
-	private static final int MEMORY_SIZE = 1024 * 1024 * 64;
-	
-	private static final int MEMORY_PAGE_SIZE = 32 * 1024; 
-
-	private MemoryManager memoryManager;
-	private SorterFactory sorterFactory;
-
-	private ExecutionConfig executionConfig = new ExecutionConfig(){
-		{
-			setCodeGenerationForSorterEnabled(true);
-		}
-	};
-
-
-	@Before
-	public void beforeTest() throws IOException {
-		this.memoryManager = new MemoryManager(MEMORY_SIZE, 1, MEMORY_PAGE_SIZE, MemoryType.HEAP, true);
-		this.sorterFactory = SorterFactory.getInstance();
-	}
-
-	@After
-	public void afterTest() {
-		if (!this.memoryManager.verifyEmpty()) {
-			Assert.fail("Memory Leak: Some memory has not been returned to the memory manager.");
-		}
-		
-		if (this.memoryManager != null) {
-			this.memoryManager.shutdown();
-			this.memoryManager = null;
-		}
-	}
-
-	private InMemorySorter<Tuple2<Integer, String>> newSortBuffer(List<MemorySegment> memory) throws Exception {
-		return this.sorterFactory.createSorter(executionConfig, TestData.getIntStringTupleSerializer(), TestData.getIntStringTupleComparator(), memory);
-	}
 
 	@Test
 	public void testWriteAndRead() throws Exception {
-		final int numSegments = MEMORY_SIZE / MEMORY_PAGE_SIZE;
-		final List<MemorySegment> memory = this.memoryManager.allocatePages(new DummyInvokable(), numSegments);
+		List<MemorySegment> memory = createMemory();
+		TypeSerializer serializer  = TestData.getIntStringTupleSerializer();
+		TypeComparator comparator  = TestData.getIntStringTupleComparator();
 
-		InMemorySorter<Tuple2<Integer, String>> sorter = newSortBuffer(memory);
+		InMemorySorter<Tuple2<Integer, String>> sorter = createSorter(serializer, comparator, memory);
 		TestData.TupleGenerator generator = new TestData.TupleGenerator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM,
 			ValueMode.RANDOM_LENGTH);
 
@@ -135,10 +82,11 @@ public class NormalizedKeySorterFunctionalitiesTest {
 //
 	@Test
 	public void testWriteAndIterator() throws Exception {
-		final int numSegments = MEMORY_SIZE / MEMORY_PAGE_SIZE;
-		final List<MemorySegment> memory = this.memoryManager.allocatePages(new DummyInvokable(), numSegments);
+		List<MemorySegment> memory = createMemory();
+		TypeSerializer serializer  = TestData.getIntStringTupleSerializer();
+		TypeComparator comparator  = TestData.getIntStringTupleComparator();
 
-		InMemorySorter<Tuple2<Integer, String>> sorter = newSortBuffer(memory);
+		InMemorySorter<Tuple2<Integer, String>> sorter = createSorter(serializer, comparator, memory);
 		TestData.TupleGenerator generator = new TestData.TupleGenerator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM,
 			ValueMode.RANDOM_LENGTH);
 
@@ -174,10 +122,12 @@ public class NormalizedKeySorterFunctionalitiesTest {
 
 	@Test
 	public void testReset() throws Exception {
-		final int numSegments = MEMORY_SIZE / MEMORY_PAGE_SIZE;
-		final List<MemorySegment> memory = this.memoryManager.allocatePages(new DummyInvokable(), numSegments);
+		List<MemorySegment> memory = createMemory();
+		TypeSerializer serializer  = TestData.getIntStringTupleSerializer();
+		TypeComparator comparator  = TestData.getIntStringTupleComparator();
 
-		InMemorySorter<Tuple2<Integer, String>> sorter = newSortBuffer(memory);
+		InMemorySorter<Tuple2<Integer, String>> sorter = createSorter(serializer, comparator, memory);
+
 		TestData.TupleGenerator generator = new TestData.TupleGenerator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.FIX_LENGTH);
 
 		// write the buffer full with the first set of records
@@ -235,10 +185,12 @@ public class NormalizedKeySorterFunctionalitiesTest {
 	 */
 	@Test
 	public void testSwap() throws Exception {
-		final int numSegments = MEMORY_SIZE / MEMORY_PAGE_SIZE;
-		final List<MemorySegment> memory = this.memoryManager.allocatePages(new DummyInvokable(), numSegments);
+		List<MemorySegment> memory = createMemory();
+		TypeSerializer serializer  = TestData.getIntStringTupleSerializer();
+		TypeComparator comparator  = TestData.getIntStringTupleComparator();
 
-		InMemorySorter<Tuple2<Integer, String>> sorter = newSortBuffer(memory);
+		InMemorySorter<Tuple2<Integer, String>> sorter = createSorter(serializer, comparator, memory);
+
 		TestData.TupleGenerator generator = new TestData.TupleGenerator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM,
 			ValueMode.RANDOM_LENGTH);
 
@@ -288,10 +240,12 @@ public class NormalizedKeySorterFunctionalitiesTest {
 	 */
 	@Test
 	public void testCompare() throws Exception {
-		final int numSegments = MEMORY_SIZE / MEMORY_PAGE_SIZE;
-		final List<MemorySegment> memory = this.memoryManager.allocatePages(new DummyInvokable(), numSegments);
+		List<MemorySegment> memory = createMemory();
+		TypeSerializer serializer  = TestData.getIntStringTupleSerializer();
+		TypeComparator comparator  = TestData.getIntStringTupleComparator();
 
-		InMemorySorter<Tuple2<Integer, String>> sorter = newSortBuffer(memory);
+		InMemorySorter<Tuple2<Integer, String>> sorter = createSorter(serializer, comparator, memory);
+
 		TestData.TupleGenerator generator = new TestData.TupleGenerator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.SORTED,
 			ValueMode.RANDOM_LENGTH);
 
@@ -300,6 +254,7 @@ public class NormalizedKeySorterFunctionalitiesTest {
 		int num = -1;
 		do {
 			generator.next(record);
+//			System.out.println(record.f0);
 			num++;
 		}
 		while (sorter.write(record));

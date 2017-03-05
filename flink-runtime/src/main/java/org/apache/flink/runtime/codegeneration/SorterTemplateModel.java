@@ -104,6 +104,10 @@ public class SorterTemplateModel {
 	//                               Public Methods
 	// ------------------------------------------------------------------------
 
+	/**
+	 * Generate suitable sequence of operators for creating custom NormalizedKeySorter
+	 * @return map of procedures and corresponding code
+	 */
 	public Map<String,String> getTemplateVariables() {
 
 		Map<String,String> templateVariables = new HashMap();
