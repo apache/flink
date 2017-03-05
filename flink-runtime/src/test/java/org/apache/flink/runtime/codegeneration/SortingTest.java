@@ -134,7 +134,7 @@ public class SortingTest {
 	}
 
 	@Test
-	public void testSortStringKeys() throws Exception {
+	public void testSortString5BytesKeys() throws Exception {
 
 		@SuppressWarnings("unchecked")
 		List<MemorySegment> memory = createMemory();
@@ -143,6 +143,47 @@ public class SortingTest {
 
 		TestData.TupleGenerator generator = new TestData.TupleGenerator(SEED, KEY_MAX, 5, KeyMode.RANDOM,
 			ValueMode.FIX_LENGTH);
+
+		Tuple2<Integer, String> record = new Tuple2<>();
+		do {
+			generator.next(record);
+		}
+		while (sorter.write(record));
+
+		QuickSort qs = new QuickSort();
+		qs.sort(sorter);
+
+		MutableObjectIterator<Tuple2<Integer, String>> iter = sorter.getIterator();
+		Tuple2<Integer, String> readTarget = new Tuple2<>();
+
+		iter.next(readTarget);
+		String last = readTarget.f1;
+
+		while ((readTarget = iter.next(readTarget)) != null) {
+			String current = readTarget.f1;
+
+			final int cmp = last.compareTo(current);
+			if (cmp > 0) {
+				Assert.fail("Next value is not larger or equal to previous value.");
+			}
+
+			last = current;
+		}
+
+		// release the memory occupied by the buffers
+		sorter.dispose();
+		this.memoryManager.release(memory);
+	}
+	@Test
+	public void testSortStringVariableLengthKeys() throws Exception {
+
+		@SuppressWarnings("unchecked")
+		List<MemorySegment> memory = createMemory();
+		TypeComparator<Tuple2<Integer, String>> accessors = TestData.getIntStringTupleTypeInfo().createComparator(new int[]{1}, new boolean[]{true}, 0, null);
+		InMemorySorter<Tuple2<Integer, String>> sorter = createSorter(TestData.getIntStringTupleSerializer(), accessors, memory);
+
+		TestData.TupleGenerator generator = new TestData.TupleGenerator(SEED, KEY_MAX, 5, KeyMode.RANDOM,
+			ValueMode.RANDOM_LENGTH);
 
 		Tuple2<Integer, String> record = new Tuple2<>();
 		do {
