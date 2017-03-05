@@ -23,8 +23,14 @@ import org.apache.flink.graph.GraphAlgorithm;
 /**
  * A {@link GraphAlgorithm} result for a pair vertices.
  */
-public interface BinaryResult<T>
-extends UnaryResult<T> {
+public interface BinaryResult<T> {
+
+	/**
+	 * Get the first vertex ID.
+	 *
+	 * @return first vertex ID
+	 */
+	T getVertexId0();
 
 	/**
 	 * Get the second vertex ID.

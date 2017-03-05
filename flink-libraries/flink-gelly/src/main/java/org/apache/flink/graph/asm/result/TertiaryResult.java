@@ -23,8 +23,21 @@ import org.apache.flink.graph.GraphAlgorithm;
 /**
  * A {@link GraphAlgorithm} result for three vertices.
  */
-public interface TertiaryResult<T>
-extends BinaryResult<T> {
+public interface TertiaryResult<T> {
+
+	/**
+	 * Get the first vertex ID.
+	 *
+	 * @return first vertex ID
+	 */
+	T getVertexId0();
+
+	/**
+	 * Get the second vertex ID.
+	 *
+	 * @return second vertex ID
+	 */
+	T getVertexId1();
 
 	/**
 	 * Get the third vertex ID.

@@ -22,7 +22,7 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.functions.FunctionAnnotation;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
@@ -254,7 +254,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 *
 	 * @param <T> ID type
 	 */
-	@FunctionAnnotation.ForwardedFields("0->1; 1->2")
+	@ForwardedFields("0->1; 1->2")
 	private static class GenerateGroupSpans<T, ET>
 	implements GroupReduceFunction<Edge<T, Tuple2<ET, LongValue>>, Tuple4<IntValue, T, T, IntValue>> {
 		private final int groupSize;
@@ -303,7 +303,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 *
 	 * @see GenerateGroupSpans
 	 */
-	@FunctionAnnotation.ForwardedFields("1; 2; 3")
+	@ForwardedFields("1; 2; 3")
 	private static class GenerateGroups<T>
 	implements FlatMapFunction<Tuple4<IntValue, T, T, IntValue>, Tuple4<IntValue, T, T, IntValue>> {
 		@Override
@@ -399,7 +399,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 *
 	 * @param <T> ID type
 	 */
-	@FunctionAnnotation.ForwardedFields("0; 1")
+	@ForwardedFields("0; 1")
 	private static class ComputeScores<T>
 	implements GroupReduceFunction<Tuple3<T, T, IntValue>, Result<T>> {
 		private boolean unboundedScores;

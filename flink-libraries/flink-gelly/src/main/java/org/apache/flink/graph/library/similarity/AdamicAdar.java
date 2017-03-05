@@ -25,7 +25,7 @@ import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.functions.FunctionAnnotation;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
 import org.apache.flink.api.java.operators.GroupReduceOperator;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -241,7 +241,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 *
 	 * @param <T> ID type
 	 */
-	@FunctionAnnotation.ForwardedFields("0; 1")
+	@ForwardedFields("0; 1")
 	private static class VertexInverseLogDegree<T>
 	implements MapFunction<Vertex<T, LongValue>, Tuple3<T, LongValue, FloatValue>> {
 		private Tuple3<T, LongValue, FloatValue> output = new Tuple3<>(null, null, new FloatValue());
@@ -266,7 +266,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 *
 	 * @param <T> ID type
 	 */
-	@FunctionAnnotation.ForwardedFields("0->1; 1->2 ; 2->3")
+	@ForwardedFields("0->1; 1->2 ; 2->3")
 	private static class GenerateGroupSpans<T>
 	implements GroupReduceFunction<Tuple3<T, T, FloatValue>, Tuple4<IntValue, T, T, FloatValue>> {
 		private IntValue groupSpansValue = new IntValue();
@@ -301,7 +301,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 *
 	 * @param <T> ID type
 	 */
-	@FunctionAnnotation.ForwardedFields("1; 2; 3")
+	@ForwardedFields("1; 2; 3")
 	private static class GenerateGroups<T>
 	implements FlatMapFunction<Tuple4<IntValue, T, T, FloatValue>, Tuple4<IntValue, T, T, FloatValue>> {
 		@Override
@@ -321,7 +321,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 *
 	 * @param <T> ID type
 	 */
-	@FunctionAnnotation.ForwardedFields("3->2")
+	@ForwardedFields("3->2")
 	private static class GenerateGroupPairs<T extends CopyableValue<T>>
 	implements GroupReduceFunction<Tuple4<IntValue, T, T, FloatValue>, Tuple3<T, T, FloatValue>> {
 		private Tuple3<T, T, FloatValue> output = new Tuple3<>();
@@ -392,7 +392,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 *
 	 * @param <T> ID type
 	 */
-	@FunctionAnnotation.ForwardedFields("0; 1")
+	@ForwardedFields("0; 1")
 	private static class ComputeScores<T>
 	extends RichGroupReduceFunction<Tuple3<T, T, FloatValue>, Result<T>> {
 		private float minimumScore;
