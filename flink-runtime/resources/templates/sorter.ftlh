@@ -358,24 +358,17 @@ ${writeProcedures}
 	@Override
 	public int compare(int i, int j) {
 		final int bufferNumI = i / this.indexEntriesPerSegment;
-		final int segmentOffsetI = (i % this.indexEntriesPerSegment) * this.indexEntrySize;
+		final int iBufferOffset = (i % this.indexEntriesPerSegment) * this.indexEntrySize;
 
 		final int bufferNumJ = j / this.indexEntriesPerSegment;
-		final int segmentOffsetJ = (j % this.indexEntriesPerSegment) * this.indexEntrySize;
+		final int jBufferOffset = (j % this.indexEntriesPerSegment) * this.indexEntrySize;
 
 		final MemorySegment segI = (MemorySegment)this.sortIndex.get(bufferNumI);
 		final MemorySegment segJ = (MemorySegment)this.sortIndex.get(bufferNumJ);
 
-		int val = segI.compare(segJ, segmentOffsetI + OFFSET_LEN, segmentOffsetJ + OFFSET_LEN, this.numKeyBytes);
-
-		if (val != 0 || this.normalizedKeyFullyDetermines) {
-			return this.useNormKeyUninverted ? val : -val;
-		}
-
-		final long pointerI = segI.getLong(segmentOffsetI) & POINTER_MASK;
-		final long pointerJ = segJ.getLong(segmentOffsetJ) & POINTER_MASK;
-
-		return compareRecords(pointerI, pointerJ);
+// generated code
+${compareProcedures}
+// end
 	}
 
 	@Override
@@ -392,15 +385,17 @@ ${compareProcedures}
 	@Override
 	public void swap(int i, int j) {
 		final int bufferNumI = i / this.indexEntriesPerSegment;
-		final int segmentOffsetI = (i % this.indexEntriesPerSegment) * this.indexEntrySize;
+		final int iBufferOffset = (i % this.indexEntriesPerSegment) * this.indexEntrySize;
 
 		final int bufferNumJ = j / this.indexEntriesPerSegment;
-		final int segmentOffsetJ = (j % this.indexEntriesPerSegment) * this.indexEntrySize;
+		final int jBufferOffset = (j % this.indexEntriesPerSegment) * this.indexEntrySize;
 
 		final MemorySegment segI = (MemorySegment)this.sortIndex.get(bufferNumI);
 		final MemorySegment segJ = (MemorySegment)this.sortIndex.get(bufferNumJ);
 
-		segI.swapBytes(this.swapBuffer, segJ, segmentOffsetI, segmentOffsetJ, this.indexEntrySize);
+// generated code
+${swapProcedures}
+// end
 	}
 
 	@Override
