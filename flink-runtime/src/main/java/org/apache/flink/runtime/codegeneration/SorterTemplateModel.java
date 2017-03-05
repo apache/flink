@@ -277,7 +277,7 @@ public class SorterTemplateModel {
 		StringBuilder procedures = new StringBuilder();
 
 		// skip first operator for prefix
-		if( fixedByteChunks.size() > 1 && ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN ) {
+		if( fixedByteChunks.size() > 1 ) {
 			String sortOrder = "";
 			if(this.typeComparator.invertNormalizedKey()){
 				sortOrder = "-";
