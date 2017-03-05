@@ -76,21 +76,21 @@ public class SorterTemplateModel {
 
 	public String generateCodeFilename() {
 
-		String name = "";
+		StringBuilder name = new StringBuilder();
 
 		for( Integer opt : chunkSizes ) {
-			name += byteOperatorMapping.get(opt);
+			name.append(byteOperatorMapping.get(opt));
 		}
 
 		if(this.isKeyFullyDetermined){
-			name += "FullyDeterminedKey";
+			name.append("FullyDeterminedKey");
 		} else {
-			name += "NonFullyDeterminedKey";
+			name.append("NonFullyDeterminedKey");
 		}
 
-		name += "Sorter";
+		name.append("Sorter");
 
-		return name;
+		return name.toString();
 	}
 
 	public Map<String,String> getTemplateVariables() {
@@ -147,9 +147,9 @@ public class SorterTemplateModel {
 		String procedures = "";
 
 		if( this.chunkSizes.size() > 0 ) {
-			String temporaryString = "";
-			String firstSegmentString = "";
-			String secondSegmentString = "";
+			StringBuilder temporaryString 	  = new StringBuilder();
+			StringBuilder firstSegmentString  = new StringBuilder();
+			StringBuilder secondSegmentString = new StringBuilder();
 
 			int accOffset = 0;
 			for( int i = 0; i  < chunkSizes.size(); i++ ){
@@ -165,17 +165,20 @@ public class SorterTemplateModel {
 					offsetString = "+" + accOffset;
 				}
 
-				temporaryString     += String.format("%s temp%d = segI.get%s(iBufferOffset%s);\n",primitiveType, varIndex, primitiveClass, offsetString );
+				temporaryString.append(String.format("%s temp%d = segI.get%s(iBufferOffset%s);\n",
+					primitiveType, varIndex, primitiveClass, offsetString ));
 
-				firstSegmentString  += String.format("segI.put%s(iBufferOffset%s, segJ.get%s(jBufferOffset%s));\n", primitiveClass, offsetString, primitiveClass, offsetString);
+				firstSegmentString.append(String.format("segI.put%s(iBufferOffset%s, segJ.get%s(jBufferOffset%s));\n",
+					primitiveClass, offsetString, primitiveClass, offsetString));
 
-				secondSegmentString += String.format("segJ.put%s(jBufferOffset%s, temp%d);\n", primitiveClass, offsetString, varIndex);
+				secondSegmentString.append(String.format("segJ.put%s(jBufferOffset%s, temp%d);\n",
+					primitiveClass, offsetString, varIndex));
 
 			}
 
-			procedures = temporaryString
-				+ "\n" + firstSegmentString
-				+ "\n" + secondSegmentString;
+			procedures = temporaryString.toString()
+				+ "\n" + firstSegmentString.toString()
+				+ "\n" + secondSegmentString.toString();
 		} else {
 			procedures = "segI.swapBytes(this.swapBuffer, segJ, iBufferOffset, jBufferOffset, this.indexEntrySize);";
 		}
@@ -184,7 +187,7 @@ public class SorterTemplateModel {
 	}
 
 	private String generateWriteProcedures(){
-		String procedures = "";
+		StringBuilder procedures = new StringBuilder();
 		// skip first operator for prefix
 		if( chunkSizes.size() > 1 && ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN ) {
 			int offset = 0;
@@ -203,33 +206,25 @@ public class SorterTemplateModel {
 					reverseBytesMethod = "Integer";
 				}
 
-				procedures += String.format("%s temp%d = %s.reverseBytes(this.currentSortIndexSegment.get%s(this.currentSortIndexOffset+%d));\n",
-					primitiveType,
-					i,
-					reverseBytesMethod,
-					primitiveClass,
-					offset
-				);
+				procedures.append(String.format("%s temp%d = %s.reverseBytes(this.currentSortIndexSegment.get%s(this.currentSortIndexOffset+%d));\n",
+					primitiveType, i, reverseBytesMethod, primitiveClass, offset
+				));
 
-				procedures += String.format("this.currentSortIndexSegment.put%s( this.currentSortIndexOffset + %d, temp%d);\n",
-					primitiveClass,
-					offset,
-					i
-				);
+				procedures.append(String.format("this.currentSortIndexSegment.put%s( this.currentSortIndexOffset + %d, temp%d);\n",
+					primitiveClass, offset, i
+				));
 
 			}
 		}
 
-		return procedures;
+		return procedures.toString();
 	}
 
 	private String generateCompareProcedures(){
-		String procedures = "";
+		StringBuilder procedures = new StringBuilder();
 
 		// skip first operator for prefix
 		if( chunkSizes.size() > 1 && ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN ) {
-			procedures += "";
-
 			String sortOrder = "";
 			if(this.typeComparator.invertNormalizedKey()){
 				sortOrder = "-";
@@ -244,27 +239,28 @@ public class SorterTemplateModel {
 
 				String var1 = "l_"+ i + "_1";
 				String var2 = "l_"+ i + "_2";
-				procedures += String.format("%s %s  = segI.get%s(iBufferOffset + %d);\n", primitiveType, var1, primitiveClass, offset);
-				procedures += String.format("%s %s  = segJ.get%s(jBufferOffset + %d);\n", primitiveType, var2, primitiveClass, offset);
+				procedures.append(String.format("%s %s  = segI.get%s(iBufferOffset + %d);\n",
+					primitiveType, var1, primitiveClass, offset));
+				procedures.append(String.format("%s %s  = segJ.get%s(jBufferOffset + %d);\n",
+					primitiveType, var2, primitiveClass, offset));
 
-				procedures += String.format("if( %s != %s ) {\n", var1, var2);
-				procedures += String.format("return %s(%s < %s) ^ ( %s < 0 ) ^ ( %s < 0 ) ? -1 : 1;\n", sortOrder, var1, var2, var1, var2 );
-				procedures += "}\n\n";
+				procedures.append(String.format("if( %s != %s ) {\n", var1, var2));
+				procedures.append(String.format("return %s(%s < %s) ^ ( %s < 0 ) ^ ( %s < 0 ) ? -1 : 1;\n",
+					sortOrder, var1, var2, var1, var2 ));
+				procedures.append("}\n\n");
 
 			}
-		} else {
-			procedures += "";
 		}
 
 		// order can be determined by key
 		if( this.isKeyFullyDetermined ){
-			procedures += "return 0;\n";
+			procedures.append("return 0;\n");
 		} else {
-			procedures += "final long pointerI = segI.getLong(iBufferOffset) & POINTER_MASK;\n";
-			procedures += "final long pointerJ = segJ.getLong(jBufferOffset) & POINTER_MASK;\n";
-			procedures += "return compareRecords(pointerI, pointerJ);\n";
+			procedures.append("final long pointerI = segI.getLong(iBufferOffset) & POINTER_MASK;\n");
+			procedures.append("final long pointerJ = segJ.getLong(jBufferOffset) & POINTER_MASK;\n");
+			procedures.append("return compareRecords(pointerI, pointerJ);\n");
 		}
 
-		return procedures;
+		return procedures.toString();
 	}
 }
