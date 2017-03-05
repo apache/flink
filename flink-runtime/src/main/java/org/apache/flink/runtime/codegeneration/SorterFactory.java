@@ -19,10 +19,12 @@
 package org.apache.flink.runtime.codegeneration;
 
 import freemarker.template.TemplateException;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.operators.sort.InMemorySorter;
+import org.apache.flink.runtime.operators.sort.NormalizedKeySorter;
 import org.codehaus.janino.JavaSourceClassLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -99,22 +101,26 @@ public class SorterFactory {
 	 * @throws NoSuchMethodException
 	 * @throws InvocationTargetException
 	 */
-	public InMemorySorter createSorter(TypeSerializer serializer, TypeComparator comparator, List<MemorySegment> memory ) throws IOException, TemplateException, ClassNotFoundException, IllegalAccessException, InstantiationException, NoSuchMethodException, InvocationTargetException {
+	public InMemorySorter createSorter(ExecutionConfig config, TypeSerializer serializer, TypeComparator comparator, List<MemorySegment> memory ) throws IOException, TemplateException, ClassNotFoundException, IllegalAccessException, InstantiationException, NoSuchMethodException, InvocationTargetException {
 
-		// TODO : parameter to enable code generation
+		InMemorySorter sorter = null;
 
-		String className = this.templateManager.getGeneratedCode(new SorterTemplateModel(comparator));
+		if(config.isCodeGenerationForSorterEnabled()){
+			String className = this.templateManager.getGeneratedCode(new SorterTemplateModel(comparator));
+			Constructor sorterConstructor = classLoader.loadClass(className).getConstructor(
+				TypeSerializer.class, TypeComparator.class, List.class
+			);
 
-		Constructor sorterConstructor = classLoader.loadClass(className).getConstructor(
-			TypeSerializer.class, TypeComparator.class, List.class
-		);
+			sorter = (InMemorySorter)sorterConstructor.newInstance(serializer, comparator, memory);
 
-		Object generatedSorter = sorterConstructor.newInstance(serializer, comparator, memory);
-
-		if(LOG.isDebugEnabled()){
-			LOG.debug("Creating sorter : " + generatedSorter.toString());
+			if(LOG.isDebugEnabled()){
+				LOG.debug("Creating a custom sorter : " + sorter.toString());
+			}
+		} else {
+			sorter = new NormalizedKeySorter(serializer, comparator, memory);
 		}
 
-		return (InMemorySorter)generatedSorter;
+
+		return sorter;
 	}
 }

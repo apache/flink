@@ -127,6 +127,12 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	private long autoWatermarkInterval = 0;
 
 	/**
+	 * The flag determines whether a custom NormalizedKeySorter will be dynamically created
+	 * for underlying data
+	 */
+	private boolean codeGenerationForSorterEnabled = false;
+
+	/**
 	 * Interval in milliseconds for sending latency tracking marks from the sources to the sinks.
 	 */
 	private long latencyTrackingInterval = 2000L;
@@ -877,7 +883,8 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 				registeredKryoTypes.equals(other.registeredKryoTypes) &&
 				registeredPojoTypes.equals(other.registeredPojoTypes) &&
 				taskCancellationIntervalMillis == other.taskCancellationIntervalMillis &&
-				useSnapshotCompression == other.useSnapshotCompression;
+				useSnapshotCompression == other.useSnapshotCompression &&
+				codeGenerationForSorterEnabled == other.codeGenerationForSorterEnabled;
 
 		} else {
 			return false;
@@ -905,7 +912,9 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 			registeredKryoTypes,
 			registeredPojoTypes,
 			taskCancellationIntervalMillis,
-			useSnapshotCompression);
+			useSnapshotCompression,
+			codeGenerationForSorterEnabled);
+		);
 	}
 
 	public boolean canEqual(Object obj) {
@@ -916,6 +925,14 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	@Internal
 	public ArchivedExecutionConfig archive() {
 		return new ArchivedExecutionConfig(this);
+	}
+
+	public boolean isCodeGenerationForSorterEnabled() {
+		return codeGenerationForSorterEnabled;
+	}
+
+	public void setCodeGenerationForSorterEnabled(boolean codeGenerationForSorterEnabled) {
+		this.codeGenerationForSorterEnabled = codeGenerationForSorterEnabled;
 	}
 
 

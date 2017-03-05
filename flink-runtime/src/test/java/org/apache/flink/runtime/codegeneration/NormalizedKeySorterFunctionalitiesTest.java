@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.codegeneration;
 
 import freemarker.template.TemplateException;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.*;
@@ -61,6 +62,12 @@ public class NormalizedKeySorterFunctionalitiesTest {
 	private MemoryManager memoryManager;
 	private SorterFactory sorterFactory;
 
+	private ExecutionConfig executionConfig = new ExecutionConfig(){
+		{
+			setCodeGenerationForSorterEnabled(true);
+		}
+	};
+
 
 	@Before
 	public void beforeTest() throws IOException {
@@ -81,7 +88,7 @@ public class NormalizedKeySorterFunctionalitiesTest {
 	}
 
 	private InMemorySorter<Tuple2<Integer, String>> newSortBuffer(List<MemorySegment> memory) throws Exception {
-		return this.sorterFactory.createSorter(TestData.getIntStringTupleSerializer(), TestData.getIntStringTupleComparator(), memory);
+		return this.sorterFactory.createSorter(executionConfig, TestData.getIntStringTupleSerializer(), TestData.getIntStringTupleComparator(), memory);
 	}
 
 	@Test

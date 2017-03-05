@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.codegeneration;
 
 import freemarker.template.TemplateException;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.*;
@@ -30,7 +31,6 @@ import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.sort.InMemorySorter;
-import org.apache.flink.runtime.operators.sort.NormalizedKeySorter;
 import org.apache.flink.runtime.operators.sort.QuickSort;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.operators.testutils.TestData;
@@ -49,9 +49,9 @@ import java.util.Random;
 
 
 public class SortingTest {
-	
+
 	private static final long SEED = 649180756312423613L;
-	
+
 	private static final long SEED2 = 97652436586326573L;
 
 	private static final int KEY_MAX = Integer.MAX_VALUE;
@@ -59,17 +59,25 @@ public class SortingTest {
 	private static final int VALUE_LENGTH = 118;
 
 	private static final int MEMORY_SIZE = 1024 * 1024 * 64;
-	
-	private static final int MEMORY_PAGE_SIZE = 32 * 1024; 
+
+	private static final int MEMORY_PAGE_SIZE = 32 * 1024;
 
 	private MemoryManager memoryManager;
 	private SorterFactory sorterFactory;
+
+	private static final ExecutionConfig executionConfig = new ExecutionConfig(){
+		{
+			setCodeGenerationForSorterEnabled(true);
+		}
+	};
 
 
 	@Before
 	public void beforeTest() throws IOException {
 		this.memoryManager = new MemoryManager(MEMORY_SIZE, 1, MEMORY_PAGE_SIZE, MemoryType.HEAP, true);
 		this.sorterFactory = SorterFactory.getInstance();
+
+		Assert.assertTrue("Code generation for sorter is enabled", executionConfig.isCodeGenerationForSorterEnabled());
 	}
 
 	@After
@@ -77,7 +85,7 @@ public class SortingTest {
 		if (!this.memoryManager.verifyEmpty()) {
 			Assert.fail("Memory Leak: Some memory has not been returned to the memory manager.");
 		}
-		
+
 		if (this.memoryManager != null) {
 			this.memoryManager.shutdown();
 			this.memoryManager = null;
@@ -85,7 +93,7 @@ public class SortingTest {
 	}
 
 	private InMemorySorter<Tuple2<Integer, String>> newSortBuffer(List<MemorySegment> memory) throws Exception {
-		return this.sorterFactory.createSorter(TestData.getIntStringTupleSerializer(), TestData.getIntStringTupleComparator(), memory);
+		return this.sorterFactory.createSorter(executionConfig, TestData.getIntStringTupleSerializer(), TestData.getIntStringTupleComparator(), memory);
 	}
 
 	@Test
@@ -642,6 +650,7 @@ public class SortingTest {
 	}
 	private InMemorySorter createSorter(TypeSerializer serializer, TypeComparator comparator, List<MemorySegment> memory ) throws IllegalAccessException, TemplateException, IOException, InstantiationException, InvocationTargetException, NoSuchMethodException, ClassNotFoundException {
 		return this.sorterFactory.createSorter(
+			executionConfig,
 			serializer,
 			comparator,
 			memory
