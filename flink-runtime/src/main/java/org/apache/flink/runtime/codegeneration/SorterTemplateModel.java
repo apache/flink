@@ -43,7 +43,14 @@ public class SorterTemplateModel {
 	private final static Integer[] POSSIBLE_FIXEDBYTE_OPERATORS = {8,4,2,1};
 
 	// mapping between fixed-byte chunk to fixed-byte operator
-	private final HashMap<Integer,String> byteOperatorMapping;
+	private final static HashMap<Integer,String> byteOperatorMapping = new HashMap<Integer, String>(){
+		{
+			put(8, "Long");
+			put(4, "Int");
+			put(2, "Short");
+			put(1, "Byte");
+		}
+	};
 
 	// ------------------------------------------------------------------------
 	//                                   Attributes
@@ -86,14 +93,6 @@ public class SorterTemplateModel {
 			this.numKeyBytes = 0;
 			this.isKeyFullyDetermined = false;
 		}
-
-		// TODO : change this to static variable
-		// map a fixed-byte chunk to a corresponding byte operator
-		this.byteOperatorMapping = new HashMap<>();
-		this.byteOperatorMapping.put(8, "Long");
-		this.byteOperatorMapping.put(4, "Int");
-		this.byteOperatorMapping.put(2, "Short");
-		this.byteOperatorMapping.put(1, "Byte");
 
 		// split key into fixed-byte chunks
 		this.fixedByteChunks = generatedSequenceFixedByteChunks(this.numKeyBytes);
