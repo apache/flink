@@ -22,11 +22,11 @@ import java.math.BigDecimal
 import org.apache.flink.table.functions.AggregateFunction
 
 /**
-  * Test case for built-in sum aggregate function
+  * Test case for built-in sum with retract aggregate function
   *
   * @tparam T the type for the aggregation result
   */
-abstract class SumAggFunctionTestBase[T: Numeric] extends AggFunctionTestBase[T] {
+abstract class SumWithRetractAggFunctionTestBase[T: Numeric] extends AggFunctionTestBase[T] {
 
   private val numeric: Numeric[T] = implicitly[Numeric[T]]
 
@@ -63,54 +63,52 @@ abstract class SumAggFunctionTestBase[T: Numeric] extends AggFunctionTestBase[T]
     numeric.fromInt(2),
     null.asInstanceOf[T]
   )
-
-  override def supportRetraction: Boolean = false
 }
 
-class ByteSumAggFunctionTest extends SumAggFunctionTestBase[Byte] {
+class ByteSumWithRetractAggFunctionTest extends SumWithRetractAggFunctionTestBase[Byte] {
 
   override def maxVal = (Byte.MaxValue / 2).toByte
 
-  override def aggregator: AggregateFunction[Byte] = new ByteSumAggFunction
+  override def aggregator: AggregateFunction[Byte] = new ByteSumWithRetractAggFunction
 }
 
-class ShortSumAggFunctionTest extends SumAggFunctionTestBase[Short] {
+class ShortSumWithRetractAggFunctionTest extends SumWithRetractAggFunctionTestBase[Short] {
 
   override def maxVal = (Short.MaxValue / 2).toShort
 
-  override def aggregator: AggregateFunction[Short] = new ShortSumAggFunction
+  override def aggregator: AggregateFunction[Short] = new ShortSumWithRetractAggFunction
 }
 
-class IntSumAggFunctionTest extends SumAggFunctionTestBase[Int] {
+class IntSumWithRetractAggFunctionTest extends SumWithRetractAggFunctionTestBase[Int] {
 
   override def maxVal = Int.MaxValue / 2
 
-  override def aggregator: AggregateFunction[Int] = new IntSumAggFunction
+  override def aggregator: AggregateFunction[Int] = new IntSumWithRetractAggFunction
 }
 
-class LongSumAggFunctionTest extends SumAggFunctionTestBase[Long] {
+class LongSumWithRetractAggFunctionTest extends SumWithRetractAggFunctionTestBase[Long] {
 
   override def maxVal = Long.MaxValue / 2
 
-  override def aggregator: AggregateFunction[Long] = new LongSumAggFunction
+  override def aggregator: AggregateFunction[Long] = new LongSumWithRetractAggFunction
 }
 
-class FloatSumAggFunctionTest extends SumAggFunctionTestBase[Float] {
+class FloatSumWithRetractAggFunctionTest extends SumWithRetractAggFunctionTestBase[Float] {
 
   override def maxVal = 12345.6789f
 
-  override def aggregator: AggregateFunction[Float] = new FloatSumAggFunction
+  override def aggregator: AggregateFunction[Float] = new FloatSumWithRetractAggFunction
 }
 
-class DoubleSumAggFunctionTest extends SumAggFunctionTestBase[Double] {
+class DoubleSumWithRetractAggFunctionTest extends SumWithRetractAggFunctionTestBase[Double] {
 
   override def maxVal = 12345.6789d
 
-  override def aggregator: AggregateFunction[Double] = new DoubleSumAggFunction
+  override def aggregator: AggregateFunction[Double] = new DoubleSumWithRetractAggFunction
 }
 
 
-class DecimalSumAggFunctionTest extends AggFunctionTestBase[BigDecimal] {
+class DecimalSumWithRetractAggFunctionTest extends AggFunctionTestBase[BigDecimal] {
 
   override def inputValueSets: Seq[Seq[_]] = Seq(
     Seq(
@@ -143,9 +141,7 @@ class DecimalSumAggFunctionTest extends AggFunctionTestBase[BigDecimal] {
     null
   )
 
-  override def aggregator: AggregateFunction[BigDecimal] = new DecimalSumAggFunction()
-
-  override def supportRetraction: Boolean = false
+  override def aggregator: AggregateFunction[BigDecimal] = new DecimalSumWithRetractAggFunction()
 }
 
 

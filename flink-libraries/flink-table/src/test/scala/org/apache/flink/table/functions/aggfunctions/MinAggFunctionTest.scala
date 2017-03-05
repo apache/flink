@@ -62,7 +62,7 @@ abstract class MinAggFunctionTest[T: Numeric] extends AggFunctionTestBase[T] {
     null.asInstanceOf[T]
   )
 
-  override def ifSupportRetraction: Boolean = false
+  override def supportRetraction: Boolean = false
 }
 
 class ByteMinAggFunctionTest extends MinAggFunctionTest[Byte] {
@@ -157,7 +157,7 @@ class BooleanMinAggFunctionTest extends AggFunctionTestBase[Boolean] {
 
   override def aggregator: AggregateFunction[Boolean] = new BooleanMinAggFunction()
 
-  override def ifSupportRetraction: Boolean = false
+  override def supportRetraction: Boolean = false
 }
 
 class DecimalMinAggFunctionTest extends AggFunctionTestBase[BigDecimal] {
@@ -190,5 +190,5 @@ class DecimalMinAggFunctionTest extends AggFunctionTestBase[BigDecimal] {
 
   override def aggregator: AggregateFunction[BigDecimal] = new DecimalMinAggFunction()
 
-  override def ifSupportRetraction: Boolean = false
+  override def supportRetraction: Boolean = false
 }

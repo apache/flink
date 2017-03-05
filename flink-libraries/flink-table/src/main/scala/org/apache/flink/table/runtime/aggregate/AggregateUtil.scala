@@ -567,7 +567,7 @@ object AggregateUtil {
       aggregateCalls: Seq[AggregateCall],
       inputType: RelDataType,
       groupKeysCount: Int,
-      ifNeedRetraction: Boolean)
+      needRetraction: Boolean)
   : (Array[Int], Array[TableAggregateFunction[_ <: Any]]) = {
 
     // store the aggregate fields of each aggregate function, by the same order of aggregates.
@@ -597,23 +597,44 @@ object AggregateUtil {
       val sqlTypeName = inputType.getFieldList.get(aggFieldIndexes(index)).getType.getSqlTypeName
       aggregateCall.getAggregation match {
         case _: SqlSumAggFunction | _: SqlSumEmptyIsZeroAggFunction => {
-          aggregates(index) = sqlTypeName match {
-            case TINYINT =>
-              new ByteSumAggFunction
-            case SMALLINT =>
-              new ShortSumAggFunction
-            case INTEGER =>
-              new IntSumAggFunction
-            case BIGINT =>
-              new LongSumAggFunction
-            case FLOAT =>
-              new FloatSumAggFunction
-            case DOUBLE =>
-              new DoubleSumAggFunction
-            case DECIMAL =>
-              new DecimalSumAggFunction
-            case sqlType: SqlTypeName =>
-              throw new TableException("Sum aggregate does no support type:" + sqlType)
+          if (needRetraction) {
+            aggregates(index) = sqlTypeName match {
+              case TINYINT =>
+                new ByteSumWithRetractAggFunction
+              case SMALLINT =>
+                new ShortSumWithRetractAggFunction
+              case INTEGER =>
+                new IntSumWithRetractAggFunction
+              case BIGINT =>
+                new LongSumWithRetractAggFunction
+              case FLOAT =>
+                new FloatSumWithRetractAggFunction
+              case DOUBLE =>
+                new DoubleSumWithRetractAggFunction
+              case DECIMAL =>
+                new DecimalSumWithRetractAggFunction
+              case sqlType: SqlTypeName =>
+                throw new TableException("Sum aggregate does no support type:" + sqlType)
+            }
+          } else {
+            aggregates(index) = sqlTypeName match {
+              case TINYINT =>
+                new ByteSumAggFunction
+              case SMALLINT =>
+                new ShortSumAggFunction
+              case INTEGER =>
+                new IntSumAggFunction
+              case BIGINT =>
+                new LongSumAggFunction
+              case FLOAT =>
+                new FloatSumAggFunction
+              case DOUBLE =>
+                new DoubleSumAggFunction
+              case DECIMAL =>
+                new DecimalSumAggFunction
+              case sqlType: SqlTypeName =>
+                throw new TableException("Sum aggregate does no support type:" + sqlType)
+            }
           }
         }
         case _: SqlAvgAggFunction => {
@@ -638,7 +659,7 @@ object AggregateUtil {
         }
         case sqlMinMaxFunction: SqlMinMaxAggFunction => {
           aggregates(index) = if (sqlMinMaxFunction.getKind == SqlKind.MIN) {
-            if (ifNeedRetraction) {
+            if (needRetraction) {
               sqlTypeName match {
                 case TINYINT =>
                   new ByteMinWithRetractAggFunction
@@ -683,7 +704,7 @@ object AggregateUtil {
               }
             }
           } else {
-            if (ifNeedRetraction) {
+            if (needRetraction) {
               sqlTypeName match {
                 case TINYINT =>
                   new ByteMaxWithRetractAggFunction

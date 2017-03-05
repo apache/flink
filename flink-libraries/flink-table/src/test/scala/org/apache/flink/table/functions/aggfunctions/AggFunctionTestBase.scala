@@ -36,7 +36,7 @@ abstract class AggFunctionTestBase[T] {
 
   def aggregator: AggregateFunction[T]
 
-  def ifSupportRetraction: Boolean = true
+  def supportRetraction: Boolean = true
 
   @Test
   // test aggregate and retract functions without partial merge
@@ -47,11 +47,11 @@ abstract class AggFunctionTestBase[T] {
       var result = aggregator.getValue(accumulator)
       validateResult(expected, result)
 
-      if (ifSupportRetraction) {
+      if (supportRetraction) {
         retractVals(accumulator, vals)
-        result = aggregator.getValue(accumulator)
-        val initValue = aggregator.getValue(aggregator.createAccumulator())
-        validateResult(initValue, result)
+        val expectedAccum = aggregator.createAccumulator()
+        //The two accumulators should be exactly same
+        assertEquals(expectedAccum, accumulator)
       }
     }
   }
@@ -66,18 +66,27 @@ abstract class AggFunctionTestBase[T] {
         //equally split the vals sequence into two sequences
         val (firstVals, secondVals) = vals.splitAt(vals.length / 2)
 
+        //1. verify merge with accumulate
         val accumulators: JList[Accumulator] = new JArrayList[Accumulator]()
         accumulators.add(accumulateVals(firstVals))
         accumulators.add(accumulateVals(secondVals))
 
-        val accumulator = aggregator.merge(accumulators)
+        var accumulator = aggregator.merge(accumulators)
         val result = aggregator.getValue(accumulator)
         validateResult(expected, result)
+
+        //2. verify merge with accumulate & retract
+        if (supportRetraction) {
+          retractVals(accumulator, vals)
+          val expectedAccum = aggregator.createAccumulator()
+          //The two accumulators should be exactly same
+          assertEquals(expectedAccum, accumulator)
+        }
       }
 
       // iterate over input sets
       for ((vals, expected) <- inputValueSets.zip(expectedResults)) {
-        //test partial merge with an empty accumulator
+        //3. test partial merge with an empty accumulator
         val accumulators: JList[Accumulator] = new JArrayList[Accumulator]()
         accumulators.add(accumulateVals(vals))
         accumulators.add(aggregator.createAccumulator())

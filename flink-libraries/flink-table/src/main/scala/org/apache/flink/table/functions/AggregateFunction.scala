@@ -36,7 +36,8 @@ abstract class AggregateFunction[T] extends UserDefinedFunction {
   def createAccumulator(): Accumulator
 
   /**
-    * Retract the input values from the accumulator instance.
+    * Retract the input values from the accumulator instance. The current design assumes the
+    * inputs are the values that have been previously accumulated.
     *
     * @param accumulator the accumulator which contains the current
     *                    aggregated results

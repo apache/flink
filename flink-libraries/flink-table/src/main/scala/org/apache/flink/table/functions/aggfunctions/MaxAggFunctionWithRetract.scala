@@ -72,37 +72,34 @@ abstract class MaxWithRetractAggFunction[T](implicit ord: Ordering[T]) extends A
 
       a.f1 -= 1L
 
-      if (!a.f2.containsKey(v)) {
-        throw TableException("unexpected retract message")
-      } else {
-        var count = a.f2.get(v)
-        count -= 1L
-        if (count == 0) {
-          //remove the key v from the map if the number of appearance of the value v is 0
-          a.f2.remove(v)
-          //if the total count is 0, we could just simply set the f0(max) to the initial value
-          if (a.f1 == 0) {
-            a.f0 = getInitValue
-            return
-          }
-          //if v is the current max value, we have to iterate the map to find the 2nd biggest
-          // value to replace v as the max value
-          if (v == a.f0) {
-            val iterator = a.f2.keySet().iterator()
-            var key = iterator.next()
-            a.f0 = key
-            while (iterator.hasNext()) {
-              key = iterator.next()
-              if (ord.compare(a.f0, key) < 0) {
-                a.f0 = key
-              }
+      var count = a.f2.get(v)
+      count -= 1L
+      if (count == 0) {
+        //remove the key v from the map if the number of appearance of the value v is 0
+        a.f2.remove(v)
+        //if the total count is 0, we could just simply set the f0(max) to the initial value
+        if (a.f1 == 0) {
+          a.f0 = getInitValue
+          return
+        }
+        //if v is the current max value, we have to iterate the map to find the 2nd biggest
+        // value to replace v as the max value
+        if (v == a.f0) {
+          val iterator = a.f2.keySet().iterator()
+          var key = iterator.next()
+          a.f0 = key
+          while (iterator.hasNext()) {
+            key = iterator.next()
+            if (ord.compare(a.f0, key) < 0) {
+              a.f0 = key
             }
           }
-        } else {
-          a.f2.put(v, count)
         }
+      } else {
+        a.f2.put(v, count)
       }
     }
+
   }
 
   override def getValue(accumulator: Accumulator): T = {
@@ -115,12 +112,28 @@ abstract class MaxWithRetractAggFunction[T](implicit ord: Ordering[T]) extends A
   }
 
   override def merge(accumulators: JList[Accumulator]): Accumulator = {
-    val ret = accumulators.get(0)
+    val ret = accumulators.get(0).asInstanceOf[MaxWithRetractAccumulator[T]]
     var i: Int = 1
     while (i < accumulators.size()) {
       val a = accumulators.get(i).asInstanceOf[MaxWithRetractAccumulator[T]]
       if (a.f1 != 0) {
-        accumulate(ret.asInstanceOf[MaxWithRetractAccumulator[T]], a.f0)
+        val iterator = a.f2.keySet().iterator()
+        while (iterator.hasNext()) {
+          val key = iterator.next()
+          //updating the resulting max value if needed
+          if (ord.compare(ret.f0, key) < 0) {
+            ret.f0 = key
+          }
+          //add the total count
+          val count = a.f2.get(key)
+          ret.f1 += count
+          //merge the count for each key
+          if (ret.f2.containsKey(key)) {
+            ret.f2.put(key, ret.f2.get(key) + count)
+          } else {
+            ret.f2.put(key, a.f2.get(key))
+          }
+        }
       }
       i += 1
     }

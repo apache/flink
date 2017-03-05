@@ -308,11 +308,7 @@ class DecimalAvgAggFunction extends AggregateFunction[BigDecimal] {
     if (value != null) {
       val v = value.asInstanceOf[BigDecimal]
       val accum = accumulator.asInstanceOf[DecimalAvgAccumulator]
-      if (accum.f1 == 0) {
-        accum.f0 = v
-      } else {
-        accum.f0 = accum.f0.add(v)
-      }
+      accum.f0 = accum.f0.add(v)
       accum.f1 += 1L
     }
   }
@@ -321,12 +317,11 @@ class DecimalAvgAggFunction extends AggregateFunction[BigDecimal] {
     if (value != null) {
       val v = value.asInstanceOf[BigDecimal]
       val accum = accumulator.asInstanceOf[DecimalAvgAccumulator]
-      if (accum.f1 == 0) {
-        accum.f0 = v
-      } else {
-        accum.f0 = accum.f0.subtract(v)
-      }
+      accum.f0 = accum.f0.subtract(v)
       accum.f1 -= 1L
+      if (accum.f1 == 0) {
+        accum.f0 = BigDecimal.ZERO
+      }
     }
   }
 
