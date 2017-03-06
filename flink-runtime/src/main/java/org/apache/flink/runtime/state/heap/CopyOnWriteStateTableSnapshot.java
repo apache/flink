@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state.heap;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -42,7 +43,9 @@ import java.io.IOException;
  * @param <N> type of namespace
  * @param <S> type of state
  */
-public class CopyOnWriteStateTableSnapshot<K, N, S> extends StateTableSnapshot<K, N, S, CopyOnWriteStateTable<K, N, S>> {
+@Internal
+public class CopyOnWriteStateTableSnapshot<K, N, S>
+		extends AbstractStateTableSnapshot<K, N, S, CopyOnWriteStateTable<K, N, S>> {
 
 	/**
 	 * Version of the {@link CopyOnWriteStateTable} when this snapshot was created. This can be used to release the snapshot.

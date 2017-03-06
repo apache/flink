@@ -17,6 +17,7 @@
  */
 package org.apache.flink.runtime.state.heap;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataOutputView;
@@ -38,6 +39,7 @@ import java.util.Map;
  * @param <N> type of namespace.
  * @param <S> type of state.
  */
+@Internal
 public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 
 	/**
@@ -278,7 +280,7 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 	 * @param <S> type of state.
 	 */
 	static class NestedMapsStateTableSnapshot<K, N, S>
-			extends StateTableSnapshot<K, N, S, NestedMapsStateTable<K, N, S>> {
+			extends AbstractStateTableSnapshot<K, N, S, NestedMapsStateTable<K, N, S>> {
 
 		NestedMapsStateTableSnapshot(NestedMapsStateTable<K, N, S> owningTable) {
 			super(owningTable);

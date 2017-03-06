@@ -336,8 +336,8 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	@SuppressWarnings({"unchecked"})
 	private void restorePartitionedState(Collection<KeyGroupsStateHandle> state) throws Exception {
 
+		final Map<Integer, String> kvStatesById = new HashMap<>();
 		int numRegisteredKvStates = 0;
-		Map<Integer, String> kvStatesById = new HashMap<>();
 		stateTables.clear();
 
 		for (KeyGroupsStateHandle keyGroupsHandle : state) {
@@ -385,12 +385,18 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					int writtenKeyGroupIndex = inView.readInt();
 
 					Preconditions.checkState(writtenKeyGroupIndex == keyGroupIndex,
-							"Unexpected keygroup in restore.");
+							"Unexpected key-group in restore.");
 
 					for (int i = 0; i < metaInfoList.size(); i++) {
 						int kvStateId = inView.readShort();
 						StateTable<K, ?, ?> stateTable = stateTables.get(kvStatesById.get(kvStateId));
-						stateTable.readMappingsInKeyGroup(inView, keyGroupIndex);
+
+						StateTableByKeyGroupReader keyGroupReader =
+								StateTableByKeyGroupReaders.readerForVersion(
+										stateTable,
+										serializationProxy.getRestoredVersion());
+
+						keyGroupReader.readMappingsInKeyGroup(inView, keyGroupIndex);
 					}
 				}
 			} finally {

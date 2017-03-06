@@ -18,28 +18,21 @@
 
 package org.apache.flink.runtime.state.heap;
 
-import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.core.memory.DataInputView;
 
 import java.io.IOException;
 
 /**
- * Interface for the snapshots of a {@link StateTable}. Offers a way to serialize the snapshot (by key-group). All
- * snapshots should be released after usage.
+ * Interface for state de-serialization into {@link StateTable}s by key-group.
  */
-interface StateTableSnapshot {
+interface StateTableByKeyGroupReader {
 
 	/**
-	 * Writes the data for the specified key-group to the output.
+	 * Read the data for the specified key-group from the input.
 	 *
-	 * @param dov the output
+	 * @param div        the input
 	 * @param keyGroupId the key-group to write
 	 * @throws IOException on write related problems
 	 */
-	void writeMappingsInKeyGroup(DataOutputView dov, int keyGroupId) throws IOException;
-
-	/**
-	 * Release the snapshot. All snapshots should be released when they are no longer used because some implementation
-	 * can only release resources after a release.
-	 */
-	void release();
+	void readMappingsInKeyGroup(DataInputView div, int keyGroupId) throws IOException;
 }

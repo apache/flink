@@ -20,11 +20,8 @@ package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.runtime.state.RegisteredBackendStateMetaInfo;
 import org.apache.flink.util.Preconditions;
-
-import java.io.IOException;
 
 /**
  * Base class for state tables. Accesses to state are typically scoped by the currently active key, as provided
@@ -56,7 +53,7 @@ public abstract class StateTable<K, N, S> {
 		this.metaInfo = Preconditions.checkNotNull(metaInfo);
 	}
 
-	// Main interface methods of StateTable ----------------------------------------------------------------------------
+	// Main interface methods of StateTable -------------------------------------------------------
 
 	/**
 	 * Returns whether this {@link NestedMapsStateTable} is empty.
@@ -132,7 +129,7 @@ public abstract class StateTable<K, N, S> {
 	 */
 	public abstract S removeAndGetOld(Object namespace);
 
-	// For queryable state --------------------------------------------------------------------------
+	// For queryable state ------------------------------------------------------------------------
 
 	/**
 	 * Returns the value for the composite of active key and given namespace. This is typically used by
@@ -145,11 +142,7 @@ public abstract class StateTable<K, N, S> {
 	 */
 	public abstract S get(Object key, Object namespace);
 
-	// For efficient restore ------------------------------------------------------------------------
-
-	public abstract void put(K key, int keyGroup, N namespace, S state);
-
-	// Meta data setter / getter and toString --------------------------------------------------------------------------
+	// Meta data setter / getter and toString -----------------------------------------------------
 
 	public TypeSerializer<S> getStateSerializer() {
 		return metaInfo.getStateSerializer();
@@ -167,25 +160,13 @@ public abstract class StateTable<K, N, S> {
 		this.metaInfo = metaInfo;
 	}
 
-	// Snapshotting -------------------------------------------------------------------------
+	// Snapshot / Restore -------------------------------------------------------------------------
 
-	public abstract StateTableSnapshot<K, N, S, ? extends StateTable<K, N, S>> createSnapshot();
+	abstract StateTableSnapshot createSnapshot();
 
-	void readMappingsInKeyGroup(DataInputView inView, int keyGroupId) throws IOException {
-		TypeSerializer<K> keySerializer = keyContext.getKeySerializer();
-		TypeSerializer<N> namespaceSerializer = getNamespaceSerializer();
-		TypeSerializer<S> stateSerializer = getStateSerializer();
+	public abstract void put(K key, int keyGroup, N namespace, S state);
 
-		int numKeys = inView.readInt();
-		for (int i = 0; i < numKeys; ++i) {
-			N namespace = namespaceSerializer.deserialize(inView);
-			K key = keySerializer.deserialize(inView);
-			S state = stateSerializer.deserialize(inView);
-			put(key, keyGroupId, namespace, state);
-		}
-	}
-
-	// for testing --------------------------------------------------------------------------
+	// For testing --------------------------------------------------------------------------------
 
 	@VisibleForTesting
 	public abstract int sizeOfNamespace(Object namespace);
