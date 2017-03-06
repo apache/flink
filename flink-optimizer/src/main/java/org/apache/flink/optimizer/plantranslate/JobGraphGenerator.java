@@ -1289,7 +1289,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		syncConfig.setNumberOfIterations(maxNumIterations);
 		
 		// connect the sync task
-		sync.connectNewDataSetAsInput(headVertex, DistributionPattern.POINTWISE);
+		sync.connectNewDataSetAsInput(headVertex, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 		
 		// ----------------------------- create the iteration tail ------------------------------
 		
@@ -1425,7 +1425,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 			syncConfig.setNumberOfIterations(maxNumIterations);
 			
 			// connect the sync task
-			sync.connectNewDataSetAsInput(headVertex, DistributionPattern.POINTWISE);
+			sync.connectNewDataSetAsInput(headVertex, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 		}
 		
 		// ----------------------------- create the iteration tails -----------------------------

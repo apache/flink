@@ -400,10 +400,6 @@ public class JobVertex implements java.io.Serializable {
 		return edge;
 	}
 
-	public JobEdge connectNewDataSetAsInput(JobVertex input, DistributionPattern distPattern) {
-		return connectNewDataSetAsInput(input, distPattern, ResultPartitionType.PIPELINED);
-	}
-
 	public JobEdge connectNewDataSetAsInput(
 			JobVertex input,
 			DistributionPattern distPattern,
