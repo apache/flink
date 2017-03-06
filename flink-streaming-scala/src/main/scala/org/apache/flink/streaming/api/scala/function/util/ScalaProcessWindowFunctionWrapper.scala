@@ -52,6 +52,10 @@ final class ScalaProcessWindowFunctionWrapper[IN, OUT, KEY, W <: Window](
       out: Collector[OUT]): Unit = {
     val ctx = new func.Context {
       override def window = context.window
+
+      override def windowState = context.windowState()
+
+      override def globalState = context.globalState()
     }
     func.process(key, ctx, elements.asScala, out)
   }
@@ -99,6 +103,10 @@ final class ScalaProcessAllWindowFunctionWrapper[IN, OUT, W <: Window](
       out: Collector[OUT]): Unit = {
     val ctx = new func.Context {
       override def window = context.window
+
+      override def windowState = context.windowState()
+
+      override def globalState = context.globalState()
     }
     func.process(ctx, elements.asScala, out)
   }

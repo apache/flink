@@ -19,6 +19,7 @@ package org.apache.flink.streaming.runtime.operators.windowing.functions;
 
 import org.apache.flink.api.common.functions.IterationRuntimeContext;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.java.operators.translation.WrappingFunction;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.windowing.windows.Window;
@@ -48,9 +49,65 @@ public final class InternalSingleValueProcessWindowFunction<IN, OUT, KEY, W exte
 			public W window() {
 				return window;
 			}
+
+			@Override
+			public KeyedStateStore windowState() {
+				throw new RuntimeException("This should never be called");
+			}
+
+			@Override
+			public KeyedStateStore globalState() {
+				throw new RuntimeException("This should never be called");
+			}
 		};
 
 		wrappedFunction.process(key, context, Collections.singletonList(input), out);
+	}
+
+	@Override
+	public void process(KEY key, final W window, final InternalWindowContext context, IN input, Collector<OUT> out) throws Exception {
+		ProcessWindowFunction<IN, OUT, KEY, W> wrappedFunction = this.wrappedFunction;
+		ProcessWindowFunction<IN, OUT, KEY, W>.Context ctx = wrappedFunction.new Context() {
+			@Override
+			public W window() {
+				return window;
+			}
+
+			@Override
+			public KeyedStateStore windowState() {
+				return context.windowState();
+			}
+
+			@Override
+			public KeyedStateStore globalState() {
+				return context.globalState();
+			}
+		};
+
+		wrappedFunction.process(key, ctx, Collections.singletonList(input), out);
+	}
+
+	@Override
+	public void clear(final W window, final InternalWindowContext context) throws Exception {
+		ProcessWindowFunction<IN, OUT, KEY, W> wrappedFunction = this.wrappedFunction;
+		ProcessWindowFunction<IN, OUT, KEY, W>.Context ctx = wrappedFunction.new Context() {
+			@Override
+			public W window() {
+				return window;
+			}
+
+			@Override
+			public KeyedStateStore windowState() {
+				return context.windowState();
+			}
+
+			@Override
+			public KeyedStateStore globalState() {
+				return context.globalState();
+			}
+		};
+
+		wrappedFunction.clear(ctx);
 	}
 
 	@Override

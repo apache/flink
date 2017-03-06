@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.operators.windowing.functions;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.IterationRuntimeContext;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.java.operators.translation.WrappingFunction;
 import org.apache.flink.streaming.api.functions.windowing.ProcessAllWindowFunction;
 import org.apache.flink.streaming.api.windowing.windows.Window;
@@ -60,6 +61,16 @@ public final class InternalAggregateProcessAllWindowFunction<T, ACC, V, R, W ext
 			public W window() {
 				return window;
 			}
+
+			@Override
+			public KeyedStateStore windowState() {
+				throw new RuntimeException("This should never be called");
+			}
+
+			@Override
+			public KeyedStateStore globalState() {
+				throw new RuntimeException("This should never be called");
+			}
 		};
 
 		final ACC acc = aggFunction.createAccumulator();
@@ -69,6 +80,58 @@ public final class InternalAggregateProcessAllWindowFunction<T, ACC, V, R, W ext
 		}
 
 		wrappedFunction.process(context, Collections.singletonList(aggFunction.getResult(acc)), out);
+	}
+
+	@Override
+	public void process(Byte aByte, final W window, final InternalWindowContext context, Iterable<T> input, Collector<R> out) throws Exception {
+		ProcessAllWindowFunction<V, R, W> wrappedFunction = this.wrappedFunction;
+		final ProcessAllWindowFunction<V, R, W>.Context ctx = wrappedFunction.new Context() {
+			@Override
+			public W window() {
+				return window;
+			}
+
+			@Override
+			public KeyedStateStore windowState() {
+				return context.windowState();
+			}
+
+			@Override
+			public KeyedStateStore globalState() {
+				return context.globalState();
+			}
+		};
+
+		final ACC acc = aggFunction.createAccumulator();
+
+		for (T val : input) {
+			aggFunction.add(val, acc);
+		}
+
+		wrappedFunction.process(ctx, Collections.singletonList(aggFunction.getResult(acc)), out);
+	}
+
+	@Override
+	public void clear(final W window, final InternalWindowContext context) throws Exception {
+		ProcessAllWindowFunction<V, R, W> wrappedFunction = this.wrappedFunction;
+		final ProcessAllWindowFunction<V, R, W>.Context ctx = wrappedFunction.new Context() {
+			@Override
+			public W window() {
+				return window;
+			}
+
+			@Override
+			public KeyedStateStore windowState() {
+				return context.windowState();
+			}
+
+			@Override
+			public KeyedStateStore globalState() {
+				return context.globalState();
+			}
+		};
+
+		wrappedFunction.clear(ctx);
 	}
 
 	@Override

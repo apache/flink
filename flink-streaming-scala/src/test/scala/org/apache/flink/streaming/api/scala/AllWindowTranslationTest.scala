@@ -371,6 +371,8 @@ class AllWindowTranslationTest {
                                out: Collector[(String, Int)]): Unit = {
             elements foreach ( x => out.collect(x))
           }
+
+          override def clear(context: Context): Unit = {}
         })
 
     val transform = window1
@@ -410,6 +412,8 @@ class AllWindowTranslationTest {
               context: Context,
               input: Iterable[(String, Int)],
               out: Collector[(String, Int)]): Unit = input foreach ( x => out.collect(x))
+
+          override def clear(context: Context): Unit = {}
         })
 
     val transform = window1
@@ -950,6 +954,8 @@ class AllWindowTranslationTest {
               context: Context,
               input: Iterable[(String, String, Int)],
               out: Collector[(String, Int)]): Unit = input foreach {x => out.collect((x._1, x._3))}
+
+          override def clear(context: Context): Unit = {}
         })
 
     val transform = window1
@@ -991,6 +997,8 @@ class AllWindowTranslationTest {
               context: Context,
               input: Iterable[(String, String, Int)],
               out: Collector[(String, Int)]): Unit = input foreach {x => out.collect((x._1, x._3))}
+
+          override def clear(context: Context): Unit = {}
         })
 
     val transform = window1
@@ -1192,6 +1200,8 @@ class AllWindowTranslationTest {
               context: Context,
               input: Iterable[(String, Int)],
               out: Collector[(String, Int)]): Unit = input foreach {x => out.collect((x._1, x._2))}
+
+          override def clear(context: Context): Unit = {}
         })
 
     val transform = window1
@@ -1231,6 +1241,8 @@ class AllWindowTranslationTest {
               context: Context,
               input: Iterable[(String, Int)],
               out: Collector[(String, Int)]): Unit = input foreach {x => out.collect((x._1, x._2))}
+
+          override def clear(context: Context): Unit = {}
         })
 
     val transform = window1
@@ -1415,6 +1427,8 @@ class AllWindowTranslationTest {
               context: Context,
               input: Iterable[(String, Int)],
               out: Collector[(String, Int)]): Unit = input foreach {x => out.collect((x._1, x._2))}
+
+          override def clear(context: Context): Unit = {}
         })
 
     val transform = window1
@@ -1572,6 +1586,8 @@ class AllWindowTranslationTest {
               context: Context,
               input: Iterable[(String, Int)],
               out: Collector[(String, Int)]): Unit = input foreach {x => out.collect((x._1, x._2))}
+
+          override def clear(context: Context): Unit = {}
         })
 
     val transform = window1
@@ -1650,4 +1666,6 @@ class TestProcessAllWindowFunction
 
     input.foreach(out.collect)
   }
+
+  override def clear(context: Context): Unit = {}
 }

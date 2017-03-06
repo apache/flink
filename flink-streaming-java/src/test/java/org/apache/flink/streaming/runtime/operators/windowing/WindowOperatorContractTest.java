@@ -24,6 +24,7 @@ import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.state.AppendingState;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
+import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.StateDescriptor;
@@ -163,6 +164,10 @@ public class WindowOperatorContractTest extends TestLogger {
 	}
 
 	static TimeWindow anyTimeWindow() {
+		return Mockito.any();
+	}
+
+	static InternalWindowFunction.InternalWindowContext anyWindowContext() {
 		return Mockito.any();
 	}
 
@@ -342,9 +347,9 @@ public class WindowOperatorContractTest extends TestLogger {
 
 		testHarness.processElement(new StreamRecord<>(0, 0L));
 
-		verify(mockWindowFunction, times(2)).apply(eq(0), anyTimeWindow(), anyIntIterable(), WindowOperatorContractTest.<Void>anyCollector());
-		verify(mockWindowFunction, times(1)).apply(eq(0), eq(new TimeWindow(0, 2)), intIterable(0), WindowOperatorContractTest.<Void>anyCollector());
-		verify(mockWindowFunction, times(1)).apply(eq(0), eq(new TimeWindow(2, 4)), intIterable(0), WindowOperatorContractTest.<Void>anyCollector());
+		verify(mockWindowFunction, times(2)).process(eq(0), anyTimeWindow(), anyWindowContext(), anyIntIterable(), WindowOperatorContractTest.<Void>anyCollector());
+		verify(mockWindowFunction, times(1)).process(eq(0), eq((new TimeWindow(0, 2))), anyWindowContext(), intIterable(0), WindowOperatorContractTest.<Void>anyCollector());
+		verify(mockWindowFunction, times(1)).process(eq(0), eq(new TimeWindow(2, 4)), anyWindowContext(), intIterable(0), WindowOperatorContractTest.<Void>anyCollector());
 	}
 
 	@Test
@@ -389,9 +394,9 @@ public class WindowOperatorContractTest extends TestLogger {
 
 		testHarness.processElement(new StreamRecord<>(0, 0L));
 
-		verify(mockWindowFunction, times(2)).apply(anyInt(), anyTimeWindow(), anyIntIterable(), WindowOperatorContractTest.<Void>anyCollector());
-		verify(mockWindowFunction, times(1)).apply(eq(0), eq(new TimeWindow(0, 2)), intIterable(0, 0), WindowOperatorContractTest.<Void>anyCollector());
-		verify(mockWindowFunction, times(1)).apply(eq(1), eq(new TimeWindow(0, 1)), intIterable(1, 1), WindowOperatorContractTest.<Void>anyCollector());
+		verify(mockWindowFunction, times(2)).process(anyInt(), anyTimeWindow(), anyWindowContext(), anyIntIterable(), WindowOperatorContractTest.<Void>anyCollector());
+		verify(mockWindowFunction, times(1)).process(eq(0), eq(new TimeWindow(0, 2)), anyWindowContext(), intIterable(0, 0), WindowOperatorContractTest.<Void>anyCollector());
+		verify(mockWindowFunction, times(1)).process(eq(1), eq(new TimeWindow(0, 1)), anyWindowContext(), intIterable(1, 1), WindowOperatorContractTest.<Void>anyCollector());
 	}
 
 	@Test
@@ -452,9 +457,9 @@ public class WindowOperatorContractTest extends TestLogger {
 
 		testHarness.processElement(new StreamRecord<>(1, 0L));
 
-		verify(mockWindowFunction, times(2)).apply(eq(1), anyTimeWindow(), anyInt(), WindowOperatorContractTest.<Void>anyCollector());
-		verify(mockWindowFunction, times(1)).apply(eq(1), eq(new TimeWindow(0, 2)), eq(3), WindowOperatorContractTest.<Void>anyCollector());
-		verify(mockWindowFunction, times(1)).apply(eq(1), eq(new TimeWindow(2, 4)), eq(3), WindowOperatorContractTest.<Void>anyCollector());
+		verify(mockWindowFunction, times(2)).process(eq(1), anyTimeWindow(), anyWindowContext(), anyInt(), WindowOperatorContractTest.<Void>anyCollector());
+		verify(mockWindowFunction, times(1)).process(eq(1), eq(new TimeWindow(0, 2)), anyWindowContext(), eq(3), WindowOperatorContractTest.<Void>anyCollector());
+		verify(mockWindowFunction, times(1)).process(eq(1), eq(new TimeWindow(2, 4)), anyWindowContext(), eq(3), WindowOperatorContractTest.<Void>anyCollector());
 
 		// clear is only called at cleanup time/GC time
 		verify(mockTrigger, never()).clear(anyTimeWindow(), anyTriggerContext());
@@ -499,9 +504,9 @@ public class WindowOperatorContractTest extends TestLogger {
 
 		testHarness.processElement(new StreamRecord<>(1, 0L));
 
-		verify(mockWindowFunction, times(2)).apply(eq(1), anyTimeWindow(), anyInt(), WindowOperatorContractTest.<Void>anyCollector());
-		verify(mockWindowFunction, times(1)).apply(eq(1), eq(new TimeWindow(0, 2)), eq(3), WindowOperatorContractTest.<Void>anyCollector());
-		verify(mockWindowFunction, times(1)).apply(eq(1), eq(new TimeWindow(2, 4)), eq(3), WindowOperatorContractTest.<Void>anyCollector());
+		verify(mockWindowFunction, times(2)).process(eq(1), anyTimeWindow(), anyWindowContext(), anyInt(), WindowOperatorContractTest.<Void>anyCollector());
+		verify(mockWindowFunction, times(1)).process(eq(1), eq(new TimeWindow(0, 2)), anyWindowContext(), eq(3), WindowOperatorContractTest.<Void>anyCollector());
+		verify(mockWindowFunction, times(1)).process(eq(1), eq(new TimeWindow(2, 4)), anyWindowContext(), eq(3), WindowOperatorContractTest.<Void>anyCollector());
 
 		// clear is only called at cleanup time/GC time
 		verify(mockTrigger, never()).clear(anyTimeWindow(), anyTriggerContext());
@@ -537,16 +542,16 @@ public class WindowOperatorContractTest extends TestLogger {
 			@Override
 			public Void answer(InvocationOnMock invocation) throws Exception {
 				@SuppressWarnings("unchecked")
-				Collector<String> out = invocation.getArgumentAt(3, Collector.class);
+				Collector<String> out = invocation.getArgumentAt(4, Collector.class);
 				out.collect("Hallo");
 				out.collect("Ciao");
 				return null;
 			}
-		}).when(mockWindowFunction).apply(eq(0), eq(new TimeWindow(0, 2)), intIterable(0), WindowOperatorContractTest.<String>anyCollector());
+		}).when(mockWindowFunction).process(eq(0), eq(new TimeWindow(0, 2)), anyWindowContext(), intIterable(0), WindowOperatorContractTest.<String>anyCollector());
 
 		testHarness.processElement(new StreamRecord<>(0, 0L));
 
-		verify(mockWindowFunction, times(1)).apply(eq(0), eq(new TimeWindow(0, 2)), intIterable(0), WindowOperatorContractTest.<String>anyCollector());
+		verify(mockWindowFunction, times(1)).process(eq(0), eq(new TimeWindow(0, 2)), anyWindowContext(), intIterable(0), WindowOperatorContractTest.<String>anyCollector());
 
 		assertThat(testHarness.extractOutputStreamRecords(),
 				containsInAnyOrder(isStreamRecord("Hallo", 1L), isStreamRecord("Ciao", 1L)));
@@ -581,25 +586,25 @@ public class WindowOperatorContractTest extends TestLogger {
 			@Override
 			public Void answer(InvocationOnMock invocation) throws Exception {
 				@SuppressWarnings("unchecked")
-				Collector<String> out = invocation.getArgumentAt(3, Collector.class);
+				Collector<String> out = invocation.getArgumentAt(4, Collector.class);
 				out.collect("Hallo");
 				out.collect("Ciao");
 				return null;
 			}
-		}).when(mockWindowFunction).apply(eq(0), eq(new TimeWindow(0, 2)), intIterable(0), WindowOperatorContractTest.<String>anyCollector());
+		}).when(mockWindowFunction).process(eq(0), eq(new TimeWindow(0, 2)), anyWindowContext(), intIterable(0), WindowOperatorContractTest.<String>anyCollector());
 
 		timeAdaptor.shouldRegisterTimerOnElement(mockTrigger, 1);
 
 		testHarness.processElement(new StreamRecord<>(0, 0L));
 
-		verify(mockWindowFunction, never()).apply(anyInt(), anyTimeWindow(), anyIntIterable(), WindowOperatorContractTest.<String>anyCollector());
+		verify(mockWindowFunction, never()).process(anyInt(), anyTimeWindow(), anyWindowContext(), anyIntIterable(), WindowOperatorContractTest.<String>anyCollector());
 		assertTrue(testHarness.extractOutputStreamRecords().isEmpty());
 
 		timeAdaptor.shouldFireOnTime(mockTrigger);
 
 		timeAdaptor.advanceTime(testHarness, 1L);
 
-		verify(mockWindowFunction, times(1)).apply(eq(0), eq(new TimeWindow(0, 2)), intIterable(0), WindowOperatorContractTest.<String>anyCollector());
+		verify(mockWindowFunction, times(1)).process(eq(0), eq(new TimeWindow(0, 2)), anyWindowContext(), intIterable(0), WindowOperatorContractTest.<String>anyCollector());
 
 		assertThat(testHarness.extractOutputStreamRecords(),
 				containsInAnyOrder(isStreamRecord("Hallo", 1L), isStreamRecord("Ciao", 1L)));
@@ -678,9 +683,9 @@ public class WindowOperatorContractTest extends TestLogger {
 
 		testHarness.processElement(new StreamRecord<>(0, 0L));
 
-		verify(mockWindowFunction, times(2)).apply(eq(0), anyTimeWindow(), anyIntIterable(), WindowOperatorContractTest.<Void>anyCollector());
-		verify(mockWindowFunction, times(1)).apply(eq(0), eq(new TimeWindow(0, 2)), intIterable(0), WindowOperatorContractTest.<Void>anyCollector());
-		verify(mockWindowFunction, times(1)).apply(eq(0), eq(new TimeWindow(2, 4)), intIterable(0), WindowOperatorContractTest.<Void>anyCollector());
+		verify(mockWindowFunction, times(2)).process(eq(0), anyTimeWindow(), anyWindowContext(), anyIntIterable(), WindowOperatorContractTest.<Void>anyCollector());
+		verify(mockWindowFunction, times(1)).process(eq(0), eq(new TimeWindow(0, 2)), anyWindowContext(), intIterable(0), WindowOperatorContractTest.<Void>anyCollector());
+		verify(mockWindowFunction, times(1)).process(eq(0), eq(new TimeWindow(2, 4)), anyWindowContext(), intIterable(0), WindowOperatorContractTest.<Void>anyCollector());
 
 		// clear is only called at cleanup time/GC time
 		verify(mockTrigger, never()).clear(anyTimeWindow(), anyTriggerContext());
@@ -721,9 +726,9 @@ public class WindowOperatorContractTest extends TestLogger {
 
 		testHarness.processElement(new StreamRecord<>(0, 0L));
 
-		verify(mockWindowFunction, times(2)).apply(eq(0), anyTimeWindow(), anyIntIterable(), WindowOperatorContractTest.<Void>anyCollector());
-		verify(mockWindowFunction, times(1)).apply(eq(0), eq(new TimeWindow(0, 2)), intIterable(0), WindowOperatorContractTest.<Void>anyCollector());
-		verify(mockWindowFunction, times(1)).apply(eq(0), eq(new TimeWindow(2, 4)), intIterable(0), WindowOperatorContractTest.<Void>anyCollector());
+		verify(mockWindowFunction, times(2)).process(eq(0), anyTimeWindow(), anyWindowContext(), anyIntIterable(), WindowOperatorContractTest.<Void>anyCollector());
+		verify(mockWindowFunction, times(1)).process(eq(0), eq(new TimeWindow(0, 2)), anyWindowContext(), intIterable(0), WindowOperatorContractTest.<Void>anyCollector());
+		verify(mockWindowFunction, times(1)).process(eq(0), eq(new TimeWindow(2, 4)), anyWindowContext(), intIterable(0), WindowOperatorContractTest.<Void>anyCollector());
 
 		// clear is only called at cleanup time/GC time
 		verify(mockTrigger, never()).clear(anyTimeWindow(), anyTriggerContext());
@@ -886,9 +891,9 @@ public class WindowOperatorContractTest extends TestLogger {
 
 		timeAdaptor.advanceTime(testHarness, 0L);
 
-		verify(mockWindowFunction, times(2)).apply(eq(0), anyTimeWindow(), anyIntIterable(), WindowOperatorContractTest.<Void>anyCollector());
-		verify(mockWindowFunction, times(1)).apply(eq(0), eq(new TimeWindow(0, 2)), intIterable(0), WindowOperatorContractTest.<Void>anyCollector());
-		verify(mockWindowFunction, times(1)).apply(eq(0), eq(new TimeWindow(2, 4)), intIterable(0), WindowOperatorContractTest.<Void>anyCollector());
+		verify(mockWindowFunction, times(2)).process(eq(0), anyTimeWindow(), anyWindowContext(), anyIntIterable(), WindowOperatorContractTest.<Void>anyCollector());
+		verify(mockWindowFunction, times(1)).process(eq(0), eq(new TimeWindow(0, 2)), anyWindowContext(), intIterable(0), WindowOperatorContractTest.<Void>anyCollector());
+		verify(mockWindowFunction, times(1)).process(eq(0), eq(new TimeWindow(2, 4)), anyWindowContext(), intIterable(0), WindowOperatorContractTest.<Void>anyCollector());
 
 		// clear is only called at cleanup time/GC time
 		verify(mockTrigger, never()).clear(anyTimeWindow(), anyTriggerContext());
@@ -947,9 +952,9 @@ public class WindowOperatorContractTest extends TestLogger {
 
 		timeAdaptor.advanceTime(testHarness, 0L);
 
-		verify(mockWindowFunction, times(2)).apply(eq(0), anyTimeWindow(), anyIntIterable(), WindowOperatorContractTest.<Void>anyCollector());
-		verify(mockWindowFunction, times(1)).apply(eq(0), eq(new TimeWindow(0, 2)), intIterable(0), WindowOperatorContractTest.<Void>anyCollector());
-		verify(mockWindowFunction, times(1)).apply(eq(0), eq(new TimeWindow(2, 4)), intIterable(0), WindowOperatorContractTest.<Void>anyCollector());
+		verify(mockWindowFunction, times(2)).process(eq(0), anyTimeWindow(), anyWindowContext(), anyIntIterable(), WindowOperatorContractTest.<Void>anyCollector());
+		verify(mockWindowFunction, times(1)).process(eq(0), eq(new TimeWindow(0, 2)), anyWindowContext(), intIterable(0), WindowOperatorContractTest.<Void>anyCollector());
+		verify(mockWindowFunction, times(1)).process(eq(0), eq(new TimeWindow(2, 4)), anyWindowContext(), intIterable(0), WindowOperatorContractTest.<Void>anyCollector());
 
 		// clear is only called at cleanup time/GC time
 		verify(mockTrigger, never()).clear(anyTimeWindow(), anyTriggerContext());
@@ -1078,7 +1083,7 @@ public class WindowOperatorContractTest extends TestLogger {
 		timeAdaptor.verifyTriggerCallback(mockTrigger, never(), null, null);
 
 		verify(mockWindowFunction, never())
-				.apply(anyInt(), anyTimeWindow(), anyIntIterable(), WindowOperatorContractTest.<List<Integer>>anyCollector());
+				.process(anyInt(), anyTimeWindow(), anyWindowContext(), anyIntIterable(), WindowOperatorContractTest.<List<Integer>>anyCollector());
 
 		assertEquals(1, timeAdaptor.numTimers(testHarness)); // only gc timers left
 	}
@@ -1142,7 +1147,7 @@ public class WindowOperatorContractTest extends TestLogger {
 		timeAdaptor.verifyTriggerCallback(mockTrigger, never(), null, null);
 
 		verify(mockWindowFunction, never())
-				.apply(anyInt(), anyTimeWindow(), anyIntIterable(), WindowOperatorContractTest.<List<Integer>>anyCollector());
+				.process(anyInt(), anyTimeWindow(), anyWindowContext(), anyIntIterable(), WindowOperatorContractTest.<List<Integer>>anyCollector());
 
 		assertEquals(1, timeAdaptor.numTimers(testHarness)); // only gc timers left
 	}
@@ -1215,7 +1220,7 @@ public class WindowOperatorContractTest extends TestLogger {
 		timeAdaptor.verifyTriggerCallback(mockTrigger, times(1), null, null);
 
 		verify(mockWindowFunction, never())
-				.apply(anyInt(), anyTimeWindow(), anyIntIterable(), WindowOperatorContractTest.<List<Integer>>anyCollector());
+				.process(anyInt(), anyTimeWindow(), anyWindowContext(), anyIntIterable(), WindowOperatorContractTest.<List<Integer>>anyCollector());
 
 		// now we trigger the dangling timer
 		timeAdaptor.advanceTime(testHarness, 10L);
@@ -2161,7 +2166,7 @@ public class WindowOperatorContractTest extends TestLogger {
 
 		testHarness.processElement(new StreamRecord<>(0, 0L));
 
-		verify(mockWindowFunction, times(1)).apply(eq(0), eq(new TimeWindow(0, 2)), intIterable(0), WindowOperatorContractTest.<Void>anyCollector());
+		verify(mockWindowFunction, times(1)).process(eq(0), eq(new TimeWindow(0, 2)), anyWindowContext(), intIterable(0), WindowOperatorContractTest.<Void>anyCollector());
 
 		// clear is only called at cleanup time/GC time
 		verify(mockTrigger, never()).clear(anyTimeWindow(), anyTriggerContext());
@@ -2284,9 +2289,9 @@ public class WindowOperatorContractTest extends TestLogger {
 
 		verify(mockTrigger, times(2)).clear(anyTimeWindow(), anyTriggerContext());
 
-		verify(mockWindowFunction, times(2)).apply(eq(0), anyTimeWindow(), anyIntIterable(), WindowOperatorContractTest.<Void>anyCollector());
-		verify(mockWindowFunction, times(1)).apply(eq(0), eq(new TimeWindow(0, 2)), intIterable(0), WindowOperatorContractTest.<Void>anyCollector());
-		verify(mockWindowFunction, times(1)).apply(eq(0), eq(new TimeWindow(2, 4)), intIterable(0), WindowOperatorContractTest.<Void>anyCollector());
+		verify(mockWindowFunction, times(2)).process(eq(0), anyTimeWindow(), anyWindowContext(), anyIntIterable(), WindowOperatorContractTest.<Void>anyCollector());
+		verify(mockWindowFunction, times(1)).process(eq(0), eq(new TimeWindow(0, 2)), anyWindowContext(), intIterable(0), WindowOperatorContractTest.<Void>anyCollector());
+		verify(mockWindowFunction, times(1)).process(eq(0), eq(new TimeWindow(2, 4)), anyWindowContext(), intIterable(0), WindowOperatorContractTest.<Void>anyCollector());
 
 		// it's also called for the cleanup timers
 		verify(mockTrigger, times(4)).onEventTime(anyLong(), anyTimeWindow(), anyTriggerContext());
@@ -2295,6 +2300,94 @@ public class WindowOperatorContractTest extends TestLogger {
 
 		assertEquals(0, testHarness.numKeyedStateEntries());
 		assertEquals(0, testHarness.numEventTimeTimers());
+	}
+
+	@Test
+	public void testWindowPaneStateSetAndClearedOnEventTimePurge() throws Exception {
+		testWindowPaneStateSetAndClearedOnPurge(new EventTimeAdaptor());
+	}
+
+	@Test
+	public void testWindowPaneStateSetAndClearedOnProcessingTimePurge() throws Exception {
+		testWindowPaneStateSetAndClearedOnPurge(new ProcessingTimeAdaptor());
+	}
+
+	public void testWindowPaneStateSetAndClearedOnPurge(TimeDomainAdaptor timeAdaptor) throws Exception {
+		WindowAssigner<Integer, TimeWindow> mockAssigner = mockTimeWindowAssigner();
+		timeAdaptor.setIsEventTime(mockAssigner);
+		Trigger<Integer, TimeWindow> mockTrigger = mockTrigger();
+		InternalWindowFunction<Iterable<Integer>, Void, Integer, TimeWindow> mockWindowFunction = mockWindowFunction();
+
+		KeyedOneInputStreamOperatorTestHarness<Integer, Integer, Void> testHarness =
+			createWindowOperator(mockAssigner, mockTrigger, 20L, intListDescriptor, mockWindowFunction);
+
+		testHarness.open();
+
+		when(mockTrigger.onElement(anyInt(), anyLong(), anyTimeWindow(), anyTriggerContext()))
+			.thenReturn(TriggerResult.FIRE);
+
+		when(mockAssigner.assignWindows(anyInt(), anyLong(), anyAssignerContext()))
+			.thenReturn(Arrays.asList(new TimeWindow(0, 20)));
+
+		doAnswer(new Answer<Object>() {
+			@Override
+			public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+				InternalWindowFunction.InternalWindowContext context = (InternalWindowFunction.InternalWindowContext)invocationOnMock.getArguments()[2];
+				context.windowState().getState(valueStateDescriptor).update("hello");
+				return null;
+			}
+		}).when(mockWindowFunction).process(anyInt(), anyTimeWindow(), anyWindowContext(), anyIntIterable(), WindowOperatorContractTest.<Void>anyCollector());
+
+		doAnswer(new Answer<Object>() {
+			@Override
+			public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+				InternalWindowFunction.InternalWindowContext context = (InternalWindowFunction.InternalWindowContext)invocationOnMock.getArguments()[1];
+				context.windowState().getState(valueStateDescriptor).clear();
+				return null;
+			}
+		}).when(mockWindowFunction).clear(anyTimeWindow(), anyWindowContext());
+
+		assertEquals(0, testHarness.getOutput().size());
+		assertEquals(0, testHarness.numKeyedStateEntries());
+
+		testHarness.processElement(new StreamRecord<>(0, 0L));
+
+		assertEquals(2, testHarness.numKeyedStateEntries()); // window contents plus value state
+		assertEquals(1, timeAdaptor.numTimers(testHarness)); // gc timers
+
+		timeAdaptor.advanceTime(testHarness, 19 + 20); // 19 is maxTime of the window
+
+		assertEquals(0, testHarness.numKeyedStateEntries());
+		assertEquals(0, timeAdaptor.numTimers(testHarness));
+	}
+
+	@Test(expected = RuntimeException.class)
+	public void testWindowStateNotAvailableToMergingWindows() throws Exception {
+		WindowAssigner<Integer, TimeWindow> mockAssigner = mockMergingAssigner();
+		Trigger<Integer, TimeWindow> mockTrigger = mockTrigger();
+		InternalWindowFunction<Iterable<Integer>, Void, Integer, TimeWindow> mockWindowFunction = mockWindowFunction();
+
+		KeyedOneInputStreamOperatorTestHarness<Integer, Integer, Void> testHarness =
+			createWindowOperator(mockAssigner, mockTrigger, 20L, intListDescriptor, mockWindowFunction);
+
+		testHarness.open();
+
+		when(mockTrigger.onElement(anyInt(), anyLong(), anyTimeWindow(), anyTriggerContext()))
+			.thenReturn(TriggerResult.FIRE);
+
+		when(mockAssigner.assignWindows(anyInt(), anyLong(), anyAssignerContext()))
+			.thenReturn(Arrays.asList(new TimeWindow(0, 20)));
+
+		doAnswer(new Answer<Object>() {
+			@Override
+			public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+				InternalWindowFunction.InternalWindowContext context = (InternalWindowFunction.InternalWindowContext)invocationOnMock.getArguments()[2];
+				context.windowState().getState(valueStateDescriptor).update("hello");
+				return null;
+			}
+		}).when(mockWindowFunction).process(anyInt(), anyTimeWindow(), anyWindowContext(), anyIntIterable(), WindowOperatorContractTest.<Void>anyCollector());
+
+		testHarness.processElement(new StreamRecord<>(0, 0L));
 	}
 
 	private <W extends Window, ACC, OUT> KeyedOneInputStreamOperatorTestHarness<Integer, Integer, OUT> createWindowOperator(

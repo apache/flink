@@ -23,8 +23,16 @@ import org.apache.commons.math3.util.ArithmeticUtils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.AppendingState;
+import org.apache.flink.api.common.state.FoldingState;
+import org.apache.flink.api.common.state.FoldingStateDescriptor;
+import org.apache.flink.api.common.state.KeyedStateStore;
+import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.MapState;
+import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.MergingState;
+import org.apache.flink.api.common.state.ReducingState;
+import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
@@ -153,6 +161,8 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 	protected transient Context context = new Context(null, null);
 
+	protected transient WindowContext windowContext = new WindowContext(null);
+
 	protected transient WindowAssigner.WindowAssignerContext windowAssignerContext;
 
 	// ------------------------------------------------------------------------
@@ -254,6 +264,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 				getInternalTimerService("window-timers", windowSerializer, this);
 
 		context = new Context(null, null);
+		windowContext = new WindowContext( null);
 
 		windowAssignerContext = new WindowAssigner.WindowAssignerContext() {
 			@Override
@@ -307,6 +318,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		super.close();
 		timestampedCollector = null;
 		context = null;
+		windowContext = null;
 		windowAssignerContext = null;
 	}
 
@@ -315,6 +327,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		super.dispose();
 		timestampedCollector = null;
 		context = null;
+		windowContext = null;
 		windowAssignerContext = null;
 	}
 
@@ -530,6 +543,8 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 			MergingWindowSet<W> mergingWindows) throws Exception {
 		windowState.clear();
 		context.clear();
+		windowContext.window = window;
+		windowContext.clear();
 		if (mergingWindows != null) {
 			mergingWindows.retireWindow(window);
 			mergingWindows.persist();
@@ -542,7 +557,8 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	@SuppressWarnings("unchecked")
 	private void emitWindowContents(W window, ACC contents) throws Exception {
 		timestampedCollector.setAbsoluteTimestamp(window.maxTimestamp());
-		userFunction.apply(context.key, context.window, contents, timestampedCollector);
+		windowContext.window = window;
+		userFunction.process(context.key, window, windowContext, contents, timestampedCollector);
 	}
 
 	/**
@@ -626,6 +642,135 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	 */
 	protected final boolean isCleanupTime(W window, long time) {
 		return time == cleanupTime(window);
+	}
+
+	/**
+	 * For now keyed state is not allowed in ProcessWindowFunctions
+	 */
+	public class MergingKeyStore implements KeyedStateStore {
+
+		protected W window;
+
+		@Override
+		public <T> ValueState<T> getState(ValueStateDescriptor<T> stateProperties) {
+			throw new RuntimeException("keyedState is not allowed in merging windows");
+		}
+
+		@Override
+		public <T> ListState<T> getListState(ListStateDescriptor<T> stateProperties) {
+			throw new RuntimeException("keyedState is not allowed in merging windows");
+		}
+
+		@Override
+		public <T> ReducingState<T> getReducingState(ReducingStateDescriptor<T> stateProperties) {
+			throw new RuntimeException("keyedState is not allowed in merging windows");
+		}
+
+		@Override
+		public <T, A> FoldingState<T, A> getFoldingState(FoldingStateDescriptor<T, A> stateProperties) {
+			throw new RuntimeException("keyedState is not allowed in merging windows");
+		}
+
+		@Override
+		public <UK, UV> MapState<UK, UV> getMapState(MapStateDescriptor<UK, UV> stateProperties) {
+			throw new RuntimeException("keyedState is not allowed in merging windows");
+		}
+	}
+
+	public class WindowPaneKeyStore implements KeyedStateStore {
+
+		protected W window;
+
+		@Override
+		public <T> ValueState<T> getState(ValueStateDescriptor<T> stateProperties) {
+			try {
+				return WindowOperator.this.getPartitionedState(window, windowSerializer, stateProperties);
+			} catch (Exception e) {
+				throw new RuntimeException("Could not retrieve state", e);
+			}
+		}
+
+		@Override
+		public <T> ListState<T> getListState(ListStateDescriptor<T> stateProperties) {
+			try {
+				return WindowOperator.this.getPartitionedState(window, windowSerializer, stateProperties);
+			} catch (Exception e) {
+				throw new RuntimeException("Could not retrieve state", e);
+			}
+		}
+
+		@Override
+		public <T> ReducingState<T> getReducingState(ReducingStateDescriptor<T> stateProperties) {
+			try {
+				return WindowOperator.this.getPartitionedState(window, windowSerializer, stateProperties);
+			} catch (Exception e) {
+				throw new RuntimeException("Could not retrieve state", e);
+			}
+		}
+
+		@Override
+		public <T, ACC> FoldingState<T, ACC> getFoldingState(FoldingStateDescriptor<T, ACC> stateProperties) {
+			try {
+				return WindowOperator.this.getPartitionedState(window, windowSerializer, stateProperties);
+			} catch (Exception e) {
+				throw new RuntimeException("Could not retrieve state", e);
+			}
+		}
+
+		@Override
+		public <UK, UV> MapState<UK, UV> getMapState(MapStateDescriptor<UK, UV> stateProperties) {
+			try {
+				return WindowOperator.this.getPartitionedState(window, windowSerializer, stateProperties);
+			} catch (Exception e) {
+				throw new RuntimeException("Could not retrieve state", e);
+			}
+		}
+	}
+
+	/**
+	 * {@code WindowContext} is a utility for handling {@code ProcessWindowFunction} invocations. It can be reused
+	 * by setting the {@code key} and {@code window} fields. No internal state must be kept in
+	 * the {@code WindowContext}
+	 */
+	public class WindowContext implements InternalWindowFunction.InternalWindowContext {
+		protected W window;
+
+		protected WindowPaneKeyStore windowPaneKeyStore;
+		protected MergingKeyStore mergingKeyStore;
+
+		public WindowContext(W window) {
+			this.window = window;
+			this.windowPaneKeyStore = new WindowPaneKeyStore();
+			this.mergingKeyStore = new MergingKeyStore();
+		}
+
+		@Override
+		public String toString() {
+			return "WindowContext{Window = " + window.toString() + "}";
+		}
+
+		public void clear() throws Exception {
+			userFunction.clear(window, this);
+		}
+
+		@Override
+		public KeyedStateStore windowState() {
+			if (windowAssigner instanceof MergingWindowAssigner) {
+				return mergingKeyStore;
+			} else {
+				this.windowPaneKeyStore.window = window;
+				return this.windowPaneKeyStore;
+			}
+		}
+
+		@Override
+		public KeyedStateStore globalState() {
+			if (windowAssigner instanceof MergingWindowAssigner) {
+				return mergingKeyStore;
+			} else {
+				return WindowOperator.this.getKeyedStateStore();
+			}
+		}
 	}
 
 	/**

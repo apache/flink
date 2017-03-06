@@ -22,6 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
+import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
@@ -92,12 +93,45 @@ public class FoldApplyProcessWindowFunction<K, W extends Window, T, ACC, R>
 			result = foldFunction.fold(result, val);
 		}
 
-		windowFunction.process(key, windowFunction.new Context() {
+		ProcessWindowFunction<ACC, R, K, W>.Context ctx = windowFunction.new Context() {
 			@Override
 			public W window() {
 				return context.window();
 			}
-		}, Collections.singletonList(result), out);
+
+			@Override
+			public KeyedStateStore windowState() {
+				return context.windowState();
+			}
+
+			@Override
+			public KeyedStateStore globalState() {
+				return context.globalState();
+			}
+		};
+
+		windowFunction.process(key, ctx, Collections.singletonList(result), out);
+	}
+
+	@Override
+	public void clear(final Context context) throws Exception{
+		ProcessWindowFunction<ACC, R, K, W>.Context ctx = windowFunction.new Context() {
+			@Override
+			public W window() {
+				return context.window();
+			}
+
+			@Override
+			public KeyedStateStore windowState() {
+				return context.windowState();
+			}
+
+			@Override
+			public KeyedStateStore globalState() {
+				return context.globalState();
+			}
+		};
+		windowFunction.clear(ctx);
 	}
 
 	@Override

@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.runtime.operators.windowing.functions;
 
 import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
 
@@ -39,5 +40,31 @@ public interface InternalWindowFunction<IN, OUT, KEY, W extends Window> extends 
 	 * @param out    A collector for emitting elements.
 	 * @throws Exception The function may throw exceptions to fail the program and trigger recovery.
 	 */
+	@Deprecated
 	void apply(KEY key, W window, IN input, Collector<OUT> out) throws Exception;
+
+	/**
+	 * Evaluates the window and outputs none or several elements.
+	 *
+	 * @param context The context in which the window is being evaluated.
+	 * @param input The elements in the window being evaluated.
+	 * @param out A collector for emitting elements.
+	 *
+	 * @throws Exception The function may throw exceptions to fail the program and trigger recovery.
+	 */
+	void process(KEY key, W window, InternalWindowContext context, IN input, Collector<OUT> out) throws Exception;
+
+	/**
+	 * Deletes any state in the {@code Context} when the Window is purged.
+	 *
+	 * @param context The context to which the window is being evaluated
+	 * @throws Exception The function may throw exceptions to fail the program and trigger recovery.
+	 */
+	void clear(W window, InternalWindowContext context) throws Exception;
+
+	interface InternalWindowContext {
+		KeyedStateStore windowState();
+
+		KeyedStateStore globalState();
+	}
 }

@@ -44,6 +44,16 @@ public final class InternalIterableAllWindowFunction<IN, OUT, W extends Window>
 	}
 
 	@Override
+	public void process(Byte aByte, W window, InternalWindowContext context, Iterable<IN> input, Collector<OUT> out) throws Exception {
+		wrappedFunction.apply(window, input, out);
+	}
+
+	@Override
+	public void clear(W window, InternalWindowContext context) throws Exception {
+
+	}
+
+	@Override
 	public RuntimeContext getRuntimeContext() {
 		throw new RuntimeException("This should never be called.");
 	}
