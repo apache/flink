@@ -107,8 +107,15 @@ public class SlotProtocolTest extends TestLogger {
 		TestingLeaderElectionService rmLeaderElectionService =
 			configureHA(testingHaServices, jobID, rmAddress, rmLeaderID, jmAddress, jmLeaderID);
 
-		ResourceManagerConfiguration resourceManagerConfiguration = new ResourceManagerConfiguration(Time.seconds(5L), Time.seconds(5L));
-		JobLeaderIdService jobLeaderIdService = new JobLeaderIdService(testingHaServices);
+		ResourceManagerConfiguration resourceManagerConfiguration = new ResourceManagerConfiguration(
+			Time.seconds(5L),
+			Time.seconds(5L),
+			Time.minutes(5L));
+
+		JobLeaderIdService jobLeaderIdService = new JobLeaderIdService(
+			testingHaServices,
+			testRpcService.getScheduledExecutor(),
+			resourceManagerConfiguration.getJobTimeout());
 
 		final TestingSlotManagerFactory slotManagerFactory = new TestingSlotManagerFactory();
 		SpiedResourceManager resourceManager =
@@ -208,9 +215,15 @@ public class SlotProtocolTest extends TestLogger {
 			.thenReturn(new FlinkCompletableFuture<TMSlotRequestReply>());
 		testRpcService.registerGateway(tmAddress, taskExecutorGateway);
 
-		ResourceManagerConfiguration resourceManagerConfiguration = new ResourceManagerConfiguration(Time.seconds(5L), Time.seconds(5L));
+		ResourceManagerConfiguration resourceManagerConfiguration = new ResourceManagerConfiguration(
+			Time.seconds(5L),
+			Time.seconds(5L),
+			Time.minutes(5L));
 
-		JobLeaderIdService jobLeaderIdService = new JobLeaderIdService(testingHaServices);
+		JobLeaderIdService jobLeaderIdService = new JobLeaderIdService(
+			testingHaServices,
+			testRpcService.getScheduledExecutor(),
+			resourceManagerConfiguration.getJobTimeout());
 
 		TestingSlotManagerFactory slotManagerFactory = new TestingSlotManagerFactory();
 		ResourceManager<ResourceID> resourceManager =

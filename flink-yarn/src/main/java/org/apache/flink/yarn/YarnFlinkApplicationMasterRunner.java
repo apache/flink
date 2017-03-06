@@ -187,7 +187,10 @@ public class YarnFlinkApplicationMasterRunner extends AbstractYarnFlinkApplicati
 	private ResourceManager<?> createResourceManager(Configuration config) throws Exception {
 		final ResourceManagerConfiguration resourceManagerConfiguration = ResourceManagerConfiguration.fromConfiguration(config);
 		final SlotManagerFactory slotManagerFactory = new DefaultSlotManager.Factory();
-		final JobLeaderIdService jobLeaderIdService = new JobLeaderIdService(haServices);
+		final JobLeaderIdService jobLeaderIdService = new JobLeaderIdService(
+			haServices,
+			commonRpcService.getScheduledExecutor(),
+			resourceManagerConfiguration.getJobTimeout());
 
 		return new YarnResourceManager(config,
 				ENV,

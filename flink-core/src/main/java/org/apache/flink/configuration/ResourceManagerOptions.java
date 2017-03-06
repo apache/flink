@@ -21,38 +21,20 @@ package org.apache.flink.configuration;
 import org.apache.flink.annotation.PublicEvolving;
 
 /**
- * Akka configuration options.
- *
- * TODO: Migrate other akka config options to this file
+ * The set of configuration options relating to the ResourceManager
  */
 @PublicEvolving
-public class AkkaOptions {
+public class ResourceManagerOptions {
 
 	/**
-	 * Timeout for akka ask calls
+	 * Timeout for jobs which don't have a job manager as leader assigned.
 	 */
-	public static final ConfigOption<String> AKKA_ASK_TIMEOUT = ConfigOptions
-		.key("akka.ask.timeout")
-		.defaultValue("10 s");
+	public static final ConfigOption<String> JOB_TIMEOUT = ConfigOptions
+		.key("resourcemanager.job.timeout")
+		.defaultValue("5 minutes");
 
-	/**
-	 * The Akka tcp connection timeout.
-	 */
-	public static final ConfigOption<String> AKKA_TCP_TIMEOUT = ConfigOptions
-		.key("akka.tcp.timeout")
-		.defaultValue("20 s");
+	// ---------------------------------------------------------------------------------------------
 
-	/**
-	 * The Akka death watch heartbeat interval.
-	 */
-	public static final ConfigOption<String> AKKA_WATCH_HEARTBEAT_INTERVAL = ConfigOptions
-		.key("akka.watch.heartbeat.interval")
-		.defaultValue("10 s");
-
-	/**
-	 * The maximum acceptable Akka death watch heartbeat pause.
-	 */
-	public static final ConfigOption<String> AKKA_WATCH_HEARTBEAT_PAUSE = ConfigOptions
-		.key("akka.watch.heartbeat.pause")
-		.defaultValue("60 s");
+	/** Not intended to be instantiated */
+	private ResourceManagerOptions() {}
 }
