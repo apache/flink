@@ -32,12 +32,14 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.table.api.StreamTableEnvironment;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.calcite.FlinkTypeFactory;
 import org.apache.flink.table.plan.logical.rel.util.WindowAggregateUtil;
 import org.apache.flink.table.plan.nodes.datastream.function.DataStreamProcTimeAggregateRowGlobalWindowFunction;
@@ -46,10 +48,22 @@ import org.apache.flink.types.Row;
 
 import scala.Option;
 
+/**
+ * 
+ * Implementation of window aggregation using procTime semantic and range
+ * specified in number of rows to be considered.
+ * 
+ * E.g. SELECT a, MAX(c) 
+ *        OVER ( PARTITION BY a 
+ *               ORDER BY procTime() 
+ *               ROWS BETWEEN 2 PRECEDING AND CURRENT ROW ) 
+ *        AS maxC 
+ *      FROM MyTable
+ *
+ */
 public class DataStreamProcTimeRowAggregate extends SingleRel implements DataStreamRel {
 
 	protected LogicalWindow windowRef;
-	protected String description;
 	protected WindowAggregateUtil winUtil;
 
 	public DataStreamProcTimeRowAggregate(RelOptCluster cluster, RelTraitSet traitSet, RelNode input,
@@ -57,7 +71,6 @@ public class DataStreamProcTimeRowAggregate extends SingleRel implements DataStr
 		super(cluster, traitSet, input);
 		this.windowRef = window;
 		this.rowType = rowType;
-		this.description = description;
 		this.winUtil = new WindowAggregateUtil();
 	}
 
@@ -81,16 +94,26 @@ public class DataStreamProcTimeRowAggregate extends SingleRel implements DataStr
 	public DataStream<Row> translateToPlan(StreamTableEnvironment tableEnv) {
 
 		DataStream<Row> inputDS = ((DataStreamRel) getInput()).translateToPlan(tableEnv);
-		
-		TypeInformation<?>[] rowType = new TypeInformation<?>[getRowType().getFieldList().size()];
-		int i=0;
-		for(RelDataTypeField field: getRowType().getFieldList()){
-			rowType[i]= FlinkTypeFactory.toTypeInfo(field.getType());
+		if (getRowType() == null) {
+			throw new TableException("DataStreamProcTimeRowAggregate.translateToPlan fail because of null row type.");
+		}
+
+		List<RelDataTypeField> fieldList = getRowType().getFieldList();
+
+		if (fieldList.size() < 0) {
+			throw new TableException(
+					"DataStreamProcTimeRowAggregate.translateToPlan rowType cannot have empty field list.");
+		}
+
+		TypeInformation<?>[] rowType = new TypeInformation<?>[fieldList.size()];
+		int i = 0;
+		for (RelDataTypeField field : fieldList) {
+			rowType[i] = FlinkTypeFactory.toTypeInfo(field.getType());
 			i++;
 		}
-		
+
 		TypeInformation<Row> returnType = new RowTypeInfo(rowType);
-				
+
 		DataStream<Row> aggregateWindow = null;
 
 		// assumption of one group per window reference
@@ -150,6 +173,5 @@ public class DataStreamProcTimeRowAggregate extends SingleRel implements DataStr
 	public double estimateDataTypeSize(RelDataType t) {
 		return 0;
 	}
-
 
 }
