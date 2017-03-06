@@ -37,13 +37,18 @@ import org.apache.flink.streaming.api.windowing.evictors.TimeEvictor;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.CountTrigger;
 import org.apache.flink.table.api.StreamTableEnvironment;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.calcite.FlinkTypeFactory;
 import org.apache.flink.table.plan.logical.rel.util.WindowAggregateUtil;
 import org.apache.flink.table.plan.nodes.datastream.DataStreamRel;
 import org.apache.flink.table.plan.nodes.datastream.function.DataStreamProcTimeAggregateGlobalWindowFunction;
 import org.apache.flink.table.plan.nodes.datastream.function.DataStreamProcTimeAggregateWindowFunction;
 import org.apache.flink.types.Row;
+
+/**
+ * Flink RelNode which matches along with Aggregates over Sliding Window with
+ * time bounds.
+ *
+ */
 
 public class DataStreamProcTimeTimeAggregate extends DataStreamRelJava {
 
@@ -82,13 +87,21 @@ public class DataStreamProcTimeTimeAggregate extends DataStreamRelJava {
 	public DataStream<Row> translateToPlan(StreamTableEnvironment tableEnv) {
 
 		// Get the general parameters related to the datastream, inputs, result
-		TableConfig config = tableEnv.getConfig();
-
 		DataStream<Row> inputDataStream = ((DataStreamRel) getInput()).translateToPlan(tableEnv);
 
-		TypeInformation<?>[] rowType = new TypeInformation<?>[getRowType().getFieldList().size()];
+		if (getRowType() == null) {
+			throw new IllegalArgumentException("Type must be defined");
+		}
+
+		List<RelDataTypeField> fieldList = getRowType().getFieldList();
+
+		if (fieldList.size() < 1) {
+			throw new IllegalArgumentException("Fields must be defined");
+		}
+
+		TypeInformation<?>[] rowType = new TypeInformation<?>[fieldList.size()];
 		int i = 0;
-		for (RelDataTypeField field : getRowType().getFieldList()) {
+		for (RelDataTypeField field : fieldList) {
 			rowType[i] = FlinkTypeFactory.toTypeInfo(field.getType());
 			i++;
 		}
