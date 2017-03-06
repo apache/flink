@@ -35,6 +35,9 @@ import java.util.List;
 import org.apache.flink.runtime.operators.sort.InMemorySorter;
 import org.apache.flink.runtime.operators.sort.LargeRecordHandler;
 
+/**
+ * This code is generated on ${.now}
+ */
 public final class ${name}<T> implements InMemorySorter<T> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(${name}.class);
