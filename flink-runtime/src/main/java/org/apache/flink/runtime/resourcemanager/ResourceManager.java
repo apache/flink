@@ -817,11 +817,13 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		}
 
 		@Override
-		public void removeJob(final JobID jobId) {
+		public void notifyJobTimeout(final JobID jobId, final UUID timeoutId) {
 			runAsync(new Runnable() {
 				@Override
 				public void run() {
-					ResourceManager.this.removeJob(jobId);
+					if (jobLeaderIdService.isValidTimeout(jobId, timeoutId)) {
+						removeJob(jobId);
+					}
 				}
 			});
 		}

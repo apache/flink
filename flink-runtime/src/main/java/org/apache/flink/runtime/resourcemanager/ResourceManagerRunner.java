@@ -54,7 +54,10 @@ public class ResourceManagerRunner implements FatalErrorHandler {
 
 		final ResourceManagerConfiguration resourceManagerConfiguration = ResourceManagerConfiguration.fromConfiguration(configuration);
 		final SlotManagerFactory slotManagerFactory = new DefaultSlotManager.Factory();
-		final JobLeaderIdService jobLeaderIdService = new JobLeaderIdService(highAvailabilityServices);
+		final JobLeaderIdService jobLeaderIdService = new JobLeaderIdService(
+			highAvailabilityServices,
+			rpcService.getScheduledExecutor(),
+			resourceManagerConfiguration.getJobTimeout());
 
 		this.resourceManager = new StandaloneResourceManager(
 			rpcService,

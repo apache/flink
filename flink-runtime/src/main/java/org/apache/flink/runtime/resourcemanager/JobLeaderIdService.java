@@ -19,12 +19,12 @@
 package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.CompletableFuture;
 import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
-import org.apache.flink.runtime.highavailability.RunningJobsRegistry.JobSchedulingStatus;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.util.ExceptionUtils;
@@ -32,11 +32,14 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
+import javax.annotation.Nullable;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Service which retrieves for a registered job the current job leader id (the leader id of the
@@ -51,8 +54,9 @@ public class JobLeaderIdService {
 	/** High availability services to use by this service */
 	private final HighAvailabilityServices highAvailabilityServices;
 
-	/** Registry to retrieve running jobs */
-	private final RunningJobsRegistry runningJobsRegistry;
+	private final ScheduledExecutor scheduledExecutor;
+
+	private final Time jobTimeout;
 
 	/** Map of currently monitored jobs */
 	private final Map<JobID, JobLeaderIdListener> jobLeaderIdListeners;
@@ -60,10 +64,13 @@ public class JobLeaderIdService {
 	/** Actions to call when the job leader changes */
 	private JobLeaderIdActions jobLeaderIdActions;
 
-	public JobLeaderIdService(HighAvailabilityServices highAvailabilityServices) throws Exception {
-		this.highAvailabilityServices = Preconditions.checkNotNull(highAvailabilityServices);
-
-		this.runningJobsRegistry = highAvailabilityServices.getRunningJobsRegistry();
+	public JobLeaderIdService(
+			HighAvailabilityServices highAvailabilityServices,
+			ScheduledExecutor scheduledExecutor,
+			Time jobTimeout) throws Exception {
+		this.highAvailabilityServices = Preconditions.checkNotNull(highAvailabilityServices, "highAvailabilityServices");
+		this.scheduledExecutor = Preconditions.checkNotNull(scheduledExecutor, "scheduledExecutor");
+		this.jobTimeout = Preconditions.checkNotNull(jobTimeout, "jobTimeout");
 
 		jobLeaderIdListeners = new HashMap<>(4);
 
@@ -142,8 +149,8 @@ public class JobLeaderIdService {
 		if (!jobLeaderIdListeners.containsKey(jobId)) {
 			LeaderRetrievalService leaderRetrievalService = highAvailabilityServices.getJobManagerLeaderRetriever(jobId);
 
-			JobLeaderIdListener jobidListener = new JobLeaderIdListener(jobId, jobLeaderIdActions, leaderRetrievalService);
-			jobLeaderIdListeners.put(jobId, jobidListener);
+			JobLeaderIdListener jobIdListener = new JobLeaderIdListener(jobId, jobLeaderIdActions, leaderRetrievalService);
+			jobLeaderIdListeners.put(jobId, jobIdListener);
 		}
 	}
 
@@ -183,6 +190,16 @@ public class JobLeaderIdService {
 		return listener.getLeaderIdFuture();
 	}
 
+	public boolean isValidTimeout(JobID jobId, UUID timeoutId) {
+		JobLeaderIdListener jobLeaderIdListener = jobLeaderIdListeners.get(jobId);
+
+		if (null != jobLeaderIdListener) {
+			return Objects.equals(timeoutId, jobLeaderIdListener.getTimeoutId());
+		} else {
+			return false;
+		}
+	}
+
 	// --------------------------------------------------------------------------------
 	// Static utility classes
 	// --------------------------------------------------------------------------------
@@ -200,6 +217,12 @@ public class JobLeaderIdService {
 		private volatile CompletableFuture<UUID> leaderIdFuture;
 		private volatile boolean running = true;
 
+		/** Not null if a timeout has been registered; otherwise null */
+		@Nullable
+		private  volatile ScheduledFuture<?> timeoutFuture;
+		@Nullable
+		private volatile UUID timeoutId;
+
 		private JobLeaderIdListener(
 				JobID jobId,
 				JobLeaderIdActions listenerJobLeaderIdActions,
@@ -210,6 +233,8 @@ public class JobLeaderIdService {
 
 			leaderIdFuture = new FlinkCompletableFuture<>();
 
+			activateTimeout();
+
 			// start the leader service we're listening to
 			leaderRetrievalService.start(this);
 		}
@@ -218,9 +243,15 @@ public class JobLeaderIdService {
 			return leaderIdFuture;
 		}
 
+		@Nullable
+		public UUID getTimeoutId() {
+			return timeoutId;
+		}
+
 		public void stop() throws Exception {
 			running = false;
 			leaderRetrievalService.stop();
+			cancelTimeout();
 			leaderIdFuture.completeExceptionally(new Exception("Job leader id service has been stopped."));
 		}
 
@@ -244,29 +275,17 @@ public class JobLeaderIdService {
 					leaderIdFuture.complete(leaderSessionId);
 				}
 
-				try {
-					final JobSchedulingStatus jobStatus = runningJobsRegistry.getJobSchedulingStatus(jobId);
-					if (jobStatus == JobSchedulingStatus.PENDING || jobStatus == JobSchedulingStatus.RUNNING) {
-						if (leaderSessionId == null) {
-							// there is no new leader
-							if (previousJobLeaderId != null) {
-								// we had a previous job leader, so notify about his lost leadership
-								listenerJobLeaderIdActions.jobLeaderLostLeadership(jobId, previousJobLeaderId);
-							}
-						} else {
-							if (previousJobLeaderId != null && !leaderSessionId.equals(previousJobLeaderId)) {
-								// we had a previous leader and he's not the same as the new leader
-								listenerJobLeaderIdActions.jobLeaderLostLeadership(jobId, previousJobLeaderId);
-							}
-						}
-					} else {
-						// the job is no longer running so remove it
-						listenerJobLeaderIdActions.removeJob(jobId);
+				if (previousJobLeaderId != null && !previousJobLeaderId.equals(leaderSessionId)) {
+					// we had a previous job leader, so notify about his lost leadership
+					listenerJobLeaderIdActions.jobLeaderLostLeadership(jobId, previousJobLeaderId);
+
+					if (null == leaderSessionId) {
+						// No current leader active ==> Set a timeout for the job
+						activateTimeout();
 					}
-				} catch (IOException e) {
-					// cannot tell whether the job is still running or not so just remove the listener
-					LOG.debug("Encountered an error while checking the job registry for running jobs.", e);
-					listenerJobLeaderIdActions.removeJob(jobId);
+				} else if (null != leaderSessionId) {
+					// Cancel timeout because we've found an active leader for it
+					cancelTimeout();
 				}
 			} else {
 				LOG.debug("A leader id change {}@{} has been detected after the listener has been stopped.",
@@ -282,6 +301,32 @@ public class JobLeaderIdService {
 				LOG.debug("An error occurred in the {} after the listener has been stopped.",
 					JobLeaderIdListener.class.getSimpleName(), exception);
 			}
+		}
+
+		private void activateTimeout() {
+			if (timeoutId != null) {
+				cancelTimeout();
+			}
+
+			final UUID newTimeoutId = UUID.randomUUID();
+
+			timeoutId = newTimeoutId;
+
+			timeoutFuture = scheduledExecutor.schedule(new Runnable() {
+				@Override
+				public void run() {
+					listenerJobLeaderIdActions.notifyJobTimeout(jobId, newTimeoutId);
+				}
+			}, jobTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+		}
+
+		private void cancelTimeout() {
+			if (timeoutFuture != null) {
+				timeoutFuture.cancel(true);
+			}
+
+			timeoutId = null;
+			timeoutFuture = null;
 		}
 	}
 }

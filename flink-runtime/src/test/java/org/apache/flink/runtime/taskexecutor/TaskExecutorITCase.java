@@ -93,9 +93,15 @@ public class TaskExecutorITCase {
 		testingHAServices.setJobMasterLeaderRetriever(jobId, new TestingLeaderRetrievalService(jmAddress, jmLeaderId));
 
 		TestingSerialRpcService rpcService = new TestingSerialRpcService();
-		ResourceManagerConfiguration resourceManagerConfiguration = new ResourceManagerConfiguration(Time.milliseconds(500L), Time.milliseconds(500L));
+		ResourceManagerConfiguration resourceManagerConfiguration = new ResourceManagerConfiguration(
+			Time.milliseconds(500L),
+			Time.milliseconds(500L),
+			Time.minutes(5L));
 		SlotManagerFactory slotManagerFactory = new DefaultSlotManager.Factory();
-		JobLeaderIdService jobLeaderIdService = new JobLeaderIdService(testingHAServices);
+		JobLeaderIdService jobLeaderIdService = new JobLeaderIdService(
+			testingHAServices,
+			rpcService.getScheduledExecutor(),
+			resourceManagerConfiguration.getJobTimeout());
 		MetricRegistry metricRegistry = mock(MetricRegistry.class);
 
 		final TaskManagerConfiguration taskManagerConfiguration = TaskManagerConfiguration.fromConfiguration(configuration);
