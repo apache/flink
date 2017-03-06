@@ -181,6 +181,8 @@ public class CheckpointCoordinator {
 	/** Registry that tracks state which is shared across (incremental) checkpoints */
 	private SharedStateRegistry sharedStateRegistry;
 
+	private volatile long restoredCheckpointID = -1;
+
 	// --------------------------------------------------------------------------------------------
 
 	public CheckpointCoordinator(
@@ -1109,7 +1111,8 @@ public class CheckpointCoordinator {
 
 				statsTracker.reportRestoredCheckpoint(restored);
 			}
-
+			// set it inside lock
+			restoredCheckpointID = latest.getCheckpointID();
 			return true;
 		}
 	}
@@ -1150,6 +1153,10 @@ public class CheckpointCoordinator {
 		LOG.info("Reset the checkpoint ID to {}.", nextCheckpointId);
 
 		return restoreLatestCheckpointedState(tasks, true, allowNonRestored);
+	}
+
+	public long getRestoredCheckpointID() {
+		return this.restoredCheckpointID;
 	}
 
 	// ------------------------------------------------------------------------
