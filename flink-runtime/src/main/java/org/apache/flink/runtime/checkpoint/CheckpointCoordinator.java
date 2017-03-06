@@ -1156,7 +1156,9 @@ public class CheckpointCoordinator {
 	}
 
 	public long getRestoredCheckpointID() {
-		return this.restoredCheckpointID;
+		synchronized (lock) {
+			return this.restoredCheckpointID;
+		}
 	}
 
 	// ------------------------------------------------------------------------
