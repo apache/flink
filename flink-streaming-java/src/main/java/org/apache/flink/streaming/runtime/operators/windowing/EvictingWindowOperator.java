@@ -323,7 +323,8 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window>
 				}
 			});
 
-		userFunction.apply(context.key, context.window, projectedContents, timestampedCollector);
+		windowContext.window = context.window;
+		userFunction.process(context.key, context.window, windowContext, projectedContents, timestampedCollector);
 		evictorContext.evictAfter(recordsWithTimestamp, Iterables.size(recordsWithTimestamp));
 
 

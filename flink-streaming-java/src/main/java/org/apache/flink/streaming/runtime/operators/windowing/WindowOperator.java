@@ -644,13 +644,14 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		return time == cleanupTime(window);
 	}
 
+	public abstract class KeyedStateStoreWithWindow implements KeyedStateStore {
+		protected W window;
+	}
+
 	/**
 	 * For now keyed state is not allowed in ProcessWindowFunctions
 	 */
-	public class MergingKeyStore implements KeyedStateStore {
-
-		protected W window;
-
+	public class MergingKeyStore extends KeyedStateStoreWithWindow {
 		@Override
 		public <T> ValueState<T> getState(ValueStateDescriptor<T> stateProperties) {
 			throw new RuntimeException("keyedState is not allowed in merging windows");
@@ -677,10 +678,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		}
 	}
 
-	public class WindowPaneKeyStore implements KeyedStateStore {
-
-		protected W window;
-
+	public class WindowPaneKeyStore extends KeyedStateStoreWithWindow {
 		@Override
 		public <T> ValueState<T> getState(ValueStateDescriptor<T> stateProperties) {
 			try {
@@ -735,13 +733,11 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	public class WindowContext implements InternalWindowFunction.InternalWindowContext {
 		protected W window;
 
-		protected WindowPaneKeyStore windowPaneKeyStore;
-		protected MergingKeyStore mergingKeyStore;
+		protected KeyedStateStoreWithWindow windowState;
 
 		public WindowContext(W window) {
 			this.window = window;
-			this.windowPaneKeyStore = new WindowPaneKeyStore();
-			this.mergingKeyStore = new MergingKeyStore();
+			this.windowState = windowAssigner instanceof MergingWindowAssigner ?  new MergingKeyStore() : new WindowPaneKeyStore();
 		}
 
 		@Override
@@ -755,21 +751,13 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 		@Override
 		public KeyedStateStore windowState() {
-			if (windowAssigner instanceof MergingWindowAssigner) {
-				return mergingKeyStore;
-			} else {
-				this.windowPaneKeyStore.window = window;
-				return this.windowPaneKeyStore;
-			}
+			this.windowState.window = this.window;
+			return this.windowState;
 		}
 
 		@Override
 		public KeyedStateStore globalState() {
-			if (windowAssigner instanceof MergingWindowAssigner) {
-				return mergingKeyStore;
-			} else {
-				return WindowOperator.this.getKeyedStateStore();
-			}
+			return WindowOperator.this.getKeyedStateStore();
 		}
 	}
 

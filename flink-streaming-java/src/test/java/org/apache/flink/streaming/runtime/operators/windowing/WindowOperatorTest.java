@@ -2540,6 +2540,11 @@ public class WindowOperatorTest extends TestLogger {
 			TimeWindow window = context.window();
 			out.collect(new Tuple3<>(resultString, window.getStart(), window.getEnd()));
 		}
+
+		@Override
+		public void clear(Context context) throws Exception {
+
+		}
 	}
 
 	public static class ReducedProcessSessionWindowFunction extends ProcessWindowFunction<Tuple2<String, Integer>, Tuple3<String, Long, Long>, String, TimeWindow> {
@@ -2554,6 +2559,11 @@ public class WindowOperatorTest extends TestLogger {
 			for (Tuple2<String, Integer> val: values) {
 				out.collect(new Tuple3<>(key + "-" + val.f1, window.getStart(), window.getEnd()));
 			}
+		}
+
+		@Override
+		public void clear(Context context) throws Exception {
+
 		}
 	}
 

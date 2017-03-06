@@ -56,14 +56,12 @@ public abstract class ProcessWindowFunction<IN, OUT, KEY, W extends Window> impl
 	 * @param context The context to which the window is being evaluated
 	 * @throws Exception The function may throw exceptions to fail the program and trigger recovery.
 	 */
-	public void clear(Context context) throws Exception {
-
-	}
+	public abstract void clear(Context context) throws Exception;
 
 	/**
 	 * The context holding window metadata
 	 */
-	public abstract class Context {
+	public abstract class Context implements java.io.Serializable {
 		/**
 		 * @return The window that is being evaluated.
 		 */

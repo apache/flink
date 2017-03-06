@@ -81,6 +81,11 @@ public class FoldApplyProcessWindowFunctionTest {
 						out.collect(in);
 					}
 				}
+
+				@Override
+				public void clear(Context context) throws Exception {
+
+				}
 			},
 			BasicTypeInfo.INT_TYPE_INFO
 		);
@@ -185,6 +190,11 @@ public class FoldApplyProcessWindowFunctionTest {
 					for (Integer in: input) {
 						out.collect(in);
 					}
+				}
+
+				@Override
+				public void clear(Context context) throws Exception {
+
 				}
 			},
 			BasicTypeInfo.INT_TYPE_INFO

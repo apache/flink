@@ -22,6 +22,7 @@ import org.apache.flink.api.common.functions.IterationRuntimeContext;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.java.operators.translation.WrappingFunction;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.windowing.ProcessAllWindowFunction;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
@@ -46,6 +47,8 @@ public final class InternalAggregateProcessAllWindowFunction<T, ACC, V, R, W ext
 
 	private final AggregateFunction<T, ACC, V> aggFunction;
 
+	private transient InternalProcessAllWindowContext<V, R, W> ctx;
+
 	public InternalAggregateProcessAllWindowFunction(
 			AggregateFunction<T, ACC, V> aggFunction,
 			ProcessAllWindowFunction<V, R, W> windowFunction) {
@@ -54,60 +57,23 @@ public final class InternalAggregateProcessAllWindowFunction<T, ACC, V, R, W ext
 	}
 
 	@Override
-	public void apply(Byte key, final W window, Iterable<T> input, Collector<R> out) throws Exception {
+	public void open(Configuration parameters) throws Exception {
+		super.open(parameters);
 		ProcessAllWindowFunction<V, R, W> wrappedFunction = this.wrappedFunction;
-		ProcessAllWindowFunction<V, R, W>.Context context = wrappedFunction.new Context() {
-			@Override
-			public W window() {
-				return window;
-			}
-
-			@Override
-			public KeyedStateStore windowState() {
-				throw new RuntimeException("This should never be called");
-			}
-
-			@Override
-			public KeyedStateStore globalState() {
-				throw new RuntimeException("This should never be called");
-			}
-		};
-
-		final ACC acc = aggFunction.createAccumulator();
-
-		for (T val : input) {
-			aggFunction.add(val, acc);
-		}
-
-		wrappedFunction.process(context, Collections.singletonList(aggFunction.getResult(acc)), out);
+		this.ctx = new InternalProcessAllWindowContext<>(wrappedFunction);
 	}
 
 	@Override
 	public void process(Byte aByte, final W window, final InternalWindowContext context, Iterable<T> input, Collector<R> out) throws Exception {
-		ProcessAllWindowFunction<V, R, W> wrappedFunction = this.wrappedFunction;
-		final ProcessAllWindowFunction<V, R, W>.Context ctx = wrappedFunction.new Context() {
-			@Override
-			public W window() {
-				return window;
-			}
-
-			@Override
-			public KeyedStateStore windowState() {
-				return context.windowState();
-			}
-
-			@Override
-			public KeyedStateStore globalState() {
-				return context.globalState();
-			}
-		};
-
 		final ACC acc = aggFunction.createAccumulator();
 
 		for (T val : input) {
 			aggFunction.add(val, acc);
 		}
 
+		this.ctx.window = window;
+		this.ctx.internalContext = context;
+		ProcessAllWindowFunction<V, R, W> wrappedFunction = this.wrappedFunction;
 		wrappedFunction.process(ctx, Collections.singletonList(aggFunction.getResult(acc)), out);
 	}
 

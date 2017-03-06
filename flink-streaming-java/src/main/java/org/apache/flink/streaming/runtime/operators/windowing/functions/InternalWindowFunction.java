@@ -30,19 +30,6 @@ import org.apache.flink.util.Collector;
  * @param <KEY> The type of the key.
  */
 public interface InternalWindowFunction<IN, OUT, KEY, W extends Window> extends Function {
-
-	/**
-	 * Evaluates the window and outputs none or several elements.
-	 *
-	 * @param key    The key for which this window is evaluated.
-	 * @param window The window that is being evaluated.
-	 * @param input  The elements in the window being evaluated.
-	 * @param out    A collector for emitting elements.
-	 * @throws Exception The function may throw exceptions to fail the program and trigger recovery.
-	 */
-	@Deprecated
-	void apply(KEY key, W window, IN input, Collector<OUT> out) throws Exception;
-
 	/**
 	 * Evaluates the window and outputs none or several elements.
 	 *
@@ -62,7 +49,7 @@ public interface InternalWindowFunction<IN, OUT, KEY, W extends Window> extends 
 	 */
 	void clear(W window, InternalWindowContext context) throws Exception;
 
-	interface InternalWindowContext {
+	interface InternalWindowContext extends java.io.Serializable {
 		KeyedStateStore windowState();
 
 		KeyedStateStore globalState();

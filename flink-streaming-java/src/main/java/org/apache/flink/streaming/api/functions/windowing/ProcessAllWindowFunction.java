@@ -54,9 +54,7 @@ public abstract class ProcessAllWindowFunction<IN, OUT, W extends Window> implem
 	 * @param context The context to which the window is being evaluated
 	 * @throws Exception The function may throw exceptions to fail the program and trigger recovery.
 	 */
-	public void clear(Context context) throws Exception {
-
-	}
+	public abstract void clear(Context context) throws Exception;
 
 	/**
 	 * The context holding window metadata
