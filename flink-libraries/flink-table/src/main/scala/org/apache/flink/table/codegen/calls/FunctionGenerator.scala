@@ -33,7 +33,7 @@ import org.apache.flink.table.functions.{EventTimeExtractor, ProcTimeExtractor}
 import org.apache.flink.table.functions.utils.{ScalarSqlFunction, TableSqlFunction}
 
 import scala.collection.mutable
-import org.apache.flink.table.calcite.functions.FlinkStreamFunctionCatalog
+
 
 /**
   * Global hub for user-defined and built-in advanced SQL functions.
@@ -293,10 +293,7 @@ object FunctionGenerator {
     Seq(),
     new CurrentTimePointCallGen(SqlTimeTypeInfo.TIMESTAMP, local = true))
     
-  addSqlFunction(
-   FlinkStreamFunctionCatalog.PROCTIME,
-   Seq(),
-   new ProcTimeCallGen())
+  
    
   // ----------------------------------------------------------------------------------------------
 

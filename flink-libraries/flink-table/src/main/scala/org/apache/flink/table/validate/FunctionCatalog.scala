@@ -30,7 +30,7 @@ import scala.collection.JavaConversions._
 import scala.collection.mutable
 import scala.util.{ Failure, Success, Try }
 
-import org.apache.flink.table.calcite.functions.FlinkStreamFunctionCatalog
+
 import org.apache.flink.table.expressions.TableFunctionCall
 import org.apache.flink.table.expressions.ScalarFunctionCall
 
