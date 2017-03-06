@@ -54,41 +54,33 @@ class SavepointV2Serializer extends AbstractSavepointSerializer<SavepointV2> {
 		Path child = fileStateHandle.getFilePath();
 		Path relative = getRelativePath(basePath, child);
 
-		if (relative != null) {
-			// This boolean is new in this version of the serializer
-			dos.writeBoolean(true);
-			dos.writeUTF(relative.toString());
-		} else {
-			dos.writeBoolean(false);
-			dos.writeUTF(fileStateHandle.getFilePath().toString());
-		}
+		dos.writeUTF(relative.toString());
 	}
 
 	@Override
 	FileStateHandle deserializeFileStreamStateHandle(Path basePath, DataInputStream dis) throws IOException {
 		long size = dis.readLong();
-		boolean isRelative = dis.readBoolean();
 		String pathString = dis.readUTF();
 
-		Path path = isRelative ? new Path(basePath, pathString) : new Path(pathString);
+		Path path = new Path(basePath, pathString);
 		return new FileStateHandle(path, size);
 	}
 
 	/**
 	 * Returns the childPath relative to the basePath.
 	 *
-	 * <p>If the child path is not a child of the base path, <code>null</code>
-	 * is returned.
+	 * <p>If the child path is not a child of the base path, an
+	 * {@link IllegalArgumentException} is thrown.
 	 *
 	 * <pre>
 	 * getRelativePath("/base", "/base/child") -> "child"
 	 * getRelativePath("/base", "/base/parent/child") -> "parent/child"
-	 * getRelativePath("/base", "/child-of-root") -> null
-	 * getRelativePath("/base", "/other-base/child") -> null
+	 * getRelativePath("/base", "/child-of-root") -> IllegalArgumentException
+	 * getRelativePath("/base", "/other-base/child") -> IllegalArgumentException
 	 * </pre>
 	 *
-	 * @return The relative child path against base or <code>null</code> if not an actual child of
-	 * base.
+	 * @return The relative child path against base
+	 * @throws IllegalArgumentException If child not an actual child of base.
 	 * @throws NullPointerException If arguments are <code>null</code>
 	 */
 	@Nullable
@@ -103,7 +95,11 @@ class SavepointV2Serializer extends AbstractSavepointSerializer<SavepointV2> {
 			return new Path(relativeUri);
 		} else {
 			// If childUri is returned, childPath was not a child path of base
-			return null;
+			String msg = String.format("%s is not a child of %s. The checkpoint stream "
+				+ "logic has been changed without adjusting the Savepoint serializer logic "
+				+ "to allow relocatable file based savepoints.");
+
+			throw new IllegalArgumentException(msg);
 		}
 	}
 }

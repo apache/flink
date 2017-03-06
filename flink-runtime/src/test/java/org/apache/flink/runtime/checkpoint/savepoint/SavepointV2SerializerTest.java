@@ -24,6 +24,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -58,13 +59,36 @@ public class SavepointV2SerializerTest {
 		verifyGetRelativePath("hdfs:///base", "hdfs:///base/child/file", "child/file");
 
 		// Not a child
-		verifyGetRelativePath("hdfs:///base", "hdfs:///child-of-root", null);
-		verifyGetRelativePath("hdfs:///base", "hdfs:///other-base/child", null);
-		verifyGetRelativePath("hdfs:///base/child", "hdfs:///base", null);
+		try {
+			verifyGetRelativePath("hdfs:///base", "hdfs:///child-of-root", null);
+			fail("Did not throw expected Exception");
+		} catch (IllegalArgumentException expected) {
+		}
+
+		try {
+			verifyGetRelativePath("hdfs:///base", "hdfs:///other-base/child", null);
+			fail("Did not throw expected Exception");
+		} catch (IllegalArgumentException expected) {
+		}
+
+		try {
+			verifyGetRelativePath("hdfs:///base/child", "hdfs:///base", null);
+			fail("Did not throw expected Exception");
+		} catch (IllegalArgumentException expected) {
+		}
 
 		// Different schemes are not a child
-		verifyGetRelativePath("hdfs:///base", "file:///base/child", null);
-		verifyGetRelativePath("hdfs:///base", "file:///base/child/file", null);
+		try {
+			verifyGetRelativePath("hdfs:///base", "file:///base/child", null);
+			fail("Did not throw expected Exception");
+		} catch (IllegalArgumentException expected) {
+		}
+
+		try {
+			verifyGetRelativePath("hdfs:///base", "file:///base/child/file", null);
+			fail("Did not throw expected Exception");
+		} catch (IllegalArgumentException expected) {
+		}
 	}
 
 	/**
