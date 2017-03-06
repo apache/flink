@@ -26,44 +26,37 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
 import javax.annotation.Nullable;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.TaskState;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 
 /**
  * A savepoint serializer that does not store absolute URIs for {@link FileStateHandle}
- * instances, allowing users to relocate savepoints as long as the file structure
+ * instances, allowing users to relocate file based savepoints as long as the file structure
  * within the savepoint directory stays the same.
  */
-class SavepointV2Serializer extends AbstractSavepointSerializer<SavepointV2> {
+class SavepointV2Serializer implements SavepointSerializer<SavepointV2> {
 
 	public static final SavepointV2Serializer INSTANCE = new SavepointV2Serializer();
 
+	/** Generic savepoint serializer. */
+	private final SavepointSerializer<SavepointV2> savepointSerializer;
+
 	private SavepointV2Serializer() {
+		this.savepointSerializer = new GenericSavepointSerializer<>(
+			new SavepointV2Factory(),
+			new SavepointV2FileStateHandleSerializer());
 	}
 
 	@Override
-	SavepointV2 createSavepoint(long checkpointId, Collection<TaskState> taskStates) {
-		return new SavepointV2(checkpointId, taskStates);
+	public void serialize(SavepointV2 savepoint, Path basePath, DataOutputStream dos) throws IOException {
+		savepointSerializer.serialize(savepoint, basePath, dos);
 	}
 
 	@Override
-	void serializeFileStreamStateHandle(FileStateHandle fileStateHandle, Path basePath, DataOutputStream dos) throws IOException {
-		dos.writeLong(fileStateHandle.getStateSize());
-
-		Path child = fileStateHandle.getFilePath();
-		Path relative = getRelativePath(basePath, child);
-
-		dos.writeUTF(relative.toString());
-	}
-
-	@Override
-	FileStateHandle deserializeFileStreamStateHandle(Path basePath, DataInputStream dis) throws IOException {
-		long size = dis.readLong();
-		String pathString = dis.readUTF();
-
-		Path path = new Path(basePath, pathString);
-		return new FileStateHandle(path, size);
+	public SavepointV2 deserialize(DataInputStream dis, Path basePath, ClassLoader userCodeClassLoader) throws IOException {
+		return savepointSerializer.deserialize(dis, basePath, userCodeClassLoader);
 	}
 
 	/**
@@ -85,6 +78,7 @@ class SavepointV2Serializer extends AbstractSavepointSerializer<SavepointV2> {
 	 */
 	@Nullable
 	static Path getRelativePath(Path base, Path child) {
+
 		URI baseUri = checkNotNull(base, "base").toUri();
 		URI childUri = checkNotNull(child, "child").toUri();
 
@@ -101,5 +95,47 @@ class SavepointV2Serializer extends AbstractSavepointSerializer<SavepointV2> {
 
 			throw new IllegalArgumentException(msg);
 		}
+	}
+
+	/**
+	 * Savepoint factory creating {@link SavepointV2} instances.
+	 */
+	private static class SavepointV2Factory implements SavepointFactory<SavepointV2> {
+
+		@Override
+		public SavepointV2 createSavepoint(long checkpointId, Collection<TaskState> taskStates) {
+			return new SavepointV2(checkpointId, taskStates);
+		}
+
+	}
+
+
+	/**
+	 * File state handle serializer for {@link SavepointV2} instances.
+	 */
+	@VisibleForTesting // could be private otherwise
+	static class SavepointV2FileStateHandleSerializer implements FileStateHandleSerializer {
+
+		@Override
+		public void serializeFileStreamStateHandle(FileStateHandle fileStateHandle, Path basePath, DataOutputStream dos) throws IOException {
+			dos.writeLong(fileStateHandle.getStateSize());
+
+			Path child = fileStateHandle.getFilePath();
+			Path relative = getRelativePath(basePath, child);
+
+			// Only serialize the relative file path
+			dos.writeUTF(relative.toString());
+		}
+
+		@Override
+		public FileStateHandle deserializeFileStreamStateHandle(Path basePath, DataInputStream dis) throws IOException {
+			long size = dis.readLong();
+			String pathString = dis.readUTF();
+
+			// Combine the relative path with the base path.
+			Path path = new Path(basePath, pathString);
+			return new FileStateHandle(path, size);
+		}
+
 	}
 }

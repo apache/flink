@@ -21,6 +21,9 @@ package org.apache.flink.runtime.checkpoint.savepoint;
 import static org.junit.Assert.assertEquals;
 
 import java.io.ByteArrayInputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.util.Collection;
 import java.util.Random;
 import org.apache.flink.core.fs.Path;
@@ -28,20 +31,20 @@ import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.checkpoint.TaskState;
+import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.junit.Test;
 
-public class AbstractSavepointSerializerTest {
+public class GenericSavepointSerializerTest {
 
 	/**
-	 * Test the abstract base serialization of savepoint instances without
-	 * any overridden behaviour.
+	 * Test the generic serialization of savepoint instances without any overridden behaviour.
 	 *
 	 * <p>The abstract base serializer is used by the V1 and V2 serializer.
 	 * The actual V1 serializer doesn't allow serialization of V1 savepoints
 	 * anymore. Therefore we test the abstract behaviour here.
 	 */
 	@Test
-	public void testAbstractSerializeDeserialize() throws Exception {
+	public void testGenericSerializeDeserialize() throws Exception {
 		Path ignoredBasePath = new Path("ignored");
 
 		Random r = new Random(42);
@@ -50,12 +53,26 @@ public class AbstractSavepointSerializerTest {
 				i+ 123123,
 				SavepointV1Test.createTaskStates(1 + r.nextInt(64), 1 + r.nextInt(64)));
 
-			SavepointSerializer<SavepointV1> serializer = new AbstractSavepointSerializer<SavepointV1>() {
-				@Override
-				SavepointV1 createSavepoint(long checkpointId, Collection<TaskState> taskStates) {
-					return new SavepointV1(checkpointId, taskStates);
+			SavepointSerializer<SavepointV1> serializer = new GenericSavepointSerializer<SavepointV1>(
+				new SavepointFactory<SavepointV1>() {
+					@Override
+					public SavepointV1 createSavepoint(long checkpointId,
+						Collection<TaskState> taskStates) {
+						return new SavepointV1(checkpointId, taskStates);
+					}
+				},
+				new FileStateHandleSerializer() {
+					@Override
+					public void serializeFileStreamStateHandle(FileStateHandle fileStateHandle, Path basePath, DataOutputStream dos) throws IOException {
+						throw new UnsupportedOperationException("Should not be called in this test");
+					}
+
+					@Override
+					public FileStateHandle deserializeFileStreamStateHandle(Path basePath, DataInputStream dis) throws IOException {
+						throw new UnsupportedOperationException("Should not be called in this test");
+					}
 				}
-			};
+			);
 
 			// Serialize
 			ByteArrayOutputStreamWithPos baos = new ByteArrayOutputStreamWithPos();

@@ -38,6 +38,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.runtime.checkpoint.savepoint.SavepointV2Serializer.SavepointV2FileStateHandleSerializer;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStreamFactory.FsCheckpointStateOutputStream;
 import org.junit.Rule;
@@ -149,7 +150,7 @@ public class SavepointV2SerializerTest {
 		// Get the handle and serialize it
 		FileStateHandle fsHandle = (FileStateHandle) fsOutStream.closeAndGetHandle();
 
-		SavepointV2Serializer serializer = SavepointV2Serializer.INSTANCE;
+		SavepointV2FileStateHandleSerializer serializer = new SavepointV2FileStateHandleSerializer();
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		serializer.serializeFileStreamStateHandle(fsHandle, base, new DataOutputStream(baos));
 

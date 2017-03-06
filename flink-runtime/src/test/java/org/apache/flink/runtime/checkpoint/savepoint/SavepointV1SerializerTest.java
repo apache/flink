@@ -22,7 +22,9 @@ import static org.junit.Assert.assertEquals;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Random;
@@ -31,6 +33,7 @@ import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.checkpoint.TaskState;
+import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.junit.Test;
 
 public class SavepointV1SerializerTest {
@@ -41,13 +44,30 @@ public class SavepointV1SerializerTest {
 	@Test
 	public void testDeserialize() throws Exception {
 		// The actual SavepointV1Serializer doesn't allow serialization
-		// any longer, use this one.
-		SavepointSerializer<SavepointV1> legacySerializer = new AbstractSavepointSerializer<SavepointV1>() {
-			@Override
-			SavepointV1 createSavepoint(long checkpointId, Collection<TaskState> taskStates) {
-				return new SavepointV1(checkpointId, taskStates);
+		// any longer, use this one. This also has the benefit of "fixing"
+		// the layout against accidental changes in the actual serialier.
+
+		SavepointSerializer<SavepointV1> legacySerializer = new GenericSavepointSerializer<SavepointV1>(
+			new SavepointFactory<SavepointV1>() {
+				@Override
+				public SavepointV1 createSavepoint(long checkpointId,
+					Collection<TaskState> taskStates) {
+					return new SavepointV1(checkpointId, taskStates);
+				}
+			},
+			new FileStateHandleSerializer() {
+				@Override
+				public void serializeFileStreamStateHandle(FileStateHandle fileStateHandle, Path basePath, DataOutputStream dos) throws IOException {
+					dos.writeLong(fileStateHandle.getStateSize());
+					dos.writeUTF(fileStateHandle.getFilePath().toString());
+				}
+
+				@Override
+				public FileStateHandle deserializeFileStreamStateHandle(Path basePath, DataInputStream dis) throws IOException {
+					throw new UnsupportedOperationException("Should not be called in test");
+				}
 			}
-		};
+		);
 
 		Path ignoredBasePath = new Path("ignored");
 

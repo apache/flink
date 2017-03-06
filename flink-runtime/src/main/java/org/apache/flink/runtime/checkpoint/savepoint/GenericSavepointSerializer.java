@@ -38,23 +38,19 @@ import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.apache.flink.util.Preconditions;
 
 /**
- * Abstract Serializer for {@link Savepoint} instances.
+ * Generic serializer for {@link Savepoint} instances.
  *
  * <p>This is based on the {@link SavepointV1Serializer} of Flink 1.2.0 that
- * makes sure no default Java serialization is used.
+ * made sure no default Java serialization is used.
  *
- * <p>The abstract class allows to overwrite the serialization behaviour for
- * {@link FileStateHandle} instances. This is the only practical difference
- * between Flink 1.2.x and versions >= Flink 1.3.0.
- *
- * <p>This will probably be extended in ways that I cannot imagine at this point
- * in time. If for whatever reason the abstract base class turns out to be a
- * bad idea, feel free to change stuff. Right now, it's sole purpose is reducing
- * code duplication between {@link SavepointV1Serializer} and {@link SavepointV2Serializer}.
+ * <p>The generic class allows to customize the file state handle serialization
+ * behaviour. This is the only practical difference between Flink 1.2.x and
+ * versions >= Flink 1.3.0.
  */
-abstract class AbstractSavepointSerializer<T extends Savepoint> implements SavepointSerializer<T> {
+class GenericSavepointSerializer<T extends Savepoint> implements SavepointSerializer<T> {
 
 	private static final byte NULL_HANDLE = 0;
 	private static final byte BYTE_STREAM_STATE_HANDLE = 1;
@@ -62,17 +58,16 @@ abstract class AbstractSavepointSerializer<T extends Savepoint> implements Savep
 	private static final byte KEY_GROUPS_HANDLE = 3;
 	private static final byte PARTITIONABLE_OPERATOR_STATE_HANDLE = 4;
 
-	/**
-	 * Abstract method to create the special savepoint of subtype T.
-	 *
-	 * <p>I'm wondering how useful this is in practice in comparison to simply
-	 * returning the base Savepoint type.
-	 *
-	 * @param checkpointId Checkpoint ID of the savepoint.
-	 * @param taskStates Task states of the savepoint.
-	 * @return A concrete savepoint subtype of type T.
-	 */
-	abstract T createSavepoint(long checkpointId, Collection<TaskState> taskStates);
+	private final SavepointFactory<T> savepointFactory;
+	private final FileStateHandleSerializer fileStateHandleSerializer;
+
+	GenericSavepointSerializer(
+			SavepointFactory<T> savepointFactory,
+			FileStateHandleSerializer fileStateHandleSerializer) {
+
+		this.savepointFactory = Preconditions.checkNotNull(savepointFactory);
+		this.fileStateHandleSerializer = Preconditions.checkNotNull(fileStateHandleSerializer);
+	}
 
 	@Override
 	public void serialize(T savepoint, Path basePath, DataOutputStream dos) throws IOException {
@@ -134,7 +129,7 @@ abstract class AbstractSavepointSerializer<T extends Savepoint> implements Savep
 			}
 		}
 
-		return createSavepoint(checkpointId, taskStates);
+		return savepointFactory.createSavepoint(checkpointId, taskStates);
 	}
 
 	private void serializeSubtaskState(SubtaskState subtaskState, Path basePath, DataOutputStream dos) throws IOException {
@@ -318,8 +313,7 @@ abstract class AbstractSavepointSerializer<T extends Savepoint> implements Savep
 		} else if (stateHandle instanceof FileStateHandle) {
 			dos.writeByte(FILE_STREAM_STATE_HANDLE);
 			FileStateHandle fileStateHandle = (FileStateHandle) stateHandle;
-			serializeFileStreamStateHandle(fileStateHandle, basePath, dos);
-
+			fileStateHandleSerializer.serializeFileStreamStateHandle(fileStateHandle, basePath, dos);
 		} else if (stateHandle instanceof ByteStreamStateHandle) {
 			dos.writeByte(BYTE_STREAM_STATE_HANDLE);
 			ByteStreamStateHandle byteStreamStateHandle = (ByteStreamStateHandle) stateHandle;
@@ -340,7 +334,7 @@ abstract class AbstractSavepointSerializer<T extends Savepoint> implements Savep
 		if (NULL_HANDLE == type) {
 			return null;
 		} else if (FILE_STREAM_STATE_HANDLE == type) {
-			return deserializeFileStreamStateHandle(basePath, dis);
+			return fileStateHandleSerializer.deserializeFileStreamStateHandle(basePath, dis);
 		} else if (BYTE_STREAM_STATE_HANDLE == type) {
 			String handleName = dis.readUTF();
 			int numBytes = dis.readInt();
@@ -350,37 +344,6 @@ abstract class AbstractSavepointSerializer<T extends Savepoint> implements Savep
 		} else {
 			throw new IOException("Unknown implementation of StreamStateHandle, code: " + type);
 		}
-	}
-
-	/**
-	 * Serialize the file stream state handle <strong>without</strong> writing
-	 * the leading byte for the stream handle type. Only worry about the actual
-	 * file stream handle, please.
-	 *
-	 * @param fileStateHandle FileStateHandle to serialize
-	 * @param basePath Base path of the savepoint
-	 * @param dos DataOutputStream to serialize handle to
-	 * @throws IOException Failures during serialization are forwarded
-	 */
-	void serializeFileStreamStateHandle(FileStateHandle fileStateHandle, Path basePath, DataOutputStream dos) throws IOException {
-		dos.writeLong(fileStateHandle.getStateSize());
-		dos.writeUTF(fileStateHandle.getFilePath().toString());
-	}
-
-	/**
-	 * Deserialize the file stream state handle <strong>without</strong> reading
-	 * the leading byte for the stream handle type. Only worry about the actual
-	 * file stream handle, please.
-	 *
-	 * @param basePath Base path of the savepoint
-	 * @param dis DataInputStream to deserialize handle from
-	 * @return Deserialized FileStateHandle
-	 * @throws IOException Failures during serialization are forwarded
-	 */
-	FileStateHandle deserializeFileStreamStateHandle(Path basePath, DataInputStream dis) throws IOException {
-		long size = dis.readLong();
-		String pathString = dis.readUTF();
-		return new FileStateHandle(new Path(pathString), size);
 	}
 
 }

@@ -18,11 +18,13 @@
 
 package org.apache.flink.runtime.checkpoint.savepoint;
 
+import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.Collection;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.TaskState;
+import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 
 /**
  * Serializer for {@link SavepointV1} instances.
@@ -35,16 +37,17 @@ import org.apache.flink.runtime.checkpoint.TaskState;
  * serializer is only used to deserialize V1 savepoints.
  */
 @Deprecated
-class SavepointV1Serializer extends AbstractSavepointSerializer<SavepointV1> {
+class SavepointV1Serializer implements SavepointSerializer<SavepointV1> {
 
 	public static final SavepointV1Serializer INSTANCE = new SavepointV1Serializer();
 
-	private SavepointV1Serializer() {
-	}
+	/** Generic savepoint serializer. */
+	private final SavepointSerializer<SavepointV1> savepointSerializer;
 
-	@Override
-	SavepointV1 createSavepoint(long checkpointId, Collection<TaskState> taskStates) {
-		return new SavepointV1(checkpointId, taskStates);
+	private SavepointV1Serializer() {
+		this.savepointSerializer = new GenericSavepointSerializer<>(
+			new SavepointV1Factory(),
+			new SavepointV1FileStateHandleSerializer());
 	}
 
 	@Override
@@ -52,4 +55,43 @@ class SavepointV1Serializer extends AbstractSavepointSerializer<SavepointV1> {
 		throw new UnsupportedOperationException("This serializer has been deprecated for "
 			+ "serializing savepoints. You should only use it to _de_serialize SavepointV1 instances.");
 	}
+
+	@Override
+	public SavepointV1 deserialize(DataInputStream dis, Path basePath,
+		ClassLoader userCodeClassLoader) throws IOException {
+		return savepointSerializer.deserialize(dis, basePath, userCodeClassLoader);
+	}
+
+	/**
+	 * Savepoint factory creating {@link SavepointV1} instances.
+	 */
+	private static class SavepointV1Factory implements SavepointFactory<SavepointV1> {
+
+		@Override
+		public SavepointV1 createSavepoint(long checkpointId, Collection<TaskState> taskStates) {
+			return new SavepointV1(checkpointId, taskStates);
+		}
+	}
+
+	/**
+	 * File state handle serializer for {@link SavepointV1} instances.
+	 */
+	private static class SavepointV1FileStateHandleSerializer implements FileStateHandleSerializer {
+
+		@Override
+		public void serializeFileStreamStateHandle(FileStateHandle fileStateHandle, Path basePath, DataOutputStream dos) throws IOException {
+			throw new UnsupportedOperationException("This serializer has been deprecated for "
+				+ "serializing savepoints. You should only use it to _de_serialize SavepointV1 instances.");
+		}
+
+		@Override
+		public FileStateHandle deserializeFileStreamStateHandle(Path basePath, DataInputStream dis) throws IOException {
+			long size = dis.readLong();
+			String pathString = dis.readUTF();
+
+			// Read the complete file path from the savepoint. The path is absolute.
+			return new FileStateHandle(new Path(pathString), size);
+		}
+	}
+
 }
