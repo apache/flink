@@ -24,6 +24,9 @@ import java.io.IOException;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 
+/**
+ * Interface to handle file state handle serialization in the {@link GenericSavepointSerializer}.
+ */
 interface FileStateHandleSerializer {
 
 	/**
