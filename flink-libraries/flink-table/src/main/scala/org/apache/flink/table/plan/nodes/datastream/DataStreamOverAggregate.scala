@@ -21,14 +21,13 @@ import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.{StreamTableEnvironment, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.runtime.aggregate.AggregateUtil.{CalcitePair, _}
 import org.apache.flink.table.runtime.aggregate._
-import org.apache.flink.table.plan.nodes.CommonAggregate
+import org.apache.flink.table.plan.nodes.OverAggregate
 import org.apache.flink.types.Row
 import org.apache.calcite.rel.core.Window
 import org.apache.calcite.rel.core.Window.Group
@@ -47,7 +46,7 @@ class DataStreamOverAggregate(
     rowRelDataType: RelDataType,
     inputType: RelDataType)
   extends SingleRel(cluster, traitSet, inputNode)
-  with CommonAggregate
+  with OverAggregate
   with DataStreamRel {
 
   override def deriveRowType(): RelDataType = rowRelDataType
@@ -63,50 +62,26 @@ class DataStreamOverAggregate(
   }
 
   override def toString: String = {
-    val (
-      overWindow: Group,
-      partitionKeys: Array[Int],
-      namedAggregates: IndexedSeq[CalcitePair[AggregateCall, String]]
-      ) = genPartitionKeysAndNamedAggregates
-
-    s"Aggregate(${
-      if (!partitionKeys.isEmpty) {
-        s"partitionBy: (${groupingToString(inputType, partitionKeys)}), "
-      } else {
-        ""
-      }
-    }window: ($overWindow), " +
-      s"select: (${
-        aggregationToString(
-          inputType,
-          partitionKeys,
-          getRowType,
-          namedAggregates,
-          Seq())
-      }))"
+    s"OverAggregate(${aggOpName})"
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
-    val (
-      overWindow: Group,
-      partitionKeys: Array[Int],
-      namedAggregates: IndexedSeq[CalcitePair[AggregateCall, String]]
-      ) = genPartitionKeysAndNamedAggregates
+    val overWindow: Group = logicWindow.groups.get(0)
+    val partition = overWindow.keys.toArray
 
     super.explainTerms(pw)
-      .itemIf("partitionBy", groupingToString(inputType, partitionKeys), !partitionKeys.isEmpty)
-      .item("overWindow", overWindow)
+      .itemIf("partitionBy", partitionToString(inputType, partition), partition.nonEmpty)
+      .item("orderBy", orderingToString(inputType, overWindow.orderKeys.getFieldCollations))
+      .itemIf("rows", windowRange(overWindow), overWindow.isRows)
+      .itemIf("range", windowRange(overWindow), !overWindow.isRows)
       .item(
         "select", aggregationToString(
           inputType,
-          partitionKeys,
           getRowType,
-          namedAggregates,
-          Seq()))
+          namedAggregates))
   }
 
   override def translateToPlan(tableEnv: StreamTableEnvironment): DataStream[Row] = {
-
     if (logicWindow.groups.size > 1) {
       throw new TableException(
         "Unsupported use of OVER windows. All aggregates must be computed on the same window.")
@@ -118,7 +93,7 @@ class DataStreamOverAggregate(
 
     if (overWindow.orderKeys.getFieldCollations.size() != 1) {
       throw new TableException(
-        "Unsupported use of OVER windows. All aggregates must be ordered on a time mode column.")
+        "Unsupported use of OVER windows. The window may only be ordered by a single time column.")
     }
 
     val timeType = inputType
@@ -147,64 +122,58 @@ class DataStreamOverAggregate(
 
   def createUnboundedAndCurrentRowProcessingTimeOverWindow(
     inputDS: DataStream[Row]): DataStream[Row]  = {
-
-    val (
-      overWindow: Group,
-      partitionKeys: Array[Int],
-      namedAggregates: IndexedSeq[CalcitePair[AggregateCall, String]]
-      ) = genPartitionKeysAndNamedAggregates
-
-    val inputIndices = (0 until inputType.getFieldCount).toArray
-
+    val partition = logicWindow.groups.get(0).keys.toArray
     // get the output types
-    val fieldTypes: Array[TypeInformation[_]] = getRowType
-      .getFieldList.asScala
-      .map(field => FlinkTypeFactory.toTypeInfo(field.getType)).toArray
-
-    val rowTypeInfo = new RowTypeInfo(fieldTypes: _*)
-
-    val aggString = aggregationToString(
-      inputType,
-      inputIndices,
-      getRowType,
-      namedAggregates,
-      Seq())
-
-    val keyedAggOpName = s"partitionBy: (${groupingToString(inputType, partitionKeys)}), " +
-      s"overWindow: ($overWindow), " +
-      s"select: ($aggString)"
+    val rowTypeInfo = FlinkTypeFactory.toInternalRowTypeInfo(getRowType).asInstanceOf[RowTypeInfo]
 
     val result: DataStream[Row] =
         // partitioned aggregation
-        if (partitionKeys.length > 0) {
+        if (partition.nonEmpty) {
           val processFunction = AggregateUtil.CreateUnboundedProcessingOverProcessFunction(
             namedAggregates,
-            inputType,
-            getRowType,
-            inputIndices)
+            inputType)
 
           inputDS
-          .keyBy(partitionKeys: _*)
+          .keyBy(partition: _*)
           .process(processFunction)
           .returns(rowTypeInfo)
-          .name(keyedAggOpName)
+          .name(aggOpName)
           .asInstanceOf[DataStream[Row]]
         }
         // global non-partitioned aggregation
         else {
-          throw TableException("non-partitioned over Aggregation is currently not supported...")
+          throw TableException(
+            "Non-partitioned processing time OVER aggregation is not supported yet.")
         }
     result
   }
 
-  private def genPartitionKeysAndNamedAggregates = {
+  private def namedAggregates = {
     val overWindow: Group = logicWindow.groups.get(0)
-    val partitionKeys = overWindow.keys.toArray
-
     val aggregateCalls = overWindow.getAggregateCalls(logicWindow)
-    val namedAggregates = for (i <- 0 until aggregateCalls.size())
+    for (i <- 0 until aggregateCalls.size())
       yield new CalcitePair[AggregateCall, String](aggregateCalls.get(i), "w0$o" + i)
-    (overWindow, partitionKeys, namedAggregates)
+  }
+
+  private def aggOpName = {
+    val overWindow: Group = logicWindow.groups.get(0)
+    val partition = overWindow.keys.toArray
+    namedAggregates
+
+    s"over: (${
+      if (!partition.isEmpty) {
+        s"PARTITION BY: ${partitionToString(inputType, partition)}, "
+      } else {
+        ""
+      }
+    }ORDER BY: ${orderingToString(inputType, overWindow.orderKeys.getFieldCollations)}, " +
+      s"${windowRange(overWindow)}, " +
+      s"select: (${
+        aggregationToString(
+          inputType,
+          getRowType,
+          namedAggregates)
+      }))"
   }
 }
 

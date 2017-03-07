@@ -17,13 +17,10 @@
  */
 package org.apache.flink.table.runtime.aggregate
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.streaming.api.functions.ProcessFunction.{Context, OnTimerContext}
+import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.types.Row
-import org.apache.flink.streaming.api.functions.RichProcessFunction
 import org.apache.flink.util.{Collector, Preconditions}
-import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.api.common.state.ValueStateDescriptor
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.common.state.ValueState
@@ -33,9 +30,8 @@ class UnboundedProcessingOverProcessFunction(
     private val aggregates: Array[AggregateFunction[_]],
     private val aggFields: Array[Int],
     private val forwardedFieldCount: Int,
-    private val intermediateRowType: RowTypeInfo,
-    private val returnType: TypeInformation[Row])
-  extends RichProcessFunction[Row, Row]{
+    private val aggregationStateType: RowTypeInfo)
+  extends ProcessFunction[Row, Row]{
 
   Preconditions.checkNotNull(aggregates)
   Preconditions.checkNotNull(aggFields)
@@ -47,16 +43,14 @@ class UnboundedProcessingOverProcessFunction(
 
   override def open(config: Configuration) {
     output = new Row(forwardedFieldCount + aggregates.length)
-    val stateSerializer: TypeSerializer[Row] =
-      intermediateRowType.createSerializer(getRuntimeContext.getExecutionConfig)
     val stateDescriptor: ValueStateDescriptor[Row] =
-      new ValueStateDescriptor[Row]("overState", stateSerializer)
+      new ValueStateDescriptor[Row]("overState", aggregationStateType)
     state = getRuntimeContext.getState(stateDescriptor)
   }
 
   override def processElement(
     input: Row,
-    ctx: Context,
+    ctx: ProcessFunction[Row, Row]#Context,
     out: Collector[Row]): Unit = {
 
     var accumulators = state.value()
@@ -72,20 +66,15 @@ class UnboundedProcessingOverProcessFunction(
       output.setField(i, input.getField(i))
     }
 
-    for (i <- 0 until aggregates.length) {
+    for (i <- aggregates.indices) {
       val index = forwardedFieldCount + i
-      val accumulator = accumulators.getField(i).asInstanceOf[Accumulator];
+      val accumulator = accumulators.getField(i).asInstanceOf[Accumulator]
       aggregates(i).accumulate(accumulator, input.getField(aggFields(i)))
       output.setField(index, aggregates(i).getValue(accumulator))
-      accumulators.setField(i, accumulator)
     }
     state.update(accumulators)
 
     out.collect(output)
   }
 
-  override def onTimer(
-    timestamp: Long,
-    ctx: OnTimerContext,
-    out: Collector[Row]): Unit = ??? // Implement this method if following is needed to be supported
 }

@@ -20,18 +20,17 @@ package org.apache.flink.table.api.scala.stream.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
 import org.apache.flink.table.api.{TableEnvironment, TableException}
-import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.scala.stream.utils.{StreamITCase, StreamTestData}
+import org.apache.flink.table.api.scala.stream.utils.{StreamingWithStateTestBase, StreamITCase,
+StreamTestData}
 import org.apache.flink.types.Row
 import org.junit.Assert._
 import org.junit._
 
 import scala.collection.mutable
 
-class SqlITCase extends StreamingMultipleProgramsTestBase {
+class SqlITCase extends StreamingWithStateTestBase {
 
   val data = List(
     (1L, 1, "Hello"),
@@ -187,6 +186,7 @@ class SqlITCase extends StreamingMultipleProgramsTestBase {
   @Test
   def testUnboundPartitionedProcessingWindowWithRange(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStateBackend(getStateBackend)
     val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamITCase.testResults = mutable.MutableList()
 
@@ -216,6 +216,7 @@ class SqlITCase extends StreamingMultipleProgramsTestBase {
   @Test
   def testUnboundPartitionedProcessingWindowWithRow(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStateBackend(getStateBackend)
     val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamITCase.testResults = mutable.MutableList()
 
@@ -226,7 +227,7 @@ class SqlITCase extends StreamingMultipleProgramsTestBase {
     val sqlQuery = "SELECT " +
       "c, " +
       "count(a) OVER (PARTITION BY c ORDER BY ProcTime() ROWS BETWEEN UNBOUNDED preceding AND " +
-      "CURRENT ROW) as cnt1 " +
+      "CURRENT ROW)" +
       "from T1"
 
     val result = tEnv.sql(sqlQuery).toDataStream[Row]
@@ -245,6 +246,7 @@ class SqlITCase extends StreamingMultipleProgramsTestBase {
   @Test(expected = classOf[TableException])
   def testMultiWindow(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStateBackend(getStateBackend)
     val tEnv = TableEnvironment.getTableEnvironment(env)
     StreamITCase.testResults = mutable.MutableList()
 

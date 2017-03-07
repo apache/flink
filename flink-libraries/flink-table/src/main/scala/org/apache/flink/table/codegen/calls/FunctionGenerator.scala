@@ -347,6 +347,7 @@ object FunctionGenerator {
           case (x: BasicTypeInfo[_], y: BasicTypeInfo[_]) => y.shouldAutocastTo(x) || x == y
           case _ => false
         }).map(_._2))
+
   }
 
   // ----------------------------------------------------------------------------------------------
