@@ -17,13 +17,12 @@
 
 package org.apache.flink.test.streaming.api.outputformat;
 
-import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
 import org.apache.flink.test.testdata.WordCountData;
-import org.apache.flink.util.Collector;
+import org.apache.flink.test.testfunctions.Tokenizer;
 
 public class CsvOutputFormatITCase extends StreamingProgramTestBase {
 
@@ -54,24 +53,6 @@ public class CsvOutputFormatITCase extends StreamingProgramTestBase {
 		//Strip the parentheses from the expected text like output
 		compareResultsByLinesInMemory(WordCountData.STREAMING_COUNTS_AS_TUPLES
 				.replaceAll("[\\\\(\\\\)]", ""), resultPath);
-	}
-
-	public static final class Tokenizer implements FlatMapFunction<String, Tuple2<String, Integer>> {
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		public void flatMap(String value, Collector<Tuple2<String, Integer>> out)
-				throws Exception {
-			// normalize and split the line
-			String[] tokens = value.toLowerCase().split("\\W+");
-
-			// emit the pairs
-			for (String token : tokens) {
-				if (token.length() > 0) {
-					out.collect(new Tuple2<String, Integer>(token, 1));
-				}
-			}
-		}
 	}
 
 }
