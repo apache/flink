@@ -147,19 +147,6 @@ class BooleanMinAggFunction extends MinAggFunction[Boolean] {
   * Built-in Big Decimal Min aggregate function
   */
 class DecimalMinAggFunction extends MinAggFunction[BigDecimal] {
-
-  override def accumulate(accumulator: Accumulator, value: Any): Unit = {
-    if (value != null) {
-      val v = value.asInstanceOf[BigDecimal]
-      val accum = accumulator.asInstanceOf[MinAccumulator[BigDecimal]]
-      if (!accum.f1 || accum.f0.compareTo(v) > 0) {
-        accum.f0 = v
-        accum.f1 = true
-      }
-    }
-  }
-
   override def getInitValue: BigDecimal = BigDecimal.ZERO
-
   override def getValueTypeInfo = BasicTypeInfo.BIG_DEC_TYPE_INFO
 }

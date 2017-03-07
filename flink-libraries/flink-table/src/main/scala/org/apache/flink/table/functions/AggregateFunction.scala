@@ -20,6 +20,7 @@ package org.apache.flink.table.functions
 import java.util.{List => JList}
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.table.api.TableException
 
 /**
   * Base class for User-Defined Aggregates.
@@ -33,6 +34,19 @@ abstract class AggregateFunction[T] extends UserDefinedFunction {
     * @return the accumulator with the initial value
     */
   def createAccumulator(): Accumulator
+
+  /**
+    * Retract the input values from the accumulator instance. The current design assumes the
+    * inputs are the values that have been previously accumulated.
+    *
+    * @param accumulator the accumulator which contains the current
+    *                    aggregated results
+    * @param input       the input value (usually obtained from a new arrived data)
+    */
+  def retract(accumulator: Accumulator, input: Any): Unit = {
+    throw TableException("Retract is an optional method. There is no default implementation. You " +
+                           "must implement one for yourself.")
+  }
 
   /**
     * Called every time when an aggregation result should be materialized.
