@@ -42,10 +42,6 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 		if (numberOfInputs > 0) {
 			InputGate[] inputGates = getEnvironment().getAllInputGates();
 
-			@SuppressWarnings("unchecked")
-			OperatorChain<?, OneInputStreamOperator<IN, ?>> operatorChain =
-					(OperatorChain) this.operatorChain;
-
 			inputProcessor = new StreamInputProcessor<>(
 					inputGates,
 					inSerializer,
@@ -54,7 +50,7 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 					getCheckpointLock(),
 					getEnvironment().getIOManager(),
 					getEnvironment().getTaskManagerInfo().getConfiguration(),
-					operatorChain,
+					getStreamStatusMaintainer(),
 					this.headOperator);
 
 			// make sure that stream tasks report their I/O statistics

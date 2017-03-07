@@ -25,6 +25,7 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
+import org.apache.flink.runtime.highavailability.RunningJobsRegistry.JobSchedulingStatus;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
@@ -359,29 +360,37 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 			// it's okay that job manager wait for the operation complete
 			leaderElectionService.confirmLeaderSessionID(leaderSessionID);
 
-			boolean jobRunning;
+			final JobSchedulingStatus schedulingStatus;
 			try {
-				jobRunning = runningJobsRegistry.isJobRunning(jobGraph.getJobID());
-			} catch (Throwable t) {
-				log.error("Could not access status (running/finished) of job {}. " +
-						"Falling back to assumption that job is running and attempting recovery...",
-						jobGraph.getJobID(), t);
-				jobRunning = true;
+				schedulingStatus = runningJobsRegistry.getJobSchedulingStatus(jobGraph.getJobID());
+			}
+			catch (Throwable t) {
+				log.error("Could not access status (running/finished) of job {}. ", jobGraph.getJobID(), t);
+				onFatalError(t);
+				return;
+			}
+
+			if (schedulingStatus == JobSchedulingStatus.DONE) {
+				log.info("Granted leader ship but job {} has been finished. ", jobGraph.getJobID());
+				jobFinishedByOther();
+				return;
 			}
 
 			// Double check the leadership after we confirm that, there is a small chance that multiple
 			// job managers schedule the same job after if they try to recover at the same time.
 			// This will eventually be noticed, but can not be ruled out from the beginning.
 			if (leaderElectionService.hasLeadership()) {
-				if (jobRunning) {
-					try {
-						jobManager.start(leaderSessionID);
-					} catch (Exception e) {
-						onFatalError(new Exception("Could not start the job manager.", e));
+				try {
+					// Now set the running status is after getting leader ship and 
+					// set finished status after job in terminated status.
+					// So if finding the job is running, it means someone has already run the job, need recover.
+					if (schedulingStatus == JobSchedulingStatus.PENDING) {
+						runningJobsRegistry.setJobRunning(jobGraph.getJobID());
 					}
-				} else {
-					log.info("Job {} ({}) already finished by others.", jobGraph.getName(), jobGraph.getJobID());
-					jobFinishedByOther();
+
+					jobManager.start(leaderSessionID);
+				} catch (Exception e) {
+					onFatalError(new Exception("Could not start the job manager.", e));
 				}
 			}
 		}

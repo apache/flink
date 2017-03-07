@@ -56,6 +56,11 @@ public class CollectingSourceContext<T extends Serializable> implements SourceFu
 	}
 
 	@Override
+	public void markAsTemporarilyIdle() {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
 	public Object getCheckpointLock() {
 		return lock;
 	}

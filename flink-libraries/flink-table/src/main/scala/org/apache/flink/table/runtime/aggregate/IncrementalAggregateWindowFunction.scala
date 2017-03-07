@@ -24,30 +24,24 @@ import org.apache.flink.types.Row
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction
 import org.apache.flink.streaming.api.windowing.windows.Window
-import org.apache.flink.util.{Collector, Preconditions}
+import org.apache.flink.util.Collector
 
 /**
   * Computes the final aggregate value from incrementally computed aggreagtes.
   *
-  * @param aggregates   The aggregate functions.
-  * @param groupKeysMapping The index mapping of group keys between intermediate aggregate Row
-  *                         and output Row.
-  * @param aggregateMapping The index mapping between aggregate function list and aggregated value
-  *                         index in output Row.
-  * @param finalRowArity  The arity of the final output row.
+  * @param numGroupingKey The number of grouping keys.
+  * @param numAggregates The number of aggregates.
+  * @param finalRowArity The arity of the final output row.
   */
 class IncrementalAggregateWindowFunction[W <: Window](
-    private val aggregates: Array[Aggregate[_ <: Any]],
-    private val groupKeysMapping: Array[(Int, Int)],
-    private val aggregateMapping: Array[(Int, Int)],
+    private val numGroupingKey: Int,
+    private val numAggregates: Int,
     private val finalRowArity: Int)
   extends RichWindowFunction[Row, Row, Tuple, W] {
 
   private var output: Row = _
 
   override def open(parameters: Configuration): Unit = {
-    Preconditions.checkNotNull(aggregates)
-    Preconditions.checkNotNull(groupKeysMapping)
     output = new Row(finalRowArity)
   }
 
@@ -56,25 +50,23 @@ class IncrementalAggregateWindowFunction[W <: Window](
     * Row based on the mapping relation between intermediate aggregate data and output data.
     */
   override def apply(
-    key: Tuple,
-    window: W,
-    records: Iterable[Row],
-    out: Collector[Row]): Unit = {
+      key: Tuple,
+      window: W,
+      records: Iterable[Row],
+      out: Collector[Row]): Unit = {
 
     val iterator = records.iterator
 
     if (iterator.hasNext) {
       val record = iterator.next()
-      // Set group keys value to final output.
-      groupKeysMapping.foreach {
-        case (after, previous) =>
-          output.setField(after, record.getField(previous))
+
+      for (i <- 0 until numGroupingKey) {
+        output.setField(i, key.getField(i))
       }
-      // Evaluate final aggregate value and set to output.
-      aggregateMapping.foreach {
-        case (after, previous) =>
-          output.setField(after, aggregates(previous).evaluate(record))
+      for (i <- 0 until numAggregates) {
+        output.setField(numGroupingKey + i, record.getField(i))
       }
+
       out.collect(output)
     }
   }

@@ -28,25 +28,15 @@ import org.apache.flink.util.{Collector, Preconditions}
 /**
   * Computes the final aggregate value from incrementally computed aggreagtes.
   *
-  * @param aggregates   The aggregate functions.
-  * @param groupKeysMapping The index mapping of group keys between intermediate aggregate Row
-  *                         and output Row.
-  * @param aggregateMapping The index mapping between aggregate function list and aggregated value
-  *                         index in output Row.
-  * @param finalRowArity  The arity of the final output row.
+  * @param finalRowArity The arity of the final output row.
   */
 class IncrementalAggregateAllWindowFunction[W <: Window](
-    private val aggregates: Array[Aggregate[_ <: Any]],
-    private val groupKeysMapping: Array[(Int, Int)],
-    private val aggregateMapping: Array[(Int, Int)],
     private val finalRowArity: Int)
   extends RichAllWindowFunction[Row, Row, W] {
 
   private var output: Row = _
 
   override def open(parameters: Configuration): Unit = {
-    Preconditions.checkNotNull(aggregates)
-    Preconditions.checkNotNull(groupKeysMapping)
     output = new Row(finalRowArity)
   }
 
@@ -55,25 +45,15 @@ class IncrementalAggregateAllWindowFunction[W <: Window](
     * Row based on the mapping relation between intermediate aggregate data and output data.
     */
   override def apply(
-    window: W,
-    records: Iterable[Row],
-    out: Collector[Row]): Unit = {
+      window: W,
+      records: Iterable[Row],
+      out: Collector[Row]): Unit = {
 
     val iterator = records.iterator
 
     if (iterator.hasNext) {
       val record = iterator.next()
-      // Set group keys value to final output.
-      groupKeysMapping.foreach {
-        case (after, previous) =>
-          output.setField(after, record.getField(previous))
-      }
-      // Evaluate final aggregate value and set to output.
-      aggregateMapping.foreach {
-        case (after, previous) =>
-          output.setField(after, aggregates(previous).evaluate(record))
-      }
-      out.collect(output)
+      out.collect(record)
     }
   }
 }

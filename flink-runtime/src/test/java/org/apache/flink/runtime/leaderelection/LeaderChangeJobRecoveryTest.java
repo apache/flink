@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.leaderelection;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
@@ -136,11 +135,6 @@ public class LeaderChangeJobRecoveryTest extends TestLogger {
 		sender.setSlotSharingGroup(slotSharingGroup);
 		receiver.setSlotSharingGroup(slotSharingGroup);
 
-		ExecutionConfig executionConfig = new ExecutionConfig();
-
-		JobGraph jobGraph = new JobGraph("Blocking test job", sender, receiver);
-		jobGraph.setExecutionConfig(executionConfig);
-
-		return jobGraph;
+		return new JobGraph("Blocking test job", sender, receiver);
 	}
 }

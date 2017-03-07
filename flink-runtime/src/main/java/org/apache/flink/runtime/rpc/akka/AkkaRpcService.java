@@ -23,6 +23,7 @@ import akka.actor.ActorRef;
 import akka.actor.ActorSelection;
 import akka.actor.ActorSystem;
 import akka.actor.Address;
+import akka.actor.Cancellable;
 import akka.actor.Identify;
 import akka.actor.PoisonPill;
 import akka.actor.Props;
@@ -34,6 +35,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.concurrent.CompletableFuture;
 import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.concurrent.impl.FlinkFuture;
 import org.apache.flink.runtime.rpc.MainThreadExecutable;
@@ -43,18 +45,24 @@ import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.StartStoppable;
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
+import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import scala.concurrent.duration.FiniteDuration;
 
+import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.Delayed;
 import java.util.concurrent.Executor;
+import java.util.concurrent.FutureTask;
+import java.util.concurrent.RunnableScheduledFuture;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -81,6 +89,8 @@ public class AkkaRpcService implements RpcService {
 
 	private final String address;
 
+	private final ScheduledExecutor internalScheduledExecutor;
+
 	private volatile boolean stopped;
 
 	public AkkaRpcService(final ActorSystem actorSystem, final Time timeout) {
@@ -101,6 +111,8 @@ public class AkkaRpcService implements RpcService {
 		} else {
 			address = "";
 		}
+
+		internalScheduledExecutor = new InternalScheduledExecutorImpl(actorSystem);
 	}
 
 	@Override
@@ -259,13 +271,17 @@ public class AkkaRpcService implements RpcService {
 		return actorSystem.dispatcher();
 	}
 
+	public ScheduledExecutor getScheduledExecutor() {
+		return internalScheduledExecutor;
+	}
+
 	@Override
-	public void scheduleRunnable(Runnable runnable, long delay, TimeUnit unit) {
+	public ScheduledFuture<?> scheduleRunnable(Runnable runnable, long delay, TimeUnit unit) {
 		checkNotNull(runnable, "runnable");
 		checkNotNull(unit, "unit");
-		checkArgument(delay >= 0, "delay must be zero or larger");
+		checkArgument(delay >= 0L, "delay must be zero or larger");
 
-		actorSystem.scheduler().scheduleOnce(new FiniteDuration(delay, unit), runnable, actorSystem.dispatcher());
+		return internalScheduledExecutor.schedule(runnable, delay, unit);
 	}
 
 	@Override
@@ -278,5 +294,167 @@ public class AkkaRpcService implements RpcService {
 		scala.concurrent.Future<T> scalaFuture = Futures.future(callable, actorSystem.dispatcher());
 
 		return new FlinkFuture<>(scalaFuture);
+	}
+
+	/**
+	 * Helper class to expose the internal scheduling logic via a {@link ScheduledExecutor}.
+	 */
+	private static final class InternalScheduledExecutorImpl implements ScheduledExecutor {
+
+		private final ActorSystem actorSystem;
+
+		private InternalScheduledExecutorImpl(ActorSystem actorSystem) {
+			this.actorSystem = Preconditions.checkNotNull(actorSystem, "rpcService");
+		}
+
+		@Override
+		@Nonnull
+		public ScheduledFuture<?> schedule(@Nonnull Runnable command, long delay, @Nonnull TimeUnit unit) {
+			ScheduledFutureTask<Void> scheduledFutureTask = new ScheduledFutureTask<>(command, unit.toNanos(delay), 0L);
+
+			Cancellable cancellable = internalSchedule(scheduledFutureTask, delay, unit);
+
+			scheduledFutureTask.setCancellable(cancellable);
+
+			return scheduledFutureTask;
+		}
+
+		@Override
+		@Nonnull
+		public <V> ScheduledFuture<V> schedule(@Nonnull Callable<V> callable, long delay, @Nonnull TimeUnit unit) {
+			ScheduledFutureTask<V> scheduledFutureTask = new ScheduledFutureTask<>(callable, unit.toNanos(delay), 0L);
+
+			Cancellable cancellable = internalSchedule(scheduledFutureTask, delay, unit);
+
+			scheduledFutureTask.setCancellable(cancellable);
+
+			return scheduledFutureTask;
+		}
+
+		@Override
+		@Nonnull
+		public ScheduledFuture<?> scheduleAtFixedRate(@Nonnull Runnable command, long initialDelay, long period, @Nonnull TimeUnit unit) {
+			ScheduledFutureTask<Void> scheduledFutureTask = new ScheduledFutureTask<>(
+				command,
+				triggerTime(unit.toNanos(initialDelay)),
+				unit.toNanos(period));
+
+			Cancellable cancellable = actorSystem.scheduler().schedule(
+				new FiniteDuration(initialDelay, unit),
+				new FiniteDuration(period, unit),
+				scheduledFutureTask,
+				actorSystem.dispatcher());
+
+			scheduledFutureTask.setCancellable(cancellable);
+
+			return scheduledFutureTask;
+		}
+
+		@Override
+		@Nonnull
+		public ScheduledFuture<?> scheduleWithFixedDelay(@Nonnull Runnable command, long initialDelay, long delay, @Nonnull TimeUnit unit) {
+			ScheduledFutureTask<Void> scheduledFutureTask = new ScheduledFutureTask<>(
+				command,
+				triggerTime(unit.toNanos(initialDelay)),
+				unit.toNanos(-delay));
+
+			Cancellable cancellable = internalSchedule(scheduledFutureTask, initialDelay, unit);
+
+			scheduledFutureTask.setCancellable(cancellable);
+
+			return scheduledFutureTask;
+		}
+
+		@Override
+		public void execute(@Nonnull Runnable command) {
+			actorSystem.dispatcher().execute(command);
+		}
+
+		private Cancellable internalSchedule(Runnable runnable, long delay, TimeUnit unit) {
+			return actorSystem.scheduler().scheduleOnce(
+				new FiniteDuration(delay, unit),
+				runnable,
+				actorSystem.dispatcher());
+		}
+
+		private long now() {
+			return System.nanoTime();
+		}
+
+		private long triggerTime(long delay) {
+			return now() + delay;
+		}
+
+		private final class ScheduledFutureTask<V> extends FutureTask<V> implements RunnableScheduledFuture<V> {
+
+			private long time;
+
+			private final long period;
+
+			private volatile Cancellable cancellable;
+
+			ScheduledFutureTask(Callable<V> callable, long time, long period) {
+				super(callable);
+				this.time = time;
+				this.period = period;
+			}
+
+			ScheduledFutureTask(Runnable runnable, long time, long period) {
+				super(runnable, null);
+				this.time = time;
+				this.period = period;
+			}
+
+			public void setCancellable(Cancellable newCancellable) {
+				this.cancellable = newCancellable;
+			}
+
+			@Override
+			public void run() {
+				if (!isPeriodic()) {
+					super.run();
+				} else if (runAndReset()){
+					if (period > 0L) {
+						time += period;
+					} else {
+						cancellable = internalSchedule(this, -period, TimeUnit.NANOSECONDS);
+
+						// check whether we have been cancelled concurrently
+						if (isCancelled()) {
+							cancellable.cancel();
+						} else {
+							time = triggerTime(-period);
+						}
+					}
+				}
+			}
+
+			@Override
+			public boolean cancel(boolean mayInterruptIfRunning) {
+				boolean result = super.cancel(mayInterruptIfRunning);
+
+				return result && cancellable.cancel();
+			}
+
+			@Override
+			public long getDelay(@Nonnull  TimeUnit unit) {
+				return unit.convert(time - now(), TimeUnit.NANOSECONDS);
+			}
+
+			@Override
+			public int compareTo(@Nonnull Delayed o) {
+				if (o == this) {
+					return 0;
+				}
+
+				long diff = getDelay(TimeUnit.NANOSECONDS) - o.getDelay(TimeUnit.NANOSECONDS);
+				return (diff < 0L) ? -1 : (diff > 0L) ? 1 : 0;
+			}
+
+			@Override
+			public boolean isPeriodic() {
+				return period != 0L;
+			}
+		}
 	}
 }

@@ -31,8 +31,16 @@ import java.util.Map;
  * {@code [ { "id" : "X", "value" : "S" }, { "id" : "Y", "value" : "T" } ] }
  */
 public class JobManagerMetricsHandler extends AbstractMetricsHandler {
+
+	private static final String JOBMANAGER_METRICS_REST_PATH = "/jobmanager/metrics";
+
 	public JobManagerMetricsHandler(MetricFetcher fetcher) {
 		super(fetcher);
+	}
+
+	@Override
+	public String[] getPaths() {
+		return new String[]{JOBMANAGER_METRICS_REST_PATH};
 	}
 
 	@Override

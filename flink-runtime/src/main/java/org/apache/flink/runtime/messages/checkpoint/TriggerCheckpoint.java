@@ -18,7 +18,10 @@
 
 package org.apache.flink.runtime.messages.checkpoint;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 
 /**
@@ -33,15 +36,29 @@ public class TriggerCheckpoint extends AbstractCheckpointMessage implements java
 	/** The timestamp associated with the checkpoint */
 	private final long timestamp;
 
-	public TriggerCheckpoint(JobID job, ExecutionAttemptID taskExecutionId, long checkpointId, long timestamp) {
+	/** Options for how to perform the checkpoint. */
+	private final CheckpointOptions checkpointOptions;
+
+	public TriggerCheckpoint(
+			JobID job,
+			ExecutionAttemptID taskExecutionId,
+			long checkpointId,
+			long timestamp,
+			CheckpointOptions checkpointOptions) {
+
 		super(job, taskExecutionId, checkpointId);
 		this.timestamp = timestamp;
+		this.checkpointOptions = checkNotNull(checkpointOptions);
 	}
 
 	// --------------------------------------------------------------------------------------------
 	
 	public long getTimestamp() {
 		return timestamp;
+	}
+
+	public CheckpointOptions getCheckpointOptions() {
+		return checkpointOptions;
 	}
 
 	// --------------------------------------------------------------------------------------------

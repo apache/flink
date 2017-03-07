@@ -30,7 +30,9 @@ import org.apache.flink.cep.nfa.StateTransition;
 import org.apache.flink.cep.nfa.StateTransitionAction;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.util.TestLogger;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import java.util.Collection;
 import java.util.HashMap;
@@ -41,6 +43,38 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertEquals;
 
 public class NFACompilerTest extends TestLogger {
+
+	@Rule
+	public ExpectedException expectedException = ExpectedException.none();
+
+	@Test
+	public void testNFACompilerUniquePatternName() {
+
+		// adjust the rule
+		expectedException.expect(MalformedPatternException.class);
+		expectedException.expectMessage("Duplicate pattern name: start. Pattern names must be unique.");
+
+		Pattern<Event, ?> invalidPattern = Pattern.<Event>begin("start").where(new TestFilter())
+			.followedBy("middle").where(new TestFilter())
+			.followedBy("start").where(new TestFilter());
+
+		// here we must have an exception because of the two "start" patterns with the same name.
+		NFACompiler.compile(invalidPattern, Event.createTypeSerializer(), false);
+	}
+
+	/**
+	 * A filter implementation to test invalid pattern specification with
+	 * duplicate pattern names. Check {@link #testNFACompilerUniquePatternName()}.
+	 */
+	private static class TestFilter implements FilterFunction<Event> {
+
+		private static final long serialVersionUID = -3863103355752267133L;
+
+		@Override
+		public boolean filter(Event value) throws Exception {
+			throw new RuntimeException("It should never arrive here.");
+		}
+	}
 
 	/**
 	 * Tests that the NFACompiler generates the correct NFA from a given Pattern

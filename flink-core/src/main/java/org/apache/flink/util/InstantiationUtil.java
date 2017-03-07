@@ -325,6 +325,16 @@ public final class InstantiationUtil {
 		oos.writeObject(o);
 	}
 
+	public static boolean isSerializable(Object o) {
+		try {
+			serializeObject(o);
+		} catch (IOException e) {
+			return false;
+		}
+
+		return true;
+	}
+
 	/**
 	 * Clones the given serializable object using Java serialization.
 	 *

@@ -44,6 +44,7 @@ import org.mockito.stubbing.Answer;
 import scala.Option;
 import scala.collection.JavaConverters;
 import scala.concurrent.ExecutionContext$;
+import scala.concurrent.ExecutionContextExecutor;
 import scala.concurrent.Future$;
 import scala.concurrent.duration.FiniteDuration;
 
@@ -60,6 +61,33 @@ import static org.powermock.api.mockito.PowerMockito.mock;
 import static org.powermock.api.mockito.PowerMockito.when;
 
 public class TaskManagerLogHandlerTest {
+	@Test
+	public void testGetPaths() {
+		TaskManagerLogHandler handlerLog = new TaskManagerLogHandler(
+			mock(JobManagerRetriever.class),
+			mock(ExecutionContextExecutor.class),
+			Future$.MODULE$.successful("/jm/address"),
+			AkkaUtils.getDefaultClientTimeout(),
+			TaskManagerLogHandler.FileMode.LOG,
+			new Configuration(),
+			false);
+		String[] pathsLog = handlerLog.getPaths();
+		Assert.assertEquals(1, pathsLog.length);
+		Assert.assertEquals("/taskmanagers/:taskmanagerid/log", pathsLog[0]);
+
+		TaskManagerLogHandler handlerOut = new TaskManagerLogHandler(
+			mock(JobManagerRetriever.class),
+			mock(ExecutionContextExecutor.class),
+			Future$.MODULE$.successful("/jm/address"),
+			AkkaUtils.getDefaultClientTimeout(),
+			TaskManagerLogHandler.FileMode.STDOUT,
+			new Configuration(),
+			false);
+		String[] pathsOut = handlerOut.getPaths();
+		Assert.assertEquals(1, pathsOut.length);
+		Assert.assertEquals("/taskmanagers/:taskmanagerid/stdout", pathsOut[0]);
+	}
+
 	@Test
 	public void testLogFetchingFailure() throws Exception {
 		// ========= setup TaskManager =================================================================================

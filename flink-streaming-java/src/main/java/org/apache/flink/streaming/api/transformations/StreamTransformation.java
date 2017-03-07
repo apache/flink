@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.transformations;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.InvalidTypesException;
+import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
 import org.apache.flink.streaming.api.graph.StreamGraph;
@@ -28,6 +29,8 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collection;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A {@code StreamTransformation} represents the operation that creates a
@@ -126,6 +129,18 @@ public abstract class StreamTransformation<T> {
 	private int maxParallelism = -1;
 
 	/**
+	 *  The minimum resources for this stream transformation. It defines the lower limit for
+	 *  dynamic resources resize in future plan.
+	 */
+	private ResourceSpec minResources = ResourceSpec.UNKNOWN;
+
+	/**
+	 *  The preferred resources for this stream transformation. It defines the upper limit for
+	 *  dynamic resource resize in future plan.
+	 */
+	private ResourceSpec preferredResources = ResourceSpec.UNKNOWN;
+
+	/**
 	 * User-specified ID for this transformation. This is used to assign the
 	 * same operator ID across job restarts. There is also the automatically
 	 * generated {@link #id}, which is assigned from a static counter. That
@@ -211,6 +226,35 @@ public abstract class StreamTransformation<T> {
 				"Maximum parallelism must be between 1 and " + StreamGraphGenerator.UPPER_BOUND_MAX_PARALLELISM
 						+ ". Found: " + maxParallelism);
 		this.maxParallelism = maxParallelism;
+	}
+
+	/**
+	 * Sets the minimum and preferred resources for this stream transformation.
+	 *
+	 * @param minResources The minimum resource of this transformation.
+	 * @param preferredResources The preferred resource of this transformation.
+	 */
+	public void setResources(ResourceSpec minResources, ResourceSpec preferredResources) {
+		this.minResources = checkNotNull(minResources);
+		this.preferredResources = checkNotNull(preferredResources);
+	}
+
+	/**
+	 * Gets the minimum resource of this stream transformation.
+	 *
+	 * @return The minimum resource of this transformation.
+	 */
+	public ResourceSpec getMinResources() {
+		return minResources;
+	}
+
+	/**
+	 * Gets the preferred resource of this stream transformation.
+	 *
+	 * @return The preferred resource of this transformation.
+	 */
+	public ResourceSpec getPreferredResources() {
+		return preferredResources;
 	}
 
 	/**

@@ -20,7 +20,12 @@ package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
+import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
+import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 
+import java.io.IOException;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Map;
 
 /**
@@ -28,13 +33,30 @@ import java.util.Map;
  */
 public class JobPlanHandler extends AbstractExecutionGraphRequestHandler {
 
+	private static final String JOB_PLAN_REST_PATH = "/jobs/:jobid/plan";
 	
 	public JobPlanHandler(ExecutionGraphHolder executionGraphHolder) {
 		super(executionGraphHolder);
 	}
 
 	@Override
+	public String[] getPaths() {
+		return new String[]{JOB_PLAN_REST_PATH};
+	}
+
+	@Override
 	public String handleRequest(AccessExecutionGraph graph, Map<String, String> params) throws Exception {
 		return graph.getJsonPlan();
+	}
+
+	public static class JobPlanJsonArchivist implements JsonArchivist {
+
+		@Override
+		public Collection<ArchivedJson> archiveJsonWithPath(AccessExecutionGraph graph) throws IOException {
+			String path = JOB_PLAN_REST_PATH
+				.replace(":jobid", graph.getJobID().toString());
+			String json = graph.getJsonPlan();
+			return Collections.singletonList(new ArchivedJson(path, json));
+		}
 	}
 }

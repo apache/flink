@@ -67,6 +67,7 @@ import java.util.Map;
  * that no default Java serialization is used for serialization. Therefore, we
  * don't rely on any involved Java classes to stay the same.
  */
+@SuppressWarnings("deprecation")
 public class SavepointV0Serializer implements SavepointSerializer<SavepointV1> {
 
 	public static final SavepointV0Serializer INSTANCE = new SavepointV0Serializer();

@@ -62,7 +62,8 @@ public class MultipleProgramsTestBase extends TestBaseUtils {
 	 */
 	public enum TestExecutionMode {
 		CLUSTER,
-		COLLECTION
+		CLUSTER_OBJECT_REUSE,
+		COLLECTION,
 	}
 	
 	// ------------------------------------------------------------------------
@@ -85,12 +86,13 @@ public class MultipleProgramsTestBase extends TestBaseUtils {
 		
 		switch(mode){
 			case CLUSTER:
-				TestEnvironment clusterEnv = new TestEnvironment(cluster, 4);
-				clusterEnv.setAsContext();
+				new TestEnvironment(cluster, 4).setAsContext();
+				break;
+			case CLUSTER_OBJECT_REUSE:
+				new TestEnvironment(cluster, 4, true).setAsContext();
 				break;
 			case COLLECTION:
-				CollectionTestEnvironment collectionEnv = new CollectionTestEnvironment();
-				collectionEnv.setAsContext();
+				new CollectionTestEnvironment().setAsContext();
 				break;
 		}
 	}

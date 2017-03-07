@@ -182,7 +182,7 @@ public class MiniClusterJobDispatcher {
 			checkState(!shutdown, "mini cluster is shut down");
 			checkState(runners == null, "mini cluster can only execute one job at a time");
 
-			DetachedFinalizer finalizer = new DetachedFinalizer(numJobManagers);
+			DetachedFinalizer finalizer = new DetachedFinalizer(job.getJobID(), numJobManagers);
 
 			this.runners = startJobRunners(job, finalizer, finalizer);
 		}
@@ -217,6 +217,7 @@ public class MiniClusterJobDispatcher {
 		finally {
 			// always clear the status for the next job
 			runners = null;
+			clearJobRunningState(job.getJobID());
 		}
 	}
 
@@ -226,16 +227,6 @@ public class MiniClusterJobDispatcher {
 			FatalErrorHandler errorHandler) throws JobExecutionException {
 
 		LOG.info("Starting {} JobMaster(s) for job {} ({})", numJobManagers, job.getName(), job.getJobID());
-
-		// we first need to mark the job as running in the HA services, so that the
-		// JobManager leader will recognize that it as work to do
-		try {
-			haServices.getRunningJobsRegistry().setJobRunning(job.getJobID());
-		}
-		catch (Throwable t) {
-			throw new JobExecutionException(job.getJobID(),
-					"Could not register the job at the high-availability services", t);
-		}
 
 		// start all JobManagers
 		JobManagerRunner[] runners = new JobManagerRunner[numJobManagers];
@@ -273,6 +264,17 @@ public class MiniClusterJobDispatcher {
 		return runners;
 	}
 
+	private void clearJobRunningState(JobID jobID) {
+		// we mark the job as finished in the HA services, so need
+		// to remove the data after job finished
+		try {
+			haServices.getRunningJobsRegistry().clearJob(jobID);
+		}
+		catch (Throwable t) {
+			LOG.warn("Could not clear job {} at the status registry of the high-availability services", jobID, t);
+		}
+	}
+
 	// ------------------------------------------------------------------------
 	//  test methods to simulate job master failures
 	// ------------------------------------------------------------------------
@@ -298,9 +300,12 @@ public class MiniClusterJobDispatcher {
 	 */
 	private class DetachedFinalizer implements OnCompletionActions, FatalErrorHandler {
 
+		private final JobID jobID;
+
 		private final AtomicInteger numJobManagersToWaitFor;
 
-		private DetachedFinalizer(int numJobManagersToWaitFor) {
+		private DetachedFinalizer(JobID jobID, int numJobManagersToWaitFor) {
+			this.jobID = jobID;
 			this.numJobManagersToWaitFor = new AtomicInteger(numJobManagersToWaitFor);
 		}
 
@@ -327,6 +332,7 @@ public class MiniClusterJobDispatcher {
 		private void decrementCheckAndCleanup() {
 			if (numJobManagersToWaitFor.decrementAndGet() == 0) {
 				MiniClusterJobDispatcher.this.runners = null;
+				MiniClusterJobDispatcher.this.clearJobRunningState(jobID);
 			}
 		}
 	}

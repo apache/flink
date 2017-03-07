@@ -29,10 +29,17 @@ import java.util.UUID;
  */
 public class JarUploadHandler extends AbstractJsonRequestHandler {
 
+	static final String JAR_UPLOAD_REST_PATH = "/jars/upload";
+
 	private final File jarDir;
 
 	public JarUploadHandler(File jarDir) {
 		this.jarDir = jarDir;
+	}
+
+	@Override
+	public String[] getPaths() {
+		return new String[]{JAR_UPLOAD_REST_PATH};
 	}
 
 	@Override

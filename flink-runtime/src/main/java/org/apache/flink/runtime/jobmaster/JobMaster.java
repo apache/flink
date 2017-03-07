@@ -30,7 +30,7 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
-import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
+import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.client.JobExecutionException;
@@ -232,25 +232,26 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 
 		resourceManagerLeaderRetriever = highAvailabilityServices.getResourceManagerLeaderRetriever();
 
+		this.slotPool = new SlotPool(rpcService, jobGraph.getJobID());
+		this.slotPoolGateway = slotPool.getSelf();
+
 		this.executionGraph = ExecutionGraphBuilder.buildGraph(
-				null,
-				jobGraph,
-				configuration,
-				executorService,
-				executorService,
-				userCodeLoader,
-				checkpointRecoveryFactory,
-				rpcAskTimeout,
-				restartStrategy,
-				jobMetricGroup,
-				-1,
-				log);
+			null,
+			jobGraph,
+			configuration,
+			executorService,
+			executorService,
+			slotPool.getSlotProvider(),
+			userCodeLoader,
+			checkpointRecoveryFactory,
+			rpcAskTimeout,
+			restartStrategy,
+			jobMetricGroup,
+			-1,
+			log);
 
 		// register self as job status change listener
 		executionGraph.registerJobStatusListener(new JobManagerJobStatusListener());
-
-		this.slotPool = new SlotPool(rpcService, jobGraph.getJobID());
-		this.slotPoolGateway = slotPool.getSelf();
 
 		this.registeredTaskManagers = new HashMap<>(4);
 	}
@@ -340,7 +341,7 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 			@Override
 			public void run() {
 				try {
-					executionGraph.scheduleForExecution(slotPool.getSlotProvider());
+					executionGraph.scheduleForExecution();
 				}
 				catch (Throwable t) {
 					executionGraph.fail(t);
@@ -519,12 +520,13 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 	public void acknowledgeCheckpoint(
 			final JobID jobID,
 			final ExecutionAttemptID executionAttemptID,
-			final CheckpointMetaData checkpointInfo,
+			final long checkpointId,
+			final CheckpointMetrics checkpointMetrics,
 			final SubtaskState checkpointState) throws CheckpointException {
 
 		final CheckpointCoordinator checkpointCoordinator = executionGraph.getCheckpointCoordinator();
 		final AcknowledgeCheckpoint ackMessage = 
-				new AcknowledgeCheckpoint(jobID, executionAttemptID, checkpointInfo, checkpointState);
+				new AcknowledgeCheckpoint(jobID, executionAttemptID, checkpointId, checkpointMetrics, checkpointState);
 
 		if (checkpointCoordinator != null) {
 			getRpcService().execute(new Runnable() {

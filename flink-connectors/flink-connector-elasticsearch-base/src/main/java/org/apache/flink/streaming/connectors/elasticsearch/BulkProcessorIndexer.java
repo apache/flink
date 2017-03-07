@@ -21,6 +21,10 @@ package org.apache.flink.streaming.connectors.elasticsearch;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.bulk.BulkProcessor;
 
+import java.util.concurrent.atomic.AtomicLong;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * Implementation of a {@link RequestIndexer}, using a {@link BulkProcessor}.
  * {@link ActionRequest ActionRequests} will be buffered before sending a bulk request to the Elasticsearch cluster.
@@ -30,14 +34,21 @@ class BulkProcessorIndexer implements RequestIndexer {
 	private static final long serialVersionUID = 6841162943062034253L;
 
 	private final BulkProcessor bulkProcessor;
+	private final boolean flushOnCheckpoint;
+	private final AtomicLong numPendingRequestsRef;
 
-	BulkProcessorIndexer(BulkProcessor bulkProcessor) {
-		this.bulkProcessor = bulkProcessor;
+	BulkProcessorIndexer(BulkProcessor bulkProcessor, boolean flushOnCheckpoint, AtomicLong numPendingRequestsRef) {
+		this.bulkProcessor = checkNotNull(bulkProcessor);
+		this.flushOnCheckpoint = flushOnCheckpoint;
+		this.numPendingRequestsRef = checkNotNull(numPendingRequestsRef);
 	}
 
 	@Override
 	public void add(ActionRequest... actionRequests) {
 		for (ActionRequest actionRequest : actionRequests) {
+			if (flushOnCheckpoint) {
+				numPendingRequestsRef.getAndIncrement();
+			}
 			this.bulkProcessor.add(actionRequest);
 		}
 	}

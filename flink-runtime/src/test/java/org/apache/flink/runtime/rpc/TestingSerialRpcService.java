@@ -22,6 +22,8 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.concurrent.CompletableFuture;
 import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
+import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.util.DirectExecutorService;
 import org.apache.flink.util.Preconditions;
@@ -31,11 +33,18 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.BitSet;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Delayed;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -46,20 +55,28 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class TestingSerialRpcService implements RpcService {
 
 	private final DirectExecutorService executorService;
+	private final ScheduledExecutorService scheduledExecutorService;
 	private final ConcurrentHashMap<String, RpcGateway> registeredConnections;
 	private final CompletableFuture<Void> terminationFuture;
 
+	private final ScheduledExecutor scheduledExecutorServiceAdapter;
+
 	public TestingSerialRpcService() {
 		executorService = new DirectExecutorService();
+		scheduledExecutorService = new ScheduledThreadPoolExecutor(1);
 		this.registeredConnections = new ConcurrentHashMap<>(16);
 		this.terminationFuture = new FlinkCompletableFuture<>();
+
+		this.scheduledExecutorServiceAdapter = new ScheduledExecutorServiceAdapter(scheduledExecutorService);
 	}
 
 	@Override
-	public void scheduleRunnable(final Runnable runnable, final long delay, final TimeUnit unit) {
+	public ScheduledFuture<?> scheduleRunnable(final Runnable runnable, final long delay, final TimeUnit unit) {
 		try {
 			unit.sleep(delay);
 			runnable.run();
+
+			return new DoneScheduledFuture<Void>(null);
 		} catch (Throwable e) {
 			throw new RuntimeException(e);
 		}
@@ -86,9 +103,32 @@ public class TestingSerialRpcService implements RpcService {
 		return executorService;
 	}
 
+	public ScheduledExecutor getScheduledExecutor() {
+		return scheduledExecutorServiceAdapter;
+	}
+
 	@Override
 	public void stopService() {
 		executorService.shutdown();
+
+		scheduledExecutorService.shutdown();
+
+		boolean terminated = false;
+
+		try {
+			terminated = scheduledExecutorService.awaitTermination(1, TimeUnit.SECONDS);
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+		}
+
+		if (!terminated) {
+			List<Runnable> runnables = scheduledExecutorService.shutdownNow();
+
+			for (Runnable runnable : runnables) {
+				runnable.run();
+			}
+		}
+
 		registeredConnections.clear();
 		terminationFuture.complete(null);
 	}
@@ -400,4 +440,49 @@ public class TestingSerialRpcService implements RpcService {
 		}
 
 	}
+
+	private static class DoneScheduledFuture<V> implements ScheduledFuture<V> {
+
+		private final V value;
+
+		private DoneScheduledFuture(V value) {
+			this.value = value;
+		}
+
+		@Override
+		public long getDelay(TimeUnit unit) {
+			return 0L;
+		}
+
+		@Override
+		public int compareTo(Delayed o) {
+			return 0;
+		}
+
+		@Override
+		public boolean cancel(boolean mayInterruptIfRunning) {
+			return false;
+		}
+
+		@Override
+		public boolean isCancelled() {
+			return false;
+		}
+
+		@Override
+		public boolean isDone() {
+			return true;
+		}
+
+		@Override
+		public V get() throws InterruptedException, ExecutionException {
+			return value;
+		}
+
+		@Override
+		public V get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
+			return value;
+		}
+	}
+
 }

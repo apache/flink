@@ -18,6 +18,7 @@
 
 package org.apache.flink.cep.nfa;
 
+import com.google.common.collect.Sets;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.cep.Event;
@@ -243,5 +244,89 @@ public class NFAITCase extends TestLogger {
 
 		assertEquals(expectedTimeoutPatterns, resultingTimeoutPatterns);
 	}
+
+	@Test
+	public void testBranchingPattern() {
+		List<StreamRecord<Event>> inputEvents = new ArrayList<>();
+
+		Event startEvent = new Event(40, "start", 1.0);
+		SubEvent middleEvent1 = new SubEvent(41, "foo1", 1.0, 10.0);
+		SubEvent middleEvent2 = new SubEvent(42, "foo2", 1.0, 10.0);
+		SubEvent middleEvent3 = new SubEvent(43, "foo3", 1.0, 10.0);
+		SubEvent nextOne1 = new SubEvent(44, "next-one", 1.0, 2.0);
+		SubEvent nextOne2 = new SubEvent(45, "next-one", 1.0, 2.0);
+		Event endEvent=  new Event(46, "end", 1.0);
+
+		inputEvents.add(new StreamRecord<Event>(startEvent, 1));
+		inputEvents.add(new StreamRecord<Event>(middleEvent1, 3));
+		inputEvents.add(new StreamRecord<Event>(middleEvent2, 4));
+		inputEvents.add(new StreamRecord<Event>(middleEvent3, 5));
+		inputEvents.add(new StreamRecord<Event>(nextOne1, 6));
+		inputEvents.add(new StreamRecord<Event>(nextOne2, 7));
+		inputEvents.add(new StreamRecord<Event>(endEvent, 8));
+
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new FilterFunction<Event>() {
+			private static final long serialVersionUID = 5726188262756267490L;
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("start");
+			}
+		})
+			.followedBy("middle-first").subtype(SubEvent.class).where(new FilterFunction<SubEvent>() {
+				private static final long serialVersionUID = 6215754202506583964L;
+
+				@Override
+				public boolean filter(SubEvent value) throws Exception {
+					return value.getVolume() > 5.0;
+				}
+			})
+			.followedBy("middle-second").subtype(SubEvent.class).where(new FilterFunction<SubEvent>() {
+				private static final long serialVersionUID = 6215754202506583964L;
+
+				@Override
+				public boolean filter(SubEvent value) throws Exception {
+					return value.getName().equals("next-one");
+				}
+			})
+			.followedBy("end").where(new FilterFunction<Event>() {
+				private static final long serialVersionUID = 7056763917392056548L;
+
+				@Override
+				public boolean filter(Event value) throws Exception {
+					return value.getName().equals("end");
+				}
+			});
+
+		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+
+		List<Map<String, Event>> resultingPatterns = new ArrayList<>();
+
+		for (StreamRecord<Event> inputEvent: inputEvents) {
+			Collection<Map<String, Event>> patterns = nfa.process(
+				inputEvent.getValue(),
+				inputEvent.getTimestamp()).f0;
+
+			resultingPatterns.addAll(patterns);
+		}
+
+		assertEquals(6, resultingPatterns.size());
+
+		final Set<Set<Event>> patterns = new HashSet<>();
+		for (Map<String, Event> resultingPattern : resultingPatterns) {
+			patterns.add(new HashSet<>(resultingPattern.values()));
+		}
+
+		assertEquals(Sets.newHashSet(
+			Sets.newHashSet(startEvent, middleEvent1, nextOne1, endEvent),
+			Sets.newHashSet(startEvent, middleEvent2, nextOne1, endEvent),
+			Sets.newHashSet(startEvent, middleEvent3, nextOne1, endEvent),
+			Sets.newHashSet(startEvent, middleEvent1, nextOne2, endEvent),
+			Sets.newHashSet(startEvent, middleEvent2, nextOne2, endEvent),
+			Sets.newHashSet(startEvent, middleEvent3, nextOne2, endEvent)
+		), patterns);
+	}
+
+
 
 }

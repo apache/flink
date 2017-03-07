@@ -31,6 +31,7 @@ import org.apache.flink.api.common.io.FilePathFilter;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ClosureCleaner;
@@ -484,7 +485,7 @@ public abstract class StreamExecutionEnvironment {
 	 * 		The number of times the system will try to re-execute failed tasks.
 	 *
 	 * @deprecated This method will be replaced by {@link #setRestartStrategy}. The
-	 * {@link RestartStrategies.FixedDelayRestartStrategyConfiguration} contains the number of
+	 * {@link RestartStrategies#fixedDelayRestart(int, Time)} contains the number of
 	 * execution retries.
 	 */
 	@Deprecated
@@ -500,9 +501,7 @@ public abstract class StreamExecutionEnvironment {
 	 *
 	 * @return The number of times the system will try to re-execute failed tasks.
 	 *
-	 * @deprecated This method will be replaced by {@link #getRestartStrategy}. The
-	 * {@link RestartStrategies.FixedDelayRestartStrategyConfiguration} contains the number of
-	 * execution retries.
+	 * @deprecated This method will be replaced by {@link #getRestartStrategy}.
 	 */
 	@Deprecated
 	@PublicEvolving

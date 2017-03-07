@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.blob.BlobCache;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
@@ -475,13 +476,13 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	// ----------------------------------------------------------------------
 
 	@RpcMethod
-	public Acknowledge triggerCheckpoint(ExecutionAttemptID executionAttemptID, long checkpointId, long checkpointTimestamp) throws CheckpointException {
+	public Acknowledge triggerCheckpoint(ExecutionAttemptID executionAttemptID, long checkpointId, long checkpointTimestamp, CheckpointOptions checkpointOptions) throws CheckpointException {
 		log.debug("Trigger checkpoint {}@{} for {}.", checkpointId, checkpointTimestamp, executionAttemptID);
 
 		final Task task = taskSlotTable.getTask(executionAttemptID);
 
 		if (task != null) {
-			task.triggerCheckpointBarrier(checkpointId, checkpointTimestamp);
+			task.triggerCheckpointBarrier(checkpointId, checkpointTimestamp, checkpointOptions);
 
 			return Acknowledge.get();
 		} else {
@@ -659,7 +660,22 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 				final Collection<SlotOffer> reservedSlots = new HashSet<>(2);
 
 				while (reservedSlotsIterator.hasNext()) {
-					reservedSlots.add(reservedSlotsIterator.next().generateSlotOffer());
+					SlotOffer offer = reservedSlotsIterator.next().generateSlotOffer();
+					try {
+						if (!taskSlotTable.markSlotActive(offer.getAllocationId())) {
+							// the slot is either free or releasing at the moment
+							final String message = "Could not mark slot " + jobId + " active.";
+							log.debug(message);
+							jobMasterGateway.failSlot(getResourceID(), offer.getAllocationId(),
+								leaderId, new Exception(message));
+						}
+					} catch (SlotNotFoundException e) {
+						final String message = "Could not mark slot " + jobId + " active.";
+						jobMasterGateway.failSlot(getResourceID(), offer.getAllocationId(),
+							leaderId, new Exception(message));
+						continue;
+					}
+					reservedSlots.add(offer);
 				}
 
 				Future<Iterable<SlotOffer>> acceptedSlotsFuture = jobMasterGateway.offerSlots(
@@ -674,22 +690,8 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 						// check if the response is still valid
 						if (isJobManagerConnectionValid(jobId, leaderId)) {
 							// mark accepted slots active
-							for (SlotOffer acceptedSlot: acceptedSlots) {
-								try {
-									if (!taskSlotTable.markSlotActive(acceptedSlot.getAllocationId())) {
-										// the slot is either free or releasing at the moment
-										final String message = "Could not mark slot " + jobId + " active.";
-										log.debug(message);
-										jobMasterGateway.failSlot(getResourceID(), acceptedSlot.getAllocationId(),
-												leaderId, new Exception(message));
-									}
-
-									// remove the assigned slots so that we can free the left overs
-									reservedSlots.remove(acceptedSlot);
-								} catch (SlotNotFoundException e) {
-									log.debug("Could not mark slot {} active.", acceptedSlot,  e);
-									jobMasterGateway.failSlot(getResourceID(), acceptedSlot.getAllocationId(), leaderId, e);
-								}
+							for (SlotOffer acceptedSlot : acceptedSlots) {
+								reservedSlots.remove(acceptedSlot);
 							}
 
 							final Exception e = new Exception("The slot was rejected by the JobManager.");

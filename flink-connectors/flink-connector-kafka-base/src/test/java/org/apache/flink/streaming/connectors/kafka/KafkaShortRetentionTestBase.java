@@ -48,6 +48,7 @@ import java.util.Properties;
 import static org.apache.flink.test.util.TestUtils.tryExecute;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+
 /**
  * A class containing a special Kafka broker which has a log retention of only 250 ms.
  * This way, we can make sure our consumer is properly handling cases where we run into out of offset

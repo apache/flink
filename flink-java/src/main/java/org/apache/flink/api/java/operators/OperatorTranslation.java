@@ -63,7 +63,9 @@ public class OperatorTranslation {
 		
 		// translate the sink itself and connect it to the input
 		GenericDataSinkBase<T> translatedSink = sink.translateToDataFlow(input);
-				
+
+		translatedSink.setResource(sink.getMinResources(), sink.getPreferredResources());
+
 		return translatedSink;
 	}
 	
@@ -91,19 +93,31 @@ public class OperatorTranslation {
 		Operator<T> dataFlowOp;
 		
 		if (dataSet instanceof DataSource) {
-			dataFlowOp = ((DataSource<T>) dataSet).translateToDataFlow();
+			DataSource<T> dataSource = (DataSource<T>) dataSet;
+			dataFlowOp = dataSource.translateToDataFlow();
+			dataFlowOp.setResource(dataSource.getMinResources(), dataSource.getPreferredResources());
 		}
 		else if (dataSet instanceof SingleInputOperator) {
-			dataFlowOp = translateSingleInputOperator((SingleInputOperator<?, ?, ?>) dataSet);
+			SingleInputOperator<?, ?, ?> singleInputOperator = (SingleInputOperator<?, ?, ?>) dataSet;
+			dataFlowOp = translateSingleInputOperator(singleInputOperator);
+			dataFlowOp.setResource(singleInputOperator.getMinResources(), singleInputOperator.getPreferredResources());
 		}
 		else if (dataSet instanceof TwoInputOperator) {
-			dataFlowOp = translateTwoInputOperator((TwoInputOperator<?, ?, ?, ?>) dataSet);
+			TwoInputOperator<?, ?, ?, ?> twoInputOperator = (TwoInputOperator<?, ?, ?, ?>) dataSet;
+			dataFlowOp = translateTwoInputOperator(twoInputOperator);
+			dataFlowOp.setResource(twoInputOperator.getMinResources(), twoInputOperator.getPreferredResources());
 		}
 		else if (dataSet instanceof BulkIterationResultSet) {
-			dataFlowOp = translateBulkIteration((BulkIterationResultSet<?>) dataSet);
+			BulkIterationResultSet<?> bulkIterationResultSet = (BulkIterationResultSet<?>) dataSet;
+			dataFlowOp = translateBulkIteration(bulkIterationResultSet);
+			dataFlowOp.setResource(bulkIterationResultSet.getIterationHead().getMinResources(),
+					bulkIterationResultSet.getIterationHead().getPreferredResources());
 		}
 		else if (dataSet instanceof DeltaIterationResultSet) {
-			dataFlowOp = translateDeltaIteration((DeltaIterationResultSet<?, ?>) dataSet);
+			DeltaIterationResultSet<?, ?> deltaIterationResultSet = (DeltaIterationResultSet<?, ?>) dataSet;
+			dataFlowOp = translateDeltaIteration(deltaIterationResultSet);
+			dataFlowOp.setResource(deltaIterationResultSet.getIterationHead().getMinResources(),
+					deltaIterationResultSet.getIterationHead().getPreferredResources());
 		}
 		else if (dataSet instanceof DeltaIteration.SolutionSetPlaceHolder || dataSet instanceof DeltaIteration.WorksetPlaceHolder) {
 			throw new InvalidProgramException("A data set that is part of a delta iteration was used as a sink or action."

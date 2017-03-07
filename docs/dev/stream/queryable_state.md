@@ -37,14 +37,14 @@ Flink. For some scenarios, queryable state thus eliminates the need for distribu
 operations/transactions with external systems such as key-value stores which are often the
 bottleneck in practice.
 
-<div class="alert alert-danger">
+<div class="alert alert-warning">
   <strong>Attention:</strong> Queryable state accesses keyed state from a concurrent thread rather
   than synchronizing with the operator and potentially blocking its operation. Since any state
-  backend using Java heap space, e.g. <code>MemoryStateBackend</code> or
-  <code>FsStateBackend</code>, does not work with copies when retrieving values but instead directly
+  backend using Java heap space, e.g. MemoryStateBackend or
+  FsStateBackend, does not work with copies when retrieving values but instead directly
   references the stored values, read-modify-write patterns are unsafe and may cause the
   queryable state server to fail due to concurrent modifications.
-  The <code>RocksDBStateBackend</code> is safe from these issues.
+  The RocksDBStateBackend is safe from these issues.
 </div>
 
 ## Making State Queryable
@@ -167,7 +167,7 @@ about any class loading issues etc.
 There are some serialization utils for key/namespace and value serialization included in
 `KvStateRequestSerializer`.
 
-## Example
+### Example
 
 The following example extends the `CountWindowAverage` example
 (see [Using Managed Keyed State]({{ site.baseurl }}/dev/stream/state.html#using-managed-keyed-state))
@@ -233,6 +233,22 @@ Tuple2<Long, Long> value =
         KvStateRequestSerializer.deserializeValue(serializedValue, valueSerializer);
 {% endhighlight %}
 
+### Note for Scala Users
+
+Please use the available Scala extensions when creating the `TypeSerializer` instances. Add the following import:
+
+```scala
+import org.apache.flink.streaming.api.scala._
+```
+
+Now you can create the type serializers as follows:
+
+```scala
+val keySerializer = createTypeInformation[Long]
+  .createSerializer(new ExecutionConfig)
+```
+
+If you don't do this, you can run into mismatches between the serializers used in the Flink job and in your client code, because types like `scala.Long` cannot be caputured at runtime.
 
 ## Configuration
 

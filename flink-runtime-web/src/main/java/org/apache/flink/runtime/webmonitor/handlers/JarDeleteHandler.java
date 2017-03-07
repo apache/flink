@@ -31,10 +31,17 @@ import java.util.Map;
  */
 public class JarDeleteHandler extends AbstractJsonRequestHandler {
 
+	static final String JAR_DELETE_REST_PATH = "/jars/:jarid";
+
 	private final File jarDir;
 
 	public JarDeleteHandler(File jarDirectory) {
 		jarDir = jarDirectory;
+	}
+
+	@Override
+	public String[] getPaths() {
+		return new String[]{JAR_DELETE_REST_PATH};
 	}
 
 	@Override

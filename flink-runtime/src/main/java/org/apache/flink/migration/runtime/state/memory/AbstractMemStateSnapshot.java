@@ -29,6 +29,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Deprecated
+@SuppressWarnings("deprecation")
 public abstract class AbstractMemStateSnapshot<K, N, SV, S extends State, SD extends StateDescriptor<S, ?>> 
 		implements KvStateSnapshot<K, N, S, SD> {
 

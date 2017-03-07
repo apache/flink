@@ -18,10 +18,13 @@
 
 package org.apache.flink.runtime.checkpoint.savepoint;
 
+import java.io.File;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.TaskState;
+import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -38,6 +41,7 @@ import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
@@ -54,14 +58,22 @@ public class SavepointStoreTest {
 	 */
 	@Test
 	public void testStoreLoadDispose() throws Exception {
-		String target = tmp.getRoot().getAbsolutePath();
+		String root = tmp.getRoot().getAbsolutePath();
+		File rootFile = new File(root);
 
-		assertEquals(0, tmp.getRoot().listFiles().length);
+		File[] list = rootFile.listFiles();
+
+		assertNotNull(list);
+		assertEquals(0, list.length);
 
 		// Store
+		String savepointDirectory = SavepointStore.createSavepointDirectory(root, new JobID());
 		SavepointV1 stored = new SavepointV1(1929292, SavepointV1Test.createTaskStates(4, 24));
-		String path = SavepointStore.storeSavepoint(target, stored);
-		assertEquals(1, tmp.getRoot().listFiles().length);
+		String path = SavepointStore.storeSavepoint(savepointDirectory, stored);
+
+		list = rootFile.listFiles();
+		assertNotNull(list);
+		assertEquals(1, list.length);
 
 		// Load
 		Savepoint loaded = SavepointStore.loadSavepoint(path, Thread.currentThread().getContextClassLoader());
@@ -70,9 +82,11 @@ public class SavepointStoreTest {
 		loaded.dispose();
 
 		// Dispose
-		SavepointStore.removeSavepoint(path);
+		SavepointStore.deleteSavepointDirectory(path);
 
-		assertEquals(0, tmp.getRoot().listFiles().length);
+		list = rootFile.listFiles();
+		assertNotNull(list);
+		assertEquals(0, list.length);
 	}
 
 	/**
@@ -108,8 +122,8 @@ public class SavepointStoreTest {
 
 		assertTrue(serializers.size() >= 1);
 
-		String target = tmp.getRoot().getAbsolutePath();
-		assertEquals(0, tmp.getRoot().listFiles().length);
+		String root = tmp.getRoot().getAbsolutePath();
+		File rootFile = new File(root);
 
 		// New savepoint type for test
 		int version = ThreadLocalRandom.current().nextInt();
@@ -118,14 +132,24 @@ public class SavepointStoreTest {
 		// Add serializer
 		serializers.put(version, NewSavepointSerializer.INSTANCE);
 
+		String savepointDirectory1 = SavepointStore.createSavepointDirectory(root, new JobID());
 		TestSavepoint newSavepoint = new TestSavepoint(version, checkpointId);
-		String pathNewSavepoint = SavepointStore.storeSavepoint(target, newSavepoint);
-		assertEquals(1, tmp.getRoot().listFiles().length);
+		String pathNewSavepoint = SavepointStore.storeSavepoint(savepointDirectory1, newSavepoint);
+
+		File[] list = rootFile.listFiles();
+
+		assertNotNull(list);
+		assertEquals(1, list.length);
 
 		// Savepoint v0
+		String savepointDirectory2 = SavepointStore.createSavepointDirectory(root, new JobID());
 		Savepoint savepoint = new SavepointV1(checkpointId, SavepointV1Test.createTaskStates(4, 32));
-		String pathSavepoint = SavepointStore.storeSavepoint(target, savepoint);
-		assertEquals(2, tmp.getRoot().listFiles().length);
+		String pathSavepoint = SavepointStore.storeSavepoint(savepointDirectory2, savepoint);
+
+		list = rootFile.listFiles();
+
+		assertNotNull(list);
+		assertEquals(2, list.length);
 
 		// Load
 		Savepoint loaded = SavepointStore.loadSavepoint(pathNewSavepoint, Thread.currentThread().getContextClassLoader());
@@ -163,6 +187,27 @@ public class SavepointStoreTest {
 		}
 
 		assertEquals("Savepoint file not cleaned up on failure", 0, tmp.getRoot().listFiles().length);
+	}
+
+	/**
+	 * Tests that multiple externalized checkpoints can be stored to the same
+	 * directory.
+	 */
+	@Test
+	public void testStoreExternalizedCheckpointsToSameDirectory() throws Exception {
+		String root = tmp.newFolder().getAbsolutePath();
+		FileSystem fs = FileSystem.get(new Path(root).toUri());
+
+		// Store
+		SavepointV1 savepoint = new SavepointV1(1929292, SavepointV1Test.createTaskStates(4, 24));
+
+		FileStateHandle store1 = SavepointStore.storeExternalizedCheckpointToHandle(root, savepoint);
+		fs.exists(store1.getFilePath());
+		assertTrue(store1.getFilePath().getPath().contains(SavepointStore.EXTERNALIZED_CHECKPOINT_METADATA_FILE));
+
+		FileStateHandle store2 = SavepointStore.storeExternalizedCheckpointToHandle(root, savepoint);
+		fs.exists(store2.getFilePath());
+		assertTrue(store2.getFilePath().getPath().contains(SavepointStore.EXTERNALIZED_CHECKPOINT_METADATA_FILE));
 	}
 
 	private static class NewSavepointSerializer implements SavepointSerializer<TestSavepoint> {

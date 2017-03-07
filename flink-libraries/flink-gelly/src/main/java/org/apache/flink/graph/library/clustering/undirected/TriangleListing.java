@@ -48,15 +48,16 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 
 /**
  * Generates a listing of distinct triangles from the input graph.
- * <br/>
+ * <p>
  * A triangle is a 3-cycle with vertices A, B, and C connected by edges
  * (A, B), (A, C), and (B, C).
- * <br/>
+ * <p>
  * The input graph must be a simple, undirected graph containing no duplicate
  * edges or self-loops.
- * <br/>
- * Algorithm from "Graph Twiddling in a MapReduce World", J. D. Cohen,
- * http://lintool.github.io/UMD-courses/bigdata-2015-Spring/content/Cohen_2009.pdf
+ * <p>
+ * Algorithm from "Finding, Counting and Listing all Triangles in Large Graphs,
+ * An Experimental Study", Thomas Schank and Dorothea Wagner.
+ * http://i11www.iti.uni-karlsruhe.de/extra/publications/sw-fclt-05_t.pdf
  *
  * @param <K> graph ID type
  * @param <VV> vertex value type
@@ -178,7 +179,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Tuple3<K, K, K>> {
 	/**
 	 * Removes edge values while filtering such that only edges where the
 	 * source vertex ID compares less than the target vertex ID are emitted.
-	 * <br/>
+	 * <p>
 	 * Since the input graph is a simple graph this filter removes exactly half
 	 * of the original edges.
 	 *
@@ -206,7 +207,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Tuple3<K, K, K>> {
 	 * vertex has lower degree are emitted. If the source and target vertex
 	 * degrees are equal then the edge is emitted if the source vertex ID
 	 * compares less than the target vertex ID.
-	 * <br/>
+	 * <p>
 	 * Since the input graph is a simple graph this filter removes exactly half
 	 * of the original edges.
 	 *

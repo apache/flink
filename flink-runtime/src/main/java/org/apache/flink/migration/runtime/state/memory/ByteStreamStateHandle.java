@@ -28,6 +28,7 @@ import java.io.InputStream;
 import java.io.Serializable;
 
 @Deprecated
+@SuppressWarnings("deprecation")
 public final class ByteStreamStateHandle extends AbstractCloseableHandle implements StreamStateHandle {
 
 	private static final long serialVersionUID = -5280226231200217594L;

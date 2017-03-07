@@ -93,22 +93,22 @@ public class CheckpointPropertiesTest {
 	public void testIsSavepoint() throws Exception {
 		{
 			CheckpointProperties props = CheckpointProperties.forStandardCheckpoint();
-			assertFalse(CheckpointProperties.isSavepoint(props));
+			assertFalse(props.isSavepoint());
 		}
 
 		{
 			CheckpointProperties props = CheckpointProperties.forExternalizedCheckpoint(true);
-			assertFalse(CheckpointProperties.isSavepoint(props));
+			assertFalse(props.isSavepoint());
 		}
 
 		{
 			CheckpointProperties props = CheckpointProperties.forExternalizedCheckpoint(false);
-			assertFalse(CheckpointProperties.isSavepoint(props));
+			assertFalse(props.isSavepoint());
 		}
 
 		{
 			CheckpointProperties props = CheckpointProperties.forStandardSavepoint();
-			assertTrue(CheckpointProperties.isSavepoint(props));
+			assertTrue(props.isSavepoint());
 		}
 
 	}

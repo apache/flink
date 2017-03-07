@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.aggregate
 import java.lang.Iterable
 
 import org.apache.flink.api.common.functions.CombineFunction
+import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
 import org.apache.flink.types.Row
 
 /**
@@ -28,60 +29,71 @@ import org.apache.flink.types.Row
   * [[org.apache.flink.api.java.operators.GroupCombineOperator]].
   * It is used for tumbling time-window on batch.
   *
-  * @param rowtimePos The rowtime field index in input row
-  * @param windowSize Tumbling time window size
-  * @param windowStartPos The relative window-start field position to the last field of output row
-  * @param windowEndPos The relative window-end field position to the last field of output row
-  * @param aggregates The aggregate functions.
+  * @param windowSize       Tumbling time window size
+  * @param windowStartPos   The relative window-start field position to the last field of output row
+  * @param windowEndPos     The relative window-end field position to the last field of output row
+  * @param aggregates       The aggregate functions.
   * @param groupKeysMapping The index mapping of group keys between intermediate aggregate Row
   *                         and output Row.
   * @param aggregateMapping The index mapping between aggregate function list and aggregated value
   *                         index in output Row.
-  * @param intermediateRowArity The intermediate row field count
-  * @param finalRowArity The output row field count
+  * @param finalRowArity    The output row field count
   */
 class DataSetTumbleTimeWindowAggReduceCombineFunction(
-    rowtimePos: Int,
     windowSize: Long,
     windowStartPos: Option[Int],
     windowEndPos: Option[Int],
-    aggregates: Array[Aggregate[_ <: Any]],
+    aggregates: Array[AggregateFunction[_ <: Any]],
     groupKeysMapping: Array[(Int, Int)],
     aggregateMapping: Array[(Int, Int)],
-    intermediateRowArity: Int,
     finalRowArity: Int)
   extends DataSetTumbleTimeWindowAggReduceGroupFunction(
-    rowtimePos,
     windowSize,
     windowStartPos,
     windowEndPos,
     aggregates,
     groupKeysMapping,
     aggregateMapping,
-    intermediateRowArity,
     finalRowArity)
-  with CombineFunction[Row, Row] {
+    with CombineFunction[Row, Row] {
 
   /**
     * For sub-grouped intermediate aggregate Rows, merge all of them into aggregate buffer,
     *
-    * @param records  Sub-grouped intermediate aggregate Rows iterator.
+    * @param records Sub-grouped intermediate aggregate Rows iterator.
     * @return Combined intermediate aggregate Row.
     *
     */
   override def combine(records: Iterable[Row]): Row = {
 
-    // initiate intermediate aggregate value.
-    aggregates.foreach(_.initiate(aggregateBuffer))
-
-    // merge intermediate aggregate value to buffer.
     var last: Row = null
-
     val iterator = records.iterator()
+
+    // reset first accumulator in merge list
+    for (i <- aggregates.indices) {
+      val accumulator = aggregates(i).createAccumulator()
+      accumulatorList(i).set(0, accumulator)
+    }
+
     while (iterator.hasNext) {
       val record = iterator.next()
-      aggregates.foreach(_.merge(record, aggregateBuffer))
+
+      for (i <- aggregates.indices) {
+        // insert received accumulator into acc list
+        val newAcc = record.getField(groupKeysMapping.length + i).asInstanceOf[Accumulator]
+        accumulatorList(i).set(1, newAcc)
+        // merge acc list
+        val retAcc = aggregates(i).merge(accumulatorList(i))
+        // insert result into acc list
+        accumulatorList(i).set(0, retAcc)
+      }
+
       last = record
+    }
+
+    // set the partial merged result to the aggregateBuffer
+    for (i <- aggregates.indices) {
+      aggregateBuffer.setField(groupKeysMapping.length + i, accumulatorList(i).get(0))
     }
 
     // set group keys to aggregateBuffer.
@@ -90,6 +102,8 @@ class DataSetTumbleTimeWindowAggReduceCombineFunction(
     }
 
     // set the rowtime attribute
+    val rowtimePos = groupKeysMapping.length + aggregates.length
+
     aggregateBuffer.setField(rowtimePos, last.getField(rowtimePos))
 
     aggregateBuffer

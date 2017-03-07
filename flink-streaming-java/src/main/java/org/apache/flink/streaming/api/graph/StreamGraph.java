@@ -32,6 +32,7 @@ import java.util.Set;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -410,6 +411,12 @@ public class StreamGraph extends StreamingPlan {
 	public void setMaxParallelism(int vertexID, int maxParallelism) {
 		if (getStreamNode(vertexID) != null) {
 			getStreamNode(vertexID).setMaxParallelism(maxParallelism);
+		}
+	}
+
+	public void setResource(int vertexID, ResourceSpec minResource, ResourceSpec preferredResource) {
+		if (getStreamNode(vertexID) != null) {
+			getStreamNode(vertexID).setResources(minResource, preferredResource);
 		}
 	}
 

@@ -31,11 +31,11 @@ import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
-import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.types.Either;
@@ -55,29 +55,6 @@ public class CEPOperatorTest extends TestLogger {
 
 	@Rule
 	public TemporaryFolder tempFolder = new TemporaryFolder();
-
-	@Test
-	public void testCEPOperatorWatermarkForwarding() throws Exception {
-		OneInputStreamOperatorTestHarness<Event, Map<String, Event>> harness = new OneInputStreamOperatorTestHarness<>(
-			new CEPPatternOperator<>(
-				Event.createTypeSerializer(),
-				false,
-				new NFAFactory())
-		);
-
-		harness.open();
-
-		Watermark expectedWatermark = new Watermark(42L);
-
-		harness.processWatermark(expectedWatermark);
-
-		Object watermark = harness.getOutput().poll();
-
-		assertTrue(watermark instanceof Watermark);
-		assertEquals(expectedWatermark, watermark);
-
-		harness.close();
-	}
 
 	@Test
 	public void testKeyedCEPOperatorWatermarkForwarding() throws Exception {
@@ -115,94 +92,6 @@ public class CEPOperatorTest extends TestLogger {
 	}
 
 	@Test
-	public void testCEPOperatorCheckpointing() throws Exception {
-		KeySelector<Event, Integer> keySelector = new KeySelector<Event, Integer>() {
-			private static final long serialVersionUID = -4873366487571254798L;
-
-			@Override
-			public Integer getKey(Event value) throws Exception {
-				return value.getId();
-			}
-		};
-
-		OneInputStreamOperatorTestHarness<Event, Map<String, Event>> harness = new OneInputStreamOperatorTestHarness<>(
-				new CEPPatternOperator<>(
-						Event.createTypeSerializer(),
-						false,
-						new NFAFactory()));
-
-		harness.open();
-
-		Event startEvent = new Event(42, "start", 1.0);
-		SubEvent middleEvent = new SubEvent(42, "foo", 1.0, 10.0);
-		Event endEvent=  new Event(42, "end", 1.0);
-
-		harness.processElement(new StreamRecord<Event>(startEvent, 1));
-		harness.processElement(new StreamRecord<Event>(new Event(42, "foobar", 1.0), 2));
-
-		// simulate snapshot/restore with some elements in internal sorting queue
-		StreamStateHandle snapshot = harness.snapshotLegacy(0, 0);
-		harness.close();
-
-		harness = new OneInputStreamOperatorTestHarness<>(
-				new CEPPatternOperator<>(
-						Event.createTypeSerializer(),
-						false,
-						new NFAFactory()));
-
-		harness.setup();
-		harness.restore(snapshot);
-		harness.open();
-
-		harness.processWatermark(new Watermark(Long.MIN_VALUE));
-
-		harness.processElement(new StreamRecord<Event>(new SubEvent(42, "barfoo", 1.0, 5.0), 3));
-
-		// if element timestamps are not correctly checkpointed/restored this will lead to
-		// a pruning time underflow exception in NFA
-		harness.processWatermark(new Watermark(2));
-
-		// simulate snapshot/restore with empty element queue but NFA state
-		StreamStateHandle snapshot2 = harness.snapshotLegacy(1, 1);
-		harness.close();
-
-		harness = new OneInputStreamOperatorTestHarness<>(
-				new CEPPatternOperator<>(
-						Event.createTypeSerializer(),
-						false,
-						new NFAFactory()));
-
-		harness.setup();
-		harness.restore(snapshot2);
-		harness.open();
-
-		harness.processElement(new StreamRecord<Event>(middleEvent, 3));
-		harness.processElement(new StreamRecord<Event>(new Event(42, "start", 1.0), 4));
-		harness.processElement(new StreamRecord<Event>(endEvent, 5));
-
-		harness.processWatermark(new Watermark(Long.MAX_VALUE));
-
-		ConcurrentLinkedQueue<Object> result = harness.getOutput();
-
-		// watermark and the result
-		assertEquals(2, result.size());
-
-		Object resultObject = result.poll();
-		assertTrue(resultObject instanceof StreamRecord);
-		StreamRecord<?> resultRecord = (StreamRecord<?>) resultObject;
-		assertTrue(resultRecord.getValue() instanceof Map);
-
-		@SuppressWarnings("unchecked")
-		Map<String, Event> patternMap = (Map<String, Event>) resultRecord.getValue();
-
-		assertEquals(startEvent, patternMap.get("start"));
-		assertEquals(middleEvent, patternMap.get("middle"));
-		assertEquals(endEvent, patternMap.get("end"));
-
-		harness.close();
-	}
-
-	@Test
 	public void testKeyedCEPOperatorCheckpointing() throws Exception {
 
 		KeySelector<Event, Integer> keySelector = new KeySelector<Event, Integer>() {
@@ -234,7 +123,7 @@ public class CEPOperatorTest extends TestLogger {
 		harness.processElement(new StreamRecord<Event>(new Event(42, "foobar", 1.0), 2));
 
 		// simulate snapshot/restore with some elements in internal sorting queue
-		StreamStateHandle snapshot = harness.snapshotLegacy(0, 0);
+		OperatorStateHandles snapshot = harness.snapshot(0, 0);
 		harness.close();
 
 		harness = new KeyedOneInputStreamOperatorTestHarness<>(
@@ -248,7 +137,7 @@ public class CEPOperatorTest extends TestLogger {
 				BasicTypeInfo.INT_TYPE_INFO);
 
 		harness.setup();
-		harness.restore(snapshot);
+		harness.initializeState(snapshot);
 		harness.open();
 
 		harness.processWatermark(new Watermark(Long.MIN_VALUE));
@@ -259,8 +148,12 @@ public class CEPOperatorTest extends TestLogger {
 		// a pruning time underflow exception in NFA
 		harness.processWatermark(new Watermark(2));
 
+		harness.processElement(new StreamRecord<Event>(middleEvent, 3));
+		harness.processElement(new StreamRecord<Event>(new Event(42, "start", 1.0), 4));
+		harness.processElement(new StreamRecord<Event>(endEvent, 5));
+
 		// simulate snapshot/restore with empty element queue but NFA state
-		StreamStateHandle snapshot2 = harness.snapshotLegacy(1, 1);
+		OperatorStateHandles snapshot2 = harness.snapshot(1, 1);
 		harness.close();
 
 		harness = new KeyedOneInputStreamOperatorTestHarness<>(
@@ -274,12 +167,8 @@ public class CEPOperatorTest extends TestLogger {
 				BasicTypeInfo.INT_TYPE_INFO);
 
 		harness.setup();
-		harness.restore(snapshot2);
+		harness.initializeState(snapshot2);
 		harness.open();
-
-		harness.processElement(new StreamRecord<Event>(middleEvent, 3));
-		harness.processElement(new StreamRecord<Event>(new Event(42, "start", 1.0), 4));
-		harness.processElement(new StreamRecord<Event>(endEvent, 5));
 
 		harness.processWatermark(new Watermark(Long.MAX_VALUE));
 
@@ -341,7 +230,7 @@ public class CEPOperatorTest extends TestLogger {
 		harness.processElement(new StreamRecord<Event>(new Event(42, "foobar", 1.0), 2));
 
 		// simulate snapshot/restore with some elements in internal sorting queue
-		StreamStateHandle snapshot = harness.snapshotLegacy(0, 0);
+		OperatorStateHandles snapshot = harness.snapshot(0, 0);
 		harness.close();
 
 		harness = new KeyedOneInputStreamOperatorTestHarness<>(
@@ -359,7 +248,7 @@ public class CEPOperatorTest extends TestLogger {
 		harness.setStateBackend(rocksDBStateBackend);
 
 		harness.setup();
-		harness.restore(snapshot);
+		harness.initializeState(snapshot);
 		harness.open();
 
 		harness.processWatermark(new Watermark(Long.MIN_VALUE));
@@ -371,7 +260,7 @@ public class CEPOperatorTest extends TestLogger {
 		harness.processWatermark(new Watermark(2));
 
 		// simulate snapshot/restore with empty element queue but NFA state
-		StreamStateHandle snapshot2 = harness.snapshotLegacy(1, 1);
+		OperatorStateHandles snapshot2 = harness.snapshot(1, 1);
 		harness.close();
 
 		harness = new KeyedOneInputStreamOperatorTestHarness<>(
@@ -388,7 +277,7 @@ public class CEPOperatorTest extends TestLogger {
 		rocksDBStateBackend.setDbStoragePath(rocksDbPath);
 		harness.setStateBackend(rocksDBStateBackend);
 		harness.setup();
-		harness.restore(snapshot2);
+		harness.initializeState(snapshot2);
 		harness.open();
 
 		harness.processElement(new StreamRecord<Event>(middleEvent, 3));
@@ -446,71 +335,6 @@ public class CEPOperatorTest extends TestLogger {
 				new NFAFactory(true)),
 			keySelector,
 			BasicTypeInfo.INT_TYPE_INFO);
-
-		try {
-			harness.setup(
-				new KryoSerializer<>(
-					(Class<Either<Tuple2<Map<String, Event>, Long>, Map<String, Event>>>) (Object) Either.class,
-					new ExecutionConfig()));
-			harness.open();
-
-			harness.processElement(new StreamRecord<>(startEvent, 3L));
-			harness.processWatermark(new Watermark(watermarkTimestamp1));
-			harness.processWatermark(new Watermark(watermarkTimestamp2));
-
-			Queue<Object> result = harness.getOutput();
-
-			assertEquals(3, result.size());
-
-			Object watermark1 = result.poll();
-
-			assertTrue(watermark1 instanceof Watermark);
-
-			assertEquals(watermarkTimestamp1, ((Watermark) watermark1).getTimestamp());
-
-			Object resultObject = result.poll();
-
-			assertTrue(resultObject instanceof StreamRecord);
-
-			StreamRecord<Either<Tuple2<Map<String, Event>, Long>, Map<String, Event>>> streamRecord = (StreamRecord<Either<Tuple2<Map<String,Event>,Long>,Map<String,Event>>>) resultObject;
-
-			assertTrue(streamRecord.getValue() instanceof Either.Left);
-
-			Either.Left<Tuple2<Map<String, Event>, Long>, Map<String, Event>> left = (Either.Left<Tuple2<Map<String, Event>, Long>, Map<String, Event>>) streamRecord.getValue();
-
-			Tuple2<Map<String, Event>, Long> leftResult = left.left();
-
-			assertEquals(watermarkTimestamp2, (long) leftResult.f1);
-			assertEquals(expectedSequence, leftResult.f0);
-
-			Object watermark2 = result.poll();
-
-			assertTrue(watermark2 instanceof Watermark);
-
-			assertEquals(watermarkTimestamp2, ((Watermark) watermark2).getTimestamp());
-		} finally {
-			harness.close();
-		}
-	}
-
-	/**
-	 * Tests that the internal time of a CEP operator advances only given watermarks. See FLINK-5033
-	 */
-	@Test
-	public void testAdvancingTimeWithoutElements() throws Exception {
-		final Event startEvent = new Event(42, "start", 1.0);
-		final long watermarkTimestamp1 = 5L;
-		final long watermarkTimestamp2 = 13L;
-
-		final Map<String, Event> expectedSequence = new HashMap<>(2);
-		expectedSequence.put("start", startEvent);
-
-		OneInputStreamOperatorTestHarness<Event, Either<Tuple2<Map<String, Event>, Long>, Map<String, Event>>> harness = new OneInputStreamOperatorTestHarness<>(
-			new TimeoutCEPPatternOperator<>(
-				Event.createTypeSerializer(),
-				false,
-				new NFAFactory(true))
-		);
 
 		try {
 			harness.setup(

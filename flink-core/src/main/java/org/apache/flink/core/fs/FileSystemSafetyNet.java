@@ -21,9 +21,6 @@ package org.apache.flink.core.fs;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.IOUtils;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.net.URI;
 
 import static org.apache.flink.util.Preconditions.checkState;
@@ -65,8 +62,6 @@ import static org.apache.flink.util.Preconditions.checkState;
 @Internal
 public class FileSystemSafetyNet {
 
-	private static final Logger LOG = LoggerFactory.getLogger(FileSystemSafetyNet.class);
-
 	/** The map from thread to the safety net registry for that thread */
 	private static final ThreadLocal<SafetyNetCloseableRegistry> REGISTRIES = new ThreadLocal<>();
 
@@ -93,7 +88,6 @@ public class FileSystemSafetyNet {
 
 		SafetyNetCloseableRegistry newRegistry = new SafetyNetCloseableRegistry();
 		REGISTRIES.set(newRegistry);
-		LOG.info("Created new CloseableRegistry {} for {}", newRegistry, Thread.currentThread().getName());
 	}
 
 	/**
@@ -107,7 +101,6 @@ public class FileSystemSafetyNet {
 	public static void closeSafetyNetAndGuardedResourcesForThread() {
 		SafetyNetCloseableRegistry registry = REGISTRIES.get();
 		if (null != registry) {
-			LOG.info("Ensuring all FileSystem streams are closed for {}", Thread.currentThread().getName());
 			REGISTRIES.remove();
 			IOUtils.closeQuietly(registry);
 		}

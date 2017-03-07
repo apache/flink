@@ -23,7 +23,8 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.types.Row
 import org.apache.flink.table.api.{Types, ValidationException}
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.expressions.utils.ExpressionTestBase
+import org.apache.flink.table.expressions.utils.{ExpressionTestBase, ShouldNotExecuteFunc}
+import org.apache.flink.table.functions.ScalarFunction
 import org.junit.Test
 
 class ScalarOperatorsTest extends ExpressionTestBase {
@@ -89,10 +90,37 @@ class ScalarOperatorsTest extends ExpressionTestBase {
     testTableApi( +'f8, "+f8", "5") // additional space before "+" required because of checkstyle
     testTableApi(3.toExpr + 'f8, "3 + f8", "8")
 
-    // boolean arithmetic
-    testTableApi('f6 && true, "f6 && true", "true")
-    testTableApi('f6 && false, "f6 && false", "false")
-    testTableApi('f6 || false, "f6 || false", "true")
+    // boolean arithmetic: AND
+    testTableApi('f6 && true, "f6 && true", "true")      // true && true
+    testTableApi('f6 && false, "f6 && false", "false")   // true && false
+    testTableApi('f11 && true, "f11 && true", "false")   // false && true
+    testTableApi('f11 && false, "f11 && false", "false") // false && false
+    testTableApi('f6 && 'f12, "f6 && f12", "null")       // true && null
+    testTableApi('f11 && 'f12, "f11 && f12", "false")    // false && null
+    testTableApi('f12 && true, "f12 && true", "null")    // null && true
+    testTableApi('f12 && false, "f12 && false", "false") // null && false
+    testTableApi('f12 && 'f12, "f12 && f12", "null")     // null && null
+    testTableApi('f11 && ShouldNotExecuteFunc('f10),     // early out
+      "f11 && ShouldNotExecuteFunc(f10)", "false")
+    testTableApi('f6 && 'f11 && ShouldNotExecuteFunc('f10),  // early out
+      "f6 && f11 && ShouldNotExecuteFunc(f10)", "false")
+
+    // boolean arithmetic: OR
+    testTableApi('f6 || true, "f6 || true", "true")      // true || true
+    testTableApi('f6 || false, "f6 || false", "true")    // true || false
+    testTableApi('f11 || true, "f11 || true", "true")    // false || true
+    testTableApi('f11 || false, "f11 || false", "false") // false || false
+    testTableApi('f6 || 'f12, "f6 || f12", "true")       // true || null
+    testTableApi('f11 || 'f12, "f11 || f12", "null")     // false || null
+    testTableApi('f12 || true, "f12 || true", "true")    // null || true
+    testTableApi('f12 || false, "f12 || false", "null")  // null || false
+    testTableApi('f12 || 'f12, "f12 || f12", "null")     // null || null
+    testTableApi('f6 || ShouldNotExecuteFunc('f10),      // early out
+      "f6 || ShouldNotExecuteFunc(f10)", "true")
+    testTableApi('f11 || 'f6 || ShouldNotExecuteFunc('f10),  // early out
+      "f11 || f6 || ShouldNotExecuteFunc(f10)", "true")
+
+    // boolean arithmetic: NOT
     testTableApi(!'f6, "!f6", "false")
 
     // comparison
@@ -187,7 +215,7 @@ class ScalarOperatorsTest extends ExpressionTestBase {
   // ----------------------------------------------------------------------------------------------
 
   def testData = {
-    val testData = new Row(11)
+    val testData = new Row(13)
     testData.setField(0, 1: Byte)
     testData.setField(1, 1: Short)
     testData.setField(2, 1)
@@ -199,6 +227,8 @@ class ScalarOperatorsTest extends ExpressionTestBase {
     testData.setField(8, 5)
     testData.setField(9, 10)
     testData.setField(10, "String")
+    testData.setField(11, false)
+    testData.setField(12, null)
     testData
   }
 
@@ -214,8 +244,14 @@ class ScalarOperatorsTest extends ExpressionTestBase {
       Types.DOUBLE,
       Types.INT,
       Types.INT,
-      Types.STRING
+      Types.STRING,
+      Types.BOOLEAN,
+      Types.BOOLEAN
       ).asInstanceOf[TypeInformation[Any]]
   }
+
+  override def functions: Map[String, ScalarFunction] = Map(
+    "shouldNotExecuteFunc" -> ShouldNotExecuteFunc
+  )
 
 }

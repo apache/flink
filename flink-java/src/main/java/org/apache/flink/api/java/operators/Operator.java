@@ -20,6 +20,7 @@ package org.apache.flink.api.java.operators;
 
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -37,6 +38,11 @@ public abstract class Operator<OUT, O extends Operator<OUT, O>> extends DataSet<
 	protected String name;
 	
 	protected int parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
+
+	protected ResourceSpec minResources = ResourceSpec.UNKNOWN;
+
+	protected ResourceSpec preferredResources = ResourceSpec.UNKNOWN;
+
 
 	protected Operator(ExecutionEnvironment context, TypeInformation<OUT> resultType) {
 		super(context, resultType);
@@ -68,6 +74,26 @@ public abstract class Operator<OUT, O extends Operator<OUT, O>> extends DataSet<
 	 */
 	public int getParallelism() {
 		return this.parallelism;
+	}
+
+	/**
+	 * Returns the minimum resource of this operator. If no minimum resource has been set,
+	 * it returns the default empty resource.
+	 *
+	 * @return The minimum resource of this operator.
+	 */
+	public ResourceSpec getMinResources() {
+		return this.minResources;
+	}
+
+	/**
+	 * Returns the preferred resource of this operator. If no preferred resource has been set,
+	 * it returns the default empty resource.
+	 *
+	 * @return The preferred resource of this operator.
+	 */
+	public ResourceSpec getPreferredResources() {
+		return this.preferredResources;
 	}
 
 	/**
@@ -103,4 +129,52 @@ public abstract class Operator<OUT, O extends Operator<OUT, O>> extends DataSet<
 		O returnType = (O) this;
 		return returnType;
 	}
+
+//	---------------------------------------------------------------------------
+//	 Fine-grained resource profiles are an incomplete work-in-progress feature
+//	 The setters are hence commented out at this point.
+//	---------------------------------------------------------------------------
+//
+//	/**
+//	 * Sets the minimum and preferred resources for this operator. This overrides the default empty resource.
+//	 * The lower and upper resource limits will be considered in dynamic resource resize feature for future plan.
+//	 *
+//	 * @param minResources The minimum resource for this operator.
+//	 * @param preferredResources The preferred resource for this operator.
+//	 * @return The operator with set minimum and preferred resources.
+//	 */
+//	@PublicEvolving
+//	public O setResources(ResourceSpec minResources, ResourceSpec preferredResources) {
+//		Preconditions.checkNotNull(minResources, "The min resources must be not null.");
+//		Preconditions.checkNotNull(preferredResources, "The preferred resources must be not null.");
+//
+//		Preconditions.checkArgument(minResources.isValid() && preferredResources.isValid() && minResources.lessThanOrEqual(preferredResources),
+//				"The values in resource must be not less than 0 and the preferred resource must be greater than the min resource.");
+//
+//		this.minResources = minResources;
+//		this.preferredResources = preferredResources;
+//
+//		@SuppressWarnings("unchecked")
+//		O returnType = (O) this;
+//		return returnType;
+//	}
+//
+//	/**
+//	 * Sets the resources for this operator. This overrides the default minimum and preferred resources.
+//	 *
+//	 * @param resources The resource for this operator.
+//	 * @return The operator with set minimum and preferred resources.
+//	 */
+//	@PublicEvolving
+//	public O setResources(ResourceSpec resources) {
+//		Preconditions.checkNotNull(resources, "The resource must be not null.");
+//		Preconditions.checkArgument(resources.isValid(), "The resource values must be greater than 0.");
+//
+//		this.minResources = resources;
+//		this.preferredResources = resources;
+//
+//		@SuppressWarnings("unchecked")
+//		O returnType = (O) this;
+//		return returnType;
+//	}
 }

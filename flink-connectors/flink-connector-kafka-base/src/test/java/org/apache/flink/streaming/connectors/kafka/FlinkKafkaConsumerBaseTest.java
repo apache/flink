@@ -24,6 +24,7 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
@@ -37,8 +38,6 @@ import org.apache.flink.util.SerializedValue;
 import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Matchers;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 import java.io.Serializable;
 import java.lang.reflect.Field;
@@ -48,14 +47,13 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -137,6 +135,8 @@ public class FlinkKafkaConsumerBaseTest {
 
 		consumer.initializeState(initializationContext);
 
+		consumer.open(new Configuration());
+
 		consumer.snapshotState(new StateSnapshotContextSynchronousImpl(17, 17));
 
 		// ensure that the list was cleared and refilled. while this is an implementation detail, we use it here
@@ -176,6 +176,8 @@ public class FlinkKafkaConsumerBaseTest {
 		when(initializationContext.isRestored()).thenReturn(false);
 
 		consumer.initializeState(initializationContext);
+
+		consumer.open(new Configuration());
 
 		consumer.snapshotState(new StateSnapshotContextSynchronousImpl(17, 17));
 
@@ -364,15 +366,10 @@ public class FlinkKafkaConsumerBaseTest {
 		@SuppressWarnings("unchecked")
 		protected AbstractFetcher<T, ?> createFetcher(
 				SourceContext<T> sourceContext,
-				List<KafkaTopicPartition> thisSubtaskPartitions,
-				HashMap<KafkaTopicPartition, Long> restoredSnapshotState,
+				Map<KafkaTopicPartition, Long> thisSubtaskPartitionsWithStartOffsets,
 				SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
 				SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
 				StreamingRuntimeContext runtimeContext) throws Exception {
-			if (restoredSnapshotState != null) {
-				Assert.fail("Trying to restore offsets even though there was no restore state.");
-				return null;
-			}
 			return mock(AbstractFetcher.class);
 		}
 

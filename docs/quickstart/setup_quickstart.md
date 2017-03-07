@@ -46,9 +46,10 @@ Java(TM) SE Runtime Environment (build 1.8.0_111-b14)
 Java HotSpot(TM) 64-Bit Server VM (build 25.111-b14, mixed mode)
 ~~~
 
-### Download
-
 {% if site.is_stable %}
+<div class="codetabs" markdown="1">
+
+<div data-lang="Download and Unpack" markdown="1">
 1. Download a binary from the [downloads page](http://flink.apache.org/downloads.html). You can pick
    any Hadoop/Scala combination you like. If you plan to just use the local file system, any Hadoop
    version will work fine.
@@ -60,9 +61,23 @@ $ cd ~/Downloads        # Go to download directory
 $ tar xzf flink-*.tgz   # Unpack the downloaded archive
 $ cd flink-{{site.version}}
 ~~~
+</div>
+
+<div data-lang="MacOS X" markdown="1">
+For MacOS X users, Flink can be installed through [Homebrew](https://brew.sh/).
+~~~bash
+$ brew install apache-flink
+...
+$ flink --version
+Version: 1.2.0, Commit ID: 1c659cf
+~~~
+</div>
+
+</div>
+
 {% else %}
-Clone the source code from one of our
-[repositories](http://flink.apache.org/community.html#source-code), e.g.:
+### Download and Compile
+Clone the source code from one of our [repositories](http://flink.apache.org/community.html#source-code), e.g.:
 
 ~~~bash
 $ git clone https://github.com/apache/flink.git

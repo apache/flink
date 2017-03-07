@@ -23,7 +23,9 @@ import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.UnpooledByteBufAllocator;
 
 import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.ByteSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -36,11 +38,15 @@ import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.internal.InternalListState;
 
+import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.junit.Test;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 
 import static org.junit.Assert.assertArrayEquals;
@@ -409,6 +415,131 @@ public class KvStateRequestSerializerTest {
 		// Long + 1 byte (separator) + 1 byte (incomplete Long)
 		KvStateRequestSerializer.deserializeList(new byte[] {1, 1, 1, 1, 1, 1, 1, 1, 2, 3},
 			LongSerializer.INSTANCE);
+	}
+	
+	/**
+	 * Tests map serialization utils.
+	 */
+	@Test
+	public void testMapSerialization() throws Exception {
+		final long key = 0L;
+
+		// objects for heap state list serialisation
+		final HeapKeyedStateBackend<Long> longHeapKeyedStateBackend =
+			new HeapKeyedStateBackend<>(
+				mock(TaskKvStateRegistry.class),
+				LongSerializer.INSTANCE,
+				ClassLoader.getSystemClassLoader(),
+				1, new KeyGroupRange(0, 0)
+			);
+		longHeapKeyedStateBackend.setCurrentKey(key);
+
+		final InternalMapState<VoidNamespace, Long, String> mapState = (InternalMapState<VoidNamespace, Long, String>) longHeapKeyedStateBackend.getPartitionedState(
+				VoidNamespace.INSTANCE,
+				VoidNamespaceSerializer.INSTANCE,
+				new MapStateDescriptor<>("test", LongSerializer.INSTANCE, StringSerializer.INSTANCE));
+
+		testMapSerialization(key, mapState);
+	}
+
+	/**
+	 * Verifies that the serialization of a map using the given map state
+	 * matches the deserialization with {@link KvStateRequestSerializer#deserializeList}.
+	 *
+	 * @param key
+	 * 		key of the map state
+	 * @param mapState
+	 * 		map state using the {@link VoidNamespace}, must also be a {@link InternalKvState} instance
+	 *
+	 * @throws Exception
+	 */
+	public static void testMapSerialization(
+			final long key,
+			final InternalMapState<VoidNamespace, Long, String> mapState) throws Exception {
+
+		TypeSerializer<Long> userKeySerializer = LongSerializer.INSTANCE;
+		TypeSerializer<String> userValueSerializer = StringSerializer.INSTANCE;
+		mapState.setCurrentNamespace(VoidNamespace.INSTANCE);
+
+		// Map
+		final int numElements = 10;
+
+		final Map<Long, String> expectedValues = new HashMap<>();
+		for (int i = 1; i <= numElements; i++) {
+			final long value = ThreadLocalRandom.current().nextLong();
+			expectedValues.put(value, Long.toString(value));
+			mapState.put(value, Long.toString(value));
+		}
+
+		expectedValues.put(0L, null);
+		mapState.put(0L, null);
+
+		final byte[] serializedKey =
+			KvStateRequestSerializer.serializeKeyAndNamespace(
+				key, LongSerializer.INSTANCE,
+				VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE);
+		
+		final byte[] serializedValues = mapState.getSerializedValue(serializedKey);
+
+		Map<Long, String> actualValues = KvStateRequestSerializer.deserializeMap(serializedValues, userKeySerializer, userValueSerializer);
+		assertEquals(expectedValues.size(), actualValues.size());
+		for (Map.Entry<Long, String> actualEntry : actualValues.entrySet()) {
+			assertEquals(expectedValues.get(actualEntry.getKey()), actualEntry.getValue());
+		}
+
+		// Single value
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		long expectedKey = ThreadLocalRandom.current().nextLong();
+		String expectedValue = Long.toString(expectedKey);
+		byte[] isNull = {0};
+
+		baos.write(KvStateRequestSerializer.serializeValue(expectedKey, userKeySerializer));
+		baos.write(isNull);
+		baos.write(KvStateRequestSerializer.serializeValue(expectedValue, userValueSerializer));
+		byte[] serializedValue = baos.toByteArray();
+
+		Map<Long, String> actualValue = KvStateRequestSerializer.deserializeMap(serializedValue, userKeySerializer, userValueSerializer);
+		assertEquals(1, actualValue.size());
+		assertEquals(expectedValue, actualValue.get(expectedKey));
+	}
+
+	/**
+	 * Tests map deserialization with too few bytes.
+	 */
+	@Test
+	public void testDeserializeMapEmpty() throws Exception {
+		Map<Long, String> actualValue = KvStateRequestSerializer
+			.deserializeMap(new byte[] {}, LongSerializer.INSTANCE, StringSerializer.INSTANCE);
+		assertEquals(0, actualValue.size());
+	}
+
+	/**
+	 * Tests map deserialization with too few bytes.
+	 */
+	@Test(expected = IOException.class)
+	public void testDeserializeMapTooShort1() throws Exception {
+		// 1 byte (incomplete Key)
+		KvStateRequestSerializer.deserializeMap(new byte[] {1}, LongSerializer.INSTANCE, StringSerializer.INSTANCE);
+	}
+
+	/**
+	 * Tests map deserialization with too few bytes.
+	 */
+	@Test(expected = IOException.class)
+	public void testDeserializeMapTooShort2() throws Exception {
+		// Long (Key) + 1 byte (incomplete Value)
+		KvStateRequestSerializer.deserializeMap(new byte[]{1, 1, 1, 1, 1, 1, 1, 1, 0},
+				LongSerializer.INSTANCE, LongSerializer.INSTANCE);
+	}
+	
+	/**
+	 * Tests map deserialization with too few bytes.
+	 */
+	@Test(expected = IOException.class)
+	public void testDeserializeMapTooShort3() throws Exception {
+		// Long (Key1) + Boolean (false) + Long (Value1) + 1 byte (incomplete Key2)
+		KvStateRequestSerializer.deserializeMap(new byte[] {1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 3},
+			LongSerializer.INSTANCE, LongSerializer.INSTANCE);
 	}
 
 	private byte[] randomByteArray(int capacity) {

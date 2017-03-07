@@ -32,7 +32,7 @@ import org.apache.flink.streaming.api.transformations.SinkTransformation;
 @Public
 public class DataStreamSink<T> {
 
-	SinkTransformation<T> transformation;
+	private final SinkTransformation<T> transformation;
 
 	@SuppressWarnings("unchecked")
 	protected DataStreamSink(DataStream<T> inputStream, StreamSink<T> operator) {
@@ -112,6 +112,46 @@ public class DataStreamSink<T> {
 		transformation.setParallelism(parallelism);
 		return this;
 	}
+
+//	---------------------------------------------------------------------------
+//	 Fine-grained resource profiles are an incomplete work-in-progress feature
+//	 The setters are hence commented out at this point.
+//	---------------------------------------------------------------------------
+//	/**
+//	 * Sets the minimum and preferred resources for this sink, and the lower and upper resource limits will
+//	 * be considered in resource resize feature for future plan.
+//	 *
+//	 * @param minResources The minimum resources for this sink.
+//	 * @param preferredResources The preferred resources for this sink
+//	 * @return The sink with set minimum and preferred resources.
+//	 */
+//	@PublicEvolving
+//	public DataStreamSink<T> setResources(ResourceSpec minResources, ResourceSpec preferredResources) {
+//		Preconditions.checkNotNull(minResources, "The min resources must be not null.");
+//		Preconditions.checkNotNull(preferredResources, "The preferred resources must be not null.");
+//		Preconditions.checkArgument(minResources.isValid() && preferredResources.isValid() && minResources.lessThanOrEqual(preferredResources),
+//				"The values in resource must be not less than 0 and the preferred resource must be greater than the min resource.");
+//
+//		transformation.setResources(minResources, preferredResources);
+//
+//		return this;
+//	}
+//
+//	/**
+//	 * Sets the resource for this sink, the minimum and preferred resources are the same by default.
+//	 *
+//	 * @param resources The resource for this sink.
+//	 * @return The sink with set minimum and preferred resources.
+//	 */
+//	@PublicEvolving
+//	public DataStreamSink<T> setResources(ResourceSpec resources) {
+//		Preconditions.checkNotNull(resources, "The resource must be not null.");
+//		Preconditions.checkArgument(resources.isValid(), "The resource values must be greater than 0.");
+//
+//		transformation.setResources(resources, resources);
+//
+//		return this;
+//	}
 
 	/**
 	 * Turns off chaining for this operator so thread co-location will not be

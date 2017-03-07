@@ -20,7 +20,7 @@ package org.apache.flink.table.api.scala.stream.sql
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.plan.logical.EventTimeTumblingGroupWindow
+import org.apache.flink.table.plan.logical.{EventTimeTumblingGroupWindow, ProcessingTimeTumblingGroupWindow}
 import org.apache.flink.table.utils.{StreamTableTestUtil, TableTestBase}
 import org.apache.flink.table.utils.TableTestUtil._
 import org.junit.Test
@@ -40,7 +40,7 @@ class WindowAggregateTest extends TableTestBase {
           unaryNode(
             "DataStreamCalc",
             streamTableNode(0),
-            term("select", "1970-01-01 00:00:00 AS $f0")
+            term("select", "CAST(1970-01-01 00:00:00) AS $f0")
           ),
           term("window", EventTimeTumblingGroupWindow(None, 'rowtime, 3600000.millis)),
           term("select", "COUNT(*) AS EXPR$0")
@@ -61,7 +61,7 @@ class WindowAggregateTest extends TableTestBase {
           unaryNode(
             "DataStreamCalc",
             streamTableNode(0),
-            term("select", "a", "1970-01-01 00:00:00 AS $f1")
+            term("select", "a", "CAST(1970-01-01 00:00:00) AS $f1")
           ),
           term("groupBy", "a"),
           term("window", EventTimeTumblingGroupWindow(None, 'rowtime, 60000.millis)),
@@ -83,13 +83,34 @@ class WindowAggregateTest extends TableTestBase {
           unaryNode(
             "DataStreamCalc",
             streamTableNode(0),
-            term("select", "a", "1970-01-01 00:00:00 AS $f1, b, c")
+            term("select", "a", "CAST(1970-01-01 00:00:00) AS $f1, b, c")
           ),
           term("groupBy", "a, b"),
           term("window", EventTimeTumblingGroupWindow(None, 'rowtime, 1000.millis)),
           term("select", "a", "b", "SUM(c) AS EXPR$1")
         ),
         term("select", "a", "EXPR$1", "b")
+      )
+    streamUtil.verifySql(sql, expected)
+  }
+
+  @Test
+  def testProcessingTime() = {
+    val sql = "SELECT COUNT(*) FROM MyTable GROUP BY FLOOR(proctime() TO HOUR)"
+    val expected =
+      unaryNode(
+        "DataStreamCalc",
+        unaryNode(
+          "DataStreamAggregate",
+          unaryNode(
+            "DataStreamCalc",
+            streamTableNode(0),
+            term("select", "CAST(1970-01-01 00:00:00) AS $f0")
+          ),
+          term("window", ProcessingTimeTumblingGroupWindow(None, 3600000.millis)),
+          term("select", "COUNT(*) AS EXPR$0")
+        ),
+        term("select", "EXPR$0")
       )
     streamUtil.verifySql(sql, expected)
   }

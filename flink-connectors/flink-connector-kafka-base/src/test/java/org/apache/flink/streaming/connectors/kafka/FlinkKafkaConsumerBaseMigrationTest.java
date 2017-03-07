@@ -24,6 +24,7 @@ import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.kafka.internals.AbstractFetcher;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
+import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionStateSentinel;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.util.SerializedValue;
@@ -34,6 +35,7 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Map;
 import java.util.HashMap;
 import java.util.List;
 
@@ -68,8 +70,8 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 		testHarness.open();
 
 		// assert that no partitions were found and is empty
-		Assert.assertTrue(consumerFunction.getSubscribedPartitions() != null);
-		Assert.assertTrue(consumerFunction.getSubscribedPartitions().isEmpty());
+		Assert.assertTrue(consumerFunction.getSubscribedPartitionsToStartOffsets() != null);
+		Assert.assertTrue(consumerFunction.getSubscribedPartitionsToStartOffsets().isEmpty());
 
 		// assert that no state was restored
 		Assert.assertTrue(consumerFunction.getRestoredState() == null);
@@ -101,10 +103,16 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 			getResourceFilename("kafka-consumer-migration-test-flink1.1-snapshot-empty-state"));
 		testHarness.open();
 
+		// the expected state in "kafka-consumer-migration-test-flink1.1-snapshot-empty-state";
+		// since the state is empty, the consumer should reflect on the startup mode to determine start offsets.
+		final HashMap<KafkaTopicPartition, Long> expectedSubscribedPartitionsWithStartOffsets = new HashMap<>();
+		expectedSubscribedPartitionsWithStartOffsets.put(new KafkaTopicPartition("abc", 13), KafkaTopicPartitionStateSentinel.GROUP_OFFSET);
+		expectedSubscribedPartitionsWithStartOffsets.put(new KafkaTopicPartition("def", 7), KafkaTopicPartitionStateSentinel.GROUP_OFFSET);
+
 		// assert that there are partitions and is identical to expected list
-		Assert.assertTrue(consumerFunction.getSubscribedPartitions() != null);
-		Assert.assertTrue(!consumerFunction.getSubscribedPartitions().isEmpty());
-		Assert.assertTrue(consumerFunction.getSubscribedPartitions().equals(partitions));
+		Assert.assertTrue(consumerFunction.getSubscribedPartitionsToStartOffsets() != null);
+		Assert.assertTrue(!consumerFunction.getSubscribedPartitionsToStartOffsets().isEmpty());
+		Assert.assertEquals(expectedSubscribedPartitionsWithStartOffsets, consumerFunction.getSubscribedPartitionsToStartOffsets());
 
 		// assert that no state was restored
 		Assert.assertTrue(consumerFunction.getRestoredState() == null);
@@ -136,15 +144,17 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 			getResourceFilename("kafka-consumer-migration-test-flink1.1-snapshot"));
 		testHarness.open();
 
-		// assert that there are partitions and is identical to expected list
-		Assert.assertTrue(consumerFunction.getSubscribedPartitions() != null);
-		Assert.assertTrue(!consumerFunction.getSubscribedPartitions().isEmpty());
-		Assert.assertEquals(partitions, consumerFunction.getSubscribedPartitions());
-
 		// the expected state in "kafka-consumer-migration-test-flink1.1-snapshot"
 		final HashMap<KafkaTopicPartition, Long> expectedState = new HashMap<>();
 		expectedState.put(new KafkaTopicPartition("abc", 13), 16768L);
 		expectedState.put(new KafkaTopicPartition("def", 7), 987654321L);
+
+		// assert that there are partitions and is identical to expected list
+		Assert.assertTrue(consumerFunction.getSubscribedPartitionsToStartOffsets() != null);
+		Assert.assertTrue(!consumerFunction.getSubscribedPartitionsToStartOffsets().isEmpty());
+
+		// on restore, subscribedPartitionsToStartOffsets should be identical to the restored state
+		Assert.assertEquals(expectedState, consumerFunction.getSubscribedPartitionsToStartOffsets());
 
 		// assert that state is correctly restored from legacy checkpoint
 		Assert.assertTrue(consumerFunction.getRestoredState() != null);
@@ -179,8 +189,7 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 		@Override
 		protected AbstractFetcher<T, ?> createFetcher(
 				SourceContext<T> sourceContext,
-				List<KafkaTopicPartition> thisSubtaskPartitions,
-				HashMap<KafkaTopicPartition, Long> restoredSnapshotState,
+				Map<KafkaTopicPartition, Long> thisSubtaskPartitionsWithStartOffsets,
 				SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
 				SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
 				StreamingRuntimeContext runtimeContext) throws Exception {

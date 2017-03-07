@@ -82,7 +82,7 @@ public class StreamGraphGenerator {
 	public static final int UPPER_BOUND_MAX_PARALLELISM = KeyGroupRangeAssignment.UPPER_BOUND_MAX_PARALLELISM;
 
 	// The StreamGraph that is being built, this is initialized at the beginning.
-	private StreamGraph streamGraph;
+	private final StreamGraph streamGraph;
 
 	private final StreamExecutionEnvironment env;
 
@@ -200,6 +200,10 @@ public class StreamGraphGenerator {
 		}
 		if (transform.getUserProvidedNodeHash() != null) {
 			streamGraph.setTransformationUserHash(transform.getId(), transform.getUserProvidedNodeHash());
+		}
+
+		if (transform.getMinResources() != null && transform.getPreferredResources() != null) {
+			streamGraph.setResource(transform.getId(), transform.getMinResources(), transform.getPreferredResources());
 		}
 
 		return transformedIds;

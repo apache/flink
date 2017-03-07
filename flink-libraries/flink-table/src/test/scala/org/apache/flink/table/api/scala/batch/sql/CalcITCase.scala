@@ -23,11 +23,11 @@ import java.sql.{Date, Time, Timestamp}
 import java.util
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala.batch.sql.FilterITCase.MyHashCode
-import org.apache.flink.table.api.scala.batch.utils.{TableProgramsCollectionTestBase, TableProgramsTestBase}
-import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
-import org.apache.flink.table.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
+import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.scala.batch.sql.FilterITCase.MyHashCode
+import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
+import org.apache.flink.table.api.scala.batch.utils.{TableProgramsCollectionTestBase, TableProgramsTestBase}
 import org.apache.flink.table.api.{TableEnvironment, ValidationException}
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.test.util.TestBaseUtils

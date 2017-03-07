@@ -694,7 +694,7 @@ case class LogicalTableFunctionCall(
     val function = new FlinkTableFunctionImpl(resultType, fieldIndexes, fieldNames, evalMethod)
     val typeFactory = relBuilder.getTypeFactory.asInstanceOf[FlinkTypeFactory]
     val sqlFunction = TableSqlFunction(
-      tableFunction.toString,
+      tableFunction.functionIdentifier,
       tableFunction,
       resultType,
       typeFactory,

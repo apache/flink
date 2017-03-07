@@ -26,6 +26,7 @@ import org.apache.flink.runtime.concurrent.AcceptFunction;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.datastream.AsyncDataStream;
+import org.apache.flink.streaming.api.datastream.AsyncDataStream.OutputMode;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.functions.async.collector.AsyncCollector;
 import org.apache.flink.streaming.api.graph.StreamConfig;
@@ -61,13 +62,13 @@ import java.util.concurrent.TimeoutException;
  * Within the async function, the user can complete the async collector arbitrarily. Once the async
  * collector has been completed, the result is emitted by the operator's emitter to downstream
  * operators.
- * <p>
- * The operator offers different output modes depending on the chosen
- * {@link AsyncDataStream.OutputMode}. In order to give exactly once processing guarantees, the
+ * 
+ * <p>The operator offers different output modes depending on the chosen
+ * {@link OutputMode}. In order to give exactly once processing guarantees, the
  * operator stores all currently in-flight {@link StreamElement} in it's operator state. Upon
  * recovery the recorded set of stream elements is replayed.
- * <p>
- * In case of chaining of this operator, it has to be made sure that the operators in the chain are
+ * 
+ * <p>In case of chaining of this operator, it has to be made sure that the operators in the chain are
  * opened tail to head. The reason for this is that an opened {@link AsyncWaitOperator} starts
  * already emitting recovered {@link StreamElement} to downstream operators.
  *

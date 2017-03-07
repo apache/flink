@@ -30,7 +30,7 @@ public abstract class TupleComparatorTestBase<T extends Tuple> extends Comparato
 	@Override
 	protected void deepEquals(String message, T should, T is) {
 		for (int x = 0; x < should.getArity(); x++) {
-			assertEquals(should.getField(x), is.getField(x));
+			assertEquals((Object)should.getField(x), is.getField(x));
 		}
 	}
 

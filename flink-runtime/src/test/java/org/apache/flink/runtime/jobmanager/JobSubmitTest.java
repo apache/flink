@@ -63,7 +63,7 @@ import static org.junit.Assert.fail;
  */
 public class JobSubmitTest {
 
-	private static final FiniteDuration timeout = new FiniteDuration(5000, TimeUnit.MILLISECONDS);
+	private static final FiniteDuration timeout = new FiniteDuration(60000, TimeUnit.MILLISECONDS);
 
 	private static ActorSystem jobManagerSystem;
 	private static ActorGateway jmGateway;
@@ -229,7 +229,7 @@ public class JobSubmitTest {
 
 		JobGraph jg = new JobGraph("test job", jobVertex);
 		jg.setSnapshotSettings(new JobSnapshottingSettings(vertexIdList, vertexIdList, vertexIdList,
-			5000, 5000, 0L, 10, ExternalizedCheckpointSettings.none(), true));
+			5000, 5000, 0L, 10, ExternalizedCheckpointSettings.none(), null, true));
 		return jg;
 	}
 }

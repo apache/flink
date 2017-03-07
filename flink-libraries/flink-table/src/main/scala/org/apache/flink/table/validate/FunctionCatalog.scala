@@ -23,8 +23,8 @@ import org.apache.calcite.sql.util.{ChainedSqlOperatorTable, ListSqlOperatorTabl
 import org.apache.calcite.sql.{SqlFunction, SqlOperator, SqlOperatorTable}
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions.utils.{TableSqlFunction, UserDefinedFunctionUtils}
-import org.apache.flink.table.functions.{EventTimeExtractor, RowTime, ScalarFunction, TableFunction}
+import org.apache.flink.table.functions.utils.{ScalarSqlFunction, TableSqlFunction}
+import org.apache.flink.table.functions.{EventTimeExtractor, RowTime, ScalarFunction, TableFunction, _}
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -81,11 +81,11 @@ class FunctionCatalog {
 
       // user-defined scalar function call
       case sf if classOf[ScalarFunction].isAssignableFrom(sf) =>
-        Try(UserDefinedFunctionUtils.instantiate(sf.asInstanceOf[Class[ScalarFunction]])) match {
-          case Success(scalarFunction) => ScalarFunctionCall(scalarFunction, children)
-          case Failure(e) => throw ValidationException(e.getMessage)
-        }
-
+        val scalarSqlFunction = sqlFunctions
+          .find(f => f.getName.equalsIgnoreCase(name) && f.isInstanceOf[ScalarSqlFunction])
+          .getOrElse(throw ValidationException(s"Undefined scalar function: $name"))
+          .asInstanceOf[ScalarSqlFunction]
+        ScalarFunctionCall(scalarSqlFunction.getScalarFunction, children)
       // user-defined table function call
       case tf if classOf[TableFunction[_]].isAssignableFrom(tf) =>
         val tableSqlFunction = sqlFunctions
@@ -197,7 +197,8 @@ object FunctionCatalog {
     // "ceil" -> classOf[TemporalCeil]
 
     // extensions to support streaming query
-    "rowtime" -> classOf[RowTime]
+    "rowtime" -> classOf[RowTime],
+    "proctime" -> classOf[ProcTime]
   )
 
   /**
@@ -322,7 +323,8 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     SqlStdOperatorTable.SCALAR_QUERY,
     SqlStdOperatorTable.EXISTS,
     // EXTENSIONS
-    EventTimeExtractor
+    EventTimeExtractor,
+    ProcTimeExtractor
   )
 
   builtInSqlOperators.foreach(register)

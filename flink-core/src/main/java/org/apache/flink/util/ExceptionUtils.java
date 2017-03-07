@@ -257,8 +257,32 @@ public final class ExceptionUtils {
 			throw (Error) t;
 		}
 		else {
-			throw new IOException(t);
+			throw new IOException(t.getMessage(), t);
 		}
+	}
+
+	/**
+	 * Checks whether a throwable chain contains a specific type of exception.
+	 *
+	 * @param throwable the throwable chain to check.
+	 * @param searchType the type of exception to search for in the chain.
+	 * @return True, if the searched type is nested in the throwable, false otherwise.
+	 */
+	public static boolean containsThrowable(Throwable throwable, Class<?> searchType) {
+		if (throwable == null || searchType == null) {
+			return false;
+		}
+
+		Throwable t = throwable;
+		while (t != null) {
+			if (searchType.isAssignableFrom(t.getClass())) {
+				return true;
+			} else {
+				t = t.getCause();
+			}
+		}
+
+		return false;
 	}
 
 	// ------------------------------------------------------------------------

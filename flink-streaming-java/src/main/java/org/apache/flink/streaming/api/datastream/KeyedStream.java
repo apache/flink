@@ -32,7 +32,6 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
-import org.apache.flink.streaming.api.functions.RichProcessFunction;
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction;
 import org.apache.flink.streaming.api.functions.aggregation.ComparableAggregator;
 import org.apache.flink.streaming.api.functions.aggregation.SumAggregator;
@@ -41,7 +40,7 @@ import org.apache.flink.streaming.api.functions.query.QueryableValueStateOperato
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.api.operators.ProcessOperator;
+import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.api.operators.StreamGroupedFold;
 import org.apache.flink.streaming.api.operators.StreamGroupedReduce;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
@@ -181,10 +180,6 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 * function, this function can also query the time and set timers. When reacting to the firing
 	 * of set timers the function can directly emit elements and/or register yet more timers.
 	 *
-	 * <p>A {@link RichProcessFunction}
-	 * can be used to gain access to features provided by the
-	 * {@link org.apache.flink.api.common.functions.RichFunction} interface.
-	 *
 	 * @param processFunction The {@link ProcessFunction} that is called for each element
 	 *                      in the stream.
 	 *
@@ -192,6 +187,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 *
 	 * @return The transformed {@link DataStream}.
 	 */
+	@Override
 	@PublicEvolving
 	public <R> SingleOutputStreamOperator<R> process(ProcessFunction<T, R> processFunction) {
 
@@ -216,10 +212,6 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 * function, this function can also query the time and set timers. When reacting to the firing
 	 * of set timers the function can directly emit elements and/or register yet more timers.
 	 *
-	 * <p>A {@link RichProcessFunction}
-	 * can be used to gain access to features provided by the
-	 * {@link org.apache.flink.api.common.functions.RichFunction} interface.
-	 *
 	 * @param processFunction The {@link ProcessFunction} that is called for each element
 	 *                      in the stream.
 	 * @param outputType {@link TypeInformation} for the result type of the function.
@@ -228,13 +220,14 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 *
 	 * @return The transformed {@link DataStream}.
 	 */
+	@Override
 	@Internal
 	public <R> SingleOutputStreamOperator<R> process(
 			ProcessFunction<T, R> processFunction,
 			TypeInformation<R> outputType) {
 
-		ProcessOperator<KEY, T, R> operator =
-				new ProcessOperator<>(clean(processFunction));
+		KeyedProcessOperator<KEY, T, R> operator =
+				new KeyedProcessOperator<>(clean(processFunction));
 
 		return transform("Process", outputType, operator);
 	}

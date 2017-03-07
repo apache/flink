@@ -24,6 +24,7 @@ import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
+import org.apache.flink.runtime.highavailability.RunningJobsRegistry.JobSchedulingStatus;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.util.ExceptionUtils;
@@ -244,7 +245,8 @@ public class JobLeaderIdService {
 				}
 
 				try {
-					if (runningJobsRegistry.isJobRunning(jobId)) {
+					final JobSchedulingStatus jobStatus = runningJobsRegistry.getJobSchedulingStatus(jobId);
+					if (jobStatus == JobSchedulingStatus.PENDING || jobStatus == JobSchedulingStatus.RUNNING) {
 						if (leaderSessionId == null) {
 							// there is no new leader
 							if (previousJobLeaderId != null) {

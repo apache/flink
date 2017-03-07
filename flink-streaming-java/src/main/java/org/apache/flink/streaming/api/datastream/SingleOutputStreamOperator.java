@@ -154,6 +154,46 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 		return this;
 	}
 
+//	---------------------------------------------------------------------------
+//	 Fine-grained resource profiles are an incomplete work-in-progress feature
+//	 The setters are hence commented out at this point.
+//	---------------------------------------------------------------------------
+//	/**
+//	 * Sets the minimum and preferred resources for this operator, and the lower and upper resource limits will
+//	 * be considered in dynamic resource resize feature for future plan.
+//	 *
+//	 * @param minResources The minimum resources for this operator.
+//	 * @param preferredResources The preferred resources for this operator.
+//	 * @return The operator with set minimum and preferred resources.
+//	 */
+//	@PublicEvolving
+//	public SingleOutputStreamOperator<T> setResources(ResourceSpec minResources, ResourceSpec preferredResources) {
+//		Preconditions.checkNotNull(minResources, "The min resources must be not null.");
+//		Preconditions.checkNotNull(preferredResources, "The preferred resources must be not null.");
+//		Preconditions.checkArgument(minResources.isValid() && preferredResources.isValid() && minResource.lessThanOrEqual(preferredResources),
+//				"The values in resource must be not less than 0 and the preferred resource must be greater than the min resource.");
+//
+//		transformation.setResources(minResources, preferredResources);
+//
+//		return this;
+//	}
+//
+//	/**
+//	 * Sets the resources for this operator, the minimum and preferred resources are the same by default.
+//	 *
+//	 * @param resources The resources for this operator.
+//	 * @return The operator with set minimum and preferred resources.
+//	 */
+//	@PublicEvolving
+//	public SingleOutputStreamOperator<T> setResources(ResourceSpec resources) {
+//		Preconditions.checkNotNull(resources, "The resource must be not null.");
+//		Preconditions.checkArgument(resources.isValid(), "The resource values must be greater than 0.");
+//
+//		transformation.setResources(resources, resources);
+//
+//		return this;
+//	}
+
 	private boolean canBeParallel() {
 		return !nonParallel;
 	}

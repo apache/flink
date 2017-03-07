@@ -32,6 +32,7 @@ import org.apache.flink.api.common.functions.RichFilterFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.io.OutputFormat;
+import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -50,6 +51,7 @@ import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
+import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor;
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor;
 import org.apache.flink.streaming.api.functions.TimestampExtractor;
@@ -58,6 +60,7 @@ import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.sink.SocketClientSink;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.ProcessOperator;
 import org.apache.flink.streaming.api.operators.StreamFilter;
 import org.apache.flink.streaming.api.operators.StreamFlatMap;
 import org.apache.flink.streaming.api.operators.StreamMap;
@@ -140,6 +143,26 @@ public class DataStream<T> {
 	 */
 	public int getParallelism() {
 		return transformation.getParallelism();
+	}
+
+	/**
+	 * Gets the minimum resources for this operator.
+	 *
+	 * @return The minimum resources set for this operator.
+	 */
+	@PublicEvolving
+	public ResourceSpec getMinResources() {
+		return transformation.getMinResources();
+	}
+
+	/**
+	 * Gets the preferred resources for this operator.
+	 *
+	 * @return The preferred resources set for this operator.
+	 */
+	@PublicEvolving
+	public ResourceSpec getPreferredResources() {
+		return transformation.getPreferredResources();
 	}
 
 	/**
@@ -532,6 +555,60 @@ public class DataStream<T> {
 
 		return transform("Flat Map", outType, new StreamFlatMap<>(clean(flatMapper)));
 
+	}
+
+	/**
+	 * Applies the given {@link ProcessFunction} on the input stream, thereby
+	 * creating a transformed output stream.
+	 *
+	 * <p>The function will be called for every element in the input streams and can produce zero
+	 * or more output elements.
+	 *
+	 * @param processFunction The {@link ProcessFunction} that is called for each element
+	 *                      in the stream.
+	 *
+	 * @param <R> The type of elements emitted by the {@code ProcessFunction}.
+	 *
+	 * @return The transformed {@link DataStream}.
+	 */
+	@PublicEvolving
+	public <R> SingleOutputStreamOperator<R> process(ProcessFunction<T, R> processFunction) {
+
+		TypeInformation<R> outType = TypeExtractor.getUnaryOperatorReturnType(
+				processFunction,
+				ProcessFunction.class,
+				false,
+				true,
+				getType(),
+				Utils.getCallLocationName(),
+				true);
+
+		return process(processFunction, outType);
+	}
+
+	/**
+	 * Applies the given {@link ProcessFunction} on the input stream, thereby
+	 * creating a transformed output stream.
+	 *
+	 * <p>The function will be called for every element in the input streams and can produce zero
+	 * or more output elements.
+	 *
+	 * @param processFunction The {@link ProcessFunction} that is called for each element
+	 *                      in the stream.
+	 * @param outputType {@link TypeInformation} for the result type of the function.
+	 *
+	 * @param <R> The type of elements emitted by the {@code ProcessFunction}.
+	 *
+	 * @return The transformed {@link DataStream}.
+	 */
+	@Internal
+	public <R> SingleOutputStreamOperator<R> process(
+			ProcessFunction<T, R> processFunction,
+			TypeInformation<R> outputType) {
+
+		ProcessOperator<T, R> operator = new ProcessOperator<>(clean(processFunction));
+
+		return transform("Process", outputType, operator);
 	}
 
 	/**
