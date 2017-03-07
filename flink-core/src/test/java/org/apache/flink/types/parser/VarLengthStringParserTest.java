@@ -64,14 +64,14 @@ public class VarLengthStringParserTest {
 		
 		
 		// check single field not terminated
-		recBytes = "abcde".getBytes();
+		recBytes = "abcde".getBytes(ConfigConstants.DEFAULT_CHARSET);
 		startPos = 0;
 		startPos = parser.parseField(recBytes, startPos, recBytes.length, new byte[] {'|'}, s);
 		assertTrue(startPos == 5);
 		assertTrue(s.getValue().equals("abcde"));
 		
 		// check last field not terminated
-		recBytes = "abcde|fg".getBytes();
+		recBytes = "abcde|fg".getBytes(ConfigConstants.DEFAULT_CHARSET);
 		startPos = 0;
 		startPos = parser.parseField(recBytes, startPos, recBytes.length, new byte[] {'|'}, s);
 		assertTrue(startPos == 6);
