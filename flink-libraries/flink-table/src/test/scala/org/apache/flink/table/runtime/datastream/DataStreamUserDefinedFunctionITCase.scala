@@ -24,8 +24,7 @@ import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.scala.stream.utils.{StreamITCase, StreamTestData}
 import org.apache.flink.table.expressions.utils.{Func13, RichFunc2}
-import org.apache.flink.table.utils.{RichTableFunc1, TableFunc0, TableFunc3, UserDefinedFunctionTestUtils}
-import org.apache.flink.table.utils.PojoTableFunc
+import org.apache.flink.table.utils._
 import org.apache.flink.types.Row
 import org.junit.Assert._
 import org.junit.Test
@@ -193,6 +192,37 @@ class DataStreamUserDefinedFunctionITCase extends StreamingMultipleProgramsTestB
       "default-John#19,Sunny-John#19,kevin2-John#19",
       "default-nosharp,Sunny-nosharp,kevin2-nosharp"
     )
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testTableFunctionWithVariableArguments(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tableEnv = TableEnvironment.getTableEnvironment(env)
+    val varArgsFunc0 = new VarArgsFunc0
+    tableEnv.registerFunction("VarArgsFunc0", varArgsFunc0)
+
+    val result = testData(env)
+      .toTable(tableEnv, 'a, 'b, 'c)
+      .select('c)
+      .join(varArgsFunc0("1", "2", 'c))
+
+    result.addSink(new StreamITCase.StringSink)
+    env.execute()
+
+    val expected = mutable.MutableList(
+      "Anna#44,1",
+      "Anna#44,2",
+      "Anna#44,Anna#44",
+      "Jack#22,1",
+      "Jack#22,2",
+      "Jack#22,Jack#22",
+      "John#19,1",
+      "John#19,2",
+      "John#19,John#19",
+      "nosharp,1",
+      "nosharp,2",
+      "nosharp,nosharp")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
