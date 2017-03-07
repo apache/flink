@@ -134,9 +134,17 @@ public interface TaskExecutorGateway extends RpcGateway {
 	Future<Acknowledge> cancelTask(ExecutionAttemptID executionAttemptID, @RpcTimeout Time timeout);
 
 	/**
-	 * Request heartbeat from the job manager
+	 * Heartbeat request from the job manager
 	 *
-	 * @param resourceID unique id of the job manager
+	 * @param heartbeatOrigin unique id of the job manager
 	 */
-	void heartbeatFromJobManager(ResourceID resourceID);
+	void heartbeatFromJobManager(ResourceID heartbeatOrigin);
+
+	/**
+	 * Disconnects the given JobManager from the TaskManager.
+	 *
+	 * @param jobId JobID for which the JobManager was the leader
+	 * @param cause for the disconnection from the JobManager
+	 */
+	void disconnectJobManager(JobID jobId, Exception cause);
 }

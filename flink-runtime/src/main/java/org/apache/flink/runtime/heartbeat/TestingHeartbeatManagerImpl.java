@@ -40,11 +40,12 @@ public class TestingHeartbeatManagerImpl<I, O> extends HeartbeatManagerImpl<I, O
 			CountDownLatch waitLatch,
 			long heartbeatTimeoutIntervalMs,
 			ResourceID ownResourceID,
+			HeartbeatListener<I, O> heartbeatListener,
 			Executor executor,
 			ScheduledExecutor scheduledExecutor,
 			Logger log) {
 
-		super(heartbeatTimeoutIntervalMs, ownResourceID, executor, scheduledExecutor, log);
+		super(heartbeatTimeoutIntervalMs, ownResourceID, heartbeatListener, executor, scheduledExecutor, log);
 
 		this.waitLatch = waitLatch;
 	}

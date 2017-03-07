@@ -28,6 +28,7 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -80,6 +81,9 @@ public class MiniCluster {
 
 	@GuardedBy("lock")
 	private HighAvailabilityServices haServices;
+
+	@GuardedBy("lock")
+	private HeartbeatServices heartbeatServices;
 
 	@GuardedBy("lock")
 	private ResourceManagerRunner[] resourceManagerRunners;
@@ -232,6 +236,8 @@ public class MiniCluster {
 				LOG.info("Starting high-availability services");
 				haServices = HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(configuration);
 
+				heartbeatServices = HeartbeatServices.fromConfiguration(configuration);
+
 				// bring up the ResourceManager(s)
 				LOG.info("Starting {} ResourceManger(s)", numResourceManagers);
 				resourceManagerRunners = startResourceManagers(
@@ -245,7 +251,12 @@ public class MiniCluster {
 				// bring up the dispatcher that launches JobManagers when jobs submitted
 				LOG.info("Starting job dispatcher(s) for {} JobManger(s)", numJobManagers);
 				jobDispatcher = new MiniClusterJobDispatcher(
-						configuration, haServices, metricRegistry, numJobManagers, jobManagerRpcServices);
+					configuration,
+					haServices,
+					heartbeatServices,
+					metricRegistry,
+					numJobManagers,
+					jobManagerRpcServices);
 			}
 			catch (Exception e) {
 				// cleanup everything
@@ -533,6 +544,7 @@ public class MiniCluster {
 				new ResourceID(UUID.randomUUID().toString()),
 				taskManagerRpcServices[i],
 				haServices,
+				heartbeatServices,
 				metricRegistry,
 				localCommunication);
 

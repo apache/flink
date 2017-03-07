@@ -26,6 +26,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -90,6 +92,9 @@ public class YarnFlinkApplicationMasterRunner extends AbstractYarnFlinkApplicati
 	private HighAvailabilityServices haServices;
 
 	@GuardedBy("lock")
+	private HeartbeatServices heartbeatServices;
+
+	@GuardedBy("lock")
 	private RpcService commonRpcService;
 
 	@GuardedBy("lock")
@@ -135,6 +140,8 @@ public class YarnFlinkApplicationMasterRunner extends AbstractYarnFlinkApplicati
 			synchronized (lock) {
 				LOG.info("Starting High Availability Services");
 				haServices = HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(config);
+
+				heartbeatServices = HeartbeatServices.fromConfiguration(config);
 				
 				metricRegistry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config));
 				commonRpcService = createRpcService(config, appMasterHostname, amPortRange);
@@ -210,11 +217,14 @@ public class YarnFlinkApplicationMasterRunner extends AbstractYarnFlinkApplicati
 
 		// now the JobManagerRunner
 		return new JobManagerRunner(
-				jobGraph, config,
-				commonRpcService,
-				haServices,
-				this,
-				this);
+			ResourceID.generate(),
+			jobGraph,
+			config,
+			commonRpcService,
+			haServices,
+			heartbeatServices,
+			this,
+			this);
 	}
 
 	protected void shutdown(ApplicationStatus status, String msg) {

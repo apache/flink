@@ -28,7 +28,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.filecache.FileCache;
-import org.apache.flink.runtime.heartbeat.HeartbeatManagerImpl;
+import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
@@ -67,6 +67,7 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.argThat;
 import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.RETURNS_MOCKS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -104,7 +105,7 @@ public class TaskExecutorITCase {
 			rpcService.getScheduledExecutor(),
 			resourceManagerConfiguration.getJobTimeout());
 		MetricRegistry metricRegistry = mock(MetricRegistry.class);
-		HeartbeatManagerImpl heartbeatManager = mock(HeartbeatManagerImpl.class);
+		HeartbeatServices heartbeatServices = mock(HeartbeatServices.class, RETURNS_MOCKS);
 
 		final TaskManagerConfiguration taskManagerConfiguration = TaskManagerConfiguration.fromConfiguration(configuration);
 		final TaskManagerLocation taskManagerLocation = new TaskManagerLocation(taskManagerResourceId, InetAddress.getLocalHost(), 1234);
@@ -135,8 +136,8 @@ public class TaskExecutorITCase {
 			ioManager,
 			networkEnvironment,
 			testingHAServices,
+			heartbeatServices,
 			metricRegistry,
-			heartbeatManager,
 			taskManagerMetricGroup,
 			broadcastVariableManager,
 			fileCache,

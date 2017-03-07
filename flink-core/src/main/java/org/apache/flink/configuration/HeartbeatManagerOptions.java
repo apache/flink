@@ -30,7 +30,7 @@ public class HeartbeatManagerOptions {
 
 	/** Time interval for requesting heartbeat from sender side */
 	public static final ConfigOption<Long> HEARTBEAT_INTERVAL =
-			key("heartbeat.sender.interval")
+			key("heartbeat.interval")
 			.defaultValue(10000L);
 
 	/** Timeout for requesting and receiving heartbeat for both sender and receiver sides */

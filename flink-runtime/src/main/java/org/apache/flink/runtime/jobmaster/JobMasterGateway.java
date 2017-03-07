@@ -124,8 +124,9 @@ public interface JobMasterGateway extends CheckpointCoordinatorGateway {
 	 * {@link JobMaster}.
 	 *
 	 * @param resourceID identifying the TaskManager to disconnect
+	 * @param cause for the disconnection of the TaskManager
 	 */
-	void disconnectTaskManager(ResourceID resourceID);
+	void disconnectTaskManager(ResourceID resourceID, Exception cause);
 
 	/**
 	 * Disconnects the resource manager from the job manager because of the given cause.
