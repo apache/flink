@@ -32,6 +32,7 @@ import org.apache.flink.runtime.operators.sort.InMemorySorter;
 import org.apache.flink.runtime.operators.sort.QuickSort;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.util.MutableObjectIterator;
+import org.codehaus.commons.compiler.CompileException;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -90,7 +91,7 @@ public class CodeGenerationSorterBaseTest {
 	}
 
 
-	protected InMemorySorter createSorter(TypeSerializer serializer, TypeComparator comparator, List<MemorySegment> memory) throws IllegalAccessException, TemplateException, IOException, InstantiationException, InvocationTargetException, NoSuchMethodException, ClassNotFoundException, MemoryAllocationException {
+	protected InMemorySorter createSorter(TypeSerializer serializer, TypeComparator comparator, List<MemorySegment> memory) throws IllegalAccessException, TemplateException, IOException, InstantiationException, InvocationTargetException, NoSuchMethodException, ClassNotFoundException, MemoryAllocationException, CompileException {
 		return this.sorterFactory.createSorter(
 			executionConfig,
 			serializer,

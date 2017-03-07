@@ -64,7 +64,7 @@ public class SorterTemplateModel {
 
 	// used to determine whether order of records can completely determined by normalized sorting key
 	// or the sorter has to also deserialize records if their keys are equal to really confirm the order
-	private final boolean isKeyFullyDetermined;
+	private final boolean normalizedKeyFullyDetermines;
 
 	/**
 	 * Constructor
@@ -87,17 +87,17 @@ public class SorterTemplateModel {
 			int maxLen = Math.min( NormalizedKeySorter.DEFAULT_MAX_NORMALIZED_KEY_LEN, NormalizedKeySorter.MAX_NORMALIZED_KEY_LEN_PER_ELEMENT * numPartialKeys);
 
 			this.numKeyBytes = Math.min(this.typeComparator.getNormalizeKeyLen(), maxLen);
-			this.isKeyFullyDetermined = !this.typeComparator.isNormalizedKeyPrefixOnly(this.numKeyBytes);
+			this.normalizedKeyFullyDetermines = !this.typeComparator.isNormalizedKeyPrefixOnly(this.numKeyBytes);
 		}
 		else {
 			this.numKeyBytes = 0;
-			this.isKeyFullyDetermined = false;
+			this.normalizedKeyFullyDetermines = false;
 		}
 
 		// split key into fixed-byte chunks
 		this.fixedByteChunks = generatedSequenceFixedByteChunks(this.numKeyBytes);
 
-		this.sorterName   = generateCodeFilename(this.fixedByteChunks, this.isKeyFullyDetermined);
+		this.sorterName = generateCodeFilename(this.fixedByteChunks, this.normalizedKeyFullyDetermines);
 	}
 
 	// ------------------------------------------------------------------------
@@ -130,7 +130,7 @@ public class SorterTemplateModel {
 	 * Getter for sorterName which instantiated from constructor
 	 * @return name of the sorter
 	 */
-	public String getSorterName (){
+	public String getSorterName(){
 		return this.sorterName;
 	}
 
@@ -142,7 +142,7 @@ public class SorterTemplateModel {
 	 * Getter for fixedByteChunks
 	 * this method is made for testing proposed
 	 */
-	protected ArrayList<Integer> getBytesOperators() {
+	protected ArrayList<Integer> getBytesOperators(){
 		return fixedByteChunks;
 	}
 
@@ -308,7 +308,7 @@ public class SorterTemplateModel {
 			}
 		}
 
-		if( this.isKeyFullyDetermined ){
+		if( this.normalizedKeyFullyDetermines ){
 			// don't need to compare records further for fully determined key
 			procedures.append("return 0;\n");
 		} else {
@@ -325,7 +325,7 @@ public class SorterTemplateModel {
 	 * @param array of fixed-byte chunks
 	 * @return a suitable name of sorter for particular type-comparator
 	 */
-	private String generateCodeFilename(ArrayList<Integer> chunks, boolean isKeyFullyDetermined) {
+	private String generateCodeFilename(ArrayList<Integer> chunks, boolean normalizedKeyFullyDetermines) {
 
 		StringBuilder name = new StringBuilder();
 
@@ -333,10 +333,10 @@ public class SorterTemplateModel {
 			name.append(byteOperatorMapping.get(opt));
 		}
 
-		if(isKeyFullyDetermined){
-			name.append("FullyDeterminedKey");
+		if(normalizedKeyFullyDetermines){
+			name.append("FullyDeterminingNormalizedKey");
 		} else {
-			name.append("NonFullyDeterminedKey");
+			name.append("NonFullyDeterminingNormalizedKey");
 		}
 
 		name.append("Sorter");

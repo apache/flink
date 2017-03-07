@@ -22,6 +22,9 @@ import freemarker.template.Configuration;
 import freemarker.template.Template;
 import freemarker.template.TemplateException;
 import freemarker.template.TemplateExceptionHandler;
+import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.runtime.util.EnvironmentInformation;
+import org.apache.flink.util.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,11 +44,9 @@ public class TemplateManager {
 	// ------------------------------------------------------------------------
 	//                                   Constants
 	// ------------------------------------------------------------------------
-	public static final String RESOURCE_PATH  = "/Users/heytitle/projects/apache-flink/flink-runtime/resources";
+	public static final String RESOURCE_PATH  = getPathToResource();
 	public static final String TEMPLATE_PATH  = RESOURCE_PATH + "/templates";
-	// TODO: generated this folder if it doesn't exist
-	public static final String GENERATING_PATH      = RESOURCE_PATH + "/generatedcode";
-	public static final String TEMPLATE_ENCODING    = "UTF-8";
+	public static final String TEMPLATE_ENCODING  = "UTF-8";
 
 	private static final Logger LOG = LoggerFactory.getLogger(TemplateManager.class);
 
@@ -57,8 +58,9 @@ public class TemplateManager {
 	// ------------------------------------------------------------------------
 	//                                   Attributes
 	// ------------------------------------------------------------------------
-	private Configuration templateConf;
-	private Map<String,Boolean> generatedSorter;
+	private final Configuration templateConf;
+	private final Map<String,Boolean> generatedSorter;
+	private final String dirForGeneratedCode;
 
 	/**
 	 * Constructor
@@ -71,6 +73,8 @@ public class TemplateManager {
 		templateConf.setTemplateExceptionHandler(TemplateExceptionHandler.RETHROW_HANDLER);
 
 		generatedSorter = new HashMap<>();
+
+		dirForGeneratedCode = prepareDirectoryGeneratedCode();
 	}
 
 
@@ -111,7 +115,7 @@ public class TemplateManager {
 			return generatedFilename;
 		}
 
-		FileOutputStream fs = new FileOutputStream(new File(GENERATING_PATH +"/"+generatedFilename+".java"));
+		FileOutputStream fs = new FileOutputStream(this.getPathToGeneratedCode(generatedFilename));
 
 		Writer output = new OutputStreamWriter(fs);
 		Map templateVariables = model.getTemplateVariables();
@@ -123,5 +127,44 @@ public class TemplateManager {
 		generatedSorter.put(generatedFilename, true);
 
 		return generatedFilename;
+	}
+
+
+	/**
+	 * Get the path of the working folder where the resources directory is
+	 * @retun the absolute path as String
+	 */
+	private static String getPathToResource() {
+		FileSystem fs = FileSystem.getLocalFileSystem();
+		return fs.getWorkingDirectory().toUri().getPath() + "/resources";
+	}
+
+	/**
+	 * Prepare directory for storing generated code
+	 * @return path of the directory */
+	private String prepareDirectoryGeneratedCode() throws IOException {
+		String temporaryDir = EnvironmentInformation.getTemporaryFileDirectory();
+		File dirForGeneratedCode = new File(temporaryDir + "/flink-codegeneration");
+
+		if (!dirForGeneratedCode.exists()) {
+			LOG.debug("Creating diretory for generated code at : "+ dirForGeneratedCode.getAbsolutePath());
+			boolean res = dirForGeneratedCode.mkdir();
+			if(!res){
+				throw new IOException("Can't create temporary directory for generated code : " + dirForGeneratedCode.getAbsolutePath());
+			}
+		} else {
+			LOG.debug( dirForGeneratedCode.getAbsolutePath() +" already exists, so just clean it up");
+			FileUtils.cleanDirectory(dirForGeneratedCode);
+		}
+
+		return dirForGeneratedCode.getAbsolutePath();
+	}
+
+	/**
+	 * Utility method to get the File object of the given filename
+	 * return an object of File of the given file
+	 */
+	public File getPathToGeneratedCode(String filename){
+		return new File(this.dirForGeneratedCode + "/" + filename + ".java");
 	}
 }

@@ -31,6 +31,7 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.codegeneration.utils.CodeGenerationSorterBaseTest;
 import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.runtime.operators.sort.InMemorySorter;
+import org.codehaus.commons.compiler.CompileException;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -42,7 +43,7 @@ import java.util.List;
 public class SorterFactoryTest extends CodeGenerationSorterBaseTest {
 
 	@Test
-	public void testCodeGenerationEnabled() throws MemoryAllocationException, IllegalAccessException, TemplateException, IOException, InstantiationException, NoSuchMethodException, InvocationTargetException, ClassNotFoundException {
+	public void testCodeGenerationEnabled() throws MemoryAllocationException, IllegalAccessException, TemplateException, IOException, InstantiationException, NoSuchMethodException, InvocationTargetException, ClassNotFoundException, CompileException {
 		executionConfig.setCodeGenerationForSorterEnabled(true);
 		Assert.assertTrue(executionConfig.isCodeGenerationForSorterEnabled());
 
@@ -71,7 +72,7 @@ public class SorterFactoryTest extends CodeGenerationSorterBaseTest {
 	}
 
 	@Test
-	public void testCodeGenerationDisabled() throws MemoryAllocationException, IllegalAccessException, TemplateException, IOException, InstantiationException, NoSuchMethodException, InvocationTargetException, ClassNotFoundException {
+	public void testCodeGenerationDisabled() throws MemoryAllocationException, IllegalAccessException, TemplateException, IOException, InstantiationException, NoSuchMethodException, InvocationTargetException, ClassNotFoundException, CompileException {
 		executionConfig.setCodeGenerationForSorterEnabled(false);
 		Assert.assertTrue(!executionConfig.isCodeGenerationForSorterEnabled());
 

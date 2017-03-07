@@ -19,32 +19,27 @@
 package org.apache.flink.runtime.codegeneration;
 
 import freemarker.template.TemplateException;
-import org.apache.commons.math.random.RandomGenerator;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.codegeneration.utils.CodeGenerationSorterBaseTest;
 import org.apache.flink.runtime.memory.MemoryAllocationException;
-import org.apache.flink.runtime.operators.sort.InMemorySorter;
 import org.apache.flink.runtime.operators.testutils.TestData;
-import org.apache.flink.util.FileUtils;
+import org.codehaus.commons.compiler.CompileException;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.List;
 import java.util.Random;
 
 public class TemplateManagerTest extends CodeGenerationSorterBaseTest {
 	@Test
-	public void testSorterIsGeneratedOnlyOnceForSameComparator() throws MemoryAllocationException, IllegalAccessException, TemplateException, IOException, InstantiationException, NoSuchMethodException, InvocationTargetException, ClassNotFoundException {
+	public void testSorterIsGeneratedOnlyOnceForSameComparator() throws MemoryAllocationException, IllegalAccessException, TemplateException, IOException, InstantiationException, NoSuchMethodException, InvocationTargetException, ClassNotFoundException, CompileException {
 
 		List<MemorySegment> memory = createMemory();
 		TypeSerializer serializer  = TestData.getIntStringTupleSerializer();
@@ -56,7 +51,7 @@ public class TemplateManagerTest extends CodeGenerationSorterBaseTest {
 		SorterTemplateModel templateModel = new SorterTemplateModel(comparator);
 
 		String sorterName = templateModel.getSorterName();
-		Path filePath     = Paths.get(TemplateManager.GENERATING_PATH + "/" + sorterName + ".java");
+		Path filePath     = TemplateManager.getInstance().getPathToGeneratedCode(sorterName).toPath();
 
 		Random randomGenerator = new Random();
 

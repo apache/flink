@@ -25,11 +25,11 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.operators.sort.InMemorySorter;
 import org.apache.flink.runtime.operators.sort.NormalizedKeySorter;
-import org.codehaus.janino.JavaSourceClassLoader;
+import org.codehaus.commons.compiler.CompileException;
+import org.codehaus.janino.SimpleCompiler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -53,7 +53,7 @@ public class SorterFactory {
 	// ------------------------------------------------------------------------
 	//                                   Attributes
 	// ------------------------------------------------------------------------
-	private ClassLoader classLoader;
+	private SimpleCompiler classComplier;
 	private TemplateManager templateManager;
 
 	/**
@@ -62,11 +62,7 @@ public class SorterFactory {
 	 */
 	public SorterFactory() throws IOException {
 		this.templateManager = TemplateManager.getInstance();
-		this.classLoader = new JavaSourceClassLoader(
-			SorterFactory.class.getClassLoader(),
-			new File[] { new File(TemplateManager.GENERATING_PATH) },
-			TemplateManager.TEMPLATE_ENCODING
-		);
+		this.classComplier = new SimpleCompiler();
 	}
 
 	/**
@@ -101,13 +97,16 @@ public class SorterFactory {
 	 * @throws NoSuchMethodException
 	 * @throws InvocationTargetException
 	 */
-	public InMemorySorter createSorter(ExecutionConfig config, TypeSerializer serializer, TypeComparator comparator, List<MemorySegment> memory ) throws IOException, TemplateException, ClassNotFoundException, IllegalAccessException, InstantiationException, NoSuchMethodException, InvocationTargetException {
+	public InMemorySorter createSorter(ExecutionConfig config, TypeSerializer serializer, TypeComparator comparator, List<MemorySegment> memory ) throws IOException, TemplateException, ClassNotFoundException, IllegalAccessException, InstantiationException, NoSuchMethodException, InvocationTargetException, CompileException {
 
 		InMemorySorter sorter = null;
 
 		if(config.isCodeGenerationForSorterEnabled()){
 			String className = this.templateManager.getGeneratedCode(new SorterTemplateModel(comparator));
-			Constructor sorterConstructor = classLoader.loadClass(className).getConstructor(
+
+			this.classComplier.cookFile(this.templateManager.getPathToGeneratedCode(className));
+
+			Constructor sorterConstructor = this.classComplier.getClassLoader().loadClass(className).getConstructor(
 				TypeSerializer.class, TypeComparator.class, List.class
 			);
 
