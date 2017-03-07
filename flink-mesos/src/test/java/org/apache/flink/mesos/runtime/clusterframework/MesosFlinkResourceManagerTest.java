@@ -201,7 +201,7 @@ public class MesosFlinkResourceManagerTest extends TestLogger {
 			ContaineredTaskManagerParameters containeredParams =
 				new ContaineredTaskManagerParameters(1024, 768, 256, 4, new HashMap<String, String>());
 			MesosTaskManagerParameters tmParams = new MesosTaskManagerParameters(
-				1.0, MesosTaskManagerParameters.ContainerType.MESOS, Option.<String>empty(), containeredParams);
+				1.0, MesosTaskManagerParameters.ContainerType.MESOS, Option.<String>empty(), containeredParams, Option.<String>empty());
 
 			TestActorRef<TestingMesosFlinkResourceManager> resourceManagerRef =
 				TestActorRef.create(system, MesosFlinkResourceManager.createActorProps(

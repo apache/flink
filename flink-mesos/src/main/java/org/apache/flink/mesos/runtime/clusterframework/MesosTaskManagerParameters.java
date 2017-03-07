@@ -56,6 +56,9 @@ public class MesosTaskManagerParameters {
 		key("mesos.resourcemanager.tasks.container.image.name")
 			.noDefaultValue();
 
+	public static final ConfigOption<String> MESOS_RM_CONTAINER_VOLUMES =
+		key("mesos.resourcemanager.tasks.container.volumes")
+			.noDefaultValue();
 	/**
 	 * Value for {@code MESOS_RESOURCEMANAGER_TASKS_CONTAINER_TYPE} setting. Tells to use the Mesos containerizer.
 	 */
@@ -73,16 +76,20 @@ public class MesosTaskManagerParameters {
 
 	private final ContaineredTaskManagerParameters containeredParameters;
 
+	private final Option<String> containerVolumes;
+
 	public MesosTaskManagerParameters(
 		double cpus,
 		ContainerType containerType,
 		Option<String> containerImageName,
-		ContaineredTaskManagerParameters containeredParameters) {
+		ContaineredTaskManagerParameters containeredParameters,
+		Option<String> containerVolumes) {
 		requireNonNull(containeredParameters);
 		this.cpus = cpus;
 		this.containerType = containerType;
 		this.containerImageName = containerImageName;
 		this.containeredParameters = containeredParameters;
+		this.containerVolumes =  containerVolumes;
 	}
 
 	/**
@@ -114,6 +121,11 @@ public class MesosTaskManagerParameters {
 	public ContaineredTaskManagerParameters containeredParameters() {
 		return containeredParameters;
 	}
+
+	/**
+	 * Get the container volumes string
+	 */
+	public Option<String> containerVolumes() { return containerVolumes; }
 
 	@Override
 	public String toString() {
@@ -162,11 +174,14 @@ public class MesosTaskManagerParameters {
 				throw new IllegalConfigurationException("invalid container type: " + containerTypeString);
 		}
 
+		String containerVolumes = flinkConfig.getString(MESOS_RM_CONTAINER_VOLUMES);
+
 		return new MesosTaskManagerParameters(
 			cpus,
 			containerType,
 			Option.apply(imageName),
-			containeredParameters);
+			containeredParameters,
+			Option.apply(containerVolumes));
 	}
 
 	public enum ContainerType {
