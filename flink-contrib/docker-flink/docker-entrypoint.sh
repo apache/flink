@@ -19,7 +19,7 @@
 ################################################################################
 
 ### If unspecified, the hostname of the container is taken as the JobManager address
-JOB_MANAGER_RPC_ADDRESS=${JOB_MANAGER_RPC_ADDRESS:-`hostname -f`}
+JOB_MANAGER_RPC_ADDRESS=${JOB_MANAGER_RPC_ADDRESS:-$(hostname -f)}
 ###
 
 if [ "$1" == "jobmanager" ]; then
@@ -31,11 +31,12 @@ if [ "$1" == "jobmanager" ]; then
 elif [ "$1" == "taskmanager" ]; then
 
     sed -i -e "s/jobmanager.rpc.address: localhost/jobmanager.rpc.address: ${JOB_MANAGER_RPC_ADDRESS}/g" $FLINK_HOME/conf/flink-conf.yaml
-    sed -i -e "s/taskmanager.numberOfTaskSlots: 1/taskmanager.numberOfTaskSlots: `grep -c ^processor /proc/cpuinfo`/g" $FLINK_HOME/conf/flink-conf.yaml
+    sed -i -e "s/taskmanager.numberOfTaskSlots: 1/taskmanager.numberOfTaskSlots: $(grep -c ^processor /proc/cpuinfo)/g" $FLINK_HOME/conf/flink-conf.yaml
 
     echo "Starting Task Manager"
     echo "config file: " && grep '^[^\n#]' $FLINK_HOME/conf/flink-conf.yaml
     $FLINK_HOME/bin/taskmanager.sh start-foreground
 else
-    $@
+    echo "Usage: $(basename $0) (jobmanager|taskmanager)"
+    exit 1
 fi
