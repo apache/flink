@@ -125,6 +125,10 @@ public abstract class RichAsyncFunction<IN, OUT> extends AbstractRichFunction im
 		}
 
 		@Override
+		public int getMaxParallelismOfSubtasks() {
+			return runtimeContext.getMaxParallelismOfSubtasks();
+		}
+		@Override
 		public int getAttemptNumber() {
 			return runtimeContext.getAttemptNumber();
 		}

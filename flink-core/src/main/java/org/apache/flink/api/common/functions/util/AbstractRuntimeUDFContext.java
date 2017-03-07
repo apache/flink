@@ -100,7 +100,12 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 	public int getIndexOfThisSubtask() {
 		return taskInfo.getIndexOfThisSubtask();
 	}
-	
+
+	@Override
+	public int getMaxParallelismOfSubtasks() {
+		// Number of KeyGroups is same with max-parallelism currently.
+		return taskInfo.getNumberOfKeyGroups();
+	}
 	@Override
 	public MetricGroup getMetricGroup() {
 		return metrics;
