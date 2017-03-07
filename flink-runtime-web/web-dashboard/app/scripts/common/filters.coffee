@@ -88,19 +88,13 @@ angular.module('flinkApp')
 .filter "percentage", ->
   (number) -> (number * 100).toFixed(0) + '%'
 
-.filter "parseWatermark", (watermarksConfig)->
+.filter "humanizeWatermark", (watermarksConfig) ->
   (value) ->
-    if value <= watermarksConfig.minValue
+    if isNaN(value) || value <= watermarksConfig.noWatermark
       return 'No Watermark'
     else
       return value
 
-.filter "lowWatermark", (watermarksConfig)->
-  (watermarks, nodeid) ->
-    lowWatermark = "No Watermark"
-    if watermarks != null && watermarks[nodeid] && watermarks[nodeid].length
-      values = (watermark.value for watermark in watermarks[nodeid])
-      lowWatermark = Math.min.apply(null, values)
-      if lowWatermark <= watermarksConfig.minValue
-        lowWatermark = "No Watermark"
-    return lowWatermark
+.filter "increment", ->
+  (number) ->
+    parseInt(number) + 1

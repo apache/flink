@@ -23,14 +23,14 @@ table.table.table-body-hover.table-clickable.table-activable
       th Parallelism
       th Status
 
-  tbody(ng-repeat="v in job.vertices" ng-class="{ active: v.id == nodeid && hasWatermarks(nodeid) }" ng-click="changeNode(v.id)")
+  tbody(ng-repeat="v in job.vertices" ng-class="{ active: v.id == nodeid }" ng-click="changeNode(v.id)")
     tr(ng-if="v.type == 'regular'")
-
       td.td-long {{ v.name | humanizeText }}
-      td {{ watermarks | lowWatermark:v.id }}
+      td {{ watermarks[v.id]["lowWatermark"] | humanizeWatermark }}
       td {{ v.parallelism }}
-      td 
+      td
         bs-label(status="{{v.status}}") {{v.status}}
-    tr(ng-if="nodeid && v.id == nodeid && hasWatermarks(nodeid)")
-      td(colspan="11")
-        div(ng-include=" 'partials/jobs/job.plan.node.watermarks.html' ")
+    tr(ng-if="nodeid && v.id == nodeid")
+      td(colspan="4")
+        div(ng-show="hasWatermark(v.id)" ng-include=" 'partials/jobs/job.plan.node.watermarks.html' ")
+        div(ng-show="!hasWatermark(v.id)") No Watermarks

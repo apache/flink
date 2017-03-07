@@ -18,7 +18,7 @@
 split
   .split#canvas
     .canvas-wrapper
-      div.main-canvas(job-plan, plan="plan", low-watermarks="lowWatermarks" jobid="{{jobid}}", set-node="changeNode(nodeid)")
+      div.main-canvas(job-plan, plan="plan", watermarks="watermarks" jobid="{{jobid}}", set-node="changeNode(nodeid)")
 
   .split#job-panel
     .panel.panel-default.panel-multi(ng-if="plan")

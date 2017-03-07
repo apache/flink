@@ -30,14 +30,17 @@ angular.module('flinkApp', ['ui.router', 'angularMoment', 'dndLists'])
 
 .value 'flinkConfig', {
   jobServer: ''
-  # jobServer: 'http://localhost:8081/'
+#  jobServer: 'http://localhost:8081/'
   "refresh-interval": 10000
 }
 
 # --------------------------------------
 
 .value 'watermarksConfig', {
-  minValue: -9223372036854776000
+  # A value of (Java) Long.MIN_VALUE indicates that there is no watermark
+  # available. This is parsed by Javascript as this number. We have it as
+  # a constant here to compare available watermarks against.
+  noWatermark: -9223372036854776000
 }
 
 # --------------------------------------
@@ -51,7 +54,6 @@ angular.module('flinkApp', ['ui.router', 'angularMoment', 'dndLists'])
     $interval ->
       JobsService.listJobs()
     , flinkConfig["refresh-interval"]
-
 
 # --------------------------------------
 
@@ -125,7 +127,6 @@ angular.module('flinkApp', ['ui.router', 'angularMoment', 'dndLists'])
     views:
       'node-details':
         templateUrl: "partials/jobs/job.plan.node-list.watermarks.html"
-        controller: 'JobPlanWatermarksController'
 
   .state "single-job.plan.taskmanagers",
     url: "/taskmanagers"

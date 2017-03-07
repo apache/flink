@@ -15,13 +15,13 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-table.table.table-hover.table-clickable.table-activable.table-inner(ng-if="hasWatermarks(nodeid)")
+table.table.table-hover.table-clickable.table-activable.table-inner
   thead
     tr
-      th id
+      th Subtask
       th Watermark
 
   tbody
-    tr(ng-repeat="watermark in watermarksByNode(nodeid)")
-      td {{ watermark.id }}
-      td {{ watermark.value | parseWatermark }}
+    tr(ng-repeat="(subtaskIndex, watermark) in watermarks[nodeid]['watermarks']")
+      td {{ subtaskIndex | increment }}
+      td {{ watermark | humanizeWatermark }}

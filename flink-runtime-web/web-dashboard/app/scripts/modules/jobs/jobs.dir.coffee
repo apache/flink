@@ -169,7 +169,7 @@ angular.module('flinkApp')
 
 # ----------------------------------------------
 
-.directive 'split', () -> 
+.directive 'split', () ->
   return compile: (tElem, tAttrs) ->
       Split(tElem.children(), (
         sizes: [50, 50]
@@ -189,7 +189,7 @@ angular.module('flinkApp')
 
   scope:
     plan: '='
-    lowWatermarks: '='
+    watermarks: '='
     setNode: '&'
 
   link: (scope, elem, attrs) ->
@@ -436,10 +436,11 @@ angular.module('flinkApp')
             return el.step_function[j]  if el.step_function[j].id is nodeID
 
     mergeWatermarks = (data, watermarks) ->
-      for k,v of watermarks
+      if (!_.isEmpty(watermarks))
         for node in data.nodes
-          if node.id == k
-            node.lowWatermark = v
+          if (watermarks[node.id] && !isNaN(watermarks[node.id]["lowWatermark"]))
+            node.lowWatermark = watermarks[node.id]["lowWatermark"]
+
       return data
 
     lastPosition = 0
@@ -456,7 +457,7 @@ angular.module('flinkApp')
           marginy: 40
           })
 
-        loadJsonToDagre(g, mergeWatermarks(scope.plan, scope.lowWatermarks))
+        loadJsonToDagre(g, mergeWatermarks(scope.plan, scope.watermarks))
 
         d3mainSvgG.selectAll("*").remove()
 
@@ -494,7 +495,7 @@ angular.module('flinkApp')
     scope.$watch attrs.plan, (newPlan) ->
       drawGraph() if newPlan
 
-    scope.$watch attrs.lowWatermarks, (newLowWatermarks) ->
-      drawGraph() if newLowWatermarks && scope.plan
+    scope.$watch attrs.watermarks, (newWatermarks) ->
+      drawGraph() if newWatermarks && scope.plan
 
     return
