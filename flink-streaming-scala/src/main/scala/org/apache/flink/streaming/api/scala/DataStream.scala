@@ -240,7 +240,7 @@ class DataStream[T](stream: JavaStream[T]) {
   }
 
   @PublicEvolving
-  def getSideOutput[X: OutputTag](tag: OutputTag[X]): DataStream[X] = javaStream match {
+  def getSideOutput[X: TypeInformation](tag: OutputTag[X]): DataStream[X] = javaStream match {
     case stream : SingleOutputStreamOperator[X] =>
       asScalaStream(stream.getSideOutput(tag: OutputTag[X]))
   }
