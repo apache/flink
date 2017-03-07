@@ -31,7 +31,6 @@ import org.apache.flink.runtime.clusterframework.ContainerSpecification;
 import org.apache.mesos.Protos;
 import scala.Option;
 
-import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -265,7 +264,7 @@ public class LaunchableMesosWorker implements LaunchableTask {
 			taskInfo.setContainer(containerInfo);
 		}
 
-		containerInfo.addAllVolumes(volumes(params.containerVolumes()));
+		containerInfo.addAllVolumes(buildVolumes(params.containerVolumes()));
 
 		return taskInfo.build();
 	}
@@ -277,45 +276,39 @@ public class LaunchableMesosWorker implements LaunchableTask {
 	 *                         defines mount points for a container volume. If None or empty string, returns
 	 *                         an empty iterator
 	 */
-	public List<Protos.Volume> volumes(Option<String> containerVolumes) {
+	public static List<Protos.Volume> buildVolumes(Option<String> containerVolumes) {
 		if (containerVolumes.isEmpty()) {
 			return new ArrayList<Protos.Volume>();
 		}
 		String[] specs = containerVolumes.get().split(",");
 		List<Protos.Volume> vols = new ArrayList<Protos.Volume>();
-		for (int i = 0; i < specs.length; i++) {
-			String s = specs[i];
-			if (s.isEmpty()) {
+		for (String s : specs) {
+			if (s.trim().isEmpty()) {
 				continue;
 			}
 			Protos.Volume.Builder vol = Protos.Volume.newBuilder();
 			vol.setMode(Protos.Volume.Mode.RW);
 
-			List<String> parts = Arrays.asList(s.split(":"));
-			switch (parts.size()) {
+			String[] parts = s.split(":");
+			switch (parts.length) {
 				case 1:
-					vol.setContainerPath(parts.get(0));
+					vol.setContainerPath(parts[0]);
 					break;
 				case 2:
-					String modeOrPath = parts.get(1).trim().toUpperCase();
-					if (modeOrPath.equals("RW")) {
-						vol.setContainerPath(parts.get(0));
-						vol.setMode(Protos.Volume.Mode.RW);
-					} else if (modeOrPath.equals("RO")) {
-						vol.setContainerPath(parts.get(0));
-						vol.setMode(Protos.Volume.Mode.RO);
-					} else {
-						vol.setHostPath(parts.get(0)).setContainerPath(modeOrPath);
+					try {
+						Protos.Volume.Mode mode = Protos.Volume.Mode.valueOf(parts[1].trim().toUpperCase());
+						vol.setMode(mode)
+							.setContainerPath(parts[0]);
+					} catch (IllegalArgumentException e) {
+						vol.setHostPath(parts[0])
+							.setContainerPath(parts[1]);
 					}
 					break;
 				case 3:
-					Protos.Volume.Mode mode = Protos.Volume.Mode.valueOf(parts.get(2).trim().toUpperCase());
-					if (mode.equals(Protos.Volume.Mode.RW)) {
-						vol.setMode(Protos.Volume.Mode.RW);
-					} else {
-						vol.setMode(Protos.Volume.Mode.RO);
-					}
-					vol.setHostPath(parts.get(0)).setContainerPath(parts.get(1));
+					Protos.Volume.Mode mode = Protos.Volume.Mode.valueOf(parts[2].trim().toUpperCase());
+					vol.setMode(mode)
+						.setHostPath(parts[0])
+						.setContainerPath(parts[1]);
 					break;
 				default:
 					throw new IllegalArgumentException("volume specification is invalid, given: " + s);

@@ -18,14 +18,11 @@
 
 package org.apache.flink.mesos.runtime.clusterframework;
 
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.mesos.util.MesosArtifactResolver;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
-import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.util.TestLogger;
 import org.apache.mesos.Protos;
 import org.junit.Test;
-import org.mockito.Mock;
 import org.mockito.Mockito;
 import scala.Option;
 
@@ -34,18 +31,13 @@ import java.util.List;
 import static org.junit.Assert.*;
 
 public class LaunchableMesosWorkerTest extends TestLogger {
-	MesosTaskManagerParameters params = Mockito.mock(MesosTaskManagerParameters.class);
-	MesosArtifactResolver resolver = Mockito.mock(MesosArtifactResolver.class);
-	ContainerSpecification containerSpec = Mockito.mock(ContainerSpecification.class);
-	Protos.TaskID taskId = Protos.TaskID.newBuilder().setValue("1234").build();
-	LaunchableMesosWorker worker = new LaunchableMesosWorker(resolver, params, containerSpec, taskId);
 
 	@Test
-	public void volumes() throws Exception {
+	public void testBuildVolumes() throws Exception {
 		List<Protos.Volume> vols;
-		assertEquals(worker.volumes(Option.<String>apply(null)).size(), 0);
+		assertEquals(LaunchableMesosWorker.buildVolumes(Option.<String>apply(null)).size(), 0);
 		String spec1 = "/host/path:/container/path:RO,/container/path:ro,/host/path:/container/path,/container/path";
-		vols = worker.volumes(Option.<String>apply(spec1));
+		vols = LaunchableMesosWorker.buildVolumes(Option.<String>apply(spec1));
 		assertEquals(vols.size(), 4);
 		assertEquals("/container/path", vols.get(0).getContainerPath());
 		assertEquals("/host/path", vols.get(0).getHostPath());
@@ -59,17 +51,17 @@ public class LaunchableMesosWorkerTest extends TestLogger {
 		assertEquals(Protos.Volume.Mode.RW, vols.get(3).getMode());
 
 		// should handle empty strings, but not error
-		assertEquals(0, worker.volumes(Option.<String>apply("")).size());
+		assertEquals(0, LaunchableMesosWorker.buildVolumes(Option.<String>apply("")).size());
 	}
 
 	@Test(expected=IllegalArgumentException.class)
-	public void volumesBadMode() throws Exception {
-		worker.volumes(Option.<String>apply("/hp:/cp:RF"));
+	public void testBuildVolumesBadMode() throws Exception {
+		LaunchableMesosWorker.buildVolumes(Option.<String>apply("/hp:/cp:RF"));
 	}
 
 	@Test(expected=IllegalArgumentException.class)
-	public void volumesMalformed() throws Exception {
-		worker.volumes(Option.<String>apply("/hp:/cp:ro:extra"));
+	public void testBuildVolumesMalformed() throws Exception {
+		LaunchableMesosWorker.buildVolumes(Option.<String>apply("/hp:/cp:ro:extra"));
 	}
 
 }

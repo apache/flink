@@ -125,7 +125,9 @@ public class MesosTaskManagerParameters {
 	/**
 	 * Get the container volumes string
 	 */
-	public Option<String> containerVolumes() { return containerVolumes; }
+	public Option<String> containerVolumes() {
+		return containerVolumes;
+	}
 
 	@Override
 	public String toString() {
