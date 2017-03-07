@@ -36,43 +36,50 @@ class AggregateAggFunction(
     private val aggFields: Array[Int])
   extends DataStreamAggFunc[Row, Row, Row] {
 
-  val aggsWithIdx: Array[(AggregateFunction[_], Int)] = aggregates.zipWithIndex
-
   override def createAccumulator(): Row = {
     val accumulatorRow: Row = new Row(aggregates.length)
-    aggsWithIdx.foreach { case (agg, i) =>
-      accumulatorRow.setField(i, agg.createAccumulator())
+    var i = 0
+    while (i < aggregates.length) {
+      accumulatorRow.setField(i, aggregates(i).createAccumulator())
+      i += 1
     }
     accumulatorRow
   }
 
-  override def add(value: Row, accumulatorRow: Row) = {
+  override def add(value: Row, accumulatorRow: Row): Unit = {
 
-    aggsWithIdx.foreach { case (agg, i) =>
+    var i = 0
+    while (i < aggregates.length) {
       val acc = accumulatorRow.getField(i).asInstanceOf[Accumulator]
       val v = value.getField(aggFields(i))
-      agg.accumulate(acc, v)
+      aggregates(i).accumulate(acc, v)
+      i += 1
     }
   }
 
   override def getResult(accumulatorRow: Row): Row = {
     val output = new Row(aggFields.length)
 
-    aggsWithIdx.foreach { case (agg, i) =>
-      output.setField(i, agg.getValue(accumulatorRow.getField(i).asInstanceOf[Accumulator]))
+    var i = 0
+    while (i < aggregates.length) {
+      val acc = accumulatorRow.getField(i).asInstanceOf[Accumulator]
+      output.setField(i, aggregates(i).getValue(acc))
+      i += 1
     }
     output
   }
 
   override def merge(aAccumulatorRow: Row, bAccumulatorRow: Row): Row = {
 
-    aggsWithIdx.foreach { case (agg, i) =>
+    var i = 0
+    while (i < aggregates.length) {
       val aAcc = aAccumulatorRow.getField(i).asInstanceOf[Accumulator]
       val bAcc = bAccumulatorRow.getField(i).asInstanceOf[Accumulator]
       val accumulators: JList[Accumulator] = new JArrayList[Accumulator]()
       accumulators.add(aAcc)
       accumulators.add(bAcc)
-      aAccumulatorRow.setField(i, agg.merge(accumulators))
+      aAccumulatorRow.setField(i, aggregates(i).merge(accumulators))
+      i += 1
     }
     aAccumulatorRow
   }

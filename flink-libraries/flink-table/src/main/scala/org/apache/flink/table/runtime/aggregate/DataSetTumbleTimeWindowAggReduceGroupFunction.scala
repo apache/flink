@@ -51,6 +51,9 @@ class DataSetTumbleTimeWindowAggReduceGroupFunction(
     finalRowArity: Int)
   extends RichGroupReduceFunction[Row, Row] {
 
+  Preconditions.checkNotNull(aggregates)
+  Preconditions.checkNotNull(groupKeysMapping)
+
   private var collector: TimeWindowPropertyCollector = _
   protected var aggregateBuffer: Row = _
   private var output: Row = _
@@ -64,8 +67,6 @@ class DataSetTumbleTimeWindowAggReduceGroupFunction(
   }
 
   override def open(config: Configuration) {
-    Preconditions.checkNotNull(aggregates)
-    Preconditions.checkNotNull(groupKeysMapping)
     aggregateBuffer = new Row(intermediateRowArity)
     output = new Row(finalRowArity)
     collector = new TimeWindowPropertyCollector(windowStartPos, windowEndPos)
@@ -84,15 +85,18 @@ class DataSetTumbleTimeWindowAggReduceGroupFunction(
     val iterator = records.iterator()
 
     // reset first accumulator in merge list
-    for (i <- aggregates.indices) {
+    var i = 0
+    while (i < aggregates.length) {
       val accumulator = aggregates(i).createAccumulator()
       accumulatorList(i).set(0, accumulator)
+      i += 1
     }
 
     while (iterator.hasNext) {
       val record = iterator.next()
 
-      for (i <- aggregates.indices) {
+      i = 0
+      while (i < aggregates.length) {
         // insert received accumulator into acc list
         val newAcc = record.getField(groupKeysMapping.length + i).asInstanceOf[Accumulator]
         accumulatorList(i).set(1, newAcc)
@@ -100,23 +104,28 @@ class DataSetTumbleTimeWindowAggReduceGroupFunction(
         val retAcc = aggregates(i).merge(accumulatorList(i))
         // insert result into acc list
         accumulatorList(i).set(0, retAcc)
+        i += 1
       }
 
       last = record
     }
 
     // set group keys value to final output.
-    groupKeysMapping.foreach {
-      case (after, previous) =>
-        output.setField(after, last.getField(previous))
+    i = 0
+    while (i < groupKeysMapping.length) {
+      val (after, previous) = groupKeysMapping(i)
+      output.setField(after, last.getField(previous))
+      i += 1
     }
 
     // get final aggregate value and set to output.
-    aggregateMapping.foreach {
-      case (after, previous) =>
-        val agg = aggregates(previous)
-        val result = agg.getValue(accumulatorList(previous).get(0))
-        output.setField(after, result)
+    i = 0
+    while (i < aggregateMapping.length) {
+      val (after, previous) = aggregateMapping(i)
+      val agg = aggregates(previous)
+      val result = agg.getValue(accumulatorList(previous).get(0))
+      output.setField(after, result)
+      i += 1
     }
 
     // get window start timestamp

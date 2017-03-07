@@ -32,28 +32,33 @@ class AggregateMapFunction[IN, OUT](
     @transient private val returnType: TypeInformation[OUT])
   extends RichMapFunction[IN, OUT] with ResultTypeQueryable[OUT] {
 
+  Preconditions.checkNotNull(aggregates)
+  Preconditions.checkNotNull(aggFields)
+  Preconditions.checkArgument(aggregates.length == aggFields.length)
+
+  private val partialRowLength = groupingKeys.length + aggregates.length
   private var output: Row = _
 
   override def open(config: Configuration) {
-    Preconditions.checkNotNull(aggregates)
-    Preconditions.checkNotNull(aggFields)
-    Preconditions.checkArgument(aggregates.length == aggFields.length)
-    val partialRowLength = groupingKeys.length + aggregates.length
     output = new Row(partialRowLength)
   }
 
   override def map(value: IN): OUT = {
 
     val input = value.asInstanceOf[Row]
-    for (i <- aggregates.indices) {
+    var i = 0
+    while (i < aggregates.length) {
       val agg = aggregates(i)
       val accumulator = agg.createAccumulator()
       agg.accumulate(accumulator, input.getField(aggFields(i)))
       output.setField(groupingKeys.length + i, accumulator)
+      i += 1
     }
 
-    for (i <- groupingKeys.indices) {
+    i = 0
+    while (i < groupingKeys.length) {
       output.setField(i, input.getField(groupingKeys(i)))
+      i += 1
     }
     output.asInstanceOf[OUT]
   }

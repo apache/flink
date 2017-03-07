@@ -44,33 +44,36 @@ class DataSetWindowAggMapFunction(
     @transient private val returnType: TypeInformation[Row])
   extends RichMapFunction[Row, Row] with ResultTypeQueryable[Row] {
 
+  Preconditions.checkNotNull(aggregates)
+  Preconditions.checkNotNull(aggFields)
+  Preconditions.checkArgument(aggregates.length == aggFields.length)
+
   private var output: Row = _
+  // add one more arity to store rowtime
+  private val partialRowLength = groupingKeys.length + aggregates.length + 1
   // rowtime index in the buffer output row
-  private var rowtimeIndex: Int = _
+  private val rowtimeIndex: Int = partialRowLength - 1
 
   override def open(config: Configuration) {
-    Preconditions.checkNotNull(aggregates)
-    Preconditions.checkNotNull(aggFields)
-    Preconditions.checkArgument(aggregates.length == aggFields.length)
-    // add one more arity to store rowtime
-    val partialRowLength = groupingKeys.length + aggregates.length + 1
-    // set rowtime to the last field of the output row
-    rowtimeIndex = partialRowLength - 1
     output = new Row(partialRowLength)
   }
 
   override def map(input: Row): Row = {
 
-    for (i <- aggregates.indices) {
+    var i = 0
+    while (i < aggregates.length) {
       val agg = aggregates(i)
       val fieldValue = input.getField(aggFields(i))
       val accumulator = agg.createAccumulator()
       agg.accumulate(accumulator, fieldValue)
       output.setField(groupingKeys.length + i, accumulator)
+      i += 1
     }
 
-    for (i <- groupingKeys.indices) {
+    i = 0
+    while (i < groupingKeys.length) {
       output.setField(i, input.getField(groupingKeys(i)))
+      i += 1
     }
 
     val timeField = input.getField(timeFieldPos)

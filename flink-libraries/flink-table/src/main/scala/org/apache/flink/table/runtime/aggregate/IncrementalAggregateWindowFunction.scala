@@ -60,11 +60,15 @@ class IncrementalAggregateWindowFunction[W <: Window](
     if (iterator.hasNext) {
       val record = iterator.next()
 
-      for (i <- 0 until numGroupingKey) {
+      var i = 0
+      while (i < numGroupingKey) {
         output.setField(i, key.getField(i))
+        i += 1
       }
-      for (i <- 0 until numAggregates) {
+      i = 0
+      while (i < numAggregates) {
         output.setField(numGroupingKey + i, record.getField(i))
+        i += 1
       }
 
       out.collect(output)

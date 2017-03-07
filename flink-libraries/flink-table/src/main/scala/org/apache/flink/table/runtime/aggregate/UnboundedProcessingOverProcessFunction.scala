@@ -52,18 +52,20 @@ class UnboundedProcessingOverProcessFunction(
     ctx: ProcessFunction[Row, Row]#Context,
     out: Collector[Row]): Unit = {
 
+    var i = 0
+
     var accumulators = state.value()
 
     if (null == accumulators) {
       accumulators = new Row(aggregates.length)
-      var i = 0
+      i = 0
       while (i < aggregates.length) {
         accumulators.setField(i, aggregates(i).createAccumulator())
         i += 1
       }
     }
 
-    var i = 0
+    i = 0
     while (i < forwardedFieldCount) {
       output.setField(i, input.getField(i))
       i += 1

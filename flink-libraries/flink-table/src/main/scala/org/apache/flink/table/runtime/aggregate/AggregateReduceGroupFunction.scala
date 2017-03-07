@@ -48,26 +48,27 @@ class AggregateReduceGroupFunction(
     private val finalRowArity: Int)
   extends RichGroupReduceFunction[Row, Row] {
 
+  Preconditions.checkNotNull(aggregates)
+  Preconditions.checkNotNull(groupKeysMapping)
+
   private var output: Row = _
-  private var intermediateGroupKeys: Option[Array[Int]] = None
+  private val intermediateGroupKeys: Option[Array[Int]] =
+    if (groupingSetsMapping.nonEmpty) { Some(groupKeysMapping.map(_._1)) } else { None }
 
   val accumulatorList: Array[JArrayList[Accumulator]] = Array.fill(aggregates.length) {
     new JArrayList[Accumulator](2)
   }
 
   override def open(config: Configuration) {
-    Preconditions.checkNotNull(aggregates)
-    Preconditions.checkNotNull(groupKeysMapping)
     output = new Row(finalRowArity)
-    if (!groupingSetsMapping.isEmpty) {
-      intermediateGroupKeys = Some(groupKeysMapping.map(_._1))
-    }
 
     // init lists with two empty accumulators
-    for (i <- aggregates.indices) {
+    var i = 0
+    while (i < aggregates.length) {
       val accumulator = aggregates(i).createAccumulator()
       accumulatorList(i).add(accumulator)
       accumulatorList(i).add(accumulator)
+      i += 1
     }
   }
 
@@ -86,15 +87,18 @@ class AggregateReduceGroupFunction(
     val iterator = records.iterator()
 
     // reset first accumulator in merge list
-    for (i <- aggregates.indices) {
+    var i = 0
+    while (i < aggregates.length) {
       val accumulator = aggregates(i).createAccumulator()
       accumulatorList(i).set(0, accumulator)
+      i += 1
     }
 
     while (iterator.hasNext) {
       val record = iterator.next()
 
-      for (i <- aggregates.indices) {
+      i = 0
+      while (i < aggregates.length) {
         // insert received accumulator into acc list
         val newAcc = record.getField(groupKeysMapping.length + i).asInstanceOf[Accumulator]
         accumulatorList(i).set(1, newAcc)
@@ -102,31 +106,37 @@ class AggregateReduceGroupFunction(
         val retAcc = aggregates(i).merge(accumulatorList(i))
         // insert result into acc list
         accumulatorList(i).set(0, retAcc)
+        i += 1
       }
 
       last = record
     }
 
     // Set group keys value to final output.
-    groupKeysMapping.foreach {
-      case (after, previous) =>
-        output.setField(after, last.getField(previous))
+    i = 0
+    while (i < groupKeysMapping.length) {
+      val (after, previous) = groupKeysMapping(i)
+      output.setField(after, last.getField(previous))
+      i += 1
     }
 
     // get final aggregate value and set to output.
-    aggregateMapping.foreach {
-      case (after, previous) => {
-        val agg = aggregates(previous)
-        val result = agg.getValue(accumulatorList(previous).get(0))
-        output.setField(after, result)
-      }
+    i = 0
+    while (i < aggregateMapping.length) {
+      val (after, previous) = aggregateMapping(i)
+      val agg = aggregates(previous)
+      val result = agg.getValue(accumulatorList(previous).get(0))
+      output.setField(after, result)
+      i += 1
     }
 
     // Evaluate additional values of grouping sets
     if (intermediateGroupKeys.isDefined) {
-      groupingSetsMapping.foreach {
-        case (inputIndex, outputIndex) =>
-          output.setField(outputIndex, !intermediateGroupKeys.get.contains(inputIndex))
+      i = 0
+      while (i < groupingSetsMapping.length) {
+        val (inputIndex, outputIndex) = groupingSetsMapping(i)
+        output.setField(outputIndex, !intermediateGroupKeys.get.contains(inputIndex))
+        i += 1
       }
     }
 

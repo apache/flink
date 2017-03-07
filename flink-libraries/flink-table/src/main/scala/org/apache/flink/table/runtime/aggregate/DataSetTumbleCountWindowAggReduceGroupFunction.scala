@@ -47,6 +47,9 @@ class DataSetTumbleCountWindowAggReduceGroupFunction(
     private val finalRowArity: Int)
   extends RichGroupReduceFunction[Row, Row] {
 
+  Preconditions.checkNotNull(aggregates)
+  Preconditions.checkNotNull(groupKeysMapping)
+
   private var output: Row = _
   private val accumStartPos: Int = groupKeysMapping.length
 
@@ -55,8 +58,6 @@ class DataSetTumbleCountWindowAggReduceGroupFunction(
   }
 
   override def open(config: Configuration) {
-    Preconditions.checkNotNull(aggregates)
-    Preconditions.checkNotNull(groupKeysMapping)
     output = new Row(finalRowArity)
 
     // init lists with two empty accumulators
@@ -71,21 +72,25 @@ class DataSetTumbleCountWindowAggReduceGroupFunction(
 
     var count: Long = 0
     val iterator = records.iterator()
+    var i = 0
 
     while (iterator.hasNext) {
 
       if (count == 0) {
         // reset first accumulator
-        for (i <- aggregates.indices) {
+        i = 0
+        while (i < aggregates.length) {
           val accumulator = aggregates(i).createAccumulator()
           accumulatorList(i).set(0, accumulator)
+          i += 1
         }
       }
 
       val record = iterator.next()
       count += 1
 
-      for (i <- aggregates.indices) {
+      i = 0
+      while (i < aggregates.length) {
         // insert received accumulator into acc list
         val newAcc = record.getField(accumStartPos + i).asInstanceOf[Accumulator]
         accumulatorList(i).set(1, newAcc)
@@ -93,20 +98,25 @@ class DataSetTumbleCountWindowAggReduceGroupFunction(
         val retAcc = aggregates(i).merge(accumulatorList(i))
         // insert result into acc list
         accumulatorList(i).set(0, retAcc)
+        i += 1
       }
 
       if (windowSize == count) {
         // set group keys value to final output.
-        groupKeysMapping.foreach {
-          case (after, previous) =>
-            output.setField(after, record.getField(previous))
+        i = 0
+        while (i < groupKeysMapping.length) {
+          val (after, previous) = groupKeysMapping(i)
+          output.setField(after, record.getField(previous))
+          i += 1
         }
 
         // merge the accumulators and then get value for the final output
-        aggregateMapping.foreach {
-          case (after, previous) =>
-            val agg = aggregates(previous)
-            output.setField(after, agg.getValue(accumulatorList(previous).get(0)))
+        i = 0
+        while (i < aggregateMapping.length) {
+          val (after, previous) = aggregateMapping(i)
+          val agg = aggregates(previous)
+          output.setField(after, agg.getValue(accumulatorList(previous).get(0)))
+          i += 1
         }
 
         // emit the output
