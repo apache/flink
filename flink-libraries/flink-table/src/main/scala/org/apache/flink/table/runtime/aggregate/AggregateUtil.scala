@@ -26,7 +26,7 @@ import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.fun._
 import org.apache.flink.api.common.functions.{GroupCombineFunction, InvalidTypesException, MapFunction, MapPartitionFunction, RichGroupReduceFunction, AggregateFunction => ApiAggregateFunction}
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeHint, TypeInformation}
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.calcite.{FlinkRelBuilder, FlinkTypeFactory}
@@ -36,6 +36,7 @@ import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.typeutils.TypeCheckUtils._
 import org.apache.flink.streaming.api.functions.windowing.{AllWindowFunction, WindowFunction}
 import org.apache.flink.streaming.api.windowing.windows.{Window => DataStreamWindow}
+import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.table.api.{TableException, Types}
 import org.apache.flink.table.functions.aggfunctions._
 import org.apache.flink.table.functions.{AggregateFunction => TableAggregateFunction}
@@ -77,8 +78,7 @@ object AggregateUtil {
 
     val (aggFieldIndexes, aggregates) = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),
-      inputType,
-      groupings.length)
+      inputType)
 
     val mapReturnType: RowTypeInfo =
       createDataSetAggregateBufferDataType(groupings, aggregates, inputType)
@@ -90,6 +90,32 @@ object AggregateUtil {
       mapReturnType)
 
     mapFunction
+  }
+
+  /**
+    * Create an [[ProcessFunction]] to evaluate final aggregate value.
+    *
+    * @param namedAggregates List of calls to aggregate functions and their output field names
+    * @param inputType Input row type
+    * @return [[UnboundedProcessingOverProcessFunction]]
+    */
+  private[flink] def CreateUnboundedProcessingOverProcessFunction(
+    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+    inputType: RelDataType): UnboundedProcessingOverProcessFunction = {
+
+    val (aggFields, aggregates) =
+      transformToAggregateFunctions(
+        namedAggregates.map(_.getKey),
+        inputType)
+
+    val aggregationStateType: RowTypeInfo =
+      createDataSetAggregateBufferDataType(Array(), aggregates, inputType)
+
+    new UnboundedProcessingOverProcessFunction(
+      aggregates,
+      aggFields,
+      inputType.getFieldCount,
+      aggregationStateType)
   }
 
   /**
@@ -124,8 +150,7 @@ object AggregateUtil {
 
     val (aggFieldIndexes, aggregates) = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),
-      inputType,
-      groupings.length)
+      inputType)
 
     val mapReturnType: RowTypeInfo =
       createDataSetAggregateBufferDataType(
@@ -177,8 +202,7 @@ object AggregateUtil {
 
     val aggregates = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),
-      inputType,
-      groupings.length)._2
+      inputType)._2
 
     // the mapping relation between field index of intermediate aggregate Row and output Row.
     val groupingOffsetMapping = getGroupKeysMapping(inputType, outputType, groupings)
@@ -274,8 +298,7 @@ object AggregateUtil {
 
     val aggregates = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),
-      inputType,
-      0)._2
+      inputType)._2
 
     window match {
       case EventTimeSessionGroupWindow(_, _, gap) =>
@@ -323,8 +346,7 @@ object AggregateUtil {
 
     val aggregates = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),
-      inputType,
-      groupings.length)._2
+      inputType)._2
 
     window match {
       case EventTimeSessionGroupWindow(_, _, gap) =>
@@ -364,8 +386,7 @@ object AggregateUtil {
 
     val (aggFieldIndex, aggregates) = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),
-      inputType,
-      groupings.length)
+      inputType)
 
     val (groupingOffsetMapping, aggOffsetMapping) =
       getGroupingOffsetAndAggOffsetMapping(
@@ -458,7 +479,7 @@ object AggregateUtil {
     : (ApiAggregateFunction[Row, Row, Row], RowTypeInfo, RowTypeInfo) = {
 
     val (aggFields, aggregates) =
-      transformToAggregateFunctions(namedAggregates.map(_.getKey), inputType, groupKeysIndex.length)
+      transformToAggregateFunctions(namedAggregates.map(_.getKey), inputType)
 
     val aggregateMapping = getAggregateMapping(namedAggregates, outputType)
 
@@ -486,8 +507,7 @@ object AggregateUtil {
 
     val aggregateList = transformToAggregateFunctions(
       aggregateCalls,
-      inputType,
-      groupKeysCount)._2
+      inputType)._2
 
     doAllSupportPartialMerge(aggregateList)
   }
@@ -606,17 +626,11 @@ object AggregateUtil {
 
   private def transformToAggregateFunctions(
       aggregateCalls: Seq[AggregateCall],
-      inputType: RelDataType,
-      groupKeysCount: Int): (Array[Int], Array[TableAggregateFunction[_ <: Any]]) = {
+      inputType: RelDataType): (Array[Int], Array[TableAggregateFunction[_ <: Any]]) = {
 
     // store the aggregate fields of each aggregate function, by the same order of aggregates.
     val aggFieldIndexes = new Array[Int](aggregateCalls.size)
     val aggregates = new Array[TableAggregateFunction[_ <: Any]](aggregateCalls.size)
-
-    // set the start offset of aggregate buffer value to group keys' length,
-    // as all the group keys would be moved to the start fields of intermediate
-    // aggregate data.
-    var aggOffset = groupKeysCount
 
     // create aggregate function instances by function type and aggregate field data type.
     aggregateCalls.zipWithIndex.foreach { case (aggregateCall, index) =>
