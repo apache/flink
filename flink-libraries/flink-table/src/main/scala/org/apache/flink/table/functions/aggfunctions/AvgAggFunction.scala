@@ -319,9 +319,6 @@ class DecimalAvgAggFunction extends AggregateFunction[BigDecimal] {
       val accum = accumulator.asInstanceOf[DecimalAvgAccumulator]
       accum.f0 = accum.f0.subtract(v)
       accum.f1 -= 1L
-      if (accum.f1 == 0) {
-        accum.f0 = BigDecimal.ZERO
-      }
     }
   }
 

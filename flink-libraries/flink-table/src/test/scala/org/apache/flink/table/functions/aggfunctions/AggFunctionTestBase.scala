@@ -45,13 +45,13 @@ abstract class AggFunctionTestBase[T] {
     for ((vals, expected) <- inputValueSets.zip(expectedResults)) {
       val accumulator = accumulateVals(vals)
       var result = aggregator.getValue(accumulator)
-      validateResult(expected, result)
+      validateResult[T](expected, result)
 
       if (supportRetraction) {
         retractVals(accumulator, vals)
         val expectedAccum = aggregator.createAccumulator()
         //The two accumulators should be exactly same
-        assertEquals(expectedAccum, accumulator)
+        validateResult[Accumulator](expectedAccum, accumulator)
       }
     }
   }
@@ -73,14 +73,14 @@ abstract class AggFunctionTestBase[T] {
 
         var accumulator = aggregator.merge(accumulators)
         val result = aggregator.getValue(accumulator)
-        validateResult(expected, result)
+        validateResult[T](expected, result)
 
         //2. verify merge with accumulate & retract
         if (supportRetraction) {
           retractVals(accumulator, vals)
           val expectedAccum = aggregator.createAccumulator()
           //The two accumulators should be exactly same
-          assertEquals(expectedAccum, accumulator)
+          validateResult[Accumulator](expectedAccum, accumulator)
         }
       }
 
@@ -93,13 +93,19 @@ abstract class AggFunctionTestBase[T] {
 
         val accumulator = aggregator.merge(accumulators)
         val result = aggregator.getValue(accumulator)
-        validateResult(expected, result)
+        validateResult[T](expected, result)
       }
     }
   }
 
-  private def validateResult(expected: T, result: T): Unit = {
+  private def validateResult[T](expected: T, result: T): Unit = {
     (expected, result) match {
+      case (e: DecimalSumWithRetractAccumulator, r: DecimalSumWithRetractAccumulator) =>
+        // BigDecimal.equals() value and scale but we are only interested in value.
+        assert(e.f0.compareTo(r.f0) == 0 && e.f1 == r.f1)
+      case (e: DecimalAvgAccumulator, r: DecimalAvgAccumulator) =>
+        // BigDecimal.equals() value and scale but we are only interested in value.
+        assert(e.f0.compareTo(r.f0) == 0 && e.f1 == r.f1)
       case (e: BigDecimal, r: BigDecimal) =>
         // BigDecimal.equals() value and scale but we are only interested in value.
         assert(e.compareTo(r) == 0)

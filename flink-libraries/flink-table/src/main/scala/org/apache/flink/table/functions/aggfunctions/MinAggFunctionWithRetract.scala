@@ -21,26 +21,25 @@ import java.math.BigDecimal
 import java.util.{HashMap => JHashMap, List => JList}
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
-import org.apache.flink.api.java.tuple.{Tuple3 => JTuple3}
+import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.{MapTypeInfo, TupleTypeInfo}
-import org.apache.flink.table.api.TableException
 import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
 
 /** The initial accumulator for Min with retraction aggregate function */
-class MinWithRetractAccumulator[T] extends JTuple3[T, Long, JHashMap[T, Long]] with Accumulator
+class MinWithRetractAccumulator[T] extends JTuple2[T, JHashMap[T, Long]] with Accumulator
 
 /**
   * Base class for built-in Min with retraction aggregate function
   *
   * @tparam T the type for the aggregation result
   */
-abstract class MinWithRetractAggFunction[T](implicit ord: Ordering[T]) extends AggregateFunction[T] {
+abstract class MinWithRetractAggFunction[T](implicit ord: Ordering[T])
+  extends AggregateFunction[T] {
 
   override def createAccumulator(): Accumulator = {
     val acc = new MinWithRetractAccumulator[T]
     acc.f0 = getInitValue //min
-    acc.f1 = 0L //total count
-    acc.f2 = new JHashMap[T, Long]() //store the count for each value
+    acc.f1 = new JHashMap[T, Long]() //store the count for each value
     acc
   }
 
@@ -49,18 +48,16 @@ abstract class MinWithRetractAggFunction[T](implicit ord: Ordering[T]) extends A
       val v = value.asInstanceOf[T]
       val a = accumulator.asInstanceOf[MinWithRetractAccumulator[T]]
 
-      if (a.f1 == 0 || (ord.compare(a.f0, v) > 0)) {
+      if (a.f1.size() == 0 || (ord.compare(a.f0, v) > 0)) {
         a.f0 = v
       }
 
-      a.f1 += 1L
-
-      if (!a.f2.containsKey(v)) {
-        a.f2.put(v, 1L)
+      if (!a.f1.containsKey(v)) {
+        a.f1.put(v, 1L)
       } else {
-        var count = a.f2.get(v)
+        var count = a.f1.get(v)
         count += 1L
-        a.f2.put(v, count)
+        a.f1.put(v, count)
       }
     }
   }
@@ -70,22 +67,20 @@ abstract class MinWithRetractAggFunction[T](implicit ord: Ordering[T]) extends A
       val v = value.asInstanceOf[T]
       val a = accumulator.asInstanceOf[MinWithRetractAccumulator[T]]
 
-      a.f1 -= 1L
-
-      var count = a.f2.get(v)
+      var count = a.f1.get(v)
       count -= 1L
       if (count == 0) {
         //remove the key v from the map if the number of appearance of the value v is 0
-        a.f2.remove(v)
+        a.f1.remove(v)
         //if the total count is 0, we could just simply set the f0(min) to the initial value
-        if (a.f1 == 0) {
+        if (a.f1.size() == 0) {
           a.f0 = getInitValue
           return
         }
         //if v is the current min value, we have to iterate the map to find the 2nd smallest
         // value to replace v as the min value
         if (v == a.f0) {
-          val iterator = a.f2.keySet().iterator()
+          val iterator = a.f1.keySet().iterator()
           var key = iterator.next()
           a.f0 = key
           while (iterator.hasNext()) {
@@ -96,7 +91,7 @@ abstract class MinWithRetractAggFunction[T](implicit ord: Ordering[T]) extends A
           }
         }
       } else {
-        a.f2.put(v, count)
+        a.f1.put(v, count)
       }
     }
 
@@ -104,7 +99,7 @@ abstract class MinWithRetractAggFunction[T](implicit ord: Ordering[T]) extends A
 
   override def getValue(accumulator: Accumulator): T = {
     val a = accumulator.asInstanceOf[MinWithRetractAccumulator[T]]
-    if (a.f1 != 0) {
+    if (a.f1.size() != 0) {
       a.f0
     } else {
       null.asInstanceOf[T]
@@ -116,22 +111,19 @@ abstract class MinWithRetractAggFunction[T](implicit ord: Ordering[T]) extends A
     var i: Int = 1
     while (i < accumulators.size()) {
       val a = accumulators.get(i).asInstanceOf[MinWithRetractAccumulator[T]]
-      if (a.f1 != 0) {
-        val iterator = a.f2.keySet().iterator()
+      if (a.f1.size() != 0) {
+        // set min element
+        if (ord.compare(ret.f0, a.f0) > 0) {
+          ret.f0 = a.f0
+        }
+        // merge the count for each key
+        val iterator = a.f1.keySet().iterator()
         while (iterator.hasNext()) {
           val key = iterator.next()
-          //updating the resulting max value if needed
-          if (ord.compare(ret.f0, key) > 0) {
-            ret.f0 = key
-          }
-          //add the total count
-          val count = a.f2.get(key)
-          ret.f1 += count
-          //merge the count for each key
-          if (ret.f2.containsKey(key)) {
-            ret.f2.put(key, ret.f2.get(key) + count)
+          if (ret.f1.containsKey(key)) {
+            ret.f1.put(key, ret.f1.get(key) + a.f1.get(key))
           } else {
-            ret.f2.put(key, a.f2.get(key))
+            ret.f1.put(key, a.f1.get(key))
           }
         }
       }
@@ -144,7 +136,6 @@ abstract class MinWithRetractAggFunction[T](implicit ord: Ordering[T]) extends A
     new TupleTypeInfo(
       new MinWithRetractAccumulator[T].getClass,
       getValueTypeInfo,
-      BasicTypeInfo.LONG_TYPE_INFO,
       new MapTypeInfo(getValueTypeInfo, BasicTypeInfo.LONG_TYPE_INFO))
   }
 

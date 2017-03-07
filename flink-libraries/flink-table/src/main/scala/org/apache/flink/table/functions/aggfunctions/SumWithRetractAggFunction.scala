@@ -23,7 +23,6 @@ import java.util.{List => JList}
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.TupleTypeInfo
-import org.apache.flink.table.api.TableException
 import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
 
 /** The initial accumulator for Sum with retract aggregate function */
@@ -166,9 +165,6 @@ class DecimalSumWithRetractAggFunction extends AggregateFunction[BigDecimal] {
       val accum = accumulator.asInstanceOf[DecimalSumWithRetractAccumulator]
       accum.f0 = accum.f0.subtract(v)
       accum.f1 -= 1L
-      if (accum.f1 == 0) {
-        accum.f0 = BigDecimal.ZERO
-      }
     }
   }
 
