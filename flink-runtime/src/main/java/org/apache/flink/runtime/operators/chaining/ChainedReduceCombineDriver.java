@@ -26,6 +26,7 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.runtime.codegeneration.SorterFactory;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.BatchTask;
@@ -123,7 +124,8 @@ public class ChainedReduceCombineDriver<T> extends ChainedDriver<T, T> {
 					serializer.getLength() > 0 && serializer.getLength() <= THRESHOLD_FOR_IN_PLACE_SORTING) {
 					sorter = new FixedLengthRecordSorter<T>(serializer, comparator.duplicate(), memory);
 				} else {
-					sorter = new NormalizedKeySorter<T>(serializer, comparator.duplicate(), memory);
+					sorter = SorterFactory.getInstance()
+						.createSorter(this.parent.getExecutionConfig(), serializer, comparator.duplicate(), memory);
 				}
 				break;
 			case HASHED_PARTIAL_REDUCE:

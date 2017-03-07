@@ -20,9 +20,11 @@ package org.apache.flink.runtime.operators.sort;
 
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.List;
 
+import freemarker.template.TemplateException;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeComparator;
@@ -45,6 +47,7 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.types.NullKeyFieldException;
 import org.apache.flink.util.MutableObjectIterator;
+import org.codehaus.commons.compiler.CompileException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -218,7 +221,7 @@ public class LargeRecordHandler<T> {
 		return offset;
 	}
 	
-	public MutableObjectIterator<T> finishWriteAndSortKeys(List<MemorySegment> memory) throws IOException {
+	public MutableObjectIterator<T> finishWriteAndSortKeys(List<MemorySegment> memory) throws IOException, IllegalAccessException, TemplateException, InstantiationException, CompileException, InvocationTargetException, NoSuchMethodException, ClassNotFoundException {
 		if (recordsOutFile == null || keysOutFile == null) {
 			throw new IllegalStateException("The LargeRecordHandler has not spilled any records");
 		}

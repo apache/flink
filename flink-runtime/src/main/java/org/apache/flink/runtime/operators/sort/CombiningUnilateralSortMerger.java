@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.operators.sort;
 
+import freemarker.template.TemplateException;
 import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.typeutils.TypeComparator;
@@ -38,10 +39,12 @@ import org.apache.flink.runtime.util.ReusingKeyGroupedIterator;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 import org.apache.flink.util.TraversableOnceException;
+import org.codehaus.commons.compiler.CompileException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -106,8 +109,7 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 			TypeSerializerFactory<E> serializerFactory, TypeComparator<E> comparator,
 			double memoryFraction, int maxNumFileHandles, float startSpillingFraction,
 			boolean handleLargeRecords, boolean objectReuseEnabled)
-	throws IOException, MemoryAllocationException
-	{
+		throws IOException, MemoryAllocationException, IllegalAccessException, TemplateException, InstantiationException, CompileException, NoSuchMethodException, InvocationTargetException, ClassNotFoundException {
 		this(combineStub, memoryManager, ioManager, input, parentTask, serializerFactory, comparator,
 			memoryFraction, -1, maxNumFileHandles, startSpillingFraction, handleLargeRecords, objectReuseEnabled);
 	}
@@ -139,8 +141,7 @@ public class CombiningUnilateralSortMerger<E> extends UnilateralSortMerger<E> {
 			TypeSerializerFactory<E> serializerFactory, TypeComparator<E> comparator,
 			double memoryFraction, int numSortBuffers, int maxNumFileHandles,
 			float startSpillingFraction, boolean handleLargeRecords, boolean objectReuseEnabled)
-	throws IOException, MemoryAllocationException
-	{
+		throws IOException, MemoryAllocationException, IllegalAccessException, TemplateException, InstantiationException, CompileException, InvocationTargetException, NoSuchMethodException, ClassNotFoundException {
 		super(memoryManager, ioManager, input, parentTask, serializerFactory, comparator,
 			memoryFraction, numSortBuffers, maxNumFileHandles, startSpillingFraction, false,
 			handleLargeRecords, objectReuseEnabled);

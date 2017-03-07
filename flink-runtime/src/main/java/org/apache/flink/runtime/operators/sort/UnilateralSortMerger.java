@@ -20,6 +20,7 @@ package org.apache.flink.runtime.operators.sort;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -31,6 +32,9 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import freemarker.template.TemplateException;
+import org.apache.flink.runtime.codegeneration.SorterFactory;
+import org.codehaus.commons.compiler.CompileException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.typeutils.TypeComparator;
@@ -160,8 +164,7 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 			TypeSerializerFactory<E> serializerFactory, TypeComparator<E> comparator,
 			double memoryFraction, int maxNumFileHandles, float startSpillingFraction,
 			boolean handleLargeRecords, boolean objectReuseEnabled)
-	throws IOException, MemoryAllocationException
-	{
+		throws IOException, MemoryAllocationException, IllegalAccessException, TemplateException, InstantiationException, CompileException, NoSuchMethodException, InvocationTargetException, ClassNotFoundException {
 		this(memoryManager, ioManager, input, parentTask, serializerFactory, comparator,
 			memoryFraction, -1, maxNumFileHandles, startSpillingFraction, handleLargeRecords, objectReuseEnabled);
 	}
@@ -171,8 +174,7 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 			TypeSerializerFactory<E> serializerFactory, TypeComparator<E> comparator,
 			double memoryFraction, int numSortBuffers, int maxNumFileHandles,
 			float startSpillingFraction, boolean handleLargeRecords, boolean objectReuseEnabled)
-	throws IOException, MemoryAllocationException
-	{
+		throws IOException, MemoryAllocationException, IllegalAccessException, TemplateException, InstantiationException, CompileException, InvocationTargetException, NoSuchMethodException, ClassNotFoundException {
 		this(memoryManager, ioManager, input, parentTask, serializerFactory, comparator,
 			memoryFraction, numSortBuffers, maxNumFileHandles, startSpillingFraction, false, handleLargeRecords,
 			objectReuseEnabled);
@@ -184,8 +186,7 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 			TypeSerializerFactory<E> serializerFactory, TypeComparator<E> comparator,
 			int numSortBuffers, int maxNumFileHandles,
 			float startSpillingFraction, boolean handleLargeRecords, boolean objectReuseEnabled)
-	throws IOException
-	{
+		throws IOException, IllegalAccessException, TemplateException, InstantiationException, CompileException, NoSuchMethodException, InvocationTargetException, ClassNotFoundException {
 		this(memoryManager, memory, ioManager, input, parentTask, serializerFactory, comparator,
 			numSortBuffers, maxNumFileHandles, startSpillingFraction, false, handleLargeRecords,
 			objectReuseEnabled);
@@ -198,8 +199,7 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 			double memoryFraction, int numSortBuffers, int maxNumFileHandles,
 			float startSpillingFraction, boolean noSpillingMemory, boolean handleLargeRecords,
 			boolean objectReuseEnabled)
-	throws IOException, MemoryAllocationException
-	{
+		throws IOException, MemoryAllocationException, IllegalAccessException, TemplateException, InstantiationException, CompileException, NoSuchMethodException, InvocationTargetException, ClassNotFoundException {
 		this(memoryManager, memoryManager.allocatePages(parentTask, memoryManager.computeNumberOfPages(memoryFraction)),
 				ioManager, input, parentTask, serializerFactory, comparator,
 				numSortBuffers, maxNumFileHandles, startSpillingFraction, noSpillingMemory, handleLargeRecords,
@@ -213,8 +213,7 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 			int numSortBuffers, int maxNumFileHandles,
 			float startSpillingFraction, boolean noSpillingMemory, boolean handleLargeRecords,
 			boolean objectReuseEnabled)
-	throws IOException
-	{
+		throws IOException, IllegalAccessException, TemplateException, InstantiationException, CompileException, InvocationTargetException, NoSuchMethodException, ClassNotFoundException {
 		// sanity checks
 		if (memoryManager == null | (ioManager == null && !noSpillingMemory) | serializerFactory == null | comparator == null) {
 			throw new NullPointerException();
@@ -350,7 +349,8 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 			{
 				buffer = new FixedLengthRecordSorter<E>(serializerFactory.getSerializer(), comp, sortSegments);
 			} else {
-				buffer = new NormalizedKeySorter<E>(serializerFactory.getSerializer(), comp, sortSegments);
+				buffer = SorterFactory.getInstance()
+					.createSorter(parentTask.getExecutionConfig(), serializerFactory.getSerializer(), comp, sortSegments);
 			}
 
 			// add to empty queue
@@ -806,7 +806,7 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 		 * 
 		 * @throws IOException Exceptions that prohibit correct completion of the work may be thrown by the thread.
 		 */
-		protected abstract void go() throws IOException;
+		protected abstract void go() throws IOException, IllegalAccessException, TemplateException, InstantiationException, CompileException, NoSuchMethodException, InvocationTargetException, ClassNotFoundException;
 
 		/**
 		 * Checks whether this thread is still alive.
@@ -1211,7 +1211,7 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 		/**
 		 * Entry point of the thread.
 		 */
-		public void go() throws IOException {
+		public void go() throws IOException, IllegalAccessException, TemplateException, InstantiationException, CompileException, NoSuchMethodException, InvocationTargetException, ClassNotFoundException {
 			
 			final Queue<CircularElement<E>> cache = new ArrayDeque<CircularElement<E>>();
 			CircularElement<E> element;

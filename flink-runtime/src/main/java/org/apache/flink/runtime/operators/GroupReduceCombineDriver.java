@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.runtime.codegeneration.SorterFactory;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.sort.FixedLengthRecordSorter;
 import org.apache.flink.runtime.operators.sort.InMemorySorter;
@@ -137,7 +138,8 @@ public class GroupReduceCombineDriver<IN, OUT> implements Driver<GroupCombineFun
 		{
 			this.sorter = new FixedLengthRecordSorter<IN>(this.serializer, sortingComparator.duplicate(), memory);
 		} else {
-			this.sorter = new NormalizedKeySorter<IN>(this.serializer, sortingComparator.duplicate(), memory);
+			this.sorter = SorterFactory.getInstance()
+				.createSorter(taskContext.getExecutionConfig(), this.serializer, sortingComparator.duplicate(), memory);
 		}
 
 		ExecutionConfig executionConfig = taskContext.getExecutionConfig();

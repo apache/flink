@@ -33,6 +33,7 @@ import java.io.FileOutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.io.IOException;
+import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -44,8 +45,6 @@ public class TemplateManager {
 	// ------------------------------------------------------------------------
 	//                                   Constants
 	// ------------------------------------------------------------------------
-	public static final String RESOURCE_PATH  = getPathToResource();
-	public static final String TEMPLATE_PATH  = RESOURCE_PATH + "/templates";
 	public static final String TEMPLATE_ENCODING  = "UTF-8";
 
 	private static final Logger LOG = LoggerFactory.getLogger(TemplateManager.class);
@@ -68,7 +67,8 @@ public class TemplateManager {
 	 */
 	public TemplateManager() throws IOException {
 		templateConf = new Configuration();
-		templateConf.setDirectoryForTemplateLoading(new File(TEMPLATE_PATH));
+		String templatePath = TemplateManager.class.getClassLoader().getResource("templates").getPath();
+		templateConf.setDirectoryForTemplateLoading(new File(templatePath));
 		templateConf.setDefaultEncoding(TEMPLATE_ENCODING);
 		templateConf.setTemplateExceptionHandler(TemplateExceptionHandler.RETHROW_HANDLER);
 
@@ -104,6 +104,7 @@ public class TemplateManager {
 	 * @throws TemplateException
 	 */
 	public String getGeneratedCode(SorterTemplateModel model) throws IOException, TemplateException {
+
 		Template template = templateConf.getTemplate(model.TEMPLATE_NAME);
 
 		String generatedFilename = model.getSorterName();
@@ -127,16 +128,6 @@ public class TemplateManager {
 		generatedSorter.put(generatedFilename, true);
 
 		return generatedFilename;
-	}
-
-
-	/**
-	 * Get the path of the working folder where the resources directory is
-	 * @retun the absolute path as String
-	 */
-	private static String getPathToResource() {
-		FileSystem fs = FileSystem.getLocalFileSystem();
-		return fs.getWorkingDirectory().toUri().getPath() + "/resources";
 	}
 
 	/**
