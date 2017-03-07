@@ -51,13 +51,11 @@ class ScalarFunctionCallGen(
 
     // zip for variable signatures
     var paramToOperands = matchingSignature.zip(operands)
-    var i = paramToOperands.length
-    while (i < operands.length
-        && matchingMethod.isVarArgs
-        && matchingSignature.last.isArray) {
-      paramToOperands = paramToOperands :+
-        (matchingSignature.last.getComponentType, operands(i))
-      i += 1
+    if (operands.length > matchingSignature.length) {
+      operands.drop(matchingSignature.length).foreach(op =>
+        paramToOperands = paramToOperands :+
+          (matchingSignature.last.getComponentType, op)
+      )
     }
 
     // convert parameters for function (output boxing)

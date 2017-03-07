@@ -105,12 +105,13 @@ object UserDefinedFunctionUtils {
           }
         case cur if cur.isVarArgs =>
           val signatures = cur.getParameterTypes
-          actualSignature.zipWithIndex.forall { case (clazz, i) =>
-            (i < signatures.length - 1 &&
-              parameterTypeEquals(clazz, signatures(i))) ||
-            (i >= signatures.length - 1 &&
-              parameterTypeEquals(clazz, signatures.last.getComponentType))
-          } || (actualSignature.isEmpty && signatures.length == 1)
+          actualSignature.zipWithIndex.forall {
+            case (clazz, i) if i < signatures.length - 1  =>
+              parameterTypeEquals(clazz, signatures(i))
+            case (clazz, i) if i >= signatures.length - 1 =>
+              parameterTypeEquals(clazz, signatures.last.getComponentType)
+          } ||
+          (actualSignature.isEmpty && signatures.length == 1)
     }
 
     if (filtered.length > 1) {
@@ -155,10 +156,10 @@ object UserDefinedFunctionUtils {
         s"Function class '${function.getClass.getCanonicalName}' does not implement at least " +
           s"one method named 'eval' which is public, not abstract and " +
           s"(in case of table functions) not static.")
-    } else {
-      verifyScalaVarargsAnnotation(methods)
-      methods
     }
+
+    verifyScalaVarargsAnnotation(methods)
+    methods
   }
 
   /**
