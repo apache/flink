@@ -380,6 +380,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 			LOG.warn("Error while adding shutdown hook", t);
 		}
 
+		final Configuration sslConfig = config;
 		ChannelInitializer<SocketChannel> initializer = new ChannelInitializer<SocketChannel>() {
 
 			@Override
@@ -389,6 +390,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 				// SSL should be the first handler in the pipeline
 				if (serverSSLContext != null) {
 					SSLEngine sslEngine = serverSSLContext.createSSLEngine();
+					SSLUtils.setSSLVerAndCipherSuites(sslEngine, sslConfig);
 					sslEngine.setUseClientMode(false);
 					ch.pipeline().addLast("ssl", new SslHandler(sslEngine));
 				}
