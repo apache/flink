@@ -68,7 +68,15 @@ done
 
 IMAGE_NAME=${IMAGE_NAME:-flink}
 
+# TMPDIR must be contained within the working directory so it is part of the
+# Docker context. (i.e. it can't be mktemp'd in /tmp)
 TMPDIR=_TMP_
+
+cleanup() {
+    rm -rf "${TMPDIR}"
+}
+trap cleanup EXIT
+
 mkdir -p "${TMPDIR}"
 
 if [ -n "${FROM_RELEASE}" ]; then
@@ -86,14 +94,15 @@ if [ -n "${FROM_RELEASE}" ]; then
 
 elif [ -n "${FROM_LOCAL}" ]; then
 
-    DIST_DIR="../../flink-dist/target/flink-*-bin"
-    FLINK_DIST="${TMPDIR}/flink.tgz"
-    echo "Using flink dist: ${DIST_DIR}"
-    tar -C ${DIST_DIR} -cvzf "${FLINK_DIST}" .
+  DIST_DIR="../../flink-dist/target/flink-*-bin"
+  FLINK_DIST="${TMPDIR}/flink.tgz"
+  echo "Using flink dist: ${DIST_DIR}"
+  tar -C ${DIST_DIR} -cvzf "${FLINK_DIST}" .
+
 else
+
   usage
+
 fi
 
 docker build --build-arg flink_dist="${FLINK_DIST}" -t "${IMAGE_NAME}" .
-
-rm -rf "${TMPDIR}"
