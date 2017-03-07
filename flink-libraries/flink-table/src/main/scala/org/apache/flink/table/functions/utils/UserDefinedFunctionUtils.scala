@@ -94,23 +94,28 @@ object UserDefinedFunctionUtils {
     val evalMethods = checkAndExtractEvalMethods(function)
 
     val filtered = evalMethods
-      // go over all eval methods and find one matching
-      .filter { cur =>
-      val signatures = cur.getParameterTypes
-      // match parameters of signature to actual parameters
-      (actualSignature.length >= signatures.length &&
-        actualSignature.zipWithIndex.forall { case (clazz, i) =>
-          (i < signatures.length && parameterTypeEquals(clazz, signatures(i))) ||
-            (i >= signatures.length - 1 && cur.isVarArgs &&
+      // go over all eval methods and filter out one and only one matching
+      .filter {
+        case cur if !cur.isVarArgs =>
+          val signatures = cur.getParameterTypes
+          // match parameters of signature to actual par(ameters
+          actualSignature.length == signatures.length &&
+            signatures.zipWithIndex.forall { case (clazz, i) =>
+              parameterTypeEquals(actualSignature(i), clazz)
+          }
+        case cur if cur.isVarArgs =>
+          val signatures = cur.getParameterTypes
+          actualSignature.zipWithIndex.forall { case (clazz, i) =>
+            (i < signatures.length - 1 &&
+              parameterTypeEquals(clazz, signatures(i))) ||
+            (i >= signatures.length - 1 &&
               parameterTypeEquals(clazz, signatures.last.getComponentType))
-        }) ||
-        // match empty variable arguments
-        (actualSignature.length == signatures.length - 1 && cur.isVarArgs)
+          } || (actualSignature.isEmpty && signatures.length == 1)
     }
 
     if (filtered.length > 1) {
       throw new ValidationException("Found multiple 'eval' methods which " +
-        "matches the signature.")
+        "match the signature.")
     } else {
       filtered.headOption
     }
@@ -151,28 +156,34 @@ object UserDefinedFunctionUtils {
           s"one method named 'eval' which is public, not abstract and " +
           s"(in case of table functions) not static.")
     } else {
-      methods.foreach(method => {
-        val signatures = method.getParameterTypes
-        if (signatures.nonEmpty &&
-            signatures.last.getName.equals("scala.collection.Seq") &&
-            // If users specified an @varargs, Scala will generate two methods indeed.
-            // If there does not exists corresponding varargs method of the Seq method,
-            // we will throw an ValidationException.
-            (!methods.exists(m => {
-              val sigs = m.getParameterTypes
-              m.isVarArgs &&
-              sigs.length == signatures.length &&
-              sigs.zipWithIndex.forall { case (sig, i) =>
-                 i == sigs.length - 1 || sig.equals(signatures(i))
-              }
-            }))) {
-          throw new ValidationException("The 'eval' method do not support Scala type of " +
-            "variable args eg. scala.collection.Seq or Type*, please add a " +
-            "@scala.annotation.varargs annotation to your 'eval' method")
-        }
-      })
+      verifyScalaVarargsAnnotation(methods)
       methods
     }
+  }
+
+  /**
+   * If users specified an @varargs, Scala will generate two methods indeed.
+   * If there does not exist corresponding varargs method of the Seq method,
+   * we will throw an ValidationException.
+   */
+  def verifyScalaVarargsAnnotation(methods: Array[Method]) = {
+    methods.foreach(method => {
+      val signatures = method.getParameterTypes
+      if (signatures.nonEmpty &&
+        signatures.last.getName.equals("scala.collection.Seq") &&
+        (!methods.exists(m => {
+          val sigs = m.getParameterTypes
+          m.isVarArgs &&
+            sigs.length == signatures.length &&
+            sigs.zipWithIndex.forall { case (sig, i) =>
+              i == sigs.length - 1 || sig.equals(signatures(i))
+            }
+        }))) {
+        throw new ValidationException("The 'eval' method do not support Scala type of " +
+          "variable args eg. scala.collection.Seq or Type*, please add a " +
+          "@scala.annotation.varargs annotation to your 'eval' method")
+      }
+    })
   }
 
   def getSignatures(function: UserDefinedFunction): Array[Array[Class[_]]] = {
@@ -335,6 +346,7 @@ object UserDefinedFunctionUtils {
   private def parameterTypeEquals(candidate: Class[_], expected: Class[_]): Boolean =
   candidate == null ||
     candidate == expected ||
+    expected == classOf[Object] ||
     expected.isPrimitive && Primitives.wrap(expected) == candidate ||
     candidate == classOf[Date] && (expected == classOf[Int] || expected == classOf[JInt])  ||
     candidate == classOf[Time] && (expected == classOf[Int] || expected == classOf[JInt]) ||

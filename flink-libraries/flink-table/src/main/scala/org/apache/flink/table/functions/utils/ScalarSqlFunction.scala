@@ -147,7 +147,7 @@ object ScalarSqlFunction {
         var max = -1
         signatures.foreach(sig => {
           var len = sig.length
-          if (len > 0 && sig(sig.length -1).isArray) {
+          if (len > 0 && sig(sig.length - 1).isArray) {
             max = 254  // according to JVM spec 4.3.3
             len = sig.length - 1
           }
