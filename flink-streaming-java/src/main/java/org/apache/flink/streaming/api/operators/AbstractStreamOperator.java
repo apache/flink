@@ -283,13 +283,14 @@ public abstract class AbstractStreamOperator<OUT>
 			// create a keyed state backend if there is keyed state, as indicated by the presence of a key serializer
 			if (null != keySerializer) {
 				KeyGroupRange subTaskKeyGroupRange = KeyGroupRangeAssignment.computeKeyGroupRangeForOperatorIndex(
-						container.getEnvironment().getTaskInfo().getNumberOfKeyGroups(),
+						container.getEnvironment().getTaskInfo().getMaxNumberOfParallelSubtasks(),
 						container.getEnvironment().getTaskInfo().getNumberOfParallelSubtasks(),
 						container.getEnvironment().getTaskInfo().getIndexOfThisSubtask());
 
 				this.keyedStateBackend = container.createKeyedStateBackend(
 						keySerializer,
-						container.getEnvironment().getTaskInfo().getNumberOfKeyGroups(),
+						// The maximum parallelism == number of key group
+						container.getEnvironment().getTaskInfo().getMaxNumberOfParallelSubtasks(),
 						subTaskKeyGroupRange);
 
 				this.keyedStateStore = new DefaultKeyedStateStore(keyedStateBackend, getExecutionConfig());

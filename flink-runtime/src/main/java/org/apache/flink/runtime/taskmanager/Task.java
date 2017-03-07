@@ -291,7 +291,7 @@ public class Task implements Runnable, TaskActions {
 
 		this.taskInfo = new TaskInfo(
 				taskInformation.getTaskName(),
-				taskInformation.getNumberOfKeyGroups(),
+				taskInformation.getMaxNumberOfSubtaks(),
 				subtaskIndex,
 				taskInformation.getNumberOfSubtasks(),
 				attemptNumber);
