@@ -247,7 +247,7 @@ abstract class FlinkMiniCluster(
 
   def getTaskManagerAkkaConfig(index: Int): Config = {
     val portRange = originalConfiguration.getString(ConfigConstants.TASK_MANAGER_IPC_PORT_KEY,
-                                                ConfigConstants.DEFAULT_TASK_MANAGER_IPC_PORT)
+                                                ConfigConstants.DEFAULT_TASK_MANAGER_IPC_PORT_RANGE)
 
     val portRangeIterator = NetUtils.getPortRangeFromString(portRange)
 

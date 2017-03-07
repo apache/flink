@@ -733,10 +733,10 @@ object AkkaUtils {
     */
   @tailrec
   def retryOnBindException[T](
-                               fn: => T,
-                               stopCond: => Boolean,
-                               maxSleepBetweenRetries : Long = 0 )
-  : scala.util.Try[T] = {
+      fn: => T,
+      stopCond: => Boolean,
+      maxSleepBetweenRetries : Long = 0 )
+    : scala.util.Try[T] = {
 
     def sleepBeforeRetry() : Unit = {
       if (maxSleepBetweenRetries > 0) {

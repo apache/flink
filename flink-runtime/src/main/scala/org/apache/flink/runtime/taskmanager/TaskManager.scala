@@ -1680,7 +1680,7 @@ object TaskManager {
     // if no task manager port has been configured, use 0 (system will pick any free port)
     val portRange = configuration.getString(
       ConfigConstants.TASK_MANAGER_IPC_PORT_KEY,
-      ConfigConstants.DEFAULT_TASK_MANAGER_IPC_PORT)
+      ConfigConstants.DEFAULT_TASK_MANAGER_IPC_PORT_RANGE)
 
     val portRangeIterator = try {
       NetUtils.getPortRangeFromString(portRange)

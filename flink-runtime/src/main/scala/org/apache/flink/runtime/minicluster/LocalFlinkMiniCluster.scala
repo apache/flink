@@ -189,7 +189,7 @@ class LocalFlinkMiniCluster(
 
     val rpcPortRange = config.getString(
       ConfigConstants.TASK_MANAGER_IPC_PORT_KEY,
-      ConfigConstants.DEFAULT_TASK_MANAGER_IPC_PORT)
+      ConfigConstants.DEFAULT_TASK_MANAGER_IPC_PORT_RANGE)
 
     val rpcPortIterator = NetUtils.getPortRangeFromString(rpcPortRange)
 
