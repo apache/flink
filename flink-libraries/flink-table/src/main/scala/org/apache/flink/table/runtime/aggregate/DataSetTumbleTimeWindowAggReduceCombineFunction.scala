@@ -71,8 +71,7 @@ class DataSetTumbleTimeWindowAggReduceCombineFunction(
 
     // reset first accumulator in merge list
     for (i <- aggregates.indices) {
-      val accumulator = aggregates(i).createAccumulator()
-      accumulatorList(i).set(0, accumulator)
+      aggregates(i).resetAccumulator(accumulatorList(i).get(0))
     }
 
     while (iterator.hasNext) {

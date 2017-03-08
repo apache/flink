@@ -63,8 +63,8 @@ abstract class SumAggFunction[T: Numeric] extends AggregateFunction[T] {
   }
 
   override def merge(accumulators: JList[Accumulator]): Accumulator = {
-    val ret = createAccumulator().asInstanceOf[SumAccumulator[T]]
-    var i: Int = 0
+    val ret = accumulators.get(0).asInstanceOf[SumAccumulator[T]]
+    var i: Int = 1
     while (i < accumulators.size()) {
       val a = accumulators.get(i).asInstanceOf[SumAccumulator[T]]
       if (a.f1) {
@@ -74,6 +74,11 @@ abstract class SumAggFunction[T: Numeric] extends AggregateFunction[T] {
       i += 1
     }
     ret
+  }
+
+  override def resetAccumulator(accumulator: Accumulator): Unit = {
+    accumulator.asInstanceOf[SumAccumulator[T]].f0 = numeric.zero
+    accumulator.asInstanceOf[SumAccumulator[T]].f1 = false
   }
 
   override def getAccumulatorType(): TypeInformation[_] = {
@@ -172,6 +177,11 @@ class DecimalSumAggFunction extends AggregateFunction[BigDecimal] {
       i += 1
     }
     ret
+  }
+
+  override def resetAccumulator(accumulator: Accumulator): Unit = {
+    accumulator.asInstanceOf[DecimalSumAccumulator].f0 = BigDecimal.ZERO
+    accumulator.asInstanceOf[DecimalSumAccumulator].f1 = false
   }
 
   override def getAccumulatorType(): TypeInformation[_] = {

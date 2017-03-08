@@ -132,6 +132,11 @@ abstract class MinWithRetractAggFunction[T](implicit ord: Ordering[T])
     ret
   }
 
+  override def resetAccumulator(accumulator: Accumulator): Unit = {
+    accumulator.asInstanceOf[MinWithRetractAccumulator[T]].f0 = getInitValue
+    accumulator.asInstanceOf[MinWithRetractAccumulator[T]].f1.clear()
+  }
+
   override def getAccumulatorType(): TypeInformation[_] = {
     new TupleTypeInfo(
       new MinWithRetractAccumulator[T].getClass,
