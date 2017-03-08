@@ -132,4 +132,8 @@ public class HighAvailabilityOptions {
 
 	/** Not intended to be instantiated */
 	private HighAvailabilityOptions() {}
+
+	public static void main(String[] args) {
+		System.out.println(ConfigGroup.create(HighAvailabilityOptions.class).toHTMLTable(false));
+	}
 }

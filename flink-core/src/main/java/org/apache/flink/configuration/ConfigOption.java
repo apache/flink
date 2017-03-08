@@ -51,6 +51,10 @@ public class ConfigOption<T> {
 	/** The default value for this option */
 	private final T defaultValue;
 
+	private final String shortDescription;
+
+	private final String description;
+
 	// ------------------------------------------------------------------------
 
 	/**
@@ -61,6 +65,8 @@ public class ConfigOption<T> {
 	 */
 	ConfigOption(String key, T defaultValue) {
 		this.key = checkNotNull(key);
+		this.description = "";
+		this.shortDescription = "";
 		this.defaultValue = defaultValue;
 		this.deprecatedKeys = EMPTY;
 	}
@@ -72,8 +78,10 @@ public class ConfigOption<T> {
 	 * @param defaultValue    The default value for this option
 	 * @param deprecatedKeys  The list of deprecated keys, in the order to be checked
 	 */
-	ConfigOption(String key, T defaultValue, String... deprecatedKeys) {
+	ConfigOption(String key, String shortDescription, String description, T defaultValue, String... deprecatedKeys) {
 		this.key = checkNotNull(key);
+		this.description = description;
+		this.shortDescription = shortDescription;
 		this.defaultValue = defaultValue;
 		this.deprecatedKeys = deprecatedKeys == null || deprecatedKeys.length == 0 ? EMPTY : deprecatedKeys;
 	}
@@ -83,16 +91,24 @@ public class ConfigOption<T> {
 	/**
 	 * Creates a new config option, using this option's key and default value, and
 	 * adding the given deprecated keys.
-	 * 
+	 *
 	 * <p>When obtaining a value from the configuration via {@link Configuration#getValue(ConfigOption)},
 	 * the deprecated keys will be checked in the order provided to this method. The first key for which
 	 * a value is found will be used - that value will be returned.
-	 * 
+	 *
 	 * @param deprecatedKeys The deprecated keys, in the order in which they should be checked.
 	 * @return A new config options, with the given deprecated keys.
 	 */
 	public ConfigOption<T> withDeprecatedKeys(String... deprecatedKeys) {
-		return new ConfigOption<>(key, defaultValue, deprecatedKeys);
+		return new ConfigOption<>(key, shortDescription, description, defaultValue, deprecatedKeys);
+	}
+
+	public ConfigOption<T> withDescription(String description) {
+		return new ConfigOption<>(key, shortDescription, description, defaultValue, deprecatedKeys);
+	}
+
+	public ConfigOption<T> withDescription(String shortDescription, String description) {
+		return new ConfigOption<>(key, shortDescription, description, defaultValue, deprecatedKeys);
 	}
 
 	// ------------------------------------------------------------------------
@@ -135,6 +151,26 @@ public class ConfigOption<T> {
 	 */
 	public Iterable<String> deprecatedKeys() {
 		return deprecatedKeys == EMPTY ? Collections.<String>emptyList() : Arrays.asList(deprecatedKeys);
+	}
+
+	public String shortDescription() {
+		return shortDescription;
+	}
+
+	public String description() {
+		return description;
+	}
+
+	String toHTMLString(boolean includeShort) {
+		String stringBuilder = "<tr>" +
+			"<td>" + key + "</td>" +
+			"<td>" + (defaultValue == null ? "" : defaultValue) + "</td>";
+		if (includeShort) {
+			stringBuilder += "<td>" + shortDescription + "</td>";
+		}
+
+		stringBuilder += "<td>" + description + "</td></tr>";
+		return stringBuilder;
 	}
 
 	// ------------------------------------------------------------------------
