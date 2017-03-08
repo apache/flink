@@ -33,6 +33,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.util.HashMap;
 import java.util.List;
 
 /**
@@ -55,6 +56,7 @@ public class SorterFactory {
 	// ------------------------------------------------------------------------
 	private SimpleCompiler classComplier;
 	private TemplateManager templateManager;
+	private HashMap<String, Constructor> constructorCache;
 
 	/**
 	 * Constructor
@@ -63,6 +65,7 @@ public class SorterFactory {
 	public SorterFactory() throws IOException {
 		this.templateManager = TemplateManager.getInstance();
 		this.classComplier = new SimpleCompiler();
+		this.constructorCache = new HashMap<>();
 	}
 
 	/**
@@ -104,16 +107,27 @@ public class SorterFactory {
 		if(config.isCodeGenerationForSorterEnabled()){
 			String className = this.templateManager.getGeneratedCode(new SorterTemplateModel(comparator));
 
-			this.classComplier.cookFile(this.templateManager.getPathToGeneratedCode(className));
+			Constructor sorterConstructor = null;
 
-			Constructor sorterConstructor = this.classComplier.getClassLoader().loadClass(className).getConstructor(
-				TypeSerializer.class, TypeComparator.class, List.class
-			);
+			synchronized (this){
+				if( constructorCache.getOrDefault(className, null) != null ){
+					sorterConstructor = constructorCache.get(className);
+				} else {
+					this.classComplier.cookFile(this.templateManager.getPathToGeneratedCode(className));
+
+					sorterConstructor = this.classComplier.getClassLoader().loadClass(className).getConstructor(
+						TypeSerializer.class, TypeComparator.class, List.class
+					);
+
+					constructorCache.put(className, sorterConstructor);
+				}
+			}
 
 			sorter = (InMemorySorter)sorterConstructor.newInstance(serializer, comparator, memory);
 
-			if(LOG.isDebugEnabled()){
-				LOG.debug("Creating a custom sorter : " + sorter.toString());
+
+			if(LOG.isInfoEnabled()){
+				LOG.info("Using a custom sorter : " + sorter.toString());
 			}
 		} else {
 			sorter = new NormalizedKeySorter(serializer, comparator, memory);
