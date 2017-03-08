@@ -15,14 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.test.misc;
+package org.apache.flink.test.manual;
 
-import com.google.common.collect.Lists;
-import org.apache.flink.types.parser.FieldParser;
 import org.apache.flink.types.parser.FieldParserTest;
-import org.apache.flink.types.parser.VarLengthStringParserTest;
+
 import org.junit.BeforeClass;
 import org.junit.Test;
+
 import org.reflections.Reflections;
 import org.reflections.scanners.MemberUsageScanner;
 import org.reflections.util.ClasspathHelper;
@@ -32,18 +31,33 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Member;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests via reflection that certain methods are not called in Flink.
+ * 
+ * <p>Forbidden calls include:
+ *   - Byte / String conversions that do not specify an explicit charset
+ *     because they produce different results in different locales
+ */
 public class CheckForbiddenMethodsUsage {
 
 	private static class ForbiddenCall {
+
 		private final Method method;
-		private final Constructor constructor;
+		private final Constructor<?> constructor;
 		private final List<Member> exclusions;
+
+		private ForbiddenCall(Method method, Constructor<?> ctor, List<Member> exclusions) {
+			this.method = method;
+			this.exclusions = exclusions;
+			this.constructor = ctor;
+		}
 
 		public Method getMethod() {
 			return method;
@@ -53,10 +67,12 @@ public class CheckForbiddenMethodsUsage {
 			return exclusions;
 		}
 
-		private ForbiddenCall(Method method, Constructor ctor, List<Member> exclusions) {
-			this.method = method;
-			this.exclusions = exclusions;
-			this.constructor = ctor;
+		public Set<Member> getUsages(Reflections reflections) {
+			if (method == null) {
+				return reflections.getConstructorUsage(constructor);
+			}
+
+			return reflections.getMethodUsage(method);
 		}
 
 		public static ForbiddenCall of(Method method) {
@@ -67,29 +83,23 @@ public class CheckForbiddenMethodsUsage {
 			return new ForbiddenCall(method, null, exclusions);
 		}
 
-		public static ForbiddenCall of(Constructor ctor) {
+		public static ForbiddenCall of(Constructor<?> ctor) {
 			return new ForbiddenCall(null, ctor, Collections.<Member>emptyList());
 		}
 
-		public static ForbiddenCall of(Constructor ctor, List<Member> exclusions) {
+		public static ForbiddenCall of(Constructor<?> ctor, List<Member> exclusions) {
 			return new ForbiddenCall(null, ctor, exclusions);
-		}
-
-		public Set<Member> getUsages(Reflections reflections) {
-			if (method == null) {
-				return reflections.getConstructorUsage(constructor);
-			}
-
-			return reflections.getMethodUsage(method);
 		}
 	}
 
-	private static List<ForbiddenCall> forbiddenCalls = new ArrayList<>();
+	// ------------------------------------------------------------------------
+
+	private static final List<ForbiddenCall> forbiddenCalls = new ArrayList<>();
 
 	@BeforeClass
 	public static void init() throws Exception {
 		forbiddenCalls.add(ForbiddenCall.of(String.class.getMethod("getBytes"),
-			Lists.<Member>newArrayList(
+			Arrays.<Member>asList(
 				FieldParserTest.class.getMethod("testEndsWithDelimiter"),
 				FieldParserTest.class.getMethod("testDelimiterNext")
 			)));
@@ -102,6 +112,7 @@ public class CheckForbiddenMethodsUsage {
 	@Test
 	public void testNoDefaultEncoding() throws Exception {
 		final Reflections reflections = new Reflections(new ConfigurationBuilder()
+			.useParallelExecutor(Runtime.getRuntime().availableProcessors())
 			.addUrls(ClasspathHelper.forPackage("org.apache.flink"))
 			.addScanners(new MemberUsageScanner()));
 
