@@ -159,7 +159,7 @@ public class HITS {
 			case "print":
 				System.out.println();
 				for (Object e: hits.collect()) {
-					System.out.println(((Result)e).toVerboseString());
+					System.out.println(((Result)e).toPrintableString());
 				}
 				break;
 

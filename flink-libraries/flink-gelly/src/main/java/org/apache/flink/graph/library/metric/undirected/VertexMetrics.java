@@ -28,7 +28,7 @@ import org.apache.flink.graph.AnalyticHelper;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.asm.degree.annotate.undirected.VertexDegree;
-import org.apache.flink.graph.asm.result.AnalyticResult;
+import org.apache.flink.graph.asm.result.PrintableResult;
 import org.apache.flink.graph.library.metric.undirected.VertexMetrics.Result;
 import org.apache.flink.types.LongValue;
 
@@ -185,7 +185,7 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 	 * Wraps vertex metrics.
 	 */
 	public static class Result
-	implements AnalyticResult {
+	implements PrintableResult {
 		private long vertexCount;
 		private long edgeCount;
 		private long tripletCount;
@@ -272,7 +272,7 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 		}
 
 		@Override
-		public String toString() {
+		public String toPrintableString() {
 			NumberFormat nf = NumberFormat.getInstance();
 
 			// format for very small fractional numbers

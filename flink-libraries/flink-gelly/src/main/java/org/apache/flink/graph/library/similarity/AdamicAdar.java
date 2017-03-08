@@ -34,7 +34,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.asm.degree.annotate.undirected.VertexDegree;
-import org.apache.flink.graph.asm.result.AlgorithmResult;
+import org.apache.flink.graph.asm.result.PrintableResult;
 import org.apache.flink.graph.asm.result.BinaryResult;
 import org.apache.flink.graph.library.similarity.AdamicAdar.Result;
 import org.apache.flink.graph.utils.Murmur3_32;
@@ -448,7 +448,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 */
 	public static class Result<T>
 	extends Tuple3<T, T, FloatValue>
-	implements AlgorithmResult, BinaryResult<T>, Comparable<Result<T>> {
+	implements PrintableResult, BinaryResult<T>, Comparable<Result<T>> {
 		public static final int HASH_SEED = 0xe405f6d1;
 
 		private Murmur3_32 hasher = new Murmur3_32(HASH_SEED);
@@ -481,7 +481,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		}
 
 		@Override
-		public String toVerboseString() {
+		public String toPrintableString() {
 			return "Vertex IDs: (" + getVertexId0() + ", " + getVertexId1()
 				+ "), adamic-adar score: " + getAdamicAdarScore();
 		}

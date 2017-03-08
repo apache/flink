@@ -36,7 +36,7 @@ import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.asm.degree.annotate.directed.EdgeDegreesPair;
 import org.apache.flink.graph.asm.degree.annotate.directed.VertexDegrees.Degrees;
 import org.apache.flink.graph.library.clustering.directed.TriangleListing.Result;
-import org.apache.flink.graph.asm.result.AlgorithmResult;
+import org.apache.flink.graph.asm.result.PrintableResult;
 import org.apache.flink.graph.asm.result.TertiaryResult;
 import org.apache.flink.graph.utils.proxy.GraphAlgorithmWrappingDataSet;
 import org.apache.flink.graph.utils.proxy.OptionalBoolean;
@@ -415,7 +415,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 */
 	public static class Result<T>
 	extends Tuple4<T, T, T, ByteValue>
-	implements AlgorithmResult, TertiaryResult<T> {
+	implements PrintableResult, TertiaryResult<T> {
 		/**
 		 * No-args constructor.
 		 */
@@ -455,7 +455,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		 *
 		 * @return verbose string
 		 */
-		public String toVerboseString() {
+		public String toPrintableString() {
 			byte bitmask = f3.getValue();
 
 			return "1st vertex ID: " + getVertexId0()

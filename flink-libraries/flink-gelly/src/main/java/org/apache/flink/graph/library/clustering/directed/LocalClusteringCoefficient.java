@@ -32,7 +32,7 @@ import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.asm.degree.annotate.directed.VertexDegrees;
 import org.apache.flink.graph.asm.degree.annotate.directed.VertexDegrees.Degrees;
-import org.apache.flink.graph.asm.result.AlgorithmResult;
+import org.apache.flink.graph.asm.result.PrintableResult;
 import org.apache.flink.graph.asm.result.UnaryResult;
 import org.apache.flink.graph.library.clustering.directed.LocalClusteringCoefficient.Result;
 import org.apache.flink.graph.utils.Murmur3_32;
@@ -254,7 +254,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 */
 	public static class Result<T>
 	extends Tuple3<T, LongValue, LongValue>
-	implements AlgorithmResult, UnaryResult<T> {
+	implements PrintableResult, UnaryResult<T> {
 		public static final int HASH_SEED = 0x37a208c4;
 
 		private Murmur3_32 hasher = new Murmur3_32(HASH_SEED);
@@ -305,7 +305,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		 *
 		 * @return verbose string
 		 */
-		public String toVerboseString() {
+		public String toPrintableString() {
 			return "Vertex ID: " + getVertexId0()
 				+ ", vertex degree: " + getDegree()
 				+ ", triangle count: " + getTriangleCount()

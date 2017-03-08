@@ -29,7 +29,7 @@ import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.asm.degree.annotate.undirected.EdgeTargetDegree;
-import org.apache.flink.graph.asm.result.AlgorithmResult;
+import org.apache.flink.graph.asm.result.PrintableResult;
 import org.apache.flink.graph.asm.result.BinaryResult;
 import org.apache.flink.graph.library.similarity.JaccardIndex.Result;
 import org.apache.flink.graph.utils.Murmur3_32;
@@ -456,7 +456,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 */
 	public static class Result<T>
 	extends Tuple4<T, T, IntValue, IntValue>
-	implements AlgorithmResult, BinaryResult<T>, Comparable<Result<T>> {
+	implements PrintableResult, BinaryResult<T>, Comparable<Result<T>> {
 		public static final int HASH_SEED = 0x731f73e7;
 
 		private Murmur3_32 hasher = new Murmur3_32(HASH_SEED);
@@ -505,7 +505,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 			return getSharedNeighborCount().getValue() / (double) getDistinctNeighborCount().getValue();
 		}
 
-		public String toVerboseString() {
+		public String toPrintableString() {
 			return "Vertex IDs: (" + getVertexId0() + ", " + getVertexId1()
 				+ "), number of shared neighbors: " + getSharedNeighborCount()
 				+ ", number of distinct neighbors: " + getDistinctNeighborCount()

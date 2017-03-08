@@ -24,9 +24,9 @@ import org.apache.flink.api.common.accumulators.DoubleCounter;
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.graph.AbstractGraphAnalytic;
-import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.AnalyticHelper;
-import org.apache.flink.graph.asm.result.AnalyticResult;
+import org.apache.flink.graph.Graph;
+import org.apache.flink.graph.asm.result.PrintableResult;
 import org.apache.flink.graph.library.clustering.directed.AverageClusteringCoefficient.Result;
 import org.apache.flink.types.CopyableValue;
 
@@ -131,7 +131,7 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 	 * Wraps global clustering coefficient metrics.
 	 */
 	public static class Result
-	implements AnalyticResult {
+	implements PrintableResult {
 		private long vertexCount;
 		private double averageLocalClusteringCoefficient;
 
@@ -166,7 +166,7 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 		}
 
 		@Override
-		public String toString() {
+		public String toPrintableString() {
 			return "vertex count: " + vertexCount
 				+ ", average clustering coefficient: " + averageLocalClusteringCoefficient;
 		}

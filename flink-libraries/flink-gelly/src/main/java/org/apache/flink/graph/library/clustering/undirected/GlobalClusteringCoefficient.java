@@ -24,7 +24,7 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.graph.AbstractGraphAnalytic;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.asm.dataset.Count;
-import org.apache.flink.graph.asm.result.AnalyticResult;
+import org.apache.flink.graph.asm.result.PrintableResult;
 import org.apache.flink.graph.library.clustering.undirected.GlobalClusteringCoefficient.Result;
 import org.apache.flink.graph.library.metric.undirected.VertexMetrics;
 import org.apache.flink.types.CopyableValue;
@@ -102,7 +102,7 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 	 * Wraps global clustering coefficient metrics.
 	 */
 	public static class Result
-	implements AnalyticResult {
+	implements PrintableResult {
 		private long tripletCount;
 
 		private long triangleCount;
@@ -151,7 +151,7 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 		}
 
 		@Override
-		public String toString() {
+		public String toPrintableString() {
 			return "triplet count: " + tripletCount
 				+ ", triangle count: " + triangleCount
 				+ ", global clustering coefficient: " + getGlobalClusteringCoefficientScore();

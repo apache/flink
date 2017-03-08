@@ -36,7 +36,7 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
-import org.apache.flink.graph.asm.result.AlgorithmResult;
+import org.apache.flink.graph.asm.result.PrintableResult;
 import org.apache.flink.graph.asm.result.UnaryResult;
 import org.apache.flink.graph.library.link_analysis.Functions.SumScore;
 import org.apache.flink.graph.library.link_analysis.HITS.Result;
@@ -533,7 +533,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 */
 	public static class Result<T>
 	extends Tuple3<T, DoubleValue, DoubleValue>
-	implements AlgorithmResult, UnaryResult<T> {
+	implements PrintableResult, UnaryResult<T> {
 		public static final int HASH_SEED = 0xc7e39a63;
 
 		private Murmur3_32 hasher = new Murmur3_32(HASH_SEED);
@@ -561,7 +561,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 			return f2;
 		}
 
-		public String toVerboseString() {
+		public String toPrintableString() {
 			return "Vertex ID: " + getVertexId0()
 				+ ", hub score: " + getHubScore()
 				+ ", authority score: " + getAuthorityScore();

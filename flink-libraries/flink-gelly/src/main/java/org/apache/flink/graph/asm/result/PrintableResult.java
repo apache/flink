@@ -18,10 +18,17 @@
 
 package org.apache.flink.graph.asm.result;
 
-import org.apache.flink.graph.GraphAnalytic;
+import org.apache.flink.graph.GraphAlgorithm;
 
 /**
- * Base interface for {@link GraphAnalytic} results.
+ * Base interface for {@link GraphAlgorithm} results.
  */
-public interface AnalyticResult {
+public interface PrintableResult {
+
+	/**
+	 * A human-readable representation of this value.
+	 *
+	 * @return printable string
+	 */
+	String toPrintableString();
 }
