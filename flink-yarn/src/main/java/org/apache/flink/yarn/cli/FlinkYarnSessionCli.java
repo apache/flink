@@ -31,8 +31,10 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
+import org.apache.flink.runtime.jobmanager.JobManagerOptions;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.yarn.AbstractYarnClusterDescriptor;
@@ -308,16 +310,16 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 		if (cmd.hasOption(JM_MEMORY.getOpt())) {
 			int jmMemory = Integer.valueOf(cmd.getOptionValue(JM_MEMORY.getOpt()));
 			yarnClusterDescriptor.setJobManagerMemory(jmMemory);
-		} else if (config.containsKey(ConfigConstants.JOB_MANAGER_HEAP_MEMORY_KEY)) {
-			yarnClusterDescriptor.setJobManagerMemory(config.getInteger(ConfigConstants.JOB_MANAGER_HEAP_MEMORY_KEY, ConfigConstants.DEFAULT_JOB_MANAGER_HEAP_MEMORY));
+		} else if (config.containsKey(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY.key())) {
+			yarnClusterDescriptor.setJobManagerMemory(config.getInteger(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY));
 		}
 
 		// Task Managers memory
 		if (cmd.hasOption(TM_MEMORY.getOpt())) {
 			int tmMemory = Integer.valueOf(cmd.getOptionValue(TM_MEMORY.getOpt()));
 			yarnClusterDescriptor.setTaskManagerMemory(tmMemory);
-		} else if (config.containsKey(ConfigConstants.TASK_MANAGER_HEAP_MEMORY_KEY)) {
-			yarnClusterDescriptor.setTaskManagerMemory(config.getInteger(ConfigConstants.TASK_MANAGER_HEAP_MEMORY_KEY, ConfigConstants.DEFAULT_TASK_MANAGER_HEAP_MEMORY));
+		} else if (config.containsKey(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY.key())) {
+			yarnClusterDescriptor.setTaskManagerMemory(config.getInteger(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY));
 		}
 
 		if (cmd.hasOption(SLOTS.getOpt())) {

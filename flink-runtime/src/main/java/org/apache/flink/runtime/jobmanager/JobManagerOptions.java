@@ -32,6 +32,11 @@ public class JobManagerOptions {
 	public static final ConfigOption<Integer> MAX_ATTEMPTS_HISTORY_SIZE =
 			key("job-manager.max-attempts-history-size").defaultValue(16);
 
+	/** JVM heap size (in megabytes) for the JobManager */
+	public static final ConfigOption<Integer> JOB_MANAGER_HEAP_MEMORY =
+		key("jobmanager.heap.mb")
+			.defaultValue(1024);
+
 	private JobManagerOptions() {
 		throw new IllegalAccessError();
 	}
