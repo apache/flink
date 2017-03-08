@@ -54,9 +54,16 @@ public class IOMetrics implements Serializable {
 	}
 
 	public IOMetrics(
-			int numBytesInLocal, int numBytesInRemote, int numBytesOut, int numRecordsIn, int numRecordsOut,
-			double numBytesInLocalPerSecond, double numBytesInRemotePerSecond, double numBytesOutPerSecond,
-			double numRecordsInPerSecond, double numRecordsOutPerSecond) {
+			int numBytesInLocal,
+			int numBytesInRemote,
+			int numBytesOut,
+			int numRecordsIn,
+			int numRecordsOut,
+			double numBytesInLocalPerSecond,
+			double numBytesInRemotePerSecond,
+			double numBytesOutPerSecond,
+			double numRecordsInPerSecond,
+			double numRecordsOutPerSecond) {
 		this.numBytesInLocal = numBytesInLocal;
 		this.numBytesInRemote = numBytesInRemote;
 		this.numBytesOut = numBytesOut;

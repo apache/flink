@@ -106,8 +106,16 @@ class ExpressionReducer(config: TableConfig)
         case SqlTypeName.ANY | SqlTypeName.ROW | SqlTypeName.ARRAY =>
           reducedValues.add(unreduced)
         case _ =>
+          val reducedValue = reduced.getField(reducedIdx)
+          // RexBuilder handle double literal incorrectly, convert it into BigDecimal manually
+          val value = if (unreduced.getType.getSqlTypeName == SqlTypeName.DOUBLE) {
+            new java.math.BigDecimal(reducedValue.asInstanceOf[Number].doubleValue())
+          } else {
+            reducedValue
+          }
+
           val literal = rexBuilder.makeLiteral(
-            reduced.getField(reducedIdx),
+            value,
             unreduced.getType,
             true)
           reducedValues.add(literal)

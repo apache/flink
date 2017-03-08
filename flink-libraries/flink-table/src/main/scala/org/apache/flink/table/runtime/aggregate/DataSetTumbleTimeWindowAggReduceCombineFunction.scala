@@ -70,15 +70,18 @@ class DataSetTumbleTimeWindowAggReduceCombineFunction(
     val iterator = records.iterator()
 
     // reset first accumulator in merge list
-    for (i <- aggregates.indices) {
+    var i = 0
+    while (i < aggregates.length) {
       val accumulator = aggregates(i).createAccumulator()
       accumulatorList(i).set(0, accumulator)
+      i += 1
     }
 
     while (iterator.hasNext) {
       val record = iterator.next()
 
-      for (i <- aggregates.indices) {
+      i = 0
+      while (i < aggregates.length) {
         // insert received accumulator into acc list
         val newAcc = record.getField(groupKeysMapping.length + i).asInstanceOf[Accumulator]
         accumulatorList(i).set(1, newAcc)
@@ -86,19 +89,24 @@ class DataSetTumbleTimeWindowAggReduceCombineFunction(
         val retAcc = aggregates(i).merge(accumulatorList(i))
         // insert result into acc list
         accumulatorList(i).set(0, retAcc)
+        i += 1
       }
 
       last = record
     }
 
     // set the partial merged result to the aggregateBuffer
-    for (i <- aggregates.indices) {
+    i = 0
+    while (i < aggregates.length) {
       aggregateBuffer.setField(groupKeysMapping.length + i, accumulatorList(i).get(0))
+      i += 1
     }
 
     // set group keys to aggregateBuffer.
-    for (i <- groupKeysMapping.indices) {
+    i = 0
+    while (i < groupKeysMapping.length) {
       aggregateBuffer.setField(i, last.getField(i))
+      i += 1
     }
 
     // set the rowtime attribute

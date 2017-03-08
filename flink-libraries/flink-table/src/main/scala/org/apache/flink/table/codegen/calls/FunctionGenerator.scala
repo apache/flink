@@ -330,7 +330,7 @@ object FunctionGenerator {
       )
 
     // generate a constant for time indicator functions.
-    //   this is a temporary solution and will be removed when FLINK-5884 is implemented.
+    // this is a temporary solution and will be removed when FLINK-5884 is implemented.
     case ProcTimeExtractor | EventTimeExtractor =>
       Some(new CallGenerator {
         override def generate(codeGenerator: CodeGenerator, operands: Seq[GeneratedExpression]) = {

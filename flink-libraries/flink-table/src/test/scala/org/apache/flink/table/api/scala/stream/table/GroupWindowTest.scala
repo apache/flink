@@ -206,7 +206,7 @@ class GroupWindowTest extends TableTestBase {
         ProcessingTimeSlidingGroupWindow(
           Some(WindowReference("w2")),
           20.milli, 10.milli)),
-      term("select", "COUNT(string) AS TMP_2")
+      term("select", "COUNT(string) AS TMP_1")
     )
     util.verifyTable(windowedTable, expected)
   }
@@ -860,12 +860,12 @@ class GroupWindowTest extends TableTestBase {
       ),
       term("select",
         "string",
-        "+(CAST(AS(TMP_0, 'TMP_3')), CAST(1)) AS s1",
-        "+(CAST(AS(TMP_0, 'TMP_4')), CAST(3)) AS s2",
+        "+(CAST(TMP_0), 1) AS s1",
+        "+(CAST(TMP_0), 3) AS s2",
         "TMP_1 AS x",
         "TMP_1 AS x2",
         "TMP_2 AS x3",
-        "TMP_2 AS TMP_5")
+        "TMP_2")
     )
 
     util.verifyTable(windowedTable, expected)

@@ -20,6 +20,7 @@ package org.apache.flink.table.functions
 import java.util.{List => JList}
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.table.api.TableException
 
 /**
   * Base class for User-Defined Aggregates.
@@ -35,6 +36,19 @@ abstract class AggregateFunction[T] extends UserDefinedFunction {
   def createAccumulator(): Accumulator
 
   /**
+    * Retract the input values from the accumulator instance. The current design assumes the
+    * inputs are the values that have been previously accumulated.
+    *
+    * @param accumulator the accumulator which contains the current
+    *                    aggregated results
+    * @param input       the input value (usually obtained from a new arrived data)
+    */
+  def retract(accumulator: Accumulator, input: Any): Unit = {
+    throw TableException("Retract is an optional method. There is no default implementation. You " +
+                           "must implement one for yourself.")
+  }
+
+  /**
     * Called every time when an aggregation result should be materialized.
     * The returned value could be either an early and incomplete result
     * (periodically emitted as data arrive) or the final result of the
@@ -47,7 +61,7 @@ abstract class AggregateFunction[T] extends UserDefinedFunction {
   def getValue(accumulator: Accumulator): T
 
   /**
-    * Process the input values and update the provided accumulator instance.
+    * Processes the input values and update the provided accumulator instance.
     *
     * @param accumulator the accumulator which contains the current
     *                    aggregated results
@@ -56,9 +70,9 @@ abstract class AggregateFunction[T] extends UserDefinedFunction {
   def accumulate(accumulator: Accumulator, input: Any): Unit
 
   /**
-    * Merge a list of accumulator instances into one accumulator instance.
+    * Merges a list of accumulator instances into one accumulator instance.
     *
-    * IMPORTANT: You may only return a new accumulator instance or the the first accumulator of the
+    * IMPORTANT: You may only return a new accumulator instance or the first accumulator of the
     * input list. If you return another instance, the result of the aggregation function might be
     * incorrect.
     *
@@ -74,7 +88,7 @@ abstract class AggregateFunction[T] extends UserDefinedFunction {
     *
     * @return The type information for the accumulator.
     */
-  def getAccumulatorType(): TypeInformation[_] = null
+  def getAccumulatorType: TypeInformation[_] = null
 }
 
 /**

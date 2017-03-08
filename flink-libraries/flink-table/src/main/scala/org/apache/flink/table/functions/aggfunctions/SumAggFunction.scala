@@ -166,7 +166,7 @@ class DecimalSumAggFunction extends AggregateFunction[BigDecimal] {
     while (i < accumulators.size()) {
       val a = accumulators.get(i).asInstanceOf[DecimalSumAccumulator]
       if (a.f1) {
-        accumulate(ret, a.f0)
+        ret.f0 = ret.f0.add(a.f0)
         ret.f1 = true
       }
       i += 1

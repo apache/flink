@@ -23,7 +23,7 @@ import org.apache.flink.types.Row
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.windowing.RichAllWindowFunction
 import org.apache.flink.streaming.api.windowing.windows.Window
-import org.apache.flink.util.{Collector, Preconditions}
+import org.apache.flink.util.Collector
 
 /**
   * Computes the final aggregate value from incrementally computed aggreagtes.
@@ -53,7 +53,12 @@ class IncrementalAggregateAllWindowFunction[W <: Window](
 
     if (iterator.hasNext) {
       val record = iterator.next()
-      out.collect(record)
+      var i = 0
+      while (i < record.getArity) {
+        output.setField(i, record.getField(i))
+        i += 1
+      }
+      out.collect(output)
     }
   }
 }

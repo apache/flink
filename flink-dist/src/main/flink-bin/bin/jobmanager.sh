@@ -18,7 +18,7 @@
 ################################################################################
 
 # Start/stop a Flink JobManager.
-USAGE="Usage: jobmanager.sh (start (local|cluster) [host] [webui-port]|stop|stop-all)"
+USAGE="Usage: jobmanager.sh ((start|start-foreground) (local|cluster) [host] [webui-port])|stop|stop-all"
 
 STARTSTOP=$1
 EXECUTIONMODE=$2
@@ -30,7 +30,7 @@ bin=`cd "$bin"; pwd`
 
 . "$bin"/config.sh
 
-if [[ $STARTSTOP == "start" ]]; then
+if [[ $STARTSTOP == "start" ]] || [[ $STARTSTOP == "start-foreground" ]]; then
     if [ -z $EXECUTIONMODE ]; then
         echo "Missing execution mode (local|cluster) argument. $USAGE."
         exit 1
@@ -70,4 +70,8 @@ if [[ $STARTSTOP == "start" ]]; then
     fi
 fi
 
-"${FLINK_BIN_DIR}"/flink-daemon.sh $STARTSTOP jobmanager "${args[@]}"
+if [[ $STARTSTOP == "start-foreground" ]]; then
+    "${FLINK_BIN_DIR}"/flink-console.sh jobmanager "${args[@]}"
+else
+    "${FLINK_BIN_DIR}"/flink-daemon.sh $STARTSTOP jobmanager "${args[@]}"
+fi

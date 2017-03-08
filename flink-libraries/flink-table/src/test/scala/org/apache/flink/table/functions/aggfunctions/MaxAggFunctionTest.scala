@@ -61,6 +61,8 @@ abstract class MaxAggFunctionTest[T: Numeric] extends AggFunctionTestBase[T] {
     maxVal,
     null.asInstanceOf[T]
   )
+
+  override def supportRetraction: Boolean = false
 }
 
 class ByteMaxAggFunctionTest extends MaxAggFunctionTest[Byte] {
@@ -154,6 +156,8 @@ class BooleanMaxAggFunctionTest extends AggFunctionTestBase[Boolean] {
   )
 
   override def aggregator: AggregateFunction[Boolean] = new BooleanMaxAggFunction()
+
+  override def supportRetraction: Boolean = false
 }
 
 class DecimalMaxAggFunctionTest extends AggFunctionTestBase[BigDecimal] {
@@ -185,4 +189,6 @@ class DecimalMaxAggFunctionTest extends AggFunctionTestBase[BigDecimal] {
   )
 
   override def aggregator: AggregateFunction[BigDecimal] = new DecimalMaxAggFunction()
+
+  override def supportRetraction: Boolean = false
 }

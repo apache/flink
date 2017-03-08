@@ -50,7 +50,7 @@ import org.apache.flink.util.{Collector, Preconditions}
   * @param finalRowWindowEndPos   The relative window-end field position.
   * @param gap                    Session time window gap.
   */
-class DataSetSessionWindowAggregateReduceGroupFunction(
+class DataSetSessionWindowAggReduceGroupFunction(
     aggregates: Array[AggregateFunction[_ <: Any]],
     groupKeysMapping: Array[(Int, Int)],
     aggregateMapping: Array[(Int, Int)],
@@ -60,6 +60,9 @@ class DataSetSessionWindowAggregateReduceGroupFunction(
     gap: Long,
     isInputCombined: Boolean)
   extends RichGroupReduceFunction[Row, Row] {
+
+  Preconditions.checkNotNull(aggregates)
+  Preconditions.checkNotNull(groupKeysMapping)
 
   private var aggregateBuffer: Row = _
   private var output: Row = _
@@ -74,8 +77,6 @@ class DataSetSessionWindowAggregateReduceGroupFunction(
   }
 
   override def open(config: Configuration) {
-    Preconditions.checkNotNull(aggregates)
-    Preconditions.checkNotNull(groupKeysMapping)
     aggregateBuffer = new Row(intermediateRowArity)
     output = new Row(finalRowArity)
     collector = new TimeWindowPropertyCollector(finalRowWindowStartPos, finalRowWindowEndPos)
@@ -104,10 +105,13 @@ class DataSetSessionWindowAggregateReduceGroupFunction(
     var windowEnd: java.lang.Long = null
     var currentRowTime: java.lang.Long = null
 
+
     // reset first accumulator in merge list
-    for (i <- aggregates.indices) {
+    var i = 0
+    while (i < aggregates.length) {
       val accumulator = aggregates(i).createAccumulator()
       accumulatorList(i).set(0, accumulator)
+      i += 1
     }
 
     val iterator = records.iterator()
@@ -125,22 +129,27 @@ class DataSetSessionWindowAggregateReduceGroupFunction(
           doEvaluateAndCollect(out, accumulatorList, windowStart, windowEnd)
 
           // reset first accumulator in list
-          for (i <- aggregates.indices) {
+          i = 0
+          while (i < aggregates.length) {
             val accumulator = aggregates(i).createAccumulator()
             accumulatorList(i).set(0, accumulator)
+            i += 1
           }
         } else {
           // set group keys value to final output.
-          groupKeysMapping.foreach {
-            case (after, previous) =>
-              output.setField(after, record.getField(previous))
+          i = 0
+          while (i < groupKeysMapping.length) {
+            val (after, previous) = groupKeysMapping(i)
+            output.setField(after, record.getField(previous))
+            i += 1
           }
         }
 
         windowStart = record.getField(intermediateRowWindowStartPos).asInstanceOf[Long]
       }
 
-      for (i <- aggregates.indices) {
+      i = 0
+      while (i < aggregates.length) {
         // insert received accumulator into acc list
         val newAcc = record.getField(accumStartPos + i).asInstanceOf[Accumulator]
         accumulatorList(i).set(1, newAcc)
@@ -148,6 +157,7 @@ class DataSetSessionWindowAggregateReduceGroupFunction(
         val retAcc = aggregates(i).merge(accumulatorList(i))
         // insert result into acc list
         accumulatorList(i).set(0, retAcc)
+        i += 1
       }
 
       windowEnd = if (isInputCombined) {
@@ -180,10 +190,12 @@ class DataSetSessionWindowAggregateReduceGroupFunction(
       windowEnd: Long): Unit = {
 
     // merge the accumulators and then get value for the final output
-    aggregateMapping.foreach {
-      case (after, previous) =>
-        val agg = aggregates(previous)
-        output.setField(after, agg.getValue(accumulatorList(previous).get(0)))
+    var i = 0
+    while (i < aggregateMapping.length) {
+      val (after, previous) = aggregateMapping(i)
+      val agg = aggregates(previous)
+      output.setField(after, agg.getValue(accumulatorList(previous).get(0)))
+      i += 1
     }
 
     // adds TimeWindow properties to output then emit output

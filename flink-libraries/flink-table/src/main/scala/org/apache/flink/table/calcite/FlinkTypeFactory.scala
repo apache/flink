@@ -131,15 +131,18 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
   }
 
   override def createTypeWithNullability(
-    relDataType: RelDataType,
-    nullable: Boolean)
-  : RelDataType = relDataType match {
-    case composite: CompositeRelDataType =>
-      // at the moment we do not care about nullability
-      composite
-    case _ =>
-      super.createTypeWithNullability(relDataType, nullable)
-  }
+      relDataType: RelDataType,
+      nullable: Boolean)
+    : RelDataType = relDataType match {
+      case composite: CompositeRelDataType =>
+        // at the moment we do not care about nullability
+        canonize(composite)
+      case array: ArrayRelDataType =>
+        val elementType = createTypeWithNullability(array.getComponentType, nullable)
+        canonize(new ArrayRelDataType(array.typeInfo, elementType, nullable))
+      case _ =>
+        super.createTypeWithNullability(relDataType, nullable)
+    }
 }
 
 object FlinkTypeFactory {

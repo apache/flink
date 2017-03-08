@@ -25,10 +25,9 @@ import org.apache.flink.api.common.operators.ResourceSpec
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.streaming.api.collector.selector.OutputSelector
 import org.apache.flink.streaming.api.functions.ProcessFunction
-import org.apache.flink.streaming.api.functions.ProcessFunction.{Context, OnTimerContext}
 import org.apache.flink.streaming.api.functions.co.CoMapFunction
 import org.apache.flink.streaming.api.graph.{StreamEdge, StreamGraph}
-import org.apache.flink.streaming.api.operators.{AbstractUdfStreamOperator, ProcessOperator, StreamOperator}
+import org.apache.flink.streaming.api.operators.{AbstractUdfStreamOperator, KeyedProcessOperator, ProcessOperator, StreamOperator}
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows
 import org.apache.flink.streaming.api.windowing.triggers.{CountTrigger, PurgingTrigger}
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow
@@ -398,24 +397,46 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
    * Verify that a [[KeyedStream.process()]] call is correctly translated to an operator.
    */
   @Test
-  def testProcessTranslation(): Unit = {
+  def testKeyedProcessTranslation(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
 
     val src = env.generateSequence(0, 0)
 
     val processFunction = new ProcessFunction[Long, Int] {
-      override def processElement(value: Long, ctx: Context, out: Collector[Int]): Unit = ???
-      override def onTimer(
-          timestamp: Long,
-          ctx: OnTimerContext,
+      override def processElement(
+          value: Long,
+          ctx: ProcessFunction[Long, Int]#Context,
           out: Collector[Int]): Unit = ???
     }
 
     val flatMapped = src.keyBy(x => x).process(processFunction)
 
     assert(processFunction == getFunctionForDataStream(flatMapped))
-    assert(getOperatorForDataStream(flatMapped).isInstanceOf[ProcessOperator[_, _, _]])
+    assert(getOperatorForDataStream(flatMapped).isInstanceOf[KeyedProcessOperator[_, _, _]])
   }
+
+  /**
+    * Verify that a [[DataStream.process()]] call is correctly translated to an operator.
+    */
+  @Test
+  def testProcessTranslation(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+
+    val src = env.generateSequence(0, 0)
+
+    val processFunction = new ProcessFunction[Long, Int] {
+      override def processElement(
+          value: Long,
+          ctx: ProcessFunction[Long, Int]#Context,
+          out: Collector[Int]): Unit = ???
+    }
+
+    val flatMapped = src.process(processFunction)
+
+    assert(processFunction == getFunctionForDataStream(flatMapped))
+    assert(getOperatorForDataStream(flatMapped).isInstanceOf[ProcessOperator[_, _]])
+  }
+
 
   @Test def operatorTest() {
     val env = StreamExecutionEnvironment.getExecutionEnvironment

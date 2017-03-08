@@ -28,12 +28,17 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.api.common.accumulators.IntCounter;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
@@ -160,7 +165,7 @@ public class ExecutionGraphDeploymentTest {
 			JobVertex v1 = new JobVertex("v1", jid1);
 			JobVertex v2 = new JobVertex("v2", jid2);
 
-			Map<ExecutionAttemptID, Execution> executions = setupExecution(v1, 7650, v2, 2350);
+			Map<ExecutionAttemptID, Execution> executions = setupExecution(v1, 7650, v2, 2350).f1;
 
 			for (Execution e : executions.values()) {
 				e.markFinished();
@@ -184,7 +189,7 @@ public class ExecutionGraphDeploymentTest {
 			JobVertex v1 = new JobVertex("v1", jid1);
 			JobVertex v2 = new JobVertex("v2", jid2);
 
-			Map<ExecutionAttemptID, Execution> executions = setupExecution(v1, 7, v2, 6);
+			Map<ExecutionAttemptID, Execution> executions = setupExecution(v1, 7, v2, 6).f1;
 
 			for (Execution e : executions.values()) {
 				e.markFailed(null);
@@ -208,7 +213,7 @@ public class ExecutionGraphDeploymentTest {
 			JobVertex v1 = new JobVertex("v1", jid1);
 			JobVertex v2 = new JobVertex("v2", jid2);
 
-			Map<ExecutionAttemptID, Execution> executions = setupExecution(v1, 7, v2, 6);
+			Map<ExecutionAttemptID, Execution> executions = setupExecution(v1, 7, v2, 6).f1;
 
 			for (Execution e : executions.values()) {
 				e.fail(null);
@@ -222,6 +227,85 @@ public class ExecutionGraphDeploymentTest {
 		}
 	}
 
+	/**
+	 * Verifies that {@link ExecutionGraph#updateState(TaskExecutionState)} updates the accumulators and metrics for an
+	 * execution that failed or was canceled.
+	 */
+	@Test
+	public void testAccumulatorsAndMetricsForwarding() throws Exception {
+		final JobVertexID jid1 = new JobVertexID();
+		final JobVertexID jid2 = new JobVertexID();
+
+		JobVertex v1 = new JobVertex("v1", jid1);
+		JobVertex v2 = new JobVertex("v2", jid2);
+
+		Tuple2<ExecutionGraph, Map<ExecutionAttemptID, Execution>> graphAndExecutions = setupExecution(v1, 1, v2, 1);
+		ExecutionGraph graph = graphAndExecutions.f0;
+		
+		// verify behavior for canceled executions
+		Execution execution1 = graphAndExecutions.f1.values().iterator().next();
+
+		IOMetrics ioMetrics = new IOMetrics(0, 0, 0, 0, 0, 0.0, 0.0, 0.0, 0.0, 0.0);
+		Map<String, Accumulator<?, ?>> accumulators = new HashMap<>();
+		accumulators.put("acc", new IntCounter(4));
+		AccumulatorSnapshot accumulatorSnapshot = new AccumulatorSnapshot(graph.getJobID(), execution1.getAttemptId(), accumulators);
+		
+		TaskExecutionState state = new TaskExecutionState(graph.getJobID(), execution1.getAttemptId(), ExecutionState.CANCELED, null, accumulatorSnapshot, ioMetrics);
+		
+		graph.updateState(state);
+		
+		assertEquals(ioMetrics, execution1.getIOMetrics());
+		assertNotNull(execution1.getUserAccumulators());
+		assertEquals(4, execution1.getUserAccumulators().get("acc").getLocalValue());
+		
+		// verify behavior for failed executions
+		Execution execution2 = graphAndExecutions.f1.values().iterator().next();
+
+		IOMetrics ioMetrics2 = new IOMetrics(0, 0, 0, 0, 0, 0.0, 0.0, 0.0, 0.0, 0.0);
+		Map<String, Accumulator<?, ?>> accumulators2 = new HashMap<>();
+		accumulators2.put("acc", new IntCounter(8));
+		AccumulatorSnapshot accumulatorSnapshot2 = new AccumulatorSnapshot(graph.getJobID(), execution2.getAttemptId(), accumulators2);
+
+		TaskExecutionState state2 = new TaskExecutionState(graph.getJobID(), execution2.getAttemptId(), ExecutionState.FAILED, null, accumulatorSnapshot2, ioMetrics2);
+
+		graph.updateState(state2);
+
+		assertEquals(ioMetrics2, execution2.getIOMetrics());
+		assertNotNull(execution2.getUserAccumulators());
+		assertEquals(8, execution2.getUserAccumulators().get("acc").getLocalValue());
+	}
+
+	/**
+	 * Verifies that {@link Execution#cancelingComplete(Map, IOMetrics)} and {@link Execution#markFailed(Throwable, Map, IOMetrics)}
+	 * store the given accumulators and metrics correctly.
+	 */
+	@Test
+	public void testAccumulatorsAndMetricsStorage() throws Exception {
+		final JobVertexID jid1 = new JobVertexID();
+		final JobVertexID jid2 = new JobVertexID();
+
+		JobVertex v1 = new JobVertex("v1", jid1);
+		JobVertex v2 = new JobVertex("v2", jid2);
+
+		Map<ExecutionAttemptID, Execution> executions = setupExecution(v1, 1, v2, 1).f1;
+		
+		IOMetrics ioMetrics = new IOMetrics(0, 0, 0, 0, 0, 0.0, 0.0, 0.0, 0.0, 0.0);
+		Map<String, Accumulator<?, ?>> accumulators = Collections.emptyMap();
+
+		Execution execution1 = executions.values().iterator().next();
+		execution1.cancel();
+		execution1.cancelingComplete(accumulators, ioMetrics);
+		
+		assertEquals(ioMetrics, execution1.getIOMetrics());
+		assertEquals(accumulators, execution1.getUserAccumulators());
+
+		Execution execution2 = executions.values().iterator().next();
+		execution2.markFailed(new Throwable(), accumulators, ioMetrics);
+
+		assertEquals(ioMetrics, execution2.getIOMetrics());
+		assertEquals(accumulators, execution2.getUserAccumulators());
+	}
+
 	@Test
 	public void testRegistrationOfExecutionsCanceled() {
 		try {
@@ -232,7 +316,7 @@ public class ExecutionGraphDeploymentTest {
 			JobVertex v1 = new JobVertex("v1", jid1);
 			JobVertex v2 = new JobVertex("v2", jid2);
 
-			Map<ExecutionAttemptID, Execution> executions = setupExecution(v1, 19, v2, 37);
+			Map<ExecutionAttemptID, Execution> executions = setupExecution(v1, 19, v2, 37).f1;
 
 			for (Execution e : executions.values()) {
 				e.cancel();
@@ -257,7 +341,7 @@ public class ExecutionGraphDeploymentTest {
 			JobVertex v1 = new FailingFinalizeJobVertex("v1", jid1);
 			JobVertex v2 = new JobVertex("v2", jid2);
 
-			Map<ExecutionAttemptID, Execution> executions = setupExecution(v1, 6, v2, 4);
+			Map<ExecutionAttemptID, Execution> executions = setupExecution(v1, 6, v2, 4).f1;
 
 			List<Execution> execList = new ArrayList<Execution>();
 			execList.addAll(executions.values());
@@ -351,7 +435,7 @@ public class ExecutionGraphDeploymentTest {
 		assertEquals(JobStatus.FAILED, eg.getState());
 	}
 
-	private Map<ExecutionAttemptID, Execution> setupExecution(JobVertex v1, int dop1, JobVertex v2, int dop2) throws Exception {
+	private Tuple2<ExecutionGraph, Map<ExecutionAttemptID, Execution>> setupExecution(JobVertex v1, int dop1, JobVertex v2, int dop2) throws Exception {
 		final JobID jobId = new JobID();
 
 		v1.setParallelism(dop1);
@@ -394,7 +478,7 @@ public class ExecutionGraphDeploymentTest {
 		Map<ExecutionAttemptID, Execution> executions = eg.getRegisteredExecutions();
 		assertEquals(dop1 + dop2, executions.size());
 
-		return executions;
+		return new Tuple2<>(eg, executions);
 	}
 
 	@SuppressWarnings("serial")
