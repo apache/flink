@@ -31,13 +31,12 @@ ENV PATH $PATH:$FLINK_HOME/bin
 EXPOSE 8081
 EXPOSE 6123
 
-# flink-dist can point to a directory, a tarball on the local system, or a url to a tarball
+# flink-dist can point to a directory or a tarball on the local system
 ARG flink_dist=NOT_SET
 
 # Install build dependencies and flink
 ADD $flink_dist $FLINK_INSTALL_PATH
 RUN set -x && \
-  mkdir -p $FLINK_INSTALL_PATH && \
   ln -s $FLINK_INSTALL_PATH/flink-* $FLINK_HOME && \
   addgroup -S flink && adduser -D -S -H -G flink -h $FLINK_HOME flink && \
   chown -R flink:flink $FLINK_INSTALL_PATH/flink-* && \
