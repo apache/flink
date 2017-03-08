@@ -30,8 +30,14 @@ angular.module('flinkApp', ['ui.router', 'angularMoment', 'dndLists'])
 
 .value 'flinkConfig', {
   jobServer: ''
-#  jobServer: 'http://localhost:8081/'
+  # jobServer: 'http://localhost:8081/'
   "refresh-interval": 10000
+}
+
+# --------------------------------------
+
+.value 'watermarksConfig', {
+  minValue: -9223372036854776000
 }
 
 # --------------------------------------
@@ -113,6 +119,13 @@ angular.module('flinkApp', ['ui.router', 'angularMoment', 'dndLists'])
       'node-details':
         templateUrl: "partials/jobs/job.plan.node-list.metrics.html"
         controller: 'JobPlanMetricsController'
+
+  .state "single-job.plan.watermarks",
+    url: "/watermarks"
+    views:
+      'node-details':
+        templateUrl: "partials/jobs/job.plan.node-list.watermarks.html"
+        controller: 'JobPlanWatermarksController'
 
   .state "single-job.plan.taskmanagers",
     url: "/taskmanagers"
