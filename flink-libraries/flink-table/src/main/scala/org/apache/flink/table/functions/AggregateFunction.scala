@@ -29,14 +29,14 @@ import org.apache.flink.table.api.TableException
   */
 abstract class AggregateFunction[T] extends UserDefinedFunction {
   /**
-    * Create and init the Accumulator for this [[AggregateFunction]].
+    * Creates and init the Accumulator for this [[AggregateFunction]].
     *
     * @return the accumulator with the initial value
     */
   def createAccumulator(): Accumulator
 
   /**
-    * Retract the input values from the accumulator instance. The current design assumes the
+    * Retracts the input values from the accumulator instance. The current design assumes the
     * inputs are the values that have been previously accumulated.
     *
     * @param accumulator the accumulator which contains the current
@@ -80,6 +80,13 @@ abstract class AggregateFunction[T] extends UserDefinedFunction {
     * @return the resulting accumulator
     */
   def merge(accumulators: JList[Accumulator]): Accumulator
+
+  /**
+    * Resets the Accumulator for this [[AggregateFunction]].
+    *
+    * @param accumulator the accumulator which needs to be reset
+    */
+  def resetAccumulator(accumulator: Accumulator): Unit
 
   /**
     * Returns the [[TypeInformation]] of the accumulator.

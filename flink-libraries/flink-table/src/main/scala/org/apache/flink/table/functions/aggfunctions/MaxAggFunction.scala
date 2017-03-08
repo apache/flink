@@ -75,6 +75,11 @@ abstract class MaxAggFunction[T](implicit ord: Ordering[T]) extends AggregateFun
     ret
   }
 
+  override def resetAccumulator(accumulator: Accumulator): Unit = {
+    accumulator.asInstanceOf[MaxAccumulator[T]].f0 = getInitValue
+    accumulator.asInstanceOf[MaxAccumulator[T]].f1 = false
+  }
+
   override def getAccumulatorType(): TypeInformation[_] = {
     new TupleTypeInfo(
       new MaxAccumulator[T].getClass,

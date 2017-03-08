@@ -26,7 +26,7 @@ import org.apache.flink.util.Collector
 
 /**
   *
-  * Computes the final aggregate value from incrementally computed aggreagtes.
+  * Computes the final aggregate value from incrementally computed aggregates.
   *
   * @param windowStartPos the start position of window
   * @param windowEndPos   the end position of window

@@ -63,7 +63,7 @@ class DataSetPreAggFunction(
 
   def preaggregate(records: Iterable[Row], out: Collector[Row]): Unit = {
 
-    // reset accumulators
+    // create accumulators
     var i = 0
     while (i < aggregates.length) {
       accumulators(i) = aggregates(i).createAccumulator()

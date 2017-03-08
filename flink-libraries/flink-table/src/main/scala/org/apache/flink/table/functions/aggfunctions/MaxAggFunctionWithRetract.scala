@@ -132,6 +132,11 @@ abstract class MaxWithRetractAggFunction[T](implicit ord: Ordering[T])
     ret
   }
 
+  override def resetAccumulator(accumulator: Accumulator): Unit = {
+    accumulator.asInstanceOf[MaxWithRetractAccumulator[T]].f0 = getInitValue
+    accumulator.asInstanceOf[MaxWithRetractAccumulator[T]].f1.clear()
+  }
+
   override def getAccumulatorType(): TypeInformation[_] = {
     new TupleTypeInfo(
       new MaxWithRetractAccumulator[T].getClass,

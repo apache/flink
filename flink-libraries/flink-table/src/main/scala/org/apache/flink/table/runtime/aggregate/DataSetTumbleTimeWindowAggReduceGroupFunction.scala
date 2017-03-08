@@ -87,8 +87,7 @@ class DataSetTumbleTimeWindowAggReduceGroupFunction(
     // reset first accumulator in merge list
     var i = 0
     while (i < aggregates.length) {
-      val accumulator = aggregates(i).createAccumulator()
-      accumulatorList(i).set(0, accumulator)
+      aggregates(i).resetAccumulator(accumulatorList(i).get(0))
       i += 1
     }
 
