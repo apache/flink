@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.expressions
 
+import java.math.MathContext
 import java.sql.{Date, Time, Timestamp}
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -383,17 +384,14 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       "EXP(f6)",
       math.exp(4.6).toString)
 
-    testAllApis(
+    testTableApi(
       'f7.exp(),
       "exp(3)",
-      "EXP(3)",
       math.exp(3).toString)
 
-    testAllApis(
-      'f7.exp(),
-      "exp(3)",
+    testSqlApi(
       "EXP(3)",
-      math.exp(3).toString)
+      new java.math.BigDecimal(math.exp(3), MathContext.DECIMAL64).toString)
   }
 
   @Test
@@ -548,11 +546,14 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       "SQRT(25)",
       "5.0")
 
-    testAllApis(
+    testTableApi(
       2.2.sqrt(),
       "2.2.sqrt()",
-      "POWER(CAST(2.2 AS DOUBLE), CAST(0.5 AS DOUBLE))", // TODO fix FLINK-4621
       math.sqrt(2.2).toString)
+
+    testSqlApi(
+      "POWER(CAST(2.2 AS DOUBLE), CAST(0.5 AS DOUBLE))", // TODO fix FLINK-4621
+      new java.math.BigDecimal(math.sqrt(2.2), MathContext.DECIMAL64).toString)
   }
 
   @Test

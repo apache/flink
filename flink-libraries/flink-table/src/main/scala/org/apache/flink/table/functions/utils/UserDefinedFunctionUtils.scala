@@ -216,7 +216,7 @@ object UserDefinedFunctionUtils {
   def getResultType(
       function: ScalarFunction,
       signature: Array[Class[_]])
-    : TypeInformation[_] = {
+    : (TypeInformation[_], Boolean) = {
     // find method for signature
     val evalMethod = checkAndExtractEvalMethods(function)
       .find(m => signature.sameElements(m.getParameterTypes))
@@ -224,10 +224,10 @@ object UserDefinedFunctionUtils {
 
     val userDefinedTypeInfo = function.getResultType(signature)
     if (userDefinedTypeInfo != null) {
-      userDefinedTypeInfo
+      (userDefinedTypeInfo, false)
     } else {
       try {
-        TypeExtractor.getForClass(evalMethod.getReturnType)
+        (TypeExtractor.getForClass(evalMethod.getReturnType), evalMethod.getReturnType.isPrimitive)
       } catch {
         case ite: InvalidTypesException =>
           throw new ValidationException(
