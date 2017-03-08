@@ -146,10 +146,6 @@ The Flink Kafka Consumer needs to know how to turn the binary data in Kafka into
 `DeserializationSchema` allows users to specify such a schema. The `T deserialize(byte[] message)`
 method gets called for each Kafka message, passing the value from Kafka.
 
-There are two possible design choices when the `DeserializationSchema` encounters a corrupted message. It can
-either throw an `IOException` which causes the pipeline to be restarted, or it can return `null` where the Flink
-Kafka consumer will silently skip the corrupted message.
-
 It is usually helpful to start from the `AbstractDeserializationSchema`, which takes care of describing the
 produced Java/Scala type to Flink's type system. Users that implement a vanilla `DeserializationSchema` need
 to implement the `getProducedType(...)` method themselves.
@@ -167,6 +163,16 @@ For convenience, Flink provides the following schemas:
     into an ObjectNode object, from which fields can be accessed using objectNode.get("field").as(Int/String/...)().
     The KeyValue objectNode contains a "key" and "value" field which contain all fields, as well as
     an optional "metadata" field that exposes the offset/partition/topic for this message.
+    
+When encountering a corrupted message that cannot be deserialized for any reason, there
+are two options - either throwing an exception from the `deserialize(...)` method
+which will cause the job to fail and be restarted, or returning `null` to allow
+the Flink Kafka consumer to silently skip the corrupted message. Note that
+due to the consumer's fault tolerance (see below sections for more details),
+failing the job on the corrupted message will let the consumer attempt
+to deserialize the message again. Therefore, if deserialization still fails, the
+consumer will fall into a non-stop restart and fail loop on that corrupted
+message.
 
 ### Kafka Consumers Start Position Configuration
 

@@ -36,10 +36,136 @@ import java.util.Map;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
 
 @SuppressWarnings("serial")
-public class AbstractFetcherTimestampsTest {
-	
+public class AbstractFetcherTest {
+
+	// ------------------------------------------------------------------------
+	//   Record emitting tests
+	// ------------------------------------------------------------------------
+
+	@Test
+	public void testSkipCorruptedRecord() throws Exception {
+		final String testTopic = "test topic name";
+		Map<KafkaTopicPartition, Long> originalPartitions = new HashMap<>();
+		originalPartitions.put(new KafkaTopicPartition(testTopic, 1), KafkaTopicPartitionStateSentinel.LATEST_OFFSET);
+
+		TestSourceContext<Long> sourceContext = new TestSourceContext<>();
+
+		TestFetcher<Long> fetcher = new TestFetcher<>(
+			sourceContext,
+			originalPartitions,
+			null, /* periodic watermark assigner */
+			null, /* punctuated watermark assigner */
+			mock(TestProcessingTimeService.class),
+			0);
+
+		final KafkaTopicPartitionState<Object> partitionStateHolder = fetcher.subscribedPartitionStates()[0];
+
+		fetcher.emitRecord(1L, partitionStateHolder, 1L);
+		fetcher.emitRecord(2L, partitionStateHolder, 2L);
+		assertEquals(2L, sourceContext.getLatestElement().getValue().longValue());
+		assertEquals(2L, partitionStateHolder.getOffset());
+
+		// emit null record
+		fetcher.emitRecord(null, partitionStateHolder, 3L);
+		assertEquals(2L, sourceContext.getLatestElement().getValue().longValue()); // the null record should be skipped
+		assertEquals(3L, partitionStateHolder.getOffset()); // the offset in state still should have advanced
+	}
+
+	@Test
+	public void testSkipCorruptedRecordWithPunctuatedWatermarks() throws Exception {
+		final String testTopic = "test topic name";
+		Map<KafkaTopicPartition, Long> originalPartitions = new HashMap<>();
+		originalPartitions.put(new KafkaTopicPartition(testTopic, 1), KafkaTopicPartitionStateSentinel.LATEST_OFFSET);
+
+		TestSourceContext<Long> sourceContext = new TestSourceContext<>();
+
+		TestProcessingTimeService processingTimeProvider = new TestProcessingTimeService();
+
+		TestFetcher<Long> fetcher = new TestFetcher<>(
+			sourceContext,
+			originalPartitions,
+			null, /* periodic watermark assigner */
+			new SerializedValue<AssignerWithPunctuatedWatermarks<Long>>(new PunctuatedTestExtractor()), /* punctuated watermark assigner */
+			processingTimeProvider,
+			0);
+
+		final KafkaTopicPartitionState<Object> partitionStateHolder = fetcher.subscribedPartitionStates()[0];
+
+		// elements generate a watermark if the timestamp is a multiple of three
+		fetcher.emitRecord(1L, partitionStateHolder, 1L);
+		fetcher.emitRecord(2L, partitionStateHolder, 2L);
+		fetcher.emitRecord(3L, partitionStateHolder, 3L);
+		assertEquals(3L, sourceContext.getLatestElement().getValue().longValue());
+		assertEquals(3L, sourceContext.getLatestElement().getTimestamp());
+		assertTrue(sourceContext.hasWatermark());
+		assertEquals(3L, sourceContext.getLatestWatermark().getTimestamp());
+		assertEquals(3L, partitionStateHolder.getOffset());
+
+		// emit null record
+		fetcher.emitRecord(null, partitionStateHolder, 4L);
+
+		// no elements or watermarks should have been collected
+		assertEquals(3L, sourceContext.getLatestElement().getValue().longValue());
+		assertEquals(3L, sourceContext.getLatestElement().getTimestamp());
+		assertFalse(sourceContext.hasWatermark());
+		// the offset in state still should have advanced
+		assertEquals(4L, partitionStateHolder.getOffset());
+	}
+
+	@Test
+	public void testSkipCorruptedRecordWithPeriodicWatermarks() throws Exception {
+		final String testTopic = "test topic name";
+		Map<KafkaTopicPartition, Long> originalPartitions = new HashMap<>();
+		originalPartitions.put(new KafkaTopicPartition(testTopic, 1), KafkaTopicPartitionStateSentinel.LATEST_OFFSET);
+
+		TestSourceContext<Long> sourceContext = new TestSourceContext<>();
+
+		TestProcessingTimeService processingTimeProvider = new TestProcessingTimeService();
+
+		TestFetcher<Long> fetcher = new TestFetcher<>(
+			sourceContext,
+			originalPartitions,
+			new SerializedValue<AssignerWithPeriodicWatermarks<Long>>(new PeriodicTestExtractor()), /* periodic watermark assigner */
+			null, /* punctuated watermark assigner */
+			processingTimeProvider,
+			10);
+
+		final KafkaTopicPartitionState<Object> partitionStateHolder = fetcher.subscribedPartitionStates()[0];
+
+		// elements generate a watermark if the timestamp is a multiple of three
+		fetcher.emitRecord(1L, partitionStateHolder, 1L);
+		fetcher.emitRecord(2L, partitionStateHolder, 2L);
+		fetcher.emitRecord(3L, partitionStateHolder, 3L);
+		assertEquals(3L, sourceContext.getLatestElement().getValue().longValue());
+		assertEquals(3L, sourceContext.getLatestElement().getTimestamp());
+		assertEquals(3L, partitionStateHolder.getOffset());
+
+		// advance timer for watermark emitting
+		processingTimeProvider.setCurrentTime(10L);
+		assertTrue(sourceContext.hasWatermark());
+		assertEquals(3L, sourceContext.getLatestWatermark().getTimestamp());
+
+		// emit null record
+		fetcher.emitRecord(null, partitionStateHolder, 4L);
+
+		// no elements should have been collected
+		assertEquals(3L, sourceContext.getLatestElement().getValue().longValue());
+		assertEquals(3L, sourceContext.getLatestElement().getTimestamp());
+		// the offset in state still should have advanced
+		assertEquals(4L, partitionStateHolder.getOffset());
+
+		// no watermarks should be collected
+		processingTimeProvider.setCurrentTime(20L);
+		assertFalse(sourceContext.hasWatermark());
+	}
+
+	// ------------------------------------------------------------------------
+	//   Timestamps & watermarks tests
+	// ------------------------------------------------------------------------
+
 	@Test
 	public void testPunctuatedWatermarks() throws Exception {
 		final String testTopic = "test topic name";
@@ -249,7 +375,7 @@ public class AbstractFetcherTimestampsTest {
 
 		@Override
 		public void collect(T element) {
-			throw new UnsupportedOperationException();
+			this.latestElement = new StreamRecord<>(element);
 		}
 
 		@Override

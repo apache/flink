@@ -18,8 +18,6 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.core.testutils.MultiShotLatch;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
@@ -31,7 +29,6 @@ import org.apache.flink.streaming.connectors.kafka.internal.KafkaConsumerThread;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionStateSentinel;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
-import org.apache.flink.streaming.util.CollectingSourceContext;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchemaWrapper;
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
@@ -52,8 +49,6 @@ import org.mockito.stubbing.Answer;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
-import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -422,85 +417,6 @@ public class Kafka09FetcherTest {
 		fetcherRunner.join();
 
 		assertFalse("fetcher threads did not properly finish", sourceContext.isStillBlocking());
-	}
-
-	@Test
-	public void testSkipCorruptedMessage() throws Exception {
-
-		// ----- some test data -----
-
-		final String topic = "test-topic";
-		final int partition = 3;
-		final byte[] payload = new byte[] {1, 2, 3, 4};
-
-		final List<ConsumerRecord<byte[], byte[]>> records = Arrays.asList(
-			new ConsumerRecord<>(topic, partition, 15, payload, payload),
-			new ConsumerRecord<>(topic, partition, 16, payload, payload),
-			new ConsumerRecord<>(topic, partition, 17, payload, "end".getBytes()));
-
-		final Map<TopicPartition, List<ConsumerRecord<byte[], byte[]>>> data = new HashMap<>();
-		data.put(new TopicPartition(topic, partition), records);
-
-		final ConsumerRecords<byte[], byte[]> consumerRecords = new ConsumerRecords<>(data);
-
-		// ----- the test consumer -----
-
-		final KafkaConsumer<?, ?> mockConsumer = mock(KafkaConsumer.class);
-		when(mockConsumer.poll(anyLong())).thenAnswer(new Answer<ConsumerRecords<?, ?>>() {
-			@Override
-			public ConsumerRecords<?, ?> answer(InvocationOnMock invocation) {
-				return consumerRecords;
-			}
-		});
-
-		whenNew(KafkaConsumer.class).withAnyArguments().thenReturn(mockConsumer);
-
-		// ----- build a fetcher -----
-
-		ArrayList<String> results = new ArrayList<>();
-		SourceContext<String> sourceContext = new CollectingSourceContext<>(results, results);
-		Map<KafkaTopicPartition, Long> partitionsWithInitialOffsets =
-			Collections.singletonMap(new KafkaTopicPartition(topic, partition), KafkaTopicPartitionStateSentinel.GROUP_OFFSET);
-		KeyedDeserializationSchema<String> schema = new KeyedDeserializationSchema<String>() {
-
-			@Override
-			public String deserialize(byte[] messageKey, byte[] message,
-									  String topic, int partition, long offset) throws IOException {
-				return offset == 15 ? null : new String(message);
-			}
-
-			@Override
-			public boolean isEndOfStream(String nextElement) {
-				return "end".equals(nextElement);
-			}
-
-			@Override
-			public TypeInformation<String> getProducedType() {
-				return BasicTypeInfo.STRING_TYPE_INFO;
-			}
-		};
-
-		final Kafka09Fetcher<String> fetcher = new Kafka09Fetcher<>(
-			sourceContext,
-			partitionsWithInitialOffsets,
-			null, /* periodic watermark extractor */
-			null, /* punctuated watermark extractor */
-			new TestProcessingTimeService(),
-			10, /* watermark interval */
-			this.getClass().getClassLoader(),
-			true, /* checkpointing */
-			"task_name",
-			new UnregisteredMetricsGroup(),
-			schema,
-			new Properties(),
-			0L,
-			false);
-
-
-		// ----- run the fetcher -----
-
-		fetcher.runFetchLoop();
-		assertEquals(1, results.size());
 	}
 
 	// ------------------------------------------------------------------------
