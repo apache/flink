@@ -8,19 +8,6 @@ https://docs.docker.com/installation/
 Install the most recent stable version of docker-compose
 https://docs.docker.com/compose/install/
 
-## Bluemix PaaS
-
-If you want to build the image on Bluemix redirect the docker cli to the remote endpoints. There is plenty of documentation how
-to obtain a Bluemix account, so I'm not specifying details. Once you have it and log in using the cloud foundry CLI 'cf' you also
-need the container specific plugin 'ic'. With that you can get the URL to the remote docker host as well as the path to
-the certificates. If you search for "Logging in to the IBM Containers CLI plug-in" you get the details. <br>Here an example:<br>
-export DOCKER_HOST=tcp://containers-api.eu-gb.bluemix.net:8443<br>
-export DOCKER_CERT_PATH=/home/markus/.ice/certs/containers-api.eu-gb.bluemix.net/3c63cb44-86d8-4e89-9a40-f8f3f894a09f<br>
-export DOCKER_TLS_VERIFY=1<br>
-
-Now when proceeding to the next paragraph 'build' the docker commands build and run the image (provided you use ./docker-compose.sh instead of the native docker-compose command.
-Do not forget to allocate and bind a public IP address with the 'cf ic ip' set of commands afterwards.
-
 # Build
 
 Images are based on the official Java Alpine (OpenJDK 8) image. If you want to
