@@ -166,6 +166,13 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 				throw new RuntimeException("Unable to locate configuration file in " + confFile);
 			}
 			flinkConfigurationPath = new Path(confFile.getAbsolutePath());
+
+			if (flinkConfiguration.containsKey(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY.key())) {
+				jobManagerMemoryMb = flinkConfiguration.getInteger(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY);
+			}
+			if (flinkConfiguration.containsKey(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY.key())) {
+				taskManagerMemoryMb = flinkConfiguration.getInteger(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY);
+			}
 		} catch (Exception e) {
 			LOG.debug("Config couldn't be loaded from environment variable.");
 		}
