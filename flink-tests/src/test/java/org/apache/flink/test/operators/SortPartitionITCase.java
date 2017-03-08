@@ -38,6 +38,8 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.Serializable;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
@@ -47,8 +49,16 @@ import java.util.List;
 @RunWith(Parameterized.class)
 public class SortPartitionITCase extends MultipleProgramsTestBase {
 
-	public SortPartitionITCase(TestExecutionMode mode){
+	public enum CodeGenerationMode {
+		ENABLED,
+		DISABLED
+	}
+
+	public SortPartitionITCase(TestExecutionMode mode, CodeGenerationMode codeGenerationMode){
 		super(mode);
+		if( codeGenerationMode == CodeGenerationMode.ENABLED && mode == TestExecutionMode.CLUSTER) {
+			executionEnvironment.getConfig().setCodeGenerationForSorterEnabled(true);
+		}
 	}
 
 	@Test
@@ -343,5 +353,13 @@ public class SortPartitionITCase extends MultipleProgramsTestBase {
 		public T map(T value) throws Exception {
 			return value;
 		}
+	}
+
+	@Parameterized.Parameters(name = "Code generation mode = {0} with codegeneration {1}")
+	public static Collection<Object[]> executionModes() {
+		return Arrays.asList(
+			new Object[] { TestExecutionMode.CLUSTER, CodeGenerationMode.DISABLED },
+			new Object[] { TestExecutionMode.CLUSTER, CodeGenerationMode.ENABLED },
+			new Object[] { TestExecutionMode.COLLECTION, CodeGenerationMode.DISABLED });
 	}
 }

@@ -37,6 +37,10 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import org.junit.runners.Parameterized;
+
+import java.util.Arrays;
+import java.util.Collection;
 
 /**
  * A {@link ExecutionEnvironment} implementation which executes its jobs on a
@@ -98,6 +102,13 @@ public class TestEnvironment extends ExecutionEnvironment {
 		}
 	}
 
+	public TestEnvironment(LocalFlinkMiniCluster executor, int parallelism, boolean isObjectReuseEnabled, boolean isCodeGenerationEnabled ){
+		this(executor, parallelism, isObjectReuseEnabled );
+		if( isCodeGenerationEnabled){
+			getConfig().setCodeGenerationForSorterEnabled(isCodeGenerationEnabled);
+		}
+	}
+
 	@Override
 	public void startNewSession() throws Exception {
 	}
@@ -138,7 +149,7 @@ public class TestEnvironment extends ExecutionEnvironment {
 		ExecutionEnvironmentFactory factory = new ExecutionEnvironmentFactory() {
 			@Override
 			public ExecutionEnvironment createExecutionEnvironment() {
-				lastEnv = new TestEnvironment(miniCluster, getParallelism(), getConfig().isObjectReuseEnabled());
+				lastEnv = new TestEnvironment(miniCluster, getParallelism(), getConfig().isObjectReuseEnabled(), getConfig().isCodeGenerationForSorterEnabled() );
 				return lastEnv;
 			}
 		};

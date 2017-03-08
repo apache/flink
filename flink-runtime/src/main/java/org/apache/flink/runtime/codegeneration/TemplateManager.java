@@ -109,23 +109,25 @@ public class TemplateManager {
 
 		String generatedFilename = model.getSorterName();
 
-		if( generatedSorter.getOrDefault(generatedFilename, false) ){
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("Served from cache : "+generatedFilename);
+		synchronized (this){
+			if( generatedSorter.getOrDefault(generatedFilename, false) ){
+				if (LOG.isDebugEnabled()) {
+					LOG.debug("Served from cache : "+generatedFilename);
+				}
+				return generatedFilename;
 			}
-			return generatedFilename;
+
+			FileOutputStream fs = new FileOutputStream(this.getPathToGeneratedCode(generatedFilename));
+
+			Writer output = new OutputStreamWriter(fs);
+			Map templateVariables = model.getTemplateVariables();
+			template.process(templateVariables, output);
+
+			fs.close();
+			output.close();
+
+			generatedSorter.put(generatedFilename, true);
 		}
-
-		FileOutputStream fs = new FileOutputStream(this.getPathToGeneratedCode(generatedFilename));
-
-		Writer output = new OutputStreamWriter(fs);
-		Map templateVariables = model.getTemplateVariables();
-		template.process(templateVariables, output);
-
-		fs.close();
-		output.close();
-
-		generatedSorter.put(generatedFilename, true);
 
 		return generatedFilename;
 	}

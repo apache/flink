@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.util;
 
+import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 
 import org.junit.After;
@@ -54,7 +55,7 @@ import java.util.Collection;
  *       // test code
  *       env.execute();
  *   }
- *
+
  * }</pre>
  */
 public class MultipleProgramsTestBase extends TestBaseUtils {
@@ -80,8 +81,8 @@ public class MultipleProgramsTestBase extends TestBaseUtils {
 	protected static LocalFlinkMiniCluster cluster = null;
 
 	// ------------------------------------------------------------------------
-
 	protected final TestExecutionMode mode;
+	protected final ExecutionEnvironment executionEnvironment;
 
 	public MultipleProgramsTestBase(TestExecutionMode mode) {
 		this.mode = mode;
@@ -93,6 +94,9 @@ public class MultipleProgramsTestBase extends TestBaseUtils {
 
 	@Before
 	public void setupEnvironment() {
+
+		ExecutionEnvironment env = null;
+
 		switch(mode){
 			case CLUSTER:
 				new TestEnvironment(cluster, 4, false).setAsContext();
@@ -104,6 +108,8 @@ public class MultipleProgramsTestBase extends TestBaseUtils {
 				new CollectionTestEnvironment().setAsContext();
 				break;
 		}
+
+		executionEnvironment = env;
 	}
 
 	@After
