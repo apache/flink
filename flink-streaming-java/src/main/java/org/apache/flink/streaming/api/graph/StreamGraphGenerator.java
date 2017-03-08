@@ -163,7 +163,7 @@ public class StreamGraphGenerator {
 
 		Collection<Integer> transformedIds;
 		if (transform instanceof OneInputTransformation<?, ?>) {
-			transformedIds = transformOnInputTransform((OneInputTransformation<?, ?>) transform);
+			transformedIds = transformOneInputTransform((OneInputTransformation<?, ?>) transform);
 		} else if (transform instanceof TwoInputTransformation<?, ?, ?>) {
 			transformedIds = transformTwoInputTransform((TwoInputTransformation<?, ?, ?>) transform);
 		} else if (transform instanceof SourceTransformation<?>) {
@@ -496,10 +496,10 @@ public class StreamGraphGenerator {
 	 * Transforms a {@code OneInputTransformation}.
 	 *
 	 * <p>
-	 * This recusively transforms the inputs, creates a new {@code StreamNode} in the graph and
+	 * This recursively transforms the inputs, creates a new {@code StreamNode} in the graph and
 	 * wired the inputs to this new node.
 	 */
-	private <IN, OUT> Collection<Integer> transformOnInputTransform(OneInputTransformation<IN, OUT> transform) {
+	private <IN, OUT> Collection<Integer> transformOneInputTransform(OneInputTransformation<IN, OUT> transform) {
 
 		Collection<Integer> inputIds = transform(transform.getInput());
 

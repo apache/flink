@@ -282,9 +282,9 @@ public class DataStream<T> {
 	}
 
 	/**
-	 * Partitions the operator state of a {@link DataStream}using field expressions. 
+	 * Partitions the operator state of a {@link DataStream} using field expressions.
 	 * A field expression is either the name of a public field or a getter method with parentheses
-	 * of the {@link DataStream}S underlying type. A dot can be used to drill
+	 * of the {@link DataStream}'s underlying type. A dot can be used to drill
 	 * down into objects, as in {@code "field1.getInnerField2()" }.
 	 *
 	 * @param fields
