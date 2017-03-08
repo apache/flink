@@ -262,10 +262,10 @@ public class LaunchableMesosWorker implements LaunchableTask {
 				throw new IllegalStateException("unsupported container type");
 		}
 		if(containerInfo != null) {
+			containerInfo.addAllVolumes(params.containerVolumes());
 			taskInfo.setContainer(containerInfo);
 		}
 
-		containerInfo.addAllVolumes(params.containerVolumes());
 
 		return taskInfo.build();
 	}
