@@ -957,4 +957,10 @@ public abstract class AbstractStreamOperator<OUT>
 		return timeServiceManager == null ? 0 :
 			timeServiceManager.numEventTimeTimers();
 	}
+
+	@VisibleForTesting
+	public int numKeysForWatermarkCallback() {
+		return timeServiceManager == null ? 0 :
+			timeServiceManager.numKeysForWatermarkCallback();
+	}
 }
