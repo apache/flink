@@ -18,7 +18,6 @@
 
 package org.apache.flink.test.util;
 
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 
 import org.junit.After;

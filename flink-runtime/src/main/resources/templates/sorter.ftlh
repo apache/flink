@@ -584,7 +584,7 @@ ${swapProcedures}
 
 	@Override
 	public String toString(){
-	    return "${name} : this is a generated sorter";
+	    return "${name}";
 	}
 }
 

@@ -301,7 +301,7 @@ public class SorterTemplateModel {
 					primitiveType, var2, primitiveClass, offset));
 
 				procedures.append(String.format("if( %s != %s ) {\n", var1, var2));
-				procedures.append(String.format("return %s(%s < %s) ^ ( %s < 0 ) ^ ( %s < 0 ) ? -1 : 1;\n",
+				procedures.append(String.format("return %s((%s < %s) ^ ( %s < 0 ) ^ ( %s < 0 ) ? -1 : 1);\n",
 					sortOrder, var1, var2, var1, var2 ));
 				procedures.append("}\n\n");
 
@@ -331,6 +331,12 @@ public class SorterTemplateModel {
 
 		for( Integer opt : chunks ) {
 			name.append(byteOperatorMapping.get(opt));
+		}
+
+		if(typeComparator.invertNormalizedKey()){
+			name.append("Desc");
+		} else {
+			name.append("Asc");
 		}
 
 		if(normalizedKeyFullyDetermines){
