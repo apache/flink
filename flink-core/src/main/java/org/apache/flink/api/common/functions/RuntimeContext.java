@@ -77,19 +77,19 @@ public interface RuntimeContext {
 	int getNumberOfParallelSubtasks();
 
 	/**
+	 * Gets the number of max-parallelism with which the parallel task runs.
+	 *
+	 * @return The max-parallelism with which the parallel task runs.
+	 */
+	int getMaxNumberOfParallelSubtasks();
+
+	/**
 	 * Gets the number of this parallel subtask. The numbering starts from 0 and goes up to
 	 * parallelism-1 (parallelism as returned by {@link #getNumberOfParallelSubtasks()}).
 	 * 
 	 * @return The index of the parallel subtask.
 	 */
 	int getIndexOfThisSubtask();
-
-	/**
-	 * Gets the number of max-parallelism with which the parallel task runs.
-	 *
-	 * @return The max-parallelism with which the parallel task runs.
-	 */
-	int getMaxParallelismOfSubtasks();
 
 	/**
 	 * Gets the attempt number of this parallel subtask. First attempt is numbered 0.
