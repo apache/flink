@@ -65,6 +65,7 @@ $ cd flink-{{site.version}}
 
 <div data-lang="MacOS X" markdown="1">
 For MacOS X users, Flink can be installed through [Homebrew](https://brew.sh/).
+
 ~~~bash
 $ brew install apache-flink
 ...
