@@ -22,7 +22,9 @@ import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.state.FoldingState;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.runtime.state.StateTransformationFunction;
 import org.apache.flink.runtime.state.internal.InternalFoldingState;
+import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 
@@ -40,7 +42,7 @@ public class HeapFoldingState<K, N, T, ACC>
 		implements InternalFoldingState<N, T, ACC> {
 
 	/** The function used to fold the state */
-	private final FoldFunction<T, ACC> foldFunction;
+	private final FoldTransformation<T, ACC> foldTransformation;
 
 	/**
 	 * Creates a new key/value state for the given hash map of key/value pairs.
@@ -55,7 +57,7 @@ public class HeapFoldingState<K, N, T, ACC>
 			TypeSerializer<K> keySerializer,
 			TypeSerializer<N> namespaceSerializer) {
 		super(stateDesc, stateTable, keySerializer, namespaceSerializer);
-		this.foldFunction = stateDesc.getFoldFunction();
+		this.foldTransformation = new FoldTransformation<>(stateDesc);
 	}
 
 	// ------------------------------------------------------------------------
@@ -69,25 +71,32 @@ public class HeapFoldingState<K, N, T, ACC>
 
 	@Override
 	public void add(T value) throws IOException {
-		final N namespace = currentNamespace;
 
 		if (value == null) {
 			clear();
 			return;
 		}
 
-		final StateTable<K, N, ACC> map = stateTable;
-		final ACC currentValue = map.get(namespace);
-
 		try {
-
-			if (currentValue == null) {
-				map.put(namespace, foldFunction.fold(stateDesc.getDefaultValue(), value));
-			} else {
-				map.put(namespace, foldFunction.fold(currentValue, value));
-			}
+			stateTable.transform(currentNamespace, value, foldTransformation);
 		} catch (Exception e) {
-			throw new RuntimeException("Could not add value to folding state.", e);
+			throw new IOException("Could not add value to folding state.", e);
+		}
+	}
+
+	static final class FoldTransformation<T, ACC> implements StateTransformationFunction<ACC, T> {
+
+		private final FoldingStateDescriptor<T, ACC> stateDescriptor;
+		private final FoldFunction<T, ACC> foldFunction;
+
+		FoldTransformation(FoldingStateDescriptor<T, ACC> stateDesc) {
+			this.stateDescriptor = Preconditions.checkNotNull(stateDesc);
+			this.foldFunction = Preconditions.checkNotNull(stateDesc.getFoldFunction());
+		}
+
+		@Override
+		public ACC apply(ACC previousState, T value) throws Exception {
+			return foldFunction.fold((previousState != null) ? previousState : stateDescriptor.getDefaultValue(), value);
 		}
 	}
 }

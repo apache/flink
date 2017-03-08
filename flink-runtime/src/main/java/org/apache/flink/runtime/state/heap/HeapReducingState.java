@@ -22,7 +22,9 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.runtime.state.StateTransformationFunction;
 import org.apache.flink.runtime.state.internal.InternalReducingState;
+import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 
@@ -38,7 +40,7 @@ public class HeapReducingState<K, N, V>
 		extends AbstractHeapMergingState<K, N, V, V, V, ReducingState<V>, ReducingStateDescriptor<V>>
 		implements InternalReducingState<N, V> {
 
-	private final ReduceFunction<V> reduceFunction;
+	private final ReduceTransformation<V> reduceTransformation;
 
 	/**
 	 * Creates a new key/value state for the given hash map of key/value pairs.
@@ -54,7 +56,7 @@ public class HeapReducingState<K, N, V>
 			TypeSerializer<N> namespaceSerializer) {
 
 		super(stateDesc, stateTable, keySerializer, namespaceSerializer);
-		this.reduceFunction = stateDesc.getReduceFunction();
+		this.reduceTransformation = new ReduceTransformation<>(stateDesc.getReduceFunction());
 	}
 
 	// ------------------------------------------------------------------------
@@ -68,24 +70,16 @@ public class HeapReducingState<K, N, V>
 
 	@Override
 	public void add(V value) throws IOException {
-		final N namespace = currentNamespace;
 
 		if (value == null) {
 			clear();
 			return;
 		}
 
-		final StateTable<K, N, V> map = stateTable;
-		final V currentValue = map.putAndGetOld(namespace, value);
-
-		if (currentValue != null) {
-			V reducedValue;
-			try {
-				reducedValue = reduceFunction.reduce(currentValue, value);
-			} catch (Exception e) {
-				throw new IOException("Exception while applying ReduceFunction in reducing state", e);
-			}
-			map.put(namespace, reducedValue);
+		try {
+			stateTable.transform(currentNamespace, value, reduceTransformation);
+		} catch (Exception e) {
+			throw new IOException("Exception while applying ReduceFunction in reducing state", e);
 		}
 	}
 
@@ -95,6 +89,20 @@ public class HeapReducingState<K, N, V>
 
 	@Override
 	protected V mergeState(V a, V b) throws Exception {
-		return reduceFunction.reduce(a, b);
+		return reduceTransformation.apply(a, b);
+	}
+
+	static final class ReduceTransformation<V> implements StateTransformationFunction<V, V> {
+
+		private final ReduceFunction<V> reduceFunction;
+
+		ReduceTransformation(ReduceFunction<V> reduceFunction) {
+			this.reduceFunction = Preconditions.checkNotNull(reduceFunction);
+		}
+
+		@Override
+		public V apply(V previousState, V value) throws Exception {
+			return previousState != null ? reduceFunction.reduce(previousState, value) : value;
+		}
 	}
 }

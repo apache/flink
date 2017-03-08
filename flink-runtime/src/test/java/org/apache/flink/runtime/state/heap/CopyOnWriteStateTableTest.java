@@ -26,12 +26,12 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.runtime.state.ArrayListSerializer;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.RegisteredBackendStateMetaInfo;
+import org.apache.flink.runtime.state.StateTransformationFunction;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
@@ -43,7 +43,7 @@ public class CopyOnWriteStateTableTest {
 	 * Testing the basic map operations.
 	 */
 	@Test
-	public void testPutGetRemoveContains() {
+	public void testPutGetRemoveContainsTransform() throws Exception {
 		RegisteredBackendStateMetaInfo<Integer, ArrayList<Integer>> metaInfo =
 				new RegisteredBackendStateMetaInfo<>(
 						StateDescriptor.Type.UNKNOWN,
@@ -95,6 +95,20 @@ public class CopyOnWriteStateTableTest {
 
 		Assert.assertNull(stateTable.removeAndGetOld(4, 2));
 		Assert.assertEquals(1, stateTable.size());
+
+		StateTransformationFunction<ArrayList<Integer>, Integer> function =
+				new StateTransformationFunction<ArrayList<Integer>, Integer>() {
+					@Override
+					public ArrayList<Integer> apply(ArrayList<Integer> previousState, Integer value) throws Exception {
+						previousState.add(value);
+						return previousState;
+					}
+				};
+
+		final int value = 4711;
+		stateTable.transform(1, 1, value, function);
+		state_1_1 = function.apply(state_1_1, value);
+		Assert.assertEquals(state_1_1, stateTable.get(1, 1));
 	}
 
 	/**
@@ -145,9 +159,9 @@ public class CopyOnWriteStateTableTest {
 	 * performs more modifications and checks snapshot integrity.
 	 */
 	@Test
-	public void testRandomModificationsAndCopyOnWriteIsolation() {
+	public void testRandomModificationsAndCopyOnWriteIsolation() throws Exception {
 
-		RegisteredBackendStateMetaInfo<Integer, ArrayList<Integer>> metaInfo =
+		final RegisteredBackendStateMetaInfo<Integer, ArrayList<Integer>> metaInfo =
 				new RegisteredBackendStateMetaInfo<>(
 						StateDescriptor.Type.UNKNOWN,
 						"test",
@@ -159,37 +173,54 @@ public class CopyOnWriteStateTableTest {
 		final CopyOnWriteStateTable<Integer, Integer, ArrayList<Integer>> stateTable =
 				new CopyOnWriteStateTable<>(keyContext, metaInfo);
 
-		HashMap<Tuple2<Integer, Integer>, ArrayList<Integer>> referenceMap = new HashMap<>();
+		final HashMap<Tuple2<Integer, Integer>, ArrayList<Integer>> referenceMap = new HashMap<>();
 
-		Random rand = new Random(42);
+		final Random random = new Random(42);
 
+		// holds snapshots from the map under test
 		CopyOnWriteStateTable.StateTableEntry<Integer, Integer, ArrayList<Integer>>[] snapshot = null;
 		int snapshotSize = 0;
+
+		// holds a reference snapshot from our reference map that we compare against
 		Tuple3<Integer, Integer, ArrayList<Integer>>[] reference = null;
 
 		int val = 0;
-		int snapshotId = 0;
+
+
+		int snapshotCounter = 0;
+		int referencedSnapshotId = 0;
+
+		final StateTransformationFunction<ArrayList<Integer>, Integer> transformationFunction =
+				new StateTransformationFunction<ArrayList<Integer>, Integer>() {
+					@Override
+					public ArrayList<Integer> apply(ArrayList<Integer> previousState, Integer value) throws Exception {
+						if (previousState == null) {
+							previousState = new ArrayList<>();
+						}
+						previousState.add(value);
+						// we give back the original, attempting to spot errors in to copy-on-write
+						return previousState;
+					}
+				};
 
 		// the main loop for modifications
-		for (int i = 0; i < 500_000; ++i) {
+		for (int i = 0; i < 10_000_000; ++i) {
 
-			int key = rand.nextInt(1000);
-			int namespace = rand.nextInt(10);
+			int key = random.nextInt(20);
+			int namespace = random.nextInt(4);
 			Tuple2<Integer, Integer> compositeKey = new Tuple2<>(key, namespace);
 
-			int op = rand.nextInt(6);
+			int op = random.nextInt(7);
 
 			ArrayList<Integer> state = null;
 			ArrayList<Integer> referenceState = null;
+
 			switch (op) {
 				case 0:
 				case 1: {
 					state = stateTable.get(key, namespace);
 					referenceState = referenceMap.get(compositeKey);
 					if (null == state) {
-						if (null != referenceState) {
-							throw new IllegalStateException();
-						}
 						state = new ArrayList<>();
 						stateTable.put(key, namespace, state);
 						referenceState = new ArrayList<>();
@@ -217,16 +248,23 @@ public class CopyOnWriteStateTableTest {
 					referenceState = referenceMap.remove(compositeKey);
 					break;
 				}
+				case 6: {
+					final int updateValue = random.nextInt(1000);
+					stateTable.transform(key, namespace, updateValue, transformationFunction);
+					referenceMap.put(compositeKey, transformationFunction.apply(
+							referenceMap.remove(compositeKey), updateValue));
+					break;
+				}
 				default: {
-					throw new IllegalStateException();
+					Assert.fail("Unknown op-code " + op);
 				}
 			}
 
 			Assert.assertEquals(referenceMap.size(), stateTable.size());
 
 			if (state != null) {
-				Assert.assertEquals(referenceState.size(), state.size());
-				if (rand.nextBoolean() && !state.isEmpty()) {
+				// mutate the states a bit...
+				if (random.nextBoolean() && !state.isEmpty()) {
 					state.remove(state.size() - 1);
 					referenceState.remove(referenceState.size() - 1);
 				} else {
@@ -236,19 +274,34 @@ public class CopyOnWriteStateTableTest {
 				}
 			}
 
+			Assert.assertEquals(referenceState, state);
+
 			// snapshot triggering / comparison / release
 			if (i > 0 && i % 500 == 0) {
 
 				if (snapshot != null) {
-					Assert.assertTrue(deepCompare(convert(snapshot, snapshotSize), reference));
+					// check our referenced snapshot
+					deepCheck(reference, convert(snapshot, snapshotSize));
+
+					if (i % 1_000 == 0) {
+						// draw and release some other snapshot while holding on the old snapshot
+						++snapshotCounter;
+						stateTable.snapshotTableArrays();
+						stateTable.releaseSnapshot(snapshotCounter);
+					}
+
+					//release the snapshot after some time
 					if (i % 5_000 == 0) {
 						snapshot = null;
 						reference = null;
 						snapshotSize = 0;
-						stateTable.releaseSnapshot(snapshotId);
+						stateTable.releaseSnapshot(referencedSnapshotId);
 					}
+
 				} else {
-					++snapshotId;
+					// if there is no more referenced snapshot, we create one
+					++snapshotCounter;
+					referencedSnapshotId = snapshotCounter;
 					snapshot = stateTable.snapshotTableArrays();
 					snapshotSize = stateTable.size();
 					reference = manualDeepDump(referenceMap);
@@ -329,6 +382,7 @@ public class CopyOnWriteStateTableTest {
 
 	@SuppressWarnings("unchecked")
 	private static <K, N, S> Tuple3<K, N, S>[] convert(CopyOnWriteStateTable.StateTableEntry<K, N, S>[] snapshot, int mapSize) {
+
 		Tuple3<K, N, S>[] result = new Tuple3[mapSize];
 		int pos = 0;
 		for (CopyOnWriteStateTable.StateTableEntry<K, N, S> entry : snapshot) {
@@ -356,17 +410,15 @@ public class CopyOnWriteStateTableTest {
 		return result;
 	}
 
-	private boolean deepCompare(
+	private void deepCheck(
 			Tuple3<Integer, Integer, ArrayList<Integer>>[] a,
 			Tuple3<Integer, Integer, ArrayList<Integer>>[] b) {
 
 		if (a == b) {
-			return true;
+			return;
 		}
 
-		if (a.length != b.length) {
-			return false;
-		}
+		Assert.assertEquals(a.length, b.length);
 
 		Comparator<Tuple3<Integer, Integer, ArrayList<Integer>>> comparator =
 				new Comparator<Tuple3<Integer, Integer, ArrayList<Integer>>>() {
@@ -384,23 +436,11 @@ public class CopyOnWriteStateTableTest {
 		for (int i = 0; i < a.length; ++i) {
 			Tuple3<Integer, Integer, ArrayList<Integer>> av = a[i];
 			Tuple3<Integer, Integer, ArrayList<Integer>> bv = b[i];
-			if (!av.f0.equals(bv.f0)) {
-				return false;
-			}
 
-			if (!av.f1.equals(bv.f1)) {
-				return false;
-			}
-
-			Collections.sort(av.f2);
-			Collections.sort(bv.f2);
-
-			if (!av.f2.equals(bv.f2)) {
-				return false;
-			}
+			Assert.assertEquals(av.f0, bv.f0);
+			Assert.assertEquals(av.f1, bv.f1);
+			Assert.assertEquals(av.f2, bv.f2);
 		}
-
-		return true;
 	}
 
 	static class MockKeyContext<T> implements KeyContext<T> {

@@ -23,7 +23,9 @@ import org.apache.flink.api.common.state.AggregatingState;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
 import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.runtime.state.StateTransformationFunction;
 import org.apache.flink.runtime.state.internal.InternalAggregatingState;
+import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 
@@ -41,7 +43,7 @@ public class HeapAggregatingState<K, N, IN, ACC, OUT>
 		extends AbstractHeapMergingState<K, N, IN, OUT, ACC, AggregatingState<IN, OUT>, AggregatingStateDescriptor<IN, ACC, OUT>>
 		implements InternalAggregatingState<N, IN, OUT> {
 
-	private final AggregateFunction<IN, ACC, OUT> aggFunction;
+	private final AggregateTransformation<IN, ACC, OUT> aggregateTransformation;
 
 	/**
 	 * Creates a new key/value state for the given hash map of key/value pairs.
@@ -60,7 +62,7 @@ public class HeapAggregatingState<K, N, IN, ACC, OUT>
 			TypeSerializer<N> namespaceSerializer) {
 
 		super(stateDesc, stateTable, keySerializer, namespaceSerializer);
-		this.aggFunction = stateDesc.getAggregateFunction();
+		this.aggregateTransformation = new AggregateTransformation<>(stateDesc.getAggregateFunction());
 	}
 
 	// ------------------------------------------------------------------------
@@ -71,7 +73,7 @@ public class HeapAggregatingState<K, N, IN, ACC, OUT>
 	public OUT get() {
 
 		ACC accumulator = stateTable.get(currentNamespace);
-		return accumulator != null ? aggFunction.getResult(accumulator) : null;
+		return accumulator != null ? aggregateTransformation.aggFunction.getResult(accumulator) : null;
 	}
 
 	@Override
@@ -83,16 +85,11 @@ public class HeapAggregatingState<K, N, IN, ACC, OUT>
 			return;
 		}
 
-		final StateTable<K, N, ACC> map = stateTable;
-
-		// if this is the first value for the key, create a new accumulator
-		ACC accumulator = map.get(namespace);
-		if (accumulator == null) {
-			accumulator = aggFunction.createAccumulator();
-			map.put(namespace, accumulator);
+		try {
+			stateTable.transform(namespace, value, aggregateTransformation);
+		} catch (Exception e) {
+			throw new IOException("Exception while applying AggregateFunction in aggregating state", e);
 		}
-
-		aggFunction.add(value, accumulator);
 	}
 
 	// ------------------------------------------------------------------------
@@ -101,6 +98,24 @@ public class HeapAggregatingState<K, N, IN, ACC, OUT>
 
 	@Override
 	protected ACC mergeState(ACC a, ACC b) throws Exception {
-		return aggFunction.merge(a, b);
+		return aggregateTransformation.aggFunction.merge(a, b);
+	}
+
+	static final class AggregateTransformation<IN, ACC, OUT> implements StateTransformationFunction<ACC, IN> {
+
+		private final AggregateFunction<IN, ACC, OUT> aggFunction;
+
+		AggregateTransformation(AggregateFunction<IN, ACC, OUT> aggFunction) {
+			this.aggFunction = Preconditions.checkNotNull(aggFunction);
+		}
+
+		@Override
+		public ACC apply(ACC accumulator, IN value) throws Exception {
+			if (accumulator == null) {
+				accumulator = aggFunction.createAccumulator();
+			}
+			aggFunction.add(value, accumulator);
+			return accumulator;
+		}
 	}
 }

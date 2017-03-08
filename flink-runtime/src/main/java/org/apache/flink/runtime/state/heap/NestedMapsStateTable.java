@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.RegisteredBackendStateMetaInfo;
+import org.apache.flink.runtime.state.StateTransformationFunction;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -77,6 +78,7 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 	/**
 	 * Returns the internal data structure.
 	 */
+	@VisibleForTesting
 	public Map<N, Map<K, S>>[] getState() {
 		return state;
 	}
@@ -91,6 +93,9 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 		}
 	}
 
+	/**
+	 * Sets the given map for the given key-group.
+	 */
 	private void setMapForKeyGroup(int keyGroupId, Map<N, Map<K, S>> map) {
 		try {
 			state[indexToOffset(keyGroupId)] = map;
@@ -101,7 +106,7 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 	}
 
 	/**
-	 * Translates key-group
+	 * Translates a key-group id to the internal array offset.
 	 */
 	private int indexToOffset(int index) {
 		return index - keyGroupOffset;
@@ -254,6 +259,28 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 		}
 
 		return count;
+	}
+
+	@Override
+	public <T> void transform(N namespace, T value, StateTransformationFunction<S, T> transformation) throws Exception {
+		final int keyGroupIndex = keyContext.getCurrentKeyGroupIndex();
+		final K key = keyContext.getCurrentKey();
+
+		Map<N, Map<K, S>> namespaceMap = getMapForKeyGroup(keyGroupIndex);
+
+		if (namespaceMap == null) {
+			namespaceMap = new HashMap<>();
+			setMapForKeyGroup(keyGroupIndex, namespaceMap);
+		}
+
+		Map<K, S> keyedMap = namespaceMap.get(namespace);
+
+		if (keyedMap == null) {
+			keyedMap = new HashMap<>();
+			namespaceMap.put(namespace, keyedMap);
+		}
+
+		keyedMap.put(key, transformation.apply(keyedMap.get(key), value));
 	}
 
 	// snapshots ---------------------------------------------------------------------------------------------------

@@ -22,6 +22,7 @@ import org.apache.flink.api.common.state.MergingState;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.runtime.state.StateTransformationFunction;
 import org.apache.flink.runtime.state.internal.InternalMergingState;
 
 import java.util.Collection;
@@ -54,7 +55,10 @@ public abstract class AbstractHeapMergingState<K, N, IN, OUT, SV, S extends Stat
 			TypeSerializer<N> namespaceSerializer) {
 
 		super(stateDesc, stateTable, keySerializer, namespaceSerializer);
+		this.mergeTransformation = new MergeTransformation();
 	}
+
+	private final MergeTransformation mergeTransformation;
 
 	@Override
 	public void mergeNamespaces(N target, Collection<N> sources) throws Exception {
@@ -81,17 +85,21 @@ public abstract class AbstractHeapMergingState<K, N, IN, OUT, SV, S extends Stat
 
 		// merge into the target, if needed
 		if (merged != null) {
-
-			SV targetState = map.get(target);
-
-			if (targetState != null) {
-				targetState = mergeState(targetState, merged);
-			} else {
-				targetState = merged;
-			}
-			map.put(target, targetState);
+			map.transform(target, merged, mergeTransformation);
 		}
 	}
 
 	protected abstract SV mergeState(SV a, SV b) throws Exception;
+
+	final class MergeTransformation implements StateTransformationFunction<SV, SV> {
+
+		@Override
+		public SV apply(SV targetState, SV merged) throws Exception {
+			if (targetState != null) {
+				return mergeState(targetState, merged);
+			} else {
+				return merged;
+			}
+		}
+	}
 }

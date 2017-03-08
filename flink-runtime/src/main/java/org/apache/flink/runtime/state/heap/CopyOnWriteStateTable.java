@@ -21,8 +21,11 @@ package org.apache.flink.runtime.state.heap;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.RegisteredBackendStateMetaInfo;
+import org.apache.flink.runtime.state.StateTransformationFunction;
 import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.Preconditions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 import java.util.ConcurrentModificationException;
@@ -79,11 +82,21 @@ import java.util.TreeSet;
  * This class was initially based on the {@link java.util.HashMap} implementation of the Android JDK, but is now heavily
  * customized towards the use case of table for state entries.
  *
+ * IMPORTANT: the contracts for this class rely on the user not holding any references to objects returned by this map
+ * beyond the life cycle of per-element operations. Or phrased differently, all get-update-put operations on a mapping
+ * should be within one call of processElement. Otherwise, the user must take care of taking deep copies, e.g. for
+ * caching purposes.
+ *
  * @param <K> type of key
  * @param <N> type of namespace
  * @param <S> type of value
  */
 public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implements Iterable<StateEntry<K, N, S>> {
+
+	/**
+	 * The logger.
+	 */
+	private static final Logger LOG = LoggerFactory.getLogger(HeapKeyedStateBackend.class);
 
 	/**
 	 * Min capacity (other than zero) for a {@link CopyOnWriteStateTable}. Must be a power of two
@@ -180,7 +193,7 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 	 * Constructs a new {@code StateTable} with default capacity of 1024.
 	 *
 	 * @param keyContext the key context.
-	 * @param metaInfo the meta information, including the type serializer for state copy-on-write.
+	 * @param metaInfo   the meta information, including the type serializer for state copy-on-write.
 	 */
 	CopyOnWriteStateTable(KeyContext<K> keyContext, RegisteredBackendStateMetaInfo<N, S> metaInfo) {
 		this(keyContext, metaInfo, 1024);
@@ -190,8 +203,8 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 	 * Constructs a new {@code StateTable} instance with the specified capacity.
 	 *
 	 * @param keyContext the key context.
-	 * @param metaInfo the meta information, including the type serializer for state copy-on-write.
-	 * @param capacity the initial capacity of this hash map.
+	 * @param metaInfo   the meta information, including the type serializer for state copy-on-write.
+	 * @param capacity   the initial capacity of this hash map.
 	 * @throws IllegalArgumentException when the capacity is less than zero.
 	 */
 	@SuppressWarnings("unchecked")
@@ -230,220 +243,6 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 		primaryTable = makeTable(capacity);
 	}
 
-	// Main interface methods of StateTable ----------------------------------------------------------------------------
-
-	/**
-	 * Returns whether this table contains the specified key/namespace composite key.
-	 *
-	 * @param key       the key in the composite key to search for. Not null.
-	 * @param namespace the namespace in the composite key to search for. Not null.
-	 * @return {@code true} if this map contains the specified key/namespace composite key,
-	 * {@code false} otherwise.
-	 */
-	public boolean containsKey(Object key, Object namespace) {
-
-		assert (null != key && null != namespace);
-
-		incrementalRehash();
-
-		final int hash = compositeHash(key, namespace);
-		final StateTableEntry<K, N, S>[] tab = selectActiveTable(hash);
-		int index = hash & (tab.length - 1);
-
-		for (StateTableEntry<K, N, S> e = tab[index]; e != null; e = e.next) {
-			final K eKey = e.key;
-			final N eNamespace = e.namespace;
-
-			if ((e.hash == hash && key.equals(eKey) && namespace.equals(eNamespace))) {
-				return true;
-			}
-		}
-
-		return false;
-	}
-
-	/**
-	 * Maps the specified key/namespace composite key to the specified value. This method should be preferred
-	 * over {@link #putAndGetOld(Object, Object, Object)} (Object, Object)} when the caller is not interested
-	 * in the old value, because this can potentially reduce copy-on-write activity.
-	 *
-	 * @param key       the key. Not null.
-	 * @param namespace the namespace. Not null.
-	 * @param value     the value. Can be null.
-	 */
-	public void put(K key, N namespace, S value) {
-
-		assert (null != key && null != namespace);
-
-		incrementalRehash();
-
-		final int hash = compositeHash(key, namespace);
-		final StateTableEntry<K, N, S>[] tab = selectActiveTable(hash);
-		int index = hash & (tab.length - 1);
-
-		final int requiredVersion = highestRequiredSnapshotVersion;
-
-		for (StateTableEntry<K, N, S> e = tab[index]; e != null; e = e.next) {
-			if (e.hash == hash && key.equals(e.key) && namespace.equals(e.namespace)) {
-
-				// copy-on-write check for entry
-				if (e.entryVersion < requiredVersion) {
-					e = handleChainedEntryCopyOnWrite(tab, index, e);
-				}
-
-				e.state = value;
-				e.stateVersion = stateTableVersion;
-				return;
-			}
-		}
-
-		++modCount;
-		if (size() > threshold) {
-			doubleCapacity();
-		}
-		addNewStateTableEntry(tab, key, namespace, value, hash);
-	}
-
-	/**
-	 * Maps the specified key/namespace composite key to the specified value. Returns the previous state that was
-	 * registered under the composite key.
-	 *
-	 * @param key       the key. Not null.
-	 * @param namespace the namespace. Not null.
-	 * @param value     the value. Can be null.
-	 * @return the value of any previous mapping with the specified key or
-	 * {@code null} if there was no such mapping.
-	 */
-	S putAndGetOld(K key, N namespace, S value) {
-
-		assert (null != key && null != namespace);
-
-		incrementalRehash();
-
-		final int hash = compositeHash(key, namespace);
-		StateTableEntry<K, N, S>[] tab = selectActiveTable(hash);
-		int index = hash & (tab.length - 1);
-
-		final int requiredVersion = highestRequiredSnapshotVersion;
-
-		for (StateTableEntry<K, N, S> e = tab[index]; e != null; e = e.next) {
-			if (e.hash == hash && key.equals(e.key) && namespace.equals(e.namespace)) {
-
-				S oldState;
-
-				// copy-on-write check for entry
-				if (e.entryVersion < requiredVersion) {
-					e = handleChainedEntryCopyOnWrite(tab, index, e);
-				}
-
-				// copy-on-write check for state
-				if (e.stateVersion < requiredVersion) {
-					oldState = getStateSerializer().copy(e.state);
-					e.stateVersion = stateTableVersion;
-				} else {
-					oldState = e.state;
-				}
-
-				e.state = value;
-				return oldState;
-			}
-		}
-
-		++modCount;
-		if (size() > threshold) {
-			doubleCapacity();
-		}
-
-		addNewStateTableEntry(tab, key, namespace, value, hash);
-		return null;
-	}
-
-	/**
-	 * Removes the mapping with the specified key/namespace composite key from this map. This method should be preferred
-	 * over {@link #removeAndGetOld(Object, Object)} when the caller is not interested in the old value, because this
-	 * can potentially reduce copy-on-write activity.
-	 *
-	 * @param key       the key of the mapping to remove. Not null.
-	 * @param namespace the namespace of the mapping to remove. Not null.
-	 */
-	public void remove(Object key, Object namespace) {
-
-		assert (null != key && null != namespace);
-
-		incrementalRehash();
-
-		final int hash = compositeHash(key, namespace);
-		final StateTableEntry<K, N, S>[] tab = selectActiveTable(hash);
-		int index = hash & (tab.length - 1);
-
-		for (StateTableEntry<K, N, S> e = tab[index], prev = null; e != null; prev = e, e = e.next) {
-			if (e.hash == hash && key.equals(e.key) && namespace.equals(e.namespace)) {
-				if (prev == null) {
-					tab[index] = e.next;
-				} else {
-					// copy-on-write check for entry
-					if (prev.entryVersion < highestRequiredSnapshotVersion) {
-						prev = handleChainedEntryCopyOnWrite(tab, index, prev);
-					}
-					prev.next = e.next;
-				}
-				++modCount;
-				if (tab == primaryTable) {
-					--primaryTableSize;
-				} else {
-					--incrementalRehashTableSize;
-				}
-				return;
-			}
-		}
-	}
-
-	/**
-	 * Removes the mapping with the specified key/namespace composite key from this map, returning the state that was
-	 * found under the entry.
-	 *
-	 * @param key       the key of the mapping to remove. Not null.
-	 * @param namespace the namespace of the mapping to remove. Not null.
-	 * @return the value of the removed mapping or {@code null} if no mapping
-	 * for the specified key was found.
-	 */
-	S removeAndGetOld(Object key, Object namespace) {
-
-		assert (null != key && null != namespace);
-
-		incrementalRehash();
-
-		final int hash = compositeHash(key, namespace);
-		final StateTableEntry<K, N, S>[] tab = selectActiveTable(hash);
-		int index = hash & (tab.length - 1);
-
-		final int requiredVersion = highestRequiredSnapshotVersion;
-
-		for (StateTableEntry<K, N, S> e = tab[index], prev = null; e != null; prev = e, e = e.next) {
-			if (e.hash == hash && key.equals(e.key) && namespace.equals(e.namespace)) {
-				if (prev == null) {
-					tab[index] = e.next;
-				} else {
-					// copy-on-write check for entry
-					if (prev.entryVersion < requiredVersion) {
-						prev = handleChainedEntryCopyOnWrite(tab, index, prev);
-					}
-					prev.next = e.next;
-				}
-				++modCount;
-				if (tab == primaryTable) {
-					--primaryTableSize;
-				} else {
-					--incrementalRehashTableSize;
-				}
-				// copy-on-write check for state
-				return e.stateVersion < requiredVersion ? getStateSerializer().copy(e.state) : e.state;
-			}
-		}
-
-		return null;
-	}
-
 	// Public API from AbstractStateTable ------------------------------------------------------------------------------
 
 	/**
@@ -456,23 +255,11 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 		return primaryTableSize + incrementalRehashTableSize;
 	}
 
-	/**
-	 * Returns the value of the mapping with the specified key/namespace composite key.
-	 *
-	 * @param key       the key. Not null.
-	 * @param namespace the namespace. Not null.
-	 * @return the value of the mapping with the specified key/namespace composite key, or {@code null}
-	 * if no mapping for the specified key is found.
-	 */
 	@Override
 	public S get(Object key, Object namespace) {
 
-		assert (null != key && null != namespace);
-
-		incrementalRehash();
-
+		final int hash = computeHashForOperationAndDoIncrementalRehash(key, namespace);
 		final int requiredVersion = highestRequiredSnapshotVersion;
-		final int hash = compositeHash(key, namespace);
 		final StateTableEntry<K, N, S>[] tab = selectActiveTable(hash);
 		int index = hash & (tab.length - 1);
 
@@ -496,6 +283,11 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 		}
 
 		return null;
+	}
+
+	@Override
+	public void put(K key, int keyGroup, N namespace, S state) {
+		put(key, namespace, state);
 	}
 
 	@Override
@@ -528,6 +320,197 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 		return removeAndGetOld(keyContext.getCurrentKey(), namespace);
 	}
 
+	@Override
+	public <T> void transform(N namespace, T value, StateTransformationFunction<S, T> transformation) throws Exception {
+		transform(keyContext.getCurrentKey(), namespace, value, transformation);
+	}
+
+	// Private implementation details of the API methods ---------------------------------------------------------------
+
+	/**
+	 * Returns whether this table contains the specified key/namespace composite key.
+	 *
+	 * @param key       the key in the composite key to search for. Not null.
+	 * @param namespace the namespace in the composite key to search for. Not null.
+	 * @return {@code true} if this map contains the specified key/namespace composite key,
+	 * {@code false} otherwise.
+	 */
+	boolean containsKey(Object key, Object namespace) {
+		final int hash = computeHashForOperationAndDoIncrementalRehash(key, namespace);
+		final StateTableEntry<K, N, S>[] tab = selectActiveTable(hash);
+		int index = hash & (tab.length - 1);
+
+		for (StateTableEntry<K, N, S> e = tab[index]; e != null; e = e.next) {
+			final K eKey = e.key;
+			final N eNamespace = e.namespace;
+
+			if ((e.hash == hash && key.equals(eKey) && namespace.equals(eNamespace))) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Maps the specified key/namespace composite key to the specified value. This method should be preferred
+	 * over {@link #putAndGetOld(Object, Object, Object)} (Object, Object)} when the caller is not interested
+	 * in the old value, because this can potentially reduce copy-on-write activity.
+	 *
+	 * @param key       the key. Not null.
+	 * @param namespace the namespace. Not null.
+	 * @param value     the value. Can be null.
+	 */
+	void put(K key, N namespace, S value) {
+		final StateTableEntry<K, N, S> e = putEntry(key, namespace);
+
+		e.state = value;
+		e.stateVersion = stateTableVersion;
+	}
+
+	/**
+	 * Maps the specified key/namespace composite key to the specified value. Returns the previous state that was
+	 * registered under the composite key.
+	 *
+	 * @param key       the key. Not null.
+	 * @param namespace the namespace. Not null.
+	 * @param value     the value. Can be null.
+	 * @return the value of any previous mapping with the specified key or
+	 * {@code null} if there was no such mapping.
+	 */
+	S putAndGetOld(K key, N namespace, S value) {
+
+		final StateTableEntry<K, N, S> e = putEntry(key, namespace);
+
+		// copy-on-write check for state
+		S oldState = (e.stateVersion < highestRequiredSnapshotVersion) ?
+				getStateSerializer().copy(e.state) :
+				e.state;
+
+		e.state = value;
+		e.stateVersion = stateTableVersion;
+
+		return oldState;
+	}
+
+	/**
+	 * Removes the mapping with the specified key/namespace composite key from this map. This method should be preferred
+	 * over {@link #removeAndGetOld(Object, Object)} when the caller is not interested in the old value, because this
+	 * can potentially reduce copy-on-write activity.
+	 *
+	 * @param key       the key of the mapping to remove. Not null.
+	 * @param namespace the namespace of the mapping to remove. Not null.
+	 */
+	void remove(Object key, Object namespace) {
+		removeEntry(key, namespace);
+	}
+
+	/**
+	 * Removes the mapping with the specified key/namespace composite key from this map, returning the state that was
+	 * found under the entry.
+	 *
+	 * @param key       the key of the mapping to remove. Not null.
+	 * @param namespace the namespace of the mapping to remove. Not null.
+	 * @return the value of the removed mapping or {@code null} if no mapping
+	 * for the specified key was found.
+	 */
+	S removeAndGetOld(Object key, Object namespace) {
+
+		final StateTableEntry<K, N, S> e = removeEntry(key, namespace);
+
+		return e != null ?
+				// copy-on-write check for state
+				(e.stateVersion < highestRequiredSnapshotVersion ?
+						getStateSerializer().copy(e.state) :
+						e.state) :
+				null;
+	}
+
+	/**
+	 * @param key            the key of the mapping to remove. Not null.
+	 * @param namespace      the namespace of the mapping to remove. Not null.
+	 * @param value          the value that is the second input for the transformation.
+	 * @param transformation the transformation function to apply on the old state and the given value.
+	 * @param <T>            type of the value that is the second input to the {@link StateTransformationFunction}.
+	 * @throws Exception exception that happen on applying the function.
+	 * @see #transform(Object, Object, StateTransformationFunction).
+	 */
+	<T> void transform(
+			K key,
+			N namespace,
+			T value,
+			StateTransformationFunction<S, T> transformation) throws Exception {
+
+		final StateTableEntry<K, N, S> entry = putEntry(key, namespace);
+
+		// copy-on-write check for state
+		entry.state = transformation.apply(
+				(entry.stateVersion < highestRequiredSnapshotVersion) ?
+						getStateSerializer().copy(entry.state) :
+						entry.state,
+				value);
+		entry.stateVersion = stateTableVersion;
+	}
+
+	/**
+	 * Helper method that is the basis for operations that add mappings.
+	 */
+	private StateTableEntry<K, N, S> putEntry(K key, N namespace) {
+
+		final int hash = computeHashForOperationAndDoIncrementalRehash(key, namespace);
+		final StateTableEntry<K, N, S>[] tab = selectActiveTable(hash);
+		int index = hash & (tab.length - 1);
+
+		for (StateTableEntry<K, N, S> e = tab[index]; e != null; e = e.next) {
+			if (e.hash == hash && key.equals(e.key) && namespace.equals(e.namespace)) {
+
+				// copy-on-write check for entry
+				if (e.entryVersion < highestRequiredSnapshotVersion) {
+					e = handleChainedEntryCopyOnWrite(tab, index, e);
+				}
+
+				return e;
+			}
+		}
+
+		++modCount;
+		if (size() > threshold) {
+			doubleCapacity();
+		}
+
+		return addNewStateTableEntry(tab, key, namespace, hash);
+	}
+
+	/**
+	 * Helper method that is the basis for operations that remove mappings.
+	 */
+	private StateTableEntry<K, N, S> removeEntry(Object key, Object namespace) {
+
+		final int hash = computeHashForOperationAndDoIncrementalRehash(key, namespace);
+		final StateTableEntry<K, N, S>[] tab = selectActiveTable(hash);
+		int index = hash & (tab.length - 1);
+
+		for (StateTableEntry<K, N, S> e = tab[index], prev = null; e != null; prev = e, e = e.next) {
+			if (e.hash == hash && key.equals(e.key) && namespace.equals(e.namespace)) {
+				if (prev == null) {
+					tab[index] = e.next;
+				} else {
+					// copy-on-write check for entry
+					if (prev.entryVersion < highestRequiredSnapshotVersion) {
+						prev = handleChainedEntryCopyOnWrite(tab, index, prev);
+					}
+					prev.next = e.next;
+				}
+				++modCount;
+				if (tab == primaryTable) {
+					--primaryTableSize;
+				} else {
+					--incrementalRehashTableSize;
+				}
+				return e;
+			}
+		}
+		return null;
+	}
 
 	// Meta data setter / getter and toString --------------------------------------------------------------------------
 
@@ -551,9 +534,8 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 		this.metaInfo = metaInfo;
 	}
 
-	@Override
-	public String toString() {
-		StringBuilder sb = new StringBuilder("VersionedHashMap{");
+	public String toDebugString() {
+		StringBuilder sb = new StringBuilder("CopyOnWriteStateTable{");
 		boolean separatorRequired = false;
 		for (StateEntry<K, N, S> entry : this) {
 			if (separatorRequired) {
@@ -572,44 +554,6 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 	@Override
 	public Iterator<StateEntry<K, N, S>> iterator() {
 		return new StateEntryIterator();
-	}
-
-	// Snapshotting ----------------------------------------------------------------------------------------------------
-
-	int getStateTableVersion() {
-		return stateTableVersion;
-	}
-
-	/**
-	 * Creates a snapshot of this {@link CopyOnWriteStateTable}, to be written in checkpointing. The snapshot integrity is
-	 * protected through copy-on-write from the {@link CopyOnWriteStateTable}. Users should call
-	 * {@link #releaseSnapshot(CopyOnWriteStateTableSnapshot)} after using the returned object.
-	 *
-	 * @return a snapshot from this {@link CopyOnWriteStateTable}, for checkpointing.
-	 */
-	@Override
-	public CopyOnWriteStateTableSnapshot<K, N, S> createSnapshot() {
-		return new CopyOnWriteStateTableSnapshot<>(this);
-	}
-
-	/**
-	 * Releases a snapshot for this {@link CopyOnWriteStateTable}. This method should be called once a snapshot is no more needed,
-	 * so that the {@link CopyOnWriteStateTable} can stop considering this snapshot for copy-on-write, thus avoiding unnecessary
-	 * object creation.
-	 *
-	 * @param snapshotToRelease the snapshot to release, which was previously created by this state table.
-	 */
-	void releaseSnapshot(CopyOnWriteStateTableSnapshot<K, N, S> snapshotToRelease) {
-
-		Preconditions.checkArgument(snapshotToRelease.isOwner(this),
-				"Cannot release snapshot which is owned by a different state table.");
-
-		releaseSnapshot(snapshotToRelease.getSnapshotVersion());
-	}
-
-	@Override
-	public void put(K key, int keyGroup, N namespace, S state) {
-		put(key, namespace, state);
 	}
 
 	// Private utility functions for StateTable management -------------------------------------------------------------
@@ -678,6 +622,13 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 	 * @param newCapacity must be a power of two
 	 */
 	private StateTableEntry<K, N, S>[] makeTable(int newCapacity) {
+
+		if (MAXIMUM_CAPACITY == newCapacity) {
+			LOG.warn("Maximum capacity of 2^30 in StateTable reached. Cannot increase hash table size. This can lead " +
+					"to more collisions and lower performance. Please consider scaling-out your job or using a " +
+					"different keyed state backend implementation!");
+		}
+
 		threshold = (newCapacity >> 1) + (newCapacity >> 2); // 3/4 capacity
 		@SuppressWarnings("unchecked") StateTableEntry<K, N, S>[] newTable
 				= (StateTableEntry<K, N, S>[]) new StateTableEntry[newCapacity];
@@ -687,7 +638,11 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 	/**
 	 * Creates and inserts a new {@link StateTableEntry}.
 	 */
-	private void addNewStateTableEntry(StateTableEntry<K, N, S>[] table, K key, N namespace, S value, int hash) {
+	private StateTableEntry<K, N, S> addNewStateTableEntry(
+			StateTableEntry<K, N, S>[] table,
+			K key,
+			N namespace,
+			int hash) {
 
 		// small optimization that aims to avoid holding references on duplicate namespace objects
 		if (namespace.equals(lastNamespace)) {
@@ -697,20 +652,22 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 		}
 
 		int index = hash & (table.length - 1);
-		table[index] = new StateTableEntry<>(
+		StateTableEntry<K, N, S> newEntry = new StateTableEntry<>(
 				key,
 				namespace,
-				value,
+				null,
 				hash,
 				table[index],
 				stateTableVersion,
 				stateTableVersion);
+		table[index] = newEntry;
 
 		if (table == primaryTable) {
 			++primaryTableSize;
 		} else {
 			++incrementalRehashTableSize;
 		}
+		return newEntry;
 	}
 
 	/**
@@ -751,7 +708,22 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 	@VisibleForTesting
 	boolean isRehashing() {
 		// if we rehash, the secondary table is not empty
-		return incrementalRehashTable != EMPTY_TABLE;
+		return EMPTY_TABLE != incrementalRehashTable;
+	}
+
+	/**
+	 * Computes the hash for the composite of key and namespace and performs some steps of incremental rehash if
+	 * incremental rehashing is in progress.
+	 */
+	private int computeHashForOperationAndDoIncrementalRehash(Object key, Object namespace) {
+
+		assert (null != key && null != namespace);
+
+		if (isRehashing()) {
+			incrementalRehash();
+		}
+
+		return compositeHash(key, namespace);
 	}
 
 	/**
@@ -759,10 +731,6 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 	 */
 	@SuppressWarnings("unchecked")
 	private void incrementalRehash() {
-
-		if (!isRehashing()) {
-			return;
-		}
 
 		StateTableEntry<K, N, S>[] oldTable = primaryTable;
 		StateTableEntry<K, N, S>[] newTable = incrementalRehashTable;
@@ -863,11 +831,44 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 		return MathUtils.bitMix(key.hashCode() ^ namespace.hashCode());
 	}
 
+	// Snapshotting ----------------------------------------------------------------------------------------------------
+
+	int getStateTableVersion() {
+		return stateTableVersion;
+	}
+
+	/**
+	 * Creates a snapshot of this {@link CopyOnWriteStateTable}, to be written in checkpointing. The snapshot integrity
+	 * is protected through copy-on-write from the {@link CopyOnWriteStateTable}. Users should call
+	 * {@link #releaseSnapshot(CopyOnWriteStateTableSnapshot)} after using the returned object.
+	 *
+	 * @return a snapshot from this {@link CopyOnWriteStateTable}, for checkpointing.
+	 */
+	@Override
+	public CopyOnWriteStateTableSnapshot<K, N, S> createSnapshot() {
+		return new CopyOnWriteStateTableSnapshot<>(this);
+	}
+
+	/**
+	 * Releases a snapshot for this {@link CopyOnWriteStateTable}. This method should be called once a snapshot is no more needed,
+	 * so that the {@link CopyOnWriteStateTable} can stop considering this snapshot for copy-on-write, thus avoiding unnecessary
+	 * object creation.
+	 *
+	 * @param snapshotToRelease the snapshot to release, which was previously created by this state table.
+	 */
+	void releaseSnapshot(CopyOnWriteStateTableSnapshot<K, N, S> snapshotToRelease) {
+
+		Preconditions.checkArgument(snapshotToRelease.isOwner(this),
+				"Cannot release snapshot which is owned by a different state table.");
+
+		releaseSnapshot(snapshotToRelease.getSnapshotVersion());
+	}
+
 	// StateTableEntry -------------------------------------------------------------------------------------------------
 
 	/**
-	 * One entry in the {@link CopyOnWriteStateTable}. This is a triplet of key, namespace, and state. Thereby, key and namespace
-	 * together serve as a composite key for the state. This class also contains some management meta data for
+	 * One entry in the {@link CopyOnWriteStateTable}. This is a triplet of key, namespace, and state. Thereby, key and
+	 * namespace together serve as a composite key for the state. This class also contains some management meta data for
 	 * copy-on-write, a pointer to link other {@link StateTableEntry}s to a list, and cached hash code.
 	 *
 	 * @param <K> type of key.
@@ -877,7 +878,8 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 	static class StateTableEntry<K, N, S> extends StateEntry<K, N, S> {
 
 		/**
-		 * Link to another {@link StateTableEntry}. This is used to resolve collisions in the {@link CopyOnWriteStateTable} through chaining.
+		 * Link to another {@link StateTableEntry}. This is used to resolve collisions in the
+		 * {@link CopyOnWriteStateTable} through chaining.
 		 */
 		StateTableEntry<K, N, S> next;
 
@@ -912,12 +914,11 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 				StateTableEntry<K, N, S> next,
 				int entryVersion,
 				int stateVersion) {
-
-			super(key, namespace, state);
-			this.state = state;
+			super(key, namespace);
 			this.hash = hash;
 			this.next = next;
 			this.entryVersion = entryVersion;
+			this.state = state;
 			this.stateVersion = stateVersion;
 		}
 

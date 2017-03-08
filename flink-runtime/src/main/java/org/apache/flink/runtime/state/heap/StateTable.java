@@ -21,6 +21,7 @@ package org.apache.flink.runtime.state.heap;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.RegisteredBackendStateMetaInfo;
+import org.apache.flink.runtime.state.StateTransformationFunction;
 import org.apache.flink.util.Preconditions;
 
 /**
@@ -74,10 +75,10 @@ public abstract class StateTable<K, N, S> {
 	public abstract int size();
 
 	/**
-	 * Returns the value of the mapping for the composite of active key and given namespace.
+	 * Returns the state of the mapping for the composite of active key and given namespace.
 	 *
 	 * @param namespace the namespace. Not null.
-	 * @return the value of the mapping with the specified key/namespace composite key, or {@code null}
+	 * @return the states of the mapping with the specified key/namespace composite key, or {@code null}
 	 * if no mapping for the specified key is found.
 	 */
 	public abstract S get(Object namespace);
@@ -92,28 +93,28 @@ public abstract class StateTable<K, N, S> {
 	public abstract boolean containsKey(Object namespace);
 
 	/**
-	 * Maps the composite of active key and given namespace to the specified value. This method should be preferred
-	 * over {@link #putAndGetOld(Object, Object)} (Object, Object)} when the caller is not interested in the old value.
+	 * Maps the composite of active key and given namespace to the specified state. This method should be preferred
+	 * over {@link #putAndGetOld(Object, Object)} (Object, Object)} when the caller is not interested in the old state.
 	 *
 	 * @param namespace the namespace. Not null.
-	 * @param state     the value. Can be null.
+	 * @param state     the state. Can be null.
 	 */
 	public abstract void put(N namespace, S state);
 
 	/**
-	 * Maps the composite of active key and given namespace to the specified value. Returns the previous state that
+	 * Maps the composite of active key and given namespace to the specified state. Returns the previous state that
 	 * was registered under the composite key.
 	 *
 	 * @param namespace the namespace. Not null.
-	 * @param state     the value. Can be null.
-	 * @return the value of any previous mapping with the specified key or
+	 * @param state     the state. Can be null.
+	 * @return the state of any previous mapping with the specified key or
 	 * {@code null} if there was no such mapping.
 	 */
 	public abstract S putAndGetOld(N namespace, S state);
 
 	/**
 	 * Removes the mapping for the composite of active key and given namespace. This method should be preferred
-	 * over {@link #removeAndGetOld(Object)} when the caller is not interested in the old value.
+	 * over {@link #removeAndGetOld(Object)} when the caller is not interested in the old state.
 	 *
 	 * @param namespace the namespace of the mapping to remove. Not null.
 	 */
@@ -124,20 +125,35 @@ public abstract class StateTable<K, N, S> {
 	 * found under the entry.
 	 *
 	 * @param namespace the namespace of the mapping to remove. Not null.
-	 * @return the value of the removed mapping or {@code null} if no mapping
+	 * @return the state of the removed mapping or {@code null} if no mapping
 	 * for the specified key was found.
 	 */
 	public abstract S removeAndGetOld(Object namespace);
 
+	/**
+	 * Applies the given {@link StateTransformationFunction} to the state (1st input argument), using the given value as
+	 * second input argument. The result of {@link StateTransformationFunction#apply(Object, Object)} is then stored as
+	 * the new state. This function is basically an optimization for get-update-put pattern.
+	 *
+	 * @param namespace      the namespace. Not null.
+	 * @param value          the value to use in transforming the state. Can be null.
+	 * @param transformation the transformation function.
+	 * @throws Exception if some exception happens in the transformation function.
+	 */
+	public abstract <T> void transform(
+			N namespace,
+			T value,
+			StateTransformationFunction<S, T> transformation) throws Exception;
+
 	// For queryable state ------------------------------------------------------------------------
 
 	/**
-	 * Returns the value for the composite of active key and given namespace. This is typically used by
+	 * Returns the state for the composite of active key and given namespace. This is typically used by
 	 * queryable state.
 	 *
 	 * @param key       the key. Not null.
 	 * @param namespace the namespace. Not null.
-	 * @return the value of the mapping with the specified key/namespace composite key, or {@code null}
+	 * @return the state of the mapping with the specified key/namespace composite key, or {@code null}
 	 * if no mapping for the specified key is found.
 	 */
 	public abstract S get(Object key, Object namespace);

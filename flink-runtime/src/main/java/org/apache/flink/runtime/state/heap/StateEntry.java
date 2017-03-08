@@ -45,9 +45,13 @@ public class StateEntry<K, N, S> {
 	 */
 	protected S state;
 
-	public StateEntry(K key, N namespace, S state) {
+	protected StateEntry(K key, N namespace) {
 		this.key = key;
 		this.namespace = namespace;
+	}
+
+	public StateEntry(K key, N namespace, S state) {
+		this(key, namespace);
 		this.state = state;
 	}
 
