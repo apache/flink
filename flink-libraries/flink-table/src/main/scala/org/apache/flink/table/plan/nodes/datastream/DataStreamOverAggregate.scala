@@ -143,10 +143,18 @@ class DataStreamOverAggregate(
           .name(aggOpName)
           .asInstanceOf[DataStream[Row]]
         }
-        // global non-partitioned aggregation
+        // non-partitioned aggregation
         else {
-          throw TableException(
-            "Non-partitioned processing time OVER aggregation is not supported yet.")
+          val processFunction = AggregateUtil.CreateUnboundedProcessingOverProcessFunction(
+            namedAggregates,
+            inputType,
+            false)
+
+          inputDS
+            .process(processFunction).setParallelism(1).setMaxParallelism(1)
+            .returns(rowTypeInfo)
+            .name(aggOpName)
+            .asInstanceOf[DataStream[Row]]
         }
     result
   }
