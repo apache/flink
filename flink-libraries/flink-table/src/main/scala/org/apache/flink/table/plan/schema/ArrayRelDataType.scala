@@ -28,7 +28,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
   */
 class ArrayRelDataType(
     val typeInfo: TypeInformation[_],
-    elementType: RelDataType,
+    val elementType: RelDataType,
     isNullable: Boolean)
   extends ArraySqlType(
     elementType,

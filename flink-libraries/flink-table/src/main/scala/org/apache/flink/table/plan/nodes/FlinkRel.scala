@@ -20,12 +20,9 @@ package org.apache.flink.table.plan.nodes
 
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex._
+import org.apache.calcite.sql.SqlAsOperator
 import org.apache.calcite.sql.`type`.SqlTypeName
-import org.apache.flink.api.common.functions.MapFunction
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.api.{TableConfig, TableException}
-import org.apache.flink.table.codegen.CodeGenerator
-import org.apache.flink.table.runtime.MapRunner
+import org.apache.flink.table.api.TableException
 
 import scala.collection.JavaConversions._
 
@@ -54,7 +51,11 @@ trait FlinkRel {
       case c: RexCall =>
         val op = c.getOperator.toString
         val ops = c.getOperands.map(getExpressionString(_, inFields, localExprsTable))
-        s"$op(${ops.mkString(", ")})"
+        if (c.getOperator.isInstanceOf[SqlAsOperator]) {
+          ops.head
+        } else {
+          s"$op(${ops.mkString(", ")})"
+        }
 
       case fa: RexFieldAccess =>
         val referenceExpr = getExpressionString(fa.getReferenceExpr, inFields, localExprsTable)

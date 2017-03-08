@@ -67,7 +67,7 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
             new SqlIntervalQualifier(TimeUnit.DAY, TimeUnit.SECOND, SqlParserPos.ZERO))
 
         case _ =>
-          createSqlType(sqlType)
+          createTypeWithNullability(createSqlType(sqlType), nullable = true)
       }
     }
     // advanced types require specific RelDataType
@@ -107,11 +107,15 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
     }
   }
 
-  override def createArrayType(elementType: RelDataType, maxCardinality: Long): RelDataType =
-    new ArrayRelDataType(
-      ObjectArrayTypeInfo.getInfoFor(FlinkTypeFactory.toTypeInfo(elementType)),
+  override def createArrayType(elementType: RelDataType, maxCardinality: Long): RelDataType = {
+    val componentType = ObjectArrayTypeInfo.getInfoFor(FlinkTypeFactory.toTypeInfo(elementType))
+    seenTypes.getOrElseUpdate(componentType, new ArrayRelDataType(
+      componentType,
       elementType,
-      true)
+      true))
+  }
+
+
 
   private def createAdvancedType(typeInfo: TypeInformation[_]): RelDataType = typeInfo match {
     case ct: CompositeType[_] =>
@@ -137,6 +141,8 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
     case composite: CompositeRelDataType =>
       // at the moment we do not care about nullability
       composite
+    case array: ArrayRelDataType =>
+      array
     case _ =>
       super.createTypeWithNullability(relDataType, nullable)
   }

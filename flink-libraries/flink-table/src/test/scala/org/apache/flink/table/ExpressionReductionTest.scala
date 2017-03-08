@@ -155,15 +155,15 @@ class ExpressionReductionTest extends TableTestBase {
       "DataSetCalc",
       batchTableNode(0),
       term("select",
-        "13 AS _c0",
+        "CAST(13) AS _c0",
         "'b' AS _c1",
         "'STRING' AS _c2",
         "'teststring' AS _c3",
-        "1990-10-24 23:00:01 AS _c4",
+        "CAST(1990-10-24 23:00:01) AS _c4",
         "false AS _c5",
         "true AS _c6",
         "2E0 AS _c7",
-        "'trueX' AS _c8"
+        "CAST('trueX') AS _c8"
       ),
       term("where", ">(a, 8)")
     )
@@ -191,15 +191,15 @@ class ExpressionReductionTest extends TableTestBase {
       "DataSetCalc",
       batchTableNode(0),
       term("select",
-        "13 AS _c0",
+        "CAST(13) AS _c0",
         "'b' AS _c1",
         "'STRING' AS _c2",
         "'teststring' AS _c3",
-        "1990-10-24 23:00:01 AS _c4",
+        "CAST(1990-10-24 23:00:01) AS _c4",
         "false AS _c5",
         "true AS _c6",
         "2E0 AS _c7",
-        "'trueX' AS _c8"
+        "CAST('trueX') AS _c8"
       )
     )
 
@@ -353,15 +353,15 @@ class ExpressionReductionTest extends TableTestBase {
       "DataStreamCalc",
       streamTableNode(0),
       term("select",
-        "13 AS _c0",
+        "CAST(13) AS _c0",
         "'b' AS _c1",
         "'STRING' AS _c2",
         "'teststring' AS _c3",
-        "1990-10-24 23:00:01 AS _c4",
+        "CAST(1990-10-24 23:00:01) AS _c4",
         "false AS _c5",
         "true AS _c6",
         "2E0 AS _c7",
-        "'trueX' AS _c8"
+        "CAST('trueX') AS _c8"
       ),
       term("where", ">(a, 8)")
     )
@@ -389,15 +389,15 @@ class ExpressionReductionTest extends TableTestBase {
       "DataStreamCalc",
       streamTableNode(0),
       term("select",
-        "13 AS _c0",
+        "CAST(13) AS _c0",
         "'b' AS _c1",
         "'STRING' AS _c2",
         "'teststring' AS _c3",
-        "1990-10-24 23:00:01 AS _c4",
+        "CAST(1990-10-24 23:00:01) AS _c4",
         "false AS _c5",
         "true AS _c6",
         "2E0 AS _c7",
-        "'trueX' AS _c8"
+        "CAST('trueX') AS _c8"
       )
     )
 
