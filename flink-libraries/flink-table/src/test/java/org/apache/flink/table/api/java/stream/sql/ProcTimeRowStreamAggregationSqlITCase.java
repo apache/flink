@@ -247,7 +247,7 @@ public class ProcTimeRowStreamAggregationSqlITCase extends StreamingMultipleProg
 		Table in = tableEnv.fromDataStream(ds, "a,b,c,d,e");
 		tableEnv.registerTable("MyTable", in);
 
-		String sqlQuery = "SELECT a, AVG(c) OVER (PARTITION BY a ORDER BY procTime() ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) AS avgC FROM MyTable";
+		String sqlQuery = "SELECT a, AVG(c) OVER (PARTITION BY a ORDER BY procTime() ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) AS avgC, e FROM MyTable";
 		Table result = tableEnv.sql(sqlQuery);
 
 		DataStream<Row> resultSet = tableEnv.toDataStream(result, Row.class);
@@ -255,21 +255,21 @@ public class ProcTimeRowStreamAggregationSqlITCase extends StreamingMultipleProg
 		env.execute();
 
 		List<String> expected = new ArrayList<>();
-		expected.add("1,0");
-		expected.add("2,1");
-		expected.add("2,1");
-		expected.add("3,3");
-		expected.add("3,3");
-		expected.add("3,4");
-		expected.add("4,6");
-		expected.add("4,6");
-		expected.add("4,7");
-		expected.add("4,8");
-		expected.add("5,10");
-		expected.add("5,10");
-		expected.add("5,11");
-		expected.add("5,13");
-		expected.add("5,13");
+		expected.add("1,0,1");
+		expected.add("2,1,1");
+		expected.add("2,1,2");
+		expected.add("3,3,2");
+		expected.add("3,3,2");
+		expected.add("3,4,3");
+		expected.add("4,6,1");
+		expected.add("4,6,2");
+		expected.add("4,7,1");
+		expected.add("4,8,2");
+		expected.add("5,10,1");
+		expected.add("5,10,3");
+		expected.add("5,11,3");
+		expected.add("5,13,2");
+		expected.add("5,13,2");
 
 		StreamITCase.compareWithList(expected);
 	}
