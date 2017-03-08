@@ -18,6 +18,7 @@
 package org.apache.flink.table.hive.functions
 
 import java.lang.reflect.Method
+import java.math.BigDecimal
 import java.util
 
 import org.apache.flink.table.functions.ScalarFunction
@@ -72,7 +73,15 @@ class HiveSimpleUDF(className: String) extends ScalarFunction {
       }
       conversionHelper = new ConversionHelper(method, objectInspectors)
     }
+
+    val mappedArgs = args.map {
+      case arg: BigDecimal =>
+        arg.asInstanceOf[BigDecimal].doubleValue().asInstanceOf[AnyRef]
+      case arg: AnyRef =>
+        arg
+    }
+
     FunctionRegistry.invoke(method, function,
-      conversionHelper.convertIfNecessary(args: _*): _*)
+      conversionHelper.convertIfNecessary(mappedArgs: _*): _*)
   }
 }

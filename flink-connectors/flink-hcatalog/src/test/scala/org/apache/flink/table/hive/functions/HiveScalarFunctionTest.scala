@@ -33,12 +33,36 @@ class HiveScalarFunctionTest extends ExpressionTestBase {
 
   @Test
   def testHiveSimpleFunctions(): Unit = {
+    val HiveUDFAcos = new HiveSimpleUDF("org.apache.hadoop.hive.ql.udf.UDFAcos")
+    testAllApis(
+      HiveUDFAcos(1.0),
+      "HiveUDFAcos(1.0)",
+      "HiveUDFAcos(1.0)",
+      "0.0"
+    )
+
     val HiveUDFAscii = new HiveSimpleUDF("org.apache.hadoop.hive.ql.udf.UDFAscii")
     testAllApis(
       HiveUDFAscii("0"),
       "HiveUDFAscii('0')",
       "HiveUDFAscii('0')",
       "48"
+    )
+
+    val HiveUDFAsin = new HiveSimpleUDF("org.apache.hadoop.hive.ql.udf.UDFAsin")
+    testAllApis(
+      HiveUDFAsin("0"),
+      "HiveUDFAsin('0')",
+      "HiveUDFAsin('0')",
+      "0.0"
+    )
+
+    val HiveUDFBin = new HiveSimpleUDF("org.apache.hadoop.hive.ql.udf.UDFBin")
+    testAllApis(
+      HiveUDFBin(13),
+      "HiveUDFBin(13)",
+      "HiveUDFBin(13)",
+      "1101"
     )
 
     val HiveUDFConv = new HiveSimpleUDF("org.apache.hadoop.hive.ql.udf.UDFConv")
@@ -53,6 +77,14 @@ class HiveScalarFunctionTest extends ExpressionTestBase {
       "HiveUDFConv(-10, 16, -10)",
       "HiveUDFConv(-10, 16, -10)",
       "-16"
+    )
+
+    val HiveUDFCos = new HiveSimpleUDF("org.apache.hadoop.hive.ql.udf.UDFCos")
+    testAllApis(
+      HiveUDFCos(0.0),
+      "HiveUDFCos(0.0)",
+      "HiveUDFCos(0.0)",
+      "1.0"
     )
 
     val HiveUDFDayOfMonth = new HiveSimpleUDF("org.apache.hadoop.hive.ql.udf.UDFDayOfMonth")
@@ -95,8 +127,12 @@ class HiveScalarFunctionTest extends ExpressionTestBase {
   }
 
   override def functions: Map[String, ScalarFunction] = Map(
+    "HiveUDFAcos" -> new HiveSimpleUDF("org.apache.hadoop.hive.ql.udf.UDFAcos"),
     "HiveUDFAscii" -> new HiveSimpleUDF("org.apache.hadoop.hive.ql.udf.UDFAscii"),
+    "HiveUDFAsin" -> new HiveSimpleUDF("org.apache.hadoop.hive.ql.udf.UDFAsin"),
+    "HiveUDFBin" -> new HiveSimpleUDF("org.apache.hadoop.hive.ql.udf.UDFBin"),
     "HiveUDFConv" -> new HiveSimpleUDF("org.apache.hadoop.hive.ql.udf.UDFConv"),
+    "HiveUDFCos" -> new HiveSimpleUDF("org.apache.hadoop.hive.ql.udf.UDFCos"),
     "HiveUDFDayOfMonth" -> new HiveSimpleUDF("org.apache.hadoop.hive.ql.udf.UDFDayOfMonth")
   )
 }
