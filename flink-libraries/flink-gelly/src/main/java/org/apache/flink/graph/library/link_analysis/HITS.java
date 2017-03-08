@@ -61,6 +61,8 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
  *
  * http://www.cs.cornell.edu/home/kleinber/auth.pdf
  *
+ * http://www.cs.cornell.edu/home/kleinber/auth.pdf
+ *
  * @param <K> graph ID type
  * @param <VV> vertex value type
  * @param <EV> edge value type

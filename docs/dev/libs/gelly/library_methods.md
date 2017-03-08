@@ -353,6 +353,29 @@ on the sum of the change in score for each vertex between iterations.
 
 * `setParallelism`: override the operator parallelism
 
+* `setParallelism`: override the operator parallelism
+
+### PageRank
+
+#### Overview
+[PageRank](https://en.wikipedia.org/wiki/PageRank) is an algorithm that was first used to rank web search engine
+results. Today, the algorithm and many variations are used in various graph application domains. The idea of PageRank is
+that important or relevant vertices tend to link to other important vertices.
+
+#### Details
+The algorithm operates in iterations, where pages distribute their scores to their neighbors (pages they have links to)
+and subsequently update their scores based on the sum of values they receive. In order to consider the importance of a
+link from one page to another, scores are divided by the total number of out-links of the source page. Thus, a page with
+10 links will distribute 1/10 of its score to each neighbor, while a page with 100 links will distribute 1/100 of its
+score to each neighboring page.
+
+#### Usage
+The algorithm takes a directed graph as input and outputs a `DataSet` where each `Result` contains the vertex ID and
+PageRank score. Termination is configured with a maximum number of iterations and/or a convergence threshold
+on the sum of the change in score for each vertex between iterations.
+
+* `setParallelism`: override the operator parallelism
+
 ## Metric
 
 ### Vertex Metrics
