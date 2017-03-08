@@ -28,13 +28,13 @@ ARG SCALA_VERSION=2.11
 
 # Flink environment variables
 ENV FLINK_INSTALL_PATH=/opt
-ENV FLINK_HOME $FLINK_INSTALL_PATH/flink
-ENV PATH $PATH:$FLINK_HOME/bin
+ENV FLINK_HOME=$FLINK_INSTALL_PATH/flink
+ENV PATH=$PATH:$FLINK_HOME/bin
+ENV FLINK_USER=flink
+ENV FLINK_UID=9999
 
-# These can be mapped from the host to the container using
-# $ docker run -t flink -p 8081:8081 -p 6123:6123 jobmanager
-EXPOSE 8081
-EXPOSE 6123
+RUN addgroup -S -g $FLINK_UID $FLINK_USER && \
+  adduser -D -S -H -u $FLINK_UID -G $FLINK_USER -h $FLINK_HOME flink
 
 # Install build dependencies and flink
 RUN set -x && \
@@ -43,9 +43,8 @@ RUN set -x && \
   curl -s $(curl -s https://www.apache.org/dyn/closer.cgi\?preferred\=true)flink/flink-${FLINK_VERSION}/flink-${FLINK_VERSION}-bin-hadoop${HADOOP_VERSION}-scala_${SCALA_VERSION}.tgz | \
   tar xvz -C $FLINK_INSTALL_PATH && \
   ln -s $FLINK_INSTALL_PATH/flink-$FLINK_VERSION $FLINK_HOME && \
-  addgroup -S flink && adduser -D -S -H -G flink -h $FLINK_HOME flink && \
-  chown -R flink:flink $FLINK_INSTALL_PATH/flink-$FLINK_VERSION && \
-  chown -h flink:flink $FLINK_HOME && \
+  chown -R $FLINK_USER:$FLINK_USER $FLINK_INSTALL_PATH/flink-$FLINK_VERSION && \
+  chown -h $FLINK_USER:$FLINK_USER $FLINK_HOME && \
   sed -i -e "s/echo \$mypid >> \$pid/echo \$mypid >> \$pid \&\& wait/g" $FLINK_HOME/bin/flink-daemon.sh && \
   apk del build-dependencies && \
   rm -rf /var/cache/apk/*
@@ -54,4 +53,9 @@ RUN set -x && \
 USER flink
 ADD docker-entrypoint.sh $FLINK_HOME/bin/
 ENTRYPOINT ["docker-entrypoint.sh"]
+# These can be mapped from the host to the container using
+# $ docker run -t flink -p 8081:8081 -p 6123:6123 jobmanager
+# 6123: jobmanager.rpc.port
+# 8081: jobmanager.web.port
+EXPOSE 6123 8081
 CMD ["sh", "-c"]
