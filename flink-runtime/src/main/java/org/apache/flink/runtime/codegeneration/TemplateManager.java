@@ -22,7 +22,6 @@ import freemarker.template.Configuration;
 import freemarker.template.Template;
 import freemarker.template.TemplateException;
 import freemarker.template.TemplateExceptionHandler;
-import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.util.FileUtils;
 import org.slf4j.Logger;
@@ -33,7 +32,6 @@ import java.io.FileOutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.io.IOException;
-import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
 

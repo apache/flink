@@ -66,7 +66,8 @@ public class MultipleProgramsTestBase extends TestBaseUtils {
 	public enum TestExecutionMode {
 		CLUSTER,
 		CLUSTER_OBJECT_REUSE,
-		COLLECTION,
+		CLUSTER_WITH_CODEGENERATION_ENABLED,
+		COLLECTION
 	}
 
 	// ------------------------------------------------------------------------
@@ -81,7 +82,6 @@ public class MultipleProgramsTestBase extends TestBaseUtils {
 
 	// ------------------------------------------------------------------------
 	protected final TestExecutionMode mode;
-	protected final ExecutionEnvironment executionEnvironment;
 
 	public MultipleProgramsTestBase(TestExecutionMode mode) {
 		this.mode = mode;
@@ -94,8 +94,6 @@ public class MultipleProgramsTestBase extends TestBaseUtils {
 	@Before
 	public void setupEnvironment() {
 
-		ExecutionEnvironment env = null;
-
 		switch(mode){
 			case CLUSTER:
 				new TestEnvironment(cluster, 4, false).setAsContext();
@@ -103,12 +101,15 @@ public class MultipleProgramsTestBase extends TestBaseUtils {
 			case CLUSTER_OBJECT_REUSE:
 				new TestEnvironment(cluster, 4, true).setAsContext();
 				break;
+			case CLUSTER_WITH_CODEGENERATION_ENABLED:
+				TestEnvironment env = new TestEnvironment(cluster, 4);
+				env.setAsContext();
+				env.getConfig().setCodeGenerationForSorterEnabled(true);
+				break;
 			case COLLECTION:
 				new CollectionTestEnvironment().setAsContext();
 				break;
 		}
-
-		executionEnvironment = env;
 	}
 
 	@After
@@ -151,6 +152,7 @@ public class MultipleProgramsTestBase extends TestBaseUtils {
 	public static Collection<Object[]> executionModes() {
 		return Arrays.asList(
 				new Object[] { TestExecutionMode.CLUSTER },
+				new Object[] { TestExecutionMode.CLUSTER_WITH_CODEGENERATION_ENABLED },
 				new Object[] { TestExecutionMode.COLLECTION });
 	}
 }
