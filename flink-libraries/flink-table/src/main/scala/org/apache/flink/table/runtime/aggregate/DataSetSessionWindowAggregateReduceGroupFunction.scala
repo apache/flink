@@ -106,8 +106,7 @@ class DataSetSessionWindowAggregateReduceGroupFunction(
 
     // reset first accumulator in merge list
     for (i <- aggregates.indices) {
-      val accumulator = aggregates(i).createAccumulator()
-      accumulatorList(i).set(0, accumulator)
+      aggregates(i).resetAccumulator(accumulatorList(i).get(0))
     }
 
     val iterator = records.iterator()
@@ -126,8 +125,7 @@ class DataSetSessionWindowAggregateReduceGroupFunction(
 
           // reset first accumulator in list
           for (i <- aggregates.indices) {
-            val accumulator = aggregates(i).createAccumulator()
-            accumulatorList(i).set(0, accumulator)
+            aggregates(i).resetAccumulator(accumulatorList(i).get(0))
           }
         } else {
           // set group keys value to final output.

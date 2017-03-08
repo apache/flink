@@ -82,6 +82,13 @@ abstract class AggregateFunction[T] extends UserDefinedFunction {
   def merge(accumulators: JList[Accumulator]): Accumulator
 
   /**
+    * Reset the Accumulator for this [[AggregateFunction]]
+    *
+    * @param accumulator the accumulator which needs to be reset
+    */
+  def resetAccumulator(accumulator: Accumulator): Unit
+
+  /**
     * Returns the [[TypeInformation]] of the accumulator.
     * This function is optional and can be implemented if the accumulator type cannot automatically
     * inferred from the instance returned by [[createAccumulator()]].

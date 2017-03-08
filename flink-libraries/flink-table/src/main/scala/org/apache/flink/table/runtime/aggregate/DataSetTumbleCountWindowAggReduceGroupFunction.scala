@@ -80,8 +80,7 @@ class DataSetTumbleCountWindowAggReduceGroupFunction(
       if (count == 0) {
         // reset first accumulator
         for (i <- aggregates.indices) {
-          val accumulator = aggregates(i).createAccumulator()
-          accumulatorList(i).set(0, accumulator)
+          aggregates(i).resetAccumulator(accumulatorList(i).get(0))
         }
       }
 

@@ -111,8 +111,7 @@ class DataSetSessionWindowAggregatePreProcessor(
 
     // reset first accumulator in merge list
     for (i <- aggregates.indices) {
-      val accumulator = aggregates(i).createAccumulator()
-      accumulatorList(i).set(0, accumulator)
+      aggregates(i).resetAccumulator(accumulatorList(i).get(0))
     }
 
     val iterator = records.iterator()
@@ -130,8 +129,7 @@ class DataSetSessionWindowAggregatePreProcessor(
 
           // reset first value of accumulator list
           for (i <- aggregates.indices) {
-            val accumulator = aggregates(i).createAccumulator()
-            accumulatorList(i).set(0, accumulator)
+            aggregates(i).resetAccumulator(accumulatorList(i).get(0))
           }
         } else {
           // set group keys to aggregateBuffer.

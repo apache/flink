@@ -81,6 +81,11 @@ abstract class IntegralAvgAggFunction[T] extends AggregateFunction[T] {
     ret
   }
 
+  override def resetAccumulator(accumulator: Accumulator): Unit = {
+    accumulator.asInstanceOf[IntegralAvgAccumulator].f0 = 0L
+    accumulator.asInstanceOf[IntegralAvgAccumulator].f1 = 0L
+  }
+
   override def getAccumulatorType(): TypeInformation[_] = {
     new TupleTypeInfo(
       new IntegralAvgAccumulator().getClass,
@@ -176,6 +181,11 @@ abstract class BigIntegralAvgAggFunction[T] extends AggregateFunction[T] {
     ret
   }
 
+  override def resetAccumulator(accumulator: Accumulator): Unit = {
+    accumulator.asInstanceOf[BigIntegralAvgAccumulator].f0 = BigInteger.ZERO
+    accumulator.asInstanceOf[BigIntegralAvgAccumulator].f1 = 0
+  }
+
   override def getAccumulatorType(): TypeInformation[_] = {
     new TupleTypeInfo(
       new BigIntegralAvgAccumulator().getClass,
@@ -255,6 +265,11 @@ abstract class FloatingAvgAggFunction[T] extends AggregateFunction[T] {
       i += 1
     }
     ret
+  }
+
+  override def resetAccumulator(accumulator: Accumulator): Unit = {
+    accumulator.asInstanceOf[FloatingAvgAccumulator].f0 = 0
+    accumulator.asInstanceOf[FloatingAvgAccumulator].f1 = 0L
   }
 
   override def getAccumulatorType(): TypeInformation[_] = {
@@ -341,6 +356,11 @@ class DecimalAvgAggFunction extends AggregateFunction[BigDecimal] {
       i += 1
     }
     ret
+  }
+
+  override def resetAccumulator(accumulator: Accumulator): Unit = {
+    accumulator.asInstanceOf[DecimalAvgAccumulator].f0 = BigDecimal.ZERO
+    accumulator.asInstanceOf[DecimalAvgAccumulator].f1 = 0L
   }
 
   override def getAccumulatorType(): TypeInformation[_] = {
