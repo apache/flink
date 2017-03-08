@@ -20,7 +20,7 @@ package org.apache.flink.table.runtime.aggregate
 import java.lang.Iterable
 import java.util.{ArrayList => JArrayList}
 
-import org.apache.flink.api.common.functions.{AbstractRichFunction, GroupCombineFunction, MapPartitionFunction, RichGroupCombineFunction}
+import org.apache.flink.api.common.functions.{AbstractRichFunction, GroupCombineFunction, MapPartitionFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.types.Row
@@ -47,6 +47,9 @@ class DataSetSessionWindowAggregatePreProcessor(
   with GroupCombineFunction[Row,Row]
   with ResultTypeQueryable[Row] {
 
+  Preconditions.checkNotNull(aggregates)
+  Preconditions.checkNotNull(groupingKeys)
+
   private var aggregateBuffer: Row = _
   private val accumStartPos: Int = groupingKeys.length
   private val rowTimeFieldPos = accumStartPos + aggregates.length
@@ -56,8 +59,6 @@ class DataSetSessionWindowAggregatePreProcessor(
   }
 
   override def open(config: Configuration) {
-    Preconditions.checkNotNull(aggregates)
-    Preconditions.checkNotNull(groupingKeys)
     aggregateBuffer = new Row(rowTimeFieldPos + 2)
 
     // init lists with two empty accumulators
@@ -110,9 +111,11 @@ class DataSetSessionWindowAggregatePreProcessor(
     var currentRowTime: java.lang.Long = null
 
     // reset first accumulator in merge list
-    for (i <- aggregates.indices) {
+    var i = 0
+    while (i < aggregates.length) {
       val accumulator = aggregates(i).createAccumulator()
       accumulatorList(i).set(0, accumulator)
+      i += 1
     }
 
     val iterator = records.iterator()
@@ -129,21 +132,26 @@ class DataSetSessionWindowAggregatePreProcessor(
           doCollect(out, accumulatorList, windowStart, windowEnd)
 
           // reset first value of accumulator list
-          for (i <- aggregates.indices) {
+          i = 0
+          while (i < aggregates.length) {
             val accumulator = aggregates(i).createAccumulator()
             accumulatorList(i).set(0, accumulator)
+            i += 1
           }
         } else {
           // set group keys to aggregateBuffer.
-          for (i <- groupingKeys.indices) {
+          i = 0
+          while (i < groupingKeys.length) {
             aggregateBuffer.setField(i, record.getField(i))
+            i += 1
           }
         }
 
         windowStart = record.getField(rowTimeFieldPos).asInstanceOf[Long]
       }
 
-      for (i <- aggregates.indices) {
+      i = 0
+      while (i < aggregates.length) {
         // insert received accumulator into acc list
         val newAcc = record.getField(accumStartPos + i).asInstanceOf[Accumulator]
         accumulatorList(i).set(1, newAcc)
@@ -151,6 +159,7 @@ class DataSetSessionWindowAggregatePreProcessor(
         val retAcc = aggregates(i).merge(accumulatorList(i))
         // insert result into acc list
         accumulatorList(i).set(0, retAcc)
+        i += 1
       }
 
       // the current rowtime is the last rowtime of the next calculation.
@@ -178,8 +187,10 @@ class DataSetSessionWindowAggregatePreProcessor(
       windowEnd: Long): Unit = {
 
     // merge the accumulators into one accumulator
-    for (i <- aggregates.indices) {
+    var i = 0
+    while (i < aggregates.length) {
       aggregateBuffer.setField(accumStartPos + i, accumulatorList(i).get(0))
+      i += 1
     }
 
     // intermediate Row WindowStartPos is rowtime pos.
