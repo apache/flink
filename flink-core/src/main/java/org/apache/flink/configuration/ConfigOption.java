@@ -51,6 +51,9 @@ public class ConfigOption<T> {
 	/** The default value for this option */
 	private final T defaultValue;
 
+	/** The description for this option */
+	private final String description;
+
 	// ------------------------------------------------------------------------
 
 	/**
@@ -61,6 +64,7 @@ public class ConfigOption<T> {
 	 */
 	ConfigOption(String key, T defaultValue) {
 		this.key = checkNotNull(key);
+		this.description = "";
 		this.defaultValue = defaultValue;
 		this.deprecatedKeys = EMPTY;
 	}
@@ -72,8 +76,9 @@ public class ConfigOption<T> {
 	 * @param defaultValue    The default value for this option
 	 * @param deprecatedKeys  The list of deprecated keys, in the order to be checked
 	 */
-	ConfigOption(String key, T defaultValue, String... deprecatedKeys) {
+	ConfigOption(String key, String description, T defaultValue, String... deprecatedKeys) {
 		this.key = checkNotNull(key);
+		this.description = description;
 		this.defaultValue = defaultValue;
 		this.deprecatedKeys = deprecatedKeys == null || deprecatedKeys.length == 0 ? EMPTY : deprecatedKeys;
 	}
@@ -92,7 +97,20 @@ public class ConfigOption<T> {
 	 * @return A new config options, with the given deprecated keys.
 	 */
 	public ConfigOption<T> withDeprecatedKeys(String... deprecatedKeys) {
-		return new ConfigOption<>(key, defaultValue, deprecatedKeys);
+		return new ConfigOption<>(key, description, defaultValue, deprecatedKeys);
+	}
+
+	/**
+	 * Creates a new config option, using this option's key and default value, and
+	 * adding the given description. The given description is used when generation the configuration documention.
+	 *
+	 * <p><b>NOTE:</b> You can use html to format the output of the generated cell.
+	 *
+	 * @param description The description for this option.
+	 * @return A new config option, with given description.
+	 */
+	public ConfigOption<T> withDescription(final String description) {
+		return new ConfigOption<>(key, description, defaultValue, deprecatedKeys);
 	}
 
 	// ------------------------------------------------------------------------
@@ -135,6 +153,14 @@ public class ConfigOption<T> {
 	 */
 	public Iterable<String> deprecatedKeys() {
 		return deprecatedKeys == EMPTY ? Collections.<String>emptyList() : Arrays.asList(deprecatedKeys);
+	}
+
+	/**
+	 * Returns the description of this option.
+	 * @return The option's description.
+	 */
+	public String description() {
+		return description;
 	}
 
 	// ------------------------------------------------------------------------
