@@ -59,7 +59,6 @@ class HiveGenericUDF(className: String) extends ScalarFunction {
   @transient
   private var deferredObjects: Array[DeferredObject] = _
 
-
   @varargs
   def eval(args: AnyRef*): Any = {
     if (null == argumentInspectors) {
@@ -73,19 +72,17 @@ class HiveGenericUDF(className: String) extends ScalarFunction {
         argumentInspectors(i) = PrimitiveObjectInspectorFactory.getPrimitiveJavaObjectInspector(
           typeInfos.get(i).asInstanceOf[PrimitiveTypeInfo])
       }
-      function.initializeAndFoldConstants(argumentInspectors)
+      returnInspector = function.initializeAndFoldConstants(argumentInspectors)
 
       deferredObjects = new Array[DeferredObject](args.length)
-
-      var i = 0
-      val length = args.length
-      while (i < length) {
-        val idx = i
-        deferredObjects(i).asInstanceOf[DeferredObjectAdapter]
-          .set(args(i))
-        i += 1
-      }
-      function.evaluate(deferredObjects)
     }
+
+    var i = 0
+    while (i < args.length) {
+      deferredObjects(i).asInstanceOf[DeferredObjectAdapter]
+        .set(args(i))
+      i += 1
+    }
+    function.evaluate(deferredObjects)
   }
 }

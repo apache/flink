@@ -96,6 +96,10 @@ class HiveScalarFunctionTest extends ExpressionTestBase {
     )
   }
 
+  @Test
+  def testHiveGenericFunctions(): Unit = {
+  }
+
   // ----------------------------------------------------------------------------------------------
 
   override def testData: Any = {
