@@ -23,6 +23,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
 import org.apache.flink.test.testdata.WordCountData;
+import org.apache.flink.test.util.Tokenizer;
 import org.apache.flink.util.Collector;
 
 public class CsvOutputFormatITCase extends StreamingProgramTestBase {
@@ -55,24 +56,5 @@ public class CsvOutputFormatITCase extends StreamingProgramTestBase {
 		compareResultsByLinesInMemory(WordCountData.STREAMING_COUNTS_AS_TUPLES
 				.replaceAll("[\\\\(\\\\)]", ""), resultPath);
 	}
-
-	public static final class Tokenizer implements FlatMapFunction<String, Tuple2<String, Integer>> {
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		public void flatMap(String value, Collector<Tuple2<String, Integer>> out)
-				throws Exception {
-			// normalize and split the line
-			String[] tokens = value.toLowerCase().split("\\W+");
-
-			// emit the pairs
-			for (String token : tokens) {
-				if (token.length() > 0) {
-					out.collect(new Tuple2<String, Integer>(token, 1));
-				}
-			}
-		}
-	}
-
 }
 

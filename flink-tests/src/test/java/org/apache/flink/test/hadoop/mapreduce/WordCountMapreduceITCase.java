@@ -27,6 +27,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import static org.apache.flink.hadoopcompatibility.HadoopInputs.readHadoopFile;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.test.util.Tokenizer;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.hadoop.fs.Path;
@@ -114,21 +115,5 @@ public class WordCountMapreduceITCase extends JavaProgramTestBase {
 		// Output & Execute
 		words.output(hadoopOutputFormat);
 		env.execute("Hadoop Compat WordCount");
-	}
-
-	public static final class Tokenizer implements FlatMapFunction<String, Tuple2<String, Integer>> {
-
-		@Override
-		public void flatMap(String value, Collector<Tuple2<String, Integer>> out) {
-			// normalize and split the line
-			String[] tokens = value.toLowerCase().split("\\W+");
-
-			// emit the pairs
-			for (String token : tokens) {
-				if (token.length() > 0) {
-					out.collect(new Tuple2<String, Integer>(token, 1));
-				}
-			}
-		}
 	}
 }
