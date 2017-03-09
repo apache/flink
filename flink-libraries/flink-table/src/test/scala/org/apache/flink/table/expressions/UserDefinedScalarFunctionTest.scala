@@ -29,7 +29,6 @@ import org.apache.flink.table.api.java.utils.UserDefinedScalarFunctions.{JavaFun
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.utils._
 import org.apache.flink.table.functions.ScalarFunction
-import org.apache.flink.table.functions.hive.HiveSimpleUDF
 import org.junit.Test
 
 class UserDefinedScalarFunctionTest extends ExpressionTestBase {
