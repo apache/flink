@@ -29,7 +29,7 @@ import org.apache.flink.table.api.java.utils.UserDefinedScalarFunctions.{JavaFun
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.utils._
 import org.apache.flink.table.functions.ScalarFunction
-import org.apache.flink.table.functions.hive.{HiveFunctionWrapper, HiveSimpleUDF}
+import org.apache.flink.table.functions.hive.HiveSimpleUDF
 import org.junit.Test
 
 class UserDefinedScalarFunctionTest extends ExpressionTestBase {
@@ -372,9 +372,7 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
     "JavaFunc3" -> new JavaFunc3,
     "RichFunc0" -> new RichFunc0,
     "RichFunc1" -> new RichFunc1,
-    "RichFunc2" -> new RichFunc2,
-    "HiveUDFAscii" -> new HiveSimpleUDF("HiveUDFAscii",
-      HiveFunctionWrapper("org.apache.hadoop.hive.ql.udf.UDFAscii"))
+    "RichFunc2" -> new RichFunc2
   )
 }
 

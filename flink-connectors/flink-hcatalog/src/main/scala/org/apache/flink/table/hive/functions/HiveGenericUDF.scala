@@ -61,8 +61,8 @@ class HiveGenericUDF(className: String) extends ScalarFunction {
 
 
   @varargs
-  def eval(args: AnyRef*) : Any = {
-    if (null == argumentInspectors){
+  def eval(args: AnyRef*): Any = {
+    if (null == argumentInspectors) {
       val typeInfos = new util.ArrayList[TypeInfo]()
       args.foreach(arg => {
         typeInfos.add(TypeInfoFactory.getPrimitiveTypeInfoFromJavaPrimitive(arg.getClass))
@@ -86,5 +86,6 @@ class HiveGenericUDF(className: String) extends ScalarFunction {
         i += 1
       }
       function.evaluate(deferredObjects)
+    }
   }
 }
