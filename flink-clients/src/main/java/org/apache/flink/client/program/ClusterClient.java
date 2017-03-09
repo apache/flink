@@ -689,7 +689,7 @@ public abstract class ClusterClient {
 	public ActorGateway getJobManagerGateway() throws Exception {
 		LOG.debug("Looking up JobManager");
 		return LeaderRetrievalUtils.retrieveLeaderGateway(
-			LeaderRetrievalUtils.createLeaderRetrievalService(flinkConfig),
+			LeaderRetrievalUtils.createLeaderRetrievalService(flinkConfig, true),
 			actorSystemLoader.get(),
 			lookupTimeout);
 	}
