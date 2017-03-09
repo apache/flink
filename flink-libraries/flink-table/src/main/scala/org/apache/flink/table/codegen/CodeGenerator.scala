@@ -806,6 +806,15 @@ abstract class CodeGenerator(
         requireTimeInterval(operand)
         generateUnaryIntervalPlusMinus(plus = true, nullCheck, operand)
 
+      case IN =>
+        val left = operands.head
+        val right = operands.tail
+        val addReusableCodeCallback = (declaration: String, initialization: String) => {
+          reusableMemberStatements.add(declaration)
+          reusableInitStatements.add(initialization)
+        }
+        generateIn(nullCheck, left, right, addReusableCodeCallback)        
+        
       // comparison
       case EQUALS =>
         val left = operands.head
