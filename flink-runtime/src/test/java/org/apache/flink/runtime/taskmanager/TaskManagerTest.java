@@ -987,12 +987,16 @@ public class TaskManagerTest extends TestLogger {
 		final Configuration config = new Configuration();
 		config.setInteger(TaskManagerOptions.NETWORK_REQUEST_BACKOFF_INITIAL, 100);
 		config.setInteger(TaskManagerOptions.NETWORK_REQUEST_BACKOFF_MAX, 200);
+		config.setInteger(TaskManagerOptions.NETWORK_BUFFERS_PER_CHANNEL, 10);
+		config.setInteger(TaskManagerOptions.NETWORK_EXTRA_BUFFERS_PER_GATE, 100);
 
 		TaskManagerServicesConfiguration tmConfig =
 			TaskManagerServicesConfiguration.fromConfiguration(config, InetAddress.getByName("localhost"), true);
 
 		assertEquals(tmConfig.getNetworkConfig().partitionRequestInitialBackoff(), 100);
 		assertEquals(tmConfig.getNetworkConfig().partitionRequestMaxBackoff(), 200);
+		assertEquals(tmConfig.getNetworkConfig().networkBuffersPerChannel(), 10);
+		assertEquals(tmConfig.getNetworkConfig().extraNetworkBuffersPerGate(), 100);
 	}
 
 	/**

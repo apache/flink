@@ -73,6 +73,11 @@ public class NetworkEnvironment {
 
 	private final int partitionRequestMaxBackoff;
 
+	/** Number of network buffers to use for each outgoing/ingoing channel (subpartition/input channel). */
+	private final int networkBuffersPerChannel;
+	/** Number of extra network buffers to use for each outgoing/ingoing gate (result partition/input gate). */
+	private final int extraNetworkBuffersPerGate;
+
 	private boolean isShutdown;
 
 	public NetworkEnvironment(
@@ -84,7 +89,9 @@ public class NetworkEnvironment {
 			KvStateServer kvStateServer,
 			IOMode defaultIOMode,
 			int partitionRequestInitialBackoff,
-			int partitionRequestMaxBackoff) {
+			int partitionRequestMaxBackoff,
+			int networkBuffersPerChannel,
+			int extraNetworkBuffersPerGate) {
 
 		this.networkBufferPool = checkNotNull(networkBufferPool);
 		this.connectionManager = checkNotNull(connectionManager);
@@ -100,6 +107,8 @@ public class NetworkEnvironment {
 		this.partitionRequestMaxBackoff = partitionRequestMaxBackoff;
 
 		isShutdown = false;
+		this.networkBuffersPerChannel = networkBuffersPerChannel;
+		this.extraNetworkBuffersPerGate = extraNetworkBuffersPerGate;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -171,13 +180,9 @@ public class NetworkEnvironment {
 				BufferPool bufferPool = null;
 
 				try {
-					// TODO: tweak limit
-					/* 1 buffer for in-flight data in the subpartition
-					 * 1 buffer for parallel serialization
-					 * + some extra buffers
-					 */
 					int maxNumberOfMemorySegments = partition.getPartitionType().isBounded() ?
-						partition.getNumberOfSubpartitions() * 2 + 8 : Integer.MAX_VALUE;
+						partition.getNumberOfSubpartitions() * networkBuffersPerChannel +
+							extraNetworkBuffersPerGate : Integer.MAX_VALUE;
 					bufferPool = networkBufferPool.createBufferPool(partition.getNumberOfSubpartitions(),
 							maxNumberOfMemorySegments);
 					partition.registerBufferPool(bufferPool);
@@ -206,13 +211,9 @@ public class NetworkEnvironment {
 				BufferPool bufferPool = null;
 
 				try {
-					// TODO: tweak limit
-					/* 1 buffer for in-flight data in the subpartition
-					 * 1 buffer for parallel serialization
-					 * + some extra buffers
-					 */
 					int maxNumberOfMemorySegments = gate.getConsumedPartitionType().isBounded() ?
-						gate.getNumberOfInputChannels() * 2 + 8 : Integer.MAX_VALUE;
+						gate.getNumberOfInputChannels() * networkBuffersPerChannel +
+							extraNetworkBuffersPerGate : Integer.MAX_VALUE;
 					bufferPool = networkBufferPool.createBufferPool(gate.getNumberOfInputChannels(),
 						maxNumberOfMemorySegments);
 					gate.setBufferPool(bufferPool);

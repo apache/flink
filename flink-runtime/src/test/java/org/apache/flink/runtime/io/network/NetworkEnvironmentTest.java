@@ -67,7 +67,9 @@ public class NetworkEnvironmentTest {
 			null,
 			IOManager.IOMode.SYNC,
 			0,
-			0);
+			0,
+			2,
+			8);
 
 		// result partitions
 		ResultPartition rp1 = createResultPartition(ResultPartitionType.PIPELINED, 2);

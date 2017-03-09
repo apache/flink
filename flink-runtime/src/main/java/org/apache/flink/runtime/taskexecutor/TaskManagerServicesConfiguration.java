@@ -317,6 +317,11 @@ public class TaskManagerServicesConfiguration {
 		int maxRequestBackoff = configuration.getInteger(
 			TaskManagerOptions.NETWORK_REQUEST_BACKOFF_MAX);
 
+		int buffersPerChannel = configuration.getInteger(
+			TaskManagerOptions.NETWORK_BUFFERS_PER_CHANNEL);
+		int extraBuffersPerGate = configuration.getInteger(
+			TaskManagerOptions.NETWORK_EXTRA_BUFFERS_PER_GATE);
+
 		return new NetworkEnvironmentConfiguration(
 			numNetworkBuffers,
 			pageSize,
@@ -324,6 +329,8 @@ public class TaskManagerServicesConfiguration {
 			ioMode,
 			initialRequestBackoff,
 			maxRequestBackoff,
+			buffersPerChannel,
+			extraBuffersPerGate,
 			nettyConfig);
 	}
 
