@@ -38,6 +38,9 @@ public class ResourceProfile implements Serializable, Comparable<ResourceProfile
 
 	public static final ResourceProfile UNKNOWN = new ResourceProfile(-1.0, -1L);
 
+	// A universal resource profile which can match any one
+	public static final ResourceProfile UNIVERSAL = new ResourceProfile(0, 0L);
+
 	// ------------------------------------------------------------------------
 
 	/** How many cpu cores are needed, use double so we can specify cpu like 0.1 */
@@ -119,6 +122,9 @@ public class ResourceProfile implements Serializable, Comparable<ResourceProfile
 		}
 		else if (obj != null && obj.getClass() == ResourceProfile.class) {
 			ResourceProfile that = (ResourceProfile) obj;
+			if (this == ResourceProfile.UNIVERSAL || that == ResourceProfile.UNIVERSAL) {
+				return true;
+			}
 			return this.cpuCores == that.cpuCores && this.memoryInMB == that.memoryInMB; 
 		}
 		else {

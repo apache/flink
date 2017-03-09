@@ -52,7 +52,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 
@@ -198,10 +197,11 @@ public class TaskManagerServices {
 
 		final FileCache fileCache = new FileCache(taskManagerServicesConfiguration.getTmpDirPaths());
 
-		final List<ResourceProfile> resourceProfiles = new ArrayList<>(taskManagerServicesConfiguration.getNumberOfSlots());
+		final List<ResourceProfile> resourceProfiles = taskManagerServicesConfiguration.getResourceProfiles();
 
-		for (int i = 0; i < taskManagerServicesConfiguration.getNumberOfSlots(); i++) {
-			resourceProfiles.add(new ResourceProfile(1.0, 42L));
+		// for standalone, there are no resource pofile in the configuration, the size is zero
+		for (int i = resourceProfiles.size(); i < taskManagerServicesConfiguration.getNumberOfSlots(); i++) {
+			resourceProfiles.add(ResourceProfile.UNIVERSAL);
 		}
 
 		final TimerService<AllocationID> timerService = new TimerService<>(
