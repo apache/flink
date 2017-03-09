@@ -21,7 +21,6 @@ package org.apache.flink.graph.examples.data;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.graph.Edge;
-import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
 
 import java.util.LinkedList;
@@ -44,10 +43,10 @@ public class ConnectedComponentsDefaultData {
 		new Object[]{3L, 4L}
 	};
 
-	public static DataSet<Edge<LongValue, NullValue>> getDefaultEdgeDataSet(ExecutionEnvironment env) {
-		List<Edge<LongValue, NullValue>> edgeList = new LinkedList<>();
+	public static DataSet<Edge<Long, NullValue>> getDefaultEdgeDataSet(ExecutionEnvironment env) {
+		List<Edge<Long, NullValue>> edgeList = new LinkedList<>();
 		for (Object[] edge : DEFAULT_EDGES) {
-			edgeList.add(new Edge<>(new LongValue((long)edge[0]), new LongValue((long)edge[1]), NullValue.getInstance()));
+			edgeList.add(new Edge<>((long)edge[0], (long)edge[1], NullValue.getInstance()));
 		}
 		return env.fromCollection(edgeList);
 	}

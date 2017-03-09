@@ -44,6 +44,18 @@ public class GraphUtils {
 	}
 
 	/**
+	 * The identity mapper returns the input as output.
+	 *
+	 * @param <T> element type
+	 */
+	public static final class IdentityMapper<T>
+	implements MapFunction<T, T> {
+		public T map(T value) {
+			return value;
+		}
+	}
+
+	/**
 	 * Map each element to a value.
 	 *
 	 * @param <I> input type
