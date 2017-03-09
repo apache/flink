@@ -94,7 +94,7 @@ object UserDefinedFunctionUtils {
     val evalMethods = checkAndExtractEvalMethods(function)
 
     val filtered = evalMethods
-      // go over all eval methods and filter out one and only one matching
+      // go over all eval methods and filter out matching methods
       .filter {
         case cur if !cur.isVarArgs =>
           val signatures = cur.getParameterTypes
@@ -114,12 +114,32 @@ object UserDefinedFunctionUtils {
           (actualSignature.isEmpty && signatures.length == 1)
     }
 
-    if (filtered.length > 1) {
+    // if there is a fixed method, compiler will call the method preferentially
+    val fixedMethods = filtered.count{!_.isVarArgs}
+    val found = filtered.filter { cur =>
+      fixedMethods > 0 && !cur.isVarArgs ||
+      fixedMethods == 0 && cur.isVarArgs
+    }
+
+    if (found.isEmpty &&
+      // does there exist scala type variable arguments
+      evalMethods.exists{ evalMethod =>
+        val signatures = evalMethod.getParameterTypes
+        signatures.zipWithIndex.forall {
+          case (clazz, i) if i < signatures.length - 1 =>
+            parameterTypeEquals(actualSignature(i), clazz)
+          case (clazz, i) if i == signatures.length - 1 =>
+            clazz.getName.equals("scala.collection.Seq")
+        }
+      }) {
+      throw new ValidationException("The 'eval' method do not support Scala type of " +
+        "variable args eg. Type*, please add a @scala.annotation.varargs annotation " +
+        "to your 'eval' method")
+    } else if (found.length > 1) {
       throw new ValidationException("Found multiple 'eval' methods which " +
         "match the signature.")
-    } else {
-      filtered.headOption
     }
+    found.headOption
   }
 
   /**
@@ -158,33 +178,7 @@ object UserDefinedFunctionUtils {
           s"(in case of table functions) not static.")
     }
 
-    verifyScalaVarargsAnnotation(methods)
     methods
-  }
-
-  /**
-   * If users specified an @varargs, Scala will generate two methods indeed.
-   * If there does not exist corresponding varargs method of the Seq method,
-   * we will throw an ValidationException.
-   */
-  def verifyScalaVarargsAnnotation(methods: Array[Method]) = {
-    methods.foreach(method => {
-      val signatures = method.getParameterTypes
-      if (signatures.nonEmpty &&
-        signatures.last.getName.equals("scala.collection.Seq") &&
-        (!methods.exists(m => {
-          val sigs = m.getParameterTypes
-          m.isVarArgs &&
-            sigs.length == signatures.length &&
-            sigs.zipWithIndex.forall { case (sig, i) =>
-              i == sigs.length - 1 || sig.equals(signatures(i))
-            }
-        }))) {
-        throw new ValidationException("The 'eval' method do not support Scala type of " +
-          "variable args eg. scala.collection.Seq or Type*, please add a " +
-          "@scala.annotation.varargs annotation to your 'eval' method")
-      }
-    })
   }
 
   def getSignatures(function: UserDefinedFunction): Array[Array[Class[_]]] = {
