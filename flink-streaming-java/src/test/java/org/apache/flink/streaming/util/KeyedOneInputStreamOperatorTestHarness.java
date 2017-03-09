@@ -211,7 +211,7 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 	@Override
 	public void initializeState(OperatorStateHandles operatorStateHandles) throws Exception {
 		if (operatorStateHandles != null) {
-			int numKeyGroups = getEnvironment().getTaskInfo().getNumberOfKeyGroups();
+			int numKeyGroups = getEnvironment().getTaskInfo().getMaxNumberOfParallelSubtasks();
 			int numSubtasks = getEnvironment().getTaskInfo().getNumberOfParallelSubtasks();
 			int subtaskIndex = getEnvironment().getTaskInfo().getIndexOfThisSubtask();
 
