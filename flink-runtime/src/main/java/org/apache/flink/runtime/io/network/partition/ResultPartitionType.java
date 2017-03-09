@@ -18,16 +18,25 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+
 public enum ResultPartitionType {
 
-	BLOCKING(true, false, false),
+	BLOCKING(PersistentType.LOCAL, false, false),
 
-	PIPELINED(false, true, true),
+	PIPELINED(PersistentType.NON, true, true),
 
-	PIPELINED_PERSISTENT(true, true, true);
+	PIPELINED_PERSISTENT(PersistentType.LOCAL, true, true),
+
+	DFS(PersistentType.DFS, false, false);
+
+	public enum PersistentType {
+		NON,
+		LOCAL,
+		DFS
+	}
 
 	/** Does the partition live longer than the consuming task? */
-	private final boolean isPersistent;
+	private final PersistentType persistentType;
 
 	/** Can the partition be consumed while being produced? */
 	private final boolean isPipelined;
@@ -38,8 +47,8 @@ public enum ResultPartitionType {
 	/**
 	 * Specifies the behaviour of an intermediate result partition at runtime.
 	 */
-	ResultPartitionType(boolean isPersistent, boolean isPipelined, boolean hasBackPressure) {
-		this.isPersistent = isPersistent;
+	ResultPartitionType(PersistentType persistentType, boolean isPipelined, boolean hasBackPressure) {
+		this.persistentType = persistentType;
 		this.isPipelined = isPipelined;
 		this.hasBackPressure = hasBackPressure;
 	}
@@ -56,7 +65,7 @@ public enum ResultPartitionType {
 		return isPipelined;
 	}
 
-	public boolean isPersistent() {
-		return isPersistent;
+	public PersistentType getPersistentType() {
+		return persistentType;
 	}
 }

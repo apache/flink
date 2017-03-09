@@ -614,6 +614,12 @@ public class SingleInputGate implements InputGate {
 
 				numRemoteChannels++;
 			}
+			else if (partitionLocation.isDFS()) {
+				inputChannels[i] = new DFSInputChannel(inputGate, i, partitionId, jobId,
+						networkEnvironment.getPartitionRequestInitialAndMaxBackoff(),
+						metrics
+				);
+			}
 			else if (partitionLocation.isUnknown()) {
 				inputChannels[i] = new UnknownInputChannel(inputGate, i, partitionId,
 					networkEnvironment.getResultPartitionManager(),

@@ -166,6 +166,13 @@ public class ResultPartition implements BufferPoolOwner {
 
 				break;
 
+			case DFS:
+				for (int i = 0; i < subpartitions.length; i++) {
+					subpartitions[i] = new DFSSubpartition(i, this, jobId.toString() + "mid/" + partitionId.getPartitionId().toString() + "/" + i);
+				}
+
+				break;
+
 			default:
 				throw new IllegalArgumentException("Unsupported result partition type.");
 		}
