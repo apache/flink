@@ -26,6 +26,9 @@ import org.apache.flink.annotation.PublicEvolving;
 @PublicEvolving
 public class ResourceManagerOptions {
 
+	/**
+	 * Timeout for jobs which don't have a job manager as leader assigned.
+	 */
 	public static final ConfigOption<String> JOB_TIMEOUT = ConfigOptions
 		.key("resourcemanager.job.timeout")
 		.defaultValue("5 minutes");

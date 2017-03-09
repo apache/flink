@@ -210,6 +210,7 @@ public class JobLeaderIdService {
 	 * listener.
 	 */
 	private final class JobLeaderIdListener implements LeaderRetrievalListener {
+		private final Object timeoutLock = new Object();
 		private final JobID jobId;
 		private final JobLeaderIdActions listenerJobLeaderIdActions;
 		private final LeaderRetrievalService leaderRetrievalService;
@@ -217,11 +218,14 @@ public class JobLeaderIdService {
 		private volatile CompletableFuture<UUID> leaderIdFuture;
 		private volatile boolean running = true;
 
-		/** Not null if a timeout has been registered; otherwise null */
+		/** Null if no timeout has been scheduled; otherwise non null */
 		@Nullable
 		private  volatile ScheduledFuture<?> timeoutFuture;
+
+		/** Null if no timeout has been scheduled; otherwise non null */
 		@Nullable
 		private volatile UUID timeoutId;
+
 
 		private JobLeaderIdListener(
 				JobID jobId,
@@ -282,6 +286,11 @@ public class JobLeaderIdService {
 					if (null == leaderSessionId) {
 						// No current leader active ==> Set a timeout for the job
 						activateTimeout();
+
+						// check if we got stopped asynchronously
+						if (!running) {
+							cancelTimeout();
+						}
 					}
 				} else if (null != leaderSessionId) {
 					// Cancel timeout because we've found an active leader for it
@@ -304,29 +313,30 @@ public class JobLeaderIdService {
 		}
 
 		private void activateTimeout() {
-			if (timeoutId != null) {
+			synchronized (timeoutLock) {
 				cancelTimeout();
+
+				final UUID newTimeoutId = UUID.randomUUID();
+
+				timeoutId = newTimeoutId;
+				timeoutFuture = scheduledExecutor.schedule(new Runnable() {
+					@Override
+					public void run() {
+						listenerJobLeaderIdActions.notifyJobTimeout(jobId, newTimeoutId);
+					}
+				}, jobTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 			}
-
-			final UUID newTimeoutId = UUID.randomUUID();
-
-			timeoutId = newTimeoutId;
-
-			timeoutFuture = scheduledExecutor.schedule(new Runnable() {
-				@Override
-				public void run() {
-					listenerJobLeaderIdActions.notifyJobTimeout(jobId, newTimeoutId);
-				}
-			}, jobTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 		}
 
 		private void cancelTimeout() {
-			if (timeoutFuture != null) {
-				timeoutFuture.cancel(true);
-			}
+			synchronized (timeoutLock) {
+				if (timeoutFuture != null) {
+					timeoutFuture.cancel(true);
+				}
 
-			timeoutId = null;
-			timeoutFuture = null;
+				timeoutFuture = null;
+				timeoutId = null;
+			}
 		}
 	}
 }

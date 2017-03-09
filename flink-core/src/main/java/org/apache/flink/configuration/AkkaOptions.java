@@ -28,6 +28,9 @@ import org.apache.flink.annotation.PublicEvolving;
 @PublicEvolving
 public class AkkaOptions {
 
+	/**
+	 * Timeout for akka ask calls
+	 */
 	public static final ConfigOption<String> AKKA_ASK_TIMEOUT = ConfigOptions
 		.key("akka.ask.timeout")
 		.defaultValue("10 s");
