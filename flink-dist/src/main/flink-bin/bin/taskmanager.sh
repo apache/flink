@@ -22,7 +22,7 @@ USAGE="Usage: taskmanager.sh start|start-foreground|stop|stop-all)"
 
 STARTSTOP=$1
 
-if [[ $STARTSTOP != "start" ]] && [[ $STARTSTOP != "stop" ]] && [[ $STARTSTOP != "stop-all" ]]; then
+if [[ $STARTSTOP != "start" ]] && [[ $STARTSTOP != "start-foreground" ]] && [[ $STARTSTOP != "stop" ]] && [[ $STARTSTOP != "stop-all" ]]; then
   echo $USAGE
   exit 1
 fi

@@ -23,7 +23,7 @@ USAGE="Usage: zookeeper.sh ((start|start-foreground) peer-id)|stop|stop-all"
 STARTSTOP=$1
 PEER_ID=$2
 
-if [[ $STARTSTOP != "start" ]] && [[ $STARTSTOP != "stop" ]] && [[ $STARTSTOP != "stop-all" ]]; then
+if [[ $STARTSTOP != "start" ]] && [[ $STARTSTOP != "start-foreground" ]] && [[ $STARTSTOP != "stop" ]] && [[ $STARTSTOP != "stop-all" ]]; then
   echo $USAGE
   exit 1
 fi
