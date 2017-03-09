@@ -98,8 +98,7 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 
 	@Override
 	public int getMaxNumberOfParallelSubtasks() {
-		// Number of KeyGroups is same with max-parallelism currently.
-		return taskInfo.getNumberOfKeyGroups();
+		return taskInfo.getMaxNumberOfParallelSubtasks();
 	}
 
 	@Override

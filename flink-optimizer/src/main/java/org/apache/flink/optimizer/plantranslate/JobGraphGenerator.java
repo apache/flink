@@ -394,6 +394,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 			// set parallelism
 			int pd = node.getParallelism();
 			vertex.setParallelism(pd);
+			vertex.setMaxParallelism(pd);
 			
 			vertex.setSlotSharingGroup(sharingGroup);
 			
@@ -1276,6 +1277,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		final JobVertex sync = new JobVertex("Sync(" + bulkNode.getNodeName() + ")");
 		sync.setInvokableClass(IterationSynchronizationSinkTask.class);
 		sync.setParallelism(1);
+		sync.setMaxParallelism(1);
 		this.auxVertices.add(sync);
 		
 		final TaskConfig syncConfig = new TaskConfig(sync.getConfiguration());
@@ -1412,6 +1414,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 			final JobVertex sync = new JobVertex("Sync (" + iterNode.getNodeName() + ")");
 			sync.setInvokableClass(IterationSynchronizationSinkTask.class);
 			sync.setParallelism(1);
+			sync.setMaxParallelism(1);
 			this.auxVertices.add(sync);
 			
 			syncConfig = new TaskConfig(sync.getConfiguration());
