@@ -40,7 +40,8 @@ public interface DeserializationSchema<T> extends Serializable, ResultTypeQuerya
 	 * Deserializes the byte message.
 	 * 
 	 * @param message The message, as a byte array.
-	 * @return The deserialized message as an object.
+	 *
+	 * @return The deserialized message as an object (null if the message cannot be deserialized).
 	 */
 	T deserialize(byte[] message) throws IOException;
 
