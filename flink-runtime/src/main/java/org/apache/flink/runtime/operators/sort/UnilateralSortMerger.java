@@ -34,6 +34,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 import freemarker.template.TemplateException;
 import org.apache.flink.runtime.codegeneration.SorterFactory;
+import org.apache.flink.runtime.taskexecutor.TaskManagerConfiguration;
 import org.codehaus.commons.compiler.CompileException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -349,7 +350,8 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 			{
 				buffer = new FixedLengthRecordSorter<E>(serializerFactory.getSerializer(), comp, sortSegments);
 			} else {
-				buffer = SorterFactory.getInstance()
+				TaskManagerConfiguration taskConf = TaskManagerConfiguration.fromConfiguration(parentTask.getTaskConfiguration());
+				buffer = SorterFactory.getInstance(taskConf)
 					.createSorter(parentTask.getExecutionConfig(), serializerFactory.getSerializer(), comp, sortSegments);
 			}
 

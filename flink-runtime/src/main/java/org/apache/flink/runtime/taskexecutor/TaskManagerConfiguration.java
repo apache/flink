@@ -115,6 +115,13 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 		return tmpDirectories;
 	}
 
+	public String getFirstTmpDirectory(){
+		if( this.tmpDirectories.length <= 0 ){
+			throw new IndexOutOfBoundsException("No temporary directory specified.");
+		}
+		return this.tmpDirectories[0];
+	}
+
 	@Override
 	public boolean shouldExitJvmOnOutOfMemoryError() {
 		return exitJvmOnOutOfMemory;

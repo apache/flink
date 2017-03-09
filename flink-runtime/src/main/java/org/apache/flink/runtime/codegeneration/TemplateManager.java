@@ -22,7 +22,6 @@ import freemarker.template.Configuration;
 import freemarker.template.Template;
 import freemarker.template.TemplateException;
 import freemarker.template.TemplateExceptionHandler;
-import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.util.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,16 +62,15 @@ public class TemplateManager {
 	 * Constructor
 	 * @throws IOException
 	 */
-	public TemplateManager() throws IOException {
+	public TemplateManager(String generatedCodeDir) throws IOException {
 		templateConf = new Configuration();
-		String templatePath = TemplateManager.class.getClassLoader().getResource("templates").getPath();
-		templateConf.setDirectoryForTemplateLoading(new File(templatePath));
+		templateConf.setClassForTemplateLoading(TemplateManager.class, "/templates");
 		templateConf.setDefaultEncoding(TEMPLATE_ENCODING);
 		templateConf.setTemplateExceptionHandler(TemplateExceptionHandler.RETHROW_HANDLER);
 
 		generatedSorter = new HashMap<>();
 
-		dirForGeneratedCode = prepareDirectoryGeneratedCode();
+		dirForGeneratedCode = prepareDirectoryGeneratedCode(generatedCodeDir);
 	}
 
 
@@ -82,10 +80,10 @@ public class TemplateManager {
 	 * @return
 	 * @throws IOException
 	 */
-	public static TemplateManager getInstance() throws IOException {
+	public static TemplateManager getInstance(String temporaryDir) throws IOException {
 		if( templateManager == null ) {
 			synchronized (TemplateManager.class){
-				templateManager = new TemplateManager();
+				templateManager = new TemplateManager(temporaryDir);
 			}
 		}
 
@@ -133,9 +131,9 @@ public class TemplateManager {
 	/**
 	 * Prepare directory for storing generated code
 	 * @return path of the directory */
-	private String prepareDirectoryGeneratedCode() throws IOException {
-		String temporaryDir = EnvironmentInformation.getTemporaryFileDirectory();
-		File dirForGeneratedCode = new File(temporaryDir + "/flink-codegeneration");
+	private String prepareDirectoryGeneratedCode(String generatedCodeDir) throws IOException {
+
+		File dirForGeneratedCode = new File(generatedCodeDir + "/flink-codegeneration");
 
 		if (!dirForGeneratedCode.exists()) {
 			LOG.debug("Creating diretory for generated code at : "+ dirForGeneratedCode.getAbsolutePath());

@@ -21,10 +21,12 @@ package org.apache.flink.runtime.codegeneration;
 import freemarker.template.TemplateException;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.codegeneration.utils.CodeGenerationSorterBaseTest;
 import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.runtime.operators.testutils.TestData;
+import org.apache.flink.runtime.taskexecutor.TaskManagerConfiguration;
 import org.codehaus.commons.compiler.CompileException;
 import org.junit.Assert;
 import org.junit.Test;
@@ -50,8 +52,9 @@ public class TemplateManagerTest extends CodeGenerationSorterBaseTest {
 
 		SorterTemplateModel templateModel = new SorterTemplateModel(comparator);
 
+		TaskManagerConfiguration taskConf = TaskManagerConfiguration.fromConfiguration(new Configuration());
 		String sorterName = templateModel.getSorterName();
-		Path filePath     = TemplateManager.getInstance().getPathToGeneratedCode(sorterName).toPath();
+		Path filePath     = TemplateManager.getInstance(taskConf.getFirstTmpDirectory()).getPathToGeneratedCode(sorterName).toPath();
 
 		Random randomGenerator = new Random();
 

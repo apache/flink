@@ -25,6 +25,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.operators.sort.InMemorySorter;
 import org.apache.flink.runtime.operators.sort.NormalizedKeySorter;
+import org.apache.flink.runtime.taskexecutor.TaskManagerConfiguration;
 import org.codehaus.commons.compiler.CompileException;
 import org.codehaus.janino.SimpleCompiler;
 import org.slf4j.Logger;
@@ -62,8 +63,8 @@ public class SorterFactory {
 	 * Constructor
 	 * @throws IOException
 	 */
-	public SorterFactory() throws IOException {
-		this.templateManager = TemplateManager.getInstance();
+	public SorterFactory(TaskManagerConfiguration conf) throws IOException {
+		this.templateManager = TemplateManager.getInstance(conf.getFirstTmpDirectory());
 		this.classComplier = new SimpleCompiler();
 		this.constructorCache = new HashMap<>();
 	}
@@ -74,10 +75,10 @@ public class SorterFactory {
 	 * @return
 	 * @throws IOException
 	 */
-	public static SorterFactory getInstance() throws IOException {
+	public static SorterFactory getInstance(TaskManagerConfiguration conf) throws IOException {
 		if( sorterFactory == null ){
 			synchronized(SorterFactory.class){
-				sorterFactory = new SorterFactory();
+				sorterFactory = new SorterFactory(conf);
 			}
 		}
 
