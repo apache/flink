@@ -26,11 +26,6 @@ ENV FLINK_INSTALL_PATH=/opt
 ENV FLINK_HOME $FLINK_INSTALL_PATH/flink
 ENV PATH $PATH:$FLINK_HOME/bin
 
-# These can be mapped from the host to the container using
-# $ docker run -t flink -p 8081:8081 -p 6123:6123 jobmanager
-EXPOSE 8081
-EXPOSE 6123
-
 # flink-dist can point to a directory or a tarball on the local system
 ARG flink_dist=NOT_SET
 
@@ -42,9 +37,9 @@ RUN set -x && \
   chown -R flink:flink $FLINK_INSTALL_PATH/flink-* && \
   chown -h flink:flink $FLINK_HOME
 
-# Configure container
-USER flink
-ADD docker-entrypoint.sh $FLINK_HOME/bin/
+COPY docker-entrypoint.sh /
 
-ENTRYPOINT ["docker-entrypoint.sh"]
-CMD ["sh", "-c"]
+USER flink
+EXPOSE 8081 6123
+ENTRYPOINT ["/docker-entrypoint.sh"]
+CMD ["--help"]
