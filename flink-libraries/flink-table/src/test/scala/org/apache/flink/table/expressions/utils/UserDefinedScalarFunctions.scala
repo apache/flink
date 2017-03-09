@@ -243,4 +243,23 @@ object Func15 extends ScalarFunction {
   def eval(a: String, b: Int*): String = {
     a + b.length
   }
+
+  def eval(a: String): String = {
+    a
+  }
+}
+
+object Func16 extends ScalarFunction {
+
+  def eval(a: Seq[String]): String = {
+    a.mkString(", ")
+  }
+}
+
+object Func17 extends ScalarFunction {
+
+  // Without @varargs, it will throw exception
+  def eval(a: String*): String = {
+    a.mkString(", ")
+  }
 }

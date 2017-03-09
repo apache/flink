@@ -195,11 +195,19 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
       "Func14()",
       "0")
 
+    // Test for override
     testAllApis(
       Func15("Hello"),
       "Func15('Hello')",
       "Func15('Hello')",
-      "Hello0"
+      "Hello"
+    )
+
+    testAllApis(
+      Func15('f1),
+      "Func15(f1)",
+      "Func15(f1)",
+      "Test"
     )
 
     testAllApis(
@@ -208,6 +216,26 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
       "Func15('Hello', 1, 2, 3)",
       "Hello3"
     )
+
+    testAllApis(
+      Func16('f9),
+      "Func16(f9)",
+      "Func16(f9)",
+      "Hello, World"
+    )
+
+    try {
+      testAllApis(
+        Func17("Hello", "World"),
+        "Func17('Hello', 'World')",
+        "Func17('Hello', 'World')",
+        "Hello, World"
+      )
+      throw new RuntimeException("Shouldn't be reached here!")
+    } catch {
+      case ex: ValidationException =>
+        // It's normal
+    }
 
     val JavaFunc2 = new JavaFunc2
     testAllApis(
@@ -218,16 +246,17 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
 
     // Test for override
     val JavaFunc3 = new JavaFunc3
-    try {
-      testAllApis(
-        JavaFunc3("Hi"),
-        "JavaFunc3('Hi')",
-        "JavaFunc3('Hi')",
-        "Hi")
-      throw new RuntimeException("Shouldn't be reached")
-    } catch {
-      case ex: ValidationException => // it's correct
-    }
+    testAllApis(
+      JavaFunc3("Hi"),
+      "JavaFunc3('Hi')",
+      "JavaFunc3('Hi')",
+      "Hi")
+
+    testAllApis(
+      JavaFunc3('f1),
+      "JavaFunc3(f1)",
+      "JavaFunc3(f1)",
+      "Test")
   }
 
   @Test
@@ -288,7 +317,7 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
   // ----------------------------------------------------------------------------------------------
 
   override def testData: Any = {
-    val testData = new Row(9)
+    val testData = new Row(10)
     testData.setField(0, 42)
     testData.setField(1, "Test")
     testData.setField(2, null)
@@ -298,6 +327,7 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
     testData.setField(6, Timestamp.valueOf("1990-10-14 12:10:10"))
     testData.setField(7, 12)
     testData.setField(8, 1000L)
+    testData.setField(9, Seq("Hello", "World"))
     testData
   }
 
@@ -311,7 +341,8 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
       Types.TIME,
       Types.TIMESTAMP,
       Types.INTERVAL_MONTHS,
-      Types.INTERVAL_MILLIS
+      Types.INTERVAL_MILLIS,
+      TypeInformation.of(classOf[Seq[String]])
     ).asInstanceOf[TypeInformation[Any]]
   }
 
@@ -331,6 +362,8 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
     "Func12" -> Func12,
     "Func14" -> Func14,
     "Func15" -> Func15,
+    "Func16" -> Func16,
+    "Func17" -> Func17,
     "JavaFunc0" -> new JavaFunc0,
     "JavaFunc1" -> new JavaFunc1,
     "JavaFunc2" -> new JavaFunc2,
