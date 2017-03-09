@@ -31,6 +31,7 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.instance.SlotProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
@@ -687,9 +688,11 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 
 			int queueToRequest = subTaskIndex % numConsumerEdges;
 
-			IntermediateDataSetID resultId = edges[0].getSource().getIntermediateResult().getId();
+			IntermediateResult consumedIntermediateResult = edges[0].getSource().getIntermediateResult();
+			final IntermediateDataSetID resultId = consumedIntermediateResult.getId();
+			final ResultPartitionType partitionType = consumedIntermediateResult.getResultType();
 
-			consumedPartitions.add(new InputGateDeploymentDescriptor(resultId, queueToRequest, partitions));
+			consumedPartitions.add(new InputGateDeploymentDescriptor(resultId, partitionType, queueToRequest, partitions));
 		}
 
 		SerializedValue<JobInformation> serializedJobInformation = getExecutionGraph().getSerializedJobInformation();

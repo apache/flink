@@ -402,17 +402,17 @@ public class StreamingJobGraphGenerator {
 			jobEdge = downStreamVertex.connectNewDataSetAsInput(
 				headVertex,
 				DistributionPattern.POINTWISE,
-				ResultPartitionType.PIPELINED);
+				ResultPartitionType.PIPELINED_BOUNDED);
 		} else if (partitioner instanceof RescalePartitioner){
 			jobEdge = downStreamVertex.connectNewDataSetAsInput(
 				headVertex,
 				DistributionPattern.POINTWISE,
-				ResultPartitionType.PIPELINED);
+				ResultPartitionType.PIPELINED_BOUNDED);
 		} else {
 			jobEdge = downStreamVertex.connectNewDataSetAsInput(
 					headVertex,
 					DistributionPattern.ALL_TO_ALL,
-					ResultPartitionType.PIPELINED);
+					ResultPartitionType.PIPELINED_BOUNDED);
 		}
 		// set strategy name so that web interface can show it.
 		jobEdge.setShipStrategyName(partitioner.toString());

@@ -370,7 +370,9 @@ public class TaskManagerServices {
 			kvStateServer,
 			networkEnvironmentConfiguration.ioMode(),
 			networkEnvironmentConfiguration.partitionRequestInitialBackoff(),
-			networkEnvironmentConfiguration.partitionRequestMaxBackoff());
+			networkEnvironmentConfiguration.partitionRequestMaxBackoff(),
+			networkEnvironmentConfiguration.networkBuffersPerChannel(),
+			networkEnvironmentConfiguration.extraNetworkBuffersPerGate());
 	}
 
 	/**
