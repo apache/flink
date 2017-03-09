@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.blob;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.junit.Rule;
@@ -97,6 +98,8 @@ public class BlobCacheSuccessTest {
 
 			// Upload BLOBs
 			BlobClient blobClient = null;
+			JobID jobId = new JobID();
+			String name = "random name";
 			try {
 
 				blobClient = new BlobClient(serverAddress, config);
@@ -104,6 +107,8 @@ public class BlobCacheSuccessTest {
 				blobKeys.add(blobClient.put(buf));
 				buf[0] = 1; // Make sure the BLOB key changes
 				blobKeys.add(blobClient.put(buf));
+
+				blobClient.put(jobId, name, buf);
 			} finally {
 				if (blobClient != null) {
 					blobClient.close();
@@ -132,6 +137,7 @@ public class BlobCacheSuccessTest {
 			for (BlobKey blobKey : blobKeys) {
 				blobCache.getURL(blobKey);
 			}
+			blobCache.getURL(jobId, name);
 
 			if (blobServer != null) {
 				// Now, shut down the BLOB server, the BLOBs must still be accessible through the cache.
@@ -139,14 +145,15 @@ public class BlobCacheSuccessTest {
 				blobServer = null;
 			}
 
-			final URL[] urls = new URL[blobKeys.size()];
+			final URL[] urls = new URL[blobKeys.size() + 1];
 
-			for(int i = 0; i < blobKeys.size(); i++){
-				urls[i] = blobCache.getURL(blobKeys.get(i));
+			urls[0] = blobCache.getURL(jobId, name);
+			for (int i = 1; i <= blobKeys.size(); i++) {
+				urls[i] = blobCache.getURL(blobKeys.get(i - 1));
 			}
 
 			// Verify the result
-			assertEquals(blobKeys.size(), urls.length);
+			assertEquals(blobKeys.size() + 1, urls.length);
 
 			for (final URL url : urls) {
 
