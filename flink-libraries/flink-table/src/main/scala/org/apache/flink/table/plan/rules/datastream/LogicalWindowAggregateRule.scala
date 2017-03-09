@@ -107,7 +107,7 @@ class LogicalWindowAggregateRule
     val windowExpr = groupExpr
       .map(g => (g._2, identifyWindow(g._1)) )
       .filter(_._2.isDefined)
-      .map(g => (g._1, g._2.get) )
+      .map(g => (g._1, g._2.get.as("w$")) )
 
     windowExpr.size match {
       case 0 => None
