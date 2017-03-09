@@ -154,11 +154,12 @@ object CollectionDataSets {
     env.fromCollection(Random.shuffle(data))
   }
 
-  def getSmallNestedTupleDataSet(env: ExecutionEnvironment): DataSet[((Int, Int), String)] = {
-    val data = new mutable.MutableList[((Int, Int), String)]
-    data.+=(((1, 1), "one"))
-    data.+=(((2, 2), "two"))
-    data.+=(((3, 3), "three"))
+  def getSmallNestedTupleDataSet(env: ExecutionEnvironment)
+                             : DataSet[((Int, Int), String, (Int, Int))] = {
+    val data = new mutable.MutableList[((Int, Int), String, (Int, Int))]
+    data.+=(((1, 1), "one", (2, 2)))
+    data.+=(((2, 2), "two", (3, 3)))
+    data.+=(((3, 3), "three", (3, 3)))
     env.fromCollection(Random.shuffle(data))
   }
 
