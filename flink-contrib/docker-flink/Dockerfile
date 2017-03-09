@@ -40,15 +40,11 @@ RUN set -x && \
   ln -s $FLINK_INSTALL_PATH/flink-* $FLINK_HOME && \
   addgroup -S flink && adduser -D -S -H -G flink -h $FLINK_HOME flink && \
   chown -R flink:flink $FLINK_INSTALL_PATH/flink-* && \
-  chown -h flink:flink $FLINK_HOME && \
-  sed -i -e "s/echo \$mypid >> \$pid/echo \$mypid >> \$pid \&\& wait/g" $FLINK_HOME/bin/flink-daemon.sh
+  chown -h flink:flink $FLINK_HOME
 
 # Configure container
 USER flink
 ADD docker-entrypoint.sh $FLINK_HOME/bin/
-
-# Overwrite default logging settings.  This will additionally log to stdout so we can use 'docker logs'
-ADD log4j.properties $FLINK_HOME/conf/
 
 ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["sh", "-c"]
