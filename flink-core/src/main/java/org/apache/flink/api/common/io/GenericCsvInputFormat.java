@@ -362,7 +362,7 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 				if (lenient) {
 					return false;
 				} else {
-					throw new ParseException("Row too short: " + new String(bytes, offset, numBytes));
+					throw new ParseException("Row too short: " + new String(bytes, offset, numBytes, getCharset()));
 				}
 			}
 
@@ -380,7 +380,7 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 					if (lenient) {
 						return false;
 					} else {
-						String lineAsString = new String(bytes, offset, numBytes);
+						String lineAsString = new String(bytes, offset, numBytes, getCharset());
 						throw new ParseException("Line could not be parsed: '" + lineAsString + "'\n"
 								+ "ParserError " + parser.getErrorState() + " \n"
 								+ "Expect field types: "+fieldTypesToString() + " \n"
@@ -405,7 +405,7 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 				startPos = skipFields(bytes, startPos, limit, this.fieldDelim);
 				if (startPos < 0) {
 					if (!lenient) {
-						String lineAsString = new String(bytes, offset, numBytes);
+						String lineAsString = new String(bytes, offset, numBytes, getCharset());
 						throw new ParseException("Line could not be parsed: '" + lineAsString+"'\n"
 								+ "Expect field types: "+fieldTypesToString()+" \n"
 								+ "in file: "+filePath);

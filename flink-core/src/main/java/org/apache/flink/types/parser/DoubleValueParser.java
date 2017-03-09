@@ -20,6 +20,7 @@
 package org.apache.flink.types.parser;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.types.DoubleValue;
 
 /**
@@ -43,7 +44,7 @@ public class DoubleValueParser extends FieldParser<DoubleValue> {
 			return -1;
 		}
 
-		String str = new String(bytes, startPos, endPos - startPos);
+		String str = new String(bytes, startPos, endPos - startPos, ConfigConstants.DEFAULT_CHARSET);
 		try {
 			double value = Double.parseDouble(str);
 			reusable.setValue(value);

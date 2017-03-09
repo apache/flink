@@ -12,6 +12,8 @@
  */
 package org.apache.flink.python.api.streaming.util;
 
+import org.apache.flink.configuration.ConfigConstants;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -30,7 +32,7 @@ public class StreamPrinter extends Thread {
 	}
 
 	public StreamPrinter(InputStream stream, boolean wrapInException, StringBuilder msg) {
-		this.reader = new BufferedReader(new InputStreamReader(stream));
+		this.reader = new BufferedReader(new InputStreamReader(stream, ConfigConstants.DEFAULT_CHARSET));
 		this.wrapInException = wrapInException;
 		this.msg = msg;
 	}

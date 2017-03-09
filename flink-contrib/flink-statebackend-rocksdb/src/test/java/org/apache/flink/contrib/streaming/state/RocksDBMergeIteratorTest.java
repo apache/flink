@@ -19,6 +19,7 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.junit.Assert;
@@ -71,7 +72,7 @@ public class RocksDBMergeIteratorTest {
 
 			for (int c = 0; c < NUM_KEY_VAL_STATES; ++c) {
 				ColumnFamilyHandle handle = rocksDB.createColumnFamily(
-						new ColumnFamilyDescriptor(("column-" + c).getBytes()));
+						new ColumnFamilyDescriptor(("column-" + c).getBytes(ConfigConstants.DEFAULT_CHARSET)));
 
 				ByteArrayOutputStreamWithPos bos = new ByteArrayOutputStreamWithPos();
 				DataOutputStream dos = new DataOutputStream(bos);

@@ -29,8 +29,7 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.router.KeepAliveWrite;
 import io.netty.handler.codec.http.router.Routed;
-
-import java.io.UnsupportedEncodingException;
+import org.apache.flink.configuration.ConfigConstants;
 
 /**
  * Responder that returns a constant String.
@@ -41,12 +40,7 @@ public class ConstantTextHandler extends SimpleChannelInboundHandler<Routed> {
 	private final byte[] encodedText;
 
 	public ConstantTextHandler(String text) {
-		try {
-			this.encodedText = text.getBytes("UTF-8");
-		}
-		catch (UnsupportedEncodingException e) {
-			throw new RuntimeException(e.getMessage(), e);
-		}
+		this.encodedText = text.getBytes(ConfigConstants.DEFAULT_CHARSET);
 	}
 
 	@Override

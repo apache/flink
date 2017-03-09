@@ -19,6 +19,7 @@
 package org.apache.flink.types.parser;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.configuration.ConfigConstants;
 
 @PublicEvolving
 public class BooleanParser extends FieldParser<Boolean> {
@@ -27,12 +28,12 @@ public class BooleanParser extends FieldParser<Boolean> {
 
 	/** Values for true and false respectively. Must be lower case. */
 	private static final byte[][] TRUE = new byte[][] {
-			"true".getBytes(),
-			"1".getBytes()
+			"true".getBytes(ConfigConstants.DEFAULT_CHARSET),
+			"1".getBytes(ConfigConstants.DEFAULT_CHARSET)
 	};
 	private static final byte[][] FALSE = new byte[][] {
-			"false".getBytes(),
-			"0".getBytes()
+			"false".getBytes(ConfigConstants.DEFAULT_CHARSET),
+			"0".getBytes(ConfigConstants.DEFAULT_CHARSET)
 	};
 
 	@Override
