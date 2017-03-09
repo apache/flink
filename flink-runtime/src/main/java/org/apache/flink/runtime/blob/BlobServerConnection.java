@@ -397,12 +397,7 @@ class BlobServerConnection extends Thread {
 
 			if (type == CONTENT_ADDRESSABLE) {
 				BlobKey key = BlobKey.readFromInputStream(inputStream);
-				File blobFile = this.blobServer.getStorageLocation(key);
-				if (blobFile.exists() && !blobFile.delete()) {
-					throw new IOException("Cannot delete BLOB file " + blobFile.getAbsolutePath());
-				}
-
-				blobStore.delete(key);
+				blobServer.delete(key);
 			}
 			else if (type == NAME_ADDRESSABLE) {
 				byte[] jidBytes = new byte[JobID.SIZE];
@@ -411,12 +406,7 @@ class BlobServerConnection extends Thread {
 
 				String key = readKey(buf, inputStream);
 
-				File blobFile = this.blobServer.getStorageLocation(jobID, key);
-				if (blobFile.exists() && !blobFile.delete()) {
-					throw new IOException("Cannot delete BLOB file " + blobFile.getAbsolutePath());
-				}
-
-				blobStore.delete(jobID, key);
+				blobServer.delete(jobID, key);
 			}
 			else if (type == JOB_ID_SCOPE) {
 				byte[] jidBytes = new byte[JobID.SIZE];
