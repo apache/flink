@@ -42,7 +42,7 @@ class WindowAggregateTest extends TableTestBase {
             streamTableNode(0),
             term("select", "1970-01-01 00:00:00 AS $f0")
           ),
-          term("window", EventTimeTumblingGroupWindow(None, 'rowtime, 3600000.millis)),
+          term("window", EventTimeTumblingGroupWindow(Some('w$), 'rowtime, 3600000.millis)),
           term("select", "COUNT(*) AS EXPR$0")
         ),
         term("select", "EXPR$0")
@@ -64,7 +64,7 @@ class WindowAggregateTest extends TableTestBase {
             term("select", "a", "1970-01-01 00:00:00 AS $f1")
           ),
           term("groupBy", "a"),
-          term("window", EventTimeTumblingGroupWindow(None, 'rowtime, 60000.millis)),
+          term("window", EventTimeTumblingGroupWindow(Some('w$), 'rowtime, 60000.millis)),
           term("select", "a", "COUNT(*) AS EXPR$1")
         ),
         term("select", "a", "EXPR$1")
@@ -86,7 +86,7 @@ class WindowAggregateTest extends TableTestBase {
             term("select", "a", "1970-01-01 00:00:00 AS $f1, b, c")
           ),
           term("groupBy", "a, b"),
-          term("window", EventTimeTumblingGroupWindow(None, 'rowtime, 1000.millis)),
+          term("window", EventTimeTumblingGroupWindow(Some('w$), 'rowtime, 1000.millis)),
           term("select", "a", "b", "SUM(c) AS EXPR$1")
         ),
         term("select", "a", "EXPR$1", "b")
@@ -107,7 +107,7 @@ class WindowAggregateTest extends TableTestBase {
             streamTableNode(0),
             term("select", "1970-01-01 00:00:00 AS $f0")
           ),
-          term("window", ProcessingTimeTumblingGroupWindow(None, 3600000.millis)),
+          term("window", ProcessingTimeTumblingGroupWindow(Some('w$), 3600000.millis)),
           term("select", "COUNT(*) AS EXPR$0")
         ),
         term("select", "EXPR$0")
