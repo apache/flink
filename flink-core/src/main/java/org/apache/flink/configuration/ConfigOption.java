@@ -162,15 +162,17 @@ public class ConfigOption<T> {
 	}
 
 	String toHTMLString(boolean includeShort) {
-		String stringBuilder = "<tr>" +
-			"<td>" + key + "</td>" +
-			"<td>" + (defaultValue == null ? "" : defaultValue) + "</td>";
+		final StringBuilder stringBuilder = new StringBuilder("<tr><td>")
+			.append(key).append("</td>")
+			.append("<td>")
+			.append(defaultValue == null ? "" : defaultValue)
+			.append("</td>");
 		if (includeShort) {
-			stringBuilder += "<td>" + shortDescription + "</td>";
+			stringBuilder.append("<td>").append(shortDescription).append("</td>");
 		}
 
-		stringBuilder += "<td>" + description + "</td></tr>";
-		return stringBuilder;
+		stringBuilder.append("<td>").append(description).append("</td></tr>");
+		return stringBuilder.toString();
 	}
 
 	// ------------------------------------------------------------------------

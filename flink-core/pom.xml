@@ -123,6 +123,37 @@ under the License.
 		</dependency>
     </dependencies>
 
+	<profiles>
+		<profile>
+			<id>generate-config-docs</id>
+
+			<build>
+				<plugins>
+					<plugin>
+						<artifactId>maven-antrun-plugin</artifactId>
+						<version>1.7</version>
+						<executions>
+							<execution>
+								<phase>package</phase>
+								<goals>
+									<goal>run</goal>
+								</goals>
+							</execution>
+						</executions>
+						<configuration>
+							<target>
+								<touch file="${rootDir}/${generated.docs.dir}/high_availability_configuration.html" mkdirs="true"/>
+								<java classname="org.apache.flink.configuration.HighAvailabilityOptions" output="${rootDir}/${generated.docs.dir}/high_availability_configuration.html" fork="true">
+									<classpath refid="maven.compile.classpath" />
+								</java>
+							</target>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
+
 	<build>
 		<plugins>
 
@@ -162,27 +193,6 @@ under the License.
 					</execution>
 				</executions>
 			</plugin>
-
-			<plugin>
-				<artifactId>maven-antrun-plugin</artifactId>
-				<executions>
-					<execution>
-						<phase>package</phase>
-						<goals>
-							<goal>run</goal>
-						</goals>
-					</execution>
-				</executions>
-				<configuration>
-					<target>
-						<touch file="${rootDir}/${generated.docs.dir}/high_availability_configuration.html" mkdirs="true"/>
-						<java classname="org.apache.flink.configuration.HighAvailabilityOptions" output="${rootDir}/${generated.docs.dir}/high_availability_configuration.html" fork="true">
-							<classpath refid="maven.compile.classpath" />
-						</java>
-					</target>
-				</configuration>
-			</plugin>
-
 		</plugins>
 		
 	</build>
