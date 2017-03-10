@@ -210,8 +210,11 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 		}
 		
 		// figure out which partitions this subtask should process
-		final List<KafkaTopicPartition> thisSubtaskPartitions = assignPartitions(allSubscribedPartitions,
-				getRuntimeContext().getNumberOfParallelSubtasks(), getRuntimeContext().getIndexOfThisSubtask());
+		final List<KafkaTopicPartition> thisSubtaskPartitions = assignPartitions(
+				restoreToOffset,
+				allSubscribedPartitions,
+				getRuntimeContext().getNumberOfParallelSubtasks(),
+				getRuntimeContext().getIndexOfThisSubtask());
 		
 		// we need only do work, if we actually have partitions assigned
 		if (!thisSubtaskPartitions.isEmpty()) {
@@ -416,29 +419,38 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Selects which of the given partitions should be handled by a specific consumer,
-	 * given a certain number of consumers.
-	 * 
-	 * @param allPartitions The partitions to select from
+	 * Determines which partitions the consumer should subscribe to.
+	 *
+	 * If we have restored offsets, we simply use that as the subscribed partitions for the subtask.
+	 * Otherwise, we select from the given complete list of partitions, given a certain number of consumer subtasks.
+	 *
+	 * @param restoredPartitionOffsets The restored partition offsets, if any
+	 * @param completeKafkaPartitionsList The complete list of kafka partitions
 	 * @param numConsumers The number of consumers
 	 * @param consumerIndex The index of the specific consumer
 	 * 
 	 * @return The sublist of partitions to be handled by that consumer.
 	 */
 	protected static List<KafkaTopicPartition> assignPartitions(
-			List<KafkaTopicPartition> allPartitions,
-			int numConsumers, int consumerIndex)
+			Map<KafkaTopicPartition, Long> restoredPartitionOffsets,
+			List<KafkaTopicPartition> completeKafkaPartitionsList,
+			int numConsumers,
+			int consumerIndex)
 	{
-		final List<KafkaTopicPartition> thisSubtaskPartitions = new ArrayList<>(
-				allPartitions.size() / numConsumers + 1);
+		if (restoredPartitionOffsets != null) {
+			return new ArrayList<>(restoredPartitionOffsets.keySet());
+		} else {
+			final List<KafkaTopicPartition> thisSubtaskPartitions =
+				new ArrayList<>(completeKafkaPartitionsList.size() / numConsumers + 1);
 
-		for (int i = 0; i < allPartitions.size(); i++) {
-			if (i % numConsumers == consumerIndex) {
-				thisSubtaskPartitions.add(allPartitions.get(i));
+			for (int i = 0; i < completeKafkaPartitionsList.size(); i++) {
+				if (i % numConsumers == consumerIndex) {
+					thisSubtaskPartitions.add(completeKafkaPartitionsList.get(i));
+				}
 			}
+
+			return thisSubtaskPartitions;
 		}
-		
-		return thisSubtaskPartitions;
 	}
 	
 	/**
