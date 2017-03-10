@@ -150,6 +150,10 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		return stateTable;
 	}
 
+	private boolean hasRegisteredState() {
+		return !stateTables.isEmpty();
+	}
+
 	@Override
 	public <N, V> InternalValueState<N, V> createValueState(
 			TypeSerializer<N> namespaceSerializer,
@@ -225,8 +229,8 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			final CheckpointStreamFactory streamFactory,
 			CheckpointOptions checkpointOptions) throws Exception {
 
-		if (stateTables.isEmpty()) {
-			return new DoneFuture<>(null);
+		if (!hasRegisteredState()) {
+			return DoneFuture.nullValue();
 		}
 
 		long syncStartTime = System.currentTimeMillis();

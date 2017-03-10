@@ -161,7 +161,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 			CheckpointOptions checkpointOptions) throws Exception {
 
 		if (registeredStates.isEmpty()) {
-			return new DoneFuture<>(null);
+			return DoneFuture.nullValue();
 		}
 
 		List<OperatorBackendSerializationProxy.StateMetaInfo<?>> metaInfoList =
