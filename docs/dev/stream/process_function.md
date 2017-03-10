@@ -96,7 +96,7 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.functions.RichProcessFunction;
+import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.functions.ProcessFunction.Context;
 import org.apache.flink.streaming.api.functions.ProcessFunction.OnTimerContext;
 import org.apache.flink.util.Collector;
@@ -123,7 +123,7 @@ public class CountWithTimestamp {
 /**
  * The implementation of the ProcessFunction that maintains the count and timeouts
  */
-public class CountWithTimeoutFunction extends RichProcessFunction<Tuple2<String, String>, Tuple2<String, Long>> {
+public class CountWithTimeoutFunction extends ProcessFunction<Tuple2<String, String>, Tuple2<String, Long>> {
 
     /** The state that is maintained by this process function */
     private ValueState<CountWithTimestamp> state;
@@ -178,7 +178,7 @@ public class CountWithTimeoutFunction extends RichProcessFunction<Tuple2<String,
 {% highlight scala %}
 import org.apache.flink.api.common.state.ValueState
 import org.apache.flink.api.common.state.ValueStateDescriptor
-import org.apache.flink.streaming.api.functions.RichProcessFunction
+import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.streaming.api.functions.ProcessFunction.Context
 import org.apache.flink.streaming.api.functions.ProcessFunction.OnTimerContext
 import org.apache.flink.util.Collector
@@ -199,7 +199,7 @@ case class CountWithTimestamp(key: String, count: Long, lastModified: Long)
 /**
   * The implementation of the ProcessFunction that maintains the count and timeouts
   */
-class TimeoutStateFunction extends RichProcessFunction[(String, Long), (String, Long)] {
+class TimeoutStateFunction extends ProcessFunction[(String, Long), (String, Long)] {
 
   /** The state that is maintained by this process function */
   lazy val state: ValueState[CountWithTimestamp] = getRuntimeContext
