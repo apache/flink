@@ -17,6 +17,7 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -28,6 +29,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.Serializable;
+import java.io.File;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.concurrent.RunnableFuture;
@@ -45,6 +47,8 @@ public class OperatorStateBackendTest {
 
 	static Environment createMockEnvironment() {
 		Environment env = mock(Environment.class);
+		ExecutionConfig config = mock(ExecutionConfig.class);
+		when(env.getExecutionConfig()).thenReturn(config);
 		when(env.getUserClassLoader()).thenReturn(Thread.currentThread().getContextClassLoader());
 		return env;
 	}
@@ -61,6 +65,27 @@ public class OperatorStateBackendTest {
 		OperatorStateBackend operatorStateBackend = createNewOperatorStateBackend();
 		assertNotNull(operatorStateBackend);
 		assertTrue(operatorStateBackend.getRegisteredStateNames().isEmpty());
+	}
+
+	@Test
+	public void testRegisterStatesWithoutTypeSerializer() throws Exception {
+		DefaultOperatorStateBackend operatorStateBackend = createNewOperatorStateBackend();
+		ListStateDescriptor<File> stateDescriptor = new ListStateDescriptor<>("test", File.class);
+		ListStateDescriptor<String> stateDescriptor2 = new ListStateDescriptor<>("test2", String.class);
+		ListState<File> listState = operatorStateBackend.getOperatorState(stateDescriptor);
+		assertNotNull(listState);
+		ListState<String> listState2 = operatorStateBackend.getOperatorState(stateDescriptor2);
+		assertNotNull(listState2);
+		assertEquals(2, operatorStateBackend.getRegisteredStateNames().size());
+		Iterator<String> it = listState2.get().iterator();
+		assertTrue(!it.hasNext());
+		listState2.add("kevin");
+		listState2.add("sunny");
+
+		it = listState2.get().iterator();
+		assertEquals("kevin", it.next());
+		assertEquals("sunny", it.next());
+		assertTrue(!it.hasNext());
 	}
 
 	@Test
