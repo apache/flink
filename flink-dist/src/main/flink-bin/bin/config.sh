@@ -284,8 +284,6 @@ if [ -z "${HIGH_AVAILABILITY}" ]; then
         else
             HIGH_AVAILABILITY=${DEPRECATED_HA}
         fi
-     else
-         HIGH_AVAILABILITY="none"
      fi
 fi
 
