@@ -18,7 +18,13 @@
 package org.apache.flink.test.streaming.runtime;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
+import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -37,6 +43,7 @@ import org.apache.flink.util.Collector;
 import org.junit.Test;
 
 import javax.annotation.Nullable;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -47,7 +54,7 @@ import static org.junit.Assert.assertEquals;
 /**
  * Integration test for streaming programs using side outputs.
  */
-public class SideOutputITCase extends StreamingMultipleProgramsTestBase {
+public class SideOutputITCase extends StreamingMultipleProgramsTestBase implements Serializable {
 
 	static List<Integer> elements = new ArrayList<>();
 	static {
@@ -58,8 +65,105 @@ public class SideOutputITCase extends StreamingMultipleProgramsTestBase {
 		elements.add(4);
 	}
 
-	private final static OutputTag<String> sideOutputTag = new OutputTag<String>("side"){};
-	private final static OutputTag<String> otherSideOutputTag = new OutputTag<String>("other-side"){};
+	private final static OutputTag<String> sideOutputTag1 = new OutputTag<String>("side"){};
+	private final static OutputTag<String> sideOutputTag2 = new OutputTag<String>("other-side"){};
+
+	/**
+	 * Verify that watermarks are forwarded to all side outputs.
+	 */
+	@Test
+	public void testWatermarkForwarding() throws Exception {
+		TestListResultSink<String> sideOutputResultSink1 = new TestListResultSink<>();
+		TestListResultSink<String> sideOutputResultSink2 = new TestListResultSink<>();
+		TestListResultSink<String> resultSink = new TestListResultSink<>();
+
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+		env.setParallelism(3);
+
+		DataStream<Integer> dataStream = env.addSource(new SourceFunction<Integer>() {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public void run(SourceContext<Integer> ctx) throws Exception {
+				ctx.collectWithTimestamp(1, 0);
+				ctx.emitWatermark(new Watermark(0));
+				ctx.collectWithTimestamp(2, 1);
+				ctx.collectWithTimestamp(5, 2);
+				ctx.emitWatermark(new Watermark(2));
+				ctx.collectWithTimestamp(3, 3);
+				ctx.collectWithTimestamp(4, 4);
+			}
+
+			@Override
+			public void cancel() {
+
+			}
+		});
+
+		SingleOutputStreamOperator<Integer> passThroughtStream = dataStream
+				.process(new ProcessFunction<Integer, Integer>() {
+					private static final long serialVersionUID = 1L;
+
+					@Override
+					public void processElement(
+							Integer value, Context ctx, Collector<Integer> out) throws Exception {
+						out.collect(value);
+						ctx.output(sideOutputTag1, "sideout-" + String.valueOf(value));
+					}
+				});
+
+		class WatermarkReifier
+				extends AbstractStreamOperator<String>
+				implements OneInputStreamOperator<String, String> {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public void processElement(StreamRecord<String> element) throws Exception {
+				output.collect(new StreamRecord<>("E:" + element.getValue()));
+			}
+
+			@Override
+			public void processWatermark(Watermark mark) throws Exception {
+				super.processWatermark(mark);
+				output.collect(new StreamRecord<>("WM:" + mark.getTimestamp()));
+			}
+		}
+
+		passThroughtStream
+				.getSideOutput(sideOutputTag1)
+				.transform("ReifyWatermarks", BasicTypeInfo.STRING_TYPE_INFO, new WatermarkReifier())
+				.addSink(sideOutputResultSink1);
+
+		passThroughtStream
+				.getSideOutput(sideOutputTag2)
+				.transform("ReifyWatermarks", BasicTypeInfo.STRING_TYPE_INFO, new WatermarkReifier())
+				.addSink(sideOutputResultSink2);
+
+		passThroughtStream
+				.map(new MapFunction<Integer, String>() {
+					private static final long serialVersionUID = 1L;
+
+					@Override
+					public String map(Integer value) throws Exception {
+						return value.toString();
+					}
+				})
+				.transform("ReifyWatermarks", BasicTypeInfo.STRING_TYPE_INFO, new WatermarkReifier())
+				.addSink(resultSink);
+
+		env.execute();
+
+		assertEquals(
+				Arrays.asList("E:sideout-1", "E:sideout-2", "E:sideout-3", "E:sideout-4", "E:sideout-5", "WM:0", "WM:2", "WM:" + Long.MAX_VALUE),
+				sideOutputResultSink1.getSortedResult());
+
+		assertEquals(
+				Arrays.asList("E:sideout-1", "E:sideout-2", "E:sideout-3", "E:sideout-4", "E:sideout-5", "WM:0", "WM:2", "WM:" + Long.MAX_VALUE),
+				sideOutputResultSink1.getSortedResult());
+
+		assertEquals(Arrays.asList("E:1", "E:2", "E:3", "E:4", "E:5", "WM:0", "WM:2", "WM:" + Long.MAX_VALUE), resultSink.getSortedResult());
+	}
 
 	/**
 	 * Test ProcessFunction side output.
@@ -82,11 +186,11 @@ public class SideOutputITCase extends StreamingMultipleProgramsTestBase {
 					public void processElement(
 							Integer value, Context ctx, Collector<Integer> out) throws Exception {
 						out.collect(value);
-						ctx.output(sideOutputTag, "sideout-" + String.valueOf(value));
+						ctx.output(sideOutputTag1, "sideout-" + String.valueOf(value));
 					}
 				});
 
-		passThroughtStream.getSideOutput(sideOutputTag).addSink(sideOutputResultSink);
+		passThroughtStream.getSideOutput(sideOutputTag1).addSink(sideOutputResultSink);
 		passThroughtStream.addSink(resultSink);
 		see.execute();
 
@@ -123,11 +227,11 @@ public class SideOutputITCase extends StreamingMultipleProgramsTestBase {
 					public void processElement(
 							Integer value, Context ctx, Collector<Integer> out) throws Exception {
 						out.collect(value);
-						ctx.output(sideOutputTag, "sideout-" + String.valueOf(value));
+						ctx.output(sideOutputTag1, "sideout-" + String.valueOf(value));
 					}
 				});
 
-		passThroughtStream.getSideOutput(sideOutputTag).addSink(sideOutputResultSink);
+		passThroughtStream.getSideOutput(sideOutputTag1).addSink(sideOutputResultSink);
 		passThroughtStream.addSink(resultSink);
 		see.execute();
 
@@ -156,9 +260,9 @@ public class SideOutputITCase extends StreamingMultipleProgramsTestBase {
 					public void processElement(
 							Integer value, Context ctx, Collector<Integer> out) throws Exception {
 						out.collect(value);
-						ctx.output(otherSideOutputTag, "sideout-" + String.valueOf(value));
+						ctx.output(sideOutputTag2, "sideout-" + String.valueOf(value));
 					}
-				}).getSideOutput(sideOutputTag).addSink(sideOutputResultSink);
+				}).getSideOutput(sideOutputTag1).addSink(sideOutputResultSink);
 
 		see.execute();
 
@@ -193,9 +297,9 @@ public class SideOutputITCase extends StreamingMultipleProgramsTestBase {
 					public void processElement(
 							Integer value, Context ctx, Collector<Integer> out) throws Exception {
 						out.collect(value);
-						ctx.output(otherSideOutputTag, "sideout-" + String.valueOf(value));
+						ctx.output(sideOutputTag2, "sideout-" + String.valueOf(value));
 					}
-				}).getSideOutput(sideOutputTag).addSink(sideOutputResultSink);
+				}).getSideOutput(sideOutputTag1).addSink(sideOutputResultSink);
 
 		see.execute();
 
