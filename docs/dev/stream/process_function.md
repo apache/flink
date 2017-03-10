@@ -199,7 +199,7 @@ case class CountWithTimestamp(key: String, count: Long, lastModified: Long)
 /**
   * The implementation of the ProcessFunction that maintains the count and timeouts
   */
-class CountWithTimeoutFunction extends ProcessFunction[(String, Long), (String, Long)] {
+class CountWithTimeoutFunction extends ProcessFunction[(String, String), (String, Long)] {
 
   /** The state that is maintained by this process function */
   lazy val state: ValueState[CountWithTimestamp] = getRuntimeContext
