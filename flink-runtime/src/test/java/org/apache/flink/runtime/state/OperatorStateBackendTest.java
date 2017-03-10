@@ -66,6 +66,7 @@ public class OperatorStateBackendTest {
 		ListStateDescriptor<Serializable> stateDescriptor1 = new ListStateDescriptor<>("test1", new JavaSerializer<>());
 		ListStateDescriptor<Serializable> stateDescriptor2 = new ListStateDescriptor<>("test2", new JavaSerializer<>());
 		ListStateDescriptor<Serializable> stateDescriptor3 = new ListStateDescriptor<>("test3", new JavaSerializer<>());
+		ListStateDescriptor<String> stateDescriptor4 = new ListStateDescriptor<>("test4", String.class);
 		ListState<Serializable> listState1 = operatorStateBackend.getOperatorState(stateDescriptor1);
 		assertNotNull(listState1);
 		assertEquals(1, operatorStateBackend.getRegisteredStateNames().size());
@@ -105,6 +106,19 @@ public class OperatorStateBackendTest {
 		assertEquals(17, it.next());
 		assertEquals(3, it.next());
 		assertEquals(123, it.next());
+		assertTrue(!it.hasNext());
+
+		ListState<String> listState4 = operatorStateBackend.getOperatorState(stateDescriptor4);
+		assertNotNull(listState4);
+		assertEquals(4, operatorStateBackend.getRegisteredStateNames().size());
+		Iterator<String> it2 = listState4.get().iterator();
+		assertTrue(!it2.hasNext());
+		listState4.add("kevin");
+		listState4.add("sunny");
+
+		it2 = listState4.get().iterator();
+		assertEquals("kevin", it2.next());
+		assertEquals("sunny", it2.next());
 		assertTrue(!it.hasNext());
 
 		ListState<Serializable> listState1b = operatorStateBackend.getOperatorState(stateDescriptor1);
