@@ -27,17 +27,24 @@ import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.TupleComparator;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.codegeneration.utils.CodeGenerationSorterBaseTest;
 import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.runtime.operators.sort.InMemorySorter;
+import org.apache.flink.runtime.operators.testutils.TestData;
+import org.apache.flink.runtime.taskexecutor.TaskManagerConfiguration;
 import org.codehaus.commons.compiler.CompileException;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.List;
+import java.util.Random;
 
 
 public class SorterFactoryTest extends CodeGenerationSorterBaseTest {
@@ -97,6 +104,40 @@ public class SorterFactoryTest extends CodeGenerationSorterBaseTest {
 		Assert.assertEquals(expectedClass, actualClass);
 
 		sorter.dispose();
+		this.memoryManager.release(memory);
+	}
+
+	@Test
+	public void testSorterIsGeneratedOnlyOnceForSameComparator() throws MemoryAllocationException, IllegalAccessException, TemplateException, IOException, InstantiationException, NoSuchMethodException, InvocationTargetException, ClassNotFoundException, CompileException {
+
+		List<MemorySegment> memory = createMemory();
+		TypeSerializer serializer  = TestData.getIntStringTupleSerializer();
+		TypeComparator comparator  = TestData.getIntStringTupleComparator();
+
+		// 1st creation for this comparator
+		createSorter(serializer, comparator, memory);
+
+		SorterTemplateModel templateModel = new SorterTemplateModel(comparator);
+
+		TaskManagerConfiguration taskConf = TaskManagerConfiguration.fromConfiguration(new Configuration());
+		String sorterName = templateModel.getSorterName();
+		Path filePath     = TemplateManager.getInstance(taskConf.getFirstTmpDirectory()).getPathToGeneratedCode(sorterName).toPath();
+
+		Random randomGenerator = new Random();
+
+		// write a unique token to created sorter
+		String token = "// Testing token:" + randomGenerator.nextInt();
+		Files.write(filePath, token.getBytes(), StandardOpenOption.APPEND);
+
+		// 2nd creation for this comparator
+		createSorter(serializer, comparator, memory);
+
+		// read that file back and check whether the token is still there.
+		byte[] data = Files.readAllBytes(filePath);
+		String str = new String(data, "UTF-8");
+
+		Assert.assertTrue("TemplateManager serves sorter from cache for the 2nd call", str.contains(token) );
+
 		this.memoryManager.release(memory);
 	}
 }

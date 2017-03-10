@@ -31,7 +31,6 @@ import java.io.FileOutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -55,7 +54,6 @@ public class TemplateManager {
 	//                                   Attributes
 	// ------------------------------------------------------------------------
 	private final Configuration templateConf;
-	private final Map<String,Boolean> generatedSorter;
 	private final String dirForGeneratedCode;
 
 	/**
@@ -67,8 +65,6 @@ public class TemplateManager {
 		templateConf.setClassForTemplateLoading(TemplateManager.class, "/templates");
 		templateConf.setDefaultEncoding(TEMPLATE_ENCODING);
 		templateConf.setTemplateExceptionHandler(TemplateExceptionHandler.RETHROW_HANDLER);
-
-		generatedSorter = new HashMap<>();
 
 		dirForGeneratedCode = prepareDirectoryGeneratedCode(generatedCodeDir);
 	}
@@ -106,12 +102,6 @@ public class TemplateManager {
 		String generatedFilename = model.getSorterName();
 
 		synchronized (this){
-			if( generatedSorter.getOrDefault(generatedFilename, false) ){
-				if (LOG.isDebugEnabled()) {
-					LOG.debug("Served from cache : "+generatedFilename);
-				}
-				return generatedFilename;
-			}
 
 			FileOutputStream fs = new FileOutputStream(this.getPathToGeneratedCode(generatedFilename));
 
@@ -121,8 +111,6 @@ public class TemplateManager {
 
 			fs.close();
 			output.close();
-
-			generatedSorter.put(generatedFilename, true);
 		}
 
 		return generatedFilename;

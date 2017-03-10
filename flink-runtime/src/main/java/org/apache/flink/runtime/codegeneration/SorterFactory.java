@@ -106,21 +106,22 @@ public class SorterFactory {
 		InMemorySorter sorter = null;
 
 		if(config.isCodeGenerationForSorterEnabled()){
-			String className = this.templateManager.getGeneratedCode(new SorterTemplateModel(comparator));
+			SorterTemplateModel sorterModel = new SorterTemplateModel(comparator);
 
 			Constructor sorterConstructor = null;
 
 			synchronized (this){
-				if( constructorCache.getOrDefault(className, null) != null ){
-					sorterConstructor = constructorCache.get(className);
+				if( constructorCache.getOrDefault( sorterModel.getSorterName(), null) != null ){
+					sorterConstructor = constructorCache.get(sorterModel.getSorterName());
 				} else {
-					this.classComplier.cookFile(this.templateManager.getPathToGeneratedCode(className));
+					String sorterName = this.templateManager.getGeneratedCode(sorterModel);
+					this.classComplier.cookFile(this.templateManager.getPathToGeneratedCode(sorterName));
 
-					sorterConstructor = this.classComplier.getClassLoader().loadClass(className).getConstructor(
+					sorterConstructor = this.classComplier.getClassLoader().loadClass(sorterName).getConstructor(
 						TypeSerializer.class, TypeComparator.class, List.class
 					);
 
-					constructorCache.put(className, sorterConstructor);
+					constructorCache.put(sorterName, sorterConstructor);
 				}
 			}
 
