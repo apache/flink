@@ -1333,7 +1333,7 @@ public class WindowOperatorTest extends TestLogger {
 		TestHarnessUtil.assertOutputEqualsSorted(
 				"SideOutput was not correct.",
 				lateExpected,
-				testHarness.getSideOutput(lateOutputTag),
+				(Iterable) testHarness.getSideOutput(lateOutputTag),
 				new Tuple2ResultSortComparator());
 
 		testHarness.close();
@@ -1467,7 +1467,7 @@ public class WindowOperatorTest extends TestLogger {
 		expected.add(new Watermark(3999));
 
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expected, testHarness.getOutput(), new Tuple2ResultSortComparator());
-		TestHarnessUtil.assertOutputEqualsSorted("SideOutput was not correct.", sideExpected, testHarness.getSideOutput(
+		TestHarnessUtil.assertOutputEqualsSorted("SideOutput was not correct.", sideExpected, (Iterable) testHarness.getSideOutput(
 				lateOutputTag), new Tuple2ResultSortComparator());
 		testHarness.close();
 	}
@@ -1548,7 +1548,7 @@ public class WindowOperatorTest extends TestLogger {
 		expected.add(new Watermark(25000));
 
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expected, testHarness.getOutput(), new Tuple2ResultSortComparator());
-		TestHarnessUtil.assertOutputEqualsSorted("SideOutput was not correct.", sideExpected, testHarness.getSideOutput(lateOutputTag), new Tuple2ResultSortComparator());
+		TestHarnessUtil.assertOutputEqualsSorted("SideOutput was not correct.", sideExpected, (Iterable) testHarness.getSideOutput(lateOutputTag), new Tuple2ResultSortComparator());
 		testHarness.close();
 	}
 
@@ -1636,10 +1636,10 @@ public class WindowOperatorTest extends TestLogger {
 		expected.add(new Watermark(100000));
 
 		ConcurrentLinkedQueue<Object> actual = testHarness.getOutput();
-		ConcurrentLinkedQueue<Object> sideActual = testHarness.getSideOutput(lateOutputTag);
+		ConcurrentLinkedQueue<StreamRecord<Tuple2<String, Integer>>> sideActual = testHarness.getSideOutput(lateOutputTag);
 
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expected, actual, new Tuple2ResultSortComparator());
-		TestHarnessUtil.assertOutputEqualsSorted("SideOutput was not correct.", sideExpected, sideActual, new Tuple2ResultSortComparator());
+		TestHarnessUtil.assertOutputEqualsSorted("SideOutput was not correct.", sideExpected, (Iterable) sideActual, new Tuple2ResultSortComparator());
 
 		testHarness.close();
 	}
@@ -1723,9 +1723,10 @@ public class WindowOperatorTest extends TestLogger {
 		expected.add(new Watermark(100000));
 
 		ConcurrentLinkedQueue<Object> actual = testHarness.getOutput();
-		ConcurrentLinkedQueue<Object> sideActual = testHarness.getSideOutput(lateOutputTag);
+		ConcurrentLinkedQueue<StreamRecord<Tuple2<String, Integer>>> sideActual = testHarness.getSideOutput(
+				lateOutputTag);
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expected, actual, new Tuple2ResultSortComparator());
-		TestHarnessUtil.assertOutputEqualsSorted("SideOutput was not correct.", sideExpected, sideActual, new Tuple2ResultSortComparator());
+		TestHarnessUtil.assertOutputEqualsSorted("SideOutput was not correct.", sideExpected, (Iterable) sideActual, new Tuple2ResultSortComparator());
 		testHarness.close();
 	}
 
@@ -1897,7 +1898,8 @@ public class WindowOperatorTest extends TestLogger {
 		expected.add(new StreamRecord<>(new Tuple3<>("key2-2", 10000L, 14600L), 14599));
 
 		ConcurrentLinkedQueue<Object> actual = testHarness.getOutput();
-		ConcurrentLinkedQueue<Object> sideActual = testHarness.getSideOutput(lateOutputTag);
+		ConcurrentLinkedQueue<StreamRecord<Tuple2<String, Integer>>> sideActual = testHarness.getSideOutput(
+				lateOutputTag);
 
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expected, actual, new Tuple3ResultSortComparator());
 		assertEquals(null, sideActual);
@@ -1989,7 +1991,7 @@ public class WindowOperatorTest extends TestLogger {
 		expected.add(new StreamRecord<>(new Tuple3<>("key2-1", 1000L, 14600L), 14599));
 
 		ConcurrentLinkedQueue<Object> actual = testHarness.getOutput();
-		ConcurrentLinkedQueue<Object> sideActual = testHarness.getSideOutput(lateOutputTag);
+		ConcurrentLinkedQueue<StreamRecord<Tuple2<String, Integer>>> sideActual = testHarness.getSideOutput(lateOutputTag);
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expected, actual, new Tuple3ResultSortComparator());
 		assertEquals(null, sideActual);
 
@@ -2082,7 +2084,7 @@ public class WindowOperatorTest extends TestLogger {
 		expected.add(new StreamRecord<>(new Tuple3<>("key2-7", 1000L, 14600L), 14599));
 
 		ConcurrentLinkedQueue<Object> actual = testHarness.getOutput();
-		ConcurrentLinkedQueue<Object> sideActual = testHarness.getSideOutput(lateOutputTag);
+		ConcurrentLinkedQueue<StreamRecord<Tuple2<String, Integer>>> sideActual = testHarness.getSideOutput(lateOutputTag);
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expected, actual, new Tuple3ResultSortComparator());
 		assertEquals(null, sideActual);
 

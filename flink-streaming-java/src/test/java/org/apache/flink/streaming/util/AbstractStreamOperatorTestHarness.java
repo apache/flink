@@ -270,8 +270,9 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 		return outputList;
 	}
 
-	public ConcurrentLinkedQueue<Object> getSideOutput(OutputTag tag) {
-		return sideOutputLists.get(tag);
+	@SuppressWarnings({"unchecked", "rawtypes"})
+	public <X> ConcurrentLinkedQueue<StreamRecord<X>> getSideOutput(OutputTag<X> tag) {
+		return (ConcurrentLinkedQueue) sideOutputLists.get(tag);
 	}
 
 	/**
