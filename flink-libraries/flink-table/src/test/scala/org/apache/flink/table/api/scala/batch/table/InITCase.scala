@@ -100,7 +100,7 @@ class InITCase extends TableTestBase {
 
   @Test
   def testSqlInNestedTuples(): Unit = {
-    val ds1 = CollectionDataSets.getSmallNestedTupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
+    val ds1 = CollectionDataSets.getSmall2NestedTupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
     tEnv.registerTable("T7", ds1)
     val expected = "(3,3),three,(3,3)"
     val sqlQuery = "SELECT a, b, c FROM T7 WHERE c IN (a)";
@@ -111,7 +111,7 @@ class InITCase extends TableTestBase {
 
   @Test
   def testInSubqueryCorrelatedNestedTuples(): Unit = {
-    val ds1 = CollectionDataSets.getSmallNestedTupleDataSet(env)
+    val ds1 = CollectionDataSets.getSmall2NestedTupleDataSet(env)
       .toTable(tEnv, 'a, 'b, 'c)
     val subquery: Table = ds1.where('b === "two").select('a).as("a1")
     val subqueryIn = ds1.select("*").where('c.in(subquery))
