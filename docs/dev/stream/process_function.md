@@ -32,13 +32,13 @@ The `ProcessFunction` is a low-level stream processing operation, giving access 
 all (acyclic) streaming applications:
 
   - events (stream elements)
-  - state (fault tolerant, consistent, only on keyed stream)
+  - state (fault-tolerant, consistent, only on keyed stream)
   - timers (event time and processing time, only on keyed stream)
 
 The `ProcessFunction` can be thought of as a `FlatMapFunction` with access to keyed state and timers. It handles events
 by being invoked for each event received in the input stream(s).
 
-For fault tolerant state, the `ProcessFunction` gives access to Flink's [keyed state](state.html), accessible via the
+For fault-tolerant state, the `ProcessFunction` gives access to Flink's [keyed state](state.html), accessible via the
 `RuntimeContext`, similar to the way other stateful functions can access keyed state.
 
 The timers allow applications to react to changes in processing time and in [event time](../event_time.html).
@@ -225,7 +225,7 @@ class CountWithTimeoutFunction extends ProcessFunction[(String, String), (String
 
   override def onTimer(timestamp: Long, ctx: OnTimerContext, out: Collector[(String, Long)]): Unit = {
     state.value match {
-      case CountWithTimestamp(key, count, lastModified) if (lastModified == timestamp + 60000) =>
+      case CountWithTimestamp(key, count, lastModified) if (timestamp == lastModified + 60000) =>
         out.collect((key, count))
       case _ =>
     }
