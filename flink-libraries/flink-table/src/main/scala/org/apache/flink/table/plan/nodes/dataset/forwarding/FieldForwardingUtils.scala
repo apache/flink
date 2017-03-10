@@ -18,34 +18,73 @@
 
 package org.apache.flink.table.plan.nodes.dataset.forwarding
 
-import org.apache.flink.api.common.typeinfo.{BasicArrayTypeInfo, BasicTypeInfo, TypeInformation => TypeInfo}
+import org.apache.flink.api.common.typeinfo.AtomicType
+import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeinfo.{TypeInformation => TypeInfo}
 import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.api.java.DataSet
 import org.apache.flink.table.api.TableException
 import org.apache.flink.types.Row
 
 object FieldForwardingUtils {
 
-  def compositeTypeField = (fields: Seq[(String, TypeInfo[_])]) => fields
+  private def throwMissedTypeInfoException(info: TypeInfo[_]) = {
+    throw new TableException(s"Implementation for $info wrapper is missing.")
+  }
 
-  private def throwMissedWrapperException(customWrapper: TypeInfo[_]) = {
-    throw new TableException(s"Implementation for $customWrapper wrapper is missing.")
+  /**
+    * Wrapper for {@link getForwardedInput}
+    *
+    * @param leftType left input [[TypeInformation]]
+    * @param rightType right input [[TypeInformation]]
+    * @param returnType information of output data
+    * @return string with forwarded fields mapped from input to output
+    */
+  def getForwardedInput(
+      leftType: TypeInfo[Row],
+      rightType: TypeInfo[Row],
+      returnType: TypeInfo[Row]): (String, String) = {
+
+    val leftFields = getForwardedInput(leftType, returnType)
+    val rightFields = getForwardedInput(rightType, returnType)
+    (leftFields, rightFields)
+  }
+
+  /**
+    * Wrapper for {@link getForwardedInput}
+    * Generates default indices by inputTypeInfo
+    *
+    * @param inputType input [[TypeInformation]]
+    * @param returnType information of output data
+    * @return string with forwarded fields mapped from input to output
+    */
+  def getForwardedInput(
+      inputType: TypeInfo[Row],
+      returnType: TypeInfo[Row]): String ={
+
+    val indices = 0 until inputType.getTotalFields
+    getForwardedInput(inputType, returnType, indices)
   }
 
   /**
     * Wrapper for {@link getForwardedFields}
+    * Generates default indices by zipping forwardIndices with itself
+    *
+    * @param inputType      information of input data
+    * @param outputType     information of output data
+    * @param forwardIndices direct mapping of fields
+    * @return string with forwarded fields mapped from input to output
     */
   def getForwardedInput(
       inputType: TypeInfo[_],
       outputType: TypeInfo[_],
-      forwardIndices: Seq[Int],
-      customWrapper: TypeInfo[_] =>
-        Seq[(String, TypeInfo[_])] = throwMissedWrapperException): String = {
+      forwardIndices: Seq[Int]): String = {
 
-    getForwardedFields(inputType,
+    getForwardedFields(
+      inputType,
       outputType,
-      forwardIndices.zip(forwardIndices),
-      customWrapper)
+      forwardIndices.zip(forwardIndices))
   }
 
   /**
@@ -55,30 +94,27 @@ object FieldForwardingUtils {
     * @param inputType      information of input data
     * @param outputType     information of output data
     * @param forwardIndices tuple of (input, output) indices of a forwarded field
-    * @param customWrapper  used for figuring out proper type in specific cases,
-    *                       e.g. {@see DataSetSingleRowJoin}
     * @return string with forwarded fields mapped from input to output
     */
   def getForwardedFields(
       inputType: TypeInfo[_],
       outputType: TypeInfo[_],
-      forwardIndices: Seq[(Int, Int)],
-      customWrapper: TypeInfo[_] =>
-        Seq[(String, TypeInfo[_])] = throwMissedWrapperException): String = {
+      forwardIndices: Seq[(Int, Int)]): String = {
 
     def chooseWrapper(
         typeInformation: TypeInfo[_]): Seq[(String, TypeInfo[_])] = {
 
       typeInformation match {
         case composite: CompositeType[_] =>
-          val fields = extractFields(composite)
-          compositeTypeField(fields)
+          extractFields(composite)
         case basic: BasicTypeInfo[_] =>
           Seq((s"*", basic))
         case array: BasicArrayTypeInfo[_, _] =>
           Seq((s"*", array))
+        case atomic: AtomicType[_] =>
+          Seq((s"*", atomic))
         case _ =>
-          customWrapper(typeInformation)
+          throwMissedTypeInfoException(typeInformation)
       }
     }
 
@@ -110,34 +146,14 @@ object FieldForwardingUtils {
         if (left._2.equals(right._2)) {
           s"${left._1}->${right._1}"
         } else {
-          null
+          throw new TableException("The logic of identifying " +
+            "the mapping of forwarded fields is broken")
         }
       }
     }
 
-    forwardIndices map {
-      case (in, out) =>
-        wrappedInput(in) -> wrappedOutput(out)
-    } filterNot(_ == null) mkString ";"
+    forwardIndices map { case (in, out) =>
+      wrappedInput(in) -> wrappedOutput(out)
+    } mkString ";"
   }
-
-  def getDummyForwardedFields(
-      leftDataSet: DataSet[Row],
-      rightDataSet: DataSet[Row],
-      returnType: TypeInfo[Row]): (String, String) = {
-
-    val leftFields = getDummyForwardedFields(leftDataSet, returnType)
-    val rightFields = getDummyForwardedFields(rightDataSet, returnType)
-    (leftFields, rightFields)
-  }
-
-  def getDummyForwardedFields(
-      dataSet: DataSet[Row],
-      returnType: TypeInfo[Row]): String ={
-
-    val `type` = dataSet.getType
-    val indices = 0 until `type`.getTotalFields
-    getForwardedInput(`type`, returnType, indices)
-  }
-
 }

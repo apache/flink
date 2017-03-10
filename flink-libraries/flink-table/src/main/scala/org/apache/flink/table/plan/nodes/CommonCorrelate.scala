@@ -46,7 +46,6 @@ trait CommonCorrelate {
       config: TableConfig,
       inputTypeInfo: TypeInformation[Row],
       udtfTypeInfo: TypeInformation[Any],
-      returnType: TypeInformation[Row],
       rowType: RelDataType,
       joinType: SemiJoinType,
       rexCall: RexCall,
@@ -54,6 +53,8 @@ trait CommonCorrelate {
       pojoFieldMapping: Option[Array[Int]], // udtf return type pojo field mapping
       ruleDescription: String)
     : CorrelateFlatMapRunner[Row, Row] = {
+
+    val returnType = FlinkTypeFactory.toInternalRowTypeInfo(rowType)
 
     val flatMap = generateFunction(
       config,

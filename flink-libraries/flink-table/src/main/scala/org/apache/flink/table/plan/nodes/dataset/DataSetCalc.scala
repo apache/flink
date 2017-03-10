@@ -26,13 +26,13 @@ import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.flink.api.common.functions.FlatMapFunction
 import org.apache.flink.api.java.DataSet
 import org.apache.calcite.rex._
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.plan.nodes.dataset.forwarding.FieldForwardingUtils.getForwardedFields
 import org.apache.flink.table.api.BatchTableEnvironment
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGenerator
 import org.apache.flink.table.plan.nodes.CommonCalc
 import org.apache.flink.types.Row
-import org.apache.flink.table.plan.util.RexProgramProjectExtractor._
 
 import scala.collection.JavaConversions._
 /**
@@ -103,26 +103,30 @@ class DataSetCalc(
       body,
       returnType)
 
-    def getForwardIndices = {
-      // get (input, output) indices of operands,
-      // filter modified operands and specify forwarding
-      val inputFields = extractRefInputFields(calcProgram)
-      calcProgram.getProjectList
-        .map(_.getIndex)
-        .zipWithIndex
-        .filter(tup => inputFields.contains(tup._1))
-    }
-
     val mapFunc = calcMapFunction(genFunction)
 
-    val fields = getForwardedFields(
-      inputDS.getType,
-      returnType,
-      getForwardIndices)
+    val fields = forwardFields(inputDS.getType, returnType)
 
       inputDS
         .flatMap(mapFunc)
         .withForwardedFields(fields)
         .name(calcOpName(calcProgram, getExpressionString))
     }
+
+  private def forwardFields(
+          inputDS: TypeInformation[Row],
+          returnType: TypeInformation[Row]) = {
+
+    def getForwardIndices = {
+      calcProgram.getProjectList.zipWithIndex.flatMap { case (p, out) =>
+        val expr = calcProgram.getExprList.get(p.getIndex)
+        expr match {
+          case i: RexInputRef => Some((i.getIndex, out))
+          case _ => None
+        }
+      }
+    }
+
+    getForwardedFields(inputDS, returnType, getForwardIndices)
+  }
 }

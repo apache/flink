@@ -25,7 +25,7 @@ import org.apache.calcite.rel.{BiRel, RelNode, RelWriter}
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.table.api.BatchTableEnvironment
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.plan.nodes.dataset.forwarding.FieldForwardingUtils.getDummyForwardedFields
+import org.apache.flink.table.plan.nodes.dataset.forwarding.FieldForwardingUtils.getForwardedInput
 import org.apache.flink.table.runtime.MinusCoGroupFunction
 import org.apache.flink.types.Row
 
@@ -99,9 +99,9 @@ class DataSetMinus(
 
     val returnType = FlinkTypeFactory.toInternalRowTypeInfo(getRowType)
 
-    val (leftFields, rightFields) = getDummyForwardedFields(
-      leftDataSet,
-      rightDataSet,
+    val (leftFields, rightFields) = getForwardedInput(
+      leftDataSet.getType,
+      rightDataSet.getType,
       returnType)
 
     coGroupedDs

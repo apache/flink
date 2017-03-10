@@ -28,7 +28,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.BatchTableEnvironment
-import org.apache.flink.table.plan.nodes.dataset.forwarding.FieldForwardingUtils.getForwardedInput
+import org.apache.flink.table.plan.nodes.dataset.forwarding.FieldForwardingUtils.getForwardedFields
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.nodes.CommonAggregate
 import org.apache.flink.table.runtime.aggregate.{AggregateUtil, DataSetPreAggFunction}
@@ -112,25 +112,34 @@ class DataSetAggregate(
       val aggOpName = s"groupBy: (${groupingToString(inputType, grouping)}), " +
         s"select: ($aggString)"
 
+      val inputTypeInfo = FlinkTypeFactory.toInternalRowTypeInfo(inputType)
+
       if (preAgg.isDefined) {
+
+        val preAggFields = forwardFields(inputTypeInfo, preAggType.get, grouping)
+        val fields = continueForwardFields(preAggType.get, rowTypeInfo, grouping)
         inputDS
           // pre-aggregation
           .groupBy(grouping: _*)
           .combineGroup(preAgg.get)
           .returns(preAggType.get)
-          // forward fields at conversion
-          .withForwardedFields(forwardFields(rowTypeInfo))
+          // forward fields at pre-aggregation
+          .withForwardedFields(preAggFields)
           .name(aggOpName)
           // final aggregation
           .groupBy(grouping.indices: _*)
           .reduceGroup(finalAgg)
           .returns(rowTypeInfo)
+          // forward fields at final conversion
+          .withForwardedFields(fields)
           .name(aggOpName)
       } else {
+        val fields = forwardFields(inputTypeInfo, rowTypeInfo, grouping)
         inputDS
           .groupBy(grouping: _*)
           .reduceGroup(finalAgg)
           .returns(rowTypeInfo)
+          .withForwardedFields(fields)
           .name(aggOpName)
       }
     }
@@ -157,18 +166,29 @@ class DataSetAggregate(
     }
   }
 
-  private def forwardFields(rowTypeInfo: RowTypeInfo) = {
-    //Forward all fields at conversion
-    val inputInfo = mappedInput.getType
-    val indices = if (rowTypeInfo.getTotalFields < inputInfo.getTotalFields) {
-      0 until rowTypeInfo.getTotalFields
-    } else {
-      0 until inputInfo.getTotalFields
-    }
-    val indices = 0 to rowTypeInfo.getTotalFields
-    getForwardedInput(
-      FlinkTypeFactory.toInternalRowTypeInfo(inputType),
-      rowTypeInfo,
-      indices)
+  private def continueForwardFields(
+      inputRowType: TypeInformation[Row],
+      resultRowType: TypeInformation[Row],
+      aggIndices: Array[Int]) = {
+
+    val names = inputType.getFieldNames
+    val aggKeys = aggIndices.map(names.get)
+    val outIndices = aggKeys.map(getRowType.getField(_, false, false).getIndex)
+
+    getForwardedFields(
+      inputRowType,
+      resultRowType,
+      aggIndices.indices.zip(outIndices))
+  }
+
+  private def forwardFields(
+      inputRowType: TypeInformation[Row],
+      resultRowType: TypeInformation[Row],
+      aggIndices: Array[Int]) = {
+
+    getForwardedFields(
+      inputRowType,
+      resultRowType,
+      grouping.zipWithIndex)
   }
 }

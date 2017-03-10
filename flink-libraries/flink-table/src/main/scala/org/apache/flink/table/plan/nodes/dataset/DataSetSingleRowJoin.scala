@@ -111,17 +111,24 @@ class DataSetSingleRowJoin(
         (leftDataSet, rightDataSet)
       }
 
-    val offset: Int = if (leftIsSingle) 1 else 0
-    val indices = (0 until multiRowDataSet.getType.getTotalFields)
-      .map { inputIndex => (inputIndex, inputIndex + offset) }
-
-    val fields = getForwardedFields(multiRowDataSet.getType, returnType, indices)
+    val fields = forwardFields(returnType, multiRowDataSet)
 
     multiRowDataSet
       .flatMap(mapSideJoin)
       .withBroadcastSet(singleRowDataSet, broadcastSetName)
       .withForwardedFields(fields)
       .name(getMapOperatorName)
+  }
+
+  private def forwardFields(
+          returnType: TypeInformation[Row],
+          multiRowDataSet: DataSet[Row]): String = {
+
+    val offset: Int = if (leftIsSingle) 1 else 0
+    val indices = (0 until multiRowDataSet.getType.getTotalFields)
+      .map { inputIndex => (inputIndex, inputIndex + offset) }
+
+    getForwardedFields(multiRowDataSet.getType, returnType, indices)
   }
 
   private def generateMapFunction(

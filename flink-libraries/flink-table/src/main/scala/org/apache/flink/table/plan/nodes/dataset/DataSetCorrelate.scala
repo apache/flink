@@ -22,10 +22,9 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.logical.LogicalTableFunctionScan
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
-import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode}
+import org.apache.calcite.rex.{RexCall, RexNode}
 import org.apache.calcite.sql.SemiJoinType
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.table.api.BatchTableEnvironment
 import org.apache.flink.table.calcite.FlinkTypeFactory
@@ -33,9 +32,6 @@ import org.apache.flink.table.functions.utils.TableSqlFunction
 import org.apache.flink.table.plan.nodes.CommonCorrelate
 import org.apache.flink.types.Row
 import org.apache.flink.table.plan.nodes.dataset.forwarding.FieldForwardingUtils.getForwardedInput
-import org.apache.flink.table.plan.util.RexFieldExtractor._
-
-import scala.collection.JavaConversions._
 
 /**
   * Flink RelNode which matches along with join a user defined table function.
@@ -103,13 +99,11 @@ class DataSetCorrelate(
     val sqlFunction = rexCall.getOperator.asInstanceOf[TableSqlFunction]
     val pojoFieldMapping = sqlFunction.getPojoFieldMapping
     val udtfTypeInfo = sqlFunction.getRowTypeInfo.asInstanceOf[TypeInformation[Any]]
-    val returnType = FlinkTypeFactory.toInternalRowTypeInfo(getRowType)
 
     val mapFunc = correlateMapFunction(
       config,
       inputDS.getType,
       udtfTypeInfo,
-      returnType,
       getRowType,
       joinType,
       rexCall,
@@ -117,23 +111,8 @@ class DataSetCorrelate(
       Some(pojoFieldMapping),
       ruleDescription)
 
-    def getIndices = {
-      //get indices of all input operands
-      val inputOperandsInRel = extractRefInputFields(rexCall)
-      val joinCondition = if (condition.isDefined) {
-        extractRefInputFields(condition.get)
-      } else {
-        Array()
-      }
-      val inputOperands = inputOperandsInRel ++ joinCondition
-
-      inputDS.getType.asInstanceOf[CompositeType[_]]
-        .getFieldNames
-        .indices
-        .filter(inputOperands.contains)
-    }
-
-    val fields = getForwardedInput(inputDS.getType, mapFunc.getProducedType, getIndices)
+    val returnType = FlinkTypeFactory.toInternalRowTypeInfo(getRowType)
+    val fields = getForwardedInput(inputDS.getType, returnType)
 
     inputDS
       .flatMap(mapFunc)

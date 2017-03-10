@@ -44,17 +44,6 @@ class FieldForwardingUtilsTest {
     assertEquals("f0->someInt;f1->aString", getForwardedFields(tuple, pojo, Seq((0, 2), (1, 0))))
     assertEquals("*", getForwardedInput(intType, intType, Seq(0)))
   }
-
-  @Test
-  def testForwardingWithCustomType() = {
-    val customType = new GenericTypeInfo(classOf[Int])
-    val customTypeWrapper = (info: TypeInformation[_]) =>
-      info match {
-        case gen: GenericTypeInfo[Int] =>
-          Seq((s"*", intType))
-      }
-    assertEquals("*", getForwardedInput(customType, intType, Seq(0), customTypeWrapper))
-  }
 }
 
 final class TestPojo {
