@@ -194,14 +194,29 @@ public abstract class AbstractFetcher<T, KPH> {
 
 	/**
 	 * Restores the partition offsets.
+	 * The partitions in the provided map of restored partitions to offsets must completely match
+	 * the fetcher's subscribed partitions.
 	 * 
-	 * @param snapshotState The offsets for the partitions 
+	 * @param restoredOffsets The restored offsets for the partitions
+	 *
+	 * @throws IllegalStateException if the partitions in the provided restored offsets map
+	 * cannot completely match the fetcher's subscribed partitions.
 	 */
-	public void restoreOffsets(Map<KafkaTopicPartition, Long> snapshotState) {
-		for (KafkaTopicPartitionState<?> partition : allPartitions) {
-			Long offset = snapshotState.get(partition.getKafkaTopicPartition());
-			if (offset != null) {
-				partition.setOffset(offset);
+	public void restoreOffsets(Map<KafkaTopicPartition, Long> restoredOffsets) {
+		if (restoredOffsets.size() != allPartitions.length) {
+			throw new IllegalStateException(
+				"The fetcher was restored with partition offsets that do not " +
+					"match with the subscribed partitions: " + restoredOffsets);
+		} else {
+			for (KafkaTopicPartitionState<?> partition : allPartitions) {
+				Long offset = restoredOffsets.get(partition.getKafkaTopicPartition());
+				if (offset != null) {
+					partition.setOffset(offset);
+				} else {
+					throw new IllegalStateException(
+						"The fetcher was restored with partition offsets that do not " +
+							"contain offsets for subscribed partition " + partition.getKafkaTopicPartition());
+				}
 			}
 		}
 	}

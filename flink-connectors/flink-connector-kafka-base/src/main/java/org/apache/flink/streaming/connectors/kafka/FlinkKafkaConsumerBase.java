@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.commons.collections.map.LinkedMap;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -293,11 +294,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 
 	@Override
 	public void open(Configuration configuration) {
-		List<KafkaTopicPartition> kafkaTopicPartitions = getKafkaPartitions(topics);
-
-		if (kafkaTopicPartitions != null) {
-			assignTopicPartitions(kafkaTopicPartitions);
-		}
+		assignTopicPartitions();
 	}
 
 	@Override
@@ -489,16 +486,15 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	//  Utilities
 	// ------------------------------------------------------------------------
 
-	private void assignTopicPartitions(List<KafkaTopicPartition> kafkaTopicPartitions) {
-		subscribedPartitions = new ArrayList<>();
-
+	private void assignTopicPartitions() {
 		if (restoreToOffset != null) {
-			for (KafkaTopicPartition kafkaTopicPartition : kafkaTopicPartitions) {
-				if (restoreToOffset.containsKey(kafkaTopicPartition)) {
-					subscribedPartitions.add(kafkaTopicPartition);
-				}
+			subscribedPartitions = new ArrayList<>(restoreToOffset.size());
+			for (Map.Entry<KafkaTopicPartition, Long> restoredPartitionState : restoreToOffset.entrySet()) {
+				subscribedPartitions.add(restoredPartitionState.getKey());
 			}
 		} else {
+			List<KafkaTopicPartition> kafkaTopicPartitions = getKafkaPartitions(topics);
+
 			Collections.sort(kafkaTopicPartitions, new Comparator<KafkaTopicPartition>() {
 				@Override
 				public int compare(KafkaTopicPartition o1, KafkaTopicPartition o2) {
@@ -512,6 +508,8 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 				}
 			});
 
+			subscribedPartitions = new ArrayList<>(
+				(kafkaTopicPartitions.size() / getRuntimeContext().getNumberOfParallelSubtasks()) + 1);
 			for (int i = getRuntimeContext().getIndexOfThisSubtask(); i < kafkaTopicPartitions.size(); i += getRuntimeContext().getNumberOfParallelSubtasks()) {
 				subscribedPartitions.add(kafkaTopicPartitions.get(i));
 			}
@@ -568,5 +566,10 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 		}
 		
 		logger.info(sb.toString());
+	}
+
+	@VisibleForTesting
+	List<KafkaTopicPartition> getSubscribedPartitions() {
+		return subscribedPartitions;
 	}
 }

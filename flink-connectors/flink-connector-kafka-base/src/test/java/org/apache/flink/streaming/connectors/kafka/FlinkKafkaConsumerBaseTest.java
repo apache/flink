@@ -20,10 +20,13 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.commons.collections.map.LinkedMap;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
@@ -37,8 +40,6 @@ import org.apache.flink.util.SerializedValue;
 import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Matchers;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 import java.io.Serializable;
 import java.lang.reflect.Field;
@@ -48,15 +49,15 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 public class FlinkKafkaConsumerBaseTest {
@@ -65,14 +66,17 @@ public class FlinkKafkaConsumerBaseTest {
 	 * Tests that not both types of timestamp extractors / watermark generators can be used.
 	 */
 	@Test
+	@SuppressWarnings("unchecked")
 	public void testEitherWatermarkExtractor() {
 		try {
-			new DummyFlinkKafkaConsumer<>().assignTimestampsAndWatermarks((AssignerWithPeriodicWatermarks<Object>) null);
+			new DummyFlinkKafkaConsumer<>(mock(AbstractFetcher.class), Collections.<KafkaTopicPartition>emptyList())
+					.assignTimestampsAndWatermarks((AssignerWithPeriodicWatermarks<Object>) null);
 			fail();
 		} catch (NullPointerException ignored) {}
 
 		try {
-			new DummyFlinkKafkaConsumer<>().assignTimestampsAndWatermarks((AssignerWithPunctuatedWatermarks<Object>) null);
+			new DummyFlinkKafkaConsumer<>(mock(AbstractFetcher.class), Collections.<KafkaTopicPartition>emptyList())
+					.assignTimestampsAndWatermarks((AssignerWithPunctuatedWatermarks<Object>) null);
 			fail();
 		} catch (NullPointerException ignored) {}
 		
@@ -81,14 +85,14 @@ public class FlinkKafkaConsumerBaseTest {
 		@SuppressWarnings("unchecked")
 		final AssignerWithPunctuatedWatermarks<String> punctuatedAssigner = mock(AssignerWithPunctuatedWatermarks.class);
 		
-		DummyFlinkKafkaConsumer<String> c1 = new DummyFlinkKafkaConsumer<>();
+		DummyFlinkKafkaConsumer<String> c1 = new DummyFlinkKafkaConsumer<>(mock(AbstractFetcher.class), Collections.<KafkaTopicPartition>emptyList());
 		c1.assignTimestampsAndWatermarks(periodicAssigner);
 		try {
 			c1.assignTimestampsAndWatermarks(punctuatedAssigner);
 			fail();
 		} catch (IllegalStateException ignored) {}
 
-		DummyFlinkKafkaConsumer<String> c2 = new DummyFlinkKafkaConsumer<>();
+		DummyFlinkKafkaConsumer<String> c2 = new DummyFlinkKafkaConsumer<>(mock(AbstractFetcher.class), Collections.<KafkaTopicPartition>emptyList());
 		c2.assignTimestampsAndWatermarks(punctuatedAssigner);
 		try {
 			c2.assignTimestampsAndWatermarks(periodicAssigner);
@@ -186,9 +190,10 @@ public class FlinkKafkaConsumerBaseTest {
 	 * Tests that on snapshots, states and offsets to commit to Kafka are correct
 	 */
 	@Test
+	@SuppressWarnings("unchecked")
 	public void checkUseFetcherWhenNoCheckpoint() throws Exception {
 
-		FlinkKafkaConsumerBase<String> consumer = getConsumer(null, new LinkedMap(), true);
+		FlinkKafkaConsumerBase<String> consumer = getConsumer(mock(AbstractFetcher.class), new LinkedMap(), true);
 		List<KafkaTopicPartition> partitionList = new ArrayList<>(1);
 		partitionList.add(new KafkaTopicPartition("test", 0));
 		consumer.setSubscribedPartitions(partitionList);
@@ -205,6 +210,66 @@ public class FlinkKafkaConsumerBaseTest {
 		when(initializationContext.isRestored()).thenReturn(false);
 		consumer.initializeState(initializationContext);
 		consumer.run(mock(SourceFunction.SourceContext.class));
+	}
+
+	/**
+	 * Tests that the fetcher is restored with all partitions in the restored state,
+	 * regardless of the queried complete list of Kafka partitions.
+	 */
+	@Test
+	@SuppressWarnings("unchecked")
+	public void testStateIntactOnRestore() throws Exception {
+		final AbstractFetcher<String, ?> fetcher = mock(AbstractFetcher.class);
+
+		FlinkKafkaConsumerBase<String> consumer = new DummyFlinkKafkaConsumer<>(
+				fetcher,
+				Collections.<KafkaTopicPartition>emptyList()); // mock queried list; this should not affect restore state
+
+		final OperatorStateStore operatorStateStore = mock(OperatorStateStore.class);
+		final ListState mockListState = mock(ListState.class);
+		List<Tuple2<KafkaTopicPartition, Long>> restoredPartitionOffsets = new ArrayList<>(3);
+		restoredPartitionOffsets.add(new Tuple2<>(new KafkaTopicPartition("test-topic", 0), 23L));
+		restoredPartitionOffsets.add(new Tuple2<>(new KafkaTopicPartition("test-topic", 1), 40L));
+		restoredPartitionOffsets.add(new Tuple2<>(new KafkaTopicPartition("test-topic", 2), 32L));
+		when(mockListState.get()).thenReturn(restoredPartitionOffsets);
+		when(operatorStateStore.getSerializableListState(Matchers.anyString())).thenReturn(mockListState);
+
+		List<KafkaTopicPartition> expectedSubscribedPartitions = new ArrayList<>(3);
+		expectedSubscribedPartitions.add(new KafkaTopicPartition("test-topic", 0));
+		expectedSubscribedPartitions.add(new KafkaTopicPartition("test-topic", 1));
+		expectedSubscribedPartitions.add(new KafkaTopicPartition("test-topic", 2));
+
+		Map<KafkaTopicPartition, Long> expectedFetcherRestoreState = new HashMap<>();
+		expectedFetcherRestoreState.put(new KafkaTopicPartition("test-topic", 0), 23L);
+		expectedFetcherRestoreState.put(new KafkaTopicPartition("test-topic", 1), 40L);
+		expectedFetcherRestoreState.put(new KafkaTopicPartition("test-topic", 2), 32L);
+
+		consumer.initializeState(new FunctionInitializationContext() {
+			@Override
+			public boolean isRestored() {
+				return true;
+			}
+
+			@Override
+			public OperatorStateStore getOperatorStateStore() {
+				return operatorStateStore;
+			}
+
+			@Override
+			public KeyedStateStore getKeyedStateStore() {
+				throw new UnsupportedOperationException();
+			}
+		});
+
+		consumer.open(new Configuration());
+
+		consumer.run(mock(SourceFunction.SourceContext.class));
+
+		assertEquals(expectedSubscribedPartitions.size(), consumer.getSubscribedPartitions().size());
+		for (KafkaTopicPartition expectedPartition : expectedSubscribedPartitions) {
+			consumer.getSubscribedPartitions().contains(expectedPartition);
+		}
+		verify(fetcher).restoreOffsets(expectedFetcherRestoreState);
 	}
 
 	@Test
@@ -333,7 +398,7 @@ public class FlinkKafkaConsumerBaseTest {
 	private static <T> FlinkKafkaConsumerBase<T> getConsumer(
 			AbstractFetcher<T, ?> fetcher, LinkedMap pendingOffsetsToCommit, boolean running) throws Exception
 	{
-		FlinkKafkaConsumerBase<T> consumer = new DummyFlinkKafkaConsumer<>();
+		FlinkKafkaConsumerBase<T> consumer = new DummyFlinkKafkaConsumer<>(fetcher, Collections.<KafkaTopicPartition>emptyList());
 
 		Field fetcherField = FlinkKafkaConsumerBase.class.getDeclaredField("kafkaFetcher");
 		fetcherField.setAccessible(true);
@@ -355,27 +420,29 @@ public class FlinkKafkaConsumerBaseTest {
 	private static class DummyFlinkKafkaConsumer<T> extends FlinkKafkaConsumerBase<T> {
 		private static final long serialVersionUID = 1L;
 
+		private final AbstractFetcher<T, ?> mockFetcher;
+		private final List<KafkaTopicPartition> mockKafkaPartitions;
+
 		@SuppressWarnings("unchecked")
-		public DummyFlinkKafkaConsumer() {
+		public DummyFlinkKafkaConsumer(AbstractFetcher<T, ?> mockFetcher, List<KafkaTopicPartition> mockKafkaPartitions) {
 			super(Arrays.asList("dummy-topic"), (KeyedDeserializationSchema < T >) mock(KeyedDeserializationSchema.class));
+			this.mockFetcher = mockFetcher;
+			this.mockKafkaPartitions = mockKafkaPartitions;
 		}
 
 		@Override
-		protected AbstractFetcher<T, ?> createFetcher(SourceContext<T> sourceContext, List<KafkaTopicPartition> thisSubtaskPartitions, SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic, SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated, StreamingRuntimeContext runtimeContext) throws Exception {
-			AbstractFetcher<T, ?> fetcher = mock(AbstractFetcher.class);
-			doAnswer(new Answer() {
-				@Override
-				public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-					Assert.fail("Trying to restore offsets even though there was no restore state.");
-					return null;
-				}
-			}).when(fetcher).restoreOffsets(any(HashMap.class));
-			return fetcher;
+		protected AbstractFetcher<T, ?> createFetcher(
+				SourceContext<T> sourceContext,
+				List<KafkaTopicPartition> thisSubtaskPartitions,
+				SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
+				SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
+				StreamingRuntimeContext runtimeContext) throws Exception {
+			return mockFetcher;
 		}
 
 		@Override
 		protected List<KafkaTopicPartition> getKafkaPartitions(List<String> topics) {
-			return Collections.emptyList();
+			return mockKafkaPartitions;
 		}
 
 		@Override
