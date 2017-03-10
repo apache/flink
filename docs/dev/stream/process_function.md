@@ -199,21 +199,20 @@ case class CountWithTimestamp(key: String, count: Long, lastModified: Long)
 /**
   * The implementation of the ProcessFunction that maintains the count and timeouts
   */
-class TimeoutStateFunction extends ProcessFunction[(String, Long), (String, Long)] {
+class CountWithTimeoutFunction extends ProcessFunction[(String, Long), (String, Long)] {
 
   /** The state that is maintained by this process function */
   lazy val state: ValueState[CountWithTimestamp] = getRuntimeContext
     .getState(new ValueStateDescriptor[CountWithTimestamp]("myState", classOf[CountWithTimestamp]))
 
 
-  override def processElement(value: (String, Long), ctx: Context, out: Collector[(String, Long)]): Unit = {
+  override def processElement(value: (String, String), ctx: Context, out: Collector[(String, Long)]): Unit = {
     // initialize or retrieve/update the state
-    val (key, _) = value
 
     val current: CountWithTimestamp = state.value match {
       case null =>
-        CountWithTimestamp(key, 1, ctx.timestamp)
-      case CountWithTimestamp(key, count, _) =>
+        CountWithTimestamp(value._1, 1, ctx.timestamp)
+      case CountWithTimestamp(key, count, lastModified) =>
         CountWithTimestamp(key, count + 1, ctx.timestamp)
     }
 
