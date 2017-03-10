@@ -22,13 +22,13 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.core.memory.MemoryType;
+import org.apache.flink.util.MathUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.HashSet;
-import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 
@@ -50,7 +50,7 @@ public class NetworkBufferPool implements BufferPoolFactory {
 
 	private final int memorySegmentSize;
 
-	private final Queue<MemorySegment> availableMemorySegments;
+	private final ArrayBlockingQueue<MemorySegment> availableMemorySegments;
 
 	private volatile boolean isDestroyed;
 
@@ -124,9 +124,10 @@ public class NetworkBufferPool implements BufferPoolFactory {
 		return availableMemorySegments.poll();
 	}
 
-	// This is not safe with regard to destroy calls, but it does not hurt, because destroy happens
-	// only once at clean up time (task manager shutdown).
 	public void recycle(MemorySegment segment) {
+		// Adds the segment back to the queue, which does not immediately free the memory
+		// however, since this happens when references to the global pool are also released,
+		// making the availableMemorySegments queue and its contained object reclaimable
 		availableMemorySegments.add(segment);
 	}
 
@@ -260,7 +261,7 @@ public class NetworkBufferPool implements BufferPoolFactory {
 		assert Thread.holdsLock(factoryLock);
 
 		// All buffers, which are not among the required ones
-		int numAvailableMemorySegment = totalNumberOfMemorySegments - numTotalRequiredBuffers;
+		final int numAvailableMemorySegment = totalNumberOfMemorySegments - numTotalRequiredBuffers;
 
 		if (numAvailableMemorySegment == 0) {
 			// in this case, we need to redistribute buffers so that every pool gets its minimum
@@ -278,7 +279,8 @@ public class NetworkBufferPool implements BufferPoolFactory {
 		 * a ratio that we use to distribute the buffers.
 		 */
 
-		int totalCapacity = 0;
+		long totalCapacity = 0; // long to avoid int overflow
+
 		for (LocalBufferPool bufferPool : allBufferPools) {
 			int excessMax = bufferPool.getMaxNumberOfMemorySegments() -
 				bufferPool.getNumberOfRequiredMemorySegments();
@@ -290,9 +292,13 @@ public class NetworkBufferPool implements BufferPoolFactory {
 			return; // necessary to avoid div by zero when nothing to re-distribute
 		}
 
-		int memorySegmentsToDistribute = Math.min(numAvailableMemorySegment, totalCapacity);
+		// since one of the arguments of 'min(a,b)' is a positive int, this is actually
+		// guaranteed to be within the 'int' domain
+		// (we use a checked downCast to handle possible bugs more gracefully).
+		final int memorySegmentsToDistribute = MathUtils.checkedDownCast(
+				Math.min(numAvailableMemorySegment, totalCapacity));
 
-		int totalPartsUsed = 0; // of totalCapacity
+		long totalPartsUsed = 0; // of totalCapacity
 		int numDistributedMemorySegment = 0;
 		for (LocalBufferPool bufferPool : allBufferPools) {
 			int excessMax = bufferPool.getMaxNumberOfMemorySegments() -
@@ -307,7 +313,10 @@ public class NetworkBufferPool implements BufferPoolFactory {
 
 			// avoid remaining buffers by looking at the total capacity that should have been
 			// re-distributed up until here
-			int mySize = memorySegmentsToDistribute * totalPartsUsed / totalCapacity - numDistributedMemorySegment;
+			// the downcast will always succeed, because both arguments of the subtraction are in the 'int' domain
+			final int mySize = MathUtils.checkedDownCast(
+					memorySegmentsToDistribute * totalPartsUsed / totalCapacity - numDistributedMemorySegment);
+
 			numDistributedMemorySegment += mySize;
 			bufferPool.setNumBuffers(bufferPool.getNumberOfRequiredMemorySegments() + mySize);
 		}

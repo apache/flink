@@ -58,7 +58,7 @@ class LocalBufferPool implements BufferPool {
 	 * The currently available memory segments. These are segments, which have been requested from
 	 * the network buffer pool and are currently not handed out as Buffer instances.
 	 */
-	private final Queue<MemorySegment> availableMemorySegments = new ArrayDeque<MemorySegment>();
+	private final ArrayDeque<MemorySegment> availableMemorySegments = new ArrayDeque<MemorySegment>();
 
 	/**
 	 * Buffer availability listeners, which need to be notified when a Buffer becomes available.
@@ -297,8 +297,9 @@ class LocalBufferPool implements BufferPool {
 	@Override
 	public void setNumBuffers(int numBuffers) throws IOException {
 		synchronized (availableMemorySegments) {
-			checkArgument(numBuffers >= numberOfRequiredMemorySegments, "Buffer pool needs at least " +
-				numberOfRequiredMemorySegments + " buffers, but tried to set to " + numBuffers + ".");
+			checkArgument(numBuffers >= numberOfRequiredMemorySegments,
+					"Buffer pool needs at least %s buffers, but tried to set to %s",
+					numberOfRequiredMemorySegments, numBuffers);
 
 			if (numBuffers > maxNumberOfMemorySegments) {
 				currentPoolSize = maxNumberOfMemorySegments;

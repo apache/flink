@@ -991,7 +991,7 @@ public class TaskManagerTest extends TestLogger {
 		config.setInteger(TaskManagerOptions.NETWORK_EXTRA_BUFFERS_PER_GATE, 100);
 
 		TaskManagerServicesConfiguration tmConfig =
-			TaskManagerServicesConfiguration.fromConfiguration(config, InetAddress.getByName("localhost"), true);
+			TaskManagerServicesConfiguration.fromConfiguration(config, InetAddress.getLoopbackAddress(), true);
 
 		assertEquals(tmConfig.getNetworkConfig().partitionRequestInitialBackoff(), 100);
 		assertEquals(tmConfig.getNetworkConfig().partitionRequestMaxBackoff(), 200);
