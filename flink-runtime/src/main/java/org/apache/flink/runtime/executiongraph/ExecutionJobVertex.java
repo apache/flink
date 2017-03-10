@@ -225,13 +225,13 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 
 	private void setMaxParallelismInternal(int maxParallelism) {
 		if (maxParallelism == ExecutionConfig.PARALLELISM_AUTO_MAX) {
-			maxParallelism = KeyGroupRangeAssignment.UPPER_BOUND_MAX_PARALLELISM;
+			maxParallelism = ExecutionConfig.UPPER_BOUND_MAX_PARALLELISM;
 		}
 
 		Preconditions.checkArgument(maxParallelism > 0
-						&& maxParallelism <= KeyGroupRangeAssignment.UPPER_BOUND_MAX_PARALLELISM,
+						&& maxParallelism <= ExecutionConfig.UPPER_BOUND_MAX_PARALLELISM,
 				"Overriding max parallelism is not in valid bounds (1..%s), found: %s",
-				KeyGroupRangeAssignment.UPPER_BOUND_MAX_PARALLELISM, maxParallelism);
+				ExecutionConfig.UPPER_BOUND_MAX_PARALLELISM, maxParallelism);
 
 		this.maxParallelism = maxParallelism;
 	}

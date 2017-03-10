@@ -49,7 +49,6 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.AbstractStateBackend;
-import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -186,9 +185,9 @@ public abstract class StreamExecutionEnvironment {
 	 */
 	public StreamExecutionEnvironment setMaxParallelism(int maxParallelism) {
 		Preconditions.checkArgument(maxParallelism > 0 &&
-						maxParallelism <= KeyGroupRangeAssignment.UPPER_BOUND_MAX_PARALLELISM,
+						maxParallelism <= ExecutionConfig.UPPER_BOUND_MAX_PARALLELISM,
 				"maxParallelism is out of bounds 0 < maxParallelism <= " +
-						KeyGroupRangeAssignment.UPPER_BOUND_MAX_PARALLELISM + ". Found: " + maxParallelism);
+						ExecutionConfig.UPPER_BOUND_MAX_PARALLELISM + ". Found: " + maxParallelism);
 
 		config.setMaxParallelism(maxParallelism);
 		return this;
