@@ -19,8 +19,11 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.commons.collections.map.LinkedMap;
+import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
+import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.kafka.internals.AbstractFetcher;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
@@ -30,6 +33,7 @@ import org.apache.flink.util.SerializedValue;
 import org.junit.Test;
 
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
@@ -44,12 +48,14 @@ public class FlinkKafkaConsumerBaseTest {
 	@Test
 	public void testEitherWatermarkExtractor() {
 		try {
-			new DummyFlinkKafkaConsumer<>().assignTimestampsAndWatermarks((AssignerWithPeriodicWatermarks<Object>) null);
+			new DummyFlinkKafkaConsumer<>(null, null, 1, 0)
+				.assignTimestampsAndWatermarks((AssignerWithPeriodicWatermarks<Object>) null);
 			fail();
 		} catch (NullPointerException ignored) {}
 
 		try {
-			new DummyFlinkKafkaConsumer<>().assignTimestampsAndWatermarks((AssignerWithPunctuatedWatermarks<Object>) null);
+			new DummyFlinkKafkaConsumer<>(null, null, 1, 0)
+				.assignTimestampsAndWatermarks((AssignerWithPunctuatedWatermarks<Object>) null);
 			fail();
 		} catch (NullPointerException ignored) {}
 		
@@ -58,14 +64,14 @@ public class FlinkKafkaConsumerBaseTest {
 		@SuppressWarnings("unchecked")
 		final AssignerWithPunctuatedWatermarks<String> punctuatedAssigner = mock(AssignerWithPunctuatedWatermarks.class);
 		
-		DummyFlinkKafkaConsumer<String> c1 = new DummyFlinkKafkaConsumer<>();
+		DummyFlinkKafkaConsumer<String> c1 = new DummyFlinkKafkaConsumer<>(null, null, 1, 0);
 		c1.assignTimestampsAndWatermarks(periodicAssigner);
 		try {
 			c1.assignTimestampsAndWatermarks(punctuatedAssigner);
 			fail();
 		} catch (IllegalStateException ignored) {}
 
-		DummyFlinkKafkaConsumer<String> c2 = new DummyFlinkKafkaConsumer<>();
+		DummyFlinkKafkaConsumer<String> c2 = new DummyFlinkKafkaConsumer<>(null, null, 1, 0);
 		c2.assignTimestampsAndWatermarks(punctuatedAssigner);
 		try {
 			c2.assignTimestampsAndWatermarks(periodicAssigner);
@@ -108,6 +114,45 @@ public class FlinkKafkaConsumerBaseTest {
 	public void checkRestoredNullCheckpointWhenFetcherNotReady() throws Exception {
 		FlinkKafkaConsumerBase<String> consumer = getConsumer(null, new LinkedMap(), true);
 		assertNull(consumer.snapshotState(17L, 23L));
+	}
+
+	/**
+	 * Tests that the fetcher is restored with all partitions in the restored state,
+	 * regardless of the queried complete list of Kafka partitions.
+	 */
+	@Test
+	public void testStateIntactOnRestore() throws Exception {
+		@SuppressWarnings("unchecked")
+		final AbstractFetcher<String, ?> fetcher = mock(AbstractFetcher.class);
+
+		HashMap<KafkaTopicPartition, Long> restoreState = new HashMap<>();
+		restoreState.put(new KafkaTopicPartition("test-topic", 0), 23L);
+		restoreState.put(new KafkaTopicPartition("test-topic", 2), 42L);
+
+		List<KafkaTopicPartition> mockCompletePartitions = new ArrayList<>(6);
+		mockCompletePartitions.add(new KafkaTopicPartition("test-topic", 0));
+		mockCompletePartitions.add(new KafkaTopicPartition("test-topic", 1));
+		mockCompletePartitions.add(new KafkaTopicPartition("test-topic", 2));
+		mockCompletePartitions.add(new KafkaTopicPartition("test-topic", 3));
+		mockCompletePartitions.add(new KafkaTopicPartition("test-topic", 4));
+
+		List<KafkaTopicPartition> expectedFetcherSubscribedPartitions = new ArrayList<>(3);
+		expectedFetcherSubscribedPartitions.add(new KafkaTopicPartition("test-topic", 0));
+		expectedFetcherSubscribedPartitions.add(new KafkaTopicPartition("test-topic", 2));
+
+		FlinkKafkaConsumerBase<String> consumer = new DummyFlinkKafkaConsumer<>(
+			fetcher,
+			expectedFetcherSubscribedPartitions,
+			2,
+			0);
+
+		consumer.setSubscribedPartitions(mockCompletePartitions);
+		consumer.restoreState(restoreState);
+		consumer.open(new Configuration());
+
+		consumer.run(mock(SourceFunction.SourceContext.class));
+
+		verify(fetcher).restoreOffsets(restoreState);
 	}
 	
 	@Test
@@ -187,7 +232,7 @@ public class FlinkKafkaConsumerBaseTest {
 	private static <T> FlinkKafkaConsumerBase<T> getConsumer(
 			AbstractFetcher<T, ?> fetcher, LinkedMap pendingCheckpoints, boolean running) throws Exception
 	{
-		FlinkKafkaConsumerBase<T> consumer = new DummyFlinkKafkaConsumer<>();
+		FlinkKafkaConsumerBase<T> consumer = new DummyFlinkKafkaConsumer<>(fetcher, null, 1, 0);
 
 		Field fetcherField = FlinkKafkaConsumerBase.class.getDeclaredField("kafkaFetcher");
 		fetcherField.setAccessible(true);
@@ -209,14 +254,45 @@ public class FlinkKafkaConsumerBaseTest {
 	private static final class DummyFlinkKafkaConsumer<T> extends FlinkKafkaConsumerBase<T> {
 		private static final long serialVersionUID = 1L;
 
+		private final AbstractFetcher<T, ?> mockFetcher;
+		private final List<KafkaTopicPartition> expectedThisSubtaskPartitions;
+		private final int numConsumerSubtasks;
+		private final int thisConsumerSubtaskIndex;
+
 		@SuppressWarnings("unchecked")
-		public DummyFlinkKafkaConsumer() {
+		public DummyFlinkKafkaConsumer(
+				AbstractFetcher<T, ?> mockFetcher,
+				List<KafkaTopicPartition> expectedThisSubtaskPartitions,
+				int numConsumerSubtasks,
+				int thisConsumerSubtaskIndex) {
 			super((KeyedDeserializationSchema<T>) mock(KeyedDeserializationSchema.class));
+			this.mockFetcher = mockFetcher;
+			this.expectedThisSubtaskPartitions = expectedThisSubtaskPartitions;
+			this.numConsumerSubtasks = numConsumerSubtasks;
+			this.thisConsumerSubtaskIndex = thisConsumerSubtaskIndex;
 		}
 
 		@Override
-		protected AbstractFetcher<T, ?> createFetcher(SourceContext<T> sourceContext, List<KafkaTopicPartition> thisSubtaskPartitions, SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic, SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated, StreamingRuntimeContext runtimeContext) throws Exception {
-			return null;
+		protected AbstractFetcher<T, ?> createFetcher(
+				SourceContext<T> sourceContext,
+				List<KafkaTopicPartition> thisSubtaskPartitions,
+				SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
+				SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
+				StreamingRuntimeContext runtimeContext) throws Exception {
+
+			assertEquals(expectedThisSubtaskPartitions.size(), thisSubtaskPartitions.size());
+			for (KafkaTopicPartition expectedPartition : expectedThisSubtaskPartitions) {
+				thisSubtaskPartitions.contains(expectedPartition);
+			}
+			return mockFetcher;
+		}
+
+		@Override
+		public RuntimeContext getRuntimeContext() {
+			RuntimeContext context = mock(StreamingRuntimeContext.class);
+			when(context.getNumberOfParallelSubtasks()).thenReturn(numConsumerSubtasks);
+			when(context.getIndexOfThisSubtask()).thenReturn(thisConsumerSubtaskIndex);
+			return context;
 		}
 	}
 }
