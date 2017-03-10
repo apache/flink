@@ -15,15 +15,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api;
+package org.apache.flink.streaming.api.environment;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.client.program.ContextEnvironment;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -36,7 +38,9 @@ import org.apache.flink.util.SplittableIterator;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.net.URL;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -44,6 +48,7 @@ import java.util.NoSuchElementException;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
 
 public class StreamExecutionEnvironmentTest {
 
@@ -125,6 +130,29 @@ public class StreamExecutionEnvironmentTest {
 
 		DataStreamSource<Long> src4 = env.fromCollection(list);
 		assertTrue(getFunctionFromDataSource(src4) instanceof FromElementsFunction);
+	}
+
+	@Test
+	public void testDefaultParallelismIsDefault() {
+		assertEquals(
+				ExecutionConfig.PARALLELISM_DEFAULT,
+				StreamExecutionEnvironment.createLocalEnvironment().getParallelism());
+
+		assertEquals(
+				ExecutionConfig.PARALLELISM_DEFAULT,
+				StreamExecutionEnvironment.createRemoteEnvironment("dummy", 1234).getParallelism());
+
+		StreamExecutionEnvironment contextEnv = new StreamContextEnvironment(
+				new ContextEnvironment(
+						mock(ClusterClient.class),
+						Collections.<URL>emptyList(),
+						Collections.<URL>emptyList(),
+						this.getClass().getClassLoader(),
+						null));
+
+		assertEquals(
+				ExecutionConfig.PARALLELISM_DEFAULT,
+				contextEnv.getParallelism());
 	}
 
 	@Test

@@ -97,12 +97,11 @@ public class StreamGraphGenerator {
 	// we have loops, i.e. feedback edges.
 	private Map<StreamTransformation<?>, Collection<Integer>> alreadyTransformed;
 
-
 	/**
 	 * Private constructor. The generator should only be invoked using {@link #generate}.
 	 */
-	private StreamGraphGenerator(StreamExecutionEnvironment env) {
-		this.streamGraph = new StreamGraph(env);
+	private StreamGraphGenerator(StreamExecutionEnvironment env, int defaultParallelism) {
+		this.streamGraph = new StreamGraph(env, defaultParallelism);
 		this.streamGraph.setChaining(env.isChainingEnabled());
 		this.streamGraph.setStateBackend(env.getStateBackend());
 		this.env = env;
@@ -119,8 +118,11 @@ public class StreamGraphGenerator {
 	 *
 	 * @return The generated {@code StreamGraph}
 	 */
-	public static StreamGraph generate(StreamExecutionEnvironment env, List<StreamTransformation<?>> transformations) {
-		return new StreamGraphGenerator(env).generateInternal(transformations);
+	public static StreamGraph generate(
+			StreamExecutionEnvironment env,
+			List<StreamTransformation<?>> transformations,
+			int defaultParallelism) {
+		return new StreamGraphGenerator(env, defaultParallelism).generateInternal(transformations);
 	}
 
 	/**

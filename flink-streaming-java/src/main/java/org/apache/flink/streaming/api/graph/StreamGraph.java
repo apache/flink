@@ -91,12 +91,14 @@ public class StreamGraph extends StreamingPlan {
 	private AbstractStateBackend stateBackend;
 	private Set<Tuple2<StreamNode, StreamNode>> iterationSourceSinkPairs;
 
+	private final int defaultParallelism;
 
-	public StreamGraph(StreamExecutionEnvironment environment) {
+	public StreamGraph(StreamExecutionEnvironment environment, int defaultParallelism) {
 		this.environment = environment;
 		this.executionConfig = environment.getConfig();
 		this.checkpointConfig = environment.getCheckpointConfig();
 
+		this.defaultParallelism = defaultParallelism;
 		// create an empty new stream graph.
 		clear();
 	}
@@ -596,7 +598,7 @@ public class StreamGraph extends StreamingPlan {
 							+ "\nThe user can force enable state checkpoints with the reduced guarantees by calling: env.enableCheckpointing(interval,true)");
 		}
 
-		StreamingJobGraphGenerator jobgraphGenerator = new StreamingJobGraphGenerator(this);
+		StreamingJobGraphGenerator jobgraphGenerator = new StreamingJobGraphGenerator(this, defaultParallelism);
 
 		return jobgraphGenerator.createJobGraph();
 	}

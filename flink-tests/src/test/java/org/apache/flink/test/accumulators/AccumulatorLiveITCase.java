@@ -381,6 +381,10 @@ public class AccumulatorLiveITCase {
 	 */
 	private static class DummyStreamExecutionEnvironment extends StreamExecutionEnvironment {
 
+		public DummyStreamExecutionEnvironment() {
+			super(1 /* default parallelism */);
+		}
+
 		@Override
 		public JobExecutionResult execute() throws Exception {
 			return execute("default");
