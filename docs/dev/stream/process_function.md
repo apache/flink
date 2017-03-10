@@ -165,8 +165,8 @@ public class CountWithTimeoutFunction extends RichProcessFunction<Tuple2<String,
         CountWithTimestamp result = state.value();
 
         // check if this is an outdated timer or the latest timer
-        if (timestamp == result.lastModified) {
-            // emit the state
+        if (timestamp == result.lastModified + 60000) {
+            // emit the state on timeout
             out.collect(new Tuple2<String, Long>(result.key, result.count));
         }
     }
@@ -226,7 +226,7 @@ class TimeoutStateFunction extends RichProcessFunction[(String, Long), (String, 
 
   override def onTimer(timestamp: Long, ctx: OnTimerContext, out: Collector[(String, Long)]): Unit = {
     state.value match {
-      case CountWithTimestamp(key, count, lastModified) if lastModified == timestamp =>
+      case CountWithTimestamp(key, count, lastModified) if (lastModified == timestamp + 60000) =>
         out.collect((key, count))
       case _ =>
     }
