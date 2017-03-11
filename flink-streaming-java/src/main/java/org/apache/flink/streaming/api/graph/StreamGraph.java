@@ -310,6 +310,23 @@ public class StreamGraph extends StreamingPlan {
 			throw new IllegalStateException("Already has virtual output node with id " + virtualId);
 		}
 
+		// verify that we don't already have a virtual node for the given originalId/outputTag
+		// combination with a different TypeInformation. This would indicate that someone is trying
+		// to read a side output from an operation with a different type for the same side output
+		// id.
+
+		for (Tuple2<Integer, OutputTag> tag : virtualSideOutputNodes.values()) {
+			if (!tag.f0.equals(originalId)) {
+				// different source operator
+				continue;
+			}
+
+			if (!tag.f1.getTypeInfo().equals(outputTag.getTypeInfo())) {
+				throw new IllegalArgumentException("Trying to add a side input for the same id " +
+						"with a different type. This is not allowed.");
+			}
+		}
+
 		virtualSideOutputNodes.put(virtualId, new Tuple2<>(originalId, outputTag));
 	}
 
@@ -358,7 +375,8 @@ public class StreamGraph extends StreamingPlan {
 				downStreamVertexID,
 				typeNumber,
 				null,
-				new ArrayList<String>(), null);
+				new ArrayList<String>(),
+				null);
 
 	}
 

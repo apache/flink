@@ -33,6 +33,9 @@ import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.util.Preconditions;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -46,6 +49,13 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 
 	/** Indicate this is a non-parallel operator and cannot set a non-1 degree of parallelism. **/
 	protected boolean nonParallel = false;
+
+	/**
+	 * We keep track of the side outputs that were already requested and their types. With this,
+	 * we can catch the case when a side output with a matching id is requested for a different
+	 * type because this would lead to problems at runtime.
+	 */
+	private Map<OutputTag<?>, TypeInformation> requestedSideOutputs = new HashMap<>();
 
 	protected SingleOutputStreamOperator(StreamExecutionEnvironment environment, StreamTransformation<T> transformation) {
 		super(environment, transformation);
@@ -425,9 +435,22 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 	 *
 	 * @see org.apache.flink.streaming.api.functions.ProcessFunction.Context#output(OutputTag, Object)
 	 */
-	public <X> DataStream<X> getSideOutput(OutputTag<X> sideOutputTag){
-		sideOutputTag = clean(sideOutputTag);
-		SideOutputTransformation<X> sideOutputTransformation = new SideOutputTransformation<>(this.getTransformation(), requireNonNull(sideOutputTag));
+	public <X> DataStream<X> getSideOutput(OutputTag<X> sideOutputTag) {
+		sideOutputTag = clean(requireNonNull(sideOutputTag));
+
+		// make a defensive copy
+		sideOutputTag = new OutputTag<X>(sideOutputTag.getId(), sideOutputTag.getTypeInfo());
+
+		TypeInformation<?> type = requestedSideOutputs.get(sideOutputTag);
+		if (type != null && !type.equals(sideOutputTag.getTypeInfo())) {
+			throw new UnsupportedOperationException("A side output with a matching id was " +
+					"already requested with a different type. This is not allowed, side output " +
+					"ids need to be unique.");
+		}
+
+		requestedSideOutputs.put(sideOutputTag, sideOutputTag.getTypeInfo());
+
+		SideOutputTransformation<X> sideOutputTransformation = new SideOutputTransformation<>(this.getTransformation(), sideOutputTag);
 		return new DataStream<>(this.getExecutionEnvironment(), sideOutputTransformation);
 	}
 }
