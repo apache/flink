@@ -40,7 +40,9 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.test.streaming.runtime.util.TestListResultSink;
 import org.apache.flink.util.Collector;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import javax.annotation.Nullable;
 import java.io.Serializable;
@@ -56,6 +58,9 @@ import static org.junit.Assert.assertEquals;
  */
 public class SideOutputITCase extends StreamingMultipleProgramsTestBase implements Serializable {
 
+	@Rule
+	public transient ExpectedException expectedException = ExpectedException.none();
+
 	static List<Integer> elements = new ArrayList<>();
 	static {
 		elements.add(1);
@@ -65,14 +70,14 @@ public class SideOutputITCase extends StreamingMultipleProgramsTestBase implemen
 		elements.add(4);
 	}
 
-	private final static OutputTag<String> sideOutputTag1 = new OutputTag<String>("side"){};
-	private final static OutputTag<String> sideOutputTag2 = new OutputTag<String>("other-side"){};
-
 	/**
 	 * Verify that watermarks are forwarded to all side outputs.
 	 */
 	@Test
 	public void testWatermarkForwarding() throws Exception {
+		final OutputTag<String> sideOutputTag1 = new OutputTag<String>("side"){};
+		final OutputTag<String> sideOutputTag2 = new OutputTag<String>("other-side"){};
+
 		TestListResultSink<String> sideOutputResultSink1 = new TestListResultSink<>();
 		TestListResultSink<String> sideOutputResultSink2 = new TestListResultSink<>();
 		TestListResultSink<String> resultSink = new TestListResultSink<>();
@@ -167,6 +172,8 @@ public class SideOutputITCase extends StreamingMultipleProgramsTestBase implemen
 
 	@Test
 	public void testSideOutputWithMultipleConsumers() throws Exception {
+		final OutputTag<String> sideOutputTag = new OutputTag<String>("side"){};
+
 		TestListResultSink<String> sideOutputResultSink1 = new TestListResultSink<>();
 		TestListResultSink<String> sideOutputResultSink2 = new TestListResultSink<>();
 		TestListResultSink<Integer> resultSink = new TestListResultSink<>();
@@ -184,12 +191,12 @@ public class SideOutputITCase extends StreamingMultipleProgramsTestBase implemen
 					public void processElement(
 							Integer value, Context ctx, Collector<Integer> out) throws Exception {
 						out.collect(value);
-						ctx.output(sideOutputTag1, "sideout-" + String.valueOf(value));
+						ctx.output(sideOutputTag, "sideout-" + String.valueOf(value));
 					}
 				});
 
-		passThroughtStream.getSideOutput(sideOutputTag1).addSink(sideOutputResultSink1);
-		passThroughtStream.getSideOutput(sideOutputTag1).addSink(sideOutputResultSink2);
+		passThroughtStream.getSideOutput(sideOutputTag).addSink(sideOutputResultSink1);
+		passThroughtStream.getSideOutput(sideOutputTag).addSink(sideOutputResultSink2);
 		passThroughtStream.addSink(resultSink);
 		env.execute();
 
@@ -200,6 +207,8 @@ public class SideOutputITCase extends StreamingMultipleProgramsTestBase implemen
 
 	@Test
 	public void testSideOutputWithMultipleConsumersWithObjectReuse() throws Exception {
+		final OutputTag<String> sideOutputTag = new OutputTag<String>("side"){};
+
 		TestListResultSink<String> sideOutputResultSink1 = new TestListResultSink<>();
 		TestListResultSink<String> sideOutputResultSink2 = new TestListResultSink<>();
 		TestListResultSink<Integer> resultSink = new TestListResultSink<>();
@@ -218,12 +227,12 @@ public class SideOutputITCase extends StreamingMultipleProgramsTestBase implemen
 					public void processElement(
 							Integer value, Context ctx, Collector<Integer> out) throws Exception {
 						out.collect(value);
-						ctx.output(sideOutputTag1, "sideout-" + String.valueOf(value));
+						ctx.output(sideOutputTag, "sideout-" + String.valueOf(value));
 					}
 				});
 
-		passThroughtStream.getSideOutput(sideOutputTag1).addSink(sideOutputResultSink1);
-		passThroughtStream.getSideOutput(sideOutputTag1).addSink(sideOutputResultSink2);
+		passThroughtStream.getSideOutput(sideOutputTag).addSink(sideOutputResultSink1);
+		passThroughtStream.getSideOutput(sideOutputTag).addSink(sideOutputResultSink2);
 		passThroughtStream.addSink(resultSink);
 		env.execute();
 
@@ -232,11 +241,45 @@ public class SideOutputITCase extends StreamingMultipleProgramsTestBase implemen
 		assertEquals(Arrays.asList(1, 2, 3, 4, 5), resultSink.getSortedResult());
 	}
 
+	@Test
+	public void testSideOutputNameClash() throws Exception {
+		final OutputTag<String> sideOutputTag1 = new OutputTag<String>("side"){};
+		final OutputTag<Integer> sideOutputTag2 = new OutputTag<Integer>("side"){};
+
+		TestListResultSink<String> sideOutputResultSink1 = new TestListResultSink<>();
+		TestListResultSink<Integer> sideOutputResultSink2 = new TestListResultSink<>();
+
+		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
+		see.setParallelism(3);
+
+		DataStream<Integer> dataStream = see.fromCollection(elements);
+
+		SingleOutputStreamOperator<Integer> passThroughtStream = dataStream
+				.process(new ProcessFunction<Integer, Integer>() {
+					private static final long serialVersionUID = 1L;
+
+					@Override
+					public void processElement(
+							Integer value, Context ctx, Collector<Integer> out) throws Exception {
+						out.collect(value);
+						ctx.output(sideOutputTag1, "sideout-" + String.valueOf(value));
+						ctx.output(sideOutputTag2, 13);
+					}
+				});
+
+		passThroughtStream.getSideOutput(sideOutputTag1).addSink(sideOutputResultSink1);
+
+		expectedException.expect(UnsupportedOperationException.class);
+		passThroughtStream.getSideOutput(sideOutputTag2).addSink(sideOutputResultSink2);
+	}
+
 	/**
 	 * Test ProcessFunction side output.
 	 */
 	@Test
 	public void testProcessFunctionSideOutput() throws Exception {
+		final OutputTag<String> sideOutputTag = new OutputTag<String>("side"){};
+
 		TestListResultSink<String> sideOutputResultSink = new TestListResultSink<>();
 		TestListResultSink<Integer> resultSink = new TestListResultSink<>();
 
@@ -253,11 +296,11 @@ public class SideOutputITCase extends StreamingMultipleProgramsTestBase implemen
 					public void processElement(
 							Integer value, Context ctx, Collector<Integer> out) throws Exception {
 						out.collect(value);
-						ctx.output(sideOutputTag1, "sideout-" + String.valueOf(value));
+						ctx.output(sideOutputTag, "sideout-" + String.valueOf(value));
 					}
 				});
 
-		passThroughtStream.getSideOutput(sideOutputTag1).addSink(sideOutputResultSink);
+		passThroughtStream.getSideOutput(sideOutputTag).addSink(sideOutputResultSink);
 		passThroughtStream.addSink(resultSink);
 		see.execute();
 
@@ -270,6 +313,8 @@ public class SideOutputITCase extends StreamingMultipleProgramsTestBase implemen
 	 */
 	@Test
 	public void testKeyedProcessFunctionSideOutput() throws Exception {
+		final OutputTag<String> sideOutputTag = new OutputTag<String>("side"){};
+
 		TestListResultSink<String> sideOutputResultSink = new TestListResultSink<>();
 		TestListResultSink<Integer> resultSink = new TestListResultSink<>();
 
@@ -294,11 +339,11 @@ public class SideOutputITCase extends StreamingMultipleProgramsTestBase implemen
 					public void processElement(
 							Integer value, Context ctx, Collector<Integer> out) throws Exception {
 						out.collect(value);
-						ctx.output(sideOutputTag1, "sideout-" + String.valueOf(value));
+						ctx.output(sideOutputTag, "sideout-" + String.valueOf(value));
 					}
 				});
 
-		passThroughtStream.getSideOutput(sideOutputTag1).addSink(sideOutputResultSink);
+		passThroughtStream.getSideOutput(sideOutputTag).addSink(sideOutputResultSink);
 		passThroughtStream.addSink(resultSink);
 		see.execute();
 
@@ -312,6 +357,9 @@ public class SideOutputITCase extends StreamingMultipleProgramsTestBase implemen
 	 */
 	@Test
 	public void testProcessFunctionSideOutputWithWrongTag() throws Exception {
+		final OutputTag<String> sideOutputTag1 = new OutputTag<String>("side"){};
+		final OutputTag<String> sideOutputTag2 = new OutputTag<String>("other-side"){};
+
 		TestListResultSink<String> sideOutputResultSink = new TestListResultSink<>();
 
 		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -335,44 +383,6 @@ public class SideOutputITCase extends StreamingMultipleProgramsTestBase implemen
 
 		assertEquals(Arrays.asList(), sideOutputResultSink.getSortedResult());
 	}
-
-	/**
-	 * Test keyed ProcessFunction side outputs with wrong {@code OutputTag}.
-	 */
-	@Test
-	public void testKeyedProcessFunctionSideOutputWithWrongTag() throws Exception {
-		TestListResultSink<String> sideOutputResultSink = new TestListResultSink<>();
-
-		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
-		see.setParallelism(3);
-
-		DataStream<Integer> dataStream = see.fromCollection(elements);
-
-		dataStream
-				.keyBy(new KeySelector<Integer, Integer>() {
-					private static final long serialVersionUID = 1L;
-
-					@Override
-					public Integer getKey(Integer value) throws Exception {
-						return value;
-					}
-				})
-				.process(new ProcessFunction<Integer, Integer>() {
-					private static final long serialVersionUID = 1L;
-
-					@Override
-					public void processElement(
-							Integer value, Context ctx, Collector<Integer> out) throws Exception {
-						out.collect(value);
-						ctx.output(sideOutputTag2, "sideout-" + String.valueOf(value));
-					}
-				}).getSideOutput(sideOutputTag1).addSink(sideOutputResultSink);
-
-		see.execute();
-
-		assertEquals(Arrays.asList(), sideOutputResultSink.getSortedResult());
-	}
-
 
 	private static class TestWatermarkAssigner implements AssignerWithPunctuatedWatermarks<Integer> {
 		private static final long serialVersionUID = 1L;
