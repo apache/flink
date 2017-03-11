@@ -23,9 +23,11 @@ import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.tuple.Tuple3
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.functions.{TableFunction, FunctionContext}
+import org.apache.flink.table.functions.{FunctionContext, TableFunction}
 import org.apache.flink.types.Row
 import org.junit.Assert
+
+import scala.annotation.varargs
 
 
 case class SimpleUser(name: String, age: Int)
@@ -201,5 +203,12 @@ class RichTableFunc1 extends TableFunction[String] {
 
   override def close(): Unit = {
     separator = None
+  }
+}
+
+class VarArgsFunc0 extends TableFunction[String] {
+  @varargs
+  def eval(str: String*): Unit = {
+    str.foreach(collect)
   }
 }
