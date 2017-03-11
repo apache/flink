@@ -78,20 +78,7 @@ object UserDefinedFunctionUtils {
       function: UserDefinedFunction,
       signature: Seq[TypeInformation[_]])
     : Option[Array[Class[_]]] = {
-    // We compare the raw Java classes not the TypeInformation.
-    // TypeInformation does not matter during runtime (e.g. within a MapFunction).
-    val actualSignature = typeInfoToClass(signature)
-    val signatures = getSignatures(function)
-
-    signatures
-      // go over all signatures and find one matching actual signature
-      .find { curSig =>
-      // match parameters of signature to actual parameters
-      actualSignature.length == curSig.length &&
-        curSig.zipWithIndex.forall { case (clazz, i) =>
-          parameterTypeEquals(actualSignature(i), clazz)
-        }
-    }
+    getEvalMethod(function, signature).map(_.getParameterTypes)
   }
 
   /**
@@ -106,16 +93,53 @@ object UserDefinedFunctionUtils {
     val actualSignature = typeInfoToClass(signature)
     val evalMethods = checkAndExtractEvalMethods(function)
 
-    evalMethods
-      // go over all eval methods and find one matching
-      .find { cur =>
-      val signatures = cur.getParameterTypes
-      // match parameters of signature to actual parameters
-      actualSignature.length == signatures.length &&
-        signatures.zipWithIndex.forall { case (clazz, i) =>
-          parameterTypeEquals(actualSignature(i), clazz)
-        }
+    val filtered = evalMethods
+      // go over all eval methods and filter out matching methods
+      .filter {
+        case cur if !cur.isVarArgs =>
+          val signatures = cur.getParameterTypes
+          // match parameters of signature to actual par(ameters
+          actualSignature.length == signatures.length &&
+            signatures.zipWithIndex.forall { case (clazz, i) =>
+              parameterTypeEquals(actualSignature(i), clazz)
+          }
+        case cur if cur.isVarArgs =>
+          val signatures = cur.getParameterTypes
+          actualSignature.zipWithIndex.forall {
+            case (clazz, i) if i < signatures.length - 1  =>
+              parameterTypeEquals(clazz, signatures(i))
+            case (clazz, i) if i >= signatures.length - 1 =>
+              parameterTypeEquals(clazz, signatures.last.getComponentType)
+          } ||
+          (actualSignature.isEmpty && signatures.length == 1)
     }
+
+    // if there is a fixed method, compiler will call the method preferentially
+    val fixedMethods = filtered.count{!_.isVarArgs}
+    val found = filtered.filter { cur =>
+      fixedMethods > 0 && !cur.isVarArgs ||
+      fixedMethods == 0 && cur.isVarArgs
+    }
+
+    if (found.isEmpty &&
+      // does there exist scala type variable arguments
+      evalMethods.exists{ evalMethod =>
+        val signatures = evalMethod.getParameterTypes
+        signatures.zipWithIndex.forall {
+          case (clazz, i) if i < signatures.length - 1 =>
+            parameterTypeEquals(actualSignature(i), clazz)
+          case (clazz, i) if i == signatures.length - 1 =>
+            clazz.getName.equals("scala.collection.Seq")
+        }
+      }) {
+      throw new ValidationException("The 'eval' method do not support Scala type of " +
+        "variable args eg. Type*, please add a @scala.annotation.varargs annotation " +
+        "to your 'eval' method")
+    } else if (found.length > 1) {
+      throw new ValidationException("Found multiple 'eval' methods which " +
+        "match the signature.")
+    }
+    found.headOption
   }
 
   /**
@@ -133,7 +157,7 @@ object UserDefinedFunctionUtils {
 
   /**
     * Extracts "eval" methods and throws a [[ValidationException]] if no implementation
-    * can be found.
+    * can be found, or implementation does not match the requirements
     */
   def checkAndExtractEvalMethods(function: UserDefinedFunction): Array[Method] = {
     val methods = function
@@ -152,9 +176,9 @@ object UserDefinedFunctionUtils {
         s"Function class '${function.getClass.getCanonicalName}' does not implement at least " +
           s"one method named 'eval' which is public, not abstract and " +
           s"(in case of table functions) not static.")
-    } else {
-      methods
     }
+
+    methods
   }
 
   def getSignatures(function: UserDefinedFunction): Array[Array[Class[_]]] = {
@@ -317,6 +341,7 @@ object UserDefinedFunctionUtils {
   private def parameterTypeEquals(candidate: Class[_], expected: Class[_]): Boolean =
   candidate == null ||
     candidate == expected ||
+    expected == classOf[Object] ||
     expected.isPrimitive && Primitives.wrap(expected) == candidate ||
     candidate == classOf[Date] && (expected == classOf[Int] || expected == classOf[JInt])  ||
     candidate == classOf[Time] && (expected == classOf[Int] || expected == classOf[JInt]) ||
