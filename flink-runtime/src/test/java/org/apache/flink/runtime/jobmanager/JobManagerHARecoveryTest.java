@@ -485,6 +485,11 @@ public class JobManagerHARecoveryTest {
 		}
 
 		@Override
+		public int getMaxNumberOfRetainedCheckpoints() {
+			return 1;
+		}
+
+		@Override
 		public boolean requiresExternalizedCheckpoints() {
 			return false;
 		}

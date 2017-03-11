@@ -980,10 +980,6 @@ public final class ConfigConstants {
 	@PublicEvolving
 	public static final String CHECKPOINTS_DIRECTORY_KEY = "state.checkpoints.dir";
 
-	/** The maximum number of completed checkpoint instances to retain.*/
-	@PublicEvolving
-	public static final String MAX_RETAINED_CHECKPOINTS = "state.checkpoints.max-retained-checkpoints";
-
 	/**
 	 * This key was used in Flink versions <= 1.1.X with the savepoint backend
 	 * configuration. We now always use the FileSystem for savepoints. For this,

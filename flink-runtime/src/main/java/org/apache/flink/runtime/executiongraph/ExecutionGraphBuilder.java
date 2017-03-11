@@ -21,6 +21,7 @@ package org.apache.flink.runtime.executiongraph;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
@@ -177,12 +178,12 @@ public class ExecutionGraphBuilder {
 			CheckpointIDCounter checkpointIdCounter;
 			try {
 				int maxNumberOfCheckpointsToRetain = jobManagerConfig.getInteger(
-					ConfigConstants.MAX_RETAINED_CHECKPOINTS,
-					CheckpointRecoveryFactory.NUMBER_OF_SUCCESSFUL_CHECKPOINTS_TO_RETAIN);
+					CoreOptions.STATE_BACKEND_MAX_RETAINED_CHECKPOINTS_OPTIONS);
 				if (maxNumberOfCheckpointsToRetain <= 0) {
-					// warning and use 1 as the default value if the setting in state.checkpoints.max-retained-checkpoints is not greater than 0.
-					log.warn("The setting for max-retained-checkpoints is not a positive number. Change the setting with default value.");
-					maxNumberOfCheckpointsToRetain = CheckpointRecoveryFactory.NUMBER_OF_SUCCESSFUL_CHECKPOINTS_TO_RETAIN;
+					// warning and use 1 as the default value if the setting in
+					// state.checkpoints.max-retained-checkpoints is not greater than 0.
+					log.warn("The setting for max-retained-checkpoints is not a positive number.");
+					maxNumberOfCheckpointsToRetain = CoreOptions.STATE_BACKEND_MAX_RETAINED_CHECKPOINTS_OPTIONS.defaultValue();
 				}
 
 				completedCheckpoints = recoveryFactory.createCheckpointStore(jobId, maxNumberOfCheckpointsToRetain, classLoader);

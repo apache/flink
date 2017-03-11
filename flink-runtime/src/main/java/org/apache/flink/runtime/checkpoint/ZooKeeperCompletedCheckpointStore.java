@@ -247,6 +247,11 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 	}
 
 	@Override
+	public int getMaxNumberOfRetainedCheckpoints() {
+		return maxNumberOfCheckpointsToRetain;
+	}
+
+	@Override
 	public void shutdown(JobStatus jobStatus) throws Exception {
 		if (jobStatus.isGloballyTerminalState()) {
 			LOG.info("Shutting down");
