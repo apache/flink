@@ -15,42 +15,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.table.api.java.utils;
 
-import org.apache.flink.table.functions.ScalarFunction;
+package org.apache.flink.table.hive.functions
 
-public class UserDefinedScalarFunctions {
+import org.apache.hadoop.hive.ql.exec.UDF
 
-	public static class JavaFunc0 extends ScalarFunction {
-		public long eval(Long l) {
-			return l + 1;
-		}
-	}
+private[hive] case class HiveFunctionWrapper(
+  var functionClassName: String,
+  private var instance: AnyRef = null) {
 
-	public static class JavaFunc1 extends ScalarFunction {
-		public String eval(Integer a, int b,  Long c) {
-			return a + " and " + b + " and " + c;
-		}
-	}
+  def createFunction[UDFType <: AnyRef](): UDFType = {
+    if (instance != null) {
+      instance.asInstanceOf[UDFType]
+    } else {
+      val func = getClassLoader.loadClass(functionClassName).newInstance().asInstanceOf[UDFType]
+      if (!func.isInstanceOf[UDF]) {
+        instance = func
+      }
+      func
+    }
+  }
 
-	public static class JavaFunc2 extends ScalarFunction {
-		public String eval(String s, Integer... a) {
-			int m = 1;
-			for (int n : a) {
-				m *= n;
-			}
-			return s + m;
-		}
-	}
-
-	public static class JavaFunc3 extends ScalarFunction {
-		public int eval(String a, int... b) {
-			return b.length;
-		}
-
-		public String eval(String c) {
-			return c;
-		}
-	}
+  def getClassLoader: ClassLoader = {
+    Thread.currentThread.getContextClassLoader
+  }
 
 }

@@ -92,7 +92,6 @@ under the License.
 			</exclusions>
 		</dependency>
 
-
 		<!-- test dependencies -->
 
 		<dependency>

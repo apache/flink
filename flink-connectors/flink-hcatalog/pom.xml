@@ -44,14 +44,20 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table_2.10</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-hadoop-compatibility_2.10</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.hive.hcatalog</groupId>
-			<artifactId>hcatalog-core</artifactId>
-			<version>0.12.0</version>
+			<artifactId>hive-hcatalog-core</artifactId>
+			<version>0.13.0</version>
 			<exclusions>
 				<exclusion>
 					<groupId>org.json</groupId>
