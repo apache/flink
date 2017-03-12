@@ -109,4 +109,16 @@ For Google Protobuf you need the following Maven dependency:
 
 Please adjust the versions of both libraries as needed.
 
+### Issue with using Kryo's `JavaSerializer` 
 
+If you register Kryo's `JavaSerializer` for your custom type, you may
+encounter `ClassNotFoundException`s even though your custom type class is
+included in the submitted user code jar. This is due to a know issue with
+Kryo's `JavaSerializer`, which may incorrectly use the wrong classloader.
+
+In this case, you should use `org.apache.flink.api.java.typeutils.runtime.kryo.JavaSerializer`
+instead to resolve the issue. This is a reimplemented `JavaSerializer` in Flink
+that makes sure the user code classloader is used.
+
+Please refer to [FLINK-6025](https://issues.apache.org/jira/browse/FLINK-6025)
+for more details.
