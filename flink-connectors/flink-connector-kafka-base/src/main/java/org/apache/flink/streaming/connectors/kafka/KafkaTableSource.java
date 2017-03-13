@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
+import org.apache.calcite.rel.RelWriter;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -136,5 +137,10 @@ public abstract class KafkaTableSource implements StreamTableSource<Row> {
 	 */
 	protected DeserializationSchema<Row> getDeserializationSchema() {
 		return deserializationSchema;
+	}
+
+	@Override
+	public RelWriter explainTerms(RelWriter pw) {
+		return pw;
 	}
 }
