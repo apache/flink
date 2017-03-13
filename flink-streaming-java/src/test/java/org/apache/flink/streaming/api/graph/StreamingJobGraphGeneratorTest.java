@@ -18,6 +18,8 @@
 package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.FilterFunction;
+import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -25,9 +27,11 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
-import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.*;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
+import org.apache.flink.util.Collector;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
@@ -35,6 +39,7 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.util.List;
+import java.lang.reflect.Method;
 import java.util.Map;
 import java.util.Random;
 
@@ -192,13 +197,13 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		// fromElements -> CHAIN(Map -> Print)
 		env.fromElements(1, 2, 3)
-			.map(new MapFunction<Integer, Integer>() {
-				@Override
-				public Integer map(Integer value) throws Exception {
-					return value;
-				}
-			})
-			.print();
+				.map(new MapFunction<Integer, Integer>() {
+					@Override
+					public Integer map(Integer value) throws Exception {
+						return value;
+					}
+				})
+				.print();
 		JobGraph jobGraph = new StreamingJobGraphGenerator(env.getStreamGraph()).createJobGraph();
 
 		List<JobVertex> verticesSorted = jobGraph.getVerticesSortedTopologicallyFromSources();
@@ -211,7 +216,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		StreamConfig sourceConfig = new StreamConfig(sourceVertex.getConfiguration());
 		StreamConfig mapConfig = new StreamConfig(mapPrintVertex.getConfiguration());
 		Map<Integer, StreamConfig> chainedConfigs = mapConfig.getTransitiveChainedTaskConfigs(getClass().getClassLoader());
-		StreamConfig printConfig = chainedConfigs.get(3);
+		StreamConfig printConfig = chainedConfigs.values().iterator().next();
 
 		assertTrue(sourceConfig.isChainStart());
 		assertTrue(sourceConfig.isChainEnd());
@@ -223,35 +228,81 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		assertTrue(printConfig.isChainEnd());
 	}
 
-//	/**
-//	 * Verifies that the resources are merged correctly for chained operators when
-//	 * generating job graph
-//	 */
-//	@Test
-//	public void testChainedResourceMerging() throws Exception {
-//		ResourceSpec resource1 = new ResourceSpec(0.1, 100);
-//		ResourceSpec resource2 = new ResourceSpec(0.2, 200);
-//		ResourceSpec resource3 = new ResourceSpec(0.3, 300);
-//
-//		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-//		// fromElements -> CHAIN(Map -> Print)
-//		env.fromElements(1, 2, 3).setResources(resource1)
-//				.map(new MapFunction<Integer, Integer>() {
-//					@Override
-//					public Integer map(Integer value) throws Exception {
-//						return value;
-//					}
-//				}).setResources(resource2)
-//				.print().setResources(resource3);
-//		JobGraph jobGraph = new StreamingJobGraphGenerator(env.getStreamGraph()).createJobGraph();
-//
-//		JobVertex sourceVertex = jobGraph.getVerticesSortedTopologicallyFromSources().get(0);
-//		JobVertex mapPrintVertex = jobGraph.getVerticesSortedTopologicallyFromSources().get(1);
-//
-//		assertTrue(sourceVertex.getMinResources().equals(resource1));
-//		assertTrue(sourceVertex.getPreferredResources().equals(resource1));
-//
-//		assertTrue(mapPrintVertex.getMinResources().equals(resource2.merge(resource3)));
-//		assertTrue(mapPrintVertex.getPreferredResources().equals(resource2.merge(resource3)));
-//	}
+	/**
+	 * Verifies that the resources are merged correctly for chained operators when
+	 * generating job graph
+	 */
+	@Test
+	public void testChainedResourceMerging() throws Exception {
+		ResourceSpec resource1 = new ResourceSpec(0.1, 100);
+		ResourceSpec resource2 = new ResourceSpec(0.2, 200);
+		ResourceSpec resource3 = new ResourceSpec(0.3, 300);
+		ResourceSpec resource4 = new ResourceSpec(0.4, 400);
+		ResourceSpec resource5 = new ResourceSpec(0.5, 500);
+		ResourceSpec resource6 = new ResourceSpec(0.6, 600);
+
+		Method opMethod = SingleOutputStreamOperator.class.getDeclaredMethod("setResources", ResourceSpec.class);
+		opMethod.setAccessible(true);
+
+		Method sinkMethod = DataStreamSink.class.getDeclaredMethod("setResources", ResourceSpec.class);
+		sinkMethod.setAccessible(true);
+
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStream<Boolean> source = env.addSource(new ParallelSourceFunction<Boolean>() {
+			@Override
+			public void run(SourceContext<Boolean> ctx) throws Exception {}
+
+			@Override
+			public void cancel() {}
+		});
+		opMethod.invoke(source, resource1);
+
+		// CHAIN(Source -> Map)
+		DataStream<Boolean> map = source.map(new MapFunction<Boolean, Boolean>() {
+			@Override
+			public Boolean map(Boolean value) throws Exception {
+				return value;
+			}
+		});
+		opMethod.invoke(map, resource2);
+
+		IterativeStream<Boolean> iteration = map.iterate(3000);
+		opMethod.invoke(iteration, resource3);
+
+		DataStream<Boolean> flatMap = iteration.flatMap(new FlatMapFunction<Boolean, Boolean>() {
+			@Override
+			public void flatMap(Boolean value, Collector<Boolean> out) throws Exception {}
+		});
+		opMethod.invoke(flatMap, resource4);
+
+		DataStream<Boolean> increment = flatMap.filter(new FilterFunction<Boolean>() {
+			@Override
+			public boolean filter(Boolean value) throws Exception {
+				return false;
+			}
+		});
+		opMethod.invoke(increment, resource5);
+
+		// CHAIN(Flat Map -> Filter -> Sink)
+		DataStreamSink<Boolean> sink = iteration.closeWith(increment).addSink(new SinkFunction<Boolean>() {
+			@Override
+			public void invoke(Boolean value) {
+			}
+		});
+		sinkMethod.invoke(sink, resource6);
+
+		JobGraph jobGraph = new StreamingJobGraphGenerator(env.getStreamGraph()).createJobGraph();
+
+		JobVertex sourceMapVertex = jobGraph.getVerticesSortedTopologicallyFromSources().get(0);
+		JobVertex iterationHeadVertex = jobGraph.getVerticesSortedTopologicallyFromSources().get(1);
+		JobVertex flatMapFilterSinkVertex = jobGraph.getVerticesSortedTopologicallyFromSources().get(2);
+		JobVertex iterationTailVertex = jobGraph.getVerticesSortedTopologicallyFromSources().get(3);
+
+		assertTrue(sourceMapVertex.getMinResources().equals(resource1.merge(resource2)));
+		assertTrue(iterationHeadVertex.getPreferredResources().equals(resource3));
+		assertTrue(flatMapFilterSinkVertex.getMinResources().equals(resource4.merge(resource5).merge(resource6)));
+		// the iteration tail task will be scheduled in the same instance with iteration head, and currently not set resources.
+		assertTrue(iterationTailVertex.getPreferredResources().equals(ResourceSpec.DEFAULT));
+	}
 }

@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api;
 
+import java.lang.reflect.Method;
 import java.util.List;
 
 import org.apache.flink.api.common.InvalidProgramException;
@@ -516,11 +517,10 @@ public class DataStreamTest {
 	}
 
 	/**
-	 * Tests whether resource gets set.
+	 * Tests whether resources get set.
 	 */
-	/*
 	@Test
-	public void testResource() {
+	public void testResources() throws Exception{
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		ResourceSpec minResource1 = new ResourceSpec(1.0, 100);
@@ -542,23 +542,35 @@ public class DataStreamTest {
 		ResourceSpec preferredResource6 = new ResourceSpec(2.0, 700);
 
 		ResourceSpec minResource7 = new ResourceSpec(1.0, 700);
-		ResourceSpec maxResource7 = new ResourceSpec(2.0, 800);
+		ResourceSpec preferredResource7 = new ResourceSpec(2.0, 800);
 
-		DataStream<Long> source1 = env.generateSequence(0, 0).setResource(minResource1, preferredResource1);
+		Method opMethod = SingleOutputStreamOperator.class.getDeclaredMethod("setResources", ResourceSpec.class, ResourceSpec.class);
+		opMethod.setAccessible(true);
+
+		Method sinkMethod = DataStreamSink.class.getDeclaredMethod("setResources", ResourceSpec.class, ResourceSpec.class);
+		sinkMethod.setAccessible(true);
+
+		DataStream<Long> source1 = env.generateSequence(0, 0);
+		opMethod.invoke(source1, minResource1, preferredResource1);
+
 		DataStream<Long> map1 = source1.map(new MapFunction<Long, Long>() {
 			@Override
 			public Long map(Long value) throws Exception {
 				return null;
 			}
-		}).setResource(minResource2, preferredResource2);
+		});
+		opMethod.invoke(map1, minResource2, preferredResource2);
 
-		DataStream<Long> source2 = env.generateSequence(0, 0).setResource(minResource3, preferredResource3);
+		DataStream<Long> source2 = env.generateSequence(0, 0);
+		opMethod.invoke(source2, minResource3, preferredResource3);
+
 		DataStream<Long> map2 = source2.map(new MapFunction<Long, Long>() {
 			@Override
 			public Long map(Long value) throws Exception {
 				return null;
 			}
-		}).setResource(minResource4, preferredResource4);
+		});
+		opMethod.invoke(map2, minResource4, preferredResource4);
 
 		DataStream<Long> connected = map1.connect(map2)
 				.flatMap(new CoFlatMapFunction<Long, Long, Long>() {
@@ -568,7 +580,8 @@ public class DataStreamTest {
 					@Override
 					public void flatMap2(Long value, Collector<Long> out) throws Exception {
 					}
-				}).setResource(minResource5, preferredResource5);
+				});
+		opMethod.invoke(connected, minResource5, preferredResource5);
 
 		DataStream<Long> windowed = connected
 				.windowAll(GlobalWindows.create())
@@ -580,31 +593,33 @@ public class DataStreamTest {
 					public Long fold(Long accumulator, Long value) throws Exception {
 						return null;
 					}
-				}).setResource(minResource6, preferredResource6);
+				});
+		opMethod.invoke(windowed, minResource6, preferredResource6);
 
-		DataStreamSink<Long> sink = windowed.print().setResource(minResource7, maxResource7);
+		DataStreamSink<Long> sink = windowed.print();
+		sinkMethod.invoke(sink, minResource7, preferredResource7);
 
-		assertEquals(minResource1, env.getStreamGraph().getStreamNode(source1.getId()).getMinResource());
-		assertEquals(preferredResource1, env.getStreamGraph().getStreamNode(source1.getId()).getPreferredResource());
+		assertEquals(minResource1, env.getStreamGraph().getStreamNode(source1.getId()).getMinResources());
+		assertEquals(preferredResource1, env.getStreamGraph().getStreamNode(source1.getId()).getPreferredResources());
 
-		assertEquals(minResource2, env.getStreamGraph().getStreamNode(map1.getId()).getMinResource());
-		assertEquals(preferredResource2, env.getStreamGraph().getStreamNode(map1.getId()).getPreferredResource());
+		assertEquals(minResource2, env.getStreamGraph().getStreamNode(map1.getId()).getMinResources());
+		assertEquals(preferredResource2, env.getStreamGraph().getStreamNode(map1.getId()).getPreferredResources());
 
-		assertEquals(minResource3, env.getStreamGraph().getStreamNode(source2.getId()).getMinResource());
-		assertEquals(preferredResource3, env.getStreamGraph().getStreamNode(source2.getId()).getPreferredResource());
+		assertEquals(minResource3, env.getStreamGraph().getStreamNode(source2.getId()).getMinResources());
+		assertEquals(preferredResource3, env.getStreamGraph().getStreamNode(source2.getId()).getPreferredResources());
 
-		assertEquals(minResource4, env.getStreamGraph().getStreamNode(map2.getId()).getMinResource());
-		assertEquals(preferredResource4, env.getStreamGraph().getStreamNode(map2.getId()).getPreferredResource());
+		assertEquals(minResource4, env.getStreamGraph().getStreamNode(map2.getId()).getMinResources());
+		assertEquals(preferredResource4, env.getStreamGraph().getStreamNode(map2.getId()).getPreferredResources());
 
-		assertEquals(minResource5, env.getStreamGraph().getStreamNode(connected.getId()).getMinResource());
-		assertEquals(preferredResource5, env.getStreamGraph().getStreamNode(connected.getId()).getPreferredResource());
+		assertEquals(minResource5, env.getStreamGraph().getStreamNode(connected.getId()).getMinResources());
+		assertEquals(preferredResource5, env.getStreamGraph().getStreamNode(connected.getId()).getPreferredResources());
 
-		assertEquals(minResource6, env.getStreamGraph().getStreamNode(windowed.getId()).getMinResource());
-		assertEquals(preferredResource6, env.getStreamGraph().getStreamNode(windowed.getId()).getPreferredResource());
+		assertEquals(minResource6, env.getStreamGraph().getStreamNode(windowed.getId()).getMinResources());
+		assertEquals(preferredResource6, env.getStreamGraph().getStreamNode(windowed.getId()).getPreferredResources());
 
-		assertEquals(minResource7, env.getStreamGraph().getStreamNode(sink.getTransformation().getId()).getMinResource());
-		assertEquals(maxResource7, env.getStreamGraph().getStreamNode(sink.getTransformation().getId()).getPreferredResource());
-	}*/
+		assertEquals(minResource7, env.getStreamGraph().getStreamNode(sink.getTransformation().getId()).getMinResources());
+		assertEquals(preferredResource7, env.getStreamGraph().getStreamNode(sink.getTransformation().getId()).getPreferredResources());
+	}
 
 	@Test
 	public void testTypeInfo() {

@@ -45,9 +45,9 @@ public abstract class Operator<OUT> implements Visitable<Operator<?>> {
 		
 	private int parallelism = ExecutionConfig.PARALLELISM_DEFAULT;  // the number of parallel instances to use
 
-	private ResourceSpec minResources = ResourceSpec.UNKNOWN;          // the minimum resource of the contract instance.
+	private ResourceSpec minResources = ResourceSpec.DEFAULT;          // the minimum resource of the contract instance.
 
-	private ResourceSpec preferredResources = ResourceSpec.UNKNOWN;    // the preferred resource of the contract instance.
+	private ResourceSpec preferredResources = ResourceSpec.DEFAULT;    // the preferred resource of the contract instance.
 
 	/**
 	 * The return type of the user function.
