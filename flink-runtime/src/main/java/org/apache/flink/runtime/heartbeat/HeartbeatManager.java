@@ -32,7 +32,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
  * @param <I> Type of the incoming payload
  * @param <O> Type of the outgoing payload
  */
-public interface HeartbeatManager<I, O> {
+public interface HeartbeatManager<I, O> extends HeartbeatTarget<I> {
 
 	/**
 	 * Start monitoring a {@link HeartbeatTarget}. Heartbeat timeouts for this target are reported
@@ -50,15 +50,6 @@ public interface HeartbeatManager<I, O> {
 	 * @param resourceID Resource ID of the heartbeat target which shall no longer be monitored
 	 */
 	void unmonitorTarget(ResourceID resourceID);
-
-	/**
-	 * Starts the heartbeat manager with the given {@link HeartbeatListener}. The heartbeat listener
-	 * is notified about heartbeat timeouts and heartbeat payloads are reported and retrieved to
-	 * and from it.
-	 *
-	 * @param heartbeatListener Heartbeat listener associated with the heartbeat manager
-	 */
-	void start(HeartbeatListener<I, O> heartbeatListener);
 
 	/**
 	 * Stops the heartbeat manager.

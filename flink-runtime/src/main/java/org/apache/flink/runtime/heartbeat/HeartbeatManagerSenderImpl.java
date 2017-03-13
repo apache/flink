@@ -40,13 +40,20 @@ public class HeartbeatManagerSenderImpl<I, O> extends HeartbeatManagerImpl<I, O>
 	private final ScheduledFuture<?> triggerFuture;
 
 	public HeartbeatManagerSenderImpl(
-		long heartbeatPeriod,
-		long heartbeatTimeout,
-		ResourceID ownResourceID,
-		ExecutorService executorService,
-		ScheduledExecutorService scheduledExecutorService,
-		Logger log) {
-		super(heartbeatTimeout, ownResourceID, executorService, scheduledExecutorService, log);
+			long heartbeatPeriod,
+			long heartbeatTimeout,
+			ResourceID ownResourceID,
+			HeartbeatListener<I, O> heartbeatListener,
+			ExecutorService executorService,
+			ScheduledExecutorService scheduledExecutorService,
+			Logger log) {
+		super(
+			heartbeatTimeout,
+			ownResourceID,
+			heartbeatListener,
+			executorService,
+			scheduledExecutorService,
+			log);
 
 		triggerFuture = scheduledExecutorService.scheduleAtFixedRate(this, 0L, heartbeatPeriod, TimeUnit.MILLISECONDS);
 	}
