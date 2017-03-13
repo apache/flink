@@ -82,26 +82,6 @@ class Table(
   def printSchema(): Unit = print(tableSchema.toString)
 
   /**
-    * Evaluates a SQL query directly on current [[Table]] and retrieves the result as a
-    * new [[Table]]. An underscore can be used to reference the current table.
-    *
-    * Example:
-    *
-    * {{{
-    *   tab.sql("SELECT a, b, c FROM _ WHERE d = 12")
-    * }}}
-    *
-    * @param query The SQL query to evaluate.
-    * @return The result of the query as Table.
-    */
-  def sql(query: String): Table = {
-    tableEnv.registerTable("_", this)
-    val table = tableEnv.sql(query)
-    tableEnv.unregisterTable("_")
-    table
-  }
-
-  /**
     * Performs a selection operation. Similar to an SQL SELECT statement. The field expressions
     * can contain complex expressions and aggregations.
     *
@@ -828,6 +808,20 @@ class Table(
       throw new ValidationException("An alias must be specified for the window.")
     }
     new WindowedTable(this, window)
+  }
+
+  var tableName: String = _
+
+  /**
+    * Registers an unique table name under the table environment
+    * and return the registered table name.
+    */
+  override def toString: String = {
+    if (tableName == null) {
+      tableName = "UnnamedTable$" + tableEnv.attrNameCntr.getAndIncrement()
+      tableEnv.registerTable(tableName, this)
+    }
+    tableName
   }
 }
 

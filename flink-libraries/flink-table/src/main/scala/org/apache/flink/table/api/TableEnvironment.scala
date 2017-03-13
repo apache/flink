@@ -97,7 +97,7 @@ abstract class TableEnvironment(val config: TableConfig) {
   private lazy val typeFactory: FlinkTypeFactory = relBuilder.getTypeFactory
 
   // a counter for unique attribute names
-  private val attrNameCntr: AtomicInteger = new AtomicInteger(0)
+  private[flink] val attrNameCntr: AtomicInteger = new AtomicInteger(0)
 
   /** Returns the table config to define the runtime behavior of the Table API. */
   def getConfig = config
@@ -368,7 +368,15 @@ abstract class TableEnvironment(val config: TableConfig) {
   /**
     * Evaluates a SQL query on registered tables and retrieves the result as a [[Table]].
     *
-    * All tables referenced by the query must be registered in the TableEnvironment.
+    * All tables referenced by the query must be registered in the TableEnvironment. But
+    * [[Table.toString]] will automatically register an unique table name and return the
+    * table name. So it allows to call SQL directly on tables like this:
+    *
+    * {{{
+    *   val table: Table = ...
+    *   // the table is not registered to the table environment
+    *   tEnv.sql(s"SELECT * FROM $table")
+    * }}}
     *
     * @param query The SQL query to evaluate.
     * @return The result of the query as Table.
