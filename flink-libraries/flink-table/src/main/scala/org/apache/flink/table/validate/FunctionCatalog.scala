@@ -86,6 +86,7 @@ class FunctionCatalog {
           .getOrElse(throw ValidationException(s"Undefined scalar function: $name"))
           .asInstanceOf[ScalarSqlFunction]
         ScalarFunctionCall(scalarSqlFunction.getScalarFunction, children)
+
       // user-defined table function call
       case tf if classOf[TableFunction[_]].isAssignableFrom(tf) =>
         val tableSqlFunction = sqlFunctions
@@ -105,7 +106,7 @@ class FunctionCatalog {
               case Success(expr) => expr
               case Failure(e) => throw new ValidationException(e.getMessage)
             }
-          case Failure(e) =>
+          case Failure(_) =>
             val childrenClass = Seq.fill(children.length)(classOf[Expression])
             // try to find a constructor matching the exact number of children
             Try(funcClass.getDeclaredConstructor(childrenClass: _*)) match {
@@ -114,7 +115,7 @@ class FunctionCatalog {
                   case Success(expr) => expr
                   case Failure(exception) => throw ValidationException(exception.getMessage)
                 }
-              case Failure(exception) =>
+              case Failure(_) =>
                 throw ValidationException(s"Invalid number of arguments for function $funcClass")
             }
         }

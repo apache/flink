@@ -38,4 +38,6 @@ trait TableSource[T] {
   /** Returns the [[TypeInformation]] for the return type of the [[TableSource]]. */
   def getReturnType: TypeInformation[T]
 
+  /** Describes the table source */
+  def explainSource(): String = ""
 }

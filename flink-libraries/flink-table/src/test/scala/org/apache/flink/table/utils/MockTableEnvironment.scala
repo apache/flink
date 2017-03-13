@@ -16,22 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.sources
+package org.apache.flink.table.utils
 
-/**
-  * Adds support for projection push-down to a [[TableSource]].
-  * A [[TableSource]] extending this interface is able to project the fields of the return table.
-  *
-  * @tparam T The return type of the [[TableSource]].
-  */
-trait ProjectableTableSource[T] {
+import org.apache.calcite.tools.RuleSet
+import org.apache.flink.table.api.{Table, TableConfig, TableEnvironment}
+import org.apache.flink.table.sinks.TableSink
+import org.apache.flink.table.sources.TableSource
 
-  /**
-    * Creates a copy of the [[TableSource]] that projects its output on the specified fields.
-    *
-    * @param fields The indexes of the fields to return.
-    * @return A copy of the [[TableSource]] that projects its output.
-    */
-  def projectFields(fields: Array[Int]): TableSource[T]
+class MockTableEnvironment extends TableEnvironment(new TableConfig) {
 
+  override private[flink] def writeToSink[T](table: Table, sink: TableSink[T]): Unit = ???
+
+  override protected def checkValidTableName(name: String): Unit = ???
+
+  override def sql(query: String): Table = ???
+
+  override def registerTableSource(name: String, tableSource: TableSource[_]): Unit = ???
+
+  override protected def getBuiltInNormRuleSet: RuleSet = ???
+
+  override protected def getBuiltInOptRuleSet: RuleSet = ???
 }

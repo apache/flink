@@ -167,7 +167,8 @@ trait CommonCalc {
       case _ => true
     }
 
-    planner.getCostFactory.makeCost(rowCnt, rowCnt * compCnt, 0)
+    val newRowCnt = estimateRowCount(calcProgram, rowCnt)
+    planner.getCostFactory.makeCost(newRowCnt, newRowCnt * compCnt, 0)
   }
 
   private[flink] def estimateRowCount(

@@ -20,23 +20,23 @@ package org.apache.flink.table.plan.rules.dataSet
 
 import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
-import org.apache.calcite.rex.RexProgram
 import org.apache.flink.table.plan.nodes.dataset.{BatchTableSourceScan, DataSetCalc}
-import org.apache.flink.table.plan.util.RexProgramExpressionExtractor._
+import org.apache.flink.table.plan.rules.common.PushFilterIntoTableSourceScanRuleBase
 import org.apache.flink.table.plan.schema.TableSourceTable
 import org.apache.flink.table.sources.FilterableTableSource
 
 class PushFilterIntoBatchTableSourceScanRule extends RelOptRule(
   operand(classOf[DataSetCalc],
     operand(classOf[BatchTableSourceScan], none)),
-  "PushFilterIntoBatchTableSourceScanRule") {
+  "PushFilterIntoBatchTableSourceScanRule")
+  with PushFilterIntoTableSourceScanRuleBase {
 
-  override def matches(call: RelOptRuleCall) = {
+  override def matches(call: RelOptRuleCall): Boolean = {
     val calc: DataSetCalc = call.rel(0).asInstanceOf[DataSetCalc]
     val scan: BatchTableSourceScan = call.rel(1).asInstanceOf[BatchTableSourceScan]
     scan.tableSource match {
-      case _: FilterableTableSource =>
-        calc.calcProgram.getCondition != null
+      case source: FilterableTableSource[_] =>
+        calc.getProgram.getCondition != null && !source.isFilterPushedDown
       case _ => false
     }
   }
@@ -44,49 +44,9 @@ class PushFilterIntoBatchTableSourceScanRule extends RelOptRule(
   override def onMatch(call: RelOptRuleCall): Unit = {
     val calc: DataSetCalc = call.rel(0).asInstanceOf[DataSetCalc]
     val scan: BatchTableSourceScan = call.rel(1).asInstanceOf[BatchTableSourceScan]
-
-    val filterableSource = scan.tableSource.asInstanceOf[FilterableTableSource]
-
-    val program: RexProgram = calc.calcProgram
-    val tst = scan.getTable.unwrap(classOf[TableSourceTable[_]])
-    val predicate = extractPredicateExpressions(
-      program,
-      call.builder().getRexBuilder,
-      tst.tableEnv.getFunctionCatalog)
-
-    if (predicate.length != 0) {
-      val remainingPredicate = filterableSource.setPredicate(predicate)
-
-      if (verifyExpressions(predicate, remainingPredicate)) {
-
-        val filterRexNode = getFilterExpressionAsRexNode(
-          program.getInputRowType,
-          scan,
-          predicate.diff(remainingPredicate))(call.builder())
-
-        val newScan = new BatchTableSourceScan(
-          scan.getCluster,
-          scan.getTraitSet,
-          scan.getTable,
-          scan.tableSource,
-          filterRexNode)
-
-        val newCalcProgram = rewriteRexProgram(
-          program,
-          newScan,
-          remainingPredicate)(call.builder())
-
-        val newCalc = new DataSetCalc(
-          calc.getCluster,
-          calc.getTraitSet,
-          newScan,
-          calc.getRowType,
-          newCalcProgram,
-          description)
-
-        call.transformTo(newCalc)
-      }
-    }
+    val tableSourceTable = scan.getTable.unwrap(classOf[TableSourceTable[_]])
+    val filterableSource = scan.tableSource.asInstanceOf[FilterableTableSource[_]]
+    pushFilterIntoScan(call, calc, scan, tableSourceTable, filterableSource, description)
   }
 }
 

@@ -20,9 +20,8 @@ package org.apache.flink.table.plan.rules.datastream
 
 import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
-import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.plan.nodes.datastream.{DataStreamCalc, StreamTableSourceScan}
-import org.apache.flink.table.plan.util.RexProgramProjectExtractor._
+import org.apache.flink.table.plan.rules.common.PushProjectIntoTableSourceScanRuleBase
 import org.apache.flink.table.sources.{ProjectableTableSource, StreamTableSource}
 
 /**
@@ -31,7 +30,8 @@ import org.apache.flink.table.sources.{ProjectableTableSource, StreamTableSource
 class PushProjectIntoStreamTableSourceScanRule extends RelOptRule(
   operand(classOf[DataStreamCalc],
     operand(classOf[StreamTableSourceScan], none())),
-  "PushProjectIntoStreamTableSourceScanRule") {
+  "PushProjectIntoStreamTableSourceScanRule")
+  with PushProjectIntoTableSourceScanRuleBase {
 
   /** Rule must only match if [[StreamTableSource]] targets a [[ProjectableTableSource]] */
   override def matches(call: RelOptRuleCall): Boolean = {
@@ -45,39 +45,7 @@ class PushProjectIntoStreamTableSourceScanRule extends RelOptRule(
   override def onMatch(call: RelOptRuleCall): Unit = {
     val calc = call.rel(0).asInstanceOf[DataStreamCalc]
     val scan = call.rel(1).asInstanceOf[StreamTableSourceScan]
-
-    val usedFields = extractRefInputFields(calc.calcProgram)
-
-    // if no fields can be projected, we keep the original plan
-    if (TableEnvironment.getFieldNames(scan.tableSource).length != usedFields.length) {
-      val originTableSource = scan.tableSource.asInstanceOf[ProjectableTableSource[_]]
-      val newTableSource = originTableSource.projectFields(usedFields)
-      val newScan = new StreamTableSourceScan(
-        scan.getCluster,
-        scan.getTraitSet,
-        scan.getTable,
-        newTableSource.asInstanceOf[StreamTableSource[_]])
-
-      val newProgram = rewriteRexProgram(
-        calc.calcProgram,
-        newScan.getRowType,
-        usedFields,
-        calc.getCluster.getRexBuilder)
-
-      if (newProgram.isTrivial) {
-        // drop calc if the transformed program merely returns its input and doesn't exist filter
-        call.transformTo(newScan)
-      } else {
-        val newCalc = new DataStreamCalc(
-          calc.getCluster,
-          calc.getTraitSet,
-          newScan,
-          calc.getRowType,
-          newProgram,
-          description)
-        call.transformTo(newCalc)
-      }
-    }
+    pushProjectIntoScan(call, calc, scan)
   }
 }
 
