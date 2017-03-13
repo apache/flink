@@ -97,13 +97,12 @@ public class TaskExecutorITCase {
 		TestingSerialRpcService rpcService = new TestingSerialRpcService();
 		ResourceManagerConfiguration resourceManagerConfiguration = new ResourceManagerConfiguration(
 			Time.milliseconds(500L),
-			Time.milliseconds(500L),
-			Time.minutes(5L));
+			Time.milliseconds(500L));
 		SlotManagerFactory slotManagerFactory = new DefaultSlotManager.Factory();
 		JobLeaderIdService jobLeaderIdService = new JobLeaderIdService(
 			testingHAServices,
 			rpcService.getScheduledExecutor(),
-			resourceManagerConfiguration.getJobTimeout());
+			Time.minutes(5L));
 		MetricRegistry metricRegistry = mock(MetricRegistry.class);
 		HeartbeatServices heartbeatServices = mock(HeartbeatServices.class, RETURNS_MOCKS);
 
