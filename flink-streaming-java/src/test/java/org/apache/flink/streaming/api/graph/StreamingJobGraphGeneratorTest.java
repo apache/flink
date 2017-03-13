@@ -197,13 +197,13 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		// fromElements -> CHAIN(Map -> Print)
 		env.fromElements(1, 2, 3)
-				.map(new MapFunction<Integer, Integer>() {
-					@Override
-					public Integer map(Integer value) throws Exception {
-						return value;
-					}
-				})
-				.print();
+			.map(new MapFunction<Integer, Integer>() {
+				@Override
+				public Integer map(Integer value) throws Exception {
+					return value;
+				}
+			})
+			.print();
 		JobGraph jobGraph = new StreamingJobGraphGenerator(env.getStreamGraph()).createJobGraph();
 
 		List<JobVertex> verticesSorted = jobGraph.getVerticesSortedTopologicallyFromSources();
