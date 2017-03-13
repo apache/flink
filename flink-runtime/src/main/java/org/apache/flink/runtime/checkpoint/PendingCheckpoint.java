@@ -497,6 +497,7 @@ public class PendingCheckpoint {
 	}
 
 	private void dispose(boolean releaseState) {
+
 		synchronized (lock) {
 			try {
 				numAcknowledgedTasks = -1;
@@ -504,11 +505,22 @@ public class PendingCheckpoint {
 					executor.execute(new Runnable() {
 						@Override
 						public void run() {
+
+							// discard the shared states that are created in the checkpoint
+							for (TaskState taskState : taskStates.values()) {
+								try {
+									taskState.discardSharedStatesOnFail();
+								} catch (Throwable t) {
+									LOG.warn("Could not properly dispose unreferenced shared states.");
+								}
+							}
+
+							// discard the private states
 							try {
 								StateUtil.bestEffortDiscardAllStateObjects(taskStates.values());
 							} catch (Throwable t) {
-								LOG.warn("Could not properly dispose the pending checkpoint {} of job {}.", 
-										checkpointId, jobId, t);
+								LOG.warn("Could not properly dispose the private states in the pending checkpoint {} of job {}.",
+									checkpointId, jobId, t);
 							} finally {
 								taskStates.clear();
 							}
