@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.commons.collections.map.LinkedMap;
-import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.OperatorStateStore;
@@ -31,6 +30,7 @@ import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
+import org.apache.flink.streaming.connectors.kafka.config.OffsetCommitMode;
 import org.apache.flink.streaming.connectors.kafka.internals.AbstractFetcher;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
@@ -38,6 +38,7 @@ import org.apache.flink.util.SerializedValue;
 import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Matchers;
+import org.mockito.Mockito;
 
 import java.io.Serializable;
 import java.lang.reflect.Field;
@@ -54,7 +55,10 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Matchers.anyMap;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 public class FlinkKafkaConsumerBaseTest {
@@ -187,6 +191,7 @@ public class FlinkKafkaConsumerBaseTest {
 	/**
 	 * Tests that on snapshots, states and offsets to commit to Kafka are correct
 	 */
+	@SuppressWarnings("unchecked")
 	@Test
 	public void checkUseFetcherWhenNoCheckpoint() throws Exception {
 
@@ -211,7 +216,7 @@ public class FlinkKafkaConsumerBaseTest {
 
 	@Test
 	@SuppressWarnings("unchecked")
-	public void testSnapshotState() throws Exception {
+	public void testSnapshotStateWithCommitOnCheckpointsEnabled() throws Exception {
 
 		// --------------------------------------------------------------------
 		//   prepare fake states
@@ -233,10 +238,14 @@ public class FlinkKafkaConsumerBaseTest {
 		
 		final AbstractFetcher<String, ?> fetcher = mock(AbstractFetcher.class);
 		when(fetcher.snapshotCurrentState()).thenReturn(state1, state2, state3);
-			
+
 		final LinkedMap pendingOffsetsToCommit = new LinkedMap();
-	
+
 		FlinkKafkaConsumerBase<String> consumer = getConsumer(fetcher, pendingOffsetsToCommit, true);
+		StreamingRuntimeContext mockRuntimeContext = mock(StreamingRuntimeContext.class);
+		when(mockRuntimeContext.isCheckpointingEnabled()).thenReturn(true); // enable checkpointing
+		consumer.setRuntimeContext(mockRuntimeContext);
+
 		assertEquals(0, pendingOffsetsToCommit.size());
 
 		OperatorStateStore backend = mock(OperatorStateStore.class);
@@ -251,6 +260,8 @@ public class FlinkKafkaConsumerBaseTest {
 		when(initializationContext.isRestored()).thenReturn(false, true, true, true);
 
 		consumer.initializeState(initializationContext);
+
+		consumer.open(new Configuration());
 
 		// checkpoint 1
 		consumer.snapshotState(new StateSnapshotContextSynchronousImpl(138, 138));
@@ -330,12 +341,140 @@ public class FlinkKafkaConsumerBaseTest {
 		assertEquals(0, pendingOffsetsToCommit.size());
 	}
 
+	@Test
+	@SuppressWarnings("unchecked")
+	public void testSnapshotStateWithCommitOnCheckpointsDisabled() throws Exception {
+		// --------------------------------------------------------------------
+		//   prepare fake states
+		// --------------------------------------------------------------------
+
+		final HashMap<KafkaTopicPartition, Long> state1 = new HashMap<>();
+		state1.put(new KafkaTopicPartition("abc", 13), 16768L);
+		state1.put(new KafkaTopicPartition("def", 7), 987654321L);
+
+		final HashMap<KafkaTopicPartition, Long> state2 = new HashMap<>();
+		state2.put(new KafkaTopicPartition("abc", 13), 16770L);
+		state2.put(new KafkaTopicPartition("def", 7), 987654329L);
+
+		final HashMap<KafkaTopicPartition, Long> state3 = new HashMap<>();
+		state3.put(new KafkaTopicPartition("abc", 13), 16780L);
+		state3.put(new KafkaTopicPartition("def", 7), 987654377L);
+
+		// --------------------------------------------------------------------
+
+		final AbstractFetcher<String, ?> fetcher = mock(AbstractFetcher.class);
+		when(fetcher.snapshotCurrentState()).thenReturn(state1, state2, state3);
+
+		final LinkedMap pendingOffsetsToCommit = new LinkedMap();
+
+		FlinkKafkaConsumerBase<String> consumer = getConsumer(fetcher, pendingOffsetsToCommit, true);
+		StreamingRuntimeContext mockRuntimeContext = mock(StreamingRuntimeContext.class);
+		when(mockRuntimeContext.isCheckpointingEnabled()).thenReturn(true); // enable checkpointing
+		consumer.setRuntimeContext(mockRuntimeContext);
+
+		consumer.setCommitOffsetsOnCheckpoints(false); // disable offset committing
+
+		assertEquals(0, pendingOffsetsToCommit.size());
+
+		OperatorStateStore backend = mock(OperatorStateStore.class);
+
+		TestingListState<Serializable> listState = new TestingListState<>();
+
+		when(backend.getSerializableListState(Matchers.any(String.class))).thenReturn(listState);
+
+		StateInitializationContext initializationContext = mock(StateInitializationContext.class);
+
+		when(initializationContext.getOperatorStateStore()).thenReturn(backend);
+		when(initializationContext.isRestored()).thenReturn(false, true, true, true);
+
+		consumer.initializeState(initializationContext);
+
+		consumer.open(new Configuration());
+
+		// checkpoint 1
+		consumer.snapshotState(new StateSnapshotContextSynchronousImpl(138, 138));
+
+		HashMap<KafkaTopicPartition, Long> snapshot1 = new HashMap<>();
+
+		for (Serializable serializable : listState.get()) {
+			Tuple2<KafkaTopicPartition, Long> kafkaTopicPartitionLongTuple2 = (Tuple2<KafkaTopicPartition, Long>) serializable;
+			snapshot1.put(kafkaTopicPartitionLongTuple2.f0, kafkaTopicPartitionLongTuple2.f1);
+		}
+
+		assertEquals(state1, snapshot1);
+		assertEquals(0, pendingOffsetsToCommit.size()); // pending offsets to commit should not be updated
+
+		// checkpoint 2
+		consumer.snapshotState(new StateSnapshotContextSynchronousImpl(140, 140));
+
+		HashMap<KafkaTopicPartition, Long> snapshot2 = new HashMap<>();
+
+		for (Serializable serializable : listState.get()) {
+			Tuple2<KafkaTopicPartition, Long> kafkaTopicPartitionLongTuple2 = (Tuple2<KafkaTopicPartition, Long>) serializable;
+			snapshot2.put(kafkaTopicPartitionLongTuple2.f0, kafkaTopicPartitionLongTuple2.f1);
+		}
+
+		assertEquals(state2, snapshot2);
+		assertEquals(0, pendingOffsetsToCommit.size()); // pending offsets to commit should not be updated
+
+		// ack checkpoint 1
+		consumer.notifyCheckpointComplete(138L);
+		verify(fetcher, never()).commitInternalOffsetsToKafka(anyMap()); // not offsets should be committed
+
+		// checkpoint 3
+		consumer.snapshotState(new StateSnapshotContextSynchronousImpl(141, 141));
+
+		HashMap<KafkaTopicPartition, Long> snapshot3 = new HashMap<>();
+
+		for (Serializable serializable : listState.get()) {
+			Tuple2<KafkaTopicPartition, Long> kafkaTopicPartitionLongTuple2 = (Tuple2<KafkaTopicPartition, Long>) serializable;
+			snapshot3.put(kafkaTopicPartitionLongTuple2.f0, kafkaTopicPartitionLongTuple2.f1);
+		}
+
+		assertEquals(state3, snapshot3);
+		assertEquals(0, pendingOffsetsToCommit.size()); // pending offsets to commit should not be updated
+
+		// ack checkpoint 3, subsumes number 2
+		consumer.notifyCheckpointComplete(141L);
+		verify(fetcher, never()).commitInternalOffsetsToKafka(anyMap()); // not offsets should be committed
+
+
+		consumer.notifyCheckpointComplete(666); // invalid checkpoint
+		verify(fetcher, never()).commitInternalOffsetsToKafka(anyMap()); // not offsets should be committed
+
+		OperatorStateStore operatorStateStore = mock(OperatorStateStore.class);
+		listState = new TestingListState<>();
+		when(operatorStateStore.getOperatorState(Matchers.any(ListStateDescriptor.class))).thenReturn(listState);
+
+		// create 500 snapshots
+		for (int i = 100; i < 600; i++) {
+			consumer.snapshotState(new StateSnapshotContextSynchronousImpl(i, i));
+			listState.clear();
+		}
+		assertEquals(0, pendingOffsetsToCommit.size()); // pending offsets to commit should not be updated
+
+		// commit only the second last
+		consumer.notifyCheckpointComplete(598);
+		verify(fetcher, never()).commitInternalOffsetsToKafka(anyMap()); // not offsets should be committed
+
+		// access invalid checkpoint
+		consumer.notifyCheckpointComplete(590);
+		verify(fetcher, never()).commitInternalOffsetsToKafka(anyMap()); // not offsets should be committed
+
+		// and the last
+		consumer.notifyCheckpointComplete(599);
+		verify(fetcher, never()).commitInternalOffsetsToKafka(anyMap()); // not offsets should be committed
+	}
+
 	// ------------------------------------------------------------------------
 
 	private static <T> FlinkKafkaConsumerBase<T> getConsumer(
 			AbstractFetcher<T, ?> fetcher, LinkedMap pendingOffsetsToCommit, boolean running) throws Exception
 	{
 		FlinkKafkaConsumerBase<T> consumer = new DummyFlinkKafkaConsumer<>();
+		StreamingRuntimeContext mockRuntimeContext = mock(StreamingRuntimeContext.class);
+		Mockito.when(mockRuntimeContext.isCheckpointingEnabled()).thenReturn(true);
+		consumer.setRuntimeContext(mockRuntimeContext);
 
 		Field fetcherField = FlinkKafkaConsumerBase.class.getDeclaredField("kafkaFetcher");
 		fetcherField.setAccessible(true);
@@ -369,7 +508,8 @@ public class FlinkKafkaConsumerBaseTest {
 				Map<KafkaTopicPartition, Long> thisSubtaskPartitionsWithStartOffsets,
 				SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
 				SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
-				StreamingRuntimeContext runtimeContext) throws Exception {
+				StreamingRuntimeContext runtimeContext,
+				OffsetCommitMode offsetCommitMode) throws Exception {
 			return mock(AbstractFetcher.class);
 		}
 
@@ -379,8 +519,8 @@ public class FlinkKafkaConsumerBaseTest {
 		}
 
 		@Override
-		public RuntimeContext getRuntimeContext() {
-			return mock(StreamingRuntimeContext.class);
+		protected boolean getIsAutoCommitEnabled() {
+			return false;
 		}
 	}
 

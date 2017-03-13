@@ -259,6 +259,34 @@ Flink on YARN supports automatic restart of lost YARN containers.
 
 If checkpointing is not enabled, the Kafka consumer will periodically commit the offsets to Zookeeper.
 
+### Kafka Consumers Offset Committing Behaviour Configuration
+
+The Flink Kafka Consumer allows configuring the behaviour of how offsets
+are committed back to Kafka brokers (or Zookeeper in 0.8). Note that the
+Flink Kafka Consumer does not rely on the committed offsets for fault
+tolerance guarantees. The committed offsets are only a means to expose
+the consumer's progress for monitoring purposes.
+
+The way to configure offset commit behaviour is different, depending on
+whether or not checkpointing is enabled for the job.
+
+ - *Checkpointing disabled:* if checkpointing is disabled, the Flink Kafka
+ Consumer relies on the automatic periodic offset committing capability
+ of the internally used Kafka clients. Therefore, to disable or enable offset
+ committing, simply set the `enable.auto.commit` (or `auto.commit.enable`
+ for Kafka 0.8) / `auto.commit.interval.ms` keys to appropriate values
+ in the provided `Properties` configuration.
+ 
+ - *Checkpointing enabled:* if checkpointing is enabled, the Flink Kafka
+ Consumer will commit the offsets stored in the checkpointed states when
+ the checkpoints are completed. This ensures that the committed offsets
+ in Kafka brokers is consistent with the offsets in the checkpointed states.
+ Users can choose to disable or enable offset committing by calling the
+ `setCommitOffsetsOnCheckpoints(boolean)` method on the consumer (by default,
+ the behaviour is `true`).
+ Note that in this scenario, the automatic periodic offset committing
+ settings in `Properties` is completely ignored.
+
 ### Kafka Consumers and Timestamp Extraction/Watermark Emission
 
 In many scenarios, the timestamp of a record is embedded (explicitly or implicitly) in the record itself.
