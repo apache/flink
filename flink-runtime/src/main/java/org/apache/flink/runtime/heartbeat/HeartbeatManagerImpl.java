@@ -44,13 +44,16 @@ import java.util.concurrent.atomic.AtomicReference;
  * @param <O> Type of the outgoing heartbeat payload
  */
 @ThreadSafe
-public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O>, HeartbeatTarget<I> {
+public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
 
 	/** Heartbeat timeout interval in milli seconds */
 	private final long heartbeatTimeoutIntervalMs;
 
 	/** Resource ID which is used to mark one own's heartbeat signals */
 	private final ResourceID ownResourceID;
+
+	/** Heartbeat listener with which the heartbeat manager has been associated */
+	private final HeartbeatListener<I, O> heartbeatListener;
 
 	/** Executor service used to run heartbeat timeout notifications */
 	private final ScheduledExecutorService scheduledExecutorService;
@@ -63,28 +66,27 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O>, Heart
 	/** Execution context used to run future callbacks */
 	private final Executor executor;
 
-	/** Heartbeat listener with which the heartbeat manager has been associated */
-	private HeartbeatListener<I, O> heartbeatListener;
-
 	/** Running state of the heartbeat manager */
 	protected volatile boolean stopped;
 
 	public HeartbeatManagerImpl(
-		long heartbeatTimeoutIntervalMs,
-		ResourceID ownResourceID,
-		Executor executor,
-		ScheduledExecutorService scheduledExecutorService,
-		Logger log) {
+			long heartbeatTimeoutIntervalMs,
+			ResourceID ownResourceID,
+			HeartbeatListener<I, O> heartbeatListener,
+			Executor executor,
+			ScheduledExecutorService scheduledExecutorService,
+			Logger log) {
 		Preconditions.checkArgument(heartbeatTimeoutIntervalMs > 0L, "The heartbeat timeout has to be larger than 0.");
 
 		this.heartbeatTimeoutIntervalMs = heartbeatTimeoutIntervalMs;
 		this.ownResourceID = Preconditions.checkNotNull(ownResourceID);
+		this.heartbeatListener = Preconditions.checkNotNull(heartbeatListener, "heartbeatListener");
 		this.scheduledExecutorService = Preconditions.checkNotNull(scheduledExecutorService);
 		this.log = Preconditions.checkNotNull(log);
 		this.executor = Preconditions.checkNotNull(executor);
 		this.heartbeatTargets = new ConcurrentHashMap<>(16);
 
-		stopped = true;
+		stopped = false;
 	}
 
 	//----------------------------------------------------------------------------------------------
@@ -150,15 +152,6 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O>, Heart
 	}
 
 	@Override
-	public void start(HeartbeatListener<I, O> heartbeatListener) {
-		Preconditions.checkState(stopped, "Cannot start an already started heartbeat manager.");
-
-		stopped = false;
-
-		this.heartbeatListener = Preconditions.checkNotNull(heartbeatListener);
-	}
-
-	@Override
 	public void stop() {
 		stopped = true;
 
@@ -174,27 +167,27 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O>, Heart
 	//----------------------------------------------------------------------------------------------
 
 	@Override
-	public void sendHeartbeat(ResourceID resourceID, I payload) {
+	public void receiveHeartbeat(ResourceID heartbeatOrigin, I heartbeatPayload) {
 		if (!stopped) {
-			log.debug("Received heartbeat from {}.", resourceID);
-			reportHeartbeat(resourceID);
+			log.debug("Received heartbeat from {}.", heartbeatOrigin);
+			reportHeartbeat(heartbeatOrigin);
 
-			if (payload != null) {
-				heartbeatListener.reportPayload(resourceID, payload);
+			if (heartbeatPayload != null) {
+				heartbeatListener.reportPayload(heartbeatOrigin, heartbeatPayload);
 			}
 		}
 	}
 
 	@Override
-	public void requestHeartbeat(ResourceID resourceID, I payload) {
+	public void requestHeartbeat(ResourceID requestOrigin, I heartbeatPayload) {
 		if (!stopped) {
-			log.debug("Received heartbeat request from {}.", resourceID);
+			log.debug("Received heartbeat request from {}.", requestOrigin);
 
-			final HeartbeatTarget<O> heartbeatTarget = reportHeartbeat(resourceID);
+			final HeartbeatTarget<O> heartbeatTarget = reportHeartbeat(requestOrigin);
 
 			if (heartbeatTarget != null) {
-				if (payload != null) {
-					heartbeatListener.reportPayload(resourceID, payload);
+				if (heartbeatPayload != null) {
+					heartbeatListener.reportPayload(requestOrigin, heartbeatPayload);
 				}
 
 				Future<O> futurePayload = heartbeatListener.retrievePayload();
@@ -203,11 +196,11 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O>, Heart
 					futurePayload.thenAcceptAsync(new AcceptFunction<O>() {
 						@Override
 						public void accept(O retrievedPayload) {
-							heartbeatTarget.sendHeartbeat(getOwnResourceID(), retrievedPayload);
+							heartbeatTarget.receiveHeartbeat(getOwnResourceID(), retrievedPayload);
 						}
 					}, executor);
 				} else {
-					heartbeatTarget.sendHeartbeat(ownResourceID, null);
+					heartbeatTarget.receiveHeartbeat(ownResourceID, null);
 				}
 			}
 		}
