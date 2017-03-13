@@ -109,13 +109,12 @@ public class SlotProtocolTest extends TestLogger {
 
 		ResourceManagerConfiguration resourceManagerConfiguration = new ResourceManagerConfiguration(
 			Time.seconds(5L),
-			Time.seconds(5L),
-			Time.minutes(5L));
+			Time.seconds(5L));
 
 		JobLeaderIdService jobLeaderIdService = new JobLeaderIdService(
 			testingHaServices,
 			testRpcService.getScheduledExecutor(),
-			resourceManagerConfiguration.getJobTimeout());
+			Time.seconds(5L));
 
 		final TestingSlotManagerFactory slotManagerFactory = new TestingSlotManagerFactory();
 		SpiedResourceManager resourceManager =
@@ -217,13 +216,12 @@ public class SlotProtocolTest extends TestLogger {
 
 		ResourceManagerConfiguration resourceManagerConfiguration = new ResourceManagerConfiguration(
 			Time.seconds(5L),
-			Time.seconds(5L),
-			Time.minutes(5L));
+			Time.seconds(5L));
 
 		JobLeaderIdService jobLeaderIdService = new JobLeaderIdService(
 			testingHaServices,
 			testRpcService.getScheduledExecutor(),
-			resourceManagerConfiguration.getJobTimeout());
+			Time.seconds(5L));
 
 		TestingSlotManagerFactory slotManagerFactory = new TestingSlotManagerFactory();
 		ResourceManager<ResourceID> resourceManager =

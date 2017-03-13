@@ -195,14 +195,13 @@ public class ResourceManagerJobMasterTest {
 
 		ResourceManagerConfiguration resourceManagerConfiguration = new ResourceManagerConfiguration(
 			Time.seconds(5L),
-			Time.seconds(5L),
-			Time.minutes(5L));
+			Time.seconds(5L));
 		SlotManagerFactory slotManagerFactory = new TestingSlotManagerFactory();
 		MetricRegistry metricRegistry = mock(MetricRegistry.class);
 		JobLeaderIdService jobLeaderIdService = new JobLeaderIdService(
 			highAvailabilityServices,
 			rpcService.getScheduledExecutor(),
-			resourceManagerConfiguration.getJobTimeout());
+			Time.minutes(5L));
 
 		ResourceManager resourceManager = new StandaloneResourceManager(
 			rpcService,

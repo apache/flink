@@ -21,7 +21,6 @@ package org.apache.flink.runtime.resourcemanager;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.runtime.resourcemanager.exceptions.ConfigurationException;
 import org.apache.flink.util.Preconditions;
 import scala.concurrent.duration.Duration;
@@ -33,15 +32,12 @@ public class ResourceManagerConfiguration {
 
 	private final Time timeout;
 	private final Time heartbeatInterval;
-	private final Time jobTimeout;
 
 	public ResourceManagerConfiguration(
 			Time timeout,
-			Time heartbeatInterval,
-			Time jobTimeout) {
+			Time heartbeatInterval) {
 		this.timeout = Preconditions.checkNotNull(timeout, "timeout");
 		this.heartbeatInterval = Preconditions.checkNotNull(heartbeatInterval, "heartbeatInterval");
-		this.jobTimeout = Preconditions.checkNotNull(jobTimeout, "jobTimeout");
 	}
 
 	public Time getTimeout() {
@@ -50,10 +46,6 @@ public class ResourceManagerConfiguration {
 
 	public Time getHeartbeatInterval() {
 		return heartbeatInterval;
-	}
-
-	public Time getJobTimeout() {
-		return jobTimeout;
 	}
 
 	// --------------------------------------------------------------------------
@@ -81,16 +73,6 @@ public class ResourceManagerConfiguration {
 				"value " + AkkaOptions.AKKA_WATCH_HEARTBEAT_INTERVAL + '.', e);
 		}
 
-		final String strJobTimeout = configuration.getString(ResourceManagerOptions.JOB_TIMEOUT);
-		final Time jobTimeout;
-
-		try {
-			jobTimeout = Time.milliseconds(Duration.apply(strJobTimeout).toMillis());
-		} catch (NumberFormatException e) {
-			throw new ConfigurationException("Could not parse the resource manager's job timeout " +
-				"value " + ResourceManagerOptions.JOB_TIMEOUT + '.', e);
-		}
-
-		return new ResourceManagerConfiguration(timeout, heartbeatInterval, jobTimeout);
+		return new ResourceManagerConfiguration(timeout, heartbeatInterval);
 	}
 }

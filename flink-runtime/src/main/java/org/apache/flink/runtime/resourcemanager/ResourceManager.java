@@ -179,13 +179,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		Exception exception = null;
 
 		try {
-			jobLeaderIdService.stop();
-		} catch (Exception e) {
-			exception = ExceptionUtils.firstOrSuppressed(e, exception);
-		}
-
-		try {
-			leaderElectionService.stop();
+			super.shutDown();
 		} catch (Exception e) {
 			exception = ExceptionUtils.firstOrSuppressed(e, exception);
 		}
@@ -193,7 +187,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		clearState();
 
 		try {
-			super.shutDown();
+			leaderElectionService.stop();
 		} catch (Exception e) {
 			exception = ExceptionUtils.firstOrSuppressed(e, exception);
 		}
