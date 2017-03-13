@@ -160,9 +160,9 @@ public class InputGateMetrics {
 	public static void registerQueueLengthMetrics(MetricGroup group, SingleInputGate gate) {
 		InputGateMetrics metrics = new InputGateMetrics(gate);
 
-		group.gauge("total-queue-len", metrics.getTotalQueueLenGauge());
-		group.gauge("min-queue-len", metrics.getMinQueueLenGauge());
-		group.gauge("max-queue-len", metrics.getMaxQueueLenGauge());
-		group.gauge("avg-queue-len", metrics.getAvgQueueLenGauge());
+		group.gauge("totalQueueLen", metrics.getTotalQueueLenGauge());
+		group.gauge("minQueueLen", metrics.getMinQueueLenGauge());
+		group.gauge("maxQueueLen", metrics.getMaxQueueLenGauge());
+		group.gauge("avgQueueLen", metrics.getAvgQueueLenGauge());
 	}
 }
