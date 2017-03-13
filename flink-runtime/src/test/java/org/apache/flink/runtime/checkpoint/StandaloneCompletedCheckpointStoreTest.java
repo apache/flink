@@ -21,8 +21,15 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.junit.Test;
 
+import java.io.IOException;
+import java.util.List;
+
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.powermock.api.mockito.PowerMockito.doReturn;
+import static org.powermock.api.mockito.PowerMockito.doThrow;
+import static org.powermock.api.mockito.PowerMockito.mock;
 
 /**
  * Tests for basic {@link CompletedCheckpointStore} contract.
@@ -69,5 +76,34 @@ public class StandaloneCompletedCheckpointStoreTest extends CompletedCheckpointS
 
 		assertEquals(0, store.getNumberOfRetainedCheckpoints());
 		assertTrue(checkpoint.isDiscarded());
+	}
+	
+	/**
+	 * Tests that the checkpoint does not exist in the store when we fail to add
+	 * it into the store (i.e., there exists an exception thrown by the method).
+	 */
+	@Test
+	public void testAddCheckpointWithFailedRemove() throws Exception {
+		
+		final int numCheckpointsToRetain = 1;
+		CompletedCheckpointStore store = createCompletedCheckpoints(numCheckpointsToRetain);
+		
+		for (long i = 0; i <= numCheckpointsToRetain; ++i) {
+			CompletedCheckpoint checkpointToAdd = mock(CompletedCheckpoint.class);
+			doReturn(i).when(checkpointToAdd).getCheckpointID();
+			doThrow(new IOException()).when(checkpointToAdd).subsume();
+			
+			try {
+				store.addCheckpoint(checkpointToAdd);
+				
+				// The checkpoint should be in the store if we successfully add it into the store.
+				List<CompletedCheckpoint> addedCheckpoints = store.getAllCheckpoints();
+				assertTrue(addedCheckpoints.contains(checkpointToAdd));
+			} catch (Exception e) {
+				// The checkpoint should not be in the store if any exception is thrown.
+				List<CompletedCheckpoint> addedCheckpoints = store.getAllCheckpoints();
+				assertFalse(addedCheckpoints.contains(checkpointToAdd));
+			}
+		}
 	}
 }

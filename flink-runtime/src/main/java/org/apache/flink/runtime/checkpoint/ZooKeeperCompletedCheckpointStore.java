@@ -188,7 +188,11 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 
 		// Everything worked, let's remove a previous checkpoint if necessary.
 		while (checkpointStateHandles.size() > maxNumberOfCheckpointsToRetain) {
-			removeSubsumed(checkpointStateHandles.removeFirst());
+			try {
+				removeSubsumed(checkpointStateHandles.removeFirst());
+			} catch (Exception e) {
+				LOG.warn("Failed to subsume the old checkpoint", e);
+			}
 		}
 
 		LOG.debug("Added {} to {}.", checkpoint, path);

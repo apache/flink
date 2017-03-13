@@ -64,7 +64,11 @@ public class StandaloneCompletedCheckpointStore implements CompletedCheckpointSt
 	public void addCheckpoint(CompletedCheckpoint checkpoint) throws Exception {
 		checkpoints.add(checkpoint);
 		if (checkpoints.size() > maxNumberOfCheckpointsToRetain) {
-			checkpoints.remove().subsume();
+			try {
+				checkpoints.remove().subsume();
+			} catch (Exception e) {
+				LOG.warn("Fail to subsume the old checkpoint.", e);
+			}
 		}
 	}
 
