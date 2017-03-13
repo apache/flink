@@ -28,6 +28,7 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.streaming.api.windowing.time.Time;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -54,52 +55,82 @@ import java.util.regex.Pattern;
 /**
  * Non-deterministic finite automaton implementation.
  * <p>
- * The NFA processes input events which will chnage the internal state machine. Whenever a final
- * state is reached, the matching sequence of events is emitted.
+ * The {@link org.apache.flink.cep.operator.AbstractKeyedCEPPatternOperator CEP operator}
+ * keeps one NFA per key, for keyed input streams, and a single global NFA for non-keyed ones.
+ * When an event gets processed, it updates the NFA's internal state machine.
+ * <p>
+ * An event that belongs to a partially matched sequence is kept in an internal
+ * {@link SharedBuffer buffer}, which is a memory-optimized data-structure exactly for
+ * this purpose. Events in the buffer are removed when all the matched sequences that
+ * contain them are:
+ * <ol>
+ *     <li>emitted (success)</li>
+ *     <li>discarded (patterns containing NOT)</li>
+ *     <li>timed-out (windowed patterns)</li>
+ * </ol>
  *
  * The implementation is strongly based on the paper "Efficient Pattern Matching over Event Streams".
  *
- * @see <a href="https://people.cs.umass.edu/~yanlei/publications/sase-sigmod08.pdf">https://people.cs.umass.edu/~yanlei/publications/sase-sigmod08.pdf</a>
+ * @see <a href="https://people.cs.umass.edu/~yanlei/publications/sase-sigmod08.pdf">
+ *     https://people.cs.umass.edu/~yanlei/publications/sase-sigmod08.pdf</a>
  *
  * @param <T> Type of the processed events
  */
 public class NFA<T> implements Serializable {
 
-	private static final Pattern namePattern = Pattern.compile("^(.*\\[)(\\])$");
 	private static final long serialVersionUID = 2957674889294717265L;
+
+	private static final Pattern namePattern = Pattern.compile("^(.*\\[)(\\])$");
 
 	private final NonDuplicatingTypeSerializer<T> nonDuplicatingTypeSerializer;
 
-	// Buffer used to store the matched events
+	/**
+	 * 	Buffer used to store the matched events.
+	 */
 	private final SharedBuffer<State<T>, T> sharedBuffer;
 
-	// Set of all NFA states
+	/**
+	 * A set of all the valid NFA states, as returned by the
+	 * {@link org.apache.flink.cep.nfa.compiler.NFACompiler NFACompiler}.
+	 * These are directly derived from the user-specified pattern.
+	 */
 	private final Set<State<T>> states;
 
-	// Length of the window
+	/**
+	 * The length of a windowed pattern, as specified using the
+	 * {@link org.apache.flink.cep.pattern.Pattern#within(Time) Pattern.within(Time)}
+	 * method.
+	 */
 	private final long windowTime;
 
+	/**
+	 * A flag indicating if we want timed-out patterns (in case of windowed patterns)
+	 * to be emitted ({@code true}), or silently discarded ({@code false}).
+	 */
 	private final boolean handleTimeout;
 
 	// Current starting index for the next dewey version number
 	private int startEventCounter;
 
-	// Current set of computation states within the state machine
+	/**
+	 * Current set of {@link ComputationState computation states} within the state machine.
+	 * These are the "active" intermediate states that are waiting for new matching
+	 * events to transition to new valid states.
+	 */
 	private transient Queue<ComputationState<T>> computationStates;
 
 	public NFA(
-		final TypeSerializer<T> eventSerializer,
-		final long windowTime,
-		final boolean handleTimeout) {
+			final TypeSerializer<T> eventSerializer,
+			final long windowTime,
+			final boolean handleTimeout) {
 
 		this.nonDuplicatingTypeSerializer = new NonDuplicatingTypeSerializer<>(eventSerializer);
 		this.windowTime = windowTime;
 		this.handleTimeout = handleTimeout;
-		sharedBuffer = new SharedBuffer<>(nonDuplicatingTypeSerializer);
-		computationStates = new LinkedList<>();
-
-		states = new HashSet<>();
-		startEventCounter = 1;
+		this.sharedBuffer = new SharedBuffer<>(nonDuplicatingTypeSerializer);
+		this.computationStates = new LinkedList<>();
+		this.states = new HashSet<>();
+		this.startEventCounter = 1;
 	}
 
 	public Set<State<T>> getStates() {
@@ -118,6 +149,17 @@ public class NFA<T> implements Serializable {
 		if (state.isStart()) {
 			computationStates.add(new ComputationState<>(state, null, -1L, null, -1L));
 		}
+	}
+
+	/**
+	 * Check if the NFA has finished processing all incoming data so far. That is
+	 * when the buffer keeping the matches is empty.
+	 *
+	 * @return {@code true} if there are no elements in the {@link SharedBuffer},
+	 * {@code false} otherwise.
+	 */
+	public boolean isEmpty() {
+		return sharedBuffer.isEmpty();
 	}
 
 	/**
@@ -186,15 +228,13 @@ public class NFA<T> implements Serializable {
 		if(windowTime > 0L) {
 			long pruningTimestamp = timestamp - windowTime;
 
-			// sanity check to guard against underflows
-			if (pruningTimestamp >= timestamp) {
-				throw new IllegalStateException("Detected an underflow in the pruning timestamp. This indicates that" +
-					" either the window length is too long (" + windowTime + ") or that the timestamp has not been" +
-					" set correctly (e.g. Long.MIN_VALUE).");
-			}
+			if (pruningTimestamp < timestamp) {
+				// the check is to guard against underflows
 
-			// remove all elements which are expired with respect to the window length
-			sharedBuffer.prune(pruningTimestamp);
+				// remove all elements which are expired
+				// with respect to the window length
+				sharedBuffer.prune(pruningTimestamp);
+			}
 		}
 
 		return Tuple2.of(result, timeoutResult);
@@ -251,7 +291,7 @@ public class NFA<T> implements Serializable {
 			final T event,
 			final long timestamp) {
 		Stack<State<T>> states = new Stack<>();
-		ArrayList<ComputationState<T>> resultingComputationStates = new ArrayList<>();
+		List<ComputationState<T>> resultingComputationStates = new ArrayList<>();
 		State<T> state = computationState.getState();
 
 		states.push(state);
@@ -381,7 +421,7 @@ public class NFA<T> implements Serializable {
 			computationState.getTimestamp(),
 			computationState.getVersion());
 
-		ArrayList<Map<String, T>> result = new ArrayList<>();
+		List<Map<String, T>> result = new ArrayList<>();
 
 		TypeSerializer<T> serializer = nonDuplicatingTypeSerializer.getTypeSerializer();
 
@@ -497,6 +537,7 @@ public class NFA<T> implements Serializable {
 	 * {@link TypeSerializer} for {@link NFA} that uses Java Serialization.
 	 */
 	public static class Serializer<T> extends TypeSerializer<NFA<T>> {
+
 		private static final long serialVersionUID = 1L;
 
 		@Override
