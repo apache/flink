@@ -17,6 +17,7 @@
  */
 package org.apache.flink.addons.hbase;
 
+import org.apache.calcite.rel.RelWriter;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -121,5 +122,10 @@ public class HBaseTableSource implements BatchTableSource<Row>, ProjectableTable
 			}
 		}
 		return newTableSource;
+	}
+
+	@Override
+	public RelWriter explainTerms(RelWriter pw) {
+		return pw;
 	}
 }
