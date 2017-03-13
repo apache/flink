@@ -597,6 +597,15 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 		}
 	}
 
+	@VisibleForTesting
+	public int numKeysForWatermarkCallback() {
+		if (operator instanceof AbstractStreamOperator) {
+			return ((AbstractStreamOperator) operator).numKeysForWatermarkCallback();
+		} else {
+			throw new UnsupportedOperationException();
+		}
+	}
+
 	private class MockOutput implements Output<StreamRecord<OUT>> {
 
 		private TypeSerializer<OUT> outputSerializer;
