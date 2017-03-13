@@ -1480,7 +1480,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 				
 				if (hasWorksetTail) {
 					nextWorksetVertex.setInvokableClass(IterationTailTask.class);
-					
+
 					worksetTailConfig.setOutputSerializer(iterNode.getWorksetSerializer());
 				}
 			}
