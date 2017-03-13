@@ -33,11 +33,8 @@ import org.apache.flink.runtime.zookeeper.StateStorageHelper;
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
-import org.junit.runner.RunWith;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -56,10 +53,7 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.powermock.api.mockito.PowerMockito.whenNew;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(ZooKeeperCompletedCheckpointStore.class)
 public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
 
 	@Test
@@ -97,19 +91,22 @@ public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
 		final StateHandle<CompletedCheckpoint> retrievableStateHandle2 = mock(StateHandle.class);
 		when(retrievableStateHandle2.getState(any(ClassLoader.class))).thenReturn(completedCheckpoint2);
 
-		checkpointsInZooKeeper.add(Tuple2.of(retrievableStateHandle1, "foobar1"));
-		checkpointsInZooKeeper.add(Tuple2.of(failingRetrievableStateHandle, "failing1"));
-		checkpointsInZooKeeper.add(Tuple2.of(retrievableStateHandle2, "foobar2"));
-		checkpointsInZooKeeper.add(Tuple2.of(failingRetrievableStateHandle, "failing1"));
+		checkpointsInZooKeeper.add(Tuple2.of(retrievableStateHandle1, "/foobar1"));
+		checkpointsInZooKeeper.add(Tuple2.of(failingRetrievableStateHandle, "/failing1"));
+		checkpointsInZooKeeper.add(Tuple2.of(retrievableStateHandle2, "/foobar2"));
+		checkpointsInZooKeeper.add(Tuple2.of(failingRetrievableStateHandle, "/failing2"));
 
 		final CuratorFramework client = mock(CuratorFramework.class);
 		final StateStorageHelper<Serializable> storageHelperMock = mock(StateStorageHelper.class);
 
 		ZooKeeperStateHandleStore<Serializable> zooKeeperStateHandleStoreMock = spy(new ZooKeeperStateHandleStore<>(client, storageHelperMock, MoreExecutors.directExecutor()));
-		whenNew(ZooKeeperStateHandleStore.class).withAnyArguments().thenReturn(zooKeeperStateHandleStoreMock);
 		doReturn(checkpointsInZooKeeper).when(zooKeeperStateHandleStoreMock).getAllSortedByName();
 
 		final int numCheckpointsToRetain = 1;
+
+		// Mocking for the delete operation on the CuratorFramework client
+		// It assures that the callback is executed synchronously
+
 		final EnsurePath ensurePathMock = mock(EnsurePath.class);
 		final DeleteBuilder deleteBuilderMock = mock(DeleteBuilder.class);
 		final BackgroundVersionable backgroundVersionableMock = mock(BackgroundVersionable.class);

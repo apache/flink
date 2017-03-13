@@ -193,7 +193,7 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 	}
 
 	@Override
-	public CompletedCheckpoint getLatestCheckpoint() throws Exception {
+	public CompletedCheckpoint getLatestCheckpoint() {
 		if (checkpointStateHandles.isEmpty()) {
 			return null;
 		}
@@ -207,8 +207,12 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 					LOG.warn("Could not retrieve latest checkpoint. Removing it from " +
 						"the completed checkpoint store.", e);
 
-					// remove the checkpoint with broken state handle
-					removeFromZooKeeperAndDiscardCheckpoint(checkpointStateHandles.pollLast());
+					try {
+						// remove the checkpoint with broken state handle
+						removeFromZooKeeperAndDiscardCheckpoint(checkpointStateHandles.pollLast());
+					} catch (Exception removeException) {
+						LOG.warn("Could not remove the latest checkpoint with a broken state handle.", removeException);
+					}
 				}
 			}
 
