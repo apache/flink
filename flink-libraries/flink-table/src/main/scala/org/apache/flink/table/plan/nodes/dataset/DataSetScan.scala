@@ -21,6 +21,8 @@ package org.apache.flink.table.plan.nodes.dataset
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.core.TableScan
+import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.table.api.BatchTableEnvironment
 import org.apache.flink.table.plan.schema.DataSetTable
@@ -36,11 +38,17 @@ class DataSetScan(
     traitSet: RelTraitSet,
     table: RelOptTable,
     rowRelDataType: RelDataType)
-  extends BatchScan(cluster, traitSet, table) {
+  extends TableScan(cluster, traitSet, table)
+  with BatchScan {
 
   val dataSetTable: DataSetTable[Any] = getTable.unwrap(classOf[DataSetTable[Any]])
 
-  override def deriveRowType() = rowRelDataType
+  override def deriveRowType(): RelDataType = rowRelDataType
+
+  override def computeSelfCost(planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
+    val rowCnt = metadata.getRowCount(this)
+    planner.getCostFactory.makeCost(rowCnt, rowCnt, 0)
+  }
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new DataSetScan(
@@ -52,10 +60,8 @@ class DataSetScan(
   }
 
   override def translateToPlan(tableEnv: BatchTableEnvironment): DataSet[Row] = {
-
     val config = tableEnv.getConfig
     val inputDataSet: DataSet[Any] = dataSetTable.dataSet
-
     convertToInternalRow(inputDataSet, dataSetTable, config)
   }
 

@@ -19,33 +19,25 @@
 package org.apache.flink.table.plan.nodes.datastream
 
 import org.apache.calcite.plan._
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.metadata.RelMetadataQuery
-import org.apache.calcite.rel.{RelNode, RelWriter}
-import org.apache.calcite.rex.RexNode
-import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.plan.schema.TableSourceTable
-import org.apache.flink.types.Row
-import org.apache.flink.table.sources.StreamTableSource
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.table.api.{StreamTableEnvironment, TableEnvironment}
+import org.apache.flink.table.api.StreamTableEnvironment
+import org.apache.flink.table.plan.nodes.TableSourceScan
+import org.apache.flink.table.plan.schema.TableSourceTable
+import org.apache.flink.table.sources.{StreamTableSource, TableSource}
+import org.apache.flink.types.Row
 
 /** Flink RelNode to read data from an external source defined by a [[StreamTableSource]]. */
 class StreamTableSourceScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     table: RelOptTable,
-    val tableSource: StreamTableSource[_],
-  filterCondition: RexNode = null)
-  extends StreamScan(cluster, traitSet, table) {
+    tableSource: StreamTableSource[_])
+  extends TableSourceScan(cluster, traitSet, table, tableSource)
+  with StreamScan {
 
-  override def deriveRowType() = {
-    val flinkTypeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-    flinkTypeFactory.buildRowDataType(
-      TableEnvironment.getFieldNames(tableSource),
-      TableEnvironment.getFieldTypes(tableSource.getReturnType))
-  }
-
-  override def computeSelfCost (planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
+  override def computeSelfCost(planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
     val rowCnt = metadata.getRowCount(this)
     planner.getCostFactory.makeCost(rowCnt, rowCnt, rowCnt * estimateRowSize(getRowType))
   }
@@ -55,28 +47,22 @@ class StreamTableSourceScan(
       cluster,
       traitSet,
       getTable,
-      tableSource,
-      filterCondition
+      tableSource
     )
   }
 
-  override def explainTerms(pw: RelWriter): RelWriter = {
-    val terms = super.explainTerms(pw)
-      .item("fields", TableEnvironment.getFieldNames(tableSource).mkString(", "))
-    if (filterCondition != null) {
-      import scala.collection.JavaConverters._
-      val fieldNames = getTable.getRowType.getFieldNames.asScala.toList
-      terms.item("filter", getExpressionString(filterCondition, fieldNames, None))
-    }
-    terms
+  override def copy(traitSet: RelTraitSet, newTableSource: TableSource[_]): TableSourceScan = {
+    new StreamTableSourceScan(
+      cluster,
+      traitSet,
+      getTable,
+      newTableSource.asInstanceOf[StreamTableSource[_]]
+    )
   }
 
   override def translateToPlan(tableEnv: StreamTableEnvironment): DataStream[Row] = {
-
     val config = tableEnv.getConfig
-    val inputDataStream: DataStream[Any] = tableSource
-      .getDataStream(tableEnv.execEnv).asInstanceOf[DataStream[Any]]
-
-    convertToInternalRow(inputDataStream, new TableSourceTable(tableSource, tableEnv), config)
+    val inputDataStream = tableSource.getDataStream(tableEnv.execEnv).asInstanceOf[DataStream[Any]]
+    convertToInternalRow(inputDataStream, new TableSourceTable(tableSource), config)
   }
 }

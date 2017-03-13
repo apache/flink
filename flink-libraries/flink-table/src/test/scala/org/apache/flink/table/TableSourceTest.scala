@@ -22,8 +22,9 @@ import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.sources.{CsvTableSource, TableSource}
 import org.apache.flink.table.utils.TableTestUtil._
+import org.apache.flink.table.expressions.utils._
+import org.apache.flink.table.utils.{CommonTestData, TableTestBase, TestFilterableTableSource}
 import org.junit.{Assert, Test}
-import org.apache.flink.table.utils.{CommonTestData, TableTestBase}
 
 class TableSourceTest extends TableTestBase {
 
@@ -46,7 +47,7 @@ class TableSourceTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataSetCalc",
-      projectableSourceBatchTableNode(tableName, projectedFields),
+      batchSourceTableNode(tableName, projectedFields),
       term("select", "UPPER(last) AS _c0", "FLOOR(id) AS _c1", "*(score, 2) AS _c2")
     )
 
@@ -64,7 +65,7 @@ class TableSourceTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataSetCalc",
-      projectableSourceBatchTableNode(tableName, projectedFields),
+      batchSourceTableNode(tableName, projectedFields),
       term("select", "last", "FLOOR(id) AS EXPR$1", "*(score, 2) AS EXPR$2")
     )
 
@@ -83,12 +84,37 @@ class TableSourceTest extends TableTestBase {
       .scan(tableName)
       .select('id, 'score, 'first)
 
-    val expected = projectableSourceBatchTableNode(tableName, noCalcFields)
+    val expected = batchSourceTableNode(tableName, noCalcFields)
     util.verifyTable(result, expected)
   }
 
   @Test
-  def testBatchFilterableSourceScanPlanTableApi(): Unit = {
+  def testBatchFilterableWithoutPushDown(): Unit = {
+    val (tableSource, tableName) = filterableTableSource
+    val util = batchTestUtil()
+    val tEnv = util.tEnv
+
+    tEnv.registerTableSource(tableName, tableSource)
+
+    val result = tEnv
+        .scan(tableName)
+        .select('price, 'id, 'amount)
+        .where("price * 2 < 32")
+
+    val expected = unaryNode(
+      "DataSetCalc",
+      batchSourceTableNode(
+        tableName,
+        Array("name", "id", "amount", "price")),
+      term("select", "price", "id", "amount"),
+      term("where", "<(*(price, 2), 32)")
+    )
+
+    util.verifyTable(result, expected)
+  }
+
+  @Test
+  def testBatchFilterablePartialPushDown(): Unit = {
     val (tableSource, tableName) = filterableTableSource
     val util = batchTestUtil()
     val tEnv = util.tEnv
@@ -97,17 +123,93 @@ class TableSourceTest extends TableTestBase {
 
     val result = tEnv
       .scan(tableName)
-      .select('price, 'id, 'amount)
       .where("amount > 2 && price * 2 < 32")
+      .select('price, 'name.lowerCase(), 'amount)
 
     val expected = unaryNode(
       "DataSetCalc",
-      filterableSourceBatchTableNode(
+      batchFilterableSourceTableNode(
         tableName,
         Array("name", "id", "amount", "price"),
-        ">(amount, 2)"),
-      term("select", "price", "id", "amount"),
+        "'amount > 2"),
+      term("select", "price", "LOWER(name) AS _c1", "amount"),
       term("where", "<(*(price, 2), 32)")
+    )
+    util.verifyTable(result, expected)
+  }
+
+  @Test
+  def testBatchFilterableFullyPushedDown(): Unit = {
+    val (tableSource, tableName) = filterableTableSource
+    val util = batchTestUtil()
+    val tEnv = util.tEnv
+
+    tEnv.registerTableSource(tableName, tableSource)
+
+    val result = tEnv
+        .scan(tableName)
+        .select('price, 'id, 'amount)
+        .where("amount > 2 && amount < 32")
+
+    val expected = unaryNode(
+      "DataSetCalc",
+      batchFilterableSourceTableNode(
+        tableName,
+        Array("name", "id", "amount", "price"),
+        "'amount > 2 && 'amount < 32"),
+      term("select", "price", "id", "amount")
+    )
+    util.verifyTable(result, expected)
+  }
+
+  @Test
+  def testBatchFilterableWithUnconvertedExpression(): Unit = {
+    val (tableSource, tableName) = filterableTableSource
+    val util = batchTestUtil()
+    val tEnv = util.tEnv
+
+    tEnv.registerTableSource(tableName, tableSource)
+
+    val result = tEnv
+        .scan(tableName)
+        .select('price, 'id, 'amount)
+        .where("amount > 2 && (amount < 32 || amount.cast(LONG) > 10)") // cast can not be converted
+
+    val expected = unaryNode(
+      "DataSetCalc",
+      batchFilterableSourceTableNode(
+        tableName,
+        Array("name", "id", "amount", "price"),
+        "'amount > 2"),
+      term("select", "price", "id", "amount"),
+      term("where", "OR(<(amount, 32), >(CAST(amount), 10))")
+    )
+    util.verifyTable(result, expected)
+  }
+
+  @Test
+  def testBatchFilterableWithUDF(): Unit = {
+    val (tableSource, tableName) = filterableTableSource
+    val util = batchTestUtil()
+    val tEnv = util.tEnv
+
+    tEnv.registerTableSource(tableName, tableSource)
+    val func = Func0
+    tEnv.registerFunction("func0", func)
+
+    val result = tEnv
+        .scan(tableName)
+        .select('price, 'id, 'amount)
+        .where("amount > 2 && func0(amount) < 32")
+
+    val expected = unaryNode(
+      "DataSetCalc",
+      batchFilterableSourceTableNode(
+        tableName,
+        Array("name", "id", "amount", "price"),
+        "'amount > 2"),
+      term("select", "price", "id", "amount"),
+      term("where", s"<(${func.functionIdentifier}(amount), 32)")
     )
 
     util.verifyTable(result, expected)
@@ -129,7 +231,7 @@ class TableSourceTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamCalc",
-      projectableSourceStreamTableNode(tableName, projectedFields),
+      streamSourceTableNode(tableName, projectedFields),
       term("select", "last", "FLOOR(id) AS _c1", "*(score, 2) AS _c2")
     )
 
@@ -147,7 +249,7 @@ class TableSourceTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamCalc",
-      projectableSourceStreamTableNode(tableName, projectedFields),
+      streamSourceTableNode(tableName, projectedFields),
       term("select", "last", "FLOOR(id) AS EXPR$1", "*(score, 2) AS EXPR$2")
     )
 
@@ -166,7 +268,7 @@ class TableSourceTest extends TableTestBase {
       .scan(tableName)
       .select('id, 'score, 'first)
 
-    val expected = projectableSourceStreamTableNode(tableName, noCalcFields)
+    val expected = streamSourceTableNode(tableName, noCalcFields)
     util.verifyTable(result, expected)
   }
 
@@ -185,10 +287,10 @@ class TableSourceTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamCalc",
-      filterableSourceStreamTableNode(
+      streamFilterableSourceTableNode(
         tableName,
         Array("name", "id", "amount", "price"),
-        ">(amount, 2)"),
+        "'amount > 2"),
       term("select", "price", "id", "amount"),
       term("where", "<(*(price, 2), 32)")
     )
@@ -254,7 +356,7 @@ class TableSourceTest extends TableTestBase {
   // utils
 
   def filterableTableSource:(TableSource[_], String) = {
-    val tableSource = CommonTestData.getFilterableTableSource
+    val tableSource = new TestFilterableTableSource
     (tableSource, "filterableTable")
   }
 
@@ -264,37 +366,27 @@ class TableSourceTest extends TableTestBase {
     (csvTable, tableName)
   }
 
-  def projectableSourceBatchTableNode(
+  def batchSourceTableNode(sourceName: String, fields: Array[String]): String = {
+    s"BatchTableSourceScan(table=[[$sourceName]], fields=[${fields.mkString(", ")}])"
+  }
+
+  def streamSourceTableNode(sourceName: String, fields: Array[String] ): String = {
+    s"StreamTableSourceScan(table=[[$sourceName]], fields=[${fields.mkString(", ")}])"
+  }
+
+  def batchFilterableSourceTableNode(
       sourceName: String,
-      fields: Array[String]): String = {
-
+      fields: Array[String],
+      exp: String): String = {
     "BatchTableSourceScan(" +
-      s"table=[[$sourceName]], fields=[${fields.mkString(", ")}])"
+      s"table=[[$sourceName]], fields=[${fields.mkString(", ")}], source=[filter=[$exp]])"
   }
 
-  def projectableSourceStreamTableNode(
+  def streamFilterableSourceTableNode(
       sourceName: String,
-      fields: Array[String]): String = {
-    
+      fields: Array[String],
+      exp: String): String = {
     "StreamTableSourceScan(" +
-      s"table=[[$sourceName]], fields=[${fields.mkString(", ")}])"
-  }
-
-  def filterableSourceBatchTableNode(
-    sourceName: String,
-    fields: Array[String],
-    exp: String): String = {
-
-    "BatchTableSourceScan(" +
-      s"table=[[$sourceName]], fields=[${fields.mkString(", ")}], filter=[$exp])"
-  }
-
-  def filterableSourceStreamTableNode(
-    sourceName: String,
-    fields: Array[String],
-    exp: String): String = {
-
-    "StreamTableSourceScan(" +
-      s"table=[[$sourceName]], fields=[${fields.mkString(", ")}], filter=[$exp])"
+      s"table=[[$sourceName]], fields=[${fields.mkString(", ")}], source=[filter=[$exp]])"
   }
 }

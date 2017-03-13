@@ -18,21 +18,41 @@
 
 package org.apache.flink.table.sources
 
-import org.apache.flink.table.expressions.Expression
+import java.util.{List => JList}
 
+import org.apache.flink.table.expressions.Expression
 /**
   * Adds support for filtering push-down to a [[TableSource]].
-  * A [[TableSource]] extending this interface is able to filter the fields of the return table.
-  *
+  * A [[TableSource]] extending this interface is able to filter records before returning.
   */
-trait FilterableTableSource {
-
-  /** return an predicate expression that was set. */
-  def getPredicate: Array[Expression]
+trait FilterableTableSource[T] {
 
   /**
-    * @param predicate a filter expression that will be applied to fields to return.
-    * @return an unsupported predicate expression.
+    * Check and pick all predicates this table source can support. The passed in predicates
+    * have been translated in conjunctive form, and table source can only pick those predicates
+    * that it supports.
+    * <p>
+    * After trying to push predicates down, we should return a new [[TableSource]]
+    * instance which holds all pushed down predicates. Even if we actually pushed nothing down,
+    * it is recommended that we still return a new [[TableSource]] instance since we will
+    * mark the returned instance as filter push down has been tried.
+    * <p>
+    * We also should note to not changing the form of the predicates passed in. It has been
+    * organized in CNF conjunctive form, and we should only take or leave each element from the
+    * list. Don't try to reorganize the predicates if you are absolutely confident with that.
+    *
+    * @param predicates A list contains conjunctive predicates, you should pick and remove all
+    *                   expressions that can be pushed down. The remaining elements of this list
+    *                   will further evaluated by framework.
+    * @return A new cloned instance of [[TableSource]] with or without any filters been
+    *         pushed into it.
     */
-  def setPredicate(predicate: Array[Expression]): Array[Expression]
+  def applyPredicate(predicates: JList[Expression]): TableSource[T]
+
+  /**
+    * Return the flag to indicate whether filter push down has been tried. Must return true on
+    * the returned instance of [[applyPredicate]].
+    */
+  def isFilterPushedDown: Boolean
+
 }
