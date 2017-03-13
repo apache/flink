@@ -67,7 +67,7 @@ public class StandaloneCompletedCheckpointStore implements CompletedCheckpointSt
 			try {
 				checkpoints.remove().subsume();
 			} catch (Exception e) {
-				LOG.error("Fail to subsume the old checkpoint.", e);
+				LOG.warn("Fail to subsume the old checkpoint.", e);
 			}
 		}
 	}

@@ -191,7 +191,7 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 			try {
 				removeSubsumed(checkpointStateHandles.removeFirst());
 			} catch (Exception e) {
-				LOG.error("Failed to subsume the old checkpoint", e);
+				LOG.warn("Failed to subsume the old checkpoint", e);
 			}
 		}
 
