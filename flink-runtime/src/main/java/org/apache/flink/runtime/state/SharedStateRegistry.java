@@ -44,14 +44,12 @@ public class SharedStateRegistry {
 	 * @param state The state to register
 	 */
 	public void register(StateObject state) {
-		synchronized (this) {
-			Integer referenceCount = registeredStates.get(state);
+		Integer referenceCount = registeredStates.get(state);
 
-			if (referenceCount != null) {
-				registeredStates.put(state, referenceCount + 1);
-			} else {
-				registeredStates.put(state, 1);
-			}
+		if (referenceCount != null) {
+			registeredStates.put(state, referenceCount + 1);
+		} else {
+			registeredStates.put(state, 1);
 		}
 	}
 
@@ -61,19 +59,17 @@ public class SharedStateRegistry {
 	 * @param state The state to unregister
 	 */
 	public void unregister(StateObject state) {
-		synchronized (this) {
-			Integer referenceCount = registeredStates.get(state);
+		Integer referenceCount = registeredStates.get(state);
 
-			if (referenceCount == null) {
-				throw new IllegalStateException("Cannot unregister an unexisted state.");
-			}
+		if (referenceCount == null) {
+			throw new IllegalStateException("Cannot unregister an unexisted state.");
+		}
 
-			referenceCount--;
+		referenceCount--;
 
-			if (referenceCount == 0) {
-				registeredStates.remove(state);
-				discardedStates.add(state);
-			}
+		if (referenceCount == 0) {
+			registeredStates.remove(state);
+			discardedStates.add(state);
 		}
 	}
 
@@ -83,10 +79,8 @@ public class SharedStateRegistry {
 	 * @return A list of cached unreferenced state objects
 	 */
 	public List<StateObject> getAndResetDiscardedStates() {
-		synchronized (this) {
-			List<StateObject> result = new ArrayList<>(discardedStates);
-			discardedStates.clear();
-			return result;
-		}
+		List<StateObject> result = new ArrayList<>(discardedStates);
+		discardedStates.clear();
+		return result;
 	}
 }
