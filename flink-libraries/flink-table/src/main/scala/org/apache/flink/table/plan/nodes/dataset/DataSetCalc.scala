@@ -31,8 +31,6 @@ import org.apache.flink.table.codegen.CodeGenerator
 import org.apache.flink.table.plan.nodes.CommonCalc
 import org.apache.flink.types.Row
 
-import scala.collection.JavaConverters._
-
 /**
   * Flink RelNode which matches along with LogicalCalc.
   *
@@ -71,34 +69,17 @@ class DataSetCalc(
   }
 
   override def computeSelfCost (planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
-
     val child = this.getInput
     val rowCnt = metadata.getRowCount(child)
 
-    // compute number of expressions that do not access a field or literal, i.e. computations,
-    //   conditions, etc. We only want to account for computations, not for simple projections.
-    // CASTs in RexProgram are reduced as far as possible by ReduceExpressionsRule
-    // in normalization stage. So we should ignore CASTs here in optimization stage.
-    val compCnt = calcProgram.getExprList.asScala.toList.count {
-      case i: RexInputRef => false
-      case l: RexLiteral => false
-      case c: RexCall if c.getOperator.getName.equals("CAST") => false
-      case _ => true
-    }
-
-    planner.getCostFactory.makeCost(rowCnt, rowCnt * compCnt, 0)
+    computeSelfCost(calcProgram, planner, rowCnt)
   }
 
   override def estimateRowCount(metadata: RelMetadataQuery): Double = {
     val child = this.getInput
     val rowCnt = metadata.getRowCount(child)
 
-    if (calcProgram.getCondition != null) {
-      // we reduce the result card to push filters down
-      (rowCnt * 0.75).min(1.0)
-    } else {
-      rowCnt
-    }
+    estimateRowCount(calcProgram, rowCnt)
   }
 
   override def translateToPlan(tableEnv: BatchTableEnvironment): DataSet[Row] = {
@@ -127,5 +108,4 @@ class DataSetCalc(
     val mapFunc = calcMapFunction(genFunction)
     inputDS.flatMap(mapFunc).name(calcOpName(calcProgram, getExpressionString))
   }
-
 }

@@ -95,7 +95,7 @@ abstract class BatchTableEnvironment(
 
     tableSource match {
       case batchTableSource: BatchTableSource[_] =>
-        registerTableInternal(name, new TableSourceTable(batchTableSource))
+        registerTableInternal(name, new TableSourceTable(batchTableSource, this))
       case _ =>
         throw new TableException("Only BatchTableSource can be registered in " +
             "BatchTableEnvironment")

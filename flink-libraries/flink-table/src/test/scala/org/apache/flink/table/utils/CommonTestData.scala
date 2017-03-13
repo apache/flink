@@ -21,14 +21,21 @@ package org.apache.flink.table.utils
 import java.io.{File, FileOutputStream, OutputStreamWriter}
 import java.util
 
-import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.java.typeutils.TypeExtractor
+import org.apache.flink.table.sources.{BatchTableSource, CsvTableSource}
+import org.apache.calcite.tools.RuleSet
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
-import org.apache.flink.api.common.typeutils.TypeSerializer
-import org.apache.flink.api.java.typeutils.{PojoField, PojoTypeInfo, TypeExtractor}
+import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
-import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
-import org.apache.flink.table.sources.{BatchTableSource, CsvTableSource, TableSource}
-import org.apache.flink.api.scala._
+import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
+import org.apache.flink.table.api.{Table, TableConfig, TableEnvironment}
+import org.apache.flink.table.expressions._
+import org.apache.flink.table.sinks.TableSink
+import org.apache.flink.table.sources._
+import org.apache.flink.types.Row
+
+import scala.collection.JavaConverters._
 
 object CommonTestData {
 
@@ -96,6 +103,115 @@ object CommonTestData {
   class Address(var street: String, var city: String) {
     def this() {
       this(null, null)
+    }
+  }
+
+  def getMockTableEnvironment: TableEnvironment = new MockTableEnvironment
+
+  def getFilterableTableSource = new TestFilterableTableSource
+}
+
+class MockTableEnvironment extends TableEnvironment(new TableConfig) {
+
+  override private[flink] def writeToSink[T](table: Table, sink: TableSink[T]): Unit = ???
+
+  override protected def checkValidTableName(name: String): Unit = ???
+
+  override def sql(query: String): Table = ???
+
+  override def registerTableSource(name: String, tableSource: TableSource[_]): Unit = ???
+
+  override protected def getBuiltInNormRuleSet: RuleSet = ???
+
+  override protected def getBuiltInOptRuleSet: RuleSet = ???
+}
+
+class TestFilterableTableSource
+    extends BatchTableSource[Row]
+    with StreamTableSource[Row]
+    with FilterableTableSource
+    with DefinedFieldNames {
+
+  import org.apache.flink.table.api.Types._
+
+  val fieldNames = Array("name", "id", "amount", "price")
+  val fieldTypes = Array[TypeInformation[_]](STRING, LONG, INT, DOUBLE)
+
+  private var filterLiteral: Literal = _
+  private var filterPredicates: Array[Expression] = Array.empty
+
+  /** Returns the data of the table as a [[DataSet]]. */
+  override def getDataSet(execEnv: ExecutionEnvironment): DataSet[Row] = {
+    execEnv.fromCollection[Row](generateDynamicCollection(33).asJava, getReturnType)
+  }
+
+  /** Returns the data of the table as a [[DataStream]]. */
+  def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[Row] = {
+    execEnv.fromCollection[Row](generateDynamicCollection(33).asJava, getReturnType)
+  }
+
+  private def generateDynamicCollection(num: Int): Seq[Row] = {
+
+    if (filterLiteral == null) {
+      throw new RuntimeException("filter expression was not set")
+    }
+
+    val filterValue = filterLiteral.value.asInstanceOf[Number].intValue()
+
+    def shouldCreateRow(value: Int): Boolean = {
+      value > filterValue
+    }
+
+    for {
+      cnt <- 0 until num
+      if shouldCreateRow(cnt)
+    } yield {
+        val row = new Row(fieldNames.length)
+        fieldNames.zipWithIndex.foreach { case (name, index) =>
+          name match {
+            case "name" =>
+              row.setField(index, s"Record_$cnt")
+            case "id" =>
+              row.setField(index, cnt.toLong)
+            case "amount" =>
+              row.setField(index, cnt.toInt)
+            case "price" =>
+              row.setField(index, cnt.toDouble)
+          }
+        }
+      row
+      }
+  }
+
+  /** Returns the [[TypeInformation]] for the return type. */
+  override def getReturnType: TypeInformation[Row] = new RowTypeInfo(fieldTypes, fieldNames)
+
+  /** Returns the names of the table fields. */
+  override def getFieldNames: Array[String] = fieldNames
+
+  /** Returns the indices of the table fields. */
+  override def getFieldIndices: Array[Int] = fieldNames.indices.toArray
+
+  override def getPredicate: Array[Expression] = filterPredicates
+
+  /** Return an unsupported predicates expression. */
+  override def setPredicate(predicates: Array[Expression]): Array[Expression] = {
+    predicates(0) match {
+      case gt: GreaterThan =>
+        gt.left match {
+          case f: ResolvedFieldReference =>
+            gt.right match {
+              case l: Literal =>
+                if (f.name.equals("amount")) {
+                  filterLiteral = l
+                  filterPredicates = Array(predicates(0))
+                  Array(predicates(1))
+                } else predicates
+              case _ => predicates
+            }
+          case _ => predicates
+        }
+      case _ => predicates
     }
   }
 }

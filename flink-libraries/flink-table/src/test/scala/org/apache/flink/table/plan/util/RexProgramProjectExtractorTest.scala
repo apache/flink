@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.plan.rules.util
+package org.apache.flink.table.plan.util
 
 import java.math.BigDecimal
 
@@ -26,7 +26,7 @@ import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeSystem}
 import org.apache.calcite.rex.{RexBuilder, RexProgram, RexProgramBuilder}
 import org.apache.calcite.sql.`type`.SqlTypeName.{BIGINT, DOUBLE, INTEGER, VARCHAR}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
-import org.apache.flink.table.plan.rules.util.RexProgramProjectExtractor._
+import org.apache.flink.table.plan.util.RexProgramProjectExtractor._
 import org.junit.Assert.{assertArrayEquals, assertTrue}
 import org.junit.{Before, Test}
 
