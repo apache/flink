@@ -792,14 +792,22 @@ public class CheckpointCoordinator {
 
 			rememberRecentCheckpointId(checkpointId);
 			dropSubsumedCheckpoints(checkpointId);
-		}
-		catch (Exception exception) {
+		} catch (Exception exception) {
 			// abort the current pending checkpoint if it has not been discarded yet
 			if (!pendingCheckpoint.isDiscarded()) {
 				pendingCheckpoint.abortError(exception);
 			}
 
 			if (completedCheckpoint != null) {
+				
+				// TODO:: fix possible recovery from corrupted checkpoints
+				// The completed checkpoint may have already been added into
+				// the store, but the method may still throw an exception 
+				// due to other operations performed later (e.g., the subsuming 
+				// of old checkpoints). To make the code work properly here, the 
+				// store should not throw any exception if the checkpoint is 
+				// already in the store.
+				
 				// we failed to store the completed checkpoint. Let's clean up
 				final CompletedCheckpoint cc = completedCheckpoint;
 
@@ -807,7 +815,7 @@ public class CheckpointCoordinator {
 					@Override
 					public void run() {
 						try {
-							cc.discard();
+							cc.discard(cc.getTaskStates().values());
 						} catch (Throwable t) {
 							LOG.warn("Could not properly discard completed checkpoint {}.", cc.getCheckpointID(), t);
 						}

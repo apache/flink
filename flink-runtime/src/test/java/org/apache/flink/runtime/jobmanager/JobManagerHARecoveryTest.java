@@ -71,6 +71,8 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.state.ChainedStateHandle;
+import org.apache.flink.runtime.state.StateObject;
+import org.apache.flink.runtime.state.StateRegistry;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
@@ -448,6 +450,8 @@ public class JobManagerHARecoveryTest {
 
 		private final ArrayDeque<CompletedCheckpoint> suspended = new ArrayDeque<>(2);
 
+		private final StateRegistry stateRegistry = new StateRegistry();
+
 		@Override
 		public void recover() throws Exception {
 			checkpoints.addAll(suspended);
@@ -456,9 +460,13 @@ public class JobManagerHARecoveryTest {
 
 		@Override
 		public void addCheckpoint(CompletedCheckpoint checkpoint) throws Exception {
+			checkpoint.register(stateRegistry);
 			checkpoints.addLast(checkpoint);
+
 			if (checkpoints.size() > 1) {
-				checkpoints.removeFirst().subsume();
+				CompletedCheckpoint subsumedCheckpoint = checkpoints.removeFirst();
+				List<StateObject> discardedStates = subsumedCheckpoint.unregister(stateRegistry);
+				subsumedCheckpoint.subsume(discardedStates);
 			}
 		}
 

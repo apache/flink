@@ -23,11 +23,13 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.messages.CheckpointMessagesTest;
 import org.apache.flink.runtime.state.ChainedStateHandle;
+import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -241,8 +243,8 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 		}
 
 		@Override
-		public boolean subsume() throws Exception {
-			if (super.subsume()) {
+		public boolean subsume(Collection<? extends StateObject> discardedStates) throws Exception {
+			if (super.subsume(discardedStates)) {
 				discard();
 				return true;
 			} else {
@@ -251,8 +253,8 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 		}
 
 		@Override
-		public boolean discard(JobStatus jobStatus) throws Exception {
-			if (super.discard(jobStatus)) {
+		public boolean discard(JobStatus jobStatus, Collection<? extends StateObject> discardedStates) throws Exception {
+			if (super.discard(jobStatus, discardedStates)) {
 				discard();
 				return true;
 			} else {

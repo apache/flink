@@ -61,7 +61,7 @@ public class CompletedCheckpointTest {
 				new FileStateHandle(new Path(file.toURI()), file.length()),
 				file.getAbsolutePath());
 
-		checkpoint.discard(JobStatus.FAILED);
+		checkpoint.discard(JobStatus.FAILED, checkpoint.getTaskStates().values());
 
 		assertEquals(false, file.exists());
 	}
@@ -81,7 +81,7 @@ public class CompletedCheckpointTest {
 				new JobID(), 0, 0, 1, taskStates, props);
 
 		// Subsume
-		checkpoint.subsume();
+		checkpoint.subsume(taskStates.values());
 
 		verify(state, times(1)).discardState();
 	}
@@ -112,7 +112,7 @@ public class CompletedCheckpointTest {
 					new FileStateHandle(new Path(file.toURI()), file.length()),
 					externalPath);
 
-			checkpoint.discard(status);
+			checkpoint.discard(status, taskStates.values());
 			verify(state, times(0)).discardState();
 			assertEquals(true, file.exists());
 
@@ -121,7 +121,7 @@ public class CompletedCheckpointTest {
 			checkpoint = new CompletedCheckpoint(
 					new JobID(), 0, 0, 1, new HashMap<>(taskStates), props);
 
-			checkpoint.discard(status);
+			checkpoint.discard(taskStates.values());
 			verify(state, times(1)).discardState();
 		}
 	}
@@ -146,7 +146,7 @@ public class CompletedCheckpointTest {
 		CompletedCheckpointStats.DiscardCallback callback = mock(CompletedCheckpointStats.DiscardCallback.class);
 		completed.setDiscardCallback(callback);
 
-		completed.discard(JobStatus.FINISHED);
+		completed.discard(JobStatus.FINISHED, taskStates.values());
 		verify(callback, times(1)).notifyDiscardedCheckpoint();
 	}
 

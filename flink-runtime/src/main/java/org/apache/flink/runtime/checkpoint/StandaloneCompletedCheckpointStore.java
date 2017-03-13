@@ -20,6 +20,8 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
+import org.apache.flink.runtime.state.StateObject;
+import org.apache.flink.runtime.state.StateRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,6 +41,9 @@ public class StandaloneCompletedCheckpointStore implements CompletedCheckpointSt
 	/** The maximum number of checkpoints to retain (at least 1). */
 	private final int maxNumberOfCheckpointsToRetain;
 
+	/** The registry for completed checkpoints to register used state objects. */
+	private final StateRegistry stateRegistry;
+
 	/** The completed checkpoints. */
 	private final ArrayDeque<CompletedCheckpoint> checkpoints;
 
@@ -53,6 +58,7 @@ public class StandaloneCompletedCheckpointStore implements CompletedCheckpointSt
 		checkArgument(maxNumberOfCheckpointsToRetain >= 1, "Must retain at least one checkpoint.");
 		this.maxNumberOfCheckpointsToRetain = maxNumberOfCheckpointsToRetain;
 		this.checkpoints = new ArrayDeque<>(maxNumberOfCheckpointsToRetain + 1);
+		this.stateRegistry = new StateRegistry();
 	}
 
 	@Override
@@ -62,10 +68,15 @@ public class StandaloneCompletedCheckpointStore implements CompletedCheckpointSt
 
 	@Override
 	public void addCheckpoint(CompletedCheckpoint checkpoint) throws Exception {
-		checkpoints.add(checkpoint);
+
+		checkpoint.register(stateRegistry);
+		checkpoints.addLast(checkpoint);
+
 		if (checkpoints.size() > maxNumberOfCheckpointsToRetain) {
 			try {
-				checkpoints.remove().subsume();
+				CompletedCheckpoint oldCheckpoint = checkpoints.remove();
+				List<StateObject> discardedStates = oldCheckpoint.unregister(stateRegistry);
+				oldCheckpoint.subsume(discardedStates);
 			} catch (Exception e) {
 				LOG.warn("Fail to subsume the old checkpoint.", e);
 			}
@@ -98,7 +109,8 @@ public class StandaloneCompletedCheckpointStore implements CompletedCheckpointSt
 			LOG.info("Shutting down");
 
 			for (CompletedCheckpoint checkpoint : checkpoints) {
-				checkpoint.discard(jobStatus);
+				List<StateObject> discardedStates = checkpoint.unregister(stateRegistry);
+				checkpoint.discard(jobStatus, discardedStates);
 			}
 		} finally {
 			checkpoints.clear();

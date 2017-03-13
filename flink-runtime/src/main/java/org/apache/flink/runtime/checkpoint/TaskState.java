@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.state.StateObject;
-import org.apache.flink.runtime.state.StateUtil;
+import org.apache.flink.runtime.state.CompositeStateHandle;
+import org.apache.flink.runtime.state.StateRegistry;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collection;
@@ -35,7 +35,7 @@ import java.util.Objects;
  *
  * This class basically groups all non-partitioned state and key-group state belonging to the same job vertex together.
  */
-public class TaskState implements StateObject {
+public class TaskState implements CompositeStateHandle {
 
 	private static final long serialVersionUID = -4845578005863201810L;
 
@@ -124,9 +124,24 @@ public class TaskState implements StateObject {
 
 	@Override
 	public void discardState() throws Exception {
-		StateUtil.bestEffortDiscardAllStateObjects(subtaskStates.values());
+		for (SubtaskState subtaskState : subtaskStates.values()) {
+			subtaskState.discardState();
+		}
 	}
 
+	@Override
+	public void register(StateRegistry snapshotRegistry) {
+		for (SubtaskState subtaskState : subtaskStates.values()) {
+			subtaskState.register(snapshotRegistry);
+		}
+	}
+
+	@Override
+	public void unregister(StateRegistry snapshotRegistry) {
+		for (SubtaskState subtaskState : subtaskStates.values()) {
+			subtaskState.unregister(snapshotRegistry);
+		}
+	}
 
 	@Override
 	public long getStateSize() {

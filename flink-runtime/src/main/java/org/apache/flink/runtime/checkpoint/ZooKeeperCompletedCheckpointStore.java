@@ -27,6 +27,8 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
+import org.apache.flink.runtime.state.StateObject;
+import org.apache.flink.runtime.state.StateRegistry;
 import org.apache.flink.runtime.zookeeper.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
 import org.apache.flink.util.FlinkException;
@@ -80,6 +82,9 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 	/** The maximum number of checkpoints to retain (at least 1). */
 	private final int maxNumberOfCheckpointsToRetain;
 
+	/** The registry for completed checkpoints to register used state objects. */
+	private final StateRegistry stateRegistry;
+
 	/** Local completed checkpoints. */
 	private final ArrayDeque<Tuple2<RetrievableStateHandle<CompletedCheckpoint>, String>> checkpointStateHandles;
 
@@ -124,6 +129,8 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 
 		this.checkpointStateHandles = new ArrayDeque<>(maxNumberOfCheckpointsToRetain + 1);
 
+		this.stateRegistry = new StateRegistry();
+
 		LOG.info("Initialized in '{}'.", checkpointsPath);
 	}
 
@@ -163,10 +170,40 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 		int numberOfInitialCheckpoints = initialCheckpoints.size();
 
 		LOG.info("Found {} checkpoints in ZooKeeper.", numberOfInitialCheckpoints);
+		
+		for (Tuple2<RetrievableStateHandle<CompletedCheckpoint>, String> initialCheckpoint : initialCheckpoints) {
+			long checkpointId = pathToCheckpointId(initialCheckpoint.f1);
+			LOG.info("Trying to retrieve checkpoint {}.", checkpointId);
 
-		for (Tuple2<RetrievableStateHandle<CompletedCheckpoint>, String> checkpoint : initialCheckpoints) {
-			checkpointStateHandles.add(checkpoint);
+			CompletedCheckpoint completedCheckpoint;
+			try {
+				completedCheckpoint = initialCheckpoint.f0.retrieveState();
+			} catch (Exception e) {
+				throw new Exception(
+					"Could not retrieve the completed checkpoint " +
+						checkpointId + " from the state storage.", e);
+			}
+
+			completedCheckpoint.register(stateRegistry);
 		}
+
+		// Discard the checkpoints here.
+		for (int i = 0; i < numberOfInitialCheckpoints - 1; ++i) {
+			Tuple2<RetrievableStateHandle<CompletedCheckpoint>, String> initialCheckpoint = initialCheckpoints.get(i);
+
+			try {
+				removeSubsumed(initialCheckpoint);
+			} catch (Exception e) {
+				LOG.error("Failed to discard checkpoint", e);
+			}
+		}
+		
+		// Take the last one. This is the latest checkpoints, because path names are strictly
+		// increasing (checkpoint ID).
+		Tuple2<RetrievableStateHandle<CompletedCheckpoint>, String> latest = initialCheckpoints
+				.get(numberOfInitialCheckpoints - 1);
+		
+		checkpointStateHandles.add(latest);
 	}
 
 	/**
@@ -177,12 +214,29 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 	@Override
 	public void addCheckpoint(CompletedCheckpoint checkpoint) throws Exception {
 		checkNotNull(checkpoint, "Checkpoint");
+		
+		final String path = checkpointIdToPath(checkpoint.getCheckpointID());
+		final RetrievableStateHandle<CompletedCheckpoint> stateHandle;
+
+		// Register the states in the checkpoint before performing any subsuming
+		synchronized (stateRegistry) {
+			checkpoint.register(stateRegistry);
+		}
 
 		// First add the new one. If it fails, we don't want to loose existing data.
-		String path = checkpointIdToPath(checkpoint.getCheckpointID());
+		try {
+			stateHandle = checkpointsInZooKeeper.add(path, checkpoint);
+		} catch (Exception e) {
+			// Unregister the states if we fail to add the new checkpoint. The
+			// list of unreferenced state objects produced by the unregistration
+			// is ignored here. The coordinator is supposed to discard these
+			// state objects correctly.
+			synchronized (stateRegistry) {
+				checkpoint.unregister(stateRegistry);
+			}
 
-		final RetrievableStateHandle<CompletedCheckpoint> stateHandle =
-				checkpointsInZooKeeper.add(path, checkpoint);
+			throw e;
+		}
 
 		checkpointStateHandles.addLast(new Tuple2<>(stateHandle, path));
 
@@ -293,7 +347,16 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 		Callable<Void> action = new Callable<Void>() {
 			@Override
 			public Void call() throws Exception {
-				stateHandleAndPath.f0.retrieveState().subsume();
+
+				CompletedCheckpoint completedCheckpoint = stateHandleAndPath.f0.retrieveState();
+
+				List<StateObject> discardedStates;
+				synchronized (stateRegistry) {
+					discardedStates = completedCheckpoint.unregister(stateRegistry);
+				}
+
+				stateHandleAndPath.f0.retrieveState().subsume(discardedStates);
+
 				return null;
 			}
 		};
@@ -308,8 +371,15 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 		Callable<Void> action = new Callable<Void>() {
 			@Override
 			public Void call() throws Exception {
-				CompletedCheckpoint checkpoint = stateHandleAndPath.f0.retrieveState();
-				checkpoint.discard(jobStatus);
+				CompletedCheckpoint completedCheckpoint = stateHandleAndPath.f0.retrieveState();
+
+				List<StateObject> discardedStates;
+				synchronized (stateRegistry) {
+					discardedStates = completedCheckpoint.unregister(stateRegistry);
+				}
+
+				stateHandleAndPath.f0.retrieveState().discard(jobStatus, discardedStates);
+
 				return null;
 			}
 		};

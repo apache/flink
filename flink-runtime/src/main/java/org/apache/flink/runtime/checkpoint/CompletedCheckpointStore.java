@@ -40,7 +40,7 @@ public interface CompletedCheckpointStore {
 	 *
 	 * <p>Only a bounded number of checkpoints is kept. When exceeding the maximum number of
 	 * retained checkpoints, the oldest one will be discarded via {@link
-	 * CompletedCheckpoint#discard()}.
+	 * CompletedCheckpoint#subsume(org.apache.flink.runtime.state.StateRegistry)} )}.
 	 */
 	void addCheckpoint(CompletedCheckpoint checkpoint) throws Exception;
 
