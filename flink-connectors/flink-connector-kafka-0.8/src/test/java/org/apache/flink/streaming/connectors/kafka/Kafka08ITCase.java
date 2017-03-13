@@ -202,6 +202,9 @@ public class Kafka08ITCase extends KafkaConsumerTestBase {
 		// at least once.
 		Properties readProps = new Properties();
 		readProps.putAll(standardProps);
+
+		// make sure that auto commit is enabled in the properties
+		readProps.setProperty("auto.commit.enable", "true");
 		readProps.setProperty("auto.commit.interval.ms", "500");
 
 		// read so that the offset can be committed to ZK

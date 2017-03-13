@@ -130,7 +130,6 @@ public class Kafka09FetcherTest {
 				new TestProcessingTimeService(),
 				10, /* watermark interval */
 				this.getClass().getClassLoader(),
-				true, /* checkpointing */
 				"task_name",
 				new UnregisteredMetricsGroup(),
 				schema,
@@ -267,7 +266,6 @@ public class Kafka09FetcherTest {
 				new TestProcessingTimeService(),
 				10, /* watermark interval */
 				this.getClass().getClassLoader(),
-				true, /* checkpointing */
 				"task_name",
 				new UnregisteredMetricsGroup(),
 				schema,
@@ -382,7 +380,6 @@ public class Kafka09FetcherTest {
 				new TestProcessingTimeService(),
 				10, /* watermark interval */
 				this.getClass().getClassLoader(),
-				true, /* checkpointing */
 				"task_name",
 				new UnregisteredMetricsGroup(),
 				schema,
