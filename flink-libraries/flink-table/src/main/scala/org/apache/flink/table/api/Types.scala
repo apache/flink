@@ -37,14 +37,31 @@ object Types extends JTypes {
   val DOUBLE = JTypes.DOUBLE
   val DECIMAL = JTypes.DECIMAL
 
-  val DATE = JTypes.DATE
-  val TIME = JTypes.TIME
-  val TIMESTAMP = JTypes.TIMESTAMP
+  val SQL_DATE = JTypes.SQL_DATE
+  val SQL_TIME = JTypes.SQL_TIME
+  val SQL_TIMESTAMP = JTypes.SQL_TIMESTAMP
   val INTERVAL_MONTHS = TimeIntervalTypeInfo.INTERVAL_MONTHS
   val INTERVAL_MILLIS = TimeIntervalTypeInfo.INTERVAL_MILLIS
 
-  def ROW(types: TypeInformation[_]*) = JTypes.ROW(types: _*)
+  /**
+    * Generates RowTypeInfo with default names (f1, f2 ..).
+    * same as ``new RowTypeInfo(types)``
+    *
+    * @param types of Row fields. e.g. ROW(Types.STRING, Types.INT)
+    */
+  def ROW[T](types: TypeInformation[_]*)(implicit m: Manifest[T]) = {
+    JTypes.ROW(types: _*)
+  }
 
-  def ROW(fieldNames: Array[String], types: TypeInformation[_]*) =
-    JTypes.ROW(fieldNames, types: _*)
+  /**
+    * Generates RowTypeInfo.
+    * same as ``new RowTypeInfo(types, names)``
+    *
+    * @param fields of Row. e.g. ROW(("name", Types.STRING), ("number", Types.INT))
+    */
+  def ROW(fields: (String, TypeInformation[_])*) = {
+    val names = fields.toList.map(_._1).toArray
+    val types = fields.toList.map(_._2)
+    JTypes.ROW(names, types: _*)
+  }
 }

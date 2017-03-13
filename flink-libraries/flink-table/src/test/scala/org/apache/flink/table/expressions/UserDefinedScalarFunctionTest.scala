@@ -284,7 +284,7 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
       "7591 and 43810000 and 655906210000")
 
     testAllApis(
-      JavaFunc1(Null(Types.TIME), 15, Null(Types.TIMESTAMP)),
+      JavaFunc1(Null(Types.SQL_TIME), 15, Null(Types.SQL_TIMESTAMP)),
       "JavaFunc1(Null(TIME), 15, Null(TIMESTAMP))",
       "JavaFunc1(NULL, 15, NULL)",
       "null and 15 and null")
@@ -337,9 +337,9 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
       Types.STRING,
       Types.BOOLEAN,
       TypeInformation.of(classOf[SimplePojo]),
-      Types.DATE,
-      Types.TIME,
-      Types.TIMESTAMP,
+      Types.SQL_DATE,
+      Types.SQL_TIME,
+      Types.SQL_TIMESTAMP,
       Types.INTERVAL_MONTHS,
       Types.INTERVAL_MILLIS,
       TypeInformation.of(classOf[Seq[String]])

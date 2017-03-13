@@ -27,6 +27,10 @@ import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
 
+/**
+ * This class enumerates all supported types of
+ * the BasicTypeInfo, SqlTimeTypeInfo and RowTypeInfo for creation simplifying
+ */
 public class Types {
 
 	public static final BasicTypeInfo<String> STRING = BasicTypeInfo.STRING_TYPE_INFO;
@@ -39,14 +43,29 @@ public class Types {
 	public static final BasicTypeInfo<Double> DOUBLE = BasicTypeInfo.DOUBLE_TYPE_INFO;
 	public static final BasicTypeInfo<BigDecimal> DECIMAL = BasicTypeInfo.BIG_DEC_TYPE_INFO;
 
-	public static final SqlTimeTypeInfo<Date> DATE = SqlTimeTypeInfo.DATE;
-	public static final SqlTimeTypeInfo<Time> TIME = SqlTimeTypeInfo.TIME;
-	public static final SqlTimeTypeInfo<Timestamp> TIMESTAMP = SqlTimeTypeInfo.TIMESTAMP;
+	public static final SqlTimeTypeInfo<Date> SQL_DATE = SqlTimeTypeInfo.DATE;
+	public static final SqlTimeTypeInfo<Time> SQL_TIME = SqlTimeTypeInfo.TIME;
+	public static final SqlTimeTypeInfo<Timestamp> SQL_TIMESTAMP = SqlTimeTypeInfo.TIMESTAMP;
 
+	/**
+	 * Generates RowTypeInfo with default names (f1, f2 ..).
+	 * same as new RowTypeInfo(types)
+	 *
+	 * @param types of Row fields. e.g. ROW(Types.STRING, Types.INT)
+	 */
 	public static RowTypeInfo ROW(TypeInformation<?>... types) {
 		return new RowTypeInfo(types);
 	}
 
+	/**
+	 * Generates RowTypeInfo.
+	 * same as new RowTypeInfo(types, names)
+	 *
+	 * e.g. ROW(new String[]{"name", "number"}, Types.STRING, Types.INT)
+	 *
+	 * @param fieldNames array of field names
+	 * @param types array of field types
+	 */
 	public static RowTypeInfo ROW(String[] fieldNames, TypeInformation<?>... types) {
 		return new RowTypeInfo(types, fieldNames);
 	}
