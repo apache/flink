@@ -65,7 +65,7 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
 			ZooKeeper.createClient(), CheckpointsPath, new RetrievableStateStorageHelper<CompletedCheckpoint>() {
 			@Override
 			public RetrievableStateHandle<CompletedCheckpoint> store(CompletedCheckpoint state) throws Exception {
-				return new HeapRetrievableStateHandle<CompletedCheckpoint>(state);
+				return new HeapRetrievableStateHandle<>(state);
 			}
 		}, Executors.directExecutor());
 	}
