@@ -34,6 +34,7 @@ import java.io.OutputStream;
 import java.net.Socket;
 import java.net.SocketException;
 import java.security.MessageDigest;
+import java.util.Random;
 
 import static org.apache.flink.runtime.blob.BlobServerProtocol.BUFFER_SIZE;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.CONTENT_ADDRESSABLE;
@@ -337,7 +338,8 @@ class BlobServerConnection extends Thread {
 				outputStream.write(RETURN_OKAY);
 			}
 			else {
-				BlobKey blobKey = new BlobKey(md.digest());
+				Random rand = new Random();
+				BlobKey blobKey = new BlobKey(md.digest(), rand.nextInt());
 				File storageFile = blobServer.getStorageLocation(blobKey);
 				Files.move(incomingFile, storageFile);
 				incomingFile = null;
