@@ -22,17 +22,35 @@ import org.apache.flink.table.expressions.Expression
 
 /**
   * Adds support for filtering push-down to a [[TableSource]].
-  * A [[TableSource]] extending this interface is able to filter the fields of the return table.
-  *
+  * A [[TableSource]] extending this interface is able to filter records before returning.
   */
 trait FilterableTableSource {
 
-  /** return an predicate expression that was set. */
-  def getPredicate: Array[Expression]
+  /**
+    * Indicates whether the filter push down has been applied. Note that even if we don't
+    * actually push down any filters, we should also set this flag to true after the trying.
+    */
+  private var filterPushedDown: Boolean = false
 
   /**
-    * @param predicate a filter expression that will be applied to fields to return.
-    * @return an unsupported predicate expression.
+    * Check and pick all predicates this table source can support. The passed in predicates
+    * have been translated in conjunctive form, and table source and only pick those predicates
+    * that it supports. All unsupported predicates should be give back to the framework to do
+    * further filtering.
+    *
+    * @param predicate An array contains conjunctive predicates.
+    * @return An array contains all unsupported predicates.
     */
-  def setPredicate(predicate: Array[Expression]): Array[Expression]
+  def applyPredicate(predicate: Array[Expression]): Array[Expression]
+
+  /**
+    * Return the flag to indicate whether filter push down has been tried.
+    */
+  def isFilterPushedDown: Boolean = filterPushedDown
+
+  /**
+    * Set the flag to indicate whether the filter push down has been tried.
+    */
+  def setFilterPushedDown(flag: Boolean): Unit = filterPushedDown = flag
+
 }

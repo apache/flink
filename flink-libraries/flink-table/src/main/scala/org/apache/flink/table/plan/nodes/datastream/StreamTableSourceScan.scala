@@ -34,8 +34,7 @@ class StreamTableSourceScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     table: RelOptTable,
-    val tableSource: StreamTableSource[_],
-  filterCondition: RexNode = null)
+    val tableSource: StreamTableSource[_])
   extends StreamScan(cluster, traitSet, table) {
 
   override def deriveRowType() = {
@@ -55,20 +54,14 @@ class StreamTableSourceScan(
       cluster,
       traitSet,
       getTable,
-      tableSource,
-      filterCondition
+      tableSource
     )
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     val terms = super.explainTerms(pw)
       .item("fields", TableEnvironment.getFieldNames(tableSource).mkString(", "))
-    if (filterCondition != null) {
-      import scala.collection.JavaConverters._
-      val fieldNames = getTable.getRowType.getFieldNames.asScala.toList
-      terms.item("filter", getExpressionString(filterCondition, fieldNames, None))
-    }
-    terms
+    tableSource.explainTerms(terms)
   }
 
   override def translateToPlan(tableEnv: StreamTableEnvironment): DataStream[Row] = {

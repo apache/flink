@@ -24,7 +24,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
 import org.apache.flink.table.api.TableEnvironment
-import org.apache.flink.table.utils.CommonTestData
+import org.apache.flink.table.utils.{CommonTestData, TestFilterableTableSource}
 import org.apache.flink.types.Row
 import org.junit.Assert._
 import org.junit.Test
@@ -90,7 +90,7 @@ class TableSourceITCase extends StreamingMultipleProgramsTestBase {
     val tableName = "MyTable"
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
-    tEnv.registerTableSource(tableName, CommonTestData.getFilterableTableSource)
+    tEnv.registerTableSource(tableName, new TestFilterableTableSource)
     tEnv.scan(tableName)
       .where("amount > 4 && price < 9")
       .select("id, name")

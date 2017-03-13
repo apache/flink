@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.sources
 
+import org.apache.calcite.rel.RelWriter
 import org.apache.flink.api.common.typeinfo.TypeInformation
 
 /** Defines an external table by providing schema information and used to produce a
@@ -38,4 +39,6 @@ trait TableSource[T] {
   /** Returns the [[TypeInformation]] for the return type of the [[TableSource]]. */
   def getReturnType: TypeInformation[T]
 
+  /** Describes the table source */
+  def explainTerms(pw: RelWriter): RelWriter = pw
 }

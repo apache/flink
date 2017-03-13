@@ -18,11 +18,11 @@
 
 package org.apache.flink.table.plan.rules.dataSet
 
-import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.plan.RelOptRule.{none, operand}
+import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.plan.nodes.dataset.{BatchTableSourceScan, DataSetCalc}
-import org.apache.flink.table.plan.util.RexProgramProjectExtractor._
+import org.apache.flink.table.plan.util.{RexProgramExtractor, RexProgramRewriter}
 import org.apache.flink.table.sources.{BatchTableSource, ProjectableTableSource}
 
 /**
@@ -33,7 +33,7 @@ class PushProjectIntoBatchTableSourceScanRule extends RelOptRule(
           operand(classOf[BatchTableSourceScan], none)),
   "PushProjectIntoBatchTableSourceScanRule") {
 
-  override def matches(call: RelOptRuleCall) = {
+  override def matches(call: RelOptRuleCall): Boolean = {
     val scan: BatchTableSourceScan = call.rel(1).asInstanceOf[BatchTableSourceScan]
     scan.tableSource match {
       case _: ProjectableTableSource[_] => true
@@ -45,7 +45,7 @@ class PushProjectIntoBatchTableSourceScanRule extends RelOptRule(
     val calc: DataSetCalc = call.rel(0).asInstanceOf[DataSetCalc]
     val scan: BatchTableSourceScan = call.rel(1).asInstanceOf[BatchTableSourceScan]
 
-    val usedFields: Array[Int] = extractRefInputFields(calc.calcProgram)
+    val usedFields = RexProgramExtractor.extractRefInputFields(calc.getProgram)
 
     // if no fields can be projected, we keep the original plan.
     if (TableEnvironment.getFieldNames(scan.tableSource).length != usedFields.length) {
@@ -57,11 +57,11 @@ class PushProjectIntoBatchTableSourceScanRule extends RelOptRule(
         scan.getTable,
         newTableSource.asInstanceOf[BatchTableSource[_]])
 
-      val newCalcProgram = rewriteRexProgram(
-        calc.calcProgram,
+      val newCalcProgram = RexProgramRewriter.rewriteWithFieldProjection(
+        calc.getProgram,
         newScan.getRowType,
-        usedFields,
-        calc.getCluster.getRexBuilder)
+        calc.getCluster.getRexBuilder,
+        usedFields)
 
       if (newCalcProgram.isTrivial) {
         // drop calc if the transformed program merely returns its input and doesn't exist filter

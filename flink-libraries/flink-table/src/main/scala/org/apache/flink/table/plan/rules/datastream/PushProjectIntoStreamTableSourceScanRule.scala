@@ -22,7 +22,7 @@ import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.plan.nodes.datastream.{DataStreamCalc, StreamTableSourceScan}
-import org.apache.flink.table.plan.util.RexProgramProjectExtractor._
+import org.apache.flink.table.plan.util.{RexProgramExtractor, RexProgramRewriter}
 import org.apache.flink.table.sources.{ProjectableTableSource, StreamTableSource}
 
 /**
@@ -46,7 +46,7 @@ class PushProjectIntoStreamTableSourceScanRule extends RelOptRule(
     val calc = call.rel(0).asInstanceOf[DataStreamCalc]
     val scan = call.rel(1).asInstanceOf[StreamTableSourceScan]
 
-    val usedFields = extractRefInputFields(calc.calcProgram)
+    val usedFields = RexProgramExtractor.extractRefInputFields(calc.getProgram)
 
     // if no fields can be projected, we keep the original plan
     if (TableEnvironment.getFieldNames(scan.tableSource).length != usedFields.length) {
@@ -58,11 +58,11 @@ class PushProjectIntoStreamTableSourceScanRule extends RelOptRule(
         scan.getTable,
         newTableSource.asInstanceOf[StreamTableSource[_]])
 
-      val newProgram = rewriteRexProgram(
-        calc.calcProgram,
+      val newProgram = RexProgramRewriter.rewriteWithFieldProjection(
+        calc.getProgram,
         newScan.getRowType,
-        usedFields,
-        calc.getCluster.getRexBuilder)
+        calc.getCluster.getRexBuilder,
+        usedFields)
 
       if (newProgram.isTrivial) {
         // drop calc if the transformed program merely returns its input and doesn't exist filter

@@ -199,7 +199,7 @@ abstract class ExpressionTestBase {
     // extract RexNode
     val calcProgram = dataSetCalc
      .asInstanceOf[DataSetCalc]
-     .calcProgram
+     .getProgram
     val expanded = calcProgram.expandLocalRef(calcProgram.getProjectList.get(0))
 
     testExprs += ((expanded, expected))
@@ -222,7 +222,7 @@ abstract class ExpressionTestBase {
     // extract RexNode
     val calcProgram = dataSetCalc
      .asInstanceOf[DataSetCalc]
-     .calcProgram
+     .getProgram
     val expanded = calcProgram.expandLocalRef(calcProgram.getProjectList.get(0))
 
     testExprs += ((expanded, expected))

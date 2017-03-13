@@ -1,0 +1,136 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.flink.table.utils
+
+import org.apache.calcite.rel.RelWriter
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
+import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
+import org.apache.flink.table.api.Types._
+import org.apache.flink.table.expressions._
+import org.apache.flink.table.sources.{BatchTableSource, FilterableTableSource, StreamTableSource}
+import org.apache.flink.types.Row
+import org.apache.flink.util.Preconditions
+
+import scala.collection.JavaConverters._
+import scala.collection.mutable
+
+/**
+  * This source can only handle simple comparision with field "amount".
+  * Supports ">, <, >=, <=, =, <>" with an integer.
+  */
+class TestFilterableTableSource(
+    val recordNum: Int = 33)
+    extends BatchTableSource[Row]
+        with StreamTableSource[Row]
+        with FilterableTableSource {
+
+  val fieldNames: Array[String] = Array("name", "id", "amount", "price")
+
+  val fieldTypes: Array[TypeInformation[_]] = Array(STRING, LONG, INT, DOUBLE)
+
+  // all predicates with filed "amount"
+  private var filterPredicates = new mutable.ArrayBuffer[Expression]
+
+  // all comparing values for field "amount"
+  private val filterValues = new mutable.ArrayBuffer[Int]
+
+  override def getDataSet(execEnv: ExecutionEnvironment): DataSet[Row] = {
+    execEnv.fromCollection[Row](generateDynamicCollection().asJava, getReturnType)
+  }
+
+  override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[Row] = {
+    execEnv.fromCollection[Row](generateDynamicCollection().asJava, getReturnType)
+  }
+
+  override def explainTerms(pw: RelWriter): RelWriter = {
+    if (filterPredicates.nonEmpty) {
+      super.explainTerms(pw)
+          .item("filter", filterPredicates.reduce((l, r) => And(l, r)))
+    } else {
+      super.explainTerms(pw)
+    }
+  }
+
+  override def getReturnType: TypeInformation[Row] = new RowTypeInfo(fieldTypes, fieldNames)
+
+  override def applyPredicate(predicates: Array[Expression]): Array[Expression] = {
+    val remainingPredicates = new mutable.ArrayBuffer[Expression]
+
+    predicates.foreach {
+      case expr: BinaryComparison =>
+        (expr.left, expr.right) match {
+          case (f: ResolvedFieldReference, v: Literal) if f.name.equals("amount") =>
+            filterPredicates += expr
+            filterValues += v.value.asInstanceOf[Number].intValue()
+          case (_, _) =>
+            remainingPredicates += expr
+        }
+      case expr =>
+        remainingPredicates += expr
+    }
+    remainingPredicates.toArray
+  }
+
+  private def generateDynamicCollection(): Seq[Row] = {
+    Preconditions.checkArgument(filterPredicates.length == filterValues.length)
+
+    for {
+      cnt <- 0 until recordNum
+      if shouldCreateRow(cnt)
+    } yield {
+      val row = new Row(fieldNames.length)
+      fieldNames.zipWithIndex.foreach { case (name, index) =>
+        name match {
+          case "name" =>
+            row.setField(index, s"Record_$cnt")
+          case "id" =>
+            row.setField(index, cnt.toLong)
+          case "amount" =>
+            row.setField(index, cnt.toInt)
+          case "price" =>
+            row.setField(index, cnt.toDouble)
+        }
+      }
+      row
+    }
+  }
+
+  private def shouldCreateRow(value: Int): Boolean = {
+    filterPredicates.zip(filterValues).forall {
+      case (_: GreaterThan, v) =>
+        value > v
+      case (_: LessThan, v) =>
+        value < v
+      case (_: GreaterThanOrEqual, v) =>
+        value >= v
+      case (_: LessThanOrEqual, v) =>
+        value <= v
+      case (_: EqualTo, v) =>
+        value == v
+      case (_: NotEqualTo, v) =>
+        value != v
+      case (expr, _) =>
+        throw new RuntimeException(expr + " not supported!")
+    }
+  }
+}
+
