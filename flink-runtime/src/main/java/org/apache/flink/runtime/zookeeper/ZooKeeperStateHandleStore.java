@@ -23,7 +23,6 @@ import org.apache.curator.framework.api.BackgroundCallback;
 import org.apache.curator.utils.ZKPaths;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
-import org.apache.flink.util.FlinkIOException;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
@@ -241,7 +240,7 @@ public class ZooKeeperStateHandleStore<T extends Serializable> {
 		try {
 			return InstantiationUtil.deserializeObject(data, Thread.currentThread().getContextClassLoader());
 		} catch (IOException | ClassNotFoundException e) {
-			throw new FlinkIOException("Failed to deserialize state handle from ZooKeeper data from " +
+			throw new IOException("Failed to deserialize state handle from ZooKeeper data from " +
 				pathInZooKeeper + '.', e);
 		}
 	}
@@ -306,7 +305,7 @@ public class ZooKeeperStateHandleStore<T extends Serializable> {
 					} catch (KeeperException.NoNodeException ignored) {
 						// Concurrent deletion, retry
 						continue retry;
-					} catch (FlinkIOException ioException) {
+					} catch (IOException ioException) {
 						LOG.warn("Could not get all ZooKeeper children. Node {} contained " +
 							"corrupted data. Ignoring this node.", path, ioException);
 					}
@@ -361,7 +360,7 @@ public class ZooKeeperStateHandleStore<T extends Serializable> {
 					} catch (KeeperException.NoNodeException ignored) {
 						// Concurrent deletion, retry
 						continue retry;
-					} catch (FlinkIOException ioException) {
+					} catch (IOException ioException) {
 						LOG.warn("Could not get all ZooKeeper children. Node {} contained " +
 							"corrupted data. Ignoring this node.", path, ioException);
 					}
