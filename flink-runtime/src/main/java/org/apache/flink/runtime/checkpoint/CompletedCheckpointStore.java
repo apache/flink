@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.state.SharedStateRegistry;
 
 import java.util.List;
 
@@ -33,16 +34,16 @@ public interface CompletedCheckpointStore {
 	 * <p>After a call to this method, {@link #getLatestCheckpoint()} returns the latest
 	 * available checkpoint.
 	 */
-	void recover() throws Exception;
+	void recover(SharedStateRegistry sharedStateRegistry) throws Exception;
 
 	/**
 	 * Adds a {@link CompletedCheckpoint} instance to the list of completed checkpoints.
 	 *
 	 * <p>Only a bounded number of checkpoints is kept. When exceeding the maximum number of
 	 * retained checkpoints, the oldest one will be discarded via {@link
-	 * CompletedCheckpoint#discard()}.
+	 * CompletedCheckpoint#discardOnSubsume(SharedStateRegistry)} )}.
 	 */
-	void addCheckpoint(CompletedCheckpoint checkpoint) throws Exception;
+	void addCheckpoint(CompletedCheckpoint checkpoint, SharedStateRegistry sharedStateRegistry) throws Exception;
 
 	/**
 	 * Returns the latest {@link CompletedCheckpoint} instance or <code>null</code> if none was
@@ -58,7 +59,7 @@ public interface CompletedCheckpointStore {
 	 *
 	 * @param jobStatus Job state on shut down
 	 */
-	void shutdown(JobStatus jobStatus) throws Exception;
+	void shutdown(JobStatus jobStatus, SharedStateRegistry sharedStateRegistry) throws Exception;
 
 	/**
 	 * Returns all {@link CompletedCheckpoint} instances.
