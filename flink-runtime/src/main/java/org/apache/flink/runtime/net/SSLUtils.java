@@ -73,7 +73,7 @@ public class SSLUtils {
 				ConfigConstants.SECURITY_SSL_ALGORITHMS,
 				ConfigConstants.DEFAULT_SECURITY_SSL_ALGORITHMS).split(","));
 		} else {
-			LOG.warn("Not a SSL socket, will skip setting tls version and ciper suites.");
+			LOG.warn("Not a SSL socket, will skip setting tls version and cipher suites.");
 		}
 	}
 

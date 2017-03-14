@@ -23,6 +23,10 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLEngine;
+import javax.net.ssl.SSLServerSocket;
+import java.net.ServerSocket;
+import java.util.Random;
 
 /*
  * Tests for the SSL utilities
@@ -123,6 +127,101 @@ public class SSLUtilsTest {
 		} catch (Exception e) {
 			// Exception here is valid
 		}
+	}
+
+	/**
+	 * Tests if SSL Server Context creation fails with bad SSL configuration
+	 */
+	@Test
+	public void testCreateSSLServerContextWithMultiProtocols() {
+
+		Configuration serverConfig = new Configuration();
+		serverConfig.setBoolean(ConfigConstants.SECURITY_SSL_ENABLED, true);
+		serverConfig.setString(ConfigConstants.SECURITY_SSL_KEYSTORE, "src/test/resources/local127.keystore");
+		serverConfig.setString(ConfigConstants.SECURITY_SSL_KEYSTORE_PASSWORD, "password");
+		serverConfig.setString(ConfigConstants.SECURITY_SSL_KEY_PASSWORD, "password");
+		serverConfig.setString(ConfigConstants.SECURITY_SSL_PROTOCOL, "TLSv1,TLSv1.2");
+
+		try {
+			SSLContext serverContext = SSLUtils.createSSLServerContext(serverConfig);
+			Assert.fail("SSL server context created even with multiple protocols set ");
+		} catch (Exception e) {
+			// Exception here is valid
+		}
+	}
+
+	/**
+	 * Tests if SSLUtils set the right ssl version and cipher suites for SSLServerSocket
+	 */
+	@Test
+	public void testSetSSLVersionAndCipherSuitesForSSLServerSocket() throws Exception {
+
+		Configuration serverConfig = new Configuration();
+		serverConfig.setBoolean(ConfigConstants.SECURITY_SSL_ENABLED, true);
+		serverConfig.setString(ConfigConstants.SECURITY_SSL_KEYSTORE, "src/test/resources/local127.keystore");
+		serverConfig.setString(ConfigConstants.SECURITY_SSL_KEYSTORE_PASSWORD, "password");
+		serverConfig.setString(ConfigConstants.SECURITY_SSL_KEY_PASSWORD, "password");
+		serverConfig.setString(ConfigConstants.SECURITY_SSL_PROTOCOL, "TLSv1.1");
+		serverConfig.setString(ConfigConstants.SECURITY_SSL_ALGORITHMS, "TLS_RSA_WITH_AES_128_CBC_SHA,TLS_RSA_WITH_AES_128_CBC_SHA256");
+
+		int port = new Random().nextInt(65535);
+		SSLContext serverContext = SSLUtils.createSSLServerContext(serverConfig);
+		ServerSocket socket = null;
+		try {
+			socket = serverContext.getServerSocketFactory().createServerSocket(port);
+
+			String[] protocols = ((SSLServerSocket) socket).getEnabledProtocols();
+			String[] algorithms = ((SSLServerSocket) socket).getEnabledCipherSuites();
+			Assert.assertTrue(protocols.length > 1);
+			Assert.assertTrue(algorithms.length > 2);
+
+			SSLUtils.setSSLVerAndCipherSuites(socket, serverConfig);
+			protocols = ((SSLServerSocket) socket).getEnabledProtocols();
+			algorithms = ((SSLServerSocket) socket).getEnabledCipherSuites();
+			Assert.assertTrue(protocols.length == 1);
+			Assert.assertTrue(protocols[0].equals("TLSv1.1"));
+			Assert.assertTrue(algorithms.length == 2);
+			Assert.assertTrue(algorithms[0].equals("TLS_RSA_WITH_AES_128_CBC_SHA") || algorithms[0].equals("TLS_RSA_WITH_AES_128_CBC_SHA256"));
+			Assert.assertTrue(algorithms[1].equals("TLS_RSA_WITH_AES_128_CBC_SHA") || algorithms[1].equals("TLS_RSA_WITH_AES_128_CBC_SHA256"));
+		} finally {
+			if (socket != null) {
+				socket.close();
+			}
+		}
+	}
+
+	/**
+	 * Tests if SSLUtils set the right ssl version and cipher suites for SSLEngine
+	 */
+	@Test
+	public void testSetSSLVersionAndCipherSuitesForSSLEngine() throws Exception {
+
+		Configuration serverConfig = new Configuration();
+		serverConfig.setBoolean(ConfigConstants.SECURITY_SSL_ENABLED, true);
+		serverConfig.setString(ConfigConstants.SECURITY_SSL_KEYSTORE, "src/test/resources/local127.keystore");
+		serverConfig.setString(ConfigConstants.SECURITY_SSL_KEYSTORE_PASSWORD, "password");
+		serverConfig.setString(ConfigConstants.SECURITY_SSL_KEY_PASSWORD, "password");
+		serverConfig.setString(ConfigConstants.SECURITY_SSL_PROTOCOL, "TLSv1");
+		serverConfig.setString(ConfigConstants.SECURITY_SSL_ALGORITHMS, "TLS_DHE_RSA_WITH_AES_128_CBC_SHA,TLS_DHE_RSA_WITH_AES_128_CBC_SHA256");
+
+		SSLContext serverContext = SSLUtils.createSSLServerContext(serverConfig);
+		SSLEngine engine = serverContext.createSSLEngine();
+
+		String[] protocols = engine.getEnabledProtocols();
+		String[] algorithms = engine.getEnabledCipherSuites();
+
+		Assert.assertTrue(protocols.length > 1);
+		Assert.assertTrue(algorithms.length > 2);
+
+		SSLUtils.setSSLVerAndCipherSuites(engine, serverConfig);
+		protocols = engine.getEnabledProtocols();
+		algorithms = engine.getEnabledCipherSuites();
+
+		Assert.assertTrue(protocols.length == 1);
+		Assert.assertTrue(protocols[0].equals("TLSv1"));
+		Assert.assertTrue(algorithms.length == 2);
+		Assert.assertTrue(algorithms[0].equals("TLS_DHE_RSA_WITH_AES_128_CBC_SHA") || algorithms[0].equals("TLS_DHE_RSA_WITH_AES_128_CBC_SHA256"));
+		Assert.assertTrue(algorithms[1].equals("TLS_DHE_RSA_WITH_AES_128_CBC_SHA") || algorithms[1].equals("TLS_DHE_RSA_WITH_AES_128_CBC_SHA256"));
 	}
 
 }
