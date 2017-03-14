@@ -18,9 +18,6 @@
 
 package org.apache.flink.table.plan.nodes.dataset
 
-import org.apache.calcite.plan._
-import org.apache.calcite.rel.core.TableScan
-import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.calcite.FlinkTypeFactory
@@ -31,23 +28,7 @@ import org.apache.flink.types.Row
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 
-abstract class BatchScan(
-    cluster: RelOptCluster,
-    traitSet: RelTraitSet,
-    table: RelOptTable)
-  extends TableScan(cluster, traitSet, table)
-  with CommonScan
-  with DataSetRel {
-
-  override def toString: String = {
-    s"Source(from: (${getRowType.getFieldNames.asScala.toList.mkString(", ")}))"
-  }
-
-  override def computeSelfCost (planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
-
-    val rowCnt = metadata.getRowCount(this)
-    planner.getCostFactory.makeCost(rowCnt, rowCnt, 0)
-  }
+trait BatchScan extends CommonScan with DataSetRel {
 
   protected def convertToInternalRow(
       input: DataSet[Any],

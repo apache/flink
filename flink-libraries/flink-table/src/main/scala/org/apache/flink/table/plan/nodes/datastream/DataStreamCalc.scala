@@ -57,10 +57,10 @@ class DataStreamCalc(
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     pw.input("input", getInput)
-        .item("select", selectionToString(calcProgram, getExpressionString))
-        .itemIf("where",
-          conditionToString(calcProgram, getExpressionString),
-          calcProgram.getCondition != null)
+      .item("select", selectionToString(calcProgram, getExpressionString))
+      .itemIf("where",
+        conditionToString(calcProgram, getExpressionString),
+        calcProgram.getCondition != null)
   }
 
   override def computeSelfCost(planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {

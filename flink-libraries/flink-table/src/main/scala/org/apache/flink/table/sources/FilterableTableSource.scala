@@ -24,7 +24,7 @@ import org.apache.flink.table.expressions.Expression
   * Adds support for filtering push-down to a [[TableSource]].
   * A [[TableSource]] extending this interface is able to filter records before returning.
   */
-trait FilterableTableSource {
+trait FilterableTableSource[T] extends TableSource[T] {
 
   /**
     * Indicates whether the filter push down has been applied. Note that even if we don't
@@ -34,14 +34,24 @@ trait FilterableTableSource {
 
   /**
     * Check and pick all predicates this table source can support. The passed in predicates
-    * have been translated in conjunctive form, and table source and only pick those predicates
-    * that it supports. All unsupported predicates should be give back to the framework to do
-    * further filtering.
+    * have been translated in conjunctive form, and table source can only pick those predicates
+    * that it supports.
+    * <p>
+    * After trying to push predicates down, we should return a new [[FilterableTableSource]]
+    * instance which holds all pushed down predicates. Even if we actually pushed nothing down,
+    * it is recommended that we still return a new [[FilterableTableSource]] instance since we will
+    * mark the returned instance as filter push down has been tried. Also we need to return all
+    * unsupported predicates back to the framework to do further filtering.
+    * <p>
+    * We also should note to not changing the form of the predicates passed in. It has been
+    * organized in CNF conjunctive form, and we should only take or leave each element in the
+    * array. Don't try to reorganize the predicates if you are absolutely confident with that.
     *
     * @param predicate An array contains conjunctive predicates.
-    * @return An array contains all unsupported predicates.
+    * @return A new cloned instance of [[FilterableTableSource]] as well as n array of Expression
+    *         which contains all unsupported predicates.
     */
-  def applyPredicate(predicate: Array[Expression]): Array[Expression]
+  def applyPredicate(predicate: Array[Expression]): (FilterableTableSource[_], Array[Expression])
 
   /**
     * Return the flag to indicate whether filter push down has been tried.

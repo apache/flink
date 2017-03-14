@@ -16,23 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.sources
+package org.apache.flink.table.plan.nodes
 
-/**
-  * Adds support for projection push-down to a [[TableSource]].
-  * A [[TableSource]] extending this interface is able to project the fields of the return table.
-  *
-  * @tparam T The return type of the [[ProjectableTableSource]].
-  */
-trait ProjectableTableSource[T] extends TableSource[T] {
+import org.apache.calcite.plan.{RelOptCluster, RelOptTable, RelTraitSet}
+import org.apache.calcite.rel.core.TableScan
+import org.apache.flink.table.sources.TableSource
 
-  /**
-    * Creates a copy of the [[ProjectableTableSource]] that projects its output on the specified
-    * fields.
-    *
-    * @param fields The indexes of the fields to return.
-    * @return A copy of the [[ProjectableTableSource]] that projects its output.
-    */
-  def projectFields(fields: Array[Int]): ProjectableTableSource[T]
+import scala.collection.JavaConverters._
+
+abstract class TableSourceScan(
+    cluster: RelOptCluster,
+    traitSet: RelTraitSet,
+    table: RelOptTable,
+    val tableSource: TableSource[_])
+  extends TableScan(cluster, traitSet, table) {
+
+  override def toString: String = {
+    s"Source(from: (${getRowType.getFieldNames.asScala.toList.mkString(", ")}))"
+  }
+
+  private[flink] def copy(traitSet: RelTraitSet, tableSource: TableSource[_]): TableSourceScan
 
 }

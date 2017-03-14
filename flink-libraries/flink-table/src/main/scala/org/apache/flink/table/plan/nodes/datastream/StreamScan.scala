@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.plan.nodes.datastream
 
-import org.apache.calcite.plan._
-import org.apache.calcite.rel.core.TableScan
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.calcite.FlinkTypeFactory
@@ -30,13 +28,7 @@ import org.apache.flink.types.Row
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 
-abstract class StreamScan(
-    cluster: RelOptCluster,
-    traitSet: RelTraitSet,
-    table: RelOptTable)
-  extends TableScan(cluster, traitSet, table)
-  with CommonScan
-  with DataStreamRel {
+trait StreamScan extends CommonScan with DataStreamRel {
 
   protected def convertToInternalRow(
       input: DataStream[Any],

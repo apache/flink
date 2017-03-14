@@ -41,7 +41,7 @@ class TestFilterableTableSource(
     val recordNum: Int = 33)
     extends BatchTableSource[Row]
         with StreamTableSource[Row]
-        with FilterableTableSource {
+        with FilterableTableSource[Row] {
 
   val fieldNames: Array[String] = Array("name", "id", "amount", "price")
 
@@ -72,22 +72,26 @@ class TestFilterableTableSource(
 
   override def getReturnType: TypeInformation[Row] = new RowTypeInfo(fieldTypes, fieldNames)
 
-  override def applyPredicate(predicates: Array[Expression]): Array[Expression] = {
+  override def applyPredicate(predicates: Array[Expression])
+    : (FilterableTableSource[Row], Array[Expression]) = {
+
+    val newSource = new TestFilterableTableSource(recordNum)
     val remainingPredicates = new mutable.ArrayBuffer[Expression]
 
     predicates.foreach {
       case expr: BinaryComparison =>
         (expr.left, expr.right) match {
           case (f: ResolvedFieldReference, v: Literal) if f.name.equals("amount") =>
-            filterPredicates += expr
-            filterValues += v.value.asInstanceOf[Number].intValue()
+            newSource.filterPredicates += expr
+            newSource.filterValues += v.value.asInstanceOf[Number].intValue()
           case (_, _) =>
             remainingPredicates += expr
         }
       case expr =>
         remainingPredicates += expr
     }
-    remainingPredicates.toArray
+
+    (newSource, remainingPredicates.toArray)
   }
 
   private def generateDynamicCollection(): Seq[Row] = {

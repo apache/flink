@@ -19,9 +19,9 @@
 package org.apache.flink.table.plan.rules.common
 
 import org.apache.calcite.plan.RelOptRuleCall
-import org.apache.calcite.rel.core.{Calc, TableScan}
+import org.apache.calcite.rel.core.Calc
 import org.apache.calcite.rex.RexProgram
-import org.apache.flink.table.plan.nodes.dataset.DataSetCalc
+import org.apache.flink.table.plan.nodes.TableSourceScan
 import org.apache.flink.table.plan.schema.TableSourceTable
 import org.apache.flink.table.plan.util.RexProgramExtractor
 import org.apache.flink.table.sources.FilterableTableSource
@@ -31,9 +31,9 @@ trait PushFilterIntoTableSourceScanRuleBase {
   private[flink] def pushFilterIntoScan(
       call: RelOptRuleCall,
       calc: Calc,
-      scan: TableScan,
+      scan: TableSourceScan,
       tableSourceTable: TableSourceTable[_],
-      filterableSource: FilterableTableSource,
+      filterableSource: FilterableTableSource[_],
       description: String): Unit = {
 
     if (filterableSource.isFilterPushedDown) {
@@ -54,15 +54,15 @@ trait PushFilterIntoTableSourceScanRuleBase {
       return
     }
 
+    val (newTableSource, remainingPredicates) = filterableSource.applyPredicate(predicates)
     // trying to apply filter push down, set the flag to true no matter whether
     // we actually push any filters down.
-    filterableSource.setFilterPushedDown(true)
-    val remainingPredicates = filterableSource.applyPredicate(predicates)
+    newTableSource.setFilterPushedDown(true)
 
     // check whether framework still need to do a filter
     val relBuilder = call.builder()
     val remainingCondition = {
-      if (remainingPredicates.length > 0 || unconvertedRexNodes.length > 0) {
+      if (remainingPredicates.nonEmpty || unconvertedRexNodes.nonEmpty) {
         relBuilder.push(scan)
         (remainingPredicates.map(expr => expr.toRexNode(relBuilder)) ++ unconvertedRexNodes)
             .reduce((l, r) => relBuilder.and(l, r))
@@ -73,7 +73,7 @@ trait PushFilterIntoTableSourceScanRuleBase {
 
     // check whether we still need a RexProgram. An RexProgram is needed when either
     // projection or filter exists.
-    val newScan = scan.copy(scan.getTraitSet, null)
+    val newScan = scan.copy(scan.getTraitSet, newTableSource)
     val newRexProgram = {
       if (remainingCondition != null || program.getProjectList.size() > 0) {
         RexProgram.create(

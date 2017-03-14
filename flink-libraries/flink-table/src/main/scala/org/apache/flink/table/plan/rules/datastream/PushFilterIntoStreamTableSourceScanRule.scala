@@ -28,13 +28,14 @@ import org.apache.flink.table.sources.FilterableTableSource
 class PushFilterIntoStreamTableSourceScanRule extends RelOptRule(
   operand(classOf[DataStreamCalc],
     operand(classOf[StreamTableSourceScan], none)),
-  "PushFilterIntoStreamTableSourceScanRule") with PushFilterIntoTableSourceScanRuleBase {
+  "PushFilterIntoStreamTableSourceScanRule")
+  with PushFilterIntoTableSourceScanRuleBase {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val calc: DataStreamCalc = call.rel(0).asInstanceOf[DataStreamCalc]
     val scan: StreamTableSourceScan = call.rel(1).asInstanceOf[StreamTableSourceScan]
     scan.tableSource match {
-      case _: FilterableTableSource =>
+      case _: FilterableTableSource[_] =>
         calc.getProgram.getCondition != null
       case _ => false
     }
@@ -44,7 +45,7 @@ class PushFilterIntoStreamTableSourceScanRule extends RelOptRule(
     val calc: DataStreamCalc = call.rel(0).asInstanceOf[DataStreamCalc]
     val scan: StreamTableSourceScan = call.rel(1).asInstanceOf[StreamTableSourceScan]
     val tableSourceTable = scan.getTable.unwrap(classOf[TableSourceTable[_]])
-    val filterableSource = scan.tableSource.asInstanceOf[FilterableTableSource]
+    val filterableSource = scan.tableSource.asInstanceOf[FilterableTableSource[_]]
     pushFilterIntoScan(call, calc, scan, tableSourceTable, filterableSource, description)
   }
 }

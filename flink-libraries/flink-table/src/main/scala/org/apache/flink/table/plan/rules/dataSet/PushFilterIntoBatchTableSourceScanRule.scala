@@ -28,13 +28,14 @@ import org.apache.flink.table.sources.FilterableTableSource
 class PushFilterIntoBatchTableSourceScanRule extends RelOptRule(
   operand(classOf[DataSetCalc],
     operand(classOf[BatchTableSourceScan], none)),
-  "PushFilterIntoBatchTableSourceScanRule") with PushFilterIntoTableSourceScanRuleBase {
+  "PushFilterIntoBatchTableSourceScanRule")
+  with PushFilterIntoTableSourceScanRuleBase {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val calc: DataSetCalc = call.rel(0).asInstanceOf[DataSetCalc]
     val scan: BatchTableSourceScan = call.rel(1).asInstanceOf[BatchTableSourceScan]
     scan.tableSource match {
-      case _: FilterableTableSource =>
+      case _: FilterableTableSource[_] =>
         calc.getProgram.getCondition != null
       case _ => false
     }
@@ -44,7 +45,7 @@ class PushFilterIntoBatchTableSourceScanRule extends RelOptRule(
     val calc: DataSetCalc = call.rel(0).asInstanceOf[DataSetCalc]
     val scan: BatchTableSourceScan = call.rel(1).asInstanceOf[BatchTableSourceScan]
     val tableSourceTable = scan.getTable.unwrap(classOf[TableSourceTable[_]])
-    val filterableSource = scan.tableSource.asInstanceOf[FilterableTableSource]
+    val filterableSource = scan.tableSource.asInstanceOf[FilterableTableSource[_]]
     pushFilterIntoScan(call, calc, scan, tableSourceTable, filterableSource, description)
   }
 }

@@ -19,13 +19,15 @@
 package org.apache.flink.table.plan.nodes.dataset
 
 import org.apache.calcite.plan._
+import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.table.api.{BatchTableEnvironment, TableEnvironment}
 import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.plan.nodes.TableSourceScan
 import org.apache.flink.table.plan.schema.TableSourceTable
-import org.apache.flink.table.sources.BatchTableSource
+import org.apache.flink.table.sources.{BatchTableSource, TableSource}
 import org.apache.flink.types.Row
 
 /** Flink RelNode to read data from an external source defined by a [[BatchTableSource]]. */
@@ -33,17 +35,18 @@ class BatchTableSourceScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     table: RelOptTable,
-    val tableSource: BatchTableSource[_])
-  extends BatchScan(cluster, traitSet, table) {
+    tableSource: BatchTableSource[_])
+  extends TableSourceScan(cluster, traitSet, table, tableSource)
+  with BatchScan {
 
-  override def deriveRowType() = {
+  override def deriveRowType(): RelDataType = {
     val flinkTypeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
     flinkTypeFactory.buildRowDataType(
       TableEnvironment.getFieldNames(tableSource),
       TableEnvironment.getFieldTypes(tableSource.getReturnType))
   }
 
-  override def computeSelfCost (planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
+  override def computeSelfCost(planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
     val rowCnt = metadata.getRowCount(this)
     planner.getCostFactory.makeCost(rowCnt, rowCnt, rowCnt * estimateRowSize(getRowType))
   }
@@ -57,6 +60,15 @@ class BatchTableSourceScan(
     )
   }
 
+  override def copy(traitSet: RelTraitSet, newTableSource: TableSource[_]): TableSourceScan = {
+    new BatchTableSourceScan(
+      cluster,
+      traitSet,
+      getTable,
+      newTableSource.asInstanceOf[BatchTableSource[_]]
+    )
+  }
+
   override def explainTerms(pw: RelWriter): RelWriter = {
     val terms = super.explainTerms(pw)
       .item("fields", TableEnvironment.getFieldNames(tableSource).mkString(", "))
@@ -64,10 +76,8 @@ class BatchTableSourceScan(
   }
 
   override def translateToPlan(tableEnv: BatchTableEnvironment): DataSet[Row] = {
-
     val config = tableEnv.getConfig
     val inputDataSet = tableSource.getDataSet(tableEnv.execEnv).asInstanceOf[DataSet[Any]]
-
     convertToInternalRow(inputDataSet, new TableSourceTable(tableSource, tableEnv), config)
   }
 }
