@@ -17,6 +17,7 @@
 
 package org.apache.flink.contrib.streaming.state;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
@@ -144,10 +145,11 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			TaskKvStateRegistry kvStateRegistry,
 			TypeSerializer<K> keySerializer,
 			int numberOfKeyGroups,
-			KeyGroupRange keyGroupRange
+			KeyGroupRange keyGroupRange,
+			ExecutionConfig executionConfig
 	) throws IOException {
 
-		super(kvStateRegistry, keySerializer, userCodeClassLoader, numberOfKeyGroups, keyGroupRange);
+		super(kvStateRegistry, keySerializer, userCodeClassLoader, numberOfKeyGroups, keyGroupRange, executionConfig);
 		this.columnOptions = Preconditions.checkNotNull(columnFamilyOptions);
 		this.dbOptions = Preconditions.checkNotNull(dbOptions);
 
