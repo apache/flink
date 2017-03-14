@@ -713,7 +713,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 		if (fromJob != null) {
 			// backend has been configured on the environment
-			LOG.info("Using user-defined state backend: {}.", stateBackend);
+			LOG.info("Using user-defined state backend: {}.", fromJob);
 			return fromJob;
 		}
 		else {
