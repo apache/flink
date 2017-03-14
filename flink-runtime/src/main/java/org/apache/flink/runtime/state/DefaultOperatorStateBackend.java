@@ -157,7 +157,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 			long checkpointId, long timestamp, CheckpointStreamFactory streamFactory) throws Exception {
 
 		if (registeredStates.isEmpty()) {
-			return new DoneFuture<>(null);
+			return DoneFuture.nullValue();
 		}
 
 		List<OperatorBackendSerializationProxy.StateMetaInfo<?>> metaInfoList =

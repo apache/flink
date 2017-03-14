@@ -25,6 +25,7 @@ import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
@@ -476,6 +477,149 @@ public class SavepointITCase extends TestLogger {
 		}
 	}
 
+	/**
+	 * FLINK-5985
+	 *
+	 * This test ensures we can restore from a savepoint under modifications to the job graph that only concern
+	 * stateless operators.
+	 */
+	@Test
+	public void testCanRestoreWithModifiedStatelessOperators() throws Exception {
+
+		// Config
+		int numTaskManagers = 2;
+		int numSlotsPerTaskManager = 4;
+		int parallelism = 2;
+
+		// Test deadline
+		final Deadline deadline = new FiniteDuration(5, TimeUnit.MINUTES).fromNow();
+
+		final File tmpDir = CommonTestUtils.createTempDirectory();
+		final File savepointDir = new File(tmpDir, "savepoints");
+
+		TestingCluster flink = null;
+		String savepointPath;
+		try {
+			// Flink configuration
+			final Configuration config = new Configuration();
+			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, numTaskManagers);
+			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlotsPerTaskManager);
+			config.setString(ConfigConstants.SAVEPOINT_DIRECTORY_KEY,
+					savepointDir.toURI().toString());
+
+			LOG.info("Flink configuration: " + config + ".");
+
+			// Start Flink
+			flink = new TestingCluster(config);
+			LOG.info("Starting Flink cluster.");
+			flink.start(true);
+
+			// Retrieve the job manager
+			LOG.info("Retrieving JobManager.");
+			ActorGateway jobManager = Await.result(
+					flink.leaderGateway().future(),
+					deadline.timeLeft());
+			LOG.info("JobManager: " + jobManager + ".");
+
+			final StatefulCounter statefulCounter = new StatefulCounter();
+			StatefulCounter.resetForTest();
+
+			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+			env.setParallelism(parallelism);
+			env.addSource(new InfiniteTestSource())
+					.shuffle()
+					.map(new MapFunction<Integer, Integer>() {
+
+						@Override
+						public Integer map(Integer value) throws Exception {
+							return 4 * value;
+						}
+					})
+					.shuffle()
+					.map(statefulCounter).uid("statefulCounter")
+					.shuffle()
+					.map(new MapFunction<Integer, Integer>() {
+
+						@Override
+						public Integer map(Integer value) throws Exception {
+							return 2 * value;
+						}
+					})
+					.addSink(new DiscardingSink<Integer>());
+
+			JobGraph originalJobGraph = env.getStreamGraph().getJobGraph();
+
+			JobSubmissionResult submissionResult = flink.submitJobDetached(originalJobGraph);
+			JobID jobID = submissionResult.getJobID();
+
+			LOG.info("Waiting for some progress.");
+			StatefulCounter.progressLatch.await(60, TimeUnit.SECONDS);
+
+			Future<Object> savepointPathFuture = jobManager.ask(new TriggerSavepoint(jobID, Option.<String>empty()), deadline.timeLeft());
+			savepointPath = ((TriggerSavepointSuccess) Await.result(savepointPathFuture, deadline.timeLeft())).savepointPath();
+			Future<Object> savepointFuture = jobManager.ask(new RequestSavepoint(savepointPath), deadline.timeLeft());
+
+			((ResponseSavepoint) Await.result(savepointFuture, deadline.timeLeft())).savepoint();
+			LOG.info("Retrieved savepoint: " + savepointPath + ".");
+
+			// Shut down the Flink cluster (thereby canceling the job)
+			LOG.info("Shutting down Flink cluster.");
+			flink.shutdown();
+			flink.awaitTermination();
+
+		} finally {
+			flink.shutdown();
+			flink.awaitTermination();
+		}
+
+		try {
+			LOG.info("Restarting Flink cluster.");
+			flink.start(true);
+
+			// Retrieve the job manager
+			LOG.info("Retrieving JobManager.");
+			ActorGateway jobManager = Await.result(flink.leaderGateway().future(), deadline.timeLeft());
+			LOG.info("JobManager: " + jobManager + ".");
+
+			// Reset static test helpers
+			StatefulCounter.resetForTest();
+
+			// Gather all task deployment descriptors
+			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+			env.setParallelism(parallelism);
+
+			// generate a modified job graph that adds a stateless op
+			env.addSource(new InfiniteTestSource())
+					.shuffle()
+					.map(new StatefulCounter()).uid("statefulCounter")
+					.shuffle()
+					.map(new MapFunction<Integer, Integer>() {
+
+						@Override
+						public Integer map(Integer value) throws Exception {
+							return value;
+						}
+					})
+					.addSink(new DiscardingSink<Integer>());
+
+			JobGraph modifiedJobGraph = env.getStreamGraph().getJobGraph();
+
+			// Set the savepoint path
+			modifiedJobGraph.setSavepointRestoreSettings(SavepointRestoreSettings.forPath(savepointPath));
+
+			LOG.info("Resubmitting job " + modifiedJobGraph.getJobID() + " with " +
+					"savepoint path " + savepointPath + " in detached mode.");
+
+			// Submit the job
+			flink.submitJobDetached(modifiedJobGraph);
+			// Await state is restored
+			StatefulCounter.progressLatch.await(60, TimeUnit.SECONDS);
+		} finally {
+			flink.shutdown();
+			flink.awaitTermination();
+		}
+	}
+
 	// ------------------------------------------------------------------------
 	// Test program
 	// ------------------------------------------------------------------------
@@ -529,9 +673,11 @@ public class SavepointITCase extends TestLogger {
 		implements ListCheckpointed<byte[]>, CheckpointListener {
 
 		private static final Object checkpointLock = new Object();
+		private static volatile OneShotLatch progressLatch = new OneShotLatch();
 		private static int numCompleteCalls;
 		private static int numRestoreCalls;
 		private static boolean restoredFromCheckpoint;
+
 
 		private static final long serialVersionUID = 7317800376639115920L;
 		private byte[] data;
@@ -551,6 +697,9 @@ public class SavepointITCase extends TestLogger {
 			for (int i = 0; i < data.length; i++) {
 				data[i] += 1;
 			}
+
+			StatefulCounter.progressLatch.trigger();
+
 			return value;
 		}
 
@@ -589,6 +738,7 @@ public class SavepointITCase extends TestLogger {
 				numCompleteCalls = 0;
 				numRestoreCalls = 0;
 				restoredFromCheckpoint = false;
+				progressLatch = new OneShotLatch();
 			}
 		}
 

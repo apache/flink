@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import akka.dispatch.Futures;
-
 import com.google.common.util.concurrent.MoreExecutors;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
@@ -84,10 +83,9 @@ import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.SerializedValue;
-
 import org.apache.flink.util.TestLogger;
+import org.junit.Assert;
 import org.junit.Test;
-
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
@@ -107,8 +105,10 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.List;
 import java.util.PriorityQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
@@ -634,6 +634,74 @@ public class StreamTaskTest extends TestLogger {
 		verify(rawKeyedStateHandle).discardState();
 		verify(managedOperatorStateHandle).discardState();
 		verify(rawOperatorStateHandle).discardState();
+	}
+
+	/**
+	 * FLINK-5985
+	 *
+	 * This test ensures that empty snapshots (no op/keyed stated whatsoever) will be reported as stateless tasks. This
+	 * happens by translating an empty {@link SubtaskState} into reporting 'null' to #acknowledgeCheckpoint.
+	 */
+	@Test
+	public void testEmptySubtaskStateLeadsToStatelessAcknowledgment() throws Exception {
+		final long checkpointId = 42L;
+		final long timestamp = 1L;
+
+		TaskInfo mockTaskInfo = mock(TaskInfo.class);
+
+		when(mockTaskInfo.getTaskNameWithSubtasks()).thenReturn("foobar");
+		when(mockTaskInfo.getIndexOfThisSubtask()).thenReturn(0);
+
+		Environment mockEnvironment = mock(Environment.class);
+
+		// latch blocks until the async checkpoint thread acknowledges
+		final OneShotLatch checkpointCompletedLatch = new OneShotLatch();
+		final List<SubtaskState> checkpointResult = new ArrayList<>(1);
+
+		// we remember what is acknowledged (expected to be null as our task will snapshot empty states).
+		doAnswer(new Answer() {
+			@Override
+			public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+				SubtaskState subtaskState = invocationOnMock.getArgumentAt(1, SubtaskState.class);
+				checkpointResult.add(subtaskState);
+				checkpointCompletedLatch.trigger();
+				return null;
+			}
+		}).when(mockEnvironment).acknowledgeCheckpoint(any(CheckpointMetaData.class), any(SubtaskState.class));
+
+		when(mockEnvironment.getTaskInfo()).thenReturn(mockTaskInfo);
+
+		StreamTask<?, AbstractStreamOperator<?>> streamTask = mock(StreamTask.class, Mockito.CALLS_REAL_METHODS);
+		CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, timestamp);
+		streamTask.setEnvironment(mockEnvironment);
+
+		// mock the operators
+		StreamOperator<?> statelessOperator =
+				mock(StreamOperator.class, withSettings().extraInterfaces(StreamCheckpointedOperator.class));
+
+		// mock the returned empty snapshot result (all state handles are null)
+		OperatorSnapshotResult statelessOperatorSnapshotResult = new OperatorSnapshotResult();
+		when(statelessOperator.snapshotState(anyLong(), anyLong()))
+				.thenReturn(statelessOperatorSnapshotResult);
+
+		// set up the task
+		StreamOperator<?>[] streamOperators = {statelessOperator};
+		OperatorChain<Void, AbstractStreamOperator<Void>> operatorChain = mock(OperatorChain.class);
+		when(operatorChain.getAllOperators()).thenReturn(streamOperators);
+
+		Whitebox.setInternalState(streamTask, "isRunning", true);
+		Whitebox.setInternalState(streamTask, "lock", new Object());
+		Whitebox.setInternalState(streamTask, "operatorChain", operatorChain);
+		Whitebox.setInternalState(streamTask, "cancelables", new CloseableRegistry());
+		Whitebox.setInternalState(streamTask, "configuration", new StreamConfig(new Configuration()));
+		Whitebox.setInternalState(streamTask, "asyncOperationsThreadPool", Executors.newCachedThreadPool());
+
+		streamTask.triggerCheckpoint(checkpointMetaData);
+		checkpointCompletedLatch.await(30, TimeUnit.SECONDS);
+		streamTask.cancel();
+
+		// ensure that 'null' was acknowledged as subtask state
+		Assert.assertNull(checkpointResult.get(0));
 	}
 
 	// ------------------------------------------------------------------------
