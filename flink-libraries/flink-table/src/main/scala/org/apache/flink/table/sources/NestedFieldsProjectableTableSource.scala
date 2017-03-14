@@ -21,11 +21,11 @@ package org.apache.flink.table.sources
 /**
   * Adds support for projection push-down to a [[TableSource]] with nested fields.
   * A [[TableSource]] extending this interface is able
-  * to project the nested fields of the return table.
+  * to project the nested fields of the returned table.
   *
   * @tparam T The return type of the [[NestedFieldsProjectableTableSource]].
   */
-trait NestedFieldsProjectableTableSource[T] extends ProjectableTableSource[T] {
+trait NestedFieldsProjectableTableSource[T] {
 
   /**
     * Creates a copy of the [[NestedFieldsProjectableTableSource]]
@@ -44,7 +44,7 @@ trait NestedFieldsProjectableTableSource[T] extends ProjectableTableSource[T] {
     * select (id, student.school.city, student.age, teacher)
     *
     * fields = field = [0, 1, 2]
-    * nestedFields  \[\[], ["school.city", "age"], ["*"\]\]
+    * nestedFields  \[\["*"], ["school.city", "age"], ["*"\]\]
     *
     * @return A copy of the [[NestedFieldsProjectableTableSource]] that projects its output.
     */

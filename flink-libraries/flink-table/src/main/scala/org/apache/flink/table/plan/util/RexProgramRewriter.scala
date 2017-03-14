@@ -100,11 +100,11 @@ class RefFieldAccessorVisitor(
 
   private val projectedFields = new util.ArrayList[Array[String]]
 
-  names.foreach { n =>
+  names.foreach { _ =>
     projectedFields.add(Array.empty)
   }
 
-  private val order: Map[Int, Int] = names.indices.zip(usedFields).map(_.swap).toMap
+  private val order: Map[Int, Int] = usedFields.zip(names.indices).toMap
 
   def getNestedFields: Array[Array[String]] =
     projectedFields.asScala.toArray.filterNot(_.isEmpty)

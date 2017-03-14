@@ -27,6 +27,7 @@ import org.apache.calcite.rex.{RexBuilder, RexProgram, RexProgramBuilder}
 import org.apache.calcite.sql.`type`.SqlTypeName.{BIGINT, DOUBLE, INTEGER, VARCHAR}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.flink.table.plan.rules.util.RexProgramProjectExtractor._
+import org.apache.flink.table.plan.rules.util.InputTypeBuilder._
 import org.junit.Assert.{assertArrayEquals, assertThat, assertTrue}
 import org.hamcrest.CoreMatchers.is
 import org.junit.{Before, Test}
@@ -58,28 +59,38 @@ class RexProgramProjectExtractorTest {
   @Test
   def testExtractRefNestedInputFields(): Unit = {
     val rexProgram = buildRexProgramWithNesting()
+
     val usedFields = extractRefInputFields(rexProgram)
     val usedNestedFields = extractRefNestedInputFields(rexProgram, usedFields)
-    val expected = Array[Array[String]](Array("amount"), Array("*"))
+
+    val expected = Array(Array("amount"), Array("*"))
     assertThat(usedNestedFields, is(expected))
   }
 
   @Test
   def testExtractRefNestedInputFieldsWithNoNesting(): Unit = {
     val rexProgram = buildRexProgram()
+
     val usedFields = extractRefInputFields(rexProgram)
     val usedNestedFields = extractRefNestedInputFields(rexProgram, usedFields)
-    val expected = Array[Array[String]](Array("*"), Array("*"), Array("*"))
+
+    val expected = Array(Array("*"), Array("*"), Array("*"))
     assertThat(usedNestedFields, is(expected))
   }
 
   @Test
   def testExtractDeepRefNestedInputFields(): Unit = {
     val rexProgram = buildRexProgramWithDeepNesting()
+
     val usedFields = extractRefInputFields(rexProgram)
     val usedNestedFields = extractRefNestedInputFields(rexProgram, usedFields)
-    val expected = Array[Array[String]](Array("amount"), Array("passport.status"))
-    assertThat(usedFields, is(Array(1, 0)))
+
+    val expected = Array(
+      Array("amount"),
+      Array("passport.status"),
+      Array("with.deep.entry", "with.deeper.entry.inside.entry"))
+
+    assertThat(usedFields, is(Array(1, 0, 2)))
     assertThat(usedNestedFields, is(expected))
   }
 
@@ -116,52 +127,104 @@ class RexProgramProjectExtractorTest {
   }
 
   private def buildRexProgramWithDeepNesting(): RexProgram = {
-    val sqlInt = typeFactory.createSqlType(INTEGER)
-    val sqlString = typeFactory.createSqlType(VARCHAR)
-    val sqlLong = typeFactory.createSqlType(BIGINT)
 
-    val passport = typeFactory.createStructType(
-      List(sqlString, sqlString).asJava,
-      List("id", "status").asJava)
-    val peopleRow = typeFactory.createStructType(
-      List(sqlString, sqlInt, passport).asJava,
-      List("name", "age", "passport").asJava)
-    val paymentRow = typeFactory.createStructType(
-      List(sqlLong, sqlInt).asJava,
-      List("id", "amount").asJava)
-    val inputRowType = typeFactory.createStructType(
-      List(peopleRow, paymentRow).asJava,
-      List("people", "payments").asJava)
+    // person input
+    val passportRow = inputOf(typeFactory)
+      .field("id").withType(VARCHAR)
+      .field("status").withType(VARCHAR)
+      .build
+
+    val personRow = inputOf(typeFactory)
+      .field("name").withType(VARCHAR)
+      .field("age").withType(INTEGER)
+      .field("passport").withNestedType(passportRow)
+      .build
+
+    // payment input
+    val paymentRow = inputOf(typeFactory)
+      .field("id").withType(BIGINT)
+      .field("amount").withType(INTEGER)
+      .build
+
+    // deep field input
+    val deepRowType = inputOf(typeFactory)
+      .field("entry").withType(VARCHAR)
+      .build
+
+    val insideRowType = deepRowType
+
+    val entryRowType = inputOf(typeFactory)
+      .field("inside").withNestedType(insideRowType)
+      .build
+
+    val deeperRowType = inputOf(typeFactory)
+      .field("entry").withNestedType(entryRowType)
+      .build
+
+    val withRowType = inputOf(typeFactory)
+      .field("deep").withNestedType(deepRowType)
+      .field("deeper").withNestedType(deeperRowType)
+      .build
+
+    val fieldRowType = inputOf(typeFactory)
+      .field("with").withNestedType(withRowType)
+      .build
+
+    // main input
+    val inputRowType = inputOf(typeFactory)
+      .field("persons").withNestedType(personRow)
+      .field("payments").withNestedType(paymentRow)
+      .field("field").withNestedType(fieldRowType)
+      .build
 
     val builder = new RexProgramBuilder(inputRowType, rexBuilder)
 
-    val t0 = rexBuilder.makeInputRef(peopleRow, 0)
+    val t0 = rexBuilder.makeInputRef(personRow, 0)
     val t1 = rexBuilder.makeInputRef(paymentRow, 1)
+    val t2 = rexBuilder.makeInputRef(fieldRowType, 2)
+    val t3 = rexBuilder.makeExactLiteral(BigDecimal.valueOf(10L))
 
+    // person
+    val person$pass = rexBuilder.makeFieldAccess(t0, "passport", false)
+    val person$pass$stat = rexBuilder.makeFieldAccess(person$pass, "status", false)
+
+    // payment
     val pay$amount = rexBuilder.makeFieldAccess(t1, "amount", false)
+    val multiplyAmount = builder.addExpr(
+      rexBuilder.makeCall(SqlStdOperatorTable.MULTIPLY, pay$amount, t3))
 
-    val people$pass = rexBuilder.makeFieldAccess(t0, "passport", false)
-    val people$pass$stat = rexBuilder.makeFieldAccess(people$pass, "status", false)
+    // field
+    val field$with = rexBuilder.makeFieldAccess(t2, "with", false)
+    val field$with$deep = rexBuilder.makeFieldAccess(field$with, "deep", false)
+    val field$with$deeper = rexBuilder.makeFieldAccess(field$with, "deeper", false)
+    val field$with$deep$entry = rexBuilder.makeFieldAccess(field$with$deep, "entry", false)
+    val field$with$deeper$entry = rexBuilder.makeFieldAccess(field$with$deeper, "entry", false)
+    val field$with$deeper$entry$inside = rexBuilder
+      .makeFieldAccess(field$with$deeper$entry, "inside", false)
+    val field$with$deeper$inside$entry = rexBuilder
+      .makeFieldAccess(field$with$deeper$entry$inside, "entry", false)
 
-    builder.addProject(pay$amount, "amount")
-    builder.addProject(people$pass$stat, "status")
+    builder.addProject(multiplyAmount, "amount")
+    builder.addProject(person$pass$stat, "status")
+    builder.addProject(field$with$deep$entry, "entry")
+    builder.addProject(field$with$deeper$inside$entry, "entry")
     builder.getProgram
   }
 
   private def buildRexProgramWithNesting(): RexProgram = {
-    val sqlInt = typeFactory.createSqlType(INTEGER)
-    val sqlString = typeFactory.createSqlType(VARCHAR)
-    val sqlLong = typeFactory.createSqlType(BIGINT)
 
-    val peopleRow = typeFactory.createStructType(
-      List(sqlString, sqlInt).asJava,
-      List("name", "age").asJava)
-    val paymentRow = typeFactory.createStructType(
-      List(sqlLong, sqlInt).asJava,
-      List("id", "amount").asJava)
+    val personRow = inputOf(typeFactory)
+      .field("name").withType(INTEGER)
+      .field("age").withType(VARCHAR)
+      .build
 
-    val types = List(peopleRow, paymentRow).asJava
-    val names = List("people", "payments").asJava
+    val paymentRow = inputOf(typeFactory)
+      .field("id").withType(BIGINT)
+      .field("amount").withType(INTEGER)
+      .build
+
+    val types = List(personRow, paymentRow).asJava
+    val names = List("persons", "payments").asJava
     val inputRowType = typeFactory.createStructType(types, names)
 
     val builder = new RexProgramBuilder(inputRowType, rexBuilder)
@@ -173,7 +236,7 @@ class RexProgramProjectExtractorTest {
     val payment$amount = rexBuilder.makeFieldAccess(t1, "amount", false)
 
     builder.addProject(payment$amount, "amount")
-    builder.addProject(t0, "people")
+    builder.addProject(t0, "persons")
     builder.addProject(t2, "number")
     builder.getProgram
   }
