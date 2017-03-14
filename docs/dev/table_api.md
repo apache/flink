@@ -1284,7 +1284,7 @@ SQL
 ----
 SQL queries are specified using the `sql()` method of the `TableEnvironment`. The method returns the result of the SQL query as a `Table` which can be converted into a `DataSet` or `DataStream`, used in subsequent Table API queries, or written to a `TableSink` (see [Writing Tables to External Sinks](#writing-tables-to-external-sinks)). SQL and Table API queries can seamlessly mixed and are holistically optimized and translated into a single DataStream or DataSet program.
 
-A `Table`, `DataSet`, `DataStream`, or external `TableSource` must be registered in the `TableEnvironment` in order to be accessible by a SQL query (see [Registering Tables](#registering-tables)).
+A `Table`, `DataSet`, `DataStream`, or external `TableSource` must be registered in the `TableEnvironment` in order to be accessible by a SQL query (see [Registering Tables](#registering-tables)). For convenience `Table.toString()` will automatically register an unique table name under the `Table`'s `TableEnvironment` and return the table name. So it allows to call SQL directly on tables in a string concatenation (see examples below).
 
 *Note: Flink's SQL support is not feature complete, yet. Queries that include unsupported SQL features will cause a `TableException`. The limitations of SQL on batch and streaming tables are listed in the following sections.*
 
@@ -1298,10 +1298,17 @@ BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 // read a DataSet from an external source
 DataSet<Tuple3<Long, String, Integer>> ds = env.readCsvFile(...);
+
+// call SQL on unregistered tables
+Table table = tableEnv.toTable(ds, "user, product, amount");
+Table result = tableEnv.sql(
+  "SELECT SUM(amount) FROM " + table + " WHERE product LIKE '%Rubber%'");
+
+// call SQL on registered tables
 // register the DataSet as table "Orders"
 tableEnv.registerDataSet("Orders", ds, "user, product, amount");
 // run a SQL query on the Table and retrieve the result as a new Table
-Table result = tableEnv.sql(
+Table result2 = tableEnv.sql(
   "SELECT SUM(amount) FROM Orders WHERE product LIKE '%Rubber%'");
 {% endhighlight %}
 </div>
@@ -1313,10 +1320,17 @@ val tableEnv = TableEnvironment.getTableEnvironment(env)
 
 // read a DataSet from an external source
 val ds: DataSet[(Long, String, Integer)] = env.readCsvFile(...)
+
+// call SQL on unregistered tables
+val table = ds.toTable(tableEnv, 'user, 'product, 'amount)
+val result = tableEnv.sql(
+  s"SELECT SUM(amount) FROM $table WHERE product LIKE '%Rubber%'")
+
+// call SQL on registered tables
 // register the DataSet under the name "Orders"
 tableEnv.registerDataSet("Orders", ds, 'user, 'product, 'amount)
 // run a SQL query on the Table and retrieve the result as a new Table
-val result = tableEnv.sql(
+val result2 = tableEnv.sql(
   "SELECT SUM(amount) FROM Orders WHERE product LIKE '%Rubber%'")
 {% endhighlight %}
 </div>
@@ -1347,10 +1361,17 @@ StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 // ingest a DataStream from an external source
 DataStream<Tuple3<Long, String, Integer>> ds = env.addSource(...);
+
+// call SQL on unregistered tables
+Table table = tableEnv.toTable(ds, "user, product, amount");
+Table result = tableEnv.sql(
+  "SELECT SUM(amount) FROM " + table + " WHERE product LIKE '%Rubber%'");
+
+// call SQL on registered tables
 // register the DataStream as table "Orders"
 tableEnv.registerDataStream("Orders", ds, "user, product, amount");
 // run a SQL query on the Table and retrieve the result as a new Table
-Table result = tableEnv.sql(
+Table result2 = tableEnv.sql(
   "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'");
 {% endhighlight %}
 </div>
@@ -1362,10 +1383,17 @@ val tableEnv = TableEnvironment.getTableEnvironment(env)
 
 // read a DataStream from an external source
 val ds: DataStream[(Long, String, Integer)] = env.addSource(...)
+
+// call SQL on unregistered tables
+val table = ds.toTable(tableEnv, 'user, 'product, 'amount)
+val result = tableEnv.sql(
+  s"SELECT SUM(amount) FROM $table WHERE product LIKE '%Rubber%'")
+
+// call SQL on registered tables
 // register the DataStream under the name "Orders"
 tableEnv.registerDataStream("Orders", ds, 'user, 'product, 'amount)
 // run a SQL query on the Table and retrieve the result as a new Table
-val result = tableEnv.sql(
+val result2 = tableEnv.sql(
   "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
 {% endhighlight %}
 </div>
