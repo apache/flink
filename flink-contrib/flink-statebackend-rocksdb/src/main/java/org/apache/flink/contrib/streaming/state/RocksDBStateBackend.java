@@ -259,7 +259,8 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 				kvStateRegistry,
 				keySerializer,
 				numberOfKeyGroups,
-				keyGroupRange);
+				keyGroupRange,
+				env.getExecutionConfig());
 	}
 
 	// ------------------------------------------------------------------------

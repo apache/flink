@@ -22,6 +22,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.UnpooledByteBufAllocator;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -331,7 +332,8 @@ public class KvStateRequestSerializerTest {
 				mock(TaskKvStateRegistry.class),
 				LongSerializer.INSTANCE,
 				ClassLoader.getSystemClassLoader(),
-				1, new KeyGroupRange(0, 0)
+				1, new KeyGroupRange(0, 0),
+				new ExecutionConfig()
 			);
 		longHeapKeyedStateBackend.setCurrentKey(key);
 
@@ -430,7 +432,8 @@ public class KvStateRequestSerializerTest {
 				mock(TaskKvStateRegistry.class),
 				LongSerializer.INSTANCE,
 				ClassLoader.getSystemClassLoader(),
-				1, new KeyGroupRange(0, 0)
+				1, new KeyGroupRange(0, 0),
+				new ExecutionConfig()
 			);
 		longHeapKeyedStateBackend.setCurrentKey(key);
 

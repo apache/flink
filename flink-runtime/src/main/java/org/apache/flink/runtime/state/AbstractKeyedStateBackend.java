@@ -94,12 +94,15 @@ public abstract class AbstractKeyedStateBackend<K>
 
 	protected final ClassLoader userCodeClassLoader;
 
+	private final ExecutionConfig executionConfig;
+
 	public AbstractKeyedStateBackend(
 			TaskKvStateRegistry kvStateRegistry,
 			TypeSerializer<K> keySerializer,
 			ClassLoader userCodeClassLoader,
 			int numberOfKeyGroups,
-			KeyGroupRange keyGroupRange) {
+			KeyGroupRange keyGroupRange,
+			ExecutionConfig executionConfig) {
 
 		this.kvStateRegistry = kvStateRegistry;//Preconditions.checkNotNull(kvStateRegistry);
 		this.keySerializer = Preconditions.checkNotNull(keySerializer);
@@ -108,6 +111,7 @@ public abstract class AbstractKeyedStateBackend<K>
 		this.keyGroupRange = Preconditions.checkNotNull(keyGroupRange);
 		this.cancelStreamRegistry = new CloseableRegistry();
 		this.keyValueStatesByName = new HashMap<>();
+		this.executionConfig = executionConfig;
 	}
 
 	/**
@@ -349,10 +353,7 @@ public abstract class AbstractKeyedStateBackend<K>
 
 		checkNotNull(namespace, "Namespace");
 
-		// TODO: This is wrong, it should throw an exception that the initialization has not properly happened
-		if (!stateDescriptor.isSerializerInitialized()) {
-			stateDescriptor.initializeSerializerUnlessSet(new ExecutionConfig());
-		}
+		stateDescriptor.initializeSerializerUnlessSet(executionConfig);
 
 		if (lastName != null && lastName.equals(stateDescriptor.getName())) {
 			lastState.setCurrentNamespace(namespace);
