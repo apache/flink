@@ -27,6 +27,7 @@ import kafka.javaapi.consumer.SimpleConsumer;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
+import org.apache.flink.streaming.connectors.kafka.config.OffsetCommitMode;
 import org.apache.flink.streaming.connectors.kafka.internals.AbstractFetcher;
 import org.apache.flink.streaming.connectors.kafka.internals.Kafka08Fetcher;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
@@ -112,9 +113,6 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 	/** The properties to parametrize the Kafka consumer and ZooKeeper client */ 
 	private final Properties kafkaProperties;
 
-	/** The interval in which to automatically commit (-1 if deactivated) */
-	private final long autoCommitInterval;
-
 	// ------------------------------------------------------------------------
 
 	/**
@@ -187,8 +185,6 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 
 		// eagerly check for invalid "auto.offset.reset" values before launching the job
 		validateAutoOffsetResetValue(props);
-
-		this.autoCommitInterval = PropertiesUtil.getLong(props, "auto.commit.interval.ms", 60000);
 	}
 
 	@Override
@@ -197,9 +193,14 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 			Map<KafkaTopicPartition, Long> assignedPartitionsWithInitialOffsets,
 			SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
 			SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
-			StreamingRuntimeContext runtimeContext) throws Exception {
+			StreamingRuntimeContext runtimeContext,
+			OffsetCommitMode offsetCommitMode) throws Exception {
 
-		boolean useMetrics = !Boolean.valueOf(kafkaProperties.getProperty(KEY_DISABLE_METRICS, "false"));
+		boolean useMetrics = !PropertiesUtil.getBoolean(kafkaProperties, KEY_DISABLE_METRICS, false);
+
+		long autoCommitInterval = (offsetCommitMode == OffsetCommitMode.KAFKA_PERIODIC)
+				? PropertiesUtil.getLong(kafkaProperties, "auto.commit.interval.ms", 60000)
+				: -1; // this disables the periodic offset committer thread in the fetcher
 
 		return new Kafka08Fetcher<>(
 				sourceContext,
@@ -230,6 +231,12 @@ public class FlinkKafkaConsumer08<T> extends FlinkKafkaConsumerBase<T> {
 		}
 
 		return partitionInfos;
+	}
+
+	@Override
+	protected boolean getIsAutoCommitEnabled() {
+		return PropertiesUtil.getBoolean(kafkaProperties, "auto.commit.enable", true) &&
+				PropertiesUtil.getLong(kafkaProperties, "auto.commit.interval.ms", 60000) > 0;
 	}
 
 	// ------------------------------------------------------------------------
