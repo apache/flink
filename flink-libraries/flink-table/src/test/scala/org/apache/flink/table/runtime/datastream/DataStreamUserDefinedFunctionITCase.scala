@@ -27,18 +27,22 @@ import org.apache.flink.table.expressions.utils.{Func13, RichFunc2}
 import org.apache.flink.table.utils._
 import org.apache.flink.types.Row
 import org.junit.Assert._
-import org.junit.Test
+import org.junit.{Before, Test}
 
 import scala.collection.mutable
 
 class DataStreamUserDefinedFunctionITCase extends StreamingMultipleProgramsTestBase {
 
+  val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
+  val tEnv: StreamTableEnvironment = TableEnvironment.getTableEnvironment(env)
+
+  @Before
+  def clear(): Unit = {
+    StreamITCase.clear
+  }
+
   @Test
   def testCrossJoin(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-    StreamITCase.clear
-
     val t = testData(env).toTable(tEnv).as('a, 'b, 'c)
     val func0 = new TableFunc0
     val pojoFunc0 = new PojoTableFunc()
@@ -60,10 +64,6 @@ class DataStreamUserDefinedFunctionITCase extends StreamingMultipleProgramsTestB
 
   @Test
   def testLeftOuterJoin(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-    StreamITCase.clear
-
     val t = testData(env).toTable(tEnv).as('a, 'b, 'c)
     val func0 = new TableFunc0
 
@@ -83,8 +83,6 @@ class DataStreamUserDefinedFunctionITCase extends StreamingMultipleProgramsTestB
 
   @Test
   def testUserDefinedTableFunctionWithParameter(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
     val tableFunc1 = new RichTableFunc1
     tEnv.registerFunction("RichTableFunc1", tableFunc1)
     UserDefinedFunctionTestUtils.setJobParameters(env, Map("word_separator" -> " "))
@@ -105,8 +103,6 @@ class DataStreamUserDefinedFunctionITCase extends StreamingMultipleProgramsTestB
 
   @Test
   def testUserDefinedTableFunctionWithUserDefinedScalarFunction(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
     val tableFunc1 = new RichTableFunc1
     val richFunc2 = new RichFunc2
     tEnv.registerFunction("RichTableFunc1", tableFunc1)
@@ -137,10 +133,6 @@ class DataStreamUserDefinedFunctionITCase extends StreamingMultipleProgramsTestB
 
   @Test
   def testTableFunctionConstructorWithParams(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-    StreamITCase.clear
-
     val t = testData(env).toTable(tEnv).as('a, 'b, 'c)
     val config = Map("key1" -> "value1", "key2" -> "value2")
     val func30 = new TableFunc3(null)
@@ -172,10 +164,6 @@ class DataStreamUserDefinedFunctionITCase extends StreamingMultipleProgramsTestB
 
   @Test
   def testScalarFunctionConstructorWithParams(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env)
-    StreamITCase.clear
-
     val t = testData(env).toTable(tEnv).as('a, 'b, 'c)
     val func0 = new Func13("default")
     val func1 = new Func13("Sunny")
@@ -197,13 +185,11 @@ class DataStreamUserDefinedFunctionITCase extends StreamingMultipleProgramsTestB
 
   @Test
   def testTableFunctionWithVariableArguments(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env)
     val varArgsFunc0 = new VarArgsFunc0
-    tableEnv.registerFunction("VarArgsFunc0", varArgsFunc0)
+    tEnv.registerFunction("VarArgsFunc0", varArgsFunc0)
 
     val result = testData(env)
-      .toTable(tableEnv, 'a, 'b, 'c)
+      .toTable(tEnv, 'a, 'b, 'c)
       .select('c)
       .join(varArgsFunc0("1", "2", 'c))
 
