@@ -933,14 +933,16 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				ChainedStateHandle<OperatorStateHandle> chainedOperatorStateStream =
 						new ChainedStateHandle<>(operatorStatesStream);
 
-				SubtaskState subtaskState = new SubtaskState(
+				SubtaskState subtaskState = createSubtaskStateFromSnapshotStateHandles(
 						chainedNonPartitionedOperatorsState,
 						chainedOperatorStateBackend,
 						chainedOperatorStateStream,
 						keyedStateHandleBackend,
 						keyedStateHandleStream);
 
-				if (asyncCheckpointState.compareAndSet(CheckpointingOperation.AsynCheckpointState.RUNNING, CheckpointingOperation.AsynCheckpointState.COMPLETED)) {
+				if (asyncCheckpointState.compareAndSet(CheckpointingOperation.AsynCheckpointState.RUNNING,
+						CheckpointingOperation.AsynCheckpointState.COMPLETED)) {
+
 					owner.getEnvironment().acknowledgeCheckpoint(checkpointMetaData, subtaskState);
 
 					if (LOG.isDebugEnabled()) {
@@ -958,7 +960,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				asyncCheckpointState.compareAndSet(
 					CheckpointingOperation.AsynCheckpointState.COMPLETED,
 					CheckpointingOperation.AsynCheckpointState.RUNNING);
-				
+
 				try {
 					cleanup();
 				} catch (Exception cleanupException) {
@@ -985,6 +987,31 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			} catch (Exception cleanupException) {
 				LOG.warn("Could not properly clean up the async checkpoint runnable.", cleanupException);
 			}
+		}
+
+		private SubtaskState createSubtaskStateFromSnapshotStateHandles(
+				ChainedStateHandle<StreamStateHandle> chainedNonPartitionedOperatorsState,
+				ChainedStateHandle<OperatorStateHandle> chainedOperatorStateBackend,
+				ChainedStateHandle<OperatorStateHandle> chainedOperatorStateStream,
+				KeyGroupsStateHandle keyedStateHandleBackend,
+				KeyGroupsStateHandle keyedStateHandleStream) {
+
+			boolean hasAnyState = keyedStateHandleBackend != null
+					|| keyedStateHandleStream != null
+					|| !chainedOperatorStateBackend.isEmpty()
+					|| !chainedOperatorStateStream.isEmpty()
+					|| !chainedNonPartitionedOperatorsState.isEmpty();
+
+			// we signal a stateless task by reporting null, so that there are no attempts to assign empty state to
+			// stateless tasks on restore. This allows for simple job modifications that only concern stateless without
+			// the need to assign them uids to match their (always empty) states.
+			return hasAnyState ? new SubtaskState(
+					chainedNonPartitionedOperatorsState,
+					chainedOperatorStateBackend,
+					chainedOperatorStateStream,
+					keyedStateHandleBackend,
+					keyedStateHandleStream)
+					: null;
 		}
 
 		private void cleanup() throws Exception {
@@ -1122,7 +1149,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		@SuppressWarnings("deprecation")
 		private void checkpointStreamOperator(StreamOperator<?> op) throws Exception {
 			if (null != op) {
-				// first call the legacy checkpoint code paths 
+				// first call the legacy checkpoint code paths
 				nonPartitionedStates.add(op.snapshotLegacyOperatorState(
 						checkpointMetaData.getCheckpointId(),
 						checkpointMetaData.getTimestamp()));

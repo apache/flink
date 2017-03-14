@@ -22,7 +22,7 @@ import java.util.Collection;
 import java.util.concurrent.RunnableFuture;
 
 /**
- * Interface for operations that can perform snapshots of their state.
+ * Interface for operators that can perform snapshots of their state.
  *
  * @param <S> Generic type of the state object that is created as handle to snapshots.
  */

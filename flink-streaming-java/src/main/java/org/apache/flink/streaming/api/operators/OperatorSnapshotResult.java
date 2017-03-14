@@ -121,4 +121,16 @@ public class OperatorSnapshotResult {
 			throw exception;
 		}
 	}
+
+	public boolean hasKeyedState() {
+		return keyedStateManagedFuture != null || keyedStateRawFuture != null;
+	}
+
+	public boolean hasOperatorState() {
+		return operatorStateManagedFuture != null || operatorStateRawFuture != null;
+	}
+
+	public boolean hasState() {
+		return hasKeyedState() || hasOperatorState();
+	}
 }

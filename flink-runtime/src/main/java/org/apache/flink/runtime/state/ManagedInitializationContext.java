@@ -36,7 +36,8 @@ import org.apache.flink.api.common.state.OperatorStateStore;
 public interface ManagedInitializationContext {
 
 	/**
-	 * Returns true, if some managed state was restored from the snapshot of a previous execution.
+	 * Returns true, if state was restored from the snapshot of a previous execution. This returns always false for
+	 * stateless tasks.
 	 */
 	boolean isRestored();
 
