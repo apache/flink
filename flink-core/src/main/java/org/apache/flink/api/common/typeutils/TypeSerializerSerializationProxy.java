@@ -94,7 +94,7 @@ public class TypeSerializerSerializationProxy<T> extends VersionedIOReadableWrit
 		// read in a way that allows the stream to recover from exceptions
 		int serializerBytes = in.readInt();
 		byte[] buffer = new byte[serializerBytes];
-		in.read(buffer);
+		in.readFully(buffer);
 		try {
 			typeSerializer = InstantiationUtil.deserializeObject(buffer, userClassLoader);
 		} catch (ClassNotFoundException e) {
