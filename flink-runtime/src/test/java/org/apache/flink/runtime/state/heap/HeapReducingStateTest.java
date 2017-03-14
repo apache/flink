@@ -236,7 +236,8 @@ public class HeapReducingStateTest {
 				StringSerializer.INSTANCE,
 				HeapReducingStateTest.class.getClassLoader(),
 				16,
-				new KeyGroupRange(0, 15));
+				new KeyGroupRange(0, 15),
+				new ExecutionConfig());
 	}
 
 	// ------------------------------------------------------------------------

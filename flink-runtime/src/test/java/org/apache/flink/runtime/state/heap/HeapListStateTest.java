@@ -232,7 +232,8 @@ public class HeapListStateTest {
 				StringSerializer.INSTANCE,
 				HeapListStateTest.class.getClassLoader(),
 				16,
-				new KeyGroupRange(0, 15));
+				new KeyGroupRange(0, 15),
+				new ExecutionConfig());
 	}
 	
 	private static <T> void validateResult(Iterable<T> values, Set<T> expected) {
