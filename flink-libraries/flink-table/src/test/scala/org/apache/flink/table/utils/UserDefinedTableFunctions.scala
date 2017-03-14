@@ -109,6 +109,66 @@ class TableFunc3(data: String, conf: Map[String, String]) extends TableFunction[
   }
 }
 
+// Test for incomplete row
+class TableFunc4 extends TableFunction[Row] {
+  def eval(str: String): Unit = {
+    if (str.contains("#")) {
+      str.split("#").foreach({ s =>
+        val row = new Row(3)
+        row.setField(0, s)  // And we only set values for one column
+        collect(row)
+      })
+    }
+  }
+
+  override def getResultType: TypeInformation[Row] = {
+    new RowTypeInfo(BasicTypeInfo.STRING_TYPE_INFO,
+                    BasicTypeInfo.INT_TYPE_INFO,
+                    BasicTypeInfo.INT_TYPE_INFO)
+  }
+}
+
+// Test for incomplete row
+class TableFunc5 extends TableFunction[Row] {
+  def eval(str: String): Unit = {
+    if (str.contains("#")) {
+      str.split("#").foreach({ s =>
+        val row = new Row(1)  // ResultType is three columns, we have only one here
+        row.setField(0, s)
+        collect(row)
+      })
+    }
+  }
+
+  override def getResultType: TypeInformation[Row] = {
+    new RowTypeInfo(BasicTypeInfo.STRING_TYPE_INFO,
+      BasicTypeInfo.INT_TYPE_INFO,
+      BasicTypeInfo.INT_TYPE_INFO)
+  }
+}
+
+// Test for overflow row
+class TableFunc6 extends TableFunction[Row] {
+  def eval(str: String): Unit = {
+    if (str.contains("#")) {
+      str.split("#").foreach({ s =>
+        val row = new Row(5)  // ResultType is two columns, we have five columns here
+        row.setField(0, s)
+        row.setField(1, s.length)
+        row.setField(2, s.length)
+        row.setField(3, s.length)
+        row.setField(4, s.length)
+        collect(row)
+      })
+    }
+  }
+
+  override def getResultType: TypeInformation[Row] = {
+    new RowTypeInfo(BasicTypeInfo.STRING_TYPE_INFO,
+                    BasicTypeInfo.INT_TYPE_INFO)
+  }
+}
+
 class HierarchyTableFunction extends SplittableTableFunction[Boolean, Integer] {
   def eval(user: String) {
     if (user.contains("#")) {
