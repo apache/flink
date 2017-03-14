@@ -66,10 +66,11 @@ public class Row implements Serializable{
 	 * Gets the field at the specified position.
 	 * @param pos The position of the field, 0-based.
 	 * @return The field at the specified position.
-	 * @throws IndexOutOfBoundsException Thrown, if the position is negative, or equal to, or larger than the number of fields.
+	 * Return null if the position is equal to, or larger than the number of fields.
+	 * @throws IndexOutOfBoundsException Thrown, if the position is negative.
 	 */
 	public Object getField(int pos) {
-		return fields[pos];
+		return pos >= fields.length ? null : fields[pos];
 	}
 
 	/**

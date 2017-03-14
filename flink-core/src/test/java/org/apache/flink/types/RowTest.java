@@ -21,6 +21,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 public class RowTest {
 	@Test
@@ -45,5 +46,14 @@ public class RowTest {
 		row2.setField(3, new Tuple2<>(2L, "hi"));
 		row2.setField(4, true);
 		assertEquals(row1, row2);
+	}
+
+	@Test
+	public void testOutOfBound() {
+		Row row = new Row(2);
+		assertNull(row.getField(0));
+		row.setField(0, 0);
+		row.setField(1, 1);
+		assertNull(row.getField(2));
 	}
 }

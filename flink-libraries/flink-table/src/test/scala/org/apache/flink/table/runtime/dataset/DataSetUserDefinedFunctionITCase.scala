@@ -117,6 +117,53 @@ class DataSetUserDefinedFunctionITCase(
   }
 
   @Test
+  def testIncompleteColumns(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
+    val in = testData(env).toTable(tableEnv).as('a, 'b, 'c)
+    val func4 = new TableFunc4
+
+    val result = in
+      .join(func4('c) as ('name, 'lenone, 'lentwo))
+      .select('c, 'name, 'lenone, 'lentwo)
+      .toDataSet[Row]
+
+    val results = result.collect()
+    val expected = "Jack#22,Jack,null,null\n" + "Jack#22,22,null,null\n" +
+      "John#19,John,null,null\n" + "John#19,19,null,null\n" + "Anna#44,Anna,null,null\n" +
+      "Anna#44,44,null,null\n"
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+
+    val func5 = new TableFunc5
+
+    val result1 = in
+      .join(func5('c) as ('name, 'lenone, 'lentwo))
+      .select('c, 'name, 'lenone, 'lentwo)
+      .toDataSet[Row]
+
+    val results1 = result1.collect()
+    TestBaseUtils.compareResultAsText(results1.asJava, expected)
+  }
+
+  @Test
+  def testOverflowColumns(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
+    val in = testData(env).toTable(tableEnv).as('a, 'b, 'c)
+    val func6 = new TableFunc6
+
+    val result = in
+      .join(func6('c) as ('name, 'len))
+      .select('c, 'name, 'len)
+      .toDataSet[Row]
+
+    val results = result.collect()
+    val expected = "Jack#22,Jack,4\n" + "Jack#22,22,2\n" + "John#19,John,4\n" +
+      "John#19,19,2\n" + "Anna#44,Anna,4\n" + "Anna#44,44,2\n"
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
   def testHierarchyType(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tableEnv = TableEnvironment.getTableEnvironment(env, config)
