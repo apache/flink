@@ -20,6 +20,7 @@ package org.apache.flink.runtime.heartbeat;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.AcceptFunction;
+import org.apache.flink.runtime.concurrent.ApplyFunction;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.slf4j.Logger;
@@ -67,12 +68,21 @@ public class HeartbeatManagerSenderImpl<I, O> extends HeartbeatManagerImpl<I, O>
 				final HeartbeatTarget<O> heartbeatTarget = heartbeatMonitor.getHeartbeatTarget();
 
 				if (futurePayload != null) {
-					futurePayload.thenAcceptAsync(new AcceptFunction<O>() {
+					Future<Void> requestHeartbeatFuture = futurePayload.thenAcceptAsync(new AcceptFunction<O>() {
 						@Override
 						public void accept(O payload) {
 							heartbeatTarget.requestHeartbeat(getOwnResourceID(), payload);
 						}
 					}, getExecutor());
+
+					requestHeartbeatFuture.exceptionally(new ApplyFunction<Throwable, Void>() {
+						@Override
+						public Void apply(Throwable failure) {
+							log.warn("Could not request the heartbeat from target {}.", heartbeatTarget, failure);
+
+							return null;
+						}
+					});
 				} else {
 					heartbeatTarget.requestHeartbeat(getOwnResourceID(), null);
 				}
