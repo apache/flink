@@ -21,7 +21,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
-import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
@@ -36,6 +35,7 @@ public class ReduceApplyProcessWindowFunction<K, W extends Window, T, R>
 
 	private final ReduceFunction<T> reduceFunction;
 	private final ProcessWindowFunction<T, R, K, W> windowFunction;
+	private transient InternalProcessApplyWindowContext<T, R, K, W> ctx;
 
 	public ReduceApplyProcessWindowFunction(ReduceFunction<T> reduceFunction, ProcessWindowFunction<T, R, K, W> windowFunction) {
 		this.windowFunction = windowFunction;
@@ -54,51 +54,24 @@ public class ReduceApplyProcessWindowFunction<K, W extends Window, T, R>
 			}
 		}
 
-		ProcessWindowFunction<T, R, K, W>.Context ctx = windowFunction.new Context() {
-			@Override
-			public W window() {
-				return context.window();
-			}
-
-			@Override
-			public KeyedStateStore windowState() {
-				return context.windowState();
-			}
-
-			@Override
-			public KeyedStateStore globalState() {
-				return context.globalState();
-			}
-		};
-
+		this.ctx.window = context.window();
+		this.ctx.windowState = context.windowState();
+		this.ctx.globalState = context.globalState();
 		windowFunction.process(k, ctx, Collections.singletonList(curr), out);
 	}
 
 	@Override
 	public void clear(final Context context) throws Exception {
-		ProcessWindowFunction<T, R, K, W>.Context ctx = windowFunction.new Context() {
-			@Override
-			public W window() {
-				return context.window();
-			}
-
-			@Override
-			public KeyedStateStore windowState() {
-				return context.windowState();
-			}
-
-			@Override
-			public KeyedStateStore globalState() {
-				return context.globalState();
-			}
-		};
-
-		windowFunction.clear(context);
+		this.ctx.window = context.window();
+		this.ctx.windowState = context.windowState();
+		this.ctx.globalState = context.globalState();
+		windowFunction.clear(ctx);
 	}
 
 	@Override
 	public void open(Configuration configuration) throws Exception {
 		FunctionUtils.openFunction(this.windowFunction, configuration);
+		ctx = new InternalProcessApplyWindowContext<>(windowFunction);
 	}
 
 	@Override

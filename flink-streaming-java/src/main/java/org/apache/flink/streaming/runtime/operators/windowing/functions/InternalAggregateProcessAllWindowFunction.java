@@ -20,7 +20,6 @@ package org.apache.flink.streaming.runtime.operators.windowing.functions;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.IterationRuntimeContext;
 import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.java.operators.translation.WrappingFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.windowing.ProcessAllWindowFunction;
@@ -79,24 +78,8 @@ public final class InternalAggregateProcessAllWindowFunction<T, ACC, V, R, W ext
 
 	@Override
 	public void clear(final W window, final InternalWindowContext context) throws Exception {
-		ProcessAllWindowFunction<V, R, W> wrappedFunction = this.wrappedFunction;
-		final ProcessAllWindowFunction<V, R, W>.Context ctx = wrappedFunction.new Context() {
-			@Override
-			public W window() {
-				return window;
-			}
-
-			@Override
-			public KeyedStateStore windowState() {
-				return context.windowState();
-			}
-
-			@Override
-			public KeyedStateStore globalState() {
-				return context.globalState();
-			}
-		};
-
+		this.ctx.window = window;
+		this.ctx.internalContext = context;
 		wrappedFunction.clear(ctx);
 	}
 

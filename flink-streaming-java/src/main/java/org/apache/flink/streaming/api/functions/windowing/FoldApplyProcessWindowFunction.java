@@ -22,7 +22,6 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
-import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
@@ -51,6 +50,7 @@ public class FoldApplyProcessWindowFunction<K, W extends Window, T, ACC, R>
 	private TypeSerializer<ACC> accSerializer;
 	private final TypeInformation<ACC> accTypeInformation;
 	private transient ACC initialValue;
+	private transient InternalProcessApplyWindowContext<ACC, R, K, W> ctx;
 
 	public FoldApplyProcessWindowFunction(ACC initialValue, FoldFunction<T, ACC> foldFunction, ProcessWindowFunction<ACC, R, K, W> windowFunction, TypeInformation<ACC> accTypeInformation) {
 		this.windowFunction = windowFunction;
@@ -71,6 +71,8 @@ public class FoldApplyProcessWindowFunction<K, W extends Window, T, ACC, R>
 		ByteArrayInputStream bais = new ByteArrayInputStream(serializedInitialValue);
 		DataInputViewStreamWrapper in = new DataInputViewStreamWrapper(bais);
 		initialValue = accSerializer.deserialize(in);
+
+		ctx = new InternalProcessApplyWindowContext<>(windowFunction);
 	}
 
 	@Override
@@ -86,51 +88,24 @@ public class FoldApplyProcessWindowFunction<K, W extends Window, T, ACC, R>
 	}
 
 	@Override
-	public void process(K key, final Context context, Iterable<T> values, Collector<R> out) throws Exception {
+	public void process(K key, Context context, Iterable<T> values, Collector<R> out) throws Exception {
 		ACC result = accSerializer.copy(initialValue);
 
 		for (T val : values) {
 			result = foldFunction.fold(result, val);
 		}
 
-		ProcessWindowFunction<ACC, R, K, W>.Context ctx = windowFunction.new Context() {
-			@Override
-			public W window() {
-				return context.window();
-			}
-
-			@Override
-			public KeyedStateStore windowState() {
-				return context.windowState();
-			}
-
-			@Override
-			public KeyedStateStore globalState() {
-				return context.globalState();
-			}
-		};
-
+		this.ctx.window = context.window();
+		this.ctx.windowState = context.windowState();
+		this.ctx.globalState = context.globalState();
 		windowFunction.process(key, ctx, Collections.singletonList(result), out);
 	}
 
 	@Override
 	public void clear(final Context context) throws Exception{
-		ProcessWindowFunction<ACC, R, K, W>.Context ctx = windowFunction.new Context() {
-			@Override
-			public W window() {
-				return context.window();
-			}
-
-			@Override
-			public KeyedStateStore windowState() {
-				return context.windowState();
-			}
-
-			@Override
-			public KeyedStateStore globalState() {
-				return context.globalState();
-			}
-		};
+		this.ctx.window = context.window();
+		this.ctx.windowState = context.windowState();
+		this.ctx.globalState = context.globalState();
 		windowFunction.clear(ctx);
 	}
 
