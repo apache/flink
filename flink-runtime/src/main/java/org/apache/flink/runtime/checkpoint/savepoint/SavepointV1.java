@@ -61,10 +61,24 @@ public class SavepointV1 implements Savepoint {
 
 	@Override
 	public void dispose() throws Exception {
+		Exception firstException = null;
+
 		for (TaskState taskState : taskStates) {
-			taskState.discardState();
+			try {
+				taskState.discardState();
+			}
+			catch (Exception e) {
+				if (firstException == null) {
+					firstException = e;
+				}
+			}
 		}
+
 		taskStates.clear();
+
+		if (firstException != null) {
+			throw firstException;
+		}
 	}
 
 	@Override

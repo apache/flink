@@ -35,7 +35,7 @@ import org.apache.flink.runtime.messages.JobManagerMessages.DisposeSavepointFail
 import org.apache.flink.runtime.messages.JobManagerMessages.RunningJobsStatus;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepoint;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepointSuccess;
-import org.apache.flink.runtime.state.filesystem.FsStateBackendFactory;
+import org.apache.flink.runtime.state.filesystem.AbstractFileStateBackend;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.WaitForAllVerticesToBeRunning;
 import org.apache.flink.test.testdata.KMeansData;
@@ -43,6 +43,7 @@ import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
@@ -82,6 +83,7 @@ public class ClassLoaderITCase extends TestLogger {
 
 	private static final String CHECKPOINTING_CUSTOM_KV_STATE_JAR_PATH = "checkpointing_custom_kv_state-test-jar.jar";
 
+	@ClassRule
 	public static final TemporaryFolder FOLDER = new TemporaryFolder();
 
 	private static TestingCluster testCluster;
@@ -90,8 +92,6 @@ public class ClassLoaderITCase extends TestLogger {
 
 	@BeforeClass
 	public static void setUp() throws Exception {
-		FOLDER.create();
-
 		Configuration config = new Configuration();
 		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 2);
 		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 2);
@@ -99,12 +99,10 @@ public class ClassLoaderITCase extends TestLogger {
 
 		// we need to use the "filesystem" state backend to ensure FLINK-2543 is not happening again.
 		config.setString(CoreOptions.STATE_BACKEND, "filesystem");
-		config.setString(FsStateBackendFactory.CHECKPOINT_DIRECTORY_URI_CONF_KEY,
-				FOLDER.newFolder().getAbsoluteFile().toURI().toString());
+		config.setString(AbstractFileStateBackend.CHECKPOINT_PATH, FOLDER.newFolder().toURI().toString());
 
 		// Savepoint path
-		config.setString(ConfigConstants.SAVEPOINT_DIRECTORY_KEY,
-				FOLDER.newFolder().getAbsoluteFile().toURI().toString());
+		config.setString(AbstractFileStateBackend.SAVEPOINT_PATH, FOLDER.newFolder().toURI().toString());
 
 		testCluster = new TestingCluster(config, false);
 		testCluster.start();

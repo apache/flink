@@ -67,7 +67,7 @@ public class SavepointV1Test {
 		assertTrue(savepoint.getTaskStates().isEmpty());
 	}
 
-	static Collection<TaskState> createTaskStates(int numTaskStates, int numSubtasksPerTask) throws IOException {
+	public static Collection<TaskState> createTaskStates(int numTaskStates, int numSubtasksPerTask) throws IOException {
 
 		Random random = new Random(numTaskStates * 31 + numSubtasksPerTask);
 

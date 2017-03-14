@@ -390,10 +390,10 @@ public class RocksDBAsyncSnapshotTest {
 		private volatile boolean closed = false;
 
 		@Override
-		public CheckpointStreamFactory createStreamFactory(JobID jobId, String operatorIdentifier) throws IOException {
+		public CheckpointStreamFactory createStreamFactory(JobID jobId, String operatorIdentifier) {
 			return new MemCheckpointStreamFactory(4 * 1024 * 1024) {
 				@Override
-				public CheckpointStateOutputStream createCheckpointStateOutputStream(long checkpointID, long timestamp) throws Exception {
+				public CheckpointStateOutputStream createCheckpointStateOutputStream(long checkpointID, long timestamp) {
 
 					return new MemoryCheckpointOutputStream(4 * 1024 * 1024) {
 						@Override

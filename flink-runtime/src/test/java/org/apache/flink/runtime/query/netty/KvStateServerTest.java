@@ -42,8 +42,8 @@ import org.apache.flink.runtime.query.netty.message.KvStateRequestResult;
 import org.apache.flink.runtime.query.netty.message.KvStateRequestSerializer;
 import org.apache.flink.runtime.query.netty.message.KvStateRequestType;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
-import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
@@ -67,9 +67,7 @@ public class KvStateServerTest {
 
 	@AfterClass
 	public static void tearDown() throws Exception {
-		if (NIO_GROUP != null) {
-			NIO_GROUP.shutdownGracefully();
-		}
+		NIO_GROUP.shutdownGracefully();
 	}
 
 	/**
@@ -88,7 +86,7 @@ public class KvStateServerTest {
 
 			KvStateServerAddress serverAddress = server.getAddress();
 			int numKeyGroups = 1;
-			AbstractStateBackend abstractBackend = new MemoryStateBackend();
+			StateBackend abstractBackend = new MemoryStateBackend();
 			DummyEnvironment dummyEnv = new DummyEnvironment("test", 1, 0);
 			dummyEnv.setKvStateRegistry(registry);
 			AbstractKeyedStateBackend<Integer> backend = abstractBackend.createKeyedStateBackend(

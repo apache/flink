@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStats.DiscardCallback;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.state.StateBackendGlobalHooks.StateDisposeHook;
 import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.util.ExceptionUtils;
@@ -106,6 +107,10 @@ public class CompletedCheckpoint implements Serializable {
 	/** Optional stats tracker callback for discard. */
 	@Nullable
 	private transient volatile DiscardCallback discardCallback;
+
+	/** Optional hook for dispose calls */
+	@Nullable
+	private transient volatile StateDisposeHook disposeHook;
 
 	// ------------------------------------------------------------------------
 
@@ -213,6 +218,23 @@ public class CompletedCheckpoint implements Serializable {
 
 	void discard() throws Exception {
 		try {
+			// check if we have a shortcut hook to dispose the state
+			final StateDisposeHook disposeHook = this.disposeHook;
+			if (disposeHook != null) {
+				// fast path!
+				try {
+					disposeHook.disposeCheckpointState();
+					return;
+				}
+				catch (Exception e) {
+					// we catch all exceptions here to make sure we go through the generic path as a
+					// fallback in case where cleanup fails
+					LOG.warn("Fast cleanup hook f");
+				}
+			}
+
+			// generic path
+
 			// collect exceptions and continue cleanup
 			Exception exception = null;
 
@@ -279,6 +301,10 @@ public class CompletedCheckpoint implements Serializable {
 	@Nullable
 	public String getExternalPointer() {
 		return externalPointer;
+	}
+
+	public void registerDisposeHook(@Nullable StateDisposeHook disposeHook) {
+		this.disposeHook = disposeHook;
 	}
 
 	/**

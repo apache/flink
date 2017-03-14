@@ -38,7 +38,7 @@ import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
 import org.apache.flink.runtime.akka.{AkkaUtils, ListeningBehaviour}
 import org.apache.flink.runtime.blob.BlobServer
 import org.apache.flink.runtime.checkpoint._
-import org.apache.flink.runtime.checkpoint.savepoint.{SavepointLoader, SavepointStore}
+import org.apache.flink.runtime.checkpoint.savepoint.SavepointLoader
 import org.apache.flink.runtime.client._
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager
 import org.apache.flink.runtime.clusterframework.messages._
@@ -74,6 +74,7 @@ import org.apache.flink.runtime.query.KvStateMessage.{LookupKvStateLocation, Not
 import org.apache.flink.runtime.query.{KvStateMessage, UnknownKvStateLocation}
 import org.apache.flink.runtime.security.SecurityUtils
 import org.apache.flink.runtime.security.SecurityUtils.SecurityConfiguration
+import org.apache.flink.runtime.state.{StateBackendLoader, StateBackend}
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.util._
 import org.apache.flink.runtime.webmonitor.{WebMonitor, WebMonitorUtils}
@@ -826,18 +827,13 @@ class JobManager(
       future {
         try {
           log.info(s"Disposing savepoint at '$savepointPath'.")
-          //TODO user code class loader ?
-          val savepoint = SavepointStore.loadSavepoint(
-            savepointPath,
-            Thread.currentThread().getContextClassLoader)
 
-          log.debug(s"$savepoint")
+          // there is a corner case issue with Flink 1.1 savepoints, which may contain
+          // user-defined state handles. however, it should work for all the standard cases,
+          // where the mem/fs/rocks state backends were used
+          val classLoader = Thread.currentThread().getContextClassLoader
 
-          // Dispose checkpoint state
-          savepoint.dispose()
-
-          // Remove the header file
-          SavepointStore.removeSavepointFile(savepointPath)
+          Checkpoints.disposeSavepoint(savepointPath, flinkConfiguration, classLoader, log.logger)
 
           senderRef ! DisposeSavepointSuccess
         } catch {
@@ -1228,6 +1224,7 @@ class JobManager(
 
       log.info(s"Submitting job $jobId ($jobName)" + (if (isRecovery) " (Recovery)" else "") + ".")
 
+      var userCodeLoader: ClassLoader = null
       try {
         // Important: We need to make sure that the library registration is the first action,
         // because this makes sure that the uploaded jar files are removed in case of
@@ -1242,7 +1239,7 @@ class JobManager(
               "Cannot set up the user code libraries: " + t.getMessage, t)
         }
 
-        var userCodeLoader = libraryCacheManager.getClassLoader(jobGraph.getJobID)
+        userCodeLoader = libraryCacheManager.getClassLoader(jobGraph.getJobID)
         if (userCodeLoader == null) {
           throw new JobSubmissionException(jobId,
             "The user code class loader could not be initialized.")
@@ -1360,11 +1357,35 @@ class JobManager(
                 log.info(s"Starting job from savepoint '$savepointPath'" +
                   (if (allowNonRestored) " (allowing non restored state)" else "") + ".")
 
-                  // load the savepoint as a checkpoint into the system
-                  val savepoint: CompletedCheckpoint = SavepointLoader.loadAndValidateSavepoint(
+                // load the state backend to restore the savepoint with
+                val applicationConfiguredBackend: StateBackend = 
+                  if (jobGraph.getSnapshotSettings != null) {
+                    jobGraph.getSnapshotSettings.getDefaultStateBackend
+                  } else {
+                    null
+                  }
+
+                val metadataBackend: StateBackend =
+                  try {
+                    StateBackendLoader.fromApplicationOrConfigOrDefault(
+                      applicationConfiguredBackend,
+                      flinkConfiguration,
+                      userCodeLoader,
+                      log.logger)
+                  }
+                  catch {
+                    case e: Exception =>
+                      throw new JobExecutionException(jobId, 
+                        "Could not load state backend from configuration", e)
+                  }
+
+                
+                // load the savepoint as a checkpoint into the system
+                val savepoint: CompletedCheckpoint = SavepointLoader.loadAndValidateSavepoint(
                     jobId,
                     executionGraph.getAllVertices,
                     savepointPath,
+                    metadataBackend,
                     executionGraph.getUserClassLoader,
                     allowNonRestored)
 

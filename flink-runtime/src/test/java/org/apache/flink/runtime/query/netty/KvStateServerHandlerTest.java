@@ -39,7 +39,7 @@ import org.apache.flink.runtime.query.netty.message.KvStateRequestResult;
 import org.apache.flink.runtime.query.netty.message.KvStateRequestSerializer;
 import org.apache.flink.runtime.query.netty.message.KvStateRequestType;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
-import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateBackend;
@@ -47,6 +47,7 @@ import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.AfterClass;
 import org.junit.Test;
 
@@ -71,9 +72,7 @@ public class KvStateServerHandlerTest extends TestLogger {
 
 	@AfterClass
 	public static void tearDown() throws Exception {
-		if (TEST_THREAD_POOL != null) {
-			TEST_THREAD_POOL.shutdown();
-		}
+		TEST_THREAD_POOL.shutdown();
 	}
 
 	/**
@@ -92,7 +91,7 @@ public class KvStateServerHandlerTest extends TestLogger {
 		desc.setQueryable("vanilla");
 
 		int numKeyGroups =1;
-		AbstractStateBackend abstractBackend = new MemoryStateBackend();
+		StateBackend abstractBackend = new MemoryStateBackend();
 		DummyEnvironment dummyEnv = new DummyEnvironment("test", 1, 0);
 		dummyEnv.setKvStateRegistry(registry);
 		AbstractKeyedStateBackend<Integer> backend = abstractBackend.createKeyedStateBackend(
@@ -211,7 +210,7 @@ public class KvStateServerHandlerTest extends TestLogger {
 		EmbeddedChannel channel = new EmbeddedChannel(getFrameDecoder(), handler);
 
 		int numKeyGroups = 1;
-		AbstractStateBackend abstractBackend = new MemoryStateBackend();
+		StateBackend abstractBackend = new MemoryStateBackend();
 		DummyEnvironment dummyEnv = new DummyEnvironment("test", 1, 0);
 		dummyEnv.setKvStateRegistry(registry);
 		KeyedStateBackend<Integer> backend = abstractBackend.createKeyedStateBackend(
@@ -356,7 +355,7 @@ public class KvStateServerHandlerTest extends TestLogger {
 		EmbeddedChannel channel = new EmbeddedChannel(getFrameDecoder(), handler);
 
 		int numKeyGroups = 1;
-		AbstractStateBackend abstractBackend = new MemoryStateBackend();
+		StateBackend abstractBackend = new MemoryStateBackend();
 		DummyEnvironment dummyEnv = new DummyEnvironment("test", 1, 0);
 		dummyEnv.setKvStateRegistry(registry);
 		KeyedStateBackend<Integer> backend = abstractBackend.createKeyedStateBackend(
@@ -495,7 +494,7 @@ public class KvStateServerHandlerTest extends TestLogger {
 		EmbeddedChannel channel = new EmbeddedChannel(getFrameDecoder(), handler);
 
 		int numKeyGroups = 1;
-		AbstractStateBackend abstractBackend = new MemoryStateBackend();
+		StateBackend abstractBackend = new MemoryStateBackend();
 		DummyEnvironment dummyEnv = new DummyEnvironment("test", 1, 0);
 		dummyEnv.setKvStateRegistry(registry);
 		AbstractKeyedStateBackend<Integer> backend = abstractBackend.createKeyedStateBackend(
@@ -591,7 +590,7 @@ public class KvStateServerHandlerTest extends TestLogger {
 		EmbeddedChannel channel = new EmbeddedChannel(getFrameDecoder(), handler);
 
 		int numKeyGroups = 1;
-		AbstractStateBackend abstractBackend = new MemoryStateBackend();
+		StateBackend abstractBackend = new MemoryStateBackend();
 		DummyEnvironment dummyEnv = new DummyEnvironment("test", 1, 0);
 		dummyEnv.setKvStateRegistry(registry);
 		AbstractKeyedStateBackend<Integer> backend = abstractBackend.createKeyedStateBackend(

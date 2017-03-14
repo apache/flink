@@ -23,17 +23,23 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.state.StateBackendGlobalHooks.StateDisposeHook;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
+import org.apache.flink.util.FlinkException;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.mockito.Mockito;
 
 import java.io.File;
+import java.io.IOException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -182,5 +188,34 @@ public class CompletedCheckpointTest {
 		assertEquals(completed.getStateSize(), copy.getStateSize());
 		assertEquals(completed.getLatestAcknowledgedSubtaskStats().getSubtaskIndex(), copy.getLatestAcknowledgedSubtaskStats().getSubtaskIndex());
 		assertEquals(completed.getStatus(), copy.getStatus());
+	}
+
+	@Test
+	public void testGenericCleanupWhenHookFails() throws Exception {
+
+		final File stateFile = tmpFolder.newFile();
+		assertTrue(stateFile.exists());
+
+		final Path statePath = new Path(stateFile.toURI());
+
+		CompletedCheckpoint chk = new CompletedCheckpoint(
+				new JobID(), 1337,
+				System.currentTimeMillis(),
+				System.currentTimeMillis() + 5,
+				Collections.<JobVertexID, TaskState>emptyMap(),
+				CheckpointProperties.forExternalizedCheckpoint(false),
+				new FileStateHandle(statePath, 8L), 
+				statePath.toString());
+
+		chk.registerDisposeHook(new StateDisposeHook() {
+			@Override
+			public void disposeCheckpointState() throws FlinkException, IOException {
+				throw new IOException("test failure");
+			}
+		});
+
+		// state must be clean up despite hook failure
+		chk.discard();
+		assertFalse(stateFile.exists());
 	}
 }

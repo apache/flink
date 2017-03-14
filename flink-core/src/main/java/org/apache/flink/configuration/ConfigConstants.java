@@ -987,6 +987,8 @@ public final class ConfigConstants {
 	 * This key was used in Flink versions <= 1.1.X with the savepoint backend
 	 * configuration. We now always use the FileSystem for savepoints. For this,
 	 * the only relevant config key is {@link #SAVEPOINT_DIRECTORY_KEY}.
+	 * 
+	 * @deprecated Subsumed by {@link #SAVEPOINT_DIRECTORY_KEY}.
 	 */
 	@Deprecated
 	public static final String SAVEPOINT_FS_DIRECTORY_KEY = "savepoints.state.backend.fs.dir";

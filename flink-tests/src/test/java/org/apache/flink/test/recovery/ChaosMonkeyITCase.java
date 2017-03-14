@@ -33,7 +33,7 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.leaderelection.TestingListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.JobManagerMessages;
-import org.apache.flink.runtime.state.filesystem.FsStateBackendFactory;
+import org.apache.flink.runtime.state.filesystem.AbstractFileStateBackend;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.JobManagerActorTestUtils;
 import org.apache.flink.runtime.testutils.JobManagerProcess;
@@ -562,7 +562,7 @@ public class ChaosMonkeyITCase extends TestLogger {
 
 		LOG.info("Checking file system backend state...");
 
-		File fsCheckpoints = new File(new URI(config.getString(FsStateBackendFactory.CHECKPOINT_DIRECTORY_URI_CONF_KEY, "")).getPath());
+		File fsCheckpoints = new File(new URI(config.getString(AbstractFileStateBackend.CHECKPOINT_PATH, null)).getPath());
 
 		LOG.info("Checking " + fsCheckpoints);
 

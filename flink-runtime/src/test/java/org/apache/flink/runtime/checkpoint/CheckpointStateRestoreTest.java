@@ -34,6 +34,7 @@ import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TaskStateHandles;
+import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.util.SerializableObject;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
@@ -107,7 +108,7 @@ public class CheckpointStateRestoreTest {
 				new ExecutionVertex[0],
 				new StandaloneCheckpointIDCounter(),
 				new StandaloneCompletedCheckpointStore(1),
-				null,
+				new MemoryStateBackend(),
 				Executors.directExecutor());
 
 			// create ourselves a checkpoint with state
@@ -181,7 +182,7 @@ public class CheckpointStateRestoreTest {
 				new ExecutionVertex[0],
 				new StandaloneCheckpointIDCounter(),
 				new StandaloneCompletedCheckpointStore(1),
-				null,
+				new MemoryStateBackend(),
 				Executors.directExecutor());
 
 			try {
@@ -236,7 +237,7 @@ public class CheckpointStateRestoreTest {
 			new ExecutionVertex[] {},
 			new StandaloneCheckpointIDCounter(),
 			new StandaloneCompletedCheckpointStore(1),
-			null,
+			new MemoryStateBackend(),
 			Executors.directExecutor());
 
 		ChainedStateHandle<StreamStateHandle> serializedState = CheckpointCoordinatorTest

@@ -18,11 +18,13 @@
 
 package org.apache.flink.runtime.testingUtils
 
+import java.io.File
+
 import akka.actor.{ActorRef, Cancellable, Terminated}
 import akka.pattern.{ask, pipe}
 import org.apache.flink.api.common.JobID
 import org.apache.flink.runtime.FlinkActor
-import org.apache.flink.runtime.checkpoint.savepoint.SavepointStore
+import org.apache.flink.runtime.checkpoint.Checkpoints
 import org.apache.flink.runtime.execution.ExecutionState
 import org.apache.flink.runtime.jobgraph.JobStatus
 import org.apache.flink.runtime.jobmanager.JobManager
@@ -33,9 +35,11 @@ import org.apache.flink.runtime.messages.JobManagerMessages.{GrantLeadership, Re
 import org.apache.flink.runtime.messages.Messages.Disconnect
 import org.apache.flink.runtime.messages.RegistrationMessages.RegisterTaskManager
 import org.apache.flink.runtime.messages.TaskManagerMessages.Heartbeat
+import org.apache.flink.runtime.state.filesystem.FsStateBackend
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages._
 import org.apache.flink.runtime.testingUtils.TestingMessages._
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages.AccumulatorsChanged
+import org.apache.flink.runtime.util.EnvironmentInformation
 
 import scala.collection.mutable
 import scala.concurrent.Future
@@ -310,10 +314,14 @@ trait TestingJobManagerLike extends FlinkActor {
 
     case RequestSavepoint(savepointPath) =>
       try {
-        //TODO user class loader ?
-        val savepoint = SavepointStore.loadSavepoint(
+        // we make a hard assumption here that savepoints are always in a file system
+        val backend = new FsStateBackend(
+          new File(EnvironmentInformation.getTemporaryFileDirectory).toURI())
+
+        val savepoint = Checkpoints.loadSavepointAndHandle(
           savepointPath,
-          Thread.currentThread().getContextClassLoader)
+          backend,
+          Thread.currentThread().getContextClassLoader).f0
         
         sender ! ResponseSavepoint(savepoint)
       }

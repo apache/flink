@@ -309,7 +309,7 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 	public void testDisposeDeletesAllDirectories() throws Exception {
 		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
 		ValueStateDescriptor<String> kvId =
-				new ValueStateDescriptor<>("id", String.class, null);
+				new ValueStateDescriptor<>("id", String.class);
 
 		kvId.initializeSerializerUnlessSet(new ExecutionConfig());
 
@@ -394,7 +394,7 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 		}
 
 		@Override
-		public MemCheckpointStreamFactory.MemoryCheckpointOutputStream createCheckpointStateOutputStream(long checkpointID, long timestamp) throws Exception {
+		public MemCheckpointStreamFactory.MemoryCheckpointOutputStream createCheckpointStateOutputStream(long checkpointID, long timestamp) {
 			waiter.trigger();
 			this.lastCreatedStream = new MemCheckpointStreamFactory.MemoryCheckpointOutputStream(maxSize) {
 
@@ -439,11 +439,6 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 			};
 
 			return lastCreatedStream;
-		}
-
-		@Override
-		public void close() throws Exception {
-
 		}
 	}
 

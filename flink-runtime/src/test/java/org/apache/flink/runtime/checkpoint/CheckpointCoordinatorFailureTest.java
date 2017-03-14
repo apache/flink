@@ -25,6 +25,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
+import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -71,7 +72,7 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
 			new ExecutionVertex[]{vertex},
 			new StandaloneCheckpointIDCounter(),
 			new FailingCompletedCheckpointStore(),
-			null,
+			new MemoryStateBackend(),
 			Executors.directExecutor());
 
 		coord.triggerCheckpoint(triggerTimestamp, false);

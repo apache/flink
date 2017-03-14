@@ -33,7 +33,9 @@ import java.io.ObjectOutputStream;
 import java.util.HashMap;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -69,7 +71,7 @@ public class MemoryStateBackendTest extends StateBackendTestBase<MemoryStateBack
 	public void testNumStateEntries() throws Exception {
 		KeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
 
-		ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>("id", String.class, null);
+		ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>("id", String.class);
 		kvId.initializeSerializerUnlessSet(new ExecutionConfig());
 
 		HeapKeyedStateBackend<Integer> heapBackend = (HeapKeyedStateBackend<Integer>) backend;
@@ -196,5 +198,30 @@ public class MemoryStateBackendTest extends StateBackendTestBase<MemoryStateBack
 	@Test
 	public void testConcurrentMapIfQueryable() throws Exception {
 		super.testConcurrentMapIfQueryable();
+	}
+
+	@Test
+	public void testNotSupportingExternalizedCheckpoints() throws IOException {
+		MemoryStateBackend backend = new MemoryStateBackend();
+
+		assertNull(backend.getCheckpointPath());
+		assertNull(backend.getSavepointPath());
+
+		assertFalse(backend.supportsExternalizedMetadata());
+		assertNull(backend.getMetadataPersistenceLocation());
+
+		try {
+			backend.createCheckpointMetadataStreamFactory(new JobID(), 65134L);
+			fail("this should fail with an exception");
+		} catch (UnsupportedOperationException ignored) {
+			// expected
+		}
+
+		try {
+			backend.createSavepointMetadataStreamFactory(new JobID(), null);
+			fail("this should fail with an exception");
+		} catch (UnsupportedOperationException ignored) {
+			// expected
+		}
 	}
 }

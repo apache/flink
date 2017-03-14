@@ -84,41 +84,117 @@ import java.io.IOException;
 public interface StateBackend extends java.io.Serializable {
 
 	// ------------------------------------------------------------------------
-	//  Persistent Bytes Storage
+	//  Persistent Bytes Storage for Checkpoint Data 
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Creates a {@link CheckpointStreamFactory} that can be used to create streams
-	 * that should end up in a checkpoint.
+	 * Creates a CheckpointStreamFactory that can produces streams to persist data as part of a checkpoint.
+	 * 
+	 * <p>The target location to write the data to should depend on the state backend's configuration
+	 * (for example the target directory), as well as the Job ID and the checkpoint number (which 
+	 * is passed when opening a specific stream).
 	 *
-	 * @param jobId              The {@link JobID} of the job for which we are creating checkpoint streams.
-	 * @param operatorIdentifier An identifier of the operator for which we create streams.
+	 * @param jobId              The JobID of the job for which we are creating checkpoint streams.
+	 * @param operatorIdentifier An identifier of the operator that stores the data.
+	 * 
+	 * @throws IOException Failures during stream creation are forwarded.
 	 */
 	CheckpointStreamFactory createStreamFactory(JobID jobId, String operatorIdentifier) throws IOException;
 
 	/**
-	 * Creates a {@link CheckpointStreamFactory} that can be used to create streams
-	 * that should end up in a savepoint.
+	 * Creates a CheckpointStreamFactory that can produces streams to persist data as part of a savepoint.
 	 *
-	 * <p>This is only called if the triggered checkpoint is a savepoint. Commonly
-	 * this will return the same factory as for regular checkpoints, but maybe
-	 * slightly adjusted.
+	 * <p>This method differs from {@link #createStreamFactory(JobID, String)} mainly in that it takes
+	 * an optional target location as a parameter (for example when a specific savepoint directory
+	 * is passed when triggering the savepoint) and that it may refer to a different default location
+	 * (the default savepoint location may be different from the default checkpoint location).
 	 *
-	 * @param jobId The {@link JobID} of the job for which we are creating checkpoint streams.
 	 * @param operatorIdentifier An identifier of the operator for which we create streams.
-	 * @param targetLocation An optional custom location for the savepoint stream.
+	 * @param targetLocation The savepoint root directory, never null.
 	 * 
-	 * @return The stream factory for savepoints.
+	 * @return The stream factory for data written to the savepoint.
 	 * 
 	 * @throws IOException Failures during stream creation are forwarded.
 	 */
 	CheckpointStreamFactory createSavepointStreamFactory(
-			JobID jobId,
 			String operatorIdentifier,
-			@Nullable String targetLocation) throws IOException;
+			String targetLocation) throws IOException;
 
 	// ------------------------------------------------------------------------
-	//  Structure Backends 
+	//  Persistent Bytes Storage for Metadata 
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Checks whether the state backend supports and is configured for persisting metadata.
+	 * 
+	 * @return True, if the state backend can persist metadata.
+	 */
+	boolean supportsExternalizedMetadata();
+
+	/**
+	 * Gets the location where metadata is persisted to, for example the directory path for file-based
+	 * state backends. Interpreting this string is up to the state backend.
+	 * 
+	 * @return The location for metadata persistence, or null, if no metadata persistence is configured.
+	 */
+	@Nullable
+	String getMetadataPersistenceLocation();
+
+	/**
+	 * Creates a stream factory for writing the metadata of a checkpoint.
+	 * 
+	 * @param jobID The ID of the job for which the savepoint is created.
+	 * @param checkpointId The ID (logical timestamp) of the checkpoint that should be persisted.
+	 * @return A stream factory that supports writing the metadata for the checkpoint.
+	 * 
+	 * @throws IOException
+	 *             Thrown if the stream factory could not be initialized due to an I/O exception.
+	 * @throws UnsupportedOperationException
+	 *             If the state backend is not configured to store checkpoint metadata.
+	 */
+	CheckpointMetadataStreamFactory createCheckpointMetadataStreamFactory(
+			JobID jobID,
+			long checkpointId) throws IOException;
+
+	/**
+	 * Creates a stream factory for writing the metadata of a savepoint. This method takes optionally
+	 * a target location to persist the savepoint to. If no target location is passed, the state
+	 * backend should use the default savepoint location.
+	 * 
+	 * <p>The created factory must return the actual location it persists to (which may be the raw location
+	 * passed, or a customized location like a subdirectory) via the
+	 * {@link CheckpointMetadataStreamFactory#getTargetLocation()} method.
+	 * 
+	 * @param jobID The ID of the job for which the savepoint is created.
+	 * @param targetLocation Optionally, the target location for that specific savepoint.
+	 * @return A stream factory that supports writing the metadata for the savepoint.
+	 * 
+	 * @throws IOException
+	 *             Thrown if the stream factory could not be initialized due to an I/O exception.
+	 * @throws UnsupportedOperationException
+	 *             If the state backend is not configured for savepoints, or if the targetLocation is
+	 *             null and no default location has been configured.
+	 */
+	CheckpointMetadataStreamFactory createSavepointMetadataStreamFactory(
+			JobID jobID,
+			@Nullable String targetLocation) throws IOException;
+
+	/**
+	 * Resolves the given pointer to a checkpoint/savepoint into a state handle from which the
+	 * checkpoint metadata can be read. If the state backend cannot understand the format of
+	 * the pointer (for example because it was created by a different state backend) this method
+	 * should throw an {@code IOException}.
+	 * 
+	 * @param pointer The pointer to resolve
+	 * @return The state handler from which one can read the checkpoint metadata
+	 * 
+	 * @throws IOException Thrown, if the state backend does not understand the pointer, or if
+	 *                     the pointer could not be resolved due to an I/O error.
+	 */
+	StreamStateHandle resolveCheckpointLocation(String pointer) throws IOException;
+
+	// ------------------------------------------------------------------------
+	//  State Holding Backends 
 	// ------------------------------------------------------------------------
 
 	/**

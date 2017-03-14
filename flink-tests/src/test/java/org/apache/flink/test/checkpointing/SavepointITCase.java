@@ -23,7 +23,7 @@ import akka.actor.ActorSystem;
 import akka.testkit.JavaTestKit;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
-import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -55,6 +55,7 @@ import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepoint;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepointSuccess;
 import org.apache.flink.runtime.state.ChainedStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.filesystem.AbstractFileStateBackend;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackendFactory;
@@ -112,7 +113,7 @@ public class SavepointITCase extends TestLogger {
 	private static final Logger LOG = LoggerFactory.getLogger(SavepointITCase.class);
 
 	@Rule
-	public TemporaryFolder folder = new TemporaryFolder();
+	public final TemporaryFolder folder = new TemporaryFolder();
 
 	/**
 	 * Triggers a savepoint for a job that uses the FsStateBackend. We expect
@@ -157,8 +158,8 @@ public class SavepointITCase extends TestLogger {
 
 			// Use file based checkpoints
 			config.setString(CoreOptions.STATE_BACKEND, "filesystem");
-			config.setString(FsStateBackendFactory.CHECKPOINT_DIRECTORY_URI_CONF_KEY, checkpointDir.toURI().toString());
-			config.setString(FsStateBackendFactory.MEMORY_THRESHOLD_CONF_KEY, "0");
+			config.setString(AbstractFileStateBackend.CHECKPOINT_PATH, checkpointDir.toURI().toString());
+			config.setInteger(FsStateBackendFactory.MEMORY_THRESHOLD_CONF, 0);
 			config.setString(ConfigConstants.SAVEPOINT_DIRECTORY_KEY, savepointRootDir.toURI().toString());
 
 			// Start Flink
@@ -449,7 +450,7 @@ public class SavepointITCase extends TestLogger {
 				flink.submitJobAndWait(jobGraph, false);
 			} catch (Exception e) {
 				assertEquals(JobExecutionException.class, e.getClass());
-				assertEquals(FileNotFoundException.class, e.getCause().getClass());
+				assertEquals(IOException.class, e.getCause().getClass());
 			}
 		} finally {
 			if (flink != null) {
@@ -644,9 +645,8 @@ public class SavepointITCase extends TestLogger {
 		}
 
 		config.setString(CoreOptions.STATE_BACKEND, "filesystem");
-		config.setString(FsStateBackendFactory.CHECKPOINT_DIRECTORY_URI_CONF_KEY,
-				checkpointDir.toURI().toString());
-		config.setString(FsStateBackendFactory.MEMORY_THRESHOLD_CONF_KEY, "0");
+		config.setString(AbstractFileStateBackend.CHECKPOINT_PATH, checkpointDir.toURI().toString());
+		config.setInteger(FsStateBackendFactory.MEMORY_THRESHOLD_CONF, 0);
 		config.setString(ConfigConstants.SAVEPOINT_DIRECTORY_KEY,
 				savepointDir.toURI().toString());
 

@@ -18,12 +18,10 @@
 
 package org.apache.flink.runtime.checkpoint.savepoint;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.tuple.Tuple4;
-import org.apache.flink.core.fs.FSDataOutputStream;
-import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.migration.runtime.checkpoint.savepoint.SavepointV0;
 import org.apache.flink.migration.runtime.checkpoint.savepoint.SavepointV0Serializer;
 import org.apache.flink.migration.runtime.state.KvStateSnapshot;
@@ -32,22 +30,26 @@ import org.apache.flink.migration.runtime.state.memory.SerializedStateHandle;
 import org.apache.flink.migration.streaming.runtime.tasks.StreamTaskState;
 import org.apache.flink.migration.streaming.runtime.tasks.StreamTaskStateList;
 import org.apache.flink.migration.util.MigrationInstantiationUtil;
+import org.apache.flink.runtime.checkpoint.Checkpoints;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskState;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.ChainedStateHandle;
+import org.apache.flink.runtime.state.CheckpointMetadataStreamFactory;
+import org.apache.flink.runtime.state.CheckpointMetadataStreamFactory.CheckpointMetadataOutputStream;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
+import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
-import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.InstantiationUtil;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.DataOutputStream;
-import java.io.IOException;
+import java.io.File;
 import java.io.InputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -63,17 +65,20 @@ import static org.junit.Assert.assertFalse;
 public class MigrationV0ToV1Test {
 
 	@Rule
-	public TemporaryFolder tmp = new TemporaryFolder();
+	public final TemporaryFolder tmp = new TemporaryFolder();
 
 	/**
 	 * Simple test of savepoint methods.
 	 */
 	@Test
 	public void testSavepointMigrationV0ToV1() throws Exception {
+		final JobID jobId = new JobID();
 
-		String target = tmp.getRoot().getAbsolutePath();
+		// we use the FsStateBackend here, but we could use any backend
+		final File savepointDir = tmp.newFolder();
+		final FsStateBackend store = new FsStateBackend(tmp.newFolder().toURI(), savepointDir.toURI());
 
-		assertEquals(0, tmp.getRoot().listFiles().length);
+		assertEquals(0, savepointDir.list().length);
 
 		long checkpointId = ThreadLocalRandom.current().nextLong(Integer.MAX_VALUE);
 		int numTaskStates = 4;
@@ -90,43 +95,30 @@ public class MigrationV0ToV1Test {
 
 		assertFalse(savepoint.getOldTaskStates().isEmpty());
 
-		Exception latestException = null;
-		Path path = null;
-		FSDataOutputStream fdos = null;
-
-		FileSystem fs = null;
-
+		String path = null;
 		try {
+			{
+				final CheckpointMetadataStreamFactory metadataStore = 
+						store.createSavepointMetadataStreamFactory(jobId, null);
 
-			// Try to create a FS output stream
-			for (int attempt = 0; attempt < 10; attempt++) {
-				path = new Path(target, FileUtils.getRandomFilename("savepoint-"));
+				try (CheckpointMetadataOutputStream out = metadataStore.createCheckpointStateOutputStream();
+					DataOutputStream dos = new DataOutputStream(out))
+				{
+					dos.writeInt(Checkpoints.HEADER_MAGIC_NUMBER);
+					dos.writeInt(savepoint.getVersion());
+					SavepointV0Serializer.INSTANCE.serializeOld(savepoint, dos);
 
-				if (fs == null) {
-					fs = FileSystem.get(path.toUri());
-				}
-
-				try {
-					fdos = fs.create(path, false);
-					break;
-				} catch (Exception e) {
-					latestException = e;
+					path = out.closeAndGetPointerHandle().pointer();
 				}
 			}
 
-			if (fdos == null) {
-				throw new IOException("Failed to create file output stream at " + path, latestException);
-			}
-
-			try (DataOutputStream dos = new DataOutputStream(fdos)) {
-				dos.writeInt(SavepointStore.MAGIC_NUMBER);
-				dos.writeInt(savepoint.getVersion());
-				SavepointV0Serializer.INSTANCE.serializeOld(savepoint, dos);
-			}
+			// double check: this should have created one directory
+			assertEquals(1, savepointDir.list().length);
 
 			ClassLoader cl = Thread.currentThread().getContextClassLoader();
 
-			Savepoint sp = SavepointStore.loadSavepoint(path.toString(), cl);
+			Savepoint sp = Checkpoints.loadSavepointAndHandle(path, store, cl).f0;
+
 			int t = 0;
 			for (TaskState taskState : sp.getTaskStates()) {
 				for (int p = 0; p < taskState.getParallelism(); ++p) {
@@ -183,7 +175,9 @@ public class MigrationV0ToV1Test {
 
 		} finally {
 			// Dispose
-			SavepointStore.removeSavepointFile(path.toString());
+			if (path != null) {
+				Checkpoints.disposeSavepoint(path, store, getClass().getClassLoader());
+			}
 		}
 	}
 

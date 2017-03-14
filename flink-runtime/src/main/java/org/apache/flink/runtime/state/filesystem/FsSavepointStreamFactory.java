@@ -18,41 +18,37 @@
 
 package org.apache.flink.runtime.state.filesystem;
 
-import java.io.IOException;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 
 /**
- * A {@link CheckpointStreamFactory} that produces streams that write to a
- * {@link FileSystem}.
+ * A {@link CheckpointStreamFactory} for writing savepoint state.
  *
- * <p>The difference to the parent {@link FsCheckpointStreamFactory} is only
- * in the created directory layout. All checkpoint files go to the checkpoint
- * directory.
+ * <p>This factory differs from the {@link FsCheckpointStreamFactory} in that it does not create
+ * a checkpoint sub-directory, but directly writes to the given target directory.
  */
 public class FsSavepointStreamFactory extends FsCheckpointStreamFactory {
 
-	public FsSavepointStreamFactory(
-			Path checkpointDataUri,
-			JobID jobId,
-			int fileStateSizeThreshold) throws IOException {
-
-		super(checkpointDataUri, jobId, fileStateSizeThreshold);
+	/**
+	 * Creates a stream factory whose streams write given directory path.
+	 *
+	 * @param filesystem
+	 *            The FileSystem handle for the file system to write to. 
+	 * @param savepointDirectory
+	 *           The directory in which the files created by the streams will be stored.
+	 * @param fileStateSizeThreshold
+	 *           State up to this size will be stored as part of the metadata, rather than in files
+	 */
+	public FsSavepointStreamFactory(FileSystem filesystem, Path savepointDirectory, int fileStateSizeThreshold) {
+		super(filesystem, savepointDirectory, fileStateSizeThreshold);
 	}
 
+	/**
+	 * Sets the directory for the state object to the exact configured savepoint directory.
+	 */
 	@Override
-	protected Path createBasePath(FileSystem fs, Path checkpointDirectory, JobID jobID) throws IOException {
-		// No checkpoint specific directory required as the savepoint directory
-		// is already unique.
-		return checkpointDirectory;
-	}
-
-	@Override
-	protected Path createCheckpointDirPath(Path checkpointDirectory, long checkpointID) {
-		// No checkpoint specific directory required as the savepoint directory
-		// is already unique.
-		return checkpointDirectory;
+	protected Path buildCheckpointPath(Path checkpointPath, long checkpointID) {
+		return checkpointPath;
 	}
 }

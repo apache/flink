@@ -51,6 +51,7 @@ import org.apache.flink.runtime.operators.testutils.UnregisteredTaskMetricsGroup
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.CheckpointMetadataStreamFactory;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointStreamFactory.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -65,8 +66,10 @@ import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamFilter;
 import org.apache.flink.util.SerializedValue;
+
 import org.junit.Test;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.net.URL;
 import java.util.Collections;
@@ -175,7 +178,33 @@ public class BlockingCheckpointsTest {
 		}
 
 		@Override
-		public CheckpointStreamFactory createSavepointStreamFactory(JobID jobId, String operatorIdentifier, String targetLocation) throws IOException {
+		public CheckpointStreamFactory createSavepointStreamFactory(String operatorIdentifier, String targetLocation) throws IOException {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public boolean supportsExternalizedMetadata() {
+			return false;
+		}
+
+		@Nullable
+		@Override
+		public String getMetadataPersistenceLocation() {
+			return null;
+		}
+
+		@Override
+		public CheckpointMetadataStreamFactory createCheckpointMetadataStreamFactory(JobID jobID, long checkpointId) throws IOException {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public CheckpointMetadataStreamFactory createSavepointMetadataStreamFactory(JobID jobID, @Nullable String targetLocation) throws IOException {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public StreamStateHandle resolveCheckpointLocation(String pointer) throws IOException {
 			throw new UnsupportedOperationException();
 		}
 
@@ -195,9 +224,6 @@ public class BlockingCheckpointsTest {
 		public CheckpointStateOutputStream createCheckpointStateOutputStream(long checkpointID, long timestamp) {
 			return new LockingOutputStream();
 		}
-
-		@Override
-		public void close() {}
 	}
 
 	private static final class LockingOutputStream extends CheckpointStateOutputStream {
