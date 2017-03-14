@@ -715,7 +715,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 					leaderId,
 					taskManagerConfiguration.getTimeout());
 
-				acceptedSlotsFuture.thenAcceptAsync(new AcceptFunction<Iterable<SlotOffer>>() {
+				Future<Void> acceptedSlotsAcceptFuture = acceptedSlotsFuture.thenAcceptAsync(new AcceptFunction<Iterable<SlotOffer>>() {
 					@Override
 					public void accept(Iterable<SlotOffer> acceptedSlots) {
 						// check if the response is still valid
@@ -738,13 +738,17 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 					}
 				}, getMainThreadExecutor());
 
-				acceptedSlotsFuture.exceptionallyAsync(new ApplyFunction<Throwable, Void>() {
+				acceptedSlotsAcceptFuture.exceptionally(new ApplyFunction<Throwable, Void>() {
 					@Override
 					public Void apply(Throwable throwable) {
 						if (throwable instanceof TimeoutException) {
+							log.info("Slot offering to JobManager did not finish in time. Retrying the slot offering.");
 							// We ran into a timeout. Try again.
 							offerSlotsToJobManager(jobId);
 						} else {
+							log.warn("Slot offering to JobManager failed. Freeing the slots " +
+								"and returning them to the ResourceManager.", throwable);
+
 							// We encountered an exception. Free the slots and return them to the RM.
 							for (SlotOffer reservedSlot: reservedSlots) {
 								freeSlot(reservedSlot.getAllocationId(), throwable);
@@ -753,7 +757,7 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 
 						return null;
 					}
-				}, getMainThreadExecutor());
+				});
 			} else {
 				log.debug("There are no unassigned slots for the job {}.", jobId);
 			}

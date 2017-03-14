@@ -456,7 +456,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		} else {
 			Future<InfoMessageListenerRpcGateway> infoMessageListenerRpcGatewayFuture = getRpcService().connect(address, InfoMessageListenerRpcGateway.class);
 
-			infoMessageListenerRpcGatewayFuture.thenAcceptAsync(new AcceptFunction<InfoMessageListenerRpcGateway>() {
+			Future<Void> infoMessageListenerAcceptFuture = infoMessageListenerRpcGatewayFuture.thenAcceptAsync(new AcceptFunction<InfoMessageListenerRpcGateway>() {
 				@Override
 				public void accept(InfoMessageListenerRpcGateway gateway) {
 					log.info("Receive a registration from info message listener on ({})", address);
@@ -464,7 +464,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 				}
 			}, getMainThreadExecutor());
 
-			infoMessageListenerRpcGatewayFuture.exceptionallyAsync(new ApplyFunction<Throwable, Void>() {
+			infoMessageListenerAcceptFuture.exceptionallyAsync(new ApplyFunction<Throwable, Void>() {
 				@Override
 				public Void apply(Throwable failure) {
 					log.warn("Receive a registration from unreachable info message listener on ({})", address);

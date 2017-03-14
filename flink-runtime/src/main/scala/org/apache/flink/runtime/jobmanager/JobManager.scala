@@ -44,7 +44,7 @@ import org.apache.flink.runtime.clusterframework.FlinkResourceManager
 import org.apache.flink.runtime.clusterframework.messages._
 import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager
 import org.apache.flink.runtime.clusterframework.types.ResourceID
-import org.apache.flink.runtime.concurrent.{AcceptFunction, BiFunction, Executors => FlinkExecutors}
+import org.apache.flink.runtime.concurrent.{AcceptFunction, ApplyFunction, BiFunction, Executors => FlinkExecutors}
 import org.apache.flink.runtime.execution.SuppressRestartsException
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory
@@ -1094,9 +1094,17 @@ class JobManager(
 
       val originalSender = new AkkaActorGateway(sender(), leaderSessionID.orNull)
 
-      stackTraceFuture.thenAccept(new AcceptFunction[StackTrace] {
+      val sendingFuture = stackTraceFuture.thenAccept(new AcceptFunction[StackTrace] {
         override def accept(value: StackTrace): Unit = {
           originalSender.tell(value)
+        }
+      })
+
+      sendingFuture.exceptionally(new ApplyFunction[Throwable, Void] {
+        override def apply(value: Throwable): Void = {
+          log.info("Could not send requested stack trace.", value)
+
+          return null
         }
       })
 

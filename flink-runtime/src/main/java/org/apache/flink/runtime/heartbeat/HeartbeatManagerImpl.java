@@ -20,6 +20,7 @@ package org.apache.flink.runtime.heartbeat;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.AcceptFunction;
+import org.apache.flink.runtime.concurrent.ApplyFunction;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.util.Preconditions;
@@ -179,7 +180,7 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
 	}
 
 	@Override
-	public void requestHeartbeat(ResourceID requestOrigin, I heartbeatPayload) {
+	public void requestHeartbeat(final ResourceID requestOrigin, I heartbeatPayload) {
 		if (!stopped) {
 			log.debug("Received heartbeat request from {}.", requestOrigin);
 
@@ -193,12 +194,21 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
 				Future<O> futurePayload = heartbeatListener.retrievePayload();
 
 				if (futurePayload != null) {
-					futurePayload.thenAcceptAsync(new AcceptFunction<O>() {
+					Future<Void> sendHeartbeatFuture = futurePayload.thenAcceptAsync(new AcceptFunction<O>() {
 						@Override
 						public void accept(O retrievedPayload) {
 							heartbeatTarget.receiveHeartbeat(getOwnResourceID(), retrievedPayload);
 						}
 					}, executor);
+
+					sendHeartbeatFuture.exceptionally(new ApplyFunction<Throwable, Void>() {
+						@Override
+						public Void apply(Throwable failure) {
+							log.warn("Could not send heartbeat to target with id {}.", requestOrigin, failure);
+
+							return null;
+						}
+					});
 				} else {
 					heartbeatTarget.receiveHeartbeat(ownResourceID, null);
 				}

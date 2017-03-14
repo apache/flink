@@ -150,6 +150,11 @@ public class TaskExecutorITCase {
 		when(jmGateway.registerTaskManager(any(String.class), any(TaskManagerLocation.class), eq(jmLeaderId), any(Time.class)))
 			.thenReturn(FlinkCompletableFuture.<RegistrationResponse>completed(new JMTMRegistrationSuccess(taskManagerResourceId, 1234)));
 		when(jmGateway.getHostname()).thenReturn(jmAddress);
+		when(jmGateway.offerSlots(
+			eq(taskManagerResourceId),
+			any(Iterable.class),
+			eq(jmLeaderId),
+			any(Time.class))).thenReturn(mock(Future.class, RETURNS_MOCKS));
 
 
 		rpcService.registerGateway(rmAddress, resourceManager.getSelf());
