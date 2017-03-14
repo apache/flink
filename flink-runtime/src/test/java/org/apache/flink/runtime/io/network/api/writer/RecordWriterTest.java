@@ -505,7 +505,7 @@ public class RecordWriterTest {
 
 		@Override
 		public void read(DataInputView in) throws IOException {
-			in.read(bytes);
+			in.readFully(bytes);
 		}
 	}
 
