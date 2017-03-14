@@ -17,6 +17,7 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -26,6 +27,7 @@ import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.junit.Test;
 
 import java.io.Serializable;
+import java.io.File;
 import java.util.Collections;
 import java.util.Iterator;
 
@@ -42,6 +44,8 @@ public class OperatorStateBackendTest {
 
 	static Environment createMockEnvironment() {
 		Environment env = mock(Environment.class);
+		ExecutionConfig config = mock(ExecutionConfig.class);
+		when(env.getExecutionConfig()).thenReturn(config);
 		when(env.getUserClassLoader()).thenReturn(Thread.currentThread().getContextClassLoader());
 		return env;
 	}
@@ -61,12 +65,32 @@ public class OperatorStateBackendTest {
 	}
 
 	@Test
+	public void testRegisterStatesWithoutTypeSerializer() throws Exception {
+		DefaultOperatorStateBackend operatorStateBackend = createNewOperatorStateBackend();
+		ListStateDescriptor<File> stateDescriptor = new ListStateDescriptor<>("test", File.class);
+		ListStateDescriptor<String> stateDescriptor2 = new ListStateDescriptor<>("test2", String.class);
+		ListState<File> listState = operatorStateBackend.getOperatorState(stateDescriptor);
+		assertNotNull(listState);
+		ListState<String> listState2 = operatorStateBackend.getOperatorState(stateDescriptor2);
+		assertNotNull(listState2);
+		assertEquals(2, operatorStateBackend.getRegisteredStateNames().size());
+		Iterator<String> it = listState2.get().iterator();
+		assertTrue(!it.hasNext());
+		listState2.add("kevin");
+		listState2.add("sunny");
+
+		it = listState2.get().iterator();
+		assertEquals("kevin", it.next());
+		assertEquals("sunny", it.next());
+		assertTrue(!it.hasNext());
+	}
+
+	@Test
 	public void testRegisterStates() throws Exception {
 		DefaultOperatorStateBackend operatorStateBackend = createNewOperatorStateBackend();
 		ListStateDescriptor<Serializable> stateDescriptor1 = new ListStateDescriptor<>("test1", new JavaSerializer<>());
 		ListStateDescriptor<Serializable> stateDescriptor2 = new ListStateDescriptor<>("test2", new JavaSerializer<>());
 		ListStateDescriptor<Serializable> stateDescriptor3 = new ListStateDescriptor<>("test3", new JavaSerializer<>());
-		ListStateDescriptor<String> stateDescriptor4 = new ListStateDescriptor<>("test4", String.class);
 		ListState<Serializable> listState1 = operatorStateBackend.getOperatorState(stateDescriptor1);
 		assertNotNull(listState1);
 		assertEquals(1, operatorStateBackend.getRegisteredStateNames().size());
@@ -106,19 +130,6 @@ public class OperatorStateBackendTest {
 		assertEquals(17, it.next());
 		assertEquals(3, it.next());
 		assertEquals(123, it.next());
-		assertTrue(!it.hasNext());
-
-		ListState<String> listState4 = operatorStateBackend.getOperatorState(stateDescriptor4);
-		assertNotNull(listState4);
-		assertEquals(4, operatorStateBackend.getRegisteredStateNames().size());
-		Iterator<String> it2 = listState4.get().iterator();
-		assertTrue(!it2.hasNext());
-		listState4.add("kevin");
-		listState4.add("sunny");
-
-		it2 = listState4.get().iterator();
-		assertEquals("kevin", it2.next());
-		assertEquals("sunny", it2.next());
 		assertTrue(!it.hasNext());
 
 		ListState<Serializable> listState1b = operatorStateBackend.getOperatorState(stateDescriptor1);
