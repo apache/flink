@@ -20,10 +20,8 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.api.BackgroundCallback;
-import org.apache.curator.framework.api.BackgroundVersionable;
 import org.apache.curator.framework.api.CuratorEvent;
 import org.apache.curator.framework.api.CuratorEventType;
-import org.apache.curator.framework.api.DeleteBuilder;
 import org.apache.curator.framework.api.Pathable;
 import org.apache.curator.utils.EnsurePath;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -34,6 +32,7 @@ import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -101,7 +100,7 @@ public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
 		checkpointsInZooKeeper.add(Tuple2.of(retrievableStateHandle2, "/foobar2"));
 		checkpointsInZooKeeper.add(Tuple2.of(failingRetrievableStateHandle, "/failing2"));
 
-		final CuratorFramework client = mock(CuratorFramework.class);
+		final CuratorFramework client = mock(CuratorFramework.class, Mockito.RETURNS_DEEP_STUBS);
 		final RetrievableStateStorageHelper<CompletedCheckpoint> storageHelperMock = mock(RetrievableStateStorageHelper.class);
 
 		ZooKeeperStateHandleStore<CompletedCheckpoint> zooKeeperStateHandleStoreMock = spy(new ZooKeeperStateHandleStore<>(client, storageHelperMock, Executors.directExecutor()));
@@ -114,20 +113,20 @@ public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
 		// It assures that the callback is executed synchronously
 
 		final EnsurePath ensurePathMock = mock(EnsurePath.class);
-		final DeleteBuilder deleteBuilderMock = mock(DeleteBuilder.class);
-		final BackgroundVersionable backgroundVersionableMock = mock(BackgroundVersionable.class);
-
+		final CuratorEvent curatorEventMock = mock(CuratorEvent.class);
+		when(curatorEventMock.getType()).thenReturn(CuratorEventType.DELETE);
+		when(curatorEventMock.getResultCode()).thenReturn(0);
 		when(client.newNamespaceAwareEnsurePath(anyString())).thenReturn(ensurePathMock);
-		when(client.delete()).thenReturn(deleteBuilderMock);
-		when(deleteBuilderMock.deletingChildrenIfNeeded()).thenReturn(backgroundVersionableMock);
-		when(backgroundVersionableMock.inBackground(any(BackgroundCallback.class), any(Executor.class))).thenAnswer(new Answer<Pathable<Void>>() {
+
+		when(
+			client
+				.delete()
+				.deletingChildrenIfNeeded()
+				.inBackground(any(BackgroundCallback.class), any(Executor.class))
+		).thenAnswer(new Answer<Pathable<Void>>() {
 			@Override
 			public Pathable<Void> answer(InvocationOnMock invocation) throws Throwable {
 				final BackgroundCallback callback = (BackgroundCallback) invocation.getArguments()[0];
-
-				final CuratorEvent curatorEventMock = mock(CuratorEvent.class);
-				when(curatorEventMock.getType()).thenReturn(CuratorEventType.DELETE);
-				when(curatorEventMock.getResultCode()).thenReturn(0);
 
 				Pathable<Void> result = mock(Pathable.class);
 
