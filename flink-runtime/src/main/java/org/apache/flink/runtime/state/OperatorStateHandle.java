@@ -32,8 +32,12 @@ import java.util.Map;
  */
 public class OperatorStateHandle implements StreamStateHandle {
 
+	/**
+	 * The modes that determine how an {@link OperatorStateHandle} is assigned to tasks during restore.
+	 */
 	public enum Mode {
-		SPLIT_DISTRIBUTE, BROADCAST
+		SPLIT_DISTRIBUTE, // The operator state partitions in the state handle are split and distributed to one task each.
+		BROADCAST // The operator state partitions are broadcasted to all task.
 	}
 
 	private static final long serialVersionUID = 35876522969227335L;

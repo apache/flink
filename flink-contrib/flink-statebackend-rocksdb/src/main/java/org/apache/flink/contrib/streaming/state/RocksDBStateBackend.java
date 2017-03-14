@@ -26,15 +26,15 @@ import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.util.AbstractID;
-
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
 import org.rocksdb.NativeLibraryLoader;
 import org.rocksdb.RocksDB;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -424,6 +424,19 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 		}
 
 		return opt;
+	}
+
+	@Override
+	public OperatorStateBackend createOperatorStateBackend(
+		Environment env,
+		String operatorIdentifier) throws Exception {
+
+		//the default for RocksDB; eventually there can be a operator state backend based on RocksDB, too.
+		final boolean asyncSnapshots = true;
+		return new DefaultOperatorStateBackend(
+			env.getUserClassLoader(),
+			env.getExecutionConfig(),
+			asyncSnapshots);
 	}
 
 	@Override
