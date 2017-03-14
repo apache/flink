@@ -19,6 +19,12 @@
 
 package org.apache.flink.types;
 
+import org.apache.flink.annotation.Public;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.core.memory.MemoryUtils;
+import org.apache.flink.util.InstantiationUtil;
+
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.EOFException;
@@ -26,12 +32,6 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.io.UTFDataFormatException;
 import java.nio.ByteOrder;
-
-import org.apache.flink.annotation.Public;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.core.memory.MemoryUtils;
-import org.apache.flink.util.InstantiationUtil;
 
 
 /**
@@ -1808,7 +1808,7 @@ public final class Record implements Value, CopyableValue<Record> {
 				throw new IOException("Could not write " + numBytes + " bytes since the buffer is full.");
 			}
 
-			source.read(this.memory,this.position, numBytes);
+			source.readFully(this.memory,this.position, numBytes);
 			this.position += numBytes;
 		}
 	}

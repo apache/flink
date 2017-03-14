@@ -57,7 +57,7 @@ public class DataOutputViewStreamWrapper extends DataOutputStream implements Dat
 		
 		while (numBytes > 0) {
 			int toCopy = Math.min(numBytes, tempBuffer.length);
-			source.read(tempBuffer, 0, toCopy);
+			source.readFully(tempBuffer, 0, toCopy);
 			write(tempBuffer, 0, toCopy);
 			numBytes -= toCopy;
 		}
