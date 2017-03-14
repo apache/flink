@@ -414,10 +414,12 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 				// for logins based on a keytab (fixed in Hadoop 2.6.1, see HADOOP-10786),
 				// so we check only in ticket cache scenario.
 				boolean useTicketCache = flinkConfiguration.getBoolean(SecurityOptions.KERBEROS_LOGIN_USETICKETCACHE);
+
 				UserGroupInformation loginUser = UserGroupInformation.getCurrentUser();
-				if (useTicketCache && !loginUser.hasKerberosCredentials()) {
-					LOG.error("Hadoop security is enabled but the login user does not have Kerberos credentials");
-					throw new RuntimeException("Hadoop security is enabled but the login user " +
+				if (loginUser.getAuthenticationMethod() == UserGroupInformation.AuthenticationMethod.KERBEROS
+						&& useTicketCache && !loginUser.hasKerberosCredentials()) {
+					LOG.error("Hadoop security with Kerberos is enabled but the login user does not have Kerberos credentials");
+					throw new RuntimeException("Hadoop security with Kerberos is enabled but the login user " +
 							"does not have Kerberos credentials");
 				}
 			}
