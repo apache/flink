@@ -21,6 +21,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -229,17 +230,16 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 	}
 
 	/**
-	 * Verifies that the resources are merged correctly for chained operators when
-	 * generating job graph
+	 * Verifies that the resources are merged correctly for chained operators (covers source and sink cases)
+	 * when generating job graph
 	 */
 	@Test
-	public void testChainedResourceMerging() throws Exception {
+	public void testResourcesForChainedSourceSink() throws Exception {
 		ResourceSpec resource1 = new ResourceSpec(0.1, 100);
 		ResourceSpec resource2 = new ResourceSpec(0.2, 200);
 		ResourceSpec resource3 = new ResourceSpec(0.3, 300);
 		ResourceSpec resource4 = new ResourceSpec(0.4, 400);
 		ResourceSpec resource5 = new ResourceSpec(0.5, 500);
-		ResourceSpec resource6 = new ResourceSpec(0.6, 600);
 
 		Method opMethod = SingleOutputStreamOperator.class.getDeclaredMethod("setResources", ResourceSpec.class);
 		opMethod.setAccessible(true);
@@ -249,60 +249,130 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		DataStream<Boolean> source = env.addSource(new ParallelSourceFunction<Boolean>() {
+		DataStream<Tuple2<Integer, Integer>> source = env.addSource(new ParallelSourceFunction<Tuple2<Integer, Integer>>() {
 			@Override
-			public void run(SourceContext<Boolean> ctx) throws Exception {}
+			public void run(SourceContext<Tuple2<Integer, Integer>> ctx) throws Exception {
+			}
 
 			@Override
-			public void cancel() {}
+			public void cancel() {
+			}
 		});
 		opMethod.invoke(source, resource1);
 
-		// CHAIN(Source -> Map)
-		DataStream<Boolean> map = source.map(new MapFunction<Boolean, Boolean>() {
+		DataStream<Tuple2<Integer, Integer>> map = source.map(new MapFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>() {
 			@Override
-			public Boolean map(Boolean value) throws Exception {
+			public Tuple2<Integer, Integer> map(Tuple2<Integer, Integer> value) throws Exception {
 				return value;
 			}
 		});
 		opMethod.invoke(map, resource2);
 
-		IterativeStream<Boolean> iteration = map.iterate(3000);
-		opMethod.invoke(iteration, resource3);
-
-		DataStream<Boolean> flatMap = iteration.flatMap(new FlatMapFunction<Boolean, Boolean>() {
+		// CHAIN(Source -> Map -> Filter)
+		DataStream<Tuple2<Integer, Integer>> filter = map.filter(new FilterFunction<Tuple2<Integer, Integer>>() {
 			@Override
-			public void flatMap(Boolean value, Collector<Boolean> out) throws Exception {}
-		});
-		opMethod.invoke(flatMap, resource4);
-
-		DataStream<Boolean> increment = flatMap.filter(new FilterFunction<Boolean>() {
-			@Override
-			public boolean filter(Boolean value) throws Exception {
+			public boolean filter(Tuple2<Integer, Integer> value) throws Exception {
 				return false;
 			}
 		});
-		opMethod.invoke(increment, resource5);
+		opMethod.invoke(filter, resource3);
 
-		// CHAIN(Flat Map -> Filter -> Sink)
-		DataStreamSink<Boolean> sink = iteration.closeWith(increment).addSink(new SinkFunction<Boolean>() {
+		DataStream<Tuple2<Integer, Integer>> reduce = filter.keyBy(0).reduce(new ReduceFunction<Tuple2<Integer, Integer>>() {
 			@Override
-			public void invoke(Boolean value) {
+			public Tuple2<Integer, Integer> reduce(Tuple2<Integer, Integer> value1, Tuple2<Integer, Integer> value2) throws Exception {
+				return new Tuple2<>(value1.f0, value1.f1 + value2.f1);
 			}
 		});
-		sinkMethod.invoke(sink, resource6);
+		opMethod.invoke(reduce, resource4);
+
+		DataStreamSink<Tuple2<Integer, Integer>> sink = reduce.addSink(new SinkFunction<Tuple2<Integer, Integer>>() {
+			@Override
+			public void invoke(Tuple2<Integer, Integer> value) throws Exception {
+			}
+		});
+		sinkMethod.invoke(sink, resource5);
 
 		JobGraph jobGraph = new StreamingJobGraphGenerator(env.getStreamGraph()).createJobGraph();
 
-		JobVertex sourceMapVertex = jobGraph.getVerticesSortedTopologicallyFromSources().get(0);
-		JobVertex iterationHeadVertex = jobGraph.getVerticesSortedTopologicallyFromSources().get(1);
-		JobVertex flatMapFilterSinkVertex = jobGraph.getVerticesSortedTopologicallyFromSources().get(2);
-		JobVertex iterationTailVertex = jobGraph.getVerticesSortedTopologicallyFromSources().get(3);
+		JobVertex sourceMapFilterVertex = jobGraph.getVerticesSortedTopologicallyFromSources().get(0);
+		JobVertex reduceSinkVertex = jobGraph.getVerticesSortedTopologicallyFromSources().get(1);
 
-		assertTrue(sourceMapVertex.getMinResources().equals(resource1.merge(resource2)));
-		assertTrue(iterationHeadVertex.getPreferredResources().equals(resource3));
-		assertTrue(flatMapFilterSinkVertex.getMinResources().equals(resource4.merge(resource5).merge(resource6)));
-		// the iteration tail task will be scheduled in the same instance with iteration head, and currently not set resources.
-		assertTrue(iterationTailVertex.getPreferredResources().equals(ResourceSpec.DEFAULT));
+		assertTrue(sourceMapFilterVertex.getMinResources().equals(resource1.merge(resource2).merge(resource3)));
+		assertTrue(reduceSinkVertex.getPreferredResources().equals(resource4.merge(resource5)));
+	}
+
+	/**
+	 * Verifies that the resources are merged correctly for chained operators (covers middle chaining and iteration cases)
+	 * when generating job graph
+	 */
+	@Test
+	public void testResourcesForIteration() throws Exception {
+		ResourceSpec resource1 = new ResourceSpec(0.1, 100);
+		ResourceSpec resource2 = new ResourceSpec(0.2, 200);
+		ResourceSpec resource3 = new ResourceSpec(0.3, 300);
+		ResourceSpec resource4 = new ResourceSpec(0.4, 400);
+		ResourceSpec resource5 = new ResourceSpec(0.5, 500);
+
+		Method opMethod = SingleOutputStreamOperator.class.getDeclaredMethod("setResources", ResourceSpec.class);
+		opMethod.setAccessible(true);
+
+		Method sinkMethod = DataStreamSink.class.getDeclaredMethod("setResources", ResourceSpec.class);
+		sinkMethod.setAccessible(true);
+
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStream<Integer> source = env.addSource(new ParallelSourceFunction<Integer>() {
+			@Override
+			public void run(SourceContext<Integer> ctx) throws Exception {
+			}
+
+			@Override
+			public void cancel() {
+			}
+		}).name("test_source");
+		opMethod.invoke(source, resource1);
+
+		IterativeStream<Integer> iteration = source.iterate(3000);
+		opMethod.invoke(iteration, resource2);
+
+		DataStream<Integer> flatMap = iteration.flatMap(new FlatMapFunction<Integer, Integer>() {
+			@Override
+			public void flatMap(Integer value, Collector<Integer> out) throws Exception {
+				out.collect(value);
+			}
+		}).name("test_flatMap");
+		opMethod.invoke(flatMap, resource3);
+
+		// CHAIN(flatMap -> Filter)
+		DataStream<Integer> increment = flatMap.filter(new FilterFunction<Integer>() {
+			@Override
+			public boolean filter(Integer value) throws Exception {
+				return false;
+			}
+		}).name("test_filter");
+		opMethod.invoke(increment, resource4);
+
+		DataStreamSink<Integer> sink = iteration.closeWith(increment).addSink(new SinkFunction<Integer>() {
+			@Override
+			public void invoke(Integer value) throws Exception {
+			}
+		}).disableChaining().name("test_sink");
+		sinkMethod.invoke(sink, resource5);
+
+		JobGraph jobGraph = new StreamingJobGraphGenerator(env.getStreamGraph()).createJobGraph();
+
+		for (JobVertex jobVertex : jobGraph.getVertices()) {
+			if (jobVertex.getName().contains("test_source")) {
+				assertTrue(jobVertex.getMinResources().equals(resource1));
+			} else if (jobVertex.getName().contains("Iteration_Source")) {
+				assertTrue(jobVertex.getPreferredResources().equals(resource2));
+			} else if (jobVertex.getName().contains("test_flatMap")) {
+				assertTrue(jobVertex.getMinResources().equals(resource3.merge(resource4)));
+			} else if (jobVertex.getName().contains("Iteration_Tail")) {
+				assertTrue(jobVertex.getPreferredResources().equals(ResourceSpec.DEFAULT));
+			} else if (jobVertex.getName().contains("test_sink")) {
+				assertTrue(jobVertex.getMinResources().equals(resource5));
+			}
+		}
 	}
 }

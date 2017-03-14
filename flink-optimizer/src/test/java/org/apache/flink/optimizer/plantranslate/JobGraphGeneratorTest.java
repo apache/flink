@@ -49,7 +49,7 @@ public class JobGraphGeneratorTest {
 	 * generating job graph
 	 */
 	@Test
-	public void testChainedResourcesMerging() throws Exception {
+	public void testResourcesForChainedOperators() throws Exception {
 		ResourceSpec resource1 = new ResourceSpec(0.1, 100);
 		ResourceSpec resource2 = new ResourceSpec(0.2, 200);
 		ResourceSpec resource3 = new ResourceSpec(0.3, 300);
@@ -124,8 +124,8 @@ public class JobGraphGeneratorTest {
 	}
 
 	/**
-	 * Verifies that the resources are set onto job vertex correctly when generating job graph which
-	 * covers the delta iteration case
+	 * Verifies that the resources are set onto each job vertex correctly when generating job graph
+	 * which covers the delta iteration case
 	 */
 	@Test
 	public void testResourcesForDeltaIteration() throws Exception{

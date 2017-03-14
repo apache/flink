@@ -1504,7 +1504,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 				
 				if (hasSolutionSetTail) {
 					solutionDeltaVertex.setInvokableClass(IterationTailTask.class);
-
+					
 					solutionDeltaConfig.setOutputSerializer(iterNode.getSolutionSetSerializer());
 					
 					// tell the head that it needs to wait for the solution set updates
