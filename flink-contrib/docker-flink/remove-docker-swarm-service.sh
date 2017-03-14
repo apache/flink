@@ -1,3 +1,5 @@
+#!/bin/sh
+
 ################################################################################
 #  Licensed to the Apache Software Foundation (ASF) under one
 #  or more contributor license agreements.  See the NOTICE file
@@ -16,29 +18,26 @@
 # limitations under the License.
 ################################################################################
 
-# Set the FLINK_DOCKER_IMAGE_NAME environment variable to override the image name to use
+usage() {
+  cat <<HERE
+Usage:
+  remove-docker-swarm-service.sh <service-name> 
+HERE
+  exit 1
+}
 
-version: "2.1"
-services:
-  jobmanager:
-    image: ${FLINK_DOCKER_IMAGE_NAME:-flink}
-    expose:
-      - "6123"
-    ports:
-      - "8081:8081"
-    command: jobmanager
-    environment:
-      - JOB_MANAGER_RPC_ADDRESS=jobmanager
+[[ $# -ne 1 ]] && usage
 
-  taskmanager:
-    image: ${FLINK_DOCKER_IMAGE_NAME:-flink}
-    expose:
-      - "6121"
-      - "6122"
-    depends_on:
-      - jobmanager
-    command: taskmanager
-    links:
-      - "jobmanager:jobmanager"
-    environment:
-      - JOB_MANAGER_RPC_ADDRESS=jobmanager
+SERVICE_BASE_NAME="$1"
+JOB_MANAGER_NAME=${SERVICE_BASE_NAME}-jobmanager
+TASK_MANAGER_NAME=${SERVICE_BASE_NAME}-taskmanager
+OVERLAY_NETWORK_NAME=${SERVICE_BASE_NAME}
+
+# Remove taskmanager service
+docker service rm ${TASK_MANAGER_NAME}
+
+# Remove jobmanager service
+docker service rm ${JOB_MANAGER_NAME}
+
+# Remove overlay network
+docker network rm ${OVERLAY_NETWORK_NAME}

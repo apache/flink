@@ -18,11 +18,13 @@
 ################################################################################
 
 # Start/stop a Flink daemon.
-USAGE="Usage: flink-daemon.sh (start|stop|stop-all) (jobmanager|taskmanager|zookeeper) [args]"
+USAGE="Usage: flink-daemon.sh (start|stop|stop-all) (jobmanager|taskmanager|zookeeper) [--no-redirect-stdout] [args]"
 
 STARTSTOP=$1
 DAEMON=$2
-ARGS=("${@:3}") # get remaining arguments as array
+
+# Parse out --no-redirect-stdout flag if present
+[[ "$3" == "--no-redirect-stdout" ]] && no_redirect_stdout="true" && ARGS=("${@:4}") || ARGS=("${@:3}")
 
 bin=`dirname "$0"`
 bin=`cd "$bin"; pwd`
@@ -112,10 +114,22 @@ case $STARTSTOP in
           fi
         fi
 
+        # Decide where to send stdout, use temporary FD
+        if [ -n "${no_redirect_stdout}" ]; then
+            echo "stdout has not been redirected to this file" > "${out}"
+            exec 3>&1
+        else
+            exec 3>"${out}"
+        fi
+
         echo "Starting $DAEMON daemon on host $HOSTNAME."
-        $JAVA_RUN $JVM_ARGS ${FLINK_ENV_JAVA_OPTS} "${log_setting[@]}" -classpath "`manglePathList "$FLINK_TM_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS"`" ${CLASS_TO_RUN} "${ARGS[@]}" > "$out" 200<&- 2>&1 < /dev/null &
+
+        $JAVA_RUN $JVM_ARGS ${FLINK_ENV_JAVA_OPTS} "${log_setting[@]}" -classpath "`manglePathList "$FLINK_TM_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS"`" ${CLASS_TO_RUN} "${ARGS[@]}" 200<&- 1>&3 2>&1 < /dev/null &
 
         mypid=$!
+
+        # Cleanup temporary FD
+        exec 3>&-
 
         # Add to pid file if successful start
         if [[ ${mypid} =~ ${IS_NUMBER} ]] && kill -0 $mypid > /dev/null 2>&1 ; then
