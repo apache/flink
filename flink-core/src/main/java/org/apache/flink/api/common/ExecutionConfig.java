@@ -109,6 +109,8 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 
 	private boolean forceKryo = false;
 
+	private boolean disableGenericTypes = false;
+
 	private boolean objectReuse = false;
 
 	private boolean autoTypeRegistrationEnabled = true;
@@ -519,6 +521,31 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	}
 
 	/**
+	 * Enable generic types.
+	 *
+	 * @see ExecutionConfig#disableGenericTypes()
+	 */
+	public void enableGenericTypes() {
+		disableGenericTypes = false;
+	}
+
+	/**
+	 * Disable generic types to make sure that you have provided your own custom serializers for
+	 * all POJOs explicitly.
+	 *
+	 * If generic types disabled,
+	 * an {@link UnsupportedOperationException} will be thrown when Flink
+	 * tries to fall back to the default Kryo serializer logic in the runtime.
+	 */
+	public void disableGenericTypes() {
+		disableGenericTypes = true;
+	}
+
+	public boolean hasGenericTypesDisabled() {
+		return disableGenericTypes;
+	}
+
+	/**
 	 * Force Flink to use the AvroSerializer for POJOs.
 	 */
 	public void enableForceAvro() {
@@ -804,6 +831,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 				((restartStrategyConfiguration == null && other.restartStrategyConfiguration == null) ||
 					(null != restartStrategyConfiguration && restartStrategyConfiguration.equals(other.restartStrategyConfiguration))) &&
 				forceKryo == other.forceKryo &&
+				disableGenericTypes == other.disableGenericTypes &&
 				objectReuse == other.objectReuse &&
 				autoTypeRegistrationEnabled == other.autoTypeRegistrationEnabled &&
 				forceAvro == other.forceAvro &&
@@ -830,6 +858,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 			parallelism,
 			restartStrategyConfiguration,
 			forceKryo,
+			disableGenericTypes,
 			objectReuse,
 			autoTypeRegistrationEnabled,
 			forceAvro,
