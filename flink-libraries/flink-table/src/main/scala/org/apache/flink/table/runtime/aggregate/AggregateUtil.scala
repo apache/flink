@@ -183,7 +183,7 @@ object AggregateUtil {
   
   private[flink] def CreateBoundedProcessingOverWindowFunction(
       namedAggregates: Seq[CalcitePair[AggregateCall, String]],
-    inputType: RelDataType): BoundedProcessingOverWindowFunction[GlobalWindow] = {
+    inputType: RelDataType): WindowFunction[Row, Row, Tuple, GlobalWindow] = {
     
     val (aggFields, aggregates) =
       transformToAggregateFunctions(

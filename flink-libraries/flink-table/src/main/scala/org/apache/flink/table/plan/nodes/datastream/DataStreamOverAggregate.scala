@@ -117,7 +117,7 @@ class DataStreamOverAggregate(
           createBoundedAndCurrentRowProcessingTimeOverWindow(inputDS)
         } else {
           throw new TableException(
-              "OVER window only support ProcessingTime UNBOUNDED PRECEDING and CURRENT ROW " +
+            "OVER window only support ProcessingTime BOUNDED/UNBOUNDED PRECEDING and CURRENT ROW " +
               "condition.")
         }
       case _: RowTimeType =>
