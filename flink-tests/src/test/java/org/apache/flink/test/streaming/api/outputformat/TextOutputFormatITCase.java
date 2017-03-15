@@ -22,6 +22,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
 import org.apache.flink.test.testdata.WordCountData;
+import org.apache.flink.test.testfunctions.Tokenizer;
 
 public class TextOutputFormatITCase extends StreamingProgramTestBase {
 
@@ -39,7 +40,7 @@ public class TextOutputFormatITCase extends StreamingProgramTestBase {
 		DataStream<String> text = env.fromElements(WordCountData.TEXT);
 
 		DataStream<Tuple2<String, Integer>> counts = text
-				.flatMap(new CsvOutputFormatITCase.Tokenizer())
+				.flatMap(new Tokenizer())
 				.keyBy(0).sum(1);
 
 		counts.writeAsText(resultPath);

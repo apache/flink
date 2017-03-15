@@ -137,7 +137,9 @@ public abstract class ApplyFunction<K, VV, M> implements Serializable {
 
 	private Collector<Vertex<K, VV>> out;
 
-	private Vertex<K, VV> outVal;
+	// use a local vertex instance so that the user does not overwrite a system
+	// instance used by JoinDriver
+	private Vertex<K, VV> outVal = new Vertex<>();
 
 	public void init(IterationRuntimeContext iterationRuntimeContext) {
 		this.runtimeContext = iterationRuntimeContext;
@@ -145,7 +147,7 @@ public abstract class ApplyFunction<K, VV, M> implements Serializable {
 
 	public void setOutput(Vertex<K, VV> vertex, Collector<Vertex<K, VV>> out) {
 		this.out = out;
-		this.outVal = vertex;
+		this.outVal.f0 = vertex.f0;
 	}
 
 }

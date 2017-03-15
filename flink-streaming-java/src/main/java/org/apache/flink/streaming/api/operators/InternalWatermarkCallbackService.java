@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
@@ -38,8 +39,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * The watermark callback service allows to register a {@link OnWatermarkCallback OnWatermarkCallback}
  * and multiple keys, for which the callback will be invoked every time a new {@link Watermark} is received
  * (after the registration of the key).
- * <p>
- * <b>NOTE: </b> This service is only available to <b>keyed</b> operators.
+ *
+ * <p><b>NOTE: </b> This service is only available to <b>keyed</b> operators.
  *
  *  @param <K> The type of key returned by the {@code KeySelector}.
  */
@@ -58,7 +59,17 @@ public class InternalWatermarkCallbackService<K> {
 	 * An array of sets of keys keeping the registered keys split
 	 * by the key-group they belong to. Each key-group has one set.
 	 */
-	private final Set<K>[] keysByKeygroup;
+	private final Set<K>[] registeredKeysByKeyGroup;
+
+	/**
+	 * An array of sets of keys keeping the keys "to delete" split
+	 * by the key-group they belong to. Each key-group has one set.
+	 *
+	 * <p>This is used to avoid potential concurrent modification
+	 * exception when deleting keys from inside the
+	 * {@link #invokeOnWatermarkCallback(Watermark)}.
+	 */
+	private final Set<K>[] deletedKeysByKeyGroup;
 
 	/** A serializer for the registered keys. */
 	private TypeSerializer<K> keySerializer;
@@ -84,7 +95,8 @@ public class InternalWatermarkCallbackService<K> {
 
 		// the list of ids of the key-groups this task is responsible for
 		int localKeyGroups = this.localKeyGroupRange.getNumberOfKeyGroups();
-		this.keysByKeygroup = new Set[localKeyGroups];
+		this.registeredKeysByKeyGroup = new Set[localKeyGroups];
+		this.deletedKeysByKeyGroup = new Set[localKeyGroups];
 	}
 
 	/**
@@ -110,7 +122,7 @@ public class InternalWatermarkCallbackService<K> {
 	 * @param key The key to be registered.
 	 */
 	public boolean registerKeyForWatermarkCallback(K key) {
-		return getKeySetForKeyGroup(key).add(key);
+		return getRegisteredKeysForKeyGroup(key).add(key);
 	}
 
 	/**
@@ -119,13 +131,7 @@ public class InternalWatermarkCallbackService<K> {
 	 * @param key The key to be unregistered.
 	 */
 	public boolean unregisterKeyFromWatermarkCallback(K key) {
-		Set<K> keys = getKeySetForKeyGroup(key);
-		boolean res = keys.remove(key);
-
-		if (keys.isEmpty()) {
-			removeKeySetForKey(key);
-		}
-		return res;
+		return getDeletedKeysForKeyGroup(key).add(key);
 	}
 
 	/**
@@ -134,8 +140,11 @@ public class InternalWatermarkCallbackService<K> {
 	 * @param watermark The watermark that triggered the invocation.
 	 */
 	public void invokeOnWatermarkCallback(Watermark watermark) throws IOException {
+		// clean up any keys registered for deletion before calling the callback
+		cleanupRegisteredKeys();
+
 		if (callback != null) {
-			for (Set<K> keySet : keysByKeygroup) {
+			for (Set<K> keySet : registeredKeysByKeyGroup) {
 				if (keySet != null) {
 					for (K key : keySet) {
 						keyContext.setCurrentKey(key);
@@ -147,15 +156,38 @@ public class InternalWatermarkCallbackService<K> {
 	}
 
 	/**
+	 * Does the actual deletion of any keys registered for deletion using the
+	 * {@link #unregisterKeyFromWatermarkCallback(Object)}.
+	 */
+	private void cleanupRegisteredKeys() {
+		for (int keyGroupIdx = 0; keyGroupIdx < registeredKeysByKeyGroup.length; keyGroupIdx++) {
+
+			Set<K> deletedKeys = deletedKeysByKeyGroup[keyGroupIdx];
+			if (deletedKeys != null) {
+
+				Set<K> registeredKeys = registeredKeysByKeyGroup[keyGroupIdx];
+				if (registeredKeys != null) {
+
+					registeredKeys.removeAll(deletedKeys);
+					if (registeredKeys.isEmpty()) {
+						registeredKeysByKeyGroup[keyGroupIdx] = null;
+					}
+				}
+				deletedKeysByKeyGroup[keyGroupIdx] = null;
+			}
+		}
+	}
+
+	/**
 	 * Retrieve the set of keys for the key-group this key belongs to.
 	 *
 	 * @param key the key whose key-group we are searching.
 	 * @return the set of registered keys for the key-group.
 	 */
-	private Set<K> getKeySetForKeyGroup(K key) {
+	private Set<K> getRegisteredKeysForKeyGroup(K key) {
 		checkArgument(localKeyGroupRange != null, "The operator has not been initialized.");
 		int keyGroupIdx = KeyGroupRangeAssignment.assignToKeyGroup(key, totalKeyGroups);
-		return getKeySetForKeyGroup(keyGroupIdx);
+		return getRegisteredKeysForKeyGroup(keyGroupIdx);
 	}
 
 	/**
@@ -164,27 +196,36 @@ public class InternalWatermarkCallbackService<K> {
 	 * @param keyGroupIdx the index of the key group we are interested in.
 	 * @return the set of keys for the key-group.
 	 */
-	private Set<K> getKeySetForKeyGroup(int keyGroupIdx) {
+	private Set<K> getRegisteredKeysForKeyGroup(int keyGroupIdx) {
 		int localIdx = getIndexForKeyGroup(keyGroupIdx);
-		Set<K> keys = keysByKeygroup[localIdx];
+		Set<K> keys = registeredKeysByKeyGroup[localIdx];
 		if (keys == null) {
 			keys = new HashSet<>();
-			keysByKeygroup[localIdx] = keys;
+			registeredKeysByKeyGroup[localIdx] = keys;
 		}
 		return keys;
 	}
 
-	private void removeKeySetForKey(K key) {
+	private Set<K> getDeletedKeysForKeyGroup(K key) {
 		checkArgument(localKeyGroupRange != null, "The operator has not been initialized.");
 		int keyGroupIdx = KeyGroupRangeAssignment.assignToKeyGroup(key, totalKeyGroups);
-		int localKeyGroupIdx = getIndexForKeyGroup(keyGroupIdx);
-		keysByKeygroup[localKeyGroupIdx] = null;
+		return getDeletedKeysForKeyGroup(keyGroupIdx);
+	}
+
+	private Set<K> getDeletedKeysForKeyGroup(int keyGroupIdx) {
+		int localIdx = getIndexForKeyGroup(keyGroupIdx);
+		Set<K> keys = deletedKeysByKeyGroup[localIdx];
+		if (keys == null) {
+			keys = new HashSet<>();
+			deletedKeysByKeyGroup[localIdx] = keys;
+		}
+		return keys;
 	}
 
 	/**
 	 * Computes the index of the requested key-group in the local datastructures.
-	 * <li/>
-	 * Currently we assume that each task is assigned a continuous range of key-groups,
+	 *
+	 * <p>Currently we assume that each task is assigned a continuous range of key-groups,
 	 * e.g. 1,2,3,4, and not 1,3,5. We leverage this to keep the different states
 	 * key-grouped in arrays instead of maps, where the offset for each key-group is
 	 * the key-group id (an int) minus the id of the first key-group in the local range.
@@ -199,7 +240,11 @@ public class InternalWatermarkCallbackService<K> {
 	//////////////////				Fault Tolerance Methods				///////////////////
 
 	public void snapshotKeysForKeyGroup(DataOutputViewStreamWrapper stream, int keyGroupIdx) throws Exception {
-		Set<K> keySet = getKeySetForKeyGroup(keyGroupIdx);
+
+		// we cleanup also here to avoid checkpointing the deletion set
+		cleanupRegisteredKeys();
+
+		Set<K> keySet = getRegisteredKeysForKeyGroup(keyGroupIdx);
 		if (keySet != null) {
 			stream.writeInt(keySet.size());
 
@@ -224,16 +269,29 @@ public class InternalWatermarkCallbackService<K> {
 			TypeSerializer<K> tmpKeyDeserializer = InstantiationUtil.deserializeObject(stream, userCodeClassLoader);
 
 			if (keySerializer != null && !keySerializer.equals(tmpKeyDeserializer)) {
-				throw new IllegalArgumentException("Tried to restore timers " +
-					"for the same service with different serializers.");
+				throw new IllegalArgumentException("Tried to restore keys " +
+					"for the watermark callback service with mismatching serializers.");
 			}
 
 			this.keySerializer = tmpKeyDeserializer;
 
-			Set<K> keys = getKeySetForKeyGroup(keyGroupIdx);
+			Set<K> keys = getRegisteredKeysForKeyGroup(keyGroupIdx);
 			for (int i = 0; i < numKeys; i++) {
 				keys.add(keySerializer.deserialize(stream));
 			}
 		}
+	}
+
+	//////////////////				Testing Methods				///////////////////
+
+	@VisibleForTesting
+	public int numKeysForWatermarkCallback() {
+		int count = 0;
+		for (Set<K> keyGroup: registeredKeysByKeyGroup) {
+			if (keyGroup != null) {
+				count += keyGroup.size();
+			}
+		}
+		return count;
 	}
 }

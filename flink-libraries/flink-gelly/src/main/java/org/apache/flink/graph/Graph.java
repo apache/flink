@@ -1126,7 +1126,7 @@ public class Graph<K, VV, EV> {
 		}
 	}
 
-	private static final class ProjectVertexWithEdgeValueMap<K, EV>	implements MapFunction<
+	private static final class ProjectVertexWithEdgeValueMap<K, EV> implements MapFunction<
 		Edge<K, EV>, Tuple2<K, EV>> {
 
 		private int fieldPosition;
@@ -1217,7 +1217,7 @@ public class Graph<K, VV, EV> {
 			this.function = fun;
 		}
 
-		public void coGroup(Iterable<Vertex<K, VV>> vertex, 	final Iterable<Tuple2<K, Edge<K, EV>>> keysWithEdges,
+		public void coGroup(Iterable<Vertex<K, VV>> vertex, final Iterable<Tuple2<K, Edge<K, EV>>> keysWithEdges,
 				Collector<T> out) throws Exception {
 
 			final Iterator<Edge<K, EV>> edgesIterator = new Iterator<Edge<K, EV>>() {
@@ -2149,12 +2149,12 @@ public class Graph<K, VV, EV> {
 
 		public void coGroup(Iterable<Vertex<K, VV>> vertex, Iterable<Tuple2<Edge<K, EV>, Vertex<K, VV>>> neighbors,
 				Collector<T> out) throws Exception {
-			function.iterateNeighbors(vertex.iterator().next(), 	neighbors, out);
+			function.iterateNeighbors(vertex.iterator().next(), neighbors, out);
 		}
 
 		@Override
 		public TypeInformation<T> getProducedType() {
-			return TypeExtractor.createTypeInfo(NeighborsFunctionWithVertexValue.class, 	function.getClass(), 3, null, null);
+			return TypeExtractor.createTypeInfo(NeighborsFunctionWithVertexValue.class, function.getClass(), 3, null, null);
 		}
 	}
 

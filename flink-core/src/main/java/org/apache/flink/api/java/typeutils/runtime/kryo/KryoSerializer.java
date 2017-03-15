@@ -24,7 +24,6 @@ import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.factories.ReflectionSerializerFactory;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
-import com.esotericsoftware.kryo.serializers.JavaSerializer;
 
 import org.apache.avro.generic.GenericData;
 
@@ -130,7 +129,7 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 
 	@Override
 	public KryoSerializer<T> duplicate() {
-		return new KryoSerializer<T>(this);
+		return new KryoSerializer<>(this);
 	}
 
 	@Override
@@ -331,6 +330,8 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 			kryo.setReferences(true);
 			
 			// Throwable and all subclasses should be serialized via java serialization
+			// Note: the registered JavaSerializer is Flink's own implementation, and not Kryo's.
+			//       This is due to a know issue with Kryo's JavaSerializer. See FLINK-6025 for details.
 			kryo.addDefaultSerializer(Throwable.class, new JavaSerializer());
 
 			// Add default serializers first, so that they type registrations without a serializer

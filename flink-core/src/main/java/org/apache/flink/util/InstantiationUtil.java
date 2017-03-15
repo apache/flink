@@ -45,9 +45,7 @@ import java.util.HashMap;
 public final class InstantiationUtil {
 	
 	/**
-	 * A custom ObjectInputStream that can also load user-code using a
-	 * user-code ClassLoader.
-	 *
+	 * A custom ObjectInputStream that can load classes using a specific ClassLoader.
 	 */
 	public static class ClassLoaderObjectInputStream extends ObjectInputStream {
 

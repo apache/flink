@@ -24,8 +24,8 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.types.Row
-import org.apache.flink.table.api.Types
-import org.apache.flink.table.api.java.utils.UserDefinedScalarFunctions.{JavaFunc0, JavaFunc1}
+import org.apache.flink.table.api.{Types, ValidationException}
+import org.apache.flink.table.api.java.utils.UserDefinedScalarFunctions.{JavaFunc0, JavaFunc1, JavaFunc2, JavaFunc3}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.utils._
 import org.apache.flink.table.functions.ScalarFunction
@@ -181,6 +181,85 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
   }
   
   @Test
+  def testVariableArgs(): Unit = {
+    testAllApis(
+      Func14(1, 2, 3, 4),
+      "Func14(1, 2, 3, 4)",
+      "Func14(1, 2, 3, 4)",
+      "10")
+
+    // Test for empty arguments
+    testAllApis(
+      Func14(),
+      "Func14()",
+      "Func14()",
+      "0")
+
+    // Test for override
+    testAllApis(
+      Func15("Hello"),
+      "Func15('Hello')",
+      "Func15('Hello')",
+      "Hello"
+    )
+
+    testAllApis(
+      Func15('f1),
+      "Func15(f1)",
+      "Func15(f1)",
+      "Test"
+    )
+
+    testAllApis(
+      Func15("Hello", 1, 2, 3),
+      "Func15('Hello', 1, 2, 3)",
+      "Func15('Hello', 1, 2, 3)",
+      "Hello3"
+    )
+
+    testAllApis(
+      Func16('f9),
+      "Func16(f9)",
+      "Func16(f9)",
+      "Hello, World"
+    )
+
+    try {
+      testAllApis(
+        Func17("Hello", "World"),
+        "Func17('Hello', 'World')",
+        "Func17('Hello', 'World')",
+        "Hello, World"
+      )
+      throw new RuntimeException("Shouldn't be reached here!")
+    } catch {
+      case ex: ValidationException =>
+        // ok
+    }
+
+    val JavaFunc2 = new JavaFunc2
+    testAllApis(
+      JavaFunc2("Hi", 1, 3, 5, 7),
+      "JavaFunc2('Hi', 1, 3, 5, 7)",
+      "JavaFunc2('Hi', 1, 3, 5, 7)",
+      "Hi105")
+
+    // test overloading
+    val JavaFunc3 = new JavaFunc3
+    testAllApis(
+      JavaFunc3("Hi"),
+      "JavaFunc3('Hi')",
+      "JavaFunc3('Hi')",
+      "Hi")
+
+    testAllApis(
+      JavaFunc3('f1),
+      "JavaFunc3(f1)",
+      "JavaFunc3(f1)",
+      "Test")
+  }
+
+  @Test
   def testJavaBoxedPrimitives(): Unit = {
     val JavaFunc0 = new JavaFunc0()
     val JavaFunc1 = new JavaFunc1()
@@ -238,7 +317,7 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
   // ----------------------------------------------------------------------------------------------
 
   override def testData: Any = {
-    val testData = new Row(9)
+    val testData = new Row(10)
     testData.setField(0, 42)
     testData.setField(1, "Test")
     testData.setField(2, null)
@@ -248,6 +327,7 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
     testData.setField(6, Timestamp.valueOf("1990-10-14 12:10:10"))
     testData.setField(7, 12)
     testData.setField(8, 1000L)
+    testData.setField(9, Seq("Hello", "World"))
     testData
   }
 
@@ -261,7 +341,8 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
       Types.TIME,
       Types.TIMESTAMP,
       Types.INTERVAL_MONTHS,
-      Types.INTERVAL_MILLIS
+      Types.INTERVAL_MILLIS,
+      TypeInformation.of(classOf[Seq[String]])
     ).asInstanceOf[TypeInformation[Any]]
   }
 
@@ -279,8 +360,14 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
     "Func10" -> Func10,
     "Func11" -> Func11,
     "Func12" -> Func12,
+    "Func14" -> Func14,
+    "Func15" -> Func15,
+    "Func16" -> Func16,
+    "Func17" -> Func17,
     "JavaFunc0" -> new JavaFunc0,
     "JavaFunc1" -> new JavaFunc1,
+    "JavaFunc2" -> new JavaFunc2,
+    "JavaFunc3" -> new JavaFunc3,
     "RichFunc0" -> new RichFunc0,
     "RichFunc1" -> new RichFunc1,
     "RichFunc2" -> new RichFunc2

@@ -38,7 +38,21 @@ public class GraphUtils {
 		return input
 			.map(new MapTo<T, LongValue>(new LongValue(1)))
 				.returns(LONG_VALUE_TYPE_INFO)
-			.reduce(new AddLongValue());
+				.name("Emit 1")
+			.reduce(new AddLongValue())
+				.name("Sum");
+	}
+
+	/**
+	 * The identity mapper returns the input as output.
+	 *
+	 * @param <T> element type
+	 */
+	public static final class IdentityMapper<T>
+	implements MapFunction<T, T> {
+		public T map(T value) {
+			return value;
+		}
 	}
 
 	/**

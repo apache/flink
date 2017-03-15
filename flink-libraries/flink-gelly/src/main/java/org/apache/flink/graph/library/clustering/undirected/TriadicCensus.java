@@ -24,7 +24,7 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.graph.AbstractGraphAnalytic;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.asm.dataset.Count;
-import org.apache.flink.graph.library.clustering.directed.TriangleListing;
+import org.apache.flink.graph.asm.result.PrintableResult;
 import org.apache.flink.graph.library.clustering.undirected.TriadicCensus.Result;
 import org.apache.flink.graph.library.metric.undirected.VertexMetrics;
 import org.apache.flink.types.CopyableValue;
@@ -140,7 +140,8 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 	/**
 	 * Wraps triadic census metrics.
 	 */
-	public static class Result {
+	public static class Result
+	implements PrintableResult {
 		private final BigInteger[] counts;
 
 		public Result(BigInteger... counts) {
@@ -212,7 +213,7 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 		}
 
 		@Override
-		public String toString() {
+		public String toPrintableString() {
 			NumberFormat nf = NumberFormat.getInstance();
 
 			return "03: " + nf.format(getCount03())

@@ -37,14 +37,18 @@ import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.connectors.kafka.config.OffsetCommitMode;
+import org.apache.flink.streaming.connectors.kafka.config.OffsetCommitModes;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.AbstractFetcher;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
+import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionStateSentinel;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.util.SerializedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -101,8 +105,24 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 
 	private transient ListState<Tuple2<KafkaTopicPartition, Long>> offsetsStateForCheckpoint;
 
+	/**
+	 * User-set flag determining whether or not to commit on checkpoints.
+	 * Note: this flag does not represent the final offset commit mode.
+	 */
+	private boolean enableCommitOnCheckpoints = true;
+
+	/**
+	 * The offset commit mode for the consumer.
+	 * The value of this can only be determined in {@link FlinkKafkaConsumerBase#open(Configuration)} since it depends
+	 * on whether or not checkpointing is enabled for the job.
+	 */
+	private OffsetCommitMode offsetCommitMode;
+
 	/** The startup mode for the consumer (default is {@link StartupMode#GROUP_OFFSETS}) */
-	protected StartupMode startupMode = StartupMode.GROUP_OFFSETS;
+	private StartupMode startupMode = StartupMode.GROUP_OFFSETS;
+
+	/** Specific startup offsets; only relevant when startup mode is {@link StartupMode#SPECIFIC_OFFSETS} */
+	protected Map<KafkaTopicPartition, Long> specificStartupOffsets;
 
 	// ------------------------------------------------------------------------
 	//  runtime state (used individually by each parallel subtask) 
@@ -156,7 +176,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	 * {@link AssignerWithPeriodicWatermarks}, not both at the same time.
 	 * 
 	 * @param assigner The timestamp assigner / watermark generator to use.
-	 * @return The consumer object, to allow function chaining.   
+	 * @return The consumer object, to allow function chaining.
 	 */
 	public FlinkKafkaConsumerBase<T> assignTimestampsAndWatermarks(AssignerWithPunctuatedWatermarks<T> assigner) {
 		checkNotNull(assigner);
@@ -191,7 +211,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	 * {@link AssignerWithPeriodicWatermarks}, not both at the same time.
 	 *
 	 * @param assigner The timestamp assigner / watermark generator to use.
-	 * @return The consumer object, to allow function chaining.   
+	 * @return The consumer object, to allow function chaining.
 	 */
 	public FlinkKafkaConsumerBase<T> assignTimestampsAndWatermarks(AssignerWithPeriodicWatermarks<T> assigner) {
 		checkNotNull(assigner);
@@ -209,24 +229,48 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	}
 
 	/**
+	 * Specifies whether or not the consumer should commit offsets back to Kafka on checkpoints.
+	 *
+	 * This setting will only have effect if checkpointing is enabled for the job.
+	 * If checkpointing isn't enabled, only the "auto.commit.enable" (for 0.8) / "enable.auto.commit" (for 0.9+)
+	 * property settings will be
+	 *
+	 * @return The consumer object, to allow function chaining.
+	 */
+	public FlinkKafkaConsumerBase<T> setCommitOffsetsOnCheckpoints(boolean commitOnCheckpoints) {
+		this.enableCommitOnCheckpoints = commitOnCheckpoints;
+		return this;
+	}
+
+	/**
 	 * Specifies the consumer to start reading from the earliest offset for all partitions.
-	 * This ignores any committed group offsets in Zookeeper / Kafka brokers.
+	 * This lets the consumer ignore any committed group offsets in Zookeeper / Kafka brokers.
+	 *
+	 * This method does not effect where partitions are read from when the consumer is restored
+	 * from a checkpoint or savepoint. When the consumer is restored from a checkpoint or
+	 * savepoint, only the offsets in the restored state will be used.
 	 *
 	 * @return The consumer object, to allow function chaining.
 	 */
 	public FlinkKafkaConsumerBase<T> setStartFromEarliest() {
 		this.startupMode = StartupMode.EARLIEST;
+		this.specificStartupOffsets = null;
 		return this;
 	}
 
 	/**
 	 * Specifies the consumer to start reading from the latest offset for all partitions.
-	 * This ignores any committed group offsets in Zookeeper / Kafka brokers.
+	 * This lets the consumer ignore any committed group offsets in Zookeeper / Kafka brokers.
+	 *
+	 * This method does not effect where partitions are read from when the consumer is restored
+	 * from a checkpoint or savepoint. When the consumer is restored from a checkpoint or
+	 * savepoint, only the offsets in the restored state will be used.
 	 *
 	 * @return The consumer object, to allow function chaining.
 	 */
 	public FlinkKafkaConsumerBase<T> setStartFromLatest() {
 		this.startupMode = StartupMode.LATEST;
+		this.specificStartupOffsets = null;
 		return this;
 	}
 
@@ -236,10 +280,41 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	 * properties. If no offset can be found for a partition, the behaviour in "auto.offset.reset"
 	 * set in the configuration properties will be used for the partition.
 	 *
+	 * This method does not effect where partitions are read from when the consumer is restored
+	 * from a checkpoint or savepoint. When the consumer is restored from a checkpoint or
+	 * savepoint, only the offsets in the restored state will be used.
+	 *
 	 * @return The consumer object, to allow function chaining.
 	 */
 	public FlinkKafkaConsumerBase<T> setStartFromGroupOffsets() {
 		this.startupMode = StartupMode.GROUP_OFFSETS;
+		this.specificStartupOffsets = null;
+		return this;
+	}
+
+	/**
+	 * Specifies the consumer to start reading partitions from specific offsets, set independently for each partition.
+	 * The specified offset should be the offset of the next record that will be read from partitions.
+	 * This lets the consumer ignore any committed group offsets in Zookeeper / Kafka brokers.
+	 *
+	 * If the provided map of offsets contains entries whose {@link KafkaTopicPartition} is not subscribed by the
+	 * consumer, the entry will be ignored. If the consumer subscribes to a partition that does not exist in the provided
+	 * map of offsets, the consumer will fallback to the default group offset behaviour (see
+	 * {@link FlinkKafkaConsumerBase#setStartFromGroupOffsets()}) for that particular partition.
+	 *
+	 * If the specified offset for a partition is invalid, or the behaviour for that partition is defaulted to group
+	 * offsets but still no group offset could be found for it, then the "auto.offset.reset" behaviour set in the
+	 * configuration properties will be used for the partition
+	 *
+	 * This method does not effect where partitions are read from when the consumer is restored
+	 * from a checkpoint or savepoint. When the consumer is restored from a checkpoint or
+	 * savepoint, only the offsets in the restored state will be used.
+	 *
+	 * @return The consumer object, to allow function chaining.
+	 */
+	public FlinkKafkaConsumerBase<T> setStartFromSpecificOffsets(Map<KafkaTopicPartition, Long> specificStartupOffsets) {
+		this.startupMode = StartupMode.SPECIFIC_OFFSETS;
+		this.specificStartupOffsets = checkNotNull(specificStartupOffsets);
 		return this;
 	}
 
@@ -249,6 +324,29 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 
 	@Override
 	public void open(Configuration configuration) {
+		// determine the offset commit mode
+		offsetCommitMode = OffsetCommitModes.fromConfiguration(
+				getIsAutoCommitEnabled(),
+				enableCommitOnCheckpoints,
+				((StreamingRuntimeContext) getRuntimeContext()).isCheckpointingEnabled());
+
+		switch (offsetCommitMode) {
+			case ON_CHECKPOINTS:
+				LOG.info("Consumer subtask {} will commit offsets back to Kafka on completed checkpoints.",
+						getRuntimeContext().getIndexOfThisSubtask());
+				break;
+			case KAFKA_PERIODIC:
+				LOG.info("Consumer subtask {} will commit offsets back to Kafka periodically using the Kafka client's auto commit.",
+						getRuntimeContext().getIndexOfThisSubtask());
+				break;
+			default:
+			case DISABLED:
+				LOG.info("Consumer subtask {} has disabled offset committing back to Kafka." +
+						" This does not compromise Flink's checkpoint integrity.",
+						getRuntimeContext().getIndexOfThisSubtask());
+		}
+
+		// initialize subscribed partitions
 		List<KafkaTopicPartition> kafkaTopicPartitions = getKafkaPartitions(topics);
 
 		subscribedPartitionsToStartOffsets = new HashMap<>(kafkaTopicPartitions.size());
@@ -269,7 +367,8 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 					kafkaTopicPartitions,
 					getRuntimeContext().getIndexOfThisSubtask(),
 					getRuntimeContext().getNumberOfParallelSubtasks(),
-					startupMode);
+					startupMode,
+					specificStartupOffsets);
 
 				if (subscribedPartitionsToStartOffsets.size() != 0) {
 					switch (startupMode) {
@@ -284,6 +383,28 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 								getRuntimeContext().getIndexOfThisSubtask(),
 								subscribedPartitionsToStartOffsets.size(),
 								subscribedPartitionsToStartOffsets.keySet());
+							break;
+						case SPECIFIC_OFFSETS:
+							LOG.info("Consumer subtask {} will start reading the following {} partitions from the specified startup offsets {}: {}",
+								getRuntimeContext().getIndexOfThisSubtask(),
+								subscribedPartitionsToStartOffsets.size(),
+								specificStartupOffsets,
+								subscribedPartitionsToStartOffsets.keySet());
+
+							List<KafkaTopicPartition> partitionsDefaultedToGroupOffsets = new ArrayList<>(subscribedPartitionsToStartOffsets.size());
+							for (Map.Entry<KafkaTopicPartition, Long> subscribedPartition : subscribedPartitionsToStartOffsets.entrySet()) {
+								if (subscribedPartition.getValue() == KafkaTopicPartitionStateSentinel.GROUP_OFFSET) {
+									partitionsDefaultedToGroupOffsets.add(subscribedPartition.getKey());
+								}
+							}
+
+							if (partitionsDefaultedToGroupOffsets.size() > 0) {
+								LOG.warn("Consumer subtask {} cannot find offsets for the following {} partitions in the specified startup offsets: {}" +
+										"; their startup offsets will be defaulted to their committed group offsets in Kafka.",
+									getRuntimeContext().getIndexOfThisSubtask(),
+									partitionsDefaultedToGroupOffsets.size(),
+									partitionsDefaultedToGroupOffsets);
+							}
 							break;
 						default:
 						case GROUP_OFFSETS:
@@ -308,9 +429,12 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 
 			// create the fetcher that will communicate with the Kafka brokers
 			final AbstractFetcher<T, ?> fetcher = createFetcher(
-					sourceContext, subscribedPartitionsToStartOffsets,
-					periodicWatermarkAssigner, punctuatedWatermarkAssigner,
-					(StreamingRuntimeContext) getRuntimeContext());
+					sourceContext,
+					subscribedPartitionsToStartOffsets,
+					periodicWatermarkAssigner,
+					punctuatedWatermarkAssigner,
+					(StreamingRuntimeContext) getRuntimeContext(),
+					offsetCommitMode);
 
 			// publish the reference, for snapshot-, commit-, and cancel calls
 			// IMPORTANT: We can only do that now, because only now will calls to
@@ -416,15 +540,19 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 					offsetsStateForCheckpoint.add(Tuple2.of(subscribedPartition.getKey(), subscribedPartition.getValue()));
 				}
 
-				// the map cannot be asynchronously updated, because only one checkpoint call can happen
-				// on this function at a time: either snapshotState() or notifyCheckpointComplete()
-				pendingOffsetsToCommit.put(context.getCheckpointId(), restoredState);
+				if (offsetCommitMode == OffsetCommitMode.ON_CHECKPOINTS) {
+					// the map cannot be asynchronously updated, because only one checkpoint call can happen
+					// on this function at a time: either snapshotState() or notifyCheckpointComplete()
+					pendingOffsetsToCommit.put(context.getCheckpointId(), restoredState);
+				}
 			} else {
 				HashMap<KafkaTopicPartition, Long> currentOffsets = fetcher.snapshotCurrentState();
 
-				// the map cannot be asynchronously updated, because only one checkpoint call can happen
-				// on this function at a time: either snapshotState() or notifyCheckpointComplete()
-				pendingOffsetsToCommit.put(context.getCheckpointId(), currentOffsets);
+				if (offsetCommitMode == OffsetCommitMode.ON_CHECKPOINTS) {
+					// the map cannot be asynchronously updated, because only one checkpoint call can happen
+					// on this function at a time: either snapshotState() or notifyCheckpointComplete()
+					pendingOffsetsToCommit.put(context.getCheckpointId(), currentOffsets);
+				}
 
 				for (Map.Entry<KafkaTopicPartition, Long> kafkaTopicPartitionLongEntry : currentOffsets.entrySet()) {
 					offsetsStateForCheckpoint.add(
@@ -432,9 +560,11 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 				}
 			}
 
-			// truncate the map of pending offsets to commit, to prevent infinite growth
-			while (pendingOffsetsToCommit.size() > MAX_NUM_PENDING_CHECKPOINTS) {
-				pendingOffsetsToCommit.remove(0);
+			if (offsetCommitMode == OffsetCommitMode.ON_CHECKPOINTS) {
+				// truncate the map of pending offsets to commit, to prevent infinite growth
+				while (pendingOffsetsToCommit.size() > MAX_NUM_PENDING_CHECKPOINTS) {
+					pendingOffsetsToCommit.remove(0);
+				}
 			}
 		}
 	}
@@ -464,39 +594,40 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 			LOG.debug("notifyCheckpointComplete() called on uninitialized source");
 			return;
 		}
-		
-		// only one commit operation must be in progress
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("Committing offsets to Kafka/ZooKeeper for checkpoint " + checkpointId);
-		}
 
-		try {
-			final int posInMap = pendingOffsetsToCommit.indexOf(checkpointId);
-			if (posInMap == -1) {
-				LOG.warn("Received confirmation for unknown checkpoint id {}", checkpointId);
-				return;
+		if (offsetCommitMode == OffsetCommitMode.ON_CHECKPOINTS) {
+			// only one commit operation must be in progress
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Committing offsets to Kafka/ZooKeeper for checkpoint " + checkpointId);
 			}
 
-			@SuppressWarnings("unchecked")
-			HashMap<KafkaTopicPartition, Long> offsets =
+			try {
+				final int posInMap = pendingOffsetsToCommit.indexOf(checkpointId);
+				if (posInMap == -1) {
+					LOG.warn("Received confirmation for unknown checkpoint id {}", checkpointId);
+					return;
+				}
+
+				@SuppressWarnings("unchecked")
+				HashMap<KafkaTopicPartition, Long> offsets =
 					(HashMap<KafkaTopicPartition, Long>) pendingOffsetsToCommit.remove(posInMap);
 
-			// remove older checkpoints in map
-			for (int i = 0; i < posInMap; i++) {
-				pendingOffsetsToCommit.remove(0);
-			}
+				// remove older checkpoints in map
+				for (int i = 0; i < posInMap; i++) {
+					pendingOffsetsToCommit.remove(0);
+				}
 
-			if (offsets == null || offsets.size() == 0) {
-				LOG.debug("Checkpoint state was empty.");
-				return;
+				if (offsets == null || offsets.size() == 0) {
+					LOG.debug("Checkpoint state was empty.");
+					return;
+				}
+				fetcher.commitInternalOffsetsToKafka(offsets);
+			} catch (Exception e) {
+				if (running) {
+					throw e;
+				}
+				// else ignore exception if we are no longer running
 			}
-			fetcher.commitInternalOffsetsToKafka(offsets);
-		}
-		catch (Exception e) {
-			if (running) {
-				throw e;
-			}
-			// else ignore exception if we are no longer running
 		}
 	}
 
@@ -523,9 +654,12 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 			Map<KafkaTopicPartition, Long> subscribedPartitionsToStartOffsets,
 			SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
 			SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
-			StreamingRuntimeContext runtimeContext) throws Exception;
+			StreamingRuntimeContext runtimeContext,
+			OffsetCommitMode offsetCommitMode) throws Exception;
 
 	protected abstract List<KafkaTopicPartition> getKafkaPartitions(List<String> topics);
+
+	protected abstract boolean getIsAutoCommitEnabled();
 	
 	// ------------------------------------------------------------------------
 	//  ResultTypeQueryable methods 
@@ -550,6 +684,8 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	 * @param indexOfThisSubtask the index of this consumer instance
 	 * @param numParallelSubtasks total number of parallel consumer instances
 	 * @param startupMode the configured startup mode for the consumer
+	 * @param specificStartupOffsets specific partition offsets to start from
+	 *                               (only relevant if startupMode is {@link StartupMode#SPECIFIC_OFFSETS})
 	 *
 	 * Note: This method is also exposed for testing.
 	 */
@@ -558,11 +694,31 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 			List<KafkaTopicPartition> kafkaTopicPartitions,
 			int indexOfThisSubtask,
 			int numParallelSubtasks,
-			StartupMode startupMode) {
+			StartupMode startupMode,
+			Map<KafkaTopicPartition, Long> specificStartupOffsets) {
 
 		for (int i = 0; i < kafkaTopicPartitions.size(); i++) {
 			if (i % numParallelSubtasks == indexOfThisSubtask) {
-				subscribedPartitionsToStartOffsets.put(kafkaTopicPartitions.get(i), startupMode.getStateSentinel());
+				if (startupMode != StartupMode.SPECIFIC_OFFSETS) {
+					subscribedPartitionsToStartOffsets.put(kafkaTopicPartitions.get(i), startupMode.getStateSentinel());
+				} else {
+					if (specificStartupOffsets == null) {
+						throw new IllegalArgumentException(
+							"Startup mode for the consumer set to " + StartupMode.SPECIFIC_OFFSETS +
+								", but no specific offsets were specified");
+					}
+
+					KafkaTopicPartition partition = kafkaTopicPartitions.get(i);
+
+					Long specificOffset = specificStartupOffsets.get(partition);
+					if (specificOffset != null) {
+						// since the specified offsets represent the next record to read, we subtract
+						// it by one so that the initial state of the consumer will be correct
+						subscribedPartitionsToStartOffsets.put(partition, specificOffset - 1);
+					} else {
+						subscribedPartitionsToStartOffsets.put(partition, KafkaTopicPartitionStateSentinel.GROUP_OFFSET);
+					}
+				}
 			}
 		}
 	}

@@ -53,15 +53,18 @@ object AggregateUtil {
   type JavaList[T] = java.util.List[T]
 
   /**
-    * Create an [[ProcessFunction]] to evaluate final aggregate value.
+    * Create an [[org.apache.flink.streaming.api.functions.ProcessFunction]] to evaluate final
+    * aggregate value.
     *
     * @param namedAggregates List of calls to aggregate functions and their output field names
     * @param inputType Input row type
-    * @return [[UnboundedProcessingOverProcessFunction]]
+    * @param isPartitioned Flag to indicate whether the input is partitioned or not
+    * @return [[org.apache.flink.streaming.api.functions.ProcessFunction]]
     */
   private[flink] def CreateUnboundedProcessingOverProcessFunction(
     namedAggregates: Seq[CalcitePair[AggregateCall, String]],
-    inputType: RelDataType): UnboundedProcessingOverProcessFunction = {
+    inputType: RelDataType,
+    isPartitioned: Boolean = true): ProcessFunction[Row, Row] = {
 
     val (aggFields, aggregates) =
       transformToAggregateFunctions(
@@ -72,11 +75,19 @@ object AggregateUtil {
     val aggregationStateType: RowTypeInfo =
       createDataSetAggregateBufferDataType(Array(), aggregates, inputType)
 
-    new UnboundedProcessingOverProcessFunction(
-      aggregates,
-      aggFields,
-      inputType.getFieldCount,
-      aggregationStateType)
+    if (isPartitioned) {
+      new UnboundedProcessingOverProcessFunction(
+        aggregates,
+        aggFields,
+        inputType.getFieldCount,
+        aggregationStateType)
+    } else {
+      new UnboundedNonPartitionedProcessingOverProcessFunction(
+        aggregates,
+        aggFields,
+        inputType.getFieldCount,
+        aggregationStateType)
+    }
   }
 
   /**

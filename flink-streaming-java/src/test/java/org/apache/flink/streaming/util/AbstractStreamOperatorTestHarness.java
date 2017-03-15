@@ -339,7 +339,7 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 		}
 
 		if (operatorStateHandles != null) {
-			int numKeyGroups = getEnvironment().getTaskInfo().getNumberOfKeyGroups();
+			int numKeyGroups = getEnvironment().getTaskInfo().getMaxNumberOfParallelSubtasks();
 			int numSubtasks = getEnvironment().getTaskInfo().getNumberOfParallelSubtasks();
 			int subtaskIndex = getEnvironment().getTaskInfo().getIndexOfThisSubtask();
 
@@ -592,6 +592,15 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 	public int numEventTimeTimers() {
 		if (operator instanceof AbstractStreamOperator) {
 			return ((AbstractStreamOperator) operator).numEventTimeTimers();
+		} else {
+			throw new UnsupportedOperationException();
+		}
+	}
+
+	@VisibleForTesting
+	public int numKeysForWatermarkCallback() {
+		if (operator instanceof AbstractStreamOperator) {
+			return ((AbstractStreamOperator) operator).numKeysForWatermarkCallback();
 		} else {
 			throw new UnsupportedOperationException();
 		}

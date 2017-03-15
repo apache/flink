@@ -67,15 +67,15 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow
 
 
 class DataStreamOverAggregate(
-  logicWindow: Window,
-  cluster: RelOptCluster,
-  traitSet: RelTraitSet,
-  inputNode: RelNode,
-  rowRelDataType: RelDataType,
-  inputType: RelDataType)
-    extends SingleRel(cluster, traitSet, inputNode)
-    with OverAggregate
-    with DataStreamRel {
+    logicWindow: Window,
+    cluster: RelOptCluster,
+    traitSet: RelTraitSet,
+    inputNode: RelNode,
+    rowRelDataType: RelDataType,
+    inputType: RelDataType)
+  extends SingleRel(cluster, traitSet, inputNode)
+  with OverAggregate
+  with DataStreamRel {
 
   override def deriveRowType(): RelDataType = rowRelDataType
 
@@ -101,7 +101,7 @@ class DataStreamOverAggregate(
 
     super.explainTerms(pw)
       .itemIf("partitionBy", partitionToString(inputType, partitionKeys), partitionKeys.nonEmpty)
-      .item("orderBy", orderingToString(inputType, overWindow.orderKeys.getFieldCollations))
+        .item("orderBy",orderingToString(inputType, overWindow.orderKeys.getFieldCollations))
       .itemIf("rows", windowRange(overWindow), overWindow.isRows)
       .itemIf("range", windowRange(overWindow), !overWindow.isRows)
       .item(
@@ -143,7 +143,7 @@ class DataStreamOverAggregate(
           createTimeBoundedProcessingTimeOverWindow(inputDS)
         } else {
           throw new TableException(
-            "OVER window only support ProcessingTime UNBOUNDED PRECEDING and CURRENT ROW " +
+              "OVER window only support ProcessingTime UNBOUNDED PRECEDING and CURRENT ROW " +
               "condition.")
         }
       case _: RowTimeType =>
@@ -207,7 +207,7 @@ class DataStreamOverAggregate(
   }
 
   def createUnboundedAndCurrentRowProcessingTimeOverWindow(
-    inputDS: DataStream[Row]): DataStream[Row] = {
+    inputDS: DataStream[Row]): DataStream[Row]  = {
 
     val overWindow: Group = logicWindow.groups.get(0)
     val partitionKeys: Array[Int] = overWindow.keys.toArray
@@ -217,11 +217,11 @@ class DataStreamOverAggregate(
     val rowTypeInfo = FlinkTypeFactory.toInternalRowTypeInfo(getRowType).asInstanceOf[RowTypeInfo]
 
     val result: DataStream[Row] =
-      // partitioned aggregation
-      if (partitionKeys.nonEmpty) {
-        val processFunction = AggregateUtil.CreateUnboundedProcessingOverProcessFunction(
-          namedAggregates,
-          inputType)
+        // partitioned aggregation
+        if (partitionKeys.nonEmpty) {
+          val processFunction = AggregateUtil.CreateUnboundedProcessingOverProcessFunction(
+            namedAggregates,
+            inputType)
 
         inputDS
           .keyBy(partitionKeys: _*)
@@ -230,10 +230,22 @@ class DataStreamOverAggregate(
           .name(aggOpName)
           .asInstanceOf[DataStream[Row]]
       } // global non-partitioned aggregation
-      else {
-        throw TableException(
-          "Non-partitioned processing time OVER aggregation is not supported yet.")
-      }
+        // non-partitioned aggregation
+        else {
+          val processFunction = AggregateUtil.CreateUnboundedProcessingOverProcessFunction(
+            namedAggregates,
+            inputType,
+            false)
+
+          inputDS
+            .process(processFunction).setParallelism(1).setMaxParallelism(1)
+            .returns(rowTypeInfo)
+            .name(aggOpName)
+            .asInstanceOf[DataStream[Row]]
+        }
+        
+        // non-partitioned aggregation
+       
     result
   }
 

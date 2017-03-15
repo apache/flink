@@ -788,6 +788,78 @@ public class AbstractStreamOperatorTest {
 		testHarness5.close();
 	}
 
+	@Test
+	public void testWatermarkCallbackServiceKeyDeletion() throws Exception {
+		final int MAX_PARALLELISM = 10;
+
+		Tuple2<Integer, String> element1 = new Tuple2<>(7, "start");
+		Tuple2<Integer, String> element2 = new Tuple2<>(45, "start");
+		Tuple2<Integer, String> element3 = new Tuple2<>(90, "start");
+
+		TestOperatorWithDeletingKeyCallback op = new TestOperatorWithDeletingKeyCallback(45);
+
+		KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, Integer> testHarness1 =
+			new KeyedOneInputStreamOperatorTestHarness<>(
+				op,
+				new TestKeySelector(),
+				BasicTypeInfo.INT_TYPE_INFO,
+				MAX_PARALLELISM,
+				1,
+				0);
+		testHarness1.open();
+
+		testHarness1.processElement(new StreamRecord<>(element1));
+		testHarness1.processElement(new StreamRecord<>(element2));
+
+		testHarness1.processWatermark(10L);
+
+		assertEquals(3L, testHarness1.getOutput().size());
+		verifyElement(testHarness1.getOutput().poll(), 7);
+		verifyElement(testHarness1.getOutput().poll(), 45);
+		verifyWatermark(testHarness1.getOutput().poll(), 10);
+
+		testHarness1.processElement(new StreamRecord<>(element3));
+		testHarness1.processWatermark(20L);
+
+		// because at the first watermark the operator removed key 45
+		assertEquals(3L, testHarness1.getOutput().size());
+		verifyElement(testHarness1.getOutput().poll(), 7);
+		verifyElement(testHarness1.getOutput().poll(), 90);
+		verifyWatermark(testHarness1.getOutput().poll(), 20);
+
+		testHarness1.processWatermark(25L);
+
+		verifyElement(testHarness1.getOutput().poll(), 7);
+		verifyElement(testHarness1.getOutput().poll(), 90);
+		verifyWatermark(testHarness1.getOutput().poll(), 25);
+
+		// unregister key and then fail
+		op.unregisterKey(90);
+
+		// take a snapshot with some elements in internal sorting queue
+		OperatorStateHandles snapshot = testHarness1.snapshot(0, 0);
+		testHarness1.close();
+
+		testHarness1 = new KeyedOneInputStreamOperatorTestHarness<>(
+				new TestOperatorWithDeletingKeyCallback(45),
+				new TestKeySelector(),
+				BasicTypeInfo.INT_TYPE_INFO,
+				MAX_PARALLELISM,
+				1,
+				0);
+		testHarness1.setup();
+		testHarness1.initializeState(snapshot);
+		testHarness1.open();
+
+		testHarness1.processWatermark(30L);
+
+		assertEquals(2L, testHarness1.getOutput().size());
+		verifyElement(testHarness1.getOutput().poll(), 7);
+		verifyWatermark(testHarness1.getOutput().poll(), 30);
+
+		testHarness1.close();
+	}
+
 	private KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, Integer> getTestHarness(
 			int maxParallelism, int noOfTasks, int taskIdx) throws Exception {
 
@@ -865,6 +937,51 @@ public class AbstractStreamOperatorTest {
 		@Override
 		public void processElement(StreamRecord<Tuple2<Integer, String>> element) throws Exception {
 			getInternalWatermarkCallbackService().registerKeyForWatermarkCallback(element.getValue().f0);
+		}
+	}
+
+	private static class TestOperatorWithDeletingKeyCallback
+			extends AbstractStreamOperator<Integer>
+			implements OneInputStreamOperator<Tuple2<Integer, String>, Integer> {
+
+		private static final long serialVersionUID = 9215057823264582305L;
+
+		private final int keyToDelete;
+
+		public TestOperatorWithDeletingKeyCallback(int keyToDelete) {
+			this.keyToDelete = keyToDelete;
+		}
+
+		@Override
+		public void open() throws Exception {
+			super.open();
+
+			InternalWatermarkCallbackService<Integer> callbackService = getInternalWatermarkCallbackService();
+
+			callbackService.setWatermarkCallback(new OnWatermarkCallback<Integer>() {
+
+				@Override
+				public void onWatermark(Integer integer, Watermark watermark) throws IOException {
+
+					// this is to simulate the case where we may have a concurrent modification
+					// exception as we iterate over the list of registered keys and we concurrently
+					// delete the key.
+
+					if (integer.equals(keyToDelete)) {
+						getInternalWatermarkCallbackService().unregisterKeyFromWatermarkCallback(integer);
+					}
+					output.collect(new StreamRecord<>(integer));
+				}
+			}, IntSerializer.INSTANCE);
+		}
+
+		@Override
+		public void processElement(StreamRecord<Tuple2<Integer, String>> element) throws Exception {
+			getInternalWatermarkCallbackService().registerKeyForWatermarkCallback(element.getValue().f0);
+		}
+
+		public void unregisterKey(int key) {
+			getInternalWatermarkCallbackService().unregisterKeyFromWatermarkCallback(key);
 		}
 	}
 

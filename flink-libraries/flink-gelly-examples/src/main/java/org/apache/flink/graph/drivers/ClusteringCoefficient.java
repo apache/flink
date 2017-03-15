@@ -306,13 +306,13 @@ public class ClusteringCoefficient {
 					for (Object e: lcc.collect()) {
 						org.apache.flink.graph.library.clustering.directed.LocalClusteringCoefficient.Result result =
 							(org.apache.flink.graph.library.clustering.directed.LocalClusteringCoefficient.Result)e;
-						System.out.println(result.toVerboseString());
+						System.out.println(result.toPrintableString());
 					}
 				} else {
 					for (Object e: lcc.collect()) {
 						org.apache.flink.graph.library.clustering.undirected.LocalClusteringCoefficient.Result result =
 							(org.apache.flink.graph.library.clustering.undirected.LocalClusteringCoefficient.Result)e;
-						System.out.println(result.toVerboseString());
+						System.out.println(result.toPrintableString());
 					}
 				}
 				break;

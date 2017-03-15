@@ -31,6 +31,7 @@ import org.apache.flink.table.utils._
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
+import org.junit.Assert._
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -275,6 +276,42 @@ class DataSetUserDefinedFunctionITCase(
       "default-John#19,Sunny-John#19,kevin2-John#19\n" +
       "default-nosharp,Sunny-nosharp,kevin2-nosharp"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testTableFunctionWithVariableArguments(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
+    val varArgsFunc0 = new VarArgsFunc0
+    tableEnv.registerFunction("VarArgsFunc0", varArgsFunc0)
+
+    val result = testData(env)
+      .toTable(tableEnv, 'a, 'b, 'c)
+      .select('c)
+      .join(varArgsFunc0("1", "2", 'c))
+
+    val expected = "Anna#44,1\n" +
+      "Anna#44,2\n" +
+      "Anna#44,Anna#44\n" +
+      "Jack#22,1\n" +
+      "Jack#22,2\n" +
+      "Jack#22,Jack#22\n" +
+      "John#19,1\n" +
+      "John#19,2\n" +
+      "John#19,John#19\n" +
+      "nosharp,1\n" +
+      "nosharp,2\n" +
+      "nosharp,nosharp"
+    val results = result.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+
+    // Test for empty cases
+    val result0 = testData(env)
+      .toTable(tableEnv, 'a, 'b, 'c)
+      .select('c)
+      .join(varArgsFunc0())
+    val results0 = result0.toDataSet[Row].collect()
+    assertTrue(results0.isEmpty)
   }
 
   private def testData(

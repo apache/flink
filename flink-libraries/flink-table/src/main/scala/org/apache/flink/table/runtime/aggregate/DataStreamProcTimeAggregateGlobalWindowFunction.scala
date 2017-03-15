@@ -52,7 +52,8 @@ private var reuse: Row= _
   
      var i = 0
      //initialize the values of the aggregators by re-creating them
-     //the design of the Accumulator interface should be extended to enable a reset function for better performance
+     //the design of the Accumulator interface should be extended to enable 
+     //a reset function for better performance
      while (i < aggregates.length) {
         accumulators.setField(i, aggregates(i).createAccumulator())
         i += 1

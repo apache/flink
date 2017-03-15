@@ -71,8 +71,9 @@ public class ListSerializerTest extends SerializerTestBase<List<Long>> {
 			list7.add(rnd.nextLong());
 		}
 
-		final List<Long> list8 = new ArrayList<>();
-		for (int i = 0; i < rnd.nextInt(200); i++) {
+		int list8Len = rnd.nextInt(200);
+		final List<Long> list8 = new ArrayList<>(list8Len);
+		for (int i = 0; i < list8Len; i++) {
 			list8.add(rnd.nextLong());
 		}
 

@@ -185,8 +185,9 @@ public class SummarizationITCase extends MultipleProgramsTestBase {
 	}
 
 	private List<Long> getListFromIdRange(String idRange) {
-		List<Long> result = new ArrayList<>();
-		for (String id : ID_SEPARATOR.split(idRange)) {
+		String[] split = ID_SEPARATOR.split(idRange);
+		List<Long> result = new ArrayList<>(split.length);
+		for (String id : split) {
 			result.add(Long.parseLong(id));
 		}
 		return result;
