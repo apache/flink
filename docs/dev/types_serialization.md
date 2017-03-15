@@ -306,12 +306,18 @@ env.getConfig().addDefaultKryoSerializer(Class<?> type, Class<? extends Serializ
 
 There are different variants of these methods available.
 
-If you do not want to fall back to Kryo and further make sure that you have provided your own custom serializers for all POJOs explicitly, set
+
+## Disabling Kryo Fallback
+
+There are cases when programs may want to explicitly avoid using Kryo as a fallback for generic types. The most
+common one is wanting to ensure that all types are efficiently serialized either through Flink's own serializers,
+or via user-defined custom serializers.
+
+The setting below will raise an exception whenever a data type is encountered that would go through Kryo:
 {% highlight java %}
 env.getConfig().disableGenericTypes();
 {% endhighlight %}
 
-If generic types disabled, an {@link UnsupportedOperationException} will be thrown when Flink tries to fall back to the default Kryo serializer logic in the runtime.
 
 ## Defining Type Information using a Factory
 
