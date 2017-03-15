@@ -208,7 +208,8 @@ public class FsStateBackend extends AbstractStateBackend {
 				keySerializer,
 				env.getUserClassLoader(),
 				numberOfKeyGroups,
-				keyGroupRange);
+				keyGroupRange,
+				env.getExecutionConfig());
 	}
 
 	@Override

@@ -97,6 +97,7 @@ public class MemoryStateBackend extends AbstractStateBackend {
 				keySerializer,
 				env.getUserClassLoader(),
 				numberOfKeyGroups,
-				keyGroupRange);
+				keyGroupRange,
+				env.getExecutionConfig());
 	}
 }
