@@ -17,34 +17,65 @@
  */
 package org.apache.flink.table.plan.nodes.datastream
 
-import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
+import java.util.{ List => JList }
+
+import org.apache.flink.table.runtime.aggregate.AggregateUtil.CalcitePair
+import org.apache.calcite.plan.RelOptCluster
+import org.apache.calcite.plan.RelTraitSet
+import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.RelWriter
+import org.apache.calcite.rel.SingleRel
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
-import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
-import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.table.api.{StreamTableEnvironment, TableException}
-import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.runtime.aggregate._
-import org.apache.flink.table.plan.nodes.OverAggregate
-import org.apache.flink.types.Row
 import org.apache.calcite.rel.core.Window
 import org.apache.calcite.rel.core.Window.Group
-import java.util.{List => JList}
+import org.apache.calcite.sql.`type`.BasicSqlType
+import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.table.api.StreamTableEnvironment
+import org.apache.flink.table.api.TableException
+import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.functions.ProcTimeType
+import org.apache.flink.table.functions.RowTimeType
+import org.apache.flink.table.plan.nodes.OverAggregate
+import org.apache.flink.table.runtime.aggregate.AggregateUtil
+import org.apache.flink.types.Row
+import org.apache.calcite.sql.`type`.IntervalSqlType
+import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
+import org.apache.flink.streaming.api.watermark.Watermark
+import org.apache.flink.table.plan.nodes.datastream.DataStreamProcTimeCase.ProcTimeTimestampExtractor
+import org.apache.calcite.rex.RexInputRef
+import org.apache.flink.streaming.api.windowing.evictors.TimeEvictor
+import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows
+import org.apache.flink.streaming.api.windowing.triggers.CountTrigger
+import org.apache.flink.streaming.api.windowing.time.Time
+import org.apache.flink.table.runtime.aggregate.DataStreamProcTimeAggregateGlobalWindowFunction
+import org.apache.flink.streaming.api.windowing.evictors.CountEvictor
+import org.apache.flink.streaming.api.windowing.windows.GlobalWindow
+import org.apache.flink.api.java.tuple.Tuple
+import org.apache.flink.util.Collector
+import org.apache.flink.streaming.api.functions.windowing.WindowFunction
+import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction
+import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows
+import java.util.concurrent.TimeUnit
+import org.apache.flink.table.runtime.aggregate.DataStreamIncrementalAggregateWindowFunction
+import org.apache.flink.streaming.api.windowing.windows.TimeWindow
 
-import org.apache.flink.table.functions.{ProcTimeType, RowTimeType}
-import org.apache.flink.table.runtime.aggregate.AggregateUtil.CalcitePair
+
+
+
+
 
 class DataStreamOverAggregate(
-    logicWindow: Window,
-    cluster: RelOptCluster,
-    traitSet: RelTraitSet,
-    inputNode: RelNode,
-    rowRelDataType: RelDataType,
-    inputType: RelDataType)
-  extends SingleRel(cluster, traitSet, inputNode)
-  with OverAggregate
-  with DataStreamRel {
+  logicWindow: Window,
+  cluster: RelOptCluster,
+  traitSet: RelTraitSet,
+  inputNode: RelNode,
+  rowRelDataType: RelDataType,
+  inputType: RelDataType)
+    extends SingleRel(cluster, traitSet, inputNode)
+    with OverAggregate
+    with DataStreamRel {
 
   override def deriveRowType(): RelDataType = rowRelDataType
 
@@ -70,7 +101,7 @@ class DataStreamOverAggregate(
 
     super.explainTerms(pw)
       .itemIf("partitionBy", partitionToString(inputType, partitionKeys), partitionKeys.nonEmpty)
-        .item("orderBy",orderingToString(inputType, overWindow.orderKeys.getFieldCollations))
+      .item("orderBy", orderingToString(inputType, overWindow.orderKeys.getFieldCollations))
       .itemIf("rows", windowRange(overWindow), overWindow.isRows)
       .itemIf("range", windowRange(overWindow), !overWindow.isRows)
       .item(
@@ -106,9 +137,13 @@ class DataStreamOverAggregate(
         if (overWindow.lowerBound.isUnbounded &&
           overWindow.upperBound.isCurrentRow) {
           createUnboundedAndCurrentRowProcessingTimeOverWindow(inputDS)
+        } else if (overWindow.lowerBound.getOffset.getType.isInstanceOf[IntervalSqlType]
+          && (overWindow.upperBound.isPreceding
+            || overWindow.upperBound.isCurrentRow)) {
+          createTimeBoundedProcessingTimeOverWindow(inputDS)
         } else {
           throw new TableException(
-              "OVER window only support ProcessingTime UNBOUNDED PRECEDING and CURRENT ROW " +
+            "OVER window only support ProcessingTime UNBOUNDED PRECEDING and CURRENT ROW " +
               "condition.")
         }
       case _: RowTimeType =>
@@ -119,8 +154,60 @@ class DataStreamOverAggregate(
 
   }
 
+  def createTimeBoundedProcessingTimeOverWindow(
+    inputDS: DataStream[Row]): DataStream[Row] = {
+
+    val overWindow: Group = logicWindow.groups.get(0)
+    val partitionKeys: Array[Int] = overWindow.keys.toArray
+    val namedAggregates: Seq[CalcitePair[AggregateCall, String]] = generateNamedAggregates
+
+    // final long time_boundary =
+    // Long.parseLong(windowReference.getConstants().get(1).getValue().toString());
+    val index = overWindow.lowerBound.getOffset.asInstanceOf[RexInputRef].getIndex
+    val count = input.getRowType().getFieldCount()
+    val lowerboundIndex = index - count
+    val time_boundary =  logicWindow.constants.get(lowerboundIndex)
+         .getValue2.asInstanceOf[java.math.BigDecimal].longValue()
+
+
+    val (aggFields, aggregates) =  AggregateUtil.transformToAggregateFunctions(
+         namedAggregates.map(_.getKey),inputType, needRetraction = false)
+         
+         
+    // As we it is not possible to operate neither on sliding count neither
+    // on sliding time we need to manage the eviction of the events that
+    // expire ourselves based on the proctime (system time). Therefore the
+    // current system time is assign as the timestamp of the event to be
+    // recognize by the evictor
+
+    val inputDataStreamTimed = inputDS
+      .assignTimestampsAndWatermarks(new ProcTimeTimestampExtractor())
+
+    // get the output types
+    val rowTypeInfo = FlinkTypeFactory.toInternalRowTypeInfo(getRowType).asInstanceOf[RowTypeInfo]
+
+    val result: DataStream[Row] =
+      if (partitionKeys.nonEmpty) {
+        inputDataStreamTimed.keyBy(0)
+          .window(TumblingEventTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS))) 
+          .apply(new DataStreamIncrementalAggregateWindowFunction[TimeWindow](1))
+          //.apply(new DataStreamIncrementalAggregateWindowFunction[GlobalWindow](1)) 
+        null
+      } else {
+          inputDataStreamTimed.windowAll(GlobalWindows.create()).trigger(CountTrigger.of(1))
+            .evictor(TimeEvictor.of(Time.milliseconds(time_boundary)))        
+            .apply(new DataStreamProcTimeAggregateGlobalWindowFunction[GlobalWindow](
+                aggregates,aggFields,inputType.getFieldCount))
+            .returns(rowTypeInfo)
+            .name(aggOpName)
+            .asInstanceOf[DataStream[Row]]
+      }
+
+    result
+  }
+
   def createUnboundedAndCurrentRowProcessingTimeOverWindow(
-    inputDS: DataStream[Row]): DataStream[Row]  = {
+    inputDS: DataStream[Row]): DataStream[Row] = {
 
     val overWindow: Group = logicWindow.groups.get(0)
     val partitionKeys: Array[Int] = overWindow.keys.toArray
@@ -130,24 +217,23 @@ class DataStreamOverAggregate(
     val rowTypeInfo = FlinkTypeFactory.toInternalRowTypeInfo(getRowType).asInstanceOf[RowTypeInfo]
 
     val result: DataStream[Row] =
-        // partitioned aggregation
-        if (partitionKeys.nonEmpty) {
-          val processFunction = AggregateUtil.CreateUnboundedProcessingOverProcessFunction(
-            namedAggregates,
-            inputType)
+      // partitioned aggregation
+      if (partitionKeys.nonEmpty) {
+        val processFunction = AggregateUtil.CreateUnboundedProcessingOverProcessFunction(
+          namedAggregates,
+          inputType)
 
-          inputDS
+        inputDS
           .keyBy(partitionKeys: _*)
           .process(processFunction)
           .returns(rowTypeInfo)
           .name(aggOpName)
           .asInstanceOf[DataStream[Row]]
-        }
-        // global non-partitioned aggregation
-        else {
-          throw TableException(
-            "Non-partitioned processing time OVER aggregation is not supported yet.")
-        }
+      } // global non-partitioned aggregation
+      else {
+        throw TableException(
+          "Non-partitioned processing time OVER aggregation is not supported yet.")
+      }
     result
   }
 
@@ -181,5 +267,33 @@ class DataStreamOverAggregate(
       }))"
   }
 
+}
+
+object DataStreamProcTimeCase {
+  class ProcTimeTimestampExtractor
+      extends AssignerWithPunctuatedWatermarks[Row] {
+
+    override def checkAndGetNextWatermark(
+      lastElement: Row,
+      extractedTimestamp: Long): Watermark = {
+      null
+    }
+
+    override def extractTimestamp(
+      element: Row,
+      previousElementTimestamp: Long): Long = {
+      System.currentTimeMillis()
+    }
+  }
+  /*
+  class MyWindowFunction extends AllWindowFunction[Row, Row, GlobalWindow] {
+
+  def apply( window: GlobalWindow, input: Iterable[Row], out: Collector[Row]): () = {
+
+  }
+ }*/
+  
+  
+  
 }
 
