@@ -22,10 +22,12 @@ import org.apache.calcite.tools.RuleSet
 import org.apache.flink.api.scala._
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.{TupleTypeInfo, TypeExtractor}
-import org.apache.flink.table.api.{Table, TableConfig, TableEnvironment, TableException}
-import org.apache.flink.table.expressions.{Alias, UnresolvedFieldReference}
+import org.apache.flink.table.api.{Table, TableConfig, TableEnvironment}
 import org.apache.flink.table.sinks.TableSink
+import org.apache.flink.api.java.typeutils.{GenericTypeInfo, TupleTypeInfo, TypeExtractor}
+import org.apache.flink.table.api.TableException
+import org.apache.flink.table.expressions.{Alias, UnresolvedFieldReference}
+import org.apache.flink.types.Row
 import org.junit.Test
 import org.junit.Assert.assertEquals
 
@@ -43,6 +45,8 @@ class TableEnvironmentTest {
   val pojoType = TypeExtractor.createTypeInfo(classOf[PojoClass])
 
   val atomicType = INT_TYPE_INFO
+
+  val genericRowType = new GenericTypeInfo[Row](classOf[Row])
 
   @Test
   def testGetFieldInfoTuple(): Unit = {
@@ -76,6 +80,11 @@ class TableEnvironmentTest {
     fieldInfo._2.zip(Array(0)).foreach(x => assertEquals(x._2, x._1))
   }
 
+  @Test(expected = classOf[TableException])
+  def testGetFieldInfoGenericRow(): Unit = {
+    tEnv.getFieldInfo(genericRowType)
+  }
+
   @Test
   def testGetFieldInfoTupleNames(): Unit = {
     val fieldInfo = tEnv.getFieldInfo(
@@ -84,7 +93,7 @@ class TableEnvironmentTest {
         new UnresolvedFieldReference("name1"),
         new UnresolvedFieldReference("name2"),
         new UnresolvedFieldReference("name3")
-    ))
+      ))
 
     fieldInfo._1.zip(Array("name1", "name2", "name3")).foreach(x => assertEquals(x._2, x._1))
     fieldInfo._2.zip(Array(0, 1, 2)).foreach(x => assertEquals(x._2, x._1))
@@ -98,7 +107,7 @@ class TableEnvironmentTest {
         new UnresolvedFieldReference("name1"),
         new UnresolvedFieldReference("name2"),
         new UnresolvedFieldReference("name3")
-    ))
+      ))
 
     fieldInfo._1.zip(Array("name1", "name2", "name3")).foreach(x => assertEquals(x._2, x._1))
     fieldInfo._2.zip(Array(0, 1, 2)).foreach(x => assertEquals(x._2, x._1))
@@ -276,6 +285,10 @@ class TableEnvironmentTest {
       ))
   }
 
+  @Test(expected = classOf[TableException])
+  def testGetFieldInfoGenericRowAlias(): Unit = {
+    tEnv.getFieldInfo(genericRowType, Array(UnresolvedFieldReference("first")))
+  }
 }
 
 class MockTableEnvironment extends TableEnvironment(new TableConfig) {

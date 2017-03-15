@@ -32,7 +32,7 @@ import org.apache.calcite.sql.util.ChainedSqlOperatorTable
 import org.apache.calcite.tools.{FrameworkConfig, Frameworks, RuleSet, RuleSets}
 import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfo}
+import org.apache.flink.api.java.typeutils.{GenericTypeInfo, PojoTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.java.{ExecutionEnvironment => JavaBatchExecEnv}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.api.scala.{ExecutionEnvironment => ScalaBatchExecEnv}
@@ -50,6 +50,7 @@ import org.apache.flink.table.plan.schema.RelTable
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.sources.{DefinedFieldNames, TableSource}
 import org.apache.flink.table.validate.FunctionCatalog
+import org.apache.flink.types.Row
 
 import _root_.scala.collection.JavaConverters._
 
@@ -328,7 +329,14 @@ abstract class TableEnvironment(val config: TableConfig) {
     */
   protected[flink] def getFieldInfo[A](inputType: TypeInformation[A]):
   (Array[String], Array[Int]) = {
-    (TableEnvironment.getFieldNames(inputType), TableEnvironment.getFieldIndices(inputType))
+
+    if (inputType.isInstanceOf[GenericTypeInfo[A]] && inputType.getTypeClass == classOf[Row]) {
+      throw new TableException(
+        "An input of GenericTypeInfo<Row> cannot be converted to Table. " +
+          "Please specify the type of the input with a RowTypeInfo.")
+    } else {
+      (TableEnvironment.getFieldNames(inputType), TableEnvironment.getFieldIndices(inputType))
+    }
   }
 
   /**
@@ -347,6 +355,10 @@ abstract class TableEnvironment(val config: TableConfig) {
     TableEnvironment.validateType(inputType)
 
     val indexedNames: Array[(Int, String)] = inputType match {
+      case g: GenericTypeInfo[A] if g.getTypeClass == classOf[Row] =>
+        throw new TableException(
+          "An input of GenericTypeInfo<Row> cannot be converted to Table. " +
+            "Please specify the type of the input with a RowTypeInfo.")
       case a: AtomicType[A] =>
         if (exprs.length != 1) {
           throw new TableException("Table of atomic type can only have a single field.")

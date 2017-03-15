@@ -28,6 +28,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.calcite.tools.RuleSets;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
@@ -44,6 +45,8 @@ import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+
+import static org.junit.Assert.assertTrue;
 
 @RunWith(Parameterized.class)
 public class TableEnvironmentITCase extends TableProgramsTestBase {
@@ -372,6 +375,41 @@ public class TableEnvironmentITCase extends TableProgramsTestBase {
 			"Anna,56,{test1=test1},true,[]\n" +
 			"Lucy,42,{abc=cde},true,[]\n";
 		compareResultAsText(results, expected);
+	}
+
+	@Test(expected = TableException.class)
+	public void testGenericRow() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
+
+		// use null value the enforce GenericType
+		Row row = new Row(4);
+		row.setField(0, 1);
+		row.setField(1, 2L);
+		row.setField(2, "Hello");
+		row.setField(3, null);
+		DataSet<Row> dataSet = env.fromElements(row);
+		assertTrue(dataSet.getType() instanceof GenericTypeInfo);
+		assertTrue(dataSet.getType().getTypeClass().equals(Row.class));
+
+		// Must fail. Cannot import DataSet<Row> with GenericTypeInfo.
+		tableEnv.fromDataSet(dataSet);
+	}
+
+	@Test(expected = TableException.class)
+	public void testGenericRowWithAlias() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
+
+		Row row = new Row(1);
+		row.setField(0, null);
+		// use null value the enforce GenericType
+		DataSet<Row> dataSet = env.fromElements(row);
+		assertTrue(dataSet.getType() instanceof GenericTypeInfo);
+		assertTrue(dataSet.getType().getTypeClass().equals(Row.class));
+
+		// Must fail. Cannot import DataSet<Row> with GenericTypeInfo.
+		tableEnv.fromDataSet(dataSet, "nullField");
 	}
 
 	@Test(expected = TableException.class)
