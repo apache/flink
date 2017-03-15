@@ -22,7 +22,7 @@ FROM java:8-jre-alpine
 RUN apk add --no-cache bash snappy
 
 # Configure Flink version
-ARG FLINK_VERSION=1.1.3
+ARG FLINK_VERSION=1.1.4
 ARG HADOOP_VERSION=27
 ARG SCALA_VERSION=2.11
 
