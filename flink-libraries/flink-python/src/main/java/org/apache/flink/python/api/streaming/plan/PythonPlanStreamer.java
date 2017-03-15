@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 import org.apache.flink.python.api.streaming.util.StreamPrinter;
 import static org.apache.flink.python.api.PythonPlanBinder.FLINK_PYTHON2_BINARY_PATH;
 import static org.apache.flink.python.api.PythonPlanBinder.FLINK_PYTHON3_BINARY_PATH;
@@ -47,8 +48,16 @@ public class PythonPlanStreamer implements Serializable {
 
 	public void open(String tmpPath, String args) throws IOException {
 		server = new ServerSocket(0);
+		server.setSoTimeout(50);
 		startPython(tmpPath, args);
-		socket = server.accept();
+		while (true) {
+			try {
+				socket = server.accept();
+				break;
+			} catch (SocketTimeoutException ignored) {
+				checkPythonProcessHealth();
+			}
+		}
 		sender = new PythonPlanSender(socket.getOutputStream());
 		receiver = new PythonPlanReceiver(socket.getInputStream());
 	}
@@ -71,16 +80,7 @@ public class PythonPlanStreamer implements Serializable {
 		} catch (InterruptedException ex) {
 		}
 
-		try {
-			int value = process.exitValue();
-			if (value != 0) {
-				throw new RuntimeException("Plan file caused an error. Check log-files for details.");
-			}
-			if (value == 0) {
-				throw new RuntimeException("Plan file exited prematurely without an error.");
-			}
-		} catch (IllegalThreadStateException ise) {//Process still running
-		}
+		checkPythonProcessHealth();
 
 		process.getOutputStream().write("plan\n".getBytes());
 		process.getOutputStream().write((server.getLocalPort() + "\n").getBytes());
@@ -93,6 +93,19 @@ public class PythonPlanStreamer implements Serializable {
 		} catch (NullPointerException npe) { //exception occurred before process was started
 		} catch (IllegalThreadStateException ise) { //process still active
 			process.destroy();
+		}
+	}
+
+	private void checkPythonProcessHealth() {
+		try {
+			int value = process.exitValue();
+			if (value != 0) {
+				throw new RuntimeException("Plan file caused an error. Check log-files for details.");
+			}
+			if (value == 0) {
+				throw new RuntimeException("Plan file exited prematurely without an error.");
+			}
+		} catch (IllegalThreadStateException ise) {//Process still running
 		}
 	}
 }
