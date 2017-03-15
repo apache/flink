@@ -24,6 +24,7 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.RegisteredBackendStateMetaInfo;
 import org.apache.flink.runtime.state.StateTransformationFunction;
+import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -169,6 +170,8 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 
 	private boolean containsKey(Object key, int keyGroupIndex, Object namespace) {
 
+		checkKeyNamespacePreconditions(key, namespace);
+
 		Map<N, Map<K, S>> namespaceMap = getMapForKeyGroup(keyGroupIndex);
 
 		if (namespaceMap == null) {
@@ -181,6 +184,8 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 	}
 
 	S get(Object key, int keyGroupIndex, Object namespace) {
+
+		checkKeyNamespacePreconditions(key, namespace);
 
 		Map<N, Map<K, S>> namespaceMap = getMapForKeyGroup(keyGroupIndex);
 
@@ -203,6 +208,8 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 	}
 
 	private S putAndGetOld(K key, int keyGroupIndex, N namespace, S value) {
+
+		checkKeyNamespacePreconditions(key, namespace);
 
 		Map<N, Map<K, S>> namespaceMap = getMapForKeyGroup(keyGroupIndex);
 
@@ -227,6 +234,8 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 
 	private S removeAndGetOld(Object key, int keyGroupIndex, Object namespace) {
 
+		checkKeyNamespacePreconditions(key, namespace);
+
 		Map<N, Map<K, S>> namespaceMap = getMapForKeyGroup(keyGroupIndex);
 
 		if (namespaceMap == null) {
@@ -248,6 +257,11 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 		return removed;
 	}
 
+	private void checkKeyNamespacePreconditions(Object key, Object namespace) {
+		Preconditions.checkNotNull(key, "No key set. This method should not be called outside of a keyed context.");
+		Preconditions.checkNotNull(namespace, "Provided namespace is null.");
+	}
+
 	@Override
 	public int sizeOfNamespace(Object namespace) {
 		int count = 0;
@@ -263,8 +277,9 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 
 	@Override
 	public <T> void transform(N namespace, T value, StateTransformationFunction<S, T> transformation) throws Exception {
-		final int keyGroupIndex = keyContext.getCurrentKeyGroupIndex();
 		final K key = keyContext.getCurrentKey();
+		checkKeyNamespacePreconditions(key, namespace);
+		final int keyGroupIndex = keyContext.getCurrentKeyGroupIndex();
 
 		Map<N, Map<K, S>> namespaceMap = getMapForKeyGroup(keyGroupIndex);
 

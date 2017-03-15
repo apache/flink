@@ -336,6 +336,7 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 	 * {@code false} otherwise.
 	 */
 	boolean containsKey(Object key, Object namespace) {
+
 		final int hash = computeHashForOperationAndDoIncrementalRehash(key, namespace);
 		final StateTableEntry<K, N, S>[] tab = selectActiveTable(hash);
 		int index = hash & (tab.length - 1);
@@ -510,6 +511,11 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 			}
 		}
 		return null;
+	}
+
+	private void checkKeyNamespacePreconditions(Object key, Object namespace) {
+		Preconditions.checkNotNull(key, "No key set. This method should not be called outside of a keyed context.");
+		Preconditions.checkNotNull(namespace, "Provided namespace is null.");
 	}
 
 	// Meta data setter / getter and toString --------------------------------------------------------------------------
@@ -717,7 +723,7 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 	 */
 	private int computeHashForOperationAndDoIncrementalRehash(Object key, Object namespace) {
 
-		assert (null != key && null != namespace);
+		checkKeyNamespacePreconditions(key, namespace);
 
 		if (isRehashing()) {
 			incrementalRehash();
