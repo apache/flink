@@ -158,6 +158,8 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 			ByteArrayOutputStreamWithPos keySerializationStream,
 			DataOutputView keySerializationDataOutputView) throws IOException {
 
+		Preconditions.checkNotNull(key, "No key set. This method should not be called outside of a keyed context.");
+
 		keySerializationStream.reset();
 		writeKeyGroup(keyGroup, keySerializationDataOutputView);
 		writeKey(key, keySerializationStream, keySerializationDataOutputView);
