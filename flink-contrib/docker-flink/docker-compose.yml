@@ -20,14 +20,14 @@ version: "2"
 services:
   jobmanager:
     image: flink
-    container_name: "jobmanager"
+    container_name: jobmanager
     expose:
       - "6123"
     ports:
-      - "48081:8081"
+      - "8081:8081"
     command: jobmanager
     environment:
-      - JOB_MANAGER_RPC_ADDRESS="jobmanager"
+      - JOB_MANAGER_RPC_ADDRESS=jobmanager
 
   taskmanager:
     image: flink
@@ -40,4 +40,4 @@ services:
     links:
       - "jobmanager:jobmanager"
     environment:
-      - JOB_MANAGER_RPC_ADDRESS="jobmanager"
+      - JOB_MANAGER_RPC_ADDRESS=jobmanager

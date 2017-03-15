@@ -16,12 +16,10 @@
 # limitations under the License.
 ################################################################################
 
-FROM openjdk:8-jre
+FROM openjdk:8-jre-alpine
 
 # Install requirements
-RUN apt-get update && \
-  apt-get -y install libsnappy1 && \
-  rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache bash snappy
 
 # Configure Flink version
 ARG FLINK_VERSION=1.2.0
@@ -35,18 +33,21 @@ ENV PATH=$PATH:$FLINK_HOME/bin
 ENV FLINK_USER=flink
 ENV FLINK_UID=9999
 
-RUN groupadd --system --gid=$FLINK_UID $FLINK_USER && \
-  useradd --system --uid=$FLINK_UID --gid $FLINK_USER $FLINK_USER
+RUN addgroup -S -g $FLINK_UID $FLINK_USER && \
+  adduser -D -S -H -u $FLINK_UID -G $FLINK_USER -h $FLINK_HOME flink
 
 # Install build dependencies and flink
 RUN set -x && \
   mkdir -p $FLINK_INSTALL_PATH && \
+  apk --update add --virtual build-dependencies curl && \
   curl -s $(curl -s https://www.apache.org/dyn/closer.cgi\?preferred\=true)flink/flink-${FLINK_VERSION}/flink-${FLINK_VERSION}-bin-hadoop${HADOOP_VERSION}-scala_${SCALA_VERSION}.tgz | \
   tar xvz -C $FLINK_INSTALL_PATH && \
   ln -s $FLINK_INSTALL_PATH/flink-$FLINK_VERSION $FLINK_HOME && \
   chown -R $FLINK_USER:$FLINK_USER $FLINK_INSTALL_PATH/flink-$FLINK_VERSION && \
   chown -h $FLINK_USER:$FLINK_USER $FLINK_HOME && \
-  sed -i -e "s/echo \$mypid >> \$pid/echo \$mypid >> \$pid \&\& wait/g" $FLINK_HOME/bin/flink-daemon.sh
+  sed -i -e "s/echo \$mypid >> \$pid/echo \$mypid >> \$pid \&\& wait/g" $FLINK_HOME/bin/flink-daemon.sh && \
+  apk del build-dependencies && \
+  rm -rf /var/cache/apk/*
 
 # Configure container
 USER flink
