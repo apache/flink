@@ -24,6 +24,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
@@ -31,6 +32,7 @@ import org.apache.flink.core.io.InputSplitSource;
 import org.apache.flink.core.io.LocatableInputSplit;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
+import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.SimpleSlot;
@@ -60,14 +62,6 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 
 	/** Use the same log for all ExecutionGraph classes */
 	private static final Logger LOG = ExecutionGraph.LOG;
-
-	/**
-	 * If the serialized task information inside {@link #serializedTaskInformation} is larger than
-	 * this, we try to offload it to the blob server.
-	 *
-	 * @see #tryOffLoadTaskInformation()
-	 */
-	private static final int MAX_SHORT_MESSAGE_SIZE = 1 * 1024; // TODO: make configurable
 
 	public static final int VALUE_NOT_SET = -1;
 
@@ -356,18 +350,23 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	 * @return whether the data has been offloaded or not
 	 */
 	private boolean tryOffLoadTaskInformation() {
-		// more than MAX_SHORT_MESSAGE_SIZE?
-		if (serializedTaskInformation.getByteArray().length > MAX_SHORT_MESSAGE_SIZE) {
+		// If the serialized task information inside #serializedTaskInformation is larger than this,
+		// we try to offload it to the BLOB server.
+		BlobServer blobServer = graph.getBlobServer();
+		if (blobServer == null) {
+			return false;
+		}
 
-			if (graph.getBlobServer() == null) {
-				LOG.warn("No BLOB store available: unable to offload data!");
-				return false;
-			}
+		final int rpcOffloadMinSize =
+			blobServer.getConfiguration().getInteger(AkkaOptions.AKKA_RPC_OFFLOAD_MINSIZE);
+
+		if (serializedTaskInformation.getByteArray().length > rpcOffloadMinSize) {
+			LOG.info("Storing task {} information at the BLOB server", getJobVertexId());
 
 			// TODO: do not overwrite existing task info and thus speed up recovery
 			try {
-				final String fileKey = getOffloadedTaskInfoFileName(jobVertex.getID());
-				graph.getBlobServer().putObject(serializedTaskInformation, getJobId(), fileKey);
+				final String fileKey = getOffloadedTaskInfoFileName(getJobVertexId());
+				blobServer.putObject(serializedTaskInformation, getJobId(), fileKey);
 				return true;
 			} catch (IOException e) {
 				LOG.warn("Failed to offload task " + getJobVertexId() + " information data to BLOB store", e);

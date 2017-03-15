@@ -481,6 +481,15 @@ public class BlobServer extends Thread implements BlobService {
 	}
 
 	/**
+	 * Returns the configuration used by the BLOB server.
+	 *
+	 * @return configuration
+	 */
+	public final Configuration getConfiguration() {
+		return blobServiceConfiguration;
+	}
+
+	/**
 	 * Returns the port on which the server is listening.
 	 *
 	 * @return port on which the server is listening
