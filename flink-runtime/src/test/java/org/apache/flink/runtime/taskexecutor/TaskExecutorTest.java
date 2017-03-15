@@ -438,7 +438,7 @@ public class TaskExecutorTest extends TestLogger {
 				eq(jobManagerLeaderId),
 				any(Time.class)
 		)).thenReturn(FlinkCompletableFuture.<RegistrationResponse>completed(new JMTMRegistrationSuccess(jmResourceId, blobPort)));
-		when(jobMasterGateway.getAddress()).thenReturn(jobManagerAddress);
+		when(jobMasterGateway.getHostname()).thenReturn(jobManagerAddress);
 
 		rpc.registerGateway(resourceManagerAddress, resourceManagerGateway);
 		rpc.registerGateway(jobManagerAddress, jobMasterGateway);
@@ -551,7 +551,7 @@ public class TaskExecutorTest extends TestLogger {
 				eq(jobManagerLeaderId),
 				any(Time.class)
 		)).thenReturn(FlinkCompletableFuture.<RegistrationResponse>completed(new JMTMRegistrationSuccess(jmResourceId, blobPort)));
-		when(jobMasterGateway.getAddress()).thenReturn(jobManagerAddress);
+		when(jobMasterGateway.getHostname()).thenReturn(jobManagerAddress);
 
 		when(jobMasterGateway.offerSlots(
 				any(ResourceID.class), any(Iterable.class), eq(jobManagerLeaderId), any(Time.class)))
@@ -754,7 +754,7 @@ public class TaskExecutorTest extends TestLogger {
 			eq(jobManagerLeaderId),
 			any(Time.class)
 		)).thenReturn(FlinkCompletableFuture.<RegistrationResponse>completed(new JMTMRegistrationSuccess(jmResourceId, blobPort)));
-		when(jobMasterGateway.getAddress()).thenReturn(jobManagerAddress);
+		when(jobMasterGateway.getHostname()).thenReturn(jobManagerAddress);
 
 
 		rpc.registerGateway(resourceManagerAddress, resourceManagerGateway);

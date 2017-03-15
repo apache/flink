@@ -146,7 +146,7 @@ public class TaskExecutorITCase {
 
 		when(jmGateway.registerTaskManager(any(String.class), any(TaskManagerLocation.class), eq(jmLeaderId), any(Time.class)))
 			.thenReturn(FlinkCompletableFuture.<RegistrationResponse>completed(new JMTMRegistrationSuccess(taskManagerResourceId, 1234)));
-		when(jmGateway.getAddress()).thenReturn(jmAddress);
+		when(jmGateway.getHostname()).thenReturn(jmAddress);
 
 
 		rpcService.registerGateway(rmAddress, resourceManager.getSelf());
