@@ -936,6 +936,7 @@ under the License.
 						<exclude>build-target/**</exclude>
 						<!-- Tools: watchdog -->
 						<exclude>tools/artifacts/**</exclude>
+						<exclude>tools/flink*/**</exclude>
 						<!-- PyCharm -->
 						<exclude>**/.idea/**</exclude>
 					</excludes>
