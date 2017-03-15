@@ -18,6 +18,8 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
@@ -41,6 +43,10 @@ import java.util.concurrent.TimeUnit;
 public class StreamIterationTail<IN> extends OneInputStreamTask<IN, IN> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StreamIterationTail.class);
+
+	public StreamIterationTail(Environment environment, TaskStateSnapshot initialState) {
+		super(environment, initialState);
+	}
 
 	@Override
 	public void init() throws Exception {

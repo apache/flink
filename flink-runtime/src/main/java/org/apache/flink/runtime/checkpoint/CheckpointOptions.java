@@ -18,19 +18,20 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 import java.io.Serializable;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
 
 /**
  * Options for performing the checkpoint.
  *
  * <p>The {@link CheckpointProperties} are related and cover properties that
  * are only relevant at the {@link CheckpointCoordinator}. These options are
- * relevant at the {@link StatefulTask} instances running on task managers.
+ * relevant at the {@link AbstractInvokable} instances running on task managers.
  */
 public class CheckpointOptions implements Serializable {
 

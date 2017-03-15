@@ -24,6 +24,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaJobManagerGateway;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.client.JobClient;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -311,6 +312,10 @@ public class BackPressureStatsTrackerITCase extends TestLogger {
 	 * test driver.
 	 */
 	public static class BackPressuredTask extends AbstractInvokable {
+
+		public BackPressuredTask(Environment environment) {
+			super(environment);
+		}
 
 		@Override
 		public void invoke() throws Exception {

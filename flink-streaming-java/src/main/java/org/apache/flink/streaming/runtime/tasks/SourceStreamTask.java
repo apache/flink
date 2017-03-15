@@ -21,10 +21,14 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.streaming.api.checkpoint.ExternallyInducedSource;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.util.FlinkException;
+
+import javax.annotation.Nullable;
 
 /**
  * {@link StreamTask} for executing a {@link StreamSource}.
@@ -45,6 +49,10 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 	extends StreamTask<OUT, OP> {
 
 	private volatile boolean externallyInducedCheckpoints;
+
+	public SourceStreamTask(Environment env, @Nullable TaskStateSnapshot initialState) {
+		super(env, initialState);
+	}
 
 	@Override
 	protected void init() {

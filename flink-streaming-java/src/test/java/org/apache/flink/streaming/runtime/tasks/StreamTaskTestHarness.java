@@ -22,7 +22,9 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.event.AbstractEvent;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.partition.consumer.StreamTestSingleInputGate;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -44,11 +46,16 @@ import org.apache.flink.util.Preconditions;
 
 import org.junit.Assert;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.function.BiFunction;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Test harness for testing a {@link StreamTask}.
@@ -63,9 +70,11 @@ import java.util.concurrent.LinkedBlockingQueue;
  */
 public class StreamTaskTestHarness<OUT> {
 
-	public  static final int DEFAULT_MEMORY_MANAGER_SIZE = 1024 * 1024;
+	public static final int DEFAULT_MEMORY_MANAGER_SIZE = 1024 * 1024;
 
 	public static final int DEFAULT_NETWORK_BUFFER_SIZE = 1024;
+
+	private final BiFunction<Environment, TaskStateSnapshot, ? extends StreamTask<OUT, ?>> taskFactory;
 
 	public long memorySize = 0;
 	public int bufferSize = 0;
@@ -76,7 +85,7 @@ public class StreamTaskTestHarness<OUT> {
 	public Configuration taskConfig;
 	protected StreamConfig streamConfig;
 
-	private AbstractInvokable task;
+	private StreamTask<OUT, ?> task;
 
 	private TypeSerializer<OUT> outputSerializer;
 	private TypeSerializer<StreamElement> outputStreamRecordSerializer;
@@ -96,8 +105,11 @@ public class StreamTaskTestHarness<OUT> {
 	@SuppressWarnings("rawtypes")
 	protected StreamTestSingleInputGate[] inputGates;
 
-	public StreamTaskTestHarness(AbstractInvokable task, TypeInformation<OUT> outputType) {
-		this.task = task;
+	public StreamTaskTestHarness(
+			BiFunction<Environment, TaskStateSnapshot, ? extends StreamTask<OUT, ?>> taskFactory,
+			TypeInformation<OUT> outputType) {
+
+		this.taskFactory = checkNotNull(taskFactory);
 		this.memorySize = DEFAULT_MEMORY_MANAGER_SIZE;
 		this.bufferSize = DEFAULT_NETWORK_BUFFER_SIZE;
 
@@ -112,10 +124,7 @@ public class StreamTaskTestHarness<OUT> {
 	}
 
 	public ProcessingTimeService getProcessingTimeService() {
-		if (!(task instanceof StreamTask)) {
-			throw new UnsupportedOperationException("getProcessingTimeService() only supported on StreamTasks.");
-		}
-		return ((StreamTask<?, ?>) task).getProcessingTimeService();
+		return task.getProcessingTimeService();
 	}
 
 	/**
@@ -174,7 +183,7 @@ public class StreamTaskTestHarness<OUT> {
 	 * Task thread to finish running.
 	 */
 	public void invoke() throws Exception {
-		invoke(createEnvironment());
+		invoke(createEnvironment(), null);
 	}
 
 	/**
@@ -182,12 +191,33 @@ public class StreamTaskTestHarness<OUT> {
 	 * Thread to execute the Task in. Use {@link #waitForTaskCompletion()} to wait for the
 	 * Task thread to finish running.
 	 *
-	 * <p>Variant for providing a custom environment.
+	 * <p>Variant for providing initial task state.
+	 */
+	public void invoke(TaskStateSnapshot initialState) throws Exception {
+		invoke(createEnvironment(), initialState);
+	}
+
+	/**
+	 * Invoke the Task. This resets the output of any previous invocation. This will start a new
+	 * Thread to execute the Task in. Use {@link #waitForTaskCompletion()} to wait for the
+	 * Task thread to finish running.
+	 *
+	 * <p>Variant for providing a custom environment but no initial state.
 	 */
 	public void invoke(StreamMockEnvironment mockEnv) throws Exception {
-		this.mockEnv = mockEnv;
+		invoke(mockEnv, null);
+	}
 
-		task.setEnvironment(mockEnv);
+	/**
+	 * Invoke the Task. This resets the output of any previous invocation. This will start a new
+	 * Thread to execute the Task in. Use {@link #waitForTaskCompletion()} to wait for the
+	 * Task thread to finish running.
+	 *
+	 * <p>Variant for providing a custom environment and initial task state.
+	 */
+	public void invoke(StreamMockEnvironment mockEnv, @Nullable TaskStateSnapshot initialState) throws Exception {
+		this.mockEnv = checkNotNull(mockEnv);
+		this.task = taskFactory.apply(mockEnv, initialState);
 
 		initializeInputs();
 		initializeOutput();
@@ -261,6 +291,10 @@ public class StreamTaskTestHarness<OUT> {
 				throw new IllegalStateException("Not a StreamTask");
 			}
 		}
+	}
+
+	public StreamTask<OUT, ?> getTask() {
+		return task;
 	}
 
 	/**

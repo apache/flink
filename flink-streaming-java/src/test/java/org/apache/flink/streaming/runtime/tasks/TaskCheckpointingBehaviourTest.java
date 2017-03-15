@@ -78,6 +78,8 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
 import org.junit.Test;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.Collections;
 import java.util.concurrent.Callable;
@@ -453,6 +455,10 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 	 * Stream task that simply triggers a checkpoint.
 	 */
 	public static final class TestStreamTask extends OneInputStreamTask<Object, Object> {
+
+		public TestStreamTask(Environment env, @Nullable TaskStateSnapshot initialState) {
+			super(env, initialState);
+		}
 
 		@Override
 		public void init() {}

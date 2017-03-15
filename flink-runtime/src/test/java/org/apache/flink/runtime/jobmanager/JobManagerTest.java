@@ -39,6 +39,7 @@ import org.apache.flink.runtime.clusterframework.messages.RegisterResourceManage
 import org.apache.flink.runtime.clusterframework.messages.RegisterResourceManagerSuccessful;
 import org.apache.flink.runtime.clusterframework.messages.TriggerRegistrationAtJobManager;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
@@ -61,7 +62,6 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
-import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
 import org.apache.flink.runtime.jobmanager.JobManagerHARecoveryTest.BlockingStatefulInvokable;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.messages.JobManagerMessages.CancelJob;
@@ -1525,19 +1525,24 @@ public class JobManagerTest extends TestLogger {
 	/**
 	 * A blocking stateful source task that declines savepoints.
 	 */
-	public static class FailOnSavepointSourceTask extends AbstractInvokable implements StatefulTask {
+	public static class FailOnSavepointSourceTask extends AbstractInvokable {
 
 		private static final CountDownLatch CHECKPOINT_AFTER_SAVEPOINT_LATCH = new CountDownLatch(1);
 
 		private boolean receivedSavepoint;
 
-		@Override
-		public void invoke() throws Exception {
-			new CountDownLatch(1).await();
+		/**
+		 * Create an Invokable task and set its environment.
+		 *
+		 * @param environment The environment assigned to this invokable.
+		 */
+		public FailOnSavepointSourceTask(Environment environment, TaskStateSnapshot initialState) {
+			super(environment);
 		}
 
 		@Override
-		public void setInitialState(TaskStateSnapshot taskStateHandles) throws Exception {
+		public void invoke() throws Exception {
+			new CountDownLatch(1).await();
 		}
 
 		@Override

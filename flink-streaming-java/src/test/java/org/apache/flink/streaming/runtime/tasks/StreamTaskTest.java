@@ -107,6 +107,8 @@ import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import javax.annotation.Nullable;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -142,6 +144,7 @@ import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.whenNew;
@@ -306,9 +309,8 @@ public class StreamTaskTest extends TestLogger {
 		Environment mockEnvironment = mock(Environment.class);
 		when(mockEnvironment.getTaskInfo()).thenReturn(mockTaskInfo);
 
-		StreamTask<?, AbstractStreamOperator<?>> streamTask = mock(StreamTask.class, Mockito.CALLS_REAL_METHODS);
+		StreamTask<?, ?> streamTask = new EmptyStreamTask(mockEnvironment);
 		CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, timestamp);
-		streamTask.setEnvironment(mockEnvironment);
 
 		// mock the operators
 		StreamOperator<?> streamOperator1 = mock(StreamOperator.class);
@@ -380,9 +382,8 @@ public class StreamTaskTest extends TestLogger {
 		Environment mockEnvironment = mock(Environment.class);
 		when(mockEnvironment.getTaskInfo()).thenReturn(mockTaskInfo);
 
-		StreamTask<?, AbstractStreamOperator<?>> streamTask = mock(StreamTask.class, Mockito.CALLS_REAL_METHODS);
+		StreamTask<?, ?> streamTask = spy(new EmptyStreamTask(mockEnvironment));
 		CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, timestamp);
-		streamTask.setEnvironment(mockEnvironment);
 
 		// mock the operators
 		StreamOperator<?> streamOperator1 = mock(StreamOperator.class);
@@ -473,9 +474,8 @@ public class StreamTaskTest extends TestLogger {
 			}
 		}).when(mockEnvironment).acknowledgeCheckpoint(anyLong(), any(CheckpointMetrics.class), any(TaskStateSnapshot.class));
 
-		StreamTask<?, AbstractStreamOperator<?>> streamTask = mock(StreamTask.class, Mockito.CALLS_REAL_METHODS);
+		StreamTask<?, ?> streamTask = new EmptyStreamTask(mockEnvironment);
 		CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, timestamp);
-		streamTask.setEnvironment(mockEnvironment);
 
 		StreamOperator<?> streamOperator = mock(StreamOperator.class);
 
@@ -596,9 +596,8 @@ public class StreamTaskTest extends TestLogger {
 			}
 		});
 
-		StreamTask<?, AbstractStreamOperator<?>> streamTask = mock(StreamTask.class, Mockito.CALLS_REAL_METHODS);
+		StreamTask<?, ?> streamTask = new EmptyStreamTask(mockEnvironment);
 		CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, timestamp);
-		streamTask.setEnvironment(mockEnvironment);
 
 		final StreamOperator<?> streamOperator = mock(StreamOperator.class);
 		final OperatorID operatorID = new OperatorID();
@@ -705,9 +704,8 @@ public class StreamTaskTest extends TestLogger {
 
 		when(mockEnvironment.getTaskInfo()).thenReturn(mockTaskInfo);
 
-		StreamTask<?, AbstractStreamOperator<?>> streamTask = mock(StreamTask.class, Mockito.CALLS_REAL_METHODS);
+		StreamTask<?, ?> streamTask = new EmptyStreamTask(mockEnvironment);
 		CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, timestamp);
-		streamTask.setEnvironment(mockEnvironment);
 
 		// mock the operators
 		StreamOperator<?> statelessOperator =
@@ -802,7 +800,7 @@ public class StreamTaskTest extends TestLogger {
 	private static class NoOpStreamTask<T, OP extends StreamOperator<T>> extends StreamTask<T, OP> {
 
 		public NoOpStreamTask(Environment environment) {
-			setEnvironment(environment);
+			super(environment, null);
 		}
 
 		@Override
@@ -1042,6 +1040,25 @@ public class StreamTaskTest extends TestLogger {
 	// ------------------------------------------------------------------------
 	// ------------------------------------------------------------------------
 
+	private static class EmptyStreamTask extends StreamTask<String, AbstractStreamOperator<String>> {
+
+		public EmptyStreamTask(Environment env) {
+			super(env, null);
+		}
+
+		@Override
+		protected void init() throws Exception {}
+
+		@Override
+		protected void run() throws Exception {}
+
+		@Override
+		protected void cleanup() throws Exception {}
+
+		@Override
+		protected void cancelTask() throws Exception {}
+	}
+
 	/**
 	 * Source that instantiates the operator state backend and the keyed state backend.
 	 * The created state backends can be retrieved from the static fields to check if the
@@ -1053,6 +1070,10 @@ public class StreamTaskTest extends TestLogger {
 
 		private static volatile OperatorStateBackend operatorStateBackend;
 		private static volatile AbstractKeyedStateBackend keyedStateBackend;
+
+		public StateBackendTestSource(Environment env, @Nullable TaskStateSnapshot initialState) {
+			super(env, initialState);
+		}
 
 		@Override
 		protected void init() throws Exception {
@@ -1088,6 +1109,10 @@ public class StreamTaskTest extends TestLogger {
 		private final OneShotLatch latch = new OneShotLatch();
 
 		private LockHolder holder;
+
+		public CancelLockingTask(Environment env, @Nullable TaskStateSnapshot initialState) {
+			super(env, initialState);
+		}
 
 		@Override
 		protected void init() {}
@@ -1128,6 +1153,10 @@ public class StreamTaskTest extends TestLogger {
 	 * A task that locks if cancellation attempts to cleanly shut down.
 	 */
 	public static class CancelFailingTask extends StreamTask<String, AbstractStreamOperator<String>> {
+
+		public CancelFailingTask(Environment env, @Nullable TaskStateSnapshot initialState) {
+			super(env, initialState);
+		}
 
 		@Override
 		protected void init() {}

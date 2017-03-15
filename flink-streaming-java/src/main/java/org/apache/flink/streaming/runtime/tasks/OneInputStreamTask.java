@@ -19,11 +19,16 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.io.StreamInputProcessor;
+
+import javax.annotation.Nullable;
 
 /**
  * A {@link StreamTask} for executing a {@link OneInputStreamOperator}.
@@ -34,6 +39,35 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 	private StreamInputProcessor<IN> inputProcessor;
 
 	private volatile boolean running = true;
+
+	/**
+	 * Constructor for initialization, possibly with initial state (recovery / savepoint / etc).
+	 *
+	 * @param env The task environment for this task.
+	 * @param initialState The initial state for this task (null indicates no initial state)
+	 */
+	public OneInputStreamTask(Environment env, @Nullable TaskStateSnapshot initialState) {
+		super(env, initialState);
+	}
+
+	/**
+	 * Constructor for initialization, possibly with initial state (recovery / savepoint / etc).
+	 *
+	 * <p>This constructor accepts a special {@link ProcessingTimeService}. By default (and if
+	 * null is passes for the time provider) a {@link SystemProcessingTimeService DefaultTimerService}
+	 * will be used.
+	 *
+	 * @param env The task environment for this task.
+	 * @param initialState The initial state for this task (null indicates no initial state)
+	 * @param timeProvider Optionally, a specific time provider to use.
+	 */
+	@VisibleForTesting
+	public OneInputStreamTask(
+			Environment env,
+			@Nullable TaskStateSnapshot initialState,
+			@Nullable ProcessingTimeService timeProvider) {
+		super(env, initialState, timeProvider);
+	}
 
 	@Override
 	public void init() throws Exception {

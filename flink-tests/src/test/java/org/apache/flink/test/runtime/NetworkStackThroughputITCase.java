@@ -23,6 +23,7 @@ import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.reader.RecordReader;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -73,6 +74,10 @@ public class NetworkStackThroughputITCase extends TestLogger {
 	 */
 	public static class SpeedTestProducer extends AbstractInvokable {
 
+		public SpeedTestProducer(Environment environment) {
+			super(environment);
+		}
+
 		@Override
 		public void invoke() throws Exception {
 			RecordWriter<SpeedTestRecord> writer = new RecordWriter<>(getEnvironment().getWriter(0));
@@ -113,6 +118,10 @@ public class NetworkStackThroughputITCase extends TestLogger {
 	 */
 	public static class SpeedTestForwarder extends AbstractInvokable {
 
+		public SpeedTestForwarder(Environment environment) {
+			super(environment);
+		}
+
 		@Override
 		public void invoke() throws Exception {
 			RecordReader<SpeedTestRecord> reader = new RecordReader<>(
@@ -142,6 +151,10 @@ public class NetworkStackThroughputITCase extends TestLogger {
 	 * <p>NOTE: needs to be <tt>public</tt> so that a task can be run with this!
 	 */
 	public static class SpeedTestConsumer extends AbstractInvokable {
+
+		public SpeedTestConsumer(Environment environment) {
+			super(environment);
+		}
 
 		@Override
 		public void invoke() throws Exception {

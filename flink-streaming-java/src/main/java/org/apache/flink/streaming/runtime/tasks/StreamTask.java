@@ -18,7 +18,6 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -36,7 +35,6 @@ import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
@@ -61,6 +59,8 @@ import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -116,7 +116,7 @@ import java.util.concurrent.atomic.AtomicReference;
 @Internal
 public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		extends AbstractInvokable
-		implements StatefulTask, AsyncExceptionHandler {
+		implements AsyncExceptionHandler {
 
 	/** The thread group that holds all trigger timer threads. */
 	public static final ThreadGroup TRIGGER_THREAD_GROUP = new ThreadGroup("Triggers");
@@ -157,6 +157,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	/** The map of user-defined accumulators of this task. */
 	private Map<String, Accumulator<?, ?>> accumulatorMap;
 
+	@Nullable
 	private TaskStateSnapshot taskStateSnapshot;
 
 	/** The currently active background materialization threads. */
@@ -181,6 +182,43 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	private AsyncCheckpointExceptionHandler asynchronousCheckpointExceptionHandler;
 
 	// ------------------------------------------------------------------------
+
+	/**
+	 * Constructor for initialization, possibly with initial state (recovery / savepoint / etc).
+	 *
+	 * @param env The task environment for this task.
+	 * @param initialState The initial state for this task (null indicates no initial state)
+	 */
+	protected StreamTask(Environment env, @Nullable TaskStateSnapshot initialState) {
+		this(env, initialState, null);
+	}
+
+	/**
+	 * Constructor for initialization, possibly with initial state (recovery / savepoint / etc).
+	 *
+	 * <p>This constructor accepts a special {@link ProcessingTimeService}. By default (and if
+	 * null is passes for the time provider) a {@link SystemProcessingTimeService DefaultTimerService}
+	 * will be used.
+	 *
+	 * @param env The task environment for this task.
+	 * @param initialState The initial state for this task (null indicates no initial state)
+	 * @param timeProvider Optionally, a specific time provider to use.
+	 */
+	protected StreamTask(
+			Environment env,
+			@Nullable TaskStateSnapshot initialState,
+			@Nullable ProcessingTimeService timeProvider) {
+
+		super(env);
+
+		// assign the initial state - later we do all initialization based on the initial state here.
+		this.taskStateSnapshot = initialState;
+
+		// assign a possibly injected timer service
+		this.timerService = timeProvider;
+	}
+
+	// ------------------------------------------------------------------------
 	//  Life cycle methods for specific implementations
 	// ------------------------------------------------------------------------
 
@@ -195,21 +233,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	// ------------------------------------------------------------------------
 	//  Core work methods of the Stream Task
 	// ------------------------------------------------------------------------
-
-	/**
-	 * Allows the user to specify his own {@link ProcessingTimeService TimerServiceProvider}.
-	 * By default a {@link SystemProcessingTimeService DefaultTimerService} is going to be provided.
-	 * Changing it can be useful for testing processing time functionality, such as
-	 * {@link org.apache.flink.streaming.api.windowing.assigners.WindowAssigner WindowAssigners}
-	 * and {@link org.apache.flink.streaming.api.windowing.triggers.Trigger Triggers}.
-	 * */
-	@VisibleForTesting
-	public void setProcessingTimeService(ProcessingTimeService timeProvider) {
-		if (timeProvider == null) {
-			throw new RuntimeException("The timeProvider cannot be set to null.");
-		}
-		timerService = timeProvider;
-	}
 
 	@Override
 	public final void invoke() throws Exception {
@@ -535,11 +558,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	// ------------------------------------------------------------------------
 	//  Checkpoint and Restore
 	// ------------------------------------------------------------------------
-
-	@Override
-	public void setInitialState(TaskStateSnapshot taskStateHandles) {
-		this.taskStateSnapshot = taskStateHandles;
-	}
 
 	@Override
 	public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) throws Exception {

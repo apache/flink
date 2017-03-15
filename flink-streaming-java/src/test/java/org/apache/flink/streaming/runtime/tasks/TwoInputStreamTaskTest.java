@@ -58,8 +58,10 @@ public class TwoInputStreamTaskTest {
 	@Test
 	@SuppressWarnings("unchecked")
 	public void testOpenCloseAndTimestamps() throws Exception {
-		final TwoInputStreamTask<String, Integer, String> coMapTask = new TwoInputStreamTask<String, Integer, String>();
-		final TwoInputStreamTaskTestHarness<String, Integer, String> testHarness = new TwoInputStreamTaskTestHarness<String, Integer, String>(coMapTask, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+		final TwoInputStreamTaskTestHarness<String, Integer, String> testHarness =
+				new TwoInputStreamTaskTestHarness<>(
+						TwoInputStreamTask::new,
+						BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 		testHarness.setupOutputForSingletonOperatorChain();
 
 		StreamConfig streamConfig = testHarness.getStreamConfig();
@@ -100,10 +102,11 @@ public class TwoInputStreamTaskTest {
 	@Test
 	@SuppressWarnings("unchecked")
 	public void testWatermarkAndStreamStatusForwarding() throws Exception {
-		final TwoInputStreamTask<String, Integer, String> coMapTask = new TwoInputStreamTask<String, Integer, String>();
+
 		final TwoInputStreamTaskTestHarness<String, Integer, String> testHarness =
 			new TwoInputStreamTaskTestHarness<String, Integer, String>(
-				coMapTask, 2, 2, new int[] {1, 2},
+				TwoInputStreamTask::new,
+				2, 2, new int[] {1, 2},
 				BasicTypeInfo.STRING_TYPE_INFO,
 				BasicTypeInfo.INT_TYPE_INFO,
 				BasicTypeInfo.STRING_TYPE_INFO);
@@ -212,8 +215,11 @@ public class TwoInputStreamTaskTest {
 	@Test
 	@SuppressWarnings("unchecked")
 	public void testCheckpointBarriers() throws Exception {
-		final TwoInputStreamTask<String, Integer, String> coMapTask = new TwoInputStreamTask<String, Integer, String>();
-		final TwoInputStreamTaskTestHarness<String, Integer, String> testHarness = new TwoInputStreamTaskTestHarness<String, Integer, String>(coMapTask, 2, 2, new int[] {1, 2}, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+		final TwoInputStreamTaskTestHarness<String, Integer, String> testHarness =
+				new TwoInputStreamTaskTestHarness<String, Integer, String>(
+						TwoInputStreamTask::new,
+						2, 2, new int[] {1, 2},
+						BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 		testHarness.setupOutputForSingletonOperatorChain();
 
 		StreamConfig streamConfig = testHarness.getStreamConfig();
@@ -293,8 +299,12 @@ public class TwoInputStreamTaskTest {
 	@Test
 	@SuppressWarnings("unchecked")
 	public void testOvertakingCheckpointBarriers() throws Exception {
-		final TwoInputStreamTask<String, Integer, String> coMapTask = new TwoInputStreamTask<String, Integer, String>();
-		final TwoInputStreamTaskTestHarness<String, Integer, String> testHarness = new TwoInputStreamTaskTestHarness<String, Integer, String>(coMapTask, 2, 2, new int[] {1, 2}, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+		final TwoInputStreamTaskTestHarness<String, Integer, String> testHarness =
+				new TwoInputStreamTaskTestHarness<>(
+						TwoInputStreamTask::new,
+						2, 2, new int[] {1, 2},
+						BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+
 		testHarness.setupOutputForSingletonOperatorChain();
 
 		StreamConfig streamConfig = testHarness.getStreamConfig();

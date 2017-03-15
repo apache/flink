@@ -19,18 +19,19 @@
 package org.apache.flink.runtime.jobmanager;
 
 import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.reader.RecordReader;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
-import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.types.IntValue;
-
 import org.apache.flink.util.TestLogger;
+
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -40,9 +41,9 @@ import java.util.BitSet;
 public class SlotCountExceedingParallelismTest extends TestLogger {
 
 	// Test configuration
-	private final static int NUMBER_OF_TMS = 2;
-	private final static int NUMBER_OF_SLOTS_PER_TM = 2;
-	private final static int PARALLELISM = NUMBER_OF_TMS * NUMBER_OF_SLOTS_PER_TM;
+	private static final int NUMBER_OF_TMS = 2;
+	private static final int NUMBER_OF_SLOTS_PER_TM = 2;
+	private static final int PARALLELISM = NUMBER_OF_TMS * NUMBER_OF_SLOTS_PER_TM;
 
 	private static TestingCluster flink;
 
@@ -120,7 +121,11 @@ public class SlotCountExceedingParallelismTest extends TestLogger {
 	 */
 	public static class RoundRobinSubtaskIndexSender extends AbstractInvokable {
 
-		public final static String CONFIG_KEY = "number-of-times-to-send";
+		public static final String CONFIG_KEY = "number-of-times-to-send";
+
+		public RoundRobinSubtaskIndexSender(Environment environment) {
+			super(environment);
+		}
 
 		@Override
 		public void invoke() throws Exception {
@@ -147,7 +152,11 @@ public class SlotCountExceedingParallelismTest extends TestLogger {
 	 */
 	public static class SubtaskIndexReceiver extends AbstractInvokable {
 
-		public final static String CONFIG_KEY = "number-of-indexes-to-receive";
+		public static final String CONFIG_KEY = "number-of-indexes-to-receive";
+
+		public SubtaskIndexReceiver(Environment environment) {
+			super(environment);
+		}
 
 		@Override
 		public void invoke() throws Exception {

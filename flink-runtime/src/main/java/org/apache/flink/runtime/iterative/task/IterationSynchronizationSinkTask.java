@@ -22,6 +22,7 @@ import org.apache.flink.api.common.aggregators.Aggregator;
 import org.apache.flink.api.common.aggregators.AggregatorWithName;
 import org.apache.flink.api.common.aggregators.ConvergenceCriterion;
 import org.apache.flink.runtime.event.TaskEvent;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.reader.MutableRecordReader;
 import org.apache.flink.runtime.iterative.event.AllWorkersDoneEvent;
 import org.apache.flink.runtime.iterative.event.TerminationEvent;
@@ -70,6 +71,17 @@ public class IterationSynchronizationSinkTask extends AbstractInvokable implemen
 	private int maxNumberOfIterations;
 
 	private final AtomicBoolean terminated = new AtomicBoolean(false);
+
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Create an Invokable task and set its environment.
+	 *
+	 * @param environment The environment assigned to this invokable.
+	 */
+	public IterationSynchronizationSinkTask(Environment environment) {
+		super(environment);
+	}
 
 	// --------------------------------------------------------------------------------------------
 

@@ -26,6 +26,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.disk.InputViewIterator;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.api.EndOfSuperstepEvent;
@@ -97,6 +98,17 @@ public class IterationHeadTask<X, Y, S extends Function, OT> extends AbstractIte
 	private ResultPartitionWriter toSync;
 
 	private int feedbackDataInput; // workset or bulk partial solution
+
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Create an Invokable task and set its environment.
+	 *
+	 * @param environment The environment assigned to this invokable.
+	 */
+	public IterationHeadTask(Environment environment) {
+		super(environment);
+	}
 
 	// --------------------------------------------------------------------------------------------
 

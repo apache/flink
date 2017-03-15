@@ -34,6 +34,7 @@ import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobInformation;
@@ -790,6 +791,10 @@ public class TaskExecutorTest extends TestLogger {
 	public static class TestInvokable extends AbstractInvokable {
 
 		static final CompletableFuture<Boolean> completableFuture = new CompletableFuture<>();
+
+		public TestInvokable(Environment environment) {
+			super(environment);
+		}
 
 		@Override
 		public void invoke() throws Exception {

@@ -25,6 +25,7 @@ import akka.actor.ActorSystem
 import akka.testkit.{ImplicitSender, TestKit}
 import org.apache.flink.core.testutils.OneShotLatch
 import org.apache.flink.runtime.akka.{AkkaUtils, ListeningBehaviour}
+import org.apache.flink.runtime.execution.Environment
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable
 import org.apache.flink.runtime.jobgraph.{JobGraph, JobVertex}
 import org.apache.flink.runtime.messages.JobManagerMessages._
@@ -83,7 +84,7 @@ class JobManagerLeaderSessionIDITCase(_system: ActorSystem)
   }
 }
 
-class BlockingUntilSignalNoOpInvokable extends AbstractInvokable {
+class BlockingUntilSignalNoOpInvokable(env: Environment) extends AbstractInvokable(env) {
 
   override def invoke(): Unit = {
     BlockingUntilSignalNoOpInvokable.countDownLatch.countDown()

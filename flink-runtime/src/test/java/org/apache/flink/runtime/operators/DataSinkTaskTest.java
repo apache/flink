@@ -77,9 +77,9 @@ public class DataSinkTaskTest extends TaskTestBase {
 			super.initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
 			super.addInput(new UniformRecordGenerator(keyCnt, valCnt, false), 0);
 
-			DataSinkTask<Record> testTask = new DataSinkTask<>();
+			DataSinkTask<Record> testTask = new DataSinkTask<>(this.mockEnv);
 
-			super.registerFileOutputTask(testTask, MockOutputFormat.class, new File(tempTestPath).toURI().toString());
+			super.registerFileOutputTask(MockOutputFormat.class, new File(tempTestPath).toURI().toString());
 
 			testTask.invoke();
 
@@ -139,9 +139,9 @@ public class DataSinkTaskTest extends TaskTestBase {
 		readers[2] = super.addInput(new UniformRecordGenerator(keyCnt, valCnt, keyCnt * 2, 0, false), 0, false);
 		readers[3] = super.addInput(new UniformRecordGenerator(keyCnt, valCnt, keyCnt * 3, 0, false), 0, false);
 
-		DataSinkTask<Record> testTask = new DataSinkTask<>();
+		DataSinkTask<Record> testTask = new DataSinkTask<>(this.mockEnv);
 
-		super.registerFileOutputTask(testTask, MockOutputFormat.class, new File(tempTestPath).toURI().toString());
+		super.registerFileOutputTask(MockOutputFormat.class, new File(tempTestPath).toURI().toString());
 
 		try {
 			// For the union reader to work, we need to start notifications *after* the union reader
@@ -215,7 +215,7 @@ public class DataSinkTaskTest extends TaskTestBase {
 
 		super.addInput(new UniformRecordGenerator(keyCnt, valCnt, true), 0);
 
-		DataSinkTask<Record> testTask = new DataSinkTask<>();
+		DataSinkTask<Record> testTask = new DataSinkTask<>(this.mockEnv);
 
 		// set sorting
 		super.getTaskConfig().setInputLocalStrategy(0, LocalStrategy.SORT);
@@ -225,7 +225,7 @@ public class DataSinkTaskTest extends TaskTestBase {
 		super.getTaskConfig().setFilehandlesInput(0, 8);
 		super.getTaskConfig().setSpillingThresholdInput(0, 0.8f);
 
-		super.registerFileOutputTask(testTask, MockOutputFormat.class, new File(tempTestPath).toURI().toString());
+		super.registerFileOutputTask(MockOutputFormat.class, new File(tempTestPath).toURI().toString());
 
 		try {
 			testTask.invoke();
@@ -293,11 +293,11 @@ public class DataSinkTaskTest extends TaskTestBase {
 		super.initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
 		super.addInput(new UniformRecordGenerator(keyCnt, valCnt, false), 0);
 
-		DataSinkTask<Record> testTask = new DataSinkTask<>();
+		DataSinkTask<Record> testTask = new DataSinkTask<>(this.mockEnv);
 		Configuration stubParams = new Configuration();
 		super.getTaskConfig().setStubParameters(stubParams);
 
-		super.registerFileOutputTask(testTask, MockFailingOutputFormat.class, new File(tempTestPath).toURI().toString());
+		super.registerFileOutputTask(MockFailingOutputFormat.class, new File(tempTestPath).toURI().toString());
 
 		boolean stubFailed = false;
 
@@ -325,7 +325,7 @@ public class DataSinkTaskTest extends TaskTestBase {
 		super.initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
 		super.addInput(new UniformRecordGenerator(keyCnt, valCnt, true), 0);
 
-		DataSinkTask<Record> testTask = new DataSinkTask<>();
+		DataSinkTask<Record> testTask = new DataSinkTask<>(this.mockEnv);
 		Configuration stubParams = new Configuration();
 		super.getTaskConfig().setStubParameters(stubParams);
 
@@ -337,7 +337,7 @@ public class DataSinkTaskTest extends TaskTestBase {
 		super.getTaskConfig().setFilehandlesInput(0, 8);
 		super.getTaskConfig().setSpillingThresholdInput(0, 0.8f);
 
-		super.registerFileOutputTask(testTask, MockFailingOutputFormat.class, new File(tempTestPath).toURI().toString());
+		super.registerFileOutputTask(MockFailingOutputFormat.class, new File(tempTestPath).toURI().toString());
 
 		boolean stubFailed = false;
 
@@ -359,11 +359,11 @@ public class DataSinkTaskTest extends TaskTestBase {
 		super.initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
 		super.addInput(new InfiniteInputIterator(), 0);
 
-		final DataSinkTask<Record> testTask = new DataSinkTask<>();
+		final DataSinkTask<Record> testTask = new DataSinkTask<>(this.mockEnv);
 		Configuration stubParams = new Configuration();
 		super.getTaskConfig().setStubParameters(stubParams);
 
-		super.registerFileOutputTask(testTask, MockOutputFormat.class,  new File(tempTestPath).toURI().toString());
+		super.registerFileOutputTask(MockOutputFormat.class,  new File(tempTestPath).toURI().toString());
 
 		Thread taskRunner = new Thread() {
 			@Override
@@ -407,7 +407,7 @@ public class DataSinkTaskTest extends TaskTestBase {
 		super.initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
 		super.addInput(new InfiniteInputIterator(), 0);
 
-		final DataSinkTask<Record> testTask = new DataSinkTask<>();
+		final DataSinkTask<Record> testTask = new DataSinkTask<>(this.mockEnv);
 		Configuration stubParams = new Configuration();
 		super.getTaskConfig().setStubParameters(stubParams);
 
@@ -419,7 +419,7 @@ public class DataSinkTaskTest extends TaskTestBase {
 		super.getTaskConfig().setFilehandlesInput(0, 8);
 		super.getTaskConfig().setSpillingThresholdInput(0, 0.8f);
 
-		super.registerFileOutputTask(testTask, MockOutputFormat.class,  new File(tempTestPath).toURI().toString());
+		super.registerFileOutputTask(MockOutputFormat.class,  new File(tempTestPath).toURI().toString());
 
 		Thread taskRunner = new Thread() {
 			@Override

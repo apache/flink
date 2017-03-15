@@ -31,7 +31,7 @@ import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
-import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
+import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -85,7 +85,7 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 	private BufferSpiller.SpilledBufferOrEventSequence currentBuffered;
 
 	/** Handler that receives the checkpoint notifications. */
-	private StatefulTask toNotifyOnCheckpoint;
+	private AbstractInvokable toNotifyOnCheckpoint;
 
 	/** The ID of the checkpoint for which we expect barriers. */
 	private long currentCheckpointId = -1L;
@@ -406,7 +406,7 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 	}
 
 	@Override
-	public void registerCheckpointEventHandler(StatefulTask toNotifyOnCheckpoint) {
+	public void registerCheckpointEventHandler(AbstractInvokable toNotifyOnCheckpoint) {
 		if (this.toNotifyOnCheckpoint == null) {
 			this.toNotifyOnCheckpoint = toNotifyOnCheckpoint;
 		}

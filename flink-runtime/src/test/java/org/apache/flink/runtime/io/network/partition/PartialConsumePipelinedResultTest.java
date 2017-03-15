@@ -22,6 +22,7 @@ import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
@@ -110,6 +111,10 @@ public class PartialConsumePipelinedResultTest extends TestLogger {
 	 */
 	public static class SlowBufferSender extends AbstractInvokable {
 
+		public SlowBufferSender(Environment environment) {
+			super(environment);
+		}
+
 		@Override
 		public void invoke() throws Exception {
 			final ResultPartitionWriter writer = getEnvironment().getWriter(0);
@@ -127,6 +132,10 @@ public class PartialConsumePipelinedResultTest extends TestLogger {
 	 * Reads a single buffer and recycles it.
 	 */
 	public static class SingleBufferReceiver extends AbstractInvokable {
+
+		public SingleBufferReceiver(Environment environment) {
+			super(environment);
+		}
 
 		@Override
 		public void invoke() throws Exception {

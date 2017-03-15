@@ -66,6 +66,7 @@ import java.util.concurrent.Future;
  */
 public abstract class AbstractIterativeTask<S extends Function, OT> extends BatchTask<S, OT>
 		implements Terminable {
+
 	private static final Logger log = LoggerFactory.getLogger(AbstractIterativeTask.class);
 
 	protected LongSumAggregator worksetAggregator;
@@ -85,6 +86,17 @@ public abstract class AbstractIterativeTask<S extends Function, OT> extends Batc
 	private int superstepNum = 1;
 
 	private volatile boolean terminationRequested;
+
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Create an Invokable task and set its environment.
+	 *
+	 * @param environment The environment assigned to this invokable.
+	 */
+	public AbstractIterativeTask(Environment environment) {
+		super(environment);
+	}
 
 	// --------------------------------------------------------------------------------------------
 	// Main life cycle methods that implement the iterative behavior

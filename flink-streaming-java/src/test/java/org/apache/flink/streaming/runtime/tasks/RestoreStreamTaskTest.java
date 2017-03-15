@@ -42,6 +42,7 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Optional;
@@ -86,12 +87,7 @@ public class RestoreStreamTaskTest extends TestLogger {
 			new CounterOperator(),
 			Optional.of(stateHandles));
 
-		assertEquals(
-			new HashSet<OperatorID>() {{
-				add(headOperatorID);
-				add(tailOperatorID);
-			}},
-			RESTORED_OPERATORS);
+		assertEquals(new HashSet<>(Arrays.asList(headOperatorID, tailOperatorID)), RESTORED_OPERATORS);
 	}
 
 	@Test
@@ -115,11 +111,7 @@ public class RestoreStreamTaskTest extends TestLogger {
 			new CounterOperator(),
 			Optional.of(stateHandles));
 
-		assertEquals(
-			new HashSet<OperatorID>() {{
-				add(tailOperatorID);
-			}},
-			RESTORED_OPERATORS);
+		assertEquals(Collections.singleton(tailOperatorID), RESTORED_OPERATORS);
 	}
 
 	@Test
@@ -144,11 +136,7 @@ public class RestoreStreamTaskTest extends TestLogger {
 			new CounterOperator(),
 			Optional.of(stateHandles));
 
-		assertEquals(
-			new HashSet<OperatorID>() {{
-				add(headOperatorID);
-			}},
-			RESTORED_OPERATORS);
+		assertEquals(Collections.singleton(headOperatorID), RESTORED_OPERATORS);
 	}
 
 	@Test
@@ -183,12 +171,7 @@ public class RestoreStreamTaskTest extends TestLogger {
 			new CounterOperator(),
 			Optional.of(stateHandles));
 
-		assertEquals(
-			new HashSet<OperatorID>() {{
-				add(headOperatorID);
-				add(tailOperatorID);
-			}},
-			RESTORED_OPERATORS);
+		assertEquals(new HashSet<>(Arrays.asList(headOperatorID, tailOperatorID)), RESTORED_OPERATORS);
 	}
 
 	@Test
@@ -214,12 +197,7 @@ public class RestoreStreamTaskTest extends TestLogger {
 			new CounterOperator(),
 			Optional.of(stateHandles));
 
-		assertEquals(
-			new HashSet<OperatorID>() {{
-				add(headOperatorID);
-				add(tailOperatorID);
-			}},
-			RESTORED_OPERATORS);
+		assertEquals(new HashSet<>(Arrays.asList(headOperatorID, tailOperatorID)), RESTORED_OPERATORS);
 	}
 
 	private AcknowledgeStreamMockEnvironment createRunAndCheckpointOperatorChain(
@@ -229,10 +207,10 @@ public class RestoreStreamTaskTest extends TestLogger {
 			OneInputStreamOperator<String, String> tailOperator,
 			Optional<TaskStateSnapshot> stateHandles) throws Exception {
 
-		final OneInputStreamTask<String, String> streamTask = new OneInputStreamTask<>();
 		final OneInputStreamTaskTestHarness<String, String> testHarness =
-			new OneInputStreamTaskTestHarness<String, String>(
-				streamTask, 1, 1,
+			new OneInputStreamTaskTestHarness<>(
+				OneInputStreamTask::new,
+				1, 1,
 				BasicTypeInfo.STRING_TYPE_INFO,
 				BasicTypeInfo.STRING_TYPE_INFO);
 
@@ -248,11 +226,10 @@ public class RestoreStreamTaskTest extends TestLogger {
 			new MockInputSplitProvider(),
 			testHarness.bufferSize);
 
-		if (stateHandles.isPresent()) {
-			streamTask.setInitialState(stateHandles.get());
-		}
-		testHarness.invoke(environment);
+		testHarness.invoke(environment, stateHandles.orElse(null));
 		testHarness.waitForTaskRunning();
+
+		OneInputStreamTask<String, String> streamTask = testHarness.getTask();
 
 		processRecords(testHarness);
 		triggerCheckpoint(testHarness, environment, streamTask);

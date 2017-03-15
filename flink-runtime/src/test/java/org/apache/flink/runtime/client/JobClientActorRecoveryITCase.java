@@ -23,6 +23,7 @@ import org.apache.curator.test.TestingServer;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -141,6 +142,10 @@ public class JobClientActorRecoveryITCase extends TestLogger {
 		private volatile static int BlockExecution = 1;
 		private volatile static int HasBlockedExecution = 0;
 		private static Object waitLock = new Object();
+
+		public BlockingTask(Environment environment) {
+			super(environment);
+		}
 
 		@Override
 		public void invoke() throws Exception {

@@ -44,10 +44,12 @@ public class StreamTaskTimerTest {
 
 	@Test
 	public void testOpenCloseAndTimestamps() throws Exception {
-		final OneInputStreamTask<String, String> mapTask = new OneInputStreamTask<>();
 
 		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(
-				mapTask, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+				OneInputStreamTask::new,
+				BasicTypeInfo.STRING_TYPE_INFO,
+				BasicTypeInfo.STRING_TYPE_INFO);
+
 		testHarness.setupOutputForSingletonOperatorChain();
 
 		StreamConfig streamConfig = testHarness.getStreamConfig();
@@ -58,6 +60,8 @@ public class StreamTaskTimerTest {
 
 		testHarness.invoke();
 		testHarness.waitForTaskRunning();
+
+		final OneInputStreamTask<String, String> mapTask = testHarness.getTask();
 
 		// first one spawns thread
 		mapTask.getProcessingTimeService().registerTimer(System.currentTimeMillis(), new ProcessingTimeCallback() {
@@ -84,8 +88,11 @@ public class StreamTaskTimerTest {
 	@Test
 	public void checkScheduledTimestampe() {
 		try {
-			final OneInputStreamTask<String, String> mapTask = new OneInputStreamTask<>();
-			final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(mapTask, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+			final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(
+					OneInputStreamTask::new,
+					BasicTypeInfo.STRING_TYPE_INFO,
+					BasicTypeInfo.STRING_TYPE_INFO);
+
 			testHarness.setupOutputForSingletonOperatorChain();
 
 			StreamConfig streamConfig = testHarness.getStreamConfig();
@@ -94,6 +101,8 @@ public class StreamTaskTimerTest {
 
 			testHarness.invoke();
 			testHarness.waitForTaskRunning();
+
+			final OneInputStreamTask<String, String> mapTask = testHarness.getTask();
 
 			final AtomicReference<Throwable> errorRef = new AtomicReference<>();
 

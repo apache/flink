@@ -27,7 +27,6 @@ import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
 import org.apache.flink.runtime.testutils.recordutils.RecordComparatorFactory;
 import org.apache.flink.runtime.testutils.recordutils.RecordSerializerFactory;
-import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.BatchTask;
@@ -41,6 +40,7 @@ import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -96,9 +96,8 @@ public class ChainTaskTest extends TaskTestBase {
 			
 			// chained map+combine
 			{
-				BatchTask<FlatMapFunction<Record, Record>, Record> testTask =
-											new BatchTask<>();
-				registerTask(testTask, FlatMapDriver.class, MockMapStub.class);
+				registerTask(FlatMapDriver.class, MockMapStub.class);
+				BatchTask<FlatMapFunction<Record, Record>, Record> testTask = new BatchTask<>(this.mockEnv);
 				
 				try {
 					testTask.invoke();
@@ -157,19 +156,16 @@ public class ChainTaskTest extends TaskTestBase {
 			
 			// chained map+combine
 			{
-				final BatchTask<FlatMapFunction<Record, Record>, Record> testTask =
-											new BatchTask<>();
-				
-				super.registerTask(testTask, FlatMapDriver.class, MockMapStub.class);
-	
+				registerTask(FlatMapDriver.class, MockMapStub.class);
+				final BatchTask<FlatMapFunction<Record, Record>, Record> testTask = new BatchTask<>(this.mockEnv);
+
 				boolean stubFailed = false;
-				
 				try {
 					testTask.invoke();
 				} catch (Exception e) {
 					stubFailed = true;
 				}
-				
+
 				Assert.assertTrue("Function exception was not forwarded.", stubFailed);
 			}
 		}

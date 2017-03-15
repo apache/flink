@@ -46,6 +46,7 @@ import org.apache.flink.runtime.operators.util.ReaderIterator;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.util.MutableObjectIterator;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,12 +56,12 @@ import org.slf4j.LoggerFactory;
  * @see OutputFormat
  */
 public class DataSinkTask<IT> extends AbstractInvokable {
-	
+
 	// Obtain DataSinkTask Logger
 	private static final Logger LOG = LoggerFactory.getLogger(DataSinkTask.class);
 
 	// --------------------------------------------------------------------------------------------
-	
+
 	// OutputFormat instance. volatile, because the asynchronous canceller may access it
 	private volatile OutputFormat<IT> format;
 
@@ -82,6 +83,15 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 	private volatile boolean taskCanceled;
 	
 	private volatile boolean cleanupCalled;
+
+	/**
+	 * Create an Invokable task and set its environment.
+	 *
+	 * @param environment The environment assigned to this invokable.
+	 */
+	public DataSinkTask(Environment environment) {
+		super(environment);
+	}
 
 	@Override
 	public void invoke() throws Exception {
@@ -298,7 +308,7 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 		
 		LOG.debug(getLogString("Cancelling data sink operator"));
 	}
-	
+
 	/**
 	 * Initializes the OutputFormat implementation and configuration.
 	 * 

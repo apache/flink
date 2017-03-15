@@ -42,6 +42,7 @@ import org.apache.flink.runtime.operators.util.DistributedRuntimeUDFContext;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.runtime.operators.util.metrics.CountingCollector;
 import org.apache.flink.util.Collector;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -79,6 +80,15 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 	
 	// cancel flag
 	private volatile boolean taskCanceled = false;
+
+	/**
+	 * Create an Invokable task and set its environment.
+	 *
+	 * @param environment The environment assigned to this invokable.
+	 */
+	public DataSourceTask(Environment environment) {
+		super(environment);
+	}
 
 	@Override
 	public void invoke() throws Exception {
@@ -244,7 +254,7 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 		this.taskCanceled = true;
 		LOG.debug(getLogString("Cancelling data source operator"));
 	}
-	
+
 	/**
 	 * Initializes the InputFormat implementation and configuration.
 	 * 

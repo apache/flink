@@ -23,7 +23,6 @@ import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineOnCancellationBarrierException;
 import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineSubsumedException;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -34,7 +33,8 @@ import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
-import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
+import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
@@ -550,7 +550,7 @@ public class BarrierBufferTest {
 			MockInputGate gate = new MockInputGate(PAGE_SIZE, 3, Arrays.asList(sequence));
 			BarrierBuffer buffer = new BarrierBuffer(gate, ioManager);
 
-			StatefulTask toNotify = mock(StatefulTask.class);
+			AbstractInvokable toNotify = mock(AbstractInvokable.class);
 			buffer.registerCheckpointEventHandler(toNotify);
 
 			long startTs;
@@ -1005,7 +1005,7 @@ public class BarrierBufferTest {
 		MockInputGate gate = new MockInputGate(PAGE_SIZE, 1, Arrays.asList(sequence));
 		BarrierBuffer buffer = new BarrierBuffer(gate, ioManager);
 
-		StatefulTask toNotify = mock(StatefulTask.class);
+		AbstractInvokable toNotify = mock(AbstractInvokable.class);
 		buffer.registerCheckpointEventHandler(toNotify);
 
 		check(sequence[0], buffer.getNextNonBlocked());
@@ -1069,7 +1069,7 @@ public class BarrierBufferTest {
 		MockInputGate gate = new MockInputGate(PAGE_SIZE, 3, Arrays.asList(sequence));
 		BarrierBuffer buffer = new BarrierBuffer(gate, ioManager);
 
-		StatefulTask toNotify = mock(StatefulTask.class);
+		AbstractInvokable toNotify = mock(AbstractInvokable.class);
 		buffer.registerCheckpointEventHandler(toNotify);
 
 		long startTs;
@@ -1163,7 +1163,7 @@ public class BarrierBufferTest {
 		MockInputGate gate = new MockInputGate(PAGE_SIZE, 3, Arrays.asList(sequence));
 		BarrierBuffer buffer = new BarrierBuffer(gate, ioManager);
 
-		StatefulTask toNotify = mock(StatefulTask.class);
+		AbstractInvokable toNotify = mock(AbstractInvokable.class);
 		buffer.registerCheckpointEventHandler(toNotify);
 
 		long startTs;
@@ -1254,7 +1254,7 @@ public class BarrierBufferTest {
 		MockInputGate gate = new MockInputGate(PAGE_SIZE, 3, Arrays.asList(sequence));
 		BarrierBuffer buffer = new BarrierBuffer(gate, ioManager);
 
-		StatefulTask toNotify = mock(StatefulTask.class);
+		AbstractInvokable toNotify = mock(AbstractInvokable.class);
 		buffer.registerCheckpointEventHandler(toNotify);
 
 		long startTs;
@@ -1339,7 +1339,7 @@ public class BarrierBufferTest {
 		MockInputGate gate = new MockInputGate(PAGE_SIZE, 3, Arrays.asList(sequence));
 		BarrierBuffer buffer = new BarrierBuffer(gate, ioManager);
 
-		StatefulTask toNotify = mock(StatefulTask.class);
+		AbstractInvokable toNotify = mock(AbstractInvokable.class);
 		buffer.registerCheckpointEventHandler(toNotify);
 
 		long startTs;
@@ -1466,10 +1466,14 @@ public class BarrierBufferTest {
 	//  Testing Mocks
 	// ------------------------------------------------------------------------
 
-	private static class ValidatingCheckpointHandler implements StatefulTask {
+	private static class ValidatingCheckpointHandler extends AbstractInvokable {
 
 		private long nextExpectedCheckpointId = -1L;
 		private long lastReportedBytesBufferedInAlignment = -1;
+
+		public ValidatingCheckpointHandler() {
+			super(new DummyEnvironment("test", 1, 0));
+		}
 
 		public void setNextExpectedCheckpointId(long nextExpectedCheckpointId) {
 			this.nextExpectedCheckpointId = nextExpectedCheckpointId;
@@ -1484,8 +1488,8 @@ public class BarrierBufferTest {
 		}
 
 		@Override
-		public void setInitialState(TaskStateSnapshot taskStateHandles) throws Exception {
-			throw new UnsupportedOperationException("should never be called");
+		public void invoke() {
+			throw new UnsupportedOperationException();
 		}
 
 		@Override

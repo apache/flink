@@ -32,6 +32,7 @@ import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.execution.CancelTaskException;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -1159,6 +1160,10 @@ public class TaskTest extends TestLogger {
 	
 	public static final class TestInvokableCorrect extends AbstractInvokable {
 
+		public TestInvokableCorrect(Environment environment) {
+			super(environment);
+		}
+
 		@Override
 		public void invoke() {}
 
@@ -1169,7 +1174,11 @@ public class TaskTest extends TestLogger {
 	}
 
 	public static final class InvokableWithExceptionInInvoke extends AbstractInvokable {
-		
+
+		public InvokableWithExceptionInInvoke(Environment environment) {
+			super(environment);
+		}
+
 		@Override
 		public void invoke() throws Exception {
 			throw new Exception("test");
@@ -1177,6 +1186,10 @@ public class TaskTest extends TestLogger {
 	}
 
 	public static final class InvokableWithExceptionOnTrigger extends AbstractInvokable {
+
+		public InvokableWithExceptionOnTrigger(Environment environment) {
+			super(environment);
+		}
 
 		@Override
 		public void invoke() {
@@ -1198,9 +1211,18 @@ public class TaskTest extends TestLogger {
 		}
 	}
 
-	public static abstract class InvokableNonInstantiable extends AbstractInvokable {}
+	public static abstract class InvokableNonInstantiable extends AbstractInvokable {
+
+		public InvokableNonInstantiable(Environment environment) {
+			super(environment);
+		}
+	}
 
 	public static final class InvokableBlockingInInvoke extends AbstractInvokable {
+
+		public InvokableBlockingInInvoke(Environment environment) {
+			super(environment);
+		}
 
 		@Override
 		public void invoke() throws Exception {
@@ -1214,6 +1236,10 @@ public class TaskTest extends TestLogger {
 	}
 
 	public static final class InvokableWithCancelTaskExceptionInInvoke extends AbstractInvokable {
+
+		public InvokableWithCancelTaskExceptionInInvoke(Environment environment) {
+			super(environment);
+		}
 
 		@Override
 		public void invoke() throws Exception {
@@ -1232,6 +1258,10 @@ public class TaskTest extends TestLogger {
 
 		private final Object lock = new Object();
 
+		public InvokableInterruptableSharedLockInInvokeAndCancel(Environment environment) {
+			super(environment);
+		}
+
 		@Override
 		public void invoke() throws Exception {
 			synchronized (lock) {
@@ -1249,6 +1279,10 @@ public class TaskTest extends TestLogger {
 	}
 
 	public static final class InvokableBlockingInCancel extends AbstractInvokable {
+
+		public InvokableBlockingInCancel(Environment environment) {
+			super(environment);
+		}
 
 		@Override
 		public void invoke() throws Exception {
@@ -1277,6 +1311,10 @@ public class TaskTest extends TestLogger {
 
 	public static final class InvokableUninterruptibleBlockingInvoke extends AbstractInvokable {
 
+		public InvokableUninterruptibleBlockingInvoke(Environment environment) {
+			super(environment);
+		}
+
 		@Override
 		public void invoke() throws Exception {
 			while (!cancelLatch.isTriggered()) {
@@ -1296,6 +1334,10 @@ public class TaskTest extends TestLogger {
 	}
 
 	public static final class FailingInvokableWithChainedException extends AbstractInvokable {
+
+		public FailingInvokableWithChainedException(Environment environment) {
+			super(environment);
+		}
 
 		@Override
 		public void invoke() throws Exception {

@@ -33,6 +33,7 @@ import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
@@ -212,6 +213,10 @@ public class JvmExitOnFatalErrorTest {
 		}
 
 		public static final class OomInvokable extends AbstractInvokable {
+
+			public OomInvokable(Environment environment) {
+				super(environment);
+			}
 
 			@Override
 			public void invoke() throws Exception {

@@ -21,8 +21,8 @@ package org.apache.flink.runtime.operators;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.distributions.DataDistribution;
-import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.typeutils.TypeComparator;
@@ -79,7 +79,7 @@ import java.util.Map;
 public class BatchTask<S extends Function, OT> extends AbstractInvokable implements TaskContext<S, OT> {
 
 	protected static final Logger LOG = LoggerFactory.getLogger(BatchTask.class);
-	
+
 	// --------------------------------------------------------------------------------------------
 
 	/**
@@ -214,6 +214,19 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 	 */
 	protected Map<String, Accumulator<?,?>> accumulatorMap;
 	private OperatorMetricGroup metrics;
+
+	// --------------------------------------------------------------------------------------------
+	//                                  Constructor
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Create an Invokable task and set its environment.
+	 *
+	 * @param environment The environment assigned to this invokable.
+	 */
+	public BatchTask(Environment environment) {
+		super(environment);
+	}
 
 	// --------------------------------------------------------------------------------------------
 	//                                  Task Interface

@@ -33,6 +33,7 @@ import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -48,7 +49,6 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
-import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
 import org.apache.flink.runtime.jobgraph.tasks.StoppableTask;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
@@ -180,8 +180,8 @@ public class TaskAsyncCallTest {
 	}
 
 	/**
-	 * Asserts that {@link StatefulTask#triggerCheckpoint(CheckpointMetaData, CheckpointOptions)},
-	 * {@link StatefulTask#notifyCheckpointComplete(long)}, and {@link StoppableTask#stop()} are
+	 * Asserts that {@link AbstractInvokable#triggerCheckpoint(CheckpointMetaData, CheckpointOptions)},
+	 * {@link AbstractInvokable#notifyCheckpointComplete(long)}, and {@link StoppableTask#stop()} are
 	 * invoked by a thread whose context class loader is set to the user code class loader.
 	 */
 	@Test
@@ -213,7 +213,7 @@ public class TaskAsyncCallTest {
 
 		LibraryCacheManager libCache = mock(LibraryCacheManager.class);
 		when(libCache.getClassLoader(any(JobID.class))).thenReturn(new TestUserCodeClassLoader());
-		
+
 		ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
 		ResultPartitionConsumableNotifier consumableNotifier = mock(ResultPartitionConsumableNotifier.class);
 		PartitionProducerStateChecker partitionProducerStateChecker = mock(PartitionProducerStateChecker.class);
@@ -273,16 +273,20 @@ public class TaskAsyncCallTest {
 			executor);
 	}
 
-	public static class CheckpointsInOrderInvokable extends AbstractInvokable implements StatefulTask {
+	public static class CheckpointsInOrderInvokable extends AbstractInvokable {
 
 		private volatile long lastCheckpointId = 0;
-		
+
 		private volatile Exception error;
-		
+
+		public CheckpointsInOrderInvokable(Environment environment, TaskStateSnapshot initialState) {
+			super(environment);
+		}
+
 		@Override
 		public void invoke() throws Exception {
 			awaitLatch.trigger();
-			
+
 			// wait forever (until canceled)
 			synchronized (this) {
 				while (error == null && lastCheckpointId < numCalls) {
@@ -299,9 +303,6 @@ public class TaskAsyncCallTest {
 				throw error;
 			}
 		}
-
-		@Override
-		public void setInitialState(TaskStateSnapshot taskStateHandles) throws Exception {}
 
 		@Override
 		public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) {
@@ -350,6 +351,10 @@ public class TaskAsyncCallTest {
 	 * @see #testSetsUserCodeClassLoader()
 	 */
 	public static class ContextClassLoaderInterceptingInvokable extends CheckpointsInOrderInvokable implements StoppableTask {
+
+		public ContextClassLoaderInterceptingInvokable(Environment environment, TaskStateSnapshot initialState) {
+			super(environment, initialState);
+		}
 
 		@Override
 		public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) {

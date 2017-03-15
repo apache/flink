@@ -38,7 +38,7 @@ public class StreamTaskTestHarnessTest {
 	public void testMultipleSetupsThrowsException() {
 		StreamTaskTestHarness<String> harness;
 
-		harness = new StreamTaskTestHarness<>(new OneInputStreamTask<>(), BasicTypeInfo.STRING_TYPE_INFO);
+		harness = new StreamTaskTestHarness<>(OneInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO);
 		harness.setupOutputForSingletonOperatorChain();
 
 		try {
@@ -60,7 +60,7 @@ public class StreamTaskTestHarnessTest {
 			// expected
 		}
 
-		harness = new StreamTaskTestHarness<>(new OneInputStreamTask<>(), BasicTypeInfo.STRING_TYPE_INFO);
+		harness = new StreamTaskTestHarness<>(OneInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO);
 		harness.setupOperatorChain(new OperatorID(), new TestOperator())
 			.chain(new OperatorID(), new TestOperator(), BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()));
 
@@ -83,7 +83,7 @@ public class StreamTaskTestHarnessTest {
 			// expected
 		}
 
-		harness = new StreamTaskTestHarness<>(new TwoInputStreamTask<>(), BasicTypeInfo.STRING_TYPE_INFO);
+		harness = new StreamTaskTestHarness<>(TwoInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO);
 		harness.setupOperatorChain(new OperatorID(), new TwoInputTestOperator())
 			.chain(new OperatorID(), new TestOperator(), BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()));
 

@@ -40,6 +40,7 @@ import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionLocation;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobInformation;
@@ -2047,11 +2048,19 @@ public class TaskManagerTest extends TestLogger {
 	
 	public static final class TestInvokableCorrect extends AbstractInvokable {
 
+		public TestInvokableCorrect(Environment environment) {
+			super(environment);
+		}
+
 		@Override
 		public void invoke() {}
 	}
 	
 	public static class TestInvokableBlockingCancelable extends AbstractInvokable {
+
+		public TestInvokableBlockingCancelable(Environment environment) {
+			super(environment);
+		}
 
 		@Override
 		public void invoke() throws Exception {
@@ -2070,6 +2079,10 @@ public class TaskManagerTest extends TestLogger {
 
 		private static final Object lock = new Object();
 		private static CompletableFuture<Boolean> gotCanceledFuture = new CompletableFuture<>();
+
+		public TestInvokableRecordCancel(Environment environment) {
+			super(environment);
+		}
 
 		@Override
 		public void invoke() throws Exception {

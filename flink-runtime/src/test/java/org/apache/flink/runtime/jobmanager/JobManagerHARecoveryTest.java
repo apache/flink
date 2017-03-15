@@ -25,6 +25,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
 import org.apache.flink.runtime.blob.BlobServer;
@@ -38,6 +39,7 @@ import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.executiongraph.restart.FixedDelayRestartStrategy;
@@ -56,7 +58,6 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
-import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
@@ -97,6 +98,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -119,6 +121,8 @@ import scala.concurrent.Future;
 import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 import scala.runtime.BoxedUnit;
+
+import javax.annotation.Nullable;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertFalse;
@@ -486,28 +490,23 @@ public class JobManagerHARecoveryTest extends TestLogger {
 
 	public static class BlockingInvokable extends AbstractInvokable {
 
-		private static boolean blocking = true;
-		private static Object lock = new Object();
+		private static final OneShotLatch LATCH = new OneShotLatch();
+
+		public BlockingInvokable(Environment environment, @Nullable TaskStateSnapshot initialState) {
+			super(environment);
+		}
 
 		@Override
 		public void invoke() throws Exception {
-			while (blocking) {
-				synchronized (lock) {
-					lock.wait();
-				}
-			}
+			LATCH.await();
 		}
 
 		public static void unblock() {
-			blocking = false;
-
-			synchronized (lock) {
-				lock.notifyAll();
-			}
+			LATCH.trigger();
 		}
 	}
 
-	public static class BlockingStatefulInvokable extends BlockingInvokable implements StatefulTask {
+	public static class BlockingStatefulInvokable extends BlockingInvokable {
 
 		private static final int NUM_CHECKPOINTS_TO_COMPLETE = 5;
 
@@ -517,14 +516,17 @@ public class JobManagerHARecoveryTest extends TestLogger {
 
 		private int completedCheckpoints = 0;
 
-		@Override
-		public void setInitialState(
-			TaskStateSnapshot taskStateHandles) throws Exception {
+		public BlockingStatefulInvokable(Environment environment, @Nullable TaskStateSnapshot initialState) {
+			super(environment, initialState);
+
 			int subtaskIndex = getIndexInSubtaskGroup();
-			if (subtaskIndex < recoveredStates.length) {
-				OperatorStateHandle operatorStateHandle = extractSingletonOperatorState(taskStateHandles);
+			if (initialState != null && subtaskIndex < recoveredStates.length) {
+				OperatorStateHandle operatorStateHandle = extractSingletonOperatorState(initialState);
 				try (FSDataInputStream in = operatorStateHandle.openInputStream()) {
 					recoveredStates[subtaskIndex] = InstantiationUtil.deserializeObject(in, getUserCodeClassLoader());
+				}
+				catch (IOException | ClassNotFoundException e) {
+					throw new RuntimeException(e.getMessage(), e);
 				}
 			}
 		}

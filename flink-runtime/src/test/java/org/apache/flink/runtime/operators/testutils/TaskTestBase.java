@@ -43,7 +43,7 @@ import org.junit.After;
 import java.util.List;
 
 public abstract class TaskTestBase extends TestLogger {
-	
+
 	protected long memorySize = 0;
 
 	protected MockInputSplitProvider inputSplitProvider;
@@ -88,34 +88,26 @@ public abstract class TaskTestBase extends TestLogger {
 		return this.mockEnv.getTaskConfiguration();
 	}
 
-	public void registerTask(AbstractInvokable task, 
-								@SuppressWarnings("rawtypes") Class<? extends Driver> driver,
-								Class<? extends RichFunction> stubClass) {
-		
+	public void registerTask(
+			@SuppressWarnings("rawtypes") Class<? extends Driver> driver,
+			Class<? extends RichFunction> stubClass) {
+
 		final TaskConfig config = new TaskConfig(this.mockEnv.getTaskConfiguration());
 		config.setDriver(driver);
 		config.setStubWrapper(new UserCodeClassWrapper<>(stubClass));
-		
-		task.setEnvironment(this.mockEnv);
 	}
 
-	public void registerTask(AbstractInvokable task) {
-		task.setEnvironment(this.mockEnv);
+	public void registerFileOutputTask(Class<? extends FileOutputFormat<Record>> stubClass, String outPath) {
+		registerFileOutputTask(InstantiationUtil.instantiate(stubClass, FileOutputFormat.class), outPath);
 	}
 
-	public void registerFileOutputTask(AbstractInvokable outTask, Class<? extends FileOutputFormat<Record>> stubClass, String outPath) {
-		registerFileOutputTask(outTask, InstantiationUtil.instantiate(stubClass, FileOutputFormat.class), outPath);
-	}
-	
-	public void registerFileOutputTask(AbstractInvokable outTask, FileOutputFormat<Record> outputFormat, String outPath) {
+	public void registerFileOutputTask(FileOutputFormat<Record> outputFormat, String outPath) {
 		TaskConfig dsConfig = new TaskConfig(this.mockEnv.getTaskConfiguration());
-		
+
 		outputFormat.setOutputFilePath(new Path(outPath));
 		outputFormat.setWriteMode(WriteMode.OVERWRITE);
 
 		dsConfig.setStubWrapper(new UserCodeObjectWrapper<>(outputFormat));
-
-		outTask.setEnvironment(this.mockEnv);
 	}
 
 	public void registerFileInputTask(AbstractInvokable inTask,
@@ -128,16 +120,14 @@ public abstract class TaskTestBase extends TestLogger {
 		catch (Throwable t) {
 			throw new RuntimeException("Could not instantiate test input format.", t);
 		}
-		
+
 		format.setFilePath(inPath);
 		format.setDelimiter(delimiter);
-		
+
 		TaskConfig dsConfig = new TaskConfig(this.mockEnv.getTaskConfiguration());
 		dsConfig.setStubWrapper(new UserCodeObjectWrapper<>(format));
-		
-		this.inputSplitProvider.addInputSplits(inPath, 5);
 
-		inTask.setEnvironment(this.mockEnv);
+		this.inputSplitProvider.addInputSplits(inPath, 5);
 	}
 
 	public MemoryManager getMemoryManager() {

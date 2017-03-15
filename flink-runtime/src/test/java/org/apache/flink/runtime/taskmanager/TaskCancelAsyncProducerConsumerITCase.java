@@ -21,6 +21,7 @@ package org.apache.flink.runtime.taskmanager;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
@@ -180,6 +181,10 @@ public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
 	 */
 	public static class AsyncProducer extends AbstractInvokable {
 
+		public AsyncProducer(Environment environment) {
+			super(environment);
+		}
+
 		@Override
 		public void invoke() throws Exception {
 			Thread producer = new ProducerThread(getEnvironment().getWriter(0));
@@ -232,6 +237,10 @@ public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
 	 * thread).
 	 */
 	public static class AsyncConsumer extends AbstractInvokable {
+
+		public AsyncConsumer(Environment environment) {
+			super(environment);
+		}
 
 		@Override
 		public void invoke() throws Exception {

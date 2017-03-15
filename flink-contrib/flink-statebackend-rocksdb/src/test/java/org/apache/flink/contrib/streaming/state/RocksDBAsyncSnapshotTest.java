@@ -111,9 +111,9 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 	@Test
 	public void testFullyAsyncSnapshot() throws Exception {
 
-		final OneInputStreamTask<String, String> task = new OneInputStreamTask<>();
-
-		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(task, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(
+				OneInputStreamTask::new,
+				BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 		testHarness.setupOutputForSingletonOperatorChain();
 
 		testHarness.configureForKeyedStream(new KeySelector<String, String>() {
@@ -179,6 +179,8 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 
 		testHarness.invoke(mockEnv);
 
+		final OneInputStreamTask<String, String> task = testHarness.getTask();
+
 		// wait for the task to be running
 		for (Field field: StreamTask.class.getDeclaredFields()) {
 			if (field.getName().equals("isRunning")) {
@@ -213,13 +215,13 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 
 	/**
 	 * This tests ensures that canceling of asynchronous snapshots works as expected and does not block.
-	 * @throws Exception
 	 */
 	@Test
 	public void testCancelFullyAsyncCheckpoints() throws Exception {
-		final OneInputStreamTask<String, String> task = new OneInputStreamTask<>();
+		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(
+				OneInputStreamTask::new,
+				BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 
-		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(task, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 		testHarness.setupOutputForSingletonOperatorChain();
 
 		testHarness.configureForKeyedStream(new KeySelector<String, String>() {
@@ -277,6 +279,8 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 		blockerCheckpointStreamFactory.setWaiterLatch(new OneShotLatch());
 
 		testHarness.invoke(mockEnv);
+
+		final OneInputStreamTask<String, String> task = testHarness.getTask();
 
 		// wait for the task to be running
 		for (Field field: StreamTask.class.getDeclaredFields()) {

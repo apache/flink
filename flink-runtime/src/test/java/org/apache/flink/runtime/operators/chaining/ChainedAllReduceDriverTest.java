@@ -92,8 +92,8 @@ public class ChainedAllReduceDriverTest extends TaskTestBase {
 
 			// chained map+reduce
 			{
-				BatchTask<FlatMapFunction<Record, Record>, Record> testTask = new BatchTask<>();
-				registerTask(testTask, FlatMapDriver.class, MockMapStub.class);
+				registerTask(FlatMapDriver.class, MockMapStub.class);
+				BatchTask<FlatMapFunction<Record, Record>, Record> testTask = new BatchTask<>(mockEnv);
 
 				try {
 					testTask.invoke();

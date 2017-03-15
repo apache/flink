@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobmanager.scheduler;
 
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -42,9 +43,9 @@ import static org.apache.flink.runtime.jobmanager.SlotCountExceedingParallelismT
 
 public class ScheduleOrUpdateConsumersTest extends TestLogger {
 
-	private final static int NUMBER_OF_TMS = 2;
-	private final static int NUMBER_OF_SLOTS_PER_TM = 2;
-	private final static int PARALLELISM = NUMBER_OF_TMS * NUMBER_OF_SLOTS_PER_TM;
+	private static final int NUMBER_OF_TMS = 2;
+	private static final int NUMBER_OF_SLOTS_PER_TM = 2;
+	private static final int PARALLELISM = NUMBER_OF_TMS * NUMBER_OF_SLOTS_PER_TM;
 
 	private static TestingCluster flink;
 
@@ -124,7 +125,11 @@ public class ScheduleOrUpdateConsumersTest extends TestLogger {
 
 	public static class BinaryRoundRobinSubtaskIndexSender extends AbstractInvokable {
 
-		public final static String CONFIG_KEY = "number-of-times-to-send";
+		public static final String CONFIG_KEY = "number-of-times-to-send";
+
+		public BinaryRoundRobinSubtaskIndexSender(Environment environment) {
+			super(environment);
+		}
 
 		@Override
 		public void invoke() throws Exception {
