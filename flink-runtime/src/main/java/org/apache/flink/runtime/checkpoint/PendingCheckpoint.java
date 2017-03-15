@@ -46,6 +46,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledFuture;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -98,6 +99,8 @@ public class PendingCheckpoint {
 	/** Optional stats tracker callback. */
 	@Nullable
 	private PendingCheckpointStats statsCallback;
+
+	private volatile ScheduledFuture<?> cancellerHandle;
 
 	// --------------------------------------------------------------------------------------------
 
@@ -195,6 +198,27 @@ public class PendingCheckpoint {
 	 */
 	void setStatsCallback(@Nullable PendingCheckpointStats trackerCallback) {
 		this.statsCallback = trackerCallback;
+	}
+
+	/**
+	 * Sets the handle for the canceller to this pending checkoint.
+	 * 
+	 * @return true, if the handle was set, false, if the checkpoint is already disposed;
+	 */
+	public boolean setCancellerHandle(ScheduledFuture<?> cancellerHandle) {
+		synchronized (lock) {
+			if (this.cancellerHandle == null) {
+				if (!discarded) {
+					this.cancellerHandle = cancellerHandle;
+					return true;
+				} else {
+					return false;
+				}
+			}
+			else {
+				throw new IllegalStateException("A canceller handle was already set");
+			}
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -490,7 +514,21 @@ public class PendingCheckpoint {
 				discarded = true;
 				notYetAcknowledgedTasks.clear();
 				acknowledgedTasks.clear();
+				cancelCanceller();
 			}
+		}
+	}
+
+	private void cancelCanceller() {
+		try {
+			final ScheduledFuture<?> canceller = this.cancellerHandle;
+			if (canceller != null) {
+				canceller.cancel(false);
+			}
+		}
+		catch (Exception e) {
+			// this code should not throw exceptions
+			LOG.warn("Error while cancelling checkpoint timeout task", e);
 		}
 	}
 
