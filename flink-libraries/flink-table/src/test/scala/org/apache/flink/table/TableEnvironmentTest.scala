@@ -21,13 +21,13 @@ package org.apache.flink.table
 import org.apache.flink.api.scala._
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.{TupleTypeInfo, TypeExtractor}
 import org.apache.flink.table.api.scala._
+import org.apache.flink.api.java.typeutils.{GenericTypeInfo, TupleTypeInfo, TypeExtractor}
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.expressions.{Alias, UnresolvedFieldReference}
 import org.apache.flink.table.utils.{MockTableEnvironment, TableTestBase}
-import org.apache.flink.table.utils.TableTestUtil._
-
+import org.apache.flink.table.utils.TableTestUtil.{batchTableNode, binaryNode, streamTableNode, term, unaryNode}
+import org.apache.flink.types.Row
 import org.junit.Test
 import org.junit.Assert.assertEquals
 
@@ -45,6 +45,8 @@ class TableEnvironmentTest extends TableTestBase {
   val pojoType = TypeExtractor.createTypeInfo(classOf[PojoClass])
 
   val atomicType = INT_TYPE_INFO
+
+  val genericRowType = new GenericTypeInfo[Row](classOf[Row])
 
   @Test
   def testGetFieldInfoTuple(): Unit = {
@@ -76,6 +78,11 @@ class TableEnvironmentTest extends TableTestBase {
 
     fieldInfo._1.zip(Array("f0")).foreach(x => assertEquals(x._2, x._1))
     fieldInfo._2.zip(Array(0)).foreach(x => assertEquals(x._2, x._1))
+  }
+
+  @Test(expected = classOf[TableException])
+  def testGetFieldInfoGenericRow(): Unit = {
+    tEnv.getFieldInfo(genericRowType)
   }
 
   @Test
@@ -276,6 +283,11 @@ class TableEnvironmentTest extends TableTestBase {
       Array(
         Alias(UnresolvedFieldReference("name1"), "name2")
       ))
+  }
+
+  @Test(expected = classOf[TableException])
+  def testGetFieldInfoGenericRowAlias(): Unit = {
+    tEnv.getFieldInfo(genericRowType, Array(UnresolvedFieldReference("first")))
   }
 
   @Test
