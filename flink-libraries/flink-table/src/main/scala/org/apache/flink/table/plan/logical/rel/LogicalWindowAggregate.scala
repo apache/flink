@@ -27,6 +27,8 @@ import org.apache.flink.table.calcite.{FlinkTypeFactory, FlinkRelBuilder}
 import FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.plan.logical.LogicalWindow
 
+import java.util
+
 class LogicalWindowAggregate(
     window: LogicalWindow,
     namedProperties: Seq[NamedWindowProperty],
@@ -35,8 +37,8 @@ class LogicalWindowAggregate(
     child: RelNode,
     indicator: Boolean,
     groupSet: ImmutableBitSet,
-    groupSets: java.util.List[ImmutableBitSet],
-    aggCalls: java.util.List[AggregateCall])
+    groupSets: util.List[ImmutableBitSet],
+    aggCalls: util.List[AggregateCall])
   extends Aggregate(
     cluster,
     traitSet,
@@ -55,8 +57,8 @@ class LogicalWindowAggregate(
       input: RelNode,
       indicator: Boolean,
       groupSet: ImmutableBitSet,
-      groupSets: java.util.List[ImmutableBitSet],
-      aggCalls: java.util.List[AggregateCall])
+      groupSets: util.List[ImmutableBitSet],
+      aggCalls: util.List[AggregateCall])
     : Aggregate = {
 
     new LogicalWindowAggregate(

@@ -201,6 +201,26 @@ object AggregateUtil {
       
   }
   
+    private[flink] def CreateBoundedProcessingOverGlobalWindowFunction(
+      namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+    inputType: RelDataType): AllWindowFunction[Row,Row,GlobalWindow] = {
+
+    val (aggFields, aggregates) =
+      transformToAggregateFunctions(
+        namedAggregates.map(_.getKey),
+        inputType,
+        needRetraction = false)
+
+    val aggregationStateType: RowTypeInfo =
+      createDataSetAggregateBufferDataType(Array(), aggregates, inputType)
+
+    new BoundedProcessingOverAllWindowFunction[GlobalWindow](
+      aggregates,
+      aggFields,
+      inputType.getFieldCount)
+
+  }
+  
   def getLowerBoundary(
       constants: ImmutableList[RexLiteral],
       lowerBound: RexWindowBound,
