@@ -107,7 +107,7 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 	/**
 	 * If true, the producer will wait until all outstanding records have been send to the broker.
 	 */
-	private boolean flushOnCheckpoint;
+	protected boolean flushOnCheckpoint;
 	
 	// -------------------------------- Runtime fields ------------------------------------------
 
@@ -330,7 +330,10 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 	protected abstract void flush();
 
 	@Override
-	public Serializable snapshotState(long checkpointId, long checkpointTimestamp) {
+	public Serializable snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
+		// check for asynchronous errors and fail the checkpoint if necessary
+		checkErroneous();
+
 		if (flushOnCheckpoint) {
 			// flushing is activated: We need to wait until pendingRecords is 0
 			flush();
@@ -338,7 +341,9 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 				if (pendingRecords != 0) {
 					throw new IllegalStateException("Pending record count must be zero at this point: " + pendingRecords);
 				}
-				// pending records count is 0. We can now confirm the checkpoint
+
+				// if the flushed requests has errors, we should propagate it also and fail the checkpoint
+				checkErroneous();
 			}
 		}
 		// return empty state
@@ -373,5 +378,12 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 		Properties props = new Properties();
 		props.setProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, brokerList);
 		return props;
+	}
+
+	// this is exposed for testing purposes
+	protected long numPendingRecords() {
+		synchronized (pendingRecordsLock) {
+			return pendingRecords;
+		}
 	}
 }
