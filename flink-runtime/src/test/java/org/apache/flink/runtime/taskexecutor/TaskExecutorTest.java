@@ -191,11 +191,11 @@ public class TaskExecutorTest extends TestLogger {
 			assertTrue(jobManagerTable.contains(jobId));
 			assertTrue(jobManagerConnections.containsKey(jmResourceId));
 
-			// continue to unmonitor heartbeat target
+			// control to unmonitor heartbeat target
 			waitLatch.countDown();
 
 			// after heartbeat timeout
-			verify(jobMasterGateway, timeout(heartbeatTimeout)).disconnectTaskManager(eq(tmResourceId));
+			verify(jobMasterGateway, timeout(heartbeatTimeout * 10)).disconnectTaskManager(eq(tmResourceId));
 			assertFalse(heartbeatTargets.containsKey(jmResourceId));
 			assertFalse(jobManagerTable.contains(jobId));
 			assertFalse(jobManagerConnections.containsKey(jmResourceId));

@@ -117,7 +117,7 @@ public class JobMasterTest extends TestLogger {
 			// register task manager will trigger monitoring heartbeat target, schedule heartbeat request in interval time
 			jobMaster.registerTaskManager(taskManagerAddress, taskManagerLocation, jmLeaderId);
 
-			verify(taskExecutorGateway, atLeast(1)).heartbeatFromJobManager(eq(jmResourceId));
+			verify(taskExecutorGateway, timeout(heartbeatInterval * 100).atLeast(1)).heartbeatFromJobManager(eq(jmResourceId));
 
 			final ConcurrentHashMap<ResourceID, Object> heartbeatTargets = Whitebox.getInternalState(jmHeartbeatManager, "heartbeatTargets");
 			final Map<ResourceID, Tuple2<TaskManagerLocation, TaskExecutorGateway>> registeredTMsInJM = Whitebox.getInternalState(jobMaster, "registeredTaskManagers");
@@ -128,11 +128,11 @@ public class JobMasterTest extends TestLogger {
 			assertTrue(heartbeatTargets.containsKey(tmResourceId));
 			assertTrue(registeredTMsInJM.containsKey(tmResourceId));
 
-			// continue to unmonitor heartbeat target
+			// control to unmonitor heartbeat target
 			waitLatch.countDown();
 
 			// after heartbeat timeout
-			verify(slotPoolGateway, timeout(heartbeatTimeout * 5)).releaseTaskManager(eq(tmResourceId));
+			verify(slotPoolGateway, timeout(heartbeatTimeout * 10)).releaseTaskManager(eq(tmResourceId));
 			assertFalse(heartbeatTargets.containsKey(tmResourceId));
 			assertFalse(registeredTMsInJM.containsKey(tmResourceId));
 
