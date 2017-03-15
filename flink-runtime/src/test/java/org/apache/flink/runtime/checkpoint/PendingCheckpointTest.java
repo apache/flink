@@ -24,6 +24,7 @@ import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -36,6 +37,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledFuture;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -44,7 +46,6 @@ import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyLong;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -277,6 +278,23 @@ public class PendingCheckpointTest {
 			pending.abortExpired();
 			verify(callback, times(1)).reportFailedCheckpoint(anyLong(), any(Exception.class));
 		}
+	}
+
+	@Test
+	public void testSetCanceller() {
+		final CheckpointProperties props = new CheckpointProperties(false, false, true, true, true, true, true);
+
+		PendingCheckpoint aborted = createPendingCheckpoint(props, null);
+		aborted.abortDeclined();
+		assertTrue(aborted.isDiscarded());
+		assertFalse(aborted.setCancellerHandle(mock(ScheduledFuture.class)));
+
+		PendingCheckpoint pending = createPendingCheckpoint(props, null);
+		ScheduledFuture<?> canceller = mock(ScheduledFuture.class);
+
+		assertTrue(pending.setCancellerHandle(canceller));
+		pending.abortDeclined();
+		verify(canceller).cancel(false);
 	}
 
 	// ------------------------------------------------------------------------
