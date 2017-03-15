@@ -57,7 +57,16 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, MainThreadExecutable, StartStoppable, SelfGateway {
 	private static final Logger LOG = LoggerFactory.getLogger(AkkaInvocationHandler.class);
 
+	/**
+	 * The Akka (RPC) address of {@link #rpcEndpoint} including host and port of the ActorSystem in
+	 * which the actor is running.
+	 */
 	private final String address;
+
+	/**
+	 * Hostname of the host, {@link #rpcEndpoint} is running on.
+	 */
+	private final String hostname;
 
 	private final ActorRef rpcEndpoint;
 
@@ -74,12 +83,14 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, MainThrea
 
 	AkkaInvocationHandler(
 			String address,
+			String hostname,
 			ActorRef rpcEndpoint,
 			Time timeout,
 			long maximumFramesize,
 			Future<Void> terminationFuture) {
 
 		this.address = Preconditions.checkNotNull(address);
+		this.hostname = Preconditions.checkNotNull(hostname);
 		this.rpcEndpoint = Preconditions.checkNotNull(rpcEndpoint);
 		this.isLocal = this.rpcEndpoint.path().address().hasLocalScope();
 		this.timeout = Preconditions.checkNotNull(timeout);
@@ -311,6 +322,11 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, MainThrea
 	@Override
 	public String getAddress() {
 		return address;
+	}
+
+	@Override
+	public String getHostname() {
+		return hostname;
 	}
 
 	@Override
