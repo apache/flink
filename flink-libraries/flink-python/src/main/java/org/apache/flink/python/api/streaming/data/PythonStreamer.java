@@ -92,6 +92,7 @@ public class PythonStreamer implements Serializable {
 	 */
 	public void open() throws IOException {
 		server = new ServerSocket(0);
+		server.setSoTimeout(50);
 		startPython();
 	}
 
@@ -149,9 +150,29 @@ public class PythonStreamer implements Serializable {
 		} catch (IllegalThreadStateException ise) { //process still active -> start receiving data
 		}
 
-		socket = server.accept();
+		while (true) {
+			try {
+				socket = server.accept();
+				break;
+			} catch (SocketTimeoutException ignored) {
+				checkPythonProcessHealth();
+			}
+		}
 		in = new DataInputStream(socket.getInputStream());
 		out = new DataOutputStream(socket.getOutputStream());
+	}
+
+	private void checkPythonProcessHealth() {
+		try {
+			int value = process.exitValue();
+			if (value != 0) {
+				throw new RuntimeException("Plan file caused an error. Check log-files for details.");
+			}
+			if (value == 0) {
+				throw new RuntimeException("Plan file exited prematurely without an error.");
+			}
+		} catch (IllegalThreadStateException ise) {//Process still running
+		}
 	}
 
 	/**
