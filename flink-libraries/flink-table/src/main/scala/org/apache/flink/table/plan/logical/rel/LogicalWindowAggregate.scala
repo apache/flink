@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.plan.logical.rel
 
-import java.util
-
 import org.apache.calcite.plan.{Convention, RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
@@ -37,8 +35,8 @@ class LogicalWindowAggregate(
     child: RelNode,
     indicator: Boolean,
     groupSet: ImmutableBitSet,
-    groupSets: util.List[ImmutableBitSet],
-    aggCalls: util.List[AggregateCall])
+    groupSets: java.util.List[ImmutableBitSet],
+    aggCalls: java.util.List[AggregateCall])
   extends Aggregate(
     cluster,
     traitSet,
@@ -57,8 +55,8 @@ class LogicalWindowAggregate(
       input: RelNode,
       indicator: Boolean,
       groupSet: ImmutableBitSet,
-      groupSets: util.List[ImmutableBitSet],
-      aggCalls: util.List[AggregateCall])
+      groupSets: java.util.List[ImmutableBitSet],
+      aggCalls: java.util.List[AggregateCall])
     : Aggregate = {
 
     new LogicalWindowAggregate(
