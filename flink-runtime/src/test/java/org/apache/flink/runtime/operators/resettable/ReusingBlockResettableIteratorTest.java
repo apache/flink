@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.operators.resettable;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.testutils.recordutils.RecordSerializer;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
@@ -40,6 +42,8 @@ public class ReusingBlockResettableIteratorTest {
 	private static final int MEMORY_CAPACITY = 3 * 128 * 1024;
 	
 	private static final int NUM_VALUES = 20000;
+
+	private Environment dummyEnvironment = new DummyEnvironment("test", 1, 0);
 	
 	private MemoryManager memman;
 
@@ -80,7 +84,7 @@ public class ReusingBlockResettableIteratorTest {
 	@Test
 	public void testSerialBlockResettableIterator() throws Exception
 	{
-		final AbstractInvokable memOwner = new DummyInvokable();
+		final AbstractInvokable memOwner = new DummyInvokable(dummyEnvironment, null);
 		// create the resettable Iterator
 		final ReusingBlockResettableIterator<Record> iterator = new ReusingBlockResettableIterator<Record>(
 				this.memman, this.reader, this.serializer, 1, memOwner);
@@ -119,7 +123,7 @@ public class ReusingBlockResettableIteratorTest {
 	@Test
 	public void testDoubleBufferedBlockResettableIterator() throws Exception
 	{
-		final AbstractInvokable memOwner = new DummyInvokable();
+		final AbstractInvokable memOwner = new DummyInvokable(dummyEnvironment, null);
 		// create the resettable Iterator
 		final ReusingBlockResettableIterator<Record> iterator = new ReusingBlockResettableIterator<Record>(
 				this.memman, this.reader, this.serializer, 2, memOwner);
@@ -159,7 +163,7 @@ public class ReusingBlockResettableIteratorTest {
 	@Test
 	public void testTwelveFoldBufferedBlockResettableIterator() throws Exception
 	{
-		final AbstractInvokable memOwner = new DummyInvokable();
+		final AbstractInvokable memOwner = new DummyInvokable(dummyEnvironment, null);
 		// create the resettable Iterator
 		final ReusingBlockResettableIterator<Record> iterator = new ReusingBlockResettableIterator<Record>(
 				this.memman, this.reader, this.serializer, 12, memOwner);

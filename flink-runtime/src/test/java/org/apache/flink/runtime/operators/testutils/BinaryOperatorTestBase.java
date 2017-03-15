@@ -109,7 +109,7 @@ public class BinaryOperatorTestBase<S extends Function, IN, OUT> extends TestLog
 		this.comparators = new ArrayList<>();
 		this.sorters = new ArrayList<>();
 		
-		this.owner = new DummyInvokable();
+		this.owner = new DummyInvokable(new DummyEnvironment("test", 1, 0), null);
 		this.taskConfig = new TaskConfig(new Configuration());
 		this.executionConfig = executionConfig;
 		this.taskManageInfo = new TestingTaskManagerRuntimeInfo();

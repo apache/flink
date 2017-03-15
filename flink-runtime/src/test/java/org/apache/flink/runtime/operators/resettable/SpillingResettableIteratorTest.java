@@ -29,6 +29,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.types.IntValue;
 
@@ -43,7 +44,7 @@ public class SpillingResettableIteratorTest {
 
 	private static final int MEMORY_CAPACITY = 10 * 1024 * 1024;
 	
-	private final AbstractInvokable memOwner = new DummyInvokable();
+	private final AbstractInvokable memOwner = new DummyInvokable(new DummyEnvironment("test", 1, 0), null);
 
 	private IOManager ioman;
 

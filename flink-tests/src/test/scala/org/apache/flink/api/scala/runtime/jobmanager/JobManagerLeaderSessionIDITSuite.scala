@@ -24,16 +24,17 @@ import akka.actor.ActorSystem
 import akka.actor.Status.Success
 import akka.testkit.{ImplicitSender, TestKit}
 import org.apache.flink.api.common.ExecutionConfig
-import org.apache.flink.runtime.akka.{ListeningBehaviour, AkkaUtils}
+import org.apache.flink.runtime.akka.{AkkaUtils, ListeningBehaviour}
+import org.apache.flink.runtime.checkpoint.{CheckpointMetaData, CheckpointMetrics, CheckpointOptions}
+import org.apache.flink.runtime.execution.Environment
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable
 import org.apache.flink.runtime.jobgraph.{JobGraph, JobVertex}
-import org.apache.flink.runtime.messages.JobManagerMessages.{LeaderSessionMessage, CancelJob,
-JobResultSuccess, SubmitJob}
-import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.{AllVerticesRunning,
-WaitForAllVerticesToBeRunning}
+import org.apache.flink.runtime.messages.JobManagerMessages.{CancelJob, JobResultSuccess, LeaderSessionMessage, SubmitJob}
+import org.apache.flink.runtime.state.TaskStateHandles
+import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.{AllVerticesRunning, WaitForAllVerticesToBeRunning}
 import org.apache.flink.runtime.testingUtils.{ScalaTestingUtils, TestingUtils}
 import org.junit.runner.RunWith
-import org.scalatest.{FunSuiteLike, Matchers, BeforeAndAfterAll}
+import org.scalatest.{BeforeAndAfterAll, FunSuiteLike, Matchers}
 import org.scalatest.junit.JUnitRunner
 
 @RunWith(classOf[JUnitRunner])
@@ -90,12 +91,36 @@ class JobManagerLeaderSessionIDITSuite(_system: ActorSystem)
   }
 }
 
-class BlockingUntilSignalNoOpInvokable extends AbstractInvokable {
+class BlockingUntilSignalNoOpInvokable(environment: Environment, taskStateHandles: TaskStateHandles)
+  extends AbstractInvokable(environment, taskStateHandles) {
 
   override def invoke(): Unit = {
     BlockingUntilSignalNoOpInvokable.lock.synchronized{
       BlockingUntilSignalNoOpInvokable.lock.wait()
     }
+  }
+
+  override def triggerCheckpoint(checkpointMetaData: CheckpointMetaData,
+                                  checkpointOptions: CheckpointOptions): Boolean = {
+    throw new UnsupportedOperationException(
+      String.format("triggerCheckpoint not supported by %s", this.getClass.getName))
+  }
+
+  override def triggerCheckpointOnBarrier(checkpointMetaData: CheckpointMetaData,
+                                          checkpointOptions: CheckpointOptions,
+                                          checkpointMetrics: CheckpointMetrics): Unit = {
+    throw new UnsupportedOperationException(
+      String.format("triggerCheckpointOnBarrier not supported by %s", this.getClass.getName))
+  }
+
+  override def abortCheckpointOnBarrier(checkpointId: Long, cause: Throwable): Unit = {
+    throw new UnsupportedOperationException(
+      String.format("abortCheckpointOnBarrier not supported by %s", this.getClass.getName))
+  }
+
+  override def notifyCheckpointComplete(checkpointId: Long): Unit = {
+    throw new UnsupportedOperationException(
+      String.format("notifyCheckpointComplete not supported by %s", this.getClass.getName))
   }
 }
 

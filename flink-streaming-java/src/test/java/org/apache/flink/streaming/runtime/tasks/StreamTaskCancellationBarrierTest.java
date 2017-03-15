@@ -23,7 +23,9 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineOnCancellationBarrierException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
+import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
@@ -49,12 +51,12 @@ public class StreamTaskCancellationBarrierTest {
 	 */
 	@Test
 	public void testEmitCancellationBarrierWhenNotReady() throws Exception {
-		StreamTask<String, ?> task = new InitBlockingTask();
-		StreamTaskTestHarness<String> testHarness = new StreamTaskTestHarness<>(task, BasicTypeInfo.STRING_TYPE_INFO);
+		StreamTaskTestHarness<String> testHarness = new StreamTaskTestHarness<>(BasicTypeInfo.STRING_TYPE_INFO);
 		testHarness.setupOutputForSingletonOperatorChain();
 
 		// start the test - this cannot succeed across the 'init()' method
-		testHarness.invoke();
+		StreamTask<String, ?> task = new InitBlockingTask(testHarness.createEnvironment(), null);
+		testHarness.invoke(task);
 
 		// tell the task to commence a checkpoint
 		boolean result = task.triggerCheckpoint(new CheckpointMetaData(41L, System.currentTimeMillis()),
@@ -77,10 +79,7 @@ public class StreamTaskCancellationBarrierTest {
 	 */
 	@Test
 	public void testDeclineCallOnCancelBarrierOneInput() throws Exception {
-
-		OneInputStreamTask<String, String> task = new OneInputStreamTask<String, String>();
 		OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(
-				task,
 				1, 2,
 				BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 		testHarness.setupOutputForSingletonOperatorChain();
@@ -92,7 +91,9 @@ public class StreamTaskCancellationBarrierTest {
 		StreamMockEnvironment environment = spy(testHarness.createEnvironment());
 
 		// start the task
-		testHarness.invoke(environment);
+		OneInputStreamTask<String, String> task = new OneInputStreamTask<String, String>(environment, null);
+
+		testHarness.invoke(task);
 		testHarness.waitForTaskRunning();
 
 		// emit cancellation barriers
@@ -123,10 +124,7 @@ public class StreamTaskCancellationBarrierTest {
 	 */
 	@Test
 	public void testDeclineCallOnCancelBarrierTwoInputs() throws Exception {
-
-		TwoInputStreamTask<String, String, String> task = new TwoInputStreamTask<String, String, String>();
 		TwoInputStreamTaskTestHarness<String, String, String> testHarness = new TwoInputStreamTaskTestHarness<>(
-				task,
 				BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 		testHarness.setupOutputForSingletonOperatorChain();
 
@@ -136,8 +134,10 @@ public class StreamTaskCancellationBarrierTest {
 
 		StreamMockEnvironment environment = spy(testHarness.createEnvironment());
 
+		TwoInputStreamTask<String, String, String> task = new TwoInputStreamTask<String, String, String>(environment, null);
+
 		// start the task
-		testHarness.invoke(environment);
+		testHarness.invoke(task);
 		testHarness.waitForTaskRunning();
 
 		// emit cancellation barriers
@@ -167,6 +167,10 @@ public class StreamTaskCancellationBarrierTest {
 
 		private final Object lock = new Object();
 		private volatile boolean running = true;
+
+		public InitBlockingTask(Environment environment, TaskStateHandles taskStateHandles) {
+			super(environment, taskStateHandles);
+		}
 		
 		@Override
 		protected void init() throws Exception {

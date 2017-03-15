@@ -31,6 +31,7 @@ import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.junit.Test;
 
@@ -47,7 +48,7 @@ public class SeekableFileChannelInputViewTest {
 		try {
 			MemoryManager memMan = new MemoryManager(4 * PAGE_SIZE, 1, PAGE_SIZE, MemoryType.HEAP, true);
 			List<MemorySegment> memory = new ArrayList<MemorySegment>();
-			memMan.allocatePages(new DummyInvokable(), memory, 4);
+			memMan.allocatePages(new DummyInvokable(new DummyEnvironment("test", 1, 0), null), memory, 4);
 			
 			FileIOChannel.ID channel = ioManager.createChannel();
 			BlockChannelWriter<MemorySegment> writer = ioManager.createBlockChannelWriter(channel);
@@ -61,7 +62,7 @@ public class SeekableFileChannelInputViewTest {
 			out.close();
 			assertTrue(memMan.verifyEmpty());
 			
-			memMan.allocatePages(new DummyInvokable(), memory, 4);
+			memMan.allocatePages(new DummyInvokable(new DummyEnvironment("test", 1, 0), null), memory, 4);
 			SeekableFileChannelInputView in = new SeekableFileChannelInputView(ioManager, channel, memMan, memory, out.getBytesInLatestSegment());
 			
 			// read first, complete

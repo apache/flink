@@ -30,14 +30,14 @@ public class StreamIterationHeadTest {
 
 	@Test
 	public void testIterationHeadWatermarkEmission() throws Exception {
-		StreamIterationHead<Integer> head = new StreamIterationHead<>();
-		StreamTaskTestHarness<Integer> harness = new StreamTaskTestHarness<>(head,
-				BasicTypeInfo.INT_TYPE_INFO);
+		StreamTaskTestHarness<Integer> harness = new StreamTaskTestHarness<>(BasicTypeInfo.INT_TYPE_INFO);
 		harness.setupOutputForSingletonOperatorChain();
 		harness.getStreamConfig().setIterationId("1");
 		harness.getStreamConfig().setIterationWaitTime(1);
 
-		harness.invoke();
+		StreamIterationHead<Integer> head = new StreamIterationHead<>(harness.createEnvironment(), null);
+
+		harness.invoke(head);
 		harness.waitForTaskCompletion();
 
 		assertEquals(1, harness.getOutput().size());

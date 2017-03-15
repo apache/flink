@@ -31,7 +31,6 @@ import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.ChainedStateHandle;
@@ -115,7 +114,7 @@ import java.util.concurrent.atomic.AtomicReference;
 @Internal
 public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		extends AbstractInvokable
-		implements StatefulTask, AsyncExceptionHandler {
+		implements AsyncExceptionHandler {
 
 	/** The thread group that holds all trigger timer threads */
 	public static final ThreadGroup TRIGGER_THREAD_GROUP = new ThreadGroup("Triggers");
@@ -156,8 +155,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	/** The map of user-defined accumulators of this task */
 	private Map<String, Accumulator<?, ?>> accumulatorMap;
 
-	private TaskStateHandles restoreStateHandles;
-
 	/** The currently active background materialization threads */
 	private final CloseableRegistry cancelables = new CloseableRegistry();
 
@@ -170,6 +167,17 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 	/** Thread pool for async snapshot workers */
 	private ExecutorService asyncOperationsThreadPool;
+
+	/**
+	 * Create an Invokable task and set its environment and initial state.
+	 * The initial state is typically a snapshot of the state from a previous execution.
+	 *
+	 * @param environment The environment assigned to this invokable.
+	 * @param taskStateHandles The taskStateHandles assigned to this invokable
+	 */
+	public StreamTask(Environment environment, TaskStateHandles taskStateHandles) {
+		super(environment, taskStateHandles);
+	}
 
 	// ------------------------------------------------------------------------
 	//  Life cycle methods for specific implementations
@@ -509,11 +517,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void setInitialState(TaskStateHandles taskStateHandles) {
-		this.restoreStateHandles = taskStateHandles;
-	}
-
-	@Override
 	public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) throws Exception {
 		try {
 			// No alignment if we inject a checkpoint
@@ -658,12 +661,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 	private void initializeState() throws Exception {
 
-		boolean restored = null != restoreStateHandles;
+		boolean restored = null != getTaskStateHandles();
 
 		if (restored) {
 			checkRestorePreconditions(operatorChain.getChainLength());
 			initializeOperators(true);
-			restoreStateHandles = null; // free for GC
+			clearTaskStateHandles(); // free for GC
 		} else {
 			initializeOperators(false);
 		}
@@ -674,8 +677,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		for (int chainIdx = 0; chainIdx < allOperators.length; ++chainIdx) {
 			StreamOperator<?> operator = allOperators[chainIdx];
 			if (null != operator) {
-				if (restored && restoreStateHandles != null) {
-					operator.initializeState(new OperatorStateHandles(restoreStateHandles, chainIdx));
+				if (restored && getTaskStateHandles() != null) {
+					operator.initializeState(new OperatorStateHandles(getTaskStateHandles(), chainIdx));
 				} else {
 					operator.initializeState(null);
 				}
@@ -686,9 +689,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	private void checkRestorePreconditions(int operatorChainLength) {
 
 		ChainedStateHandle<StreamStateHandle> nonPartitionableOperatorStates =
-				restoreStateHandles.getLegacyOperatorState();
+				getTaskStateHandles().getLegacyOperatorState();
 		List<Collection<OperatorStateHandle>> operatorStates =
-				restoreStateHandles.getManagedOperatorState();
+				getTaskStateHandles().getManagedOperatorState();
 
 		if (nonPartitionableOperatorStates != null) {
 			Preconditions.checkState(nonPartitionableOperatorStates.getLength() == operatorChainLength,
@@ -768,8 +771,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		cancelables.registerClosable(keyedStateBackend);
 
 		// restore if we have some old state
-		if (null != restoreStateHandles && null != restoreStateHandles.getManagedKeyedState()) {
-			keyedStateBackend.restore(restoreStateHandles.getManagedKeyedState());
+		if (null != getTaskStateHandles() && null != getTaskStateHandles().getManagedKeyedState()) {
+			keyedStateBackend.restore(getTaskStateHandles().getManagedKeyedState());
 		}
 
 		@SuppressWarnings("unchecked")

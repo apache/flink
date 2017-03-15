@@ -95,8 +95,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 	 */
 	@Test
 	public void testOpenCloseAndTimestamps() throws Exception {
-		final OneInputStreamTask<String, String> mapTask = new OneInputStreamTask<String, String>();
-		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<String, String>(mapTask, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<String, String>(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 		testHarness.setupOutputForSingletonOperatorChain();
 
 		StreamConfig streamConfig = testHarness.getStreamConfig();
@@ -106,7 +105,9 @@ public class OneInputStreamTaskTest extends TestLogger {
 		long initialTime = 0L;
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<Object>();
 
-		testHarness.invoke();
+		final OneInputStreamTask<String, String> mapTask = new OneInputStreamTask<String, String>(testHarness.createEnvironment(), null);
+
+		testHarness.invoke(mapTask);
 		testHarness.waitForTaskRunning();
 
 		testHarness.processElement(new StreamRecord<String>("Hello", initialTime + 1));
@@ -133,10 +134,9 @@ public class OneInputStreamTaskTest extends TestLogger {
 	@Test
 	@SuppressWarnings("unchecked")
 	public void testWatermarkAndStreamStatusForwarding() throws Exception {
-		final OneInputStreamTask<String, String> mapTask = new OneInputStreamTask<String, String>();
 		final OneInputStreamTaskTestHarness<String, String> testHarness =
 			new OneInputStreamTaskTestHarness<String, String>(
-				mapTask, 2, 2,
+				2, 2,
 				BasicTypeInfo.STRING_TYPE_INFO,
 				BasicTypeInfo.STRING_TYPE_INFO);
 		testHarness.setupOutputForSingletonOperatorChain();
@@ -148,7 +148,9 @@ public class OneInputStreamTaskTest extends TestLogger {
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<Object>();
 		long initialTime = 0L;
 
-		testHarness.invoke();
+		final OneInputStreamTask<String, String> mapTask = new OneInputStreamTask<String, String>(testHarness.createEnvironment(), null);
+
+		testHarness.invoke(mapTask);
 		testHarness.waitForTaskRunning();
 
 		testHarness.processElement(new Watermark(initialTime), 0, 0);
@@ -244,10 +246,9 @@ public class OneInputStreamTaskTest extends TestLogger {
 	 */
 	@Test
 	public void testWatermarksNotForwardedWithinChainWhenIdle() throws Exception {
-		final OneInputStreamTask<String, String> testTask = new OneInputStreamTask<>();
 		final OneInputStreamTaskTestHarness<String, String> testHarness =
 			new OneInputStreamTaskTestHarness<String, String>(
-				testTask, 1, 1,
+				1, 1,
 				BasicTypeInfo.STRING_TYPE_INFO,
 				BasicTypeInfo.STRING_TYPE_INFO);
 
@@ -318,7 +319,9 @@ public class OneInputStreamTaskTest extends TestLogger {
 
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<Object>();
 
-		testHarness.invoke();
+		final OneInputStreamTask<String, String> testTask = new OneInputStreamTask<>(testHarness.createEnvironment(), null);
+
+		testHarness.invoke(testTask);
 		testHarness.waitForTaskRunning();
 
 		// the task starts as active, so all generated watermarks should be forwarded
@@ -398,8 +401,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 	 */
 	@Test
 	public void testCheckpointBarriers() throws Exception {
-		final OneInputStreamTask<String, String> mapTask = new OneInputStreamTask<String, String>();
-		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<String, String>(mapTask, 2, 2, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<String, String>(2, 2, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 		testHarness.setupOutputForSingletonOperatorChain();
 
 		StreamConfig streamConfig = testHarness.getStreamConfig();
@@ -409,7 +411,9 @@ public class OneInputStreamTaskTest extends TestLogger {
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<Object>();
 		long initialTime = 0L;
 
-		testHarness.invoke();
+		final OneInputStreamTask<String, String> mapTask = new OneInputStreamTask<String, String>(testHarness.createEnvironment(), null);
+
+		testHarness.invoke(mapTask);
 		testHarness.waitForTaskRunning();
 
 		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forFullCheckpoint()), 0, 0);
@@ -457,8 +461,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 	 */
 	@Test
 	public void testOvertakingCheckpointBarriers() throws Exception {
-		final OneInputStreamTask<String, String> mapTask = new OneInputStreamTask<String, String>();
-		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<String, String>(mapTask, 2, 2, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<String, String>(2, 2, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 		testHarness.setupOutputForSingletonOperatorChain();
 
 		StreamConfig streamConfig = testHarness.getStreamConfig();
@@ -468,7 +471,9 @@ public class OneInputStreamTaskTest extends TestLogger {
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<Object>();
 		long initialTime = 0L;
 
-		testHarness.invoke();
+		final OneInputStreamTask<String, String> mapTask = new OneInputStreamTask<String, String>(testHarness.createEnvironment(), null);
+
+		testHarness.invoke(mapTask);
 		testHarness.waitForTaskRunning();
 
 		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forFullCheckpoint()), 0, 0);
@@ -528,8 +533,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 	@Test
 	public void testSnapshottingAndRestoring() throws Exception {
 		final Deadline deadline = new FiniteDuration(2, TimeUnit.MINUTES).fromNow();
-		final OneInputStreamTask<String, String> streamTask = new OneInputStreamTask<String, String>();
-		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<String, String>(streamTask, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<String, String>(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 		testHarness.setupOutputForSingletonOperatorChain();
 
 		IdentityKeySelector<String> keySelector = new IdentityKeySelector<>();
@@ -556,7 +560,9 @@ public class OneInputStreamTaskTest extends TestLogger {
 		// reset number of restore calls
 		TestingStreamOperator.numberRestoreCalls = 0;
 
-		testHarness.invoke(env);
+		final OneInputStreamTask<String, String> streamTask = new OneInputStreamTask<String, String>(env, null);
+
+		testHarness.invoke(streamTask);
 		testHarness.waitForTaskRunning(deadline.timeLeft().toMillis());
 
 		CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, checkpointTimestamp);
@@ -573,10 +579,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 		testHarness.endInput();
 		testHarness.waitForTaskCompletion(deadline.timeLeft().toMillis());
 
-		final OneInputStreamTask<String, String> restoredTask = new OneInputStreamTask<String, String>();
-		restoredTask.setInitialState(new TaskStateHandles(env.getCheckpointStateHandles()));
-
-		final OneInputStreamTaskTestHarness<String, String> restoredTaskHarness = new OneInputStreamTaskTestHarness<String, String>(restoredTask, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+		final OneInputStreamTaskTestHarness<String, String> restoredTaskHarness = new OneInputStreamTaskTestHarness<String, String>(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 		restoredTaskHarness.configureForKeyedStream(keySelector, BasicTypeInfo.STRING_TYPE_INFO);
 
 		StreamConfig restoredTaskStreamConfig = restoredTaskHarness.getStreamConfig();
@@ -585,7 +588,10 @@ public class OneInputStreamTaskTest extends TestLogger {
 
 		TestingStreamOperator.numberRestoreCalls = 0;
 
-		restoredTaskHarness.invoke();
+		final OneInputStreamTask<String, String> restoredTask = new OneInputStreamTask<String, String>(
+			restoredTaskHarness.createEnvironment(), new TaskStateHandles(env.getCheckpointStateHandles()));
+
+		restoredTaskHarness.invoke(restoredTask);
 		restoredTaskHarness.endInput();
 		restoredTaskHarness.waitForTaskCompletion(deadline.timeLeft().toMillis());
 

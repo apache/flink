@@ -373,9 +373,8 @@ public class AsyncWaitOperatorTest extends TestLogger {
 
 		JobVertex chainedVertex = createChainedVertex(false);
 
-		final OneInputStreamTask<Integer, Integer> task = new OneInputStreamTask<>();
 		final OneInputStreamTaskTestHarness<Integer, Integer> testHarness =
-				new OneInputStreamTaskTestHarness<>(task, 1, 1, BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO);
+				new OneInputStreamTaskTestHarness<>(1, 1, BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO);
 		testHarness.setupOutputForSingletonOperatorChain();
 
 		testHarness.taskConfig = chainedVertex.getConfiguration();
@@ -386,7 +385,9 @@ public class AsyncWaitOperatorTest extends TestLogger {
 				operatorChainStreamConfig.getStreamOperator(AsyncWaitOperatorTest.class.getClassLoader());
 		streamConfig.setStreamOperator(headOperator);
 
-		testHarness.invoke();
+		final OneInputStreamTask<Integer, Integer> task = new OneInputStreamTask<>(testHarness.createEnvironment(), null);
+
+		testHarness.invoke(task);
 		testHarness.waitForTaskRunning();
 
 		long initialTimestamp = 0L;
@@ -484,9 +485,8 @@ public class AsyncWaitOperatorTest extends TestLogger {
 
 	@Test
 	public void testStateSnapshotAndRestore() throws Exception {
-		final OneInputStreamTask<Integer, Integer> task = new OneInputStreamTask<>();
 		final OneInputStreamTaskTestHarness<Integer, Integer> testHarness =
-				new OneInputStreamTaskTestHarness<>(task, 1, 1, BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO);
+				new OneInputStreamTaskTestHarness<>(1, 1, BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO);
 		testHarness.setupOutputForSingletonOperatorChain();
 
 		AsyncWaitOperator<Integer, Integer> operator = new AsyncWaitOperator<>(
@@ -506,7 +506,9 @@ public class AsyncWaitOperatorTest extends TestLogger {
 				new MockInputSplitProvider(),
 				testHarness.bufferSize);
 
-		testHarness.invoke(env);
+		final OneInputStreamTask<Integer, Integer> task = new OneInputStreamTask<>(env, null);
+
+		testHarness.invoke(task);
 		testHarness.waitForTaskRunning();
 
 		final long initialTime = 0L;
@@ -534,12 +536,8 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		testHarness.endInput();
 		testHarness.waitForTaskCompletion();
 
-		// set the operator state from previous attempt into the restored one
-		final OneInputStreamTask<Integer, Integer> restoredTask = new OneInputStreamTask<>();
-		restoredTask.setInitialState(new TaskStateHandles(env.getCheckpointStateHandles()));
-
 		final OneInputStreamTaskTestHarness<Integer, Integer> restoredTaskHarness =
-				new OneInputStreamTaskTestHarness<>(restoredTask, BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO);
+				new OneInputStreamTaskTestHarness<>(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO);
 		restoredTaskHarness.setupOutputForSingletonOperatorChain();
 
 		AsyncWaitOperator<Integer, Integer> restoredOperator = new AsyncWaitOperator<>(
@@ -550,7 +548,11 @@ public class AsyncWaitOperatorTest extends TestLogger {
 
 		restoredTaskHarness.getStreamConfig().setStreamOperator(restoredOperator);
 
-		restoredTaskHarness.invoke();
+		// set the operator state from previous attempt into the restored one
+		final OneInputStreamTask<Integer, Integer> restoredTask = new OneInputStreamTask<>(
+			restoredTaskHarness.createEnvironment(), new TaskStateHandles(env.getCheckpointStateHandles()));
+
+		restoredTaskHarness.invoke(restoredTask);
 		restoredTaskHarness.waitForTaskRunning();
 
 		restoredTaskHarness.processElement(new StreamRecord<>(5, initialTime + 5));

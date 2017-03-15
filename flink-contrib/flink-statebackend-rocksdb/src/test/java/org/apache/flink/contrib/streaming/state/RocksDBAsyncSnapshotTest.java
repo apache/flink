@@ -118,9 +118,7 @@ public class RocksDBAsyncSnapshotTest {
 		localFS.initialize(new URI("file:///"), new Configuration());
 		PowerMockito.stub(PowerMockito.method(FileSystem.class, "get", URI.class, Configuration.class)).toReturn(localFS);
 
-		final OneInputStreamTask<String, String> task = new OneInputStreamTask<>();
-
-		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(task, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 		testHarness.setupOutputForSingletonOperatorChain();
 
 		testHarness.configureForKeyedStream(new KeySelector<String, String>() {
@@ -175,7 +173,9 @@ public class RocksDBAsyncSnapshotTest {
 			}
 		};
 
-		testHarness.invoke(mockEnv);
+		final OneInputStreamTask<String, String> task = new OneInputStreamTask<>(mockEnv, null);
+
+		testHarness.invoke(task);
 
 		// wait for the task to be running
 		for (Field field: StreamTask.class.getDeclaredFields()) {
@@ -220,9 +220,7 @@ public class RocksDBAsyncSnapshotTest {
 		localFS.initialize(new URI("file:///"), new Configuration());
 		PowerMockito.stub(PowerMockito.method(FileSystem.class, "get", URI.class, Configuration.class)).toReturn(localFS);
 
-		final OneInputStreamTask<String, String> task = new OneInputStreamTask<>();
-
-		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(task, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 		testHarness.setupOutputForSingletonOperatorChain();
 
 		testHarness.configureForKeyedStream(new KeySelector<String, String>() {
@@ -255,7 +253,9 @@ public class RocksDBAsyncSnapshotTest {
 		BlockingStreamMemoryStateBackend.waitFirstWriteLatch = new OneShotLatch();
 		BlockingStreamMemoryStateBackend.unblockCancelLatch = new OneShotLatch();
 
-		testHarness.invoke(mockEnv);
+		final OneInputStreamTask<String, String> task = new OneInputStreamTask<>(mockEnv, null);
+
+		testHarness.invoke(task);
 
 		// wait for the task to be running
 		for (Field field: StreamTask.class.getDeclaredFields()) {

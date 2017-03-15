@@ -18,15 +18,19 @@
 
 package org.apache.flink.runtime.jobmanager
 
+import org.apache.flink.runtime.checkpoint.{CheckpointMetaData, CheckpointMetrics, CheckpointOptions}
+import org.apache.flink.runtime.execution.Environment
 import org.apache.flink.runtime.io.network.api.reader.RecordReader
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable
+import org.apache.flink.runtime.state.TaskStateHandles
 import org.apache.flink.types.IntValue
 
 
 object Tasks {
 
-  class Sender extends AbstractInvokable{
+  class Sender(environment: Environment, taskStateHandles: TaskStateHandles)
+    extends AbstractInvokable(environment, taskStateHandles) {
 
     override def invoke(): Unit = {
       val writer = new RecordWriter[IntValue](getEnvironment.getWriter(0))
@@ -39,9 +43,34 @@ object Tasks {
         writer.clearBuffers()
       }
     }
+
+    override def triggerCheckpoint(checkpointMetaData: CheckpointMetaData,
+                                    checkpointOptions: CheckpointOptions): Boolean = {
+      throw new UnsupportedOperationException(
+        String.format("triggerCheckpoint not supported by %s", this.getClass.getName))
+    }
+
+    override def triggerCheckpointOnBarrier(checkpointMetaData: CheckpointMetaData,
+                                            checkpointOptions: CheckpointOptions,
+                                            checkpointMetrics: CheckpointMetrics): Unit = {
+      throw new UnsupportedOperationException(
+        String.format("triggerCheckpointOnBarrier not supported by %s", this.getClass.getName))
+    }
+
+    override def abortCheckpointOnBarrier(checkpointId: Long,
+                                            cause: Throwable): Unit = {
+      throw new UnsupportedOperationException(
+        String.format("abortCheckpointOnBarrier not supported by %s", this.getClass.getName))
+    }
+
+    override def notifyCheckpointComplete(checkpointId: Long): Unit = {
+      throw new UnsupportedOperationException(
+        String.format("notifyCheckpointComplete not supported by %s", this.getClass.getName))
+    }
   }
 
-  class Forwarder extends AbstractInvokable {
+  class Forwarder(environment: Environment, taskStateHandles: TaskStateHandles)
+    extends AbstractInvokable(environment, taskStateHandles) {
 
     override def invoke(): Unit = {
       val reader = new RecordReader[IntValue](
@@ -67,9 +96,34 @@ object Tasks {
         writer.clearBuffers()
       }
     }
+
+    override def triggerCheckpoint(checkpointMetaData: CheckpointMetaData,
+                                   checkpointOptions: CheckpointOptions): Boolean = {
+      throw new UnsupportedOperationException(
+        String.format("triggerCheckpoint not supported by %s", this.getClass.getName))
+    }
+
+    override def triggerCheckpointOnBarrier(checkpointMetaData: CheckpointMetaData,
+                                            checkpointOptions: CheckpointOptions,
+                                            checkpointMetrics: CheckpointMetrics): Unit = {
+      throw new UnsupportedOperationException(
+        String.format("triggerCheckpointOnBarrier not supported by %s", this.getClass.getName))
+    }
+
+    override def abortCheckpointOnBarrier(checkpointId: Long,
+                                          cause: Throwable): Unit = {
+      throw new UnsupportedOperationException(
+        String.format("abortCheckpointOnBarrier not supported by %s", this.getClass.getName))
+    }
+
+    override def notifyCheckpointComplete(checkpointId: Long): Unit = {
+      throw new UnsupportedOperationException(
+        String.format("notifyCheckpointComplete not supported by %s", this.getClass.getName))
+    }
   }
 
-  class Receiver extends AbstractInvokable {
+  class Receiver(environment: Environment, taskStateHandles: TaskStateHandles)
+    extends AbstractInvokable(environment, taskStateHandles) {
 
     override def invoke(): Unit = {
       val reader = new RecordReader[IntValue](
@@ -85,9 +139,34 @@ object Tasks {
         throw new Exception("Wrong data received.")
       }
     }
+
+    override def triggerCheckpoint(checkpointMetaData: CheckpointMetaData,
+                                   checkpointOptions: CheckpointOptions): Boolean = {
+      throw new UnsupportedOperationException(
+        String.format("triggerCheckpoint not supported by %s", this.getClass.getName))
+    }
+
+    override def triggerCheckpointOnBarrier(checkpointMetaData: CheckpointMetaData,
+                                            checkpointOptions: CheckpointOptions,
+                                            checkpointMetrics: CheckpointMetrics): Unit = {
+      throw new UnsupportedOperationException(
+        String.format("triggerCheckpointOnBarrier not supported by %s", this.getClass.getName))
+    }
+
+    override def abortCheckpointOnBarrier(checkpointId: Long,
+                                          cause: Throwable): Unit = {
+      throw new UnsupportedOperationException(
+        String.format("abortCheckpointOnBarrier not supported by %s", this.getClass.getName))
+    }
+
+    override def notifyCheckpointComplete(checkpointId: Long): Unit = {
+      throw new UnsupportedOperationException(
+        String.format("notifyCheckpointComplete not supported by %s", this.getClass.getName))
+    }
   }
 
-  class FailingOnceReceiver extends Receiver {
+  class FailingOnceReceiver(environment: Environment, taskStateHandles: TaskStateHandles)
+    extends Receiver(environment, taskStateHandles) {
     import FailingOnceReceiver.failed
 
     override def invoke(): Unit = {
@@ -104,7 +183,8 @@ object Tasks {
     var failed = false
   }
 
-  class BlockingOnceReceiver extends Receiver {
+  class BlockingOnceReceiver(environment: Environment, taskStateHandles: TaskStateHandles)
+    extends Receiver(environment, taskStateHandles) {
     import BlockingOnceReceiver.blocking
 
     override def invoke(): Unit = {
@@ -124,7 +204,8 @@ object Tasks {
     var blocking = true
   }
 
-  class AgnosticReceiver extends AbstractInvokable {
+  class AgnosticReceiver(environment: Environment, taskStateHandles: TaskStateHandles)
+    extends AbstractInvokable(environment, taskStateHandles) {
 
     override def invoke(): Unit = {
       val reader= new RecordReader[IntValue](
@@ -134,9 +215,34 @@ object Tasks {
 
       while(reader.next() != null){}
     }
+
+    override def triggerCheckpoint(checkpointMetaData: CheckpointMetaData,
+                                   checkpointOptions: CheckpointOptions): Boolean = {
+      throw new UnsupportedOperationException(
+        String.format("triggerCheckpoint not supported by %s", this.getClass.getName))
+    }
+
+    override def triggerCheckpointOnBarrier(checkpointMetaData: CheckpointMetaData,
+                                            checkpointOptions: CheckpointOptions,
+                                            checkpointMetrics: CheckpointMetrics): Unit = {
+      throw new UnsupportedOperationException(
+        String.format("triggerCheckpointOnBarrier not supported by %s", this.getClass.getName))
+    }
+
+    override def abortCheckpointOnBarrier(checkpointId: Long,
+                                          cause: Throwable): Unit = {
+      throw new UnsupportedOperationException(
+        String.format("abortCheckpointOnBarrier not supported by %s", this.getClass.getName))
+    }
+
+    override def notifyCheckpointComplete(checkpointId: Long): Unit = {
+      throw new UnsupportedOperationException(
+        String.format("notifyCheckpointComplete not supported by %s", this.getClass.getName))
+    }
   }
 
-  class AgnosticBinaryReceiver extends AbstractInvokable {
+  class AgnosticBinaryReceiver(environment: Environment, taskStateHandles: TaskStateHandles)
+    extends AbstractInvokable(environment, taskStateHandles) {
 
     override def invoke(): Unit = {
       val reader1 = new RecordReader[IntValue](
@@ -152,9 +258,34 @@ object Tasks {
       while(reader1.next() != null){}
       while(reader2.next() != null){}
     }
+
+    override def triggerCheckpoint(checkpointMetaData: CheckpointMetaData,
+                                   checkpointOptions: CheckpointOptions): Boolean = {
+      throw new UnsupportedOperationException(
+        String.format("triggerCheckpoint not supported by %s", this.getClass.getName))
+    }
+
+    override def triggerCheckpointOnBarrier(checkpointMetaData: CheckpointMetaData,
+                                            checkpointOptions: CheckpointOptions,
+                                            checkpointMetrics: CheckpointMetrics): Unit = {
+      throw new UnsupportedOperationException(
+        String.format("triggerCheckpointOnBarrier not supported by %s", this.getClass.getName))
+    }
+
+    override def abortCheckpointOnBarrier(checkpointId: Long,
+                                          cause: Throwable): Unit = {
+      throw new UnsupportedOperationException(
+        String.format("abortCheckpointOnBarrier not supported by %s", this.getClass.getName))
+    }
+
+    override def notifyCheckpointComplete(checkpointId: Long): Unit = {
+      throw new UnsupportedOperationException(
+        String.format("notifyCheckpointComplete not supported by %s", this.getClass.getName))
+    }
   }
 
-  class AgnosticTertiaryReceiver extends AbstractInvokable {
+  class AgnosticTertiaryReceiver(environment: Environment, taskStateHandles: TaskStateHandles)
+    extends AbstractInvokable(environment, taskStateHandles) {
 
     override def invoke(): Unit = {
       val env = getEnvironment
@@ -178,16 +309,66 @@ object Tasks {
       while(reader2.next() != null){}
       while(reader3.next() != null){}
     }
+
+    override def triggerCheckpoint(checkpointMetaData: CheckpointMetaData,
+                                   checkpointOptions: CheckpointOptions): Boolean = {
+      throw new UnsupportedOperationException(
+        String.format("triggerCheckpoint not supported by %s", this.getClass.getName))
+    }
+
+    override def triggerCheckpointOnBarrier(checkpointMetaData: CheckpointMetaData,
+                                            checkpointOptions: CheckpointOptions,
+                                            checkpointMetrics: CheckpointMetrics): Unit = {
+      throw new UnsupportedOperationException(
+        String.format("triggerCheckpointOnBarrier not supported by %s", this.getClass.getName))
+    }
+
+    override def abortCheckpointOnBarrier(checkpointId: Long,
+                                          cause: Throwable): Unit = {
+      throw new UnsupportedOperationException(
+        String.format("abortCheckpointOnBarrier not supported by %s", this.getClass.getName))
+    }
+
+    override def notifyCheckpointComplete(checkpointId: Long): Unit = {
+      throw new UnsupportedOperationException(
+        String.format("notifyCheckpointComplete not supported by %s", this.getClass.getName))
+    }
   }
 
-  class ExceptionSender extends AbstractInvokable{
+  class ExceptionSender(environment: Environment, taskStateHandles: TaskStateHandles)
+    extends AbstractInvokable(environment, taskStateHandles) {
 
     override def invoke(): Unit = {
       throw new Exception("Test exception")
     }
+
+    override def triggerCheckpoint(checkpointMetaData: CheckpointMetaData,
+                                   checkpointOptions: CheckpointOptions): Boolean = {
+      throw new UnsupportedOperationException(
+        String.format("triggerCheckpoint not supported by %s", this.getClass.getName))
+    }
+
+    override def triggerCheckpointOnBarrier(checkpointMetaData: CheckpointMetaData,
+                                            checkpointOptions: CheckpointOptions,
+                                            checkpointMetrics: CheckpointMetrics): Unit = {
+      throw new UnsupportedOperationException(
+        String.format("triggerCheckpointOnBarrier not supported by %s", this.getClass.getName))
+    }
+
+    override def abortCheckpointOnBarrier(checkpointId: Long,
+                                          cause: Throwable): Unit = {
+      throw new UnsupportedOperationException(
+        String.format("abortCheckpointOnBarrier not supported by %s", this.getClass.getName))
+    }
+
+    override def notifyCheckpointComplete(checkpointId: Long): Unit = {
+      throw new UnsupportedOperationException(
+        String.format("notifyCheckpointComplete not supported by %s", this.getClass.getName))
+    }
   }
 
-  class SometimesExceptionSender extends AbstractInvokable {
+  class SometimesExceptionSender(environment: Environment, taskStateHandles: TaskStateHandles)
+    extends AbstractInvokable(environment, taskStateHandles) {
 
     override def invoke(): Unit = {
       // this only works if the TaskManager runs in the same JVM as the test case
@@ -198,27 +379,103 @@ object Tasks {
         o.synchronized(o.wait())
       }
     }
+
+    override def triggerCheckpoint(checkpointMetaData: CheckpointMetaData,
+                                   checkpointOptions: CheckpointOptions): Boolean = {
+      throw new UnsupportedOperationException(
+        String.format("triggerCheckpoint not supported by %s", this.getClass.getName))
+    }
+
+    override def triggerCheckpointOnBarrier(checkpointMetaData: CheckpointMetaData,
+                                            checkpointOptions: CheckpointOptions,
+                                            checkpointMetrics: CheckpointMetrics): Unit = {
+      throw new UnsupportedOperationException(
+        String.format("triggerCheckpointOnBarrier not supported by %s", this.getClass.getName))
+    }
+
+    override def abortCheckpointOnBarrier(checkpointId: Long,
+                                          cause: Throwable): Unit = {
+      throw new UnsupportedOperationException(
+        String.format("abortCheckpointOnBarrier not supported by %s", this.getClass.getName))
+    }
+
+    override def notifyCheckpointComplete(checkpointId: Long): Unit = {
+      throw new UnsupportedOperationException(
+        String.format("notifyCheckpointComplete not supported by %s", this.getClass.getName))
+    }
   }
 
   object SometimesExceptionSender {
     var failingSenders = Set[Int](0)
   }
 
-  class ExceptionReceiver extends AbstractInvokable {
+  class ExceptionReceiver(environment: Environment, taskStateHandles: TaskStateHandles)
+    extends AbstractInvokable(environment, taskStateHandles) {
 
     override def invoke(): Unit = {
       throw new Exception("Test exception")
     }
+
+    override def triggerCheckpoint(checkpointMetaData: CheckpointMetaData,
+                                   checkpointOptions: CheckpointOptions): Boolean = {
+      throw new UnsupportedOperationException(
+        String.format("triggerCheckpoint not supported by %s", this.getClass.getName))
+    }
+
+    override def triggerCheckpointOnBarrier(checkpointMetaData: CheckpointMetaData,
+                                            checkpointOptions: CheckpointOptions,
+                                            checkpointMetrics: CheckpointMetrics): Unit = {
+      throw new UnsupportedOperationException(
+        String.format("triggerCheckpointOnBarrier not supported by %s", this.getClass.getName))
+    }
+
+    override def abortCheckpointOnBarrier(checkpointId: Long,
+                                          cause: Throwable): Unit = {
+      throw new UnsupportedOperationException(
+        String.format("abortCheckpointOnBarrier not supported by %s", this.getClass.getName))
+    }
+
+    override def notifyCheckpointComplete(checkpointId: Long): Unit = {
+      throw new UnsupportedOperationException(
+        String.format("notifyCheckpointComplete not supported by %s", this.getClass.getName))
+    }
   }
 
-  class InstantiationErrorSender extends AbstractInvokable{
+  class InstantiationErrorSender(environment: Environment, taskStateHandles: TaskStateHandles)
+    extends AbstractInvokable(environment, taskStateHandles) {
     throw new RuntimeException("Test exception in constructor")
 
     override def invoke(): Unit = {
     }
+
+    override def triggerCheckpoint(checkpointMetaData: CheckpointMetaData,
+                                   checkpointOptions: CheckpointOptions): Boolean = {
+      throw new UnsupportedOperationException(
+        String.format("triggerCheckpoint not supported by %s", this.getClass.getName))
+    }
+
+    override def triggerCheckpointOnBarrier(checkpointMetaData: CheckpointMetaData,
+                                            checkpointOptions: CheckpointOptions,
+                                            checkpointMetrics: CheckpointMetrics): Unit = {
+      throw new UnsupportedOperationException(
+        String.format("triggerCheckpointOnBarrier not supported by %s", this.getClass.getName))
+    }
+
+    override def abortCheckpointOnBarrier(checkpointId: Long,
+                                          cause: Throwable): Unit = {
+      throw new UnsupportedOperationException(
+        String.format("abortCheckpointOnBarrier not supported by %s", this.getClass.getName))
+    }
+
+    override def notifyCheckpointComplete(checkpointId: Long): Unit = {
+      throw new UnsupportedOperationException(
+        String.format("notifyCheckpointComplete not supported by %s", this.getClass.getName))
+    }
   }
 
-  class SometimesInstantiationErrorSender extends AbstractInvokable{
+  class SometimesInstantiationErrorSender(environment: Environment,
+                                          taskStateHandles: TaskStateHandles)
+    extends AbstractInvokable(environment, taskStateHandles) {
 
     // this only works if the TaskManager runs in the same JVM as the test case
     if(SometimesInstantiationErrorSender.failingSenders.contains(this.getIndexInSubtaskGroup)){
@@ -229,18 +486,67 @@ object Tasks {
       val o = new Object()
       o.synchronized(o.wait())
     }
+
+    override def triggerCheckpoint(checkpointMetaData: CheckpointMetaData,
+                                   checkpointOptions: CheckpointOptions): Boolean = {
+      throw new UnsupportedOperationException(
+        String.format("triggerCheckpoint not supported by %s", this.getClass.getName))
+    }
+
+    override def triggerCheckpointOnBarrier(checkpointMetaData: CheckpointMetaData,
+                                            checkpointOptions: CheckpointOptions,
+                                            checkpointMetrics: CheckpointMetrics): Unit = {
+      throw new UnsupportedOperationException(
+        String.format("triggerCheckpointOnBarrier not supported by %s", this.getClass.getName))
+    }
+
+    override def abortCheckpointOnBarrier(checkpointId: Long,
+                                          cause: Throwable): Unit = {
+      throw new UnsupportedOperationException(
+        String.format("abortCheckpointOnBarrier not supported by %s", this.getClass.getName))
+    }
+
+    override def notifyCheckpointComplete(checkpointId: Long): Unit = {
+      throw new UnsupportedOperationException(
+        String.format("notifyCheckpointComplete not supported by %s", this.getClass.getName))
+    }
   }
 
   object SometimesInstantiationErrorSender {
     var failingSenders = Set[Int](0)
   }
 
-  class BlockingReceiver extends AbstractInvokable {
+  class BlockingReceiver(environment: Environment, taskStateHandles: TaskStateHandles)
+    extends AbstractInvokable(environment, taskStateHandles) {
     override def invoke(): Unit = {
       val o = new Object
       o.synchronized(
         o.wait()
       )
+    }
+
+    override def triggerCheckpoint(checkpointMetaData: CheckpointMetaData,
+                                   checkpointOptions: CheckpointOptions): Boolean = {
+      throw new UnsupportedOperationException(
+        String.format("triggerCheckpoint not supported by %s", this.getClass.getName))
+    }
+
+    override def triggerCheckpointOnBarrier(checkpointMetaData: CheckpointMetaData,
+                                            checkpointOptions: CheckpointOptions,
+                                            checkpointMetrics: CheckpointMetrics): Unit = {
+      throw new UnsupportedOperationException(
+        String.format("triggerCheckpointOnBarrier not supported by %s", this.getClass.getName))
+    }
+
+    override def abortCheckpointOnBarrier(checkpointId: Long,
+                                          cause: Throwable): Unit = {
+      throw new UnsupportedOperationException(
+        String.format("abortCheckpointOnBarrier not supported by %s", this.getClass.getName))
+    }
+
+    override def notifyCheckpointComplete(checkpointId: Long): Unit = {
+      throw new UnsupportedOperationException(
+        String.format("notifyCheckpointComplete not supported by %s", this.getClass.getName))
     }
   }
 }

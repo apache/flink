@@ -24,6 +24,7 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 
 import org.apache.flink.api.common.functions.GroupCombineFunction;
+import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.junit.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,7 +64,7 @@ public class CombiningUnilateralSortMergerITCase {
 
 	public static final int MEMORY_SIZE = 1024 * 1024 * 256;
 
-	private final AbstractInvokable parentTask = new DummyInvokable();
+	private final AbstractInvokable parentTask = new DummyInvokable(new DummyEnvironment("test", 1, 0), null);
 	
 	private IOManager ioManager;
 

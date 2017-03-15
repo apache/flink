@@ -18,7 +18,9 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.functions.StoppableFunction;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.tasks.StoppableTask;
+import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StoppableStreamSource;
 
@@ -32,6 +34,10 @@ public class StoppableSourceStreamTask<OUT, SRC extends SourceFunction<OUT> & St
 	extends SourceStreamTask<OUT, SRC, StoppableStreamSource<OUT, SRC>> implements StoppableTask {
 
 	private volatile boolean stopped;
+
+	public StoppableSourceStreamTask(Environment environment, TaskStateHandles taskStateHandles) {
+		super(environment, taskStateHandles);
+	}
 
 	@Override
 	protected void run() throws Exception {

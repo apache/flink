@@ -21,6 +21,7 @@ package org.apache.flink.runtime.operators.resettable;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.junit.Assert;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.testutils.recordutils.RecordSerializer;
@@ -43,7 +44,7 @@ public class BlockResettableMutableObjectIteratorTest {
 	
 	private final TypeSerializer<Record> serializer = RecordSerializer.get();
 	
-	private final AbstractInvokable memOwner = new DummyInvokable();
+	private final AbstractInvokable memOwner = new DummyInvokable(new DummyEnvironment("test", 1, 0), null);
 	
 	private MemoryManager memman;
 

@@ -23,6 +23,7 @@ import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.StreamTestSingleInputGate;
+import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 
 import java.io.IOException;
 
@@ -36,7 +37,7 @@ import java.io.IOException;
  * and events. You are free to modify the retrieved list.
  *
  * <p>
- * After setting up everything the Task can be invoked using {@link #invoke()}. This will start
+ * After setting up everything the Task can be invoked using {@link #invoke(AbstractInvokable)}. This will start
  * a new Thread to execute the Task. Use {@link #waitForTaskCompletion()} to wait for the Task
  * thread to finish. Use {@link #processElement} to send elements to the task. Use
  * {@link #processEvent(AbstractEvent)} to send events to the task.
@@ -59,13 +60,12 @@ public class OneInputStreamTaskTestHarness<IN, OUT> extends StreamTaskTestHarnes
 	 * of channels per input gate.
 	 */
 	public OneInputStreamTaskTestHarness(
-		OneInputStreamTask<IN, OUT> task,
 		int numInputGates,
 		int numInputChannelsPerGate,
 		TypeInformation<IN> inputType,
 		TypeInformation<OUT> outputType) {
 		
-		super(task, outputType);
+		super(outputType);
 
 		this.inputType = inputType;
 		inputSerializer = inputType.createSerializer(executionConfig);
@@ -78,10 +78,9 @@ public class OneInputStreamTaskTestHarness<IN, OUT> extends StreamTaskTestHarnes
 	 * Creates a test harness with one input gate that has one input channel.
 	 */
 	public OneInputStreamTaskTestHarness(
-		OneInputStreamTask<IN, OUT> task,
 		TypeInformation<IN> inputType,
 		TypeInformation<OUT> outputType) {
-		this(task, 1, 1, inputType, outputType);
+		this(1, 1, inputType, outputType);
 	}
 
 	@Override

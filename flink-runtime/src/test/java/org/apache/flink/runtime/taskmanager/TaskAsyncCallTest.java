@@ -27,9 +27,12 @@ import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.SubtaskState;
+import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineTaskNotCheckpointingException;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -44,7 +47,6 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
-import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
@@ -52,13 +54,17 @@ import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.util.SerializedValue;
 
+import static org.hamcrest.core.IsInstanceOf.instanceOf;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.concurrent.Executor;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
@@ -142,8 +148,49 @@ public class TaskAsyncCallTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
+	@Test
+	public void testExceptionAfterIllegalCheckpointCalls() {
+		try {
+			long checkpointId = 1314L;
+			ArrayCheckpointResponder checkpointResponder = new ArrayCheckpointResponder();
+			Task task = createTask(UnsupportedCheckpointsInvokable.class.getName(), checkpointResponder);
+			task.startTaskThread();
+
+			awaitLatch.await();
+
+			task.triggerCheckpointBarrier(checkpointId, 156865867234L, CheckpointOptions.forFullCheckpoint());
+
+			triggerLatch.await();
+
+			assertFalse(task.isCanceledOrFailed());
+
+			ArrayList<ArrayCheckpointResponder.DeclineCheckpointInformation> informationList = checkpointResponder.getDeclineCheckpointInformationList();
+			assertEquals(1, informationList.size());
+
+			ArrayCheckpointResponder.DeclineCheckpointInformation information = informationList.get(0);
+			String errorMessage = "Task '" + task.getTaskInfo().getTaskNameWithSubtasks() + "'does not support checkpointing";
+
+			assertEquals(task.getJobID(), information.getJobID());
+			assertEquals(task.getExecutionId(), information.getExecutionAttemptID());
+			assertEquals(checkpointId, information.getCheckpointId());
+			assertThat(information.getCause(), instanceOf(CheckpointDeclineTaskNotCheckpointingException.class));
+			assertEquals(errorMessage, information.getCause().getMessage());
+
+			task.cancelExecution();
+			task.getExecutingThread().join();
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+
 	private static Task createTask() throws Exception {
+		return createTask(CheckpointsInOrderInvokable.class.getName(), mock(CheckpointResponder.class));
+	}
+
+	private static Task createTask(String invokableClassName, CheckpointResponder checkpointResponder) throws Exception {
 		LibraryCacheManager libCache = mock(LibraryCacheManager.class);
 		when(libCache.getClassLoader(any(JobID.class))).thenReturn(ClassLoader.getSystemClassLoader());
 		
@@ -170,7 +217,7 @@ public class TaskAsyncCallTest {
 			"Test Task",
 			1,
 			1,
-			CheckpointsInOrderInvokable.class.getName(),
+			invokableClassName,
 			new Configuration());
 
 		return new Task(
@@ -190,7 +237,7 @@ public class TaskAsyncCallTest {
 			mock(BroadcastVariableManager.class),
 			mock(TaskManagerActions.class),
 			mock(InputSplitProvider.class),
-			mock(CheckpointResponder.class),
+			checkpointResponder,
 			libCache,
 			mock(FileCache.class),
 			new TestingTaskManagerRuntimeInfo(),
@@ -200,12 +247,16 @@ public class TaskAsyncCallTest {
 			executor);
 	}
 
-	public static class CheckpointsInOrderInvokable extends AbstractInvokable implements StatefulTask {
+	public static class CheckpointsInOrderInvokable extends AbstractInvokable {
 
 		private volatile long lastCheckpointId = 0;
 		
 		private volatile Exception error;
-		
+
+		public CheckpointsInOrderInvokable(Environment environment, TaskStateHandles taskStateHandles) {
+			super(environment, taskStateHandles);
+		}
+
 		@Override
 		public void invoke() throws Exception {
 			awaitLatch.trigger();
@@ -222,9 +273,6 @@ public class TaskAsyncCallTest {
 				throw error;
 			}
 		}
-
-		@Override
-		public void setInitialState(TaskStateHandles taskStateHandles) throws Exception {}
 
 		@Override
 		public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) {
@@ -261,6 +309,107 @@ public class TaskAsyncCallTest {
 					notifyAll();
 				}
 			}
+		}
+	}
+
+	public static class UnsupportedCheckpointsInvokable extends AbstractInvokable {
+
+		private volatile long lastCheckpointId = 0;
+
+		private volatile Exception error;
+
+		public UnsupportedCheckpointsInvokable(Environment environment, TaskStateHandles taskStateHandles) {
+			super(environment, taskStateHandles);
+		}
+
+		@Override
+		public void invoke() throws Exception {
+			awaitLatch.trigger();
+
+			// wait forever (until canceled)
+			synchronized (this) {
+				while (error == null && lastCheckpointId < 1) {
+					wait();
+				}
+			}
+
+			if (error != null) {
+				throw error;
+			}
+		}
+
+		@Override
+		public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) throws Exception {
+			lastCheckpointId++;
+			throw new UnsupportedOperationException(String.format("triggerCheckpoint not supported by %s", this.getClass().getName()));
+		}
+
+		@Override
+		public void triggerCheckpointOnBarrier(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions, CheckpointMetrics checkpointMetrics) throws Exception {
+			throw new UnsupportedOperationException(String.format("triggerCheckpointOnBarrier not supported by %s", this.getClass().getName()));
+		}
+
+		@Override
+		public void abortCheckpointOnBarrier(long checkpointId, Throwable cause) throws Exception {
+			throw new UnsupportedOperationException(String.format("abortCheckpointOnBarrier not supported by %s", this.getClass().getName()));
+		}
+
+		@Override
+		public void notifyCheckpointComplete(long checkpointId) throws Exception {
+			throw new UnsupportedOperationException(String.format("notifyCheckpointComplete not supported by %s", this.getClass().getName()));
+		}
+	}
+
+	public static class ArrayCheckpointResponder implements CheckpointResponder {
+		class DeclineCheckpointInformation {
+			private JobID jobID;
+			private ExecutionAttemptID executionAttemptID;
+			private long checkpointId;
+			private Throwable cause;
+
+			DeclineCheckpointInformation(JobID jobID, ExecutionAttemptID executionAttemptID, long checkpointId, Throwable cause) {
+				this.jobID = jobID;
+				this.executionAttemptID = executionAttemptID;
+				this.checkpointId = checkpointId;
+				this.cause = cause;
+			}
+
+			public JobID getJobID() {
+				return this.jobID;
+			}
+
+			public ExecutionAttemptID getExecutionAttemptID() {
+				return this.executionAttemptID;
+			}
+
+			public long getCheckpointId() {
+				return this.checkpointId;
+			}
+
+			public Throwable getCause() {
+				return this.cause;
+			}
+		}
+
+		private ArrayList<DeclineCheckpointInformation> declineCheckpointInformationList;
+
+		public ArrayCheckpointResponder(){
+			this.declineCheckpointInformationList = new ArrayList<>(1);
+		}
+
+		public ArrayList<DeclineCheckpointInformation> getDeclineCheckpointInformationList() {
+			return this.declineCheckpointInformationList;
+		}
+
+		@Override
+		public void acknowledgeCheckpoint(JobID jobID, ExecutionAttemptID executionAttemptID, long checkpointId, CheckpointMetrics checkpointMetrics, SubtaskState subtaskState) {
+
+		}
+
+		@Override
+		public void declineCheckpoint(JobID jobID, ExecutionAttemptID executionAttemptID, long checkpointId, Throwable cause) {
+			declineCheckpointInformationList.add(new DeclineCheckpointInformation(jobID, executionAttemptID, checkpointId, cause));
+			triggerLatch.trigger();
 		}
 	}
 }

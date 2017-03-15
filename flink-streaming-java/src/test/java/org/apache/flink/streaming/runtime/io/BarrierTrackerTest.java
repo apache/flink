@@ -27,8 +27,8 @@ import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
-import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
-import org.apache.flink.runtime.state.TaskStateHandles;
+import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 
 import org.junit.Test;
 
@@ -452,7 +452,7 @@ public class BarrierTrackerTest {
 
 		MockInputGate gate = new MockInputGate(PAGE_SIZE, 3, Arrays.asList(sequence));
 		BarrierTracker tracker = new BarrierTracker(gate);
-		StatefulTask statefulTask = mock(StatefulTask.class);
+		AbstractInvokable statefulTask = mock(AbstractInvokable.class);
 
 		tracker.registerCheckpointEventHandler(statefulTask);
 
@@ -487,19 +487,20 @@ public class BarrierTrackerTest {
 	//  Testing Mocks
 	// ------------------------------------------------------------------------
 	
-	private static class CheckpointSequenceValidator implements StatefulTask {
+	private static class CheckpointSequenceValidator extends AbstractInvokable {
 
 		private final long[] checkpointIDs;
 
 		private int i = 0;
 
 		private CheckpointSequenceValidator(long... checkpointIDs) {
+			super(new DummyEnvironment("test", 1, 0), null);
 			this.checkpointIDs = checkpointIDs;
 		}
 
 		@Override
-		public void setInitialState(TaskStateHandles taskStateHandles) throws Exception {
-			throw new UnsupportedOperationException("should never be called");
+		public void invoke() {
+			// do nothing
 		}
 
 		@Override

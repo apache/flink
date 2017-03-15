@@ -34,6 +34,7 @@ import org.apache.flink.runtime.operators.hash.ReusingBuildSecondHashJoinIterato
 import org.apache.flink.runtime.operators.sort.ReusingMergeInnerJoinIterator;
 import org.apache.flink.runtime.operators.sort.UnilateralSortMerger;
 import org.apache.flink.runtime.operators.testutils.DiscardingOutputCollector;
+import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.operators.testutils.TestData;
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.KeyMode;
@@ -69,7 +70,7 @@ public class HashVsSortMiniBenchmark {
 
 	
 	// dummy abstract task
-	private final AbstractInvokable parentTask = new DummyInvokable();
+	private final AbstractInvokable parentTask = new DummyInvokable(new DummyEnvironment("test", 1, 0), null);
 
 	// memory and io manager
 	private IOManager ioManager;

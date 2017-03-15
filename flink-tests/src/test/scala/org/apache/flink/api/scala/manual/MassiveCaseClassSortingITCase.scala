@@ -22,19 +22,26 @@ import java.io.File
 import java.util.Random
 import java.io.BufferedWriter
 import java.io.FileWriter
+
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.scala._
 import java.io.BufferedReader
+
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync
 import java.io.FileReader
+
 import org.apache.flink.util.MutableObjectIterator
 import org.apache.flink.runtime.memory.MemoryManager
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.runtime.operators.sort.UnilateralSortMerger
 import org.apache.flink.api.java.typeutils.runtime.RuntimeSerializerFactory
+import org.apache.flink.runtime.checkpoint.{CheckpointMetaData, CheckpointMetrics, CheckpointOptions}
+import org.apache.flink.runtime.execution.Environment
 import org.junit.Assert._
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable
+import org.apache.flink.runtime.operators.testutils.DummyEnvironment
+import org.apache.flink.runtime.state.TaskStateHandles
 
 /**
  * This test is wrote as manual test.
@@ -96,7 +103,7 @@ class MassiveCaseClassSortingITCase {
         val ioMan = new IOManagerAsync()
         
         sorter = new UnilateralSortMerger[StringTuple](mm, ioMan, inputIterator,
-              new DummyInvokable(), 
+              new DummyInvokable(new DummyEnvironment("test", 1, 0), null),
               new RuntimeSerializerFactory[StringTuple](serializer, classOf[StringTuple]),
               comparator, 1.0, 4, 0.8f, true /*use large record handler*/, false)
             
@@ -236,7 +243,31 @@ class StringTupleReader(val reader: BufferedReader) extends MutableObjectIterato
 
 }
 
-class DummyInvokable extends AbstractInvokable {
+class DummyInvokable(environment: Environment, taskStateHandles: TaskStateHandles)
+  extends AbstractInvokable(environment, taskStateHandles) {
 
   override def invoke() = {}
+
+  override def triggerCheckpoint(checkpointMetaData: CheckpointMetaData,
+                                  checkpointOptions: CheckpointOptions): Boolean = {
+    throw new UnsupportedOperationException(
+      String.format("triggerCheckpoint not supported by %s", this.getClass.getName))
+  }
+
+  override def triggerCheckpointOnBarrier(checkpointMetaData: CheckpointMetaData,
+                                          checkpointOptions: CheckpointOptions,
+                                          checkpointMetrics: CheckpointMetrics): Unit = {
+    throw new UnsupportedOperationException(
+      String.format("triggerCheckpointOnBarrier not supported by %s", this.getClass.getName))
+  }
+
+  override def abortCheckpointOnBarrier(checkpointId: Long, cause: Throwable): Unit = {
+    throw new UnsupportedOperationException(
+      String.format("abortCheckpointOnBarrier not supported by %s", this.getClass.getName))
+  }
+
+  override def notifyCheckpointComplete(checkpointId: Long): Unit = {
+    throw new UnsupportedOperationException(
+      String.format("notifyCheckpointComplete not supported by %s", this.getClass.getName))
+  }
 }

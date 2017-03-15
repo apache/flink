@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.iterative.task;
 
+import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.state.TaskStateHandles;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.functions.Function;
@@ -45,7 +47,10 @@ public class IterationTailTask<S extends Function, OT> extends AbstractIterative
 	private SolutionSetUpdateBarrier solutionSetUpdateBarrier;
 
 	private WorksetUpdateOutputCollector<OT> worksetUpdateOutputCollector;
-	
+
+	public IterationTailTask(Environment environment, TaskStateHandles taskStateHandles) {
+		super(environment, taskStateHandles);
+	}
 
 	@Override
 	protected void initialize() throws Exception {

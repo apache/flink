@@ -26,7 +26,9 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemoryType;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.operators.testutils.TestData;
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.KeyMode;
@@ -52,6 +54,8 @@ public class NormalizedKeySorterTest {
 	private static final int MEMORY_SIZE = 1024 * 1024 * 64;
 	
 	private static final int MEMORY_PAGE_SIZE = 32 * 1024; 
+
+	private Environment dummyEnvironment = new DummyEnvironment("test", 1, 0);
 
 	private MemoryManager memoryManager;
 
@@ -81,7 +85,7 @@ public class NormalizedKeySorterTest {
 	@Test
 	public void testWriteAndRead() throws Exception {
 		final int numSegments = MEMORY_SIZE / MEMORY_PAGE_SIZE;
-		final List<MemorySegment> memory = this.memoryManager.allocatePages(new DummyInvokable(), numSegments);
+		final List<MemorySegment> memory = this.memoryManager.allocatePages(new DummyInvokable(dummyEnvironment, null), numSegments);
 		
 		NormalizedKeySorter<Tuple2<Integer, String>> sorter = newSortBuffer(memory);
 		TestData.TupleGenerator generator = new TestData.TupleGenerator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM,
@@ -123,7 +127,7 @@ public class NormalizedKeySorterTest {
 	@Test
 	public void testWriteAndIterator() throws Exception {
 		final int numSegments = MEMORY_SIZE / MEMORY_PAGE_SIZE;
-		final List<MemorySegment> memory = this.memoryManager.allocatePages(new DummyInvokable(), numSegments);
+		final List<MemorySegment> memory = this.memoryManager.allocatePages(new DummyInvokable(dummyEnvironment, null), numSegments);
 		
 		NormalizedKeySorter<Tuple2<Integer, String>> sorter = newSortBuffer(memory);
 		TestData.TupleGenerator generator = new TestData.TupleGenerator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM,
@@ -162,7 +166,7 @@ public class NormalizedKeySorterTest {
 	@Test
 	public void testReset() throws Exception {
 		final int numSegments = MEMORY_SIZE / MEMORY_PAGE_SIZE;
-		final List<MemorySegment> memory = this.memoryManager.allocatePages(new DummyInvokable(), numSegments);
+		final List<MemorySegment> memory = this.memoryManager.allocatePages(new DummyInvokable(dummyEnvironment, null), numSegments);
 		
 		NormalizedKeySorter<Tuple2<Integer, String>> sorter = newSortBuffer(memory);
 		TestData.TupleGenerator generator = new TestData.TupleGenerator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.FIX_LENGTH);
@@ -223,7 +227,7 @@ public class NormalizedKeySorterTest {
 	@Test
 	public void testSwap() throws Exception {
 		final int numSegments = MEMORY_SIZE / MEMORY_PAGE_SIZE;
-		final List<MemorySegment> memory = this.memoryManager.allocatePages(new DummyInvokable(), numSegments);
+		final List<MemorySegment> memory = this.memoryManager.allocatePages(new DummyInvokable(dummyEnvironment, null), numSegments);
 		
 		NormalizedKeySorter<Tuple2<Integer, String>> sorter = newSortBuffer(memory);
 		TestData.TupleGenerator generator = new TestData.TupleGenerator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM,
@@ -276,7 +280,7 @@ public class NormalizedKeySorterTest {
 	@Test
 	public void testCompare() throws Exception {
 		final int numSegments = MEMORY_SIZE / MEMORY_PAGE_SIZE;
-		final List<MemorySegment> memory = this.memoryManager.allocatePages(new DummyInvokable(), numSegments);
+		final List<MemorySegment> memory = this.memoryManager.allocatePages(new DummyInvokable(dummyEnvironment, null), numSegments);
 		
 		NormalizedKeySorter<Tuple2<Integer, String>> sorter = newSortBuffer(memory);
 		TestData.TupleGenerator generator = new TestData.TupleGenerator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.SORTED,
@@ -317,7 +321,7 @@ public class NormalizedKeySorterTest {
 		final int NUM_RECORDS = 559273;
 		
 		final int numSegments = MEMORY_SIZE / MEMORY_PAGE_SIZE;
-		final List<MemorySegment> memory = this.memoryManager.allocatePages(new DummyInvokable(), numSegments);
+		final List<MemorySegment> memory = this.memoryManager.allocatePages(new DummyInvokable(dummyEnvironment, null), numSegments);
 		
 		NormalizedKeySorter<Tuple2<Integer, String>> sorter = newSortBuffer(memory);
 		TestData.TupleGenerator generator = new TestData.TupleGenerator(SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM,
@@ -360,7 +364,7 @@ public class NormalizedKeySorterTest {
 	@Test
 	public void testSortShortStringKeys() throws Exception {
 		final int numSegments = MEMORY_SIZE / MEMORY_PAGE_SIZE;
-		final List<MemorySegment> memory = this.memoryManager.allocatePages(new DummyInvokable(), numSegments);
+		final List<MemorySegment> memory = this.memoryManager.allocatePages(new DummyInvokable(dummyEnvironment, null), numSegments);
 		
 		@SuppressWarnings("unchecked")
 		TypeComparator<Tuple2<Integer, String>> accessors = TestData.getIntStringTupleTypeInfo().createComparator(new int[]{1}, new boolean[]{true}, 0, null);
@@ -404,7 +408,7 @@ public class NormalizedKeySorterTest {
 	@Test
 	public void testSortLongStringKeys() throws Exception {
 		final int numSegments = MEMORY_SIZE / MEMORY_PAGE_SIZE;
-		final List<MemorySegment> memory = this.memoryManager.allocatePages(new DummyInvokable(), numSegments);
+		final List<MemorySegment> memory = this.memoryManager.allocatePages(new DummyInvokable(dummyEnvironment, null), numSegments);
 		
 		@SuppressWarnings("unchecked")
 		TypeComparator<Tuple2<Integer, String>> accessors = TestData.getIntStringTupleTypeInfo().createComparator(new int[]{1}, new boolean[]{true}, 0, null);

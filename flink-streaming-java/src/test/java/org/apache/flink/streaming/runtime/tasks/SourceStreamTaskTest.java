@@ -56,15 +56,17 @@ public class SourceStreamTaskTest {
 	 */
 	@Test
 	public void testOpenClose() throws Exception {
-		final SourceStreamTask<String, SourceFunction<String>, StreamSource<String, SourceFunction<String>>> sourceTask = new SourceStreamTask<>();
-		final StreamTaskTestHarness<String> testHarness = new StreamTaskTestHarness<String>(sourceTask, BasicTypeInfo.STRING_TYPE_INFO);
+		final StreamTaskTestHarness<String> testHarness = new StreamTaskTestHarness<String>(BasicTypeInfo.STRING_TYPE_INFO);
 		testHarness.setupOutputForSingletonOperatorChain();
 
 		StreamConfig streamConfig = testHarness.getStreamConfig();
 		StreamSource<String, ?> sourceOperator = new StreamSource<>(new OpenCloseTestSource());
 		streamConfig.setStreamOperator(sourceOperator);
 
-		testHarness.invoke();
+		final SourceStreamTask<String, SourceFunction<String>,
+			StreamSource<String, SourceFunction<String>>> sourceTask = new SourceStreamTask<>(testHarness.createEnvironment(), null);
+
+		testHarness.invoke(sourceTask);
 		testHarness.waitForTaskCompletion();
 
 		Assert.assertTrue("RichFunction methods where not called.", OpenCloseTestSource.closeCalled);
@@ -98,9 +100,7 @@ public class SourceStreamTaskTest {
 		ExecutorService executor = Executors.newFixedThreadPool(10);
 		try {
 			final TupleTypeInfo<Tuple2<Long, Integer>> typeInfo = new TupleTypeInfo<Tuple2<Long, Integer>>(BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO);
-			final SourceStreamTask<Tuple2<Long, Integer>, SourceFunction<Tuple2<Long, Integer>>,
-				StreamSource<Tuple2<Long, Integer>, SourceFunction<Tuple2<Long, Integer>>>> sourceTask = new SourceStreamTask<>();
-			final StreamTaskTestHarness<Tuple2<Long, Integer>> testHarness = new StreamTaskTestHarness<Tuple2<Long, Integer>>(sourceTask, typeInfo);
+			final StreamTaskTestHarness<Tuple2<Long, Integer>> testHarness = new StreamTaskTestHarness<Tuple2<Long, Integer>>(typeInfo);
 			testHarness.setupOutputForSingletonOperatorChain();
 
 			StreamConfig streamConfig = testHarness.getStreamConfig();
@@ -112,7 +112,10 @@ public class SourceStreamTaskTest {
 			Future<Boolean>[] checkpointerResults = new Future[NUM_CHECKPOINTERS];
 
 			// invoke this first, so the tasks are actually running when the checkpoints are scheduled
-			testHarness.invoke();
+			final SourceStreamTask<Tuple2<Long, Integer>, SourceFunction<Tuple2<Long, Integer>>,
+				StreamSource<Tuple2<Long, Integer>, SourceFunction<Tuple2<Long, Integer>>>> sourceTask = new SourceStreamTask<>(testHarness.createEnvironment(), null);
+
+			testHarness.invoke(sourceTask);
 
 			for (int i = 0; i < NUM_CHECKPOINTERS; i++) {
 				checkpointerResults[i] = executor.submit(new Checkpointer(NUM_CHECKPOINTS, CHECKPOINT_INTERVAL, sourceTask));

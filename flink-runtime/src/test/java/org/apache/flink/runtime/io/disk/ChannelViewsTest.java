@@ -23,6 +23,7 @@ import java.io.EOFException;
 import java.util.List;
 
 import org.apache.flink.core.memory.MemoryType;
+import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.junit.Assert;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.iomanager.BlockChannelReader;
@@ -67,7 +68,7 @@ public class ChannelViewsTest
 	
 	private static final int NUM_MEMORY_SEGMENTS = 3;
 	
-	private final AbstractInvokable parentTask = new DummyInvokable();
+	private final AbstractInvokable parentTask = new DummyInvokable(new DummyEnvironment("test", 1, 0), null);
 
 	private IOManager ioManager;
 

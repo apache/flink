@@ -108,7 +108,7 @@ public class UnaryOperatorTestBase<S extends Function, IN, OUT> extends TestLogg
 		this.perSortFractionMem = (double)perSortMemory/totalMem;
 		this.ioManager = new IOManagerAsync();
 		this.memManager = totalMem > 0 ? new MemoryManager(totalMem, 1) : null;
-		this.owner = new DummyInvokable();
+		this.owner = new DummyInvokable(new DummyEnvironment("test", 1, 0), null);
 
 		Configuration config = new Configuration();
 		this.taskConfig = new TaskConfig(config);
