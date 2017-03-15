@@ -169,7 +169,7 @@ public class BlobServer extends Thread implements BlobService {
 			throw new IOException("Unable to allocate socket for blob server in specified port range: "+serverPortRange);
 		} else {
 			SSLUtils.setSSLVerAndCipherSuites(socketAttempt, config);
-		this.serverSocket = socketAttempt;
+			this.serverSocket = socketAttempt;
 		}
 
 		// start the server thread

@@ -172,15 +172,17 @@ public class SSLUtilsTest {
 
 			String[] protocols = ((SSLServerSocket) socket).getEnabledProtocols();
 			String[] algorithms = ((SSLServerSocket) socket).getEnabledCipherSuites();
-			Assert.assertTrue(protocols.length > 1);
-			Assert.assertTrue(algorithms.length > 2);
+
+			Assert.assertNotEquals(protocols.length, 1);
+			Assert.assertNotEquals(algorithms.length, 2);
 
 			SSLUtils.setSSLVerAndCipherSuites(socket, serverConfig);
 			protocols = ((SSLServerSocket) socket).getEnabledProtocols();
 			algorithms = ((SSLServerSocket) socket).getEnabledCipherSuites();
-			Assert.assertTrue(protocols.length == 1);
-			Assert.assertTrue(protocols[0].equals("TLSv1.1"));
-			Assert.assertTrue(algorithms.length == 2);
+
+			Assert.assertEquals(protocols.length, 1);
+			Assert.assertEquals(protocols[0], "TLSv1.1");
+			Assert.assertEquals(algorithms.length, 2);
 			Assert.assertTrue(algorithms[0].equals("TLS_RSA_WITH_AES_128_CBC_SHA") || algorithms[0].equals("TLS_RSA_WITH_AES_128_CBC_SHA256"));
 			Assert.assertTrue(algorithms[1].equals("TLS_RSA_WITH_AES_128_CBC_SHA") || algorithms[1].equals("TLS_RSA_WITH_AES_128_CBC_SHA256"));
 		} finally {
@@ -210,16 +212,16 @@ public class SSLUtilsTest {
 		String[] protocols = engine.getEnabledProtocols();
 		String[] algorithms = engine.getEnabledCipherSuites();
 
-		Assert.assertTrue(protocols.length > 1);
-		Assert.assertTrue(algorithms.length > 2);
+		Assert.assertNotEquals(protocols.length, 1);
+		Assert.assertNotEquals(algorithms.length, 2);
 
 		SSLUtils.setSSLVerAndCipherSuites(engine, serverConfig);
 		protocols = engine.getEnabledProtocols();
 		algorithms = engine.getEnabledCipherSuites();
 
-		Assert.assertTrue(protocols.length == 1);
-		Assert.assertTrue(protocols[0].equals("TLSv1"));
-		Assert.assertTrue(algorithms.length == 2);
+		Assert.assertEquals(protocols.length, 1);
+		Assert.assertEquals(protocols[0], "TLSv1");
+		Assert.assertEquals(algorithms.length, 2);
 		Assert.assertTrue(algorithms[0].equals("TLS_DHE_RSA_WITH_AES_128_CBC_SHA") || algorithms[0].equals("TLS_DHE_RSA_WITH_AES_128_CBC_SHA256"));
 		Assert.assertTrue(algorithms[1].equals("TLS_DHE_RSA_WITH_AES_128_CBC_SHA") || algorithms[1].equals("TLS_DHE_RSA_WITH_AES_128_CBC_SHA256"));
 	}
