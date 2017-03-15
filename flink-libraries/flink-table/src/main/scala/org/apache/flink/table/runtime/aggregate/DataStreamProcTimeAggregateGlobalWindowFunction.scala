@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.runtime.aggregate
 
-import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction
+import org.apache.flink.streaming.api.functions.windowing.RichAllWindowFunction
 import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
 import org.apache.flink.streaming.api.windowing.windows.Window
@@ -37,12 +37,21 @@ class DataStreamProcTimeAggregateGlobalWindowFunction[W <: Window](
      private val aggregates: Array[AggregateFunction[_]],
      private val aggFields: Array[Int],
      private val forwardedFieldCount: Int)
-     extends AllWindowFunction[Row, Row, W] {
+     extends RichAllWindowFunction[Row, Row, W] {
   
 private var output: Row = _
 private var accumulators: Row= _
-private var reuse: Row= _
  
+
+ override def open(parameters: Configuration): Unit = {
+     output = new Row(forwardedFieldCount + aggregates.length)
+     accumulators = new Row(aggregates.length)
+     var i = 0
+     while (i < aggregates.length) {
+        accumulators.setField(i, aggregates(i).createAccumulator())
+        i = i + 1
+     }
+  }
    
  override def apply(
       window: W,
@@ -58,7 +67,7 @@ private var reuse: Row= _
         accumulators.setField(i, aggregates(i).createAccumulator())
         i += 1
      }
-     
+     var reuse:Row = null
      //iterate through the elements and aggregate
      val iter = records.iterator
      while (iter.hasNext) {

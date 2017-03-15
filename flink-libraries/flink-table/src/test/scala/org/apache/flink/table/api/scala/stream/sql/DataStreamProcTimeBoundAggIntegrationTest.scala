@@ -18,84 +18,174 @@
 
 package org.apache.flink.table.runtime.datastream
 
-import java.math.BigDecimal
-
 import org.apache.flink.api.scala._
-import org.apache.flink.types.Row
-import org.apache.flink.table.api.scala.stream.utils.StreamITCase
-import org.apache.flink.table.api.scala._
-import org.apache.flink.streaming.api.TimeCharacteristic
-import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.streaming.api.watermark.Watermark
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
-import org.apache.flink.table.api.TableEnvironment
-import org.apache.flink.table.runtime.datastream.DataStreamAggregateITCase.TimestampWithEqualWatermark
+import org.apache.flink.table.api.{ TableEnvironment, TableException }
+import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.scala.stream.utils.{
+  StreamingWithStateTestBase,
+  StreamITCase,
+  StreamTestData
+}
+import org.apache.flink.types.Row
 import org.junit.Assert._
-import org.junit.Test
-
+import org.junit._
 import scala.collection.mutable
-import test.scala.org.apache.flink.table.api.scala.stream.utils.StreamITCase
-import test.scala.org.apache.flink.table.api.scala.stream.utils.StreamTestData
-import test.scala.org.apache.flink.table.api.scala.stream.utils.StreamITCase
-import test.scala.org.apache.flink.table.api.scala.stream.utils.StreamTestData
-import test.scala.org.apache.flink.table.api.scala.stream.utils.StreamITCase
-import test.scala.org.apache.flink.table.api.scala.stream.utils.StreamTestData
-import test.scala.org.apache.flink.table.api.scala.stream.utils.StreamITCase
-import test.scala.org.apache.flink.table.api.scala.stream.utils.StreamTestData
 
-class DataStreamAggregateITCase extends StreamingMultipleProgramsTestBase {
-
-  val data = List(
-    (1L, 1, 1d, 1f, new BigDecimal("1"), "Hi"),
-    (2L, 2, 2d, 2f, new BigDecimal("2"), "Hallo"),
-    (3L, 2, 2d, 2f, new BigDecimal("2"), "Hello"),
-    (4L, 5, 5d, 5f, new BigDecimal("5"), "Hello"),
-    (7L, 3, 3d, 3f, new BigDecimal("3"), "Hello"),
-    (8L, 3, 3d, 3f, new BigDecimal("3"), "Hello world"),
-    (16L, 4, 4d, 4f, new BigDecimal("4"), "Hello world"))
+class DataStreamProcTimeBoundAggIntegrationTest extends StreamingWithStateTestBase {
 
   // ----------------------------------------------------------------------------------------------
   // Sliding windows
   // ----------------------------------------------------------------------------------------------
 
   @Test
-  def testSelectExpressionFromTable(): Unit = {
+  def testMaxAggregatation(): Unit = {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
+    env.setParallelism(1)
     StreamITCase.testResults = mutable.MutableList()
 
-    val sqlQuery = "SELECT a, MAX(c) OVER (PARTITION BY a ORDER BY procTime() "
-    +"RANGE BETWEEN INTERVAL '10' SECOND PRECEDING AND CURRENT ROW) AS maxC FROM MyTable"
+    val sqlQuery = "SELECT a, MAX(c) OVER (PARTITION BY a ORDER BY procTime()" +
+      "RANGE BETWEEN INTERVAL '10' SECOND PRECEDING AND CURRENT ROW) AS maxC FROM MyTable"
 
-    val t = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv).as('a, 'b, 'c)
+    val t = StreamTestData.get5TupleDataStream(env).toTable(tEnv).as('a, 'b, 'c, 'd, 'e)
     tEnv.registerTable("MyTable", t)
 
     val result = tEnv.sql(sqlQuery).toDataStream[Row]
     result.addSink(new StreamITCase.StringSink)
     env.execute()
 
-    val expected = mutable.MutableList("2,0", "4,1", "6,1")
+    val expected = mutable.MutableList(
+      "1,0",
+      "2,1",
+      "2,2",
+      "3,3",
+      "3,4",
+      "3,5",
+      "4,6",
+      "4,7",
+      "4,8",
+      "4,9",
+      "5,10",
+      "5,11",
+      "5,12",
+      "5,13",
+      "5,14")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testMinAggregatation(): Unit = {
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    env.setParallelism(1)
+    StreamITCase.testResults = mutable.MutableList()
+
+    val sqlQuery = "SELECT a, MIN(c) OVER (PARTITION BY a ORDER BY procTime()" +
+      "RANGE BETWEEN INTERVAL '10' SECOND PRECEDING AND CURRENT ROW) AS minC FROM MyTable"
+
+    val t = StreamTestData.get5TupleDataStream(env).toTable(tEnv).as('a, 'b, 'c, 'd, 'e)
+    tEnv.registerTable("MyTable", t)
+
+    val result = tEnv.sql(sqlQuery).toDataStream[Row]
+    result.addSink(new StreamITCase.StringSink)
+    env.execute()
+
+    val expected = mutable.MutableList(
+      "1,0",
+      "2,1",
+      "2,1",
+      "3,3",
+      "3,3",
+      "3,3",
+      "4,6",
+      "4,6",
+      "4,6",
+      "4,6",
+      "5,10",
+      "5,10",
+      "5,10",
+      "5,10",
+      "5,10")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testSumAggregatation(): Unit = {
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    env.setParallelism(1)
+    StreamITCase.testResults = mutable.MutableList()
+
+    val sqlQuery = "SELECT a, SUM(c) OVER (PARTITION BY a ORDER BY procTime()" +
+      "RANGE BETWEEN INTERVAL '10' SECOND PRECEDING AND CURRENT ROW) AS sumC FROM MyTable"
+
+    val t = StreamTestData.get5TupleDataStream(env).toTable(tEnv).as('a, 'b, 'c, 'd, 'e)
+    tEnv.registerTable("MyTable", t)
+
+    val result = tEnv.sql(sqlQuery).toDataStream[Row]
+    result.addSink(new StreamITCase.StringSink)
+    env.execute()
+
+    val expected = mutable.MutableList(
+      "1,0",
+      "2,1",
+      "2,3",
+      "3,12",
+      "3,3",
+      "3,7",
+      "4,13",
+      "4,21",
+      "4,30",
+      "4,6",
+      "5,10",
+      "5,21",
+      "5,33",
+      "5,46",
+      "5,60")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testAvgAggregatation(): Unit = {
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    env.setParallelism(1)
+    StreamITCase.testResults = mutable.MutableList()
+
+    val sqlQuery = "SELECT a, AVG(c) OVER (PARTITION BY a ORDER BY procTime()" +
+      "RANGE BETWEEN INTERVAL '10' SECOND PRECEDING AND CURRENT ROW) AS avgC FROM MyTable"
+
+    val t = StreamTestData.get5TupleDataStream(env).toTable(tEnv).as('a, 'b, 'c, 'd, 'e)
+    tEnv.registerTable("MyTable", t)
+
+    val result = tEnv.sql(sqlQuery).toDataStream[Row]
+    result.addSink(new StreamITCase.StringSink)
+    env.execute()
+
+    val expected = mutable.MutableList(
+      "1,0",
+      "2,1",
+      "2,1",
+      "3,3",
+      "3,3",
+      "3,4",
+      "4,6",
+      "4,6",
+      "4,7",
+      "4,7",
+      "5,10",
+      "5,10",
+      "5,11",
+      "5,11",
+      "5,12")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
 }
 
-object DataStreamAggregateITCase {
-  class TimestampWithEqualWatermark
-      extends AssignerWithPunctuatedWatermarks[(Long, Int, Double, Float, BigDecimal, String)] {
 
-    override def checkAndGetNextWatermark(
-      lastElement: (Long, Int, Double, Float, BigDecimal, String),
-      extractedTimestamp: Long): Watermark = {
-      new Watermark(extractedTimestamp)
-    }
-
-    override def extractTimestamp(
-      element: (Long, Int, Double, Float, BigDecimal, String),
-      previousElementTimestamp: Long): Long = {
-      element._1
-    }
-  }
-}

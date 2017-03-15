@@ -22,9 +22,11 @@ import java.lang.Iterable
 import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.types.Row
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.streaming.api.functions.windowing.WindowFunction
+import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction
 import org.apache.flink.streaming.api.windowing.windows.Window
 import org.apache.flink.util.Collector
+import org.apache.flink.table.functions.AggregateFunction
+import org.apache.flink.table.functions.Accumulator
 
 /**
   * Computes the final aggregate value from incrementally computed aggreagtes.
@@ -34,11 +36,24 @@ import org.apache.flink.util.Collector
   * @param finalRowArity The arity of the final output row.
   */
 class DataStreamIncrementalAggregateWindowFunction[W <: Window](
-    private val numGroupingKey: Int)
-  extends WindowFunction[Row, Row, Tuple, W] {
+     private val aggregates: Array[AggregateFunction[_]],
+     private val aggFields: Array[Int],
+     private val forwardedFieldCount: Int)
+  extends RichWindowFunction[Row, Row, Tuple, W] {
 
-  private var output: Row = _
+private var output: Row = _
+private var accumulators: Row= _
 
+  override def open(parameters: Configuration): Unit = {
+     output = new Row(forwardedFieldCount + aggregates.length)
+     accumulators = new Row(aggregates.length)
+     var i = 0
+     while (i < aggregates.length) {
+        accumulators.setField(i, aggregates(i).createAccumulator())
+        i = i + 1
+     }
+  }
+  
  
   /**
     * Calculate aggregated values output by aggregate buffer, and set them into output
@@ -50,18 +65,44 @@ class DataStreamIncrementalAggregateWindowFunction[W <: Window](
       records: Iterable[Row],
       out: Collector[Row]): Unit = {
 
-    val iterator = records.iterator
-
-    if (iterator.hasNext) {
-      val record = iterator.next()
-
-      var i = 0
-      while (i < numGroupingKey) {
-        output.setField(i, key.getField(i))
+   var i = 0
+     //initialize the values of the aggregators by re-creating them
+     //the design of the Accumulator interface should be extended to enable 
+     //a reset function for better performance
+     while (i < aggregates.length) {
+        accumulators.setField(i, aggregates(i).createAccumulator())
         i += 1
-      }
-      
-      out.collect(output)
+     }
+     var reuse:Row = null
+     //iterate through the elements and aggregate
+     val iter = records.iterator
+     while (iter.hasNext) {
+       reuse = iter.next
+       i = 0
+       while (i < aggregates.length) {
+          val accumulator = accumulators.getField(i).asInstanceOf[Accumulator]
+          aggregates(i).accumulate(accumulator, reuse.getField(aggFields(i)))
+          i += 1
+       }
+     }
+
+    //set the values of the result with current elements values if needed
+    i = 0
+    while (i < forwardedFieldCount) {
+      output.setField(i, reuse.getField(i))
+      i += 1
     }
+    
+    //set the values of the result with the accumulators
+    i = 0
+    while (i < aggregates.length) {
+      val index = forwardedFieldCount + i
+      val accumulator = accumulators.getField(i).asInstanceOf[Accumulator]
+      output.setField(index, aggregates(i).getValue(accumulator))
+      i += 1
+    }
+
+    out.collect(output)
+    
   }
 }

@@ -189,15 +189,21 @@ class DataStreamOverAggregate(
     val result: DataStream[Row] =
       if (partitionKeys.nonEmpty) {
         inputDataStreamTimed.keyBy(0)
-          .window(TumblingEventTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS))) 
-          .apply(new DataStreamIncrementalAggregateWindowFunction[TimeWindow](1))
-          //.apply(new DataStreamIncrementalAggregateWindowFunction[GlobalWindow](1)) 
-        null
+          .window(GlobalWindows.create())
+          .trigger(CountTrigger.of(1))
+          .evictor(TimeEvictor.of(Time.milliseconds(time_boundary))) 
+          .apply(new DataStreamIncrementalAggregateWindowFunction[GlobalWindow]
+               (aggregates,aggFields,inputType.getFieldCount))
+          .returns(rowTypeInfo)
+          .name(aggOpName)
+          .asInstanceOf[DataStream[Row]]
+        
       } else {
           inputDataStreamTimed.windowAll(GlobalWindows.create()).trigger(CountTrigger.of(1))
             .evictor(TimeEvictor.of(Time.milliseconds(time_boundary)))        
             .apply(new DataStreamProcTimeAggregateGlobalWindowFunction[GlobalWindow](
                 aggregates,aggFields,inputType.getFieldCount))
+            .setParallelism(1)
             .returns(rowTypeInfo)
             .name(aggOpName)
             .asInstanceOf[DataStream[Row]]
