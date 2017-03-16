@@ -14,9 +14,10 @@ package org.apache.flink.python.api.streaming.plan;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.python.api.streaming.util.StreamPrinter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
@@ -29,7 +30,10 @@ import static org.apache.flink.python.api.PythonPlanBinder.usePython3;
 /**
  * Generic class to exchange data during the plan phase.
  */
-public class PythonPlanStreamer implements Serializable {
+public class PythonPlanStreamer {
+
+	protected static final Logger LOG = LoggerFactory.getLogger(PythonPlanStreamer.class);
+
 	protected PythonPlanSender sender;
 	protected PythonPlanReceiver receiver;
 
@@ -70,7 +74,7 @@ public class PythonPlanStreamer implements Serializable {
 
 		try {
 			Runtime.getRuntime().exec(pythonBinaryPath);
-		} catch (IOException ex) {
+		} catch (IOException ignored) {
 			throw new RuntimeException(pythonBinaryPath + " does not point to a valid python binary.");
 		}
 		process = Runtime.getRuntime().exec(pythonBinaryPath + " -B " + tmpPath + FLINK_PYTHON_PLAN_NAME + args);
@@ -80,7 +84,7 @@ public class PythonPlanStreamer implements Serializable {
 
 		try {
 			Thread.sleep(2000);
-		} catch (InterruptedException ex) {
+		} catch (InterruptedException ignored) {
 		}
 
 		checkPythonProcessHealth();
@@ -93,9 +97,15 @@ public class PythonPlanStreamer implements Serializable {
 	public void close() {
 		try {
 			process.exitValue();
-		} catch (NullPointerException npe) { //exception occurred before process was started
-		} catch (IllegalThreadStateException ise) { //process still active
+		} catch (NullPointerException ignored) { //exception occurred before process was started
+		} catch (IllegalThreadStateException ignored) { //process still active
 			process.destroy();
+		} finally {
+			try {
+				socket.close();
+			} catch (IOException e) {
+				LOG.error("Failed to close socket.", e);
+			}
 		}
 	}
 
@@ -104,11 +114,10 @@ public class PythonPlanStreamer implements Serializable {
 			int value = process.exitValue();
 			if (value != 0) {
 				throw new RuntimeException("Plan file caused an error. Check log-files for details.");
-			}
-			if (value == 0) {
+			} else {
 				throw new RuntimeException("Plan file exited prematurely without an error.");
 			}
-		} catch (IllegalThreadStateException ise) {//Process still running
+		} catch (IllegalThreadStateException ignored) {//Process still running
 		}
 	}
 }

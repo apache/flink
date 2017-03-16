@@ -28,13 +28,16 @@ import org.apache.flink.util.Collector;
  * @param <IN>
  * @param <OUT>
  */
-public class PythonMapPartition<IN, OUT> extends RichMapPartitionFunction<IN, OUT> implements ResultTypeQueryable {
-	private final PythonStreamer streamer;
-	private transient final TypeInformation<OUT> typeInformation;
+public class PythonMapPartition<IN, OUT> extends RichMapPartitionFunction<IN, OUT> implements ResultTypeQueryable<OUT>{
+
+	private static final long serialVersionUID = 3866306483023916413L;
+
+	private final PythonStreamer<IN, IN, OUT> streamer;
+	private final transient TypeInformation<OUT> typeInformation;
 
 	public PythonMapPartition(int id, TypeInformation<OUT> typeInformation) {
 		this.typeInformation = typeInformation;
-		streamer = new PythonStreamer(this, id, typeInformation instanceof PrimitiveArrayTypeInfo);
+		streamer = new PythonStreamer<>(this, id, typeInformation instanceof PrimitiveArrayTypeInfo);
 	}
 
 	/**
