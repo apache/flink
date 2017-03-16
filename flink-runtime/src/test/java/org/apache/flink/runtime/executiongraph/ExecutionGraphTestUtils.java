@@ -18,38 +18,32 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-
-import java.lang.reflect.Field;
-import java.net.InetAddress;
-import java.util.concurrent.ScheduledExecutorService;
-
+import akka.actor.Status;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.instance.BaseTestingActorGateway;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.Instance;
-import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
-import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.instance.SimpleSlot;
-import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
-import org.apache.flink.runtime.messages.TaskMessages.SubmitTask;
-import org.apache.flink.runtime.messages.TaskMessages.FailIntermediateResultPartitions;
+import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.TaskMessages.CancelTask;
+import org.apache.flink.runtime.messages.TaskMessages.FailIntermediateResultPartitions;
+import org.apache.flink.runtime.messages.TaskMessages.SubmitTask;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.SerializedValue;
 import org.mockito.Matchers;
@@ -57,6 +51,14 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import scala.concurrent.ExecutionContext;
 import scala.concurrent.ExecutionContext$;
+
+import java.lang.reflect.Field;
+import java.net.InetAddress;
+import java.util.concurrent.ScheduledExecutorService;
+
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 
 public class ExecutionGraphTestUtils {
 
@@ -120,8 +122,7 @@ public class ExecutionGraphTestUtils {
 
 	@SuppressWarnings("serial")
 	public static class SimpleActorGateway extends BaseTestingActorGateway {
-		
-		public TaskDeploymentDescriptor lastTDD;
+
 
 		public SimpleActorGateway(ExecutionContext executionContext){
 			super(executionContext);
@@ -132,7 +133,6 @@ public class ExecutionGraphTestUtils {
 			Object result = null;
 			if(message instanceof SubmitTask) {
 				SubmitTask submitTask = (SubmitTask) message;
-				lastTDD = submitTask.tasks();
 
 				result = Acknowledge.get();
 			} else if(message instanceof CancelTask) {
@@ -144,6 +144,35 @@ public class ExecutionGraphTestUtils {
 			}
 
 			return result;
+		}
+	}
+
+	@SuppressWarnings("serial")
+	public static class SimpleActorGatewayWithTDD extends SimpleActorGateway {
+
+		public TaskDeploymentDescriptor lastTDD;
+		private final BlobLibraryCacheManager blobCache;
+
+		public SimpleActorGatewayWithTDD(ExecutionContext executionContext, BlobLibraryCacheManager blobCache) {
+			super(executionContext);
+			this.blobCache = blobCache;
+		}
+
+		@Override
+		public Object handleMessage(Object message) {
+			if(message instanceof SubmitTask) {
+				SubmitTask submitTask = (SubmitTask) message;
+				lastTDD = submitTask.tasks();
+				try {
+					lastTDD.loadBigData(blobCache);
+					return Acknowledge.get();
+				} catch (Exception e) {
+					e.printStackTrace();
+					return new Status.Failure(e);
+				}
+			} else {
+				return super.handleMessage(message);
+			}
 		}
 	}
 

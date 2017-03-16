@@ -253,6 +253,25 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			Time timeout,
 			RestartStrategy restartStrategy,
 			SlotProvider slotProvider) {
+
+		this(futureExecutor, ioExecutor, jobId, jobName, jobConfig, serializedConfig, timeout,
+			restartStrategy, slotProvider, null);
+	}
+
+	/**
+	 * This constructor is for tests only, because it does not include class loading information.
+	 */
+	ExecutionGraph(
+			ScheduledExecutorService futureExecutor,
+			Executor ioExecutor,
+			JobID jobId,
+			String jobName,
+			Configuration jobConfig,
+			SerializedValue<ExecutionConfig> serializedConfig,
+			Time timeout,
+			RestartStrategy restartStrategy,
+			SlotProvider slotProvider,
+			BlobServer blobServer) {
 		this(
 			futureExecutor,
 			ioExecutor,
@@ -266,7 +285,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			Collections.<URL>emptyList(),
 			slotProvider,
 			ExecutionGraph.class.getClassLoader(),
-			null
+			blobServer
 		);
 	}
 
