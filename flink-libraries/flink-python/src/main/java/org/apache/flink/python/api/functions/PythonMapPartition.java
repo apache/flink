@@ -18,7 +18,7 @@ import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.python.api.streaming.data.PythonStreamer;
+import org.apache.flink.python.api.streaming.data.PythonSingleInputStreamer;
 import org.apache.flink.util.Collector;
 
 /**
@@ -32,12 +32,12 @@ public class PythonMapPartition<IN, OUT> extends RichMapPartitionFunction<IN, OU
 
 	private static final long serialVersionUID = 3866306483023916413L;
 
-	private final PythonStreamer<IN, IN, OUT> streamer;
+	private final PythonSingleInputStreamer<IN, OUT> streamer;
 	private final transient TypeInformation<OUT> typeInformation;
 
 	public PythonMapPartition(int envId, int setId, TypeInformation<OUT> typeInformation) {
 		this.typeInformation = typeInformation;
-		streamer = new PythonStreamer(this, envId, setId, typeInformation instanceof PrimitiveArrayTypeInfo);
+		streamer = new PythonSingleInputStreamer<>(this, envId, setId, typeInformation instanceof PrimitiveArrayTypeInfo);
 	}
 
 	/**

@@ -44,6 +44,8 @@ public class PythonReceiver<OUT> implements Serializable {
 	}
 
 	//=====Setup========================================================================================================
+
+	@SuppressWarnings("unchecked")
 	public void open(String path) throws IOException {
 		setupMappedFile(path);
 		deserializer = (Deserializer<OUT>) (readAsByteArray ? new ByteArrayDeserializer() : new TupleDeserializer());

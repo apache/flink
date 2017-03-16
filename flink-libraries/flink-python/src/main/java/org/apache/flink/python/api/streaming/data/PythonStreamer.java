@@ -19,7 +19,6 @@ import org.apache.flink.python.api.PythonPlanBinder;
 import org.apache.flink.python.api.streaming.util.SerializationUtils.IntSerializer;
 import org.apache.flink.python.api.streaming.util.SerializationUtils.StringSerializer;
 import org.apache.flink.python.api.streaming.util.StreamPrinter;
-import org.apache.flink.util.Collector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,16 +44,16 @@ import static org.apache.flink.python.api.PythonPlanBinder.PLANBINDER_CONFIG_BCV
 /**
  * This streamer is used by functions to send/receive data to/from an external python process.
  */
-public class PythonStreamer<IN1, IN2, OUT> implements Serializable {
+public class PythonStreamer<S extends PythonSender, OUT> implements Serializable {
 	protected static final Logger LOG = LoggerFactory.getLogger(PythonStreamer.class);
 	private static final long serialVersionUID = -2342256613658373170L;
 
-	private static final int SIGNAL_BUFFER_REQUEST = 0;
-	private static final int SIGNAL_BUFFER_REQUEST_G0 = -3;
-	private static final int SIGNAL_BUFFER_REQUEST_G1 = -4;
-	private static final int SIGNAL_FINISHED = -1;
-	private static final int SIGNAL_ERROR = -2;
-	private static final byte SIGNAL_LAST = 32;
+	protected static final int SIGNAL_BUFFER_REQUEST = 0;
+	protected static final int SIGNAL_BUFFER_REQUEST_G0 = -3;
+	protected static final int SIGNAL_BUFFER_REQUEST_G1 = -4;
+	protected static final int SIGNAL_FINISHED = -1;
+	protected static final int SIGNAL_ERROR = -2;
+	protected static final byte SIGNAL_LAST = 32;
 
 	private final int envID;
 	private final int setID;
@@ -69,7 +68,7 @@ public class PythonStreamer<IN1, IN2, OUT> implements Serializable {
 	protected transient DataOutputStream out;
 	protected int port;
 
-	protected PythonSender sender;
+	protected S sender;
 	protected PythonReceiver<OUT> receiver;
 
 	protected StringBuilder msg = new StringBuilder();
@@ -79,14 +78,14 @@ public class PythonStreamer<IN1, IN2, OUT> implements Serializable {
 	protected transient Thread outPrinter;
 	protected transient Thread errorPrinter;
 
-	public PythonStreamer(AbstractRichFunction function, int envID, int setID, boolean usesByteArray) {
+	public PythonStreamer(AbstractRichFunction function, int envID, int setID, boolean usesByteArray, S sender) {
 		this.envID = envID;
 		this.setID = setID;
 		this.usePython3 = PythonPlanBinder.usePython3;
 		planArguments = PythonPlanBinder.arguments.toString();
-		sender = new PythonSender();
 		receiver = new PythonReceiver(usesByteArray);
 		this.function = function;
+		this.sender = sender;
 	}
 
 	/**
@@ -212,13 +211,13 @@ public class PythonStreamer<IN1, IN2, OUT> implements Serializable {
 		}
 	}
 
-	private void sendWriteNotification(int size, boolean hasNext) throws IOException {
+	protected void sendWriteNotification(int size, boolean hasNext) throws IOException {
 		out.writeInt(size);
 		out.writeByte(hasNext ? 0 : SIGNAL_LAST);
 		out.flush();
 	}
 
-	private void sendReadConfirmation() throws IOException {
+	protected void sendReadConfirmation() throws IOException {
 		out.writeByte(1);
 		out.flush();
 	}
@@ -254,109 +253,6 @@ public class PythonStreamer<IN1, IN2, OUT> implements Serializable {
 				out.writeByte(0);
 			}
 		} catch (SocketTimeoutException ste) {
-			throw new RuntimeException("External process for task " + function.getRuntimeContext().getTaskName() + " stopped responding." + msg);
-		}
-	}
-
-	/**
-	 * Sends all values contained in the iterator to the external process and collects all results.
-	 *
-	 * @param i iterator
-	 * @param c collector
-	 * @throws IOException
-	 */
-	public final void streamBufferWithoutGroups(Iterator<IN1> i, Collector<OUT> c) throws IOException {
-		try {
-			int size;
-			if (i.hasNext()) {
-				while (true) {
-					int sig = in.readInt();
-					switch (sig) {
-						case SIGNAL_BUFFER_REQUEST:
-							if (i.hasNext() || sender.hasRemaining(0)) {
-								size = sender.sendBuffer(i, 0);
-								sendWriteNotification(size, sender.hasRemaining(0) || i.hasNext());
-							} else {
-								throw new RuntimeException("External process requested data even though none is available.");
-							}
-							break;
-						case SIGNAL_FINISHED:
-							return;
-						case SIGNAL_ERROR:
-							try {
-								outPrinter.join(1000);
-							} catch (InterruptedException e) {
-								outPrinter.interrupt();
-							}
-							try {
-								errorPrinter.join(1000);
-							} catch (InterruptedException e) {
-								errorPrinter.interrupt();
-							}
-							throw new RuntimeException(
-									"External process for task " + function.getRuntimeContext().getTaskName() + " terminated prematurely due to an error." + msg);
-						default:
-							receiver.collectBuffer(c, sig);
-							sendReadConfirmation();
-							break;
-					}
-				}
-			}
-		} catch (SocketTimeoutException ignored) {
-			throw new RuntimeException("External process for task " + function.getRuntimeContext().getTaskName() + " stopped responding." + msg);
-		}
-	}
-
-	/**
-	 * Sends all values contained in both iterators to the external process and collects all results.
-	 *
-	 * @param i1 iterator
-	 * @param i2 iterator
-	 * @param c collector
-	 * @throws IOException
-	 */
-	public final void streamBufferWithGroups(Iterator<IN1> i1, Iterator<IN2> i2, Collector<OUT> c) throws IOException {
-		try {
-			int size;
-			if (i1.hasNext() || i2.hasNext()) {
-				while (true) {
-					int sig = in.readInt();
-					switch (sig) {
-						case SIGNAL_BUFFER_REQUEST_G0:
-							if (i1.hasNext() || sender.hasRemaining(0)) {
-								size = sender.sendBuffer(i1, 0);
-								sendWriteNotification(size, sender.hasRemaining(0) || i1.hasNext());
-							}
-							break;
-						case SIGNAL_BUFFER_REQUEST_G1:
-							if (i2.hasNext() || sender.hasRemaining(1)) {
-								size = sender.sendBuffer(i2, 1);
-								sendWriteNotification(size, sender.hasRemaining(1) || i2.hasNext());
-							}
-							break;
-						case SIGNAL_FINISHED:
-							return;
-						case SIGNAL_ERROR:
-							try {
-								outPrinter.join(1000);
-							} catch (InterruptedException e) {
-								outPrinter.interrupt();
-							}
-							try {
-								errorPrinter.join(1000);
-							} catch (InterruptedException e) {
-								errorPrinter.interrupt();
-							}
-							throw new RuntimeException(
-									"External process for task " + function.getRuntimeContext().getTaskName() + " terminated prematurely due to an error." + msg);
-						default:
-							receiver.collectBuffer(c, sig);
-							sendReadConfirmation();
-							break;
-					}
-				}
-			}
-		} catch (SocketTimeoutException ignored) {
 			throw new RuntimeException("External process for task " + function.getRuntimeContext().getTaskName() + " stopped responding." + msg);
 		}
 	}

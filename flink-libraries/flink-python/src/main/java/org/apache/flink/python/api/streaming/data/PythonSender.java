@@ -12,6 +12,9 @@
  */
 package org.apache.flink.python.api.streaming.data;
 
+import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.tuple.Tuple2;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
@@ -19,16 +22,14 @@ import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
-import java.util.Iterator;
-import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.api.java.tuple.Tuple2;
+
 import static org.apache.flink.python.api.PythonPlanBinder.FLINK_TMP_DATA_DIR;
 import static org.apache.flink.python.api.PythonPlanBinder.MAPPED_FILE_SIZE;
 
 /**
  * General-purpose class to write data to memory-mapped files.
  */
-public class PythonSender implements Serializable {
+public abstract class PythonSender implements Serializable {
 
 	private static final long serialVersionUID = -2004095650353962110L;
 
@@ -41,14 +42,8 @@ public class PythonSender implements Serializable {
 	private transient FileChannel outputChannel;
 	private transient MappedByteBuffer fileBuffer;
 
-	private transient ByteBuffer[] saved;
-
-	private transient Serializer[] serializer;
-
 	//=====Setup========================================================================================================
 	public void open(String path) throws IOException {
-		saved = new ByteBuffer[2];
-		serializer = new Serializer[2];
 		setupMappedFile(path);
 	}
 
@@ -80,88 +75,31 @@ public class PythonSender implements Serializable {
 		outputFile.delete();
 	}
 
-	/**
-	 * Resets this object to the post-configuration state.
-	 */
-	public void reset() {
-		serializer[0] = null;
-		serializer[1] = null;
-		fileBuffer.clear();
-	}
-
 	//=====IO===========================================================================================================
-	/**
-	 * Writes a single record to the memory-mapped file. This method does NOT take care of synchronization. The user
-	 * must guarantee that the file may be written to before calling this method. This method essentially reserves the
-	 * whole buffer for one record. As such it imposes some performance restrictions and should only be used when
-	 * absolutely necessary.
-	 *
-	 * @param value record to send
-	 * @return size of the written buffer
-	 * @throws IOException
-	 */
-	@SuppressWarnings("unchecked")
-	public int sendRecord(Object value) throws IOException {
-		fileBuffer.clear();
-		int group = 0;
-
-		serializer[group] = getSerializer(value);
-		ByteBuffer bb = serializer[group].serialize(value);
-		if (bb.remaining() > MAPPED_FILE_SIZE) {
-			throw new RuntimeException("Serialized object does not fit into a single buffer.");
-		}
-		fileBuffer.put(bb);
-
-		int size = fileBuffer.position();
-
-		reset();
-		return size;
-	}
-
-	public boolean hasRemaining(int group) {
-		return saved[group] != null;
-	}
-
 	/**
 	 * Extracts records from an iterator and writes them to the memory-mapped file. This method assumes that all values
 	 * in the iterator are of the same type. This method does NOT take care of synchronization. The caller must
 	 * guarantee that the file may be written to before calling this method.
 	 *
-	 * @param i iterator containing records
-	 * @param group group to which the iterator belongs, most notably used by CoGroup-functions.
+	 * @param input     iterator containing records
+	 * @param serializer serializer for the input records
 	 * @return size of the written buffer
 	 * @throws IOException
 	 */
-	@SuppressWarnings("unchecked")
-	public int sendBuffer(Iterator<?> i, int group) throws IOException {
+	protected <IN> int sendBuffer(SingleElementPushBackIterator<IN> input, Serializer<IN> serializer) throws IOException {
 		fileBuffer.clear();
 
-		Object value;
-		ByteBuffer bb;
-		if (serializer[group] == null) {
-			value = i.next();
-			serializer[group] = getSerializer(value);
-			bb = serializer[group].serialize(value);
-			if (bb.remaining() > MAPPED_FILE_SIZE) {
-				throw new RuntimeException("Serialized object does not fit into a single buffer.");
-			}
-			fileBuffer.put(bb);
-
-		}
-		if (saved[group] != null) {
-			fileBuffer.put(saved[group]);
-			saved[group] = null;
-		}
-		while (i.hasNext() && saved[group] == null) {
-			value = i.next();
-			bb = serializer[group].serialize(value);
+		while (input.hasNext()) {
+			IN value = input.next();
+			ByteBuffer bb = serializer.serialize(value);
 			if (bb.remaining() > MAPPED_FILE_SIZE) {
 				throw new RuntimeException("Serialized object does not fit into a single buffer.");
 			}
 			if (bb.remaining() <= fileBuffer.remaining()) {
 				fileBuffer.put(bb);
 			} else {
-				saved[group] = bb;
+				input.pushBack(value);
+				break;
 			}
 		}
 
@@ -170,20 +108,22 @@ public class PythonSender implements Serializable {
 	}
 
 	//=====Serializer===================================================================================================
-	private Serializer<?> getSerializer(Object value) {
+
+	@SuppressWarnings("unchecked")
+	protected <IN> Serializer<IN> getSerializer(IN value) {
 		if (value instanceof byte[]) {
-			return new ArraySerializer();
+			return (Serializer<IN>) new ArraySerializer();
 		}
 		if (((Tuple2<?, ?>) value).f0 instanceof byte[]) {
-			return new ValuePairSerializer();
+			return (Serializer<IN>) new ValuePairSerializer();
 		}
 		if (((Tuple2<?, ?>) value).f0 instanceof Tuple) {
-			return new KeyValuePairSerializer();
+			return (Serializer<IN>) new KeyValuePairSerializer();
 		}
 		throw new IllegalArgumentException("This object can't be serialized: " + value);
 	}
 
-	private abstract static class Serializer<T> {
+	protected abstract static class Serializer<T> {
 		protected ByteBuffer buffer;
 
 		public ByteBuffer serialize(T value) {
