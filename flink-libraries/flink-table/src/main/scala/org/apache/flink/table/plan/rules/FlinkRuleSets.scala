@@ -23,7 +23,6 @@ import org.apache.calcite.tools.{RuleSet, RuleSets}
 import org.apache.flink.table.calcite.rules.{FlinkAggregateExpandDistinctAggregatesRule, FlinkAggregateJoinTransposeRule}
 import org.apache.flink.table.plan.rules.dataSet._
 import org.apache.flink.table.plan.rules.datastream._
-import org.apache.flink.table.plan.rules.datastream.{DataStreamCalcRule, DataStreamScanRule, DataStreamUnionRule}
 
 object FlinkRuleSets {
 
@@ -127,6 +126,14 @@ object FlinkRuleSets {
   )
 
   /**
+    * RuleSet to decorate plans for batch / DataSet execution
+    */
+  val DATASET_DECO_RULES: RuleSet = RuleSets.ofList(
+    // rules
+
+  )
+
+  /**
     * RuleSet to normalize plans for stream / DataStream execution
     */
   val DATASTREAM_NORM_RULES: RuleSet = RuleSets.ofList(
@@ -179,6 +186,14 @@ object FlinkRuleSets {
       DataStreamCorrelateRule.INSTANCE,
       StreamTableSourceScanRule.INSTANCE,
       PushProjectIntoStreamTableSourceScanRule.INSTANCE
+  )
+
+  /**
+    * RuleSet to decorate plans for stream / DataStream execution
+    */
+  val DATASTREAM_DECO_RULES: RuleSet = RuleSets.ofList(
+    // rules
+    // TODO: FLINK-6090 will add rules here
   )
 
 }

@@ -221,6 +221,11 @@ abstract class StreamTableEnvironment(
   protected def getBuiltInOptRuleSet: RuleSet = FlinkRuleSets.DATASTREAM_OPT_RULES
 
   /**
+    * Returns the built-in decoration rules that are defined by the environment.
+    */
+  protected def getBuiltInDecoRuleSet: RuleSet = FlinkRuleSets.DATASTREAM_DECO_RULES
+
+  /**
     * Generates the optimized [[RelNode]] tree from the original relational node tree.
     *
     * @param relNode The root node of the relational expression tree.
@@ -248,7 +253,14 @@ abstract class StreamTableEnvironment(
       normalizedPlan
     }
 
-    optimizedPlan
+    // 4. decorate the optimized plan
+    val decoRuleSet = getDecoRuleSet
+    val decoratedPlan = if (decoRuleSet.iterator().hasNext) {
+      runHepPlanner(HepMatchOrder.BOTTOM_UP, decoRuleSet, optimizedPlan, optimizedPlan.getTraitSet)
+    } else {
+      optimizedPlan
+    }
+    decoratedPlan
   }
 
 

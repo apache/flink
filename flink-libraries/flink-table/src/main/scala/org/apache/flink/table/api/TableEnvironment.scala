@@ -162,6 +162,27 @@ abstract class TableEnvironment(val config: TableConfig) {
   }
 
   /**
+    * Returns the decoration rule set for this environment
+    * including a custom RuleSet configuration.
+    */
+  protected def getDecoRuleSet: RuleSet = {
+    val calciteConfig = config.getCalciteConfig
+    calciteConfig.getDecoRuleSet match {
+
+      case None =>
+        getBuiltInDecoRuleSet
+
+      case Some(ruleSet) =>
+        if (calciteConfig.replacesDecoRuleSet) {
+          ruleSet
+        } else {
+          RuleSets.ofList((getBuiltInDecoRuleSet.asScala ++ ruleSet.asScala).asJava)
+        }
+    }
+  }
+
+
+  /**
     * Returns the SQL parser config for this environment including a custom Calcite configuration.
     */
   protected def getSqlParserConfig: SqlParser.Config = {
@@ -190,6 +211,11 @@ abstract class TableEnvironment(val config: TableConfig) {
     * Returns the built-in optimization rules that are defined by the environment.
     */
   protected def getBuiltInOptRuleSet: RuleSet
+
+  /**
+    * Returns the built-in decoration rules that are defined by the environment.
+    */
+  protected def getBuiltInDecoRuleSet: RuleSet
 
   /**
     * run HEP planner

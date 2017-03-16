@@ -24,7 +24,7 @@ import java.util.concurrent.Future
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql2rel.RelDecorrelator
-import org.apache.calcite.tools.{Programs, RelBuilder}
+import org.apache.calcite.tools.{Programs, RelBuilder, RuleSet}
 import org.apache.flink.api.common.TaskInfo
 import org.apache.flink.api.common.accumulators.Accumulator
 import org.apache.flink.api.common.functions._
@@ -66,10 +66,10 @@ abstract class ExpressionTestBase {
     context._2.getTypeFactory)
   private val optProgram = Programs.ofRules(FlinkRuleSets.DATASET_OPT_RULES)
 
-  private def hepPlanner = {
+  private def hepPlanner(ruleSet: RuleSet) = {
     val builder = new HepProgramBuilder
     builder.addMatchOrder(HepMatchOrder.BOTTOM_UP)
-    val it = FlinkRuleSets.DATASET_NORM_RULES.iterator()
+    val it = ruleSet.iterator()
     while (it.hasNext) {
       builder.addRuleInstance(it.next())
     }
@@ -185,7 +185,7 @@ abstract class ExpressionTestBase {
 
     // normalize
     val normalizedPlan = if (FlinkRuleSets.DATASET_NORM_RULES.iterator().hasNext) {
-      val planner = hepPlanner
+      val planner = hepPlanner(FlinkRuleSets.DATASET_NORM_RULES)
       planner.setRoot(decorPlan)
       planner.findBestExp
     } else {
@@ -194,7 +194,16 @@ abstract class ExpressionTestBase {
 
     // create DataSetCalc
     val flinkOutputProps = converted.getTraitSet.replace(DataSetConvention.INSTANCE).simplify()
-    val dataSetCalc = optProgram.run(context._2.getPlanner, normalizedPlan, flinkOutputProps)
+    val optimizedPlan = optProgram.run(context._2.getPlanner, normalizedPlan, flinkOutputProps)
+
+    // decorate
+    val dataSetCalc = if (FlinkRuleSets.DATASET_DECO_RULES.iterator().hasNext) {
+      val planner = hepPlanner(FlinkRuleSets.DATASET_DECO_RULES)
+      planner.setRoot(optimizedPlan)
+      planner.findBestExp
+    } else {
+      optimizedPlan
+    }
 
     // extract RexNode
     val calcProgram = dataSetCalc
