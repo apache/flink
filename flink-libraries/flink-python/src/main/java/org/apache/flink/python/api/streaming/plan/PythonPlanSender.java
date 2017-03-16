@@ -15,13 +15,13 @@ package org.apache.flink.python.api.streaming.plan;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.io.Serializable;
 import org.apache.flink.python.api.streaming.util.SerializationUtils;
 
 /**
  * Instances of this class can be used to send data to the plan process.
  */
-public class PythonPlanSender implements Serializable {
+public class PythonPlanSender {
+
 	private final DataOutputStream output;
 
 	public PythonPlanSender(OutputStream output) {

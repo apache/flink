@@ -45,8 +45,10 @@ import static org.apache.flink.python.api.PythonPlanBinder.PLANBINDER_CONFIG_BCV
 /**
  * This streamer is used by functions to send/receive data to/from an external python process.
  */
-public class PythonStreamer implements Serializable {
+public class PythonStreamer<IN1, IN2, OUT> implements Serializable {
 	protected static final Logger LOG = LoggerFactory.getLogger(PythonStreamer.class);
+	private static final long serialVersionUID = -2342256613658373170L;
+
 	private static final int SIGNAL_BUFFER_REQUEST = 0;
 	private static final int SIGNAL_BUFFER_REQUEST_G0 = -3;
 	private static final int SIGNAL_BUFFER_REQUEST_G1 = -4;
@@ -58,19 +60,16 @@ public class PythonStreamer implements Serializable {
 	private final boolean usePython3;
 	private final String planArguments;
 
-	private String inputFilePath;
-	private String outputFilePath;
-
-	private Process process;
-	private Thread shutdownThread;
-	protected ServerSocket server;
-	protected Socket socket;
-	protected DataInputStream in;
-	protected DataOutputStream out;
+	private transient Process process;
+	private transient Thread shutdownThread;
+	protected transient ServerSocket server;
+	protected transient Socket socket;
+	protected transient DataInputStream in;
+	protected transient DataOutputStream out;
 	protected int port;
 
 	protected PythonSender sender;
-	protected PythonReceiver receiver;
+	protected PythonReceiver<OUT> receiver;
 
 	protected StringBuilder msg = new StringBuilder();
 
@@ -97,8 +96,8 @@ public class PythonStreamer implements Serializable {
 	}
 
 	private void startPython() throws IOException {
-		this.outputFilePath = FLINK_TMP_DATA_DIR + "/" + id + this.function.getRuntimeContext().getIndexOfThisSubtask() + "output";
-		this.inputFilePath = FLINK_TMP_DATA_DIR + "/" + id + this.function.getRuntimeContext().getIndexOfThisSubtask() + "input";
+		String outputFilePath = FLINK_TMP_DATA_DIR + "/" + id + this.function.getRuntimeContext().getIndexOfThisSubtask() + "output";
+		String inputFilePath = FLINK_TMP_DATA_DIR + "/" + id + this.function.getRuntimeContext().getIndexOfThisSubtask() + "input";
 
 		sender.open(inputFilePath);
 		receiver.open(outputFilePath);
@@ -110,7 +109,7 @@ public class PythonStreamer implements Serializable {
 
 		try {
 			Runtime.getRuntime().exec(pythonBinaryPath);
-		} catch (IOException ex) {
+		} catch (IOException ignored) {
 			throw new RuntimeException(pythonBinaryPath + " does not point to a valid python binary.");
 		}
 
@@ -123,7 +122,7 @@ public class PythonStreamer implements Serializable {
 			public void run() {
 				try {
 					destroyProcess();
-				} catch (IOException ex) {
+				} catch (IOException ignored) {
 				}
 			}
 		};
@@ -142,12 +141,12 @@ public class PythonStreamer implements Serializable {
 
 		try { // wait a bit to catch syntax errors
 			Thread.sleep(2000);
-		} catch (InterruptedException ex) {
+		} catch (InterruptedException ignored) {
 		}
 		try {
 			process.exitValue();
 			throw new RuntimeException("External process for task " + function.getRuntimeContext().getTaskName() + " terminated prematurely." + msg);
-		} catch (IllegalThreadStateException ise) { //process still active -> start receiving data
+		} catch (IllegalThreadStateException ignored) { //process still active -> start receiving data
 		}
 
 		while (true) {
@@ -167,11 +166,10 @@ public class PythonStreamer implements Serializable {
 			int value = process.exitValue();
 			if (value != 0) {
 				throw new RuntimeException("Plan file caused an error. Check log-files for details.");
-			}
-			if (value == 0) {
+			} else {
 				throw new RuntimeException("Plan file exited prematurely without an error.");
 			}
-		} catch (IllegalThreadStateException ise) {//Process still running
+		} catch (IllegalThreadStateException ignored) {//Process still running
 		}
 	}
 
@@ -186,7 +184,7 @@ public class PythonStreamer implements Serializable {
 			sender.close();
 			receiver.close();
 		} catch (Exception e) {
-			LOG.error("Exception occurred while closing Streamer. :" + e.getMessage());
+			LOG.error("Exception occurred while closing Streamer. :{}", e.getMessage());
 		}
 		destroyProcess();
 		if (shutdownThread != null) {
@@ -197,18 +195,18 @@ public class PythonStreamer implements Serializable {
 	private void destroyProcess() throws IOException {
 		try {
 			process.exitValue();
-		} catch (IllegalThreadStateException ise) { //process still active
+		} catch (IllegalThreadStateException ignored) { //process still active
 			if (process.getClass().getName().equals("java.lang.UNIXProcess")) {
 				int pid;
 				try {
 					Field f = process.getClass().getDeclaredField("pid");
 					f.setAccessible(true);
 					pid = f.getInt(process);
-				} catch (Throwable e) {
+				} catch (Throwable ignore) {
 					process.destroy();
 					return;
 				}
-				String[] args = new String[]{"kill", "-9", "" + pid};
+				String[] args = new String[]{"kill", "-9", String.valueOf(pid)};
 				Runtime.getRuntime().exec(args);
 			} else {
 				process.destroy();
@@ -247,7 +245,7 @@ public class PythonStreamer implements Serializable {
 
 			StringSerializer stringSerializer = new StringSerializer();
 			for (String name : names) {
-				Iterator bcv = function.getRuntimeContext().getBroadcastVariable(name).iterator();
+				Iterator<?> bcv = function.getRuntimeContext().getBroadcastVariable(name).iterator();
 
 				out.write(stringSerializer.serializeWithoutTypeInfo(name));
 
@@ -269,7 +267,7 @@ public class PythonStreamer implements Serializable {
 	 * @param c collector
 	 * @throws IOException
 	 */
-	public final void streamBufferWithoutGroups(Iterator i, Collector c) throws IOException {
+	public final void streamBufferWithoutGroups(Iterator<IN1> i, Collector<OUT> c) throws IOException {
 		try {
 			int size;
 			if (i.hasNext()) {
@@ -289,7 +287,7 @@ public class PythonStreamer implements Serializable {
 						case SIGNAL_ERROR:
 							try { //wait before terminating to ensure that the complete error message is printed
 								Thread.sleep(2000);
-							} catch (InterruptedException ex) {
+							} catch (InterruptedException ignored) {
 							}
 							throw new RuntimeException(
 									"External process for task " + function.getRuntimeContext().getTaskName() + " terminated prematurely due to an error." + msg);
@@ -300,7 +298,7 @@ public class PythonStreamer implements Serializable {
 					}
 				}
 			}
-		} catch (SocketTimeoutException ste) {
+		} catch (SocketTimeoutException ignored) {
 			throw new RuntimeException("External process for task " + function.getRuntimeContext().getTaskName() + " stopped responding." + msg);
 		}
 	}
@@ -313,7 +311,7 @@ public class PythonStreamer implements Serializable {
 	 * @param c collector
 	 * @throws IOException
 	 */
-	public final void streamBufferWithGroups(Iterator i1, Iterator i2, Collector c) throws IOException {
+	public final void streamBufferWithGroups(Iterator<IN1> i1, Iterator<IN2> i2, Collector<OUT> c) throws IOException {
 		try {
 			int size;
 			if (i1.hasNext() || i2.hasNext()) {
@@ -337,7 +335,7 @@ public class PythonStreamer implements Serializable {
 						case SIGNAL_ERROR:
 							try { //wait before terminating to ensure that the complete error message is printed
 								Thread.sleep(2000);
-							} catch (InterruptedException ex) {
+							} catch (InterruptedException ignored) {
 							}
 							throw new RuntimeException(
 									"External process for task " + function.getRuntimeContext().getTaskName() + " terminated prematurely due to an error." + msg);
@@ -348,7 +346,7 @@ public class PythonStreamer implements Serializable {
 					}
 				}
 			}
-		} catch (SocketTimeoutException ste) {
+		} catch (SocketTimeoutException ignored) {
 			throw new RuntimeException("External process for task " + function.getRuntimeContext().getTaskName() + " stopped responding." + msg);
 		}
 	}

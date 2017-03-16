@@ -13,7 +13,6 @@
 package org.apache.flink.python.api.streaming.data;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.io.Serializable;
@@ -29,26 +28,31 @@ import static org.apache.flink.python.api.PythonPlanBinder.MAPPED_FILE_SIZE;
 /**
  * General-purpose class to write data to memory-mapped files.
  */
-public class PythonSender<IN> implements Serializable {
-	public static final byte TYPE_ARRAY = (byte) 63;
-	public static final byte TYPE_KEY_VALUE = (byte) 62;
-	public static final byte TYPE_VALUE_VALUE = (byte) 61;
+public class PythonSender implements Serializable {
 
-	private File outputFile;
-	private RandomAccessFile outputRAF;
-	private FileChannel outputChannel;
-	private MappedByteBuffer fileBuffer;
+	private static final long serialVersionUID = -2004095650353962110L;
 
-	private final ByteBuffer[] saved = new ByteBuffer[2];
+	public static final byte TYPE_ARRAY = 63;
+	public static final byte TYPE_KEY_VALUE = 62;
+	public static final byte TYPE_VALUE_VALUE = 61;
 
-	private final Serializer[] serializer = new Serializer[2];
+	private transient File outputFile;
+	private transient RandomAccessFile outputRAF;
+	private transient FileChannel outputChannel;
+	private transient MappedByteBuffer fileBuffer;
+
+	private transient ByteBuffer[] saved;
+
+	private transient Serializer[] serializer;
 
 	//=====Setup========================================================================================================
 	public void open(String path) throws IOException {
+		saved = new ByteBuffer[2];
+		serializer = new Serializer[2];
 		setupMappedFile(path);
 	}
 
-	private void setupMappedFile(String outputFilePath) throws FileNotFoundException, IOException {
+	private void setupMappedFile(String outputFilePath) throws IOException {
 		File x = new File(FLINK_TMP_DATA_DIR);
 		x.mkdirs();
 
@@ -73,6 +77,7 @@ public class PythonSender<IN> implements Serializable {
 	private void closeMappedFile() throws IOException {
 		outputChannel.close();
 		outputRAF.close();
+		outputFile.delete();
 	}
 
 	/**
@@ -128,7 +133,7 @@ public class PythonSender<IN> implements Serializable {
 	 * @throws IOException
 	 */
 	@SuppressWarnings("unchecked")
-	public int sendBuffer(Iterator i, int group) throws IOException {
+	public int sendBuffer(Iterator<?> i, int group) throws IOException {
 		fileBuffer.clear();
 
 		Object value;
@@ -165,20 +170,20 @@ public class PythonSender<IN> implements Serializable {
 	}
 
 	//=====Serializer===================================================================================================
-	private Serializer getSerializer(Object value) {
+	private Serializer<?> getSerializer(Object value) {
 		if (value instanceof byte[]) {
 			return new ArraySerializer();
 		}
-		if (((Tuple2) value).f0 instanceof byte[]) {
+		if (((Tuple2<?, ?>) value).f0 instanceof byte[]) {
 			return new ValuePairSerializer();
 		}
-		if (((Tuple2) value).f0 instanceof Tuple) {
+		if (((Tuple2<?, ?>) value).f0 instanceof Tuple) {
 			return new KeyValuePairSerializer();
 		}
-		throw new IllegalArgumentException("This object can't be serialized: " + value.toString());
+		throw new IllegalArgumentException("This object can't be serialized: " + value);
 	}
 
-	private abstract class Serializer<T> {
+	private abstract static class Serializer<T> {
 		protected ByteBuffer buffer;
 
 		public ByteBuffer serialize(T value) {
@@ -190,7 +195,7 @@ public class PythonSender<IN> implements Serializable {
 		public abstract void serializeInternal(T value);
 	}
 
-	private class ArraySerializer extends Serializer<byte[]> {
+	private static class ArraySerializer extends Serializer<byte[]> {
 		@Override
 		public void serializeInternal(byte[] value) {
 			buffer = ByteBuffer.allocate(value.length + 1);
@@ -199,7 +204,7 @@ public class PythonSender<IN> implements Serializable {
 		}
 	}
 
-	private class ValuePairSerializer extends Serializer<Tuple2<byte[], byte[]>> {
+	private static class ValuePairSerializer extends Serializer<Tuple2<byte[], byte[]>> {
 		@Override
 		public void serializeInternal(Tuple2<byte[], byte[]> value) {
 			buffer = ByteBuffer.allocate(1 + value.f0.length + value.f1.length);
@@ -209,7 +214,7 @@ public class PythonSender<IN> implements Serializable {
 		}
 	}
 
-	private class KeyValuePairSerializer extends Serializer<Tuple2<Tuple, byte[]>> {
+	private static class KeyValuePairSerializer extends Serializer<Tuple2<Tuple, byte[]>> {
 		@Override
 		public void serializeInternal(Tuple2<Tuple, byte[]> value) {
 			int keySize = 0;
