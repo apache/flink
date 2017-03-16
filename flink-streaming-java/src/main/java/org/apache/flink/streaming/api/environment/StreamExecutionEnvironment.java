@@ -101,7 +101,10 @@ public abstract class StreamExecutionEnvironment {
 
 	/** The default name to use for a streaming job if no other name has been specified */
 	public static final String DEFAULT_JOB_NAME = "Flink Streaming Job";
-
+	
+	/** The default value for detached client if not specified  */
+	public static final boolean DEFAULT_JOB_DETACHED = false;
+	
 	/** The time characteristic that is used if none other is set */
 	private static final TimeCharacteristic DEFAULT_TIME_CHARACTERISTIC = TimeCharacteristic.ProcessingTime;
 
@@ -1481,13 +1484,13 @@ public abstract class StreamExecutionEnvironment {
 	 * for example printing results or forwarding them to a message queue.
 	 * <p>
 	 * The program execution will be logged and displayed with a generated
-	 * default name.
+	 * default name and default detached client mode.
 	 *
 	 * @return The result of the job execution, containing elapsed time and accumulators.
 	 * @throws Exception which occurs during job execution.
 	 */
 	public JobExecutionResult execute() throws Exception {
-		return execute(DEFAULT_JOB_NAME, false);
+		return execute(DEFAULT_JOB_NAME, DEFAULT_JOB_DETACHED);
 	}
 
 	/**
@@ -1511,7 +1514,8 @@ public abstract class StreamExecutionEnvironment {
 	 * the program that have resulted in a "sink" operation. Sink operations are
 	 * for example printing results or forwarding them to a message queue.
 	 * <p>
-	 * The program execution will be logged and displayed with the provided name
+	 * The program execution will be logged and displayed with the provided name and
+	 * default detached client mode
 	 *
 	 * @param jobName
 	 * 		Desired name of the job
@@ -1519,7 +1523,7 @@ public abstract class StreamExecutionEnvironment {
 	 * @throws Exception which occurs during job execution.
 	 */
 	public JobExecutionResult execute(String jobName) throws Exception {
-		return execute(String jobName, false);
+		return execute(jobName, DEFAULT_JOB_DETACHED);
 	}
 	
 	/**
