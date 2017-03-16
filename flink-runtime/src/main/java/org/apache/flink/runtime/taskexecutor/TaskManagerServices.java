@@ -202,7 +202,7 @@ public class TaskManagerServices {
 		final List<ResourceProfile> resourceProfiles = new ArrayList<>(taskManagerServicesConfiguration.getNumberOfSlots());
 
 		for (int i = 0; i < taskManagerServicesConfiguration.getNumberOfSlots(); i++) {
-			resourceProfiles.add(new ResourceProfile(1.0, 42));
+			resourceProfiles.add(ResourceProfile.UNIVERSAL);
 		}
 
 		final TimerService<AllocationID> timerService = new TimerService<>(

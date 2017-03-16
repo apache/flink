@@ -83,7 +83,7 @@ public class SlotManager implements AutoCloseable {
 	private final HashMap<SlotID, TaskManagerSlot> slots;
 
 	/** Index of all currently free slots */
-	private final LinkedHashMap<SlotID, TaskManagerSlot> freeSlots;
+	protected final LinkedHashMap<SlotID, TaskManagerSlot> freeSlots;
 
 	/** All currently registered task managers */
 	private final HashMap<InstanceID, TaskManagerRegistration> taskManagerRegistrations;
@@ -92,7 +92,7 @@ public class SlotManager implements AutoCloseable {
 	private final HashMap<AllocationID, SlotID> fulfilledSlotRequests;
 
 	/** Map of pending/unfulfilled slot allocation requests */
-	private final HashMap<AllocationID, PendingSlotRequest> pendingSlotRequests;
+	protected final HashMap<AllocationID, PendingSlotRequest> pendingSlotRequests;
 
 	/** Leader id of the containing component */
 	private UUID leaderId;

@@ -38,6 +38,10 @@ public class ResourceProfile implements Serializable, Comparable<ResourceProfile
 
 	public static final ResourceProfile UNKNOWN = new ResourceProfile(-1.0, -1);
 
+
+	/** A universal resource profile which can match any other one */
+	public static final ResourceProfile UNIVERSAL = new ResourceProfile(0.0, 0);
+
 	// ------------------------------------------------------------------------
 
 	/** How many cpu cores are needed, use double so we can specify cpu like 0.1 */
@@ -151,6 +155,24 @@ public class ResourceProfile implements Serializable, Comparable<ResourceProfile
 				heapMemoryInMB >= required.getHeapMemoryInMB() &&
 				directMemoryInMB >= required.getDirectMemoryInMB() &&
 				nativeMemoryInMB >= required.getNativeMemoryInMB();
+	}
+
+	/**
+	 * Calculate the matching score with the required resource profile, just use the distance of two points
+	 *
+	 * @param required the resource profile required by a slot request
+	 * @return the matching score of the two resource profile
+	 */
+	public double matchingScore(ResourceProfile required) {
+		if (this.equals(ResourceProfile.UNIVERSAL) || required.equals(ResourceProfile.UNIVERSAL)) {
+			return 0;
+		}
+		if (!isMatching(required)) {
+			return Double.MAX_VALUE;
+		}
+		double cpuDistance = (this.getCpuCores() - required.getCpuCores()) / this.getCpuCores();
+		double memDistance = (this.getMemoryInMB() - required.getMemoryInMB()) / (double)this.getMemoryInMB();
+		return Math.sqrt(cpuDistance * cpuDistance + memDistance * memDistance);
 	}
 
 	@Override
