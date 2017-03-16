@@ -31,7 +31,6 @@ import org.apache.flink.runtime.executiongraph.PartitionInfo;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
-import org.apache.flink.runtime.taskexecutor.exceptions.SlotAllocationException;
 import org.apache.flink.runtime.taskmanager.Task;
 
 import java.util.UUID;
@@ -47,7 +46,6 @@ public interface TaskExecutorGateway extends RpcGateway {
 	 * @param slotId slot id for the request
 	 * @param allocationId id for the request
 	 * @param resourceManagerLeaderId current leader id of the ResourceManager
-	 * @throws SlotAllocationException if the slot allocation fails
 	 * @return answer to the slot request
 	 */
 	Future<Acknowledge> requestSlot(
