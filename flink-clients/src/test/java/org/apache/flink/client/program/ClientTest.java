@@ -56,7 +56,6 @@ import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
-import java.io.IOException;
 import java.net.URL;
 import java.util.Collections;
 import java.util.UUID;
@@ -199,7 +198,7 @@ public class ClientTest extends TestLogger {
 	 * This test verifies correct job submission messaging logic and plan translation calls.
 	 */
 	@Test
-	public void shouldSubmitToJobClient() throws IOException, ProgramInvocationException {
+	public void shouldSubmitToJobClient() throws Exception {
 		jobManagerSystem.actorOf(
 			Props.create(SuccessReturningActor.class),
 			JobMaster.JOB_MANAGER_NAME);
@@ -217,7 +216,7 @@ public class ClientTest extends TestLogger {
 	 * This test verifies correct that the correct exception is thrown when the job submission fails.
 	 */
 	@Test
-	public void shouldSubmitToJobClientFails() throws IOException {
+	public void shouldSubmitToJobClientFails() throws Exception {
 			jobManagerSystem.actorOf(
 				Props.create(FailureReturningActor.class),
 				JobMaster.JOB_MANAGER_NAME);

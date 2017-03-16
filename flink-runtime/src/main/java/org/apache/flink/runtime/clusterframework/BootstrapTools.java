@@ -29,8 +29,8 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
-import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.runtime.webmonitor.WebMonitor;
 import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
 import org.apache.flink.util.NetUtils;
@@ -165,17 +165,20 @@ public class BootstrapTools {
 
 	/**
 	 * Starts the web frontend.
+	 *
 	 * @param config The Flink config.
+	 * @param highAvailabilityServices Service factory for high availability services
 	 * @param actorSystem The ActorSystem to start the web frontend in.
 	 * @param logger Logger for log output
 	 * @return WebMonitor instance.
 	 * @throws Exception
 	 */
 	public static WebMonitor startWebMonitorIfConfigured(
-				Configuration config,
-				ActorSystem actorSystem,
-				ActorRef jobManager,
-				Logger logger) throws Exception {
+			Configuration config,
+			HighAvailabilityServices highAvailabilityServices,
+			ActorSystem actorSystem,
+			ActorRef jobManager,
+			Logger logger) throws Exception {
 
 
 		// this ensures correct values are present in the web frontend
@@ -186,8 +189,8 @@ public class BootstrapTools {
 		if (config.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0) >= 0) {
 			logger.info("Starting JobManager Web Frontend");
 
-			LeaderRetrievalService leaderRetrievalService = 
-				LeaderRetrievalUtils.createLeaderRetrievalService(config, jobManager);
+			LeaderRetrievalService leaderRetrievalService =
+				highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID);
 
 			// start the web frontend. we need to load this dynamically
 			// because it is not in the same project/dependencies

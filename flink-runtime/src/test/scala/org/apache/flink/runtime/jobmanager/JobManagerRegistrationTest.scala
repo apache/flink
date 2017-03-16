@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.jobmanager
 
 import java.net.InetAddress
-import java.util.concurrent.{Executors, ScheduledExecutorService}
+import java.util.concurrent.{Executors, ScheduledExecutorService, TimeUnit}
 
 import akka.actor._
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}
@@ -28,6 +28,7 @@ import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager
 import org.apache.flink.runtime.clusterframework.types.ResourceID
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices
+import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServices
 import org.apache.flink.runtime.instance._
 import org.apache.flink.runtime.jobmanager.JobManagerRegistrationTest.PlainForwardingActor
 import org.apache.flink.runtime.messages.JobManagerMessages.LeaderSessionMessage
@@ -40,7 +41,7 @@ import org.apache.flink.runtime.util.LeaderRetrievalUtils
 import org.junit.Assert.{assertNotEquals, assertNotNull}
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Matchers, WordSpecLike}
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -51,15 +52,29 @@ import scala.language.postfixOps
  */
 @RunWith(classOf[JUnitRunner])
 class JobManagerRegistrationTest(_system: ActorSystem) extends TestKit(_system) with
-ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
+ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll with BeforeAndAfterEach {
 
   def this() = this(AkkaUtils.createLocalActorSystem(new Configuration()))
 
   val executor: ScheduledExecutorService = Executors.newScheduledThreadPool(2)
+
+  var highAvailabilityServices: HighAvailabilityServices = _
+
+  val timeout = FiniteDuration(30, TimeUnit.SECONDS)
   
   override def afterAll(): Unit = {
     executor.shutdownNow()
     TestKit.shutdownActorSystem(system)
+  }
+
+  override def beforeEach(): Unit = {
+    highAvailabilityServices = new EmbeddedHaServices(executor)
+  }
+
+  override def afterEach(): Unit = {
+    if (highAvailabilityServices != null) {
+      highAvailabilityServices.closeAndCleanupAllData()
+    }
   }
 
   "The JobManager" should {
@@ -67,15 +82,15 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
     "assign a TaskManager a unique instance ID" in {
 
       var jmOption: Option[ActorGateway] = None
-      var rmOption: Option[ActorGateway] = None
+      var rmOption: Option[ActorRef] = None
       var tm1Option: Option[ActorRef] = None
       var tm2Option: Option[ActorRef] = None
 
       try {
-        val jm = startTestingJobManager(_system)
+        val jm = startTestingJobManager(_system, highAvailabilityServices)
         jmOption = Some(jm)
 
-        val rm = startTestingResourceManager(_system, jm.actor())
+        val rm = startTestingResourceManager(_system, highAvailabilityServices)
         rmOption = Some(rm)
 
         val probe = TestProbe()
@@ -149,19 +164,19 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
     "handle repeated registration calls" in {
 
       var jmOption: Option[ActorGateway] = None
-      var rmOption: Option[ActorGateway] = None
+      var rmOption: Option[ActorRef] = None
 
       try {
         val probe = TestProbe()
 
-        val jm = startTestingJobManager(_system)
+        val jm = startTestingJobManager(_system, highAvailabilityServices)
         jmOption = Some(jm)
-        val rm = startTestingResourceManager(_system, jm.actor())
+        val rm = startTestingResourceManager(_system, highAvailabilityServices)
         rmOption = Some(rm)
 
-        val selfGateway = new AkkaActorGateway(
-          probe.ref,
-          HighAvailabilityServices.DEFAULT_LEADER_ID)
+        val leaderId = jm.leaderSessionID()
+
+        val selfGateway = new AkkaActorGateway(probe.ref, leaderId)
 
         val resourceID = ResourceID.generate()
         val connectionInfo = new TaskManagerLocation(resourceID, InetAddress.getLocalHost, 1)
@@ -199,22 +214,22 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
 
           probe.expectMsgType[LeaderSessionMessage] match {
             case LeaderSessionMessage(
-            HighAvailabilityServices.DEFAULT_LEADER_ID,
-            AcknowledgeRegistration(_, _)) =>
+              `leaderId`,
+              AcknowledgeRegistration(_, _)) =>
             case m => fail("Wrong message type: " + m)
           }
 
           probe.expectMsgType[LeaderSessionMessage] match {
             case LeaderSessionMessage(
-            HighAvailabilityServices.DEFAULT_LEADER_ID,
-            AlreadyRegistered(_, _)) =>
+              `leaderId`,
+              AlreadyRegistered(_, _)) =>
             case m => fail("Wrong message type: " + m)
           }
 
           probe.expectMsgType[LeaderSessionMessage] match {
             case LeaderSessionMessage(
-            HighAvailabilityServices.DEFAULT_LEADER_ID,
-            AlreadyRegistered(_, _)) =>
+              `leaderId`,
+              AlreadyRegistered(_, _)) =>
             case m => fail("Wrong message type: " + m)
           }
         }
@@ -225,14 +240,16 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
     }
   }
 
-  private def startTestingJobManager(system: ActorSystem): ActorGateway = {
-    val config = new Configuration()
+  private def startTestingJobManager(
+      system: ActorSystem,
+      highAvailabilityServices: HighAvailabilityServices): ActorGateway = {
 
+    val config = new Configuration()
+    
     val components = JobManager.createJobManagerComponents(
       config,
       executor,
-      executor,
-      None)
+      executor)
 
     // Start the JobManager without a MetricRegistry so that we don't start the MetricQueryService.
     // The problem of the MetricQueryService is that it starts an actor with a fixed name. Thus,
@@ -249,25 +266,34 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
       ActorRef.noSender,
       components._4,
       components._5,
+      highAvailabilityServices.getJobManagerLeaderElectionService(
+        HighAvailabilityServices.DEFAULT_JOB_ID),
+      highAvailabilityServices.getSubmittedJobGraphStore(),
+      highAvailabilityServices.getCheckpointRecoveryFactory(),
       components._8,
-      components._9,
-      components._10,
-      components._11,
       None)
 
-    val jm = _system.actorOf(props)
+    _system.actorOf(props)
 
-    new AkkaActorGateway(jm, HighAvailabilityServices.DEFAULT_LEADER_ID)
+    LeaderRetrievalUtils.retrieveLeaderGateway(
+      highAvailabilityServices.getJobManagerLeaderRetriever(
+        HighAvailabilityServices.DEFAULT_JOB_ID),
+      system,
+      timeout)
   }
 
-  private def startTestingResourceManager(system: ActorSystem, jm: ActorRef): ActorGateway = {
+  private def startTestingResourceManager(
+      system: ActorSystem,
+      highAvailabilityServices: HighAvailabilityServices)
+    : ActorRef = {
     val config = new Configuration()
-    val rm: ActorRef = FlinkResourceManager.startResourceManagerActors(
+
+    FlinkResourceManager.startResourceManagerActors(
       config,
       _system,
-      LeaderRetrievalUtils.createLeaderRetrievalService(config, jm),
+      highAvailabilityServices.getJobManagerLeaderRetriever(
+        HighAvailabilityServices.DEFAULT_JOB_ID),
       classOf[TestingResourceManager])
-    new AkkaActorGateway(rm, HighAvailabilityServices.DEFAULT_LEADER_ID)
   }
 }
 

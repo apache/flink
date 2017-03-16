@@ -111,7 +111,7 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
 			}
 			
 			// prepare the test environment
-			TestEnvironment env = new TestEnvironment(this.executor, this.parallelism);
+			TestEnvironment env = new TestEnvironment(this.executor, this.parallelism, false);
 			env.getConfig().enableObjectReuse();
 			env.setAsContext();
 
@@ -163,7 +163,7 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
 			}
 
 			// prepare the test environment
-			TestEnvironment env = new TestEnvironment(this.executor, this.parallelism);
+			TestEnvironment env = new TestEnvironment(this.executor, this.parallelism, false);
 			env.getConfig().disableObjectReuse();
 			env.setAsContext();
 

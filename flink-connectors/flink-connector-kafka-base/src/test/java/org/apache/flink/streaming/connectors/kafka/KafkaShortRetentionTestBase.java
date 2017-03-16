@@ -29,6 +29,7 @@ import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
@@ -59,6 +60,12 @@ import static org.junit.Assert.fail;
 public class KafkaShortRetentionTestBase implements Serializable {
 	
 	protected static final Logger LOG = LoggerFactory.getLogger(KafkaShortRetentionTestBase.class);
+
+	protected static final int NUM_TMS = 1;
+
+	protected static final int TM_SLOTS = 8;
+
+	protected static final int PARALLELISM = NUM_TMS * TM_SLOTS;
 	
 	private static KafkaTestEnvironment kafkaServer;
 	private static Properties standardProps;
@@ -97,17 +104,21 @@ public class KafkaShortRetentionTestBase implements Serializable {
 		standardProps = kafkaServer.getStandardProperties();
 
 		// start also a re-usable Flink mini cluster
-		flinkConfig.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1);
-		flinkConfig.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 8);
+		flinkConfig.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, NUM_TMS);
+		flinkConfig.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, TM_SLOTS);
 		flinkConfig.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 16L);
 		flinkConfig.setString(ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_DELAY, "0 s");
 
 		flink = new LocalFlinkMiniCluster(flinkConfig, false);
 		flink.start();
+
+		TestStreamEnvironment.setAsContext(flink, PARALLELISM);
 	}
 
 	@AfterClass
 	public static void shutDownServices() {
+		TestStreamEnvironment.unsetAsContext();
+
 		if (flink != null) {
 			flink.shutdown();
 		}
@@ -135,8 +146,7 @@ public class KafkaShortRetentionTestBase implements Serializable {
 		tprops.setProperty("retention.ms", "250");
 		kafkaServer.createTestTopic(topic, parallelism, 1, tprops);
 
-		final StreamExecutionEnvironment env =
-				StreamExecutionEnvironment.createRemoteEnvironment("localhost", flink.getLeaderRPCPort());
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(parallelism);
 		env.setRestartStrategy(RestartStrategies.noRestart()); // fail immediately
 		env.getConfig().disableSysoutLogging();

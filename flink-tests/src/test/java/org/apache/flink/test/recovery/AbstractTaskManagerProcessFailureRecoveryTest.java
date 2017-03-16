@@ -26,9 +26,12 @@ import akka.util.Timeout;
 import org.apache.commons.io.FileUtils;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.messages.JobManagerMessages;
@@ -86,13 +89,14 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 	protected static final int PARALLELISM = 4;
 
 	@Test
-	public void testTaskManagerProcessFailure() {
+	public void testTaskManagerProcessFailure() throws Exception {
 
 		final StringWriter processOutput1 = new StringWriter();
 		final StringWriter processOutput2 = new StringWriter();
 		final StringWriter processOutput3 = new StringWriter();
 
 		ActorSystem jmActorSystem = null;
+		HighAvailabilityServices highAvailabilityServices = null;
 		Process taskManagerProcess1 = null;
 		Process taskManagerProcess2 = null;
 		Process taskManagerProcess3 = null;
@@ -128,6 +132,13 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 			jmConfig.setInteger(ConfigConstants.AKKA_WATCH_THRESHOLD, 9);
 			jmConfig.setString(ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_DELAY, "10 s");
 			jmConfig.setString(ConfigConstants.AKKA_ASK_TIMEOUT, "100 s");
+			jmConfig.setString(JobManagerOptions.ADDRESS, localAddress._1());
+			jmConfig.setInteger(JobManagerOptions.PORT, jobManagerPort);
+
+			highAvailabilityServices = HighAvailabilityServicesUtils.createHighAvailabilityServices(
+				jmConfig,
+				TestingUtils.defaultExecutor(),
+				HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
 
 			jmActorSystem = AkkaUtils.createActorSystem(jmConfig, new Some<>(localAddress));
 			ActorRef jmActor = JobManager.startJobManagerActors(
@@ -135,6 +146,7 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 				jmActorSystem,
 				TestingUtils.defaultExecutor(),
 				TestingUtils.defaultExecutor(),
+				highAvailabilityServices,
 				JobManager.class,
 				MemoryArchivist.class)._1();
 
@@ -262,6 +274,10 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
 				catch (Throwable t) {
 					// we can ignore this
 				}
+			}
+
+			if (highAvailabilityServices != null) {
+				highAvailabilityServices.closeAndCleanupAllData();
 			}
 		}
 	}

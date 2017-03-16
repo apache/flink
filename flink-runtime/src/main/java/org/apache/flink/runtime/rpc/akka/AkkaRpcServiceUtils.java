@@ -112,10 +112,12 @@ public class AkkaRpcServiceUtils {
 
 	/**
 	 *
-	 * @param hostname     The hostname or address where the target RPC service is listening.
-	 * @param port         The port where the target RPC service is listening.
+	 * @param hostname The hostname or address where the target RPC service is listening.
+	 * @param port The port where the target RPC service is listening.
 	 * @param endpointName The name of the RPC endpoint.
-	 * @param config       The configuration from which to deduce further settings.
+	 * @param addressResolution Whether to try address resolution of the given hostname or not.
+	 *                          This allows to fail fast in case that the hostname cannot be resolved.
+	 * @param config The configuration from which to deduce further settings.
 	 *
 	 * @return The RPC URL of the specified RPC endpoint.
 	 */
@@ -143,10 +145,12 @@ public class AkkaRpcServiceUtils {
 
 	/**
 	 * 
-	 * @param hostname     The hostname or address where the target RPC service is listening.
-	 * @param port         The port where the target RPC service is listening.
+	 * @param hostname The hostname or address where the target RPC service is listening.
+	 * @param port The port where the target RPC service is listening.
 	 * @param endpointName The name of the RPC endpoint.
-	 * @param akkaProtocol       True, if security/encryption is enabled, false otherwise.
+	 * @param addressResolution Whether to try address resolution of the given hostname or not.
+	 *                          This allows to fail fast in case that the hostname cannot be resolved.
+	 * @param akkaProtocol True, if security/encryption is enabled, false otherwise.
 	 * 
 	 * @return The RPC URL of the specified RPC endpoint.
 	 */

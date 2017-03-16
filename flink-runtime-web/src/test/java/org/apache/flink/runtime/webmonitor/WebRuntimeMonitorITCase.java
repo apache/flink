@@ -26,6 +26,8 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.leaderelection.TestingListener;
@@ -33,7 +35,6 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
-import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.runtime.webmonitor.files.MimeTypes;
 import org.apache.flink.runtime.webmonitor.testutils.HttpTestClient;
 import org.apache.flink.util.TestLogger;
@@ -49,8 +50,6 @@ import scala.concurrent.duration.FiniteDuration;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Scanner;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -127,7 +126,7 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 
 		ActorSystem[] jobManagerSystem = new ActorSystem[2];
 		WebRuntimeMonitor[] webMonitor = new WebRuntimeMonitor[2];
-		List<LeaderRetrievalService> leaderRetrievalServices = new ArrayList<>();
+		HighAvailabilityServices highAvailabilityServices = null;
 
 		try (TestingServer zooKeeper = new TestingServer()) {
 			final Configuration config = ZooKeeperTestUtils.createZooKeeperHAConfig(
@@ -141,15 +140,20 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 			config.setInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0);
 			config.setString(ConfigConstants.JOB_MANAGER_WEB_LOG_PATH_KEY, logFile.toString());
 
+			highAvailabilityServices = HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(
+				config,
+				TestingUtils.defaultExecutor());
+
 			for (int i = 0; i < jobManagerSystem.length; i++) {
 				jobManagerSystem[i] = AkkaUtils.createActorSystem(new Configuration(),
 						new Some<>(new Tuple2<String, Object>("localhost", 0)));
 			}
 
 			for (int i = 0; i < webMonitor.length; i++) {
-				LeaderRetrievalService lrs = ZooKeeperUtils.createLeaderRetrievalService(config);
-				leaderRetrievalServices.add(lrs);
-				webMonitor[i] = new WebRuntimeMonitor(config, lrs, jobManagerSystem[i]);
+				webMonitor[i] = new WebRuntimeMonitor(
+					config,
+					highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID),
+					jobManagerSystem[i]);
 			}
 
 			ActorRef[] jobManager = new ActorRef[2];
@@ -164,6 +168,7 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 					jobManagerSystem[i],
 					TestingUtils.defaultExecutor(),
 					TestingUtils.defaultExecutor(),
+					highAvailabilityServices,
 					JobManager.class,
 					MemoryArchivist.class)._1();
 
@@ -171,8 +176,7 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 				webMonitor[i].start(jobManagerAddress[i]);
 			}
 
-			LeaderRetrievalService lrs = ZooKeeperUtils.createLeaderRetrievalService(config);
-			leaderRetrievalServices.add(lrs);
+			LeaderRetrievalService lrs = highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID);
 			TestingListener leaderListener = new TestingListener();
 			lrs.start(leaderListener);
 
@@ -247,6 +251,8 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 				assertEquals(response.getType(), MimeTypes.getMimeTypeForExtension("json"));
 				assertTrue(response.getContent().contains("\"taskmanagers\":1") ||
 						response.getContent().contains("\"taskmanagers\":0"));
+			} finally {
+				lrs.stop();
 			}
 		}
 		finally {
@@ -260,8 +266,8 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 				monitor.stop();
 			}
 
-			for (LeaderRetrievalService lrs : leaderRetrievalServices) {
-				lrs.stop();
+			if (highAvailabilityServices != null) {
+				highAvailabilityServices.closeAndCleanupAllData();
 			}
 		}
 	}
@@ -462,7 +468,8 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 
 		WebRuntimeMonitor webMonitor = new WebRuntimeMonitor(
 			config,
-			flink.createLeaderRetrievalService(),
+			flink.highAvailabilityServices().getJobManagerLeaderRetriever(
+				HighAvailabilityServices.DEFAULT_JOB_ID),
 			jmActorSystem);
 
 		webMonitor.start(jobManagerAddress);

@@ -19,14 +19,16 @@
 package org.apache.flink.api.scala
 
 import java.io._
-import java.util.concurrent.TimeUnit
 
-import org.apache.flink.configuration.GlobalConfiguration
-import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster
+import akka.actor.ActorRef
+import akka.pattern.Patterns
+import org.apache.flink.runtime.minicluster.StandaloneMiniCluster
+import org.apache.flink.configuration.{ConfigConstants, Configuration, GlobalConfiguration}
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.util.TestLogger
 import org.junit.{AfterClass, Assert, BeforeClass, Test}
 
+import scala.concurrent.{Await, Future}
 import scala.concurrent.duration.FiniteDuration
 import scala.tools.nsc.Settings
 
@@ -299,17 +301,18 @@ class ScalaShellITCase extends TestLogger {
       .getFile
     val confDir = new File(confFile).getAbsoluteFile.getParent
 
-    val (c, args) = cluster match{
+    val args = cluster match {
       case Some(cl) =>
-        val arg = Array("remote",
-          cl.hostname,
-          Integer.toString(cl.getLeaderRPCPort),
+        Array(
+          "remote",
+          cl.getHostname,
+          Integer.toString(cl.getPort),
           "--configDir",
           confDir)
-        (cl, arg)
-      case None =>
-        throw new AssertionError("Cluster creation failed.")
+      case None => throw new IllegalStateException("Cluster has not been started.")
     }
+
+
 
     //start scala shell with initialized
     // buffered reader for testing
@@ -335,26 +338,24 @@ class ScalaShellITCase extends TestLogger {
 }
 
 object ScalaShellITCase {
-  var cluster: Option[LocalFlinkMiniCluster] = None
+  var cluster: Option[StandaloneMiniCluster] = None
+
   val parallelism = 4
+  val configuration = new Configuration()
 
   @BeforeClass
   def beforeAll(): Unit = {
-    val cl = TestBaseUtils.startCluster(
-      1,
-      parallelism,
-      false,
-      false,
-      false)
+    configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, parallelism)
 
-    cluster = Some(cl)
+    cluster = Option(new StandaloneMiniCluster(configuration))
   }
 
   @AfterClass
   def afterAll(): Unit = {
     // The Scala interpreter somehow changes the class loader. Therfore, we have to reset it
     Thread.currentThread().setContextClassLoader(classOf[ScalaShellITCase].getClassLoader)
-    cluster.foreach(c => TestBaseUtils.stopCluster(c, new FiniteDuration(1000, TimeUnit.SECONDS)))
+
+    cluster.foreach(_.close)
   }
 
   /**
@@ -371,47 +372,46 @@ object ScalaShellITCase {
     val oldOut = System.out
     System.setOut(new PrintStream(baos))
 
-    // new local cluster
-    val host = "localhost"
-    val port = cluster match {
-      case Some(c) => c.getLeaderRPCPort
-      case _ => throw new RuntimeException("Test cluster not initialized.")
+    cluster match {
+      case Some(cl) =>
+        val repl = externalJars match {
+          case Some(ej) => new FlinkILoop(
+            cl.getHostname,
+            cl.getPort,
+            GlobalConfiguration.loadConfiguration(),
+            Option(Array(ej)),
+            in, new PrintWriter(out))
+
+          case None => new FlinkILoop(
+            cl.getHostname,
+            cl.getPort,
+            GlobalConfiguration.loadConfiguration(),
+            in, new PrintWriter(out))
+        }
+
+        repl.settings = new Settings()
+
+        // enable this line to use scala in intellij
+        repl.settings.usejavacp.value = true
+
+        externalJars match {
+          case Some(ej) => repl.settings.classpath.value = ej
+          case None =>
+        }
+
+        repl.process(repl.settings)
+
+        repl.closeInterpreter()
+
+        System.setOut(oldOut)
+
+        baos.flush()
+
+        val stdout = baos.toString
+
+        out.toString + stdout
+      case _ => throw new IllegalStateException("The cluster has not been started.")
     }
-
-    val repl = externalJars match {
-      case Some(ej) => new FlinkILoop(
-        host, port,
-        GlobalConfiguration.loadConfiguration(),
-        Option(Array(ej)),
-        in, new PrintWriter(out))
-
-      case None => new FlinkILoop(
-        host, port,
-        GlobalConfiguration.loadConfiguration(),
-        in, new PrintWriter(out))
-    }
-
-    repl.settings = new Settings()
-
-    // enable this line to use scala in intellij
-    repl.settings.usejavacp.value = true
-
-    externalJars match {
-      case Some(ej) => repl.settings.classpath.value = ej
-      case None =>
-    }
-
-    repl.process(repl.settings)
-
-    repl.closeInterpreter()
-
-    System.setOut(oldOut)
-
-    baos.flush()
-
-    val stdout = baos.toString
-
-    out.toString + stdout
   }
 
   def findLibraryFolder(paths: String*): File = {

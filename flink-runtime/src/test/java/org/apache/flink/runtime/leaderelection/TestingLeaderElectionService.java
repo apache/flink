@@ -63,4 +63,8 @@ public class TestingLeaderElectionService implements LeaderElectionService {
 		contender = null;
 		hasLeadership  = false;
 	}
+
+	public String getAddress() {
+		return contender.getAddress();
+	}
 }

@@ -135,6 +135,10 @@ public class SerializedThrowable extends Exception implements Serializable {
 		return cached;
 	}
 
+	public String getOriginalErrorClassName() {
+		return originalErrorClassName;
+	}
+
 	// ------------------------------------------------------------------------
 	//  Override the behavior of Throwable
 	// ------------------------------------------------------------------------

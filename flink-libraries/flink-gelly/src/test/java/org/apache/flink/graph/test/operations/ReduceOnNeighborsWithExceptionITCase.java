@@ -32,6 +32,7 @@ import org.apache.flink.graph.ReduceNeighborsFunction;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.test.TestGraphUtils;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
+import org.apache.flink.test.util.TestEnvironment;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
@@ -49,27 +50,19 @@ public class ReduceOnNeighborsWithExceptionITCase extends TestLogger {
 
 	@BeforeClass
 	public static void setupCluster() {
-		try {
-			Configuration config = new Configuration();
-			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, PARALLELISM);
-			cluster = new LocalFlinkMiniCluster(config, false);
-			cluster.start();
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail("Error starting test cluster: " + e.getMessage());
-		}
+		Configuration config = new Configuration();
+		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, PARALLELISM);
+		cluster = new LocalFlinkMiniCluster(config, false);
+		cluster.start();
+
+		TestEnvironment.setAsContext(cluster, PARALLELISM);
 	}
 
 	@AfterClass
 	public static void tearDownCluster() {
-		try {
-			cluster.stop();
-		}
-		catch (Throwable t) {
-			t.printStackTrace();
-			fail("ClusterClient shutdown caused an exception: " + t.getMessage());
-		}
+		cluster.stop();
+
+		TestEnvironment.unsetAsContext();
 	}
 
 	/**
@@ -79,8 +72,7 @@ public class ReduceOnNeighborsWithExceptionITCase extends TestLogger {
 	@Test
 	public void testGroupReduceOnNeighborsWithVVInvalidEdgeSrcId() throws Exception {
 
-		final ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
-				"localhost", cluster.getLeaderRPCPort());
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(PARALLELISM);
 		env.getConfig().disableSysoutLogging();
 
@@ -93,6 +85,8 @@ public class ReduceOnNeighborsWithExceptionITCase extends TestLogger {
 
 			verticesWithSumOfOutNeighborValues.output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
 			env.execute();
+
+			fail("Expected an exception.");
 		} catch (Exception e) {
 			// We expect the job to fail with an exception
 		}
@@ -105,8 +99,7 @@ public class ReduceOnNeighborsWithExceptionITCase extends TestLogger {
 	@Test
 	public void testGroupReduceOnNeighborsWithVVInvalidEdgeTrgId() throws Exception {
 
-		final ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
-				"localhost", cluster.getLeaderRPCPort());
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(PARALLELISM);
 		env.getConfig().disableSysoutLogging();
 
@@ -119,6 +112,8 @@ public class ReduceOnNeighborsWithExceptionITCase extends TestLogger {
 
 			verticesWithSumOfOutNeighborValues.output(new DiscardingOutputFormat<Tuple2<Long, Long>>());
 			env.execute();
+
+			fail("Expected an exception.");
 		} catch (Exception e) {
 			// We expect the job to fail with an exception
 		}
@@ -131,8 +126,7 @@ public class ReduceOnNeighborsWithExceptionITCase extends TestLogger {
 	@Test
 	public void testGroupReduceOnNeighborsInvalidEdgeSrcId() throws Exception {
 
-		final ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
-				"localhost", cluster.getLeaderRPCPort());
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(PARALLELISM);
 		env.getConfig().disableSysoutLogging();
 
@@ -157,8 +151,7 @@ public class ReduceOnNeighborsWithExceptionITCase extends TestLogger {
 	@Test
 	public void testGroupReduceOnNeighborsInvalidEdgeTrgId() throws Exception {
 
-		final ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment(
-				"localhost", cluster.getLeaderRPCPort());
+		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(PARALLELISM);
 		env.getConfig().disableSysoutLogging();
 

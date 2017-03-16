@@ -86,7 +86,7 @@ public class MultipleProgramsTestBase extends TestBaseUtils {
 		
 		switch(mode){
 			case CLUSTER:
-				new TestEnvironment(cluster, 4).setAsContext();
+				new TestEnvironment(cluster, 4, false).setAsContext();
 				break;
 			case CLUSTER_OBJECT_REUSE:
 				new TestEnvironment(cluster, 4, true).setAsContext();

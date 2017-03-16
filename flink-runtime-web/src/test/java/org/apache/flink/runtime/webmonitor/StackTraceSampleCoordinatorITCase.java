@@ -29,6 +29,7 @@ import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -89,6 +90,12 @@ public class StackTraceSampleCoordinatorITCase extends TestLogger {
 
 			jobGraph.addVertex(task);
 
+			final Configuration config = new Configuration();
+
+			final HighAvailabilityServices highAvailabilityServices = HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(
+				config,
+				TestingUtils.defaultExecutor());
+
 			ActorGateway jobManger = null;
 			ActorGateway taskManager = null;
 
@@ -97,13 +104,17 @@ public class StackTraceSampleCoordinatorITCase extends TestLogger {
 					testActorSystem,
 					TestingUtils.defaultExecutor(),
 					TestingUtils.defaultExecutor(),
-					new Configuration());
+					config,
+					highAvailabilityServices);
 
-				final Configuration config = new Configuration();
 				config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, parallelism);
 
 				taskManager = TestingUtils.createTaskManager(
-						testActorSystem, jobManger, config, true, true);
+					testActorSystem,
+					highAvailabilityServices,
+					config,
+					true,
+					true);
 
 				final ActorGateway jm = jobManger;
 
@@ -182,6 +193,8 @@ public class StackTraceSampleCoordinatorITCase extends TestLogger {
 			} finally {
 				TestingUtils.stopActor(jobManger);
 				TestingUtils.stopActor(taskManager);
+
+				highAvailabilityServices.closeAndCleanupAllData();
 			}
 		}};
 	}

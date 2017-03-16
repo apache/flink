@@ -32,6 +32,7 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
+import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import org.apache.flink.configuration.Configuration;
@@ -50,7 +51,7 @@ import java.util.regex.Pattern;
 /**
  * Tests that the JobManager process properly exits when the JobManager actor dies.
  */
-public class JobManagerProcessReapingTest {
+public class JobManagerProcessReapingTest extends TestLogger {
 
 	@Test
 	public void testReapProcessOnFailure() {

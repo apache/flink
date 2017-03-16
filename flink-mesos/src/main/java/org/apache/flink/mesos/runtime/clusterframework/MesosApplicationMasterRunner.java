@@ -48,17 +48,17 @@ import org.apache.flink.runtime.clusterframework.overlays.HadoopUserOverlay;
 import org.apache.flink.runtime.clusterframework.overlays.KeytabOverlay;
 import org.apache.flink.runtime.clusterframework.overlays.Krb5ConfOverlay;
 import org.apache.flink.runtime.clusterframework.overlays.SSLStoreOverlay;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.jobmaster.JobMaster;
-import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.process.ProcessReaper;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.util.Hardware;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
-import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.runtime.util.SignalHandler;
 import org.apache.flink.runtime.webmonitor.WebMonitor;
 import org.apache.mesos.Protos;
@@ -67,7 +67,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import scala.Option;
-import scala.Some;
 import scala.concurrent.duration.Duration;
 import scala.concurrent.duration.FiniteDuration;
 
@@ -206,6 +205,7 @@ public class MesosApplicationMasterRunner {
 		ScheduledExecutorService futureExecutor = null;
 		ExecutorService ioExecutor = null;
 		MesosServices mesosServices = null;
+		HighAvailabilityServices highAvailabilityServices = null;
 
 		try {
 			// ------- (1) load and parse / validate all configurations -------
@@ -295,6 +295,12 @@ public class MesosApplicationMasterRunner {
 			// 3) Resource Master for Mesos
 			// 4) Process reapers for the JobManager and Resource Master
 
+			// 0: Start the JobManager services
+			highAvailabilityServices = HighAvailabilityServicesUtils.createHighAvailabilityServices(
+				config,
+				ioExecutor,
+				HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
+
 			// 1: the JobManager
 			LOG.debug("Starting JobManager actor");
 
@@ -304,8 +310,9 @@ public class MesosApplicationMasterRunner {
 				actorSystem,
 				futureExecutor,
 				ioExecutor,
-				new Some<>(JobMaster.JOB_MANAGER_NAME),
-				Option.<String>empty(),
+				highAvailabilityServices,
+				Option.apply(JobMaster.JOB_MANAGER_NAME),
+				Option.apply(JobMaster.ARCHIVE_NAME),
 				getJobManagerClass(),
 				getArchivistClass())._1();
 
@@ -313,7 +320,12 @@ public class MesosApplicationMasterRunner {
 			// 2: the web monitor
 			LOG.debug("Starting Web Frontend");
 
-			webMonitor = BootstrapTools.startWebMonitorIfConfigured(config, actorSystem, jobManager, LOG);
+			webMonitor = BootstrapTools.startWebMonitorIfConfigured(
+				config,
+				highAvailabilityServices,
+				actorSystem,
+				jobManager,
+				LOG);
 			if(webMonitor != null) {
 				final URL webMonitorURL = new URL("http", appMasterHostname, webMonitor.getServerPort(), "/");
 				mesosConfig.frameworkInfo().setWebuiUrl(webMonitorURL.toExternalForm());
@@ -327,17 +339,12 @@ public class MesosApplicationMasterRunner {
 				config,
 				ioExecutor);
 
-			// we need the leader retrieval service here to be informed of new
-			// leader session IDs, even though there can be only one leader ever
-			LeaderRetrievalService leaderRetriever =
-				LeaderRetrievalUtils.createLeaderRetrievalService(config, jobManager);
-
 			Props resourceMasterProps = MesosFlinkResourceManager.createActorProps(
 				getResourceManagerClass(),
 				config,
 				mesosConfig,
 				workerStore,
-				leaderRetriever,
+				highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID),
 				taskManagerParameters,
 				taskManagerContainerSpec,
 				artifactServer,
@@ -433,6 +440,14 @@ public class MesosApplicationMasterRunner {
 			artifactServer.stop();
 		} catch (Throwable t) {
 			LOG.error("Failed to stop the artifact server", t);
+		}
+
+		if (highAvailabilityServices != null) {
+			try {
+				highAvailabilityServices.close();
+			} catch (Throwable t) {
+				LOG.error("Could not properly stop the high availability services.");
+			}
 		}
 
 		org.apache.flink.runtime.concurrent.Executors.gracefulShutdown(
