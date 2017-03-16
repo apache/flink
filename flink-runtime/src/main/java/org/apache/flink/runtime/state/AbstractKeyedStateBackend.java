@@ -277,7 +277,7 @@ public abstract class AbstractKeyedStateBackend<K>
 		}
 
 		if (!stateDescriptor.isSerializerInitialized()) {
-			throw new IllegalStateException("The serializer of the descriptor has not been initialized!"); 
+			stateDescriptor.initializeSerializerUnlessSet(executionConfig);
 		}
 
 		InternalKvState<?> existing = keyValueStatesByName.get(stateDescriptor.getName());
@@ -354,8 +354,6 @@ public abstract class AbstractKeyedStateBackend<K>
 			final StateDescriptor<S, ?> stateDescriptor) throws Exception {
 
 		checkNotNull(namespace, "Namespace");
-
-		stateDescriptor.initializeSerializerUnlessSet(executionConfig);
 
 		if (lastName != null && lastName.equals(stateDescriptor.getName())) {
 			lastState.setCurrentNamespace(namespace);
