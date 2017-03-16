@@ -196,7 +196,7 @@ public class SavepointStore {
 
 			// Write savepoint
 			SavepointSerializer<T> serializer = SavepointSerializers.getSerializer(savepoint);
-			serializer.serialize(savepoint, dos);
+			serializer.serialize(savepoint, basePath, dos);
 
 			// construct result handle
 			FileStateHandle handle = new FileStateHandle(metadataFilePath, dos.size());
@@ -252,8 +252,14 @@ public class SavepointStore {
 
 		FileStatus status = fs.getFileStatus(path);
 
+		// The savepoint base path. By convention, this is the parent directory
+		// of the savepoint metadata file.
+		Path basePath;
+
 		// If this is a directory, we need to find the meta data file
 		if (status.isDir()) {
+			basePath = path;
+
 			Path candidatePath = new Path(path, SAVEPOINT_METADATA_FILE);
 			if (fs.exists(candidatePath)) {
 				path = candidatePath;
@@ -263,6 +269,8 @@ public class SavepointStore {
 						+ ". Please try to load the savepoint directly from the meta data file "
 						+ "instead of the directory.");
 			}
+		}  else {
+			basePath = path.getParent();
 		}
 
 		// load the savepoint
@@ -274,7 +282,7 @@ public class SavepointStore {
 				int version = dis.readInt();
 
 				SavepointSerializer<?> serializer = SavepointSerializers.getSerializer(version);
-				savepoint = serializer.deserialize(dis, classLoader);
+				savepoint = serializer.deserialize(dis, basePath, classLoader);
 			} else {
 				throw new RuntimeException("Unexpected magic number. This can have multiple reasons: " +
 						"(1) You are trying to load a Flink 1.0 savepoint, which is not supported by this " +

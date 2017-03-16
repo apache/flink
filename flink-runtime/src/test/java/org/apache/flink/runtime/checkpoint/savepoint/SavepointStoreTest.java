@@ -18,7 +18,24 @@
 
 package org.apache.flink.runtime.checkpoint.savepoint;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.File;
+import java.io.IOException;
+import java.lang.reflect.Field;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
@@ -29,24 +46,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.mockito.Matchers;
-
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.lang.reflect.Field;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.ThreadLocalRandom;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
 
 public class SavepointStoreTest {
 
@@ -68,7 +67,7 @@ public class SavepointStoreTest {
 
 		// Store
 		String savepointDirectory = SavepointStore.createSavepointDirectory(root, new JobID());
-		SavepointV1 stored = new SavepointV1(1929292, SavepointV1Test.createTaskStates(4, 24));
+		Savepoint stored = new SavepointV2(1929292, SavepointV1Test.createTaskStates(4, 24));
 		String path = SavepointStore.storeSavepoint(savepointDirectory, stored);
 
 		list = rootFile.listFiles();
@@ -141,9 +140,9 @@ public class SavepointStoreTest {
 		assertNotNull(list);
 		assertEquals(1, list.length);
 
-		// Savepoint v0
+		// Savepoint v2
 		String savepointDirectory2 = SavepointStore.createSavepointDirectory(root, new JobID());
-		Savepoint savepoint = new SavepointV1(checkpointId, SavepointV1Test.createTaskStates(4, 32));
+		Savepoint savepoint = new SavepointV2(checkpointId, SavepointV1Test.createTaskStates(4, 32));
 		String pathSavepoint = SavepointStore.storeSavepoint(savepointDirectory2, savepoint);
 
 		list = rootFile.listFiles();
@@ -173,7 +172,7 @@ public class SavepointStoreTest {
 		final int version = 123123;
 		SavepointSerializer<TestSavepoint> serializer = mock(SavepointSerializer.class);
 		doThrow(new RuntimeException("Test Exception")).when(serializer)
-				.serialize(Matchers.any(TestSavepoint.class), any(DataOutputStream.class));
+				.serialize(Matchers.any(TestSavepoint.class), any(Path.class), any(DataOutputStream.class));
 
 		serializers.put(version, serializer);
 
@@ -199,7 +198,7 @@ public class SavepointStoreTest {
 		FileSystem fs = FileSystem.get(new Path(root).toUri());
 
 		// Store
-		SavepointV1 savepoint = new SavepointV1(1929292, SavepointV1Test.createTaskStates(4, 24));
+		SavepointV2 savepoint = new SavepointV2(1929292, SavepointV1Test.createTaskStates(4, 24));
 
 		FileStateHandle store1 = SavepointStore.storeExternalizedCheckpointToHandle(root, savepoint);
 		fs.exists(store1.getFilePath());
@@ -215,13 +214,13 @@ public class SavepointStoreTest {
 		private static final NewSavepointSerializer INSTANCE = new NewSavepointSerializer();
 
 		@Override
-		public void serialize(TestSavepoint savepoint, DataOutputStream dos) throws IOException {
+		public void serialize(TestSavepoint savepoint, Path ignoredBasePath, DataOutputStream dos) throws IOException {
 			dos.writeInt(savepoint.version);
 			dos.writeLong(savepoint.checkpointId);
 		}
 
 		@Override
-		public TestSavepoint deserialize(DataInputStream dis, ClassLoader userCL) throws IOException {
+		public TestSavepoint deserialize(DataInputStream dis, Path ignoredBasePath, ClassLoader userCL) throws IOException {
 			int version = dis.readInt();
 			long checkpointId = dis.readLong();
 			return new TestSavepoint(version, checkpointId);

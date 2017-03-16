@@ -21,7 +21,7 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.savepoint.Savepoint;
 import org.apache.flink.runtime.checkpoint.savepoint.SavepointStore;
-import org.apache.flink.runtime.checkpoint.savepoint.SavepointV1;
+import org.apache.flink.runtime.checkpoint.savepoint.SavepointV2;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -242,7 +242,7 @@ public class PendingCheckpoint {
 			// make sure we fulfill the promise with an exception if something fails
 			try {
 				// externalize the metadata
-				final Savepoint savepoint = new SavepointV1(checkpointId, taskStates.values());
+				final Savepoint savepoint = new SavepointV2(checkpointId, taskStates.values());
 
 				// TEMP FIX - The savepoint store is strictly typed to file systems currently
 				//            but the checkpoints think more generic. we need to work with file handles

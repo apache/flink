@@ -18,30 +18,27 @@
 
 package org.apache.flink.runtime.checkpoint.savepoint;
 
+import java.util.Collection;
 import org.apache.flink.runtime.checkpoint.TaskState;
 
-import java.util.Collection;
-
 /**
- * Savepoint version 1.
+ * A savepoint factory returning savepoints of a specific versioned
+ * subtype.
  *
- * <p>This format was introduced with Flink 1.1.0.
+ * <p>I'm wondering how useful this is in practice in comparison to simply
+ * returning the base Savepoint type.
  *
- * @deprecated Deprecated in favour of {@link SavepointV2}.
+ * @param <T> Concrete versioned savepoint subtype
  */
-@Deprecated
-public class SavepointV1 extends AbstractSavepoint {
+interface SavepointFactory<T extends Savepoint> {
 
-	/** The savepoint version. */
-	public static final int VERSION = 1;
-
-	public SavepointV1(long checkpointId, Collection<TaskState> taskStates) {
-		super(checkpointId, taskStates);
-	}
-
-	@Override
-	public int getVersion() {
-		return VERSION;
-	}
+	/**
+	 * Create a special savepoint of subtype T.
+	 *
+	 * @param checkpointId Checkpoint ID of the savepoint.
+	 * @param taskStates Task states of the savepoint.
+	 * @return A concrete savepoint subtype of type T.
+	 */
+	T createSavepoint(long checkpointId, Collection<TaskState> taskStates);
 
 }

@@ -21,6 +21,7 @@ package org.apache.flink.runtime.checkpoint.savepoint;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import org.apache.flink.core.fs.Path;
 
 /**
  * Serializer for {@link Savepoint} instances.
@@ -37,19 +38,21 @@ public interface SavepointSerializer<T extends Savepoint> {
 	 * Serializes a savepoint to an output stream.
 	 *
 	 * @param savepoint Savepoint to serialize
-	 * @param dos        Output stream to serialize the savepoint to
+	 * @param basePath Base path of the savepoint
+	 * @param dos Output stream to serialize the savepoint to
 	 * @throws IOException Serialization failures are forwarded
 	 */
-	void serialize(T savepoint, DataOutputStream dos) throws IOException;
+	void serialize(T savepoint, Path basePath, DataOutputStream dos) throws IOException;
 
 	/**
 	 * Deserializes a savepoint from an input stream.
 	 *
 	 * @param dis Input stream to deserialize savepoint from
-	 * @param  userCodeClassLoader the user code class loader
+	 * @param basePath Base path of the savepoint
+	 * @param userCodeClassLoader the user code class loader
 	 * @return The deserialized savepoint
 	 * @throws IOException Serialization failures are forwarded
 	 */
-	T deserialize(DataInputStream dis, ClassLoader userCodeClassLoader) throws IOException;
+	T deserialize(DataInputStream dis, Path basePath, ClassLoader userCodeClassLoader) throws IOException;
 
 }
