@@ -17,8 +17,6 @@
  */
 package org.apache.flink.table.runtime.aggregate
 
-import java.util
-
 import scala.collection.JavaConversions.asScalaBuffer
 import scala.collection.mutable.ArrayBuffer
 
@@ -30,15 +28,7 @@ import org.apache.calcite.rex.RexLiteral
 import org.apache.calcite.rex.RexWindowBound
 import org.apache.calcite.sql.SqlAggFunction
 import org.apache.calcite.sql.SqlKind
-import org.apache.calcite.sql.`type`.SqlTypeName
-import org.apache.calcite.sql.`type`.SqlTypeName.BIGINT
-import org.apache.calcite.sql.`type`.SqlTypeName.BOOLEAN
-import org.apache.calcite.sql.`type`.SqlTypeName.DECIMAL
-import org.apache.calcite.sql.`type`.SqlTypeName.DOUBLE
-import org.apache.calcite.sql.`type`.SqlTypeName.FLOAT
-import org.apache.calcite.sql.`type`.SqlTypeName.INTEGER
-import org.apache.calcite.sql.`type`.SqlTypeName.SMALLINT
-import org.apache.calcite.sql.`type`.SqlTypeName.TINYINT
+import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.fun.SqlAvgAggFunction
 import org.apache.calcite.sql.fun.SqlCountAggFunction
 import org.apache.calcite.sql.fun.SqlMinMaxAggFunction
@@ -55,8 +45,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction
-import org.apache.flink.streaming.api.functions.windowing.WindowFunction
+import org.apache.flink.streaming.api.functions.windowing.{ AllWindowFunction, WindowFunction }
 import org.apache.flink.streaming.api.windowing.windows.{ Window => DataStreamWindow }
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
@@ -64,63 +53,9 @@ import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.expressions.Literal
 import org.apache.flink.table.expressions.ResolvedFieldReference
-import org.apache.flink.table.expressions.WindowEnd
-import org.apache.flink.table.expressions.WindowStart
+import org.apache.flink.table.expressions.{ WindowEnd, WindowStart }
 import org.apache.flink.table.functions.{ AggregateFunction => TableAggregateFunction }
-import org.apache.flink.table.functions.aggfunctions.BooleanMaxAggFunction
-import org.apache.flink.table.functions.aggfunctions.BooleanMaxWithRetractAggFunction
-import org.apache.flink.table.functions.aggfunctions.BooleanMinAggFunction
-import org.apache.flink.table.functions.aggfunctions.BooleanMinWithRetractAggFunction
-import org.apache.flink.table.functions.aggfunctions.ByteAvgAggFunction
-import org.apache.flink.table.functions.aggfunctions.ByteMaxAggFunction
-import org.apache.flink.table.functions.aggfunctions.ByteMaxWithRetractAggFunction
-import org.apache.flink.table.functions.aggfunctions.ByteMinAggFunction
-import org.apache.flink.table.functions.aggfunctions.ByteMinWithRetractAggFunction
-import org.apache.flink.table.functions.aggfunctions.ByteSumAggFunction
-import org.apache.flink.table.functions.aggfunctions.ByteSumWithRetractAggFunction
-import org.apache.flink.table.functions.aggfunctions.CountAggFunction
-import org.apache.flink.table.functions.aggfunctions.DecimalAvgAggFunction
-import org.apache.flink.table.functions.aggfunctions.DecimalMaxAggFunction
-import org.apache.flink.table.functions.aggfunctions.DecimalMaxWithRetractAggFunction
-import org.apache.flink.table.functions.aggfunctions.DecimalMinAggFunction
-import org.apache.flink.table.functions.aggfunctions.DecimalMinWithRetractAggFunction
-import org.apache.flink.table.functions.aggfunctions.DecimalSumAggFunction
-import org.apache.flink.table.functions.aggfunctions.DecimalSumWithRetractAggFunction
-import org.apache.flink.table.functions.aggfunctions.DoubleAvgAggFunction
-import org.apache.flink.table.functions.aggfunctions.DoubleMaxAggFunction
-import org.apache.flink.table.functions.aggfunctions.DoubleMaxWithRetractAggFunction
-import org.apache.flink.table.functions.aggfunctions.DoubleMinAggFunction
-import org.apache.flink.table.functions.aggfunctions.DoubleMinWithRetractAggFunction
-import org.apache.flink.table.functions.aggfunctions.DoubleSumAggFunction
-import org.apache.flink.table.functions.aggfunctions.DoubleSumWithRetractAggFunction
-import org.apache.flink.table.functions.aggfunctions.FloatAvgAggFunction
-import org.apache.flink.table.functions.aggfunctions.FloatMaxAggFunction
-import org.apache.flink.table.functions.aggfunctions.FloatMaxWithRetractAggFunction
-import org.apache.flink.table.functions.aggfunctions.FloatMinAggFunction
-import org.apache.flink.table.functions.aggfunctions.FloatMinWithRetractAggFunction
-import org.apache.flink.table.functions.aggfunctions.FloatSumAggFunction
-import org.apache.flink.table.functions.aggfunctions.FloatSumWithRetractAggFunction
-import org.apache.flink.table.functions.aggfunctions.IntAvgAggFunction
-import org.apache.flink.table.functions.aggfunctions.IntMaxAggFunction
-import org.apache.flink.table.functions.aggfunctions.IntMaxWithRetractAggFunction
-import org.apache.flink.table.functions.aggfunctions.IntMinAggFunction
-import org.apache.flink.table.functions.aggfunctions.IntMinWithRetractAggFunction
-import org.apache.flink.table.functions.aggfunctions.IntSumAggFunction
-import org.apache.flink.table.functions.aggfunctions.IntSumWithRetractAggFunction
-import org.apache.flink.table.functions.aggfunctions.LongAvgAggFunction
-import org.apache.flink.table.functions.aggfunctions.LongMaxAggFunction
-import org.apache.flink.table.functions.aggfunctions.LongMaxWithRetractAggFunction
-import org.apache.flink.table.functions.aggfunctions.LongMinAggFunction
-import org.apache.flink.table.functions.aggfunctions.LongMinWithRetractAggFunction
-import org.apache.flink.table.functions.aggfunctions.LongSumAggFunction
-import org.apache.flink.table.functions.aggfunctions.LongSumWithRetractAggFunction
-import org.apache.flink.table.functions.aggfunctions.ShortAvgAggFunction
-import org.apache.flink.table.functions.aggfunctions.ShortMaxAggFunction
-import org.apache.flink.table.functions.aggfunctions.ShortMaxWithRetractAggFunction
-import org.apache.flink.table.functions.aggfunctions.ShortMinAggFunction
-import org.apache.flink.table.functions.aggfunctions.ShortMinWithRetractAggFunction
-import org.apache.flink.table.functions.aggfunctions.ShortSumAggFunction
-import org.apache.flink.table.functions.aggfunctions.ShortSumWithRetractAggFunction
+import org.apache.flink.table.functions.aggfunctions._
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.ifMethodExistInFunction
 import org.apache.flink.table.plan.logical.EventTimeSessionGroupWindow
 import org.apache.flink.table.plan.logical.EventTimeSlidingGroupWindow
@@ -129,14 +64,15 @@ import org.apache.flink.table.plan.logical.LogicalWindow
 import org.apache.flink.table.plan.logical.ProcessingTimeSessionGroupWindow
 import org.apache.flink.table.plan.logical.ProcessingTimeSlidingGroupWindow
 import org.apache.flink.table.plan.logical.ProcessingTimeTumblingGroupWindow
-import org.apache.flink.table.typeutils.RowIntervalTypeInfo
-import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
+import org.apache.flink.table.typeutils.{ RowIntervalTypeInfo, TimeIntervalTypeInfo }
 import org.apache.flink.table.typeutils.TypeCheckUtils.isTimeInterval
 import org.apache.flink.types.Row
 
 import com.google.common.collect.ImmutableList
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow
 import org.apache.flink.streaming.api.functions.ProcessFunction
+import org.apache.calcite.sql.`type`.SqlTypeName
+import java.util.List
 
 object AggregateUtil {
 
@@ -940,7 +876,7 @@ object AggregateUtil {
 
     // create aggregate function instances by function type and aggregate field data type.
     aggregateCalls.zipWithIndex.foreach { case (aggregateCall, index) =>
-      val argList: util.List[Integer] = aggregateCall.getArgList
+      val argList: List[Integer] = aggregateCall.getArgList
       if (argList.isEmpty) {
         if (aggregateCall.getAggregation.isInstanceOf[SqlCountAggFunction]) {
           aggFieldIndexes(index) = 0
