@@ -62,8 +62,9 @@ public class Acknowledge implements Serializable {
 
 	/**
 	 * Read resolve to preserve the singleton object property.
+	 * (per best practices, this should have visibility 'protected')
 	 */
-	private Object readResolve() throws java.io.ObjectStreamException {
+	protected Object readResolve() throws java.io.ObjectStreamException {
 		return INSTANCE;
 	}
 }
