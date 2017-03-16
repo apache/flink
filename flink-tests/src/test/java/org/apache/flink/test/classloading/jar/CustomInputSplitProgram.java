@@ -18,7 +18,6 @@
 
 package org.apache.flink.test.classloading.jar;
 
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -30,7 +29,6 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.RemoteEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
@@ -42,14 +40,8 @@ import org.apache.flink.core.io.InputSplitAssigner;
 public class CustomInputSplitProgram {
 	
 	public static void main(String[] args) throws Exception {
-		final String[] jarFile = (args[0].equals(""))? null : new String[] { args[0] };
-		final URL[] classpath = (args[1].equals(""))? null : new URL[] { new URL(args[1]) };
-		final String host = args[2];
-		final int port = Integer.parseInt(args[3]);
-		final int parallelism = Integer.parseInt(args[4]);
 
-		RemoteEnvironment env = new RemoteEnvironment(host, port, null, jarFile, classpath);
-		env.setParallelism(parallelism);
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.getConfig().disableSysoutLogging();
 
 		DataSet<Integer> data = env.createInput(new CustomInputFormat());

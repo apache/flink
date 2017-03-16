@@ -678,7 +678,12 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 	public void stop() {
 		if (yarnCluster != null) {
 			LOG.info("Command line interface is shutting down the yarnCluster");
-			yarnCluster.shutdown();
+
+			try {
+				yarnCluster.shutdown();
+			} catch (Throwable t) {
+				LOG.warn("Could not properly shutdown the yarn cluster.", t);
+			}
 		}
 	}
 

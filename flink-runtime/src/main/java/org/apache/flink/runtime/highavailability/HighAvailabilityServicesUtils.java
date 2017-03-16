@@ -115,7 +115,7 @@ public class HighAvailabilityServicesUtils {
 		if (port <= 0 || port >= 65536) {
 			throw new ConfigurationException("Invalid value for '" + JobManagerOptions.PORT +
 				"' (port of the JobManager actor system) : " + port +
-				".  it must be great than 0 and less than 65536.");
+				".  it must be greater than 0 and less than 65536.");
 		}
 
 		return Tuple2.of(hostname, port);

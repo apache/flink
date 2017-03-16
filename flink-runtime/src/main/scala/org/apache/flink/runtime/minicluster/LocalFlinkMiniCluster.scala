@@ -32,6 +32,7 @@ import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceMa
 import org.apache.flink.runtime.clusterframework.types.{ResourceID, ResourceIDRetrievable}
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory
+import org.apache.flink.runtime.highavailability.{HighAvailabilityServices, HighAvailabilityServicesUtils}
 import org.apache.flink.runtime.instance.InstanceManager
 import org.apache.flink.runtime.io.disk.iomanager.IOManager
 import org.apache.flink.runtime.io.network.NetworkEnvironment
@@ -49,7 +50,7 @@ import org.apache.flink.runtime.taskexecutor.{TaskExecutor, TaskManagerConfigura
 import org.apache.flink.runtime.taskmanager.{TaskManager, TaskManagerLocation}
 import org.apache.flink.runtime.util.EnvironmentInformation
 
-import scala.concurrent.Await
+import scala.concurrent.{Await, ExecutionContext}
 import scala.concurrent.duration.FiniteDuration
 
 /**
@@ -63,7 +64,20 @@ import scala.concurrent.duration.FiniteDuration
  */
 class LocalFlinkMiniCluster(
     userConfiguration: Configuration,
-    singleActorSystem: Boolean) extends FlinkMiniCluster(userConfiguration, singleActorSystem) {
+    highAvailabilityServices: HighAvailabilityServices,
+    singleActorSystem: Boolean) extends FlinkMiniCluster(
+  userConfiguration,
+  highAvailabilityServices,
+  singleActorSystem) {
+
+  def this(userConfiguration: Configuration, useSingleActorSystem: Boolean) = {
+    this(
+      userConfiguration,
+       HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(
+         userConfiguration,
+         ExecutionContext.global),
+      useSingleActorSystem)
+  }
 
   def this(userConfiguration: Configuration) = this(userConfiguration, true)
 
@@ -125,15 +139,11 @@ class LocalFlinkMiniCluster(
     timeout,
     archiveCount,
     archivePath,
-    leaderElectionService,
-    submittedJobGraphStore,
-    checkpointRecoveryFactory,
     jobRecoveryTimeout,
     metricsRegistry) = JobManager.createJobManagerComponents(
       config,
       futureExecutor,
-      ioExecutor,
-      createLeaderElectionService())
+      ioExecutor)
 
     if (config.getBoolean(ConfigConstants.LOCAL_START_WEBSERVER, false)) {
       metricsRegistry.get.startQueryService(system, null)
@@ -158,9 +168,10 @@ class LocalFlinkMiniCluster(
         archive,
         restartStrategyFactory,
         timeout,
-        leaderElectionService,
-        submittedJobGraphStore,
-        checkpointRecoveryFactory,
+        highAvailabilityServices.getJobManagerLeaderElectionService(
+          HighAvailabilityServices.DEFAULT_JOB_ID),
+        highAvailabilityServices.getSubmittedJobGraphStore(),
+        highAvailabilityServices.getCheckpointRecoveryFactory(),
         jobRecoveryTimeout,
         metricsRegistry),
       jobManagerName)
@@ -182,7 +193,8 @@ class LocalFlinkMiniCluster(
     val resourceManagerProps = getResourceManagerProps(
       resourceManagerClass,
       config,
-      createLeaderRetrievalService())
+      highAvailabilityServices.getJobManagerLeaderRetriever(
+        HighAvailabilityServices.DEFAULT_JOB_ID))
 
     system.actorOf(resourceManagerProps, resourceManagerName)
   }
@@ -237,7 +249,8 @@ class LocalFlinkMiniCluster(
       taskManagerServices.getMemoryManager(),
       taskManagerServices.getIOManager(),
       taskManagerServices.getNetworkEnvironment,
-      createLeaderRetrievalService(),
+      highAvailabilityServices.getJobManagerLeaderRetriever(
+        HighAvailabilityServices.DEFAULT_JOB_ID),
       metricRegistry)
 
     if (config.getBoolean(ConfigConstants.LOCAL_START_WEBSERVER, false)) {
@@ -331,10 +344,6 @@ class LocalFlinkMiniCluster(
   //------------------------------------------------------------------------------------------------
   // Helper methods
   //------------------------------------------------------------------------------------------------
-
-  def createLeaderElectionService(): Option[LeaderElectionService] = {
-    None
-  }
 
   def initializeIOFormatClasses(configuration: Configuration): Unit = {
     try {

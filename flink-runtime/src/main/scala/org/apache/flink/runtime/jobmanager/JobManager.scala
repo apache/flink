@@ -49,7 +49,7 @@ import org.apache.flink.runtime.execution.SuppressRestartsException
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory
 import org.apache.flink.runtime.executiongraph._
-import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils
+import org.apache.flink.runtime.highavailability.{HighAvailabilityServices, HighAvailabilityServicesUtils}
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils.AddressResolution
 import org.apache.flink.runtime.instance.{AkkaActorGateway, InstanceID, InstanceManager}
 import org.apache.flink.runtime.jobgraph.{JobGraph, JobStatus}
@@ -57,8 +57,8 @@ import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore.SubmittedJobGr
 import org.apache.flink.runtime.jobmanager.scheduler.{Scheduler => FlinkScheduler}
 import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway
 import org.apache.flink.runtime.jobmaster.JobMaster
+import org.apache.flink.runtime.leaderelection.{LeaderContender, LeaderElectionService}
 import org.apache.flink.runtime.jobmaster.JobMaster.{ARCHIVE_NAME, JOB_MANAGER_NAME}
-import org.apache.flink.runtime.leaderelection.{LeaderContender, LeaderElectionService, StandaloneLeaderElectionService}
 import org.apache.flink.runtime.messages.ArchiveMessages.ArchiveExecutionGraph
 import org.apache.flink.runtime.messages.ExecutionGraphMessages.JobStatusChanged
 import org.apache.flink.runtime.messages.JobManagerMessages._
@@ -2037,14 +2037,27 @@ object JobManager {
 
     val timeout = AkkaUtils.getTimeout(configuration)
 
-    val (jobManagerSystem, _, _, webMonitorOption, _) = try {
-      startActorSystemAndJobManagerActors(
+    // we have to first start the JobManager ActorSystem because this determines the port if 0
+    // was chosen before. The method startActorSystem will update the configuration correspondingly.
+    val jobManagerSystem = startActorSystem(
+      configuration,
+      listeningAddress,
+      listeningPort)
+
+    val highAvailabilityServices = HighAvailabilityServicesUtils.createHighAvailabilityServices(
+      configuration,
+      ioExecutor,
+      AddressResolution.NO_ADDRESS_RESOLUTION);
+
+    val (_, _, webMonitorOption, _) = try {
+      startJobManagerActors(
+        jobManagerSystem,
         configuration,
         executionMode,
         listeningAddress,
-        listeningPort,
         futureExecutor,
         ioExecutor,
+        highAvailabilityServices,
         classOf[JobManager],
         classOf[MemoryArchivist],
         Option(classOf[StandaloneResourceManager])
@@ -2068,6 +2081,13 @@ object JobManager {
           case t: Throwable =>
             LOG.warn("Could not properly stop the web monitor.", t)
         }
+    }
+
+    try {
+      highAvailabilityServices.close()
+    } catch {
+      case t: Throwable =>
+        LOG.warn("Could not properly stop the high availability services.", t)
     }
 
     FlinkExecutors.gracefulShutdown(
@@ -2175,32 +2195,18 @@ object JobManager {
     }
   }
 
-  /** Starts an ActorSystem, the JobManager and all its components including the WebMonitor.
+  /**
+    * Starts the JobManager actor system.
     *
-    * @param configuration The configuration object for the JobManager
-    * @param executionMode The execution mode in which to run. Execution mode LOCAL with spawn an
-    *                      additional TaskManager in the same process.
-    * @param externalHostname The hostname where the JobManager is reachable for rpc communication
-    * @param port The port where the JobManager is reachable for rpc communication
-    * @param futureExecutor to run the JobManager's futures
-    * @param ioExecutor to run blocking io operations
-    * @param jobManagerClass The class of the JobManager to be started
-    * @param archiveClass The class of the Archivist to be started
-    * @param resourceManagerClass Optional class of resource manager if one should be started
-    * @return A tuple containing the started ActorSystem, ActorRefs to the JobManager and the
-    *         Archivist and an Option containing a possibly started WebMonitor
+    * @param configuration Configuration to use for the job manager actor system
+    * @param externalHostname External hostname to bind to
+    * @param port Port to bind to
+    * @return Actor system for the JobManager and its components
     */
-  def startActorSystemAndJobManagerActors(
+  def startActorSystem(
       configuration: Configuration,
-      executionMode: JobManagerMode,
       externalHostname: String,
-      port: Int,
-      futureExecutor: ScheduledExecutorService,
-      ioExecutor: Executor,
-      jobManagerClass: Class[_ <: JobManager],
-      archiveClass: Class[_ <: MemoryArchivist],
-      resourceManagerClass: Option[Class[_ <: FlinkResourceManager[_]]])
-    : (ActorSystem, ActorRef, ActorRef, Option[WebMonitor], Option[ActorRef]) = {
+      port: Int): ActorSystem = {
 
     val hostPort = NetUtils.unresolvedHostAndPortToNormalizedString(externalHostname, port)
 
@@ -2223,7 +2229,7 @@ object JobManager {
           val cause = t.getCause()
           if (cause != null && t.getCause().isInstanceOf[java.net.BindException]) {
             throw new Exception("Unable to create JobManager at address " + hostPort +
-              " - " + cause.getMessage(), t)
+                                  " - " + cause.getMessage(), t)
           }
         }
         throw new Exception("Could not create JobManager actor system", t)
@@ -2234,11 +2240,42 @@ object JobManager {
     configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, address.host.get)
     configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, address.port.get)
 
+    jobManagerSystem
+  }
+
+  /** Starts the JobManager and all its components including the WebMonitor.
+    *
+    * @param configuration The configuration object for the JobManager
+    * @param executionMode The execution mode in which to run. Execution mode LOCAL with spawn an
+    *                      additional TaskManager in the same process.
+    * @param externalHostname The hostname where the JobManager is reachable for rpc communication
+    * @param futureExecutor to run the JobManager's futures
+    * @param ioExecutor to run blocking io operations
+    * @param highAvailabilityServices to instantiate high availability services
+    * @param jobManagerClass The class of the JobManager to be started
+    * @param archiveClass The class of the Archivist to be started
+    * @param resourceManagerClass Optional class of resource manager if one should be started
+    * @return A tuple containing the started ActorSystem, ActorRefs to the JobManager and the
+    *         Archivist and an Option containing a possibly started WebMonitor
+    */
+  def startJobManagerActors(
+      jobManagerSystem: ActorSystem,
+      configuration: Configuration,
+      executionMode: JobManagerMode,
+      externalHostname: String,
+      futureExecutor: ScheduledExecutorService,
+      ioExecutor: Executor,
+      highAvailabilityServices: HighAvailabilityServices,
+      jobManagerClass: Class[_ <: JobManager],
+      archiveClass: Class[_ <: MemoryArchivist],
+      resourceManagerClass: Option[Class[_ <: FlinkResourceManager[_]]])
+    : (ActorRef, ActorRef, Option[WebMonitor], Option[ActorRef]) = {
+
     val webMonitor: Option[WebMonitor] =
       if (configuration.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0) >= 0) {
         LOG.info("Starting JobManager web frontend")
-        val leaderRetrievalService = LeaderRetrievalUtils
-          .createLeaderRetrievalService(configuration, false)
+        val leaderRetrievalService = highAvailabilityServices.getJobManagerLeaderRetriever(
+          HighAvailabilityServices.DEFAULT_JOB_ID)
 
         // start the web frontend. we need to load this dynamically
         // because it is not in the same project/dependencies
@@ -2265,6 +2302,7 @@ object JobManager {
         jobManagerSystem,
         futureExecutor,
         ioExecutor,
+        highAvailabilityServices,
         jobManagerClass,
         archiveClass)
 
@@ -2287,9 +2325,9 @@ object JobManager {
           configuration,
           ResourceID.generate(),
           jobManagerSystem,
+          highAvailabilityServices,
           externalHostname,
           Some(TaskExecutor.TASK_MANAGER_NAME),
-          None,
           localTaskManagerCommunication = true,
           classOf[TaskManager])
 
@@ -2324,14 +2362,15 @@ object JobManager {
               FlinkResourceManager.startResourceManagerActors(
                 configuration,
                 jobManagerSystem,
-                LeaderRetrievalUtils.createLeaderRetrievalService(configuration, false),
+                highAvailabilityServices.getJobManagerLeaderRetriever(
+                  HighAvailabilityServices.DEFAULT_JOB_ID),
                 rmClass))
           case None =>
             LOG.info("Resource Manager class not provided. No resource manager will be started.")
             None
         }
 
-      (jobManagerSystem, jobManager, archive, webMonitor, resourceManager)
+      (jobManager, archive, webMonitor, resourceManager)
     }
     catch {
       case t: Throwable =>
@@ -2468,15 +2507,12 @@ object JobManager {
    * @param configuration The configuration from which to parse the config values.
    * @param futureExecutor to run JobManager's futures
    * @param ioExecutor to run blocking io operations
-   * @param leaderElectionServiceOption LeaderElectionService which shall be returned if the option
-   *                                    is defined
    * @return The members for a default JobManager.
    */
   def createJobManagerComponents(
       configuration: Configuration,
       futureExecutor: ScheduledExecutorService,
-      ioExecutor: Executor,
-      leaderElectionServiceOption: Option[LeaderElectionService]) :
+      ioExecutor: Executor) :
     (InstanceManager,
     FlinkScheduler,
     BlobLibraryCacheManager,
@@ -2484,9 +2520,6 @@ object JobManager {
     FiniteDuration, // timeout
     Int, // number of archived jobs
     Option[Path], // archive path
-    LeaderElectionService,
-    SubmittedJobGraphStore,
-    CheckpointRecoveryFactory,
     FiniteDuration, // timeout for job recovery
     Option[FlinkMetricRegistry]
    ) = {
@@ -2550,32 +2583,6 @@ object JobManager {
         throw t
     }
 
-    // Create recovery related components
-    val (leaderElectionService, submittedJobGraphs, checkpointRecoveryFactory) =
-      HighAvailabilityMode.fromConfig(configuration) match {
-        case HighAvailabilityMode.NONE =>
-          val leaderElectionService = leaderElectionServiceOption match {
-            case Some(les) => les
-            case None => new StandaloneLeaderElectionService()
-          }
-
-          (leaderElectionService,
-            new StandaloneSubmittedJobGraphStore(),
-            new StandaloneCheckpointRecoveryFactory())
-
-        case HighAvailabilityMode.ZOOKEEPER =>
-          val client = ZooKeeperUtils.startCuratorFramework(configuration)
-
-          val leaderElectionService = leaderElectionServiceOption match {
-            case Some(les) => les
-            case None => ZooKeeperUtils.createLeaderElectionService(client, configuration)
-          }
-
-          (leaderElectionService,
-            ZooKeeperUtils.createSubmittedJobGraphs(client, configuration, ioExecutor),
-            new ZooKeeperCheckpointRecoveryFactory(client, configuration, ioExecutor))
-      }
-
     val jobRecoveryTimeoutStr = configuration.getValue(HighAvailabilityOptions.HA_JOB_DELAY)
 
     val jobRecoveryTimeout = if (jobRecoveryTimeoutStr == null || jobRecoveryTimeoutStr.isEmpty) {
@@ -2605,9 +2612,6 @@ object JobManager {
       timeout,
       archiveCount,
       archivePath,
-      leaderElectionService,
-      submittedJobGraphs,
-      checkpointRecoveryFactory,
       jobRecoveryTimeout,
       metricRegistry)
   }
@@ -2629,6 +2633,7 @@ object JobManager {
       actorSystem: ActorSystem,
       futureExecutor: ScheduledExecutorService,
       ioExecutor: Executor,
+      highAvailabilityServices: HighAvailabilityServices,
       jobManagerClass: Class[_ <: JobManager],
       archiveClass: Class[_ <: MemoryArchivist])
     : (ActorRef, ActorRef) = {
@@ -2638,6 +2643,7 @@ object JobManager {
       actorSystem,
       futureExecutor,
       ioExecutor,
+      highAvailabilityServices,
       Some(JobMaster.JOB_MANAGER_NAME),
       Some(JobMaster.ARCHIVE_NAME),
       jobManagerClass,
@@ -2665,6 +2671,7 @@ object JobManager {
       actorSystem: ActorSystem,
       futureExecutor: ScheduledExecutorService,
       ioExecutor: Executor,
+      highAvailabilityServices: HighAvailabilityServices,
       jobManagerActorName: Option[String],
       archiveActorName: Option[String],
       jobManagerClass: Class[_ <: JobManager],
@@ -2678,15 +2685,11 @@ object JobManager {
     timeout,
     archiveCount,
     archivePath,
-    leaderElectionService,
-    submittedJobGraphs,
-    checkpointRecoveryFactory,
     jobRecoveryTimeout,
     metricsRegistry) = createJobManagerComponents(
       configuration,
       futureExecutor,
-      ioExecutor,
-      None)
+      ioExecutor)
 
     val archiveProps = getArchiveProps(archiveClass, archiveCount, archivePath)
 
@@ -2707,9 +2710,10 @@ object JobManager {
       archive,
       restartStrategy,
       timeout,
-      leaderElectionService,
-      submittedJobGraphs,
-      checkpointRecoveryFactory,
+      highAvailabilityServices.getJobManagerLeaderElectionService(
+        HighAvailabilityServices.DEFAULT_JOB_ID),
+      highAvailabilityServices.getSubmittedJobGraphStore(),
+      highAvailabilityServices.getCheckpointRecoveryFactory(),
       jobRecoveryTimeout,
       metricsRegistry)
 

@@ -39,11 +39,14 @@ import org.apache.flink.runtime.blob.{BlobCache, BlobClient, BlobService}
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager
 import org.apache.flink.runtime.clusterframework.messages.StopCluster
 import org.apache.flink.runtime.clusterframework.types.ResourceID
+import org.apache.flink.runtime.concurrent.Executors
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor
 import org.apache.flink.runtime.execution.ExecutionState
 import org.apache.flink.runtime.execution.librarycache.{BlobLibraryCacheManager, FallbackLibraryCacheManager, LibraryCacheManager}
 import org.apache.flink.runtime.executiongraph.{ExecutionAttemptID, PartitionInfo}
 import org.apache.flink.runtime.filecache.FileCache
+import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils.AddressResolution
+import org.apache.flink.runtime.highavailability.{HighAvailabilityServices, HighAvailabilityServicesUtils}
 import org.apache.flink.runtime.instance.{AkkaActorGateway, HardwareDescription, InstanceID}
 import org.apache.flink.runtime.io.disk.iomanager.IOManager
 import org.apache.flink.runtime.io.network.NetworkEnvironment
@@ -293,7 +296,7 @@ class TaskManager(
     // its registration at the JobManager
     case NotifyWhenRegisteredAtJobManager =>
       if (isConnected) {
-        sender ! decorateMessage(RegisteredAtJobManager)
+        sender ! decorateMessage(RegisteredAtJobManager(leaderSessionID.orNull))
       } else {
         waitForRegistration += sender
       }
@@ -993,7 +996,7 @@ class TaskManager(
 
     // notify all the actors that listen for a successful registration
     for (listener <- waitForRegistration) {
-      listener ! RegisteredAtJobManager
+      listener ! RegisteredAtJobManager(leaderSessionID.orNull)
     }
     waitForRegistration.clear()
   }
@@ -1638,20 +1641,37 @@ object TaskManager {
       taskManagerClass: Class[_ <: TaskManager])
     : Unit = {
 
-    val (taskManagerHostname, actorSystemPort) = selectNetworkInterfaceAndPort(configuration)
-
-    runTaskManager(
-      taskManagerHostname,
-      resourceID,
-      actorSystemPort,
+    val highAvailabilityServices = HighAvailabilityServicesUtils.createHighAvailabilityServices(
       configuration,
-      taskManagerClass)
+      Executors.directExecutor(),
+      AddressResolution.TRY_ADDRESS_RESOLUTION)
+
+    val (taskManagerHostname, actorSystemPort) = selectNetworkInterfaceAndPort(
+      configuration,
+      highAvailabilityServices)
+
+    try {
+      runTaskManager(
+        taskManagerHostname,
+        resourceID,
+        actorSystemPort,
+        configuration,
+        highAvailabilityServices,
+        taskManagerClass)
+    } finally {
+      try {
+        highAvailabilityServices.close()
+      } catch {
+        case t: Throwable => LOG.warn("Could not properly stop the high availability services.", t)
+      }
+    }
   }
 
   @throws(classOf[IOException])
   @throws(classOf[IllegalConfigurationException])
   def selectNetworkInterfaceAndPort(
-      configuration: Configuration)
+      configuration: Configuration,
+      highAvailabilityServices: HighAvailabilityServices)
     : (String, Int) = {
 
     var taskManagerHostname = configuration.getString(
@@ -1661,13 +1681,11 @@ object TaskManager {
       LOG.info("Using configured hostname/address for TaskManager: " + taskManagerHostname)
     }
     else {
-      val leaderRetrievalService = LeaderRetrievalUtils.createLeaderRetrievalService(
-        configuration,
-        true)
       val lookupTimeout = AkkaUtils.getLookupTimeout(configuration)
 
       val taskManagerAddress = LeaderRetrievalUtils.findConnectingAddress(
-        leaderRetrievalService,
+        highAvailabilityServices.getJobManagerLeaderRetriever(
+          HighAvailabilityServices.DEFAULT_JOB_ID),
         lookupTimeout)
 
       taskManagerHostname = taskManagerAddress.getHostName()
@@ -1700,13 +1718,15 @@ object TaskManager {
    * @param resourceID The id of the resource which the task manager will run on.
    * @param actorSystemPort The port at which the actor system will communicate.
    * @param configuration The configuration for the TaskManager.
+   * @param highAvailabilityServices Service factory for high availability services
    */
   @throws(classOf[Exception])
   def runTaskManager(
       taskManagerHostname: String,
       resourceID: ResourceID,
       actorSystemPort: Int,
-      configuration: Configuration)
+      configuration: Configuration,
+      highAvailabilityServices: HighAvailabilityServices)
     : Unit = {
 
     runTaskManager(
@@ -1714,6 +1734,7 @@ object TaskManager {
       resourceID,
       actorSystemPort,
       configuration,
+      highAvailabilityServices,
       classOf[TaskManager])
   }
 
@@ -1730,6 +1751,7 @@ object TaskManager {
    * @param resourceID The id of the resource which the task manager will run on.
    * @param actorSystemPort The port at which the actor system will communicate.
    * @param configuration The configuration for the TaskManager.
+   * @param highAvailabilityServices Service factory for high availability services
    * @param taskManagerClass The actor class to instantiate. Allows the use of TaskManager
    *                         subclasses for example for YARN.
    */
@@ -1739,6 +1761,7 @@ object TaskManager {
       resourceID: ResourceID,
       actorSystemPort: Int,
       configuration: Configuration,
+      highAvailabilityServices: HighAvailabilityServices,
       taskManagerClass: Class[_ <: TaskManager])
     : Unit = {
 
@@ -1778,9 +1801,9 @@ object TaskManager {
         configuration,
         resourceID,
         taskManagerSystem,
+        highAvailabilityServices,
         taskManagerHostname,
         Some(TaskExecutor.TASK_MANAGER_NAME),
-        None,
         localTaskManagerCommunication = false,
         taskManagerClass)
 
@@ -1821,8 +1844,7 @@ object TaskManager {
 
       // block until everything is done
       taskManagerSystem.awaitTermination()
-    }
-    catch {
+    } catch {
       case t: Throwable =>
         LOG.error("Error while starting up taskManager", t)
         try {
@@ -1840,17 +1862,15 @@ object TaskManager {
    * @param configuration The configuration for the TaskManager.
    * @param resourceID The id of the resource which the task manager will run on.
    * @param actorSystem The actor system that should run the TaskManager actor.
+   * @param highAvailabilityServices Factory to create high availability services
    * @param taskManagerHostname The hostname/address that describes the TaskManager's data location.
    * @param taskManagerActorName Optionally the name of the TaskManager actor. If none is given,
    *                             the actor will use a random name.
-   * @param leaderRetrievalServiceOption Optionally, a leader retrieval service can be provided. If
-   *                                     none is given, then a LeaderRetrievalService is
-   *                                     constructed from the configuration.
    * @param localTaskManagerCommunication If true, the TaskManager will not initiate the
    *                                      TCP network stack.
    * @param taskManagerClass The class of the TaskManager actor. May be used to give
    *                         subclasses that understand additional actor messages.
-    * @throws org.apache.flink.configuration.IllegalConfigurationException
+   * @throws org.apache.flink.configuration.IllegalConfigurationException
    *                              Thrown, if the given config contains illegal values.
    * @throws java.io.IOException Thrown, if any of the I/O components (such as buffer pools,
    *                             I/O manager, ...) cannot be properly started.
@@ -1865,9 +1885,9 @@ object TaskManager {
       configuration: Configuration,
       resourceID: ResourceID,
       actorSystem: ActorSystem,
+      highAvailabilityServices: HighAvailabilityServices,
       taskManagerHostname: String,
       taskManagerActorName: Option[String],
-      leaderRetrievalServiceOption: Option[LeaderRetrievalService],
       localTaskManagerCommunication: Boolean,
       taskManagerClass: Class[_ <: TaskManager])
     : ActorRef = {
@@ -1885,11 +1905,8 @@ object TaskManager {
 
     val metricRegistry = taskManagerServices.getMetricRegistry()
 
-    val leaderRetrievalService = leaderRetrievalServiceOption match {
-      case Some(lrs) => lrs
-      // validate the address if possible (e.g. we're in Standalone mode)
-      case None => LeaderRetrievalUtils.createLeaderRetrievalService(configuration, true)
-    }
+    val leaderRetrievalService = highAvailabilityServices.getJobManagerLeaderRetriever(
+      HighAvailabilityServices.DEFAULT_JOB_ID)
 
     // create the actor properties (which define the actor constructor parameters)
     val tmProps = getTaskManagerProps(

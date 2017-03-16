@@ -1307,7 +1307,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			ApplicationReport report,
 			org.apache.flink.configuration.Configuration flinkConfiguration,
 			Path sessionFilesDir,
-			boolean perJobCluster) throws IOException, YarnException {
+			boolean perJobCluster) throws Exception {
 		return new YarnClusterClient(
 			descriptor,
 			yarnClient,

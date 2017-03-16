@@ -205,7 +205,7 @@ public class FlinkClient {
 		final ClusterClient client;
 		try {
 			client = new StandaloneClusterClient(configuration);
-		} catch (final IOException e) {
+		} catch (final Exception e) {
 			throw new RuntimeException("Could not establish a connection to the job manager", e);
 		}
 
@@ -245,7 +245,7 @@ public class FlinkClient {
 		final ClusterClient client;
 		try {
 			client = new StandaloneClusterClient(configuration);
-		} catch (final IOException e) {
+		} catch (final Exception e) {
 			throw new RuntimeException("Could not establish a connection to the job manager", e);
 		}
 

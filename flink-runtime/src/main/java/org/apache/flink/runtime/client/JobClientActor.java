@@ -167,7 +167,8 @@ public abstract class JobClientActor extends FlinkUntypedActor implements Leader
 			JobManagerActorRef msg = (JobManagerActorRef) message;
 			connectToJobManager(msg.jobManager());
 
-			logAndPrintMessage("Connected to JobManager at " + msg.jobManager());
+			logAndPrintMessage("Connected to JobManager at " + msg.jobManager() +
+				" with leader session id " + leaderSessionID + '.');
 
 			connectedToJobManager();
 		}
@@ -325,8 +326,6 @@ public abstract class JobClientActor extends FlinkUntypedActor implements Leader
 		if (jobManager != ActorRef.noSender()) {
 			getContext().unwatch(jobManager);
 		}
-
-		LOG.info("Connected to new JobManager {}.", jobManager.path());
 
 		this.jobManager = jobManager;
 		getContext().watch(jobManager);

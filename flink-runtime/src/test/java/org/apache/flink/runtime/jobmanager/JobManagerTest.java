@@ -18,7 +18,10 @@
 
 package org.apache.flink.runtime.jobmanager;
 
-import akka.actor.*;
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
+import akka.actor.PoisonPill;
+import akka.actor.Status;
 import akka.testkit.JavaTestKit;
 import akka.testkit.TestProbe;
 import com.typesafe.config.Config;
@@ -42,6 +45,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServices;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.instance.HardwareDescription;
@@ -55,8 +59,6 @@ import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.JobManagerHARecoveryTest.BlockingStatefulInvokable;
-import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
-import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages.CancelJob;
 import org.apache.flink.runtime.messages.JobManagerMessages.CancellationFailure;
@@ -95,16 +97,15 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.StoppableInvokable;
+import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.util.TestLogger;
-import org.hamcrest.BaseMatcher;
-import org.hamcrest.Description;
-import org.hamcrest.Matcher;
+import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.mockito.ArgumentCaptor;
 import scala.Option;
 import scala.Some;
 import scala.Tuple2;
@@ -117,6 +118,7 @@ import scala.reflect.ClassTag$;
 import java.io.File;
 import java.net.InetAddress;
 import java.util.Collections;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -127,15 +129,14 @@ import static org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.Al
 import static org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.JobStatusIs;
 import static org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.NotifyWhenAtLeastNumTaskManagerAreRegistered;
 import static org.apache.flink.runtime.testingUtils.TestingUtils.DEFAULT_AKKA_ASK_TIMEOUT;
+import static org.apache.flink.runtime.testingUtils.TestingUtils.TESTING_TIMEOUT;
 import static org.apache.flink.runtime.testingUtils.TestingUtils.startTestingCluster;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.argThat;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
 
 public class JobManagerTest extends TestLogger {
 
@@ -143,6 +144,8 @@ public class JobManagerTest extends TestLogger {
 	public TemporaryFolder tmpFolder = new TemporaryFolder();
 
 	private static ActorSystem system;
+
+	private HighAvailabilityServices highAvailabilityServices;
 
 	@BeforeClass
 	public static void setup() {
@@ -152,6 +155,17 @@ public class JobManagerTest extends TestLogger {
 	@AfterClass
 	public static void teardown() {
 		JavaTestKit.shutdownActorSystem(system);
+	}
+
+	@Before
+	public void setupTest() {
+		highAvailabilityServices = new EmbeddedHaServices(TestingUtils.defaultExecutor());
+	}
+
+	@After
+	public void tearDownTest() throws Exception {
+		highAvailabilityServices.closeAndCleanupAllData();
+		highAvailabilityServices = null;
 	}
 
 	@Test
@@ -589,32 +603,36 @@ public class JobManagerTest extends TestLogger {
 		Configuration config = new Configuration();
 		config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, "100ms");
 
-		ActorGateway jobManager = new AkkaActorGateway(
-				JobManager.startJobManagerActors(
-					config,
-					system,
-					TestingUtils.defaultExecutor(),
-					TestingUtils.defaultExecutor(),
-					TestingJobManager.class,
-					MemoryArchivist.class)._1(),
-				HighAvailabilityServices.DEFAULT_LEADER_ID);
+		ActorRef jobManagerActor = JobManager.startJobManagerActors(
+			config,
+			system,
+			TestingUtils.defaultExecutor(),
+			TestingUtils.defaultExecutor(),
+			highAvailabilityServices,
+			TestingJobManager.class,
+			MemoryArchivist.class)._1();
 
-		LeaderRetrievalService leaderRetrievalService = new StandaloneLeaderRetrievalService(
-				AkkaUtils.getAkkaURL(system, jobManager.actor()));
+		UUID leaderId = LeaderRetrievalUtils.retrieveLeaderSessionId(
+			highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID),
+			TestingUtils.TESTING_TIMEOUT());
+
+		ActorGateway jobManager = new AkkaActorGateway(
+				jobManagerActor,
+				leaderId);
 
 		Configuration tmConfig = new Configuration();
 		tmConfig.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 4L);
 		tmConfig.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 8);
 
 		ActorRef taskManager = TaskManager.startTaskManagerComponentsAndActor(
-				tmConfig,
-				ResourceID.generate(),
-				system,
-				"localhost",
-				scala.Option.<String>empty(),
-				scala.Option.apply(leaderRetrievalService),
-				true,
-				TestingTaskManager.class);
+			tmConfig,
+			ResourceID.generate(),
+			system,
+			highAvailabilityServices,
+			"localhost",
+			scala.Option.<String>empty(),
+			true,
+			TestingTaskManager.class);
 
 		Future<Object> registrationFuture = jobManager
 				.ask(new NotifyWhenAtLeastNumTaskManagerAreRegistered(1), deadline.timeLeft());
@@ -783,6 +801,7 @@ public class JobManagerTest extends TestLogger {
 		// Wait for failure
 		JobStatusIs jobStatus = Await.result(failedFuture, deadline.timeLeft());
 		assertEquals(JobStatus.FAILED, jobStatus.state());
+
 	}
 
 	@Test
@@ -805,25 +824,30 @@ public class JobManagerTest extends TestLogger {
 				actorSystem,
 				TestingUtils.defaultExecutor(),
 				TestingUtils.defaultExecutor(),
+				highAvailabilityServices,
 				Option.apply("jm"),
 				Option.apply("arch"),
 				TestingJobManager.class,
 				TestingMemoryArchivist.class);
 
-			jobManager = new AkkaActorGateway(master._1(), HighAvailabilityServices.DEFAULT_LEADER_ID);
-			archiver = new AkkaActorGateway(master._2(), HighAvailabilityServices.DEFAULT_LEADER_ID);
+			UUID leaderId = LeaderRetrievalUtils.retrieveLeaderSessionId(
+				highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID),
+				TestingUtils.TESTING_TIMEOUT());
+
+			jobManager = new AkkaActorGateway(master._1(), leaderId);
+			archiver = new AkkaActorGateway(master._2(), leaderId);
 
 			ActorRef taskManagerRef = TaskManager.startTaskManagerComponentsAndActor(
-					config,
-					ResourceID.generate(),
-					actorSystem,
-					"localhost",
-					Option.apply("tm"),
-					Option.<LeaderRetrievalService>apply(new StandaloneLeaderRetrievalService(jobManager.path())),
-					true,
-					TestingTaskManager.class);
+				config,
+				ResourceID.generate(),
+				actorSystem,
+				highAvailabilityServices,
+				"localhost",
+				Option.apply("tm"),
+				true,
+				TestingTaskManager.class);
 
-			taskManager = new AkkaActorGateway(taskManagerRef, HighAvailabilityServices.DEFAULT_LEADER_ID);
+			taskManager = new AkkaActorGateway(taskManagerRef, leaderId);
 
 			// Wait until connected
 			Object msg = new TestingTaskManagerMessages.NotifyWhenRegisteredAtJobManager(jobManager.actor());
@@ -907,6 +931,10 @@ public class JobManagerTest extends TestLogger {
 			if (taskManager != null) {
 				taskManager.actor().tell(PoisonPill.getInstance(), ActorRef.noSender());
 			}
+
+			if (actorSystem != null) {
+				actorSystem.awaitTermination(TESTING_TIMEOUT());
+			}
 		}
 	}
 
@@ -931,25 +959,30 @@ public class JobManagerTest extends TestLogger {
 				actorSystem,
 				TestingUtils.defaultExecutor(),
 				TestingUtils.defaultExecutor(),
+				highAvailabilityServices,
 				Option.apply("jm"),
 				Option.apply("arch"),
 				TestingJobManager.class,
 				TestingMemoryArchivist.class);
 
-			jobManager = new AkkaActorGateway(master._1(), HighAvailabilityServices.DEFAULT_LEADER_ID);
-			archiver = new AkkaActorGateway(master._2(), HighAvailabilityServices.DEFAULT_LEADER_ID);
+			UUID leaderId = LeaderRetrievalUtils.retrieveLeaderSessionId(
+				highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID),
+				TestingUtils.TESTING_TIMEOUT());
+
+			jobManager = new AkkaActorGateway(master._1(), leaderId);
+			archiver = new AkkaActorGateway(master._2(), leaderId);
 
 			ActorRef taskManagerRef = TaskManager.startTaskManagerComponentsAndActor(
 				config,
 				ResourceID.generate(),
 				actorSystem,
+				highAvailabilityServices,
 				"localhost",
 				Option.apply("tm"),
-				Option.<LeaderRetrievalService>apply(new StandaloneLeaderRetrievalService(jobManager.path())),
 				true,
 				TestingTaskManager.class);
 
-			taskManager = new AkkaActorGateway(taskManagerRef, HighAvailabilityServices.DEFAULT_LEADER_ID);
+			taskManager = new AkkaActorGateway(taskManagerRef, leaderId);
 
 			// Wait until connected
 			Object msg = new TestingTaskManagerMessages.NotifyWhenRegisteredAtJobManager(jobManager.actor());
@@ -1037,25 +1070,30 @@ public class JobManagerTest extends TestLogger {
 				actorSystem,
 				TestingUtils.defaultExecutor(),
 				TestingUtils.defaultExecutor(),
+				highAvailabilityServices,
 				Option.apply("jm"),
 				Option.apply("arch"),
 				TestingJobManager.class,
 				TestingMemoryArchivist.class);
 
-			jobManager = new AkkaActorGateway(master._1(), HighAvailabilityServices.DEFAULT_LEADER_ID);
-			archiver = new AkkaActorGateway(master._2(), HighAvailabilityServices.DEFAULT_LEADER_ID);
+			UUID leaderId = LeaderRetrievalUtils.retrieveLeaderSessionId(
+				highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID),
+				TestingUtils.TESTING_TIMEOUT());
+
+			jobManager = new AkkaActorGateway(master._1(), leaderId);
+			archiver = new AkkaActorGateway(master._2(), leaderId);
 
 			ActorRef taskManagerRef = TaskManager.startTaskManagerComponentsAndActor(
-					config,
-					ResourceID.generate(),
-					actorSystem,
-					"localhost",
-					Option.apply("tm"),
-					Option.<LeaderRetrievalService>apply(new StandaloneLeaderRetrievalService(jobManager.path())),
-					true,
-					TestingTaskManager.class);
+				config,
+				ResourceID.generate(),
+				actorSystem,
+				highAvailabilityServices,
+				"localhost",
+				Option.apply("tm"),
+				true,
+				TestingTaskManager.class);
 
-			taskManager = new AkkaActorGateway(taskManagerRef, HighAvailabilityServices.DEFAULT_LEADER_ID);
+			taskManager = new AkkaActorGateway(taskManagerRef, leaderId);
 
 			// Wait until connected
 			Object msg = new TestingTaskManagerMessages.NotifyWhenRegisteredAtJobManager(jobManager.actor());
@@ -1115,6 +1153,10 @@ public class JobManagerTest extends TestLogger {
 			if (taskManager != null) {
 				taskManager.actor().tell(PoisonPill.getInstance(), ActorRef.noSender());
 			}
+
+			if (actorSystem != null) {
+				actorSystem.awaitTermination(TestingUtils.TESTING_TIMEOUT());
+			}
 		}
 	}
 
@@ -1137,28 +1179,33 @@ public class JobManagerTest extends TestLogger {
 				actorSystem,
 				TestingUtils.defaultExecutor(),
 				TestingUtils.defaultExecutor(),
+				highAvailabilityServices,
 				Option.apply("jm"),
 				Option.apply("arch"),
 				TestingJobManager.class,
 				TestingMemoryArchivist.class);
 
-			jobManager = new AkkaActorGateway(master._1(), HighAvailabilityServices.DEFAULT_LEADER_ID);
-			archiver = new AkkaActorGateway(master._2(), HighAvailabilityServices.DEFAULT_LEADER_ID);
+			UUID leaderId = LeaderRetrievalUtils.retrieveLeaderSessionId(
+				highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID),
+				TestingUtils.TESTING_TIMEOUT());
+
+			jobManager = new AkkaActorGateway(master._1(), leaderId);
+			archiver = new AkkaActorGateway(master._2(), leaderId);
 
 			Configuration tmConfig = new Configuration();
 			tmConfig.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 4);
 
 			ActorRef taskManagerRef = TaskManager.startTaskManagerComponentsAndActor(
-					tmConfig,
-					ResourceID.generate(),
-					actorSystem,
-					"localhost",
-					Option.apply("tm"),
-					Option.<LeaderRetrievalService>apply(new StandaloneLeaderRetrievalService(jobManager.path())),
-					true,
-					TestingTaskManager.class);
+				tmConfig,
+				ResourceID.generate(),
+				actorSystem,
+				highAvailabilityServices,
+				"localhost",
+				Option.apply("tm"),
+				true,
+				TestingTaskManager.class);
 
-			taskManager = new AkkaActorGateway(taskManagerRef, HighAvailabilityServices.DEFAULT_LEADER_ID);
+			taskManager = new AkkaActorGateway(taskManagerRef, leaderId);
 
 			// Wait until connected
 			Object msg = new TestingTaskManagerMessages.NotifyWhenRegisteredAtJobManager(jobManager.actor());
@@ -1274,6 +1321,10 @@ public class JobManagerTest extends TestLogger {
 			if (taskManager != null) {
 				taskManager.actor().tell(PoisonPill.getInstance(), ActorRef.noSender());
 			}
+
+			if (actorSystem != null) {
+				actorSystem.awaitTermination(TestingUtils.TESTING_TIMEOUT());
+			}
 		}
 	}
 
@@ -1298,7 +1349,8 @@ public class JobManagerTest extends TestLogger {
 				actorSystem,
 				TestingUtils.defaultExecutor(),
 				TestingUtils.defaultExecutor(),
-				configuration);
+				configuration,
+				highAvailabilityServices);
 
 			final TestProbe probe = TestProbe.apply(actorSystem);
 			final AkkaActorGateway rmGateway = new AkkaActorGateway(probe.ref(), HighAvailabilityServices.DEFAULT_LEADER_ID);
@@ -1311,7 +1363,7 @@ public class JobManagerTest extends TestLogger {
 
 			JobManagerMessages.LeaderSessionMessage leaderSessionMessage = probe.expectMsgClass(JobManagerMessages.LeaderSessionMessage.class);
 
-			assertEquals(HighAvailabilityServices.DEFAULT_LEADER_ID, leaderSessionMessage.leaderSessionID());
+			assertEquals(jmGateway.leaderSessionID(), leaderSessionMessage.leaderSessionID());
 			assertTrue(leaderSessionMessage.message() instanceof RegisterResourceManagerSuccessful);
 
 			jmGateway.tell(

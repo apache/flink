@@ -138,9 +138,10 @@ public class YarnFlinkApplicationMasterRunner extends AbstractYarnFlinkApplicati
 				LOG.info("Starting High Availability Services");
 				commonRpcService = createRpcService(config, appMasterHostname, amPortRange);
 
-				haServices = HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(
+				haServices = HighAvailabilityServicesUtils.createHighAvailabilityServices(
 					config,
-					commonRpcService.getExecutor());
+					commonRpcService.getExecutor(),
+					HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
 
 				heartbeatServices = HeartbeatServices.fromConfiguration(config);
 				

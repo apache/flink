@@ -34,6 +34,8 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
 import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServices;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.LocalConnectionManager;
@@ -44,7 +46,6 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
-import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.messages.TaskManagerMessages;
 import org.apache.flink.runtime.metrics.MetricRegistry;
@@ -52,23 +53,24 @@ import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.taskexecutor.TaskManagerConfiguration;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 
+import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import scala.concurrent.duration.FiniteDuration;
 
 import java.net.InetAddress;
+import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
-public class TaskManagerComponentsStartupShutdownTest {
+public class TaskManagerComponentsStartupShutdownTest extends TestLogger {
 
 	/**
 	 * Makes sure that all components are shut down when the TaskManager
 	 * actor is shut down.
 	 */
 	@Test
-	public void testComponentsStartupShutdown() {
+	public void testComponentsStartupShutdown() throws Exception {
 
 		final String[] TMP_DIR = new String[] { ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH };
 		final Time timeout = Time.seconds(100);
@@ -80,21 +82,28 @@ public class TaskManagerComponentsStartupShutdownTest {
 		config.setInteger(ConfigConstants.AKKA_WATCH_THRESHOLD, 1);
 
 		ActorSystem actorSystem = null;
+
+		HighAvailabilityServices highAvailabilityServices = new EmbeddedHaServices(TestingUtils.defaultExecutor());
+
+		ActorRef jobManager = null;
+		ActorRef taskManager = null;
+
 		try {
 			actorSystem = AkkaUtils.createLocalActorSystem(config);
 
-			final ActorRef jobManager = JobManager.startJobManagerActors(
+			jobManager = JobManager.startJobManagerActors(
 				config,
 				actorSystem,
 				TestingUtils.defaultExecutor(),
 				TestingUtils.defaultExecutor(),
+				highAvailabilityServices,
 				JobManager.class,
 				MemoryArchivist.class)._1();
 
 			FlinkResourceManager.startResourceManagerActors(
 				config,
 				actorSystem,
-				LeaderRetrievalUtils.createLeaderRetrievalService(config, jobManager),
+				highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID),
 				StandaloneResourceManager.class);
 
 			final int numberOfSlots = 1;
@@ -137,7 +146,8 @@ public class TaskManagerComponentsStartupShutdownTest {
 
 			network.start();
 
-			LeaderRetrievalService leaderRetrievalService = new StandaloneLeaderRetrievalService(jobManager.path().toString());
+			LeaderRetrievalService leaderRetrievalService = highAvailabilityServices.getJobManagerLeaderRetriever(
+				HighAvailabilityServices.DEFAULT_JOB_ID);
 
 			MetricRegistryConfiguration metricRegistryConfiguration = MetricRegistryConfiguration.fromConfiguration(config);
 
@@ -154,18 +164,20 @@ public class TaskManagerComponentsStartupShutdownTest {
 				leaderRetrievalService,
 				new MetricRegistry(metricRegistryConfiguration));
 
-			final ActorRef taskManager = actorSystem.actorOf(tmProps);
+			taskManager = actorSystem.actorOf(tmProps);
+
+			final ActorRef finalTaskManager = taskManager;
 
 			new JavaTestKit(actorSystem) {{
 
 				// wait for the TaskManager to be registered
-				new Within(new FiniteDuration(5000, TimeUnit.SECONDS)) {
+				new Within(new FiniteDuration(5000L, TimeUnit.SECONDS)) {
 					@Override
 					protected void run() {
-						taskManager.tell(TaskManagerMessages.getNotifyWhenRegisteredAtJobManagerMessage(),
+						finalTaskManager.tell(TaskManagerMessages.getNotifyWhenRegisteredAtJobManagerMessage(),
 								getTestActor());
 
-						expectMsgEquals(TaskManagerMessages.getRegisteredAtJobManagerMessage());
+						expectMsgClass(TaskManagerMessages.RegisteredAtJobManager.class);
 					}
 				};
 			}};
@@ -184,15 +196,16 @@ public class TaskManagerComponentsStartupShutdownTest {
 			assertTrue(network.isShutdown());
 			assertTrue(ioManager.isProperlyShutDown());
 			assertTrue(memManager.isShutdown());
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-		finally {
+		} finally {
+			TestingUtils.stopActorsGracefully(Arrays.asList(jobManager, taskManager));
+
 			if (actorSystem != null) {
 				actorSystem.shutdown();
+
+				actorSystem.awaitTermination(TestingUtils.TESTING_TIMEOUT());
 			}
+
+			highAvailabilityServices.closeAndCleanupAllData();
 		}
 	}
 }
