@@ -164,11 +164,10 @@ public class SSLUtilsTest {
 		serverConfig.setString(ConfigConstants.SECURITY_SSL_PROTOCOL, "TLSv1.1");
 		serverConfig.setString(ConfigConstants.SECURITY_SSL_ALGORITHMS, "TLS_RSA_WITH_AES_128_CBC_SHA,TLS_RSA_WITH_AES_128_CBC_SHA256");
 
-		int port = new Random().nextInt(65535);
 		SSLContext serverContext = SSLUtils.createSSLServerContext(serverConfig);
 		ServerSocket socket = null;
 		try {
-			socket = serverContext.getServerSocketFactory().createServerSocket(port);
+			socket = serverContext.getServerSocketFactory().createServerSocket(0);
 
 			String[] protocols = ((SSLServerSocket) socket).getEnabledProtocols();
 			String[] algorithms = ((SSLServerSocket) socket).getEnabledCipherSuites();
