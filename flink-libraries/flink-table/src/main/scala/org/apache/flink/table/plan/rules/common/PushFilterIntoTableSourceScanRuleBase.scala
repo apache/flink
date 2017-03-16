@@ -81,9 +81,11 @@ trait PushFilterIntoTableSourceScanRuleBase {
     val newScan = scan.copy(scan.getTraitSet, newTableSource)
     val newRexProgram = {
       if (remainingCondition != null || !program.projectsOnlyIdentity) {
+        val expandedProjectList = program.getProjectList.asScala
+            .map(ref => program.expandLocalRef(ref)).asJava
         RexProgram.create(
           program.getInputRowType,
-          program.getProjectList,
+          expandedProjectList,
           remainingCondition,
           program.getOutputRowType,
           relBuilder.getRexBuilder)

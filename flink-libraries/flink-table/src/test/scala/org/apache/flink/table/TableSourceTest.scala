@@ -123,8 +123,8 @@ class TableSourceTest extends TableTestBase {
 
     val result = tEnv
       .scan(tableName)
-      .select('price, 'id, 'amount)
       .where("amount > 2 && price * 2 < 32")
+      .select('price, 'name.lowerCase(), 'amount)
 
     val expected = unaryNode(
       "DataSetCalc",
@@ -132,7 +132,7 @@ class TableSourceTest extends TableTestBase {
         tableName,
         Array("name", "id", "amount", "price"),
         "'amount > 2"),
-      term("select", "price", "id", "amount"),
+      term("select", "price", "LOWER(name) AS _c1", "amount"),
       term("where", "<(*(price, 2), 32)")
     )
     util.verifyTable(result, expected)
@@ -201,6 +201,7 @@ class TableSourceTest extends TableTestBase {
         .select('price, 'id, 'amount)
         .where("amount > 2 && func0(amount) < 32")
 
+    // wo don't fail during the optimization
     tEnv.optimize(result.getRelNode)
   }
 
