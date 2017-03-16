@@ -49,7 +49,7 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 	}
 
 	@Override
-	public JobExecutionResult execute(String jobName) throws Exception {
+	public JobExecutionResult execute(String jobName, boolean detached) throws Exception {
 		Preconditions.checkNotNull("Streaming Job name should not be null.");
 
 		StreamGraph streamGraph = this.getStreamGraph();
