@@ -79,7 +79,7 @@ object RexProgramExtractor {
         val convertedExpressions = new mutable.ArrayBuffer[Expression]
         val unconvertedRexNodes = new mutable.ArrayBuffer[RexNode]
         val inputNames = rexProgram.getInputRowType.getFieldNames.asScala.toArray
-        val converter = new ConvertToExpression(inputNames, catalog)
+        val converter = new RexNodeToExpressionConverter(inputNames, catalog)
 
         conjunctions.asScala.foreach(rex => {
           rex.accept(converter) match {
@@ -99,7 +99,7 @@ object RexProgramExtractor {
   */
 class InputRefVisitor extends RexVisitorImpl[Unit](true) {
 
-  private var fields = mutable.LinkedHashSet[Int]()
+  private val fields = mutable.LinkedHashSet[Int]()
 
   def getFields: Array[Int] = fields.toArray
 
@@ -116,25 +116,25 @@ class InputRefVisitor extends RexVisitorImpl[Unit](true) {
   * @param inputNames      The input names of the relation node
   * @param functionCatalog The function catalog
   */
-class ConvertToExpression(
+class RexNodeToExpressionConverter(
     inputNames: Array[String],
     functionCatalog: FunctionCatalog)
     extends RexVisitor[Option[Expression]] {
 
   override def visitInputRef(inputRef: RexInputRef): Option[Expression] = {
     Preconditions.checkArgument(inputRef.getIndex < inputNames.length)
-    Option(ResolvedFieldReference(
+    Some(ResolvedFieldReference(
       inputNames(inputRef.getIndex),
       FlinkTypeFactory.toTypeInfo(inputRef.getType)
     ))
   }
 
   override def visitLocalRef(localRef: RexLocalRef): Option[Expression] = {
-    throw new TableException("Bug: RefLocalRef should have been expanded")
+    throw new TableException("Bug: RexLocalRef should have been expanded")
   }
 
   override def visitLiteral(literal: RexLiteral): Option[Expression] = {
-    Option(Literal(literal.getValue, FlinkTypeFactory.toTypeInfo(literal.getType)))
+    Some(Literal(literal.getValue, FlinkTypeFactory.toTypeInfo(literal.getType)))
   }
 
   override def visitCall(call: RexCall): Option[Expression] = {
@@ -144,7 +144,7 @@ class ConvertToExpression(
 
     // return null if we cannot translate all the operands of the call
     if (operands.contains(null)) {
-      Option.empty
+      None
     } else {
         call.getOperator match {
           case function: SqlFunction =>
@@ -157,23 +157,22 @@ class ConvertToExpression(
     }
   }
 
-  override def visitFieldAccess(fieldAccess: RexFieldAccess): Option[Expression] = Option.empty
+  override def visitFieldAccess(fieldAccess: RexFieldAccess): Option[Expression] = None
 
-  override def visitCorrelVariable(correlVariable: RexCorrelVariable): Option[Expression] =
-    Option.empty
+  override def visitCorrelVariable(correlVariable: RexCorrelVariable): Option[Expression] = None
 
-  override def visitRangeRef(rangeRef: RexRangeRef): Option[Expression] = Option.empty
+  override def visitRangeRef(rangeRef: RexRangeRef): Option[Expression] = None
 
-  override def visitSubQuery(subQuery: RexSubQuery): Option[Expression] = Option.empty
+  override def visitSubQuery(subQuery: RexSubQuery): Option[Expression] = None
 
-  override def visitDynamicParam(dynamicParam: RexDynamicParam): Option[Expression] = Option.empty
+  override def visitDynamicParam(dynamicParam: RexDynamicParam): Option[Expression] = None
 
-  override def visitOver(over: RexOver): Option[Expression] = Option.empty
+  override def visitOver(over: RexOver): Option[Expression] = None
 
   private def lookupFunction(name: String, operands: Seq[Expression]): Option[Expression] = {
     Try(functionCatalog.lookupFunction(name, operands)) match {
-      case Success(expr) => Option(expr)
-      case Failure(_) => Option.empty
+      case Success(expr) => Some(expr)
+      case Failure(_) => None
     }
   }
 

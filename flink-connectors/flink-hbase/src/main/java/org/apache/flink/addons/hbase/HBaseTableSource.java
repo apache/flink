@@ -17,7 +17,6 @@
  */
 package org.apache.flink.addons.hbase;
 
-import org.apache.calcite.rel.RelWriter;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -109,7 +108,7 @@ public class HBaseTableSource implements BatchTableSource<Row>, ProjectableTable
 	}
 
 	@Override
-	public ProjectableTableSource<Row> projectFields(int[] fields) {
+	public HBaseTableSource projectFields(int[] fields) {
 		String[] famNames = schema.getFamilyNames();
 		HBaseTableSource newTableSource = new HBaseTableSource(this.conf, tableName);
 		// Extract the family from the given fields
@@ -125,7 +124,7 @@ public class HBaseTableSource implements BatchTableSource<Row>, ProjectableTable
 	}
 
 	@Override
-	public RelWriter explainTerms(RelWriter pw) {
-		return pw;
+	public String explainSource() {
+		return "";
 	}
 }

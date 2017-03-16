@@ -35,8 +35,8 @@ class PushFilterIntoBatchTableSourceScanRule extends RelOptRule(
     val calc: DataSetCalc = call.rel(0).asInstanceOf[DataSetCalc]
     val scan: BatchTableSourceScan = call.rel(1).asInstanceOf[BatchTableSourceScan]
     scan.tableSource match {
-      case _: FilterableTableSource[_] =>
-        calc.getProgram.getCondition != null
+      case source: FilterableTableSource[_] =>
+        calc.getProgram.getCondition != null && !source.isFilterPushedDown
       case _ => false
     }
   }

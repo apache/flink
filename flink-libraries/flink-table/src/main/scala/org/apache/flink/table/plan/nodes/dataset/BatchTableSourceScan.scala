@@ -19,12 +19,10 @@
 package org.apache.flink.table.plan.nodes.dataset
 
 import org.apache.calcite.plan._
-import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.metadata.RelMetadataQuery
-import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.flink.api.java.DataSet
-import org.apache.flink.table.api.{BatchTableEnvironment, TableEnvironment}
-import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.api.BatchTableEnvironment
 import org.apache.flink.table.plan.nodes.TableSourceScan
 import org.apache.flink.table.plan.schema.TableSourceTable
 import org.apache.flink.table.sources.{BatchTableSource, TableSource}
@@ -38,13 +36,6 @@ class BatchTableSourceScan(
     tableSource: BatchTableSource[_])
   extends TableSourceScan(cluster, traitSet, table, tableSource)
   with BatchScan {
-
-  override def deriveRowType(): RelDataType = {
-    val flinkTypeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-    flinkTypeFactory.buildRowDataType(
-      TableEnvironment.getFieldNames(tableSource),
-      TableEnvironment.getFieldTypes(tableSource.getReturnType))
-  }
 
   override def computeSelfCost(planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
     val rowCnt = metadata.getRowCount(this)
@@ -69,15 +60,9 @@ class BatchTableSourceScan(
     )
   }
 
-  override def explainTerms(pw: RelWriter): RelWriter = {
-    val terms = super.explainTerms(pw)
-      .item("fields", TableEnvironment.getFieldNames(tableSource).mkString(", "))
-    tableSource.explainTerms(terms)
-  }
-
   override def translateToPlan(tableEnv: BatchTableEnvironment): DataSet[Row] = {
     val config = tableEnv.getConfig
     val inputDataSet = tableSource.getDataSet(tableEnv.execEnv).asInstanceOf[DataSet[Any]]
-    convertToInternalRow(inputDataSet, new TableSourceTable(tableSource, tableEnv), config)
+    convertToInternalRow(inputDataSet, new TableSourceTable(tableSource), config)
   }
 }

@@ -18,13 +18,20 @@
 
 package org.apache.flink.table.plan.rules.common
 
+import java.util
+
 import org.apache.calcite.plan.RelOptRuleCall
 import org.apache.calcite.rel.core.Calc
 import org.apache.calcite.rex.RexProgram
+import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.plan.nodes.TableSourceScan
 import org.apache.flink.table.plan.schema.TableSourceTable
 import org.apache.flink.table.plan.util.RexProgramExtractor
 import org.apache.flink.table.sources.FilterableTableSource
+import org.apache.flink.table.validate.FunctionCatalog
+import org.apache.flink.util.Preconditions
+
+import scala.collection.JavaConverters._
 
 trait PushFilterIntoTableSourceScanRuleBase {
 
@@ -36,36 +43,34 @@ trait PushFilterIntoTableSourceScanRuleBase {
       filterableSource: FilterableTableSource[_],
       description: String): Unit = {
 
-    if (filterableSource.isFilterPushedDown) {
-      // The rule can get triggered again due to the transformed "scan => filter"
-      // sequence created by the earlier execution of this rule when we could not
-      // push all the conditions into the scan
-      return
-    }
+    Preconditions.checkArgument(!filterableSource.isFilterPushedDown)
 
     val program = calc.getProgram
+    val functionCatalog = FunctionCatalog.withBuiltIns
     val (predicates, unconvertedRexNodes) =
       RexProgramExtractor.extractConjunctiveConditions(
         program,
         call.builder().getRexBuilder,
-        tableSourceTable.tableEnv.getFunctionCatalog)
+        functionCatalog)
     if (predicates.isEmpty) {
       // no condition can be translated to expression
       return
     }
 
-    val (newTableSource, remainingPredicates) = filterableSource.applyPredicate(predicates)
-    // trying to apply filter push down, set the flag to true no matter whether
-    // we actually push any filters down.
-    newTableSource.setFilterPushedDown(true)
+    val remainingPredicates = new util.LinkedList[Expression]()
+    predicates.foreach(e => remainingPredicates.add(e))
+
+    val newTableSource = filterableSource.applyPredicate(remainingPredicates)
 
     // check whether framework still need to do a filter
     val relBuilder = call.builder()
     val remainingCondition = {
-      if (remainingPredicates.nonEmpty || unconvertedRexNodes.nonEmpty) {
+      if (!remainingPredicates.isEmpty || unconvertedRexNodes.nonEmpty) {
         relBuilder.push(scan)
-        (remainingPredicates.map(expr => expr.toRexNode(relBuilder)) ++ unconvertedRexNodes)
-            .reduce((l, r) => relBuilder.and(l, r))
+        val remainingConditions =
+          (remainingPredicates.asScala.map(expr => expr.toRexNode(relBuilder))
+              ++ unconvertedRexNodes)
+        remainingConditions.reduce((l, r) => relBuilder.and(l, r))
       } else {
         null
       }
@@ -75,7 +80,7 @@ trait PushFilterIntoTableSourceScanRuleBase {
     // projection or filter exists.
     val newScan = scan.copy(scan.getTraitSet, newTableSource)
     val newRexProgram = {
-      if (remainingCondition != null || program.getProjectList.size() > 0) {
+      if (remainingCondition != null || !program.projectsOnlyIdentity) {
         RexProgram.create(
           program.getInputRowType,
           program.getProjectList,

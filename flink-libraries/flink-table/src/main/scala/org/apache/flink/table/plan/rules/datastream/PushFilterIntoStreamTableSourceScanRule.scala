@@ -35,8 +35,8 @@ class PushFilterIntoStreamTableSourceScanRule extends RelOptRule(
     val calc: DataStreamCalc = call.rel(0).asInstanceOf[DataStreamCalc]
     val scan: StreamTableSourceScan = call.rel(1).asInstanceOf[StreamTableSourceScan]
     scan.tableSource match {
-      case _: FilterableTableSource[_] =>
-        calc.getProgram.getCondition != null
+      case source: FilterableTableSource[_] =>
+        calc.getProgram.getCondition != null && !source.isFilterPushedDown
       case _ => false
     }
   }

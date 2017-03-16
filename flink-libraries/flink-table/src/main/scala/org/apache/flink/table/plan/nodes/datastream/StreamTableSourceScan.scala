@@ -19,12 +19,10 @@
 package org.apache.flink.table.plan.nodes.datastream
 
 import org.apache.calcite.plan._
-import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.metadata.RelMetadataQuery
-import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.table.api.{StreamTableEnvironment, TableEnvironment}
-import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.api.StreamTableEnvironment
 import org.apache.flink.table.plan.nodes.TableSourceScan
 import org.apache.flink.table.plan.schema.TableSourceTable
 import org.apache.flink.table.sources.{StreamTableSource, TableSource}
@@ -38,13 +36,6 @@ class StreamTableSourceScan(
     tableSource: StreamTableSource[_])
   extends TableSourceScan(cluster, traitSet, table, tableSource)
   with StreamScan {
-
-  override def deriveRowType(): RelDataType = {
-    val flinkTypeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-    flinkTypeFactory.buildRowDataType(
-      TableEnvironment.getFieldNames(tableSource),
-      TableEnvironment.getFieldTypes(tableSource.getReturnType))
-  }
 
   override def computeSelfCost(planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
     val rowCnt = metadata.getRowCount(this)
@@ -69,15 +60,9 @@ class StreamTableSourceScan(
     )
   }
 
-  override def explainTerms(pw: RelWriter): RelWriter = {
-    val terms = super.explainTerms(pw)
-      .item("fields", TableEnvironment.getFieldNames(tableSource).mkString(", "))
-    tableSource.explainTerms(terms)
-  }
-
   override def translateToPlan(tableEnv: StreamTableEnvironment): DataStream[Row] = {
     val config = tableEnv.getConfig
     val inputDataStream = tableSource.getDataStream(tableEnv.execEnv).asInstanceOf[DataStream[Any]]
-    convertToInternalRow(inputDataStream, new TableSourceTable(tableSource, tableEnv), config)
+    convertToInternalRow(inputDataStream, new TableSourceTable(tableSource), config)
   }
 }

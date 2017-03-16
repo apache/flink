@@ -19,7 +19,11 @@
 package org.apache.flink.table.plan.nodes
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptTable, RelTraitSet}
+import org.apache.calcite.rel.RelWriter
+import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.TableScan
+import org.apache.flink.table.api.TableEnvironment
+import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.sources.TableSource
 
 import scala.collection.JavaConverters._
@@ -31,10 +35,29 @@ abstract class TableSourceScan(
     val tableSource: TableSource[_])
   extends TableScan(cluster, traitSet, table) {
 
+  override def deriveRowType(): RelDataType = {
+    val flinkTypeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
+    flinkTypeFactory.buildRowDataType(
+      TableEnvironment.getFieldNames(tableSource),
+      TableEnvironment.getFieldTypes(tableSource.getReturnType))
+  }
+
+  override def explainTerms(pw: RelWriter): RelWriter = {
+    val terms = super.explainTerms(pw)
+        .item("fields", TableEnvironment.getFieldNames(tableSource).mkString(", "))
+
+    val sourceDesc = tableSource.explainSource()
+    if (sourceDesc.nonEmpty) {
+      terms.item("source", sourceDesc)
+    } else {
+      terms
+    }
+  }
+
   override def toString: String = {
     s"Source(from: (${getRowType.getFieldNames.asScala.toList.mkString(", ")}))"
   }
 
-  private[flink] def copy(traitSet: RelTraitSet, tableSource: TableSource[_]): TableSourceScan
+  def copy(traitSet: RelTraitSet, tableSource: TableSource[_]): TableSourceScan
 
 }

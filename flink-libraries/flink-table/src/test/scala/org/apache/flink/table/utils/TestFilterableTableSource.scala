@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.utils
 
-import org.apache.calcite.rel.RelWriter
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
@@ -26,12 +25,13 @@ import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.Types._
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.sources.{BatchTableSource, FilterableTableSource, StreamTableSource}
+import org.apache.flink.table.sources.{BatchTableSource, FilterableTableSource, StreamTableSource, TableSource}
 import org.apache.flink.types.Row
 import org.apache.flink.util.Preconditions
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
+import scala.tools.nsc.interpreter.JList
 
 /**
   * This source can only handle simple comparision with field "amount".
@@ -42,6 +42,8 @@ class TestFilterableTableSource(
     extends BatchTableSource[Row]
         with StreamTableSource[Row]
         with FilterableTableSource[Row] {
+
+  var filterPushedDown: Boolean = false
 
   val fieldNames: Array[String] = Array("name", "id", "amount", "price")
 
@@ -61,38 +63,38 @@ class TestFilterableTableSource(
     execEnv.fromCollection[Row](generateDynamicCollection().asJava, getReturnType)
   }
 
-  override def explainTerms(pw: RelWriter): RelWriter = {
+  override def explainSource(): String = {
     if (filterPredicates.nonEmpty) {
-      super.explainTerms(pw)
-          .item("filter", filterPredicates.reduce((l, r) => And(l, r)))
+      s"filter=[${filterPredicates.reduce((l, r) => And(l, r)).toString}]"
     } else {
-      super.explainTerms(pw)
+      ""
     }
   }
 
   override def getReturnType: TypeInformation[Row] = new RowTypeInfo(fieldTypes, fieldNames)
 
-  override def applyPredicate(predicates: Array[Expression])
-    : (FilterableTableSource[Row], Array[Expression]) = {
-
+  override def applyPredicate(predicates: JList[Expression]): TableSource[Row] = {
     val newSource = new TestFilterableTableSource(recordNum)
-    val remainingPredicates = new mutable.ArrayBuffer[Expression]
+    newSource.filterPushedDown = true
 
-    predicates.foreach {
-      case expr: BinaryComparison =>
-        (expr.left, expr.right) match {
-          case (f: ResolvedFieldReference, v: Literal) if f.name.equals("amount") =>
-            newSource.filterPredicates += expr
-            newSource.filterValues += v.value.asInstanceOf[Number].intValue()
-          case (_, _) =>
-            remainingPredicates += expr
-        }
-      case expr =>
-        remainingPredicates += expr
+    val iterator = predicates.iterator()
+    while (iterator.hasNext) {
+      iterator.next() match {
+        case expr: BinaryComparison =>
+          (expr.left, expr.right) match {
+            case (f: ResolvedFieldReference, v: Literal) if f.name.equals("amount") =>
+              newSource.filterPredicates += expr
+              newSource.filterValues += v.value.asInstanceOf[Number].intValue()
+              iterator.remove()
+            case (_, _) =>
+          }
+      }
     }
 
-    (newSource, remainingPredicates.toArray)
+    newSource
   }
+
+  override def isFilterPushedDown: Boolean = filterPushedDown
 
   private def generateDynamicCollection(): Seq[Row] = {
     Preconditions.checkArgument(filterPredicates.length == filterValues.length)

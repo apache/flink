@@ -368,7 +368,7 @@ class TableSourceTest extends TableTestBase {
       fields: Array[String],
       exp: String): String = {
     "BatchTableSourceScan(" +
-      s"table=[[$sourceName]], fields=[${fields.mkString(", ")}], filter=[$exp])"
+      s"table=[[$sourceName]], fields=[${fields.mkString(", ")}], source=[filter=[$exp]])"
   }
 
   def streamFilterableSourceTableNode(
@@ -376,6 +376,6 @@ class TableSourceTest extends TableTestBase {
       fields: Array[String],
       exp: String): String = {
     "StreamTableSourceScan(" +
-      s"table=[[$sourceName]], fields=[${fields.mkString(", ")}], filter=[$exp])"
+      s"table=[[$sourceName]], fields=[${fields.mkString(", ")}], source=[filter=[$exp]])"
   }
 }

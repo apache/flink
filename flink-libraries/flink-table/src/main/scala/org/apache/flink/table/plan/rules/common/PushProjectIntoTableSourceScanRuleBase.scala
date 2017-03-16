@@ -38,9 +38,7 @@ trait PushProjectIntoTableSourceScanRuleBase {
     if (TableEnvironment.getFieldNames(scan.tableSource).length != usedFields.length) {
       val originTableSource = scan.tableSource.asInstanceOf[ProjectableTableSource[_]]
       val newTableSource = originTableSource.projectFields(usedFields)
-
       val newScan = scan.copy(scan.getTraitSet, newTableSource)
-
       val newCalcProgram = RexProgramRewriter.rewriteWithFieldProjection(
         calc.getProgram,
         newScan.getRowType,

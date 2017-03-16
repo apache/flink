@@ -24,13 +24,15 @@ import org.apache.calcite.rex.{RexBuilder, RexProgramBuilder}
 import org.apache.calcite.sql.SqlPostfixOperator
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.flink.table.expressions.{Expression, ExpressionParser}
-import org.apache.flink.table.utils.MockTableEnvironment
+import org.apache.flink.table.validate.FunctionCatalog
 import org.junit.Assert.{assertArrayEquals, assertEquals}
 import org.junit.Test
 
 import scala.collection.JavaConverters._
 
 class RexProgramExtractorTest extends RexProgramTestBase {
+
+  private val functionCatalog: FunctionCatalog = FunctionCatalog.withBuiltIns
 
   @Test
   def testExtractRefInputFields(): Unit = {
@@ -51,7 +53,7 @@ class RexProgramExtractorTest extends RexProgramTestBase {
       RexProgramExtractor.extractConjunctiveConditions(
         program,
         builder,
-        new MockTableEnvironment().getFunctionCatalog)
+        functionCatalog)
 
     assertExpressionArrayEquals(expected, convertedExpressions)
     assertEquals(0, unconvertedRexNodes.length)
@@ -77,7 +79,7 @@ class RexProgramExtractorTest extends RexProgramTestBase {
       RexProgramExtractor.extractConjunctiveConditions(
         program,
         relBuilder,
-        new MockTableEnvironment().getFunctionCatalog)
+        functionCatalog)
 
     val expected: Array[Expression] = Array(ExpressionParser.parseExpression("amount >= id"))
     assertExpressionArrayEquals(expected, convertedExpressions)
@@ -125,7 +127,7 @@ class RexProgramExtractorTest extends RexProgramTestBase {
       RexProgramExtractor.extractConjunctiveConditions(
         program,
         relBuilder,
-        new MockTableEnvironment().getFunctionCatalog)
+        functionCatalog)
 
     val expected: Array[Expression] = Array(
       ExpressionParser.parseExpression("amount < 100 || price == 100"),
@@ -184,7 +186,7 @@ class RexProgramExtractorTest extends RexProgramTestBase {
       RexProgramExtractor.extractConjunctiveConditions(
         program,
         relBuilder,
-        new MockTableEnvironment().getFunctionCatalog)
+        functionCatalog)
 
     val expected: Array[Expression] = Array(
       ExpressionParser.parseExpression("amount < id"),
@@ -245,7 +247,7 @@ class RexProgramExtractorTest extends RexProgramTestBase {
       RexProgramExtractor.extractConjunctiveConditions(
         program,
         relBuilder,
-        new MockTableEnvironment().getFunctionCatalog)
+        functionCatalog)
 
     val expected: Array[Expression] = Array(
       ExpressionParser.parseExpression("sum(amount) > 100"),
@@ -293,7 +295,7 @@ class RexProgramExtractorTest extends RexProgramTestBase {
       RexProgramExtractor.extractConjunctiveConditions(
         program,
         relBuilder,
-        new MockTableEnvironment().getFunctionCatalog)
+        functionCatalog)
 
     val expected: Array[Expression] = Array(
       ExpressionParser.parseExpression("amount <= id")
@@ -324,7 +326,7 @@ class RexProgramExtractorTest extends RexProgramTestBase {
       RexProgramExtractor.extractConjunctiveConditions(
         program,
         relBuilder,
-        new MockTableEnvironment().getFunctionCatalog)
+        functionCatalog)
 
     assertEquals(1, convertedExpressions.length)
     assertEquals(expr, convertedExpressions.head.toString)
