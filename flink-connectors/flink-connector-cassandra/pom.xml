@@ -66,6 +66,7 @@ under the License.
 						</goals>
 						<configuration combine.self="override">
 							<dependencyReducedPomLocation>${project.basedir}/target/dependency-reduced-pom.xml</dependencyReducedPomLocation>
+							<promoteTransitiveDependencies>true</promoteTransitiveDependencies>
 							<artifactSet>
 								<includes>
 									<include>com.datastax.cassandra:cassandra-driver-core</include>
