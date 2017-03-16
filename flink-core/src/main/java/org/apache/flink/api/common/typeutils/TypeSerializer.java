@@ -161,7 +161,7 @@ public abstract class TypeSerializer<T> implements Serializable {
 
 	public abstract int hashCode();
 
-	public boolean isCompatibleWith(TypeSerializer<?> other) {
+	public boolean canRestoreFrom(TypeSerializer<?> other) {
 		return equals(other);
 	}
 }

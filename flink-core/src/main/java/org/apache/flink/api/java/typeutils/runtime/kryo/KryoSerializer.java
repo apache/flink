@@ -383,4 +383,20 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 		checkKryoInitialized();
 		return this.kryo;
 	}
+
+	@Override
+	public boolean canRestoreFrom(TypeSerializer<?> other) {
+		if (other instanceof KryoSerializer) {
+			KryoSerializer<?> otherKryo = (KryoSerializer<?>) other;
+
+			// we cannot include the Serializers here because they don't implement the equals method
+			return other.canEqual(this) &&
+					type == otherKryo.type &&
+					(registeredTypes.equals(otherKryo.registeredTypes) || otherKryo.registeredTypes.isEmpty()) &&
+					(registeredTypesWithSerializerClasses.equals(otherKryo.registeredTypesWithSerializerClasses) || otherKryo.registeredTypesWithSerializerClasses.isEmpty()) &&
+					(defaultSerializerClasses.equals(otherKryo.defaultSerializerClasses) || otherKryo.defaultSerializerClasses.isEmpty());
+		} else {
+			return false;
+		}
+	}
 }

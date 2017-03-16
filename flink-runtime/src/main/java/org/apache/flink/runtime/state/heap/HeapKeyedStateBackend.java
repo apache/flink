@@ -141,7 +141,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			stateTable = newStateTable(newMetaInfo);
 			stateTables.put(stateName, stateTable);
 		} else {
-			if (!newMetaInfo.isCompatibleWith(stateTable.getMetaInfo())) {
+			if (!newMetaInfo.canRestoreFrom(stateTable.getMetaInfo())) {
 				throw new RuntimeException("Trying to access state using incompatible meta info, was " +
 						stateTable.getMetaInfo() + " trying access with " + newMetaInfo);
 			}
