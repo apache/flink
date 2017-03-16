@@ -258,7 +258,7 @@ abstract class TableEnvironment(val config: TableConfig) {
     * @param externalCatalog The externalCatalog to register.
     */
   def registerExternalCatalog(name: String, externalCatalog: ExternalCatalog): Unit = {
-    if (this.externalCatalogs.contains(name)) {
+    if (rootSchema.getSubSchema(name) != null) {
       throw new ExternalCatalogAlreadyExistException(name)
     }
     this.externalCatalogs.put(name, externalCatalog)
@@ -278,7 +278,6 @@ abstract class TableEnvironment(val config: TableConfig) {
       case None => throw new ExternalCatalogNotExistException(name)
     }
   }
-
 
   /**
     * Registers a [[ScalarFunction]] under a unique name. Replaces already existing
@@ -383,50 +382,39 @@ abstract class TableEnvironment(val config: TableConfig) {
   }
 
   /**
-    * Scans a registered table and returns the resulting [[Table]].
+    * Scans a table from registered temporary tables and registered catalogs.
     *
-    * The table to scan must be registered in the [[TableEnvironment]]'s catalog.
+    * The table to scan must be registered in the [[TableEnvironment]] or
+    * must exist in registered catalog in the [[TableEnvironment]].
     *
-    * @param tableName The name of the table to scan.
-    * @throws TableException if no table is registered under the given name.
-    * @return The scanned table.
+    * @param tablePath The path of the table to scan.
+    * @throws TableException if no table is found using the given table path.
+    * @return The resulting [[Table]].
     */
-  @throws[ValidationException]
-  def scan(tableName: String): Table = {
-    if (isRegistered(tableName)) {
-      new Table(this, CatalogNode(getRowType(tableName), tableName))
-    } else {
-      throw new TableException(s"Table \'$tableName\' was not found in the registry.")
+  @throws[TableException]
+  protected def scanInternal(tablePath: Array[String]): Table = {
+    require(tablePath != null && !tablePath.isEmpty, "tablePath must not be null or empty.")
+    val schemaPaths = tablePath.slice(0, tablePath.length - 1)
+    val schema = getSchema(schemaPaths)
+    if (schema != null) {
+      val tableName = tablePath(tablePath.length - 1)
+      val table = schema.getTable(tableName)
+      if (table != null) {
+        return new Table(this, CatalogNode(table.getRowType(typeFactory), tablePath: _*))
+      }
     }
+    throw new TableException(s"Table \'${tablePath.mkString(".")}\' was not found.")
   }
 
-  /**
-    * Scans a table from registered external catalog and returns the resulting [[Table]].
-    *
-    * @param catalogName The name of the catalog to look-up for the table.
-    * @param dbName      The database name of the table to scan.
-    * @param tableName   The table name to scan.
-    * @throws ExternalCatalogNotExistException if no catalog is registered under the given name.
-    * @throws TableException                   if no database/ table is found in the given catalog.
-    * @return The scanned table.
-    */
-  @throws[ExternalCatalogNotExistException]
-  @throws[TableException]
-  def scan(catalogName: String, dbName: String, tableName: String): Table = {
-    if (this.externalCatalogs.contains(catalogName)) {
-      val dbSubSchema = rootSchema.getSubSchema(catalogName).getSubSchema(dbName)
-      if (dbSubSchema == null) {
-        throw new TableException(s"Database \'$dbName\' was not found in catalog \'$catalogName\'.")
+  private def getSchema(schemaPath: Array[String]): SchemaPlus = {
+    var schema = rootSchema
+    for (schemaName <- schemaPath) {
+      schema = schema.getSubSchema(schemaName)
+      if (schema == null) {
+        return schema
       }
-      val table = dbSubSchema.getTable(tableName)
-      if (table == null) {
-        throw new TableException(s"Table \'$tableName\' was not found in database \'$dbName\' " +
-            s"of catalog \'$catalogName\'.")
-      }
-      new Table(this, CatalogNode(table.getRowType(typeFactory), catalogName, dbName, tableName))
-    } else {
-      throw new ExternalCatalogNotExistException(catalogName)
     }
+    schema
   }
 
   /**
