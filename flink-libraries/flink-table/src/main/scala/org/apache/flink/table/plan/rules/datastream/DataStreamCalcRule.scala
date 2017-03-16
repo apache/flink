@@ -18,20 +18,26 @@
 
 package org.apache.flink.table.plan.rules.datastream
 
-import org.apache.calcite.plan.{Convention, RelOptRule, RelTraitSet}
+import org.apache.calcite.plan.{ Convention, RelOptRule, RelTraitSet }
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.logical.LogicalCalc
 import org.apache.flink.table.plan.nodes.datastream.DataStreamCalc
 import org.apache.flink.table.plan.nodes.datastream.DataStreamConvention
+import org.apache.calcite.plan.volcano.RelSubset
+import org.apache.calcite.rel.logical.LogicalTableFunctionScan
+import org.apache.calcite.plan.RelOptRuleCall
+import org.apache.calcite.rel.logical.LogicalFilter
+import org.apache.calcite.rel.logical.LogicalCorrelate
+import org.apache.calcite.rex.RexNode
+import org.apache.calcite.rex.RexOver
 
 class DataStreamCalcRule
-  extends ConverterRule(
-    classOf[LogicalCalc],
-    Convention.NONE,
-    DataStreamConvention.INSTANCE,
-    "DataStreamCalcRule")
-{
+    extends ConverterRule(
+      classOf[LogicalCalc],
+      Convention.NONE,
+      DataStreamConvention.INSTANCE,
+      "DataStreamCalcRule") {
 
   def convert(rel: RelNode): RelNode = {
     val calc: LogicalCalc = rel.asInstanceOf[LogicalCalc]
@@ -46,6 +52,20 @@ class DataStreamCalcRule
       calc.getProgram,
       description)
   }
+
+  override def matches(call: RelOptRuleCall): Boolean = {
+
+    val rl0: RelNode = call.rels(0)
+    val calc: LogicalCalc = rl0.asInstanceOf[LogicalCalc]
+
+    val expr = calc.getProgram.getExprList.toArray()
+
+    expr.foreach { x => if (x.isInstanceOf[RexOver]) return false }
+
+    super.matches(call);
+
+  }
+
 }
 
 object DataStreamCalcRule {

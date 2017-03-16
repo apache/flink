@@ -19,21 +19,25 @@
 package org.apache.flink.table.validate
 
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
-import org.apache.calcite.sql.util.{ChainedSqlOperatorTable, ListSqlOperatorTable, ReflectiveSqlOperatorTable}
-import org.apache.calcite.sql.{SqlFunction, SqlOperator, SqlOperatorTable}
+import org.apache.calcite.sql.util.{ ChainedSqlOperatorTable, ListSqlOperatorTable, ReflectiveSqlOperatorTable }
+import org.apache.calcite.sql.{ SqlFunction, SqlOperator, SqlOperatorTable }
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions.utils.{ScalarSqlFunction, TableSqlFunction}
-import org.apache.flink.table.functions.{EventTimeExtractor, RowTime, ScalarFunction, TableFunction, _}
+import org.apache.flink.table.functions.utils.{ ScalarSqlFunction, TableSqlFunction }
+import org.apache.flink.table.functions.{ EventTimeExtractor, RowTime, ScalarFunction, TableFunction, _ }
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
+
+
+import org.apache.flink.table.expressions.TableFunctionCall
+import org.apache.flink.table.expressions.ScalarFunctionCall
 
 /**
-  * A catalog for looking up (user-defined) functions, used during validation phases
-  * of both Table API and SQL API.
-  */
+ * A catalog for looking up (user-defined) functions, used during validation phases
+ * of both Table API and SQL API.
+ */
 class FunctionCatalog {
 
   private val functionBuilders = mutable.HashMap.empty[String, Class[_]]
@@ -48,8 +52,8 @@ class FunctionCatalog {
   }
 
   /**
-    * Register multiple SQL functions at the same time. The functions have the same name.
-    */
+   * Register multiple SQL functions at the same time. The functions have the same name.
+   */
   def registerSqlFunctions(functions: Seq[SqlFunction]): Unit = {
     if (functions.nonEmpty) {
       val name = functions.head.getName
@@ -66,12 +70,11 @@ class FunctionCatalog {
   def getSqlOperatorTable: SqlOperatorTable =
     ChainedSqlOperatorTable.of(
       new BasicOperatorTable(),
-      new ListSqlOperatorTable(sqlFunctions)
-    )
+      new ListSqlOperatorTable(sqlFunctions))
 
   /**
-    * Lookup and create an expression if we find a match.
-    */
+   * Lookup and create an expression if we find a match.
+   */
   def lookupFunction(name: String, children: Seq[Expression]): Expression = {
     val funcClass = functionBuilders
       .getOrElse(name.toLowerCase, throw ValidationException(s"Undefined function: $name"))
@@ -125,14 +128,14 @@ class FunctionCatalog {
   }
 
   /**
-    * Drop a function and return if the function existed.
-    */
+   * Drop a function and return if the function existed.
+   */
   def dropFunction(name: String): Boolean =
     functionBuilders.remove(name.toLowerCase).isDefined
 
   /**
-    * Drop all registered functions.
-    */
+   * Drop all registered functions.
+   */
   def clear(): Unit = functionBuilders.clear()
 }
 
@@ -198,12 +201,11 @@ object FunctionCatalog {
 
     // extensions to support streaming query
     "rowtime" -> classOf[RowTime],
-    "proctime" -> classOf[ProcTime]
-  )
+    "proctime" -> classOf[ProcTime])
 
   /**
-    * Create a new function catalog with built-in functions.
-    */
+   * Create a new function catalog with built-in functions.
+   */
   def withBuiltIns: FunctionCatalog = {
     val catalog = new FunctionCatalog()
     builtInFunctions.foreach { case (n, c) => catalog.registerFunction(n, c) }
@@ -214,10 +216,10 @@ object FunctionCatalog {
 class BasicOperatorTable extends ReflectiveSqlOperatorTable {
 
   /**
-    * List of supported SQL operators / functions.
-    *
-    * This list should be kept in sync with [[SqlStdOperatorTable]].
-    */
+   * List of supported SQL operators / functions.
+   *
+   * This list should be kept in sync with [[SqlStdOperatorTable]].
+   */
   private val builtInSqlOperators: Seq[SqlOperator] = Seq(
     // SET OPERATORS
     SqlStdOperatorTable.UNION,
@@ -324,8 +326,7 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     SqlStdOperatorTable.EXISTS,
     // EXTENSIONS
     EventTimeExtractor,
-    ProcTimeExtractor
-  )
+    ProcTimeExtractor)
 
   builtInSqlOperators.foreach(register)
 }

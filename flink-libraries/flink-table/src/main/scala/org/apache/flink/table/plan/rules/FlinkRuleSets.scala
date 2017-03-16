@@ -168,6 +168,11 @@ object FlinkRuleSets {
 
       // merge and push unions rules
       UnionEliminatorRule.INSTANCE,
+      
+      // aggregations over intervals should be enabled to be translated also in
+      //queries with LogicalWindows, not only queries with LogicalCalc
+      ProjectWindowTransposeRule.INSTANCE,
+      ProjectToWindowRule.INSTANCE,
 
       // translate to DataStream nodes
       DataStreamOverAggregateRule.INSTANCE,
@@ -178,7 +183,8 @@ object FlinkRuleSets {
       DataStreamValuesRule.INSTANCE,
       DataStreamCorrelateRule.INSTANCE,
       StreamTableSourceScanRule.INSTANCE,
-      PushProjectIntoStreamTableSourceScanRule.INSTANCE
+      PushProjectIntoStreamTableSourceScanRule.INSTANCE,
+      DataStreamProcTimeTimeAggregateRule.INSTANCE
   )
 
 }

@@ -34,6 +34,7 @@ import org.apache.flink.table.functions.utils.{ScalarSqlFunction, TableSqlFuncti
 
 import scala.collection.mutable
 
+
 /**
   * Global hub for user-defined and built-in advanced SQL functions.
   */
@@ -291,7 +292,9 @@ object FunctionGenerator {
     LOCALTIMESTAMP,
     Seq(),
     new CurrentTimePointCallGen(SqlTimeTypeInfo.TIMESTAMP, local = true))
-
+    
+  
+   
   // ----------------------------------------------------------------------------------------------
 
   /**
