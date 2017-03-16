@@ -78,10 +78,12 @@ public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 	 * 
 	 * @param jobName
 	 *            name of the job
+	 * 	@param detached
+	 * 		Whether to run the job in detached mode
 	 * @return The result of the job execution, containing elapsed time and accumulators.
 	 */
 	@Override
-	public JobExecutionResult execute(String jobName) throws Exception {
+	public JobExecutionResult execute(String jobName, boolean detached) throws Exception {
 		// transform the streaming program into a JobGraph
 		StreamGraph streamGraph = getStreamGraph();
 		streamGraph.setJobName(jobName);
