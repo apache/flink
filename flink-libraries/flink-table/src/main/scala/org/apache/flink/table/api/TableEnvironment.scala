@@ -337,16 +337,15 @@ abstract class TableEnvironment(val config: TableConfig) {
     // check if class could be instantiated
     checkForInstantiation(function.getClass)
 
+    // register in Table API
+    functionCatalog.registerFunction(name, function.getClass)
+
+    // register in SQL API
     val typeInfo: TypeInformation[_] = if (function.getResultType != null) {
       function.getResultType
     } else {
       implicitly[TypeInformation[T]]
     }
-
-    // register in Table API
-    functionCatalog.registerFunction(name, function.getClass)
-
-    // register in SQL API
     val sqlFunctions = createTableSqlFunctions(name, function, typeInfo, typeFactory)
     functionCatalog.registerSqlFunctions(sqlFunctions)
   }
