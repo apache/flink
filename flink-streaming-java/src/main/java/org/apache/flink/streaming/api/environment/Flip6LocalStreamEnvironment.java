@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.api.environment;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
@@ -41,7 +41,7 @@ import org.slf4j.LoggerFactory;
  * <p>When this environment is instantiated, it uses a default parallelism of {@code 1}. The default
  * parallelism can be set via {@link #setParallelism(int)}.
  */
-@Internal
+@Public
 public class Flip6LocalStreamEnvironment extends StreamExecutionEnvironment {
 
 	private static final Logger LOG = LoggerFactory.getLogger(Flip6LocalStreamEnvironment.class);
@@ -78,10 +78,12 @@ public class Flip6LocalStreamEnvironment extends StreamExecutionEnvironment {
 	 * 
 	 * @param jobName
 	 *            name of the job
+	 * 	@param detached
+	 * 		Whether to run the job in detached mode
 	 * @return The result of the job execution, containing elapsed time and accumulators.
 	 */
 	@Override
-	public JobExecutionResult execute(String jobName) throws Exception {
+	public JobExecutionResult execute(String jobName, boolean detached) throws Exception {
 		// transform the streaming program into a JobGraph
 		StreamGraph streamGraph = getStreamGraph();
 		streamGraph.setJobName(jobName);
