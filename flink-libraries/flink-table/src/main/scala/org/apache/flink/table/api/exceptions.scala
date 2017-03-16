@@ -165,3 +165,31 @@ case class AmbiguousTableSourceConverterException(
 
   def this(tableType: String) = this(tableType, null)
 }
+
+/**
+  * Exception for operation on a nonexistent external catalog
+  *
+  * @param catalogName external catalog name
+  * @param cause
+  */
+case class ExternalCatalogNotExistException(
+    catalogName: String,
+    cause: Throwable)
+    extends RuntimeException(s"external catalog $catalogName does not exist!", cause) {
+
+  def this(catalogName: String) = this(catalogName, null)
+}
+
+/**
+  * Exception for adding an already existed external catalog
+  *
+  * @param catalogName external catalog name
+  * @param cause
+  */
+case class ExternalCatalogAlreadyExistException(
+    catalogName: String,
+    cause: Throwable)
+    extends RuntimeException(s"external catalog $catalogName already exists!", cause) {
+
+  def this(catalogName: String) = this(catalogName, null)
+}

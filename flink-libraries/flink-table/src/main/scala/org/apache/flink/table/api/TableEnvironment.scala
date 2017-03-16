@@ -46,6 +46,7 @@ import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => Scala
 import org.apache.flink.table.api.java.{BatchTableEnvironment => JavaBatchTableEnv, StreamTableEnvironment => JavaStreamTableEnv}
 import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnv, StreamTableEnvironment => ScalaStreamTableEnv}
 import org.apache.flink.table.calcite.{FlinkPlannerImpl, FlinkRelBuilder, FlinkTypeFactory, FlinkTypeSystem}
+import org.apache.flink.table.catalog.{ExternalCatalog, ExternalCatalogSchema}
 import org.apache.flink.table.codegen.{CodeGenerator, ExpressionReducer}
 import org.apache.flink.table.expressions.{Alias, Expression, UnresolvedFieldReference}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{checkForInstantiation, checkNotSingleton, createScalarSqlFunction, createTableSqlFunctions}
@@ -60,6 +61,7 @@ import org.apache.flink.table.validate.FunctionCatalog
 import org.apache.flink.types.Row
 
 import _root_.scala.collection.JavaConverters._
+import _root_.scala.collection.mutable.HashMap
 
 /**
   * The abstract base class for batch and stream TableEnvironments.
@@ -71,7 +73,7 @@ abstract class TableEnvironment(val config: TableConfig) {
   // the catalog to hold all registered and translated tables
   // we disable caching here to prevent side effects
   private val internalSchema: CalciteSchema = CalciteSchema.createRootSchema(true, false)
-  private val tables: SchemaPlus = internalSchema.plus()
+  private val rootSchema: SchemaPlus = internalSchema.plus()
 
   // Table API/SQL function catalog
   private val functionCatalog: FunctionCatalog = FunctionCatalog.withBuiltIns
@@ -79,7 +81,7 @@ abstract class TableEnvironment(val config: TableConfig) {
   // the configuration to create a Calcite planner
   private lazy val frameworkConfig: FrameworkConfig = Frameworks
     .newConfigBuilder
-    .defaultSchema(tables)
+    .defaultSchema(rootSchema)
     .parserConfig(getSqlParserConfig)
     .costFactory(new DataSetCostFactory)
     .typeSystem(new FlinkTypeSystem)
@@ -98,6 +100,9 @@ abstract class TableEnvironment(val config: TableConfig) {
 
   // a counter for unique attribute names
   private[flink] val attrNameCntr: AtomicInteger = new AtomicInteger(0)
+
+  // registered external catalog names -> catalog
+  private val externalCatalogs = new HashMap[String, ExternalCatalog]
 
   /** Returns the table config to define the runtime behavior of the Table API. */
   def getConfig = config
@@ -246,6 +251,36 @@ abstract class TableEnvironment(val config: TableConfig) {
   }
 
   /**
+    * Registers a [[ExternalCatalog]] under a unique name in the TableEnvironment's catalog.
+    * The databases and tables in the registered external catalog can be referenced in SQL queries.
+    *
+    * @param name            The name under which the externalCatalog will be registered.
+    * @param externalCatalog The externalCatalog to register.
+    */
+  def registerExternalCatalog(name: String, externalCatalog: ExternalCatalog): Unit = {
+    if (this.externalCatalogs.contains(name)) {
+      throw new ExternalCatalogAlreadyExistException(name)
+    }
+    this.externalCatalogs.put(name, externalCatalog)
+    // create an external catalog calicte schema, register it on the root schema
+    ExternalCatalogSchema.create(rootSchema, name, externalCatalog)
+  }
+
+  /**
+    * Gets a registered [[ExternalCatalog]] by name
+    *
+    * @param name The name under which the externalCatalog was previous registered.
+    * @return the externalCatalog found by name
+    */
+  def getRegisteredExternalCatalog(name: String): ExternalCatalog = {
+    this.externalCatalogs.get(name) match {
+      case Some(catalog) => catalog
+      case None => throw new ExternalCatalogNotExistException(name)
+    }
+  }
+
+
+  /**
     * Registers a [[ScalarFunction]] under a unique name. Replaces already existing
     * user-defined functions under this name.
     */
@@ -341,7 +376,7 @@ abstract class TableEnvironment(val config: TableConfig) {
   protected def replaceRegisteredTable(name: String, table: AbstractTable): Unit = {
 
     if (isRegistered(name)) {
-      tables.add(name, table)
+      rootSchema.add(name, table)
     } else {
       throw new TableException(s"Table \'$name\' is not registered.")
     }
@@ -353,15 +388,44 @@ abstract class TableEnvironment(val config: TableConfig) {
     * The table to scan must be registered in the [[TableEnvironment]]'s catalog.
     *
     * @param tableName The name of the table to scan.
-    * @throws ValidationException if no table is registered under the given name.
+    * @throws TableException if no table is registered under the given name.
     * @return The scanned table.
     */
   @throws[ValidationException]
   def scan(tableName: String): Table = {
     if (isRegistered(tableName)) {
-      new Table(this, CatalogNode(tableName, getRowType(tableName)))
+      new Table(this, CatalogNode(getRowType(tableName), tableName))
     } else {
       throw new TableException(s"Table \'$tableName\' was not found in the registry.")
+    }
+  }
+
+  /**
+    * Scans a table from registered external catalog and returns the resulting [[Table]].
+    *
+    * @param catalogName The name of the catalog to look-up for the table.
+    * @param dbName      The database name of the table to scan.
+    * @param tableName   The table name to scan.
+    * @throws ExternalCatalogNotExistException if no catalog is registered under the given name.
+    * @throws TableException                   if no database/ table is found in the given catalog.
+    * @return The scanned table.
+    */
+  @throws[ExternalCatalogNotExistException]
+  @throws[TableException]
+  def scan(catalogName: String, dbName: String, tableName: String): Table = {
+    if (this.externalCatalogs.contains(catalogName)) {
+      val dbSubSchema = rootSchema.getSubSchema(catalogName).getSubSchema(dbName)
+      if (dbSubSchema == null) {
+        throw new TableException(s"Database \'$dbName\' was not found in catalog \'$catalogName\'.")
+      }
+      val table = dbSubSchema.getTable(tableName)
+      if (table == null) {
+        throw new TableException(s"Table \'$tableName\' was not found in database \'$dbName\' " +
+            s"of catalog \'$catalogName\'.")
+      }
+      new Table(this, CatalogNode(table.getRowType(typeFactory), catalogName, dbName, tableName))
+    } else {
+      throw new ExternalCatalogNotExistException(catalogName)
     }
   }
 
@@ -416,7 +480,7 @@ abstract class TableEnvironment(val config: TableConfig) {
       throw new TableException(s"Table \'$name\' already exists. " +
         s"Please, choose a different name.")
     } else {
-      tables.add(name, table)
+      rootSchema.add(name, table)
     }
   }
 
@@ -434,11 +498,11 @@ abstract class TableEnvironment(val config: TableConfig) {
     * @return true, if a table is registered under the name, false otherwise.
     */
   protected def isRegistered(name: String): Boolean = {
-    tables.getTableNames.contains(name)
+    rootSchema.getTableNames.contains(name)
   }
 
   protected def getRowType(name: String): RelDataType = {
-    tables.getTable(name).getRowType(typeFactory)
+    rootSchema.getTable(name).getRowType(typeFactory)
   }
 
   /** Returns a unique temporary attribute name. */
