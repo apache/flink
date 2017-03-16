@@ -178,12 +178,17 @@ public class ExecutionGraphBuilder {
 			CheckpointIDCounter checkpointIdCounter;
 			try {
 				int maxNumberOfCheckpointsToRetain = jobManagerConfig.getInteger(
-					CoreOptions.STATE_BACKEND_MAX_RETAINED_CHECKPOINTS_OPTIONS);
+					CoreOptions.MAX_RETAINED_CHECKPOINTS);
+
 				if (maxNumberOfCheckpointsToRetain <= 0) {
 					// warning and use 1 as the default value if the setting in
 					// state.checkpoints.max-retained-checkpoints is not greater than 0.
-					log.warn("The setting for max-retained-checkpoints is not a positive number.");
-					maxNumberOfCheckpointsToRetain = CoreOptions.STATE_BACKEND_MAX_RETAINED_CHECKPOINTS_OPTIONS.defaultValue();
+					log.warn("The setting for '{} : {}' is invalid. Using default value of {}",
+							CoreOptions.MAX_RETAINED_CHECKPOINTS.key(),
+							maxNumberOfCheckpointsToRetain,
+							CoreOptions.MAX_RETAINED_CHECKPOINTS.defaultValue());
+
+					maxNumberOfCheckpointsToRetain = CoreOptions.MAX_RETAINED_CHECKPOINTS.defaultValue();
 				}
 
 				completedCheckpoints = recoveryFactory.createCheckpointStore(jobId, maxNumberOfCheckpointsToRetain, classLoader);
