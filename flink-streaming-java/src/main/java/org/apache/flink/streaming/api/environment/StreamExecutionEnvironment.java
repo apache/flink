@@ -31,7 +31,6 @@ import org.apache.flink.api.common.io.FilePathFilter;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.ValueState;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ClosureCleaner;
@@ -485,7 +484,7 @@ public abstract class StreamExecutionEnvironment {
 	 * 		The number of times the system will try to re-execute failed tasks.
 	 *
 	 * @deprecated This method will be replaced by {@link #setRestartStrategy}. The
-	 * {@link RestartStrategies#fixedDelayRestart(int, Time)} contains the number of
+	 * {@link RestartStrategies.FixedDelayRestartStrategyConfiguration} contains the number of
 	 * execution retries.
 	 */
 	@Deprecated
@@ -501,7 +500,9 @@ public abstract class StreamExecutionEnvironment {
 	 *
 	 * @return The number of times the system will try to re-execute failed tasks.
 	 *
-	 * @deprecated This method will be replaced by {@link #getRestartStrategy}.
+	 * @deprecated This method will be replaced by {@link #getRestartStrategy}. The
+	 * {@link RestartStrategies.FixedDelayRestartStrategyConfiguration} contains the number of
+	 * execution retries.
 	 */
 	@Deprecated
 	@PublicEvolving
@@ -1486,7 +1487,7 @@ public abstract class StreamExecutionEnvironment {
 	 * @throws Exception which occurs during job execution.
 	 */
 	public JobExecutionResult execute() throws Exception {
-		return execute(DEFAULT_JOB_NAME);
+		return execute(DEFAULT_JOB_NAME, false);
 	}
 
 	/**
@@ -1498,10 +1499,12 @@ public abstract class StreamExecutionEnvironment {
 	 *
 	 * @param jobName
 	 * 		Desired name of the job
+	 * 	@param detached
+	 * 		Whether to run the job in detached mode
 	 * @return The result of the job execution, containing elapsed time and accumulators.
 	 * @throws Exception which occurs during job execution.
 	 */
-	public abstract JobExecutionResult execute(String jobName) throws Exception;
+	public abstract JobExecutionResult execute(String jobName, boolean detached) throws Exception;
 
 	/**
 	 * Getter of the {@link org.apache.flink.streaming.api.graph.StreamGraph} of the streaming job.
