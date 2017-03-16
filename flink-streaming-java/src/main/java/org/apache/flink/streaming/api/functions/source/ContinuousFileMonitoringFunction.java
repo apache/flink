@@ -300,7 +300,7 @@ public class ContinuousFileMonitoringFunction<OUT>
 			Map<Path, FileStatus> files = new HashMap<>();
 			// handle the new files
 			for (FileStatus status : statuses) {
-				if (!status.isDir()) {
+				if (!status.isDir() && format.acceptFile(status)) {
 					Path filePath = status.getPath();
 					long modificationTime = status.getModificationTime();
 					if (!shouldIgnore(filePath, modificationTime)) {
