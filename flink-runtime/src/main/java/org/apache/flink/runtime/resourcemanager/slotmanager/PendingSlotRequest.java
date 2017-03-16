@@ -26,6 +26,7 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nullable;
 import java.util.UUID;
 import java.util.concurrent.ScheduledFuture;
 
@@ -33,15 +34,20 @@ public class PendingSlotRequest {
 
 	private final SlotRequest slotRequest;
 
+	@Nullable
 	private CompletableFuture<Acknowledge> requestFuture;
 
+	@Nullable
 	private UUID timeoutIdentifier;
 
+	@Nullable
 	private ScheduledFuture<?> timeoutFuture;
 
 	public PendingSlotRequest(SlotRequest slotRequest) {
 		this.slotRequest = Preconditions.checkNotNull(slotRequest);
 	}
+
+	// ------------------------------------------------------------------------
 
 	public AllocationID getAllocationId() {
 		return slotRequest.getAllocationId();
@@ -51,6 +57,7 @@ public class PendingSlotRequest {
 		return slotRequest.getResourceProfile();
 	}
 
+	@Nullable
 	public UUID getTimeoutIdentifier() {
 		return timeoutIdentifier;
 	}
@@ -67,10 +74,11 @@ public class PendingSlotRequest {
 		return null != requestFuture;
 	}
 
-	public void setRequestFuture(CompletableFuture<Acknowledge> requestFuture) {
+	public void setRequestFuture(@Nullable CompletableFuture<Acknowledge> requestFuture) {
 		this.requestFuture = requestFuture;
 	}
 
+	@Nullable
 	public CompletableFuture<Acknowledge> getRequestFuture() {
 		return requestFuture;
 	}
