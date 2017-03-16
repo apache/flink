@@ -154,6 +154,11 @@ class ScalarOperatorsTest extends ExpressionTestBase {
       "true.?(true.?(true.?(10, 4), 4), 4)",
       "10")
     testTableApi(true, "?((f6 && true), 'true', 'false')", "true")
+    testTableApi(
+      If('f9 > 'f8, 'f9 - 1, 'f9),
+      "If(f9 > f8, f9 - 1, f9)",
+      "9"
+    )
     testSqlApi("CASE 11 WHEN 1 THEN 'a' ELSE 'b' END", "b")
     testSqlApi("CASE 2 WHEN 1 THEN 'a' ELSE 'b' END", "b")
     testSqlApi(
