@@ -73,6 +73,11 @@ public interface CompletedCheckpointStore {
 	int getNumberOfRetainedCheckpoints();
 
 	/**
+	 * Returns the max number of retained checkpoints.
+	 */
+	int getMaxNumberOfRetainedCheckpoints();
+
+	/**
 	 * This method returns whether the completed checkpoint store requires checkpoints to be
 	 * externalized. Externalized checkpoints have their meta data persisted, which the checkpoint
 	 * store can exploit (for example by simply pointing the persisted metadata).

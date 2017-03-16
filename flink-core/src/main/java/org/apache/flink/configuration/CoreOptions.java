@@ -45,4 +45,9 @@ public class CoreOptions {
 	public static final ConfigOption<String> STATE_BACKEND = ConfigOptions
 		.key("state.backend")
 		.noDefaultValue();
+
+	/** The maximum number of completed checkpoint instances to retain.*/
+	public static final ConfigOption<Integer> STATE_BACKEND_MAX_RETAINED_CHECKPOINTS_OPTIONS = ConfigOptions
+		.key("state.checkpoints.max-retained-checkpoints")
+		.defaultValue(1);
 }
