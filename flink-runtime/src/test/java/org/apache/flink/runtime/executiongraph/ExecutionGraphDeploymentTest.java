@@ -33,7 +33,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
 import org.apache.flink.api.common.ExecutionConfig;
@@ -446,61 +445,50 @@ public class ExecutionGraphDeploymentTest {
 		assertEquals(JobStatus.FAILED, eg.getState());
 	}
 
+	// ------------------------------------------------------------------------
+	//  retained checkpoints config test
+	// ------------------------------------------------------------------------
+
 	@Test
-	public void testSettingDefaultMaxNumberOfCheckpointsToRetain() {
-		try {
-			final Configuration jobManagerConfig = new Configuration();
+	public void testSettingDefaultMaxNumberOfCheckpointsToRetain() throws Exception {
+		final Configuration jobManagerConfig = new Configuration();
 
-			final ExecutionGraph eg = createExecutionGraph(jobManagerConfig);
+		final ExecutionGraph eg = createExecutionGraph(jobManagerConfig);
 
-			assertEquals((int) CoreOptions.STATE_BACKEND_MAX_RETAINED_CHECKPOINTS_OPTIONS.defaultValue(),
+		assertEquals(CoreOptions.MAX_RETAINED_CHECKPOINTS.defaultValue().intValue(),
 				eg.getCheckpointCoordinator().getCheckpointStore().getMaxNumberOfRetainedCheckpoints());
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
 	}
 
 	@Test
-	public void testSettingMaxNumberOfCheckpointsToRetain() {
-		try {
-			final int maxNumberOfCheckpointsToRetain = 10;
-			final Configuration jobManagerConfig = new Configuration();
-			jobManagerConfig.setInteger(CoreOptions.STATE_BACKEND_MAX_RETAINED_CHECKPOINTS_OPTIONS,
-				maxNumberOfCheckpointsToRetain);
+	public void testSettingMaxNumberOfCheckpointsToRetain() throws Exception {
 
-			final ExecutionGraph eg = createExecutionGraph(jobManagerConfig);
+		final int maxNumberOfCheckpointsToRetain = 10;
+		final Configuration jobManagerConfig = new Configuration();
+		jobManagerConfig.setInteger(CoreOptions.MAX_RETAINED_CHECKPOINTS,
+			maxNumberOfCheckpointsToRetain);
 
-			assertEquals(maxNumberOfCheckpointsToRetain,
-				eg.getCheckpointCoordinator().getCheckpointStore().getMaxNumberOfRetainedCheckpoints());
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+		final ExecutionGraph eg = createExecutionGraph(jobManagerConfig);
+
+		assertEquals(maxNumberOfCheckpointsToRetain,
+			eg.getCheckpointCoordinator().getCheckpointStore().getMaxNumberOfRetainedCheckpoints());
 	}
 
 	@Test
-	public void testSettingIllegalMaxNumberOfCheckpointsToRetain() {
-		try {
-			final int negativeMaxNumberOfCheckpointsToRetain = -10;
+	public void testSettingIllegalMaxNumberOfCheckpointsToRetain() throws Exception {
 
-			final Configuration jobManagerConfig = new Configuration();
-			jobManagerConfig.setInteger(CoreOptions.STATE_BACKEND_MAX_RETAINED_CHECKPOINTS_OPTIONS,
-				negativeMaxNumberOfCheckpointsToRetain);
+		final int negativeMaxNumberOfCheckpointsToRetain = -10;
 
-			final ExecutionGraph eg = createExecutionGraph(jobManagerConfig);
+		final Configuration jobManagerConfig = new Configuration();
+		jobManagerConfig.setInteger(CoreOptions.MAX_RETAINED_CHECKPOINTS,
+			negativeMaxNumberOfCheckpointsToRetain);
 
-			assertNotEquals(negativeMaxNumberOfCheckpointsToRetain,
-				eg.getCheckpointCoordinator().getCheckpointStore().getMaxNumberOfRetainedCheckpoints());
-			assertEquals((int) CoreOptions.STATE_BACKEND_MAX_RETAINED_CHECKPOINTS_OPTIONS.defaultValue(),
-				eg.getCheckpointCoordinator().getCheckpointStore().getMaxNumberOfRetainedCheckpoints());
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+		final ExecutionGraph eg = createExecutionGraph(jobManagerConfig);
+
+		assertNotEquals(negativeMaxNumberOfCheckpointsToRetain,
+			eg.getCheckpointCoordinator().getCheckpointStore().getMaxNumberOfRetainedCheckpoints());
+
+		assertEquals(CoreOptions.MAX_RETAINED_CHECKPOINTS.defaultValue().intValue(),
+			eg.getCheckpointCoordinator().getCheckpointStore().getMaxNumberOfRetainedCheckpoints());
 	}
 
 	private Tuple2<ExecutionGraph, Map<ExecutionAttemptID, Execution>> setupExecution(JobVertex v1, int dop1, JobVertex v2, int dop2) throws Exception {
@@ -567,14 +555,14 @@ public class ExecutionGraphDeploymentTest {
 	}
 
 	private ExecutionGraph createExecutionGraph(Configuration configuration) throws Exception {
-		final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+		final ScheduledExecutorService executor = TestingUtils.defaultExecutor();
 
 		final JobID jobId = new JobID();
 		final JobGraph jobGraph = new JobGraph(jobId, "test");
 		jobGraph.setSnapshotSettings(new JobSnapshottingSettings(
-			new ArrayList<JobVertexID>(1),
-			new ArrayList<JobVertexID>(1),
-			new ArrayList<JobVertexID>(1),
+			Collections.<JobVertexID>emptyList(),
+			Collections.<JobVertexID>emptyList(),
+			Collections.<JobVertexID>emptyList(),
 			100,
 			10 * 60 * 1000,
 			0,
@@ -592,7 +580,7 @@ public class ExecutionGraphDeploymentTest {
 			new ProgrammedSlotProvider(1),
 			getClass().getClassLoader(),
 			new StandaloneCheckpointRecoveryFactory(),
-			Time.minutes(10),
+			Time.seconds(10),
 			new NoRestartStrategy(),
 			new UnregisteredMetricsGroup(),
 			1,
