@@ -81,7 +81,7 @@ public class ContinuousEventTimeTrigger<W extends Window> extends Trigger<Object
 
 		Long fireTimestamp = fireTimestampState.get();
 
-		if (fireTimestamp != null && fireTimestamp.equals(time)) {
+		if (fireTimestamp != null && fireTimestamp == time) {
 			fireTimestampState.clear();
 			fireTimestampState.add(time + interval);
 			ctx.registerEventTimeTimer(time + interval);
