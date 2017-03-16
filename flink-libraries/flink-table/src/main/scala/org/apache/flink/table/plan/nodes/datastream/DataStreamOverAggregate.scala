@@ -188,7 +188,7 @@ class DataStreamOverAggregate(
 
     val result: DataStream[Row] =
       if (partitionKeys.nonEmpty) {
-        inputDataStreamTimed.keyBy(0)
+        inputDataStreamTimed.keyBy(partitionKeys:_*)
           .window(GlobalWindows.create())
           .trigger(CountTrigger.of(1))
           .evictor(TimeEvictor.of(Time.milliseconds(time_boundary))) 
