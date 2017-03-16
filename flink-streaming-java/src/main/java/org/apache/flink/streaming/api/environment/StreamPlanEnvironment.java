@@ -48,11 +48,11 @@ public class StreamPlanEnvironment extends StreamExecutionEnvironment {
 
 	@Override
 	public JobExecutionResult execute() throws Exception {
-		return execute("");
+		return execute("", false);
 	}
 
 	@Override
-	public JobExecutionResult execute(String jobName) throws Exception {
+	public JobExecutionResult execute(String jobName, boolean detached) throws Exception {
 
 		StreamGraph streamGraph = getStreamGraph();
 		streamGraph.setJobName(jobName);
