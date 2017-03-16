@@ -166,11 +166,11 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	}
 
 	@Override
-	public JobExecutionResult execute(String jobName) throws ProgramInvocationException {
+	public JobExecutionResult execute(String jobName, boolean detached) throws ProgramInvocationException {
 		StreamGraph streamGraph = getStreamGraph();
 		streamGraph.setJobName(jobName);
 		transformations.clear();
-		return executeRemotely(streamGraph, jarFiles);
+		return executeRemotely(streamGraph, jarFiles, detached);
 	}
 
 	/**
@@ -180,9 +180,11 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	 *            Stream Graph to execute
 	 * @param jarFiles
 	 * 			  List of jar file URLs to ship to the cluster
+	 * 	@param detached
+	 * 		Whether to run the job in detached mode
 	 * @return The result of the job execution, containing elapsed time and accumulators.
 	 */
-	protected JobExecutionResult executeRemotely(StreamGraph streamGraph, List<URL> jarFiles) throws ProgramInvocationException {
+	protected JobExecutionResult executeRemotely(StreamGraph streamGraph, List<URL> jarFiles, boolean detached) throws ProgramInvocationException {
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Running remotely at {}:{}", host, port);
 		}
@@ -199,6 +201,7 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 		ClusterClient client;
 		try {
 			client = new StandaloneClusterClient(configuration);
+			client.setDetached(detached);
 			client.setPrintStatusDuringExecution(getConfig().isSysoutLoggingEnabled());
 		}
 		catch (Exception e) {
