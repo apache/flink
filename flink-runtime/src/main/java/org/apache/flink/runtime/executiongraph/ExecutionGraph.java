@@ -374,10 +374,14 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 		if (serializedJobInformation.getByteArray().length > rpcOffloadMinSize) {
 			LOG.info("Storing job {} information at the BLOB server", getJobID());
 
-			// TODO: do not overwrite existing job info and thus speed up recovery
 			try {
 				final String fileKey = getOffloadedJobInfoFileName();
-				blobServer.putObject(serializedJobInformation, getJobID(), fileKey);
+				// do not overwrite an existing job info which will speed up recovery
+				boolean fileWritten =
+					blobServer.putObject(serializedJobInformation, getJobID(), fileKey, false);
+				if (!fileWritten) {
+					LOG.info("Found existing job {} information at the BLOB server, skipping transfer", getJobID());
+				}
 				return true;
 			} catch (IOException e) {
 				LOG.warn("Failed to offload job " + getJobID() + " information data to BLOB store", e);

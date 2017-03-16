@@ -337,12 +337,26 @@ public class BlobServer extends Thread implements BlobService {
 	 * Uses an {@link ObjectOutputStream} to write the given object to files served by the blob
 	 * server under the given name
 	 *
-	 * @param data 	    object to write
-	 * @param jobId     JobID of the file in the blob store
-	 * @param key       String key of the file in the blob store
+	 * @param data
+	 * 		object to write
+	 * @param jobId
+	 * 		JobID of the file in the blob store
+	 * @param key
+	 * 		String key of the file in the blob store
+	 * @param overwriteExisting
+	 * 		if set, any existing file under the given name will be overwritten, otherwise nothing is
+	 * 		done
+	 *
+	 * @return whether the file has been successfully written or was skipped due to an existing file
 	 */
-	public void putObject(Object data, JobID jobId, String key) throws IOException {
+	public boolean putObject(Object data, JobID jobId, String key, boolean overwriteExisting) throws IOException {
 		File storageFile = getStorageLocation(jobId, key);
+
+		// already existing file that is not to be overwritten?
+		if (storageFile.exists() && !overwriteExisting) {
+			return false;
+		}
+
 		// temporary file during transfer:
 		File incomingFile = new File(storageFile.getParent(), "." + storageFile.getName());
 		try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(incomingFile))) {
@@ -351,6 +365,7 @@ public class BlobServer extends Thread implements BlobService {
 
 			Files.move(incomingFile, storageFile);
 			blobStore.put(storageFile, jobId, key);
+			return true;
 		}
 	}
 

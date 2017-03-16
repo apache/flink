@@ -363,10 +363,14 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		if (serializedTaskInformation.getByteArray().length > rpcOffloadMinSize) {
 			LOG.info("Storing task {} information at the BLOB server", getJobVertexId());
 
-			// TODO: do not overwrite existing task info and thus speed up recovery
 			try {
 				final String fileKey = getOffloadedTaskInfoFileName(getJobVertexId());
-				blobServer.putObject(serializedTaskInformation, getJobId(), fileKey);
+				// do not overwrite an existing task info which will speed up recovery
+				boolean fileWritten =
+					blobServer.putObject(serializedTaskInformation, getJobId(), fileKey, false);
+				if (!fileWritten) {
+					LOG.info("Found existing task {} information at the BLOB server, skipping transfer", getJobVertexId());
+				}
 				return true;
 			} catch (IOException e) {
 				LOG.warn("Failed to offload task " + getJobVertexId() + " information data to BLOB store", e);
