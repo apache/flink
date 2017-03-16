@@ -25,7 +25,7 @@ import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.sql2rel.RelDecorrelator
-import org.apache.calcite.tools.RuleSet
+import org.apache.calcite.tools.{RuleSet, RuleSets}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.streaming.api.datastream.DataStream
@@ -38,6 +38,8 @@ import org.apache.flink.table.plan.schema.{DataStreamTable, TableSourceTable}
 import org.apache.flink.table.sinks.{StreamTableSink, TableSink}
 import org.apache.flink.table.sources.{StreamTableSource, TableSource}
 import org.apache.flink.types.Row
+
+import _root_.scala.collection.JavaConverters._
 
 /**
   * The base class for stream TableEnvironments.
@@ -211,6 +213,26 @@ abstract class StreamTableEnvironment(
   }
 
   /**
+    * Returns the decoration rule set for this environment
+    * including a custom RuleSet configuration.
+    */
+  protected def getDecoRuleSet: RuleSet = {
+    val calciteConfig = config.getCalciteConfig
+    calciteConfig.getDecoRuleSet match {
+
+      case None =>
+        getBuiltInDecoRuleSet
+
+      case Some(ruleSet) =>
+        if (calciteConfig.replacesDecoRuleSet) {
+          ruleSet
+        } else {
+          RuleSets.ofList((getBuiltInDecoRuleSet.asScala ++ ruleSet.asScala).asJava)
+        }
+    }
+  }
+
+  /**
     * Returns the built-in normalization rules that are defined by the environment.
     */
   protected def getBuiltInNormRuleSet: RuleSet = FlinkRuleSets.DATASTREAM_NORM_RULES
@@ -219,6 +241,11 @@ abstract class StreamTableEnvironment(
     * Returns the built-in optimization rules that are defined by the environment.
     */
   protected def getBuiltInOptRuleSet: RuleSet = FlinkRuleSets.DATASTREAM_OPT_RULES
+
+  /**
+    * Returns the built-in decoration rules that are defined by the environment.
+    */
+  protected def getBuiltInDecoRuleSet: RuleSet = FlinkRuleSets.DATASTREAM_DECO_RULES
 
   /**
     * Generates the optimized [[RelNode]] tree from the original relational node tree.
@@ -248,7 +275,14 @@ abstract class StreamTableEnvironment(
       normalizedPlan
     }
 
-    optimizedPlan
+    // 4. decorate the optimized plan
+    val decoRuleSet = getDecoRuleSet
+    val decoratedPlan = if (decoRuleSet.iterator().hasNext) {
+      runHepPlanner(HepMatchOrder.BOTTOM_UP, decoRuleSet, optimizedPlan, optimizedPlan.getTraitSet)
+    } else {
+      optimizedPlan
+    }
+    decoratedPlan
   }
 
 
