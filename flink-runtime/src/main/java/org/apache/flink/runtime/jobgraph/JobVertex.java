@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobgraph;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplitSource;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -30,6 +31,8 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * The base class for job vertexes.
@@ -60,6 +63,12 @@ public class JobVertex implements java.io.Serializable {
 
 	/** Maximum number of subtasks to split this taks into a runtime. */
 	private int maxParallelism = -1;
+
+	/** The minimum resource of the vertex */
+	private ResourceSpec minResources = ResourceSpec.DEFAULT;
+
+	/** The preferred resource of the vertex */
+	private ResourceSpec preferredResources = ResourceSpec.DEFAULT;
 
 	/** Custom configuration passed to the assigned task at runtime. */
 	private Configuration configuration;
@@ -276,6 +285,35 @@ public class JobVertex implements java.io.Serializable {
 	 */
 	public void setMaxParallelism(int maxParallelism) {
 		this.maxParallelism = maxParallelism;
+	}
+
+	/**
+	 * Gets the minimum resource for the task.
+	 *
+	 * @return The minimum resource for the task.
+	 */
+	public ResourceSpec getMinResources() {
+		return minResources;
+	}
+
+	/**
+	 * Gets the preferred resource for the task.
+	 *
+	 * @return The preferred resource for the task.
+	 */
+	public ResourceSpec getPreferredResources() {
+		return preferredResources;
+	}
+
+	/**
+	 * Sets the minimum and preferred resources for the task.
+	 *
+	 * @param minResources The minimum resource for the task.
+	 * @param preferredResources The preferred resource for the task.
+	 */
+	public void setResources(ResourceSpec minResources, ResourceSpec preferredResources) {
+		this.minResources = checkNotNull(minResources);
+		this.preferredResources = checkNotNull(preferredResources);
 	}
 
 	public InputSplitSource<?> getInputSplitSource() {

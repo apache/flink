@@ -44,7 +44,7 @@ public class ResourceSpec implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
-	public static final ResourceSpec UNKNOWN = new ResourceSpec(0, 0, 0, 0, 0);
+	public static final ResourceSpec DEFAULT = new ResourceSpec(0, 0, 0, 0, 0);
 
 	/** How many cpu cores are needed, use double so we can specify cpu like 0.1 */
 	private final double cpuCores;
