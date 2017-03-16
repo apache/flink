@@ -180,10 +180,11 @@ class DataStreamOverAggregate(
     // get the output types
     val rowTypeInfo = FlinkTypeFactory.toInternalRowTypeInfo(getRowType).asInstanceOf[RowTypeInfo]
 
+    // window size is lowerbound +1 to comply with over semantics 
     val lowerbound: Int = AggregateUtil.getLowerBoundary(
       logicWindow.constants,
       overWindow.lowerBound,
-      getInput())
+      getInput()) + 1
 
     val result: DataStream[Row] =
       // partitioned aggregation
@@ -193,7 +194,7 @@ class DataStreamOverAggregate(
           inputType)
         inputDS
           .keyBy(partitionKeys: _*)
-          .countWindow(lowerbound,1)
+          .countWindow(lowerbound,1) 
           .apply(windowFunction)
           .returns(rowTypeInfo)
           .name(aggOpName)
