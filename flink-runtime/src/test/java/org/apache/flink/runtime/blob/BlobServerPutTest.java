@@ -26,8 +26,12 @@ import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ObjectInputStream;
+import java.io.RandomAccessFile;
+import java.io.StreamCorruptedException;
 import java.net.InetSocketAddress;
 import java.util.Random;
 
@@ -439,6 +443,56 @@ public class BlobServerPutTest {
 					t.printStackTrace();
 				}
 			}
+			if (server != null) {
+				server.shutdown();
+			}
+		}
+	}
+
+	@Test
+	public void testServerPutObject() throws Exception {
+		BlobServer server = null;
+
+		try {
+			Configuration config = new Configuration();
+			server = new BlobServer(config);
+
+			byte[] data = new byte[2000000];
+			rnd.nextBytes(data);
+
+			// put under job and name scope
+			JobID jid = new JobID();
+			String stringKey = "my test key";
+			server.putObject(data, jid, stringKey, true);
+
+			// --- GET the data and check that it is equal ---
+
+			final String dataFile = server.getURL(jid, stringKey).getFile();
+			try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(dataFile))) {
+				byte[] result = (byte[]) ois.readObject();
+				assertArrayEquals(data, result);
+			}
+
+			// --- change file contents and check that it is not written again if not set to overwrite ---
+			final RandomAccessFile raf = new RandomAccessFile(new File(dataFile), "rw");
+			raf.writeByte(data[0] ^ 1);
+			server.putObject(data, jid, stringKey, false);
+
+			assertEquals(dataFile, server.getURL(jid, stringKey).getFile());
+			try (ObjectInputStream ignored = new ObjectInputStream(new FileInputStream(dataFile))) {
+				fail("BLOB file was written although overwriteExisting is not set");
+			} catch (StreamCorruptedException ignored) {
+			}
+
+			// --- overwrite and check that the data is correct again ---
+			server.putObject(data, jid, stringKey, true);
+
+			assertEquals(dataFile, server.getURL(jid, stringKey).getFile());
+			try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(dataFile))) {
+				byte[] result = (byte[]) ois.readObject();
+				assertArrayEquals(data, result);
+			}
+		} finally {
 			if (server != null) {
 				server.shutdown();
 			}
