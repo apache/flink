@@ -31,11 +31,11 @@ import org.apache.flink.table.functions.Accumulator
 /**
   * Computes the final aggregate value from incrementally computed aggreagtes.
   *
-  * @param numGroupingKey The number of grouping keys.
-  * @param numAggregates The number of aggregates.
-  * @param finalRowArity The arity of the final output row.
+  * @param aggregates The aggregates to be computed
+  * @param aggFields the fields on which to apply the aggregate.
+  * @param forwardedFieldCount The fields to be carried from current row.
   */
-class DataStreamIncrementalAggregateWindowFunction[W <: Window](
+class DataStreamProcTimeAggregateWindowFunction[W <: Window](
      private val aggregates: Array[AggregateFunction[_]],
      private val aggFields: Array[Int],
      private val forwardedFieldCount: Int)
@@ -70,8 +70,8 @@ private var accumulators: Row= _
      //the design of the Accumulator interface should be extended to enable 
      //a reset function for better performance
      while (i < aggregates.length) {
-        accumulators.setField(i, aggregates(i).createAccumulator())
-        i += 1
+       aggregates(i).resetAccumulator(accumulators.getField(i).asInstanceOf[Accumulator])
+       i += 1
      }
      var reuse:Row = null
      //iterate through the elements and aggregate
@@ -102,7 +102,6 @@ private var accumulators: Row= _
       i += 1
     }
 
-    out.collect(output)
-    
+    out.collect(output)    
   }
 }

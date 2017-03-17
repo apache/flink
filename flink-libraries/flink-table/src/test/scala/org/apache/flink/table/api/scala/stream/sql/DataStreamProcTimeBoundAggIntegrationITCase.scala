@@ -32,7 +32,7 @@ import org.junit.Assert._
 import org.junit._
 import scala.collection.mutable
 
-class DataStreamProcTimeBoundAggIntegrationTest extends StreamingWithStateTestBase {
+class DataStreamProcTimeBoundAggIntegrationITCase extends StreamingWithStateTestBase {
 
   // ----------------------------------------------------------------------------------------------
   // Sliding windows

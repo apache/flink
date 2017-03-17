@@ -58,7 +58,7 @@ import org.apache.flink.streaming.api.functions.windowing.WindowFunction
 import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows
 import java.util.concurrent.TimeUnit
-import org.apache.flink.table.runtime.aggregate.DataStreamIncrementalAggregateWindowFunction
+import org.apache.flink.table.runtime.aggregate.DataStreamProcTimeAggregateWindowFunction
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow
 
 
@@ -161,14 +161,16 @@ class DataStreamOverAggregate(
     val partitionKeys: Array[Int] = overWindow.keys.toArray
     val namedAggregates: Seq[CalcitePair[AggregateCall, String]] = generateNamedAggregates
 
-    // final long time_boundary =
-    // Long.parseLong(windowReference.getConstants().get(1).getValue().toString());
     val index = overWindow.lowerBound.getOffset.asInstanceOf[RexInputRef].getIndex
     val count = input.getRowType().getFieldCount()
     val lowerboundIndex = index - count
-    val time_boundary =  logicWindow.constants.get(lowerboundIndex)
+    var time_boundary = 0L
+     
+    logicWindow.constants.get(lowerboundIndex).getValue2 match {
+      case _: java.math.BigDecimal => time_boundary = logicWindow.constants.get(lowerboundIndex)
          .getValue2.asInstanceOf[java.math.BigDecimal].longValue()
-
+      case _ => throw new TableException("OVER Window boundaries must be numeric")
+    }
 
     val (aggFields, aggregates) =  AggregateUtil.transformToAggregateFunctions(
          namedAggregates.map(_.getKey),inputType, needRetraction = false)
@@ -192,7 +194,7 @@ class DataStreamOverAggregate(
           .window(GlobalWindows.create())
           .trigger(CountTrigger.of(1))
           .evictor(TimeEvictor.of(Time.milliseconds(time_boundary))) 
-          .apply(new DataStreamIncrementalAggregateWindowFunction[GlobalWindow]
+          .apply(new DataStreamProcTimeAggregateWindowFunction[GlobalWindow]
                (aggregates,aggFields,inputType.getFieldCount))
           .returns(rowTypeInfo)
           .name(aggOpName)
@@ -302,16 +304,6 @@ object DataStreamProcTimeCase {
       previousElementTimestamp: Long): Long = {
       System.currentTimeMillis()
     }
-  }
-  /*
-  class MyWindowFunction extends AllWindowFunction[Row, Row, GlobalWindow] {
-
-  def apply( window: GlobalWindow, input: Iterable[Row], out: Collector[Row]): () = {
-
-  }
- }*/
-  
-  
-  
+  }  
 }
 
