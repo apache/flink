@@ -45,7 +45,6 @@ import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
-import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.jobmaster.JMTMRegistrationSuccess;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
@@ -309,13 +308,15 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 				tdd.getSubtaskIndex(),
 				tdd.getAttemptNumber());
 
-		InputSplitProvider inputSplitProvider = new RpcInputSplitProvider(
+		RpcInputSplitProvider inputSplitProvider = new RpcInputSplitProvider(
 				jobManagerConnection.getLeaderId(),
 				jobManagerConnection.getJobManagerGateway(),
 				jobInformation.getJobId(),
 				taskInformation.getJobVertexId(),
 				tdd.getExecutionAttemptId(),
 				taskManagerConfiguration.getTimeout());
+
+		jobManagerConnection.registerListener(inputSplitProvider);
 
 		TaskManagerActions taskManagerActions = jobManagerConnection.getTaskManagerActions();
 		CheckpointResponder checkpointResponder = jobManagerConnection.getCheckpointResponder();
@@ -790,9 +791,9 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		Preconditions.checkNotNull(jobMasterGateway);
 		Preconditions.checkArgument(blobPort > 0 || blobPort < MAX_BLOB_PORT, "Blob server port is out of range.");
 
-		TaskManagerActions taskManagerActions = new TaskManagerActionsImpl(jobManagerLeaderId, jobMasterGateway);
+		TaskManagerActionsImpl taskManagerActions = new TaskManagerActionsImpl(jobManagerLeaderId, jobMasterGateway);
 
-		CheckpointResponder checkpointResponder = new RpcCheckpointResponder(jobMasterGateway);
+		RpcCheckpointResponder checkpointResponder = new RpcCheckpointResponder(jobMasterGateway);
 
 		InetSocketAddress blobServerAddress = new InetSocketAddress(jobMasterGateway.getHostname(), blobPort);
 
@@ -811,15 +812,15 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 			throw new RuntimeException(message, e);
 		}
 
-		ResultPartitionConsumableNotifier resultPartitionConsumableNotifier = new RpcResultPartitionConsumableNotifier(
+		RpcResultPartitionConsumableNotifier resultPartitionConsumableNotifier = new RpcResultPartitionConsumableNotifier(
 			jobManagerLeaderId,
 			jobMasterGateway,
 			getRpcService().getExecutor(),
 			taskManagerConfiguration.getTimeout());
 
-		PartitionProducerStateChecker partitionStateChecker = new RpcPartitionStateChecker(jobManagerLeaderId, jobMasterGateway);
+		RpcPartitionStateChecker partitionStateChecker = new RpcPartitionStateChecker(jobManagerLeaderId, jobMasterGateway);
 
-		return new JobManagerConnection(
+		final JobManagerConnection jobManagerConnection = new JobManagerConnection(
 			jobMasterGateway,
 			jobManagerLeaderId,
 			taskManagerActions,
@@ -827,6 +828,13 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 			libraryCacheManager,
 			resultPartitionConsumableNotifier,
 			partitionStateChecker);
+
+		jobManagerConnection.registerListener(taskManagerActions);
+		jobManagerConnection.registerListener(checkpointResponder);
+		jobManagerConnection.registerListener(resultPartitionConsumableNotifier);
+		jobManagerConnection.registerListener(partitionStateChecker);
+
+		return jobManagerConnection;
 	}
 
 	private void disassociateFromJobManager(JobManagerConnection jobManagerConnection) throws IOException {
@@ -1077,9 +1085,9 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		}
 	}
 
-	private final class TaskManagerActionsImpl implements TaskManagerActions {
-		private final UUID jobMasterLeaderId;
-		private final JobMasterGateway jobMasterGateway;
+	private final class TaskManagerActionsImpl implements TaskManagerActions, JobManagerConnectionListener {
+		private UUID jobMasterLeaderId;
+		private JobMasterGateway jobMasterGateway;
 
 		private TaskManagerActionsImpl(UUID jobMasterLeaderId, JobMasterGateway jobMasterGateway) {
 			this.jobMasterLeaderId = Preconditions.checkNotNull(jobMasterLeaderId);
@@ -1115,6 +1123,12 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		@Override
 		public void updateTaskExecutionState(final TaskExecutionState taskExecutionState) {
 			TaskExecutor.this.updateTaskExecutionState(jobMasterLeaderId, jobMasterGateway, taskExecutionState);
+		}
+
+		@Override
+		public void notifyJobManagerConnectionChanged(JobMasterGateway jobMasterGateway, UUID jobMasterLeaderID) {
+			this.jobMasterGateway = jobMasterGateway;
+			this.jobMasterLeaderId = jobMasterLeaderID;
 		}
 	}
 

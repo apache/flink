@@ -26,6 +26,8 @@ import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.util.Preconditions;
 
+import java.util.LinkedList;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -54,6 +56,8 @@ public class JobManagerConnection {
 	// Partition state checker for the specific job manager
 	private final PartitionProducerStateChecker partitionStateChecker;
 
+	private List<JobManagerConnectionListener> jobManagerConnectionListeners;
+
 	public JobManagerConnection(
 		JobMasterGateway jobMasterGateway,
 		UUID leaderId,
@@ -69,6 +73,7 @@ public class JobManagerConnection {
 		this.libraryCacheManager = Preconditions.checkNotNull(libraryCacheManager);
 		this.resultPartitionConsumableNotifier = Preconditions.checkNotNull(resultPartitionConsumableNotifier);
 		this.partitionStateChecker = Preconditions.checkNotNull(partitionStateChecker);
+		this.jobManagerConnectionListeners = new LinkedList<>();
 	}
 
 	public UUID getLeaderId() {
@@ -97,5 +102,16 @@ public class JobManagerConnection {
 
 	public PartitionProducerStateChecker getPartitionStateChecker() {
 		return partitionStateChecker;
+	}
+
+	public void registerListener(JobManagerConnectionListener listener) {
+		jobManagerConnectionListeners.add(listener);
+	}
+
+	public void notifyListener(JobManagerConnection newJobManagerConnection) {
+		for (JobManagerConnectionListener listener: jobManagerConnectionListeners) {
+			listener.notifyJobManagerConnectionChanged(newJobManagerConnection.getJobManagerGateway(),
+				newJobManagerConnection.getLeaderId());
+		}
 	}
 }

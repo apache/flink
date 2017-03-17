@@ -23,12 +23,16 @@ import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorGateway;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.jobmaster.JobMasterGateway;
+import org.apache.flink.runtime.taskexecutor.JobManagerConnectionListener;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.util.Preconditions;
 
-public class RpcCheckpointResponder implements CheckpointResponder {
+import java.util.UUID;
 
-	private final CheckpointCoordinatorGateway checkpointCoordinatorGateway;
+public class RpcCheckpointResponder implements CheckpointResponder, JobManagerConnectionListener {
+
+	private CheckpointCoordinatorGateway checkpointCoordinatorGateway;
 
 	public RpcCheckpointResponder(CheckpointCoordinatorGateway checkpointCoordinatorGateway) {
 		this.checkpointCoordinatorGateway = Preconditions.checkNotNull(checkpointCoordinatorGateway);
@@ -58,5 +62,10 @@ public class RpcCheckpointResponder implements CheckpointResponder {
 			Throwable cause) {
 
 		checkpointCoordinatorGateway.declineCheckpoint(jobID, executionAttemptID, checkpointId, cause);
+	}
+
+	@Override
+	public void notifyJobManagerConnectionChanged(JobMasterGateway jobMasterGateway, UUID jobMasterLeaderID) {
+		this.checkpointCoordinatorGateway = jobMasterGateway;
 	}
 }
