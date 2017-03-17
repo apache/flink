@@ -20,7 +20,6 @@ package org.apache.flink.runtime.execution.librarycache;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.blob.BlobCache;
 import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.BlobKey;
@@ -59,7 +58,6 @@ public class BlobLibraryCacheManagerTest {
 			server = new BlobServer(config);
 			InetSocketAddress blobSocketAddress = new InetSocketAddress(server.getPort());
 			BlobClient bc = new BlobClient(blobSocketAddress, config);
-
 			keys.add(bc.put(buf));
 			buf[0] += 1;
 			keys.add(bc.put(buf));

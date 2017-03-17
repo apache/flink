@@ -62,4 +62,26 @@ public class SecurityOptions {
 	public static final ConfigOption<String> ZOOKEEPER_SASL_LOGIN_CONTEXT_NAME =
 		key("zookeeper.sasl.login-context-name")
 			.defaultValue("Client");
+
+	// ------------------------------------------------------------------------
+	//  Service Level Authorization Options
+	// ------------------------------------------------------------------------
+	public static final ConfigOption<String> SECURITY_COOKIE =
+			key("security.cookie")
+			.noDefaultValue();
+
+	/**
+	 * A flag indicating if service level authorization is enabled or not
+	 */
+	public static final ConfigOption<Boolean> SECURITY_ENABLED =
+			key("security.enabled")
+					.defaultValue(false);
+
+	/**
+	 * A flag indicating if SSL is enabled or not
+	 */
+	public static final ConfigOption<Boolean> SECURITY_SSL_ENABLED =
+			key("security.ssl.enabled")
+					.defaultValue(false);
+
 }

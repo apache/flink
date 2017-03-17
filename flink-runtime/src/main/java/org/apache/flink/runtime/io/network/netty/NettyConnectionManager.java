@@ -40,7 +40,6 @@ public class NettyConnectionManager implements ConnectionManager {
 		this.server = new NettyServer(nettyConfig);
 		this.client = new NettyClient(nettyConfig);
 		this.bufferPool = new NettyBufferPool(nettyConfig.getNumberOfArenas());
-
 		this.partitionRequestClientFactory = new PartitionRequestClientFactory(client);
 	}
 

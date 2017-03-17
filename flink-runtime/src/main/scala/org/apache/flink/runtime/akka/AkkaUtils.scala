@@ -28,6 +28,7 @@ import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.configuration.{AkkaOptions, ConfigConstants, Configuration}
 import org.apache.flink.runtime.net.SSLUtils
+import org.apache.flink.runtime.security.{SecurityUtils}
 import org.apache.flink.util.NetUtils
 import org.jboss.netty.logging.{InternalLoggerFactory, Slf4JLoggerFactory}
 import org.slf4j.LoggerFactory
@@ -344,6 +345,12 @@ object AkkaUtils {
       ConfigConstants.DEFAULT_SECURITY_SSL_ALGORITHMS)
     val akkaSSLAlgorithms = akkaSSLAlgorithmsString.split(",").toList.mkString("[", ",", "]")
 
+    val securityEnabled = SecurityUtils.isSecurityEnabled(configuration)
+
+    val secureCookie = configuration.getString(ConfigConstants.SECURITY_COOKIE, null)
+
+    val requireCookie = if (securityEnabled) "on" else "off"
+
     val configString =
       s"""
          |akka {
@@ -438,7 +445,22 @@ object AkkaUtils {
       ""
     }
 
-    ConfigFactory.parseString(configString + hostnameConfigString + sslConfigString).resolve()
+    val cookieConfigString = if(securityEnabled){
+      s"""
+         |akka {
+         |  remote {
+         |    require-cookie = $requireCookie
+         |    secure-cookie = "$secureCookie"
+         |  }
+         |}
+         """.stripMargin
+    }else{
+      ""
+    }
+
+    ConfigFactory.parseString(configString + hostnameConfigString
+      + sslConfigString + cookieConfigString).resolve()
+
   }
 
   def getLogLevel: String = {

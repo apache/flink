@@ -23,6 +23,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.IOUtils;
+import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.runtime.security.SecurityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -70,6 +72,9 @@ public final class BlobCache implements BlobService {
 
 	/** Configuration for the blob client like ssl parameters required to connect to the blob server */
 	private final Configuration blobClientConfig;
+
+	/** Secure cookie for service level authorization **/
+	private final String secureCookie;
 
 	/**
 	 * Instantiates a new BLOB cache.
@@ -127,6 +132,14 @@ public final class BlobCache implements BlobService {
 		this.serverAddress = checkNotNull(serverAddress);
 		this.blobClientConfig = checkNotNull(blobClientConfig);
 		this.blobStore = blobStore;
+
+		boolean securityEnabled = SecurityUtils.isSecurityEnabled(blobClientConfig);
+
+		this.secureCookie = blobClientConfig.getString(ConfigConstants.SECURITY_COOKIE, null);
+
+		if(securityEnabled && this.secureCookie == null) {
+			throw new IllegalConfigurationException(ConfigConstants.SECURITY_COOKIE + " must be configured.");
+		}
 
 		// configure and create the storage directory
 		String storageDirectory = blobClientConfig.getString(ConfigConstants.BLOB_STORAGE_DIRECTORY_KEY, null);
@@ -330,4 +343,7 @@ public final class BlobCache implements BlobService {
 		return this.storageDir;
 	}
 
+	/* Secure cookie to authorize */
+	@Override
+	public String getSecureCookie() { return secureCookie; }
 }

@@ -21,6 +21,8 @@ package org.apache.flink.runtime.io.network.netty;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.net.SSLUtils;
+import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.runtime.security.SecurityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,6 +71,8 @@ public class NettyConfig {
 
 	private final int numberOfSlots;
 
+	private final String secureCookie;
+
 	private final Configuration config; // optional configuration
 
 	public NettyConfig(
@@ -91,6 +95,12 @@ public class NettyConfig {
 
 		this.config = checkNotNull(config);
 
+		this.secureCookie = config.getString(ConfigConstants.SECURITY_COOKIE, "");
+
+		if(isSecurityEnabled() && this.secureCookie.equals("")) {
+			throw new IllegalConfigurationException(ConfigConstants.SECURITY_COOKIE + " must be configured.");
+		}
+
 		LOG.info(this.toString());
 	}
 
@@ -109,6 +119,8 @@ public class NettyConfig {
 	public int getNumberOfSlots() {
 		return numberOfSlots;
 	}
+
+	public String getSecureCookie() { return secureCookie; }
 
 	// ------------------------------------------------------------------------
 	// Setters
@@ -234,6 +246,10 @@ public class NettyConfig {
 		return config.getBoolean(ConfigConstants.TASK_MANAGER_DATA_SSL_ENABLED,
 				ConfigConstants.DEFAULT_TASK_MANAGER_DATA_SSL_ENABLED)
 			&& SSLUtils.getSSLEnabled(config);
+	}
+
+	public boolean isSecurityEnabled() {
+		return SecurityUtils.isSecurityEnabled(config);
 	}
 
 	public void setSSLVerifyHostname(SSLParameters sslParams) {

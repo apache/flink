@@ -24,7 +24,6 @@ import com.google.common.base.Joiner;
 import com.google.common.collect.Sets;
 import org.apache.commons.io.FileUtils;
 import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
 import org.apache.flink.test.testdata.WordCountData;
@@ -439,10 +438,10 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 		LOG.info("CLI Frontend has returned, so the job is running");
 
 		// find out the application id and wait until it has finished.
+		ApplicationId tmpAppId = null;
 		try {
 			List<ApplicationReport> apps = yc.getApplications(EnumSet.of(YarnApplicationState.RUNNING));
 
-			ApplicationId tmpAppId;
 			if (apps.size() == 1) {
 				// Better method to find the right appId. But sometimes the app is shutting down very fast
 				// Only one running
@@ -521,26 +520,10 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 			LOG.warn("Error while detached yarn session was running", t);
 			Assert.fail(t.getMessage());
 		} finally {
-
-			//cleanup the yarn-properties file
-			String confDirPath = System.getenv("FLINK_CONF_DIR");
-			File configDirectory = new File(confDirPath);
-			LOG.info("testDetachedPerJobYarnClusterInternal: Using configuration directory " + configDirectory.getAbsolutePath());
-
-			// load the configuration
-			LOG.info("testDetachedPerJobYarnClusterInternal: Trying to load configuration file");
-			GlobalConfiguration.loadConfiguration(configDirectory.getAbsolutePath());
-
-			try {
-				File yarnPropertiesFile = FlinkYarnSessionCli.getYarnPropertiesLocation(GlobalConfiguration.loadConfiguration());
-				if(yarnPropertiesFile.exists()) {
-					LOG.info("testDetachedPerJobYarnClusterInternal: Cleaning up temporary Yarn address reference: {}", yarnPropertiesFile.getAbsolutePath());
-					yarnPropertiesFile.delete();
-				}
-			} catch (Exception e) {
-				LOG.warn("testDetachedPerJobYarnClusterInternal: Exception while deleting the JobManager address file", e);
+			//clean up the Yarn application state INI file
+			if(tmpAppId != null) {
+				FlinkYarnSessionCli.removeAppState(tmpAppId.toString());
 			}
-
 		}
 	}
 

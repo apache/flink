@@ -18,6 +18,7 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.commons.net.util.Base64;
 import org.apache.flink.client.CliFrontend;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.configuration.ConfigConstants;
@@ -29,7 +30,9 @@ import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
+import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -73,6 +76,7 @@ import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -399,6 +403,14 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 			flinkConfiguration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, appReport.getHost());
 			flinkConfiguration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, appReport.getRpcPort());
+
+			//get secure cookie
+			boolean securityEnabled = SecurityUtils.isSecurityEnabled(flinkConfiguration);
+			String secureCookie = flinkConfiguration.getString(ConfigConstants.SECURITY_COOKIE, null);
+			if(applicationID != null && securityEnabled && secureCookie == null) {
+				secureCookie = FlinkYarnSessionCli.getAppSecureCookie(applicationID);
+				flinkConfiguration.setString(ConfigConstants.SECURITY_COOKIE, secureCookie);
+			}
 
 			return createYarnClusterClient(this, yarnClient, appReport, flinkConfiguration, sessionFilesDir, false);
 		} catch (Exception e) {
@@ -836,6 +848,24 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 		if(dynamicPropertiesEncoded != null) {
 			appMasterEnv.put(YarnConfigKeys.ENV_DYNAMIC_PROPERTIES, dynamicPropertiesEncoded);
+		}
+
+		//verify if security is enabled and cookie is passed
+		boolean securityEnabled = SecurityUtils.isSecurityEnabled(flinkConfiguration);
+		String secureCookie = flinkConfiguration.getString(ConfigConstants.SECURITY_COOKIE, null);
+		if(securityEnabled) {
+			if(secureCookie == null) {
+				//create cookie if not passed
+				SecureRandom rnd = new SecureRandom();
+				final byte[] secret = new byte[256];
+				rnd.nextBytes(secret);
+				secureCookie = Base64.encodeBase64URLSafeString(secret);
+			}
+		}
+		if(secureCookie != null) {
+			LOG.info("Service Auth is enabled. Adding secure cookie to container environment");
+			appMasterEnv.put(YarnConfigKeys.ENV_SECURE_AUTH_COOKIE, secureCookie);
+			flinkConfiguration.setString(ConfigConstants.SECURITY_COOKIE, secureCookie);
 		}
 
 		// set classpath from YARN configuration

@@ -53,6 +53,14 @@ public class BlobServerProtocol {
 	/** Internal code to identify a reference via jobId as the key */
 	static final byte JOB_ID_SCOPE = 2;
 
+	/** Internal code to identify security header.
+	 *  The header is required because when SSL client talks to non-SSL blob server
+	 *  (see: org.apache.flink.runtime.blob.BlobClientSslTest#testSSLClientFailure) , the read operation
+	 *  reads some arbitrary data length and hence the secure cookie read operation will wait indefinitely.
+	 *  We need to pass secure cookie header first followed by cookie length and cookie data to overcome this issue.
+	 */
+	static final byte SECURITY_HEADER_CODE = 127;
+
 	// --------------------------------------------------------------------------------------------
 
 	private BlobServerProtocol() {}

@@ -174,6 +174,7 @@ public class PartitionRequestClientHandlerTest {
 	@Test
 	@SuppressWarnings("unchecked")
 	public void testAutoReadAfterUnsuccessfulStagedMessage() throws Exception {
+
 		PartitionRequestClientHandler handler = new PartitionRequestClientHandler();
 		EmbeddedChannel channel = new EmbeddedChannel(handler);
 
@@ -255,6 +256,7 @@ public class PartitionRequestClientHandlerTest {
 			InputChannelID receivingChannelId) throws IOException {
 
 		// Mock buffer to serialize
+		String secureCookie = "";
 		BufferResponse resp = new BufferResponse(buffer, sequenceNumber, receivingChannelId);
 
 		ByteBuf serialized = resp.write(UnpooledByteBufAllocator.DEFAULT);

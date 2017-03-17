@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.blob;
 
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.junit.Rule;
@@ -88,7 +89,6 @@ public class BlobCacheRetriesTest {
 			BlobKey key;
 			try {
 				blobClient = new BlobClient(serverAddress, config);
-
 				key = blobClient.put(data);
 			}
 			finally {
@@ -180,7 +180,6 @@ public class BlobCacheRetriesTest {
 			BlobKey key;
 			try {
 				blobClient = new BlobClient(serverAddress, config);
-
 				key = blobClient.put(data);
 			}
 			finally {

@@ -59,6 +59,8 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 
 	private ChannelHandlerContext ctx;
 
+	public PartitionRequestQueue() { }
+
 	@Override
 	public void channelRegistered(final ChannelHandlerContext ctx) throws Exception {
 		if (this.ctx == null) {

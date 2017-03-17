@@ -21,12 +21,14 @@ package org.apache.flink.runtime.blob;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.net.SSLUtils;
+import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.util.InstantiationUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,6 +63,7 @@ import static org.apache.flink.runtime.blob.BlobServerProtocol.NAME_ADDRESSABLE;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.PUT_OPERATION;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.RETURN_ERROR;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.RETURN_OKAY;
+import static org.apache.flink.runtime.blob.BlobServerProtocol.SECURITY_HEADER_CODE;
 import static org.apache.flink.runtime.blob.BlobUtils.readFully;
 import static org.apache.flink.runtime.blob.BlobUtils.readLength;
 import static org.apache.flink.runtime.blob.BlobUtils.writeLength;
@@ -76,6 +79,9 @@ public final class BlobClient implements Closeable {
 	/** The socket connection to the BLOB server. */
 	private Socket socket;
 
+	/** Secure cookie value from Flink Configuration **/
+	private String secureCookie = "";
+
 	/**
 	 * Instantiates a new BLOB client.
 	 * 
@@ -87,6 +93,18 @@ public final class BlobClient implements Closeable {
 	 *         thrown if the connection to the BLOB server could not be established
 	 */
 	public BlobClient(InetSocketAddress serverAddress, Configuration clientConfig) throws IOException {
+
+		this.socket = new Socket();
+
+		if(clientConfig != null) {
+			boolean securityEnabled = SecurityUtils.isSecurityEnabled(clientConfig);
+
+			this.secureCookie = clientConfig.getString(ConfigConstants.SECURITY_COOKIE, "");
+
+			if (securityEnabled && this.secureCookie.equals("")) {
+				throw new IllegalConfigurationException(ConfigConstants.SECURITY_COOKIE + " must be configured.");
+			}
+		}
 
 		try {
 			// Check if ssl is enabled
@@ -101,6 +119,9 @@ public final class BlobClient implements Closeable {
 			if (clientSSLContext != null) {
 
 				LOG.info("Using ssl connection to the blob server");
+
+				LOG.debug("Connecting to server: {}, port: {}", serverAddress.getAddress(),
+						serverAddress.getPort());
 
 				SSLSocket sslSocket = (SSLSocket) clientSSLContext.getSocketFactory().createSocket(
 					serverAddress.getAddress(),
@@ -231,6 +252,8 @@ public final class BlobClient implements Closeable {
 	 *         thrown if an I/O error occurs while writing the header data to the output stream
 	 */
 	private void sendGetHeader(OutputStream outputStream, JobID jobID, String key, BlobKey blobKey) throws IOException {
+
+		sendSecureCookie(outputStream);
 
 		// Signal type of operation
 		outputStream.write(GET_OPERATION);
@@ -562,6 +585,8 @@ public final class BlobClient implements Closeable {
 			throw new IllegalArgumentException();
 		}
 
+		sendSecureCookie(outputStream);
+
 		// Signal type of operation
 		outputStream.write(PUT_OPERATION);
 
@@ -660,6 +685,8 @@ public final class BlobClient implements Closeable {
 			final OutputStream outputStream = this.socket.getOutputStream();
 			final InputStream inputStream = this.socket.getInputStream();
 
+			sendSecureCookie(outputStream);
+
 			// Signal type of operation
 			outputStream.write(DELETE_OPERATION);
 
@@ -704,6 +731,13 @@ public final class BlobClient implements Closeable {
 		}
 	}
 
+	private void sendSecureCookie(OutputStream outputStream) throws IOException {
+		outputStream.write(SECURITY_HEADER_CODE);
+		byte[] secureCookieBytes = secureCookie.getBytes(BlobUtils.DEFAULT_CHARSET);
+		writeLength(secureCookieBytes.length, outputStream);
+		outputStream.write(secureCookieBytes);
+	}
+
 	/**
 	 * Retrieves the {@link BlobServer} address from the JobManager and uploads
 	 * the JAR files to it.
@@ -725,7 +759,6 @@ public final class BlobClient implements Closeable {
 		} else {
 			Object msg = JobManagerMessages.getRequestBlobManagerPort();
 			Future<Object> futureBlobPort = jobManager.ask(msg, askTimeout);
-
 			try {
 				// Retrieve address
 				Object result = Await.result(futureBlobPort, askTimeout);

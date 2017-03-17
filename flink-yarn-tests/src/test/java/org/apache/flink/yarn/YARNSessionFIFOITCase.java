@@ -109,6 +109,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		LOG.info("Two containers are running. Killing the application");
 
 		// kill application "externally".
+		ApplicationId id = null;
 		try {
 			YarnClient yc = YarnClient.createYarnClient();
 			yc.init(yarnConfiguration);
@@ -118,7 +119,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 			ApplicationReport app = apps.get(0);
 
 			Assert.assertEquals("MyCustomName", app.getName());
-			ApplicationId id = app.getApplicationId();
+			id = app.getApplicationId();
 			yc.killApplication(id);
 
 			while(yc.getApplications(EnumSet.of(YarnApplicationState.KILLED)).size() == 0) {
@@ -128,26 +129,10 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 			LOG.warn("Killing failed", t);
 			Assert.fail();
 		} finally {
-
-			//cleanup the yarn-properties file
-			String confDirPath = System.getenv("FLINK_CONF_DIR");
-			File configDirectory = new File(confDirPath);
-			LOG.info("testDetachedPerJobYarnClusterInternal: Using configuration directory " + configDirectory.getAbsolutePath());
-
-			// load the configuration
-			LOG.info("testDetachedPerJobYarnClusterInternal: Trying to load configuration file");
-			GlobalConfiguration.loadConfiguration(configDirectory.getAbsolutePath());
-
-			try {
-				File yarnPropertiesFile = FlinkYarnSessionCli.getYarnPropertiesLocation(GlobalConfiguration.loadConfiguration());
-				if(yarnPropertiesFile.exists()) {
-					LOG.info("testDetachedPerJobYarnClusterInternal: Cleaning up temporary Yarn address reference: {}", yarnPropertiesFile.getAbsolutePath());
-					yarnPropertiesFile.delete();
-				}
-			} catch (Exception e) {
-				LOG.warn("testDetachedPerJobYarnClusterInternal: Exception while deleting the JobManager address file", e);
+			//clean up the Yarn application state INI file
+			if(id != null) {
+				FlinkYarnSessionCli.removeAppState(id.toString());
 			}
-
 		}
 
 		LOG.info("Finished testDetachedMode()");

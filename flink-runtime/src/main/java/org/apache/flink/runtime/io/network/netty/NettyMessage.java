@@ -37,6 +37,8 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -73,7 +75,6 @@ abstract class NettyMessage {
 		buffer.writeInt(HEADER_LENGTH + length);
 		buffer.writeInt(MAGIC_NUMBER);
 		buffer.writeByte(id);
-
 		return buffer;
 	}
 
@@ -119,6 +120,10 @@ abstract class NettyMessage {
 
 	@ChannelHandler.Sharable
 	static class NettyMessageDecoder extends MessageToMessageDecoder<ByteBuf> {
+
+		private static final Logger LOG = LoggerFactory.getLogger(NettyMessageDecoder.class);
+
+		public NettyMessageDecoder() {}
 
 		@Override
 		protected void decode(ChannelHandlerContext ctx, ByteBuf msg, List<Object> out) throws Exception {
@@ -223,6 +228,7 @@ abstract class NettyMessage {
 			int length = 16 + 4 + 1 + 4 + buffer.getSize();
 
 			ByteBuf result = null;
+
 			try {
 				result = allocateBuffer(allocator, ID, length);
 
@@ -300,6 +306,7 @@ abstract class NettyMessage {
 
 				// Update frame length...
 				result.setInt(0, result.readableBytes());
+
 				return result;
 			}
 			catch (Throwable t) {
@@ -505,8 +512,7 @@ abstract class NettyMessage {
 
 		private static final byte ID = 5;
 
-		public CloseRequest() {
-		}
+		public CloseRequest() {}
 
 		@Override
 		ByteBuf write(ByteBufAllocator allocator) throws Exception {

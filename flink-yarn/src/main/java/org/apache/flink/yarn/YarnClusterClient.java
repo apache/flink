@@ -53,7 +53,6 @@ import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -374,18 +373,7 @@ public class YarnClusterClient extends ClusterClient {
 			LOG.warn("Error while stopping YARN cluster.", e);
 		}
 
-		try {
-			File propertiesFile = FlinkYarnSessionCli.getYarnPropertiesLocation(flinkConfig);
-			if (propertiesFile.isFile()) {
-				if (propertiesFile.delete()) {
-					LOG.info("Deleted Yarn properties file at {}", propertiesFile.getAbsoluteFile().toString());
-				} else {
-					LOG.warn("Couldn't delete Yarn properties file at {}", propertiesFile.getAbsoluteFile().toString());
-				}
-			}
-		} catch (Exception e) {
-			LOG.warn("Exception while deleting the JobManager address file", e);
-		}
+		FlinkYarnSessionCli.removeAppState(appId.toString());
 
 		if (sessionFilesDir != null) {
 			LOG.info("Deleting files in " + sessionFilesDir);

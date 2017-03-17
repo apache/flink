@@ -190,6 +190,11 @@ class NettyClient {
 
 					channel.pipeline().addLast("ssl", new SslHandler(sslEngine));
 				}
+				if(config.isSecurityEnabled())
+				{
+					channel.pipeline().addLast("client-cookie",
+							new CookieHandler.ClientCookieHandler(config.getSecureCookie()));
+				}
 				channel.pipeline().addLast(protocol.getClientChannelHandlers());
 			}
 		});

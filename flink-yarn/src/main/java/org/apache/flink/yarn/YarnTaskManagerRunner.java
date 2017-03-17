@@ -100,6 +100,13 @@ public class YarnTaskManagerRunner {
 			LOG.info("localKeytabPath: {}", localKeytabPath);
 		}
 
+		final String secureCookie = envs.get(YarnConfigKeys.ENV_SECURE_AUTH_COOKIE);
+		if(secureCookie != null) {
+			LOG.info("Found secure Cookie from the environment Map");
+			configuration.setBoolean(ConfigConstants.SECURITY_ENABLED, true);
+			configuration.setString(ConfigConstants.SECURITY_COOKIE, secureCookie);
+		}
+
 		UserGroupInformation currentUser = UserGroupInformation.getCurrentUser();
 
 		LOG.info("YARN daemon is running as: {} Yarn client user obtainer: {}",
