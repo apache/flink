@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.api
 
+import org.apache.flink.table.catalog.TableSourceConverter
+
 /**
   * Exception for all errors occurring during expression parsing.
   */
@@ -71,3 +73,95 @@ object ValidationException {
   * Exception for unwanted method calling on unresolved expression.
   */
 case class UnresolvedException(msg: String) extends RuntimeException(msg)
+
+/**
+  * Exception for operation on a nonexistent table
+  *
+  * @param db    database name
+  * @param table table name
+  * @param cause
+  */
+case class TableNotExistException(
+    db: String,
+    table: String,
+    cause: Throwable)
+    extends RuntimeException(s"table $db.$table does not exist!", cause) {
+
+  def this(db: String, table: String) = this(db, table, null)
+
+}
+
+/**
+  * Exception for adding an already existed table
+  *
+  * @param db    database name
+  * @param table table name
+  * @param cause
+  */
+case class TableAlreadyExistException(
+    db: String,
+    table: String,
+    cause: Throwable)
+    extends RuntimeException(s"table $db.$table already exists!", cause) {
+
+  def this(db: String, table: String) = this(db, table, null)
+
+}
+
+/**
+  * Exception for operation on a nonexistent database
+  *
+  * @param db database name
+  * @param cause
+  */
+case class DatabaseNotExistException(
+    db: String,
+    cause: Throwable)
+    extends RuntimeException(s"database $db does not exist!", cause) {
+
+  def this(db: String) = this(db, null)
+}
+
+/**
+  * Exception for adding an already existed database
+  *
+  * @param db database name
+  * @param cause
+  */
+case class DatabaseAlreadyExistException(
+    db: String,
+    cause: Throwable)
+    extends RuntimeException(s"database $db already exists!", cause) {
+
+  def this(db: String) = this(db, null)
+}
+
+/**
+  * Exception for does not find any matched [[TableSourceConverter]] for a specified table type
+  *
+  * @param tableType table type
+  * @param cause
+  */
+case class NoMatchedTableSourceConverterException(
+    tableType: String,
+    cause: Throwable)
+    extends RuntimeException(s"find no table source converter matched table type $tableType!",
+      cause) {
+
+  def this(tableType: String) = this(tableType, null)
+}
+
+/**
+  * Exception for find more than one matched [[TableSourceConverter]] for a specified table type
+  *
+  * @param tableType table type
+  * @param cause
+  */
+case class AmbiguousTableSourceConverterException(
+    tableType: String,
+    cause: Throwable)
+    extends RuntimeException(s"more than one table source converter matched table type $tableType!",
+      cause) {
+
+  def this(tableType: String) = this(tableType, null)
+}

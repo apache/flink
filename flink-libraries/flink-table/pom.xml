@@ -92,6 +92,22 @@ under the License.
 			</exclusions>
 		</dependency>
 
+        <dependency>
+            <groupId>org.reflections</groupId>
+            <artifactId>reflections</artifactId>
+            <version>0.9.10</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.google.code.findbugs</groupId>
+                    <artifactId>annotations</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.google.guava</groupId>
+                    <artifactId>guava</artifactId>
+                </exclusion>
+            </exclusions>
+            <scope>compile</scope>
+        </dependency>
 
 		<!-- test dependencies -->
 
@@ -178,7 +194,8 @@ under the License.
 									<include>org.apache.calcite:*</include>
 									<include>org.apache.calcite.avatica:*</include>
 									<include>net.hydromatic:*</include>
-								</includes>
+                                    <include>org.reflections:*</include>
+                                </includes>
 							</artifactSet>
 							<relocations>
 								<!-- We currently don't relocate slf4j as we have "logger not found" 
@@ -216,5 +233,4 @@ under the License.
 
 		</plugins>
 	</build>
-
 </project>
