@@ -47,7 +47,7 @@ class CsvTableSourceConverter extends TableSourceConverter[CsvTableSource] {
     params.get("rowDelim").foreach(csvTableSourceBuilder.lineDelimiter)
     params.get("quoteCharacter").foreach(quoteStr =>
       if (quoteStr.length != 1) {
-        throw new IllegalArgumentException("the value of param quoteCharacter is invalid")
+        throw new IllegalArgumentException("the value of param must only contain one character!")
       } else {
         csvTableSourceBuilder.quoteCharacter(quoteStr.charAt(0))
       }

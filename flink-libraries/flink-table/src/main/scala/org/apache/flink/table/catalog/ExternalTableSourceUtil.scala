@@ -60,10 +60,10 @@ object ExternalTableSourceUtil {
             .getTypesAnnotatedWith(classOf[TableType])
         clazzWithAnnotations.asScala.foreach(clazz =>
           if (classOf[TableSourceConverter[_]].isAssignableFrom(clazz)) {
-            if (Modifier.isAbstract(clazz.getModifiers()) ||
-                Modifier.isInterface(clazz.getModifiers)) {
-              LOG.warn(s"Class ${clazz.getName} is annotated with TableType " +
-                  s"but an abstract class or interface.")
+            val errorInfo = InstantiationUtil.checkForInstantiationError(clazz)
+            if (errorInfo != null) {
+              LOG.warn(s"Class ${clazz.getName} is annotated with TableType, " +
+                  s"but is not instantiable because $errorInfo.")
             } else {
               val tableTypeAnnotation: TableType =
                 clazz.getAnnotation(classOf[TableType])
