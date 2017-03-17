@@ -152,6 +152,8 @@ For more information on how Flink security internally setups Kerberos authentica
 
 ### Other
 
+- `client.logging.time-pattern`: (DEFAULT: `yyyy-MM-dd'T'HH:mm:ss`) The date time pattern applied to client actor logger.
+
 - `taskmanager.tmp.dirs`: The directory for temporary files, or a list of directories separated by the system's directory delimiter (for example ':' (colon) on Linux/Unix). If multiple directories are specified, then the temporary files will be distributed across the directories in a round-robin fashion. The I/O manager component will spawn one reading and one writing thread per directory. A directory may be listed multiple times to have the I/O manager use multiple threads for it (for example if it is physically stored on a very fast disc or RAID) (DEFAULT: The system's tmp dir).
 
 - `taskmanager.log.path`: The config parameter defining the taskmanager log file location
