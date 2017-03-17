@@ -65,7 +65,7 @@ private var accumulators: Row= _
       records: Iterable[Row],
       out: Collector[Row]): Unit = {
 
-   var i = 0
+     var i = 0
      //initialize the values of the aggregators by re-creating them
      //the design of the Accumulator interface should be extended to enable 
      //a reset function for better performance
@@ -73,6 +73,7 @@ private var accumulators: Row= _
        aggregates(i).resetAccumulator(accumulators.getField(i).asInstanceOf[Accumulator])
        i += 1
      }
+   
      var reuse:Row = null
      //iterate through the elements and aggregate
      val iter = records.iterator

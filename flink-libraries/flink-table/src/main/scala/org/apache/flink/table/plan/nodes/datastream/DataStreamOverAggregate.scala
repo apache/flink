@@ -43,7 +43,6 @@ import org.apache.flink.types.Row
 import org.apache.calcite.sql.`type`.IntervalSqlType
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.watermark.Watermark
-import org.apache.flink.table.plan.nodes.datastream.DataStreamProcTimeCase.ProcTimeTimestampExtractor
 import org.apache.calcite.rex.RexInputRef
 import org.apache.flink.streaming.api.windowing.evictors.TimeEvictor
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows
@@ -60,8 +59,7 @@ import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindo
 import java.util.concurrent.TimeUnit
 import org.apache.flink.table.runtime.aggregate.DataStreamProcTimeAggregateWindowFunction
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow
-
-
+import org.apache.calcite.plan.{RelOptCluster, RelTraitSet} 
 
 
 
@@ -137,9 +135,9 @@ class DataStreamOverAggregate(
         if (overWindow.lowerBound.isUnbounded &&
           overWindow.upperBound.isCurrentRow) {
           createUnboundedAndCurrentRowProcessingTimeOverWindow(inputDS)
-        } else if (overWindow.lowerBound.getOffset.getType.isInstanceOf[IntervalSqlType]
-          && (overWindow.upperBound.isPreceding
-            || overWindow.upperBound.isCurrentRow)) {
+        } else if (overWindow.lowerBound.isPreceding() && !overWindow.lowerBound.isUnbounded() && 
+             overWindow.upperBound.isCurrentRow() && // until current row
+             !overWindow.isRows){
           createTimeBoundedProcessingTimeOverWindow(inputDS)
         } else {
           throw new TableException(
@@ -154,8 +152,7 @@ class DataStreamOverAggregate(
 
   }
 
-  def createTimeBoundedProcessingTimeOverWindow(
-    inputDS: DataStream[Row]): DataStream[Row] = {
+  def createTimeBoundedProcessingTimeOverWindow(inputDS: DataStream[Row]): DataStream[Row] = {
 
     val overWindow: Group = logicWindow.groups.get(0)
     val partitionKeys: Array[Int] = overWindow.keys.toArray
@@ -164,10 +161,10 @@ class DataStreamOverAggregate(
     val index = overWindow.lowerBound.getOffset.asInstanceOf[RexInputRef].getIndex
     val count = input.getRowType().getFieldCount()
     val lowerboundIndex = index - count
-    var time_boundary = 0L
-     
-    logicWindow.constants.get(lowerboundIndex).getValue2 match {
-      case _: java.math.BigDecimal => time_boundary = logicWindow.constants.get(lowerboundIndex)
+    
+    
+    val time_boundary = logicWindow.constants.get(lowerboundIndex).getValue2 match {
+      case _: java.math.BigDecimal => logicWindow.constants.get(lowerboundIndex)
          .getValue2.asInstanceOf[java.math.BigDecimal].longValue()
       case _ => throw new TableException("OVER Window boundaries must be numeric")
     }
@@ -178,19 +175,14 @@ class DataStreamOverAggregate(
          
     // As we it is not possible to operate neither on sliding count neither
     // on sliding time we need to manage the eviction of the events that
-    // expire ourselves based on the proctime (system time). Therefore the
-    // current system time is assign as the timestamp of the event to be
-    // recognize by the evictor
-
-    val inputDataStreamTimed = inputDS
-      .assignTimestampsAndWatermarks(new ProcTimeTimestampExtractor())
-
+    // expire ourselves based on the proctime (system time). 
+    
     // get the output types
     val rowTypeInfo = FlinkTypeFactory.toInternalRowTypeInfo(getRowType).asInstanceOf[RowTypeInfo]
 
     val result: DataStream[Row] =
       if (partitionKeys.nonEmpty) {
-        inputDataStreamTimed.keyBy(partitionKeys:_*)
+        inputDS.keyBy(partitionKeys:_*)
           .window(GlobalWindows.create())
           .trigger(CountTrigger.of(1))
           .evictor(TimeEvictor.of(Time.milliseconds(time_boundary))) 
@@ -201,7 +193,7 @@ class DataStreamOverAggregate(
           .asInstanceOf[DataStream[Row]]
         
       } else {
-          inputDataStreamTimed.windowAll(GlobalWindows.create()).trigger(CountTrigger.of(1))
+          inputDS.windowAll(GlobalWindows.create()).trigger(CountTrigger.of(1))
             .evictor(TimeEvictor.of(Time.milliseconds(time_boundary)))        
             .apply(new DataStreamProcTimeAggregateGlobalWindowFunction[GlobalWindow](
                 aggregates,aggFields,inputType.getFieldCount))
@@ -287,23 +279,5 @@ class DataStreamOverAggregate(
       }))"
   }
 
-}
-
-object DataStreamProcTimeCase {
-  class ProcTimeTimestampExtractor
-      extends AssignerWithPunctuatedWatermarks[Row] {
-
-    override def checkAndGetNextWatermark(
-      lastElement: Row,
-      extractedTimestamp: Long): Watermark = {
-      null
-    }
-
-    override def extractTimestamp(
-      element: Row,
-      previousElementTimestamp: Long): Long = {
-      System.currentTimeMillis()
-    }
-  }  
 }
 
