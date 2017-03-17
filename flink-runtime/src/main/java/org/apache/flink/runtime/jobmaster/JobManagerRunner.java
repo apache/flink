@@ -21,8 +21,11 @@ package org.apache.flink.runtime.jobmaster;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.HeartbeatManagerOptions;
 import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
+import org.apache.flink.runtime.heartbeat.HeartbeatManagerSenderImpl;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry.JobSchedulingStatus;
@@ -167,6 +170,16 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 			this.runningJobsRegistry = haServices.getRunningJobsRegistry();
 			this.leaderElectionService = haServices.getJobManagerLeaderElectionService(jobGraph.getJobID());
 
+			// heartbeat manager last
+			final ResourceID resourceID = ResourceID.generate();
+			final HeartbeatManagerSenderImpl<Void, Void> jobManagerHeartbeatManager = new HeartbeatManagerSenderImpl<>(
+					configuration.getLong(HeartbeatManagerOptions.HEARTBEAT_INTERVAL),
+					configuration.getLong(HeartbeatManagerOptions.HEARTBEAT_TIMEOUT),
+					resourceID,
+					rpcService.getExecutor(),
+					rpcService.getScheduledExecutor(),
+					log);
+
 			// now start the JobManager
 			this.jobManager = new JobMaster(
 					jobGraph, configuration,
@@ -177,6 +190,8 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 					jobManagerServices.restartStrategyFactory,
 					jobManagerServices.rpcAskTimeout,
 					jobManagerMetrics,
+					resourceID,
+					jobManagerHeartbeatManager,
 					this,
 					this,
 					userCodeLoader);
