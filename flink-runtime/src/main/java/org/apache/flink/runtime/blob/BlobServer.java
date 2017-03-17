@@ -347,18 +347,19 @@ public class BlobServer extends Thread implements BlobService {
 	 * 		if set, any existing file under the given name will be overwritten, otherwise nothing is
 	 * 		done
 	 *
-	 * @return whether the file has been successfully written or was skipped due to an existing file
+	 * @return whether the file has been successfully written (<tt>true</tt>) or was skipped due to an existing file
+	 * 			(<tt>false</tt>)
 	 */
 	public boolean putObject(Object data, JobID jobId, String key, boolean overwriteExisting) throws IOException {
 		File storageFile = getStorageLocation(jobId, key);
 
 		// already existing file that is not to be overwritten?
-		if (storageFile.exists() && !overwriteExisting) {
+		if (!overwriteExisting && storageFile.exists()) {
 			return false;
 		}
 
 		// temporary file during transfer:
-		File incomingFile = new File(storageFile.getParent(), "." + storageFile.getName());
+		File incomingFile = createTemporaryFilename();
 		try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(incomingFile))) {
 			oos.writeObject(data);
 			oos.close();

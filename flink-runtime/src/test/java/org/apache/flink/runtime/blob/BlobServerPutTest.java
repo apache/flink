@@ -499,6 +499,63 @@ public class BlobServerPutTest {
 		}
 	}
 
+	/**
+	 * Checked thread that calls {@link BlobServer#putObject(Object, JobID, String, boolean)}.
+	 */
+	public static class Putter extends CheckedThread {
+		private final BlobServer server;
+		private final JobID jid;
+		private final String name;
+		private final byte[] data;
+
+		public Putter(BlobServer server, JobID jid, String name, byte[] data) {
+			this.server = server;
+			this.jid = jid;
+			this.name = name;
+			this.data = data;
+		}
+
+		@Override
+		public void go() throws Exception {
+			server.putObject(data, jid, name, true);
+		}
+	}
+
+	/**
+	 * Tests concurrent calls to {@link BlobServer#putObject(Object, JobID, String, boolean)}.
+	 */
+	@Test
+	public void testServerPutObjectConcurrent() throws Exception {
+		BlobServer server = new BlobServer(new Configuration());
+
+		try {
+			JobID jid = new JobID();
+			String stringKey = "my test key";
+			byte[] data = new byte[2000000];
+			rnd.nextBytes(data);
+
+			CheckedThread[] threads = new CheckedThread[] {
+				new Putter(server, jid, stringKey, data),
+				new Putter(server, jid, stringKey, data),
+				new Putter(server, jid, stringKey, data)
+			};
+			checkedThreadSimpleTest(threads);
+
+			// --- GET the data and check that it is equal ---
+
+			final String dataFile = server.getURL(jid, stringKey).getFile();
+			try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(dataFile))) {
+				byte[] result = (byte[]) ois.readObject();
+				assertArrayEquals(data, result);
+			}
+
+		} finally {
+			if (server != null) {
+				server.shutdown();
+			}
+		}
+	}
+
 	// --------------------------------------------------------------------------------------------
 
 	private static final class ChunkedInputStream extends InputStream {
