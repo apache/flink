@@ -37,9 +37,13 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.migration.MigrationInstantiationUtil;
+import org.apache.flink.migration.MigrationKeyGroupStateHandle;
 import org.apache.flink.migration.MigrationNamespaceSerializerProxy;
 import org.apache.flink.migration.MigrationUtil;
-import org.apache.flink.migration.contrib.streaming.state.RocksDBStateBackend;
+import org.apache.flink.migration.v0.SavepointV0;
+import org.apache.flink.migration.v0.api.StateDescriptorV0;
+import org.apache.flink.migration.v0.runtime.rocksdb.RocksDBStateBackendV0;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.io.async.AbstractAsyncIOCallable;
 import org.apache.flink.runtime.io.async.AsyncStoppableTaskWithCallback;
@@ -63,7 +67,6 @@ import org.apache.flink.runtime.state.internal.InternalValueState;
 import org.apache.flink.runtime.util.SerializableObject;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.IOUtils;
-import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
@@ -1137,9 +1140,21 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	/**
-	 * For backwards compatibility, remove again later!
+	 * Restore from rocksdb snapshot in SavepointV0.
+	 *
+	 * <p>The state in FullyAsyncSnapshot is formatted as follows:
+	 * <pre>
+	 *     numStates: int
+	 *     |---- stateIndex: byte
+	 *     |---- stateDescriptor: StateDescriptorV0
+	 *     ========
+	 *     |---- stateIndex: byte
+	 *     |---- key: byte[]
+	 *     |---- value: byte[]
+	 * </pre>
 	 */
 	@Deprecated
+	@SuppressWarnings("deprecation")
 	private void restoreOldSavepointKeyedState(Collection<KeyGroupsStateHandle> restoreState) throws Exception {
 
 		if (restoreState.isEmpty()) {
@@ -1147,13 +1162,27 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		}
 
 		Preconditions.checkState(1 == restoreState.size(), "Only one element expected here.");
-		HashMap<String, RocksDBStateBackend.FinalFullyAsyncSnapshot> namedStates;
-		try (FSDataInputStream inputStream = restoreState.iterator().next().openInputStream()) {
-			namedStates = InstantiationUtil.deserializeObject(inputStream, userCodeClassLoader);
+
+		KeyGroupsStateHandle keyGroupsStateHandle = restoreState.iterator().next();
+
+		if (!(keyGroupsStateHandle instanceof MigrationKeyGroupStateHandle)) {
+			throw new IllegalStateException("Unexpected state handle type, " +
+					"expected: " + MigrationKeyGroupStateHandle.class +
+					", but found: " + keyGroupsStateHandle.getClass());
+		}
+
+		MigrationKeyGroupStateHandle migrationKeyGroupStateHandle = (MigrationKeyGroupStateHandle) keyGroupsStateHandle;
+
+		HashMap<String, RocksDBStateBackendV0.FinalFullyAsyncSnapshot> namedStates;
+		try (FSDataInputStream inputStream = migrationKeyGroupStateHandle.openInputStream()) {
+			namedStates = MigrationInstantiationUtil.deserializeObject(
+				SavepointV0.VERSION, inputStream, userCodeClassLoader);
 		}
 
 		Preconditions.checkState(1 == namedStates.size(), "Only one element expected here.");
-		DataInputView inputView = namedStates.values().iterator().next().stateHandle.getState(userCodeClassLoader);
+
+		RocksDBStateBackendV0.FinalFullyAsyncSnapshot snapshot = namedStates.values().iterator().next();
+		DataInputView inputView = snapshot.getStateHandle().getState(userCodeClassLoader);
 
 		// clear k/v state information before filling it
 		kvStateInformation.clear();
@@ -1164,16 +1193,16 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		for (int i = 0; i < numColumns; i++) {
 			byte mappingByte = inputView.readByte();
 
-			ObjectInputStream ooIn =
-					new InstantiationUtil.ClassLoaderObjectInputStream(
-							new DataInputViewStream(inputView), userCodeClassLoader);
+			ObjectInputStream ooIn = new MigrationInstantiationUtil.ClassLoaderObjectInputStream(
+				SavepointV0.VERSION, new DataInputViewStream(inputView), userCodeClassLoader);
 
-			StateDescriptor stateDescriptor = (StateDescriptor) ooIn.readObject();
+			StateDescriptorV0<?, ?> stateDescriptor = (StateDescriptorV0<?, ?>) ooIn.readObject();
+			StateDescriptor<?, ?> newStateDescriptor = stateDescriptor.convert();
 
-			columnFamilyMapping.put(mappingByte, stateDescriptor);
+			columnFamilyMapping.put(mappingByte, newStateDescriptor);
 
 			// this will fill in the k/v state information
-			getColumnFamily(stateDescriptor, MigrationNamespaceSerializerProxy.INSTANCE);
+			getColumnFamily(newStateDescriptor, MigrationNamespaceSerializerProxy.INSTANCE);
 		}
 
 		// try and read until EOF
@@ -1182,7 +1211,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			while (true) {
 				byte mappingByte = inputView.readByte();
 				ColumnFamilyHandle handle = getColumnFamily(
-						columnFamilyMapping.get(mappingByte), MigrationNamespaceSerializerProxy.INSTANCE);
+						columnFamilyMapping.get(mappingByte),
+						MigrationNamespaceSerializerProxy.INSTANCE);
 
 				byte[] keyAndNamespace = BytePrimitiveArraySerializer.INSTANCE.deserialize(inputView);
 

@@ -35,11 +35,11 @@ import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.migration.MigrationUtil;
-import org.apache.flink.migration.runtime.state.KvStateSnapshot;
-import org.apache.flink.migration.runtime.state.memory.MigrationRestoreSnapshot;
+import org.apache.flink.migration.v0.runtime.memory.MigrationRestoreSnapshot;
+import org.apache.flink.migration.v0.runtime.KvStateSnapshotV0;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.io.async.AbstractAsyncIOCallable;
 import org.apache.flink.runtime.io.async.AsyncStoppableTaskWithCallback;
-import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.ArrayListSerializer;
@@ -453,15 +453,15 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		Preconditions.checkState(1 == stateHandles.size(), "Only one element expected here.");
 
-		HashMap<String, KvStateSnapshot<K, ?, ?, ?>> namedStates;
+		HashMap<String, KvStateSnapshotV0> namedStates;
 		try (FSDataInputStream inputStream = stateHandles.iterator().next().openInputStream()) {
 			namedStates = InstantiationUtil.deserializeObject(inputStream, userCodeClassLoader);
 		}
 
-		for (Map.Entry<String, KvStateSnapshot<K, ?, ?, ?>> nameToState : namedStates.entrySet()) {
+		for (Map.Entry<String, KvStateSnapshotV0> nameToState : namedStates.entrySet()) {
 
 			final String stateName = nameToState.getKey();
-			final KvStateSnapshot<K, ?, ?, ?> genericSnapshot = nameToState.getValue();
+			final KvStateSnapshotV0 genericSnapshot = nameToState.getValue();
 
 			if (genericSnapshot instanceof MigrationRestoreSnapshot) {
 				MigrationRestoreSnapshot<K, ?, ?> stateSnapshot = (MigrationRestoreSnapshot<K, ?, ?>) genericSnapshot;

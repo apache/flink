@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,19 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.migration;
+package org.apache.flink.migration.v0.runtime;
 
-import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.api.common.state.State;
+import org.apache.flink.migration.v0.api.StateDescriptorV0;
 
-import java.util.Collection;
-
-public class MigrationUtil {
-
-	@SuppressWarnings("deprecation")
-	public static boolean isOldSavepointKeyedState(Collection<KeyGroupsStateHandle> keyGroupsStateHandles) {
-		return (keyGroupsStateHandles != null)
-				&& (keyGroupsStateHandles.size() == 1)
-				&& (keyGroupsStateHandles.iterator().next() instanceof MigrationKeyGroupStateHandle);
-	}
-
+/**
+ * A snapshot of keyed states in SavepointV0.
+ */
+@Deprecated
+@SuppressWarnings("deprecation")
+public interface KvStateSnapshotV0<K, N, S extends State, SD extends StateDescriptorV0<S, ?>> extends StateObjectV0 {
 }

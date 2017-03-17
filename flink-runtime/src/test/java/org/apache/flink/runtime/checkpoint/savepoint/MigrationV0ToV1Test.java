@@ -18,20 +18,24 @@
 
 package org.apache.flink.runtime.checkpoint.savepoint;
 
-import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.migration.runtime.checkpoint.savepoint.SavepointV0;
-import org.apache.flink.migration.runtime.checkpoint.savepoint.SavepointV0Serializer;
-import org.apache.flink.migration.runtime.state.KvStateSnapshot;
-import org.apache.flink.migration.runtime.state.memory.MemValueState;
-import org.apache.flink.migration.runtime.state.memory.SerializedStateHandle;
-import org.apache.flink.migration.streaming.runtime.tasks.StreamTaskState;
-import org.apache.flink.migration.streaming.runtime.tasks.StreamTaskStateList;
-import org.apache.flink.migration.util.MigrationInstantiationUtil;
+import org.apache.flink.migration.MigrationInstantiationUtil;
+import org.apache.flink.migration.MigrationSerializedValue;
+import org.apache.flink.migration.v0.SavepointV0;
+import org.apache.flink.migration.v0.SavepointV0Serializer;
+import org.apache.flink.migration.v0.api.ValueStateDescriptorV0;
+import org.apache.flink.migration.v0.runtime.KvStateSnapshotV0;
+import org.apache.flink.migration.v0.runtime.StateHandleV0;
+import org.apache.flink.migration.v0.runtime.StreamTaskStateListV0;
+import org.apache.flink.migration.v0.runtime.StreamTaskStateV0;
+import org.apache.flink.migration.v0.runtime.SubtaskStateV0;
+import org.apache.flink.migration.v0.runtime.TaskStateV0;
+import org.apache.flink.migration.v0.runtime.memory.MemValueStateV0;
+import org.apache.flink.migration.v0.runtime.memory.SerializedStateHandleV0;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskState;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -79,7 +83,7 @@ public class MigrationV0ToV1Test {
 		int numTaskStates = 4;
 		int numSubtaskStates = 16;
 
-		Collection<org.apache.flink.migration.runtime.checkpoint.TaskState> expected =
+		Collection<TaskStateV0> expected =
 				createTaskStatesOld(numTaskStates, numSubtaskStates);
 
 		SavepointV0 savepoint = new SavepointV0(checkpointId, expected);
@@ -161,12 +165,12 @@ public class MigrationV0ToV1Test {
 
 						ByteStreamStateHandle stateHandle =
 								(ByteStreamStateHandle) keyGroupsStateHandle.getDelegateStateHandle();
-						HashMap<String, KvStateSnapshot<?, ?, ?, ?>> testKeyedState =
-								MigrationInstantiationUtil.deserializeObject(stateHandle.getData(), cl);
+						HashMap<String, KvStateSnapshotV0> testKeyedState =
+								MigrationInstantiationUtil.deserializeObject(SavepointV0.VERSION, stateHandle.getData(), cl);
 
 						assertEquals(2, testKeyedState.size());
-						for (KvStateSnapshot<?, ?, ?, ?> snapshot : testKeyedState.values()) {
-							MemValueState.Snapshot<?, ?, ?> castedSnapshot = (MemValueState.Snapshot<?, ?, ?>) snapshot;
+						for (KvStateSnapshotV0 snapshot : testKeyedState.values()) {
+							MemValueStateV0.Snapshot<?, ?, ?> castedSnapshot = (MemValueStateV0.Snapshot<?, ?, ?>) snapshot;
 							byte[] data = castedSnapshot.getData();
 							assertEquals(t, data[0]);
 							assertEquals(p, data[1]);
@@ -187,37 +191,36 @@ public class MigrationV0ToV1Test {
 		}
 	}
 
-	private static Collection<org.apache.flink.migration.runtime.checkpoint.TaskState> createTaskStatesOld(
+	private static Collection<TaskStateV0> createTaskStatesOld(
 			int numTaskStates, int numSubtaskStates) throws Exception {
 
-		List<org.apache.flink.migration.runtime.checkpoint.TaskState> taskStates = new ArrayList<>(numTaskStates);
+		List<TaskStateV0> taskStates = new ArrayList<>(numTaskStates);
 
 		for (int i = 0; i < numTaskStates; i++) {
-			org.apache.flink.migration.runtime.checkpoint.TaskState taskState =
-					new org.apache.flink.migration.runtime.checkpoint.TaskState(new JobVertexID(), numSubtaskStates);
+			TaskStateV0 taskState = new TaskStateV0(new JobVertexID(), numSubtaskStates);
 			for (int j = 0; j < numSubtaskStates; j++) {
 
-				StreamTaskState[] streamTaskStates = new StreamTaskState[2];
+				StreamTaskStateV0[] streamTaskStates = new StreamTaskStateV0[2];
 
 				for (int k = 0; k < streamTaskStates.length; k++) {
-					StreamTaskState state = new StreamTaskState();
+					StreamTaskStateV0 state = new StreamTaskStateV0();
 					Tuple4<Integer, Integer, Integer, Integer> testState = new Tuple4<>(0, i, j, k);
 					if (j % 4 != 0) {
-						state.setFunctionState(new SerializedStateHandle<Serializable>(testState));
+						state.setFunctionState(new SerializedStateHandleV0<Serializable>(testState));
 					}
 					testState = new Tuple4<>(1, i, j, k);
-					state.setOperatorState(new SerializedStateHandle<>(testState));
+					state.setOperatorState(new SerializedStateHandleV0<>(testState));
 
 					if ((0 == k) && (i % 3 != 0)) {
-						HashMap<String, KvStateSnapshot<?, ?, ?, ?>> testKeyedState = new HashMap<>(2);
+						HashMap<String, KvStateSnapshotV0<?, ?, ?, ?>> testKeyedState = new HashMap<>(2);
 						for (int l = 0; l < 2; ++l) {
 							String name = "keyed-" + l;
-							KvStateSnapshot<?, ?, ?, ?> testKeyedSnapshot =
-									new MemValueState.Snapshot<>(
+							KvStateSnapshotV0 testKeyedSnapshot =
+									new MemValueStateV0.Snapshot<>(
 											IntSerializer.INSTANCE,
 											VoidNamespaceSerializer.INSTANCE,
 											IntSerializer.INSTANCE,
-											new ValueStateDescriptor<>(name, Integer.class, 0),
+											new ValueStateDescriptorV0<>(name, IntSerializer.INSTANCE, 0),
 											new byte[]{(byte) i, (byte) j});
 							testKeyedState.put(name, testKeyedSnapshot);
 						}
@@ -226,13 +229,10 @@ public class MigrationV0ToV1Test {
 					streamTaskStates[k] = state;
 				}
 
-				StreamTaskStateList streamTaskStateList = new StreamTaskStateList(streamTaskStates);
-				org.apache.flink.migration.util.SerializedValue<
-						org.apache.flink.migration.runtime.state.StateHandle<?>> handle =
-						new org.apache.flink.migration.util.SerializedValue<
-								org.apache.flink.migration.runtime.state.StateHandle<?>>(streamTaskStateList);
+				StreamTaskStateListV0 streamTaskStateList = new StreamTaskStateListV0(streamTaskStates);
+				MigrationSerializedValue<StateHandleV0<?>> handle = new MigrationSerializedValue<StateHandleV0<?>>(streamTaskStateList);
 
-				taskState.putState(j, new org.apache.flink.migration.runtime.checkpoint.SubtaskState(handle, 0, 0));
+				taskState.putState(j, new SubtaskStateV0(handle, 0, 0));
 			}
 
 			taskStates.add(taskState);

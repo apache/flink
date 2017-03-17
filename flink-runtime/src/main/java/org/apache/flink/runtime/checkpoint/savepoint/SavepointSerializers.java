@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.checkpoint.savepoint;
 
-import org.apache.flink.migration.runtime.checkpoint.savepoint.SavepointV0Serializer;
+import org.apache.flink.migration.v0.SavepointV0Serializer;
 import org.apache.flink.util.Preconditions;
 
 import java.util.HashMap;

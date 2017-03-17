@@ -16,19 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.migration;
+package org.apache.flink.migration.v0.runtime.memory;
 
-import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
+import org.apache.flink.runtime.state.heap.StateTable;
+import org.apache.flink.util.Migration;
 
-import java.util.Collection;
+import java.io.IOException;
 
-public class MigrationUtil {
-
-	@SuppressWarnings("deprecation")
-	public static boolean isOldSavepointKeyedState(Collection<KeyGroupsStateHandle> keyGroupsStateHandles) {
-		return (keyGroupsStateHandles != null)
-				&& (keyGroupsStateHandles.size() == 1)
-				&& (keyGroupsStateHandles.iterator().next() instanceof MigrationKeyGroupStateHandle);
-	}
-
+@Deprecated
+@Internal
+public interface MigrationRestoreSnapshot<K, N, S> extends Migration {
+	StateTable<K, N, S> deserialize(String stateName, HeapKeyedStateBackend<K> stateBackend) throws IOException;
 }

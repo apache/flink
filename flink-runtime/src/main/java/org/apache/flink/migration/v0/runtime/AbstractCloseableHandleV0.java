@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,19 +16,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.migration;
+package org.apache.flink.migration.v0.runtime;
 
-import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import java.io.Serializable;
 
-import java.util.Collection;
+/**
+ * A simple base for closable handles.
+ *
+ * Offers to register a stream (or other closable object) that close calls are delegated to if
+ * the handle is closed or was already closed.
+ */
+@Deprecated
+@SuppressWarnings("deprecation")
+public abstract class AbstractCloseableHandleV0 implements Serializable {
 
-public class MigrationUtil {
-
-	@SuppressWarnings("deprecation")
-	public static boolean isOldSavepointKeyedState(Collection<KeyGroupsStateHandle> keyGroupsStateHandles) {
-		return (keyGroupsStateHandles != null)
-				&& (keyGroupsStateHandles.size() == 1)
-				&& (keyGroupsStateHandles.iterator().next() instanceof MigrationKeyGroupStateHandle);
-	}
+	/** Serial Version UID must be constant to maintain format compatibility */
+	private static final long serialVersionUID = 1L;
 
 }

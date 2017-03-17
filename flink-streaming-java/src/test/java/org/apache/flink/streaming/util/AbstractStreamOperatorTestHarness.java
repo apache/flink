@@ -26,9 +26,10 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
-import org.apache.flink.migration.runtime.checkpoint.savepoint.SavepointV0Serializer;
-import org.apache.flink.migration.streaming.runtime.tasks.StreamTaskState;
-import org.apache.flink.migration.util.MigrationInstantiationUtil;
+import org.apache.flink.migration.MigrationInstantiationUtil;
+import org.apache.flink.migration.v0.SavepointV0;
+import org.apache.flink.migration.v0.SavepointV0Serializer;
+import org.apache.flink.migration.v0.runtime.StreamTaskStateV0;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.OperatorStateRepartitioner;
 import org.apache.flink.runtime.checkpoint.RoundRobinOperatorStateRepartitioner;
@@ -297,7 +298,8 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 	public void initializeStateFromLegacyCheckpoint(String checkpointFilename) throws Exception {
 
 		FileInputStream fin = new FileInputStream(checkpointFilename);
-		StreamTaskState state = MigrationInstantiationUtil.deserializeObject(fin, ClassLoader.getSystemClassLoader());
+		StreamTaskStateV0 state = MigrationInstantiationUtil.deserializeObject(
+			SavepointV0.VERSION, fin, ClassLoader.getSystemClassLoader());
 		fin.close();
 
 		if (!setupCalled) {

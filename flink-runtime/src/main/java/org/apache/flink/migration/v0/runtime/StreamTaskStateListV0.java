@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,19 +16,27 @@
  * limitations under the License.
  */
 
-package org.apache.flink.migration;
+package org.apache.flink.migration.v0.runtime;
 
-import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+/**
+ * List of task states for a chain of streaming tasks in SavepointV0.
+ */
 
-import java.util.Collection;
+@Deprecated
+@SuppressWarnings("deprecation")
+public class StreamTaskStateListV0 implements StateHandleV0<StreamTaskStateV0[]> {
 
-public class MigrationUtil {
+	private static final long serialVersionUID = 1L;
 
-	@SuppressWarnings("deprecation")
-	public static boolean isOldSavepointKeyedState(Collection<KeyGroupsStateHandle> keyGroupsStateHandles) {
-		return (keyGroupsStateHandles != null)
-				&& (keyGroupsStateHandles.size() == 1)
-				&& (keyGroupsStateHandles.iterator().next() instanceof MigrationKeyGroupStateHandle);
+	/** The states for all operator */
+	private final StreamTaskStateV0[] states;
+
+	public StreamTaskStateListV0(StreamTaskStateV0[] states) throws Exception {
+		this.states = states;
 	}
 
+	@Override
+	public StreamTaskStateV0[] getState(ClassLoader userCodeClassLoader) {
+		return states;
+	}
 }

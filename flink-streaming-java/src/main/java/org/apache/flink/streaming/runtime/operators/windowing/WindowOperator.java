@@ -865,6 +865,23 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		}
 	}
 
+	/**
+	 * Restore the state of AbstractAlignedProcessingTimeWindowOperator in SavepointV0.
+	 *
+	 * <p>The operator state for a AbstractAlignedProcessingTimeWindowOperator is formatted as:
+	 * <pre>
+	 *     nextEvaluationTime: long
+	 *     nextSlideTime: long
+	 *     BEGIN_OF_STATE_MAGIC_NUMBER: int
+	 *     numPanes: int
+	 *     |----BEGIN_OF_PANE_MAGIC_NUMBER: int
+	 *     |----numEntries: int
+	 *     |    |----key: K
+	 *     |    |----aggregate: AGG
+	 * </pre>
+	 */
+	@Deprecated
+	@SuppressWarnings("deprecation")
 	private void restoreFromLegacyAlignedWindowOperator(DataInputViewStreamWrapper in) throws IOException {
 		Preconditions.checkArgument(legacyWindowOperatorType != LegacyWindowOperatorType.NONE);
 
@@ -973,6 +990,26 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		}
 	}
 
+	/**
+	 * Restore the state of WindowOperator in SavepointV0.
+	 * 
+	 * <p>The state for a WindowOperator in SavepointV0 is formatted as:
+	 * <pre>
+	 *     numWatermarkTimers: int
+	 *     |----key: K
+	 *     |----window: W
+	 *     |----timestamp: long
+	 *     numProcessingTimeTimers: int
+	 *     |----key: K
+	 *     |----window: W
+	 *     |----timestamp: long
+	 *     numProcessingTimeTimestamps: int
+	 *     |----timestamp: long
+	 *     |----count: int
+	 * </pre>
+	 */
+	@Deprecated
+	@SuppressWarnings("deprecation")
 	private void restoreFromLegacyWindowOperator(DataInputViewStreamWrapper in) throws IOException {
 		Preconditions.checkArgument(legacyWindowOperatorType == LegacyWindowOperatorType.NONE);
 
@@ -1025,7 +1062,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 			}
 		}
 	}
-
+	
 	public void reregisterStateFromLegacyWindowOperator() {
 		// if we restore from an older version,
 		// we have to re-register the recovered state.
