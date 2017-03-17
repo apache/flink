@@ -227,18 +227,23 @@ object ProjectionTranslator {
     * @param exprs a list of expressions to extract
     * @return a list of field references extracted from the given expressions
     */
-  def extractFieldReferences(exprs: Seq[Expression]): Seq[NamedExpression] = {
-    exprs.foldLeft(Set[NamedExpression]()) {
+  def extractFieldReferences(exprs: Seq[Expression]): List[NamedExpression] = {
+    exprs.foldLeft(List[NamedExpression]()) {
       (fieldReferences, expr) => identifyFieldReferences(expr, fieldReferences)
-    }.toSeq
+    }
   }
 
   private def identifyFieldReferences(
       expr: Expression,
-      fieldReferences: Set[NamedExpression]): Set[NamedExpression] = expr match {
+      fieldReferences: List[NamedExpression]): List[NamedExpression] = expr match {
 
     case f: UnresolvedFieldReference =>
-      fieldReferences + UnresolvedAlias(f)
+      val alias = UnresolvedAlias(f)
+      if (!fieldReferences.contains(alias)) {
+        fieldReferences :+ alias
+      } else {
+        fieldReferences
+      }
 
     case b: BinaryExpression =>
       val l = identifyFieldReferences(b.left, fieldReferences)
