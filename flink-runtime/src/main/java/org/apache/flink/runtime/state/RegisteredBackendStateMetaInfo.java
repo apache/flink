@@ -74,7 +74,7 @@ public class RegisteredBackendStateMetaInfo<N, S> {
 		return stateSerializer;
 	}
 
-	public boolean isCompatibleWith(RegisteredBackendStateMetaInfo<?, ?> other) {
+	public boolean canRestoreFrom(RegisteredBackendStateMetaInfo<?, ?> other) {
 
 		if (this == other) {
 			return true;
@@ -94,8 +94,8 @@ public class RegisteredBackendStateMetaInfo<N, S> {
 			return false;
 		}
 
-		return (stateSerializer.isCompatibleWith(other.stateSerializer)) &&
-				(namespaceSerializer.isCompatibleWith(other.namespaceSerializer)
+		return (stateSerializer.canRestoreFrom(other.stateSerializer)) &&
+				(namespaceSerializer.canRestoreFrom(other.namespaceSerializer)
 						// we also check if there is just a migration proxy that should be replaced by any real serializer
 						|| other.namespaceSerializer instanceof MigrationNamespaceSerializerProxy);
 	}

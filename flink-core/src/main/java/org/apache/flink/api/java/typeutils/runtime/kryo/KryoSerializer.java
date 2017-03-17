@@ -385,7 +385,7 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 	}
 
 	@Override
-	public boolean isCompatibleWith(TypeSerializer<?> other) {
+	public boolean canRestoreFrom(TypeSerializer<?> other) {
 		if (other instanceof KryoSerializer) {
 			KryoSerializer<?> otherKryo = (KryoSerializer<?>) other;
 
