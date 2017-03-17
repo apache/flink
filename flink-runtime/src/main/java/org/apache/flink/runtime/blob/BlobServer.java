@@ -409,10 +409,8 @@ public class BlobServer extends Thread implements BlobService {
 
 		final File localFile = BlobUtils.getStorageLocation(storageDir, key);
 
-		if (localFile.exists()) {
-			if (!localFile.delete()) {
-				LOG.warn("Failed to delete locally BLOB " + key + " at " + localFile.getAbsolutePath());
-			}
+		if (!localFile.delete() && localFile.exists()) {
+			LOG.warn("Failed to delete locally BLOB " + key + " at " + localFile.getAbsolutePath());
 		}
 
 		blobStore.delete(key);
@@ -452,7 +450,7 @@ public class BlobServer extends Thread implements BlobService {
 
 		try {
 			BlobUtils.deleteJobDirectory(storageDir, jobId);
-		} catch (IOException e) {
+		} catch (Exception e) {
 			LOG.warn("Failed to delete local BLOB storage dir {}.", BlobUtils.getJobDirectory(storageDir, jobId));
 		}
 

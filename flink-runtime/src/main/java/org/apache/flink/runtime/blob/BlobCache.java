@@ -302,8 +302,8 @@ public final class BlobCache implements BlobService {
 	public void delete(BlobKey key) {
 		final File localFile = BlobUtils.getStorageLocation(storageDir, key);
 
-		if (localFile.exists() && !localFile.delete()) {
-			LOG.warn("Failed to delete locally cached BLOB {} at {}" + key, localFile.getAbsolutePath());
+		if (!localFile.delete() && localFile.exists()) {
+			LOG.warn("Failed to delete locally cached BLOB {} at {}", key, localFile.getAbsolutePath());
 		}
 	}
 
@@ -317,7 +317,7 @@ public final class BlobCache implements BlobService {
 	public void delete(JobID jobId, String key) {
 		final File localFile = BlobUtils.getStorageLocation(storageDir, jobId, key);
 
-		if (localFile.exists() && !localFile.delete()) {
+		if (!localFile.delete() && localFile.exists()) {
 			LOG.warn("Failed to delete locally cached BLOB {}/{} at {}", jobId, key, localFile.getAbsolutePath());
 		}
 	}
