@@ -49,7 +49,7 @@ object Types extends JTypes {
     *
     * @param types of Row fields. e.g. ROW(Types.STRING, Types.INT)
     */
-  def ROW[T](types: TypeInformation[_]*)(implicit m: Manifest[T]) = {
+  def ROW[T: Manifest](types: TypeInformation[_]*) = {
     JTypes.ROW(types: _*)
   }
 
