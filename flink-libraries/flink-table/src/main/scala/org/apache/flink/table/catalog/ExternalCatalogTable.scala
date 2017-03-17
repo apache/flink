@@ -22,6 +22,7 @@ import java.util.{HashMap => JHashMap, Map => JMap}
 import java.lang.{Long => JLong}
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.table.api.TableSchema
 import org.apache.flink.table.plan.stats.TableStats
 
 /**
@@ -39,7 +40,7 @@ import org.apache.flink.table.plan.stats.TableStats
 case class ExternalCatalogTable(
     identifier: TableIdentifier,
     tableType: String,
-    schema: DataSchema,
+    schema: TableSchema,
     properties: JMap[String, String] = new JHashMap(),
     stats: TableStats = null,
     comment: String = null,
@@ -57,20 +58,5 @@ case class TableIdentifier(
     table: String) {
 
   override def toString: String = s"$database.$table"
-
-}
-
-/**
-  * Schema of External catalog table's columns
-  *
-  * @param columnTypes types of each column
-  * @param columnNames names of each column
-  */
-case class DataSchema(
-    columnTypes: Array[TypeInformation[_]],
-    columnNames: Array[String]) {
-
-  override def toString: String =
-    columnNames.zip(columnTypes).map(x => s"${x._1}: ${x._2}").mkString(", ")
 
 }

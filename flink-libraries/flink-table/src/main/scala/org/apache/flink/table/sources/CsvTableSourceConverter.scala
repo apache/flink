@@ -63,8 +63,8 @@ class CsvTableSourceConverter extends TableSourceConverter[CsvTableSource] {
           csvTableSourceBuilder.ignoreParseErrors
         }
     )
-    externalCatalogTable.schema.columnNames
-        .zip(externalCatalogTable.schema.columnTypes)
+    externalCatalogTable.schema.getColumnNames
+        .zip(externalCatalogTable.schema.getTypes)
         .foreach(field => csvTableSourceBuilder.field(field._1, field._2))
 
     csvTableSourceBuilder.build()

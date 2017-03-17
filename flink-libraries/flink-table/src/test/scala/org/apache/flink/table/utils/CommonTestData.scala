@@ -24,6 +24,7 @@ import java.util
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
+import org.apache.flink.table.api.TableSchema
 import org.apache.flink.table.sources.{BatchTableSource, CsvTableSource}
 import org.apache.flink.table.catalog._
 
@@ -74,12 +75,12 @@ object CommonTestData {
     val externalCatalogTable1 = ExternalCatalogTable(
       TableIdentifier("db1", "tb1"),
       "csv",
-      DataSchema(
+      new TableSchema(
+        Array("a", "b", "c"),
         Array(
           BasicTypeInfo.INT_TYPE_INFO,
           BasicTypeInfo.LONG_TYPE_INFO,
-          BasicTypeInfo.STRING_TYPE_INFO),
-        Array("a", "b", "c")),
+          BasicTypeInfo.STRING_TYPE_INFO)),
       properties1
     )
 
@@ -108,14 +109,15 @@ object CommonTestData {
     val externalCatalogTable2 = ExternalCatalogTable(
       TableIdentifier("db2", "tb2"),
       "csv",
-      DataSchema(
+      new TableSchema(
+        Array("d", "e", "f", "g", "h"),
         Array(
           BasicTypeInfo.INT_TYPE_INFO,
           BasicTypeInfo.LONG_TYPE_INFO,
           BasicTypeInfo.INT_TYPE_INFO,
           BasicTypeInfo.STRING_TYPE_INFO,
-          BasicTypeInfo.LONG_TYPE_INFO),
-        Array("d", "e", "f", "g", "h")),
+          BasicTypeInfo.LONG_TYPE_INFO)
+      ),
       properties2
     )
     val catalog = new InMemoryExternalCatalog
@@ -169,4 +171,5 @@ object CommonTestData {
       this(null, null)
     }
   }
+
 }

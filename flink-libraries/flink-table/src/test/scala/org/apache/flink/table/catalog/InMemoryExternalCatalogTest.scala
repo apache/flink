@@ -19,7 +19,7 @@
 package org.apache.flink.table.catalog
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
-import org.apache.flink.table.api.{DatabaseAlreadyExistException, DatabaseNotExistException, TableAlreadyExistException, TableNotExistException}
+import org.apache.flink.table.api._
 import org.junit.{Before, Test}
 import org.junit.Assert._
 
@@ -131,12 +131,13 @@ class InMemoryExternalCatalogTest {
   }
 
   private def createTableInstance(dbName: String, tableName: String): ExternalCatalogTable = {
-    val schema = new DataSchema(
+    val schema = new TableSchema(
+      Array("first", "second"),
       Array(
         BasicTypeInfo.STRING_TYPE_INFO,
         BasicTypeInfo.INT_TYPE_INFO
-      ),
-      Array("first", "second"))
+      )
+    )
     ExternalCatalogTable(
       TableIdentifier(dbName, tableName),
       "csv",
