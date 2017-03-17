@@ -42,5 +42,5 @@ public interface OutputSelector<OUT> extends Serializable {
 	 * @param value
 	 *            Output object for which the output selection should be made.
 	 */
-	public Iterable<String> select(OUT value);
+	Iterable<String> select(OUT value);
 }

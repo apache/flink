@@ -336,7 +336,7 @@ public class StreamSourceContexts {
 	 * toggles the status. ACTIVE status resumes as soon as some record or watermark is collected
 	 * again.
 	 */
-	private static abstract class WatermarkContext<T> implements SourceFunction.SourceContext<T> {
+	private abstract static class WatermarkContext<T> implements SourceFunction.SourceContext<T> {
 
 		protected final ProcessingTimeService timeService;
 		protected final Object checkpointLock;

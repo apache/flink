@@ -310,7 +310,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 			final TupleSerializer<Tuple2<W, W>> tupleSerializer = new TupleSerializer<>(
 					typedTuple,
-					new TypeSerializer[] {windowSerializer, windowSerializer} );
+					new TypeSerializer[] {windowSerializer, windowSerializer});
 
 			final ListStateDescriptor<Tuple2<W, W>> mergingSetsStateDescriptor =
 					new ListStateDescriptor<>("merging-window-set", tupleSerializer);

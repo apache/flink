@@ -1147,7 +1147,7 @@ public class DataStream<T> {
 
 		// configure the type if needed
 		if (sinkFunction instanceof InputTypeConfigurable) {
-			((InputTypeConfigurable) sinkFunction).setInputType(getType(), getExecutionConfig() );
+			((InputTypeConfigurable) sinkFunction).setInputType(getType(), getExecutionConfig());
 		}
 
 		StreamSink<T> sinkOperator = new StreamSink<>(clean(sinkFunction));

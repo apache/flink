@@ -367,7 +367,7 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 
 		private List<TimestampedFileInputSplit> getReaderState() throws IOException {
 			List<TimestampedFileInputSplit> snapshot = new ArrayList<>(this.pendingSplits.size());
-			if (currentSplit != null ) {
+			if (currentSplit != null) {
 				if (this.format instanceof CheckpointableInputFormat && this.isSplitOpen) {
 					Serializable formatState =
 						((CheckpointableInputFormat<TimestampedFileInputSplit, Serializable>) this.format).getCurrentState();

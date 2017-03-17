@@ -198,9 +198,9 @@ public class FieldAccessorFactory implements Serializable {
 
 	// --------------------------------------------------------------------------------------------------
 
-	private final static String REGEX_FIELD = "[\\p{L}\\p{Digit}_\\$]*"; // This can start with a digit (because of Tuples)
-	private final static String REGEX_NESTED_FIELDS = "("+REGEX_FIELD+")(\\.(.+))?";
-	private final static String REGEX_NESTED_FIELDS_WILDCARD = REGEX_NESTED_FIELDS
+	private  static final String REGEX_FIELD = "[\\p{L}\\p{Digit}_\\$]*"; // This can start with a digit (because of Tuples)
+	private static final String REGEX_NESTED_FIELDS = "("+REGEX_FIELD+")(\\.(.+))?";
+	private static final String REGEX_NESTED_FIELDS_WILDCARD = REGEX_NESTED_FIELDS
 		+"|\\"+ Keys.ExpressionKeys.SELECT_ALL_CHAR
 		+"|\\"+ Keys.ExpressionKeys.SELECT_ALL_CHAR_SCALA;
 

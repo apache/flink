@@ -369,7 +369,7 @@ public class StreamGraphGenerator {
 			iterate.getParallelism(),
 			iterate.getMaxParallelism(),
 			iterate.getMinResources(),
-			iterate.getPreferredResources()	);
+			iterate.getPreferredResources());
 
 		StreamNode itSource = itSourceAndSink.f0;
 		StreamNode itSink = itSourceAndSink.f1;
