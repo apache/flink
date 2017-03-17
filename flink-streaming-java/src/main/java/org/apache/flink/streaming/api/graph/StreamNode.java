@@ -40,7 +40,7 @@ public class StreamNode implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
-	transient private StreamExecutionEnvironment env;
+	private transient StreamExecutionEnvironment env;
 
 	private final int id;
 	private Integer parallelism = null;

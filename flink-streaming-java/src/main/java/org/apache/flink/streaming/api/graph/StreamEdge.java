@@ -34,15 +34,15 @@ public class StreamEdge implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
-	final private String edgeId;
+	private final String edgeId;
 
-	final private StreamNode sourceVertex;
-	final private StreamNode targetVertex;
+	private final StreamNode sourceVertex;
+	private final StreamNode targetVertex;
 
 	/**
 	 * The type number of the input for co-tasks.
 	 */
-	final private int typeNumber;
+	private final int typeNumber;
 
 	/**
 	 * A list of output names that the target vertex listens to (if there is

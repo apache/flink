@@ -41,6 +41,6 @@ public interface Extractor<FROM, TO> extends Serializable {
 	 *            the input data
 	 * @return the extracted/converted data
 	 */
-	public TO extract(FROM in);
+	TO extract(FROM in);
 
 }

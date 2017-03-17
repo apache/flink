@@ -36,5 +36,5 @@ public interface ProcessingTimeCallback {
 	 * 
 	 * @param timestamp The timestamp for which the trigger event was scheduled.
 	 */
-	void onProcessingTime(long timestamp) throws Exception ;
+	void onProcessingTime(long timestamp) throws Exception;
 }

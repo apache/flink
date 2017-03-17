@@ -178,9 +178,9 @@ public abstract class MessageAcknowledgingSourceBase<Type, UId>
 
 	/**
 	 * This method must be implemented to acknowledge the given set of IDs back to the message queue.
-	 * @param UIds The list od IDs to acknowledge.
+	 * @param uIds The list od IDs to acknowledge.
 	 */
-	protected abstract void acknowledgeIDs(long checkpointId, List<UId> UIds);
+	protected abstract void acknowledgeIDs(long checkpointId, List<UId> uIds);
 
 	/**
 	 * Adds an ID to be stored with the current checkpoint.

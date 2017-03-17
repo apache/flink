@@ -606,7 +606,7 @@ public class KeyMap<K, V> implements Iterable<KeyMap.Entry<K, V>> {
 	 *
 	 * @param <V> The type created by the factory.
 	 */
-	public static interface LazyFactory<V> {
+	public interface LazyFactory<V> {
 
 		/**
 		 * The factory method; creates the value.
@@ -625,7 +625,7 @@ public class KeyMap<K, V> implements Iterable<KeyMap.Entry<K, V>> {
 	 * @param <K> The type of the key.
 	 * @param <V> The type of the value.
 	 */
-	public static interface TraversalEvaluator<K, V> {
+	public interface TraversalEvaluator<K, V> {
 
 		/**
 		 * Called whenever the traversal starts with a new key.

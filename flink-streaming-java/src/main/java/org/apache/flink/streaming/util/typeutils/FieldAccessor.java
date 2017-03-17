@@ -92,7 +92,7 @@ public abstract class FieldAccessor<T, F> implements Serializable {
 	 * This is when the entire record is considered as a single field. (eg. field 0 of a basic type, or a
 	 * field of a POJO that is itself some composite type but is not further decomposed)
 	 */
-	final static class SimpleFieldAccessor<T> extends FieldAccessor<T, T> {
+	static final class SimpleFieldAccessor<T> extends FieldAccessor<T, T> {
 
 		private static final long serialVersionUID = 1L;
 
@@ -113,7 +113,7 @@ public abstract class FieldAccessor<T, F> implements Serializable {
 		}
 	}
 
-	final static class ArrayFieldAccessor<T, F> extends FieldAccessor<T, F> {
+	static final class ArrayFieldAccessor<T, F> extends FieldAccessor<T, F> {
 
 		private static final long serialVersionUID = 1L;
 
