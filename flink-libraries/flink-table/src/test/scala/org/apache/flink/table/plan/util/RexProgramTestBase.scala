@@ -53,7 +53,7 @@ abstract class RexProgramTestBase {
   }
 
   // select amount, amount * price as total where amount * price < 100 and id > 6
-  protected def buildSimpleRexProgram1(): RexProgram = {
+  protected def buildSimpleRexProgram(): RexProgram = {
     val inputRowType = typeFactory.createStructType(allFieldTypes, allFieldNames)
     val builder = new RexProgramBuilder(inputRowType, rexBuilder)
 
@@ -74,37 +74,6 @@ abstract class RexProgramTestBase {
     val t8 = builder.addExpr(rexBuilder.makeCall(SqlStdOperatorTable.AND, List(t6, t7).asJava))
     builder.addCondition(t8)
 
-    builder.getProgram
-  }
-
-  // select amount, amount * price as total
-  // where (amount * price < 100) AND (id > 6)
-  protected def buildSimpleRexProgram2(): RexProgram = {
-    val inputRowType = typeFactory.createStructType(allFieldTypes, allFieldNames)
-    val builder = new RexProgramBuilder(inputRowType, rexBuilder)
-
-    // amount
-    val t0 = rexBuilder.makeInputRef(allFieldTypes.get(2), 2)
-    // id
-    val t1 = rexBuilder.makeInputRef(allFieldTypes.get(1), 1)
-    // price
-    val t2 = rexBuilder.makeInputRef(allFieldTypes.get(3), 3)
-    // amount * price
-    val t3 = builder.addExpr(rexBuilder.makeCall(SqlStdOperatorTable.MULTIPLY, t0, t2))
-    val t4 = rexBuilder.makeExactLiteral(BigDecimal.valueOf(100L))
-    val t5 = rexBuilder.makeExactLiteral(BigDecimal.valueOf(6L))
-
-    // project: amount, amount * price
-    builder.addProject(t0, "amount")
-    builder.addProject(t3, "total")
-    // amount * price < 100
-    val t6 = builder.addExpr(rexBuilder.makeCall(SqlStdOperatorTable.LESS_THAN, t3, t4))
-    // id > 6
-    val t7 = builder.addExpr(rexBuilder.makeCall(SqlStdOperatorTable.GREATER_THAN, t1, t5))
-    // (amount * price < 100) AND (id > 6)
-    val t8 = builder.addExpr(rexBuilder.makeCall(SqlStdOperatorTable.AND, List(t6, t7).asJava))
-
-    builder.addCondition(t8)
     builder.getProgram
   }
 

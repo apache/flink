@@ -27,7 +27,7 @@ class RexProgramRewriterTest extends RexProgramTestBase {
 
   @Test
   def testRewriteRexProgram(): Unit = {
-    val rexProgram = buildSimpleRexProgram1()
+    val rexProgram = buildSimpleRexProgram()
     assertTrue(extractExprStrList(rexProgram) == wrapRefArray(Array(
       "$0",
       "$1",

@@ -194,15 +194,25 @@ class TableSourceTest extends TableTestBase {
     val tEnv = util.tEnv
 
     tEnv.registerTableSource(tableName, tableSource)
-    tEnv.registerFunction("func0", Func0)
+    val func = Func0
+    tEnv.registerFunction("func0", func)
 
     val result = tEnv
         .scan(tableName)
         .select('price, 'id, 'amount)
         .where("amount > 2 && func0(amount) < 32")
 
-    // wo don't fail during the optimization
-    tEnv.optimize(result.getRelNode)
+    val expected = unaryNode(
+      "DataSetCalc",
+      batchFilterableSourceTableNode(
+        tableName,
+        Array("name", "id", "amount", "price"),
+        "'amount > 2"),
+      term("select", "price", "id", "amount"),
+      term("where", s"<(${func.functionIdentifier}(amount), 32)")
+    )
+
+    util.verifyTable(result, expected)
   }
 
   // stream plan

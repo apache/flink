@@ -36,14 +36,14 @@ class RexProgramExtractorTest extends RexProgramTestBase {
 
   @Test
   def testExtractRefInputFields(): Unit = {
-    val usedFields = RexProgramExtractor.extractRefInputFields(buildSimpleRexProgram1())
+    val usedFields = RexProgramExtractor.extractRefInputFields(buildSimpleRexProgram())
     assertArrayEquals(usedFields, Array(2, 3, 1))
   }
 
   @Test
   def testExtractSimpleCondition(): Unit = {
     val builder: RexBuilder = new RexBuilder(typeFactory)
-    val program = buildSimpleRexProgram2()
+    val program = buildSimpleRexProgram()
 
     val firstExp = ExpressionParser.parseExpression("id > 6")
     val secondExp = ExpressionParser.parseExpression("amount * price < 100")
@@ -274,8 +274,7 @@ class RexProgramExtractorTest extends RexProgramTestBase {
 
     // unsupported now: amount.cast(BigInteger) > 100
     val condition1 = builder.addExpr(
-      rexBuilder.makeCall(SqlStdOperatorTable.GREATER_THAN,
-        rexBuilder.makeCast(allFieldTypes.get(1), t0), t2))
+      rexBuilder.makeCall(SqlStdOperatorTable.GREATER_THAN, cast, t2))
 
     // amount <= id
     val condition2 = builder.addExpr(
@@ -317,7 +316,7 @@ class RexProgramExtractorTest extends RexProgramTestBase {
     rexBuilder = new RexBuilder(typeFactory)
 
     // flag
-    val t0 = rexBuilder.makeInputRef(allFieldTypes.get(4), 4)
+    val t0 = rexBuilder.makeInputRef(allFieldTypes.get(fieldIndex), fieldIndex)
     builder.addCondition(builder.addExpr(rexBuilder.makeCall(op, t0)))
 
     val program = builder.getProgram(false)

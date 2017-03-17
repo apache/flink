@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.utils
 
+import java.util.{List => JList}
+
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
@@ -31,7 +33,6 @@ import org.apache.flink.util.Preconditions
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.tools.nsc.interpreter.JList
 
 /**
   * This source can only handle simple comparision with field "amount".
@@ -49,7 +50,7 @@ class TestFilterableTableSource(
 
   val fieldTypes: Array[TypeInformation[_]] = Array(STRING, LONG, INT, DOUBLE)
 
-  // all predicates with filed "amount"
+  // all predicates with field "amount"
   private var filterPredicates = new mutable.ArrayBuffer[Expression]
 
   // all comparing values for field "amount"
@@ -103,20 +104,11 @@ class TestFilterableTableSource(
       cnt <- 0 until recordNum
       if shouldCreateRow(cnt)
     } yield {
-      val row = new Row(fieldNames.length)
-      fieldNames.zipWithIndex.foreach { case (name, index) =>
-        name match {
-          case "name" =>
-            row.setField(index, s"Record_$cnt")
-          case "id" =>
-            row.setField(index, cnt.toLong)
-          case "amount" =>
-            row.setField(index, cnt.toInt)
-          case "price" =>
-            row.setField(index, cnt.toDouble)
-        }
-      }
-      row
+      Row.of(
+        s"Record_$cnt",
+        cnt.toLong.asInstanceOf[Object],
+        cnt.toInt.asInstanceOf[Object],
+        cnt.toDouble.asInstanceOf[Object])
     }
   }
 

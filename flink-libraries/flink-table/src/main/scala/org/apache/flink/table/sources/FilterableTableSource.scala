@@ -18,10 +18,9 @@
 
 package org.apache.flink.table.sources
 
+import java.util.{List => JList}
+
 import org.apache.flink.table.expressions.Expression
-
-import scala.tools.nsc.interpreter.JList
-
 /**
   * Adds support for filtering push-down to a [[TableSource]].
   * A [[TableSource]] extending this interface is able to filter records before returning.
