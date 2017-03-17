@@ -21,13 +21,8 @@ package org.apache.flink.table.plan.rules.datastream
 import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.flink.table.plan.nodes.datastream.{DataStreamCalc, StreamTableSourceScan}
-<<<<<<< 289b8bdde9bfcc92b7b71a39981c6449a18a1516
 import org.apache.flink.table.plan.rules.common.PushProjectIntoTableSourceScanRuleBase
 import org.apache.flink.table.sources.{ProjectableTableSource, StreamTableSource}
-=======
-import org.apache.flink.table.plan.rules.util.RexProgramProjectExtractor._
-import org.apache.flink.table.sources.{NestedFieldsProjectableTableSource, ProjectableTableSource, StreamTableSource}
->>>>>>> rework nested field extraction
 
 /**
   * The rule is responsible for push project into a [[StreamTableSourceScan]]

@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.plan.util
 
+import java.util
+
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.{SqlFunction, SqlPostfixOperator}
@@ -91,6 +93,27 @@ object RexProgramExtractor {
 
       case _ => (Array.empty, Array.empty)
     }
+  }
+
+  /**
+    * Extracts the name of nested input fields accessed by the RexProgram.
+    *
+    * @param rexProgram The RexProgram to analyze
+    * @return The full names of accessed input fields. e.g. field.subfield
+    */
+  def extractRefNestedInputFields(
+      rexProgram: RexProgram, usedFields: Array[Int]): Array[Array[String]] = {
+
+    val highLevelNames = rexProgram.getInputRowType.getFieldList.toList.map(_.getName)
+
+    val visitor = new RefFieldAccessorVisitor(highLevelNames, usedFields)
+    rexProgram.getProjectList.foreach(exp => rexProgram.expandLocalRef(exp).accept(visitor))
+
+    val condition = rexProgram.getCondition
+    if (condition != null) {
+      rexProgram.expandLocalRef(condition).accept(visitor)
+    }
+    visitor.getNestedFields
   }
 }
 
@@ -180,4 +203,47 @@ class RexNodeToExpressionConverter(
     str.replaceAll("\\s|_", "")
   }
 
+}
+
+/**
+  * A RexVisitor to extract used nested input fields
+  */
+class RefFieldAccessorVisitor(
+    names: List[String],
+    usedFields: Array[Int]) extends RexVisitorImpl[Unit](true) {
+
+  private val projectedFields = new util.ArrayList[Array[String]]
+
+  names.foreach { _ =>
+    projectedFields.add(Array.empty)
+  }
+
+  private val order: Map[Int, Int] = usedFields.zip(names.indices).toMap
+
+  def getNestedFields: Array[Array[String]] =
+    projectedFields.asScala.toArray.filterNot(_.isEmpty)
+
+  override def visitFieldAccess(fieldAccess: RexFieldAccess): Unit = {
+    def internalVisit(fieldAccess: RexFieldAccess): (Int, String) = {
+      fieldAccess.getReferenceExpr match {
+        case ref: RexInputRef =>
+          (ref.getIndex, fieldAccess.getField.getName)
+        case fac: RexFieldAccess =>
+          val (i, n) = internalVisit(fac)
+          (i, s"$n.${fieldAccess.getField.getName}")
+      }
+    }
+    val (index, fullName) = internalVisit(fieldAccess)
+    val outputIndex = order(index)
+    val fields = projectedFields.get(outputIndex)
+    projectedFields.set(outputIndex, fields :+ fullName)
+  }
+
+  override def visitInputRef(inputRef: RexInputRef): Unit = {
+    val outputIndex = order(inputRef.getIndex)
+    projectedFields.set(outputIndex, Array("*"))
+  }
+
+  override def visitCall(call: RexCall): Unit =
+    call.operands.foreach(operand => operand.accept(this))
 }

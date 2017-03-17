@@ -28,7 +28,7 @@ package org.apache.flink.table.sources
 trait NestedFieldsProjectableTableSource[T] {
 
   /**
-    * Creates a copy of the [[NestedFieldsProjectableTableSource]]
+    * Creates a copy of the [[TableSource]]
     * that projects its output on the specified nested fields.
     *
     * @param fields The indexes of the fields to return.
@@ -46,10 +46,10 @@ trait NestedFieldsProjectableTableSource[T] {
     * fields = field = [0, 1, 2]
     * nestedFields  \[\["*"], ["school.city", "age"], ["*"\]\]
     *
-    * @return A copy of the [[NestedFieldsProjectableTableSource]] that projects its output.
+    * @return A copy of the [[TableSource]] that projects its output.
     */
   def projectNestedFields(
       fields: Array[Int],
-      nestedFields: Array[Array[String]]): NestedFieldsProjectableTableSource[T]
+      nestedFields: Array[Array[String]]): TableSource[T]
 
 }
