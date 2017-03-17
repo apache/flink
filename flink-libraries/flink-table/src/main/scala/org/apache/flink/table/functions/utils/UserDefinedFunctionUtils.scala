@@ -209,22 +209,19 @@ object UserDefinedFunctionUtils {
     *
     * @param name function name
     * @param tableFunction table function
-    * @param resultType the type information of returned table
     * @param typeFactory type factory
     * @return the TableSqlFunction
     */
   def createTableSqlFunctions(
       name: String,
       tableFunction: TableFunction[_],
-      resultType: TypeInformation[_],
       typeFactory: FlinkTypeFactory)
     : Seq[SqlFunction] = {
-    val (fieldNames, fieldIndexes, _) = UserDefinedFunctionUtils.getFieldInfo(resultType)
     val evalMethods = checkAndExtractEvalMethods(tableFunction)
 
     evalMethods.map { method =>
-      val function = new FlinkTableFunctionImpl(resultType, fieldIndexes, fieldNames, method)
-      TableSqlFunction(name, tableFunction, resultType, typeFactory, function)
+      val function = new FlinkTableFunctionImpl(tableFunction, method)
+      TableSqlFunction(name, tableFunction, typeFactory, function)
     }
   }
 

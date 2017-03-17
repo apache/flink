@@ -68,7 +68,7 @@ class TableFunc2 extends TableFunction[Row] {
     }
   }
 
-  override def getResultType: TypeInformation[Row] = {
+  override def getResultType(arguments: java.util.List[AnyRef]): TypeInformation[Row] = {
     new RowTypeInfo(BasicTypeInfo.STRING_TYPE_INFO,
                     BasicTypeInfo.INT_TYPE_INFO)
   }
@@ -121,7 +121,7 @@ class TableFunc4 extends TableFunction[Row] {
     }
   }
 
-  override def getResultType: TypeInformation[Row] = {
+  override def getResultType(arguments: java.util.List[AnyRef]): TypeInformation[Row] = {
     new RowTypeInfo(BasicTypeInfo.STRING_TYPE_INFO,
                     BasicTypeInfo.INT_TYPE_INFO,
                     BasicTypeInfo.INT_TYPE_INFO)
@@ -140,7 +140,7 @@ class TableFunc5 extends TableFunction[Row] {
     }
   }
 
-  override def getResultType: TypeInformation[Row] = {
+  override def getResultType(arguments: java.util.List[AnyRef]): TypeInformation[Row] = {
     new RowTypeInfo(BasicTypeInfo.STRING_TYPE_INFO,
       BasicTypeInfo.INT_TYPE_INFO,
       BasicTypeInfo.INT_TYPE_INFO)
@@ -163,7 +163,7 @@ class TableFunc6 extends TableFunction[Row] {
     }
   }
 
-  override def getResultType: TypeInformation[Row] = {
+  override def getResultType(arguments: java.util.List[AnyRef]): TypeInformation[Row] = {
     new RowTypeInfo(BasicTypeInfo.STRING_TYPE_INFO,
                     BasicTypeInfo.INT_TYPE_INFO)
   }

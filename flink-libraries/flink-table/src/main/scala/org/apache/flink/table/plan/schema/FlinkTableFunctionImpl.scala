@@ -25,8 +25,11 @@ import org.apache.calcite.schema.TableFunction
 import org.apache.calcite.schema.impl.ReflectiveFunctionBase
 import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
+import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
+import org.apache.flink.table.functions.{TableFunction => FlinkUDTF}
 
 /**
   * This is heavily inspired by Calcite's [[org.apache.calcite.schema.impl.TableFunctionImpl]].
@@ -34,40 +37,17 @@ import org.apache.flink.table.calcite.FlinkTypeFactory
   * The main difference is that we override the [[getRowType()]] and [[getElementType()]].
   */
 class FlinkTableFunctionImpl[T](
-    val typeInfo: TypeInformation[T],
-    val fieldIndexes: Array[Int],
-    val fieldNames: Array[String],
+    val tableFunction: FlinkUDTF[T],
     val evalMethod: Method)
   extends ReflectiveFunctionBase(evalMethod)
   with TableFunction {
 
-  if (fieldIndexes.length != fieldNames.length) {
-    throw new TableException(
-      "Number of field indexes and field names must be equal.")
-  }
-
-  // check uniqueness of field names
-  if (fieldNames.length != fieldNames.toSet.size) {
-    throw new TableException(
-      "Table field names must be unique.")
-  }
-
-  val fieldTypes: Array[TypeInformation[_]] =
-    typeInfo match {
-      case cType: CompositeType[T] =>
-        if (fieldNames.length != cType.getArity) {
-          throw new TableException(
-            s"Arity of type (" + cType.getFieldNames.deep + ") " +
-              "not equal to number of field names " + fieldNames.deep + ".")
-        }
-        fieldIndexes.map(cType.getTypeAt(_).asInstanceOf[TypeInformation[_]])
-      case aType: AtomicType[T] =>
-        if (fieldIndexes.length != 1 || fieldIndexes(0) != 0) {
-          throw new TableException(
-            "Non-composite input type may have only a single field and its index must be 0.")
-        }
-        Array(aType)
-    }
+  /**
+    * Cached resultType, fieldIndexes and fieldNames
+    */
+  var resultType: TypeInformation[T] = _
+  var fieldIndexes: Array[Int] = _
+  var fieldNames: Array[String] = _
 
   override def getElementType(arguments: util.List[AnyRef]): Type = classOf[Array[Object]]
 
@@ -75,6 +55,48 @@ class FlinkTableFunctionImpl[T](
                           arguments: util.List[AnyRef]): RelDataType = {
     val flinkTypeFactory = typeFactory.asInstanceOf[FlinkTypeFactory]
     val builder = flinkTypeFactory.builder
+    implicit val typeInfo: TypeInformation[T] = TypeExtractor.createTypeInfo(
+      tableFunction, classOf[FlinkUDTF[_]], tableFunction.getClass, 0)
+      .asInstanceOf[TypeInformation[T]]
+
+    resultType = if (tableFunction.getResultType(arguments) != null) {
+      tableFunction.getResultType(arguments)
+    } else {
+      implicitly[TypeInformation[T]]
+    }
+
+    val fieldTup = UserDefinedFunctionUtils.getFieldInfo(resultType)
+    fieldNames = fieldTup._1
+    fieldIndexes = fieldTup._2
+
+    if (fieldIndexes.length != fieldNames.length) {
+      throw new TableException(
+        "Number of field indexes and field names must be equal.")
+    }
+
+    // check uniqueness of field names
+    if (fieldNames.length != fieldNames.toSet.size) {
+      throw new TableException(
+        "Table field names must be unique.")
+    }
+
+    val fieldTypes: Array[TypeInformation[_]] =
+      resultType match {
+        case cType: CompositeType[T] =>
+          if (fieldNames.length != cType.getArity) {
+            throw new TableException(
+              s"Arity of type (" + cType.getFieldNames.deep + ") " +
+                "not equal to number of field names " + fieldNames.deep + ".")
+          }
+          fieldIndexes.map(cType.getTypeAt(_).asInstanceOf[TypeInformation[_]])
+        case aType: AtomicType[T] =>
+          if (fieldIndexes.length != 1 || fieldIndexes(0) != 0) {
+            throw new TableException(
+              "Non-composite input type may have only a single field and its index must be 0.")
+          }
+          Array(aType)
+      }
+
     fieldNames
       .zip(fieldTypes)
       .foreach { f =>
