@@ -431,8 +431,8 @@ public class WorksetIterationNode extends TwoInputNode implements IterationNode 
 		LocalProperties lp = LocalProperties.EMPTY.addUniqueFields(this.solutionSetKeyFields);
 		
 		// take all combinations of solution set delta and workset plans
-		for (PlanNode solutionSetCandidate : solutionSetDeltaCandidates) {
-			for (PlanNode worksetCandidate : worksetCandidates) {
+		for (PlanNode worksetCandidate : worksetCandidates) {
+			for (PlanNode solutionSetCandidate : solutionSetDeltaCandidates) {
 				// check whether they have the same operator at their latest branching point
 				if (this.singleRoot.areBranchCompatible(solutionSetCandidate, worksetCandidate)) {
 					
