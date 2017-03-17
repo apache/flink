@@ -193,7 +193,7 @@ public class BlobUtils {
 	static File getJobDirectory(File storageDir, JobID jobID) {
 		final File jobDirectory = new File(storageDir, JOB_DIR_PREFIX + jobID.toString());
 
-		if (!jobDirectory.exists() && !jobDirectory.mkdirs()) {
+		if (!jobDirectory.mkdirs() && !jobDirectory.exists()) {
 			throw new RuntimeException("Could not create jobId directory '" + jobDirectory.getAbsolutePath() + "'.");
 		}
 
