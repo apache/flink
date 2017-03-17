@@ -308,6 +308,8 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	public SerializedValue<TaskInformation> getSerializedTaskInformation() throws IOException {
 
 		if (null == serializedTaskInformation) {
+			// TODO: actually, at the moment, multiple threads may enter this code
+			// -> we may be able to avoid some unnecessary work here
 
 			int parallelism = getParallelism();
 			int maxParallelism = getMaxParallelism();
