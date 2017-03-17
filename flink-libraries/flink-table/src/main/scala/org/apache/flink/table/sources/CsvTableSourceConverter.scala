@@ -33,7 +33,7 @@ import com.google.common.collect.ImmutableSet
 @TableType(value = "csv")
 class CsvTableSourceConverter extends TableSourceConverter[CsvTableSource] {
 
-  private val required: JSet[String] = ImmutableSet.of("path")
+  private val required: JSet[String] = ImmutableSet.of("path", "fieldDelim", "rowDelim")
 
   override def requiredProperties: JSet[String] = required
 

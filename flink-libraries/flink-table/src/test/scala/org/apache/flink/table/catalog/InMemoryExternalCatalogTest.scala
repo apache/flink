@@ -113,9 +113,9 @@ class InMemoryExternalCatalogTest {
     assertNotNull(catalog.getDatabase(databaseName))
   }
 
-  @Test
+  @Test(expected = classOf[DatabaseNotExistException])
   def testGetNotExistDatabase(): Unit = {
-    assertNull(catalog.getDatabase("notexistedDb"))
+    catalog.getDatabase("notexistedDb")
   }
 
   @Test

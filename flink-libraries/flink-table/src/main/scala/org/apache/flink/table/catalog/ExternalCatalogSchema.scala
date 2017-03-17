@@ -40,7 +40,7 @@ import scala.collection.JavaConverters._
   */
 class ExternalCatalogSchema(
     catalogIdentifier: String,
-    catalog: ReadonlyExternalCatalog) extends Schema {
+    catalog: ExternalCatalog) extends Schema {
 
   private val LOG: Logger = LoggerFactory.getLogger(this.getClass)
 
@@ -96,7 +96,7 @@ class ExternalCatalogSchema(
 
   private class ExternalCatalogDatabaseSchema(
       schemaName: String,
-      flinkExternalCatalog: ReadonlyExternalCatalog) extends Schema {
+      flinkExternalCatalog: ExternalCatalog) extends Schema {
 
     override def getTable(name: String): Table = {
       try {
@@ -146,7 +146,7 @@ object ExternalCatalogSchema {
   def create(
       parentSchema: SchemaPlus,
       externalCatalogIdentifier: String,
-      externalCatalog: ReadonlyExternalCatalog): ExternalCatalogSchema = {
+      externalCatalog: ExternalCatalog): ExternalCatalogSchema = {
     val newSchema = new ExternalCatalogSchema(externalCatalogIdentifier, externalCatalog)
     val schemaPlusOfNewSchema = parentSchema.add(externalCatalogIdentifier, newSchema)
     newSchema.registerSubSchemas(schemaPlusOfNewSchema)

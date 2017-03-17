@@ -25,11 +25,11 @@ import scala.collection.mutable.HashMap
 import scala.collection.JavaConverters._
 
 /**
-  * This class is an in-memory implementation of [[ReadonlyExternalCatalog]].
+  * This class is an in-memory implementation of [[ExternalCatalog]].
   *
   * It could be used for testing or developing instead of used in production environment.
   */
-class InMemoryExternalCatalog extends CRUDExternalCatalog {
+class InMemoryExternalCatalog extends CrudExternalCatalog {
 
   private val databases = new HashMap[String, Database]
 
@@ -138,7 +138,7 @@ class InMemoryExternalCatalog extends CRUDExternalCatalog {
   override def getDatabase(dbName: String): ExternalCatalogDatabase = synchronized {
     databases.get(dbName) match {
       case Some(database) => database.db
-      case None => null
+      case None => throw new DatabaseNotExistException(dbName)
     }
   }
 

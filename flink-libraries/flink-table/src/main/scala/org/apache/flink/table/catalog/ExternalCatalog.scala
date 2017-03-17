@@ -27,7 +27,7 @@ import org.apache.flink.table.api._
   * Its main responsibilities is provide tables for calcite catalog, it looks up databases or tables
   * in the external catalog.
   */
-trait ReadonlyExternalCatalog {
+trait ExternalCatalog {
 
   /**
     * Gets table from external Catalog

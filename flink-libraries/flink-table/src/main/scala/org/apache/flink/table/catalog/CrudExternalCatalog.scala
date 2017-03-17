@@ -28,7 +28,7 @@ import org.apache.flink.table.api._
   * <li> provide tables for calcite catalog, it looks up databases or tables in the external catalog
   * </ul>
   */
-trait CRUDExternalCatalog extends ReadonlyExternalCatalog {
+trait CrudExternalCatalog extends ExternalCatalog {
 
   /**
     * Adds table into external Catalog

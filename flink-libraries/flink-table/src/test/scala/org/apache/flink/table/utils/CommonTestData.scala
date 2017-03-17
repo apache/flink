@@ -24,7 +24,6 @@ import java.util
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
-import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.sources.{BatchTableSource, CsvTableSource}
 import org.apache.flink.table.catalog._
 
@@ -61,7 +60,7 @@ object CommonTestData {
     )
   }
 
-  def getInMemoryTestCatalog: ReadonlyExternalCatalog = {
+  def getInMemoryTestCatalog: ExternalCatalog = {
     val csvRecord1 = Seq(
       "1#1#Hi",
       "2#2#Hello",
@@ -103,7 +102,7 @@ object CommonTestData {
     )
     val tempFilePath2 = writeToTempFile(csvRecord2.mkString("$"), "csv-test2", "tmp")
     val properties2 = new util.HashMap[String, String]()
-    properties2.put("path", tempFilePath1)
+    properties2.put("path", tempFilePath2)
     properties2.put("fieldDelim", "#")
     properties2.put("rowDelim", "$")
     val externalCatalogTable2 = ExternalCatalogTable(
@@ -170,7 +169,4 @@ object CommonTestData {
       this(null, null)
     }
   }
-
-  def getMockTableEnvironment: TableEnvironment = new MockTableEnvironment
-
 }

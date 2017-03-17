@@ -18,11 +18,10 @@
 
 package org.apache.flink.table.catalog
 
-import java.io.IOException
 import java.lang.reflect.Modifier
 import java.net.URL
-import java.util.Properties
 
+import org.apache.commons.configuration.{ConfigurationException, ConversionException, PropertiesConfiguration}
 import org.apache.flink.table.annotation.TableType
 import org.apache.flink.table.api.{AmbiguousTableSourceConverterException, NoMatchedTableSourceConverterException}
 import org.apache.flink.table.plan.schema.TableSourceTable
@@ -55,33 +54,31 @@ object ExternalTableSourceUtil {
     val resourceUrls = getClass.getClassLoader.getResources(tableSourceConverterConfigFileName)
     while (resourceUrls.hasMoreElements) {
       val url = resourceUrls.nextElement()
-      parseScanPackageFromConfigFile(url) match {
-        case Some(scanPackage) =>
-          val clazzWithAnnotations = new Reflections(scanPackage)
-              .getTypesAnnotatedWith(classOf[TableType])
-          clazzWithAnnotations.asScala.foreach(clazz =>
-            if (classOf[TableSourceConverter[_]].isAssignableFrom(clazz)) {
-              if (Modifier.isAbstract(clazz.getModifiers()) ||
-                  Modifier.isInterface(clazz.getModifiers)) {
-                LOG.warn(s"Class ${clazz.getName} is annotated with TableType " +
-                    s"but an abstract class or interface.")
-              } else {
-                val tableTypeAnnotation: TableType =
-                  clazz.getAnnotation(classOf[TableType])
-                val tableType = tableTypeAnnotation.value()
-                val converterClazz = clazz.asInstanceOf[Class[_ <: TableSourceConverter[_]]]
-                registeredConverters.addBinding(tableType, converterClazz)
-                LOG.info(s"Registers the converter ${clazz.getName} to table type [$tableType]. ")
-              }
+      val scanPackages = parseScanPackagesFromConfigFile(url)
+      scanPackages.foreach(scanPackage => {
+        val clazzWithAnnotations = new Reflections(scanPackage)
+            .getTypesAnnotatedWith(classOf[TableType])
+        clazzWithAnnotations.asScala.foreach(clazz =>
+          if (classOf[TableSourceConverter[_]].isAssignableFrom(clazz)) {
+            if (Modifier.isAbstract(clazz.getModifiers()) ||
+                Modifier.isInterface(clazz.getModifiers)) {
+              LOG.warn(s"Class ${clazz.getName} is annotated with TableType " +
+                  s"but an abstract class or interface.")
             } else {
-              LOG.warn(
-                s"Class ${clazz.getName} is annotated with TableType, " +
-                    s"but does not implement the TableSourceConverter interface.")
+              val tableTypeAnnotation: TableType =
+                clazz.getAnnotation(classOf[TableType])
+              val tableType = tableTypeAnnotation.value()
+              val converterClazz = clazz.asInstanceOf[Class[_ <: TableSourceConverter[_]]]
+              registeredConverters.addBinding(tableType, converterClazz)
+              LOG.info(s"Registers the converter ${clazz.getName} to table type [$tableType]. ")
             }
-          )
-        case None =>
-          LOG.warn(s"Fail to get scan package from config file [$url].")
-      }
+          } else {
+            LOG.warn(
+              s"Class ${clazz.getName} is annotated with TableType, " +
+                  s"but does not implement the TableSourceConverter interface.")
+          }
+        )
+      })
     }
     registeredConverters
   }
@@ -98,17 +95,23 @@ object ExternalTableSourceUtil {
     tableTypeToTableSourceConvertersClazz.get(tableType) match {
       case Some(converterClasses) =>
         val matchedConverters = converterClasses.map(InstantiationUtil.instantiate(_))
-            .filter(converter => propertyKeys.containsAll(converter.requiredProperties))
         if (matchedConverters.isEmpty) {
           LOG.error(s"Cannot find any TableSourceConverter binded to table type [$tableType]. " +
               s"Register TableSourceConverter via externalCatalogTable.properties file.")
           throw new NoMatchedTableSourceConverterException(tableType)
-        } else if (matchedConverters.size > 1) {
+        }
+        val filteredMatchedConverters = matchedConverters.filter(
+          converter => propertyKeys.containsAll(converter.requiredProperties))
+        if(filteredMatchedConverters.isEmpty) {
+          LOG.error(s"Cannot find any matched TableSourceConverter for type [$tableType], " +
+              s"because the required properties does not match.")
+          throw new NoMatchedTableSourceConverterException(tableType)
+        } else if (filteredMatchedConverters.size > 1) {
           LOG.error(s"Finds more than one matched TableSourceConverter for type [$tableType], " +
-              s"they are ${matchedConverters.map(_.getClass.getName)}")
+              s"they are ${filteredMatchedConverters.map(_.getClass.getName)}")
           throw new AmbiguousTableSourceConverterException(tableType)
         } else {
-          val convertedTableSource: TableSource[_] = matchedConverters.head
+          val convertedTableSource: TableSource[_] = filteredMatchedConverters.head
               .fromExternalCatalogTable(externalCatalogTable)
               .asInstanceOf[TableSource[_]]
           val flinkStatistic = if (externalCatalogTable.stats != null) {
@@ -125,21 +128,25 @@ object ExternalTableSourceUtil {
     }
   }
 
-  private def parseScanPackageFromConfigFile(url: URL): Option[String] = {
-    val properties = new Properties()
+  /**
+    * Parses scan package set from input config file
+    *
+    * @param url url of config file
+    * @return scan package set
+    */
+  private def parseScanPackagesFromConfigFile(url: URL): Set[String] = {
     try {
-      properties.load(url.openStream())
-      val scanPackage = properties.getProperty("scan.package")
-      if (scanPackage == null || scanPackage.isEmpty) {
-        LOG.warn(s"Config file $url does not contain scan package!")
-        None
-      } else {
-        Some(scanPackage)
-      }
+      val config = new PropertiesConfiguration(url)
+      config.setListDelimiter(',')
+      config.getStringArray("scan.packages").filterNot(_.isEmpty).toSet
     } catch {
-      case e: IOException =>
-        LOG.warn(s"Fail to open config file [$url]", e)
-        None
+      case e: ConfigurationException =>
+        LOG.warn(s"Error happened while loading the properties file [$url]", e)
+        Set.empty
+      case e1: ConversionException =>
+        LOG.warn(s"Error happened while parsing 'scan.packages' field of properties file [$url]. " +
+            s"The value is not a String or List of Strings.", e1)
+        Set.empty
     }
   }
 
