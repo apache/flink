@@ -19,11 +19,13 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.InstantiationUtil;
 
+@Internal
 public final class RuntimeComparatorFactory<T> implements TypeComparatorFactory<T>, java.io.Serializable {
 
 	private static final long serialVersionUID = 1L;

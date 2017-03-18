@@ -809,6 +809,20 @@ class Table(
     }
     new WindowedTable(this, window)
   }
+
+  var tableName: String = _
+
+  /**
+    * Registers an unique table name under the table environment
+    * and return the registered table name.
+    */
+  override def toString: String = {
+    if (tableName == null) {
+      tableName = "UnnamedTable$" + tableEnv.attrNameCntr.getAndIncrement()
+      tableEnv.registerTable(tableName, this)
+    }
+    tableName
+  }
 }
 
 /**

@@ -24,10 +24,15 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironmentFactory;
 import org.apache.flink.api.java.LocalEnvironment;
 import org.apache.flink.api.java.io.AvroOutputFormat;
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.examples.java.wordcount.WordCount;
+import org.apache.flink.runtime.blob.BlobRecoveryITCase;
 import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
+import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.util.FileUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -76,7 +81,7 @@ public class HDFSTest {
 			hdfs = hdPath.getFileSystem(hdConf);
 			FSDataOutputStream stream = hdfs.create(hdPath);
 			for(int i = 0; i < 10; i++) {
-				stream.write("Hello HDFS\n".getBytes());
+				stream.write("Hello HDFS\n".getBytes(ConfigConstants.DEFAULT_CHARSET));
 			}
 			stream.close();
 
@@ -189,7 +194,7 @@ public class HDFSTest {
 
 		fs.mkdirs(directory);
 
-		byte[] data = "HDFSTest#testDeletePathIfEmpty".getBytes();
+		byte[] data = "HDFSTest#testDeletePathIfEmpty".getBytes(ConfigConstants.DEFAULT_CHARSET);
 
 		for (Path file: Arrays.asList(singleFile, directoryFile)) {
 			org.apache.flink.core.fs.FSDataOutputStream outputStream = fs.create(file, true);
@@ -215,6 +220,21 @@ public class HDFSTest {
 		// now the deletion should work
 		assertTrue(FileUtils.deletePathIfEmpty(fs, directory));
 		assertFalse(fs.exists(directory));
+	}
+
+	/**
+	 * Tests that with {@link HighAvailabilityMode#ZOOKEEPER} distributed JARs are recoverable from any
+	 * participating BlobServer.
+	 */
+	@Test
+	public void testBlobServerRecovery() throws Exception {
+		org.apache.flink.configuration.Configuration
+			config = new org.apache.flink.configuration.Configuration();
+		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
+		config.setString(CoreOptions.STATE_BACKEND, "ZOOKEEPER");
+		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, hdfsURI);
+
+		BlobRecoveryITCase.testBlobServerRecovery(config);
 	}
 
 	// package visible

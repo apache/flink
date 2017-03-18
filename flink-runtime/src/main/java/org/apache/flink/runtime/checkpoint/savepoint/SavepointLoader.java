@@ -19,11 +19,13 @@
 package org.apache.flink.runtime.checkpoint.savepoint;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.checkpoint.CheckpointProperties;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.TaskState;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.state.StreamStateHandle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,22 +48,27 @@ public class SavepointLoader {
 	 * @param jobId          The JobID of the job to load the savepoint for.
 	 * @param tasks          Tasks that will possibly be reset
 	 * @param savepointPath  The path of the savepoint to rollback to
-	 * @param userClassLoader The user code classloader
+	 * @param classLoader    The class loader to resolve serialized classes in legacy savepoint versions.
 	 * @param allowNonRestoredState Allow to skip checkpoint state that cannot be mapped
 	 * to any job vertex in tasks.
 	 *
 	 * @throws IllegalStateException If mismatch between program and savepoint state
-	 * @throws Exception             If savepoint store failure
+	 * @throws IOException             If savepoint store failure
 	 */
 	public static CompletedCheckpoint loadAndValidateSavepoint(
 			JobID jobId,
 			Map<JobVertexID, ExecutionJobVertex> tasks,
 			String savepointPath,
-			ClassLoader userClassLoader,
+			ClassLoader classLoader,
 			boolean allowNonRestoredState) throws IOException {
 
 		// (1) load the savepoint
-		Savepoint savepoint = SavepointStore.loadSavepoint(savepointPath, userClassLoader);
+		final Tuple2<Savepoint, StreamStateHandle> savepointAndHandle = 
+				SavepointStore.loadSavepointWithHandle(savepointPath, classLoader);
+
+		final Savepoint savepoint = savepointAndHandle.f0;
+		final StreamStateHandle metadataHandle = savepointAndHandle.f1;
+
 		final Map<JobVertexID, TaskState> taskStates = new HashMap<>(savepoint.getTaskStates().size());
 
 		boolean expandedToLegacyIds = false;
@@ -114,10 +121,12 @@ public class SavepointLoader {
 
 		// (3) convert to checkpoint so the system can fall back to it
 		CheckpointProperties props = CheckpointProperties.forStandardSavepoint();
-		return new CompletedCheckpoint(jobId, savepoint.getCheckpointId(), 0L, 0L, taskStates, props, savepointPath);
+		return new CompletedCheckpoint(jobId, savepoint.getCheckpointId(), 0L, 0L,
+				taskStates, props, metadataHandle, savepointPath);
 	}
 
 	// ------------------------------------------------------------------------
 
+	/** This class is not meant to be instantiated */
 	private SavepointLoader() {}
 }

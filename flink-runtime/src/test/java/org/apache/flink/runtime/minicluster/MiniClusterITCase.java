@@ -23,10 +23,13 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
+
+import java.io.IOException;
 
 /**
  * Integration test cases for the {@link MiniCluster}.
@@ -46,7 +49,13 @@ public class MiniClusterITCase extends TestLogger {
 		cfg.setUseSingleRpcService();
 
 		MiniCluster miniCluster = new MiniCluster(cfg);
-		executeJob(miniCluster);
+		try {
+			miniCluster.start();
+			executeJob(miniCluster);
+		}
+		finally {
+			miniCluster.shutdown();
+		}
 	}
 
 	@Test
@@ -55,7 +64,13 @@ public class MiniClusterITCase extends TestLogger {
 		cfg.setUseRpcServicePerComponent();
 
 		MiniCluster miniCluster = new MiniCluster(cfg);
-		executeJob(miniCluster);
+		try {
+			miniCluster.start();
+			executeJob(miniCluster);
+		}
+		finally {
+			miniCluster.shutdown();
+		}
 	}
 
 	@Test
@@ -64,7 +79,13 @@ public class MiniClusterITCase extends TestLogger {
 		cfg.setNumJobManagers(3);
 
 		MiniCluster miniCluster = new MiniCluster(cfg);
-		executeJob(miniCluster);
+		try {
+			miniCluster.start();
+			executeJob(miniCluster);
+		}
+		finally {
+			miniCluster.shutdown();
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -72,13 +93,11 @@ public class MiniClusterITCase extends TestLogger {
 	// ------------------------------------------------------------------------
 
 	private static void executeJob(MiniCluster miniCluster) throws Exception {
-		miniCluster.start();
-
 		JobGraph job = getSimpleJob();
 		miniCluster.runJobBlocking(job);
 	}
 
-	private static JobGraph getSimpleJob() {
+	private static JobGraph getSimpleJob() throws IOException {
 		JobVertex task = new JobVertex("Test task");
 		task.setParallelism(1);
 		task.setMaxParallelism(1);
@@ -86,6 +105,7 @@ public class MiniClusterITCase extends TestLogger {
 
 		JobGraph jg = new JobGraph(new JobID(), "Test Job", task);
 		jg.setAllowQueuedScheduling(true);
+		jg.setScheduleMode(ScheduleMode.EAGER);
 
 		ExecutionConfig executionConfig = new ExecutionConfig();
 		executionConfig.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000));

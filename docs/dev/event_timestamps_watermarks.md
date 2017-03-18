@@ -26,10 +26,10 @@ under the License.
 {:toc}
 
 
-This section is relevant for program running on **Event Time**. For an introduction to *Event Time*,
-*Processing Time*, and *Ingestion Time*, please refer to the [event time introduction]({{ site.baseurl }}/dev/event_time.html)
+This section is relevant for programs running on **event time**. For an introduction to *event time*,
+*processing time*, and *ingestion time*, please refer to the [introduction to event time]({{ site.baseurl }}/dev/event_time.html).
 
-To work with *Event Time*, streaming programs need to set the *time characteristic* accordingly.
+To work with *event time*, streaming programs need to set the *time characteristic* accordingly.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -48,14 +48,14 @@ env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
 ## Assigning Timestamps
 
-In order to work with *Event Time*, Flink needs to know the events' *timestamps*, meaning each element in the
-stream needs to get its event timestamp *assigned*. That happens usually by accessing/extracting the
+In order to work with *event time*, Flink needs to know the events' *timestamps*, meaning each element in the
+stream needs to have its event timestamp *assigned*. This is usually done by accessing/extracting the
 timestamp from some field in the element.
 
 Timestamp assignment goes hand-in-hand with generating watermarks, which tell the system about
-the progress in event time.
+progress in event time.
 
-There are two ways to assign timestamps and generate Watermarks:
+There are two ways to assign timestamps and generate watermarks:
 
   1. Directly in the data stream source
   2. Via a timestamp assigner / watermark generator: in Flink timestamp assigners also define the watermarks to be emitted
@@ -65,14 +65,14 @@ millliseconds since the Java epoch of 1970-01-01T00:00:00Z.
 
 ### Source Functions with Timestamps and Watermarks
 
-Stream sources can also directly assign timestamps to the elements they produce and emit Watermarks. In that case,
-no Timestamp Assigner is needed.
+Stream sources can also directly assign timestamps to the elements they produce, and they can also emit watermarks.
+When this is done, no timestamp assigner is needed.
+Note that if a timestamp assigner is used, any timestamps and watermarks provided by the source will be overwritten.
 
 To assign a timestamp to an element in the source directly, the source must use the `collectWithTimestamp(...)`
-method on the `SourceContext`. To generate Watermarks, the source must call the `emitWatermark(Watermark)` function.
+method on the `SourceContext`. To generate watermarks, the source must call the `emitWatermark(Watermark)` function.
 
-Below is a simple example of a source *(non-checkpointed)* that assigns timestamps and generates Watermarks
-depending on special events:
+Below is a simple example of a *(non-checkpointed)* source that assigns timestamps and generates watermarks:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -106,17 +106,14 @@ override def run(ctx: SourceContext[MyType]): Unit = {
 </div>
 </div>
 
-*Note:* If the streaming program uses a TimestampAssigner on a stream where elements have a timestamp already,
-those timestamps will be overwritten by the TimestampAssigner. Similarly, Watermarks will be overwritten as well.
-
 
 ### Timestamp Assigners / Watermark Generators
 
-Timestamp Assigners take a stream and produce a new stream with timestamped elements and watermarks. If the
+Timestamp assigners take a stream and produce a new stream with timestamped elements and watermarks. If the
 original stream had timestamps and/or watermarks already, the timestamp assigner overwrites them.
 
-The timestamp assigners usually are specified immediately after the data source but it is not strictly required to do so.
-A common pattern is, for example, to parse (*MapFunction*) and filter (*FilterFunction*) before the timestamp assigner.
+Timestamp assigners are usually specified immediately after the data source, but it is not strictly required to do so.
+A common pattern, for example, is to parse (*MapFunction*) and filter (*FilterFunction*) before the timestamp assigner.
 In any case, the timestamp assigner needs to be specified before the first operation on event time
 (such as the first window operation). As a special case, when using Kafka as the source of a streaming job,
 Flink allows the specification of a timestamp assigner / watermark emitter inside
@@ -175,13 +172,13 @@ withTimestampsAndWatermarks
 
 #### **With Periodic Watermarks**
 
-The `AssignerWithPeriodicWatermarks` assigns timestamps and generates watermarks periodically (possibly depending
+`AssignerWithPeriodicWatermarks` assigns timestamps and generates watermarks periodically (possibly depending
 on the stream elements, or purely based on processing time).
 
 The interval (every *n* milliseconds) in which the watermark will be generated is defined via
-`ExecutionConfig.setAutoWatermarkInterval(...)`. Each time, the assigner's `getCurrentWatermark()` method will be
-called, and a new Watermark will be emitted, if the returned Watermark is non-null and larger than the previous
-Watermark.
+`ExecutionConfig.setAutoWatermarkInterval(...)`. The assigner's `getCurrentWatermark()` method will be
+called each time, and a new watermark will be emitted if the returned watermark is non-null and larger than the previous
+watermark.
 
 Two simple examples of timestamp assigners with periodic watermark generation are below.
 
@@ -189,9 +186,9 @@ Two simple examples of timestamp assigners with periodic watermark generation ar
 <div data-lang="java" markdown="1">
 {% highlight java %}
 /**
- * This generator generates watermarks assuming that elements come out of order to a certain degree only.
- * The latest elements for a certain timestamp t will arrive at most n milliseconds after the earliest
- * elements for timestamp t.
+ * This generator generates watermarks assuming that elements arrive out of order,
+ * but only to a certain degree. The latest elements for a certain timestamp t will arrive
+ * at most n milliseconds after the earliest elements for timestamp t.
  */
 public class BoundedOutOfOrdernessGenerator extends AssignerWithPeriodicWatermarks<MyEvent> {
 
@@ -214,8 +211,8 @@ public class BoundedOutOfOrdernessGenerator extends AssignerWithPeriodicWatermar
 }
 
 /**
- * This generator generates watermarks that are lagging behind processing time by a certain amount.
- * It assumes that elements arrive in Flink after at most a certain time.
+ * This generator generates watermarks that are lagging behind processing time by a fixed amount.
+ * It assumes that elements arrive in Flink after a bounded delay.
  */
 public class TimeLagWatermarkGenerator extends AssignerWithPeriodicWatermarks<MyEvent> {
 
@@ -237,9 +234,9 @@ public class TimeLagWatermarkGenerator extends AssignerWithPeriodicWatermarks<My
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 /**
- * This generator generates watermarks assuming that elements come out of order to a certain degree only.
- * The latest elements for a certain timestamp t will arrive at most n milliseconds after the earliest
- * elements for timestamp t.
+ * This generator generates watermarks assuming that elements arrive out of order,
+ * but only to a certain degree. The latest elements for a certain timestamp t will arrive
+ * at most n milliseconds after the earliest elements for timestamp t.
  */
 class BoundedOutOfOrdernessGenerator extends AssignerWithPeriodicWatermarks[MyEvent] {
 
@@ -260,8 +257,8 @@ class BoundedOutOfOrdernessGenerator extends AssignerWithPeriodicWatermarks[MyEv
 }
 
 /**
- * This generator generates watermarks that are lagging behind processing time by a certain amount.
- * It assumes that elements arrive in Flink after at most a certain time.
+ * This generator generates watermarks that are lagging behind processing time by a fixed amount.
+ * It assumes that elements arrive in Flink after a bounded delay.
  */
 class TimeLagWatermarkGenerator extends AssignerWithPeriodicWatermarks[MyEvent] {
 
@@ -282,15 +279,15 @@ class TimeLagWatermarkGenerator extends AssignerWithPeriodicWatermarks[MyEvent] 
 
 #### **With Punctuated Watermarks**
 
-To generate Watermarks whenever a certain event indicates that a new watermark can be generated, use the
-`AssignerWithPunctuatedWatermarks`. For this class, Flink will first call the `extractTimestamp(...)` method
-to assign the element a timestamp, and then immediately call for that element the
-`checkAndGetNextWatermark(...)` method.
+To generate watermarks whenever a certain event indicates that a new watermark might be generated, use
+`AssignerWithPunctuatedWatermarks`. For this class Flink will first call the `extractTimestamp(...)` method
+to assign the element a timestamp, and then immediately call the
+`checkAndGetNextWatermark(...)` method on that element.
 
-The `checkAndGetNextWatermark(...)` method gets the timestamp that was assigned in the `extractTimestamp(...)`
-method, and can decide whether it wants to generate a Watermark. Whenever the `checkAndGetNextWatermark(...)`
-method returns a non-null Watermark, and that Watermark is larger than the latest previous Watermark, that
-new Watermark will be emitted.
+The `checkAndGetNextWatermark(...)` method is passed the timestamp that was assigned in the `extractTimestamp(...)`
+method, and can decide whether it wants to generate a watermark. Whenever the `checkAndGetNextWatermark(...)`
+method returns a non-null watermark, and that watermark is larger than the latest previous watermark, that
+new watermark will be emitted.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -326,4 +323,4 @@ class PunctuatedAssigner extends AssignerWithPunctuatedWatermarks[MyEvent] {
 </div>
 
 *Note:* It is possible to generate a watermark on every single event. However, because each watermark causes some
-computation downstream, an excessive number of watermarks slows down performance.
+computation downstream, an excessive number of watermarks degrades performance.

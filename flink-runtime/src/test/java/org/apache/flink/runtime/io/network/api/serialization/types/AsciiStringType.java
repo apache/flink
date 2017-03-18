@@ -19,11 +19,12 @@
 
 package org.apache.flink.runtime.io.network.api.serialization.types;
 
-import java.io.IOException;
-import java.util.Random;
-
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+
+import java.io.IOException;
+import java.util.Random;
 
 public class AsciiStringType implements SerializationTestType {
 
@@ -54,7 +55,7 @@ public class AsciiStringType implements SerializationTestType {
 
 	@Override
 	public int length() {
-		return value.getBytes().length + 2;
+		return value.getBytes(ConfigConstants.DEFAULT_CHARSET).length + 2;
 	}
 
 	@Override

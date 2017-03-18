@@ -18,42 +18,34 @@
 
 package org.apache.flink.runtime.blob;
 
-import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
-import org.junit.After;
-import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Random;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class BlobRecoveryITCase {
 
-	private File recoveryDir;
-
-	@Before
-	public void setUp() throws Exception {
-		recoveryDir = new File(FileUtils.getTempDirectory(), "BlobRecoveryITCaseDir");
-		if (!recoveryDir.exists() && !recoveryDir.mkdirs()) {
-			throw new IllegalStateException("Failed to create temp directory for test");
-		}
-	}
-
-	@After
-	public void cleanUp() throws Exception {
-		if (recoveryDir != null) {
-			FileUtils.deleteDirectory(recoveryDir);
-		}
-	}
+	@Rule
+	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	/**
 	 * Tests that with {@link HighAvailabilityMode#ZOOKEEPER} distributed JARs are recoverable from any
@@ -61,6 +53,17 @@ public class BlobRecoveryITCase {
 	 */
 	@Test
 	public void testBlobServerRecovery() throws Exception {
+		Configuration config = new Configuration();
+		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
+		config.setString(CoreOptions.STATE_BACKEND, "FILESYSTEM");
+		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, temporaryFolder.getRoot().getPath());
+
+		testBlobServerRecovery(config);
+	}
+
+	public static void testBlobServerRecovery(final Configuration config) throws IOException {
+		final String clusterId = config.getString(HighAvailabilityOptions.HA_CLUSTER_ID);
+		String storagePath = config.getString(HighAvailabilityOptions.HA_STORAGE_PATH) + "/" + clusterId;
 		Random rand = new Random();
 
 		BlobServer[] server = new BlobServer[2];
@@ -68,11 +71,6 @@ public class BlobRecoveryITCase {
 		BlobClient client = null;
 
 		try {
-			Configuration config = new Configuration();
-			config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
-			config.setString(ConfigConstants.STATE_BACKEND, "FILESYSTEM");
-			config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, recoveryDir.getPath());
-
 			for (int i = 0; i < server.length; i++) {
 				server[i] = new BlobServer(config);
 				serverAddress[i] = new InetSocketAddress("localhost", server[i].getPort());
@@ -95,6 +93,11 @@ public class BlobRecoveryITCase {
 
 			client.put(jobId[0], testKey[0], expected); // Request 3
 			client.put(jobId[1], testKey[1], expected, 32, 256); // Request 4
+
+			// check that the storage directory exists
+			final Path blobServerPath = new Path(storagePath, "blob");
+			FileSystem fs = blobServerPath.getFileSystem();
+			assertTrue("Unknown storage dir: " + blobServerPath, fs.exists(blobServerPath));
 
 			// Close the client and connect to the other server
 			client.close();
@@ -146,6 +149,18 @@ public class BlobRecoveryITCase {
 			client.delete(keys[1]);
 			client.delete(jobId[0], testKey[0]);
 			client.delete(jobId[1], testKey[1]);
+
+			// Verify everything is clean
+			assertTrue("HA storage directory does not exist", fs.exists(new Path(storagePath)));
+			if (fs.exists(blobServerPath)) {
+				final org.apache.flink.core.fs.FileStatus[] recoveryFiles =
+					fs.listStatus(blobServerPath);
+				ArrayList<String> filenames = new ArrayList<String>(recoveryFiles.length);
+				for (org.apache.flink.core.fs.FileStatus file: recoveryFiles) {
+					filenames.add(file.toString());
+				}
+				fail("Unclean state backend: " + filenames);
+			}
 		}
 		finally {
 			for (BlobServer s : server) {
@@ -158,9 +173,5 @@ public class BlobRecoveryITCase {
 				client.close();
 			}
 		}
-
-		// Verify everything is clean
-		File[] recoveryFiles = recoveryDir.listFiles();
-		assertEquals("Unclean state backend: " + Arrays.toString(recoveryFiles), 0, recoveryFiles.length);
 	}
 }

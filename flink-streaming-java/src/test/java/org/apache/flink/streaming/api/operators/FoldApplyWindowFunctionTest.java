@@ -35,6 +35,7 @@ import org.apache.flink.streaming.api.transformations.SourceTransformation;
 import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.runtime.operators.windowing.AccumulatingProcessingTimeWindowOperator;
+import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalIterableWindowFunction;
 import org.apache.flink.util.Collector;
 import org.junit.Test;
 import org.junit.Assert;
@@ -81,19 +82,20 @@ public class FoldApplyWindowFunctionTest {
 		);
 
 		AccumulatingProcessingTimeWindowOperator<Integer, Integer, Integer> windowOperator = new AccumulatingProcessingTimeWindowOperator<>(
-			foldWindowFunction,
-			new KeySelector<Integer, Integer>() {
-				private static final long serialVersionUID = -7951310554369722809L;
+			new InternalIterableWindowFunction<>(
+					foldWindowFunction),
+				new KeySelector<Integer, Integer>() {
+					private static final long serialVersionUID = -7951310554369722809L;
 
-				@Override
-				public Integer getKey(Integer value) throws Exception {
-					return value;
-				}
-			},
-			IntSerializer.INSTANCE,
-			IntSerializer.INSTANCE,
-			3000,
-			3000
+					@Override
+					public Integer getKey(Integer value) throws Exception {
+						return value;
+					}
+				},
+				IntSerializer.INSTANCE,
+				IntSerializer.INSTANCE,
+				3000,
+				3000
 		);
 
 		SourceFunction<Integer> sourceFunction = new SourceFunction<Integer>(){
@@ -115,7 +117,7 @@ public class FoldApplyWindowFunctionTest {
 
 		transformations.add(new OneInputTransformation<>(source, "test", windowOperator, BasicTypeInfo.INT_TYPE_INFO, 1));
 
-		StreamGraph streamGraph = StreamGraphGenerator.generate(env, transformations);
+		StreamGraph streamGraph = StreamGraphGenerator.generate(env, transformations, 1 /* default parallelism */);
 
 		List<Integer> result = new ArrayList<>();
 		List<Integer> input = new ArrayList<>();
@@ -137,6 +139,10 @@ public class FoldApplyWindowFunctionTest {
 	}
 
 	public static class DummyStreamExecutionEnvironment extends StreamExecutionEnvironment {
+
+		public DummyStreamExecutionEnvironment() {
+			super(1);
+		}
 
 		@Override
 		public JobExecutionResult execute(String jobName) throws Exception {

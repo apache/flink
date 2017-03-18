@@ -45,9 +45,7 @@ import java.util.HashMap;
 public final class InstantiationUtil {
 	
 	/**
-	 * A custom ObjectInputStream that can also load user-code using a
-	 * user-code ClassLoader.
-	 *
+	 * A custom ObjectInputStream that can load classes using a specific ClassLoader.
 	 */
 	public static class ClassLoaderObjectInputStream extends ObjectInputStream {
 
@@ -323,6 +321,16 @@ public final class InstantiationUtil {
 	public static void serializeObject(OutputStream out, Object o) throws IOException {
 		ObjectOutputStream oos = new ObjectOutputStream(out);
 		oos.writeObject(o);
+	}
+
+	public static boolean isSerializable(Object o) {
+		try {
+			serializeObject(o);
+		} catch (IOException e) {
+			return false;
+		}
+
+		return true;
 	}
 
 	/**

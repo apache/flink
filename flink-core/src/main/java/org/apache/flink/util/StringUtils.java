@@ -27,6 +27,11 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.StringValue;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * Utility class to convert objects into strings in vice-versa.
  */
@@ -302,19 +307,46 @@ public final class StringUtils {
 		}
 		return new String(data);
 	}
-	
+
+	/**
+	 * Writes a String to the given output.
+	 * The written string can be read with {@link #readNullableString(DataInputView)}.
+	 *
+	 * @param str The string to write
+	 * @param out The output to write to
+	 *   
+	 * @throws IOException Thrown, if the writing or the serialization fails.
+	 */
+	public static void writeString(@Nonnull String str, DataOutputView out) throws IOException {
+		checkNotNull(str);
+		StringValue.writeString(str, out);
+	}
+
+	/**
+	 * Reads a non-null String from the given input.
+	 *
+	 * @param in The input to read from
+	 * @return The deserialized String
+	 * 
+	 * @throws IOException Thrown, if the reading or the deserialization fails.
+	 */
+	public static String readString(DataInputView in) throws IOException {
+		return StringValue.readString(in);
+	}
+
 	/**
 	 * Writes a String to the given output. The string may be null.
 	 * The written string can be read with {@link #readNullableString(DataInputView)}-
 	 * 
 	 * @param str The string to write, or null.
 	 * @param out The output to write to.
-	 * @throws IOException Throws if the writing or the serialization fails.
+	 * 
+	 * @throws IOException Thrown, if the writing or the serialization fails.
 	 */
-	public static void writeNullableString(String str, DataOutputView out) throws IOException {
+	public static void writeNullableString(@Nullable String str, DataOutputView out) throws IOException {
 		if (str != null) {
 			out.writeBoolean(true);
-			StringValue.writeString(str, out);
+			writeString(str, out);
 		} else {
 			out.writeBoolean(false);
 		}
@@ -326,11 +358,12 @@ public final class StringUtils {
 	 * 
 	 * @param in The input to read from.
 	 * @return The deserialized string, or null.
-	 * @throws IOException Throws if the reading or the deserialization fails.
+	 * 
+	 * @throws IOException Thrown, if the reading or the deserialization fails.
 	 */
-	public static String readNullableString(DataInputView in) throws IOException {
+	public static @Nullable String readNullableString(DataInputView in) throws IOException {
 		if (in.readBoolean()) {
-			return StringValue.readString(in);
+			return readString(in);
 		} else {
 			return null;
 		}

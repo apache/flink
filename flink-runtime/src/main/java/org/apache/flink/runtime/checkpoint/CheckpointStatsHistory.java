@@ -255,7 +255,7 @@ public class CheckpointStatsHistory implements Serializable {
 		// Update the latest checkpoint stats
 		if (completedOrFailed.getStatus().isCompleted()) {
 			CompletedCheckpointStats completed = (CompletedCheckpointStats) completedOrFailed;
-			if (CheckpointProperties.isSavepoint(completed.getProperties()) &&
+			if (completed.getProperties().isSavepoint() &&
 				(latestSavepoint == null ||
 					completed.getCheckpointId() > latestSavepoint.getCheckpointId())) {
 
@@ -307,7 +307,9 @@ public class CheckpointStatsHistory implements Serializable {
 	 *
 	 * <p>The iteration order is in reverse insertion order.
 	 */
-	private static class CheckpointsStatsHistoryIterable implements Iterable<AbstractCheckpointStats> {
+	private static class CheckpointsStatsHistoryIterable implements Iterable<AbstractCheckpointStats>, Serializable {
+
+		private static final long serialVersionUID = 726376482426055490L;
 
 		/** Copy of the checkpointsArray array at the point when this iterable was created. */
 		private final AbstractCheckpointStats[] checkpointsArray;

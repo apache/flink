@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineOnCancellationBarrierException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
@@ -50,12 +51,14 @@ public class StreamTaskCancellationBarrierTest {
 	public void testEmitCancellationBarrierWhenNotReady() throws Exception {
 		StreamTask<String, ?> task = new InitBlockingTask();
 		StreamTaskTestHarness<String> testHarness = new StreamTaskTestHarness<>(task, BasicTypeInfo.STRING_TYPE_INFO);
+		testHarness.setupOutputForSingletonOperatorChain();
 
 		// start the test - this cannot succeed across the 'init()' method
 		testHarness.invoke();
 
 		// tell the task to commence a checkpoint
-		boolean result = task.triggerCheckpoint(new CheckpointMetaData(41L, System.currentTimeMillis()));
+		boolean result = task.triggerCheckpoint(new CheckpointMetaData(41L, System.currentTimeMillis()),
+			CheckpointOptions.forFullCheckpoint());
 		assertFalse("task triggered checkpoint though not ready", result);
 
 		// a cancellation barrier should be downstream
@@ -80,6 +83,7 @@ public class StreamTaskCancellationBarrierTest {
 				task,
 				1, 2,
 				BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+		testHarness.setupOutputForSingletonOperatorChain();
 
 		StreamConfig streamConfig = testHarness.getStreamConfig();
 		StreamMap<String, String> mapOperator = new StreamMap<>(new IdentityMap());
@@ -124,6 +128,7 @@ public class StreamTaskCancellationBarrierTest {
 		TwoInputStreamTaskTestHarness<String, String, String> testHarness = new TwoInputStreamTaskTestHarness<>(
 				task,
 				BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+		testHarness.setupOutputForSingletonOperatorChain();
 
 		StreamConfig streamConfig = testHarness.getStreamConfig();
 		CoStreamMap<String, String, String> op = new CoStreamMap<>(new UnionCoMap());

@@ -1,7 +1,7 @@
 ---
 title: "Working with State"
 layout: redirect
-redirect: /dev/state.html
+redirect: /dev/stream/state.html
 permalink: /apis/streaming/state.html
 ---
 <!--

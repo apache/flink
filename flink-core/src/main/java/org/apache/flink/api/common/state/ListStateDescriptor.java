@@ -21,17 +21,27 @@ package org.apache.flink.api.common.state;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.ListSerializer;
+import org.apache.flink.api.java.typeutils.ListTypeInfo;
+
+import java.util.List;
 
 /**
- * A {@link StateDescriptor} for {@link ListState}. This can be used to create a partitioned
- * list state using
+ * A {@link StateDescriptor} for {@link ListState}. This can be used to create state where the type
+ * is a list that can be appended and iterated over.
+ * 
+ * <p>Using {@code ListState} is typically more efficient than manually maintaining a list in a
+ * {@link ValueState}, because the backing implementation can support efficient appends, rathern then
+ * replacing the full list on write.
+ * 
+ * <p>To create keyed list state (on a KeyedStream), use 
  * {@link org.apache.flink.api.common.functions.RuntimeContext#getListState(ListStateDescriptor)}.
  *
  * @param <T> The type of the values that can be added to the list state.
  */
 @PublicEvolving
-public class ListStateDescriptor<T> extends StateDescriptor<ListState<T>, T> {
-	private static final long serialVersionUID = 1L;
+public class ListStateDescriptor<T> extends StateDescriptor<ListState<T>, List<T>> {
+	private static final long serialVersionUID = 2L;
 
 	/**
 	 * Creates a new {@code ListStateDescriptor} with the given name and list element type.
@@ -40,20 +50,20 @@ public class ListStateDescriptor<T> extends StateDescriptor<ListState<T>, T> {
 	 * consider using the {@link #ListStateDescriptor(String, TypeInformation)} constructor.
 	 *
 	 * @param name The (unique) name for the state.
-	 * @param typeClass The type of the values in the state.
+	 * @param elementTypeClass The type of the elements in the state.
 	 */
-	public ListStateDescriptor(String name, Class<T> typeClass) {
-		super(name, typeClass, null);
+	public ListStateDescriptor(String name, Class<T> elementTypeClass) {
+		super(name, new ListTypeInfo<>(elementTypeClass), null);
 	}
 
 	/**
 	 * Creates a new {@code ListStateDescriptor} with the given name and list element type.
 	 *
 	 * @param name The (unique) name for the state.
-	 * @param typeInfo The type of the values in the state.
+	 * @param elementTypeInfo The type of the elements in the state.
 	 */
-	public ListStateDescriptor(String name, TypeInformation<T> typeInfo) {
-		super(name, typeInfo, null);
+	public ListStateDescriptor(String name, TypeInformation<T> elementTypeInfo) {
+		super(name, new ListTypeInfo<>(elementTypeInfo), null);
 	}
 
 	/**
@@ -63,15 +73,37 @@ public class ListStateDescriptor<T> extends StateDescriptor<ListState<T>, T> {
 	 * @param typeSerializer The type serializer for the list values.
 	 */
 	public ListStateDescriptor(String name, TypeSerializer<T> typeSerializer) {
-		super(name, typeSerializer, null);
+		super(name, new ListSerializer<>(typeSerializer), null);
 	}
-	
+
 	// ------------------------------------------------------------------------
 
 	@Override
-	public ListState<T> bind(StateBackend stateBackend) throws Exception {
-		return stateBackend.createListState(this);
+	public ListState<T> bind(StateBinder stateBinder) throws Exception {
+		return stateBinder.createListState(this);
 	}
+
+	/**
+	 * Gets the serializer for the elements contained in the list.
+	 * 
+	 * @return The serializer for the elements in the list.
+	 */
+	public TypeSerializer<T> getElementSerializer() {
+		// call getSerializer() here to get the initialization check and proper error message
+		final TypeSerializer<List<T>> rawSerializer = getSerializer();
+		if (!(rawSerializer instanceof ListSerializer)) {
+			throw new IllegalStateException();
+		}
+
+		return ((ListSerializer<T>)serializer).getElementSerializer();
+	}
+
+	@Override
+	public Type getType() {
+		return Type.LIST;
+	}
+
+	// ------------------------------------------------------------------------
 
 	@Override
 	public boolean equals(Object o) {
@@ -82,8 +114,7 @@ public class ListStateDescriptor<T> extends StateDescriptor<ListState<T>, T> {
 			return false;
 		}
 
-		ListStateDescriptor<?> that = (ListStateDescriptor<?>) o;
-
+		final ListStateDescriptor<?> that = (ListStateDescriptor<?>) o;
 		return serializer.equals(that.serializer) && name.equals(that.name);
 
 	}
@@ -100,10 +131,5 @@ public class ListStateDescriptor<T> extends StateDescriptor<ListState<T>, T> {
 		return "ListStateDescriptor{" +
 				"serializer=" + serializer +
 				'}';
-	}
-
-	@Override
-	public Type getType() {
-		return Type.LIST;
 	}
 }

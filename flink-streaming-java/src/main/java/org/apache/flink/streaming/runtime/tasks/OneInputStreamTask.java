@@ -35,18 +35,23 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 	@Override
 	public void init() throws Exception {
 		StreamConfig configuration = getConfiguration();
-		
+
 		TypeSerializer<IN> inSerializer = configuration.getTypeSerializerIn1(getUserCodeClassLoader());
 		int numberOfInputs = configuration.getNumberOfInputs();
 
 		if (numberOfInputs > 0) {
 			InputGate[] inputGates = getEnvironment().getAllInputGates();
-			inputProcessor = new StreamInputProcessor<IN>(
-					inputGates, inSerializer,
-					this, 
+
+			inputProcessor = new StreamInputProcessor<>(
+					inputGates,
+					inSerializer,
+					this,
 					configuration.getCheckpointMode(),
+					getCheckpointLock(),
 					getEnvironment().getIOManager(),
-					getEnvironment().getTaskManagerInfo().getConfiguration());
+					getEnvironment().getTaskManagerInfo().getConfiguration(),
+					getStreamStatusMaintainer(),
+					this.headOperator);
 
 			// make sure that stream tasks report their I/O statistics
 			inputProcessor.setMetricGroup(getEnvironment().getMetricGroup().getIOMetricGroup());
@@ -55,12 +60,10 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 
 	@Override
 	protected void run() throws Exception {
-		// cache some references on the stack, to make the code more JIT friendly
-		final OneInputStreamOperator<IN, OUT> operator = this.headOperator;
+		// cache processor reference on the stack, to make the code more JIT friendly
 		final StreamInputProcessor<IN> inputProcessor = this.inputProcessor;
-		final Object lock = getCheckpointLock();
-		
-		while (running && inputProcessor.processInput(operator, lock)) {
+
+		while (running && inputProcessor.processInput()) {
 			// all the work happens in the "processInput" method
 		}
 	}

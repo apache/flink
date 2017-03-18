@@ -41,6 +41,9 @@ import static java.util.Objects.requireNonNull;
 
 public class TaskManagersHandler extends AbstractJsonRequestHandler  {
 
+	private static final String TASKMANAGERS_REST_PATH = "/taskmanagers";
+	private static final String TASKMANAGER_DETAILS_REST_PATH = "/taskmanagers/:taskmanagerid";
+
 	public static final String TASK_MANAGER_ID_KEY = "taskmanagerid";
 	
 	private final FiniteDuration timeout;
@@ -50,6 +53,11 @@ public class TaskManagersHandler extends AbstractJsonRequestHandler  {
 	public TaskManagersHandler(FiniteDuration timeout, MetricFetcher fetcher) {
 		this.timeout = requireNonNull(timeout);
 		this.fetcher = fetcher;
+	}
+
+	@Override
+	public String[] getPaths() {
+		return new String[]{TASKMANAGERS_REST_PATH, TASKMANAGER_DETAILS_REST_PATH};
 	}
 
 	@Override

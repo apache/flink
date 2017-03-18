@@ -30,10 +30,17 @@ import java.util.Map;
  */
 public class JobManagerConfigHandler extends AbstractJsonRequestHandler {
 
+	private static final String JOBMANAGER_CONFIG_REST_PATH = "/jobmanager/config";
+
 	private final Configuration config;
 
 	public JobManagerConfigHandler(Configuration config) {
 		this.config = config;
+	}
+
+	@Override
+	public String[] getPaths() {
+		return new String[]{JOBMANAGER_CONFIG_REST_PATH};
 	}
 
 	@Override

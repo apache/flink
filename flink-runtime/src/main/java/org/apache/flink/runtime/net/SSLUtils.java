@@ -27,10 +27,13 @@ import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLParameters;
+import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.TrustManagerFactory;
 import java.io.File;
 import java.io.FileInputStream;
+import java.net.ServerSocket;
 import java.security.KeyStore;
 
 /**
@@ -52,6 +55,42 @@ public class SSLUtils {
 
 		return sslConfig.getBoolean( ConfigConstants.SECURITY_SSL_ENABLED,
 			ConfigConstants.DEFAULT_SECURITY_SSL_ENABLED);
+	}
+
+	/**
+	 * Sets SSl version and cipher suites for SSLServerSocket
+	 * @param socket
+	 *        Socket to be handled
+	 * @param config
+	 *        The application configuration
+	 */
+	public static void setSSLVerAndCipherSuites(ServerSocket socket, Configuration config) {
+		if (socket instanceof SSLServerSocket) {
+			((SSLServerSocket) socket).setEnabledProtocols(config.getString(
+				ConfigConstants.SECURITY_SSL_PROTOCOL,
+				ConfigConstants.DEFAULT_SECURITY_SSL_PROTOCOL).split(","));
+			((SSLServerSocket) socket).setEnabledCipherSuites(config.getString(
+				ConfigConstants.SECURITY_SSL_ALGORITHMS,
+				ConfigConstants.DEFAULT_SECURITY_SSL_ALGORITHMS).split(","));
+		} else {
+			LOG.warn("Not a SSL socket, will skip setting tls version and cipher suites.");
+		}
+	}
+
+	/**
+	 * Sets SSL version and cipher suites for SSLEngine
+	 * @param engine
+	 *        SSLEngine to be handled
+	 * @param config
+	 *        The application configuration
+	 */
+	public static void setSSLVerAndCipherSuites(SSLEngine engine, Configuration config) {
+		engine.setEnabledProtocols(config.getString(
+			ConfigConstants.SECURITY_SSL_PROTOCOL,
+			ConfigConstants.DEFAULT_SECURITY_SSL_PROTOCOL).split(","));
+		engine.setEnabledCipherSuites(config.getString(
+			ConfigConstants.SECURITY_SSL_ALGORITHMS,
+			ConfigConstants.DEFAULT_SECURITY_SSL_ALGORITHMS).split(","));
 	}
 
 	/**

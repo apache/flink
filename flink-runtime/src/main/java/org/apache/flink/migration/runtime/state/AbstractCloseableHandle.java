@@ -30,6 +30,7 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
  * the handle is closed or was already closed.
  */
 @Deprecated
+@SuppressWarnings("deprecation")
 public abstract class AbstractCloseableHandle implements Closeable, Serializable {
 
 	/** Serial Version UID must be constant to maintain format compatibility */

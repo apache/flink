@@ -48,6 +48,7 @@ import java.util.Properties;
 import static org.apache.flink.test.util.TestUtils.tryExecute;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+
 /**
  * A class containing a special Kafka broker which has a log retention of only 250 ms.
  * This way, we can make sure our consumer is properly handling cases where we run into out of offset
@@ -252,7 +253,6 @@ public class KafkaShortRetentionTestBase implements Serializable {
 		try {
 			env.execute("Test auto offset reset none");
 		} catch(Throwable e) {
-			System.out.println("MESSAGE: " + e.getCause().getCause().getMessage());
 			// check if correct exception has been thrown
 			if(!e.getCause().getCause().getMessage().contains("Unable to find previous offset")  // kafka 0.8
 			 && !e.getCause().getCause().getMessage().contains("Undefined offset with no reset policy for partition") // kafka 0.9

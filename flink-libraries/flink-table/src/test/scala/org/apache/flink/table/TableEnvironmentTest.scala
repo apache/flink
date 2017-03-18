@@ -18,18 +18,20 @@
 
 package org.apache.flink.table
 
-import org.apache.calcite.tools.RuleSet
 import org.apache.flink.api.scala._
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.{TupleTypeInfo, TypeExtractor}
-import org.apache.flink.table.api.{Table, TableConfig, TableEnvironment, TableException}
+import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.expressions.{Alias, UnresolvedFieldReference}
-import org.apache.flink.table.sinks.TableSink
+import org.apache.flink.table.utils.{MockTableEnvironment, TableTestBase}
+import org.apache.flink.table.utils.TableTestUtil._
+
 import org.junit.Test
 import org.junit.Assert.assertEquals
 
-class TableEnvironmentTest {
+class TableEnvironmentTest extends TableTestBase {
 
   val tEnv = new MockTableEnvironment
 
@@ -81,9 +83,9 @@ class TableEnvironmentTest {
     val fieldInfo = tEnv.getFieldInfo(
       tupleType,
       Array(
-        new UnresolvedFieldReference("name1"),
-        new UnresolvedFieldReference("name2"),
-        new UnresolvedFieldReference("name3")
+        UnresolvedFieldReference("name1"),
+        UnresolvedFieldReference("name2"),
+        UnresolvedFieldReference("name3")
     ))
 
     fieldInfo._1.zip(Array("name1", "name2", "name3")).foreach(x => assertEquals(x._2, x._1))
@@ -95,9 +97,9 @@ class TableEnvironmentTest {
     val fieldInfo = tEnv.getFieldInfo(
       caseClassType,
       Array(
-        new UnresolvedFieldReference("name1"),
-        new UnresolvedFieldReference("name2"),
-        new UnresolvedFieldReference("name3")
+        UnresolvedFieldReference("name1"),
+        UnresolvedFieldReference("name2"),
+        UnresolvedFieldReference("name3")
     ))
 
     fieldInfo._1.zip(Array("name1", "name2", "name3")).foreach(x => assertEquals(x._2, x._1))
@@ -109,9 +111,9 @@ class TableEnvironmentTest {
     tEnv.getFieldInfo(
       pojoType,
       Array(
-        new UnresolvedFieldReference("name1"),
-        new UnresolvedFieldReference("name2"),
-        new UnresolvedFieldReference("name3")
+        UnresolvedFieldReference("name1"),
+        UnresolvedFieldReference("name2"),
+        UnresolvedFieldReference("name3")
       ))
   }
 
@@ -120,9 +122,9 @@ class TableEnvironmentTest {
     val fieldInfo = tEnv.getFieldInfo(
       pojoType,
       Array(
-        new UnresolvedFieldReference("pf3"),
-        new UnresolvedFieldReference("pf1"),
-        new UnresolvedFieldReference("pf2")
+        UnresolvedFieldReference("pf3"),
+        UnresolvedFieldReference("pf1"),
+        UnresolvedFieldReference("pf2")
       ))
 
     fieldInfo._1.zip(Array("pf3", "pf1", "pf2")).foreach(x => assertEquals(x._2, x._1))
@@ -133,7 +135,7 @@ class TableEnvironmentTest {
   def testGetFieldInfoAtomicName1(): Unit = {
     val fieldInfo = tEnv.getFieldInfo(
       atomicType,
-      Array(new UnresolvedFieldReference("name"))
+      Array(UnresolvedFieldReference("name"))
     )
 
     fieldInfo._1.zip(Array("name")).foreach(x => assertEquals(x._2, x._1))
@@ -145,8 +147,8 @@ class TableEnvironmentTest {
     tEnv.getFieldInfo(
       atomicType,
       Array(
-        new UnresolvedFieldReference("name1"),
-        new UnresolvedFieldReference("name2")
+        UnresolvedFieldReference("name1"),
+        UnresolvedFieldReference("name2")
       ))
   }
 
@@ -155,9 +157,9 @@ class TableEnvironmentTest {
     val fieldInfo = tEnv.getFieldInfo(
       tupleType,
       Array(
-        new Alias(UnresolvedFieldReference("f0"), "name1"),
-        new Alias(UnresolvedFieldReference("f1"), "name2"),
-        new Alias(UnresolvedFieldReference("f2"), "name3")
+        Alias(UnresolvedFieldReference("f0"), "name1"),
+        Alias(UnresolvedFieldReference("f1"), "name2"),
+        Alias(UnresolvedFieldReference("f2"), "name3")
       ))
 
     fieldInfo._1.zip(Array("name1", "name2", "name3")).foreach(x => assertEquals(x._2, x._1))
@@ -169,9 +171,9 @@ class TableEnvironmentTest {
     val fieldInfo = tEnv.getFieldInfo(
       tupleType,
       Array(
-        new Alias(UnresolvedFieldReference("f2"), "name1"),
-        new Alias(UnresolvedFieldReference("f0"), "name2"),
-        new Alias(UnresolvedFieldReference("f1"), "name3")
+        Alias(UnresolvedFieldReference("f2"), "name1"),
+        Alias(UnresolvedFieldReference("f0"), "name2"),
+        Alias(UnresolvedFieldReference("f1"), "name3")
       ))
 
     fieldInfo._1.zip(Array("name1", "name2", "name3")).foreach(x => assertEquals(x._2, x._1))
@@ -183,9 +185,9 @@ class TableEnvironmentTest {
     tEnv.getFieldInfo(
       tupleType,
       Array(
-        new Alias(UnresolvedFieldReference("xxx"), "name1"),
-        new Alias(UnresolvedFieldReference("yyy"), "name2"),
-        new Alias(UnresolvedFieldReference("zzz"), "name3")
+        Alias(UnresolvedFieldReference("xxx"), "name1"),
+        Alias(UnresolvedFieldReference("yyy"), "name2"),
+        Alias(UnresolvedFieldReference("zzz"), "name3")
       ))
   }
 
@@ -194,9 +196,9 @@ class TableEnvironmentTest {
     val fieldInfo = tEnv.getFieldInfo(
       caseClassType,
       Array(
-        new Alias(new UnresolvedFieldReference("cf1"), "name1"),
-        new Alias(new UnresolvedFieldReference("cf2"), "name2"),
-        new Alias(new UnresolvedFieldReference("cf3"), "name3")
+        Alias(UnresolvedFieldReference("cf1"), "name1"),
+        Alias(UnresolvedFieldReference("cf2"), "name2"),
+        Alias(UnresolvedFieldReference("cf3"), "name3")
       ))
 
     fieldInfo._1.zip(Array("name1", "name2", "name3")).foreach(x => assertEquals(x._2, x._1))
@@ -208,9 +210,9 @@ class TableEnvironmentTest {
     val fieldInfo = tEnv.getFieldInfo(
       caseClassType,
       Array(
-        new Alias(new UnresolvedFieldReference("cf3"), "name1"),
-        new Alias(new UnresolvedFieldReference("cf1"), "name2"),
-        new Alias(new UnresolvedFieldReference("cf2"), "name3")
+        Alias(UnresolvedFieldReference("cf3"), "name1"),
+        Alias(UnresolvedFieldReference("cf1"), "name2"),
+        Alias(UnresolvedFieldReference("cf2"), "name3")
       ))
 
     fieldInfo._1.zip(Array("name1", "name2", "name3")).foreach(x => assertEquals(x._2, x._1))
@@ -222,9 +224,9 @@ class TableEnvironmentTest {
     tEnv.getFieldInfo(
       caseClassType,
       Array(
-        new Alias(new UnresolvedFieldReference("xxx"), "name1"),
-        new Alias(new UnresolvedFieldReference("yyy"), "name2"),
-        new Alias(new UnresolvedFieldReference("zzz"), "name3")
+        Alias(UnresolvedFieldReference("xxx"), "name1"),
+        Alias(UnresolvedFieldReference("yyy"), "name2"),
+        Alias(UnresolvedFieldReference("zzz"), "name3")
       ))
   }
 
@@ -233,9 +235,9 @@ class TableEnvironmentTest {
     val fieldInfo = tEnv.getFieldInfo(
       pojoType,
       Array(
-        new Alias(new UnresolvedFieldReference("pf1"), "name1"),
-        new Alias(new UnresolvedFieldReference("pf2"), "name2"),
-        new Alias(new UnresolvedFieldReference("pf3"), "name3")
+        Alias(UnresolvedFieldReference("pf1"), "name1"),
+        Alias(UnresolvedFieldReference("pf2"), "name2"),
+        Alias(UnresolvedFieldReference("pf3"), "name3")
       ))
 
     fieldInfo._1.zip(Array("name1", "name2", "name3")).foreach(x => assertEquals(x._2, x._1))
@@ -247,9 +249,9 @@ class TableEnvironmentTest {
     val fieldInfo = tEnv.getFieldInfo(
       pojoType,
       Array(
-        new Alias(new UnresolvedFieldReference("pf3"), "name1"),
-        new Alias(new UnresolvedFieldReference("pf1"), "name2"),
-        new Alias(new UnresolvedFieldReference("pf2"), "name3")
+        Alias(UnresolvedFieldReference("pf3"), "name1"),
+        Alias(UnresolvedFieldReference("pf1"), "name2"),
+        Alias(UnresolvedFieldReference("pf2"), "name3")
       ))
 
     fieldInfo._1.zip(Array("name1", "name2", "name3")).foreach(x => assertEquals(x._2, x._1))
@@ -261,9 +263,9 @@ class TableEnvironmentTest {
     tEnv.getFieldInfo(
       pojoType,
       Array(
-        new Alias(new UnresolvedFieldReference("xxx"), "name1"),
-        new Alias(new UnresolvedFieldReference("yyy"), "name2"),
-        new Alias(new UnresolvedFieldReference("zzz"), "name3")
+        Alias(UnresolvedFieldReference("xxx"), "name1"),
+        Alias(UnresolvedFieldReference("yyy"), "name2"),
+        Alias( UnresolvedFieldReference("zzz"), "name3")
       ))
   }
 
@@ -272,21 +274,78 @@ class TableEnvironmentTest {
     tEnv.getFieldInfo(
       atomicType,
       Array(
-        new Alias(new UnresolvedFieldReference("name1"), "name2")
+        Alias(UnresolvedFieldReference("name1"), "name2")
       ))
   }
 
-}
+  @Test
+  def testSqlWithoutRegisteringForBatchTables(): Unit = {
+    val util = batchTestUtil()
+    val table = util.addTable[(Long, Int, String)]("tableName", 'a, 'b, 'c)
+    util.tEnv.unregisterTable("tableName")
 
-class MockTableEnvironment extends TableEnvironment(new TableConfig) {
+    val sqlTable = util.tEnv.sql(s"SELECT a, b, c FROM $table WHERE b > 12")
 
-  override private[flink] def writeToSink[T](table: Table, sink: TableSink[T]): Unit = ???
+    val expected = unaryNode(
+      "DataSetCalc",
+      batchTableNode(0),
+      term("select", "a, b, c"),
+      term("where", ">(b, 12)"))
 
-  override protected def checkValidTableName(name: String): Unit = ???
+    util.verifyTable(sqlTable, expected)
 
-  override protected def getBuiltInRuleSet: RuleSet = ???
+    val table2 = util.addTable[(Long, Int, String)]('d, 'e, 'f)
 
-  override def sql(query: String): Table = ???
+    val sqlTable2 = util.tEnv.sql(s"SELECT d, e, f FROM $table, $table2 WHERE c = d")
+
+    val join = unaryNode(
+      "DataSetJoin",
+      binaryNode(
+        "DataSetCalc",
+        batchTableNode(0),
+        batchTableNode(1),
+        term("select", "c")),
+      term("where", "=(c, d)"),
+      term("join", "c, d, e, f"),
+      term("joinType", "InnerJoin"))
+
+    val expected2 = unaryNode(
+      "DataSetCalc",
+      join,
+      term("select", "d, e, f"))
+
+    util.verifyTable(sqlTable2, expected2)
+  }
+
+  @Test
+  def testSqlWithoutRegisteringForStreamTables(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Long, Int, String)]("tableName", 'a, 'b, 'c)
+    util.tEnv.unregisterTable("tableName")
+
+    val sqlTable = util.tEnv.sql(s"SELECT a, b, c FROM $table WHERE b > 12")
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      streamTableNode(0),
+      term("select", "a, b, c"),
+      term("where", ">(b, 12)"))
+
+    util.verifyTable(sqlTable, expected)
+
+    val table2 = util.addTable[(Long, Int, String)]('d, 'e, 'f)
+
+    val sqlTable2 = util.tEnv.sql(s"SELECT d, e, f FROM $table2 UNION SELECT a, b, c FROM $table")
+
+    val expected2 = binaryNode(
+      "DataStreamUnion",
+      streamTableNode(1),
+      streamTableNode(0),
+      term("union", "d, e, f"))
+
+    util.verifyTable(sqlTable2, expected2)
+  }
+
 }
 
 case class CClass(cf1: Int, cf2: String, cf3: Double)

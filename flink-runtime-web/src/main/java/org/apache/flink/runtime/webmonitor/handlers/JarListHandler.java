@@ -33,10 +33,17 @@ import java.util.jar.Manifest;
 
 public class JarListHandler extends AbstractJsonRequestHandler {
 
+	static final String JAR_LIST_REST_PATH = "/jars";
+
 	private final File jarDir;
 
 	public  JarListHandler(File jarDirectory) {
 		jarDir = jarDirectory;
+	}
+
+	@Override
+	public String[] getPaths() {
+		return new String[]{JAR_LIST_REST_PATH};
 	}
 
 	@Override

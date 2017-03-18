@@ -33,6 +33,11 @@ public class TaskManagerOptions {
 	// ------------------------------------------------------------------------
 
 	// @TODO Migrate 'taskmanager.*' config options from ConfigConstants
+	
+	/** Whether to kill the TaskManager when the task thread throws an OutOfMemoryError */
+	public static final ConfigOption<Boolean> KILL_ON_OUT_OF_MEMORY =
+			key("taskmanager.jvm-exit-on-oom")
+			.defaultValue(false);
 
 	// ------------------------------------------------------------------------
 	//  Network Options
@@ -47,6 +52,20 @@ public class TaskManagerOptions {
 	public static final ConfigOption<Integer> NETWORK_REQUEST_BACKOFF_MAX =
 			key("taskmanager.net.request-backoff.max")
 			.defaultValue(10000);
+
+	/**
+	 * Number of network buffers to use for each outgoing/ingoing channel (subpartition/input channel).
+	 *
+	 * Reasoning: 1 buffer for in-flight data in the subpartition + 1 buffer for parallel serialization
+	 */
+	public static final ConfigOption<Integer> NETWORK_BUFFERS_PER_CHANNEL =
+		key("taskmanager.net.memory.buffers-per-channel")
+			.defaultValue(2);
+
+	/** Number of extra network buffers to use for each outgoing/ingoing gate (result partition/input gate). */
+	public static final ConfigOption<Integer> NETWORK_EXTRA_BUFFERS_PER_GATE =
+		key("taskmanager.net.memory.extra-buffers-per-gate")
+			.defaultValue(8);
 
 	// ------------------------------------------------------------------------
 	//  Task Options

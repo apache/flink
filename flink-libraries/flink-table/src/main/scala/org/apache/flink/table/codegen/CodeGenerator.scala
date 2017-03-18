@@ -25,12 +25,13 @@ import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
-import org.apache.flink.api.common.functions.{FlatJoinFunction, FlatMapFunction, Function, MapFunction}
+import org.apache.flink.api.common.functions._
 import org.apache.flink.api.common.io.GenericInputFormat
 import org.apache.flink.api.common.typeinfo.{AtomicType, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils.{GenericTypeInfo, PojoTypeInfo, RowTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
+import org.apache.flink.configuration.Configuration
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGenUtils._
@@ -38,10 +39,11 @@ import org.apache.flink.table.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
 import org.apache.flink.table.codegen.Indenter.toISC
 import org.apache.flink.table.codegen.calls.FunctionGenerator
 import org.apache.flink.table.codegen.calls.ScalarOperators._
-import org.apache.flink.table.functions.UserDefinedFunction
+import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
+import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.runtime.TableFunctionCollector
-import org.apache.flink.table.typeutils.TypeConverter
 import org.apache.flink.table.typeutils.TypeCheckUtils._
+import org.apache.flink.types.Row
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -62,8 +64,8 @@ import scala.collection.mutable
 class CodeGenerator(
    config: TableConfig,
    nullableInput: Boolean,
-   input1: TypeInformation[Any],
-   input2: Option[TypeInformation[Any]] = None,
+   input1: TypeInformation[_ <: Any],
+   input2: Option[TypeInformation[_ <: Any]] = None,
    input1PojoFieldMapping: Option[Array[Int]] = None,
    input2PojoFieldMapping: Option[Array[Int]] = None)
   extends RexVisitor[GeneratedExpression] {
@@ -112,7 +114,7 @@ class CodeGenerator(
     * @param config configuration that determines runtime behavior
     */
   def this(config: TableConfig) =
-    this(config, false, TypeConverter.DEFAULT_ROW_TYPE, None, None)
+    this(config, false, new RowTypeInfo(), None, None)
 
   // set of member statements that will be added only once
   // we use a LinkedHashSet to keep the insertion order
@@ -121,6 +123,14 @@ class CodeGenerator(
   // set of constructor statements that will be added only once
   // we use a LinkedHashSet to keep the insertion order
   private val reusableInitStatements = mutable.LinkedHashSet[String]()
+
+  // set of open statements for RichFunction that will be added only once
+  // we use a LinkedHashSet to keep the insertion order
+  private val reusableOpenStatements = mutable.LinkedHashSet[String]()
+
+  // set of close statements for RichFunction that will be added only once
+  // we use a LinkedHashSet to keep the insertion order
+  private val reusableCloseStatements = mutable.LinkedHashSet[String]()
 
   // set of statements that will be added only once per record
   // we use a LinkedHashSet to keep the insertion order
@@ -147,6 +157,20 @@ class CodeGenerator(
     */
   def reuseInitCode(): String = {
     reusableInitStatements.mkString("", "\n", "\n")
+  }
+
+  /**
+    * @return code block of statements that need to be placed in the open() method of RichFunction
+    */
+  def reuseOpenCode(): String = {
+    reusableOpenStatements.mkString("", "\n", "\n")
+  }
+
+  /**
+    * @return code block of statements that need to be placed in the close() method of RichFunction
+    */
+  def reuseCloseCode(): String = {
+    reusableCloseStatements.mkString("", "\n", "\n")
   }
 
   /**
@@ -224,42 +248,49 @@ class CodeGenerator(
     * @param bodyCode code contents of the SAM (Single Abstract Method). Inputs, collector, or
     *                 output record can be accessed via the given term methods.
     * @param returnType expected return type
-    * @tparam T Flink Function to be generated.
+    * @tparam F Flink Function to be generated.
+    * @tparam T Return type of the Flink Function.
     * @return instance of GeneratedFunction
     */
-  def generateFunction[T <: Function](
+  def generateFunction[F <: Function, T <: Any](
       name: String,
-      clazz: Class[T],
+      clazz: Class[F],
       bodyCode: String,
-      returnType: TypeInformation[Any])
-    : GeneratedFunction[T] = {
+      returnType: TypeInformation[T])
+    : GeneratedFunction[F, T] = {
     val funcName = newName(name)
 
     // Janino does not support generics, that's why we need
     // manual casting here
     val samHeader =
       // FlatMapFunction
-      if (clazz == classOf[FlatMapFunction[_,_]]) {
+      if (clazz == classOf[FlatMapFunction[_, _]]) {
+        val baseClass = classOf[RichFlatMapFunction[_, _]]
         val inputTypeTerm = boxedTypeTermForTypeInfo(input1)
-        (s"void flatMap(Object _in1, org.apache.flink.util.Collector $collectorTerm)",
+        (baseClass,
+          s"void flatMap(Object _in1, org.apache.flink.util.Collector $collectorTerm)",
           List(s"$inputTypeTerm $input1Term = ($inputTypeTerm) _in1;"))
       }
 
       // MapFunction
-      else if (clazz == classOf[MapFunction[_,_]]) {
+      else if (clazz == classOf[MapFunction[_, _]]) {
+        val baseClass = classOf[RichMapFunction[_, _]]
         val inputTypeTerm = boxedTypeTermForTypeInfo(input1)
-        ("Object map(Object _in1)",
+        (baseClass,
+          "Object map(Object _in1)",
           List(s"$inputTypeTerm $input1Term = ($inputTypeTerm) _in1;"))
       }
 
       // FlatJoinFunction
-      else if (clazz == classOf[FlatJoinFunction[_,_,_]]) {
+      else if (clazz == classOf[FlatJoinFunction[_, _, _]]) {
+        val baseClass = classOf[RichFlatJoinFunction[_, _, _]]
         val inputTypeTerm1 = boxedTypeTermForTypeInfo(input1)
         val inputTypeTerm2 = boxedTypeTermForTypeInfo(input2.getOrElse(
-            throw new CodeGenException("Input 2 for FlatJoinFunction should not be null")))
-        (s"void join(Object _in1, Object _in2, org.apache.flink.util.Collector $collectorTerm)",
+          throw new CodeGenException("Input 2 for FlatJoinFunction should not be null")))
+        (baseClass,
+          s"void join(Object _in1, Object _in2, org.apache.flink.util.Collector $collectorTerm)",
           List(s"$inputTypeTerm1 $input1Term = ($inputTypeTerm1) _in1;",
-          s"$inputTypeTerm2 $input2Term = ($inputTypeTerm2) _in2;"))
+               s"$inputTypeTerm2 $input2Term = ($inputTypeTerm2) _in2;"))
       }
       else {
         // TODO more functions
@@ -268,7 +299,7 @@ class CodeGenerator(
 
     val funcCode = j"""
       public class $funcName
-          implements ${clazz.getCanonicalName} {
+          extends ${samHeader._1.getCanonicalName} {
 
         ${reuseMemberCode()}
 
@@ -279,11 +310,21 @@ class CodeGenerator(
         ${reuseConstructorCode(funcName)}
 
         @Override
-        public ${samHeader._1} throws Exception {
-          ${samHeader._2.mkString("\n")}
+        public void open(${classOf[Configuration].getCanonicalName} parameters) throws Exception {
+          ${reuseOpenCode()}
+        }
+
+        @Override
+        public ${samHeader._2} throws Exception {
+          ${samHeader._3.mkString("\n")}
           ${reusePerRecordCode()}
           ${reuseInputUnboxingCode()}
           $bodyCode
+        }
+
+        @Override
+        public void close() throws Exception {
+          ${reuseCloseCode()}
         }
       }
     """.stripMargin
@@ -298,14 +339,14 @@ class CodeGenerator(
     *             valid Java class identifier.
     * @param records code for creating records
     * @param returnType expected return type
-    * @tparam T Flink Function to be generated.
+    * @tparam T Return type of the Flink Function.
     * @return instance of GeneratedFunction
     */
-  def generateValuesInputFormat[T](
+  def generateValuesInputFormat[T <: Row](
       name: String,
       records: Seq[String],
-      returnType: TypeInformation[Any])
-    : GeneratedFunction[GenericInputFormat[T]] = {
+      returnType: TypeInformation[T])
+    : GeneratedInput[GenericInputFormat[T], T] = {
     val funcName = newName(name)
 
     addReusableOutRecord(returnType)
@@ -343,7 +384,7 @@ class CodeGenerator(
       }
     """.stripMargin
 
-    GeneratedFunction[GenericInputFormat[T]](funcName, returnType, funcCode)
+    GeneratedInput(funcName, returnType, funcCode)
   }
 
   /**
@@ -1094,7 +1135,7 @@ class CodeGenerator(
   // ----------------------------------------------------------------------------------------------
 
   private def generateInputAccess(
-      inputType: TypeInformation[Any],
+      inputType: TypeInformation[_ <: Any],
       inputTerm: String,
       index: Int,
       pojoFieldMapping: Option[Array[Int]])
@@ -1122,7 +1163,7 @@ class CodeGenerator(
   }
 
   private def generateNullableInputFieldAccess(
-      inputType: TypeInformation[Any],
+      inputType: TypeInformation[_ <: Any],
       inputTerm: String,
       index: Int,
       pojoFieldMapping: Option[Array[Int]])
@@ -1454,15 +1495,14 @@ class CodeGenerator(
 
   /**
     * Adds a reusable [[UserDefinedFunction]] to the member area of the generated [[Function]].
-    * The [[UserDefinedFunction]] must have a default constructor, however, it does not have
-    * to be public.
     *
     * @param function [[UserDefinedFunction]] object to be instantiated during runtime
     * @return member variable term
     */
   def addReusableFunction(function: UserDefinedFunction): String = {
     val classQualifier = function.getClass.getCanonicalName
-    val fieldTerm = s"function_${classQualifier.replace('.', '$')}"
+    val functionSerializedData = UserDefinedFunctionUtils.serialize(function)
+    val fieldTerm = s"function_${function.functionIdentifier}"
 
     val fieldFunction =
       s"""
@@ -1470,15 +1510,27 @@ class CodeGenerator(
         |""".stripMargin
     reusableMemberStatements.add(fieldFunction)
 
-    val constructorTerm = s"constructor_${classQualifier.replace('.', '$')}"
-    val constructorAccessibility =
+    val functionDeserialization =
       s"""
-        |java.lang.reflect.Constructor $constructorTerm =
-        |  $classQualifier.class.getDeclaredConstructor();
-        |$constructorTerm.setAccessible(true);
-        |$fieldTerm = ($classQualifier) $constructorTerm.newInstance();
+         |$fieldTerm = ($classQualifier)
+         |${UserDefinedFunctionUtils.getClass.getName.stripSuffix("$")}
+         |.deserialize("$functionSerializedData");
        """.stripMargin
-    reusableInitStatements.add(constructorAccessibility)
+
+    reusableInitStatements.add(functionDeserialization)
+
+    val openFunction =
+      s"""
+         |$fieldTerm.open(new ${classOf[FunctionContext].getCanonicalName}(getRuntimeContext()));
+       """.stripMargin
+    reusableOpenStatements.add(openFunction)
+
+    val closeFunction =
+      s"""
+         |$fieldTerm.close();
+       """.stripMargin
+    reusableCloseStatements.add(closeFunction)
+
     fieldTerm
   }
 

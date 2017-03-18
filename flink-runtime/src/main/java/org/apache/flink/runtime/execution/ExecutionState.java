@@ -25,15 +25,22 @@ package org.apache.flink.runtime.execution;
  * <pre>{@code
  *
  *     CREATED  -> SCHEDULED -> DEPLOYING -> RUNNING -> FINISHED
- *                     |            |          |
- *                     |            |   +------+
- *                     |            V   V
- *                     |         CANCELLING -----+----> CANCELED
- *                     |                         |
- *                     +-------------------------+
+ *            |         |            |          |
+ *            |         |            |   +------+
+ *            |         |            V   V
+ *            |         |         CANCELLING -----+----> CANCELED
+ *            |         |                         |
+ *            |        +-------------------------+
+ *            |
+ *            |                                   ... -> FAILED
+ *           V
+ *    RECONCILING  -> RUNNING | FINISHED | CANCELED | FAILED
  *
- *                                               ... -> FAILED
  * }</pre>
+ *
+ * <p>It is possible to enter the {@code RECONCILING} state from {@code CREATED}
+ * state if job manager fail over, and the {@code RECONCILING} state can switch into
+ * any existing task state.</p>
  *
  * <p>It is possible to enter the {@code FAILED} state from any other state.</p>
  *
@@ -56,8 +63,9 @@ public enum ExecutionState {
 	
 	CANCELED,
 	
-	FAILED;
+	FAILED,
 
+	RECONCILING;
 
 	public boolean isTerminal() {
 		return this == FINISHED || this == CANCELED || this == FAILED;

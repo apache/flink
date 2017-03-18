@@ -18,9 +18,13 @@
 
 package org.apache.flink.core.fs;
 
+import org.apache.flink.core.testutils.CheckedThread;
+import org.apache.flink.util.ExceptionUtils;
+import org.junit.After;
 import org.junit.Assert;
-import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -28,18 +32,26 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class SafetyNetCloseableRegistryTest {
 
+	@Rule
+	public final TemporaryFolder tmpFolder = new TemporaryFolder();
+
 	private ProducerThread[] streamOpenThreads;
 	private SafetyNetCloseableRegistry closeableRegistry;
 	private AtomicInteger unclosedCounter;
 
-	@Before
 	public void setup() {
+		Assert.assertFalse(SafetyNetCloseableRegistry.isReaperThreadRunning());
 		this.closeableRegistry = new SafetyNetCloseableRegistry();
 		this.unclosedCounter = new AtomicInteger(0);
 		this.streamOpenThreads = new ProducerThread[10];
 		for (int i = 0; i < streamOpenThreads.length; ++i) {
 			streamOpenThreads[i] = new ProducerThread(closeableRegistry, unclosedCounter, Integer.MAX_VALUE);
 		}
+	}
+
+	@After
+	public void tearDown() {
+		Assert.assertFalse(SafetyNetCloseableRegistry.isReaperThreadRunning());
 	}
 
 	private void startThreads(int maxStreams) {
@@ -56,8 +68,74 @@ public class SafetyNetCloseableRegistryTest {
 	}
 
 	@Test
+	public void testCorrectScopesForSafetyNet() throws Exception {
+		CheckedThread t1 = new CheckedThread() {
+
+			@Override
+			public void go() throws Exception {
+				try {
+					FileSystem fs1 = FileSystem.getLocalFileSystem();
+					// ensure no safety net in place
+					Assert.assertFalse(fs1 instanceof SafetyNetWrapperFileSystem);
+					FileSystemSafetyNet.initializeSafetyNetForThread();
+					fs1 = FileSystem.getLocalFileSystem();
+					// ensure safety net is in place now
+					Assert.assertTrue(fs1 instanceof SafetyNetWrapperFileSystem);
+
+					Path tmp = new Path(tmpFolder.newFolder().toURI().toString(), "test_file");
+
+					try (FSDataOutputStream stream = fs1.create(tmp, false)) {
+						CheckedThread t2 = new CheckedThread() {
+							@Override
+							public void go() {
+								FileSystem fs2 = FileSystem.getLocalFileSystem();
+								// ensure the safety net does not leak here
+								Assert.assertFalse(fs2 instanceof SafetyNetWrapperFileSystem);
+								FileSystemSafetyNet.initializeSafetyNetForThread();
+								fs2 = FileSystem.getLocalFileSystem();
+								// ensure we can bring another safety net in place
+								Assert.assertTrue(fs2 instanceof SafetyNetWrapperFileSystem);
+								FileSystemSafetyNet.closeSafetyNetAndGuardedResourcesForThread();
+								fs2 = FileSystem.getLocalFileSystem();
+								// and that we can remove it again
+								Assert.assertFalse(fs2 instanceof SafetyNetWrapperFileSystem);
+							}
+						};
+
+						t2.start();
+						t2.sync();
+
+						//ensure stream is still open and was never closed by any interferences
+						stream.write(42);
+						FileSystemSafetyNet.closeSafetyNetAndGuardedResourcesForThread();
+
+						// ensure leaking stream was closed
+						try {
+							stream.write(43);
+							Assert.fail();
+						} catch (IOException ignore) {
+
+						}
+						fs1 = FileSystem.getLocalFileSystem();
+						// ensure safety net was removed
+						Assert.assertFalse(fs1 instanceof SafetyNetWrapperFileSystem);
+					} finally {
+						fs1.delete(tmp, false);
+					}
+				} catch (Exception e) {
+					Assert.fail(ExceptionUtils.stringifyException(e));
+				}
+			}
+		};
+
+		t1.start();
+		t1.sync();
+	}
+
+	@Test
 	public void testClose() throws Exception {
 
+		setup();
 		startThreads(Integer.MAX_VALUE);
 
 		for (int i = 0; i < 5; ++i) {
@@ -98,7 +176,7 @@ public class SafetyNetCloseableRegistryTest {
 
 	@Test
 	public void testSafetyNetClose() throws Exception {
-
+		setup();
 		startThreads(20);
 
 		joinThreads();
@@ -111,6 +189,23 @@ public class SafetyNetCloseableRegistryTest {
 		Assert.assertEquals(0, unclosedCounter.get());
 		closeableRegistry.close();
 	}
+
+	@Test
+	public void testReaperThreadSpawnAndStop() throws Exception {
+		Assert.assertFalse(SafetyNetCloseableRegistry.isReaperThreadRunning());
+
+		try (SafetyNetCloseableRegistry r1 = new SafetyNetCloseableRegistry()) {
+			Assert.assertTrue(SafetyNetCloseableRegistry.isReaperThreadRunning());
+
+			try (SafetyNetCloseableRegistry r2 = new SafetyNetCloseableRegistry()) {
+				Assert.assertTrue(SafetyNetCloseableRegistry.isReaperThreadRunning());
+			}
+			Assert.assertTrue(SafetyNetCloseableRegistry.isReaperThreadRunning());
+		}
+		Assert.assertFalse(SafetyNetCloseableRegistry.isReaperThreadRunning());
+	}
+
+	//------------------------------------------------------------------------------------------------------------------
 
 	private static final class ProducerThread extends Thread {
 
@@ -140,13 +235,13 @@ public class SafetyNetCloseableRegistryTest {
 					String debug = Thread.currentThread().getName() + " " + count;
 					TestStream testStream = new TestStream(refCount);
 					refCount.incrementAndGet();
+
+					@SuppressWarnings("unused")
 					ClosingFSDataInputStream pis = ClosingFSDataInputStream.wrapSafe(testStream, registry, debug); //reference dies here
 
 					try {
 						Thread.sleep(2);
-					} catch (InterruptedException e) {
-
-					}
+					} catch (InterruptedException ignored) {}
 
 					if (maxStreams != Integer.MAX_VALUE) {
 						--maxStreams;
@@ -154,7 +249,7 @@ public class SafetyNetCloseableRegistryTest {
 					++count;
 				}
 			} catch (Exception ex) {
-
+				// ignored
 			}
 		}
 	}

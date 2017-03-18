@@ -59,7 +59,7 @@ The IntelliJ installation setup offers to install the Scala plugin.
 If it is not installed, follow these instructions before importing Flink
 to enable support for Scala projects and files:
 
-1. Go to IntelliJ plugins settings (File -> Settings -> Plugins) and
+1. Go to IntelliJ plugins settings (IntelliJ IDEA -> Preferences -> Plugins) and
    click on "Install Jetbrains plugin...".
 2. Select and install the "Scala" plugin.
 3. Restart IntelliJ

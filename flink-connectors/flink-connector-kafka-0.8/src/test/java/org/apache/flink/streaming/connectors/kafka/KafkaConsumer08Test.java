@@ -21,21 +21,36 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
 import static org.powermock.api.mockito.PowerMockito.when;
 
 import java.net.InetAddress;
 import java.net.URL;
 import java.net.UnknownHostException;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
+import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
+import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
+import org.apache.flink.streaming.connectors.kafka.config.OffsetCommitMode;
+import org.apache.flink.streaming.connectors.kafka.internals.AbstractFetcher;
+import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
+import org.apache.flink.streaming.util.serialization.DeserializationSchema;
+import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 import org.apache.flink.util.NetUtils;
+import org.apache.flink.util.SerializedValue;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Matchers;
+import org.mockito.Mockito;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -96,7 +111,12 @@ public class KafkaConsumer08Test {
 			props.setProperty("group.id", "non-existent-group");
 			props.setProperty(FlinkKafkaConsumer08.GET_PARTITIONS_RETRIES_KEY, "1");
 
-			FlinkKafkaConsumer08<String> consumer = new FlinkKafkaConsumer08<>(Collections.singletonList("no op topic"), new SimpleStringSchema(), props);
+			FlinkKafkaConsumer08<String> consumer = new FlinkKafkaConsumer08<>(
+				Collections.singletonList("no op topic"), new SimpleStringSchema(), props);
+			StreamingRuntimeContext mockRuntimeContext = mock(StreamingRuntimeContext.class);
+			Mockito.when(mockRuntimeContext.isCheckpointingEnabled()).thenReturn(true);
+			consumer.setRuntimeContext(mockRuntimeContext);
+
 			consumer.open(new Configuration());
 			fail();
 		}
@@ -118,8 +138,13 @@ public class KafkaConsumer08Test {
 			String zookeeperConnect = "localhost:56794";
 			String groupId = "non-existent-group";
 			Properties props = createKafkaProps(zookeeperConnect, unknownHost, groupId);
-			FlinkKafkaConsumer08<String> consumer = new FlinkKafkaConsumer08<>(Collections.singletonList("no op topic"),
-					new SimpleStringSchema(), props);
+
+			FlinkKafkaConsumer08<String> consumer = new FlinkKafkaConsumer08<>(
+				Collections.singletonList("no op topic"), new SimpleStringSchema(), props);
+			StreamingRuntimeContext mockRuntimeContext = mock(StreamingRuntimeContext.class);
+			Mockito.when(mockRuntimeContext.isCheckpointingEnabled()).thenReturn(true);
+			consumer.setRuntimeContext(mockRuntimeContext);
+
 			consumer.open(new Configuration());
 			fail();
 		} catch (Exception e) {

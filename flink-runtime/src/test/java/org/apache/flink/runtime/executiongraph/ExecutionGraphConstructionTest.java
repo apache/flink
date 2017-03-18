@@ -31,6 +31,7 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.SerializedValue;
 
@@ -103,23 +104,24 @@ public class ExecutionGraphConstructionTest {
 		v4.setInvokableClass(AbstractInvokable.class);
 		v5.setInvokableClass(AbstractInvokable.class);
 
-		v2.connectNewDataSetAsInput(v1, DistributionPattern.ALL_TO_ALL);
-		v4.connectNewDataSetAsInput(v2, DistributionPattern.ALL_TO_ALL);
-		v4.connectNewDataSetAsInput(v3, DistributionPattern.ALL_TO_ALL);
-		v5.connectNewDataSetAsInput(v4, DistributionPattern.ALL_TO_ALL);
-		v5.connectNewDataSetAsInput(v3, DistributionPattern.ALL_TO_ALL);
+		v2.connectNewDataSetAsInput(v1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+		v4.connectNewDataSetAsInput(v2, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+		v4.connectNewDataSetAsInput(v3, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+		v5.connectNewDataSetAsInput(v4, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+		v5.connectNewDataSetAsInput(v3, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 		
 		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3, v4, v5));
 
 		ExecutionGraph eg = new ExecutionGraph(
-			TestingUtils.defaultExecutionContext(),
-			TestingUtils.defaultExecutionContext(),
+			TestingUtils.defaultExecutor(),
+			TestingUtils.defaultExecutor(),
 			jobId, 
 			jobName, 
 			cfg,
 			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
-			new NoRestartStrategy());
+			new NoRestartStrategy(),
+			new Scheduler(TestingUtils.defaultExecutionContext()));
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -151,7 +153,7 @@ public class ExecutionGraphConstructionTest {
 		v3.setInvokableClass(AbstractInvokable.class);
 
 		// this creates an intermediate result for v1
-		v2.connectNewDataSetAsInput(v1, DistributionPattern.ALL_TO_ALL);
+		v2.connectNewDataSetAsInput(v1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 		
 		// create results for v2 and v3
 		IntermediateDataSet v2result = v2.createAndAddResultDataSet(ResultPartitionType.PIPELINED);
@@ -162,14 +164,15 @@ public class ExecutionGraphConstructionTest {
 		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3));
 
 		ExecutionGraph eg = new ExecutionGraph(
-			TestingUtils.defaultExecutionContext(),
-			TestingUtils.defaultExecutionContext(),
+			TestingUtils.defaultExecutor(),
+			TestingUtils.defaultExecutor(),
 			jobId, 
 			jobName, 
 			cfg,
 				new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
-			new NoRestartStrategy());
+			new NoRestartStrategy(),
+			new Scheduler(TestingUtils.defaultExecutionContext()));
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -190,7 +193,7 @@ public class ExecutionGraphConstructionTest {
 
 		v4.connectDataSetAsInput(v2result, DistributionPattern.ALL_TO_ALL);
 		v4.connectDataSetAsInput(v3result_1, DistributionPattern.ALL_TO_ALL);
-		v5.connectNewDataSetAsInput(v4, DistributionPattern.ALL_TO_ALL);
+		v5.connectNewDataSetAsInput(v4, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 		v5.connectDataSetAsInput(v3result_2, DistributionPattern.ALL_TO_ALL);
 		
 		List<JobVertex> ordered2 = new ArrayList<JobVertex>(Arrays.asList(v4, v5));
@@ -227,7 +230,7 @@ public class ExecutionGraphConstructionTest {
 		v3.setInvokableClass(AbstractInvokable.class);
 		
 		// this creates an intermediate result for v1
-		v2.connectNewDataSetAsInput(v1, DistributionPattern.ALL_TO_ALL);
+		v2.connectNewDataSetAsInput(v1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 		
 		// create results for v2 and v3
 		IntermediateDataSet v2result = v2.createAndAddResultDataSet(ResultPartitionType.PIPELINED);
@@ -237,14 +240,15 @@ public class ExecutionGraphConstructionTest {
 		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3));
 
 		ExecutionGraph eg = new ExecutionGraph(
-			TestingUtils.defaultExecutionContext(),
-			TestingUtils.defaultExecutionContext(),
+			TestingUtils.defaultExecutor(),
+			TestingUtils.defaultExecutor(),
 			jobId, 
 			jobName, 
 			cfg,
 			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
-			new NoRestartStrategy());
+			new NoRestartStrategy(),
+			new Scheduler(TestingUtils.defaultExecutionContext()));
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -265,7 +269,7 @@ public class ExecutionGraphConstructionTest {
 
 		v4.connectIdInput(v2result.getId(), DistributionPattern.ALL_TO_ALL);
 		v4.connectIdInput(v3result_1.getId(), DistributionPattern.ALL_TO_ALL);
-		v5.connectNewDataSetAsInput(v4, DistributionPattern.ALL_TO_ALL);
+		v5.connectNewDataSetAsInput(v4, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 		v5.connectIdInput(v3result_2.getId(), DistributionPattern.ALL_TO_ALL);
 		
 		List<JobVertex> ordered2 = new ArrayList<JobVertex>(Arrays.asList(v4, v5));
@@ -497,14 +501,15 @@ public class ExecutionGraphConstructionTest {
 		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1));
 
 		ExecutionGraph eg = new ExecutionGraph(
-			TestingUtils.defaultExecutionContext(),
-			TestingUtils.defaultExecutionContext(),
+			TestingUtils.defaultExecutor(),
+			TestingUtils.defaultExecutor(),
 			jobId, 
 			jobName, 
 			cfg,
 			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
-			new NoRestartStrategy());
+			new NoRestartStrategy(),
+			new Scheduler(TestingUtils.defaultExecutionContext()));
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -553,23 +558,24 @@ public class ExecutionGraphConstructionTest {
 		v4.setInvokableClass(AbstractInvokable.class);
 		v5.setInvokableClass(AbstractInvokable.class);
 
-		v2.connectNewDataSetAsInput(v1, DistributionPattern.ALL_TO_ALL);
-		v4.connectNewDataSetAsInput(v2, DistributionPattern.ALL_TO_ALL);
-		v4.connectNewDataSetAsInput(v3, DistributionPattern.ALL_TO_ALL);
-		v5.connectNewDataSetAsInput(v4, DistributionPattern.ALL_TO_ALL);
-		v5.connectNewDataSetAsInput(v3, DistributionPattern.ALL_TO_ALL);
+		v2.connectNewDataSetAsInput(v1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+		v4.connectNewDataSetAsInput(v2, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+		v4.connectNewDataSetAsInput(v3, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+		v5.connectNewDataSetAsInput(v4, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+		v5.connectNewDataSetAsInput(v3, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 		
 		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3, v5, v4));
 
 		ExecutionGraph eg = new ExecutionGraph(
-			TestingUtils.defaultExecutionContext(),
-			TestingUtils.defaultExecutionContext(),
+			TestingUtils.defaultExecutor(),
+			TestingUtils.defaultExecutor(),
 			jobId, 
 			jobName, 
 			cfg,
 			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
-			new NoRestartStrategy());
+			new NoRestartStrategy(),
+			new Scheduler(TestingUtils.defaultExecutionContext()));
 		try {
 			eg.attachJobGraph(ordered);
 			fail("Attached wrong jobgraph");
@@ -619,11 +625,11 @@ public class ExecutionGraphConstructionTest {
 			v4.setInvokableClass(AbstractInvokable.class);
 			v5.setInvokableClass(AbstractInvokable.class);
 			
-			v2.connectNewDataSetAsInput(v1, DistributionPattern.ALL_TO_ALL);
-			v4.connectNewDataSetAsInput(v2, DistributionPattern.ALL_TO_ALL);
-			v4.connectNewDataSetAsInput(v3, DistributionPattern.ALL_TO_ALL);
-			v5.connectNewDataSetAsInput(v4, DistributionPattern.ALL_TO_ALL);
-			v5.connectNewDataSetAsInput(v3, DistributionPattern.ALL_TO_ALL);
+			v2.connectNewDataSetAsInput(v1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+			v4.connectNewDataSetAsInput(v2, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+			v4.connectNewDataSetAsInput(v3, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+			v5.connectNewDataSetAsInput(v4, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+			v5.connectNewDataSetAsInput(v3, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 			
 			v3.setInputSplitSource(source1);
 			v5.setInputSplitSource(source2);
@@ -631,14 +637,15 @@ public class ExecutionGraphConstructionTest {
 			List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3, v4, v5));
 
 			ExecutionGraph eg = new ExecutionGraph(
-				TestingUtils.defaultExecutionContext(),
-				TestingUtils.defaultExecutionContext(),
+				TestingUtils.defaultExecutor(),
+				TestingUtils.defaultExecutor(),
 				jobId, 
 				jobName, 
 				cfg,
 				new SerializedValue<>(new ExecutionConfig()),
 				AkkaUtils.getDefaultTimeout(),
-				new NoRestartStrategy());
+				new NoRestartStrategy(),
+				new Scheduler(TestingUtils.defaultExecutionContext()));
 			try {
 				eg.attachJobGraph(ordered);
 			}
@@ -678,14 +685,15 @@ public class ExecutionGraphConstructionTest {
 			List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3));
 
 			ExecutionGraph eg = new ExecutionGraph(
-				TestingUtils.defaultExecutionContext(),
-				TestingUtils.defaultExecutionContext(),
+				TestingUtils.defaultExecutor(),
+				TestingUtils.defaultExecutor(),
 				jobId, 
 				jobName,
 				cfg,
 				new SerializedValue<>(new ExecutionConfig()),
 				AkkaUtils.getDefaultTimeout(),
-				new NoRestartStrategy());
+				new NoRestartStrategy(),
+				new Scheduler(TestingUtils.defaultExecutionContext()));
 
 			try {
 				eg.attachJobGraph(ordered);
@@ -760,14 +768,15 @@ public class ExecutionGraphConstructionTest {
 			JobGraph jg = new JobGraph(jobId, jobName, v1, v2, v3, v4, v5, v6, v7, v8);
 			
 			ExecutionGraph eg = new ExecutionGraph(
-				TestingUtils.defaultExecutionContext(),
-				TestingUtils.defaultExecutionContext(),
+				TestingUtils.defaultExecutor(),
+				TestingUtils.defaultExecutor(),
 				jobId, 
 				jobName, 
 				cfg,
 				new SerializedValue<>(new ExecutionConfig()),
 				AkkaUtils.getDefaultTimeout(),
-				new NoRestartStrategy());
+				new NoRestartStrategy(),
+				new Scheduler(TestingUtils.defaultExecutionContext()));
 			
 			eg.attachJobGraph(jg.getVerticesSortedTopologicallyFromSources());
 			

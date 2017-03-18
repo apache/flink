@@ -29,6 +29,7 @@ import java.util.Collection;
  *
  * <p>This format was introduced with Flink 1.1.0.
  */
+@SuppressWarnings("deprecation")
 public class SavepointV0 implements Savepoint {
 
 	/** The savepoint version. */

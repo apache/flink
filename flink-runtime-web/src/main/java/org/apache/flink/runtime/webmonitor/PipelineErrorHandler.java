@@ -26,9 +26,8 @@ import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
-
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.util.ExceptionUtils;
-
 import org.slf4j.Logger;
 
 /**
@@ -61,7 +60,8 @@ public class PipelineErrorHandler extends SimpleChannelInboundHandler<Object> {
 	private void sendError(ChannelHandlerContext ctx, String error) {
 		if (ctx.channel().isActive()) {
 			DefaultFullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1,
-						HttpResponseStatus.INTERNAL_SERVER_ERROR, Unpooled.wrappedBuffer(error.getBytes()));
+				HttpResponseStatus.INTERNAL_SERVER_ERROR,
+				Unpooled.wrappedBuffer(error.getBytes(ConfigConstants.DEFAULT_CHARSET)));
 
 			response.headers().set(HttpHeaders.Names.CONTENT_TYPE, "text/plain");
 			response.headers().set(HttpHeaders.Names.CONTENT_LENGTH, response.content().readableBytes());

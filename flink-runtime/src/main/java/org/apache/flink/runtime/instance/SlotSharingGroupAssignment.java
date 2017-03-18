@@ -262,7 +262,7 @@ public class SlotSharingGroupAssignment {
 
 	/**
 	 * Gets a slot suitable for the given task vertex. This method will prefer slots that are local
-	 * (with respect to {@link ExecutionVertex#getPreferredLocations()}), but will return non local
+	 * (with respect to {@link ExecutionVertex#getPreferredLocationsBasedOnInputs()}), but will return non local
 	 * slots if no local slot is available. The method returns null, when this sharing group has
 	 * no slot is available for the given JobVertexID. 
 	 *
@@ -271,7 +271,7 @@ public class SlotSharingGroupAssignment {
 	 * @return A slot to execute the given ExecutionVertex in, or null, if none is available.
 	 */
 	public SimpleSlot getSlotForTask(ExecutionVertex vertex) {
-		return getSlotForTask(vertex.getJobvertexId(), vertex.getPreferredLocations());
+		return getSlotForTask(vertex.getJobvertexId(), vertex.getPreferredLocationsBasedOnInputs());
 	}
 
 	/**
@@ -313,7 +313,7 @@ public class SlotSharingGroupAssignment {
 	 *         shared slot is available.
 	 */
 	public SimpleSlot getSlotForTask(ExecutionVertex vertex, CoLocationConstraint constraint) {
-		return getSlotForTask(constraint, vertex.getPreferredLocations());
+		return getSlotForTask(constraint, vertex.getPreferredLocationsBasedOnInputs());
 	}
 	
 	SimpleSlot getSlotForTask(CoLocationConstraint constraint, Iterable<TaskManagerLocation> locationPreferences) {

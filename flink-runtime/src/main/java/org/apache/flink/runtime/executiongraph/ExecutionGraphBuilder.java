@@ -21,8 +21,10 @@ package org.apache.flink.runtime.executiongraph;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
@@ -32,11 +34,15 @@ import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
+import org.apache.flink.runtime.instance.SlotProvider;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator;
 import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
+import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.util.DynamicCodeLoadingException;
 import org.slf4j.Logger;
 
 import javax.annotation.Nullable;
@@ -44,6 +50,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -51,17 +58,19 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Utility class to encapsulate the logic of building an {@link ExecutionGraph} from a {@link JobGraph}.
  */
 public class ExecutionGraphBuilder {
+
 	/**
 	 * Builds the ExecutionGraph from the JobGraph.
 	 * If a prior execution graph exists, the JobGraph will be attached. If no prior execution
-	 * graph exists, then the JobGraph will become attach to a new emoty execution graph.
+	 * graph exists, then the JobGraph will become attach to a new empty execution graph.
 	 */
 	public static ExecutionGraph buildGraph(
 			@Nullable ExecutionGraph prior,
 			JobGraph jobGraph,
 			Configuration jobManagerConfig,
-			Executor futureExecutor,
+			ScheduledExecutorService futureExecutor,
 			Executor ioExecutor,
+			SlotProvider slotProvider,
 			ClassLoader classLoader,
 			CheckpointRecoveryFactory recoveryFactory,
 			Time timeout,
@@ -69,8 +78,8 @@ public class ExecutionGraphBuilder {
 			MetricGroup metrics,
 			int parallelismForAutoMax,
 			Logger log)
-		throws JobExecutionException, JobException
-	{
+		throws JobExecutionException, JobException {
+
 		checkNotNull(jobGraph, "job graph cannot be null");
 
 		final String jobName = jobGraph.getName();
@@ -92,6 +101,7 @@ public class ExecutionGraphBuilder {
 						restartStrategy,
 						jobGraph.getUserJarBlobKeys(),
 						jobGraph.getClasspaths(),
+						slotProvider,
 						classLoader,
 						metrics);
 		} catch (IOException e) {
@@ -167,7 +177,21 @@ public class ExecutionGraphBuilder {
 			CompletedCheckpointStore completedCheckpoints;
 			CheckpointIDCounter checkpointIdCounter;
 			try {
-				completedCheckpoints = recoveryFactory.createCheckpointStore(jobId, classLoader);
+				int maxNumberOfCheckpointsToRetain = jobManagerConfig.getInteger(
+					CoreOptions.MAX_RETAINED_CHECKPOINTS);
+
+				if (maxNumberOfCheckpointsToRetain <= 0) {
+					// warning and use 1 as the default value if the setting in
+					// state.checkpoints.max-retained-checkpoints is not greater than 0.
+					log.warn("The setting for '{} : {}' is invalid. Using default value of {}",
+							CoreOptions.MAX_RETAINED_CHECKPOINTS.key(),
+							maxNumberOfCheckpointsToRetain,
+							CoreOptions.MAX_RETAINED_CHECKPOINTS.defaultValue());
+
+					maxNumberOfCheckpointsToRetain = CoreOptions.MAX_RETAINED_CHECKPOINTS.defaultValue();
+				}
+
+				completedCheckpoints = recoveryFactory.createCheckpointStore(jobId, maxNumberOfCheckpointsToRetain, classLoader);
 				checkpointIdCounter = recoveryFactory.createCheckpointIDCounter(jobId);
 			}
 			catch (Exception e) {
@@ -189,7 +213,28 @@ public class ExecutionGraphBuilder {
 			String externalizedCheckpointsDir = jobManagerConfig.getString(
 					ConfigConstants.CHECKPOINTS_DIRECTORY_KEY, null);
 
-			executionGraph.enableSnapshotCheckpointing(
+			// load the state backend for checkpoint metadata.
+			// if specified in the application, use from there, otherwise load from configuration
+			final StateBackend metadataBackend;
+
+			final StateBackend applicationConfiguredBackend = snapshotSettings.getDefaultStateBackend();
+			if (applicationConfiguredBackend != null) {
+				metadataBackend = applicationConfiguredBackend;
+
+				log.info("Using application-defined state backend for checkpoint/savepoint metadata: {}.",
+						applicationConfiguredBackend);
+			}
+			else {
+				try {
+					metadataBackend = AbstractStateBackend
+							.loadStateBackendFromConfigOrCreateDefault(jobManagerConfig, classLoader, log);
+				}
+				catch (IllegalConfigurationException | IOException | DynamicCodeLoadingException e) {
+					throw new JobExecutionException(jobId, "Could not instantiate configured state backend", e);
+				}
+			}
+
+			executionGraph.enableCheckpointing(
 					snapshotSettings.getCheckpointInterval(),
 					snapshotSettings.getCheckpointTimeout(),
 					snapshotSettings.getMinPauseBetweenCheckpoints(),
@@ -201,6 +246,7 @@ public class ExecutionGraphBuilder {
 					checkpointIdCounter,
 					completedCheckpoints,
 					externalizedCheckpointsDir,
+					metadataBackend,
 					checkpointStatsTracker);
 		}
 

@@ -29,6 +29,7 @@ import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.asm.degree.annotate.directed.VertexDegrees;
 import org.apache.flink.graph.asm.degree.annotate.directed.VertexDegrees.Degrees;
+import org.apache.flink.graph.asm.result.PrintableResult;
 import org.apache.flink.graph.library.metric.directed.VertexMetrics.Result;
 
 import java.io.IOException;
@@ -192,7 +193,8 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 	/**
 	 * Wraps vertex metrics.
 	 */
-	public static class Result {
+	public static class Result
+	implements PrintableResult {
 		private long vertexCount;
 		private long unidirectionalEdgeCount;
 		private long bidirectionalEdgeCount;
@@ -251,12 +253,27 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 		}
 
 		/**
-		 * Get the average degree.
+		 * Get the average degree, the average number of in- plus out-edges per vertex.
+		 *
+		 * A result of {@code Float.NaN} is returned for an empty graph for
+		 * which both the number of edges and number of vertices is zero.
 		 *
 		 * @return average degree
 		 */
-		public float getAverageDegree() {
-			return getNumberOfEdges() / (float)vertexCount;
+		public double getAverageDegree() {
+			return vertexCount == 0 ? Double.NaN : getNumberOfEdges() / (double)vertexCount;
+		}
+
+		/**
+		 * Get the density, the ratio of actual to potential edges between vertices.
+		 *
+		 * A result of {@code Float.NaN} is returned for a graph with fewer than
+		 * two vertices for which the number of edges is zero.
+		 *
+		 * @return density
+		 */
+		public double getDensity() {
+			return vertexCount <= 1 ? Double.NaN : getNumberOfEdges() / (double)(vertexCount*(vertexCount-1));
 		}
 
 		/**
@@ -305,14 +322,19 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 		}
 
 		@Override
-		public String toString() {
+		public String toPrintableString() {
 			NumberFormat nf = NumberFormat.getInstance();
+
+			// format for very small fractional numbers
+			NumberFormat ff = NumberFormat.getInstance();
+			ff.setMaximumFractionDigits(8);
 
 			return "vertex count: " + nf.format(vertexCount)
 				+ "; edge count: " + nf.format(getNumberOfEdges())
 				+ "; unidirectional edge count: " + nf.format(unidirectionalEdgeCount)
 				+ "; bidirectional edge count: " + nf.format(bidirectionalEdgeCount)
 				+ "; average degree: " + nf.format(getAverageDegree())
+				+ "; density: " + ff.format(getDensity())
 				+ "; triplet count: " + nf.format(tripletCount)
 				+ "; maximum degree: " + nf.format(maximumDegree)
 				+ "; maximum out degree: " + nf.format(maximumOutDegree)

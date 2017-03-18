@@ -38,6 +38,7 @@ import org.junit.Test;
 
 import java.io.IOException;
 
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 public class StateBackendITCase extends StreamingMultipleProgramsTestBase {
@@ -81,12 +82,9 @@ public class StateBackendITCase extends StreamingMultipleProgramsTestBase {
 		}
 		catch (JobExecutionException e) {
 			Throwable t = e.getCause();
-			if (!(t != null && t.getCause() instanceof SuccessException)) {
-				throw e;
-			}
+			assertTrue("wrong exception", t instanceof SuccessException);
 		}
 	}
-
 
 	public static class FailingStateBackend extends AbstractStateBackend {
 		private static final long serialVersionUID = 1L;
@@ -98,6 +96,12 @@ public class StateBackendITCase extends StreamingMultipleProgramsTestBase {
 		}
 
 		@Override
+		public CheckpointStreamFactory createSavepointStreamFactory(JobID jobId,
+			String operatorIdentifier, String targetLocation) throws IOException {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
 		public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
 				Environment env,
 				JobID jobID,
@@ -105,7 +109,7 @@ public class StateBackendITCase extends StreamingMultipleProgramsTestBase {
 				TypeSerializer<K> keySerializer,
 				int numberOfKeyGroups,
 				KeyGroupRange keyGroupRange,
-				TaskKvStateRegistry kvStateRegistry) throws Exception {
+				TaskKvStateRegistry kvStateRegistry) throws IOException {
 			throw new SuccessException();
 		}
 	}

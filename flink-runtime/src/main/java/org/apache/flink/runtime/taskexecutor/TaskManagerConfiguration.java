@@ -21,12 +21,15 @@ package org.apache.flink.runtime.taskexecutor;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.util.Preconditions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import scala.concurrent.duration.Duration;
 
 import java.io.File;
@@ -53,6 +56,8 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 
 	private final UnmodifiableConfiguration configuration;
 
+	private final boolean exitJvmOnOutOfMemory;
+
 	public TaskManagerConfiguration(
 		int numberSlots,
 		String[] tmpDirectories,
@@ -62,7 +67,8 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 		Time maxRegistrationPause,
 		Time refusedRegistrationPause,
 		long cleanupInterval,
-		Configuration configuration) {
+		Configuration configuration,
+		boolean exitJvmOnOutOfMemory) {
 
 		this.numberSlots = numberSlots;
 		this.tmpDirectories = Preconditions.checkNotNull(tmpDirectories);
@@ -73,6 +79,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 		this.refusedRegistrationPause = Preconditions.checkNotNull(refusedRegistrationPause);
 		this.cleanupInterval = Preconditions.checkNotNull(cleanupInterval);
 		this.configuration = new UnmodifiableConfiguration(Preconditions.checkNotNull(configuration));
+		this.exitJvmOnOutOfMemory = exitJvmOnOutOfMemory;
 	}
 
 	public int getNumberSlots() {
@@ -111,6 +118,11 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 	@Override
 	public String[] getTmpDirectories() {
 		return tmpDirectories;
+	}
+
+	@Override
+	public boolean shouldExitJvmOnOutOfMemoryError() {
+		return exitJvmOnOutOfMemory;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -205,6 +217,8 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 				ConfigConstants.TASK_MANAGER_INITIAL_REGISTRATION_PAUSE, e);
 		}
 
+		final boolean exitOnOom = configuration.getBoolean(TaskManagerOptions.KILL_ON_OUT_OF_MEMORY);
+
 		return new TaskManagerConfiguration(
 			numberSlots,
 			tmpDirPaths,
@@ -214,6 +228,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 			maxRegistrationPause,
 			refusedRegistrationPause,
 			cleanupInterval,
-			configuration);
+			configuration,
+			exitOnOom);
 	}
 }

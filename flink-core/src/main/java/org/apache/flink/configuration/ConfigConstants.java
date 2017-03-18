@@ -21,6 +21,9 @@ package org.apache.flink.configuration;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+
 import static org.apache.flink.configuration.ConfigOptions.key;
 
 /**
@@ -442,6 +445,11 @@ public final class ConfigConstants {
 	 */
 	public static final String YARN_APPLICATION_MASTER_PORT = "yarn.application-master.port";
 
+	/**
+	 * A comma-separated list of strings to use as YARN application tags.
+	 */
+	public static final String YARN_APPLICATION_TAGS = "yarn.tags";
+
 
 	// ------------------------ Mesos Configuration ------------------------
 
@@ -736,17 +744,29 @@ public final class ConfigConstants {
 	// ----------------------------- Streaming --------------------------------
 	
 	/**
-	 * State backend for checkpoints;
+	 * State backend for checkpoints
+	 * 
+	 * @deprecated Use {@link CoreOptions#STATE_BACKEND} instead.
 	 */
+	@Deprecated
 	public static final String STATE_BACKEND = "state.backend";
 	
 	// ----------------------------- Miscellaneous ----------------------------
 	
 	/**
-	 * The key to the Flink base directory path
+	 * The key to the Flink base directory path. Was initially used for configurations of the
+	 * web UI, but outdated now.
+	 * 
+	 * @deprecated This parameter should not be used any more. A running Flink cluster should
+	 *             make no assumption about its location.
 	 */
+	@Deprecated
 	public static final String FLINK_BASE_DIR_PATH_KEY = "flink.base.dir.path";
-	
+
+	/**
+	 * @deprecated Use {@link CoreOptions#FLINK_JVM_OPTIONS} instead.
+	 */
+	@Deprecated
 	public static final String FLINK_JVM_OPTIONS = "env.java.opts";
 
 	// --------------------------- High Availability --------------------------
@@ -815,7 +835,7 @@ public final class ConfigConstants {
 
 	/** ZooKeeper root path (ZNode) for Mesos workers. */
 	@PublicEvolving
-	public static final String HA_ZOOKEEPER_MESOS_WORKERS_PATH = "recovery.zookeeper.path.mesos-workers";
+	public static final String HA_ZOOKEEPER_MESOS_WORKERS_PATH = "high-availability.zookeeper.path.mesos-workers";
 
 	@PublicEvolving
 	public static final String HA_ZOOKEEPER_SESSION_TIMEOUT = "high-availability.zookeeper.client.session-timeout";
@@ -873,6 +893,10 @@ public final class ConfigConstants {
 	/** Deprecated in favour of {@link #HA_ZOOKEEPER_CHECKPOINT_COUNTER_PATH}. */
 	@Deprecated
 	public static final String ZOOKEEPER_CHECKPOINT_COUNTER_PATH = "recovery.zookeeper.path.checkpoint-counter";
+
+	/** Deprecated in favour of {@link #HA_ZOOKEEPER_MESOS_WORKERS_PATH}. */
+	@Deprecated
+	public static final String ZOOKEEPER_MESOS_WORKERS_PATH = "recovery.zookeeper.path.mesos-workers";
 
 	/** Deprecated in favour of {@link #HA_ZOOKEEPER_SESSION_TIMEOUT}. */
 	@Deprecated
@@ -1406,6 +1430,10 @@ public final class ConfigConstants {
 
 	/** The environment variable name which contains the Flink installation root directory */
 	public static final String ENV_FLINK_HOME_DIR = "FLINK_HOME";
+
+	// ---------------------------- Encoding ------------------------------
+
+	public static final Charset DEFAULT_CHARSET = StandardCharsets.UTF_8;
 
 	/**
 	 * Not instantiable.

@@ -18,34 +18,30 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.runtime.state.VoidNamespace;
-import org.apache.flink.runtime.state.VoidNamespaceSerializer;
-import org.apache.flink.streaming.api.SimpleTimerService;
-import org.apache.flink.streaming.api.TimeDomain;
 import org.apache.flink.streaming.api.TimerService;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 @Internal
-public class ProcessOperator<K, IN, OUT>
+public class ProcessOperator<IN, OUT>
 		extends AbstractUdfStreamOperator<OUT, ProcessFunction<IN, OUT>>
-		implements OneInputStreamOperator<IN, OUT>, Triggerable<K, VoidNamespace> {
+		implements OneInputStreamOperator<IN, OUT> {
 
 	private static final long serialVersionUID = 1L;
 
 	private transient TimestampedCollector<OUT> collector;
 
-	private transient TimerService timerService;
+	private transient ContextImpl context;
 
-	private transient ContextImpl<IN> context;
+	/** We listen to this ourselves because we don't have an {@link InternalTimerService}. */
+	private long currentWatermark = Long.MIN_VALUE;
 
-	private transient OnTimerContextImpl onTimerContext;
-
-	public ProcessOperator(ProcessFunction<IN, OUT> flatMapper) {
-		super(flatMapper);
+	public ProcessOperator(ProcessFunction<IN, OUT> function) {
+		super(function);
 
 		chainingStrategy = ChainingStrategy.ALWAYS;
 	}
@@ -55,33 +51,7 @@ public class ProcessOperator<K, IN, OUT>
 		super.open();
 		collector = new TimestampedCollector<>(output);
 
-		InternalTimerService<VoidNamespace> internalTimerService =
-				getInternalTimerService("user-timers", VoidNamespaceSerializer.INSTANCE, this);
-
-		this.timerService = new SimpleTimerService(internalTimerService);
-
-		context = new ContextImpl<>(timerService);
-		onTimerContext = new OnTimerContextImpl(timerService);
-	}
-
-	@Override
-	public void onEventTime(InternalTimer<K, VoidNamespace> timer) throws Exception {
-		collector.setAbsoluteTimestamp(timer.getTimestamp());
-		onTimerContext.timeDomain = TimeDomain.EVENT_TIME;
-		onTimerContext.timer = timer;
-		userFunction.onTimer(timer.getTimestamp(), onTimerContext, collector);
-		onTimerContext.timeDomain = null;
-		onTimerContext.timer = null;
-	}
-
-	@Override
-	public void onProcessingTime(InternalTimer<K, VoidNamespace> timer) throws Exception {
-		collector.setAbsoluteTimestamp(timer.getTimestamp());
-		onTimerContext.timeDomain = TimeDomain.PROCESSING_TIME;
-		onTimerContext.timer = timer;
-		userFunction.onTimer(timer.getTimestamp(), onTimerContext, collector);
-		onTimerContext.timeDomain = null;
-		onTimerContext.timer = null;
+		context = new ContextImpl(userFunction, getProcessingTimeService());
 	}
 
 	@Override
@@ -92,14 +62,23 @@ public class ProcessOperator<K, IN, OUT>
 		context.element = null;
 	}
 
-	private static class ContextImpl<T> implements ProcessFunction.Context {
+	@Override
+	public void processWatermark(Watermark mark) throws Exception {
+		super.processWatermark(mark);
+		this.currentWatermark = mark.getTimestamp();
+	}
 
-		private final TimerService timerService;
+	private class ContextImpl
+			extends ProcessFunction<IN, OUT>.Context
+			implements TimerService {
 
-		private StreamRecord<T> element;
+		private StreamRecord<IN> element;
 
-		ContextImpl(TimerService timerService) {
-			this.timerService = checkNotNull(timerService);
+		private final ProcessingTimeService processingTimeService;
+
+		ContextImpl(ProcessFunction<IN, OUT> function, ProcessingTimeService processingTimeService) {
+			function.super();
+			this.processingTimeService = processingTimeService;
 		}
 
 		@Override
@@ -114,38 +93,28 @@ public class ProcessOperator<K, IN, OUT>
 		}
 
 		@Override
-		public TimerService timerService() {
-			return timerService;
-		}
-	}
-
-	private static class OnTimerContextImpl implements ProcessFunction.OnTimerContext{
-
-		private final TimerService timerService;
-
-		private TimeDomain timeDomain;
-
-		private InternalTimer<?, VoidNamespace> timer;
-
-		OnTimerContextImpl(TimerService timerService) {
-			this.timerService = checkNotNull(timerService);
+		public long currentProcessingTime() {
+			return processingTimeService.getCurrentProcessingTime();
 		}
 
 		@Override
-		public TimeDomain timeDomain() {
-			checkState(timeDomain != null);
-			return timeDomain;
+		public long currentWatermark() {
+			return currentWatermark;
 		}
 
 		@Override
-		public Long timestamp() {
-			checkState(timer != null);
-			return timer.getTimestamp();
+		public void registerProcessingTimeTimer(long time) {
+			throw new UnsupportedOperationException("Setting timers is only supported on a KeyedStream.");
+		}
+
+		@Override
+		public void registerEventTimeTimer(long time) {
+			throw new UnsupportedOperationException("Setting timers is only supported on a KeyedStream.");
 		}
 
 		@Override
 		public TimerService timerService() {
-			return timerService;
+			return this;
 		}
 	}
 }

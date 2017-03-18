@@ -26,10 +26,11 @@ import org.apache.calcite.rex.RexNode
 import org.apache.flink.api.common.functions.{FlatJoinFunction, FlatMapFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
+import org.apache.flink.table.api.{BatchTableEnvironment, TableConfig}
+import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGenerator
 import org.apache.flink.table.runtime.{MapJoinLeftRunner, MapJoinRightRunner}
-import org.apache.flink.table.typeutils.TypeConverter.determineReturnType
-import org.apache.flink.table.api.{BatchTableEnvironment, TableConfig}
+import org.apache.flink.types.Row
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -87,9 +88,7 @@ class DataSetSingleRowJoin(
     planner.getCostFactory.makeCost(rowCnt, rowCnt, rowCnt * rowSize)
   }
 
-  override def translateToPlan(
-      tableEnv: BatchTableEnvironment,
-      expectedType: Option[TypeInformation[Any]]): DataSet[Any] = {
+  override def translateToPlan(tableEnv: BatchTableEnvironment): DataSet[Row] = {
 
     val leftDataSet = left.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
     val rightDataSet = right.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
@@ -100,8 +99,7 @@ class DataSetSingleRowJoin(
       rightDataSet.getType,
       leftIsSingle,
       joinCondition,
-      broadcastSetName,
-      expectedType)
+      broadcastSetName)
 
     val (multiRowDataSet, singleRowDataSet) =
       if (leftIsSingle) {
@@ -114,17 +112,16 @@ class DataSetSingleRowJoin(
       .flatMap(mapSideJoin)
       .withBroadcastSet(singleRowDataSet, broadcastSetName)
       .name(getMapOperatorName)
-      .asInstanceOf[DataSet[Any]]
   }
 
   private def generateMapFunction(
       config: TableConfig,
-      inputType1: TypeInformation[Any],
-      inputType2: TypeInformation[Any],
+      inputType1: TypeInformation[Row],
+      inputType2: TypeInformation[Row],
       firstIsSingle: Boolean,
       joinCondition: RexNode,
-      broadcastInputSetName: String,
-      expectedType: Option[TypeInformation[Any]]): FlatMapFunction[Any, Any] = {
+      broadcastInputSetName: String)
+    : FlatMapFunction[Row, Row] = {
 
     val codeGenerator = new CodeGenerator(
       config,
@@ -132,11 +129,7 @@ class DataSetSingleRowJoin(
       inputType1,
       Some(inputType2))
 
-    val returnType = determineReturnType(
-      getRowType,
-      expectedType,
-      config.getNullCheck,
-      config.getEfficientTypeUsage)
+    val returnType = FlinkTypeFactory.toInternalRowTypeInfo(getRowType)
 
     val conversion = codeGenerator.generateConverterResultExpression(
       returnType,
@@ -144,28 +137,29 @@ class DataSetSingleRowJoin(
 
     val condition = codeGenerator.generateExpression(joinCondition)
 
-    val joinMethodBody = s"""
-                  |${condition.code}
-                  |if (${condition.resultTerm}) {
-                  |  ${conversion.code}
-                  |  ${codeGenerator.collectorTerm}.collect(${conversion.resultTerm});
-                  |}
-                  |""".stripMargin
+    val joinMethodBody =
+      s"""
+        |${condition.code}
+        |if (${condition.resultTerm}) {
+        |  ${conversion.code}
+        |  ${codeGenerator.collectorTerm}.collect(${conversion.resultTerm});
+        |}
+        |""".stripMargin
 
     val genFunction = codeGenerator.generateFunction(
       ruleDescription,
-      classOf[FlatJoinFunction[Any, Any, Any]],
+      classOf[FlatJoinFunction[Row, Row, Row]],
       joinMethodBody,
       returnType)
 
     if (firstIsSingle) {
-      new MapJoinRightRunner[Any, Any, Any](
+      new MapJoinRightRunner[Row, Row, Row](
         genFunction.name,
         genFunction.code,
         genFunction.returnType,
         broadcastInputSetName)
     } else {
-      new MapJoinLeftRunner[Any, Any, Any](
+      new MapJoinLeftRunner[Row, Row, Row](
         genFunction.name,
         genFunction.code,
         genFunction.returnType,

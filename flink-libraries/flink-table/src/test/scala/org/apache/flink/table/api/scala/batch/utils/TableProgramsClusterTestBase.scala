@@ -18,8 +18,13 @@
 
 package org.apache.flink.table.api.scala.batch.utils
 
+import java.util
+
 import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
+import org.junit.runners.Parameterized
+
+import scala.collection.JavaConversions._
 
 /**
   * This test base provides full cluster-like integration tests for batch programs. Only runtime
@@ -27,6 +32,19 @@ import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
   * (e.g. [[org.apache.flink.table.runtime.dataset.DataSetWindowAggregateITCase]])
   */
 class TableProgramsClusterTestBase(
+    executionMode: TestExecutionMode,
     tableConfigMode: TableConfigMode)
-  extends TableProgramsTestBase(TestExecutionMode.CLUSTER, tableConfigMode) {
+    extends TableProgramsTestBase(executionMode, tableConfigMode) {
+}
+
+object TableProgramsClusterTestBase {
+
+  @Parameterized.Parameters(name = "Execution mode = {0}, Table config = {1}")
+  def parameters(): util.Collection[Array[java.lang.Object]] = {
+    Seq[Array[AnyRef]](
+      Array(TestExecutionMode.CLUSTER, TableProgramsTestBase.DEFAULT),
+      Array(TestExecutionMode.CLUSTER_OBJECT_REUSE, TableProgramsTestBase.DEFAULT)
+    )
+  }
+
 }

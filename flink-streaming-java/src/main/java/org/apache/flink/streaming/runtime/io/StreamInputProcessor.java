@@ -43,20 +43,26 @@ import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.runtime.plugable.NonReusingDeserializationDelegate;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.runtime.streamstatus.StatusWatermarkValve;
+import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Input reader for {@link org.apache.flink.streaming.runtime.tasks.OneInputStreamTask}.
  *
  * <p>
- * This also keeps track of {@link Watermark} events and forwards them to event subscribers
- * once the {@link Watermark} from all inputs advances.
+ * This internally uses a {@link StatusWatermarkValve} to keep track of {@link Watermark} and {@link StreamStatus} events,
+ * and forwards them to event subscribers once the {@link StatusWatermarkValve} determines the {@link Watermark} from
+ * all inputs has advanced, or that a {@link StreamStatus} needs to be propagated downstream to denote a status change.
  *
  * <p>
- * Forwarding elements or watermarks must be protected by synchronizing on the given lock
+ * Forwarding elements, watermarks, or status status elements must be protected by synchronizing on the given lock
  * object. This ensures that we don't call methods on a {@link OneInputStreamOperator} concurrently
  * with the timer callback or other things.
  * 
@@ -69,20 +75,36 @@ public class StreamInputProcessor<IN> {
 
 	private RecordDeserializer<DeserializationDelegate<StreamElement>> currentRecordDeserializer;
 
-	private final CheckpointBarrierHandler barrierHandler;
-
-	// We need to keep track of the channel from which a buffer came, so that we can
-	// appropriately map the watermarks to input channels
-	private int currentChannel = -1;
-
-	private boolean isFinished;
-
-	private final long[] watermarks;
-	private long lastEmittedWatermark;
-
 	private final DeserializationDelegate<StreamElement> deserializationDelegate;
 
+	private final CheckpointBarrierHandler barrierHandler;
+
+	private final Object lock;
+
+	// ---------------- Status and Watermark Valve ------------------
+
+	/** Valve that controls how watermarks and stream statuses are forwarded. */
+	private StatusWatermarkValve statusWatermarkValve;
+
+	/** Number of input channels the valve needs to handle. */
+	private final int numInputChannels;
+
+	/**
+	 * The channel from which a buffer came, tracked so that we can appropriately map
+	 * the watermarks and watermark statuses to channel indexes of the valve.
+	 */
+	private int currentChannel = -1;
+
+	private final StreamStatusMaintainer streamStatusMaintainer;
+	
+	private final OneInputStreamOperator<IN, ?> streamOperator;
+
+	// ---------------- Metrics ------------------
+
+	private long lastEmittedWatermark;
 	private Counter numRecordsIn;
+
+	private boolean isFinished;
 
 	@SuppressWarnings("unchecked")
 	public StreamInputProcessor(
@@ -90,8 +112,11 @@ public class StreamInputProcessor<IN> {
 			TypeSerializer<IN> inputSerializer,
 			StatefulTask checkpointedTask,
 			CheckpointingMode checkpointMode,
+			Object lock,
 			IOManager ioManager,
-			Configuration taskManagerConfig) throws IOException {
+			Configuration taskManagerConfig,
+			StreamStatusMaintainer streamStatusMaintainer,
+			OneInputStreamOperator<IN, ?> streamOperator) throws IOException {
 
 		InputGate inputGate = InputGateUtil.createInputGate(inputGates);
 
@@ -114,6 +139,8 @@ public class StreamInputProcessor<IN> {
 		if (checkpointedTask != null) {
 			this.barrierHandler.registerCheckpointEventHandler(checkpointedTask);
 		}
+
+		this.lock = checkNotNull(lock);
 		
 		StreamElementSerializer<IN> ser = new StreamElementSerializer<>(inputSerializer);
 		this.deserializationDelegate = new NonReusingDeserializationDelegate<>(ser);
@@ -126,15 +153,19 @@ public class StreamInputProcessor<IN> {
 					ioManager.getSpillingDirectoriesPaths());
 		}
 
-		watermarks = new long[inputGate.getNumberOfInputChannels()];
-		for (int i = 0; i < inputGate.getNumberOfInputChannels(); i++) {
-			watermarks[i] = Long.MIN_VALUE;
-		}
-		lastEmittedWatermark = Long.MIN_VALUE;
+		this.numInputChannels = inputGate.getNumberOfInputChannels();
+
+		this.lastEmittedWatermark = Long.MIN_VALUE;
+
+		this.streamStatusMaintainer = checkNotNull(streamStatusMaintainer);
+		this.streamOperator = checkNotNull(streamOperator);
+
+		this.statusWatermarkValve = new StatusWatermarkValve(
+				numInputChannels,
+				new ForwardingValveOutputHandler(streamOperator, lock));
 	}
 
-	@SuppressWarnings("SynchronizationOnLocalVariableOrMethodParameter")
-	public boolean processInput(OneInputStreamOperator<IN, ?> streamOperator, final Object lock) throws Exception {
+	public boolean processInput() throws Exception {
 		if (isFinished) {
 			return false;
 		}
@@ -155,22 +186,14 @@ public class StreamInputProcessor<IN> {
 					StreamElement recordOrMark = deserializationDelegate.getInstance();
 
 					if (recordOrMark.isWatermark()) {
-						long watermarkMillis = recordOrMark.asWatermark().getTimestamp();
-						if (watermarkMillis > watermarks[currentChannel]) {
-							watermarks[currentChannel] = watermarkMillis;
-							long newMinWatermark = Long.MAX_VALUE;
-							for (long watermark: watermarks) {
-								newMinWatermark = Math.min(watermark, newMinWatermark);
-							}
-							if (newMinWatermark > lastEmittedWatermark) {
-								lastEmittedWatermark = newMinWatermark;
-								synchronized (lock) {
-									streamOperator.processWatermark(new Watermark(lastEmittedWatermark));
-								}
-							}
-						}
+						// handle watermark
+						statusWatermarkValve.inputWatermark(recordOrMark.asWatermark(), currentChannel);
 						continue;
-					} else if(recordOrMark.isLatencyMarker()) {
+					} else if (recordOrMark.isStreamStatus()) {
+						// handle stream status
+						statusWatermarkValve.inputStreamStatus(recordOrMark.asStreamStatus(), currentChannel);
+						continue;
+					} else if (recordOrMark.isLatencyMarker()) {
 						// handle latency marker
 						synchronized (lock) {
 							streamOperator.processLatencyMarker(recordOrMark.asLatencyMarker());
@@ -247,4 +270,39 @@ public class StreamInputProcessor<IN> {
 		// cleanup the barrier handler resources
 		barrierHandler.cleanup();
 	}
+
+	private class ForwardingValveOutputHandler implements StatusWatermarkValve.ValveOutputHandler {
+		private final OneInputStreamOperator<IN, ?> operator;
+		private final Object lock;
+
+		private ForwardingValveOutputHandler(final OneInputStreamOperator<IN, ?> operator, final Object lock) {
+			this.operator = checkNotNull(operator);
+			this.lock = checkNotNull(lock);
+		}
+
+		@Override
+		public void handleWatermark(Watermark watermark) {
+			try {
+				synchronized (lock) {
+					lastEmittedWatermark = watermark.getTimestamp();
+					operator.processWatermark(watermark);
+				}
+			} catch (Exception e) {
+				throw new RuntimeException("Exception occurred while processing valve output watermark: ", e);
+			}
+		}
+
+		@SuppressWarnings("unchecked")
+		@Override
+		public void handleStreamStatus(StreamStatus streamStatus) {
+			try {
+				synchronized (lock) {
+					streamStatusMaintainer.toggleStreamStatus(streamStatus);
+				}
+			} catch (Exception e) {
+				throw new RuntimeException("Exception occurred while processing valve output stream status: ", e);
+			}
+		}
+	}
+
 }

@@ -29,6 +29,7 @@ import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
+import org.apache.flink.util.Preconditions;
 
 import java.util.Collections;
 
@@ -37,6 +38,8 @@ import java.util.Collections;
  */
 public class EmptyGraph
 extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
+
+	public static final int MINIMUM_VERTEX_COUNT = 1;
 
 	// Required to create the DataSource
 	private final ExecutionEnvironment env;
@@ -51,9 +54,8 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 	 * @param vertexCount number of vertices
 	 */
 	public EmptyGraph(ExecutionEnvironment env, long vertexCount) {
-		if (vertexCount <= 0) {
-			throw new IllegalArgumentException("Vertex count must be greater than zero");
-		}
+		Preconditions.checkArgument(vertexCount >= MINIMUM_VERTEX_COUNT,
+			"Vertex count must be at least " + MINIMUM_VERTEX_COUNT);
 
 		this.env = env;
 		this.vertexCount = vertexCount;

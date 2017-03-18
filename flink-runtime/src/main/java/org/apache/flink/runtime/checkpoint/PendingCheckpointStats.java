@@ -42,8 +42,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class PendingCheckpointStats extends AbstractCheckpointStats {
 
+	private static final long serialVersionUID = -973959257699390327L;
+
 	/** Tracker callback when the pending checkpoint is finalized or aborted. */
-	private final CheckpointStatsTracker.PendingCheckpointStatsCallback trackerCallback;
+	private transient final CheckpointStatsTracker.PendingCheckpointStatsCallback trackerCallback;
 
 	/** The current number of acknowledged subtasks. */
 	private volatile int currentNumAcknowledgedSubtasks;

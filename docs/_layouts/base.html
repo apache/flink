@@ -54,20 +54,16 @@ under the License.
     <![endif]-->
   </head>
   <body>
+    {% if site.is_stable %}
+    {% unless site.is_latest %}
+    <div style="position:fixed; bottom:0; left:0; z-index:99999; width:100%; text-align:center; padding:15px; border-top:1px dashed #CE4B65; background:#f6f0e3; font-weight:bold">
+       This documentation is for an out-of-date version of Apache Flink. We recommend you use <a href="https://flink.apache.org/q/stable-docs.html">the latest stable version</a>.
+    </div>
+    {% endunless %}
+    {% endif %}
+
     <!-- Main content. -->
     <div class="container">
-      {% if site.is_stable %}
-      {% unless site.is_latest %}
-      <div class="row">
-        <div class="col-sm-12">
-          <div class="alert alert-info">
-              <strong>Note</strong>: This documentation is for Flink version <strong>{{ site.version }}</strong>. There is a more recent stable version available. Please consider updating and <a href="{{ site.latest_stable_url }}">check out the documentation for that version</a>.
-          </div>
-        </div>
-      </div>
-      {% endunless %}
-      {% endif %}
-
       {% comment %}
       This is the base for all content. The content from the layouts found in
       the _layouts directory goes here.

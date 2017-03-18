@@ -64,14 +64,17 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputS
 					throw new RuntimeException("Invalid input type number: " + inputType);
 			}
 		}
-	
-		this.inputProcessor = new StreamTwoInputProcessor<IN1, IN2>(
+
+		this.inputProcessor = new StreamTwoInputProcessor<>(
 				inputList1, inputList2,
 				inputDeserializer1, inputDeserializer2,
 				this,
 				configuration.getCheckpointMode(),
+				getCheckpointLock(),
 				getEnvironment().getIOManager(),
-				getEnvironment().getTaskManagerInfo().getConfiguration());
+				getEnvironment().getTaskManagerInfo().getConfiguration(),
+				getStreamStatusMaintainer(),
+				this.headOperator);
 
 		// make sure that stream tasks report their I/O statistics
 		inputProcessor.setMetricGroup(getEnvironment().getMetricGroup().getIOMetricGroup());
@@ -79,12 +82,10 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputS
 
 	@Override
 	protected void run() throws Exception {
-		// cache some references on the stack, to make the code more JIT friendly
-		final TwoInputStreamOperator<IN1, IN2, OUT> operator = this.headOperator;
+		// cache processor reference on the stack, to make the code more JIT friendly
 		final StreamTwoInputProcessor<IN1, IN2> inputProcessor = this.inputProcessor;
-		final Object lock = getCheckpointLock();
-		
-		while (running && inputProcessor.processInput(operator, lock)) {
+
+		while (running && inputProcessor.processInput()) {
 			// all the work happens in the "processInput" method
 		}
 	}

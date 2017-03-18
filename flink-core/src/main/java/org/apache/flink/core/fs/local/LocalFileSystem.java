@@ -43,9 +43,12 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.UnknownHostException;
+import java.nio.file.FileAlreadyExistsException;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * The class <code>LocalFile</code> provides an implementation of the {@link FileSystem} interface
+ * The class {@code LocalFileSystem} is an implementation of the {@link FileSystem} interface
  * for the local file system of the machine where the JVM runs.
  */
 @Internal
@@ -231,28 +234,27 @@ public class LocalFileSystem extends FileSystem {
 		return (parent == null || mkdirs(parent)) && (p2f.mkdir() || p2f.isDirectory());
 	}
 
-
 	@Override
-	public FSDataOutputStream create(final Path f, final boolean overwrite, final int bufferSize,
-			final short replication, final long blockSize) throws IOException {
+	public FSDataOutputStream create(final Path filePath, final WriteMode overwrite) throws IOException {
+		checkNotNull(filePath, "filePath");
 
-		if (exists(f) && !overwrite) {
-			throw new IOException("File already exists:" + f);
+		if (exists(filePath) && overwrite == WriteMode.NO_OVERWRITE) {
+			throw new FileAlreadyExistsException("File already exists: " + filePath);
 		}
 
-		final Path parent = f.getParent();
+		final Path parent = filePath.getParent();
 		if (parent != null && !mkdirs(parent)) {
-			throw new IOException("Mkdirs failed to create " + parent.toString());
+			throw new IOException("Mkdirs failed to create " + parent);
 		}
 
-		final File file = pathToFile(f);
+		final File file = pathToFile(filePath);
 		return new LocalDataOutputStream(file);
 	}
 
-
 	@Override
-	public FSDataOutputStream create(final Path f, final boolean overwrite) throws IOException {
-		return create(f, overwrite, 0, (short) 0, 0);
+	public FSDataOutputStream create(
+			Path f, boolean overwrite, int bufferSize, short replication, long blockSize) throws IOException {
+		return create(f, overwrite ? WriteMode.OVERWRITE : WriteMode.NO_OVERWRITE);
 	}
 
 

@@ -25,6 +25,7 @@ import java.io.Serializable;
  * A state handle that produces an input stream when resolved.
  */
 @Deprecated
+@SuppressWarnings("deprecation")
 public interface StreamStateHandle extends StateHandle<InputStream> {
 
 	/**

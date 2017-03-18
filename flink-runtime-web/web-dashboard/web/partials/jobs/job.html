@@ -19,21 +19,34 @@ limitations under the License.
 -->
 <nav ng-if="job" class="navbar navbar-default navbar-fixed-top navbar-main">
   <div id="fold-button" ng-click="showSidebar()" class="btn btn-default navbar-btn pull-left"><i class="fa fa-navicon"></i></div>
-  <div class="navbar-title">
-    <indicator-primary status="{{job.state}}"></indicator-primary>{{ job.name }}
-  </div>
-  <div class="navbar-info first last hidden-xs hidden-sm">{{ job.jid }}</div>
-  <div class="navbar-info first last">
-    <div class="label-group">
-      <bs-label status="{{status}}" ng-repeat="(status, value) in job['status-counts']">{{value}}</bs-label>
+  <div class="navbar-title-job">
+    <div class="container-fluid no-padding">
+      <div class="row no-margin">
+        <div class="col-xs-1 no-padding">
+          <indicator-primary status="{{job.state}}"></indicator-primary>
+        </div>
+        <div class="col-xs-11 no-padding">
+          <div class="row">
+            <div class="col-xs-12 job-name">{{ job.name }}</div>
+          </div>
+          <div class="row">
+            <div class="col-xs-12 job-id">{{ job.jid }}</div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
+  <div ng-if="job.isStoppable && job.state=='RUNNING'" class="navbar-info last first pull-right"><span ng-click="stopJob($event)" class="navbar-info-button btn btn-default">Stop</span></div>
+  <div ng-if="job.state=='RUNNING' || job.state=='CREATED' || job.state=='RESTARTING'" class="navbar-info last first pull-right"><span ng-click="cancelJob($event)" class="navbar-info-button btn btn-default">Cancel</span></div>
   <div class="navbar-info first last hidden-xs hidden-sm">{{ job['start-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}<span ng-if="job['end-time'] &gt; -1">
       - 
       {{ job['end-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}</span></div>
   <div ng-if="job.duration &gt; -1" title="{{job.duration | humanizeDuration:false}}" class="navbar-info last first">{{job.duration | humanizeDuration:true}}</div>
-  <div ng-if="job.state=='RUNNING' || job.state=='CREATED' || job.state=='RESTARTING'" class="navbar-info last first"><span ng-click="cancelJob($event)" class="navbar-info-button btn btn-default">Cancel</span></div>
-  <div ng-if="job.isStoppable && job.state=='RUNNING'" class="navbar-info last first"><span ng-click="stopJob($event)" class="navbar-info-button btn btn-default">Stop</span></div>
+  <div class="navbar-info first last hidden-xs hidden-sm">
+    <div class="label-group">
+      <bs-label status="{{status}}" ng-repeat="(status, value) in job['status-counts']">{{value}}</bs-label>
+    </div>
+  </div>
 </nav>
 <nav ng-if="job" class="navbar navbar-default navbar-fixed-top navbar-main-additional">
   <ul class="nav nav-tabs">

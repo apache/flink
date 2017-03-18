@@ -20,8 +20,11 @@ package org.apache.flink.graph.library.clustering.undirected;
 
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
+import org.apache.flink.api.java.DataSet;
 import org.apache.flink.graph.AbstractGraphAnalytic;
 import org.apache.flink.graph.Graph;
+import org.apache.flink.graph.asm.dataset.Count;
+import org.apache.flink.graph.asm.result.PrintableResult;
 import org.apache.flink.graph.library.clustering.undirected.GlobalClusteringCoefficient.Result;
 import org.apache.flink.graph.library.metric.undirected.VertexMetrics;
 import org.apache.flink.types.CopyableValue;
@@ -39,7 +42,7 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 public class GlobalClusteringCoefficient<K extends Comparable<K> & CopyableValue<K>, VV, EV>
 extends AbstractGraphAnalytic<K, VV, EV, Result> {
 
-	private TriangleCount<K, VV, EV> triangleCount;
+	private Count<TriangleListing.Result<K>> triangleCount;
 
 	private VertexMetrics<K, VV, EV> vertexMetrics;
 
@@ -70,10 +73,14 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 			throws Exception {
 		super.run(input);
 
-		triangleCount = new TriangleCount<K, VV, EV>()
-			.setLittleParallelism(littleParallelism);
+		triangleCount = new Count<>();
 
-		input.run(triangleCount);
+		DataSet<TriangleListing.Result<K>> triangles = input
+			.run(new TriangleListing<K, VV, EV>()
+				.setSortTriangleVertices(false)
+				.setLittleParallelism(littleParallelism));
+
+		triangleCount.run(triangles);
 
 		vertexMetrics = new VertexMetrics<K, VV, EV>()
 			.setParallelism(littleParallelism);
@@ -94,7 +101,8 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 	/**
 	 * Wraps global clustering coefficient metrics.
 	 */
-	public static class Result {
+	public static class Result
+	implements PrintableResult {
 		private long tripletCount;
 
 		private long triangleCount;
@@ -143,7 +151,7 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 		}
 
 		@Override
-		public String toString() {
+		public String toPrintableString() {
 			return "triplet count: " + tripletCount
 				+ ", triangle count: " + triangleCount
 				+ ", global clustering coefficient: " + getGlobalClusteringCoefficientScore();

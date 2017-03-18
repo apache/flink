@@ -25,6 +25,7 @@ import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -50,7 +51,11 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 	@Override
 	protected FsStateBackend getStateBackend() throws Exception {
 		File checkpointPath = tempFolder.newFolder();
-		return new FsStateBackend(localFileUri(checkpointPath));
+		return new FsStateBackend(localFileUri(checkpointPath), useAsyncMode());
+	}
+
+	protected boolean useAsyncMode() {
+		return false;
 	}
 
 	// disable these because the verification does not work for this state backend
@@ -65,6 +70,10 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 	@Override
 	@Test
 	public void testReducingStateRestoreWithWrongSerializers() {}
+	
+	@Override
+	@Test
+	public void testMapStateRestoreWithWrongSerializers() {}
 
 	@Test
 	public void testStateOutputStream() throws IOException {
@@ -204,6 +213,7 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 		}
 	}
 
+	@Ignore
 	@Test
 	public void testConcurrentMapIfQueryable() throws Exception {
 		super.testConcurrentMapIfQueryable();

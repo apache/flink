@@ -253,56 +253,51 @@ Table result = tableEnvironment.ingest("kafka-source");
 
 The `CsvTableSource` is already included in `flink-table` without additional dependecies.
 
-It can be configured with the following properties:
+The easiest way to create a `CsvTableSource` is by using the enclosed builder `CsvTableSource.builder()`, the builder has the following methods to configure properties:
 
- - `path` The path to the CSV file, required.
- - `fieldNames` The names of the table fields, required.
- - `fieldTypes` The types of the table fields, required.
- - `fieldDelim` The field delimiter, `","` by default.
- - `rowDelim` The row delimiter, `"\n"` by default.
- - `quoteCharacter` An optional quote character for String values, `null` by default.
- - `ignoreFirstLine` Flag to ignore the first line, `false` by default.
- - `ignoreComments` An optional prefix to indicate comments, `null` by default.
- - `lenient` Flag to skip records with parse error instead to fail, `false` by default.
+ - `path(String path)` Sets the path to the CSV file, required.
+ - `field(String fieldName, TypeInformation<?> fieldType)` Adds a field with the field name and field type information, can be called multiple times, required. The call order of this method defines also the order of the fields in a row.
+ - `fieldDelimiter(String delim)` Sets the field delimiter, `","` by default.
+ - `lineDelimiter(String delim)` Sets the line delimiter, `"\n"` by default.
+ - `quoteCharacter(Character quote)` Sets the quote character for String values, `null` by default.
+ - `commentPrefix(String prefix)` Sets a prefix to indicate comments, `null` by default.
+ - `ignoreFirstLine()` Ignore the first line. Disabled by default.
+ - `ignoreParseErrors()` Skip records with parse error instead to fail. Throwing an exception by default.
 
 You can create the source as follows:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-CsvTableSource csvTableSource = new CsvTableSource(
-    "/path/to/your/file.csv",
-    new String[] { "name", "id", "score", "comments" },
-    new TypeInformation<?>[] {
-      Types.STRING(),
-      Types.INT(),
-      Types.DOUBLE(),
-      Types.STRING()
-    },
-    "#",    // fieldDelim
-    "$",    // rowDelim
-    null,   // quoteCharacter
-    true,   // ignoreFirstLine
-    "%",    // ignoreComments
-    false); // lenient
+CsvTableSource csvTableSource = CsvTableSource
+    .builder()
+    .path("/path/to/your/file.csv")
+    .field("name", Types.STRING())
+    .field("id", Types.INT())
+    .field("score", Types.DOUBLE())
+    .field("comments", Types.STRING())
+    .fieldDelimiter("#")
+    .lineDelimiter("$")
+    .ignoreFirstLine()
+    .ignoreParseErrors()
+    .commentPrefix("%");
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-val csvTableSource = new CsvTableSource(
-    "/path/to/your/file.csv",
-    Array("name", "id", "score", "comments"),
-    Array(
-      Types.STRING,
-      Types.INT,
-      Types.DOUBLE,
-      Types.STRING
-    ),
-    fieldDelim = "#",
-    rowDelim = "$",
-    ignoreFirstLine = true,
-    ignoreComments = "%")
+val csvTableSource = CsvTableSource
+    .builder
+    .path("/path/to/your/file.csv")
+    .field("name", Types.STRING)
+    .field("id", Types.INT)
+    .field("score", Types.DOUBLE)
+    .field("comments", Types.STRING)
+    .fieldDelimiter("#")
+    .lineDelimiter("$")
+    .ignoreFirstLine
+    .ignoreParseErrors
+    .commentPrefix("%")
 {% endhighlight %}
 </div>
 </div>
@@ -495,7 +490,7 @@ A registered table can be accessed from a `TableEnvironment` as follows:
 ### Table API Operators
 
 The Table API features a domain-specific language to execute language-integrated queries on structured data in Scala and Java.
-This section gives a brief overview of the available operators. You can find more details of operators in the [Javadoc]({{site.baseurl}}/api/java/org/apache/flink/table/api/Table.html).
+This section gives a brief overview of the available operators. You can find more details of operators in the [Javadoc](http://flink.apache.org/docs/latest/api/java/org/apache/flink/table/api/Table.html).
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -1289,7 +1284,7 @@ SQL
 ----
 SQL queries are specified using the `sql()` method of the `TableEnvironment`. The method returns the result of the SQL query as a `Table` which can be converted into a `DataSet` or `DataStream`, used in subsequent Table API queries, or written to a `TableSink` (see [Writing Tables to External Sinks](#writing-tables-to-external-sinks)). SQL and Table API queries can seamlessly mixed and are holistically optimized and translated into a single DataStream or DataSet program.
 
-A `Table`, `DataSet`, `DataStream`, or external `TableSource` must be registered in the `TableEnvironment` in order to be accessible by a SQL query (see [Registering Tables](#registering-tables)).
+A `Table`, `DataSet`, `DataStream`, or external `TableSource` must be registered in the `TableEnvironment` in order to be accessible by a SQL query (see [Registering Tables](#registering-tables)). For convenience `Table.toString()` will automatically register an unique table name under the `Table`'s `TableEnvironment` and return the table name. So it allows to call SQL directly on tables in a string concatenation (see examples below).
 
 *Note: Flink's SQL support is not feature complete, yet. Queries that include unsupported SQL features will cause a `TableException`. The limitations of SQL on batch and streaming tables are listed in the following sections.*
 
@@ -1303,10 +1298,17 @@ BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 // read a DataSet from an external source
 DataSet<Tuple3<Long, String, Integer>> ds = env.readCsvFile(...);
+
+// call SQL on unregistered tables
+Table table = tableEnv.toTable(ds, "user, product, amount");
+Table result = tableEnv.sql(
+  "SELECT SUM(amount) FROM " + table + " WHERE product LIKE '%Rubber%'");
+
+// call SQL on registered tables
 // register the DataSet as table "Orders"
 tableEnv.registerDataSet("Orders", ds, "user, product, amount");
 // run a SQL query on the Table and retrieve the result as a new Table
-Table result = tableEnv.sql(
+Table result2 = tableEnv.sql(
   "SELECT SUM(amount) FROM Orders WHERE product LIKE '%Rubber%'");
 {% endhighlight %}
 </div>
@@ -1318,10 +1320,17 @@ val tableEnv = TableEnvironment.getTableEnvironment(env)
 
 // read a DataSet from an external source
 val ds: DataSet[(Long, String, Integer)] = env.readCsvFile(...)
+
+// call SQL on unregistered tables
+val table = ds.toTable(tableEnv, 'user, 'product, 'amount)
+val result = tableEnv.sql(
+  s"SELECT SUM(amount) FROM $table WHERE product LIKE '%Rubber%'")
+
+// call SQL on registered tables
 // register the DataSet under the name "Orders"
 tableEnv.registerDataSet("Orders", ds, 'user, 'product, 'amount)
 // run a SQL query on the Table and retrieve the result as a new Table
-val result = tableEnv.sql(
+val result2 = tableEnv.sql(
   "SELECT SUM(amount) FROM Orders WHERE product LIKE '%Rubber%'")
 {% endhighlight %}
 </div>
@@ -1329,13 +1338,12 @@ val result = tableEnv.sql(
 
 #### Limitations
 
-The current version supports selection (filter), projection, inner equi-joins, grouping, non-distinct aggregates, and sorting on batch tables.
+The current version supports selection (filter), projection, inner equi-joins, grouping, aggregates, and sorting on batch tables.
 
 Among others, the following SQL features are not supported, yet:
 
 - Timestamps and intervals are limited to milliseconds precision
 - Interval arithmetic is currenly limited
-- Distinct aggregates (e.g., `COUNT(DISTINCT name)`)
 - Non-equi joins and Cartesian products
 - Efficient grouping sets
 
@@ -1353,10 +1361,17 @@ StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 // ingest a DataStream from an external source
 DataStream<Tuple3<Long, String, Integer>> ds = env.addSource(...);
+
+// call SQL on unregistered tables
+Table table = tableEnv.toTable(ds, "user, product, amount");
+Table result = tableEnv.sql(
+  "SELECT SUM(amount) FROM " + table + " WHERE product LIKE '%Rubber%'");
+
+// call SQL on registered tables
 // register the DataStream as table "Orders"
 tableEnv.registerDataStream("Orders", ds, "user, product, amount");
 // run a SQL query on the Table and retrieve the result as a new Table
-Table result = tableEnv.sql(
+Table result2 = tableEnv.sql(
   "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'");
 {% endhighlight %}
 </div>
@@ -1368,10 +1383,17 @@ val tableEnv = TableEnvironment.getTableEnvironment(env)
 
 // read a DataStream from an external source
 val ds: DataStream[(Long, String, Integer)] = env.addSource(...)
+
+// call SQL on unregistered tables
+val table = ds.toTable(tableEnv, 'user, 'product, 'amount)
+val result = tableEnv.sql(
+  s"SELECT SUM(amount) FROM $table WHERE product LIKE '%Rubber%'")
+
+// call SQL on registered tables
 // register the DataStream under the name "Orders"
 tableEnv.registerDataStream("Orders", ds, 'user, 'product, 'amount)
 // run a SQL query on the Table and retrieve the result as a new Table
-val result = tableEnv.sql(
+val result2 = tableEnv.sql(
   "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
 {% endhighlight %}
 </div>
@@ -4729,27 +4751,38 @@ ELEMENT(ARRAY)
 </div>
 </div>
 
+{% top %}
+
+User-defined Functions
+----------------
+
 ### User-defined Scalar Functions
 
 If a required scalar function is not contained in the built-in functions, it is possible to define custom, user-defined scalar functions for both the Table API and SQL. A user-defined scalar functions maps zero, one, or multiple scalar values to a new scalar value.
 
 In order to define a scalar function one has to extend the base class `ScalarFunction` in `org.apache.flink.table.functions` and implement (one or more) evaluation methods. The behavior of a scalar function is determined by the evaluation method. An evaluation method must be declared publicly and named `eval`. The parameter types and return type of the evaluation method also determine the parameter and return types of the scalar function. Evaluation methods can also be overloaded by implementing multiple methods named `eval`.
 
-The following example snippet shows how to define your own hash code function:
+The following example shows how to define your own hash code function, register it in the TableEnvironment, and call it in a query. Note that you can configure your scalar function via a constructor before it is registered:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-public static class HashCode extends ScalarFunction {
+public class HashCode extends ScalarFunction {
+  private int factor = 12;
+  
+  public HashCode(int factor) {
+      this.factor = factor;
+  }
+  
   public int eval(String s) {
-    return s.hashCode() * 12;
+      return s.hashCode() * factor;
   }
 }
 
 BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 // register the function
-tableEnv.registerFunction("hashCode", new HashCode())
+tableEnv.registerFunction("hashCode", new HashCode(10))
 
 // use the function in Java Table API
 myTable.select("string, string.hashCode(), hashCode(string)");
@@ -4762,19 +4795,20 @@ tableEnv.sql("SELECT string, HASHCODE(string) FROM MyTable");
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 // must be defined in static/object context
-object hashCode extends ScalarFunction {
+class HashCode(factor: Int) extends ScalarFunction {
   def eval(s: String): Int = {
-    s.hashCode() * 12
+    s.hashCode() * factor
   }
 }
 
 val tableEnv = TableEnvironment.getTableEnvironment(env)
 
 // use the function in Scala Table API
+val hashCode = new HashCode(10)
 myTable.select('string, hashCode('string))
 
 // register and use the function in SQL
-tableEnv.registerFunction("hashCode", hashCode)
+tableEnv.registerFunction("hashCode", new HashCode(10))
 tableEnv.sql("SELECT string, HASHCODE(string) FROM MyTable");
 {% endhighlight %}
 </div>
@@ -4824,15 +4858,21 @@ In order to define a table function one has to extend the base class `TableFunct
 
 In the Table API, a table function is used with `.join(Expression)` or `.leftOuterJoin(Expression)` for Scala users and `.join(String)` or `.leftOuterJoin(String)` for Java users. The `join` operator (cross) joins each row from the outer table (table on the left of the operator) with all rows produced by the table-valued function (which is on the right side of the operator). The `leftOuterJoin` operator joins each row from the outer table (table on the left of the operator) with all rows produced by the table-valued function (which is on the right side of the operator) and preserves outer rows for which the table function returns an empty table. In SQL use `LATERAL TABLE(<TableFunction>)` with CROSS JOIN and LEFT JOIN with an ON TRUE join condition (see examples below).
 
-The following examples show how to define a table-valued function and use it:
+The following example shows how to define table-valued function, register it in the TableEnvironment, and call it in a query. Note that you can configure your table function via a constructor before it is registered: 
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
 // The generic type "Tuple2<String, Integer>" determines the schema of the returned table as (String, Integer).
 public class Split extends TableFunction<Tuple2<String, Integer>> {
+    private String separator = " ";
+    
+    public Split(String separator) {
+        this.separator = separator;
+    }
+    
     public void eval(String str) {
-        for (String s : str.split(" ")) {
+        for (String s : str.split(separator)) {
             // use collect(...) to emit a row
             collect(new Tuple2<String, Integer>(s, s.length()));
         }
@@ -4843,7 +4883,7 @@ BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 Table myTable = ...         // table schema: [a: String]
 
 // Register the function.
-tableEnv.registerFunction("split", new Split());
+tableEnv.registerFunction("split", new Split("#"));
 
 // Use the table function in the Java Table API. "as" specifies the field names of the table.
 myTable.join("split(a) as (word, length)").select("a, word, length");
@@ -4860,10 +4900,10 @@ tableEnv.sql("SELECT a, word, length FROM MyTable LEFT JOIN LATERAL TABLE(split(
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 // The generic type "(String, Int)" determines the schema of the returned table as (String, Integer).
-class Split extends TableFunction[(String, Int)] {
+class Split(separator: String) extends TableFunction[(String, Int)] {
   def eval(str: String): Unit = {
     // use collect(...) to emit a row.
-    str.split(" ").foreach(x -> collect((x, x.length))
+    str.split(separator).foreach(x -> collect((x, x.length))
   }
 }
 
@@ -4871,13 +4911,13 @@ val tableEnv = TableEnvironment.getTableEnvironment(env)
 val myTable = ...         // table schema: [a: String]
 
 // Use the table function in the Scala Table API (Note: No registration required in Scala Table API).
-val split = new Split()
+val split = new Split("#")
 // "as" specifies the field names of the generated table.
 myTable.join(split('a) as ('word, 'length)).select('a, 'word, 'length);
 myTable.leftOuterJoin(split('a) as ('word, 'length)).select('a, 'word, 'length);
 
 // Register the table function to use it in SQL queries.
-tableEnv.registerFunction("split", new Split())
+tableEnv.registerFunction("split", new Split("#"))
 
 // Use the table function in SQL with LATERAL and TABLE keywords.
 // CROSS JOIN a table function (equivalent to "join" in Table API)
@@ -4937,6 +4977,93 @@ class CustomTypeSplit extends TableFunction[Row] {
 {% endhighlight %}
 </div>
 </div>
+
+### Advanced Function Features
+
+Sometimes it might be necessary for a user-defined function to get global runtime information or do some setup/clean-up work before the actual work. User-defined functions provide `open()` and `close()` methods that can be overriden and provide similar functionality as the methods in `RichFunction` of DataSet or DataStream API.
+
+The `open()` method is called once before the evaluation method. The `close()` method after the last call to the evaluation method.
+
+The `open()` method provides a `FunctionContext` that contains information about the context in which user-defined functions are executed, such as the metric group, the distributed cache files, or the global job parameters.
+
+The following information can be obtained by calling the corresponding methods of `FunctionContext`:
+
+| Method                                | Description                                            |
+| :------------------------------------ | :----------------------------------------------------- |
+| `getMetricGroup()`                    | Metric group for this parallel subtask.                |
+| `getCachedFile(name)`                 | Local temporary file copy of a distributed cache file. |
+| `getJobParameter(name, defaultValue)` | Global job parameter value associated with given key.  |
+
+The following example snippet shows how to use `FunctionContext` in a scalar function for accessing a global job parameter:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+public class HashCode extends ScalarFunction {
+
+    private int factor = 0;
+
+    @Override
+    public void open(FunctionContext context) throws Exception {
+        // access "hashcode_factor" parameter
+        // "12" would be the default value if parameter does not exist
+        factor = Integer.valueOf(context.getJobParameter("hashcode_factor", "12")); 
+    }
+
+    public int eval(String s) {
+        return s.hashCode() * factor;
+    }
+}
+
+ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+
+// set job parameter
+Configuration conf = new Configuration();
+conf.setString("hashcode_factor", "31");
+env.getConfig().setGlobalJobParameters(conf);
+
+// register the function
+tableEnv.registerFunction("hashCode", new HashCode())
+
+// use the function in Java Table API
+myTable.select("string, string.hashCode(), hashCode(string)");
+
+// use the function in SQL
+tableEnv.sql("SELECT string, HASHCODE(string) FROM MyTable");
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+object hashCode extends ScalarFunction {
+
+  var hashcode_factor = 12;
+
+  override def open(context: FunctionContext): Unit = {
+    // access "hashcode_factor" parameter
+    // "12" would be the default value if parameter does not exist
+    hashcode_factor = context.getJobParameter("hashcode_factor", "12").toInt
+  }
+
+  def eval(s: String): Int = {
+    s.hashCode() * hashcode_factor
+  }
+}
+
+val tableEnv = TableEnvironment.getTableEnvironment(env)
+
+// use the function in Scala Table API
+myTable.select('string, hashCode('string))
+
+// register and use the function in SQL
+tableEnv.registerFunction("hashCode", hashCode)
+tableEnv.sql("SELECT string, HASHCODE(string) FROM MyTable");
+{% endhighlight %}
+
+</div>
+</div>
+
 
 ### Limitations
 

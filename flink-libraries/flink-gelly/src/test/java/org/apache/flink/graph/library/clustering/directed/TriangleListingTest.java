@@ -20,9 +20,9 @@ package org.apache.flink.graph.library.clustering.directed;
 
 import org.apache.commons.math3.util.CombinatoricsUtils;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.Utils.ChecksumHashCode;
-import org.apache.flink.api.java.utils.DataSetUtils;
 import org.apache.flink.graph.asm.AsmTestBase;
+import org.apache.flink.graph.asm.dataset.ChecksumHashCode;
+import org.apache.flink.graph.asm.dataset.ChecksumHashCode.Checksum;
 import org.apache.flink.graph.library.clustering.directed.TriangleListing.Result;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.IntValue;
@@ -76,7 +76,9 @@ extends AsmTestBase {
 			.run(new TriangleListing<LongValue, NullValue, NullValue>()
 				.setSortTriangleVertices(true));
 
-		ChecksumHashCode checksum = DataSetUtils.checksumHashCode(tl);
+		Checksum checksum = new ChecksumHashCode<Result<LongValue>>()
+			.run(tl)
+			.execute();
 
 		assertEquals(75049, checksum.getCount());
 		assertEquals(0x00000033111f11baL, checksum.getChecksum());

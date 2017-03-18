@@ -18,9 +18,9 @@
 
 package org.apache.flink.graph.library.metric;
 
-import org.apache.flink.api.java.Utils;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.asm.AsmTestBase;
+import org.apache.flink.graph.asm.dataset.ChecksumHashCode.Checksum;
 import org.apache.flink.graph.test.TestGraphUtils;
 import org.junit.Test;
 
@@ -36,7 +36,7 @@ extends AsmTestBase {
 			TestGraphUtils.getLongLongEdgeData(env),
 			env);
 
-		Utils.ChecksumHashCode checksum = graph
+		Checksum checksum = graph
 			.run(new ChecksumHashCode<Long, Long, Long>())
 			.execute();
 

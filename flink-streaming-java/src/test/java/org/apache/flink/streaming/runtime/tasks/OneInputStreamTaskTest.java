@@ -25,12 +25,15 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
+import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
@@ -38,15 +41,18 @@ import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.runtime.state.TaskStateHandles;
+import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamNode;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.api.operators.StreamCheckpointedOperator;
 import org.apache.flink.streaming.api.operators.StreamMap;
+import org.apache.flink.streaming.api.operators.StreamCheckpointedOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
@@ -59,14 +65,7 @@ import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -98,6 +97,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 	public void testOpenCloseAndTimestamps() throws Exception {
 		final OneInputStreamTask<String, String> mapTask = new OneInputStreamTask<String, String>();
 		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<String, String>(mapTask, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+		testHarness.setupOutputForSingletonOperatorChain();
 
 		StreamConfig streamConfig = testHarness.getStreamConfig();
 		StreamMap<String, String> mapOperator = new StreamMap<String, String>(new TestOpenCloseMapFunction());
@@ -126,15 +126,20 @@ public class OneInputStreamTaskTest extends TestLogger {
 	}
 
 	/**
-	 * This test verifies that watermarks are correctly forwarded. This also checks whether
+	 * This test verifies that watermarks and stream statuses are correctly forwarded. This also checks whether
 	 * watermarks are forwarded only when we have received watermarks from all inputs. The
-	 * forwarded watermark must be the minimum of the watermarks of all inputs.
+	 * forwarded watermark must be the minimum of the watermarks of all active inputs.
 	 */
 	@Test
 	@SuppressWarnings("unchecked")
-	public void testWatermarkForwarding() throws Exception {
+	public void testWatermarkAndStreamStatusForwarding() throws Exception {
 		final OneInputStreamTask<String, String> mapTask = new OneInputStreamTask<String, String>();
-		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<String, String>(mapTask, 2, 2, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+		final OneInputStreamTaskTestHarness<String, String> testHarness =
+			new OneInputStreamTaskTestHarness<String, String>(
+				mapTask, 2, 2,
+				BasicTypeInfo.STRING_TYPE_INFO,
+				BasicTypeInfo.STRING_TYPE_INFO);
+		testHarness.setupOutputForSingletonOperatorChain();
 
 		StreamConfig streamConfig = testHarness.getStreamConfig();
 		StreamMap<String, String> mapOperator = new StreamMap<String, String>(new IdentityMap());
@@ -180,8 +185,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 		expectedOutput.add(new Watermark(initialTime + 2));
 		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 
-
-		// advance watermark from one of the inputs, now we should get a now one since the
+		// advance watermark from one of the inputs, now we should get a new one since the
 		// minimum increases
 		testHarness.processElement(new Watermark(initialTime + 4), 1, 1);
 		testHarness.waitForInputProcessing();
@@ -196,6 +200,31 @@ public class OneInputStreamTaskTest extends TestLogger {
 		expectedOutput.add(new Watermark(initialTime + 4));
 		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 
+		// test whether idle input channels are acknowledged correctly when forwarding watermarks
+		testHarness.processElement(StreamStatus.IDLE, 0, 1);
+		testHarness.processElement(StreamStatus.IDLE, 1, 0);
+		testHarness.processElement(new Watermark(initialTime + 6), 0, 0);
+		testHarness.processElement(new Watermark(initialTime + 5), 1, 1); // this watermark should be advanced first
+		testHarness.processElement(StreamStatus.IDLE, 1, 1); // once this is acknowledged,
+		                                                     // watermark (initial + 6) should be forwarded
+		testHarness.waitForInputProcessing();
+		expectedOutput.add(new Watermark(initialTime + 5));
+		expectedOutput.add(new Watermark(initialTime + 6));
+		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
+
+		// make all input channels idle and check that the operator's idle status is forwarded
+		testHarness.processElement(StreamStatus.IDLE, 0, 0);
+		testHarness.waitForInputProcessing();
+		expectedOutput.add(StreamStatus.IDLE);
+		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
+
+		// make some input channels active again and check that the operator's active status is forwarded only once
+		testHarness.processElement(StreamStatus.ACTIVE, 1, 0);
+		testHarness.processElement(StreamStatus.ACTIVE, 0, 1);
+		testHarness.waitForInputProcessing();
+		expectedOutput.add(StreamStatus.ACTIVE);
+		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
+
 		testHarness.endInput();
 
 		testHarness.waitForTaskCompletion();
@@ -205,12 +234,170 @@ public class OneInputStreamTaskTest extends TestLogger {
 	}
 
 	/**
+	 * This test verifies that watermarks are not forwarded when the task is idle.
+	 * It also verifies that when task is idle, watermarks generated in the middle of chains are also blocked and
+	 * never forwarded.
+	 *
+	 * The tested chain will be: (HEAD: normal operator) --> (watermark generating operator) --> (normal operator).
+	 * The operators will throw an exception and fail the test if either of them were forwarded watermarks when
+	 * the task is idle.
+	 */
+	@Test
+	public void testWatermarksNotForwardedWithinChainWhenIdle() throws Exception {
+		final OneInputStreamTask<String, String> testTask = new OneInputStreamTask<>();
+		final OneInputStreamTaskTestHarness<String, String> testHarness =
+			new OneInputStreamTaskTestHarness<String, String>(
+				testTask, 1, 1,
+				BasicTypeInfo.STRING_TYPE_INFO,
+				BasicTypeInfo.STRING_TYPE_INFO);
+
+		// ------------------ setup the chain ------------------
+
+		TriggerableFailOnWatermarkTestOperator headOperator = new TriggerableFailOnWatermarkTestOperator();
+		StreamConfig headOperatorConfig = testHarness.getStreamConfig();
+
+		WatermarkGeneratingTestOperator watermarkOperator = new WatermarkGeneratingTestOperator();
+		StreamConfig watermarkOperatorConfig = new StreamConfig(new Configuration());
+
+		TriggerableFailOnWatermarkTestOperator tailOperator = new TriggerableFailOnWatermarkTestOperator();
+		StreamConfig tailOperatorConfig = new StreamConfig(new Configuration());
+
+		headOperatorConfig.setStreamOperator(headOperator);
+		headOperatorConfig.setChainStart();
+		headOperatorConfig.setChainIndex(0);
+		headOperatorConfig.setChainedOutputs(Collections.singletonList(new StreamEdge(
+			new StreamNode(null, 0, null, null, null, null, null),
+			new StreamNode(null, 1, null, null, null, null, null),
+			0,
+			Collections.<String>emptyList(),
+			null
+		)));
+
+		watermarkOperatorConfig.setStreamOperator(watermarkOperator);
+		watermarkOperatorConfig.setTypeSerializerIn1(StringSerializer.INSTANCE);
+		watermarkOperatorConfig.setChainIndex(1);
+		watermarkOperatorConfig.setChainedOutputs(Collections.singletonList(new StreamEdge(
+			new StreamNode(null, 1, null, null, null, null, null),
+			new StreamNode(null, 2, null, null, null, null, null),
+			0,
+			Collections.<String>emptyList(),
+			null
+		)));
+
+		List<StreamEdge> outEdgesInOrder = new LinkedList<StreamEdge>();
+		outEdgesInOrder.add(new StreamEdge(
+			new StreamNode(null, 2, null, null, null, null, null),
+			new StreamNode(null, 3, null, null, null, null, null),
+			0,
+			Collections.<String>emptyList(),
+			new BroadcastPartitioner<Object>()));
+
+		tailOperatorConfig.setStreamOperator(tailOperator);
+		tailOperatorConfig.setTypeSerializerIn1(StringSerializer.INSTANCE);
+		tailOperatorConfig.setBufferTimeout(0);
+		tailOperatorConfig.setChainIndex(2);
+		tailOperatorConfig.setChainEnd();
+		tailOperatorConfig.setOutputSelectors(Collections.<OutputSelector<?>>emptyList());
+		tailOperatorConfig.setNumberOfOutputs(1);
+		tailOperatorConfig.setOutEdgesInOrder(outEdgesInOrder);
+		tailOperatorConfig.setNonChainedOutputs(outEdgesInOrder);
+		tailOperatorConfig.setTypeSerializerOut(StringSerializer.INSTANCE);
+
+		Map<Integer, StreamConfig> chainedConfigs = new HashMap<>(2);
+		chainedConfigs.put(1, watermarkOperatorConfig);
+		chainedConfigs.put(2, tailOperatorConfig);
+		headOperatorConfig.setTransitiveChainedTaskConfigs(chainedConfigs);
+		headOperatorConfig.setOutEdgesInOrder(outEdgesInOrder);
+
+		// -----------------------------------------------------
+
+		// --------------------- begin test ---------------------
+
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<Object>();
+
+		testHarness.invoke();
+		testHarness.waitForTaskRunning();
+
+		// the task starts as active, so all generated watermarks should be forwarded
+		testHarness.processElement(new StreamRecord<>(TriggerableFailOnWatermarkTestOperator.EXPECT_FORWARDED_WATERMARKS_MARKER));
+
+		testHarness.processElement(new StreamRecord<>("10"), 0, 0);
+
+		// this watermark will be forwarded since the task is currently active,
+		// but should not be in the final output because it should be blocked by the watermark generator in the chain
+		testHarness.processElement(new Watermark(15));
+
+		testHarness.processElement(new StreamRecord<>("20"), 0, 0);
+		testHarness.processElement(new StreamRecord<>("30"), 0, 0);
+
+		testHarness.waitForInputProcessing();
+
+		expectedOutput.add(new StreamRecord<>(TriggerableFailOnWatermarkTestOperator.EXPECT_FORWARDED_WATERMARKS_MARKER));
+		expectedOutput.add(new StreamRecord<>("10"));
+		expectedOutput.add(new Watermark(10));
+		expectedOutput.add(new StreamRecord<>("20"));
+		expectedOutput.add(new Watermark(20));
+		expectedOutput.add(new StreamRecord<>("30"));
+		expectedOutput.add(new Watermark(30));
+		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
+
+		// now, toggle the task to be idle, and let the watermark generator produce some watermarks
+		testHarness.processElement(StreamStatus.IDLE);
+
+		// after this, the operators will throw an exception if they are forwarded watermarks anywhere in the chain
+		testHarness.processElement(new StreamRecord<>(TriggerableFailOnWatermarkTestOperator.NO_FORWARDED_WATERMARKS_MARKER));
+
+		// NOTE: normally, tasks will not have records to process while idle;
+		// we're doing this here only to mimic watermark generating in operators
+		testHarness.processElement(new StreamRecord<>("40"), 0, 0);
+		testHarness.processElement(new StreamRecord<>("50"), 0, 0);
+		testHarness.processElement(new StreamRecord<>("60"), 0, 0);
+		testHarness.processElement(new Watermark(65)); // the test will fail if any of the operators were forwarded this
+		testHarness.waitForInputProcessing();
+
+		// the 40 - 60 watermarks should not be forwarded, only the stream status toggle element and records
+		expectedOutput.add(StreamStatus.IDLE);
+		expectedOutput.add(new StreamRecord<>(TriggerableFailOnWatermarkTestOperator.NO_FORWARDED_WATERMARKS_MARKER));
+		expectedOutput.add(new StreamRecord<>("40"));
+		expectedOutput.add(new StreamRecord<>("50"));
+		expectedOutput.add(new StreamRecord<>("60"));
+		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
+
+		// re-toggle the task to be active and see if new watermarks are correctly forwarded again
+		testHarness.processElement(StreamStatus.ACTIVE);
+		testHarness.processElement(new StreamRecord<>(TriggerableFailOnWatermarkTestOperator.EXPECT_FORWARDED_WATERMARKS_MARKER));
+
+		testHarness.processElement(new StreamRecord<>("70"), 0, 0);
+		testHarness.processElement(new StreamRecord<>("80"), 0, 0);
+		testHarness.processElement(new StreamRecord<>("90"), 0, 0);
+		testHarness.waitForInputProcessing();
+
+		expectedOutput.add(StreamStatus.ACTIVE);
+		expectedOutput.add(new StreamRecord<>(TriggerableFailOnWatermarkTestOperator.EXPECT_FORWARDED_WATERMARKS_MARKER));
+		expectedOutput.add(new StreamRecord<>("70"));
+		expectedOutput.add(new Watermark(70));
+		expectedOutput.add(new StreamRecord<>("80"));
+		expectedOutput.add(new Watermark(80));
+		expectedOutput.add(new StreamRecord<>("90"));
+		expectedOutput.add(new Watermark(90));
+		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
+
+		testHarness.endInput();
+
+		testHarness.waitForTaskCompletion();
+
+		List<String> resultElements = TestHarnessUtil.getRawElementsFromOutput(testHarness.getOutput());
+		assertEquals(12, resultElements.size());
+	}
+
+	/**
 	 * This test verifies that checkpoint barriers are correctly forwarded.
 	 */
 	@Test
 	public void testCheckpointBarriers() throws Exception {
 		final OneInputStreamTask<String, String> mapTask = new OneInputStreamTask<String, String>();
 		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<String, String>(mapTask, 2, 2, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+		testHarness.setupOutputForSingletonOperatorChain();
 
 		StreamConfig streamConfig = testHarness.getStreamConfig();
 		StreamMap<String, String> mapOperator = new StreamMap<String, String>(new IdentityMap());
@@ -222,7 +409,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 		testHarness.invoke();
 		testHarness.waitForTaskRunning();
 
-		testHarness.processEvent(new CheckpointBarrier(0, 0), 0, 0);
+		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forFullCheckpoint()), 0, 0);
 
 		// These elements should be buffered until we receive barriers from
 		// all inputs
@@ -241,14 +428,14 @@ public class OneInputStreamTaskTest extends TestLogger {
 		// we should not yet see the barrier, only the two elements from non-blocked input
 		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 
-		testHarness.processEvent(new CheckpointBarrier(0, 0), 0, 1);
-		testHarness.processEvent(new CheckpointBarrier(0, 0), 1, 0);
-		testHarness.processEvent(new CheckpointBarrier(0, 0), 1, 1);
+		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forFullCheckpoint()), 0, 1);
+		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forFullCheckpoint()), 1, 0);
+		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forFullCheckpoint()), 1, 1);
 
 		testHarness.waitForInputProcessing();
 
 		// now we should see the barrier and after that the buffered elements
-		expectedOutput.add(new CheckpointBarrier(0, 0));
+		expectedOutput.add(new CheckpointBarrier(0, 0, CheckpointOptions.forFullCheckpoint()));
 		expectedOutput.add(new StreamRecord<String>("Hello-0-0", initialTime));
 		expectedOutput.add(new StreamRecord<String>("Ciao-0-0", initialTime));
 
@@ -269,6 +456,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 	public void testOvertakingCheckpointBarriers() throws Exception {
 		final OneInputStreamTask<String, String> mapTask = new OneInputStreamTask<String, String>();
 		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<String, String>(mapTask, 2, 2, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+		testHarness.setupOutputForSingletonOperatorChain();
 
 		StreamConfig streamConfig = testHarness.getStreamConfig();
 		StreamMap<String, String> mapOperator = new StreamMap<String, String>(new IdentityMap());
@@ -280,7 +468,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 		testHarness.invoke();
 		testHarness.waitForTaskRunning();
 
-		testHarness.processEvent(new CheckpointBarrier(0, 0), 0, 0);
+		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forFullCheckpoint()), 0, 0);
 
 		// These elements should be buffered until we receive barriers from
 		// all inputs
@@ -301,15 +489,15 @@ public class OneInputStreamTaskTest extends TestLogger {
 
 		// Now give a later barrier to all inputs, this should unblock the first channel,
 		// thereby allowing the two blocked elements through
-		testHarness.processEvent(new CheckpointBarrier(1, 1), 0, 0);
-		testHarness.processEvent(new CheckpointBarrier(1, 1), 0, 1);
-		testHarness.processEvent(new CheckpointBarrier(1, 1), 1, 0);
-		testHarness.processEvent(new CheckpointBarrier(1, 1), 1, 1);
+		testHarness.processEvent(new CheckpointBarrier(1, 1, CheckpointOptions.forFullCheckpoint()), 0, 0);
+		testHarness.processEvent(new CheckpointBarrier(1, 1, CheckpointOptions.forFullCheckpoint()), 0, 1);
+		testHarness.processEvent(new CheckpointBarrier(1, 1, CheckpointOptions.forFullCheckpoint()), 1, 0);
+		testHarness.processEvent(new CheckpointBarrier(1, 1, CheckpointOptions.forFullCheckpoint()), 1, 1);
 
 		expectedOutput.add(new CancelCheckpointMarker(0));
 		expectedOutput.add(new StreamRecord<String>("Hello-0-0", initialTime));
 		expectedOutput.add(new StreamRecord<String>("Ciao-0-0", initialTime));
-		expectedOutput.add(new CheckpointBarrier(1, 1));
+		expectedOutput.add(new CheckpointBarrier(1, 1, CheckpointOptions.forFullCheckpoint()));
 
 		testHarness.waitForInputProcessing();
 
@@ -317,9 +505,9 @@ public class OneInputStreamTaskTest extends TestLogger {
 
 
 		// Then give the earlier barrier, these should be ignored
-		testHarness.processEvent(new CheckpointBarrier(0, 0), 0, 1);
-		testHarness.processEvent(new CheckpointBarrier(0, 0), 1, 0);
-		testHarness.processEvent(new CheckpointBarrier(0, 0), 1, 1);
+		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forFullCheckpoint()), 0, 1);
+		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forFullCheckpoint()), 1, 0);
+		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forFullCheckpoint()), 1, 1);
 
 		testHarness.waitForInputProcessing();
 
@@ -339,6 +527,8 @@ public class OneInputStreamTaskTest extends TestLogger {
 		final Deadline deadline = new FiniteDuration(2, TimeUnit.MINUTES).fromNow();
 		final OneInputStreamTask<String, String> streamTask = new OneInputStreamTask<String, String>();
 		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<String, String>(streamTask, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+		testHarness.setupOutputForSingletonOperatorChain();
+
 		IdentityKeySelector<String> keySelector = new IdentityKeySelector<>();
 		testHarness.configureForKeyedStream(keySelector, BasicTypeInfo.STRING_TYPE_INFO);
 
@@ -368,7 +558,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 
 		CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, checkpointTimestamp);
 
-		while(!streamTask.triggerCheckpoint(checkpointMetaData));
+		while(!streamTask.triggerCheckpoint(checkpointMetaData, CheckpointOptions.forFullCheckpoint()));
 
 		// since no state was set, there shouldn't be restore calls
 		assertEquals(0, TestingStreamOperator.numberRestoreCalls);
@@ -491,10 +681,11 @@ public class OneInputStreamTaskTest extends TestLogger {
 
 		@Override
 		public void acknowledgeCheckpoint(
-				CheckpointMetaData checkpointMetaData,
+				long checkpointId,
+				CheckpointMetrics checkpointMetrics,
 				SubtaskState checkpointStateHandles) {
 
-			this.checkpointId = checkpointMetaData.getCheckpointId();
+			this.checkpointId = checkpointId;
 			this.checkpointStateHandles = checkpointStateHandles;
 			checkpointLatch.trigger();
 		}
@@ -656,6 +847,81 @@ public class OneInputStreamTaskTest extends TestLogger {
 		@Override
 		public String map(String value) throws Exception {
 			return value;
+		}
+	}
+
+	/**
+	 * A {@link TriggerableFailOnWatermarkTestOperator} that generates watermarks.
+	 */
+	private static class WatermarkGeneratingTestOperator extends TriggerableFailOnWatermarkTestOperator {
+
+		private static final long serialVersionUID = -5064871833244157221L;
+
+		private long lastWatermark;
+
+		@Override
+		protected void handleElement(StreamRecord<String> element) {
+			long timestamp = Long.valueOf(element.getValue());
+			if (timestamp > lastWatermark) {
+				output.emitWatermark(new Watermark(timestamp));
+				lastWatermark = timestamp;
+			}
+		}
+
+		@Override
+		protected void handleWatermark(Watermark mark) {
+			if (mark.equals(Watermark.MAX_WATERMARK)) {
+				output.emitWatermark(mark);
+				lastWatermark = Long.MAX_VALUE;
+			}
+		}
+	}
+
+	/**
+	 * An operator that can be triggered whether or not to expect watermarks forwarded to it, toggled
+	 * by letting it process special trigger marker records.
+	 *
+	 * If it receives a watermark when it's not expecting one, it'll throw an exception and fail.
+	 */
+	private static class TriggerableFailOnWatermarkTestOperator
+			extends AbstractStreamOperator<String>
+			implements OneInputStreamOperator<String, String> {
+
+		private static final long serialVersionUID = 2048954179291813243L;
+
+		public final static String EXPECT_FORWARDED_WATERMARKS_MARKER = "EXPECT_WATERMARKS";
+		public final static String NO_FORWARDED_WATERMARKS_MARKER = "NO_WATERMARKS";
+
+		protected boolean expectForwardedWatermarks;
+
+		@Override
+		public void processElement(StreamRecord<String> element) throws Exception {
+			output.collect(element);
+
+			if (element.getValue().equals(EXPECT_FORWARDED_WATERMARKS_MARKER)) {
+				this.expectForwardedWatermarks = true;
+			} else if (element.getValue().equals(NO_FORWARDED_WATERMARKS_MARKER)) {
+				this.expectForwardedWatermarks = false;
+			} else {
+				handleElement(element);
+			}
+		}
+
+		@Override
+		public void processWatermark(Watermark mark) throws Exception {
+			if (!expectForwardedWatermarks) {
+				throw new Exception("Received a " + mark + ", but this operator should not be forwarded watermarks.");
+			} else {
+				handleWatermark(mark);
+			}
+		}
+
+		protected void handleElement(StreamRecord<String> element) {
+			// do nothing
+		}
+
+		protected void handleWatermark(Watermark mark) {
+			output.emitWatermark(mark);
 		}
 	}
 }

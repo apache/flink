@@ -210,12 +210,21 @@ dataStream.filter(new FilterFunction<Integer>() {
           <td><strong>KeyBy</strong><br>DataStream &rarr; KeyedStream</td>
           <td>
             <p>Logically partitions a stream into disjoint partitions, each partition containing elements of the same key.
-            Internally, this is implemented with hash partitioning. See <a href="/dev/api_concepts#specifying-keys">keys</a> on how to specify keys.
+            Internally, this is implemented with hash partitioning. See <a href="{{ site.baseurl }}/dev/api_concepts.html#specifying-keys">keys</a> on how to specify keys.
             This transformation returns a KeyedDataStream.</p>
     {% highlight java %}
 dataStream.keyBy("someKey") // Key by field "someKey"
 dataStream.keyBy(0) // Key by the first element of a Tuple
     {% endhighlight %}
+            <p>
+            <span class="label label-danger">Attention</span> 
+            A type <strong>cannot be a key</strong> if:
+    	    <ol> 
+    	    <li> it is a POJO type but does not override the <em>hashCode()</em> method and 
+    	    relies on the <em>Object.hashCode()</em> implementation.</li>
+    	    <li> it is an array of any type.</li>
+    	    </ol>
+    	    </p>
           </td>
         </tr>
         <tr>
@@ -597,7 +606,7 @@ dataStream.filter { _ != 0 }
           <td><strong>KeyBy</strong><br>DataStream &rarr; KeyedStream</td>
           <td>
             <p>Logically partitions a stream into disjoint partitions, each partition containing elements of the same key.
-            Internally, this is implemented with hash partitioning. See <a href="/dev/api_concepts#specifying-keys">keys</a> on how to specify keys.
+            Internally, this is implemented with hash partitioning. See <a href="{{ site.baseurl }}/dev/api_concepts.html#specifying-keys">keys</a> on how to specify keys.
             This transformation returns a KeyedDataStream.</p>
     {% highlight scala %}
 dataStream.keyBy("someKey") // Key by field "someKey"
@@ -874,7 +883,7 @@ data.map {
   case (id, name, temperature) => // [...]
 }
 {% endhighlight %}
-is not supported by the API out-of-the-box. To use this feature, you should use a <a href="./scala_api_extensions.html">Scala API extension</a>.
+is not supported by the API out-of-the-box. To use this feature, you should use a <a href="scala_api_extensions.html">Scala API extension</a>.
 
 
 </div>
@@ -1582,7 +1591,7 @@ Execution Parameters
 
 The `StreamExecutionEnvironment` contains the `ExecutionConfig` which allows to set job specific configuration values for the runtime.
 
-Please refer to [execution configuration]({{ site.baseurl }}/dev/execution_configuration)
+Please refer to [execution configuration]({{ site.baseurl }}/dev/execution_configuration.html)
 for an explanation of most parameters. These parameters pertain specifically to the DataStream API:
 
 - `enableTimestamps()` / **`disableTimestamps()`**: Attach a timestamp to each event emitted from a source.
@@ -1595,7 +1604,7 @@ for an explanation of most parameters. These parameters pertain specifically to 
 
 ### Fault Tolerance
 
-[State & Checkpointing]({{ site.baseurl }}/dev/state#enabling-checkpointing) describes how to enable and configure Flink's checkpointing mechanism. 
+[State & Checkpointing]({{ site.baseurl }}/dev/stream/checkpointing.html) describes how to enable and configure Flink's checkpointing mechanism.
 
 ### Controlling Latency
 

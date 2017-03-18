@@ -18,16 +18,21 @@
 ################################################################################
 
 # Start/stop a Flink TaskManager.
-USAGE="Usage: taskmanager.sh (start|stop|stop-all)"
+USAGE="Usage: taskmanager.sh start|start-foreground|stop|stop-all)"
 
 STARTSTOP=$1
+
+if [[ $STARTSTOP != "start" ]] && [[ $STARTSTOP != "start-foreground" ]] && [[ $STARTSTOP != "stop" ]] && [[ $STARTSTOP != "stop-all" ]]; then
+  echo $USAGE
+  exit 1
+fi
 
 bin=`dirname "$0"`
 bin=`cd "$bin"; pwd`
 
 . "$bin"/config.sh
 
-if [[ $STARTSTOP == "start" ]]; then
+if [[ $STARTSTOP == "start" ]] || [[ $STARTSTOP == "start-foreground" ]]; then
 
     # if memory allocation mode is lazy and no other JVM options are set,
     # set the 'Concurrent Mark Sweep GC'
@@ -96,4 +101,26 @@ if [[ $STARTSTOP == "start" ]]; then
     args=("--configDir" "${FLINK_CONF_DIR}")
 fi
 
-"${FLINK_BIN_DIR}"/flink-daemon.sh $STARTSTOP taskmanager "${args[@]}"
+if [[ $STARTSTOP == "start-foreground" ]]; then
+    "${FLINK_BIN_DIR}"/flink-console.sh taskmanager "${args[@]}"
+else
+    TM_COMMAND="${FLINK_BIN_DIR}/flink-daemon.sh $STARTSTOP taskmanager ${args[@]}"
+    
+    if [[ $FLINK_TM_COMPUTE_NUMA == "false" ]]; then
+        # Start a single TaskManager
+        $TM_COMMAND
+    else
+        # Example output from `numactl --show` on an AWS c4.8xlarge:
+        # policy: default
+        # preferred node: current
+        # physcpubind: 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35
+        # cpubind: 0 1
+        # nodebind: 0 1
+        # membind: 0 1
+        read -ra NODE_LIST <<< $(numactl --show | grep "^nodebind: ")
+        for NODE_ID in "${NODE_LIST[@]:1}"; do
+            # Start a TaskManager for each NUMA node
+            numactl --membind=$NODE_ID --cpunodebind=$NODE_ID -- $TM_COMMAND
+        done
+    fi
+fi

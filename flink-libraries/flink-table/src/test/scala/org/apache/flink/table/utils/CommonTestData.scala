@@ -21,14 +21,11 @@ package org.apache.flink.table.utils
 import java.io.{File, FileOutputStream, OutputStreamWriter}
 import java.util
 
-import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
-import org.apache.flink.api.common.typeutils.TypeSerializer
-import org.apache.flink.api.java.typeutils.{PojoField, PojoTypeInfo, TypeExtractor}
+import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
-import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
-import org.apache.flink.table.sources.{BatchTableSource, CsvTableSource, TableSource}
-import org.apache.flink.api.scala._
+import org.apache.flink.table.api.TableEnvironment
+import org.apache.flink.table.sources.{BatchTableSource, CsvTableSource}
 
 object CommonTestData {
 
@@ -98,4 +95,7 @@ object CommonTestData {
       this(null, null)
     }
   }
+
+  def getMockTableEnvironment: TableEnvironment = new MockTableEnvironment
+
 }

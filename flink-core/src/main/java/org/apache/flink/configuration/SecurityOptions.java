@@ -18,11 +18,14 @@
 
 package org.apache.flink.configuration;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import static org.apache.flink.configuration.ConfigOptions.key;
 
 /**
  * The set of configuration options relating to security.
  */
+@PublicEvolving
 public class SecurityOptions {
 
 	// ------------------------------------------------------------------------

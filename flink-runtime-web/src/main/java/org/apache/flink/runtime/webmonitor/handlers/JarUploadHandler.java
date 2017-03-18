@@ -29,10 +29,17 @@ import java.util.UUID;
  */
 public class JarUploadHandler extends AbstractJsonRequestHandler {
 
+	static final String JAR_UPLOAD_REST_PATH = "/jars/upload";
+
 	private final File jarDir;
 
 	public JarUploadHandler(File jarDir) {
 		this.jarDir = jarDir;
+	}
+
+	@Override
+	public String[] getPaths() {
+		return new String[]{JAR_UPLOAD_REST_PATH};
 	}
 
 	@Override
@@ -52,10 +59,11 @@ public class JarUploadHandler extends AbstractJsonRequestHandler {
 				return "{\"error\": \"Only Jar files are allowed.\"}";
 			}
 			
-			File newFile = new File(jarDir, UUID.randomUUID() + "_" + filename);
+			String filenameWithUUID = UUID.randomUUID() + "_" + filename;
+			File newFile = new File(jarDir, filenameWithUUID);
 			if (tempFile.renameTo(newFile)) {
 				// all went well
-				return "{}";
+				return "{\"status\": \"success\", \"filename\": \"" + filenameWithUUID + "\"}";
 			}
 			else {
 				//noinspection ResultOfMethodCallIgnored

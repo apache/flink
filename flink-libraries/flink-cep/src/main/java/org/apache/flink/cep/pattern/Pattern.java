@@ -93,7 +93,7 @@ public class Pattern<T, F extends T> {
 	}
 
 	/**
-	 * Specifies a filter condition which is ORed with an existing filter function.
+	 * Specifies a filter condition which is OR'ed with an existing filter function.
 	 *
 	 * @param orFilterFunction OR filter condition
 	 * @return The same pattern operator where the new filter condition is set

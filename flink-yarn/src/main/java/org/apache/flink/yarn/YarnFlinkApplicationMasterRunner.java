@@ -24,9 +24,10 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -91,6 +92,9 @@ public class YarnFlinkApplicationMasterRunner extends AbstractYarnFlinkApplicati
 	private HighAvailabilityServices haServices;
 
 	@GuardedBy("lock")
+	private HeartbeatServices heartbeatServices;
+
+	@GuardedBy("lock")
 	private RpcService commonRpcService;
 
 	@GuardedBy("lock")
@@ -136,6 +140,8 @@ public class YarnFlinkApplicationMasterRunner extends AbstractYarnFlinkApplicati
 			synchronized (lock) {
 				LOG.info("Starting High Availability Services");
 				haServices = HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(config);
+
+				heartbeatServices = HeartbeatServices.fromConfiguration(config);
 				
 				metricRegistry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config));
 				commonRpcService = createRpcService(config, appMasterHostname, amPortRange);
@@ -188,7 +194,10 @@ public class YarnFlinkApplicationMasterRunner extends AbstractYarnFlinkApplicati
 	private ResourceManager<?> createResourceManager(Configuration config) throws Exception {
 		final ResourceManagerConfiguration resourceManagerConfiguration = ResourceManagerConfiguration.fromConfiguration(config);
 		final SlotManagerFactory slotManagerFactory = new DefaultSlotManager.Factory();
-		final JobLeaderIdService jobLeaderIdService = new JobLeaderIdService(haServices);
+		final JobLeaderIdService jobLeaderIdService = new JobLeaderIdService(
+			haServices,
+			commonRpcService.getScheduledExecutor(),
+			resourceManagerConfiguration.getJobTimeout());
 
 		return new YarnResourceManager(config,
 				ENV,
@@ -206,26 +215,27 @@ public class YarnFlinkApplicationMasterRunner extends AbstractYarnFlinkApplicati
 		//TODO: generate the job graph from user's jar
 		jobGraph = loadJobGraph(config);
 
-		// we first need to mark the job as running in the HA services, so that the
-		// JobManager leader will recognize that it as work to do
-		try {
-			haServices.getRunningJobsRegistry().setJobRunning(jobGraph.getJobID());
-		}
-		catch (Throwable t) {
-			throw new JobExecutionException(jobGraph.getJobID(),
-					"Could not register the job at the high-availability services", t);
-		}
-
 		// now the JobManagerRunner
 		return new JobManagerRunner(
-				jobGraph, config,
-				commonRpcService,
-				haServices,
-				this,
-				this);
+			ResourceID.generate(),
+			jobGraph,
+			config,
+			commonRpcService,
+			haServices,
+			heartbeatServices,
+			this,
+			this);
 	}
 
 	protected void shutdown(ApplicationStatus status, String msg) {
+		// Need to clear the job state in the HA services before shutdown
+		try {
+			haServices.getRunningJobsRegistry().clearJob(jobGraph.getJobID());
+		}
+		catch (Throwable t) {
+			LOG.warn("Could not clear the job at the high-availability services", t);
+		}
+
 		synchronized (lock) {
 			if (jobManagerRunner != null) {
 				try {

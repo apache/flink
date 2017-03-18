@@ -35,6 +35,7 @@ import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
+import org.apache.flink.runtime.instance.SlotProvider;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -96,23 +97,29 @@ public class ArchivedExecutionGraphTest {
 		config.setGlobalJobParameters(new TestJobParameters());
 
 		runtimeGraph = new ExecutionGraph(
-			TestingUtils.defaultExecutionContext(),
-			TestingUtils.defaultExecutionContext(),
+			TestingUtils.defaultExecutor(),
+			TestingUtils.defaultExecutor(),
 			new JobID(),
 			"test job",
 			new Configuration(),
 			new SerializedValue<>(config),
 			AkkaUtils.getDefaultTimeout(),
-			new NoRestartStrategy());
+			new NoRestartStrategy(),
+			mock(SlotProvider.class));
+
 		runtimeGraph.attachJobGraph(vertices);
 
+		List<ExecutionJobVertex> jobVertices = new ArrayList<>();
+		jobVertices.add(runtimeGraph.getJobVertex(v1ID));
+		jobVertices.add(runtimeGraph.getJobVertex(v2ID));
+		
 		CheckpointStatsTracker statsTracker = new CheckpointStatsTracker(
 				0,
-				Collections.<ExecutionJobVertex>emptyList(),
+				jobVertices,
 				mock(JobSnapshottingSettings.class),
 				new UnregisteredMetricsGroup());
 
-		runtimeGraph.enableSnapshotCheckpointing(
+		runtimeGraph.enableCheckpointing(
 			100,
 			100,
 			100,
@@ -123,6 +130,7 @@ public class ArchivedExecutionGraphTest {
 			Collections.<ExecutionJobVertex>emptyList(),
 			new StandaloneCheckpointIDCounter(),
 			new StandaloneCompletedCheckpointStore(1),
+			null,
 			null,
 			statsTracker);
 
@@ -172,11 +180,8 @@ public class ArchivedExecutionGraphTest {
 		// -------------------------------------------------------------------------------------------------------------
 		// CheckpointStats
 		// -------------------------------------------------------------------------------------------------------------
-		CheckpointStatsTracker runtimeStats = runtimeGraph.getCheckpointStatsTracker();
-		CheckpointStatsTracker archivedStats = archivedGraph.getCheckpointStatsTracker();
-
-		CheckpointStatsSnapshot runtimeSnapshot = runtimeStats.createSnapshot();
-		CheckpointStatsSnapshot archivedSnapshot = archivedStats.createSnapshot();
+		CheckpointStatsSnapshot runtimeSnapshot = runtimeGraph.getCheckpointStatsSnapshot();
+		CheckpointStatsSnapshot archivedSnapshot = archivedGraph.getCheckpointStatsSnapshot();
 
 		assertEquals(runtimeSnapshot.getSummaryStats().getEndToEndDurationStats().getAverage(), archivedSnapshot.getSummaryStats().getEndToEndDurationStats().getAverage());
 		assertEquals(runtimeSnapshot.getSummaryStats().getEndToEndDurationStats().getMinimum(), archivedSnapshot.getSummaryStats().getEndToEndDurationStats().getMinimum());

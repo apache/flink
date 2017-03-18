@@ -28,6 +28,8 @@ import org.apache.flink.api.common.state.FoldingState;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.MapState;
+import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
@@ -39,6 +41,8 @@ import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.core.testutils.CheckedThread;
+import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.StateAssignmentOperation;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
@@ -47,19 +51,30 @@ import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.KvStateRegistryListener;
 import org.apache.flink.runtime.query.netty.message.KvStateRequestSerializer;
 import org.apache.flink.runtime.state.heap.AbstractHeapState;
+import org.apache.flink.runtime.state.heap.NestedMapsStateTable;
 import org.apache.flink.runtime.state.heap.StateTable;
 import org.apache.flink.runtime.state.internal.InternalKvState;
+import org.apache.flink.runtime.state.internal.InternalValueState;
+import org.apache.flink.runtime.util.BlockerCheckpointStreamFactory;
 import org.apache.flink.types.IntValue;
+import org.apache.flink.util.FutureUtil;
+import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.TestLogger;
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.RunnableFuture;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -185,7 +200,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		assertEquals("1", getSerializedValue(kvState, 1, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer));
 
 		// draw a snapshot
-		KeyGroupsStateHandle snapshot1 = runSnapshot(backend.snapshot(682375462378L, 2, streamFactory));
+		KeyGroupsStateHandle snapshot1 = FutureUtil.runIfNotDoneAndGet(backend.snapshot(682375462378L, 2, streamFactory, CheckpointOptions.forFullCheckpoint()));
 
 		// make some more modifications
 		backend.setCurrentKey(1);
@@ -196,7 +211,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		state.update("u3");
 
 		// draw another snapshot
-		KeyGroupsStateHandle snapshot2 = runSnapshot(backend.snapshot(682375462379L, 4, streamFactory));
+		KeyGroupsStateHandle snapshot2 = FutureUtil.runIfNotDoneAndGet(backend.snapshot(682375462379L, 4, streamFactory, CheckpointOptions.forFullCheckpoint()));
 
 		// validate the original state
 		backend.setCurrentKey(1);
@@ -397,7 +412,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		assertEquals(13, (int) state2.value());
 
 		// draw a snapshot
-		KeyGroupsStateHandle snapshot1 = runSnapshot(backend.snapshot(682375462378L, 2, streamFactory));
+		KeyGroupsStateHandle snapshot1 = FutureUtil.runIfNotDoneAndGet(backend.snapshot(682375462378L, 2, streamFactory, CheckpointOptions.forFullCheckpoint()));
 
 		backend.dispose();
 		backend = restoreKeyedBackend(
@@ -470,7 +485,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		assertEquals(42L, (long) state.value());
 
 		// draw a snapshot
-		KeyGroupsStateHandle snapshot1 = runSnapshot(backend.snapshot(682375462378L, 2, streamFactory));
+		KeyGroupsStateHandle snapshot1 = FutureUtil.runIfNotDoneAndGet(backend.snapshot(682375462378L, 2, streamFactory, CheckpointOptions.forFullCheckpoint()));
 
 		backend.dispose();
 		backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot1);
@@ -494,7 +509,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 			TypeSerializer<Integer> keySerializer = IntSerializer.INSTANCE;
 			TypeSerializer<VoidNamespace> namespaceSerializer = VoidNamespaceSerializer.INSTANCE;
-			TypeSerializer<String> valueSerializer = kvId.getSerializer();
+			TypeSerializer<String> valueSerializer = kvId.getElementSerializer();
 
 			ListState<String> state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
 			@SuppressWarnings("unchecked")
@@ -515,7 +530,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			assertEquals("1", joiner.join(getSerializedList(kvState, 1, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer)));
 
 			// draw a snapshot
-			KeyGroupsStateHandle snapshot1 = runSnapshot(backend.snapshot(682375462378L, 2, streamFactory));
+			KeyGroupsStateHandle snapshot1 = FutureUtil.runIfNotDoneAndGet(backend.snapshot(682375462378L, 2, streamFactory, CheckpointOptions.forFullCheckpoint()));
 
 			// make some more modifications
 			backend.setCurrentKey(1);
@@ -526,7 +541,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			state.add("u3");
 
 			// draw another snapshot
-			KeyGroupsStateHandle snapshot2 = runSnapshot(backend.snapshot(682375462379L, 4, streamFactory));
+			KeyGroupsStateHandle snapshot2 = FutureUtil.runIfNotDoneAndGet(backend.snapshot(682375462379L, 4, streamFactory, CheckpointOptions.forFullCheckpoint()));
 
 			// validate the original state
 			backend.setCurrentKey(1);
@@ -614,7 +629,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			assertEquals("1", getSerializedValue(kvState, 1, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer));
 
 			// draw a snapshot
-			KeyGroupsStateHandle snapshot1 = runSnapshot(backend.snapshot(682375462378L, 2, streamFactory));
+			KeyGroupsStateHandle snapshot1 = FutureUtil.runIfNotDoneAndGet(backend.snapshot(682375462378L, 2, streamFactory, CheckpointOptions.forFullCheckpoint()));
 
 			// make some more modifications
 			backend.setCurrentKey(1);
@@ -625,7 +640,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			state.add("u3");
 
 			// draw another snapshot
-			KeyGroupsStateHandle snapshot2 = runSnapshot(backend.snapshot(682375462379L, 4, streamFactory));
+			KeyGroupsStateHandle snapshot2 = FutureUtil.runIfNotDoneAndGet(backend.snapshot(682375462379L, 4, streamFactory, CheckpointOptions.forFullCheckpoint()));
 
 			// validate the original state
 			backend.setCurrentKey(1);
@@ -716,7 +731,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			assertEquals("Fold-Initial:,1", getSerializedValue(kvState, 1, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer));
 
 			// draw a snapshot
-			KeyGroupsStateHandle snapshot1 = runSnapshot(backend.snapshot(682375462378L, 2, streamFactory));
+			KeyGroupsStateHandle snapshot1 = FutureUtil.runIfNotDoneAndGet(backend.snapshot(682375462378L, 2, streamFactory, CheckpointOptions.forFullCheckpoint()));
 
 			// make some more modifications
 			backend.setCurrentKey(1);
@@ -728,7 +743,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			state.add(103);
 
 			// draw another snapshot
-			KeyGroupsStateHandle snapshot2 = runSnapshot(backend.snapshot(682375462379L, 4, streamFactory));
+			KeyGroupsStateHandle snapshot2 = FutureUtil.runIfNotDoneAndGet(backend.snapshot(682375462379L, 4, streamFactory, CheckpointOptions.forFullCheckpoint()));
 
 			// validate the original state
 			backend.setCurrentKey(1);
@@ -783,6 +798,164 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
+	}
+
+	@Test
+	@SuppressWarnings("unchecked,rawtypes")
+	public void testMapState() {
+		try {
+			CheckpointStreamFactory streamFactory = createStreamFactory();
+			AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+
+			MapStateDescriptor<Integer, String> kvId = new MapStateDescriptor<>("id", Integer.class, String.class);
+			kvId.initializeSerializerUnlessSet(new ExecutionConfig());
+
+			TypeSerializer<Integer> keySerializer = IntSerializer.INSTANCE;
+			TypeSerializer<VoidNamespace> namespaceSerializer = VoidNamespaceSerializer.INSTANCE;
+			TypeSerializer<Integer> userKeySerializer = kvId.getKeySerializer();
+			TypeSerializer<String> userValueSerializer = kvId.getValueSerializer();
+
+			MapState<Integer, String> state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+			@SuppressWarnings("unchecked")
+			InternalKvState<VoidNamespace> kvState = (InternalKvState<VoidNamespace>) state;
+
+			// some modifications to the state
+			backend.setCurrentKey(1);
+			assertEquals(null, state.get(1));
+			assertEquals(null, getSerializedMap(kvState, 1, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, userKeySerializer, userValueSerializer));
+			state.put(1, "1");
+			backend.setCurrentKey(2);
+			assertEquals(null, state.get(2));
+			assertEquals(null, getSerializedMap(kvState, 2, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, userKeySerializer, userValueSerializer));
+			state.put(2, "2");
+			backend.setCurrentKey(1);
+			assertTrue(state.contains(1));
+			assertEquals("1", state.get(1));
+			assertEquals(new HashMap<Integer, String>() {{ put (1, "1"); }},
+					getSerializedMap(kvState, 1, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, userKeySerializer, userValueSerializer));
+
+			// draw a snapshot
+			KeyGroupsStateHandle snapshot1 = FutureUtil.runIfNotDoneAndGet(backend.snapshot(682375462378L, 2, streamFactory, CheckpointOptions.forFullCheckpoint()));
+
+			// make some more modifications
+			backend.setCurrentKey(1);
+			state.put(1, "101");
+			backend.setCurrentKey(2);
+			state.put(102, "102");
+			backend.setCurrentKey(3);
+			state.put(103, "103");
+			state.putAll(new HashMap<Integer, String>() {{ put(1031, "1031"); put(1032, "1032"); }});
+
+			// draw another snapshot
+			KeyGroupsStateHandle snapshot2 = FutureUtil.runIfNotDoneAndGet(backend.snapshot(682375462379L, 4, streamFactory, CheckpointOptions.forFullCheckpoint()));
+
+			// validate the original state
+			backend.setCurrentKey(1);
+			assertEquals("101", state.get(1));
+			assertEquals(new HashMap<Integer, String>() {{ put(1, "101"); }},
+					getSerializedMap(kvState, 1, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, userKeySerializer, userValueSerializer));
+			backend.setCurrentKey(2);
+			assertEquals("102", state.get(102));
+			assertEquals(new HashMap<Integer, String>() {{ put(2, "2"); put(102, "102"); }},
+					getSerializedMap(kvState, 2, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, userKeySerializer, userValueSerializer));
+			backend.setCurrentKey(3);
+			assertTrue(state.contains(103));
+			assertEquals("103", state.get(103));
+			assertEquals(new HashMap<Integer, String>() {{ put(103, "103"); put(1031, "1031"); put(1032, "1032"); }},
+					getSerializedMap(kvState, 3, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, userKeySerializer, userValueSerializer));
+
+			List<Integer> keys = new ArrayList<>();
+			for (Integer key : state.keys()) {
+				keys.add(key);
+			}
+			List<Integer> expectedKeys = new ArrayList<Integer>() {{ add(103); add(1031); add(1032); }};
+			assertEquals(keys.size(), expectedKeys.size());
+			keys.removeAll(expectedKeys);
+			assertTrue(keys.isEmpty());
+
+			List<String> values = new ArrayList<>();
+			for (String value : state.values()) {
+				values.add(value);
+			}
+			List<String> expectedValues = new ArrayList<String>() {{ add("103"); add("1031"); add("1032"); }};
+			assertEquals(values.size(), expectedValues.size());
+			values.removeAll(expectedValues);
+			assertTrue(values.isEmpty());
+
+			// make some more modifications
+			backend.setCurrentKey(1);
+			state.clear();
+			backend.setCurrentKey(2);
+			state.remove(102);
+			backend.setCurrentKey(3);
+			final String updateSuffix = "_updated";
+			Iterator<Map.Entry<Integer, String>> iterator = state.iterator();
+			while (iterator.hasNext()) {
+				Map.Entry<Integer, String> entry = iterator.next();
+				if (entry.getValue().length() != 4) {
+					iterator.remove();
+				} else {
+					entry.setValue(entry.getValue() + updateSuffix);
+				}
+			}
+
+			// validate the state
+			backend.setCurrentKey(1);
+			backend.setCurrentKey(2);
+			assertFalse(state.contains(102));
+			backend.setCurrentKey(3);
+			for (Map.Entry<Integer, String> entry : state.entries()) {
+				assertEquals(4 + updateSuffix.length(), entry.getValue().length());
+				assertTrue(entry.getValue().endsWith(updateSuffix));
+			}
+
+			backend.dispose();
+			// restore the first snapshot and validate it
+			backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot1);
+			snapshot1.discardState();
+
+			MapState<Integer, String> restored1 = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+			@SuppressWarnings("unchecked")
+			InternalKvState<VoidNamespace> restoredKvState1 = (InternalKvState<VoidNamespace>) restored1;
+
+			backend.setCurrentKey(1);
+			assertEquals("1", restored1.get(1));
+			assertEquals(new HashMap<Integer, String>() {{ put (1, "1"); }},
+					getSerializedMap(restoredKvState1, 1, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, userKeySerializer, userValueSerializer));
+			backend.setCurrentKey(2);
+			assertEquals("2", restored1.get(2));
+			assertEquals(new HashMap<Integer, String>() {{ put (2, "2"); }},
+					getSerializedMap(restoredKvState1, 2, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, userKeySerializer, userValueSerializer));
+
+			backend.dispose();
+			// restore the second snapshot and validate it
+			backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot2);
+			snapshot2.discardState();
+
+			@SuppressWarnings("unchecked")
+			MapState<Integer, String> restored2 = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+			@SuppressWarnings("unchecked")
+			InternalKvState<VoidNamespace> restoredKvState2 = (InternalKvState<VoidNamespace>) restored2;
+
+			backend.setCurrentKey(1);
+			assertEquals("101", restored2.get(1));
+			assertEquals(new HashMap<Integer, String>() {{ put (1, "101"); }},
+					getSerializedMap(restoredKvState2, 1, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, userKeySerializer, userValueSerializer));
+			backend.setCurrentKey(2);
+			assertEquals("102", restored2.get(102));
+			assertEquals(new HashMap<Integer, String>() {{ put(2, "2"); put (102, "102"); }},
+					getSerializedMap(restoredKvState2, 2, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, userKeySerializer, userValueSerializer));
+			backend.setCurrentKey(3);
+			assertEquals("103", restored2.get(103));
+			assertEquals(new HashMap<Integer, String>() {{ put(103, "103"); put(1031, "1031"); put(1032, "1032"); }},
+					getSerializedMap(restoredKvState2, 3, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, userKeySerializer, userValueSerializer));
+
+			backend.dispose();
+		} catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+
 	}
 
 	/**
@@ -917,8 +1090,35 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		backend.dispose();
 	}
 
+	/**
+	 * Verify that an empty {@code MapState} yields {@code null}.
+	 */
+	@Test
+	public void testMapStateDefaultValue() throws Exception {
+		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
 
+		MapStateDescriptor<String, String> kvId = new MapStateDescriptor<>("id", String.class, String.class);
+		kvId.initializeSerializerUnlessSet(new ExecutionConfig());
 
+		MapState<String, String> state = backend.getPartitionedState(
+				VoidNamespace.INSTANCE,
+				VoidNamespaceSerializer.INSTANCE, kvId);
+
+		backend.setCurrentKey(1);
+		assertNull(state.entries());
+
+		state.put("Ciao", "Hello");
+		state.put("Bello", "Nice");
+
+		assertNotNull(state.entries());
+		assertEquals(state.get("Ciao"), "Hello");
+		assertEquals(state.get("Bello"), "Nice");
+
+		state.clear();
+		assertNull(state.entries());
+
+		backend.dispose();
+	}
 
 	/**
 	 * This test verifies that state is correctly assigned to key groups and that restore
@@ -967,7 +1167,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		state.update("ShouldBeInSecondHalf");
 
 
-		KeyGroupsStateHandle snapshot = runSnapshot(backend.snapshot(0, 0, streamFactory));
+		KeyGroupsStateHandle snapshot = FutureUtil.runIfNotDoneAndGet(backend.snapshot(0, 0, streamFactory, CheckpointOptions.forFullCheckpoint()));
 
 		List<KeyGroupsStateHandle> firstHalfKeyGroupStates = StateAssignmentOperation.getKeyGroupsStateHandles(
 				Collections.singletonList(snapshot),
@@ -1034,7 +1234,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			state.update("2");
 
 			// draw a snapshot
-			KeyGroupsStateHandle snapshot1 = runSnapshot(backend.snapshot(682375462378L, 2, streamFactory));
+			KeyGroupsStateHandle snapshot1 = FutureUtil.runIfNotDoneAndGet(backend.snapshot(682375462378L, 2, streamFactory, CheckpointOptions.forFullCheckpoint()));
 
 			backend.dispose();
 			// restore the first snapshot and validate it
@@ -1085,7 +1285,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			state.add("2");
 
 			// draw a snapshot
-			KeyGroupsStateHandle snapshot1 = runSnapshot(backend.snapshot(682375462378L, 2, streamFactory));
+			KeyGroupsStateHandle snapshot1 = FutureUtil.runIfNotDoneAndGet(backend.snapshot(682375462378L, 2, streamFactory, CheckpointOptions.forFullCheckpoint()));
 
 			backend.dispose();
 			// restore the first snapshot and validate it
@@ -1138,7 +1338,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			state.add("2");
 
 			// draw a snapshot
-			KeyGroupsStateHandle snapshot1 = runSnapshot(backend.snapshot(682375462378L, 2, streamFactory));
+			KeyGroupsStateHandle snapshot1 = FutureUtil.runIfNotDoneAndGet(backend.snapshot(682375462378L, 2, streamFactory, CheckpointOptions.forFullCheckpoint()));
 
 			backend.dispose();
 			// restore the first snapshot and validate it
@@ -1172,6 +1372,58 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			fail(e.getMessage());
 		}
 	}
+
+	@Test
+	@SuppressWarnings("unchecked")
+	public void testMapStateRestoreWithWrongSerializers() {
+		try {
+			CheckpointStreamFactory streamFactory = createStreamFactory();
+			AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+
+			MapStateDescriptor<String, String> kvId = new MapStateDescriptor<>("id", StringSerializer.INSTANCE, StringSerializer.INSTANCE);
+			MapState<String, String> state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+
+			backend.setCurrentKey(1);
+			state.put("1", "First");
+			backend.setCurrentKey(2);
+			state.put("2", "Second");
+
+			// draw a snapshot
+			KeyGroupsStateHandle snapshot1 = FutureUtil.runIfNotDoneAndGet(backend.snapshot(682375462378L, 2, streamFactory, CheckpointOptions.forFullCheckpoint()));
+
+			backend.dispose();
+			// restore the first snapshot and validate it
+			backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot1);
+			snapshot1.discardState();
+
+			@SuppressWarnings("unchecked")
+			TypeSerializer<String> fakeStringSerializer =
+					(TypeSerializer<String>) (TypeSerializer<?>) FloatSerializer.INSTANCE;
+
+			try {
+				kvId = new MapStateDescriptor<>("id", fakeStringSerializer, StringSerializer.INSTANCE);
+
+				state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+
+				state.entries();
+
+				fail("should recognize wrong serializers");
+			} catch (IOException e) {
+				if (!e.getMessage().contains("Trying to access state using wrong ")) {
+					fail("wrong exception " + e);
+				}
+				// expected
+			} catch (Exception e) {
+				fail("wrong exception " + e);
+			}
+			backend.dispose();
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+
 
 	@Test
 	public void testCopyDefaultValue() throws Exception {
@@ -1263,11 +1515,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			backend.setCurrentKey(1);
 			state.update(121818273);
 
-			int keyGroupIndex = KeyGroupRangeAssignment.assignToKeyGroup(1, numberOfKeyGroups);
-			StateTable stateTable = ((AbstractHeapState) kvState).getStateTable();
-			assertNotNull("State not set", stateTable.get(keyGroupIndex));
-			assertTrue(stateTable.get(keyGroupIndex) instanceof ConcurrentHashMap);
-			assertTrue(stateTable.get(keyGroupIndex).get(VoidNamespace.INSTANCE) instanceof ConcurrentHashMap);
+			StateTable<?, ?, ?> stateTable = ((AbstractHeapState<?, ?,? ,?, ?>) kvState).getStateTable();
+			checkConcurrentStateTable(stateTable, numberOfKeyGroups);
 
 		}
 
@@ -1289,11 +1538,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			backend.setCurrentKey(1);
 			state.add(121818273);
 
-			int keyGroupIndex = KeyGroupRangeAssignment.assignToKeyGroup(1, numberOfKeyGroups);
-			StateTable stateTable = ((AbstractHeapState) kvState).getStateTable();
-			assertNotNull("State not set", stateTable.get(keyGroupIndex));
-			assertTrue(stateTable.get(keyGroupIndex) instanceof ConcurrentHashMap);
-			assertTrue(stateTable.get(keyGroupIndex).get(VoidNamespace.INSTANCE) instanceof ConcurrentHashMap);
+			StateTable<?, ?, ?> stateTable = ((AbstractHeapState<?, ?,? ,?, ?>) kvState).getStateTable();
+			checkConcurrentStateTable(stateTable, numberOfKeyGroups);
 		}
 
 		{
@@ -1320,11 +1566,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			backend.setCurrentKey(1);
 			state.add(121818273);
 
-			int keyGroupIndex = KeyGroupRangeAssignment.assignToKeyGroup(1, numberOfKeyGroups);
-			StateTable stateTable = ((AbstractHeapState) kvState).getStateTable();
-			assertNotNull("State not set", stateTable.get(keyGroupIndex));
-			assertTrue(stateTable.get(keyGroupIndex) instanceof ConcurrentHashMap);
-			assertTrue(stateTable.get(keyGroupIndex).get(VoidNamespace.INSTANCE) instanceof ConcurrentHashMap);
+			StateTable<?, ?, ?> stateTable = ((AbstractHeapState<?, ?,? ,?, ?>) kvState).getStateTable();
+			checkConcurrentStateTable(stateTable, numberOfKeyGroups);
 		}
 
 		{
@@ -1351,14 +1594,45 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			backend.setCurrentKey(1);
 			state.add(121818273);
 
+			StateTable<?, ?, ?> stateTable = ((AbstractHeapState<?, ?,? ,?, ?>) kvState).getStateTable();
+			checkConcurrentStateTable(stateTable, numberOfKeyGroups);
+		}
+
+		{
+			// MapState
+			MapStateDescriptor<Integer, String> desc = new MapStateDescriptor<>("map-state", Integer.class, String.class);
+			desc.setQueryable("my-query");
+			desc.initializeSerializerUnlessSet(new ExecutionConfig());
+
+			MapState<Integer, String> state = backend.getPartitionedState(
+					VoidNamespace.INSTANCE,
+					VoidNamespaceSerializer.INSTANCE,
+					desc);
+
+			InternalKvState<VoidNamespace> kvState = (InternalKvState<VoidNamespace>) state;
+			assertTrue(kvState instanceof AbstractHeapState);
+
+			kvState.setCurrentNamespace(VoidNamespace.INSTANCE);
+			backend.setCurrentKey(1);
+			state.put(121818273, "121818273");
+
 			int keyGroupIndex = KeyGroupRangeAssignment.assignToKeyGroup(1, numberOfKeyGroups);
 			StateTable stateTable = ((AbstractHeapState) kvState).getStateTable();
 			assertNotNull("State not set", stateTable.get(keyGroupIndex));
-			assertTrue(stateTable.get(keyGroupIndex) instanceof ConcurrentHashMap);
-			assertTrue(stateTable.get(keyGroupIndex).get(VoidNamespace.INSTANCE) instanceof ConcurrentHashMap);
+			checkConcurrentStateTable(stateTable, numberOfKeyGroups);
 		}
 
 		backend.dispose();
+	}
+
+	private void checkConcurrentStateTable(StateTable<?, ?, ?> stateTable, int numberOfKeyGroups) {
+		assertNotNull("State not set", stateTable);
+		if (stateTable instanceof NestedMapsStateTable) {
+			int keyGroupIndex = KeyGroupRangeAssignment.assignToKeyGroup(1, numberOfKeyGroups);
+			NestedMapsStateTable<?, ?, ?> nestedMapsStateTable = (NestedMapsStateTable<?, ?, ?>) stateTable;
+			assertTrue(nestedMapsStateTable.getState()[keyGroupIndex] instanceof ConcurrentHashMap);
+			assertTrue(nestedMapsStateTable.getState()[keyGroupIndex].get(VoidNamespace.INSTANCE) instanceof ConcurrentHashMap);
+		}
 	}
 
 	/**
@@ -1388,7 +1662,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 				eq(env.getJobID()), eq(env.getJobVertexId()), eq(expectedKeyGroupRange), eq("banana"), any(KvStateID.class));
 
 
-		KeyGroupsStateHandle snapshot = runSnapshot(backend.snapshot(682375462379L, 4, streamFactory));
+		KeyGroupsStateHandle snapshot = FutureUtil.runIfNotDoneAndGet(backend.snapshot(682375462379L, 4, streamFactory, CheckpointOptions.forFullCheckpoint()));
 
 		backend.dispose();
 
@@ -1419,7 +1693,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			ListStateDescriptor<String> kvId = new ListStateDescriptor<>("id", String.class);
 
 			// draw a snapshot
-			KeyGroupsStateHandle snapshot = runSnapshot(backend.snapshot(682375462379L, 1, streamFactory));
+			KeyGroupsStateHandle snapshot =
+					FutureUtil.runIfNotDoneAndGet(backend.snapshot(682375462379L, 1, streamFactory, CheckpointOptions.forFullCheckpoint()));
 			assertNull(snapshot);
 			backend.dispose();
 
@@ -1436,6 +1711,145 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		@Override
 		public String reduce(String value1, String value2) throws Exception {
 			return value1 + "," + value2;
+		}
+	}
+
+	@Test
+	public void testAsyncSnapshot() throws Exception {
+		OneShotLatch waiter = new OneShotLatch();
+		BlockerCheckpointStreamFactory streamFactory = new BlockerCheckpointStreamFactory(1024 * 1024);
+		streamFactory.setWaiterLatch(waiter);
+
+		AbstractKeyedStateBackend<Integer> backend = null;
+		KeyGroupsStateHandle stateHandle = null;
+
+		try {
+			backend = createKeyedBackend(IntSerializer.INSTANCE);
+			InternalValueState<VoidNamespace, Integer> valueState = backend.createValueState(
+					VoidNamespaceSerializer.INSTANCE,
+					new ValueStateDescriptor<>("test", IntSerializer.INSTANCE));
+
+			valueState.setCurrentNamespace(VoidNamespace.INSTANCE);
+
+			for (int i = 0; i < 10; ++i) {
+				backend.setCurrentKey(i);
+				valueState.update(i);
+			}
+
+			RunnableFuture<KeyGroupsStateHandle> snapshot =
+					backend.snapshot(0L, 0L, streamFactory, CheckpointOptions.forFullCheckpoint());
+			Thread runner = new Thread(snapshot);
+			runner.start();
+			for (int i = 0; i < 20; ++i) {
+				backend.setCurrentKey(i);
+				valueState.update(i + 1);
+				if (10 == i) {
+					waiter.await();
+				}
+			}
+
+			runner.join();
+			stateHandle = snapshot.get();
+
+			// test isolation
+			for (int i = 0; i < 20; ++i) {
+				backend.setCurrentKey(i);
+				Assert.assertEquals(i + 1, (int) valueState.value());
+			}
+
+		} finally {
+			if (null != backend) {
+				IOUtils.closeQuietly(backend);
+				backend.dispose();
+			}
+		}
+
+		Assert.assertNotNull(stateHandle);
+
+		backend = createKeyedBackend(IntSerializer.INSTANCE);
+		try {
+			backend.restore(Collections.singleton(stateHandle));
+			InternalValueState<VoidNamespace, Integer> valueState = backend.createValueState(
+					VoidNamespaceSerializer.INSTANCE,
+					new ValueStateDescriptor<>("test", IntSerializer.INSTANCE));
+
+			valueState.setCurrentNamespace(VoidNamespace.INSTANCE);
+
+			for (int i = 0; i < 10; ++i) {
+				backend.setCurrentKey(i);
+				Assert.assertEquals(i, (int) valueState.value());
+			}
+
+			backend.setCurrentKey(11);
+			Assert.assertEquals(null, valueState.value());
+		} finally {
+			if (null != backend) {
+				IOUtils.closeQuietly(backend);
+				backend.dispose();
+			}
+		}
+	}
+
+	@Test
+	public void testAsyncSnapshotCancellation() throws Exception {
+		OneShotLatch blocker = new OneShotLatch();
+		OneShotLatch waiter = new OneShotLatch();
+		BlockerCheckpointStreamFactory streamFactory = new BlockerCheckpointStreamFactory(1024 * 1024);
+		streamFactory.setWaiterLatch(waiter);
+		streamFactory.setBlockerLatch(blocker);
+		streamFactory.setAfterNumberInvocations(100);
+
+		AbstractKeyedStateBackend<Integer> backend = null;
+		try {
+			backend = createKeyedBackend(IntSerializer.INSTANCE);
+
+			if (!backend.supportsAsynchronousSnapshots()) {
+				return;
+			}
+
+			InternalValueState<VoidNamespace, Integer> valueState = backend.createValueState(
+					VoidNamespaceSerializer.INSTANCE,
+					new ValueStateDescriptor<>("test", IntSerializer.INSTANCE));
+
+			valueState.setCurrentNamespace(VoidNamespace.INSTANCE);
+
+			for (int i = 0; i < 10; ++i) {
+				backend.setCurrentKey(i);
+				valueState.update(i);
+			}
+
+			RunnableFuture<KeyGroupsStateHandle> snapshot =
+					backend.snapshot(0L, 0L, streamFactory, CheckpointOptions.forFullCheckpoint());
+
+			Thread runner = new Thread(snapshot);
+			runner.start();
+
+			// wait until the code reached some stream read
+			waiter.await();
+
+			// close the backend to see if the close is propagated to the stream
+			backend.close();
+
+			//unblock the stream so that it can run into the IOException
+			blocker.trigger();
+
+			//dispose the backend
+			backend.dispose();
+
+			runner.join();
+
+			try {
+				snapshot.get();
+				fail("Close was not propagated.");
+			} catch (ExecutionException ex) {
+				//ignore
+			}
+
+		} finally {
+			if (null != backend) {
+				IOUtils.closeQuietly(backend);
+				backend.dispose();
+			}
 		}
 	}
 
@@ -1496,11 +1910,29 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		}
 	}
 
-	private KeyGroupsStateHandle runSnapshot(RunnableFuture<KeyGroupsStateHandle> snapshotRunnableFuture) throws Exception {
-		if(!snapshotRunnableFuture.isDone()) {
-			Thread runner = new Thread(snapshotRunnableFuture);
-			runner.start();
+	/**
+	 * Returns the value by getting the serialized value and deserializing it
+	 * if it is not null.
+	 */
+	private static <UK, UV, K, N> Map<UK, UV> getSerializedMap(
+			InternalKvState<N> kvState,
+			K key,
+			TypeSerializer<K> keySerializer,
+			N namespace,
+			TypeSerializer<N> namespaceSerializer,
+			TypeSerializer<UK> userKeySerializer,
+			TypeSerializer<UV> userValueSerializer
+	) throws Exception {
+
+		byte[] serializedKeyAndNamespace = KvStateRequestSerializer.serializeKeyAndNamespace(
+				key, keySerializer, namespace, namespaceSerializer);
+
+		byte[] serializedValue = kvState.getSerializedValue(serializedKeyAndNamespace);
+
+		if (serializedValue == null) {
+			return null;
+		} else {
+			return KvStateRequestSerializer.deserializeMap(serializedValue, userKeySerializer, userValueSerializer);
 		}
-		return snapshotRunnableFuture.get();
 	}
 }

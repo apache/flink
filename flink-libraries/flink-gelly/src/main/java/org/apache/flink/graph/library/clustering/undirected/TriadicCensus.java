@@ -20,8 +20,11 @@ package org.apache.flink.graph.library.clustering.undirected;
 
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
+import org.apache.flink.api.java.DataSet;
 import org.apache.flink.graph.AbstractGraphAnalytic;
 import org.apache.flink.graph.Graph;
+import org.apache.flink.graph.asm.dataset.Count;
+import org.apache.flink.graph.asm.result.PrintableResult;
 import org.apache.flink.graph.library.clustering.undirected.TriadicCensus.Result;
 import org.apache.flink.graph.library.metric.undirected.VertexMetrics;
 import org.apache.flink.types.CopyableValue;
@@ -35,10 +38,10 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 /**
  * A triad is formed by three connected or unconnected vertices in a graph.
  * The triadic census counts the occurrences of each type of triad.
- * <br/>
+ * <p>
  * The four types of undirected triads are formed with 0, 1, 2, or 3
  * connecting edges.
- * <br/>
+ * <p>
  * http://vlado.fmf.uni-lj.si/pub/networks/doc/triads/triads.pdf
  *
  * @param <K> graph ID type
@@ -48,7 +51,7 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 public class TriadicCensus<K extends Comparable<K> & CopyableValue<K>, VV, EV>
 extends AbstractGraphAnalytic<K, VV, EV, Result> {
 
-	private TriangleCount<K, VV, EV> triangleCount;
+	private Count<TriangleListing.Result<K>> triangleCount;
 
 	private VertexMetrics<K, VV, EV> vertexMetrics;
 
@@ -72,10 +75,14 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 			throws Exception {
 		super.run(input);
 
-		triangleCount = new TriangleCount<K, VV, EV>()
-			.setLittleParallelism(littleParallelism);
+		triangleCount = new Count<>();
 
-		input.run(triangleCount);
+		DataSet<TriangleListing.Result<K>> triangles = input
+			.run(new TriangleListing<K, VV, EV>()
+				.setSortTriangleVertices(false)
+				.setLittleParallelism(littleParallelism));
+
+		triangleCount.run(triangles);
 
 		vertexMetrics = new VertexMetrics<K, VV, EV>()
 			.setParallelism(littleParallelism);
@@ -133,7 +140,8 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 	/**
 	 * Wraps triadic census metrics.
 	 */
-	public static class Result {
+	public static class Result
+	implements PrintableResult {
 		private final BigInteger[] counts;
 
 		public Result(BigInteger... counts) {
@@ -205,7 +213,7 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 		}
 
 		@Override
-		public String toString() {
+		public String toPrintableString() {
 			NumberFormat nf = NumberFormat.getInstance();
 
 			return "03: " + nf.format(getCount03())

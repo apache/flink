@@ -26,7 +26,7 @@ import org.apache.flink.util.ExceptionUtils;
 import java.util.concurrent.RunnableFuture;
 
 /**
- * Result of {@link AbstractStreamOperator#snapshotState}.
+ * Result of {@link StreamOperator#snapshotState}.
  */
 public class OperatorSnapshotResult {
 
@@ -120,5 +120,17 @@ public class OperatorSnapshotResult {
 		if (exception != null) {
 			throw exception;
 		}
+	}
+
+	public boolean hasKeyedState() {
+		return keyedStateManagedFuture != null || keyedStateRawFuture != null;
+	}
+
+	public boolean hasOperatorState() {
+		return operatorStateManagedFuture != null || operatorStateRawFuture != null;
+	}
+
+	public boolean hasState() {
+		return hasKeyedState() || hasOperatorState();
 	}
 }

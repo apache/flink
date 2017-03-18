@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.DataInputView;
 
 import java.io.EOFException;
@@ -27,6 +28,7 @@ import java.io.InputStream;
 /**
  * An input stream that draws its data from a {@link DataInputView}.
  */
+@Internal
 public class DataInputViewStream extends InputStream {
 	
 	protected DataInputView inputView;

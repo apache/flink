@@ -29,6 +29,8 @@ import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.TableException
 
+import scala.collection.mutable
+
 /**
   * A [[BatchTableSource]] and [[StreamTableSource]] for simple CSV files with a
   * (logically) unlimited number of fields.
@@ -44,15 +46,15 @@ import org.apache.flink.table.api.TableException
   * @param lenient Flag to skip records with parse error instead to fail, false by default.
   */
 class CsvTableSource(
-    path: String,
-    fieldNames: Array[String],
-    fieldTypes: Array[TypeInformation[_]],
-    fieldDelim: String = CsvInputFormat.DEFAULT_FIELD_DELIMITER,
-    rowDelim: String = CsvInputFormat.DEFAULT_LINE_DELIMITER,
-    quoteCharacter: Character = null,
-    ignoreFirstLine: Boolean = false,
-    ignoreComments: String = null,
-    lenient: Boolean = false)
+    private val path: String,
+    private val fieldNames: Array[String],
+    private val fieldTypes: Array[TypeInformation[_]],
+    private val fieldDelim: String = CsvInputFormat.DEFAULT_FIELD_DELIMITER,
+    private val rowDelim: String = CsvInputFormat.DEFAULT_LINE_DELIMITER,
+    private val quoteCharacter: Character = null,
+    private val ignoreFirstLine: Boolean = false,
+    private val ignoreComments: String = null,
+    private val lenient: Boolean = false)
   extends BatchTableSource[Row]
   with StreamTableSource[Row]
   with ProjectableTableSource[Row] {
@@ -138,4 +140,174 @@ class CsvTableSource(
 
     inputFormat
   }
+
+  override def equals(other: Any): Boolean = other match {
+    case that: CsvTableSource => returnType == that.returnType &&
+        path == that.path &&
+        fieldDelim == that.fieldDelim &&
+        rowDelim == that.rowDelim &&
+        quoteCharacter == that.quoteCharacter &&
+        ignoreFirstLine == that.ignoreFirstLine &&
+        ignoreComments == that.ignoreComments &&
+        lenient == that.lenient
+    case _ => false
+  }
+
+  override def hashCode(): Int = {
+    returnType.hashCode()
+  }
+}
+
+object CsvTableSource {
+
+  /**
+    * A builder for creating [[CsvTableSource]] instances.
+    *
+    * For example:
+    *
+    * {{{
+    *   val source: CsvTableSource = new CsvTableSource.builder()
+    *     .path("/path/to/your/file.csv")
+    *     .field("myfield", Types.STRING)
+    *     .field("myfield2", Types.INT)
+    *     .build()
+    * }}}
+    *
+    */
+  class Builder {
+
+    private val schema: mutable.LinkedHashMap[String, TypeInformation[_]] =
+      mutable.LinkedHashMap[String, TypeInformation[_]]()
+    private var quoteCharacter: Character = _
+    private var path: String = _
+    private var fieldDelim: String = CsvInputFormat.DEFAULT_FIELD_DELIMITER
+    private var lineDelim: String = CsvInputFormat.DEFAULT_LINE_DELIMITER
+    private var isIgnoreFirstLine: Boolean = false
+    private var commentPrefix: String = _
+    private var lenient: Boolean = false
+
+    /**
+      * Sets the path to the CSV file. Required.
+      *
+      * @param path the path to the CSV file
+      */
+    def path(path: String): Builder = {
+      this.path = path
+      this
+    }
+
+    /**
+      * Sets the field delimiter, "," by default.
+      *
+      * @param delim the field delimiter
+      */
+    def fieldDelimiter(delim: String): Builder = {
+      this.fieldDelim = delim
+      this
+    }
+
+    /**
+      * Sets the line delimiter, "\n" by default.
+      *
+      * @param delim the line delimiter
+      */
+    def lineDelimiter(delim: String): Builder = {
+      this.lineDelim = delim
+      this
+    }
+
+    /**
+      * Adds a field with the field name and the type information. Required.
+      * This method can be called multiple times. The call order of this method defines
+      * also the order of thee fields in a row.
+      *
+      * @param fieldName the field name
+      * @param fieldType the type information of the field
+      */
+    def field(fieldName: String, fieldType: TypeInformation[_]): Builder = {
+      if (schema.contains(fieldName)) {
+        throw new IllegalArgumentException(s"Duplicate field name $fieldName.")
+      }
+      schema += (fieldName -> fieldType)
+      this
+    }
+
+    /**
+      * Sets a quote character for String values, null by default.
+      *
+      * @param quote the quote character
+      */
+    def quoteCharacter(quote: Character): Builder = {
+      this.quoteCharacter = quote
+      this
+    }
+
+    /**
+      * Sets a prefix to indicate comments, null by default.
+      *
+      * @param prefix the prefix to indicate comments
+      */
+    def commentPrefix(prefix: String): Builder = {
+      this.commentPrefix = prefix
+      this
+    }
+
+    /**
+      * Ignore the first line. Not skip the first line by default.
+      */
+    def ignoreFirstLine(): Builder = {
+      this.isIgnoreFirstLine = true
+      this
+    }
+
+    /**
+      * Skip records with parse error instead to fail. Throw an exception by default.
+      */
+    def ignoreParseErrors(): Builder = {
+      this.lenient = true
+      this
+    }
+
+    /**
+      * Apply the current values and constructs a newly-created [[CsvTableSource]].
+      *
+      * @return a newly-created [[CsvTableSource]].
+      */
+    def build(): CsvTableSource = {
+      if (path == null) {
+        throw new IllegalArgumentException("Path must be defined.")
+      }
+      if (schema.isEmpty) {
+        throw new IllegalArgumentException("Fields can not be empty.")
+      }
+      new CsvTableSource(
+        path,
+        schema.keys.toArray,
+        schema.values.toArray,
+        fieldDelim,
+        lineDelim,
+        quoteCharacter,
+        isIgnoreFirstLine,
+        commentPrefix,
+        lenient)
+    }
+
+  }
+
+  /**
+    * Return a new builder that builds a [[CsvTableSource]].
+    *
+    * For example:
+    *
+    * {{{
+    *   val source: CsvTableSource = CsvTableSource
+    *     .builder()
+    *     .path("/path/to/your/file.csv")
+    *     .field("myfield", Types.STRING)
+    *     .field("myfield2", Types.INT)
+    *     .build()
+    * }}}
+    * @return a new builder to build a [[CsvTableSource]]
+    */
+  def builder(): Builder = new Builder
 }

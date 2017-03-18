@@ -21,7 +21,9 @@ package org.apache.flink.cep.operator;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.ByteSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.functions.NullByteKeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.EitherTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
@@ -70,15 +72,23 @@ public class CEPOperatorUtils {
 					isProcessingTime,
 					keySelector,
 					keySerializer,
-					nfaFactory));
+					nfaFactory,
+					true));
 		} else {
-			patternStream = inputStream.transform(
+
+			KeySelector<T, Byte> keySelector = new NullByteKeySelector<>();
+			TypeSerializer<Byte> keySerializer = ByteSerializer.INSTANCE;
+
+			patternStream = inputStream.keyBy(keySelector).transform(
 				"CEPPatternOperator",
 				(TypeInformation<Map<String, T>>) (TypeInformation<?>) TypeExtractor.getForClass(Map.class),
-				new CEPPatternOperator<>(
+				new KeyedCEPPatternOperator<>(
 					inputSerializer,
 					isProcessingTime,
-					nfaFactory
+					keySelector,
+					keySerializer,
+					nfaFactory,
+					false
 				)).forceNonParallel();
 		}
 
@@ -125,15 +135,23 @@ public class CEPOperatorUtils {
 					isProcessingTime,
 					keySelector,
 					keySerializer,
-					nfaFactory));
+					nfaFactory,
+					true));
 		} else {
-			patternStream = inputStream.transform(
+
+			KeySelector<T, Byte> keySelector = new NullByteKeySelector<>();
+			TypeSerializer<Byte> keySerializer = ByteSerializer.INSTANCE;
+
+			patternStream = inputStream.keyBy(keySelector).transform(
 				"TimeoutCEPPatternOperator",
 				eitherTypeInformation,
-				new TimeoutCEPPatternOperator<>(
+				new TimeoutKeyedCEPPatternOperator<>(
 					inputSerializer,
 					isProcessingTime,
-					nfaFactory
+					keySelector,
+					keySerializer,
+					nfaFactory,
+					false
 				)).forceNonParallel();
 		}
 

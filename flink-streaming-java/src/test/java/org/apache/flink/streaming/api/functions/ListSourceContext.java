@@ -67,7 +67,12 @@ public class ListSourceContext<T> implements SourceFunction.SourceContext<T> {
 
 	@Override
 	public void emitWatermark(Watermark mark) {
-		// don't do anything
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public void markAsTemporarilyIdle() {
+		throw new UnsupportedOperationException();
 	}
 
 	@Override

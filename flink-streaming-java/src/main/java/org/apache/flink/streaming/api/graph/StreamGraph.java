@@ -32,6 +32,7 @@ import java.util.Set;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -91,12 +92,14 @@ public class StreamGraph extends StreamingPlan {
 	private AbstractStateBackend stateBackend;
 	private Set<Tuple2<StreamNode, StreamNode>> iterationSourceSinkPairs;
 
+	private final int defaultParallelism;
 
-	public StreamGraph(StreamExecutionEnvironment environment) {
+	public StreamGraph(StreamExecutionEnvironment environment, int defaultParallelism) {
 		this.environment = environment;
 		this.executionConfig = environment.getConfig();
 		this.checkpointConfig = environment.getCheckpointConfig();
 
+		this.defaultParallelism = defaultParallelism;
 		// create an empty new stream graph.
 		clear();
 	}
@@ -413,6 +416,12 @@ public class StreamGraph extends StreamingPlan {
 		}
 	}
 
+	public void setResources(int vertexID, ResourceSpec minResources, ResourceSpec preferredResources) {
+		if (getStreamNode(vertexID) != null) {
+			getStreamNode(vertexID).setResources(minResources, preferredResources);
+		}
+	}
+
 	public void setOneInputStateKey(Integer vertexID, KeySelector<?, ?> keySelector, TypeSerializer<?> keySerializer) {
 		StreamNode node = getStreamNode(vertexID);
 		node.setStatePartitioner1(keySelector);
@@ -470,6 +479,7 @@ public class StreamGraph extends StreamingPlan {
 		StreamNode node = streamNodes.get(nodeId);
 		if (node != null) {
 			node.setUserHash(nodeHash);
+
 		}
 	}
 
@@ -533,7 +543,9 @@ public class StreamGraph extends StreamingPlan {
 		int sinkId,
 		long timeout,
 		int parallelism,
-		int maxParallelism) {
+		int maxParallelism,
+		ResourceSpec minResources,
+		ResourceSpec preferredResources) {
 		StreamNode source = this.addNode(sourceId,
 			null,
 			StreamIterationHead.class,
@@ -542,6 +554,7 @@ public class StreamGraph extends StreamingPlan {
 		sources.add(source.getId());
 		setParallelism(source.getId(), parallelism);
 		setMaxParallelism(source.getId(), maxParallelism);
+		setResources(source.getId(), minResources, preferredResources);
 
 		StreamNode sink = this.addNode(sinkId,
 			null,
@@ -596,7 +609,7 @@ public class StreamGraph extends StreamingPlan {
 							+ "\nThe user can force enable state checkpoints with the reduced guarantees by calling: env.enableCheckpointing(interval,true)");
 		}
 
-		StreamingJobGraphGenerator jobgraphGenerator = new StreamingJobGraphGenerator(this);
+		StreamingJobGraphGenerator jobgraphGenerator = new StreamingJobGraphGenerator(this, defaultParallelism);
 
 		return jobgraphGenerator.createJobGraph();
 	}

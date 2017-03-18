@@ -24,6 +24,7 @@ package org.apache.flink.migration.runtime.state;
  * is lightweight or fetching it lazily from some external storage when the state is too large.
  */
 @Deprecated
+@SuppressWarnings("deprecation")
 public interface StateHandle<T> extends StateObject {
 
 	/**

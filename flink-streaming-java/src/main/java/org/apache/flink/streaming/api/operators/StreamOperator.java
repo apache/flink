@@ -19,7 +19,8 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
@@ -93,18 +94,30 @@ public interface StreamOperator<OUT> extends Serializable {
 	/**
 	 * Called to draw a state snapshot from the operator.
 	 *
-	 * @throws Exception Forwards exceptions that occur while preparing for the snapshot
-	 */
-
-	/**
-	 * Called to draw a state snapshot from the operator.
-	 *
 	 * @return a runnable future to the state handle that points to the snapshotted state. For synchronous implementations,
 	 * the runnable might already be finished.
+	 * 
 	 * @throws Exception exception that happened during snapshotting.
 	 */
 	OperatorSnapshotResult snapshotState(
-			long checkpointId, long timestamp, CheckpointStreamFactory streamFactory) throws Exception;
+		long checkpointId,
+		long timestamp,
+		CheckpointOptions checkpointOptions) throws Exception;
+
+	/**
+	 * Takes a snapshot of the legacy operator state defined via {@link StreamCheckpointedOperator}.
+	 * 
+	 * @return The handle to the legacy operator state, or null, if no state was snapshotted.
+	 * @throws Exception This method should forward any type of exception that happens during snapshotting.
+	 * 
+	 * @deprecated This method will be removed as soon as no more operators use the legacy state code paths
+	 */
+	@SuppressWarnings("deprecation")
+	@Deprecated
+	StreamStateHandle snapshotLegacyOperatorState(
+		long checkpointId,
+		long timestamp,
+		CheckpointOptions checkpointOptions) throws Exception;
 
 	/**
 	 * Provides state handles to restore the operator state.
@@ -134,6 +147,7 @@ public interface StreamOperator<OUT> extends Serializable {
 	ChainingStrategy getChainingStrategy();
 
 	void setChainingStrategy(ChainingStrategy strategy);
-	
+
 	MetricGroup getMetricGroup();
+
 }

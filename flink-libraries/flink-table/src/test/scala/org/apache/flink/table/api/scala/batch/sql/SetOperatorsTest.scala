@@ -66,20 +66,19 @@ class SetOperatorsTest extends TableTestBase {
                 term("select", "b_long")
               ),
               unaryNode(
-                "DataSetAggregate",
+                "DataSetDistinct",
                 unaryNode(
                   "DataSetCalc",
                   batchTableNode(0),
                   term("select", "a_long")
                 ),
-                term("groupBy", "a_long"),
-                term("select", "a_long")
+                term("distinct", "a_long")
               ),
               term("where", "=(a_long, b_long)"),
               term("join", "b_long", "a_long"),
               term("joinType", "InnerJoin")
             ),
-            term("select", "true AS $f0", "a_long")
+            term("select", "a_long", "true AS $f0")
           ),
           term("groupBy", "a_long"),
           term("select", "a_long", "MIN($f0) AS $f1")

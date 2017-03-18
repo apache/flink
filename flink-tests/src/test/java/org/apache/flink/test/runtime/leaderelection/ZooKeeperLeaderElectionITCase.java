@@ -28,6 +28,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.instance.ActorGateway;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -165,7 +166,8 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
 		sender.setParallelism(parallelism);
 		receiver.setParallelism(parallelism);
 
-		receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE);
+		receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE,
+			ResultPartitionType.PIPELINED);
 
 		SlotSharingGroup slotSharingGroup = new SlotSharingGroup();
 		sender.setSlotSharingGroup(slotSharingGroup);

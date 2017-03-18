@@ -23,15 +23,18 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
+import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.SourceStreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskTest;
@@ -60,6 +63,7 @@ public class AbstractUdfStreamOperatorLifecycleTest {
 			"UDF::open",
 			"OPERATOR::run",
 			"UDF::run",
+			"OPERATOR::snapshotLegacyOperatorState",
 			"OPERATOR::snapshotState",
 			"OPERATOR::close",
 			"UDF::close",
@@ -86,8 +90,9 @@ public class AbstractUdfStreamOperatorLifecycleTest {
 			"setKeyContextElement2[class org.apache.flink.streaming.runtime.streamrecord.StreamRecord], " +
 			"setup[class org.apache.flink.streaming.runtime.tasks.StreamTask, class " +
 			"org.apache.flink.streaming.api.graph.StreamConfig, interface " +
-			"org.apache.flink.streaming.api.operators.Output], snapshotState[long, long, " +
-			"interface org.apache.flink.runtime.state.CheckpointStreamFactory]]";
+			"org.apache.flink.streaming.api.operators.Output], " +
+			"snapshotLegacyOperatorState[long, long, class org.apache.flink.runtime.checkpoint.CheckpointOptions], " +
+			"snapshotState[long, long, class org.apache.flink.runtime.checkpoint.CheckpointOptions]]";
 
 	private static final String ALL_METHODS_RICH_FUNCTION = "[close[], getIterationRuntimeContext[], getRuntimeContext[]" +
 			", open[class org.apache.flink.configuration.Configuration], setRuntimeContext[interface " +
@@ -198,7 +203,7 @@ public class AbstractUdfStreamOperatorLifecycleTest {
 	}
 
 	private static class LifecycleTrackingStreamSource<OUT, SRC extends SourceFunction<OUT>>
-			extends StreamSource<OUT, SRC> implements Serializable {
+			extends StreamSource<OUT, SRC> implements Serializable, StreamCheckpointedOperator {
 
 		private static final long serialVersionUID = 2431488948886850562L;
 		private transient Thread testCheckpointer;
@@ -216,9 +221,11 @@ public class AbstractUdfStreamOperatorLifecycleTest {
 		}
 
 		@Override
-		public void run(Object lockingObject, Output<StreamRecord<OUT>> collector) throws Exception {
+		public void run(Object lockingObject,
+						StreamStatusMaintainer streamStatusMaintainer,
+						Output<StreamRecord<OUT>> collector) throws Exception {
 			ACTUAL_ORDER_TRACKING.add("OPERATOR::run");
-			super.run(lockingObject, collector);
+			super.run(lockingObject, streamStatusMaintainer, collector);
 			runStarted.trigger();
 			runFinish.await();
 		}
@@ -234,7 +241,8 @@ public class AbstractUdfStreamOperatorLifecycleTest {
 						try {
 							runStarted.await();
 							if (getContainingTask().isCanceled() || getContainingTask().triggerCheckpoint(
-									new CheckpointMetaData(0, System.currentTimeMillis()))) {
+									new CheckpointMetaData(0, System.currentTimeMillis()),
+									CheckpointOptions.forFullCheckpoint())) {
 								LifecycleTrackingStreamSource.runFinish.trigger();
 							}
 						} catch (Exception e) {
@@ -251,6 +259,12 @@ public class AbstractUdfStreamOperatorLifecycleTest {
 		public void snapshotState(StateSnapshotContext context) throws Exception {
 			ACTUAL_ORDER_TRACKING.add("OPERATOR::snapshotState");
 			super.snapshotState(context);
+		}
+
+		@Override
+		public StreamStateHandle snapshotLegacyOperatorState(long checkpointId, long timestamp, CheckpointOptions checkpointOptions) throws Exception {
+			ACTUAL_ORDER_TRACKING.add("OPERATOR::snapshotLegacyOperatorState");
+			return super.snapshotLegacyOperatorState(checkpointId, timestamp, checkpointOptions);
 		}
 
 		@Override

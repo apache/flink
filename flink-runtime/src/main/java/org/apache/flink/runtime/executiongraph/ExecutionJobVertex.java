@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.Archiveable;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
@@ -30,7 +31,9 @@ import org.apache.flink.core.io.InputSplitSource;
 import org.apache.flink.core.io.LocatableInputSplit;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
+import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.instance.SlotProvider;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
@@ -39,11 +42,11 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.JobManagerOptions;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
-import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
+
 import org.slf4j.Logger;
 
 import java.io.IOException;
@@ -221,10 +224,14 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	}
 
 	private void setMaxParallelismInternal(int maxParallelism) {
+		if (maxParallelism == ExecutionConfig.PARALLELISM_AUTO_MAX) {
+			maxParallelism = ExecutionConfig.UPPER_BOUND_MAX_PARALLELISM;
+		}
+
 		Preconditions.checkArgument(maxParallelism > 0
-						&& maxParallelism <= KeyGroupRangeAssignment.UPPER_BOUND_MAX_PARALLELISM,
-				"Overriding max parallelism is not in valid bounds (1.." +
-						KeyGroupRangeAssignment.UPPER_BOUND_MAX_PARALLELISM + "), found:" + maxParallelism);
+						&& maxParallelism <= ExecutionConfig.UPPER_BOUND_MAX_PARALLELISM,
+				"Overriding max parallelism is not in valid bounds (1..%s), found: %s",
+				ExecutionConfig.UPPER_BOUND_MAX_PARALLELISM, maxParallelism);
 
 		this.maxParallelism = maxParallelism;
 	}
@@ -386,14 +393,56 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	//  Actions
 	//---------------------------------------------------------------------------------------------
 	
-	public void scheduleAll(SlotProvider slotProvider, boolean queued) throws NoResourceAvailableException {
+	public void scheduleAll(SlotProvider slotProvider, boolean queued) {
 		
-		ExecutionVertex[] vertices = this.taskVertices;
+		final ExecutionVertex[] vertices = this.taskVertices;
 
 		// kick off the tasks
 		for (ExecutionVertex ev : vertices) {
 			ev.scheduleForExecution(slotProvider, queued);
 		}
+	}
+
+	/**
+	 * Acquires a slot for all the execution vertices of this ExecutionJobVertex. The method returns
+	 * pairs of the slots and execution attempts, to ease correlation between vertices and execution
+	 * attempts.
+	 * 
+	 * <p>If this method throws an exception, it makes sure to release all so far requested slots.
+	 * 
+	 * @param resourceProvider The resource provider from whom the slots are requested.
+	 */
+	public ExecutionAndSlot[] allocateResourcesForAll(SlotProvider resourceProvider, boolean queued) {
+		final ExecutionVertex[] vertices = this.taskVertices;
+		final ExecutionAndSlot[] slots = new ExecutionAndSlot[vertices.length];
+
+		// try to acquire a slot future for each execution.
+		// we store the execution with the future just to be on the safe side
+		for (int i = 0; i < vertices.length; i++) {
+
+			// we use this flag to handle failures in a 'finally' clause
+			// that allows us to not go through clumsy cast-and-rethrow logic
+			boolean successful = false;
+
+			try {
+				// allocate the next slot (future)
+				final Execution exec = vertices[i].getCurrentExecutionAttempt();
+				final Future<SimpleSlot> future = exec.allocateSlotForExecution(resourceProvider, queued);
+				slots[i] = new ExecutionAndSlot(exec, future);
+				successful = true;
+			}
+			finally {
+				if (!successful) {
+					// this is the case if an exception was thrown
+					for (int k = 0; k < i; k++) {
+						ExecutionGraphUtils.releaseSlotFuture(slots[k].slotFuture);
+					}
+				}
+			}
+		}
+
+		// all good, we acquired all slots
+		return slots;
 	}
 
 	public void cancel() {

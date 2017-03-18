@@ -19,7 +19,6 @@ package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.state.StateBackend;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.execution.Environment;
@@ -30,10 +29,12 @@ import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.util.AbstractID;
+
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
 import org.rocksdb.NativeLibraryLoader;
 import org.rocksdb.RocksDB;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,7 +51,7 @@ import java.util.UUID;
 import static java.util.Objects.requireNonNull;
 
 /**
- * A {@link StateBackend} that stores its state in {@code RocksDB}. This state backend can
+ * A State Backend that stores its state in {@code RocksDB}. This state backend can
  * store very large state that exceeds memory and spills to disk.
  *
  * <p>All key/value state (including windows) is stored in the key/value index of RocksDB.
@@ -161,7 +162,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 
 	private void lazyInitializeForJob(
 			Environment env,
-			String operatorIdentifier) throws Exception {
+			String operatorIdentifier) throws IOException {
 
 		if (isInitialized) {
 			return;
@@ -194,7 +195,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 			}
 
 			if (dirs.isEmpty()) {
-				throw new Exception("No local storage directories available. " + errorMessage);
+				throw new IOException("No local storage directories available. " + errorMessage);
 			} else {
 				initializedDbBasePaths = dirs.toArray(new File[dirs.size()]);
 			}
@@ -203,10 +204,6 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 		nextDirectory = new Random().nextInt(initializedDbBasePaths.length);
 
 		isInitialized = true;
-	}
-
-	private File getDbPath() {
-		return new File(new File(getNextStoragePath(), jobId.toString()), operatorIdentifier);
 	}
 
 	private File getNextStoragePath() {
@@ -224,6 +221,15 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 	}
 
 	@Override
+	public CheckpointStreamFactory createSavepointStreamFactory(
+			JobID jobId,
+			String operatorIdentifier,
+			String targetLocation) throws IOException {
+
+		return checkpointStreamBackend.createSavepointStreamFactory(jobId, operatorIdentifier, targetLocation);
+	}
+
+	@Override
 	public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
 			Environment env,
 			JobID jobID,
@@ -231,7 +237,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 			TypeSerializer<K> keySerializer,
 			int numberOfKeyGroups,
 			KeyGroupRange keyGroupRange,
-			TaskKvStateRegistry kvStateRegistry) throws Exception {
+			TaskKvStateRegistry kvStateRegistry) throws IOException {
 
 		// first, make sure that the RocksDB JNI library is loaded
 		// we do this explicitly here to have better error handling
@@ -240,7 +246,8 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 
 		lazyInitializeForJob(env, operatorIdentifier);
 
-		File instanceBasePath = new File(getDbPath(), UUID.randomUUID().toString());
+		File instanceBasePath =
+				new File(getNextStoragePath(), "job-" + jobId.toString() + "_op-" + operatorIdentifier + "_uuid-" + UUID.randomUUID());
 
 		return new RocksDBKeyedStateBackend<>(
 				jobID,
@@ -252,7 +259,8 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 				kvStateRegistry,
 				keySerializer,
 				numberOfKeyGroups,
-				keyGroupRange);
+				keyGroupRange,
+				env.getExecutionConfig());
 	}
 
 	// ------------------------------------------------------------------------
@@ -432,7 +440,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 	//  static library loading utilities
 	// ------------------------------------------------------------------------
 
-	private void ensureRocksDBIsLoaded(String tempDirectory) throws Exception {
+	private void ensureRocksDBIsLoaded(String tempDirectory) throws IOException {
 		synchronized (RocksDBStateBackend.class) {
 			if (!rocksDbInitialized) {
 
@@ -483,7 +491,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 					}
 				}
 
-				throw new Exception("Could not load the native RocksDB library", lastException);
+				throw new IOException("Could not load the native RocksDB library", lastException);
 			}
 		}
 	}

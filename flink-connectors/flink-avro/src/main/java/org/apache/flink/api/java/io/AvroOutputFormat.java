@@ -25,12 +25,13 @@ import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.ReflectDatumWriter;
 import org.apache.avro.specific.SpecificDatumWriter;
 import org.apache.flink.api.common.io.FileOutputFormat;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.fs.Path;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 import java.io.IOException;
 import java.io.Serializable;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 public class AvroOutputFormat<E> extends FileOutputFormat<E> implements Serializable {
 
@@ -154,7 +155,7 @@ public class AvroOutputFormat<E> extends FileOutputFormat<E> implements Serializ
 		}
 
 		if(userDefinedSchema != null) {
-			byte[] json = userDefinedSchema.toString().getBytes();
+			byte[] json = userDefinedSchema.toString().getBytes(ConfigConstants.DEFAULT_CHARSET);
 			out.writeInt(json.length);
 			out.write(json);
 		} else {
@@ -175,7 +176,7 @@ public class AvroOutputFormat<E> extends FileOutputFormat<E> implements Serializ
 			byte[] json = new byte[length];
 			in.readFully(json);
 
-			Schema schema = new Schema.Parser().parse(new String(json));
+			Schema schema = new Schema.Parser().parse(new String(json, ConfigConstants.DEFAULT_CHARSET));
 			setSchema(schema);
 		}
 	}

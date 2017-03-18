@@ -46,6 +46,7 @@ import io.netty.handler.stream.ChunkedFile;
 import io.netty.util.concurrent.GenericFutureListener;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobCache;
 import org.apache.flink.runtime.blob.BlobKey;
@@ -94,6 +95,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class TaskManagerLogHandler extends RuntimeMonitorHandlerBase {
 	private static final Logger LOG = LoggerFactory.getLogger(TaskManagerLogHandler.class);
 
+	private static final String TASKMANAGER_LOG_REST_PATH = "/taskmanagers/:taskmanagerid/log";
+	private static final String TASKMANAGER_OUT_REST_PATH = "/taskmanagers/:taskmanagerid/stdout";
+
 	/** Keep track of last transmitted log, to clean up old ones */
 	private final HashMap<String, BlobKey> lastSubmittedLog = new HashMap<>();
 	private final HashMap<String, BlobKey> lastSubmittedStdout = new HashMap<>();
@@ -141,6 +145,15 @@ public class TaskManagerLogHandler extends RuntimeMonitorHandlerBase {
 		timeTimeout = Time.milliseconds(timeout.toMillis());
 	}
 
+	@Override
+	public String[] getPaths() {
+		if (serveLogFile) {
+			return new String[]{TASKMANAGER_LOG_REST_PATH};
+		} else {
+			return new String[]{TASKMANAGER_OUT_REST_PATH};
+		}
+	}
+
 	/**
 	 * Response when running with leading JobManager.
 	 */
@@ -150,7 +163,7 @@ public class TaskManagerLogHandler extends RuntimeMonitorHandlerBase {
 			scala.concurrent.Future<Object> portFuture = jobManager.ask(JobManagerMessages.getRequestBlobManagerPort(), timeout);
 			scala.concurrent.Future<BlobCache> cacheFuture = portFuture.map(new Mapper<Object, BlobCache>() {
 				@Override
-				public BlobCache apply(Object result) {
+				public BlobCache checkedApply(Object result) throws IOException {
 					Option<String> hostOption = jobManager.actor().path().address().host();
 					String host = hostOption.isDefined() ? hostOption.get() : "localhost";
 					int port = (int) result;
@@ -333,7 +346,7 @@ public class TaskManagerLogHandler extends RuntimeMonitorHandlerBase {
 			response.headers().set(CONNECTION, HttpHeaders.Values.KEEP_ALIVE);
 		}
 
-		byte[] buf = message.getBytes();
+		byte[] buf = message.getBytes(ConfigConstants.DEFAULT_CHARSET);
 
 		ByteBuf b = Unpooled.copiedBuffer(buf);
 

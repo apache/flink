@@ -103,7 +103,7 @@ class FieldProjectionTest extends TableTestBase {
     val expected = unaryNode(
       "DataSetCalc",
       batchTableNode(0),
-      term("select", s"${MyHashCode.getClass.getCanonicalName}(c) AS _c0", "b")
+      term("select", s"${MyHashCode.functionIdentifier}(c) AS _c0", "b")
     )
 
     util.verifyTable(resultTable, expected)
@@ -117,14 +117,13 @@ class FieldProjectionTest extends TableTestBase {
     val expected = unaryNode(
       "DataSetCalc",
       unaryNode(
-        "DataSetAggregate",
+        "DataSetDistinct",
         unaryNode(
           "DataSetCalc",
           batchTableNode(0),
           term("select", "a", "c")
         ),
-        term("groupBy", "a", "c"),
-        term("select", "a", "c")
+        term("distinct", "a", "c")
       ),
       term("select", "a")
     )
@@ -138,14 +137,13 @@ class FieldProjectionTest extends TableTestBase {
     val resultTable = sourceTable.groupBy('a, 'c).select('a, 'c)
 
     val expected = unaryNode(
-      "DataSetAggregate",
+      "DataSetDistinct",
       unaryNode(
         "DataSetCalc",
         batchTableNode(0),
         term("select", "a", "c")
       ),
-      term("groupBy", "a", "c"),
-      term("select", "a", "c")
+      term("distinct", "a", "c")
     )
 
     util.verifyTable(resultTable, expected)
@@ -169,7 +167,7 @@ class FieldProjectionTest extends TableTestBase {
           term("groupBy", "c"),
           term("select", "c", "SUM(a) AS TMP_0")
         ),
-        term("select", "TMP_0 AS TMP_1")
+        term("select", "TMP_0")
       )
 
     util.verifyTable(resultTable, expected)
@@ -193,7 +191,7 @@ class FieldProjectionTest extends TableTestBase {
           term("groupBy", "k"),
           term("select", "k", "SUM(a) AS TMP_0")
         ),
-        term("select", "TMP_0 AS TMP_1")
+        term("select", "TMP_0")
       )
 
     util.verifyTable(resultTable, expected)
@@ -212,12 +210,12 @@ class FieldProjectionTest extends TableTestBase {
           unaryNode(
             "DataSetCalc",
             batchTableNode(0),
-            term("select", "a", "c", s"${MyHashCode.getClass.getCanonicalName}(c) AS k")
+            term("select", "a", "c", s"${MyHashCode.functionIdentifier}(c) AS k")
           ),
           term("groupBy", "k"),
           term("select", "k", "SUM(a) AS TMP_0")
         ),
-        term("select", "TMP_0 AS TMP_1")
+        term("select", "TMP_0")
       )
 
     util.verifyTable(resultTable, expected)
@@ -275,7 +273,7 @@ class FieldProjectionTest extends TableTestBase {
               5.millis)),
           term("select", "b", "COUNT($f3) AS TMP_0", "SUM(a) AS TMP_1")
         ),
-        term("select", "TMP_0 AS TMP_2", "TMP_1 AS TMP_3", "b")
+        term("select", "TMP_0", "TMP_1", "b")
     )
 
     streamUtil.verifyTable(resultTable, expected)
@@ -297,8 +295,8 @@ class FieldProjectionTest extends TableTestBase {
           term("groupBy", "word"),
           term("select", "word", "SUM(frequency) AS TMP_0")
         ),
-        term("select", "word, frequency"),
-        term("where", "=(frequency, 2)")
+        term("select", "word, TMP_0 AS frequency"),
+        term("where", "=(TMP_0, 2)")
       )
 
     util.verifyTable(resultTable, expected)

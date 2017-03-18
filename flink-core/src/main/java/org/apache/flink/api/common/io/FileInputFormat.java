@@ -481,7 +481,7 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 			totalLength += pathFile.getLen();
 		}
 		// returns if unsplittable
-		if(unsplittable) {
+		if (unsplittable) {
 			int splitNum = 0;
 			for (final FileStatus file : files) {
 				final BlockLocation[] blocks = fs.getFileBlockLocations(file, 0, file.getLen());

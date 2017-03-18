@@ -38,8 +38,7 @@ public class StreamIterationTail<IN> extends OneInputStreamTask<IN, IN> {
 
 	@Override
 	public void init() throws Exception {
-		super.init();
-		
+
 		final String iterationId = getConfiguration().getIterationId();
 		if (iterationId == null || iterationId.length() == 0) {
 			throw new Exception("Missing iteration ID in the task configuration");
@@ -51,15 +50,18 @@ public class StreamIterationTail<IN> extends OneInputStreamTask<IN, IN> {
 		final long iterationWaitTime = getConfiguration().getIterationWaitTime();
 
 		LOG.info("Iteration tail {} trying to acquire feedback queue under {}", getName(), brokerID);
-		
+
 		@SuppressWarnings("unchecked")
 		BlockingQueue<StreamRecord<IN>> dataChannel =
 				(BlockingQueue<StreamRecord<IN>>) BlockingQueueBroker.INSTANCE.get(brokerID);
-		
+
 		LOG.info("Iteration tail {} acquired feedback queue {}", getName(), brokerID);
-		
+
 		this.headOperator = new RecordPusher<>();
 		this.headOperator.setup(this, getConfiguration(), new IterationTailOutput<>(dataChannel, iterationWaitTime));
+
+		// call super.init() last because that needs this.headOperator to be set up
+		super.init();
 	}
 
 	private static class RecordPusher<IN> extends AbstractStreamOperator<IN> implements OneInputStreamOperator<IN, IN> {

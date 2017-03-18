@@ -120,7 +120,7 @@ class UserDefinedTableFunctionTest extends TableTestBase {
       unaryNode(
         "DataSetCorrelate",
         batchTableNode(0),
-        term("invocation", s"$function($$2)"),
+        term("invocation", s"${function.functionIdentifier}($$2)"),
         term("function", function),
         term("rowType",
              "RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) s)"),
@@ -140,7 +140,7 @@ class UserDefinedTableFunctionTest extends TableTestBase {
       unaryNode(
         "DataSetCorrelate",
         batchTableNode(0),
-        term("invocation", s"$function($$2, '$$')"),
+        term("invocation", s"${function.functionIdentifier}($$2, '$$')"),
         term("function", function),
         term("rowType",
              "RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) s)"),
@@ -165,7 +165,7 @@ class UserDefinedTableFunctionTest extends TableTestBase {
       unaryNode(
         "DataSetCorrelate",
         batchTableNode(0),
-        term("invocation", s"$function($$2)"),
+        term("invocation", s"${function.functionIdentifier}($$2)"),
         term("function", function),
         term("rowType",
           "RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) s)"),

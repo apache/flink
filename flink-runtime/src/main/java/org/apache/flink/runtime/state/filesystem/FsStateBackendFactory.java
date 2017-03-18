@@ -23,6 +23,8 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.StateBackendFactory;
 
+import java.io.IOException;
+
 /**
  * A factory that creates an {@link org.apache.flink.runtime.state.filesystem.FsStateBackend}
  * from a configuration.
@@ -35,28 +37,26 @@ public class FsStateBackendFactory implements StateBackendFactory<FsStateBackend
 	/** The key under which the config stores the threshold for state to be store in memory,
 	 * rather than in files */
 	public static final String MEMORY_THRESHOLD_CONF_KEY = "state.backend.fs.memory-threshold";
-	
-	
+
+
 	@Override
-	public FsStateBackend createFromConfig(Configuration config) throws Exception {
-		String checkpointDirURI = config.getString(CHECKPOINT_DIRECTORY_URI_CONF_KEY, null);
-		int memoryThreshold = config.getInteger(
+	public FsStateBackend createFromConfig(Configuration config) throws IllegalConfigurationException {
+		final String checkpointDirURI = config.getString(CHECKPOINT_DIRECTORY_URI_CONF_KEY, null);
+		final int memoryThreshold = config.getInteger(
 			MEMORY_THRESHOLD_CONF_KEY, FsStateBackend.DEFAULT_FILE_STATE_THRESHOLD);
-		
+
 		if (checkpointDirURI == null) {
 			throw new IllegalConfigurationException(
 					"Cannot create the file system state backend: The configuration does not specify the " +
 							"checkpoint directory '" + CHECKPOINT_DIRECTORY_URI_CONF_KEY + '\'');
 		}
-		
+
 		try {
 			Path path = new Path(checkpointDirURI);
 			return new FsStateBackend(path.toUri(), memoryThreshold);
 		}
-		catch (IllegalArgumentException e) {
-			throw new Exception("Cannot initialize File System State Backend with URI '"
-					+ checkpointDirURI + '.', e);
+		catch (IOException | IllegalArgumentException e) {
+			throw new IllegalConfigurationException("Invalid configuration for the state backend", e);
 		}
-		
 	}
 }

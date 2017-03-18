@@ -21,10 +21,11 @@ package org.apache.flink.table.plan.nodes.datastream
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.plan.schema.DataStreamTable
+import org.apache.calcite.rel.core.TableScan
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.StreamTableEnvironment
+import org.apache.flink.table.plan.schema.DataStreamTable
+import org.apache.flink.types.Row
 
 /**
   * Flink RelNode which matches along with DataStreamSource.
@@ -36,11 +37,12 @@ class DataStreamScan(
     traitSet: RelTraitSet,
     table: RelOptTable,
     rowRelDataType: RelDataType)
-  extends StreamScan(cluster, traitSet, table) {
+  extends TableScan(cluster, traitSet, table)
+  with StreamScan {
 
   val dataStreamTable: DataStreamTable[Any] = getTable.unwrap(classOf[DataStreamTable[Any]])
 
-  override def deriveRowType() = rowRelDataType
+  override def deriveRowType(): RelDataType = rowRelDataType
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new DataStreamScan(
@@ -51,14 +53,10 @@ class DataStreamScan(
     )
   }
 
-  override def translateToPlan(
-      tableEnv: StreamTableEnvironment,
-      expectedType: Option[TypeInformation[Any]]): DataStream[Any] = {
-
+  override def translateToPlan(tableEnv: StreamTableEnvironment): DataStream[Row] = {
     val config = tableEnv.getConfig
     val inputDataStream: DataStream[Any] = dataStreamTable.dataStream
-
-    convertToExpectedType(inputDataStream, dataStreamTable, expectedType, config)
+    convertToInternalRow(inputDataStream, dataStreamTable, config)
   }
 
 }

@@ -48,7 +48,7 @@ import io.netty.handler.codec.http.multipart.HttpPostRequestDecoder;
 import io.netty.handler.codec.http.multipart.HttpPostRequestDecoder.EndOfDataDecoderException;
 import io.netty.handler.codec.http.multipart.InterfaceHttpData;
 import io.netty.handler.codec.http.multipart.InterfaceHttpData.HttpDataType;
-
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.util.ExceptionUtils;
 
 import java.io.File;
@@ -65,7 +65,7 @@ import java.util.UUID;
 @ChannelHandler.Sharable
 public class HttpRequestHandler extends SimpleChannelInboundHandler<HttpObject> {
 
-	private static final Charset ENCODING = Charset.forName("UTF-8");
+	private static final Charset ENCODING = ConfigConstants.DEFAULT_CHARSET;
 
 	/** A decoder factory that always stores POST chunks on disk */
 	private static final HttpDataFactory DATA_FACTORY = new DefaultHttpDataFactory(true);
@@ -107,8 +107,8 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<HttpObject> 
 				else if (currentRequest.getMethod() == HttpMethod.POST) {
 					// POST comes in multiple objects. First the request, then the contents
 					// keep the request and path for the remaining objects of the POST request
-					currentRequestPath = new QueryStringDecoder(currentRequest.getUri()).path();
-					currentDecoder = new HttpPostRequestDecoder(DATA_FACTORY, currentRequest);
+					currentRequestPath = new QueryStringDecoder(currentRequest.getUri(), ENCODING).path();
+					currentDecoder = new HttpPostRequestDecoder(DATA_FACTORY, currentRequest, ENCODING);
 				}
 				else {
 					throw new IOException("Unsupported HTTP method: " + currentRequest.getMethod().name());

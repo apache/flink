@@ -19,11 +19,11 @@ package org.apache.flink.yarn;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -32,6 +32,7 @@ import org.junit.rules.TemporaryFolder;
 import java.io.File;
 import java.io.IOException;
 
+import static org.junit.Assert.fail;
 import static org.junit.Assert.assertEquals;
 
 public class YarnClusterDescriptorTest {
@@ -64,8 +65,13 @@ public class YarnClusterDescriptorTest {
 
 		try {
 			clusterDescriptor.deploy();
-		} catch (Exception e) {
-			Assert.assertTrue(e.getCause() instanceof IllegalConfigurationException);
+
+			fail("The deploy call should have failed.");
+		} catch (RuntimeException e) {
+			// we expect the cause to be an IllegalConfigurationException
+			if (!(e.getCause() instanceof IllegalConfigurationException)) {
+				throw e;
+			}
 		}
 	}
 
@@ -88,9 +94,13 @@ public class YarnClusterDescriptorTest {
 
 		try {
 			clusterDescriptor.deploy();
-		} catch (Exception e) {
-			e.printStackTrace();
-			Assert.assertTrue(e.getCause() instanceof IllegalConfigurationException);
+
+			fail("The deploy call should have failed.");
+		} catch (RuntimeException e) {
+			// we expect the cause to be an IllegalConfigurationException
+			if (!(e.getCause() instanceof IllegalConfigurationException)) {
+				throw e;
+			}
 		}
 	}
 
@@ -103,6 +113,7 @@ public class YarnClusterDescriptorTest {
 		final String java = "$JAVA_HOME/bin/java";
 		final String jvmmem = "-Xmx424m";
 		final String jvmOpts = "-Djvm"; // if set
+		final String jmJvmOpts = "-DjmJvm"; // if set
 		final String krb5 = "-Djava.security.krb5.conf=krb5.conf";
 		final String logfile =
 			"-Dlog.file=\"" + ApplicationConstants.LOG_DIR_EXPANSION_VAR +
@@ -194,7 +205,7 @@ public class YarnClusterDescriptorTest {
 				.getCommands().get(0));
 
 		// logback + log4j, with/out krb5, different JVM opts
-		cfg.setString(ConfigConstants.FLINK_JVM_OPTIONS, jvmOpts);
+		cfg.setString(CoreOptions.FLINK_JVM_OPTIONS, jvmOpts);
 		assertEquals(
 			java + " " + jvmmem +
 				" " + jvmOpts +
@@ -213,13 +224,33 @@ public class YarnClusterDescriptorTest {
 				.setupApplicationMasterContainer(true, true, true)
 				.getCommands().get(0));
 
+		// logback + log4j, with/out krb5, different JVM opts
+		cfg.setString(CoreOptions.FLINK_JM_JVM_OPTIONS, jmJvmOpts);
+		assertEquals(
+			java + " " + jvmmem +
+				" " + jvmOpts + " " + jmJvmOpts +
+				" " + logfile + " " + logback + " " + log4j +
+				" " + mainClass + " "  + args + " "+ redirects,
+			clusterDescriptor
+				.setupApplicationMasterContainer(true, true, false)
+				.getCommands().get(0));
+
+		assertEquals(
+			java + " " + jvmmem +
+				" " + jvmOpts + " " + jmJvmOpts + " " + krb5 +// jvmOpts
+				" " + logfile + " " + logback + " " + log4j +
+				" " + mainClass + " "  + args + " "+ redirects,
+			clusterDescriptor
+				.setupApplicationMasterContainer(true, true, true)
+				.getCommands().get(0));
+
 		// now try some configurations with different yarn.container-start-command-template
 
 		cfg.setString(ConfigConstants.YARN_CONTAINER_START_COMMAND_TEMPLATE,
 			"%java% 1 %jvmmem% 2 %jvmopts% 3 %logging% 4 %class% 5 %args% 6 %redirects%");
 		assertEquals(
 			java + " 1 " + jvmmem +
-				" 2 " + jvmOpts + " " + krb5 + // jvmOpts
+				" 2 " + jvmOpts + " " + jmJvmOpts + " " + krb5 + // jvmOpts
 				" 3 " + logfile + " " + logback + " " + log4j +
 				" 4 " + mainClass + " 5 " + args + " 6 " + redirects,
 			clusterDescriptor
@@ -231,7 +262,7 @@ public class YarnClusterDescriptorTest {
 		assertEquals(
 			java +
 				" " + logfile + " " + logback + " " + log4j +
-				" " + jvmOpts + " " + krb5 + // jvmOpts
+				" " + jvmOpts + " " + jmJvmOpts + " " + krb5 + // jvmOpts
 				" " + jvmmem +
 				" " + mainClass + " " + args + " " + redirects,
 			clusterDescriptor

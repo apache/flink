@@ -86,8 +86,8 @@ public class ReducingStateDescriptor<T> extends StateDescriptor<ReducingState<T>
 	// ------------------------------------------------------------------------
 	
 	@Override
-	public ReducingState<T> bind(StateBackend stateBackend) throws Exception {
-		return stateBackend.createReducingState(this);
+	public ReducingState<T> bind(StateBinder stateBinder) throws Exception {
+		return stateBinder.createReducingState(this);
 	}
 
 	/**

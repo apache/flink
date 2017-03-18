@@ -61,6 +61,8 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
+import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.testutils.DataGenerators;
 import org.apache.flink.streaming.connectors.kafka.testutils.FailingIdentityMapper;
 import org.apache.flink.streaming.connectors.kafka.testutils.JobManagerCommunicationUtils;
@@ -232,9 +234,9 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		runner.start();
 
 		final Long l50 = 50L; // the final committed offset in Kafka should be 50
-		final long deadline = 30000 + System.currentTimeMillis();
+		final long deadline = 30_000_000_000L + System.nanoTime();
 
-		KafkaTestEnvironment.KafkaOffsetHandler kafkaOffsetHandler = kafkaServer.createOffsetHandler(standardProps);
+		KafkaTestEnvironment.KafkaOffsetHandler kafkaOffsetHandler = kafkaServer.createOffsetHandler();
 
 		do {
 			Long o1 = kafkaOffsetHandler.getCommittedOffset(topicName, 0);
@@ -247,7 +249,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 			Thread.sleep(100);
 		}
-		while (System.currentTimeMillis() < deadline);
+		while (System.nanoTime() < deadline);
 
 		// cancel the job
 		JobManagerCommunicationUtils.cancelCurrentJob(flink.getLeaderGateway(timeout));
@@ -281,7 +283,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 		final String topicName = writeSequence("testStartFromKafkaCommitOffsetsTopic", recordsInEachPartition, parallelism, 1);
 
-		KafkaTestEnvironment.KafkaOffsetHandler kafkaOffsetHandler = kafkaServer.createOffsetHandler(standardProps);
+		KafkaTestEnvironment.KafkaOffsetHandler kafkaOffsetHandler = kafkaServer.createOffsetHandler();
 
 		Long o1;
 		Long o2;
@@ -348,7 +350,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			(o3 != null) ? o3.intValue() : 0
 		));
 
-		readSequence(env2, standardProps, topicName, partitionsToValuesCountAndStartOffset);
+		readSequence(env2, StartupMode.GROUP_OFFSETS, null, standardProps, topicName, partitionsToValuesCountAndStartOffset);
 
 		kafkaOffsetHandler.close();
 		deleteTestTopic(topicName);
@@ -402,10 +404,10 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		};
 		runner.start();
 
-		KafkaTestEnvironment.KafkaOffsetHandler kafkaOffsetHandler = kafkaServer.createOffsetHandler(standardProps);
+		KafkaTestEnvironment.KafkaOffsetHandler kafkaOffsetHandler = kafkaServer.createOffsetHandler();
 
 		final Long l50 = 50L; // the final committed offset in Kafka should be 50
-		final long deadline = 30000 + System.currentTimeMillis();
+		final long deadline = 30_000_000_000L + System.nanoTime();
 		do {
 			Long o1 = kafkaOffsetHandler.getCommittedOffset(topicName, 0);
 			Long o2 = kafkaOffsetHandler.getCommittedOffset(topicName, 1);
@@ -417,7 +419,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 			Thread.sleep(100);
 		}
-		while (System.currentTimeMillis() < deadline);
+		while (System.nanoTime() < deadline);
 
 		// cancel the job
 		JobManagerCommunicationUtils.cancelCurrentJob(flink.getLeaderGateway(timeout));
@@ -434,6 +436,281 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		Assert.assertEquals(Long.valueOf(50L), o1);
 		Assert.assertEquals(Long.valueOf(50L), o2);
 		Assert.assertEquals(Long.valueOf(50L), o3);
+
+		kafkaOffsetHandler.close();
+		deleteTestTopic(topicName);
+	}
+
+	/**
+	 * This test ensures that when explicitly set to start from earliest record, the consumer
+	 * ignores the "auto.offset.reset" behaviour as well as any committed group offsets in Kafka.
+	 */
+	public void runStartFromEarliestOffsets() throws Exception {
+		// 3 partitions with 50 records each (0-49, so the expected commit offset of each partition should be 50)
+		final int parallelism = 3;
+		final int recordsInEachPartition = 50;
+
+		final String topicName = writeSequence("testStartFromEarliestOffsetsTopic", recordsInEachPartition, parallelism, 1);
+
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		env.getConfig().disableSysoutLogging();
+		env.setParallelism(parallelism);
+
+		Properties readProps = new Properties();
+		readProps.putAll(standardProps);
+		readProps.setProperty("auto.offset.reset", "latest"); // this should be ignored
+
+		// the committed offsets should be ignored
+		KafkaTestEnvironment.KafkaOffsetHandler kafkaOffsetHandler = kafkaServer.createOffsetHandler();
+		kafkaOffsetHandler.setCommittedOffset(topicName, 0, 23);
+		kafkaOffsetHandler.setCommittedOffset(topicName, 1, 31);
+		kafkaOffsetHandler.setCommittedOffset(topicName, 2, 43);
+
+		readSequence(env, StartupMode.EARLIEST, null, readProps, parallelism, topicName, recordsInEachPartition, 0);
+
+		kafkaOffsetHandler.close();
+		deleteTestTopic(topicName);
+	}
+
+	/**
+	 * This test ensures that when explicitly set to start from latest record, the consumer
+	 * ignores the "auto.offset.reset" behaviour as well as any committed group offsets in Kafka.
+	 */
+	public void runStartFromLatestOffsets() throws Exception {
+		// 50 records written to each of 3 partitions before launching a latest-starting consuming job
+		final int parallelism = 3;
+		final int recordsInEachPartition = 50;
+
+		// each partition will be written an extra 200 records
+		final int extraRecordsInEachPartition = 200;
+
+		// all already existing data in the topic, before the consuming topology has started, should be ignored
+		final String topicName = writeSequence("testStartFromLatestOffsetsTopic", recordsInEachPartition, parallelism, 1);
+
+		// the committed offsets should be ignored
+		KafkaTestEnvironment.KafkaOffsetHandler kafkaOffsetHandler = kafkaServer.createOffsetHandler();
+		kafkaOffsetHandler.setCommittedOffset(topicName, 0, 23);
+		kafkaOffsetHandler.setCommittedOffset(topicName, 1, 31);
+		kafkaOffsetHandler.setCommittedOffset(topicName, 2, 43);
+
+		// job names for the topologies for writing and consuming the extra records
+		final String consumeExtraRecordsJobName = "Consume Extra Records Job";
+		final String writeExtraRecordsJobName = "Write Extra Records Job";
+
+		// seriliazation / deserialization schemas for writing and consuming the extra records
+		final TypeInformation<Tuple2<Integer, Integer>> resultType =
+			TypeInformation.of(new TypeHint<Tuple2<Integer, Integer>>() {});
+
+		final KeyedSerializationSchema<Tuple2<Integer, Integer>> serSchema =
+			new KeyedSerializationSchemaWrapper<>(
+				new TypeInformationSerializationSchema<>(resultType, new ExecutionConfig()));
+
+		final KeyedDeserializationSchema<Tuple2<Integer, Integer>> deserSchema =
+			new KeyedDeserializationSchemaWrapper<>(
+				new TypeInformationSerializationSchema<>(resultType, new ExecutionConfig()));
+
+		// setup and run the latest-consuming job
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		env.getConfig().disableSysoutLogging();
+		env.setParallelism(parallelism);
+
+		final Properties readProps = new Properties();
+		readProps.putAll(standardProps);
+		readProps.setProperty("auto.offset.reset", "earliest"); // this should be ignored
+
+		FlinkKafkaConsumerBase<Tuple2<Integer, Integer>> latestReadingConsumer =
+			kafkaServer.getConsumer(topicName, deserSchema, readProps);
+		latestReadingConsumer.setStartFromLatest();
+
+		env
+			.addSource(latestReadingConsumer).setParallelism(parallelism)
+			.flatMap(new FlatMapFunction<Tuple2<Integer,Integer>, Object>() {
+				@Override
+				public void flatMap(Tuple2<Integer, Integer> value, Collector<Object> out) throws Exception {
+					if (value.f1 - recordsInEachPartition < 0) {
+						throw new RuntimeException("test failed; consumed a record that was previously written: " + value);
+					}
+				}
+			}).setParallelism(1)
+			.addSink(new DiscardingSink<>());
+
+		final AtomicReference<Throwable> error = new AtomicReference<>();
+		Thread consumeThread = new Thread(new Runnable() {
+			@Override
+			public void run() {
+				try {
+					env.execute(consumeExtraRecordsJobName);
+				} catch (Throwable t) {
+					if (!(t.getCause() instanceof JobCancellationException)) {
+						error.set(t);
+					}
+				}
+			}
+		});
+		consumeThread.start();
+
+		// wait until the consuming job has started, to be extra safe
+		JobManagerCommunicationUtils.waitUntilJobIsRunning(
+			flink.getLeaderGateway(timeout),
+			consumeExtraRecordsJobName);
+
+		// setup the extra records writing job
+		final StreamExecutionEnvironment env2 = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+
+		DataStream<Tuple2<Integer, Integer>> extraRecordsStream = env2
+			.addSource(new RichParallelSourceFunction<Tuple2<Integer, Integer>>() {
+
+				private boolean running = true;
+
+				@Override
+				public void run(SourceContext<Tuple2<Integer, Integer>> ctx) throws Exception {
+					int count = recordsInEachPartition; // the extra records should start from the last written value
+					int partition = getRuntimeContext().getIndexOfThisSubtask();
+
+					while (running && count < recordsInEachPartition + extraRecordsInEachPartition) {
+						ctx.collect(new Tuple2<>(partition, count));
+						count++;
+					}
+				}
+
+				@Override
+				public void cancel() {
+					running = false;
+				}
+			}).setParallelism(parallelism);
+
+		kafkaServer.produceIntoKafka(extraRecordsStream, topicName, serSchema, readProps, null);
+
+		try {
+			env2.execute(writeExtraRecordsJobName);
+		}
+		catch (Exception e) {
+			throw new RuntimeException("Writing extra records failed", e);
+		}
+
+		// cancel the consume job after all extra records are written
+		JobManagerCommunicationUtils.cancelCurrentJob(
+			flink.getLeaderGateway(timeout),
+			consumeExtraRecordsJobName);
+		consumeThread.join();
+
+		kafkaOffsetHandler.close();
+		deleteTestTopic(topicName);
+
+		// check whether the consuming thread threw any test errors;
+		// test will fail here if the consume job had incorrectly read any records other than the extra records
+		final Throwable consumerError = error.get();
+		if (consumerError != null) {
+			throw new Exception("Exception in the consuming thread", consumerError);
+		}
+	}
+
+	/**
+	 * This test ensures that the consumer correctly uses group offsets in Kafka, and defaults to "auto.offset.reset"
+	 * behaviour when necessary, when explicitly configured to start from group offsets.
+	 *
+	 * The partitions and their committed group offsets are setup as:
+	 * 	partition 0 --> committed offset 23
+	 * 	partition 1 --> no commit offset
+	 * 	partition 2 --> committed offset 43
+	 *
+	 * When configured to start from group offsets, each partition should read:
+	 * 	partition 0 --> start from offset 23, read to offset 49 (27 records)
+	 * 	partition 1 --> default to "auto.offset.reset" (set to earliest), so start from offset 0, read to offset 49 (50 records)
+	 * 	partition 2 --> start from offset 43, read to offset 49 (7 records)
+	 */
+	public void runStartFromGroupOffsets() throws Exception {
+		// 3 partitions with 50 records each (offsets 0-49)
+		final int parallelism = 3;
+		final int recordsInEachPartition = 50;
+
+		final String topicName = writeSequence("testStartFromGroupOffsetsTopic", recordsInEachPartition, parallelism, 1);
+
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		env.getConfig().disableSysoutLogging();
+		env.setParallelism(parallelism);
+
+		Properties readProps = new Properties();
+		readProps.putAll(standardProps);
+		readProps.setProperty("auto.offset.reset", "earliest");
+
+		// the committed group offsets should be used as starting points
+		KafkaTestEnvironment.KafkaOffsetHandler kafkaOffsetHandler = kafkaServer.createOffsetHandler();
+
+		// only partitions 0 and 2 have group offsets committed
+		kafkaOffsetHandler.setCommittedOffset(topicName, 0, 23);
+		kafkaOffsetHandler.setCommittedOffset(topicName, 2, 43);
+
+		Map<Integer, Tuple2<Integer, Integer>> partitionsToValueCountAndStartOffsets = new HashMap<>();
+		partitionsToValueCountAndStartOffsets.put(0, new Tuple2<>(27, 23)); // partition 0 should read offset 23-49
+		partitionsToValueCountAndStartOffsets.put(1, new Tuple2<>(50, 0)); // partition 1 should read offset 0-49
+		partitionsToValueCountAndStartOffsets.put(2, new Tuple2<>(7, 43));	// partition 2 should read offset 43-49
+
+		readSequence(env, StartupMode.GROUP_OFFSETS, null, readProps, topicName, partitionsToValueCountAndStartOffsets);
+
+		kafkaOffsetHandler.close();
+		deleteTestTopic(topicName);
+	}
+
+	/**
+	 * This test ensures that the consumer correctly uses user-supplied specific offsets when explicitly configured to
+	 * start from specific offsets. For partitions which a specific offset can not be found for, the starting position
+	 * for them should fallback to the group offsets behaviour.
+	 *
+	 * 4 partitions will have 50 records with offsets 0 to 49. The supplied specific offsets map is:
+	 * 	partition 0 --> start from offset 19
+	 * 	partition 1 --> not set
+	 * 	partition 2 --> start from offset 22
+	 * 	partition 3 --> not set
+	 * 	partition 4 --> start from offset 26 (this should be ignored because the partition does not exist)
+	 *
+	 * The partitions and their committed group offsets are setup as:
+	 * 	partition 0 --> committed offset 23
+	 * 	partition 1 --> committed offset 31
+	 * 	partition 2 --> committed offset 43
+	 * 	partition 3 --> no commit offset
+	 *
+	 * When configured to start from these specific offsets, each partition should read:
+	 * 	partition 0 --> start from offset 19, read to offset 49 (31 records)
+	 * 	partition 1 --> fallback to group offsets, so start from offset 31, read to offset 49 (19 records)
+	 * 	partition 2 --> start from offset 22, read to offset 49 (28 records)
+	 * 	partition 3 --> fallback to group offsets, but since there is no group offset for this partition,
+	 * 	                will default to "auto.offset.reset" (set to "earliest"),
+	 * 	                so start from offset 0, read to offset 49 (50 records)
+	 */
+	public void runStartFromSpecificOffsets() throws Exception {
+		// 4 partitions with 50 records each (offsets 0-49)
+		final int parallelism = 4;
+		final int recordsInEachPartition = 50;
+
+		final String topicName = writeSequence("testStartFromSpecificOffsetsTopic", recordsInEachPartition, parallelism, 1);
+
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		env.getConfig().disableSysoutLogging();
+		env.setParallelism(parallelism);
+
+		Properties readProps = new Properties();
+		readProps.putAll(standardProps);
+		readProps.setProperty("auto.offset.reset", "earliest"); // partition 3 should default back to this behaviour
+
+		Map<KafkaTopicPartition, Long> specificStartupOffsets = new HashMap<>();
+		specificStartupOffsets.put(new KafkaTopicPartition(topicName, 0), 19L);
+		specificStartupOffsets.put(new KafkaTopicPartition(topicName, 2), 22L);
+		specificStartupOffsets.put(new KafkaTopicPartition(topicName, 4), 26L); // non-existing partition, should be ignored
+
+		// only the committed offset for partition 1 should be used, because partition 1 has no entry in specific offset map
+		KafkaTestEnvironment.KafkaOffsetHandler kafkaOffsetHandler = kafkaServer.createOffsetHandler();
+		kafkaOffsetHandler.setCommittedOffset(topicName, 0, 23);
+		kafkaOffsetHandler.setCommittedOffset(topicName, 1, 31);
+		kafkaOffsetHandler.setCommittedOffset(topicName, 2, 43);
+
+		Map<Integer, Tuple2<Integer, Integer>> partitionsToValueCountAndStartOffsets = new HashMap<>();
+		partitionsToValueCountAndStartOffsets.put(0, new Tuple2<>(31, 19)); // partition 0 should read offset 19-49
+		partitionsToValueCountAndStartOffsets.put(1, new Tuple2<>(19, 31)); // partition 1 should read offset 31-49
+		partitionsToValueCountAndStartOffsets.put(2, new Tuple2<>(28, 22));	// partition 2 should read offset 22-49
+		partitionsToValueCountAndStartOffsets.put(3, new Tuple2<>(50, 0));	// partition 3 should read offset 0-49
+
+		readSequence(env, StartupMode.SPECIFIC_OFFSETS, specificStartupOffsets, readProps, topicName, partitionsToValueCountAndStartOffsets);
 
 		kafkaOffsetHandler.close();
 		deleteTestTopic(topicName);
@@ -1014,27 +1291,6 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		}
 	}
 
-	/**
-	 * Serialization scheme forwarding byte[] records.
-	 */
-	private static class ByteArraySerializationSchema implements KeyedSerializationSchema<byte[]> {
-
-		@Override
-		public byte[] serializeKey(byte[] element) {
-			return null;
-		}
-
-		@Override
-		public byte[] serializeValue(byte[] element) {
-			return element;
-		}
-
-		@Override
-		public String getTargetTopic(byte[] element) {
-			return null;
-		}
-	}
-
 	private static class Tuple2WithTopicSchema implements KeyedDeserializationSchema<Tuple3<Integer, Integer, String>>,
 			KeyedSerializationSchema<Tuple3<Integer, Integer, String>> {
 
@@ -1588,7 +1844,10 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 	 * The method allows to individually specify the expected starting offset and total read value count of each partition.
 	 * The job will be considered successful only if all partition read results match the start offset and value count criteria.
 	 */
-	protected void readSequence(StreamExecutionEnvironment env, Properties cc,
+	protected void readSequence(final StreamExecutionEnvironment env,
+								final StartupMode startupMode,
+								final Map<KafkaTopicPartition, Long> specificStartupOffsets,
+								final Properties cc,
 								final String topicName,
 								final Map<Integer, Tuple2<Integer, Integer>> partitionsToValuesCountAndStartOffset) throws Exception {
 		final int sourceParallelism = partitionsToValuesCountAndStartOffset.keySet().size();
@@ -1607,6 +1866,20 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		// create the consumer
 		cc.putAll(secureProps);
 		FlinkKafkaConsumerBase<Tuple2<Integer, Integer>> consumer = kafkaServer.getConsumer(topicName, deser, cc);
+		switch (startupMode) {
+			case EARLIEST:
+				consumer.setStartFromEarliest();
+				break;
+			case LATEST:
+				consumer.setStartFromLatest();
+				break;
+			case SPECIFIC_OFFSETS:
+				consumer.setStartFromSpecificOffsets(specificStartupOffsets);
+				break;
+			case GROUP_OFFSETS:
+				consumer.setStartFromGroupOffsets();
+				break;
+		}
 
 		DataStream<Tuple2<Integer, Integer>> source = env
 			.addSource(consumer).setParallelism(sourceParallelism)
@@ -1670,18 +1943,22 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 	}
 
 	/**
-	 * Variant of {@link KafkaConsumerTestBase#readSequence(StreamExecutionEnvironment, Properties, String, Map)} to
+	 * Variant of {@link KafkaConsumerTestBase#readSequence(StreamExecutionEnvironment, StartupMode, Map, Properties, String, Map)} to
 	 * expect reading from the same start offset and the same value count for all partitions of a single Kafka topic.
 	 */
-	protected void readSequence(StreamExecutionEnvironment env, Properties cc,
+	protected void readSequence(final StreamExecutionEnvironment env,
+								final StartupMode startupMode,
+								final Map<KafkaTopicPartition, Long> specificStartupOffsets,
+								final Properties cc,
 								final int sourceParallelism,
 								final String topicName,
-								final int valuesCount, final int startFrom) throws Exception {
+								final int valuesCount,
+								final int startFrom) throws Exception {
 		HashMap<Integer, Tuple2<Integer, Integer>> partitionsToValuesCountAndStartOffset = new HashMap<>();
 		for (int i = 0; i < sourceParallelism; i++) {
 			partitionsToValuesCountAndStartOffset.put(i, new Tuple2<>(valuesCount, startFrom));
 		}
-		readSequence(env, cc, topicName, partitionsToValuesCountAndStartOffset);
+		readSequence(env, startupMode, specificStartupOffsets, cc, topicName, partitionsToValuesCountAndStartOffset);
 	}
 
 	protected String writeSequence(
@@ -1811,10 +2088,10 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			};
 			runner.start();
 			
-			final long deadline = System.currentTimeMillis() + 10000;
+			final long deadline = System.nanoTime() + 10_000_000_000L;
 			long delay;
-			while (runner.isAlive() && (delay = deadline - System.currentTimeMillis()) > 0) {
-				runner.join(delay);
+			while (runner.isAlive() && (delay = deadline - System.nanoTime()) > 0) {
+				runner.join(delay/1_000_000L);
 			}
 			
 			boolean success;

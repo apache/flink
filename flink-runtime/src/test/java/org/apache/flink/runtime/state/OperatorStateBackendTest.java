@@ -20,13 +20,17 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.util.FutureUtil;
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.concurrent.RunnableFuture;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -143,6 +147,19 @@ public class OperatorStateBackendTest {
 	}
 
 	@Test
+	public void testSnapshotEmpty() throws Exception {
+		DefaultOperatorStateBackend operatorStateBackend = createNewOperatorStateBackend();
+		CheckpointStreamFactory streamFactory =
+				abstractStateBackend.createStreamFactory(new JobID(), "testOperator");
+
+		RunnableFuture<OperatorStateHandle> snapshot =
+				operatorStateBackend.snapshot(0L, 0L, streamFactory, CheckpointOptions.forFullCheckpoint());
+
+		OperatorStateHandle stateHandle = FutureUtil.runIfNotDoneAndGet(snapshot);
+		Assert.assertNull(stateHandle);
+	}
+
+	@Test
 	public void testSnapshotRestore() throws Exception {
 		DefaultOperatorStateBackend operatorStateBackend = createNewOperatorStateBackend();
 		ListStateDescriptor<Serializable> stateDescriptor1 = new ListStateDescriptor<>("test1", new JavaSerializer<>());
@@ -165,7 +182,8 @@ public class OperatorStateBackendTest {
 		listState3.add(20);
 
 		CheckpointStreamFactory streamFactory = abstractStateBackend.createStreamFactory(new JobID(), "testOperator");
-		OperatorStateHandle stateHandle = operatorStateBackend.snapshot(1, 1, streamFactory).get();
+		OperatorStateHandle stateHandle = FutureUtil.runIfNotDoneAndGet(
+				operatorStateBackend.snapshot(1, 1, streamFactory, CheckpointOptions.forFullCheckpoint()));
 
 		try {
 

@@ -20,7 +20,6 @@ package org.apache.flink.streaming.connectors.kafka;
 import kafka.server.KafkaServer;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
-import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.connectors.kafka.partitioner.KafkaPartitioner;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
@@ -30,8 +29,6 @@ import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import java.util.Properties;
 
 /**
@@ -94,10 +91,11 @@ public abstract class KafkaTestEnvironment {
 
 	public interface KafkaOffsetHandler {
 		Long getCommittedOffset(String topicName, int partition);
+		void setCommittedOffset(String topicName, int partition, long offset);
 		void close();
 	}
 
-	public abstract KafkaOffsetHandler createOffsetHandler(Properties props);
+	public abstract KafkaOffsetHandler createOffsetHandler();
 
 	// -- leader failure simulation
 

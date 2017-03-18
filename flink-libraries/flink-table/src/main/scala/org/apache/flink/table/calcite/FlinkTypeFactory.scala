@@ -28,7 +28,7 @@ import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{NothingTypeInfo, PrimitiveArrayTypeInfo, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo
+import org.apache.flink.api.java.typeutils.{ObjectArrayTypeInfo, RowTypeInfo}
 import org.apache.flink.api.java.typeutils.ValueTypeInfo._
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.plan.schema.{CompositeRelDataType, GenericRelDataType}
@@ -36,8 +36,10 @@ import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
 import org.apache.flink.table.typeutils.TypeCheckUtils.isSimple
 import org.apache.flink.table.plan.schema.ArrayRelDataType
 import org.apache.flink.table.calcite.FlinkTypeFactory.typeInfoToSqlTypeName
+import org.apache.flink.types.Row
 
 import scala.collection.mutable
+import scala.collection.JavaConverters._
 
 /**
   * Flink specific type factory that represents the interface between Flink's [[TypeInformation]]
@@ -129,15 +131,18 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
   }
 
   override def createTypeWithNullability(
-    relDataType: RelDataType,
-    nullable: Boolean)
-  : RelDataType = relDataType match {
-    case composite: CompositeRelDataType =>
-      // at the moment we do not care about nullability
-      composite
-    case _ =>
-      super.createTypeWithNullability(relDataType, nullable)
-  }
+      relDataType: RelDataType,
+      nullable: Boolean)
+    : RelDataType = relDataType match {
+      case composite: CompositeRelDataType =>
+        // at the moment we do not care about nullability
+        canonize(composite)
+      case array: ArrayRelDataType =>
+        val elementType = createTypeWithNullability(array.getComponentType, nullable)
+        canonize(new ArrayRelDataType(array.typeInfo, elementType, nullable))
+      case _ =>
+        super.createTypeWithNullability(relDataType, nullable)
+    }
 }
 
 object FlinkTypeFactory {
@@ -165,6 +170,19 @@ object FlinkTypeFactory {
 
       case _@t =>
         throw TableException(s"Type is not supported: $t")
+  }
+
+  /**
+    * Converts a Calcite logical record into a Flink type information.
+    */
+  def toInternalRowTypeInfo(logicalRowType: RelDataType): TypeInformation[Row] = {
+    // convert to type information
+    val logicalFieldTypes = logicalRowType.getFieldList.asScala map { relDataType =>
+      FlinkTypeFactory.toTypeInfo(relDataType.getType)
+    }
+    // field names
+    val logicalFieldNames = logicalRowType.getFieldNames.asScala
+    new RowTypeInfo(logicalFieldTypes.toArray, logicalFieldNames.toArray)
   }
 
   def toTypeInfo(relDataType: RelDataType): TypeInformation[_] = relDataType.getSqlTypeName match {

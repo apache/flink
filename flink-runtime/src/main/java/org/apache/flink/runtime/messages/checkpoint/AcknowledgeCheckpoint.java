@@ -18,12 +18,11 @@
 
 package org.apache.flink.runtime.messages.checkpoint;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
+import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-
-import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * This message is sent from the {@link org.apache.flink.runtime.taskmanager.TaskManager} to the
@@ -39,32 +38,26 @@ public class AcknowledgeCheckpoint extends AbstractCheckpointMessage implements 
 
 	private final SubtaskState subtaskState;
 
-	private final CheckpointMetaData checkpointMetaData;
+	private final CheckpointMetrics checkpointMetrics;
 
 	// ------------------------------------------------------------------------
 
 	public AcknowledgeCheckpoint(
 			JobID job,
 			ExecutionAttemptID taskExecutionId,
-			CheckpointMetaData checkpointMetaData) {
-		this(job, taskExecutionId, checkpointMetaData, null);
-	}
-
-	public AcknowledgeCheckpoint(
-			JobID job,
-			ExecutionAttemptID taskExecutionId,
-			CheckpointMetaData checkpointMetaData,
+			long checkpointId,
+			CheckpointMetrics checkpointMetrics,
 			SubtaskState subtaskState) {
 
-		super(job, taskExecutionId, checkpointMetaData.getCheckpointId());
+		super(job, taskExecutionId, checkpointId);
 
 		this.subtaskState = subtaskState;
-		this.checkpointMetaData = checkpointMetaData;
-		// these may be "-1", in case the values are unknown or not set
-		checkArgument(checkpointMetaData.getSyncDurationMillis() >= -1);
-		checkArgument(checkpointMetaData.getAsyncDurationMillis() >= -1);
-		checkArgument(checkpointMetaData.getBytesBufferedInAlignment() >= -1);
-		checkArgument(checkpointMetaData.getAlignmentDurationNanos() >= -1);
+		this.checkpointMetrics = checkpointMetrics;
+	}
+
+	@VisibleForTesting
+	public AcknowledgeCheckpoint(JobID jobId, ExecutionAttemptID taskExecutionId, long checkpointId) {
+		this(jobId, taskExecutionId, checkpointId, new CheckpointMetrics(), null);
 	}
 
 	// ------------------------------------------------------------------------
@@ -75,8 +68,8 @@ public class AcknowledgeCheckpoint extends AbstractCheckpointMessage implements 
 		return subtaskState;
 	}
 
-	public CheckpointMetaData getCheckpointMetaData() {
-		return checkpointMetaData;
+	public CheckpointMetrics getCheckpointMetrics() {
+		return checkpointMetrics;
 	}
 
 	// --------------------------------------------------------------------------------------------

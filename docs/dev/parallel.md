@@ -27,10 +27,21 @@ program consists of multiple tasks (transformations/operators, data sources, and
 several parallel instances for execution and each parallel instance processes a subset of the task's
 input data. The number of parallel instances of a task is called its *parallelism*.
 
+If you want to use [savepoints]({{ site.baseurl }}/setup/savepoints.html) you should also consider
+setting a maximum parallelism (or `max parallelism`). When restoring from a savepoint you can
+change the parallelism of specific operators or the whole program and this setting specifies
+an upper bound on the parallelism. This is required because Flink internally partitions state
+into key-groups and we cannot have `+Inf` number of key-groups because this would be detrimental
+to performance.
 
-The parallelism of a task can be specified in Flink on different levels.
+* toc
+{:toc}
 
-## Operator Level
+## Setting the Parallelism
+
+The parallelism of a task can be specified in Flink on different levels:
+
+### Operator Level
 
 The parallelism of an individual operator, data source, or data sink can be defined by calling its
 `setParallelism()` method.  For example, like this:
@@ -69,10 +80,10 @@ env.execute("Word Count Example")
 </div>
 </div>
 
-## Execution Environment Level
+### Execution Environment Level
 
-As mentioned [here](#anatomy-of-a-flink-program) Flink programs are executed in the context
-of an execution environment. An
+As mentioned [here]({{ site.baseurl }}/dev/api_concepts.html#anatomy-of-a-flink-program) Flink
+programs are executed in the context of an execution environment. An
 execution environment defines a default parallelism for all operators, data sources, and data sinks
 it executes. Execution environment parallelism can be overwritten by explicitly configuring the
 parallelism of an operator.
@@ -112,7 +123,7 @@ env.execute("Word Count Example")
 </div>
 </div>
 
-## Client Level
+### Client Level
 
 The parallelism can be set at the Client when submitting jobs to Flink. The
 Client can either be a Java or a Scala program. One example of such a Client is
@@ -166,10 +177,25 @@ try {
 </div>
 
 
-## System Level
+### System Level
 
 A system-wide default parallelism for all execution environments can be defined by setting the
 `parallelism.default` property in `./conf/flink-conf.yaml`. See the
 [Configuration]({{ site.baseurl }}/setup/config.html) documentation for details.
+
+## Setting the Maximum Parallelism
+
+The maximum parallelism can be set in places where you can also set a parallelism
+(except client level and system level). Instead of calling `setParallelism()` you call
+`setMaxParallelism()` to set the maximum parallelism.
+
+The default setting for the maximum parallelism is roughly `operatorParallelism + (operatorParallelism / 2)` with
+a lower bound of `127` and an upper bound of `32768`.
+
+<span class="label label-danger">Attention</span> Setting the maximum parallelism to a very large
+value can be detrimental to performance because some state backends have to keep internal data
+structures that scale with the number of key-groups (which are the internal implementation mechanism for
+rescalable state).
+
 
 {% top %}

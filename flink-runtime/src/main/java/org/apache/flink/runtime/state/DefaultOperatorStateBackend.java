@@ -30,6 +30,7 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
@@ -106,7 +107,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 		Preconditions.checkNotNull(stateDescriptor);
 
 		String name = Preconditions.checkNotNull(stateDescriptor.getName());
-		TypeSerializer<S> partitionStateSerializer = Preconditions.checkNotNull(stateDescriptor.getSerializer());
+		TypeSerializer<S> partitionStateSerializer = Preconditions.checkNotNull(stateDescriptor.getElementSerializer());
 
 		@SuppressWarnings("unchecked")
 		PartitionableListState<S> partitionableListState = (PartitionableListState<S>) registeredStates.get(name);
@@ -126,8 +127,8 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 							partitionableListState.getAssignmentMode());
 			Preconditions.checkState(
 					partitionableListState.getPartitionStateSerializer().
-							isCompatibleWith(stateDescriptor.getSerializer()),
-					"Incompatible type serializers. Provided: " + stateDescriptor.getSerializer() +
+							isCompatibleWith(stateDescriptor.getElementSerializer()),
+					"Incompatible type serializers. Provided: " + stateDescriptor.getElementSerializer() +
 							", found: " + partitionableListState.getPartitionStateSerializer());
 		}
 
@@ -154,10 +155,13 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 
 	@Override
 	public RunnableFuture<OperatorStateHandle> snapshot(
-			long checkpointId, long timestamp, CheckpointStreamFactory streamFactory) throws Exception {
+			long checkpointId,
+			long timestamp,
+			CheckpointStreamFactory streamFactory,
+			CheckpointOptions checkpointOptions) throws Exception {
 
 		if (registeredStates.isEmpty()) {
-			return new DoneFuture<>(null);
+			return DoneFuture.nullValue();
 		}
 
 		List<OperatorBackendSerializationProxy.StateMetaInfo<?>> metaInfoList =

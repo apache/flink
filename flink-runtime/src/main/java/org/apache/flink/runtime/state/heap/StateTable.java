@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,72 +15,152 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.RegisteredBackendStateMetaInfo;
-import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.StateTransformationFunction;
+import org.apache.flink.util.Preconditions;
 
-import java.util.Map;
+/**
+ * Base class for state tables. Accesses to state are typically scoped by the currently active key, as provided
+ * through the {@link InternalKeyContext}.
+ *
+ * @param <K> type of key
+ * @param <N> type of namespace
+ * @param <S> type of state
+ */
+public abstract class StateTable<K, N, S> {
 
-public class StateTable<K, N, ST> {
+	/**
+	 * The key context view on the backend. This provides information, such as the currently active key.
+	 */
+	protected final InternalKeyContext<K> keyContext;
 
-	/** Map for holding the actual state objects. */
-	private final Map<N, Map<K, ST>>[] state;
+	/**
+	 * Combined meta information such as name and serializers for this state
+	 */
+	protected RegisteredBackendStateMetaInfo<N, S> metaInfo;
 
-	/** The offset to the contiguous key groups */
-	private final int keyGroupOffset;
-
-	/** Combined meta information such as name and serializers for this state */
-	private RegisteredBackendStateMetaInfo<N, ST> metaInfo;
-
-	// ------------------------------------------------------------------------
-	public StateTable(RegisteredBackendStateMetaInfo<N, ST> metaInfo, KeyGroupRange keyGroupRange) {
-		this.metaInfo = metaInfo;
-		this.keyGroupOffset = keyGroupRange.getStartKeyGroup();
-
-		@SuppressWarnings("unchecked")
-		Map<N, Map<K, ST>>[] state = (Map<N, Map<K, ST>>[]) new Map[keyGroupRange.getNumberOfKeyGroups()];
-		this.state = state;
+	/**
+	 *
+	 * @param keyContext the key context provides the key scope for all put/get/delete operations.
+	 * @param metaInfo the meta information, including the type serializer for state copy-on-write.
+	 */
+	public StateTable(InternalKeyContext<K> keyContext, RegisteredBackendStateMetaInfo<N, S> metaInfo) {
+		this.keyContext = Preconditions.checkNotNull(keyContext);
+		this.metaInfo = Preconditions.checkNotNull(metaInfo);
 	}
 
-	// ------------------------------------------------------------------------
-	//  access to maps
-	// ------------------------------------------------------------------------
+	// Main interface methods of StateTable -------------------------------------------------------
 
-	public Map<N, Map<K, ST>>[] getState() {
-		return state;
+	/**
+	 * Returns whether this {@link NestedMapsStateTable} is empty.
+	 *
+	 * @return {@code true} if this {@link NestedMapsStateTable} has no elements, {@code false}
+	 * otherwise.
+	 * @see #size()
+	 */
+	public boolean isEmpty() {
+		return size() == 0;
 	}
 
-	public Map<N, Map<K, ST>> get(int index) {
-		final int pos = indexToOffset(index);
-		if (pos >= 0 && pos < state.length) {
-			return state[pos];
-		} else {
-			return null;
-		}
-	}
+	/**
+	 * Returns the total number of entries in this {@link NestedMapsStateTable}. This is the sum of both sub-tables.
+	 *
+	 * @return the number of entries in this {@link NestedMapsStateTable}.
+	 */
+	public abstract int size();
 
-	public void set(int index, Map<N, Map<K, ST>> map) {
-		try {
-			state[indexToOffset(index)] = map;
-		}
-		catch (ArrayIndexOutOfBoundsException e) {
-			throw new IllegalArgumentException("Key group index out of range of key group range [" +
-					keyGroupOffset + ", " + (keyGroupOffset + state.length) + ").");
-		}
-	}
+	/**
+	 * Returns the state of the mapping for the composite of active key and given namespace.
+	 *
+	 * @param namespace the namespace. Not null.
+	 * @return the states of the mapping with the specified key/namespace composite key, or {@code null}
+	 * if no mapping for the specified key is found.
+	 */
+	public abstract S get(N namespace);
 
-	private int indexToOffset(int index) {
-		return index - keyGroupOffset;
-	}
+	/**
+	 * Returns whether this table contains a mapping for the composite of active key and given namespace.
+	 *
+	 * @param namespace the namespace in the composite key to search for. Not null.
+	 * @return {@code true} if this map contains the specified key/namespace composite key,
+	 * {@code false} otherwise.
+	 */
+	public abstract boolean containsKey(N namespace);
 
-	// ------------------------------------------------------------------------
-	//  metadata
-	// ------------------------------------------------------------------------
-	
-	public TypeSerializer<ST> getStateSerializer() {
+	/**
+	 * Maps the composite of active key and given namespace to the specified state. This method should be preferred
+	 * over {@link #putAndGetOld(N, S)} (Namespace, State)} when the caller is not interested in the old state.
+	 *
+	 * @param namespace the namespace. Not null.
+	 * @param state     the state. Can be null.
+	 */
+	public abstract void put(N namespace, S state);
+
+	/**
+	 * Maps the composite of active key and given namespace to the specified state. Returns the previous state that
+	 * was registered under the composite key.
+	 *
+	 * @param namespace the namespace. Not null.
+	 * @param state     the state. Can be null.
+	 * @return the state of any previous mapping with the specified key or
+	 * {@code null} if there was no such mapping.
+	 */
+	public abstract S putAndGetOld(N namespace, S state);
+
+	/**
+	 * Removes the mapping for the composite of active key and given namespace. This method should be preferred
+	 * over {@link #removeAndGetOld(N)} when the caller is not interested in the old state.
+	 *
+	 * @param namespace the namespace of the mapping to remove. Not null.
+	 */
+	public abstract void remove(N namespace);
+
+	/**
+	 * Removes the mapping for the composite of active key and given namespace, returning the state that was
+	 * found under the entry.
+	 *
+	 * @param namespace the namespace of the mapping to remove. Not null.
+	 * @return the state of the removed mapping or {@code null} if no mapping
+	 * for the specified key was found.
+	 */
+	public abstract S removeAndGetOld(N namespace);
+
+	/**
+	 * Applies the given {@link StateTransformationFunction} to the state (1st input argument), using the given value as
+	 * second input argument. The result of {@link StateTransformationFunction#apply(Object, Object)} is then stored as
+	 * the new state. This function is basically an optimization for get-update-put pattern.
+	 *
+	 * @param namespace      the namespace. Not null.
+	 * @param value          the value to use in transforming the state. Can be null.
+	 * @param transformation the transformation function.
+	 * @throws Exception if some exception happens in the transformation function.
+	 */
+	public abstract <T> void transform(
+			N namespace,
+			T value,
+			StateTransformationFunction<S, T> transformation) throws Exception;
+
+	// For queryable state ------------------------------------------------------------------------
+
+	/**
+	 * Returns the state for the composite of active key and given namespace. This is typically used by
+	 * queryable state.
+	 *
+	 * @param key       the key. Not null.
+	 * @param namespace the namespace. Not null.
+	 * @return the state of the mapping with the specified key/namespace composite key, or {@code null}
+	 * if no mapping for the specified key is found.
+	 */
+	public abstract S get(K key, N namespace);
+
+	// Meta data setter / getter and toString -----------------------------------------------------
+
+	public TypeSerializer<S> getStateSerializer() {
 		return metaInfo.getStateSerializer();
 	}
 
@@ -88,28 +168,22 @@ public class StateTable<K, N, ST> {
 		return metaInfo.getNamespaceSerializer();
 	}
 
-	public RegisteredBackendStateMetaInfo<N, ST> getMetaInfo() {
+	public RegisteredBackendStateMetaInfo<N, S> getMetaInfo() {
 		return metaInfo;
 	}
 
-	public void setMetaInfo(RegisteredBackendStateMetaInfo<N, ST> metaInfo) {
+	public void setMetaInfo(RegisteredBackendStateMetaInfo<N, S> metaInfo) {
 		this.metaInfo = metaInfo;
 	}
 
-	// ------------------------------------------------------------------------
-	//  for testing
-	// ------------------------------------------------------------------------
+	// Snapshot / Restore -------------------------------------------------------------------------
+
+	abstract StateTableSnapshot createSnapshot();
+
+	public abstract void put(K key, int keyGroup, N namespace, S state);
+
+	// For testing --------------------------------------------------------------------------------
 
 	@VisibleForTesting
-	boolean isEmpty() {
-		for (Map<N, Map<K, ST>> map : state) {
-			if (map != null) {
-				if (!map.isEmpty()) {
-					return false;
-				}
-			}
-		}
-
-		return true;
-	}
+	public abstract int sizeOfNamespace(Object namespace);
 }

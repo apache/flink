@@ -40,10 +40,11 @@ class GradientDescentITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     val lossFunction = GenericLossFunction(SquaredLoss, LinearPrediction)
 
-    val sgd = GradientDescentL1()
+    val sgd = GradientDescent()
       .setStepsize(0.01)
       .setIterations(2000)
       .setLossFunction(lossFunction)
+      .setRegularizationPenalty(L1Regularization)
       .setRegularizationConstant(0.3)
       
     val inputDS: DataSet[LabeledVector] = env.fromCollection(regularizationData)
@@ -72,10 +73,11 @@ class GradientDescentITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     val lossFunction = GenericLossFunction(SquaredLoss, LinearPrediction)
 
-    val sgd = GradientDescentL2()
+    val sgd = GradientDescent()
       .setStepsize(0.1)
       .setIterations(1)
       .setLossFunction(lossFunction)
+      .setRegularizationPenalty(L2Regularization)
       .setRegularizationConstant(1.0)
 
     val inputDS: DataSet[LabeledVector] = env.fromElements(LabeledVector(1.0, DenseVector(2.0)))
@@ -101,7 +103,7 @@ class GradientDescentITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     val lossFunction = GenericLossFunction(SquaredLoss, LinearPrediction)
 
-    val sgd = SimpleGradientDescent()
+    val sgd = GradientDescent()
       .setStepsize(1.0)
       .setIterations(800)
       .setLossFunction(lossFunction)
@@ -132,7 +134,7 @@ class GradientDescentITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     val lossFunction = GenericLossFunction(SquaredLoss, LinearPrediction)
 
-    val sgd = SimpleGradientDescent()
+    val sgd = GradientDescent()
       .setStepsize(0.0001)
       .setIterations(100)
       .setLossFunction(lossFunction)
@@ -163,7 +165,7 @@ class GradientDescentITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     val lossFunction = GenericLossFunction(SquaredLoss, LinearPrediction)
 
-    val sgd = SimpleGradientDescent()
+    val sgd = GradientDescent()
       .setStepsize(0.1)
       .setIterations(1)
       .setLossFunction(lossFunction)
@@ -199,7 +201,7 @@ class GradientDescentITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     val lossFunction = GenericLossFunction(SquaredLoss, LinearPrediction)
 
-    val sgdEarlyTerminate = SimpleGradientDescent()
+    val sgdEarlyTerminate = GradientDescent()
       .setConvergenceThreshold(1e2)
       .setStepsize(1.0)
       .setIterations(800)
@@ -217,7 +219,7 @@ class GradientDescentITSuite extends FlatSpec with Matchers with FlinkTestBase {
     val weightsEarly = weightVectorEarly.weights.asInstanceOf[DenseVector].data
     val weight0Early = weightVectorEarly.intercept
 
-    val sgdNoConvergence = SimpleGradientDescent()
+    val sgdNoConvergence = GradientDescent()
       .setStepsize(1.0)
       .setIterations(800)
       .setLossFunction(lossFunction)
@@ -247,7 +249,7 @@ class GradientDescentITSuite extends FlatSpec with Matchers with FlinkTestBase {
 
     val lossFunction = GenericLossFunction(SquaredLoss, LinearPrediction)
 
-    val sgd = SimpleGradientDescent()
+    val sgd = GradientDescent()
       .setStepsize(1.0)
       .setIterations(800)
       .setLossFunction(lossFunction)

@@ -20,9 +20,8 @@ package org.apache.flink.runtime.webmonitor.handlers.checkpoints;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.runtime.checkpoint.AbstractCheckpointStats;
-import org.apache.flink.runtime.checkpoint.CheckpointProperties;
+import org.apache.flink.runtime.checkpoint.CheckpointStatsHistory;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
-import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStats;
 import org.apache.flink.runtime.checkpoint.FailedCheckpointStats;
 import org.apache.flink.runtime.checkpoint.TaskStateStats;
@@ -30,15 +29,23 @@ import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 import org.apache.flink.runtime.webmonitor.handlers.AbstractExecutionGraphRequestHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JsonFactory;
+import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
+import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 
 import java.io.IOException;
 import java.io.StringWriter;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 /**
  * Request handler that returns checkpoint stats for a single job vertex.
  */
 public class CheckpointStatsDetailsHandler extends AbstractExecutionGraphRequestHandler {
+
+	private static final String CHECKPOINT_STATS_DETAILS_REST_PATH = "/jobs/:jobid/checkpoints/details/:checkpointid";
 
 	private final CheckpointStatsCache cache;
 
@@ -48,14 +55,21 @@ public class CheckpointStatsDetailsHandler extends AbstractExecutionGraphRequest
 	}
 
 	@Override
+	public String[] getPaths() {
+		return new String[]{CHECKPOINT_STATS_DETAILS_REST_PATH};
+	}
+
+	@Override
 	public String handleRequest(AccessExecutionGraph graph, Map<String, String> params) throws Exception {
 		long checkpointId = parseCheckpointId(params);
 		if (checkpointId == -1) {
 			return "{}";
 		}
 
-		CheckpointStatsTracker tracker = graph.getCheckpointStatsTracker();
-		CheckpointStatsSnapshot snapshot = tracker.createSnapshot();
+		CheckpointStatsSnapshot snapshot = graph.getCheckpointStatsSnapshot();
+		if (snapshot == null) {
+			return "{}";
+		}
 
 		AbstractCheckpointStats checkpoint = snapshot.getHistory().getCheckpointById(checkpointId);
 
@@ -69,17 +83,38 @@ public class CheckpointStatsDetailsHandler extends AbstractExecutionGraphRequest
 			}
 		}
 
-		return writeResponse(checkpoint);
+		return createCheckpointDetailsJson(checkpoint);
 	}
 
-	private String writeResponse(AbstractCheckpointStats checkpoint) throws IOException {
+	public static class CheckpointStatsDetailsJsonArchivist implements JsonArchivist {
+
+		@Override
+		public Collection<ArchivedJson> archiveJsonWithPath(AccessExecutionGraph graph) throws IOException {
+			CheckpointStatsSnapshot stats = graph.getCheckpointStatsSnapshot();
+			if (stats == null) {
+				return Collections.emptyList();
+			}
+			CheckpointStatsHistory history = stats.getHistory();
+			List<ArchivedJson> archive = new ArrayList<>();
+			for (AbstractCheckpointStats checkpoint : history.getCheckpoints()) {
+				String json = createCheckpointDetailsJson(checkpoint);
+				String path = CHECKPOINT_STATS_DETAILS_REST_PATH
+					.replace(":jobid", graph.getJobID().toString())
+					.replace(":checkpointid", String.valueOf(checkpoint.getCheckpointId()));
+				archive.add(new ArchivedJson(path, json));
+			}
+			return archive;
+		}
+	}
+
+	public static String createCheckpointDetailsJson(AbstractCheckpointStats checkpoint) throws IOException {
 		StringWriter writer = new StringWriter();
 		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
 		gen.writeStartObject();
 
 		gen.writeNumberField("id", checkpoint.getCheckpointId());
 		gen.writeStringField("status", checkpoint.getStatus().toString());
-		gen.writeBooleanField("is_savepoint", CheckpointProperties.isSavepoint(checkpoint.getProperties()));
+		gen.writeBooleanField("is_savepoint", checkpoint.getProperties().isSavepoint());
 		gen.writeNumberField("trigger_timestamp", checkpoint.getTriggerTimestamp());
 		gen.writeNumberField("latest_ack_timestamp", checkpoint.getLatestAckTimestamp());
 		gen.writeNumberField("state_size", checkpoint.getStateSize());

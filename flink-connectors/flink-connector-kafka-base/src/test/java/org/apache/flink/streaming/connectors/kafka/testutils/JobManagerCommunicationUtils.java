@@ -34,7 +34,6 @@ public class JobManagerCommunicationUtils {
 
 	private static final FiniteDuration askTimeout = new FiniteDuration(30, TimeUnit.SECONDS);
 
-
 	public static void waitUntilNoJobIsRunning(ActorGateway jobManager) throws Exception {
 		while (true) {
 			// find the jobID
@@ -47,6 +46,32 @@ public class JobManagerCommunicationUtils {
 
 			if (jobs.isEmpty()) {
 				return;
+			}
+
+			Thread.sleep(50);
+		}
+	}
+
+	public static void waitUntilJobIsRunning(ActorGateway jobManager, String name) throws Exception {
+		while (true) {
+			Future<Object> listResponse = jobManager.ask(
+				JobManagerMessages.getRequestRunningJobsStatus(),
+				askTimeout);
+
+			List<JobStatusMessage> jobs;
+			try {
+				Object result = Await.result(listResponse, askTimeout);
+				jobs = ((JobManagerMessages.RunningJobsStatus) result).getStatusMessages();
+			}
+			catch (Exception e) {
+				throw new Exception("Could not wait for job to start - failed to retrieve running jobs from the JobManager.", e);
+			}
+
+			// see if the running jobs contain the requested job
+			for (JobStatusMessage job : jobs) {
+				if (job.getJobName().equals(name)) {
+					return;
+				}
 			}
 
 			Thread.sleep(50);

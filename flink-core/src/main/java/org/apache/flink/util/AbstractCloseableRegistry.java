@@ -18,6 +18,8 @@
 
 package org.apache.flink.util;
 
+import org.apache.flink.annotation.Internal;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Map;
@@ -25,14 +27,15 @@ import java.util.Map;
 /**
  * This is the abstract base class for registries that allow to register instances of {@link Closeable}, which are all
  * closed if this registry is closed.
- * <p>
- * Registering to an already closed registry will throw an exception and close the provided {@link Closeable}
- * <p>
- * All methods in this class are thread-safe.
+ * 
+ * <p>Registering to an already closed registry will throw an exception and close the provided {@link Closeable}
+ * 
+ * <p>All methods in this class are thread-safe.
  *
  * @param <C> Type of the closeable this registers
  * @param <T> Type for potential meta data associated with the registering closeables
  */
+@Internal
 public abstract class AbstractCloseableRegistry<C extends Closeable, T> implements Closeable {
 
 	protected final Map<Closeable, T> closeableToRef;
@@ -48,7 +51,7 @@ public abstract class AbstractCloseableRegistry<C extends Closeable, T> implemen
 	 * {@link IllegalStateException} and closes the passed {@link Closeable}.
 	 *
 	 * @param closeable Closeable tor register
-	 * @return true if the the Closeable was newly added to the registry
+	 * 
 	 * @throws IOException exception when the registry was closed before
 	 */
 	public final void registerClosable(C closeable) throws IOException {
@@ -71,7 +74,6 @@ public abstract class AbstractCloseableRegistry<C extends Closeable, T> implemen
 	 * Removes a {@link Closeable} from the registry.
 	 *
 	 * @param closeable instance to remove from the registry.
-	 * @return true, if the instance was actually registered and now removed
 	 */
 	public final void unregisterClosable(C closeable) {
 

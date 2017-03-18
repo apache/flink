@@ -18,9 +18,12 @@
 
 package org.apache.flink.streaming.connectors.kafka.internals;
 
+import kafka.api.OffsetRequest;
 import kafka.common.TopicAndPartition;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.Node;
 
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
@@ -88,19 +91,18 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 
 	public Kafka08Fetcher(
 			SourceContext<T> sourceContext,
-			List<KafkaTopicPartition> assignedPartitions,
+			Map<KafkaTopicPartition, Long> assignedPartitionsWithInitialOffsets,
 			SerializedValue<AssignerWithPeriodicWatermarks<T>> watermarksPeriodic,
 			SerializedValue<AssignerWithPunctuatedWatermarks<T>> watermarksPunctuated,
 			StreamingRuntimeContext runtimeContext,
 			KeyedDeserializationSchema<T> deserializer,
 			Properties kafkaProperties,
-			long invalidOffsetBehavior,
 			long autoCommitInterval,
 			boolean useMetrics) throws Exception
 	{
 		super(
 				sourceContext,
-				assignedPartitions,
+				assignedPartitionsWithInitialOffsets,
 				watermarksPeriodic,
 				watermarksPunctuated,
 				runtimeContext.getProcessingTimeService(),
@@ -111,12 +113,12 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 		this.deserializer = checkNotNull(deserializer);
 		this.kafkaConfig = checkNotNull(kafkaProperties);
 		this.runtimeContext = runtimeContext;
-		this.invalidOffsetBehavior = invalidOffsetBehavior;
+		this.invalidOffsetBehavior = getInvalidOffsetBehavior(kafkaProperties);
 		this.autoCommitInterval = autoCommitInterval;
 		this.unassignedPartitionsQueue = new ClosableBlockingQueue<>();
 
 		// initially, all these partitions are not assigned to a specific broker connection
-		for (KafkaTopicPartitionState<TopicAndPartition> partition : subscribedPartitions()) {
+		for (KafkaTopicPartitionState<TopicAndPartition> partition : subscribedPartitionStates()) {
 			unassignedPartitionsQueue.add(partition);
 		}
 	}
@@ -139,23 +141,33 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 
 		PeriodicOffsetCommitter periodicCommitter = null;
 		try {
-			// read offsets from ZooKeeper for partitions that did not restore offsets
-			{
-				List<KafkaTopicPartition> partitionsWithNoOffset = new ArrayList<>();
-				for (KafkaTopicPartitionState<TopicAndPartition> partition : subscribedPartitions()) {
-					if (!partition.isOffsetDefined()) {
-						partitionsWithNoOffset.add(partition.getKafkaTopicPartition());
-					}
-				}
 
-				Map<KafkaTopicPartition, Long> zkOffsets = zookeeperOffsetHandler.getCommittedOffsets(partitionsWithNoOffset);
-				for (KafkaTopicPartitionState<TopicAndPartition> partition : subscribedPartitions()) {
-					Long zkOffset = zkOffsets.get(partition.getKafkaTopicPartition());
-					if (zkOffset != null) {
-						// the offset in ZK represents the "next record to process", so we need to subtract it by 1
-						// to correctly represent our internally checkpointed offsets
-						partition.setOffset(zkOffset - 1);
+			// offsets in the state may still be placeholder sentinel values if we are starting fresh, or the
+			// checkpoint / savepoint state we were restored with had not completely been replaced with actual offset
+			// values yet; replace those with actual offsets, according to what the sentinel value represent.
+			for (KafkaTopicPartitionState<TopicAndPartition> partition : subscribedPartitionStates()) {
+				if (partition.getOffset() == KafkaTopicPartitionStateSentinel.EARLIEST_OFFSET) {
+					// this will be replaced by an actual offset in SimpleConsumerThread
+					partition.setOffset(OffsetRequest.EarliestTime());
+				} else if (partition.getOffset() == KafkaTopicPartitionStateSentinel.LATEST_OFFSET) {
+					// this will be replaced by an actual offset in SimpleConsumerThread
+					partition.setOffset(OffsetRequest.LatestTime());
+				} else if (partition.getOffset() == KafkaTopicPartitionStateSentinel.GROUP_OFFSET) {
+					Long committedOffset = zookeeperOffsetHandler.getCommittedOffset(partition.getKafkaTopicPartition());
+					if (committedOffset != null) {
+						// the committed offset in ZK represents the next record to process,
+						// so we subtract it by 1 to correctly represent internal state
+						partition.setOffset(committedOffset - 1);
+					} else {
+						// if we can't find an offset for a partition in ZK when using GROUP_OFFSETS,
+						// we default to "auto.offset.reset" like the Kafka high-level consumer
+						LOG.warn("No group offset can be found for partition {} in Zookeeper;" +
+							" resetting starting offset to 'auto.offset.reset'", partition);
+
+						partition.setOffset(invalidOffsetBehavior);
 					}
+				} else {
+					// the partition already has a specific start offset and is ready to be consumed
 				}
 			}
 
@@ -164,7 +176,7 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 				LOG.info("Starting periodic offset committer, with commit interval of {}ms", autoCommitInterval);
 
 				periodicCommitter = new PeriodicOffsetCommitter(zookeeperOffsetHandler, 
-						subscribedPartitions(), errorHandler, autoCommitInterval);
+						subscribedPartitionStates(), errorHandler, autoCommitInterval);
 				periodicCommitter.setName("Periodic Kafka partition offset committer");
 				periodicCommitter.setDaemon(true);
 				periodicCommitter.start();
@@ -361,7 +373,7 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 		}
 
 		// Set committed offsets in topic partition state
-		KafkaTopicPartitionState<TopicAndPartition>[] partitions = subscribedPartitions();
+		KafkaTopicPartitionState<TopicAndPartition>[] partitions = subscribedPartitionStates();
 		for (KafkaTopicPartitionState<TopicAndPartition> partition : partitions) {
 			Long offset = offsets.get(partition.getKafkaTopicPartition());
 			if (offset != null) {
@@ -486,5 +498,22 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 		LOG.debug("Partitions with assigned leaders {}", leaderToPartitions);
 
 		return leaderToPartitions;
+	}
+
+	/**
+	 * Retrieve the behaviour of "auto.offset.reset" from the config properties.
+	 * A partition needs to fallback to "auto.offset.reset" as default offset when
+	 * we can't find offsets in ZK to start from in {@link StartupMode#GROUP_OFFSETS} startup mode.
+	 *
+	 * @param config kafka consumer properties
+	 * @return either OffsetRequest.LatestTime() or OffsetRequest.EarliestTime()
+	 */
+	private static long getInvalidOffsetBehavior(Properties config) {
+		final String val = config.getProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "largest");
+		if (val.equals("largest") || val.equals("latest")) { // largest is kafka 0.8, latest is kafka 0.9
+			return OffsetRequest.LatestTime();
+		} else {
+			return OffsetRequest.EarliestTime();
+		}
 	}
 }

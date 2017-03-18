@@ -35,6 +35,10 @@ final public class ArrayListSerializer<T> extends TypeSerializer<ArrayList<T>> {
 		this.elementSerializer = elementSerializer;
 	}
 
+	public TypeSerializer<T> getElementSerializer() {
+		return elementSerializer;
+	}
+
 	@Override
 	public boolean isImmutableType() {
 		return false;
@@ -53,11 +57,17 @@ final public class ArrayListSerializer<T> extends TypeSerializer<ArrayList<T>> {
 
 	@Override
 	public ArrayList<T> copy(ArrayList<T> from) {
-		ArrayList<T> newList = new ArrayList<>(from.size());
-		for (int i = 0; i < from.size(); i++) {
-			newList.add(elementSerializer.copy(from.get(i)));
+		if (elementSerializer.isImmutableType()) {
+			// fast track using memcopy for immutable types
+			return new ArrayList<>(from);
+		} else {
+			// element-wise deep copy for mutable types
+			ArrayList<T> newList = new ArrayList<>(from.size());
+			for (int i = 0; i < from.size(); i++) {
+				newList.add(elementSerializer.copy(from.get(i)));
+			}
+			return newList;
 		}
-		return newList;
 	}
 
 	@Override
@@ -109,8 +119,8 @@ final public class ArrayListSerializer<T> extends TypeSerializer<ArrayList<T>> {
 	@Override
 	public boolean equals(Object obj) {
 		return obj == this ||
-			(obj != null && obj.getClass() == getClass() &&
-				elementSerializer.equals(((ArrayListSerializer<?>) obj).elementSerializer));
+				(obj != null && obj.getClass() == getClass() &&
+						elementSerializer.equals(((ArrayListSerializer<?>) obj).elementSerializer));
 	}
 
 	@Override

@@ -20,15 +20,22 @@ package org.apache.flink.runtime.webmonitor.handlers;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.messages.webmonitor.RequestJobDetails;
+import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
+import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
+import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
+import java.io.IOException;
 import java.io.StringWriter;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -37,6 +44,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Request handler that returns a summary of the job status.
  */
 public class CurrentJobsOverviewHandler extends AbstractJsonRequestHandler {
+
+	private static final String ALL_JOBS_REST_PATH = "/joboverview";
+	private static final String RUNNING_JOBS_REST_PATH = "/joboverview/running";
+	private static final String COMPLETED_JOBS_REST_PATH = "/joboverview/completed";
 
 	private final FiniteDuration timeout;
 	
@@ -52,6 +63,18 @@ public class CurrentJobsOverviewHandler extends AbstractJsonRequestHandler {
 		this.timeout = checkNotNull(timeout);
 		this.includeRunningJobs = includeRunningJobs;
 		this.includeFinishedJobs = includeFinishedJobs;
+	}
+
+	@Override
+	public String[] getPaths() {
+		if (includeRunningJobs && includeFinishedJobs) {
+			return new String[]{ALL_JOBS_REST_PATH};
+		}
+		if (includeRunningJobs) {
+			return new String[]{RUNNING_JOBS_REST_PATH};
+		} else {
+			return new String[]{COMPLETED_JOBS_REST_PATH};
+		}
 	}
 
 	@Override
@@ -73,20 +96,20 @@ public class CurrentJobsOverviewHandler extends AbstractJsonRequestHandler {
 				if (includeRunningJobs && includeFinishedJobs) {
 					gen.writeArrayFieldStart("running");
 					for (JobDetails detail : result.getRunningJobs()) {
-						generateSingleJobDetails(detail, gen, now);
+						writeJobDetailOverviewAsJson(detail, gen, now);
 					}
 					gen.writeEndArray();
 	
 					gen.writeArrayFieldStart("finished");
 					for (JobDetails detail : result.getFinishedJobs()) {
-						generateSingleJobDetails(detail, gen, now);
+						writeJobDetailOverviewAsJson(detail, gen, now);
 					}
 					gen.writeEndArray();
 				}
 				else {
 					gen.writeArrayFieldStart("jobs");
 					for (JobDetails detail : includeRunningJobs ? result.getRunningJobs() : result.getFinishedJobs()) {
-						generateSingleJobDetails(detail, gen, now);
+						writeJobDetailOverviewAsJson(detail, gen, now);
 					}
 					gen.writeEndArray();
 				}
@@ -104,7 +127,27 @@ public class CurrentJobsOverviewHandler extends AbstractJsonRequestHandler {
 		}
 	}
 
-	private static void generateSingleJobDetails(JobDetails details, JsonGenerator gen, long now) throws Exception {
+	public static class CurrentJobsOverviewJsonArchivist implements JsonArchivist {
+
+		@Override
+		public Collection<ArchivedJson> archiveJsonWithPath(AccessExecutionGraph graph) throws IOException {
+			StringWriter writer = new StringWriter();
+			try (JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer)) {
+				gen.writeStartObject();
+				gen.writeArrayFieldStart("running");
+				gen.writeEndArray();
+				gen.writeArrayFieldStart("finished");
+				writeJobDetailOverviewAsJson(WebMonitorUtils.createDetailsForJob(graph), gen, System.currentTimeMillis());
+				gen.writeEndArray();
+				gen.writeEndObject();
+			}
+			String json = writer.toString();
+			String path = ALL_JOBS_REST_PATH;
+			return Collections.singleton(new ArchivedJson(path, json));
+		}
+	}
+
+	public static void writeJobDetailOverviewAsJson(JobDetails details, JsonGenerator gen, long now) throws IOException {
 		gen.writeStartObject();
 
 		gen.writeStringField("jid", details.getJobId().toString());

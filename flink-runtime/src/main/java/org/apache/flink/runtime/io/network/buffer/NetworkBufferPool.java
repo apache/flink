@@ -22,13 +22,13 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.core.memory.MemoryType;
+import org.apache.flink.util.MathUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.HashSet;
-import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 
@@ -50,7 +50,7 @@ public class NetworkBufferPool implements BufferPoolFactory {
 
 	private final int memorySegmentSize;
 
-	private final Queue<MemorySegment> availableMemorySegments;
+	private final ArrayBlockingQueue<MemorySegment> availableMemorySegments;
 
 	private volatile boolean isDestroyed;
 
@@ -58,9 +58,7 @@ public class NetworkBufferPool implements BufferPoolFactory {
 
 	private final Object factoryLock = new Object();
 
-	private final Set<LocalBufferPool> managedBufferPools = new HashSet<LocalBufferPool>();
-
-	public final Set<LocalBufferPool> allBufferPools = new HashSet<LocalBufferPool>();
+	private final Set<LocalBufferPool> allBufferPools = new HashSet<LocalBufferPool>();
 
 	private int numTotalRequiredBuffers;
 
@@ -126,9 +124,10 @@ public class NetworkBufferPool implements BufferPoolFactory {
 		return availableMemorySegments.poll();
 	}
 
-	// This is not safe with regard to destroy calls, but it does not hurt, because destroy happens
-	// only once at clean up time (task manager shutdown).
 	public void recycle(MemorySegment segment) {
+		// Adds the segment back to the queue, which does not immediately free the memory
+		// however, since this happens when references to the global pool are also released,
+		// making the availableMemorySegments queue and its contained object reclaimable
 		availableMemorySegments.add(segment);
 	}
 
@@ -182,7 +181,7 @@ public class NetworkBufferPool implements BufferPoolFactory {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public BufferPool createBufferPool(int numRequiredBuffers, boolean isFixedSize) throws IOException {
+	public BufferPool createBufferPool(int numRequiredBuffers, int maxUsedBuffers) throws IOException {
 		// It is necessary to use a separate lock from the one used for buffer
 		// requests to ensure deadlock freedom for failure cases.
 		synchronized (factoryLock) {
@@ -207,13 +206,8 @@ public class NetworkBufferPool implements BufferPoolFactory {
 
 			// We are good to go, create a new buffer pool and redistribute
 			// non-fixed size buffers.
-			LocalBufferPool localBufferPool = new LocalBufferPool(this, numRequiredBuffers);
-
-			// The fixed size pools get their share of buffers and don't change
-			// it during their lifetime.
-			if (!isFixedSize) {
-				managedBufferPools.add(localBufferPool);
-			}
+			LocalBufferPool localBufferPool =
+				new LocalBufferPool(this, numRequiredBuffers, maxUsedBuffers);
 
 			allBufferPools.add(localBufferPool);
 
@@ -231,8 +225,6 @@ public class NetworkBufferPool implements BufferPoolFactory {
 
 		synchronized (factoryLock) {
 			if (allBufferPools.remove(bufferPool)) {
-				managedBufferPools.remove(bufferPool);
-
 				numTotalRequiredBuffers -= bufferPool.getNumberOfRequiredMemorySegments();
 
 				try {
@@ -246,7 +238,7 @@ public class NetworkBufferPool implements BufferPoolFactory {
 
 	/**
 	 * Destroys all buffer pools that allocate their buffers from this
-	 * buffer pool (created via {@link #createBufferPool(int, boolean)}).
+	 * buffer pool (created via {@link #createBufferPool(int, int)}).
 	 */
 	public void destroyAllBufferPools() {
 		synchronized (factoryLock) {
@@ -258,7 +250,7 @@ public class NetworkBufferPool implements BufferPoolFactory {
 			}
 
 			// some sanity checks
-			if (allBufferPools.size() > 0 || managedBufferPools.size() > 0 || numTotalRequiredBuffers > 0) {
+			if (allBufferPools.size() > 0 || numTotalRequiredBuffers > 0) {
 				throw new IllegalStateException("NetworkBufferPool is not empty after destroying all LocalBufferPools");
 			}
 		}
@@ -266,27 +258,70 @@ public class NetworkBufferPool implements BufferPoolFactory {
 
 	// Must be called from synchronized block
 	private void redistributeBuffers() throws IOException {
-		int numManagedBufferPools = managedBufferPools.size();
-
-		if (numManagedBufferPools == 0) {
-			return; // necessary to avoid div by zero when no managed pools
-		}
+		assert Thread.holdsLock(factoryLock);
 
 		// All buffers, which are not among the required ones
-		int numAvailableMemorySegment = totalNumberOfMemorySegments - numTotalRequiredBuffers;
+		final int numAvailableMemorySegment = totalNumberOfMemorySegments - numTotalRequiredBuffers;
 
-		// Available excess (not required) buffers per pool
-		int numExcessBuffersPerPool = numAvailableMemorySegment / numManagedBufferPools;
-
-		// Distribute leftover buffers in round robin fashion
-		int numLeftoverBuffers = numAvailableMemorySegment % numManagedBufferPools;
-
-		int bufferPoolIndex = 0;
-
-		for (LocalBufferPool bufferPool : managedBufferPools) {
-			int leftoverBuffers = bufferPoolIndex++ < numLeftoverBuffers ? 1 : 0;
-
-			bufferPool.setNumBuffers(bufferPool.getNumberOfRequiredMemorySegments() + numExcessBuffersPerPool + leftoverBuffers);
+		if (numAvailableMemorySegment == 0) {
+			// in this case, we need to redistribute buffers so that every pool gets its minimum
+			for (LocalBufferPool bufferPool : allBufferPools) {
+				bufferPool.setNumBuffers(bufferPool.getNumberOfRequiredMemorySegments());
+			}
+			return;
 		}
+
+		/**
+		 * With buffer pools being potentially limited, let's distribute the available memory
+		 * segments based on the capacity of each buffer pool, i.e. the maximum number of segments
+		 * an unlimited buffer pool can take is numAvailableMemorySegment, for limited buffer pools
+		 * it may be less. Based on this and the sum of all these values (totalCapacity), we build
+		 * a ratio that we use to distribute the buffers.
+		 */
+
+		long totalCapacity = 0; // long to avoid int overflow
+
+		for (LocalBufferPool bufferPool : allBufferPools) {
+			int excessMax = bufferPool.getMaxNumberOfMemorySegments() -
+				bufferPool.getNumberOfRequiredMemorySegments();
+			totalCapacity += Math.min(numAvailableMemorySegment, excessMax);
+		}
+
+		// no capacity to receive additional buffers?
+		if (totalCapacity == 0) {
+			return; // necessary to avoid div by zero when nothing to re-distribute
+		}
+
+		// since one of the arguments of 'min(a,b)' is a positive int, this is actually
+		// guaranteed to be within the 'int' domain
+		// (we use a checked downCast to handle possible bugs more gracefully).
+		final int memorySegmentsToDistribute = MathUtils.checkedDownCast(
+				Math.min(numAvailableMemorySegment, totalCapacity));
+
+		long totalPartsUsed = 0; // of totalCapacity
+		int numDistributedMemorySegment = 0;
+		for (LocalBufferPool bufferPool : allBufferPools) {
+			int excessMax = bufferPool.getMaxNumberOfMemorySegments() -
+				bufferPool.getNumberOfRequiredMemorySegments();
+
+			// shortcut
+			if (excessMax == 0) {
+				continue;
+			}
+
+			totalPartsUsed += Math.min(numAvailableMemorySegment, excessMax);
+
+			// avoid remaining buffers by looking at the total capacity that should have been
+			// re-distributed up until here
+			// the downcast will always succeed, because both arguments of the subtraction are in the 'int' domain
+			final int mySize = MathUtils.checkedDownCast(
+					memorySegmentsToDistribute * totalPartsUsed / totalCapacity - numDistributedMemorySegment);
+
+			numDistributedMemorySegment += mySize;
+			bufferPool.setNumBuffers(bufferPool.getNumberOfRequiredMemorySegments() + mySize);
+		}
+
+		assert (totalPartsUsed == totalCapacity);
+		assert (numDistributedMemorySegment == memorySegmentsToDistribute);
 	}
 }

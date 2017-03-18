@@ -59,6 +59,8 @@ extends AsmTestBase {
 			.execute();
 
 		assertEquals(expectedResult, vertexMetrics);
+		assertEquals(expectedDegree, vertexMetrics.getAverageDegree(), ACCURACY);
+		assertEquals(1.0f, vertexMetrics.getDensity(), ACCURACY);
 	}
 
 	@Test
@@ -73,7 +75,9 @@ extends AsmTestBase {
 			.run(emptyGraph)
 			.execute();
 
-		assertEquals(withoutZeroDegreeVertices, expectedResult);
+		assertEquals(expectedResult, withoutZeroDegreeVertices);
+		assertEquals(Float.NaN, withoutZeroDegreeVertices.getAverageDegree(), ACCURACY);
+		assertEquals(Float.NaN, withoutZeroDegreeVertices.getDensity(), ACCURACY);
 
 		expectedResult = new Result(3, 0, 0, 0, 0);
 
@@ -83,6 +87,8 @@ extends AsmTestBase {
 			.execute();
 
 		assertEquals(expectedResult, withZeroDegreeVertices);
+		assertEquals(0.0f, withZeroDegreeVertices.getAverageDegree(), ACCURACY);
+		assertEquals(0.0f, withZeroDegreeVertices.getDensity(), ACCURACY);
 	}
 
 	@Test

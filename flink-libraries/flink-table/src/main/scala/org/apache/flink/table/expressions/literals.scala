@@ -68,6 +68,11 @@ case class Literal(value: Any, resultType: TypeInformation[_]) extends LeafExpre
         val decType = relBuilder.getTypeFactory.createSqlType(SqlTypeName.DECIMAL)
         relBuilder.getRexBuilder.makeExactLiteral(bigDecValue, decType)
 
+      // create BIGINT literals for long type
+      case BasicTypeInfo.LONG_TYPE_INFO =>
+        val bigint = java.math.BigDecimal.valueOf(value.asInstanceOf[Long])
+        relBuilder.getRexBuilder.makeBigintLiteral(bigint)
+
       // date/time
       case SqlTimeTypeInfo.DATE =>
         relBuilder.getRexBuilder.makeDateLiteral(dateToCalendar)

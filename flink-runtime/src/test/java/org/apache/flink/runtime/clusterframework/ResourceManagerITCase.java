@@ -77,8 +77,8 @@ public class ResourceManagerITCase extends TestLogger {
 			ActorGateway jobManager =
 				TestingUtils.createJobManager(
 					system,
-					system.dispatcher(),
-					system.dispatcher(),
+					TestingUtils.defaultExecutor(),
+					TestingUtils.defaultExecutor(),
 					config,
 					"ReconciliationTest");
 			ActorGateway me =
@@ -136,8 +136,8 @@ public class ResourceManagerITCase extends TestLogger {
 			ActorGateway jobManager =
 				TestingUtils.createJobManager(
 					system,
-					system.dispatcher(),
-					system.dispatcher(),
+					TestingUtils.defaultExecutor(),
+					TestingUtils.defaultExecutor(),
 					config,
 					"RegTest");
 			ActorGateway me =

@@ -59,6 +59,11 @@ public class TimestampsAndPunctuatedWatermarksOperator<T>
 		}
 	}
 
+	/**
+	 * Override the base implementation to completely ignore watermarks propagated from
+	 * upstream (we rely only on the {@link AssignerWithPunctuatedWatermarks} to emit
+	 * watermarks from here).
+	 */
 	@Override
 	public void processWatermark(Watermark mark) throws Exception {
 		// if we receive a Long.MAX_VALUE watermark we forward it since it is used

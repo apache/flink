@@ -21,6 +21,7 @@ package org.apache.flink.runtime.concurrent;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.concurrent.impl.FlinkFuture;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -35,6 +36,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -452,6 +454,86 @@ public class FlinkFutureTest extends TestLogger {
 		int result = sum.get();
 
 		assertEquals(expectedLeftValue + expectedRightValue, result);
+	}
+
+	/**
+	 * Tests that multiple functions can be called on complete futures.
+	 */
+	@Test(timeout = 10000L)
+	public void testMultipleFunctionsOnCompleteFuture() throws Exception {
+		final FlinkCompletableFuture<String> future = FlinkCompletableFuture.completed("test");
+
+		Future<String> result1 = future.handleAsync(new BiFunction<String, Throwable, String>() {
+
+			@Override
+			public String apply(String s, Throwable throwable) {
+				return s != null ? s : throwable.getMessage();
+			}
+		}, executor);
+
+		Future<Void> result2 = future.thenAcceptAsync(new AcceptFunction<String>() {
+			@Override
+			public void accept(String value) {}
+		}, executor);
+
+		assertEquals("test", result1.get());
+		assertNull(result2.get());
+	}
+
+	/**
+	 * Tests that multiple functions can be called on incomplete futures.
+	 */
+	@Test(timeout = 10000L)
+	public void testMultipleFunctionsOnIncompleteFuture() throws Exception {
+		final FlinkCompletableFuture<String> future = new FlinkCompletableFuture<>();
+
+		Future<String> result1 = future.handleAsync(new BiFunction<String, Throwable, String>() {
+			@Override
+			public String apply(String s, Throwable throwable) {
+				return s != null ? s : throwable.getMessage();
+			}
+		}, executor);
+
+		Future<Void> result2 = future.thenAcceptAsync(new AcceptFunction<String>() {
+			@Override
+			public void accept(String value) {}
+		}, executor);
+
+		future.complete("value");
+
+		assertEquals("value", result1.get());
+		assertNull(result2.get());
+	}
+
+	/**
+	 * Tests that multiple functions can be called on complete futures.
+	 */
+	@Test(timeout = 10000)
+	public void testMultipleFunctionsExceptional() throws Exception {
+		final FlinkCompletableFuture<String> future = new FlinkCompletableFuture<>();
+
+		Future<String> result1 = future.handleAsync(new BiFunction<String, Throwable, String>() {
+			@Override
+			public String apply(String s, Throwable throwable) {
+				return s != null ? s : throwable.getMessage();
+			}
+		}, executor);
+
+		Future<Void> result2 = future.thenAcceptAsync(new AcceptFunction<String>() {
+			@Override
+			public void accept(String value) {}
+		}, executor);
+
+		future.completeExceptionally(new TestException("test"));
+
+		assertEquals("test", result1.get());
+
+		try {
+			result2.get();
+			fail("We should have caught an ExecutionException.");
+		} catch (ExecutionException e) {
+			assertTrue(e.getCause() instanceof TestException);
+		}
 	}
 
 	private static class TestException extends RuntimeException {

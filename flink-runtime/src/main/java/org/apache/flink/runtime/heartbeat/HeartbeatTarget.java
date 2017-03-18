@@ -34,17 +34,17 @@ public interface HeartbeatTarget<I> {
 	 * Sends a heartbeat response to the target. Each heartbeat response can carry a payload which
 	 * contains additional information for the heartbeat target.
 	 *
-	 * @param resourceID Resource ID identifying the machine for which a heartbeat shall be reported.
-	 * @param payload Payload of the heartbeat response. Null indicates an empty payload.
+	 * @param heartbeatOrigin Resource ID identifying the machine for which a heartbeat shall be reported.
+	 * @param heartbeatPayload Payload of the heartbeat. Null indicates an empty payload.
 	 */
-	void sendHeartbeat(ResourceID resourceID, I payload);
+	void receiveHeartbeat(ResourceID heartbeatOrigin, I heartbeatPayload);
 
 	/**
 	 * Requests a heartbeat from the target. Each heartbeat request can carry a payload which
 	 * contains additional information for the heartbeat target.
 	 *
-	 * @param resourceID Resource ID identifying the machine issuing the heartbeat request.
-	 * @param payload Payload of the heartbeat response. Null indicates an empty payload.
+	 * @param requestOrigin Resource ID identifying the machine issuing the heartbeat request.
+	 * @param heartbeatPayload Payload of the heartbeat request. Null indicates an empty payload.
 	 */
-	void requestHeartbeat(ResourceID resourceID, I payload);
+	void requestHeartbeat(ResourceID requestOrigin, I heartbeatPayload);
 }

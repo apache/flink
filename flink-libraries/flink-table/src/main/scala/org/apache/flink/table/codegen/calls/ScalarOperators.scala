@@ -286,42 +286,51 @@ object ScalarOperators {
       // Unknown && False -> False
       // Unknown && Unknown -> Unknown
       s"""
-        |${left.code}
-        |${right.code}
-        |boolean $resultTerm;
-        |boolean $nullTerm;
-        |if (!${left.nullTerm} && !${right.nullTerm}) {
-        |  $resultTerm = ${left.resultTerm} && ${right.resultTerm};
-        |  $nullTerm = false;
-        |}
-        |else if (!${left.nullTerm} && ${left.resultTerm} && ${right.nullTerm}) {
-        |  $resultTerm = false;
-        |  $nullTerm = true;
-        |}
-        |else if (!${left.nullTerm} && !${left.resultTerm} && ${right.nullTerm}) {
-        |  $resultTerm = false;
-        |  $nullTerm = false;
-        |}
-        |else if (${left.nullTerm} && !${right.nullTerm} && ${right.resultTerm}) {
-        |  $resultTerm = false;
-        |  $nullTerm = true;
-        |}
-        |else if (${left.nullTerm} && !${right.nullTerm} && !${right.resultTerm}) {
-        |  $resultTerm = false;
-        |  $nullTerm = false;
-        |}
-        |else {
-        |  $resultTerm = false;
-        |  $nullTerm = true;
-        |}
-        |""".stripMargin
+         |${left.code}
+         |
+         |boolean $resultTerm = false;
+         |boolean $nullTerm = false;
+         |if (!${left.nullTerm} && !${left.resultTerm}) {
+         |  // left expr is false, skip right expr
+         |} else {
+         |  ${right.code}
+         |
+         |  if (!${left.nullTerm} && !${right.nullTerm}) {
+         |    $resultTerm = ${left.resultTerm} && ${right.resultTerm};
+         |    $nullTerm = false;
+         |  }
+         |  else if (!${left.nullTerm} && ${left.resultTerm} && ${right.nullTerm}) {
+         |    $resultTerm = false;
+         |    $nullTerm = true;
+         |  }
+         |  else if (!${left.nullTerm} && !${left.resultTerm} && ${right.nullTerm}) {
+         |    $resultTerm = false;
+         |    $nullTerm = false;
+         |  }
+         |  else if (${left.nullTerm} && !${right.nullTerm} && ${right.resultTerm}) {
+         |    $resultTerm = false;
+         |    $nullTerm = true;
+         |  }
+         |  else if (${left.nullTerm} && !${right.nullTerm} && !${right.resultTerm}) {
+         |    $resultTerm = false;
+         |    $nullTerm = false;
+         |  }
+         |  else {
+         |    $resultTerm = false;
+         |    $nullTerm = true;
+         |  }
+         |}
+       """.stripMargin
     }
     else {
       s"""
-        |${left.code}
-        |${right.code}
-        |boolean $resultTerm = ${left.resultTerm} && ${right.resultTerm};
-        |""".stripMargin
+         |${left.code}
+         |boolean $resultTerm = false;
+         |if (${left.resultTerm}) {
+         |  ${right.code}
+         |  $resultTerm = ${right.resultTerm};
+         |}
+         |""".stripMargin
     }
 
     GeneratedExpression(resultTerm, nullTerm, operatorCode, BOOLEAN_TYPE_INFO)
@@ -338,47 +347,56 @@ object ScalarOperators {
     val operatorCode = if (nullCheck) {
       // Three-valued logic:
       // no Unknown -> Two-valued logic
-      // True && Unknown -> True
-      // False && Unknown -> Unknown
-      // Unknown && True -> True
-      // Unknown && False -> Unknown
-      // Unknown && Unknown -> Unknown
+      // True || Unknown -> True
+      // False || Unknown -> Unknown
+      // Unknown || True -> True
+      // Unknown || False -> Unknown
+      // Unknown || Unknown -> Unknown
       s"""
         |${left.code}
-        |${right.code}
-        |boolean $resultTerm;
-        |boolean $nullTerm;
-        |if (!${left.nullTerm} && !${right.nullTerm}) {
-        |  $resultTerm = ${left.resultTerm} || ${right.resultTerm};
-        |  $nullTerm = false;
-        |}
-        |else if (!${left.nullTerm} && ${left.resultTerm} && ${right.nullTerm}) {
-        |  $resultTerm = true;
-        |  $nullTerm = false;
-        |}
-        |else if (!${left.nullTerm} && !${left.resultTerm} && ${right.nullTerm}) {
-        |  $resultTerm = false;
-        |  $nullTerm = true;
-        |}
-        |else if (${left.nullTerm} && !${right.nullTerm} && ${right.resultTerm}) {
-        |  $resultTerm = true;
-        |  $nullTerm = false;
-        |}
-        |else if (${left.nullTerm} && !${right.nullTerm} && !${right.resultTerm}) {
-        |  $resultTerm = false;
-        |  $nullTerm = true;
-        |}
-        |else {
-        |  $resultTerm = false;
-        |  $nullTerm = true;
+        |
+        |boolean $resultTerm = true;
+        |boolean $nullTerm = false;
+        |if (!${left.nullTerm} && ${left.resultTerm}) {
+        |  // left expr is true, skip right expr
+        |} else {
+        |  ${right.code}
+        |
+        |  if (!${left.nullTerm} && !${right.nullTerm}) {
+        |    $resultTerm = ${left.resultTerm} || ${right.resultTerm};
+        |    $nullTerm = false;
+        |  }
+        |  else if (!${left.nullTerm} && ${left.resultTerm} && ${right.nullTerm}) {
+        |    $resultTerm = true;
+        |    $nullTerm = false;
+        |  }
+        |  else if (!${left.nullTerm} && !${left.resultTerm} && ${right.nullTerm}) {
+        |    $resultTerm = false;
+        |    $nullTerm = true;
+        |  }
+        |  else if (${left.nullTerm} && !${right.nullTerm} && ${right.resultTerm}) {
+        |    $resultTerm = true;
+        |    $nullTerm = false;
+        |  }
+        |  else if (${left.nullTerm} && !${right.nullTerm} && !${right.resultTerm}) {
+        |    $resultTerm = false;
+        |    $nullTerm = true;
+        |  }
+        |  else {
+        |    $resultTerm = false;
+        |    $nullTerm = true;
+        |  }
         |}
         |""".stripMargin
     }
     else {
       s"""
-        |${left.code}
-        |${right.code}
-        |boolean $resultTerm = ${left.resultTerm} || ${right.resultTerm};
+         |${left.code}
+         |boolean $resultTerm = true;
+         |if (!${left.resultTerm}) {
+         |  ${right.code}
+         |  $resultTerm = ${right.resultTerm};
+         |}
         |""".stripMargin
     }
 

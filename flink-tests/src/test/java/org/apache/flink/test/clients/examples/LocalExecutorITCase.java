@@ -20,15 +20,12 @@ package org.apache.flink.test.clients.examples;
 
 import java.io.File;
 import java.io.FileWriter;
-
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.Plan;
-import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.LocalExecutor;
 import org.apache.flink.test.testdata.WordCountData;
-import org.apache.flink.util.Collector;
+import org.apache.flink.test.testfunctions.Tokenizer;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -45,7 +42,7 @@ public class LocalExecutorITCase {
 			File outFile = File.createTempFile("wctext", ".out");
 			inFile.deleteOnExit();
 			outFile.deleteOnExit();
-			
+
 			try (FileWriter fw = new FileWriter(inFile)) {
 				fw.write(WordCountData.TEXT);
 			}
@@ -64,27 +61,15 @@ public class LocalExecutorITCase {
 			Assert.fail(e.getMessage());
 		}
 	}
-	
+
 	private Plan getWordCountPlan(File inFile, File outFile, int parallelism) {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(parallelism);
 		env.readTextFile(inFile.getAbsolutePath())
-				.flatMap(new Tokenizer())
-				.groupBy(0)
-				.sum(1)
-				.writeAsCsv(outFile.getAbsolutePath());
+			.flatMap(new Tokenizer())
+			.groupBy(0)
+			.sum(1)
+			.writeAsCsv(outFile.getAbsolutePath());
 		return env.createProgramPlan();
-	}
-
-	public static final class Tokenizer implements FlatMapFunction<String, Tuple2<String, Integer>> {
-		@Override
-		public void flatMap(String value, Collector<Tuple2<String, Integer>> out) {
-			String[] tokens = value.toLowerCase().split("\\W+");
-			for (String token : tokens) {
-				if (token.length() > 0) {
-					out.collect(new Tuple2<>(token, 1));
-				}
-			}
-		}
 	}
 }

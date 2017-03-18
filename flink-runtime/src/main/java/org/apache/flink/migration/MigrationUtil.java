@@ -25,6 +25,7 @@ import java.util.Collection;
 
 public class MigrationUtil {
 
+	@SuppressWarnings("deprecation")
 	public static boolean isOldSavepointKeyedState(Collection<KeyGroupsStateHandle> keyGroupsStateHandles) {
 		return (keyGroupsStateHandles != null)
 				&& (keyGroupsStateHandles.size() == 1)

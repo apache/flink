@@ -47,6 +47,8 @@ import java.io.File;
 import java.net.BindException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.Properties;
 import java.util.UUID;
 
@@ -129,8 +131,8 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 	}
 
 	@Override
-	public KafkaOffsetHandler createOffsetHandler(Properties props) {
-		return new KafkaOffsetHandlerImpl(props);
+	public KafkaOffsetHandler createOffsetHandler() {
+		return new KafkaOffsetHandlerImpl();
 	}
 
 	@Override
@@ -294,7 +296,7 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 		}
 
 		// validate that the topic has been created
-		final long deadline = System.currentTimeMillis() + 30000;
+		final long deadline = System.nanoTime() + 30_000_000_000L;
 		do {
 			try {
 				if(secureMode) {
@@ -319,7 +321,7 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 			}
 			checkZKConn.close();
 		}
-		while (System.currentTimeMillis() < deadline);
+		while (System.nanoTime() < deadline);
 		fail("Test topic could not be created");
 	}
 
@@ -401,7 +403,12 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 
 		private final KafkaConsumer<byte[], byte[]> offsetClient;
 
-		public KafkaOffsetHandlerImpl(Properties props) {
+		public KafkaOffsetHandlerImpl() {
+			Properties props = new Properties();
+			props.putAll(standardProps);
+			props.setProperty("key.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
+			props.setProperty("value.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
+
 			offsetClient = new KafkaConsumer<>(props);
 		}
 
@@ -409,6 +416,13 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 		public Long getCommittedOffset(String topicName, int partition) {
 			OffsetAndMetadata committed = offsetClient.committed(new TopicPartition(topicName, partition));
 			return (committed != null) ? committed.offset() : null;
+		}
+
+		@Override
+		public void setCommittedOffset(String topicName, int partition, long offset) {
+			Map<TopicPartition, OffsetAndMetadata> partitionAndOffset = new HashMap<>();
+			partitionAndOffset.put(new TopicPartition(topicName, partition), new OffsetAndMetadata(offset));
+			offsetClient.commitSync(partitionAndOffset);
 		}
 
 		@Override

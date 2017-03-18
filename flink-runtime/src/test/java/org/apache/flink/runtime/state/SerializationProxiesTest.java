@@ -161,7 +161,7 @@ public class SerializationProxiesTest {
 	@Test
 	public void testFixTypeOrder() {
 		// ensure all elements are covered
-		Assert.assertEquals(6, StateDescriptor.Type.values().length);
+		Assert.assertEquals(7, StateDescriptor.Type.values().length);
 		// fix the order of elements to keep serialization format stable
 		Assert.assertEquals(0, StateDescriptor.Type.UNKNOWN.ordinal());
 		Assert.assertEquals(1, StateDescriptor.Type.VALUE.ordinal());
@@ -169,5 +169,6 @@ public class SerializationProxiesTest {
 		Assert.assertEquals(3, StateDescriptor.Type.REDUCING.ordinal());
 		Assert.assertEquals(4, StateDescriptor.Type.FOLDING.ordinal());
 		Assert.assertEquals(5, StateDescriptor.Type.AGGREGATING.ordinal());
+		Assert.assertEquals(6, StateDescriptor.Type.MAP.ordinal());
 	}
 }

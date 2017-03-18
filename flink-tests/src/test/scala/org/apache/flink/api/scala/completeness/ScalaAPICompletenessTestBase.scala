@@ -41,21 +41,6 @@ abstract class ScalaAPICompletenessTestBase extends TestLogger {
   protected def isExcludedByName(method: Method): Boolean
 
   /**
-   * Determines whether a method is excluded by an interface it uses.
-   */
-  protected def isExcludedByInterface(method: Method): Boolean = {
-    val excludedInterfaces =
-      Set("org.apache.spark.Logging", "org.apache.hadoop.mapreduce.HadoopMapReduceUtil")
-    def toComparisionKey(method: Method) =
-      (method.getReturnType, method.getName, method.getGenericReturnType)
-    val interfaces = method.getDeclaringClass.getInterfaces.filter { i =>
-      excludedInterfaces.contains(i.getName)
-    }
-    val excludedMethods = interfaces.flatMap(_.getMethods.map(toComparisionKey))
-    excludedMethods.contains(toComparisionKey(method))
-  }
-
-  /**
    * Utility to be called during the test.
    */
   protected def checkMethods(
@@ -66,26 +51,33 @@ abstract class ScalaAPICompletenessTestBase extends TestLogger {
     val javaMethods = javaClass.getMethods
       .filterNot(_.isAccessible)
       .filterNot(isExcludedByName)
-      .filterNot(isExcludedByInterface)
       .map(m => m.getName).toSet
 
     val scalaMethods = scalaClass.getMethods
       .filterNot(_.isAccessible)
       .filterNot(isExcludedByName)
-      .filterNot(isExcludedByInterface)
       .map(m => m.getName).toSet
 
     val missingMethods = javaMethods -- scalaMethods
 
-    for (method <- missingMethods) {
-      fail("Method " + method + " from " + javaClass + " is missing from " + scalaClassName + ".")
+    for (javaMethod <- missingMethods) {
+      // check if the method simply follows different getter / setter conventions in Scala / Java
+      // for example Java: getFoo() should match Scala: foo()
+      if (!containsScalaGetterLike(javaMethod, scalaMethods)) {
+        fail(s"Method $javaMethod from $javaClass is missing from $scalaClassName.")
+      }
     }
   }
 
-  protected def checkEquality(scalaInstance: AnyRef, extractJavaFun : ((AnyRef) => AnyRef)) {
-    val javaInstance = extractJavaFun(scalaInstance)
+  protected def containsScalaGetterLike(javaMethod: String, scalaMethods: Set[String]): Boolean = {
+    if (javaMethod.startsWith("get") && javaMethod.length >= 4) {
+      val scalaMethodName = Character.toLowerCase(javaMethod.charAt(3)) + javaMethod.substring(4)
+      scalaMethods.contains(scalaMethodName)
+    } else {
+      false
+    }
   }
-
+  
   /**
    * Tests to be performed to ensure API completeness.
    */

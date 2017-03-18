@@ -17,59 +17,39 @@
 
 package org.apache.flink.streaming.connectors.elasticsearch;
 
-import org.apache.flink.api.java.utils.ParameterTool;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
-import org.elasticsearch.action.bulk.BulkItemResponse;
+import org.apache.flink.streaming.connectors.elasticsearch.util.NoOpFailureHandler;
+import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.bulk.BulkProcessor;
-import org.elasticsearch.action.bulk.BulkRequest;
-import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.client.Client;
 import org.elasticsearch.client.transport.TransportClient;
-import org.elasticsearch.cluster.node.DiscoveryNode;
-import org.elasticsearch.common.collect.ImmutableList;
-import org.elasticsearch.common.settings.ImmutableSettings;
-import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
-import org.elasticsearch.common.unit.ByteSizeUnit;
-import org.elasticsearch.common.unit.ByteSizeValue;
-import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.node.Node;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
-
-import static org.elasticsearch.node.NodeBuilder.nodeBuilder;
-
 
 /**
- * Sink that emits its input elements to an Elasticsearch cluster.
+ * Elasticsearch 1.x sink that requests multiple {@link ActionRequest ActionRequests}
+ * against a cluster for each incoming element.
  *
  * <p>
- * When using the first constructor {@link #ElasticsearchSink(java.util.Map, IndexRequestBuilder)}
- * the sink will create a local {@link Node} for communicating with the
- * Elasticsearch cluster. When using the second constructor
- * {@link #ElasticsearchSink(java.util.Map, java.util.List, IndexRequestBuilder)} a {@link TransportClient} will
- * be used instead.
+ * When using the first constructor {@link #ElasticsearchSink(java.util.Map, ElasticsearchSinkFunction)}
+ * the sink will create a local {@link Node} for communicating with the Elasticsearch cluster. When using the second
+ * constructor {@link #ElasticsearchSink(java.util.Map, java.util.List, ElasticsearchSinkFunction)} a
+ * {@link TransportClient} will be used instead.
  *
  * <p>
  * <b>Attention: </b> When using the {@code TransportClient} the sink will fail if no cluster
- * can be connected to. With the {@code Node Client} the sink will block and wait for a cluster
+ * can be connected to. When using the local {@code Node} for communicating, the sink will block and wait for a cluster
  * to come online.
  *
  * <p>
- * The {@link Map} passed to the constructor is forwarded to Elasticsearch when creating
- * the {@link Node} or {@link TransportClient}. The config keys can be found in the Elasticsearch
- * documentation. An important setting is {@code cluster.name}, this should be set to the name
- * of the cluster that the sink should emit to.
+ * The {@link Map} passed to the constructor is used to create the {@link Node} or {@link TransportClient}. The config
+ * keys can be found in the <a href="https://www.elastic.io">Elasticsearch documentation</a>. An important setting is
+ * {@code cluster.name}, which should be set to the name of the cluster that the sink should emit to.
  *
  * <p>
- * Internally, the sink will use a {@link BulkProcessor} to send {@link IndexRequest IndexRequests}.
+ * Internally, the sink will use a {@link BulkProcessor} to send {@link ActionRequest ActionRequests}.
  * This will buffer elements before sending a request to the cluster. The behaviour of the
  * {@code BulkProcessor} can be configured using these config keys:
  * <ul>
@@ -80,236 +60,95 @@ import static org.elasticsearch.node.NodeBuilder.nodeBuilder;
  * </ul>
  *
  * <p>
- * You also have to provide an {@link IndexRequestBuilder}. This is used to create an
- * {@link IndexRequest} from an element that needs to be added to Elasticsearch. See
- * {@link org.apache.flink.streaming.connectors.elasticsearch.IndexRequestBuilder} for an example.
+ * You also have to provide an {@link ElasticsearchSinkFunction}. This is used to create multiple
+ * {@link ActionRequest ActionRequests} for each incoming element. See the class level documentation of
+ * {@link ElasticsearchSinkFunction} for an example.
  *
- * @param <T> Type of the elements emitted by this sink
+ * @param <T> Type of the elements handled by this sink
  */
-public class ElasticsearchSink<T> extends RichSinkFunction<T> {
-
-	public static final String CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS = "bulk.flush.max.actions";
-	public static final String CONFIG_KEY_BULK_FLUSH_MAX_SIZE_MB = "bulk.flush.max.size.mb";
-	public static final String CONFIG_KEY_BULK_FLUSH_INTERVAL_MS = "bulk.flush.interval.ms";
+public class ElasticsearchSink<T> extends ElasticsearchSinkBase<T> {
 
 	private static final long serialVersionUID = 1L;
 
-	private static final Logger LOG = LoggerFactory.getLogger(ElasticsearchSink.class);
-
 	/**
-	 * The user specified config map that we forward to Elasticsearch when we create the Client.
-	 */
-	private final Map<String, String> userConfig;
-
-	/**
-	 * The list of nodes that the TransportClient should connect to. This is null if we are using
-	 * an embedded Node to get a Client.
-	 */
-	private final List<TransportAddress> transportNodes;
-
-	/**
-	 * The builder that is used to construct an {@link IndexRequest} from the incoming element.
-	 */
-	private final IndexRequestBuilder<T> indexRequestBuilder;
-
-	/**
-	 * The embedded Node that is used to communicate with the Elasticsearch cluster. This is null
-	 * if we are using a TransportClient.
-	 */
-	private transient Node node;
-
-	/**
-	 * The Client that was either retrieved from a Node or is a TransportClient.
-	 */
-	private transient Client client;
-
-	/**
-	 * Bulk processor that was created using the client
-	 */
-	private transient BulkProcessor bulkProcessor;
-
-	/**
-	 * This is set from inside the BulkProcessor listener if there where failures in processing.
-	 */
-	private final AtomicBoolean hasFailure = new AtomicBoolean(false);
-
-	/**
-	 * This is set from inside the BulkProcessor listener if a Throwable was thrown during processing.
-	 */
-	private final AtomicReference<Throwable> failureThrowable = new AtomicReference<>();
-
-	/**
-	 * Creates a new ElasticsearchSink that connects to the cluster using an embedded Node.
+	 * Creates a new {@code ElasticsearchSink} that connects to the cluster using an embedded {@link Node}.
 	 *
-	 * @param userConfig The map of user settings that are passed when constructing the Node and BulkProcessor
+	 * @param userConfig The map of user settings that are used when constructing the {@link Node} and {@link BulkProcessor}
 	 * @param indexRequestBuilder This is used to generate the IndexRequest from the incoming element
+	 *
+	 * @deprecated Deprecated since version 1.2, to be removed at version 2.0.
+	 *             Please use {@link ElasticsearchSink#ElasticsearchSink(Map, ElasticsearchSinkFunction)} instead.
 	 */
+	@Deprecated
 	public ElasticsearchSink(Map<String, String> userConfig, IndexRequestBuilder<T> indexRequestBuilder) {
-		this.userConfig = userConfig;
-		this.indexRequestBuilder = indexRequestBuilder;
-		transportNodes = null;
+		this(userConfig, new IndexRequestBuilderWrapperFunction<>(indexRequestBuilder));
 	}
 
 	/**
-	 * Creates a new ElasticsearchSink that connects to the cluster using a TransportClient.
+	 * Creates a new {@code ElasticsearchSink} that connects to the cluster using a {@link TransportClient}.
 	 *
-	 * @param userConfig The map of user settings that are passed when constructing the TransportClient and BulkProcessor
-	 * @param transportNodes The Elasticsearch Nodes to which to connect using a {@code TransportClient}
-	 * @param indexRequestBuilder This is used to generate the IndexRequest from the incoming element
+	 * @param userConfig The map of user settings that are used when constructing the {@link TransportClient} and {@link BulkProcessor}
+	 * @param transportAddresses The addresses of Elasticsearch nodes to which to connect using a {@link TransportClient}
+	 * @param indexRequestBuilder This is used to generate a {@link IndexRequest} from the incoming element
 	 *
+	 * @deprecated Deprecated since 1.2, to be removed at 2.0.
+	 *             Please use {@link ElasticsearchSink#ElasticsearchSink(Map, List, ElasticsearchSinkFunction)} instead.
 	 */
-	public ElasticsearchSink(Map<String, String> userConfig, List<TransportAddress> transportNodes, IndexRequestBuilder<T> indexRequestBuilder) {
-		this.userConfig = userConfig;
-		this.indexRequestBuilder = indexRequestBuilder;
-		this.transportNodes = transportNodes;
+	@Deprecated
+	public ElasticsearchSink(Map<String, String> userConfig, List<TransportAddress> transportAddresses, IndexRequestBuilder<T> indexRequestBuilder) {
+		this(userConfig, transportAddresses, new IndexRequestBuilderWrapperFunction<>(indexRequestBuilder));
 	}
 
 	/**
-	 * Initializes the connection to Elasticsearch by either creating an embedded
-	 * {@link org.elasticsearch.node.Node} and retrieving the
-	 * {@link org.elasticsearch.client.Client} from it or by creating a
-	 * {@link org.elasticsearch.client.transport.TransportClient}.
+	 * Creates a new {@code ElasticsearchSink} that connects to the cluster using an embedded {@link Node}.
+	 *
+	 * @param userConfig The map of user settings that are used when constructing the embedded {@link Node} and {@link BulkProcessor}
+	 * @param elasticsearchSinkFunction This is used to generate multiple {@link ActionRequest} from the incoming element
 	 */
-	@Override
-	public void open(Configuration configuration) {
-		if (transportNodes == null) {
-			// Make sure that we disable http access to our embedded node
-			Settings settings =
-					ImmutableSettings.settingsBuilder()
-							.put(userConfig)
-							.put("http.enabled", false)
-							.build();
-
-			node =
-					nodeBuilder()
-							.settings(settings)
-							.client(true)
-							.data(false)
-							.node();
-
-			client = node.client();
-
-			if (LOG.isInfoEnabled()) {
-				LOG.info("Created Elasticsearch Client {} from embedded Node", client);
-			}
-
-		} else {
-			Settings settings = ImmutableSettings.settingsBuilder()
-					.put(userConfig)
-					.build();
-
-			TransportClient transportClient = new TransportClient(settings);
-			for (TransportAddress transport: transportNodes) {
-				transportClient.addTransportAddress(transport);
-			}
-
-			// verify that we actually are connected to a cluster
-			ImmutableList<DiscoveryNode> nodes = transportClient.connectedNodes();
-			if (nodes.isEmpty()) {
-				throw new RuntimeException("Client is not connected to any Elasticsearch nodes!");
-			} else {
-				if (LOG.isDebugEnabled()) {
-					LOG.debug("Connected to nodes: " + nodes.toString());
-				}
-			}
-
-			client = transportClient;
-
-			if (LOG.isInfoEnabled()) {
-				LOG.info("Created Elasticsearch TransportClient {}", client);
-			}
-		}
-
-		BulkProcessor.Builder bulkProcessorBuilder = BulkProcessor.builder(
-				client,
-				new BulkProcessor.Listener() {
-					@Override
-					public void beforeBulk(long executionId,
-							BulkRequest request) {
-
-					}
-
-					@Override
-					public void afterBulk(long executionId,
-							BulkRequest request,
-							BulkResponse response) {
-						if (response.hasFailures()) {
-							for (BulkItemResponse itemResp : response.getItems()) {
-								if (itemResp.isFailed()) {
-									LOG.error("Failed to index document in Elasticsearch: " + itemResp.getFailureMessage());
-									failureThrowable.compareAndSet(null, new RuntimeException(itemResp.getFailureMessage()));
-								}
-							}
-							hasFailure.set(true);
-						}
-					}
-
-					@Override
-					public void afterBulk(long executionId,
-							BulkRequest request,
-							Throwable failure) {
-						LOG.error(failure.getMessage());
-						failureThrowable.compareAndSet(null, failure);
-						hasFailure.set(true);
-					}
-				});
-
-		// This makes flush() blocking
-		bulkProcessorBuilder.setConcurrentRequests(0);
-
-		ParameterTool params = ParameterTool.fromMap(userConfig);
-
-		if (params.has(CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS)) {
-			bulkProcessorBuilder.setBulkActions(params.getInt(CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS));
-		}
-
-		if (params.has(CONFIG_KEY_BULK_FLUSH_MAX_SIZE_MB)) {
-			bulkProcessorBuilder.setBulkSize(new ByteSizeValue(params.getInt(
-					CONFIG_KEY_BULK_FLUSH_MAX_SIZE_MB), ByteSizeUnit.MB));
-		}
-
-		if (params.has(CONFIG_KEY_BULK_FLUSH_INTERVAL_MS)) {
-			bulkProcessorBuilder.setFlushInterval(TimeValue.timeValueMillis(params.getInt(CONFIG_KEY_BULK_FLUSH_INTERVAL_MS)));
-		}
-
-		bulkProcessor = bulkProcessorBuilder.build();
+	public ElasticsearchSink(Map<String, String> userConfig, ElasticsearchSinkFunction<T> elasticsearchSinkFunction) {
+		this(userConfig, elasticsearchSinkFunction, new NoOpFailureHandler());
 	}
 
-	@Override
-	public void invoke(T element) {
-		IndexRequest indexRequest = indexRequestBuilder.createIndexRequest(element, getRuntimeContext());
-
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("Emitting IndexRequest: {}", indexRequest);
-		}
-
-		bulkProcessor.add(indexRequest);
+	/**
+	 * Creates a new {@code ElasticsearchSink} that connects to the cluster using a {@link TransportClient}.
+	 *
+	 * @param userConfig The map of user settings that are used when constructing the {@link TransportClient} and {@link BulkProcessor}
+	 * @param transportAddresses The addresses of Elasticsearch nodes to which to connect using a {@link TransportClient}
+	 * @param elasticsearchSinkFunction This is used to generate multiple {@link ActionRequest} from the incoming element
+	 */
+	public ElasticsearchSink(Map<String, String> userConfig, List<TransportAddress> transportAddresses, ElasticsearchSinkFunction<T> elasticsearchSinkFunction) {
+		this(userConfig, transportAddresses, elasticsearchSinkFunction, new NoOpFailureHandler());
 	}
 
-	@Override
-	public void close() {
-		if (bulkProcessor != null) {
-			bulkProcessor.close();
-			bulkProcessor = null;
-		}
+	/**
+	 * Creates a new {@code ElasticsearchSink} that connects to the cluster using an embedded {@link Node}.
+	 *
+	 * @param userConfig The map of user settings that are used when constructing the embedded {@link Node} and {@link BulkProcessor}
+	 * @param elasticsearchSinkFunction This is used to generate multiple {@link ActionRequest} from the incoming element
+	 * @param failureHandler This is used to handle failed {@link ActionRequest}
+	 */
+	public ElasticsearchSink(
+		Map<String, String> userConfig,
+		ElasticsearchSinkFunction<T> elasticsearchSinkFunction,
+		ActionRequestFailureHandler failureHandler) {
 
-		if (client != null) {
-			client.close();
-		}
-
-		if (node != null) {
-			node.close();
-		}
-
-		if (hasFailure.get()) {
-			Throwable cause = failureThrowable.get();
-			if (cause != null) {
-				throw new RuntimeException("An error occured in ElasticsearchSink.", cause);
-			} else {
-				throw new RuntimeException("An error occured in ElasticsearchSink.");
-
-			}
-		}
+		super(new Elasticsearch1ApiCallBridge(), userConfig, elasticsearchSinkFunction, failureHandler);
 	}
 
+	/**
+	 * Creates a new {@code ElasticsearchSink} that connects to the cluster using a {@link TransportClient}.
+	 *
+	 * @param userConfig The map of user settings that are used when constructing the {@link TransportClient} and {@link BulkProcessor}
+	 * @param transportAddresses The addresses of Elasticsearch nodes to which to connect using a {@link TransportClient}
+	 * @param elasticsearchSinkFunction This is used to generate multiple {@link ActionRequest} from the incoming element
+	 * @param failureHandler This is used to handle failed {@link ActionRequest}
+	 */
+	public ElasticsearchSink(
+		Map<String, String> userConfig,
+		List<TransportAddress> transportAddresses,
+		ElasticsearchSinkFunction<T> elasticsearchSinkFunction,
+		ActionRequestFailureHandler failureHandler) {
+
+		super(new Elasticsearch1ApiCallBridge(transportAddresses), userConfig, elasticsearchSinkFunction, failureHandler);
+	}
 }

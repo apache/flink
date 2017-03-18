@@ -18,34 +18,13 @@
 
 package org.apache.flink.table.plan.schema
 
-import java.lang.Double
-import java.util
-import java.util.Collections
-
-import org.apache.calcite.rel.{RelCollation, RelDistribution}
-import org.apache.calcite.schema.Statistic
-import org.apache.calcite.util.ImmutableBitSet
 import org.apache.flink.api.java.DataSet
+import org.apache.flink.table.plan.stats.{FlinkStatistic, TableStats}
 
 class DataSetTable[T](
     val dataSet: DataSet[T],
     override val fieldIndexes: Array[Int],
-    override val fieldNames: Array[String])
-  extends FlinkTable[T](dataSet.getType, fieldIndexes, fieldNames) {
-
-  override def getStatistic: Statistic = {
-    new DefaultDataSetStatistic
-  }
-
-}
-
-class DefaultDataSetStatistic extends Statistic {
-
-  override def getRowCount: Double = 1000d
-
-  override def getCollations: util.List[RelCollation] = Collections.emptyList()
-
-  override def isKey(columns: ImmutableBitSet): Boolean = false
-
-  override def getDistribution: RelDistribution = null
+    override val fieldNames: Array[String],
+    override val statistic: FlinkStatistic = FlinkStatistic.of(TableStats(1000L)))
+  extends FlinkTable[T](dataSet.getType, fieldIndexes, fieldNames, statistic) {
 }
