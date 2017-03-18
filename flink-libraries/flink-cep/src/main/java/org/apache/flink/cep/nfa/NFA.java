@@ -29,6 +29,7 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.streaming.api.windowing.time.Time;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -97,7 +98,7 @@ public class NFA<T> implements Serializable {
 
 	/**
 	 * The length of a windowed pattern, as specified using the
-	 * {@link org.apache.flink.cep.pattern.Pattern#within(Time) Pattern.within(Time)}
+	 * {@link org.apache.flink.cep.pattern.Pattern#within(Time)}  Pattern.within(Time)}
 	 * method.
 	 */
 	private final long windowTime;
@@ -426,7 +427,7 @@ public class NFA<T> implements Serializable {
 					));
 
 					//check if newly created state is optional (have a PROCEED path to Final state)
-					final State<T> finalState = findFinalStateAfterProceed(newState);
+					final State<T> finalState = findFinalStateAfterProceed(newState, event);
 					if (finalState != null) {
 						sharedBuffer.lock(consumingState.getName(), event, timestamp);
 						resultingComputationStates.add(ComputationState.createState(
@@ -463,23 +464,27 @@ public class NFA<T> implements Serializable {
 		return resultingComputationStates;
 	}
 
-	private State<T> findFinalStateAfterProceed(State<T> state) {
+	private State<T> findFinalStateAfterProceed(State<T> state, T event) {
 		final Stack<State<T>> statesToCheck = new Stack<>();
 		statesToCheck.push(state);
 
-		while (!statesToCheck.isEmpty()) {
-			final State<T> currentState = statesToCheck.pop();
-			for (StateTransition<T> transition : currentState.getStateTransitions()) {
-				if (transition.getAction() == StateTransitionAction.PROCEED) {
-					if (transition.getTargetState().isFinal()) {
-						return transition.getTargetState();
-					} else {
-						statesToCheck.push(transition.getTargetState());
+		try {
+			while (!statesToCheck.isEmpty()) {
+				final State<T> currentState = statesToCheck.pop();
+				for (StateTransition<T> transition : currentState.getStateTransitions()) {
+					if (transition.getAction() == StateTransitionAction.PROCEED &&
+						checkFilterCondition(transition.getCondition(), event)) {
+						if (transition.getTargetState().isFinal()) {
+							return transition.getTargetState();
+						} else {
+							statesToCheck.push(transition.getTargetState());
+						}
 					}
 				}
 			}
+		} catch (Exception e) {
+			throw new RuntimeException("Failure happened in filter function.", e);
 		}
-
 
 		return null;
 	}
