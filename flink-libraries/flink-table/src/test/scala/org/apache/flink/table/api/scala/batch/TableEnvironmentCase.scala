@@ -26,7 +26,7 @@ import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.table.api.scala.batch.utils.{TableProgramsCollectionTestBase, TableProgramsTestBase}
 import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.types.Row
-import org.apache.flink.table.api.{TableEnvironment, TableException}
+import org.apache.flink.table.api.{TableConfig, TableEnvironment, TableException}
 import org.apache.flink.test.util.TestBaseUtils
 import org.junit._
 import org.junit.runner.RunWith
@@ -35,9 +35,17 @@ import org.junit.runners.Parameterized
 import scala.collection.JavaConverters._
 
 @RunWith(classOf[Parameterized])
-class TableEnvironmentITCase(
-    configMode: TableConfigMode)
-  extends TableProgramsCollectionTestBase(configMode) {
+class TableEnvironmentCase(configMode: TableConfigMode) {
+
+  def config: TableConfig = {
+    val conf = new TableConfig
+    configMode match {
+      case TableProgramsTestBase.NO_NULL =>
+        conf.setNullCheck(false)
+      case _ => // keep default
+    }
+    conf
+  }
 
   @Test
   def testSimpleRegister(): Unit = {
@@ -256,7 +264,7 @@ class TableEnvironmentITCase(
   }
 }
 
-object TableEnvironmentITCase {
+object TableEnvironmentCase {
 
   @Parameterized.Parameters(name = "Table config = {0}")
   def parameters(): util.Collection[Array[java.lang.Object]] = {
