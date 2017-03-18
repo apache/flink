@@ -19,7 +19,7 @@ package org.apache.flink.cep.scala.pattern
 
 import org.apache.flink.api.common.functions.FilterFunction
 import org.apache.flink.cep
-import org.apache.flink.cep.pattern.{Pattern => JPattern}
+import org.apache.flink.cep.pattern.{Quantifier, Pattern => JPattern}
 import org.apache.flink.streaming.api.windowing.time.Time
 
 /**
@@ -56,6 +56,12 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
   def getWindowTime(): Option[Time] = {
     Option(jPattern.getWindowTime())
   }
+
+  /**
+    *
+    * @return currently applied quantifier to this pattern
+    */
+  def getQuantifier: Quantifier = jPattern.getQuantifier
 
   /**
     *
@@ -158,6 +164,79 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
     */
   def getPrevious(): Option[Pattern[T, _ <: T]] = {
     wrapPattern(jPattern.getPrevious())
+  }
+
+  /**
+    * Specifies that this pattern can occur zero or more times(kleene star).
+    * This means any number of events can be matched in this state.
+    *
+    * @return The same pattern with applied Kleene star operator
+    */
+  def zeroOrMore: Pattern[T, F] = {
+    jPattern.zeroOrMore()
+    this
+  }
+
+  /**
+    * Specifies that this pattern can occur zero or more times(kleene star).
+    * This means any number of events can be matched in this state.
+    *
+    * If eagerness is enabled for a pattern A*B and sequence A1 A2 B will generate patterns:
+    * B, A1 B and A1 A2 B. If disabled B, A1 B, A2 B and A1 A2 B.
+    *
+    * @param eager if true the pattern always consumes earlier events
+    * @return The same pattern with applied Kleene star operator
+    */
+  def zeroOrMore(eager: Boolean): Pattern[T, F] = {
+    jPattern.zeroOrMore(eager)
+    this
+  }
+
+  /**
+    * Specifies that this pattern can occur one or more times(kleene star).
+    * This means at least one and at most infinite number of events can be matched in this state.
+    *
+    * @return The same pattern with applied Kleene plus operator
+    */
+  def oneOrMore: Pattern[T, F] = {
+    jPattern.oneOrMore()
+    this
+  }
+
+  /**
+    * Specifies that this pattern can occur one or more times(kleene star).
+    * This means at least one and at most infinite number of events can be matched in this state.
+    *
+    * If eagerness is enabled for a pattern A+B and sequence A1 A2 B will generate patterns:
+    * A1 B and A1 A2 B. If disabled A1 B, A2 B and A1 A2 B.
+    *
+    * @param eager if true the pattern always consumes earlier events
+    * @return The same pattern with applied Kleene plus operator
+    */
+  def oneOrMore(eager: Boolean): Pattern[T, F] = {
+    jPattern.oneOrMore(eager)
+    this
+  }
+
+  /**
+    * Specifies that this pattern can occur zero or once.
+    *
+    * @return The same pattern with applied Kleene ? operator
+    */
+  def optional: Pattern[T, F] = {
+    jPattern.optional()
+    this
+  }
+
+  /**
+    * Specifies exact number of times that this pattern should be matched.
+    *
+    * @param times number of times matching event must appear
+    * @return The same pattern with number of times applied
+    */
+  def times(times: Int): Pattern[T, F] = {
+    jPattern.times(times)
+    this
   }
 
 }
