@@ -22,6 +22,7 @@ import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.util.Preconditions;
 
 /**
  * Base class for a pattern definition.
@@ -53,6 +54,10 @@ public class Pattern<T, F extends T> {
 	// window length in which the pattern match has to occur
 	private Time windowTime;
 
+	private Quantifier quantifier = Quantifier.ONE;
+
+	private int times;
+
 	protected Pattern(final String name, final Pattern<T, ? extends T> previous) {
 		this.name = name;
 		this.previous = previous;
@@ -72,6 +77,14 @@ public class Pattern<T, F extends T> {
 
 	public Time getWindowTime() {
 		return windowTime;
+	}
+
+	public Quantifier getQuantifier() {
+		return quantifier;
+	}
+
+	public int getTimes() {
+		return times;
 	}
 
 	/**
@@ -183,4 +196,106 @@ public class Pattern<T, F extends T> {
 		return new Pattern<X, X>(name, null);
 	}
 
+	/**
+	 * Specifies that this pattern can occur zero or more times(kleene star).
+	 * This means any number of events can be matched in this state.
+	 *
+	 * @return The same pattern with applied Kleene star operator
+	 *
+	 * @throws MalformedPatternException if quantifier already applied
+	 */
+	public Pattern<T, F> zeroOrMore() {
+		return zeroOrMore(true);
+	}
+
+	/**
+	 * Specifies that this pattern can occur zero or more times(kleene star).
+	 * This means any number of events can be matched in this state.
+	 *
+	 * If eagerness is enabled for a pattern A*B and sequence A1 A2 B will generate patterns:
+	 * B, A1 B and A1 A2 B. If disabled B, A1 B, A2 B and A1 A2 B.
+	 *
+	 * @param eager if true the pattern always consumes earlier events
+	 * @return The same pattern with applied Kleene star operator
+	 *
+	 * @throws MalformedPatternException if quantifier already applied
+	 */
+	public Pattern<T, F> zeroOrMore(final boolean eager) {
+		checkIfQuantifierApplied();
+		if (eager) {
+			this.quantifier = Quantifier.ZERO_OR_MORE_EAGER;
+		} else {
+			this.quantifier = Quantifier.ZERO_OR_MORE_COMBINATIONS;
+		}
+		return this;
+	}
+
+	/**
+	 * Specifies that this pattern can occur one or more times(kleene star).
+	 * This means at least one and at most infinite number of events can be matched in this state.
+	 *
+	 * @return The same pattern with applied Kleene plus operator
+	 *
+	 * @throws MalformedPatternException if quantifier already applied
+	 */
+	public Pattern<T, F> oneOrMore() {
+		return oneOrMore(true);
+	}
+
+	/**
+	 * Specifies that this pattern can occur one or more times(kleene star).
+	 * This means at least one and at most infinite number of events can be matched in this state.
+	 *
+	 * If eagerness is enabled for a pattern A+B and sequence A1 A2 B will generate patterns:
+	 * A1 B and A1 A2 B. If disabled A1 B, A2 B and A1 A2 B.
+	 *
+	 * @param eager if true the pattern always consumes earlier events
+	 * @return The same pattern with applied Kleene plus operator
+	 *
+	 * @throws MalformedPatternException if quantifier already applied
+	 */
+	public Pattern<T, F> oneOrMore(final boolean eager) {
+		checkIfQuantifierApplied();
+		if (eager) {
+			this.quantifier = Quantifier.ONE_OR_MORE_EAGER;
+		} else {
+			this.quantifier = Quantifier.ONE_OR_MORE_COMBINATIONS;
+		}
+		return this;
+	}
+
+	/**
+	 * Specifies that this pattern can occur zero or once.
+	 *
+	 * @return The same pattern with applied Kleene ? operator
+	 *
+	 * @throws MalformedPatternException if quantifier already applied
+	 */
+	public Pattern<T, F> optional() {
+		checkIfQuantifierApplied();
+		this.quantifier = Quantifier.OPTIONAL;
+		return this;
+	}
+
+	/**
+	 * Specifies exact number of times that this pattern should be matched.
+	 *
+	 * @param times number of times matching event must appear
+	 * @return The same pattern with number of times applied
+	 *
+	 * @throws MalformedPatternException if quantifier already applied
+	 */
+	public Pattern<T, F> times(int times) {
+		checkIfQuantifierApplied();
+		Preconditions.checkArgument(times > 0, "You should give a positive number greater than 0.");
+		this.quantifier = Quantifier.TIMES;
+		this.times = times;
+		return this;
+	}
+
+	private void checkIfQuantifierApplied() {
+		if (this.quantifier != Quantifier.ONE) {
+			throw new MalformedPatternException("Already applied quantifier to this Pattern. Current quantifier is: " + this.quantifier);
+		}
+	}
 }

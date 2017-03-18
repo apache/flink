@@ -16,13 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.cep.nfa;
+package org.apache.flink.cep.pattern;
 
 /**
- * Set of actions when doing a state transition from a {@link State} to another.
+ * An exception used to indicate that a {@link org.apache.flink.cep.pattern.Pattern}
+ * was not specified correctly.
  */
-public enum StateTransitionAction {
-	TAKE, // take the current event and assign it to the current state
-	IGNORE, // ignore the current event
-	PROCEED // do the state transition and keep the current event for further processing (epsilon transition)
+public class MalformedPatternException extends RuntimeException {
+
+	private static final long serialVersionUID = 7751134834983361543L;
+
+	public MalformedPatternException(String message) {
+		super(message);
+	}
 }

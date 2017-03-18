@@ -15,18 +15,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.flink.cep.pattern;
 
-package org.apache.flink.cep.nfa.compiler;
+import org.apache.flink.api.common.functions.FilterFunction;
 
-/**
- * An exception used to indicate that a {@link org.apache.flink.cep.pattern.Pattern}
- * was not specified correctly.
- */
-public class MalformedPatternException extends RuntimeException {
+public class FilterFunctions<T> {
 
-	private static final long serialVersionUID = 7751134834983361543L;
+	private FilterFunctions() {
+	}
 
-	public MalformedPatternException(String message) {
-		super(message);
+	public static <T> FilterFunction<T> trueFunction()  {
+		return new FilterFunction<T>() {
+			@Override
+			public boolean filter(T value) throws Exception {
+				return true;
+			}
+		};
+	}
+
+	public static <T> FilterFunction<T> falseFunction()  {
+		return new FilterFunction<T>() {
+			@Override
+			public boolean filter(T value) throws Exception {
+				return false;
+			}
+		};
 	}
 }

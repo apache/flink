@@ -16,13 +16,27 @@
  * limitations under the License.
  */
 
-package org.apache.flink.cep.nfa;
+package org.apache.flink.cep.pattern;
+
+import org.apache.flink.api.common.functions.FilterFunction;
 
 /**
- * Set of actions when doing a state transition from a {@link State} to another.
+ * A filter function which negates filter function.
+ *
+ * @param <T> Type of the element to filter
  */
-public enum StateTransitionAction {
-	TAKE, // take the current event and assign it to the current state
-	IGNORE, // ignore the current event
-	PROCEED // do the state transition and keep the current event for further processing (epsilon transition)
+public class NotFilterFunction<T> implements FilterFunction<T> {
+	private static final long serialVersionUID = -2109562093871155005L;
+
+	private final FilterFunction<T> original;
+
+	public NotFilterFunction(final FilterFunction<T> original) {
+		this.original = original;
+	}
+
+	@Override
+	public boolean filter(T value) throws Exception {
+		return !original.filter(value);
+	}
+
 }
