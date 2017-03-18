@@ -82,13 +82,6 @@ public class PythonPlanStreamer {
 		new StreamPrinter(process.getInputStream()).start();
 		new StreamPrinter(process.getErrorStream()).start();
 
-		try {
-			Thread.sleep(2000);
-		} catch (InterruptedException ignored) {
-		}
-
-		checkPythonProcessHealth();
-
 		process.getOutputStream().write("plan\n".getBytes(ConfigConstants.DEFAULT_CHARSET));
 		process.getOutputStream().write((server.getLocalPort() + "\n").getBytes(ConfigConstants.DEFAULT_CHARSET));
 		process.getOutputStream().flush();
