@@ -36,6 +36,7 @@ import org.apache.calcite.sql2rel.{SqlRexConvertletTable, SqlToRelConverter}
 import org.apache.calcite.tools.{FrameworkConfig, RelConversionException}
 import org.apache.flink.table.api.{SqlParserException, TableException, ValidationException}
 import org.apache.flink.table.calcite.sql2rel.FlinkRelDecorrelator
+import org.apache.flink.table.plan.cost.FlinkDefaultRelMetadataProvider
 
 import scala.collection.JavaConversions._
 
@@ -100,6 +101,7 @@ class FlinkPlannerImpl(
       assert(validatedSqlNode != null)
       val rexBuilder: RexBuilder = createRexBuilder
       val cluster: RelOptCluster = RelOptCluster.create(planner, rexBuilder)
+      cluster.setMetadataProvider(FlinkDefaultRelMetadataProvider.INSTANCE)
       val config = SqlToRelConverter.configBuilder()
         .withTrimUnusedFields(false).withConvertTableAccess(false).build()
       val sqlToRelConverter: SqlToRelConverter = new SqlToRelConverter(
@@ -141,6 +143,7 @@ class FlinkPlannerImpl(
       val validatedSqlNode: SqlNode = validator.validate(sqlNode)
       val rexBuilder: RexBuilder = createRexBuilder
       val cluster: RelOptCluster = RelOptCluster.create(planner, rexBuilder)
+      cluster.setMetadataProvider(FlinkDefaultRelMetadataProvider.INSTANCE)
       val config: SqlToRelConverter.Config = SqlToRelConverter.configBuilder
         .withTrimUnusedFields(false).withConvertTableAccess(false).build
       val sqlToRelConverter: SqlToRelConverter = new SqlToRelConverter(
