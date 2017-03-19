@@ -100,8 +100,7 @@ class FlinkPlannerImpl(
     try {
       assert(validatedSqlNode != null)
       val rexBuilder: RexBuilder = createRexBuilder
-      val cluster: RelOptCluster = RelOptCluster.create(planner, rexBuilder)
-      cluster.setMetadataProvider(FlinkDefaultRelMetadataProvider.INSTANCE)
+      val cluster: RelOptCluster = FlinkRelOptClusterBuilder.create(planner, rexBuilder)
       val config = SqlToRelConverter.configBuilder()
         .withTrimUnusedFields(false).withConvertTableAccess(false).build()
       val sqlToRelConverter: SqlToRelConverter = new SqlToRelConverter(
@@ -142,8 +141,7 @@ class FlinkPlannerImpl(
       validator.setIdentifierExpansion(true)
       val validatedSqlNode: SqlNode = validator.validate(sqlNode)
       val rexBuilder: RexBuilder = createRexBuilder
-      val cluster: RelOptCluster = RelOptCluster.create(planner, rexBuilder)
-      cluster.setMetadataProvider(FlinkDefaultRelMetadataProvider.INSTANCE)
+      val cluster: RelOptCluster = FlinkRelOptClusterBuilder.create(planner, rexBuilder)
       val config: SqlToRelConverter.Config = SqlToRelConverter.configBuilder
         .withTrimUnusedFields(false).withConvertTableAccess(false).build
       val sqlToRelConverter: SqlToRelConverter = new SqlToRelConverter(
