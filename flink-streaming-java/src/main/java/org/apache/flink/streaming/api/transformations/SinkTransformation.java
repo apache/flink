@@ -42,7 +42,7 @@ public class SinkTransformation<T> extends StreamTransformation<Object> {
 
 	// We need this because sinks can also have state that is partitioned by key
 	private KeySelector<T, ?> stateKeySelector;
-	
+
 	private TypeInformation<?> stateKeyType;
 
 	/**

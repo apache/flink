@@ -64,7 +64,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>Forwarding elements, watermarks, or status status elements must be protected by synchronizing
  * on the given lock object. This ensures that we don't call methods on a
  * {@link OneInputStreamOperator} concurrently with the timer callback or other things.
- * 
+ *
  * @param <IN> The type of the record that can be read with this record reader.
  */
 @Internal
@@ -95,7 +95,7 @@ public class StreamInputProcessor<IN> {
 	private int currentChannel = -1;
 
 	private final StreamStatusMaintainer streamStatusMaintainer;
-	
+
 	private final OneInputStreamOperator<IN, ?> streamOperator;
 
 	// ---------------- Metrics ------------------
@@ -134,19 +134,19 @@ public class StreamInputProcessor<IN> {
 		else {
 			throw new IllegalArgumentException("Unrecognized Checkpointing Mode: " + checkpointMode);
 		}
-		
+
 		if (checkpointedTask != null) {
 			this.barrierHandler.registerCheckpointEventHandler(checkpointedTask);
 		}
 
 		this.lock = checkNotNull(lock);
-		
+
 		StreamElementSerializer<IN> ser = new StreamElementSerializer<>(inputSerializer);
 		this.deserializationDelegate = new NonReusingDeserializationDelegate<>(ser);
 
 		// Initialize one deserializer per input channel
 		this.recordDeserializers = new SpillingAdaptiveSpanningRecordDeserializer[inputGate.getNumberOfInputChannels()];
-		
+
 		for (int i = 0; i < recordDeserializers.length; i++) {
 			recordDeserializers[i] = new SpillingAdaptiveSpanningRecordDeserializer<>(
 					ioManager.getSpillingDirectoriesPaths());
@@ -238,7 +238,7 @@ public class StreamInputProcessor<IN> {
 
 	/**
 	 * Sets the metric group for this StreamInputProcessor.
-	 * 
+	 *
 	 * @param metrics metric group
 	 */
 	public void setMetricGroup(TaskIOMetricGroup metrics) {
@@ -256,7 +256,7 @@ public class StreamInputProcessor<IN> {
 			}
 		});
 	}
-	
+
 	public void cleanup() throws IOException {
 		// clear the buffers first. this part should not ever fail
 		for (RecordDeserializer<?> deserializer : recordDeserializers) {
@@ -265,7 +265,7 @@ public class StreamInputProcessor<IN> {
 				buffer.recycle();
 			}
 		}
-		
+
 		// cleanup the barrier handler resources
 		barrierHandler.cleanup();
 	}

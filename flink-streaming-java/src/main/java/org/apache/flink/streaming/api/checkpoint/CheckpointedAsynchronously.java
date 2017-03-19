@@ -25,17 +25,17 @@ import java.io.Serializable;
 /**
  * This interface marks a function/operator as checkpointed similar to the
  * {@link Checkpointed} interface, but gives the Flink framework the option to
- * perform the checkpoint asynchronously. Note that asynchronous checkpointing for 
+ * perform the checkpoint asynchronously. Note that asynchronous checkpointing for
  * this interface has not been implemented.
- * 
+ *
  * <h1>Deprecation and Replacement</h1>
  * The shortcut replacement for this interface is via {@link ListCheckpointed} and works
  * as shown in the example below. Please refer to the JavaDocs of {@link ListCheckpointed} for
  * a more detailed description of how to use the new interface.
- * 
+ *
  * <p><pre>{@code
  * public class ExampleFunction<T> implements MapFunction<T, T>, ListCheckpointed<Integer> {
- * 
+ *
  *     private int count;
  *
  *     public List<Integer> snapshotState(long checkpointId, long timestamp) throws Exception {
@@ -45,7 +45,7 @@ import java.io.Serializable;
  *     public void restoreState(List<Integer> state) throws Exception {
  *         this.value = state.count.isEmpty() ? 0 : state.get(0);
  *     }
- * 
+ *
  *     public T map(T value) {
  *         count++;
  *         return value;

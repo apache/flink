@@ -45,7 +45,6 @@ public final class StreamRecordSerializer<T> extends TypeSerializer<StreamRecord
 	private static final long serialVersionUID = 1L;
 
 	private final TypeSerializer<T> typeSerializer;
-	
 
 	public StreamRecordSerializer(TypeSerializer<T> serializer) {
 		if (serializer instanceof StreamRecordSerializer) {
@@ -57,7 +56,7 @@ public final class StreamRecordSerializer<T> extends TypeSerializer<StreamRecord
 	public TypeSerializer<T> getContainedTypeSerializer() {
 		return this.typeSerializer;
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  General serializer and type utils
 	// ------------------------------------------------------------------------
@@ -90,7 +89,7 @@ public final class StreamRecordSerializer<T> extends TypeSerializer<StreamRecord
 			throw new RuntimeException("Cannot instantiate StreamRecord.", e);
 		}
 	}
-	
+
 	@Override
 	public StreamRecord<T> copy(StreamRecord<T> from) {
 		return from.copy(typeSerializer.copy(from.getValue()));
@@ -106,7 +105,7 @@ public final class StreamRecordSerializer<T> extends TypeSerializer<StreamRecord
 	public void serialize(StreamRecord<T> value, DataOutputView target) throws IOException {
 		typeSerializer.serialize(value.getValue(), target);
 	}
-	
+
 	@Override
 	public StreamRecord<T> deserialize(DataInputView source) throws IOException {
 		return new StreamRecord<T>(typeSerializer.deserialize(source));
@@ -125,7 +124,7 @@ public final class StreamRecordSerializer<T> extends TypeSerializer<StreamRecord
 	}
 
 	// ------------------------------------------------------------------------
-	
+
 	@Override
 	public boolean equals(Object obj) {
 		if (obj instanceof StreamRecordSerializer) {

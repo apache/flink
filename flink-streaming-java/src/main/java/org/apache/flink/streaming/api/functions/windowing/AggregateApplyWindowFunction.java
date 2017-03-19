@@ -29,7 +29,7 @@ import java.util.Collections;
  * A {@link WindowFunction} that composes an {@link AggregateFunction} and {@link WindowFunction}.
  * Upon invocation, this first applies {@code AggregateFunction} to the input, and then
  * finally the {@code WindowFunction} to the single result element.
- * 
+ *
  * @param <K> The key type
  * @param <W> The window type
  * @param <T> The type of the input to the AggregateFunction

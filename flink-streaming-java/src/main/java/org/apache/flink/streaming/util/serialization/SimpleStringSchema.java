@@ -30,7 +30,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Very simple serialization schema for strings.
- * 
+ *
  * <p>By default, the serializer uses "UTF-8" for string/byte conversion.
  */
 @PublicEvolving
@@ -51,7 +51,7 @@ public class SimpleStringSchema implements DeserializationSchema<String>, Serial
 
 	/**
 	 * Creates a new SimpleStringSchema that uses the given charset to convert between strings and bytes.
-	 * 
+	 *
 	 * @param charset The charset to use to convert between strings and bytes.
 	 */
 	public SimpleStringSchema(Charset charset) {

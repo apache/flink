@@ -41,7 +41,7 @@ public class ArrayFromTuple implements Extractor<Tuple, Object[]> {
 	/**
 	 * Using this constructor the extractor will combine the fields as specified
 	 * in the indexes parameter in an object array.
-	 * 
+	 *
 	 * @param indexes
 	 *            the field ids (enumerated from 0)
 	 */

@@ -64,7 +64,7 @@ public class OneInputStreamTaskTestHarness<IN, OUT> extends StreamTaskTestHarnes
 		int numInputChannelsPerGate,
 		TypeInformation<IN> inputType,
 		TypeInformation<OUT> outputType) {
-		
+
 		super(task, outputType);
 
 		this.inputType = inputType;

@@ -416,7 +416,7 @@ public class AllWindowedStream<T, W extends Window> {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Applies the given {@code AggregateFunction} to each window. The AggregateFunction 
+	 * Applies the given {@code AggregateFunction} to each window. The AggregateFunction
 	 * aggregates all elements of a window into a single result element. The stream of these
 	 * result elements (one per window) is interpreted as a regular non-windowed stream.
 	 *
@@ -425,7 +425,7 @@ public class AllWindowedStream<T, W extends Window> {
 	 *
 	 * @param <ACC> The type of the AggregateFunction's accumulator
 	 * @param <R> The type of the elements in the resulting stream, equal to the
-	 *            AggregateFunction's result type   
+	 *            AggregateFunction's result type
 	 */
 	@PublicEvolving
 	public <ACC, R> SingleOutputStreamOperator<R> aggregate(AggregateFunction<T, ACC, R> function) {
@@ -445,7 +445,7 @@ public class AllWindowedStream<T, W extends Window> {
 	}
 
 	/**
-	 * Applies the given {@code AggregateFunction} to each window. The AggregateFunction 
+	 * Applies the given {@code AggregateFunction} to each window. The AggregateFunction
 	 * aggregates all elements of a window into a single result element. The stream of these
 	 * result elements (one per window) is interpreted as a regular non-windowed stream.
 	 *
@@ -454,7 +454,7 @@ public class AllWindowedStream<T, W extends Window> {
 	 *
 	 * @param <ACC> The type of the AggregateFunction's accumulator
 	 * @param <R> The type of the elements in the resulting stream, equal to the
-	 *            AggregateFunction's result type  
+	 *            AggregateFunction's result type
 	 */
 	@PublicEvolving
 	public <ACC, R> SingleOutputStreamOperator<R> aggregate(
@@ -488,7 +488,7 @@ public class AllWindowedStream<T, W extends Window> {
 	 * @return The data stream that is the result of applying the window function to the window.
 	 *
 	 * @param <ACC> The type of the AggregateFunction's accumulator
-	 * @param <V> The type of AggregateFunction's result, and the WindowFunction's input  
+	 * @param <V> The type of AggregateFunction's result, and the WindowFunction's input
 	 * @param <R> The type of the elements in the resulting stream, equal to the
 	 *            WindowFunction's result type
 	 */
@@ -528,7 +528,7 @@ public class AllWindowedStream<T, W extends Window> {
 	 * @return The data stream that is the result of applying the window function to the window.
 	 *
 	 * @param <ACC> The type of the AggregateFunction's accumulator
-	 * @param <V> The type of AggregateFunction's result, and the WindowFunction's input  
+	 * @param <V> The type of AggregateFunction's result, and the WindowFunction's input
 	 * @param <R> The type of the elements in the resulting stream, equal to the
 	 *            WindowFunction's result type
 	 */

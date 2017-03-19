@@ -71,7 +71,7 @@ public class StreamTaskCancellationBarrierTest {
 	/**
 	 * This test verifies (for onw input tasks) that the Stream tasks react the following way to
 	 * receiving a checkpoint cancellation barrier:
-	 * 
+	 *
 	 *   - send a "decline checkpoint" notification out (to the JobManager)
 	 *   - emit a cancellation barrier downstream
 	 */
@@ -167,7 +167,7 @@ public class StreamTaskCancellationBarrierTest {
 
 		private final Object lock = new Object();
 		private volatile boolean running = true;
-		
+
 		@Override
 		protected void init() throws Exception {
 			synchronized (lock) {
@@ -203,7 +203,7 @@ public class StreamTaskCancellationBarrierTest {
 
 	private static class UnionCoMap implements CoMapFunction<String, String, String> {
 		private static final long serialVersionUID = 1L;
-		
+
 		@Override
 		public String map1(String value) throws Exception {
 			return value;

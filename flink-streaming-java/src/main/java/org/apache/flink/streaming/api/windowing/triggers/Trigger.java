@@ -53,7 +53,7 @@ import java.io.Serializable;
  */
 @PublicEvolving
 public abstract class Trigger<T, W extends Window> implements Serializable {
-	
+
 	private static final long serialVersionUID = -4104633972991191369L;
 
 	/**
@@ -117,7 +117,7 @@ public abstract class Trigger<T, W extends Window> implements Serializable {
 	public abstract void clear(W window, TriggerContext ctx) throws Exception;
 
 	// ------------------------------------------------------------------------
-	
+
 	/**
 	 * A context object that is given to {@link Trigger} methods to allow them to register timer
 	 * callbacks and deal with state.
@@ -144,7 +144,7 @@ public abstract class Trigger<T, W extends Window> implements Serializable {
 		 * Returns the current watermark time.
 		 */
 		long getCurrentWatermark();
-	
+
 		/**
 		 * Register a system time callback. When the current system time passes the specified
 		 * time {@link Trigger#onProcessingTime(long, Window, TriggerContext)} is called with the time specified here.
@@ -152,7 +152,7 @@ public abstract class Trigger<T, W extends Window> implements Serializable {
 		 * @param time The time at which to invoke {@link Trigger#onProcessingTime(long, Window, TriggerContext)}
 		 */
 		void registerProcessingTimeTimer(long time);
-	
+
 		/**
 		 * Register an event-time callback. When the current watermark passes the specified
 		 * time {@link Trigger#onEventTime(long, Window, TriggerContext)} is called with the time specified here.
@@ -161,17 +161,17 @@ public abstract class Trigger<T, W extends Window> implements Serializable {
 		 * @see org.apache.flink.streaming.api.watermark.Watermark
 		 */
 		void registerEventTimeTimer(long time);
-	
+
 		/**
 		 * Delete the processing time trigger for the given time.
 		 */
 		void deleteProcessingTimeTimer(long time);
-	
+
 		/**
 		 * Delete the event-time trigger for the given time.
 		 */
 		void deleteEventTimeTimer(long time);
-	
+
 		/**
 		 * Retrieves a {@link State} object that can be used to interact with
 		 * fault-tolerant state that is scoped to the window and key of the current
@@ -185,7 +185,7 @@ public abstract class Trigger<T, W extends Window> implements Serializable {
 		 *                                       function (function is not part os a KeyedStream).
 		 */
 		<S extends State> S getPartitionedState(StateDescriptor<S, ?> stateDescriptor);
-	
+
 		/**
 		 * Retrieves a {@link ValueState} object that can be used to interact with
 		 * fault-tolerant state that is scoped to the window and key of the current
@@ -205,8 +205,8 @@ public abstract class Trigger<T, W extends Window> implements Serializable {
 		 */
 		@Deprecated
 		<S extends Serializable> ValueState<S> getKeyValueState(String name, Class<S> stateType, S defaultState);
-	
-	
+
+
 		/**
 		 * Retrieves a {@link ValueState} object that can be used to interact with
 		 * fault-tolerant state that is scoped to the window and key of the current

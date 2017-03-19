@@ -148,13 +148,13 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 		else {
 			throw new IllegalArgumentException("Unrecognized CheckpointingMode: " + checkpointMode);
 		}
-		
+
 		if (checkpointedTask != null) {
 			this.barrierHandler.registerCheckpointEventHandler(checkpointedTask);
 		}
 
 		this.lock = checkNotNull(lock);
-		
+
 		StreamElementSerializer<IN1> ser1 = new StreamElementSerializer<>(inputSerializer1);
 		this.deserializationDelegate1 = new NonReusingDeserializationDelegate<>(ser1);
 
@@ -163,7 +163,7 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 
 		// Initialize one deserializer per input channel
 		this.recordDeserializers = new SpillingAdaptiveSpanningRecordDeserializer[inputGate.getNumberOfInputChannels()];
-		
+
 		for (int i = 0; i < recordDeserializers.length; i++) {
 			recordDeserializers[i] = new SpillingAdaptiveSpanningRecordDeserializer<>(
 					ioManager.getSpillingDirectoriesPaths());
@@ -174,7 +174,7 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 		for (InputGate gate: inputGates1) {
 			numInputChannels1 += gate.getNumberOfInputChannels();
 		}
-		
+
 		this.numInputChannels1 = numInputChannels1;
 		this.numInputChannels2 = inputGate.getNumberOfInputChannels() - numInputChannels1;
 
@@ -273,7 +273,7 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 					currentChannel = bufferOrEvent.getChannelIndex();
 					currentRecordDeserializer = recordDeserializers[currentChannel];
 					currentRecordDeserializer.setNextBuffer(bufferOrEvent.getBuffer());
-	
+
 				} else {
 					// Event received
 					final AbstractEvent event = bufferOrEvent.getEvent();
@@ -312,7 +312,7 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 			}
 		});
 	}
-	
+
 	public void cleanup() throws IOException {
 		// clear the buffers first. this part should not ever fail
 		for (RecordDeserializer<?> deserializer : recordDeserializers) {

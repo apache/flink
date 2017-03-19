@@ -48,7 +48,7 @@ import static java.util.Objects.requireNonNull;
  * This is used as the base class for operators that have a user-defined
  * function. This class handles the opening and closing of the user-defined functions,
  * as part of the operator life cycle.
- * 
+ *
  * @param <OUT>
  *            The output type of the operator
  * @param <F>
@@ -61,14 +61,14 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
 		StreamCheckpointedOperator {
 
 	private static final long serialVersionUID = 1L;
-	
-	
+
+
 	/** The user function. */
 	protected final F userFunction;
-	
+
 	/** Flag to prevent duplicate function.close() calls in close() and dispose(). */
 	private transient boolean functionsClosed = false;
-	
+
 	public AbstractUdfStreamOperator(F userFunction) {
 		this.userFunction = requireNonNull(userFunction);
 		checkUdfCheckpointingPreconditions();
@@ -81,7 +81,7 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
 	public F getUserFunction() {
 		return userFunction;
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  operator life cycle
 	// ------------------------------------------------------------------------
@@ -131,7 +131,7 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
 	// ------------------------------------------------------------------------
 	//  checkpointing and recovery
 	// ------------------------------------------------------------------------
-	
+
 	@Override
 	public void snapshotState(FSDataOutputStream out, long checkpointId, long timestamp) throws Exception {
 		if (userFunction instanceof Checkpointed) {
@@ -207,7 +207,7 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
 	/**
 	 * Since the streaming API does not implement any parametrization of functions via a
 	 * configuration, the config returned here is actually empty.
-	 * 
+	 *
 	 * @return The user function parameters (currently empty)
 	 */
 	public Configuration getUserFunctionParameters() {

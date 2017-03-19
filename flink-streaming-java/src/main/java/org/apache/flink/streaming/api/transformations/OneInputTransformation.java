@@ -43,7 +43,7 @@ public class OneInputTransformation<IN, OUT> extends StreamTransformation<OUT> {
 	private final OneInputStreamOperator<IN, OUT> operator;
 
 	private KeySelector<IN, ?> stateKeySelector;
-	
+
 	private TypeInformation<?> stateKeyType;
 
 	/**

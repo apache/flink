@@ -43,9 +43,9 @@ public final class Watermark extends StreamElement {
 
 	/** The watermark that signifies end-of-event-time. */
 	public static final Watermark MAX_WATERMARK = new Watermark(Long.MAX_VALUE);
-	
+
 	// ------------------------------------------------------------------------
-	
+
 	/** The timestamp of the watermark in milliseconds. */
 	private final long timestamp;
 
@@ -64,7 +64,7 @@ public final class Watermark extends StreamElement {
 	}
 
 	// ------------------------------------------------------------------------
-	
+
 	@Override
 	public boolean equals(Object o) {
 		return this == o ||

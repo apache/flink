@@ -102,7 +102,7 @@ public class StreamEdge implements Serializable {
 	public StreamPartitioner<?> getPartitioner() {
 		return outputPartitioner;
 	}
-	
+
 	public void setPartitioner(StreamPartitioner<?> partitioner) {
 		this.outputPartitioner = partitioner;
 	}

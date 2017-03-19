@@ -543,7 +543,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			performCheckpoint(checkpointMetaData, checkpointOptions, checkpointMetrics);
 		}
 		catch (CancelTaskException e) {
-			LOG.info("Operator {} was cancelled while performing checkpoint {}.", 
+			LOG.info("Operator {} was cancelled while performing checkpoint {}.",
 					getName(), checkpointMetaData.getCheckpointId());
 			throw e;
 		}

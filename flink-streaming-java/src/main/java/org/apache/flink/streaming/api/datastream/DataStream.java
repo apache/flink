@@ -217,7 +217,7 @@ public class DataStream<T> {
 				throw new IllegalArgumentException("Cannot union streams of different types: "
 						+ getType() + " and " + newStream.getType());
 			}
-			
+
 			unionedTransforms.add(newStream.getTransformation());
 		}
 		return new DataStream<>(this.environment, new UnionTransformation<>(unionedTransforms));
@@ -254,7 +254,7 @@ public class DataStream<T> {
 
 	/**
 	 * It creates a new {@link KeyedStream} that uses the provided key for partitioning
-	 * its operator states. 
+	 * its operator states.
 	 *
 	 * @param key
 	 *            The KeySelector to be used for extracting the key for partitioning
@@ -265,7 +265,7 @@ public class DataStream<T> {
 	}
 
 	/**
-	 * Partitions the operator state of a {@link DataStream} by the given key positions. 
+	 * Partitions the operator state of a {@link DataStream} by the given key positions.
 	 *
 	 * @param fields
 	 *            The position of the fields on which the {@link DataStream}
@@ -765,7 +765,7 @@ public class DataStream<T> {
 	// ------------------------------------------------------------------------
 	//  Timestamps and watermarks
 	// ------------------------------------------------------------------------
-	
+
 	/**
 	 * Extracts a timestamp from an element and assigns it as the internal timestamp of that element.
 	 * The internal timestamps are, for example, used to to event-time window operations.
@@ -776,7 +776,7 @@ public class DataStream<T> {
 	 * {@link TimestampExtractor#getCurrentWatermark()} to keep track of watermarks.
 	 *
 	 * @param extractor The TimestampExtractor that is called for each element of the DataStream.
-	 * 
+	 *
 	 * @deprecated Please use {@link #assignTimestampsAndWatermarks(AssignerWithPeriodicWatermarks)}
 	 *             of {@link #assignTimestampsAndWatermarks(AssignerWithPunctuatedWatermarks)}
 	 *             instead.
@@ -797,13 +797,13 @@ public class DataStream<T> {
 	/**
 	 * Assigns timestamps to the elements in the data stream and periodically creates
 	 * watermarks to signal event time progress.
-	 * 
+	 *
 	 * <p>This method creates watermarks periodically (for example every second), based
 	 * on the watermarks indicated by the given watermark generator. Even when no new elements
 	 * in the stream arrive, the given watermark generator will be periodically checked for
 	 * new watermarks. The interval in which watermarks are generated is defined in
 	 * {@link ExecutionConfig#setAutoWatermarkInterval(long)}.
-	 * 
+	 *
 	 * <p>Use this method for the common cases, where some characteristic over all elements
 	 * should generate the watermarks, or where watermarks are simply trailing behind the
 	 * wall clock time by a certain amount.
@@ -812,31 +812,31 @@ public class DataStream<T> {
 	 * timestamp seen so far in the elements of the stream by a fixed amount of time, and this
 	 * amount is known in advance, use the
 	 * {@link BoundedOutOfOrdernessTimestampExtractor}.
-	 * 
+	 *
 	 * <p>For cases where watermarks should be created in an irregular fashion, for example
 	 * based on certain markers that some element carry, use the
 	 * {@link AssignerWithPunctuatedWatermarks}.
-	 * 
+	 *
 	 * @param timestampAndWatermarkAssigner The implementation of the timestamp assigner and
-	 *                                      watermark generator.   
+	 *                                      watermark generator.
 	 * @return The stream after the transformation, with assigned timestamps and watermarks.
-	 * 
+	 *
 	 * @see AssignerWithPeriodicWatermarks
 	 * @see AssignerWithPunctuatedWatermarks
-	 * @see #assignTimestampsAndWatermarks(AssignerWithPunctuatedWatermarks) 
+	 * @see #assignTimestampsAndWatermarks(AssignerWithPunctuatedWatermarks)
 	 */
 	public SingleOutputStreamOperator<T> assignTimestampsAndWatermarks(
 			AssignerWithPeriodicWatermarks<T> timestampAndWatermarkAssigner) {
-		
+
 		// match parallelism to input, otherwise dop=1 sources could lead to some strange
 		// behaviour: the watermark will creep along very slowly because the elements
 		// from the source go to each extraction operator round robin.
 		final int inputParallelism = getTransformation().getParallelism();
 		final AssignerWithPeriodicWatermarks<T> cleanedAssigner = clean(timestampAndWatermarkAssigner);
-		
-		TimestampsAndPeriodicWatermarksOperator<T> operator = 
+
+		TimestampsAndPeriodicWatermarksOperator<T> operator =
 				new TimestampsAndPeriodicWatermarksOperator<>(cleanedAssigner);
-		
+
 		return transform("Timestamps/Watermarks", getTransformation().getOutputType(), operator)
 				.setParallelism(inputParallelism);
 	}
@@ -852,7 +852,7 @@ public class DataStream<T> {
 	 * non-negative and greater than the previous watermark.
 	 *
 	 * <p>This method is useful when the data stream embeds watermark elements, or certain elements
-	 * carry a marker that can be used to determine the current event time watermark. 
+	 * carry a marker that can be used to determine the current event time watermark.
 	 * This operation gives the programmer full control over the watermark generation. Users
 	 * should be aware that too aggressive watermark generation (i.e., generating hundreds of
 	 * watermarks every second) can cost some performance.
@@ -861,7 +861,7 @@ public class DataStream<T> {
 	 * every x milliseconds, use the {@link AssignerWithPeriodicWatermarks}.
 	 *
 	 * @param timestampAndWatermarkAssigner The implementation of the timestamp assigner and
-	 *                                      watermark generator.   
+	 *                                      watermark generator.
 	 * @return The stream after the transformation, with assigned timestamps and watermarks.
 	 *
 	 * @see AssignerWithPunctuatedWatermarks
@@ -870,16 +870,16 @@ public class DataStream<T> {
 	 */
 	public SingleOutputStreamOperator<T> assignTimestampsAndWatermarks(
 			AssignerWithPunctuatedWatermarks<T> timestampAndWatermarkAssigner) {
-		
+
 		// match parallelism to input, otherwise dop=1 sources could lead to some strange
 		// behaviour: the watermark will creep along very slowly because the elements
 		// from the source go to each extraction operator round robin.
 		final int inputParallelism = getTransformation().getParallelism();
 		final AssignerWithPunctuatedWatermarks<T> cleanedAssigner = clean(timestampAndWatermarkAssigner);
 
-		TimestampsAndPunctuatedWatermarksOperator<T> operator = 
+		TimestampsAndPunctuatedWatermarksOperator<T> operator =
 				new TimestampsAndPunctuatedWatermarksOperator<>(cleanedAssigner);
-		
+
 		return transform("Timestamps/Watermarks", getTransformation().getOutputType(), operator)
 				.setParallelism(inputParallelism);
 	}
@@ -887,7 +887,7 @@ public class DataStream<T> {
 	// ------------------------------------------------------------------------
 	//  Data sinks
 	// ------------------------------------------------------------------------
-	
+
 	/**
 	 * Writes a DataStream to the standard output stream (stdout).
 	 *

@@ -36,7 +36,7 @@ public class ComparableAggregator<T> extends AggregationFunction<T> {
 	private boolean byAggregate;
 	private boolean first;
 	private final FieldAccessor<T, Object> fieldAccessor;
-	
+
 	private ComparableAggregator(AggregationType aggregationType, FieldAccessor<T, Object> fieldAccessor, boolean first) {
 		this.comparator = Comparator.getForAggregation(aggregationType);
 		this.byAggregate = (aggregationType == AggregationType.MAXBY) || (aggregationType == AggregationType.MINBY);

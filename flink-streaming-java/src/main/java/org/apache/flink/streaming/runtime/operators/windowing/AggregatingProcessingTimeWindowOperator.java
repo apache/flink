@@ -33,12 +33,12 @@ import org.apache.flink.api.java.functions.KeySelector;
  */
 @Internal
 @Deprecated
-public class AggregatingProcessingTimeWindowOperator<KEY, IN> 
+public class AggregatingProcessingTimeWindowOperator<KEY, IN>
 		extends AbstractAlignedProcessingTimeWindowOperator<KEY, IN, IN, IN, ReduceFunction<IN>> {
 
 	private static final long serialVersionUID = 7305948082830843475L;
 
-	
+
 	public AggregatingProcessingTimeWindowOperator(
 			ReduceFunction<IN> function,
 			KeySelector<IN, KEY> keySelector,
@@ -54,7 +54,7 @@ public class AggregatingProcessingTimeWindowOperator<KEY, IN>
 	protected AggregatingKeyedTimePanes<IN, KEY> createPanes(KeySelector<IN, KEY> keySelector, Function function) {
 		@SuppressWarnings("unchecked")
 		ReduceFunction<IN> windowFunction = (ReduceFunction<IN>) function;
-		
+
 		return new AggregatingKeyedTimePanes<IN, KEY>(keySelector, windowFunction);
 	}
 }

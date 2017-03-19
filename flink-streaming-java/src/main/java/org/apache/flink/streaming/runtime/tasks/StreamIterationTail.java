@@ -70,7 +70,7 @@ public class StreamIterationTail<IN> extends OneInputStreamTask<IN, IN> {
 	}
 
 	private static class RecordPusher<IN> extends AbstractStreamOperator<IN> implements OneInputStreamOperator<IN, IN> {
-		
+
 		private static final long serialVersionUID = 1L;
 
 		@Override
@@ -93,9 +93,9 @@ public class StreamIterationTail<IN> extends OneInputStreamTask<IN, IN> {
 
 		@SuppressWarnings("NonSerializableFieldInSerializableClass")
 		private final BlockingQueue<StreamRecord<IN>> dataChannel;
-		
+
 		private final long iterationWaitTime;
-		
+
 		private final boolean shouldWait;
 
 		IterationTailOutput(BlockingQueue<StreamRecord<IN>> dataChannel, long iterationWaitTime) {

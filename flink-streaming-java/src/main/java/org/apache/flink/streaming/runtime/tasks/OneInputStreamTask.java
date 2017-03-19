@@ -32,7 +32,7 @@ import org.apache.flink.streaming.runtime.io.StreamInputProcessor;
 public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamOperator<IN, OUT>> {
 
 	private StreamInputProcessor<IN> inputProcessor;
-	
+
 	private volatile boolean running = true;
 
 	@Override

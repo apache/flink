@@ -61,19 +61,19 @@ import java.util.Random;
 /**
  * The {@code OperatorChain} contains all operators that are executed as one chain within a single
  * {@link StreamTask}.
- * 
+ *
  * @param <OUT> The type of elements accepted by the chain, i.e., the input type of the chain's
  *              head operator.
  */
 @Internal
 public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements StreamStatusMaintainer {
-	
+
 	private static final Logger LOG = LoggerFactory.getLogger(OperatorChain.class);
-	
+
 	private final StreamOperator<?>[] allOperators;
 
 	private final RecordWriterOutput<?>[] streamOutputs;
-	
+
 	private final Output<StreamRecord<OUT>> chainEntryPoint;
 
 	private final OP headOperator;
@@ -87,7 +87,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 	private StreamStatus streamStatus = StreamStatus.ACTIVE;
 
 	public OperatorChain(StreamTask<OUT, OP> containingTask) {
-		
+
 		final ClassLoader userCodeClassloader = containingTask.getUserCodeClassLoader();
 		final StreamConfig configuration = containingTask.getConfiguration();
 
@@ -102,7 +102,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 		List<StreamEdge> outEdgesInOrder = configuration.getOutEdgesInOrder(userCodeClassloader);
 		Map<StreamEdge, RecordWriterOutput<?>> streamOutputMap = new HashMap<>(outEdgesInOrder.size());
 		this.streamOutputs = new RecordWriterOutput<?>[outEdgesInOrder.size()];
-		
+
 		// from here on, we need to make sure that the output writers are shut down again on failure
 		boolean success = false;
 		try {
@@ -112,11 +112,11 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 				RecordWriterOutput<?> streamOutput = createStreamOutput(
 						outEdge, chainedConfigs.get(outEdge.getSourceId()), i,
 						containingTask.getEnvironment(), containingTask.getName());
-	
+
 				this.streamOutputs[i] = streamOutput;
 				streamOutputMap.put(outEdge, streamOutput);
 			}
-	
+
 			// we create the chain of operators and grab the collector that leads into the chain
 			List<StreamOperator<?>> allOps = new ArrayList<>(chainedConfigs.size());
 			this.chainEntryPoint = createOutputCollector(containingTask, configuration,
@@ -131,7 +131,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 			allOps.add(headOperator);
 
 			this.allOperators = allOps.toArray(new StreamOperator<?>[allOps.size()]);
-			
+
 			success = true;
 		}
 		finally {
@@ -146,7 +146,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 				}
 			}
 		}
-		
+
 	}
 
 	@Override
@@ -193,7 +193,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 	public RecordWriterOutput<?>[] getStreamOutputs() {
 		return streamOutputs;
 	}
-	
+
 	public StreamOperator<?>[] getAllOperators() {
 		return allOperators;
 	}
@@ -247,7 +247,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 	// ------------------------------------------------------------------------
 	//  initialization utilities
 	// ------------------------------------------------------------------------
-	
+
 	private <T> Output<StreamRecord<T>> createOutputCollector(
 			StreamTask<?, ?> containingTask,
 			StreamConfig operatorConfig,
@@ -257,7 +257,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 			List<StreamOperator<?>> allOperators)
 	{
 		List<Tuple2<Output<StreamRecord<T>>, StreamEdge>> allOutputs = new ArrayList<>(4);
-		
+
 		// create collectors for the network outputs
 		for (StreamEdge outputEdge : operatorConfig.getNonChainedOutputs(userCodeClassloader)) {
 			@SuppressWarnings("unchecked")
@@ -275,12 +275,12 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 					containingTask, chainedOpConfig, chainedConfigs, userCodeClassloader, streamOutputs, allOperators, outputEdge.getOutputTag());
 			allOutputs.add(new Tuple2<>(output, outputEdge));
 		}
-		
+
 		// if there are multiple outputs, or the outputs are directed, we need to
 		// wrap them as one output
-		
+
 		List<OutputSelector<T>> selectors = operatorConfig.getOutputSelectors(userCodeClassloader);
-		
+
 		if (selectors == null || selectors.isEmpty()) {
 			// simple path, no selector necessary
 			if (allOutputs.size() == 1) {
@@ -316,10 +316,10 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 			} else {
 				return new DirectedOutput<>(selectors, allOutputs);
 			}
-			
+
 		}
 	}
-	
+
 	private <IN, OUT> Output<StreamRecord<IN>> createChainedOperator(
 			StreamTask<?, ?> containingTask,
 			StreamConfig operatorConfig,
@@ -348,7 +348,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 			return new CopyingChainingOutput<>(chainedOperator, inSerializer, outputTag, this);
 		}
 	}
-	
+
 	private <T> RecordWriterOutput<T> createStreamOutput(
 			StreamEdge edge, StreamConfig upStreamConfig, int outputIndex,
 			Environment taskEnvironment,
@@ -370,7 +370,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 		StreamPartitioner<T> outputPartitioner = (StreamPartitioner<T>) edge.getPartitioner();
 
 		LOG.debug("Using partitioner {} for output {} of task ", outputPartitioner, outputIndex, taskName);
-		
+
 		ResultPartitionWriter bufferWriter = taskEnvironment.getWriter(outputIndex);
 
 		// we initialize the partitioner here with the number of key groups (aka max. parallelism)
@@ -384,16 +384,16 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 		StreamRecordWriter<SerializationDelegate<StreamRecord<T>>> output =
 				new StreamRecordWriter<>(bufferWriter, outputPartitioner, upStreamConfig.getBufferTimeout());
 		output.setMetricGroup(taskEnvironment.getMetricGroup().getIOMetricGroup());
-		
+
 		return new RecordWriterOutput<>(output, outSerializer, sideOutputTag, this);
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  Collectors for output chaining
-	// ------------------------------------------------------------------------ 
+	// ------------------------------------------------------------------------
 
 	private static class ChainingOutput<T> implements Output<StreamRecord<T>> {
-		
+
 		protected final OneInputStreamOperator<T, ?> operator;
 		protected final Counter numRecordsIn;
 
@@ -482,7 +482,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 	}
 
 	private static final class CopyingChainingOutput<T> extends ChainingOutput<T> {
-		
+
 		private final TypeSerializer<T> serializer;
 
 		public CopyingChainingOutput(
@@ -533,9 +533,9 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 
 		}
 	}
-	
+
 	private static class BroadcastingOutputCollector<T> implements Output<StreamRecord<T>> {
-		
+
 		protected final Output<StreamRecord<T>>[] outputs;
 
 		private final Random RNG = new XORShiftRandom();

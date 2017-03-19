@@ -42,7 +42,7 @@ import java.util.Deque;
  */
 @PublicEvolving
 public class StatefulSequenceSource extends RichParallelSourceFunction<Long> implements CheckpointedFunction {
-	
+
 	private static final long serialVersionUID = 1L;
 
 	private final long start;

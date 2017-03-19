@@ -62,12 +62,12 @@ import java.util.concurrent.TimeoutException;
  * Within the async function, the user can complete the async collector arbitrarily. Once the async
  * collector has been completed, the result is emitted by the operator's emitter to downstream
  * operators.
- * 
+ *
  * <p>The operator offers different output modes depending on the chosen
  * {@link OutputMode}. In order to give exactly once processing guarantees, the
  * operator stores all currently in-flight {@link StreamElement} in it's operator state. Upon
  * recovery the recorded set of stream elements is replayed.
- * 
+ *
  * <p>In case of chaining of this operator, it has to be made sure that the operators in the chain are
  * opened tail to head. The reason for this is that an opened {@link AsyncWaitOperator} starts
  * already emitting recovered {@link StreamElement} to downstream operators.

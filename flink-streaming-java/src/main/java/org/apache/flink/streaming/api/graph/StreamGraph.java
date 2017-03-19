@@ -67,11 +67,11 @@ import org.slf4j.LoggerFactory;
 /**
  * Class representing the streaming topology. It contains all the information
  * necessary to build the jobgraph for the execution.
- * 
+ *
  */
 @Internal
 public class StreamGraph extends StreamingPlan {
-	
+
 	private static final Logger LOG = LoggerFactory.getLogger(StreamGraph.class);
 
 	private String jobName = StreamExecutionEnvironment.DEFAULT_JOB_NAME;
@@ -79,7 +79,7 @@ public class StreamGraph extends StreamingPlan {
 	private final StreamExecutionEnvironment environment;
 	private final ExecutionConfig executionConfig;
 	private final CheckpointConfig checkpointConfig;
-	
+
 	private boolean chaining;
 
 	private Map<Integer, StreamNode> streamNodes;
@@ -118,8 +118,8 @@ public class StreamGraph extends StreamingPlan {
 		sources = new HashSet<>();
 		sinks = new HashSet<>();
 	}
-	
-	
+
+
 	public StreamExecutionEnvironment getEnvironment() {
 		return environment;
 	}
@@ -127,7 +127,7 @@ public class StreamGraph extends StreamingPlan {
 	public ExecutionConfig getExecutionConfig() {
 		return executionConfig;
 	}
-	
+
 	public CheckpointConfig getCheckpointConfig() {
 		return checkpointConfig;
 	}
@@ -153,11 +153,11 @@ public class StreamGraph extends StreamingPlan {
 	}
 
 	// Checkpointing
-	
+
 	public boolean isChainingEnabled() {
 		return chaining;
 	}
-	
+
 
 	public boolean isIterative() {
 		return!vertexIDtoLoopTimeout.isEmpty();

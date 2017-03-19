@@ -230,7 +230,7 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 	/**
 	 * Sets the maximum time frequency (ms) for the flushing of the output
 	 * buffer. By default the output buffers flush only when they are full.
-	 * 
+	 *
 	 * @param timeoutMillis
 	 *            The maximum time between two output flushes.
 	 * @return The operator with buffer timeout set.
@@ -244,7 +244,7 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 	 * Sets the {@link ChainingStrategy} for the given operator affecting the
 	 * way operators will possibly be co-located on the same thread for
 	 * increased performance.
-	 * 
+	 *
 	 * @param strategy
 	 *            The selected {@link ChainingStrategy}
 	 * @return The operator with the modified chaining strategy
@@ -262,7 +262,7 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 	 * <p>Chaining can be turned off for the whole job by
 	 * {@link StreamExecutionEnvironment#disableOperatorChaining()} however it is not advised for
 	 * performance considerations.
-	 * 
+	 *
 	 * @return The operator with chaining disabled
 	 */
 	@PublicEvolving
@@ -274,7 +274,7 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 	 * Starts a new task chain beginning at this operator. This operator will
 	 * not be chained (thread co-located for increased performance) to any
 	 * previous tasks even if possible.
-	 * 
+	 *
 	 * @return The operator with chaining set.
 	 */
 	@PublicEvolving
@@ -320,7 +320,7 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 	 *
 	 * <p>Use this method the following way:
 	 * <pre>{@code
-	 *     DataStream<Tuple2<String, Double>> result = 
+	 *     DataStream<Tuple2<String, Double>> result =
 	 *         stream.flatMap(new FunctionWithNonInferrableReturnType())
 	 *               .returns(new TypeHint<Tuple2<String, Double>>(){});
 	 * }</pre>
@@ -354,17 +354,17 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 	 */
 	public SingleOutputStreamOperator<T> returns(TypeInformation<T> typeInfo) {
 		requireNonNull(typeInfo, "TypeInformation must not be null");
-		
+
 		transformation.setOutputType(typeInfo);
 		return this;
 	}
-	
+
 	/**
-	 * Adds a type information hint about the return type of this operator. 
-	 * 
+	 * Adds a type information hint about the return type of this operator.
+	 *
 	 * <p>Type hints are important in cases where the Java compiler throws away generic type
 	 * information necessary for efficient execution.
-	 * 
+	 *
 	 * <p>This method takes a type information string that will be parsed. A type information string
 	 * can contain the following types:
 	 *
@@ -391,7 +391,7 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 	 * @param typeInfoString
 	 *            type information string to be parsed
 	 * @return This operator with a given return type hint.
-	 * 
+	 *
 	 * @deprecated Please use {@link #returns(Class)} or {@link #returns(TypeHint)} instead.
 	 */
 	@Deprecated
@@ -402,7 +402,7 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 		}
 		return returns(TypeInfoParser.<T>parse(typeInfoString));
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  Miscellaneous
 	// ------------------------------------------------------------------------

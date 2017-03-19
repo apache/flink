@@ -36,7 +36,7 @@ import java.util.List;
  */
 @Internal
 public class PartitionTransformation<T> extends StreamTransformation<T> {
-	
+
 	private final StreamTransformation<T> input;
 	private final StreamPartitioner<T> partitioner;
 

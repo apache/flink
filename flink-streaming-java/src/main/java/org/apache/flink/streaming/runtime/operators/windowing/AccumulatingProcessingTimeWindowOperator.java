@@ -43,7 +43,7 @@ public class AccumulatingProcessingTimeWindowOperator<KEY, IN, OUT>
 
 	private static final long serialVersionUID = 7305948082830843475L;
 
-	
+
 	public AccumulatingProcessingTimeWindowOperator(
 			InternalWindowFunction<Iterable<IN>, OUT, KEY, TimeWindow> function,
 			KeySelector<IN, KEY> keySelector,
@@ -60,7 +60,7 @@ public class AccumulatingProcessingTimeWindowOperator<KEY, IN, OUT>
 	protected AccumulatingKeyedTimePanes<IN, KEY, OUT> createPanes(KeySelector<IN, KEY> keySelector, Function function) {
 		@SuppressWarnings("unchecked")
 		InternalWindowFunction<Iterable<IN>, OUT, KEY, Window> windowFunction = (InternalWindowFunction<Iterable<IN>, OUT, KEY, Window>) function;
-		
+
 		return new AccumulatingKeyedTimePanes<>(keySelector, windowFunction);
 	}
 }

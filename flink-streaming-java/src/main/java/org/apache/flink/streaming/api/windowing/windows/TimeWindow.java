@@ -52,7 +52,7 @@ public class TimeWindow extends Window {
 	/**
 	 * Gets the starting timestamp of the window. This is the first timestamp that belongs
 	 * to this window.
-	 * 
+	 *
 	 * @return The starting timestamp of this window.
 	 */
 	public long getStart() {
@@ -62,7 +62,7 @@ public class TimeWindow extends Window {
 	/**
 	 * Gets the end timestamp of this window. The end timestamp is exclusive, meaning it
 	 * is the first timestamp that does not belong to this window any more.
-	 * 
+	 *
 	 * @return The exclusive end timestamp of this window.
 	 */
 	public long getEnd() {
@@ -71,12 +71,12 @@ public class TimeWindow extends Window {
 
 	/**
 	 * Gets the largest timestamp that still belongs to this window.
-	 * 
+	 *
 	 * <p>This timestamp is identical to {@code getEnd() - 1}.
-	 * 
+	 *
 	 * @return The largest timestamp that still belongs to this window.
-	 * 
-	 * @see #getEnd() 
+	 *
+	 * @see #getEnd()
 	 */
 	@Override
 	public long maxTimestamp() {

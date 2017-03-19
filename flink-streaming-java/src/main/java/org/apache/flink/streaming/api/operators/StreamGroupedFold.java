@@ -42,19 +42,19 @@ public class StreamGroupedFold<IN, OUT, KEY>
 		implements OneInputStreamOperator<IN, OUT>, OutputTypeConfigurable<OUT> {
 
 	private static final long serialVersionUID = 1L;
-	
+
 	private static final String STATE_NAME = "_op_state";
 
 	// Grouped values
 	private transient ValueState<OUT> values;
-	
+
 	private transient OUT initialValue;
-	
+
 	// Initial value serialization
 	private byte[] serializedInitialValue;
-	
+
 	private TypeSerializer<OUT> outTypeSerializer;
-	
+
 	public StreamGroupedFold(FoldFunction<IN, OUT> folder, OUT initialValue) {
 		super(folder);
 		this.initialValue = initialValue;
@@ -74,7 +74,7 @@ public class StreamGroupedFold<IN, OUT, KEY>
 		{
 			initialValue = outTypeSerializer.deserialize(in);
 		}
-		
+
 		ValueStateDescriptor<OUT> stateId = new ValueStateDescriptor<>(STATE_NAME, outTypeSerializer);
 		values = getPartitionedState(stateId);
 	}

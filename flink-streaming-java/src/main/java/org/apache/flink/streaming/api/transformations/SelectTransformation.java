@@ -36,7 +36,7 @@ import java.util.List;
  */
 @Internal
 public class SelectTransformation<T> extends StreamTransformation<T> {
-	
+
 	private final StreamTransformation<T> input;
 	private final List<String> selectedNames;
 

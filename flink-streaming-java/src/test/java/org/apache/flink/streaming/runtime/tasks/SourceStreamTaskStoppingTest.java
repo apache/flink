@@ -52,11 +52,11 @@ public class SourceStreamTaskStoppingTest {
 
 		final StoppableSourceStreamTask<Object, StoppableFailingSource> sourceTask = new StoppableSourceStreamTask<>();
 		sourceTask.stop();
-		
+
 		sourceTask.headOperator = new StoppableStreamSource<>(new StoppableFailingSource());
 		sourceTask.run();
 	}
-	
+
 	// ------------------------------------------------------------------------
 
 	private static class StoppableSource extends RichSourceFunction<Object> implements StoppableFunction {

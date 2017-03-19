@@ -26,7 +26,7 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
  *
  * @param <IN> The type of the input value.
  * @param <OUT> The type of the output value.
- * @param <KEY> The type of the window key. 
+ * @param <KEY> The type of the window key.
  * @param <W> The type of the window.
  */
 @Internal

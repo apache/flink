@@ -49,13 +49,13 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 	protected void cleanup() {
 		// does not hold any resources, so no cleanup needed
 	}
-	
+
 
 	@Override
 	protected void run() throws Exception {
 		headOperator.run(getCheckpointLock(), getStreamStatusMaintainer());
 	}
-	
+
 	@Override
 	protected void cancelTask() throws Exception {
 		if (headOperator != null) {

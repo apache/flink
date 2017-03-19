@@ -30,7 +30,7 @@ public class BroadcastPartitionerTest {
 	private BroadcastPartitioner<Tuple> broadcastPartitioner1;
 	private BroadcastPartitioner<Tuple> broadcastPartitioner2;
 	private BroadcastPartitioner<Tuple> broadcastPartitioner3;
-	
+
 	private StreamRecord<Tuple> streamRecord = new StreamRecord<Tuple>(null);
 	private SerializationDelegate<StreamRecord<Tuple>> sd = new SerializationDelegate<StreamRecord<Tuple>>(null);
 

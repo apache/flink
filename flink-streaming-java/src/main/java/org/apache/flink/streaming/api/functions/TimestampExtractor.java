@@ -35,7 +35,7 @@ import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExt
  *
  * @deprecated This class has been replaced by {@link AssignerWithPeriodicWatermarks} and
  *             {@link AssignerWithPunctuatedWatermarks}
- *             
+ *
  * @see AssignerWithPeriodicWatermarks
  * @see AssignerWithPunctuatedWatermarks
  */
