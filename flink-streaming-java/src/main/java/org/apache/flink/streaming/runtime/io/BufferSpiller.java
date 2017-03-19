@@ -255,7 +255,7 @@ public class BufferSpiller {
 
 	@SuppressWarnings("resource")
 	private void createSpillingChannel() throws IOException {
-		currentSpillFile = new File(tempDir, spillFilePrefix + (fileCounter++) +".buffer");
+		currentSpillFile = new File(tempDir, spillFilePrefix + (fileCounter++) + ".buffer");
 		currentChannel = new RandomAccessFile(currentSpillFile, "rw").getChannel();
 	}
 

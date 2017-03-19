@@ -63,7 +63,7 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 		final TimeCharacteristic timeCharacteristic = getOperatorConfig().getTimeCharacteristic();
 
 		LatencyMarksEmitter latencyEmitter = null;
-		if(getExecutionConfig().isLatencyTrackingEnabled()) {
+		if (getExecutionConfig().isLatencyTrackingEnabled()) {
 			latencyEmitter = new LatencyMarksEmitter<>(
 				getProcessingTimeService(),
 				collector,
@@ -95,7 +95,7 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 		} finally {
 			// make sure that the context is closed in any case
 			ctx.close();
-			if(latencyEmitter != null) {
+			if (latencyEmitter != null) {
 				latencyEmitter.close();
 			}
 		}

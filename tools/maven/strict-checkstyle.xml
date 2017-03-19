@@ -478,20 +478,20 @@ This file is based on the checkstyle file of Apache Beam.
 
     -->
 
-    <!--<module name="WhitespaceAround">-->
-      <!--&lt;!&ndash; Checks that various tokens are surrounded by whitespace.-->
-           <!--This includes most binary operators and keywords followed-->
-           <!--by regular or curly braces.-->
-      <!--&ndash;&gt;-->
-      <!--<property name="tokens" value="ASSIGN, BAND, BAND_ASSIGN, BOR,-->
-        <!--BOR_ASSIGN, BSR, BSR_ASSIGN, BXOR, BXOR_ASSIGN, COLON, DIV, DIV_ASSIGN,-->
-        <!--EQUAL, GE, GT, LAND, LE, LITERAL_CATCH, LITERAL_DO, LITERAL_ELSE,-->
-        <!--LITERAL_FINALLY, LITERAL_FOR, LITERAL_IF, LITERAL_RETURN,-->
-        <!--LITERAL_SYNCHRONIZED, LITERAL_TRY, LITERAL_WHILE, LOR, LT, MINUS,-->
-        <!--MINUS_ASSIGN, MOD, MOD_ASSIGN, NOT_EQUAL, PLUS, PLUS_ASSIGN, QUESTION,-->
-        <!--SL, SL_ASSIGN, SR_ASSIGN, STAR, STAR_ASSIGN"/>-->
-      <!--<property name="severity" value="error"/>-->
-    <!--</module>-->
+    <module name="WhitespaceAround">
+      <!-- Checks that various tokens are surrounded by whitespace.
+           This includes most binary operators and keywords followed
+           by regular or curly braces.
+      -->
+      <property name="tokens" value="ASSIGN, BAND, BAND_ASSIGN, BOR,
+        BOR_ASSIGN, BSR, BSR_ASSIGN, BXOR, BXOR_ASSIGN, COLON, DIV, DIV_ASSIGN,
+        EQUAL, GE, GT, LAND, LE, LITERAL_CATCH, LITERAL_DO, LITERAL_ELSE,
+        LITERAL_FINALLY, LITERAL_FOR, LITERAL_IF, LITERAL_RETURN,
+        LITERAL_SYNCHRONIZED, LITERAL_TRY, LITERAL_WHILE, LOR, LT, MINUS,
+        MINUS_ASSIGN, MOD, MOD_ASSIGN, NOT_EQUAL, PLUS, PLUS_ASSIGN, QUESTION,
+        SL, SL_ASSIGN, SR_ASSIGN, STAR, STAR_ASSIGN"/>
+      <property name="severity" value="error"/>
+    </module>
 
     <module name="WhitespaceAfter">
       <!-- Checks that commas, semicolons and typecasts are followed by

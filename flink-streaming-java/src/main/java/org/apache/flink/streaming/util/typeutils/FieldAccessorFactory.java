@@ -198,21 +198,21 @@ public class FieldAccessorFactory implements Serializable {
 	// --------------------------------------------------------------------------------------------------
 
 	private  static final String REGEX_FIELD = "[\\p{L}\\p{Digit}_\\$]*"; // This can start with a digit (because of Tuples)
-	private static final String REGEX_NESTED_FIELDS = "("+REGEX_FIELD+")(\\.(.+))?";
+	private static final String REGEX_NESTED_FIELDS = "(" + REGEX_FIELD + ")(\\.(.+))?";
 	private static final String REGEX_NESTED_FIELDS_WILDCARD = REGEX_NESTED_FIELDS
-		+"|\\"+ Keys.ExpressionKeys.SELECT_ALL_CHAR
-		+"|\\"+ Keys.ExpressionKeys.SELECT_ALL_CHAR_SCALA;
+		+ "|\\" + Keys.ExpressionKeys.SELECT_ALL_CHAR
+		+ "|\\" + Keys.ExpressionKeys.SELECT_ALL_CHAR_SCALA;
 
 	private static final Pattern PATTERN_NESTED_FIELDS_WILDCARD = Pattern.compile(REGEX_NESTED_FIELDS_WILDCARD);
 
 	private static FieldExpression decomposeFieldExpression(String fieldExpression) {
 		Matcher matcher = PATTERN_NESTED_FIELDS_WILDCARD.matcher(fieldExpression);
 		if (!matcher.matches()) {
-			throw new CompositeType.InvalidFieldReferenceException("Invalid field expression \""+fieldExpression+"\".");
+			throw new CompositeType.InvalidFieldReferenceException("Invalid field expression \"" + fieldExpression + "\".");
 		}
 
 		String head = matcher.group(0);
-		if(head.equals(Keys.ExpressionKeys.SELECT_ALL_CHAR) || head.equals(Keys.ExpressionKeys.SELECT_ALL_CHAR_SCALA)) {
+		if (head.equals(Keys.ExpressionKeys.SELECT_ALL_CHAR) || head.equals(Keys.ExpressionKeys.SELECT_ALL_CHAR_SCALA)) {
 			throw new CompositeType.InvalidFieldReferenceException("No wildcards are allowed here.");
 		} else {
 			head = matcher.group(1);

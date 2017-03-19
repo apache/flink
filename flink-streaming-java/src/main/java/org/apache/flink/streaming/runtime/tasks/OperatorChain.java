@@ -561,7 +561,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 		public void emitLatencyMarker(LatencyMarker latencyMarker) {
 			if (outputs.length <= 0) {
 				// ignore
-			} else if(outputs.length == 1) {
+			} else if (outputs.length == 1) {
 				outputs[0].emitLatencyMarker(latencyMarker);
 			} else {
 				// randomly select an output

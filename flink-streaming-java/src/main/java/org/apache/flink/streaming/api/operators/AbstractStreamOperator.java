@@ -786,7 +786,7 @@ public abstract class AbstractStreamOperator<OUT>
 					// ConcurrentModificationExceptions. To avoid unnecessary blocking
 					// of the reportLatency() method, we retry this operation until
 					// it succeeds.
-				} catch(ConcurrentModificationException ignore) {
+				} catch (ConcurrentModificationException ignore) {
 					LOG.debug("Unable to report latency statistics", ignore);
 				}
 			}

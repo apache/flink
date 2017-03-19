@@ -59,7 +59,7 @@ public class TimestampedFileInputSplit extends FileInputSplit implements Compara
 		super(num, file, start, length, hosts);
 
 		Preconditions.checkArgument(modificationTime >= 0 || modificationTime == Long.MIN_VALUE,
-			"Invalid File Split Modification Time: "+ modificationTime +".");
+			"Invalid File Split Modification Time: " + modificationTime + ".");
 
 		this.modificationTime = modificationTime;
 	}
@@ -133,7 +133,7 @@ public class TimestampedFileInputSplit extends FileInputSplit implements Compara
 
 	@Override
 	public String toString() {
-		return "[" + getSplitNumber() + "] " + getPath() +" mod@ "+
+		return "[" + getSplitNumber() + "] " + getPath() + " mod@ " +
 			modificationTime + " : " + getStart() + " + " + getLength();
 	}
 }

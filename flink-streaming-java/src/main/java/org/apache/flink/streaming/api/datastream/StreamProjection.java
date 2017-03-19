@@ -63,15 +63,15 @@ public class StreamProjection<IN> {
 		if (!dataStream.getType().isTupleType()) {
 			throw new RuntimeException("Only Tuple DataStreams can be projected");
 		}
-		if(fieldIndexes.length == 0) {
+		if (fieldIndexes.length == 0) {
 			throw new IllegalArgumentException("project() needs to select at least one (1) field.");
-		} else if(fieldIndexes.length > Tuple.MAX_ARITY - 1) {
+		} else if (fieldIndexes.length > Tuple.MAX_ARITY - 1) {
 			throw new IllegalArgumentException(
 					"project() may select only up to (" + (Tuple.MAX_ARITY - 1) + ") fields.");
 		}
 
 		int maxFieldIndex = (dataStream.getType()).getArity();
-		for(int i = 0; i < fieldIndexes.length; i++) {
+		for (int i = 0; i < fieldIndexes.length; i++) {
 			Preconditions.checkElementIndex(fieldIndexes[i], maxFieldIndex);
 		}
 
