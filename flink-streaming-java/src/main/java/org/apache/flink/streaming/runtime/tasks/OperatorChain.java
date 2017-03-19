@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.util.OutputTag;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.metrics.Counter;
@@ -272,7 +273,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 			StreamConfig chainedOpConfig = chainedConfigs.get(outputId);
 
 			Output<StreamRecord<T>> output = createChainedOperator(
-					containingTask, chainedOpConfig, chainedConfigs, userCodeClassloader, streamOutputs, allOperators);
+					containingTask, chainedOpConfig, chainedConfigs, userCodeClassloader, streamOutputs, allOperators, outputEdge.getOutputTag());
 			allOutputs.add(new Tuple2<>(output, outputEdge));
 		}
 		
@@ -326,7 +327,8 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 			Map<Integer, StreamConfig> chainedConfigs,
 			ClassLoader userCodeClassloader,
 			Map<StreamEdge, RecordWriterOutput<?>> streamOutputs,
-			List<StreamOperator<?>> allOperators)
+			List<StreamOperator<?>> allOperators,
+			OutputTag<IN> outputTag)
 	{
 		// create the output that the operator writes to first. this may recursively create more operators
 		Output<StreamRecord<OUT>> output = createOutputCollector(
@@ -334,25 +336,36 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 
 		// now create the operator and give it the output collector to write its output to
 		OneInputStreamOperator<IN, OUT> chainedOperator = operatorConfig.getStreamOperator(userCodeClassloader);
+
 		chainedOperator.setup(containingTask, operatorConfig, output);
 
 		allOperators.add(chainedOperator);
 
 		if (containingTask.getExecutionConfig().isObjectReuseEnabled()) {
-			return new ChainingOutput<>(chainedOperator, this);
+			return new ChainingOutput<>(chainedOperator, this, outputTag);
 		}
 		else {
 			TypeSerializer<IN> inSerializer = operatorConfig.getTypeSerializerIn1(userCodeClassloader);
-			return new CopyingChainingOutput<>(chainedOperator, inSerializer, this);
+			return new CopyingChainingOutput<>(chainedOperator, inSerializer, outputTag, this);
 		}
 	}
 	
 	private <T> RecordWriterOutput<T> createStreamOutput(
 			StreamEdge edge, StreamConfig upStreamConfig, int outputIndex,
 			Environment taskEnvironment,
-			String taskName)
-	{
-		TypeSerializer<T> outSerializer = upStreamConfig.getTypeSerializerOut(taskEnvironment.getUserClassLoader());
+			String taskName) {
+		OutputTag sideOutputTag = edge.getOutputTag(); // OutputTag, return null if not sideOutput
+
+		TypeSerializer outSerializer = null;
+
+		if (edge.getOutputTag() != null) {
+			// side output
+			outSerializer = upStreamConfig.getTypeSerializerSideOut(
+					edge.getOutputTag(), taskEnvironment.getUserClassLoader());
+		} else {
+			// main output
+			outSerializer = upStreamConfig.getTypeSerializerOut(taskEnvironment.getUserClassLoader());
+		}
 
 		@SuppressWarnings("unchecked")
 		StreamPartitioner<T> outputPartitioner = (StreamPartitioner<T>) edge.getPartitioner();
@@ -369,11 +382,11 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 			}
 		}
 
-		StreamRecordWriter<SerializationDelegate<StreamRecord<T>>> output = 
+		StreamRecordWriter<SerializationDelegate<StreamRecord<T>>> output =
 				new StreamRecordWriter<>(bufferWriter, outputPartitioner, upStreamConfig.getBufferTimeout());
 		output.setMetricGroup(taskEnvironment.getMetricGroup().getIOMetricGroup());
 		
-		return new RecordWriterOutput<>(output, outSerializer, this);
+		return new RecordWriterOutput<>(output, outSerializer, sideOutputTag, this);
 	}
 	
 	// ------------------------------------------------------------------------
@@ -387,18 +400,49 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 
 		protected final StreamStatusProvider streamStatusProvider;
 
-		public ChainingOutput(OneInputStreamOperator<T, ?> operator, StreamStatusProvider streamStatusProvider) {
+		protected final OutputTag<T> outputTag;
+
+		public ChainingOutput(
+				OneInputStreamOperator<T, ?> operator,
+				StreamStatusProvider streamStatusProvider,
+				OutputTag<T> outputTag) {
 			this.operator = operator;
 			this.numRecordsIn = ((OperatorMetricGroup) operator.getMetricGroup()).getIOMetricGroup().getNumRecordsInCounter();
 			this.streamStatusProvider = streamStatusProvider;
+			this.outputTag = outputTag;
 		}
 
 		@Override
 		public void collect(StreamRecord<T> record) {
+			if (this.outputTag != null) {
+				// we are only responsible for emitting to the main input
+				return;
+			}
+
+			pushToOperator(record);
+		}
+
+		@Override
+		public <X> void collect(OutputTag<?> outputTag, StreamRecord<X> record) {
+			if (this.outputTag == null || !this.outputTag.equals(outputTag)) {
+				// we are only responsible for emitting to the side-output specified by our
+				// OutputTag.
+				return;
+			}
+
+			pushToOperator(record);
+		}
+
+		protected <X> void pushToOperator(StreamRecord<X> record) {
 			try {
+				// we know that the given outputTag matches our OutputTag so the record
+				// must be of the type that our operator expects.
+				@SuppressWarnings("unchecked")
+				StreamRecord<T> castRecord = (StreamRecord<T>) record;
+
 				numRecordsIn.inc();
-				operator.setKeyContextElement1(record);
-				operator.processElement(record);
+				operator.setKeyContextElement1(castRecord);
+				operator.processElement(castRecord);
 			}
 			catch (Exception e) {
 				throw new ExceptionInChainedOperatorException(e);
@@ -441,26 +485,53 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 	private static final class CopyingChainingOutput<T> extends ChainingOutput<T> {
 		
 		private final TypeSerializer<T> serializer;
-		
+
 		public CopyingChainingOutput(
 				OneInputStreamOperator<T, ?> operator,
 				TypeSerializer<T> serializer,
+				OutputTag<T> outputTag,
 				StreamStatusProvider streamStatusProvider) {
-			super(operator, streamStatusProvider);
+			super(operator, streamStatusProvider, outputTag);
 			this.serializer = serializer;
 		}
 
 		@Override
 		public void collect(StreamRecord<T> record) {
+			if (this.outputTag != null) {
+				// we are only responsible for emitting to the main input
+				return;
+			}
+
+			pushToOperator(record);
+		}
+
+		@Override
+		public <X> void collect(OutputTag<?> outputTag, StreamRecord<X> record) {
+			if (this.outputTag == null || !this.outputTag.equals(outputTag)) {
+				// we are only responsible for emitting to the side-output specified by our
+				// OutputTag.
+				return;
+			}
+
+			pushToOperator(record);
+		}
+
+		@Override
+		protected <X> void pushToOperator(StreamRecord<X> record) {
 			try {
+				// we know that the given outputTag matches our OutputTag so the record
+				// must be of the type that our operator (and Serializer) expects.
+				@SuppressWarnings("unchecked")
+				StreamRecord<T> castRecord = (StreamRecord<T>) record;
+
 				numRecordsIn.inc();
-				StreamRecord<T> copy = record.copy(serializer.copy(record.getValue()));
+				StreamRecord<T> copy = castRecord.copy(serializer.copy(castRecord.getValue()));
 				operator.setKeyContextElement1(copy);
 				operator.processElement(copy);
-			}
-			catch (Exception e) {
+			} catch (Exception e) {
 				throw new RuntimeException("Could not forward element to next operator", e);
 			}
+
 		}
 	}
 	
@@ -471,7 +542,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 		private final Random RNG = new XORShiftRandom();
 
 		private final StreamStatusProvider streamStatusProvider;
-		
+
 		public BroadcastingOutputCollector(
 				Output<StreamRecord<T>>[] outputs,
 				StreamStatusProvider streamStatusProvider) {
@@ -490,7 +561,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 
 		@Override
 		public void emitLatencyMarker(LatencyMarker latencyMarker) {
-			if(outputs.length <= 0) {
+			if (outputs.length <= 0) {
 				// ignore
 			} else if(outputs.length == 1) {
 				outputs[0].emitLatencyMarker(latencyMarker);
@@ -504,6 +575,13 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 		public void collect(StreamRecord<T> record) {
 			for (Output<StreamRecord<T>> output : outputs) {
 				output.collect(record);
+			}
+		}
+
+		@Override
+		public <X> void collect(OutputTag<?> outputTag, StreamRecord<X> record) {
+			for (Output<StreamRecord<T>> output : outputs) {
+				output.collect(outputTag, record);
 			}
 		}
 
@@ -538,6 +616,24 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 
 			// don't copy for the last output
 			outputs[outputs.length - 1].collect(record);
+		}
+
+		@Override
+		public <X> void collect(OutputTag<?> outputTag, StreamRecord<X> record) {
+			for (int i = 0; i < outputs.length - 1; i++) {
+				Output<StreamRecord<T>> output = outputs[i];
+
+				// due to side outputs, StreamRecords of varying types can pass through the broadcasting
+				// collector so we need to cast
+				@SuppressWarnings({"unchecked", "rawtypes"})
+				StreamRecord<T> shallowCopy = (StreamRecord<T>) record.copy(record.getValue());
+				output.collect(outputTag, shallowCopy);
+			}
+
+			// don't copy for the last output
+			@SuppressWarnings({"unchecked", "rawtypes"})
+			StreamRecord<T> castRecord = (StreamRecord<T>) record;
+			outputs[outputs.length - 1].collect(outputTag, castRecord);
 		}
 	}
 }

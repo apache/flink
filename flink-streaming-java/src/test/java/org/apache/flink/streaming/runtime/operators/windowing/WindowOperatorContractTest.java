@@ -47,6 +47,7 @@ import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 import org.mockito.Matchers;
@@ -297,6 +298,75 @@ public class WindowOperatorContractTest extends TestLogger {
 	private static <T> void shouldFireAndPurgeOnProcessingTime(Trigger<T, TimeWindow> mockTrigger) throws Exception {
 		when(mockTrigger.onProcessingTime(anyLong(), Matchers.<TimeWindow>any(), anyTriggerContext())).thenReturn(TriggerResult.FIRE_AND_PURGE);
 	}
+
+	/**
+	 * Verify that there is no late-date side output if the {@code WindowAssigner} does
+	 * not assign any windows.
+	 */
+	@Test
+	public void testNoLateSideOutputForSkippedWindows() throws Exception {
+
+		OutputTag<Integer> lateOutputTag = new OutputTag<Integer>("late"){};
+
+		WindowAssigner<Integer, TimeWindow> mockAssigner = mockTimeWindowAssigner();
+		Trigger<Integer, TimeWindow> mockTrigger = mockTrigger();
+		InternalWindowFunction<Iterable<Integer>, Void, Integer, TimeWindow> mockWindowFunction = mockWindowFunction();
+
+		OneInputStreamOperatorTestHarness<Integer, Void> testHarness =
+				createWindowOperator(mockAssigner, mockTrigger, 0L, intListDescriptor, mockWindowFunction, lateOutputTag);
+
+		testHarness.open();
+
+		when(mockAssigner.assignWindows(anyInt(), anyLong(), anyAssignerContext()))
+				.thenReturn(Collections.<TimeWindow>emptyList());
+
+		testHarness.processWatermark(0);
+		testHarness.processElement(new StreamRecord<>(0, 5L));
+
+		verify(mockAssigner, times(1)).assignWindows(eq(0), eq(5L), anyAssignerContext());
+
+		assertTrue(testHarness.getSideOutput(lateOutputTag) == null || testHarness.getSideOutput(lateOutputTag).isEmpty());
+	}
+
+	@Test
+	public void testLateSideOutput() throws Exception {
+
+		OutputTag<Integer> lateOutputTag = new OutputTag<Integer>("late"){};
+
+		WindowAssigner<Integer, TimeWindow> mockAssigner = mockTimeWindowAssigner();
+		Trigger<Integer, TimeWindow> mockTrigger = mockTrigger();
+		InternalWindowFunction<Iterable<Integer>, Void, Integer, TimeWindow> mockWindowFunction = mockWindowFunction();
+
+		OneInputStreamOperatorTestHarness<Integer, Void> testHarness =
+				createWindowOperator(mockAssigner, mockTrigger, 0L, intListDescriptor, mockWindowFunction, lateOutputTag);
+
+		testHarness.open();
+
+		when(mockAssigner.assignWindows(anyInt(), anyLong(), anyAssignerContext()))
+				.thenReturn(Collections.singletonList(new TimeWindow(0, 0)));
+
+		testHarness.processWatermark(20);
+		testHarness.processElement(new StreamRecord<>(0, 5L));
+
+		verify(mockAssigner, times(1)).assignWindows(eq(0), eq(5L), anyAssignerContext());
+
+		assertThat(testHarness.getSideOutput(lateOutputTag),
+				containsInAnyOrder(isStreamRecord(0, 5L)));
+
+		// we should also see side output if the WindowAssigner assigns no windows
+		when(mockAssigner.assignWindows(anyInt(), anyLong(), anyAssignerContext()))
+				.thenReturn(Collections.<TimeWindow>emptyList());
+
+		testHarness.processElement(new StreamRecord<>(0, 10L));
+
+		verify(mockAssigner, times(1)).assignWindows(eq(0), eq(5L), anyAssignerContext());
+		verify(mockAssigner, times(1)).assignWindows(eq(0), eq(10L), anyAssignerContext());
+
+		assertThat(testHarness.getSideOutput(lateOutputTag),
+				containsInAnyOrder(isStreamRecord(0, 5L), isStreamRecord(0, 10L)));
+
+	}
+
 
 	@Test
 	public void testAssignerIsInvokedOncePerElement() throws Exception {
@@ -2302,7 +2372,8 @@ public class WindowOperatorContractTest extends TestLogger {
 			Trigger<Integer, W> trigger,
 			long allowedLatenss,
 			StateDescriptor<? extends AppendingState<Integer, ACC>, ?> stateDescriptor,
-			InternalWindowFunction<ACC, OUT, Integer, W> windowFunction) throws Exception {
+			InternalWindowFunction<ACC, OUT, Integer, W> windowFunction,
+			OutputTag<Integer> lateOutputTag) throws Exception {
 
 		KeySelector<Integer, Integer> keySelector = new KeySelector<Integer, Integer>() {
 			private static final long serialVersionUID = 1L;
@@ -2322,12 +2393,28 @@ public class WindowOperatorContractTest extends TestLogger {
 				stateDescriptor,
 				windowFunction,
 				trigger,
-				allowedLatenss);
+				allowedLatenss,
+				lateOutputTag);
 
 		return new KeyedOneInputStreamOperatorTestHarness<>(
 				operator,
 				keySelector,
 				BasicTypeInfo.INT_TYPE_INFO);
+	}
+
+	private <W extends Window, ACC, OUT> KeyedOneInputStreamOperatorTestHarness<Integer, Integer, OUT> createWindowOperator(
+			WindowAssigner<Integer, W> assigner,
+			Trigger<Integer, W> trigger,
+			long allowedLatenss,
+			StateDescriptor<? extends AppendingState<Integer, ACC>, ?> stateDescriptor,
+			InternalWindowFunction<ACC, OUT, Integer, W> windowFunction) throws Exception {
+		return createWindowOperator(
+				assigner,
+				trigger,
+				allowedLatenss,
+				stateDescriptor,
+				windowFunction,
+				null /* late output tag */);
 	}
 
 

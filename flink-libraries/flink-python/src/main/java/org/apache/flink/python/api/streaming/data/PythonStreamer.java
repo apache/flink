@@ -76,6 +76,9 @@ public class PythonStreamer<IN1, IN2, OUT> implements Serializable {
 
 	protected final AbstractRichFunction function;
 
+	protected transient Thread outPrinter;
+	protected transient Thread errorPrinter;
+
 	public PythonStreamer(AbstractRichFunction function, int envID, int setID, boolean usesByteArray) {
 		this.envID = envID;
 		this.setID = setID;
@@ -116,8 +119,10 @@ public class PythonStreamer<IN1, IN2, OUT> implements Serializable {
 		}
 
 		process = Runtime.getRuntime().exec(pythonBinaryPath + " -O -B " + planPath + planArguments);
-		new StreamPrinter(process.getInputStream()).start();
-		new StreamPrinter(process.getErrorStream(), true, msg).start();
+		outPrinter = new StreamPrinter(process.getInputStream());
+		outPrinter.start();
+		errorPrinter = new StreamPrinter(process.getErrorStream(), true, msg);
+		errorPrinter.start();
 
 		shutdownThread = new Thread() {
 			@Override
@@ -141,16 +146,6 @@ public class PythonStreamer<IN1, IN2, OUT> implements Serializable {
 		processOutput.write((inputFilePath + "\n").getBytes(ConfigConstants.DEFAULT_CHARSET));
 		processOutput.write((outputFilePath + "\n").getBytes(ConfigConstants.DEFAULT_CHARSET));
 		processOutput.flush();
-
-		try { // wait a bit to catch syntax errors
-			Thread.sleep(2000);
-		} catch (InterruptedException ignored) {
-		}
-		try {
-			process.exitValue();
-			throw new RuntimeException("External process for task " + function.getRuntimeContext().getTaskName() + " terminated prematurely." + msg);
-		} catch (IllegalThreadStateException ignored) { //process still active -> start receiving data
-		}
 
 		while (true) {
 			try {
@@ -288,9 +283,15 @@ public class PythonStreamer<IN1, IN2, OUT> implements Serializable {
 						case SIGNAL_FINISHED:
 							return;
 						case SIGNAL_ERROR:
-							try { //wait before terminating to ensure that the complete error message is printed
-								Thread.sleep(2000);
-							} catch (InterruptedException ignored) {
+							try {
+								outPrinter.join(1000);
+							} catch (InterruptedException e) {
+								outPrinter.interrupt();
+							}
+							try {
+								errorPrinter.join(1000);
+							} catch (InterruptedException e) {
+								errorPrinter.interrupt();
 							}
 							throw new RuntimeException(
 									"External process for task " + function.getRuntimeContext().getTaskName() + " terminated prematurely due to an error." + msg);
@@ -336,9 +337,15 @@ public class PythonStreamer<IN1, IN2, OUT> implements Serializable {
 						case SIGNAL_FINISHED:
 							return;
 						case SIGNAL_ERROR:
-							try { //wait before terminating to ensure that the complete error message is printed
-								Thread.sleep(2000);
-							} catch (InterruptedException ignored) {
+							try {
+								outPrinter.join(1000);
+							} catch (InterruptedException e) {
+								outPrinter.interrupt();
+							}
+							try {
+								errorPrinter.join(1000);
+							} catch (InterruptedException e) {
+								errorPrinter.interrupt();
 							}
 							throw new RuntimeException(
 									"External process for task " + function.getRuntimeContext().getTaskName() + " terminated prematurely due to an error." + msg);

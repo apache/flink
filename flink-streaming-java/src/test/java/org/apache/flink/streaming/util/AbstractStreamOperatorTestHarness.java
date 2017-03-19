@@ -20,6 +20,7 @@ package org.apache.flink.streaming.util;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.util.OutputTag;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
@@ -70,8 +71,10 @@ import java.io.FileInputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static org.mockito.Matchers.any;
@@ -87,6 +90,8 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 	final protected StreamOperator<OUT> operator;
 
 	final protected ConcurrentLinkedQueue<Object> outputList;
+
+	final protected Map<OutputTag<?>, ConcurrentLinkedQueue<Object>> sideOutputLists;
 
 	final protected StreamConfig config;
 
@@ -147,6 +152,8 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 			final Environment environment) throws Exception {
 		this.operator = operator;
 		this.outputList = new ConcurrentLinkedQueue<>();
+		this.sideOutputLists = new HashMap<>();
+
 		Configuration underlyingConfig = environment.getTaskConfiguration();
 		this.config = new StreamConfig(underlyingConfig);
 		this.config.setCheckpointingEnabled(true);
@@ -261,6 +268,11 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 	 */
 	public ConcurrentLinkedQueue<Object> getOutput() {
 		return outputList;
+	}
+
+	@SuppressWarnings({"unchecked", "rawtypes"})
+	public <X> ConcurrentLinkedQueue<StreamRecord<X>> getSideOutput(OutputTag<X> tag) {
+		return (ConcurrentLinkedQueue) sideOutputLists.get(tag);
 	}
 
 	/**
@@ -610,6 +622,8 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 
 		private TypeSerializer<OUT> outputSerializer;
 
+		private TypeSerializer sideOutputSerializer;
+
 		MockOutput() {
 			this(null);
 		}
@@ -634,10 +648,27 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 				outputSerializer = TypeExtractor.getForObject(element.getValue()).createSerializer(executionConfig);
 			}
 			if (element.hasTimestamp()) {
-				outputList.add(new StreamRecord<>(outputSerializer.copy(element.getValue()),element.getTimestamp()));
+				outputList.add(new StreamRecord<>(outputSerializer.copy(element.getValue()), element.getTimestamp()));
 			} else {
 				outputList.add(new StreamRecord<>(outputSerializer.copy(element.getValue())));
 			}
+		}
+
+		@Override
+		public <X> void collect(OutputTag<?> outputTag, StreamRecord<X> record) {
+			sideOutputSerializer = TypeExtractor.getForObject(record.getValue()).createSerializer(executionConfig);
+
+			ConcurrentLinkedQueue<Object> sideOutputList = sideOutputLists.get(outputTag);
+			if (sideOutputList == null) {
+				sideOutputList = new ConcurrentLinkedQueue<>();
+				sideOutputLists.put(outputTag, sideOutputList);
+			}
+			if (record.hasTimestamp()) {
+				sideOutputList.add(new StreamRecord<>(sideOutputSerializer.copy(record.getValue()), record.getTimestamp()));
+			} else {
+				sideOutputList.add(new StreamRecord<>(sideOutputSerializer.copy(record.getValue())));
+			}
+
 		}
 
 		@Override

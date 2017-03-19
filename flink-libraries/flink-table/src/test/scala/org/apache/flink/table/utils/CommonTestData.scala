@@ -24,8 +24,9 @@ import java.util
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
-import org.apache.flink.table.api.TableEnvironment
+import org.apache.flink.table.api.TableSchema
 import org.apache.flink.table.sources.{BatchTableSource, CsvTableSource}
+import org.apache.flink.table.catalog._
 
 object CommonTestData {
 
@@ -43,14 +44,9 @@ object CommonTestData {
       "Kelly#8#2.34#Williams"
     )
 
-    val tempFile = File.createTempFile("csv-test", "tmp")
-    tempFile.deleteOnExit()
-    val tmpWriter = new OutputStreamWriter(new FileOutputStream(tempFile), "UTF-8")
-    tmpWriter.write(csvRecords.mkString("$"))
-    tmpWriter.close()
-
+    val tempFilePath = writeToTempFile(csvRecords.mkString("$"), "csv-test", "tmp")
     new CsvTableSource(
-      tempFile.getAbsolutePath,
+      tempFilePath,
       Array("first", "id", "score", "last"),
       Array(
         BasicTypeInfo.STRING_TYPE_INFO,
@@ -63,6 +59,86 @@ object CommonTestData {
       ignoreFirstLine = true,
       ignoreComments = "%"
     )
+  }
+
+  def getInMemoryTestCatalog: ExternalCatalog = {
+    val csvRecord1 = Seq(
+      "1#1#Hi",
+      "2#2#Hello",
+      "3#2#Hello world"
+    )
+    val tempFilePath1 = writeToTempFile(csvRecord1.mkString("$"), "csv-test1", "tmp")
+    val properties1 = new util.HashMap[String, String]()
+    properties1.put("path", tempFilePath1)
+    properties1.put("fieldDelim", "#")
+    properties1.put("rowDelim", "$")
+    val externalCatalogTable1 = ExternalCatalogTable(
+      TableIdentifier("db1", "tb1"),
+      "csv",
+      new TableSchema(
+        Array("a", "b", "c"),
+        Array(
+          BasicTypeInfo.INT_TYPE_INFO,
+          BasicTypeInfo.LONG_TYPE_INFO,
+          BasicTypeInfo.STRING_TYPE_INFO)),
+      properties1
+    )
+
+    val csvRecord2 = Seq(
+      "1#1#0#Hallo#1",
+      "2#2#1#Hallo Welt#2",
+      "2#3#2#Hallo Welt wie#1",
+      "3#4#3#Hallo Welt wie gehts?#2",
+      "3#5#4#ABC#2",
+      "3#6#5#BCD#3",
+      "4#7#6#CDE#2",
+      "4#8#7#DEF#1",
+      "4#9#8#EFG#1",
+      "4#10#9#FGH#2",
+      "5#11#10#GHI#1",
+      "5#12#11#HIJ#3",
+      "5#13#12#IJK#3",
+      "5#14#13#JKL#2",
+      "5#15#14#KLM#2"
+    )
+    val tempFilePath2 = writeToTempFile(csvRecord2.mkString("$"), "csv-test2", "tmp")
+    val properties2 = new util.HashMap[String, String]()
+    properties2.put("path", tempFilePath2)
+    properties2.put("fieldDelim", "#")
+    properties2.put("rowDelim", "$")
+    val externalCatalogTable2 = ExternalCatalogTable(
+      TableIdentifier("db2", "tb2"),
+      "csv",
+      new TableSchema(
+        Array("d", "e", "f", "g", "h"),
+        Array(
+          BasicTypeInfo.INT_TYPE_INFO,
+          BasicTypeInfo.LONG_TYPE_INFO,
+          BasicTypeInfo.INT_TYPE_INFO,
+          BasicTypeInfo.STRING_TYPE_INFO,
+          BasicTypeInfo.LONG_TYPE_INFO)
+      ),
+      properties2
+    )
+    val catalog = new InMemoryExternalCatalog
+    catalog.createDatabase(ExternalCatalogDatabase("db1"), false)
+    catalog.createDatabase(ExternalCatalogDatabase("db2"), false)
+    catalog.createTable(externalCatalogTable1, false)
+    catalog.createTable(externalCatalogTable2, false)
+    catalog
+  }
+
+  private def writeToTempFile(
+      contents: String,
+      filePrefix: String,
+      fileSuffix: String,
+      charset: String = "UTF-8"): String = {
+    val tempFile = File.createTempFile(filePrefix, fileSuffix)
+    tempFile.deleteOnExit()
+    val tmpWriter = new OutputStreamWriter(new FileOutputStream(tempFile), charset)
+    tmpWriter.write(contents)
+    tmpWriter.close()
+    tempFile.getAbsolutePath
   }
 
   def getNestedTableSource: BatchTableSource[Person] = {
@@ -95,7 +171,5 @@ object CommonTestData {
       this(null, null)
     }
   }
-
-  def getMockTableEnvironment: TableEnvironment = new MockTableEnvironment
 
 }

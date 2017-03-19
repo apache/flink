@@ -69,11 +69,6 @@ public class PythonPlanStreamer {
 		new StreamPrinter(process.getInputStream()).start();
 		new StreamPrinter(process.getErrorStream()).start();
 
-		try {
-			Thread.sleep(2000);
-		} catch (InterruptedException ignored) {
-		}
-
 		checkPythonProcessHealth();
 	}
 

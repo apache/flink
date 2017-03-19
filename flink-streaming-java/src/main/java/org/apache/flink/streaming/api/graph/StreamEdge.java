@@ -21,6 +21,7 @@ import java.io.Serializable;
 import java.util.List;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.util.OutputTag;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 
 /**
@@ -48,15 +49,25 @@ public class StreamEdge implements Serializable {
 	 * output selection).
 	 */
 	private final List<String> selectedNames;
+
+	/**
+	 * The side-output tag (if any) of this {@link StreamEdge}.
+	 */
+	private final OutputTag outputTag;
+
+	/**
+	 * The {@link StreamPartitioner} on this {@link StreamEdge}.
+	 */
 	private StreamPartitioner<?> outputPartitioner;
 
 	public StreamEdge(StreamNode sourceVertex, StreamNode targetVertex, int typeNumber,
-			List<String> selectedNames, StreamPartitioner<?> outputPartitioner) {
+			List<String> selectedNames, StreamPartitioner<?> outputPartitioner, OutputTag outputTag) {
 		this.sourceVertex = sourceVertex;
 		this.targetVertex = targetVertex;
 		this.typeNumber = typeNumber;
 		this.selectedNames = selectedNames;
 		this.outputPartitioner = outputPartitioner;
+		this.outputTag = outputTag;
 
 		this.edgeId = sourceVertex + "_" + targetVertex + "_" + typeNumber + "_" + selectedNames
 				+ "_" + outputPartitioner;
@@ -85,6 +96,8 @@ public class StreamEdge implements Serializable {
 	public List<String> getSelectedNames() {
 		return selectedNames;
 	}
+
+	public OutputTag getOutputTag() {return this.outputTag;}
 
 	public StreamPartitioner<?> getPartitioner() {
 		return outputPartitioner;
@@ -117,6 +130,6 @@ public class StreamEdge implements Serializable {
 	public String toString() {
 		return "(" + sourceVertex + " -> " + targetVertex + ", typeNumber=" + typeNumber
 				+ ", selectedNames=" + selectedNames + ", outputPartitioner=" + outputPartitioner
-				+ ')';
+				+ ", outputTag=" + outputTag + ')';
 	}
 }
