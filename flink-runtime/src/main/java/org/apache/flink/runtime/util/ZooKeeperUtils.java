@@ -43,6 +43,7 @@ import org.apache.flink.runtime.zookeeper.filesystem.FileSystemStateStorageHelpe
 import org.apache.flink.util.ConfigurationUtil;
 import org.apache.flink.util.Preconditions;
 import org.apache.zookeeper.ZooDefs;
+import org.apache.zookeeper.client.ZooKeeperSaslClient;
 import org.apache.zookeeper.data.ACL;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -89,6 +90,7 @@ public class ZooKeeperUtils {
 
 		boolean disableSaslClient = configuration.getBoolean(ConfigConstants.ZOOKEEPER_SASL_DISABLE,
 				ConfigConstants.DEFAULT_ZOOKEEPER_SASL_DISABLE);
+		System.setProperty(ZooKeeperSaslClient.ENABLE_CLIENT_SASL_KEY, String.valueOf(!disableSaslClient));
 
 		ACLProvider aclProvider;
 
