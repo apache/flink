@@ -84,12 +84,7 @@ object FlinkRelBuilder {
     val planner = new VolcanoPlanner(config.getCostFactory, Contexts.empty())
     planner.setExecutor(config.getExecutor)
     planner.addRelTraitDef(ConventionTraitDef.INSTANCE)
-    val cluster = RelOptCluster.create(planner, new RexBuilder(typeFactory))
-    cluster.setMetadataProvider(FlinkDefaultRelMetadataProvider.INSTANCE)
-    // just set metadataProvider is not enough, see
-    // https://www.mail-archive.com/dev@calcite.apache.org/msg00930.html
-    RelMetadataQuery.THREAD_PROVIDERS.set(
-      JaninoRelMetadataProvider.of(cluster.getMetadataProvider))
+    val cluster = FlinkRelOptClusterFactory.create(planner, new RexBuilder(typeFactory))
     val calciteSchema = CalciteSchema.from(config.getDefaultSchema)
     val relOptSchema = new CalciteCatalogReader(
       calciteSchema,
