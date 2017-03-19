@@ -101,8 +101,7 @@ public class SocketClientSink<IN> extends RichSinkFunction<IN> {
 	 * @param autoflush Flag to indicate whether the socket stream should be flushed after each message.
 	 */
 	public SocketClientSink(String hostName, int port, SerializationSchema<IN> schema,
-							int maxNumRetries, boolean autoflush)
-	{
+							int maxNumRetries, boolean autoflush) {
 		checkArgument(port > 0 && port < 65536, "port is out of range");
 		checkArgument(maxNumRetries >= -1, "maxNumRetries must be zero or larger (num retries), or -1 (infinite retries)");
 

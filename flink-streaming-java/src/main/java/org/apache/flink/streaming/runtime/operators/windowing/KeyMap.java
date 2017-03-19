@@ -499,8 +499,7 @@ public class KeyMap<K, V> implements Iterable<KeyMap.Entry<K, V>> {
 					final KeyMap<K, V>[] maps,
 					final TraversalEvaluator<K, V> visitor,
 					final long touchedTag)
-		throws Exception
-	{
+		throws Exception {
 		// we need to work on the maps in descending size
 		Arrays.sort(maps, CapacityDescendingComparator.INSTANCE);
 
@@ -524,8 +523,7 @@ public class KeyMap<K, V> implements Iterable<KeyMap.Entry<K, V>> {
 			int mask;
 			for (int rootTable = 0;
 					rootTable < numTables && ((mask = lowBitsMask[rootTable]) & pos) == mask;
-					rootTable++)
-			{
+					rootTable++) {
 				// use that table to gather keys and start collecting keys from the following tables
 				// go over all entries of that slot in the table
 				Entry<K, V> entry = maps[rootTable].table[pos >> shifts[rootTable]];
@@ -563,8 +561,7 @@ public class KeyMap<K, V> implements Iterable<KeyMap.Entry<K, V>> {
 			TraversalEvaluator<K, V> visitor,
 			K key,
 			long touchedTag,
-			int hashCode) throws Exception
-	{
+			int hashCode) throws Exception {
 		while (entry != null) {
 			if (entry.touchedTag < touchedTag && entry.hashCode == hashCode && entry.key.equals(key)) {
 				entry.touchedTag = touchedTag;

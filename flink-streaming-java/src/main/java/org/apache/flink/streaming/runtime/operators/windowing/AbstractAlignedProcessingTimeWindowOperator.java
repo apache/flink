@@ -84,8 +84,7 @@ public abstract class AbstractAlignedProcessingTimeWindowOperator<KEY, IN, OUT, 
 			TypeSerializer<KEY> keySerializer,
 			TypeSerializer<STATE> stateTypeSerializer,
 			long windowLength,
-			long windowSlide)
-	{
+			long windowSlide) {
 		super(function);
 
 		if (windowLength < MIN_SLIDE_TIME) {

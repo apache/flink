@@ -45,8 +45,7 @@ public class AggregatingProcessingTimeWindowOperator<KEY, IN>
 			TypeSerializer<KEY> keySerializer,
 			TypeSerializer<IN> aggregateSerializer,
 			long windowLength,
-			long windowSlide)
-	{
+			long windowSlide) {
 		super(function, keySelector, keySerializer, aggregateSerializer, windowLength, windowSlide);
 	}
 

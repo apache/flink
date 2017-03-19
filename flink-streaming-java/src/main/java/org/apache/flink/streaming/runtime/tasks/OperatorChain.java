@@ -253,8 +253,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 			Map<Integer, StreamConfig> chainedConfigs,
 			ClassLoader userCodeClassloader,
 			Map<StreamEdge, RecordWriterOutput<?>> streamOutputs,
-			List<StreamOperator<?>> allOperators)
-	{
+			List<StreamOperator<?>> allOperators) {
 		List<Tuple2<Output<StreamRecord<T>>, StreamEdge>> allOutputs = new ArrayList<>(4);
 
 		// create collectors for the network outputs
@@ -326,8 +325,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 			ClassLoader userCodeClassloader,
 			Map<StreamEdge, RecordWriterOutput<?>> streamOutputs,
 			List<StreamOperator<?>> allOperators,
-			OutputTag<IN> outputTag)
-	{
+			OutputTag<IN> outputTag) {
 		// create the output that the operator writes to first. this may recursively create more operators
 		Output<StreamRecord<OUT>> output = createOutputCollector(
 				containingTask, operatorConfig, chainedConfigs, userCodeClassloader, streamOutputs, allOperators);
