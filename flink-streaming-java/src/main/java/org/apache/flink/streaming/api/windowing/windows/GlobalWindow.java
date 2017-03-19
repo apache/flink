@@ -30,7 +30,7 @@ import org.apache.flink.core.memory.DataOutputView;
 @PublicEvolving
 public class GlobalWindow extends Window {
 
-	private static GlobalWindow INSTANCE = new GlobalWindow();
+	private static final GlobalWindow INSTANCE = new GlobalWindow();
 
 	private GlobalWindow() { }
 
