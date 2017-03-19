@@ -34,9 +34,9 @@ public class PythonCoGroup<IN1, IN2, OUT> extends RichCoGroupFunction<IN1, IN2, 
 	private final PythonStreamer<IN1, IN2, OUT> streamer;
 	private final transient TypeInformation<OUT> typeInformation;
 
-	public PythonCoGroup(int id, TypeInformation<OUT> typeInformation) {
+	public PythonCoGroup(int envID, int setID, TypeInformation<OUT> typeInformation) {
 		this.typeInformation = typeInformation;
-		streamer = new PythonStreamer<>(this, id, true);
+		streamer = new PythonStreamer<>(this, envID, setID, true);
 	}
 
 	/**

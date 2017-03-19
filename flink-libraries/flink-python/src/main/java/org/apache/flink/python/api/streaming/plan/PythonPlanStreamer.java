@@ -20,7 +20,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.SocketTimeoutException;
 
 import static org.apache.flink.python.api.PythonPlanBinder.FLINK_PYTHON2_BINARY_PATH;
 import static org.apache.flink.python.api.PythonPlanBinder.FLINK_PYTHON3_BINARY_PATH;
@@ -54,19 +53,7 @@ public class PythonPlanStreamer {
 	}
 
 	public void open(String tmpPath, String args) throws IOException {
-		server = new ServerSocket(0);
-		server.setSoTimeout(50);
 		startPython(tmpPath, args);
-		while (true) {
-			try {
-				socket = server.accept();
-				break;
-			} catch (SocketTimeoutException ignored) {
-				checkPythonProcessHealth();
-			}
-		}
-		sender = new PythonPlanSender(socket.getOutputStream());
-		receiver = new PythonPlanReceiver(socket.getInputStream());
 	}
 
 	private void startPython(String tmpPath, String args) throws IOException {
@@ -82,24 +69,42 @@ public class PythonPlanStreamer {
 		new StreamPrinter(process.getInputStream()).start();
 		new StreamPrinter(process.getErrorStream()).start();
 
+		checkPythonProcessHealth();
+	}
+
+	public void startPlanMode() throws IOException {
+		server = new ServerSocket(0);
+		//If after 5 seconds Python doesn't respond, check to see if the Python process has exited
+		server.setSoTimeout(5000);
+
 		process.getOutputStream().write("plan\n".getBytes(ConfigConstants.DEFAULT_CHARSET));
 		process.getOutputStream().write((server.getLocalPort() + "\n").getBytes(ConfigConstants.DEFAULT_CHARSET));
 		process.getOutputStream().flush();
+
+		socket = server.accept();
+		sender = new PythonPlanSender(socket.getOutputStream());
+		receiver = new PythonPlanReceiver(socket.getInputStream());
 	}
 
 	public void close() {
+		if (isPythonRunning()) {
+			process.destroy();
+		}
+		try {
+			socket.close();
+		} catch (IOException e) {
+			LOG.error("Failed to close socket.", e);
+		}
+	}
+
+	public boolean isPythonRunning() {
 		try {
 			process.exitValue();
 		} catch (NullPointerException ignored) { //exception occurred before process was started
-		} catch (IllegalThreadStateException ignored) { //process still active
-			process.destroy();
-		} finally {
-			try {
-				socket.close();
-			} catch (IOException e) {
-				LOG.error("Failed to close socket.", e);
-			}
+		} catch (IllegalThreadStateException ise) { //process still active
+			return true;
 		}
+		return false;
 	}
 
 	private void checkPythonProcessHealth() {
