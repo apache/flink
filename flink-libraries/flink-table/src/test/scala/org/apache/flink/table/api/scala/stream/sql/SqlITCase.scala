@@ -19,14 +19,18 @@
 package org.apache.flink.table.api.scala.stream.sql
 
 import org.apache.flink.api.scala._
+import org.apache.flink.streaming.api.functions.source.SourceFunction
+import org.apache.flink.table.api.scala.stream.sql.SqlITCase.EventTimeSourceFunction
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
+import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.table.api.{TableEnvironment, TableException}
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.scala.stream.utils.{StreamingWithStateTestBase, StreamITCase,
-StreamTestData}
+import org.apache.flink.table.api.scala.stream.utils.{StreamITCase, StreamTestData, StreamingWithStateTestBase}
 import org.apache.flink.types.Row
 import org.junit.Assert._
 import org.junit._
+import org.apache.flink.streaming.api.TimeCharacteristic
+import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
 
 import scala.collection.mutable
 
@@ -293,6 +297,107 @@ class SqlITCase extends StreamingWithStateTestBase {
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
+  @Test
+  def testBoundPartitionedEventTimeWindowWithRow(): Unit = {
+    val data = Seq(
+      Left((1L, (1L, 1, "Hello"))),
+      Right(1L),
+      Left((2L, (2L, 2, "Hello"))),
+      Right(2L),
+      Left((3L, (3L, 3, "Hello"))),
+      Right(3L),
+      Left((4L, (4L, 4, "Hello"))),
+      Right(4L),
+      Left((5L, (5L, 5, "Hello"))),
+      Right(5L),
+      Left((6L, (6L, 6, "Hello"))),
+      Right(6L),
+      Left((7L, (7L, 7, "Hello World"))),
+      Right(7L),
+      Left((8L, (8L, 8, "Hello World"))),
+      Right(8L),
+      Left((20L, (20L, 20, "Hello World"))),
+      Right(20L))
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    env.setStateBackend(getStateBackend)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+
+    val t1 = env
+      .addSource[(Long, Int, String)](new EventTimeSourceFunction[(Long, Int, String)](data))
+      .toTable(tEnv).as('a, 'b, 'c)
+
+    tEnv.registerTable("T1", t1)
+
+    val sqlQuery = "SELECT " +
+      "c, a, " +
+      "count(a) OVER (PARTITION BY c ORDER BY RowTime() ROWS BETWEEN 2 preceding AND CURRENT ROW)" +
+      ", sum(a) OVER (PARTITION BY c ORDER BY RowTime() ROWS BETWEEN 2 preceding AND CURRENT ROW)" +
+      " from T1"
+
+    val result = tEnv.sql(sqlQuery).toDataStream[Row]
+    result.addSink(new StreamITCase.StringSink)
+    env.execute()
+
+    val expected = mutable.MutableList(
+      "Hello,1,1,1", "Hello,2,2,3", "Hello,3,3,6", "Hello,4,3,9", "Hello,5,3,12",
+      "Hello,6,3,15", "Hello World,7,1,7", "Hello World,8,2,15", "Hello World,20,3,35")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testBoundNonPartitionedEventTimeWindowWithRow(): Unit = {
+
+    val data = Seq(
+      Left((1L, (1L, 1, "Hello"))),
+      Right(1L),
+      Left((2L, (2L, 2, "Hello"))),
+      Right(2L),
+      Left((3L, (3L, 3, "Hello"))),
+      Right(3L),
+      Left((4L, (4L, 4, "Hello"))),
+      Right(4L),
+      Left((5L, (5L, 5, "Hello"))),
+      Right(5L),
+      Left((6L, (6L, 6, "Hello"))),
+      Right(6L),
+      Left((7L, (7L, 7, "Hello World"))),
+      Right(7L),
+      Left((8L, (8L, 8, "Hello World"))),
+      Right(8L),
+      Left((20L, (20L, 20, "Hello World"))),
+      Right(20L))
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    env.setStateBackend(getStateBackend)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+
+    val t1 = env
+      .addSource[(Long, Int, String)](new EventTimeSourceFunction[(Long, Int, String)](data))
+      .toTable(tEnv).as('a, 'b, 'c)
+
+    tEnv.registerTable("T1", t1)
+
+    val sqlQuery = "SELECT " +
+      "c, a, " +
+      "count(a) OVER (ORDER BY RowTime() ROWS BETWEEN 2 preceding AND CURRENT ROW)," +
+      "sum(a) OVER (ORDER BY RowTime() ROWS BETWEEN 2 preceding AND CURRENT ROW)" +
+      "from T1"
+
+    val result = tEnv.sql(sqlQuery).toDataStream[Row]
+    result.addSink(new StreamITCase.StringSink)
+    env.execute()
+
+    val expected = mutable.MutableList(
+      "Hello,1,1,1", "Hello,2,2,3", "Hello,3,3,6", "Hello,4,3,9", "Hello,5,3,12",
+      "Hello,6,3,15", "Hello World,7,3,18", "Hello World,8,3,21", "Hello World,20,3,35")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
   /**
     *  All aggregates must be computed on the same window.
     */
@@ -317,4 +422,24 @@ class SqlITCase extends StreamingWithStateTestBase {
     result.addSink(new StreamITCase.StringSink)
     env.execute()
   }
+
+}
+
+object SqlITCase {
+
+  class EventTimeSourceFunction[T](
+      dataWithTimestampList: Seq[Either[(Long, T), Long]]) extends SourceFunction[T] {
+    override def run(ctx: SourceContext[T]): Unit = {
+      dataWithTimestampList.foreach { x =>
+        if (x.isLeft) {
+          ctx.collectWithTimestamp(x.left.get._2, x.left.get._1)
+        } else if (x.isRight) {
+          ctx.emitWatermark(new Watermark(x.right.get))
+        }
+      }
+    }
+
+    override def cancel(): Unit = ???
+  }
+
 }
