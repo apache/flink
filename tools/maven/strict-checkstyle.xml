@@ -35,10 +35,10 @@ This file is based on the checkstyle file of Apache Beam.
     <!--&lt;!&ndash; Checks that there are no tab characters in the file. &ndash;&gt;-->
   <!--</module>-->
 
-  <!--<module name="NewlineAtEndOfFile">-->
-    <!--&lt;!&ndash; windows can use \n\r vs \n, so enforce the most used one ie UNIx style &ndash;&gt;-->
-    <!--<property name="lineSeparator" value="lf" />-->
-  <!--</module>-->
+  <module name="NewlineAtEndOfFile">
+    <!-- windows can use \n\r vs \n, so enforce the most used one ie UNIx style -->
+    <property name="lineSeparator" value="lf" />
+  </module>
 
   <module name="RegexpSingleline">
     <!-- Checks that TODOs don't have stuff in parenthesis, e.g., username. -->
