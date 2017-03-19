@@ -42,7 +42,7 @@ public abstract class AscendingTimestampExtractor<T> implements AssignerWithPeri
 	/** The current timestamp. */
 	private long currentTimestamp = Long.MIN_VALUE;
 
-	/** Handler that is called when timestamp monotony is violated */
+	/** Handler that is called when timestamp monotony is violated. */
 	private MonotonyViolationHandler violationHandler = new LoggingHandler();
 	
 	

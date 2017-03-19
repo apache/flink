@@ -34,10 +34,10 @@ import java.io.Serializable;
  * {@link org.apache.flink.streaming.api.operators.TwoInputStreamOperator} to create operators
  * that process elements.
  * 
- * <p> The class {@link org.apache.flink.streaming.api.operators.AbstractStreamOperator}
+ * <p>The class {@link org.apache.flink.streaming.api.operators.AbstractStreamOperator}
  * offers default implementation for the lifecycle and properties methods.
  *
- * <p> Methods of {@code StreamOperator} are guaranteed not to be called concurrently. Also, if using
+ * <p>Methods of {@code StreamOperator} are guaranteed not to be called concurrently. Also, if using
  * the timer service, timer callbacks are also guaranteed not to be called concurrently with
  * methods on {@code StreamOperator}.
  * 
@@ -68,11 +68,10 @@ public interface StreamOperator<OUT> extends Serializable {
 	 * {@link org.apache.flink.streaming.api.operators.OneInputStreamOperator#processElement(StreamRecord)}, or
 	 * {@link org.apache.flink.streaming.api.operators.TwoInputStreamOperator#processElement1(StreamRecord)} and
 	 * {@link org.apache.flink.streaming.api.operators.TwoInputStreamOperator#processElement2(StreamRecord)}.
-
-	 * <p>
-	 * The method is expected to flush all remaining buffered data. Exceptions during this flushing
-	 * of buffered should be propagated, in order to cause the operation to be recognized as failed,
-	 * because the last data items are not processed properly.
+	 *
+	 * <p>The method is expected to flush all remaining buffered data. Exceptions during this
+	 * flushing of buffered should be propagated, in order to cause the operation to be recognized
+	 * as failed, because the last data items are not processed properly.
 	 * 
 	 * @throws java.lang.Exception An exception in this method causes the operator to fail.
 	 */
@@ -82,7 +81,7 @@ public interface StreamOperator<OUT> extends Serializable {
 	 * This method is called at the very end of the operator's life, both in the case of a successful
 	 * completion of the operation, and in the case of a failure and canceling.
 	 * 
-	 * This method is expected to make a thorough effort to release all resources
+	 * <p>This method is expected to make a thorough effort to release all resources
 	 * that the operator has acquired.
 	 */
 	void dispose() throws Exception;

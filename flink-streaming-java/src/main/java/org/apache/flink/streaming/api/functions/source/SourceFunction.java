@@ -69,7 +69,6 @@ import java.io.Serializable;
  *
  *
  * <h3>Timestamps and watermarks:</h3>
- * 
  * Sources may assign timestamps to elements and may manually emit watermarks.
  * However, these are only interpreted if the streaming program runs on 
  * {@link TimeCharacteristic#EventTime}. On other time characteristics 
@@ -77,7 +76,6 @@ import java.io.Serializable;
  * the watermarks from the source function are ignored.
  *
  * <h3>Gracefully Stopping Functions</h3>
- * 
  * Functions may additionally implement the {@link org.apache.flink.api.common.functions.StoppableFunction}
  * interface. "Stopping" a function, in contrast to "canceling" means a graceful exit that leaves the
  * state and the emitted elements in a consistent state.

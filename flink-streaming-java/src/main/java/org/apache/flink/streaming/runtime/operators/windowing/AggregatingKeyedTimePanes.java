@@ -25,6 +25,9 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.util.Collector;
 
+/**
+ * Key/value map organized in panes for aggregating windows (with a reduce function).
+ */
 @Internal
 public class AggregatingKeyedTimePanes<Type, Key> extends AbstractKeyedTimePanes<Type, Key, Type, Type> {
 	
@@ -33,7 +36,9 @@ public class AggregatingKeyedTimePanes<Type, Key> extends AbstractKeyedTimePanes
 	private final ReduceFunction<Type> reducer;
 
 	/**
-	 * IMPORTANT: This value needs to start at one, so it is fresher than the value that new entries have (zero) */
+	 * IMPORTANT: This value needs to start at one, so it is fresher than the value that new entries
+	 * have (zero).
+	 */
 	private long evaluationPass = 1L;
 
 	// ------------------------------------------------------------------------

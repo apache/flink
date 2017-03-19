@@ -32,9 +32,8 @@ import java.util.Collection;
  * {@link org.apache.flink.streaming.runtime.operators.windowing.AggregatingProcessingTimeWindowOperator
  * AggregatingProcessingTimeWindowOperator}.
  *
- * <p>
- * For assigner that extend this one, the user can check the {@link TumblingAlignedProcessingTimeWindows}
- * and the {@link SlidingAlignedProcessingTimeWindows}.
+ * <p>For assigner that extend this one, the user can check the
+ * {@link TumblingAlignedProcessingTimeWindows} and the {@link SlidingAlignedProcessingTimeWindows}.
  * */
 public class BaseAlignedWindowAssigner extends WindowAssigner<Object, TimeWindow> {
 

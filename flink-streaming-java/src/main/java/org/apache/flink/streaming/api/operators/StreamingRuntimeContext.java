@@ -51,10 +51,10 @@ import java.util.Map;
 @PublicEvolving
 public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 
-	/** The operator to which this function belongs */
+	/** The operator to which this function belongs. */
 	private final AbstractStreamOperator<?> operator;
 
-	/** The task environment running the operator */
+	/** The task environment running the operator. */
 	private final Environment taskEnvironment;
 
 	private final StreamConfig streamConfig;
@@ -157,6 +157,7 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 
 	/**
 	 * Returns true if checkpointing is enabled for the running job.
+	 *
 	 * @return true if checkpointing is enabled.
 	 */
 	public boolean isCheckpointingEnabled() {
@@ -164,7 +165,8 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 	}
 
 	/**
-	 * Returns the checkpointing mode
+	 * Returns the checkpointing mode.
+	 *
 	 * @return checkpointing mode
 	 */
 	public CheckpointingMode getCheckpointMode() {
@@ -172,7 +174,8 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 	}
 
 	/**
-	 * Returns the buffer timeout of the job
+	 * Returns the buffer timeout of the job.
+	 *
 	 * @return buffer timeout (in milliseconds)
 	 */
 	public long getBufferTimeout() {

@@ -30,46 +30,48 @@ import java.util.NoSuchElementException;
 /**
  * A special Hash Map implementation that can be traversed efficiently in sync with other
  * hash maps.
- * <p>
- * The differences between this hash map and Java's "java.util.HashMap" are:
+ *
+ * <p>The differences between this hash map and Java's "java.util.HashMap" are:
  * <ul>
  *     <li>A different hashing scheme. This implementation uses extensible hashing, meaning that
  *         each hash table growth takes one more lower hash code bit into account, and values that where
- *         formerly in the same bucket will afterwards be in the two adjacent buckets.</li>
+ *         formerly in the same bucket will afterwards be in the two adjacent buckets.
  *     <li>This allows an efficient traversal of multiple hash maps together, even though the maps are
  *         of different sizes.</li>
- *     <li>The map offers functions such as "putIfAbsent()" and "putOrAggregate()"</li>
- *     <li>The map supports no removal/shrinking.</li>
+ *     <li>The map offers functions such as "putIfAbsent()" and "putOrAggregate()"
+ *     <li>The map supports no removal/shrinking.
  * </ul>
  */
 @Internal
 public class KeyMap<K, V> implements Iterable<KeyMap.Entry<K, V>> {
 	
-	/** The minimum table capacity, 64 entries */
+	/** The minimum table capacity, 64 entries. */
 	private static final int MIN_CAPACITY = 0x40;
 	
-	/** The maximum possible table capacity, the largest positive power of
-	 * two in the 32bit signed integer value range */
+	/**
+	 * The maximum possible table capacity, the largest positive power of two in the 32bit signed
+	 * integer value range.
+	 */
 	private static final int MAX_CAPACITY = 0x40000000;
 	
-	/** The number of bits used for table addressing when table is at max capacity */
+	/** The number of bits used for table addressing when table is at max capacity. */
 	private static final int FULL_BIT_RANGE = MathUtils.log2strict(MAX_CAPACITY);
 	
 	// ------------------------------------------------------------------------
 	
-	/** The hash index, as an array of entries */
+	/** The hash index, as an array of entries. */
 	private Entry<K, V>[] table;
 	
-	/** The number of bits by which the hash code is shifted right, to find the bucket */
+	/** The number of bits by which the hash code is shifted right, to find the bucket. */
 	private int shift;
 	
-	/** The number of elements in the hash table */
+	/** The number of elements in the hash table. */
 	private int numElements;
 	
-	/** The number of elements above which the hash table needs to grow */
+	/** The number of elements above which the hash table needs to grow. */
 	private int rehashThreshold;
 	
-	/** The base-2 logarithm of the table capacity */ 
+	/** The base-2 logarithm of the table capacity. */
 	private int log2size;
 
 	// ------------------------------------------------------------------------
@@ -141,8 +143,8 @@ public class KeyMap<K, V> implements Iterable<KeyMap.Entry<K, V>> {
 	/**
 	 * Inserts a value for the given key, if no value is yet contained for that key. Otherwise,
 	 * returns the value currently contained for the key.
-	 * <p>
-	 * The value that is inserted in case that the key is not contained, yet, is lazily created
+	 *
+	 * <p>The value that is inserted in case that the key is not contained, yet, is lazily created
 	 * using the given factory.
 	 *
 	 * @param key The key to insert.

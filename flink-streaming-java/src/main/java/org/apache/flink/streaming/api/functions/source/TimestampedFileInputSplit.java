@@ -66,13 +66,12 @@ public class TimestampedFileInputSplit extends FileInputSplit implements Compara
 	}
 
 	/**
-	 * Sets the state of the split. This information is used when
-	 * restoring from a checkpoint and allows to resume reading the
-	 * underlying file from the point we left off.
-	 * <p>
-	 * This is applicable to {@link org.apache.flink.api.common.io.FileInputFormat FileInputFormats}
-	 * that implement the {@link org.apache.flink.api.common.io.CheckpointableInputFormat
-	 * CheckpointableInputFormat} interface.
+	 * Sets the state of the split. This information is used when restoring from a checkpoint and
+	 * allows to resume reading the underlying file from the point we left off.
+	 *
+	 * <p>* This is applicable to
+	 * {@link org.apache.flink.api.common.io.FileInputFormat FileInputFormats} that implement the
+	 * {@link org.apache.flink.api.common.io.CheckpointableInputFormat} interface.
 	 * */
 	public void setSplitState(Serializable state) {
 		this.splitState = state;

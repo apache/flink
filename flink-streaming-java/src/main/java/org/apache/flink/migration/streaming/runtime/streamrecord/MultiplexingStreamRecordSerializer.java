@@ -29,6 +29,10 @@ import java.io.IOException;
 
 import static java.util.Objects.requireNonNull;
 
+/**
+ * Legacy multiplexing {@link TypeSerializer} for stream records, watermarks and other stream
+ * elements.
+ */
 public class MultiplexingStreamRecordSerializer<T> extends TypeSerializer<StreamElement> {
 
 

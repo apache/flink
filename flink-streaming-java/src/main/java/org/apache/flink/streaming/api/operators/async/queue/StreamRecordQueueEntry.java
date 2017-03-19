@@ -39,11 +39,11 @@ import java.util.Collection;
 public class StreamRecordQueueEntry<OUT> extends StreamElementQueueEntry<Collection<OUT>>
 	implements AsyncCollectionResult<OUT>, AsyncCollector<OUT> {
 
-	/** Timestamp information */
+	/** Timestamp information. */
 	private final boolean hasTimestamp;
 	private final long timestamp;
 
-	/** Future containing the collection result */
+	/** Future containing the collection result. */
 	private final CompletableFuture<Collection<OUT>> resultFuture;
 
 	public StreamRecordQueueEntry(StreamRecord<?> streamRecord) {

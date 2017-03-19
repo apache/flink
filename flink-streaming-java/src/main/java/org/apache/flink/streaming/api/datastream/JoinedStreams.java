@@ -39,17 +39,13 @@ import static java.util.Objects.requireNonNull;
  *{@code JoinedStreams} represents two {@link DataStream DataStreams} that have been joined.
  * A streaming join operation is evaluated over elements in a window.
  *
- * <p>
- * To finalize the join operation you also need to specify a {@link KeySelector} for
+ * <p>To finalize the join operation you also need to specify a {@link KeySelector} for
  * both the first and second input and a {@link WindowAssigner}.
  *
- * <p>
- * Note: Right now, the the join is being evaluated in memory so you need to ensure that the number
+ * <p>Note: Right now, the the join is being evaluated in memory so you need to ensure that the number
  * of elements per key does not get too high. Otherwise the JVM might crash.
  *
- * <p>
- * Example:
- *
+ * <p>Example:
  * <pre> {@code
  * DataStream<Tuple2<String, Integer>> one = ...;
  * DataStream<Tuple2<String, Integer>> twp = ...;
@@ -64,10 +60,10 @@ import static java.util.Objects.requireNonNull;
 @Public
 public class JoinedStreams<T1, T2> {
 
-	/** The first input stream */
+	/** The first input stream. */
 	private final DataStream<T1> input1;
 
-	/** The second input stream */
+	/** The second input stream. */
 	private final DataStream<T2> input2;
 
 	/**
@@ -206,8 +202,7 @@ public class JoinedStreams<T1, T2> {
 		/**
 		 * Sets the {@code Evictor} that should be used to evict elements from a window before emission.
 		 *
-		 * <p>
-		 * Note: When using an evictor window performance will degrade significantly, since
+		 * <p>Note: When using an evictor window performance will degrade significantly, since
 		 * pre-aggregation of window results cannot be used.
 		 */
 		@PublicEvolving

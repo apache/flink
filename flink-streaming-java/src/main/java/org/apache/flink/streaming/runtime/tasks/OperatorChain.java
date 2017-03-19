@@ -203,7 +203,6 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 	}
 
 	/**
-	 *
 	 * This method should be called before finishing the record emission, to make sure any data
 	 * that is still buffered will be sent. It also ensures that all data sending related
 	 * exceptions are recognized.

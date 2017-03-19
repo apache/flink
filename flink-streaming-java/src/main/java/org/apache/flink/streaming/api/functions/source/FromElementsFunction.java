@@ -45,8 +45,7 @@ import java.util.List;
  * That way, any object transport using Java serialization will not be affected by the serializability
  * of the elements.</p>
  *
- * <p>
- * <b>NOTE:</b> This source has a parallelism of 1.
+ * <p><b>NOTE:</b> This source has a parallelism of 1.
  *
  * @param <T> The type of elements returned by this function.
  */
@@ -55,22 +54,22 @@ public class FromElementsFunction<T> implements SourceFunction<T>, CheckpointedF
 	
 	private static final long serialVersionUID = 1L;
 
-	/** The (de)serializer to be used for the data elements */
+	/** The (de)serializer to be used for the data elements. */
 	private final TypeSerializer<T> serializer;
 	
-	/** The actual data elements, in serialized form */
+	/** The actual data elements, in serialized form. */
 	private final byte[] elementsSerialized;
 	
-	/** The number of serialized elements */
+	/** The number of serialized elements. */
 	private final int numElements;
 
-	/** The number of elements emitted already */
+	/** The number of elements emitted already. */
 	private volatile int numElementsEmitted;
 
-	/** The number of elements to skip initially */
+	/** The number of elements to skip initially. */
 	private volatile int numElementsToSkip;
 	
-	/** Flag to make the source cancelable */
+	/** Flag to make the source cancelable. */
 	private volatile boolean isRunning = true;
 
 	private transient ListState<Integer> checkpointedState;

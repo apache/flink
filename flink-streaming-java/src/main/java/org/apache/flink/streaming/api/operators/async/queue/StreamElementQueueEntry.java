@@ -36,7 +36,6 @@ import java.util.concurrent.Executor;
 @Internal
 public abstract class StreamElementQueueEntry<T> implements AsyncResult {
 
-	/** Stream element */
 	private final StreamElement streamElement;
 
 	public StreamElementQueueEntry(StreamElement streamElement) {

@@ -59,7 +59,7 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 	private final PriorityQueue<InternalTimer<K, N>> eventTimeTimersQueue;
 
 	/**
-	 * Information concerning the local key-group range
+	 * Information concerning the local key-group range.
 	 */
 	private final KeyGroupsList localKeyGroupRange;
 	private final int totalKeyGroups;

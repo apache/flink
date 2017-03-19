@@ -46,7 +46,7 @@ public class Flip6LocalStreamEnvironment extends StreamExecutionEnvironment {
 
 	private static final Logger LOG = LoggerFactory.getLogger(Flip6LocalStreamEnvironment.class);
 
-	/** The configuration to use for the mini cluster */
+	/** The configuration to use for the mini cluster. */
 	private final Configuration conf;
 
 	/**

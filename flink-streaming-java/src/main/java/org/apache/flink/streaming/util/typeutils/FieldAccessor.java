@@ -41,12 +41,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * These classes encapsulate the logic of accessing a field specified by the user as either an index
- * or a field expression string. TypeInformation can also be requested for the field.
- * The position index might specify a field of a Tuple, an array, or a simple type (only "0th field").
+ * or a field expression string. TypeInformation can also be requested for the field. The position
+ * index might specify a field of a Tuple, an array, or a simple type(only "0th field").
  *
- * Field expressions that specify nested fields (e.g. "f1.a.foo") result in nested field accessors.
- * These penetrate one layer, and then delegate the rest of the work to an "innerAccesor".
- * (see PojoFieldAccessor, RecursiveTupleFieldAccessor, RecursiveProductFieldAccessor)
+ * <p>Field expressions that specify nested fields (e.g. "f1.a.foo") result in nested field
+ * accessors. These penetrate one layer, and then delegate the rest of the work to an
+ * "innerAccesor". (see PojoFieldAccessor, RecursiveTupleFieldAccessor,
+ * RecursiveProductFieldAccessor)
  */
 @Internal
 public abstract class FieldAccessor<T, F> implements Serializable {
@@ -75,7 +76,7 @@ public abstract class FieldAccessor<T, F> implements Serializable {
 	/**
 	 * Sets the field (specified in the constructor) of the given record to the given value.
 	 *
-	 * Warning: This might modify the original object, or might return a new object instance.
+	 * <p>Warning: This might modify the original object, or might return a new object instance.
 	 * (This is necessary, because the record might be immutable.)
 	 *
 	 * @param record The record to modify

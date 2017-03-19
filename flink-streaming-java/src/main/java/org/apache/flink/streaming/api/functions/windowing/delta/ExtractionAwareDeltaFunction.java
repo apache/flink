@@ -37,10 +37,8 @@ import org.apache.flink.streaming.api.functions.windowing.delta.extractor.Extrac
 @PublicEvolving
 public abstract class ExtractionAwareDeltaFunction<DATA, TO> implements DeltaFunction<DATA> {
 
-	/**
-	 * Generated Version ID
-	 */
 	private static final long serialVersionUID = 6927486219702689554L;
+	
 	private Extractor<DATA, TO> converter;
 
 	public ExtractionAwareDeltaFunction(Extractor<DATA, TO> converter) {

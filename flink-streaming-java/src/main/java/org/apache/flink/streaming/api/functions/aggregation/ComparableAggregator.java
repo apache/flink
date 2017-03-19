@@ -23,6 +23,10 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.util.typeutils.FieldAccessor;
 import org.apache.flink.streaming.util.typeutils.FieldAccessorFactory;
 
+/**
+ * An {@link AggregationFunction} that computes values based on comparisons of
+ * {@link Comparable Comparables}.
+ */
 @Internal
 public class ComparableAggregator<T> extends AggregationFunction<T> {
 

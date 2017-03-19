@@ -43,18 +43,18 @@ public class Emitter<OUT> implements Runnable {
 
 	private static final Logger LOG = LoggerFactory.getLogger(Emitter.class);
 
-	/** Lock to hold before outputting */
+	/** Lock to hold before outputting. */
 	private final Object checkpointLock;
 
-	/** Output for the watermark elements */
+	/** Output for the watermark elements. */
 	private final Output<StreamRecord<OUT>> output;
 
-	/** Queue to consume the async results from */
+	/** Queue to consume the async results from. */
 	private final StreamElementQueue streamElementQueue;
 
 	private final OperatorActions operatorActions;
 
-	/** Output for stream records */
+	/** Output for stream records. */
 	private final TimestampedCollector<OUT> timestampedCollector;
 
 	private volatile boolean running;

@@ -31,19 +31,18 @@ import java.util.Collection;
 public interface AsyncCollector<OUT> {
 	/**
 	 * Set result.
-	 * <p>
-	 * Note that it should be called for exactly one time in the user code.
+	 *
+	 * <p>Note that it should be called for exactly one time in the user code.
 	 * Calling this function for multiple times will cause data lose.
-	 * <p>
-	 * Put all results in a {@link Collection} and then issue
-	 * {@link AsyncCollector#collect(Collection)}.
+	 *
+	 * <p>Put all results in a {@link Collection} and then emit output.
 	 *
 	 * @param result A list of results.
 	 */
 	void collect(Collection<OUT> result);
 
 	/**
-	 * Set error
+	 * Set error.
 	 *
 	 * @param error A Throwable object.
 	 */

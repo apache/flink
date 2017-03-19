@@ -90,7 +90,7 @@ public class ConnectedStreams<IN1, IN2> {
 	}
 
 	/**
-	 * Gets the type of the first input
+	 * Gets the type of the first input.
 	 *
 	 * @return The type of the first input
 	 */
@@ -99,7 +99,7 @@ public class ConnectedStreams<IN1, IN2> {
 	}
 
 	/**
-	 * Gets the type of the second input
+	 * Gets the type of the second input.
 	 *
 	 * @return The type of the second input
 	 */

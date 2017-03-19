@@ -59,7 +59,7 @@ public abstract class ProcessWindowFunction<IN, OUT, KEY, W extends Window> impl
 	public void clear(Context context) throws Exception {}
 
 	/**
-	 * The context holding window metadata
+	 * The context holding window metadata.
 	 */
 	public abstract class Context implements java.io.Serializable {
 		/**

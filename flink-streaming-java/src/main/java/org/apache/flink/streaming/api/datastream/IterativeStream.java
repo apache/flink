@@ -53,8 +53,7 @@ public class IterativeStream<T> extends SingleOutputStreamOperator<T> {
 	 * Closes the iteration. This method defines the end of the iterative
 	 * program part that will be fed back to the start of the iteration.
 	 *
-	 * <p>
-	 * A common usage pattern for streaming iterations is to use output
+	 * <p>A common usage pattern for streaming iterations is to use output
 	 * splitting to send a part of the closing data stream to the head. Refer to
 	 * {@link DataStream#split(org.apache.flink.streaming.api.collector.selector.OutputSelector)}
 	 * for more information.
@@ -86,8 +85,7 @@ public class IterativeStream<T> extends SingleOutputStreamOperator<T> {
 	 * co-transformations on the input and feedback stream, as in a
 	 * {@link ConnectedStreams}.
 	 *
-	 * <p>
-	 * For type safety the user needs to define the feedback type
+	 * <p>For type safety the user needs to define the feedback type
 	 * 
 	 * @param feedbackTypeString
 	 *            String describing the type information of the feedback stream.
@@ -102,8 +100,7 @@ public class IterativeStream<T> extends SingleOutputStreamOperator<T> {
 	 * co-transformations on the input and feedback stream, as in a
 	 * {@link ConnectedStreams}.
 	 *
-	 * <p>
-	 * For type safety the user needs to define the feedback type
+	 * <p>For type safety the user needs to define the feedback type
 	 * 
 	 * @param feedbackTypeClass
 	 *            Class of the elements in the feedback stream.
@@ -118,8 +115,7 @@ public class IterativeStream<T> extends SingleOutputStreamOperator<T> {
 	 * co-transformations on the input and feedback stream, as in a
 	 * {@link ConnectedStreams}.
 	 *
-	 * <p>
-	 * For type safety the user needs to define the feedback type
+	 * <p>For type safety the user needs to define the feedback type
 	 * 
 	 * @param feedbackType
 	 *            The type information of the feedback stream.
@@ -135,8 +131,7 @@ public class IterativeStream<T> extends SingleOutputStreamOperator<T> {
 	 * iteration and the feedback of the iteration are connected as in a
 	 * {@link ConnectedStreams}.
 	 *
-	 * <p>
-	 * The user can distinguish between the two inputs using co-transformation,
+	 * <p>The user can distinguish between the two inputs using co-transformation,
 	 * thus eliminating the need for mapping the inputs and outputs to a common
 	 * type.
 	 * 

@@ -25,6 +25,9 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 
 /**
+ * Special window operator implementation for windows that fire at the same time for all keys with
+ * aggregating windows.
+ *
  * @deprecated Deprecated in favour of the generic {@link WindowOperator}. This was an
  * optimized implementation used for aligned windows.
  */

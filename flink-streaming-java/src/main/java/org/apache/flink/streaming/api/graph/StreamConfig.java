@@ -41,6 +41,10 @@ import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
 
+/**
+ * Internal configuration for a {@link StreamOperator}. This is created and populated by the
+ * {@link StreamingJobGraphGenerator}.
+ */
 @Internal
 public class StreamConfig implements Serializable {
 

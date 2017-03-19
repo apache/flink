@@ -35,7 +35,10 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.XORShiftRandom;
 
-
+/**
+ * Wrapping {@link Output} that forwards to other {@link Output Outputs } based on a list of
+ * {@link OutputSelector OutputSelectors}.
+ */
 public class DirectedOutput<OUT> implements Output<StreamRecord<OUT>> {
 	
 	protected final OutputSelector<OUT>[] outputSelectors;

@@ -251,30 +251,30 @@ This file is based on the checkstyle file of Apache Beam.
 
     <!-- Checks for Javadoc comments.                     -->
     <!-- See http://checkstyle.sf.net/config_javadoc.html -->
-    <!--<module name="JavadocMethod">-->
-      <!--<property name="scope" value="protected"/>-->
-      <!--<property name="severity" value="error"/>-->
-      <!--<property name="allowMissingJavadoc" value="true"/>-->
-      <!--<property name="allowMissingParamTags" value="true"/>-->
-      <!--<property name="allowMissingReturnTag" value="true"/>-->
-      <!--<property name="allowMissingThrowsTags" value="true"/>-->
-      <!--<property name="allowThrowsTagsForSubclasses" value="true"/>-->
-      <!--<property name="allowUndeclaredRTE" value="true"/>-->
-    <!--</module>-->
+    <module name="JavadocMethod">
+      <property name="scope" value="protected"/>
+      <property name="severity" value="error"/>
+      <property name="allowMissingJavadoc" value="true"/>
+      <property name="allowMissingParamTags" value="true"/>
+      <property name="allowMissingReturnTag" value="true"/>
+      <property name="allowMissingThrowsTags" value="true"/>
+      <property name="allowThrowsTagsForSubclasses" value="true"/>
+      <property name="allowUndeclaredRTE" value="true"/>
+    </module>
 
-    <!--&lt;!&ndash; Check that paragraph tags are used correctly in Javadoc. &ndash;&gt;-->
-    <!--<module name="JavadocParagraph"/>-->
+    <!-- Check that paragraph tags are used correctly in Javadoc. -->
+    <module name="JavadocParagraph"/>
 
-    <!--<module name="JavadocType">-->
-      <!--<property name="scope" value="protected"/>-->
-      <!--<property name="severity" value="error"/>-->
-      <!--<property name="allowMissingParamTags" value="true"/>-->
-    <!--</module>-->
+    <module name="JavadocType">
+      <property name="scope" value="protected"/>
+      <property name="severity" value="error"/>
+      <property name="allowMissingParamTags" value="true"/>
+    </module>
 
-    <!--<module name="JavadocStyle">-->
-      <!--<property name="severity" value="error"/>-->
-      <!--<property name="checkHtml" value="true"/>-->
-    <!--</module>-->
+    <module name="JavadocStyle">
+      <property name="severity" value="error"/>
+      <property name="checkHtml" value="true"/>
+    </module>
 
     <!--
 

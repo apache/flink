@@ -38,9 +38,8 @@ import java.util.List;
  * of the state objects, or have multiple named states.
  * 
  * <h2>State Redistribution</h2>
- * 
  * State redistribution happens when the parallelism of the operator is changed.
- * State redistribution of <i>operator state<i> (to which category the state handled by this
+ * State redistribution of <i>operator state</i> (to which category the state handled by this
  * interface belongs) always goes through a checkpoint, so it appears
  * to the transformation functions like a failure/recovery combination, where recovery happens
  * with a different parallelism.
@@ -59,7 +58,7 @@ import java.util.List;
  * +----+----+   +----+----+   +----+
  * </pre>
  * 
- * Recovering the checkpoint with <i>parallelism = 5</i> yields the following state assignment:
+ * <p>Recovering the checkpoint with <i>parallelism = 5</i> yields the following state assignment:
  * <pre>
  * func_1   func_2   func_3   func_4   func_5
  * +----+   +----+   +----+   +----+   +----+
@@ -76,10 +75,8 @@ import java.util.List;
  * </pre>
  * 
  * <h2>Example</h2>
- * 
  * The following example illustrates how to implement a {@code MapFunction} that counts all elements
- * passing through it, keeping the total count accurate under re-scaling  (changes or parallelism).
- * 
+ * passing through it, keeping the total count accurate under re-scaling  (changes or parallelism):
  * <pre>{@code
  * public class CountingFunction<T> implements MapFunction<T, Tuple2<T, Long>>, ListCheckpointed<Long> {
  * 
@@ -122,7 +119,7 @@ public interface ListCheckpointed<T extends Serializable> {
 	 * the {@link ListCheckpointed class docs} for an illustration how list-style state
 	 * redistribution works.
 	 * 
-	 * <p> As special case, the returned list may be null or empty (if the operator has no state)
+	 * <p>As special case, the returned list may be null or empty (if the operator has no state)
 	 * or it may contain a single element (if the operator state is indivisible).
 	 *
 	 * @param checkpointId The ID of the checkpoint - a unique and monotonously increasing value. 

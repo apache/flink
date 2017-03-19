@@ -23,9 +23,9 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
 
 /**
- * Task for executing streaming sources.
+ * {@link StreamTask} for executing a {@link StreamSource}.
  *
- * One important aspect of this is that the checkpointing and the emission of elements must never
+ * <p>One important aspect of this is that the checkpointing and the emission of elements must never
  * occur at the same time. The execution must be serial. This is achieved by having the contract
  * with the StreamFunction that it must only modify its state or emit elements in
  * a synchronized block that locks on the lock Object. Also, the modification of the state

@@ -55,15 +55,14 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Input reader for {@link org.apache.flink.streaming.runtime.tasks.TwoInputStreamTask}.
  *
- * <p>
- * This internally uses a {@link StatusWatermarkValve} to keep track of {@link Watermark} and {@link StreamStatus} events,
- * and forwards watermarks to event subscribers once the {@link StatusWatermarkValve} determines the watermarks from
- * all inputs has advanced, or changes the task's {@link StreamStatus} once status change is toggled.
+ * <p>This internally uses a {@link StatusWatermarkValve} to keep track of {@link Watermark} and
+ * {@link StreamStatus} events, and forwards watermarks to event subscribers once the
+ * {@link StatusWatermarkValve} determines the watermarks from all inputs has advanced, or changes
+ * the task's {@link StreamStatus} once status change is toggled.
  *
- * <p>
- * Forwarding elements, watermarks, or status status elements must be protected by synchronizing on the given lock
- * object. This ensures that we don't call methods on a {@link TwoInputStreamOperator} concurrently
- * with the timer callback or other things.
+ * <p>Forwarding elements, watermarks, or status status elements must be protected by synchronizing
+ * on the given lock object. This ensures that we don't call methods on a
+ * {@link TwoInputStreamOperator} concurrently with the timer callback or other things.
  *
  * @param <IN1> The type of the records that arrive on the first input
  * @param <IN2> The type of the records that arrive on the second input

@@ -35,8 +35,7 @@ import java.util.List;
  * A {@link WindowAssigner} that windows elements into sliding windows based on the timestamp of the
  * elements. Windows can possibly overlap.
  *
- * <p>
- * For example, in order to window into windows of 1 minute, every 10 seconds:
+ * <p>For example, in order to window into windows of 1 minute, every 10 seconds:
  * <pre> {@code
  * DataStream<Tuple2<String, Integer>> in = ...;
  * KeyedStream<Tuple2<String, Integer>, String> keyed = in.keyBy(...);

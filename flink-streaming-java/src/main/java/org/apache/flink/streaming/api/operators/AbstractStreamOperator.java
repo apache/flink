@@ -98,7 +98,7 @@ public abstract class AbstractStreamOperator<OUT>
 
 	private static final long serialVersionUID = 1L;
 	
-	/** The logger used by the operator class and its subclasses */
+	/** The logger used by the operator class and its subclasses. */
 	protected static final Logger LOG = LoggerFactory.getLogger(AbstractStreamOperator.class);
 
 	// ----------- configuration properties -------------
@@ -108,41 +108,53 @@ public abstract class AbstractStreamOperator<OUT>
 
 	// ---------------- runtime fields ------------------
 
-	/** The task that contains this operator (and other operators in the same chain) */
+	/** The task that contains this operator (and other operators in the same chain). */
 	private transient StreamTask<?, ?> container;
 	
 	protected transient StreamConfig config;
 
 	protected transient Output<StreamRecord<OUT>> output;
 
-	/** The runtime context for UDFs */
+	/** The runtime context for UDFs. */
 	private transient StreamingRuntimeContext runtimeContext;
 
 	// ----------------- general state -------------------
 
-	/** The factory that give this operator access to checkpoint storage */
+	/** The factory that give this operator access to checkpoint storage. */
 	private transient CheckpointStreamFactory checkpointStreamFactory;
 
 	// ---------------- key/value state ------------------
 
-	/** key selector used to get the key for the state. Non-null only is the operator uses key/value state */
+	/**
+	 * {@code KeySelector} for extracting a key from an element being processed. This is used to
+	 * scope keyed state to a key. This is null if the operator is not a keyed operator.
+	 *
+	 * <p>This is for elements from the first input.
+	 */
 	private transient KeySelector<?, ?> stateKeySelector1;
+
+	/**
+	 * {@code KeySelector} for extracting a key from an element being processed. This is used to
+	 * scope keyed state to a key. This is null if the operator is not a keyed operator.
+	 *
+	 * <p>This is for elements from the second input.
+	 */
 	private transient KeySelector<?, ?> stateKeySelector2;
 
 	/** Backend for keyed state. This might be empty if we're not on a keyed stream. */
 	private transient AbstractKeyedStateBackend<?> keyedStateBackend;
 
-	/** Keyed state store view on the keyed backend */
+	/** Keyed state store view on the keyed backend. */
 	private transient DefaultKeyedStateStore keyedStateStore;
 
 	// ---------------- operator state ------------------
 
-	/** Operator state backend / store */
+	/** Operator state backend / store. */
 	private transient OperatorStateBackend operatorStateBackend;
 
 	// --------------- Metrics ---------------------------
 
-	/** Metric group for the operator */
+	/** Metric group for the operator. */
 	protected transient MetricGroup metrics;
 
 	protected transient LatencyGauge latencyGauge;
@@ -326,7 +338,7 @@ public abstract class AbstractStreamOperator<OUT>
 	 * {@link OneInputStreamOperator#processElement(StreamRecord)}, or
 	 * {@link TwoInputStreamOperator#processElement1(StreamRecord)} and
 	 * {@link TwoInputStreamOperator#processElement2(StreamRecord)}.
-
+	 *
 	 * <p>The method is expected to flush all remaining buffered data. Exceptions during this flushing
 	 * of buffered should be propagated, in order to cause the operation to be recognized asa failed,
 	 * because the last data items are not processed properly.
@@ -340,7 +352,7 @@ public abstract class AbstractStreamOperator<OUT>
 	 * This method is called at the very end of the operator's life, both in the case of a successful
 	 * completion of the operation, and in the case of a failure and canceling.
 	 *
-	 * This method is expected to make a thorough effort to release all resources
+	 * <p>This method is expected to make a thorough effort to release all resources
 	 * that the operator has acquired.
 	 */
 	@Override
@@ -614,10 +626,6 @@ public abstract class AbstractStreamOperator<OUT>
 
 	/**
 	 * Creates a partitioned state handle, using the state backend configured for this task.
-	 * 
-	 * TODO: NOTE: This method does a lot of work caching / retrieving states just to update the namespace.
-	 *       This method should be removed for the sake of namespaces being lazily fetched from the keyed
-	 *       state backend, or being set on the state directly.
 	 *
 	 * @throws IllegalStateException Thrown, if the key/value state was already initialized.
 	 * @throws Exception Thrown, if the state backend cannot create the key/value state.
@@ -627,6 +635,13 @@ public abstract class AbstractStreamOperator<OUT>
 			TypeSerializer<N> namespaceSerializer,
 			StateDescriptor<S, ?> stateDescriptor) throws Exception {
 
+
+		/*
+	    TODO: NOTE: This method does a lot of work caching / retrieving states just to update the namespace.
+	    This method should be removed for the sake of namespaces being lazily fetched from the keyed
+	    state backend, or being set on the state directly.
+	    */
+		
 		if (keyedStateStore != null) {
 			return keyedStateBackend.getPartitionedState(namespace, namespaceSerializer, stateDescriptor);
 		} else {
@@ -780,23 +795,25 @@ public abstract class AbstractStreamOperator<OUT>
 	}
 
 	/**
-	 * Identifier for a latency source
+	 * Identifier for a latency source.
 	 */
 	private static class LatencySourceDescriptor {
 		/**
-		 * A unique ID identifying a logical source in Flink
+		 * A unique ID identifying a logical source in Flink.
 		 */
 		private final int vertexID;
 
 		/**
-		 * Identifier for parallel subtasks of a logical source
+		 * Identifier for parallel subtasks of a logical source.
 		 */
 		private final int subtaskIndex;
 
 		/**
+		 * Creates a {@code LatencySourceDescriptor} from a given {@code LatencyMarker}.
 		 *
 		 * @param marker The latency marker to extract the LatencySourceDescriptor from.
-		 * @param ignoreSubtaskIndex Set to true to ignore the subtask index, to treat the latencies from all the parallel instances of a source as the same.
+		 * @param ignoreSubtaskIndex Set to true to ignore the subtask index, to treat the latencies
+		 *      from all the parallel instances of a source as the same.
 		 * @return A LatencySourceDescriptor for the given marker.
 		 */
 		public static LatencySourceDescriptor of(LatencyMarker marker, boolean ignoreSubtaskIndex) {
@@ -846,6 +863,9 @@ public abstract class AbstractStreamOperator<OUT>
 		}
 	}
 
+	/**
+	 * Wrapping {@link Output} that updates metrics on the number of emitted elements.
+	 */
 	public class CountingOutput implements Output<StreamRecord<OUT>> {
 		private final Output<StreamRecord<OUT>> output;
 		private final Counter numRecordsOut;
@@ -891,8 +911,8 @@ public abstract class AbstractStreamOperator<OUT>
 	 * Returns an {@link InternalWatermarkCallbackService} which  allows to register a
 	 * {@link OnWatermarkCallback} and multiple keys, for which
 	 * the callback will be invoked every time a new {@link Watermark} is received.
-	 * <p>
-	 * <b>NOTE: </b> This service is only available to <b>keyed</b> operators.
+	 *
+	 * <p><b>NOTE: </b> This service is only available to <b>keyed</b> operators.
 	 */
 	public <K> InternalWatermarkCallbackService<K> getInternalWatermarkCallbackService() {
 		checkTimerServiceInitialization();

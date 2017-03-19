@@ -30,6 +30,10 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * A special {@link StreamTask} that is used for executing feedback edges. This is used in
+ * combination with {@link StreamIterationTail}.
+ */
 @Internal
 public class StreamIterationHead<OUT> extends OneInputStreamTask<OUT, OUT> {
 

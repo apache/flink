@@ -34,8 +34,7 @@ import java.util.Collections;
  * A {@link WindowAssigner} that windows elements into windows based on the timestamp of the
  * elements. Windows cannot overlap.
  *
- * <p>
- * For example, in order to window into windows of 1 minute:
+ * <p>For example, in order to window into windows of 1 minute:
  * <pre> {@code
  * DataStream<Tuple2<String, Integer>> in = ...;
  * KeyedStream<Tuple2<String, Integer>, String> keyed = in.keyBy(...);

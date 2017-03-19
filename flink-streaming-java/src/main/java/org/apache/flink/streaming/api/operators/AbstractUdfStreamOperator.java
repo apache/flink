@@ -63,10 +63,10 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
 	private static final long serialVersionUID = 1L;
 	
 	
-	/** the user function */
+	/** The user function. */
 	protected final F userFunction;
 	
-	/** Flag to prevent duplicate function.close() calls in close() and dispose() */
+	/** Flag to prevent duplicate function.close() calls in close() and dispose(). */
 	private transient boolean functionsClosed = false;
 	
 	public AbstractUdfStreamOperator(F userFunction) {
@@ -205,7 +205,6 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
 	// ------------------------------------------------------------------------
 
 	/**
-	 * 
 	 * Since the streaming API does not implement any parametrization of functions via a
 	 * configuration, the config returned here is actually empty.
 	 * 

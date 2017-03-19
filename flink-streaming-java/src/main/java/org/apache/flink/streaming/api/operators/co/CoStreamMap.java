@@ -23,6 +23,10 @@ import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
+/**
+ * {@link org.apache.flink.streaming.api.operators.StreamOperator} for processing
+ * {@link CoMapFunction CoMapFunctions}.
+ */
 @Internal
 public class CoStreamMap<IN1, IN2, OUT>
 		extends AbstractUdfStreamOperator<OUT, CoMapFunction<IN1, IN2, OUT>>

@@ -40,10 +40,10 @@ public abstract class AbstractKeyedTimePanes<Type, Key, Aggregate, Result> {
 
 	private static final int BEGIN_OF_PANE_MAGIC_NUMBER = 0xBADF00D5;
 	
-	/** The latest time pane */
+	/** The latest time pane. */
 	protected KeyMap<Key, Aggregate> latestPane = new KeyMap<>();
 
-	/** The previous time panes, ordered by time (early to late) */
+	/** The previous time panes, ordered by time (early to late). */
 	protected final ArrayDeque<KeyMap<Key, Aggregate>> previousPanes = new ArrayDeque<>();
 
 	// ------------------------------------------------------------------------

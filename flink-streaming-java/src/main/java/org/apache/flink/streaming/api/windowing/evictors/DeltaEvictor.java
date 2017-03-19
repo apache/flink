@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -28,8 +28,7 @@ import java.util.Iterator;
 /**
  * An {@link Evictor} that keeps elements based on a {@link DeltaFunction} and a threshold.
  *
- * <p>
- * Eviction starts from the first element of the buffer and removes all elements from the buffer
+ * <p>Eviction starts from the first element of the buffer and removes all elements from the buffer
  * which have a higher delta then the threshold.
  *
  * @param <W> The type of {@link Window Windows} on which this {@code Evictor} can operate.

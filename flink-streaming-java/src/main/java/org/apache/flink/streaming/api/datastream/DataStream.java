@@ -186,7 +186,7 @@ public class DataStream<T> {
 
 	/**
 	 * Returns the {@link StreamExecutionEnvironment} that was used to create this
-	 * {@link DataStream}
+	 * {@link DataStream}.
 	 *
 	 * @return The Execution Environment
 	 */
@@ -253,7 +253,6 @@ public class DataStream<T> {
 	}
 
 	/**
-	 *
 	 * It creates a new {@link KeyedStream} that uses the provided key for partitioning
 	 * its operator states. 
 	 *
@@ -304,8 +303,8 @@ public class DataStream<T> {
 	/**
 	 * Partitions a tuple DataStream on the specified key fields using a custom partitioner.
 	 * This method takes the key position to partition on, and a partitioner that accepts the key type.
-	 * <p>
-	 * Note: This method works only on single field keys.
+	 *
+	 * <p>Note: This method works only on single field keys.
 	 *
 	 * @param partitioner The partitioner to assign partitions to keys.
 	 * @param field The field index on which the DataStream is to partitioned.
@@ -319,8 +318,8 @@ public class DataStream<T> {
 	/**
 	 * Partitions a POJO DataStream on the specified key fields using a custom partitioner.
 	 * This method takes the key expression to partition on, and a partitioner that accepts the key type.
-	 * <p>
-	 * Note: This method works only on single field keys.
+	 *
+	 * <p>Note: This method works only on single field keys.
 	 *
 	 * @param partitioner The partitioner to assign partitions to keys.
 	 * @param field The expression for the field on which the DataStream is to partitioned.
@@ -336,8 +335,8 @@ public class DataStream<T> {
 	 * Partitions a DataStream on the key returned by the selector, using a custom partitioner.
 	 * This method takes the key selector to get the key to partition on, and a partitioner that
 	 * accepts the key type.
-	 * <p>
-	 * Note: This method works only on single field keys, i.e. the selector cannot return tuples
+	 *
+	 * <p>Note: This method works only on single field keys, i.e. the selector cannot return tuples
 	 * of fields.
 	 *
 	 * @param partitioner
@@ -453,16 +452,16 @@ public class DataStream<T> {
 	 * input of the iteration and treat the input and feedback streams as a
 	 * {@link ConnectedStreams} be calling
 	 * {@link IterativeStream#withFeedbackType(TypeInformation)}
-	 * <p>
-	 * A common usage pattern for streaming iterations is to use output
+	 *
+	 * <p>A common usage pattern for streaming iterations is to use output
 	 * splitting to send a part of the closing data stream to the head. Refer to
 	 * {@link #split(OutputSelector)} for more information.
-	 * <p>
-	 * The iteration edge will be partitioned the same way as the first input of
+	 *
+	 * <p>The iteration edge will be partitioned the same way as the first input of
 	 * the iteration head unless it is changed in the
 	 * {@link IterativeStream#closeWith(DataStream)} call.
-	 * <p>
-	 * By default a DataStream with iteration will never terminate, but the user
+	 *
+	 * <p>By default a DataStream with iteration will never terminate, but the user
 	 * can use the maxWaitTime parameter to set a max waiting time for the
 	 * iteration head. If no data received in the set time, the stream
 	 * terminates.
@@ -485,16 +484,16 @@ public class DataStream<T> {
 	 * input of the iteration and treat the input and feedback streams as a
 	 * {@link ConnectedStreams} be calling
 	 * {@link IterativeStream#withFeedbackType(TypeInformation)}
-	 * <p>
-	 * A common usage pattern for streaming iterations is to use output
+	 *
+	 * <p>A common usage pattern for streaming iterations is to use output
 	 * splitting to send a part of the closing data stream to the head. Refer to
 	 * {@link #split(OutputSelector)} for more information.
-	 * <p>
-	 * The iteration edge will be partitioned the same way as the first input of
+	 *
+	 * <p>The iteration edge will be partitioned the same way as the first input of
 	 * the iteration head unless it is changed in the
 	 * {@link IterativeStream#closeWith(DataStream)} call.
-	 * <p>
-	 * By default a DataStream with iteration will never terminate, but the user
+	 *
+	 * <p>By default a DataStream with iteration will never terminate, but the user
 	 * can use the maxWaitTime parameter to set a max waiting time for the
 	 * iteration head. If no data received in the set time, the stream
 	 * terminates.
@@ -634,8 +633,7 @@ public class DataStream<T> {
 	 * Initiates a Project transformation on a {@link Tuple} {@link DataStream}.<br>
 	 * <b>Note: Only Tuple DataStreams can be projected.</b>
 	 *
-	 * <p>
-	 * The transformation projects each Tuple of the DataSet onto a (sub)set of
+	 * <p>The transformation projects each Tuple of the DataSet onto a (sub)set of
 	 * fields.
 	 *
 	 * @param fieldIndexes
@@ -671,13 +669,11 @@ public class DataStream<T> {
 	/**
 	 * Windows this {@code DataStream} into tumbling time windows.
 	 *
-	 * <p>
-	 * This is a shortcut for either {@code .window(TumblingEventTimeWindows.of(size))} or
+	 * <p>This is a shortcut for either {@code .window(TumblingEventTimeWindows.of(size))} or
 	 * {@code .window(TumblingProcessingTimeWindows.of(size))} depending on the time characteristic
 	 * set using
 	 *
-	 * <p>
-	 * Note: This operation can be inherently non-parallel since all elements have to pass through
+	 * <p>Note: This operation can be inherently non-parallel since all elements have to pass through
 	 * the same operator instance. (Only for special cases, such as aligned time windows is
 	 * it possible to perform this operation in parallel).
 	 *
@@ -696,14 +692,12 @@ public class DataStream<T> {
 	/**
 	 * Windows this {@code DataStream} into sliding time windows.
 	 *
-	 * <p>
-	 * This is a shortcut for either {@code .window(SlidingEventTimeWindows.of(size, slide))} or
+	 * <p>This is a shortcut for either {@code .window(SlidingEventTimeWindows.of(size, slide))} or
 	 * {@code .window(SlidingProcessingTimeWindows.of(size, slide))} depending on the time characteristic
 	 * set using
 	 * {@link org.apache.flink.streaming.api.environment.StreamExecutionEnvironment#setStreamTimeCharacteristic(org.apache.flink.streaming.api.TimeCharacteristic)}
 	 *
-	 * <p>
-	 * Note: This operation can be inherently non-parallel since all elements have to pass through
+	 * <p>Note: This operation can be inherently non-parallel since all elements have to pass through
 	 * the same operator instance. (Only for special cases, such as aligned time windows is
 	 * it possible to perform this operation in parallel).
 	 *
@@ -720,8 +714,7 @@ public class DataStream<T> {
 	/**
 	 * Windows this {@code DataStream} into tumbling count windows.
 	 *
-	 * <p>
-	 * Note: This operation can be inherently non-parallel since all elements have to pass through
+	 * <p>Note: This operation can be inherently non-parallel since all elements have to pass through
 	 * the same operator instance. (Only for special cases, such as aligned time windows is
 	 * it possible to perform this operation in parallel).
 	 *
@@ -734,8 +727,7 @@ public class DataStream<T> {
 	/**
 	 * Windows this {@code DataStream} into sliding count windows.
 	 *
-	 * <p>
-	 * Note: This operation can be inherently non-parallel since all elements have to pass through
+	 * <p>Note: This operation can be inherently non-parallel since all elements have to pass through
 	 * the same operator instance. (Only for special cases, such as aligned time windows is
 	 * it possible to perform this operation in parallel).
 	 *
@@ -754,13 +746,11 @@ public class DataStream<T> {
 	 * {@link org.apache.flink.streaming.api.windowing.assigners.WindowAssigner}. The grouping of
 	 * elements is done both by key and by window.
 	 *
-	 * <p>
-	 * A {@link org.apache.flink.streaming.api.windowing.triggers.Trigger} can be defined to specify
+	 * <p>A {@link org.apache.flink.streaming.api.windowing.triggers.Trigger} can be defined to specify
 	 * when windows are evaluated. However, {@code WindowAssigners} have a default {@code Trigger}
 	 * that is used if a {@code Trigger} is not specified.
 	 *
-	 * <p>
-	 * Note: This operation can be inherently non-parallel since all elements have to pass through
+	 * <p>Note: This operation can be inherently non-parallel since all elements have to pass through
 	 * the same operator instance. (Only for special cases, such as aligned time windows is
 	 * it possible to perform this operation in parallel).
 	 *
@@ -780,8 +770,7 @@ public class DataStream<T> {
 	 * Extracts a timestamp from an element and assigns it as the internal timestamp of that element.
 	 * The internal timestamps are, for example, used to to event-time window operations.
 	 *
-	 * <p>
-	 * If you know that the timestamps are strictly increasing you can use an
+	 * <p>If you know that the timestamps are strictly increasing you can use an
 	 * {@link AscendingTimestampExtractor}. Otherwise,
 	 * you should provide a {@link TimestampExtractor} that also implements
 	 * {@link TimestampExtractor#getCurrentWatermark()} to keep track of watermarks.
@@ -902,9 +891,7 @@ public class DataStream<T> {
 	/**
 	 * Writes a DataStream to the standard output stream (stdout).
 	 *
-	 * <p>
-	 * For each element of the DataStream the result of
-	 * {@link Object#toString()} is written.
+	 * <p>For each element of the DataStream the result of {@link Object#toString()} is written.
 	 *
 	 * @return The closed DataStream.
 	 */
@@ -917,9 +904,7 @@ public class DataStream<T> {
 	/**
 	 * Writes a DataStream to the standard output stream (stderr).
 	 *
-	 * <p>
-	 * For each element of the DataStream the result of
-	 * {@link Object#toString()} is written.
+	 * <p>For each element of the DataStream the result of {@link Object#toString()} is written.
 	 *
 	 * @return The closed DataStream.
 	 */
@@ -932,9 +917,7 @@ public class DataStream<T> {
 	/**
 	 * Writes a DataStream to the file specified by path in text format.
 	 *
-	 * <p>
-	 * For every element of the DataStream the result of {@link Object#toString()}
-	 * is written.
+	 * <p>For every element of the DataStream the result of {@link Object#toString()} is written.
 	 *
 	 * @param path
 	 *            The path pointing to the location the text file is written to.
@@ -950,9 +933,7 @@ public class DataStream<T> {
 	/**
 	 * Writes a DataStream to the file specified by path in text format.
 	 *
-	 * <p>
-	 * For every element of the DataStream the result of {@link Object#toString()}
-	 * is written.
+	 * <p>For every element of the DataStream the result of {@link Object#toString()} is written.
 	 *
 	 * @param path
 	 *            The path pointing to the location the text file is written to
@@ -973,8 +954,7 @@ public class DataStream<T> {
 	/**
 	 * Writes a DataStream to the file specified by the path parameter.
 	 *
-	 * <p>
-	 * For every field of an element of the DataStream the result of {@link Object#toString()}
+	 * <p>For every field of an element of the DataStream the result of {@link Object#toString()}
 	 * is written. This method can only be used on data streams of tuples.
 	 *
 	 * @param path
@@ -991,8 +971,7 @@ public class DataStream<T> {
 	/**
 	 * Writes a DataStream to the file specified by the path parameter.
 	 *
-	 * <p>
-	 * For every field of an element of the DataStream the result of {@link Object#toString()}
+	 * <p>For every field of an element of the DataStream the result of {@link Object#toString()}
 	 * is written. This method can only be used on data streams of tuples.
 	 *
 	 * @param path
@@ -1012,8 +991,7 @@ public class DataStream<T> {
 	 * Writes a DataStream to the file specified by the path parameter. The
 	 * writing is performed periodically every millis milliseconds.
 	 *
-	 * <p>
-	 * For every field of an element of the DataStream the result of {@link Object#toString()}
+	 * <p>For every field of an element of the DataStream the result of {@link Object#toString()}
 	 * is written. This method can only be used on data streams of tuples.
 	 *
 	 * @param path
@@ -1073,9 +1051,10 @@ public class DataStream<T> {
 	/**
 	 * Writes the dataStream into an output, described by an OutputFormat.
 	 *
-	 * The output is not participating in Flink's checkpointing!
+	 * <p>The output is not participating in Flink's checkpointing!
 	 *
-	 * For writing to a file system periodically, the use of the "flink-connector-filesystem" is recommended.
+	 * <p>For writing to a file system periodically, the use of the "flink-connector-filesystem"
+	 * is recommended.
 	 *
 	 * @param format The output format
 	 * @return The closed DataStream
@@ -1121,7 +1100,7 @@ public class DataStream<T> {
 	}
 
 	/**
-	 * Internal function for setting the partitioner for the DataStream
+	 * Internal function for setting the partitioner for the DataStream.
 	 *
 	 * @param partitioner
 	 *            Partitioner to set.

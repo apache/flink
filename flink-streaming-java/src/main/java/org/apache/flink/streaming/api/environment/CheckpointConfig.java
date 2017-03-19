@@ -35,16 +35,16 @@ public class CheckpointConfig implements java.io.Serializable {
 
 	private static final long serialVersionUID = -750378776078908147L;
 
-	/** The default checkpoint mode: exactly once */
+	/** The default checkpoint mode: exactly once. */
 	public static final CheckpointingMode DEFAULT_MODE = CheckpointingMode.EXACTLY_ONCE;
 
-	/** The default timeout of a checkpoint attempt: 10 minutes */
+	/** The default timeout of a checkpoint attempt: 10 minutes. */
 	public static final long DEFAULT_TIMEOUT = 10 * 60 * 1000;
 
-	/** The default minimum pause to be made between checkpoints: none */
+	/** The default minimum pause to be made between checkpoints: none. */
 	public static final long DEFAULT_MIN_PAUSE_BETWEEN_CHECKPOINTS = 0;
 
-	/** The default limit of concurrently happening checkpoints: one */
+	/** The default limit of concurrently happening checkpoints: one. */
 	public static final int DEFAULT_MAX_CONCURRENT_CHECKPOINTS = 1;
 
 	// ------------------------------------------------------------------------
@@ -52,19 +52,19 @@ public class CheckpointConfig implements java.io.Serializable {
 	/** Checkpointing mode (exactly-once vs. at-least-once). */
 	private CheckpointingMode checkpointingMode = DEFAULT_MODE;
 
-	/** Periodic checkpoint triggering interval */
+	/** Periodic checkpoint triggering interval. */
 	private long checkpointInterval = -1; // disabled
 
-	/** Maximum time checkpoint may take before being discarded */
+	/** Maximum time checkpoint may take before being discarded. */
 	private long checkpointTimeout = DEFAULT_TIMEOUT;
 
-	/** Minimal pause between checkpointing attempts */
+	/** Minimal pause between checkpointing attempts. */
 	private long minPauseBetweenCheckpoints = DEFAULT_MIN_PAUSE_BETWEEN_CHECKPOINTS;
 
-	/** Maximum number of checkpoint attempts in progress at the same time */
+	/** Maximum number of checkpoint attempts in progress at the same time. */
 	private int maxConcurrentCheckpoints = DEFAULT_MAX_CONCURRENT_CHECKPOINTS;
 
-	/** Flag to force checkpointing in iterative jobs */
+	/** Flag to force checkpointing in iterative jobs. */
 	private boolean forceCheckpointing;
 
 	/** Cleanup behaviour for persistent checkpoints. */

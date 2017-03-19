@@ -27,9 +27,6 @@ import org.apache.flink.api.java.tuple.Tuple;
 @Internal
 public class ArrayFromTuple implements Extractor<Tuple, Object[]> {
 
-	/**
-	 * Auto generated version id
-	 */
 	private static final long serialVersionUID = -6076121226427616818L;
 	int[] order = null;
 

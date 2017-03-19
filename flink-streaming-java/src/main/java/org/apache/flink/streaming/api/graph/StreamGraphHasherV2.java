@@ -59,17 +59,15 @@ public class StreamGraphHasherV2 implements StreamGraphHasher {
 	 * StreamGraph}. The hash is used as the {@link JobVertexID} in order to
 	 * identify nodes across job submissions if they didn't change.
 	 *
-	 * <p>
 	 * <p>The complete {@link StreamGraph} is traversed. The hash is either
 	 * computed from the transformation's user-specified id (see
 	 * {@link StreamTransformation#getUid()}) or generated in a deterministic way.
 	 *
-	 * <p>
 	 * <p>The generated hash is deterministic with respect to:
 	 * <ul>
-	 * <li>node-local properties (like parallelism, UDF, node ID),
-	 * <li>chained output nodes, and
-	 * <li>input nodes hashes
+	 *   <li>node-local properties (like parallelism, UDF, node ID),
+	 *   <li>chained output nodes, and
+	 *   <li>input nodes hashes
 	 * </ul>
 	 *
 	 * @return A map from {@link StreamNode#id} to hash as 16-byte array.
@@ -282,7 +280,6 @@ public class StreamGraphHasherV2 implements StreamGraphHasher {
 	 * attributes are taken into account). The hasher encapsulates the current
 	 * state of the hash.
 	 *
-	 * <p>
 	 * <p>The specified ID is local to this node. We cannot use the
 	 * {@link StreamNode#id}, because it is incremented in a static counter.
 	 * Therefore, the IDs for identical jobs will otherwise be different.

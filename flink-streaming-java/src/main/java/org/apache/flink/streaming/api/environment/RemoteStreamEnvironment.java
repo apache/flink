@@ -41,24 +41,27 @@ import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * A {@link StreamExecutionEnvironment} for executing on a cluster.
+ */
 @Public
 public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(RemoteStreamEnvironment.class);
 
-	/** The hostname of the JobManager */
+	/** The hostname of the JobManager. */
 	private final String host;
 
-	/** The port of the JobManager main actor system */
+	/** The port of the JobManager main actor system. */
 	private final int port;
 
-	/** The configuration used to parametrize the client that connects to the remote cluster */
+	/** The configuration used to parametrize the client that connects to the remote cluster. */
 	private final Configuration clientConfiguration;
 
-	/** The jar files that need to be attached to each job */
+	/** The jar files that need to be attached to each job. */
 	private final List<URL> jarFiles;
 	
-	/** The classpaths that need to be attached to each job */
+	/** The classpaths that need to be attached to each job. */
 	private final List<URL> globalClasspaths;
 
 	/**

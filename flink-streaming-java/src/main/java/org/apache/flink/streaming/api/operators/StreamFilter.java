@@ -21,6 +21,9 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
+/**
+ * A {@link StreamOperator} for executing {@link FilterFunction FilterFunctions}.
+ */
 @Internal
 public class StreamFilter<IN> extends AbstractUdfStreamOperator<IN, FilterFunction<IN>> implements OneInputStreamOperator<IN, IN> {
 

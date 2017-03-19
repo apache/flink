@@ -26,6 +26,9 @@ import org.apache.flink.streaming.util.typeutils.FieldAccessorFactory;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.streaming.util.typeutils.FieldAccessor;
 
+/**
+ * An {@link AggregationFunction} that sums up fields.
+ */
 @Internal
 public class SumAggregator<T> extends AggregationFunction<T> {
 
