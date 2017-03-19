@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import java.io.Serializable;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -25,8 +26,6 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
-
-import java.io.Serializable;
 
 /**
  * Basic interface for stream operators. Implementers would implement one of

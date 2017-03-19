@@ -17,9 +17,8 @@
 
 package org.apache.flink.streaming.util.serialization;
 
-import org.apache.flink.annotation.Public;
-
 import java.io.Serializable;
+import org.apache.flink.annotation.Public;
 
 /**
  * The serialization schema describes how to turn a data object into a different serialized

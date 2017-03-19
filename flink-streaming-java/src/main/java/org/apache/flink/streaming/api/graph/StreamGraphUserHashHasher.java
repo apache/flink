@@ -18,10 +18,9 @@
 
 package org.apache.flink.streaming.api.graph;
 
-import org.apache.flink.util.StringUtils;
-
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.flink.util.StringUtils;
 
 /**
  * StreamGraphHasher that works with user provided hashes. This is useful in case we want to set (alternative) hashes

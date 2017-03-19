@@ -18,13 +18,12 @@
 
 package org.apache.flink.streaming.api.checkpoint;
 
+import java.io.Serializable;
+import java.util.List;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.configuration.Configuration;
-
-import java.io.Serializable;
-import java.util.List;
 
 /**
  * This interface can be implemented by functions that want to store state in checkpoints.

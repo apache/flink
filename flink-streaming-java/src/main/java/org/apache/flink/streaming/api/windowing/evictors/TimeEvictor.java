@@ -17,13 +17,12 @@
  */
 package org.apache.flink.streaming.api.windowing.evictors;
 
+import java.util.Iterator;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.windowing.TimestampedValue;
-
-import java.util.Iterator;
 
 /**
  * An {@link Evictor} that keeps elements for a certain amount of time. Elements older

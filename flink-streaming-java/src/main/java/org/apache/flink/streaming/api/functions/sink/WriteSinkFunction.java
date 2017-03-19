@@ -17,11 +17,10 @@
 
 package org.apache.flink.streaming.api.functions.sink;
 
-import org.apache.flink.annotation.PublicEvolving;
-
 import java.io.FileNotFoundException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import org.apache.flink.annotation.PublicEvolving;
 
 /**
  * Simple implementation of the SinkFunction writing tuples as simple text to

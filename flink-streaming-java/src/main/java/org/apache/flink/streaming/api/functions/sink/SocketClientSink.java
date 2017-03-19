@@ -17,20 +17,18 @@
 
 package org.apache.flink.streaming.api.functions.sink;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.Socket;
-
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.util.SerializableObject;
 import org.apache.flink.streaming.util.serialization.SerializationSchema;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Socket client that acts as a streaming sink. The data is sent to a Socket as a byte array.

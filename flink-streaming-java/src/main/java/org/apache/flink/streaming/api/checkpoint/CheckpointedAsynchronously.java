@@ -18,9 +18,8 @@
 
 package org.apache.flink.streaming.api.checkpoint;
 
-import org.apache.flink.annotation.PublicEvolving;
-
 import java.io.Serializable;
+import org.apache.flink.annotation.PublicEvolving;
 
 /**
  * This interface marks a function/operator as checkpointed similar to the

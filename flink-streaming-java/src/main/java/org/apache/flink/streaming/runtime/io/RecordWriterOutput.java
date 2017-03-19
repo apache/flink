@@ -17,24 +17,23 @@
 
 package org.apache.flink.streaming.runtime.io;
 
-import java.io.IOException;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
+import java.io.IOException;
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.util.OutputTag;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.operators.Output;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
-import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusProvider;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
+import org.apache.flink.util.OutputTag;
 
 /**
  * Implementation of {@link Output} that sends data using a {@link RecordWriter}.

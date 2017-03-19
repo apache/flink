@@ -17,9 +17,8 @@
 
 package org.apache.flink.streaming.api.functions.windowing.delta.extractor;
 
-import org.apache.flink.annotation.Internal;
-
 import java.lang.reflect.Array;
+import org.apache.flink.annotation.Internal;
 
 /**
  * Extracts a single field out of an array.

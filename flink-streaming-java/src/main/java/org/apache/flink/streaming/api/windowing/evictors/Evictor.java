@@ -17,13 +17,12 @@
  */
 package org.apache.flink.streaming.api.windowing.evictors;
 
+import java.io.Serializable;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.windowing.TimestampedValue;
-
-import java.io.Serializable;
 
 /**
  * An {@code Evictor} can remove elements from a pane before/after the evaluation of WindowFunction

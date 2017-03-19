@@ -18,13 +18,6 @@
 
 package org.apache.flink.streaming.api.operators.async.queue;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.runtime.concurrent.AcceptFunction;
-import org.apache.flink.streaming.api.operators.async.OperatorActions;
-import org.apache.flink.util.Preconditions;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Collection;
@@ -34,6 +27,12 @@ import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.concurrent.AcceptFunction;
+import org.apache.flink.streaming.api.operators.async.OperatorActions;
+import org.apache.flink.util.Preconditions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Unordered implementation of the {@link StreamElementQueue}. The unordered stream element queue

@@ -194,16 +194,16 @@ This file is based on the checkstyle file of Apache Beam.
                value="Redundant import {0}."/>
     </module>
 
-    <!--<module name="ImportOrder">-->
-      <!--&lt;!&ndash; Checks for out of order import statements. &ndash;&gt;-->
-      <!--<property name="severity" value="error"/>-->
-      <!--&lt;!&ndash; This ensures that static imports go first. &ndash;&gt;-->
-      <!--<property name="option" value="top"/>-->
-      <!--<property name="sortStaticImportsAlphabetically" value="true"/>-->
-      <!--<property name="tokens" value="STATIC_IMPORT, IMPORT"/>-->
-      <!--<message key="import.ordering"-->
-               <!--value="Import {0} appears after other imports that it should precede"/>-->
-    <!--</module>-->
+    <module name="ImportOrder">
+      <!-- Checks for out of order import statements. -->
+      <property name="severity" value="error"/>
+      <!-- This ensures that static imports go first. -->
+      <property name="option" value="top"/>
+      <property name="sortStaticImportsAlphabetically" value="true"/>
+      <property name="tokens" value="STATIC_IMPORT, IMPORT"/>
+      <message key="import.ordering"
+               value="Import {0} appears after other imports that it should precede"/>
+    </module>
 
     <module name="AvoidStarImport">
       <property name="severity" value="error"/>

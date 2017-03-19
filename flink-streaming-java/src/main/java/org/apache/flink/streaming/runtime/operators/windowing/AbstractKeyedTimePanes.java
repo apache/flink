@@ -18,6 +18,9 @@
 
 package org.apache.flink.streaming.runtime.operators.windowing;
 
+import java.io.IOException;
+import java.util.ArrayDeque;
+import java.util.Iterator;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
@@ -25,10 +28,6 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.util.Collector;
-
-import java.io.IOException;
-import java.util.ArrayDeque;
-import java.util.Iterator;
 
 /**
  * Base class for a multiple key/value maps organized in panes.

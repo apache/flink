@@ -18,11 +18,11 @@
 
 package org.apache.flink.streaming.runtime.streamstatus;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.streaming.api.watermark.Watermark;
-
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.streaming.api.watermark.Watermark;
 
 /**
  * A {@code StatusWatermarkValve} embodies the logic of how {@link Watermark} and {@link StreamStatus} are propagated to

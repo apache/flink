@@ -18,16 +18,15 @@
 
 package org.apache.flink.streaming.runtime.streamrecord;
 
+import static java.util.Objects.requireNonNull;
+
+import java.io.IOException;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
-
-import java.io.IOException;
-
-import static java.util.Objects.requireNonNull;
 
 /**
  * Serializer for {@link StreamRecord}, {@link Watermark}, {@link LatencyMarker}, and

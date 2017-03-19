@@ -17,6 +17,9 @@
 
 package org.apache.flink.streaming.util.typeutils;
 
+import java.io.Serializable;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.operators.Keys;
@@ -29,10 +32,6 @@ import org.apache.flink.api.java.typeutils.PojoField;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
-
-import java.io.Serializable;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 
 /**

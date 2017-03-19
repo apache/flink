@@ -17,9 +17,8 @@
 
 package org.apache.flink.streaming.api.functions.aggregation;
 
-import org.apache.flink.annotation.Internal;
-
 import java.io.Serializable;
+import org.apache.flink.annotation.Internal;
 
 /**
  * Internal function for summing up contents of fields. This is used with {@link SumAggregator}.

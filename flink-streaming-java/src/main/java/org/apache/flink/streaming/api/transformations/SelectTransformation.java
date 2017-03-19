@@ -18,11 +18,10 @@
 package org.apache.flink.streaming.api.transformations;
 
 import com.google.common.collect.Lists;
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
-
 import java.util.Collection;
 import java.util.List;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.streaming.api.operators.ChainingStrategy;
 
 /**
  * This transformation represents a selection of only certain upstream elements. This must

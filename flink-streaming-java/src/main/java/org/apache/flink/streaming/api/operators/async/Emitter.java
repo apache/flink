@@ -18,19 +18,18 @@
 
 package org.apache.flink.streaming.api.operators.async;
 
+import java.util.Collection;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.operators.async.queue.AsyncCollectionResult;
-import org.apache.flink.streaming.api.operators.async.queue.StreamElementQueue;
 import org.apache.flink.streaming.api.operators.async.queue.AsyncResult;
 import org.apache.flink.streaming.api.operators.async.queue.AsyncWatermarkResult;
+import org.apache.flink.streaming.api.operators.async.queue.StreamElementQueue;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.Collection;
 
 /**
  * Runnable responsible for consuming elements from the given queue and outputting them to the

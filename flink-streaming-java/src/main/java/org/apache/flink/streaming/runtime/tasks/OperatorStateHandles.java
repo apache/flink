@@ -18,6 +18,8 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import java.util.Collection;
+import java.util.List;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.state.ChainedStateHandle;
@@ -27,9 +29,6 @@ import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
-
-import java.util.Collection;
-import java.util.List;
 
 /**
  * This class holds all state handles for one operator.

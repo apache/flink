@@ -18,9 +18,8 @@
 
 package org.apache.flink.streaming.api.functions.async.collector;
 
-import org.apache.flink.annotation.PublicEvolving;
-
 import java.util.Collection;
+import org.apache.flink.annotation.PublicEvolving;
 
 /**
  * {@link AsyncCollector} collects data / error in user codes while processing async i/o.
