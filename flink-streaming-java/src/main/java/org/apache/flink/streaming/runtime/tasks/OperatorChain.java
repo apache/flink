@@ -537,7 +537,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 
 		protected final Output<StreamRecord<T>>[] outputs;
 
-		private final Random RNG = new XORShiftRandom();
+		private final Random random = new XORShiftRandom();
 
 		private final StreamStatusProvider streamStatusProvider;
 
@@ -565,7 +565,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 				outputs[0].emitLatencyMarker(latencyMarker);
 			} else {
 				// randomly select an output
-				outputs[RNG.nextInt(outputs.length)].emitLatencyMarker(latencyMarker);
+				outputs[random.nextInt(outputs.length)].emitLatencyMarker(latencyMarker);
 			}
 		}
 
