@@ -274,7 +274,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 				getInternalTimerService("window-timers", windowSerializer, this);
 
 		triggerContext = new Context(null, null);
-		processContext = new WindowContext( null);
+		processContext = new WindowContext(null);
 
 		windowAssignerContext = new WindowAssigner.WindowAssignerContext() {
 			@Override

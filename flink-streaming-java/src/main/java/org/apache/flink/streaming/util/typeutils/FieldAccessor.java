@@ -155,7 +155,7 @@ public abstract class FieldAccessor<T, F> implements Serializable {
 
 		SimpleTupleFieldAccessor(int pos, TypeInformation<T> typeInfo) {
 			checkNotNull(typeInfo, "typeInfo must not be null.");
-			int arity = ((TupleTypeInfo)typeInfo).getArity();
+			int arity = ((TupleTypeInfo) typeInfo).getArity();
 			if(pos < 0 || pos >= arity) {
 				throw new CompositeType.InvalidFieldReferenceException(
 					"Tried to select " + ((Integer) pos).toString() + ". field on \"" +
@@ -163,7 +163,7 @@ public abstract class FieldAccessor<T, F> implements Serializable {
 			}
 
 			this.pos = pos;
-			this.fieldType = ((TupleTypeInfo)typeInfo).getTypeAt(pos);
+			this.fieldType = ((TupleTypeInfo) typeInfo).getTypeAt(pos);
 		}
 
 		@SuppressWarnings("unchecked")
@@ -195,7 +195,7 @@ public abstract class FieldAccessor<T, F> implements Serializable {
 			checkNotNull(typeInfo, "typeInfo must not be null.");
 			checkNotNull(innerAccessor, "innerAccessor must not be null.");
 
-			int arity = ((TupleTypeInfo)typeInfo).getArity();
+			int arity = ((TupleTypeInfo) typeInfo).getArity();
 			if(pos < 0 || pos >= arity) {
 				throw new CompositeType.InvalidFieldReferenceException(
 					"Tried to select " + ((Integer) pos).toString() + ". field on \"" +
@@ -250,7 +250,7 @@ public abstract class FieldAccessor<T, F> implements Serializable {
 		public F get(T pojo) {
 			try {
 				@SuppressWarnings("unchecked")
-				final R inner = (R)field.get(pojo);
+				final R inner = (R) field.get(pojo);
 				return innerAccessor.get(inner);
 			} catch (IllegalAccessException iaex) {
 				// The Field class is transient and when deserializing its value we also make it accessible
@@ -263,7 +263,7 @@ public abstract class FieldAccessor<T, F> implements Serializable {
 		public T set(T pojo, F valueToSet) {
 			try {
 				@SuppressWarnings("unchecked")
-				final R inner = (R)field.get(pojo);
+				final R inner = (R) field.get(pojo);
 				field.set(pojo, innerAccessor.set(inner, valueToSet));
 				return pojo;
 			} catch (IllegalAccessException iaex) {
@@ -301,7 +301,7 @@ public abstract class FieldAccessor<T, F> implements Serializable {
 
 		SimpleProductFieldAccessor(int pos, TypeInformation<T> typeInfo, ExecutionConfig config) {
 			checkNotNull(typeInfo, "typeInfo must not be null.");
-			int arity = ((TupleTypeInfoBase)typeInfo).getArity();
+			int arity = ((TupleTypeInfoBase) typeInfo).getArity();
 			if(pos < 0 || pos >= arity) {
 				throw new CompositeType.InvalidFieldReferenceException(
 					"Tried to select " + ((Integer) pos).toString() + ". field on \"" +
@@ -309,8 +309,8 @@ public abstract class FieldAccessor<T, F> implements Serializable {
 			}
 
 			this.pos = pos;
-			this.fieldType = ((TupleTypeInfoBase<T>)typeInfo).getTypeAt(pos);
-			this.serializer = (TupleSerializerBase<T>)typeInfo.createSerializer(config);
+			this.fieldType = ((TupleTypeInfoBase<T>) typeInfo).getTypeAt(pos);
+			this.serializer = (TupleSerializerBase<T>) typeInfo.createSerializer(config);
 			this.length = this.serializer.getArity();
 			this.fields = new Object[this.length];
 		}
@@ -318,13 +318,13 @@ public abstract class FieldAccessor<T, F> implements Serializable {
 		@SuppressWarnings("unchecked")
 		@Override
 		public F get(T record) {
-			Product prod = (Product)record;
+			Product prod = (Product) record;
 			return (F) prod.productElement(pos);
 		}
 
 		@Override
 		public T set(T record, F fieldValue) {
-			Product prod = (Product)record;
+			Product prod = (Product) record;
 			for (int i = 0; i < length; i++) {
 				fields[i] = prod.productElement(i);
 			}
@@ -345,7 +345,7 @@ public abstract class FieldAccessor<T, F> implements Serializable {
 		private final FieldAccessor<R, F> innerAccessor;
 
 		RecursiveProductFieldAccessor(int pos, TypeInformation<T> typeInfo, FieldAccessor<R, F> innerAccessor, ExecutionConfig config) {
-			int arity = ((TupleTypeInfoBase)typeInfo).getArity();
+			int arity = ((TupleTypeInfoBase) typeInfo).getArity();
 			if(pos < 0 || pos >= arity) {
 				throw new CompositeType.InvalidFieldReferenceException(
 					"Tried to select " + ((Integer) pos).toString() + ". field on \"" +
@@ -355,8 +355,8 @@ public abstract class FieldAccessor<T, F> implements Serializable {
 			checkNotNull(innerAccessor, "innerAccessor must not be null.");
 
 			this.pos = pos;
-			this.fieldType = ((TupleTypeInfoBase<T>)typeInfo).getTypeAt(pos);
-			this.serializer = (TupleSerializerBase<T>)typeInfo.createSerializer(config);
+			this.fieldType = ((TupleTypeInfoBase<T>) typeInfo).getTypeAt(pos);
+			this.serializer = (TupleSerializerBase<T>) typeInfo.createSerializer(config);
 			this.length = this.serializer.getArity();
 			this.fields = new Object[this.length];
 			this.innerAccessor = innerAccessor;
@@ -365,7 +365,7 @@ public abstract class FieldAccessor<T, F> implements Serializable {
 		@SuppressWarnings("unchecked")
 		@Override
 		public F get(T record) {
-			return innerAccessor.get((R)((Product)record).productElement(pos));
+			return innerAccessor.get((R) ((Product) record).productElement(pos));
 		}
 
 		@SuppressWarnings("unchecked")
@@ -375,7 +375,7 @@ public abstract class FieldAccessor<T, F> implements Serializable {
 			for (int i = 0; i < length; i++) {
 				fields[i] = prod.productElement(i);
 			}
-			fields[pos] = innerAccessor.set((R)fields[pos], fieldValue);
+			fields[pos] = innerAccessor.set((R) fields[pos], fieldValue);
 			return serializer.createInstance(fields);
 		}
 	}

@@ -411,7 +411,7 @@ public class StreamConfig implements Serializable {
 	}
 
 	public void setOperatorName(String name) {
-		this.config.setString(OPERATOR_NAME,name);
+		this.config.setString(OPERATOR_NAME, name);
 	}
 
 	public String getOperatorName() {
