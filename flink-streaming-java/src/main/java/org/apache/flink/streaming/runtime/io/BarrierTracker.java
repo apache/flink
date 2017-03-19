@@ -38,11 +38,11 @@ import java.util.ArrayDeque;
  * The BarrierTracker keeps track of what checkpoint barriers have been received from
  * which input channels. Once it has observed all checkpoint barriers for a checkpoint ID,
  * it notifies its listener of a completed checkpoint.
- * 
+ *
  * <p>Unlike the {@link BarrierBuffer}, the BarrierTracker does not block the input
  * channels that have sent barriers, so it cannot be used to gain "exactly-once" processing
  * guarantees. It can, however, be used to gain "at least once" processing guarantees.
- * 
+ *
  * <p>NOTE: This implementation strictly assumes that newer checkpoints have higher checkpoint IDs.
  */
 @Internal
@@ -60,7 +60,7 @@ public class BarrierTracker implements CheckpointBarrierHandler {
 
 	/** The input gate, to draw the buffers and events from. */
 	private final InputGate inputGate;
-	
+
 	/**
 	 * The number of channels. Once that many barriers have been received for a checkpoint, the
 	 * checkpoint is considered complete.
@@ -72,15 +72,15 @@ public class BarrierTracker implements CheckpointBarrierHandler {
 	 * yet known to be subsumed by newer checkpoints.
 	 */
 	private final ArrayDeque<CheckpointBarrierCount> pendingCheckpoints;
-	
+
 	/** The listener to be notified on complete checkpoints. */
 	private StatefulTask toNotifyOnCheckpoint;
-	
+
 	/** The highest checkpoint ID encountered so far. */
 	private long latestPendingCheckpointID = -1;
 
 	// ------------------------------------------------------------------------
-	
+
 	public BarrierTracker(InputGate inputGate) {
 		this.inputGate = inputGate;
 		this.totalNumberOfInputChannels = inputGate.getNumberOfInputChannels();
@@ -189,7 +189,7 @@ public class BarrierTracker implements CheckpointBarrierHandler {
 			if (barrierId > latestPendingCheckpointID) {
 				latestPendingCheckpointID = barrierId;
 				pendingCheckpoints.addLast(new CheckpointBarrierCount(barrierId));
-				
+
 				// make sure we do not track too many checkpoints
 				if (pendingCheckpoints.size() > MAX_CHECKPOINTS_TO_TRACK) {
 					pendingCheckpoints.pollFirst();

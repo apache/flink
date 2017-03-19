@@ -79,9 +79,9 @@ import java.util.Map;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
- * Base class for all stream operators. Operators that contain a user function should extend the class 
- * {@link AbstractUdfStreamOperator} instead (which is a specialized subclass of this class). 
- * 
+ * Base class for all stream operators. Operators that contain a user function should extend the class
+ * {@link AbstractUdfStreamOperator} instead (which is a specialized subclass of this class).
+ *
  * <p>For concrete implementations, one of the following two interfaces must also be implemented, to
  * mark the operator as unary or binary:
  * {@link OneInputStreamOperator} or {@link TwoInputStreamOperator}.
@@ -97,7 +97,7 @@ public abstract class AbstractStreamOperator<OUT>
 		implements StreamOperator<OUT>, Serializable, KeyContext {
 
 	private static final long serialVersionUID = 1L;
-	
+
 	/** The logger used by the operator class and its subclasses. */
 	protected static final Logger LOG = LoggerFactory.getLogger(AbstractStreamOperator.class);
 
@@ -110,7 +110,7 @@ public abstract class AbstractStreamOperator<OUT>
 
 	/** The task that contains this operator (and other operators in the same chain). */
 	private transient StreamTask<?, ?> container;
-	
+
 	protected transient StreamConfig config;
 
 	protected transient Output<StreamRecord<OUT>> output;
@@ -179,7 +179,7 @@ public abstract class AbstractStreamOperator<OUT>
 	public void setup(StreamTask<?, ?> containingTask, StreamConfig config, Output<StreamRecord<OUT>> output) {
 		this.container = containingTask;
 		this.config = config;
-		
+
 		this.metrics = container.getEnvironment().getMetricGroup().addOperator(config.getOperatorName());
 		this.output = new CountingOutput(output, ((OperatorMetricGroup) this.metrics).getIOMetricGroup().getNumRecordsOutCounter());
 		if (config.isChainStart()) {
@@ -201,7 +201,7 @@ public abstract class AbstractStreamOperator<OUT>
 		stateKeySelector1 = config.getStatePartitioner(0, getUserCodeClassloader());
 		stateKeySelector2 = config.getStatePartitioner(1, getUserCodeClassloader());
 	}
-	
+
 	@Override
 	public MetricGroup getMetricGroup() {
 		return metrics;
@@ -294,7 +294,7 @@ public abstract class AbstractStreamOperator<OUT>
 	 * operator's initialization logic, e.g. state initialization.
 	 *
 	 * <p>The default implementation does nothing.
-	 * 
+	 *
 	 * @throws Exception An exception in this method causes the operator to fail.
 	 */
 	@Override
@@ -347,7 +347,7 @@ public abstract class AbstractStreamOperator<OUT>
 	 */
 	@Override
 	public void close() throws Exception {}
-	
+
 	/**
 	 * This method is called at the very end of the operator's life, both in the case of a successful
 	 * completion of the operation, and in the case of a failure and canceling.
@@ -539,21 +539,21 @@ public abstract class AbstractStreamOperator<OUT>
 	/**
 	 * Gets the execution config defined on the execution environment of the job to which this
 	 * operator belongs.
-	 * 
+	 *
 	 * @return The job's execution config.
 	 */
 	public ExecutionConfig getExecutionConfig() {
 		return container.getExecutionConfig();
 	}
-	
+
 	public StreamConfig getOperatorConfig() {
 		return config;
 	}
-	
+
 	public StreamTask<?, ?> getContainingTask() {
 		return container;
 	}
-	
+
 	public ClassLoader getUserCodeClassloader() {
 		return container.getUserCodeClassLoader();
 	}
@@ -572,7 +572,7 @@ public abstract class AbstractStreamOperator<OUT>
 			return getClass().getSimpleName();
 		}
 	}
-	
+
 	/**
 	 * Returns a context that allows the operator to query information about the execution and also
 	 * to interact with systems such as broadcast variables and managed state. This also allows
@@ -601,7 +601,7 @@ public abstract class AbstractStreamOperator<OUT>
 
 	/**
 	 * Creates a partitioned state handle, using the state backend configured for this task.
-	 * 
+	 *
 	 * @throws IllegalStateException Thrown, if the key/value state was already initialized.
 	 * @throws Exception Thrown, if the state backend cannot create the key/value state.
 	 */
@@ -641,7 +641,7 @@ public abstract class AbstractStreamOperator<OUT>
 	    This method should be removed for the sake of namespaces being lazily fetched from the keyed
 	    state backend, or being set on the state directly.
 	    */
-		
+
 		if (keyedStateStore != null) {
 			return keyedStateBackend.getPartitionedState(namespace, namespaceSerializer, stateDescriptor);
 		} else {
@@ -701,12 +701,12 @@ public abstract class AbstractStreamOperator<OUT>
 	// ------------------------------------------------------------------------
 	//  Context and chaining properties
 	// ------------------------------------------------------------------------
-	
+
 	@Override
 	public final void setChainingStrategy(ChainingStrategy strategy) {
 		this.chainingStrategy = strategy;
 	}
-	
+
 	@Override
 	public final ChainingStrategy getChainingStrategy() {
 		return chainingStrategy;

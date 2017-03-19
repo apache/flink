@@ -23,7 +23,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 /**
  * Partitioner that forwards elements only to the locally running downstream operation.
- * 
+ *
  * @param <T> Type of the elements in the Stream
  */
 @Internal
@@ -36,11 +36,11 @@ public class ForwardPartitioner<T> extends StreamPartitioner<T> {
 	public int[] selectChannels(SerializationDelegate<StreamRecord<T>> record, int numberOfOutputChannels) {
 		return returnArray;
 	}
-	
+
 	public StreamPartitioner<T> copy() {
 		return this;
 	}
-	
+
 	@Override
 	public String toString() {
 		return "FORWARD";

@@ -77,7 +77,7 @@ public class CoGroupedStreams<T1, T2> {
 	/**
 	 * Creates new CoGroped data streams, which are the first step towards building a streaming
 	 * co-group.
-	 * 
+	 *
 	 * @param input1 The first data stream.
 	 * @param input2 The second data stream.
 	 */
@@ -95,10 +95,10 @@ public class CoGroupedStreams<T1, T2> {
 	}
 
 	// ------------------------------------------------------------------------
-	
+
 	/**
 	 * CoGrouped streams that have the key for one side defined.
-	 * 
+	 *
 	 * @param <KEY> The type of the key.
 	 */
 	@Public
@@ -111,22 +111,22 @@ public class CoGroupedStreams<T1, T2> {
 			this.keySelector1 = keySelector1;
 			this.keyType = keyType;
 		}
-	
+
 		/**
 		 * Specifies a {@link KeySelector} for elements from the second input.
 		 */
 		public EqualTo equalTo(KeySelector<T2, KEY> keySelector)  {
 			TypeInformation<KEY> otherKey = TypeExtractor.getKeySelectorTypes(keySelector, input2.getType());
 			if (!otherKey.equals(this.keyType)) {
-				throw new IllegalArgumentException("The keys for the two inputs are not equal: " + 
+				throw new IllegalArgumentException("The keys for the two inputs are not equal: " +
 						"first key = " + this.keyType + " , second key = " + otherKey);
 			}
-			
+
 			return new EqualTo(input2.clean(keySelector));
 		}
 
 		// --------------------------------------------------------------------
-		
+
 		/**
 		 * A co-group operation that has {@link KeySelector KeySelectors} defined for both inputs.
 		 */
@@ -150,7 +150,7 @@ public class CoGroupedStreams<T1, T2> {
 	}
 
 	// ------------------------------------------------------------------------
-	
+
 	/**
 	 * A co-group operation that has {@link KeySelector KeySelectors} defined for both inputs as
 	 * well as a {@link WindowAssigner}.
@@ -167,7 +167,7 @@ public class CoGroupedStreams<T1, T2> {
 
 		private final KeySelector<T1, KEY> keySelector1;
 		private final KeySelector<T2, KEY> keySelector2;
-		
+
 		private final TypeInformation<KEY> keyType;
 
 		private final WindowAssigner<? super TaggedUnion<T1, T2>, W> windowAssigner;
@@ -190,7 +190,7 @@ public class CoGroupedStreams<T1, T2> {
 			this.keySelector1 = keySelector1;
 			this.keySelector2 = keySelector2;
 			this.keyType = keyType;
-			
+
 			this.windowAssigner = windowAssigner;
 			this.trigger = trigger;
 			this.evictor = evictor;
@@ -221,7 +221,7 @@ public class CoGroupedStreams<T1, T2> {
 		/**
 		 * Completes the co-group operation with the user function that is executed
 		 * for windowed groups.
-		 * 
+		 *
 		 * <p>Note: This method's return type does not support setting an operator-specific parallelism.
 		 * Due to binary backwards compatibility, this cannot be altered. Use the {@link #with(CoGroupFunction)}
 		 * method to set an operator-specific parallelism.
@@ -248,7 +248,7 @@ public class CoGroupedStreams<T1, T2> {
 		 * <p><b>Note:</b> This is a temporary workaround while the {@link #apply(CoGroupFunction)}
 		 * method has the wrong return type and hence does not allow one to set an operator-specific
 		 * parallelism
-		 * 
+		 *
 		 * @deprecated This method will be removed once the {@link #apply(CoGroupFunction)} method is fixed
 		 *             in the next major version of Flink (2.0).
 		 */
@@ -261,7 +261,7 @@ public class CoGroupedStreams<T1, T2> {
 		/**
 		 * Completes the co-group operation with the user function that is executed
 		 * for windowed groups.
-		 * 
+		 *
 		 * <p>Note: This method's return type does not support setting an operator-specific parallelism.
 		 * Due to binary backwards compatibility, this cannot be altered. Use the
 		 * {@link #with(CoGroupFunction, TypeInformation)} method to set an operator-specific parallelism.
@@ -272,7 +272,7 @@ public class CoGroupedStreams<T1, T2> {
 
 			UnionTypeInfo<T1, T2> unionType = new UnionTypeInfo<>(input1.getType(), input2.getType());
 			UnionKeySelector<T1, T2, KEY> unionKeySelector = new UnionKeySelector<>(keySelector1, keySelector2);
-			
+
 			DataStream<TaggedUnion<T1, T2>> taggedInput1 = input1
 					.map(new Input1Tagger<T1, T2>())
 					.setParallelism(input1.getParallelism())
@@ -283,9 +283,9 @@ public class CoGroupedStreams<T1, T2> {
 					.returns(unionType);
 
 			DataStream<TaggedUnion<T1, T2>> unionStream = taggedInput1.union(taggedInput2);
-			
+
 			// we explicitly create the keyed stream to manually pass the key type information in
-			WindowedStream<TaggedUnion<T1, T2>, KEY, W> windowOp = 
+			WindowedStream<TaggedUnion<T1, T2>, KEY, W> windowOp =
 					new KeyedStream<TaggedUnion<T1, T2>, KEY>(unionStream, unionKeySelector, keyType)
 					.window(windowAssigner);
 
@@ -320,7 +320,7 @@ public class CoGroupedStreams<T1, T2> {
 	// ------------------------------------------------------------------------
 	//  Data type and type information for Tagged Union
 	// ------------------------------------------------------------------------
-	
+
 	/**
 	 * Internal class for implementing tagged union co-group.
 	 */
@@ -554,7 +554,7 @@ public class CoGroupedStreams<T1, T2> {
 	//  Utility functions that implement the CoGroup logic based on the tagged
 	//  untion window reduce
 	// ------------------------------------------------------------------------
-	
+
 	private static class Input1Tagger<T1, T2> implements MapFunction<T1, TaggedUnion<T1, T2>> {
 		private static final long serialVersionUID = 1L;
 
@@ -598,7 +598,7 @@ public class CoGroupedStreams<T1, T2> {
 	private static class CoGroupWindowFunction<T1, T2, T, KEY, W extends Window>
 			extends WrappingFunction<CoGroupFunction<T1, T2, T>>
 			implements WindowFunction<TaggedUnion<T1, T2>, T, KEY, W> {
-		
+
 		private static final long serialVersionUID = 1L;
 
 		public CoGroupWindowFunction(CoGroupFunction<T1, T2, T> userFunction) {
@@ -610,10 +610,10 @@ public class CoGroupedStreams<T1, T2> {
 				W window,
 				Iterable<TaggedUnion<T1, T2>> values,
 				Collector<T> out) throws Exception {
-			
+
 			List<T1> oneValues = new ArrayList<>();
 			List<T2> twoValues = new ArrayList<>();
-			
+
 			for (TaggedUnion<T1, T2> val: values) {
 				if (val.isOne()) {
 					oneValues.add(val.getOne());

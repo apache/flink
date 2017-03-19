@@ -169,7 +169,7 @@ public class SystemProcessingTimeService extends ProcessingTimeService {
 
 	@Override
 	public void shutdownService() {
-		if (status.compareAndSet(STATUS_ALIVE, STATUS_SHUTDOWN) || 
+		if (status.compareAndSet(STATUS_ALIVE, STATUS_SHUTDOWN) ||
 				status.compareAndSet(STATUS_QUIESCED, STATUS_SHUTDOWN))
 		{
 			timerService.shutdownNow();

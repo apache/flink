@@ -36,12 +36,12 @@ public class StreamGroupedReduce<IN> extends AbstractUdfStreamOperator<IN, Reduc
 	private static final long serialVersionUID = 1L;
 
 	private static final String STATE_NAME = "_op_state";
-	
+
 	private transient ValueState<IN> values;
-	
+
 	private TypeSerializer<IN> serializer;
 
-	
+
 	public StreamGroupedReduce(ReduceFunction<IN> reducer, TypeSerializer<IN> serializer) {
 		super(reducer);
 		this.serializer = serializer;
@@ -58,7 +58,7 @@ public class StreamGroupedReduce<IN> extends AbstractUdfStreamOperator<IN, Reduc
 	public void processElement(StreamRecord<IN> element) throws Exception {
 		IN value = element.getValue();
 		IN currentValue = values.value();
-		
+
 		if (currentValue != null) {
 			IN reduced = userFunction.reduce(currentValue, value);
 			values.update(reduced);

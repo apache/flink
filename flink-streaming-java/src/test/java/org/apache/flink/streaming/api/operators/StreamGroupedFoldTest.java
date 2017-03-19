@@ -60,13 +60,13 @@ public class StreamGroupedFoldTest {
 	public void testGroupedFold() throws Exception {
 
 		KeySelector<Integer, String> keySelector = new KeySelector<Integer, String>() {
-			
+
 			@Override
 			public String getKey(Integer value) {
 				return value.toString();
 			}
 		};
-		
+
 		StreamGroupedFold<Integer, String, String> operator = new StreamGroupedFold<>(new MyFolder(), "100");
 		operator.setOutputType(BasicTypeInfo.STRING_TYPE_INFO, new ExecutionConfig());
 
@@ -103,7 +103,7 @@ public class StreamGroupedFoldTest {
 				return value;
 			}
 		};
-		
+
 		StreamGroupedFold<Integer, String, Integer> operator = new StreamGroupedFold<>(
 				new TestOpenCloseFoldFunction(), "init");
 		operator.setOutputType(BasicTypeInfo.STRING_TYPE_INFO, new ExecutionConfig());

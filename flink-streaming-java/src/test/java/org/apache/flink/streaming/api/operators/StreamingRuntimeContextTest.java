@@ -67,15 +67,15 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class StreamingRuntimeContextTest {
-	
+
 	@Test
 	public void testValueStateInstantiation() throws Exception {
-		
+
 		final ExecutionConfig config = new ExecutionConfig();
 		config.registerKryoType(Path.class);
-		
+
 		final AtomicReference<Object> descriptorCapture = new AtomicReference<>();
-		
+
 		StreamingRuntimeContext context = new StreamingRuntimeContext(
 				createDescriptorCapturingMockOp(descriptorCapture, config),
 				createMockEnvironment(),
@@ -83,10 +83,10 @@ public class StreamingRuntimeContextTest {
 
 		ValueStateDescriptor<TaskInfo> descr = new ValueStateDescriptor<>("name", TaskInfo.class);
 		context.getState(descr);
-		
+
 		StateDescriptor<?, ?> descrIntercepted = (StateDescriptor<?, ?>) descriptorCapture.get();
 		TypeSerializer<?> serializer = descrIntercepted.getSerializer();
-		
+
 		// check that the Path class is really registered, i.e., the execution config was applied
 		assertTrue(serializer instanceof KryoSerializer);
 		assertTrue(((KryoSerializer<?>) serializer).getKryo().getRegistration(Path.class).getId() > 0);
@@ -107,10 +107,10 @@ public class StreamingRuntimeContextTest {
 
 		@SuppressWarnings("unchecked")
 		ReduceFunction<TaskInfo> reducer = (ReduceFunction<TaskInfo>) mock(ReduceFunction.class);
-		
-		ReducingStateDescriptor<TaskInfo> descr = 
+
+		ReducingStateDescriptor<TaskInfo> descr =
 				new ReducingStateDescriptor<>("name", reducer, TaskInfo.class);
-		
+
 		context.getReducingState(descr);
 
 		StateDescriptor<?, ?> descrIntercepted = (StateDescriptor<?, ?>) descriptorCapture.get();
@@ -192,7 +192,7 @@ public class StreamingRuntimeContextTest {
 		assertNotNull(value);
 		assertFalse(value.iterator().hasNext());
 	}
-	
+
 	@Test
 	public void testMapStateInstantiation() throws Exception {
 
@@ -218,7 +218,7 @@ public class StreamingRuntimeContextTest {
 		assertTrue(valueSerializer instanceof KryoSerializer);
 		assertTrue(((KryoSerializer<?>) valueSerializer).getKryo().getRegistration(Path.class).getId() > 0);
 	}
-	
+
 	@Test
 	public void testMapStateReturnsEmptyMapByDefault() throws Exception {
 
@@ -234,15 +234,15 @@ public class StreamingRuntimeContextTest {
 		assertNotNull(value);
 		assertFalse(value.iterator().hasNext());
 	}
-	
+
 	// ------------------------------------------------------------------------
-	//  
+	//
 	// ------------------------------------------------------------------------
-	
+
 	@SuppressWarnings("unchecked")
 	private static AbstractStreamOperator<?> createDescriptorCapturingMockOp(
 			final AtomicReference<Object> ref, final ExecutionConfig config) throws Exception {
-		
+
 		AbstractStreamOperator<?> operatorMock = mock(AbstractStreamOperator.class);
 
 		KeyedStateBackend keyedStateBackend= mock(KeyedStateBackend.class);
@@ -300,7 +300,7 @@ public class StreamingRuntimeContextTest {
 		when(operatorMock.getKeyedStateStore()).thenReturn(keyedStateStore);
 		return operatorMock;
 	}
-	
+
 	@SuppressWarnings("unchecked")
 	private static AbstractStreamOperator<?> createMapPlainMockOp() throws Exception {
 
@@ -312,7 +312,7 @@ public class StreamingRuntimeContextTest {
 		DefaultKeyedStateStore keyedStateStore = new DefaultKeyedStateStore(keyedStateBackend, config);
 
 		when(operatorMock.getExecutionConfig()).thenReturn(config);
-		
+
 		doAnswer(new Answer<MapState<Integer, String>>() {
 
 			@Override
@@ -332,11 +332,11 @@ public class StreamingRuntimeContextTest {
 				return backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, descr);
 			}
 		}).when(keyedStateBackend).getPartitionedState(Matchers.any(), any(TypeSerializer.class), any(MapStateDescriptor.class));
-		
+
 		when(operatorMock.getKeyedStateStore()).thenReturn(keyedStateStore);
 		return operatorMock;
 	}
-	
+
 	private static Environment createMockEnvironment() {
 		Environment env = mock(Environment.class);
 		when(env.getUserClassLoader()).thenReturn(StreamingRuntimeContextTest.class.getClassLoader());

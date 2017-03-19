@@ -40,7 +40,7 @@ import java.util.List;
 
 /**
  * A stream source function that returns a sequence of elements.
- * 
+ *
  * <p>Upon construction, this source function serializes the elements using Flink's type information.
  * That way, any object transport using Java serialization will not be affected by the serializability
  * of the elements.</p>
@@ -51,15 +51,15 @@ import java.util.List;
  */
 @PublicEvolving
 public class FromElementsFunction<T> implements SourceFunction<T>, CheckpointedFunction {
-	
+
 	private static final long serialVersionUID = 1L;
 
 	/** The (de)serializer to be used for the data elements. */
 	private final TypeSerializer<T> serializer;
-	
+
 	/** The actual data elements, in serialized form. */
 	private final byte[] elementsSerialized;
-	
+
 	/** The number of serialized elements. */
 	private final int numElements;
 
@@ -68,7 +68,7 @@ public class FromElementsFunction<T> implements SourceFunction<T>, CheckpointedF
 
 	/** The number of elements to skip initially. */
 	private volatile int numElementsToSkip;
-	
+
 	/** Flag to make the source cancelable. */
 	private volatile boolean isRunning = true;
 
@@ -77,7 +77,7 @@ public class FromElementsFunction<T> implements SourceFunction<T>, CheckpointedF
 	public FromElementsFunction(TypeSerializer<T> serializer, T... elements) throws IOException {
 		this(serializer, Arrays.asList(elements));
 	}
-	
+
 	public FromElementsFunction(TypeSerializer<T> serializer, Iterable<T> elements) throws IOException {
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		DataOutputViewStreamWrapper wrapper = new DataOutputViewStreamWrapper(baos);
@@ -128,7 +128,7 @@ public class FromElementsFunction<T> implements SourceFunction<T>, CheckpointedF
 	public void run(SourceContext<T> ctx) throws Exception {
 		ByteArrayInputStream bais = new ByteArrayInputStream(elementsSerialized);
 		final DataInputView input = new DataInputViewStreamWrapper(bais);
-		
+
 		// if we are restored from a checkpoint and need to skip elements, skip them now.
 		int toSkip = numElementsToSkip;
 		if (toSkip > 0) {
@@ -143,12 +143,12 @@ public class FromElementsFunction<T> implements SourceFunction<T>, CheckpointedF
 						"If you are using user-defined serialization (Value and Writable types), check the " +
 						"serialization functions.\nSerializer is " + serializer);
 			}
-			
+
 			this.numElementsEmitted = this.numElementsToSkip;
 		}
-		
+
 		final Object lock = ctx.getCheckpointLock();
-		
+
 		while (isRunning && numElementsEmitted < numElements) {
 			T next;
 			try {
@@ -159,7 +159,7 @@ public class FromElementsFunction<T> implements SourceFunction<T>, CheckpointedF
 						"If you are using user-defined serialization (Value and Writable types), check the " +
 						"serialization functions.\nSerializer is " + serializer);
 			}
-			
+
 			synchronized (lock) {
 				ctx.collect(next);
 				numElementsEmitted++;
@@ -175,7 +175,7 @@ public class FromElementsFunction<T> implements SourceFunction<T>, CheckpointedF
 
 	/**
 	 * Gets the number of elements produced in total by this function.
-	 * 
+	 *
 	 * @return The number of elements produced in total.
 	 */
 	public int getNumElements() {
@@ -184,7 +184,7 @@ public class FromElementsFunction<T> implements SourceFunction<T>, CheckpointedF
 
 	/**
 	 * Gets the number of elements emitted so far.
-	 * 
+	 *
 	 * @return The number of elements emitted so far.
 	 */
 	public int getNumElementsEmitted() {
@@ -211,10 +211,10 @@ public class FromElementsFunction<T> implements SourceFunction<T>, CheckpointedF
 	/**
 	 * Verifies that all elements in the collection are non-null, and are of the given class, or
 	 * a subclass thereof.
-	 * 
+	 *
 	 * @param elements The collection to check.
 	 * @param viewedAs The class to which the elements must be assignable to.
-	 * 
+	 *
 	 * @param <OUT> The generic type of the collection to be checked.
 	 */
 	public static <OUT> void checkCollection(Collection<OUT> elements, Class<OUT> viewedAs) {

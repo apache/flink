@@ -45,7 +45,7 @@ import java.util.ArrayList;
  */
 @Internal
 public class AccumulatingKeyedTimePanes<Type, Key, Result> extends AbstractKeyedTimePanes<Type, Key, ArrayList<Type>, Result> {
-	
+
 	private final KeySelector<Type, Key> keySelector;
 
 	private final KeyMap.LazyFactory<ArrayList<Type>> listFactory = getListFactory();
@@ -58,10 +58,10 @@ public class AccumulatingKeyedTimePanes<Type, Key, Result> extends AbstractKeyed
 	 * IMPORTANT: This value needs to start at one, so it is fresher than the value that new entries
 	 * have (zero).
 	 */
-	private long evaluationPass = 1L;   
+	private long evaluationPass = 1L;
 
 	// ------------------------------------------------------------------------
-	
+
 	public AccumulatingKeyedTimePanes(KeySelector<Type, Key> keySelector, InternalWindowFunction<Iterable<Type>, Result, Key, Window> function) {
 		this.keySelector = keySelector;
 		this.function = function;
@@ -97,28 +97,28 @@ public class AccumulatingKeyedTimePanes<Type, Key, Result> extends AbstractKeyed
 					function, window, out, operator, context);
 			traverseAllPanes(evaluator, evaluationPass);
 		}
-		
+
 		evaluationPass++;
 	}
 
 	// ------------------------------------------------------------------------
 	//  Running a window function in a map traversal
 	// ------------------------------------------------------------------------
-	
+
 	static final class WindowFunctionTraversal<Key, Type, Result> implements KeyMap.TraversalEvaluator<Key, ArrayList<Type>> {
 
 		private final InternalWindowFunction<Iterable<Type>, Result, Key, Window> function;
-		
+
 		private final UnionIterator<Type> unionIterator;
-		
+
 		private final Collector<Result> out;
 
 		private final TimeWindow window;
-		
+
 		private final AbstractStreamOperator<Result> contextOperator;
 
 		private Key currentKey;
-		
+
 		private AccumulatingKeyedTimePanesContext context;
 
 		WindowFunctionTraversal(InternalWindowFunction<Iterable<Type>, Result, Key, Window> function, TimeWindow window,
@@ -150,11 +150,11 @@ public class AccumulatingKeyedTimePanes<Type, Key, Result> extends AbstractKeyed
 			function.process(currentKey, window, context, unionIterator, out);
 		}
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  Lazy factory for lists (put if absent)
 	// ------------------------------------------------------------------------
-	
+
 	@SuppressWarnings("unchecked")
 	private static <V> KeyMap.LazyFactory<ArrayList<V>> getListFactory() {
 		return (KeyMap.LazyFactory<ArrayList<V>>) LIST_FACTORY;

@@ -49,11 +49,11 @@ import org.apache.flink.util.Preconditions;
 public class StreamConfig implements Serializable {
 
 	private static final long serialVersionUID = 1L;
-	
+
 	// ------------------------------------------------------------------------
 	//  Config Keys
 	// ------------------------------------------------------------------------
-	
+
 	private static final String NUMBER_OF_OUTPUTS = "numberOfOutputs";
 	private static final String NUMBER_OF_INPUTS = "numberOfInputs";
 	private static final String CHAINED_OUTPUTS = "chainedOutputs";
@@ -80,22 +80,22 @@ public class StreamConfig implements Serializable {
 
 	private static final String CHECKPOINTING_ENABLED = "checkpointing";
 	private static final String CHECKPOINT_MODE = "checkpointMode";
-	
+
 	private static final String STATE_BACKEND = "statebackend";
 	private static final String STATE_PARTITIONER = "statePartitioner";
 
 	private static final String STATE_KEY_SERIALIZER = "statekeyser";
-	
+
 	private static final String TIME_CHARACTERISTIC = "timechar";
-	
+
 	// ------------------------------------------------------------------------
 	//  Default Values
 	// ------------------------------------------------------------------------
-	
+
 	private static final long DEFAULT_TIMEOUT = 100;
 	private static final CheckpointingMode DEFAULT_CHECKPOINTING_MODE = CheckpointingMode.EXACTLY_ONCE;
-	
-	
+
+
 	// ------------------------------------------------------------------------
 	//  Config
 	// ------------------------------------------------------------------------
@@ -121,7 +121,7 @@ public class StreamConfig implements Serializable {
 	public Integer getVertexID() {
 		return config.getInteger(VERTEX_NAME, -1);
 	}
-	
+
 	public void setTimeCharacteristic(TimeCharacteristic characteristic) {
 		config.setInteger(TIME_CHARACTERISTIC, characteristic.ordinal());
 	}
@@ -134,7 +134,7 @@ public class StreamConfig implements Serializable {
 			throw new CorruptConfigurationException("time characteristic is not set");
 		}
 	}
-	
+
 	public void setTypeSerializerIn1(TypeSerializer<?> serializer) {
 		setTypeSerializer(TYPE_SERIALIZER_IN_1, serializer);
 	}
@@ -150,7 +150,7 @@ public class StreamConfig implements Serializable {
 	public void setTypeSerializerSideOut(OutputTag<?> outputTag, TypeSerializer<?> serializer) {
 		setTypeSerializer(TYPE_SERIALIZER_SIDEOUT_PREFIX + outputTag.getId(), serializer);
 	}
-	
+
 	public <T> TypeSerializer<T> getTypeSerializerIn1(ClassLoader cl) {
 		try {
 			return InstantiationUtil.readObjectFromConfig(this.config, TYPE_SERIALIZER_IN_1, cl);
@@ -158,7 +158,7 @@ public class StreamConfig implements Serializable {
 			throw new StreamTaskException("Could not instantiate serializer.", e);
 		}
 	}
-	
+
 	public <T> TypeSerializer<T> getTypeSerializerIn2(ClassLoader cl) {
 		try {
 			return InstantiationUtil.readObjectFromConfig(this.config, TYPE_SERIALIZER_IN_2, cl);
@@ -212,7 +212,7 @@ public class StreamConfig implements Serializable {
 			}
 		}
 	}
-	
+
 	public <T> T getStreamOperator(ClassLoader cl) {
 		try {
 			return InstantiationUtil.readObjectFromConfig(this.config, SERIALIZEDUDF, cl);
@@ -220,13 +220,13 @@ public class StreamConfig implements Serializable {
 		catch (ClassNotFoundException e) {
 			String classLoaderInfo = ClassLoaderUtil.getUserCodeClassLoaderInfo(cl);
 			boolean loadableDoubleCheck = ClassLoaderUtil.validateClassLoadable(e, cl);
-			
+
 			String exceptionMessage = "Cannot load user class: " + e.getMessage()
-					+ "\nClassLoader info: " + classLoaderInfo + 
-					(loadableDoubleCheck ? 
+					+ "\nClassLoader info: " + classLoaderInfo +
+					(loadableDoubleCheck ?
 							"\nClass was actually found in classloader - deserialization issue." :
 							"\nClass not resolvable through given classloader.");
-			
+
 			throw new StreamTaskException(exceptionMessage);
 		}
 		catch (Exception e) {
@@ -241,13 +241,13 @@ public class StreamConfig implements Serializable {
 			throw new StreamTaskException("Could not serialize output selectors", e);
 		}
 	}
-	
+
 	public <T> List<OutputSelector<T>> getOutputSelectors(ClassLoader userCodeClassloader) {
 		try {
-			List<OutputSelector<T>> selectors = 
+			List<OutputSelector<T>> selectors =
 					InstantiationUtil.readObjectFromConfig(this.config, OUTPUT_SELECTOR_WRAPPER, userCodeClassloader);
 			return selectors == null ? Collections.<OutputSelector<T>>emptyList() : selectors;
-			
+
 		} catch (Exception e) {
 			throw new StreamTaskException("Could not read output selectors", e);
 		}
@@ -292,7 +292,7 @@ public class StreamConfig implements Serializable {
 			throw new StreamTaskException("Cannot serialize non chained outputs.", e);
 		}
 	}
-	
+
 	public List<StreamEdge> getNonChainedOutputs(ClassLoader cl) {
 		try {
 			List<StreamEdge> nonChainedOutputs = InstantiationUtil.readObjectFromConfig(this.config, NONCHAINED_OUTPUTS, cl);
@@ -309,7 +309,7 @@ public class StreamConfig implements Serializable {
 			throw new StreamTaskException("Cannot serialize chained outputs.", e);
 		}
 	}
-	
+
 	public List<StreamEdge> getChainedOutputs(ClassLoader cl) {
 		try {
 			List<StreamEdge> chainedOutputs = InstantiationUtil.readObjectFromConfig(this.config, CHAINED_OUTPUTS, cl);
@@ -326,7 +326,7 @@ public class StreamConfig implements Serializable {
 			throw new StreamTaskException("Cannot serialize outward edges.", e);
 		}
 	}
-	
+
 	public List<StreamEdge> getOutEdges(ClassLoader cl) {
 		try {
 			List<StreamEdge> outEdges = InstantiationUtil.readObjectFromConfig(this.config, OUT_STREAM_EDGES, cl);
@@ -343,7 +343,7 @@ public class StreamConfig implements Serializable {
 			throw new StreamTaskException("Cannot serialize inward edges.", e);
 		}
 	}
-	
+
 	public List<StreamEdge> getInPhysicalEdges(ClassLoader cl) {
 		try {
 			List<StreamEdge> inEdges = InstantiationUtil.readObjectFromConfig(this.config, IN_STREAM_EDGES, cl);
@@ -354,7 +354,7 @@ public class StreamConfig implements Serializable {
 	}
 
 	// --------------------- checkpointing -----------------------
-	
+
 	public void setCheckpointingEnabled(boolean enabled) {
 		config.setBoolean(CHECKPOINTING_ENABLED, enabled);
 	}
@@ -362,7 +362,7 @@ public class StreamConfig implements Serializable {
 	public boolean isCheckpointingEnabled() {
 		return config.getBoolean(CHECKPOINTING_ENABLED, false);
 	}
-	
+
 	public void setCheckpointMode(CheckpointingMode mode) {
 		config.setInteger(CHECKPOINT_MODE, mode.ordinal());
 	}
@@ -372,7 +372,7 @@ public class StreamConfig implements Serializable {
 		if (ordinal >= 0) {
 			return CheckpointingMode.values()[ordinal];
 		} else {
-			return DEFAULT_CHECKPOINTING_MODE; 
+			return DEFAULT_CHECKPOINTING_MODE;
 		}
 	}
 
@@ -383,7 +383,7 @@ public class StreamConfig implements Serializable {
 			throw new StreamTaskException("Could not serialize outputs in order.", e);
 		}
 	}
-	
+
 	public List<StreamEdge> getOutEdgesInOrder(ClassLoader cl) {
 		try {
 			List<StreamEdge> outEdgesInOrder = InstantiationUtil.readObjectFromConfig(this.config, EDGES_IN_ORDER, cl);
@@ -401,7 +401,7 @@ public class StreamConfig implements Serializable {
 			throw new StreamTaskException("Could not serialize configuration.", e);
 		}
 	}
-	
+
 	public Map<Integer, StreamConfig> getTransitiveChainedTaskConfigs(ClassLoader cl) {
 		try {
 			Map<Integer, StreamConfig> confs = InstantiationUtil.readObjectFromConfig(this.config, CHAINED_TASK_CONFIG, cl);
@@ -410,11 +410,11 @@ public class StreamConfig implements Serializable {
 			throw new StreamTaskException("Could not instantiate configuration.", e);
 		}
 	}
-	
+
 	public void setOperatorName(String name) {
 		this.config.setString(OPERATOR_NAME,name);
 	}
-	
+
 	public String getOperatorName() {
 		return this.config.getString(OPERATOR_NAME, null);
 	}
@@ -426,11 +426,11 @@ public class StreamConfig implements Serializable {
 	public int getChainIndex() {
 		return this.config.getInteger(CHAIN_INDEX, 0);
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  State backend
 	// ------------------------------------------------------------------------
-	
+
 	public void setStateBackend(AbstractStateBackend backend) {
 		if (backend != null) {
 			try {
@@ -440,7 +440,7 @@ public class StreamConfig implements Serializable {
 			}
 		}
 	}
-	
+
 	public AbstractStateBackend getStateBackend(ClassLoader cl) {
 		try {
 			return InstantiationUtil.readObjectFromConfig(this.config, STATE_BACKEND, cl);
@@ -452,7 +452,7 @@ public class StreamConfig implements Serializable {
 	public byte[] getSerializedStateBackend() {
 		return this.config.getBytes(STATE_BACKEND, null);
 	}
-	
+
 	public void setStatePartitioner(int input, KeySelector<?, ?> partitioner) {
 		try {
 			InstantiationUtil.writeObjectToConfig(partitioner, this.config, STATE_PARTITIONER + input);
@@ -460,7 +460,7 @@ public class StreamConfig implements Serializable {
 			throw new StreamTaskException("Could not serialize state partitioner.", e);
 		}
 	}
-	
+
 	public KeySelector<?, Serializable> getStatePartitioner(int input, ClassLoader cl) {
 		try {
 			return InstantiationUtil.readObjectFromConfig(this.config, STATE_PARTITIONER + input, cl);
@@ -486,11 +486,11 @@ public class StreamConfig implements Serializable {
 	}
 
 
-	
+
 	// ------------------------------------------------------------------------
 	//  Miscellansous
 	// ------------------------------------------------------------------------
-	
+
 	public void setChainStart() {
 		config.setBoolean(IS_CHAINED_VERTEX, true);
 	}

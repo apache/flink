@@ -44,13 +44,13 @@ import static java.util.Objects.requireNonNull;
  *
  * <p>An example for the use of connected streams would be to apply rules that change over time
  * onto another stream. One of the connected streams has the rules, the other stream the
- * elements to apply the rules to. The operation on the connected stream maintains the 
+ * elements to apply the rules to. The operation on the connected stream maintains the
  * current set of rules in the state. It may receive either a rule update and update the state
  * or a data element and apply the rules in the state to the element.
  *
  * <p>The connected stream can be conceptually viewed as a union stream of an Either type, that
  * holds either the first stream's type or the second stream's type.
- * 
+ *
  * @param <IN1> Type of the first input data steam.
  * @param <IN2> Type of the second input data stream.
  */
@@ -197,7 +197,7 @@ public class ConnectedStreams<IN1, IN2> {
 	 * {@link CoMapFunction#map1} for each element of the first input and
 	 * {@link CoMapFunction#map2} for each element of the second input. Each
 	 * CoMapFunction call returns exactly one element.
-	 * 
+	 *
 	 * @param coMapper The CoMapFunction used to jointly transform the two input DataStreams
 	 * @return The transformed {@link DataStream}
 	 */
@@ -218,7 +218,7 @@ public class ConnectedStreams<IN1, IN2> {
 	 * and {@link CoFlatMapFunction#flatMap2} for each element of the second
 	 * input. Each CoFlatMapFunction call returns any number of elements
 	 * including none.
-	 * 
+	 *
 	 * @param coFlatMapper
 	 *            The CoFlatMapFunction used to jointly transform the two input
 	 *            DataStreams

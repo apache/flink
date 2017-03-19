@@ -273,7 +273,7 @@ public class StreamGraphGenerator {
 	 * Transforms a {@code SelectTransformation}.
 	 *
 	 * <p>For this we create a virtual node in the {@code StreamGraph} holds the selected names.
-	 * 
+	 *
 	 * @see org.apache.flink.streaming.api.graph.StreamGraphGenerator
 	 */
 	private <T> Collection<Integer> transformSelect(SelectTransformation<T> select) {

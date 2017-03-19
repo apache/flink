@@ -53,7 +53,7 @@ public abstract class CoProcessFunction<IN1, IN2, OUT> extends AbstractRichFunct
 	 *
 	 * <p>This function can output zero or more elements using the {@link Collector} parameter
 	 * and also update internal state or set timers using the {@link Context} parameter.
-	 * 
+	 *
 	 * @param value The stream element
 	 * @param ctx A {@link Context} that allows querying the timestamp of the element,
 	 *            querying the {@link TimeDomain} of the firing timer and getting a
@@ -70,7 +70,7 @@ public abstract class CoProcessFunction<IN1, IN2, OUT> extends AbstractRichFunct
 	 *
 	 * <p>This function can output zero or more elements using the {@link Collector} parameter
 	 * and also update internal state or set timers using the {@link Context} parameter.
-	 * 
+	 *
 	 * @param value The stream element
 	 * @param ctx A {@link Context} that allows querying the timestamp of the element,
 	 *            querying the {@link TimeDomain} of the firing timer and getting a

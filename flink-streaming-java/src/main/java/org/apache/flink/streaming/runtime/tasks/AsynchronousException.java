@@ -22,7 +22,7 @@ import org.apache.flink.annotation.Internal;
 
 /**
  * An exception for wrapping exceptions that are thrown by an operator in threads other than the
- * main compute thread of that operator. 
+ * main compute thread of that operator.
  */
 @Internal
 public class AsynchronousException extends Exception {

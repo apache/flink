@@ -312,7 +312,7 @@ public class SystemProcessingTimeServiceTest extends TestLogger {
 			latch.await();
 			timer.quiesceAndAwaitPending();
 
-			// should be able to immediately acquire the lock, since the task must have exited by now 
+			// should be able to immediately acquire the lock, since the task must have exited by now
 			assertTrue(scopeLock.tryLock());
 
 			// should be able to schedule more tasks (that never get executed)
@@ -327,7 +327,7 @@ public class SystemProcessingTimeServiceTest extends TestLogger {
 			// nothing should be scheduled right now
 			assertEquals(0, timer.getNumTasksScheduled());
 
-			// check that no asynchronous error was reported - that ensures that the newly scheduled 
+			// check that no asynchronous error was reported - that ensures that the newly scheduled
 			// triggerable did, in fact, not trigger
 			if (errorRef.get() != null) {
 				throw new Exception(errorRef.get());
@@ -397,7 +397,7 @@ public class SystemProcessingTimeServiceTest extends TestLogger {
 						latch.trigger();
 					}
 				}, lock);
-		
+
 		timeServiceProvider.registerTimer(System.currentTimeMillis(), new ProcessingTimeCallback() {
 			@Override
 			public void onProcessingTime(long timestamp) throws Exception {

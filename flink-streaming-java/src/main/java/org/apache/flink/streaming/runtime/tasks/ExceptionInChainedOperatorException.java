@@ -37,12 +37,12 @@ public class ExceptionInChainedOperatorException extends RuntimeException {
 	public ExceptionInChainedOperatorException(String message, Throwable cause) {
 		super(message, requireNonNull(cause));
 	}
-	
+
 	public Throwable getOriginalCause() {
 		Throwable ex = this;
 		do {
 			ex = ex.getCause();
 		} while (ex instanceof ExceptionInChainedOperatorException);
-		return ex; 
+		return ex;
 	}
 }

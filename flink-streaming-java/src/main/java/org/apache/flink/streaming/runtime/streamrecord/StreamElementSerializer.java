@@ -42,17 +42,17 @@ import static java.util.Objects.requireNonNull;
 public final class StreamElementSerializer<T> extends TypeSerializer<StreamElement> {
 
 	private static final long serialVersionUID = 1L;
-	
+
 	private static final int TAG_REC_WITH_TIMESTAMP = 0;
 	private static final int TAG_REC_WITHOUT_TIMESTAMP = 1;
 	private static final int TAG_WATERMARK = 2;
 	private static final int TAG_LATENCY_MARKER = 3;
 	private static final int TAG_STREAM_STATUS = 4;
-	
-	
+
+
 	private final TypeSerializer<T> typeSerializer;
 
-	
+
 	public StreamElementSerializer(TypeSerializer<T> serializer) {
 		if (serializer instanceof StreamElementSerializer) {
 			throw new RuntimeException("StreamRecordSerializer given to StreamRecordSerializer as value TypeSerializer: " + serializer);
@@ -67,7 +67,7 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
-	
+
 	@Override
 	public boolean isImmutableType() {
 		return false;
@@ -82,7 +82,7 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
-	
+
 	@Override
 	public StreamRecord<T> createInstance() {
 		return new StreamRecord<T>(typeSerializer.createInstance());
@@ -160,7 +160,7 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
 	public void serialize(StreamElement value, DataOutputView target) throws IOException {
 		if (value.isRecord()) {
 			StreamRecord<T> record = value.asRecord();
-			
+
 			if (record.hasTimestamp()) {
 				target.write(TAG_REC_WITH_TIMESTAMP);
 				target.writeLong(record.getTimestamp());
@@ -187,7 +187,7 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
 			throw new RuntimeException();
 		}
 	}
-	
+
 	@Override
 	public StreamElement deserialize(DataInputView source) throws IOException {
 		int tag = source.readByte();
@@ -242,7 +242,7 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
-	
+
 	@Override
 	public boolean equals(Object obj) {
 		if (obj instanceof StreamElementSerializer) {

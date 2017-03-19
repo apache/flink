@@ -41,7 +41,7 @@ public class ConcatenatedExtract<FROM, OVER, TO> implements Extractor<FROM, TO> 
 
 	/**
 	 * Combines two extractors which will be executed one after each other.
-	 * 
+	 *
 	 * @param e1
 	 *            First extractor: This extractor gets applied to the input data
 	 *            first. Its output as then passed as input to the second

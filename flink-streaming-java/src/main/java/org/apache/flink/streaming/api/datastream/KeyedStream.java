@@ -95,11 +95,11 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 
 	/** The type of the key by which the stream is partitioned. */
 	private final TypeInformation<KEY> keyType;
-	
+
 	/**
 	 * Creates a new {@link KeyedStream} using the given {@link KeySelector}
 	 * to partition operator state by key.
-	 * 
+	 *
 	 * @param dataStream
 	 *            Base stream of data
 	 * @param keySelector
@@ -148,10 +148,10 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 			if (!validateKeyTypeIsHashable(typeInfo)) {
 				unsupportedTypes.add(typeInfo);
 			}
-			
+
 			if (typeInfo instanceof TupleTypeInfoBase) {
 				for (int i = 0; i < typeInfo.getArity(); i++) {
-					stack.push(((TupleTypeInfoBase) typeInfo).getTypeAt(i));	
+					stack.push(((TupleTypeInfoBase) typeInfo).getTypeAt(i));
 				}
 			}
 		}
@@ -205,7 +205,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	}
 
 	/**
-	 * Gets the type of the key by which the stream is partitioned. 
+	 * Gets the type of the key by which the stream is partitioned.
 	 * @return The type of the key by which the stream is partitioned.
 	 */
 	@Internal
@@ -221,7 +221,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	// ------------------------------------------------------------------------
 	//  basic transformations
 	// ------------------------------------------------------------------------
-	
+
 	@Override
 	@PublicEvolving
 	public <R> SingleOutputStreamOperator<R> transform(String operatorName,
@@ -233,10 +233,10 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 		OneInputTransformation<T, R> transform = (OneInputTransformation<T, R>) returnStream.getTransformation();
 		transform.setStateKeySelector(keySelector);
 		transform.setStateKeyType(keyType);
-		
+
 		return returnStream;
 	}
-	
+
 	@Override
 	public DataStreamSink<T> addSink(SinkFunction<T> sinkFunction) {
 		DataStreamSink<T> result = super.addSink(sinkFunction);

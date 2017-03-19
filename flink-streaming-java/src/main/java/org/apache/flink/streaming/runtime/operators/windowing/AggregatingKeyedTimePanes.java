@@ -30,9 +30,9 @@ import org.apache.flink.util.Collector;
  */
 @Internal
 public class AggregatingKeyedTimePanes<Type, Key> extends AbstractKeyedTimePanes<Type, Key, Type, Type> {
-	
+
 	private final KeySelector<Type, Key> keySelector;
-	
+
 	private final ReduceFunction<Type> reducer;
 
 	/**
@@ -42,7 +42,7 @@ public class AggregatingKeyedTimePanes<Type, Key> extends AbstractKeyedTimePanes
 	private long evaluationPass = 1L;
 
 	// ------------------------------------------------------------------------
-	
+
 	public AggregatingKeyedTimePanes(KeySelector<Type, Key> keySelector, ReduceFunction<Type> reducer) {
 		this.keySelector = keySelector;
 		this.reducer = reducer;
@@ -57,7 +57,7 @@ public class AggregatingKeyedTimePanes<Type, Key> extends AbstractKeyedTimePanes
 	}
 
 	@Override
-	public void evaluateWindow(Collector<Type> out, TimeWindow window, 
+	public void evaluateWindow(Collector<Type> out, TimeWindow window,
 								AbstractStreamOperator<Type> operator) throws Exception {
 		if (previousPanes.isEmpty()) {
 			// optimized path for single pane case
@@ -70,22 +70,22 @@ public class AggregatingKeyedTimePanes<Type, Key> extends AbstractKeyedTimePanes
 			AggregatingTraversal<Key, Type> evaluator = new AggregatingTraversal<>(reducer, out, operator);
 			traverseAllPanes(evaluator, evaluationPass);
 		}
-		
+
 		evaluationPass++;
 	}
 
 	// ------------------------------------------------------------------------
 	//  The maps traversal that performs the final aggregation
 	// ------------------------------------------------------------------------
-	
+
 	static final class AggregatingTraversal<Key, Type> implements KeyMap.TraversalEvaluator<Key, Type> {
 
 		private final ReduceFunction<Type> function;
-		
+
 		private final Collector<Type> out;
-		
+
 		private final AbstractStreamOperator<Type> operator;
-		
+
 		private Type currentValue;
 
 		AggregatingTraversal(ReduceFunction<Type> function, Collector<Type> out,

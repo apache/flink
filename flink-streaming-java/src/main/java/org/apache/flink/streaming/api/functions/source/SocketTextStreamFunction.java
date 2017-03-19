@@ -46,7 +46,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class SocketTextStreamFunction implements SourceFunction<String> {
 
 	private static final long serialVersionUID = 1L;
-	
+
 	private static final Logger LOG = LoggerFactory.getLogger(SocketTextStreamFunction.class);
 
 	/** Default delay between successive connection attempts. */
@@ -54,28 +54,28 @@ public class SocketTextStreamFunction implements SourceFunction<String> {
 
 	/** Default connection timeout when connecting to the server socket (infinite). */
 	private static final int CONNECTION_TIMEOUT_TIME = 0;
-	
-	
+
+
 	private final String hostname;
 	private final int port;
 	private final String delimiter;
 	private final long maxNumRetries;
 	private final long delayBetweenRetries;
-	
+
 	private transient Socket currentSocket;
-	
+
 	private volatile boolean isRunning = true;
 
-	
+
 	public SocketTextStreamFunction(String hostname, int port, String delimiter, long maxNumRetries) {
 		this(hostname, port, delimiter, maxNumRetries, DEFAULT_CONNECTION_RETRY_SLEEP);
 	}
-	
+
 	public SocketTextStreamFunction(String hostname, int port, String delimiter, long maxNumRetries, long delayBetweenRetries) {
 		checkArgument(port > 0 && port < 65536, "port is out of range");
 		checkArgument(maxNumRetries >= -1, "maxNumRetries must be zero or larger (num retries), or -1 (infinite retries)");
 		checkArgument(delayBetweenRetries >= 0, "delayBetweenRetries must be zero or positive");
-		
+
 		this.hostname = checkNotNull(hostname, "hostname must not be null");
 		this.port = port;
 		this.delimiter = delimiter;
@@ -87,12 +87,12 @@ public class SocketTextStreamFunction implements SourceFunction<String> {
 	public void run(SourceContext<String> ctx) throws Exception {
 		final StringBuilder buffer = new StringBuilder();
 		long attempt = 0;
-		
+
 		while (isRunning) {
-			
+
 			try (Socket socket = new Socket()) {
 				currentSocket = socket;
-				
+
 				LOG.info("Connecting to server socket " + hostname + ':' + port);
 				socket.connect(new InetSocketAddress(hostname, port), CONNECTION_TIMEOUT_TIME);
 				BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
@@ -138,7 +138,7 @@ public class SocketTextStreamFunction implements SourceFunction<String> {
 	@Override
 	public void cancel() {
 		isRunning = false;
-		
+
 		// we need to close the socket as well, because the Thread.interrupt() function will
 		// not wake the thread in the socketStream.read() method when blocked.
 		Socket theSocket = this.currentSocket;

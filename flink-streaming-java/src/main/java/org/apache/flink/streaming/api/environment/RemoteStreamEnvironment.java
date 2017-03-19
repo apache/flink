@@ -46,7 +46,7 @@ import org.slf4j.LoggerFactory;
  */
 @Public
 public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
-	
+
 	private static final Logger LOG = LoggerFactory.getLogger(RemoteStreamEnvironment.class);
 
 	/** The hostname of the JobManager. */
@@ -60,14 +60,14 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 
 	/** The jar files that need to be attached to each job. */
 	private final List<URL> jarFiles;
-	
+
 	/** The classpaths that need to be attached to each job. */
 	private final List<URL> globalClasspaths;
 
 	/**
 	 * Creates a new RemoteStreamEnvironment that points to the master
 	 * (JobManager) described by the given host name and port.
-	 * 
+	 *
 	 * @param host
 	 *            The host name or address of the master (JobManager), where the
 	 *            program should be executed.
@@ -125,9 +125,9 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	 *            cluster. If the program uses user-defined functions,
 	 *            user-defined input formats, or any libraries, those must be
 	 *            provided in the JAR files.
-	 * @param globalClasspaths 
-	 *            The paths of directories and JAR files that are added to each user code 
-	 *            classloader on all nodes in the cluster. Note that the paths must specify a 
+	 * @param globalClasspaths
+	 *            The paths of directories and JAR files that are added to each user code
+	 *            classloader on all nodes in the cluster. Note that the paths must specify a
 	 *            protocol (e.g. file://) and be accessible on all nodes (e.g. by means of a NFS share).
 	 *            The protocol must be supported by the {@link java.net.URLClassLoader}.
 	 */
@@ -137,7 +137,7 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 					"The RemoteEnvironment cannot be used when submitting a program through a client, " +
 							"or running in a TestEnvironment context.");
 		}
-		
+
 		if (host == null) {
 			throw new NullPointerException("Host must not be null.");
 		}
@@ -178,7 +178,7 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 
 	/**
 	 * Executes the remote job.
-	 * 
+	 *
 	 * @param streamGraph
 	 *            Stream Graph to execute
 	 * @param jarFiles
@@ -192,10 +192,10 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 
 		ClassLoader usercodeClassLoader = JobWithJars.buildUserCodeClassLoader(jarFiles, globalClasspaths,
 			getClass().getClassLoader());
-		
+
 		Configuration configuration = new Configuration();
 		configuration.addAll(this.clientConfiguration);
-		
+
 		configuration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, host);
 		configuration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, port);
 

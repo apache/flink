@@ -30,7 +30,7 @@ import org.apache.flink.runtime.iterative.concurrent.Broker;
  */
 @Internal
 public class BlockingQueueBroker extends Broker<BlockingQueue<?>> {
-	
+
 	/** Singleton instance. */
 	public static final BlockingQueueBroker INSTANCE = new BlockingQueueBroker();
 

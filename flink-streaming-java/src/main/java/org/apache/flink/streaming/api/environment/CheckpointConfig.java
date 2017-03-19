@@ -74,16 +74,16 @@ public class CheckpointConfig implements java.io.Serializable {
 
 	/**
 	 * Checks whether checkpointing is enabled.
-	 * 
+	 *
 	 * @return True if checkpointing is enables, false otherwise.
 	 */
 	public boolean isCheckpointingEnabled() {
 		return checkpointInterval > 0;
 	}
-	
+
 	/**
 	 * Gets the checkpointing mode (exactly-once vs. at-least-once).
-	 * 
+	 *
 	 * @return The checkpointing mode.
 	 */
 	public CheckpointingMode getCheckpointingMode() {
@@ -92,7 +92,7 @@ public class CheckpointConfig implements java.io.Serializable {
 
 	/**
 	 * Sets the checkpointing mode (exactly-once vs. at-least-once).
-	 * 
+	 *
 	 * @param checkpointingMode The checkpointing mode.
 	 */
 	public void setCheckpointingMode(CheckpointingMode checkpointingMode) {
@@ -101,10 +101,10 @@ public class CheckpointConfig implements java.io.Serializable {
 
 	/**
 	 * Gets the interval in which checkpoints are periodically scheduled.
-	 * 
+	 *
 	 * <p>This setting defines the base interval. Checkpoint triggering may be delayed by the settings
 	 * {@link #getMaxConcurrentCheckpoints()} and {@link #getMinPauseBetweenCheckpoints()}.
-	 * 
+	 *
 	 * @return The checkpoint interval, in milliseconds.
 	 */
 	public long getCheckpointInterval() {
@@ -128,7 +128,7 @@ public class CheckpointConfig implements java.io.Serializable {
 
 	/**
 	 * Gets the maximum time that a checkpoint may take before being discarded.
-	 * 
+	 *
 	 * @return The checkpoint timeout, in milliseconds.
 	 */
 	public long getCheckpointTimeout() {
@@ -137,7 +137,7 @@ public class CheckpointConfig implements java.io.Serializable {
 
 	/**
 	 * Sets the maximum time that a checkpoint may take before being discarded.
-	 * 
+	 *
 	 * @param checkpointTimeout The checkpoint timeout, in milliseconds.
 	 */
 	public void setCheckpointTimeout(long checkpointTimeout) {
@@ -164,10 +164,10 @@ public class CheckpointConfig implements java.io.Serializable {
 	 * checkpoint coordinator may trigger another checkpoint after it becomes possible to trigger
 	 * another checkpoint with respect to the maximum number of concurrent checkpoints
 	 * (see {@link #setMaxConcurrentCheckpoints(int)}).
-	 * 
+	 *
 	 * <p>If the maximum number of concurrent checkpoints is set to one, this setting makes effectively sure
 	 * that a minimum amount of time passes where no checkpoint is in progress at all.
-	 * 
+	 *
 	 * @param minPauseBetweenCheckpoints The minimal pause before the next checkpoint is triggered.
 	 */
 	public void setMinPauseBetweenCheckpoints(long minPauseBetweenCheckpoints) {
@@ -182,7 +182,7 @@ public class CheckpointConfig implements java.io.Serializable {
 	 * value is <i>n</i>, then no checkpoints will be triggered while <i>n</i> checkpoint attempts are
 	 * currently in flight. For the next checkpoint to be triggered, one checkpoint attempt would need
 	 * to finish or expire.
-	 * 
+	 *
 	 * @return The maximum number of concurrent checkpoint attempts.
 	 */
 	public int getMaxConcurrentCheckpoints() {
@@ -194,7 +194,7 @@ public class CheckpointConfig implements java.io.Serializable {
 	 * value is <i>n</i>, then no checkpoints will be triggered while <i>n</i> checkpoint attempts are
 	 * currently in flight. For the next checkpoint to be triggered, one checkpoint attempt would need
 	 * to finish or expire.
-	 * 
+	 *
 	 * @param maxConcurrentCheckpoints The maximum number of concurrent checkpoint attempts.
 	 */
 	public void setMaxConcurrentCheckpoints(int maxConcurrentCheckpoints) {
@@ -206,9 +206,9 @@ public class CheckpointConfig implements java.io.Serializable {
 
 	/**
 	 * Checks whether checkpointing is forced, despite currently non-checkpointable iteration feedback.
-	 * 
+	 *
 	 * @return True, if checkpointing is forced, false otherwise.
-	 * 
+	 *
 	 * @deprecated This will be removed once iterations properly participate in checkpointing.
 	 */
 	@Deprecated
@@ -219,9 +219,9 @@ public class CheckpointConfig implements java.io.Serializable {
 
 	/**
 	 * Checks whether checkpointing is forced, despite currently non-checkpointable iteration feedback.
-	 * 
-	 * @param forceCheckpointing The flag to force checkpointing. 
-	 * 
+	 *
+	 * @param forceCheckpointing The flag to force checkpointing.
+	 *
 	 * @deprecated This will be removed once iterations properly participate in checkpointing.
 	 */
 	@Deprecated

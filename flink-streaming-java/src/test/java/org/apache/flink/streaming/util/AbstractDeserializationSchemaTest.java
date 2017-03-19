@@ -41,7 +41,7 @@ public class AbstractDeserializationSchemaTest {
 		TypeInformation<Tuple2<byte[], byte[]>> expected = TypeInformation.of(new TypeHint<Tuple2<byte[], byte[]>>(){});
 		assertEquals(expected, type);
 	}
-	
+
 	@Test
 	public void testTypeExtractionTupleAnonymous() {
 		TypeInformation<Tuple2<byte[], byte[]>> type = new AbstractDeserializationSchema<Tuple2<byte[], byte[]>>() {
@@ -50,7 +50,7 @@ public class AbstractDeserializationSchemaTest {
 				throw new UnsupportedOperationException();
 			}
 		}.getProducedType();
-		
+
 		TypeInformation<Tuple2<byte[], byte[]>> expected = TypeInformation.of(new TypeHint<Tuple2<byte[], byte[]>>(){});
 		assertEquals(expected, type);
 	}
@@ -84,7 +84,7 @@ public class AbstractDeserializationSchemaTest {
 			// expected
 		}
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  Test types
 	// ------------------------------------------------------------------------
@@ -96,7 +96,7 @@ public class AbstractDeserializationSchemaTest {
 			throw new UnsupportedOperationException();
 		}
 	}
-	
+
 	private static class JsonSchema extends AbstractDeserializationSchema<JSONPObject> {
 
 		@Override

@@ -44,9 +44,9 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 /**
  * The barrier buffer is {@link CheckpointBarrierHandler} that blocks inputs with barriers until
  * all inputs have received the barrier for a given checkpoint.
- * 
+ *
  * <p>To avoid back-pressuring the input streams (which may cause distributed deadlocks), the
- * BarrierBuffer continues receiving buffers from the blocked channels and stores them internally until 
+ * BarrierBuffer continues receiving buffers from the blocked channels and stores them internally until
  * the blocks are released.
  */
 @Internal
@@ -113,9 +113,9 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 
 	/**
 	 * Creates a new checkpoint stream aligner.
-	 * 
+	 *
 	 * <p>There is no limit to how much data may be buffered during an alignment.
-	 * 
+	 *
 	 * @param inputGate The input gate to draw the buffers and events from.
 	 * @param ioManager The I/O manager that gives access to the temp directories.
 	 *
@@ -127,15 +127,15 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 
 	/**
 	 * Creates a new checkpoint stream aligner.
-	 * 
+	 *
 	 * <p>The aligner will allow only alignments that buffer up to the given number of bytes.
 	 * When that number is exceeded, it will stop the alignment and notify the task that the
 	 * checkpoint has been cancelled.
-	 * 
+	 *
 	 * @param inputGate The input gate to draw the buffers and events from.
 	 * @param ioManager The I/O manager that gives access to the temp directories.
 	 * @param maxBufferedBytes The maximum bytes to be buffered before the checkpoint aborts.
-	 * 
+	 *
 	 * @throws IOException Thrown, when the spilling to temp files cannot be initialized.
 	 */
 	public BarrierBuffer(InputGate inputGate, IOManager ioManager, long maxBufferedBytes) throws IOException {
@@ -446,7 +446,7 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 
 	/**
 	 * Checks whether the channel with the given index is blocked.
-	 * 
+	 *
 	 * @param channelIndex The channel index to check.
 	 * @return True if the channel is blocked, false if not.
 	 */
@@ -456,7 +456,7 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 
 	/**
 	 * Blocks the given channel index, from which a barrier has been received.
-	 * 
+	 *
 	 * @param channelIndex The channel index to block.
 	 */
 	private void onBarrier(int channelIndex) throws IOException {
@@ -528,8 +528,8 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 
 	/**
 	 * Gets the ID defining the current pending, or just completed, checkpoint.
-	 * 
-	 * @return The ID of the pending of completed checkpoint. 
+	 *
+	 * @return The ID of the pending of completed checkpoint.
 	 */
 	public long getCurrentCheckpointId() {
 		return this.currentCheckpointId;
@@ -546,9 +546,9 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 	}
 
 	// ------------------------------------------------------------------------
-	// Utilities 
+	// Utilities
 	// ------------------------------------------------------------------------
-	
+
 	@Override
 	public String toString() {
 		return String.format("last checkpoint: %d, current barriers: %d, closed channels: %d",

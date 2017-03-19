@@ -138,7 +138,7 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 		stateProperties.initializeSerializerUnlessSet(getExecutionConfig());
 		return keyedStateStore.getFoldingState(stateProperties);
 	}
-	
+
 	@Override
 	public <UK, UV> MapState<UK, UV> getMapState(MapStateDescriptor<UK, UV> stateProperties) {
 		KeyedStateStore keyedStateStore = checkPreconditionsAndGetKeyedStateStore(stateProperties);

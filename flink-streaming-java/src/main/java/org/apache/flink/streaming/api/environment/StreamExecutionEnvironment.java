@@ -1639,11 +1639,11 @@ public abstract class StreamExecutionEnvironment {
 	/**
 	 * Creates a {@link LocalStreamEnvironment} for local program execution that also starts the
 	 * web monitoring UI.
-	 * 
+	 *
 	 * <p>The local execution environment will run the program in a multi-threaded fashion in
 	 * the same JVM as the environment was created in. It will use the parallelism specified in the
 	 * parameter.
-	 * 
+	 *
 	 * <p>If the configuration key 'jobmanager.web.port' was set in the configuration, that particular
 	 * port will be used for the web UI. Otherwise, the default port (8081) will be used.
 	 */
@@ -1773,7 +1773,7 @@ public abstract class StreamExecutionEnvironment {
 	protected static void initializeContextEnvironment(StreamExecutionEnvironmentFactory ctx) {
 		contextEnvironmentFactory = ctx;
 	}
-	
+
 	protected static void resetContextEnvironment() {
 		contextEnvironmentFactory = null;
 	}

@@ -75,7 +75,7 @@ public class Flip6LocalStreamEnvironment extends StreamExecutionEnvironment {
 	/**
 	 * Executes the JobGraph of the on a mini cluster of CLusterUtil with a user
 	 * specified name.
-	 * 
+	 *
 	 * @param jobName
 	 *            name of the job
 	 * @return The result of the job execution, containing elapsed time and accumulators.
