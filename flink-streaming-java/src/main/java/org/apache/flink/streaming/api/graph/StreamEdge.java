@@ -96,7 +96,7 @@ public class StreamEdge implements Serializable {
 		return selectedNames;
 	}
 
-	public OutputTag getOutputTag() {return this.outputTag;}
+	public OutputTag getOutputTag() { return this.outputTag; }
 
 	public StreamPartitioner<?> getPartitioner() {
 		return outputPartitioner;

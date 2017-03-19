@@ -67,7 +67,7 @@ public class SumAggregator<T> extends AggregationFunction<T> {
 	@SuppressWarnings("unchecked")
 	public T reduce(T value1, T value2) throws Exception {
 		if (isTuple) {
-			Tuple result = ((Tuple)value1).copy();
+			Tuple result = ((Tuple) value1).copy();
 			return fieldAccessor.set((T) result, adder.add(fieldAccessor.get(value1), fieldAccessor.get(value2)));
 		} else {
 			T result = serializer.copy(value1);

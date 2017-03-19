@@ -34,7 +34,7 @@ public class CountEvictor<W extends Window> implements Evictor<Object, W> {
 	private final long maxCount;
 	private final boolean doEvictAfter;
 
-	private CountEvictor(long count,boolean doEvictAfter) {
+	private CountEvictor(long count, boolean doEvictAfter) {
 		this.maxCount = count;
 		this.doEvictAfter = doEvictAfter;
 	}
@@ -53,7 +53,7 @@ public class CountEvictor<W extends Window> implements Evictor<Object, W> {
 
 
 	@Override
-	public void evictAfter(Iterable<TimestampedValue<Object>> elements, int size,W window, EvictorContext ctx) {
+	public void evictAfter(Iterable<TimestampedValue<Object>> elements, int size, W window, EvictorContext ctx) {
 		if (doEvictAfter) {
 			evict(elements, size, ctx);
 		}
@@ -94,6 +94,6 @@ public class CountEvictor<W extends Window> implements Evictor<Object, W> {
 	 * @param doEvictAfter Whether to do eviction after the window function.
      */
 	public static <W extends Window> CountEvictor<W> of(long maxCount, boolean doEvictAfter) {
-		return new CountEvictor<>(maxCount,doEvictAfter);
+		return new CountEvictor<>(maxCount, doEvictAfter);
 	}
 }

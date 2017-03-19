@@ -231,7 +231,7 @@ public class KeyMap<K, V> implements Iterable<KeyMap.Entry<K, V>> {
 	}
 
 	private void insertNewEntry(int hashCode, K key, V value, int position) {
-		Entry<K,V> e = table[position];
+		Entry<K, V> e = table[position];
 		table[position] = new Entry<>(key, value, hashCode, e);
 		numElements++;
 

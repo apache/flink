@@ -66,7 +66,7 @@ public class TestProcessingTimeService extends ProcessingTimeService {
 					callbackTask.onProcessingTime(entry.f0);
 
 					if (callbackTask instanceof PeriodicCallbackTask) {
-						priorityQueue.offer(Tuple2.of(((PeriodicCallbackTask)callbackTask).nextTimestamp(entry.f0), callbackTask));
+						priorityQueue.offer(Tuple2.of(((PeriodicCallbackTask) callbackTask).nextTimestamp(entry.f0), callbackTask));
 					}
 				}
 			}

@@ -127,7 +127,7 @@ public class TimestampedFileInputSplit extends FileInputSplit implements Compara
 
 	@Override
 	public int hashCode() {
-		int res = 37 * (int)(this.modificationTime ^ (this.modificationTime >>> 32));
+		int res = 37 * (int) (this.modificationTime ^ (this.modificationTime >>> 32));
 		return 37 * res + super.hashCode();
 	}
 

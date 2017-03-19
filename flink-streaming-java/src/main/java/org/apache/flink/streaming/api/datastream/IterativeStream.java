@@ -187,16 +187,24 @@ public class IterativeStream<T> extends SingleOutputStreamOperator<T> {
 						"feedback streams instead.");
 
 		@Override
-		public ConnectedStreams<I, F> keyBy(int[] keyPositions1, int[] keyPositions2) {throw groupingException;}
+		public ConnectedStreams<I, F> keyBy(int[] keyPositions1, int[] keyPositions2) {
+			throw groupingException;
+		}
 
 		@Override
-		public ConnectedStreams<I, F> keyBy(String field1, String field2) {throw groupingException;}
+		public ConnectedStreams<I, F> keyBy(String field1, String field2) {
+			throw groupingException;
+		}
 
 		@Override
-		public ConnectedStreams<I, F> keyBy(String[] fields1, String[] fields2) {throw groupingException;}
+		public ConnectedStreams<I, F> keyBy(String[] fields1, String[] fields2) {
+			throw groupingException;
+		}
 
 		@Override
-		public ConnectedStreams<I, F> keyBy(KeySelector<I, ?> keySelector1,KeySelector<F, ?> keySelector2) {throw groupingException;}
+		public ConnectedStreams<I, F> keyBy(KeySelector<I, ?> keySelector1, KeySelector<F, ?> keySelector2) {
+			throw groupingException;
+		}
 
 	}
 }

@@ -410,11 +410,11 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window>
 		}
 
 		void evictBefore(Iterable<TimestampedValue<IN>> elements, int size) {
-			evictor.evictBefore((Iterable)elements, size, window, this);
+			evictor.evictBefore((Iterable) elements, size, window, this);
 		}
 
 		void evictAfter(Iterable<TimestampedValue<IN>>  elements, int size) {
-			evictor.evictAfter((Iterable)elements, size, window, this);
+			evictor.evictAfter((Iterable) elements, size, window, this);
 		}
 	}
 
@@ -422,7 +422,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window>
 	public void open() throws Exception {
 		super.open();
 
-		evictorContext = new EvictorContext(null,null);
+		evictorContext = new EvictorContext(null, null);
 		evictingWindowState = (InternalListState<W, StreamRecord<IN>>)
 				getOrCreateKeyedState(windowSerializer, evictingWindowStateDescriptor);
 	}

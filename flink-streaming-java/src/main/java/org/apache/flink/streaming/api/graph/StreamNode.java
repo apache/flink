@@ -53,8 +53,8 @@ public class StreamNode implements Serializable {
 	private Long bufferTimeout = null;
 	private final String operatorName;
 	private String slotSharingGroup;
-	private KeySelector<?,?> statePartitioner1;
-	private KeySelector<?,?> statePartitioner2;
+	private KeySelector<?, ?> statePartitioner1;
+	private KeySelector<?, ?> statePartitioner2;
 	private TypeSerializer<?> stateKeySerializer;
 
 	private transient StreamOperator<?> operator;

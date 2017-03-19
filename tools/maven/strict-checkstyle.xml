@@ -493,12 +493,12 @@ This file is based on the checkstyle file of Apache Beam.
       <!--<property name="severity" value="error"/>-->
     <!--</module>-->
 
-    <!--<module name="WhitespaceAfter">-->
-      <!--&lt;!&ndash; Checks that commas, semicolons and typecasts are followed by-->
-           <!--whitespace.-->
-      <!--&ndash;&gt;-->
-      <!--<property name="tokens" value="COMMA, SEMI, TYPECAST"/>-->
-    <!--</module>-->
+    <module name="WhitespaceAfter">
+      <!-- Checks that commas, semicolons and typecasts are followed by
+           whitespace.
+      -->
+      <property name="tokens" value="COMMA, SEMI, TYPECAST"/>
+    </module>
 
     <module name="NoWhitespaceAfter">
       <!-- Checks that there is no whitespace after various unary operators.

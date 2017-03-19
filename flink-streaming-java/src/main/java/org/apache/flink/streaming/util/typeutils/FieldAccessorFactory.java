@@ -71,7 +71,7 @@ public class FieldAccessorFactory implements Serializable {
 		} else if (typeInfo.isTupleType() && ((TupleTypeInfoBase) typeInfo).isCaseClass()) {
 			TupleTypeInfoBase tupleTypeInfo = (TupleTypeInfoBase) typeInfo;
 			@SuppressWarnings("unchecked")
-			TypeInformation<F> fieldTypeInfo = (TypeInformation<F>)tupleTypeInfo.getTypeAt(pos);
+			TypeInformation<F> fieldTypeInfo = (TypeInformation<F>) tupleTypeInfo.getTypeAt(pos);
 			return new FieldAccessor.RecursiveProductFieldAccessor<>(
 				pos, typeInfo, new FieldAccessor.SimpleFieldAccessor<>(fieldTypeInfo), config);
 

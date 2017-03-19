@@ -52,14 +52,14 @@ public class TimeEvictor<W extends Window> implements Evictor<Object, W> {
 	@Override
 	public void evictBefore(Iterable<TimestampedValue<Object>> elements, int size, W window, EvictorContext ctx) {
 		if(!doEvictAfter) {
-			evict(elements,size,ctx);
+			evict(elements, size, ctx);
 		}
 	}
 
 	@Override
 	public void evictAfter(Iterable<TimestampedValue<Object>> elements, int size, W window, EvictorContext ctx) {
 		if(doEvictAfter) {
-			evict(elements,size,ctx);
+			evict(elements, size, ctx);
 		}
 	}
 
@@ -131,6 +131,6 @@ public class TimeEvictor<W extends Window> implements Evictor<Object, W> {
 	 * @param doEvictAfter Whether eviction is done after window function.
      */
 	public static <W extends Window> TimeEvictor<W> of(Time windowSize, boolean doEvictAfter) {
-		return new TimeEvictor<>(windowSize.toMilliseconds(),doEvictAfter);
+		return new TimeEvictor<>(windowSize.toMilliseconds(), doEvictAfter);
 	}
 }
