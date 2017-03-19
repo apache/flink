@@ -1202,7 +1202,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 		// just to read all the rest, although we do not really use this information.
 		int numProcessingTimeTimerTimestamp = in.readInt();
-		for (int i = 0; i< numProcessingTimeTimerTimestamp; i++) {
+		for (int i = 0; i < numProcessingTimeTimerTimestamp; i++) {
 			in.readLong();
 			in.readInt();
 		}

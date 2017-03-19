@@ -158,7 +158,7 @@ public class ContinuousFileMonitoringFunction<OUT>
 				// The two should be mutually exclusive for the operator, thus we throw the exception.
 
 				throw new IllegalArgumentException(
-					"The " + getClass().getSimpleName() +" has already restored from a previous Flink version.");
+					"The " + getClass().getSimpleName() + " has already restored from a previous Flink version.");
 
 			} else if (retrievedStates.size() == 1) {
 				this.globalModificationTime = retrievedStates.get(0);

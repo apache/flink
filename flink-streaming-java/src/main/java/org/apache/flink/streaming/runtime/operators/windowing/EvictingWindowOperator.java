@@ -354,7 +354,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window>
 		//work around to fix FLINK-4369, remove the evicted elements from the windowState.
 		//this is inefficient, but there is no other way to remove elements from ListState, which is an AppendingState.
 		windowState.clear();
-		for(TimestampedValue<IN> record : recordsWithTimestamp) {
+		for (TimestampedValue<IN> record : recordsWithTimestamp) {
 			windowState.add(record.getStreamRecord());
 		}
 	}

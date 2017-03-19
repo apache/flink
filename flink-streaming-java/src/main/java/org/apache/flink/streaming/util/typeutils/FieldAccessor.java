@@ -120,7 +120,7 @@ public abstract class FieldAccessor<T, F> implements Serializable {
 		private final int pos;
 
 		public ArrayFieldAccessor(int pos, TypeInformation typeInfo) {
-			if(pos < 0) {
+			if (pos < 0) {
 				throw new CompositeType.InvalidFieldReferenceException("The " + ((Integer) pos).toString() + ". field selected on" +
 					" an array, which is an invalid index.");
 			}
@@ -156,7 +156,7 @@ public abstract class FieldAccessor<T, F> implements Serializable {
 		SimpleTupleFieldAccessor(int pos, TypeInformation<T> typeInfo) {
 			checkNotNull(typeInfo, "typeInfo must not be null.");
 			int arity = ((TupleTypeInfo) typeInfo).getArity();
-			if(pos < 0 || pos >= arity) {
+			if (pos < 0 || pos >= arity) {
 				throw new CompositeType.InvalidFieldReferenceException(
 					"Tried to select " + ((Integer) pos).toString() + ". field on \"" +
 					typeInfo.toString() + "\", which is an invalid index.");
@@ -196,13 +196,13 @@ public abstract class FieldAccessor<T, F> implements Serializable {
 			checkNotNull(innerAccessor, "innerAccessor must not be null.");
 
 			int arity = ((TupleTypeInfo) typeInfo).getArity();
-			if(pos < 0 || pos >= arity) {
+			if (pos < 0 || pos >= arity) {
 				throw new CompositeType.InvalidFieldReferenceException(
 					"Tried to select " + ((Integer) pos).toString() + ". field on \"" +
 						typeInfo.toString() + "\", which is an invalid index.");
 			}
 
-			if(pos < 0) {
+			if (pos < 0) {
 				throw new CompositeType.InvalidFieldReferenceException("Tried to select " + ((Integer) pos).toString() + ". field.");
 			}
 
@@ -302,7 +302,7 @@ public abstract class FieldAccessor<T, F> implements Serializable {
 		SimpleProductFieldAccessor(int pos, TypeInformation<T> typeInfo, ExecutionConfig config) {
 			checkNotNull(typeInfo, "typeInfo must not be null.");
 			int arity = ((TupleTypeInfoBase) typeInfo).getArity();
-			if(pos < 0 || pos >= arity) {
+			if (pos < 0 || pos >= arity) {
 				throw new CompositeType.InvalidFieldReferenceException(
 					"Tried to select " + ((Integer) pos).toString() + ". field on \"" +
 						typeInfo.toString() + "\", which is an invalid index.");
@@ -346,7 +346,7 @@ public abstract class FieldAccessor<T, F> implements Serializable {
 
 		RecursiveProductFieldAccessor(int pos, TypeInformation<T> typeInfo, FieldAccessor<R, F> innerAccessor, ExecutionConfig config) {
 			int arity = ((TupleTypeInfoBase) typeInfo).getArity();
-			if(pos < 0 || pos >= arity) {
+			if (pos < 0 || pos >= arity) {
 				throw new CompositeType.InvalidFieldReferenceException(
 					"Tried to select " + ((Integer) pos).toString() + ". field on \"" +
 						typeInfo.toString() + "\", which is an invalid index.");

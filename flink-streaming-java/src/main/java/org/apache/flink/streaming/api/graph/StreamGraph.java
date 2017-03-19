@@ -159,7 +159,7 @@ public class StreamGraph extends StreamingPlan {
 
 
 	public boolean isIterative() {
-		return!vertexIDtoLoopTimeout.isEmpty();
+		return !vertexIDtoLoopTimeout.isEmpty();
 	}
 
 	public <IN, OUT> void addSource(Integer vertexID,
