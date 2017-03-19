@@ -18,14 +18,13 @@
 
 package org.apache.flink.streaming.util.serialization;
 
+import java.io.IOException;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.util.DataInputDeserializer;
 import org.apache.flink.runtime.util.DataOutputSerializer;
-
-import java.io.IOException;
 
 /**
  * A serialization and deserialization schema that uses Flink's serialization stack to

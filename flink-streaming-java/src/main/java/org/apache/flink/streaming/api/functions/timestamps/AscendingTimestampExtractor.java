@@ -18,14 +18,13 @@
 
 package org.apache.flink.streaming.api.functions.timestamps;
 
-import org.apache.flink.annotation.PublicEvolving;
+import static java.util.Objects.requireNonNull;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import static java.util.Objects.requireNonNull;
 
 /**
  * A timestamp assigner and watermark generator for streams where timestamps are monotonously

@@ -18,10 +18,9 @@
 
 package org.apache.flink.streaming.util.serialization;
 
+import java.io.IOException;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-
-import java.io.IOException;
 
 /**
  * The deserialization schema describes how to turn the byte messages delivered by certain

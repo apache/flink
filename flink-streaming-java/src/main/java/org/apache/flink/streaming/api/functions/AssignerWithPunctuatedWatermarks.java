@@ -18,9 +18,8 @@
 
 package org.apache.flink.streaming.api.functions;
 
-import org.apache.flink.streaming.api.watermark.Watermark;
-
 import javax.annotation.Nullable;
+import org.apache.flink.streaming.api.watermark.Watermark;
 
 /**
  * The {@code AssignerWithPunctuatedWatermarks} assigns event time timestamps to elements,

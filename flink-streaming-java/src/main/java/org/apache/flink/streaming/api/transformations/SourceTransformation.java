@@ -17,13 +17,12 @@
  */
 package org.apache.flink.streaming.api.transformations;
 
+import java.util.Collection;
+import java.util.Collections;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.StreamSource;
-
-import java.util.Collection;
-import java.util.Collections;
 
 /**
  * This represents a Source. This does not actually transform anything since it has no inputs but

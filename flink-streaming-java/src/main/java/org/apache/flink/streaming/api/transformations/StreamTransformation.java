@@ -18,6 +18,9 @@
 package org.apache.flink.streaming.api.transformations;
 
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
+import java.util.Collection;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.operators.ResourceSpec;
@@ -27,10 +30,6 @@ import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.util.Preconditions;
-
-import java.util.Collection;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A {@code StreamTransformation} represents the operation that creates a

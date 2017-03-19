@@ -17,10 +17,9 @@
  */
 package org.apache.flink.streaming.api.windowing.assigners;
 
+import java.util.Collection;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.api.windowing.windows.Window;
-
-import java.util.Collection;
 
 /**
  * A {@code WindowAssigner} that can merge windows.

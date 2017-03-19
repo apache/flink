@@ -18,13 +18,12 @@
 package org.apache.flink.streaming.api.transformations;
 
 import com.google.common.collect.Lists;
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
-
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.streaming.api.operators.ChainingStrategy;
 
 /**
  * This represents a feedback point in a topology. The type of the feedback elements need not match

@@ -17,12 +17,11 @@
  */
 package org.apache.flink.streaming.api.windowing.windows;
 
+import java.io.IOException;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-
-import java.io.IOException;
 
 /**
  * The default window into which all data is placed (via

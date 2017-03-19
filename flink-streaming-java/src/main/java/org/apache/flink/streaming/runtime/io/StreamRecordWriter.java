@@ -17,15 +17,14 @@
 
 package org.apache.flink.streaming.runtime.io;
 
-import java.io.IOException;
+import static org.apache.flink.util.Preconditions.checkArgument;
 
+import java.io.IOException;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.io.network.api.writer.ChannelSelector;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
-
-import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * This record writer keeps data in buffers at most for a certain timeout. It spawns a separate thread

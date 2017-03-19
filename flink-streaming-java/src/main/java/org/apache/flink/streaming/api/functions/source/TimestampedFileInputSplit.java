@@ -17,11 +17,10 @@
 
 package org.apache.flink.streaming.api.functions.source;
 
+import java.io.Serializable;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.Preconditions;
-
-import java.io.Serializable;
 
 /**
  * An extended {@link FileInputSplit} that also includes information about:

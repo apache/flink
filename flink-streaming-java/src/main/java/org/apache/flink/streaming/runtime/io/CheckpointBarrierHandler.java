@@ -18,11 +18,10 @@
 
 package org.apache.flink.streaming.runtime.io;
 
+import java.io.IOException;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
-
-import java.io.IOException;
 
 /**
  * The CheckpointBarrierHandler reacts to checkpoint barrier arriving from the input channels.

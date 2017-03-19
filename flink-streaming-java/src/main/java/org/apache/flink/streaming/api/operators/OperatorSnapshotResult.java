@@ -18,12 +18,11 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import java.util.concurrent.RunnableFuture;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.util.ExceptionUtils;
-
-import java.util.concurrent.RunnableFuture;
 
 /**
  * Result of {@link StreamOperator#snapshotState}.

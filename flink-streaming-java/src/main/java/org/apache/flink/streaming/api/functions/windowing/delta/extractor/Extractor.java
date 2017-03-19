@@ -17,9 +17,8 @@
 
 package org.apache.flink.streaming.api.functions.windowing.delta.extractor;
 
-import org.apache.flink.annotation.Internal;
-
 import java.io.Serializable;
+import org.apache.flink.annotation.Internal;
 
 /**
  * Extractors allow to extract/convert one type to another. They are mostly used
