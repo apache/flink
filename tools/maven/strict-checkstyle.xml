@@ -402,10 +402,10 @@ This file is based on the checkstyle file of Apache Beam.
           <!--value="^(package .*;\s*)|(import .*;\s*)|( *\* .*https?://.*)$"/>-->
     <!--</module>-->
 
-    <!--<module name="LeftCurly">-->
-      <!--&lt;!&ndash; Checks for placement of the left curly brace ('{'). &ndash;&gt;-->
-      <!--<property name="severity" value="error"/>-->
-    <!--</module>-->
+    <module name="LeftCurly">
+      <!-- Checks for placement of the left curly brace ('{'). -->
+      <property name="severity" value="error"/>
+    </module>
 
     <!--<module name="RightCurly">-->
       <!--&lt;!&ndash; Checks right curlies on CATCH, ELSE, and TRY blocks are on-->

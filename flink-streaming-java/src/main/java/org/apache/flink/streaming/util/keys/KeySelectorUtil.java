@@ -91,8 +91,7 @@ public final class KeySelectorUtil {
 
 
 	public static <X, K> KeySelector<X, K> getSelectorForOneKey(
-			Keys<X> keys, Partitioner<K> partitioner, TypeInformation<X> typeInfo, ExecutionConfig executionConfig)
-	{
+			Keys<X> keys, Partitioner<K> partitioner, TypeInformation<X> typeInfo, ExecutionConfig executionConfig) {
 		if (!(typeInfo instanceof CompositeType)) {
 			throw new InvalidTypesException(
 					"This key operation requires a composite type such as Tuples, POJOs, case classes, etc");

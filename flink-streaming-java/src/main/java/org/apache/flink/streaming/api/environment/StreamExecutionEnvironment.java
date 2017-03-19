@@ -1709,8 +1709,7 @@ public abstract class StreamExecutionEnvironment {
 	 * @return A remote environment that executes the program on a cluster.
 	 */
 	public static StreamExecutionEnvironment createRemoteEnvironment(
-			String host, int port, int parallelism, String... jarFiles)
-	{
+			String host, int port, int parallelism, String... jarFiles) {
 		RemoteStreamEnvironment env = new RemoteStreamEnvironment(host, port, jarFiles);
 		env.setParallelism(parallelism);
 		return env;
@@ -1738,8 +1737,7 @@ public abstract class StreamExecutionEnvironment {
 	 * @return A remote environment that executes the program on a cluster.
 	 */
 	public static StreamExecutionEnvironment createRemoteEnvironment(
-			String host, int port, Configuration clientConfig, String... jarFiles)
-	{
+			String host, int port, Configuration clientConfig, String... jarFiles) {
 		return new RemoteStreamEnvironment(host, port, clientConfig, jarFiles);
 	}
 

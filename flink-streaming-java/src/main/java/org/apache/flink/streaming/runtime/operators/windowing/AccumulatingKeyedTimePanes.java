@@ -78,8 +78,7 @@ public class AccumulatingKeyedTimePanes<Type, Key, Result> extends AbstractKeyed
 
 	@Override
 	public void evaluateWindow(Collector<Result> out, final TimeWindow window,
-								AbstractStreamOperator<Result> operator) throws Exception
-	{
+								AbstractStreamOperator<Result> operator) throws Exception {
 		if (previousPanes.isEmpty()) {
 			// optimized path for single pane case (tumbling window)
 			for (KeyMap.Entry<Key, ArrayList<Type>> entry : latestPane) {

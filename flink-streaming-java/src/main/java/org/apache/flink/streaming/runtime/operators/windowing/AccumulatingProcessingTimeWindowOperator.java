@@ -49,8 +49,7 @@ public class AccumulatingProcessingTimeWindowOperator<KEY, IN, OUT>
 			TypeSerializer<KEY> keySerializer,
 			TypeSerializer<IN> valueSerializer,
 			long windowLength,
-			long windowSlide)
-	{
+			long windowSlide) {
 		super(function, keySelector, keySerializer,
 				new ArrayListSerializer<>(valueSerializer), windowLength, windowSlide);
 	}

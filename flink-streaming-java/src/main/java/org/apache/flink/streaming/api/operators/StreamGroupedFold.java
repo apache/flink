@@ -70,8 +70,7 @@ public class StreamGroupedFold<IN, OUT, KEY>
 		}
 
 		try (ByteArrayInputStream bais = new ByteArrayInputStream(serializedInitialValue);
-			DataInputViewStreamWrapper in = new DataInputViewStreamWrapper(bais))
-		{
+			DataInputViewStreamWrapper in = new DataInputViewStreamWrapper(bais)) {
 			initialValue = outTypeSerializer.deserialize(in);
 		}
 

@@ -55,8 +55,7 @@ public class DirectedOutput<OUT> implements Output<StreamRecord<OUT>> {
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	public DirectedOutput(
 			List<OutputSelector<OUT>> outputSelectors,
-			List<Tuple2<Output<StreamRecord<OUT>>, StreamEdge>> outputs)
-	{
+			List<Tuple2<Output<StreamRecord<OUT>>, StreamEdge>> outputs) {
 		this.outputSelectors = outputSelectors.toArray(new OutputSelector[outputSelectors.size()]);
 
 		this.allOutputs = new Output[outputs.size()];

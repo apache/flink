@@ -101,8 +101,7 @@ public abstract class AbstractKeyedTimePanes<Type, Key, Aggregate, Result> {
 	public void writeToOutput(
 			final DataOutputView output,
 			final TypeSerializer<Key> keySerializer,
-			final TypeSerializer<Aggregate> aggSerializer) throws IOException
-	{
+			final TypeSerializer<Aggregate> aggSerializer) throws IOException {
 		output.writeInt(BEGIN_OF_STATE_MAGIC_NUMBER);
 
 		int numPanes = getNumPanes();
@@ -125,8 +124,7 @@ public abstract class AbstractKeyedTimePanes<Type, Key, Aggregate, Result> {
 	public void readFromInput(
 			final DataInputView input,
 			final TypeSerializer<Key> keySerializer,
-			final TypeSerializer<Aggregate> aggSerializer) throws IOException
-	{
+			final TypeSerializer<Aggregate> aggSerializer) throws IOException {
 		validateMagicNumber(BEGIN_OF_STATE_MAGIC_NUMBER, input.readInt());
 		int numPanes = input.readInt();
 
