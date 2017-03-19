@@ -79,9 +79,8 @@ import java.util.UUID;
  * {@code DataStream} are also possible on a {@code KeyedStream}, with the exception of
  * partitioning methods such as shuffle, forward and keyBy.
  *
- * <p>
- * Reduce-style operations, such as {@link #reduce}, {@link #sum} and {@link #fold} work on elements
- * that have the same key.
+ * <p>Reduce-style operations, such as {@link #reduce}, {@link #sum} and {@link #fold} work on
+ * elements that have the same key.
  *
  * @param <T> The type of the elements in the Keyed Stream.
  * @param <KEY> The type of the key in the Keyed Stream.
@@ -89,10 +88,12 @@ import java.util.UUID;
 @Public
 public class KeyedStream<T, KEY> extends DataStream<T> {
 
-	/** The key selector that can get the key by which the stream if partitioned from the elements */
+	/**
+	 * The key selector that can get the key by which the stream if partitioned from the elements.
+	 */
 	private final KeySelector<T, KEY> keySelector;
 
-	/** The type of the key by which the stream is partitioned */
+	/** The type of the key by which the stream is partitioned. */
 	private final TypeInformation<KEY> keyType;
 	
 	/**
@@ -313,8 +314,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	/**
 	 * Windows this {@code KeyedStream} into tumbling time windows.
 	 *
-	 * <p>
-	 * This is a shortcut for either {@code .window(TumblingEventTimeWindows.of(size))} or
+	 * <p>This is a shortcut for either {@code .window(TumblingEventTimeWindows.of(size))} or
 	 * {@code .window(TumblingProcessingTimeWindows.of(size))} depending on the time characteristic
 	 * set using
 	 * {@link org.apache.flink.streaming.api.environment.StreamExecutionEnvironment#setStreamTimeCharacteristic(org.apache.flink.streaming.api.TimeCharacteristic)}
@@ -332,10 +332,9 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	/**
 	 * Windows this {@code KeyedStream} into sliding time windows.
 	 *
-	 * <p>
-	 * This is a shortcut for either {@code .window(SlidingEventTimeWindows.of(size, slide))} or
-	 * {@code .window(SlidingProcessingTimeWindows.of(size, slide))} depending on the time characteristic
-	 * set using
+	 * <p>This is a shortcut for either {@code .window(SlidingEventTimeWindows.of(size, slide))} or
+	 * {@code .window(SlidingProcessingTimeWindows.of(size, slide))} depending on the time
+	 * characteristic set using
 	 * {@link org.apache.flink.streaming.api.environment.StreamExecutionEnvironment#setStreamTimeCharacteristic(org.apache.flink.streaming.api.TimeCharacteristic)}
 	 *
 	 * @param size The size of the window.
@@ -374,10 +373,9 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 * over a key grouped stream. Elements are put into windows by a {@link WindowAssigner}. The
 	 * grouping of elements is done both by key and by window.
 	 *
-	 * <p>
-	 * A {@link org.apache.flink.streaming.api.windowing.triggers.Trigger} can be defined to specify
-	 * when windows are evaluated. However, {@code WindowAssigners} have a default {@code Trigger}
-	 * that is used if a {@code Trigger} is not specified.
+	 * <p>A {@link org.apache.flink.streaming.api.windowing.triggers.Trigger} can be defined to
+	 * specify when windows are evaluated. However, {@code WindowAssigners} have a default
+	 * {@code Trigger} that is used if a {@code Trigger} is not specified.
 	 *
 	 * @param assigner The {@code WindowAssigner} that assigns elements to windows.
 	 * @return The trigger windows data stream.

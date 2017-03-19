@@ -28,14 +28,11 @@ import java.io.Serializable;
  * and return a snapshot of their state, which will be checkpointed.
  * 
  * <h1>Deprecation and Replacement</h1>
- *
  * The short cut replacement for this interface is via {@link ListCheckpointed} and works
  * as shown in the example below. The {@code ListCheckpointed} interface returns a list of
  * elements (
- * 
- * 
  *
- * <pre>{@code
+ * <p><pre>{@code
  * public class ExampleFunction<T> implements MapFunction<T, T>, ListCheckpointed<Integer> {
  *
  *     private int count;

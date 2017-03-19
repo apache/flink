@@ -50,27 +50,33 @@ public class BarrierTracker implements CheckpointBarrierHandler {
 
 	private static final Logger LOG = LoggerFactory.getLogger(BarrierTracker.class);
 
-	/** The tracker tracks a maximum number of checkpoints, for which some, but not all
-	 * barriers have yet arrived. */
+	/**
+	 * The tracker tracks a maximum number of checkpoints, for which some, but not all barriers
+	 * have yet arrived.
+	 */
 	private static final int MAX_CHECKPOINTS_TO_TRACK = 50;
 
 	// ------------------------------------------------------------------------
 
-	/** The input gate, to draw the buffers and events from */
+	/** The input gate, to draw the buffers and events from. */
 	private final InputGate inputGate;
 	
-	/** The number of channels. Once that many barriers have been received for a checkpoint,
-	 * the checkpoint is considered complete. */
+	/**
+	 * The number of channels. Once that many barriers have been received for a checkpoint, the
+	 * checkpoint is considered complete.
+	 */
 	private final int totalNumberOfInputChannels;
 
-	/** All checkpoints for which some (but not all) barriers have been received,
-	 * and that are not yet known to be subsumed by newer checkpoints */
+	/**
+	 * All checkpoints for which some (but not all) barriers have been received, and that are not
+	 * yet known to be subsumed by newer checkpoints.
+	 */
 	private final ArrayDeque<CheckpointBarrierCount> pendingCheckpoints;
 	
-	/** The listener to be notified on complete checkpoints */
+	/** The listener to be notified on complete checkpoints. */
 	private StatefulTask toNotifyOnCheckpoint;
 	
-	/** The highest checkpoint ID encountered so far */
+	/** The highest checkpoint ID encountered so far. */
 	private long latestPendingCheckpointID = -1;
 
 	// ------------------------------------------------------------------------

@@ -49,10 +49,10 @@ public class SystemProcessingTimeService extends ProcessingTimeService {
 	/** The containing task that owns this time service provider. */
 	private final AsyncExceptionHandler task;
 
-	/** The lock that timers acquire upon triggering */
+	/** The lock that timers acquire upon triggering. */
 	private final Object checkpointLock;
 
-	/** The executor service that schedules and calls the triggers of this task*/
+	/** The executor service that schedules and calls the triggers of this task. */
 	private final ScheduledThreadPoolExecutor timerService;
 
 	private final AtomicInteger status;
@@ -92,7 +92,8 @@ public class SystemProcessingTimeService extends ProcessingTimeService {
 	}
 
 	/**
-	 * Registers a task to be executed no sooner than time {@code timestamp}, but without strong guarantees of order
+	 * Registers a task to be executed no sooner than time {@code timestamp}, but without strong
+	 * guarantees of order.
 	 *
 	 * @param timestamp Time when the task is to be enabled (in processing time)
 	 * @param target    The task to be executed

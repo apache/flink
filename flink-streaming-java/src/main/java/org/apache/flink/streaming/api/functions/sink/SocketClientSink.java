@@ -34,11 +34,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Socket client that acts as a streaming sink. The data is sent to a Socket as a byte array.
- * <p>
- * The sink can be set to retry message sends after the sending failed.
- * <p>
- * The sink can be set to 'autoflush', in which case the socket stream is flushed after every message. This
- * significantly reduced throughput, but also decreases message latency.
+ *
+ * <p>The sink can be set to retry message sends after the sending failed.
+ *
+ * <p>The sink can be set to 'autoflush', in which case the socket stream is flushed after every
+ * message. This significantly reduced throughput, but also decreases message latency.
  *
  * @param <IN> data to be written into the Socket.
  */

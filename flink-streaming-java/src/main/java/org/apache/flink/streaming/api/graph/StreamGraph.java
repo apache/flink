@@ -277,7 +277,7 @@ public class StreamGraph extends StreamingPlan {
 	 * Adds a new virtual node that is used to connect a downstream vertex to only the outputs
 	 * with the selected names.
 	 *
-	 * When adding an edge from the virtual node to a downstream node the connection will be made
+	 * <p>When adding an edge from the virtual node to a downstream node the connection will be made
 	 * to the original node, only with the selected names given here.
 	 *
 	 * @param originalId ID of the node that should be connected to.
@@ -329,10 +329,10 @@ public class StreamGraph extends StreamingPlan {
 	}
 
 	/**
-	 * Adds a new virtual node that is used to connect a downstream vertex to an input with a certain
-	 * partitioning.
+	 * Adds a new virtual node that is used to connect a downstream vertex to an input with a
+	 * certain partitioning.
 	 *
-	 * When adding an edge from the virtual node to a downstream node the connection will be made
+	 * <p>When adding an edge from the virtual node to a downstream node the connection will be made
 	 * to the original node, but with the partitioning given here.
 	 *
 	 * @param originalId ID of the node that should be connected to.

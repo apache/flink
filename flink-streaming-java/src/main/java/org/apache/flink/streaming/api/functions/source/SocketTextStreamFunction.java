@@ -32,14 +32,15 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A source function that reads strings from a socket. The source will read bytes from the socket stream
- * and convert them to characters, each byte individually. When the delimiter character is received,
- * the function will output the current string, and begin a new string.
- * <p>
- * The function strips trailing <i>carriage return</i> characters (\r) when the delimiter is the
+ * A source function that reads strings from a socket. The source will read bytes from the socket
+ * stream and convert them to characters, each byte individually. When the delimiter character is
+ * received, the function will output the current string, and begin a new string.
+ *
+ * <p>The function strips trailing <i>carriage return</i> characters (\r) when the delimiter is the
  * newline character (\n).
- * <p>
- * The function can be set to reconnect to the server socket in case that the stream is closed on the server side.
+ *
+ * <p>The function can be set to reconnect to the server socket in case that the stream is closed on
+ * the server side.
  */
 @PublicEvolving
 public class SocketTextStreamFunction implements SourceFunction<String> {
@@ -48,10 +49,10 @@ public class SocketTextStreamFunction implements SourceFunction<String> {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(SocketTextStreamFunction.class);
 
-	/** Default delay between successive connection attempts */
+	/** Default delay between successive connection attempts. */
 	private static final int DEFAULT_CONNECTION_RETRY_SLEEP = 500;
 
-	/** Default connection timeout when connecting to the server socket (infinite) */
+	/** Default connection timeout when connecting to the server socket (infinite). */
 	private static final int CONNECTION_TIMEOUT_TIME = 0;
 	
 	

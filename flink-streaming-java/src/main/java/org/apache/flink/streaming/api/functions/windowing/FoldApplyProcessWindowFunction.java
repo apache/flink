@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -36,6 +36,11 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Collections;
 
+/**
+ * Internal {@link ProcessWindowFunction} that is used for implementing a fold on a window
+ * configuration that only allows {@link ProcessWindowFunction} and cannot directly execute a
+ * {@link FoldFunction}.
+ */
 @Internal
 public class FoldApplyProcessWindowFunction<K, W extends Window, T, ACC, R>
 	extends RichProcessWindowFunction<T, R, K, W>

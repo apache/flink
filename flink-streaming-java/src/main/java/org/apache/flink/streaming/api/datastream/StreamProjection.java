@@ -49,6 +49,10 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.streaming.api.operators.StreamProject;
 import org.apache.flink.util.Preconditions;
 
+/**
+ * The result of {@link DataStream#project(int...)}. This can be used to add more fields to the
+ * projection.
+ */
 @PublicEvolving
 public class StreamProjection<IN> {
 
@@ -77,7 +81,7 @@ public class StreamProjection<IN> {
 
 	/**
 	 * Chooses a projectTupleX according to the length of
-	 * {@link org.apache.flink.streaming.api.datastream.StreamProjection#fieldIndexes}
+	 * {@link org.apache.flink.streaming.api.datastream.StreamProjection#fieldIndexes}.
 	 *
 	 * @return The projected DataStream.
 	 * @see org.apache.flink.api.java.operators.ProjectOperator.Projection

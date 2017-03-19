@@ -83,13 +83,13 @@ public class AsyncWaitOperator<IN, OUT>
 
 	private static final String STATE_NAME = "_async_wait_operator_state_";
 
-	/** Capacity of the stream element queue */
+	/** Capacity of the stream element queue. */
 	private final int capacity;
 
-	/** Output mode for this operator */
+	/** Output mode for this operator. */
 	private final AsyncDataStream.OutputMode outputMode;
 
-	/** Timeout for the async collectors */
+	/** Timeout for the async collectors. */
 	private final long timeout;
 
 	protected transient Object checkpointingLock;
@@ -97,21 +97,21 @@ public class AsyncWaitOperator<IN, OUT>
 	/** {@link TypeSerializer} for inputs while making snapshots. */
 	private transient StreamElementSerializer<IN> inStreamElementSerializer;
 
-	/** Recovered input stream elements */
+	/** Recovered input stream elements. */
 	private transient ListState<StreamElement> recoveredStreamElements;
 
-	/** Queue to store the currently in-flight stream elements into */
+	/** Queue to store the currently in-flight stream elements into. */
 	private transient StreamElementQueue queue;
 
-	/** Pending stream element which could not yet added to the queue */
+	/** Pending stream element which could not yet added to the queue. */
 	private transient StreamElementQueueEntry<?> pendingStreamElementQueueEntry;
 
 	private transient ExecutorService executor;
 
-	/** Emitter for the completed stream element queue entries */
+	/** Emitter for the completed stream element queue entries. */
 	private transient Emitter<OUT> emitter;
 
-	/** Thread running the emitter */
+	/** Thread running the emitter. */
 	private transient Thread emitterThread;
 
 
@@ -368,7 +368,7 @@ public class AsyncWaitOperator<IN, OUT>
 				Thread.currentThread().interrupt();
 			}
 
-			/**
+			/*
 			 * FLINK-5638: If we have the checkpoint lock we might have to free it for a while so
 			 * that the emitter thread can complete/react to the interrupt signal.
 			 */
@@ -387,8 +387,8 @@ public class AsyncWaitOperator<IN, OUT>
 	/**
 	 * Add the given stream element queue entry to the operator's stream element queue. This
 	 * operation blocks until the element has been added.
-	 * <p>
-	 * For that it tries to put the element into the queue and if not successful then it waits on
+	 *
+	 * <p>For that it tries to put the element into the queue and if not successful then it waits on
 	 * the checkpointing lock. The checkpointing lock is also used by the {@link Emitter} to output
 	 * elements. The emitter is also responsible for notifying this method if the queue has capacity
 	 * left again, by calling notifyAll on the checkpointing lock.

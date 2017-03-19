@@ -35,7 +35,7 @@ import java.io.Serializable;
 public interface Extractor<FROM, TO> extends Serializable {
 
 	/**
-	 * Extracts/Converts the given input to an object of the output type
+	 * Extracts/Converts the given input to an object of the output type.
 	 * 
 	 * @param in
 	 *            the input data

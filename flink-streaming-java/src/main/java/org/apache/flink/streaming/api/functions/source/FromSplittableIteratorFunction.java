@@ -23,6 +23,9 @@ import org.apache.flink.util.SplittableIterator;
 
 import java.util.Iterator;
 
+/**
+ * A {@link SourceFunction} that reads elements from an {@link SplittableIterator} and emits them.
+ */
 @PublicEvolving
 public class FromSplittableIteratorFunction<T> extends RichParallelSourceFunction<T> {
 

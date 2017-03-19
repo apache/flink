@@ -54,52 +54,61 @@ public class BarrierBuffer implements CheckpointBarrierHandler {
 
 	private static final Logger LOG = LoggerFactory.getLogger(BarrierBuffer.class);
 
-	/** The gate that the buffer draws its input from */
+	/** The gate that the buffer draws its input from. */
 	private final InputGate inputGate;
 
-	/** Flags that indicate whether a channel is currently blocked/buffered */
+	/** Flags that indicate whether a channel is currently blocked/buffered. */
 	private final boolean[] blockedChannels;
 
-	/** The total number of channels that this buffer handles data from */
+	/** The total number of channels that this buffer handles data from. */
 	private final int totalNumberOfInputChannels;
 
-	/** To utility to write blocked data to a file channel */
+	/** To utility to write blocked data to a file channel. */
 	private final BufferSpiller bufferSpiller;
 
-	/** The pending blocked buffer/event sequences. Must be consumed before requesting
-	 * further data from the input gate. */
+	/**
+	 * The pending blocked buffer/event sequences. Must be consumed before requesting further data
+	 * from the input gate.
+	 */
 	private final ArrayDeque<BufferSpiller.SpilledBufferOrEventSequence> queuedBuffered;
 
-	/** The maximum number of bytes that may be buffered before an alignment is broken. -1 means unlimited */
+	/**
+	 * The maximum number of bytes that may be buffered before an alignment is broken. -1 means
+	 * unlimited.
+	 */
 	private final long maxBufferedBytes;
 
-	/** The sequence of buffers/events that has been unblocked and must now be consumed
-	 * before requesting further data from the input gate */
+	/**
+	 * The sequence of buffers/events that has been unblocked and must now be consumed before
+	 * requesting further data from the input gate.
+	 */
 	private BufferSpiller.SpilledBufferOrEventSequence currentBuffered;
 
-	/** Handler that receives the checkpoint notifications */
+	/** Handler that receives the checkpoint notifications. */
 	private StatefulTask toNotifyOnCheckpoint;
 
-	/** The ID of the checkpoint for which we expect barriers */
+	/** The ID of the checkpoint for which we expect barriers. */
 	private long currentCheckpointId = -1L;
 
-	/** The number of received barriers (= number of blocked/buffered channels)
-	 * IMPORTANT: A canceled checkpoint must always have 0 barriers */
+	/**
+	 * The number of received barriers (= number of blocked/buffered channels) IMPORTANT: A canceled
+	 * checkpoint must always have 0 barriers.
+	 */
 	private int numBarriersReceived;
 
-	/** The number of already closed channels */
+	/** The number of already closed channels. */
 	private int numClosedChannels;
 
-	/** The number of bytes in the queued spilled sequences */
+	/** The number of bytes in the queued spilled sequences. */
 	private long numQueuedBytes;
 
-	/** The timestamp as in {@link System#nanoTime()} at which the last alignment started */
+	/** The timestamp as in {@link System#nanoTime()} at which the last alignment started. */
 	private long startOfAlignmentTimestamp;
 
-	/** The time (in nanoseconds) that the latest alignment took */
+	/** The time (in nanoseconds) that the latest alignment took. */
 	private long latestAlignmentDurationNanos;
 
-	/** Flag to indicate whether we have drawn all available input */
+	/** Flag to indicate whether we have drawn all available input. */
 	private boolean endOfStream;
 
 	/**

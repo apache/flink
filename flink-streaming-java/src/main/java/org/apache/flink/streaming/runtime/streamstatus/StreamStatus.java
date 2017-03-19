@@ -52,8 +52,7 @@ import org.apache.flink.streaming.runtime.tasks.StreamTask;
  *         {@link StreamStatus#ACTIVE}, the task is active.</li>
  * </ul>
  *
- * <p>
- * Stream Status elements received at downstream tasks also affect and control how their operators process and advance
+ * <p>Stream Status elements received at downstream tasks also affect and control how their operators process and advance
  * their watermarks. The below describes the effects (the logic is implemented as a {@link StatusWatermarkValve} which
  * downstream tasks should use for such purposes):
  *
@@ -64,16 +63,15 @@ import org.apache.flink.streaming.runtime.tasks.StreamTask;
  *         active. However, for watermarks, since there may be watermark generators that might produce watermarks
  *         anywhere in the middle of topologies regardless of whether there are input data at the operator, the current
  *         status of the task must be checked before forwarding watermarks emitted from
- *         an operator. It the status is actually idle, the watermark must be blocked.</li>
+ *         an operator. It the status is actually idle, the watermark must be blocked.
  *
  *     <li>For downstream tasks with multiple input streams, the watermarks of input streams that are temporarily idle,
  *         or has resumed to be active but its watermark is behind the overall min watermark of the operator, should not
  *         be accounted for when deciding whether or not to advance the watermark and propagated through the operator
- *         chain.</li>
+ *         chain.
  * </ul>
  *
- * <p>
- * Note that to notify downstream tasks that a source task is permanently closed and will no longer send any more
+ * <p>Note that to notify downstream tasks that a source task is permanently closed and will no longer send any more
  * elements, the source should still send a {@link Watermark#MAX_WATERMARK} instead of {@link StreamStatus#IDLE}.
  * Stream Status elements only serve as markers for temporary status.
  */

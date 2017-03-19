@@ -39,6 +39,9 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import static java.util.Objects.requireNonNull;
 
 /**
+ * Base class for special window operator implementation for windows that fire at the same time for
+ * all keys.
+ *
  * @deprecated Deprecated in favour of the generic {@link WindowOperator}. This was an
  * optimized implementation used for aligned windows.
  */

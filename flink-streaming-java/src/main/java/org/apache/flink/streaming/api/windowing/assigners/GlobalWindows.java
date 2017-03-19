@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -30,10 +30,9 @@ import java.util.Collection;
 import java.util.Collections;
 
 /**
- * A {@link WindowAssigner} that assigns all elements to the same global window.
+ * A {@link WindowAssigner} that assigns all elements to the same {@link GlobalWindow}.
  *
- * <p>
- * Use this if you want to use a {@link Trigger} and
+ * <p>Use this if you want to use a {@link Trigger} and
  * {@link org.apache.flink.streaming.api.windowing.evictors.Evictor} to do flexible, policy based
  * windows.
  */

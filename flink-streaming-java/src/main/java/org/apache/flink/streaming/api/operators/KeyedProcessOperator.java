@@ -30,6 +30,10 @@ import org.apache.flink.util.OutputTag;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
+/**
+ * A {@link org.apache.flink.streaming.api.operators.StreamOperator} for executing keyed
+ * {@link ProcessFunction ProcessFunctions}.
+ */
 @Internal
 public class KeyedProcessOperator<K, IN, OUT>
 		extends AbstractUdfStreamOperator<OUT, ProcessFunction<IN, OUT>>

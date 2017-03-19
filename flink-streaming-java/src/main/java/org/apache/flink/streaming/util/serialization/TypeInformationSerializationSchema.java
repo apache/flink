@@ -38,18 +38,20 @@ public class TypeInformationSerializationSchema<T> implements DeserializationSch
 	
 	private static final long serialVersionUID = -5359448468131559102L;
 	
-	/** The serializer for the actual de-/serialization */
+	/** The serializer for the actual de-/serialization. */
 	private final TypeSerializer<T> serializer;
 
-	/** The reusable output serialization buffer */
+	/** The reusable output serialization buffer. */
 	private transient DataOutputSerializer dos;
 	
-	/** The reusable input deserialization buffer */
+	/** The reusable input deserialization buffer. */
 	private transient DataInputDeserializer dis;
 
-	/** The type information, to be returned by {@link #getProducedType()}. It is
-	 * transient, because it is not serializable. Note that this means that the type information
-	 * is not available at runtime, but only prior to the first serialization / deserialization */
+	/**
+	 * The type information, to be returned by {@link #getProducedType()}. It is transient, because
+	 * it is not serializable. Note that this means that the type information is not available at
+	 * runtime, but only prior to the first serialization / deserialization.
+	 */
 	private transient TypeInformation<T> typeInfo;
 
 	// ------------------------------------------------------------------------

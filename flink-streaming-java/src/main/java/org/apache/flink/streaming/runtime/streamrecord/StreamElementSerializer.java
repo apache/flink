@@ -30,10 +30,10 @@ import java.io.IOException;
 import static java.util.Objects.requireNonNull;
 
 /**
- * Serializer for {@link StreamRecord}, {@link Watermark}, {@link LatencyMarker}, and {@link StreamStatus}.
+ * Serializer for {@link StreamRecord}, {@link Watermark}, {@link LatencyMarker}, and
+ * {@link StreamStatus}.
  *
- * <p>
- * This does not behave like a normal {@link TypeSerializer}, instead, this is only used at the
+ * <p>This does not behave like a normal {@link TypeSerializer}, instead, this is only used at the
  * stream task/operator level for transmitting StreamRecords and Watermarks.
  *
  * @param <T> The type of value in the StreamRecord

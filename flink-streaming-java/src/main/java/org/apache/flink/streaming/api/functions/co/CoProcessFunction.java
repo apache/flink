@@ -51,7 +51,7 @@ public abstract class CoProcessFunction<IN1, IN2, OUT> extends AbstractRichFunct
 	/**
 	 * This method is called for each element in the first of the connected streams.
 	 *
-	 * This function can output zero or more elements using the {@link Collector} parameter
+	 * <p>This function can output zero or more elements using the {@link Collector} parameter
 	 * and also update internal state or set timers using the {@link Context} parameter.
 	 * 
 	 * @param value The stream element
@@ -68,7 +68,7 @@ public abstract class CoProcessFunction<IN1, IN2, OUT> extends AbstractRichFunct
 	/**
 	 * This method is called for each element in the second of the connected streams.
 	 *
-	 * This function can output zero or more elements using the {@link Collector} parameter
+	 * <p>This function can output zero or more elements using the {@link Collector} parameter
 	 * and also update internal state or set timers using the {@link Context} parameter.
 	 * 
 	 * @param value The stream element

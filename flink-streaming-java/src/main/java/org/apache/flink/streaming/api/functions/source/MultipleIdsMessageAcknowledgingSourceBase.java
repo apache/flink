@@ -37,10 +37,12 @@ import java.util.List;
  * acknowledge them back by IDs. In contrast to {@link MessageAcknowledgingSourceBase}, this source
  * handles two types of ids:
  *
- * 1) Session ids
- * 2) Unique message ids
+ * <ol>
+ *   <li>Session ids
+ *   <li>Unique message ids
+ * </ol>
  *
- * Session ids are used to acknowledge messages in a session. When a checkpoint is restored,
+ * <p>Session ids are used to acknowledge messages in a session. When a checkpoint is restored,
  * unacknowledged messages are redelivered. Duplicates are detected using the unique message ids
  * which are checkpointed.
  *

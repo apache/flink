@@ -88,15 +88,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * An operator that implements the logic for windowing based on a {@link WindowAssigner} and
  * {@link Trigger}.
  *
- * <p>
- * When an element arrives it gets assigned a key using a {@link KeySelector} and it gets
+ * <p>When an element arrives it gets assigned a key using a {@link KeySelector} and it gets
  * assigned to zero or more windows using a {@link WindowAssigner}. Based on this, the element
  * is put into panes. A pane is the bucket of elements that have the same key and same
  * {@code Window}. An element can be in multiple panes if it was assigned to multiple windows by the
  * {@code WindowAssigner}.
  *
- * <p>
- * Each pane gets its own instance of the provided {@code Trigger}. This trigger determines when
+ * <p>Each pane gets its own instance of the provided {@code Trigger}. This trigger determines when
  * the contents of the pane should be processed to emit results. When a trigger fires,
  * the given {@link InternalWindowFunction} is invoked to produce the results that are emitted for
  * the pane to which the {@code Trigger} belongs.
@@ -161,10 +159,13 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	 */
 	private transient InternalMergingState<W, IN, ACC> windowMergingState;
 
-	/** The state that holds the merging window metadata (the sets that describe what is merged) */
+	/** The state that holds the merging window metadata (the sets that describe what is merged). */
 	private transient InternalListState<VoidNamespace, Tuple2<W, W>> mergingSetsState;
 
-	/** This is given to the {@code InternalWindowFunction} for emitting elements with a given timestamp. */
+	/**
+	 * This is given to the {@code InternalWindowFunction} for emitting elements with a given
+	 * timestamp.
+	 */
 	protected transient TimestampedCollector<OUT> timestampedCollector;
 
 	protected transient Context triggerContext = new Context(null, null);
@@ -599,7 +600,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	}
 
 	/**
-	 * Write skipped late arriving element to SideOutput
+	 * Write skipped late arriving element to SideOutput.
 	 *
 	 * @param element skipped late arriving element to side output
 	 */

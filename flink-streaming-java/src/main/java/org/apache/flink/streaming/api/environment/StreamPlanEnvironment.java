@@ -26,6 +26,10 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 
+/**
+ * A special {@link StreamExecutionEnvironment} that is used in the web frontend when generating
+ * a user-inspectable graph of a streaming job.
+ */
 @PublicEvolving
 public class StreamPlanEnvironment extends StreamExecutionEnvironment {
 

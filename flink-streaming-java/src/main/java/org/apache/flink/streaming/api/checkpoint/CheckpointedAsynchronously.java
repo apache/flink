@@ -29,12 +29,11 @@ import java.io.Serializable;
  * this interface has not been implemented.
  * 
  * <h1>Deprecation and Replacement</h1>
- * 
  * The shortcut replacement for this interface is via {@link ListCheckpointed} and works
  * as shown in the example below. Please refer to the JavaDocs of {@link ListCheckpointed} for
  * a more detailed description of how to use the new interface.
  * 
- * <pre>{@code
+ * <p><pre>{@code
  * public class ExampleFunction<T> implements MapFunction<T, T>, ListCheckpointed<Integer> {
  * 
  *     private int count;

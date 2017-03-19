@@ -36,17 +36,17 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 @Internal
 public class StreamRecordWriter<T extends IOReadableWritable> extends RecordWriter<T> {
 
-	/** Default name for teh output flush thread, if no name with a task reference is given */
+	/** Default name for teh output flush thread, if no name with a task reference is given. */
 	private static final String DEFAULT_OUTPUT_FLUSH_THREAD_NAME = "OutputFlusher";
 	
 	
-	/** The thread that periodically flushes the output, to give an upper latency bound */
+	/** The thread that periodically flushes the output, to give an upper latency bound. */
 	private final OutputFlusher outputFlusher;
 	
-	/** Flag indicating whether the output should be flushed after every element */
+	/** Flag indicating whether the output should be flushed after every element. */
 	private final boolean flushAlways;
 
-	/** The exception encountered in the flushing thread */
+	/** The exception encountered in the flushing thread. */
 	private Throwable flusherException;
 	
 	
@@ -145,7 +145,7 @@ public class StreamRecordWriter<T extends IOReadableWritable> extends RecordWrit
 	/**
 	 * A dedicated thread that periodically flushes the output buffers, to set upper latency bounds.
 	 * 
-	 * The thread is daemonic, because it is only a utility thread.
+	 * <p>The thread is daemonic, because it is only a utility thread.
 	 */
 	private class OutputFlusher extends Thread {
 		

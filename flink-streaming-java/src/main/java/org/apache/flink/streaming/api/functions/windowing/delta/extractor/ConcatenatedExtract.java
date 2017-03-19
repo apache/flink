@@ -34,9 +34,6 @@ import org.apache.flink.annotation.Internal;
 @Internal
 public class ConcatenatedExtract<FROM, OVER, TO> implements Extractor<FROM, TO> {
 
-	/**
-	 * auto-generated id
-	 */
 	private static final long serialVersionUID = -7807197760725651752L;
 
 	private Extractor<FROM, OVER> e1;

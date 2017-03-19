@@ -101,23 +101,26 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 	}
 
 	/**
-	 * Sets an user provided hash for this operator. This will be used AS IS the create the JobVertexID.
-	 * <p/>
-	 * <p>The user provided hash is an alternative to the generated hashes, that is considered when identifying an
-	 * operator through the default hash mechanics fails (e.g. because of changes between Flink versions).
-	 * <p/>
-	 * <p><strong>Important</strong>: this should be used as a workaround or for trouble shooting. The provided hash
-	 * needs to be unique per transformation and job. Otherwise, job submission will fail. Furthermore, you cannot
-	 * assign user-specified hash to intermediate nodes in an operator chain and trying so will let your job fail.
+	 * Sets an user provided hash for this operator. This will be used AS IS the create the
+	 * JobVertexID.
 	 *
-	 * <p>
-	 * A use case for this is in migration between Flink versions or changing the jobs in a way that changes the
-	 * automatically generated hashes. In this case, providing the previous hashes directly through this method (e.g.
-	 * obtained from old logs) can help to reestablish a lost mapping from states to their target operator.
+	 * <p>The user provided hash is an alternative to the generated hashes, that is considered when
+	 * identifying an operator through the default hash mechanics fails (e.g. because of changes
+	 * between Flink versions).
+	 *
+	 * <p><strong>Important</strong>: this should be used as a workaround or for trouble shooting.
+	 * The provided hash needs to be unique per transformation and job. Otherwise, job submission
+	 * will fail. Furthermore, you cannot assign user-specified hash to intermediate nodes in an
+	 * operator chain and trying so will let your job fail.
+	 *
+	 * <p>A use case for this is in migration between Flink versions or changing the jobs in a way
+	 * that changes the automatically generated hashes. In this case, providing the previous hashes
+	 * directly through this method (e.g. obtained from old logs) can help to reestablish a lost
+	 * mapping from states to their target operator.
 	 * <p/>
 	 *
-	 * @param uidHash The user provided hash for this operator. This will become the JobVertexID, which is shown in the
-	 *                 logs and web ui.
+	 * @param uidHash The user provided hash for this operator. This will become the JobVertexID,
+	 *                  which is shown in the logs and web ui.
 	 * @return The operator with the user provided hash.
 	 */
 	@PublicEvolving
@@ -148,7 +151,7 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 	/**
 	 * Sets the maximum parallelism of this operator.
 	 *
-	 * The maximum parallelism specifies the upper bound for dynamic scaling. It also defines the
+	 * <p>The maximum parallelism specifies the upper bound for dynamic scaling. It also defines the
 	 * number of key groups used for partitioned state.
 	 *
 	 * @param maxParallelism Maximum parallelism
@@ -253,11 +256,12 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 	}
 
 	/**
-	 * Turns off chaining for this operator so thread co-location will not be
-	 * used as an optimization.
-	 * <p> Chaining can be turned off for the whole
-	 * job by {@link StreamExecutionEnvironment#disableOperatorChaining()}
-	 * however it is not advised for performance considerations.
+	 * Turns off chaining for this operator so thread co-location will not be used as an
+	 * optimization.
+	 *
+	 * <p>Chaining can be turned off for the whole job by
+	 * {@link StreamExecutionEnvironment#disableOperatorChaining()} however it is not advised for
+	 * performance considerations.
 	 * 
 	 * @return The operator with chaining disabled
 	 */
@@ -358,13 +362,11 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 	/**
 	 * Adds a type information hint about the return type of this operator. 
 	 * 
-	 * <p>
-	 * Type hints are important in cases where the Java compiler
-	 * throws away generic type information necessary for efficient execution.
+	 * <p>Type hints are important in cases where the Java compiler throws away generic type
+	 * information necessary for efficient execution.
 	 * 
-	 * <p>
-	 * This method takes a type information string that will be parsed. A type information string can contain the following
-	 * types:
+	 * <p>This method takes a type information string that will be parsed. A type information string
+	 * can contain the following types:
 	 *
 	 * <ul>
 	 * <li>Basic types such as <code>Integer</code>, <code>String</code>, etc.
@@ -383,7 +385,7 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 	 * <li>Enum types such as <code>Enum&lt;org.my.CustomEnum&gt;</code></li>
 	 * </ul>
 	 *
-	 * Example:
+	 * <p>Example:
 	 * <code>"Tuple2&lt;String,Tuple2&lt;Integer,org.my.MyJob$Pojo&lt;word=String&gt;&gt;&gt;"</code>
 	 *
 	 * @param typeInfoString

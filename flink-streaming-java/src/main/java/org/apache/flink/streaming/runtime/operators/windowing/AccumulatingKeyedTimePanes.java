@@ -40,6 +40,9 @@ import org.apache.flink.util.Collector;
 
 import java.util.ArrayList;
 
+/**
+ * Key/value map organized in panes for accumulating windows (with a window function).
+ */
 @Internal
 public class AccumulatingKeyedTimePanes<Type, Key, Result> extends AbstractKeyedTimePanes<Type, Key, ArrayList<Type>, Result> {
 	
@@ -52,7 +55,9 @@ public class AccumulatingKeyedTimePanes<Type, Key, Result> extends AbstractKeyed
 	private final AccumulatingKeyedTimePanesContext context;
 
 	/**
-	 * IMPORTANT: This value needs to start at one, so it is fresher than the value that new entries have (zero) */
+	 * IMPORTANT: This value needs to start at one, so it is fresher than the value that new entries
+	 * have (zero).
+	 */
 	private long evaluationPass = 1L;   
 
 	// ------------------------------------------------------------------------

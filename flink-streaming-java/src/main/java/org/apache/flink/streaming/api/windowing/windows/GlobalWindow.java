@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,6 +24,10 @@ import org.apache.flink.core.memory.DataOutputView;
 
 import java.io.IOException;
 
+/**
+ * The default window into which all data is placed (via
+ * {@link org.apache.flink.streaming.api.windowing.assigners.GlobalWindows}).
+ */
 @PublicEvolving
 public class GlobalWindow extends Window {
 
@@ -55,6 +59,9 @@ public class GlobalWindow extends Window {
 		return "GlobalWindow";
 	}
 
+	/**
+	 * A {@link TypeSerializer} for {@link GlobalWindow}.
+	 */
 	public static class Serializer extends TypeSerializer<GlobalWindow> {
 		private static final long serialVersionUID = 1L;
 

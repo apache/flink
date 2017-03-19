@@ -47,17 +47,13 @@ import static java.util.Objects.requireNonNull;
  *{@code CoGroupedStreams} represents two {@link DataStream DataStreams} that have been co-grouped.
  * A streaming co-group operation is evaluated over elements in a window.
  *
- * <p>
- * To finalize co-group operation you also need to specify a {@link KeySelector} for
+ * <p>To finalize co-group operation you also need to specify a {@link KeySelector} for
  * both the first and second input and a {@link WindowAssigner}.
  *
- * <p>
- * Note: Right now, the groups are being built in memory so you need to ensure that they don't
+ * <p>Note: Right now, the groups are being built in memory so you need to ensure that they don't
  * get too big. Otherwise the JVM might crash.
  *
- * <p>
- * Example:
- *
+ * <p>Example:
  * <pre> {@code
  * DataStream<Tuple2<String, Integer>> one = ...;
  * DataStream<Tuple2<String, Integer>> two = ...;
@@ -72,14 +68,15 @@ import static java.util.Objects.requireNonNull;
 @Public
 public class CoGroupedStreams<T1, T2> {
 
-	/** The first input stream */
+	/** The first input stream. */
 	private final DataStream<T1> input1;
 
-	/** The second input stream */
+	/** The second input stream. */
 	private final DataStream<T2> input2;
 
 	/**
-	 * Creates new CoGroped data streams, which are the first step towards building a streaming co-group.
+	 * Creates new CoGroped data streams, which are the first step towards building a streaming
+	 * co-group.
 	 * 
 	 * @param input1 The first data stream.
 	 * @param input2 The second data stream.
@@ -209,10 +206,10 @@ public class CoGroupedStreams<T1, T2> {
 		}
 
 		/**
-		 * Sets the {@code Evictor} that should be used to evict elements from a window before emission.
+		 * Sets the {@code Evictor} that should be used to evict elements from a window before
+		 * emission.
 		 *
-		 * <p>
-		 * Note: When using an evictor window performance will degrade significantly, since
+		 * <p>Note: When using an evictor window performance will degrade significantly, since
 		 * pre-aggregation of window results cannot be used.
 		 */
 		@PublicEvolving

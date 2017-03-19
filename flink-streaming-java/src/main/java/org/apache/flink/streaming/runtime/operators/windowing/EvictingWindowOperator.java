@@ -48,9 +48,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * A {@link WindowOperator} that also allows an {@link Evictor} to be used.
  *
- * <p>
- * The {@code Evictor} is used to remove elements from a pane before/after the evaluation of WindowFunction and
- * after the window evaluation gets triggered by a {@link org.apache.flink.streaming.api.windowing.triggers.Trigger}.
+ * <p>The {@code Evictor} is used to remove elements from a pane before/after the evaluation of
+ * {@link InternalWindowFunction} and after the window evaluation gets triggered by a
+ * {@link org.apache.flink.streaming.api.windowing.triggers.Trigger}.
  *
  * @param <K> The type of key returned by the {@code KeySelector}.
  * @param <IN> The type of the incoming elements.

@@ -31,8 +31,7 @@ import java.io.IOException;
  * Serializer for {@link StreamRecord}. This version ignores timestamps and only deals with
  * the element.
  *
- * <p>
- * {@link MultiplexingStreamRecordSerializer} is a version that deals with timestamps and also
+ * <p>{@link MultiplexingStreamRecordSerializer} is a version that deals with timestamps and also
  * multiplexes {@link org.apache.flink.streaming.api.watermark.Watermark Watermarks} in the same
  * stream with {@link StreamRecord StreamRecords}.
  *

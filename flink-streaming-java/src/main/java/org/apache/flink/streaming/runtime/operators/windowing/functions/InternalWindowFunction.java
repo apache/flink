@@ -49,6 +49,11 @@ public interface InternalWindowFunction<IN, OUT, KEY, W extends Window> extends 
 	 */
 	void clear(W window, InternalWindowContext context) throws Exception;
 
+	/**
+	 * A context for {@link InternalWindowFunction}, similar to
+	 * {@link org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction.Context} but
+	 * for internal use.
+	 */
 	interface InternalWindowContext extends java.io.Serializable {
 		KeyedStateStore windowState();
 

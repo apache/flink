@@ -27,6 +27,10 @@ import org.apache.flink.util.OutputTag;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
+/**
+ * A {@link org.apache.flink.streaming.api.operators.StreamOperator} for executing
+ * {@link ProcessFunction ProcessFunctions}.
+ */
 @Internal
 public class ProcessOperator<IN, OUT>
 		extends AbstractUdfStreamOperator<OUT, ProcessFunction<IN, OUT>>

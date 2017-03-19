@@ -30,6 +30,9 @@ import org.apache.flink.streaming.runtime.operators.windowing.functions.Internal
 import java.util.ArrayList;
 
 /**
+ * Special window operator implementation for windows that fire at the same time for all keys with
+ * accumulating windows.
+ *
  * @deprecated Deprecated in favour of the generic {@link WindowOperator}. This was an
  * optimized implementation used for aligned windows.
  */

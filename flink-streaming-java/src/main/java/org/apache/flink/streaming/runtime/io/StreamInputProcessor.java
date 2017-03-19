@@ -56,15 +56,14 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Input reader for {@link org.apache.flink.streaming.runtime.tasks.OneInputStreamTask}.
  *
- * <p>
- * This internally uses a {@link StatusWatermarkValve} to keep track of {@link Watermark} and {@link StreamStatus} events,
- * and forwards them to event subscribers once the {@link StatusWatermarkValve} determines the {@link Watermark} from
- * all inputs has advanced, or that a {@link StreamStatus} needs to be propagated downstream to denote a status change.
+ * <p>This internally uses a {@link StatusWatermarkValve} to keep track of {@link Watermark} and
+ * {@link StreamStatus} events, and forwards them to event subscribers once the
+ * {@link StatusWatermarkValve} determines the {@link Watermark} from all inputs has advanced, or
+ * that a {@link StreamStatus} needs to be propagated downstream to denote a status change.
  *
- * <p>
- * Forwarding elements, watermarks, or status status elements must be protected by synchronizing on the given lock
- * object. This ensures that we don't call methods on a {@link OneInputStreamOperator} concurrently
- * with the timer callback or other things.
+ * <p>Forwarding elements, watermarks, or status status elements must be protected by synchronizing
+ * on the given lock object. This ensures that we don't call methods on a
+ * {@link OneInputStreamOperator} concurrently with the timer callback or other things.
  * 
  * @param <IN> The type of the record that can be read with this record reader.
  */
