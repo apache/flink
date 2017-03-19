@@ -315,17 +315,17 @@ This file is based on the checkstyle file of Apache Beam.
       <property name="severity" value="error"/>
     </module>
 
-    <!--<module name="StaticVariableNameCheck">-->
-      <!--&lt;!&ndash; Validates static, non-final fields against the supplied-->
-      <!--expression "^[a-z][a-zA-Z0-9]*_?$". &ndash;&gt;-->
-      <!--<metadata name="altname" value="StaticVariableName"/>-->
-      <!--<property name="applyToPublic" value="true"/>-->
-      <!--<property name="applyToProtected" value="true"/>-->
-      <!--<property name="applyToPackage" value="true"/>-->
-      <!--<property name="applyToPrivate" value="true"/>-->
-      <!--<property name="format" value="^[a-z][a-zA-Z0-9]*_?$"/>-->
-      <!--<property name="severity" value="error"/>-->
-    <!--</module>-->
+    <module name="StaticVariableNameCheck">
+      <!-- Validates static, non-final fields against the supplied
+      expression "^[a-z][a-zA-Z0-9]*_?$". -->
+      <metadata name="altname" value="StaticVariableName"/>
+      <property name="applyToPublic" value="true"/>
+      <property name="applyToProtected" value="true"/>
+      <property name="applyToPackage" value="true"/>
+      <property name="applyToPrivate" value="true"/>
+      <property name="format" value="^[a-z][a-zA-Z0-9]*_?$"/>
+      <property name="severity" value="error"/>
+    </module>
 
     <module name="MemberNameCheck">
       <!-- Validates non-static members against the supplied expression. -->
