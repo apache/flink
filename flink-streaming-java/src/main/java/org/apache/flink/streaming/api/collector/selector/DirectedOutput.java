@@ -49,7 +49,7 @@ public class DirectedOutput<OUT> implements Output<StreamRecord<OUT>> {
 
 	protected final Output<StreamRecord<OUT>>[] allOutputs;
 
-	private final Random RNG = new XORShiftRandom();
+	private final Random random = new XORShiftRandom();
 
 
 	@SuppressWarnings({"unchecked", "rawtypes"})
@@ -112,7 +112,7 @@ public class DirectedOutput<OUT> implements Output<StreamRecord<OUT>> {
 	@Override
 	public void emitLatencyMarker(LatencyMarker latencyMarker) {
 		// randomly select an output
-		allOutputs[RNG.nextInt(allOutputs.length)].emitLatencyMarker(latencyMarker);
+		allOutputs[random.nextInt(allOutputs.length)].emitLatencyMarker(latencyMarker);
 	}
 
 	protected Set<Output<StreamRecord<OUT>>> selectOutputs(StreamRecord<OUT> record)  {
