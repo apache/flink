@@ -30,7 +30,7 @@ import grizzled.slf4j.Logger
 import org.apache.flink.api.common.JobID
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.configuration._
-import org.apache.flink.core.fs.FileSystem
+import org.apache.flink.core.fs.{FileSystem, Path}
 import org.apache.flink.core.io.InputSplitAssigner
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup
 import org.apache.flink.metrics.{Gauge, MetricGroup}
@@ -2480,6 +2480,7 @@ object JobManager {
     RestartStrategyFactory,
     FiniteDuration, // timeout
     Int, // number of archived jobs
+    Option[Path], // archive path
     LeaderElectionService,
     SubmittedJobGraphStore,
     CheckpointRecoveryFactory,
@@ -2498,6 +2499,22 @@ object JobManager {
     val archiveCount = configuration.getInteger(ConfigConstants.JOB_MANAGER_WEB_ARCHIVE_COUNT,
       ConfigConstants.DEFAULT_JOB_MANAGER_WEB_ARCHIVE_COUNT)
 
+    val archiveDir = configuration.getString(JobManagerOptions.ARCHIVE_DIR)
+
+    val archivePath = if (archiveDir != null) {
+      try {
+        Option.apply(
+          WebMonitorUtils.validateAndNormalizeUri(new Path(archiveDir).toUri))
+      } catch {
+        case e: Exception =>
+          LOG.warn(s"Failed to validate specified archive directory in '$archiveDir'. " +
+            "Jobs will not be archived for the HistoryServer.", e)
+          Option.empty
+      }
+    } else {
+      LOG.debug("No archive directory was configured. Jobs will not be archived.")
+      Option.empty
+    }
 
     var blobServer: BlobServer = null
     var instanceManager: InstanceManager = null
@@ -2584,6 +2601,7 @@ object JobManager {
       restartStrategy,
       timeout,
       archiveCount,
+      archivePath,
       leaderElectionService,
       submittedJobGraphs,
       checkpointRecoveryFactory,
@@ -2656,6 +2674,7 @@ object JobManager {
     restartStrategy,
     timeout,
     archiveCount,
+    archivePath,
     leaderElectionService,
     submittedJobGraphs,
     checkpointRecoveryFactory,
@@ -2666,7 +2685,7 @@ object JobManager {
       ioExecutor,
       None)
 
-    val archiveProps = getArchiveProps(archiveClass, archiveCount)
+    val archiveProps = getArchiveProps(archiveClass, archiveCount, archivePath)
 
     // start the archiver with the given name, or without (avoid name conflicts)
     val archive: ActorRef = archiveActorName match {
@@ -2705,8 +2724,11 @@ object JobManager {
     (jobManager, archive)
   }
 
-  def getArchiveProps(archiveClass: Class[_ <: MemoryArchivist], archiveCount: Int): Props = {
-    Props(archiveClass, archiveCount)
+  def getArchiveProps(
+      archiveClass: Class[_ <: MemoryArchivist],
+      archiveCount: Int,
+      archivePath: Option[Path]): Props = {
+    Props(archiveClass, archiveCount, archivePath)
   }
 
   def getJobManagerProps(

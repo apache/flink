@@ -121,8 +121,6 @@ public class WebRuntimeMonitor implements WebMonitor {
 	/** LeaderRetrievalListener which stores the currently leading JobManager and its archive */
 	private final JobManagerRetriever retriever;
 
-	private final Router router;
-
 	private final SSLContext serverSSLContext;
 
 	private final Promise<String> jobManagerAddressPromise = new scala.concurrent.impl.Promise.DefaultPromise<>();
@@ -243,7 +241,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 		RuntimeMonitorHandler triggerHandler = handler(cancelWithSavepoint.getTriggerHandler());
 		RuntimeMonitorHandler inProgressHandler = handler(cancelWithSavepoint.getInProgressHandler());
 
-		router = new Router();
+		Router router = new Router();
 		// config how to interact with this web server
 		GET(router, new DashboardConfigHandler(cfg.getRefreshInterval()));
 
@@ -381,7 +379,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 	 * 
 	 * @return array of all JsonArchivists relevant for the history server
 	 */
-	public static JsonArchivist[] getArchivers() {
+	public static JsonArchivist[] getJsonArchivists() {
 		JsonArchivist[] archivists = new JsonArchivist[]{
 			new CurrentJobsOverviewHandler.CurrentJobsOverviewJsonArchivist(),
 
