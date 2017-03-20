@@ -35,6 +35,7 @@ import java.util.Arrays;
  * provide the corresponding class loader.
  *
  * @param <T> The type of the value held.
+ * @deprecated Only used internally when migrating from previous savepoint versions.
  */
 @Deprecated
 @PublicEvolving
