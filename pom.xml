@@ -1027,7 +1027,7 @@ under the License.
 						<forkNumber>0${surefire.forkNumber}</forkNumber>
 						<log4j.configuration>${log4j.configuration}</log4j.configuration>
 					</systemPropertyVariables>
-					<argLine>-Xms256m -Xmx800m -Dmvn.forkNumber=${surefire.forkNumber} -XX:-UseGCOverheadLimit</argLine>
+					<argLine>-Xms256m -Xmx1536m -Dmvn.forkNumber=${surefire.forkNumber} -XX:+UseSerialGC</argLine>
 				</configuration>
 				<executions>
 					<!--execute all the unit tests-->
