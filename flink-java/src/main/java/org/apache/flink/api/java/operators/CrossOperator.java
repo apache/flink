@@ -301,7 +301,7 @@ public class CrossOperator<I1, I2, OUT> extends TwoInputUdfOperator<I1, I2, OUT,
 		}
 
 		/**
-		 * Deprecated method only kept for compatibility.
+		 * @deprecated Deprecated method only kept for compatibility.
 		 */
 		@SuppressWarnings({ "hiding", "unchecked" })
 		@Deprecated
