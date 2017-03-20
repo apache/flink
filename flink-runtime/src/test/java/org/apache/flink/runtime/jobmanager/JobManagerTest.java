@@ -36,6 +36,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -86,6 +87,7 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.StoppableInvokable;
+import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -120,7 +122,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-public class JobManagerTest {
+public class JobManagerTest extends TestLogger {
 
 	@Rule
 	public TemporaryFolder tmpFolder = new TemporaryFolder();
@@ -183,7 +185,7 @@ public class JobManagerTest {
 							TestingUtils.TESTING_DURATION());
 
 						// we can set the leader session ID to None because we don't use this gateway to send messages
-						final ActorGateway testActorGateway = new AkkaActorGateway(getTestActor(), null);
+						final ActorGateway testActorGateway = new AkkaActorGateway(getTestActor(), HighAvailabilityServices.DEFAULT_LEADER_ID);
 
 						// Submit the job and wait for all vertices to be running
 						jobManagerGateway.tell(
@@ -304,7 +306,7 @@ public class JobManagerTest {
 							TestingUtils.TESTING_DURATION());
 
 						// we can set the leader session ID to None because we don't use this gateway to send messages
-						final ActorGateway testActorGateway = new AkkaActorGateway(getTestActor(), null);
+						final ActorGateway testActorGateway = new AkkaActorGateway(getTestActor(), HighAvailabilityServices.DEFAULT_LEADER_ID);
 
 						// Submit the job and wait for all vertices to be running
 						jobManagerGateway.tell(
@@ -395,7 +397,7 @@ public class JobManagerTest {
 							TestingUtils.TESTING_DURATION());
 
 						// we can set the leader session ID to None because we don't use this gateway to send messages
-						final ActorGateway testActorGateway = new AkkaActorGateway(getTestActor(), null);
+						final ActorGateway testActorGateway = new AkkaActorGateway(getTestActor(), HighAvailabilityServices.DEFAULT_LEADER_ID);
 
 						// Submit the job and wait for all vertices to be running
 						jobManagerGateway.tell(
@@ -478,7 +480,7 @@ public class JobManagerTest {
 						final ActorGateway jobManagerGateway = cluster.getLeaderGateway(TestingUtils.TESTING_DURATION());
 
 						// we can set the leader session ID to None because we don't use this gateway to send messages
-						final ActorGateway testActorGateway = new AkkaActorGateway(getTestActor(), null);
+						final ActorGateway testActorGateway = new AkkaActorGateway(getTestActor(), HighAvailabilityServices.DEFAULT_LEADER_ID);
 
 						// Submit the job and wait for all vertices to be running
 						jobManagerGateway.tell(
@@ -530,7 +532,7 @@ public class JobManagerTest {
 						final ActorGateway jobManagerGateway = cluster.getLeaderGateway(TestingUtils.TESTING_DURATION());
 
 						// we can set the leader session ID to None because we don't use this gateway to send messages
-						final ActorGateway testActorGateway = new AkkaActorGateway(getTestActor(), null);
+						final ActorGateway testActorGateway = new AkkaActorGateway(getTestActor(), HighAvailabilityServices.DEFAULT_LEADER_ID);
 
 						// Submit the job and wait for all vertices to be running
 						jobManagerGateway.tell(
@@ -572,7 +574,6 @@ public class JobManagerTest {
 		Configuration config = new Configuration();
 		config.setString(ConfigConstants.AKKA_ASK_TIMEOUT, "100ms");
 
-		UUID leaderSessionId = null;
 		ActorGateway jobManager = new AkkaActorGateway(
 				JobManager.startJobManagerActors(
 					config,
@@ -581,7 +582,7 @@ public class JobManagerTest {
 					TestingUtils.defaultExecutor(),
 					TestingJobManager.class,
 					MemoryArchivist.class)._1(),
-				leaderSessionId);
+				HighAvailabilityServices.DEFAULT_LEADER_ID);
 
 		LeaderRetrievalService leaderRetrievalService = new StandaloneLeaderRetrievalService(
 				AkkaUtils.getAkkaURL(system, jobManager.actor()));
@@ -794,8 +795,8 @@ public class JobManagerTest {
 				TestingJobManager.class,
 				TestingMemoryArchivist.class);
 
-			jobManager = new AkkaActorGateway(master._1(), null);
-			archiver = new AkkaActorGateway(master._2(), null);
+			jobManager = new AkkaActorGateway(master._1(), HighAvailabilityServices.DEFAULT_LEADER_ID);
+			archiver = new AkkaActorGateway(master._2(), HighAvailabilityServices.DEFAULT_LEADER_ID);
 
 			ActorRef taskManagerRef = TaskManager.startTaskManagerComponentsAndActor(
 					config,
@@ -807,7 +808,7 @@ public class JobManagerTest {
 					true,
 					TestingTaskManager.class);
 
-			taskManager = new AkkaActorGateway(taskManagerRef, null);
+			taskManager = new AkkaActorGateway(taskManagerRef, HighAvailabilityServices.DEFAULT_LEADER_ID);
 
 			// Wait until connected
 			Object msg = new TestingTaskManagerMessages.NotifyWhenRegisteredAtJobManager(jobManager.actor());
@@ -920,8 +921,8 @@ public class JobManagerTest {
 				TestingJobManager.class,
 				TestingMemoryArchivist.class);
 
-			jobManager = new AkkaActorGateway(master._1(), null);
-			archiver = new AkkaActorGateway(master._2(), null);
+			jobManager = new AkkaActorGateway(master._1(), HighAvailabilityServices.DEFAULT_LEADER_ID);
+			archiver = new AkkaActorGateway(master._2(), HighAvailabilityServices.DEFAULT_LEADER_ID);
 
 			ActorRef taskManagerRef = TaskManager.startTaskManagerComponentsAndActor(
 				config,
@@ -933,7 +934,7 @@ public class JobManagerTest {
 				true,
 				TestingTaskManager.class);
 
-			taskManager = new AkkaActorGateway(taskManagerRef, null);
+			taskManager = new AkkaActorGateway(taskManagerRef, HighAvailabilityServices.DEFAULT_LEADER_ID);
 
 			// Wait until connected
 			Object msg = new TestingTaskManagerMessages.NotifyWhenRegisteredAtJobManager(jobManager.actor());
@@ -1026,8 +1027,8 @@ public class JobManagerTest {
 				TestingJobManager.class,
 				TestingMemoryArchivist.class);
 
-			jobManager = new AkkaActorGateway(master._1(), null);
-			archiver = new AkkaActorGateway(master._2(), null);
+			jobManager = new AkkaActorGateway(master._1(), HighAvailabilityServices.DEFAULT_LEADER_ID);
+			archiver = new AkkaActorGateway(master._2(), HighAvailabilityServices.DEFAULT_LEADER_ID);
 
 			ActorRef taskManagerRef = TaskManager.startTaskManagerComponentsAndActor(
 					config,
@@ -1039,7 +1040,7 @@ public class JobManagerTest {
 					true,
 					TestingTaskManager.class);
 
-			taskManager = new AkkaActorGateway(taskManagerRef, null);
+			taskManager = new AkkaActorGateway(taskManagerRef, HighAvailabilityServices.DEFAULT_LEADER_ID);
 
 			// Wait until connected
 			Object msg = new TestingTaskManagerMessages.NotifyWhenRegisteredAtJobManager(jobManager.actor());
@@ -1126,8 +1127,8 @@ public class JobManagerTest {
 				TestingJobManager.class,
 				TestingMemoryArchivist.class);
 
-			jobManager = new AkkaActorGateway(master._1(), null);
-			archiver = new AkkaActorGateway(master._2(), null);
+			jobManager = new AkkaActorGateway(master._1(), HighAvailabilityServices.DEFAULT_LEADER_ID);
+			archiver = new AkkaActorGateway(master._2(), HighAvailabilityServices.DEFAULT_LEADER_ID);
 
 			Configuration tmConfig = new Configuration();
 			tmConfig.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 4);
@@ -1142,7 +1143,7 @@ public class JobManagerTest {
 					true,
 					TestingTaskManager.class);
 
-			taskManager = new AkkaActorGateway(taskManagerRef, null);
+			taskManager = new AkkaActorGateway(taskManagerRef, HighAvailabilityServices.DEFAULT_LEADER_ID);
 
 			// Wait until connected
 			Object msg = new TestingTaskManagerMessages.NotifyWhenRegisteredAtJobManager(jobManager.actor());

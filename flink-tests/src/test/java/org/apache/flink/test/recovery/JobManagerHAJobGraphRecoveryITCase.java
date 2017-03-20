@@ -41,12 +41,10 @@ import org.apache.flink.runtime.jobmanager.SubmittedJobGraph;
 import org.apache.flink.runtime.leaderelection.TestingListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.JobManagerMessages;
-import org.apache.flink.runtime.messages.JobManagerMessages.JobStatusResponse;
 import org.apache.flink.runtime.messages.JobManagerMessages.LeaderSessionMessage;
 import org.apache.flink.runtime.messages.JobManagerMessages.SubmitJob;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
-import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
 import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.JobManagerActorTestUtils;
@@ -70,7 +68,6 @@ import scala.concurrent.duration.FiniteDuration;
 import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
-import java.util.List;
 import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -165,91 +162,6 @@ public class JobManagerHAJobGraphRecoveryITCase extends TestLogger {
 		// verify that the persisted job data has not been removed from ZooKeeper when the JM has
 		// been shutdown
 		verifyRecoveryState(config);
-	}
-
-	/**
-	 * Tests that submissions to non-leaders are handled.
-	 */
-	@Test
-	public void testSubmitJobToNonLeader() throws Exception {
-		Configuration config = ZooKeeperTestUtils.createZooKeeperHAConfig(
-				ZooKeeper.getConnectString(), FileStateBackendBasePath.getPath());
-
-		// Configure the cluster
-		config.setInteger(ConfigConstants.LOCAL_NUMBER_JOB_MANAGER, 2);
-		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1);
-
-		TestingCluster flink = new TestingCluster(config, false, false);
-
-		try {
-			final Deadline deadline = TestTimeOut.fromNow();
-
-			// Start the JobManager and TaskManager
-			flink.start(true);
-
-			JobGraph jobGraph = createBlockingJobGraph();
-
-			List<ActorRef> bothJobManagers = flink.getJobManagersAsJava();
-
-			ActorGateway leadingJobManager = flink.getLeaderGateway(deadline.timeLeft());
-
-			ActorGateway nonLeadingJobManager;
-			if (bothJobManagers.get(0).equals(leadingJobManager.actor())) {
-				nonLeadingJobManager = new AkkaActorGateway(bothJobManagers.get(1), null);
-			}
-			else {
-				nonLeadingJobManager = new AkkaActorGateway(bothJobManagers.get(0), null);
-			}
-
-			log.info("Leading job manager: " + leadingJobManager);
-			log.info("Non-leading job manager: " + nonLeadingJobManager);
-
-			// Submit the job
-			nonLeadingJobManager.tell(new SubmitJob(jobGraph, ListeningBehaviour.DETACHED));
-
-			log.info("Submitted job graph to " + nonLeadingJobManager);
-
-			// Wait for the job to start. We are asking the *leading** JM here although we've
-			// submitted the job to the non-leading JM. This is the behaviour under test.
-			JobManagerActorTestUtils.waitForJobStatus(jobGraph.getJobID(), JobStatus.RUNNING,
-					leadingJobManager, deadline.timeLeft());
-
-			log.info("Wait that the non-leader removes the submitted job.");
-
-			// Make sure that the **non-leading** JM has actually removed the job graph from its
-			// local state.
-			boolean success = false;
-			while (!success && deadline.hasTimeLeft()) {
-				JobStatusResponse jobStatusResponse = JobManagerActorTestUtils.requestJobStatus(
-						jobGraph.getJobID(), nonLeadingJobManager, deadline.timeLeft());
-
-				if (jobStatusResponse instanceof JobManagerMessages.JobNotFound) {
-					success = true;
-				}
-				else {
-					log.info(((JobManagerMessages.CurrentJobStatus)jobStatusResponse).status().toString());
-					Thread.sleep(100);
-				}
-			}
-
-			if (!success) {
-				fail("Non-leading JM was still holding reference to the job graph.");
-			}
-
-			Future<Object> jobRemoved = leadingJobManager.ask(
-				new TestingJobManagerMessages.NotifyWhenJobRemoved(jobGraph.getJobID()),
-				deadline.timeLeft());
-
-			leadingJobManager.tell(new JobManagerMessages.CancelJob(jobGraph.getJobID()));
-
-			Await.ready(jobRemoved, deadline.timeLeft());
-		}
-		finally {
-			flink.shutdown();
-		}
-
-		// Verify that everything is clean
-		verifyCleanRecoveryState(config);
 	}
 
 	/**

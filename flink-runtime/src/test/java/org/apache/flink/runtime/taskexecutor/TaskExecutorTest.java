@@ -119,8 +119,12 @@ public class TaskExecutorTest extends TestLogger {
 		final TestingSerialRpcService rpc = new TestingSerialRpcService();
 		final JobLeaderService jobLeaderService = new JobLeaderService(taskManagerLocation);
 		final TestingHighAvailabilityServices haServices = new TestingHighAvailabilityServices();
-		final TestingLeaderRetrievalService rmLeaderRetrievalService = new TestingLeaderRetrievalService();
-		final TestingLeaderRetrievalService jmLeaderRetrievalService = new TestingLeaderRetrievalService();
+		final TestingLeaderRetrievalService rmLeaderRetrievalService = new TestingLeaderRetrievalService(
+			null,
+			null);
+		final TestingLeaderRetrievalService jmLeaderRetrievalService = new TestingLeaderRetrievalService(
+			null,
+			null);
 		haServices.setJobMasterLeaderRetriever(jobId, jmLeaderRetrievalService);
 		haServices.setResourceManagerLeaderRetriever(rmLeaderRetrievalService);
 
@@ -296,7 +300,9 @@ public class TaskExecutorTest extends TestLogger {
 			rpc.registerGateway(address1, rmGateway1);
 			rpc.registerGateway(address2, rmGateway2);
 
-			TestingLeaderRetrievalService testLeaderService = new TestingLeaderRetrievalService();
+			TestingLeaderRetrievalService testLeaderService = new TestingLeaderRetrievalService(
+				null,
+				null);
 
 			TestingHighAvailabilityServices haServices = new TestingHighAvailabilityServices();
 			haServices.setResourceManagerLeaderRetriever(testLeaderService);
@@ -514,8 +520,12 @@ public class TaskExecutorTest extends TestLogger {
 		final JobLeaderService jobLeaderService = new JobLeaderService(taskManagerLocation);
 		final TestingFatalErrorHandler testingFatalErrorHandler = new TestingFatalErrorHandler();
 
-		final TestingLeaderRetrievalService resourceManagerLeaderRetrievalService = new TestingLeaderRetrievalService();
-		final TestingLeaderRetrievalService jobManagerLeaderRetrievalService = new TestingLeaderRetrievalService();
+		final TestingLeaderRetrievalService resourceManagerLeaderRetrievalService = new TestingLeaderRetrievalService(
+			null,
+			null);
+		final TestingLeaderRetrievalService jobManagerLeaderRetrievalService = new TestingLeaderRetrievalService(
+			null,
+			null);
 		haServices.setResourceManagerLeaderRetriever(resourceManagerLeaderRetrievalService);
 		haServices.setJobMasterLeaderRetriever(jobId, jobManagerLeaderRetrievalService);
 
@@ -735,7 +745,9 @@ public class TaskExecutorTest extends TestLogger {
 			ResourceManagerGateway rmGateway1 = mock(ResourceManagerGateway.class);
 			rpc.registerGateway(address1, rmGateway1);
 
-			TestingLeaderRetrievalService testLeaderService = new TestingLeaderRetrievalService();
+			TestingLeaderRetrievalService testLeaderService = new TestingLeaderRetrievalService(
+				"localhost",
+				HighAvailabilityServices.DEFAULT_LEADER_ID);
 
 			TestingHighAvailabilityServices haServices = new TestingHighAvailabilityServices();
 			haServices.setResourceManagerLeaderRetriever(testLeaderService);
