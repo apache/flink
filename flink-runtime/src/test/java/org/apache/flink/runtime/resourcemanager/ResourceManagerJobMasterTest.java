@@ -21,6 +21,7 @@ package org.apache.flink.runtime.resourcemanager;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterRegistrationSuccess;
@@ -112,7 +113,9 @@ public class ResourceManagerJobMasterTest {
 		String jobMasterAddress = "/jobMasterAddress1";
 		JobID jobID = mockJobMaster(jobMasterAddress);
 		TestingLeaderElectionService resourceManagerLeaderElectionService = new TestingLeaderElectionService();
-		TestingLeaderRetrievalService jobMasterLeaderRetrievalService = new TestingLeaderRetrievalService();
+		TestingLeaderRetrievalService jobMasterLeaderRetrievalService = new TestingLeaderRetrievalService(
+			"localhost",
+			HighAvailabilityServices.DEFAULT_LEADER_ID);
 		TestingFatalErrorHandler testingFatalErrorHandler = new TestingFatalErrorHandler();
 		final ResourceManager resourceManager = createAndStartResourceManager(resourceManagerLeaderElectionService, jobID, jobMasterLeaderRetrievalService, testingFatalErrorHandler);
 		final UUID rmLeaderSessionId = grantResourceManagerLeadership(resourceManagerLeaderElectionService);
@@ -136,7 +139,9 @@ public class ResourceManagerJobMasterTest {
 		String jobMasterAddress = "/jobMasterAddress1";
 		JobID jobID = mockJobMaster(jobMasterAddress);
 		TestingLeaderElectionService resourceManagerLeaderElectionService = new TestingLeaderElectionService();
-		TestingLeaderRetrievalService jobMasterLeaderRetrievalService = new TestingLeaderRetrievalService();
+		TestingLeaderRetrievalService jobMasterLeaderRetrievalService = new TestingLeaderRetrievalService(
+			"localhost",
+			HighAvailabilityServices.DEFAULT_LEADER_ID);
 		TestingFatalErrorHandler testingFatalErrorHandler = new TestingFatalErrorHandler();
 		final ResourceManager resourceManager = createAndStartResourceManager(resourceManagerLeaderElectionService, jobID, jobMasterLeaderRetrievalService, testingFatalErrorHandler);
 		final UUID rmLeaderSessionId = grantResourceManagerLeadership(resourceManagerLeaderElectionService);
@@ -160,7 +165,9 @@ public class ResourceManagerJobMasterTest {
 		String jobMasterAddress = "/jobMasterAddress1";
 		JobID jobID = mockJobMaster(jobMasterAddress);
 		TestingLeaderElectionService resourceManagerLeaderElectionService = new TestingLeaderElectionService();
-		TestingLeaderRetrievalService jobMasterLeaderRetrievalService = new TestingLeaderRetrievalService();
+		TestingLeaderRetrievalService jobMasterLeaderRetrievalService = new TestingLeaderRetrievalService(
+			"localhost",
+			HighAvailabilityServices.DEFAULT_LEADER_ID);
 		TestingFatalErrorHandler testingFatalErrorHandler = new TestingFatalErrorHandler();
 		final ResourceManager resourceManager = createAndStartResourceManager(resourceManagerLeaderElectionService, jobID, jobMasterLeaderRetrievalService, testingFatalErrorHandler);
 		final UUID rmLeaderSessionId = grantResourceManagerLeadership(resourceManagerLeaderElectionService);

@@ -27,12 +27,12 @@ import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager
 import org.apache.flink.runtime.clusterframework.types.ResourceID
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices
 import org.apache.flink.runtime.instance._
 import org.apache.flink.runtime.jobmanager.JobManagerRegistrationTest.PlainForwardingActor
 import org.apache.flink.runtime.messages.JobManagerMessages.LeaderSessionMessage
 import org.apache.flink.runtime.messages.RegistrationMessages.{AcknowledgeRegistration, AlreadyRegistered, RegisterTaskManager}
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation
-
 import org.apache.flink.runtime.testutils.TestingResourceManager
 import org.apache.flink.runtime.util.LeaderRetrievalUtils
 import org.junit.Assert.{assertNotEquals, assertNotNull}
@@ -87,7 +87,7 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
             connectionInfo1,
             hardwareDescription,
             1),
-          new AkkaActorGateway(tm1, null))
+          new AkkaActorGateway(tm1, HighAvailabilityServices.DEFAULT_LEADER_ID))
 
         val response = expectMsgType[LeaderSessionMessage]
         response match {
@@ -104,7 +104,7 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
             connectionInfo2,
             hardwareDescription,
             1),
-          new AkkaActorGateway(tm2, null))
+          new AkkaActorGateway(tm2, HighAvailabilityServices.DEFAULT_LEADER_ID))
 
         val response = expectMsgType[LeaderSessionMessage]
         response match {
@@ -123,7 +123,7 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
       val jm = startTestingJobManager(_system)
       val rm = startTestingResourceManager(_system, jm.actor())
 
-      val selfGateway = new AkkaActorGateway(testActor, null)
+      val selfGateway = new AkkaActorGateway(testActor, HighAvailabilityServices.DEFAULT_LEADER_ID)
 
       val resourceID = ResourceID.generate()
       val connectionInfo = new TaskManagerLocation(resourceID, InetAddress.getLocalHost, 1)
@@ -155,17 +155,23 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
           selfGateway)
 
         expectMsgType[LeaderSessionMessage] match {
-          case LeaderSessionMessage(null, AcknowledgeRegistration(_, _)) =>
+          case LeaderSessionMessage(
+            HighAvailabilityServices.DEFAULT_LEADER_ID,
+            AcknowledgeRegistration(_, _)) =>
           case m => fail("Wrong message type: " + m)
         }
 
         expectMsgType[LeaderSessionMessage] match {
-          case LeaderSessionMessage(null, AlreadyRegistered(_, _)) =>
+          case LeaderSessionMessage(
+            HighAvailabilityServices.DEFAULT_LEADER_ID,
+            AlreadyRegistered(_, _)) =>
           case m => fail("Wrong message type: " + m)
         }
 
         expectMsgType[LeaderSessionMessage] match {
-          case LeaderSessionMessage(null, AlreadyRegistered(_, _)) =>
+          case LeaderSessionMessage(
+            HighAvailabilityServices.DEFAULT_LEADER_ID,
+            AlreadyRegistered(_, _)) =>
           case m => fail("Wrong message type: " + m)
         }
       }
@@ -182,7 +188,7 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
       None,
       classOf[JobManager],
       classOf[MemoryArchivist])
-    new AkkaActorGateway(jm, null)
+    new AkkaActorGateway(jm, HighAvailabilityServices.DEFAULT_LEADER_ID)
   }
 
   private def startTestingResourceManager(system: ActorSystem, jm: ActorRef): ActorGateway = {
@@ -193,7 +199,7 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll {
       _system,
       LeaderRetrievalUtils.createLeaderRetrievalService(config, jm),
       classOf[TestingResourceManager])
-    new AkkaActorGateway(rm, null)
+    new AkkaActorGateway(rm, HighAvailabilityServices.DEFAULT_LEADER_ID)
   }
 }
 

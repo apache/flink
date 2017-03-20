@@ -53,8 +53,8 @@ public class LeaderElectionRetrievalTestingCluster extends TestingCluster {
 		this.userConfiguration = userConfiguration;
 		this.useSingleActorSystem = singleActorSystem;
 
-		leaderElectionServices = new ArrayList<TestingLeaderElectionService>();
-		leaderRetrievalServices = new ArrayList<TestingLeaderRetrievalService>();
+		leaderElectionServices = new ArrayList<>();
+		leaderRetrievalServices = new ArrayList<>();
 	}
 
 	@Override
@@ -78,7 +78,9 @@ public class LeaderElectionRetrievalTestingCluster extends TestingCluster {
 
 	@Override
 	public LeaderRetrievalService createLeaderRetrievalService() {
-		leaderRetrievalServices.add(new TestingLeaderRetrievalService());
+		leaderRetrievalServices.add(new TestingLeaderRetrievalService(
+			null,
+			null));
 
 		return leaderRetrievalServices.get(leaderRetrievalServices.size() - 1);
 	}

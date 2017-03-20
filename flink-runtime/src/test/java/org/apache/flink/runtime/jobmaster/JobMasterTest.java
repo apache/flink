@@ -64,7 +64,9 @@ public class JobMasterTest extends TestLogger {
 	@Test
 	public void testHeartbeatTimeoutWithTaskManager() throws Exception {
 		final TestingHighAvailabilityServices haServices = new TestingHighAvailabilityServices();
-		final TestingLeaderRetrievalService rmLeaderRetrievalService = new TestingLeaderRetrievalService();
+		final TestingLeaderRetrievalService rmLeaderRetrievalService = new TestingLeaderRetrievalService(
+			null,
+			null);
 		haServices.setResourceManagerLeaderRetriever(rmLeaderRetrievalService);
 		haServices.setCheckpointRecoveryFactory(mock(CheckpointRecoveryFactory.class));
 		final TestingFatalErrorHandler testingFatalErrorHandler = new TestingFatalErrorHandler();

@@ -84,10 +84,14 @@ public abstract class FlinkUntypedActor extends UntypedActor {
 			UUID expectedID = getLeaderSessionID();
 			UUID actualID = msg.leaderSessionID();
 
-			if(expectedID == actualID || (expectedID != null && expectedID.equals(actualID))) {
-				handleMessage(msg.message());
+			if (expectedID != null) {
+				if (expectedID.equals(actualID)) {
+					handleMessage(msg.message());
+				} else {
+					handleDiscardedMessage(expectedID, msg);
+				}
 			} else {
-				handleDiscardedMessage(expectedID, msg);
+				handleNoLeaderId(msg);
 			}
 		} else if (message instanceof RequiresLeaderSessionID) {
 			throw new Exception("Received a message " + message + " without a leader session " +
@@ -102,6 +106,10 @@ public abstract class FlinkUntypedActor extends UntypedActor {
 		LOG.warn("Discard message {} because the expected leader session ID {} did not " +
 				"equal the received leader session ID {}.", msg, expectedLeaderSessionID,
 				msg.leaderSessionID());
+	}
+
+	private void handleNoLeaderId(LeaderSessionMessage msg) {
+		LOG.warn("Discard message {} because there is currently no valid leader id known.", msg);
 	}
 
 	/**
