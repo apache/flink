@@ -13,7 +13,6 @@
 package org.apache.flink.python.api.streaming.data;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.io.Serializable;
@@ -28,17 +27,17 @@ import org.apache.flink.util.Collector;
 /**
  * This class is used to read data from memory-mapped files.
  */
-public class PythonReceiver implements Serializable {
+public class PythonReceiver<OUT> implements Serializable {
 	private static final long serialVersionUID = -2474088929850009968L;
 
-	private File inputFile;
-	private RandomAccessFile inputRAF;
-	private FileChannel inputChannel;
-	private MappedByteBuffer fileBuffer;
+	private transient File inputFile;
+	private transient RandomAccessFile inputRAF;
+	private transient FileChannel inputChannel;
+	private transient MappedByteBuffer fileBuffer;
 
 	private final boolean readAsByteArray;
 
-	private Deserializer<?> deserializer = null;
+	private transient Deserializer<OUT> deserializer;
 
 	public PythonReceiver(boolean usesByteArray) {
 		readAsByteArray = usesByteArray;
@@ -47,10 +46,10 @@ public class PythonReceiver implements Serializable {
 	//=====Setup========================================================================================================
 	public void open(String path) throws IOException {
 		setupMappedFile(path);
-		deserializer = readAsByteArray ? new ByteArrayDeserializer() : new TupleDeserializer();
+		deserializer = (Deserializer<OUT>) (readAsByteArray ? new ByteArrayDeserializer() : new TupleDeserializer());
 	}
 
-	private void setupMappedFile(String inputFilePath) throws FileNotFoundException, IOException {
+	private void setupMappedFile(String inputFilePath) throws IOException {
 		File x = new File(FLINK_TMP_DATA_DIR);
 		x.mkdirs();
 
@@ -75,6 +74,7 @@ public class PythonReceiver implements Serializable {
 	private void closeMappedFile() throws IOException {
 		inputChannel.close();
 		inputRAF.close();
+		inputFile.delete();
 	}
 
 
@@ -89,7 +89,7 @@ public class PythonReceiver implements Serializable {
 	 * @throws IOException
 	 */
 	@SuppressWarnings({ "rawtypes", "unchecked" })
-	public void collectBuffer(Collector c, int bufferSize) throws IOException {
+	public void collectBuffer(Collector<OUT> c, int bufferSize) throws IOException {
 		fileBuffer.position(0);
 
 		while (fileBuffer.position() < bufferSize) {
@@ -99,7 +99,7 @@ public class PythonReceiver implements Serializable {
 
 	//=====Deserializer=================================================================================================
 	private interface Deserializer<T> {
-		public T deserialize();
+		T deserialize();
 	}
 
 	private class ByteArrayDeserializer implements Deserializer<byte[]> {

@@ -27,13 +27,16 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
  * @param <IN2>
  * @param <OUT>
  */
-public class PythonCoGroup<IN1, IN2, OUT> extends RichCoGroupFunction<IN1, IN2, OUT> implements ResultTypeQueryable {
-	private final PythonStreamer streamer;
-	private transient final TypeInformation<OUT> typeInformation;
+public class PythonCoGroup<IN1, IN2, OUT> extends RichCoGroupFunction<IN1, IN2, OUT> implements ResultTypeQueryable<OUT> {
+
+	private static final long serialVersionUID = -3997396583317513873L;
+
+	private final PythonStreamer<IN1, IN2, OUT> streamer;
+	private final transient TypeInformation<OUT> typeInformation;
 
 	public PythonCoGroup(int id, TypeInformation<OUT> typeInformation) {
 		this.typeInformation = typeInformation;
-		streamer = new PythonStreamer(this, id, true);
+		streamer = new PythonStreamer<>(this, id, true);
 	}
 
 	/**

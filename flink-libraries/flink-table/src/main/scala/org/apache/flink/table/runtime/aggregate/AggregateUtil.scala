@@ -73,6 +73,7 @@ import org.apache.flink.streaming.api.windowing.windows.GlobalWindow
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.calcite.sql.`type`.SqlTypeName
 import java.util.List
+import org.apache.flink.table.functions.AggregateFunction
 
 object AggregateUtil {
 
@@ -116,51 +117,11 @@ object AggregateUtil {
         aggregationStateType)
     }
   }
-  
-  private[flink] def CreateBoundedProcessingOverWindowFunction(
-      namedAggregates: Seq[CalcitePair[AggregateCall, String]],
-    inputType: RelDataType): WindowFunction[Row, Row, Tuple, GlobalWindow] = {
-    
-    val (aggFields, aggregates) =
-      transformToAggregateFunctions(
-        namedAggregates.map(_.getKey),
-        inputType,
-        needRetraction = false)
-
-    val aggregationStateType: RowTypeInfo =
-      createDataSetAggregateBufferDataType(Array(), aggregates, inputType)
-    
-    new BoundedProcessingOverWindowFunction[GlobalWindow](
-      aggregates,
-      aggFields,
-      inputType.getFieldCount)
-      
-  }
-  
-    private[flink] def CreateBoundedProcessingOverGlobalWindowFunction(
-      namedAggregates: Seq[CalcitePair[AggregateCall, String]],
-    inputType: RelDataType): AllWindowFunction[Row,Row,GlobalWindow] = {
-
-    val (aggFields, aggregates) =
-      transformToAggregateFunctions(
-        namedAggregates.map(_.getKey),
-        inputType,
-        needRetraction = false)
-
-    val aggregationStateType: RowTypeInfo =
-      createDataSetAggregateBufferDataType(Array(), aggregates, inputType)
-
-    new BoundedProcessingOverAllWindowFunction[GlobalWindow](
-      aggregates,
-      aggFields,
-      inputType.getFieldCount)
-
-  }
-  
+ 
   def getLowerBoundary(
       constants: ImmutableList[RexLiteral],
       lowerBound: RexWindowBound,
-      input: RelNode):Int = {
+      input: RelNode): Int = {
     val ref: RexInputRef = lowerBound.getOffset.asInstanceOf[RexInputRef]
     val index:Int = ref.getIndex
     val count: Int = input.getRowType.getFieldCount
@@ -737,6 +698,36 @@ object AggregateUtil {
     val accumulatorRowType = createAccumulatorRowType(inputType, aggregates)
     val aggResultRowType = new RowTypeInfo(aggResultTypes: _*)
     val aggFunction = new AggregateAggFunction(aggregates, aggFields)
+
+    (aggFunction, accumulatorRowType, aggResultRowType)
+  }
+  
+  
+   private[flink] def createDataStreamOverAggregateFunction(
+      namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+      inputType: RelDataType,
+      outputType: RelDataType,
+      groupKeysIndex: Array[Int])
+    : (DataStreamAggFunction[Row, Row, Row], RowTypeInfo, RowTypeInfo) = {
+
+    val (aggFields, aggregates) =
+      transformToAggregateFunctions(
+        namedAggregates.map(_.getKey),
+        inputType,
+        needRetraction = false)
+
+    val aggregateMapping = getAggregateMapping(namedAggregates, outputType)
+
+    if (aggregateMapping.length != namedAggregates.length) {
+      throw new TableException(
+        "Could not find output field in input data type or aggregate functions.")
+    }
+
+    val aggResultTypes = outputType.getFieldList.map(a => FlinkTypeFactory.toTypeInfo(a.getType))
+    
+    val accumulatorRowType = createAccumulatorRowType(inputType, aggregates)
+    val aggResultRowType = new RowTypeInfo(aggResultTypes: _*)
+    val aggFunction = new AggregateAggOverFunction(aggregates, aggFields, inputType.getFieldCount)
 
     (aggFunction, accumulatorRowType, aggResultRowType)
   }

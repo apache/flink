@@ -17,100 +17,39 @@
 
 package org.apache.flink.streaming.api.graph;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.FilterFunction;
+import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSink;
+import org.apache.flink.streaming.api.datastream.IterativeStream;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
-import org.apache.flink.util.InstantiationUtil;
-import org.apache.flink.util.SerializedValue;
+import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
+import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 
-import java.io.IOException;
+import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 @SuppressWarnings("serial")
 public class StreamingJobGraphGeneratorTest extends TestLogger {
-	
-	@Test
-	public void testExecutionConfigSerialization() throws IOException, ClassNotFoundException {
-		final long seed = System.currentTimeMillis();
-		final Random r = new Random(seed);
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-
-		StreamGraph streamingJob = new StreamGraph(env);
-		StreamingJobGraphGenerator compiler = new StreamingJobGraphGenerator(streamingJob);
-		
-		boolean closureCleanerEnabled = r.nextBoolean(), forceAvroEnabled = r.nextBoolean(), forceKryoEnabled = r.nextBoolean(), objectReuseEnabled = r.nextBoolean(), sysoutLoggingEnabled = r.nextBoolean();
-		int dop = 1 + r.nextInt(10);
-		
-		ExecutionConfig config = streamingJob.getExecutionConfig();
-		if(closureCleanerEnabled) {
-			config.enableClosureCleaner();
-		} else {
-			config.disableClosureCleaner();
-		}
-		if(forceAvroEnabled) {
-			config.enableForceAvro();
-		} else {
-			config.disableForceAvro();
-		}
-		if(forceKryoEnabled) {
-			config.enableForceKryo();
-		} else {
-			config.disableForceKryo();
-		}
-		if(objectReuseEnabled) {
-			config.enableObjectReuse();
-		} else {
-			config.disableObjectReuse();
-		}
-		if(sysoutLoggingEnabled) {
-			config.enableSysoutLogging();
-		} else {
-			config.disableSysoutLogging();
-		}
-		config.setParallelism(dop);
-		
-		JobGraph jobGraph = compiler.createJobGraph();
-
-		final String EXEC_CONFIG_KEY = "runtime.config";
-
-		InstantiationUtil.writeObjectToConfig(jobGraph.getSerializedExecutionConfig(),
-			jobGraph.getJobConfiguration(),
-			EXEC_CONFIG_KEY);
-
-		SerializedValue<ExecutionConfig> serializedExecutionConfig = InstantiationUtil.readObjectFromConfig(
-				jobGraph.getJobConfiguration(),
-				EXEC_CONFIG_KEY,
-				Thread.currentThread().getContextClassLoader());
-
-		assertNotNull(serializedExecutionConfig);
-
-		ExecutionConfig executionConfig = serializedExecutionConfig.deserializeValue(getClass().getClassLoader());
-
-		assertEquals(closureCleanerEnabled, executionConfig.isClosureCleanerEnabled());
-		assertEquals(forceAvroEnabled, executionConfig.isForceAvroEnabled());
-		assertEquals(forceKryoEnabled, executionConfig.isForceKryoEnabled());
-		assertEquals(objectReuseEnabled, executionConfig.isObjectReuseEnabled());
-		assertEquals(sysoutLoggingEnabled, executionConfig.isSysoutLoggingEnabled());
-		assertEquals(dop, executionConfig.getParallelism());
-	}
-	
 	@Test
 	public void testParallelismOneNotChained() {
 
@@ -210,7 +149,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		StreamConfig sourceConfig = new StreamConfig(sourceVertex.getConfiguration());
 		StreamConfig mapConfig = new StreamConfig(mapPrintVertex.getConfiguration());
 		Map<Integer, StreamConfig> chainedConfigs = mapConfig.getTransitiveChainedTaskConfigs(getClass().getClassLoader());
-		StreamConfig printConfig = chainedConfigs.get(3);
+		StreamConfig printConfig = chainedConfigs.values().iterator().next();
 
 		assertTrue(sourceConfig.isChainStart());
 		assertTrue(sourceConfig.isChainEnd());
@@ -220,5 +159,152 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 
 		assertFalse(printConfig.isChainStart());
 		assertTrue(printConfig.isChainEnd());
+	}
+
+	/**
+	 * Verifies that the resources are merged correctly for chained operators (covers source and sink cases)
+	 * when generating job graph
+	 */
+	@Test
+	public void testResourcesForChainedSourceSink() throws Exception {
+		ResourceSpec resource1 = new ResourceSpec(0.1, 100);
+		ResourceSpec resource2 = new ResourceSpec(0.2, 200);
+		ResourceSpec resource3 = new ResourceSpec(0.3, 300);
+		ResourceSpec resource4 = new ResourceSpec(0.4, 400);
+		ResourceSpec resource5 = new ResourceSpec(0.5, 500);
+
+		Method opMethod = SingleOutputStreamOperator.class.getDeclaredMethod("setResources", ResourceSpec.class);
+		opMethod.setAccessible(true);
+
+		Method sinkMethod = DataStreamSink.class.getDeclaredMethod("setResources", ResourceSpec.class);
+		sinkMethod.setAccessible(true);
+
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStream<Tuple2<Integer, Integer>> source = env.addSource(new ParallelSourceFunction<Tuple2<Integer, Integer>>() {
+			@Override
+			public void run(SourceContext<Tuple2<Integer, Integer>> ctx) throws Exception {
+			}
+
+			@Override
+			public void cancel() {
+			}
+		});
+		opMethod.invoke(source, resource1);
+
+		DataStream<Tuple2<Integer, Integer>> map = source.map(new MapFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>() {
+			@Override
+			public Tuple2<Integer, Integer> map(Tuple2<Integer, Integer> value) throws Exception {
+				return value;
+			}
+		});
+		opMethod.invoke(map, resource2);
+
+		// CHAIN(Source -> Map -> Filter)
+		DataStream<Tuple2<Integer, Integer>> filter = map.filter(new FilterFunction<Tuple2<Integer, Integer>>() {
+			@Override
+			public boolean filter(Tuple2<Integer, Integer> value) throws Exception {
+				return false;
+			}
+		});
+		opMethod.invoke(filter, resource3);
+
+		DataStream<Tuple2<Integer, Integer>> reduce = filter.keyBy(0).reduce(new ReduceFunction<Tuple2<Integer, Integer>>() {
+			@Override
+			public Tuple2<Integer, Integer> reduce(Tuple2<Integer, Integer> value1, Tuple2<Integer, Integer> value2) throws Exception {
+				return new Tuple2<>(value1.f0, value1.f1 + value2.f1);
+			}
+		});
+		opMethod.invoke(reduce, resource4);
+
+		DataStreamSink<Tuple2<Integer, Integer>> sink = reduce.addSink(new SinkFunction<Tuple2<Integer, Integer>>() {
+			@Override
+			public void invoke(Tuple2<Integer, Integer> value) throws Exception {
+			}
+		});
+		sinkMethod.invoke(sink, resource5);
+
+		JobGraph jobGraph = new StreamingJobGraphGenerator(env.getStreamGraph()).createJobGraph();
+
+		JobVertex sourceMapFilterVertex = jobGraph.getVerticesSortedTopologicallyFromSources().get(0);
+		JobVertex reduceSinkVertex = jobGraph.getVerticesSortedTopologicallyFromSources().get(1);
+
+		assertTrue(sourceMapFilterVertex.getMinResources().equals(resource1.merge(resource2).merge(resource3)));
+		assertTrue(reduceSinkVertex.getPreferredResources().equals(resource4.merge(resource5)));
+	}
+
+	/**
+	 * Verifies that the resources are merged correctly for chained operators (covers middle chaining and iteration cases)
+	 * when generating job graph
+	 */
+	@Test
+	public void testResourcesForIteration() throws Exception {
+		ResourceSpec resource1 = new ResourceSpec(0.1, 100);
+		ResourceSpec resource2 = new ResourceSpec(0.2, 200);
+		ResourceSpec resource3 = new ResourceSpec(0.3, 300);
+		ResourceSpec resource4 = new ResourceSpec(0.4, 400);
+		ResourceSpec resource5 = new ResourceSpec(0.5, 500);
+
+		Method opMethod = SingleOutputStreamOperator.class.getDeclaredMethod("setResources", ResourceSpec.class);
+		opMethod.setAccessible(true);
+
+		Method sinkMethod = DataStreamSink.class.getDeclaredMethod("setResources", ResourceSpec.class);
+		sinkMethod.setAccessible(true);
+
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStream<Integer> source = env.addSource(new ParallelSourceFunction<Integer>() {
+			@Override
+			public void run(SourceContext<Integer> ctx) throws Exception {
+			}
+
+			@Override
+			public void cancel() {
+			}
+		}).name("test_source");
+		opMethod.invoke(source, resource1);
+
+		IterativeStream<Integer> iteration = source.iterate(3000);
+		opMethod.invoke(iteration, resource2);
+
+		DataStream<Integer> flatMap = iteration.flatMap(new FlatMapFunction<Integer, Integer>() {
+			@Override
+			public void flatMap(Integer value, Collector<Integer> out) throws Exception {
+				out.collect(value);
+			}
+		}).name("test_flatMap");
+		opMethod.invoke(flatMap, resource3);
+
+		// CHAIN(flatMap -> Filter)
+		DataStream<Integer> increment = flatMap.filter(new FilterFunction<Integer>() {
+			@Override
+			public boolean filter(Integer value) throws Exception {
+				return false;
+			}
+		}).name("test_filter");
+		opMethod.invoke(increment, resource4);
+
+		DataStreamSink<Integer> sink = iteration.closeWith(increment).addSink(new SinkFunction<Integer>() {
+			@Override
+			public void invoke(Integer value) throws Exception {
+			}
+		}).disableChaining().name("test_sink");
+		sinkMethod.invoke(sink, resource5);
+
+		JobGraph jobGraph = new StreamingJobGraphGenerator(env.getStreamGraph()).createJobGraph();
+
+		for (JobVertex jobVertex : jobGraph.getVertices()) {
+			if (jobVertex.getName().contains("test_source")) {
+				assertTrue(jobVertex.getMinResources().equals(resource1));
+			} else if (jobVertex.getName().contains("Iteration_Source")) {
+				assertTrue(jobVertex.getPreferredResources().equals(resource2));
+			} else if (jobVertex.getName().contains("test_flatMap")) {
+				assertTrue(jobVertex.getMinResources().equals(resource3.merge(resource4)));
+			} else if (jobVertex.getName().contains("Iteration_Tail")) {
+				assertTrue(jobVertex.getPreferredResources().equals(ResourceSpec.DEFAULT));
+			} else if (jobVertex.getName().contains("test_sink")) {
+				assertTrue(jobVertex.getMinResources().equals(resource5));
+			}
+		}
 	}
 }

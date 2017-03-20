@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.plan.logical.rel
 
+import java.util.List
+
 import org.apache.calcite.plan.{Convention, RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
@@ -27,7 +29,6 @@ import org.apache.flink.table.calcite.{FlinkTypeFactory, FlinkRelBuilder}
 import FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.plan.logical.LogicalWindow
 
-import java.util.List
 
 class LogicalWindowAggregate(
     window: LogicalWindow,

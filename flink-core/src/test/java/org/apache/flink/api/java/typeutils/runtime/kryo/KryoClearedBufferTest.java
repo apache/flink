@@ -22,13 +22,11 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
-
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
-
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -36,7 +34,6 @@ import java.io.ByteArrayInputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.Serializable;
-import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
 public class KryoClearedBufferTest {
@@ -178,7 +175,7 @@ public class KryoClearedBufferTest {
 
 			byte[] tempBuffer = new byte[numBytes];
 
-			source.read(tempBuffer);
+			source.readFully(tempBuffer);
 
 			System.arraycopy(tempBuffer, 0, buffer, position, numBytes);
 

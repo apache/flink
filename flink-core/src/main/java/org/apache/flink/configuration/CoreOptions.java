@@ -23,9 +23,10 @@ import org.apache.flink.annotation.PublicEvolving;
 @PublicEvolving
 public class CoreOptions {
 
-	/**
-	 * 
-	 */
+	// ------------------------------------------------------------------------
+	//  process parameters
+	// ------------------------------------------------------------------------
+
 	public static final ConfigOption<String> FLINK_JVM_OPTIONS = ConfigOptions
 		.key("env.java.opts")
 		.defaultValue("");
@@ -38,11 +39,24 @@ public class CoreOptions {
 		.key("env.java.opts.taskmanager")
 		.defaultValue("");
 
+	// ------------------------------------------------------------------------
+	//  program
+	// ------------------------------------------------------------------------
+
 	public static final ConfigOption<Integer> DEFAULT_PARALLELISM_KEY = ConfigOptions
 		.key("parallelism.default")
 		.defaultValue(-1);
-	
+
+	// ------------------------------------------------------------------------
+	//  checkpoints / fault tolerance
+	// ------------------------------------------------------------------------
+
 	public static final ConfigOption<String> STATE_BACKEND = ConfigOptions
 		.key("state.backend")
 		.noDefaultValue();
+
+	/** The maximum number of completed checkpoint instances to retain.*/
+	public static final ConfigOption<Integer> MAX_RETAINED_CHECKPOINTS = ConfigOptions
+		.key("state.checkpoints.num-retained")
+		.defaultValue(1);
 }

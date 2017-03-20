@@ -501,7 +501,7 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 		result.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
 
 		// the expected sequences of matching event ids
-		expected = "Left(1.0)\nRight(2.0,2.0,2.0)";
+		expected = "Left(1.0)\nLeft(2.0)\nLeft(2.0)\nRight(2.0,2.0,2.0)";
 
 		env.execute();
 	}

@@ -21,17 +21,18 @@ package org.apache.flink.migration.runtime.state.memory;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.migration.runtime.state.KvStateSnapshot;
+import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
+import org.apache.flink.runtime.state.heap.StateTable;
 import org.apache.flink.runtime.util.DataInputDeserializer;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
 
 @Deprecated
 @SuppressWarnings("deprecation")
 public abstract class AbstractMemStateSnapshot<K, N, SV, S extends State, SD extends StateDescriptor<S, ?>> 
-		implements KvStateSnapshot<K, N, S, SD> {
+		implements KvStateSnapshot<K, N, S, SD>, MigrationRestoreSnapshot<K, N, SV> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -73,24 +74,21 @@ public abstract class AbstractMemStateSnapshot<K, N, SV, S extends State, SD ext
 		this.data = data;
 	}
 
-	public HashMap<N, Map<K, SV>> deserialize() throws IOException {
-		DataInputDeserializer inView = new DataInputDeserializer(data, 0, data.length);
+	@Override
+	@SuppressWarnings("unchecked")
+	public StateTable<K, N, SV> deserialize(
+			String stateName,
+			HeapKeyedStateBackend<K> stateBackend) throws IOException {
 
-		final int numKeys = inView.readInt();
-		HashMap<N, Map<K, SV>> stateMap = new HashMap<>(numKeys);
-
-		for (int i = 0; i < numKeys && !closed; i++) {
-			N namespace = namespaceSerializer.deserialize(inView);
-			final int numValues = inView.readInt();
-			Map<K, SV> namespaceMap = new HashMap<>(numValues);
-			stateMap.put(namespace, namespaceMap);
-			for (int j = 0; j < numValues; j++) {
-				K key = keySerializer.deserialize(inView);
-				SV value = stateSerializer.deserialize(inView);
-				namespaceMap.put(key, value);
-			}
-		}
-		return stateMap;
+		final DataInputDeserializer inView = new DataInputDeserializer(data, 0, data.length);
+		AbstractMigrationRestoreStrategy<K, N, SV> restoreStrategy =
+				new AbstractMigrationRestoreStrategy<K, N, SV>(keySerializer, namespaceSerializer, stateSerializer) {
+					@Override
+					protected DataInputView openDataInputView() throws IOException {
+						return inView;
+					}
+				};
+		return restoreStrategy.deserialize(stateName, stateBackend);
 	}
 
 	/**

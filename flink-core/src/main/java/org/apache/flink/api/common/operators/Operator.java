@@ -28,8 +28,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Visitable;
 
-import javax.annotation.Nullable;
-
 /**
 * Abstract base class for all operators. An operator is a source, sink, or it applies an operation to
 * one or more inputs, producing a result.
@@ -47,11 +45,9 @@ public abstract class Operator<OUT> implements Visitable<Operator<?>> {
 		
 	private int parallelism = ExecutionConfig.PARALLELISM_DEFAULT;  // the number of parallel instances to use
 
-	@Nullable
-	private ResourceSpec minResources;          // the minimum resource of the contract instance.
+	private ResourceSpec minResources = ResourceSpec.DEFAULT;          // the minimum resource of the contract instance.
 
-	@Nullable
-	private ResourceSpec preferredResources;    // the preferred resource of the contract instance.
+	private ResourceSpec preferredResources = ResourceSpec.DEFAULT;    // the preferred resource of the contract instance.
 
 	/**
 	 * The return type of the user function.
@@ -199,7 +195,6 @@ public abstract class Operator<OUT> implements Visitable<Operator<?>> {
 	 *
 	 * @return The minimum resources of this operator.
 	 */
-	@Nullable
 	@PublicEvolving
 	public ResourceSpec getMinResources() {
 		return this.minResources;
@@ -211,7 +206,6 @@ public abstract class Operator<OUT> implements Visitable<Operator<?>> {
 	 *
 	 * @return The preferred resource of this operator.
 	 */
-	@Nullable
 	@PublicEvolving
 	public ResourceSpec getPreferredResources() {
 		return this.preferredResources;
@@ -225,7 +219,7 @@ public abstract class Operator<OUT> implements Visitable<Operator<?>> {
 	 * @param preferredResources The preferred resource of this operator.
 	 */
 	@PublicEvolving
-	public void setResource(ResourceSpec minResources, ResourceSpec preferredResources) {
+	public void setResources(ResourceSpec minResources, ResourceSpec preferredResources) {
 		this.minResources = minResources;
 		this.preferredResources = preferredResources;
 	}

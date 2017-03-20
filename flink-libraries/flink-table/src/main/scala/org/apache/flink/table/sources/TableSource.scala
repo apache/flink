@@ -19,7 +19,6 @@
 package org.apache.flink.table.sources
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.api.TableEnvironment
 
 /** Defines an external table by providing schema information and used to produce a
   * [[org.apache.flink.api.scala.DataSet]] or [[org.apache.flink.streaming.api.scala.DataStream]].
@@ -39,4 +38,6 @@ trait TableSource[T] {
   /** Returns the [[TypeInformation]] for the return type of the [[TableSource]]. */
   def getReturnType: TypeInformation[T]
 
+  /** Describes the table source */
+  def explainSource(): String = ""
 }

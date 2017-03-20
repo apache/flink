@@ -77,10 +77,13 @@ public class ContinuousEventTimeTrigger<W extends Window> extends Trigger<Object
 			return TriggerResult.FIRE;
 		}
 
-		ReducingState<Long> fireTimestamp = ctx.getPartitionedState(stateDesc);
-		if (fireTimestamp.get().equals(time)) {
-			fireTimestamp.clear();
-			fireTimestamp.add(time + interval);
+		ReducingState<Long> fireTimestampState = ctx.getPartitionedState(stateDesc);
+
+		Long fireTimestamp = fireTimestampState.get();
+
+		if (fireTimestamp != null && fireTimestamp == time) {
+			fireTimestampState.clear();
+			fireTimestampState.add(time + interval);
 			ctx.registerEventTimeTimer(time + interval);
 			return TriggerResult.FIRE;
 		}

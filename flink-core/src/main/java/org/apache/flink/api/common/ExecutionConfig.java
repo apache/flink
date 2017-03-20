@@ -109,6 +109,9 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 
 	private boolean forceKryo = false;
 
+	/** Flag to indicate whether generic types (through Kryo) are supported */
+	private boolean disableGenericTypes = false;
+
 	private boolean objectReuse = false;
 
 	private boolean autoTypeRegistrationEnabled = true;
@@ -519,6 +522,51 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	}
 
 	/**
+	 * Enables the use generic types which are serialized via Kryo.
+	 * 
+	 * <p>Generic types are enabled by default.
+	 *
+	 * @see #disableGenericTypes()
+	 */
+	public void enableGenericTypes() {
+		disableGenericTypes = false;
+	}
+
+	/**
+	 * Disables the use of generic types (types that would be serialized via Kryo). If this option
+	 * is used, Flink will throw an {@code UnsupportedOperationException} whenever it encounters
+	 * a data type that would go through Kryo for serialization.
+	 *
+	 * <p>Disabling generic types can be helpful to eagerly find and eliminate teh use of types
+	 * that would go through Kryo serialization during runtime. Rather than checking types
+	 * individually, using this option will throw exceptions eagerly in the places where generic
+	 * types are used.
+	 * 
+	 * <p><b>Important:</b> We recommend to use this option only during development and pre-production
+	 * phases, not during actual production use. The application program and/or the input data may be
+	 * such that new, previously unseen, types occur at some point. In that case, setting this option
+	 * would cause the program to fail.
+	 * 
+	 * @see #enableGenericTypes()
+	 */
+	public void disableGenericTypes() {
+		disableGenericTypes = true;
+	}
+
+	/**
+	 * Checks whether generic types are supported. Generic types are types that go through Kryo during
+	 * serialization.
+	 * 
+	 * <p>Generic types are enabled by default.
+	 * 
+	 * @see #enableGenericTypes()
+	 * @see #disableGenericTypes()
+	 */
+	public boolean hasGenericTypesDisabled() {
+		return disableGenericTypes;
+	}
+
+	/**
 	 * Force Flink to use the AvroSerializer for POJOs.
 	 */
 	public void enableForceAvro() {
@@ -804,6 +852,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 				((restartStrategyConfiguration == null && other.restartStrategyConfiguration == null) ||
 					(null != restartStrategyConfiguration && restartStrategyConfiguration.equals(other.restartStrategyConfiguration))) &&
 				forceKryo == other.forceKryo &&
+				disableGenericTypes == other.disableGenericTypes &&
 				objectReuse == other.objectReuse &&
 				autoTypeRegistrationEnabled == other.autoTypeRegistrationEnabled &&
 				forceAvro == other.forceAvro &&
@@ -830,6 +879,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 			parallelism,
 			restartStrategyConfiguration,
 			forceKryo,
+			disableGenericTypes,
 			objectReuse,
 			autoTypeRegistrationEnabled,
 			forceAvro,

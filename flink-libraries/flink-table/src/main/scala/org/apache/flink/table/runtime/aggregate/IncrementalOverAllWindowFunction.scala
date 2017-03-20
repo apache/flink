@@ -30,23 +30,17 @@ import org.apache.flink.table.functions.Accumulator
 import java.lang.Iterable
 import org.apache.flink.streaming.api.functions.windowing.RichAllWindowFunction
 
-class BoundedProcessingOverAllWindowFunction[W <: Window](
-  private val aggregates: Array[AggregateFunction[_]],
-  private val aggFields: Array[Int],
+class IncrementalAggregateOverAllWindowFunction[W <: Window](
+  private val numGroupingKey: Int,
+  private val numAggregates: Int,
   private val forwardedFieldCount: Int)
-    extends RichAllWindowFunction[Row, Row, W] {
-
-  Preconditions.checkNotNull(aggregates)
-  Preconditions.checkNotNull(aggFields)
-  Preconditions.checkArgument(aggregates.length == aggFields.length)
+  extends RichAllWindowFunction[Row, Row, W] {
 
   private var output: Row = _
-  private var accumulators: Row = _
   private var reuse: Row = _
-
-  output = new Row(forwardedFieldCount + aggregates.length)
-  if (null == accumulators) {
-    accumulators = new Row(aggregates.length)
+  
+  override def open(parameters: Configuration): Unit = {
+    output = new Row(forwardedFieldCount + numAggregates)
   }
 
   override def apply(
@@ -54,44 +48,27 @@ class BoundedProcessingOverAllWindowFunction[W <: Window](
     records: Iterable[Row],
     out: Collector[Row]): Unit = {
 
-    var i = 0
-    // setting the accumulators for each aggregation
-    while (i < aggregates.length) {
-      accumulators.setField(i, aggregates(i).createAccumulator())
-      i += 1
-    }
-    
-    // iterate over window elements, and aggregate values
+   var i = 0
     val iter = records.iterator
     while (iter.hasNext) {
       reuse = iter.next
-      i = 0
-      // for each aggregation, accumulate
-      while (i < aggregates.length) {
-        val accumulator = accumulators.getField(i).asInstanceOf[Accumulator]
-        aggregates(i).accumulate(accumulator, reuse.getField(aggFields(i)))
+      i=0
+      // set the output value of forward fields
+      while (i < forwardedFieldCount) {
+        output.setField(i, reuse.getField(i))
         i += 1
       }
 
-    }
+      i = 0
+      // set aggregated values in the output
+      while (i < numAggregates) {
+        val index = forwardedFieldCount + i
+        output.setField(index, reuse.getField(index))
+        i += 1
+      }
 
-    i = 0
-    // set the output value of forward fields
-    while (i < forwardedFieldCount) {
-      output.setField(i, reuse.getField(i))
-      i += 1
+      out.collect(output)
     }
-
-    i = 0
-    // set aggregated values in the output
-    while (i < aggregates.length) {
-      val index = forwardedFieldCount + i
-      val accumulator = accumulators.getField(i).asInstanceOf[Accumulator]
-      output.setField(index, aggregates(i).getValue(accumulator))
-      i += 1
-    }
-
-    out.collect(output)
   }
 
 }

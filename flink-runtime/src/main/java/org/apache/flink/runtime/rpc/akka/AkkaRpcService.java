@@ -29,7 +29,6 @@ import akka.actor.PoisonPill;
 import akka.actor.Props;
 import akka.dispatch.Futures;
 import akka.dispatch.Mapper;
-
 import akka.pattern.Patterns;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -39,16 +38,16 @@ import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.concurrent.impl.FlinkFuture;
 import org.apache.flink.runtime.rpc.MainThreadExecutable;
-import org.apache.flink.runtime.rpc.SelfGateway;
-import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
+import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.rpc.SelfGateway;
 import org.apache.flink.runtime.rpc.StartStoppable;
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
+import scala.Option;
 import scala.concurrent.duration.FiniteDuration;
 
 import javax.annotation.Nonnull;
@@ -143,9 +142,17 @@ public class AkkaRpcService implements RpcService {
 					ActorRef actorRef = actorIdentity.getRef();
 
 					final String address = AkkaUtils.getAkkaURL(actorSystem, actorRef);
+					final String hostname;
+					Option<String> host = actorRef.path().address().host();
+					if (host.isEmpty()) {
+						hostname = "localhost";
+					} else {
+						hostname = host.get();
+					}
 
 					InvocationHandler akkaInvocationHandler = new AkkaInvocationHandler(
 						address,
+						hostname,
 						actorRef,
 						timeout,
 						maximumFramesize,
@@ -187,9 +194,17 @@ public class AkkaRpcService implements RpcService {
 		LOG.info("Starting RPC endpoint for {} at {} .", rpcEndpoint.getClass().getName(), actorRef.path());
 
 		final String address = AkkaUtils.getAkkaURL(actorSystem, actorRef);
+		final String hostname;
+		Option<String> host = actorRef.path().address().host();
+		if (host.isEmpty()) {
+			hostname = "localhost";
+		} else {
+			hostname = host.get();
+		}
 
 		InvocationHandler akkaInvocationHandler = new AkkaInvocationHandler(
 			address,
+			hostname,
 			actorRef,
 			timeout,
 			maximumFramesize,

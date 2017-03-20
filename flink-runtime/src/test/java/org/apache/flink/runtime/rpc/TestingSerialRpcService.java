@@ -308,6 +308,13 @@ public class TestingSerialRpcService implements RpcService {
 			return address;
 		}
 
+		// this is not a real hostname but the address above is also not a real akka RPC address
+		// and we keep it that way until actually needed by a test case
+		@Override
+		public String getHostname() {
+			return address;
+		}
+
 		@Override
 		public void start() {
 			// do nothing
