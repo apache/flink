@@ -20,18 +20,7 @@ package org.apache.flink.runtime.webmonitor;
 
 import akka.actor.ActorSystem;
 
-import io.netty.bootstrap.ServerBootstrap;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.channel.socket.SocketChannel;
-import io.netty.channel.socket.nio.NioServerSocketChannel;
-import io.netty.handler.codec.http.HttpServerCodec;
-import io.netty.handler.codec.http.router.Handler;
 import io.netty.handler.codec.http.router.Router;
-import io.netty.handler.ssl.SslHandler;
-import io.netty.handler.stream.ChunkedWriteHandler;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
@@ -84,6 +73,7 @@ import org.apache.flink.runtime.webmonitor.metrics.JobMetricsHandler;
 import org.apache.flink.runtime.webmonitor.metrics.JobVertexMetricsHandler;
 import org.apache.flink.runtime.webmonitor.metrics.MetricFetcher;
 import org.apache.flink.runtime.webmonitor.metrics.TaskManagerMetricsHandler;
+import org.apache.flink.runtime.webmonitor.utils.WebFrontendBootstrap;
 import org.apache.flink.util.FileUtils;
 
 import org.slf4j.Logger;
@@ -95,10 +85,8 @@ import scala.concurrent.Promise;
 import scala.concurrent.duration.FiniteDuration;
 
 import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLEngine;
 import java.io.File;
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
@@ -137,13 +125,10 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 	private final SSLContext serverSSLContext;
 
-	private final ServerBootstrap bootstrap;
-
 	private final Promise<String> jobManagerAddressPromise = new scala.concurrent.impl.Promise.DefaultPromise<>();
 
 	private final FiniteDuration timeout;
-
-	private Channel serverChannel;
+	private final WebFrontendBootstrap netty;
 
 	private final File webRootDir;
 
@@ -380,52 +365,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 			LOG.warn("Error while adding shutdown hook", t);
 		}
 
-		final Configuration sslConfig = config;
-		ChannelInitializer<SocketChannel> initializer = new ChannelInitializer<SocketChannel>() {
-
-			@Override
-			protected void initChannel(SocketChannel ch) {
-				Handler handler = new Handler(router);
-
-				// SSL should be the first handler in the pipeline
-				if (serverSSLContext != null) {
-					SSLEngine sslEngine = serverSSLContext.createSSLEngine();
-					SSLUtils.setSSLVerAndCipherSuites(sslEngine, sslConfig);
-					sslEngine.setUseClientMode(false);
-					ch.pipeline().addLast("ssl", new SslHandler(sslEngine));
-				}
-
-				ch.pipeline()
-						.addLast(new HttpServerCodec())
-						.addLast(new ChunkedWriteHandler())
-						.addLast(new HttpRequestHandler(uploadDir))
-						.addLast(handler.name(), handler)
-						.addLast(new PipelineErrorHandler(LOG));
-			}
-		};
-
-		NioEventLoopGroup bossGroup   = new NioEventLoopGroup(1);
-		NioEventLoopGroup workerGroup = new NioEventLoopGroup();
-
-		this.bootstrap = new ServerBootstrap();
-		this.bootstrap
-				.group(bossGroup, workerGroup)
-				.channel(NioServerSocketChannel.class)
-				.childHandler(initializer);
-
-		ChannelFuture ch;
-		if (configuredAddress == null) {
-			ch = this.bootstrap.bind(configuredPort);
-		} else {
-			ch = this.bootstrap.bind(configuredAddress, configuredPort);
-		}
-		this.serverChannel = ch.sync().channel();
-
-		InetSocketAddress bindAddress = (InetSocketAddress) serverChannel.localAddress();
-		String address = bindAddress.getAddress().getHostAddress();
-		int port = bindAddress.getPort();
-
-		LOG.info("Web frontend listening at " + address + ':' + port);
+		this.netty = new WebFrontendBootstrap(router, LOG, uploadDir, serverSSLContext, configuredAddress, configuredPort, config);
 	}
 
 	/**
@@ -482,7 +422,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 			// this here repeatedly, because cache clean up only happens on
 			// interactions with the cache. We need it to make sure that we
 			// don't leak memory after completed jobs or long ago accessed stats.
-			bootstrap.childGroup().scheduleWithFixedDelay(new Runnable() {
+			netty.getBootstrap().childGroup().scheduleWithFixedDelay(new Runnable() {
 				@Override
 				public void run() {
 					try {
@@ -500,18 +440,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 		synchronized (startupShutdownLock) {
 			leaderRetrievalService.stop();
 
-			if (this.serverChannel != null) {
-				this.serverChannel.close().awaitUninterruptibly();
-				this.serverChannel = null;
-			}
-			if (bootstrap != null) {
-				if (bootstrap.group() != null) {
-					bootstrap.group().shutdownGracefully();
-				}
-				if (bootstrap.childGroup() != null) {
-					bootstrap.childGroup().shutdownGracefully();
-				}
-			}
+			netty.shutdown();
 
 			stackTraceSamples.shutDown();
 
@@ -525,17 +454,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 	@Override
 	public int getServerPort() {
-		Channel server = this.serverChannel;
-		if (server != null) {
-			try {
-				return ((InetSocketAddress) server.localAddress()).getPort();
-			}
-			catch (Exception e) {
-				LOG.error("Cannot access local server port", e);
-			}
-		}
-
-		return -1;
+		return netty.getServerPort();
 	}
 
 	private void cleanup() {
