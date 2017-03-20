@@ -349,6 +349,9 @@ public abstract class StreamExecutionEnvironment {
 	 *            The checkpointing mode, selecting between "exactly once" and "at least once" guaranteed.
 	 * @param force
 	 *            If true checkpointing will be enabled for iterative jobs as well.
+	 *
+	 * @deprecated Use {@link #enableCheckpointing(long, CheckpointingMode)} instead.
+	 * Forcing checkpoints will be removed in the future.
 	 */
 	@Deprecated
 	@SuppressWarnings("deprecation")
@@ -396,6 +399,8 @@ public abstract class StreamExecutionEnvironment {
 
 	/**
 	 * Returns whether checkpointing is force-enabled.
+	 *
+	 * @deprecated Forcing checkpoints will be removed in future version.
 	 */
 	@Deprecated
 	@SuppressWarnings("deprecation")

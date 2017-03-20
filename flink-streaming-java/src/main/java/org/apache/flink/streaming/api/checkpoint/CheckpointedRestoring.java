@@ -25,6 +25,8 @@ import java.io.Serializable;
 /**
  * This deprecated interface contains the methods for restoring from the legacy checkpointing mechanism of state.
  * @param <T> type of the restored state.
+ *
+ * @deprecated Please use {@link CheckpointedFunction} or {@link ListCheckpointed} after restoring your legacy state.
  */
 @Deprecated
 @PublicEvolving

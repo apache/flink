@@ -29,6 +29,10 @@ import org.apache.flink.streaming.runtime.operators.windowing.functions.Internal
 
 import java.util.ArrayList;
 
+/**
+ * @deprecated Deprecated in favour of the generic {@link WindowOperator}. This was an
+ * optimized implementation used for aligned windows.
+ */
 @Internal
 @Deprecated
 public class AccumulatingProcessingTimeWindowOperator<KEY, IN, OUT>
