@@ -211,7 +211,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 				.name("Send score")
 			.groupBy(0)
 			.reduce(new SumScore<K>())
-				.setCombineHint(CombineHint.HASH)
+			.setCombineHint(CombineHint.HASH)
 				.setParallelism(parallelism)
 				.name("Sum");
 

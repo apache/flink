@@ -132,13 +132,13 @@ public abstract class StreamTransformation<T> {
 	 *  The minimum resources for this stream transformation. It defines the lower limit for
 	 *  dynamic resources resize in future plan.
 	 */
-	private ResourceSpec minResources = ResourceSpec.UNKNOWN;
+	private ResourceSpec minResources = ResourceSpec.DEFAULT;
 
 	/**
 	 *  The preferred resources for this stream transformation. It defines the upper limit for
 	 *  dynamic resource resize in future plan.
 	 */
-	private ResourceSpec preferredResources = ResourceSpec.UNKNOWN;
+	private ResourceSpec preferredResources = ResourceSpec.DEFAULT;
 
 	/**
 	 * User-specified ID for this transformation. This is used to assign the

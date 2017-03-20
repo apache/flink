@@ -25,6 +25,11 @@ EXECUTIONMODE=$2
 HOST=$3 # optional when starting multiple instances
 WEBUIPORT=$4 # optional when starting multiple instances
 
+if [[ $STARTSTOP != "start" ]] && [[ $STARTSTOP != "start-foreground" ]] && [[ $STARTSTOP != "stop" ]] && [[ $STARTSTOP != "stop-all" ]]; then
+  echo $USAGE
+  exit 1
+fi
+
 bin=`dirname "$0"`
 bin=`cd "$bin"; pwd`
 

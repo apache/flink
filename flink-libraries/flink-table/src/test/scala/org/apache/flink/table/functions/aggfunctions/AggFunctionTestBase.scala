@@ -98,6 +98,22 @@ abstract class AggFunctionTestBase[T] {
     }
   }
 
+  @Test
+  // test aggregate functions with resetAccumulator
+  def testResetAccumulator(): Unit = {
+
+    if (ifMethodExistInFunction("resetAccumulator", aggregator)) {
+      // iterate over input sets
+      for ((vals, expected) <- inputValueSets.zip(expectedResults)) {
+        val accumulator = accumulateVals(vals)
+        aggregator.resetAccumulator(accumulator)
+        val expectedAccum = aggregator.createAccumulator()
+        //The accumulator after reset should be exactly same as the new accumulator
+        validateResult[Accumulator](expectedAccum, accumulator)
+      }
+    }
+  }
+
   private def validateResult[T](expected: T, result: T): Unit = {
     (expected, result) match {
       case (e: DecimalSumWithRetractAccumulator, r: DecimalSumWithRetractAccumulator) =>

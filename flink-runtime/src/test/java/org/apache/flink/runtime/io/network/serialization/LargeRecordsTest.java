@@ -54,8 +54,8 @@ public class LargeRecordsTest {
 
 			final Buffer buffer = new Buffer(MemorySegmentFactory.allocateUnpooledSegment(SEGMENT_SIZE), mock(BufferRecycler.class));
 
-			List<SerializationTestType> originalRecords = new ArrayList<SerializationTestType>();
-			List<SerializationTestType> deserializedRecords = new ArrayList<SerializationTestType>();
+			List<SerializationTestType> originalRecords = new ArrayList<SerializationTestType>((NUM_RECORDS + 1) / 2);
+			List<SerializationTestType> deserializedRecords = new ArrayList<SerializationTestType>((NUM_RECORDS + 1) / 2);
 			
 			LargeObjectType genLarge = new LargeObjectType();
 			
@@ -154,8 +154,8 @@ public class LargeRecordsTest {
 
 			final Buffer buffer = new Buffer(MemorySegmentFactory.allocateUnpooledSegment(SEGMENT_SIZE), mock(BufferRecycler.class));
 
-			List<SerializationTestType> originalRecords = new ArrayList<SerializationTestType>();
-			List<SerializationTestType> deserializedRecords = new ArrayList<SerializationTestType>();
+			List<SerializationTestType> originalRecords = new ArrayList<>((NUM_RECORDS + 1) / 2);
+			List<SerializationTestType> deserializedRecords = new ArrayList<>((NUM_RECORDS + 1) / 2);
 			
 			LargeObjectType genLarge = new LargeObjectType();
 			

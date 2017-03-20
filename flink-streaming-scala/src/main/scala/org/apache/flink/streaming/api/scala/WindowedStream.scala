@@ -19,8 +19,6 @@
 package org.apache.flink.streaming.api.scala
 
 import org.apache.flink.annotation.{Public, PublicEvolving}
-import org.apache.flink.api.common.functions.{FoldFunction, ReduceFunction}
-import org.apache.flink.annotation.{PublicEvolving, Public}
 import org.apache.flink.api.common.functions.{AggregateFunction, FoldFunction, ReduceFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.datastream.{WindowedStream => JavaWStream}
@@ -32,7 +30,7 @@ import org.apache.flink.streaming.api.windowing.evictors.Evictor
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.triggers.Trigger
 import org.apache.flink.streaming.api.windowing.windows.Window
-import org.apache.flink.util.Collector
+import org.apache.flink.util.{Collector, OutputTag}
 
 /**
  * A [[WindowedStream]] represents a data stream where elements are grouped by
@@ -72,6 +70,20 @@ class WindowedStream[T, K, W <: Window](javaStream: JavaWStream[T, K, W]) {
   @PublicEvolving
   def allowedLateness(lateness: Time): WindowedStream[T, K, W] = {
     javaStream.allowedLateness(lateness)
+    this
+  }
+
+  /**
+   * Send late arriving data to the side output identified by the given [[OutputTag]]. Data
+   * is considered late after the watermark has passed the end of the window plus the allowed
+   * lateness set using [[allowedLateness(Time)]].
+   *
+   * You can get the stream of late data using [[DataStream.getSideOutput()]] on the [[DataStream]]
+   * resulting from the windowed operation with the same [[OutputTag]].
+   */
+  @PublicEvolving
+  def sideOutputLateData(outputTag: OutputTag[T]): WindowedStream[T, K, W] = {
+    javaStream.sideOutputLateData(outputTag)
     this
   }
 

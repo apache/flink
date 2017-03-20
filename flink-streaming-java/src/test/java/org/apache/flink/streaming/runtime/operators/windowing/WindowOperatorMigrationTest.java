@@ -100,7 +100,8 @@ public class WindowOperatorMigrationTest {
 				stateDesc,
 				new InternalIterableWindowFunction<>(new SessionWindowFunction()),
 				PurgingTrigger.of(CountTrigger.of(4)),
-				0);
+				0,
+				null /* late data output tag */);
 
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
@@ -181,7 +182,8 @@ public class WindowOperatorMigrationTest {
 				stateDesc,
 				new InternalIterableWindowFunction<>(new SessionWindowFunction()),
 				PurgingTrigger.of(CountTrigger.of(4)),
-				0);
+				0,
+				null /* late data output tag */);
 
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
@@ -258,7 +260,8 @@ public class WindowOperatorMigrationTest {
 				stateDesc,
 				new InternalSingleValueWindowFunction<>(new PassThroughWindowFunction<String, TimeWindow, Tuple2<String, Integer>>()),
 				EventTimeTrigger.create(),
-				0);
+				0,
+				null /* late data output tag */);
 
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
@@ -346,7 +349,8 @@ public class WindowOperatorMigrationTest {
 				stateDesc,
 				new InternalIterableWindowFunction<>(new RichSumReducer<TimeWindow>()),
 				EventTimeTrigger.create(),
-				0);
+				0,
+				null /* late data output tag */);
 
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
@@ -435,7 +439,8 @@ public class WindowOperatorMigrationTest {
 				stateDesc,
 				new InternalSingleValueWindowFunction<>(new PassThroughWindowFunction<String, TimeWindow, Tuple2<String, Integer>>()),
 				ProcessingTimeTrigger.create(),
-				0);
+				0,
+				null /* late data output tag */);
 
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
@@ -510,7 +515,8 @@ public class WindowOperatorMigrationTest {
 				stateDesc,
 				new InternalIterableWindowFunction<>(new RichSumReducer<TimeWindow>()),
 				ProcessingTimeTrigger.create(),
-				0);
+				0,
+				null /* late data output tag */);
 
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
@@ -633,6 +639,7 @@ public class WindowOperatorMigrationTest {
 				new InternalSingleValueWindowFunction<>(new PassThroughWindowFunction<String, TimeWindow, Tuple2<String, Integer>>()),
 				ProcessingTimeTrigger.create(),
 				0,
+				null /* late data output tag */,
 				LegacyWindowOperatorType.FAST_AGGREGATING);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
@@ -735,6 +742,7 @@ public class WindowOperatorMigrationTest {
 				new InternalSingleValueWindowFunction<>(new PassThroughWindowFunction<String, TimeWindow, Tuple2<String, Integer>>()),
 				ProcessingTimeTrigger.create(),
 				0,
+				null /* late data output tag */,
 				LegacyWindowOperatorType.FAST_ACCUMULATING);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =

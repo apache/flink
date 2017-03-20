@@ -83,6 +83,16 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	 */
 	public static final int PARALLELISM_UNKNOWN = -2;
 
+	/**
+	 * The default lower bound for max parallelism if nothing was configured by the user. We have
+	 * this to allow users some degree of scale-up in case they forgot to configure maximum
+	 * parallelism explicitly.
+	 */
+	public static final int DEFAULT_LOWER_BOUND_MAX_PARALLELISM = 1 << 7;
+
+	/** The (inclusive) upper bound for max parallelism */
+	public static final int UPPER_BOUND_MAX_PARALLELISM = 1 << 15;
+
 	private static final long DEFAULT_RESTART_DELAY = 10000L;
 
 	// --------------------------------------------------------------------------------------------
@@ -108,6 +118,9 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	private int numberOfExecutionRetries = -1;
 
 	private boolean forceKryo = false;
+
+	/** Flag to indicate whether generic types (through Kryo) are supported */
+	private boolean disableGenericTypes = false;
 
 	private boolean objectReuse = false;
 
@@ -280,13 +293,18 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	 * @param parallelism The parallelism to use
 	 */
 	public ExecutionConfig setParallelism(int parallelism) {
-		if (parallelism != PARALLELISM_UNKNOWN) {
-			if (parallelism < 1 && parallelism != PARALLELISM_DEFAULT) {
-				throw new IllegalArgumentException(
-					"Parallelism must be at least one, or ExecutionConfig.PARALLELISM_DEFAULT (use system default).");
-			}
-			this.parallelism = parallelism;
-		}
+		checkArgument(parallelism != PARALLELISM_UNKNOWN, "Cannot specify UNKNOWN_PARALLELISM.");
+		checkArgument(
+				parallelism >= 1 || parallelism == PARALLELISM_DEFAULT,
+				"Parallelism must be at least one, or ExecutionConfig.PARALLELISM_DEFAULT " +
+						"(use system default).");
+		checkArgument(
+				maxParallelism == -1 || parallelism <= maxParallelism,
+				"The specified parallelism must be smaller or equal to the maximum parallelism.");
+		checkArgument(
+				maxParallelism == -1 || parallelism != PARALLELISM_DEFAULT,
+				"Default parallelism cannot be specified when maximum parallelism is specified");
+		this.parallelism = parallelism;
 		return this;
 	}
 
@@ -313,7 +331,18 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	 */
 	@PublicEvolving
 	public void setMaxParallelism(int maxParallelism) {
+		checkArgument(
+				parallelism != PARALLELISM_DEFAULT,
+				"A maximum parallelism can only be specified with an explicitly specified " +
+						"parallelism.");
 		checkArgument(maxParallelism > 0, "The maximum parallelism must be greater than 0.");
+		checkArgument(
+				maxParallelism >= parallelism,
+				"The maximum parallelism must be larger than the parallelism.");
+		checkArgument(
+				maxParallelism > 0 && maxParallelism <= UPPER_BOUND_MAX_PARALLELISM,
+				"maxParallelism is out of bounds 0 < maxParallelism <= " +
+						UPPER_BOUND_MAX_PARALLELISM + ". Found: " + maxParallelism);
 		this.maxParallelism = maxParallelism;
 	}
 
@@ -516,6 +545,51 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 
 	public boolean isForceKryoEnabled() {
 		return forceKryo;
+	}
+
+	/**
+	 * Enables the use generic types which are serialized via Kryo.
+	 * 
+	 * <p>Generic types are enabled by default.
+	 *
+	 * @see #disableGenericTypes()
+	 */
+	public void enableGenericTypes() {
+		disableGenericTypes = false;
+	}
+
+	/**
+	 * Disables the use of generic types (types that would be serialized via Kryo). If this option
+	 * is used, Flink will throw an {@code UnsupportedOperationException} whenever it encounters
+	 * a data type that would go through Kryo for serialization.
+	 *
+	 * <p>Disabling generic types can be helpful to eagerly find and eliminate teh use of types
+	 * that would go through Kryo serialization during runtime. Rather than checking types
+	 * individually, using this option will throw exceptions eagerly in the places where generic
+	 * types are used.
+	 * 
+	 * <p><b>Important:</b> We recommend to use this option only during development and pre-production
+	 * phases, not during actual production use. The application program and/or the input data may be
+	 * such that new, previously unseen, types occur at some point. In that case, setting this option
+	 * would cause the program to fail.
+	 * 
+	 * @see #enableGenericTypes()
+	 */
+	public void disableGenericTypes() {
+		disableGenericTypes = true;
+	}
+
+	/**
+	 * Checks whether generic types are supported. Generic types are types that go through Kryo during
+	 * serialization.
+	 * 
+	 * <p>Generic types are enabled by default.
+	 * 
+	 * @see #enableGenericTypes()
+	 * @see #disableGenericTypes()
+	 */
+	public boolean hasGenericTypesDisabled() {
+		return disableGenericTypes;
 	}
 
 	/**
@@ -804,6 +878,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 				((restartStrategyConfiguration == null && other.restartStrategyConfiguration == null) ||
 					(null != restartStrategyConfiguration && restartStrategyConfiguration.equals(other.restartStrategyConfiguration))) &&
 				forceKryo == other.forceKryo &&
+				disableGenericTypes == other.disableGenericTypes &&
 				objectReuse == other.objectReuse &&
 				autoTypeRegistrationEnabled == other.autoTypeRegistrationEnabled &&
 				forceAvro == other.forceAvro &&
@@ -830,6 +905,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 			parallelism,
 			restartStrategyConfiguration,
 			forceKryo,
+			disableGenericTypes,
 			objectReuse,
 			autoTypeRegistrationEnabled,
 			forceAvro,

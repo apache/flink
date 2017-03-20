@@ -324,7 +324,7 @@ public class DataOutputSerializer implements DataOutputView {
 			throw new EOFException("Could not write " + numBytes + " bytes. Buffer overflow.");
 		}
 
-		source.read(this.buffer, this.position, numBytes);
+		source.readFully(this.buffer, this.position, numBytes);
 		this.position += numBytes;
 	}
 

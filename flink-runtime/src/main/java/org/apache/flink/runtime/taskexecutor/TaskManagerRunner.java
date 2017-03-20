@@ -24,6 +24,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
@@ -71,18 +72,27 @@ public class TaskManagerRunner implements FatalErrorHandler {
 			ResourceID resourceID,
 			RpcService rpcService,
 			HighAvailabilityServices highAvailabilityServices,
+			HeartbeatServices heartbeatServices,
 			MetricRegistry metricRegistry) throws Exception {
 
-		this(configuration, resourceID, rpcService, highAvailabilityServices, metricRegistry, false);
+		this(
+			configuration,
+			resourceID,
+			rpcService,
+			highAvailabilityServices,
+			heartbeatServices,
+			metricRegistry,
+			false);
 	}
 
 	public TaskManagerRunner(
-		Configuration configuration,
-		ResourceID resourceID,
-		RpcService rpcService,
-		HighAvailabilityServices highAvailabilityServices,
-		MetricRegistry metricRegistry,
-		boolean localCommunicationOnly) throws Exception {
+			Configuration configuration,
+			ResourceID resourceID,
+			RpcService rpcService,
+			HighAvailabilityServices highAvailabilityServices,
+			HeartbeatServices heartbeatServices,
+			MetricRegistry metricRegistry,
+			boolean localCommunicationOnly) throws Exception {
 
 		this.configuration = Preconditions.checkNotNull(configuration);
 		this.resourceID = Preconditions.checkNotNull(resourceID);
@@ -120,6 +130,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
 			taskManagerServices.getIOManager(),
 			taskManagerServices.getNetworkEnvironment(),
 			highAvailabilityServices,
+			heartbeatServices,
 			metricRegistry,
 			taskManagerMetricGroup,
 			taskManagerServices.getBroadcastVariableManager(),

@@ -23,9 +23,8 @@ import akka.actor.ActorSystem;
 import akka.testkit.JavaTestKit;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
-import java.io.FileNotFoundException;
-import java.util.concurrent.CountDownLatch;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
@@ -88,12 +87,14 @@ import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.messages.JobManagerMessages.getDisposeSavepointSuccess;
@@ -107,6 +108,7 @@ import static org.junit.Assert.fail;
 /**
  * Integration test for triggering and resuming from savepoints.
  */
+@SuppressWarnings("serial")
 public class SavepointITCase extends TestLogger {
 
 	private static final Logger LOG = LoggerFactory.getLogger(SavepointITCase.class);
@@ -458,6 +460,152 @@ public class SavepointITCase extends TestLogger {
 		}
 	}
 
+	/**
+	 * FLINK-5985
+	 *
+	 * This test ensures we can restore from a savepoint under modifications to the job graph that only concern
+	 * stateless operators.
+	 */
+	@Test
+	public void testCanRestoreWithModifiedStatelessOperators() throws Exception {
+
+		// Config
+		int numTaskManagers = 2;
+		int numSlotsPerTaskManager = 2;
+		int parallelism = 2;
+
+		// Test deadline
+		final Deadline deadline = new FiniteDuration(5, TimeUnit.MINUTES).fromNow();
+
+		final File tmpDir = CommonTestUtils.createTempDirectory();
+		final File savepointDir = new File(tmpDir, "savepoints");
+
+		TestingCluster flink = null;
+		String savepointPath;
+		try {
+			// Flink configuration
+			final Configuration config = new Configuration();
+			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, numTaskManagers);
+			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlotsPerTaskManager);
+			config.setString(ConfigConstants.SAVEPOINT_DIRECTORY_KEY,
+					savepointDir.toURI().toString());
+
+			LOG.info("Flink configuration: " + config + ".");
+
+			// Start Flink
+			flink = new TestingCluster(config);
+			LOG.info("Starting Flink cluster.");
+			flink.start(true);
+
+			// Retrieve the job manager
+			LOG.info("Retrieving JobManager.");
+			ActorGateway jobManager = Await.result(
+					flink.leaderGateway().future(),
+					deadline.timeLeft());
+			LOG.info("JobManager: " + jobManager + ".");
+
+			final StatefulCounter statefulCounter = new StatefulCounter();
+			StatefulCounter.resetForTest(parallelism);
+
+			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+			env.setParallelism(parallelism);
+			env.addSource(new InfiniteTestSource())
+					.shuffle()
+					.map(new MapFunction<Integer, Integer>() {
+
+						@Override
+						public Integer map(Integer value) throws Exception {
+							return 4 * value;
+						}
+					})
+					.shuffle()
+					.map(statefulCounter).uid("statefulCounter")
+					.shuffle()
+					.map(new MapFunction<Integer, Integer>() {
+
+						@Override
+						public Integer map(Integer value) throws Exception {
+							return 2 * value;
+						}
+					})
+					.addSink(new DiscardingSink<Integer>());
+
+			JobGraph originalJobGraph = env.getStreamGraph().getJobGraph();
+
+			JobSubmissionResult submissionResult = flink.submitJobDetached(originalJobGraph);
+			JobID jobID = submissionResult.getJobID();
+
+			// wait for the Tasks to be ready
+			StatefulCounter.getProgressLatch().await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+
+			Future<Object> savepointPathFuture = jobManager.ask(new TriggerSavepoint(jobID, Option.<String>empty()), deadline.timeLeft());
+			savepointPath = ((TriggerSavepointSuccess) Await.result(savepointPathFuture, deadline.timeLeft())).savepointPath();
+			Future<Object> savepointFuture = jobManager.ask(new RequestSavepoint(savepointPath), deadline.timeLeft());
+
+			((ResponseSavepoint) Await.result(savepointFuture, deadline.timeLeft())).savepoint();
+			LOG.info("Retrieved savepoint: " + savepointPath + ".");
+
+			// Shut down the Flink cluster (thereby canceling the job)
+			LOG.info("Shutting down Flink cluster.");
+			flink.shutdown();
+			flink.awaitTermination();
+
+		} finally {
+			flink.shutdown();
+			flink.awaitTermination();
+		}
+
+		try {
+			LOG.info("Restarting Flink cluster.");
+			flink.start(true);
+
+			// Retrieve the job manager
+			LOG.info("Retrieving JobManager.");
+			ActorGateway jobManager = Await.result(flink.leaderGateway().future(), deadline.timeLeft());
+			LOG.info("JobManager: " + jobManager + ".");
+
+			// Reset static test helpers
+			StatefulCounter.resetForTest(parallelism);
+
+			// Gather all task deployment descriptors
+			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+			env.setParallelism(parallelism);
+
+			// generate a modified job graph that adds a stateless op
+			env.addSource(new InfiniteTestSource())
+					.shuffle()
+					.map(new StatefulCounter()).uid("statefulCounter")
+					.shuffle()
+					.map(new MapFunction<Integer, Integer>() {
+
+						@Override
+						public Integer map(Integer value) throws Exception {
+							return value;
+						}
+					})
+					.addSink(new DiscardingSink<Integer>());
+
+			JobGraph modifiedJobGraph = env.getStreamGraph().getJobGraph();
+
+			// Set the savepoint path
+			modifiedJobGraph.setSavepointRestoreSettings(SavepointRestoreSettings.forPath(savepointPath));
+
+			LOG.info("Resubmitting job " + modifiedJobGraph.getJobID() + " with " +
+					"savepoint path " + savepointPath + " in detached mode.");
+
+			// Submit the job
+			flink.submitJobDetached(modifiedJobGraph);
+			// Await state is restored
+			StatefulCounter.getRestoreLatch().await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+
+			// Await some progress after restore
+			StatefulCounter.getProgressLatch().await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+		} finally {
+			flink.shutdown();
+			flink.awaitTermination();
+		}
+	}
+
 	// ------------------------------------------------------------------------
 	// Test program
 	// ------------------------------------------------------------------------
@@ -497,6 +645,7 @@ public class SavepointITCase extends TestLogger {
 				synchronized (ctx.getCheckpointLock()) {
 					ctx.collect(1);
 				}
+				Thread.sleep(1);
 			}
 		}
 

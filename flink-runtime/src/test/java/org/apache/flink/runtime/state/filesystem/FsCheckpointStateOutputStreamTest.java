@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state.filesystem;
 
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
@@ -107,7 +108,7 @@ public class FsCheckpointStateOutputStreamTest {
 
 		stream = new FsCheckpointStreamFactory.FsCheckpointStateOutputStream(TEMP_DIR_PATH, FileSystem.getLocalFileSystem(), 31, 17);
 
-		byte[] data = "testme!".getBytes();
+		byte[] data = "testme!".getBytes(ConfigConstants.DEFAULT_CHARSET);
 
 		for (int i = 0; i < 7; ++i) {
 			Assert.assertEquals(i * (1 + data.length), stream.getPos());

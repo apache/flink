@@ -81,7 +81,12 @@ abstract class IntegralAvgAggFunction[T] extends AggregateFunction[T] {
     ret
   }
 
-  override def getAccumulatorType(): TypeInformation[_] = {
+  override def resetAccumulator(accumulator: Accumulator): Unit = {
+    accumulator.asInstanceOf[IntegralAvgAccumulator].f0 = 0L
+    accumulator.asInstanceOf[IntegralAvgAccumulator].f1 = 0L
+  }
+
+  override def getAccumulatorType: TypeInformation[_] = {
     new TupleTypeInfo(
       new IntegralAvgAccumulator().getClass,
       BasicTypeInfo.LONG_TYPE_INFO,
@@ -176,7 +181,12 @@ abstract class BigIntegralAvgAggFunction[T] extends AggregateFunction[T] {
     ret
   }
 
-  override def getAccumulatorType(): TypeInformation[_] = {
+  override def resetAccumulator(accumulator: Accumulator): Unit = {
+    accumulator.asInstanceOf[BigIntegralAvgAccumulator].f0 = BigInteger.ZERO
+    accumulator.asInstanceOf[BigIntegralAvgAccumulator].f1 = 0
+  }
+
+  override def getAccumulatorType: TypeInformation[_] = {
     new TupleTypeInfo(
       new BigIntegralAvgAccumulator().getClass,
       BasicTypeInfo.BIG_INT_TYPE_INFO,
@@ -257,7 +267,12 @@ abstract class FloatingAvgAggFunction[T] extends AggregateFunction[T] {
     ret
   }
 
-  override def getAccumulatorType(): TypeInformation[_] = {
+  override def resetAccumulator(accumulator: Accumulator): Unit = {
+    accumulator.asInstanceOf[FloatingAvgAccumulator].f0 = 0
+    accumulator.asInstanceOf[FloatingAvgAccumulator].f1 = 0L
+  }
+
+  override def getAccumulatorType: TypeInformation[_] = {
     new TupleTypeInfo(
       new FloatingAvgAccumulator().getClass,
       BasicTypeInfo.DOUBLE_TYPE_INFO,
@@ -343,7 +358,12 @@ class DecimalAvgAggFunction extends AggregateFunction[BigDecimal] {
     ret
   }
 
-  override def getAccumulatorType(): TypeInformation[_] = {
+  override def resetAccumulator(accumulator: Accumulator): Unit = {
+    accumulator.asInstanceOf[DecimalAvgAccumulator].f0 = BigDecimal.ZERO
+    accumulator.asInstanceOf[DecimalAvgAccumulator].f1 = 0L
+  }
+
+  override def getAccumulatorType: TypeInformation[_] = {
     new TupleTypeInfo(
       new DecimalAvgAccumulator().getClass,
       BasicTypeInfo.BIG_DEC_TYPE_INFO,

@@ -188,4 +188,9 @@ class InternalTimeServiceManager<K, N> {
 		}
 		return count;
 	}
+
+	@VisibleForTesting
+	public int numKeysForWatermarkCallback() {
+		return watermarkCallbackService.numKeysForWatermarkCallback();
+	}
 }

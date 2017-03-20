@@ -39,6 +39,7 @@ import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalWindowFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.util.OutputTag;
 
 import java.util.Collection;
 
@@ -86,10 +87,11 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window>
 			InternalWindowFunction<Iterable<IN>, OUT, K, W> windowFunction,
 			Trigger<? super IN, ? super W> trigger,
 			Evictor<? super IN, ? super W> evictor,
-			long allowedLateness) {
+			long allowedLateness,
+			OutputTag<IN> lateDataOutputTag) {
 
 		super(windowAssigner, windowSerializer, keySelector,
-			keySerializer, null, windowFunction, trigger, allowedLateness);
+			keySerializer, null, windowFunction, trigger, allowedLateness, lateDataOutputTag);
 
 		this.evictor = checkNotNull(evictor);
 		this.evictingWindowStateDescriptor = checkNotNull(windowStateDescriptor);
@@ -137,7 +139,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window>
 						});
 
 				// check if the window is already inactive
-				if (isLate(actualWindow)) {
+				if (isWindowLate(actualWindow)) {
 					mergingWindows.retireWindow(actualWindow);
 					continue;
 				}
@@ -177,7 +179,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window>
 			for (W window : elementWindows) {
 
 				// check if the window is already inactive
-				if (isLate(window)) {
+				if (isWindowLate(window)) {
 					continue;
 				}
 

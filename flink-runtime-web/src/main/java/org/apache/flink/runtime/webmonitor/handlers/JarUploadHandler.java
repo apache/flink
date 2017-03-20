@@ -59,10 +59,11 @@ public class JarUploadHandler extends AbstractJsonRequestHandler {
 				return "{\"error\": \"Only Jar files are allowed.\"}";
 			}
 			
-			File newFile = new File(jarDir, UUID.randomUUID() + "_" + filename);
+			String filenameWithUUID = UUID.randomUUID() + "_" + filename;
+			File newFile = new File(jarDir, filenameWithUUID);
 			if (tempFile.renameTo(newFile)) {
 				// all went well
-				return "{}";
+				return "{\"status\": \"success\", \"filename\": \"" + filenameWithUUID + "\"}";
 			}
 			else {
 				//noinspection ResultOfMethodCallIgnored

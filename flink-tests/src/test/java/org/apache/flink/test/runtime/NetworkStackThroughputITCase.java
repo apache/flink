@@ -25,6 +25,7 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.io.network.api.reader.RecordReader;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -129,11 +130,14 @@ public class NetworkStackThroughputITCase {
 			consumer.getConfiguration().setBoolean(IS_SLOW_RECEIVER_CONFIG_KEY, isSlowReceiver);
 
 			if (useForwarder) {
-				forwarder.connectNewDataSetAsInput(producer, DistributionPattern.ALL_TO_ALL);
-				consumer.connectNewDataSetAsInput(forwarder, DistributionPattern.ALL_TO_ALL);
+				forwarder.connectNewDataSetAsInput(producer, DistributionPattern.ALL_TO_ALL,
+					ResultPartitionType.PIPELINED);
+				consumer.connectNewDataSetAsInput(forwarder, DistributionPattern.ALL_TO_ALL,
+					ResultPartitionType.PIPELINED);
 			}
 			else {
-				consumer.connectNewDataSetAsInput(producer, DistributionPattern.ALL_TO_ALL);
+				consumer.connectNewDataSetAsInput(producer, DistributionPattern.ALL_TO_ALL,
+					ResultPartitionType.PIPELINED);
 			}
 
 			return jobGraph;

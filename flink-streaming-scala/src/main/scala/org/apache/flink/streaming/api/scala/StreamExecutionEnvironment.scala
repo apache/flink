@@ -673,23 +673,6 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
 
 object StreamExecutionEnvironment {
 
-  /**
-   * Sets the default parallelism that will be used for the local execution
-   * environment created by [[createLocalEnvironment()]].
-   *
-   * @param parallelism The default parallelism to use for local execution.
-   */
-  @PublicEvolving
-  def setDefaultLocalParallelism(parallelism: Int) : Unit =
-    JavaEnv.setDefaultLocalParallelism(parallelism)
-
-  /**
-   * Gets the default parallelism that will be used for the local execution environment created by
-   * [[createLocalEnvironment()]].
-   */
-  @PublicEvolving
-  def getDefaultLocalParallelism: Int = JavaEnv.getDefaultLocalParallelism
-  
   // --------------------------------------------------------------------------
   //  context environment
   // --------------------------------------------------------------------------
@@ -711,13 +694,14 @@ object StreamExecutionEnvironment {
   /**
    * Creates a local execution environment. The local execution environment will run the
    * program in a multi-threaded fashion in the same JVM as the environment was created in.
-   *
-   * This method sets the environment's default parallelism to given parameter, which
-   * defaults to the value set via [[setDefaultLocalParallelism(Int)]].
    */
-  def createLocalEnvironment(parallelism: Int = JavaEnv.getDefaultLocalParallelism):
+  def createLocalEnvironment(parallelism: Int = -1):
       StreamExecutionEnvironment = {
-    new StreamExecutionEnvironment(JavaEnv.createLocalEnvironment(parallelism))
+    if (parallelism == -1) {
+      new StreamExecutionEnvironment(JavaEnv.createLocalEnvironment())
+    } else {
+      new StreamExecutionEnvironment(JavaEnv.createLocalEnvironment(parallelism))
+    }
   }
 
   /**

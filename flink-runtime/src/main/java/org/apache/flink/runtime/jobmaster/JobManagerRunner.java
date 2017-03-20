@@ -22,7 +22,9 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
+import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry.JobSchedulingStatus;
@@ -85,31 +87,47 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 	// ------------------------------------------------------------------------
 
 	public JobManagerRunner(
+			final ResourceID resourceId,
 			final JobGraph jobGraph,
 			final Configuration configuration,
 			final RpcService rpcService,
 			final HighAvailabilityServices haServices,
+			final HeartbeatServices heartbeatServices,
 			final OnCompletionActions toNotifyOnComplete,
-			final FatalErrorHandler errorHandler) throws Exception
-	{
-		this(jobGraph, configuration, rpcService, haServices,
-				new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(configuration)),
-				toNotifyOnComplete, errorHandler);
+			final FatalErrorHandler errorHandler) throws Exception {
+		this(
+			resourceId,
+			jobGraph,
+			configuration,
+			rpcService,
+			haServices,
+			heartbeatServices,
+			new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(configuration)),
+			toNotifyOnComplete,
+			errorHandler);
 	}
 
 	public JobManagerRunner(
+			final ResourceID resourceId,
 			final JobGraph jobGraph,
 			final Configuration configuration,
 			final RpcService rpcService,
 			final HighAvailabilityServices haServices,
+			final HeartbeatServices heartbeatServices,
 			final MetricRegistry metricRegistry,
 			final OnCompletionActions toNotifyOnComplete,
-			final FatalErrorHandler errorHandler) throws Exception
-	{
-		this(jobGraph, configuration, rpcService, haServices,
-				JobManagerServices.fromConfiguration(configuration, haServices),
-				metricRegistry,
-				toNotifyOnComplete, errorHandler);
+			final FatalErrorHandler errorHandler) throws Exception {
+		this(
+			resourceId,
+			jobGraph,
+			configuration,
+			rpcService,
+			haServices,
+			heartbeatServices,
+			JobManagerServices.fromConfiguration(configuration, haServices),
+			metricRegistry,
+			toNotifyOnComplete,
+			errorHandler);
 	}
 
 	/**
@@ -124,15 +142,16 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 	 *                   required services could not be started, ot the Job could not be initialized.
 	 */
 	public JobManagerRunner(
+			final ResourceID resourceId,
 			final JobGraph jobGraph,
 			final Configuration configuration,
 			final RpcService rpcService,
 			final HighAvailabilityServices haServices,
+			final HeartbeatServices heartbeatServices,
 			final JobManagerServices jobManagerServices,
 			final MetricRegistry metricRegistry,
 			final OnCompletionActions toNotifyOnComplete,
-			final FatalErrorHandler errorHandler) throws Exception
-	{
+			final FatalErrorHandler errorHandler) throws Exception {
 
 		JobManagerMetricGroup jobManagerMetrics = null;
 
@@ -169,17 +188,20 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 
 			// now start the JobManager
 			this.jobManager = new JobMaster(
-					jobGraph, configuration,
-					rpcService,
-					haServices,
-					jobManagerServices.executorService,
-					jobManagerServices.libraryCacheManager,
-					jobManagerServices.restartStrategyFactory,
-					jobManagerServices.rpcAskTimeout,
-					jobManagerMetrics,
-					this,
-					this,
-					userCodeLoader);
+				resourceId,
+				jobGraph,
+				configuration,
+				rpcService,
+				haServices,
+				heartbeatServices,
+				jobManagerServices.executorService,
+				jobManagerServices.libraryCacheManager,
+				jobManagerServices.restartStrategyFactory,
+				jobManagerServices.rpcAskTimeout,
+				jobManagerMetrics,
+				this,
+				this,
+				userCodeLoader);
 		}
 		catch (Throwable t) {
 			// clean up everything

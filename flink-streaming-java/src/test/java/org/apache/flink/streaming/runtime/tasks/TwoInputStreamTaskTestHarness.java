@@ -128,7 +128,8 @@ public class TwoInputStreamTaskTestHarness<IN1, IN2, OUT> extends StreamTaskTest
 							targetVertexDummy,
 							1,
 							new LinkedList<String>(),
-							new BroadcastPartitioner<Object>());
+							new BroadcastPartitioner<Object>(),
+							null /* output tag */);
 
 					inPhysicalEdges.add(streamEdge);
 					break;
@@ -143,7 +144,8 @@ public class TwoInputStreamTaskTestHarness<IN1, IN2, OUT> extends StreamTaskTest
 							targetVertexDummy,
 							2,
 							new LinkedList<String>(),
-							new BroadcastPartitioner<Object>());
+							new BroadcastPartitioner<Object>(),
+							null /* output tag */);
 
 					inPhysicalEdges.add(streamEdge);
 					break;

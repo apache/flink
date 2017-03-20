@@ -29,4 +29,6 @@ case class NetworkEnvironmentConfiguration(
     ioMode: IOMode,
     partitionRequestInitialBackoff : Int,
     partitionRequestMaxBackoff : Int,
+    networkBuffersPerChannel: Int,
+    extraNetworkBuffersPerGate: Int,
     nettyConfig: NettyConfig = null)

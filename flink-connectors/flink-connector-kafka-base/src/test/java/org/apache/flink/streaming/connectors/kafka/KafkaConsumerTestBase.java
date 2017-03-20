@@ -62,6 +62,7 @@ import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunctio
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
+import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.testutils.DataGenerators;
 import org.apache.flink.streaming.connectors.kafka.testutils.FailingIdentityMapper;
 import org.apache.flink.streaming.connectors.kafka.testutils.JobManagerCommunicationUtils;
@@ -349,7 +350,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			(o3 != null) ? o3.intValue() : 0
 		));
 
-		readSequence(env2, StartupMode.GROUP_OFFSETS, standardProps, topicName, partitionsToValuesCountAndStartOffset);
+		readSequence(env2, StartupMode.GROUP_OFFSETS, null, standardProps, topicName, partitionsToValuesCountAndStartOffset);
 
 		kafkaOffsetHandler.close();
 		deleteTestTopic(topicName);
@@ -465,7 +466,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		kafkaOffsetHandler.setCommittedOffset(topicName, 1, 31);
 		kafkaOffsetHandler.setCommittedOffset(topicName, 2, 43);
 
-		readSequence(env, StartupMode.EARLIEST, readProps, parallelism, topicName, recordsInEachPartition, 0);
+		readSequence(env, StartupMode.EARLIEST, null, readProps, parallelism, topicName, recordsInEachPartition, 0);
 
 		kafkaOffsetHandler.close();
 		deleteTestTopic(topicName);
@@ -619,7 +620,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 	 * 	partition 2 --> start from offset 43, read to offset 49 (7 records)
 	 */
 	public void runStartFromGroupOffsets() throws Exception {
-		// 3 partitions with 50 records each (0-49, so the expected commit offset of each partition should be 50)
+		// 3 partitions with 50 records each (offsets 0-49)
 		final int parallelism = 3;
 		final int recordsInEachPartition = 50;
 
@@ -645,7 +646,71 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		partitionsToValueCountAndStartOffsets.put(1, new Tuple2<>(50, 0)); // partition 1 should read offset 0-49
 		partitionsToValueCountAndStartOffsets.put(2, new Tuple2<>(7, 43));	// partition 2 should read offset 43-49
 
-		readSequence(env, StartupMode.GROUP_OFFSETS, readProps, topicName, partitionsToValueCountAndStartOffsets);
+		readSequence(env, StartupMode.GROUP_OFFSETS, null, readProps, topicName, partitionsToValueCountAndStartOffsets);
+
+		kafkaOffsetHandler.close();
+		deleteTestTopic(topicName);
+	}
+
+	/**
+	 * This test ensures that the consumer correctly uses user-supplied specific offsets when explicitly configured to
+	 * start from specific offsets. For partitions which a specific offset can not be found for, the starting position
+	 * for them should fallback to the group offsets behaviour.
+	 *
+	 * 4 partitions will have 50 records with offsets 0 to 49. The supplied specific offsets map is:
+	 * 	partition 0 --> start from offset 19
+	 * 	partition 1 --> not set
+	 * 	partition 2 --> start from offset 22
+	 * 	partition 3 --> not set
+	 * 	partition 4 --> start from offset 26 (this should be ignored because the partition does not exist)
+	 *
+	 * The partitions and their committed group offsets are setup as:
+	 * 	partition 0 --> committed offset 23
+	 * 	partition 1 --> committed offset 31
+	 * 	partition 2 --> committed offset 43
+	 * 	partition 3 --> no commit offset
+	 *
+	 * When configured to start from these specific offsets, each partition should read:
+	 * 	partition 0 --> start from offset 19, read to offset 49 (31 records)
+	 * 	partition 1 --> fallback to group offsets, so start from offset 31, read to offset 49 (19 records)
+	 * 	partition 2 --> start from offset 22, read to offset 49 (28 records)
+	 * 	partition 3 --> fallback to group offsets, but since there is no group offset for this partition,
+	 * 	                will default to "auto.offset.reset" (set to "earliest"),
+	 * 	                so start from offset 0, read to offset 49 (50 records)
+	 */
+	public void runStartFromSpecificOffsets() throws Exception {
+		// 4 partitions with 50 records each (offsets 0-49)
+		final int parallelism = 4;
+		final int recordsInEachPartition = 50;
+
+		final String topicName = writeSequence("testStartFromSpecificOffsetsTopic", recordsInEachPartition, parallelism, 1);
+
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
+		env.getConfig().disableSysoutLogging();
+		env.setParallelism(parallelism);
+
+		Properties readProps = new Properties();
+		readProps.putAll(standardProps);
+		readProps.setProperty("auto.offset.reset", "earliest"); // partition 3 should default back to this behaviour
+
+		Map<KafkaTopicPartition, Long> specificStartupOffsets = new HashMap<>();
+		specificStartupOffsets.put(new KafkaTopicPartition(topicName, 0), 19L);
+		specificStartupOffsets.put(new KafkaTopicPartition(topicName, 2), 22L);
+		specificStartupOffsets.put(new KafkaTopicPartition(topicName, 4), 26L); // non-existing partition, should be ignored
+
+		// only the committed offset for partition 1 should be used, because partition 1 has no entry in specific offset map
+		KafkaTestEnvironment.KafkaOffsetHandler kafkaOffsetHandler = kafkaServer.createOffsetHandler();
+		kafkaOffsetHandler.setCommittedOffset(topicName, 0, 23);
+		kafkaOffsetHandler.setCommittedOffset(topicName, 1, 31);
+		kafkaOffsetHandler.setCommittedOffset(topicName, 2, 43);
+
+		Map<Integer, Tuple2<Integer, Integer>> partitionsToValueCountAndStartOffsets = new HashMap<>();
+		partitionsToValueCountAndStartOffsets.put(0, new Tuple2<>(31, 19)); // partition 0 should read offset 19-49
+		partitionsToValueCountAndStartOffsets.put(1, new Tuple2<>(19, 31)); // partition 1 should read offset 31-49
+		partitionsToValueCountAndStartOffsets.put(2, new Tuple2<>(28, 22));	// partition 2 should read offset 22-49
+		partitionsToValueCountAndStartOffsets.put(3, new Tuple2<>(50, 0));	// partition 3 should read offset 0-49
+
+		readSequence(env, StartupMode.SPECIFIC_OFFSETS, specificStartupOffsets, readProps, topicName, partitionsToValueCountAndStartOffsets);
 
 		kafkaOffsetHandler.close();
 		deleteTestTopic(topicName);
@@ -1781,6 +1846,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 	 */
 	protected void readSequence(final StreamExecutionEnvironment env,
 								final StartupMode startupMode,
+								final Map<KafkaTopicPartition, Long> specificStartupOffsets,
 								final Properties cc,
 								final String topicName,
 								final Map<Integer, Tuple2<Integer, Integer>> partitionsToValuesCountAndStartOffset) throws Exception {
@@ -1806,6 +1872,9 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 				break;
 			case LATEST:
 				consumer.setStartFromLatest();
+				break;
+			case SPECIFIC_OFFSETS:
+				consumer.setStartFromSpecificOffsets(specificStartupOffsets);
 				break;
 			case GROUP_OFFSETS:
 				consumer.setStartFromGroupOffsets();
@@ -1874,11 +1943,12 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 	}
 
 	/**
-	 * Variant of {@link KafkaConsumerTestBase#readSequence(StreamExecutionEnvironment, StartupMode, Properties, String, Map)} to
+	 * Variant of {@link KafkaConsumerTestBase#readSequence(StreamExecutionEnvironment, StartupMode, Map, Properties, String, Map)} to
 	 * expect reading from the same start offset and the same value count for all partitions of a single Kafka topic.
 	 */
 	protected void readSequence(final StreamExecutionEnvironment env,
 								final StartupMode startupMode,
+								final Map<KafkaTopicPartition, Long> specificStartupOffsets,
 								final Properties cc,
 								final int sourceParallelism,
 								final String topicName,
@@ -1888,7 +1958,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		for (int i = 0; i < sourceParallelism; i++) {
 			partitionsToValuesCountAndStartOffset.put(i, new Tuple2<>(valuesCount, startFrom));
 		}
-		readSequence(env, startupMode, cc, topicName, partitionsToValuesCountAndStartOffset);
+		readSequence(env, startupMode, specificStartupOffsets, cc, topicName, partitionsToValuesCountAndStartOffset);
 	}
 
 	protected String writeSequence(

@@ -44,14 +44,21 @@ class TableFunctionCallGen(
       codeGenerator: CodeGenerator,
       operands: Seq[GeneratedExpression])
     : GeneratedExpression = {
-    // determine function signature
-    val matchingSignature = getSignature(tableFunction, signature)
+    // determine function method
+    val matchingMethod = getEvalMethod(tableFunction, signature)
       .getOrElse(throw new CodeGenException("No matching signature found."))
+    val matchingSignature = matchingMethod.getParameterTypes
+
+    // zip for variable signatures
+    var paramToOperands = matchingSignature.zip(operands)
+    if (operands.length > matchingSignature.length) {
+      operands.drop(matchingSignature.length).foreach(op =>
+        paramToOperands = paramToOperands :+ (matchingSignature.last.getComponentType, op)
+      )
+    }
 
     // convert parameters for function (output boxing)
-    val parameters = matchingSignature
-        .zip(operands)
-        .map { case (paramClass, operandExpr) =>
+    val parameters = paramToOperands.map { case (paramClass, operandExpr) =>
           if (paramClass.isPrimitive) {
             operandExpr
           } else if (ClassUtils.isPrimitiveWrapper(paramClass)

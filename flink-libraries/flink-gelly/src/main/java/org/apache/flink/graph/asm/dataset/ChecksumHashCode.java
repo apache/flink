@@ -60,6 +60,11 @@ extends AbstractDataSetAnalytic<T, Checksum> {
 		return checksumHashCodeHelper.getAccumulator(env, CHECKSUM);
 	}
 
+	/**
+	 * Helper class to count elements and sum element hashcodes.
+	 *
+	 * @param <U> element type
+	 */
 	private static class ChecksumHashCodeHelper<U>
 	extends AnalyticHelper<U> {
 		private long count;
@@ -78,6 +83,9 @@ extends AbstractDataSetAnalytic<T, Checksum> {
 		}
 	}
 
+	/**
+	 * Wraps checksum and count.
+	 */
 	public static class Checksum
 	implements SimpleAccumulator<Checksum> {
 		private long count;

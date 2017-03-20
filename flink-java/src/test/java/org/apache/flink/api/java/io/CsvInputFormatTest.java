@@ -24,6 +24,7 @@ import org.apache.flink.api.java.tuple.*;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
@@ -79,7 +80,7 @@ public class CsvInputFormatTest {
 		tempFile.deleteOnExit();
 
 		try (FileOutputStream fileOutputStream = new FileOutputStream(tempFile)) {
-			fileOutputStream.write(fileContent.getBytes());
+			fileOutputStream.write(fileContent.getBytes(ConfigConstants.DEFAULT_CHARSET));
 		}
 
 		// fix the number of blocks and the size of each one.
@@ -793,7 +794,8 @@ public class CsvInputFormatTest {
 		for (Object[] failure : failures) {
 			String input = (String) failure[0];
 
-			int result = stringParser.parseField(input.getBytes(), 0, input.length(), new byte[]{'|'}, null);
+			int result = stringParser.parseField(input.getBytes(ConfigConstants.DEFAULT_CHARSET), 0,
+				input.length(), new byte[]{'|'}, null);
 
 			assertThat(result, is(-1));
 			assertThat(stringParser.getErrorState(), is(failure[1]));

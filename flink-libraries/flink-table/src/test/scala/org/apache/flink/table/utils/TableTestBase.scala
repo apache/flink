@@ -58,7 +58,8 @@ abstract class TableTestUtil {
   private var counter = 0
 
   def addTable[T: TypeInformation](fields: Expression*): Table = {
-    addTable[T](s"Table${counter += 1}", fields: _*)
+    counter += 1
+    addTable[T](s"Table$counter", fields: _*)
   }
 
   def addTable[T: TypeInformation](name: String, fields: Expression*): Table

@@ -66,6 +66,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
+import org.apache.flink.util.OutputTag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -215,8 +216,6 @@ public abstract class AbstractStreamOperator<OUT>
 
 		if (restoring) {
 
-			restoreStreamCheckpointed(stateHandles);
-
 			//pass directly
 			operatorStateHandlesBackend = stateHandles.getManagedOperatorState();
 			operatorStateHandlesRaw = stateHandles.getRawOperatorState();
@@ -240,6 +239,14 @@ public abstract class AbstractStreamOperator<OUT>
 				getContainingTask().getCancelables()); // access to register streams for canceling
 
 		initializeState(initializationContext);
+
+		if (restoring) {
+
+			// finally restore the legacy state in case we are
+			// migrating from a previous Flink version.
+
+			restoreStreamCheckpointed(stateHandles);
+		}
 	}
 
 	@Deprecated
@@ -283,13 +290,14 @@ public abstract class AbstractStreamOperator<OUT>
 			// create a keyed state backend if there is keyed state, as indicated by the presence of a key serializer
 			if (null != keySerializer) {
 				KeyGroupRange subTaskKeyGroupRange = KeyGroupRangeAssignment.computeKeyGroupRangeForOperatorIndex(
-						container.getEnvironment().getTaskInfo().getNumberOfKeyGroups(),
+						container.getEnvironment().getTaskInfo().getMaxNumberOfParallelSubtasks(),
 						container.getEnvironment().getTaskInfo().getNumberOfParallelSubtasks(),
 						container.getEnvironment().getTaskInfo().getIndexOfThisSubtask());
 
 				this.keyedStateBackend = container.createKeyedStateBackend(
 						keySerializer,
-						container.getEnvironment().getTaskInfo().getNumberOfKeyGroups(),
+						// The maximum parallelism == number of key group
+						container.getEnvironment().getTaskInfo().getMaxNumberOfParallelSubtasks(),
 						subTaskKeyGroupRange);
 
 				this.keyedStateStore = new DefaultKeyedStateStore(keyedStateBackend, getExecutionConfig());
@@ -855,6 +863,12 @@ public abstract class AbstractStreamOperator<OUT>
 		}
 
 		@Override
+		public <X> void collect(OutputTag<?> outputTag, StreamRecord<X> record) {
+			numRecordsOut.inc();
+			output.collect(outputTag, record);
+		}
+
+		@Override
 		public void close() {
 			output.close();
 		}
@@ -955,5 +969,11 @@ public abstract class AbstractStreamOperator<OUT>
 	public int numEventTimeTimers() {
 		return timeServiceManager == null ? 0 :
 			timeServiceManager.numEventTimeTimers();
+	}
+
+	@VisibleForTesting
+	public int numKeysForWatermarkCallback() {
+		return timeServiceManager == null ? 0 :
+			timeServiceManager.numKeysForWatermarkCallback();
 	}
 }

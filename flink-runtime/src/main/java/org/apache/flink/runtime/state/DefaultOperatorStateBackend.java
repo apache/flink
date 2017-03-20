@@ -23,6 +23,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
@@ -56,13 +57,18 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 	private final CloseableRegistry closeStreamOnCancelRegistry;
 	private final JavaSerializer<Serializable> javaSerializer;
 	private final ClassLoader userClassloader;
+	private final ExecutionConfig executionConfig;
 
-	public DefaultOperatorStateBackend(ClassLoader userClassLoader) throws IOException {
-
+	public DefaultOperatorStateBackend(ClassLoader userClassLoader, ExecutionConfig executionConfig) throws IOException {
 		this.closeStreamOnCancelRegistry = new CloseableRegistry();
 		this.userClassloader = Preconditions.checkNotNull(userClassLoader);
+		this.executionConfig = executionConfig;
 		this.javaSerializer = new JavaSerializer<>();
 		this.registeredStates = new HashMap<>();
+	}
+
+	public ExecutionConfig getExecutionConfig() {
+		return executionConfig;
 	}
 
 	@Override
@@ -105,6 +111,8 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 			OperatorStateHandle.Mode mode) throws IOException {
 
 		Preconditions.checkNotNull(stateDescriptor);
+
+		stateDescriptor.initializeSerializerUnlessSet(getExecutionConfig());
 
 		String name = Preconditions.checkNotNull(stateDescriptor.getName());
 		TypeSerializer<S> partitionStateSerializer = Preconditions.checkNotNull(stateDescriptor.getElementSerializer());
@@ -161,7 +169,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 			CheckpointOptions checkpointOptions) throws Exception {
 
 		if (registeredStates.isEmpty()) {
-			return new DoneFuture<>(null);
+			return DoneFuture.nullValue();
 		}
 
 		List<OperatorBackendSerializationProxy.StateMetaInfo<?>> metaInfoList =

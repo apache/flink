@@ -63,6 +63,8 @@ import org.apache.flink.streaming.runtime.operators.windowing.functions.Internal
 import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalWindowFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.util.OutputTag;
+import org.apache.flink.util.Preconditions;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -106,6 +108,12 @@ public class AllWindowedStream<T, W extends Window> {
 	/** The user-specified allowed lateness. */
 	private long allowedLateness = 0L;
 
+	/**
+	 * Side output {@code OutputTag} for late data. If no tag is set late data will simply be
+	 * dropped.
+	 */
+	private OutputTag<T> lateDataOutputTag;
+
 	@PublicEvolving
 	public AllWindowedStream(DataStream<T> input,
 			WindowAssigner<? super T, W> windowAssigner) {
@@ -140,6 +148,23 @@ public class AllWindowedStream<T, W extends Window> {
 		checkArgument(millis >= 0, "The allowed lateness cannot be negative.");
 
 		this.allowedLateness = millis;
+		return this;
+	}
+
+	/**
+	 * Send late arriving data to the side output identified by the given {@link OutputTag}. Data
+	 * is considered late after the watermark has passed the end of the window plus the allowed
+	 * lateness set using {@link #allowedLateness(Time)}.
+	 *
+	 * <p>You can get the stream of late data using
+	 * {@link SingleOutputStreamOperator#getSideOutput(OutputTag)} on the
+	 * {@link SingleOutputStreamOperator} resulting from the windowed operation
+	 * with the same {@link OutputTag}.
+	 */
+	@PublicEvolving
+	public AllWindowedStream<T, W> sideOutputLateData(OutputTag<T> outputTag) {
+		Preconditions.checkNotNull(outputTag, "Side output tag must not be null.");
+		this.lateDataOutputTag = input.getExecutionEnvironment().clean(outputTag);
 		return this;
 	}
 
@@ -271,7 +296,8 @@ public class AllWindowedStream<T, W extends Window> {
 					new InternalIterableAllWindowFunction<>(new ReduceApplyAllWindowFunction<>(reduceFunction, function)),
 					trigger,
 					evictor,
-					allowedLateness);
+					allowedLateness,
+					lateDataOutputTag);
 
 		} else {
 			ReducingStateDescriptor<T> stateDesc = new ReducingStateDescriptor<>("window-contents",
@@ -288,7 +314,8 @@ public class AllWindowedStream<T, W extends Window> {
 					stateDesc,
 					new InternalSingleValueAllWindowFunction<>(function),
 					trigger,
-					allowedLateness);
+					allowedLateness,
+					lateDataOutputTag);
 		}
 
 		return input.transform(opName, resultType, operator).forceNonParallel();
@@ -367,7 +394,8 @@ public class AllWindowedStream<T, W extends Window> {
 					new InternalIterableProcessAllWindowFunction<>(new ReduceApplyProcessAllWindowFunction<>(reduceFunction, function)),
 					trigger,
 					evictor,
-					allowedLateness);
+					allowedLateness,
+					lateDataOutputTag);
 
 		} else {
 			ReducingStateDescriptor<T> stateDesc = new ReducingStateDescriptor<>("window-contents",
@@ -384,7 +412,8 @@ public class AllWindowedStream<T, W extends Window> {
 					stateDesc,
 					new InternalSingleValueProcessAllWindowFunction<>(function),
 					trigger,
-					allowedLateness);
+					allowedLateness,
+					lateDataOutputTag);
 		}
 
 		return input.transform(opName, resultType, operator).forceNonParallel();
@@ -562,7 +591,8 @@ public class AllWindowedStream<T, W extends Window> {
 									new AggregateApplyAllWindowFunction<>(aggregateFunction, windowFunction)),
 							trigger,
 							evictor,
-							allowedLateness);
+							allowedLateness,
+							lateDataOutputTag);
 
 		} else {
 			AggregatingStateDescriptor<T, ACC, V> stateDesc = new AggregatingStateDescriptor<>(
@@ -580,7 +610,8 @@ public class AllWindowedStream<T, W extends Window> {
 							stateDesc,
 							new InternalSingleValueAllWindowFunction<>(windowFunction),
 							trigger,
-							allowedLateness);
+							allowedLateness,
+							lateDataOutputTag);
 		}
 
 		return input.transform(opName, resultType, operator).forceNonParallel();
@@ -693,7 +724,8 @@ public class AllWindowedStream<T, W extends Window> {
 					new InternalAggregateProcessAllWindowFunction<>(aggregateFunction, windowFunction),
 					trigger,
 					evictor,
-					allowedLateness);
+					allowedLateness,
+					lateDataOutputTag);
 
 		} else {
 			AggregatingStateDescriptor<T, ACC, V> stateDesc = new AggregatingStateDescriptor<>(
@@ -711,7 +743,8 @@ public class AllWindowedStream<T, W extends Window> {
 					stateDesc,
 					new InternalSingleValueProcessAllWindowFunction<>(windowFunction),
 					trigger,
-					allowedLateness);
+					allowedLateness,
+					lateDataOutputTag);
 		}
 
 		return input.transform(opName, resultType, operator).forceNonParallel();
@@ -842,7 +875,8 @@ public class AllWindowedStream<T, W extends Window> {
 					new InternalIterableAllWindowFunction<>(new FoldApplyAllWindowFunction<>(initialValue, foldFunction, function, foldAccumulatorType)),
 					trigger,
 					evictor,
-					allowedLateness);
+					allowedLateness,
+					lateDataOutputTag);
 
 		} else {
 			FoldingStateDescriptor<T, ACC> stateDesc = new FoldingStateDescriptor<>("window-contents",
@@ -858,7 +892,8 @@ public class AllWindowedStream<T, W extends Window> {
 					stateDesc,
 					new InternalSingleValueAllWindowFunction<>(function),
 					trigger,
-					allowedLateness);
+					allowedLateness,
+					lateDataOutputTag);
 		}
 
 		return input.transform(opName, resultType, operator).forceNonParallel();
@@ -948,7 +983,8 @@ public class AllWindowedStream<T, W extends Window> {
 					new InternalIterableProcessAllWindowFunction<>(new FoldApplyProcessAllWindowFunction<>(initialValue, foldFunction, function, foldAccumulatorType)),
 					trigger,
 					evictor,
-					allowedLateness);
+					allowedLateness,
+					lateDataOutputTag);
 
 		} else {
 			FoldingStateDescriptor<T, ACC> stateDesc = new FoldingStateDescriptor<>("window-contents",
@@ -964,7 +1000,8 @@ public class AllWindowedStream<T, W extends Window> {
 					stateDesc,
 					new InternalSingleValueProcessAllWindowFunction<>(function),
 					trigger,
-					allowedLateness);
+					allowedLateness,
+					lateDataOutputTag);
 		}
 
 		return input.transform(opName, resultType, operator).forceNonParallel();
@@ -1080,7 +1117,8 @@ public class AllWindowedStream<T, W extends Window> {
 					function,
 					trigger,
 					evictor,
-					allowedLateness);
+					allowedLateness,
+					lateDataOutputTag);
 
 		} else {
 			ListStateDescriptor<T> stateDesc = new ListStateDescriptor<>("window-contents",
@@ -1096,7 +1134,8 @@ public class AllWindowedStream<T, W extends Window> {
 					stateDesc,
 					function,
 					trigger,
-					allowedLateness);
+					allowedLateness,
+					lateDataOutputTag);
 		}
 
 		return input.transform(opName, resultType, operator).forceNonParallel();
@@ -1177,7 +1216,8 @@ public class AllWindowedStream<T, W extends Window> {
 					new InternalIterableAllWindowFunction<>(new ReduceApplyAllWindowFunction<>(reduceFunction, function)),
 					trigger,
 					evictor,
-					allowedLateness);
+					allowedLateness,
+					lateDataOutputTag);
 
 		} else {
 			ReducingStateDescriptor<T> stateDesc = new ReducingStateDescriptor<>("window-contents",
@@ -1194,7 +1234,8 @@ public class AllWindowedStream<T, W extends Window> {
 					stateDesc,
 					new InternalSingleValueAllWindowFunction<>(function),
 					trigger,
-					allowedLateness);
+					allowedLateness,
+					lateDataOutputTag);
 		}
 
 		return input.transform(opName, resultType, operator).forceNonParallel();
@@ -1280,7 +1321,8 @@ public class AllWindowedStream<T, W extends Window> {
 					new InternalIterableAllWindowFunction<>(new FoldApplyAllWindowFunction<>(initialValue, foldFunction, function, resultType)),
 					trigger,
 					evictor,
-					allowedLateness);
+					allowedLateness,
+					lateDataOutputTag);
 
 		} else {
 			FoldingStateDescriptor<T, R> stateDesc = new FoldingStateDescriptor<>("window-contents",
@@ -1296,7 +1338,8 @@ public class AllWindowedStream<T, W extends Window> {
 					stateDesc,
 					new InternalSingleValueAllWindowFunction<>(function),
 					trigger,
-					allowedLateness);
+					allowedLateness,
+					lateDataOutputTag);
 		}
 
 		return input.transform(opName, resultType, operator).forceNonParallel();

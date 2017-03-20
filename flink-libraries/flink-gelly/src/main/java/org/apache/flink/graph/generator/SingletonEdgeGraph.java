@@ -28,6 +28,7 @@ import org.apache.flink.graph.Vertex;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
 import org.apache.flink.util.LongValueSequenceIterator;
+import org.apache.flink.util.Preconditions;
 
 /**
  * A singleton-edge {@link Graph} contains one or more isolated two-paths. The in- and out-degree
@@ -35,6 +36,8 @@ import org.apache.flink.util.LongValueSequenceIterator;
  */
 public class SingletonEdgeGraph
 extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
+
+	public static final int MINIMUM_VERTEX_PAIR_COUNT = 1;
 
 	// Required to create the DataSource
 	private final ExecutionEnvironment env;
@@ -49,9 +52,8 @@ extends AbstractGraphGenerator<LongValue, NullValue, NullValue> {
 	 * @param vertexPairCount number of pairs of vertices
 	 */
 	public SingletonEdgeGraph(ExecutionEnvironment env, long vertexPairCount) {
-		if (vertexPairCount <= 0) {
-			throw new IllegalArgumentException("Vertex pair count must be greater than zero");
-		}
+		Preconditions.checkArgument(vertexPairCount >= MINIMUM_VERTEX_PAIR_COUNT,
+			"Vertex pair count must be at least " + MINIMUM_VERTEX_PAIR_COUNT);
 
 		this.env = env;
 		this.vertexPairCount = vertexPairCount;

@@ -26,6 +26,7 @@ import org.apache.flink.runtime.akka.ListeningBehaviour
 import org.apache.flink.runtime.checkpoint.{CheckpointCoordinator, CompletedCheckpoint}
 import org.apache.flink.runtime.client.JobExecutionException
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType
 import org.apache.flink.runtime.jobgraph.tasks.{ExternalizedCheckpointSettings, JobSnapshottingSettings}
 import org.apache.flink.runtime.jobgraph.{DistributionPattern, JobGraph, JobVertex, ScheduleMode}
 import org.apache.flink.runtime.jobmanager.Tasks._
@@ -180,7 +181,8 @@ class JobManagerITCase(_system: ActorSystem)
       sender.setParallelism(num_tasks)
       receiver.setParallelism(num_tasks)
 
-      receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE)
+      receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE,
+        ResultPartitionType.PIPELINED)
 
       val jobGraph = new JobGraph("Pointwise Job", sender, receiver)
 
@@ -215,7 +217,8 @@ class JobManagerITCase(_system: ActorSystem)
       sender.setParallelism(num_tasks)
       receiver.setParallelism(num_tasks)
 
-      receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE)
+      receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE,
+        ResultPartitionType.PIPELINED)
 
       val jobGraph = new JobGraph("Bipartite Job", sender, receiver)
 
@@ -251,8 +254,10 @@ class JobManagerITCase(_system: ActorSystem)
       sender2.setParallelism(2 * num_tasks)
       receiver.setParallelism(3 * num_tasks)
 
-      receiver.connectNewDataSetAsInput(sender1, DistributionPattern.POINTWISE)
-      receiver.connectNewDataSetAsInput(sender2, DistributionPattern.ALL_TO_ALL)
+      receiver.connectNewDataSetAsInput(sender1, DistributionPattern.POINTWISE,
+        ResultPartitionType.PIPELINED)
+      receiver.connectNewDataSetAsInput(sender2, DistributionPattern.ALL_TO_ALL,
+        ResultPartitionType.PIPELINED)
 
       val jobGraph = new JobGraph("Bipartite Job", sender1, receiver, sender2)
 
@@ -296,8 +301,10 @@ class JobManagerITCase(_system: ActorSystem)
       sender2.setParallelism(2 * num_tasks)
       receiver.setParallelism(3 * num_tasks)
 
-      receiver.connectNewDataSetAsInput(sender1, DistributionPattern.POINTWISE)
-      receiver.connectNewDataSetAsInput(sender2, DistributionPattern.ALL_TO_ALL)
+      receiver.connectNewDataSetAsInput(sender1, DistributionPattern.POINTWISE,
+        ResultPartitionType.PIPELINED)
+      receiver.connectNewDataSetAsInput(sender2, DistributionPattern.ALL_TO_ALL,
+        ResultPartitionType.PIPELINED)
 
       val jobGraph = new JobGraph("Bipartite Job", sender1, receiver, sender2)
 
@@ -338,8 +345,10 @@ class JobManagerITCase(_system: ActorSystem)
       forwarder.setSlotSharingGroup(sharingGroup)
       receiver.setSlotSharingGroup(sharingGroup)
 
-      forwarder.connectNewDataSetAsInput(sender, DistributionPattern.ALL_TO_ALL)
-      receiver.connectNewDataSetAsInput(forwarder, DistributionPattern.ALL_TO_ALL)
+      forwarder.connectNewDataSetAsInput(sender, DistributionPattern.ALL_TO_ALL,
+        ResultPartitionType.PIPELINED)
+      receiver.connectNewDataSetAsInput(forwarder, DistributionPattern.ALL_TO_ALL,
+        ResultPartitionType.PIPELINED)
 
       val jobGraph = new JobGraph("Forwarding Job", sender, forwarder, receiver)
 
@@ -375,7 +384,8 @@ class JobManagerITCase(_system: ActorSystem)
       sender.setParallelism(num_tasks)
       receiver.setParallelism(num_tasks)
 
-      receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE)
+      receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE,
+        ResultPartitionType.PIPELINED)
 
       val jobGraph = new JobGraph("Pointwise Job", sender, receiver)
 
@@ -423,7 +433,8 @@ class JobManagerITCase(_system: ActorSystem)
       sender.setParallelism(num_tasks)
       receiver.setParallelism(num_tasks)
 
-      receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE)
+      receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE,
+        ResultPartitionType.PIPELINED)
 
       val jobGraph = new JobGraph("Pointwise Job", sender, receiver)
 
@@ -468,7 +479,8 @@ class JobManagerITCase(_system: ActorSystem)
       sender.setParallelism(num_tasks)
       receiver.setParallelism(num_tasks)
 
-      receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE)
+      receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE,
+        ResultPartitionType.PIPELINED)
 
       val jobGraph = new JobGraph("Pointwise job", sender, receiver)
 
@@ -508,7 +520,8 @@ class JobManagerITCase(_system: ActorSystem)
       sender.setParallelism(num_tasks)
       receiver.setParallelism(num_tasks)
 
-      receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE)
+      receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE,
+        ResultPartitionType.PIPELINED)
 
       val jobGraph = new JobGraph("Pointwise job", sender, receiver)
 
@@ -556,7 +569,8 @@ class JobManagerITCase(_system: ActorSystem)
       sender.setParallelism(num_tasks)
       receiver.setParallelism(num_tasks)
 
-      receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE)
+      receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE,
+        ResultPartitionType.PIPELINED)
 
       val jobGraph = new JobGraph("Pointwise job", sender, receiver)
 

@@ -21,6 +21,9 @@ package org.apache.flink.configuration;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+
 import static org.apache.flink.configuration.ConfigOptions.key;
 
 /**
@@ -1427,6 +1430,10 @@ public final class ConfigConstants {
 
 	/** The environment variable name which contains the Flink installation root directory */
 	public static final String ENV_FLINK_HOME_DIR = "FLINK_HOME";
+
+	// ---------------------------- Encoding ------------------------------
+
+	public static final Charset DEFAULT_CHARSET = StandardCharsets.UTF_8;
 
 	/**
 	 * Not instantiable.

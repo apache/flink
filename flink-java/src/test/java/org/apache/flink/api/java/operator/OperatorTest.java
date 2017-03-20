@@ -25,6 +25,8 @@ import org.apache.flink.api.java.operators.Operator;
 import org.apache.flink.api.java.typeutils.ValueTypeInfo;
 import org.junit.Test;
 
+import java.lang.reflect.Method;
+
 import static org.junit.Assert.assertEquals;
 
 public class OperatorTest {
@@ -46,19 +48,21 @@ public class OperatorTest {
 		assertEquals(parallelism, operator.getParallelism());
 	}
 
-	/*
 	@Test
-	public void testConfigurationOfResource() {
+	public void testConfigurationOfResource() throws Exception{
 		Operator operator = new MockOperator();
 
-		// verify explicit change in resource
-		ResourceSpec minResource = new ResourceSpec(1.0, 100, 0, 0, 0);
-		ResourceSpec preferredResource = new ResourceSpec(2.0, 200, 0, 0, 0);
-		operator.setResource(minResource, preferredResource);
+		Method opMethod = Operator.class.getDeclaredMethod("setResources", ResourceSpec.class, ResourceSpec.class);
+		opMethod.setAccessible(true);
 
-		assertEquals(minResource, operator.getMinResource());
-		assertEquals(preferredResource, operator.getPreferredResource());
-	}*/
+		// verify explicit change in resources
+		ResourceSpec minResources = new ResourceSpec(1.0, 100);
+		ResourceSpec preferredResources = new ResourceSpec(2.0, 200);
+		opMethod.invoke(operator, minResources, preferredResources);
+
+		assertEquals(minResources, operator.getMinResources());
+		assertEquals(preferredResources, operator.getPreferredResources());
+	}
 
 	private class MockOperator extends Operator {
 		public MockOperator() {

@@ -52,9 +52,9 @@ public class DataSink<T> {
 	
 	private int parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
 
-	private ResourceSpec minResources = ResourceSpec.UNKNOWN;
+	private ResourceSpec minResources = ResourceSpec.DEFAULT;
 
-	private ResourceSpec preferredResources = ResourceSpec.UNKNOWN;
+	private ResourceSpec preferredResources = ResourceSpec.DEFAULT;
 
 	private Configuration parameters;
 
@@ -306,49 +306,45 @@ public class DataSink<T> {
 		return this.preferredResources;
 	}
 
-//	---------------------------------------------------------------------------
-//	 Fine-grained resource profiles are an incomplete work-in-progress feature
-//	 The setters are hence commented out at this point.
-//	---------------------------------------------------------------------------
-//
-//	/**
-//	 * Sets the minimum and preferred resources for this data sink. This overrides the default empty resource.
-//	 *	The minimum resource must be satisfied and the preferred resource specifies the upper bound
-//	 * for dynamic resource resize.
-//	 *
-//	 * @param minResources The minimum resource for this data sink.
-//	 * @param preferredResources The preferred resource for this data sink.
-//	 * @return The data sink with set minimum and preferred resources.
-//	 */
-//	@PublicEvolving
-//	public DataSink<T> setResources(ResourceSpec minResources, ResourceSpec preferredResources) {
-//		Preconditions.checkNotNull(minResources, "The min resources must be not null.");
-//		Preconditions.checkNotNull(preferredResources, "The preferred resources must be not null.");
-//		Preconditions.checkArgument(minResources.isValid() && 
-//				preferredResources.isValid() && minResources.lessThanOrEqual(preferredResources),
-//				"The values in resource must be not less than 0 and the preferred " +
-//				"resource must be greater than the min resource.");
-//
-//		this.minResources = minResources;
-//		this.preferredResources = preferredResources;
-//
-//		return this;
-//	}
-//
-//	/**
-//	 * Sets the resources for this data sink. This overrides the default resource profile.
-//	 *
-//	 * @param resources The resources for this data sink.
-//	 * @return The data sink with set minimum and preferred resources.
-//	 */
-//	@PublicEvolving
-//	public DataSink<T> setResources(ResourceSpec resources) {
-//		Preconditions.checkNotNull(resources, "The resources must be not null.");
-//		Preconditions.checkArgument(resources.isValid(), "The resource values must be greater than 0.");
-//
-//		this.minResources = resources;
-//		this.preferredResources = resources;
-//
-//		return this;
-//	}
+	//	---------------------------------------------------------------------------
+	//	 Fine-grained resource profiles are an incomplete work-in-progress feature
+	//	 The setters are hence private at this point.
+	//	---------------------------------------------------------------------------
+
+	/**
+	 * Sets the minimum and preferred resources for this data sink. and the lower and upper resource limits
+	 * will be considered in resource resize feature for future plan.
+	 *
+	 * @param minResources The minimum resources for this data sink.
+	 * @param preferredResources The preferred resources for this data sink.
+	 * @return The data sink with set minimum and preferred resources.
+	 */
+	private DataSink<T> setResources(ResourceSpec minResources, ResourceSpec preferredResources) {
+		Preconditions.checkNotNull(minResources, "The min resources must be not null.");
+		Preconditions.checkNotNull(preferredResources, "The preferred resources must be not null.");
+		Preconditions.checkArgument(minResources.isValid() && preferredResources.isValid() && minResources.lessThanOrEqual(preferredResources),
+				"The values in resources must be not less than 0 and the preferred resources must be greater than the min resources.");
+
+		this.minResources = minResources;
+		this.preferredResources = preferredResources;
+
+		return this;
+	}
+
+	/**
+	 * Sets the resources for this data sink, and the minimum and preferred resources are the same by default.
+	 *
+	 * @param resources The resources for this data sink.
+	 * @return The data sink with set minimum and preferred resources.
+	 */
+	private DataSink<T> setResources(ResourceSpec resources) {
+		Preconditions.checkNotNull(resources, "The resources must be not null.");
+		Preconditions.checkArgument(resources.isValid(), "The values in resources must be not less than 0.");
+
+		this.minResources = resources;
+		this.preferredResources = resources;
+
+		return this;
+	}
+
 }

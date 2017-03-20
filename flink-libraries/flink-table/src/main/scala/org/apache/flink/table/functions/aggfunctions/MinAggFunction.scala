@@ -75,6 +75,11 @@ abstract class MinAggFunction[T](implicit ord: Ordering[T]) extends AggregateFun
     ret
   }
 
+  override def resetAccumulator(accumulator: Accumulator): Unit = {
+    accumulator.asInstanceOf[MinAccumulator[T]].f0 = getInitValue
+    accumulator.asInstanceOf[MinAccumulator[T]].f1 = false
+  }
+
   override def getAccumulatorType(): TypeInformation[_] = {
     new TupleTypeInfo(
       new MinAccumulator[T].getClass,

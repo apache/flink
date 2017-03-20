@@ -33,6 +33,9 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.asm.degree.annotate.undirected.EdgeDegreePair;
+import org.apache.flink.graph.library.clustering.undirected.TriangleListing.Result;
+import org.apache.flink.graph.asm.result.PrintableResult;
+import org.apache.flink.graph.asm.result.TertiaryResult;
 import org.apache.flink.graph.utils.proxy.GraphAlgorithmWrappingDataSet;
 import org.apache.flink.graph.utils.proxy.OptionalBoolean;
 import org.apache.flink.types.CopyableValue;
@@ -64,10 +67,10 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
  * @param <EV> edge value type
  */
 public class TriangleListing<K extends Comparable<K> & CopyableValue<K>, VV, EV>
-extends GraphAlgorithmWrappingDataSet<K, VV, EV, Tuple3<K, K, K>> {
+extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 
 	// Optional configuration
-	private OptionalBoolean sortTriangleVertices = new OptionalBoolean(false, false);
+	private OptionalBoolean sortTriangleVertices = new OptionalBoolean(false, true);
 
 	private int littleParallelism = PARALLELISM_DEFAULT;
 
@@ -132,7 +135,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Tuple3<K, K, K>> {
 	 */
 
 	@Override
-	public DataSet<Tuple3<K, K, K>> runInternal(Graph<K, VV, EV> input)
+	public DataSet<Result<K>> runInternal(Graph<K, VV, EV> input)
 			throws Exception {
 		// u, v where u < v
 		DataSet<Tuple2<K, K>> filteredByID = input
@@ -160,7 +163,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Tuple3<K, K, K>> {
 				.name("Generate triplets");
 
 		// u, v, w where (u, v), (u, w), and (v, w) are edges in graph, v < w
-		DataSet<Tuple3<K, K, K>> triangles = triplets
+		DataSet<Result<K>> triangles = triplets
 			.join(filteredByID, JoinOperatorBase.JoinHint.REPARTITION_HASH_SECOND)
 			.where(1, 2)
 			.equalTo(0, 1)
@@ -290,11 +293,16 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Tuple3<K, K, K>> {
 	@ForwardedFieldsFirst("0; 1; 2")
 	@ForwardedFieldsSecond("0; 1")
 	private static final class ProjectTriangles<T>
-	implements JoinFunction<Tuple3<T, T, T>, Tuple2<T, T>, Tuple3<T, T, T>> {
+	implements JoinFunction<Tuple3<T, T, T>, Tuple2<T, T>, Result<T>> {
+		private Result<T> output = new Result<>();
+
 		@Override
-		public Tuple3<T, T, T> join(Tuple3<T, T, T> triplet, Tuple2<T, T> edge)
+		public Result<T> join(Tuple3<T, T, T> triplet, Tuple2<T, T> edge)
 				throws Exception {
-			return triplet;
+			output.f0 = triplet.f0;
+			output.f1 = triplet.f1;
+			output.f2 = triplet.f2;
+			return output;
 		}
 	}
 
@@ -305,9 +313,9 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Tuple3<K, K, K>> {
 	 * @param <T> ID type
 	 */
 	private static final class SortTriangleVertices<T extends Comparable<T>>
-	implements MapFunction<Tuple3<T, T, T>, Tuple3<T, T, T>> {
+	implements MapFunction<Result<T>, Result<T>> {
 		@Override
-		public Tuple3<T, T, T> map(Tuple3<T, T, T> value)
+		public Result<T> map(Result<T> value)
 				throws Exception {
 			// by the triangle listing algorithm we know f1 < f2
 			if (value.f0.compareTo(value.f1) > 0) {
@@ -323,6 +331,41 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Tuple3<K, K, K>> {
 			}
 
 			return value;
+		}
+	}
+
+	/**
+	 * Wraps {@link Tuple3} to encapsulate results from the undirected Triangle Listing algorithm.
+	 *
+	 * @param <T> ID type
+	 */
+	public static class Result<T>
+	extends Tuple3<T, T, T>
+	implements PrintableResult, TertiaryResult<T> {
+		@Override
+		public T getVertexId0() {
+			return f0;
+		}
+
+		@Override
+		public T getVertexId1() {
+			return f1;
+		}
+
+		@Override
+		public T getVertexId2() {
+			return f2;
+		}
+
+		/**
+		 * Format values into a human-readable string.
+		 *
+		 * @return verbose string
+		 */
+		public String toPrintableString() {
+			return "1st vertex ID: " + getVertexId0()
+				+ ", 2nd vertex ID: " + getVertexId1()
+				+ ", 3rd vertex ID: " + getVertexId2();
 		}
 	}
 }

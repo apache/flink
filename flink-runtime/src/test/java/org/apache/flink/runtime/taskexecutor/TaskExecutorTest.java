@@ -30,6 +30,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.concurrent.CompletableFuture;
 import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
@@ -39,6 +40,9 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobInformation;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
 import org.apache.flink.runtime.filecache.FileCache;
+import org.apache.flink.runtime.heartbeat.HeartbeatListener;
+import org.apache.flink.runtime.heartbeat.HeartbeatManagerImpl;
+import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.NonHaServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
@@ -80,31 +84,130 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
 import org.mockito.Matchers;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
+import org.slf4j.Logger;
 
 import java.net.InetAddress;
 import java.net.URL;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.UUID;
+import java.util.concurrent.Executor;
+import java.util.concurrent.TimeoutException;
 
 import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.anyInt;
-import static org.mockito.Mockito.anyString;
-import static org.mockito.Mockito.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 public class TaskExecutorTest extends TestLogger {
 
 	@Rule
 	public TestName name = new TestName();
 
+	@Test
+	public void testHeartbeatTimeoutWithJobManager() throws Exception {
+		final JobID jobId = new JobID();
+		final Configuration configuration = new Configuration();
+		final TaskManagerConfiguration tmConfig = TaskManagerConfiguration.fromConfiguration(configuration);
+		final ResourceID tmResourceId = new ResourceID("tm");
+		final TaskManagerLocation taskManagerLocation = new TaskManagerLocation(tmResourceId, InetAddress.getLoopbackAddress(), 1234);
+		final TaskSlotTable taskSlotTable = new TaskSlotTable(Arrays.asList(mock(ResourceProfile.class)), mock(TimerService.class));
+
+		final TestingSerialRpcService rpc = new TestingSerialRpcService();
+		final JobLeaderService jobLeaderService = new JobLeaderService(taskManagerLocation);
+		final TestingHighAvailabilityServices haServices = new TestingHighAvailabilityServices();
+		final TestingLeaderRetrievalService rmLeaderRetrievalService = new TestingLeaderRetrievalService();
+		final TestingLeaderRetrievalService jmLeaderRetrievalService = new TestingLeaderRetrievalService();
+		haServices.setJobMasterLeaderRetriever(jobId, jmLeaderRetrievalService);
+		haServices.setResourceManagerLeaderRetriever(rmLeaderRetrievalService);
+
+		final TestingFatalErrorHandler testingFatalErrorHandler = new TestingFatalErrorHandler();
+
+		final long heartbeatTimeout = 10L;
+
+		HeartbeatServices heartbeatServices = mock(HeartbeatServices.class);
+		when(heartbeatServices.createHeartbeatManager(
+			eq(taskManagerLocation.getResourceID()),
+			any(HeartbeatListener.class),
+			any(ScheduledExecutor.class),
+			any(Logger.class))).thenAnswer(
+			new Answer<HeartbeatManagerImpl<Void, Void>>() {
+				@Override
+				public HeartbeatManagerImpl<Void, Void> answer(InvocationOnMock invocation) throws Throwable {
+					return new HeartbeatManagerImpl<>(
+						heartbeatTimeout,
+						taskManagerLocation.getResourceID(),
+						(HeartbeatListener<Void, Void>)invocation.getArguments()[1],
+						(Executor)invocation.getArguments()[2],
+						(ScheduledExecutor)invocation.getArguments()[2],
+						(Logger)invocation.getArguments()[3]);
+				}
+			}
+		);
+
+		final String jobMasterAddress = "jm";
+		final UUID jmLeaderId = UUID.randomUUID();
+		final ResourceID jmResourceId = new ResourceID(jobMasterAddress);
+		final JobMasterGateway jobMasterGateway = mock(JobMasterGateway.class);
+		final int blobPort = 42;
+
+		when(jobMasterGateway.registerTaskManager(
+				any(String.class),
+				eq(taskManagerLocation),
+				eq(jmLeaderId),
+				any(Time.class)
+		)).thenReturn(FlinkCompletableFuture.<RegistrationResponse>completed(new JMTMRegistrationSuccess(jmResourceId, blobPort)));
+		when(jobMasterGateway.getAddress()).thenReturn(jobMasterAddress);
+		when(jobMasterGateway.getHostname()).thenReturn("localhost");
+
+		try {
+			final TaskExecutor taskManager = new TaskExecutor(
+				tmConfig,
+				taskManagerLocation,
+				rpc,
+				mock(MemoryManager.class),
+				mock(IOManager.class),
+				mock(NetworkEnvironment.class),
+				haServices,
+				heartbeatServices,
+				mock(MetricRegistry.class),
+				mock(TaskManagerMetricGroup.class),
+				mock(BroadcastVariableManager.class),
+				mock(FileCache.class),
+				taskSlotTable,
+				new JobManagerTable(),
+				jobLeaderService,
+				testingFatalErrorHandler);
+
+			taskManager.start();
+
+			rpc.registerGateway(jobMasterAddress, jobMasterGateway);
+
+			// we have to add the job after the TaskExecutor, because otherwise the service has not
+			// been properly started.
+			jobLeaderService.addJob(jobId, jobMasterAddress);
+
+			// now inform the task manager about the new job leader
+			jmLeaderRetrievalService.notifyListener(jobMasterAddress, jmLeaderId);
+
+			// register task manager success will trigger monitoring heartbeat target between tm and jm
+			verify(jobMasterGateway).registerTaskManager(
+					eq(taskManager.getAddress()), eq(taskManagerLocation), eq(jmLeaderId), any(Time.class));
+
+			// the timeout should trigger disconnecting from the JobManager
+			verify(jobMasterGateway, timeout(heartbeatTimeout * 5)).disconnectTaskManager(eq(taskManagerLocation.getResourceID()), any(TimeoutException.class));
+
+			// check if a concurrent error occurred
+			testingFatalErrorHandler.rethrowError();
+
+		} finally {
+			rpc.stopService();
+		}
+	}
 
 	@Test
 	public void testImmediatelyRegistersIfLeaderIsKnown() throws Exception {
@@ -145,6 +248,7 @@ public class TaskExecutorTest extends TestLogger {
 				mock(IOManager.class),
 				mock(NetworkEnvironment.class),
 				haServices,
+				mock(HeartbeatServices.class, RETURNS_MOCKS),
 				mock(MetricRegistry.class),
 				mock(TaskManagerMetricGroup.class),
 				mock(BroadcastVariableManager.class),
@@ -221,6 +325,7 @@ public class TaskExecutorTest extends TestLogger {
 				mock(IOManager.class),
 				mock(NetworkEnvironment.class),
 				haServices,
+				mock(HeartbeatServices.class, RETURNS_MOCKS),
 				mock(MetricRegistry.class),
 				mock(TaskManagerMetricGroup.class),
 				mock(BroadcastVariableManager.class),
@@ -310,6 +415,8 @@ public class TaskExecutorTest extends TestLogger {
 		when(libraryCacheManager.getClassLoader(eq(jobId))).thenReturn(getClass().getClassLoader());
 
 		final JobManagerConnection jobManagerConnection = new JobManagerConnection(
+			jobId,
+			ResourceID.generate(),
 			mock(JobMasterGateway.class),
 			jobManagerLeaderId,
 			mock(TaskManagerActions.class),
@@ -350,6 +457,7 @@ public class TaskExecutorTest extends TestLogger {
 				mock(IOManager.class),
 				networkEnvironment,
 				haServices,
+				mock(HeartbeatServices.class, RETURNS_MOCKS),
 				mock(MetricRegistry.class),
 				taskManagerMetricGroup,
 				mock(BroadcastVariableManager.class),
@@ -438,7 +546,7 @@ public class TaskExecutorTest extends TestLogger {
 				eq(jobManagerLeaderId),
 				any(Time.class)
 		)).thenReturn(FlinkCompletableFuture.<RegistrationResponse>completed(new JMTMRegistrationSuccess(jmResourceId, blobPort)));
-		when(jobMasterGateway.getAddress()).thenReturn(jobManagerAddress);
+		when(jobMasterGateway.getHostname()).thenReturn(jobManagerAddress);
 
 		rpc.registerGateway(resourceManagerAddress, resourceManagerGateway);
 		rpc.registerGateway(jobManagerAddress, jobMasterGateway);
@@ -456,6 +564,7 @@ public class TaskExecutorTest extends TestLogger {
 				mock(IOManager.class),
 				mock(NetworkEnvironment.class),
 				haServices,
+				mock(HeartbeatServices.class, RETURNS_MOCKS),
 				mock(MetricRegistry.class),
 				mock(TaskManagerMetricGroup.class),
 				mock(BroadcastVariableManager.class),
@@ -494,7 +603,7 @@ public class TaskExecutorTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that accepted slots go into state assigned and the others are returned to the  resource
+	 * Tests that accepted slots go into state assigned and the others are returned to the resource
 	 * manager.
 	 */
 	@Test
@@ -541,7 +650,6 @@ public class TaskExecutorTest extends TestLogger {
 		final AllocationID allocationId2 = new AllocationID();
 
 		final SlotOffer offer1 = new SlotOffer(allocationId1, 0, ResourceProfile.UNKNOWN);
-		final SlotOffer offer2 = new SlotOffer(allocationId2, 0, ResourceProfile.UNKNOWN);
 
 		final JobMasterGateway jobMasterGateway = mock(JobMasterGateway.class);
 
@@ -551,7 +659,7 @@ public class TaskExecutorTest extends TestLogger {
 				eq(jobManagerLeaderId),
 				any(Time.class)
 		)).thenReturn(FlinkCompletableFuture.<RegistrationResponse>completed(new JMTMRegistrationSuccess(jmResourceId, blobPort)));
-		when(jobMasterGateway.getAddress()).thenReturn(jobManagerAddress);
+		when(jobMasterGateway.getHostname()).thenReturn(jobManagerAddress);
 
 		when(jobMasterGateway.offerSlots(
 				any(ResourceID.class), any(Iterable.class), eq(jobManagerLeaderId), any(Time.class)))
@@ -569,6 +677,7 @@ public class TaskExecutorTest extends TestLogger {
 				mock(IOManager.class),
 				mock(NetworkEnvironment.class),
 				haServices,
+				mock(HeartbeatServices.class, RETURNS_MOCKS),
 				mock(MetricRegistry.class),
 				mock(TaskManagerMetricGroup.class),
 				mock(BroadcastVariableManager.class),
@@ -643,6 +752,7 @@ public class TaskExecutorTest extends TestLogger {
 				mock(IOManager.class),
 				mock(NetworkEnvironment.class),
 				haServices,
+				mock(HeartbeatServices.class, RETURNS_MOCKS),
 				mock(MetricRegistry.class),
 				mock(TaskManagerMetricGroup.class),
 				mock(BroadcastVariableManager.class),
@@ -754,7 +864,7 @@ public class TaskExecutorTest extends TestLogger {
 			eq(jobManagerLeaderId),
 			any(Time.class)
 		)).thenReturn(FlinkCompletableFuture.<RegistrationResponse>completed(new JMTMRegistrationSuccess(jmResourceId, blobPort)));
-		when(jobMasterGateway.getAddress()).thenReturn(jobManagerAddress);
+		when(jobMasterGateway.getHostname()).thenReturn(jobManagerAddress);
 
 
 		rpc.registerGateway(resourceManagerAddress, resourceManagerGateway);
@@ -764,6 +874,8 @@ public class TaskExecutorTest extends TestLogger {
 		when(libraryCacheManager.getClassLoader(eq(jobId))).thenReturn(getClass().getClassLoader());
 
 		final JobManagerConnection jobManagerConnection = new JobManagerConnection(
+			jobId,
+			jmResourceId,
 			jobMasterGateway,
 			jobManagerLeaderId,
 			mock(TaskManagerActions.class),
@@ -783,6 +895,7 @@ public class TaskExecutorTest extends TestLogger {
 				mock(IOManager.class),
 				mock(NetworkEnvironment.class),
 				haServices,
+				mock(HeartbeatServices.class, RETURNS_MOCKS),
 				mock(MetricRegistry.class),
 				mock(TaskManagerMetricGroup.class),
 				mock(BroadcastVariableManager.class),

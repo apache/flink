@@ -31,6 +31,7 @@ import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.executiongraph.restart.InfiniteDelayRestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -119,15 +120,15 @@ public class ExecutionGraphSignalsTest {
 		v4.setParallelism(dop[3]);
 		v5.setParallelism(dop[4]);
 
-		v2.connectNewDataSetAsInput(v1, DistributionPattern.ALL_TO_ALL);
+		v2.connectNewDataSetAsInput(v1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 		mockNumberOfInputs(1,0);
-		v4.connectNewDataSetAsInput(v2, DistributionPattern.ALL_TO_ALL);
+		v4.connectNewDataSetAsInput(v2, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 		mockNumberOfInputs(3,1);
-		v4.connectNewDataSetAsInput(v3, DistributionPattern.ALL_TO_ALL);
+		v4.connectNewDataSetAsInput(v3, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 		mockNumberOfInputs(3,2);
-		v5.connectNewDataSetAsInput(v4, DistributionPattern.ALL_TO_ALL);
+		v5.connectNewDataSetAsInput(v4, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 		mockNumberOfInputs(4,3);
-		v5.connectNewDataSetAsInput(v3, DistributionPattern.ALL_TO_ALL);
+		v5.connectNewDataSetAsInput(v3, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 		mockNumberOfInputs(4,2);
 
 		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3, v4, v5));

@@ -22,6 +22,7 @@ import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSerializationProxy;
 import org.apache.flink.core.io.IOReadableWritable;
+import org.apache.flink.core.io.VersionMismatchException;
 import org.apache.flink.core.io.VersionedIOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -37,11 +38,12 @@ import java.util.List;
  */
 public class KeyedBackendSerializationProxy extends VersionedIOReadableWritable {
 
-	private static final int VERSION = 1;
+	public static final int VERSION = 2;
 
 	private TypeSerializerSerializationProxy<?> keySerializerProxy;
 	private List<StateMetaInfo<?, ?>> namedStateSerializationProxies;
 
+	private int restoredVersion;
 	private ClassLoader userCodeClassLoader;
 
 	public KeyedBackendSerializationProxy(ClassLoader userCodeClassLoader) {
@@ -51,6 +53,7 @@ public class KeyedBackendSerializationProxy extends VersionedIOReadableWritable 
 	public KeyedBackendSerializationProxy(TypeSerializer<?> keySerializer, List<StateMetaInfo<?, ?>> namedStateSerializationProxies) {
 		this.keySerializerProxy = new TypeSerializerSerializationProxy<>(Preconditions.checkNotNull(keySerializer));
 		this.namedStateSerializationProxies = Preconditions.checkNotNull(namedStateSerializationProxies);
+		this.restoredVersion = VERSION;
 		Preconditions.checkArgument(namedStateSerializationProxies.size() <= Short.MAX_VALUE);
 	}
 
@@ -65,6 +68,22 @@ public class KeyedBackendSerializationProxy extends VersionedIOReadableWritable 
 	@Override
 	public int getVersion() {
 		return VERSION;
+	}
+
+	public int getRestoredVersion() {
+		return restoredVersion;
+	}
+
+	@Override
+	protected void resolveVersionRead(int foundVersion) throws VersionMismatchException {
+		super.resolveVersionRead(foundVersion);
+		this.restoredVersion = foundVersion;
+	}
+
+	@Override
+	public boolean isCompatibleVersion(int version) {
+		// we are compatible with version 2 (Flink 1.3.x) and version 1 (Flink 1.2.x)
+		return super.isCompatibleVersion(version) || version == 1;
 	}
 
 	@Override
@@ -96,7 +115,7 @@ public class KeyedBackendSerializationProxy extends VersionedIOReadableWritable 
 		}
 	}
 
-//----------------------------------------------------------------------------------------------------------------------
+	//----------------------------------------------------------------------------------------------------------------------
 
 	/**
 	 * This is the serialization proxy for {@link RegisteredBackendStateMetaInfo} for a single registered state in a

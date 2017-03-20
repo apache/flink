@@ -21,8 +21,16 @@ package org.apache.flink.migration.runtime.state.filesystem;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.migration.runtime.state.KvStateSnapshot;
+import org.apache.flink.migration.runtime.state.memory.AbstractMigrationRestoreStrategy;
+import org.apache.flink.migration.runtime.state.memory.MigrationRestoreSnapshot;
+import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
+import org.apache.flink.runtime.state.heap.StateTable;
 
 import java.io.IOException;
 
@@ -36,7 +44,7 @@ import java.io.IOException;
 @Deprecated
 @SuppressWarnings("deprecation")
 public abstract class AbstractFsStateSnapshot<K, N, SV, S extends State, SD extends StateDescriptor<S, ?>> 
-		extends AbstractFileStateHandle implements KvStateSnapshot<K, N, S, SD> {
+		extends AbstractFileStateHandle implements KvStateSnapshot<K, N, S, SD>, MigrationRestoreSnapshot<K, N, SV> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -84,5 +92,25 @@ public abstract class AbstractFsStateSnapshot<K, N, SV, S extends State, SD exte
 
 	public SD getStateDesc() {
 		return stateDesc;
+	}
+
+	@Override
+	@SuppressWarnings("unchecked")
+	public StateTable<K, N, SV> deserialize(
+			String stateName,
+			HeapKeyedStateBackend<K> stateBackend) throws IOException {
+
+		final FileSystem fs = getFilePath().getFileSystem();
+		try (FSDataInputStream inStream = fs.open(getFilePath())) {
+			final DataInputViewStreamWrapper inView = new DataInputViewStreamWrapper(inStream);
+			AbstractMigrationRestoreStrategy<K, N, SV> restoreStrategy =
+					new AbstractMigrationRestoreStrategy<K, N, SV>(keySerializer, namespaceSerializer, stateSerializer) {
+						@Override
+						protected DataInputView openDataInputView() throws IOException {
+							return inView;
+						}
+					};
+			return restoreStrategy.deserialize(stateName, stateBackend);
+		}
 	}
 }

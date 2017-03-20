@@ -72,8 +72,8 @@ abstract class SumWithRetractAggFunction[T: Numeric] extends AggregateFunction[T
   }
 
   override def merge(accumulators: JList[Accumulator]): Accumulator = {
-    val ret = createAccumulator().asInstanceOf[SumWithRetractAccumulator[T]]
-    var i: Int = 0
+    val ret = accumulators.get(0).asInstanceOf[SumWithRetractAccumulator[T]]
+    var i: Int = 1
     while (i < accumulators.size()) {
       val a = accumulators.get(i).asInstanceOf[SumWithRetractAccumulator[T]]
       ret.f0 = numeric.plus(ret.f0, a.f0)
@@ -81,6 +81,11 @@ abstract class SumWithRetractAggFunction[T: Numeric] extends AggregateFunction[T
       i += 1
     }
     ret
+  }
+
+  override def resetAccumulator(accumulator: Accumulator): Unit = {
+    accumulator.asInstanceOf[SumWithRetractAccumulator[T]].f0 = numeric.zero
+    accumulator.asInstanceOf[SumWithRetractAccumulator[T]].f1 = 0L
   }
 
   override def getAccumulatorType(): TypeInformation[_] = {
@@ -186,6 +191,11 @@ class DecimalSumWithRetractAggFunction extends AggregateFunction[BigDecimal] {
       i += 1
     }
     ret
+  }
+
+  override def resetAccumulator(accumulator: Accumulator): Unit = {
+    accumulator.asInstanceOf[DecimalSumWithRetractAccumulator].f0 = BigDecimal.ZERO
+    accumulator.asInstanceOf[DecimalSumWithRetractAccumulator].f1 = 0L
   }
 
   override def getAccumulatorType(): TypeInformation[_] = {

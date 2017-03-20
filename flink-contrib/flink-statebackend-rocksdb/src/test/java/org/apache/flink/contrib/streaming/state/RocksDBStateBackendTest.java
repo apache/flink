@@ -31,14 +31,13 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
-import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.StateBackendTestBase;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
-import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
+import org.apache.flink.runtime.util.BlockerCheckpointStreamFactory;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -362,89 +361,6 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 		keyedStateBackend.dispose();
 		verify(spyDB, times(1)).close();
 		assertEquals(null, keyedStateBackend.db);
-	}
-
-	static class BlockerCheckpointStreamFactory implements CheckpointStreamFactory {
-
-		private final int maxSize;
-		private int afterNumberInvocations;
-		private OneShotLatch blocker;
-		private OneShotLatch waiter;
-
-		MemCheckpointStreamFactory.MemoryCheckpointOutputStream lastCreatedStream;
-
-		public MemCheckpointStreamFactory.MemoryCheckpointOutputStream getLastCreatedStream() {
-			return lastCreatedStream;
-		}
-
-		public BlockerCheckpointStreamFactory(int maxSize) {
-			this.maxSize = maxSize;
-		}
-
-		public void setAfterNumberInvocations(int afterNumberInvocations) {
-			this.afterNumberInvocations = afterNumberInvocations;
-		}
-
-		public void setBlockerLatch(OneShotLatch latch) {
-			this.blocker = latch;
-		}
-
-		public void setWaiterLatch(OneShotLatch latch) {
-			this.waiter = latch;
-		}
-
-		@Override
-		public MemCheckpointStreamFactory.MemoryCheckpointOutputStream createCheckpointStateOutputStream(long checkpointID, long timestamp) throws Exception {
-			waiter.trigger();
-			this.lastCreatedStream = new MemCheckpointStreamFactory.MemoryCheckpointOutputStream(maxSize) {
-
-				private int afterNInvocations = afterNumberInvocations;
-				private final OneShotLatch streamBlocker = blocker;
-				private final OneShotLatch streamWaiter = waiter;
-
-				@Override
-				public void write(int b) throws IOException {
-
-					if (afterNInvocations > 0) {
-						--afterNInvocations;
-					}
-
-					if (0 == afterNInvocations && null != streamBlocker) {
-						try {
-							streamBlocker.await();
-						} catch (InterruptedException ignored) {
-						}
-					}
-					try {
-						super.write(b);
-					} catch (IOException ex) {
-						if (null != streamWaiter) {
-							streamWaiter.trigger();
-						}
-						throw ex;
-					}
-
-					if (0 == afterNInvocations && null != streamWaiter) {
-						streamWaiter.trigger();
-					}
-				}
-
-				@Override
-				public void close() {
-					super.close();
-					if (null != streamWaiter) {
-						streamWaiter.trigger();
-					}
-				}
-			};
-
-			return lastCreatedStream;
-		}
-
-		@Override
-		public void close() throws Exception {
-
-		}
 	}
 
 	private static class AcceptAllFilter implements IOFileFilter {

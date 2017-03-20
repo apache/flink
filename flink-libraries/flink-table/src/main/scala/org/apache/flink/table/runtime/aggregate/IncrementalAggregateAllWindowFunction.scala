@@ -26,7 +26,7 @@ import org.apache.flink.streaming.api.windowing.windows.Window
 import org.apache.flink.util.Collector
 
 /**
-  * Computes the final aggregate value from incrementally computed aggreagtes.
+  * Computes the final aggregate value from incrementally computed aggregates.
   *
   * @param finalRowArity The arity of the final output row.
   */

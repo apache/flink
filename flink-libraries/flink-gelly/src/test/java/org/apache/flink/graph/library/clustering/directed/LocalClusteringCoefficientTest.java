@@ -40,12 +40,12 @@ extends AsmTestBase {
 	public void testSimpleGraph()
 			throws Exception {
 		String expectedResult =
-			"(0,(2,1))\n" +
-			"(1,(3,2))\n" +
-			"(2,(3,2))\n" +
-			"(3,(4,1))\n" +
-			"(4,(1,0))\n" +
-			"(5,(1,0))";
+			"(0,2,1)\n" +
+			"(1,3,2)\n" +
+			"(2,3,2)\n" +
+			"(3,4,1)\n" +
+			"(4,1,0)\n" +
+			"(5,1,0)";
 
 		DataSet<Result<IntValue>> cc = directedSimpleGraph
 			.run(new LocalClusteringCoefficient<IntValue, NullValue, NullValue>());

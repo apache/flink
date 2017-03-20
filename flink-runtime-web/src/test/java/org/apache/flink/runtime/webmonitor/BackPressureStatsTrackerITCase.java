@@ -108,7 +108,7 @@ public class BackPressureStatsTrackerITCase extends TestLogger {
 			//
 			// 1) Consume all buffers at first (no buffers for the test task)
 			//
-			testBufferPool = networkBufferPool.createBufferPool(1, false);
+			testBufferPool = networkBufferPool.createBufferPool(1, Integer.MAX_VALUE);
 			final List<Buffer> buffers = new ArrayList<>();
 			while (true) {
 				Buffer buffer = testBufferPool.requestBuffer();

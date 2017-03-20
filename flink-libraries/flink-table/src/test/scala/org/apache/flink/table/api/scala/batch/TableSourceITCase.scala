@@ -23,7 +23,7 @@ import org.apache.flink.table.api.scala.batch.utils.TableProgramsCollectionTestB
 import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.TableEnvironment
-import org.apache.flink.table.utils.CommonTestData
+import org.apache.flink.table.utils.{CommonTestData, TestFilterableTableSource}
 import org.apache.flink.test.util.TestBaseUtils
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -102,4 +102,20 @@ class TableSourceITCase(
     TestBaseUtils.compareResultAsText(result.asJava, expected)
   }
 
+  @Test
+  def testTableSourceWithFilterable(): Unit = {
+    val tableName = "MyTable"
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
+    tableEnv.registerTableSource(tableName, new TestFilterableTableSource)
+    val results = tableEnv
+      .scan(tableName)
+      .where("amount > 4 && price < 9")
+      .select("id, name")
+      .collect()
+
+    val expected = Seq(
+      "5,Record_5", "6,Record_6", "7,Record_7", "8,Record_8").mkString("\n")
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
 }

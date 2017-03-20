@@ -50,6 +50,10 @@ import org.apache.flink.runtime.executiongraph.IntermediateResult;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory;
+import org.apache.flink.runtime.heartbeat.HeartbeatListener;
+import org.apache.flink.runtime.heartbeat.HeartbeatManager;
+import org.apache.flink.runtime.heartbeat.HeartbeatServices;
+import org.apache.flink.runtime.heartbeat.HeartbeatTarget;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.LeaderIdMismatchException;
 import org.apache.flink.runtime.instance.Slot;
@@ -102,8 +106,8 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -126,6 +130,8 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 
 	// ------------------------------------------------------------------------
 
+	private final ResourceID resourceId;
+
 	/** Logical representation of the job */
 	private final JobGraph jobGraph;
 
@@ -146,8 +152,11 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 	/** The metrics for the job */
 	private final MetricGroup jobMetricGroup;
 
+	/** The heartbeat manager with task managers */
+	private final HeartbeatManager<Void, Void> heartbeatManager;
+
 	/** The execution context which is used to execute futures */
-	private final ExecutorService executionContext;
+	private final Executor executor;
 
 	private final OnCompletionActions jobCompletionActions;
 
@@ -179,30 +188,38 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 	// ------------------------------------------------------------------------
 
 	public JobMaster(
+			ResourceID resourceId,
 			JobGraph jobGraph,
 			Configuration configuration,
 			RpcService rpcService,
 			HighAvailabilityServices highAvailabilityService,
-			ScheduledExecutorService executorService,
+			HeartbeatServices heartbeatServices,
+			ScheduledExecutorService executor,
 			BlobLibraryCacheManager libraryCacheManager,
 			RestartStrategyFactory restartStrategyFactory,
 			Time rpcAskTimeout,
 			@Nullable JobManagerMetricGroup jobManagerMetricGroup,
 			OnCompletionActions jobCompletionActions,
 			FatalErrorHandler errorHandler,
-			ClassLoader userCodeLoader) throws Exception
-	{
+			ClassLoader userCodeLoader) throws Exception {
 		super(rpcService);
 
+		this.resourceId = checkNotNull(resourceId);
 		this.jobGraph = checkNotNull(jobGraph);
 		this.configuration = checkNotNull(configuration);
 		this.rpcTimeout = rpcAskTimeout;
 		this.highAvailabilityServices = checkNotNull(highAvailabilityService);
 		this.libraryCacheManager = checkNotNull(libraryCacheManager);
-		this.executionContext = checkNotNull(executorService);
+		this.executor = checkNotNull(executor);
 		this.jobCompletionActions = checkNotNull(jobCompletionActions);
 		this.errorHandler = checkNotNull(errorHandler);
 		this.userCodeLoader = checkNotNull(userCodeLoader);
+
+		this.heartbeatManager = heartbeatServices.createHeartbeatManagerSender(
+			resourceId,
+			new TaskManagerHeartbeatListener(),
+			rpcService.getScheduledExecutor(),
+			log);
 
 		final String jobName = jobGraph.getName();
 		final JobID jid = jobGraph.getJobID();
@@ -239,8 +256,8 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 			null,
 			jobGraph,
 			configuration,
-			executorService,
-			executorService,
+			executor,
+			executor,
 			slotPool.getSlotProvider(),
 			userCodeLoader,
 			checkpointRecoveryFactory,
@@ -289,6 +306,8 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 	 */
 	@Override
 	public void shutDown() throws Exception {
+		heartbeatManager.stop();
+
 		// make sure there is a graceful exit
 		getSelf().suspendExecution(new Exception("JobManager is shutting down."));
 		super.shutDown();
@@ -337,7 +356,7 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 		}
 
 		// start scheduling job in another thread
-		executionContext.execute(new Runnable() {
+		executor.execute(new Runnable() {
 			@Override
 			public void run() {
 				try {
@@ -511,8 +530,16 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 	}
 
 	@RpcMethod
-	public void disconnectTaskManager(final ResourceID resourceID) {
-		throw new UnsupportedOperationException();
+	public void disconnectTaskManager(final ResourceID resourceID, final Exception cause) {
+		heartbeatManager.unmonitorTarget(resourceID);
+		slotPoolGateway.releaseTaskManager(resourceID);
+
+		Tuple2<TaskManagerLocation, TaskExecutorGateway> taskManagerConnection = registeredTaskManagers.remove(resourceID);
+
+		if (taskManagerConnection != null) {
+			taskManagerConnection.f1.disconnectJobManager(jobGraph.getJobID(), cause);
+		}
+
 	}
 
 	// TODO: This method needs a leader session ID
@@ -708,7 +735,7 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 
 		if (registeredTaskManagers.containsKey(taskManagerId)) {
 			final RegistrationResponse response = new JMTMRegistrationSuccess(
-					taskManagerId, libraryCacheManager.getBlobServerPort());
+				resourceId, libraryCacheManager.getBlobServerPort());
 			return FlinkCompletableFuture.completed(response);
 		} else {
 			return getRpcService().execute(new Callable<TaskExecutorGateway>() {
@@ -719,7 +746,7 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 				}
 			}).handleAsync(new BiFunction<TaskExecutorGateway, Throwable, RegistrationResponse>() {
 				@Override
-				public RegistrationResponse apply(TaskExecutorGateway taskExecutorGateway, Throwable throwable) {
+				public RegistrationResponse apply(final TaskExecutorGateway taskExecutorGateway, Throwable throwable) {
 					if (throwable != null) {
 						return new RegistrationResponse.Decline(throwable.getMessage());
 					}
@@ -734,7 +761,21 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 
 					slotPoolGateway.registerTaskManager(taskManagerId);
 					registeredTaskManagers.put(taskManagerId, Tuple2.of(taskManagerLocation, taskExecutorGateway));
-					return new JMTMRegistrationSuccess(taskManagerId, libraryCacheManager.getBlobServerPort());
+
+					// monitor the task manager as heartbeat target
+					heartbeatManager.monitorTarget(taskManagerId, new HeartbeatTarget<Void>() {
+						@Override
+						public void receiveHeartbeat(ResourceID resourceID, Void payload) {
+							// the task manager will not request heartbeat, so this method will never be called currently
+						}
+
+						@Override
+						public void requestHeartbeat(ResourceID resourceID, Void payload) {
+							taskExecutorGateway.heartbeatFromJobManager(resourceID);
+						}
+					});
+
+					return new JMTMRegistrationSuccess(resourceId, libraryCacheManager.getBlobServerPort());
 				}
 			}, getMainThreadExecutor());
 		}
@@ -746,6 +787,11 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 			final UUID resourceManagerLeaderId,
 			final Exception cause) {
 		// TODO: Implement disconnect behaviour
+	}
+
+	@RpcMethod
+	public void heartbeatFromTaskManager(final ResourceID resourceID) {
+		heartbeatManager.receiveHeartbeat(resourceID, null);
 	}
 
 	//----------------------------------------------------------------------------------------------
@@ -849,7 +895,7 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 			log.info("Attempting to register at ResourceManager {}", resourceManagerAddress);
 			resourceManagerConnection = new ResourceManagerConnection(
 					log, jobGraph.getJobID(), getAddress(), leaderSessionID,
-					resourceManagerAddress, resourceManagerLeaderId, executionContext);
+					resourceManagerAddress, resourceManagerLeaderId, executor);
 			resourceManagerConnection.start();
 		}
 	}
@@ -990,6 +1036,28 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 					jobStatusChanged(newJobStatus, timestamp, error);
 				}
 			});
+		}
+	}
+
+	private class TaskManagerHeartbeatListener implements HeartbeatListener<Void, Void> {
+
+		@Override
+		public void notifyHeartbeatTimeout(ResourceID resourceID) {
+			log.info("Task manager with id {} timed out.", resourceID);
+
+			getSelf().disconnectTaskManager(
+				resourceID,
+				new TimeoutException("The heartbeat of TaskManager with id " + resourceID + " timed out."));
+		}
+
+		@Override
+		public void reportPayload(ResourceID resourceID, Void payload) {
+			// nothing to do since there is no payload
+		}
+
+		@Override
+		public Future<Void> retrievePayload() {
+			return FlinkCompletableFuture.completed(null);
 		}
 	}
 }

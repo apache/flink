@@ -179,13 +179,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		Exception exception = null;
 
 		try {
-			jobLeaderIdService.stop();
-		} catch (Exception e) {
-			exception = ExceptionUtils.firstOrSuppressed(e, exception);
-		}
-
-		try {
-			leaderElectionService.stop();
+			super.shutDown();
 		} catch (Exception e) {
 			exception = ExceptionUtils.firstOrSuppressed(e, exception);
 		}
@@ -193,7 +187,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		clearState();
 
 		try {
-			super.shutDown();
+			leaderElectionService.stop();
 		} catch (Exception e) {
 			exception = ExceptionUtils.firstOrSuppressed(e, exception);
 		}
@@ -817,11 +811,13 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		}
 
 		@Override
-		public void removeJob(final JobID jobId) {
+		public void notifyJobTimeout(final JobID jobId, final UUID timeoutId) {
 			runAsync(new Runnable() {
 				@Override
 				public void run() {
-					ResourceManager.this.removeJob(jobId);
+					if (jobLeaderIdService.isValidTimeout(jobId, timeoutId)) {
+						removeJob(jobId);
+					}
 				}
 			});
 		}

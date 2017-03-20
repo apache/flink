@@ -24,6 +24,7 @@ import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.connectors.kafka.config.OffsetCommitMode;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.SerializedValue;
@@ -166,11 +167,14 @@ public abstract class AbstractFetcher<T, KPH> {
 
 	/**
 	 * Commits the given partition offsets to the Kafka brokers (or to ZooKeeper for
-	 * older Kafka versions). The given offsets are the internal checkpointed offsets, representing
+	 * older Kafka versions). This method is only ever called when the offset commit mode of
+	 * the consumer is {@link OffsetCommitMode#ON_CHECKPOINTS}.
+	 *
+	 * The given offsets are the internal checkpointed offsets, representing
 	 * the last processed record of each partition. Version-specific implementations of this method
 	 * need to hold the contract that the given offsets must be incremented by 1 before
 	 * committing them, so that committed offsets to Kafka represent "the next record to process".
-	 * 
+	 *
 	 * @param offsets The offsets to commit to Kafka (implementations must increment offsets by 1 before committing).
 	 * @throws Exception This method forwards exceptions.
 	 */
@@ -213,21 +217,27 @@ public abstract class AbstractFetcher<T, KPH> {
 	 * @param offset The offset of the record
 	 */
 	protected void emitRecord(T record, KafkaTopicPartitionState<KPH> partitionState, long offset) throws Exception {
-		if (timestampWatermarkMode == NO_TIMESTAMPS_WATERMARKS) {
-			// fast path logic, in case there are no watermarks
 
-			// emit the record, using the checkpoint lock to guarantee
-			// atomicity of record emission and offset state update
+		if (record != null) {
+			if (timestampWatermarkMode == NO_TIMESTAMPS_WATERMARKS) {
+				// fast path logic, in case there are no watermarks
+
+				// emit the record, using the checkpoint lock to guarantee
+				// atomicity of record emission and offset state update
+				synchronized (checkpointLock) {
+					sourceContext.collect(record);
+					partitionState.setOffset(offset);
+				}
+			} else if (timestampWatermarkMode == PERIODIC_WATERMARKS) {
+				emitRecordWithTimestampAndPeriodicWatermark(record, partitionState, offset, Long.MIN_VALUE);
+			} else {
+				emitRecordWithTimestampAndPunctuatedWatermark(record, partitionState, offset, Long.MIN_VALUE);
+			}
+		} else {
+			// if the record is null, simply just update the offset state for partition
 			synchronized (checkpointLock) {
-				sourceContext.collect(record);
 				partitionState.setOffset(offset);
 			}
-		}
-		else if (timestampWatermarkMode == PERIODIC_WATERMARKS) {
-			emitRecordWithTimestampAndPeriodicWatermark(record, partitionState, offset, Long.MIN_VALUE);
-		}
-		else {
-			emitRecordWithTimestampAndPunctuatedWatermark(record, partitionState, offset, Long.MIN_VALUE);
 		}
 	}
 
@@ -244,21 +254,26 @@ public abstract class AbstractFetcher<T, KPH> {
 	protected void emitRecordWithTimestamp(
 			T record, KafkaTopicPartitionState<KPH> partitionState, long offset, long timestamp) throws Exception {
 
-		if (timestampWatermarkMode == NO_TIMESTAMPS_WATERMARKS) {
-			// fast path logic, in case there are no watermarks generated in the fetcher
+		if (record != null) {
+			if (timestampWatermarkMode == NO_TIMESTAMPS_WATERMARKS) {
+				// fast path logic, in case there are no watermarks generated in the fetcher
 
-			// emit the record, using the checkpoint lock to guarantee
-			// atomicity of record emission and offset state update
+				// emit the record, using the checkpoint lock to guarantee
+				// atomicity of record emission and offset state update
+				synchronized (checkpointLock) {
+					sourceContext.collectWithTimestamp(record, timestamp);
+					partitionState.setOffset(offset);
+				}
+			} else if (timestampWatermarkMode == PERIODIC_WATERMARKS) {
+				emitRecordWithTimestampAndPeriodicWatermark(record, partitionState, offset, timestamp);
+			} else {
+				emitRecordWithTimestampAndPunctuatedWatermark(record, partitionState, offset, timestamp);
+			}
+		} else {
+			// if the record is null, simply just update the offset state for partition
 			synchronized (checkpointLock) {
-				sourceContext.collectWithTimestamp(record, timestamp);
 				partitionState.setOffset(offset);
 			}
-		}
-		else if (timestampWatermarkMode == PERIODIC_WATERMARKS) {
-			emitRecordWithTimestampAndPeriodicWatermark(record, partitionState, offset, timestamp);
-		}
-		else {
-			emitRecordWithTimestampAndPunctuatedWatermark(record, partitionState, offset, timestamp);
 		}
 	}
 

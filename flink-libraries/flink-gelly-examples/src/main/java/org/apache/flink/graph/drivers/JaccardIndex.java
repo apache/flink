@@ -192,7 +192,7 @@ public class JaccardIndex {
 				System.out.println();
 				for (Object e: ji.collect()) {
 					Result result = (Result)e;
-					System.out.println(result.toVerboseString());
+					System.out.println(result.toPrintableString());
 				}
 				break;
 

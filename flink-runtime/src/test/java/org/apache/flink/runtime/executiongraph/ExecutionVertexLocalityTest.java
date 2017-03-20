@@ -30,6 +30,7 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.restart.FixedDelayRestartStrategy;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.instance.SlotProvider;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -200,7 +201,7 @@ public class ExecutionVertexLocalityTest extends TestLogger {
 		target.setInvokableClass(NoOpInvokable.class);
 
 		DistributionPattern connectionPattern = allToAll ? DistributionPattern.ALL_TO_ALL : DistributionPattern.POINTWISE;
-		target.connectNewDataSetAsInput(source, connectionPattern);
+		target.connectNewDataSetAsInput(source, connectionPattern, ResultPartitionType.PIPELINED);
 
 		JobGraph testJob = new JobGraph(jobId, "test job", source, target);
 
