@@ -114,7 +114,10 @@ public final class FlinkAggregateExpandDistinctAggregatesRule extends RelOptRule
 		this.useGroupingSets = useGroupingSets;
 	}
 
-	@Deprecated // to be removed before 2.0
+	/**
+	 * @deprecated to be removed before 2.0
+	 */
+	@Deprecated
 	public FlinkAggregateExpandDistinctAggregatesRule(
 			Class<? extends LogicalAggregate> clazz,
 			boolean useGroupingSets,
@@ -122,7 +125,10 @@ public final class FlinkAggregateExpandDistinctAggregatesRule extends RelOptRule
 		this(clazz, useGroupingSets, RelBuilder.proto(Contexts.of(joinFactory)));
 	}
 
-	@Deprecated // to be removed before 2.0
+	/**
+	 * @deprecated to be removed before 2.0
+	 */
+	@Deprecated
 	public FlinkAggregateExpandDistinctAggregatesRule(
 			Class<? extends LogicalAggregate> clazz,
 			RelFactories.JoinFactory joinFactory) {
