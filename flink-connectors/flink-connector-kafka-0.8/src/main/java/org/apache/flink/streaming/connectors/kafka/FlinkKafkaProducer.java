@@ -26,36 +26,56 @@ import java.util.Properties;
 
 /**
  * THIS CLASS IS DEPRECATED. Use FlinkKafkaProducer08 instead.
+ *
+ * @deprecated Use {@link FlinkKafkaProducer08}.
  */
 @Deprecated
 public class FlinkKafkaProducer<IN> extends FlinkKafkaProducer08<IN>  {
 
+	/**
+	 * @deprecated Use {@link FlinkKafkaProducer08#FlinkKafkaProducer08(String, String, SerializationSchema)}
+	 */
 	@Deprecated
 	public FlinkKafkaProducer(String brokerList, String topicId, SerializationSchema<IN> serializationSchema) {
 		super(topicId, new KeyedSerializationSchemaWrapper<>(serializationSchema), getPropertiesFromBrokerList(brokerList), null);
 	}
 
+	/**
+	 * @deprecated Use {@link FlinkKafkaProducer08#FlinkKafkaProducer08(String, SerializationSchema, Properties)}
+	 */
 	@Deprecated
 	public FlinkKafkaProducer(String topicId, SerializationSchema<IN> serializationSchema, Properties producerConfig) {
 		super(topicId, new KeyedSerializationSchemaWrapper<>(serializationSchema), producerConfig, null);
 	}
 
+	/**
+	 * @deprecated Use {@link FlinkKafkaProducer08#FlinkKafkaProducer08(String, SerializationSchema, Properties, KafkaPartitioner)}
+	 */
 	@Deprecated
 	public FlinkKafkaProducer(String topicId, SerializationSchema<IN> serializationSchema, Properties producerConfig, KafkaPartitioner customPartitioner) {
 		super(topicId, new KeyedSerializationSchemaWrapper<>(serializationSchema), producerConfig, customPartitioner);
 
 	}
 
+	/**
+	 * @deprecated Use {@link FlinkKafkaProducer08#FlinkKafkaProducer08(String, String, KeyedSerializationSchema)}
+	 */
 	@Deprecated
 	public FlinkKafkaProducer(String brokerList, String topicId, KeyedSerializationSchema<IN> serializationSchema) {
 		super(topicId, serializationSchema, getPropertiesFromBrokerList(brokerList), null);
 	}
 
+	/**
+	 * @deprecated Use {@link FlinkKafkaProducer08#FlinkKafkaProducer08(String, KeyedSerializationSchema, Properties)}
+	 */
 	@Deprecated
 	public FlinkKafkaProducer(String topicId, KeyedSerializationSchema<IN> serializationSchema, Properties producerConfig) {
 		super(topicId, serializationSchema, producerConfig, null);
 	}
 
+	/**
+	 * @deprecated Use {@link FlinkKafkaProducer08#FlinkKafkaProducer08(String, KeyedSerializationSchema, Properties, KafkaPartitioner)}
+	 */
 	@Deprecated
 	public FlinkKafkaProducer(String topicId, KeyedSerializationSchema<IN> serializationSchema, Properties producerConfig, KafkaPartitioner customPartitioner) {
 		super(topicId, serializationSchema, producerConfig, customPartitioner);

@@ -38,6 +38,8 @@ import java.io.IOException;
  * @param <K> type of key.
  * @param <N> type of namespace.
  * @param <S> type of state.
+ *
+ * @deprecated Internal class for savepoint backwards compatibility. Don't use for other purposes.
  */
 @Deprecated
 public abstract class AbstractMigrationRestoreStrategy<K, N, S> implements MigrationRestoreSnapshot<K, N, S> {

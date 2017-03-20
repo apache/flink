@@ -201,6 +201,7 @@ public abstract class Trigger<T, W extends Window> implements Serializable {
 		 * @return The partitioned state object.
 		 * @throws UnsupportedOperationException Thrown, if no partitioned state is available for the
 		 *                                       function (function is not part os a KeyedStream).
+		 * @deprecated Use {@link #getPartitionedState(StateDescriptor)}.
 		 */
 		@Deprecated
 		<S extends Serializable> ValueState<S> getKeyValueState(String name, Class<S> stateType, S defaultState);
@@ -221,6 +222,7 @@ public abstract class Trigger<T, W extends Window> implements Serializable {
 		 * @return The partitioned state object.
 		 * @throws UnsupportedOperationException Thrown, if no partitioned state is available for the
 		 *                                       function (function is not part os a KeyedStream).
+		 * @deprecated Use {@link #getPartitionedState(StateDescriptor)}.
 		 */
 		@Deprecated
 		<S extends Serializable> ValueState<S> getKeyValueState(String name, TypeInformation<S> stateType, S defaultState);

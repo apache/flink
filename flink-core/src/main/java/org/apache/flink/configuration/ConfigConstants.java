@@ -284,7 +284,7 @@ public final class ConfigConstants {
 	public static final String TASK_MANAGER_REFUSED_REGISTRATION_PAUSE = "taskmanager.refused-registration-pause";
 
 	/**
-	 * Deprecated. Please use {@link TaskManagerOptions#TASK_CANCELLATION_INTERVAL}.
+	 * @deprecated Deprecated. Please use {@link TaskManagerOptions#TASK_CANCELLATION_INTERVAL}.
 	 */
 	@PublicEvolving
 	@Deprecated
@@ -373,6 +373,8 @@ public final class ConfigConstants {
 
 	/**
 	 * Reallocate failed YARN containers.
+	 *
+	 * @deprecated Not used anymore
 	 */
 	@Deprecated
 	public static final String YARN_REALLOCATE_FAILED_CONTAINERS = "yarn.reallocate-failed";
@@ -419,9 +421,11 @@ public final class ConfigConstants {
 	@Deprecated
 	public static final String YARN_APPLICATION_MASTER_ENV_PREFIX = "yarn.application-master.env.";
 
-	// these default values are not used anymore, but remain here until Flink 2.0
+	/** @deprecated Not used anymore, but remain here until Flink 2.0 */
 	@Deprecated
 	public static final String DEFAULT_YARN_APPLICATION_MASTER_PORT = "deprecated";
+
+	/** @deprecated Not used anymore, but remain here until Flink 2.0 */
 	@Deprecated
 	public static final int DEFAULT_YARN_MIN_HEAP_CUTOFF = -1;
 
@@ -817,9 +821,7 @@ public final class ConfigConstants {
 	@Deprecated
 	public static final String FLINK_BASE_DIR_PATH_KEY = "flink.base.dir.path";
 
-	/**
-	 * @deprecated Use {@link CoreOptions#FLINK_JVM_OPTIONS} instead.
-	 */
+	/** @deprecated Use {@link CoreOptions#FLINK_JVM_OPTIONS} instead. */
 	@Deprecated
 	public static final String FLINK_JVM_OPTIONS = "env.java.opts";
 
@@ -837,15 +839,15 @@ public final class ConfigConstants {
 	@PublicEvolving
 	public static final String HA_JOB_DELAY = "high-availability.job.delay";
 
-	/** Deprecated in favour of {@link #HA_MODE}. */
+	/** @deprecated Deprecated in favour of {@link #HA_MODE}. */
 	@Deprecated
 	public static final String RECOVERY_MODE = "recovery.mode";
 
-	/** Deprecated in favour of {@link #HA_JOB_MANAGER_PORT}. */
+	/** @deprecated Deprecated in favour of {@link #HA_JOB_MANAGER_PORT}. */
 	@Deprecated
 	public static final String RECOVERY_JOB_MANAGER_PORT = "recovery.jobmanager.port";
 
-	/** Deprecated in favour of {@link #HA_JOB_DELAY}. */
+	/** @deprecated Deprecated in favour of {@link #HA_JOB_DELAY}. */
 	@Deprecated
 	public static final String RECOVERY_JOB_DELAY = "recovery.job.delay";
 
@@ -912,59 +914,59 @@ public final class ConfigConstants {
 	@PublicEvolving
 	public static final String ZOOKEEPER_SASL_SERVICE_NAME = "zookeeper.sasl.service-name";
 
-	/** Deprecated in favour of {@link #HA_ZOOKEEPER_QUORUM_KEY}. */
+	/** @deprecated Deprecated in favour of {@link #HA_ZOOKEEPER_QUORUM_KEY}. */
 	@Deprecated
 	public static final String ZOOKEEPER_QUORUM_KEY = "recovery.zookeeper.quorum";
 
-	/** Deprecated in favour of {@link #HA_ZOOKEEPER_STORAGE_PATH}. */
+	/** @deprecated Deprecated in favour of {@link #HA_ZOOKEEPER_STORAGE_PATH}. */
 	@Deprecated
 	public static final String ZOOKEEPER_RECOVERY_PATH = "recovery.zookeeper.storageDir";
 
-	/** Deprecated in favour of {@link #HA_ZOOKEEPER_DIR_KEY}. */
+	/** @deprecated Deprecated in favour of {@link #HA_ZOOKEEPER_DIR_KEY}. */
 	@Deprecated
 	public static final String ZOOKEEPER_DIR_KEY = "recovery.zookeeper.path.root";
 
-	/** Deprecated in favour of {@link #HA_ZOOKEEPER_NAMESPACE_KEY}. */
+	/** @deprecated Deprecated in favour of {@link #HA_ZOOKEEPER_NAMESPACE_KEY}. */
 	@Deprecated
 	public static final String ZOOKEEPER_NAMESPACE_KEY = "recovery.zookeeper.path.namespace";
 
-	/** Deprecated in favour of {@link #HA_ZOOKEEPER_LATCH_PATH}. */
+	/** @deprecated Deprecated in favour of {@link #HA_ZOOKEEPER_LATCH_PATH}. */
 	@Deprecated
 	public static final String ZOOKEEPER_LATCH_PATH = "recovery.zookeeper.path.latch";
 
-	/** Deprecated in favour of {@link #HA_ZOOKEEPER_LEADER_PATH}. */
+	/** @deprecated Deprecated in favour of {@link #HA_ZOOKEEPER_LEADER_PATH}. */
 	@Deprecated
 	public static final String ZOOKEEPER_LEADER_PATH = "recovery.zookeeper.path.leader";
 
-	/** Deprecated in favour of {@link #HA_ZOOKEEPER_JOBGRAPHS_PATH}. */
+	/** @deprecated Deprecated in favour of {@link #HA_ZOOKEEPER_JOBGRAPHS_PATH}. */
 	@Deprecated
 	public static final String ZOOKEEPER_JOBGRAPHS_PATH = "recovery.zookeeper.path.jobgraphs";
 
-	/** Deprecated in favour of {@link #HA_ZOOKEEPER_CHECKPOINTS_PATH}. */
+	/** @deprecated Deprecated in favour of {@link #HA_ZOOKEEPER_CHECKPOINTS_PATH}. */
 	@Deprecated
 	public static final String ZOOKEEPER_CHECKPOINTS_PATH = "recovery.zookeeper.path.checkpoints";
 
-	/** Deprecated in favour of {@link #HA_ZOOKEEPER_CHECKPOINT_COUNTER_PATH}. */
+	/** @deprecated Deprecated in favour of {@link #HA_ZOOKEEPER_CHECKPOINT_COUNTER_PATH}. */
 	@Deprecated
 	public static final String ZOOKEEPER_CHECKPOINT_COUNTER_PATH = "recovery.zookeeper.path.checkpoint-counter";
 
-	/** Deprecated in favour of {@link #HA_ZOOKEEPER_MESOS_WORKERS_PATH}. */
+	/** @deprecated Deprecated in favour of {@link #HA_ZOOKEEPER_MESOS_WORKERS_PATH}. */
 	@Deprecated
 	public static final String ZOOKEEPER_MESOS_WORKERS_PATH = "recovery.zookeeper.path.mesos-workers";
 
-	/** Deprecated in favour of {@link #HA_ZOOKEEPER_SESSION_TIMEOUT}. */
+	/** @deprecated Deprecated in favour of {@link #HA_ZOOKEEPER_SESSION_TIMEOUT}. */
 	@Deprecated
 	public static final String ZOOKEEPER_SESSION_TIMEOUT = "recovery.zookeeper.client.session-timeout";
 
-	/** Deprecated in favour of {@link #HA_ZOOKEEPER_CONNECTION_TIMEOUT}. */
+	/** @deprecated Deprecated in favour of {@link #HA_ZOOKEEPER_CONNECTION_TIMEOUT}. */
 	@Deprecated
 	public static final String ZOOKEEPER_CONNECTION_TIMEOUT = "recovery.zookeeper.client.connection-timeout";
 
-	/** Deprecated in favour of {@link #HA_ZOOKEEPER_RETRY_WAIT}. */
+	/** @deprecated Deprecated in favour of {@link #HA_ZOOKEEPER_RETRY_WAIT}. */
 	@Deprecated
 	public static final String ZOOKEEPER_RETRY_WAIT = "recovery.zookeeper.client.retry-wait";
 
-	/** Deprecated in favour of {@link #HA_ZOOKEEPER_MAX_RETRY_ATTEMPTS}. */
+	/** @deprecated Deprecated in favour of {@link #HA_ZOOKEEPER_MAX_RETRY_ATTEMPTS}. */
 	@Deprecated
 	public static final String ZOOKEEPER_MAX_RETRY_ATTEMPTS = "recovery.zookeeper.client.max-retry-attempts";
 
@@ -1038,7 +1040,7 @@ public final class ConfigConstants {
 	public static final String CHECKPOINTS_DIRECTORY_KEY = "state.checkpoints.dir";
 
 	/**
-	 * This key was used in Flink versions <= 1.1.X with the savepoint backend
+	 * @deprecated This key was used in Flink versions <= 1.1.X with the savepoint backend
 	 * configuration. We now always use the FileSystem for savepoints. For this,
 	 * the only relevant config key is {@link #SAVEPOINT_DIRECTORY_KEY}.
 	 */
@@ -1181,9 +1183,7 @@ public final class ConfigConstants {
 	 */
 	public static final boolean DEFAULT_TASK_MANAGER_MEMORY_PRE_ALLOCATE = false;
 
-	/**
-	 * Deprecated. Please use {@link TaskManagerOptions#TASK_CANCELLATION_INTERVAL}.
-	 */
+	/** @deprecated Please use {@link TaskManagerOptions#TASK_CANCELLATION_INTERVAL}. */
 	@Deprecated
 	public static final long DEFAULT_TASK_CANCELLATION_INTERVAL_MILLIS = 30000;
 
@@ -1321,7 +1321,7 @@ public final class ConfigConstants {
 	/** By default, submitting jobs from the web-frontend is allowed. */
 	public static final boolean DEFAULT_JOB_MANAGER_WEB_SUBMIT_ENABLED = true;
 
-	/** Config key has been deprecated. Therefore, no default value required. */
+	/** @deprecated Config key has been deprecated. Therefore, no default value required. */
 	@Deprecated
 	public static final boolean DEFAULT_JOB_MANAGER_WEB_CHECKPOINTS_DISABLE = false;
 
@@ -1402,7 +1402,7 @@ public final class ConfigConstants {
 	@PublicEvolving
 	public static String DEFAULT_HA_MODE = "none";
 
-	/** Deprecated in favour of {@link #DEFAULT_HA_MODE} */
+	/** @deprecated Deprecated in favour of {@link #DEFAULT_HA_MODE} */
 	@Deprecated
 	public static String DEFAULT_RECOVERY_MODE = "standalone";
 
@@ -1413,7 +1413,7 @@ public final class ConfigConstants {
 	@PublicEvolving
 	public static final String DEFAULT_HA_JOB_MANAGER_PORT = "0";
 
-	/** Deprecated in favour of {@link #DEFAULT_HA_JOB_MANAGER_PORT} */
+	/** @deprecated Deprecated in favour of {@link #DEFAULT_HA_JOB_MANAGER_PORT} */
 	@Deprecated
 	public static final String DEFAULT_RECOVERY_JOB_MANAGER_PORT = "0";
 

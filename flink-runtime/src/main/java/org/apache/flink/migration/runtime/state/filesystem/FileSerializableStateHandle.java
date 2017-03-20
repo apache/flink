@@ -31,6 +31,8 @@ import java.io.Serializable;
  * A state handle that points to state stored in a file via Java Serialization.
  * 
  * @param <T> The type of state pointed to by the state handle.
+ *
+ * @deprecated Internal class for savepoint backwards compatibility. Don't use for other purposes.
  */
 @Deprecated
 @SuppressWarnings("deprecation")

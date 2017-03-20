@@ -39,6 +39,9 @@ public class SubtaskState implements StateObject {
 
 	/**
 	 * Legacy (non-repartitionable) operator state.
+	 *
+	 * @deprecated Non-repartitionable operator state that has been deprecated.
+	 * Can be removed when we remove the APIs for non-repartitionable operator state.
 	 */
 	@Deprecated
 	private final ChainedStateHandle<StreamStateHandle> legacyOperatorState;
@@ -101,6 +104,10 @@ public class SubtaskState implements StateObject {
 
 	// --------------------------------------------------------------------------------------------
 
+	/**
+	 * @deprecated Non-repartitionable operator state that has been deprecated.
+	 * Can be removed when we remove the APIs for non-repartitionable operator state.
+	 */
 	@Deprecated
 	public ChainedStateHandle<StreamStateHandle> getLegacyOperatorState() {
 		return legacyOperatorState;
