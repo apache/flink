@@ -18,7 +18,9 @@
 
 package org.apache.flink.table.api
 
+import com.google.common.base.Joiner
 import org.apache.flink.table.catalog.TableSourceConverter
+import org.apache.flink.table.catalog.ExternalCatalogTypes.PartitionSpec
 
 /**
   * Exception for all errors occurring during expression parsing.
@@ -73,6 +75,50 @@ object ValidationException {
   * Exception for unwanted method calling on unresolved expression.
   */
 case class UnresolvedException(msg: String) extends RuntimeException(msg)
+
+/**
+  * Exception for an operation on a nonexistent partition
+  *
+  * @param db            database name
+  * @param table         table name
+  * @param partitionSpec partition spec
+  * @param cause         the cause
+  */
+case class PartitionNotExistException(
+    db: String,
+    table: String,
+    partitionSpec: PartitionSpec,
+    cause: Throwable)
+    extends RuntimeException(
+      s"Partition [${Joiner.on(",").withKeyValueSeparator("=").join(partitionSpec)}] " +
+          s"does not exist in table $db.$table!", cause) {
+
+  def this(db: String, table: String, partitionSpec: PartitionSpec) =
+    this(db, table, partitionSpec, null)
+
+}
+
+/**
+  * Exception for adding an already existent partition
+  *
+  * @param db            database name
+  * @param table         table name
+  * @param partitionSpec partition spec
+  * @param cause         the cause
+  */
+case class PartitionAlreadyExistException(
+    db: String,
+    table: String,
+    partitionSpec: PartitionSpec,
+    cause: Throwable)
+    extends RuntimeException(
+      s"Partition [${Joiner.on(",").withKeyValueSeparator("=").join(partitionSpec)}] " +
+          s"already exists in table $db.$table!", cause) {
+
+  def this(db: String, table: String, partitionSpec: PartitionSpec) =
+    this(db, table, partitionSpec, null)
+
+}
 
 /**
   * Exception for an operation on a nonexistent table

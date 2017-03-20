@@ -19,11 +19,80 @@
 package org.apache.flink.table.catalog
 
 import org.apache.flink.table.api._
+import org.apache.flink.table.catalog.ExternalCatalogTypes.PartitionSpec
 
 /**
   * The CrudExternalCatalog provides methods to create, drop, and alter databases or tables.
   */
 trait CrudExternalCatalog extends ExternalCatalog {
+
+  /**
+    * Adds a partition to the catalog.
+    *
+    * @param dbName         The name of the table's database.
+    * @param tableName      The name of the table.
+    * @param part           Description of the partition to add.
+    * @param ignoreIfExists Flag to specify behavior if a partition with the given spec
+    *                       already exists:
+    *                       if set to false, it throws a PartitionAlreadyExistException,
+    *                       if set to true, nothing happens.
+    * @throws DatabaseNotExistException      thrown if the database does not exist in the catalog.
+    * @throws TableNotExistException         thrown if the table does not exist in the catalog.
+    * @throws PartitionAlreadyExistException thrown if the partition already exists and
+    *                                        ignoreIfExists is false
+    */
+  @throws[DatabaseNotExistException]
+  @throws[TableNotExistException]
+  @throws[PartitionAlreadyExistException]
+  def createPartition(
+      dbName: String,
+      tableName: String,
+      part: ExternalCatalogTablePartition,
+      ignoreIfExists: Boolean): Unit
+
+  /**
+    * Deletes partition from a database of the catalog.
+    *
+    * @param dbName            The name of the table's database.
+    * @param tableName         The name of the table.
+    * @param partSpec          Description of the partition to add.
+    * @param ignoreIfNotExists Flag to specify behavior if the partition does not exist:
+    *                          if set to false, throw an exception,
+    *                          if set to true, nothing happens.
+    * @throws DatabaseNotExistException  thrown if the database does not exist in the catalog.
+    * @throws TableNotExistException     thrown if the table does not exist in the catalog.
+    * @throws PartitionNotExistException thrown if the partition does not exist in the catalog.
+    */
+  @throws[DatabaseNotExistException]
+  @throws[TableNotExistException]
+  @throws[PartitionNotExistException]
+  def dropPartition(
+      dbName: String,
+      tableName: String,
+      partSpec: PartitionSpec,
+      ignoreIfNotExists: Boolean): Unit
+
+  /**
+    * Modifies an existing partition in the catalog.
+    *
+    * @param dbName            The name of the table's database.
+    * @param tableName         The name of the table.
+    * @param part              New description of the partition to update.
+    * @param ignoreIfNotExists Flag to specify behavior if the partition does not exist:
+    *                          if set to false, throw an exception,
+    *                          if set to true, nothing happens.
+    * @throws DatabaseNotExistException  thrown if the database does not exist in the catalog.
+    * @throws TableNotExistException     thrown if the table does not exist in the catalog.
+    * @throws PartitionNotExistException thrown if the partition does not exist in the catalog.
+    */
+  @throws[DatabaseNotExistException]
+  @throws[TableNotExistException]
+  @throws[PartitionNotExistException]
+  def alterPartition(
+      dbName: String,
+      tableName: String,
+      part: ExternalCatalogTablePartition,
+      ignoreIfNotExists: Boolean): Unit
 
   /**
     * Adds a table to the catalog.

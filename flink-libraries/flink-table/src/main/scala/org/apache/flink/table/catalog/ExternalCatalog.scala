@@ -20,6 +20,7 @@ package org.apache.flink.table.catalog
 
 import java.util.{List => JList}
 
+import org.apache.flink.table.catalog.ExternalCatalogTypes.PartitionSpec
 import org.apache.flink.table.api._
 
 /**
@@ -30,6 +31,38 @@ import org.apache.flink.table.api._
   * access information.
   */
 trait ExternalCatalog {
+
+  /**
+    * Gets a partition from the Catalog
+    *
+    * @param dbName    The name of the table's database.
+    * @param tableName The name of the table.
+    * @param partSpec  The partition specification.
+    * @throws DatabaseNotExistException  thrown if the database does not exist in the catalog.
+    * @throws TableNotExistException     thrown if the table does not exist in the catalog.
+    * @throws PartitionNotExistException thrown if the partition does not exist in the catalog.
+    * @return the requested partition
+    */
+  @throws[DatabaseNotExistException]
+  @throws[TableNotExistException]
+  @throws[PartitionNotExistException]
+  def getPartition(
+      dbName: String,
+      tableName: String,
+      partSpec: PartitionSpec): ExternalCatalogTablePartition
+
+  /**
+    * Gets the partition specification list of a table from external catalog
+    *
+    * @param dbName    database name
+    * @param tableName table name
+    * @throws DatabaseNotExistException if database does not exist in the catalog yet
+    * @throws TableNotExistException    if table does not exist in the catalog yet
+    * @return list of partition spec
+    */
+  @throws[DatabaseNotExistException]
+  @throws[TableNotExistException]
+  def listPartitions(dbName: String, tableName: String): JList[PartitionSpec]
 
   /**
     * Get a table from the catalog
