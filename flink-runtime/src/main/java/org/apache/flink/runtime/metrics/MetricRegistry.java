@@ -20,6 +20,9 @@ package org.apache.flink.runtime.metrics;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
+import akka.actor.Kill;
+import akka.pattern.Patterns;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -36,6 +39,9 @@ import org.apache.flink.runtime.metrics.groups.FrontMetricGroup;
 import org.apache.flink.runtime.metrics.scope.ScopeFormats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.concurrent.Await;
+import scala.concurrent.Future;
+import scala.concurrent.duration.FiniteDuration;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -52,7 +58,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class MetricRegistry {
 	static final Logger LOG = LoggerFactory.getLogger(MetricRegistry.class);
-	
+
 	private List<MetricReporter> reporters;
 	private ScheduledExecutorService executor;
 	private ActorRef queryService;
@@ -198,6 +204,14 @@ public class MetricRegistry {
 	 * Shuts down this registry and the associated {@link MetricReporter}.
 	 */
 	public void shutdown() {
+		Future<Boolean> stopFuture = null;
+		FiniteDuration stopTimeout = null;
+
+		if (queryService != null) {
+			stopTimeout = new FiniteDuration(1L, TimeUnit.SECONDS);
+			stopFuture = Patterns.gracefulStop(queryService, stopTimeout);
+		}
+
 		if (reporters != null) {
 			for (MetricReporter reporter : reporters) {
 				try {
@@ -209,6 +223,21 @@ public class MetricRegistry {
 			reporters = null;
 		}
 		shutdownExecutor();
+
+		if (stopFuture != null) {
+			boolean stopped = false;
+
+			try {
+				stopped = Await.result(stopFuture, stopTimeout);
+			} catch (Exception e) {
+				LOG.warn("Query actor did not properly stop.", e);
+			}
+
+			if (!stopped) {
+				// the query actor did not stop in time, let's kill him
+				queryService.tell(Kill.getInstance(), ActorRef.noSender());
+			}
+		}
 	}
 	
 	private void shutdownExecutor() {
@@ -216,7 +245,7 @@ public class MetricRegistry {
 			executor.shutdown();
 
 			try {
-				if (!executor.awaitTermination(1, TimeUnit.SECONDS)) {
+				if (!executor.awaitTermination(1L, TimeUnit.SECONDS)) {
 					executor.shutdownNow();
 				}
 			} catch (InterruptedException e) {
@@ -294,6 +323,13 @@ public class MetricRegistry {
 		} catch (Exception e) {
 			LOG.error("Error while registering metric.", e);
 		}
+	}
+
+	// ------------------------------------------------------------------------
+
+	@VisibleForTesting
+	public ActorRef getQueryService() {
+		return queryService;
 	}
 
 	// ------------------------------------------------------------------------
