@@ -155,3 +155,11 @@ class DecimalMinAggFunction extends MinAggFunction[BigDecimal] {
   override def getInitValue: BigDecimal = BigDecimal.ZERO
   override def getValueTypeInfo = BasicTypeInfo.BIG_DEC_TYPE_INFO
 }
+
+/**
+  * Built-in String Min aggregate function
+  */
+class StringMinAggFunction extends MinAggFunction[String] {
+  override def getInitValue = "".toString
+  override def getValueTypeInfo = BasicTypeInfo.STRING_TYPE_INFO
+}

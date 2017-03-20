@@ -192,3 +192,36 @@ class DecimalMinAggFunctionTest extends AggFunctionTestBase[BigDecimal] {
 
   override def supportRetraction: Boolean = false
 }
+
+class StringMinAggFunctionTest extends AggFunctionTestBase[String] {
+  override def inputValueSets: Seq[Seq[_]] = Seq(
+    Seq(
+      new String("a"),
+      new String("b"),
+      new String("c"),
+      null.asInstanceOf[String],
+      new String("d")
+    ),
+    Seq(
+      null.asInstanceOf[String],
+      null.asInstanceOf[String],
+      null.asInstanceOf[String]
+    ),
+    Seq(
+      new String("1House"),
+      new String("Household"),
+      new String("house"),
+      new String("household")
+    )
+  )
+
+  override def expectedResults: Seq[String] = Seq(
+    new String("a"),
+    null.asInstanceOf[String],
+    new String("1House")
+  )
+
+  override def aggregator: AggregateFunction[String] = new StringMinAggFunction()
+
+  override def supportRetraction: Boolean = false
+}

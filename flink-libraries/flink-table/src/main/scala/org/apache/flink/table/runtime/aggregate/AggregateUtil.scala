@@ -916,6 +916,8 @@ object AggregateUtil {
                   new DecimalMinAggFunction
                 case BOOLEAN =>
                   new BooleanMinAggFunction
+                case VARCHAR | CHAR =>
+                  new StringMinAggFunction
                 case sqlType: SqlTypeName =>
                   throw new TableException("Min aggregate does no support type:" + sqlType)
               }
@@ -961,6 +963,8 @@ object AggregateUtil {
                   new DecimalMaxAggFunction
                 case BOOLEAN =>
                   new BooleanMaxAggFunction
+                case VARCHAR | CHAR =>
+                  new StringMaxAggFunction
                 case sqlType: SqlTypeName =>
                   throw new TableException("Max aggregate does no support type:" + sqlType)
               }
