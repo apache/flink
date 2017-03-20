@@ -30,7 +30,7 @@ import java.io.IOException;
  * This class is just a StreamStateHandle that is tagged as migration, to figure out which restore logic to apply, e.g.
  * when restoring backend data from a state handle.
  *
- * @deprecated Internal class for savepoint backwards compatability. Don't use for other purposes.
+ * @deprecated Internal class for savepoint backwards compatibility. Don't use for other purposes.
  */
 @Internal
 @Deprecated

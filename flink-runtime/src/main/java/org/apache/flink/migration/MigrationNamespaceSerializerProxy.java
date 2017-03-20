@@ -31,7 +31,7 @@ import java.io.Serializable;
  * (non-null) namespace serializer. This is then replaced as soon as the user is re-registering her state again for
  * the first run under Flink 1.2 and provides again the real namespace serializer.
  *
- * @deprecated Internal class for savepoint backwards compatability. Don't use for other purposes.
+ * @deprecated Internal class for savepoint backwards compatibility. Don't use for other purposes.
  */
 @Deprecated
 @SuppressWarnings("deprecation")

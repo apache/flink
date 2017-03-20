@@ -28,8 +28,8 @@ import java.io.IOException;
 
 import static java.util.Objects.requireNonNull;
 
-/***
- * @deprecated Internal class used for backwards compatability.
+/**
+ * @deprecated Internal class used for backwards compatibility.
  */
 @Deprecated
 public class RocksDBStateBackend extends AbstractStateBackend {

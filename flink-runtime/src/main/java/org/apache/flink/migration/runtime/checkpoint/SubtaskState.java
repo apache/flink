@@ -26,7 +26,7 @@ import java.io.Serializable;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * @deprecated Internal class for savepoint backwards compatability. Don't use for other purposes.
+ * @deprecated Internal class for savepoint backwards compatibility. Don't use for other purposes.
  */
 @Deprecated
 @SuppressWarnings("deprecation")

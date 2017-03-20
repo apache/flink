@@ -27,7 +27,7 @@ import java.io.Serializable;
 /**
  * A state backend defines how state is stored and snapshotted during checkpoints.
  *
- * @deprecated Internal class for savepoint backwards compatability. Don't use for other purposes.
+ * @deprecated Internal class for savepoint backwards compatibility. Don't use for other purposes.
  */
 @Deprecated
 @SuppressWarnings("deprecation")

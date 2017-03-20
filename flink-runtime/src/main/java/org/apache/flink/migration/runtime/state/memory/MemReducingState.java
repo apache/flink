@@ -30,7 +30,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
  * @param <N> The type of the namespace.
  * @param <V> The type of the values in the list state.
  *
- * @deprecated Internal class for savepoint backwards compatability. Don't use for other purposes.
+ * @deprecated Internal class for savepoint backwards compatibility. Don't use for other purposes.
  */
 @Deprecated
 @SuppressWarnings("deprecation")

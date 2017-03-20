@@ -32,7 +32,7 @@ import java.io.Serializable;
  * 
  * @param <T> The type of state pointed to by the state handle.
  *
- * @deprecated Internal class for savepoint backwards compatability. Don't use for other purposes.
+ * @deprecated Internal class for savepoint backwards compatibility. Don't use for other purposes.
  */
 @Deprecated
 @SuppressWarnings("deprecation")

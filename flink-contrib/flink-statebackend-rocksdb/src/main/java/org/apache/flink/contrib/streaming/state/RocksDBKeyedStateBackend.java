@@ -1142,7 +1142,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	/**
 	 * For backwards compatibility, remove again later!
 	 *
-	 * @deprecated Internal method used for backwards compatability.
+	 * @deprecated Internal method used for backwards compatibility.
 	 */
 	@Deprecated
 	private void restoreOldSavepointKeyedState(Collection<KeyGroupsStateHandle> restoreState) throws Exception {

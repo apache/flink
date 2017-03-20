@@ -23,7 +23,7 @@ package org.apache.flink.migration.runtime.state;
  * A StateHandle implementation can for example include the state itself in cases where the state 
  * is lightweight or fetching it lazily from some external storage when the state is too large.
  *
- * @deprecated Internal class for savepoint backwards compatability. Don't use for other purposes.
+ * @deprecated Internal class for savepoint backwards compatibility. Don't use for other purposes.
  */
 @Deprecated
 @SuppressWarnings("deprecation")
