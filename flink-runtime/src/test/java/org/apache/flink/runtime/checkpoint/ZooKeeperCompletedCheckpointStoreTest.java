@@ -45,6 +45,8 @@ import java.util.List;
 import java.util.concurrent.Executor;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.doReturn;
@@ -54,6 +56,8 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.powermock.api.mockito.PowerMockito.doAnswer;
+import static org.powermock.api.mockito.PowerMockito.doThrow;
 import static org.powermock.api.mockito.PowerMockito.whenNew;
 
 @RunWith(PowerMockRunner.class)
@@ -179,5 +183,62 @@ public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
 
 		// check that we have discarded the state handles which could not be retrieved
 		verify(failingRetrievableStateHandle, times(2)).discardState();
+	}
+	
+	/**
+	 * Tests that the checkpoint does not exist in the store when we fail to add
+	 * it into the store (i.e., there exists an exception thrown by the method).
+	 */
+	@Test
+	public void testAddCheckpointWithFailedRemove() throws Exception {
+		final CuratorFramework client = mock(CuratorFramework.class, Mockito.RETURNS_DEEP_STUBS);
+		final RetrievableStateStorageHelper<CompletedCheckpoint> storageHelperMock = mock(RetrievableStateStorageHelper.class);
+		
+		ZooKeeperStateHandleStore<CompletedCheckpoint> zookeeperStateHandleStoreMock = 
+			spy(new ZooKeeperStateHandleStore<>(client, storageHelperMock, Executors.directExecutor()));
+		whenNew(ZooKeeperStateHandleStore.class).withAnyArguments().thenReturn(zookeeperStateHandleStoreMock);
+		
+		doAnswer(new Answer<RetrievableStateHandle<CompletedCheckpoint>>() {
+			@Override
+			public RetrievableStateHandle<CompletedCheckpoint> answer(InvocationOnMock invocationOnMock) throws Throwable {
+				CompletedCheckpoint checkpoint = (CompletedCheckpoint)invocationOnMock.getArguments()[1];
+				
+				RetrievableStateHandle<CompletedCheckpoint> retrievableStateHandle = mock(RetrievableStateHandle.class);
+				when(retrievableStateHandle.retrieveState()).thenReturn(checkpoint);
+				
+				return retrievableStateHandle;
+			}
+		}).when(zookeeperStateHandleStoreMock).add(anyString(), any(CompletedCheckpoint.class));
+		
+		doThrow(new Exception()).when(zookeeperStateHandleStoreMock).remove(anyString(), any(BackgroundCallback.class));
+		
+		final int numCheckpointsToRetain = 1;
+		final String checkpointsPath = "foobar";
+		final RetrievableStateStorageHelper<CompletedCheckpoint> stateSotrage = mock(RetrievableStateStorageHelper.class);
+		
+		ZooKeeperCompletedCheckpointStore zooKeeperCompletedCheckpointStore = new ZooKeeperCompletedCheckpointStore(
+			numCheckpointsToRetain,
+			client,
+			checkpointsPath,
+			stateSotrage,
+			Executors.directExecutor());
+		
+		
+		for (long i = 0; i <= numCheckpointsToRetain; ++i) {
+			CompletedCheckpoint checkpointToAdd = mock(CompletedCheckpoint.class);
+			doReturn(i).when(checkpointToAdd).getCheckpointID();
+			
+			try {
+				zooKeeperCompletedCheckpointStore.addCheckpoint(checkpointToAdd);
+				
+				// The checkpoint should be in the store if we successfully add it into the store.
+				List<CompletedCheckpoint> addedCheckpoints = zooKeeperCompletedCheckpointStore.getAllCheckpoints();
+				assertTrue(addedCheckpoints.contains(checkpointToAdd));
+			} catch (Exception e) {
+				// The checkpoint should not be in the store if any exception is thrown.
+				List<CompletedCheckpoint> addedCheckpoints = zooKeeperCompletedCheckpointStore.getAllCheckpoints();
+				assertFalse(addedCheckpoints.contains(checkpointToAdd));
+			}
+		}
 	}
 }
