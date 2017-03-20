@@ -36,6 +36,7 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.expressions._
+import org.apache.flink.table.expressions.ResolvedFieldReference
 import org.apache.flink.table.functions.aggfunctions._
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.functions.{AggregateFunction => TableAggregateFunction}
@@ -46,6 +47,11 @@ import org.apache.flink.types.Row
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable.ArrayBuffer
+import com.google.common.collect.ImmutableList
+import org.apache.calcite.rex.RexLiteral
+import org.apache.calcite.rex.RexWindowBound
+import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rex.RexInputRef
 
 object AggregateUtil {
 
@@ -88,6 +94,18 @@ object AggregateUtil {
         inputType.getFieldCount,
         aggregationStateType)
     }
+  }
+ 
+  def getLowerBoundary(
+      constants: ImmutableList[RexLiteral],
+      lowerBound: RexWindowBound,
+      input: RelNode): Int = {
+    val ref: RexInputRef = lowerBound.getOffset.asInstanceOf[RexInputRef]
+    val index:Int = ref.getIndex
+    val count: Int = input.getRowType.getFieldCount
+    val lowerBoundIndex = count - index;
+    val lowB = constants.get(lowerBoundIndex).getValue2.asInstanceOf[Long]
+    lowB.intValue()
   }
 
   /**
@@ -658,6 +676,36 @@ object AggregateUtil {
     val accumulatorRowType = createAccumulatorRowType(inputType, aggregates)
     val aggResultRowType = new RowTypeInfo(aggResultTypes: _*)
     val aggFunction = new AggregateAggFunction(aggregates, aggFields)
+
+    (aggFunction, accumulatorRowType, aggResultRowType)
+  }
+  
+  
+   private[flink] def createDataStreamOverAggregateFunction(
+      namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+      inputType: RelDataType,
+      outputType: RelDataType,
+      groupKeysIndex: Array[Int])
+    : (DataStreamAggFunction[Row, Row, Row], RowTypeInfo, RowTypeInfo) = {
+
+    val (aggFields, aggregates) =
+      transformToAggregateFunctions(
+        namedAggregates.map(_.getKey),
+        inputType,
+        needRetraction = false)
+
+    val aggregateMapping = getAggregateMapping(namedAggregates, outputType)
+
+    if (aggregateMapping.length != namedAggregates.length) {
+      throw new TableException(
+        "Could not find output field in input data type or aggregate functions.")
+    }
+
+    val aggResultTypes = outputType.getFieldList.map(a => FlinkTypeFactory.toTypeInfo(a.getType))
+    
+    val accumulatorRowType = createAccumulatorRowType(inputType, aggregates)
+    val aggResultRowType = new RowTypeInfo(aggResultTypes: _*)
+    val aggFunction = new AggregateAggOverFunction(aggregates, aggFields, inputType.getFieldCount)
 
     (aggFunction, accumulatorRowType, aggResultRowType)
   }

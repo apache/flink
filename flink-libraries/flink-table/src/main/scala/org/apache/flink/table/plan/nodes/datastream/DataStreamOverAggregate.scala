@@ -34,6 +34,11 @@ import java.util.{List => JList}
 
 import org.apache.flink.table.functions.{ProcTimeType, RowTimeType}
 import org.apache.flink.table.runtime.aggregate.AggregateUtil.CalcitePair
+import org.apache.flink.streaming.api.functions.windowing.WindowFunction
+import org.apache.flink.streaming.api.windowing.windows.GlobalWindow
+import org.apache.flink.streaming.api.datastream.WindowedStream
+import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
+import org.apache.flink.table.plan.nodes.CommonAggregate
 
 class DataStreamOverAggregate(
     logicWindow: Window,
@@ -44,7 +49,8 @@ class DataStreamOverAggregate(
     inputType: RelDataType)
   extends SingleRel(cluster, traitSet, inputNode)
   with OverAggregate
-  with DataStreamRel {
+  with DataStreamRel
+  with CommonAggregate {
 
   override def deriveRowType(): RelDataType = rowRelDataType
 
@@ -70,7 +76,7 @@ class DataStreamOverAggregate(
 
     super.explainTerms(pw)
       .itemIf("partitionBy", partitionToString(inputType, partitionKeys), partitionKeys.nonEmpty)
-        .item("orderBy",orderingToString(inputType, overWindow.orderKeys.getFieldCollations))
+      .item("orderBy", orderingToString(inputType, overWindow.orderKeys.getFieldCollations))
       .itemIf("rows", windowRange(overWindow), overWindow.isRows)
       .itemIf("range", windowRange(overWindow), !overWindow.isRows)
       .item(
@@ -106,6 +112,10 @@ class DataStreamOverAggregate(
         if (overWindow.lowerBound.isUnbounded &&
           overWindow.upperBound.isCurrentRow) {
           createUnboundedAndCurrentRowProcessingTimeOverWindow(inputDS)
+        } // lowerbound is a RowType and upperbound is PRECEEDING or CURRENT ROW
+        else if (overWindow.isRows &&
+            (overWindow.upperBound.isPreceding || overWindow.upperBound.isCurrentRow)) {
+          createBoundedAndCurrentRowProcessingTimeOverWindow(inputDS)
         } else {
           throw new TableException(
               "OVER window only support ProcessingTime UNBOUNDED PRECEDING and CURRENT ROW " +
@@ -150,12 +160,71 @@ class DataStreamOverAggregate(
             inputType,
             false)
 
-          inputDS
-            .process(processFunction).setParallelism(1).setMaxParallelism(1)
-            .returns(rowTypeInfo)
-            .name(aggOpName)
-            .asInstanceOf[DataStream[Row]]
-        }
+        inputDS
+          .process(processFunction).setParallelism(1).setMaxParallelism(1)
+          .returns(rowTypeInfo)
+          .name(aggOpName)
+          .asInstanceOf[DataStream[Row]]
+      }
+    result
+  }
+
+  def createBoundedAndCurrentRowProcessingTimeOverWindow(
+    inputDS: DataStream[Row]): DataStream[Row] = {
+
+    val overWindow: Group = logicWindow.groups.get(0)
+    val partitionKeys: Array[Int] = overWindow.keys.toArray
+    val namedAggregates: Seq[CalcitePair[AggregateCall, String]] = generateNamedAggregates
+
+    // get the output types
+    val rowTypeInfo = FlinkTypeFactory.toInternalRowTypeInfo(getRowType).asInstanceOf[RowTypeInfo]
+
+    // window size is lowerbound +1 to comply with over semantics 
+    val lowerbound: Int = AggregateUtil.getLowerBoundary(
+      logicWindow.constants,
+      overWindow.lowerBound,
+      getInput()) + 1
+
+    val (aggFunction, accumulatorRowType, aggResultRowType) =
+      AggregateUtil.createDataStreamOverAggregateFunction(
+        namedAggregates,
+        inputType,
+        rowRelDataType,
+        partitionKeys)
+    val aggString = aggregationToString(
+      inputType,
+      partitionKeys,
+      getRowType,
+      namedAggregates,
+      Seq[NamedWindowProperty]())
+
+    val result: DataStream[Row] =
+      // partitioned aggregation
+      if (partitionKeys.nonEmpty) {
+
+        val windowFunction = new IncrementalAggregateOverWindowFunction[GlobalWindow](
+          partitionKeys.length,
+          namedAggregates.size,
+          inputType.getFieldCount)
+
+        val keyedStream = inputDS.keyBy(partitionKeys: _*)
+        val windowedStream = keyedStream.countWindow(lowerbound, 1)
+
+        windowedStream
+          .aggregate(aggFunction, windowFunction, accumulatorRowType, aggResultRowType, rowTypeInfo)
+          .name(aggOpName)
+      } // global non-partitioned aggregation
+      else {
+        val windowFunction = new IncrementalAggregateOverAllWindowFunction[GlobalWindow](
+          partitionKeys.length,
+          namedAggregates.size,
+          inputType.getFieldCount)
+
+        inputDS
+          .countWindowAll(lowerbound, 1)
+          .aggregate(aggFunction, windowFunction, accumulatorRowType, aggResultRowType, rowTypeInfo)
+          .name(aggOpName)
+      }
     result
   }
 
