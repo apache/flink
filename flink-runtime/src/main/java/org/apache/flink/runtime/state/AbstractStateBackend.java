@@ -95,7 +95,7 @@ public abstract class AbstractStateBackend implements StateBackend, java.io.Seri
 			Environment env,
 			String operatorIdentifier) throws Exception {
 
-		return new DefaultOperatorStateBackend(env.getUserClassLoader());
+		return new DefaultOperatorStateBackend(env.getUserClassLoader(), env.getExecutionConfig());
 	}
 
 	// ------------------------------------------------------------------------
