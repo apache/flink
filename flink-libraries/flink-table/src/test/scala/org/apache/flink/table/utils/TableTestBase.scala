@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.{DataSet => JDataSet}
 import org.apache.flink.table.api.{Table, TableEnvironment}
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.{BatchTableEnvironment => BatchTableEnv, StreamTableEnvironment => StreamTableEnv}
 import org.apache.flink.api.scala.{DataSet, ExecutionEnvironment}
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.{ScalarFunction, TableFunction}
@@ -151,16 +152,26 @@ case class BatchTableTestUtil() extends TableTestUtil {
     verifyTable(tEnv.sql(query), expected)
   }
 
-  def verifyTable(resultTable: Table, expected: String): Unit = {
+  def verifyTable(resultTable: Table, expected: String, tableEnv: BatchTableEnv): Unit = {
     val relNode = resultTable.getRelNode
-    val optimized = tEnv.optimize(relNode)
+    val optimized = tableEnv.optimize(relNode)
     val actual = RelOptUtil.toString(optimized)
     assertEquals(
       expected.split("\n").map(_.trim).mkString("\n"),
       actual.split("\n").map(_.trim).mkString("\n"))
   }
 
+  def verifyTable(resultTable: Table, expected: String): Unit = {
+    verifyTable(resultTable, expected, tEnv)
+  }
+
   def printTable(resultTable: Table): Unit = {
+    val relNode = resultTable.getRelNode
+    val optimized = tEnv.optimize(relNode)
+    println(RelOptUtil.toString(optimized))
+  }
+
+  def printTable(resultTable: Table, tEnv: BatchTableEnv): Unit = {
     val relNode = resultTable.getRelNode
     val optimized = tEnv.optimize(relNode)
     println(RelOptUtil.toString(optimized))
@@ -207,14 +218,17 @@ case class StreamTableTestUtil() extends TableTestUtil {
   def verifySql(query: String, expected: String): Unit = {
     verifyTable(tEnv.sql(query), expected)
   }
-
-  def verifyTable(resultTable: Table, expected: String): Unit = {
+  def verifyTable(resultTable: Table, expected: String, tableEnv: StreamTableEnv): Unit = {
     val relNode = resultTable.getRelNode
-    val optimized = tEnv.optimize(relNode)
+    val optimized = tableEnv.optimize(relNode)
     val actual = RelOptUtil.toString(optimized)
     assertEquals(
       expected.split("\n").map(_.trim).mkString("\n"),
       actual.split("\n").map(_.trim).mkString("\n"))
+  }
+
+  def verifyTable(resultTable: Table, expected: String): Unit = {
+    verifyTable(resultTable, expected, tEnv)
   }
 
   // the print methods are for debugging purposes only

@@ -35,6 +35,7 @@ import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase;
+import org.apache.flink.table.utils.BatchTableTestUtil;
 import org.apache.flink.types.Row;
 import org.apache.flink.table.calcite.CalciteConfig;
 import org.apache.flink.table.calcite.CalciteConfigBuilder;
@@ -46,14 +47,13 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import static org.apache.flink.test.util.TestBaseUtils.compareResultAsText;
-
 @RunWith(Parameterized.class)
-public class TableEnvironmentCase {
+public class TableEnvironmentTest {
 
 	private TableConfig config;
+	private BatchTableTestUtil util = new BatchTableTestUtil();
 
-	public TableEnvironmentCase(TableProgramsTestBase.TableConfigMode configMode) {
+	public TableEnvironmentTest(TableProgramsTestBase.TableConfigMode configMode) {
 		this.config = new TableConfig();
 		if (configMode == TableProgramsTestBase.NO_NULL()) {
 			config.setNullCheck(false);
@@ -79,12 +79,11 @@ public class TableEnvironmentCase {
 
 		Table result = t.select("f0, f1");
 
-		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
-		List<Row> results = resultSet.collect();
-		String expected = "1,1\n" + "2,2\n" + "3,2\n" + "4,3\n" + "5,3\n" + "6,3\n" + "7,4\n" +
-				"8,4\n" + "9,4\n" + "10,4\n" + "11,5\n" + "12,5\n" + "13,5\n" + "14,5\n" + "15,5\n" +
-				"16,6\n" + "17,6\n" + "18,6\n" + "19,6\n" + "20,6\n" + "21,6\n";
-		compareResultAsText(results, expected);
+		String expected = "DataSetCalc(select=[f0, f1])\n" +
+			"  DataSetScan(table=[[MyTable]])";
+
+		util.verifyTable(result, expected, tableEnv);
+
 	}
 
 	@Test
@@ -99,16 +98,10 @@ public class TableEnvironmentCase {
 
 		Table result = t.select("a, b, c");
 
-		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
-		List<Row> results = resultSet.collect();
-		String expected = "1,1,Hi\n" + "2,2,Hello\n" + "3,2,Hello world\n" +
-				"4,3,Hello world, how are you?\n" + "5,3,I am fine.\n" + "6,3,Luke Skywalker\n" +
-				"7,4,Comment#1\n" + "8,4,Comment#2\n" + "9,4,Comment#3\n" + "10,4,Comment#4\n" +
-				"11,5,Comment#5\n" + "12,5,Comment#6\n" + "13,5,Comment#7\n" +
-				"14,5,Comment#8\n" + "15,5,Comment#9\n" + "16,6,Comment#10\n" +
-				"17,6,Comment#11\n" + "18,6,Comment#12\n" + "19,6,Comment#13\n" +
-				"20,6,Comment#14\n" + "21,6,Comment#15\n";
-		compareResultAsText(results, expected);
+		String expected = "DataSetScan(table=[[MyTable]])";
+
+		util.verifyTable(result, expected, tableEnv); 
+
 	}
 
 	@Test(expected = TableException.class)
@@ -144,12 +137,10 @@ public class TableEnvironmentCase {
 		tableEnv.registerTable(tableName, t);
 		Table result = tableEnv.scan(tableName).select("f0, f1").filter("f0 > 7");
 
-		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
-		List<Row> results = resultSet.collect();
-		String expected = "8,4\n" + "9,4\n" + "10,4\n" + "11,5\n" + "12,5\n" +
-				"13,5\n" + "14,5\n" + "15,5\n" +
-				"16,6\n" + "17,6\n" + "18,6\n" + "19,6\n" + "20,6\n" + "21,6\n";
-		compareResultAsText(results, expected);
+		String expected = "DataSetCalc(select=[f0, f1], where=[>(f0, 7)])\n" +
+			"  DataSetScan(table=[[_DataSetTable_0]])";
+
+		util.verifyTable(result, expected, tableEnv); 
 	}
 
 	@Test(expected = TableException.class)
@@ -183,12 +174,11 @@ public class TableEnvironmentCase {
 
 		Table result = tableEnv.scan(tableName).select("f0, f1").filter("f0 > 7");
 
-		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
-		List<Row> results = resultSet.collect();
-		String expected = "9,4\n" + "10,4\n" + "11,5\n" + "12,5\n" +
-				"13,5\n" + "14,5\n" + "15,5\n" +
-				"16,6\n" + "17,6\n" + "18,6\n" + "19,6\n" + "20,6\n" + "21,6\n";
-		compareResultAsText(results, expected);
+		String expected = "DataSetCalc(select=[f0, f1], where=[>(f0, 7)])\n" +
+			"  DataSetCalc(select=[f0, f1, f2], where=[>(f0, 8)])\n" +
+			"    DataSetScan(table=[[_DataSetTable_1]])";
+
+		util.verifyTable(result, expected, tableEnv); 
 	}
 
 	@Test(expected = TableException.class)
@@ -222,16 +212,8 @@ public class TableEnvironmentCase {
 			.fromDataSet(CollectionDataSets.get3TupleDataSet(env), "a, b, c")
 			.select("a, b, c");
 
-		DataSet<Row> ds = tableEnv.toDataSet(table, Row.class);
-		List<Row> results = ds.collect();
-		String expected = "1,1,Hi\n" + "2,2,Hello\n" + "3,2,Hello world\n" +
-			"4,3,Hello world, how are you?\n" + "5,3,I am fine.\n" + "6,3,Luke Skywalker\n" +
-			"7,4,Comment#1\n" + "8,4,Comment#2\n" + "9,4,Comment#3\n" + "10,4,Comment#4\n" +
-			"11,5,Comment#5\n" + "12,5,Comment#6\n" + "13,5,Comment#7\n" +
-			"14,5,Comment#8\n" + "15,5,Comment#9\n" + "16,6,Comment#10\n" +
-			"17,6,Comment#11\n" + "18,6,Comment#12\n" + "19,6,Comment#13\n" +
-			"20,6,Comment#14\n" + "21,6,Comment#15\n";
-		compareResultAsText(results, expected);
+		String expected = util.batchTableNode(0);
+		util.verifyTable(table, expected, tableEnv); 
 	}
 
 	@Test
@@ -248,16 +230,8 @@ public class TableEnvironmentCase {
 			BasicTypeInfo.LONG_TYPE_INFO,
 			BasicTypeInfo.STRING_TYPE_INFO);
 
-		DataSet<?> ds = tableEnv.toDataSet(table, ti);
-		List<?> results = ds.collect();
-		String expected = "(1,1,Hi)\n" + "(2,2,Hello)\n" + "(3,2,Hello world)\n" +
-			"(4,3,Hello world, how are you?)\n" + "(5,3,I am fine.)\n" + "(6,3,Luke Skywalker)\n" +
-			"(7,4,Comment#1)\n" + "(8,4,Comment#2)\n" + "(9,4,Comment#3)\n" + "(10,4,Comment#4)\n" +
-			"(11,5,Comment#5)\n" + "(12,5,Comment#6)\n" + "(13,5,Comment#7)\n" +
-			"(14,5,Comment#8)\n" + "(15,5,Comment#9)\n" + "(16,6,Comment#10)\n" +
-			"(17,6,Comment#11)\n" + "(18,6,Comment#12)\n" + "(19,6,Comment#13)\n" +
-			"(20,6,Comment#14)\n" + "(21,6,Comment#15)\n";
-		compareResultAsText(results, expected);
+		String expected = util.batchTableNode(0);
+		util.verifyTable(table, expected, tableEnv);
 	}
 
 	@Test
@@ -274,10 +248,10 @@ public class TableEnvironmentCase {
 			.fromDataSet(env.fromCollection(data), "q, w, e, r")
 			.select("q as a, w as b, e as c, r as d");
 
-		DataSet<SmallPojo2> ds = tableEnv.toDataSet(table, SmallPojo2.class);
-		List<SmallPojo2> results = ds.collect();
-		String expected = "Rofl,1,1.0,Hi\n" + "lol,2,1.0,Hi\n" + "Test me,4,3.33,Hello world\n";
-		compareResultAsText(results, expected);
+		String expected = "DataSetCalc(select=[q AS a, w AS b, e AS c, r AS d])\n" +
+			"  DataSetScan(table=[[_DataSetTable_0]])";
+
+		util.verifyTable(table, expected, tableEnv);
 	}
 
 	@Test
@@ -298,13 +272,9 @@ public class TableEnvironmentCase {
 				"name AS d")
 			.select("a, b, c, d");
 
-		DataSet<Row> ds = tableEnv.toDataSet(table, Row.class);
-		List<Row> results = ds.collect();
-		String expected =
-			"Sales,28,4000.0,Peter\n" +
-			"Engineering,56,10000.0,Anna\n" +
-			"HR,42,6000.0,Lucy\n";
-		compareResultAsText(results, expected);
+		String expected = util.batchTableNode(0);
+
+		util.verifyTable(table, expected, tableEnv); 
 	}
 
 	@Test
@@ -325,67 +295,8 @@ public class TableEnvironmentCase {
 				"name AS d")
 			.select("a, b, c, d");
 
-		DataSet<Row> ds = tableEnv.toDataSet(table, Row.class);
-		List<Row> results = ds.collect();
-		String expected =
-			"Sales,28,4000.0,Peter\n" +
-			"Engineering,56,10000.0,Anna\n" +
-			"HR,42,6000.0,Lucy\n";
-		compareResultAsText(results, expected);
-	}
-
-	@Test
-	public void testAsFromAndToPojo() throws Exception {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config);
-
-		List<SmallPojo> data = new ArrayList<>();
-		data.add(new SmallPojo("Peter", 28, 4000.00, "Sales"));
-		data.add(new SmallPojo("Anna", 56, 10000.00, "Engineering"));
-		data.add(new SmallPojo("Lucy", 42, 6000.00, "HR"));
-
-		Table table = tableEnv
-			.fromDataSet(env.fromCollection(data),
-				"department AS a, " +
-				"age AS b, " +
-				"salary AS c, " +
-				"name AS d")
-			.select("a, b, c, d");
-
-		DataSet<SmallPojo2> ds = tableEnv.toDataSet(table, SmallPojo2.class);
-		List<SmallPojo2> results = ds.collect();
-		String expected =
-			"Sales,28,4000.0,Peter\n" +
-			"Engineering,56,10000.0,Anna\n" +
-			"HR,42,6000.0,Lucy\n";
-		compareResultAsText(results, expected);
-	}
-
-	@Test
-	public void testAsFromAndToPrivateFieldPojo() throws Exception {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config);
-
-		List<PrivateSmallPojo> data = new ArrayList<>();
-		data.add(new PrivateSmallPojo("Peter", 28, 4000.00, "Sales"));
-		data.add(new PrivateSmallPojo("Anna", 56, 10000.00, "Engineering"));
-		data.add(new PrivateSmallPojo("Lucy", 42, 6000.00, "HR"));
-
-		Table table = tableEnv
-			.fromDataSet(env.fromCollection(data),
-				"department AS a, " +
-				"age AS b, " +
-				"salary AS c, " +
-				"name AS d")
-			.select("a, b, c, d");
-
-		DataSet<PrivateSmallPojo2> ds = tableEnv.toDataSet(table, PrivateSmallPojo2.class);
-		List<PrivateSmallPojo2> results = ds.collect();
-		String expected =
-			"Sales,28,4000.0,Peter\n" +
-			"Engineering,56,10000.0,Anna\n" +
-			"HR,42,6000.0,Lucy\n";
-		compareResultAsText(results, expected);
+		String expected = util.batchTableNode(0);
+		util.verifyTable(table, expected, tableEnv); 
 	}
 
 	@Test
@@ -411,13 +322,11 @@ public class TableEnvironmentCase {
 			.select("a, b, c, c as c2, d")
 			.select("a, b, c, c === c2, d");
 
-		DataSet<Row> ds = tableEnv.toDataSet(table, Row.class);
-		List<Row> results = ds.collect();
-		String expected =
-			"Peter,28,{},true,[]\n" +
-			"Anna,56,{test1=test1},true,[]\n" +
-			"Lucy,42,{abc=cde},true,[]\n";
-		compareResultAsText(results, expected);
+
+		String expected = "DataSetCalc(select=[a, b, c, =(c, c) AS _c3, d])\n" +
+			"  DataSetScan(table=[[_DataSetTable_0]])";
+
+		util.verifyTable(table, expected, tableEnv); 
 	}
 
 	@Test(expected = TableException.class)
