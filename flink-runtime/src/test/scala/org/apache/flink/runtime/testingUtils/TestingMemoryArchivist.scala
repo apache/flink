@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.testingUtils
 
+import org.apache.flink.core.fs.Path
 import org.apache.flink.runtime.jobmanager.MemoryArchivist
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.{ExecutionGraphFound, ExecutionGraphNotFound, RequestExecutionGraph}
 
@@ -25,7 +26,8 @@ import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.{Executio
   *
   * @param maxEntries number of maximum number of archived jobs
   */
-class TestingMemoryArchivist(maxEntries: Int) extends MemoryArchivist(maxEntries) {
+class TestingMemoryArchivist(maxEntries: Int, archivePath: Option[Path])
+  extends MemoryArchivist(maxEntries, archivePath) {
 
   override def handleMessage: Receive = {
     handleTestingMessage orElse super.handleMessage
