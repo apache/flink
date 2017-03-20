@@ -17,35 +17,62 @@
  */
 package org.apache.flink.table.runtime.aggregate
 
-import java.util
+import scala.collection.JavaConversions.asScalaBuffer
+import scala.collection.mutable.ArrayBuffer
 
-import org.apache.calcite.rel.`type`._
+import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
-import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.calcite.rex.RexInputRef
+import org.apache.calcite.rex.RexLiteral
+import org.apache.calcite.rex.RexWindowBound
+import org.apache.calcite.sql.SqlAggFunction
+import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.sql.`type`.SqlTypeName._
-import org.apache.calcite.sql.fun._
-import org.apache.calcite.sql.{SqlAggFunction, SqlKind}
-import org.apache.flink.streaming.api.functions.ProcessFunction
+import org.apache.calcite.sql.fun.SqlAvgAggFunction
+import org.apache.calcite.sql.fun.SqlCountAggFunction
+import org.apache.calcite.sql.fun.SqlMinMaxAggFunction
+import org.apache.calcite.sql.fun.SqlSumAggFunction
+import org.apache.calcite.sql.fun.SqlSumEmptyIsZeroAggFunction
+import org.apache.flink.api.common.functions.{ AggregateFunction => DataStreamAggFunction }
+import org.apache.flink.api.common.functions.FlatMapFunction
+import org.apache.flink.api.common.functions.GroupCombineFunction
+import org.apache.flink.api.common.functions.InvalidTypesException
+import org.apache.flink.api.common.functions.MapFunction
+import org.apache.flink.api.common.functions.MapPartitionFunction
+import org.apache.flink.api.common.functions.RichGroupReduceFunction
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.api.common.functions.{AggregateFunction => DataStreamAggFunction, _}
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
-import org.apache.flink.streaming.api.functions.windowing.{AllWindowFunction, WindowFunction}
-import org.apache.flink.streaming.api.windowing.windows.{Window => DataStreamWindow}
+import org.apache.flink.streaming.api.functions.windowing.{ AllWindowFunction, WindowFunction }
+import org.apache.flink.streaming.api.windowing.windows.{ Window => DataStreamWindow }
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.expressions._
+import org.apache.flink.table.expressions.Expression
+import org.apache.flink.table.expressions.Literal
+import org.apache.flink.table.expressions.ResolvedFieldReference
+import org.apache.flink.table.expressions.{ WindowEnd, WindowStart }
+import org.apache.flink.table.functions.{ AggregateFunction => TableAggregateFunction }
 import org.apache.flink.table.functions.aggfunctions._
-import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
-import org.apache.flink.table.functions.{AggregateFunction => TableAggregateFunction}
-import org.apache.flink.table.plan.logical._
-import org.apache.flink.table.typeutils.TypeCheckUtils._
-import org.apache.flink.table.typeutils.{RowIntervalTypeInfo, TimeIntervalTypeInfo}
+import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.ifMethodExistInFunction
+import org.apache.flink.table.plan.logical.EventTimeSessionGroupWindow
+import org.apache.flink.table.plan.logical.EventTimeSlidingGroupWindow
+import org.apache.flink.table.plan.logical.EventTimeTumblingGroupWindow
+import org.apache.flink.table.plan.logical.LogicalWindow
+import org.apache.flink.table.plan.logical.ProcessingTimeSessionGroupWindow
+import org.apache.flink.table.plan.logical.ProcessingTimeSlidingGroupWindow
+import org.apache.flink.table.plan.logical.ProcessingTimeTumblingGroupWindow
+import org.apache.flink.table.typeutils.{ RowIntervalTypeInfo, TimeIntervalTypeInfo }
+import org.apache.flink.table.typeutils.TypeCheckUtils.isTimeInterval
 import org.apache.flink.types.Row
 
-import scala.collection.JavaConversions._
-import scala.collection.mutable.ArrayBuffer
+import com.google.common.collect.ImmutableList
+import org.apache.flink.streaming.api.windowing.windows.GlobalWindow
+import org.apache.flink.streaming.api.functions.ProcessFunction
+import org.apache.calcite.sql.`type`.SqlTypeName
+import java.util.List
 
 object AggregateUtil {
 
@@ -88,6 +115,58 @@ object AggregateUtil {
         inputType.getFieldCount,
         aggregationStateType)
     }
+  }
+  
+  private[flink] def CreateBoundedProcessingOverWindowFunction(
+      namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+    inputType: RelDataType): WindowFunction[Row, Row, Tuple, GlobalWindow] = {
+    
+    val (aggFields, aggregates) =
+      transformToAggregateFunctions(
+        namedAggregates.map(_.getKey),
+        inputType,
+        needRetraction = false)
+
+    val aggregationStateType: RowTypeInfo =
+      createDataSetAggregateBufferDataType(Array(), aggregates, inputType)
+    
+    new BoundedProcessingOverWindowFunction[GlobalWindow](
+      aggregates,
+      aggFields,
+      inputType.getFieldCount)
+      
+  }
+  
+    private[flink] def CreateBoundedProcessingOverGlobalWindowFunction(
+      namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+    inputType: RelDataType): AllWindowFunction[Row,Row,GlobalWindow] = {
+
+    val (aggFields, aggregates) =
+      transformToAggregateFunctions(
+        namedAggregates.map(_.getKey),
+        inputType,
+        needRetraction = false)
+
+    val aggregationStateType: RowTypeInfo =
+      createDataSetAggregateBufferDataType(Array(), aggregates, inputType)
+
+    new BoundedProcessingOverAllWindowFunction[GlobalWindow](
+      aggregates,
+      aggFields,
+      inputType.getFieldCount)
+
+  }
+  
+  def getLowerBoundary(
+      constants: ImmutableList[RexLiteral],
+      lowerBound: RexWindowBound,
+      input: RelNode):Int = {
+    val ref: RexInputRef = lowerBound.getOffset.asInstanceOf[RexInputRef]
+    val index:Int = ref.getIndex
+    val count: Int = input.getRowType.getFieldCount
+    val lowerBoundIndex = count - index;
+    val lowB = constants.get(lowerBoundIndex).getValue2.asInstanceOf[Long]
+    lowB.intValue()
   }
 
   /**
@@ -797,7 +876,7 @@ object AggregateUtil {
 
     // create aggregate function instances by function type and aggregate field data type.
     aggregateCalls.zipWithIndex.foreach { case (aggregateCall, index) =>
-      val argList: util.List[Integer] = aggregateCall.getArgList
+      val argList: List[Integer] = aggregateCall.getArgList
       if (argList.isEmpty) {
         if (aggregateCall.getAggregation.isInstanceOf[SqlCountAggFunction]) {
           aggFieldIndexes(index) = 0
