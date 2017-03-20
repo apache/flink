@@ -35,7 +35,12 @@ public class TaskStateHandles implements Serializable {
 
 	private static final long serialVersionUID = 267686583583579359L;
 
-	/** State handle with the (non-partitionable) legacy operator state*/
+	/**
+	 * State handle with the (non-partitionable) legacy operator state
+	 *
+	 * @deprecated Non-repartitionable operator state that has been deprecated.
+	 * Can be removed when we remove the APIs for non-repartitionable operator state.
+	 */
 	@Deprecated
 	private final ChainedStateHandle<StreamStateHandle> legacyOperatorState;
 
@@ -77,6 +82,10 @@ public class TaskStateHandles implements Serializable {
 		this.rawOperatorState = rawOperatorState;
 	}
 
+	/**
+	 * @deprecated Non-repartitionable operator state that has been deprecated.
+	 * Can be removed when we remove the APIs for non-repartitionable operator state.
+	 */
 	@Deprecated
 	public ChainedStateHandle<StreamStateHandle> getLegacyOperatorState() {
 		return legacyOperatorState;

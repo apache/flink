@@ -248,6 +248,8 @@ public class InMemoryPartition<T> {
 	 * @param pointer pointer to start of record
 	 * @param record record to overwrite old one with
 	 * @throws IOException
+	 * @deprecated Don't use this, overwrites record and causes inconsistency or data loss for
+	 * overwriting everything but records of the exact same size
 	 */
 	@Deprecated
 	public void overwriteRecordAt(long pointer, T record) throws IOException {

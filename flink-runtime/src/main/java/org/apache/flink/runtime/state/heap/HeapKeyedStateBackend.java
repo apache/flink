@@ -446,6 +446,9 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		return "HeapKeyedStateBackend";
 	}
 
+	/**
+	 * @deprecated Used for backwards compatability with previous savepoint versions.
+	 */
 	@SuppressWarnings({"unchecked", "rawtypes", "DeprecatedIsStillUsed"})
 	@Deprecated
 	private void restoreOldSavepointKeyedState(
