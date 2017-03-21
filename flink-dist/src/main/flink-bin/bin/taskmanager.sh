@@ -99,5 +99,5 @@ fi
 if [[ $STARTSTOP == "start-foreground" ]]; then
     "${FLINK_BIN_DIR}"/flink-console.sh taskmanager "${args[@]}"
 else
-    "${FLINK_BIN_DIR}/flink-daemon.sh $STARTSTOP taskmanager ${args[@]}"
+    "${FLINK_BIN_DIR}"/flink-daemon.sh $STARTSTOP taskmanager "${args[@]}"
 fi
