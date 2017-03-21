@@ -36,6 +36,7 @@ import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.testutils.CommonTestUtils;
 
 import org.apache.flink.util.FileUtils;
@@ -109,7 +110,7 @@ public class LocalFileSystemTest {
 			 */
 
 			// create files.. one ""natively"", one using lfs
-			final FSDataOutputStream lfsoutput1 = lfs.create(pathtotestfile1, false);
+			final FSDataOutputStream lfsoutput1 = lfs.create(pathtotestfile1, WriteMode.NO_OVERWRITE);
 			assertTrue(testfile2.createNewFile());
 
 			// does lfs create files? does lfs recognize created files?
@@ -127,7 +128,7 @@ public class LocalFileSystemTest {
 			try (FileInputStream fisfile1 = new FileInputStream(testfile1)) {
 				assertEquals(testbytestest.length, fisfile1.read(testbytestest));
 			}
-			
+
 			assertArrayEquals(testbytes, testbytestest);
 
 			// does lfs see the correct file length?
@@ -211,5 +212,52 @@ public class LocalFileSystemTest {
 		// now the deletion should work
 		assertTrue(FileUtils.deletePathIfEmpty(fs, directoryPath));
 		assertFalse(fs.exists(directoryPath));
+	}
+
+	@Test
+	public void testRenamePath() throws IOException {
+		File rootDirectory = temporaryFolder.newFolder();
+
+		//create a file /root/src/B/test.csv
+		File srcDirectory  = new File(rootDirectory, "src");
+		srcDirectory  = new File(srcDirectory, "B");
+		assertTrue(srcDirectory.mkdirs());
+		File srcFile = new File(srcDirectory, "test.csv");
+		assertTrue(srcFile.createNewFile());
+
+		//Move/rename B and its content to /root/dst/A
+		File destDirectory  = new File(rootDirectory, "dst");
+		destDirectory  = new File(destDirectory, "B");
+		File destFile  = new File(destDirectory, "test.csv");
+
+		Path srcDirPath = new Path(srcDirectory.toURI());
+		Path srcFilePath = new Path(srcFile.toURI());
+		Path destDirPath = new Path(destDirectory.toURI());
+		Path destFilePath = new Path(destFile.toURI());
+
+		FileSystem fs = FileSystem.getLocalFileSystem();
+
+		// pre-conditions: /root/src/B exists but /root/dst/B does not
+		assertTrue(fs.exists(srcDirPath));
+		assertFalse(fs.exists(destDirPath));
+
+		// do the move/rename: /root/src/B -> /root/dst/
+		assertTrue(fs.rename(srcDirPath, destDirPath));
+		
+		// post-conditions: /root/src/B doens't exists, /root/dst/B/test.csv has been created
+		assertTrue(fs.exists(destFilePath));
+		assertFalse(fs.exists(srcDirPath));
+		
+		//re-create initial situation and test overwrite
+		assertTrue(fs.delete(destDirPath, true));
+		assertTrue(srcDirectory.mkdirs());
+		assertTrue(srcFile.createNewFile());
+		//now use the file as dest: /root/src/B/test.csv -> /root/dst/B/test.csv
+		assertTrue(fs.rename(srcFilePath, destFilePath));
+		
+		// post-conditions: now only the src file has been moved
+		assertFalse(fs.exists(srcFilePath));
+		assertTrue(fs.exists(srcDirPath));
+		assertTrue(fs.exists(destFilePath));
 	}
 }
