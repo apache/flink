@@ -167,12 +167,9 @@ class DataStreamOverAggregate(
       case _ => throw new TableException("OVER Window boundaries must be numeric")
     }
 
-        
-          // get the output types
+     // get the output types
     val rowTypeInfo = FlinkTypeFactory.toInternalRowTypeInfo(getRowType).asInstanceOf[RowTypeInfo]
          
-
-    
     val result: DataStream[Row] =
         // partitioned aggregation
         if (partitionKeys.nonEmpty) {

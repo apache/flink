@@ -83,14 +83,12 @@ class ProcTimeBoundedNonPartitionedProcessingOverProcessFunction(
          windowBuffer.iterator.map(f => windowBuffer.+=(f))
       } 
     }
-    
   }
 
   override def processElement(
     input: Row,
     ctx: ProcessFunction[Row, Row]#Context,
     out: Collector[Row]): Unit = {
-
    
      var current_time = System.currentTimeMillis()
     //buffer the event incoming event
@@ -99,7 +97,6 @@ class ProcTimeBoundedNonPartitionedProcessingOverProcessFunction(
       input))
       
     var i = 0
-
 
     //set the fields of the last event to carry on with the aggregates
     i = 0
@@ -140,8 +137,6 @@ class ProcTimeBoundedNonPartitionedProcessingOverProcessFunction(
     }
     
     out.collect(output)
-    
-    
   }
 
   //save the elements in the window and the accumulators
@@ -152,7 +147,6 @@ class ProcTimeBoundedNonPartitionedProcessingOverProcessFunction(
     }
     windowBufferState.clear()
     windowBuffer.iterator.map(f => windowBufferState.add(f))
-    
   }
 
   //initialize the states
@@ -165,6 +159,5 @@ class ProcTimeBoundedNonPartitionedProcessingOverProcessFunction(
     val stateDescriptor: ListStateDescriptor[Row] =
     new ListStateDescriptor[Row]("overState", classOf[Row])      
     state = context.getOperatorStateStore.getOperatorState(stateDescriptor)
-    
   }
 }
