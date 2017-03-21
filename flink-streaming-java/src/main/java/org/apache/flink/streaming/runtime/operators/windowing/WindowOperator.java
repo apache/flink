@@ -138,7 +138,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	 * {@code window.maxTimestamp + allowedLateness} is smaller than the current watermark will
 	 * be emitted to this.
 	 */
-	private final OutputTag<IN> lateDataOutputTag;
+	protected final OutputTag<IN> lateDataOutputTag;
 
 	// ------------------------------------------------------------------------
 	// State that is not checkpointed
@@ -574,7 +574,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	 *
 	 * @param element skipped late arriving element to side output
 	 */
-	private void sideOutput(StreamRecord<IN> element){
+	protected void sideOutput(StreamRecord<IN> element){
 		output.collect(lateDataOutputTag, element);
 	}
 
