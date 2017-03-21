@@ -32,6 +32,13 @@ public class JobManagerOptions {
 	public static final ConfigOption<Integer> MAX_ATTEMPTS_HISTORY_SIZE =
 			key("job-manager.max-attempts-history-size").defaultValue(16);
 
+	/**
+	 * The location where the {@link JobManager} stores the archives for finished jobs.
+	 */
+	public static final ConfigOption<String> ARCHIVE_DIR =
+			key("jobmanager.archive.fs.dir")
+				.noDefaultValue();
+
 	private JobManagerOptions() {
 		throw new IllegalAccessError();
 	}

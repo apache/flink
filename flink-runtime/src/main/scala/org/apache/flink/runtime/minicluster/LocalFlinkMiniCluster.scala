@@ -25,6 +25,7 @@ import akka.actor.{ActorRef, ActorSystem, Props}
 import org.apache.flink.api.common.JobID
 import org.apache.flink.api.common.io.FileOutputFormat
 import org.apache.flink.configuration.{ConfigConstants, Configuration, QueryableStateOptions}
+import org.apache.flink.core.fs.Path
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager
 import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager
@@ -43,7 +44,7 @@ import org.apache.flink.runtime.memory.MemoryManager
 import org.apache.flink.runtime.messages.JobManagerMessages
 import org.apache.flink.runtime.messages.JobManagerMessages.{RunningJobsStatus, StoppingFailure, StoppingResponse}
 import org.apache.flink.runtime.metrics.MetricRegistry
-import org.apache.flink.runtime.taskexecutor.{TaskManagerServices, TaskManagerServicesConfiguration, TaskManagerConfiguration}
+import org.apache.flink.runtime.taskexecutor.{TaskManagerConfiguration, TaskManagerServices, TaskManagerServicesConfiguration}
 import org.apache.flink.runtime.taskmanager.{TaskManager, TaskManagerLocation}
 import org.apache.flink.runtime.util.EnvironmentInformation
 
@@ -122,6 +123,7 @@ class LocalFlinkMiniCluster(
     restartStrategyFactory,
     timeout,
     archiveCount,
+    archivePath,
     leaderElectionService,
     submittedJobGraphStore,
     checkpointRecoveryFactory,
@@ -139,7 +141,8 @@ class LocalFlinkMiniCluster(
     val archive = system.actorOf(
       getArchiveProps(
         memoryArchivistClass,
-        archiveCount),
+        archiveCount,
+        archivePath),
       archiveName)
 
     system.actorOf(
@@ -247,8 +250,11 @@ class LocalFlinkMiniCluster(
   // Props for the distributed components
   //------------------------------------------------------------------------------------------------
 
-  def getArchiveProps(archiveClass: Class[_ <: MemoryArchivist], archiveCount: Int): Props = {
-    JobManager.getArchiveProps(archiveClass, archiveCount)
+  def getArchiveProps(
+      archiveClass: Class[_ <: MemoryArchivist],
+      archiveCount: Int,
+      arhivePath: Option[Path]): Props = {
+    JobManager.getArchiveProps(archiveClass, archiveCount, Option.empty)
   }
 
   def getJobManagerProps(

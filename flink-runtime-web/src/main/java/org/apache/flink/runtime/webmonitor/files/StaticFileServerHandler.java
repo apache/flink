@@ -106,7 +106,7 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 	private static final TimeZone GMT_TIMEZONE = TimeZone.getTimeZone("GMT");
 
 	/** Date format for HTTP */
-	private static final String HTTP_DATE_FORMAT = "EEE, dd MMM yyyy HH:mm:ss zzz";
+	public static final String HTTP_DATE_FORMAT = "EEE, dd MMM yyyy HH:mm:ss zzz";
 
 	/** Be default, we allow files to be cached for 5 minutes */
 	private static final int HTTP_CACHE_SECONDS = 300;
@@ -348,7 +348,7 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 	 * @param ctx    The channel context to write the response to.
 	 * @param status The response status.
 	 */
-	private static void sendError(ChannelHandlerContext ctx, HttpResponseStatus status) {
+	public static void sendError(ChannelHandlerContext ctx, HttpResponseStatus status) {
 		FullHttpResponse response = new DefaultFullHttpResponse(
 				HTTP_1_1, status, Unpooled.copiedBuffer("Failure: " + status + "\r\n", CharsetUtil.UTF_8));
 		response.headers().set(CONTENT_TYPE, "text/plain; charset=UTF-8");
@@ -363,7 +363,7 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 	 *
 	 * @param ctx The channel context to write the response to.
 	 */
-	private static void sendNotModified(ChannelHandlerContext ctx) {
+	public static void sendNotModified(ChannelHandlerContext ctx) {
 		FullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, NOT_MODIFIED);
 		setDateHeader(response);
 
@@ -376,7 +376,7 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 	 *
 	 * @param response HTTP response
 	 */
-	private static void setDateHeader(FullHttpResponse response) {
+	public static void setDateHeader(FullHttpResponse response) {
 		SimpleDateFormat dateFormatter = new SimpleDateFormat(HTTP_DATE_FORMAT, Locale.US);
 		dateFormatter.setTimeZone(GMT_TIMEZONE);
 
@@ -390,7 +390,7 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 	 * @param response    The HTTP response object.
 	 * @param fileToCache File to extract the modification timestamp from.
 	 */
-	private static void setDateAndCacheHeaders(HttpResponse response, File fileToCache) {
+	public static void setDateAndCacheHeaders(HttpResponse response, File fileToCache) {
 		SimpleDateFormat dateFormatter = new SimpleDateFormat(HTTP_DATE_FORMAT, Locale.US);
 		dateFormatter.setTimeZone(GMT_TIMEZONE);
 
@@ -411,7 +411,7 @@ public class StaticFileServerHandler extends SimpleChannelInboundHandler<Routed>
 	 * @param response HTTP response
 	 * @param file     file to extract content type
 	 */
-	private static void setContentTypeHeader(HttpResponse response, File file) {
+	public static void setContentTypeHeader(HttpResponse response, File file) {
 		String mimeType = MimeTypes.getMimeTypeForFileName(file.getName());
 		String mimeFinal = mimeType != null ? mimeType : MimeTypes.getDefaultMimeType();
 		response.headers().set(CONTENT_TYPE, mimeFinal);
