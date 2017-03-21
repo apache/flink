@@ -376,7 +376,7 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 					executionGraph.scheduleForExecution();
 				}
 				catch (Throwable t) {
-					executionGraph.fail(t);
+					executionGraph.failGlobal(t);
 				}
 			}
 		});

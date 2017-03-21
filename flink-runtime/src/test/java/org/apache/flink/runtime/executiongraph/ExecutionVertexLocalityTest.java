@@ -156,7 +156,7 @@ public class ExecutionVertexLocalityTest extends TestLogger {
 
 		// mimic a restart: all vertices get re-initialized without actually being executed
 		for (ExecutionJobVertex ejv : graph.getVerticesTopologically()) {
-			ejv.resetForNewExecution();
+			ejv.resetForNewExecution(System.currentTimeMillis(), graph.getGlobalModVersion());
 		}
 
 		// set new location for the sources and some state for the targets

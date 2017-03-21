@@ -90,7 +90,7 @@ public class CoordinatorShutdownTest {
 
 			FailingBlockingInvokable.unblock();
 
-			graph.waitUntilFinished();
+			graph.waitUntilTerminal();
 			
 			// verify that the coordinator was shut down
 			CheckpointCoordinator coord = graph.getCheckpointCoordinator();
@@ -149,7 +149,7 @@ public class CoordinatorShutdownTest {
 
 			BlockingInvokable.unblock();
 			
-			graph.waitUntilFinished();
+			graph.waitUntilTerminal();
 
 			// verify that the coordinator was shut down
 			CheckpointCoordinator coord = graph.getCheckpointCoordinator();

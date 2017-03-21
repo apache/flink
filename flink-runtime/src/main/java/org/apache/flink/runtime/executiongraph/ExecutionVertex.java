@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.Archiveable;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
@@ -97,7 +98,11 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 
 	// --------------------------------------------------------------------------------------------
 
-	public ExecutionVertex(
+	/**
+	 * Convenience constructor for tests. Sets various fields to default values.
+	 */
+	@VisibleForTesting
+	ExecutionVertex(
 			ExecutionJobVertex jobVertex,
 			int subTaskIndex,
 			IntermediateResult[] producedDataSets,
@@ -108,24 +113,28 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 				subTaskIndex,
 				producedDataSets,
 				timeout,
+				1L,
 				System.currentTimeMillis(),
 				JobManagerOptions.MAX_ATTEMPTS_HISTORY_SIZE.defaultValue());
 	}
 
+	/**
+	 * 
+	 * @param timeout
+	 *            The RPC timeout to use for deploy / cancel calls
+	 * @param initialGlobalModVersion
+	 *            The global modification version to initialize the first Execution with.
+	 * @param createTimestamp
+	 *            The timestamp for the vertex creation, used to initialize the first Execution with.
+	 * @param maxPriorExecutionHistoryLength
+	 *            The number of prior Executions (= execution attempts) to keep.
+	 */
 	public ExecutionVertex(
 			ExecutionJobVertex jobVertex,
 			int subTaskIndex,
 			IntermediateResult[] producedDataSets,
 			Time timeout,
-			int maxPriorExecutionHistoryLength) {
-		this(jobVertex, subTaskIndex, producedDataSets, timeout, System.currentTimeMillis(), maxPriorExecutionHistoryLength);
-	}
-
-	public ExecutionVertex(
-			ExecutionJobVertex jobVertex,
-			int subTaskIndex,
-			IntermediateResult[] producedDataSets,
-			Time timeout,
+			long initialGlobalModVersion,
 			long createTimestamp,
 			int maxPriorExecutionHistoryLength) {
 
@@ -151,6 +160,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 			getExecutionGraph().getFutureExecutor(),
 			this,
 			0,
+			initialGlobalModVersion,
 			createTimestamp,
 			timeout);
 
@@ -162,6 +172,8 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		else {
 			this.locationConstraint = null;
 		}
+
+		getExecutionGraph().registerExecution(currentExecution);
 
 		this.timeout = timeout;
 	}
@@ -508,11 +520,40 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	//   Actions
 	// --------------------------------------------------------------------------------------------
 
-	public Execution resetForNewExecution() {
-
+	/**
+	 * Archives the current Execution and creates a new Execution for this vertex.
+	 * 
+	 * <p>This method atomically checks if the ExecutionGraph is still of an expected
+	 * global mod. version and replaces the execution if that is the case. If the ExecutionGraph
+	 * has increased its global mod. version in the meantime, this operation fails.
+	 * 
+	 * <p>This mechanism can be used to prevent conflicts between various concurrent recovery and
+	 * reconfiguration actions in a similar way as "optimistic concurrency control".
+	 * 
+	 * @param timestamp
+	 *             The creation timestamp for the new Execution
+	 * @param originatingGlobalModVersion
+	 *             The 
+	 * 
+	 * @return Returns the new created Execution. 
+	 * 
+	 * @throws GlobalModVersionMismatch Thrown, if the execution graph has a new global mod
+	 *                                  version than the one passed to this message.
+	 */
+	public Execution resetForNewExecution(final long timestamp, final long originatingGlobalModVersion)
+			throws GlobalModVersionMismatch
+	{
 		LOG.debug("Resetting execution vertex {} for new execution.", getTaskNameWithSubtaskIndex());
 
 		synchronized (priorExecutions) {
+			// check if another global modification has been triggered since the
+			// action that originally caused this reset/restart happened
+			final long actualModVersion = getExecutionGraph().getGlobalModVersion();
+			if (actualModVersion > originatingGlobalModVersion) {
+				// global change happened since, reject this action
+				throw new GlobalModVersionMismatch(originatingGlobalModVersion, actualModVersion);
+			}
+
 			final Execution oldExecution = currentExecution;
 			final ExecutionState oldState = oldExecution.getState();
 
@@ -522,8 +563,9 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 				final Execution newExecution = new Execution(
 					getExecutionGraph().getFutureExecutor(),
 					this,
-						oldExecution.getAttemptNumber()+1,
-					System.currentTimeMillis(),
+					oldExecution.getAttemptNumber() + 1,
+					originatingGlobalModVersion,
+					timestamp,
 					timeout);
 
 				this.currentExecution = newExecution;
@@ -532,6 +574,9 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 				if (grp != null) {
 					this.locationConstraint = grp.getLocationConstraint(subTaskIndex);
 				}
+
+				// register this execution at the execution graph, to receive call backs
+				getExecutionGraph().registerExecution(newExecution);
 
 				// if the execution was 'FINISHED' before, tell the ExecutionGraph that
 				// we take one step back on the road to reaching global FINISHED
@@ -640,9 +685,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	// --------------------------------------------------------------------------------------------
 
 	void executionFinished(Execution execution) {
-		if (execution == currentExecution) {
-			getExecutionGraph().vertexFinished();
-		}
+		getExecutionGraph().vertexFinished();
 	}
 
 	void executionCanceled(Execution execution) {
@@ -658,10 +701,14 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Simply forward this notification. This is for logs and event archivers.
+	 * Simply forward this notification
 	 */
-	void notifyStateTransition(ExecutionAttemptID executionId, ExecutionState newState, Throwable error) {
-		getExecutionGraph().notifyExecutionChange(getJobvertexId(), subTaskIndex, executionId, newState, error);
+	void notifyStateTransition(Execution execution, ExecutionState newState, Throwable error) {
+		// only forward this notification if the execution is still the current execution
+		// otherwise we have an outdated execution
+		if (currentExecution == execution) {
+			getExecutionGraph().notifyExecutionChange(execution, newState, error);
+		}
 	}
 
 	/**
