@@ -136,12 +136,15 @@ public class YarnFlinkApplicationMasterRunner extends AbstractYarnFlinkApplicati
 
 			synchronized (lock) {
 				LOG.info("Starting High Availability Services");
-				haServices = HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(config);
+				commonRpcService = createRpcService(config, appMasterHostname, amPortRange);
+
+				haServices = HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(
+					config,
+					commonRpcService.getExecutor());
 
 				heartbeatServices = HeartbeatServices.fromConfiguration(config);
 				
 				metricRegistry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config));
-				commonRpcService = createRpcService(config, appMasterHostname, amPortRange);
 
 				// ---- (2) init resource manager -------
 				resourceManager = createResourceManager(config);

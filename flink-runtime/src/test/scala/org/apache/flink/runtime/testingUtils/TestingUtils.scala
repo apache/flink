@@ -35,10 +35,12 @@ import org.apache.flink.runtime.client.JobClient
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager
 import org.apache.flink.runtime.clusterframework.types.ResourceID
 import org.apache.flink.runtime.concurrent.{ScheduledExecutor, ScheduledExecutorServiceAdapter}
-import org.apache.flink.runtime.highavailability.HighAvailabilityServices
+import org.apache.flink.runtime.highavailability.{HighAvailabilityServices, HighAvailabilityServicesUtils}
 import org.apache.flink.runtime.instance.{ActorGateway, AkkaActorGateway}
 import org.apache.flink.runtime.jobgraph.JobGraph
 import org.apache.flink.runtime.jobmanager.{JobManager, MemoryArchivist}
+import org.apache.flink.runtime.jobmaster.JobMaster
+import org.apache.flink.runtime.jobmaster.JobMaster.{ARCHIVE_NAME, JOB_MANAGER_NAME}
 import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService
 import org.apache.flink.runtime.messages.TaskManagerMessages.NotifyWhenRegisteredAtJobManager
 import org.apache.flink.runtime.taskmanager.TaskManager
@@ -516,8 +518,8 @@ object TestingUtils {
         actorSystem,
         futureExecutor,
         ioExecutor,
-        Some(prefix + JobManager.JOB_MANAGER_NAME),
-        Some(prefix + JobManager.ARCHIVE_NAME),
+        Some(prefix + JobMaster.JOB_MANAGER_NAME),
+        Some(prefix + JobMaster.ARCHIVE_NAME),
         jobManagerClass,
         classOf[MemoryArchivist])
 
@@ -604,7 +606,6 @@ object TestingUtils {
 
     new AkkaActorGateway(actor, HighAvailabilityServices.DEFAULT_LEADER_ID)
   }
-
 
   class ForwardingActor(val target: ActorRef, val leaderSessionID: Option[UUID])
     extends FlinkActor with LeaderSessionMessageFilter with LogMessages {

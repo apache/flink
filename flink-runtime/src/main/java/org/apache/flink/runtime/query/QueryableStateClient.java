@@ -109,7 +109,7 @@ public class QueryableStateClient {
 
 		// Create a leader retrieval service
 		LeaderRetrievalService leaderRetrievalService = LeaderRetrievalUtils
-				.createLeaderRetrievalService(config);
+				.createLeaderRetrievalService(config, true);
 
 		// Get the ask timeout
 		String askTimeoutString = config.getString(

@@ -64,7 +64,6 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmanager.slots.AllocatedSlot;
@@ -88,8 +87,8 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcMethod;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.rpc.RpcServiceUtils;
 import org.apache.flink.runtime.rpc.StartStoppable;
+import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
@@ -126,6 +125,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * </ul>
  */
 public class JobMaster extends RpcEndpoint<JobMasterGateway> {
+
+	/** Default names for Flink's distributed components */
+	public static final String JOB_MANAGER_NAME = "jobmanager";
+	public static final String ARCHIVE_NAME = "archive";
 
 	private static final AtomicReferenceFieldUpdater<JobMaster, UUID> LEADER_ID_UPDATER =
 			AtomicReferenceFieldUpdater.newUpdater(JobMaster.class, UUID.class, "leaderSessionID");
@@ -208,7 +211,7 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 			FatalErrorHandler errorHandler,
 			ClassLoader userCodeLoader) throws Exception {
 
-		super(rpcService, RpcServiceUtils.createRandomName(JobManager.JOB_MANAGER_NAME()));
+		super(rpcService, AkkaRpcServiceUtils.createRandomName(JobMaster.JOB_MANAGER_NAME));
 
 		this.resourceId = checkNotNull(resourceId);
 		this.jobGraph = checkNotNull(jobGraph);

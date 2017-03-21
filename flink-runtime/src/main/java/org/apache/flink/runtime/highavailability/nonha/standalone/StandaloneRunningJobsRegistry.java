@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.highavailability.nonha;
+package org.apache.flink.runtime.highavailability.nonha.standalone;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
@@ -28,7 +28,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * A registry for running jobs, not-highly available.
  */
-public class NonHaRegistry implements RunningJobsRegistry {
+public class StandaloneRunningJobsRegistry implements RunningJobsRegistry {
 
 	/** The currently running jobs */
 	private final HashMap<JobID, JobSchedulingStatus> jobStatus = new HashMap<>();

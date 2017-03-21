@@ -241,7 +241,7 @@ public abstract class ClusterClient {
 		try {
 			LeaderConnectionInfo leaderConnectionInfo =
 				LeaderRetrievalUtils.retrieveLeaderConnectionInfo(
-					LeaderRetrievalUtils.createLeaderRetrievalService(flinkConfig), timeout);
+					LeaderRetrievalUtils.createLeaderRetrievalService(flinkConfig, true), timeout);
 
 			return AkkaUtils.getInetSockeAddressFromAkkaURL(leaderConnectionInfo.getAddress());
 		} catch (Exception e) {
@@ -464,7 +464,7 @@ public abstract class ClusterClient {
 	public JobExecutionResult retrieveJob(JobID jobID) throws JobExecutionException {
 		final LeaderRetrievalService leaderRetrievalService;
 		try {
-			leaderRetrievalService = LeaderRetrievalUtils.createLeaderRetrievalService(flinkConfig);
+			leaderRetrievalService = LeaderRetrievalUtils.createLeaderRetrievalService(flinkConfig, true);
 		} catch (Exception e) {
 			throw new JobRetrievalException(jobID, "Could not create the leader retrieval service", e);
 		}
@@ -498,7 +498,7 @@ public abstract class ClusterClient {
 	public JobListeningContext connectToJob(JobID jobID) throws JobExecutionException {
 		final LeaderRetrievalService leaderRetrievalService;
 		try {
-			leaderRetrievalService = LeaderRetrievalUtils.createLeaderRetrievalService(flinkConfig);
+			leaderRetrievalService = LeaderRetrievalUtils.createLeaderRetrievalService(flinkConfig, true);
 		} catch (Exception e) {
 			throw new JobRetrievalException(jobID, "Could not create the leader retrieval service", e);
 		}
@@ -721,7 +721,7 @@ public abstract class ClusterClient {
 	public ActorGateway getJobManagerGateway() throws Exception {
 		LOG.debug("Looking up JobManager");
 		return LeaderRetrievalUtils.retrieveLeaderGateway(
-			LeaderRetrievalUtils.createLeaderRetrievalService(flinkConfig),
+			LeaderRetrievalUtils.createLeaderRetrievalService(flinkConfig, true),
 			actorSystemLoader.get(),
 			lookupTimeout);
 	}

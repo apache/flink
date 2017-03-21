@@ -208,13 +208,18 @@ public class YarnTaskExecutorRunner {
 			ResourceID resourceID = new ResourceID(containerId);
 			LOG.info("YARN assigned resource id {} for the task executor.", resourceID.toString());
 
-			haServices = HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(config);
+			taskExecutorRpcService = TaskManagerRunner.createRpcService(config, haServices);
+
+			haServices = HighAvailabilityServicesUtils.createHighAvailabilityServices(
+				config,
+				taskExecutorRpcService.getExecutor(),
+				HighAvailabilityServicesUtils.AddressResolution.TRY_ADDRESS_RESOLUTION);
+
 			HeartbeatServices heartbeatServices = HeartbeatServices.fromConfiguration(config);
 
 			metricRegistry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config));
 
 			// ---- (2) init task manager runner -------
-			taskExecutorRpcService = TaskManagerRunner.createRpcService(config, haServices);
 			taskManagerRunner = new TaskManagerRunner(
 				config,
 				resourceID,

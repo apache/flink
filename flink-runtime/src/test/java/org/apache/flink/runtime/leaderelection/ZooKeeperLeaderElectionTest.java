@@ -140,7 +140,7 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
 
 		Deadline deadline = new FiniteDuration(5, TimeUnit.MINUTES).fromNow();
 
-		int num = 20;
+		int num = 10;
 
 		ZooKeeperLeaderElectionService[] leaderElectionService = new ZooKeeperLeaderElectionService[num];
 		TestingContender[] contenders = new TestingContender[num];
@@ -194,7 +194,7 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
 				}
 			}
 
-			assertFalse(deadline.isOverdue());
+			assertFalse("Did not complete the leader reelection in time.", deadline.isOverdue());
 			assertEquals(num, numberSeenLeaders);
 
 		} finally {
