@@ -567,6 +567,8 @@ public class NFA<T> implements Serializable {
 
 				@SuppressWarnings("unchecked")
 				NFA<T> copy = (NFA<T>) ois.readObject();
+				ois.close();
+				bais.close();
 				return copy;
 			} catch (IOException|ClassNotFoundException e) {
 				throw new RuntimeException("Could not copy NFA.", e);
@@ -585,16 +587,15 @@ public class NFA<T> implements Serializable {
 
 		@Override
 		public void serialize(NFA<T> record, DataOutputView target) throws IOException {
-			ObjectOutputStream oos = new ObjectOutputStream(new DataOutputViewStream(target));
-			oos.writeObject(record);
-			oos.flush();
+			try (ObjectOutputStream oos = new ObjectOutputStream(new DataOutputViewStream(target))) {
+				oos.writeObject(record);
+				oos.flush();
+			}
 		}
 
 		@Override
 		public NFA<T> deserialize(DataInputView source) throws IOException {
-			ObjectInputStream ois = new ObjectInputStream(new DataInputViewStream(source));
-
-			try {
+			try (ObjectInputStream ois = new ObjectInputStream(new DataInputViewStream(source))) {
 				return (NFA<T>) ois.readObject();
 			} catch (ClassNotFoundException e) {
 				throw new RuntimeException("Could not deserialize NFA.", e);
