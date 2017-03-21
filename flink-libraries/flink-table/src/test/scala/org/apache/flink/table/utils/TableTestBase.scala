@@ -20,7 +20,7 @@ package org.apache.flink.table.utils
 
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.{DataSet => JDataSet}
+import org.apache.flink.api.java.{DataSet => JDataSet, ExecutionEnvironment => JExecutionEnvironment}
 import org.apache.flink.table.api.{Table, TableEnvironment}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{BatchTableEnvironment => BatchTableEnv, StreamTableEnvironment => StreamTableEnv}
@@ -121,6 +121,9 @@ case class BatchTableTestUtil() extends TableTestUtil {
   val env = mock(classOf[ExecutionEnvironment])
   val tEnv = TableEnvironment.getTableEnvironment(env)
 
+  val jEnv = mock(classOf[JExecutionEnvironment])
+  val jTableEnv = TableEnvironment.getTableEnvironment(jEnv)
+
   def addTable[T: TypeInformation](
       name: String,
       fields: Expression*)
@@ -166,12 +169,6 @@ case class BatchTableTestUtil() extends TableTestUtil {
   }
 
   def printTable(resultTable: Table): Unit = {
-    val relNode = resultTable.getRelNode
-    val optimized = tEnv.optimize(relNode)
-    println(RelOptUtil.toString(optimized))
-  }
-
-  def printTable(resultTable: Table, tEnv: BatchTableEnv): Unit = {
     val relNode = resultTable.getRelNode
     val optimized = tEnv.optimize(relNode)
     println(RelOptUtil.toString(optimized))

@@ -18,45 +18,26 @@
 
 package org.apache.flink.table.api.scala.batch
 
-import java.util
-
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.java.{DataSet => JDataSet}
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase
-import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
-import org.apache.flink.table.api.{TableConfig, TableEnvironment, TableException}
-import org.apache.flink.table.utils.BatchTableTestUtil
+import org.apache.flink.table.api.TableException
+import org.apache.flink.table.utils.{BatchTableTestUtil, TableTestBase}
 import org.apache.flink.table.utils.TableTestUtil._
 import org.junit._
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.mockito.Mockito.{mock, when}
 
-import scala.collection.JavaConverters._
-
-@RunWith(classOf[Parameterized])
-class TableEnvironmentTest(configMode: TableConfigMode) {
-
-  def config: TableConfig = {
-    val conf = new TableConfig
-    configMode match {
-      case TableProgramsTestBase.NO_NULL =>
-        conf.setNullCheck(false)
-      case _ => // keep default
-    }
-    conf
-  }
-
-  val utils = BatchTableTestUtil()
+class TableEnvironmentTest() extends TableTestBase {
 
   @Test
   def testSimpleRegister(): Unit = {
 
     val tableName = "MyTable"
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val util = batchTestUtil()
+    val tEnv = util.tEnv
 
-    val ds = CollectionDataSets.get3TupleDataSet(env)
+    val ds = getMockDS[(Int, Long, String)]
     tEnv.registerDataSet(tableName, ds)
     val t = tEnv.scan(tableName).select('_1, '_2, '_3)
 
@@ -65,17 +46,17 @@ class TableEnvironmentTest(configMode: TableConfigMode) {
       term("table", "[MyTable]")
     )
 
-    utils.verifyTable(t, expected, tEnv)
+    util.verifyTable(t, expected)
   }
 
   @Test
   def testRegisterWithFields(): Unit = {
 
     val tableName = "MyTable"
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val util = batchTestUtil()
+    val tEnv = util.tEnv
 
-    val ds = CollectionDataSets.get3TupleDataSet(env)
+    val ds = getMockDS[(Int, Long, String)]
     tEnv.registerDataSet(tableName, ds, 'a, 'b, 'c)
     val t = tEnv.scan(tableName).select('a, 'b)
 
@@ -85,25 +66,25 @@ class TableEnvironmentTest(configMode: TableConfigMode) {
       term("select", "a", "b")
     )
 
-    utils.verifyTable(t, expected, tEnv)
+    util.verifyTable(t, expected)
   }
 
   @Test(expected = classOf[TableException])
   def testRegisterExistingDataSet(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val util = batchTestUtil()
+    val tEnv = util.tEnv
 
-    val ds1 = CollectionDataSets.get3TupleDataSet(env)
+    val ds1 = getMockDS[(Int, Long, String)]
     tEnv.registerDataSet("MyTable", ds1)
-    val ds2 = CollectionDataSets.get5TupleDataSet(env)
+    val ds2 = getMockDS[(Int, Long, Int, String, Long)]
     // Must fail. Name is already in use.
     tEnv.registerDataSet("MyTable", ds2)
   }
 
   @Test(expected = classOf[TableException])
   def testScanUnregisteredTable(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val util = batchTestUtil()
+    val tEnv = util.tEnv
     // Must fail. No table registered under that name.
     tEnv.scan("someTable")
   }
@@ -112,10 +93,10 @@ class TableEnvironmentTest(configMode: TableConfigMode) {
   def testTableRegister(): Unit = {
 
     val tableName = "MyTable"
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val util = batchTestUtil()
+    val tEnv = util.tEnv
 
-    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
+    val t = getMockDS[(Int, Long, String)].toTable(tEnv, 'a, 'b, 'c)
     tEnv.registerTable(tableName, t)
 
     val regT = tEnv.scan(tableName).select('a, 'b).filter('a > 8)
@@ -127,124 +108,104 @@ class TableEnvironmentTest(configMode: TableConfigMode) {
       term("where", ">(a, 8)")
     )
 
-    utils.verifyTable(regT, expected, tEnv)
+    util.verifyTable(regT, expected)
   }
 
   @Test(expected = classOf[TableException])
   def testRegisterExistingTable(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val util = batchTestUtil()
+    val tEnv = util.tEnv
 
-    val t1 = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv)
+    val t1 = getMockDS[(Int, Long, String)].toTable(tEnv)
     tEnv.registerTable("MyTable", t1)
-    val t2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv)
+    val t2 = getMockDS[(Int, Long, Int, String, Long)].toTable(tEnv)
     // Must fail. Name is already in use.
-    tEnv.registerDataSet("MyTable", t2)
+    tEnv.registerTable("MyTable", t2)
   }
 
   @Test(expected = classOf[TableException])
   def testRegisterTableFromOtherEnv(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv1 = TableEnvironment.getTableEnvironment(env, config)
-    val tEnv2 = TableEnvironment.getTableEnvironment(env, config)
+    val util = batchTestUtil()
+    val util2 = batchTestUtil()
+    val tEnv1 = util.tEnv
+    val tEnv2 = util2.tEnv
 
-    val t1 = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv1)
+    val t1 = getMockDS[(Int, Long, String)].toTable(tEnv1)
     // Must fail. Table is bound to different TableEnvironment.
     tEnv2.registerTable("MyTable", t1)
   }
 
   @Test
   def testToTable(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val util = batchTestUtil()
+    val tEnv = util.tEnv
 
-    val t = CollectionDataSets.get3TupleDataSet(env)
+    val t = getMockDS[(Int, Long, String)]
       .toTable(tEnv, 'a, 'b, 'c)
       .select('a, 'b, 'c)
 
     val expected = batchTableNode(0)
 
-    utils.verifyTable(t, expected, tEnv)
-  }
-
-  @Test
-  def testToTableFromCaseClass(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
-    val data = List(
-      SomeCaseClass("Peter", 28, 4000.00, "Sales"),
-      SomeCaseClass("Anna", 56, 10000.00, "Engineering"),
-      SomeCaseClass("Lucy", 42, 6000.00, "HR"))
-
-    val t =  env.fromCollection(data)
-      .toTable(tEnv, 'a, 'b, 'c, 'd)
-      .select('a, 'b, 'c, 'd)
-
-    val expected = batchTableNode(0)
-
-
-    utils.verifyTable(t, expected, tEnv)
+    util.verifyTable(t, expected)
   }
 
   @Test(expected = classOf[TableException])
   def testToTableWithToFewFields(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val util = batchTestUtil()
+    val tEnv = util.tEnv
 
-    CollectionDataSets.get3TupleDataSet(env)
+    getMockDS[(Int, Long, String)]
       // Must fail. Number of fields does not match.
       .toTable(tEnv, 'a, 'b)
   }
 
   @Test(expected = classOf[TableException])
   def testToTableWithToManyFields(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val util = batchTestUtil()
+    val tEnv = util.tEnv
 
-    CollectionDataSets.get3TupleDataSet(env)
+    getMockDS[(Int, Long, String)]
       // Must fail. Number of fields does not match.
       .toTable(tEnv, 'a, 'b, 'c, 'd)
   }
 
   @Test(expected = classOf[TableException])
   def testToTableWithAmbiguousFields(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val util = batchTestUtil()
+    val tEnv = util.tEnv
 
-    CollectionDataSets.get3TupleDataSet(env)
+    getMockDS[(Int, Long, String)]
       // Must fail. Field names not unique.
       .toTable(tEnv, 'a, 'b, 'b)
   }
 
   @Test(expected = classOf[TableException])
   def testToTableWithNonFieldReference1(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val util = batchTestUtil()
+    val tEnv = util.tEnv
 
     // Must fail. as() can only have field references
-    CollectionDataSets.get3TupleDataSet(env)
+    getMockDS[(Int, Long, String)]
       .toTable(tEnv, 'a + 1, 'b, 'c)
   }
 
   @Test(expected = classOf[TableException])
   def testToTableWithNonFieldReference2(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val util = batchTestUtil()
+    val tEnv = util.tEnv
 
     // Must fail. as() can only have field references
-    CollectionDataSets.get3TupleDataSet(env)
+    getMockDS[(Int, Long, String)]
       .toTable(tEnv, 'a as 'foo, 'b, 'c)
   }
-}
 
-object TableEnvironmentTest {
-
-  @Parameterized.Parameters(name = "Table config = {0}")
-  def parameters(): util.Collection[Array[java.lang.Object]] = {
-    Seq[Array[AnyRef]](
-      Array(TableProgramsTestBase.DEFAULT)
-    ).asJava
+  def getMockDS[T: TypeInformation]: DataSet[T] = {
+    val ds = mock(classOf[DataSet[T]])
+    val jDs = mock(classOf[JDataSet[T]])
+    when(ds.javaSet).thenReturn(jDs)
+    val typeInfo: TypeInformation[T] = implicitly[TypeInformation[T]]
+    when(jDs.getType).thenReturn(typeInfo)
+    ds
   }
 }
 
