@@ -18,6 +18,8 @@
 
 package org.apache.flink.cep.nfa;
 
+import com.google.common.base.Predicate;
+import com.google.common.collect.Iterators;
 import com.google.common.collect.LinkedHashMultimap;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -25,18 +27,22 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
 import org.apache.flink.api.java.typeutils.runtime.DataOutputViewStream;
 import org.apache.flink.cep.NonDuplicatingTypeSerializer;
+import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.streaming.api.windowing.time.Time;
 
+import javax.annotation.Nullable;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.OptionalDataException;
 import java.io.Serializable;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -85,9 +91,9 @@ public class NFA<T> implements Serializable {
 	private final NonDuplicatingTypeSerializer<T> nonDuplicatingTypeSerializer;
 
 	/**
-	 * 	Buffer used to store the matched events.
+	 * 	Used only for backward compatibility. Buffer used to store the matched events.
 	 */
-	private final SharedBuffer<String, T> sharedBuffer;
+	private final SharedBuffer<State<T>, T> sharedBuffer = null;
 
 	/**
 	 * A set of all the valid NFA states, as returned by the
@@ -110,11 +116,21 @@ public class NFA<T> implements Serializable {
 	private final boolean handleTimeout;
 
 	/**
+	 * Used only for backward compatibility.
+	 */
+	private int startEventCounter;
+
+	/**
 	 * Current set of {@link ComputationState computation states} within the state machine.
 	 * These are the "active" intermediate states that are waiting for new matching
 	 * events to transition to new valid states.
 	 */
 	private transient Queue<ComputationState<T>> computationStates;
+
+	/**
+	 * 	Buffer used to store the matched events.
+	 */
+	private final SharedBuffer<String, T> stringSharedBuffer;
 
 	public NFA(
 			final TypeSerializer<T> eventSerializer,
@@ -124,7 +140,7 @@ public class NFA<T> implements Serializable {
 		this.nonDuplicatingTypeSerializer = new NonDuplicatingTypeSerializer<>(eventSerializer);
 		this.windowTime = windowTime;
 		this.handleTimeout = handleTimeout;
-		sharedBuffer = new SharedBuffer<>(nonDuplicatingTypeSerializer);
+		stringSharedBuffer = new SharedBuffer<>(nonDuplicatingTypeSerializer);
 		computationStates = new LinkedList<>();
 
 		states = new HashSet<>();
@@ -156,7 +172,7 @@ public class NFA<T> implements Serializable {
 	 * {@code false} otherwise.
 	 */
 	public boolean isEmpty() {
-		return sharedBuffer.isEmpty();
+		return stringSharedBuffer.isEmpty();
 	}
 
 	/**
@@ -194,9 +210,14 @@ public class NFA<T> implements Serializable {
 					}
 				}
 
-				// remove computation state which has exceeded the window length
-				sharedBuffer.release(computationState.getState().getName(), computationState.getEvent(), computationState.getTimestamp());
-				sharedBuffer.remove(computationState.getState().getName(), computationState.getEvent(), computationState.getTimestamp());
+				stringSharedBuffer.release(
+						computationState.getPreviousState().getName(),
+						computationState.getEvent(),
+						computationState.getTimestamp());
+				stringSharedBuffer.remove(
+						computationState.getPreviousState().getName(),
+						computationState.getEvent(),
+						computationState.getTimestamp());
 
 				newComputationStates = Collections.emptyList();
 			} else if (event != null) {
@@ -212,8 +233,8 @@ public class NFA<T> implements Serializable {
 					result.addAll(matches);
 
 					// remove found patterns because they are no longer needed
-					sharedBuffer.release(newComputationState.getPreviousState().getName(), newComputationState.getEvent(), newComputationState.getTimestamp());
-					sharedBuffer.remove(newComputationState.getPreviousState().getName(), newComputationState.getEvent(), newComputationState.getTimestamp());
+					stringSharedBuffer.release(newComputationState.getPreviousState().getName(), newComputationState.getEvent(), newComputationState.getTimestamp());
+					stringSharedBuffer.remove(newComputationState.getPreviousState().getName(), newComputationState.getEvent(), newComputationState.getTimestamp());
 				} else {
 					// add new computation state; it will be processed once the next event arrives
 					computationStates.add(newComputationState);
@@ -230,7 +251,7 @@ public class NFA<T> implements Serializable {
 
 				// remove all elements which are expired
 				// with respect to the window length
-				sharedBuffer.prune(pruningTimestamp);
+				stringSharedBuffer.prune(pruningTimestamp);
 			}
 		}
 
@@ -244,7 +265,7 @@ public class NFA<T> implements Serializable {
 			NFA<T> other = (NFA<T>) obj;
 
 			return nonDuplicatingTypeSerializer.equals(other.nonDuplicatingTypeSerializer) &&
-				sharedBuffer.equals(other.sharedBuffer) &&
+				stringSharedBuffer.equals(other.stringSharedBuffer) &&
 				states.equals(other.states) &&
 				windowTime == other.windowTime;
 		} else {
@@ -254,7 +275,7 @@ public class NFA<T> implements Serializable {
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(nonDuplicatingTypeSerializer, sharedBuffer, states, windowTime);
+		return Objects.hash(nonDuplicatingTypeSerializer, stringSharedBuffer, states, windowTime);
 	}
 
 	private static <T> boolean isEquivalentState(final State<T> s1, final State<T> s2) {
@@ -376,7 +397,7 @@ public class NFA<T> implements Serializable {
 								computationState.getStartTimestamp()
 							)
 						);
-						sharedBuffer.lock(
+						stringSharedBuffer.lock(
 							computationState.getPreviousState().getName(),
 							computationState.getEvent(),
 							computationState.getTimestamp());
@@ -397,14 +418,14 @@ public class NFA<T> implements Serializable {
 					final long startTimestamp;
 					if (computationState.isStartState()) {
 						startTimestamp = timestamp;
-						sharedBuffer.put(
+						stringSharedBuffer.put(
 							consumingState.getName(),
 							event,
 							timestamp,
 							currentVersion);
 					} else {
 						startTimestamp = computationState.getStartTimestamp();
-						sharedBuffer.put(
+						stringSharedBuffer.put(
 							consumingState.getName(),
 							event,
 							timestamp,
@@ -415,7 +436,7 @@ public class NFA<T> implements Serializable {
 					}
 
 					// a new computation state is referring to the shared entry
-					sharedBuffer.lock(consumingState.getName(), event, timestamp);
+					stringSharedBuffer.lock(consumingState.getName(), event, timestamp);
 
 					resultingComputationStates.add(ComputationState.createState(
 						newState,
@@ -429,7 +450,7 @@ public class NFA<T> implements Serializable {
 					//check if newly created state is optional (have a PROCEED path to Final state)
 					final State<T> finalState = findFinalStateAfterProceed(newState, event);
 					if (finalState != null) {
-						sharedBuffer.lock(consumingState.getName(), event, timestamp);
+						stringSharedBuffer.lock(consumingState.getName(), event, timestamp);
 						resultingComputationStates.add(ComputationState.createState(
 							finalState,
 							consumingState,
@@ -450,12 +471,12 @@ public class NFA<T> implements Serializable {
 
 		if (computationState.getEvent() != null) {
 			// release the shared entry referenced by the current computation state.
-			sharedBuffer.release(
+			stringSharedBuffer.release(
 				computationState.getPreviousState().getName(),
 				computationState.getEvent(),
 				computationState.getTimestamp());
 			// try to remove unnecessary shared buffer entries
-			sharedBuffer.remove(
+			stringSharedBuffer.remove(
 				computationState.getPreviousState().getName(),
 				computationState.getEvent(),
 				computationState.getTimestamp());
@@ -546,7 +567,7 @@ public class NFA<T> implements Serializable {
 	 * @return Collection of event sequences which end in the given computation state
 	 */
 	private Collection<Map<String, T>> extractPatternMatches(final ComputationState<T> computationState) {
-		Collection<LinkedHashMultimap<String, T>> paths = sharedBuffer.extractPatterns(
+		Collection<LinkedHashMultimap<String, T>> paths = stringSharedBuffer.extractPatterns(
 			computationState.getPreviousState().getName(),
 			computationState.getEvent(),
 			computationState.getTimestamp(),
@@ -592,6 +613,8 @@ public class NFA<T> implements Serializable {
 		nonDuplicatingTypeSerializer.clearReferences();
 	}
 
+	private final static String BEGINNING_STATE_NAME = "$beginningState$";
+
 	private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
 		ois.defaultReadObject();
 
@@ -599,13 +622,101 @@ public class NFA<T> implements Serializable {
 
 		computationStates = new LinkedList<>();
 
+		final List<ComputationState<T>> readComputationStates = new ArrayList<>(numberComputationStates);
+
+		boolean afterMigration = false;
 		for (int i = 0; i < numberComputationStates; i++) {
 			ComputationState<T> computationState = readComputationState(ois);
+			if (computationState.getState().getName().equals(BEGINNING_STATE_NAME)) {
+				afterMigration = true;
+			}
 
-			computationStates.offer(computationState);
+			readComputationStates.add(computationState);
+		}
+
+		if (afterMigration && !readComputationStates.isEmpty()) {
+			try {
+				//Backwards compatibility
+				this.computationStates.addAll(migrateNFA(readComputationStates));
+				final Field newSharedBufferField = NFA.class.getDeclaredField("stringSharedBuffer");
+				final Field sharedBufferField = NFA.class.getDeclaredField("sharedBuffer");
+				sharedBufferField.setAccessible(true);
+				newSharedBufferField.setAccessible(true);
+				newSharedBufferField.set(this, SharedBuffer.migrateSharedBuffer(this.sharedBuffer));
+				sharedBufferField.set(this, null);
+				sharedBufferField.setAccessible(false);
+				newSharedBufferField.setAccessible(false);
+			} catch (Exception e) {
+				throw new IllegalStateException("Could not migrate from earlier version", e);
+			}
+		} else {
+			this.computationStates.addAll(readComputationStates);
 		}
 
 		nonDuplicatingTypeSerializer.clearReferences();
+	}
+
+	/**
+	 * Needed for backward compatibility. First migrates the {@link State} graph see {@link NFACompiler#migrateGraph(State)}.
+	 * Than recreates the {@link ComputationState}s with the new {@link State} graph.
+	 * @param readStates computation states read from snapshot
+	 * @return collection of migrated computation states
+	 */
+	private Collection<ComputationState<T>> migrateNFA(Collection<ComputationState<T>> readStates) {
+		final ArrayList<ComputationState<T>> computationStates = new ArrayList<>();
+
+		final State<T> startState = Iterators.find(
+			readStates.iterator(),
+			new Predicate<ComputationState<T>>() {
+				@Override
+				public boolean apply(@Nullable ComputationState<T> input) {
+					return input != null && input.getState().getName().equals(BEGINNING_STATE_NAME);
+				}
+			}).getState();
+
+		final Map<String, State<T>> convertedStates = NFACompiler.migrateGraph(startState);
+
+		for (ComputationState<T> readState : readStates) {
+			if (!readState.isStartState()) {
+				final String previousName = readState.getState().getName();
+				final String currentName = Iterators.find(
+					readState.getState().getStateTransitions().iterator(),
+					new Predicate<StateTransition<T>>() {
+						@Override
+						public boolean apply(@Nullable StateTransition<T> input) {
+							return input != null && input.getAction() == StateTransitionAction.TAKE;
+						}
+					}).getTargetState().getName();
+
+
+				final State<T> previousState = convertedStates.get(previousName);
+
+				computationStates.add(ComputationState.createState(
+					convertedStates.get(currentName),
+					previousState,
+					readState.getEvent(),
+					readState.getTimestamp(),
+					readState.getVersion(),
+					readState.getStartTimestamp()
+				));
+			}
+		}
+
+		final String startName = Iterators.find(convertedStates.values().iterator(), new Predicate<State<T>>() {
+			@Override
+			public boolean apply(@Nullable State<T> input) {
+				return input != null && input.isStart();
+			}
+		}).getName();
+
+		computationStates.add(ComputationState.createStartState(
+			convertedStates.get(startName),
+			new DeweyNumber(this.startEventCounter)));
+
+		this.states.clear();
+		this.states.addAll(convertedStates.values());
+
+		return computationStates;
 	}
 
 	private void writeComputationState(final ComputationState<T> computationState, final ObjectOutputStream oos) throws IOException {
@@ -629,7 +740,13 @@ public class NFA<T> implements Serializable {
 	@SuppressWarnings("unchecked")
 	private ComputationState<T> readComputationState(ObjectInputStream ois) throws IOException, ClassNotFoundException {
 		final State<T> state = (State<T>)ois.readObject();
-		final State<T> previousState = (State<T>)ois.readObject();
+		State<T> previousState;
+		try {
+			previousState = (State<T>)ois.readObject();
+		} catch (OptionalDataException e) {
+			previousState = null;
+		}
+
 		final long timestamp = ois.readLong();
 		final DeweyNumber version = (DeweyNumber)ois.readObject();
 		final long startTimestamp = ois.readLong();
@@ -646,6 +763,7 @@ public class NFA<T> implements Serializable {
 
 		return ComputationState.createState(state, previousState, event, timestamp, version, startTimestamp);
 	}
+
 
 	/**
 	 * Generates a state name from a given name template and an index.

@@ -20,6 +20,7 @@ package org.apache.flink.cep.nfa;
 
 import com.google.common.collect.LinkedHashMultimap;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
@@ -461,6 +462,54 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 				sourceEntry.edges.add(new SharedBufferEdge<K, V>(target, version));
 			}
 		}
+	}
+
+	private SharedBuffer(
+		TypeSerializer<V> valueSerializer,
+		Map<K, SharedBufferPage<K, V>> pages) {
+		this.valueSerializer = valueSerializer;
+		this.pages = pages;
+	}
+
+	/**
+	 * For backward compatibility only. Previously the key in {@link SharedBuffer} was {@link State}.
+	 * Now it is {@link String}.
+	 */
+	@Internal
+	static <T> SharedBuffer<String, T> migrateSharedBuffer(SharedBuffer<State<T>, T> buffer) {
+
+		final Map<String, SharedBufferPage<String, T>> pageMap = new HashMap<>();
+		final Map<SharedBufferEntry<State<T>, T>, SharedBufferEntry<String, T>> entries = new HashMap<>();
+
+		for (Map.Entry<State<T>, SharedBufferPage<State<T>, T>> page : buffer.pages.entrySet()) {
+			final SharedBufferPage<String, T> newPage = new SharedBufferPage<>(page.getKey().getName());
+			pageMap.put(newPage.getKey(), newPage);
+
+			for (Map.Entry<ValueTimeWrapper<T>, SharedBufferEntry<State<T>, T>> pageEntry : page.getValue().entries.entrySet()) {
+				final SharedBufferEntry<String, T> newSharedBufferEntry = new SharedBufferEntry<>(
+					pageEntry.getKey(),
+					newPage);
+				newSharedBufferEntry.referenceCounter = pageEntry.getValue().referenceCounter;
+				entries.put(pageEntry.getValue(), newSharedBufferEntry);
+				newPage.entries.put(pageEntry.getKey(), newSharedBufferEntry);
+			}
+		}
+
+		for (Map.Entry<State<T>, SharedBufferPage<State<T>, T>> page : buffer.pages.entrySet()) {
+			for (Map.Entry<ValueTimeWrapper<T>, SharedBufferEntry<State<T>, T>> pageEntry : page.getValue().entries.entrySet()) {
+				final SharedBufferEntry<String, T> newEntry = entries.get(pageEntry.getValue());
+				for (SharedBufferEdge<State<T>, T> edge : pageEntry.getValue().edges) {
+					final SharedBufferEntry<String, T> targetNewEntry = entries.get(edge.getTarget());
+
+					final SharedBufferEdge<String, T> newEdge = new SharedBufferEdge<>(
+						targetNewEntry,
+						edge.getVersion());
+					newEntry.edges.add(newEdge);
+				}
+			}
+		}
+
+		return new SharedBuffer<>(buffer.valueSerializer, pageMap);
 	}
 
 	private SharedBufferEntry<K, V> get(
