@@ -29,6 +29,12 @@ public class JobManagerOptions {
 	/**
 	 * The config parameter defining the network address to connect to
 	 * for communication with the job manager.
+	 * 
+	 * <p>This value is only interpreted in setups where a single JobManager with static 
+	 * name or address exists (simple standalone setups, or container setups with dynamic
+	 * service name resolution). It is not used in many high-availability setups, when a
+	 * leader-election service (like ZooKeeper) is used to elect and discover the JobManager
+	 * leader from potentially multiple standby JobManagers.
 	 */
 	public static final ConfigOption<String> ADDRESS = ConfigOptions
 		.key("jobmanager.rpc.address")
@@ -37,10 +43,29 @@ public class JobManagerOptions {
 	/**
 	 * The config parameter defining the network port to connect to
 	 * for communication with the job manager.
+	 * 
+	 * <p>Like {@link JobManagerOptions#ADDRESS}, this value is only interpreted in setups where
+	 * a single JobManager with static name/address and port exists (simple standalone setups,
+	 * or container setups with dynamic service name resolution).
+	 * This config option is not used in many high-availability setups, when a
+	 * leader-election service (like ZooKeeper) is used to elect and discover the JobManager
+	 * leader from potentially multiple standby JobManagers.
 	 */
 	public static final ConfigOption<Integer> PORT = ConfigOptions
 		.key("jobmanager.rpc.port")
 		.defaultValue(6123);
+
+	/**
+	 * The maximum number of prior execution attempts kept in history.
+	 */
+	public static final ConfigOption<Integer> MAX_ATTEMPTS_HISTORY_SIZE = ConfigOptions
+			.key("jobmanager.execution.attempts-history-size")
+			.defaultValue(16)
+			.withDeprecatedKeys("job-manager.max-attempts-history-size");
+
+	// ------------------------------------------------------------------------
+	//  JobManager web UI
+	// ------------------------------------------------------------------------
 
 	/**
 	 * The port for the runtime monitor web-frontend server.
@@ -126,13 +151,6 @@ public class JobManagerOptions {
 	public static final ConfigOption<Integer> WEB_BACKPRESSURE_DELAY = ConfigOptions
 		.key("jobmanager.web.backpressure.delay-between-samples")
 		.defaultValue(50);
-
-	/**
-	 * The maximum number of prior execution attempts kept in history.
-	 */
-	public static final ConfigOption<Integer> MAX_ATTEMPTS_HISTORY_SIZE = ConfigOptions
-		.key("job-manager.max-attempts-history-size")
-		.defaultValue(16);
 
 	// ---------------------------------------------------------------------------------------------
 
