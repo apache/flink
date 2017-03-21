@@ -44,7 +44,7 @@ import org.apache.flink.runtime.heartbeat.HeartbeatListener;
 import org.apache.flink.runtime.heartbeat.HeartbeatManagerImpl;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.highavailability.NonHaServices;
+import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneHaServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -317,6 +317,7 @@ public class TaskExecutorTest extends TestLogger {
 		final ResourceID resourceID = ResourceID.generate();
 		final String resourceManagerAddress = "/resource/manager/address/one";
 		final ResourceID resourceManagerResourceId = new ResourceID(resourceManagerAddress);
+		final String jobManagerAddress = "localhost";
 
 		final TestingSerialRpcService rpc = new TestingSerialRpcService();
 		try {
@@ -335,7 +336,9 @@ public class TaskExecutorTest extends TestLogger {
 			TaskManagerLocation taskManagerLocation = mock(TaskManagerLocation.class);
 			when(taskManagerLocation.getResourceID()).thenReturn(resourceID);
 
-			NonHaServices haServices = new NonHaServices(resourceManagerAddress);
+			StandaloneHaServices haServices = new StandaloneHaServices(
+				resourceManagerAddress,
+				jobManagerAddress);
 
 			final TaskSlotTable taskSlotTable = mock(TaskSlotTable.class);
 			final SlotReport slotReport = new SlotReport();

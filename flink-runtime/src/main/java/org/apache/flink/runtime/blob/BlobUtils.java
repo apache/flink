@@ -24,7 +24,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
-import org.apache.flink.runtime.highavailability.ZookeeperHaServices;
+import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperHaServices;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
@@ -84,7 +84,7 @@ public class BlobUtils {
 		if (highAvailabilityMode == HighAvailabilityMode.NONE) {
 			return new VoidBlobStore();
 		} else if (highAvailabilityMode == HighAvailabilityMode.ZOOKEEPER) {
-			return ZookeeperHaServices.createBlobStore(config);
+			return ZooKeeperHaServices.createBlobStore(config);
 		} else {
 			throw new IllegalConfigurationException("Unexpected high availability mode '" + highAvailabilityMode + "'.");
 		}

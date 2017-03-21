@@ -16,11 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.highavailability;
+package org.apache.flink.runtime.highavailability.nonha.standalone;
 
-import org.apache.flink.runtime.highavailability.leaderelection.SingleLeaderElectionService;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.nonha.AbstractNonHaServices;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
+import org.apache.flink.runtime.leaderelection.StandaloneLeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService;
 
@@ -32,10 +34,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * tolerate failures of the master processes (JobManager, ResourceManager).
  * 
  * <p>This implementation has no dependencies on any external services. It returns a fix
- * pre-configured ResourceManager, and stores checkpoints and metadata simply on the heap or
- * on a local file system and therefore in a storage without guarantees.
+ * pre-configured ResourceManager and JobManager, and stores checkpoints and metadata simply on the
+ * heap or on a local file system and therefore in a storage without guarantees.
  */
-public class NonHaServices extends AbstractNonHaServices implements HighAvailabilityServices {
+public class StandaloneHaServices extends AbstractNonHaServices {
 
 	/** The constant name of the ResourceManager RPC endpoint */
 	private static final String RESOURCE_MANAGER_RPC_ENDPOINT_NAME = "resource_manager";
@@ -43,14 +45,17 @@ public class NonHaServices extends AbstractNonHaServices implements HighAvailabi
 	/** The fix address of the ResourceManager */
 	private final String resourceManagerAddress;
 
+	/** The fix address of the JobManager */
+	private final String jobManagerAddress;
+
 	/**
 	 * Creates a new services class for the fix pre-defined leaders.
 	 * 
 	 * @param resourceManagerAddress    The fix address of the ResourceManager
 	 */
-	public NonHaServices(String resourceManagerAddress) {
-		super();
-		this.resourceManagerAddress = checkNotNull(resourceManagerAddress);
+	public StandaloneHaServices(String resourceManagerAddress, String jobManagerAddress) {
+		this.resourceManagerAddress = checkNotNull(resourceManagerAddress, "resourceManagerAddress");
+		this.jobManagerAddress = checkNotNull(jobManagerAddress, "jobManagerAddress");
 	}
 
 	// ------------------------------------------------------------------------
@@ -59,11 +64,38 @@ public class NonHaServices extends AbstractNonHaServices implements HighAvailabi
 
 	@Override
 	public LeaderRetrievalService getResourceManagerLeaderRetriever() {
-		return new StandaloneLeaderRetrievalService(resourceManagerAddress, DEFAULT_LEADER_ID);
+		synchronized (lock) {
+			checkNotShutdown();
+
+			return new StandaloneLeaderRetrievalService(resourceManagerAddress, DEFAULT_LEADER_ID);
+		}
+
 	}
 
 	@Override
 	public LeaderElectionService getResourceManagerLeaderElectionService() {
-		return new SingleLeaderElectionService(getExecutorService(), DEFAULT_LEADER_ID);
+		synchronized (lock) {
+			checkNotShutdown();
+
+			return new StandaloneLeaderElectionService();
+		}
+	}
+
+	@Override
+	public LeaderRetrievalService getJobManagerLeaderRetriever(JobID jobID) {
+		synchronized (lock) {
+			checkNotShutdown();
+
+			return new StandaloneLeaderRetrievalService(jobManagerAddress, DEFAULT_LEADER_ID);
+		}
+	}
+
+	@Override
+	public LeaderElectionService getJobManagerLeaderElectionService(JobID jobID) {
+		synchronized (lock) {
+			checkNotShutdown();
+
+			return new StandaloneLeaderElectionService();
+		}
 	}
 }

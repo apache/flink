@@ -22,10 +22,11 @@ import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.test.TestingServer;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.configuration.HighAvailabilityOptions;
-import org.apache.flink.runtime.jobmanager.JobManager;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
+import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.NetUtils;
@@ -35,7 +36,6 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import scala.Option;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.IOException;
@@ -104,10 +104,12 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger{
 			client[0] = ZooKeeperUtils.startCuratorFramework(config);
 			client[1] = ZooKeeperUtils.startCuratorFramework(config);
 
-			String wrongHostPort = NetUtils.unresolvedHostAndPortToNormalizedString("1.1.1.1", 1234);
-
-			String wrongAddress = JobManager.getRemoteJobManagerAkkaURL(AkkaUtils.getAkkaProtocol(config),
-					wrongHostPort, Option.<String>empty());
+			String wrongAddress = AkkaRpcServiceUtils.getRpcUrl(
+				"1.1.1.1",
+				1234,
+				"foobar",
+				HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION,
+				config);
 
 			try {
 				localHost = InetAddress.getLocalHost();
@@ -126,8 +128,12 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger{
 			InetSocketAddress correctInetSocketAddress = new InetSocketAddress(localHost, serverSocket.getLocalPort());
 			String hostPort = NetUtils.unresolvedHostAndPortToNormalizedString(localHost.getHostName(), correctInetSocketAddress.getPort());
 
-			String correctAddress = JobManager.getRemoteJobManagerAkkaURL(AkkaUtils.getAkkaProtocol(config),
-				hostPort, Option.<String>empty());
+			String correctAddress = AkkaRpcServiceUtils.getRpcUrl(
+				localHost.getHostName(),
+				correctInetSocketAddress.getPort(),
+				JobMaster.JOB_MANAGER_NAME,
+				HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION,
+				config);
 
 			faultyLeaderElectionService = ZooKeeperUtils.createLeaderElectionService(client[0], config);
 			TestingContender wrongLeaderAddressContender = new TestingContender(wrongAddress, faultyLeaderElectionService);
@@ -192,7 +198,7 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger{
 
 		FiniteDuration timeout = new FiniteDuration(10, TimeUnit.SECONDS);
 
-		LeaderRetrievalService leaderRetrievalService = LeaderRetrievalUtils.createLeaderRetrievalService(config);
+		LeaderRetrievalService leaderRetrievalService = LeaderRetrievalUtils.createLeaderRetrievalService(config, false);
 		InetAddress result = LeaderRetrievalUtils.findConnectingAddress(leaderRetrievalService, timeout);
 
 		assertEquals(InetAddress.getLocalHost(), result);
@@ -214,7 +220,7 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger{
 		@Override
 		public void run() {
 			try {
-				LeaderRetrievalService leaderRetrievalService = LeaderRetrievalUtils.createLeaderRetrievalService(config);
+				LeaderRetrievalService leaderRetrievalService = LeaderRetrievalUtils.createLeaderRetrievalService(config, false);
 				result = LeaderRetrievalUtils.findConnectingAddress(leaderRetrievalService, timeout);
 			} catch (Exception e) {
 				exception = e;

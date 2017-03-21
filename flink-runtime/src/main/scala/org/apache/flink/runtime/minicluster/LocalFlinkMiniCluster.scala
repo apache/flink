@@ -38,13 +38,14 @@ import org.apache.flink.runtime.io.network.NetworkEnvironment
 import org.apache.flink.runtime.io.network.netty.NettyConfig
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler
 import org.apache.flink.runtime.jobmanager.{JobManager, MemoryArchivist, SubmittedJobGraphStore}
+import org.apache.flink.runtime.jobmaster.JobMaster
 import org.apache.flink.runtime.leaderelection.LeaderElectionService
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService
 import org.apache.flink.runtime.memory.MemoryManager
 import org.apache.flink.runtime.messages.JobManagerMessages
 import org.apache.flink.runtime.messages.JobManagerMessages.{RunningJobsStatus, StoppingFailure, StoppingResponse}
 import org.apache.flink.runtime.metrics.MetricRegistry
-import org.apache.flink.runtime.taskexecutor.{TaskManagerConfiguration, TaskManagerServices, TaskManagerServicesConfiguration}
+import org.apache.flink.runtime.taskexecutor.{TaskExecutor, TaskManagerConfiguration, TaskManagerServices, TaskManagerServicesConfiguration}
 import org.apache.flink.runtime.taskmanager.{TaskManager, TaskManagerLocation}
 import org.apache.flink.runtime.util.EnvironmentInformation
 
@@ -207,9 +208,9 @@ class LocalFlinkMiniCluster(
     val localExecution = numTaskManagers == 1
 
     val taskManagerActorName = if (singleActorSystem) {
-      TaskManager.TASK_MANAGER_NAME + "_" + (index + 1)
+      TaskExecutor.TASK_MANAGER_NAME + "_" + (index + 1)
     } else {
-      TaskManager.TASK_MANAGER_NAME
+      TaskExecutor.TASK_MANAGER_NAME
     }
 
     val resourceID = ResourceID.generate() // generate random resource id
@@ -397,9 +398,9 @@ class LocalFlinkMiniCluster(
 
   protected def getJobManagerName(index: Int): String = {
     if(singleActorSystem) {
-      JobManager.JOB_MANAGER_NAME + "_" + (index + 1)
+      JobMaster.JOB_MANAGER_NAME + "_" + (index + 1)
     } else {
-      JobManager.JOB_MANAGER_NAME
+      JobMaster.JOB_MANAGER_NAME
     }
   }
 
@@ -413,9 +414,9 @@ class LocalFlinkMiniCluster(
 
   protected def getArchiveName(index: Int): String = {
     if(singleActorSystem) {
-      JobManager.ARCHIVE_NAME + "_" + (index + 1)
+      JobMaster.ARCHIVE_NAME + "_" + (index + 1)
     } else {
-      JobManager.ARCHIVE_NAME
+      JobMaster.ARCHIVE_NAME
     }
   }
 

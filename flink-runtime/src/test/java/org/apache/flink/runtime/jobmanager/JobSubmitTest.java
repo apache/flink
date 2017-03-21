@@ -91,7 +91,7 @@ public class JobSubmitTest {
 			MemoryArchivist.class)._1();
 
 		try {
-			LeaderRetrievalService lrs = LeaderRetrievalUtils.createLeaderRetrievalService(jmConfig);
+			LeaderRetrievalService lrs = LeaderRetrievalUtils.createLeaderRetrievalService(jmConfig, false);
 
 			jmGateway = LeaderRetrievalUtils.retrieveLeaderGateway(
 					lrs,
