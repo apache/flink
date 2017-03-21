@@ -85,15 +85,12 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 	@Override
 	@SuppressWarnings("unchecked")
 	public void processElement(StreamRecord<IN> element) throws Exception {
-		Collection<W> elementWindows = windowAssigner.assignWindows(
-				element.getValue(),
-				element.getTimestamp(),
-				windowAssignerContext);
+		final Collection<W> elementWindows = windowAssigner.assignWindows(
+				element.getValue(), element.getTimestamp(), windowAssignerContext);
 
-		final K key = (K) getKeyedStateBackend().getCurrentKey();
+		final K key = this.<K>getKeyedStateBackend().getCurrentKey();
 
 		if (windowAssigner instanceof MergingWindowAssigner) {
-
 			MergingWindowSet<W> mergingWindows = getMergingWindowSet();
 
 			for (W window : elementWindows) {
@@ -127,7 +124,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 							}
 						});
 
-				// check if the window is already inactive
+				// drop if the window is already late
 				if (isLate(actualWindow)) {
 					mergingWindows.retireWindow(actualWindow);
 					continue;
@@ -163,6 +160,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window> extends Window
 				registerCleanupTimer(actualWindow);
 			}
 
+			// need to make sure to update the merging state in state
 			mergingWindows.persist();
 		} else {
 			for (W window : elementWindows) {
