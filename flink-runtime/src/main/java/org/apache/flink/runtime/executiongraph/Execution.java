@@ -1038,7 +1038,8 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		}
 
 		if (STATE_UPDATER.compareAndSet(this, currentState, targetState)) {
-			markTimestamp(targetState);
+			long timestamp = System.currentTimeMillis();
+			markTimestamp(targetState, timestamp);
 
 			if (error == null) {
 				LOG.info("{} ({}) switched from {} to {}.", getVertex().getTaskNameWithSubtaskIndex(), getAttemptId(), currentState, targetState);
@@ -1049,7 +1050,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			// make sure that the state transition completes normally.
 			// potential errors (in listeners may not affect the main logic)
 			try {
-				vertex.notifyStateTransition(attemptId, targetState, error);
+				vertex.notifyStateTransition(attemptId, targetState, error, timestamp);
 			}
 			catch (Throwable t) {
 				LOG.error("Error while notifying execution graph of execution state transition.", t);
@@ -1058,10 +1059,6 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		} else {
 			return false;
 		}
-	}
-
-	private void markTimestamp(ExecutionState state) {
-		markTimestamp(state, System.currentTimeMillis());
 	}
 
 	private void markTimestamp(ExecutionState state, long timestamp) {

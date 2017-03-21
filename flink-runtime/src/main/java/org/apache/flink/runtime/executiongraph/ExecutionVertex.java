@@ -632,8 +632,8 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	/**
 	 * Simply forward this notification. This is for logs and event archivers.
 	 */
-	void notifyStateTransition(ExecutionAttemptID executionId, ExecutionState newState, Throwable error) {
-		getExecutionGraph().notifyExecutionChange(getJobvertexId(), subTaskIndex, executionId, newState, error);
+	void notifyStateTransition(ExecutionAttemptID executionId, ExecutionState newState, Throwable error, long errorTimestamp) {
+		getExecutionGraph().notifyExecutionChange(getJobvertexId(), subTaskIndex, executionId, newState, error, errorTimestamp);
 	}
 
 	/**

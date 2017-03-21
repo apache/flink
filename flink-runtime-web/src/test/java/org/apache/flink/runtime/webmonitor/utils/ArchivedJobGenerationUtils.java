@@ -128,6 +128,7 @@ public class ArchivedJobGenerationUtils {
 			.setJobID(new JobID())
 			.setTasks(tasks)
 			.setFailureCause("jobException")
+			.setFailureTimestamp(originalAttempt.getStateTimestamp(ExecutionState.FAILED))
 			.setState(JobStatus.FINISHED)
 			.setStateTimestamps(new long[]{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})
 			.setArchivedUserAccumulators(new StringifiedAccumulatorResult[]{acc1, acc2})

@@ -44,6 +44,7 @@ public class ArchivedExecutionGraphBuilder {
 	private long[] stateTimestamps;
 	private JobStatus state;
 	private String failureCause;
+	private long failureTimestamp;
 	private String jsonPlan;
 	private StringifiedAccumulatorResult[] archivedUserAccumulators;
 	private ArchivedExecutionConfig archivedExecutionConfig;
@@ -86,6 +87,11 @@ public class ArchivedExecutionGraphBuilder {
 		return this;
 	}
 
+	public ArchivedExecutionGraphBuilder setFailureTimestamp(long timestamp) {
+		this.failureTimestamp = timestamp;
+		return this;
+	}
+
 	public ArchivedExecutionGraphBuilder setJsonPlan(String jsonPlan) {
 		this.jsonPlan = jsonPlan;
 		return this;
@@ -123,6 +129,7 @@ public class ArchivedExecutionGraphBuilder {
 			stateTimestamps != null ? stateTimestamps : new long[JobStatus.values().length],
 			state != null ? state : JobStatus.FINISHED,
 			failureCause != null ? failureCause : "(null)",
+			failureTimestamp,
 			jsonPlan != null ? jsonPlan : "{\"jobid\":\"" + jobID + "\", \"name\":\"" + jobName + "\", \"nodes\":[]}",
 			archivedUserAccumulators != null ? archivedUserAccumulators : new StringifiedAccumulatorResult[0],
 			serializedUserAccumulators != null ? serializedUserAccumulators : Collections.<String, SerializedValue<Object>>emptyMap(),

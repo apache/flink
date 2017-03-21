@@ -71,6 +71,14 @@ public interface AccessExecutionGraph {
 	String getFailureCauseAsString();
 
 	/**
+	 * Returns the timestamp of the exception that caused the job to fail. This is the first root exception
+	 * that was not recoverable and triggered job failure.
+	 *
+	 * @return timestamp of failure causing exception
+	 */
+	long getFailureTimestamp();
+
+	/**
 	 * Returns the job vertex for the given {@link JobVertexID}.
 	 *
 	 * @param id id of job vertex to be returned
