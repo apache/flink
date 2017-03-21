@@ -30,6 +30,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService;
+import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.util.NetUtils;
@@ -138,7 +139,7 @@ public abstract class TaskManagerProcessReapingTestBase {
 			// is started and the TaskManager is up
 			String taskManagerActorName = String.format("akka.tcp://flink@%s/user/%s",
 					"localhost:" + taskManagerPort,
-					TaskManager.TASK_MANAGER_NAME());
+					TaskExecutor.TASK_MANAGER_NAME);
 
 			ActorRef taskManagerRef = null;
 			Throwable lastError = null;

@@ -49,11 +49,15 @@ import org.apache.flink.runtime.execution.SuppressRestartsException
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory
 import org.apache.flink.runtime.executiongraph._
+import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils
+import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils.AddressResolution
 import org.apache.flink.runtime.instance.{AkkaActorGateway, InstanceID, InstanceManager}
 import org.apache.flink.runtime.jobgraph.{JobGraph, JobStatus}
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore.SubmittedJobGraphListener
 import org.apache.flink.runtime.jobmanager.scheduler.{Scheduler => FlinkScheduler}
 import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway
+import org.apache.flink.runtime.jobmaster.JobMaster
+import org.apache.flink.runtime.jobmaster.JobMaster.{ARCHIVE_NAME, JOB_MANAGER_NAME}
 import org.apache.flink.runtime.leaderelection.{LeaderContender, LeaderElectionService, StandaloneLeaderElectionService}
 import org.apache.flink.runtime.messages.ArchiveMessages.ArchiveExecutionGraph
 import org.apache.flink.runtime.messages.ExecutionGraphMessages.JobStatusChanged
@@ -72,8 +76,11 @@ import org.apache.flink.runtime.metrics.util.MetricUtils
 import org.apache.flink.runtime.process.ProcessReaper
 import org.apache.flink.runtime.query.KvStateMessage.{LookupKvStateLocation, NotifyKvStateRegistered, NotifyKvStateUnregistered}
 import org.apache.flink.runtime.query.{KvStateMessage, UnknownKvStateLocation}
+import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils
 import org.apache.flink.runtime.security.SecurityUtils
 import org.apache.flink.runtime.security.SecurityUtils.SecurityConfiguration
+import org.apache.flink.runtime.taskexecutor.TaskExecutor
+import org.apache.flink.runtime.taskexecutor.TaskExecutor.TASK_MANAGER_NAME
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.util._
 import org.apache.flink.runtime.webmonitor.{WebMonitor, WebMonitorUtils}
@@ -1923,12 +1930,6 @@ object JobManager {
   val STARTUP_FAILURE_RETURN_CODE = 1
   val RUNTIME_FAILURE_RETURN_CODE = 2
 
-  /** Name of the JobManager actor */
-  val JOB_MANAGER_NAME = "jobmanager"
-
-  /** Name of the archive actor */
-  val ARCHIVE_NAME = "archive"
-
 
   /**
    * Entry point (main method) to run the JobManager in a standalone fashion.
@@ -2237,7 +2238,7 @@ object JobManager {
       if (configuration.getInteger(ConfigConstants.JOB_MANAGER_WEB_PORT_KEY, 0) >= 0) {
         LOG.info("Starting JobManager web frontend")
         val leaderRetrievalService = LeaderRetrievalUtils
-          .createLeaderRetrievalService(configuration)
+          .createLeaderRetrievalService(configuration, false)
 
         // start the web frontend. we need to load this dynamically
         // because it is not in the same project/dependencies
@@ -2287,7 +2288,7 @@ object JobManager {
           ResourceID.generate(),
           jobManagerSystem,
           externalHostname,
-          Some(TaskManager.TASK_MANAGER_NAME),
+          Some(TaskExecutor.TASK_MANAGER_NAME),
           None,
           localTaskManagerCommunication = true,
           classOf[TaskManager])
@@ -2305,7 +2306,13 @@ object JobManager {
       // start web monitor
       webMonitor.foreach {
         monitor =>
-          val jobManagerAkkaUrl = JobManager.getRemoteJobManagerAkkaURL(configuration)
+          val hostnamePort = HighAvailabilityServicesUtils.getJobManagerAddress(configuration)
+          val jobManagerAkkaUrl = AkkaRpcServiceUtils.getRpcUrl(
+            hostnamePort.f0,
+            hostnamePort.f1,
+            JobMaster.JOB_MANAGER_NAME,
+            AddressResolution.NO_ADDRESS_RESOLUTION,
+            configuration)
           monitor.start(jobManagerAkkaUrl)
       }
 
@@ -2317,7 +2324,7 @@ object JobManager {
               FlinkResourceManager.startResourceManagerActors(
                 configuration,
                 jobManagerSystem,
-                LeaderRetrievalUtils.createLeaderRetrievalService(configuration),
+                LeaderRetrievalUtils.createLeaderRetrievalService(configuration, false),
                 rmClass))
           case None =>
             LOG.info("Resource Manager class not provided. No resource manager will be started.")
@@ -2631,8 +2638,8 @@ object JobManager {
       actorSystem,
       futureExecutor,
       ioExecutor,
-      Some(JOB_MANAGER_NAME),
-      Some(ARCHIVE_NAME),
+      Some(JobMaster.JOB_MANAGER_NAME),
+      Some(JobMaster.ARCHIVE_NAME),
       jobManagerClass,
       archiveClass)
   }
@@ -2760,122 +2767,5 @@ object JobManager {
       checkpointRecoveryFactory,
       jobRecoveryTimeout,
       metricsRegistry)
-  }
-
-  // --------------------------------------------------------------------------
-  //  Resolving the JobManager endpoint
-  // --------------------------------------------------------------------------
-
-  /**
-   * Builds the akka actor path for the JobManager actor, given the socket address
-   * where the JobManager's actor system runs.
-   *
-   * @param protocol The protocol to be used to connect to the remote JobManager's actor system.
-   * @param hostPort The external address of the JobManager's actor system in format host:port
-   * @return The akka URL of the JobManager actor.
-   */
-  def getRemoteJobManagerAkkaURL(
-      protocol: String,
-      hostPort: String,
-      name: Option[String] = None)
-    : String = {
-
-    require(protocol == "akka.tcp" || protocol == "akka.ssl.tcp",
-        "protocol field should be either akka.tcp or akka.ssl.tcp")
-
-    getJobManagerAkkaURLHelper(s"$protocol://flink@$hostPort", name)
-  }
-
-  /**
-   * Returns the JobManager actor's remote Akka URL, given the configured hostname and port.
-   *
-   * @param config The configuration to parse
-   * @return JobManager actor remote Akka URL
-   */
-  def getRemoteJobManagerAkkaURL(config: Configuration) : String = {
-    val (protocol, hostname, port) = TaskManager.getAndCheckJobManagerAddress(config)
-
-    val hostPort = NetUtils.unresolvedHostAndPortToNormalizedString(hostname, port)
-
-    JobManager.getRemoteJobManagerAkkaURL(protocol, hostPort, Option.empty)
-  }
-
-  /**
-   * Builds the akka actor path for the JobManager actor to address the actor within
-   * its own actor system.
-   *
-   * @return The local akka URL of the JobManager actor.
-   */
-  def getLocalJobManagerAkkaURL(name: Option[String] = None): String = {
-    getJobManagerAkkaURLHelper("akka://flink", name)
-  }
-
-  def getJobManagerAkkaURL(system: ActorSystem, name: Option[String] = None): String = {
-    getJobManagerAkkaURLHelper(AkkaUtils.getAddress(system).toString, name)
-  }
-
-  private def getJobManagerAkkaURLHelper(address: String, name: Option[String]): String = {
-    address + "/user/" + name.getOrElse(JOB_MANAGER_NAME)
-  }
-
-  /**
-   * Resolves the JobManager actor reference in a blocking fashion.
-   *
-   * @param jobManagerUrl The akka URL of the JobManager.
-   * @param system The local actor system that should perform the lookup.
-   * @param timeout The maximum time to wait until the lookup fails.
-   * @throws java.io.IOException Thrown, if the lookup fails.
-   * @return The ActorRef to the JobManager
-   */
-  @throws(classOf[IOException])
-  def getJobManagerActorRef(
-      jobManagerUrl: String,
-      system: ActorSystem,
-      timeout: FiniteDuration)
-    : ActorRef = {
-    AkkaUtils.getActorRef(jobManagerUrl, system, timeout)
-  }
-
-  /**
-   * Resolves the JobManager actor reference in a blocking fashion.
-   *
-   * @param protocol The protocol to be used to connect to the remote JobManager's actor system.
-   * @param hostPort The external address of the JobManager's actor system in format host:port.
-   * @param system The local actor system that should perform the lookup.
-   * @param timeout The maximum time to wait until the lookup fails.
-   * @throws java.io.IOException Thrown, if the lookup fails.
-   * @return The ActorRef to the JobManager
-   */
-  @throws(classOf[IOException])
-  def getJobManagerActorRef(
-      protocol: String,
-      hostPort: String,
-      system: ActorSystem,
-      timeout: FiniteDuration)
-    : ActorRef = {
-
-    val jmAddress = getRemoteJobManagerAkkaURL(protocol, hostPort)
-    getJobManagerActorRef(jmAddress, system, timeout)
-  }
-
-  /**
-   * Resolves the JobManager actor reference in a blocking fashion.
-   *
-   * @param hostPort The address of the JobManager's actor system in format host:port.
-   * @param system The local actor system that should perform the lookup.
-   * @param config The config describing the maximum time to wait until the lookup fails.
-   * @throws java.io.IOException Thrown, if the lookup fails.
-   * @return The ActorRef to the JobManager
-   */
-  @throws(classOf[IOException])
-  def getJobManagerActorRef(
-      hostPort: String,
-      system: ActorSystem,
-      config: Configuration)
-    : ActorRef = {
-
-    val timeout = AkkaUtils.getLookupTimeout(config)
-    val protocol = AkkaUtils.getAkkaProtocol(config)
-    getJobManagerActorRef(protocol, hostPort, system, timeout)
   }
 }

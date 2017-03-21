@@ -64,7 +64,7 @@ import org.apache.flink.runtime.metrics.{MetricRegistry => FlinkMetricRegistry}
 import org.apache.flink.runtime.process.ProcessReaper
 import org.apache.flink.runtime.security.SecurityUtils
 import org.apache.flink.runtime.security.SecurityUtils.SecurityConfiguration
-import org.apache.flink.runtime.taskexecutor.{TaskManagerConfiguration, TaskManagerServices, TaskManagerServicesConfiguration}
+import org.apache.flink.runtime.taskexecutor.{TaskExecutor, TaskManagerConfiguration, TaskManagerServices, TaskManagerServicesConfiguration}
 import org.apache.flink.runtime.util._
 import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessageFilter, LogMessages}
 
@@ -1496,9 +1496,6 @@ object TaskManager {
   /** Return code for critical errors during the runtime */
   val RUNTIME_FAILURE_RETURN_CODE = 2
 
-  /** The name of the TaskManager actor */
-  val TASK_MANAGER_NAME = "taskmanager"
-
   /** Maximum time (milli seconds) that the TaskManager will spend searching for a
     * suitable network interface to use for communication */
   val MAX_STARTUP_CONNECT_TIME = 120000L
@@ -1664,7 +1661,9 @@ object TaskManager {
       LOG.info("Using configured hostname/address for TaskManager: " + taskManagerHostname)
     }
     else {
-      val leaderRetrievalService = LeaderRetrievalUtils.createLeaderRetrievalService(configuration)
+      val leaderRetrievalService = LeaderRetrievalUtils.createLeaderRetrievalService(
+        configuration,
+        true)
       val lookupTimeout = AkkaUtils.getLookupTimeout(configuration)
 
       val taskManagerAddress = LeaderRetrievalUtils.findConnectingAddress(
@@ -1780,7 +1779,7 @@ object TaskManager {
         resourceID,
         taskManagerSystem,
         taskManagerHostname,
-        Some(TASK_MANAGER_NAME),
+        Some(TaskExecutor.TASK_MANAGER_NAME),
         None,
         localTaskManagerCommunication = false,
         taskManagerClass)
@@ -1968,39 +1967,5 @@ object TaskManager {
       case e: IOException =>
         throw new IOException("Could not connect to TaskManager at " + taskManagerUrl, e)
     }
-  }
-
-  // --------------------------------------------------------------------------
-  //  Parsing and checking the TaskManager Configuration
-  // --------------------------------------------------------------------------
-
-  /**
-   * Gets the protocol, hostname and port of the JobManager from the configuration. Also checks that
-   * the hostname is not null and the port non-negative.
-   *
-   * @param configuration The configuration to read the config values from.
-   * @return A 3-tuple (protocol, hostname, port).
-   */
-  def getAndCheckJobManagerAddress(configuration: Configuration) : (String, String, Int) = {
-
-    val protocol = AkkaUtils.getAkkaProtocol(configuration)
-
-    val hostname = configuration.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null)
-
-    val port = configuration.getInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
-      ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT)
-
-    if (hostname == null) {
-      throw new Exception("Config parameter '" + ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY +
-        "' is missing (hostname/address of JobManager to connect to).")
-    }
-
-    if (port <= 0 || port >= 65536) {
-      throw new Exception("Invalid value for '" + ConfigConstants.JOB_MANAGER_IPC_PORT_KEY +
-        "' (port of the JobManager actor system) : " + port +
-        ".  it must be great than 0 and less than 65536.")
-    }
-
-    (protocol, hostname, port)
   }
 }

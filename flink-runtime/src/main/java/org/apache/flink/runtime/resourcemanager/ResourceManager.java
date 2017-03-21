@@ -87,6 +87,8 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		extends RpcEndpoint<ResourceManagerGateway>
 		implements LeaderContender {
 
+	public static final String RESOURCE_MANAGER_NAME = "resourcemanager";
+
 	/** Unique id of the resource manager */
 	private final ResourceID resourceId;
 

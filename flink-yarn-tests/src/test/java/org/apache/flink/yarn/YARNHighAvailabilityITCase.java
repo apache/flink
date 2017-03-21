@@ -138,7 +138,7 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 						@Override
 						protected void run() {
 							try {
-								LeaderRetrievalService lrs = LeaderRetrievalUtils.createLeaderRetrievalService(config);
+								LeaderRetrievalService lrs = LeaderRetrievalUtils.createLeaderRetrievalService(config, false);
 								ActorGateway gateway = LeaderRetrievalUtils.retrieveLeaderGateway(lrs, actorSystem, timeout);
 								ActorGateway selfGateway = new AkkaActorGateway(getRef(), gateway.leaderSessionID());
 
@@ -158,7 +158,7 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 					@Override
 					protected void run() {
 						try {
-							LeaderRetrievalService lrs = LeaderRetrievalUtils.createLeaderRetrievalService(config);
+							LeaderRetrievalService lrs = LeaderRetrievalUtils.createLeaderRetrievalService(config, false);
 							ActorGateway gateway2 = LeaderRetrievalUtils.retrieveLeaderGateway(lrs, actorSystem, timeout);
 							ActorGateway selfGateway = new AkkaActorGateway(getRef(), gateway2.leaderSessionID());
 							gateway2.tell(new TestingJobManagerMessages.NotifyWhenAtLeastNumTaskManagerAreRegistered(1), selfGateway);

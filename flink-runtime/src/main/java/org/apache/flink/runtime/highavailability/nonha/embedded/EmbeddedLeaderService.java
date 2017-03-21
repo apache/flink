@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.highavailability.nonha;
+package org.apache.flink.runtime.highavailability.nonha.embedded;
 
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
@@ -32,7 +32,6 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -72,7 +71,7 @@ public class EmbeddedLeaderService {
 
 	// ------------------------------------------------------------------------
 
-	public EmbeddedLeaderService(ExecutorService notificationsDispatcher) {
+	public EmbeddedLeaderService(Executor notificationsDispatcher) {
 		this.notificationExecutor = checkNotNull(notificationsDispatcher);
 		this.allLeaderContenders = new HashSet<>();
 		this.listeners = new HashSet<>();
