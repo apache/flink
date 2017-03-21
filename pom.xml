@@ -522,6 +522,42 @@ under the License.
 		</profile>
 
 		<profile>
+			<!--
+				MapR build profile. This build profile must be used together with "vendor-repos"
+				to be able to locate the MapR Hadoop / Zookeeper dependencies.
+			-->
+			<id>mapr</id>
+
+			<!--
+				use MapR Hadoop / Zookeeper dependencies appropriate for MapR 5.2.0;
+				users of different MapR versions should simply override these versions
+				with appropriate values.
+			-->
+			<properties>
+				<hadoop.version>2.7.0-mapr-1607</hadoop.version>
+				<zookeeper.version>3.4.5-mapr-1604</zookeeper.version>
+			</properties>
+
+			<dependencies>
+				<dependency>
+					<groupId>org.apache.zookeeper</groupId>
+					<artifactId>zookeeper</artifactId>
+					<version>${zookeeper.version}</version>
+					<exclusions>
+						<!--
+							exclude netty, because MapR's Zookeeper distribution has
+							a conflicting Netty version with Flink's Netty dependency
+						-->
+						<exclusion>
+							<groupId>org.jboss.netty</groupId>
+							<artifactId>netty</artifactId>
+						</exclusion>
+					</exclusions>
+				</dependency>
+			</dependencies>
+		</profile>
+
+		<profile>
 			<!-- used for aggregating  ScalaDoc with JavaDoc -->
 			<id>aggregate-scaladoc</id>
 			<dependencies>

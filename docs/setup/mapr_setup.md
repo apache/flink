@@ -38,103 +38,28 @@ jobs or sessions to a MapR cluster.
 ### Building Flink for MapR
 
 In order to run Flink on MapR, Flink needs to be built with MapR's own
-Hadoop and Zookeeper distribution. Before this can be done, due to some of MapR's
-Hadoop / Zookeeper dependency clashes with Flink's dependencies, the following
-modifications to some of Flink's POM files is required:
-
-In `flink/pom.xml`, exclude the Netty dependency from Zookeeper:
-
-~~~xml
-<dependencies>
-    ...
-
-    <dependency>
-        <groupId>org.apache.zookeeper</groupId>
-        <artifactId>zookeeper</artifactId>
-        <version>${zookeeper.version}</version>
-        <!--
-            exclude netty, because MapR's Zookeeper distribution has
-            a conflicting Netty version with Flink's Netty dependency
-        -->
-        <exclusions>
-            <exclusion>
-                <groupId>org.jboss.netty</groupId>
-                <artifactId>netty</artifactId>
-            </exclusion>
-        </exclusions>
-    </dependency>
-
-    ...
-</dependencies>
-~~~
-
-In `flink/flink-shaded-hadoop/flink-shaded-hadoop2/pom.xml`, exclude
-`com.mapr.hadoop.*` and `com.mapr.fs.*` dependencies from `hadoop-common`
-so that they aren't bundled with Flink. This ensures that the native MapR
-libraries on your MapR cluster nodes are correctly used:
-
-~~~xml
-<dependencies>
-    ...
-    
-    <dependency>
-        <groupId>org.apache.hadoop</groupId>
-        <artifactId>hadoop-common</artifactId>
-        <version>${hadoop.version}</version>
-        <exclusions>
-            ...
-            
-            <!--
-                do not bundle the MapR dependencies with Flink, to
-                ensure that the native MapR libraries will be used and
-                avoid incompatibitilies
-            -->
-            <exclusion>
-                <groupId>com.mapr.hadoop</groupId>
-                <artifactId>maprfs-core</artifactId>
-            </exclusion>
-            <exclusion>
-                <groupId>com.mapr.hadoop</groupId>
-                <artifactId>hadoop2</artifactId>
-            </exclusion>
-            <exclusion>
-                <groupId>com.mapr.hadoop</groupId>
-                <artifactId>maprfs</artifactId>
-            </exclusion>
-            <exclusion>
-                <groupId>com.mapr.hadoop</groupId>
-                <artifactId>maprfs-diagnostic-tools</artifactId>
-            </exclusion>
-            <exclusion>
-                <groupId>com.mapr.hadoop</groupId>
-                <artifactId>maprfs-jni</artifactId>
-            </exclusion>
-            <exclusion>
-                <groupId>com.mapr.fs</groupId>
-                <artifactId>libprotodefs</artifactId>
-            </exclusion>
-            <exclusion>
-                <groupId>com.mapr.fs</groupId>
-                <artifactId>mapr-hbase</artifactId>
-            </exclusion>
-            
-            ...
-        </exclusions>
-    </dependency>
-    
-    ...
-</dependencies>
-~~~
-
-Finally, build Flink for MapR by overriding the Hadoop and Zookeeper version:
+Hadoop and Zookeeper distribution. Simply build Flink using Maven with
+the following command from the project root directory:
 
 ```
-mvn clean install -DskipTests -Pvendor-repos -Dhadoop.version=2.7.0-mapr-1607 -Dzookeeper.version=3.4.5-mapr-1604
+mvn clean install -DskipTests -Pvendor-repos,mapr \
+    -Dhadoop.version=2.7.0-mapr-1607 \
+    -Dzookeeper.version=3.4.5-mapr-1604
 ```
 
-The `vendor-repos` profile is required to include MapR repositories when
-searching for the MapR Hadoop / Zookeeper distributions.
-For other MapR versions, simply change the `hadoop.version` and `zookeeper.version` values appropriately.
+The `vendor-repos` build profile adds MapR's repository to the build so that
+MapR's Hadoop / Zookeeper dependencies can be fetched. The `mapr` build
+profile additionally resolves some dependency clashes between MapR and
+Flink, as well as ensuring that the native MapR libraries on the cluster
+nodes are used. Both profiles must be activated.
+
+By default the `mapr` profile builds with Hadoop / Zookeeper dependencies
+for MapR version 5.2.0, so you don't need to explicitly override
+the `hadoop.version` and `zookeeper.version` properties.
+For different MapR versions, simply override these properties to appropriate
+values. The corresponding Hadoop / Zookeeper distributions for each MapR version
+can be found on MapR documentations such as
+[here](http://maprdocs.mapr.com/home/DevelopmentGuide/MavenArtifacts.html).
 
 ### Job Submission Client Setup
 
