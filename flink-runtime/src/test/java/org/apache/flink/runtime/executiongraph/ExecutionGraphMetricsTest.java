@@ -162,7 +162,7 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 				testingRestartStrategy,
 				Collections.<BlobKey>emptyList(),
 				Collections.<URL>emptyList(),
-			scheduler,
+				scheduler,
 				getClass().getClassLoader(),
 				metricGroup);
 	

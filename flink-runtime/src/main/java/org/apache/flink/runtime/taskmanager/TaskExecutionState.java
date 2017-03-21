@@ -49,8 +49,9 @@ public class TaskExecutionState implements Serializable {
 
 	private final SerializedThrowable throwable;
 
-	/** Serialized flink and user-defined accumulators */
+	/** Serialized user-defined accumulators */
 	private final AccumulatorSnapshot accumulators;
+
 	private final IOMetrics ioMetrics;
 
 	/**
