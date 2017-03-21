@@ -101,7 +101,7 @@ public class RemoteEnvironmentITCase {
 		try {
 			env.execute();
 			Assert.fail("Program should not run successfully, cause of invalid akka settings.");
-		} catch (IOException ex) {
+		} catch (RuntimeException ex) {
 			throw ex.getCause();
 		}
 	}

@@ -43,7 +43,11 @@ public class StandaloneClusterClient extends ClusterClient {
 	}
 
 	@Override
-	public void waitForClusterToBeReady() {}
+	public void waitForClusterToBeReady() {
+		GetClusterStatusResponse clusterStatus = getClusterStatus();
+		logAndSysout("Standalone cluster ready (TaskManagers:" + clusterStatus.numRegisteredTaskManagers()
+			+ ", Slots:" + clusterStatus.totalNumberOfSlots() + ")");
+	}
 
 
 	@Override
