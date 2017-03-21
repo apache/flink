@@ -20,9 +20,12 @@ package org.apache.flink.cep.nfa;
 
 import org.apache.flink.api.common.functions.FilterFunction;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -61,7 +64,6 @@ public class State<T> implements Serializable {
 	public Collection<StateTransition<T>> getStateTransitions() {
 		return stateTransitions;
 	}
-
 
 	private void addStateTransition(
 		final StateTransitionAction action,
@@ -131,5 +133,20 @@ public class State<T> implements Serializable {
 		Start, // the state is a starting state for the NFA
 		Final, // the state is a final state for the NFA
 		Normal // the state is neither a start nor a final state
+	}
+
+	private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
+		ois.defaultReadObject();
+
+		//Backward compatibility. Previous version of StateTransition did not have source state
+		if (!stateTransitions.isEmpty() && stateTransitions.iterator().next().getSourceState() == null) {
+			final List<StateTransition<T>> tmp = new ArrayList<>();
+			tmp.addAll(this.stateTransitions);
+
+			this.stateTransitions.clear();
+			for (StateTransition<T> transition : tmp) {
+				addStateTransition(transition.getAction(), transition.getTargetState(), transition.getCondition());
+			}
+		}
 	}
 }

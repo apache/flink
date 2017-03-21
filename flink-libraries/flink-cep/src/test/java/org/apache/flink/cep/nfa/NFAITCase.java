@@ -39,6 +39,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class NFAITCase extends TestLogger {
 
@@ -421,7 +422,7 @@ public class NFAITCase extends TestLogger {
 	}
 
 	@Test
-	public void testComplexBranchingAfterKleeneStar() {
+	public void testComplexBranchingAfterZeroOrMore() {
 		List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
 		Event startEvent = new Event(40, "c", 1.0);
@@ -519,7 +520,7 @@ public class NFAITCase extends TestLogger {
 	}
 
 	@Test
-	public void testKleeneStar() {
+	public void testZeroOrMore() {
 		List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
 		Event startEvent = new Event(40, "c", 1.0);
@@ -581,7 +582,7 @@ public class NFAITCase extends TestLogger {
 	}
 
 	@Test
-	public void testEagerKleeneStar() {
+	public void testEagerZeroOrMore() {
 		List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
 		Event startEvent = new Event(40, "c", 1.0);
@@ -646,7 +647,7 @@ public class NFAITCase extends TestLogger {
 
 
 	@Test
-	public void testBeginWithKleeneStar() {
+	public void testBeginWithZeroOrMore() {
 		List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
 		Event middleEvent1 = new Event(40, "a", 2.0);
@@ -704,7 +705,7 @@ public class NFAITCase extends TestLogger {
 	}
 
 	@Test
-	public void testKleeneStarAfterKleeneStar() {
+	public void testZeroOrMoreAfterZeroOrMore() {
 		List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
 		Event startEvent = new Event(40, "c", 1.0);
@@ -779,7 +780,7 @@ public class NFAITCase extends TestLogger {
 	}
 
 	@Test
-	public void testKleeneStarAfterBranching() {
+	public void testZeroOrMoreAfterBranching() {
 		List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
 		Event startEvent = new Event(40, "c", 1.0);
@@ -865,7 +866,7 @@ public class NFAITCase extends TestLogger {
 	}
 
 	@Test
-	public void testStrictContinuityNoResultsAfterKleeneStar() {
+	public void testStrictContinuityNoResultsAfterZeroOrMore() {
 		List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
 		Event start = new Event(40, "d", 2.0);
@@ -923,7 +924,7 @@ public class NFAITCase extends TestLogger {
 	}
 
 	@Test
-	public void testStrictContinuityResultsAfterKleeneStar() {
+	public void testStrictContinuityResultsAfterZeroOrMore() {
 		List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
 		Event start = new Event(40, "d", 2.0);
@@ -1661,6 +1662,183 @@ public class NFAITCase extends TestLogger {
 			Sets.newHashSet(startEvent,  middleEvent1, middleEvent2),
 			Sets.newHashSet(startEvent,  middleEvent1)
 		), resultingPatterns);
+	}
+
+	/**
+	 * Clearing SharedBuffer
+	 */
+
+	@Test
+	public void testTimesClearingBuffer() {
+		Event startEvent = new Event(40, "c", 1.0);
+		Event middleEvent1 = new Event(41, "a", 2.0);
+		Event middleEvent2 = new Event(42, "a", 3.0);
+		Event middleEvent3 = new Event(43, "a", 4.0);
+		Event end1 = new Event(44, "b", 5.0);
+
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new FilterFunction<Event>() {
+			private static final long serialVersionUID = 5726188262756267490L;
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("c");
+			}
+		}).next("middle").where(new FilterFunction<Event>() {
+			private static final long serialVersionUID = 5726188262756267490L;
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("a");
+			}
+		}).times(2).followedBy("end1").where(new FilterFunction<Event>() {
+			private static final long serialVersionUID = 5726188262756267490L;
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("b");
+			}
+		}).within(Time.milliseconds(8));
+
+		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+
+		nfa.process(startEvent, 1);
+		nfa.process(middleEvent1, 2);
+		nfa.process(middleEvent2, 3);
+		nfa.process(middleEvent3, 4);
+		nfa.process(end1, 6);
+
+		//pruning element
+		nfa.process(null, 10);
+
+		assertEquals(true, nfa.isEmpty());
+	}
+
+	@Test
+	public void testOptionalClearingBuffer() {
+		Event startEvent = new Event(40, "c", 1.0);
+		Event middleEvent = new Event(43, "a", 4.0);
+		Event end1 = new Event(44, "b", 5.0);
+
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new FilterFunction<Event>() {
+			private static final long serialVersionUID = 5726188262756267490L;
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("c");
+			}
+		}).followedBy("middle").where(new FilterFunction<Event>() {
+			private static final long serialVersionUID = 5726188262756267490L;
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("a");
+			}
+		}).optional().followedBy("end1").where(new FilterFunction<Event>() {
+			private static final long serialVersionUID = 5726188262756267490L;
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("b");
+			}
+		}).within(Time.milliseconds(8));
+
+		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+
+		nfa.process(startEvent, 1);
+		nfa.process(middleEvent, 5);
+		nfa.process(end1, 6);
+
+		//pruning element
+		nfa.process(null, 10);
+
+		assertEquals(true, nfa.isEmpty());
+	}
+
+	@Test
+	public void testAtLeastOneClearingBuffer() {
+		Event startEvent = new Event(40, "c", 1.0);
+		Event middleEvent1 = new Event(41, "a", 2.0);
+		Event middleEvent2 = new Event(42, "a", 3.0);
+		Event end1 = new Event(44, "b", 5.0);
+
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new FilterFunction<Event>() {
+			private static final long serialVersionUID = 5726188262756267490L;
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("c");
+			}
+		}).followedBy("middle").where(new FilterFunction<Event>() {
+			private static final long serialVersionUID = 5726188262756267490L;
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("a");
+			}
+		}).oneOrMore(false).followedBy("end1").where(new FilterFunction<Event>() {
+			private static final long serialVersionUID = 5726188262756267490L;
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("b");
+			}
+		}).within(Time.milliseconds(8));
+
+		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+
+		nfa.process(startEvent, 1);
+		nfa.process(middleEvent1, 3);
+		nfa.process(middleEvent2, 4);
+		nfa.process(end1, 6);
+
+		//pruning element
+		nfa.process(null, 10);
+
+		assertEquals(true, nfa.isEmpty());
+	}
+
+
+	@Test
+	public void testZeroOrMoreClearingBuffer() {
+		Event startEvent = new Event(40, "c", 1.0);
+		Event middleEvent1 = new Event(41, "a", 2.0);
+		Event middleEvent2 = new Event(42, "a", 3.0);
+		Event end1 = new Event(44, "b", 5.0);
+
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new FilterFunction<Event>() {
+			private static final long serialVersionUID = 5726188262756267490L;
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("c");
+			}
+		}).followedBy("middle").where(new FilterFunction<Event>() {
+			private static final long serialVersionUID = 5726188262756267490L;
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("a");
+			}
+		}).zeroOrMore(false).followedBy("end1").where(new FilterFunction<Event>() {
+			private static final long serialVersionUID = 5726188262756267490L;
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("b");
+			}
+		}).within(Time.milliseconds(8));
+
+		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+
+		nfa.process(startEvent, 1);
+		nfa.process(middleEvent1, 3);
+		nfa.process(middleEvent2, 4);
+		nfa.process(end1, 6);
+
+		//pruning element
+		nfa.process(null, 10);
+
+		assertEquals(true, nfa.isEmpty());
 	}
 
 }
