@@ -174,6 +174,8 @@ class SideOutputITCase extends StreamingMultipleProgramsTestBase {
             out.collect(in._1)
           }
         }
+
+        override def clear(context: Context): Unit = {}
       })
 
     windowOperator
@@ -220,6 +222,8 @@ class SideOutputITCase extends StreamingMultipleProgramsTestBase {
             out.collect(in._1)
           }
         }
+
+        override def clear(context: Context): Unit = {}
       })
 
     windowOperator
