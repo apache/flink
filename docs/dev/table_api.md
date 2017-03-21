@@ -344,6 +344,47 @@ tableEnvironment.unregisterTable("Customers")
 </div>
 </div>
 
+Registering ExternalCatalog
+--------------------------------
+Last part introduces a way to access an external table (`TableSource`) by registering it in a `TableEnvironment`, this part introduces another way by registering an `Externalcatalog` in a `TableEnvironment`.
+`ExternalCatalog` connects external metastore which stores kinds of metadata of the tables, like schema information and statistics.
+After registration, the table in the `ExternalCatalog` can be accessed from the `TableEnvironment` by its table path.
+
+*Note: The table in `ExternalCatalog` would be added to internal table catalog in `TableEnvironment` as `TableSourceTable`.*
+
+An external table is registered in a `TableEnvironment` using a `ExternalCatalog` as follows:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+// works for StreamExecutionEnvironment identically
+ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+
+ExternalCatalog custEC = new InMemoryExternalCatalog()
+
+// register a `ExternalCatalog` as external catalog 'Customers'
+tableEnv.registerExternalCatalog("Customers", custEC)
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+// works for StreamExecutionEnvironment identically
+val env = ExecutionEnvironment.getExecutionEnvironment
+val tableEnv = TableEnvironment.getTableEnvironment(env)
+
+val custEC: ExternalCatalog = new InMemoryExternalCatalog
+
+// register a `ExternalCatalog` as external catalog 'Customers'
+tableEnv.registerExternalCatalog("Customers", custEC)
+
+{% endhighlight %}
+</div>
+</div>
+
+Currently, Flink provides the `InMemoryExternalCatalog` which is an in-memory `ExternalCatalog`, it could be used in test or develop environment instead of product environment.
+A custom readonly `ExternalCatalog` can be defined by implementing the `ExternalCatalog` interface, however the `ExternalCatalog` which is readable and writable can be defined by implementing the `CrudExternalCatalog` interface.
 
 Table API
 ----------
