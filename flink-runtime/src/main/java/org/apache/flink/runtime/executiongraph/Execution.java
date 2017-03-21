@@ -74,12 +74,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * A single execution of a vertex. While an {@link ExecutionVertex} can be executed multiple times (for recovery,
- * or other re-computation), this class tracks the state of a single execution of that vertex and the resources.
+ * A single execution of a vertex. While an {@link ExecutionVertex} can be executed multiple times
+ * (for recovery, re-computation, re-configuration), this class tracks the state of a single execution
+ * of that vertex and the resources.
  * 
- * <p>NOTE ABOUT THE DESIGN RATIONAL:
+ * <h2>Lock free state transitions</h2>
  * 
- * <p>In several points of the code, we need to deal with possible concurrent state changes and actions.
+ * In several points of the code, we need to deal with possible concurrent state changes and actions.
  * For example, while the call to deploy a task (send it to the TaskManager) happens, the task gets cancelled.
  * 
  * <p>We could lock the entire portion of the code (decision to deploy, deploy, set state to running) such that
@@ -113,6 +114,12 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	/** The unique ID marking the specific execution instant of the task */
 	private final ExecutionAttemptID attemptId;
 
+	/** Gets the global modification version of the execution graph when this execution was created.
+	 * This version is bumped in the ExecutionGraph whenever a global failover happens. It is used
+	 * to resolve conflicts between concurrent modification by global and local failover actions. */
+	private final long globalModVersion;
+
+	/** The timestamps when state transitions occurred, indexed by {@link ExecutionState#ordinal()} */ 
 	private final long[] stateTimestamps;
 
 	private final int attemptNumber;
@@ -146,10 +153,27 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 	// --------------------------------------------------------------------------------------------
 
+	/**
+	 * Creates a new Execution attempt.
+	 * 
+	 * @param executor
+	 *             The executor used to dispatch callbacks from futures and asynchronous RPC calls.
+	 * @param vertex
+	 *             The execution vertex to which this Execution belongs
+	 * @param attemptNumber
+	 *             The execution attempt number.
+	 * @param globalModVersion
+	 *             The global modification version of the execution graph when this execution was created
+	 * @param startTimestamp
+	 *             The timestamp that marks the creation of this Execution
+	 * @param timeout
+	 *             The timeout for RPC calls like deploy/cancel/stop.
+	 */
 	public Execution(
 			Executor executor,
 			ExecutionVertex vertex,
 			int attemptNumber,
+			long globalModVersion,
 			long startTimestamp,
 			Time timeout) {
 
@@ -158,6 +182,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		this.attemptId = new ExecutionAttemptID();
 		this.timeout = checkNotNull(timeout);
 
+		this.globalModVersion = globalModVersion;
 		this.attemptNumber = attemptNumber;
 
 		this.stateTimestamps = new long[ExecutionState.values().length];
@@ -188,6 +213,16 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	@Override
 	public ExecutionState getState() {
 		return state;
+	}
+
+	/**
+	 * Gets the global modification version of the execution graph when this execution was created.
+	 * 
+	 * <p>This version is bumped in the ExecutionGraph whenever a global failover happens. It is used
+	 * to resolve conflicts between concurrent modification by global and local failover actions.
+	 */
+	public long getGlobalModVersion() {
+		return globalModVersion;
 	}
 
 	public SimpleSlot getAssignedResource() {
@@ -251,6 +286,12 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	// --------------------------------------------------------------------------------------------
 	//  Actions
 	// --------------------------------------------------------------------------------------------
+
+	public boolean scheduleForExecution() {
+		SlotProvider resourceProvider = getVertex().getExecutionGraph().getSlotProvider();
+		boolean allowQueued = getVertex().getExecutionGraph().isQueuedSchedulingAllowed();
+		return scheduleForExecution(resourceProvider, allowQueued);
+	}
 
 	/**
 	 * NOTE: This method only throws exceptions if it is in an illegal state to be scheduled, or if the tasks needs
@@ -381,9 +422,6 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				taskState,
 				attemptNumber);
 
-			// register this execution at the execution graph, to receive call backs
-			vertex.getExecutionGraph().registerExecution(this);
-			
 			final TaskManagerGateway taskManagerGateway = slot.getTaskManagerGateway();
 
 			final Future<Acknowledge> submitResultFuture = taskManagerGateway.submitTask(deployment, timeout);
@@ -823,7 +861,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				if (current != FAILED) {
 					String message = String.format("Asynchronous race: Found state %s after successful cancel call.", state);
 					LOG.error(message);
-					vertex.getExecutionGraph().fail(new Exception(message));
+					vertex.getExecutionGraph().failGlobal(new Exception(message));
 				}
 				return;
 			}
@@ -1069,7 +1107,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			// make sure that the state transition completes normally.
 			// potential errors (in listeners may not affect the main logic)
 			try {
-				vertex.notifyStateTransition(attemptId, targetState, error);
+				vertex.notifyStateTransition(this, targetState, error);
 			}
 			catch (Throwable t) {
 				LOG.error("Error while notifying execution graph of execution state transition.", t);

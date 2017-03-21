@@ -72,6 +72,13 @@ public class JobManagerOptions {
 			.defaultValue(16)
 			.withDeprecatedKeys("job-manager.max-attempts-history-size");
 
+	/**
+	 * The maximum number of prior execution attempts kept in history.
+	 */
+	public static final ConfigOption<String> EXECUTION_FAILOVER_STRATEGY =
+		key("jobmanager.execution.failover-strategy")
+			.defaultValue("full");
+
 	// ------------------------------------------------------------------------
 	//  JobManager web UI
 	// ------------------------------------------------------------------------

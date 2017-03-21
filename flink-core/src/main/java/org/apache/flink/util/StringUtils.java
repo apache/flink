@@ -309,6 +309,9 @@ public final class StringUtils {
 		}
 	}
 
+	/**
+	 * Checks whether the given string is null, empty, or contains only whitespace characters.
+	 */
 	public static boolean isNullOrWhitespaceOnly(String str) {
 		if (str == null || str.length() == 0) {
 			return true;
@@ -321,6 +324,16 @@ public final class StringUtils {
 			}
 		}
 		return true;
+	}
+
+	@Nullable
+	public static String concatenateWithAnd(@Nullable String s1, @Nullable String s2) {
+		if (s1 != null) {
+			return s2 == null ? s1 : s1 + " and " + s2;
+		}
+		else {
+			return s2 != null ? s2 : null;
+		}
 	}
 
 	// ------------------------------------------------------------------------

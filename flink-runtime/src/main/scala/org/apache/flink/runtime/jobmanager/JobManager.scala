@@ -1334,7 +1334,7 @@ class JobManager(
           currentJobs.remove(jobId)
 
           if (executionGraph != null) {
-            executionGraph.fail(t)
+            executionGraph.failGlobal(t)
           }
 
           val rt: Throwable = if (t.isInstanceOf[JobExecutionException]) {
@@ -1415,7 +1415,7 @@ class JobManager(
           }
         } catch {
           case t: Throwable => try {
-            executionGraph.fail(t)
+            executionGraph.failGlobal(t)
           } catch {
             case tt: Throwable =>
               log.error("Error while marking ExecutionGraph as failed.", tt)
@@ -1826,7 +1826,7 @@ class JobManager(
         job =>
           future {
             // Fail the execution graph
-            job._1.fail(new IllegalStateException("Another JobManager removed the job from " +
+            job._1.failGlobal(new IllegalStateException("Another JobManager removed the job from " +
               "ZooKeeper."))
           }(context.dispatcher)
       )

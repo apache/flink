@@ -66,9 +66,8 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.verify;
+
 
 public class ExecutionGraphRestartTest extends TestLogger {
 
@@ -271,12 +270,12 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		assertEquals(JobStatus.RESTARTING, executionGraph.getState());
 
 		// The restarting should not fail with an ordinary exception
-		executionGraph.fail(new Exception("Test exception"));
+		executionGraph.failGlobal(new Exception("Test exception"));
 
 		assertEquals(JobStatus.RESTARTING, executionGraph.getState());
 
 		// but it should fail when sending a SuppressRestartsException
-		executionGraph.fail(new SuppressRestartsException(new Exception("Test exception")));
+		executionGraph.failGlobal(new SuppressRestartsException(new Exception("Test exception")));
 
 		assertEquals(JobStatus.FAILED, executionGraph.getState());
 
@@ -298,7 +297,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 			vertex.getCurrentExecutionAttempt().switchToRunning();
 		}
 
-		graph.fail(new Exception("test"));
+		graph.failGlobal(new Exception("test"));
 
 		assertEquals(JobStatus.FAILING, graph.getState());
 
@@ -330,7 +329,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 		assertEquals(JobStatus.CANCELLING, graph.getState());
 
-		graph.fail(new Exception("test"));
+		graph.failGlobal(new Exception("test"));
 
 		assertEquals(JobStatus.FAILING, graph.getState());
 
@@ -344,8 +343,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 	@Test
 	public void testNoRestartOnSuppressException() throws Exception {
-		Tuple2<ExecutionGraph, Instance> executionGraphInstanceTuple = createSpyExecutionGraph(new FixedDelayRestartStrategy(1, 1000));
-		ExecutionGraph eg = executionGraphInstanceTuple.f0;
+		final ExecutionGraph eg = createExecutionGraph(new FixedDelayRestartStrategy(Integer.MAX_VALUE, 0)).f0;
 
 		// Fail with unrecoverable Exception
 		eg.getAllExecutionVertices().iterator().next().fail(
@@ -357,21 +355,10 @@ public class ExecutionGraphRestartTest extends TestLogger {
 			vertex.getCurrentExecutionAttempt().cancelingComplete();
 		}
 
-		FiniteDuration timeout = new FiniteDuration(2, TimeUnit.MINUTES);
-
-		// Wait for async restart
-		Deadline deadline = timeout.fromNow();
-		while (deadline.hasTimeLeft() && eg.getState() != JobStatus.FAILED) {
-			Thread.sleep(100);
-		}
-
+		eg.waitUntilTerminal();
 		assertEquals(JobStatus.FAILED, eg.getState());
 
-		// No restart
-		verify(eg, never()).restart();
-
 		RestartStrategy restartStrategy = eg.getRestartStrategy();
-
 		assertTrue(restartStrategy instanceof FixedDelayRestartStrategy);
 
 		assertEquals(0, ((FixedDelayRestartStrategy) restartStrategy).getCurrentRestartAttempt());
@@ -443,7 +430,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 	/**
 	 * Tests that a graph is not restarted after cancellation via a call to
-	 * {@link ExecutionGraph#fail(Throwable)}. This can happen when a slot is
+	 * {@link ExecutionGraph#failGlobal(Throwable)}. This can happen when a slot is
 	 * released concurrently with cancellation.
 	 */
 	@Test
@@ -490,7 +477,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 	/**
 	 * Tests that it is possible to fail a graph via a call to
-	 * {@link ExecutionGraph#fail(Throwable)} after cancellation.
+	 * {@link ExecutionGraph#failGlobal(Throwable)} after cancellation.
 	 */
 	@Test
 	public void testFailExecutionGraphAfterCancel() throws Exception {
@@ -523,7 +510,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		eg.cancel();
 		assertEquals(JobStatus.CANCELLING, eg.getState());
 
-		eg.fail(new Exception("Test Exception"));
+		eg.failGlobal(new Exception("Test Exception"));
 		assertEquals(JobStatus.FAILING, eg.getState());
 
 		Execution execution = eg.getAllExecutionVertices().iterator().next().getCurrentExecutionAttempt();
