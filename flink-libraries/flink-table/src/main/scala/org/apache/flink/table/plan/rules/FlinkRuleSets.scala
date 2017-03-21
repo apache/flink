@@ -193,7 +193,7 @@ object FlinkRuleSets {
     */
   val DATASTREAM_DECO_RULES: RuleSet = RuleSets.ofList(
     // rules
-    // TODO: FLINK-6090 will add rules here
+
   )
 
 }

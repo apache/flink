@@ -31,18 +31,39 @@ import scala.collection.JavaConverters._
   * Builder for creating a Calcite configuration.
   */
 class CalciteConfigBuilder {
+
+  /**
+    * Defines the normalization rule set. Normalization rules are
+    * dedicated for rewriting predicated logical plan before volcano
+    * optimization and are independent of cost module.
+    */
   private var replaceNormRules: Boolean = false
   private var normRuleSets: List[RuleSet] = Nil
 
+  /**
+    * Defines the optimization rule set. Optimization rules are
+    * used during volcano optimization which is base on cost module.
+    */
   private var replaceOptRules: Boolean = false
   private var optRuleSets: List[RuleSet] = Nil
 
+  /**
+    * Defines the decoration rule set. Decoration rules are
+    * dedicated for rewriting predicated logical plan after volcano
+    * optimization and are independent of cost module.
+    */
   private var replaceDecoRules: Boolean = false
   private var decoRuleSets: List[RuleSet] = Nil
 
+  /**
+    * Defines the SQL operator tables.
+    */
   private var replaceOperatorTable: Boolean = false
   private var operatorTables: List[SqlOperatorTable] = Nil
 
+  /**
+    * Defines a SQL parser configuration.
+    */
   private var replaceSqlParserConfig: Option[SqlParser.Config] = None
 
   /**
@@ -146,7 +167,7 @@ class CalciteConfigBuilder {
   /**
     * Convert the [[RuleSet]] List to [[Option]] type
     */
-  def getRuleSet(inputRuleSet: List[RuleSet]): Option[RuleSet] = {
+  private def getRuleSet(inputRuleSet: List[RuleSet]): Option[RuleSet] = {
     inputRuleSet match {
       case Nil => None
       case h :: Nil => Some(h)

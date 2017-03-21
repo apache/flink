@@ -189,7 +189,7 @@ class CalciteConfigBuilderTest {
 
   @Test
   def testReplaceDecorationRules(): Unit = {
-    // TODO: rules will be replaced to retraction rules in FLINK-6090
+
     val cc: CalciteConfig = new CalciteConfigBuilder()
       .replaceDecoRuleSet(RuleSets.ofList(ReduceExpressionsRule.FILTER_INSTANCE))
       .build()
@@ -203,7 +203,7 @@ class CalciteConfigBuilderTest {
 
   @Test
   def testReplaceDecorationAddRules(): Unit = {
-    // TODO: rules will be replaced to retraction rules in FLINK-6090
+
     val cc: CalciteConfig = new CalciteConfigBuilder()
       .replaceDecoRuleSet(RuleSets.ofList(ReduceExpressionsRule.FILTER_INSTANCE))
       .addDecoRuleSet(RuleSets.ofList(ReduceExpressionsRule.PROJECT_INSTANCE))
@@ -219,7 +219,7 @@ class CalciteConfigBuilderTest {
 
   @Test
   def testAddDecorationRules(): Unit = {
-    // TODO: rules will be replaced to retraction rules in FLINK-6090
+
     val cc: CalciteConfig = new CalciteConfigBuilder()
       .addDecoRuleSet(RuleSets.ofList(ReduceExpressionsRule.FILTER_INSTANCE))
       .build()
@@ -233,7 +233,7 @@ class CalciteConfigBuilderTest {
 
   @Test
   def testAddAddDecorationRules(): Unit = {
-    // TODO: rules will be replaced to retraction rules in FLINK-6090
+
     val cc: CalciteConfig = new CalciteConfigBuilder()
       .addDecoRuleSet(RuleSets.ofList(ReduceExpressionsRule.FILTER_INSTANCE))
       .addDecoRuleSet(RuleSets.ofList(ReduceExpressionsRule.PROJECT_INSTANCE,
