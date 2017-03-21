@@ -226,6 +226,18 @@ object AggregateUtil {
           asLong(slide),
           returnType)
 
+      case EventTimeSlidingGroupWindow(_, _, size, slide) =>
+        // sliding count-window for partial aggregations
+        val preTumblingSize = determineLargestTumblingSize(asLong(size), asLong(slide))
+
+        new DataSetSlideCountWindowAggReduceGroupFunction(
+          aggregates,
+          groupings.length,
+          preTumblingSize,
+          asLong(size),
+          asLong(slide),
+          returnType)
+
       case _ =>
         throw new UnsupportedOperationException(s"$window is currently not supported on batch.")
     }

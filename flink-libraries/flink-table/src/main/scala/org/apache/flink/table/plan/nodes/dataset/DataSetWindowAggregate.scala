@@ -393,8 +393,28 @@ class DataSetWindowAggregate(
     } else {
       // count window
 
-      throw new UnsupportedOperationException(
-          "Count sliding group windows on event-time are currently not supported.")
+      if (groupingKeys.length <= 0) {
+        // TODO: count tumbling all window on event-time should sort all the data set
+        // on event time before applying the windowing logic.
+        throw new UnsupportedOperationException(
+          "Count tumbling non-grouping windows on event-time are currently not supported.")
+      }
+
+      // create GroupReduceFunction
+      // for pre-tumbling and replicating/omitting the content for each pane
+      val prepareReduceFunction = createDataSetSlideWindowPrepareGroupReduceFunction(
+        window,
+        namedAggregates,
+        grouping,
+        inputType,
+        isParserCaseSensitive)
+
+      mappedDataSet.asInstanceOf[DataSet[Row]]
+        .groupBy(groupingKeys: _*)
+        // sort on time field, it's the last element in the row
+        .sortGroup(mapReturnType.getArity - 1, Order.ASCENDING)
+        .reduceGroup(prepareReduceFunction) // pre-tumbles and replicates/omits
+        .name(prepareOperatorName)
     }
 
     val prepareReduceReturnType = preparedDataSet.getType

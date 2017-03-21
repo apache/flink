@@ -1274,11 +1274,159 @@ A session window is defined by using the `Session` class as follows:
 
 #### Limitations
 
-Currently the following features are not supported yet:
+The following table summarizes available windows:
 
-- Row-count windows on event-time
-- Non-grouped session windows on batch tables
-- Sliding windows on batch tables
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 15%">Batch or streaming</th>
+      <th class="text-left" style="width: 15%">Table API</th>
+      <th class="text-left" style="width: 15%">Time</th>
+      <th class="text-left" style="width: 15%">Time or count interval</th>
+      <th class="text-left" style="width: 15%">Grouped or ungrouped</th>
+      <th class="text-left" style="width: 15%">Supported?</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <tr>
+      <td>Batch</td>
+      <td>Tumble</td>
+      <td>Event-time</td>
+      <td>Count</td>
+      <td>Grouped</td>
+      <td>Yes</td>
+    </tr>
+    <tr>
+      <td>Batch</td>
+      <td>Tumble</td>
+      <td>Event-time</td>
+      <td>Count</td>
+      <td>Ungrouped</td>
+      <td>No</td>
+    </tr>
+    <tr>
+      <td>Batch</td>
+      <td>Tumble</td>
+      <td>Event-time</td>
+      <td>Time</td>
+      <td>Both</td>
+      <td>Yes</td>
+    </tr>
+    <tr>
+      <td>Batch</td>
+      <td>Tumble</td>
+      <td>Processing-time</td>
+      <td>Both</td>
+      <td>Both</td>
+      <td>No</td>
+    </tr>
+    <tr>
+      <td>Batch</td>
+      <td>Slide</td>
+      <td>Event-time</td>
+      <td>Count</td>
+      <td>Grouped</td>
+      <td>Yes</td>
+    </tr>
+    <tr>
+      <td>Batch</td>
+      <td>Slide</td>
+      <td>Event-time</td>
+      <td>Count</td>
+      <td>Ungrouped</td>
+      <td>No</td>
+    </tr>
+    <tr>
+      <td>Batch</td>
+      <td>Slide</td>
+      <td>Event-time</td>
+      <td>Time</td>
+      <td>Both</td>
+      <td>Yes</td>
+    </tr>
+    <tr>
+      <td>Batch</td>
+      <td>Slide</td>
+      <td>Processing-time</td>
+      <td>Both</td>
+      <td>Both</td>
+      <td>No</td>
+    </tr>
+    <tr>
+      <td>Batch</td>
+      <td>Session</td>
+      <td>Event-time</td>
+      <td>Time</td>
+      <td>Both</td>
+      <td>Yes</td>
+    </tr>
+    <tr>
+      <td>Batch</td>
+      <td>Session</td>
+      <td>Event-time</td>
+      <td>Count</td>
+      <td>Both</td>
+      <td>No</td>
+    </tr>
+    <tr>
+      <td>Batch</td>
+      <td>Session</td>
+      <td>Processing-time</td>
+      <td>Both</td>
+      <td>Both</td>
+      <td>No</td>
+    </tr>
+    <tr>
+      <td>Streaming</td>
+      <td>Tumble</td>
+      <td>Both</td>
+      <td>Time</td>
+      <td>Both</td>
+      <td>Yes</td>
+    </tr>
+    <tr>
+      <td>Streaming</td>
+      <td>Tumble</td>
+      <td>Both</td>
+      <td>Count</td>
+      <td>Both</td>
+      <td>No</td>
+    </tr>
+    <tr>
+      <td>Streaming</td>
+      <td>Slide</td>
+      <td>Time</td>
+      <td>Both</td>
+      <td>Both</td>
+      <td>Yes</td>
+    </tr>
+    <tr>
+      <td>Streaming</td>
+      <td>Slide</td>
+      <td>Count</td>
+      <td>Both</td>
+      <td>Both</td>
+      <td>No</td>
+    </tr>
+    <tr>
+      <td>Streaming</td>
+      <td>Session</td>
+      <td>Time</td>
+      <td>Both</td>
+      <td>Both</td>
+      <td>Yes</td>
+    </tr>
+    <tr>
+      <td>Streaming</td>
+      <td>Session</td>
+      <td>Count</td>
+      <td>Both</td>
+      <td>Both</td>
+      <td>No</td>
+    </tr>
+  </tbody>
+</table>
 
 SQL
 ----

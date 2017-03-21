@@ -354,4 +354,94 @@ class DataSetWindowAggregateITCase(
     val results = windowedTable.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
+
+  @Test
+  def testEventTimeSlidingGroupWindowOverCountOverlappingFullPane(): Unit = {
+    // please keep this test in sync with the DataStream processing-time variant
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    val table = env
+      .fromCollection(data)
+      .toTable(tEnv, 'long, 'int, 'double, 'float, 'bigdec, 'string)
+
+    val windowedTable = table
+      .window(Slide over 4.rows every 2.rows on 'long as 'w)
+      .groupBy('string, 'w)
+      .select('string, 'int.count)
+
+    val expected =
+      "Hello world,2\n" +
+      "Hello,2"
+
+    val results = windowedTable.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testEventTimeSlidingGroupWindowOverCountOverlappingSplitPane(): Unit = {
+    // please keep this test in sync with the DataStream processing-time variant
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    val table = env
+      .fromCollection(data)
+      .toTable(tEnv, 'long, 'int, 'double, 'float, 'bigdec, 'string)
+
+    val windowedTable = table
+      .window(Slide over 6.rows every 1.rows on 'long as 'w)
+      .groupBy('w, 'string)
+      .select('string, 'int.count)
+
+    val expected = "Hallo,1\n" +
+      "Hello world,1\n" +
+      "Hello world,2\n" +
+      "Hello,1\n" +
+      "Hello,2\n" +
+      "Hello,3\n" +
+      "Hi,1"
+
+    val results = windowedTable.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testEventTimeSlidingGroupWindowOverCountNonOverlappingFullPane(): Unit = {
+    // please keep this test in sync with the DataStream processing-time variant
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    val table = env
+      .fromCollection(data)
+      .toTable(tEnv, 'long, 'int, 'double, 'float, 'bigdec, 'string)
+
+    val windowedTable = table
+      .window(Slide over 2.rows every 4.rows on 'long as 'w)
+      .groupBy('string, 'w)
+      .select('string, 'int.count)
+
+    val results = windowedTable.toDataSet[Row].collect()
+    Assert.assertEquals(0, results.length)
+  }
+
+  @Test
+  def testEventTimeSlidingGroupWindowOverCountNonOverlappingSplitPane(): Unit = {
+    // please keep this test in sync with the DataStream processing-time variant
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    val table = env
+      .fromCollection(data)
+      .toTable(tEnv, 'long, 'int, 'double, 'float, 'bigdec, 'string)
+
+    val windowedTable = table
+      .window(Slide over 1.rows every 3.rows on 'long as 'w)
+      .groupBy('w, 'string)
+      .select('string, 'int.count)
+
+    val expected = "Hello,1"
+
+    val results = windowedTable.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
 }

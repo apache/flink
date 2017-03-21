@@ -213,6 +213,108 @@ class DataStreamAggregateITCase extends StreamingMultipleProgramsTestBase {
       "Hi,1,1970-01-01 00:00:00.0,1970-01-01 00:00:00.003")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
+
+  @Test
+  def testProcessingTimeSlidingGroupWindowOverCountOverlappingFullPane(): Unit = {
+    // please keep this test in sync with the DataSet event-time variant
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.testResults = mutable.MutableList()
+
+    val stream = env.fromCollection(data)
+    val table = stream.toTable(tEnv, 'long, 'int, 'double, 'float, 'bigdec, 'string)
+
+    val windowedTable = table
+      .window(Slide over 4.rows every 2.rows as 'w)
+      .groupBy('w, 'string)
+      .select('string, 'int.count)
+
+    val results = windowedTable.toDataStream[Row]
+    results.addSink(new StreamITCase.StringSink)
+    env.execute()
+
+    val expected = Seq("Hello world,2", "Hello,2")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testProcessingTimeSlidingGroupWindowOverCountOverlappingSplitPane(): Unit = {
+    // please keep this test in sync with the DataSet event-time variant
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.testResults = mutable.MutableList()
+
+    val stream = env.fromCollection(data)
+    val table = stream.toTable(tEnv, 'long, 'int, 'double, 'float, 'bigdec, 'string)
+
+    val windowedTable = table
+      .window(Slide over 6.rows every 1.rows as 'w)
+      .groupBy('w, 'string)
+      .select('string, 'int.count)
+
+    val results = windowedTable.toDataStream[Row]
+    results.addSink(new StreamITCase.StringSink)
+    env.execute()
+
+    val expected = Seq(
+      "Hallo,1",
+      "Hello world,1",
+      "Hello world,2",
+      "Hello,1",
+      "Hello,2",
+      "Hello,3",
+      "Hi,1")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testProcessingTimeSlidingGroupWindowOverCountNonOverlappingFullPane(): Unit = {
+    // please keep this test in sync with the DataSet event-time variant
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.testResults = mutable.MutableList()
+
+    val stream = env.fromCollection(data)
+    val table = stream.toTable(tEnv, 'long, 'int, 'double, 'float, 'bigdec, 'string)
+
+    val windowedTable = table
+      .window(Slide over 2.rows every 4.rows as 'w)
+      .groupBy('w, 'string)
+      .select('string, 'int.count)
+
+    val results = windowedTable.toDataStream[Row]
+    results.addSink(new StreamITCase.StringSink)
+    env.execute()
+
+    assertEquals(Seq(), StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testProcessingTimeSlidingGroupWindowOverCountNonOverlappingSplitPane(): Unit = {
+    // please keep this test in sync with the DataSet event-time variant
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.testResults = mutable.MutableList()
+
+    val stream = env.fromCollection(data)
+    val table = stream.toTable(tEnv, 'long, 'int, 'double, 'float, 'bigdec, 'string)
+
+    val windowedTable = table
+      .window(Slide over 1.rows every 3.rows as 'w)
+      .groupBy('w, 'string)
+      .select('string, 'int.count)
+
+    val results = windowedTable.toDataStream[Row]
+    results.addSink(new StreamITCase.StringSink)
+    env.execute()
+
+    val expected = Seq("Hello,1")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
 }
 
 object DataStreamAggregateITCase {
