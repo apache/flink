@@ -31,6 +31,12 @@ public class JobManagerOptions {
 	 */
 	public static final ConfigOption<Integer> MAX_ATTEMPTS_HISTORY_SIZE =
 			key("job-manager.max-attempts-history-size").defaultValue(16);
+	
+	/**
+	 * The config key for the address of the JobManager web frontend.
+ 	 */
+	public static final ConfigOption<String> JOB_MANAGER_WEB_FRONTEND_ADDRESS =
+			key("jobmanager.web.address").noDefaultValue();
 
 	private JobManagerOptions() {
 		throw new IllegalAccessError();
