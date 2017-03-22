@@ -652,11 +652,13 @@ public class NFAITCase extends TestLogger {
 
 		Event middleEvent1 = new Event(40, "a", 2.0);
 		Event middleEvent2 = new Event(41, "a", 3.0);
+		Event middleEvent3 = new Event(41, "a", 3.0);
 		Event end = new Event(42, "b", 4.0);
 
 		inputEvents.add(new StreamRecord<>(middleEvent1, 3));
 		inputEvents.add(new StreamRecord<>(middleEvent2, 4));
-		inputEvents.add(new StreamRecord<>(end, 5));
+		inputEvents.add(new StreamRecord<>(middleEvent3, 5));
+		inputEvents.add(new StreamRecord<>(end, 6));
 
 		Pattern<Event, ?> pattern = Pattern.<Event>begin("middle").where(new FilterFunction<Event>() {
 			private static final long serialVersionUID = 5726188262756267490L;
@@ -690,11 +692,14 @@ public class NFAITCase extends TestLogger {
 			}
 		}
 
-		assertEquals(4, allPatterns.size());
+		assertEquals(7, allPatterns.size());
 		assertEquals(Sets.newHashSet(
+			Sets.newHashSet(middleEvent1, middleEvent2, middleEvent3, end),
 			Sets.newHashSet(middleEvent1, middleEvent2, end),
+			Sets.newHashSet(middleEvent2, middleEvent3, end),
 			Sets.newHashSet(middleEvent1, end),
 			Sets.newHashSet(middleEvent2, end),
+			Sets.newHashSet(middleEvent3, end),
 			Sets.newHashSet(end)
 		), resultingPatterns);
 	}
@@ -1044,12 +1049,14 @@ public class NFAITCase extends TestLogger {
 	public void testBeginWithAtLeastOne() {
 		List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
-		Event middleEvent1 = new Event(41, "a", 2.0);
-		Event middleEvent2 = new Event(42, "a", 3.0);
+		Event startEvent1 = new Event(41, "a", 2.0);
+		Event startEvent2 = new Event(42, "a", 3.0);
+		Event startEvent3 = new Event(42, "a", 4.0);
 		Event end1 = new Event(44, "b", 5.0);
 
-		inputEvents.add(new StreamRecord<>(middleEvent1, 3));
-		inputEvents.add(new StreamRecord<>(middleEvent2, 4));
+		inputEvents.add(new StreamRecord<>(startEvent1, 3));
+		inputEvents.add(new StreamRecord<>(startEvent2, 4));
+		inputEvents.add(new StreamRecord<>(startEvent3, 5));
 		inputEvents.add(new StreamRecord<>(end1, 6));
 
 		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new FilterFunction<Event>() {
@@ -1059,7 +1066,7 @@ public class NFAITCase extends TestLogger {
 			public boolean filter(Event value) throws Exception {
 				return value.getName().equals("a");
 			}
-		}).oneOrMore(false).followedBy("end1").where(new FilterFunction<Event>() {
+		}).oneOrMore(false).followedBy("end").where(new FilterFunction<Event>() {
 			private static final long serialVersionUID = 5726188262756267490L;
 
 			@Override
@@ -1084,11 +1091,77 @@ public class NFAITCase extends TestLogger {
 			}
 		}
 
-		assertEquals(3, allPatterns.size());
+		assertEquals(7, allPatterns.size());
 		assertEquals(Sets.newHashSet(
-			Sets.newHashSet(middleEvent1, middleEvent2, end1),
-			Sets.newHashSet(middleEvent1, end1),
-			Sets.newHashSet(middleEvent2, end1)
+			Sets.newHashSet(startEvent1, startEvent2, startEvent3, end1),
+			Sets.newHashSet(startEvent1, startEvent2, end1),
+			Sets.newHashSet(startEvent1, startEvent3, end1),
+			Sets.newHashSet(startEvent2, startEvent3, end1),
+			Sets.newHashSet(startEvent1, end1),
+			Sets.newHashSet(startEvent2, end1),
+			Sets.newHashSet(startEvent3, end1)
+		), resultingPatterns);
+	}
+
+	@Test
+	public void testNextZeroOrMore() {
+		List<StreamRecord<Event>> inputEvents = new ArrayList<>();
+
+		Event startEvent = new Event(40, "start", 1.0);
+		Event middleEvent1 = new Event(40, "middle", 2.0);
+		Event middleEvent2 = new Event(40, "middle", 3.0);
+		Event middleEvent3 = new Event(40, "middle", 4.0);
+		Event endEvent = new Event(46, "end", 1.0);
+
+		inputEvents.add(new StreamRecord<>(startEvent, 1L));
+		inputEvents.add(new StreamRecord<>(new Event(1, "event", 1.0), 2L));
+		inputEvents.add(new StreamRecord<>(middleEvent1, 3L));
+		inputEvents.add(new StreamRecord<>(middleEvent2, 4L));
+		inputEvents.add(new StreamRecord<>(middleEvent3, 5L));
+		inputEvents.add(new StreamRecord<>(endEvent, 6L));
+
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new FilterFunction<Event>() {
+			private static final long serialVersionUID = 6215754202506583964L;
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("start");
+			}
+		}).next("middle").where(new FilterFunction<Event>() {
+			private static final long serialVersionUID = 6215754202506583964L;
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("middle");
+			}
+		}).zeroOrMore(false).followedBy("end").where(new FilterFunction<Event>() {
+			private static final long serialVersionUID = 7056763917392056548L;
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().equals("end");
+			}
+		});
+
+		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+
+		Set<Set<Event>> resultingPatterns = new HashSet<>();
+		List<Collection<Event>> allPatterns = new ArrayList<>();
+
+		for (StreamRecord<Event> inputEvent : inputEvents) {
+			Collection<Map<String, Event>> patterns = nfa.process(
+				inputEvent.getValue(),
+				inputEvent.getTimestamp()).f0;
+
+			for (Map<String, Event> foundPattern : patterns) {
+				resultingPatterns.add(new HashSet<>(foundPattern.values()));
+				allPatterns.add(foundPattern.values());
+			}
+		}
+
+		assertEquals(1, allPatterns.size());
+		assertEquals(Sets.<Set<Event>>newHashSet(
+			Sets.newHashSet(startEvent, endEvent)
 		), resultingPatterns);
 	}
 

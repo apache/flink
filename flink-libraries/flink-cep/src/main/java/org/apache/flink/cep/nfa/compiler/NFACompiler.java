@@ -220,7 +220,7 @@ public class NFACompiler {
 					loopingState = new State<>(currentPattern.getName(), State.StateType.Start);
 					beginningState = loopingState;
 				}
-				convertToLooping(loopingState, sinkState);
+				convertToLooping(loopingState, sinkState, true);
 			} else  {
 				if (currentPattern.getQuantifier() == Quantifier.TIMES && currentPattern.getTimes() > 1) {
 					final State<T> timesState = new State<>(currentPattern.getName(), State.StateType.Normal);
@@ -322,18 +322,22 @@ public class NFACompiler {
 		 * PROCEED edge to the sinkState. It also consists of a similar state without the PROCEED edge, so that
 		 * for each PROCEED transition branches in computation state graph  can be created only once.
 		 *
-		 * @param sourceState the state to converted
-		 * @param sinkState the state that the converted state should point to
+		 * <p>If this looping state is first of a graph we should treat the {@link Pattern} ass {@link FollowedByPattern} to enable
+		 * combinations on
+		 *
+		 * @param sourceState  the state to converted
+		 * @param sinkState    the state that the converted state should point to
+		 * @param isFirstState if the looping state is first of a graph
 		 */
 		@SuppressWarnings("unchecked")
-		private void convertToLooping(final State<T> sourceState, final State<T> sinkState) {
+		private void convertToLooping(final State<T> sourceState, final State<T> sinkState, boolean isFirstState) {
 
 			final FilterFunction<T> filterFunction = (FilterFunction<T>) currentPattern.getFilterFunction();
 			final FilterFunction<T> trueFunction = FilterFunctions.<T>trueFunction();
 
 			sourceState.addProceed(sinkState, trueFunction);
 			sourceState.addTake(filterFunction);
-			if (currentPattern instanceof FollowedByPattern) {
+			if (currentPattern instanceof FollowedByPattern || isFirstState) {
 				final State<T> ignoreState = new State<>(
 					currentPattern.getName(),
 					State.StateType.Normal);
@@ -351,6 +355,18 @@ public class NFACompiler {
 				ignoreState.addIgnore(ignoreState, ignoreCondition);
 				states.add(ignoreState);
 			}
+		}
+
+		/**
+		 * Converts the given state into looping one. Looping state is one with TAKE edge to itself and
+		 * PROCEED edge to the sinkState. It also consists of a similar state without the PROCEED edge, so that
+		 * for each PROCEED transition branches in computation state graph  can be created only once.
+		 *
+		 * @param sourceState the state to converted
+		 * @param sinkState   the state that the converted state should point to
+		 */
+		private void convertToLooping(final State<T> sourceState, final State<T> sinkState) {
+			convertToLooping(sourceState, sinkState, false);
 		}
 	}
 
