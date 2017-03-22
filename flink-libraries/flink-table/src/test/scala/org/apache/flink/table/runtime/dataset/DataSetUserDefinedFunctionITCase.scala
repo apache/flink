@@ -133,16 +133,6 @@ class DataSetUserDefinedFunctionITCase(
       "John#19,John,null,null\n" + "John#19,19,null,null\n" + "Anna#44,Anna,null,null\n" +
       "Anna#44,44,null,null\n"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
-
-    val func5 = new TableFunc5
-
-    val result1 = in
-      .join(func5('c) as ('name, 'lenone, 'lentwo))
-      .select('c, 'name, 'lenone, 'lentwo)
-      .toDataSet[Row]
-
-    val results1 = result1.collect()
-    TestBaseUtils.compareResultAsText(results1.asJava, expected)
   }
 
   @Test
