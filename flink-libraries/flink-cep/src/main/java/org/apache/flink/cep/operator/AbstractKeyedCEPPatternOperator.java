@@ -404,7 +404,7 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 		}
 
 		@Override
-		public boolean isCompatibleWith(TypeSerializer<?> other) {
+		public boolean canRestoreFrom(TypeSerializer<?> other) {
 			return equals(other) || other instanceof AbstractKeyedCEPPatternOperator.PriorityQueueSerializer;
 		}
 

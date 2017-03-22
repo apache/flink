@@ -44,6 +44,7 @@ import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
+import org.apache.flink.api.java.typeutils.runtime.kryo.JavaSerializer;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.OneShotLatch;
@@ -97,7 +98,6 @@ import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import com.esotericsoftware.kryo.serializers.JavaSerializer;
 import org.junit.rules.ExpectedException;
 
 
@@ -183,37 +183,36 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 	}
 
 	@Test
+	@SuppressWarnings("unchecked")
 	public void testBackendUsesRegisteredKryoDefaultSerializer() throws Exception {
 		CheckpointStreamFactory streamFactory = createStreamFactory();
 		Environment env = new DummyEnvironment("test", 1, 0);
 		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE, env);
 
 		// cast because our test serializer is not typed to TestPojo
-		env.getExecutionConfig()
-				.addDefaultKryoSerializer(TestPojo.class, (Class) ExceptionThrowingTestSerializer.class);
+		env.getExecutionConfig().addDefaultKryoSerializer(TestPojo.class, (Class) ExceptionThrowingTestSerializer.class);
 
 		TypeInformation<TestPojo> pojoType = new GenericTypeInfo<>(TestPojo.class);
 
 		// make sure that we are in fact using the KryoSerializer
 		assertTrue(pojoType.createSerializer(env.getExecutionConfig()) instanceof KryoSerializer);
 
-		pojoType.createSerializer(env.getExecutionConfig());
-
 		ValueStateDescriptor<TestPojo> kvId = new ValueStateDescriptor<>("id", pojoType);
 
 		ValueState<TestPojo> state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
 
-		// backends that eagerly serializer will fail when updating state, others will
-		// fail only when performing the snapshot
+		// we will be expecting ExpectedKryoTestException to be thrown,
+		// because the ExceptionThrowingTestSerializer should be used
 		int numExceptions = 0;
 
 		backend.setCurrentKey(1);
 
 		try {
+			// backends that eagerly serializes (such as RocksDB) will fail here
 			state.update(new TestPojo("u1", 1));
 		} catch (ExpectedKryoTestException e) {
 			numExceptions++;
-		} catch (RuntimeException e) {
+		} catch (Exception e) {
 			if (e.getCause() instanceof ExpectedKryoTestException) {
 				numExceptions++;
 			} else {
@@ -222,15 +221,23 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		}
 
 		try {
+			// backends that lazily serializes (such as memory state backend) will fail here
 			runSnapshot(backend.snapshot(682375462378L, 2, streamFactory, CheckpointOptions.forFullCheckpoint()));
 		} catch (ExpectedKryoTestException e) {
 			numExceptions++;
+		} catch (Exception e) {
+			if (e.getCause() instanceof ExpectedKryoTestException) {
+				numExceptions++;
+			} else {
+				throw e;
+			}
 		}
 
 		assertEquals("Didn't see the expected Kryo exception.", 1, numExceptions);
 	}
 
 	@Test
+	@SuppressWarnings("unchecked")
 	public void testBackendUsesRegisteredKryoDefaultSerializerUsingGetOrCreate() throws Exception {
 		CheckpointStreamFactory streamFactory = createStreamFactory();
 		Environment env = new DummyEnvironment("test", 1, 0);
@@ -250,20 +257,21 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		ValueStateDescriptor<TestPojo> kvId = new ValueStateDescriptor<>("id", pojoType);
 
 		ValueState<TestPojo> state = backend.getOrCreateKeyedState(VoidNamespaceSerializer.INSTANCE, kvId);
-		assert state instanceof InternalValueState;
+		assertTrue(state instanceof InternalValueState);
 		((InternalValueState) state).setCurrentNamespace(VoidNamespace.INSTANCE);
 
-		// backends that eagerly serializer will fail when updating state, others will
-		// fail only when performing the snapshot
+		// we will be expecting ExpectedKryoTestException to be thrown,
+		// because the ExceptionThrowingTestSerializer should be used
 		int numExceptions = 0;
 
 		backend.setCurrentKey(1);
 
 		try {
+			// backends that eagerly serializes (such as RocksDB) will fail here
 			state.update(new TestPojo("u1", 1));
 		} catch (ExpectedKryoTestException e) {
 			numExceptions++;
-		} catch (RuntimeException e) {
+		} catch (Exception e) {
 			if (e.getCause() instanceof ExpectedKryoTestException) {
 				numExceptions++;
 			} else {
@@ -272,9 +280,16 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		}
 
 		try {
+			// backends that lazily serializes (such as memory state backend) will fail here
 			runSnapshot(backend.snapshot(682375462378L, 2, streamFactory, CheckpointOptions.forFullCheckpoint()));
 		} catch (ExpectedKryoTestException e) {
 			numExceptions++;
+		} catch (Exception e) {
+			if (e.getCause() instanceof ExpectedKryoTestException) {
+				numExceptions++;
+			} else {
+				throw e;
+			}
 		}
 
 		assertEquals("Didn't see the expected Kryo exception.", 1, numExceptions);
@@ -294,23 +309,22 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		// make sure that we are in fact using the KryoSerializer
 		assertTrue(pojoType.createSerializer(env.getExecutionConfig()) instanceof KryoSerializer);
 
-		pojoType.createSerializer(env.getExecutionConfig());
-
 		ValueStateDescriptor<TestPojo> kvId = new ValueStateDescriptor<>("id", pojoType);
 
 		ValueState<TestPojo> state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
 
-		// backends that eagerly serializer will fail when updating state, others will
-		// fail only when performing the snapshot
+		// we will be expecting ExpectedKryoTestException to be thrown,
+		// because the ExceptionThrowingTestSerializer should be used
 		int numExceptions = 0;
 
 		backend.setCurrentKey(1);
 
 		try {
+			// backends that eagerly serializes (such as RocksDB) will fail here
 			state.update(new TestPojo("u1", 1));
 		} catch (ExpectedKryoTestException e) {
 			numExceptions++;
-		} catch (RuntimeException e) {
+		} catch (Exception e) {
 			if (e.getCause() instanceof ExpectedKryoTestException) {
 				numExceptions++;
 			} else {
@@ -319,47 +333,53 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		}
 
 		try {
+			// backends that lazily serializes (such as memory state backend) will fail here
 			runSnapshot(backend.snapshot(682375462378L, 2, streamFactory, CheckpointOptions.forFullCheckpoint()));
 		} catch (ExpectedKryoTestException e) {
 			numExceptions++;
+		} catch (Exception e) {
+			if (e.getCause() instanceof ExpectedKryoTestException) {
+				numExceptions++;
+			} else {
+				throw e;
+			}
 		}
 
 		assertEquals("Didn't see the expected Kryo exception.", 1, numExceptions);
 	}
 
 	@Test
+	@SuppressWarnings("unchecked")
 	public void testBackendUsesRegisteredKryoSerializerUsingGetOrCreate() throws Exception {
 		CheckpointStreamFactory streamFactory = createStreamFactory();
 		Environment env = new DummyEnvironment("test", 1, 0);
 		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE, env);
 
-		env.getExecutionConfig()
-				.registerTypeWithKryoSerializer(TestPojo.class, ExceptionThrowingTestSerializer.class);
+		env.getExecutionConfig().registerTypeWithKryoSerializer(TestPojo.class, ExceptionThrowingTestSerializer.class);
 
 		TypeInformation<TestPojo> pojoType = new GenericTypeInfo<>(TestPojo.class);
 
 		// make sure that we are in fact using the KryoSerializer
 		assertTrue(pojoType.createSerializer(env.getExecutionConfig()) instanceof KryoSerializer);
 
-		pojoType.createSerializer(env.getExecutionConfig());
-
 		ValueStateDescriptor<TestPojo> kvId = new ValueStateDescriptor<>("id", pojoType);
 
 		ValueState<TestPojo> state = backend.getOrCreateKeyedState(VoidNamespaceSerializer.INSTANCE, kvId);
-		assert state instanceof InternalValueState;
+		assertTrue(state instanceof InternalValueState);
 		((InternalValueState) state).setCurrentNamespace(VoidNamespace.INSTANCE);
 
-		// backends that eagerly serializer will fail when updating state, others will
-		// fail only when performing the snapshot
+		// we will be expecting ExpectedKryoTestException to be thrown,
+		// because the ExceptionThrowingTestSerializer should be used
 		int numExceptions = 0;
 
 		backend.setCurrentKey(1);
 
 		try {
+			// backends that eagerly serializes (such as RocksDB) will fail here
 			state.update(new TestPojo("u1", 1));
 		} catch (ExpectedKryoTestException e) {
 			numExceptions++;
-		} catch (RuntimeException e) {
+		} catch (Exception e) {
 			if (e.getCause() instanceof ExpectedKryoTestException) {
 				numExceptions++;
 			} else {
@@ -368,9 +388,16 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		}
 
 		try {
+			// backends that lazily serializes (such as memory state backend) will fail here
 			runSnapshot(backend.snapshot(682375462378L, 2, streamFactory, CheckpointOptions.forFullCheckpoint()));
 		} catch (ExpectedKryoTestException e) {
 			numExceptions++;
+		} catch (Exception e) {
+			if (e.getCause() instanceof ExpectedKryoTestException) {
+				numExceptions++;
+			} else {
+				throw e;
+			}
 		}
 
 		assertEquals("Didn't see the expected Kryo exception.", 1, numExceptions);
@@ -378,8 +405,12 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 
 	/**
-	 * Verify that we can restore a snapshot that was done with without registered types
-	 * after registering types.
+	 * Verify state restore resilience when:
+	 *  - snapshot was taken without any Kryo registrations, specific serializers or default serializers for the state type
+	 *  - restored with the state type registered (no specific serializer)
+	 *
+	 * This test should not fail, because de- / serialization of the state should noth be performed with Kryo's default
+	 * {@link com.esotericsoftware.kryo.serializers.FieldSerializer}.
 	 */
 	@Test
 	public void testKryoRegisteringRestoreResilienceWithRegisteredType() throws Exception {
@@ -392,11 +423,11 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		// make sure that we are in fact using the KryoSerializer
 		assertTrue(pojoType.createSerializer(env.getExecutionConfig()) instanceof KryoSerializer);
 
-		pojoType.createSerializer(env.getExecutionConfig());
-
 		ValueStateDescriptor<TestPojo> kvId = new ValueStateDescriptor<>("id", pojoType);
 
 		ValueState<TestPojo> state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+
+		// ============== create snapshot - no Kryo registration or specific / default serializers ==============
 
 		// make some more modifications
 		backend.setCurrentKey(1);
@@ -412,6 +443,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 				CheckpointOptions.forFullCheckpoint()));
 
 		backend.dispose();
+
+		// ====================================== restore snapshot  ======================================
 
 		env.getExecutionConfig().registerKryoType(TestPojo.class);
 		
@@ -430,10 +463,17 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 	}
 
 	/**
-	 * Verify that we can restore a snapshot that was done with without registered default
-	 * serializers after registering serializers.
+	 * Verify state restore resilience when:
+	 *  - snapshot was taken without any Kryo registrations, specific serializers or default serializers for the state type
+	 *  - restored with a default serializer for the state type
+	 *
+	 * <p> The default serializer used on restore is {@link CustomKryoTestSerializer}, which deliberately
+	 * fails only on deserialization. We use the deliberate deserialization failure to acknowledge test success.
+	 *
+	 * @throws Exception expects {@link ExpectedKryoTestException} to be thrown.
 	 */
 	@Test
+	@SuppressWarnings("unchecked")
 	public void testKryoRegisteringRestoreResilienceWithDefaultSerializer() throws Exception {
 		CheckpointStreamFactory streamFactory = createStreamFactory();
 		Environment env = new DummyEnvironment("test", 1, 0);
@@ -448,6 +488,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 		ValueState<TestPojo> state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
 
+		// ============== create snapshot - no Kryo registration or specific / default serializers ==============
+
 		// make some more modifications
 		backend.setCurrentKey(1);
 		state.update(new TestPojo("u1", 1));
@@ -463,15 +505,16 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 		backend.dispose();
 
+		// ========== restore snapshot - should use default serializer (ONLY SERIALIZATION) ==========
+
 		// cast because our test serializer is not typed to TestPojo
-		env.getExecutionConfig()
-				.addDefaultKryoSerializer(TestPojo.class, (Class) CustomKryoTestSerializer.class);
+		env.getExecutionConfig().addDefaultKryoSerializer(TestPojo.class, (Class) CustomKryoTestSerializer.class);
 
 		backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot, env);
 
 		snapshot.discardState();
 
-		// re-initialize to ensure that we create the Kryo Serializer from scratch, otherwise
+		// re-initialize to ensure that we create the KryoSerializer from scratch, otherwise
 		// initializeSerializerUnlessSet would not pick up our new config
 		kvId = new ValueStateDescriptor<>("id", pojoType);
 		state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
@@ -489,28 +532,37 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 		backend.dispose();
 
-		// cast because our test serializer is not typed to TestPojo
-		env.getExecutionConfig()
-				.addDefaultKryoSerializer(TestPojo.class, (Class) CustomKryoTestSerializer.class);
+		// ========= restore snapshot - should use default serializer (FAIL ON DESERIALIZATION) =========
 
-		// restore a second time, now we should fail since our custom serializer throws an
-		// exception when reading
+		// cast because our test serializer is not typed to TestPojo
+		env.getExecutionConfig().addDefaultKryoSerializer(TestPojo.class, (Class) CustomKryoTestSerializer.class);
+
+		// on the second restore, since the custom serializer will be used for
+		// deserialization, we expect the deliberate failure to be thrown
 		expectedException.expect(ExpectedKryoTestException.class);
+
+		// state backends that eagerly deserializes (such as the memory state backend) will fail here
 		backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot2, env);
 
 		state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
 
 		backend.setCurrentKey(1);
+		// state backends that lazily deserializes (such as RocksDB) will fail here
 		state.value();
 	}
 
-
 	/**
-	 * Verify that we can restore a snapshot that was done with without registered serializers
-	 * after registering serializers.
+	 * Verify state restore resilience when:
+	 *  - snapshot was taken without any Kryo registrations, specific serializers or default serializers for the state type
+	 *  - restored with a specific serializer for the state type
+	 *
+	 * <p> The specific serializer used on restore is {@link CustomKryoTestSerializer}, which deliberately
+	 * fails only on deserialization. We use the deliberate deserialization failure to acknowledge test success.
+	 *
+	 * @throws Exception expects {@link ExpectedKryoTestException} to be thrown.
 	 */
 	@Test
-	public void testKryoRegisteringRestoreResilienceWithCustomSerializer() throws Exception {
+	public void testKryoRegisteringRestoreResilienceWithRegisteredSerializer() throws Exception {
 		CheckpointStreamFactory streamFactory = createStreamFactory();
 		Environment env = new DummyEnvironment("test", 1, 0);
 
@@ -524,6 +576,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		ValueStateDescriptor<TestPojo> kvId = new ValueStateDescriptor<>("id", pojoType);
 		ValueState<TestPojo> state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
 
+		// ============== create snapshot - no Kryo registration or specific / default serializers ==============
+
 		// make some more modifications
 		backend.setCurrentKey(1);
 		state.update(new TestPojo("u1", 1));
@@ -539,14 +593,15 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 		backend.dispose();
 
-		env.getExecutionConfig()
-				.registerTypeWithKryoSerializer(TestPojo.class, CustomKryoTestSerializer.class);
+		// ========== restore snapshot - should use specific serializer (ONLY SERIALIZATION) ==========
+
+		env.getExecutionConfig().registerTypeWithKryoSerializer(TestPojo.class, CustomKryoTestSerializer.class);
 
 		backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot, env);
 
 		snapshot.discardState();
 
-		// re-initialize to ensure that we create the Kryo Serializer from scratch, otherwise
+		// re-initialize to ensure that we create the KryoSerializer from scratch, otherwise
 		// initializeSerializerUnlessSet would not pick up our new config
 		kvId = new ValueStateDescriptor<>("id", pojoType);
 		state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
@@ -564,19 +619,21 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 		backend.dispose();
 
-		env.getExecutionConfig()
-				.registerTypeWithKryoSerializer(TestPojo.class, CustomKryoTestSerializer.class);
+		// ========= restore snapshot - should use specific serializer (FAIL ON DESERIALIZATION) =========
 
-		// restore a second time, now we should fail since our custom serializer throws an
-		// exception when reading
+		env.getExecutionConfig().registerTypeWithKryoSerializer(TestPojo.class, CustomKryoTestSerializer.class);
+
+		// on the second restore, since the custom serializer will be used for
+		// deserialization, we expect the deliberate failure to be thrown
 		expectedException.expect(ExpectedKryoTestException.class);
+
+		// state backends that eagerly deserializes (such as the memory state backend) will fail here
 		backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot2, env);
 
 		state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
 
 		backend.setCurrentKey(1);
-
-		// lazy state backends will only deserialize at this point
+		// state backends that lazily deserializes (such as RocksDB) will fail here
 		state.value();
 	}
 
