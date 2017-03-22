@@ -131,6 +131,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 
 	public ResourceManager(
 			RpcService rpcService,
+			String resourceManagerEndpointId,
 			ResourceID resourceId,
 			ResourceManagerConfiguration resourceManagerConfiguration,
 			HighAvailabilityServices highAvailabilityServices,
@@ -140,7 +141,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 			JobLeaderIdService jobLeaderIdService,
 			FatalErrorHandler fatalErrorHandler) {
 
-		super(rpcService);
+		super(rpcService, resourceManagerEndpointId);
 
 		this.resourceId = checkNotNull(resourceId);
 		this.resourceManagerConfiguration = checkNotNull(resourceManagerConfiguration);
@@ -161,6 +162,8 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		this.leaderSessionId = null;
 		infoMessageListeners = new ConcurrentHashMap<>(8);
 	}
+
+
 
 	// ------------------------------------------------------------------------
 	//  RPC lifecycle methods

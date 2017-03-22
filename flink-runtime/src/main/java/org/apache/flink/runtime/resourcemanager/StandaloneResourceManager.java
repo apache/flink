@@ -39,6 +39,7 @@ public class StandaloneResourceManager extends ResourceManager<ResourceID> {
 
 	public StandaloneResourceManager(
 			RpcService rpcService,
+			String resourceManagerEndpointId,
 			ResourceID resourceId,
 			ResourceManagerConfiguration resourceManagerConfiguration,
 			HighAvailabilityServices highAvailabilityServices,
@@ -49,6 +50,7 @@ public class StandaloneResourceManager extends ResourceManager<ResourceID> {
 			FatalErrorHandler fatalErrorHandler) {
 		super(
 			rpcService,
+			resourceManagerEndpointId,
 			resourceId,
 			resourceManagerConfiguration,
 			highAvailabilityServices,

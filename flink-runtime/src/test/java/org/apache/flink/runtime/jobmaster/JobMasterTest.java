@@ -92,10 +92,10 @@ public class JobMasterTest extends TestLogger {
 
 		try {
 			final JobMaster jobMaster = new JobMaster(
+				rpc,
 				jmResourceId,
 				jobGraph,
 				new Configuration(),
-				rpc,
 				haServices,
 				heartbeatServices,
 				Executors.newScheduledThreadPool(1),

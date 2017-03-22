@@ -26,6 +26,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
@@ -524,6 +525,7 @@ public class MiniCluster {
 
 			resourceManagerRunners[i] = new ResourceManagerRunner(
 				ResourceID.generate(),
+				FlinkResourceManager.RESOURCE_MANAGER_NAME + '_' + i,
 				configuration,
 				resourceManagerRpcServices[i],
 				haServices,

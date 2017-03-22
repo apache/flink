@@ -19,6 +19,7 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -237,7 +238,9 @@ public class SlotProtocolTest extends TestLogger {
 
 		ResourceManager<ResourceID> resourceManager =
 			Mockito.spy(new StandaloneResourceManager(
-				testRpcService, rmResourceId,
+				testRpcService,
+				FlinkResourceManager.RESOURCE_MANAGER_NAME,
+				rmResourceId,
 				resourceManagerConfiguration,
 				testingHaServices,
 				heartbeatServices,
@@ -324,7 +327,9 @@ public class SlotProtocolTest extends TestLogger {
 				JobLeaderIdService jobLeaderIdService,
 				FatalErrorHandler fatalErrorHandler) {
 			super(
-				rpcService, resourceId,
+				rpcService,
+				FlinkResourceManager.RESOURCE_MANAGER_NAME,
+				resourceId,
 				resourceManagerConfiguration,
 				highAvailabilityServices,
 				heartbeatServices,
