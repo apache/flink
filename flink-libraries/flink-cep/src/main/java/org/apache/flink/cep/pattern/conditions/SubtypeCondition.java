@@ -16,27 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.cep.pattern;
-
-import org.apache.flink.api.common.functions.FilterFunction;
+package org.apache.flink.cep.pattern.conditions;
 
 /**
- * A filter function which negates filter function.
+ * A {@link IterativeCondition condition} which filters elements of the given type.
+ * An element is filtered out iff it is not assignable to the given subtype of {@code T}.
  *
- * @param <T> Type of the element to filter
+ * @param <T> Type of the elements to be filtered
  */
-public class NotFilterFunction<T> implements FilterFunction<T> {
-	private static final long serialVersionUID = -2109562093871155005L;
+public class SubtypeCondition<T> extends SimpleCondition<T> {
+	private static final long serialVersionUID = -2990017519957561355L;
 
-	private final FilterFunction<T> original;
+	/** The subtype to filter for. */
+	private final Class<? extends T> subtype;
 
-	public NotFilterFunction(final FilterFunction<T> original) {
-		this.original = original;
+	public SubtypeCondition(final Class<? extends T> subtype) {
+		this.subtype = subtype;
 	}
 
 	@Override
 	public boolean filter(T value) throws Exception {
-		return !original.filter(value);
+		return subtype.isAssignableFrom(value.getClass());
 	}
-
 }

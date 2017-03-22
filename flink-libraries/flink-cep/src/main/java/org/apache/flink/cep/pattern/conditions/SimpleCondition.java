@@ -16,32 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.cep.pattern;
+package org.apache.flink.cep.pattern.conditions;
 
 import org.apache.flink.api.common.functions.FilterFunction;
 
 /**
- * @deprecated This is only used when migrating from an older Flink version.
- * Use the {@link org.apache.flink.cep.pattern.conditions.SubtypeCondition} instead.
+ *  A user-defined condition that decides if an element should be accepted in the pattern or not.
+ * Accepting an element also signals a state transition for the corresponding {@link org.apache.flink.cep.nfa.NFA}.
  *
- * <p>A filter function which filters elements of the given type. A element if filtered out iff it
- * is not assignable to the given subtype of T.
- *
- * @param <T> Type of the elements to be filtered
+ * <p>Contrary to the {@link IterativeCondition}, conditions that extend this class do not have access to the
+ * previously accepted elements in the pattern. Conditions that extend this class are simple {@code filter(...)}
+ * functions that decide based on the properties of the element at hand.
  */
-@Deprecated
-public class SubtypeFilterFunction<T> implements FilterFunction<T> {
-	private static final long serialVersionUID = -2990017519957561355L;
+public abstract class SimpleCondition<T> extends IterativeCondition<T> implements FilterFunction<T> {
 
-	// subtype to filter for
-	private final Class<? extends T> subtype;
-
-	public SubtypeFilterFunction(final Class<? extends T> subtype) {
-		this.subtype = subtype;
-	}
+	private static final long serialVersionUID = 4942618239408140245L;
 
 	@Override
-	public boolean filter(T value) throws Exception {
-		return subtype.isAssignableFrom(value.getClass());
+	public boolean filter(T value, Context<T> ctx) throws Exception {
+		return filter(value);
 	}
 }

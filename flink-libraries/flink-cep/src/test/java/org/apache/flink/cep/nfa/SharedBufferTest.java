@@ -84,11 +84,16 @@ public class SharedBufferTest extends TestLogger {
 		sharedBuffer.put("b", events[7], timestamp, "a[]", events[6], timestamp, DeweyNumber.fromString("1.1.0"));
 
 		Collection<LinkedHashMultimap<String, Event>> patterns3 = sharedBuffer.extractPatterns("b", events[7], timestamp, DeweyNumber.fromString("1.1.0"));
-		sharedBuffer.remove("b", events[7], timestamp);
+		sharedBuffer.release("b", events[7], timestamp);
 		Collection<LinkedHashMultimap<String, Event>> patterns4 = sharedBuffer.extractPatterns("b", events[7], timestamp, DeweyNumber.fromString("1.1.0"));
 		Collection<LinkedHashMultimap<String, Event>> patterns1 = sharedBuffer.extractPatterns("b", events[5], timestamp, DeweyNumber.fromString("2.0.0"));
 		Collection<LinkedHashMultimap<String, Event>> patterns2 = sharedBuffer.extractPatterns("b", events[5], timestamp, DeweyNumber.fromString("1.0.0"));
-		sharedBuffer.remove("b", events[5], timestamp);
+		sharedBuffer.release("b", events[5], timestamp);
+
+		assertEquals(1L, patterns3.size());
+		assertEquals(0L, patterns4.size());
+		assertEquals(1L, patterns1.size());
+		assertEquals(1L, patterns2.size());
 
 		assertTrue(sharedBuffer.isEmpty());
 		assertTrue(patterns4.isEmpty());

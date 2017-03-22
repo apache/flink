@@ -18,9 +18,12 @@
 
 package org.apache.flink.cep.pattern;
 
-import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.cep.nfa.NFA;
+import org.apache.flink.cep.pattern.conditions.AndCondition;
+import org.apache.flink.cep.pattern.conditions.IterativeCondition;
+import org.apache.flink.cep.pattern.conditions.OrCondition;
+import org.apache.flink.cep.pattern.conditions.SubtypeCondition;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.util.Preconditions;
 
@@ -49,7 +52,7 @@ public class Pattern<T, F extends T> {
 	private final Pattern<T, ? extends T> previous;
 
 	// filter condition for an event to be matched
-	private FilterFunction<F> filterFunction;
+	private IterativeCondition<F> condition;
 
 	// window length in which the pattern match has to occur
 	private Time windowTime;
@@ -71,8 +74,8 @@ public class Pattern<T, F extends T> {
 		return previous;
 	}
 
-	public FilterFunction<F> getFilterFunction() {
-		return filterFunction;
+	public IterativeCondition<F> getCondition() {
+		return condition;
 	}
 
 	public Time getWindowTime() {
@@ -90,36 +93,34 @@ public class Pattern<T, F extends T> {
 	/**
 	 * Specifies a filter condition which has to be fulfilled by an event in order to be matched.
 	 *
-	 * @param newFilterFunction Filter condition
+	 * @param condition Filter condition
 	 * @return The same pattern operator where the new filter condition is set
 	 */
-	public Pattern<T, F> where(FilterFunction<F> newFilterFunction) {
-		ClosureCleaner.clean(newFilterFunction, true);
+	public Pattern<T, F> where(IterativeCondition<F> condition) {
+		ClosureCleaner.clean(condition, true);
 
-		if (this.filterFunction == null) {
-			this.filterFunction = newFilterFunction;
+		if (this.condition == null) {
+			this.condition = condition;
 		} else {
-			this.filterFunction = new AndFilterFunction<F>(this.filterFunction, newFilterFunction);
+			this.condition = new AndCondition<>(this.condition, condition);
 		}
-
 		return this;
 	}
 
 	/**
 	 * Specifies a filter condition which is OR'ed with an existing filter function.
 	 *
-	 * @param orFilterFunction OR filter condition
+	 * @param condition OR filter condition
 	 * @return The same pattern operator where the new filter condition is set
 	 */
-	public Pattern<T, F> or(FilterFunction<F> orFilterFunction) {
-		ClosureCleaner.clean(orFilterFunction, true);
+	public Pattern<T, F> or(IterativeCondition<F> condition) {
+		ClosureCleaner.clean(condition, true);
 
-		if (this.filterFunction == null) {
-			this.filterFunction = orFilterFunction;
+		if (this.condition == null) {
+			this.condition = condition;
 		} else {
-			this.filterFunction = new OrFilterFunction<>(this.filterFunction, orFilterFunction);
+			this.condition = new OrCondition<>(this.condition, condition);
 		}
-
 		return this;
 	}
 
@@ -132,10 +133,11 @@ public class Pattern<T, F extends T> {
 	 * @return The same pattern operator with the new subtype constraint
 	 */
 	public <S extends F> Pattern<T, S> subtype(final Class<S> subtypeClass) {
-		if (filterFunction == null) {
-			this.filterFunction = new SubtypeFilterFunction<F>(subtypeClass);
+		if (condition == null) {
+			this.condition = new SubtypeCondition<F>(subtypeClass);
 		} else {
-			this.filterFunction = new AndFilterFunction<F>(this.filterFunction, new SubtypeFilterFunction<F>(subtypeClass));
+			this.condition = new AndCondition<>(this.condition,
+					new SubtypeCondition<F>(subtypeClass));
 		}
 
 		@SuppressWarnings("unchecked")

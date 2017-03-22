@@ -18,7 +18,6 @@
 
 package org.apache.flink.cep.operator;
 
-import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.ByteSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
@@ -29,6 +28,7 @@ import org.apache.flink.cep.SubEvent;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.cep.pattern.Pattern;
+import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -239,7 +239,7 @@ public class CEPMigration11to13Test {
 		}
 	}
 
-	private static class StartFilter implements FilterFunction<Event> {
+	private static class StartFilter extends SimpleCondition<Event> {
 		private static final long serialVersionUID = 5726188262756267490L;
 
 		@Override
@@ -248,7 +248,7 @@ public class CEPMigration11to13Test {
 		}
 	}
 
-	private static class MiddleFilter implements FilterFunction<SubEvent> {
+	private static class MiddleFilter extends SimpleCondition<SubEvent> {
 		private static final long serialVersionUID = 6215754202506583964L;
 
 		@Override
@@ -257,7 +257,7 @@ public class CEPMigration11to13Test {
 		}
 	}
 
-	private static class EndFilter implements FilterFunction<Event> {
+	private static class EndFilter extends SimpleCondition<Event> {
 		private static final long serialVersionUID = 7056763917392056548L;
 
 		@Override

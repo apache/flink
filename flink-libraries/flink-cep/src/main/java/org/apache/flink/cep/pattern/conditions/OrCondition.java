@@ -16,41 +16,42 @@
  * limitations under the License.
  */
 
-package org.apache.flink.cep.pattern;
-
-import org.apache.flink.api.common.functions.FilterFunction;
+package org.apache.flink.cep.pattern.conditions;
 
 /**
- * @deprecated This is only used when migrating from an older Flink version.
- * Use the {@link org.apache.flink.cep.pattern.conditions.OrCondition} instead.
- *
- * <p>A filter function which combines two filter functions with a logical or. Thus, the filter
- * function only returns true, iff at least one of the filter functions holds true.
+ * A {@link IterativeCondition condition} which combines two conditions with a logical
+ * {@code OR} and returns {@code true} if at least one is {@code true}.
  *
  * @param <T> Type of the element to filter
  */
-@Deprecated
-public class OrFilterFunction<T> implements FilterFunction<T> {
-	private static final long serialVersionUID = -2109562093871155005L;
+public class OrCondition<T> extends IterativeCondition<T> {
 
-	private final FilterFunction<T> left;
-	private final FilterFunction<T> right;
+	private static final long serialVersionUID = 2554610954278485106L;
 
-	public OrFilterFunction(final FilterFunction<T> left, final FilterFunction<T> right) {
+	private final IterativeCondition<T> left;
+	private final IterativeCondition<T> right;
+
+	public OrCondition(final IterativeCondition<T> left, final IterativeCondition<T> right) {
 		this.left = left;
 		this.right = right;
 	}
 
 	@Override
-	public boolean filter(T value) throws Exception {
-		return left.filter(value) || right.filter(value);
+	public boolean filter(T value, Context<T> ctx) throws Exception {
+		return left.filter(value, ctx) || right.filter(value, ctx);
 	}
 
-	public FilterFunction<T> getLeft() {
+	/**
+	 * @return One of the {@link IterativeCondition conditions} combined in this condition.
+	 */
+	public IterativeCondition<T> getLeft() {
 		return left;
 	}
 
-	public FilterFunction<T> getRight() {
+	/**
+	 * @return One of the {@link IterativeCondition conditions} combined in this condition.
+	 */
+	public IterativeCondition<T> getRight() {
 		return right;
 	}
 }

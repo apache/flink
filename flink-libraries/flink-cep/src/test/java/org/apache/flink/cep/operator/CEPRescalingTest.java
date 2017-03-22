@@ -19,7 +19,6 @@
 package org.apache.flink.cep.operator;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.cep.Event;
@@ -27,6 +26,7 @@ import org.apache.flink.cep.SubEvent;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.cep.pattern.Pattern;
+import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.time.Time;
@@ -371,7 +371,7 @@ public class CEPRescalingTest {
 		@Override
 		public NFA<Event> createNFA() {
 
-			Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new FilterFunction<Event>() {
+			Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
 				private static final long serialVersionUID = 5726188262756267490L;
 
 				@Override
@@ -379,7 +379,7 @@ public class CEPRescalingTest {
 					return value.getName().equals("start");
 				}
 			})
-				.followedBy("middle").subtype(SubEvent.class).where(new FilterFunction<SubEvent>() {
+				.followedBy("middle").subtype(SubEvent.class).where(new SimpleCondition<SubEvent>() {
 					private static final long serialVersionUID = 6215754202506583964L;
 
 					@Override
@@ -387,7 +387,7 @@ public class CEPRescalingTest {
 						return value.getVolume() > 5.0;
 					}
 				})
-				.followedBy("end").where(new FilterFunction<Event>() {
+				.followedBy("end").where(new SimpleCondition<Event>() {
 					private static final long serialVersionUID = 7056763917392056548L;
 
 					@Override

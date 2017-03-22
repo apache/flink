@@ -124,13 +124,70 @@ val start : Pattern[Event, _] = Pattern.begin("start")
 </div>
 </div>
 
-Each state must have an unique name to identify the matched events later on.
+Each state must have a unique name to identify the matched events later on.
 Additionally, we can specify a filter condition for the event to be accepted as the start event via the `where` method.
+These filtering conditions can be either an `IterativeCondition` or a `SimpleCondition`. 
+
+**Iterative Conditions:** This type of conditions can iterate over the previously accepted elements in the pattern and 
+decide to accept a new element or not, based on some statistic over those elements. 
+
+Below is the code for an iterative condition that accepts elements whose name start with "foo" and for which, the sum 
+of the prices of the previously accepted elements for a state named "middle", plus the price of the current event, do 
+not exceed the value of 5.0. Iterative condition can be very powerful, especially in combination with quantifiers, e.g.
+`oneToMany` or `zeroToMany`.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-start.where(new FilterFunction<Event>() {
+start.where(new IterativeCondition<SubEvent>() {
+    @Override
+    public boolean filter(SubEvent value, Context<SubEvent> ctx) throws Exception {
+        if (!value.getName().startsWith("foo")) {
+            return false;
+        }
+        
+        double sum = 0.0;
+        for (Event event : ctx.getEventsForPattern("middle")) {
+            sum += event.getPrice();
+        }
+        sum += value.getPrice();
+        return Double.compare(sum, 5.0) < 0;
+    }
+});
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+start.where(
+    (value, ctx) => {
+        var res = value.getName.startsWith("foo")
+        if (res) {
+            var sum = 0.0
+            for (e: Event <- ctx.getEventsForPattern("middle")) {
+                sum += e.getPrice
+            }
+            sum += value.getPrice
+            res = res && sum < 5.0
+        }
+        res
+    }
+)
+{% endhighlight %}
+</div>
+</div>
+
+<span class="label label-danger">Attention</span> The call to `Context.getEventsForPattern(...)` has to find the 
+elements that belong to the pattern. The cost of this operation can vary, so when implementing your condition, try 
+to minimize the times the method is called.
+
+**Simple Conditions:** This type of conditions extend the aforementioned `IterativeCondition` class. They are simple 
+filtering conditions that decide to accept an element or not, based only on properties of the element itself.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+start.where(new SimpleCondition<Event>() {
     @Override
     public boolean filter(Event value) {
         return ... // some condition
@@ -151,7 +208,7 @@ We can also restrict the type of the accepted event to some subtype of the initi
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-start.subtype(SubEvent.class).where(new FilterFunction<SubEvent>() {
+start.subtype(SubEvent.class).where(new SimpleCondition<SubEvent>() {
     @Override
     public boolean filter(SubEvent value) {
         return ... // some condition
@@ -168,7 +225,7 @@ start.subtype(classOf[SubEvent]).where(subEvent => ... /* some condition */)
 </div>
 
 As it can be seen here, the subtype condition can also be combined with an additional filter condition on the subtype.
-In fact you can always provide multiple conditions by calling `where` and `subtype` multiple times.
+In fact, you can always provide multiple conditions by calling `where` and `subtype` multiple times.
 These conditions will then be combined using the logical AND operator.
 
 In order to construct or conditions, one has to call the `or` method with a respective filter function.
@@ -177,12 +234,12 @@ Any existing filter function is then ORed with the given one.
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-pattern.where(new FilterFunction<Event>() {
+pattern.where(new SimpleCondition<Event>() {
     @Override
     public boolean filter(Event value) {
         return ... // some condition
     }
-}).or(new FilterFunction<Event>() {
+}).or(new SimpleCondition<Event>() {
     @Override
     public boolean filter(Event value) {
         return ... // or condition
@@ -201,8 +258,8 @@ pattern.where(event => ... /* some condition */).or(event => ... /* or condition
 Next, we can append further states to detect complex patterns.
 We can control the contiguity of two succeeding events to be accepted by the pattern.
 
-Strict contiguity means that two matching events have to succeed directly.
-This means that no other events can occur in between.
+Strict contiguity means that two matching events have to be directly the one after the other.
+This means that no other events can occur in between. 
 A strict contiguity pattern state can be created via the `next` method.
 
 <div class="codetabs" markdown="1">
@@ -236,7 +293,8 @@ val nonStrictNext : Pattern[Event, _] = start.followedBy("middle")
 </div>
 </div>
 It is also possible to define a temporal constraint for the pattern to be valid.
-For example, one can define that a pattern should occur within 10 seconds via the `within` method.
+For example, one can define that a pattern should occur within 10 seconds via the `within` method. 
+Temporal patterns are supported for both [processing and event time]({{site.baseurl}}/dev/event_time.html).
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -294,11 +352,11 @@ Pattern<Event, ?> followedBy = start.followedBy("next");
         <tr>
             <td><strong>Where</strong></td>
             <td>
-                <p>Defines a filter condition for the current pattern state. Only if an event passes the filter, it can match the state:</p>
+                <p>Defines a condition for the current pattern state. Only if an event satisifes the condition, it can match the state:</p>
 {% highlight java %}
-patternState.where(new FilterFunction<Event>() {
+patternState.where(new IterativeCondition<Event>() {
     @Override
-    public boolean filter(Event value) throws Exception {
+    public boolean filter(Event value, Context ctx) throws Exception {
         return ... // some condition
     }
 });
@@ -310,14 +368,14 @@ patternState.where(new FilterFunction<Event>() {
             <td>
                 <p>Adds a new filter condition which is ORed with an existing filter condition. Only if an event passes the filter condition, it can match the state:</p>
 {% highlight java %}
-patternState.where(new FilterFunction<Event>() {
+patternState.where(new IterativeCondition<Event>() {
     @Override
-    public boolean filter(Event value) throws Exception {
+    public boolean filter(Event value, Context ctx) throws Exception {
         return ... // some condition
     }
-}).or(new FilterFunction<Event>() {
+}).or(new IterativeCondition<Event>() {
     @Override
-    public boolean filter(Event value) throws Exception {
+    public boolean filter(Event value, Context ctx) throws Exception {
         return ... // alternative condition
     }
 });
@@ -684,12 +742,12 @@ DataStream<Event> partitionedInput = input.keyBy(new KeySelector<Event, Integer>
 });
 
 Pattern<Event, ?> pattern = Pattern.<Event>begin("start")
-	.next("middle").where(new FilterFunction<Event>() {
+	.next("middle").where(new SimpleCondition<Event>() {
 		@Override
 		public boolean filter(Event value) throws Exception {
 			return value.getName().equals("error");
 		}
-	}).followedBy("end").where(new FilterFunction<Event>() {
+	}).followedBy("end").where(new SimpleCondition<Event>() {
 		@Override
 		public boolean filter(Event value) throws Exception {
 			return value.getName().equals("critical");

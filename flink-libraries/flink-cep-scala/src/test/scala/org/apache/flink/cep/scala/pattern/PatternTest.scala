@@ -17,12 +17,13 @@
  */
 package org.apache.flink.cep.scala.pattern
 
-import org.apache.flink.api.common.functions.FilterFunction
-import org.apache.flink.cep.pattern.{AndFilterFunction, SubtypeFilterFunction, Pattern => JPattern}
+import org.apache.flink.cep.pattern.{Pattern => JPattern}
 import org.junit.Assert._
 import org.junit.Test
 import org.apache.flink.cep.Event
 import org.apache.flink.cep.SubEvent
+import org.apache.flink.cep.pattern.conditions.IterativeCondition.Context
+import org.apache.flink.cep.pattern.conditions._
 
 class PatternTest {
 
@@ -80,19 +81,19 @@ class PatternTest {
   def testStrictContiguityWithCondition: Unit = {
     val pattern = Pattern.begin[Event]("start")
       .next("next")
-      .where((value: Event) => value.getName() == "foobar")
+      .where((value: Event, ctx: Context[Event]) => value.getName() == "foobar")
       .next("end")
-      .where((value: Event) => value.getId() == 42)
+      .where((value: Event, ctx: Context[Event]) => value.getId() == 42)
 
     val jPattern = JPattern.begin[Event]("start")
       .next("next")
-      .where(new FilterFunction[Event]() {
+      .where(new SimpleCondition[Event]() {
         @throws[Exception]
         def filter(value: Event): Boolean = {
           return value.getName() == "foobar"
         }
       }).next("end")
-      .where(new FilterFunction[Event]() {
+      .where(new SimpleCondition[Event]() {
         @throws[Exception]
         def filter(value: Event): Boolean = {
           return value.getId() == 42
@@ -109,9 +110,9 @@ class PatternTest {
     assertTrue(previous.getPrevious.isDefined)
     assertFalse(preprevious.getPrevious.isDefined)
 
-    assertTrue(pattern.getFilterFunction.isDefined)
-    assertTrue(previous.getFilterFunction.isDefined)
-    assertFalse(preprevious.getFilterFunction.isDefined)
+    assertTrue(pattern.getCondition.isDefined)
+    assertTrue(previous.getCondition.isDefined)
+    assertFalse(preprevious.getCondition.isDefined)
 
     assertEquals(pattern.getName, "end")
     assertEquals(previous.getName, "next")
@@ -140,8 +141,8 @@ class PatternTest {
     assertTrue(previous.getPrevious.isDefined)
     assertFalse(preprevious.getPrevious.isDefined)
 
-    assertTrue(previous.getFilterFunction.isDefined)
-    assertTrue(previous.getFilterFunction.get.isInstanceOf[SubtypeFilterFunction[_]])
+    assertTrue(previous.getCondition.isDefined)
+    assertTrue(previous.getCondition.get.isInstanceOf[SubtypeCondition[_]])
 
     assertEquals(pattern.getName, "end")
     assertEquals(previous.getName, "subevent")
@@ -159,7 +160,7 @@ class PatternTest {
     val jpattern = JPattern.begin[Event]("start")
       .next("subevent")
       .subtype(classOf[SubEvent])
-      .where(new FilterFunction[SubEvent]() {
+      .where(new SimpleCondition[SubEvent]() {
         @throws[Exception]
         def filter(value: SubEvent): Boolean = {
           return false
@@ -178,7 +179,7 @@ class PatternTest {
     assertFalse(preprevious.getPrevious.isDefined)
 
     assertTrue(pattern.isInstanceOf[FollowedByPattern[_, _]])
-    assertTrue(previous.getFilterFunction.isDefined)
+    assertTrue(previous.getCondition().isDefined)
 
     assertEquals(pattern.getName, "end")
     assertEquals(previous.getName, "subevent")
@@ -206,8 +207,8 @@ class PatternTest {
       jPattern.getClass().getSimpleName())
       //best effort to confirm congruent filter functions
       && compareFilterFunctions(
-      pattern.getFilterFunction.orNull,
-      jPattern.getFilterFunction())
+      pattern.getCondition().orNull,
+      jPattern.getCondition())
       //recursively check previous patterns
       && checkCongruentRepresentations(
       pattern.getPrevious.orNull,
@@ -218,7 +219,8 @@ class PatternTest {
     a == b && b == c
   }
 
-  def compareFilterFunctions(sFilter: FilterFunction[_], jFilter: FilterFunction[_]): Boolean = {
+  def compareFilterFunctions(sFilter: IterativeCondition[_],
+                             jFilter: IterativeCondition[_]): Boolean = {
     /**
       * We would like to simply compare the filter functions like this:
       *
@@ -230,16 +232,16 @@ class PatternTest {
       */
     (sFilter, jFilter) match {
       //matching types: and-filter; branch and recurse for inner filters
-      case (saf: AndFilterFunction[_], jaf: AndFilterFunction[_])
+      case (saf: AndCondition[_], jaf: AndCondition[_])
       => (compareFilterFunctions(saf.getLeft(), jaf.getLeft())
         && compareFilterFunctions(saf.getRight(), jaf.getRight()))
       //matching types: subtype-filter
-      case (saf: SubtypeFilterFunction[_], jaf: SubtypeFilterFunction[_]) => true
+      case (saf: SubtypeCondition[_], jaf: SubtypeCondition[_]) => true
       //mismatch: one-sided and/subtype-filter
-      case (_: AndFilterFunction[_] | _: SubtypeFilterFunction[_], _) => false
-      case (_, _: AndFilterFunction[_] | _: SubtypeFilterFunction[_]) => false
+      case (_: AndCondition[_] | _: SubtypeCondition[_], _) => false
+      case (_, _: AndCondition[_] | _: SubtypeCondition[_]) => false
       //from here we can only check mutual presence or absence of a function
-      case (s: FilterFunction[_], j: FilterFunction[_]) => true
+      case (s: IterativeCondition[_], j: IterativeCondition[_]) => true
       case (null, null) => true
       case _ => false
     }

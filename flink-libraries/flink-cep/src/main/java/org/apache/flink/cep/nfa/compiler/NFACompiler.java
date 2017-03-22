@@ -21,19 +21,19 @@ package org.apache.flink.cep.nfa.compiler;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterators;
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.State;
 import org.apache.flink.cep.nfa.StateTransition;
 import org.apache.flink.cep.nfa.StateTransitionAction;
-import org.apache.flink.cep.pattern.FilterFunctions;
+import org.apache.flink.cep.pattern.conditions.BooleanConditions;
 import org.apache.flink.cep.pattern.FollowedByPattern;
 import org.apache.flink.cep.pattern.MalformedPatternException;
-import org.apache.flink.cep.pattern.NotFilterFunction;
+import org.apache.flink.cep.pattern.conditions.NotCondition;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.Quantifier;
 import org.apache.flink.cep.pattern.Quantifier.QuantifierProperty;
+import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.streaming.api.windowing.time.Time;
 
 import javax.annotation.Nullable;
@@ -240,7 +240,7 @@ public class NFACompiler {
 
 		/**
 		 * Converts the given state into a "complex" state consisting of given number of states with
-		 * same {@link FilterFunction}
+		 * same {@link IterativeCondition}
 		 *
 		 * @param sourceState the state to be converted
 		 * @param sinkState the state that the converted state should point to
@@ -271,8 +271,9 @@ public class NFACompiler {
 		@SuppressWarnings("unchecked")
 		private void convertToSingletonState(final State<T> sourceState, final State<T> sinkState) {
 
-			final FilterFunction<T> currentFilterFunction = (FilterFunction<T>) currentPattern.getFilterFunction();
-			final FilterFunction<T> trueFunction = FilterFunctions.trueFunction();
+			final IterativeCondition<T> currentFilterFunction = (IterativeCondition<T>) currentPattern.getCondition();
+			final IterativeCondition<T> trueFunction = BooleanConditions.trueFunction();
+
 			sourceState.addTake(sinkState, currentFilterFunction);
 
 			if (currentPattern.getQuantifier() == Quantifier.OPTIONAL) {
@@ -303,16 +304,13 @@ public class NFACompiler {
 		@SuppressWarnings("unchecked")
 		private State<T> createFirstMandatoryStateOfLoop(final State<T> sinkState, final State.StateType stateType) {
 
-			final FilterFunction<T> currentFilterFunction = (FilterFunction<T>) currentPattern.getFilterFunction();
+			final IterativeCondition<T> currentFilterFunction = (IterativeCondition<T>) currentPattern.getCondition();
 			final State<T> firstState = new State<>(currentPattern.getName(), stateType);
 
 			firstState.addTake(sinkState, currentFilterFunction);
 			if (currentPattern instanceof FollowedByPattern) {
-				if (currentPattern.getQuantifier().hasProperty(QuantifierProperty.EAGER)) {
-					firstState.addIgnore(new NotFilterFunction<>(currentFilterFunction));
-				} else {
-					firstState.addIgnore(FilterFunctions.<T>trueFunction());
-				}
+				final IterativeCondition<T> ignoreCondition = getIgnoreCondition(currentPattern);
+				firstState.addIgnore(ignoreCondition);
 			}
 			return firstState;
 		}
@@ -332,8 +330,8 @@ public class NFACompiler {
 		@SuppressWarnings("unchecked")
 		private void convertToLooping(final State<T> sourceState, final State<T> sinkState, boolean isFirstState) {
 
-			final FilterFunction<T> filterFunction = (FilterFunction<T>) currentPattern.getFilterFunction();
-			final FilterFunction<T> trueFunction = FilterFunctions.<T>trueFunction();
+			final IterativeCondition<T> filterFunction = (IterativeCondition<T>) currentPattern.getCondition();
+			final IterativeCondition<T> trueFunction = BooleanConditions.<T>trueFunction();
 
 			sourceState.addProceed(sinkState, trueFunction);
 			sourceState.addTake(filterFunction);
@@ -342,13 +340,7 @@ public class NFACompiler {
 					currentPattern.getName(),
 					State.StateType.Normal);
 
-
-				final FilterFunction<T> ignoreCondition;
-				if (currentPattern.getQuantifier().hasProperty(QuantifierProperty.EAGER)) {
-					ignoreCondition = new NotFilterFunction<>(filterFunction);
-				} else {
-					ignoreCondition = trueFunction;
-				}
+				final IterativeCondition<T> ignoreCondition = getIgnoreCondition(currentPattern);
 
 				sourceState.addIgnore(ignoreState, ignoreCondition);
 				ignoreState.addTake(sourceState, filterFunction);
@@ -367,6 +359,19 @@ public class NFACompiler {
 		 */
 		private void convertToLooping(final State<T> sourceState, final State<T> sinkState) {
 			convertToLooping(sourceState, sinkState, false);
+		}
+
+		/**
+		 * @return The {@link IterativeCondition condition} for the {@code IGNORE} edge
+		 * that corresponds to the specified {@link Pattern}. If the pattern is
+		 * {@link QuantifierProperty#EAGER}, the negated user-specified condition is
+		 * returned. In other case, a condition that always evaluated to {@code true} is
+		 * returned.
+		 */
+		private IterativeCondition<T> getIgnoreCondition(Pattern<T, ?> pattern) {
+			return pattern.getQuantifier().hasProperty(QuantifierProperty.EAGER)
+					? new NotCondition<>((IterativeCondition<T>) pattern.getCondition())
+					: BooleanConditions.<T>trueFunction();
 		}
 	}
 

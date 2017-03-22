@@ -18,11 +18,11 @@
 
 package org.apache.flink.cep;
 
-import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.cep.pattern.Pattern;
+import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -81,7 +81,7 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 			new Event(8, "end", 1.0)
 		);
 
-		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new FilterFunction<Event>() {
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
 
 			@Override
 			public boolean filter(Event value) throws Exception {
@@ -89,7 +89,7 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 			}
 		})
 		.followedBy("middle").subtype(SubEvent.class).where(
-				new FilterFunction<SubEvent>() {
+				new SimpleCondition<SubEvent>() {
 
 					@Override
 					public boolean filter(SubEvent value) throws Exception {
@@ -97,7 +97,7 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 					}
 				}
 			)
-		.followedBy("end").where(new FilterFunction<Event>() {
+		.followedBy("end").where(new SimpleCondition<Event>() {
 
 			@Override
 			public boolean filter(Event value) throws Exception {
@@ -156,7 +156,7 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 			}
 		});
 
-		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new FilterFunction<Event>() {
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
 
 			@Override
 			public boolean filter(Event value) throws Exception {
@@ -164,7 +164,7 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 			}
 		})
 			.followedBy("middle").subtype(SubEvent.class).where(
-				new FilterFunction<SubEvent>() {
+				new SimpleCondition<SubEvent>() {
 
 					@Override
 					public boolean filter(SubEvent value) throws Exception {
@@ -172,7 +172,7 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 					}
 				}
 			)
-			.followedBy("end").where(new FilterFunction<Event>() {
+			.followedBy("end").where(new SimpleCondition<Event>() {
 
 				@Override
 				public boolean filter(Event value) throws Exception {
@@ -236,19 +236,19 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 			}
 		});
 
-		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new FilterFunction<Event>() {
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
 
 			@Override
 			public boolean filter(Event value) throws Exception {
 				return value.getName().equals("start");
 			}
-		}).followedBy("middle").where(new FilterFunction<Event>() {
+		}).followedBy("middle").where(new SimpleCondition<Event>() {
 
 			@Override
 			public boolean filter(Event value) throws Exception {
 				return value.getName().equals("middle");
 			}
-		}).followedBy("end").where(new FilterFunction<Event>() {
+		}).followedBy("end").where(new SimpleCondition<Event>() {
 
 			@Override
 			public boolean filter(Event value) throws Exception {
@@ -325,19 +325,19 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 			}
 		});
 
-		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new FilterFunction<Event>() {
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
 
 			@Override
 			public boolean filter(Event value) throws Exception {
 				return value.getName().equals("start");
 			}
-		}).followedBy("middle").where(new FilterFunction<Event>() {
+		}).followedBy("middle").where(new SimpleCondition<Event>() {
 
 			@Override
 			public boolean filter(Event value) throws Exception {
 				return value.getName().equals("middle");
 			}
-		}).followedBy("end").where(new FilterFunction<Event>() {
+		}).followedBy("end").where(new SimpleCondition<Event>() {
 
 			@Override
 			public boolean filter(Event value) throws Exception {
@@ -378,7 +378,7 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 
 		Pattern<Tuple2<Integer, Integer>, ?> pattern =
 			Pattern.<Tuple2<Integer, Integer>>begin("start")
-				.where(new FilterFunction<Tuple2<Integer, Integer>>() {
+				.where(new SimpleCondition<Tuple2<Integer, Integer>>() {
 					@Override
 					public boolean filter(Tuple2<Integer, Integer> rec) throws Exception {
 						return rec.f1 == 1;
@@ -456,19 +456,19 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 			}
 		});
 
-		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new FilterFunction<Event>() {
+		Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
 
 			@Override
 			public boolean filter(Event value) throws Exception {
 				return value.getName().equals("start");
 			}
-		}).followedBy("middle").where(new FilterFunction<Event>() {
+		}).followedBy("middle").where(new SimpleCondition<Event>() {
 
 			@Override
 			public boolean filter(Event value) throws Exception {
 				return value.getName().equals("middle");
 			}
-		}).followedBy("end").where(new FilterFunction<Event>() {
+		}).followedBy("end").where(new SimpleCondition<Event>() {
 
 			@Override
 			public boolean filter(Event value) throws Exception {
@@ -524,26 +524,26 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 		);
 
 		Pattern<Event, ?> pattern = Pattern.<Event>begin("start")
-			.where(new FilterFunction<Event>() {
+			.where(new SimpleCondition<Event>() {
 				@Override
 				public boolean filter(Event value) throws Exception {
 					return value.getName().equals("start");
 				}
 			})
 			.followedBy("middle")
-			.where(new FilterFunction<Event>() {
+			.where(new SimpleCondition<Event>() {
 				@Override
 				public boolean filter(Event value) throws Exception {
 					return value.getPrice() == 2.0;
 				}
 			})
-			.or(new FilterFunction<Event>() {
+			.or(new SimpleCondition<Event>() {
 				@Override
 				public boolean filter(Event value) throws Exception {
 					return value.getPrice() == 5.0;
 				}
 			})
-			.followedBy("end").where(new FilterFunction<Event>() {
+			.followedBy("end").where(new SimpleCondition<Event>() {
 
 				@Override
 				public boolean filter(Event value) throws Exception {

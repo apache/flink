@@ -15,30 +15,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.cep.pattern;
 
-import org.apache.flink.api.common.functions.FilterFunction;
+package org.apache.flink.cep.pattern.conditions;
 
-public class FilterFunctions<T> {
+/**
+ * A {@link IterativeCondition condition} which negates the condition it wraps
+ * and returns {@code true} if the original condition returns {@code false}.
+ *
+ * @param <T> Type of the element to filter
+ */
+public class NotCondition<T> extends IterativeCondition<T> {
+	private static final long serialVersionUID = -2109562093871155005L;
 
-	private FilterFunctions() {
+	private final IterativeCondition<T> original;
+
+	public NotCondition(final IterativeCondition<T> original) {
+		this.original = original;
 	}
 
-	public static <T> FilterFunction<T> trueFunction()  {
-		return new FilterFunction<T>() {
-			@Override
-			public boolean filter(T value) throws Exception {
-				return true;
-			}
-		};
-	}
-
-	public static <T> FilterFunction<T> falseFunction()  {
-		return new FilterFunction<T>() {
-			@Override
-			public boolean filter(T value) throws Exception {
-				return false;
-			}
-		};
+	@Override
+	public boolean filter(T value, Context<T> ctx) throws Exception {
+		return !original.filter(value, ctx);
 	}
 }
