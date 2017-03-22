@@ -198,11 +198,14 @@ public class YarnFlinkApplicationMasterRunner extends AbstractYarnFlinkApplicati
 			haServices,
 			commonRpcService.getScheduledExecutor());
 
-		return new YarnResourceManager(config,
+		return new YarnResourceManager(
+				ResourceID.generate(),
+				config,
 				ENV,
 				commonRpcService,
 				resourceManagerConfiguration,
 				haServices,
+				heartbeatServices,
 				resourceManagerRuntimeServices.getSlotManagerFactory(),
 				metricRegistry,
 				resourceManagerRuntimeServices.getJobLeaderIdService(),
