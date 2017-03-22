@@ -288,7 +288,7 @@ class DataSetUserDefinedFunctionITCase(
     val func32 = new TableFunc3("TwoConf_")
 
     val result = in
-      .join(func30('c) as('d, 'e))
+      .join(func30('c) as ('d, 'e))
       .select('c, 'd, 'e)
       .join(func31('c) as ('f, 'g))
       .select('c, 'd, 'e, 'f, 'g)
