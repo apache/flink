@@ -46,6 +46,7 @@ public class ResourceManagerRunner implements FatalErrorHandler {
 
 	public ResourceManagerRunner(
 			final ResourceID resourceId,
+			final String resourceManagerEndpointId,
 			final Configuration configuration,
 			final RpcService rpcService,
 			final HighAvailabilityServices highAvailabilityServices,
@@ -70,6 +71,7 @@ public class ResourceManagerRunner implements FatalErrorHandler {
 
 		this.resourceManager = new StandaloneResourceManager(
 			rpcService,
+			resourceManagerEndpointId,
 			resourceId,
 			resourceManagerConfiguration,
 			highAvailabilityServices,

@@ -26,6 +26,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
+import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -199,7 +200,9 @@ public class YarnFlinkApplicationMasterRunner extends AbstractYarnFlinkApplicati
 			commonRpcService.getScheduledExecutor());
 
 		return new YarnResourceManager(
-			commonRpcService, ResourceID.generate(),
+			commonRpcService,
+			FlinkResourceManager.RESOURCE_MANAGER_NAME,
+			ResourceID.generate(),
 			config,
 			ENV,
 			resourceManagerConfiguration,

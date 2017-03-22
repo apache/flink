@@ -169,9 +169,9 @@ public class TaskExecutorTest extends TestLogger {
 
 		try {
 			final TaskExecutor taskManager = new TaskExecutor(
+				rpc,
 				tmConfig,
 				taskManagerLocation,
-				rpc,
 				mock(MemoryManager.class),
 				mock(IOManager.class),
 				mock(NetworkEnvironment.class),
@@ -275,9 +275,9 @@ public class TaskExecutorTest extends TestLogger {
 
 		try {
 			final TaskExecutor taskManager = new TaskExecutor(
+				rpc,
 				taskManagerConfiguration,
 				taskManagerLocation,
-				rpc,
 				mock(MemoryManager.class),
 				mock(IOManager.class),
 				mock(NetworkEnvironment.class),
@@ -344,9 +344,9 @@ public class TaskExecutorTest extends TestLogger {
 			final TestingFatalErrorHandler testingFatalErrorHandler = new TestingFatalErrorHandler();
 
 			TaskExecutor taskManager = new TaskExecutor(
+				rpc,
 				taskManagerServicesConfiguration,
 				taskManagerLocation,
-				rpc,
 				mock(MemoryManager.class),
 				mock(IOManager.class),
 				mock(NetworkEnvironment.class),
@@ -427,9 +427,9 @@ public class TaskExecutorTest extends TestLogger {
 			final TestingFatalErrorHandler testingFatalErrorHandler = new TestingFatalErrorHandler();
 
 			TaskExecutor taskManager = new TaskExecutor(
+				rpc,
 				taskManagerServicesConfiguration,
 				taskManagerLocation,
-				rpc,
 				mock(MemoryManager.class),
 				mock(IOManager.class),
 				mock(NetworkEnvironment.class),
@@ -559,9 +559,9 @@ public class TaskExecutorTest extends TestLogger {
 			final TestingFatalErrorHandler testingFatalErrorHandler = new TestingFatalErrorHandler();
 
 			TaskExecutor taskManager = new TaskExecutor(
+				rpc,
 				taskManagerConfiguration,
 				mock(TaskManagerLocation.class),
-				rpc,
 				mock(MemoryManager.class),
 				mock(IOManager.class),
 				networkEnvironment,
@@ -676,9 +676,9 @@ public class TaskExecutorTest extends TestLogger {
 
 		try {
 			TaskExecutor taskManager = new TaskExecutor(
+				rpc,
 				taskManagerConfiguration,
 				taskManagerLocation,
-				rpc,
 				mock(MemoryManager.class),
 				mock(IOManager.class),
 				mock(NetworkEnvironment.class),
@@ -790,9 +790,9 @@ public class TaskExecutorTest extends TestLogger {
 
 		try {
 			TaskExecutor taskManager = new TaskExecutor(
+				rpc,
 				taskManagerConfiguration,
 				taskManagerLocation,
-				rpc,
 				mock(MemoryManager.class),
 				mock(IOManager.class),
 				mock(NetworkEnvironment.class),
@@ -867,9 +867,9 @@ public class TaskExecutorTest extends TestLogger {
 			final TestingFatalErrorHandler testingFatalErrorHandler = new TestingFatalErrorHandler();
 
 			TaskExecutor taskManager = new TaskExecutor(
+				rpc,
 				taskManagerServicesConfiguration,
 				taskManagerLocation,
-				rpc,
 				mock(MemoryManager.class),
 				mock(IOManager.class),
 				mock(NetworkEnvironment.class),
@@ -1011,9 +1011,9 @@ public class TaskExecutorTest extends TestLogger {
 
 		try {
 			final TaskExecutor taskManager = new TaskExecutor(
+				rpc,
 				taskManagerConfiguration,
 				taskManagerLocation,
-				rpc,
 				mock(MemoryManager.class),
 				mock(IOManager.class),
 				mock(NetworkEnvironment.class),

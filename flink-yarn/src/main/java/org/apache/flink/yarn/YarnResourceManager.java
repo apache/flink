@@ -108,6 +108,7 @@ public class YarnResourceManager extends ResourceManager<ResourceID> implements 
 
 	public YarnResourceManager(
 			RpcService rpcService,
+			String resourceManagerEndpointId,
 			ResourceID resourceId,
 			Configuration flinkConfig,
 			Map<String, String> env,
@@ -120,6 +121,7 @@ public class YarnResourceManager extends ResourceManager<ResourceID> implements 
 			FatalErrorHandler fatalErrorHandler) {
 		super(
 			rpcService,
+			resourceManagerEndpointId,
 			resourceId,
 			resourceManagerConfiguration,
 			highAvailabilityServices,
