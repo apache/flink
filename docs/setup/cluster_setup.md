@@ -1,7 +1,7 @@
 ---
 title: "Standalone Cluster"
 nav-parent_id: deployment
-nav-pos: 2
+nav-pos: 1
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
