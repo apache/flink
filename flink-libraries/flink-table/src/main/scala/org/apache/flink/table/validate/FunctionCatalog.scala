@@ -21,7 +21,6 @@ package org.apache.flink.table.validate
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.util.{ChainedSqlOperatorTable, ListSqlOperatorTable, ReflectiveSqlOperatorTable}
 import org.apache.calcite.sql.{SqlFunction, SqlOperator, SqlOperatorTable}
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.utils.{ScalarSqlFunction, TableSqlFunction}
@@ -101,7 +100,11 @@ class FunctionCatalog {
           case _ =>
             null
         }
-        val typeInfo = function.getResultType(arguments)
+        val typeInfo = if (null != function.getResultType(arguments)) {
+          function.getResultType(arguments)
+        } else {
+          tableSqlFunction.getRowTypeInfo
+        }
         TableFunctionCall(name, function, children, typeInfo)
 
       // general expression call

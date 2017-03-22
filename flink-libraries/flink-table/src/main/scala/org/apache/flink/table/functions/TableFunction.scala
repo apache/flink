@@ -138,7 +138,8 @@ abstract class TableFunction[T] extends UserDefinedFunction {
     * method. Flink's type extraction facilities can handle basic types or
     * simple POJOs but might be wrong for more complex, custom, or composite types.
     *
-    * @param arguments
+    * @param arguments arguments of a function call (only literal arguments
+    *                  are passed, nulls for non-literal ones)
     * @return [[TypeInformation]] of result type or null if Flink should determine the type
     */
   def getResultType(arguments: java.util.List[AnyRef]): TypeInformation[T] = null
