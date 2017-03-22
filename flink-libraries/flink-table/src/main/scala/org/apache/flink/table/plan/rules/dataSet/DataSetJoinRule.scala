@@ -18,24 +18,25 @@
 
 package org.apache.flink.table.plan.rules.dataSet
 
-import org.apache.calcite.plan.{Convention, RelOptRule, RelOptRuleCall, RelTraitSet}
+import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.core.JoinRelType
-import org.apache.calcite.rel.logical.LogicalJoin
-import org.apache.flink.table.plan.nodes.dataset.{DataSetConvention, DataSetJoin}
+import org.apache.flink.table.plan.nodes.FlinkConventions
+import org.apache.flink.table.plan.nodes.dataset.DataSetJoin
+import org.apache.flink.table.plan.nodes.logical.FlinkLogicalJoin
 
 import scala.collection.JavaConversions._
 
 class DataSetJoinRule
   extends ConverterRule(
-      classOf[LogicalJoin],
-      Convention.NONE,
-      DataSetConvention.INSTANCE,
-      "DataSetJoinRule") {
+    classOf[FlinkLogicalJoin],
+    FlinkConventions.LOGICAL,
+    FlinkConventions.DATASET,
+    "DataSetJoinRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-    val join: LogicalJoin = call.rel(0).asInstanceOf[LogicalJoin]
+    val join: FlinkLogicalJoin = call.rel(0).asInstanceOf[FlinkLogicalJoin]
 
     val joinInfo = join.analyzeCondition
 
@@ -46,10 +47,10 @@ class DataSetJoinRule
 
   override def convert(rel: RelNode): RelNode = {
 
-    val join: LogicalJoin = rel.asInstanceOf[LogicalJoin]
-    val traitSet: RelTraitSet = rel.getTraitSet.replace(DataSetConvention.INSTANCE)
-    val convLeft: RelNode = RelOptRule.convert(join.getInput(0), DataSetConvention.INSTANCE)
-    val convRight: RelNode = RelOptRule.convert(join.getInput(1), DataSetConvention.INSTANCE)
+    val join: FlinkLogicalJoin = rel.asInstanceOf[FlinkLogicalJoin]
+    val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.DATASET)
+    val convLeft: RelNode = RelOptRule.convert(join.getInput(0), FlinkConventions.DATASET)
+    val convRight: RelNode = RelOptRule.convert(join.getInput(1), FlinkConventions.DATASET)
     val joinInfo = join.analyzeCondition
 
     new DataSetJoin(

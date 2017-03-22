@@ -16,11 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.plan.rules
+package org.apache.flink.table.plan.rules.logical
 
-import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.adapter.enumerable.EnumerableTableScan
-import org.apache.calcite.plan.{RelOptRuleCall, RelOptRule, RelOptRuleOperand}
+import org.apache.calcite.plan.RelOptRule.{any, operand}
+import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptRuleOperand}
 import org.apache.calcite.rel.logical.LogicalTableScan
 
 /**
