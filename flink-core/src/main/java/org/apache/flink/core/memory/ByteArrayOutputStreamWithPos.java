@@ -110,7 +110,7 @@ public class ByteArrayOutputStreamWithPos extends OutputStream {
 	}
 
 	public void setPosition(int position) {
-		Preconditions.checkArgument(position < getEndPosition(), "Position out of bounds.");
+		Preconditions.checkArgument(position <= getEndPosition(), "Position out of bounds.");
 		count = position;
 	}
 
