@@ -322,8 +322,8 @@ public class NFACompiler {
 		 * PROCEED edge to the sinkState. It also consists of a similar state without the PROCEED edge, so that
 		 * for each PROCEED transition branches in computation state graph  can be created only once.
 		 *
-		 * <p>If this looping state is first of a graph we should treat the {@link Pattern} ass {@link FollowedByPattern} to enable
-		 * combinations on
+		 * <p>If this looping state is first of a graph we should treat the {@link Pattern} as {@link FollowedByPattern}.
+		 * So that the default continuity for start state is relaxed.
 		 *
 		 * @param sourceState  the state to converted
 		 * @param sinkState    the state that the converted state should point to
