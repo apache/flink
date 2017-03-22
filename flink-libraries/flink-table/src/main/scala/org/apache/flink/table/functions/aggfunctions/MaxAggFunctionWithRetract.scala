@@ -201,7 +201,7 @@ class DoubleMaxWithRetractAggFunction extends MaxWithRetractAggFunction[Double] 
   * Built-in Boolean Max with retraction aggregate function
   */
 class BooleanMaxWithRetractAggFunction extends MaxWithRetractAggFunction[Boolean] {
-  override def getInitValue = false
+  override def getInitValue: Boolean = false
   override def getValueTypeInfo = BasicTypeInfo.BOOLEAN_TYPE_INFO
 }
 
@@ -209,6 +209,14 @@ class BooleanMaxWithRetractAggFunction extends MaxWithRetractAggFunction[Boolean
   * Built-in Big Decimal Max with retraction aggregate function
   */
 class DecimalMaxWithRetractAggFunction extends MaxWithRetractAggFunction[BigDecimal] {
-  override def getInitValue = BigDecimal.ZERO
+  override def getInitValue: BigDecimal = BigDecimal.ZERO
   override def getValueTypeInfo = BasicTypeInfo.BIG_DEC_TYPE_INFO
+}
+
+/**
+  * Built-in String Max with retraction aggregate function
+  */
+class StringMaxWithRetractAggFunction extends MaxWithRetractAggFunction[String] {
+  override def getInitValue: String = ""
+  override def getValueTypeInfo = BasicTypeInfo.STRING_TYPE_INFO
 }

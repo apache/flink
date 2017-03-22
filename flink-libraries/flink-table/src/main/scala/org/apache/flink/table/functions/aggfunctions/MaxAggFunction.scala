@@ -160,6 +160,6 @@ class DecimalMaxAggFunction extends MaxAggFunction[BigDecimal] {
   * Built-in String Max aggregate function
   */
 class StringMaxAggFunction extends MaxAggFunction[String] {
-  override def getInitValue = "".toString
+  override def getInitValue = ""
   override def getValueTypeInfo = BasicTypeInfo.STRING_TYPE_INFO
 }

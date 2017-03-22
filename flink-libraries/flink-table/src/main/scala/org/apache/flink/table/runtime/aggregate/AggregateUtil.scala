@@ -894,6 +894,8 @@ object AggregateUtil {
                   new DecimalMinWithRetractAggFunction
                 case BOOLEAN =>
                   new BooleanMinWithRetractAggFunction
+                case VARCHAR | CHAR =>
+                  new StringMinWithRetractAggFunction
                 case sqlType: SqlTypeName =>
                   throw new TableException("Min with retract aggregate does no support type:" +
                                              sqlType)
@@ -941,6 +943,8 @@ object AggregateUtil {
                   new DecimalMaxWithRetractAggFunction
                 case BOOLEAN =>
                   new BooleanMaxWithRetractAggFunction
+                case VARCHAR | CHAR =>
+                  new StringMaxWithRetractAggFunction
                 case sqlType: SqlTypeName =>
                   throw new TableException("Max with retract aggregate does no support type:" +
                                              sqlType)
