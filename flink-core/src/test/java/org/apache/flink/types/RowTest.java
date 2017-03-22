@@ -47,13 +47,4 @@ public class RowTest {
 		row2.setField(4, true);
 		assertEquals(row1, row2);
 	}
-
-	@Test
-	public void testOutOfBound() {
-		Row row = new Row(2);
-		assertNull(row.getField(0));
-		row.setField(0, 0);
-		row.setField(1, 1);
-		assertNull(row.getField(2));
-	}
 }

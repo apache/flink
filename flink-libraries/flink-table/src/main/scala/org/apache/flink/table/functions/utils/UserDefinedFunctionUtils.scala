@@ -209,19 +209,22 @@ object UserDefinedFunctionUtils {
     *
     * @param name function name
     * @param tableFunction table function
+    * @param implicitResultType the implicit type information of returned table
     * @param typeFactory type factory
     * @return the TableSqlFunction
     */
   def createTableSqlFunctions(
       name: String,
       tableFunction: TableFunction[_],
+      implicitResultType: TypeInformation[_],
       typeFactory: FlinkTypeFactory)
     : Seq[SqlFunction] = {
     val evalMethods = checkAndExtractEvalMethods(tableFunction)
 
     evalMethods.map { method =>
-      // We don't know the field names without knowing the result type
-      val function = new FlinkTableFunctionImpl(tableFunction, null, null, method)
+      // We don't know the field names without knowing the exact result type
+      val function = new FlinkTableFunctionImpl(
+        tableFunction, implicitResultType, null, null, method)
       TableSqlFunction(name, tableFunction, typeFactory, function)
     }
   }

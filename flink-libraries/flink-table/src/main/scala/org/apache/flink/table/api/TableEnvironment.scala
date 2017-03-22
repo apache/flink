@@ -341,7 +341,8 @@ abstract class TableEnvironment(val config: TableConfig) {
     functionCatalog.registerFunction(name, function.getClass)
 
     // register in SQL API
-    val sqlFunctions = createTableSqlFunctions(name, function, typeFactory)
+    val implicitTypeInfo: TypeInformation[_] = implicitly[TypeInformation[T]]
+    val sqlFunctions = createTableSqlFunctions(name, function, implicitTypeInfo, typeFactory)
     functionCatalog.registerSqlFunctions(sqlFunctions)
   }
 
