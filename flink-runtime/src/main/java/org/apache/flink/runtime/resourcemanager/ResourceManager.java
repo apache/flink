@@ -30,6 +30,10 @@ import org.apache.flink.runtime.concurrent.ApplyFunction;
 import org.apache.flink.runtime.concurrent.BiFunction;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
+import org.apache.flink.runtime.heartbeat.HeartbeatListener;
+import org.apache.flink.runtime.heartbeat.HeartbeatManager;
+import org.apache.flink.runtime.heartbeat.HeartbeatServices;
+import org.apache.flink.runtime.heartbeat.HeartbeatTarget;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.LeaderIdMismatchException;
 import org.apache.flink.runtime.instance.InstanceID;
@@ -64,6 +68,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executor;
+import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -81,6 +86,9 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		extends RpcEndpoint<ResourceManagerGateway>
 		implements LeaderContender {
 
+	/** Unique id of the resource manager */
+	private final ResourceID resourceId;
+
 	/** Configuration of the resource manager */
 	private final ResourceManagerConfiguration resourceManagerConfiguration;
 
@@ -95,6 +103,9 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 
 	/** High availability services for leader retrieval and election. */
 	private final HighAvailabilityServices highAvailabilityServices;
+
+	/** The heartbeat manager with task managers. */
+	private final HeartbeatManager<Void, Void> taskManagerHeartbeatManager;
 
 	/** The factory to construct the SlotManager. */
 	private final SlotManagerFactory slotManagerFactory;
@@ -118,9 +129,11 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	private ConcurrentMap<String, InfoMessageListenerRpcGateway> infoMessageListeners;
 
 	public ResourceManager(
+			ResourceID resourceId,
 			RpcService rpcService,
 			ResourceManagerConfiguration resourceManagerConfiguration,
 			HighAvailabilityServices highAvailabilityServices,
+			HeartbeatServices heartbeatServices,
 			SlotManagerFactory slotManagerFactory,
 			MetricRegistry metricRegistry,
 			JobLeaderIdService jobLeaderIdService,
@@ -128,12 +141,19 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 
 		super(rpcService);
 
+		this.resourceId = checkNotNull(resourceId);
 		this.resourceManagerConfiguration = checkNotNull(resourceManagerConfiguration);
 		this.highAvailabilityServices = checkNotNull(highAvailabilityServices);
 		this.slotManagerFactory = checkNotNull(slotManagerFactory);
 		this.metricRegistry = checkNotNull(metricRegistry);
 		this.jobLeaderIdService = checkNotNull(jobLeaderIdService);
 		this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
+
+		this.taskManagerHeartbeatManager = heartbeatServices.createHeartbeatManagerSender(
+				resourceId,
+				new TaskManagerHeartbeatListener(),
+				rpcService.getScheduledExecutor(),
+				log);
 
 		this.jobManagerRegistrations = new HashMap<>(4);
 		this.taskExecutors = new HashMap<>(8);
@@ -177,6 +197,8 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	@Override
 	public void shutDown() throws Exception {
 		Exception exception = null;
+
+		taskManagerHeartbeatManager.stop();
 
 		try {
 			super.shutDown();
@@ -326,7 +348,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	 *
 	 * @param resourceManagerLeaderId  The fencing token for the ResourceManager leader
 	 * @param taskExecutorAddress      The address of the TaskExecutor that registers
-	 * @param resourceID               The resource ID of the TaskExecutor that registers
+	 * @param taskExecutorResourceId  The resource ID of the TaskExecutor that registers
 	 *
 	 * @return The response by the ResourceManager.
 	 */
@@ -334,7 +356,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	public Future<RegistrationResponse> registerTaskExecutor(
 		final UUID resourceManagerLeaderId,
 		final String taskExecutorAddress,
-		final ResourceID resourceID,
+		final ResourceID taskExecutorResourceId,
 		final SlotReport slotReport) {
 
 		if (leaderSessionId.equals(resourceManagerLeaderId)) {
@@ -342,25 +364,37 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 
 			return taskExecutorGatewayFuture.handleAsync(new BiFunction<TaskExecutorGateway, Throwable, RegistrationResponse>() {
 				@Override
-				public RegistrationResponse apply(TaskExecutorGateway taskExecutorGateway, Throwable throwable) {
+				public RegistrationResponse apply(final TaskExecutorGateway taskExecutorGateway, Throwable throwable) {
 					if (throwable != null) {
 						return new RegistrationResponse.Decline(throwable.getMessage());
 					} else {
-						WorkerRegistration<WorkerType> oldRegistration = taskExecutors.remove(resourceID);
+						WorkerRegistration<WorkerType> oldRegistration = taskExecutors.remove(taskExecutorResourceId);
 						if (oldRegistration != null) {
 							// TODO :: suggest old taskExecutor to stop itself
-							log.info("Replacing old instance of worker for ResourceID {}", resourceID);
+							log.info("Replacing old instance of worker for ResourceID {}", taskExecutorResourceId);
 						}
 
-						WorkerType newWorker = workerStarted(resourceID);
+						WorkerType newWorker = workerStarted(taskExecutorResourceId);
 						WorkerRegistration<WorkerType> registration =
 							new WorkerRegistration<>(taskExecutorGateway, newWorker);
 
-						taskExecutors.put(resourceID, registration);
-						slotManager.registerTaskExecutor(resourceID, registration, slotReport);
+						taskExecutors.put(taskExecutorResourceId, registration);
+						slotManager.registerTaskExecutor(taskExecutorResourceId, registration, slotReport);
+
+						taskManagerHeartbeatManager.monitorTarget(taskExecutorResourceId, new HeartbeatTarget<Void>() {
+							@Override
+							public void receiveHeartbeat(ResourceID resourceID, Void payload) {
+								// the task manager will not request heartbeat, so this method will never be called currently
+							}
+
+							@Override
+							public void requestHeartbeat(ResourceID resourceID, Void payload) {
+								taskExecutorGateway.heartbeatFromResourceManager(resourceID);
+							}
+						});
 
 						return new TaskExecutorRegistrationSuccess(
-							registration.getInstanceID(),
+							registration.getInstanceID(), resourceId,
 							resourceManagerConfiguration.getHeartbeatInterval().toMilliseconds());
 					}
 				}
@@ -368,13 +402,23 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		} else {
 			log.warn("Discard registration from TaskExecutor {} at ({}) because the expected leader session ID {} did " +
 					"not equal the received leader session ID  {}",
-				resourceID, taskExecutorAddress, leaderSessionId, resourceManagerLeaderId);
+				taskExecutorResourceId, taskExecutorAddress, leaderSessionId, resourceManagerLeaderId);
 
 			return FlinkCompletableFuture.<RegistrationResponse>completed(
 				new RegistrationResponse.Decline("Discard registration because the leader id " +
 					resourceManagerLeaderId + " does not match the expected leader id " +
 					leaderSessionId + '.'));
 		}
+	}
+
+	@RpcMethod
+	public void heartbeatFromTaskManager(final ResourceID resourceID) {
+		taskManagerHeartbeatManager.receiveHeartbeat(resourceID, null);
+	}
+
+	@RpcMethod
+	public void disconnectTaskManager(final ResourceID resourceId, final Exception cause) {
+		closeTaskManagerConnection(resourceId, cause);
 	}
 
 	/**
@@ -716,24 +760,24 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	 * This method should be called by the framework once it detects that a currently registered
 	 * task executor has failed.
 	 *
-	 * @param resourceID Id of the worker that has failed.
-	 * @param message An informational message that explains why the worker failed.
+	 * @param resourceID Id of the TaskManager that has failed.
+	 * @param cause The exception which cause the TaskManager failed.
 	 */
-	public void notifyWorkerFailed(final ResourceID resourceID, final String message) {
-		runAsync(new Runnable() {
-			@Override
-			public void run() {
-				WorkerRegistration<WorkerType> workerRegistration = taskExecutors.remove(resourceID);
+	public void closeTaskManagerConnection(final ResourceID resourceID, final Exception cause) {
+		taskManagerHeartbeatManager.unmonitorTarget(resourceID);
 
-				if (workerRegistration != null) {
-					log.info("Task manager {} failed because {}.", resourceID, message);
-					// TODO :: suggest failed task executor to stop itself
-					slotManager.notifyTaskManagerFailure(resourceID);
-				} else {
-					log.debug("Could not find a registered task manager with the process id {}.", resourceID);
-				}
-			}
-		});
+		WorkerRegistration<WorkerType> workerRegistration = taskExecutors.remove(resourceID);
+
+		if (workerRegistration != null) {
+			log.info("Task manager {} failed because {}.", resourceID, cause);
+
+			// TODO :: suggest failed task executor to stop itself
+			slotManager.notifyTaskManagerFailure(resourceID);
+
+			workerRegistration.getTaskExecutorGateway().disconnectResourceManager(cause);
+		} else {
+			log.debug("Could not find a registered task manager with the process id {}.", resourceID);
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -825,6 +869,27 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		@Override
 		public void handleError(Throwable error) {
 			onFatalErrorAsync(error);
+		}
+	}
+
+	private class TaskManagerHeartbeatListener implements HeartbeatListener<Void, Void> {
+
+		@Override
+		public void notifyHeartbeatTimeout(ResourceID resourceID) {
+			log.info("The heartbeat of TaskManager with id {} timed out.", resourceID);
+
+			closeTaskManagerConnection(resourceID, new TimeoutException(
+					"Task manager with id " + resourceID + " heartbeat timed out."));
+		}
+
+		@Override
+		public void reportPayload(ResourceID resourceID, Void payload) {
+			// nothing to do since there is no payload
+		}
+
+		@Override
+		public Future<Void> retrievePayload() {
+			return FlinkCompletableFuture.completed(null);
 		}
 	}
 }

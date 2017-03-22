@@ -25,6 +25,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
+import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
@@ -98,6 +99,7 @@ public class SlotProtocolTest extends TestLogger {
 		final String rmAddress = "/rm1";
 		final String jmAddress = "/jm1";
 		final JobID jobID = new JobID();
+		final ResourceID rmResourceId = new ResourceID(rmAddress);
 
 		testRpcService.registerGateway(jmAddress, mock(JobMasterGateway.class));
 
@@ -117,11 +119,16 @@ public class SlotProtocolTest extends TestLogger {
 			Time.seconds(5L));
 
 		final TestingSlotManagerFactory slotManagerFactory = new TestingSlotManagerFactory();
+
+		final HeartbeatServices heartbeatServices = mock(HeartbeatServices.class);
+
 		SpiedResourceManager resourceManager =
 			new SpiedResourceManager(
+				rmResourceId,
 				testRpcService,
 				resourceManagerConfiguration,
 				testingHaServices,
+				heartbeatServices,
 				slotManagerFactory,
 				mock(MetricRegistry.class),
 				jobLeaderIdService,
@@ -198,6 +205,7 @@ public class SlotProtocolTest extends TestLogger {
 		final String jmAddress = "/jm1";
 		final String tmAddress = "/tm1";
 		final JobID jobID = new JobID();
+		final ResourceID rmResourceId = new ResourceID(rmAddress);
 
 		testRpcService.registerGateway(jmAddress, mock(JobMasterGateway.class));
 
@@ -224,11 +232,16 @@ public class SlotProtocolTest extends TestLogger {
 			Time.seconds(5L));
 
 		TestingSlotManagerFactory slotManagerFactory = new TestingSlotManagerFactory();
+
+		HeartbeatServices heartbeatServices = mock(HeartbeatServices.class);
+
 		ResourceManager<ResourceID> resourceManager =
 			Mockito.spy(new StandaloneResourceManager(
+				rmResourceId,
 				testRpcService,
 				resourceManagerConfiguration,
 				testingHaServices,
+				heartbeatServices,
 				slotManagerFactory,
 				mock(MetricRegistry.class),
 				jobLeaderIdService,
@@ -302,17 +315,21 @@ public class SlotProtocolTest extends TestLogger {
 		private int startNewWorkerCalled = 0;
 
 		public SpiedResourceManager(
+				ResourceID resourceId,
 				RpcService rpcService,
 				ResourceManagerConfiguration resourceManagerConfiguration,
 				HighAvailabilityServices highAvailabilityServices,
+				HeartbeatServices heartbeatServices,
 				SlotManagerFactory slotManagerFactory,
 				MetricRegistry metricRegistry,
 				JobLeaderIdService jobLeaderIdService,
 				FatalErrorHandler fatalErrorHandler) {
 			super(
+				resourceId,
 				rpcService,
 				resourceManagerConfiguration,
 				highAvailabilityServices,
+				heartbeatServices,
 				slotManagerFactory,
 				metricRegistry,
 				jobLeaderIdService,

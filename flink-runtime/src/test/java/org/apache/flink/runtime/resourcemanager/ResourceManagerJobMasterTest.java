@@ -20,7 +20,9 @@ package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
@@ -196,9 +198,12 @@ public class ResourceManagerJobMasterTest {
 			JobID jobID,
 			TestingLeaderRetrievalService jobMasterLeaderRetrievalService,
 			FatalErrorHandler fatalErrorHandler) throws Exception {
+		ResourceID rmResourceId = ResourceID.generate();
 		TestingHighAvailabilityServices highAvailabilityServices = new TestingHighAvailabilityServices();
 		highAvailabilityServices.setResourceManagerLeaderElectionService(resourceManagerLeaderElectionService);
 		highAvailabilityServices.setJobMasterLeaderRetriever(jobID, jobMasterLeaderRetrievalService);
+
+		HeartbeatServices heartbeatServices = mock(HeartbeatServices.class);
 
 		ResourceManagerConfiguration resourceManagerConfiguration = new ResourceManagerConfiguration(
 			Time.seconds(5L),
@@ -211,9 +216,11 @@ public class ResourceManagerJobMasterTest {
 			Time.minutes(5L));
 
 		ResourceManager resourceManager = new StandaloneResourceManager(
+			rmResourceId,
 			rpcService,
 			resourceManagerConfiguration,
 			highAvailabilityServices,
+			heartbeatServices,
 			slotManagerFactory,
 			metricRegistry,
 			jobLeaderIdService,

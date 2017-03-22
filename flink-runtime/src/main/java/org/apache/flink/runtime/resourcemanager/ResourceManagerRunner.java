@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -43,14 +45,18 @@ public class ResourceManagerRunner implements FatalErrorHandler {
 	private final ResourceManager<?> resourceManager;
 
 	public ResourceManagerRunner(
+			final ResourceID resourceId,
 			final Configuration configuration,
 			final RpcService rpcService,
 			final HighAvailabilityServices highAvailabilityServices,
+			final HeartbeatServices heartbeatServices,
 			final MetricRegistry metricRegistry) throws Exception {
 
+		Preconditions.checkNotNull(resourceId);
 		Preconditions.checkNotNull(configuration);
 		Preconditions.checkNotNull(rpcService);
 		Preconditions.checkNotNull(highAvailabilityServices);
+		Preconditions.checkNotNull(heartbeatServices);
 		Preconditions.checkNotNull(metricRegistry);
 
 		final ResourceManagerConfiguration resourceManagerConfiguration = ResourceManagerConfiguration.fromConfiguration(configuration);
@@ -63,9 +69,11 @@ public class ResourceManagerRunner implements FatalErrorHandler {
 			rpcService.getScheduledExecutor());
 
 		this.resourceManager = new StandaloneResourceManager(
+			resourceId,
 			rpcService,
 			resourceManagerConfiguration,
 			highAvailabilityServices,
+			heartbeatServices,
 			resourceManagerRuntimeServices.getSlotManagerFactory(),
 			metricRegistry,
 			resourceManagerRuntimeServices.getJobLeaderIdService(),
@@ -87,7 +95,6 @@ public class ResourceManagerRunner implements FatalErrorHandler {
 	private void shutDownInternally() throws Exception {
 		Exception exception = null;
 		synchronized (lock) {
-
 			try {
 				resourceManager.shutDown();
 			} catch (Exception e) {

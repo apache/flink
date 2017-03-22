@@ -87,6 +87,7 @@ public class TaskExecutorITCase {
 		final String rmAddress = "rm";
 		final String jmAddress = "jm";
 		final UUID jmLeaderId = UUID.randomUUID();
+		final ResourceID rmResourceId = new ResourceID(rmAddress);
 		final JobID jobId = new JobID();
 		final ResourceProfile resourceProfile = new ResourceProfile(1.0, 1);
 
@@ -119,9 +120,11 @@ public class TaskExecutorITCase {
 		final JobLeaderService jobLeaderService = new JobLeaderService(taskManagerLocation);
 
 		ResourceManager<ResourceID> resourceManager = new StandaloneResourceManager(
+			rmResourceId,
 			rpcService,
 			resourceManagerConfiguration,
 			testingHAServices,
+			heartbeatServices,
 			slotManagerFactory,
 			metricRegistry,
 			jobLeaderIdService,
