@@ -71,8 +71,8 @@ class TableSqlFunction(
     * Get additional mapping information if the returned table type is a POJO
     * (POJO types have no deterministic field order).
     */
-  def getPojoFieldMapping = if (null == functionImpl.resultType) {
-    throw new ValidationException("The Result Type hasn't been generated yet")
+  def getPojoFieldMapping = if (null == functionImpl.fieldIndexes) {
+    throw new ValidationException("The Result Indexes hasn't been generated yet")
   } else {
     functionImpl.fieldIndexes
   }
