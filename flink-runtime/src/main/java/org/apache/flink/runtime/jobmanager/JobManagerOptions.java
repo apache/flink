@@ -30,7 +30,7 @@ public class JobManagerOptions {
 	 * The maximum number of prior execution attempts kept in history.
 	 */
 	public static final ConfigOption<Integer> MAX_ATTEMPTS_HISTORY_SIZE =
-			key("job-manager.max-attempts-history-size").defaultValue(16);
+			key("jobmanager.max-attempts-history-size").defaultValue(16);
 
 	private JobManagerOptions() {
 		throw new IllegalAccessError();
