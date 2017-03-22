@@ -47,7 +47,7 @@ class WindowAggregateTest extends TableTestBase {
             term("select", "a", "c", "PROCTIME() AS $2")
           ),
           term("orderBy", "PROCTIME"),
-          term("range", "BETWEEN $3 PRECEDING AND CURRENT ROW"),
+          term("range", "BETWEEN 10000 AND CURRENT ROW"),
           term("select", "a", "c", "PROCTIME", "COUNT(c) AS w0$o0")
         ),
         term("select", "a", "w0$o0 AS $1")
@@ -60,7 +60,7 @@ class WindowAggregateTest extends TableTestBase {
   def testPartitionedProcessingTimeBoundedWindow() = {
     
     val sqlQuery = "SELECT a, AVG(c) OVER (PARTITION BY a ORDER BY procTime()" +
-      "RANGE BETWEEN INTERVAL '90' HOUR PRECEDING AND CURRENT ROW) AS avgA " + 
+      "RANGE BETWEEN INTERVAL '2' HOUR PRECEDING AND CURRENT ROW) AS avgA " + 
       "FROM MyTable"
       val expected =
       unaryNode(
@@ -74,7 +74,7 @@ class WindowAggregateTest extends TableTestBase {
           ),
           term("partitionBy","a"),
           term("orderBy", "PROCTIME"),
-          term("range", "BETWEEN $3 PRECEDING AND CURRENT ROW"),
+          term("range", "BETWEEN 7200000 AND CURRENT ROW"),
           term("select", "a", "c", "PROCTIME", "COUNT(c) AS w0$o0", "$SUM0(c) AS w0$o1")
         ),
         term("select", "a", "/(CASE(>(w0$o0, 0)", "CAST(w0$o1), null), w0$o0) AS avgA")

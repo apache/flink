@@ -41,22 +41,11 @@ import org.apache.flink.table.plan.nodes.OverAggregate
 import org.apache.flink.table.runtime.aggregate.AggregateUtil
 import org.apache.flink.types.Row
 import org.apache.calcite.sql.`type`.IntervalSqlType
-import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
-import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.calcite.rex.RexInputRef
-import org.apache.flink.streaming.api.windowing.evictors.TimeEvictor
-import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows
-import org.apache.flink.streaming.api.windowing.triggers.CountTrigger
 import org.apache.flink.streaming.api.windowing.time.Time
-import org.apache.flink.streaming.api.windowing.evictors.CountEvictor
-import org.apache.flink.streaming.api.windowing.windows.GlobalWindow
 import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.util.Collector
-import org.apache.flink.streaming.api.functions.windowing.WindowFunction
-import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction
-import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows
 import java.util.concurrent.TimeUnit
-import org.apache.flink.streaming.api.windowing.windows.TimeWindow
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet} 
 
 
@@ -94,17 +83,35 @@ class DataStreamOverAggregate(
     val overWindow: Group = logicWindow.groups.get(0)
     val partitionKeys: Array[Int] = overWindow.keys.toArray
     val namedAggregates: Seq[CalcitePair[AggregateCall, String]] = generateNamedAggregates
-
-    super.explainTerms(pw)
+    val fieldCount = input.getRowType.getFieldCount
+ 
+    if(overWindow.lowerBound.isUnbounded){
+      super.explainTerms(pw)
       .itemIf("partitionBy", partitionToString(inputType, partitionKeys), partitionKeys.nonEmpty)
-        .item("orderBy",orderingToString(inputType, overWindow.orderKeys.getFieldCollations))
+      .item("orderBy",orderingToString(inputType, overWindow.orderKeys.getFieldCollations))
       .itemIf("rows", windowRange(overWindow), overWindow.isRows)
       .itemIf("range", windowRange(overWindow), !overWindow.isRows)
       .item(
         "select", aggregationToString(
           inputType,
           getRowType,
+          namedAggregates))  
+    }
+    else {
+      super.explainTerms(pw)
+      .itemIf("partitionBy", partitionToString(inputType, partitionKeys), partitionKeys.nonEmpty)
+      .item("orderBy",orderingToString(inputType, overWindow.orderKeys.getFieldCollations))
+      .itemIf("rows", windowRange(overWindow), overWindow.isRows)
+      .itemIf("range", windowRangeValue(overWindow,logicWindow,fieldCount), !overWindow.isRows)
+      .item(
+        "select", aggregationToString(
+          inputType,
+          getRowType,
           namedAggregates))
+    }
+      
+    
+    
   }
 
   override def translateToPlan(tableEnv: StreamTableEnvironment): DataStream[Row] = {
@@ -133,8 +140,8 @@ class DataStreamOverAggregate(
         if (overWindow.lowerBound.isUnbounded &&
           overWindow.upperBound.isCurrentRow) {
           createUnboundedAndCurrentRowProcessingTimeOverWindow(inputDS)
-        } else if (overWindow.lowerBound.isPreceding() && !overWindow.lowerBound.isUnbounded() && 
-             overWindow.upperBound.isCurrentRow() && // until current row
+        } else if (overWindow.lowerBound.isPreceding && !overWindow.lowerBound.isUnbounded && 
+             overWindow.upperBound.isCurrentRow && // until current row
              !overWindow.isRows){
           createTimeBoundedProcessingTimeOverWindow(inputDS)
         } else {
@@ -157,13 +164,12 @@ class DataStreamOverAggregate(
     val namedAggregates: Seq[CalcitePair[AggregateCall, String]] = generateNamedAggregates
 
     val index = overWindow.lowerBound.getOffset.asInstanceOf[RexInputRef].getIndex
-    val count = input.getRowType().getFieldCount()
-    val lowerboundIndex = index - count
+    val count = input.getRowType.getFieldCount
+    val lowerBoundIndex = index - count
     
     
-    val time_boundary = logicWindow.constants.get(lowerboundIndex).getValue2 match {
-      case _: java.math.BigDecimal => logicWindow.constants.get(lowerboundIndex)
-         .getValue2.asInstanceOf[java.math.BigDecimal].longValue()
+    val timeBoundary = logicWindow.constants.get(lowerBoundIndex).getValue2 match {
+      case bd: java.math.BigDecimal => bd.longValue()
       case _ => throw new TableException("OVER Window boundaries must be numeric")
     }
 
@@ -174,10 +180,10 @@ class DataStreamOverAggregate(
         // partitioned aggregation
         if (partitionKeys.nonEmpty) {
           
-          val processFunction = AggregateUtil.CreateTimeBoundedProcessingOverProcessFunction(
+          val processFunction = AggregateUtil.createTimeBoundedProcessingOverProcessFunction(
             namedAggregates,
             inputType,
-            time_boundary)
+            timeBoundary)
           
           inputDS
           .keyBy(partitionKeys: _*)
@@ -186,10 +192,10 @@ class DataStreamOverAggregate(
           .name(aggOpName)
           .asInstanceOf[DataStream[Row]]
         } else { // non-partitioned aggregation
-          val processFunction = AggregateUtil.CreateTimeBoundedProcessingOverProcessFunction(
+          val processFunction = AggregateUtil.createTimeBoundedProcessingOverProcessFunction(
             namedAggregates,
             inputType,
-            time_boundary,
+            timeBoundary,
             false)
           
           inputDS

@@ -21,7 +21,6 @@ import org.apache.flink.api.common.state.{ListState, ListStateDescriptor}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.state.{FunctionInitializationContext, FunctionSnapshotContext}
-import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
 import org.apache.flink.types.Row
@@ -29,6 +28,11 @@ import org.apache.flink.util.{Collector, Preconditions}
 import org.apache.flink.api.common.state.ValueState
 import org.apache.flink.api.common.state.ValueStateDescriptor
 import scala.util.control.Breaks._
+import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo
+import org.apache.flink.api.java.typeutils.TupleTypeInfo
+import scala.collection.mutable.Queue
+import org.apache.flink.api.common.typeinfo.TypeHint
 
 /**
   * Process Function used for the aggregate in partitioned bounded windows in
@@ -39,45 +43,39 @@ import scala.util.control.Breaks._
   * @param aggFields  the position (in the input Row) of the input value for each aggregate
   * @param forwardedFieldCount Is used to indicate fields in the current element to forward
   * @param rowTypeInfo Is used to indicate the field schema
-  * @param time_boundary Is used to indicate the processing time boundaries
+  * @param timeBoundary Is used to indicate the processing time boundaries
   */
 class ProcTimeBoundedProcessingOverProcessFunction(
     private val aggregates: Array[AggregateFunction[_]],
     private val aggFields: Array[Int],
     private val forwardedFieldCount: Int,
     private val rowTypeInfo: RowTypeInfo,
-    private val time_boundary: Long)
+    private val timeBoundary: Long)
   extends ProcessFunction[Row, Row] {
 
   Preconditions.checkNotNull(aggregates)
   Preconditions.checkNotNull(aggFields)
   Preconditions.checkArgument(aggregates.length == aggFields.length)
 
-  private var accumulators: Row = _
   private var output: Row = _
-  private var windowBuffer: ListState[Tuple2[Long,Row]] = null
-  private var state: ValueState[Row] = _
-
-  
+  private var accumulatorState: ValueState[Row] = _
+  private var windowBuffer:  ValueState[Queue[JTuple2[Long,Row]]]= _
+    
   override def open(config: Configuration) {
     output = new Row(forwardedFieldCount + aggregates.length)
     
-    accumulators = new Row(aggregates.length)
-    var i = 0
-    while (i < aggregates.length) {
-        accumulators.setField(i, aggregates(i).createAccumulator())
-        i += 1
-      } 
-    
     // We keep the elements received in a list state 
     // together with the ingestion time in the operator
-    val bufferDescriptor: ListStateDescriptor[Tuple2[Long,Row]] = 
-    new ListStateDescriptor[Tuple2[Long,Row]]("windowBufferState", classOf[Tuple2[Long,Row]])
-    windowBuffer = getRuntimeContext.getListState(bufferDescriptor)
+    var queueTypeInfo = new TypeHint[Queue[JTuple2[Long,Row]]](){}.getTypeInfo;
+    val bufferDescriptor: ValueStateDescriptor[Queue[JTuple2[Long,Row]]] = 
+      new ValueStateDescriptor[Queue[JTuple2[Long,Row]]]("overRetractableState", 
+          queueTypeInfo)
+    
+    windowBuffer = getRuntimeContext.getState(bufferDescriptor)
 
     val stateDescriptor: ValueStateDescriptor[Row] =
-    new ValueStateDescriptor[Row]("overState", classOf[Row] , accumulators)      
-    state = getRuntimeContext.getState(stateDescriptor)
+    new ValueStateDescriptor[Row]("overState", rowTypeInfo)      
+    accumulatorState = getRuntimeContext.getState(stateDescriptor)
   }
 
   override def processElement(
@@ -85,15 +83,28 @@ class ProcTimeBoundedProcessingOverProcessFunction(
     ctx: ProcessFunction[Row, Row]#Context,
     out: Collector[Row]): Unit = {
 
-    var current_time = System.currentTimeMillis()
+    val currentTime = ctx.timerService().currentProcessingTime()
     //buffer the event incoming event
-    windowBuffer.add(new Tuple2(
-      current_time,
-      input))
+     
+    var windowReference = windowBuffer.value()
+     if (null == windowReference) {
+       windowReference = new Queue[JTuple2[Long,Row]]()
+     }
+    windowReference.enqueue(new JTuple2(currentTime, input))
       
     var i = 0
-
-    var accumulators = state.value()
+    
+    //initialize the accumulators 
+    var accumulators = accumulatorState.value()
+    
+    if (null == accumulators) {
+      accumulators = new Row(aggregates.length)
+      i = 0
+      while (i < aggregates.length) {
+        accumulators.setField(i, aggregates(i).createAccumulator())
+        i += 1
+      }
+    }
 
     //set the fields of the last event to carry on with the aggregates
     i = 0
@@ -103,24 +114,21 @@ class ProcTimeBoundedProcessingOverProcessFunction(
     }
 
      //update the elements to be removed and retract them from aggregators
-    var iter = windowBuffer.get.iterator()
-    var continue:Boolean = true
-    
-    while(continue && iter.hasNext())
-    {
-      var currentElement:Tuple2[Long,Row]= iter.next()  
-      if(currentElement._1<time_boundary){
-        iter.remove()
-        i = 0
+    var continue: Boolean = true
+    val limit = currentTime - timeBoundary
+    while (continue && windowReference.length>0 ) {
+      var currentElement: JTuple2[Long,Row]= windowReference.front  
+      if (currentElement.f0 < limit) {
+        windowReference.dequeue
+        i= 0
         while (i < aggregates.length) { 
           val accumulator = accumulators.getField(i).asInstanceOf[Accumulator]
-          aggregates(i).retract(accumulator, currentElement._2.getField(aggFields(i)))
+          aggregates(i).retract(accumulator, currentElement.f1.getField(aggFields(i)))
           i += 1
         }
       }
-      else
-      {
-        continue=false
+      else {
+        continue = false
       }        
     }
     
@@ -134,7 +142,8 @@ class ProcTimeBoundedProcessingOverProcessFunction(
       i += 1
     }
     
-    state.update(accumulators)
+    accumulatorState.update(accumulators)
+    windowBuffer.update(windowReference)
     
     out.collect(output)
   }

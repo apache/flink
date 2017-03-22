@@ -27,8 +27,11 @@ StreamTestData}
 import org.apache.flink.types.Row
 import org.junit.Assert._
 import org.junit._
+import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService
 
 import scala.collection.mutable
+import org.apache.flink.streaming.api.functions.source.SourceFunction
+import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
 
 class SqlITCase extends StreamingWithStateTestBase {
 
@@ -401,8 +404,97 @@ class SqlITCase extends StreamingWithStateTestBase {
       "5,15,0")
       
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
-    
-    
   }
   
+   @Test
+  def testCountAggregatationProcTimePartitioned(): Unit = {
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    env.setParallelism(1)
+    StreamITCase.testResults = mutable.MutableList()
+    var t = env.addSource(new StreamSourceProcTime()) 
+         .toTable(tEnv).as('a, 'b, 'c, 'd, 'e)
+    tEnv.registerTable("MyTable", t)
+    
+     val sqlQuery = "SELECT a, Count(c) OVER (PARTITION BY c ORDER BY procTime()" +
+      "RANGE BETWEEN INTERVAL '3' SECOND PRECEDING AND CURRENT ROW) AS avgC FROM MyTable"
+     
+     
+    val result = tEnv.sql(sqlQuery).toDataStream[Row]
+    result.addSink(new StreamITCase.StringSink)
+    env.execute()
+
+    val expected = mutable.MutableList(
+      "1,1",
+      "1,1",
+      "1,2",
+      "1,2",
+      "1,2",
+      "1,2",
+      "1,2",
+      "1,2",
+      "1,2",
+      "1,2")
+      
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    
+   }
+   
+   
+    @Test
+  def testCountAggregatationProcTimeNonPartitioned(): Unit = {
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    env.setParallelism(1)
+    StreamITCase.testResults = mutable.MutableList()
+    var t = env.addSource(new StreamSourceProcTime()) 
+         .toTable(tEnv).as('a, 'b, 'c, 'd, 'e)
+    tEnv.registerTable("MyTable", t)
+    
+     val sqlQuery = "SELECT a, Count(c) OVER (ORDER BY procTime()" +
+      "RANGE BETWEEN INTERVAL '2' SECOND PRECEDING AND CURRENT ROW) AS avgC FROM MyTable"
+     
+     
+    val result = tEnv.sql(sqlQuery).toDataStream[Row]
+    result.addSink(new StreamITCase.StringSink)
+    env.execute()
+
+    val expected = mutable.MutableList(
+      "1,1",
+      "1,2",
+      "1,2",
+      "1,2",
+      "1,2",
+      "1,2",
+      "1,2",
+      "1,2",
+      "1,2",
+      "1,2")
+      
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+    
+   }
+   
 }
+/**
+ * Generate 10 elements 1 second apart
+ */
+class StreamSourceProcTime extends SourceFunction[Tuple5[Int, Long, Int, String, Long]] {
+  
+  var counter = 10
+  override def run(ctx:SourceContext[Tuple5[Int, Long, Int, String, Long]]):Unit = {
+    
+    while (counter > 0) {
+      Thread.sleep(1000)
+      ctx.collect(new Tuple5(1,2L,(counter%2),"aaa",2L))
+      counter -= 1
+    }
+  }
+  
+  override def cancel():Unit = {
+    
+  }
+}
+

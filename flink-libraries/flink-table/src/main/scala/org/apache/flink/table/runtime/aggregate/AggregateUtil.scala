@@ -43,9 +43,7 @@ import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.typeutils.TypeCheckUtils._
 import org.apache.flink.table.typeutils.{RowIntervalTypeInfo, TimeIntervalTypeInfo}
 import org.apache.flink.types.Row
-import org.apache.flink.table.runtime.aggregate.{ProcTimeBoundedProcessingOverProcessFunction,
-  ProcTimeBoundedNonPartitionedProcessingOverProcessFunction
-}
+
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable.ArrayBuffer
@@ -1152,14 +1150,14 @@ object AggregateUtil {
     *
     * @param namedAggregates List of calls to aggregate functions and their output field names
     * @param inputType Input row type
-    * @param time_boundary time limit of the window boundary expressed in milliseconds
+    * @param timeBoundary time limit of the window boundary expressed in milliseconds
     * @param isPartitioned Flag to indicate whether the input is partitioned or not
     * @return [[org.apache.flink.streaming.api.functions.ProcessFunction]]
     */
-  private[flink] def CreateTimeBoundedProcessingOverProcessFunction(
+  private[flink] def createTimeBoundedProcessingOverProcessFunction(
     namedAggregates: Seq[CalcitePair[AggregateCall, String]],
     inputType: RelDataType,
-    time_boundary: Long,
+    timeBoundary: Long,
     isPartitioned: Boolean = true): ProcessFunction[Row, Row] = {
 
     val (aggFields, aggregates) =
@@ -1171,25 +1169,21 @@ object AggregateUtil {
     val aggregationStateType: RowTypeInfo =
       createDataSetAggregateBufferDataType(Array(), aggregates, inputType)
 
-    if(isPartitioned){
-    new ProcTimeBoundedProcessingOverProcessFunction(
+    if (isPartitioned) {
+      new ProcTimeBoundedProcessingOverProcessFunction(
         aggregates,
         aggFields,
         inputType.getFieldCount,
         aggregationStateType,
-        time_boundary)
-    }
-    else
-    {
-    new ProcTimeBoundedNonPartitionedProcessingOverProcessFunction(
+        timeBoundary)
+    } else {
+      new ProcTimeBoundedNonPartitionedProcessingOverProcessFunction(
         aggregates,
         aggFields,
         inputType.getFieldCount,
         aggregationStateType,
-        time_boundary)
+        timeBoundary)
     }
-   
   }
-  
 }
 

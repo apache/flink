@@ -29,6 +29,9 @@ import org.apache.flink.util.{Collector, Preconditions}
 import org.apache.flink.api.common.state.ValueState
 import org.apache.flink.api.common.state.ValueStateDescriptor
 import scala.collection.mutable.ListBuffer
+import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo
+import org.apache.flink.api.java.typeutils.TupleTypeInfo
 
 /**
   * Process Function used for the aggregate in non-partitioned bounded windows in
@@ -42,11 +45,11 @@ import scala.collection.mutable.ListBuffer
   * @param time_boundary Is used to indicate the processing time boundaries
   */
 class ProcTimeBoundedNonPartitionedProcessingOverProcessFunction(
-   private val aggregates: Array[AggregateFunction[_]],
+    private val aggregates: Array[AggregateFunction[_]],
     private val aggFields: Array[Int],
     private val forwardedFieldCount: Int,
     private val rowTypeInfo: RowTypeInfo,
-    private val time_boundary: Long)
+    private val timeBoundary: Long)
   extends ProcessFunction[Row, Row] with CheckpointedFunction{
 
   Preconditions.checkNotNull(aggregates)
@@ -55,15 +58,15 @@ class ProcTimeBoundedNonPartitionedProcessingOverProcessFunction(
 
   private var accumulators: Row = _
   private var output: Row = _
-  private var state: ListState[Row] = null
-  private var windowBufferState: ListState[Tuple2[Long,Row]] = null
-  private var windowBuffer:ListBuffer[Tuple2[Long,Row]] = _
+  private var accumulatorState: ListState[Row] = _
+  private var windowBufferState: ListState[JTuple2[Long, Row]] = _
+  private var windowBuffer: ListBuffer[JTuple2[Long, Row]] = _
 
   override def open(config: Configuration) {
     output = new Row(forwardedFieldCount + aggregates.length)
-     //restore the aggregators in case they exist
-     if (null == accumulators) {
-       val it = state.get.iterator
+    //restore the aggregators in case they exist
+    if (null == accumulators) {
+      val it = accumulatorState.get.iterator
       if (it.hasNext) {
         accumulators = it.next()
       } else {
@@ -76,8 +79,8 @@ class ProcTimeBoundedNonPartitionedProcessingOverProcessFunction(
       }
     }
     //restore the elements in case they exist
-    if(windowBuffer==null){
-      windowBuffer = new ListBuffer[Tuple2[Long,Row]]()
+    if (windowBuffer==null) {
+      windowBuffer = new ListBuffer[JTuple2[Long,Row]]()
       val it = windowBufferState.get.iterator
       if (it.hasNext) {
          windowBuffer.iterator.map(f => windowBuffer.+=(f))
@@ -90,10 +93,10 @@ class ProcTimeBoundedNonPartitionedProcessingOverProcessFunction(
     ctx: ProcessFunction[Row, Row]#Context,
     out: Collector[Row]): Unit = {
    
-     var current_time = System.currentTimeMillis()
+     val currentTime = ctx.timerService().currentProcessingTime()
     //buffer the event incoming event
-    windowBuffer.+=(new Tuple2(
-      current_time,
+    windowBuffer.+=(new JTuple2(
+      currentTime,
       input))
       
     var i = 0
@@ -106,23 +109,22 @@ class ProcTimeBoundedNonPartitionedProcessingOverProcessFunction(
     }
 
     //update the elements to be removed and retract them from aggregators
-    var iter = windowBuffer.iterator
-    var continue:Boolean = true
-    while(continue && iter.hasNext)
-    {
-      var currentElement:Tuple2[Long,Row]= iter.next()  
-      if(currentElement._1<time_boundary){
+    val iter = windowBuffer.iterator
+    val limit = currentTime - timeBoundary
+    var continue: Boolean = true
+    while (continue && iter.hasNext) {
+      var currentElement: JTuple2[Long,Row]= iter.next()  
+      if (currentElement.f0 < limit) {
         windowBuffer.remove(1)
         i = 0
         while (i < aggregates.length) { 
           val accumulator = accumulators.getField(i).asInstanceOf[Accumulator]
-          aggregates(i).retract(accumulator, currentElement._2.getField(aggFields(i)))
+          aggregates(i).retract(accumulator, currentElement.f1.getField(aggFields(i)))
           i += 1
         }
       }
-      else
-      {
-        continue=false
+      else {
+        continue = false
       }        
     }
      
@@ -141,9 +143,9 @@ class ProcTimeBoundedNonPartitionedProcessingOverProcessFunction(
 
   //save the elements in the window and the accumulators
   override def snapshotState(context: FunctionSnapshotContext): Unit = {
-    state.clear()
+    accumulatorState.clear()
     if (accumulators != null) {
-      state.add(accumulators)
+      accumulatorState.add(accumulators)
     }
     windowBufferState.clear()
     windowBuffer.iterator.map(f => windowBufferState.add(f))
@@ -152,12 +154,14 @@ class ProcTimeBoundedNonPartitionedProcessingOverProcessFunction(
   //initialize the states
   override def initializeState(context: FunctionInitializationContext): Unit = {
     
-    val bufferDescriptor: ListStateDescriptor[Tuple2[Long,Row]] = 
-    new ListStateDescriptor[Tuple2[Long,Row]]("windowBufferState", classOf[Tuple2[Long,Row]])
+     val bufferType = new TupleTypeInfo(BasicTypeInfo.LONG_TYPE_INFO, rowTypeInfo)
+         .asInstanceOf[TupleTypeInfo[JTuple2[Long, Row]]]
+    val bufferDescriptor: ListStateDescriptor[JTuple2[Long,Row]] = 
+    new ListStateDescriptor[JTuple2[Long,Row]]("windowBufferState", bufferType)
     windowBufferState = context.getOperatorStateStore.getOperatorState(bufferDescriptor)
 
     val stateDescriptor: ListStateDescriptor[Row] =
-    new ListStateDescriptor[Row]("overState", classOf[Row])      
-    state = context.getOperatorStateStore.getOperatorState(stateDescriptor)
+    new ListStateDescriptor[Row]("overState", rowTypeInfo)      
+    accumulatorState = context.getOperatorStateStore.getOperatorState(stateDescriptor)
   }
 }
