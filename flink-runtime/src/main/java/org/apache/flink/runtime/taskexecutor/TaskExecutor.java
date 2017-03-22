@@ -67,6 +67,7 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcMethod;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.rpc.RpcServiceUtils;
 import org.apache.flink.runtime.taskexecutor.exceptions.CheckpointException;
 import org.apache.flink.runtime.taskexecutor.exceptions.PartitionException;
 import org.apache.flink.runtime.taskexecutor.exceptions.SlotAllocationException;
@@ -85,6 +86,7 @@ import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
+import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.ExceptionUtils;
@@ -167,24 +169,24 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 	// ------------------------------------------------------------------------
 
 	public TaskExecutor(
-		TaskManagerConfiguration taskManagerConfiguration,
-		TaskManagerLocation taskManagerLocation,
-		RpcService rpcService,
-		MemoryManager memoryManager,
-		IOManager ioManager,
-		NetworkEnvironment networkEnvironment,
-		HighAvailabilityServices haServices,
-		HeartbeatServices heartbeatServices,
-		MetricRegistry metricRegistry,
-		TaskManagerMetricGroup taskManagerMetricGroup,
-		BroadcastVariableManager broadcastVariableManager,
-		FileCache fileCache,
-		TaskSlotTable taskSlotTable,
-		JobManagerTable jobManagerTable,
-		JobLeaderService jobLeaderService,
-		FatalErrorHandler fatalErrorHandler) {
+			RpcService rpcService,
+			TaskManagerConfiguration taskManagerConfiguration,
+			TaskManagerLocation taskManagerLocation,
+			MemoryManager memoryManager,
+			IOManager ioManager,
+			NetworkEnvironment networkEnvironment,
+			HighAvailabilityServices haServices,
+			HeartbeatServices heartbeatServices,
+			MetricRegistry metricRegistry,
+			TaskManagerMetricGroup taskManagerMetricGroup,
+			BroadcastVariableManager broadcastVariableManager,
+			FileCache fileCache,
+			TaskSlotTable taskSlotTable,
+			JobManagerTable jobManagerTable,
+			JobLeaderService jobLeaderService,
+			FatalErrorHandler fatalErrorHandler) {
 
-		super(rpcService);
+		super(rpcService, RpcServiceUtils.createRandomName(TaskManager.TASK_MANAGER_NAME()));
 
 		checkArgument(taskManagerConfiguration.getNumberSlots() > 0, "The number of slots has to be larger than 0.");
 

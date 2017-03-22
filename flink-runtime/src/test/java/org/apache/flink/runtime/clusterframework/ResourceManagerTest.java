@@ -394,7 +394,9 @@ public class ResourceManagerTest extends TestLogger {
 
 		try {
 			final StandaloneResourceManager resourceManager = new StandaloneResourceManager(
-				rpcService, resourceManagerResourceID,
+				rpcService,
+				FlinkResourceManager.RESOURCE_MANAGER_NAME,
+				resourceManagerResourceID,
 				resourceManagerConfiguration,
 				highAvailabilityServices,
 				heartbeatServices,

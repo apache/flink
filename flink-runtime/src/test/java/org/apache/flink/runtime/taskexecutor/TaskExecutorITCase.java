@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
+import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -121,7 +122,9 @@ public class TaskExecutorITCase extends TestLogger {
 		final JobLeaderService jobLeaderService = new JobLeaderService(taskManagerLocation);
 
 		ResourceManager<ResourceID> resourceManager = new StandaloneResourceManager(
-			rpcService, rmResourceId,
+			rpcService,
+			FlinkResourceManager.RESOURCE_MANAGER_NAME,
+			rmResourceId,
 			resourceManagerConfiguration,
 			testingHAServices,
 			heartbeatServices,
@@ -131,9 +134,9 @@ public class TaskExecutorITCase extends TestLogger {
 			testingFatalErrorHandler);
 
 		TaskExecutor taskExecutor = new TaskExecutor(
+			rpcService,
 			taskManagerConfiguration,
 			taskManagerLocation,
-			rpcService,
 			memoryManager,
 			ioManager,
 			networkEnvironment,
