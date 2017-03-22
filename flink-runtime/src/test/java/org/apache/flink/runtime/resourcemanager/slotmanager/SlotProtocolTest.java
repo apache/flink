@@ -237,8 +237,7 @@ public class SlotProtocolTest extends TestLogger {
 
 		ResourceManager<ResourceID> resourceManager =
 			Mockito.spy(new StandaloneResourceManager(
-				rmResourceId,
-				testRpcService,
+				testRpcService, rmResourceId,
 				resourceManagerConfiguration,
 				testingHaServices,
 				heartbeatServices,
@@ -325,8 +324,7 @@ public class SlotProtocolTest extends TestLogger {
 				JobLeaderIdService jobLeaderIdService,
 				FatalErrorHandler fatalErrorHandler) {
 			super(
-				resourceId,
-				rpcService,
+				rpcService, resourceId,
 				resourceManagerConfiguration,
 				highAvailabilityServices,
 				heartbeatServices,

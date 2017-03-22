@@ -68,8 +68,7 @@ public class ResourceManagerHATest {
 
 		final ResourceManager resourceManager =
 			new StandaloneResourceManager(
-				rmResourceId,
-				rpcService,
+				rpcService, rmResourceId,
 				resourceManagerConfiguration,
 				highAvailabilityServices,
 				heartbeatServices,

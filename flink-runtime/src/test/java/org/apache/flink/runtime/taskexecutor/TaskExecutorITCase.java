@@ -120,8 +120,7 @@ public class TaskExecutorITCase {
 		final JobLeaderService jobLeaderService = new JobLeaderService(taskManagerLocation);
 
 		ResourceManager<ResourceID> resourceManager = new StandaloneResourceManager(
-			rmResourceId,
-			rpcService,
+			rpcService, rmResourceId,
 			resourceManagerConfiguration,
 			testingHAServices,
 			heartbeatServices,

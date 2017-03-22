@@ -64,6 +64,7 @@ import org.apache.flink.util.ExceptionUtils;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -129,8 +130,8 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	private ConcurrentMap<String, InfoMessageListenerRpcGateway> infoMessageListeners;
 
 	public ResourceManager(
-			ResourceID resourceId,
 			RpcService rpcService,
+			ResourceID resourceId,
 			ResourceManagerConfiguration resourceManagerConfiguration,
 			HighAvailabilityServices highAvailabilityServices,
 			HeartbeatServices heartbeatServices,
@@ -359,7 +360,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		final ResourceID taskExecutorResourceId,
 		final SlotReport slotReport) {
 
-		if (leaderSessionId.equals(resourceManagerLeaderId)) {
+		if (Objects.equals(leaderSessionId, resourceManagerLeaderId)) {
 			Future<TaskExecutorGateway> taskExecutorGatewayFuture = getRpcService().connect(taskExecutorAddress, TaskExecutorGateway.class);
 
 			return taskExecutorGatewayFuture.handleAsync(new BiFunction<TaskExecutorGateway, Throwable, RegistrationResponse>() {
@@ -384,7 +385,8 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 						taskManagerHeartbeatManager.monitorTarget(taskExecutorResourceId, new HeartbeatTarget<Void>() {
 							@Override
 							public void receiveHeartbeat(ResourceID resourceID, Void payload) {
-								// the task manager will not request heartbeat, so this method will never be called currently
+								// the ResourceManager will always send heartbeat requests to the
+								// TaskManager
 							}
 
 							@Override
@@ -394,7 +396,8 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 						});
 
 						return new TaskExecutorRegistrationSuccess(
-							registration.getInstanceID(), resourceId,
+							registration.getInstanceID(),
+							resourceId,
 							resourceManagerConfiguration.getHeartbeatInterval().toMilliseconds());
 					}
 				}
@@ -607,6 +610,30 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	}
 
 	/**
+	 * This method should be called by the framework once it detects that a currently registered
+	 * task executor has failed.
+	 *
+	 * @param resourceID Id of the TaskManager that has failed.
+	 * @param cause The exception which cause the TaskManager failed.
+	 */
+	protected void closeTaskManagerConnection(final ResourceID resourceID, final Exception cause) {
+		taskManagerHeartbeatManager.unmonitorTarget(resourceID);
+
+		WorkerRegistration<WorkerType> workerRegistration = taskExecutors.remove(resourceID);
+
+		if (workerRegistration != null) {
+			log.info("Task manager {} failed because {}.", resourceID, cause);
+
+			// TODO :: suggest failed task executor to stop itself
+			slotManager.notifyTaskManagerFailure(resourceID);
+
+			workerRegistration.getTaskExecutorGateway().disconnectResourceManager(cause);
+		} else {
+			log.debug("Could not find a registered task manager with the process id {}.", resourceID);
+		}
+	}
+
+	/**
 	 * Checks whether the given resource manager leader id is matching the current leader id and
 	 * not null.
 	 *
@@ -756,30 +783,6 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		onFatalErrorAsync(new ResourceManagerException("Received an error from the LeaderElectionService.", exception));
 	}
 
-	/**
-	 * This method should be called by the framework once it detects that a currently registered
-	 * task executor has failed.
-	 *
-	 * @param resourceID Id of the TaskManager that has failed.
-	 * @param cause The exception which cause the TaskManager failed.
-	 */
-	public void closeTaskManagerConnection(final ResourceID resourceID, final Exception cause) {
-		taskManagerHeartbeatManager.unmonitorTarget(resourceID);
-
-		WorkerRegistration<WorkerType> workerRegistration = taskExecutors.remove(resourceID);
-
-		if (workerRegistration != null) {
-			log.info("Task manager {} failed because {}.", resourceID, cause);
-
-			// TODO :: suggest failed task executor to stop itself
-			slotManager.notifyTaskManagerFailure(resourceID);
-
-			workerRegistration.getTaskExecutorGateway().disconnectResourceManager(cause);
-		} else {
-			log.debug("Could not find a registered task manager with the process id {}.", resourceID);
-		}
-	}
-
 	// ------------------------------------------------------------------------
 	//  Framework specific behavior
 	// ------------------------------------------------------------------------
@@ -875,11 +878,17 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	private class TaskManagerHeartbeatListener implements HeartbeatListener<Void, Void> {
 
 		@Override
-		public void notifyHeartbeatTimeout(ResourceID resourceID) {
+		public void notifyHeartbeatTimeout(final ResourceID resourceID) {
 			log.info("The heartbeat of TaskManager with id {} timed out.", resourceID);
 
-			closeTaskManagerConnection(resourceID, new TimeoutException(
-					"Task manager with id " + resourceID + " heartbeat timed out."));
+			runAsync(new Runnable() {
+				@Override
+				public void run() {
+					closeTaskManagerConnection(
+						resourceID,
+						new TimeoutException("Task manager with id " + resourceID + " heartbeat timed out."));
+				}
+			});
 		}
 
 		@Override

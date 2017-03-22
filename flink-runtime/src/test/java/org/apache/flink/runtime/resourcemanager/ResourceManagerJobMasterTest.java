@@ -35,6 +35,7 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.TestingSerialRpcService;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.util.TestLogger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -45,7 +46,7 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.*;
 
-public class ResourceManagerJobMasterTest {
+public class ResourceManagerJobMasterTest extends TestLogger {
 
 	private TestingSerialRpcService rpcService;
 
@@ -216,8 +217,7 @@ public class ResourceManagerJobMasterTest {
 			Time.minutes(5L));
 
 		ResourceManager resourceManager = new StandaloneResourceManager(
-			rmResourceId,
-			rpcService,
+			rpcService, rmResourceId,
 			resourceManagerConfiguration,
 			highAvailabilityServices,
 			heartbeatServices,

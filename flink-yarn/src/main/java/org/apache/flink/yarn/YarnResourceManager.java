@@ -107,10 +107,10 @@ public class YarnResourceManager extends ResourceManager<ResourceID> implements 
 	final private Map<ResourceProfile, Integer> resourcePriorities = new HashMap<>();
 
 	public YarnResourceManager(
+			RpcService rpcService,
 			ResourceID resourceId,
 			Configuration flinkConfig,
 			Map<String, String> env,
-			RpcService rpcService,
 			ResourceManagerConfiguration resourceManagerConfiguration,
 			HighAvailabilityServices highAvailabilityServices,
 			HeartbeatServices heartbeatServices,
@@ -119,8 +119,8 @@ public class YarnResourceManager extends ResourceManager<ResourceID> implements 
 			JobLeaderIdService jobLeaderIdService,
 			FatalErrorHandler fatalErrorHandler) {
 		super(
-			resourceId,
 			rpcService,
+			resourceId,
 			resourceManagerConfiguration,
 			highAvailabilityServices,
 			heartbeatServices,

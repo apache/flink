@@ -224,13 +224,19 @@ public class TaskExecutorTest extends TestLogger {
 		ResourceManagerGateway rmGateway = mock(ResourceManagerGateway.class);
 		when(rmGateway.registerTaskExecutor(
 			any(UUID.class), anyString(), any(ResourceID.class), any(SlotReport.class), any(Time.class)))
-			.thenReturn(FlinkCompletableFuture.<RegistrationResponse>completed(
-					new TaskExecutorRegistrationSuccess(new InstanceID(), rmResourceId, 10L)));
+			.thenReturn(
+				FlinkCompletableFuture.<RegistrationResponse>completed(
+					new TaskExecutorRegistrationSuccess(
+						new InstanceID(),
+						rmResourceId,
+						10L)));
 
 		final TestingSerialRpcService rpc = new TestingSerialRpcService();
 		rpc.registerGateway(rmAddress, rmGateway);
 
-		final TestingLeaderRetrievalService testLeaderService = new TestingLeaderRetrievalService();
+		final TestingLeaderRetrievalService testLeaderService = new TestingLeaderRetrievalService(
+			null,
+			null);
 		final TestingHighAvailabilityServices haServices = new TestingHighAvailabilityServices();
 		haServices.setResourceManagerLeaderRetriever(testLeaderService);
 
@@ -292,11 +298,11 @@ public class TaskExecutorTest extends TestLogger {
 			testLeaderService.notifyListener(rmAddress, rmLeaderId);
 
 			// register resource manager success will trigger monitoring heartbeat target between tm and rm
-			verify(rmGateway).registerTaskExecutor(
+			verify(rmGateway, atLeast(1)).registerTaskExecutor(
 					eq(rmLeaderId), eq(taskManager.getAddress()), eq(tmResourceId), any(SlotReport.class), any(Time.class));
 
 			// heartbeat timeout should trigger disconnect TaskManager from ResourceManager
-			verify(rmGateway, timeout(heartbeatTimeout * 5)).disconnectTaskManager(eq(taskManagerLocation.getResourceID()), any(TimeoutException.class));
+			verify(rmGateway, timeout(heartbeatTimeout * 50L)).disconnectTaskManager(eq(taskManagerLocation.getResourceID()), any(TimeoutException.class));
 
 			// check if a concurrent error occurred
 			testingFatalErrorHandler.rethrowError();

@@ -134,13 +134,12 @@ public interface ResourceManagerGateway extends RpcGateway {
 	/**
 	 * Sends the heartbeat to resource manager from task manager
 	 *
-	 * @param resourceID unique id of the task manager
+	 * @param heartbeatOrigin unique id of the task manager
 	 */
-	void heartbeatFromTaskManager(final ResourceID resourceID);
+	void heartbeatFromTaskManager(final ResourceID heartbeatOrigin);
 
 	/**
-	 * Disconnects the given {@link org.apache.flink.runtime.taskexecutor.TaskExecutor} from the
-	 * {@link ResourceManager}.
+	 * Disconnects a TaskManager specified by the given resourceID from the {@link ResourceManager}.
 	 *
 	 * @param resourceID identifying the TaskManager to disconnect
 	 * @param cause for the disconnection of the TaskManager

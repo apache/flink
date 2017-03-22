@@ -53,6 +53,7 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.TestingResourceManager;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -76,7 +77,7 @@ import static org.mockito.Mockito.verify;
 /**
  * General tests for the resource manager component.
  */
-public class ResourceManagerTest {
+public class ResourceManagerTest extends TestLogger {
 
 	private static ActorSystem system;
 
@@ -393,8 +394,7 @@ public class ResourceManagerTest {
 
 		try {
 			final StandaloneResourceManager resourceManager = new StandaloneResourceManager(
-				resourceManagerResourceID,
-				rpcService,
+				rpcService, resourceManagerResourceID,
 				resourceManagerConfiguration,
 				highAvailabilityServices,
 				heartbeatServices,

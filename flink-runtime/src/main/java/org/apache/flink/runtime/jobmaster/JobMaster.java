@@ -1043,11 +1043,11 @@ public class JobMaster extends RpcEndpoint<JobMasterGateway> {
 
 		@Override
 		public void notifyHeartbeatTimeout(ResourceID resourceID) {
-			log.info("Task manager with id {} heartbeat timed out.", resourceID);
+			log.info("Heartbeat of TaskManager with id {} timed out.", resourceID);
 
 			getSelf().disconnectTaskManager(
 				resourceID,
-				new TimeoutException("Task manager with id " + resourceID + " heartbeat timed out."));
+				new TimeoutException("Heartbeat of TaskManager with id " + resourceID + " timed out."));
 		}
 
 		@Override

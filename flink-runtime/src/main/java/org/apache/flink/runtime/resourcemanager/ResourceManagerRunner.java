@@ -69,8 +69,8 @@ public class ResourceManagerRunner implements FatalErrorHandler {
 			rpcService.getScheduledExecutor());
 
 		this.resourceManager = new StandaloneResourceManager(
-			resourceId,
 			rpcService,
+			resourceId,
 			resourceManagerConfiguration,
 			highAvailabilityServices,
 			heartbeatServices,
