@@ -18,9 +18,11 @@
 
 package org.apache.flink.cep.nfa.compiler;
 
+import com.google.common.collect.Sets;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FilterFunction;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.cep.Event;
 import org.apache.flink.cep.SubEvent;
@@ -28,21 +30,44 @@ import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.State;
 import org.apache.flink.cep.nfa.StateTransition;
 import org.apache.flink.cep.nfa.StateTransitionAction;
+import org.apache.flink.cep.pattern.MalformedPatternException;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.util.TestLogger;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import static org.junit.Assert.assertTrue;
+import static com.google.common.collect.Sets.newHashSet;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class NFACompilerTest extends TestLogger {
+
+	private static final FilterFunction<Event> startFilter = new FilterFunction<Event>() {
+		private static final long serialVersionUID = 3314714776170474221L;
+
+		@Override
+		public boolean filter(Event value) throws Exception {
+			return value.getPrice() > 2;
+		}
+	};
+
+	private static final FilterFunction<Event> endFilter = new FilterFunction<Event>() {
+		private static final long serialVersionUID = 3990995859716364087L;
+
+		@Override
+		public boolean filter(Event value) throws Exception {
+			return value.getName().equals("end");
+		}
+	};
+
+	private static final TypeSerializer<Event> serializer = TypeExtractor.createTypeInfo(Event.class)
+		.createSerializer(new ExecutionConfig());
 
 	@Rule
 	public ExpectedException expectedException = ExpectedException.none();
@@ -81,83 +106,96 @@ public class NFACompilerTest extends TestLogger {
 	 */
 	@Test
 	public void testNFACompilerWithSimplePattern() {
-		Pattern<Event, Event> pattern = Pattern.<Event>begin("start").where(new FilterFunction<Event>() {
-			private static final long serialVersionUID = 3314714776170474221L;
+		Pattern<Event, Event> pattern = Pattern.<Event>begin("start").where(startFilter)
+			.followedBy("middle").subtype(SubEvent.class)
+			.next("end").where(endFilter);
 
-			@Override
-			public boolean filter(Event value) throws Exception {
-				return value.getPrice() > 2;
-			}
-		})
-		.followedBy("middle").subtype(SubEvent.class)
-		.next("end").where(new FilterFunction<Event>() {
-				private static final long serialVersionUID = 3990995859716364087L;
-
-				@Override
-			public boolean filter(Event value) throws Exception {
-				return value.getName().equals("end");
-			}
-		});
-
-		TypeInformation<Event> typeInformation = TypeExtractor.createTypeInfo(Event.class);
-
-		NFA<Event> nfa = NFACompiler.compile(pattern, typeInformation.createSerializer(new ExecutionConfig()), false);
+		NFA<Event> nfa = NFACompiler.compile(pattern, serializer, false);
 
 		Set<State<Event>> states = nfa.getStates();
-
 		assertEquals(4, states.size());
 
 		Map<String, State<Event>> stateMap = new HashMap<>();
-
-		for (State<Event> state: states) {
+		for (State<Event> state : states) {
 			stateMap.put(state.getName(), state);
 		}
 
-		assertTrue(stateMap.containsKey(NFACompiler.BEGINNING_STATE_NAME));
-		State<Event> beginningState = stateMap.get(NFACompiler.BEGINNING_STATE_NAME);
-
-		assertTrue(beginningState.isStart());
-
 		assertTrue(stateMap.containsKey("start"));
 		State<Event> startState = stateMap.get("start");
-
-		Collection<StateTransition<Event>> startTransitions = startState.getStateTransitions();
-		Map<String, StateTransition<Event>> startTransitionMap = new HashMap<>();
-
-		for (StateTransition<Event> transition: startTransitions) {
-			startTransitionMap.put(transition.getTargetState().getName(), transition);
-		}
-
-		assertEquals(2, startTransitionMap.size());
-		assertTrue(startTransitionMap.containsKey("start"));
-
-		StateTransition<Event> reflexiveTransition = startTransitionMap.get("start");
-		assertEquals(StateTransitionAction.IGNORE, reflexiveTransition.getAction());
-
-		assertTrue(startTransitionMap.containsKey("middle"));
-		StateTransition<Event> startMiddleTransition = startTransitionMap.get("middle");
-		assertEquals(StateTransitionAction.TAKE, startMiddleTransition.getAction());
+		assertTrue(startState.isStart());
+		final Set<Tuple2<String, StateTransitionAction>> startTransitions = unfoldTransitions(startState);
+		assertEquals(newHashSet(
+			Tuple2.of("middle", StateTransitionAction.TAKE)
+		), startTransitions);
 
 		assertTrue(stateMap.containsKey("middle"));
 		State<Event> middleState = stateMap.get("middle");
-
-		Map<String, StateTransition<Event>> middleTransitionMap = new HashMap<>();
-
-		for (StateTransition<Event> transition: middleState.getStateTransitions()) {
-			middleTransitionMap.put(transition.getTargetState().getName(), transition);
-		}
-
-		assertEquals(1, middleTransitionMap.size());
-
-		assertTrue(middleTransitionMap.containsKey("end"));
-		StateTransition<Event> middleEndTransition = middleTransitionMap.get("end");
-
-		assertEquals(StateTransitionAction.TAKE, middleEndTransition.getAction());
+		final Set<Tuple2<String, StateTransitionAction>> middleTransitions = unfoldTransitions(middleState);
+		assertEquals(newHashSet(
+			Tuple2.of("middle", StateTransitionAction.IGNORE),
+			Tuple2.of("end", StateTransitionAction.TAKE)
+		), middleTransitions);
 
 		assertTrue(stateMap.containsKey("end"));
 		State<Event> endState = stateMap.get("end");
+		final Set<Tuple2<String, StateTransitionAction>> endTransitions = unfoldTransitions(endState);
+		assertEquals(newHashSet(
+			Tuple2.of(NFACompiler.ENDING_STATE_NAME, StateTransitionAction.TAKE)
+		), endTransitions);
 
-		assertTrue(endState.isFinal());
-		assertEquals(0, endState.getStateTransitions().size());
+		assertTrue(stateMap.containsKey(NFACompiler.ENDING_STATE_NAME));
+		State<Event> endingState = stateMap.get(NFACompiler.ENDING_STATE_NAME);
+		assertTrue(endingState.isFinal());
+		assertEquals(0, endingState.getStateTransitions().size());
 	}
+
+	@Test
+	public void testNFACompilerWithKleeneStar() {
+
+		Pattern<Event, Event> pattern = Pattern.<Event>begin("start").where(startFilter)
+			.followedBy("middle").subtype(SubEvent.class).zeroOrMore()
+			.followedBy("end").where(endFilter);
+
+		NFA<Event> nfa = NFACompiler.compile(pattern, serializer, false);
+
+		Set<State<Event>> states = nfa.getStates();
+		assertEquals(5, states.size());
+
+
+		Set<Tuple2<String, Set<Tuple2<String, StateTransitionAction>>>> stateMap = new HashSet<>();
+		for (State<Event> state : states) {
+			stateMap.add(Tuple2.of(state.getName(), unfoldTransitions(state)));
+		}
+
+		assertEquals(stateMap, newHashSet(
+			Tuple2.of("start", newHashSet(Tuple2.of("middle", StateTransitionAction.TAKE))),
+			Tuple2.of("middle", newHashSet(
+				Tuple2.of("middle", StateTransitionAction.IGNORE),
+				Tuple2.of("middle", StateTransitionAction.TAKE)
+			)),
+		    Tuple2.of("middle", newHashSet(
+			    Tuple2.of("middle", StateTransitionAction.IGNORE),
+			    Tuple2.of("middle", StateTransitionAction.TAKE),
+			    Tuple2.of("end", StateTransitionAction.PROCEED)
+		    )),
+			Tuple2.of("end", newHashSet(
+				Tuple2.of(NFACompiler.ENDING_STATE_NAME, StateTransitionAction.TAKE),
+				Tuple2.of("end", StateTransitionAction.IGNORE)
+			)),
+		    Tuple2.of(NFACompiler.ENDING_STATE_NAME, Sets.newHashSet())
+		));
+
+	}
+
+
+	private <T> Set<Tuple2<String, StateTransitionAction>> unfoldTransitions(final State<T> state) {
+		final Set<Tuple2<String, StateTransitionAction>> transitions = new HashSet<>();
+		for (StateTransition<T> transition : state.getStateTransitions()) {
+			transitions.add(Tuple2.of(
+				transition.getTargetState().getName(),
+				transition.getAction()));
+		}
+		return transitions;
+	}
+
 }
