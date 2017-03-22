@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.plan.nodes
 
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlAsOperator
@@ -26,12 +27,12 @@ import org.apache.flink.table.api.TableException
 
 import scala.collection.JavaConversions._
 
-trait FlinkRel {
+trait FlinkRelNode extends RelNode {
 
   private[flink] def getExpressionString(
-    expr: RexNode,
-    inFields: List[String],
-    localExprsTable: Option[List[RexNode]]): String = {
+      expr: RexNode,
+      inFields: List[String],
+      localExprsTable: Option[List[RexNode]]): String = {
 
     expr match {
       case i: RexInputRef =>
@@ -42,7 +43,7 @@ trait FlinkRel {
 
       case l: RexLocalRef if localExprsTable.isEmpty =>
         throw new IllegalArgumentException("Encountered RexLocalRef without " +
-          "local expression table")
+            "local expression table")
 
       case l: RexLocalRef =>
         val lExpr = localExprsTable.get(l.getIndex)

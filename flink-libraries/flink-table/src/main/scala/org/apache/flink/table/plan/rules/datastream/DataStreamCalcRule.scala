@@ -18,25 +18,25 @@
 
 package org.apache.flink.table.plan.rules.datastream
 
-import org.apache.calcite.plan.{Convention, RelOptRule, RelTraitSet}
+import org.apache.calcite.plan.{RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.calcite.rel.logical.LogicalCalc
+import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.datastream.DataStreamCalc
-import org.apache.flink.table.plan.nodes.datastream.DataStreamConvention
+import org.apache.flink.table.plan.nodes.logical.FlinkLogicalCalc
 
 class DataStreamCalcRule
   extends ConverterRule(
-    classOf[LogicalCalc],
-    Convention.NONE,
-    DataStreamConvention.INSTANCE,
+    classOf[FlinkLogicalCalc],
+    FlinkConventions.LOGICAL,
+    FlinkConventions.DATASTREAM,
     "DataStreamCalcRule")
 {
 
   def convert(rel: RelNode): RelNode = {
-    val calc: LogicalCalc = rel.asInstanceOf[LogicalCalc]
-    val traitSet: RelTraitSet = rel.getTraitSet.replace(DataStreamConvention.INSTANCE)
-    val convInput: RelNode = RelOptRule.convert(calc.getInput, DataStreamConvention.INSTANCE)
+    val calc: FlinkLogicalCalc = rel.asInstanceOf[FlinkLogicalCalc]
+    val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.DATASTREAM)
+    val convInput: RelNode = RelOptRule.convert(calc.getInput, FlinkConventions.DATASTREAM)
 
     new DataStreamCalc(
       rel.getCluster,

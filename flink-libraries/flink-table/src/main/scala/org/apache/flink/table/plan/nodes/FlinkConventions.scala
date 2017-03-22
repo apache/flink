@@ -16,32 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.plan.nodes.dataset
+package org.apache.flink.table.plan.nodes
 
-import org.apache.calcite.plan._
+import org.apache.calcite.plan.Convention
+import org.apache.flink.table.plan.nodes.dataset.DataSetRel
+import org.apache.flink.table.plan.nodes.datastream.DataStreamRel
+import org.apache.flink.table.plan.nodes.logical.FlinkLogicalRel
 
-class DataSetConvention extends Convention {
+object FlinkConventions {
 
-  override def toString: String = getName
+  val LOGICAL: Convention = new Convention.Impl("LOGICAL", classOf[FlinkLogicalRel])
 
-  override def useAbstractConvertersForConversion(
-    fromTraits: RelTraitSet,
-    toTraits: RelTraitSet): Boolean = false
+  val DATASET: Convention = new Convention.Impl("DATASET", classOf[DataSetRel])
 
-  override def canConvertConvention(toConvention: Convention): Boolean = false
-
-  def getInterface: Class[_] = classOf[DataSetRel]
-
-  def getName: String = "DATASET"
-
-  def getTraitDef: RelTraitDef[_ <: RelTrait] = ConventionTraitDef.INSTANCE
-
-  def satisfies(`trait`: RelTrait): Boolean = this eq `trait`
-
-  def register(planner: RelOptPlanner): Unit = { }
-}
-
-object DataSetConvention {
-
-  val INSTANCE = new DataSetConvention
+  val DATASTREAM: Convention = new Convention.Impl("DATASTREAM", classOf[DataStreamRel])
 }
