@@ -95,6 +95,8 @@ public class CheckpointStatsTracker {
 	 */
 	private volatile boolean dirty;
 
+	/** The latest completed checkpoint. Used by the latest completed checkpoint metrics. */
+	@Nullable
 	private volatile transient CompletedCheckpointStats latestCompletedCheckpoint;
 
 	/**
