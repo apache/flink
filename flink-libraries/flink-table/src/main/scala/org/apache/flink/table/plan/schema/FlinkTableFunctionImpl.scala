@@ -35,49 +35,47 @@ import org.apache.flink.table.functions.{TableFunction => FlinkUDTF}
   * This is heavily inspired by Calcite's [[org.apache.calcite.schema.impl.TableFunctionImpl]].
   * We need it in order to create a [[org.apache.flink.table.functions.utils.TableSqlFunction]].
   * The main difference is that we override the [[getRowType()]] and [[getElementType()]].
+  *
+  * @param tableFunction The Table Function instance
+  * @param fieldIndexes The field indexes. If it is null, it will be inferred from
+  *                     the [[tableFunction]]
+  * @param fieldNames The field names. If it is null, it will be inferred from the
+  *                   [[tableFunction]]
+  * @param evalMethod The eval() method of the [[tableFunction]]
   */
 class FlinkTableFunctionImpl[T](
     val tableFunction: FlinkUDTF[T],
+    var fieldIndexes: Array[Int],
+    var fieldNames: Array[String],
     val evalMethod: Method)
   extends ReflectiveFunctionBase(evalMethod)
   with TableFunction {
 
+  checkFields()
+
   /**
-    * Cached resultType, fieldIndexes and fieldNames
+    * Cached resultType
     */
   var resultType: TypeInformation[T] = _
-  var fieldIndexes: Array[Int] = _
-  var fieldNames: Array[String] = _
 
   override def getElementType(arguments: util.List[AnyRef]): Type = classOf[Array[Object]]
 
   override def getRowType(typeFactory: RelDataTypeFactory,
                           arguments: util.List[AnyRef]): RelDataType = {
-    val flinkTypeFactory = typeFactory.asInstanceOf[FlinkTypeFactory]
-    val builder = flinkTypeFactory.builder
-    implicit val typeInfo: TypeInformation[T] = TypeExtractor.createTypeInfo(
-      tableFunction, classOf[FlinkUDTF[_]], tableFunction.getClass, 0)
-      .asInstanceOf[TypeInformation[T]]
 
+    // Get the result type from table function
     resultType = if (tableFunction.getResultType(arguments) != null) {
       tableFunction.getResultType(arguments)
     } else {
-      implicitly[TypeInformation[T]]
+      TypeExtractor.createTypeInfo(
+        tableFunction, classOf[FlinkUDTF[_]], tableFunction.getClass, 0)
+        .asInstanceOf[TypeInformation[T]]
     }
-
-    val fieldTup = UserDefinedFunctionUtils.getFieldInfo(resultType)
-    fieldNames = fieldTup._1
-    fieldIndexes = fieldTup._2
-
-    if (fieldIndexes.length != fieldNames.length) {
-      throw new TableException(
-        "Number of field indexes and field names must be equal.")
-    }
-
-    // check uniqueness of field names
-    if (fieldNames.length != fieldNames.toSet.size) {
-      throw new TableException(
-        "Table field names must be unique.")
+    if (null == fieldNames || null == fieldIndexes) {
+      val fieldInfo = UserDefinedFunctionUtils.getFieldInfo(resultType)
+      fieldNames = fieldInfo._1
+      fieldIndexes = fieldInfo._2
+      checkFields()
     }
 
     val fieldTypes: Array[TypeInformation[_]] =
@@ -97,11 +95,31 @@ class FlinkTableFunctionImpl[T](
           Array(aType)
       }
 
+    val flinkTypeFactory = typeFactory.asInstanceOf[FlinkTypeFactory]
+    val builder = flinkTypeFactory.builder
     fieldNames
       .zip(fieldTypes)
       .foreach { f =>
         builder.add(f._1, flinkTypeFactory.createTypeFromTypeInfo(f._2)).nullable(true)
       }
     builder.build
+  }
+
+  private def checkFields(): Unit = {
+
+    if (null == fieldNames || null == fieldIndexes) {
+      return
+    }
+
+    if (fieldIndexes.length != fieldNames.length) {
+      throw new TableException(
+        "Number of field indexes and field names must be equal.")
+    }
+
+    // check uniqueness of field names
+    if (fieldNames.length != fieldNames.toSet.size) {
+      throw new TableException(
+        "Table field names must be unique.")
+    }
   }
 }

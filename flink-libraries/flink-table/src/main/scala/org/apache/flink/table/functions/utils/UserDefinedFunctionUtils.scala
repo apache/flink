@@ -220,7 +220,8 @@ object UserDefinedFunctionUtils {
     val evalMethods = checkAndExtractEvalMethods(tableFunction)
 
     evalMethods.map { method =>
-      val function = new FlinkTableFunctionImpl(tableFunction, method)
+      // We don't know the field names without knowing the result type
+      val function = new FlinkTableFunctionImpl(tableFunction, null, null, method)
       TableSqlFunction(name, tableFunction, typeFactory, function)
     }
   }
