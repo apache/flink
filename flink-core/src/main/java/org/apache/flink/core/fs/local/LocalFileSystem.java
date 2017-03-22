@@ -44,6 +44,8 @@ import java.net.InetAddress;
 import java.net.URI;
 import java.net.UnknownHostException;
 import java.nio.file.FileAlreadyExistsException;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -223,6 +225,7 @@ public class LocalFileSystem extends FileSystem {
 	 * @throws IOException
 	 *         thrown if an error occurred while creating the directory/directories
 	 */
+	@Override
 	public boolean mkdirs(final Path f) throws IOException {
 		final File p2f = pathToFile(f);
 
@@ -262,8 +265,13 @@ public class LocalFileSystem extends FileSystem {
 	public boolean rename(final Path src, final Path dst) throws IOException {
 		final File srcFile = pathToFile(src);
 		final File dstFile = pathToFile(dst);
-
-		return srcFile.renameTo(dstFile);
+		//Files.move fails if the destination directory doesn't exist
+		if(dstFile.getParentFile()!= null && !dstFile.getParentFile().exists()){
+			Files.createDirectories(dstFile.getParentFile().toPath());
+		}
+		//this throws an IOException if any error occurs
+		Files.move(srcFile.toPath(), dstFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+		return true;
 	}
 
 	@Override

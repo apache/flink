@@ -218,29 +218,46 @@ public class LocalFileSystemTest {
 	public void testRenamePath() throws IOException {
 		File rootDirectory = temporaryFolder.newFolder();
 
-		//create a file /root/srcDir/test.csv
-		File srcDirectory  = new File(rootDirectory, "srcDir");
+		//create a file /root/src/B/test.csv
+		File srcDirectory  = new File(rootDirectory, "src");
+		srcDirectory  = new File(srcDirectory, "B");
 		assertTrue(srcDirectory.mkdirs());
 		File srcFile = new File(srcDirectory, "test.csv");
 		assertTrue(srcFile.createNewFile());
 
-		//Move/rename srcDir and its content to /root/destDir
-		File destDirectory  = new File(rootDirectory, "destDir");
+		//Move/rename B and its content to /root/dst/A
+		File destDirectory  = new File(rootDirectory, "dst");
+		destDirectory  = new File(destDirectory, "B");
 		File destFile  = new File(destDirectory, "test.csv");
 
 		Path srcDirPath = new Path(srcDirectory.toURI());
+		Path srcFilePath = new Path(srcFile.toURI());
 		Path destDirPath = new Path(destDirectory.toURI());
 		Path destFilePath = new Path(destFile.toURI());
 
 		FileSystem fs = FileSystem.getLocalFileSystem();
 
-		// verify that srcDir exists while destDir doesn't
+		// pre-conditions: /root/src/B exists but /root/dst/B does not
 		assertTrue(fs.exists(srcDirPath));
 		assertFalse(fs.exists(destDirPath));
 
-		// do the move/rename
+		// do the move/rename: /root/src/B -> /root/dst/
 		assertTrue(fs.rename(srcDirPath, destDirPath));
+		
+		// post-conditions: /root/src/B doens't exists, /root/dst/B/test.csv has been created
 		assertTrue(fs.exists(destFilePath));
 		assertFalse(fs.exists(srcDirPath));
+		
+		//re-create initial situation and test overwrite
+		assertTrue(fs.delete(destDirPath, true));
+		assertTrue(srcDirectory.mkdirs());
+		assertTrue(srcFile.createNewFile());
+		//now use the file as dest: /root/src/B/test.csv -> /root/dst/B/test.csv
+		assertTrue(fs.rename(srcFilePath, destFilePath));
+		
+		// post-conditions: now only the src file has been moved
+		assertFalse(fs.exists(srcFilePath));
+		assertTrue(fs.exists(srcDirPath));
+		assertTrue(fs.exists(destFilePath));
 	}
 }
