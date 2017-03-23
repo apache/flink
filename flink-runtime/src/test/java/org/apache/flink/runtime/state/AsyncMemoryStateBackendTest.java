@@ -23,8 +23,9 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
-import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
+import org.apache.flink.runtime.state.heap.async.AsyncHeapKeyedStateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.state.memory.async.AsyncMemoryStateBackend;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -38,13 +39,13 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
- * Tests for the {@link org.apache.flink.runtime.state.memory.MemoryStateBackend}.
+ * Tests for the {@link MemoryStateBackend}.
  */
-public class MemoryStateBackendTest extends StateBackendTestBase<MemoryStateBackend> {
+public class AsyncMemoryStateBackendTest extends StateBackendTestBase<AsyncMemoryStateBackend> {
 
 	@Override
-	protected MemoryStateBackend getStateBackend() throws Exception {
-		return new MemoryStateBackend();
+	protected AsyncMemoryStateBackend getStateBackend() throws Exception {
+		return new AsyncMemoryStateBackend();
 	}
 
 	// disable these because the verification does not work for this state backend
@@ -68,7 +69,7 @@ public class MemoryStateBackendTest extends StateBackendTestBase<MemoryStateBack
 		ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>("id", String.class, null);
 		kvId.initializeSerializerUnlessSet(new ExecutionConfig());
 
-		HeapKeyedStateBackend<Integer> heapBackend = (HeapKeyedStateBackend<Integer>) backend;
+		AsyncHeapKeyedStateBackend<Integer> heapBackend = (AsyncHeapKeyedStateBackend<Integer>) backend;
 
 		assertEquals(0, heapBackend.numStateEntries());
 
@@ -191,6 +192,6 @@ public class MemoryStateBackendTest extends StateBackendTestBase<MemoryStateBack
 
 	@Test
 	public void testConcurrentMapIfQueryable() throws Exception {
-		super.testConcurrentMapIfQueryable();
+		//unsupported
 	}
 }

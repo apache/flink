@@ -35,6 +35,8 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.state.heap.async.AbstractHeapMergingState;
+import org.apache.flink.runtime.state.heap.async.InternalKeyContext;
 import org.apache.flink.util.Preconditions;
 
 import java.io.Closeable;
@@ -51,7 +53,7 @@ import java.util.List;
  * @param <K> Type of the key by which state is keyed.
  */
 public abstract class AbstractKeyedStateBackend<K>
-		implements KeyedStateBackend<K>, Snapshotable<KeyGroupsStateHandle>, Closeable {
+		implements KeyedStateBackend<K>, Snapshotable<KeyGroupsStateHandle>, Closeable, InternalKeyContext<K> {
 
 	/** {@link TypeSerializer} for our key. */
 	protected final TypeSerializer<K> keySerializer;
@@ -205,6 +207,7 @@ public abstract class AbstractKeyedStateBackend<K>
 	/**
 	 * @see KeyedStateBackend
 	 */
+	@Override
 	public KeyGroupRange getKeyGroupRange() {
 		return keyGroupRange;
 	}
@@ -293,10 +296,16 @@ public abstract class AbstractKeyedStateBackend<K>
 	@Override
 	@SuppressWarnings("unchecked,rawtypes")
 	public <N, S extends MergingState<?, ?>> void mergePartitionedStates(final N target, Collection<N> sources, final TypeSerializer<N> namespaceSerializer, final StateDescriptor<S, ?> stateDescriptor) throws Exception {
-		if (stateDescriptor instanceof ReducingStateDescriptor) {
+
+		State stateRef = getPartitionedState(target, namespaceSerializer, stateDescriptor);
+		if (stateRef instanceof AbstractHeapMergingState) {
+
+			((AbstractHeapMergingState) stateRef).mergeNamespaces(target, sources);
+		} else if (stateDescriptor instanceof ReducingStateDescriptor) {
+
 			ReducingStateDescriptor reducingStateDescriptor = (ReducingStateDescriptor) stateDescriptor;
+			ReducingState state = (ReducingState) stateRef;
 			ReduceFunction reduceFn = reducingStateDescriptor.getReduceFunction();
-			ReducingState state = (ReducingState) getPartitionedState(target, namespaceSerializer, stateDescriptor);
 			KvState kvState = (KvState) state;
 			Object result = null;
 			for (N source: sources) {
@@ -314,7 +323,8 @@ public abstract class AbstractKeyedStateBackend<K>
 				state.add(result);
 			}
 		} else if (stateDescriptor instanceof ListStateDescriptor) {
-			ListState<Object> state = (ListState) getPartitionedState(target, namespaceSerializer, stateDescriptor);
+
+			ListState<Object> state = (ListState) stateRef;
 			KvState kvState = (KvState) state;
 			List<Object> result = new ArrayList<>();
 			for (N source: sources) {
