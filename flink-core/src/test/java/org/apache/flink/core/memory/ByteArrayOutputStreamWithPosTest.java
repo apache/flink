@@ -23,8 +23,8 @@ import org.junit.Test;
 public class ByteArrayOutputStreamWithPosTest {
 	@Test
 	public void setPositionWhenBufferIsFull() throws Exception {
-		ByteArrayOutputStreamWithPos stream = new ByteArrayOutputStreamWithPos();
-		stream.write(new byte[64]);
+		ByteArrayOutputStreamWithPos stream = new ByteArrayOutputStreamWithPos(32);
+		stream.write(new byte[32]);
 		stream.setPosition(stream.getPosition());
 	}
 
