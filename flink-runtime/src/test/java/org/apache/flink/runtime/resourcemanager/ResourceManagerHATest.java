@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.metrics.MetricRegistry;
@@ -40,11 +42,14 @@ public class ResourceManagerHATest {
 
 	@Test
 	public void testGrantAndRevokeLeadership() throws Exception {
+		ResourceID rmResourceId = ResourceID.generate();
 		RpcService rpcService = new TestingSerialRpcService();
 
 		TestingLeaderElectionService leaderElectionService = new TestingLeaderElectionService();
 		TestingHighAvailabilityServices highAvailabilityServices = new TestingHighAvailabilityServices();
 		highAvailabilityServices.setResourceManagerLeaderElectionService(leaderElectionService);
+
+		HeartbeatServices heartbeatServices = mock(HeartbeatServices.class);
 
 		ResourceManagerConfiguration resourceManagerConfiguration = new ResourceManagerConfiguration(
 			Time.seconds(5L),
@@ -63,9 +68,11 @@ public class ResourceManagerHATest {
 
 		final ResourceManager resourceManager =
 			new StandaloneResourceManager(
+				rmResourceId,
 				rpcService,
 				resourceManagerConfiguration,
 				highAvailabilityServices,
+				heartbeatServices,
 				slotManagerFactory,
 				metricRegistry,
 				resourceManagerRuntimeServices.getJobLeaderIdService(),

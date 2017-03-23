@@ -141,10 +141,24 @@ public interface TaskExecutorGateway extends RpcGateway {
 	void heartbeatFromJobManager(ResourceID heartbeatOrigin);
 
 	/**
+	 * Heartbeat request from the resource manager
+	 *
+	 * @param heartbeatOrigin unique id of the resource manager
+	 */
+	void heartbeatFromResourceManager(ResourceID heartbeatOrigin);
+
+	/**
 	 * Disconnects the given JobManager from the TaskManager.
 	 *
 	 * @param jobId JobID for which the JobManager was the leader
 	 * @param cause for the disconnection from the JobManager
 	 */
 	void disconnectJobManager(JobID jobId, Exception cause);
+
+	/**
+	 * Disconnects the ResourceManager from the TaskManager.
+	 *
+	 * @param cause for the disconnection from the ResourceManager
+	 */
+	void disconnectResourceManager(Exception cause);
 }

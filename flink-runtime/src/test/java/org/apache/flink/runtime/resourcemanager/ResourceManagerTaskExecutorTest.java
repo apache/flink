@@ -21,6 +21,7 @@ package org.apache.flink.runtime.resourcemanager;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.metrics.MetricRegistry;
@@ -40,6 +41,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.RETURNS_MOCKS;
 import static org.mockito.Mockito.mock;
 
 public class ResourceManagerTaskExecutorTest {
@@ -52,6 +54,8 @@ public class ResourceManagerTaskExecutorTest {
 
 	private ResourceID taskExecutorResourceID;
 
+	private ResourceID resourceManagerResourceID;
+
 	private StandaloneResourceManager resourceManager;
 
 	private UUID leaderSessionId;
@@ -63,6 +67,7 @@ public class ResourceManagerTaskExecutorTest {
 		rpcService = new TestingSerialRpcService();
 
 		taskExecutorResourceID = mockTaskExecutor(taskExecutorAddress);
+		resourceManagerResourceID = ResourceID.generate();
 		TestingLeaderElectionService rmLeaderElectionService = new TestingLeaderElectionService();
 		testingFatalErrorHandler = new TestingFatalErrorHandler();
 		resourceManager = createAndStartResourceManager(rmLeaderElectionService, testingFatalErrorHandler);
@@ -145,6 +150,9 @@ public class ResourceManagerTaskExecutorTest {
 	private StandaloneResourceManager createAndStartResourceManager(TestingLeaderElectionService rmLeaderElectionService, FatalErrorHandler fatalErrorHandler) throws Exception {
 		TestingHighAvailabilityServices highAvailabilityServices = new TestingHighAvailabilityServices();
 		highAvailabilityServices.setResourceManagerLeaderElectionService(rmLeaderElectionService);
+
+		HeartbeatServices heartbeatServices = mock(HeartbeatServices.class, RETURNS_MOCKS);
+
 		TestingSlotManagerFactory slotManagerFactory = new TestingSlotManagerFactory();
 		ResourceManagerConfiguration resourceManagerConfiguration = new ResourceManagerConfiguration(
 			Time.seconds(5L),
@@ -158,9 +166,11 @@ public class ResourceManagerTaskExecutorTest {
 
 		StandaloneResourceManager resourceManager =
 			new StandaloneResourceManager(
+				resourceManagerResourceID,
 				rpcService,
 				resourceManagerConfiguration,
 				highAvailabilityServices,
+				heartbeatServices,
 				slotManagerFactory,
 				metricRegistry,
 				jobLeaderIdService,

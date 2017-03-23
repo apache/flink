@@ -26,6 +26,7 @@ import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.resourcemanager.JobLeaderIdService;
@@ -106,19 +107,23 @@ public class YarnResourceManager extends ResourceManager<ResourceID> implements 
 	final private Map<ResourceProfile, Integer> resourcePriorities = new HashMap<>();
 
 	public YarnResourceManager(
+			ResourceID resourceId,
 			Configuration flinkConfig,
 			Map<String, String> env,
 			RpcService rpcService,
 			ResourceManagerConfiguration resourceManagerConfiguration,
 			HighAvailabilityServices highAvailabilityServices,
+			HeartbeatServices heartbeatServices,
 			SlotManagerFactory slotManagerFactory,
 			MetricRegistry metricRegistry,
 			JobLeaderIdService jobLeaderIdService,
 			FatalErrorHandler fatalErrorHandler) {
 		super(
+			resourceId,
 			rpcService,
 			resourceManagerConfiguration,
 			highAvailabilityServices,
+			heartbeatServices,
 			slotManagerFactory,
 			metricRegistry,
 			jobLeaderIdService,
@@ -231,7 +236,8 @@ public class YarnResourceManager extends ResourceManager<ResourceID> implements 
 	public void onContainersCompleted(List<ContainerStatus> list) {
 		for (ContainerStatus container : list) {
 			if (container.getExitStatus() < 0) {
-				notifyWorkerFailed(new ResourceID(container.getContainerId().toString()), container.getDiagnostics());
+				closeTaskManagerConnection(new ResourceID(
+					container.getContainerId().toString()), new Exception(container.getDiagnostics()));
 			}
 		}
 	}

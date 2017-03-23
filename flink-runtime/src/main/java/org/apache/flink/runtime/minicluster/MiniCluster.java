@@ -241,7 +241,7 @@ public class MiniCluster {
 				// bring up the ResourceManager(s)
 				LOG.info("Starting {} ResourceManger(s)", numResourceManagers);
 				resourceManagerRunners = startResourceManagers(
-						configuration, haServices, metricRegistry, numResourceManagers, resourceManagerRpcServices);
+						configuration, haServices, heartbeatServices, metricRegistry, numResourceManagers, resourceManagerRpcServices);
 
 				// bring up the TaskManager(s) for the mini cluster
 				LOG.info("Starting {} TaskManger(s)", numTaskManagers);
@@ -508,6 +508,7 @@ public class MiniCluster {
 	protected ResourceManagerRunner[] startResourceManagers(
 			Configuration configuration,
 			HighAvailabilityServices haServices,
+			HeartbeatServices heartbeatServices,
 			MetricRegistry metricRegistry,
 			int numResourceManagers,
 			RpcService[] resourceManagerRpcServices) throws Exception {
@@ -517,9 +518,11 @@ public class MiniCluster {
 		for (int i = 0; i < numResourceManagers; i++) {
 
 			resourceManagerRunners[i] = new ResourceManagerRunner(
+				ResourceID.generate(),
 				configuration,
 				resourceManagerRpcServices[i],
 				haServices,
+				heartbeatServices,
 				metricRegistry);
 
 			resourceManagerRunners[i].start();
