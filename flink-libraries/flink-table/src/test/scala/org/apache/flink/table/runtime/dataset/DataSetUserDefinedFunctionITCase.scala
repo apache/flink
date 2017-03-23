@@ -117,40 +117,47 @@ class DataSetUserDefinedFunctionITCase(
   }
 
   @Test
-  def testIncompleteColumns(): Unit = {
+  def testDynamicSchema(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tableEnv = TableEnvironment.getTableEnvironment(env, config)
     val in = testData(env).toTable(tableEnv).as('a, 'b, 'c)
-    val func4 = new TableFunc4
+    val funcDyn = new DynamicSchema
 
     val result = in
-      .join(func4('c) as ('name, 'lenone, 'lentwo))
-      .select('c, 'name, 'lenone, 'lentwo)
+      .join(funcDyn('c, 1) as 'name)
+      .select('c, 'name)
       .toDataSet[Row]
 
     val results = result.collect()
-    val expected = "Jack#22,Jack,null,null\n" + "Jack#22,22,null,null\n" +
-      "John#19,John,null,null\n" + "John#19,19,null,null\n" + "Anna#44,Anna,null,null\n" +
-      "Anna#44,44,null,null\n"
+    val expected = "Jack#22,Jack\n" + "Jack#22,22\n" + "John#19,John\n" +
+      "John#19,19\n" + "Anna#44,Anna\n" + "Anna#44,44\n"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
-  }
 
-  @Test
-  def testOverflowColumns(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
-    val in = testData(env).toTable(tableEnv).as('a, 'b, 'c)
-    val func6 = new TableFunc6
-
-    val result = in
-      .join(func6('c) as ('name, 'len))
-      .select('c, 'name, 'len)
+    val result1 = in
+      .join(funcDyn('c, 2) as ('name, 'len0))
+      .select('c, 'name, 'len0)
       .toDataSet[Row]
+    val results1 = result1.collect()
+    val expected1 = "Jack#22,Jack,4\n" +
+      "Jack#22,22,2\n" +
+      "John#19,John,4\n" +
+      "John#19,19,2\n" +
+      "Anna#44,Anna,4\n" +
+      "Anna#44,44,2\n"
+    TestBaseUtils.compareResultAsText(results1.asJava, expected1)
 
-    val results = result.collect()
-    val expected = "Jack#22,Jack,4\n" + "Jack#22,22,2\n" + "John#19,John,4\n" +
-      "John#19,19,2\n" + "Anna#44,Anna,4\n" + "Anna#44,44,2\n"
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
+    val result2 = in
+      .join(funcDyn('c, 3) as ('name, 'len0, 'len1))
+      .select('c, 'name, 'len0, 'len1)
+      .toDataSet[Row]
+    val results2 = result2.collect()
+    val expected2 = "Jack#22,Jack,4,4\n" +
+      "Jack#22,22,2,2\n" +
+      "John#19,John,4,4\n" +
+      "John#19,19,2,2\n" +
+      "Anna#44,Anna,4,4\n" +
+      "Anna#44,44,2,2\n"
+    TestBaseUtils.compareResultAsText(results2.asJava, expected2)
   }
 
   @Test

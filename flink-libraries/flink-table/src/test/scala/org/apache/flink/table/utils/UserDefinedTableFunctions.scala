@@ -28,6 +28,7 @@ import org.apache.flink.types.Row
 import org.junit.Assert
 
 import scala.annotation.varargs
+import scala.collection.mutable.ArrayBuffer
 
 
 case class SimpleUser(name: String, age: Int)
@@ -109,63 +110,30 @@ class TableFunc3(data: String, conf: Map[String, String]) extends TableFunction[
   }
 }
 
-// Test for incomplete row
-class TableFunc4 extends TableFunction[Row] {
-  def eval(str: String): Unit = {
+class DynamicSchema extends TableFunction[Row] {
+  def eval(str: String, column: Int): Unit = {
     if (str.contains("#")) {
       str.split("#").foreach({ s =>
-        val row = new Row(3)
+        val row = new Row(column)
         row.setField(0, s)  // And we only set values for one column
+        var i = 0
+        for (i <- 1 until column) {
+          row.setField(i, s.length)
+        }
         collect(row)
       })
     }
   }
 
   override def getResultType(arguments: java.util.List[AnyRef]): TypeInformation[Row] = {
-    new RowTypeInfo(BasicTypeInfo.STRING_TYPE_INFO,
-                    BasicTypeInfo.INT_TYPE_INFO,
-                    BasicTypeInfo.INT_TYPE_INFO)
-  }
-}
-
-// Test for incomplete row
-class TableFunc5 extends TableFunction[Row] {
-  def eval(str: String): Unit = {
-    if (str.contains("#")) {
-      str.split("#").foreach({ s =>
-        val row = new Row(1)  // ResultType is three columns, we have only one here
-        row.setField(0, s)
-        collect(row)
-      })
+    val column = arguments.get(1).asInstanceOf[Int]
+    val basicTypeInfos = new Array[TypeInformation[_]](column)
+    basicTypeInfos(0) = BasicTypeInfo.STRING_TYPE_INFO
+    var i = 0
+    for (i <- 1 until column) {
+      basicTypeInfos(i) = BasicTypeInfo.INT_TYPE_INFO
     }
-  }
-
-  override def getResultType(arguments: java.util.List[AnyRef]): TypeInformation[Row] = {
-    new RowTypeInfo(BasicTypeInfo.STRING_TYPE_INFO,
-      BasicTypeInfo.INT_TYPE_INFO,
-      BasicTypeInfo.INT_TYPE_INFO)
-  }
-}
-
-// Test for overflow row
-class TableFunc6 extends TableFunction[Row] {
-  def eval(str: String): Unit = {
-    if (str.contains("#")) {
-      str.split("#").foreach({ s =>
-        val row = new Row(5)  // ResultType is two columns, we have five columns here
-        row.setField(0, s)
-        row.setField(1, s.length)
-        row.setField(2, s.length)
-        row.setField(3, s.length)
-        row.setField(4, s.length)
-        collect(row)
-      })
-    }
-  }
-
-  override def getResultType(arguments: java.util.List[AnyRef]): TypeInformation[Row] = {
-    new RowTypeInfo(BasicTypeInfo.STRING_TYPE_INFO,
-                    BasicTypeInfo.INT_TYPE_INFO)
+    new RowTypeInfo(basicTypeInfos: _*)
   }
 }
 
