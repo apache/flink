@@ -19,7 +19,6 @@
 package org.apache.flink.table.api.scala.batch.table
 
 import java.sql.Timestamp
-import javax.annotation.concurrent.NotThreadSafe
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
