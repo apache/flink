@@ -764,20 +764,25 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	 * @param cause The exception which cause the TaskManager failed.
 	 */
 	public void closeTaskManagerConnection(final ResourceID resourceID, final Exception cause) {
-		taskManagerHeartbeatManager.unmonitorTarget(resourceID);
+		runAsync(new Runnable() {
+			@Override
+			public void run() {
+				taskManagerHeartbeatManager.unmonitorTarget(resourceID);
 
-		WorkerRegistration<WorkerType> workerRegistration = taskExecutors.remove(resourceID);
+				WorkerRegistration<WorkerType> workerRegistration = taskExecutors.remove(resourceID);
 
-		if (workerRegistration != null) {
-			log.info("Task manager {} failed because {}.", resourceID, cause);
+				if (workerRegistration != null) {
+					log.info("Task manager {} failed because {}.", resourceID, cause);
 
-			// TODO :: suggest failed task executor to stop itself
-			slotManager.notifyTaskManagerFailure(resourceID);
+					// TODO :: suggest failed task executor to stop itself
+					slotManager.notifyTaskManagerFailure(resourceID);
 
-			workerRegistration.getTaskExecutorGateway().disconnectResourceManager(cause);
-		} else {
-			log.debug("Could not find a registered task manager with the process id {}.", resourceID);
-		}
+					workerRegistration.getTaskExecutorGateway().disconnectResourceManager(cause);
+				} else {
+					log.debug("Could not find a registered task manager with the process id {}.", resourceID);
+				}
+			}
+		});
 	}
 
 	// ------------------------------------------------------------------------
@@ -876,7 +881,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 
 		@Override
 		public void notifyHeartbeatTimeout(ResourceID resourceID) {
-			log.info("The heartbeat of TaskManager with id {} timed out.", resourceID);
+			log.info("Task manager with id {} heartbeat timed out.", resourceID);
 
 			closeTaskManagerConnection(resourceID, new TimeoutException(
 					"Task manager with id " + resourceID + " heartbeat timed out."));

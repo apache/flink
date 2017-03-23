@@ -375,8 +375,7 @@ public class ResourceManagerTest {
 
 		final ResourceManagerConfiguration resourceManagerConfiguration = new ResourceManagerConfiguration(
 			Time.seconds(5L),
-			Time.seconds(5L),
-			Time.minutes(5L));
+			Time.seconds(5L));
 
 		final TestingLeaderElectionService rmLeaderElectionService = new TestingLeaderElectionService();
 		final TestingHighAvailabilityServices highAvailabilityServices = new TestingHighAvailabilityServices();

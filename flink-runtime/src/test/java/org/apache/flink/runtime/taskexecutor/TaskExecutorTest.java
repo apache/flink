@@ -230,7 +230,7 @@ public class TaskExecutorTest extends TestLogger {
 		final TestingSerialRpcService rpc = new TestingSerialRpcService();
 		rpc.registerGateway(rmAddress, rmGateway);
 
-		final TestingLeaderRetrievalService testLeaderService = new TestingLeaderRetrievalService();
+		final TestingLeaderRetrievalService testLeaderService = new TestingLeaderRetrievalService(null, null);
 		final TestingHighAvailabilityServices haServices = new TestingHighAvailabilityServices();
 		haServices.setResourceManagerLeaderRetriever(testLeaderService);
 
@@ -310,6 +310,7 @@ public class TaskExecutorTest extends TestLogger {
 	public void testImmediatelyRegistersIfLeaderIsKnown() throws Exception {
 		final ResourceID resourceID = ResourceID.generate();
 		final String resourceManagerAddress = "/resource/manager/address/one";
+		final ResourceID resourceManagerResourceID = new ResourceID(resourceManagerAddress);
 
 		final TestingSerialRpcService rpc = new TestingSerialRpcService();
 		try {
@@ -317,7 +318,7 @@ public class TaskExecutorTest extends TestLogger {
 			ResourceManagerGateway rmGateway = mock(ResourceManagerGateway.class);
 			when(rmGateway.registerTaskExecutor(
 					any(UUID.class), anyString(), any(ResourceID.class), any(SlotReport.class), any(Time.class)))
-				.thenReturn(FlinkCompletableFuture.<RegistrationResponse>completed(new TaskExecutorRegistrationSuccess(new InstanceID(), 10L)));
+				.thenReturn(FlinkCompletableFuture.<RegistrationResponse>completed(new TaskExecutorRegistrationSuccess(new InstanceID(), resourceManagerResourceID, 10L)));
 
 			TaskManagerConfiguration taskManagerServicesConfiguration = mock(TaskManagerConfiguration.class);
 			when(taskManagerServicesConfiguration.getNumberSlots()).thenReturn(1);
@@ -369,10 +370,12 @@ public class TaskExecutorTest extends TestLogger {
 
 	@Test
 	public void testTriggerRegistrationOnLeaderChange() throws Exception {
-		final ResourceID resourceID = ResourceID.generate();
+		final ResourceID tmResourceID = ResourceID.generate();
 
 		final String address1 = "/resource/manager/address/one";
 		final String address2 = "/resource/manager/address/two";
+		final ResourceID rmResourceID1 = new ResourceID(address1);
+		final ResourceID rmResourceID2 = new ResourceID(address2);
 		final UUID leaderId1 = UUID.randomUUID();
 		final UUID leaderId2 = UUID.randomUUID();
 
@@ -385,11 +388,11 @@ public class TaskExecutorTest extends TestLogger {
 			when(rmGateway1.registerTaskExecutor(
 					any(UUID.class), anyString(), any(ResourceID.class), any(SlotReport.class), any(Time.class)))
 					.thenReturn(FlinkCompletableFuture.<RegistrationResponse>completed(
-						new TaskExecutorRegistrationSuccess(new InstanceID(), 10L)));
+						new TaskExecutorRegistrationSuccess(new InstanceID(), rmResourceID1, 10L)));
 			when(rmGateway2.registerTaskExecutor(
 					any(UUID.class), anyString(), any(ResourceID.class), any(SlotReport.class), any(Time.class)))
 					.thenReturn(FlinkCompletableFuture.<RegistrationResponse>completed(
-						new TaskExecutorRegistrationSuccess(new InstanceID(), 10L)));
+						new TaskExecutorRegistrationSuccess(new InstanceID(), rmResourceID2, 10L)));
 
 			rpc.registerGateway(address1, rmGateway1);
 			rpc.registerGateway(address2, rmGateway2);
@@ -407,7 +410,7 @@ public class TaskExecutorTest extends TestLogger {
 			when(taskManagerServicesConfiguration.getTmpDirectories()).thenReturn(new String[1]);
 
 			TaskManagerLocation taskManagerLocation = mock(TaskManagerLocation.class);
-			when(taskManagerLocation.getResourceID()).thenReturn(resourceID);
+			when(taskManagerLocation.getResourceID()).thenReturn(tmResourceID);
 			when(taskManagerLocation.getHostname()).thenReturn("foobar");
 
 			final TaskSlotTable taskSlotTable = mock(TaskSlotTable.class);
@@ -444,7 +447,7 @@ public class TaskExecutorTest extends TestLogger {
 			testLeaderService.notifyListener(address1, leaderId1);
 
 			verify(rmGateway1).registerTaskExecutor(
-					eq(leaderId1), eq(taskManagerAddress), eq(resourceID), any(SlotReport.class), any(Time.class));
+					eq(leaderId1), eq(taskManagerAddress), eq(tmResourceID), any(SlotReport.class), any(Time.class));
 			assertNotNull(taskManager.getResourceManagerConnection());
 
 			// cancel the leader 
@@ -454,7 +457,7 @@ public class TaskExecutorTest extends TestLogger {
 			testLeaderService.notifyListener(address2, leaderId2);
 
 			verify(rmGateway2).registerTaskExecutor(
-					eq(leaderId2), eq(taskManagerAddress), eq(resourceID), eq(slotReport), any(Time.class));
+					eq(leaderId2), eq(taskManagerAddress), eq(tmResourceID), eq(slotReport), any(Time.class));
 			assertNotNull(taskManager.getResourceManagerConnection());
 
 			// check if a concurrent error occurred
