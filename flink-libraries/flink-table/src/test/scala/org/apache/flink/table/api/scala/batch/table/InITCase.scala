@@ -19,20 +19,23 @@
 package org.apache.flink.table.api.scala.batch.table
 
 import java.sql.Timestamp
-import javax.annotation.concurrent.NotThreadSafe
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.Table
+import org.apache.flink.table.api.scala.batch.utils.TableProgramsCollectionTestBase
+import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.test.util.TestBaseUtils.compareResultAsText
 import org.apache.flink.types.Row
 import org.junit._
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
 import scala.collection.JavaConverters._
 
-@NotThreadSafe
-class InITCase extends TableTestBase {
+@RunWith(classOf[Parameterized])
+class InITCase(configMode: TableConfigMode)
+  extends TableProgramsCollectionTestBase(configMode) {
 
   val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
   val tEnv = TableEnvironment.getTableEnvironment(env)
