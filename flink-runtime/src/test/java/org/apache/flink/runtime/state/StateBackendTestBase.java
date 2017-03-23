@@ -39,6 +39,7 @@ import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.core.testutils.CheckedThread;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.StateAssignmentOperation;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
@@ -48,9 +49,13 @@ import org.apache.flink.runtime.query.KvStateRegistryListener;
 import org.apache.flink.runtime.query.netty.message.KvStateRequestSerializer;
 import org.apache.flink.runtime.state.heap.AbstractHeapState;
 import org.apache.flink.runtime.state.heap.StateTable;
+import org.apache.flink.runtime.state.heap.async.AsyncHeapKeyedStateBackend;
+import org.apache.flink.runtime.util.BlockerCheckpointStreamFactory;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.util.FutureUtil;
+import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.TestLogger;
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -60,6 +65,7 @@ import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.RunnableFuture;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -1429,6 +1435,150 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
+		}
+	}
+
+	@Test
+	public void testAsyncSnapshot() throws Exception {
+		OneShotLatch waiter = new OneShotLatch();
+		BlockerCheckpointStreamFactory streamFactory = new BlockerCheckpointStreamFactory(1024 * 1024);
+		streamFactory.setWaiterLatch(waiter);
+
+		AbstractKeyedStateBackend<Integer> backend = null;
+		KeyGroupsStateHandle stateHandle = null;
+
+		try {
+			backend = createKeyedBackend(IntSerializer.INSTANCE);
+
+			if (!(backend instanceof AsyncHeapKeyedStateBackend)) {
+				return;
+			}
+
+			ValueState<Integer> valueState = backend.createValueState(
+				VoidNamespaceSerializer.INSTANCE,
+				new ValueStateDescriptor<>("test", IntSerializer.INSTANCE));
+
+			((KvState)valueState).setCurrentNamespace(VoidNamespace.INSTANCE);
+
+			for (int i = 0; i < 10; ++i) {
+				backend.setCurrentKey(i);
+				valueState.update(i);
+			}
+
+			RunnableFuture<KeyGroupsStateHandle> snapshot =
+				backend.snapshot(0L, 0L, streamFactory);
+			Thread runner = new Thread(snapshot);
+			runner.start();
+			for (int i = 0; i < 20; ++i) {
+				backend.setCurrentKey(i);
+				valueState.update(i + 1);
+				if (10 == i) {
+					waiter.await();
+				}
+			}
+
+			runner.join();
+			stateHandle = snapshot.get();
+
+			// test isolation
+			for (int i = 0; i < 20; ++i) {
+				backend.setCurrentKey(i);
+				Assert.assertEquals(i + 1, (int) valueState.value());
+			}
+
+		} finally {
+			if (null != backend) {
+				IOUtils.closeQuietly(backend);
+				backend.dispose();
+			}
+		}
+
+		Assert.assertNotNull(stateHandle);
+
+		backend = createKeyedBackend(IntSerializer.INSTANCE);
+		try {
+			backend.restore(Collections.singleton(stateHandle));
+			ValueState<Integer> valueState = backend.createValueState(
+				VoidNamespaceSerializer.INSTANCE,
+				new ValueStateDescriptor<>("test", IntSerializer.INSTANCE));
+
+			((KvState)valueState).setCurrentNamespace(VoidNamespace.INSTANCE);
+
+			for (int i = 0; i < 10; ++i) {
+				backend.setCurrentKey(i);
+				Assert.assertEquals(i, (int) valueState.value());
+			}
+
+			backend.setCurrentKey(11);
+			Assert.assertEquals(null, valueState.value());
+		} finally {
+			if (null != backend) {
+				IOUtils.closeQuietly(backend);
+				backend.dispose();
+			}
+		}
+	}
+
+	@Test
+	public void testAsyncSnapshotCancellation() throws Exception {
+		OneShotLatch blocker = new OneShotLatch();
+		OneShotLatch waiter = new OneShotLatch();
+		BlockerCheckpointStreamFactory streamFactory = new BlockerCheckpointStreamFactory(1024 * 1024);
+		streamFactory.setWaiterLatch(waiter);
+		streamFactory.setBlockerLatch(blocker);
+		streamFactory.setAfterNumberInvocations(100);
+
+		AbstractKeyedStateBackend<Integer> backend = null;
+		try {
+			backend = createKeyedBackend(IntSerializer.INSTANCE);
+
+			if (!(backend instanceof AsyncHeapKeyedStateBackend)) {
+				return;
+			}
+
+			ValueState<Integer> valueState = backend.createValueState(
+				VoidNamespaceSerializer.INSTANCE,
+				new ValueStateDescriptor<>("test", IntSerializer.INSTANCE));
+
+			((KvState)valueState).setCurrentNamespace(VoidNamespace.INSTANCE);
+
+			for (int i = 0; i < 10; ++i) {
+				backend.setCurrentKey(i);
+				valueState.update(i);
+			}
+
+			RunnableFuture<KeyGroupsStateHandle> snapshot =
+				backend.snapshot(0L, 0L, streamFactory);
+
+			Thread runner = new Thread(snapshot);
+			runner.start();
+
+			// wait until the code reached some stream read
+			waiter.await();
+
+			// close the backend to see if the close is propagated to the stream
+			backend.close();
+
+			//unblock the stream so that it can run into the IOException
+			blocker.trigger();
+
+			//dispose the backend
+			backend.dispose();
+
+			runner.join();
+
+			try {
+				snapshot.get();
+				fail("Close was not propagated.");
+			} catch (ExecutionException ex) {
+				//ignore
+			}
+
+		} finally {
+			if (null != backend) {
+				IOUtils.closeQuietly(backend);
+				backend.dispose();
+			}
 		}
 	}
 

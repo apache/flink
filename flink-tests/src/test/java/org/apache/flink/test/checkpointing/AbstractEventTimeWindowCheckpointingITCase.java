@@ -32,7 +32,9 @@ import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.runtime.state.filesystem.async.AsyncFsStateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.state.memory.async.AsyncMemoryStateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -91,7 +93,7 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 	}
 
 	enum StateBackendEnum {
-		MEM, FILE, ROCKSDB_FULLY_ASYNC
+		MEM, FILE, ROCKSDB_FULLY_ASYNC, MEM_ASYNC, FILE_ASYNC
 	}
 
 	@BeforeClass
@@ -115,12 +117,18 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 	@Before
 	public void initStateBackend() throws IOException {
 		switch (stateBackendEnum) {
+			case MEM_ASYNC:
+				this.stateBackend = new AsyncMemoryStateBackend(MAX_MEM_STATE_SIZE);
+				break;
+			case FILE_ASYNC: {
+				this.stateBackend = new AsyncFsStateBackend(tempFolder.newFolder().toURI());
+				break;
+			}
 			case MEM:
 				this.stateBackend = new MemoryStateBackend(MAX_MEM_STATE_SIZE);
 				break;
 			case FILE: {
-				String backups = tempFolder.newFolder().getAbsolutePath();
-				this.stateBackend = new FsStateBackend("file://" + backups);
+				this.stateBackend = new FsStateBackend(tempFolder.newFolder().toURI());
 				break;
 			}
 			case ROCKSDB_FULLY_ASYNC: {
