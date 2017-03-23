@@ -37,6 +37,7 @@ import org.apache.flink.runtime.metrics.dump.MetricQueryService;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
 import org.apache.flink.runtime.metrics.groups.FrontMetricGroup;
 import org.apache.flink.runtime.metrics.scope.ScopeFormats;
+import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.concurrent.Await;
@@ -58,6 +59,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class MetricRegistry {
 	static final Logger LOG = LoggerFactory.getLogger(MetricRegistry.class);
+
+	private final Object lock = new Object();
 
 	private List<MetricReporter> reporters;
 	private ScheduledExecutorService executor;
@@ -156,10 +159,14 @@ public class MetricRegistry {
 	 * @param resourceID resource ID used to disambiguate the actor name
      */
 	public void startQueryService(ActorSystem actorSystem, ResourceID resourceID) {
-		try {
-			queryService = MetricQueryService.startMetricQueryService(actorSystem, resourceID);
-		} catch (Exception e) {
-			LOG.warn("Could not start MetricDumpActor. No metrics will be submitted to the WebInterface.", e);
+		synchronized (lock) {
+			Preconditions.checkState(!isShutdown(), "The metric registry has already been shut down.");
+
+			try {
+				queryService = MetricQueryService.startMetricQueryService(actorSystem, resourceID);
+			} catch (Exception e) {
+				LOG.warn("Could not start MetricDumpActor. No metrics will be submitted to the WebInterface.", e);
+			}
 		}
 	}
 
@@ -197,45 +204,49 @@ public class MetricRegistry {
 	 * @return true, if this registry was shutdown, otherwise false
 	 */
 	public boolean isShutdown() {
-		return reporters == null && executor.isShutdown();
+		synchronized (lock) {
+			return reporters == null && executor.isShutdown();
+		}
 	}
 
 	/**
 	 * Shuts down this registry and the associated {@link MetricReporter}.
 	 */
 	public void shutdown() {
-		Future<Boolean> stopFuture = null;
-		FiniteDuration stopTimeout = null;
+		synchronized (lock) {
+			Future<Boolean> stopFuture = null;
+			FiniteDuration stopTimeout = null;
 
-		if (queryService != null) {
-			stopTimeout = new FiniteDuration(1L, TimeUnit.SECONDS);
-			stopFuture = Patterns.gracefulStop(queryService, stopTimeout);
-		}
+			if (queryService != null) {
+				stopTimeout = new FiniteDuration(1L, TimeUnit.SECONDS);
+				stopFuture = Patterns.gracefulStop(queryService, stopTimeout);
+			}
 
-		if (reporters != null) {
-			for (MetricReporter reporter : reporters) {
-				try {
-					reporter.close();
-				} catch (Throwable t) {
-					LOG.warn("Metrics reporter did not shut down cleanly", t);
+			if (reporters != null) {
+				for (MetricReporter reporter : reporters) {
+					try {
+						reporter.close();
+					} catch (Throwable t) {
+						LOG.warn("Metrics reporter did not shut down cleanly", t);
+					}
 				}
+				reporters = null;
 			}
-			reporters = null;
-		}
-		shutdownExecutor();
+			shutdownExecutor();
 
-		if (stopFuture != null) {
-			boolean stopped = false;
+			if (stopFuture != null) {
+				boolean stopped = false;
 
-			try {
-				stopped = Await.result(stopFuture, stopTimeout);
-			} catch (Exception e) {
-				LOG.warn("Query actor did not properly stop.", e);
-			}
+				try {
+					stopped = Await.result(stopFuture, stopTimeout);
+				} catch (Exception e) {
+					LOG.warn("Query actor did not properly stop.", e);
+				}
 
-			if (!stopped) {
-				// the query actor did not stop in time, let's kill him
-				queryService.tell(Kill.getInstance(), ActorRef.noSender());
+				if (!stopped) {
+					// the query actor did not stop in time, let's kill him
+					queryService.tell(Kill.getInstance(), ActorRef.noSender());
+				}
 			}
 		}
 	}
@@ -270,27 +281,33 @@ public class MetricRegistry {
 	 * @param group       the group that contains the metric
 	 */
 	public void register(Metric metric, String metricName, AbstractMetricGroup group) {
-		try {
-			if (reporters != null) {
-				for (int i = 0; i < reporters.size(); i++) {
-					MetricReporter reporter = reporters.get(i);
-					if (reporter != null) {
-						FrontMetricGroup front = new FrontMetricGroup<AbstractMetricGroup<?>>(i, group);
-						reporter.notifyOfAddedMetric(metric, metricName, front);
+		synchronized (lock) {
+			if (isShutdown()) {
+				LOG.warn("Cannot register metric, because the MetricRegistry has already been shut down.");
+			} else {
+				try {
+					if (reporters != null) {
+						for (int i = 0; i < reporters.size(); i++) {
+							MetricReporter reporter = reporters.get(i);
+							if (reporter != null) {
+								FrontMetricGroup front = new FrontMetricGroup<AbstractMetricGroup<?>>(i, group);
+								reporter.notifyOfAddedMetric(metric, metricName, front);
+							}
+						}
 					}
+					if (queryService != null) {
+						MetricQueryService.notifyOfAddedMetric(queryService, metric, metricName, group);
+					}
+					if (metric instanceof View) {
+						if (viewUpdater == null) {
+							viewUpdater = new ViewUpdater(executor);
+						}
+						viewUpdater.notifyOfAddedView((View) metric);
+					}
+				} catch (Exception e) {
+					LOG.error("Error while registering metric.", e);
 				}
 			}
-			if (queryService != null) {
-				MetricQueryService.notifyOfAddedMetric(queryService, metric, metricName, group);
-			}
-			if (metric instanceof View) {
-				if (viewUpdater == null) {
-					viewUpdater = new ViewUpdater(executor);
-				}
-				viewUpdater.notifyOfAddedView((View) metric);
-			}
-		} catch (Exception e) {
-			LOG.error("Error while registering metric.", e);
 		}
 	}
 
@@ -302,26 +319,32 @@ public class MetricRegistry {
 	 * @param group       the group that contains the metric
 	 */
 	public void unregister(Metric metric, String metricName, AbstractMetricGroup group) {
-		try {
-			if (reporters != null) {
-				for (int i = 0; i < reporters.size(); i++) {
-					MetricReporter reporter = reporters.get(i);
-					if (reporter != null) {
-						FrontMetricGroup front = new FrontMetricGroup<AbstractMetricGroup<?>>(i, group);
-						reporter.notifyOfRemovedMetric(metric, metricName, front);
+		synchronized (lock) {
+			if (isShutdown()) {
+				LOG.warn("Cannot unregister metric, because the MetricRegistry has already been shut down.");
+			} else {
+				try {
+					if (reporters != null) {
+						for (int i = 0; i < reporters.size(); i++) {
+							MetricReporter reporter = reporters.get(i);
+							if (reporter != null) {
+								FrontMetricGroup front = new FrontMetricGroup<AbstractMetricGroup<?>>(i, group);
+								reporter.notifyOfRemovedMetric(metric, metricName, front);
+							}
+						}
 					}
+					if (queryService != null) {
+						MetricQueryService.notifyOfRemovedMetric(queryService, metric);
+					}
+					if (metric instanceof View) {
+						if (viewUpdater != null) {
+							viewUpdater.notifyOfRemovedView((View) metric);
+						}
+					}
+				} catch (Exception e) {
+					LOG.error("Error while registering metric.", e);
 				}
 			}
-			if (queryService != null) {
-				MetricQueryService.notifyOfRemovedMetric(queryService, metric);
-			}
-			if (metric instanceof View) {
-				if (viewUpdater != null) {
-					viewUpdater.notifyOfRemovedView((View) metric);
-				}
-			}
-		} catch (Exception e) {
-			LOG.error("Error while registering metric.", e);
 		}
 	}
 
