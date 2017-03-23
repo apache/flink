@@ -433,6 +433,11 @@ public class WindowTranslationTest {
 							out.collect(new Tuple3<>(in.f0, in.f0, in.f1));
 						}
 					}
+
+					@Override
+					public void clear(Context context) throws Exception {
+
+					}
 				});
 
 		OneInputTransformation<Tuple2<String, Integer>, Tuple3<String, String, Integer>> transform =
@@ -469,6 +474,11 @@ public class WindowTranslationTest {
 						for (Tuple2<String, Integer> in : values) {
 							out.collect(new Tuple3<>(in.f0, in.f0, in.f1));
 						}
+					}
+
+					@Override
+					public void clear(Context context) throws Exception {
+
 					}
 				});
 
@@ -903,6 +913,11 @@ public class WindowTranslationTest {
 							out.collect(new Tuple2<>(in.f0, in.f2));
 						}
 					}
+
+					@Override
+					public void clear(Context context) throws Exception {
+
+					}
 				});
 
 		OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>> transform =
@@ -939,6 +954,11 @@ public class WindowTranslationTest {
 						for (Tuple3<String, String, Integer> in : values) {
 							out.collect(new Tuple2<>(in.f0, in.f2));
 						}
+					}
+
+					@Override
+					public void clear(Context context) throws Exception {
+
 					}
 				});
 
@@ -1130,6 +1150,11 @@ public class WindowTranslationTest {
 							out.collect(in);
 						}
 					}
+
+					@Override
+					public void clear(Context context) throws Exception {
+
+					}
 				});
 
 		OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>> transform = (OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>>) window1.getTransformation();
@@ -1165,6 +1190,11 @@ public class WindowTranslationTest {
 						for (Tuple2<String, Integer> in : values) {
 							out.collect(in);
 						}
+					}
+
+					@Override
+					public void clear(Context context) throws Exception {
+
 					}
 				});
 
@@ -1294,6 +1324,11 @@ public class WindowTranslationTest {
 							out.collect(in);
 						}
 					}
+
+					@Override
+					public void clear(Context context) throws Exception {
+
+					}
 				});
 
 		OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>> transform = (OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>>) window1.getTransformation();
@@ -1362,6 +1397,11 @@ public class WindowTranslationTest {
 									out.collect(in);
 								}
 							}
+
+							@Override
+							public void clear(Context context) throws Exception {
+
+							}
 						});
 
 		OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>> transform = (OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>>) window1.getTransformation();
@@ -1429,6 +1469,11 @@ public class WindowTranslationTest {
 								for (Tuple2<String, Integer> in : elements) {
 									out.collect(in);
 								}
+							}
+
+							@Override
+							public void clear(Context context) throws Exception {
+
 							}
 						});
 
@@ -1503,6 +1548,11 @@ public class WindowTranslationTest {
 								for (Tuple3<String, String, Integer> in : elements) {
 									out.collect(in);
 								}
+							}
+
+							@Override
+							public void clear(Context context) throws Exception {
+
 							}
 						});
 
@@ -1583,6 +1633,11 @@ public class WindowTranslationTest {
 						for (Tuple2<String, Integer> in : values) {
 							out.collect(in);
 						}
+					}
+
+					@Override
+					public void clear(Context context) throws Exception {
+
 					}
 				});
 
@@ -1731,6 +1786,11 @@ public class WindowTranslationTest {
 			for (Tuple2<String, Integer> in : values) {
 				out.collect(new Tuple3<>(in.f0, in.f0, in.f1));
 			}
+		}
+
+		@Override
+		public void clear(Context context) throws Exception {
+
 		}
 	}
 

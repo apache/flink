@@ -108,6 +108,11 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 						out.collect(val);
 					}
 				}
+
+				@Override
+				public void clear(Context context) throws Exception {
+
+				}
 			});
 
 	// ------------------------------------------------------------------------
@@ -1067,6 +1072,11 @@ public class AccumulatingAlignedProcessingTimeWindowOperatorTest {
 				
 				out.collect(i);
 			}
+		}
+
+		@Override
+		public void clear(Context context) throws Exception {
+
 		}
 	}
 

@@ -157,6 +157,11 @@ public class StateDescriptorPassingTest {
 					@Override
 					public void process(String s, Context ctx,
 							Iterable<File> input, Collector<String> out) {}
+
+					@Override
+					public void clear(Context context) throws Exception {
+
+					}
 				});
 
 		validateListStateDescriptorConfigured(result);
@@ -175,6 +180,11 @@ public class StateDescriptorPassingTest {
 				.process(new ProcessAllWindowFunction<File, String, TimeWindow>() {
 					@Override
 					public void process(Context ctx, Iterable<File> input, Collector<String> out) {}
+
+					@Override
+					public void clear(Context context) throws Exception {
+
+					}
 				});
 
 		validateListStateDescriptorConfigured(result);

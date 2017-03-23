@@ -52,8 +52,23 @@ final class ScalaProcessWindowFunctionWrapper[IN, OUT, KEY, W <: Window](
       out: Collector[OUT]): Unit = {
     val ctx = new func.Context {
       override def window = context.window
+
+      override def windowState = context.windowState()
+
+      override def globalState = context.globalState()
     }
     func.process(key, ctx, elements.asScala, out)
+  }
+
+  override def clear(context: JProcessWindowFunction[IN, OUT, KEY, W]#Context): Unit = {
+    val ctx = new func.Context {
+      override def window = context.window
+
+      override def windowState = context.windowState()
+
+      override def globalState = context.globalState()
+    }
+    func.clear(ctx)
   }
 
   override def setRuntimeContext(t: RuntimeContext): Unit = {
@@ -99,9 +114,25 @@ final class ScalaProcessAllWindowFunctionWrapper[IN, OUT, W <: Window](
       out: Collector[OUT]): Unit = {
     val ctx = new func.Context {
       override def window = context.window
+
+      override def windowState = context.windowState()
+
+      override def globalState = context.globalState()
     }
     func.process(ctx, elements.asScala, out)
   }
+
+  override def clear(context: JProcessAllWindowFunction[IN, OUT, W]#Context): Unit = {
+    val ctx = new func.Context {
+      override def window = context.window
+
+      override def windowState = context.windowState()
+
+      override def globalState = context.globalState()
+    }
+    func.clear(ctx)
+  }
+
 
   override def setRuntimeContext(t: RuntimeContext): Unit = {
     super.setRuntimeContext(t)

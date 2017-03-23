@@ -171,6 +171,9 @@ public class WindowFoldITCase extends StreamingMultipleProgramsTestBase {
 						out.collect(new Tuple3<>(in.f1, in.f0, i++));
 					}
 				}
+
+				@Override
+				public void clear(Context context) throws Exception {}
 			})
 			.addSink(new SinkFunction<Tuple3<String, Integer, Integer>>() {
 				@Override
@@ -304,6 +307,11 @@ public class WindowFoldITCase extends StreamingMultipleProgramsTestBase {
 					for (Tuple2<Integer, String> in : elements) {
 						out.collect(new Tuple3<>(in.f1, in.f0, i++));
 					}
+				}
+
+				@Override
+				public void clear(Context context) throws Exception {
+
 				}
 			})
 			.addSink(new SinkFunction<Tuple3<String, Integer, Integer>>() {

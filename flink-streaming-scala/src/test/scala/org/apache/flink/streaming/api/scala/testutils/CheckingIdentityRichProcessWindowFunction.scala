@@ -48,6 +48,8 @@ class CheckingIdentityRichProcessWindowFunction[T, K, W <: Window]
     super.setRuntimeContext(context)
     CheckingIdentityRichProcessWindowFunction.contextSet = true
   }
+
+  override def clear(context: Context): Unit = {}
 }
 
 object CheckingIdentityRichProcessWindowFunction {
