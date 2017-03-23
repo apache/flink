@@ -33,24 +33,21 @@ import scala.collection.JavaConverters._
 class CalciteConfigBuilder {
 
   /**
-    * Defines the normalization rule set. Normalization rules are
-    * dedicated for rewriting predicated logical plan before volcano
-    * optimization and are independent of cost module.
+    * Defines the normalization rule set. Normalization rules are dedicated for rewriting
+    * predicated logical plan before volcano optimization.
     */
   private var replaceNormRules: Boolean = false
   private var normRuleSets: List[RuleSet] = Nil
 
   /**
-    * Defines the optimization rule set. Optimization rules are
-    * used during volcano optimization which is base on cost module.
+    * Defines the optimization rule set. Optimization rules are used during volcano optimization.
     */
   private var replaceOptRules: Boolean = false
   private var optRuleSets: List[RuleSet] = Nil
 
   /**
-    * Defines the decoration rule set. Decoration rules are
-    * dedicated for rewriting predicated logical plan after volcano
-    * optimization and are independent of cost module.
+    * Defines the decoration rule set. Decoration rules are dedicated for rewriting predicated
+    * logical plan after volcano optimization.
     */
   private var replaceDecoRules: Boolean = false
   private var decoRuleSets: List[RuleSet] = Nil
