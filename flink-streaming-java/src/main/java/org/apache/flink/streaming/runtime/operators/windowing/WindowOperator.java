@@ -131,14 +131,14 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	 *         {@code window.maxTimestamp + allowedLateness} landmark.
 	 * </ul>
 	 */
-	private final long allowedLateness;
+	protected final long allowedLateness;
 
 	/**
 	 * {@link OutputTag} to use for late arriving events. Elements for which
 	 * {@code window.maxTimestamp + allowedLateness} is smaller than the current watermark will
 	 * be emitted to this.
 	 */
-	private final OutputTag<IN> lateDataOutputTag;
+	protected final OutputTag<IN> lateDataOutputTag;
 
 	// ------------------------------------------------------------------------
 	// State that is not checkpointed
@@ -352,6 +352,19 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 					public void merge(W mergeResult,
 							Collection<W> mergedWindows, W stateWindowResult,
 							Collection<W> mergedStateWindows) throws Exception {
+
+						if ((windowAssigner.isEventTime() && mergeResult.maxTimestamp() + allowedLateness <= internalTimerService.currentWatermark())) {
+							throw new UnsupportedOperationException("The end timestamp of an " +
+									"event-time window cannot become earlier than the current watermark " +
+									"by merging. Current watermark: " + internalTimerService.currentWatermark() +
+									" window: " + mergeResult);
+						} else if (!windowAssigner.isEventTime() && mergeResult.maxTimestamp() <= internalTimerService.currentProcessingTime()) {
+							throw new UnsupportedOperationException("The end timestamp of a " +
+									"processing-time window cannot become earlier than the current procesing time " +
+									"by merging. Current processing time: " + internalTimerService.currentProcessingTime() +
+									" window: " + mergeResult);
+						}
+
 						context.key = key;
 						context.window = mergeResult;
 
@@ -574,7 +587,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	 *
 	 * @param element skipped late arriving element to side output
 	 */
-	private void sideOutput(StreamRecord<IN> element){
+	protected void sideOutput(StreamRecord<IN> element){
 		output.collect(lateDataOutputTag, element);
 	}
 

@@ -99,16 +99,15 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window>
 
 	@Override
 	public void processElement(StreamRecord<IN> element) throws Exception {
-		Collection<W> elementWindows = windowAssigner.assignWindows(
-				element.getValue(),
-				element.getTimestamp(),
-				windowAssignerContext);
+		final Collection<W> elementWindows = windowAssigner.assignWindows(
+				element.getValue(), element.getTimestamp(), windowAssignerContext);
 
-		@SuppressWarnings("unchecked")
-		final K key = (K) getKeyedStateBackend().getCurrentKey();
+		//if element is handled by none of assigned elementWindows
+		boolean isSkippedElement = true;
+
+		final K key = this.<K>getKeyedStateBackend().getCurrentKey();
 
 		if (windowAssigner instanceof MergingWindowAssigner) {
-
 			MergingWindowSet<W> mergingWindows = getMergingWindowSet();
 
 			for (W window : elementWindows) {
@@ -122,6 +121,19 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window>
 							public void merge(W mergeResult,
 									Collection<W> mergedWindows, W stateWindowResult,
 									Collection<W> mergedStateWindows) throws Exception {
+
+								if ((windowAssigner.isEventTime() && mergeResult.maxTimestamp() + allowedLateness <= internalTimerService.currentWatermark())) {
+									throw new UnsupportedOperationException("The end timestamp of an " +
+											"event-time window cannot become earlier than the current watermark " +
+											"by merging. Current watermark: " + internalTimerService.currentWatermark() +
+											" window: " + mergeResult);
+								} else if (!windowAssigner.isEventTime() && mergeResult.maxTimestamp() <= internalTimerService.currentProcessingTime()) {
+									throw new UnsupportedOperationException("The end timestamp of a " +
+											"processing-time window cannot become earlier than the current procesing time " +
+											"by merging. Current processing time: " + internalTimerService.currentProcessingTime() +
+											" window: " + mergeResult);
+								}
+
 								context.key = key;
 								context.window = mergeResult;
 
@@ -138,11 +150,12 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window>
 							}
 						});
 
-				// check if the window is already inactive
+				// drop if the window is already late
 				if (isWindowLate(actualWindow)) {
 					mergingWindows.retireWindow(actualWindow);
 					continue;
 				}
+				isSkippedElement = false;
 
 				W stateWindow = mergingWindows.getStateWindow(actualWindow);
 				if (stateWindow == null) {
@@ -174,6 +187,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window>
 				registerCleanupTimer(actualWindow);
 			}
 
+			// need to make sure to update the merging state in state
 			mergingWindows.persist();
 		} else {
 			for (W window : elementWindows) {
@@ -182,6 +196,7 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window>
 				if (isWindowLate(window)) {
 					continue;
 				}
+				isSkippedElement = false;
 
 				evictingWindowState.setCurrentNamespace(window);
 				evictingWindowState.add(element);
@@ -207,6 +222,14 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window>
 				}
 				registerCleanupTimer(window);
 			}
+		}
+
+		// side output input event if
+		// element not handled by any window
+		// late arriving tag has been set
+		// windowAssigner is event time and current timestamp + allowed lateness no less than element timestamp
+		if (isSkippedElement && lateDataOutputTag != null && isElementLate(element)) {
+			sideOutput(element);
 		}
 	}
 
