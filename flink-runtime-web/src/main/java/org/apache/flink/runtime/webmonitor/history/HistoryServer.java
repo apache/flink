@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.webmonitor.history;
 
 import io.netty.handler.codec.http.router.Router;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
@@ -32,6 +33,7 @@ import org.apache.flink.runtime.webmonitor.handlers.DashboardConfigHandler;
 import org.apache.flink.runtime.webmonitor.utils.WebFrontendBootstrap;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -120,6 +122,13 @@ public class HistoryServer {
 	}
 
 	public HistoryServer(Configuration config) throws IOException, FlinkException {
+		this(config, new CountDownLatch(0));
+	}
+
+	public HistoryServer(Configuration config, CountDownLatch numFinishedPolls) throws IOException, FlinkException {
+		Preconditions.checkNotNull(config);
+		Preconditions.checkNotNull(numFinishedPolls);
+
 		this.config = config;
 		if (config.getBoolean(HistoryServerOptions.HISTORY_SERVER_WEB_SSL_ENABLED) && SSLUtils.getSSLEnabled(config)) {
 			LOG.info("Enabling SSL for the history server.");
@@ -163,7 +172,7 @@ public class HistoryServer {
 		}
 
 		long refreshIntervalMillis = config.getLong(HistoryServerOptions.HISTORY_SERVER_ARCHIVE_REFRESH_INTERVAL);
-		archiveFetcher = new HistoryServerArchiveFetcher(refreshIntervalMillis, refreshDirs, webDir);
+		archiveFetcher = new HistoryServerArchiveFetcher(refreshIntervalMillis, refreshDirs, webDir, numFinishedPolls);
 
 		this.shutdownHook = new Thread() {
 			@Override
@@ -181,6 +190,11 @@ public class HistoryServer {
 			// these errors usually happen when the shutdown is already in progress
 			LOG.warn("Error while adding shutdown hook", t);
 		}
+	}
+
+	@VisibleForTesting
+	int getWebPort() {
+		return netty.getServerPort();
 	}
 
 	public void run() {
