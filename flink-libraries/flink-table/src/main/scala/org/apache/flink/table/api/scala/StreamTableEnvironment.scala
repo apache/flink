@@ -18,7 +18,7 @@
 package org.apache.flink.table.api.scala
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.api._
+import org.apache.flink.table.api.{TableEnvironment, Table, TableConfig}
 import org.apache.flink.table.functions.TableFunction
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
@@ -151,32 +151,5 @@ class StreamTableEnvironment(
     */
   def registerFunction[T: TypeInformation](name: String, tf: TableFunction[T]): Unit = {
     registerTableFunctionInternal(name, tf)
-  }
-
-  /**
-    * Scans a table from registered temporary tables and registered catalogs.
-    *
-    * The table to scan must be registered in the TableEnvironment or
-    * must exist in registered catalog in the TableEnvironment.
-    *
-    * Example:
-    *
-    * to scan a registered temporary table
-    * {{{
-    *   val tab: Table = tableEnv.scan("tableName")
-    * }}}
-    *
-    * to scan a table from a registered catalog
-    * {{{
-    *   val tab: Table = tableEnv.scan("catalogName", "dbName", "tableName")
-    * }}}
-    *
-    * @param tablePath The path of the table to scan.
-    * @throws TableException if no table is found using the given table path.
-    * @return The resulting [[Table]].
-    */
-  @throws[TableException]
-  def scan(tablePath: String*): Table = {
-    scanInternal(tablePath.toArray)
   }
 }

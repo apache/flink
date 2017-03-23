@@ -62,6 +62,7 @@ import org.apache.flink.types.Row
 
 import _root_.scala.collection.JavaConverters._
 import _root_.scala.collection.mutable.HashMap
+import _root_.scala.annotation.varargs
 
 /**
   * The abstract base class for batch and stream TableEnvironments.
@@ -288,6 +289,7 @@ abstract class TableEnvironment(val config: TableConfig) {
     checkForInstantiation(function.getClass)
 
     // register in Table API
+
     functionCatalog.registerFunction(name, function.getClass)
 
     // register in SQL API
@@ -384,15 +386,33 @@ abstract class TableEnvironment(val config: TableConfig) {
   /**
     * Scans a table from registered temporary tables and registered catalogs.
     *
-    * The table to scan must be registered in the [[TableEnvironment]] or
-    * must exist in registered catalog in the [[TableEnvironment]].
+    * The table to scan must be registered in the TableEnvironment or
+    * must exist in registered catalog in the TableEnvironment.
+    *
+    * Example:
+    *
+    * to scan a registered temporary table
+    * {{{
+    *   val tab: Table = tableEnv.scan("tableName")
+    * }}}
+    *
+    * to scan a table from a registered catalog
+    * {{{
+    *   val tab: Table = tableEnv.scan("catalogName", "dbName", "tableName")
+    * }}}
     *
     * @param tablePath The path of the table to scan.
     * @throws TableException if no table is found using the given table path.
     * @return The resulting [[Table]].
     */
   @throws[TableException]
-  protected def scanInternal(tablePath: Array[String]): Table = {
+  @varargs
+  def scan(tablePath: String*): Table = {
+    scanInternal(tablePath.toArray)
+  }
+
+  @throws[TableException]
+  private def scanInternal(tablePath: Array[String]): Table = {
     require(tablePath != null && !tablePath.isEmpty, "tablePath must not be null or empty.")
     val schemaPaths = tablePath.slice(0, tablePath.length - 1)
     val schema = getSchema(schemaPaths)
@@ -400,7 +420,7 @@ abstract class TableEnvironment(val config: TableConfig) {
       val tableName = tablePath(tablePath.length - 1)
       val table = schema.getTable(tableName)
       if (table != null) {
-        return new Table(this, CatalogNode(table.getRowType(typeFactory), tablePath: _*))
+        return new Table(this, CatalogNode(table.getRowType(typeFactory), tablePath))
       }
     }
     throw new TableException(s"Table \'${tablePath.mkString(".")}\' was not found.")
