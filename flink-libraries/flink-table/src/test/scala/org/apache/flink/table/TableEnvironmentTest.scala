@@ -360,8 +360,6 @@ class MockTableEnvironment extends TableEnvironment(new TableConfig) {
 
   override protected def getBuiltInOptRuleSet: RuleSet = ???
 
-  override protected def getBuiltInDecoRuleSet: RuleSet = ???
-
   override def registerTableSource(name: String, tableSource: TableSource[_]) = ???
 }
 

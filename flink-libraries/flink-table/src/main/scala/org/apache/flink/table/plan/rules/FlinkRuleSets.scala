@@ -126,14 +126,6 @@ object FlinkRuleSets {
   )
 
   /**
-    * RuleSet to decorate plans for batch / DataSet execution
-    */
-  val DATASET_DECO_RULES: RuleSet = RuleSets.ofList(
-    // rules
-
-  )
-
-  /**
     * RuleSet to normalize plans for stream / DataStream execution
     */
   val DATASTREAM_NORM_RULES: RuleSet = RuleSets.ofList(

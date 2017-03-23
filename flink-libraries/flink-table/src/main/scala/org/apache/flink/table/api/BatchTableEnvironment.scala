@@ -209,11 +209,6 @@ abstract class BatchTableEnvironment(
   protected def getBuiltInOptRuleSet: RuleSet = FlinkRuleSets.DATASET_OPT_RULES
 
   /**
-    * Returns the built-in decoration rules that are defined by the environment.
-    */
-  protected def getBuiltInDecoRuleSet: RuleSet = FlinkRuleSets.DATASET_DECO_RULES
-
-  /**
     * Generates the optimized [[RelNode]] tree from the original relational node tree.
     *
     * @param relNode The original [[RelNode]] tree
@@ -241,14 +236,7 @@ abstract class BatchTableEnvironment(
       normalizedPlan
     }
 
-    // 4. decorate the optimized plan
-    val decoRuleSet = getDecoRuleSet
-    val decoratedPlan = if (decoRuleSet.iterator().hasNext) {
-      runHepPlanner(HepMatchOrder.BOTTOM_UP, decoRuleSet, optimizedPlan, optimizedPlan.getTraitSet)
-    } else {
-      optimizedPlan
-    }
-    decoratedPlan
+    optimizedPlan
   }
 
   /**
