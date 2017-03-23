@@ -38,6 +38,7 @@ import org.apache.flink.runtime.state.ChainedStateHandle;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
@@ -849,7 +850,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 		private final List<OperatorSnapshotResult> snapshotInProgressList;
 
-		private RunnableFuture<KeyGroupsStateHandle> futureKeyedBackendStateHandles;
+		private RunnableFuture<KeyedStateHandle> futureKeyedBackendStateHandles;
 		private RunnableFuture<KeyGroupsStateHandle> futureKeyedStreamStateHandles;
 
 		private List<StreamStateHandle> nonPartitionedStateHandles;
@@ -892,7 +893,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		public void run() {
 			try {
 				// Keyed state handle future, currently only one (the head) operator can have this
-				KeyGroupsStateHandle keyedStateHandleBackend = FutureUtil.runIfNotDoneAndGet(futureKeyedBackendStateHandles);
+				KeyedStateHandle keyedStateHandleBackend = FutureUtil.runIfNotDoneAndGet(futureKeyedBackendStateHandles);
 				KeyGroupsStateHandle keyedStateHandleStream = FutureUtil.runIfNotDoneAndGet(futureKeyedStreamStateHandles);
 
 				List<OperatorStateHandle> operatorStatesBackend = new ArrayList<>(snapshotInProgressList.size());
@@ -987,7 +988,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				ChainedStateHandle<StreamStateHandle> chainedNonPartitionedOperatorsState,
 				ChainedStateHandle<OperatorStateHandle> chainedOperatorStateBackend,
 				ChainedStateHandle<OperatorStateHandle> chainedOperatorStateStream,
-				KeyGroupsStateHandle keyedStateHandleBackend,
+				KeyedStateHandle keyedStateHandleBackend,
 				KeyGroupsStateHandle keyedStateHandleStream) {
 
 			boolean hasAnyState = keyedStateHandleBackend != null
