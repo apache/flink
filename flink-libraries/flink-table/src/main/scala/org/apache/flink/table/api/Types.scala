@@ -59,7 +59,7 @@ object Types extends JTypes {
     *
     * @param fields of Row. e.g. ROW(("name", Types.STRING), ("number", Types.INT))
     */
-  def ROW(fields: (String, TypeInformation[_])*) = {
+  def ROW_NAMED(fields: (String, TypeInformation[_])*) = {
     val names = fields.toList.map(_._1).toArray
     val types = fields.toList.map(_._2)
     JTypes.ROW(names, types: _*)
