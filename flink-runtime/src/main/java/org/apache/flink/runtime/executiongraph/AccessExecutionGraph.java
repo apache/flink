@@ -25,6 +25,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
+import org.apache.flink.runtime.util.EvictingBoundedList;
 import org.apache.flink.util.SerializedValue;
 
 import java.io.IOException;
@@ -63,7 +64,7 @@ public interface AccessExecutionGraph {
 	JobStatus getState();
 
 	/**
-	 * Returns the exception that caused the job to fail. This is the first root exception
+	 * Returns the last exception that caused the job to fail. This is the first root exception
 	 * that was not recoverable and triggered job failure.
 	 *
 	 * @return failure causing exception as a string, or {@code "(null)"}
@@ -77,6 +78,10 @@ public interface AccessExecutionGraph {
 	 * @return timestamp of failure causing exception
 	 */
 	long getFailureTimestamp();
+
+	ErrorInfo getFailureCause();
+
+	EvictingBoundedList<ErrorInfo> getPriorFailureCauses();	
 
 	/**
 	 * Returns the job vertex for the given {@link JobVertexID}.

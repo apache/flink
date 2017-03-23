@@ -25,6 +25,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
+import org.apache.flink.runtime.util.EvictingBoundedList;
 import org.apache.flink.util.SerializedValue;
 
 import javax.annotation.Nullable;
@@ -156,6 +157,16 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 	@Override
 	public long getFailureTimestamp() {
 		return failureTimestamp;
+	}
+
+	@Override
+	public ErrorInfo getFailureCause() {
+		return null;
+	}
+
+	@Override
+	public EvictingBoundedList<ErrorInfo> getPriorFailureCauses() {
+		return null;
 	}
 
 	@Override

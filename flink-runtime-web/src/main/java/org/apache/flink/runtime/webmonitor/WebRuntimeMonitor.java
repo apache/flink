@@ -58,6 +58,7 @@ import org.apache.flink.runtime.webmonitor.handlers.JobCancellationWithSavepoint
 import org.apache.flink.runtime.webmonitor.handlers.JobConfigHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JobDetailsHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JobExceptionsHandler;
+import org.apache.flink.runtime.webmonitor.handlers.JobExceptionsHistoryHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JobManagerConfigHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JobPlanHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JobStoppingHandler;
@@ -291,6 +292,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 		GET(router, new JobPlanHandler(currentGraphs));
 		GET(router, new JobConfigHandler(currentGraphs));
 		GET(router, new JobExceptionsHandler(currentGraphs));
+		GET(router, new JobExceptionsHistoryHandler(currentGraphs));
 		GET(router, new JobAccumulatorsHandler(currentGraphs));
 		GET(router, new JobMetricsHandler(metricFetcher));
 

@@ -128,4 +128,9 @@ public class ArchivedExecution implements AccessExecution, Serializable {
 	public IOMetrics getIOMetrics() {
 		return ioMetrics;
 	}
+
+	@Override
+	public String getTaskNameWithSubtaskIndex() {
+		return null;
+	}
 }

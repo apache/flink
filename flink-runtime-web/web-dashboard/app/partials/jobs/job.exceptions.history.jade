@@ -15,13 +15,26 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-.panel.panel-default.panel-multi
-  nav.navbar.navbar-default.navbar-secondary-additional
-    ul.nav.nav-tabs
-      li(ui-sref-active='active')
-        a(ui-sref=".recent") Most recent
+.panel.panel-default.panel-multi(ng-repeat="exception in exceptionHistory['all-root-exceptions']")
 
-      li(ui-sref-active='active')
-        a(ui-sref=".history") History
-  
-  .panel-body.clean#content-inner.has-navbar-secondary-additional(ui-view="exceptions")
+  .panel-heading.clearfix(ng-if="exception.task")
+    .panel-title
+      | Root Exception : {{ exception.task }}
+      
+  .panel-heading.clearfix(ng-if="!exception.task")
+    .panel-title
+      | Root Exception
+
+  .panel-heading.clearfix
+    .panel-info.thin(ng-if="exception.timestamp != -1")
+      strong Timestamp:
+      = ' '
+      | {{ exception.timestamp | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}
+    .panel-info.thin.last(ng-if="exception.location")
+      strong Location:
+      = ' '
+      | {{ exception.location }}
+
+  .panel-body
+    pre.exception
+      | {{ exception['root-exception'] }}

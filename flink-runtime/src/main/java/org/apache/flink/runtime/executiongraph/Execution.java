@@ -215,6 +215,10 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		return this.stateTimestamps[state.ordinal()];
 	}
 
+	public String getTaskNameWithSubtaskIndex() {
+		return this.vertex.getTaskNameWithSubtaskIndex();
+	}
+
 	public boolean isFinished() {
 		return state.isTerminal();
 	}

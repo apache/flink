@@ -17,12 +17,24 @@
  */
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+
+import javax.annotation.Nullable;
+
 /**
  * Simple container to hold an exception and the corresponding timestamp.
  */
-class ErrorInfo {
+public class ErrorInfo {
+
 	private volatile Throwable exception;
 	private volatile long timestamp;
+
+
+	@Nullable
+	private volatile TaskManagerLocation location;
+
+	@Nullable
+	private volatile String taskName;
 
 	/**
 	 * Sets the exception and corresponding timestamp.
@@ -35,12 +47,19 @@ class ErrorInfo {
 		this.timestamp = timestamp;
 	}
 
+	void setErrorInfo(Throwable exception, long timestamp, TaskManagerLocation location, String taskName) {
+		this.exception = exception;
+		this.timestamp = timestamp;
+		this.location = location;
+		this.taskName = taskName;
+	}
+
 	/**
 	 * Returns the contained exception.
 	 *
 	 * @return contained exception, or null if no exception was set yet
 	 */
-	Throwable getException() {
+	public Throwable getException() {
 		return exception;
 	}
 
@@ -49,7 +68,15 @@ class ErrorInfo {
 	 *
 	 * @return timestamp of contained exception, or 0 if no exception was set yet
 	 */
-	long getTimestamp() {
+	public long getTimestamp() {
 		return timestamp;
+	}
+
+	public TaskManagerLocation getLocation() {
+		return location;
+	}
+
+	public String getTaskName() {
+		return taskName;
 	}
 }

@@ -19,6 +19,7 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.util.EvictingBoundedList;
 
 /**
  * Common interface for the runtime {@link ExecutionVertex} and {@link ArchivedExecutionVertex}.
@@ -82,4 +83,6 @@ public interface AccessExecutionVertex {
 	 * @return execution for the given attempt number
 	 */
 	AccessExecution getPriorExecutionAttempt(int attemptNumber);
+
+	EvictingBoundedList<? extends AccessExecution> getPriorExecutionAttempts();
 }

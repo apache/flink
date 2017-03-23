@@ -300,6 +300,17 @@ angular.module('flinkApp')
         deferred.resolve(exceptions)
 
     deferred.promise
+  
+  @loadExceptionHistory = ->
+    deferred = $q.defer()
+
+    deferreds.job.promise.then (data) =>
+
+      $http.get flinkConfig.jobServer + "jobs/" + currentJob.jid + "/exceptions/history"
+      .success (exceptionHistory) ->
+        deferred.resolve(exceptionHistory)
+
+    deferred.promise
 
   @cancelJob = (jobid) ->
     # uses the non REST-compliant GET yarn-cancel handler which is available in addition to the

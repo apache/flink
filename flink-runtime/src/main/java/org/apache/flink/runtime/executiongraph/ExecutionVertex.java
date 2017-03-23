@@ -265,6 +265,11 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		}
 	}
 
+	@Override
+	public EvictingBoundedList<? extends AccessExecution> getPriorExecutionAttempts() {
+		return priorExecutions;
+	}
+
 	/**
 	 * Gets the location where the latest completed/canceled/failed execution of the vertex's
 	 * task happened.

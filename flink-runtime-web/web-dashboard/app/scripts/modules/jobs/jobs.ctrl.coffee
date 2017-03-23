@@ -324,6 +324,10 @@ angular.module('flinkApp')
   JobsService.loadExceptions().then (data) ->
     $scope.exceptions = data
 
+.controller 'JobExceptionHistoryController', ($scope, $state, $stateParams, JobsService) ->
+  JobsService.loadExceptionHistory().then (data) ->
+    $scope.exceptionHistory = data
+
 # --------------------------------------
 
 .controller 'JobPropertiesController', ($scope, JobsService) ->
