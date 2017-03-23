@@ -109,15 +109,17 @@ public class StateSnapshotContextSynchronousImpl implements StateSnapshotContext
 		return operatorStateCheckpointOutputStream;
 	}
 
-	public RunnableFuture<KeyGroupsStateHandle> getKeyedStateStreamFuture() throws IOException {
-		return closeAndUnregisterStreamToObtainStateHandle(keyedStateCheckpointOutputStream);
+	public RunnableFuture<KeyedStateHandle> getKeyedStateStreamFuture() throws IOException {
+		KeyGroupsStateHandle keyGroupsStateHandle = closeAndUnregisterStreamToObtainStateHandle(keyedStateCheckpointOutputStream);
+		return new DoneFuture<KeyedStateHandle>(keyGroupsStateHandle);
 	}
 
 	public RunnableFuture<OperatorStateHandle> getOperatorStateStreamFuture() throws IOException {
-		return closeAndUnregisterStreamToObtainStateHandle(operatorStateCheckpointOutputStream);
+		OperatorStateHandle operatorStateHandle = closeAndUnregisterStreamToObtainStateHandle(operatorStateCheckpointOutputStream);
+		return new DoneFuture<>(operatorStateHandle);
 	}
 
-	private <T extends StreamStateHandle> RunnableFuture<T> closeAndUnregisterStreamToObtainStateHandle(
+	private <T extends StreamStateHandle> T closeAndUnregisterStreamToObtainStateHandle(
 			NonClosingCheckpointOutputStream<T> stream) throws IOException {
 		if (null == stream) {
 			return null;
@@ -126,7 +128,7 @@ public class StateSnapshotContextSynchronousImpl implements StateSnapshotContext
 		closableRegistry.unregisterClosable(stream.getDelegate());
 
 		// for now we only support synchronous writing
-		return new DoneFuture<>(stream.closeAndGetHandle());
+		return stream.closeAndGetHandle();
 	}
 
 	private <T extends StreamStateHandle> void closeAndUnregisterStream(NonClosingCheckpointOutputStream<T> stream) throws IOException {

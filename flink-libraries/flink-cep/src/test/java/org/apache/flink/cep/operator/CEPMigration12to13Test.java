@@ -26,7 +26,7 @@ import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
-import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -128,8 +128,8 @@ public class CEPMigration12to13Test {
 		final OperatorStateHandles snapshot = new OperatorStateHandles(
 			(int) ois.readObject(),
 			(StreamStateHandle) ois.readObject(),
-			(Collection<KeyGroupsStateHandle>) ois.readObject(),
-			(Collection<KeyGroupsStateHandle>) ois.readObject(),
+			(Collection<KeyedStateHandle>) ois.readObject(),
+			(Collection<KeyedStateHandle>) ois.readObject(),
 			(Collection<OperatorStateHandle>) ois.readObject(),
 			(Collection<OperatorStateHandle>) ois.readObject()
 		);
@@ -243,8 +243,8 @@ public class CEPMigration12to13Test {
 		final OperatorStateHandles snapshot = new OperatorStateHandles(
 			(int) ois.readObject(),
 			(StreamStateHandle) ois.readObject(),
-			(Collection<KeyGroupsStateHandle>) ois.readObject(),
-			(Collection<KeyGroupsStateHandle>) ois.readObject(),
+			(Collection<KeyedStateHandle>) ois.readObject(),
+			(Collection<KeyedStateHandle>) ois.readObject(),
 			(Collection<OperatorStateHandle>) ois.readObject(),
 			(Collection<OperatorStateHandle>) ois.readObject()
 		);
@@ -363,8 +363,8 @@ public class CEPMigration12to13Test {
 		final OperatorStateHandles snapshot = new OperatorStateHandles(
 			(int) ois.readObject(),
 			(StreamStateHandle) ois.readObject(),
-			(Collection<KeyGroupsStateHandle>) ois.readObject(),
-			(Collection<KeyGroupsStateHandle>) ois.readObject(),
+			(Collection<KeyedStateHandle>) ois.readObject(),
+			(Collection<KeyedStateHandle>) ois.readObject(),
 			(Collection<OperatorStateHandle>) ois.readObject(),
 			(Collection<OperatorStateHandle>) ois.readObject()
 		);

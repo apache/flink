@@ -51,6 +51,7 @@ import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StreamStateHandle;
@@ -186,8 +187,8 @@ public class InterruptSensitiveRestoreTest {
 
 
 		ChainedStateHandle<StreamStateHandle> operatorState = null;
-		List<KeyGroupsStateHandle> keyGroupStateFromBackend = Collections.emptyList();
-		List<KeyGroupsStateHandle> keyGroupStateFromStream = Collections.emptyList();
+		List<KeyedStateHandle> keyedStateFromBackend = Collections.emptyList();
+		List<KeyedStateHandle> keyedStateFromStream = Collections.emptyList();
 		List<Collection<OperatorStateHandle>> operatorStateBackend = Collections.emptyList();
 		List<Collection<OperatorStateHandle>> operatorStateStream = Collections.emptyList();
 
@@ -201,8 +202,8 @@ public class InterruptSensitiveRestoreTest {
 		Collection<OperatorStateHandle> operatorStateHandles =
 				Collections.singletonList(new OperatorStateHandle(operatorStateMetadata, state));
 
-		List<KeyGroupsStateHandle> keyGroupsStateHandles =
-				Collections.singletonList(new KeyGroupsStateHandle(keyGroupRangeOffsets, state));
+		List<KeyedStateHandle> keyedStateHandles =
+				Collections.<KeyedStateHandle>singletonList(new KeyGroupsStateHandle(keyGroupRangeOffsets, state));
 
 		switch (mode) {
 			case OPERATOR_MANAGED:
@@ -212,10 +213,10 @@ public class InterruptSensitiveRestoreTest {
 				operatorStateStream = Collections.singletonList(operatorStateHandles);
 				break;
 			case KEYED_MANAGED:
-				keyGroupStateFromBackend = keyGroupsStateHandles;
+				keyedStateFromBackend = keyedStateHandles;
 				break;
 			case KEYED_RAW:
-				keyGroupStateFromStream = keyGroupsStateHandles;
+				keyedStateFromStream = keyedStateHandles;
 				break;
 			case LEGACY:
 				operatorState = new ChainedStateHandle<>(Collections.singletonList(state));
@@ -228,8 +229,8 @@ public class InterruptSensitiveRestoreTest {
 			operatorState,
 			operatorStateBackend,
 			operatorStateStream,
-			keyGroupStateFromBackend,
-			keyGroupStateFromStream);
+			keyedStateFromBackend,
+			keyedStateFromStream);
 
 		JobInformation jobInformation = new JobInformation(
 			new JobID(),

@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,20 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.migration;
+package org.apache.flink.runtime.state;
 
-import org.apache.flink.migration.state.MigrationKeyGroupStateHandle;
-import org.apache.flink.runtime.state.KeyedStateHandle;
+/**
+ * Base for the handles of the checkpointed states in keyed streams. When
+ * recovering from failures, the handle will be passed to all tasks whose key
+ * group ranges overlap with it.
+ */
+public interface KeyedStateHandle extends StateObject {
 
-import java.util.Collection;
+	/**
+	 * Returns the range of the key groups contained in the state.
+	 */
+	KeyGroupRange getKeyGroupRange();
 
-public class MigrationUtil {
-
-	@SuppressWarnings("deprecation")
-	public static boolean isOldSavepointKeyedState(Collection<KeyedStateHandle> keyedStateHandles) {
-		return (keyedStateHandles != null)
-				&& (keyedStateHandles.size() == 1)
-				&& (keyedStateHandles.iterator().next() instanceof MigrationKeyGroupStateHandle);
-	}
-
+	/**
+	 * Returns a state over a range that is the intersection between this
+	 * handle's key-group range and the provided key-group range.
+	 *
+	 * @param keyGroupRange The key group range to intersect with
+	 */
+	KeyedStateHandle getIntersection(KeyGroupRange keyGroupRange);
 }

@@ -25,6 +25,7 @@ import org.apache.flink.runtime.state.ChainedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TaskStateHandles;
@@ -160,8 +161,8 @@ public class StateAssignmentOperation {
 		@SuppressWarnings("unchecked")
 		List<OperatorStateHandle>[] parallelOpStatesStream = new List[chainLength];
 
-		List<KeyGroupsStateHandle> parallelKeyedStatesBackend = new ArrayList<>(oldParallelism);
-		List<KeyGroupsStateHandle> parallelKeyedStateStream = new ArrayList<>(oldParallelism);
+		List<KeyedStateHandle> parallelKeyedStatesBackend = new ArrayList<>(oldParallelism);
+		List<KeyedStateHandle> parallelKeyedStateStream = new ArrayList<>(oldParallelism);
 
 		for (int p = 0; p < oldParallelism; ++p) {
 			SubtaskState subtaskState = taskState.getState(p);
@@ -173,12 +174,12 @@ public class StateAssignmentOperation {
 				collectParallelStatesByChainOperator(
 						parallelOpStatesStream, subtaskState.getRawOperatorState());
 
-				KeyGroupsStateHandle keyedStateBackend = subtaskState.getManagedKeyedState();
+				KeyedStateHandle keyedStateBackend = subtaskState.getManagedKeyedState();
 				if (null != keyedStateBackend) {
 					parallelKeyedStatesBackend.add(keyedStateBackend);
 				}
 
-				KeyGroupsStateHandle keyedStateStream = subtaskState.getRawKeyedState();
+				KeyedStateHandle keyedStateStream = subtaskState.getRawKeyedState();
 				if (null != keyedStateStream) {
 					parallelKeyedStateStream.add(keyedStateStream);
 				}
@@ -252,13 +253,13 @@ public class StateAssignmentOperation {
 					.getTaskVertices()[subTaskIdx]
 					.getCurrentExecutionAttempt();
 
-			List<KeyGroupsStateHandle> newKeyedStatesBackend;
-			List<KeyGroupsStateHandle> newKeyedStateStream;
+			List<KeyedStateHandle> newKeyedStatesBackend;
+			List<KeyedStateHandle> newKeyedStateStream;
 			if (oldParallelism == newParallelism) {
 				SubtaskState subtaskState = taskState.getState(subTaskIdx);
 				if (subtaskState != null) {
-					KeyGroupsStateHandle oldKeyedStatesBackend = subtaskState.getManagedKeyedState();
-					KeyGroupsStateHandle oldKeyedStatesStream = subtaskState.getRawKeyedState();
+					KeyedStateHandle oldKeyedStatesBackend = subtaskState.getManagedKeyedState();
+					KeyedStateHandle oldKeyedStatesStream = subtaskState.getRawKeyedState();
 					newKeyedStatesBackend = oldKeyedStatesBackend != null ? Collections.singletonList(
 							oldKeyedStatesBackend) : null;
 					newKeyedStateStream = oldKeyedStatesStream != null ? Collections.singletonList(
@@ -269,8 +270,8 @@ public class StateAssignmentOperation {
 				}
 			} else {
 				KeyGroupRange subtaskKeyGroupIds = keyGroupPartitions.get(subTaskIdx);
-				newKeyedStatesBackend = getKeyGroupsStateHandles(parallelKeyedStatesBackend, subtaskKeyGroupIds);
-				newKeyedStateStream = getKeyGroupsStateHandles(parallelKeyedStateStream, subtaskKeyGroupIds);
+				newKeyedStatesBackend = getKeyedStateHandles(parallelKeyedStatesBackend, subtaskKeyGroupIds);
+				newKeyedStateStream = getKeyedStateHandles(parallelKeyedStateStream, subtaskKeyGroupIds);
 			}
 
 			TaskStateHandles taskStateHandles = new TaskStateHandles(
@@ -290,19 +291,21 @@ public class StateAssignmentOperation {
 	 * <p>
 	 * <p>This is publicly visible to be used in tests.
 	 */
-	public static List<KeyGroupsStateHandle> getKeyGroupsStateHandles(
-			Collection<KeyGroupsStateHandle> allKeyGroupsHandles,
-			KeyGroupRange subtaskKeyGroupIds) {
+	public static List<KeyedStateHandle> getKeyedStateHandles(
+			Collection<? extends KeyedStateHandle> keyedStateHandles,
+			KeyGroupRange subtaskKeyGroupRange) {
 
-		List<KeyGroupsStateHandle> subtaskKeyGroupStates = new ArrayList<>();
+		List<KeyedStateHandle> subtaskKeyedStateHandles = new ArrayList<>();
 
-		for (KeyGroupsStateHandle storedKeyGroup : allKeyGroupsHandles) {
-			KeyGroupsStateHandle intersection = storedKeyGroup.getKeyGroupIntersection(subtaskKeyGroupIds);
-			if (intersection.getNumberOfKeyGroups() > 0) {
-				subtaskKeyGroupStates.add(intersection);
+		for (KeyedStateHandle keyedStateHandle : keyedStateHandles) {
+			KeyedStateHandle intersectedKeyedStateHandle = keyedStateHandle.getIntersection(subtaskKeyGroupRange);
+
+			if (intersectedKeyedStateHandle != null) {
+				subtaskKeyedStateHandles.add(intersectedKeyedStateHandle);
 			}
 		}
-		return subtaskKeyGroupStates;
+
+		return subtaskKeyedStateHandles;
 	}
 
 	/**
