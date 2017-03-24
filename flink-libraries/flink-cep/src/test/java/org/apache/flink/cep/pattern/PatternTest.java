@@ -184,4 +184,58 @@ public class PatternTest extends TestLogger {
 		assertEquals(previous2.getName(), "start");
 	}
 
+	@Test(expected = MalformedPatternException.class)
+	public void testPatternCanHaveQuantifierSpecifiedOnce1() throws Exception {
+
+		Pattern.begin("start").where(new FilterFunction<Object>() {
+			@Override
+			public boolean filter(Object value) throws Exception {
+				return true;
+			}
+		}).oneOrMore().zeroOrMore();
+	}
+
+	@Test(expected = MalformedPatternException.class)
+	public void testPatternCanHaveQuantifierSpecifiedOnce2() throws Exception {
+
+		Pattern.begin("start").where(new FilterFunction<Object>() {
+			@Override
+			public boolean filter(Object value) throws Exception {
+				return true;
+			}
+		}).zeroOrMore().times(1);
+	}
+
+	@Test(expected = MalformedPatternException.class)
+	public void testPatternCanHaveQuantifierSpecifiedOnce3() throws Exception {
+
+		Pattern.begin("start").where(new FilterFunction<Object>() {
+			@Override
+			public boolean filter(Object value) throws Exception {
+				return true;
+			}
+		}).times(1).oneOrMore();
+	}
+
+	@Test(expected = MalformedPatternException.class)
+	public void testPatternCanHaveQuantifierSpecifiedOnce4() throws Exception {
+
+		Pattern.begin("start").where(new FilterFunction<Object>() {
+			@Override
+			public boolean filter(Object value) throws Exception {
+				return true;
+			}
+		}).oneOrMore().oneOrMore(true);
+	}
+
+	@Test(expected = MalformedPatternException.class)
+	public void testPatternCanHaveQuantifierSpecifiedOnce5() throws Exception {
+
+		Pattern.begin("start").where(new FilterFunction<Object>() {
+			@Override
+			public boolean filter(Object value) throws Exception {
+				return true;
+			}
+		}).oneOrMore(true).zeroOrMore(true);
+	}
 }

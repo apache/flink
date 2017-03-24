@@ -21,20 +21,20 @@ package org.apache.flink.streaming.api.scala
 import java.lang
 
 import org.apache.flink.api.common.functions._
+import org.apache.flink.api.common.operators.ResourceSpec
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.streaming.api.collector.selector.OutputSelector
 import org.apache.flink.streaming.api.functions.ProcessFunction
-import org.apache.flink.streaming.api.functions.ProcessFunction.{Context, OnTimerContext}
 import org.apache.flink.streaming.api.functions.co.CoMapFunction
 import org.apache.flink.streaming.api.graph.{StreamEdge, StreamGraph}
-import org.apache.flink.streaming.api.operators.{AbstractUdfStreamOperator, ProcessOperator, StreamOperator}
+import org.apache.flink.streaming.api.operators.{AbstractUdfStreamOperator, KeyedProcessOperator, ProcessOperator, StreamOperator}
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows
 import org.apache.flink.streaming.api.windowing.triggers.{CountTrigger, PurgingTrigger}
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow
 import org.apache.flink.streaming.runtime.partitioner._
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
 import org.apache.flink.util.Collector
-import org.junit.Assert.fail
+import org.junit.Assert._
 import org.junit.Test
 
 class DataStreamTest extends StreamingMultipleProgramsTestBase {
@@ -255,9 +255,10 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
     val sink = map.addSink(x => {})
 
     assert(1 == env.getStreamGraph.getStreamNode(src.getId).getParallelism)
-    assert(10 == env.getStreamGraph.getStreamNode(map.getId).getParallelism)
+    // default parallelism is only actualized when transforming to JobGraph
+    assert(-1 == env.getStreamGraph.getStreamNode(map.getId).getParallelism)
     assert(1 == env.getStreamGraph.getStreamNode(windowed.getId).getParallelism)
-    assert(10 == env.getStreamGraph.getStreamNode(sink.getTransformation.getId).getParallelism)
+    assert(-1 == env.getStreamGraph.getStreamNode(sink.getTransformation.getId).getParallelism)
 
     try {
       src.setParallelism(3)
@@ -272,9 +273,11 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
     // the parallelism does not change since some windowing code takes the parallelism from
     // input operations and that cannot change dynamically
     assert(1 == env.getStreamGraph.getStreamNode(src.getId).getParallelism)
-    assert(10 == env.getStreamGraph.getStreamNode(map.getId).getParallelism)
+    // setting a parallelism on the env/in the ExecutionConfig means that operators
+    // pick it up when being instantiated
+    assert(7 == env.getStreamGraph.getStreamNode(map.getId).getParallelism)
     assert(1 == env.getStreamGraph.getStreamNode(windowed.getId).getParallelism)
-    assert(10 == env.getStreamGraph.getStreamNode(sink.getTransformation.getId).getParallelism)
+    assert(7 == env.getStreamGraph.getStreamNode(sink.getTransformation.getId).getParallelism)
 
     val parallelSource = env.generateSequence(0, 0)
     parallelSource.print()
@@ -290,6 +293,82 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
     sink.setParallelism(4)
     assert(4 == env.getStreamGraph.getStreamNode(sink.getTransformation.getId).getParallelism)
   }
+
+  /**
+   * Tests whether resource gets set.
+   */
+  /*
+  @Test
+  def testResource() {
+    val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
+
+    val minResource1: ResourceSpec = new ResourceSpec(1.0, 100)
+    val preferredResource1: ResourceSpec = new ResourceSpec(2.0, 200)
+    val minResource2: ResourceSpec = new ResourceSpec(1.0, 200)
+    val preferredResource2: ResourceSpec = new ResourceSpec(2.0, 300)
+    val minResource3: ResourceSpec = new ResourceSpec(1.0, 300)
+    val preferredResource3: ResourceSpec = new ResourceSpec(2.0, 400)
+    val minResource4: ResourceSpec = new ResourceSpec(1.0, 400)
+    val preferredResource4: ResourceSpec = new ResourceSpec(2.0, 500)
+    val minResource5: ResourceSpec = new ResourceSpec(1.0, 500)
+    val preferredResource5: ResourceSpec = new ResourceSpec(2.0, 600)
+    val minResource6: ResourceSpec = new ResourceSpec(1.0, 600)
+    val preferredResource6: ResourceSpec = new ResourceSpec(2.0, 700)
+    val minResource7: ResourceSpec = new ResourceSpec(1.0, 700)
+    val preferredResource7: ResourceSpec = new ResourceSpec(2.0, 800)
+
+    val source1: DataStream[Long] = env.generateSequence(0, 0)
+      .resource(minResource1, preferredResource1)
+    val map1: DataStream[String] = source1.map(x => "")
+      .resource(minResource2, preferredResource2)
+    val source2: DataStream[Long] = env.generateSequence(0, 0)
+      .resource(minResource3, preferredResource3)
+    val map2: DataStream[String] = source2.map(x => "")
+      .resource(minResource4, preferredResource4)
+
+    val connected: DataStream[String] = map1.connect(map2)
+      .flatMap({ (in, out: Collector[(String)]) => }, { (in, out: Collector[(String)]) => })
+      .resource(minResource5, preferredResource5)
+
+    val windowed  = connected
+      .windowAll(GlobalWindows.create())
+      .trigger(PurgingTrigger.of(CountTrigger.of[GlobalWindow](5)))
+      .fold("")((accumulator: String, value: String) => "")
+      .resource(minResource6, preferredResource6)
+
+    var sink = windowed.print().resource(minResource7, preferredResource7)
+
+    val plan = env.getExecutionPlan
+
+    assertEquals(minResource1, env.getStreamGraph.getStreamNode(source1.getId).
+      getMinResource)
+    assertEquals(preferredResource1, env.getStreamGraph.getStreamNode(source1.getId).
+      getPreferredResource)
+    assertEquals(minResource2, env.getStreamGraph.getStreamNode(map1.getId).
+      getMinResource)
+    assertEquals(preferredResource2, env.getStreamGraph.getStreamNode(map1.getId).
+      getPreferredResource)
+    assertEquals(minResource3, env.getStreamGraph.getStreamNode(source2.getId).
+      getMinResource)
+    assertEquals(preferredResource3, env.getStreamGraph.getStreamNode(source2.getId).
+      getPreferredResource)
+    assertEquals(minResource4, env.getStreamGraph.getStreamNode(map2.getId).
+      getMinResource)
+    assertEquals(preferredResource4, env.getStreamGraph.getStreamNode(map2.getId).
+      getPreferredResource)
+    assertEquals(minResource5, env.getStreamGraph.getStreamNode(connected.getId).
+      getMinResource)
+    assertEquals(preferredResource5, env.getStreamGraph.getStreamNode(connected.getId).
+      getPreferredResource)
+    assertEquals(minResource6, env.getStreamGraph.getStreamNode(windowed.getId).
+      getMinResource)
+    assertEquals(preferredResource6, env.getStreamGraph.getStreamNode(windowed.getId).
+      getPreferredResource)
+    assertEquals(minResource7, env.getStreamGraph.getStreamNode(
+      sink.getPreferredResource.getId).getMinResource)
+    assertEquals(preferredResource7, env.getStreamGraph.getStreamNode(
+      sink.getPreferredResource.getId).getPreferredResource)
+  }*/
 
   @Test
   def testTypeInfo() {
@@ -321,24 +400,46 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
    * Verify that a [[KeyedStream.process()]] call is correctly translated to an operator.
    */
   @Test
-  def testProcessTranslation(): Unit = {
+  def testKeyedProcessTranslation(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
 
     val src = env.generateSequence(0, 0)
 
     val processFunction = new ProcessFunction[Long, Int] {
-      override def processElement(value: Long, ctx: Context, out: Collector[Int]): Unit = ???
-      override def onTimer(
-          timestamp: Long,
-          ctx: OnTimerContext,
+      override def processElement(
+          value: Long,
+          ctx: ProcessFunction[Long, Int]#Context,
           out: Collector[Int]): Unit = ???
     }
 
     val flatMapped = src.keyBy(x => x).process(processFunction)
 
     assert(processFunction == getFunctionForDataStream(flatMapped))
-    assert(getOperatorForDataStream(flatMapped).isInstanceOf[ProcessOperator[_, _, _]])
+    assert(getOperatorForDataStream(flatMapped).isInstanceOf[KeyedProcessOperator[_, _, _]])
   }
+
+  /**
+    * Verify that a [[DataStream.process()]] call is correctly translated to an operator.
+    */
+  @Test
+  def testProcessTranslation(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+
+    val src = env.generateSequence(0, 0)
+
+    val processFunction = new ProcessFunction[Long, Int] {
+      override def processElement(
+          value: Long,
+          ctx: ProcessFunction[Long, Int]#Context,
+          out: Collector[Int]): Unit = ???
+    }
+
+    val flatMapped = src.process(processFunction)
+
+    assert(processFunction == getFunctionForDataStream(flatMapped))
+    assert(getOperatorForDataStream(flatMapped).isInstanceOf[ProcessOperator[_, _]])
+  }
+
 
   @Test def operatorTest() {
     val env = StreamExecutionEnvironment.getExecutionEnvironment

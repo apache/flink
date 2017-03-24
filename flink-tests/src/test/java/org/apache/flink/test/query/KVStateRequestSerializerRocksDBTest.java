@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.query;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
@@ -74,12 +75,13 @@ public final class KVStateRequestSerializerRocksDBTest {
 				final TaskKvStateRegistry kvStateRegistry,
 				final TypeSerializer<K> keySerializer,
 				final int numberOfKeyGroups,
-				final KeyGroupRange keyGroupRange) throws Exception {
+				final KeyGroupRange keyGroupRange,
+				final ExecutionConfig executionConfig) throws Exception {
 
 			super(jobId, operatorIdentifier, userCodeClassLoader,
 				instanceBasePath,
 				dbOptions, columnFamilyOptions, kvStateRegistry, keySerializer,
-				numberOfKeyGroups, keyGroupRange);
+				numberOfKeyGroups, keyGroupRange, executionConfig);
 		}
 
 		@Override
@@ -115,7 +117,8 @@ public final class KVStateRequestSerializerRocksDBTest {
 				columnFamilyOptions,
 				mock(TaskKvStateRegistry.class),
 				LongSerializer.INSTANCE,
-				1, new KeyGroupRange(0, 0)
+				1, new KeyGroupRange(0, 0),
+				new ExecutionConfig()
 			);
 		longHeapKeyedStateBackend.setCurrentKey(key);
 
@@ -150,7 +153,8 @@ public final class KVStateRequestSerializerRocksDBTest {
 				columnFamilyOptions,
 				mock(TaskKvStateRegistry.class),
 				LongSerializer.INSTANCE,
-				1, new KeyGroupRange(0, 0)
+				1, new KeyGroupRange(0, 0),
+				new ExecutionConfig()
 			);
 		longHeapKeyedStateBackend.setCurrentKey(key);
 

@@ -25,8 +25,13 @@ import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 import org.apache.flink.runtime.webmonitor.handlers.AbstractExecutionGraphRequestHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JsonFactory;
+import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
+import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 
+import java.io.IOException;
 import java.io.StringWriter;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Map;
 
 /**
@@ -34,14 +39,35 @@ import java.util.Map;
  */
 public class CheckpointConfigHandler extends AbstractExecutionGraphRequestHandler {
 
+	private static final String CHECKPOINT_CONFIG_REST_PATH = "/jobs/:jobid/checkpoints/config";
+
 	public CheckpointConfigHandler(ExecutionGraphHolder executionGraphHolder) {
 		super(executionGraphHolder);
 	}
 
 	@Override
-	public String handleRequest(AccessExecutionGraph graph, Map<String, String> params) throws Exception {
-		StringWriter writer = new StringWriter();
+	public String[] getPaths() {
+		return new String[]{CHECKPOINT_CONFIG_REST_PATH};
+	}
 
+	@Override
+	public String handleRequest(AccessExecutionGraph graph, Map<String, String> params) throws Exception {
+		return createCheckpointConfigJson(graph);
+	}
+
+	public static class CheckpointConfigJsonArchivist implements JsonArchivist {
+
+		@Override
+		public Collection<ArchivedJson> archiveJsonWithPath(AccessExecutionGraph graph) throws IOException {
+			String json = createCheckpointConfigJson(graph);
+			String path = CHECKPOINT_CONFIG_REST_PATH
+				.replace(":jobid", graph.getJobID().toString());
+			return Collections.singletonList(new ArchivedJson(path, json));
+		}
+	}
+
+	private static String createCheckpointConfigJson(AccessExecutionGraph graph) throws IOException {
+		StringWriter writer = new StringWriter();
 		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
 		JobSnapshottingSettings settings = graph.getJobSnapshottingSettings();
 

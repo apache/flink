@@ -33,6 +33,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
 import org.apache.flink.runtime.blob.BlobServer;
@@ -50,6 +51,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.restart.FixedDelayRestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.instance.InstanceManager;
@@ -166,12 +168,14 @@ public class JobManagerHARecoveryTest {
 			CheckpointIDCounter checkpointCounter = new StandaloneCheckpointIDCounter();
 			CheckpointRecoveryFactory checkpointStateFactory = new MyCheckpointRecoveryFactory(checkpointStore, checkpointCounter);
 			TestingLeaderElectionService myLeaderElectionService = new TestingLeaderElectionService();
-			TestingLeaderRetrievalService myLeaderRetrievalService = new TestingLeaderRetrievalService();
+			TestingLeaderRetrievalService myLeaderRetrievalService = new TestingLeaderRetrievalService(
+				"localhost",
+				HighAvailabilityServices.DEFAULT_LEADER_ID);
 
 			InstanceManager instanceManager = new InstanceManager();
 			instanceManager.addInstanceListener(scheduler);
 
-			archive = system.actorOf(Props.create(MemoryArchivist.class, 10));
+			archive = system.actorOf(JobManager.getArchiveProps(MemoryArchivist.class, 10, Option.<Path>empty()));
 
 			Props jobManagerProps = Props.create(
 				TestingJobManager.class,
@@ -225,6 +229,7 @@ public class JobManagerHARecoveryTest {
 					0,
 					1,
 					ExternalizedCheckpointSettings.none(),
+					null,
 					true));
 
 			BlockingStatefulInvokable.initializeStaticHelpers(slots);
@@ -483,6 +488,15 @@ public class JobManagerHARecoveryTest {
 			return checkpoints.size();
 		}
 
+		@Override
+		public int getMaxNumberOfRetainedCheckpoints() {
+			return 1;
+		}
+
+		@Override
+		public boolean requiresExternalizedCheckpoints() {
+			return false;
+		}
 	}
 
 	static class MyCheckpointRecoveryFactory implements CheckpointRecoveryFactory {
@@ -504,7 +518,7 @@ public class JobManagerHARecoveryTest {
 		}
 
 		@Override
-		public CompletedCheckpointStore createCheckpointStore(JobID jobId, ClassLoader userClassLoader) throws Exception {
+		public CompletedCheckpointStore createCheckpointStore(JobID jobId, int maxNumberOfCheckpointsToRetain, ClassLoader userClassLoader) throws Exception {
 			return store;
 		}
 

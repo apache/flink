@@ -23,6 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.TerminalJobStatusListener;
 import org.apache.flink.runtime.instance.ActorGateway;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -129,7 +130,7 @@ public class LeaderChangeJobRecoveryTest extends TestLogger {
 		sender.setParallelism(parallelism);
 		receiver.setParallelism(parallelism);
 
-		receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE);
+		receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
 		SlotSharingGroup slotSharingGroup = new SlotSharingGroup();
 		sender.setSlotSharingGroup(slotSharingGroup);

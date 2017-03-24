@@ -23,6 +23,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.streaming.api.windowing.assigners.MergingWindowAssigner;
+import org.apache.flink.util.MathUtils;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -98,9 +99,7 @@ public class TimeWindow extends Window {
 
 	@Override
 	public int hashCode() {
-		int result = (int) (start ^ (start >>> 32));
-		result = 31 * result + (int) (end ^ (end >>> 32));
-		return result;
+		return MathUtils.longToIntWithBitMixing(start + end);
 	}
 
 	@Override

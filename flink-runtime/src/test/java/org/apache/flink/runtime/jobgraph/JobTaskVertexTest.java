@@ -27,6 +27,7 @@ import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.core.io.InputSplit;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.junit.Test;
 
@@ -41,7 +42,7 @@ public class JobTaskVertexTest {
 	public void testConnectDirectly() {
 		JobVertex source = new JobVertex("source");
 		JobVertex target = new JobVertex("target");
-		target.connectNewDataSetAsInput(source, DistributionPattern.POINTWISE);
+		target.connectNewDataSetAsInput(source, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 		
 		assertTrue(source.isInputVertex());
 		assertFalse(source.isOutputVertex());
@@ -62,7 +63,7 @@ public class JobTaskVertexTest {
 		JobVertex source = new JobVertex("source");
 		JobVertex target1= new JobVertex("target1");
 		JobVertex target2 = new JobVertex("target2");
-		target1.connectNewDataSetAsInput(source, DistributionPattern.POINTWISE);
+		target1.connectNewDataSetAsInput(source, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 		target2.connectDataSetAsInput(source.getProducedDataSets().get(0), DistributionPattern.ALL_TO_ALL);
 		
 		assertTrue(source.isInputVertex());

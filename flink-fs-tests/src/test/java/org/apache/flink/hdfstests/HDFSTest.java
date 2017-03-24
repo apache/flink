@@ -24,6 +24,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironmentFactory;
 import org.apache.flink.api.java.LocalEnvironment;
 import org.apache.flink.api.java.io.AvroOutputFormat;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.core.fs.FileSystem;
@@ -80,7 +81,7 @@ public class HDFSTest {
 			hdfs = hdPath.getFileSystem(hdConf);
 			FSDataOutputStream stream = hdfs.create(hdPath);
 			for(int i = 0; i < 10; i++) {
-				stream.write("Hello HDFS\n".getBytes());
+				stream.write("Hello HDFS\n".getBytes(ConfigConstants.DEFAULT_CHARSET));
 			}
 			stream.close();
 
@@ -193,7 +194,7 @@ public class HDFSTest {
 
 		fs.mkdirs(directory);
 
-		byte[] data = "HDFSTest#testDeletePathIfEmpty".getBytes();
+		byte[] data = "HDFSTest#testDeletePathIfEmpty".getBytes(ConfigConstants.DEFAULT_CHARSET);
 
 		for (Path file: Arrays.asList(singleFile, directoryFile)) {
 			org.apache.flink.core.fs.FSDataOutputStream outputStream = fs.create(file, true);

@@ -32,6 +32,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Base class for state that is stored in a file.
  */
 @Deprecated
+@SuppressWarnings("deprecation")
 public abstract class AbstractFileStateHandle extends AbstractCloseableHandle implements StateObject {
 
 	private static final long serialVersionUID = 350284443258002355L;

@@ -137,19 +137,6 @@ public class RocksDBMapState<K, N, UK, UV>
 
 		return (rawValueBytes != null);
 	}
-
-	@Override
-	public int size() throws IOException, RocksDBException {
-		Iterator<Map.Entry<UK, UV>> iterator = iterator();
-
-		int count = 0;
-		while (iterator.hasNext()) {
-			count++;
-			iterator.next();
-		}
-
-		return count;
-	}
 	
 	@Override
 	public Iterable<Map.Entry<UK, UV>> entries() throws IOException, RocksDBException {

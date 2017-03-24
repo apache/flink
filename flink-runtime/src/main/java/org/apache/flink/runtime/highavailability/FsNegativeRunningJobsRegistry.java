@@ -21,6 +21,7 @@ package org.apache.flink.runtime.highavailability;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
 
 import java.io.FileNotFoundException;
@@ -30,12 +31,16 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * This {@link RunningJobsRegistry} tracks the status jobs via marker files,
- * marking finished jobs via marker files.
+ * marking running jobs viarunning marker files, marking finished jobs via finished marker files.
  * 
  * <p>The general contract is the following:
  * <ul>
  *     <li>Initially, a marker file does not exist (no one created it, yet), which means
- *         the specific job is assumed to be running</li>
+ *         the specific job is pending.</li>
+ *     <li>The first JobManager that granted leadership calls this service to create the running marker file,
+ *         which marks the job as running.</li>
+ *     <li>If a JobManager gains leadership but sees the running marker file,
+ *         it will realize that the job has been scheduled already and needs reconciling.</li>
  *     <li>The JobManager that finishes calls this service to create the marker file,
  *         which marks the job as finished.</li>
  *     <li>If a JobManager gains leadership at some point when shutdown is in progress,
@@ -45,14 +50,16 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *         start the job, even if it gains leadership.</li>
  * </ul>
  * 
- * <p>It is especially tailored towards deployment modes like for example
+ * <p>This registry is especially tailored towards deployment modes like for example
  * YARN, where HDFS is available as a persistent file system, and the YARN
  * application's working directories on HDFS are automatically cleaned
  * up after the application completed. 
  */
 public class FsNegativeRunningJobsRegistry implements RunningJobsRegistry {
 
-	private static final String PREFIX = ".job_complete_";
+	private static final String DONE_PREFIX = ".job_complete_";
+
+	private static final String RUNNING_PREFIX = ".job_runing_";
 
 	private final FileSystem fileSystem;
 
@@ -92,8 +99,8 @@ public class FsNegativeRunningJobsRegistry implements RunningJobsRegistry {
 		// to be safe, attempt to write to the working directory, to
 		// catch problems early
 		final Path testFile = new Path(workingDirectory, ".registry_test");
-		try (FSDataOutputStream out = fileSystem.create(testFile, false)) {
-			out.write(42);
+		try {
+			createFile(testFile, false);
 		}
 		catch (IOException e) {
 			throw new IOException("Unable to write to working directory: " + workingDirectory, e);
@@ -108,46 +115,71 @@ public class FsNegativeRunningJobsRegistry implements RunningJobsRegistry {
 	@Override
 	public void setJobRunning(JobID jobID) throws IOException {
 		checkNotNull(jobID, "jobID");
-		final Path filePath = createMarkerFilePath(jobID);
+		final Path filePath = createMarkerFilePath(RUNNING_PREFIX, jobID);
 
-		// delete the marker file, if it exists
-		try {
-			fileSystem.delete(filePath, false);
-		}
-		catch (FileNotFoundException e) {
-			// apparently job was already considered running
-		}
+		// create the file
+		// to avoid an exception if the job already exists, set overwrite=true
+		createFile(filePath, true);
 	}
 
 	@Override
 	public void setJobFinished(JobID jobID) throws IOException {
 		checkNotNull(jobID, "jobID");
-		final Path filePath = createMarkerFilePath(jobID);
+		final Path filePath = createMarkerFilePath(DONE_PREFIX, jobID);
 
 		// create the file
 		// to avoid an exception if the job already exists, set overwrite=true
-		try (FSDataOutputStream out = fileSystem.create(filePath, true)) {
-			out.write(42);
+		createFile(filePath, true);
+	}
+
+	@Override
+	public JobSchedulingStatus getJobSchedulingStatus(JobID jobID) throws IOException {
+		checkNotNull(jobID, "jobID");
+
+		// first check for the existence of the complete file
+		if (fileSystem.exists(createMarkerFilePath(DONE_PREFIX, jobID))) {
+			// complete file was found --> job is terminated
+			return JobSchedulingStatus.DONE;
+		}
+		// check for the existence of the running file
+		else if (fileSystem.exists(createMarkerFilePath(RUNNING_PREFIX, jobID))) {
+			// running file was found --> job is terminated
+			return JobSchedulingStatus.RUNNING;
+		}
+		else {
+			// file does not exist, job is not scheduled
+			return JobSchedulingStatus.PENDING;
 		}
 	}
 
 	@Override
-	public boolean isJobRunning(JobID jobID) throws IOException {
+	public void clearJob(JobID jobID) throws IOException {
 		checkNotNull(jobID, "jobID");
+		final Path runningFilePath = createMarkerFilePath(RUNNING_PREFIX, jobID);
+		final Path doneFilePath = createMarkerFilePath(DONE_PREFIX, jobID);
 
-		// check for the existence of the file
+		// delete the running marker file, if it exists
 		try {
-			fileSystem.getFileStatus(createMarkerFilePath(jobID));
-			// file was found --> job is terminated
-			return false;
+			fileSystem.delete(runningFilePath, false);
 		}
-		catch (FileNotFoundException e) {
-			// file does not exist, job is still running
-			return true;
+		catch (FileNotFoundException ignored) {}
+
+		// delete the finished marker file, if it exists
+		try {
+			fileSystem.delete(doneFilePath, false);
 		}
+		catch (FileNotFoundException ignored) {}
 	}
 
-	private Path createMarkerFilePath(JobID jobId) {
-		return new Path(basePath, PREFIX + jobId.toString());
+	private Path createMarkerFilePath(String prefix, JobID jobId) {
+		return new Path(basePath, prefix + jobId.toString());
+	}
+
+	private void createFile(Path path, boolean overwrite) throws IOException {
+		final WriteMode writeMode = overwrite ? WriteMode.OVERWRITE : WriteMode.NO_OVERWRITE;
+
+		try (FSDataOutputStream out = fileSystem.create(path, writeMode)) {
+			out.write(42);
+		}
 	}
 }

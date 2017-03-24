@@ -32,6 +32,7 @@ import java.io.Serializable;
  * the first run under Flink 1.2 and provides again the real namespace serializer.
  */
 @Deprecated
+@SuppressWarnings("deprecation")
 public class MigrationNamespaceSerializerProxy extends TypeSerializer<Serializable> {
 
 	public static final MigrationNamespaceSerializerProxy INSTANCE = new MigrationNamespaceSerializerProxy();

@@ -19,6 +19,7 @@
 package org.apache.flink.mesos.runtime.clusterframework.store;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.runtime.zookeeper.ZooKeeperSharedCount;
 import org.apache.flink.runtime.zookeeper.ZooKeeperSharedValue;
@@ -117,7 +118,8 @@ public class ZooKeeperMesosWorkerStore implements MesosWorkerStore {
 			if (value.length == 0) {
 				frameworkID = Option.empty();
 			} else {
-				frameworkID = Option.apply(Protos.FrameworkID.newBuilder().setValue(new String(value)).build());
+				frameworkID = Option.apply(Protos.FrameworkID.newBuilder().setValue(new String(value,
+					ConfigConstants.DEFAULT_CHARSET)).build());
 			}
 
 			return frameworkID;
@@ -134,7 +136,8 @@ public class ZooKeeperMesosWorkerStore implements MesosWorkerStore {
 		synchronized (startStopLock) {
 			verifyIsRunning();
 
-			byte[] value = frameworkID.isDefined() ? frameworkID.get().getValue().getBytes() : new byte[0];
+			byte[] value = frameworkID.isDefined() ? frameworkID.get().getValue().getBytes(ConfigConstants.DEFAULT_CHARSET) :
+				new byte[0];
 			frameworkIdInZooKeeper.setValue(value);
 		}
 	}

@@ -21,6 +21,7 @@ package org.apache.flink.types.parser;
 
 import java.sql.Date;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.configuration.ConfigConstants;
 
 /**
  * Parses a text field into a {@link java.sql.Date}.
@@ -45,7 +46,7 @@ public class SqlDateParser extends FieldParser<Date> {
 			return -1;
 		}
 
-		String str = new String(bytes, startPos, endPos - startPos);
+		String str = new String(bytes, startPos, endPos - startPos, ConfigConstants.DEFAULT_CHARSET);
 		try {
 			this.result = Date.valueOf(str);
 			return (endPos == limit) ? limit : endPos + delimiter.length;
@@ -102,7 +103,7 @@ public class SqlDateParser extends FieldParser<Date> {
 			throw new NumberFormatException("There is leading or trailing whitespace in the numeric field.");
 		}
 
-		final String str = new String(bytes, startPos, limitedLen);
+		final String str = new String(bytes, startPos, limitedLen, ConfigConstants.DEFAULT_CHARSET);
 		return Date.valueOf(str);
 	}
 }

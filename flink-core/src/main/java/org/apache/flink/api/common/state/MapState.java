@@ -90,13 +90,6 @@ public interface MapState<UK, UV> extends State {
 	boolean contains(UK key) throws Exception;
 
 	/**
-	 * @return The number of mappings in the state.
-	 *
-	 * @throws Exception Thrown if the system cannot access the state.
-	 */
-	int size() throws Exception;
-
-	/**
 	 * Returns all the mappings in the state
 	 *
 	 * @return An iterable view of all the key-value pairs in the state.

@@ -46,6 +46,7 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobInformation;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.instance.InstanceID;
@@ -69,6 +70,7 @@ import org.apache.flink.runtime.messages.TaskMessages;
 import org.apache.flink.runtime.messages.TaskMessages.CancelTask;
 import org.apache.flink.runtime.messages.TaskMessages.StopTask;
 import org.apache.flink.runtime.messages.TaskMessages.SubmitTask;
+import org.apache.flink.runtime.taskexecutor.TaskManagerServicesConfiguration;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
@@ -91,6 +93,7 @@ import scala.concurrent.duration.FiniteDuration;
 import scala.util.Failure;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URL;
 import java.util.ArrayList;
@@ -123,7 +126,7 @@ public class TaskManagerTest extends TestLogger {
 
 	private static ActorSystem system;
 
-	final static UUID leaderSessionID = null;
+	final static UUID leaderSessionID = HighAvailabilityServices.DEFAULT_LEADER_ID;
 
 	@BeforeClass
 	public static void setup() {
@@ -637,7 +640,7 @@ public class TaskManagerTest extends TestLogger {
 
 				InputGateDeploymentDescriptor ircdd =
 						new InputGateDeploymentDescriptor(
-								new IntermediateDataSetID(),
+								new IntermediateDataSetID(), ResultPartitionType.PIPELINED,
 								0, new InputChannelDeploymentDescriptor[]{
 										new InputChannelDeploymentDescriptor(new ResultPartitionID(partitionId, eid1), ResultPartitionLocation.createLocal())
 								}
@@ -782,7 +785,7 @@ public class TaskManagerTest extends TestLogger {
 
 				InputGateDeploymentDescriptor ircdd =
 						new InputGateDeploymentDescriptor(
-								new IntermediateDataSetID(),
+								new IntermediateDataSetID(), ResultPartitionType.PIPELINED,
 								0, new InputChannelDeploymentDescriptor[]{
 										new InputChannelDeploymentDescriptor(new ResultPartitionID(partitionId, eid1), ResultPartitionLocation.createLocal())
 								}
@@ -936,7 +939,7 @@ public class TaskManagerTest extends TestLogger {
 								new InputChannelDeploymentDescriptor(partitionId, loc)};
 
 				final InputGateDeploymentDescriptor igdd =
-						new InputGateDeploymentDescriptor(resultId, 0, icdd);
+						new InputGateDeploymentDescriptor(resultId, ResultPartitionType.PIPELINED, 0, icdd);
 
 				final TaskDeploymentDescriptor tdd = createTaskDeploymentDescriptor(
 						jid, "TestJob", vid, eid,
@@ -976,6 +979,25 @@ public class TaskManagerTest extends TestLogger {
 				TestingUtils.stopActor(jobManager);
 			}
 		}};
+	}
+
+	@Test
+	public void testTaskManagerServicesConfiguration() throws Exception {
+
+		// set some non-default values
+		final Configuration config = new Configuration();
+		config.setInteger(TaskManagerOptions.NETWORK_REQUEST_BACKOFF_INITIAL, 100);
+		config.setInteger(TaskManagerOptions.NETWORK_REQUEST_BACKOFF_MAX, 200);
+		config.setInteger(TaskManagerOptions.NETWORK_BUFFERS_PER_CHANNEL, 10);
+		config.setInteger(TaskManagerOptions.NETWORK_EXTRA_BUFFERS_PER_GATE, 100);
+
+		TaskManagerServicesConfiguration tmConfig =
+			TaskManagerServicesConfiguration.fromConfiguration(config, InetAddress.getLoopbackAddress(), true);
+
+		assertEquals(tmConfig.getNetworkConfig().partitionRequestInitialBackoff(), 100);
+		assertEquals(tmConfig.getNetworkConfig().partitionRequestMaxBackoff(), 200);
+		assertEquals(tmConfig.getNetworkConfig().networkBuffersPerChannel(), 10);
+		assertEquals(tmConfig.getNetworkConfig().extraNetworkBuffersPerGate(), 100);
 	}
 
 	/**
@@ -1031,7 +1053,7 @@ public class TaskManagerTest extends TestLogger {
 								new InputChannelDeploymentDescriptor(partitionId, loc)};
 
 				final InputGateDeploymentDescriptor igdd =
-						new InputGateDeploymentDescriptor(resultId, 0, icdd);
+						new InputGateDeploymentDescriptor(resultId, ResultPartitionType.PIPELINED, 0, icdd);
 
 				final TaskDeploymentDescriptor tdd = createTaskDeploymentDescriptor(
 						jid, "TestJob", vid, eid,
@@ -1144,8 +1166,8 @@ public class TaskManagerTest extends TestLogger {
 
 			// We need this to be a JM that answers to update messages for
 			// robustness on Travis (if jobs need to be resubmitted in (4)).
-			ActorRef jm = system.actorOf(Props.create(new SimpleLookupJobManagerCreator(null)));
-			ActorGateway jobManagerActorGateway = new AkkaActorGateway(jm, null);
+			ActorRef jm = system.actorOf(Props.create(new SimpleLookupJobManagerCreator(leaderSessionID)));
+			ActorGateway jobManagerActorGateway = new AkkaActorGateway(jm, leaderSessionID);
 
 			final ActorGateway testActorGateway = new AkkaActorGateway(
 					getTestActor(),

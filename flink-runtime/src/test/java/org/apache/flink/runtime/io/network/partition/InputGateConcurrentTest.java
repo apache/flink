@@ -60,7 +60,7 @@ public class InputGateConcurrentTest {
 		final SingleInputGate gate = new SingleInputGate(
 				"Test Task Name",
 				new JobID(),
-				new IntermediateDataSetID(),
+				new IntermediateDataSetID(), ResultPartitionType.PIPELINED,
 				0, numChannels,
 				mock(TaskActions.class),
 				new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
@@ -95,7 +95,7 @@ public class InputGateConcurrentTest {
 		final SingleInputGate gate = new SingleInputGate(
 				"Test Task Name",
 				new JobID(),
-				new IntermediateDataSetID(),
+				new IntermediateDataSetID(), ResultPartitionType.PIPELINED,
 				0,
 				numChannels,
 				mock(TaskActions.class),
@@ -144,7 +144,7 @@ public class InputGateConcurrentTest {
 		final SingleInputGate gate = new SingleInputGate(
 				"Test Task Name",
 				new JobID(),
-				new IntermediateDataSetID(),
+				new IntermediateDataSetID(), ResultPartitionType.PIPELINED,
 				0,
 				numChannels,
 				mock(TaskActions.class),

@@ -24,6 +24,7 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.webmonitor.files.MimeTypes;
@@ -32,8 +33,6 @@ import org.slf4j.LoggerFactory;
 import scala.Option;
 import scala.Tuple2;
 
-import java.io.UnsupportedEncodingException;
-import java.nio.charset.Charset;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -94,9 +93,9 @@ public class HandlerRedirectUtils {
 		return redirectResponse;
 	}
 
-	public static HttpResponse getUnavailableResponse() throws UnsupportedEncodingException {
+	public static HttpResponse getUnavailableResponse() {
 		String result = "Service temporarily unavailable due to an ongoing leader election. Please refresh.";
-		byte[] bytes = result.getBytes(Charset.forName("UTF-8"));
+		byte[] bytes = result.getBytes(ConfigConstants.DEFAULT_CHARSET);
 
 		HttpResponse unavailableResponse = new DefaultFullHttpResponse(
 				HttpVersion.HTTP_1_1, HttpResponseStatus.SERVICE_UNAVAILABLE, Unpooled.wrappedBuffer(bytes));

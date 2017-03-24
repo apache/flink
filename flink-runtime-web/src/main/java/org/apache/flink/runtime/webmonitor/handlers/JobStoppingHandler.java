@@ -30,6 +30,14 @@ import java.util.Map;
  */
 public class JobStoppingHandler extends AbstractJsonRequestHandler {
 
+	private static final String JOB_STOPPING_REST_PATH = "/jobs/:jobid/stop";
+	private static final String JOB_STOPPING_YARN_REST_PATH = "/jobs/:jobid/yarn-stop";
+
+	@Override
+	public String[] getPaths() {
+		return new String[]{JOB_STOPPING_REST_PATH, JOB_STOPPING_YARN_REST_PATH};
+	}
+
 	@Override
 	public String handleJsonRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
 		try {

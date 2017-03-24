@@ -25,6 +25,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import java.util.ArrayList;
 
 @Deprecated
+@SuppressWarnings("deprecation")
 public class MemListState<K, N, V> {
 
 	public static class Snapshot<K, N, V> extends AbstractMemStateSnapshot<K, N, ArrayList<V>, ListState<V>, ListStateDescriptor<V>> {

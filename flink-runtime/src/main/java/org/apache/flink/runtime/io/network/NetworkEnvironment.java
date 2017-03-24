@@ -73,6 +73,11 @@ public class NetworkEnvironment {
 
 	private final int partitionRequestMaxBackoff;
 
+	/** Number of network buffers to use for each outgoing/ingoing channel (subpartition/input channel). */
+	private final int networkBuffersPerChannel;
+	/** Number of extra network buffers to use for each outgoing/ingoing gate (result partition/input gate). */
+	private final int extraNetworkBuffersPerGate;
+
 	private boolean isShutdown;
 
 	public NetworkEnvironment(
@@ -84,7 +89,9 @@ public class NetworkEnvironment {
 			KvStateServer kvStateServer,
 			IOMode defaultIOMode,
 			int partitionRequestInitialBackoff,
-			int partitionRequestMaxBackoff) {
+			int partitionRequestMaxBackoff,
+			int networkBuffersPerChannel,
+			int extraNetworkBuffersPerGate) {
 
 		this.networkBufferPool = checkNotNull(networkBufferPool);
 		this.connectionManager = checkNotNull(connectionManager);
@@ -100,6 +107,8 @@ public class NetworkEnvironment {
 		this.partitionRequestMaxBackoff = partitionRequestMaxBackoff;
 
 		isShutdown = false;
+		this.networkBuffersPerChannel = networkBuffersPerChannel;
+		this.extraNetworkBuffersPerGate = extraNetworkBuffersPerGate;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -171,7 +180,11 @@ public class NetworkEnvironment {
 				BufferPool bufferPool = null;
 
 				try {
-					bufferPool = networkBufferPool.createBufferPool(partition.getNumberOfSubpartitions(), false);
+					int maxNumberOfMemorySegments = partition.getPartitionType().isBounded() ?
+						partition.getNumberOfSubpartitions() * networkBuffersPerChannel +
+							extraNetworkBuffersPerGate : Integer.MAX_VALUE;
+					bufferPool = networkBufferPool.createBufferPool(partition.getNumberOfSubpartitions(),
+							maxNumberOfMemorySegments);
 					partition.registerBufferPool(bufferPool);
 
 					resultPartitionManager.registerResultPartition(partition);
@@ -198,7 +211,11 @@ public class NetworkEnvironment {
 				BufferPool bufferPool = null;
 
 				try {
-					bufferPool = networkBufferPool.createBufferPool(gate.getNumberOfInputChannels(), false);
+					int maxNumberOfMemorySegments = gate.getConsumedPartitionType().isBounded() ?
+						gate.getNumberOfInputChannels() * networkBuffersPerChannel +
+							extraNetworkBuffersPerGate : Integer.MAX_VALUE;
+					bufferPool = networkBufferPool.createBufferPool(gate.getNumberOfInputChannels(),
+						maxNumberOfMemorySegments);
 					gate.setBufferPool(bufferPool);
 				} catch (Throwable t) {
 					if (bufferPool != null) {

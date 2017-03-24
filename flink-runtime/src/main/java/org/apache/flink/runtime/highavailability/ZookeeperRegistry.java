@@ -25,6 +25,8 @@ import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.zookeeper.data.Stat;
 
 import java.io.IOException;
+import java.nio.charset.Charset;
+import java.util.Arrays;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -32,20 +34,17 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * A zookeeper based registry for running jobs, highly available.
  */
 public class ZookeeperRegistry implements RunningJobsRegistry {
-	
-	private static final String DEFAULT_HA_JOB_REGISTRY_PATH = "/running_job_registry/";
+
+	private static final Charset ENCODING = Charset.forName("utf-8");
 
 	/** The ZooKeeper client to use */
 	private final CuratorFramework client;
 
 	private final String runningJobPath;
 
-	private static final String HA_JOB_REGISTRY_PATH = "high-availability.zookeeper.job.registry";
-
 	public ZookeeperRegistry(final CuratorFramework client, final Configuration configuration) {
-		this.client = client;
-		runningJobPath = configuration.getValue(HighAvailabilityOptions.HA_ZOOKEEPER_ROOT) + 
-			configuration.getString(HA_JOB_REGISTRY_PATH, DEFAULT_HA_JOB_REGISTRY_PATH);
+		this.client = checkNotNull(client, "client");
+		this.runningJobPath = configuration.getString(HighAvailabilityOptions.ZOOKEEPER_RUNNING_JOB_REGISTRY_PATH);
 	}
 
 	@Override
@@ -53,12 +52,10 @@ public class ZookeeperRegistry implements RunningJobsRegistry {
 		checkNotNull(jobID);
 
 		try {
-			String zkPath = runningJobPath + jobID.toString();
-			this.client.newNamespaceAwareEnsurePath(zkPath).ensure(client.getZookeeperClient());
-			this.client.setData().forPath(zkPath);
+			writeEnumToZooKeeper(jobID, JobSchedulingStatus.RUNNING);
 		}
 		catch (Exception e) {
-			throw new IOException("Set running state to zk fail for job " + jobID.toString(), e);
+			throw new IOException("Failed to set RUNNING state in ZooKeeper for job " + jobID, e);
 		}
 	}
 
@@ -67,28 +64,64 @@ public class ZookeeperRegistry implements RunningJobsRegistry {
 		checkNotNull(jobID);
 
 		try {
-			String zkPath = runningJobPath + jobID.toString();
-			this.client.newNamespaceAwareEnsurePath(zkPath).ensure(client.getZookeeperClient());
-			this.client.delete().forPath(zkPath);
+			writeEnumToZooKeeper(jobID, JobSchedulingStatus.DONE);
 		}
 		catch (Exception e) {
-			throw new IOException("Set finished state to zk fail for job " + jobID.toString(), e);
+			throw new IOException("Failed to set DONE state in ZooKeeper for job " + jobID, e);
 		}
 	}
 
 	@Override
-	public boolean isJobRunning(JobID jobID) throws IOException {
+	public JobSchedulingStatus getJobSchedulingStatus(JobID jobID) throws IOException {
 		checkNotNull(jobID);
 
 		try {
-			Stat stat = client.checkExists().forPath(runningJobPath + jobID.toString());
+			final String zkPath = createZkPath(jobID);
+			final Stat stat = client.checkExists().forPath(zkPath);
 			if (stat != null) {
-				return true;
+				// found some data, try to parse it
+				final byte[] data = client.getData().forPath(zkPath);
+				if (data != null) {
+					try {
+						final String name = new String(data, ENCODING);
+						return JobSchedulingStatus.valueOf(name);
+					}
+					catch (IllegalArgumentException e) {
+						throw new IOException("Found corrupt data in ZooKeeper: " + 
+								Arrays.toString(data) + " is no valid job status");
+					}
+				}
 			}
-			return false;
+
+			// nothing found, yet, must be in status 'PENDING'
+			return JobSchedulingStatus.PENDING;
 		}
 		catch (Exception e) {
-			throw new IOException("Get running state from zk fail for job " + jobID.toString(), e);
+			throw new IOException("Get finished state from zk fail for job " + jobID.toString(), e);
 		}
+	}
+
+	@Override
+	public void clearJob(JobID jobID) throws IOException {
+		checkNotNull(jobID);
+
+		try {
+			final String zkPath = createZkPath(jobID);
+			this.client.newNamespaceAwareEnsurePath(zkPath).ensure(client.getZookeeperClient());
+			this.client.delete().forPath(zkPath);
+		}
+		catch (Exception e) {
+			throw new IOException("Failed to clear job state from ZooKeeper for job " + jobID, e);
+		}
+	}
+
+	private String createZkPath(JobID jobID) {
+		return runningJobPath + jobID.toString();
+	}
+
+	private void writeEnumToZooKeeper(JobID jobID, JobSchedulingStatus status) throws Exception {
+		final String zkPath = createZkPath(jobID);
+		this.client.newNamespaceAwareEnsurePath(zkPath).ensure(client.getZookeeperClient());
+		this.client.setData().forPath(zkPath, status.name().getBytes(ENCODING));
 	}
 }

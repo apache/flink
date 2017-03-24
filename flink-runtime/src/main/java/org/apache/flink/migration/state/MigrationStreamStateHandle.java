@@ -26,12 +26,12 @@ import org.apache.flink.util.Migration;
 
 import java.io.IOException;
 
-@Internal
-@Deprecated
 /**
  * This class is just a StreamStateHandle that is tagged as migration, to figure out which restore logic to apply, e.g.
  * when restoring backend data from a state handle.
  */
+@Internal
+@Deprecated
 public class MigrationStreamStateHandle implements StreamStateHandle, Migration {
 
 	private static final long serialVersionUID = -2332113722532150112L;

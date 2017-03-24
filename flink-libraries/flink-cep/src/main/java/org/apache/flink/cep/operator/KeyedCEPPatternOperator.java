@@ -45,9 +45,10 @@ public class KeyedCEPPatternOperator<IN, KEY> extends AbstractKeyedCEPPatternOpe
 			boolean isProcessingTime,
 			KeySelector<IN, KEY> keySelector,
 			TypeSerializer<KEY> keySerializer,
-			NFACompiler.NFAFactory<IN> nfaFactory) {
+			NFACompiler.NFAFactory<IN> nfaFactory,
+			boolean migratingFromOldKeyedOperator) {
 
-		super(inputSerializer, isProcessingTime, keySelector, keySerializer, nfaFactory);
+		super(inputSerializer, isProcessingTime, keySelector, keySerializer, nfaFactory, migratingFromOldKeyedOperator);
 	}
 
 	@Override

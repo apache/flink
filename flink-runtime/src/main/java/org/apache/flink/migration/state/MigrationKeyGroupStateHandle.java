@@ -24,12 +24,12 @@ import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.util.Migration;
 
-@Internal
-@Deprecated
 /**
  * This class is just a KeyGroupsStateHandle that is tagged as migration, to figure out which restore logic to apply,
  * e.g. when restoring backend data from a state handle.
  */
+@Internal
+@Deprecated
 public class MigrationKeyGroupStateHandle extends KeyGroupsStateHandle implements Migration {
 
 	private static final long serialVersionUID = -8554427169776881697L;

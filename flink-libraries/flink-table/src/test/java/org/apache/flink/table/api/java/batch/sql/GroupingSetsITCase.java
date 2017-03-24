@@ -50,8 +50,8 @@ public class GroupingSetsITCase extends TableProgramsClusterTestBase {
 	private final static String TABLE_WITH_NULLS_NAME = "MyTableWithNulls";
 	private BatchTableEnvironment tableEnv;
 
-	public GroupingSetsITCase(TableConfigMode tableConfigMode) {
-		super(tableConfigMode);
+	public GroupingSetsITCase(TestExecutionMode mode, TableConfigMode tableConfigMode) {
+		super(mode, tableConfigMode);
 	}
 
 	@Before

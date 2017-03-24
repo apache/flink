@@ -28,6 +28,7 @@ import org.apache.flink.graph.AnalyticHelper;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.asm.degree.annotate.undirected.VertexDegree;
+import org.apache.flink.graph.asm.result.PrintableResult;
 import org.apache.flink.graph.library.metric.undirected.VertexMetrics.Result;
 import org.apache.flink.types.LongValue;
 
@@ -183,7 +184,8 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 	/**
 	 * Wraps vertex metrics.
 	 */
-	public static class Result {
+	public static class Result
+	implements PrintableResult {
 		private long vertexCount;
 		private long edgeCount;
 		private long tripletCount;
@@ -225,9 +227,9 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 		 *
 		 * @return average degree
 		 */
-		public float getAverageDegree() {
+		public double getAverageDegree() {
 			// each edge is incident on two vertices
-			return vertexCount == 0 ? Float.NaN : 2 * edgeCount / (float)vertexCount;
+			return vertexCount == 0 ? Double.NaN : 2 * edgeCount / (double)vertexCount;
 		}
 
 		/**
@@ -238,8 +240,8 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 		 *
 		 * @return density
 		 */
-		public float getDensity() {
-			return vertexCount <= 1 ? Float.NaN : edgeCount / (float)(vertexCount*(vertexCount-1)/2);
+		public double getDensity() {
+			return vertexCount <= 1 ? Double.NaN : edgeCount / (double)(vertexCount*(vertexCount-1)/2);
 		}
 
 		/**
@@ -270,13 +272,17 @@ extends AbstractGraphAnalytic<K, VV, EV, Result> {
 		}
 
 		@Override
-		public String toString() {
+		public String toPrintableString() {
 			NumberFormat nf = NumberFormat.getInstance();
+
+			// format for very small fractional numbers
+			NumberFormat ff = NumberFormat.getInstance();
+			ff.setMaximumFractionDigits(8);
 
 			return "vertex count: " + nf.format(vertexCount)
 				+ "; edge count: " + nf.format(edgeCount)
 				+ "; average degree: " + nf.format(getAverageDegree())
-				+ "; density: " + nf.format(getDensity())
+				+ "; density: " + ff.format(getDensity())
 				+ "; triplet count: " + nf.format(tripletCount)
 				+ "; maximum degree: " + nf.format(maximumDegree)
 				+ "; maximum triplets: " + nf.format(maximumTriplets);

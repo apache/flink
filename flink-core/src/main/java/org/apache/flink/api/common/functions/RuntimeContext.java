@@ -77,6 +77,14 @@ public interface RuntimeContext {
 	int getNumberOfParallelSubtasks();
 
 	/**
+	 * Gets the number of max-parallelism with which the parallel task runs.
+	 *
+	 * @return The max-parallelism with which the parallel task runs.
+	 */
+	@PublicEvolving
+	int getMaxNumberOfParallelSubtasks();
+
+	/**
 	 * Gets the number of this parallel subtask. The numbering starts from 0 and goes up to
 	 * parallelism-1 (parallelism as returned by {@link #getNumberOfParallelSubtasks()}).
 	 * 

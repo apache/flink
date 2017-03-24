@@ -134,5 +134,15 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
 		public int getNumberOfRetainedCheckpoints() {
 			return -1;
 		}
+
+		@Override
+		public int getMaxNumberOfRetainedCheckpoints() {
+			return 1;
+		}
+
+		@Override
+		public boolean requiresExternalizedCheckpoints() {
+			return false;
+		}
 	}
 }

@@ -321,7 +321,7 @@ public class SlotPool extends RpcEndpoint<SlotPoolGateway> {
 				resourceManagerRequestsTimeout);
 
 		// on success, trigger let the slot pool know
-		rmResponse.thenAcceptAsync(new AcceptFunction<RMSlotRequestReply>() {
+		Future<Void> slotRequestProcessingFuture = rmResponse.thenAcceptAsync(new AcceptFunction<RMSlotRequestReply>() {
 			@Override
 			public void accept(RMSlotRequestReply reply) {
 				if (reply.getAllocationID() != null && reply.getAllocationID().equals(allocationID)) {
@@ -346,7 +346,7 @@ public class SlotPool extends RpcEndpoint<SlotPoolGateway> {
 		}, getMainThreadExecutor());
 
 		// on failure, fail the request future
-		rmResponse.exceptionallyAsync(new ApplyFunction<Throwable, Void>() {
+		slotRequestProcessingFuture.exceptionallyAsync(new ApplyFunction<Throwable, Void>() {
 
 			@Override
 			public Void apply(Throwable failure) {
@@ -372,6 +372,10 @@ public class SlotPool extends RpcEndpoint<SlotPoolGateway> {
 		if (request != null) {
 			request.future().completeExceptionally(new NoResourceAvailableException(
 					"No pooled slot available and request to ResourceManager for new slot failed", failure));
+		} else {
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Unregistered slot request {} failed.", allocationID, failure);
+			}
 		}
 	}
 

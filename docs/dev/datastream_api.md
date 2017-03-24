@@ -216,6 +216,15 @@ dataStream.filter(new FilterFunction<Integer>() {
 dataStream.keyBy("someKey") // Key by field "someKey"
 dataStream.keyBy(0) // Key by the first element of a Tuple
     {% endhighlight %}
+            <p>
+            <span class="label label-danger">Attention</span> 
+            A type <strong>cannot be a key</strong> if:
+    	    <ol> 
+    	    <li> it is a POJO type but does not override the <em>hashCode()</em> method and 
+    	    relies on the <em>Object.hashCode()</em> implementation.</li>
+    	    <li> it is an array of any type.</li>
+    	    </ol>
+    	    </p>
           </td>
         </tr>
         <tr>

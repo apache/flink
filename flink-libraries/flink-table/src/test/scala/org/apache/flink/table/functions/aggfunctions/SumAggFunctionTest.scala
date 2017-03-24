@@ -63,6 +63,8 @@ abstract class SumAggFunctionTestBase[T: Numeric] extends AggFunctionTestBase[T]
     numeric.fromInt(2),
     null.asInstanceOf[T]
   )
+
+  override def supportRetraction: Boolean = false
 }
 
 class ByteSumAggFunctionTest extends SumAggFunctionTestBase[Byte] {
@@ -142,6 +144,8 @@ class DecimalSumAggFunctionTest extends AggFunctionTestBase[BigDecimal] {
   )
 
   override def aggregator: AggregateFunction[BigDecimal] = new DecimalSumAggFunction()
+
+  override def supportRetraction: Boolean = false
 }
 
 

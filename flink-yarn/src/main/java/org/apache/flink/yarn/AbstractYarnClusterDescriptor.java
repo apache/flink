@@ -24,6 +24,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
@@ -31,7 +32,6 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
-import org.apache.flink.runtime.jobmanager.JobManagerOptions;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -423,10 +423,12 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 				// for logins based on a keytab (fixed in Hadoop 2.6.1, see HADOOP-10786),
 				// so we check only in ticket cache scenario.
 				boolean useTicketCache = flinkConfiguration.getBoolean(SecurityOptions.KERBEROS_LOGIN_USETICKETCACHE);
+
 				UserGroupInformation loginUser = UserGroupInformation.getCurrentUser();
-				if (useTicketCache && !loginUser.hasKerberosCredentials()) {
-					LOG.error("Hadoop security is enabled but the login user does not have Kerberos credentials");
-					throw new RuntimeException("Hadoop security is enabled but the login user " +
+				if (loginUser.getAuthenticationMethod() == UserGroupInformation.AuthenticationMethod.KERBEROS
+						&& useTicketCache && !loginUser.hasKerberosCredentials()) {
+					LOG.error("Hadoop security with Kerberos is enabled but the login user does not have Kerberos credentials");
+					throw new RuntimeException("Hadoop security with Kerberos is enabled but the login user " +
 							"does not have Kerberos credentials");
 				}
 			}
@@ -730,8 +732,8 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		paths.add(remotePathConf);
 		classPathBuilder.append("flink-conf.yaml").append(File.pathSeparator);
 
-		// write job graph to tmp file and add it to local resource 
-		// TODO: server use user main method to generate job graph 
+		// write job graph to tmp file and add it to local resource
+		// TODO: server use user main method to generate job graph
 		if (jobGraph != null) {
 			try {
 				File fp = File.createTempFile(appId.toString(), null);
@@ -1243,6 +1245,9 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 		// respect custom JVM options in the YAML file
 		String javaOpts = flinkConfiguration.getString(CoreOptions.FLINK_JVM_OPTIONS);
+		if (flinkConfiguration.getString(CoreOptions.FLINK_JM_JVM_OPTIONS).length() > 0) {
+			javaOpts += " " + flinkConfiguration.getString(CoreOptions.FLINK_JM_JVM_OPTIONS);
+		}
 		//applicable only for YarnMiniCluster secure test run
 		//krb5.conf file will be available as local resource in JM/TM container
 		if (hasKrb5) {

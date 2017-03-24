@@ -36,6 +36,8 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+
 /**
  * The file state backend is a state backend that stores the state of streaming jobs in a file system.
  *
@@ -64,7 +66,10 @@ public class FsStateBackend extends AbstractStateBackend {
 
 	/** State below this size will be stored as part of the metadata, rather than in files */
 	private final int fileStateThreshold;
-	
+
+	/** Switch to chose between synchronous and asynchronous snapshots */
+	private final boolean asynchronousSnapshots;
+
 	/**
 	 * Creates a new state backend that stores its checkpoint data in the file system and location
 	 * defined by the given URI.
@@ -82,6 +87,27 @@ public class FsStateBackend extends AbstractStateBackend {
 	 */
 	public FsStateBackend(String checkpointDataUri) throws IOException {
 		this(new Path(checkpointDataUri));
+	}
+
+	/**
+	 * Creates a new state backend that stores its checkpoint data in the file system and location
+	 * defined by the given URI.
+	 *
+	 * <p>A file system for the file system scheme in the URI (e.g., 'file://', 'hdfs://', or 'S3://')
+	 * must be accessible via {@link FileSystem#get(URI)}.
+	 *
+	 * <p>For a state backend targeting HDFS, this means that the URI must either specify the authority
+	 * (host and port), or that the Hadoop configuration that describes that information must be in the
+	 * classpath.
+	 *
+	 * @param checkpointDataUri The URI describing the filesystem (scheme and optionally authority),
+	 *                          and the path to the checkpoint data directory.
+	 * @param asynchronousSnapshots Switch to enable asynchronous snapshots.
+	 *
+	 * @throws IOException Thrown, if no file system can be found for the scheme in the URI.
+	 */
+	public FsStateBackend(String checkpointDataUri, boolean asynchronousSnapshots) throws IOException {
+		this(new Path(checkpointDataUri), asynchronousSnapshots);
 	}
 
 	/**
@@ -116,10 +142,52 @@ public class FsStateBackend extends AbstractStateBackend {
 	 *
 	 * @param checkpointDataUri The URI describing the filesystem (scheme and optionally authority),
 	 *                          and the path to the checkpoint data directory.
+	 * @param asynchronousSnapshots Switch to enable asynchronous snapshots.
+	 *
+	 * @throws IOException Thrown, if no file system can be found for the scheme in the URI.
+	 */
+	public FsStateBackend(Path checkpointDataUri, boolean asynchronousSnapshots) throws IOException {
+		this(checkpointDataUri.toUri(), asynchronousSnapshots);
+	}
+
+	/**
+	 * Creates a new state backend that stores its checkpoint data in the file system and location
+	 * defined by the given URI.
+	 *
+	 * <p>A file system for the file system scheme in the URI (e.g., 'file://', 'hdfs://', or 'S3://')
+	 * must be accessible via {@link FileSystem#get(URI)}.
+	 *
+	 * <p>For a state backend targeting HDFS, this means that the URI must either specify the authority
+	 * (host and port), or that the Hadoop configuration that describes that information must be in the
+	 * classpath.
+	 *
+	 * @param checkpointDataUri The URI describing the filesystem (scheme and optionally authority),
+	 *                          and the path to the checkpoint data directory.
 	 * @throws IOException Thrown, if no file system can be found for the scheme in the URI.
 	 */
 	public FsStateBackend(URI checkpointDataUri) throws IOException {
-		this(checkpointDataUri, DEFAULT_FILE_STATE_THRESHOLD);
+		this(checkpointDataUri, DEFAULT_FILE_STATE_THRESHOLD, false);
+	}
+
+	/**
+	 * Creates a new state backend that stores its checkpoint data in the file system and location
+	 * defined by the given URI.
+	 *
+	 * <p>A file system for the file system scheme in the URI (e.g., 'file://', 'hdfs://', or 'S3://')
+	 * must be accessible via {@link FileSystem#get(URI)}.
+	 *
+	 * <p>For a state backend targeting HDFS, this means that the URI must either specify the authority
+	 * (host and port), or that the Hadoop configuration that describes that information must be in the
+	 * classpath.
+	 *
+	 * @param checkpointDataUri The URI describing the filesystem (scheme and optionally authority),
+	 *                          and the path to the checkpoint data directory.
+	 * @param asynchronousSnapshots Switch to enable asynchronous snapshots.
+	 *
+	 * @throws IOException Thrown, if no file system can be found for the scheme in the URI.
+	 */
+	public FsStateBackend(URI checkpointDataUri, boolean asynchronousSnapshots) throws IOException {
+		this(checkpointDataUri, DEFAULT_FILE_STATE_THRESHOLD, asynchronousSnapshots);
 	}
 
 	/**
@@ -137,20 +205,47 @@ public class FsStateBackend extends AbstractStateBackend {
 	 *                          and the path to the checkpoint data directory.
 	 * @param fileStateSizeThreshold State up to this size will be stored as part of the metadata,
 	 *                             rather than in files
-	 * 
+	 *
 	 * @throws IOException Thrown, if no file system can be found for the scheme in the URI.
+	 * @throws IllegalArgumentException Thrown, if the {@code fileStateSizeThreshold} is out of bounds.
 	 */
 	public FsStateBackend(URI checkpointDataUri, int fileStateSizeThreshold) throws IOException {
-		if (fileStateSizeThreshold < 0) {
-			throw new IllegalArgumentException("The threshold for file state size must be zero or larger.");
-		}
-		if (fileStateSizeThreshold > MAX_FILE_STATE_THRESHOLD) {
-			throw new IllegalArgumentException("The threshold for file state size cannot be larger than " +
-				MAX_FILE_STATE_THRESHOLD);
-		}
+
+		this(checkpointDataUri, fileStateSizeThreshold, false);
+	}
+
+	/**
+	 * Creates a new state backend that stores its checkpoint data in the file system and location
+	 * defined by the given URI.
+	 *
+	 * <p>A file system for the file system scheme in the URI (e.g., 'file://', 'hdfs://', or 'S3://')
+	 * must be accessible via {@link FileSystem#get(URI)}.
+	 *
+	 * <p>For a state backend targeting HDFS, this means that the URI must either specify the authority
+	 * (host and port), or that the Hadoop configuration that describes that information must be in the
+	 * classpath.
+	 *
+	 * @param checkpointDataUri The URI describing the filesystem (scheme and optionally authority),
+	 *                          and the path to the checkpoint data directory.
+	 * @param fileStateSizeThreshold State up to this size will be stored as part of the metadata,
+	 *                             rather than in files
+	 * @param asynchronousSnapshots Switch to enable asynchronous snapshots.
+	 *
+	 * @throws IOException Thrown, if no file system can be found for the scheme in the URI.
+	 */
+	public FsStateBackend(
+			URI checkpointDataUri,
+			int fileStateSizeThreshold,
+			boolean asynchronousSnapshots) throws IOException {
+
+		checkArgument(fileStateSizeThreshold >= 0, "The threshold for file state size must be zero or larger.");
+		checkArgument(fileStateSizeThreshold <= MAX_FILE_STATE_THRESHOLD,
+				"The threshold for file state size cannot be larger than %s", MAX_FILE_STATE_THRESHOLD);
+
 		this.fileStateThreshold = fileStateSizeThreshold;
-		
 		this.basePath = validateAndNormalizeUri(checkpointDataUri);
+
+		this.asynchronousSnapshots = asynchronousSnapshots;
 	}
 
 	/**
@@ -161,6 +256,19 @@ public class FsStateBackend extends AbstractStateBackend {
 	 */
 	public Path getBasePath() {
 		return basePath;
+	}
+
+	/**
+	 * Gets the threshold below which state is stored as part of the metadata, rather than in files.
+	 * This threshold ensures that the backend does not create a large amount of very small files,
+	 * where potentially the file pointers are larger than the state itself.
+	 *
+	 * <p>By default, this threshold is {@value #DEFAULT_FILE_STATE_THRESHOLD}.
+	 *
+	 * @return The file size threshold, in bytes.
+	 */
+	public int getMinFileSizeThreshold() {
+		return fileStateThreshold;
 	}
 
 	// ------------------------------------------------------------------------
@@ -189,13 +297,16 @@ public class FsStateBackend extends AbstractStateBackend {
 			TypeSerializer<K> keySerializer,
 			int numberOfKeyGroups,
 			KeyGroupRange keyGroupRange,
-			TaskKvStateRegistry kvStateRegistry) throws Exception {
+			TaskKvStateRegistry kvStateRegistry) throws IOException {
+
 		return new HeapKeyedStateBackend<>(
 				kvStateRegistry,
 				keySerializer,
 				env.getUserClassLoader(),
 				numberOfKeyGroups,
-				keyGroupRange);
+				keyGroupRange,
+				asynchronousSnapshots,
+				env.getExecutionConfig());
 	}
 
 	@Override

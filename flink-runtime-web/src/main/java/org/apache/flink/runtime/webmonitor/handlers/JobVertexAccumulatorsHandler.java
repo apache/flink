@@ -21,25 +21,59 @@ package org.apache.flink.runtime.webmonitor.handlers;
 import com.fasterxml.jackson.core.JsonGenerator;
 
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
+import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
+import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 
+import java.io.IOException;
 import java.io.StringWriter;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 
 
 public class JobVertexAccumulatorsHandler extends AbstractJobVertexRequestHandler {
+
+	private static final String JOB_VERTEX_ACCUMULATORS_REST_PATH = "/jobs/:jobid/vertices/:vertexid/accumulators";
 	
 	public JobVertexAccumulatorsHandler(ExecutionGraphHolder executionGraphHolder) {
 		super(executionGraphHolder);
 	}
 
 	@Override
+	public String[] getPaths() {
+		return new String[]{JOB_VERTEX_ACCUMULATORS_REST_PATH};
+	}
+
+	@Override
 	public String handleRequest(AccessExecutionJobVertex jobVertex, Map<String, String> params) throws Exception {
-		StringifiedAccumulatorResult[] accs = jobVertex.getAggregatedUserAccumulatorsStringified();
-		
+		return createVertexAccumulatorsJson(jobVertex);
+	}
+
+	public static class JobVertexAccumulatorsJsonArchivist implements JsonArchivist {
+
+		@Override
+		public Collection<ArchivedJson> archiveJsonWithPath(AccessExecutionGraph graph) throws IOException {
+			List<ArchivedJson> archive = new ArrayList<>();
+			for (AccessExecutionJobVertex task : graph.getAllVertices().values()) {
+				String json = createVertexAccumulatorsJson(task);
+				String path = JOB_VERTEX_ACCUMULATORS_REST_PATH
+					.replace(":jobid", graph.getJobID().toString())
+					.replace(":vertexid", task.getJobVertexId().toString());
+				archive.add(new ArchivedJson(path, json));
+			}
+			return archive;
+		}
+	}
+
+	public static String createVertexAccumulatorsJson(AccessExecutionJobVertex jobVertex) throws IOException {
 		StringWriter writer = new StringWriter();
 		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
+
+		StringifiedAccumulatorResult[] accs = jobVertex.getAggregatedUserAccumulatorsStringified();
 
 		gen.writeStartObject();
 		gen.writeStringField("id", jobVertex.getJobVertexId().toString());

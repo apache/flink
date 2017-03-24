@@ -55,7 +55,7 @@ class QueryDecorrelationTest extends TableTestBase {
             term("select", "empno", "salary")
           ),
           unaryNode(
-            "DataSetAggregate",
+            "DataSetDistinct",
             unaryNode(
               "DataSetCalc",
               binaryNode(
@@ -78,14 +78,13 @@ class QueryDecorrelationTest extends TableTestBase {
               ),
               term("select", "empno")
             ),
-            term("groupBy", "empno"),
-            term("select", "empno")
+            term("distinct", "empno")
           ),
           term("where", "=(empno0, empno)"),
           term("join", "empno", "salary", "empno0"),
           term("joinType", "InnerJoin")
         ),
-        term("select", "salary", "empno0")
+        term("select", "empno0", "salary")
       ),
       term("groupBy", "empno0"),
       term("select", "empno0", "AVG(salary) AS EXPR$0")
@@ -145,7 +144,7 @@ class QueryDecorrelationTest extends TableTestBase {
             term("select", "salary", "deptno")
           ),
           unaryNode(
-            "DataSetAggregate",
+            "DataSetDistinct",
             unaryNode(
               "DataSetCalc",
               binaryNode(
@@ -166,8 +165,7 @@ class QueryDecorrelationTest extends TableTestBase {
               ),
               term("select", "deptno0")
             ),
-            term("groupBy", "deptno0"),
-            term("select", "deptno0")
+            term("distinct", "deptno0")
           ),
           term("where", "=(deptno, deptno0)"),
           term("join", "salary", "deptno", "deptno0"),

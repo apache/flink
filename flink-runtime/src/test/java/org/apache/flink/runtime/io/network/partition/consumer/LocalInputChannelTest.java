@@ -128,7 +128,7 @@ public class LocalInputChannelTest {
 
 			// Create a buffer pool for this partition
 			partition.registerBufferPool(
-				networkBuffers.createBufferPool(producerBufferPoolSize, true));
+				networkBuffers.createBufferPool(producerBufferPoolSize, producerBufferPoolSize));
 
 			// Create the producer
 			partitionProducers[i] = new TestPartitionProducer(
@@ -162,7 +162,7 @@ public class LocalInputChannelTest {
 						i,
 						parallelism,
 						numberOfBuffersPerChannel,
-						networkBuffers.createBufferPool(parallelism, true),
+						networkBuffers.createBufferPool(parallelism, parallelism),
 						partitionManager,
 						new TaskEventDispatcher(),
 						partitionIds)));
@@ -284,6 +284,7 @@ public class LocalInputChannelTest {
 			"test task name",
 			new JobID(),
 			new IntermediateDataSetID(),
+			ResultPartitionType.PIPELINED,
 			0,
 			1,
 			mock(TaskActions.class),
@@ -481,6 +482,7 @@ public class LocalInputChannelTest {
 					"Test Name",
 					new JobID(),
 					new IntermediateDataSetID(),
+					ResultPartitionType.PIPELINED,
 					subpartitionIndex,
 					numberOfInputChannels,
 					mock(TaskActions.class),

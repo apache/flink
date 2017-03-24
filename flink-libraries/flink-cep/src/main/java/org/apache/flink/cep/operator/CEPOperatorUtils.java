@@ -72,7 +72,8 @@ public class CEPOperatorUtils {
 					isProcessingTime,
 					keySelector,
 					keySerializer,
-					nfaFactory));
+					nfaFactory,
+					true));
 		} else {
 
 			KeySelector<T, Byte> keySelector = new NullByteKeySelector<>();
@@ -86,7 +87,8 @@ public class CEPOperatorUtils {
 					isProcessingTime,
 					keySelector,
 					keySerializer,
-					nfaFactory
+					nfaFactory,
+					false
 				)).forceNonParallel();
 		}
 
@@ -133,11 +135,11 @@ public class CEPOperatorUtils {
 					isProcessingTime,
 					keySelector,
 					keySerializer,
-					nfaFactory));
+					nfaFactory,
+					true));
 		} else {
 
 			KeySelector<T, Byte> keySelector = new NullByteKeySelector<>();
-
 			TypeSerializer<Byte> keySerializer = ByteSerializer.INSTANCE;
 
 			patternStream = inputStream.keyBy(keySelector).transform(
@@ -148,7 +150,8 @@ public class CEPOperatorUtils {
 					isProcessingTime,
 					keySelector,
 					keySerializer,
-					nfaFactory
+					nfaFactory,
+					false
 				)).forceNonParallel();
 		}
 

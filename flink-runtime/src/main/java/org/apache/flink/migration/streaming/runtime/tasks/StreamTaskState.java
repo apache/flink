@@ -29,6 +29,7 @@ import java.util.HashMap;
 
 @Deprecated
 @Internal
+@SuppressWarnings("deprecation")
 public class StreamTaskState implements Serializable, Closeable {
 
 	private static final long serialVersionUID = 1L;

@@ -344,7 +344,9 @@ public final class DataSetUtils {
 	 * as well as the checksum (sum over element hashes).
 	 *
 	 * @return A ChecksumHashCode that represents the count and checksum of elements in the data set.
+	 * @deprecated replaced with {@code org.apache.flink.graph.asm.dataset.ChecksumHashCode} in Gelly
 	 */
+	@Deprecated
 	public static <T> Utils.ChecksumHashCode checksumHashCode(DataSet<T> input) throws Exception {
 		final String id = new AbstractID().toString();
 

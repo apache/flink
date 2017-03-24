@@ -31,6 +31,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
  */
 @Internal
 @Deprecated
+@SuppressWarnings("deprecation")
 public class ListStateDescriptor<T> extends StateDescriptor<ListState<T>, T> {
 	private static final long serialVersionUID = 1L;
 

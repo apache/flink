@@ -24,7 +24,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
 import org.apache.flink.table.api.TableEnvironment
-import org.apache.flink.table.utils.CommonTestData
+import org.apache.flink.table.utils.{CommonTestData, TestFilterableTableSource}
 import org.apache.flink.types.Row
 import org.junit.Assert._
 import org.junit.Test
@@ -81,6 +81,25 @@ class TableSourceITCase extends StreamingMultipleProgramsTestBase {
       "Miller,13.56",
       "Smith,180.2",
       "Williams,4.68")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testCsvTableSourceWithFilterable(): Unit = {
+    StreamITCase.testResults = mutable.MutableList()
+    val tableName = "MyTable"
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    tEnv.registerTableSource(tableName, new TestFilterableTableSource)
+    tEnv.scan(tableName)
+      .where("amount > 4 && price < 9")
+      .select("id, name")
+      .addSink(new StreamITCase.StringSink)
+
+    env.execute()
+
+    val expected = mutable.MutableList(
+      "5,Record_5", "6,Record_6", "7,Record_7", "8,Record_8")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 }

@@ -19,6 +19,7 @@
 package org.apache.flink.optimizer.plan;
 
 import org.apache.flink.api.common.operators.Operator;
+import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.operators.util.FieldSet;
 import org.apache.flink.optimizer.CompilerException;
 import org.apache.flink.optimizer.costs.Costs;
@@ -307,6 +308,14 @@ public abstract class PlanNode implements Visitable<PlanNode>, DumpableNode<Plan
 	
 	public int getParallelism() {
 		return this.parallelism;
+	}
+
+	public ResourceSpec getMinResources() {
+		return this.template.getOperator().getMinResources();
+	}
+
+	public ResourceSpec getPreferredResources() {
+		return this.template.getOperator().getPreferredResources();
 	}
 	
 	public long getGuaranteedAvailableMemory() {

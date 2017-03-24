@@ -28,9 +28,16 @@ import java.util.Map;
  * Request handler providing details about a single task execution attempt.
  */
 public class SubtaskCurrentAttemptDetailsHandler extends SubtaskExecutionAttemptDetailsHandler {
+
+	public static final String SUBTASK_CURRENT_ATTEMPT_DETAILS_REST_PATH = "/jobs/:jobid/vertices/:vertexid/subtasks/:subtasknum";
 	
 	public SubtaskCurrentAttemptDetailsHandler(ExecutionGraphHolder executionGraphHolder, MetricFetcher fetcher) {
 		super(executionGraphHolder, fetcher);
+	}
+
+	@Override
+	public String[] getPaths() {
+		return new String[]{SUBTASK_CURRENT_ATTEMPT_DETAILS_REST_PATH};
 	}
 
 	@Override

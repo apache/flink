@@ -26,19 +26,19 @@ import java.io.Serializable;
  */
 public class IOMetrics implements Serializable {
 	private static final long serialVersionUID = -7208093607556457183L;
-	private final long numRecordsIn;
-	private final long numRecordsOut;
+	protected long numRecordsIn;
+	protected long numRecordsOut;
 
-	private final double numRecordsInPerSecond;
-	private final double numRecordsOutPerSecond;
+	protected double numRecordsInPerSecond;
+	protected double numRecordsOutPerSecond;
 
-	private final long numBytesInLocal;
-	private final long numBytesInRemote;
-	private final long numBytesOut;
+	protected long numBytesInLocal;
+	protected long numBytesInRemote;
+	protected long numBytesOut;
 
-	private final double numBytesInLocalPerSecond;
-	private final double numBytesInRemotePerSecond;
-	private final double numBytesOutPerSecond;
+	protected double numBytesInLocalPerSecond;
+	protected double numBytesInRemotePerSecond;
+	protected double numBytesOutPerSecond;
 
 	public IOMetrics(Meter recordsIn, Meter recordsOut, Meter bytesLocalIn, Meter bytesRemoteIn, Meter bytesOut) {
 		this.numRecordsIn = recordsIn.getCount();
@@ -51,6 +51,29 @@ public class IOMetrics implements Serializable {
 		this.numBytesInRemotePerSecond = bytesRemoteIn.getRate();
 		this.numBytesOut = bytesOut.getCount();
 		this.numBytesOutPerSecond = bytesOut.getRate();
+	}
+
+	public IOMetrics(
+			int numBytesInLocal,
+			int numBytesInRemote,
+			int numBytesOut,
+			int numRecordsIn,
+			int numRecordsOut,
+			double numBytesInLocalPerSecond,
+			double numBytesInRemotePerSecond,
+			double numBytesOutPerSecond,
+			double numRecordsInPerSecond,
+			double numRecordsOutPerSecond) {
+		this.numBytesInLocal = numBytesInLocal;
+		this.numBytesInRemote = numBytesInRemote;
+		this.numBytesOut = numBytesOut;
+		this.numRecordsIn = numRecordsIn;
+		this.numRecordsOut = numRecordsOut;
+		this.numBytesInLocalPerSecond = numBytesInLocalPerSecond;
+		this.numBytesInRemotePerSecond = numBytesInRemotePerSecond;
+		this.numBytesOutPerSecond = numBytesOutPerSecond;
+		this.numRecordsInPerSecond = numRecordsInPerSecond;
+		this.numRecordsOutPerSecond = numRecordsOutPerSecond;
 	}
 
 	public long getNumRecordsIn() {

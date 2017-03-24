@@ -18,6 +18,9 @@
 
 package org.apache.flink.runtime.metrics;
 
+import akka.actor.ActorNotFound;
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
@@ -26,6 +29,7 @@ import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
+import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.scope.ScopeFormats;
 import org.apache.flink.runtime.metrics.util.TestReporter;
@@ -33,11 +37,15 @@ import org.apache.flink.runtime.metrics.util.TestReporter;
 import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
 import org.junit.Test;
+import scala.concurrent.Await;
+import scala.concurrent.duration.FiniteDuration;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class MetricRegistryTest extends TestLogger {
 
@@ -346,6 +354,32 @@ public class MetricRegistryTest extends TestLogger {
 		registry.shutdown();
 		assertEquals(4, TestReporter8.numCorrectDelimitersForRegister);
 		assertEquals(4, TestReporter8.numCorrectDelimitersForUnregister);
+	}
+
+	/**
+	 * Tests that the query actor will be stopped when the MetricRegistry is shut down.
+	 */
+	@Test
+	public void testQueryActorShutdown() throws Exception {
+		final FiniteDuration timeout = new FiniteDuration(10L, TimeUnit.SECONDS);
+
+		MetricRegistry registry = new MetricRegistry(MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
+
+		final ActorSystem actorSystem = AkkaUtils.createDefaultActorSystem();
+
+		registry.startQueryService(actorSystem, null);
+
+		ActorRef queryServiceActor = registry.getQueryService();
+
+		registry.shutdown();
+
+		try {
+			Await.result(actorSystem.actorSelection(queryServiceActor.path()).resolveOne(timeout), timeout);
+
+			fail("The query actor should be terminated resulting in a ActorNotFound exception.");
+		} catch (ActorNotFound e) {
+			// we expect the query actor to be shut down
+		}
 	}
 
 	public static class TestReporter8 extends TestReporter {

@@ -28,6 +28,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.filecache.FileCache;
+import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
@@ -66,6 +67,7 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.argThat;
 import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.RETURNS_MOCKS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -81,22 +83,29 @@ public class TaskExecutorITCase {
 		final ResourceID taskManagerResourceId = new ResourceID("foobar");
 		final UUID rmLeaderId = UUID.randomUUID();
 		final TestingLeaderElectionService rmLeaderElectionService = new TestingLeaderElectionService();
-		final TestingLeaderRetrievalService rmLeaderRetrievalService = new TestingLeaderRetrievalService();
+		final TestingLeaderRetrievalService rmLeaderRetrievalService = new TestingLeaderRetrievalService(null, null);
 		final String rmAddress = "rm";
 		final String jmAddress = "jm";
 		final UUID jmLeaderId = UUID.randomUUID();
+		final ResourceID rmResourceId = new ResourceID(rmAddress);
 		final JobID jobId = new JobID();
-		final ResourceProfile resourceProfile = new ResourceProfile(1.0, 1L);
+		final ResourceProfile resourceProfile = new ResourceProfile(1.0, 1);
 
 		testingHAServices.setResourceManagerLeaderElectionService(rmLeaderElectionService);
 		testingHAServices.setResourceManagerLeaderRetriever(rmLeaderRetrievalService);
 		testingHAServices.setJobMasterLeaderRetriever(jobId, new TestingLeaderRetrievalService(jmAddress, jmLeaderId));
 
 		TestingSerialRpcService rpcService = new TestingSerialRpcService();
-		ResourceManagerConfiguration resourceManagerConfiguration = new ResourceManagerConfiguration(Time.milliseconds(500L), Time.milliseconds(500L));
+		ResourceManagerConfiguration resourceManagerConfiguration = new ResourceManagerConfiguration(
+			Time.milliseconds(500L),
+			Time.milliseconds(500L));
 		SlotManagerFactory slotManagerFactory = new DefaultSlotManager.Factory();
-		JobLeaderIdService jobLeaderIdService = new JobLeaderIdService(testingHAServices);
+		JobLeaderIdService jobLeaderIdService = new JobLeaderIdService(
+			testingHAServices,
+			rpcService.getScheduledExecutor(),
+			Time.minutes(5L));
 		MetricRegistry metricRegistry = mock(MetricRegistry.class);
+		HeartbeatServices heartbeatServices = mock(HeartbeatServices.class, RETURNS_MOCKS);
 
 		final TaskManagerConfiguration taskManagerConfiguration = TaskManagerConfiguration.fromConfiguration(configuration);
 		final TaskManagerLocation taskManagerLocation = new TaskManagerLocation(taskManagerResourceId, InetAddress.getLocalHost(), 1234);
@@ -111,9 +120,10 @@ public class TaskExecutorITCase {
 		final JobLeaderService jobLeaderService = new JobLeaderService(taskManagerLocation);
 
 		ResourceManager<ResourceID> resourceManager = new StandaloneResourceManager(
-			rpcService,
+			rpcService, rmResourceId,
 			resourceManagerConfiguration,
 			testingHAServices,
+			heartbeatServices,
 			slotManagerFactory,
 			metricRegistry,
 			jobLeaderIdService,
@@ -127,6 +137,7 @@ public class TaskExecutorITCase {
 			ioManager,
 			networkEnvironment,
 			testingHAServices,
+			heartbeatServices,
 			metricRegistry,
 			taskManagerMetricGroup,
 			broadcastVariableManager,
@@ -140,7 +151,12 @@ public class TaskExecutorITCase {
 
 		when(jmGateway.registerTaskManager(any(String.class), any(TaskManagerLocation.class), eq(jmLeaderId), any(Time.class)))
 			.thenReturn(FlinkCompletableFuture.<RegistrationResponse>completed(new JMTMRegistrationSuccess(taskManagerResourceId, 1234)));
-		when(jmGateway.getAddress()).thenReturn(jmAddress);
+		when(jmGateway.getHostname()).thenReturn(jmAddress);
+		when(jmGateway.offerSlots(
+			eq(taskManagerResourceId),
+			any(Iterable.class),
+			eq(jmLeaderId),
+			any(Time.class))).thenReturn(mock(Future.class, RETURNS_MOCKS));
 
 
 		rpcService.registerGateway(rmAddress, resourceManager.getSelf());

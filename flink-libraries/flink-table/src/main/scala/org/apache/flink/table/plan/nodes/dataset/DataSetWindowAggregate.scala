@@ -47,9 +47,7 @@ class DataSetWindowAggregate(
     rowRelDataType: RelDataType,
     inputType: RelDataType,
     grouping: Array[Int])
-  extends SingleRel(cluster, traitSet, inputNode)
-  with CommonAggregate
-  with DataSetRel {
+  extends SingleRel(cluster, traitSet, inputNode) with CommonAggregate with DataSetRel {
 
   override def deriveRowType() = rowRelDataType
 
@@ -97,7 +95,7 @@ class DataSetWindowAggregate(
           namedProperties))
   }
 
-  override def computeSelfCost (planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
+  override def computeSelfCost(planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
     val child = this.getInput
     val rowCnt = metadata.getRowCount(child)
     val rowSize = this.estimateRowSize(child.getRowType)
@@ -113,17 +111,25 @@ class DataSetWindowAggregate(
 
     // whether identifiers are matched case-sensitively
     val caseSensitive = tableEnv.getFrameworkConfig.getParserConfig.caseSensitive()
+
     window match {
       case EventTimeTumblingGroupWindow(_, _, size) =>
         createEventTimeTumblingWindowDataSet(
           inputDS,
           isTimeInterval(size.resultType),
           caseSensitive)
+
       case EventTimeSessionGroupWindow(_, _, gap) =>
         createEventTimeSessionWindowDataSet(inputDS, caseSensitive)
-      case EventTimeSlidingGroupWindow(_, _, _, _) =>
-        throw new UnsupportedOperationException(
-          "Event-time sliding windows in a batch environment are currently not supported")
+
+      case EventTimeSlidingGroupWindow(_, _, size, slide) =>
+        createEventTimeSlidingWindowDataSet(
+          inputDS,
+          isTimeInterval(size.resultType),
+          asLong(size),
+          asLong(slide),
+          caseSensitive)
+
       case _: ProcessingTimeGroupWindow =>
         throw new UnsupportedOperationException(
           "Processing-time tumbling windows are not supported in a batch environment, " +
@@ -132,12 +138,11 @@ class DataSetWindowAggregate(
     }
   }
 
-
   private def createEventTimeTumblingWindowDataSet(
       inputDS: DataSet[Row],
       isTimeWindow: Boolean,
-      isParserCaseSensitive: Boolean)
-    : DataSet[Row] = {
+      isParserCaseSensitive: Boolean): DataSet[Row] = {
+
     val mapFunction = createDataSetWindowPrepareMapFunction(
       window,
       namedAggregates,
@@ -191,42 +196,37 @@ class DataSetWindowAggregate(
 
   private[this] def createEventTimeSessionWindowDataSet(
       inputDS: DataSet[Row],
-      isParserCaseSensitive: Boolean)
-    : DataSet[Row] = {
+      isParserCaseSensitive: Boolean): DataSet[Row] = {
 
     val groupingKeys = grouping.indices.toArray
     val rowTypeInfo = FlinkTypeFactory.toInternalRowTypeInfo(getRowType)
 
-    // grouping window
-    if (groupingKeys.length > 0) {
-      // create mapFunction for initializing the aggregations
-      val mapFunction = createDataSetWindowPrepareMapFunction(
-        window,
-        namedAggregates,
-        grouping,
-        inputType,
-        isParserCaseSensitive)
+    // create mapFunction for initializing the aggregations
+    val mapFunction = createDataSetWindowPrepareMapFunction(
+      window,
+      namedAggregates,
+      grouping,
+      inputType,
+      isParserCaseSensitive)
 
-      val mappedInput =
-        inputDS
-        .map(mapFunction)
-        .name(prepareOperatorName)
+    val mappedInput = inputDS.map(mapFunction).name(prepareOperatorName)
 
-      val mapReturnType = mapFunction.asInstanceOf[ResultTypeQueryable[Row]].getProducedType
+    val mapReturnType = mapFunction.asInstanceOf[ResultTypeQueryable[Row]].getProducedType
 
-      // the position of the rowtime field in the intermediate result for map output
-      val rowTimeFieldPos = mapReturnType.getArity - 1
+    // the position of the rowtime field in the intermediate result for map output
+    val rowTimeFieldPos = mapReturnType.getArity - 1
 
-      // do incremental aggregation
-      if (doAllSupportPartialAggregation(
-        namedAggregates.map(_.getKey),
-        inputType,
-        grouping.length)) {
+    // do incremental aggregation
+    if (doAllSupportPartialMerge(
+      namedAggregates.map(_.getKey),
+      inputType,
+      grouping.length)) {
 
-        // gets the window-start and window-end position  in the intermediate result.
-        val windowStartPos = rowTimeFieldPos
-        val windowEndPos = windowStartPos + 1
-
+      // gets the window-start and window-end position  in the intermediate result.
+      val windowStartPos = rowTimeFieldPos
+      val windowEndPos = windowStartPos + 1
+      // grouping window
+      if (groupingKeys.length > 0) {
         // create groupCombineFunction for combine the aggregations
         val combineGroupFunction = createDataSetWindowAggregationCombineFunction(
           window,
@@ -254,9 +254,38 @@ class DataSetWindowAggregate(
           .reduceGroup(groupReduceFunction)
           .returns(rowTypeInfo)
           .name(aggregateOperatorName)
+      } else {
+        // non-grouping window
+        val mapPartitionFunction = createDataSetWindowAggregationMapPartitionFunction(
+          window,
+          namedAggregates,
+          inputType,
+          grouping)
+
+        // create groupReduceFunction for calculating the aggregations
+        val groupReduceFunction = createDataSetWindowAggregationGroupReduceFunction(
+          window,
+          namedAggregates,
+          inputType,
+          rowRelDataType,
+          grouping,
+          namedProperties,
+          isInputCombined = true)
+
+        mappedInput.sortPartition(rowTimeFieldPos, Order.ASCENDING)
+          .mapPartition(mapPartitionFunction)
+          .sortPartition(windowStartPos, Order.ASCENDING).setParallelism(1)
+          .sortPartition(windowEndPos, Order.ASCENDING).setParallelism(1)
+          .reduceGroup(groupReduceFunction)
+          .returns(rowTypeInfo)
+          .name(aggregateOperatorName)
+          .asInstanceOf[DataSet[Row]]
       }
-      // do non-incremental aggregation
-      else {
+    // do non-incremental aggregation
+    } else {
+      // grouping window
+      if (groupingKeys.length > 0) {
+
         // create groupReduceFunction for calculating the aggregations
         val groupReduceFunction = createDataSetWindowAggregationGroupReduceFunction(
           window,
@@ -267,17 +296,129 @@ class DataSetWindowAggregate(
           namedProperties)
 
         mappedInput.groupBy(groupingKeys: _*)
-        .sortGroup(rowTimeFieldPos, Order.ASCENDING)
-        .reduceGroup(groupReduceFunction)
-        .returns(rowTypeInfo)
-        .name(aggregateOperatorName)
+          .sortGroup(rowTimeFieldPos, Order.ASCENDING)
+          .reduceGroup(groupReduceFunction)
+          .returns(rowTypeInfo)
+          .name(aggregateOperatorName)
+      } else {
+        // non-grouping window
+        val groupReduceFunction = createDataSetWindowAggregationGroupReduceFunction(
+          window,
+          namedAggregates,
+          inputType,
+          rowRelDataType,
+          grouping,
+          namedProperties)
+
+        mappedInput.sortPartition(rowTimeFieldPos, Order.ASCENDING).setParallelism(1)
+          .reduceGroup(groupReduceFunction)
+          .returns(rowTypeInfo)
+          .name(aggregateOperatorName)
+          .asInstanceOf[DataSet[Row]]
       }
     }
-    // non-grouping window
-    else {
+  }
+
+  private def createEventTimeSlidingWindowDataSet(
+      inputDS: DataSet[Row],
+      isTimeWindow: Boolean,
+      size: Long,
+      slide: Long,
+      isParserCaseSensitive: Boolean)
+    : DataSet[Row] = {
+
+    // create MapFunction for initializing the aggregations
+    // it aligns the rowtime for pre-tumbling in case of a time-window for partial aggregates
+    val mapFunction = createDataSetWindowPrepareMapFunction(
+      window,
+      namedAggregates,
+      grouping,
+      inputType,
+      isParserCaseSensitive)
+
+    val mappedDataSet = inputDS
+      .map(mapFunction)
+      .name(prepareOperatorName)
+
+    val mapReturnType = mappedDataSet.getType
+
+    val rowTypeInfo = FlinkTypeFactory.toInternalRowTypeInfo(getRowType)
+    val groupingKeys = grouping.indices.toArray
+
+    // do partial aggregation if possible
+    val isPartial = doAllSupportPartialMerge(
+      namedAggregates.map(_.getKey),
+      inputType,
+      grouping.length)
+
+    // only pre-tumble if it is worth it
+    val isLittleTumblingSize = determineLargestTumblingSize(size, slide) <= 1
+
+    val preparedDataSet = if (isTimeWindow) {
+      // time window
+
+      if (isPartial && !isLittleTumblingSize) {
+        // partial aggregates
+
+        val groupingKeysAndAlignedRowtime = groupingKeys :+ mapReturnType.getArity - 1
+
+        // create GroupReduceFunction
+        // for pre-tumbling and replicating/omitting the content for each pane
+        val prepareReduceFunction = createDataSetSlideWindowPrepareGroupReduceFunction(
+          window,
+          namedAggregates,
+          grouping,
+          inputType,
+          isParserCaseSensitive)
+
+        mappedDataSet.asInstanceOf[DataSet[Row]]
+          .groupBy(groupingKeysAndAlignedRowtime: _*)
+          .reduceGroup(prepareReduceFunction) // pre-tumbles and replicates/omits
+          .name(prepareOperatorName)
+      } else {
+        // non-partial aggregates
+
+        // create FlatMapFunction
+        // for replicating/omitting the content for each pane
+        val prepareFlatMapFunction = createDataSetSlideWindowPrepareFlatMapFunction(
+          window,
+          namedAggregates,
+          grouping,
+          mapReturnType,
+          isParserCaseSensitive)
+
+        mappedDataSet
+          .flatMap(prepareFlatMapFunction) // replicates/omits
+      }
+    } else {
+      // count window
+
       throw new UnsupportedOperationException(
-        "Session non-grouping windows on event-time are currently not supported.")
+          "Count sliding group windows on event-time are currently not supported.")
     }
+
+    val prepareReduceReturnType = preparedDataSet.getType
+
+    // create GroupReduceFunction for final aggregation and conversion to output row
+    val aggregateReduceFunction = createDataSetWindowAggregationGroupReduceFunction(
+      window,
+      namedAggregates,
+      inputType,
+      rowRelDataType,
+      grouping,
+      namedProperties,
+      isInputCombined = false)
+
+    // gets the window-start position in the intermediate result.
+    val windowStartPos = prepareReduceReturnType.getArity - 1
+
+    val groupingKeysAndWindowStart = groupingKeys :+ windowStartPos
+
+    preparedDataSet
+      .groupBy(groupingKeysAndWindowStart: _*)
+      .reduceGroup(aggregateReduceFunction)
+      .returns(rowTypeInfo)
+      .name(aggregateOperatorName)
   }
 
   private def prepareOperatorName: String = {

@@ -25,16 +25,17 @@ import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.functions.FunctionAnnotation;
+import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields;
 import org.apache.flink.api.java.operators.GroupReduceOperator;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.asm.degree.annotate.undirected.VertexDegree;
+import org.apache.flink.graph.asm.result.PrintableResult;
+import org.apache.flink.graph.asm.result.BinaryResult;
 import org.apache.flink.graph.library.similarity.AdamicAdar.Result;
 import org.apache.flink.graph.utils.Murmur3_32;
 import org.apache.flink.graph.utils.proxy.GraphAlgorithmWrappingDataSet;
@@ -53,16 +54,16 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 
 /**
  * http://social.cs.uiuc.edu/class/cs591kgk/friendsadamic.pdf
- * <br/>
+ * <p>
  * Adamic-Adar measures the similarity between pairs of vertices as the sum of
  * the inverse logarithm of degree over shared neighbors. Scores are non-negative
  * and unbounded. A vertex with higher degree has greater overall influence but
  * is less influential to each pair of neighbors.
- * <br/>
+ * <p>
  * This implementation produces similarity scores for each pair of vertices
  * in the graph with at least one shared neighbor; equivalently, this is the
  * set of all non-zero Adamic-Adar coefficients.
- * <br/>
+ * <p>
  * The input graph must be a simple, undirected graph containing no duplicate
  * edges or self-loops.
  *
@@ -240,7 +241,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 *
 	 * @param <T> ID type
 	 */
-	@FunctionAnnotation.ForwardedFields("0; 1")
+	@ForwardedFields("0; 1")
 	private static class VertexInverseLogDegree<T>
 	implements MapFunction<Vertex<T, LongValue>, Tuple3<T, LongValue, FloatValue>> {
 		private Tuple3<T, LongValue, FloatValue> output = new Tuple3<>(null, null, new FloatValue());
@@ -260,13 +261,12 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		}
 	}
 
-
 	/**
 	 * @see JaccardIndex.GenerateGroupSpans
 	 *
 	 * @param <T> ID type
 	 */
-	@FunctionAnnotation.ForwardedFields("0->1; 1->2 ; 2->3")
+	@ForwardedFields("0->1; 1->2 ; 2->3")
 	private static class GenerateGroupSpans<T>
 	implements GroupReduceFunction<Tuple3<T, T, FloatValue>, Tuple4<IntValue, T, T, FloatValue>> {
 		private IntValue groupSpansValue = new IntValue();
@@ -301,7 +301,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 *
 	 * @param <T> ID type
 	 */
-	@FunctionAnnotation.ForwardedFields("1; 2; 3")
+	@ForwardedFields("1; 2; 3")
 	private static class GenerateGroups<T>
 	implements FlatMapFunction<Tuple4<IntValue, T, T, FloatValue>, Tuple4<IntValue, T, T, FloatValue>> {
 		@Override
@@ -321,7 +321,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 *
 	 * @param <T> ID type
 	 */
-	@FunctionAnnotation.ForwardedFields("3->2")
+	@ForwardedFields("3->2")
 	private static class GenerateGroupPairs<T extends CopyableValue<T>>
 	implements GroupReduceFunction<Tuple4<IntValue, T, T, FloatValue>, Tuple3<T, T, FloatValue>> {
 		private Tuple3<T, T, FloatValue> output = new Tuple3<>();
@@ -392,7 +392,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 *
 	 * @param <T> ID type
 	 */
-	@FunctionAnnotation.ForwardedFields("0; 1")
+	@ForwardedFields("0; 1")
 	private static class ComputeScores<T>
 	extends RichGroupReduceFunction<Tuple3<T, T, FloatValue>, Result<T>> {
 		private float minimumScore;
@@ -442,12 +442,13 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	}
 
 	/**
-	 * Wraps the vertex type to encapsulate results from the Adamic-Adar algorithm.
+	 * Wraps {@link Tuple3} to encapsulate results from the Adamic-Adar algorithm.
 	 *
 	 * @param <T> ID type
 	 */
 	public static class Result<T>
-	extends Edge<T, FloatValue> {
+	extends Tuple3<T, T, FloatValue>
+	implements PrintableResult, BinaryResult<T>, Comparable<Result<T>> {
 		public static final int HASH_SEED = 0xe405f6d1;
 
 		private Murmur3_32 hasher = new Murmur3_32(HASH_SEED);
@@ -457,6 +458,16 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		 */
 		public Result() {
 			f2 = new FloatValue();
+		}
+
+		@Override
+		public T getVertexId0() {
+			return f0;
+		}
+
+		@Override
+		public T getVertexId1() {
+			return f1;
 		}
 
 		/**
@@ -469,8 +480,9 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 			return f2;
 		}
 
-		public String toVerboseString() {
-			return "Vertex IDs: (" + f0 + ", " + f1
+		@Override
+		public String toPrintableString() {
+			return "Vertex IDs: (" + getVertexId0() + ", " + getVertexId1()
 				+ "), adamic-adar score: " + getAdamicAdarScore();
 		}
 
@@ -481,6 +493,11 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 				.hash(f1.hashCode())
 				.hash(f2.getValue())
 				.hash();
+		}
+
+		@Override
+		public int compareTo(Result<T> o) {
+			return Float.compare(getAdamicAdarScore().getValue(), o.getAdamicAdarScore().getValue());
 		}
 	}
 }

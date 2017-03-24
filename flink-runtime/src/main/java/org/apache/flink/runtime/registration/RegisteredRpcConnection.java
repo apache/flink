@@ -95,7 +95,7 @@ public abstract class RegisteredRpcConnection<Gateway extends RpcGateway, Succes
 
 		Future<Tuple2<Gateway, Success>> future = pendingRegistration.getFuture();
 
-		future.thenAcceptAsync(new AcceptFunction<Tuple2<Gateway, Success>>() {
+		Future<Void> registrationSuccessFuture = future.thenAcceptAsync(new AcceptFunction<Tuple2<Gateway, Success>>() {
 			@Override
 			public void accept(Tuple2<Gateway, Success> result) {
 				targetGateway = result.f0;
@@ -104,7 +104,7 @@ public abstract class RegisteredRpcConnection<Gateway extends RpcGateway, Succes
 		}, executor);
 
 		// this future should only ever fail if there is a bug, not if the registration is declined
-		future.exceptionallyAsync(new ApplyFunction<Throwable, Void>() {
+		registrationSuccessFuture.exceptionallyAsync(new ApplyFunction<Throwable, Void>() {
 			@Override
 			public Void apply(Throwable failure) {
 				onRegistrationFailure(failure);

@@ -108,7 +108,7 @@ public class HBaseTableSource implements BatchTableSource<Row>, ProjectableTable
 	}
 
 	@Override
-	public ProjectableTableSource<Row> projectFields(int[] fields) {
+	public HBaseTableSource projectFields(int[] fields) {
 		String[] famNames = schema.getFamilyNames();
 		HBaseTableSource newTableSource = new HBaseTableSource(this.conf, tableName);
 		// Extract the family from the given fields
@@ -121,5 +121,10 @@ public class HBaseTableSource implements BatchTableSource<Row>, ProjectableTable
 			}
 		}
 		return newTableSource;
+	}
+
+	@Override
+	public String explainSource() {
+		return "";
 	}
 }

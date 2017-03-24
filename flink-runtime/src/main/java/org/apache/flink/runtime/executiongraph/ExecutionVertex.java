@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.Archiveable;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.JobException;
@@ -31,15 +32,15 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.instance.SlotProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobmanager.JobManagerOptions;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
-import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.EvictingBoundedList;
@@ -662,7 +663,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 				//TODO this case only exists for test, currently there has to be exactly one consumer in real jobs!
 				producedPartitions.add(ResultPartitionDeploymentDescriptor.from(
 						partition,
-						KeyGroupRangeAssignment.UPPER_BOUND_MAX_PARALLELISM,
+						ExecutionConfig.UPPER_BOUND_MAX_PARALLELISM,
 						lazyScheduling));
 			} else {
 				Preconditions.checkState(1 == consumers.size(),
@@ -687,9 +688,11 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 
 			int queueToRequest = subTaskIndex % numConsumerEdges;
 
-			IntermediateDataSetID resultId = edges[0].getSource().getIntermediateResult().getId();
+			IntermediateResult consumedIntermediateResult = edges[0].getSource().getIntermediateResult();
+			final IntermediateDataSetID resultId = consumedIntermediateResult.getId();
+			final ResultPartitionType partitionType = consumedIntermediateResult.getResultType();
 
-			consumedPartitions.add(new InputGateDeploymentDescriptor(resultId, queueToRequest, partitions));
+			consumedPartitions.add(new InputGateDeploymentDescriptor(resultId, partitionType, queueToRequest, partitions));
 		}
 
 		SerializedValue<JobInformation> serializedJobInformation = getExecutionGraph().getSerializedJobInformation();

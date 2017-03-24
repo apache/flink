@@ -45,7 +45,7 @@ object JobManagerMessages {
     * [[RequiresLeaderSessionID]] interface and have to be wrapped in a [[LeaderSessionMessage]],
     * which also contains the current leader session ID.
     *
-    * @param leaderSessionID Current leader session ID or null, if no leader session ID was set
+    * @param leaderSessionID Current leader session ID
     * @param message [[RequiresLeaderSessionID]] message to be wrapped in a [[LeaderSessionMessage]]
     */
   case class LeaderSessionMessage(leaderSessionID: UUID, message: Any)

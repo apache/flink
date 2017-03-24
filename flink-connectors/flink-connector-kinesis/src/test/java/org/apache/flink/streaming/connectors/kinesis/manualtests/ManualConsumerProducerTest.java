@@ -18,6 +18,7 @@ package org.apache.flink.streaming.connectors.kinesis.manualtests;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.java.utils.ParameterTool;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer;
@@ -62,7 +63,7 @@ public class ManualConsumerProducerTest {
 				new KinesisSerializationSchema<String>() {
 					@Override
 					public ByteBuffer serialize(String element) {
-						return ByteBuffer.wrap(element.getBytes());
+						return ByteBuffer.wrap(element.getBytes(ConfigConstants.DEFAULT_CHARSET));
 					}
 
 					// every 10th element goes into a different stream

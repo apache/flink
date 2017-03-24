@@ -18,6 +18,13 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
+import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantLock;
+import javax.annotation.Nullable;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
@@ -25,14 +32,6 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
-
-import javax.annotation.Nullable;
-import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.locks.ReentrantLock;
-
-import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Tracker for checkpoint statistics.
@@ -95,6 +94,10 @@ public class CheckpointStatsTracker {
 	 * failed).
 	 */
 	private volatile boolean dirty;
+
+	/** The latest completed checkpoint. Used by the latest completed checkpoint metrics. */
+	@Nullable
+	private volatile transient CompletedCheckpointStats latestCompletedCheckpoint;
 
 	/**
 	 * Creates a new checkpoint stats tracker.
@@ -241,6 +244,8 @@ public class CheckpointStatsTracker {
 	private void reportCompletedCheckpoint(CompletedCheckpointStats completed) {
 		statsReadWriteLock.lock();
 		try {
+			latestCompletedCheckpoint = completed;
+
 			counts.incrementCompletedCheckpoints();
 			history.replacePendingCheckpointById(completed);
 
@@ -400,7 +405,7 @@ public class CheckpointStatsTracker {
 	private class LatestCompletedCheckpointSizeGauge implements Gauge<Long> {
 		@Override
 		public Long getValue() {
-			CompletedCheckpointStats completed = latestSnapshot.getHistory().getLatestCompletedCheckpoint();
+			CompletedCheckpointStats completed = latestCompletedCheckpoint;
 			if (completed != null) {
 				return completed.getStateSize();
 			} else {
@@ -412,7 +417,7 @@ public class CheckpointStatsTracker {
 	private class LatestCompletedCheckpointDurationGauge implements Gauge<Long> {
 		@Override
 		public Long getValue() {
-			CompletedCheckpointStats completed = latestSnapshot.getHistory().getLatestCompletedCheckpoint();
+			CompletedCheckpointStats completed = latestCompletedCheckpoint;
 			if (completed != null) {
 				return completed.getEndToEndDuration();
 			} else {
@@ -421,11 +426,10 @@ public class CheckpointStatsTracker {
 		}
 	}
 
-
 	private class LatestCompletedCheckpointAlignmentBufferedGauge implements Gauge<Long> {
 		@Override
 		public Long getValue() {
-			CompletedCheckpointStats completed = latestSnapshot.getHistory().getLatestCompletedCheckpoint();
+			CompletedCheckpointStats completed = latestCompletedCheckpoint;;
 			if (completed != null) {
 				return completed.getAlignmentBuffered();
 			} else {
@@ -437,7 +441,7 @@ public class CheckpointStatsTracker {
 	private class LatestCompletedCheckpointExternalPathGauge implements Gauge<String> {
 		@Override
 		public String getValue() {
-			CompletedCheckpointStats completed = latestSnapshot.getHistory().getLatestCompletedCheckpoint();
+			CompletedCheckpointStats completed = latestCompletedCheckpoint;
 			if (completed != null) {
 				return completed.getExternalPath();
 			} else {

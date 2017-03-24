@@ -31,20 +31,20 @@ public class TaskInfo {
 
 	private final String taskName;
 	private final String taskNameWithSubtasks;
-	private final int numberOfKeyGroups;
+	private final int maxNumberOfParallelSubtasks;
 	private final int indexOfSubtask;
 	private final int numberOfParallelSubtasks;
 	private final int attemptNumber;
 
-	public TaskInfo(String taskName, int numberOfKeyGroups, int indexOfSubtask, int numberOfParallelSubtasks, int attemptNumber) {
+	public TaskInfo(String taskName, int maxNumberOfParallelSubtasks, int indexOfSubtask, int numberOfParallelSubtasks, int attemptNumber) {
 		checkArgument(indexOfSubtask >= 0, "Task index must be a non-negative number.");
-		checkArgument(numberOfKeyGroups >= 1, "Max parallelism must be a positive number.");
-		checkArgument(numberOfKeyGroups >= numberOfParallelSubtasks, "Max parallelism must be >= than parallelism.");
+		checkArgument(maxNumberOfParallelSubtasks >= 1, "Max parallelism must be a positive number.");
+		checkArgument(maxNumberOfParallelSubtasks >= numberOfParallelSubtasks, "Max parallelism must be >= than parallelism.");
 		checkArgument(numberOfParallelSubtasks >= 1, "Parallelism must be a positive number.");
 		checkArgument(indexOfSubtask < numberOfParallelSubtasks, "Task index must be less than parallelism.");
 		checkArgument(attemptNumber >= 0, "Attempt number must be a non-negative number.");
 		this.taskName = checkNotNull(taskName, "Task Name must not be null.");
-		this.numberOfKeyGroups = numberOfKeyGroups;
+		this.maxNumberOfParallelSubtasks = maxNumberOfParallelSubtasks;
 		this.indexOfSubtask = indexOfSubtask;
 		this.numberOfParallelSubtasks = numberOfParallelSubtasks;
 		this.attemptNumber = attemptNumber;
@@ -61,10 +61,10 @@ public class TaskInfo {
 	}
 
 	/**
-	 * Gets the number of key groups aka the max parallelism aka the max number of subtasks.
+	 * Gets the max parallelism aka the max number of subtasks.
 	 */
-	public int getNumberOfKeyGroups() {
-		return numberOfKeyGroups;
+	public int getMaxNumberOfParallelSubtasks() {
+		return maxNumberOfParallelSubtasks;
 	}
 
 	/**

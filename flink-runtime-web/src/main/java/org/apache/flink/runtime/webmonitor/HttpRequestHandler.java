@@ -48,7 +48,7 @@ import io.netty.handler.codec.http.multipart.HttpPostRequestDecoder;
 import io.netty.handler.codec.http.multipart.HttpPostRequestDecoder.EndOfDataDecoderException;
 import io.netty.handler.codec.http.multipart.InterfaceHttpData;
 import io.netty.handler.codec.http.multipart.InterfaceHttpData.HttpDataType;
-
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.util.ExceptionUtils;
 
 import java.io.File;
@@ -65,7 +65,7 @@ import java.util.UUID;
 @ChannelHandler.Sharable
 public class HttpRequestHandler extends SimpleChannelInboundHandler<HttpObject> {
 
-	private static final Charset ENCODING = Charset.forName("UTF-8");
+	private static final Charset ENCODING = ConfigConstants.DEFAULT_CHARSET;
 
 	/** A decoder factory that always stores POST chunks on disk */
 	private static final HttpDataFactory DATA_FACTORY = new DefaultHttpDataFactory(true);

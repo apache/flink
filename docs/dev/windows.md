@@ -973,6 +973,51 @@ input
 <span class="label label-info">Note</span> When using the `GlobalWindows` window assigner no
 data is ever considered late because the end timestamp of the global window is `Long.MAX_VALUE`.
 
+### Getting late data as a side output
+
+Using Flink's [side output](/dev/stream/side_output.html) feature you can get a stream of the data
+that was discarded as late.
+
+You first need to specify that you want to get late data using `sideOutputLateData(OutputTag)` on
+the windowed stream. Then, you can get the side-output stream on the result of the windowed
+operation:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+final OutputTag<T> lateOutputTag = new OutputTag<T>("late-data"){};
+
+DataStream<T> input = ...;
+
+DataStream<T> result = input
+    .keyBy(<key selector>)
+    .window(<window assigner>)
+    .allowedLateness(<time>)
+    .sideOutputLateData(lateOutputTag)
+    .<windowed transformation>(<window function>);
+
+DataStream<T> lateStream = result.getSideOutput(lateOutputTag);
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val lateOutputTag = OutputTag[T]("late-data")
+
+val input: DataStream[T] = ...
+
+val result = input
+    .keyBy(<key selector>)
+    .window(<window assigner>)
+    .allowedLateness(<time>)
+    .sideOutputLateData(lateOutputTag)
+    .<windowed transformation>(<window function>)
+
+val lateStream = result.getSideOutput(lateOutputTag)
+{% endhighlight %}
+</div>
+</div>
+
 ### Late elements considerations
 
 When specifying an allowed lateness greater than 0, the window along with its content is kept after the watermark passes

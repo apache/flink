@@ -183,7 +183,7 @@ public class BlockingCheckpointsTest {
 		public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
 				Environment env, JobID jobID, String operatorIdentifier,
 				TypeSerializer<K> keySerializer, int numberOfKeyGroups,
-				KeyGroupRange keyGroupRange, TaskKvStateRegistry kvStateRegistry) throws Exception {
+				KeyGroupRange keyGroupRange, TaskKvStateRegistry kvStateRegistry) {
 
 			throw new UnsupportedOperationException();
 		}

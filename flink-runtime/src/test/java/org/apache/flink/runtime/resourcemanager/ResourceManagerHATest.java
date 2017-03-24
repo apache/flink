@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.metrics.MetricRegistry;
@@ -40,26 +42,39 @@ public class ResourceManagerHATest {
 
 	@Test
 	public void testGrantAndRevokeLeadership() throws Exception {
+		ResourceID rmResourceId = ResourceID.generate();
 		RpcService rpcService = new TestingSerialRpcService();
 
 		TestingLeaderElectionService leaderElectionService = new TestingLeaderElectionService();
 		TestingHighAvailabilityServices highAvailabilityServices = new TestingHighAvailabilityServices();
 		highAvailabilityServices.setResourceManagerLeaderElectionService(leaderElectionService);
 
-		ResourceManagerConfiguration resourceManagerConfiguration = new ResourceManagerConfiguration(Time.seconds(5L), Time.seconds(5L));
+		HeartbeatServices heartbeatServices = mock(HeartbeatServices.class);
+
+		ResourceManagerConfiguration resourceManagerConfiguration = new ResourceManagerConfiguration(
+			Time.seconds(5L),
+			Time.seconds(5L));
+
+		ResourceManagerRuntimeServicesConfiguration resourceManagerRuntimeServicesConfiguration = new ResourceManagerRuntimeServicesConfiguration(Time.seconds(5L));
+		ResourceManagerRuntimeServices resourceManagerRuntimeServices = ResourceManagerRuntimeServices.fromConfiguration(
+			resourceManagerRuntimeServicesConfiguration,
+			highAvailabilityServices,
+			rpcService.getScheduledExecutor());
+
 		SlotManagerFactory slotManagerFactory = new TestingSlotManagerFactory();
 		MetricRegistry metricRegistry = mock(MetricRegistry.class);
-		JobLeaderIdService jobLeaderIdService = new JobLeaderIdService(highAvailabilityServices);
+
 		TestingFatalErrorHandler testingFatalErrorHandler = new TestingFatalErrorHandler();
 
 		final ResourceManager resourceManager =
 			new StandaloneResourceManager(
-				rpcService,
+				rpcService, rmResourceId,
 				resourceManagerConfiguration,
 				highAvailabilityServices,
+				heartbeatServices,
 				slotManagerFactory,
 				metricRegistry,
-				jobLeaderIdService,
+				resourceManagerRuntimeServices.getJobLeaderIdService(),
 				testingFatalErrorHandler);
 		resourceManager.start();
 		// before grant leadership, resourceManager's leaderId is null

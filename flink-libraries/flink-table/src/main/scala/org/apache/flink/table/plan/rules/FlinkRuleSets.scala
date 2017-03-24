@@ -20,7 +20,7 @@ package org.apache.flink.table.plan.rules
 
 import org.apache.calcite.rel.rules._
 import org.apache.calcite.tools.{RuleSet, RuleSets}
-import org.apache.flink.table.calcite.rules.FlinkAggregateJoinTransposeRule
+import org.apache.flink.table.calcite.rules.{FlinkAggregateExpandDistinctAggregatesRule, FlinkAggregateJoinTransposeRule}
 import org.apache.flink.table.plan.rules.dataSet._
 import org.apache.flink.table.plan.rules.datastream._
 import org.apache.flink.table.plan.rules.datastream.{DataStreamCalcRule, DataStreamScanRule, DataStreamUnionRule}
@@ -35,7 +35,8 @@ object FlinkRuleSets {
     ReduceExpressionsRule.FILTER_INSTANCE,
     ReduceExpressionsRule.PROJECT_INSTANCE,
     ReduceExpressionsRule.CALC_INSTANCE,
-    ReduceExpressionsRule.JOIN_INSTANCE
+    ReduceExpressionsRule.JOIN_INSTANCE,
+    ProjectToWindowRule.PROJECT
   )
 
   /**
@@ -102,10 +103,14 @@ object FlinkRuleSets {
     ProjectToCalcRule.INSTANCE,
     CalcMergeRule.INSTANCE,
 
+    // distinct aggregate rule for FLINK-3475
+    FlinkAggregateExpandDistinctAggregatesRule.JOIN,
+
     // translate to Flink DataSet nodes
     DataSetWindowAggregateRule.INSTANCE,
     DataSetAggregateRule.INSTANCE,
     DataSetAggregateWithNullValuesRule.INSTANCE,
+    DataSetDistinctRule.INSTANCE,
     DataSetCalcRule.INSTANCE,
     DataSetJoinRule.INSTANCE,
     DataSetSingleRowJoinRule.INSTANCE,
@@ -117,8 +122,10 @@ object FlinkRuleSets {
     DataSetValuesRule.INSTANCE,
     DataSetCorrelateRule.INSTANCE,
     BatchTableSourceScanRule.INSTANCE,
-    // project pushdown optimization
-    PushProjectIntoBatchTableSourceScanRule.INSTANCE
+
+    // scan optimization
+    PushProjectIntoBatchTableSourceScanRule.INSTANCE,
+    PushFilterIntoBatchTableSourceScanRule.INSTANCE
   )
 
   /**
@@ -131,7 +138,8 @@ object FlinkRuleSets {
     // simplify expressions rules
     ReduceExpressionsRule.FILTER_INSTANCE,
     ReduceExpressionsRule.PROJECT_INSTANCE,
-    ReduceExpressionsRule.CALC_INSTANCE
+    ReduceExpressionsRule.CALC_INSTANCE,
+    ProjectToWindowRule.PROJECT
   )
 
   /**
@@ -164,6 +172,7 @@ object FlinkRuleSets {
       UnionEliminatorRule.INSTANCE,
 
       // translate to DataStream nodes
+      DataStreamOverAggregateRule.INSTANCE,
       DataStreamAggregateRule.INSTANCE,
       DataStreamCalcRule.INSTANCE,
       DataStreamScanRule.INSTANCE,
@@ -171,7 +180,10 @@ object FlinkRuleSets {
       DataStreamValuesRule.INSTANCE,
       DataStreamCorrelateRule.INSTANCE,
       StreamTableSourceScanRule.INSTANCE,
-      PushProjectIntoStreamTableSourceScanRule.INSTANCE
+
+      //  scan optimization
+      PushProjectIntoStreamTableSourceScanRule.INSTANCE,
+      PushFilterIntoStreamTableSourceScanRule.INSTANCE
   )
 
 }

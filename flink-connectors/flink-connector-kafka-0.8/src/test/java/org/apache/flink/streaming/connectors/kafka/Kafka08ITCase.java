@@ -48,16 +48,6 @@ public class Kafka08ITCase extends KafkaConsumerTestBase {
 		runSimpleConcurrentProducerConsumerTopology();
 	}
 
-//	@Test(timeout = 60000)
-//	public void testPunctuatedExplicitWMConsumer() throws Exception {
-//		runExplicitPunctuatedWMgeneratingConsumerTest(false);
-//	}
-
-//	@Test(timeout = 60000)
-//	public void testPunctuatedExplicitWMConsumerWithEmptyTopic() throws Exception {
-//		runExplicitPunctuatedWMgeneratingConsumerTest(true);
-//	}
-
 	@Test(timeout = 60000)
 	public void testKeyValueSupport() throws Exception {
 		runKeyValueTest();
@@ -100,7 +90,7 @@ public class Kafka08ITCase extends KafkaConsumerTestBase {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort);
 		env.getConfig().disableSysoutLogging();
 
-		readSequence(env, StartupMode.GROUP_OFFSETS, standardProps, parallelism, topic, valuesCount, startFrom);
+		readSequence(env, StartupMode.GROUP_OFFSETS, null, standardProps, parallelism, topic, valuesCount, startFrom);
 
 		deleteTestTopic(topic);
 	}
@@ -144,6 +134,11 @@ public class Kafka08ITCase extends KafkaConsumerTestBase {
 	@Test(timeout = 60000)
 	public void testStartFromGroupOffsets() throws Exception {
 		runStartFromGroupOffsets();
+	}
+
+	@Test(timeout = 60000)
+	public void testStartFromSpecificOffsets() throws Exception {
+		runStartFromSpecificOffsets();
 	}
 
 	// --- offset committing ---
@@ -207,10 +202,13 @@ public class Kafka08ITCase extends KafkaConsumerTestBase {
 		// at least once.
 		Properties readProps = new Properties();
 		readProps.putAll(standardProps);
+
+		// make sure that auto commit is enabled in the properties
+		readProps.setProperty("auto.commit.enable", "true");
 		readProps.setProperty("auto.commit.interval.ms", "500");
 
 		// read so that the offset can be committed to ZK
-		readSequence(env, StartupMode.GROUP_OFFSETS, readProps, parallelism, topicName, 100, 0);
+		readSequence(env, StartupMode.GROUP_OFFSETS, null, readProps, parallelism, topicName, 100, 0);
 
 		// get the offset
 		CuratorFramework curatorFramework = ((KafkaTestEnvironmentImpl)kafkaServer).createCuratorClient();

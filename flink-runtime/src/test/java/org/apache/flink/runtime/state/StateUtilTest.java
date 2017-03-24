@@ -30,7 +30,7 @@ public class StateUtilTest extends TestLogger {
 	 */
 	@Test
 	public void testDiscardRunnableFutureWithNullValue() throws Exception {
-		RunnableFuture<StateHandle<?>> stateFuture = new DoneFuture<>(null);
+		RunnableFuture<StateHandle<?>> stateFuture = DoneFuture.nullValue();
 		StateUtil.discardStateFuture(stateFuture);
 	}
 }

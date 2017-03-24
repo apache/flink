@@ -21,7 +21,7 @@ package org.apache.flink.runtime.highavailability.nonha;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
 
-import java.util.HashSet;
+import java.util.HashMap;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -31,14 +31,14 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class NonHaRegistry implements RunningJobsRegistry {
 
 	/** The currently running jobs */
-	private final HashSet<JobID> running = new HashSet<>();
+	private final HashMap<JobID, JobSchedulingStatus> jobStatus = new HashMap<>();
 
 	@Override
 	public void setJobRunning(JobID jobID) {
 		checkNotNull(jobID);
 
-		synchronized (running) {
-			running.add(jobID);
+		synchronized (jobStatus) {
+			jobStatus.put(jobID, JobSchedulingStatus.RUNNING);
 		}
 	}
 
@@ -46,17 +46,27 @@ public class NonHaRegistry implements RunningJobsRegistry {
 	public void setJobFinished(JobID jobID) {
 		checkNotNull(jobID);
 
-		synchronized (running) {
-			running.remove(jobID);
+		synchronized (jobStatus) {
+			jobStatus.put(jobID, JobSchedulingStatus.DONE);
 		}
 	}
 
 	@Override
-	public boolean isJobRunning(JobID jobID) {
+	public JobSchedulingStatus getJobSchedulingStatus(JobID jobID) {
+		checkNotNull(jobID);
+		
+		synchronized (jobStatus) {
+			JobSchedulingStatus status = jobStatus.get(jobID);
+			return status == null ? JobSchedulingStatus.PENDING : status;
+		}
+	}
+
+	@Override
+	public void clearJob(JobID jobID) {
 		checkNotNull(jobID);
 
-		synchronized (running) {
-			return running.contains(jobID);
+		synchronized (jobStatus) {
+			jobStatus.remove(jobID);
 		}
 	}
 }

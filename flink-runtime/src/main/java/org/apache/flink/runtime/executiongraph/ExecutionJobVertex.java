@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.Archiveable;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
@@ -39,7 +40,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobmanager.JobManagerOptions;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
@@ -223,10 +224,14 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	}
 
 	private void setMaxParallelismInternal(int maxParallelism) {
+		if (maxParallelism == ExecutionConfig.PARALLELISM_AUTO_MAX) {
+			maxParallelism = ExecutionConfig.UPPER_BOUND_MAX_PARALLELISM;
+		}
+
 		Preconditions.checkArgument(maxParallelism > 0
-						&& maxParallelism <= KeyGroupRangeAssignment.UPPER_BOUND_MAX_PARALLELISM,
-				"Overriding max parallelism is not in valid bounds (1.." +
-						KeyGroupRangeAssignment.UPPER_BOUND_MAX_PARALLELISM + "), found:" + maxParallelism);
+						&& maxParallelism <= ExecutionConfig.UPPER_BOUND_MAX_PARALLELISM,
+				"Overriding max parallelism is not in valid bounds (1..%s), found: %s",
+				ExecutionConfig.UPPER_BOUND_MAX_PARALLELISM, maxParallelism);
 
 		this.maxParallelism = maxParallelism;
 	}

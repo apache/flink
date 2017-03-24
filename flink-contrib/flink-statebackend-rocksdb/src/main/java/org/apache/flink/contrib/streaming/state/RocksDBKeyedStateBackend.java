@@ -17,6 +17,7 @@
 
 package org.apache.flink.contrib.streaming.state;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
@@ -29,6 +30,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.DataInputView;
@@ -143,10 +145,11 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			TaskKvStateRegistry kvStateRegistry,
 			TypeSerializer<K> keySerializer,
 			int numberOfKeyGroups,
-			KeyGroupRange keyGroupRange
+			KeyGroupRange keyGroupRange,
+			ExecutionConfig executionConfig
 	) throws IOException {
 
-		super(kvStateRegistry, keySerializer, userCodeClassLoader, numberOfKeyGroups, keyGroupRange);
+		super(kvStateRegistry, keySerializer, userCodeClassLoader, numberOfKeyGroups, keyGroupRange, executionConfig);
 		this.columnOptions = Preconditions.checkNotNull(columnFamilyOptions);
 		this.dbOptions = Preconditions.checkNotNull(dbOptions);
 
@@ -171,7 +174,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		List<ColumnFamilyDescriptor> columnFamilyDescriptors = new ArrayList<>(1);
 		// RocksDB seems to need this...
-		columnFamilyDescriptors.add(new ColumnFamilyDescriptor("default".getBytes()));
+		columnFamilyDescriptors.add(new ColumnFamilyDescriptor("default".getBytes(ConfigConstants.DEFAULT_CHARSET)));
 		List<ColumnFamilyHandle> columnFamilyHandles = new ArrayList<>(1);
 		try {
 
@@ -237,6 +240,10 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		return keyGroupPrefixBytes;
 	}
 
+	private boolean hasRegisteredState() {
+		return !kvStateInformation.isEmpty();
+	}
+
 	/**
 	 * Triggers an asynchronous snapshot of the keyed state backend from RocksDB. This snapshot can be canceled and
 	 * is also stopped when the backend is closed through {@link #dispose()}. For each backend, this method must always
@@ -264,13 +271,12 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 			if (db != null) {
 
-				if (kvStateInformation.isEmpty()) {
+				if (!hasRegisteredState()) {
 					if (LOG.isDebugEnabled()) {
 						LOG.debug("Asynchronous RocksDB snapshot performed on empty keyed state at " + timestamp +
 								" . Returning null.");
 					}
-
-					return new DoneFuture<>(null);
+					return DoneFuture.nullValue();
 				}
 
 				snapshotOperation.takeDBSnapShot(checkpointId, timestamp);
@@ -727,7 +733,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 				if (null == columnFamily) {
 					ColumnFamilyDescriptor columnFamilyDescriptor = new ColumnFamilyDescriptor(
-							metaInfoProxy.getStateName().getBytes(), rocksDBKeyedStateBackend.columnOptions);
+						metaInfoProxy.getStateName().getBytes(ConfigConstants.DEFAULT_CHARSET),
+						rocksDBKeyedStateBackend.columnOptions);
 
 					RegisteredBackendStateMetaInfo<?, ?> stateMetaInfo =
 							new RegisteredBackendStateMetaInfo<>(metaInfoProxy);
@@ -824,7 +831,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		}
 
 		ColumnFamilyDescriptor columnDescriptor = new ColumnFamilyDescriptor(
-				descriptor.getName().getBytes(), columnOptions);
+				descriptor.getName().getBytes(ConfigConstants.DEFAULT_CHARSET), columnOptions);
 
 		try {
 			ColumnFamilyHandle columnFamily = db.createColumnFamily(columnDescriptor);
@@ -1214,5 +1221,10 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		} catch (EOFException e) {
 			// expected
 		}
+	}
+
+	@Override
+	public boolean supportsAsynchronousSnapshots() {
+		return true;
 	}
 }

@@ -22,7 +22,6 @@ import org.apache.calcite.plan.{Convention, RelOptRule, RelOptRuleCall, RelTrait
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.logical.LogicalAggregate
-import org.apache.flink.table.api.TableException
 import org.apache.flink.table.plan.nodes.dataset.{DataSetAggregate, DataSetConvention, DataSetUnion}
 import scala.collection.JavaConversions._
 
@@ -42,11 +41,16 @@ class DataSetAggregateRule
       return false
     }
 
+    // distinct is translated into dedicated operator
+    if (agg.getAggCallList.isEmpty &&
+      agg.getGroupCount == agg.getRowType.getFieldCount &&
+      agg.getRowType.equals(agg.getInput.getRowType) &&
+      agg.getGroupSets.size() == 1) {
+      return false
+    }
+
     // check if we have distinct aggregates
     val distinctAggs = agg.getAggCallList.exists(_.isDistinct)
-    if (distinctAggs) {
-      throw TableException("DISTINCT aggregates are currently not supported.")
-    }
 
     !distinctAggs
   }

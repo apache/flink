@@ -57,9 +57,10 @@ public final class TestUtils {
 	private static <K, VV, EV> void compareVertices(Graph<K, VV, EV> graph, String expectedVertices)
 			throws Exception {
 		if (expectedVertices != null) {
-			List<String> resultVertices = new ArrayList<>();
+			List<Vertex<K, VV>> vertices = graph.getVertices().collect();
+			List<String> resultVertices = new ArrayList<>(vertices.size());
 
-			for (Vertex<K, VV> vertex : graph.getVertices().collect()) {
+			for (Vertex<K, VV> vertex : vertices) {
 				resultVertices.add(vertex.f0.toString());
 			}
 
@@ -70,9 +71,10 @@ public final class TestUtils {
 	private static <K, VV, EV> void compareEdges(Graph<K, VV, EV> graph, String expectedEdges)
 			throws Exception {
 		if (expectedEdges != null) {
-			List<String> resultEdges = new ArrayList<>();
+			List<Edge<K, EV>> edges = graph.getEdges().collect();
+			List<String> resultEdges = new ArrayList<>(edges.size());
 
-			for (Edge<K, EV> edge : graph.getEdges().collect()) {
+			for (Edge<K, EV> edge : edges) {
 				resultEdges.add(edge.f0.toString() + "," + edge.f1.toString());
 			}
 

@@ -32,6 +32,7 @@ import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.XORShiftRandom;
 
 
@@ -136,6 +137,11 @@ public class DirectedOutput<OUT> implements Output<StreamRecord<OUT>> {
 		for (Output<StreamRecord<OUT>> out : selectedOutputs) {
 			out.collect(record);
 		}
+	}
+
+	@Override
+	public <X> void collect(OutputTag<?> outputTag, StreamRecord<X> record) {
+		throw new UnsupportedOperationException("Cannot use split/select with side outputs.");
 	}
 
 	@Override

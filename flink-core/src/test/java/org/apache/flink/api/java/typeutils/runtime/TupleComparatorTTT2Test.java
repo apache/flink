@@ -139,7 +139,7 @@ public class TupleComparatorTTT2Test extends TupleComparatorTestBase<Tuple3<Tupl
 	
 	protected void deepEquals(String message, Tuple2<?,?> should, Tuple2<?,?> is) {
 		for (int x = 0; x < should.getArity(); x++) {
-			assertEquals(message, should.getField(x), is.getField(x));
+			assertEquals(message, (Object)should.getField(x), is.getField(x));
 		}
 	}
 }

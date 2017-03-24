@@ -19,6 +19,7 @@
 package org.apache.flink.test.iterative;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 import org.apache.flink.api.common.functions.RichCoGroupFunction;
@@ -115,11 +116,12 @@ public class CoGroupConnectedComponentsSecondITCase extends JavaProgramTestBase 
 		
 		@Override
 		public void coGroup(Iterable<Tuple2<Long, Long>> candidates, Iterable<Tuple2<Long, Long>> current, Collector<Tuple2<Long, Long>> out) {
-			if (!current.iterator().hasNext()) {
+			Iterator<Tuple2<Long, Long>> iterator = current.iterator();
+			if (!iterator.hasNext()) {
 				throw new RuntimeException("Error: Id not encountered before.");
 			}
 			
-			Tuple2<Long, Long> old = current.iterator().next();
+			Tuple2<Long, Long> old = iterator.next();
 			
 			long minimumComponentID = Long.MAX_VALUE;
 

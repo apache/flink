@@ -522,6 +522,42 @@ under the License.
 		</profile>
 
 		<profile>
+			<!--
+				MapR build profile. This build profile must be used together with "vendor-repos"
+				to be able to locate the MapR Hadoop / Zookeeper dependencies.
+			-->
+			<id>mapr</id>
+
+			<!--
+				use MapR Hadoop / Zookeeper dependencies appropriate for MapR 5.2.0;
+				users of different MapR versions should simply override these versions
+				with appropriate values.
+			-->
+			<properties>
+				<hadoop.version>2.7.0-mapr-1607</hadoop.version>
+				<zookeeper.version>3.4.5-mapr-1604</zookeeper.version>
+			</properties>
+
+			<dependencies>
+				<dependency>
+					<groupId>org.apache.zookeeper</groupId>
+					<artifactId>zookeeper</artifactId>
+					<version>${zookeeper.version}</version>
+					<exclusions>
+						<!--
+							exclude netty, because MapR's Zookeeper distribution has
+							a conflicting Netty version with Flink's Netty dependency
+						-->
+						<exclusion>
+							<groupId>org.jboss.netty</groupId>
+							<artifactId>netty</artifactId>
+						</exclusion>
+					</exclusions>
+				</dependency>
+			</dependencies>
+		</profile>
+
+		<profile>
 			<!-- used for aggregating  ScalaDoc with JavaDoc -->
 			<id>aggregate-scaladoc</id>
 			<dependencies>
@@ -727,10 +763,10 @@ under the License.
 		</profile>
 		<profile>
 			<id>jdk8</id>
-			<activation>
-				<activeByDefault>false</activeByDefault>
-				<jdk>1.8</jdk>
-			</activation>
+			<!-- do not activate automatically to prevent 1.8 target while Java 7 is the supported -->
+			<properties>
+				<java.version>1.8</java.version>
+			</properties>
 			<modules>
 				<module>flink-java8</module>
 			</modules>
@@ -911,6 +947,8 @@ under the License.
 						<exclude>flink-streaming-java/src/test/resources/win-op-migration-test-session-with-stateful-trigger-mint-flink1.1-snapshot</exclude>
 						<exclude>flink-tests/src/test/resources/stateful-udf-migration-itcase-flink1.1-savepoint</exclude>
 						<exclude>flink-tests/src/test/resources/stateful-udf-migration-itcase-flink1.1-savepoint-rocksdb</exclude>
+						<exclude>flink-libraries/flink-cep/src/test/resources/cep-keyed-snapshot-1.1</exclude>
+						<exclude>flink-libraries/flink-cep/src/test/resources/cep-non-keyed-snapshot-1.1</exclude>
 
 						<!-- TweetInputFormat Test Data-->
 						<exclude>flink-contrib/flink-tweet-inputformat/src/main/resources/HashTagTweetSample.json</exclude>
@@ -936,6 +974,7 @@ under the License.
 						<exclude>build-target/**</exclude>
 						<!-- Tools: watchdog -->
 						<exclude>tools/artifacts/**</exclude>
+						<exclude>tools/flink*/**</exclude>
 						<!-- PyCharm -->
 						<exclude>**/.idea/**</exclude>
 					</excludes>

@@ -26,6 +26,7 @@ import org.apache.flink.table.api.scala.batch.utils.TableProgramsClusterTestBase
 import org.apache.flink.table.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.table.expressions.utils.{RichFunc1, RichFunc2, RichFunc3}
 import org.apache.flink.table.utils._
+import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
 import org.junit.Test
@@ -36,8 +37,9 @@ import scala.collection.JavaConverters._
 
 @RunWith(classOf[Parameterized])
 class DataSetCalcITCase(
-  configMode: TableConfigMode)
-  extends TableProgramsClusterTestBase(configMode) {
+    mode: TestExecutionMode,
+    configMode: TableConfigMode)
+  extends TableProgramsClusterTestBase(mode, configMode) {
 
   @Test
   def testUserDefinedScalarFunctionWithParameter(): Unit = {

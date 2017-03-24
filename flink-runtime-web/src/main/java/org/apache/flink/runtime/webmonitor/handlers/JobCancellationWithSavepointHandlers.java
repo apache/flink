@@ -55,11 +55,14 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class JobCancellationWithSavepointHandlers {
 
+	private static final String CANCEL_WITH_SAVEPOINT_REST_PATH = "/jobs/:jobid/cancel-with-savepoint";
+	private static final String CANCEL_WITH_SAVEPOINT_DIRECTORY_REST_PATH = "/jobs/:jobid/cancel-with-savepoint/target-directory/:targetDirectory";
+
 	/** URL for in-progress cancellations. */
-	public static final String IN_PROGRESS_URL = "/jobs/:jobid/cancel-with-savepoint/in-progress/:requestId";
+	private static final String CANCELLATION_IN_PROGRESS_REST_PATH = "/jobs/:jobid/cancel-with-savepoint/in-progress/:requestId";
 
 	/** Encodings for String. */
-	private static final Charset ENCODING = Charset.forName("UTF-8");
+	private static final Charset ENCODING = ConfigConstants.DEFAULT_CHARSET;
 
 	/** Shared lock between Trigger and In-Progress handlers. */
 	private final Object lock = new Object();
@@ -124,6 +127,11 @@ public class JobCancellationWithSavepointHandlers {
 		public TriggerHandler(ExecutionGraphHolder currentGraphs, ExecutionContext executionContext) {
 			this.currentGraphs = checkNotNull(currentGraphs);
 			this.executionContext = checkNotNull(executionContext);
+		}
+
+		@Override
+		public String[] getPaths() {
+			return new String[]{CANCEL_WITH_SAVEPOINT_REST_PATH, CANCEL_WITH_SAVEPOINT_DIRECTORY_REST_PATH};
 		}
 
 		@Override
@@ -230,7 +238,7 @@ public class JobCancellationWithSavepointHandlers {
 			}
 
 			// In-progress location
-			String location = IN_PROGRESS_URL
+			String location = CANCELLATION_IN_PROGRESS_REST_PATH
 					.replace(":jobid", jobId.toString())
 					.replace(":requestId", Long.toString(requestId));
 
@@ -277,6 +285,11 @@ public class JobCancellationWithSavepointHandlers {
 
 		/** Remember some recently completed */
 		private final ArrayDeque<Tuple2<Long, Object>> recentlyCompleted = new ArrayDeque<>(NUM_GHOST_REQUEST_IDS);
+
+		@Override
+		public String[] getPaths() {
+			return new String[]{CANCELLATION_IN_PROGRESS_REST_PATH};
+		}
 
 		@Override
 		@SuppressWarnings("unchecked")

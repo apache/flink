@@ -20,6 +20,7 @@ package org.apache.flink.runtime.webmonitor.handlers.checkpoints;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.AbstractCheckpointStats;
 import org.apache.flink.runtime.checkpoint.CheckpointProperties;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsCounts;
@@ -34,9 +35,15 @@ import org.apache.flink.runtime.checkpoint.PendingCheckpointStats;
 import org.apache.flink.runtime.checkpoint.RestoredCheckpointStats;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
+import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
+import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
+
+import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -49,11 +56,57 @@ import static org.mockito.Mockito.when;
 
 public class CheckpointStatsHandlerTest {
 
+	@Test
+	public void testArchiver() throws IOException {
+		JsonArchivist archivist = new CheckpointStatsDetailsHandler.CheckpointStatsDetailsJsonArchivist();
+		TestCheckpointStats testCheckpointStats = createTestCheckpointStats();
+		when(testCheckpointStats.graph.getJobID()).thenReturn(new JobID());
+		
+		Collection<ArchivedJson> archives = archivist.archiveJsonWithPath(testCheckpointStats.graph);
+		Assert.assertEquals(3, archives.size());
+
+		ObjectMapper mapper = new ObjectMapper();
+		
+		Iterator<ArchivedJson> iterator = archives.iterator();
+		ArchivedJson archive1 = iterator.next();
+		Assert.assertEquals("/jobs/" + testCheckpointStats.graph.getJobID() + "/checkpoints/details/" + testCheckpointStats.inProgress.getCheckpointId(), archive1.getPath());
+		compareInProgressCheckpoint(testCheckpointStats.inProgress, mapper.readTree(archive1.getJson()));
+
+		ArchivedJson archive2 = iterator.next();
+		Assert.assertEquals("/jobs/" + testCheckpointStats.graph.getJobID() + "/checkpoints/details/" + testCheckpointStats.completedSavepoint.getCheckpointId(), archive2.getPath());
+		compareCompletedSavepoint(testCheckpointStats.completedSavepoint, mapper.readTree(archive2.getJson()));
+		
+		ArchivedJson archive3 = iterator.next();
+		Assert.assertEquals("/jobs/" + testCheckpointStats.graph.getJobID() + "/checkpoints/details/" + testCheckpointStats.failed.getCheckpointId(), archive3.getPath());
+		compareFailedCheckpoint(testCheckpointStats.failed, mapper.readTree(archive3.getJson()));
+	}
+	
+
+	@Test
+	public void testGetPaths() {
+		CheckpointStatsHandler handler = new CheckpointStatsHandler(mock(ExecutionGraphHolder.class));
+		String[] paths = handler.getPaths();
+		Assert.assertEquals(1, paths.length);
+		Assert.assertEquals("/jobs/:jobid/checkpoints", paths[0]);
+	}
+
 	/**
 	 * Tests a complete checkpoint stats snapshot.
 	 */
 	@Test
 	public void testCheckpointStatsRequest() throws Exception {
+		TestCheckpointStats testCheckpointStats = createTestCheckpointStats();
+
+		CheckpointStatsHandler handler = new CheckpointStatsHandler(mock(ExecutionGraphHolder.class));
+		String json = handler.handleRequest(testCheckpointStats.graph, Collections.<String, String>emptyMap());
+
+		ObjectMapper mapper = new ObjectMapper();
+		JsonNode rootNode = mapper.readTree(json);
+
+		compareCheckpointStats(testCheckpointStats, rootNode);
+	}
+
+	private static TestCheckpointStats createTestCheckpointStats() {
 		// Counts
 		CheckpointStatsCounts counts = mock(CheckpointStatsCounts.class);
 		when(counts.getNumberOfRestoredCheckpoints()).thenReturn(123123123L);
@@ -95,7 +148,7 @@ public class CheckpointStatsHandlerTest {
 		when(latestCompleted.getExternalPath()).thenReturn("latest-completed-external-path");
 
 		CompletedCheckpointStats latestSavepoint = mock(CompletedCheckpointStats.class);
-		when(latestSavepoint.getCheckpointId()).thenReturn(1992139L);
+		when(latestSavepoint.getCheckpointId()).thenReturn(1992140L);
 		when(latestSavepoint.getTriggerTimestamp()).thenReturn(1919191900L);
 		when(latestSavepoint.getLatestAckTimestamp()).thenReturn(1977791901L);
 		when(latestSavepoint.getStateSize()).thenReturn(111939272822L);
@@ -124,7 +177,7 @@ public class CheckpointStatsHandlerTest {
 		List<AbstractCheckpointStats> checkpoints = new ArrayList<>();
 
 		PendingCheckpointStats inProgress = mock(PendingCheckpointStats.class);
-		when(inProgress.getCheckpointId()).thenReturn(1992139L);
+		when(inProgress.getCheckpointId()).thenReturn(1992141L);
 		when(inProgress.getStatus()).thenReturn(CheckpointStatsStatus.IN_PROGRESS);
 		when(inProgress.getProperties()).thenReturn(CheckpointProperties.forStandardCheckpoint());
 		when(inProgress.getTriggerTimestamp()).thenReturn(1919191900L);
@@ -180,12 +233,15 @@ public class CheckpointStatsHandlerTest {
 		AccessExecutionGraph graph = mock(AccessExecutionGraph.class);
 		when(graph.getCheckpointStatsSnapshot()).thenReturn(snapshot);
 
-		CheckpointStatsHandler handler = new CheckpointStatsHandler(mock(ExecutionGraphHolder.class));
-		String json = handler.handleRequest(graph, Collections.<String, String>emptyMap());
+		return new TestCheckpointStats(
+			graph, counts, stateSizeSummary, durationSummary, alignmentBufferedSummary, summary,
+			latestCompleted, latestSavepoint, latestFailed, latestRestored, inProgress, 
+			completedSavepoint, failed, history, snapshot
+		);
+	}
 
-		ObjectMapper mapper = new ObjectMapper();
-		JsonNode rootNode = mapper.readTree(json);
-
+	private static void compareCheckpointStats(TestCheckpointStats checkpointStats, JsonNode rootNode) {
+		CheckpointStatsCounts counts = checkpointStats.counts;
 		JsonNode countNode = rootNode.get("counts");
 		assertEquals(counts.getNumberOfRestoredCheckpoints(), countNode.get("restored").asLong());
 		assertEquals(counts.getTotalNumberOfCheckpoints(), countNode.get("total").asLong());
@@ -193,22 +249,26 @@ public class CheckpointStatsHandlerTest {
 		assertEquals(counts.getNumberOfCompletedCheckpoints(), countNode.get("completed").asLong());
 		assertEquals(counts.getNumberOfFailedCheckpoints(), countNode.get("failed").asLong());
 
+		MinMaxAvgStats stateSizeSummary = checkpointStats.stateSizeSummary;
 		JsonNode summaryNode = rootNode.get("summary");
 		JsonNode sizeSummaryNode = summaryNode.get("state_size");
 		assertEquals(stateSizeSummary.getMinimum(), sizeSummaryNode.get("min").asLong());
 		assertEquals(stateSizeSummary.getMaximum(), sizeSummaryNode.get("max").asLong());
 		assertEquals(stateSizeSummary.getAverage(), sizeSummaryNode.get("avg").asLong());
 
+		MinMaxAvgStats durationSummary = checkpointStats.durationSummary;
 		JsonNode durationSummaryNode = summaryNode.get("end_to_end_duration");
 		assertEquals(durationSummary.getMinimum(), durationSummaryNode.get("min").asLong());
 		assertEquals(durationSummary.getMaximum(), durationSummaryNode.get("max").asLong());
 		assertEquals(durationSummary.getAverage(), durationSummaryNode.get("avg").asLong());
 
+		MinMaxAvgStats alignmentBufferedSummary = checkpointStats.alignmentBufferedSummary;
 		JsonNode alignmentBufferedNode = summaryNode.get("alignment_buffered");
 		assertEquals(alignmentBufferedSummary.getMinimum(), alignmentBufferedNode.get("min").asLong());
 		assertEquals(alignmentBufferedSummary.getMaximum(), alignmentBufferedNode.get("max").asLong());
 		assertEquals(alignmentBufferedSummary.getAverage(), alignmentBufferedNode.get("avg").asLong());
 
+		CompletedCheckpointStats latestCompleted = checkpointStats.latestCompleted;
 		JsonNode latestNode = rootNode.get("latest");
 		JsonNode latestCheckpointNode = latestNode.get("completed");
 		assertEquals(latestCompleted.getCheckpointId(), latestCheckpointNode.get("id").asLong());
@@ -219,6 +279,7 @@ public class CheckpointStatsHandlerTest {
 		assertEquals(latestCompleted.getAlignmentBuffered(), latestCheckpointNode.get("alignment_buffered").asLong());
 		assertEquals(latestCompleted.getExternalPath(), latestCheckpointNode.get("external_path").asText());
 
+		CompletedCheckpointStats latestSavepoint = checkpointStats.latestSavepoint;
 		JsonNode latestSavepointNode = latestNode.get("savepoint");
 		assertEquals(latestSavepoint.getCheckpointId(), latestSavepointNode.get("id").asLong());
 		assertEquals(latestSavepoint.getTriggerTimestamp(), latestSavepointNode.get("trigger_timestamp").asLong());
@@ -228,6 +289,7 @@ public class CheckpointStatsHandlerTest {
 		assertEquals(latestSavepoint.getAlignmentBuffered(), latestSavepointNode.get("alignment_buffered").asLong());
 		assertEquals(latestSavepoint.getExternalPath(), latestSavepointNode.get("external_path").asText());
 
+		FailedCheckpointStats latestFailed = checkpointStats.latestFailed;
 		JsonNode latestFailedNode = latestNode.get("failed");
 		assertEquals(latestFailed.getCheckpointId(), latestFailedNode.get("id").asLong());
 		assertEquals(latestFailed.getTriggerTimestamp(), latestFailedNode.get("trigger_timestamp").asLong());
@@ -238,6 +300,7 @@ public class CheckpointStatsHandlerTest {
 		assertEquals(latestFailed.getFailureTimestamp(), latestFailedNode.get("failure_timestamp").asLong());
 		assertEquals(latestFailed.getFailureMessage(), latestFailedNode.get("failure_message").asText());
 
+		RestoredCheckpointStats latestRestored = checkpointStats.latestRestored;
 		JsonNode latestRestoredNode = latestNode.get("restored");
 		assertEquals(latestRestored.getCheckpointId(), latestRestoredNode.get("id").asLong());
 		assertEquals(latestRestored.getRestoreTimestamp(), latestRestoredNode.get("restore_timestamp").asLong());
@@ -250,6 +313,25 @@ public class CheckpointStatsHandlerTest {
 		assertTrue(it.hasNext());
 		JsonNode inProgressNode = it.next();
 
+		PendingCheckpointStats inProgress = checkpointStats.inProgress;
+		compareInProgressCheckpoint(inProgress, inProgressNode);
+
+		assertTrue(it.hasNext());
+		JsonNode completedSavepointNode = it.next();
+
+		CompletedCheckpointStats completedSavepoint = checkpointStats.completedSavepoint;
+		compareCompletedSavepoint(completedSavepoint, completedSavepointNode);
+
+		assertTrue(it.hasNext());
+		JsonNode failedNode = it.next();
+
+		FailedCheckpointStats failed = checkpointStats.failed;
+		compareFailedCheckpoint(failed, failedNode);
+
+		assertFalse(it.hasNext());
+	}
+
+	private static void compareInProgressCheckpoint(PendingCheckpointStats inProgress, JsonNode inProgressNode) {
 		assertEquals(inProgress.getCheckpointId(), inProgressNode.get("id").asLong());
 		assertEquals(inProgress.getStatus().toString(), inProgressNode.get("status").asText());
 		assertEquals(inProgress.getProperties().isSavepoint(), inProgressNode.get("is_savepoint").asBoolean());
@@ -260,10 +342,9 @@ public class CheckpointStatsHandlerTest {
 		assertEquals(inProgress.getAlignmentBuffered(), inProgressNode.get("alignment_buffered").asLong());
 		assertEquals(inProgress.getNumberOfSubtasks(), inProgressNode.get("num_subtasks").asInt());
 		assertEquals(inProgress.getNumberOfAcknowledgedSubtasks(), inProgressNode.get("num_acknowledged_subtasks").asInt());
+	}
 
-		assertTrue(it.hasNext());
-		JsonNode completedSavepointNode = it.next();
-
+	private static void compareCompletedSavepoint(CompletedCheckpointStats completedSavepoint, JsonNode completedSavepointNode) {
 		assertEquals(completedSavepoint.getCheckpointId(), completedSavepointNode.get("id").asLong());
 		assertEquals(completedSavepoint.getStatus().toString(), completedSavepointNode.get("status").asText());
 		assertEquals(completedSavepoint.getProperties().isSavepoint(), completedSavepointNode.get("is_savepoint").asBoolean());
@@ -277,10 +358,9 @@ public class CheckpointStatsHandlerTest {
 
 		assertEquals(completedSavepoint.getExternalPath(), completedSavepointNode.get("external_path").asText());
 		assertEquals(completedSavepoint.isDiscarded(), completedSavepointNode.get("discarded").asBoolean());
+	}
 
-		assertTrue(it.hasNext());
-		JsonNode failedNode = it.next();
-
+	private static void compareFailedCheckpoint(FailedCheckpointStats failed, JsonNode failedNode) {
 		assertEquals(failed.getCheckpointId(), failedNode.get("id").asLong());
 		assertEquals(failed.getStatus().toString(), failedNode.get("status").asText());
 		assertEquals(failed.getProperties().isSavepoint(), failedNode.get("is_savepoint").asBoolean());
@@ -294,7 +374,56 @@ public class CheckpointStatsHandlerTest {
 
 		assertEquals(failed.getFailureTimestamp(), failedNode.get("failure_timestamp").asLong());
 		assertEquals(failed.getFailureMessage(), failedNode.get("failure_message").asText());
+	}
+	
+	private static class TestCheckpointStats {
+		public final AccessExecutionGraph graph;
+		public final CheckpointStatsCounts counts;
+		public final MinMaxAvgStats stateSizeSummary;
+		public final MinMaxAvgStats durationSummary;
+		public final MinMaxAvgStats alignmentBufferedSummary;
+		public final CompletedCheckpointStatsSummary summary;
+		public final CompletedCheckpointStats latestCompleted;
+		public final CompletedCheckpointStats latestSavepoint;
+		public final FailedCheckpointStats latestFailed;
+		public final RestoredCheckpointStats latestRestored;
+		public final PendingCheckpointStats inProgress;
+		public final CompletedCheckpointStats completedSavepoint;
+		public final FailedCheckpointStats failed;
+		public final CheckpointStatsHistory history;
+		public final CheckpointStatsSnapshot snapshot;
 
-		assertFalse(it.hasNext());
+		public TestCheckpointStats(
+				AccessExecutionGraph graph,
+				CheckpointStatsCounts counts,
+				MinMaxAvgStats stateSizeSummary,
+				MinMaxAvgStats durationSummary,
+				MinMaxAvgStats alignmentBufferedSummary,
+				CompletedCheckpointStatsSummary summary,
+				CompletedCheckpointStats latestCompleted,
+				CompletedCheckpointStats latestSavepoint,
+				FailedCheckpointStats latestFailed,
+				RestoredCheckpointStats latestRestored,
+				PendingCheckpointStats inProgress,
+				CompletedCheckpointStats completedSavepoint,
+				FailedCheckpointStats failed,
+				CheckpointStatsHistory history,
+				CheckpointStatsSnapshot snapshot) {
+			this.graph = graph;
+			this.counts = counts;
+			this.stateSizeSummary = stateSizeSummary;
+			this.durationSummary = durationSummary;
+			this.alignmentBufferedSummary = alignmentBufferedSummary;
+			this.summary = summary;
+			this.latestCompleted = latestCompleted;
+			this.latestSavepoint = latestSavepoint;
+			this.latestFailed = latestFailed;
+			this.latestRestored = latestRestored;
+			this.inProgress = inProgress;
+			this.completedSavepoint = completedSavepoint;
+			this.failed = failed;
+			this.history = history;
+			this.snapshot = snapshot;
+		}
 	}
 }

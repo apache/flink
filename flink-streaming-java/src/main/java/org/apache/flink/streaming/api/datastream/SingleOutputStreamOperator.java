@@ -20,15 +20,21 @@ package org.apache.flink.streaming.api.datastream;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.InvalidTypesException;
+import org.apache.flink.util.OutputTag;
+import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
+import org.apache.flink.streaming.api.transformations.SideOutputTransformation;
 import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.util.Preconditions;
+
+import java.util.HashMap;
+import java.util.Map;
 
 import static java.util.Objects.requireNonNull;
 
@@ -43,6 +49,13 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 
 	/** Indicate this is a non-parallel operator and cannot set a non-1 degree of parallelism. **/
 	protected boolean nonParallel = false;
+
+	/**
+	 * We keep track of the side outputs that were already requested and their types. With this,
+	 * we can catch the case when a side output with a matching id is requested for a different
+	 * type because this would lead to problems at runtime.
+	 */
+	private Map<OutputTag<?>, TypeInformation> requestedSideOutputs = new HashMap<>();
 
 	protected SingleOutputStreamOperator(StreamExecutionEnvironment environment, StreamTransformation<T> transformation) {
 		super(environment, transformation);
@@ -150,6 +163,45 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 				"The maximum parallelism of non parallel operator must be 1.");
 
 		transformation.setMaxParallelism(maxParallelism);
+
+		return this;
+	}
+
+	//	---------------------------------------------------------------------------
+	//	 Fine-grained resource profiles are an incomplete work-in-progress feature
+	//	 The setters are hence private at this point.
+	//	---------------------------------------------------------------------------
+
+	/**
+	 * Sets the minimum and preferred resources for this operator, and the lower and upper resource limits will
+	 * be considered in dynamic resource resize feature for future plan.
+	 *
+	 * @param minResources The minimum resources for this operator.
+	 * @param preferredResources The preferred resources for this operator.
+	 * @return The operator with set minimum and preferred resources.
+	 */
+	private SingleOutputStreamOperator<T> setResources(ResourceSpec minResources, ResourceSpec preferredResources) {
+		Preconditions.checkNotNull(minResources, "The min resources must be not null.");
+		Preconditions.checkNotNull(preferredResources, "The preferred resources must be not null.");
+		Preconditions.checkArgument(minResources.isValid() && preferredResources.isValid() && minResources.lessThanOrEqual(preferredResources),
+				"The values in resources must be not less than 0 and the preferred resources must be greater than the min resources.");
+
+		transformation.setResources(minResources, preferredResources);
+
+		return this;
+	}
+
+	/**
+	 * Sets the resources for this operator, the minimum and preferred resources are the same by default.
+	 *
+	 * @param resources The resources for this operator.
+	 * @return The operator with set minimum and preferred resources.
+	 */
+	private SingleOutputStreamOperator<T> setResources(ResourceSpec resources) {
+		Preconditions.checkNotNull(resources, "The resources must be not null.");
+		Preconditions.checkArgument(resources.isValid(), "The values in resources must be not less than 0.");
+
+		transformation.setResources(resources, resources);
 
 		return this;
 	}
@@ -375,5 +427,30 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 	public SingleOutputStreamOperator<T> slotSharingGroup(String slotSharingGroup) {
 		transformation.setSlotSharingGroup(slotSharingGroup);
 		return this;
+	}
+
+	/**
+	 * Gets the {@link DataStream} that contains the elements that are emitted from an operation
+	 * into the side output with the given {@link OutputTag}.
+	 *
+	 * @see org.apache.flink.streaming.api.functions.ProcessFunction.Context#output(OutputTag, Object)
+	 */
+	public <X> DataStream<X> getSideOutput(OutputTag<X> sideOutputTag) {
+		sideOutputTag = clean(requireNonNull(sideOutputTag));
+
+		// make a defensive copy
+		sideOutputTag = new OutputTag<X>(sideOutputTag.getId(), sideOutputTag.getTypeInfo());
+
+		TypeInformation<?> type = requestedSideOutputs.get(sideOutputTag);
+		if (type != null && !type.equals(sideOutputTag.getTypeInfo())) {
+			throw new UnsupportedOperationException("A side output with a matching id was " +
+					"already requested with a different type. This is not allowed, side output " +
+					"ids need to be unique.");
+		}
+
+		requestedSideOutputs.put(sideOutputTag, sideOutputTag.getTypeInfo());
+
+		SideOutputTransformation<X> sideOutputTransformation = new SideOutputTransformation<>(this.getTransformation(), sideOutputTag);
+		return new DataStream<>(this.getExecutionEnvironment(), sideOutputTransformation);
 	}
 }

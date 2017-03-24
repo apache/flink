@@ -30,7 +30,7 @@ import kafka.javaapi.message.ByteBufferMessageSet;
 import kafka.message.MessageAndOffset;
 
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
-import org.apache.flink.util.StringUtils;
+import org.apache.flink.util.ExceptionUtils;
 
 import org.apache.kafka.common.Node;
 
@@ -295,7 +295,7 @@ class SimpleConsumerThread<T> extends Thread {
 						}
 						else if (code != ErrorMapping.NoError()) {
 							exception += "\nException for " + fp.getTopic() +":"+ fp.getPartition() + ": " +
-									StringUtils.stringifyException(ErrorMapping.exceptionFor(code));
+									ExceptionUtils.stringifyException(ErrorMapping.exceptionFor(code));
 						}
 					}
 					if (partitionsToGetOffsetsFor.size() > 0) {
@@ -502,7 +502,7 @@ class SimpleConsumerThread<T> extends Thread {
 					if ((code = response.errorCode(part.getTopic(), part.getPartition())) != ErrorMapping.NoError()) {
 						exception.append("\nException for topic=").append(part.getTopic())
 							.append(" partition=").append(part.getPartition()).append(": ")
-							.append(StringUtils.stringifyException(ErrorMapping.exceptionFor(code)));
+							.append(ExceptionUtils.stringifyException(ErrorMapping.exceptionFor(code)));
 					}
 				}
 				if (++retries >= 3) {

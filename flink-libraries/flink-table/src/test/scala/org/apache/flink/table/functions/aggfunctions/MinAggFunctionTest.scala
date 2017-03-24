@@ -21,7 +21,7 @@ import java.math.BigDecimal
 import org.apache.flink.table.functions.AggregateFunction
 
 /**
-  * Test case for built-in max aggregate function
+  * Test case for built-in min aggregate function
   *
   * @tparam T the type for the aggregation result
   */
@@ -61,6 +61,8 @@ abstract class MinAggFunctionTest[T: Numeric] extends AggFunctionTestBase[T] {
     minVal,
     null.asInstanceOf[T]
   )
+
+  override def supportRetraction: Boolean = false
 }
 
 class ByteMinAggFunctionTest extends MinAggFunctionTest[Byte] {
@@ -154,6 +156,8 @@ class BooleanMinAggFunctionTest extends AggFunctionTestBase[Boolean] {
   )
 
   override def aggregator: AggregateFunction[Boolean] = new BooleanMinAggFunction()
+
+  override def supportRetraction: Boolean = false
 }
 
 class DecimalMinAggFunctionTest extends AggFunctionTestBase[BigDecimal] {
@@ -185,4 +189,39 @@ class DecimalMinAggFunctionTest extends AggFunctionTestBase[BigDecimal] {
   )
 
   override def aggregator: AggregateFunction[BigDecimal] = new DecimalMinAggFunction()
+
+  override def supportRetraction: Boolean = false
+}
+
+class StringMinAggFunctionTest extends AggFunctionTestBase[String] {
+  override def inputValueSets: Seq[Seq[_]] = Seq(
+    Seq(
+      new String("a"),
+      new String("b"),
+      new String("c"),
+      null.asInstanceOf[String],
+      new String("d")
+    ),
+    Seq(
+      null.asInstanceOf[String],
+      null.asInstanceOf[String],
+      null.asInstanceOf[String]
+    ),
+    Seq(
+      new String("1House"),
+      new String("Household"),
+      new String("house"),
+      new String("household")
+    )
+  )
+
+  override def expectedResults: Seq[String] = Seq(
+    new String("a"),
+    null.asInstanceOf[String],
+    new String("1House")
+  )
+
+  override def aggregator: AggregateFunction[String] = new StringMinAggFunction()
+
+  override def supportRetraction: Boolean = false
 }

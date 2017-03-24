@@ -61,6 +61,8 @@ abstract class MaxAggFunctionTest[T: Numeric] extends AggFunctionTestBase[T] {
     maxVal,
     null.asInstanceOf[T]
   )
+
+  override def supportRetraction: Boolean = false
 }
 
 class ByteMaxAggFunctionTest extends MaxAggFunctionTest[Byte] {
@@ -154,6 +156,8 @@ class BooleanMaxAggFunctionTest extends AggFunctionTestBase[Boolean] {
   )
 
   override def aggregator: AggregateFunction[Boolean] = new BooleanMaxAggFunction()
+
+  override def supportRetraction: Boolean = false
 }
 
 class DecimalMaxAggFunctionTest extends AggFunctionTestBase[BigDecimal] {
@@ -185,4 +189,39 @@ class DecimalMaxAggFunctionTest extends AggFunctionTestBase[BigDecimal] {
   )
 
   override def aggregator: AggregateFunction[BigDecimal] = new DecimalMaxAggFunction()
+
+  override def supportRetraction: Boolean = false
+}
+
+class StringMaxAggFunctionTest extends AggFunctionTestBase[String] {
+  override def inputValueSets: Seq[Seq[_]] = Seq(
+    Seq(
+      new String("a"),
+      new String("b"),
+      new String("c"),
+      null.asInstanceOf[String],
+      new String("d")
+    ),
+    Seq(
+      null.asInstanceOf[String],
+      null.asInstanceOf[String],
+      null.asInstanceOf[String]
+    ),
+    Seq(
+      new String("1House"),
+      new String("Household"),
+      new String("house"),
+      new String("household")
+    )
+  )
+
+  override def expectedResults: Seq[String] = Seq(
+    new String("d"),
+    null.asInstanceOf[String],
+    new String("household")
+  )
+
+  override def aggregator: AggregateFunction[String] = new StringMaxAggFunction()
+
+  override def supportRetraction: Boolean = false
 }

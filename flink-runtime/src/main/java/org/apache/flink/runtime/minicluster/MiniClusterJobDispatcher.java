@@ -22,6 +22,8 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
@@ -63,6 +65,9 @@ public class MiniClusterJobDispatcher {
 	/** services for discovery, leader election, and recovery */
 	private final HighAvailabilityServices haServices;
 
+	/** services for heartbeating */
+	private final HeartbeatServices heartbeatServices;
+
 	/** all the services that the JobManager needs, such as BLOB service, factories, etc */
 	private final JobManagerServices jobManagerServices;
 
@@ -94,8 +99,9 @@ public class MiniClusterJobDispatcher {
 			Configuration config,
 			RpcService rpcService,
 			HighAvailabilityServices haServices,
+			HeartbeatServices heartbeatServices,
 			MetricRegistry metricRegistry) throws Exception {
-		this(config, haServices, metricRegistry, 1, new RpcService[] { rpcService });
+		this(config, haServices, heartbeatServices, metricRegistry, 1, new RpcService[] { rpcService });
 	}
 
 	/**
@@ -113,6 +119,7 @@ public class MiniClusterJobDispatcher {
 	public MiniClusterJobDispatcher(
 			Configuration config,
 			HighAvailabilityServices haServices,
+			HeartbeatServices heartbeatServices,
 			MetricRegistry metricRegistry,
 			int numJobManagers,
 			RpcService[] rpcServices) throws Exception {
@@ -123,6 +130,7 @@ public class MiniClusterJobDispatcher {
 		this.configuration = checkNotNull(config);
 		this.rpcServices = rpcServices;
 		this.haServices = checkNotNull(haServices);
+		this.heartbeatServices = checkNotNull(heartbeatServices);
 		this.metricRegistry = checkNotNull(metricRegistry);
 		this.numJobManagers = numJobManagers;
 
@@ -182,7 +190,7 @@ public class MiniClusterJobDispatcher {
 			checkState(!shutdown, "mini cluster is shut down");
 			checkState(runners == null, "mini cluster can only execute one job at a time");
 
-			DetachedFinalizer finalizer = new DetachedFinalizer(numJobManagers);
+			DetachedFinalizer finalizer = new DetachedFinalizer(job.getJobID(), numJobManagers);
 
 			this.runners = startJobRunners(job, finalizer, finalizer);
 		}
@@ -217,6 +225,7 @@ public class MiniClusterJobDispatcher {
 		finally {
 			// always clear the status for the next job
 			runners = null;
+			clearJobRunningState(job.getJobID());
 		}
 	}
 
@@ -227,23 +236,21 @@ public class MiniClusterJobDispatcher {
 
 		LOG.info("Starting {} JobMaster(s) for job {} ({})", numJobManagers, job.getName(), job.getJobID());
 
-		// we first need to mark the job as running in the HA services, so that the
-		// JobManager leader will recognize that it as work to do
-		try {
-			haServices.getRunningJobsRegistry().setJobRunning(job.getJobID());
-		}
-		catch (Throwable t) {
-			throw new JobExecutionException(job.getJobID(),
-					"Could not register the job at the high-availability services", t);
-		}
-
 		// start all JobManagers
 		JobManagerRunner[] runners = new JobManagerRunner[numJobManagers];
 		for (int i = 0; i < numJobManagers; i++) {
 			try {
-				runners[i] = new JobManagerRunner(job, configuration,
-						rpcServices[i], haServices, jobManagerServices, metricRegistry, 
-						onCompletion, errorHandler);
+				runners[i] = new JobManagerRunner(
+					ResourceID.generate(),
+					job,
+					configuration,
+					rpcServices[i],
+					haServices,
+					heartbeatServices,
+					jobManagerServices,
+					metricRegistry,
+					onCompletion,
+					errorHandler);
 				runners[i].start();
 			}
 			catch (Throwable t) {
@@ -273,6 +280,17 @@ public class MiniClusterJobDispatcher {
 		return runners;
 	}
 
+	private void clearJobRunningState(JobID jobID) {
+		// we mark the job as finished in the HA services, so need
+		// to remove the data after job finished
+		try {
+			haServices.getRunningJobsRegistry().clearJob(jobID);
+		}
+		catch (Throwable t) {
+			LOG.warn("Could not clear job {} at the status registry of the high-availability services", jobID, t);
+		}
+	}
+
 	// ------------------------------------------------------------------------
 	//  test methods to simulate job master failures
 	// ------------------------------------------------------------------------
@@ -298,9 +316,12 @@ public class MiniClusterJobDispatcher {
 	 */
 	private class DetachedFinalizer implements OnCompletionActions, FatalErrorHandler {
 
+		private final JobID jobID;
+
 		private final AtomicInteger numJobManagersToWaitFor;
 
-		private DetachedFinalizer(int numJobManagersToWaitFor) {
+		private DetachedFinalizer(JobID jobID, int numJobManagersToWaitFor) {
+			this.jobID = jobID;
 			this.numJobManagersToWaitFor = new AtomicInteger(numJobManagersToWaitFor);
 		}
 
@@ -327,6 +348,7 @@ public class MiniClusterJobDispatcher {
 		private void decrementCheckAndCleanup() {
 			if (numJobManagersToWaitFor.decrementAndGet() == 0) {
 				MiniClusterJobDispatcher.this.runners = null;
+				MiniClusterJobDispatcher.this.clearJobRunningState(jobID);
 			}
 		}
 	}

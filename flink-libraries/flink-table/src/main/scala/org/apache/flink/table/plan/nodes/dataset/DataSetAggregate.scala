@@ -23,12 +23,14 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
+import org.apache.flink.api.common.functions.GroupReduceFunction
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.BatchTableEnvironment
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.nodes.CommonAggregate
-import org.apache.flink.table.runtime.aggregate.AggregateUtil
+import org.apache.flink.table.runtime.aggregate.{AggregateUtil, DataSetPreAggFunction}
 import org.apache.flink.table.runtime.aggregate.AggregateUtil.CalcitePair
 import org.apache.flink.types.Row
 
@@ -44,9 +46,7 @@ class DataSetAggregate(
     inputType: RelDataType,
     grouping: Array[Int],
     inGroupingSet: Boolean)
-  extends SingleRel(cluster, traitSet, inputNode)
-  with CommonAggregate
-  with DataSetRel {
+  extends SingleRel(cluster, traitSet, inputNode) with CommonAggregate with DataSetRel {
 
   override def deriveRowType(): RelDataType = rowRelDataType
 
@@ -63,11 +63,13 @@ class DataSetAggregate(
   }
 
   override def toString: String = {
-    s"Aggregate(${ if (!grouping.isEmpty) {
-      s"groupBy: (${groupingToString(inputType, grouping)}), "
-    } else {
-      ""
-    }}select: (${aggregationToString(inputType, grouping, getRowType, namedAggregates, Nil)}))"
+    s"Aggregate(${
+      if (!grouping.isEmpty) {
+        s"groupBy: (${groupingToString(inputType, grouping)}), "
+      } else {
+        ""
+      }
+    }select: (${aggregationToString(inputType, grouping, getRowType, namedAggregates, Nil)}))"
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
@@ -76,7 +78,7 @@ class DataSetAggregate(
       .item("select", aggregationToString(inputType, grouping, getRowType, namedAggregates, Nil))
   }
 
-  override def computeSelfCost (planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
+  override def computeSelfCost(planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
 
     val child = this.getInput
     val rowCnt = metadata.getRowCount(child)
@@ -87,50 +89,68 @@ class DataSetAggregate(
 
   override def translateToPlan(tableEnv: BatchTableEnvironment): DataSet[Row] = {
 
-    val config = tableEnv.getConfig
-
-    val groupingKeys = grouping.indices.toArray
-
-    val mapFunction = AggregateUtil.createPrepareMapFunction(
-      namedAggregates,
-      grouping,
-      inputType)
-
-    val groupReduceFunction = AggregateUtil.createAggregateGroupReduceFunction(
-      namedAggregates,
-      inputType,
-      rowRelDataType,
-      grouping,
-      inGroupingSet)
+    val (
+      preAgg: Option[DataSetPreAggFunction],
+      preAggType: Option[TypeInformation[Row]],
+      finalAgg: GroupReduceFunction[Row, Row]
+      ) = AggregateUtil.createDataSetAggregateFunctions(
+        namedAggregates,
+        inputType,
+        rowRelDataType,
+        grouping,
+        inGroupingSet)
 
     val inputDS = getInput.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
 
     val aggString = aggregationToString(inputType, grouping, getRowType, namedAggregates, Nil)
-    val prepareOpName = s"prepare select: ($aggString)"
-    val mappedInput = inputDS
-      .map(mapFunction)
-      .name(prepareOpName)
 
     val rowTypeInfo = FlinkTypeFactory.toInternalRowTypeInfo(getRowType).asInstanceOf[RowTypeInfo]
 
-    if (groupingKeys.length > 0) {
+    if (grouping.length > 0) {
       // grouped aggregation
       val aggOpName = s"groupBy: (${groupingToString(inputType, grouping)}), " +
         s"select: ($aggString)"
 
-      mappedInput.asInstanceOf[DataSet[Row]]
-        .groupBy(groupingKeys: _*)
-        .reduceGroup(groupReduceFunction)
-        .returns(rowTypeInfo)
-        .name(aggOpName)
+      if (preAgg.isDefined) {
+        inputDS
+          // pre-aggregation
+          .groupBy(grouping: _*)
+          .combineGroup(preAgg.get)
+          .returns(preAggType.get)
+          .name(aggOpName)
+          // final aggregation
+          .groupBy(grouping.indices: _*)
+          .reduceGroup(finalAgg)
+          .returns(rowTypeInfo)
+          .name(aggOpName)
+      } else {
+        inputDS
+          .groupBy(grouping: _*)
+          .reduceGroup(finalAgg)
+          .returns(rowTypeInfo)
+          .name(aggOpName)
+      }
     }
     else {
       // global aggregation
       val aggOpName = s"select:($aggString)"
-      mappedInput.asInstanceOf[DataSet[Row]]
-        .reduceGroup(groupReduceFunction)
-        .returns(rowTypeInfo)
-        .name(aggOpName)
+
+      if (preAgg.isDefined) {
+        inputDS
+          // pre-aggregation
+          .mapPartition(preAgg.get)
+          .returns(preAggType.get)
+          .name(aggOpName)
+          // final aggregation
+          .reduceGroup(finalAgg)
+          .returns(rowTypeInfo)
+          .name(aggOpName)
+      } else {
+        inputDS
+          .reduceGroup(finalAgg)
+          .returns(rowTypeInfo)
+          .name(aggOpName)
+      }
     }
   }
 }
