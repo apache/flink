@@ -44,6 +44,7 @@ import org.apache.flink.table.typeutils.TypeCheckUtils._
 import org.apache.flink.table.typeutils.{RowIntervalTypeInfo, TimeIntervalTypeInfo}
 import org.apache.flink.types.Row
 
+
 import scala.collection.JavaConversions._
 import scala.collection.mutable.ArrayBuffer
 
@@ -1141,6 +1142,48 @@ object AggregateUtil {
 
   private def gcd(a: Long, b: Long): Long = {
     if (b == 0) a else gcd(b, a % b)
+  }
+  
+  /**
+    * Create an [[org.apache.flink.streaming.api.functions.ProcessFunction]] to evaluate final
+    * aggregate value over a window with processing time boundaries.
+    *
+    * @param namedAggregates List of calls to aggregate functions and their output field names
+    * @param inputType Input row type
+    * @param timeBoundary time limit of the window boundary expressed in milliseconds
+    * @param isPartitioned Flag to indicate whether the input is partitioned or not
+    * @return [[org.apache.flink.streaming.api.functions.ProcessFunction]]
+    */
+  private[flink] def createTimeBoundedProcessingOverProcessFunction(
+    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+    inputType: RelDataType,
+    timeBoundary: Long,
+    isPartitioned: Boolean = true): ProcessFunction[Row, Row] = {
+
+    val (aggFields, aggregates) =
+      transformToAggregateFunctions(
+        namedAggregates.map(_.getKey),
+        inputType,
+        needRetraction = false)
+
+    val aggregationStateType: RowTypeInfo =
+      createDataSetAggregateBufferDataType(Array(), aggregates, inputType)
+
+    if (isPartitioned) {
+      new ProcTimeBoundedProcessingOverProcessFunction(
+        aggregates,
+        aggFields,
+        inputType.getFieldCount,
+        aggregationStateType,
+        timeBoundary)
+    } else {
+      new ProcTimeBoundedNonPartitionedProcessingOverProcessFunction(
+        aggregates,
+        aggFields,
+        inputType.getFieldCount,
+        aggregationStateType,
+        timeBoundary)
+    }
   }
 }
 
