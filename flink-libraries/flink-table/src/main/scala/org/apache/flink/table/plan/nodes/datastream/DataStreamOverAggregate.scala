@@ -113,23 +113,28 @@ class DataStreamOverAggregate(
           if (overWindow.isRows) {
             // ROWS clause bounded OVER window
             throw new TableException(
-              "ROWS clause bounded proc-time OVER window no supported yet.")
+              "processing-time OVER ROWS PRECEDING window is not supported yet.")
           } else {
             // RANGE clause bounded OVER window
             throw new TableException(
-              "RANGE clause bounded proc-time OVER window no supported yet.")
+              "processing-time OVER RANGE PRECEDING window is not supported yet.")
           }
         } else {
           throw new TableException(
-            "OVER window only support ProcessingTime UNBOUNDED PRECEDING and CURRENT ROW " +
-                "condition.")
+            "processing-time OVER RANGE FOLLOWING window is not supported yet.")
         }
       case _: RowTimeType =>
         // row-time OVER window
         if (overWindow.lowerBound.isPreceding &&
               overWindow.lowerBound.isUnbounded && overWindow.upperBound.isCurrentRow) {
-          // unbounded preceding OVER window
-          createUnboundedAndCurrentRowEventTimeOverWindow(inputDS)
+          if (overWindow.isRows) {
+            // unbounded preceding OVER ROWS window
+            createUnboundedAndCurrentRowEventTimeOverWindow(inputDS)
+          } else {
+            // unbounded preceding OVER RANGE window
+            throw new TableException(
+              "row-time OVER RANGE UNBOUNDED PRECEDING window is not supported yet.")
+          }
         } else if (overWindow.lowerBound.isPreceding && overWindow.upperBound.isCurrentRow) {
           // bounded OVER window
           if (overWindow.isRows) {
@@ -138,11 +143,11 @@ class DataStreamOverAggregate(
           } else {
             // RANGE clause bounded OVER window
             throw new TableException(
-              "RANGE clause bounded row-time OVER window no supported yet.")
+              "row-time OVER RANGE PRECEDING window is not supported yet.")
           }
         } else {
           throw new TableException(
-            "row-time OVER window only support CURRENT ROW condition.")
+            "row-time OVER RANGE FOLLOWING window is not supported yet.")
         }
       case _ =>
         throw new TableException(s"Unsupported time type {$timeType}")

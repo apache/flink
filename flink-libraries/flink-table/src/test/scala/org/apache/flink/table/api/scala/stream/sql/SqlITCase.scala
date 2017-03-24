@@ -448,15 +448,15 @@ class SqlITCase extends StreamingWithStateTestBase {
 
     val sqlQuery = "SELECT a, b, c, " +
       "SUM(b) over (" +
-      "partition by a order by rowtime() range between unbounded preceding and current row), " +
+      "partition by a order by rowtime() rows between unbounded preceding and current row), " +
       "count(b) over (" +
-      "partition by a order by rowtime() range between unbounded preceding and current row), " +
+      "partition by a order by rowtime() rows between unbounded preceding and current row), " +
       "avg(b) over (" +
-      "partition by a order by rowtime() range between unbounded preceding and current row), " +
+      "partition by a order by rowtime() rows between unbounded preceding and current row), " +
       "max(b) over (" +
-      "partition by a order by rowtime() range between unbounded preceding and current row), " +
+      "partition by a order by rowtime() rows between unbounded preceding and current row), " +
       "min(b) over (" +
-      "partition by a order by rowtime() range between unbounded preceding and current row) " +
+      "partition by a order by rowtime() rows between unbounded preceding and current row) " +
       "from T1"
 
     val data = Seq(
@@ -526,15 +526,15 @@ class SqlITCase extends StreamingWithStateTestBase {
 
     val sqlQuery = "SELECT a, b, c, " +
       "SUM(b) over (" +
-      "partition by a order by rowtime() range between unbounded preceding and current row), " +
+      "partition by a order by rowtime() rows between unbounded preceding and current row), " +
       "count(b) over (" +
-      "partition by a order by rowtime() range between unbounded preceding and current row), " +
+      "partition by a order by rowtime() rows between unbounded preceding and current row), " +
       "avg(b) over (" +
-      "partition by a order by rowtime() range between unbounded preceding and current row), " +
+      "partition by a order by rowtime() rows between unbounded preceding and current row), " +
       "max(b) over (" +
-      "partition by a order by rowtime() range between unbounded preceding and current row), " +
+      "partition by a order by rowtime() rows between unbounded preceding and current row), " +
       "min(b) over (" +
-      "partition by a order by rowtime() range between unbounded preceding and current row) " +
+      "partition by a order by rowtime() rows between unbounded preceding and current row) " +
       "from T1"
 
     val data = Seq(
@@ -596,11 +596,11 @@ class SqlITCase extends StreamingWithStateTestBase {
     env.setParallelism(1)
 
     val sqlQuery = "SELECT a, b, c, " +
-      "SUM(b) over (order by rowtime() range between unbounded preceding and current row), " +
-      "count(b) over (order by rowtime() range between unbounded preceding and current row), " +
-      "avg(b) over (order by rowtime() range between unbounded preceding and current row), " +
-      "max(b) over (order by rowtime() range between unbounded preceding and current row), " +
-      "min(b) over (order by rowtime() range between unbounded preceding and current row) " +
+      "SUM(b) over (order by rowtime() rows between unbounded preceding and current row), " +
+      "count(b) over (order by rowtime() rows between unbounded preceding and current row), " +
+      "avg(b) over (order by rowtime() rows between unbounded preceding and current row), " +
+      "max(b) over (order by rowtime() rows between unbounded preceding and current row), " +
+      "min(b) over (order by rowtime() rows between unbounded preceding and current row) " +
       "from T1"
 
     val data = Seq(
@@ -651,11 +651,11 @@ class SqlITCase extends StreamingWithStateTestBase {
     env.setParallelism(1)
 
     val sqlQuery = "SELECT a, b, c, " +
-      "SUM(b) over (order by rowtime() range between unbounded preceding and current row), " +
-      "count(b) over (order by rowtime() range between unbounded preceding and current row), " +
-      "avg(b) over (order by rowtime() range between unbounded preceding and current row), " +
-      "max(b) over (order by rowtime() range between unbounded preceding and current row), " +
-      "min(b) over (order by rowtime() range between unbounded preceding and current row) " +
+      "SUM(b) over (order by rowtime() rows between unbounded preceding and current row), " +
+      "count(b) over (order by rowtime() rows between unbounded preceding and current row), " +
+      "avg(b) over (order by rowtime() rows between unbounded preceding and current row), " +
+      "max(b) over (order by rowtime() rows between unbounded preceding and current row), " +
+      "min(b) over (order by rowtime() rows between unbounded preceding and current row) " +
       "from T1"
 
     val data = Seq(
