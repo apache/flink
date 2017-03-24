@@ -60,7 +60,7 @@ public class JobManagerOptions {
 	/** JVM heap size (in megabytes) for the JobManager */
 	public static final ConfigOption<Integer> JOB_MANAGER_HEAP_MEMORY =
 		key("jobmanager.heap.mb")
-			.defaultValue(1024);
+		.defaultValue(1024);
 
 	/**
 	 * The maximum number of prior execution attempts kept in history.

@@ -41,8 +41,8 @@ public class TaskManagerOptions {
 
 	/** JVM heap size (in megabytes) for the TaskManagers */
 	public static final ConfigOption<Integer> TASK_MANAGER_HEAP_MEMORY =
-		   key("taskmanager.heap.mb")
-		   .defaultValue(1024);
+			key("taskmanager.heap.mb")
+			.defaultValue(1024);
 
 	// ------------------------------------------------------------------------
 	//  Network Options
