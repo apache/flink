@@ -183,7 +183,10 @@ object FlinkRuleSets {
 
       //  scan optimization
       PushProjectIntoStreamTableSourceScanRule.INSTANCE,
-      PushFilterIntoStreamTableSourceScanRule.INSTANCE
+      PushFilterIntoStreamTableSourceScanRule.INSTANCE,
+      
+      DataStreamJoinRule.INSTANCE,
+      DataStreamNonWindowAggregateRule.INSTANCE
   )
 
 }

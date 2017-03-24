@@ -317,4 +317,47 @@ class SqlITCase extends StreamingWithStateTestBase {
     result.addSink(new StreamITCase.StringSink)
     env.execute()
   }
+  
+  @Test
+  def testInnerQuery(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.testResults = mutable.MutableList()
+
+    // for sum aggregation ensure that every time the order of each element is consistent
+    env.setParallelism(1)
+
+    val t1 = env.fromCollection(data).toTable(tEnv).as('a, 'b, 'c)
+
+    tEnv.registerTable("s1", t1)
+    
+     val t2 = StreamTestData.get5TupleDataStream(env)
+         .toTable(tEnv).as('a2, 'b2, 'c2, 'd2, 'e2)
+    
+    tEnv.registerTable("s2", t2)
+
+    var  sqlquery="SELECT a, (SELECT a2 FROM s2)  FROM s1"
+
+    val result = tEnv.sql(sqlquery).toDataStream[Row]
+    result.addSink(new StreamITCase.StringSink)
+    env.execute()
+
+    val expected = mutable.MutableList(
+      "1,28",
+      "2,36",
+      "2,56",
+      "3,1",
+      "3,1",
+      "3,1",
+      "4,3", 
+      "4,6", 
+      "4,10",
+      "4,15",
+      "5,21",
+      "5,21",
+      "5,21",
+      "5,21",
+      "5,21")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
 }
