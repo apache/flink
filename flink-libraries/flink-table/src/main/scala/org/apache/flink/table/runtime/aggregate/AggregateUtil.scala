@@ -785,7 +785,7 @@ object AggregateUtil {
     (propPos._1, propPos._2)
   }
 
-  private def transformToAggregateFunctions(
+  private[flink] def transformToAggregateFunctions(
       aggregateCalls: Seq[AggregateCall],
       inputType: RelDataType,
       needRetraction: Boolean)
