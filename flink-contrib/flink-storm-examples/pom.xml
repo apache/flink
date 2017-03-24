@@ -315,7 +315,6 @@ under the License.
 						</goals>
 						<configuration>
 							<finalName>WordCount-StormTopology</finalName>
-
 							<artifactSet>
 								<includes>
 									<include>org.apache.storm:storm-core</include>

@@ -78,7 +78,7 @@ under the License.
 							<goal>shade</goal>
 						</goals>
 						<configuration>
-							<shadedArtifactAttached>false</shadedArtifactAttached>
+							<shadedArtifactAttached>${shade.shadedArtifactAttached}</shadedArtifactAttached>
 							<createDependencyReducedPom>true</createDependencyReducedPom>
 							<dependencyReducedPomLocation>${project.basedir}/target/dependency-reduced-pom.xml</dependencyReducedPomLocation>
 							<promoteTransitiveDependencies>true</promoteTransitiveDependencies>

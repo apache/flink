@@ -160,6 +160,7 @@ under the License.
 									<goal>shade</goal>
 								</goals>
 								<configuration>
+									<shadedArtifactAttached>${shade.shadedArtifactAttached}</shadedArtifactAttached>
 									<artifactSet>
 										<excludes combine.self="override"></excludes>
 									</artifactSet>
