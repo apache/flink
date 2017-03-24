@@ -32,6 +32,7 @@ import org.apache.calcite.rel.core.Window
 import org.apache.calcite.rel.core.Window.Group
 import java.util.{List => JList}
 
+import org.apache.flink.api.java.functions.NullByteKeySelector
 import org.apache.flink.table.functions.{ProcTimeType, RowTimeType}
 import org.apache.flink.table.runtime.aggregate.AggregateUtil.CalcitePair
 
@@ -112,7 +113,12 @@ class DataStreamOverAggregate(
               "condition.")
         }
       case _: RowTimeType =>
-        throw new TableException("OVER Window of the EventTime type is not currently supported.")
+        if (overWindow.lowerBound.isUnbounded && overWindow.upperBound.isCurrentRow) {
+          createUnboundedAndCurrentRowEventTimeOverWindow(inputDS)
+        } else {
+          throw new TableException(
+            "OVER window only support RowTime UNBOUNDED PRECEDING and CURRENT ROW condition.")
+        }
       case _ =>
         throw new TableException(s"Unsupported time type {$timeType}")
     }
@@ -156,6 +162,42 @@ class DataStreamOverAggregate(
             .name(aggOpName)
             .asInstanceOf[DataStream[Row]]
         }
+    result
+  }
+
+  def createUnboundedAndCurrentRowEventTimeOverWindow(
+    inputDS: DataStream[Row]): DataStream[Row]  = {
+
+    val overWindow: Group = logicWindow.groups.get(0)
+    val partitionKeys: Array[Int] = overWindow.keys.toArray
+    val namedAggregates: Seq[CalcitePair[AggregateCall, String]] = generateNamedAggregates
+
+    // get the output types
+    val rowTypeInfo = FlinkTypeFactory.toInternalRowTypeInfo(getRowType).asInstanceOf[RowTypeInfo]
+
+    val processFunction = AggregateUtil.createUnboundedEventTimeOverProcessFunction(
+      namedAggregates,
+      inputType)
+
+    val result: DataStream[Row] =
+      // partitioned aggregation
+      if (partitionKeys.nonEmpty) {
+        inputDS.keyBy(partitionKeys: _*)
+          .process(processFunction)
+          .returns(rowTypeInfo)
+          .name(aggOpName)
+          .asInstanceOf[DataStream[Row]]
+      }
+      // global non-partitioned aggregation
+      else {
+        inputDS.keyBy(new NullByteKeySelector[Row])
+          .process(processFunction)
+          .setParallelism(1)
+          .setMaxParallelism(1)
+          .returns(rowTypeInfo)
+          .name(aggOpName)
+          .asInstanceOf[DataStream[Row]]
+      }
     result
   }
 
