@@ -1090,11 +1090,10 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 
 	/**
 	 * For testing: This waits until the job execution has finished.
-	 * @throws InterruptedException
 	 */
 	public void waitUntilFinished() throws InterruptedException {
 		synchronized (progressLock) {
-			while (!state.isGloballyTerminalState()) {
+			while (!state.isTerminalState()) {
 				progressLock.wait();
 			}
 		}
