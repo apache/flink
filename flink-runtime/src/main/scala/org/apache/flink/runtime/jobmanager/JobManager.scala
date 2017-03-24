@@ -1365,27 +1365,12 @@ class JobManager(
                 val savepointPath = savepointSettings.getRestorePath()
                 val allowNonRestored = savepointSettings.allowNonRestoredState()
 
-                log.info(s"Starting job from savepoint '$savepointPath'" +
-                  (if (allowNonRestored) " (allowing non restored state)" else "") + ".")
-
-                  // load the savepoint as a checkpoint into the system
-                  val savepoint: CompletedCheckpoint = SavepointLoader.loadAndValidateSavepoint(
-                    jobId,
-                    executionGraph.getAllVertices,
-                    savepointPath,
-                    executionGraph.getUserClassLoader,
-                    allowNonRestored)
-
-                executionGraph.getCheckpointCoordinator.getCheckpointStore
-                  .addCheckpoint(savepoint)
-
-                // Reset the checkpoint ID counter
-                val nextCheckpointId: Long = savepoint.getCheckpointID + 1
-                log.info(s"Reset the checkpoint ID to $nextCheckpointId")
-                executionGraph.getCheckpointCoordinator.getCheckpointIdCounter
-                  .setCount(nextCheckpointId)
-
-                executionGraph.restoreLatestCheckpointedState(true, allowNonRestored)
+                executionGraph.getCheckpointCoordinator.restoreSavepoint(
+                  savepointPath, 
+                  allowNonRestored,
+                  executionGraph.getAllVertices,
+                  executionGraph.getUserClassLoader
+                )
               } catch {
                 case e: Exception =>
                   jobInfo.notifyClients(

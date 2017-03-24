@@ -24,6 +24,7 @@ import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -45,6 +46,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyLong;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -184,52 +186,60 @@ public class PendingCheckpointTest {
 	@SuppressWarnings("unchecked")
 	public void testAbortDiscardsState() throws Exception {
 		CheckpointProperties props = new CheckpointProperties(false, true, false, false, false, false, false);
-		TaskState state = mock(TaskState.class);
 		QueueExecutor executor = new QueueExecutor();
+		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+
+		TaskState state = mock(TaskState.class);
+		doNothing().when(state).register(any(SharedStateRegistry.class));
+		doNothing().when(state).unregister(any(SharedStateRegistry.class));
 
 		String targetDir = tmpFolder.newFolder().getAbsolutePath();
 
 		// Abort declined
-		PendingCheckpoint pending = createPendingCheckpoint(props, targetDir, executor);
+		PendingCheckpoint pending = createPendingCheckpoint(props, targetDir, executor, sharedStateRegistry);
 		setTaskState(pending, state);
 
 		pending.abortDeclined();
 		// execute asynchronous discard operation
 		executor.runQueuedCommands();
 		verify(state, times(1)).discardState();
+		verify(state, times(1)).unregister(sharedStateRegistry);
 
 		// Abort error
 		Mockito.reset(state);
 
-		pending = createPendingCheckpoint(props, targetDir, executor);
+		pending = createPendingCheckpoint(props, targetDir, executor, sharedStateRegistry);
 		setTaskState(pending, state);
 
 		pending.abortError(new Exception("Expected Test Exception"));
 		// execute asynchronous discard operation
 		executor.runQueuedCommands();
 		verify(state, times(1)).discardState();
+		verify(state, times(1)).unregister(sharedStateRegistry);
 
 		// Abort expired
 		Mockito.reset(state);
 
-		pending = createPendingCheckpoint(props, targetDir, executor);
+		pending = createPendingCheckpoint(props, targetDir, executor, sharedStateRegistry);
 		setTaskState(pending, state);
 
 		pending.abortExpired();
 		// execute asynchronous discard operation
 		executor.runQueuedCommands();
 		verify(state, times(1)).discardState();
+		verify(state, times(1)).unregister(sharedStateRegistry);
 
 		// Abort subsumed
 		Mockito.reset(state);
 
-		pending = createPendingCheckpoint(props, targetDir, executor);
+		pending = createPendingCheckpoint(props, targetDir, executor, sharedStateRegistry);
 		setTaskState(pending, state);
 
 		pending.abortSubsumed();
 		// execute asynchronous discard operation
 		executor.runQueuedCommands();
 		verify(state, times(1)).discardState();
+		verify(state, times(1)).unregister(sharedStateRegistry);
 	}
 
 	/**
@@ -337,10 +347,15 @@ public class PendingCheckpointTest {
 	// ------------------------------------------------------------------------
 
 	private static PendingCheckpoint createPendingCheckpoint(CheckpointProperties props, String targetDirectory) {
-		return createPendingCheckpoint(props, targetDirectory, Executors.directExecutor());
+		return createPendingCheckpoint(props, targetDirectory, Executors.directExecutor(), new SharedStateRegistry());
 	}
 
-	private static PendingCheckpoint createPendingCheckpoint(CheckpointProperties props, String targetDirectory, Executor executor) {
+	private static PendingCheckpoint createPendingCheckpoint(
+			CheckpointProperties props,
+			String targetDirectory,
+			Executor executor,
+			SharedStateRegistry sharedStateRegistry) {
+
 		Map<ExecutionAttemptID, ExecutionVertex> ackTasks = new HashMap<>(ACK_TASKS);
 		return new PendingCheckpoint(
 			new JobID(),
@@ -349,7 +364,8 @@ public class PendingCheckpointTest {
 			ackTasks,
 			props,
 			targetDirectory,
-			executor);
+			executor,
+			sharedStateRegistry);
 	}
 
 	@SuppressWarnings("unchecked")

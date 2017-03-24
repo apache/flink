@@ -23,8 +23,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStats.DiscardCallback;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.state.StateObject;
-import org.apache.flink.runtime.state.StateRegistry;
 import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.util.ExceptionUtils;
@@ -34,8 +32,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 import java.io.Serializable;
-import java.util.Collection;
-import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -188,36 +184,22 @@ public class CompletedCheckpoint implements Serializable {
 		return props;
 	}
 
-	public void register(StateRegistry stateRegistry) {
-		for (TaskState taskState : taskStates.values()) {
-			taskState.register(stateRegistry);
-		}
-	}
-	
-	public List<StateObject> unregister(StateRegistry stateRegistry) {
-		for (TaskState taskState : taskStates.values()) {
-			taskState.unregister(stateRegistry);
-		}
-
-		return stateRegistry.getAndResetDiscardedStates();
-	}
-
-	public boolean subsume(Collection<? extends StateObject> discardedStates) throws Exception {
+	public boolean subsume() throws Exception {
 		if (props.discardOnSubsumed()) {
-			discard(discardedStates);
+			discard();
 			return true;
 		}
 
 		return false;
 	}
 
-	public boolean discard(JobStatus jobStatus, Collection<? extends StateObject> discardedStates) throws Exception {
+	public boolean discard(JobStatus jobStatus) throws Exception {
 		if (jobStatus == JobStatus.FINISHED && props.discardOnJobFinished() ||
 				jobStatus == JobStatus.CANCELED && props.discardOnJobCancelled() ||
 				jobStatus == JobStatus.FAILED && props.discardOnJobFailed() ||
 				jobStatus == JobStatus.SUSPENDED && props.discardOnJobSuspended()) {
 
-			discard(discardedStates);
+			discard();
 			return true;
 		} else {
 			if (externalPointer != null) {
@@ -229,7 +211,7 @@ public class CompletedCheckpoint implements Serializable {
 		}
 	}
 
-	void discard(Collection<? extends StateObject> discardedStates) throws Exception {
+	void discard() throws Exception {
 		try {
 			// collect exceptions and continue cleanup
 			Exception exception = null;
@@ -243,9 +225,9 @@ public class CompletedCheckpoint implements Serializable {
 				}
 			}
 
-			// drop unreferenced state objects
+			// discard private state objects
 			try {
-				StateUtil.bestEffortDiscardAllStateObjects(discardedStates);
+				StateUtil.bestEffortDiscardAllStateObjects(taskStates.values());
 			} catch (Exception e) {
 				exception = ExceptionUtils.firstOrSuppressed(e, exception);
 			}

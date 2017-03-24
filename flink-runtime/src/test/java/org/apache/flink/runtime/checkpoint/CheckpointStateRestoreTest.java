@@ -255,7 +255,7 @@ public class CheckpointStateRestoreTest {
 		}
 		CompletedCheckpoint checkpoint = new CompletedCheckpoint(new JobID(), 0, 1, 2, new HashMap<>(checkpointTaskStates));
 
-		coord.getCheckpointStore().addCheckpoint(checkpoint);
+		coord.getCheckpointStore().addCheckpoint(checkpoint, coord.getSharedStateRegistry());
 
 		coord.restoreLatestCheckpointedState(tasks, true, false);
 		coord.restoreLatestCheckpointedState(tasks, true, true);
@@ -273,7 +273,7 @@ public class CheckpointStateRestoreTest {
 
 		checkpoint = new CompletedCheckpoint(new JobID(), 1, 2, 3, new HashMap<>(checkpointTaskStates));
 
-		coord.getCheckpointStore().addCheckpoint(checkpoint);
+		coord.getCheckpointStore().addCheckpoint(checkpoint, coord.getSharedStateRegistry());
 
 		// (i) Allow non restored state (should succeed)
 		coord.restoreLatestCheckpointedState(tasks, true, true);

@@ -20,7 +20,7 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.CompositeStateHandle;
-import org.apache.flink.runtime.state.StateRegistry;
+import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collection;
@@ -130,16 +130,16 @@ public class TaskState implements CompositeStateHandle {
 	}
 
 	@Override
-	public void register(StateRegistry snapshotRegistry) {
+	public void register(SharedStateRegistry sharedStateRegistry) {
 		for (SubtaskState subtaskState : subtaskStates.values()) {
-			subtaskState.register(snapshotRegistry);
+			subtaskState.register(sharedStateRegistry);
 		}
 	}
 
 	@Override
-	public void unregister(StateRegistry snapshotRegistry) {
+	public void unregister(SharedStateRegistry sharedStateRegistry) {
 		for (SubtaskState subtaskState : subtaskStates.values()) {
-			subtaskState.unregister(snapshotRegistry);
+			subtaskState.unregister(sharedStateRegistry);
 		}
 	}
 

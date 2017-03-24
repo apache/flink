@@ -29,6 +29,8 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.ChainedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
+import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
@@ -43,6 +45,7 @@ import javax.annotation.concurrent.GuardedBy;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Executor;
@@ -92,6 +95,9 @@ public class PendingCheckpoint {
 	/** The executor for potentially blocking I/O operations, like state disposal */
 	private final Executor executor;
 
+	/** The registry where shared states are registered */
+	private final SharedStateRegistry sharedStateRegistry;
+
 	private int numAcknowledgedTasks;
 
 	private boolean discarded;
@@ -111,7 +117,8 @@ public class PendingCheckpoint {
 			Map<ExecutionAttemptID, ExecutionVertex> verticesToConfirm,
 			CheckpointProperties props,
 			String targetDirectory,
-			Executor executor) {
+			Executor executor,
+			SharedStateRegistry sharedStateRegistry) {
 
 		// Sanity check
 		if (props.externalizeCheckpoint() && targetDirectory == null) {
@@ -128,6 +135,7 @@ public class PendingCheckpoint {
 		this.props = checkNotNull(props);
 		this.targetDirectory = targetDirectory;
 		this.executor = Preconditions.checkNotNull(executor);
+		this.sharedStateRegistry = Preconditions.checkNotNull(sharedStateRegistry);
 
 		this.taskStates = new HashMap<>();
 		this.acknowledgedTasks = new HashSet<>(verticesToConfirm.size());
@@ -491,6 +499,7 @@ public class PendingCheckpoint {
 	}
 
 	private void dispose(boolean releaseState) {
+
 		synchronized (lock) {
 			try {
 				numAcknowledgedTasks = -1;
@@ -498,11 +507,19 @@ public class PendingCheckpoint {
 					executor.execute(new Runnable() {
 						@Override
 						public void run() {
+							List<StateObject> unreferencedSharedStates = sharedStateRegistry.unregisterAll(taskStates.values());
+
+							try {
+								StateUtil.bestEffortDiscardAllStateObjects(unreferencedSharedStates);
+							} catch (Throwable t) {
+								LOG.warn("Could not properly dispose unreferenced shared states.");
+							}
+
 							try {
 								StateUtil.bestEffortDiscardAllStateObjects(taskStates.values());
 							} catch (Throwable t) {
-								LOG.warn("Could not properly dispose the pending checkpoint {} of job {}.", 
-										checkpointId, jobId, t);
+								LOG.warn("Could not properly dispose the private states in the pending checkpoint {} of job {}.",
+									checkpointId, jobId, t);
 							} finally {
 								taskStates.clear();
 							}

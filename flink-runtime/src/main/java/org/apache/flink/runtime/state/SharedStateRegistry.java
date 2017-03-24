@@ -18,9 +18,12 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
 
+import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,59 +31,162 @@ import java.util.Map;
 /**
  * A {@code SharedStateRegistry} will be deployed in the 
  * {@link org.apache.flink.runtime.checkpoint.CheckpointCoordinator} to 
- * maintain the reference count of the {@link SharedStateHandle}s.
+ * maintain the reference count of those state objects shared among different
+ * checkpoints. Each shared state object must be identified by a unique key. 
  */
-public class SharedStateRegistry {
+public class SharedStateRegistry implements Serializable {
+
+	private static final long serialVersionUID = -8357254413007773970L;
 
 	/** All registered state objects */
-	private final Map<String, Tuple2<SharedStateHandle, Integer>> registeredStates = new HashMap<>();
+	private final Map<String, Tuple2<StateObject, Integer>> registeredStates = new HashMap<>();
 
 	/** All state objects that are not referenced any more */
-	private List<StateObject> discardedStates = new ArrayList<>();
+	private transient final List<StateObject> discardedStates = new ArrayList<>();
 
 	/**
 	 * Register the state in the registry
 	 *
+	 * @param key The key of the state to register
 	 * @param state The state to register
 	 */
-	public void register(StateObject state) {
-		Integer referenceCount = registeredStates.get(state);
+	public void register(String key, StateObject state) {
+		Tuple2<StateObject, Integer> stateAndRefCnt = registeredStates.get(key);
 
-		if (referenceCount != null) {
-			registeredStates.put(state, referenceCount + 1);
+		if (stateAndRefCnt == null) {
+			registeredStates.put(key, new Tuple2<>(state, 1));
 		} else {
-			registeredStates.put(state, 1);
+			if (!stateAndRefCnt.f0.equals(state)) {
+				throw new IllegalStateException("Cannot register a key with different states.");
+			}
+
+			stateAndRefCnt.f1++;
 		}
 	}
 
 	/**
 	 * Decrease the reference count of the state in the registry
 	 *
-	 * @param state The state to unregister
+	 * @param key The key of the state to unregister
 	 */
-	public void unregister(StateObject state) {
-		Integer referenceCount = registeredStates.get(state);
+	public void unregister(String key) {
+		Tuple2<StateObject, Integer> stateAndRefCnt = registeredStates.get(key);
 
-		if (referenceCount == null) {
+		if (stateAndRefCnt == null) {
 			throw new IllegalStateException("Cannot unregister an unexisted state.");
 		}
 
-		referenceCount--;
+		stateAndRefCnt.f1--;
 
-		if (referenceCount == 0) {
-			registeredStates.remove(state);
-			discardedStates.add(state);
+		// Remove the state from the registry when it's not referenced any more.
+		if (stateAndRefCnt.f1 == 0) {
+			registeredStates.remove(key);
+			discardedStates.add(stateAndRefCnt.f0);
 		}
 	}
 
 	/**
-	 * Gets and resets the list of discarded state objects
-	 *
-	 * @return A list of cached unreferenced state objects
+	 * Register all the shared states in the given state handles.
+	 * 
+	 * @param stateHandles The state handles to register their shared states
 	 */
-	public List<StateObject> getAndResetDiscardedStates() {
-		List<StateObject> result = new ArrayList<>(discardedStates);
-		discardedStates.clear();
+	public void registerAll(Collection<? extends CompositeStateHandle> stateHandles) {
+		synchronized (this) {
+			if (stateHandles != null) {
+				for (CompositeStateHandle stateHandle : stateHandles) {
+					stateHandle.register(this);
+				}
+			}
+		}
+	}
+	
+	/**
+	 * Register all the shared states in the given state handle.
+	 * 
+	 * @param stateHandle The state handle to register its shared states
+	 */
+	public void registerAll(CompositeStateHandle stateHandle) {
+		if (stateHandle != null) {
+			synchronized (this) {
+				stateHandle.register(this);
+			}
+		}
+	}
+
+	/**
+	 * Unregister all the shared states in the given state handles and return
+	 * those unreferenced states after these shared states are unregistered.
+	 * 
+	 * @param stateHandles The state handles to unregister their shared states
+	 * @return The states that are not referenced any more
+	 */
+	public List<StateObject> unregisterAll(Collection<? extends CompositeStateHandle> stateHandles) {
+		synchronized (this) {
+			discardedStates.clear();
+
+			if (stateHandles != null) {
+				for (CompositeStateHandle stateHandle : stateHandles) {
+					stateHandle.unregister(this);
+				}
+			}
+
+			return discardedStates;
+		}
+
+	}
+
+	/**
+	 * Unregister all the shared states in the given state handles and return
+	 * those unreferenced states after these shared states are unregistered.
+	 *
+	 * @param stateHandle The state handle to unregister its shared states
+	 * @return The states that are not referenced any more
+	 */
+	public List<StateObject> unregisterAll(CompositeStateHandle stateHandle) {
+		if (stateHandle == null) {
+			return null;
+		} else {
+			synchronized (this) {
+				discardedStates.clear();
+
+				stateHandle.unregister(this);
+
+				return discardedStates;
+			}
+		}
+	}
+
+	@VisibleForTesting
+	int getReferenceCount(String key) {
+		Tuple2<StateObject, Integer> stateAndRefCnt = registeredStates.get(key);
+
+		return stateAndRefCnt == null ? 0 : stateAndRefCnt.f1;
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+
+		SharedStateRegistry that = (SharedStateRegistry) o;
+
+		return registeredStates.equals(that.registeredStates);
+	}
+
+	@Override
+	public int hashCode() {
+		int result = registeredStates.hashCode();
+		result = 31 * result + discardedStates.hashCode();
 		return result;
+	}
+
+	@Override
+	public String toString() {
+		return "SharedStateRegistry{" + "registeredStates=" + registeredStates +
+			", discardedStates=" + discardedStates + '}';
 	}
 }

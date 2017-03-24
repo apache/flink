@@ -22,28 +22,32 @@ package org.apache.flink.runtime.state;
  * Base of all snapshots that are taken by {@link StateBackend}s and some other
  * components in tasks.
  *
- * <p>Each snapshot is composed of a collection of {@link StateObject}s. The
- * {@link StateObject}s in a completed checkpoint may be referenced by other
- * completed checkpoints. To avoid the deletion of those objects still in use,
- * the handle should register all its objects when the checkpoint completes and
- * unregister its objects when the checkpoint is discarded.
+ * <p>Each snapshot is composed of a collection of {@link StateObject}s some of 
+ * which may be referenced by other checkpoints. The shared states will be 
+ * registered at the given {@link SharedStateRegistry} when the handle is 
+ * received by the {@link org.apache.flink.runtime.checkpoint.CheckpointCoordinator}
+ * and will be discarded when the checkpoint is discarded.
+ * 
+ * <p>The {@link SharedStateRegistry} is responsible for the discarding of the 
+ * shared states. The composite state handle should only delete those private
+ * states in the {@link StateObject#discardState()} method.
  */
 public interface CompositeStateHandle extends StateObject {
 
 	/**
-	 * This method is called when the checkpoint is added into
-	 * {@link org.apache.flink.runtime.checkpoint.CompletedCheckpointStore}.
-	 * That happens when the pending checkpoint succeeds to complete or the
-	 * completed checkpoint is reloaded in the recovery. In both cases, the
-	 * snapshot handle should register all its objects in the given
-	 * {@link StateRegistry}.
+	 * Register shared states in the given {@link SharedStateRegistry}. This 
+	 * method is called when the state handle is received by the
+	 * {@link org.apache.flink.runtime.checkpoint.CheckpointCoordinator}.
+	 * 
+	 * @param stateRegistry The registry where shared states are registered.
 	 */
-	void register(StateRegistry stateRegistry);
+	void register(SharedStateRegistry stateRegistry);
 
 	/**
-	 * This method is called when the completed checkpoint is discarded. In such
-	 * cases, the snapshot handle should unregister all its objects. An object
-	 * will be deleted if it is not referenced by any checkpoint.
+	 * Unregister shared states in the given {@link SharedStateRegistry}. This
+	 * method is called when the state handle is discarded.
+	 * 
+	 * @param stateRegistry The registry where shared states are registered.
 	 */
-	void unregister(StateRegistry stateRegistry);
+	void unregister(SharedStateRegistry stateRegistry);
 }

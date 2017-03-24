@@ -22,8 +22,8 @@ import org.apache.flink.runtime.state.ChainedStateHandle;
 import org.apache.flink.runtime.state.CompositeStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
+import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.StateObject;
-import org.apache.flink.runtime.state.StateRegistry;
 import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.slf4j.Logger;
@@ -144,21 +144,13 @@ public class SubtaskState implements CompositeStateHandle {
 	}
 
 	@Override
-	public void register(StateRegistry stateRegistry) {
-		stateRegistry.register(legacyOperatorState);
-		stateRegistry.register(managedOperatorState);
-		stateRegistry.register(rawOperatorState);
-		stateRegistry.register(managedKeyedState);
-		stateRegistry.register(rawKeyedState);
+	public void register(SharedStateRegistry sharedStateRegistry) {
+		// No shared states
 	}
 
 	@Override
-	public void unregister(StateRegistry stateRegistry) {
-		stateRegistry.unregister(legacyOperatorState);
-		stateRegistry.unregister(managedOperatorState);
-		stateRegistry.unregister(rawOperatorState);
-		stateRegistry.unregister(managedKeyedState);
-		stateRegistry.unregister(rawKeyedState);
+	public void unregister(SharedStateRegistry sharedStateRegistry) {
+		// No shared states
 	}
 
 	@Override

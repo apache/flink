@@ -20,8 +20,9 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
+import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.StateObject;
-import org.apache.flink.runtime.state.StateRegistry;
+import org.apache.flink.runtime.state.StateUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,9 +42,6 @@ public class StandaloneCompletedCheckpointStore implements CompletedCheckpointSt
 	/** The maximum number of checkpoints to retain (at least 1). */
 	private final int maxNumberOfCheckpointsToRetain;
 
-	/** The registry for completed checkpoints to register used state objects. */
-	private final StateRegistry stateRegistry;
-
 	/** The completed checkpoints. */
 	private final ArrayDeque<CompletedCheckpoint> checkpoints;
 
@@ -58,7 +56,6 @@ public class StandaloneCompletedCheckpointStore implements CompletedCheckpointSt
 		checkArgument(maxNumberOfCheckpointsToRetain >= 1, "Must retain at least one checkpoint.");
 		this.maxNumberOfCheckpointsToRetain = maxNumberOfCheckpointsToRetain;
 		this.checkpoints = new ArrayDeque<>(maxNumberOfCheckpointsToRetain + 1);
-		this.stateRegistry = new StateRegistry();
 	}
 
 	@Override
@@ -67,16 +64,22 @@ public class StandaloneCompletedCheckpointStore implements CompletedCheckpointSt
 	}
 
 	@Override
-	public void addCheckpoint(CompletedCheckpoint checkpoint) throws Exception {
-
-		checkpoint.register(stateRegistry);
+	public void addCheckpoint(CompletedCheckpoint checkpoint, SharedStateRegistry sharedStateRegistry) throws Exception {
+		
 		checkpoints.addLast(checkpoint);
 
 		if (checkpoints.size() > maxNumberOfCheckpointsToRetain) {
 			try {
-				CompletedCheckpoint oldCheckpoint = checkpoints.remove();
-				List<StateObject> discardedStates = oldCheckpoint.unregister(stateRegistry);
-				oldCheckpoint.subsume(discardedStates);
+				CompletedCheckpoint checkpointToSubsume = checkpoints.removeFirst();
+
+				List<StateObject> unreferencedSharedStates = sharedStateRegistry.unregisterAll(checkpointToSubsume.getTaskStates().values());
+				try {
+					StateUtil.bestEffortDiscardAllStateObjects(unreferencedSharedStates);
+				} catch (Exception e) {
+					LOG.warn("Could not properly discard unreferenced shared states.", e);
+				}
+
+				checkpointToSubsume.subsume();
 			} catch (Exception e) {
 				LOG.warn("Fail to subsume the old checkpoint.", e);
 			}
@@ -104,13 +107,19 @@ public class StandaloneCompletedCheckpointStore implements CompletedCheckpointSt
 	}
 
 	@Override
-	public void shutdown(JobStatus jobStatus) throws Exception {
+	public void shutdown(JobStatus jobStatus, SharedStateRegistry sharedStateRegistry) throws Exception {
 		try {
 			LOG.info("Shutting down");
 
 			for (CompletedCheckpoint checkpoint : checkpoints) {
-				List<StateObject> discardedStates = checkpoint.unregister(stateRegistry);
-				checkpoint.discard(jobStatus, discardedStates);
+				List<StateObject> unreferencedSharedStates = sharedStateRegistry.unregisterAll(checkpoint.getTaskStates().values());
+				try {
+					StateUtil.bestEffortDiscardAllStateObjects(unreferencedSharedStates);
+				} catch (Exception e) {
+					LOG.warn("Could not properly discard unreferenced shared states.", e);
+				}
+
+				checkpoint.discard(jobStatus);
 			}
 		} finally {
 			checkpoints.clear();
