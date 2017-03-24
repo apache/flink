@@ -28,6 +28,10 @@ import org.apache.flink.table.runtime.aggregate.AggregateUtil._
 import org.apache.flink.table.functions.{ProcTimeType, RowTimeType}
 
 import scala.collection.JavaConverters._
+import org.apache.calcite.rex.RexInputRef
+import org.apache.flink.table.api.TableException
+import org.apache.calcite.rel.core.Window
+
 
 trait OverAggregate {
 
@@ -60,6 +64,8 @@ trait OverAggregate {
       s"BETWEEN ${overWindow.lowerBound} AND ${overWindow.upperBound}"
     }
   }
+  
+  
 
   private[flink] def aggregationToString(
     inputType: RelDataType,

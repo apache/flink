@@ -17,24 +17,41 @@
  */
 package org.apache.flink.table.plan.nodes.datastream
 
-import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
+import java.util.{ List => JList }
+
+import org.apache.flink.table.runtime.aggregate.AggregateUtil.CalcitePair
+import org.apache.calcite.plan.RelOptCluster
+import org.apache.calcite.plan.RelTraitSet
+import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.RelWriter
+import org.apache.calcite.rel.SingleRel
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
-import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
-import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.table.api.{StreamTableEnvironment, TableException}
-import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.runtime.aggregate._
-import org.apache.flink.table.plan.nodes.OverAggregate
-import org.apache.flink.types.Row
 import org.apache.calcite.rel.core.Window
 import org.apache.calcite.rel.core.Window.Group
-import java.util.{List => JList}
+import org.apache.calcite.sql.`type`.BasicSqlType
+import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.table.api.StreamTableEnvironment
+import org.apache.flink.table.api.TableException
+import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.functions.ProcTimeType
+import org.apache.flink.table.functions.RowTimeType
+import org.apache.flink.table.plan.nodes.OverAggregate
+import org.apache.flink.table.runtime.aggregate.AggregateUtil
+import org.apache.flink.types.Row
+import org.apache.calcite.sql.`type`.IntervalSqlType
+import org.apache.calcite.rex.RexInputRef
+import org.apache.flink.streaming.api.windowing.time.Time
+import org.apache.flink.api.java.tuple.Tuple
+import org.apache.flink.util.Collector
+import java.util.concurrent.TimeUnit
+import org.apache.calcite.plan.{RelOptCluster, RelTraitSet} 
+import org.apache.flink.api.java.functions.NullByteKeySelector
+
+
 
 import org.apache.flink.api.java.functions.NullByteKeySelector
-import org.apache.flink.table.functions.{ProcTimeType, RowTimeType}
-import org.apache.flink.table.runtime.aggregate.AggregateUtil.CalcitePair
 
 class DataStreamOverAggregate(
     logicWindow: Window,
@@ -115,9 +132,7 @@ class DataStreamOverAggregate(
             throw new TableException(
               "processing-time OVER ROWS PRECEDING window is not supported yet.")
           } else {
-            // RANGE clause bounded OVER window
-            throw new TableException(
-              "processing-time OVER RANGE PRECEDING window is not supported yet.")
+            createTimeBoundedProcessingTimeOverWindow(inputDS)
           }
         } else {
           throw new TableException(
@@ -273,6 +288,57 @@ class DataStreamOverAggregate(
           .asInstanceOf[DataStream[Row]]
       }
     result
+  }
+  
+  def createTimeBoundedProcessingTimeOverWindow(inputDS: DataStream[Row]): DataStream[Row] = {
+
+    val overWindow: Group = logicWindow.groups.get(0)
+    val partitionKeys: Array[Int] = overWindow.keys.toArray
+    val namedAggregates: Seq[CalcitePair[AggregateCall, String]] = generateNamedAggregates
+
+    val index = overWindow.lowerBound.getOffset.asInstanceOf[RexInputRef].getIndex
+    val count = input.getRowType.getFieldCount
+    val lowerBoundIndex = index - count
+    
+    
+    val timeBoundary = logicWindow.constants.get(lowerBoundIndex).getValue2 match {
+      case bd: java.math.BigDecimal => bd.longValue()
+      case _ => throw new TableException("OVER Window boundaries must be numeric")
+    }
+
+     // get the output types
+    val rowTypeInfo = FlinkTypeFactory.toInternalRowTypeInfo(getRowType).asInstanceOf[RowTypeInfo]
+         
+    val result: DataStream[Row] =
+        // partitioned aggregation
+        if (partitionKeys.nonEmpty) {
+          
+          val processFunction = AggregateUtil.createTimeBoundedProcessingOverProcessFunction(
+            namedAggregates,
+            inputType,
+            timeBoundary)
+          
+          inputDS
+          .keyBy(partitionKeys: _*)
+          .process(processFunction)
+          .returns(rowTypeInfo)
+          .name(aggOpName)
+          .asInstanceOf[DataStream[Row]]
+        } else { // non-partitioned aggregation
+          val processFunction = AggregateUtil.createTimeBoundedProcessingOverProcessFunction(
+            namedAggregates,
+            inputType,
+            timeBoundary,
+            false)
+          
+          inputDS
+            .keyBy(new NullByteKeySelector[Row])
+            .process(processFunction).setParallelism(1).setMaxParallelism(1)
+            .returns(rowTypeInfo)
+            .name(aggOpName)
+            .asInstanceOf[DataStream[Row]]
+        }
+    result         
   }
 
   private def generateNamedAggregates: Seq[CalcitePair[AggregateCall, String]] = {
