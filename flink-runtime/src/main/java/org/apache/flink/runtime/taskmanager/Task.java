@@ -380,11 +380,6 @@ public class Task implements Runnable, TaskActions {
 
 		// finally, create the executing thread, but do not start it
 		executingThread = new Thread(TASK_THREADS_GROUP, this, taskNameWithSubtask);
-
-		if (this.metrics != null && this.metrics.getIOMetricGroup() != null) {
-			// add metrics for buffers
-			this.metrics.getIOMetricGroup().initializeBufferMetrics(this);
-		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -576,6 +571,11 @@ public class Task implements Runnable, TaskActions {
 			LOG.info("Registering task at network: {}.", this);
 
 			network.registerTask(this);
+
+			if (this.metrics != null && this.metrics.getIOMetricGroup() != null) {
+				// add metrics for buffers
+				this.metrics.getIOMetricGroup().initializeBufferMetrics(this);
+			}
 
 			// next, kick off the background copying of files for the distributed cache
 			try {
