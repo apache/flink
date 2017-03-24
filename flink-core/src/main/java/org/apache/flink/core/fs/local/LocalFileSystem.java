@@ -43,6 +43,8 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.UnknownHostException;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.DirectoryNotEmptyException;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
@@ -267,11 +269,35 @@ public class LocalFileSystem extends FileSystem {
 		final File dstFile = pathToFile(dst);
 		//Files.move fails if the destination directory doesn't exist
 		if(dstFile.getParentFile()!= null && !dstFile.getParentFile().exists()){
-			Files.createDirectories(dstFile.getParentFile().toPath());
+			dstFile.getParentFile().mkdirs();
 		}
-		//this throws an IOException if any error occurs
-		Files.move(srcFile.toPath(), dstFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-		return true;
+		try {
+			Files.move(srcFile.toPath(), dstFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+			return true;
+		} catch (UnsupportedOperationException ex) {
+			// if the array contains a copy option that is not supported
+			LOG.error("UnsupportedOperationException while renaming " + src + " to " + dst, ex);
+		} 
+		catch (FileAlreadyExistsException ex) {
+			//if the target file exists but can't be replaced because REPLACE_EXISTING option isn't specified
+			LOG.error("FileAlreadyExistsException while renaming " + src + " to " + dst, ex);
+		} 
+		catch (DirectoryNotEmptyException ex) {
+			//if the REPLACE_EXISTING option is specified but the file cannot be replaced because it is a non-empty directory
+			LOG.error("DirectoryNotEmptyException while renaming " + src + " to " + dst, ex);
+		} 
+		catch (AtomicMoveNotSupportedException ex) {
+			//if the options array contains the ATOMIC_MOVE option but the file cannot be moved as an atomic file system operation
+			LOG.error("AtomicMoveNotSupportedException while renaming " + src + " to " + dst, ex);
+		} 
+		catch (SecurityException ex) {
+			//If security manager is installed and SecurityManager#checkWrite fails on write access to both source and target files
+			LOG.error("SecurityException while renaming " + src + " to " + dst, ex);
+		} catch (IOException ex) {
+			//if any other I/O error occurs
+			throw ex;
+		}
+		return false;
 	}
 
 	@Override
