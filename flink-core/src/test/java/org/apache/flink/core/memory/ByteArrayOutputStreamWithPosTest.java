@@ -18,14 +18,30 @@
 
 package org.apache.flink.core.memory;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 public class ByteArrayOutputStreamWithPosTest {
 	@Test
 	public void setPositionWhenBufferIsFull() throws Exception {
-		ByteArrayOutputStreamWithPos stream = new ByteArrayOutputStreamWithPos(32);
-		stream.write(new byte[32]);
-		stream.setPosition(stream.getPosition());
+
+		int initBufferSize = 32;
+
+		ByteArrayOutputStreamWithPos stream = new ByteArrayOutputStreamWithPos(initBufferSize);
+
+		stream.write(new byte[initBufferSize]);
+
+		// check whether the buffer is filled fully
+		Assert.assertEquals(initBufferSize, stream.getBuf().length);
+
+		// check current position is the end of the buffer
+		Assert.assertEquals(initBufferSize, stream.getPosition());
+
+		stream.setPosition(initBufferSize);
+
+		// confirm current position is at where we expects.
+		Assert.assertEquals(initBufferSize, stream.getPosition());
+
 	}
 
 }
