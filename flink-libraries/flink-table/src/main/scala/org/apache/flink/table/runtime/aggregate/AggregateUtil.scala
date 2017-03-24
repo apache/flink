@@ -104,7 +104,6 @@ object AggregateUtil {
   private[flink] def createRowsClauseBoundedOverProcessFunction(
     namedAggregates: Seq[CalcitePair[AggregateCall, String]],
     inputType: RelDataType,
-    inputFields: Array[Int],
     precedingOffset: Long,
     isRowTimeType: Boolean): ProcessFunction[Row, Row] = {
 
@@ -114,26 +113,49 @@ object AggregateUtil {
         inputType,
         needRetraction = true)
 
-    val aggregationStateType: RowTypeInfo =
-      createDataSetAggregateBufferDataType(Array(), aggregates, inputType)
+    val aggregationStateType: RowTypeInfo = createAccumulatorRowType(aggregates)
+    val inputRowType = FlinkTypeFactory.toInternalRowTypeInfo(inputType).asInstanceOf[RowTypeInfo]
 
-    val inputRowType: RowTypeInfo =
-      createDataSetAggregateBufferDataType(inputFields, Array(), inputType)
+    if (isRowTimeType) {
+      new RowsClauseBoundedOverProcessFunction(
+        aggregates,
+        aggFields,
+        inputType.getFieldCount,
+        aggregationStateType,
+        inputRowType,
+        precedingOffset
+      )
+    } else {
+      throw TableException(
+        "Bounded partitioned proc-time OVER aggregation is not supported yet.")
+    }
+  }
 
-      val processFunction = if (isRowTimeType) {
-        new RowsClauseBoundedOverProcessFunction(
-          aggregates,
-          aggFields,
-          inputType.getFieldCount,
-          aggregationStateType,
-          inputRowType,
-          precedingOffset
-        )
-      } else {
-        throw TableException(
-          "Bounded partitioned proc-time OVER aggregation is not supported yet.")
-      }
-      processFunction
+  /**
+    * Create an [[ProcessFunction]] to evaluate final aggregate value.
+    *
+    * @param namedAggregates List of calls to aggregate functions and their output field names
+    * @param inputType Input row type
+    * @return [[UnboundedEventTimeOverProcessFunction]]
+    */
+  private[flink] def createUnboundedEventTimeOverProcessFunction(
+   namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+   inputType: RelDataType): UnboundedEventTimeOverProcessFunction = {
+
+    val (aggFields, aggregates) =
+      transformToAggregateFunctions(
+        namedAggregates.map(_.getKey),
+        inputType,
+        needRetraction = false)
+
+    val aggregationStateType: RowTypeInfo = createAccumulatorRowType(aggregates)
+
+    new UnboundedEventTimeOverProcessFunction(
+      aggregates,
+      aggFields,
+      inputType.getFieldCount,
+      aggregationStateType,
+      FlinkTypeFactory.toInternalRowTypeInfo(inputType))
   }
 
   /**
@@ -595,7 +617,7 @@ object AggregateUtil {
       // compute preaggregation type
       val preAggFieldTypes = gkeyInFields
         .map(inputType.getFieldList.get(_).getType)
-        .map(FlinkTypeFactory.toTypeInfo) ++ createAccumulatorType(inputType, aggregates)
+        .map(FlinkTypeFactory.toTypeInfo) ++ createAccumulatorType(aggregates)
       val preAggRowType = new RowTypeInfo(preAggFieldTypes: _*)
 
       (
@@ -701,7 +723,7 @@ object AggregateUtil {
 
     val aggResultTypes = namedAggregates.map(a => FlinkTypeFactory.toTypeInfo(a.left.getType))
 
-    val accumulatorRowType = createAccumulatorRowType(inputType, aggregates)
+    val accumulatorRowType = createAccumulatorRowType(aggregates)
     val aggResultRowType = new RowTypeInfo(aggResultTypes: _*)
     val aggFunction = new AggregateAggFunction(aggregates, aggFields)
 
@@ -1029,7 +1051,6 @@ object AggregateUtil {
   }
 
   private def createAccumulatorType(
-      inputType: RelDataType,
       aggregates: Array[TableAggregateFunction[_]]): Seq[TypeInformation[_]] = {
 
     val aggTypes: Seq[TypeInformation[_]] =
@@ -1068,7 +1089,7 @@ object AggregateUtil {
         .map(FlinkTypeFactory.toTypeInfo)
 
     // get all field data types of all intermediate aggregates
-    val aggTypes: Seq[TypeInformation[_]] = createAccumulatorType(inputType, aggregates)
+    val aggTypes: Seq[TypeInformation[_]] = createAccumulatorType(aggregates)
 
     // concat group key types, aggregation types, and window key types
     val allFieldTypes: Seq[TypeInformation[_]] = windowKeyTypes match {
@@ -1079,10 +1100,9 @@ object AggregateUtil {
   }
 
   private def createAccumulatorRowType(
-      inputType: RelDataType,
       aggregates: Array[TableAggregateFunction[_]]): RowTypeInfo = {
 
-    val aggTypes: Seq[TypeInformation[_]] = createAccumulatorType(inputType, aggregates)
+    val aggTypes: Seq[TypeInformation[_]] = createAccumulatorType(aggregates)
 
     new RowTypeInfo(aggTypes: _*)
   }
