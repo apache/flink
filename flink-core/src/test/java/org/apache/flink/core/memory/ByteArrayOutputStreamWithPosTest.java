@@ -39,7 +39,7 @@ public class ByteArrayOutputStreamWithPosTest {
 
 		stream.setPosition(initBufferSize);
 
-		// confirm current position is at where we expects.
+		// confirm current position is at where we expect.
 		Assert.assertEquals(initBufferSize, stream.getPosition());
 
 	}
