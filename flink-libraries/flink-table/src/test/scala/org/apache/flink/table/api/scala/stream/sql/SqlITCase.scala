@@ -20,15 +20,21 @@ package org.apache.flink.table.api.scala.stream.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.api.{TableEnvironment, TableException}
+import org.apache.flink.table.api.{ TableEnvironment, TableException }
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.scala.stream.utils.{StreamingWithStateTestBase, StreamITCase,
-StreamTestData}
+import org.apache.flink.table.api.scala.stream.utils.{
+  StreamingWithStateTestBase,
+  StreamITCase,
+  StreamTestData
+}
 import org.apache.flink.types.Row
 import org.junit.Assert._
 import org.junit._
+import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService
 
 import scala.collection.mutable
+import org.apache.flink.streaming.api.functions.source.SourceFunction
+import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
 
 class SqlITCase extends StreamingWithStateTestBase {
 
@@ -294,8 +300,8 @@ class SqlITCase extends StreamingWithStateTestBase {
   }
 
   /**
-    *  All aggregates must be computed on the same window.
-    */
+   *  All aggregates must be computed on the same window.
+   */
   @Test(expected = classOf[TableException])
   def testMultiWindow(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
@@ -317,4 +323,180 @@ class SqlITCase extends StreamingWithStateTestBase {
     result.addSink(new StreamITCase.StringSink)
     env.execute()
   }
+
+  @Test
+  def testAvgSumAggregatationPartition(): Unit = {
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    env.setParallelism(1)
+    StreamITCase.testResults = mutable.MutableList()
+
+    val sqlQuery = "SELECT a, AVG(c) OVER (PARTITION BY a ORDER BY procTime()" +
+      "RANGE BETWEEN INTERVAL '10' SECOND PRECEDING AND CURRENT ROW) AS avgC," +
+      "SUM(c) OVER (PARTITION BY a ORDER BY procTime()" +
+      "RANGE BETWEEN INTERVAL '10' SECOND PRECEDING AND CURRENT ROW) as sumC FROM MyTable"
+
+    val t = StreamTestData.get5TupleDataStream(env)
+      .toTable(tEnv).as('a, 'b, 'c, 'd, 'e)
+
+    tEnv.registerTable("MyTable", t)
+
+    val result = tEnv.sql(sqlQuery).toDataStream[Row]
+    result.addSink(new StreamITCase.StringSink)
+    env.execute()
+
+    val expected = mutable.MutableList(
+      "1,0,0",
+      "2,1,1",
+      "2,1,3",
+      "3,3,3",
+      "3,3,7",
+      "3,4,12",
+      "4,6,13",
+      "4,6,6",
+      "4,7,21",
+      "4,7,30",
+      "5,10,10",
+      "5,10,21",
+      "5,11,33",
+      "5,11,46",
+      "5,12,60")
+
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testAvgSumAggregatationNonPartition(): Unit = {
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    env.setParallelism(1)
+    StreamITCase.testResults = mutable.MutableList()
+
+    val sqlQuery = "SELECT a, Count(c) OVER (ORDER BY procTime()" +
+      "RANGE BETWEEN INTERVAL '10' SECOND PRECEDING AND CURRENT ROW) AS avgC," +
+      "MIN(c) OVER (ORDER BY procTime()" +
+      "RANGE BETWEEN INTERVAL '10' SECOND PRECEDING AND CURRENT ROW) as sumC FROM MyTable"
+
+    val t = StreamTestData.get5TupleDataStream(env)
+      .toTable(tEnv).as('a, 'b, 'c, 'd, 'e)
+
+    tEnv.registerTable("MyTable", t)
+
+    val result = tEnv.sql(sqlQuery).toDataStream[Row]
+    result.addSink(new StreamITCase.StringSink)
+    env.execute()
+
+    val expected = mutable.MutableList(
+      "1,1,0",
+      "2,2,0",
+      "2,3,0",
+      "3,4,0",
+      "3,5,0",
+      "3,6,0",
+      "4,7,0",
+      "4,8,0",
+      "4,9,0",
+      "4,10,0",
+      "5,11,0",
+      "5,12,0",
+      "5,13,0",
+      "5,14,0",
+      "5,15,0")
+
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testCountAggregatationProcTimePartitioned(): Unit = {
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    env.setParallelism(1)
+    StreamITCase.testResults = mutable.MutableList()
+    var t = env.addSource(new StreamSourceProcTime(1100))
+      .toTable(tEnv).as('a, 'b, 'c, 'd, 'e)
+    tEnv.registerTable("MyTable", t)
+
+    val sqlQuery = "SELECT a, Count(c) OVER (PARTITION BY c ORDER BY procTime()" +
+      "RANGE BETWEEN INTERVAL '3' SECOND PRECEDING AND CURRENT ROW) AS avgC FROM MyTable"
+
+    val result = tEnv.sql(sqlQuery).toDataStream[Row]
+    result.addSink(new StreamITCase.StringSink)
+    env.execute()
+
+    val expected = mutable.MutableList(
+      "1,1",
+      "1,1",
+      "1,2",
+      "1,2",
+      "1,2",
+      "1,2",
+      "1,2",
+      "1,2",
+      "1,2",
+      "1,2")
+
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+
+  }
+
+  @Test
+  def testCountAggregatationProcTimeNonPartitioned(): Unit = {
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    env.setParallelism(1)
+    StreamITCase.testResults = mutable.MutableList()
+    var t = env.addSource(new StreamSourceProcTime(1100))
+      .toTable(tEnv).as('a, 'b, 'c, 'd, 'e)
+
+    tEnv.registerTable("MyTable", t)
+
+    val sqlQuery = "SELECT a, Count(c) OVER (ORDER BY procTime()" +
+      "RANGE BETWEEN INTERVAL '2' SECOND PRECEDING AND CURRENT ROW) AS avgC FROM MyTable"
+
+    val result = tEnv.sql(sqlQuery).toDataStream[Row]
+    result.addSink(new StreamITCase.StringSink)
+    env.execute()
+
+    val expected = mutable.MutableList(
+      "1,1",
+      "1,2",
+      "1,2",
+      "1,2",
+      "1,2",
+      "1,2",
+      "1,2",
+      "1,2",
+      "1,2",
+      "1,2")
+
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+
+  }
+
 }
+
+/**
+ * Generate 10 elements 1 second apart
+ */
+class StreamSourceProcTime(
+    private val delay: Long = 1000) extends SourceFunction[Tuple5[Int, Long, Int, String, Long]] {
+
+  var counter = 10
+  override def run(ctx: SourceContext[Tuple5[Int, Long, Int, String, Long]]): Unit = {
+
+    while (counter > 0) {
+      Thread.sleep(delay)
+      ctx.collect(new Tuple5(1, 2L, (counter % 2), "aaa", 2L))
+      counter -= 1
+    }
+  }
+
+  override def cancel(): Unit = {
+
+  }
+}
+

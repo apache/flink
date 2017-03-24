@@ -25,6 +25,10 @@ import org.apache.calcite.rel.core.Window.Group
 import org.apache.flink.table.runtime.aggregate.AggregateUtil._
 import org.apache.flink.table.functions.{ProcTimeType, RowTimeType}
 import scala.collection.JavaConverters._
+import org.apache.calcite.rex.RexInputRef
+import org.apache.flink.table.api.TableException
+import org.apache.calcite.rel.core.Window
+
 
 trait OverAggregate {
 
@@ -48,6 +52,29 @@ trait OverAggregate {
 
   private[flink] def windowRange(overWindow: Group): String = {
     s"BETWEEN ${overWindow.lowerBound} AND ${overWindow.upperBound}"
+  }
+  
+  private[flink] def windowRangeValue(overWindow: Group, logicWindow: Window, 
+      fieldCount: Integer): String = {
+    
+    var timeBoundary:String = null
+    try{
+      val index = overWindow.lowerBound.getOffset.asInstanceOf[RexInputRef].getIndex
+      val lowerBoundIndex = index - fieldCount
+      timeBoundary = logicWindow.constants.get(lowerBoundIndex).getValue2 match {
+        case bd: java.math.BigDecimal => bd.longValue().toString()
+        case _ => throw new TableException("Not Bounded Window ")
+      }
+    }
+    finally {
+    }
+    
+    if (timeBoundary!=null){
+       s"BETWEEN ${timeBoundary} AND ${overWindow.upperBound}"
+     } else {
+       windowRange(overWindow)
+     }
+    
   }
 
   private[flink] def aggregationToString(
