@@ -526,16 +526,25 @@ public class Task implements Runnable, TaskActions {
 			else if (current == ExecutionState.FAILED) {
 				// we were immediately failed. tell the TaskManager that we reached our final state
 				notifyFinalState();
+				if (metrics != null) {
+					metrics.close();
+				}
 				return;
 			}
 			else if (current == ExecutionState.CANCELING) {
 				if (transitionState(ExecutionState.CANCELING, ExecutionState.CANCELED)) {
 					// we were immediately canceled. tell the TaskManager that we reached our final state
 					notifyFinalState();
+					if (metrics != null) {
+						metrics.close();
+					}
 					return;
 				}
 			}
 			else {
+				if (metrics != null) {
+					metrics.close();
+				}
 				throw new IllegalStateException("Invalid state for beginning of operation of task " + this + '.');
 			}
 		}
