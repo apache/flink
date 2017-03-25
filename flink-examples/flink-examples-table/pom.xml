@@ -69,7 +69,7 @@ under the License.
 				<artifactId>maven-shade-plugin</artifactId>
 				<executions>
 					<execution>
-						<id>fat-jar-table-examples</id>
+						<id>flink-table-examples_2.10</id>
 						<phase>package</phase>
 						<goals>
 							<goal>shade</goal>

@@ -23,13 +23,12 @@ import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.scala._
 
 /**
- * Simple example for demonstrating the use of Table API on a Stream Table.
- *
- * This example shows how to:
- *  - Convert DataStreams to Tables
- *  - Apply union, select, and filter operations
- *
- */
+  * Simple example for demonstrating the use of Table API on a Stream Table.
+  *
+  * This example shows how to:
+  *  - Convert DataStreams to Tables
+  *  - Apply union, select, and filter operations
+  */
 object StreamTableExample {
 
   // *************************************************************************
