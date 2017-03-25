@@ -324,10 +324,8 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 					restoreToOffset.put(kafkaOffset.f0, kafkaOffset.f1);
 				}
 
-				LOG.info("Setting restore state in the FlinkKafkaConsumer.");
-				if (LOG.isDebugEnabled()) {
-					LOG.debug("Using the following offsets: {}", restoreToOffset);
-				}
+				LOG.info("Setting restore state in the FlinkKafkaConsumer for consumer subtask {}: {}",
+					getRuntimeContext().getIndexOfThisSubtask(), restoreToOffset);
 			} else if (restoreToOffset.isEmpty()) {
 				restoreToOffset = null;
 			}
@@ -387,15 +385,10 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 
 	@Override
 	public void restoreState(HashMap<KafkaTopicPartition, Long> restoredOffsets) {
-		LOG.info("{} (taskIdx={}) restoring offsets from an older version.",
-			getClass().getSimpleName(), getRuntimeContext().getIndexOfThisSubtask());
+		LOG.info("{} (taskIdx={}) restoring offsets from an older version: {}",
+			getClass().getSimpleName(), getRuntimeContext().getIndexOfThisSubtask(), restoredOffsets);
 
 		restoreToOffset = restoredOffsets;
-
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("{} (taskIdx={}) restored offsets from an older Flink version: {}",
-				getClass().getSimpleName(), getRuntimeContext().getIndexOfThisSubtask(), restoreToOffset);
-		}
 	}
 
 	@Override
@@ -492,6 +485,9 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 			for (Map.Entry<KafkaTopicPartition, Long> restoredPartitionState : restoreToOffset.entrySet()) {
 				subscribedPartitions.add(restoredPartitionState.getKey());
 			}
+
+			LOG.info("Consumer subtask {} will use the partitions in restored state as subscribed partitions: {}",
+				getRuntimeContext().getIndexOfThisSubtask(), subscribedPartitions);
 		} else {
 			List<KafkaTopicPartition> kafkaTopicPartitions = getKafkaPartitions(topics);
 
@@ -508,11 +504,16 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 				}
 			});
 
+			LOG.info("Fetched a total of {} kafka partitions: {}", kafkaTopicPartitions.size(), kafkaTopicPartitions);
+
 			subscribedPartitions = new ArrayList<>(
 				(kafkaTopicPartitions.size() / getRuntimeContext().getNumberOfParallelSubtasks()) + 1);
 			for (int i = getRuntimeContext().getIndexOfThisSubtask(); i < kafkaTopicPartitions.size(); i += getRuntimeContext().getNumberOfParallelSubtasks()) {
 				subscribedPartitions.add(kafkaTopicPartitions.get(i));
 			}
+
+			LOG.info("Consumer subtask {} will subscribe to {} partitions: {}",
+				getRuntimeContext().getIndexOfThisSubtask(), subscribedPartitions.size(), subscribedPartitions);
 		}
 	}
 
