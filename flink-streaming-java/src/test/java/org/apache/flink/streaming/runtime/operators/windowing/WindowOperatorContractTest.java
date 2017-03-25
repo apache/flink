@@ -1853,13 +1853,20 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 	}
 
 	private void testGarbageCollectionTimer(TimeDomainAdaptor timeAdaptor) throws Exception {
+		long allowedLateness = 20L;
+
+		if (timeAdaptor instanceof ProcessingTimeAdaptor) {
+			// we don't have allowed lateness for processing time
+			allowedLateness = 0;
+		}
+
 		WindowAssigner<Integer, TimeWindow> mockAssigner = mockTimeWindowAssigner();
 		timeAdaptor.setIsEventTime(mockAssigner);
 		Trigger<Integer, TimeWindow> mockTrigger = mockTrigger();
 		InternalWindowFunction<Iterable<Integer>, Void, Integer, TimeWindow> mockWindowFunction = mockWindowFunction();
 
 		KeyedOneInputStreamOperatorTestHarness<Integer, Integer, Void> testHarness =
-				createWindowOperator(mockAssigner, mockTrigger, 20L, mockWindowFunction);
+				createWindowOperator(mockAssigner, mockTrigger, allowedLateness, mockWindowFunction);
 
 		testHarness.open();
 
@@ -1879,7 +1886,17 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 
 		verify(mockTrigger, never()).clear(anyTimeWindow(), anyTriggerContext());
 
-		timeAdaptor.advanceTime(testHarness, 19 + 20); // 19 is maxTime of the window
+		// verify that we can still fire on the GC timer
+		timeAdaptor.shouldFireOnTime(mockTrigger);
+
+		timeAdaptor.advanceTime(testHarness, 19 + allowedLateness); // 19 is maxTime of the window
+
+		// ensure that our trigger is still called
+		timeAdaptor.verifyTriggerCallback(mockTrigger, times(1), 19L + allowedLateness, null);
+
+		// ensure that our window function is called a last timer if the trigger
+		// fires on the GC timer
+		verify(mockWindowFunction, times(1)).process(eq(0), eq(new TimeWindow(0, 20)), anyInternalWindowContext(), intIterable(0), WindowOperatorContractTest.<Void>anyCollector());
 
 		verify(mockTrigger, times(1)).clear(anyTimeWindow(), anyTriggerContext());
 
