@@ -37,7 +37,7 @@ public interface Parameter<T> {
 	 *
 	 * @return command-line usage string
 	 */
-	String getParameterization();
+	String getUsage();
 
 	/**
 	 * Read and parse the parameter value from command-line arguments.

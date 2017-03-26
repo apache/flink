@@ -59,7 +59,7 @@ implements Parameter<T> {
 	}
 
 	@Override
-	public String getParameterization() {
+	public String getUsage() {
 		String option = "--" + name + " " + name.toUpperCase();
 
 		return hasDefaultValue ? "[" + option + "]" : option;

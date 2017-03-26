@@ -38,7 +38,7 @@ extends SimpleParameter<Boolean> {
 	}
 
 	@Override
-	public String getParameterization() {
+	public String getUsage() {
 		return "[--" + name + "]";
 	}
 

@@ -51,7 +51,7 @@ implements Parameterized {
 		// print parameters as ordered list
 		for (Parameter<?> parameter : parameters) {
 			strBuilder
-				.append(parameter.getParameterization())
+				.append(parameter.getUsage())
 				.append(" ");
 		}
 

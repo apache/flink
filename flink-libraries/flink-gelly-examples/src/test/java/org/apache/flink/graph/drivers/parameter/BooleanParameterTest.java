@@ -37,7 +37,7 @@ extends ParameterTestBase {
 
 	@Test
 	public void testTrue() {
-		Assert.assertEquals("[--test]", parameter.getParameterization());
+		Assert.assertEquals("[--test]", parameter.getUsage());
 
 		parameter.configure(ParameterTool.fromArgs(new String[]{"--test"}));
 		Assert.assertEquals(true, parameter.getValue());
@@ -45,7 +45,7 @@ extends ParameterTestBase {
 
 	@Test
 	public void testFalse() {
-		Assert.assertEquals("[--test]", parameter.getParameterization());
+		Assert.assertEquals("[--test]", parameter.getUsage());
 
 		parameter.configure(ParameterTool.fromArgs(new String[]{}));
 		Assert.assertEquals(false, parameter.getValue());

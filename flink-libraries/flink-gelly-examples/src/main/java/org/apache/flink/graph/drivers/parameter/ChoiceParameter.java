@@ -72,7 +72,7 @@ extends SimpleParameter<String> {
 	}
 
 	@Override
-	public String getParameterization() {
+	public String getUsage() {
 		String option = new StrBuilder()
 			.append("--")
 			.append(name)

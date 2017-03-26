@@ -116,7 +116,7 @@ extends ParameterTestBase {
 	@Test
 	public void testWithDefaultWithParameter() {
 		parameter.setDefaultValue(42);
-		Assert.assertEquals("[--test TEST]", parameter.getParameterization());
+		Assert.assertEquals("[--test TEST]", parameter.getUsage());
 
 		parameter.configure(ParameterTool.fromArgs(new String[]{"--test", "54"}));
 		Assert.assertEquals(new Long(54), parameter.getValue());
@@ -125,7 +125,7 @@ extends ParameterTestBase {
 	@Test
 	public void testWithDefaultWithoutParameter() {
 		parameter.setDefaultValue(13);
-		Assert.assertEquals("[--test TEST]", parameter.getParameterization());
+		Assert.assertEquals("[--test TEST]", parameter.getUsage());
 
 		parameter.configure(ParameterTool.fromArgs(new String[]{}));
 		Assert.assertEquals(new Long(13), parameter.getValue());
@@ -135,7 +135,7 @@ extends ParameterTestBase {
 
 	@Test
 	public void testWithoutDefaultWithParameter() {
-		Assert.assertEquals("--test TEST", parameter.getParameterization());
+		Assert.assertEquals("--test TEST", parameter.getUsage());
 
 		parameter.configure(ParameterTool.fromArgs(new String[]{"--test", "42"}));
 		Assert.assertEquals(new Long(42), parameter.getValue());
@@ -143,7 +143,7 @@ extends ParameterTestBase {
 
 	@Test
 	public void testWithoutDefaultWithoutParameter() {
-		Assert.assertEquals("--test TEST", parameter.getParameterization());
+		Assert.assertEquals("--test TEST", parameter.getUsage());
 
 		expectedException.expect(RuntimeException.class);
 		expectedException.expectMessage("No data for required key 'test'");
