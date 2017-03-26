@@ -23,22 +23,7 @@ bin=`cd "$bin"; pwd`
 # get Flink config
 . "$bin"/config.sh
 
-# auxilliary function to construct a lightweight classpath for the
-# Flink TaskManager
-constructTaskManagerClassPath() {
-
-    while read -d '' -r jarfile ; do
-        if [[ $CC_CLASSPATH = "" ]]; then
-            CC_CLASSPATH="$jarfile";
-        else
-            CC_CLASSPATH="$CC_CLASSPATH":"$jarfile"
-        fi
-    done < <(find "$FLINK_LIB_DIR" ! -type d -name '*.jar' -print0)
-
-    echo $CC_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS
-}
-
-CC_CLASSPATH=`manglePathList $(constructTaskManagerClassPath)`
+CC_CLASSPATH=`manglePathList $(constructFlinkClassPath):$INTERNAL_HADOOP_CLASSPATHS`
 
 log=flink-taskmanager.log
 log_setting="-Dlog.file="$log" -Dlog4j.configuration=file:"$FLINK_CONF_DIR"/log4j.properties -Dlogback.configurationFile=file:"$FLINK_CONF_DIR"/logback.xml"
