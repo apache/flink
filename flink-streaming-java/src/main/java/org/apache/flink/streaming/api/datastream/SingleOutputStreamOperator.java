@@ -134,9 +134,6 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 	 * @return The operator with set parallelism.
 	 */
 	public SingleOutputStreamOperator<T> setParallelism(int parallelism) {
-		Preconditions.checkArgument(parallelism > 0,
-				"The parallelism of an operator must be at least 1.");
-
 		Preconditions.checkArgument(canBeParallel() || parallelism == 1,
 				"The parallelism of non parallel operator must be 1.");
 
@@ -156,9 +153,6 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 	 */
 	@PublicEvolving
 	public SingleOutputStreamOperator<T> setMaxParallelism(int maxParallelism) {
-		Preconditions.checkArgument(maxParallelism > 0,
-				"The maximum parallelism must be greater than 0.");
-
 		Preconditions.checkArgument(canBeParallel() || maxParallelism == 1,
 				"The maximum parallelism of non parallel operator must be 1.");
 

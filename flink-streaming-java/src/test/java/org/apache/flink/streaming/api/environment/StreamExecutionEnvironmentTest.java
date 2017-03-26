@@ -258,12 +258,6 @@ public class StreamExecutionEnvironmentTest {
 		env.getStreamGraph().getJobGraph();
 		Assert.assertEquals(-1, operator.getTransformation().getMaxParallelism());
 
-		// configured value after generating
-		env.setParallelism(21);
-		env.setMaxParallelism(42);
-		env.getStreamGraph().getJobGraph();
-		Assert.assertEquals(42, operator.getTransformation().getMaxParallelism());
-
 		// bounds configured parallelism 1
 		try {
 			env.setMaxParallelism(0);
@@ -293,6 +287,7 @@ public class StreamExecutionEnvironmentTest {
 		}
 
 		// bounds for max parallelism 3
+		operator.setParallelism(1);
 		operator.setMaxParallelism(1);
 		Assert.assertEquals(1, operator.getTransformation().getMaxParallelism());
 

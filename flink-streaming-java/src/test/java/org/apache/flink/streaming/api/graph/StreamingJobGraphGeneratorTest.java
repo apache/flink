@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.graph;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -37,6 +38,7 @@ import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.lang.reflect.Method;
@@ -49,6 +51,83 @@ import static org.junit.Assert.assertTrue;
 
 @SuppressWarnings("serial")
 public class StreamingJobGraphGeneratorTest extends TestLogger {
+
+	/**
+	 * Verify that the default parallelism and max parallelism are manifested in
+	 * the generated job graph when no parallelism is set on operator or execution environment.
+	 */
+	@Test
+	public void testDefaultParallelismManifestation() {
+		final int customParallelism = 5;
+		final int customMaxParallelism = 10;
+		final int defaultParallelism = 20;
+
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(defaultParallelism);
+		env.disableOperatorChaining();
+
+		assertEquals(ExecutionConfig.PARALLELISM_DEFAULT, env.getParallelism());
+
+		env
+				.fromElements("a")
+				.map(new IdentityMap()).name("map1").setParallelism(customParallelism).setMaxParallelism(customMaxParallelism)
+				.map(new IdentityMap()).name("map2");
+
+		StreamGraph streamGraph = env.getStreamGraph();
+		streamGraph.setJobName("test job");
+		JobGraph jobGraph = streamGraph.getJobGraph();
+
+		assertEquals(3, jobGraph.getVerticesSortedTopologicallyFromSources().size());
+
+		JobVertex map1Vertex = getOnlyVertex(jobGraph, "map1");
+		JobVertex map2Vertex = getOnlyVertex(jobGraph, "map2");
+
+		assertEquals(customParallelism, map1Vertex.getParallelism());
+		assertEquals(defaultParallelism, map2Vertex.getParallelism());
+
+		assertEquals(customMaxParallelism, map1Vertex.getMaxParallelism());
+		assertEquals(ExecutionConfig.PARALLELISM_DEFAULT, map2Vertex.getMaxParallelism());
+	}
+
+	/**
+	 * Verify that the execution environment parallelism and max parallelism are manifested in
+	 * the generated job graph when no parallelism is set on operator or execution environment.
+	 */
+	@Test
+	public void testEnvironmentParallelismManifestation() {
+		final int customParallelism = 5;
+		final int customMaxParallelism = 10;
+		final int defaultParallelism = 20;
+		final int envParallelism = 25;
+		final int envMaxParallelism = 30;
+
+
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(defaultParallelism);
+		env.disableOperatorChaining();
+		env.setParallelism(envParallelism);
+		env.setMaxParallelism(envMaxParallelism);
+
+		env
+				.fromElements("a")
+				.map(new IdentityMap()).name("map1").setParallelism(customParallelism).setMaxParallelism(customMaxParallelism)
+				.map(new IdentityMap()).name("map2");
+
+		// test once, then change the env parallelism and generate again
+		StreamGraph streamGraph = env.getStreamGraph();
+		streamGraph.setJobName("test job");
+		JobGraph jobGraph = streamGraph.getJobGraph();
+
+		assertEquals(3, jobGraph.getVerticesSortedTopologicallyFromSources().size());
+
+		JobVertex map1Vertex = getOnlyVertex(jobGraph, "map1");
+		JobVertex map2Vertex = getOnlyVertex(jobGraph, "map2");
+
+		assertEquals(customParallelism, map1Vertex.getParallelism());
+		assertEquals(envParallelism, map2Vertex.getParallelism());
+
+		assertEquals(customMaxParallelism, map1Vertex.getMaxParallelism());
+		assertEquals(envMaxParallelism, map2Vertex.getMaxParallelism());
+	}
+
 
 	@Test
 	public void testParallelismOneNotChained() {
@@ -115,7 +194,8 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		StreamGraph streamGraph = new StreamGraph(env, 1 /* default parallelism */);
 		assertFalse("Checkpointing enabled", streamGraph.getCheckpointConfig().isCheckpointingEnabled());
 
-		StreamingJobGraphGenerator jobGraphGenerator = new StreamingJobGraphGenerator(streamGraph, 1 /* default parallelism */);
+		StreamingJobGraphGenerator jobGraphGenerator =
+				new StreamingJobGraphGenerator(streamGraph, 1 /* default parallelism */, 1 /* max parallelism */);
 		JobGraph jobGraph = jobGraphGenerator.createJobGraph();
 
 		JobSnapshottingSettings snapshottingSettings = jobGraph.getSnapshotSettings();
@@ -137,7 +217,9 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 				}
 			})
 			.print();
-		JobGraph jobGraph = new StreamingJobGraphGenerator(env.getStreamGraph(), 1 /* default parallelism */).createJobGraph();
+
+		JobGraph jobGraph = new StreamingJobGraphGenerator(
+				env.getStreamGraph(), 1 /* default parallelism */, -1 /* default max parallelism */).createJobGraph();
 
 		List<JobVertex> verticesSorted = jobGraph.getVerticesSortedTopologicallyFromSources();
 		JobVertex sourceVertex = verticesSorted.get(0);
@@ -224,7 +306,8 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		});
 		sinkMethod.invoke(sink, resource5);
 
-		JobGraph jobGraph = new StreamingJobGraphGenerator(env.getStreamGraph(), 1 /* default parallelism */).createJobGraph();
+		JobGraph jobGraph = new StreamingJobGraphGenerator(
+				env.getStreamGraph(), 1 /* default parallelism */, -1 /* default max parallelism */).createJobGraph();
 
 		JobVertex sourceMapFilterVertex = jobGraph.getVerticesSortedTopologicallyFromSources().get(0);
 		JobVertex reduceSinkVertex = jobGraph.getVerticesSortedTopologicallyFromSources().get(1);
@@ -291,7 +374,8 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		}).disableChaining().name("test_sink");
 		sinkMethod.invoke(sink, resource5);
 
-		JobGraph jobGraph = new StreamingJobGraphGenerator(env.getStreamGraph(), 1 /* default parallelism */).createJobGraph();
+		JobGraph jobGraph = new StreamingJobGraphGenerator(
+				env.getStreamGraph(), 1 /* default parallelism */, -1 /* default max parallelism */).createJobGraph();
 
 		for (JobVertex jobVertex : jobGraph.getVertices()) {
 			if (jobVertex.getName().contains("test_source")) {
@@ -305,6 +389,35 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 			} else if (jobVertex.getName().contains("test_sink")) {
 				assertTrue(jobVertex.getMinResources().equals(resource5));
 			}
+		}
+	}
+
+	/**
+	 * Returns the only vertex whose name contains the given name. Throws an {@link AssertionError}
+	 * if more than one vertex matches.
+	 */
+	private static JobVertex getOnlyVertex(JobGraph jobGraph, String name) {
+		JobVertex result = null;
+		for (JobVertex v : jobGraph.getVertices()) {
+			if (v.getName().equals(name)) {
+				if (result != null) {
+					Assert.fail("More than one vertex matches the name.");
+				}
+				result = v;
+			}
+		}
+		if (result == null) {
+			Assert.fail("No vertex matches the name.");
+		}
+		return result;
+	}
+
+	private static class IdentityMap implements MapFunction<String, String> {
+		private static final long serialVersionUID = 471891682418382583L;
+
+		@Override
+		public String map(String value) {
+			return value;
 		}
 	}
 }

@@ -94,12 +94,14 @@ public class StreamingJobGraphGenerator {
 	private final List<StreamGraphHasher> legacyStreamGraphHashers;
 
 	private final int defaultParallelism;
+	private final int defaultMaxParallelism;
 
-	public StreamingJobGraphGenerator(StreamGraph streamGraph, int defaultParallelism) {
+	public StreamingJobGraphGenerator(StreamGraph streamGraph, int defaultParallelism, int defaultMaxParallelism) {
 		this.streamGraph = streamGraph;
 		this.defaultStreamGraphHasher = new StreamGraphHasherV2();
 		this.legacyStreamGraphHashers = Arrays.asList(new StreamGraphHasherV1(), new StreamGraphUserHashHasher());
 		this.defaultParallelism = defaultParallelism;
+		this.defaultMaxParallelism = defaultMaxParallelism;
 	}
 
 	private void init() {
@@ -341,14 +343,15 @@ public class StreamingJobGraphGenerator {
 		jobVertex.setInvokableClass(streamNode.getJobVertexClass());
 
 		int parallelism = streamNode.getParallelism();
-
+		int maxParallelism = streamNode.getMaxParallelism();
 		if (parallelism == ExecutionConfig.PARALLELISM_DEFAULT) {
 			parallelism = defaultParallelism;
 		}
-
+		if (maxParallelism == ExecutionConfig.PARALLELISM_DEFAULT) {
+			maxParallelism = defaultMaxParallelism;
+		}
 		jobVertex.setParallelism(parallelism);
-
-		jobVertex.setMaxParallelism(streamNode.getMaxParallelism());
+		jobVertex.setMaxParallelism(maxParallelism);
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Parallelism set: {} for {}", parallelism, streamNodeId);

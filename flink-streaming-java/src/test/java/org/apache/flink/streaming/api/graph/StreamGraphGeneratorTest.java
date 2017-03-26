@@ -271,49 +271,6 @@ public class StreamGraphGeneratorTest {
 	}
 
 	/**
-	 * Tests that the global and operator-wide max parallelism setting is respected
-	 */
-	@Test
-	public void testMaxParallelismForwarding() {
-		int globalMaxParallelism = 42;
-		int keyedResult2MaxParallelism = 17;
-
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.getConfig().setParallelism(12);
-		env.getConfig().setMaxParallelism(globalMaxParallelism);
-
-		DataStream<Integer> source = env.fromElements(1, 2, 3);
-
-		DataStream<Integer> keyedResult1 = source.keyBy(new KeySelector<Integer, Integer>() {
-			private static final long serialVersionUID = 9205556348021992189L;
-
-			@Override
-			public Integer getKey(Integer value) throws Exception {
-				return value;
-			}
-		}).map(new NoOpIntMap());
-
-		DataStream<Integer> keyedResult2 = keyedResult1.keyBy(new KeySelector<Integer, Integer>() {
-			private static final long serialVersionUID = 1250168178707154838L;
-
-			@Override
-			public Integer getKey(Integer value) throws Exception {
-				return value;
-			}
-		}).map(new NoOpIntMap()).setMaxParallelism(keyedResult2MaxParallelism);
-
-		keyedResult2.addSink(new DiscardingSink<Integer>());
-
-		StreamGraph graph = env.getStreamGraph();
-
-		StreamNode keyedResult1Node = graph.getStreamNode(keyedResult1.getId());
-		StreamNode keyedResult2Node = graph.getStreamNode(keyedResult2.getId());
-
-		assertEquals(globalMaxParallelism, keyedResult1Node.getMaxParallelism());
-		assertEquals(keyedResult2MaxParallelism, keyedResult2Node.getMaxParallelism());
-	}
-
-	/**
 	 * Tests that the max parallelism is automatically set to the parallelism if it has not been
 	 * specified.
 	 */
@@ -321,7 +278,7 @@ public class StreamGraphGeneratorTest {
 	public void testAutoMaxParallelism() {
 		int globalParallelism = 42;
 		int mapParallelism = 17;
-		int maxParallelism = 21;
+		int maxParallelism = 84;
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(globalParallelism);
 

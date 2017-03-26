@@ -19,17 +19,18 @@ package org.apache.flink.streaming.api.transformations;
 
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
 import org.apache.flink.streaming.api.graph.StreamGraph;
-import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collection;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -126,7 +127,7 @@ public abstract class StreamTransformation<T> {
 	 * The maximum parallelism for this stream transformation. It defines the upper limit for
 	 * dynamic scaling and the number of key groups used for partitioned state.
 	 */
-	private int maxParallelism = -1;
+	private int maxParallelism = ExecutionConfig.PARALLELISM_DEFAULT;
 
 	/**
 	 *  The minimum resources for this stream transformation. It defines the lower limit for
@@ -202,7 +203,17 @@ public abstract class StreamTransformation<T> {
 	 * @param parallelism The new parallelism to set on this {@code StreamTransformation}
 	 */
 	public void setParallelism(int parallelism) {
-		Preconditions.checkArgument(parallelism > 0, "Parallelism must be bigger than zero.");
+		checkArgument(parallelism != ExecutionConfig.PARALLELISM_UNKNOWN, "Cannot specify UNKNOWN_PARALLELISM.");
+		checkArgument(
+				parallelism >= 1 || parallelism == ExecutionConfig.PARALLELISM_DEFAULT,
+				"Parallelism must be at least one, or ExecutionConfig.PARALLELISM_DEFAULT " +
+						"(use system default).");
+		checkArgument(
+				maxParallelism == -1 || parallelism <= maxParallelism,
+				"The specified parallelism must be smaller or equal to the maximum parallelism.");
+		checkArgument(
+				maxParallelism == -1 || parallelism != ExecutionConfig.PARALLELISM_DEFAULT,
+				"Default parallelism cannot be specified when maximum parallelism is specified");
 		this.parallelism = parallelism;
 	}
 
@@ -221,10 +232,19 @@ public abstract class StreamTransformation<T> {
 	 * @param maxParallelism Maximum parallelism for this stream transformation.
 	 */
 	public void setMaxParallelism(int maxParallelism) {
-		Preconditions.checkArgument(maxParallelism > 0
-						&& maxParallelism <= StreamGraphGenerator.UPPER_BOUND_MAX_PARALLELISM,
-				"Maximum parallelism must be between 1 and " + StreamGraphGenerator.UPPER_BOUND_MAX_PARALLELISM
-						+ ". Found: " + maxParallelism);
+		checkArgument(
+				parallelism != ExecutionConfig.PARALLELISM_DEFAULT,
+				"A maximum parallelism can only be specified with an explicitly specified " +
+						"parallelism.");
+		checkArgument(maxParallelism > 0, "The maximum parallelism must be greater than 0.");
+		checkArgument(
+				maxParallelism >= parallelism,
+				"The maximum parallelism must be larger than the parallelism. (parallelism = " +
+						parallelism + " max-parallelism = " + maxParallelism);
+		checkArgument(
+				maxParallelism > 0 && maxParallelism <= ExecutionConfig.UPPER_BOUND_MAX_PARALLELISM,
+				"maxParallelism is out of bounds 0 < maxParallelism <= " +
+						ExecutionConfig.UPPER_BOUND_MAX_PARALLELISM + ". Found: " + maxParallelism);
 		this.maxParallelism = maxParallelism;
 	}
 

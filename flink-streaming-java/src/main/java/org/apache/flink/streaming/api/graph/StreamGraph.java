@@ -657,7 +657,8 @@ public class StreamGraph extends StreamingPlan {
 							+ "\nThe user can force enable state checkpoints with the reduced guarantees by calling: env.enableCheckpointing(interval,true)");
 		}
 
-		StreamingJobGraphGenerator jobgraphGenerator = new StreamingJobGraphGenerator(this, defaultParallelism);
+		StreamingJobGraphGenerator jobgraphGenerator =
+				new StreamingJobGraphGenerator(this, defaultParallelism, executionConfig.getMaxParallelism());
 
 		return jobgraphGenerator.createJobGraph();
 	}
