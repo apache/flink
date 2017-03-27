@@ -51,37 +51,12 @@ public class YarnClusterDescriptorTest {
 	}
 
 	@Test
-	public void testFailIfTaskSlotsHigherThanMaxVcores() {
-
-		YarnClusterDescriptor clusterDescriptor = new YarnClusterDescriptor();
-
-		clusterDescriptor.setLocalJarPath(new Path(flinkJar.getPath()));
-		clusterDescriptor.setFlinkConfiguration(new Configuration());
-		clusterDescriptor.setConfigurationDirectory(temporaryFolder.getRoot().getAbsolutePath());
-		clusterDescriptor.setConfigurationFilePath(new Path(flinkConf.getPath()));
-
-		// configure slots too high
-		clusterDescriptor.setTaskManagerSlots(Integer.MAX_VALUE);
-
-		try {
-			clusterDescriptor.deploy();
-
-			fail("The deploy call should have failed.");
-		} catch (RuntimeException e) {
-			// we expect the cause to be an IllegalConfigurationException
-			if (!(e.getCause() instanceof IllegalConfigurationException)) {
-				throw e;
-			}
-		}
-	}
-
-	@Test
 	public void testConfigOverwrite() {
 
 		YarnClusterDescriptor clusterDescriptor = new YarnClusterDescriptor();
 
 		Configuration configuration = new Configuration();
-		// overwrite vcores in config
+		// configure slots in config
 		configuration.setInteger(ConfigConstants.YARN_VCORES, Integer.MAX_VALUE);
 
 		clusterDescriptor.setLocalJarPath(new Path(flinkJar.getPath()));
@@ -89,19 +64,10 @@ public class YarnClusterDescriptorTest {
 		clusterDescriptor.setConfigurationDirectory(temporaryFolder.getRoot().getAbsolutePath());
 		clusterDescriptor.setConfigurationFilePath(new Path(flinkConf.getPath()));
 
-		// configure slots
+		// overwrite vcores
 		clusterDescriptor.setTaskManagerSlots(1);
 
-		try {
-			clusterDescriptor.deploy();
-
-			fail("The deploy call should have failed.");
-		} catch (RuntimeException e) {
-			// we expect the cause to be an IllegalConfigurationException
-			if (!(e.getCause() instanceof IllegalConfigurationException)) {
-				throw e;
-			}
-		}
+		assertEquals(1, clusterDescriptor.getTaskManagerSlots());
 	}
 
 	@Test
