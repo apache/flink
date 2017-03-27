@@ -19,33 +19,38 @@
 package org.apache.flink.graph.drivers.parameter;
 
 import org.apache.flink.api.java.utils.ParameterTool;
-import org.apache.flink.client.program.ProgramParametrizationException;
+import org.apache.flink.graph.drivers.parameter.Simplify.Ordering;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
 
-/**
- * A configurable command-line choice, such as an input or algorithm.
- */
-public interface Parameterized {
+public class SimplifyTest
+extends ParameterTestBase {
 
-	/**
-	 * A unique, human-readable identifier. Presented to the user as the
-	 * name of a selectable choice.
-	 *
-	 * @return parameter name
-	 */
-	String getName();
+	private Simplify parameter;
 
-	/**
-	 * Human-readable format for the command-line usage string.
-	 *
-	 * @return command-line documentation string
-	 */
-	String getUsage();
+	@Before
+	public void setup() {
+		super.setup();
 
-	/**
-	 * Read parameter values from the command-line arguments.
-	 *
-	 * @param parameterTool parameter parser
-	 * @throws ProgramParametrizationException when configuration is invalid
-	 */
-	void configure(ParameterTool parameterTool) throws ProgramParametrizationException;
+		parameter = new Simplify(owner);
+	}
+
+	@Test
+	public void testWithDirected() {
+		parameter.configure(ParameterTool.fromArgs(new String[]{"--simplify", "directed"}));
+		Assert.assertEquals(Ordering.DIRECTED, parameter.getValue());
+	}
+
+	@Test
+	public void testWithUndirected() {
+		parameter.configure(ParameterTool.fromArgs(new String[]{"--simplify", "undirected"}));
+		Assert.assertEquals(Ordering.UNDIRECTED, parameter.getValue());
+	}
+
+	@Test
+	public void testWithNoParameter() {
+		parameter.configure(ParameterTool.fromArgs(new String[]{}));
+		Assert.assertEquals(Ordering.NONE, parameter.getValue());
+	}
 }
