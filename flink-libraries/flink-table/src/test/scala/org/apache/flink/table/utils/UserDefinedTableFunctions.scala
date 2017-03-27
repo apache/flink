@@ -28,7 +28,6 @@ import org.apache.flink.types.Row
 import org.junit.Assert
 
 import scala.annotation.varargs
-import scala.collection.mutable.ArrayBuffer
 
 
 case class SimpleUser(name: String, age: Int)
@@ -111,11 +110,12 @@ class TableFunc3(data: String, conf: Map[String, String]) extends TableFunction[
 }
 
 class DynamicSchema extends TableFunction[Row] {
+
   def eval(str: String, column: Int): Unit = {
     if (str.contains("#")) {
       str.split("#").foreach({ s =>
         val row = new Row(column)
-        row.setField(0, s)  // And we only set values for one column
+        row.setField(0, s)
         var i = 0
         for (i <- 1 until column) {
           row.setField(i, s.length)

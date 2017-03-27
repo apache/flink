@@ -42,7 +42,7 @@ case class UnresolvedFieldReference(name: String) extends Attribute {
     UnresolvedFieldReference(newName)
 
   override private[flink] def resultType: TypeInformation[_] =
-    throw UnresolvedException(s"Calling resultType on ${this.getClass}.")
+    throw UnresolvedException(s"Calling implicitResultType on ${this.getClass}.")
 
   override private[flink] def validateInput(): ValidationResult =
     ValidationFailure(s"Unresolved reference $name.")
@@ -111,7 +111,7 @@ case class UnresolvedAlias(child: Expression) extends UnaryExpression with Named
     throw UnresolvedException("Invalid call to toAttribute on UnresolvedAlias")
 
   override private[flink] def resultType: TypeInformation[_] =
-    throw UnresolvedException("Invalid call to resultType on UnresolvedAlias")
+    throw UnresolvedException("Invalid call to implicitResultType on UnresolvedAlias")
 
   override private[flink] lazy val valid = false
 }

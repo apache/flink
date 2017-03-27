@@ -224,8 +224,8 @@ object UserDefinedFunctionUtils {
     evalMethods.map { method =>
       // We don't know the field names without knowing the exact result type
       val function = new FlinkTableFunctionImpl(
-        tableFunction, implicitResultType, null, null, method)
-      TableSqlFunction(name, tableFunction, typeFactory, function)
+        tableFunction, implicitResultType, method)
+      TableSqlFunction(name, tableFunction, implicitResultType, typeFactory, function)
     }
   }
 

@@ -32,7 +32,9 @@ import org.apache.flink.table.plan.schema.FlinkTableFunctionImpl
 import scala.collection.JavaConverters._
 import java.util
 
-import org.apache.flink.table.api.ValidationException
+import org.apache.calcite.rex.RexNode
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.table.expressions.{Expression, TableFunctionCall}
 
 /**
   * Calcite wrapper for user-defined table functions.
@@ -40,6 +42,7 @@ import org.apache.flink.table.api.ValidationException
 class TableSqlFunction(
     name: String,
     udtf: TableFunction[_],
+    implicitRowTypeInfo: TypeInformation[_],
     returnTypeInference: SqlReturnTypeInference,
     operandTypeInference: SqlOperandTypeInference,
     operandTypeChecker: SqlOperandTypeChecker,
@@ -58,23 +61,22 @@ class TableSqlFunction(
     */
   def getTableFunction = udtf
 
-  /**
-    * Get the type information of the table returned by the table function.
-    */
-  def getRowTypeInfo = if (null == functionImpl.resultType) {
-    throw new ValidationException("The Result Type hasn't been generated yet")
-  } else {
-    functionImpl.resultType
+  def getImplicitRowTypeInfo = implicitRowTypeInfo
+
+  def buildTableFunctionCall(name: String,
+                            params: Expression*): TableFunctionCall = {
+    udtf.buildTableFunctionCall(name, implicitRowTypeInfo, params: _*)
   }
 
   /**
-    * Get additional mapping information if the returned table type is a POJO
-    * (POJO types have no deterministic field order).
+    * Get the result type for SQL
+    *
+    * @param operands The literals. Only the literal operands are used
+    * @return  Type information
     */
-  def getPojoFieldMapping = if (null == functionImpl.fieldIndexes) {
-    throw new ValidationException("The Result Indexes hasn't been generated yet")
-  } else {
-    functionImpl.fieldIndexes
+  def getResultType(operands: util.List[RexNode]): TypeInformation[_] = {
+    val arguments = udtf.rexNodesToArguments(operands)
+    udtf.getResultType(arguments, implicitRowTypeInfo)
   }
 
 }
@@ -86,6 +88,7 @@ object TableSqlFunction {
     *
     * @param name function name (used by SQL parser)
     * @param udtf user-defined table function to be called
+    * @param implicitRowTypeInfo Implicit row type information
     * @param typeFactory type factory for converting Flink's between Calcite's types
     * @param functionImpl Calcite table function schema
     * @return [[TableSqlFunction]]
@@ -93,6 +96,7 @@ object TableSqlFunction {
   def apply(
     name: String,
     udtf: TableFunction[_],
+    implicitRowTypeInfo: TypeInformation[_],
     typeFactory: FlinkTypeFactory,
     functionImpl: FlinkTableFunctionImpl[_]): TableSqlFunction = {
 
@@ -116,6 +120,7 @@ object TableSqlFunction {
     new TableSqlFunction(
       name,
       udtf,
+      implicitRowTypeInfo,
       ReturnTypes.CURSOR,
       InferTypes.explicit(argTypes),
       typeChecker,
