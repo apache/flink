@@ -270,6 +270,35 @@ class Pattern[T , F <: T](jPattern: JPattern[T, F]) {
     this
   }
 
+
+  /**
+    * Works in conjunction with [[org.apache.flink.cep.scala.pattern.Pattern#zeroOrMore()]],
+    * [[org.apache.flink.cep.scala.pattern.Pattern#oneOrMore()]] or
+    * [[org.apache.flink.cep.scala.pattern.Pattern#times(int)]].
+    * Specifies that any not matching element breaks the loop.
+    *
+    * <p>E.g. a pattern like:
+    * {{{
+    * Pattern.begin("start").where(_.getName().equals("c"))
+    *        .followedBy("middle").where(_.getName().equals("a")).oneOrMore(true).consecutive()
+    *        .followedBy("end1").where(_.getName().equals("b"));
+    * }}}
+    *
+    * <p>for a sequence: C D A1 A2 A3 D A4 B
+    *
+    * <p>will generate matches: {C A1 B}, {C A1 A2 B}, {C A1 A2 A3 B}
+    *
+    * <p><b>NOTICE:</b> This operator can be applied only when either zeroOrMore,
+    * oneOrMore or times was previously applied!
+    *
+    * <p>By default a relaxed continuity is applied.
+    * @return pattern with continuity changed to strict
+    */
+  def consecutive(): Pattern[T, F] = {
+    jPattern.consecutive()
+    this
+  }
+
 }
 
 object Pattern {
