@@ -16,20 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.scala.typeutils
+package org.apache.flink.api.java.typeutils;
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo
-import org.apache.flink.api.common.typeutils.TypeInformationTestBase
-
-import scala.util.Try
+import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
+import org.apache.flink.api.io.avro.generated.Address;
+import org.apache.flink.api.io.avro.generated.User;
 
 /**
-  * Test for [[TryTypeInfo]].
-  */
-class TryTypeInfoTest extends TypeInformationTestBase[TryTypeInfo[_, _]] {
+ * Test for {@link AvroTypeInfo}.
+ */
+public class AvroTypeInfoTest extends TypeInformationTestBase<AvroTypeInfo<?>> {
 
-  override protected def getTestData: Array[TryTypeInfo[_, _]] = Array(
-    new TryTypeInfo[Integer, Try[Integer]](BasicTypeInfo.INT_TYPE_INFO),
-    new TryTypeInfo[String, Try[String]](BasicTypeInfo.STRING_TYPE_INFO)
-  )
+	@Override
+	protected AvroTypeInfo<?>[] getTestData() {
+		return new AvroTypeInfo<?>[] {
+			new AvroTypeInfo<>(Address.class),
+			new AvroTypeInfo<>(User.class),
+		};
+	}
 }

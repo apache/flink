@@ -18,18 +18,14 @@
 
 package org.apache.flink.api.scala.typeutils
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase
 
-import scala.util.Try
-
 /**
-  * Test for [[TryTypeInfo]].
+  * Test for [[ScalaNothingTypeInfo]].
   */
-class TryTypeInfoTest extends TypeInformationTestBase[TryTypeInfo[_, _]] {
+class ScalaNothingTypeInfoTest extends TypeInformationTestBase[ScalaNothingTypeInfo] {
 
-  override protected def getTestData: Array[TryTypeInfo[_, _]] = Array(
-    new TryTypeInfo[Integer, Try[Integer]](BasicTypeInfo.INT_TYPE_INFO),
-    new TryTypeInfo[String, Try[String]](BasicTypeInfo.STRING_TYPE_INFO)
+  override protected def getTestData: Array[ScalaNothingTypeInfo] = Array(
+    new ScalaNothingTypeInfo
   )
 }
