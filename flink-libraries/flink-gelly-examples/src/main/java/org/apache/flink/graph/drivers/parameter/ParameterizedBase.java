@@ -45,7 +45,7 @@ implements Parameterized {
 	}
 
 	@Override
-	public String getParameterization() {
+	public String getUsage() {
 		StrBuilder strBuilder = new StrBuilder();
 
 		// print parameters as ordered list
