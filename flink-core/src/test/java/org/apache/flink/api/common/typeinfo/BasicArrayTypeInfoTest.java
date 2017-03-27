@@ -16,20 +16,27 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.scala.typeutils
+package org.apache.flink.api.common.typeinfo;
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo
-import org.apache.flink.api.common.typeutils.TypeInformationTestBase
-
-import scala.util.Try
+import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 
 /**
-  * Test for [[TryTypeInfo]].
-  */
-class TryTypeInfoTest extends TypeInformationTestBase[TryTypeInfo[_, _]] {
+ * Test for {@link BasicArrayTypeInfo}.
+ */
+public class BasicArrayTypeInfoTest extends TypeInformationTestBase<BasicArrayTypeInfo<?, ?>> {
 
-  override protected def getTestData: Array[TryTypeInfo[_, _]] = Array(
-    new TryTypeInfo[Integer, Try[Integer]](BasicTypeInfo.INT_TYPE_INFO),
-    new TryTypeInfo[String, Try[String]](BasicTypeInfo.STRING_TYPE_INFO)
-  )
+	@Override
+	protected BasicArrayTypeInfo<?, ?>[] getTestData() {
+		return new BasicArrayTypeInfo<?, ?>[] {
+			BasicArrayTypeInfo.STRING_ARRAY_TYPE_INFO,
+			BasicArrayTypeInfo.BOOLEAN_ARRAY_TYPE_INFO,
+			BasicArrayTypeInfo.BYTE_ARRAY_TYPE_INFO,
+			BasicArrayTypeInfo.SHORT_ARRAY_TYPE_INFO,
+			BasicArrayTypeInfo.INT_ARRAY_TYPE_INFO,
+			BasicArrayTypeInfo.LONG_ARRAY_TYPE_INFO,
+			BasicArrayTypeInfo.FLOAT_ARRAY_TYPE_INFO,
+			BasicArrayTypeInfo.DOUBLE_ARRAY_TYPE_INFO,
+			BasicArrayTypeInfo.CHAR_ARRAY_TYPE_INFO
+		};
+	}
 }
