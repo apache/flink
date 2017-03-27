@@ -429,6 +429,41 @@ patternState.within(Time.seconds(10));
       {% endhighlight %}
           </td>
        </tr>
+       <tr>
+          <td><strong>Consecutive</strong></td>
+          <td>
+              <p>Works in conjunction with zeroOrMore, oneOrMore or times. Specifies that any not matching element breaks the loop.</p>
+
+          <p>E.g. a pattern like:</p>
+      {% highlight java %}
+      Pattern.<Event>begin("start").where(new FilterFunction<Event>() {
+           @Override
+           public boolean filter(Event value) throws Exception {
+               return value.getName().equals("c");
+           }
+      })
+      .followedBy("middle").where(new FilterFunction<Event>() {
+           @Override
+           public boolean filter(Event value) throws Exception {
+               return value.getName().equals("a");
+           }
+      })
+      .oneOrMore(true).consecutive()
+      .followedBy("end1").where(new FilterFunction<Event>() {
+           @Override
+           public boolean filter(Event value) throws Exception {
+               return value.getName().equals("b");
+           }
+      });
+      {% endhighlight %}
+
+             <p>for a sequence: C D A1 A2 A3 D A4 B</p>
+
+             <p>will generate matches: {C A1 B}, {C A1 A2 B}, {C A1 A2 A3 B}</p>
+
+             <p><b>NOTICE:</b> This operator can be applied only when either zeroOrMore, oneOrMore or times was previously applied!</p>
+          </td>
+       </tr>
   </tbody>
 </table>
 </div>
@@ -542,6 +577,24 @@ patternState.within(Time.seconds(10))
       {% highlight scala %}
       patternState.times(2)
       {% endhighlight %}
+          </td>
+       </tr>
+       <tr>
+          <td><strong>Consecutive</strong></td>
+          <td>
+            <p>Works in conjunction with zeroOrMore, oneOrMore or times. Specifies that any not matching element breaks the loop.</p>
+      {% highlight scala %}
+      Pattern.begin("start").where(_.getName().equals("c"))
+       .followedBy("middle").where(_.getName().equals("a"))
+                            .oneOrMore(true).consecutive()
+       .followedBy("end1").where(_.getName().equals("b"));
+      {% endhighlight %}
+
+            <p>for a sequence: C D A1 A2 A3 D A4 B</p>
+
+            <p>will generate matches: {C A1 B}, {C A1 A2 B}, {C A1 A2 A3 B}</p>
+
+            <p><b>NOTICE:</b> This operator can be applied only when either zeroOrMore, oneOrMore or times was previously applied!</p>
           </td>
        </tr>
   </tbody>

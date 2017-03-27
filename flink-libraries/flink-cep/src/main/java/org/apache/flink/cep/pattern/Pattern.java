@@ -273,16 +273,12 @@ public class Pattern<T, F extends T> {
 	 * <p>E.g. a pattern like:
 	 * <pre>{@code
 	 * Pattern.<Event>begin("start").where(new FilterFunction<Event>() {
-	 *      private static final long serialVersionUID = 5726188262756267490L;
-	 *
 	 *      @Override
 	 *      public boolean filter(Event value) throws Exception {
 	 *          return value.getName().equals("c");
 	 *      }
 	 * })
 	 * .followedBy("middle").where(new FilterFunction<Event>() {
-	 *      private static final long serialVersionUID = 5726188262756267490L;
-	 *
 	 *      @Override
 	 *      public boolean filter(Event value) throws Exception {
 	 *          return value.getName().equals("a");
@@ -290,8 +286,6 @@ public class Pattern<T, F extends T> {
 	 * })
 	 * }<b>.oneOrMore(true).consecutive()</b>{@code
 	 * .followedBy("end1").where(new FilterFunction<Event>() {
-	 *      private static final long serialVersionUID = 5726188262756267490L;
-	 *
 	 *      @Override
 	 *      public boolean filter(Event value) throws Exception {
 	 *          return value.getName().equals("b");
