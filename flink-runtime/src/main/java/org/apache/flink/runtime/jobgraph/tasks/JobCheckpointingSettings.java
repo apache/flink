@@ -31,7 +31,7 @@ import static java.util.Objects.requireNonNull;
  * for the asynchronous checkpoints of the JobGraph, such as interval, and which vertices
  * need to participate.
  */
-public class JobSnapshottingSettings implements java.io.Serializable {
+public class JobCheckpointingSettings implements java.io.Serializable {
 	
 	private static final long serialVersionUID = -2593319571078198180L;
 	
@@ -65,7 +65,7 @@ public class JobSnapshottingSettings implements java.io.Serializable {
 	 */
 	private final boolean isExactlyOnce;
 
-	public JobSnapshottingSettings(
+	public JobCheckpointingSettings(
 			List<JobVertexID> verticesToTrigger,
 			List<JobVertexID> verticesToAcknowledge,
 			List<JobVertexID> verticesToConfirm,

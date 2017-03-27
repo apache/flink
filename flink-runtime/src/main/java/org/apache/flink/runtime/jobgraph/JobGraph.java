@@ -28,7 +28,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.instance.ActorGateway;
-import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
+import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.util.SerializedValue;
 import scala.concurrent.duration.FiniteDuration;
 
@@ -92,7 +92,7 @@ public class JobGraph implements Serializable {
 	private SerializedValue<ExecutionConfig> serializedExecutionConfig;
 
 	/** The settings for the job checkpoints */
-	private JobSnapshottingSettings snapshotSettings;
+	private JobCheckpointingSettings snapshotSettings;
 
 	/** Savepoint restore settings. */
 	private SavepointRestoreSettings savepointRestoreSettings = SavepointRestoreSettings.none();
@@ -331,17 +331,17 @@ public class JobGraph implements Serializable {
 	 *
 	 * @param settings The snapshot settings, or null, to disable snapshotting.
 	 */
-	public void setSnapshotSettings(JobSnapshottingSettings settings) {
+	public void setSnapshotSettings(JobCheckpointingSettings settings) {
 		this.snapshotSettings = settings;
 	}
 
 	/**
 	 * Gets the settings for asynchronous snapshots. This method returns null, when
-	 * snapshotting is not enabled.
+	 * checkpointing is not enabled.
 	 *
-	 * @return The snapshot settings, or null, if snapshotting is not enabled.
+	 * @return The snapshot settings, or null, if checkpointing is not enabled.
 	 */
-	public JobSnapshottingSettings getSnapshotSettings() {
+	public JobCheckpointingSettings getCheckpointingSettings() {
 		return snapshotSettings;
 	}
 

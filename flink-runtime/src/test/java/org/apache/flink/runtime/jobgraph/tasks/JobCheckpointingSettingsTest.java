@@ -29,14 +29,14 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-public class JobSnapshottingSettingsTest {
+public class JobCheckpointingSettingsTest {
 
 	/**
 	 * Tests that the settings are actually serializable.
 	 */
 	@Test
 	public void testIsJavaSerializable() throws Exception {
-		JobSnapshottingSettings settings = new JobSnapshottingSettings(
+		JobCheckpointingSettings settings = new JobCheckpointingSettings(
 			Arrays.asList(new JobVertexID(), new JobVertexID()),
 			Arrays.asList(new JobVertexID(), new JobVertexID()),
 			Arrays.asList(new JobVertexID(), new JobVertexID()),
@@ -48,7 +48,7 @@ public class JobSnapshottingSettingsTest {
 			new MemoryStateBackend(),
 			false);
 
-		JobSnapshottingSettings copy = CommonTestUtils.createCopySerializable(settings);
+		JobCheckpointingSettings copy = CommonTestUtils.createCopySerializable(settings);
 		assertEquals(settings.getVerticesToAcknowledge(), copy.getVerticesToAcknowledge());
 		assertEquals(settings.getVerticesToConfirm(), copy.getVerticesToConfirm());
 		assertEquals(settings.getVerticesToTrigger(), copy.getVerticesToTrigger());
