@@ -5,8 +5,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
-//import java.util.Set;
-//import java.util.SortedSet;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -32,53 +30,12 @@ import scala.reflect.internal.Trees.New;
 public class Imputer {
 
 	
-	static DenseVector testvec1= new DenseVector(new double[]{Double.NaN,3.0,1.0, 3.0});
-	static DenseVector testvec2= new DenseVector(new double[]{1.0,7.0,Double.NaN, 1.0});
-	static DenseVector testvec3= new DenseVector(new double[]{0.0,5.0,Double.NaN, 2.0});
-	static DenseVector testvec4= new DenseVector(new double[]{6.5,Double.NaN,0.5, 0.5});
-	static DenseVector testvec5= new DenseVector(new double[]{6.5,1.0,0.5, 0.5});
-	
 	static ExecutionEnvironment env= ExecutionEnvironment.getExecutionEnvironment();
 	
-	static DataSet<DenseVector> ds = env.fromElements(testvec1, testvec2, testvec3, testvec4, testvec5);
-//	static DataSet<DenseVector> ds = env.fromElements( testvec2, testvec3);
 	private static double[] meansA;
 	private static double[] medians;
 	private static double[] mostValues;
-//	final static ConcurrentHashMap<Integer, Double> meansHM= new ConcurrentHashMap<>();
 
-	
-	public static void main(String[] args){
-		try {
-//			DataSet<DenseVector> dsMean = impute(ds, Strategy.MEAN, 1);
-//			System.out.println("data set mean ");
-//			dsMean.print();
-//			
-			DataSet<DenseVector> dsMedian = impute(ds, Strategy.MEDIAN, 1);
-			System.out.println("data set median ");
-			dsMedian.print();
-//			
-//			DataSet<DenseVector> dsMost = impute(ds, Strategy.MOST_FREQUENT, 1);
-//			System.out.println("data set most frequent ");
-//			dsMost.print();
-//			
-//			DataSet<DenseVector> dsMean0 = impute(ds, Strategy.MEAN, 0);
-//			System.out.println("data set mean ");
-//			dsMean0.print();
-//
-//			DataSet<DenseVector> dsMedian0 = impute(ds, Strategy.MEDIAN, 0);
-//			System.out.println("data set median ");
-//			dsMedian0.print();
-//		
-//			DataSet<DenseVector> dsMax0 = impute(ds, Strategy.MOST_FREQUENT, 0);
-//			System.out.println("data set max ");
-//			dsMax0.print();
-			
-		} catch (Exception e) {
-			System.out.println("here happened an exception");
-			e.printStackTrace();
-		}
-	}
 	
 	/**
 	 * 
