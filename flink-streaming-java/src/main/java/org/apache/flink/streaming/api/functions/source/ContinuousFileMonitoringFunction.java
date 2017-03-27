@@ -83,7 +83,7 @@ public class ContinuousFileMonitoringFunction<OUT>
 	private final int readerParallelism;
 
 	/** The {@link FileInputFormat} to be read. */
-	private FileInputFormat<OUT> format;
+	private final FileInputFormat<OUT> format;
 
 	/** The interval between consecutive path scans. */
 	private final long interval;
