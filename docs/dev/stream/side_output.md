@@ -56,7 +56,7 @@ Notice how the `OutputTag` is typed according to the type of elements that the s
 contains.
 
 Emitting data to a side output it only possible when using a
-[ProcessFunction](/dev/stream/process_function.html). In the function, you can use the `Context` parameter
+[ProcessFunction]({{ site.baseurl }}/dev/stream/process_function.html). In the function, you can use the `Context` parameter
 to emit data to a side output identified by an `OutputTag`:
 
 <div class="codetabs" markdown="1">
