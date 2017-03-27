@@ -16,20 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.scala.typeutils
+package org.apache.flink.api.common.typeinfo;
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo
-import org.apache.flink.api.common.typeutils.TypeInformationTestBase
-
-import scala.util.Try
+import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 
 /**
-  * Test for [[TryTypeInfo]].
-  */
-class TryTypeInfoTest extends TypeInformationTestBase[TryTypeInfo[_, _]] {
+ * Test for {@link NumericTypeInfo}.
+ */
+public class NumericTypeInfoTest extends TypeInformationTestBase<NumericTypeInfo<?>> {
 
-  override protected def getTestData: Array[TryTypeInfo[_, _]] = Array(
-    new TryTypeInfo[Integer, Try[Integer]](BasicTypeInfo.INT_TYPE_INFO),
-    new TryTypeInfo[String, Try[String]](BasicTypeInfo.STRING_TYPE_INFO)
-  )
+	@Override
+	protected NumericTypeInfo<?>[] getTestData() {
+		return new NumericTypeInfo<?>[] {
+			(NumericTypeInfo<?>) BasicTypeInfo.BYTE_TYPE_INFO,
+			(NumericTypeInfo<?>) BasicTypeInfo.SHORT_TYPE_INFO,
+			(NumericTypeInfo<?>) BasicTypeInfo.INT_TYPE_INFO,
+			(NumericTypeInfo<?>) BasicTypeInfo.LONG_TYPE_INFO,
+			(NumericTypeInfo<?>) BasicTypeInfo.FLOAT_TYPE_INFO,
+			(NumericTypeInfo<?>) BasicTypeInfo.DOUBLE_TYPE_INFO
+		};
+	}
 }

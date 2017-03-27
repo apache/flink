@@ -21,21 +21,31 @@ package org.apache.flink.api.java.typeutils;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple1;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.util.TestLogger;
-import org.junit.Assert;
+import static org.junit.Assert.assertTrue;
 import org.junit.Test;
 
-public class TupleTypeInfoTest extends TestLogger {
+/**
+ * Test for {@link TupleTypeInfo}.
+ */
+public class TupleTypeInfoTest extends TypeInformationTestBase<TupleTypeInfo<?>> {
+
+	@Override
+	protected TupleTypeInfo<?>[] getTestData() {
+		return new TupleTypeInfo<?>[] {
+			new TupleTypeInfo<>(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO),
+			new TupleTypeInfo<>(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.BOOLEAN_TYPE_INFO)
+		};
+	}
 
 	@Test
 	public void testTupleTypeInfoSymmetricEqualityRelation() {
 		TupleTypeInfo<Tuple1<Integer>> tupleTypeInfo = new TupleTypeInfo<>(BasicTypeInfo.INT_TYPE_INFO);
 
 		TupleTypeInfoBase<Tuple1> anonymousTupleTypeInfo = new TupleTypeInfoBase<Tuple1>(
-			(Class<Tuple1>)Tuple1.class,
+			Tuple1.class,
 			(TypeInformation<?>)BasicTypeInfo.INT_TYPE_INFO) {
 
 			private static final long serialVersionUID = -7985593598027660836L;
@@ -64,33 +74,6 @@ public class TupleTypeInfoTest extends TestLogger {
 		boolean tupleVsAnonymous = tupleTypeInfo.equals(anonymousTupleTypeInfo);
 		boolean anonymousVsTuple = anonymousTupleTypeInfo.equals(tupleTypeInfo);
 
-		Assert.assertTrue("Equality relation should be symmetric", tupleVsAnonymous == anonymousVsTuple);
-	}
-
-	@Test
-	public void testTupleTypeInfoEquality() {
-		TupleTypeInfo<Tuple2<Integer, String>> tupleTypeInfo1 = new TupleTypeInfo<>(
-			BasicTypeInfo.INT_TYPE_INFO,
-			BasicTypeInfo.STRING_TYPE_INFO);
-
-		TupleTypeInfo<Tuple2<Integer, String>> tupleTypeInfo2 = new TupleTypeInfo<>(
-			BasicTypeInfo.INT_TYPE_INFO,
-			BasicTypeInfo.STRING_TYPE_INFO);
-
-		Assert.assertEquals(tupleTypeInfo1, tupleTypeInfo2);
-		Assert.assertEquals(tupleTypeInfo1.hashCode(), tupleTypeInfo2.hashCode());
-	}
-
-	@Test
-	public void testTupleTypeInfoInequality() {
-		TupleTypeInfo<Tuple2<Integer, String>> tupleTypeInfo1 = new TupleTypeInfo<>(
-			BasicTypeInfo.INT_TYPE_INFO,
-			BasicTypeInfo.STRING_TYPE_INFO);
-
-		TupleTypeInfo<Tuple2<Integer, Boolean>> tupleTypeInfo2 = new TupleTypeInfo<>(
-			BasicTypeInfo.INT_TYPE_INFO,
-			BasicTypeInfo.BOOLEAN_TYPE_INFO);
-
-		Assert.assertNotEquals(tupleTypeInfo1, tupleTypeInfo2);
+		assertTrue("Equality relation should be symmetric", tupleVsAnonymous == anonymousVsTuple);
 	}
 }
