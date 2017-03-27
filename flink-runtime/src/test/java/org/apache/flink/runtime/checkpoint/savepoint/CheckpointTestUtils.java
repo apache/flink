@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.checkpoint.savepoint;
 
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.runtime.checkpoint.MasterState;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskState;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -26,50 +27,41 @@ import org.apache.flink.runtime.state.ChainedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
+import org.apache.flink.runtime.state.OperatorStateHandle.StateMetaInfo;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.util.TestByteStreamStateHandleDeepCompare;
-import org.junit.Test;
+import org.apache.flink.util.StringUtils;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import java.util.concurrent.ThreadLocalRandom;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
 
-public class SavepointV1Test {
+/**
+ * A collection of utility methods for testing the (de)serialization of
+ * checkpoint metadata for persistence.
+ */
+public class CheckpointTestUtils {
 
 	/**
-	 * Simple test of savepoint methods.
+	 * Creates a random collection of TaskState objects containing various types of state handles.
 	 */
-	@Test
-	public void testSavepointV1() throws Exception {
-		long checkpointId = ThreadLocalRandom.current().nextLong(Integer.MAX_VALUE);
-		int numTaskStates = 4;
-		int numSubtaskStates = 16;
-
-		Collection<TaskState> expected = createTaskStates(numTaskStates, numSubtaskStates);
-
-		SavepointV1 savepoint = new SavepointV1(checkpointId, expected);
-
-		assertEquals(SavepointV1.VERSION, savepoint.getVersion());
-		assertEquals(checkpointId, savepoint.getCheckpointId());
-		assertEquals(expected, savepoint.getTaskStates());
-
-		assertFalse(savepoint.getTaskStates().isEmpty());
-		savepoint.dispose();
-		assertTrue(savepoint.getTaskStates().isEmpty());
+	public static Collection<TaskState> createTaskStates(int numTaskStates, int numSubtasksPerTask) {
+		return createTaskStates(new Random(), numTaskStates, numSubtasksPerTask);
 	}
 
-	static Collection<TaskState> createTaskStates(int numTaskStates, int numSubtasksPerTask) throws IOException {
-
-		Random random = new Random(numTaskStates * 31 + numSubtasksPerTask);
+	/**
+	 * Creates a random collection of TaskState objects containing various types of state handles.
+	 */
+	public static Collection<TaskState> createTaskStates(
+			Random random,
+			int numTaskStates,
+			int numSubtasksPerTask) {
 
 		List<TaskState> taskStates = new ArrayList<>(numTaskStates);
 
@@ -96,12 +88,12 @@ public class SavepointV1Test {
 
 					StreamStateHandle nonPartitionableState =
 							new TestByteStreamStateHandleDeepCompare("a-" + chainIdx, ("Hi-" + chainIdx).getBytes(
-								ConfigConstants.DEFAULT_CHARSET));
+									ConfigConstants.DEFAULT_CHARSET));
 					StreamStateHandle operatorStateBackend =
 							new TestByteStreamStateHandleDeepCompare("b-" + chainIdx, ("Beautiful-" + chainIdx).getBytes(ConfigConstants.DEFAULT_CHARSET));
 					StreamStateHandle operatorStateStream =
 							new TestByteStreamStateHandleDeepCompare("b-" + chainIdx, ("Beautiful-" + chainIdx).getBytes(ConfigConstants.DEFAULT_CHARSET));
-					Map<String, OperatorStateHandle.StateMetaInfo> offsetsMap = new HashMap<>();
+					Map<String, StateMetaInfo> offsetsMap = new HashMap<>();
 					offsetsMap.put("A", new OperatorStateHandle.StateMetaInfo(new long[]{0, 10, 20}, OperatorStateHandle.Mode.SPLIT_DISTRIBUTE));
 					offsetsMap.put("B", new OperatorStateHandle.StateMetaInfo(new long[]{30, 40, 50}, OperatorStateHandle.Mode.SPLIT_DISTRIBUTE));
 					offsetsMap.put("C", new OperatorStateHandle.StateMetaInfo(new long[]{60, 70, 80}, OperatorStateHandle.Mode.BROADCAST));
@@ -130,14 +122,14 @@ public class SavepointV1Test {
 					keyedStateBackend = new KeyGroupsStateHandle(
 							new KeyGroupRangeOffsets(1, 1, new long[]{42}),
 							new TestByteStreamStateHandleDeepCompare("c", "Hello"
-								.getBytes(ConfigConstants.DEFAULT_CHARSET)));
+									.getBytes(ConfigConstants.DEFAULT_CHARSET)));
 				}
 
 				if (hasKeyedStream) {
 					keyedStateStream = new KeyGroupsStateHandle(
 							new KeyGroupRangeOffsets(1, 1, new long[]{23}),
 							new TestByteStreamStateHandleDeepCompare("d", "World"
-								.getBytes(ConfigConstants.DEFAULT_CHARSET)));
+									.getBytes(ConfigConstants.DEFAULT_CHARSET)));
 				}
 
 				taskState.putState(subtaskIdx, new SubtaskState(
@@ -154,4 +146,39 @@ public class SavepointV1Test {
 		return taskStates;
 	}
 
+	/**
+	 * Creates a bunch of random master states.
+	 */
+	public static Collection<MasterState> createRandomMasterStates(Random random, int num) {
+		final ArrayList<MasterState> states = new ArrayList<>(num);
+
+		for (int i = 0; i < num; i++) {
+			int version = random.nextInt(10);
+			String name = StringUtils.getRandomString(random, 5, 500);
+			byte[] bytes = new byte[random.nextInt(5000) + 1];
+			random.nextBytes(bytes);
+
+			states.add(new MasterState(name, bytes, version));
+		}
+
+		return states;
+	}
+
+	/**
+	 * Asserts that two MasterStates are equal.
+	 * 
+	 * <p>The MasterState avoids overriding {@code equals()} on purpose, because equality is not well
+	 * defined in the raw contents.
+	 */
+	public static void assertMasterStateEquality(MasterState a, MasterState b) {
+		assertEquals(a.version(), b.version());
+		assertEquals(a.name(), b.name());
+		assertArrayEquals(a.bytes(), b.bytes());
+
+	}
+
+	// ------------------------------------------------------------------------
+
+	/** utility class, not meant to be instantiated */
+	private CheckpointTestUtils() {}
 }

@@ -21,7 +21,7 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.savepoint.Savepoint;
 import org.apache.flink.runtime.checkpoint.savepoint.SavepointStore;
-import org.apache.flink.runtime.checkpoint.savepoint.SavepointV1;
+import org.apache.flink.runtime.checkpoint.savepoint.SavepointV2;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -41,8 +41,10 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Executor;
@@ -88,6 +90,8 @@ public class PendingCheckpoint {
 	private final Map<JobVertexID, TaskState> taskStates;
 
 	private final Map<ExecutionAttemptID, ExecutionVertex> notYetAcknowledgedTasks;
+
+	private final List<MasterState> masterState;
 
 	/** Set of acknowledged tasks */
 	private final Set<ExecutionAttemptID> acknowledgedTasks;
@@ -143,6 +147,7 @@ public class PendingCheckpoint {
 		this.executor = Preconditions.checkNotNull(executor);
 
 		this.taskStates = new HashMap<>();
+		this.masterState = new ArrayList<>();
 		this.acknowledgedTasks = new HashSet<>(verticesToConfirm.size());
 		this.onCompletionPromise = new FlinkCompletableFuture<>();
 	}
@@ -256,7 +261,7 @@ public class PendingCheckpoint {
 			// make sure we fulfill the promise with an exception if something fails
 			try {
 				// externalize the metadata
-				final Savepoint savepoint = new SavepointV1(checkpointId, taskStates.values());
+				final Savepoint savepoint = new SavepointV2(checkpointId, taskStates.values());
 
 				// TEMP FIX - The savepoint store is strictly typed to file systems currently
 				//            but the checkpoints think more generic. we need to work with file handles
@@ -321,7 +326,8 @@ public class PendingCheckpoint {
 				checkpointId,
 				checkpointTimestamp,
 				System.currentTimeMillis(),
-				new HashMap<>(taskStates),
+				taskStates,
+				masterState,
 				props,
 				externalMetadata,
 				externalPointer);
@@ -342,6 +348,17 @@ public class PendingCheckpoint {
 		dispose(false);
 
 		return completed;
+	}
+
+	/**
+	 * Adds a master state (state generated on the checkpoint coordinator) to
+	 * the pending checkpoint.
+	 * 
+	 * @param state The state to add
+	 */
+	public void addMasterState(MasterState state) {
+		checkNotNull(state);
+		masterState.add(state);
 	}
 
 	/**

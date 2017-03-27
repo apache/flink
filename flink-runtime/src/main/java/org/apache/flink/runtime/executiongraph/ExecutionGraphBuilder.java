@@ -31,6 +31,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
+import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.executiongraph.metrics.DownTimeGauge;
@@ -51,6 +52,7 @@ import org.slf4j.Logger;
 import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
@@ -230,6 +232,21 @@ public class ExecutionGraphBuilder {
 				}
 			}
 
+			// instantiate the user-defined checkpoint hooks
+
+			final MasterTriggerRestoreHook.Factory[] hookFactories = snapshotSettings.getMasterHooks();
+			final List<MasterTriggerRestoreHook<?>> hooks;
+
+			if (hookFactories == null || hookFactories.length == 0) {
+				hooks = Collections.emptyList();
+			}
+			else {
+				hooks = new ArrayList<>(hookFactories.length);
+				for (MasterTriggerRestoreHook.Factory factory : hookFactories) {
+					hooks.add(factory.create());
+				}
+			}
+
 			executionGraph.enableCheckpointing(
 					snapshotSettings.getCheckpointInterval(),
 					snapshotSettings.getCheckpointTimeout(),
@@ -239,6 +256,7 @@ public class ExecutionGraphBuilder {
 					triggerVertices,
 					ackVertices,
 					confirmVertices,
+					hooks,
 					checkpointIdCounter,
 					completedCheckpoints,
 					externalizedCheckpointsDir,

@@ -39,6 +39,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
+import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
 import org.apache.flink.runtime.concurrent.BiFunction;
 import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.concurrent.FutureUtils;
@@ -360,6 +361,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			List<ExecutionJobVertex> verticesToTrigger,
 			List<ExecutionJobVertex> verticesToWaitFor,
 			List<ExecutionJobVertex> verticesToCommitTo,
+			List<MasterTriggerRestoreHook<?>> masterHooks,
 			CheckpointIDCounter checkpointIDCounter,
 			CompletedCheckpointStore checkpointStore,
 			String checkpointDir,
@@ -394,6 +396,13 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			checkpointStore,
 			checkpointDir,
 			ioExecutor);
+
+		// register the master hooks on the checkpoint coordinator
+		for (MasterTriggerRestoreHook<?> hook : masterHooks) {
+			if (!checkpointCoordinator.addMasterHook(hook)) {
+				LOG.warn("Trying to register multiple checkpoint hooks with the name: {}", hook.getIdentifier());
+			}
+		}
 
 		checkpointCoordinator.setCheckpointStatsTracker(checkpointStatsTracker);
 

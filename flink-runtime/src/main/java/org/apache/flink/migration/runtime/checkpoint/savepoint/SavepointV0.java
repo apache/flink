@@ -19,6 +19,7 @@
 package org.apache.flink.migration.runtime.checkpoint.savepoint;
 
 import org.apache.flink.migration.runtime.checkpoint.TaskState;
+import org.apache.flink.runtime.checkpoint.MasterState;
 import org.apache.flink.runtime.checkpoint.savepoint.Savepoint;
 import org.apache.flink.util.Preconditions;
 
@@ -58,6 +59,15 @@ public class SavepointV0 implements Savepoint {
 
 	@Override
 	public Collection<org.apache.flink.runtime.checkpoint.TaskState> getTaskStates() {
+		// since checkpoints are never deserialized into this format,
+		// this method should never be called
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public Collection<MasterState> getMasterStates() {
+		// since checkpoints are never deserialized into this format,
+		// this method should never be called
 		throw new UnsupportedOperationException();
 	}
 

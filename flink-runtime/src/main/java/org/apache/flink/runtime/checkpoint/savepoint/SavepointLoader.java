@@ -26,6 +26,7 @@ import org.apache.flink.runtime.checkpoint.TaskState;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.StreamStateHandle;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -122,7 +123,7 @@ public class SavepointLoader {
 		// (3) convert to checkpoint so the system can fall back to it
 		CheckpointProperties props = CheckpointProperties.forStandardSavepoint();
 		return new CompletedCheckpoint(jobId, savepoint.getCheckpointId(), 0L, 0L,
-				taskStates, props, metadataHandle, savepointPath);
+				taskStates, savepoint.getMasterStates(), props, metadataHandle, savepointPath);
 	}
 
 	// ------------------------------------------------------------------------

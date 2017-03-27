@@ -33,6 +33,8 @@ import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -44,13 +46,26 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Deserializer for checkpoints written in format {@code 1} (Flink 1.2.x format)
+ * (De)serializer for checkpoint metadata format version 2.
  * 
- * <p>In contrast to the previous versions, this serializer makes sure that no Java
- * serialization is used for serialization. Therefore, we don't rely on any involved 
- * classes to stay the same.
+ * <p>This format version adds
+ * 
+ * <p>Basic checkpoint metadata layout:
+ * <pre>
+ *  +--------------+---------------+-----------------+
+ *  | checkpointID | master states | operator states |
+ *  +--------------+---------------+-----------------+
+ *  
+ *  Master state:
+ *  +--------------+---------------------+---------+------+---------------+
+ *  | magic number | num remaining bytes | version | name | payload bytes |
+ *  +--------------+---------------------+---------+------+---------------+
+ * </pre>
  */
-class SavepointV1Serializer implements SavepointSerializer<SavepointV2> {
+class SavepointV2Serializer implements SavepointSerializer<SavepointV2> {
+
+	/** Random magic number for consistency checks */
+	private static final int MASTER_STATE_MAGIC_NUMBER = 0xc96b1696;
 
 	private static final byte NULL_HANDLE = 0;
 	private static final byte BYTE_STREAM_STATE_HANDLE = 1;
@@ -58,24 +73,83 @@ class SavepointV1Serializer implements SavepointSerializer<SavepointV2> {
 	private static final byte KEY_GROUPS_HANDLE = 3;
 	private static final byte PARTITIONABLE_OPERATOR_STATE_HANDLE = 4;
 
+	/** The singleton instance of the serializer */
+	public static final SavepointV2Serializer INSTANCE = new SavepointV2Serializer();
 
-	public static final SavepointV1Serializer INSTANCE = new SavepointV1Serializer();
+	// ------------------------------------------------------------------------
 
-	private SavepointV1Serializer() {
-	}
+	/** Singleton, not meant to be instantiated */
+	private SavepointV2Serializer() {}
+
+	// ------------------------------------------------------------------------
+	//  (De)serialization entry points
+	// ------------------------------------------------------------------------
 
 	@Override
-	public void serialize(SavepointV2 savepoint, DataOutputStream dos) throws IOException {
-		throw new UnsupportedOperationException("This serializer is read-only and only exists for backwards compatibility");
+	public void serialize(SavepointV2 checkpointMetadata, DataOutputStream dos) throws IOException {
+		// first: checkpoint ID
+		dos.writeLong(checkpointMetadata.getCheckpointId());
+
+		// second: master state
+		final Collection<MasterState> masterStates = checkpointMetadata.getMasterStates();
+		dos.writeInt(masterStates.size());
+		for (MasterState ms : masterStates) {
+			serializeMasterState(ms, dos);
+		}
+
+		// third: task states
+		final Collection<TaskState> taskStates = checkpointMetadata.getTaskStates();
+		dos.writeInt(taskStates.size());
+
+		for (TaskState taskState : checkpointMetadata.getTaskStates()) {
+			// Vertex ID
+			dos.writeLong(taskState.getJobVertexID().getLowerPart());
+			dos.writeLong(taskState.getJobVertexID().getUpperPart());
+
+			// Parallelism
+			int parallelism = taskState.getParallelism();
+			dos.writeInt(parallelism);
+			dos.writeInt(taskState.getMaxParallelism());
+			dos.writeInt(taskState.getChainLength());
+
+			// Sub task states
+			Map<Integer, SubtaskState> subtaskStateMap = taskState.getSubtaskStates();
+			dos.writeInt(subtaskStateMap.size());
+			for (Map.Entry<Integer, SubtaskState> entry : subtaskStateMap.entrySet()) {
+				dos.writeInt(entry.getKey());
+				serializeSubtaskState(entry.getValue(), dos);
+			}
+		}
 	}
 
 	@Override
 	public SavepointV2 deserialize(DataInputStream dis, ClassLoader cl) throws IOException {
-		long checkpointId = dis.readLong();
+		// first: checkpoint ID
+		final long checkpointId = dis.readLong();
+		if (checkpointId < 0) {
+			throw new IOException("invalid checkpoint ID: " + checkpointId);
+		}
 
-		// Task states
-		int numTaskStates = dis.readInt();
-		List<TaskState> taskStates = new ArrayList<>(numTaskStates);
+		// second: master state
+		final List<MasterState> masterStates;
+		final int numMasterStates = dis.readInt();
+
+		if (numMasterStates == 0) {
+			masterStates = Collections.emptyList();
+		}
+		else if (numMasterStates > 0) {
+			masterStates = new ArrayList<>(numMasterStates);
+			for (int i = 0; i < numMasterStates; i++) {
+				masterStates.add(deserializeMasterState(dis));
+			}
+		}
+		else {
+			throw new IOException("invalid number of master states: " + numMasterStates);
+		}
+
+		// third: task states
+		final int numTaskStates = dis.readInt();
+		final ArrayList<TaskState> taskStates = new ArrayList<>(numTaskStates);
 
 		for (int i = 0; i < numTaskStates; i++) {
 			JobVertexID jobVertexId = new JobVertexID(dis.readLong(), dis.readLong());
@@ -97,35 +171,69 @@ class SavepointV1Serializer implements SavepointSerializer<SavepointV2> {
 			}
 		}
 
-		return new SavepointV2(checkpointId, taskStates, Collections.<MasterState>emptyList());
+		return new SavepointV2(checkpointId, taskStates, masterStates);
 	}
 
-	public void serializeOld(SavepointV1 savepoint, DataOutputStream dos) throws IOException {
-		dos.writeLong(savepoint.getCheckpointId());
+	// ------------------------------------------------------------------------
+	//  master state (de)serialization methods
+	// ------------------------------------------------------------------------
 
-		Collection<TaskState> taskStates = savepoint.getTaskStates();
-		dos.writeInt(taskStates.size());
+	private void serializeMasterState(MasterState state, DataOutputStream dos) throws IOException {
+		// magic number for error detection
+		dos.writeInt(MASTER_STATE_MAGIC_NUMBER);
 
-		for (TaskState taskState : savepoint.getTaskStates()) {
-			// Vertex ID
-			dos.writeLong(taskState.getJobVertexID().getLowerPart());
-			dos.writeLong(taskState.getJobVertexID().getUpperPart());
+		// for safety, we serialize first into an array and then write the array and its
+		// length into the checkpoint
+		final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		final DataOutputStream out = new DataOutputStream(baos);
 
-			// Parallelism
-			int parallelism = taskState.getParallelism();
-			dos.writeInt(parallelism);
-			dos.writeInt(taskState.getMaxParallelism());
-			dos.writeInt(taskState.getChainLength());
+		out.writeInt(state.version());
+		out.writeUTF(state.name());
 
-			// Sub task states
-			Map<Integer, SubtaskState> subtaskStateMap = taskState.getSubtaskStates();
-			dos.writeInt(subtaskStateMap.size());
-			for (Map.Entry<Integer, SubtaskState> entry : subtaskStateMap.entrySet()) {
-				dos.writeInt(entry.getKey());
-				serializeSubtaskState(entry.getValue(), dos);
-			}
+		final byte[] bytes = state.bytes();
+		out.writeInt(bytes.length);
+		out.write(bytes, 0, bytes.length);
+
+		out.close();
+		byte[] data = baos.toByteArray();
+
+		dos.writeInt(data.length);
+		dos.write(data, 0, data.length);
+	}
+
+	private MasterState deserializeMasterState(DataInputStream dis) throws IOException {
+		final int magicNumber = dis.readInt();
+		if (magicNumber != MASTER_STATE_MAGIC_NUMBER) {
+			throw new IOException("incorrect magic number in master styte byte sequence");
 		}
+
+		final int numBytes = dis.readInt();
+		if (numBytes <= 0) {
+			throw new IOException("found zero or negative length for master state bytes");
+		}
+
+		final byte[] data = new byte[numBytes];
+		dis.readFully(data);
+
+		final DataInputStream in = new DataInputStream(new ByteArrayInputStream(data));
+
+		final int version = in.readInt();
+		final String name = in.readUTF();
+
+		final byte[] bytes = new byte[in.readInt()];
+		in.readFully(bytes);
+
+		// check that the data is not corrupt
+		if (in.read() != -1) {
+			throw new IOException("found trailing bytes in master state");
+		}
+
+		return new MasterState(name, bytes, version);
 	}
+
+	// ------------------------------------------------------------------------
+	//  task state (de)serialization methods
+	// ------------------------------------------------------------------------
 
 	private static void serializeSubtaskState(SubtaskState subtaskState, DataOutputStream dos) throws IOException {
 
@@ -340,7 +448,7 @@ class SavepointV1Serializer implements SavepointSerializer<SavepointV2> {
 	}
 
 	private static StreamStateHandle deserializeStreamStateHandle(DataInputStream dis) throws IOException {
-		int type = dis.read();
+		final int type = dis.read();
 		if (NULL_HANDLE == type) {
 			return null;
 		} else if (FILE_STREAM_STATE_HANDLE == type) {

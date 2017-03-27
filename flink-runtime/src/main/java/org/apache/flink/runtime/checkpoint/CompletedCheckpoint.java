@@ -27,11 +27,16 @@ import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -90,10 +95,13 @@ public class CompletedCheckpoint implements Serializable {
 	private final long duration;
 
 	/** States of the different task groups belonging to this checkpoint */
-	private final Map<JobVertexID, TaskState> taskStates;
+	private final HashMap<JobVertexID, TaskState> taskStates;
 
 	/** Properties for this checkpoint. */
 	private final CheckpointProperties props;
+
+	/** States that were created by a hook on the master (in the checkpoint coordinator) */
+	private final Collection<MasterState> masterHookStates;
 
 	/** The state handle to the externalized meta data, if the metadata has been externalized */
 	@Nullable
@@ -118,6 +126,7 @@ public class CompletedCheckpoint implements Serializable {
 			Map<JobVertexID, TaskState> taskStates) {
 
 		this(job, checkpointID, timestamp, completionTimestamp, taskStates,
+				Collections.<MasterState>emptyList(),
 				CheckpointProperties.forStandardCheckpoint());
 	}
 
@@ -127,9 +136,11 @@ public class CompletedCheckpoint implements Serializable {
 			long timestamp,
 			long completionTimestamp,
 			Map<JobVertexID, TaskState> taskStates,
+			@Nullable Collection<MasterState> masterHookStates,
 			CheckpointProperties props) {
 
-		this(job, checkpointID, timestamp, completionTimestamp, taskStates, props, null, null);
+		this(job, checkpointID, timestamp, completionTimestamp, taskStates, 
+				masterHookStates, props, null, null);
 	}
 
 	public CompletedCheckpoint(
@@ -138,6 +149,7 @@ public class CompletedCheckpoint implements Serializable {
 			long timestamp,
 			long completionTimestamp,
 			Map<JobVertexID, TaskState> taskStates,
+			@Nullable Collection<MasterState> masterHookStates,
 			CheckpointProperties props,
 			@Nullable StreamStateHandle externalizedMetadata,
 			@Nullable String externalPointer) {
@@ -156,7 +168,14 @@ public class CompletedCheckpoint implements Serializable {
 		this.checkpointID = checkpointID;
 		this.timestamp = timestamp;
 		this.duration = completionTimestamp - timestamp;
-		this.taskStates = checkNotNull(taskStates);
+
+		// we create copies here, to make sure we have no shared mutable
+		// data structure with the "outside world"
+		this.taskStates = new HashMap<>(checkNotNull(taskStates));
+		this.masterHookStates = masterHookStates == null || masterHookStates.isEmpty() ?
+				Collections.<MasterState>emptyList() :
+				new ArrayList<>(masterHookStates);
+
 		this.props = checkNotNull(props);
 		this.externalizedMetadata = externalizedMetadata;
 		this.externalPointer = externalPointer;
@@ -228,11 +247,15 @@ public class CompletedCheckpoint implements Serializable {
 	}
 
 	public Map<JobVertexID, TaskState> getTaskStates() {
-		return taskStates;
+		return Collections.unmodifiableMap(taskStates);
 	}
 
 	public TaskState getTaskState(JobVertexID jobVertexID) {
 		return taskStates.get(jobVertexID);
+	}
+
+	public Collection<MasterState> getMasterHookStates() {
+		return Collections.unmodifiableCollection(masterHookStates);
 	}
 
 	public boolean isExternalized() {
