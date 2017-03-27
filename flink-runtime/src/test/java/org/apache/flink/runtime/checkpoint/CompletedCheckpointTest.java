@@ -45,7 +45,7 @@ import static org.mockito.Mockito.verify;
 public class CompletedCheckpointTest {
 
 	@Rule
-	public TemporaryFolder tmpFolder = new TemporaryFolder();
+	public final TemporaryFolder tmpFolder = new TemporaryFolder();
 
 	/**
 	 * Tests that persistent checkpoints discard their header file.
@@ -61,7 +61,10 @@ public class CompletedCheckpointTest {
 
 		// Verify discard call is forwarded to state
 		CompletedCheckpoint checkpoint = new CompletedCheckpoint(
-				new JobID(), 0, 0, 1, taskStates, CheckpointProperties.forStandardCheckpoint(),
+				new JobID(), 0, 0, 1,
+				taskStates,
+				Collections.<MasterState>emptyList(),
+				CheckpointProperties.forStandardCheckpoint(),
 				new FileStateHandle(new Path(file.toURI()), file.length()),
 				file.getAbsolutePath());
 
@@ -81,8 +84,12 @@ public class CompletedCheckpointTest {
 
 		boolean discardSubsumed = true;
 		CheckpointProperties props = new CheckpointProperties(false, false, discardSubsumed, true, true, true, true);
+		
 		CompletedCheckpoint checkpoint = new CompletedCheckpoint(
-				new JobID(), 0, 0, 1, taskStates, props);
+				new JobID(), 0, 0, 1,
+				taskStates,
+				Collections.<MasterState>emptyList(),
+				props);
 
 		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
 		checkpoint.registerSharedStates(sharedStateRegistry);
@@ -117,7 +124,10 @@ public class CompletedCheckpointTest {
 			// Keep
 			CheckpointProperties props = new CheckpointProperties(false, true, false, false, false, false, false);
 			CompletedCheckpoint checkpoint = new CompletedCheckpoint(
-					new JobID(), 0, 0, 1, new HashMap<>(taskStates), props,
+					new JobID(), 0, 0, 1,
+					new HashMap<>(taskStates),
+					Collections.<MasterState>emptyList(),
+					props,
 					new FileStateHandle(new Path(file.toURI()), file.length()),
 					externalPath);
 
@@ -132,7 +142,10 @@ public class CompletedCheckpointTest {
 			// Discard
 			props = new CheckpointProperties(false, false, true, true, true, true, true);
 			checkpoint = new CompletedCheckpoint(
-					new JobID(), 0, 0, 1, new HashMap<>(taskStates), props);
+					new JobID(), 0, 0, 1,
+					new HashMap<>(taskStates),
+					Collections.<MasterState>emptyList(),
+					props);
 
 			checkpoint.discardOnShutdown(status, sharedStateRegistry);
 			verify(state, times(1)).discardState();
@@ -155,6 +168,7 @@ public class CompletedCheckpointTest {
 			0,
 			1,
 			new HashMap<>(taskStates),
+			Collections.<MasterState>emptyList(),
 			CheckpointProperties.forStandardCheckpoint());
 
 		CompletedCheckpointStats.DiscardCallback callback = mock(CompletedCheckpointStats.DiscardCallback.class);

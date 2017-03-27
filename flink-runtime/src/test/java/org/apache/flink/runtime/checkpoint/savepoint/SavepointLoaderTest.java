@@ -67,7 +67,7 @@ public class SavepointLoaderTest {
 		JobID jobId = new JobID();
 
 		// Store savepoint
-		SavepointV1 savepoint = new SavepointV1(checkpointId, taskStates.values());
+		SavepointV2 savepoint = new SavepointV2(checkpointId, taskStates.values());
 		String path = SavepointStore.storeSavepoint(tmp.getAbsolutePath(), savepoint);
 
 		ExecutionJobVertex vertex = mock(ExecutionJobVertex.class);

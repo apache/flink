@@ -105,6 +105,7 @@ public class ExecutionGraphCheckpointCoordinatorTest {
 				Collections.<ExecutionJobVertex>emptyList(),
 				Collections.<ExecutionJobVertex>emptyList(),
 				Collections.<ExecutionJobVertex>emptyList(),
+				Collections.<MasterTriggerRestoreHook<?>>emptyList(),
 				counter,
 				store,
 				null,

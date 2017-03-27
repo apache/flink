@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.checkpoint.savepoint;
 
+import org.apache.flink.migration.runtime.checkpoint.savepoint.SavepointV0;
 import org.apache.flink.migration.runtime.checkpoint.savepoint.SavepointV0Serializer;
 import org.apache.flink.util.Preconditions;
 
@@ -30,13 +31,15 @@ import java.util.Map;
 public class SavepointSerializers {
 
 
-	private static final int SAVEPOINT_VERSION_0 = 0;
 	private static final Map<Integer, SavepointSerializer<?>> SERIALIZERS = new HashMap<>(2);
 
 	static {
-		SERIALIZERS.put(SAVEPOINT_VERSION_0, SavepointV0Serializer.INSTANCE);
+		SERIALIZERS.put(SavepointV0.VERSION, SavepointV0Serializer.INSTANCE);
 		SERIALIZERS.put(SavepointV1.VERSION, SavepointV1Serializer.INSTANCE);
+		SERIALIZERS.put(SavepointV2.VERSION, SavepointV2Serializer.INSTANCE);
 	}
+
+	// ------------------------------------------------------------------------
 
 	/**
 	 * Returns the {@link SavepointSerializer} for the given savepoint.

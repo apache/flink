@@ -45,6 +45,7 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * Test harness for testing a {@link StreamTask}.
@@ -83,7 +84,7 @@ public class StreamTaskTestHarness<OUT> {
 	private TypeSerializer<OUT> outputSerializer;
 	private TypeSerializer<StreamElement> outputStreamRecordSerializer;
 
-	private ConcurrentLinkedQueue<Object> outputList;
+	private LinkedBlockingQueue<Object> outputList;
 
 	protected TaskThread taskThread;
 
@@ -125,7 +126,7 @@ public class StreamTaskTestHarness<OUT> {
 
 	@SuppressWarnings("unchecked")
 	private void initializeOutput() {
-		outputList = new ConcurrentLinkedQueue<Object>();
+		outputList = new LinkedBlockingQueue<Object>();
 		mockEnv.addOutput(outputList, outputStreamRecordSerializer);
 	}
 
@@ -265,7 +266,7 @@ public class StreamTaskTestHarness<OUT> {
 	 * {@link org.apache.flink.streaming.util.TestHarnessUtil#getRawElementsFromOutput(java.util.Queue)}}
 	 * to extract only the StreamRecords.
 	 */
-	public ConcurrentLinkedQueue<Object> getOutput() {
+	public LinkedBlockingQueue<Object> getOutput() {
 		return outputList;
 	}
 

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobgraph.tasks;
 
+import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.StateBackend;
 
@@ -32,21 +33,21 @@ import static java.util.Objects.requireNonNull;
  * need to participate.
  */
 public class JobCheckpointingSettings implements java.io.Serializable {
-	
+
 	private static final long serialVersionUID = -2593319571078198180L;
-	
+
 	private final List<JobVertexID> verticesToTrigger;
 
 	private final List<JobVertexID> verticesToAcknowledge;
 
 	private final List<JobVertexID> verticesToConfirm;
-	
+
 	private final long checkpointInterval;
-	
+
 	private final long checkpointTimeout;
-	
+
 	private final long minPauseBetweenCheckpoints;
-	
+
 	private final int maxConcurrentCheckpoints;
 
 	/** Settings for externalized checkpoints. */
@@ -55,6 +56,9 @@ public class JobCheckpointingSettings implements java.io.Serializable {
 	/** The default state backend, if configured by the user in the job */
 	@Nullable
 	private final StateBackend defaultStateBackend;
+
+	/** (Factories for) hooks that are executed on the checkpoint coordinator */
+	private final MasterTriggerRestoreHook.Factory[] masterHooks;
 
 	/**
 	 * Flag indicating whether exactly once checkpoint mode has been configured.
@@ -77,12 +81,30 @@ public class JobCheckpointingSettings implements java.io.Serializable {
 			@Nullable StateBackend defaultStateBackend,
 			boolean isExactlyOnce) {
 
+		this(verticesToTrigger, verticesToAcknowledge, verticesToConfirm,
+				checkpointInterval, checkpointTimeout, minPauseBetweenCheckpoints, maxConcurrentCheckpoints,
+				externalizedCheckpointSettings, defaultStateBackend, null, isExactlyOnce);
+	}
+
+	public JobCheckpointingSettings(
+			List<JobVertexID> verticesToTrigger,
+			List<JobVertexID> verticesToAcknowledge,
+			List<JobVertexID> verticesToConfirm,
+			long checkpointInterval,
+			long checkpointTimeout,
+			long minPauseBetweenCheckpoints,
+			int maxConcurrentCheckpoints,
+			ExternalizedCheckpointSettings externalizedCheckpointSettings,
+			@Nullable StateBackend defaultStateBackend,
+			@Nullable MasterTriggerRestoreHook.Factory[] masterHooks,
+			boolean isExactlyOnce) {
+
 		// sanity checks
 		if (checkpointInterval < 1 || checkpointTimeout < 1 ||
 				minPauseBetweenCheckpoints < 0 || maxConcurrentCheckpoints < 1) {
 			throw new IllegalArgumentException();
 		}
-		
+
 		this.verticesToTrigger = requireNonNull(verticesToTrigger);
 		this.verticesToAcknowledge = requireNonNull(verticesToAcknowledge);
 		this.verticesToConfirm = requireNonNull(verticesToConfirm);
@@ -93,14 +115,16 @@ public class JobCheckpointingSettings implements java.io.Serializable {
 		this.externalizedCheckpointSettings = requireNonNull(externalizedCheckpointSettings);
 		this.defaultStateBackend = defaultStateBackend;
 		this.isExactlyOnce = isExactlyOnce;
+
+		this.masterHooks = masterHooks != null ? masterHooks : new MasterTriggerRestoreHook.Factory[0];
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 
 	public List<JobVertexID> getVerticesToTrigger() {
 		return verticesToTrigger;
 	}
-	
+
 	public List<JobVertexID> getVerticesToAcknowledge() {
 		return verticesToAcknowledge;
 	}
@@ -134,12 +158,16 @@ public class JobCheckpointingSettings implements java.io.Serializable {
 		return defaultStateBackend;
 	}
 
+	public MasterTriggerRestoreHook.Factory[] getMasterHooks() {
+		return masterHooks;
+	}
+
 	public boolean isExactlyOnce() {
 		return isExactlyOnce;
 	}
 
 	// --------------------------------------------------------------------------------------------
-	
+
 	@Override
 	public String toString() {
 		return String.format("SnapshotSettings: interval=%d, timeout=%d, pause-between=%d, " +

@@ -19,8 +19,12 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.streaming.api.checkpoint.ExternallyInducedSource;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
+import org.apache.flink.util.FlinkException;
 
 /**
  * {@link StreamTask} for executing a {@link StreamSource}.
@@ -40,9 +44,44 @@ import org.apache.flink.streaming.api.operators.StreamSource;
 public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends StreamSource<OUT, SRC>>
 	extends StreamTask<OUT, OP> {
 
+	private volatile boolean externallyInducedCheckpoints;
+
 	@Override
 	protected void init() {
 		// does not hold any resources, so no initialization needed
+
+		// we check if the source is actually inducing the checkpoints, rather
+		// than the trigger ch
+		SourceFunction<?> source = headOperator.getUserFunction();
+		if (source instanceof ExternallyInducedSource) {
+			externallyInducedCheckpoints = true;
+
+			ExternallyInducedSource.CheckpointTrigger triggerHook = new ExternallyInducedSource.CheckpointTrigger() {
+
+				@Override
+				public void triggerCheckpoint(long checkpointId) throws FlinkException {
+					// TODO - we need to see how to derive those. We should probably not encode this in the
+					// TODO -   source's trigger message, but do a handshake in this task between the trigger
+					// TODO -   message from the master, and the source's trigger notification
+					final CheckpointOptions checkpointOptions = CheckpointOptions.forFullCheckpoint();
+					final long timestamp = System.currentTimeMillis();
+
+					final CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, timestamp);
+
+					try {
+						SourceStreamTask.super.triggerCheckpoint(checkpointMetaData, checkpointOptions);
+					}
+					catch (RuntimeException | FlinkException e) {
+						throw e;
+					}
+					catch (Exception e) {
+						throw new FlinkException(e.getMessage(), e);
+					}
+				}
+			};
+
+			((ExternallyInducedSource<?, ?>) source).setCheckpointTrigger(triggerHook);
+		}
 	}
 
 	@Override
@@ -60,6 +99,23 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 	protected void cancelTask() throws Exception {
 		if (headOperator != null) {
 			headOperator.cancel();
+		}
+	}
+
+	// ------------------------------------------------------------------------
+	//  Checkpointing
+	// ------------------------------------------------------------------------
+
+	@Override
+	public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) throws Exception {
+		if (!externallyInducedCheckpoints) {
+			return super.triggerCheckpoint(checkpointMetaData, checkpointOptions);
+		}
+		else {
+			// we do not trigger checkpoints here, we simply state whether we can trigger them
+			synchronized (getCheckpointLock()) {
+				return isRunning();
+			}
 		}
 	}
 }

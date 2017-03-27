@@ -29,12 +29,9 @@ import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.types.LongValue;
 
 import org.junit.Test;
-import org.junit.runner.RunWith;
 
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.io.IOException;
 
@@ -45,8 +42,6 @@ import static org.mockito.Mockito.*;
  * This test uses the PowerMockRunner runner to work around the fact that the
  * {@link ResultPartitionWriter} class is final.
  */
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(ResultPartitionWriter.class)
 public class StreamRecordWriterTest {
 
 	/**
