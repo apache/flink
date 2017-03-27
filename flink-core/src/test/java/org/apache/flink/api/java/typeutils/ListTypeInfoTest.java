@@ -16,32 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.types;
+package org.apache.flink.api.java.typeutils;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeinfo.NothingTypeInfo;
-import org.apache.flink.util.TestLogger;
-import org.junit.Test;
+import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 
-import static org.junit.Assert.*;
+/**
+ * Test for {@link ListTypeInfo}.
+ */
+public class ListTypeInfoTest extends TypeInformationTestBase<ListTypeInfo<?>> {
 
-public class NothingTypeInfoTest extends TestLogger {
-
-	@Test
-	public void testNothingTypeInfoEquality() {
-		NothingTypeInfo tpeInfo1 = new NothingTypeInfo();
-		NothingTypeInfo tpeInfo2 = new NothingTypeInfo();
-
-		assertEquals(tpeInfo1, tpeInfo2);
-		assertEquals(tpeInfo1.hashCode(), tpeInfo2.hashCode());
-	}
-
-	@Test
-	public void testNothingTypeInfoInequality() {
-		NothingTypeInfo tpeInfo1 = new NothingTypeInfo();
-		BasicTypeInfo<Integer> tpeInfo2 = BasicTypeInfo.getInfoFor(Integer.class);
-
-		assertNotEquals(tpeInfo1, tpeInfo2);
-		assertNotEquals(tpeInfo2, tpeInfo1);
+	@Override
+	protected ListTypeInfo<?>[] getTestData() {
+		return new ListTypeInfo<?>[] {
+			new ListTypeInfo<>(BasicTypeInfo.STRING_TYPE_INFO),
+			new ListTypeInfo<>(BasicTypeInfo.BOOLEAN_TYPE_INFO),
+			new ListTypeInfo<>(Object.class),
+		};
 	}
 }
