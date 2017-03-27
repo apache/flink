@@ -44,7 +44,7 @@ import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
-import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
+import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.junit.Test;
 
 public class CheckpointStatsTrackerTest {
@@ -58,7 +58,7 @@ public class CheckpointStatsTrackerTest {
 		when(jobVertex.getJobVertexId()).thenReturn(new JobVertexID());
 		when(jobVertex.getParallelism()).thenReturn(1);
 
-		JobSnapshottingSettings snapshottingSettings = new JobSnapshottingSettings(
+		JobCheckpointingSettings snapshottingSettings = new JobCheckpointingSettings(
 			Collections.singletonList(new JobVertexID()),
 			Collections.singletonList(new JobVertexID()),
 			Collections.singletonList(new JobVertexID()),
@@ -94,7 +94,7 @@ public class CheckpointStatsTrackerTest {
 		CheckpointStatsTracker tracker = new CheckpointStatsTracker(
 			0,
 			Collections.singletonList(jobVertex),
-			mock(JobSnapshottingSettings.class),
+			mock(JobCheckpointingSettings.class),
 			new UnregisteredMetricsGroup());
 
 		PendingCheckpointStats pending = tracker.reportPendingCheckpoint(
@@ -142,7 +142,7 @@ public class CheckpointStatsTrackerTest {
 		CheckpointStatsTracker tracker = new CheckpointStatsTracker(
 			10,
 			Collections.singletonList(jobVertex),
-			mock(JobSnapshottingSettings.class),
+			mock(JobCheckpointingSettings.class),
 			new UnregisteredMetricsGroup());
 
 		// Completed checkpoint
@@ -247,7 +247,7 @@ public class CheckpointStatsTrackerTest {
 		CheckpointStatsTracker tracker = new CheckpointStatsTracker(
 			10,
 			Collections.singletonList(jobVertex),
-			mock(JobSnapshottingSettings.class),
+			mock(JobCheckpointingSettings.class),
 			new UnregisteredMetricsGroup());
 
 		CheckpointStatsSnapshot snapshot1 = tracker.createSnapshot();
@@ -293,7 +293,7 @@ public class CheckpointStatsTrackerTest {
 		new CheckpointStatsTracker(
 			0,
 			Collections.singletonList(jobVertex),
-			mock(JobSnapshottingSettings.class),
+			mock(JobCheckpointingSettings.class),
 			metricGroup);
 
 		verify(metricGroup, times(1)).gauge(eq(CheckpointStatsTracker.NUMBER_OF_CHECKPOINTS_METRIC), any(Gauge.class));
@@ -409,7 +409,7 @@ public class CheckpointStatsTrackerTest {
 		CheckpointStatsTracker stats = new CheckpointStatsTracker(
 			0,
 			Collections.singletonList(jobVertex),
-			mock(JobSnapshottingSettings.class),
+			mock(JobCheckpointingSettings.class),
 			metricGroup);
 
 		// Make sure to adjust this test if metrics are added/removed
@@ -522,7 +522,7 @@ public class CheckpointStatsTrackerTest {
 		return new CheckpointStatsTracker(
 			0,
 			Collections.singletonList(jobVertex),
-			mock(JobSnapshottingSettings.class),
+			mock(JobCheckpointingSettings.class),
 			new UnregisteredMetricsGroup());
 	}
 

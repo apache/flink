@@ -61,7 +61,7 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
-import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
+import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
@@ -220,7 +220,7 @@ public class JobManagerHARecoveryTest {
 			JobGraph jobGraph = new JobGraph("TestingJob", sourceJobVertex);
 
 			List<JobVertexID> vertexId = Collections.singletonList(sourceJobVertex.getID());
-			jobGraph.setSnapshotSettings(new JobSnapshottingSettings(
+			jobGraph.setSnapshotSettings(new JobCheckpointingSettings(
 					vertexId,
 					vertexId,
 					vertexId,

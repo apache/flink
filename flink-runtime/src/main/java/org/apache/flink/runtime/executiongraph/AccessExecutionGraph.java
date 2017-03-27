@@ -24,7 +24,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
+import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.util.SerializedValue;
 
 import java.io.IOException;
@@ -116,12 +116,12 @@ public interface AccessExecutionGraph {
 	CheckpointCoordinator getCheckpointCoordinator();
 
 	/**
-	 * Returns the {@link JobSnapshottingSettings} or <code>null</code> if
+	 * Returns the {@link JobCheckpointingSettings} or <code>null</code> if
 	 * checkpointing is disabled.
 	 *
 	 * @return JobSnapshottingSettings for this execution graph
 	 */
-	JobSnapshottingSettings getJobSnapshottingSettings();
+	JobCheckpointingSettings getJobCheckpointingSettings();
 
 	/**
 	 * Returns a snapshot of the checkpoint statistics or <code>null</code> if

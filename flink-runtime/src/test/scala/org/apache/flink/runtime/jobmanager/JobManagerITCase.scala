@@ -27,7 +27,7 @@ import org.apache.flink.runtime.checkpoint.{CheckpointCoordinator, CompletedChec
 import org.apache.flink.runtime.client.JobExecutionException
 import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType
-import org.apache.flink.runtime.jobgraph.tasks.{ExternalizedCheckpointSettings, JobSnapshottingSettings}
+import org.apache.flink.runtime.jobgraph.tasks.{ExternalizedCheckpointSettings, JobCheckpointingSettings}
 import org.apache.flink.runtime.jobgraph.{DistributionPattern, JobGraph, JobVertex, ScheduleMode}
 import org.apache.flink.runtime.jobmanager.Tasks._
 import org.apache.flink.runtime.jobmanager.scheduler.{NoResourceAvailableException, SlotSharingGroup}
@@ -827,7 +827,7 @@ class JobManagerITCase(_system: ActorSystem)
           val jobVertex = new JobVertex("Blocking vertex")
           jobVertex.setInvokableClass(classOf[BlockingNoOpInvokable])
           val jobGraph = new JobGraph(jobVertex)
-          jobGraph.setSnapshotSettings(new JobSnapshottingSettings(
+          jobGraph.setSnapshotSettings(new JobCheckpointingSettings(
             java.util.Collections.emptyList(),
             java.util.Collections.emptyList(),
             java.util.Collections.emptyList(),
@@ -887,7 +887,7 @@ class JobManagerITCase(_system: ActorSystem)
           val jobVertex = new JobVertex("Blocking vertex")
           jobVertex.setInvokableClass(classOf[BlockingNoOpInvokable])
           val jobGraph = new JobGraph(jobVertex)
-          jobGraph.setSnapshotSettings(new JobSnapshottingSettings(
+          jobGraph.setSnapshotSettings(new JobCheckpointingSettings(
             java.util.Collections.emptyList(),
             java.util.Collections.emptyList(),
             java.util.Collections.emptyList(),
@@ -955,7 +955,7 @@ class JobManagerITCase(_system: ActorSystem)
           val jobVertex = new JobVertex("Blocking vertex")
           jobVertex.setInvokableClass(classOf[BlockingNoOpInvokable])
           val jobGraph = new JobGraph(jobVertex)
-          jobGraph.setSnapshotSettings(new JobSnapshottingSettings(
+          jobGraph.setSnapshotSettings(new JobCheckpointingSettings(
             java.util.Collections.emptyList(),
             java.util.Collections.emptyList(),
             java.util.Collections.emptyList(),
