@@ -396,6 +396,7 @@ patternState.within(Time.seconds(10));
           <td>
               <p>Specifies that this pattern can occur zero or more times(kleene star). This means any number of events can be matched in this state.</p>
               <p>If eagerness is enabled(by default) for a pattern A*B and sequence A1 A2 B will generate patterns: B, A1 B and A1 A2 B. If disabled B, A1 B, A2 B and A1 A2 B.</p>
+              <p>By default a relaxed internal continuity (between subsequent events of a loop) is used. For more info on the internal continuity see <a href="#consecutive_java">consecutive</a></p>
       {% highlight java %}
       patternState.zeroOrMore();
       {% endhighlight %}
@@ -406,6 +407,7 @@ patternState.within(Time.seconds(10));
           <td>
               <p>Specifies that this pattern can occur one or more times(kleene star). This means at least one and at most infinite number of events can be matched in this state.</p>
               <p>If eagerness is enabled (by default) for a pattern A*B and sequence A1 A2 B will generate patterns: A1 B and A1 A2 B. If disabled A1 B, A2 B and A1 A2 B.</p>
+              <p>By default a relaxed internal continuity (between subsequent events of a loop) is used. For more info on the internal continuity see <a href="#consecutive_java">consecutive</a></p>
       {% highlight java %}
       patternState.oneOrMore();
       {% endhighlight %}
@@ -424,9 +426,48 @@ patternState.within(Time.seconds(10));
           <td><strong>Times</strong></td>
           <td>
               <p>Specifies exact number of times that this pattern should be matched.</p>
+              <p>By default a relaxed internal continuity (between subsequent events of a loop) is used. For more info on the internal continuity see <a href="#consecutive_java">consecutive</a></p>
       {% highlight java %}
       patternState.times(2);
       {% endhighlight %}
+          </td>
+       </tr>
+       <tr>
+          <td><strong>Consecutive</strong><a name="consecutive_java"></a></td>
+          <td>
+              <p>Works in conjunction with zeroOrMore, oneOrMore or times. Specifies that any not matching element breaks the loop.</p>
+              
+              <p>If not applied a relaxed continuity (as in followedBy) is used.</p>
+
+          <p>E.g. a pattern like:</p>
+      {% highlight java %}
+      Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
+           @Override
+           public boolean filter(Event value) throws Exception {
+               return value.getName().equals("c");
+           }
+      })
+      .followedBy("middle").where(new SimpleCondition<Event>() {
+           @Override
+           public boolean filter(Event value) throws Exception {
+               return value.getName().equals("a");
+           }
+      })
+      .oneOrMore(true).consecutive()
+      .followedBy("end1").where(new SimpleCondition<Event>() {
+           @Override
+           public boolean filter(Event value) throws Exception {
+               return value.getName().equals("b");
+           }
+      });
+      {% endhighlight %}
+
+             <p>Will generate the following matches for a sequence: C D A1 A2 A3 D A4 B</p>
+
+             <p>with consecutive applied: {C A1 B}, {C A1 A2 B}, {C A1 A2 A3 B}</p>
+             <p>without consecutive applied: {C A1 B}, {C A1 A2 B}, {C A1 A2 A3 B}, {C A1 A2 A3 A4 B}</p>
+
+             <p><b>NOTICE:</b> This option can be applied only to zeroOrMore(), oneOrMore() and times()!</p>
           </td>
        </tr>
   </tbody>
@@ -511,6 +552,7 @@ patternState.within(Time.seconds(10))
           <td>
               <p>Specifies that this pattern can occur zero or more times(kleene star). This means any number of events can be matched in this state.</p>
               <p>If eagerness is enabled(by default) for a pattern A*B and sequence A1 A2 B will generate patterns: B, A1 B and A1 A2 B. If disabled B, A1 B, A2 B and A1 A2 B.</p>
+              <p>By default a relaxed internal continuity (between subsequent events of a loop) is used. For more info on the internal continuity see <a href="#consecutive_scala">consecutive</a></p>
       {% highlight scala %}
       patternState.zeroOrMore()
       {% endhighlight %}
@@ -521,6 +563,7 @@ patternState.within(Time.seconds(10))
           <td>
               <p>Specifies that this pattern can occur one or more times(kleene star). This means at least one and at most infinite number of events can be matched in this state.</p>
               <p>If eagerness is enabled (by default) for a pattern A*B and sequence A1 A2 B will generate patterns: A1 B and A1 A2 B. If disabled A1 B, A2 B and A1 A2 B.</p>
+              <p>By default a relaxed internal continuity (between subsequent events of a loop) is used. For more info on the internal continuity see <a href="#consecutive_scala">consecutive</a></p>
       {% highlight scala %}
       patternState.oneOrMore()
       {% endhighlight %}
@@ -539,9 +582,32 @@ patternState.within(Time.seconds(10))
           <td><strong>Times</strong></td>
           <td>
               <p>Specifies exact number of times that this pattern should be matched.</p>
+              <p>By default a relaxed internal continuity (between subsequent events of a loop) is used. For more info on the internal continuity see <a href="#consecutive_scala">consecutive</a></p>
       {% highlight scala %}
       patternState.times(2)
       {% endhighlight %}
+          </td>
+       </tr>
+       <tr>
+          <td><strong>Consecutive</strong><a name="consecutive_scala"></a></td>
+          <td>
+            <p>Works in conjunction with zeroOrMore, oneOrMore or times. Specifies that any not matching element breaks the loop.</p>
+            
+            <p>If not applied a relaxed continuity (as in followedBy) is used.</p>
+            
+      {% highlight scala %}
+      Pattern.begin("start").where(_.getName().equals("c"))
+       .followedBy("middle").where(_.getName().equals("a"))
+                            .oneOrMore(true).consecutive()
+       .followedBy("end1").where(_.getName().equals("b"));
+      {% endhighlight %}
+
+            <p>Will generate the following matches for a sequence: C D A1 A2 A3 D A4 B</p>
+
+            <p>with consecutive applied: {C A1 B}, {C A1 A2 B}, {C A1 A2 A3 B}</p>
+            <p>without consecutive applied: {C A1 B}, {C A1 A2 B}, {C A1 A2 A3 B}, {C A1 A2 A3 A4 B}</p>
+
+            <p><b>NOTICE:</b> This option can be applied only to zeroOrMore(), oneOrMore() and times()!</p>
           </td>
        </tr>
   </tbody>

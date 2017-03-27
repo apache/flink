@@ -41,7 +41,7 @@ public class State<T> implements Serializable {
 	private static final long serialVersionUID = 6658700025989097781L;
 
 	private final String name;
-	private final StateType stateType;
+	private StateType stateType;
 	private final Collection<StateTransition<T>> stateTransitions;
 
 	public State(final String name, final StateType stateType) {
@@ -63,6 +63,10 @@ public class State<T> implements Serializable {
 
 	public Collection<StateTransition<T>> getStateTransitions() {
 		return stateTransitions;
+	}
+
+	public void makeStart() {
+		this.stateType = StateType.Start;
 	}
 
 	private void addStateTransition(
