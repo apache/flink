@@ -224,15 +224,24 @@ public class KinesisConfigUtil {
 
 	private static void validateOptionalDateProperty(Properties config, String key, String message) {
 		if (config.containsKey(key)) {
-			try {
-				initTimestampDateFormat.parse(config.getProperty(key));
-				double value = Double.parseDouble(config.getProperty(key));
-				if (value < 0) {
-					throw new NumberFormatException();
+			try{
+				if(!validateDateFormat(config, key)){
+					double value = Double.parseDouble(config.getProperty(key));
+					if (value < 0) {
+						throw new NumberFormatException();
+					}
 				}
-			} catch (ParseException | NumberFormatException e) {
+			} catch(NumberFormatException){
 				throw new IllegalArgumentException(message);
 			}
+		}
+	}
+	public static boolean validateDateFormat(Properties config, String key){
+		try {
+			initTimestampDateFormat.parse(config.getProperty(key));
+			return true;
+		} catch (ParseException) {
+			return false;
 		}
 	}
 }
