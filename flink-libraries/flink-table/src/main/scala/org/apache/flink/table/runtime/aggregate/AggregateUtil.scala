@@ -91,20 +91,21 @@ object AggregateUtil {
   }
 
   /**
-    * Create an [[org.apache.flink.streaming.api.functions.ProcessFunction]] for ROWS clause
+    * Create an [[org.apache.flink.streaming.api.functions.ProcessFunction]] for
     * bounded OVER window to evaluate final aggregate value.
     *
     * @param namedAggregates List of calls to aggregate functions and their output field names
     * @param inputType       Input row type
-    * @param inputFields     All input fields
     * @param precedingOffset the preceding offset
+    * @param isRangeClause   It is a tag that indicates whether the OVER clause is rangeClause
     * @param isRowTimeType   It is a tag that indicates whether the time type is rowTimeType
     * @return [[org.apache.flink.streaming.api.functions.ProcessFunction]]
     */
-  private[flink] def createRowsClauseBoundedOverProcessFunction(
+  private[flink] def createBoundedOverProcessFunction(
     namedAggregates: Seq[CalcitePair[AggregateCall, String]],
     inputType: RelDataType,
     precedingOffset: Long,
+    isRangeClause: Boolean,
     isRowTimeType: Boolean): ProcessFunction[Row, Row] = {
 
     val (aggFields, aggregates) =
@@ -117,14 +118,25 @@ object AggregateUtil {
     val inputRowType = FlinkTypeFactory.toInternalRowTypeInfo(inputType).asInstanceOf[RowTypeInfo]
 
     if (isRowTimeType) {
-      new RowsClauseBoundedOverProcessFunction(
-        aggregates,
-        aggFields,
-        inputType.getFieldCount,
-        aggregationStateType,
-        inputRowType,
-        precedingOffset
-      )
+      if (isRangeClause) {
+        new RangeClauseBoundedOverProcessFunction(
+          aggregates,
+          aggFields,
+          inputType.getFieldCount,
+          aggregationStateType,
+          inputRowType,
+          precedingOffset
+        )
+      } else {
+        new RowsClauseBoundedOverProcessFunction(
+          aggregates,
+          aggFields,
+          inputType.getFieldCount,
+          aggregationStateType,
+          inputRowType,
+          precedingOffset
+        )
+      }
     } else {
       throw TableException(
         "Bounded partitioned proc-time OVER aggregation is not supported yet.")
