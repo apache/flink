@@ -146,11 +146,10 @@ start.where(new IterativeCondition<SubEvent>() {
             return false;
         }
         
-        double sum = 0.0;
+        double sum = value.getPrice();
         for (Event event : ctx.getEventsForPattern("middle")) {
             sum += event.getPrice();
         }
-        sum += value.getPrice();
         return Double.compare(sum, 5.0) < 0;
     }
 });
@@ -161,16 +160,8 @@ start.where(new IterativeCondition<SubEvent>() {
 {% highlight scala %}
 start.where(
     (value, ctx) => {
-        var res = value.getName.startsWith("foo")
-        if (res) {
-            var sum = 0.0
-            for (e: Event <- ctx.getEventsForPattern("middle")) {
-                sum += e.getPrice
-            }
-            sum += value.getPrice
-            res = res && sum < 5.0
-        }
-        res
+        lazy val sum = ctx.getEventsForPattern("middle").asScala.map(_.getPrice).sum
+        value.getName.startsWith("foo") && sum + value.getPrice < 5.0
     }
 )
 {% endhighlight %}

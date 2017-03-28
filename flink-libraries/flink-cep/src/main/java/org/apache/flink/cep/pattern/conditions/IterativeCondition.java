@@ -88,7 +88,7 @@ public abstract class IterativeCondition<T> implements Function, Serializable {
 
 		/**
 		 * @return An {@link Iterable} over the already accepted elements
-		 * for a given pattern. Elements are iterated in the order the were
+		 * for a given pattern. Elements are iterated in the order they were
 		 * inserted in the pattern.
 		 *
 		 * @param name The name of the pattern.

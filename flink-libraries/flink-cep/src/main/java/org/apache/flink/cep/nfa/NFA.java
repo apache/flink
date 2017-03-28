@@ -92,7 +92,7 @@ public class NFA<T> implements Serializable {
 	private final NonDuplicatingTypeSerializer<T> nonDuplicatingTypeSerializer;
 
 	/**
-	 * 	Used only for backward compatibility. Buffer used to store the matched events.
+	 * Used only for backwards compatibility. Buffer used to store the matched events.
 	 */
 	private final SharedBuffer<State<T>, T> sharedBuffer = null;
 
@@ -575,7 +575,7 @@ public class NFA<T> implements Serializable {
 				computationState.getVersion());
 
 		// for a given computation state, we cannot have more than one matching patterns.
-		Preconditions.checkArgument(paths.size() <= 1);
+		Preconditions.checkState(paths.size() <= 1);
 
 		TypeSerializer<T> serializer = nonDuplicatingTypeSerializer.getTypeSerializer();
 
@@ -609,7 +609,7 @@ public class NFA<T> implements Serializable {
 			computationState.getVersion());
 
 		// for a given computation state, we cannot have more than one matching patterns.
-		Preconditions.checkArgument(paths.size() <= 1);
+		Preconditions.checkState(paths.size() <= 1);
 
 		List<Map<String, T>> result = new ArrayList<>();
 
