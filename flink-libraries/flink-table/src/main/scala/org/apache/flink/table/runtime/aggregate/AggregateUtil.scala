@@ -96,7 +96,6 @@ object AggregateUtil {
     *
     * @param namedAggregates List of calls to aggregate functions and their output field names
     * @param inputType       Input row type
-    * @param inputFields     All input fields
     * @param precedingOffset the preceding offset
     * @param isRowTimeType   It is a tag that indicates whether the time type is rowTimeType
     * @return [[org.apache.flink.streaming.api.functions.ProcessFunction]]
@@ -132,15 +131,16 @@ object AggregateUtil {
   }
 
   /**
-    * Create an [[ProcessFunction]] to evaluate final aggregate value.
+    * Create an [[org.apache.flink.streaming.api.functions.ProcessFunction]] for ROWS clause
+    * unbounded event-time OVER window to evaluate final aggregate value.
     *
     * @param namedAggregates List of calls to aggregate functions and their output field names
-    * @param inputType Input row type
-    * @return [[UnboundedEventTimeOverProcessFunction]]
+    * @param inputType       Input row type
+    * @return [[ProcessFunction]]
     */
-  private[flink] def createUnboundedEventTimeOverProcessFunction(
+  private[flink] def createRowsClauseUnboundedEventTimeOverProcessFunction(
    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
-   inputType: RelDataType): UnboundedEventTimeOverProcessFunction = {
+   inputType: RelDataType): ProcessFunction[Row, Row] = {
 
     val (aggFields, aggregates) =
       transformToAggregateFunctions(
@@ -149,13 +149,14 @@ object AggregateUtil {
         needRetraction = false)
 
     val aggregationStateType: RowTypeInfo = createAccumulatorRowType(aggregates)
+    val inputRowType = FlinkTypeFactory.toInternalRowTypeInfo(inputType).asInstanceOf[RowTypeInfo]
 
-    new UnboundedEventTimeOverProcessFunction(
+    new RowsClauseUnboundedEventTimeOverProcessFunction(
       aggregates,
       aggFields,
       inputType.getFieldCount,
       aggregationStateType,
-      FlinkTypeFactory.toInternalRowTypeInfo(inputType))
+      inputRowType)
   }
 
   /**

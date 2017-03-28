@@ -460,19 +460,19 @@ class SqlITCase extends StreamingWithStateTestBase {
       "from T1"
 
     val data = Seq(
-      Left(14000005L, (1, 1L, "Hi")),
+      Left(14000019L, (1, 1L, "Hi")),
       Left(14000000L, (2, 1L, "Hello")),
       Left(14000002L, (3, 1L, "Hello")),
       Left(14000003L, (1, 2L, "Hello")),
       Left(14000004L, (1, 3L, "Hello world")),
-      Left(14000007L, (3, 2L, "Hello world")),
-      Left(14000008L, (2, 2L, "Hello world")),
-      Right(14000010L),
+      Left(14000019L, (3, 2L, "Hello world")),
+      Left(14000019L, (2, 2L, "Hello world")),
+      Right(14000019L),
       // the next 3 elements are late
       Left(14000008L, (1, 4L, "Hello world")),
       Left(14000008L, (2, 3L, "Hello world")),
       Left(14000008L, (3, 3L, "Hello world")),
-      Left(14000012L, (1, 5L, "Hello world")),
+      Left(14000020L, (1, 5L, "Hello world")),
       Right(14000020L),
       Left(14000021L, (1, 6L, "Hello world")),
       // the next 3 elements are late

@@ -249,7 +249,7 @@ class DataStreamOverAggregate(
     // get the output types
     val rowTypeInfo = FlinkTypeFactory.toInternalRowTypeInfo(getRowType).asInstanceOf[RowTypeInfo]
 
-    val processFunction = AggregateUtil.createUnboundedEventTimeOverProcessFunction(
+    val processFunction = AggregateUtil.createRowsClauseUnboundedEventTimeOverProcessFunction(
       namedAggregates,
       inputType)
 
