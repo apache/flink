@@ -42,7 +42,7 @@ case class Call(functionName: String, args: Seq[Expression]) extends Expression 
   override def toString = s"\\$functionName(${args.mkString(", ")})"
 
   override private[flink] def resultType =
-    throw UnresolvedException(s"calling implicitResultType on UnresolvedFunction $functionName")
+    throw UnresolvedException(s"calling resultType on UnresolvedFunction $functionName")
 
   override private[flink] def validateInput(): ValidationResult =
     ValidationFailure(s"Unresolved function call: $functionName")

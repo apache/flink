@@ -19,21 +19,26 @@
 
 package org.apache.flink.table.functions.utils
 
-import java.lang.{Long => JLong, Integer => JInt}
+import java.lang.{Integer => JInt, Long => JLong}
 import java.lang.reflect.{Method, Modifier}
 import java.sql.{Date, Time, Timestamp}
 
 import org.apache.commons.codec.binary.Base64
 import com.google.common.primitives.Primitives
+import org.apache.calcite.rex.{RexLiteral, RexNode}
 import org.apache.calcite.sql.SqlFunction
+import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.flink.api.common.functions.InvalidTypesException
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.api.{TableEnvironment, ValidationException}
+import org.apache.flink.table.expressions.{Expression, Literal, TableFunctionCall}
 import org.apache.flink.table.functions.{ScalarFunction, TableFunction, UserDefinedFunction}
 import org.apache.flink.table.plan.schema.FlinkTableFunctionImpl
 import org.apache.flink.util.InstantiationUtil
+
+import scala.collection.JavaConversions._
 
 object UserDefinedFunctionUtils {
 
@@ -358,5 +363,68 @@ object UserDefinedFunctionUtils {
     val byteData = Base64.decodeBase64(data)
     InstantiationUtil
       .deserializeObject[UserDefinedFunction](byteData, Thread.currentThread.getContextClassLoader)
+  }
+
+  /**
+    * Build a TableFunctionCall, a name and a sequence of params will determine a unique
+    * [[TableFunctionCall]]
+    *
+    * @param name function name
+    * @param implicitResultType If no result type returned, it will use this type.
+    * @param params The input expressions
+    * @return A unique [[TableFunctionCall]]
+    */
+  private[table] def buildTableFunctionCall(name: String,
+                                            tableFunction: TableFunction[_],
+                                            implicitResultType: TypeInformation[_],
+                                            params: Expression*): TableFunctionCall = {
+    val arguments = expressionsToArguments(params: _*)
+    val resultType = tableFunction.getResultType(arguments, implicitResultType)
+    TableFunctionCall(name, tableFunction, params, resultType)
+  }
+
+  /**
+    * Transform the expressions or rex nodes to Objects
+    * Only literal expressions will be passed, nulls for non-literal ones
+    *
+    * @param params actual parameters of the function
+    * @return A java List of the Objects
+    */
+  private[table] def expressionsToArguments(params: Expression*): java.util.List[AnyRef] = {
+    params.map {
+      case exp: Literal =>
+        exp.value.asInstanceOf[AnyRef]
+      case _ =>
+        null
+    }
+  }
+
+  /**
+    * Transform the rex nodes to Objects
+    * Only literal expressions will be passed, nulls for non-literal ones
+    *
+    * @param rexNodes actual parameters of the function
+    * @return A java List of the Objects
+    */
+  private[table] def rexNodesToArguments(
+      rexNodes: java.util.List[RexNode]): java.util.List[AnyRef] = {
+    rexNodes.map {
+      case rexNode: RexLiteral =>
+        val value = rexNode.getValue2
+        rexNode.getType.getSqlTypeName match {
+          case SqlTypeName.INTEGER =>
+            value.asInstanceOf[Long].toInt.asInstanceOf[AnyRef]
+          case SqlTypeName.SMALLINT =>
+            value.asInstanceOf[Long].toShort.asInstanceOf[AnyRef]
+          case SqlTypeName.TIMESTAMP =>
+            value.asInstanceOf[Long].toByte.asInstanceOf[AnyRef]
+          case SqlTypeName.FLOAT =>
+            value.asInstanceOf[Double].toFloat.asInstanceOf[AnyRef]
+          case _ =>
+            value.asInstanceOf[AnyRef]
+        }
+      case _ =>
+        null
+    }
   }
 }

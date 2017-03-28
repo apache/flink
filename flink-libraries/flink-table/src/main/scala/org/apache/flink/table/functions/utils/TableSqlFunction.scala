@@ -65,7 +65,7 @@ class TableSqlFunction(
 
   def buildTableFunctionCall(name: String,
                             params: Expression*): TableFunctionCall = {
-    udtf.buildTableFunctionCall(name, implicitRowTypeInfo, params: _*)
+    UserDefinedFunctionUtils.buildTableFunctionCall(name, udtf, implicitRowTypeInfo, params: _*)
   }
 
   /**
@@ -75,7 +75,7 @@ class TableSqlFunction(
     * @return  Type information
     */
   def getResultType(operands: util.List[RexNode]): TypeInformation[_] = {
-    val arguments = udtf.rexNodesToArguments(operands)
+    val arguments = UserDefinedFunctionUtils.rexNodesToArguments(operands)
     udtf.getResultType(arguments, implicitRowTypeInfo)
   }
 
