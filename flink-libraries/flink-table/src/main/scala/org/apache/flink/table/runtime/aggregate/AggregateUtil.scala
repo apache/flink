@@ -101,7 +101,7 @@ object AggregateUtil {
       lowerBound: RexWindowBound,
       input: RelNode): Int = {
     val ref: RexInputRef = lowerBound.getOffset.asInstanceOf[RexInputRef]
-    val index:Int = ref.getIndex
+    val index: Int = ref.getIndex
     val count: Int = input.getRowType.getFieldCount
     val lowerBoundIndex = count - index;
     val lowB = constants.get(lowerBoundIndex).getValue2.asInstanceOf[Long]

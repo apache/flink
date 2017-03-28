@@ -35,8 +35,6 @@ import java.util.{List => JList}
 import org.apache.flink.api.java.functions.NullByteKeySelector
 import org.apache.flink.table.functions.{ProcTimeType, RowTimeType}
 import org.apache.flink.table.runtime.aggregate.AggregateUtil.CalcitePair
-import org.apache.flink.table.plan.nodes.CommonAggregate
-import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 
 class DataStreamOverAggregate(
     logicWindow: Window,
