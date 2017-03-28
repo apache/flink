@@ -98,7 +98,6 @@ class DataSetCorrelate(
     val udtfTypeInfo = sqlFunction.getResultType(rexCall.getOperands)
     val pojoFieldMapping = UserDefinedFunctionUtils.getFieldInfo(udtfTypeInfo)._2
 
-
     val mapFunc = correlateMapFunction(
       config,
       inputDS.getType,

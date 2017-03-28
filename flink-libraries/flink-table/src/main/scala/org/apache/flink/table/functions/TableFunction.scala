@@ -93,15 +93,16 @@ abstract class TableFunction[T] extends UserDefinedFunction {
   }
 
   /**
-    * Internal user of [[getResultType()]]
+    * Internal use of [[getResultType()]]
     *
     * @param arguments arguments of a function call (only literal arguments
     *                  are passed, nulls for non-literal ones)
     * @param implicitResultType The implicit result type
     * @return [[TypeInformation]] of result type or null if Flink should determine the type
     */
-  private[table] def getResultType(arguments: java.util.List[AnyRef],
-                                   implicitResultType: TypeInformation[_]): TypeInformation[_] = {
+  private[table] def getResultType(
+      arguments: java.util.List[AnyRef],
+      implicitResultType: TypeInformation[_]): TypeInformation[_] = {
     if (getResultType(arguments) == null) {
       implicitResultType
     } else {
@@ -146,6 +147,10 @@ abstract class TableFunction[T] extends UserDefinedFunction {
     * sufficient to extract the [[TypeInformation]] based on the return type of the evaluation
     * method. Flink's type extraction facilities can handle basic types or
     * simple POJOs but might be wrong for more complex, custom, or composite types.
+    *
+    * The input arguments are the input arguments which are passed to the eval() method.
+    * Only the literal arguments (constant values) are passed to the [[getResultType()]] method.
+    * If non-literal arguments appear, it will pass nulls instead.
     *
     * @param arguments arguments of a function call (only literal arguments
     *                  are passed, nulls for non-literal ones)

@@ -374,10 +374,11 @@ object UserDefinedFunctionUtils {
     * @param params The input expressions
     * @return A unique [[TableFunctionCall]]
     */
-  private[table] def buildTableFunctionCall(name: String,
-                                            tableFunction: TableFunction[_],
-                                            implicitResultType: TypeInformation[_],
-                                            params: Expression*): TableFunctionCall = {
+  private[table] def buildTableFunctionCall(
+      name: String,
+      tableFunction: TableFunction[_],
+      implicitResultType: TypeInformation[_],
+      params: Expression*): TableFunctionCall = {
     val arguments = expressionsToArguments(params: _*)
     val resultType = tableFunction.getResultType(arguments, implicitResultType)
     TableFunctionCall(name, tableFunction, params, resultType)
