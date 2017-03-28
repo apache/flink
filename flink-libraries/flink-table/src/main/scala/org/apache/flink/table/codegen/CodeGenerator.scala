@@ -1130,6 +1130,9 @@ class CodeGenerator(
   override def visitSubQuery(subQuery: RexSubQuery): GeneratedExpression =
     throw new CodeGenException("Subqueries are not supported yet.")
 
+  override def visitPatternFieldRef(fieldRef: RexPatternFieldRef): GeneratedExpression =
+    throw new CodeGenException("Pattern field references are not supported yet.")
+
   // ----------------------------------------------------------------------------------------------
   // generator helping methods
   // ----------------------------------------------------------------------------------------------

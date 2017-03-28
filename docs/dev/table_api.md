@@ -326,24 +326,6 @@ val batchTable = batchTableEnvironment.scan("mycsv")
 </div>
 </div>
 
-### Unregister a Table
-
-A table can be unregistered using the following method. Subsequent SQL queries won't find the unregistered table name anymore.
-
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-{% highlight java %}
-tableEnvironment.unregisterTable("Customers");
-{% endhighlight %}
-</div>
-
-<div data-lang="scala" markdown="1">
-{% highlight scala %}
-tableEnvironment.unregisterTable("Customers")
-{% endhighlight %}
-</div>
-</div>
-
 Registering external Catalogs
 --------------------------------
 
