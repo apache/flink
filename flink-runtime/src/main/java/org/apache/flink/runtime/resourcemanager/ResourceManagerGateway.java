@@ -130,4 +130,19 @@ public interface ResourceManagerGateway extends RpcGateway {
 	 * @return The future to the number of registered TaskManagers.
 	 */
 	Future<Integer> getNumberOfRegisteredTaskManagers(UUID leaderSessionId);
+
+	/**
+	 * Sends the heartbeat to resource manager from task manager
+	 *
+	 * @param heartbeatOrigin unique id of the task manager
+	 */
+	void heartbeatFromTaskManager(final ResourceID heartbeatOrigin);
+
+	/**
+	 * Disconnects a TaskManager specified by the given resourceID from the {@link ResourceManager}.
+	 *
+	 * @param resourceID identifying the TaskManager to disconnect
+	 * @param cause for the disconnection of the TaskManager
+	 */
+	void disconnectTaskManager(ResourceID resourceID, Exception cause);
 }

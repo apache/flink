@@ -18,6 +18,8 @@
 
 package org.apache.flink.cep.nfa;
 
+import org.apache.flink.util.Preconditions;
+
 /**
  * Helper class which encapsulates the state of the NFA computation. It points to the current state,
  * the last taken event, its occurrence timestamp, the current version and the starting timestamp
@@ -41,17 +43,21 @@ public class ComputationState<T> {
 	// Timestamp of the first element in the pattern
 	private final long startTimestamp;
 
-	public ComputationState(
-		final State<T> currentState,
-		final T event,
-		final long timestamp,
-		final DeweyNumber version,
-		final long startTimestamp) {
+	private final State<T> previousState;
+
+	private ComputationState(
+			final State<T> currentState,
+			final State<T> previousState,
+			final T event,
+			final long timestamp,
+			final DeweyNumber version,
+			final long startTimestamp) {
 		this.state = currentState;
 		this.event = event;
 		this.timestamp = timestamp;
 		this.version = version;
 		this.startTimestamp = startTimestamp;
+		this.previousState = previousState;
 	}
 
 	public boolean isFinalState() {
@@ -59,7 +65,7 @@ public class ComputationState<T> {
 	}
 
 	public boolean isStartState() {
-		return state.isStart();
+		return state.isStart() && event == null;
 	}
 
 	public long getTimestamp() {
@@ -74,11 +80,35 @@ public class ComputationState<T> {
 		return state;
 	}
 
+	public State<T> getPreviousState() {
+		return previousState;
+	}
+
 	public T getEvent() {
 		return event;
 	}
 
 	public DeweyNumber getVersion() {
 		return version;
+	}
+
+	public static <T> ComputationState<T> createStartState(final State<T> state) {
+		Preconditions.checkArgument(state.isStart());
+		return new ComputationState<>(state, null, null, -1L, new DeweyNumber(1), -1L);
+	}
+
+	public static <T> ComputationState<T> createStartState(final State<T> state, final DeweyNumber version) {
+		Preconditions.checkArgument(state.isStart());
+		return new ComputationState<>(state, null, null, -1L, version, -1L);
+	}
+
+	public static <T> ComputationState<T> createState(
+			final State<T> currentState,
+			final State<T> previousState,
+			final T event,
+			final long timestamp,
+			final DeweyNumber version,
+			final long startTimestamp) {
+		return new ComputationState<>(currentState, previousState, event, timestamp, version, startTimestamp);
 	}
 }

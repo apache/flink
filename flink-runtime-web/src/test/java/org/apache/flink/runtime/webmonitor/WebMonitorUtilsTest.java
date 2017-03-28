@@ -15,18 +15,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.flink.runtime.webmonitor;
 
-package org.apache.flink.cep.nfa.compiler;
+import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
+import org.junit.Assert;
+import org.junit.Test;
 
-/**
- * An exception used to indicate that a {@link org.apache.flink.cep.pattern.Pattern}
- * was not specified correctly.
- */
-public class MalformedPatternException extends RuntimeException {
+public class WebMonitorUtilsTest {
 
-	private static final long serialVersionUID = 7751134834983361543L;
+	@Test
+	public void testGetArchivers() {
+		JsonArchivist[] direct = WebRuntimeMonitor.getJsonArchivists();
+		JsonArchivist[] reflected = WebMonitorUtils.getJsonArchivists();
 
-	public MalformedPatternException(String message) {
-		super(message);
+		Assert.assertEquals(direct.length, reflected.length);
+		for(int x = 0; x < direct.length; x++) {
+			Assert.assertSame(direct[x].getClass(), reflected[x].getClass());
+		}
 	}
 }

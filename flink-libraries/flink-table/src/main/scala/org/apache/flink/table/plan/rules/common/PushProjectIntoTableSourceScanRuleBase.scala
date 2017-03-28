@@ -23,7 +23,7 @@ import org.apache.calcite.rel.core.Calc
 import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.plan.nodes.TableSourceScan
 import org.apache.flink.table.plan.util.{RexProgramExtractor, RexProgramRewriter}
-import org.apache.flink.table.sources.ProjectableTableSource
+import org.apache.flink.table.sources.{NestedFieldsProjectableTableSource, ProjectableTableSource}
 
 trait PushProjectIntoTableSourceScanRuleBase {
 
@@ -35,9 +35,18 @@ trait PushProjectIntoTableSourceScanRuleBase {
     val usedFields = RexProgramExtractor.extractRefInputFields(calc.getProgram)
 
     // if no fields can be projected, we keep the original plan.
-    if (TableEnvironment.getFieldNames(scan.tableSource).length != usedFields.length) {
-      val originTableSource = scan.tableSource.asInstanceOf[ProjectableTableSource[_]]
-      val newTableSource = originTableSource.projectFields(usedFields)
+    val source = scan.tableSource
+    if (TableEnvironment.getFieldNames(source).length != usedFields.length) {
+
+      val newTableSource = source match {
+        case nested: NestedFieldsProjectableTableSource[_] =>
+          val nestedFields = RexProgramExtractor
+            .extractRefNestedInputFields(calc.getProgram, usedFields)
+          nested.projectNestedFields(usedFields, nestedFields)
+        case projecting: ProjectableTableSource[_] =>
+          projecting.projectFields(usedFields)
+      }
+
       val newScan = scan.copy(scan.getTraitSet, newTableSource)
       val newCalcProgram = RexProgramRewriter.rewriteWithFieldProjection(
         calc.getProgram,

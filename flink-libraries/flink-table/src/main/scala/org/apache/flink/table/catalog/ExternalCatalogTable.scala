@@ -26,16 +26,16 @@ import org.apache.flink.table.api.TableSchema
 import org.apache.flink.table.plan.stats.TableStats
 
 /**
-  * Table definition of the external catalog.
+  * Defines a table in an [[ExternalCatalog]].
   *
-  * @param identifier           identifier of external catalog table, including dbName and tableName
-  * @param tableType            type of external catalog table, e.g csv, hbase, kafka
-  * @param schema               schema of table data, including column names and column types
-  * @param properties           properties of external catalog table
-  * @param stats                statistics of external catalog table
-  * @param comment              comment of external catalog table
-  * @param createTime           create time of external catalog table
-  * @param lastAccessTime       last access time of of external catalog table
+  * @param identifier           Identifier of the table (database name and table name)
+  * @param tableType            Table type, e.g csv, hbase, kafka
+  * @param schema               Schema of the table (column names and types)
+  * @param properties           Properties of the table
+  * @param stats                Statistics of the table
+  * @param comment              Comment of the table
+  * @param createTime           Create timestamp of the table
+  * @param lastAccessTime       Timestamp of last access of the table
   */
 case class ExternalCatalogTable(
     identifier: TableIdentifier,
@@ -48,10 +48,10 @@ case class ExternalCatalogTable(
     lastAccessTime: JLong = -1L)
 
 /**
-  * Identifier of external catalog table
+  * Identifier for a catalog table.
   *
-  * @param database database name
-  * @param table    table name
+  * @param database Database name
+  * @param table    Table name
   */
 case class TableIdentifier(
     database: String,

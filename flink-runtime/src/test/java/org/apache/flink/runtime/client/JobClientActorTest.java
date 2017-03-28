@@ -28,6 +28,7 @@ import akka.util.Timeout;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.FlinkUntypedActor;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -73,7 +74,7 @@ public class JobClientActorTest extends TestLogger {
 	 */
 	@Test(expected=JobClientActorSubmissionTimeoutException.class)
 	public void testSubmissionTimeout() throws Exception {
-		FiniteDuration jobClientActorTimeout = new FiniteDuration(5, TimeUnit.SECONDS);
+		FiniteDuration jobClientActorTimeout = new FiniteDuration(1L, TimeUnit.SECONDS);
 		FiniteDuration timeout = jobClientActorTimeout.$times(2);
 
 		UUID leaderSessionID = UUID.randomUUID();
@@ -112,7 +113,7 @@ public class JobClientActorTest extends TestLogger {
 	 */
 	@Test(expected=JobClientActorRegistrationTimeoutException.class)
 	public void testRegistrationTimeout() throws Exception {
-		FiniteDuration jobClientActorTimeout = new FiniteDuration(5, TimeUnit.SECONDS);
+		FiniteDuration jobClientActorTimeout = new FiniteDuration(1L, TimeUnit.SECONDS);
 		FiniteDuration timeout = jobClientActorTimeout.$times(2);
 
 		UUID leaderSessionID = UUID.randomUUID();
@@ -142,17 +143,19 @@ public class JobClientActorTest extends TestLogger {
 		Await.result(jobExecutionResult, timeout);
 	}
 
-	/** Tests that a {@link org.apache.flink.runtime.client.JobClientActorConnectionTimeoutException}
+	/** Tests that a {@link JobClientActorConnectionTimeoutException}
 	 * is thrown when the JobSubmissionClientActor wants to submit a job but has not connected to a JobManager.
 	 *
 	 * @throws Exception
 	 */
 	@Test(expected=JobClientActorConnectionTimeoutException.class)
 	public void testConnectionTimeoutWithoutJobManagerForSubmission() throws Exception {
-		FiniteDuration jobClientActorTimeout = new FiniteDuration(5, TimeUnit.SECONDS);
+		FiniteDuration jobClientActorTimeout = new FiniteDuration(1L, TimeUnit.SECONDS);
 		FiniteDuration timeout = jobClientActorTimeout.$times(2);
 
-		TestingLeaderRetrievalService testingLeaderRetrievalService = new TestingLeaderRetrievalService();
+		TestingLeaderRetrievalService testingLeaderRetrievalService = new TestingLeaderRetrievalService(
+			"localhost",
+			HighAvailabilityServices.DEFAULT_LEADER_ID);
 
 		Props jobClientActorProps = JobSubmissionClientActor.createActorProps(
 			testingLeaderRetrievalService,
@@ -170,16 +173,18 @@ public class JobClientActorTest extends TestLogger {
 		Await.result(jobExecutionResult, timeout);
 	}
 
-	/** Tests that a {@link org.apache.flink.runtime.client.JobClientActorConnectionTimeoutException}
+	/** Tests that a {@link JobClientActorConnectionTimeoutException}
 	 * is thrown when the JobAttachmentClientActor attach to a job at the JobManager
 	 * but has not connected to a JobManager.
 	 */
 	@Test(expected=JobClientActorConnectionTimeoutException.class)
 	public void testConnectionTimeoutWithoutJobManagerForRegistration() throws Exception {
-		FiniteDuration jobClientActorTimeout = new FiniteDuration(5, TimeUnit.SECONDS);
+		FiniteDuration jobClientActorTimeout = new FiniteDuration(1L, TimeUnit.SECONDS);
 		FiniteDuration timeout = jobClientActorTimeout.$times(2);
 
-		TestingLeaderRetrievalService testingLeaderRetrievalService = new TestingLeaderRetrievalService();
+		TestingLeaderRetrievalService testingLeaderRetrievalService = new TestingLeaderRetrievalService(
+			"localhost",
+			HighAvailabilityServices.DEFAULT_LEADER_ID);
 
 		Props jobClientActorProps = JobAttachmentClientActor.createActorProps(
 			testingLeaderRetrievalService,
@@ -203,7 +208,7 @@ public class JobClientActorTest extends TestLogger {
 	 */
 	@Test(expected=JobClientActorConnectionTimeoutException.class)
 	public void testConnectionTimeoutAfterJobSubmission() throws Exception {
-		FiniteDuration jobClientActorTimeout = new FiniteDuration(5, TimeUnit.SECONDS);
+		FiniteDuration jobClientActorTimeout = new FiniteDuration(1L, TimeUnit.SECONDS);
 		FiniteDuration timeout = jobClientActorTimeout.$times(2);
 
 		UUID leaderSessionID = UUID.randomUUID();
@@ -245,8 +250,8 @@ public class JobClientActorTest extends TestLogger {
 	 */
 	@Test(expected=JobClientActorConnectionTimeoutException.class)
 	public void testConnectionTimeoutAfterJobRegistration() throws Exception {
-		FiniteDuration jobClientActorTimeout = new FiniteDuration(5, TimeUnit.SECONDS);
-		FiniteDuration timeout = jobClientActorTimeout.$times(2);
+		FiniteDuration jobClientActorTimeout = new FiniteDuration(1L, TimeUnit.SECONDS);
+		FiniteDuration timeout = jobClientActorTimeout.$times(2L);
 
 		UUID leaderSessionID = UUID.randomUUID();
 
@@ -287,7 +292,7 @@ public class JobClientActorTest extends TestLogger {
 	 */
 	@Test
 	public void testGuaranteedAnswerIfJobClientDies() throws Exception {
-		FiniteDuration timeout = new FiniteDuration(2, TimeUnit.SECONDS);
+		FiniteDuration timeout = new FiniteDuration(2L, TimeUnit.SECONDS);
 
 			UUID leaderSessionID = UUID.randomUUID();
 

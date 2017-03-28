@@ -117,13 +117,19 @@ public final class ConfigConstants {
 	/**
 	 * The config parameter defining the network address to connect to
 	 * for communication with the job manager.
+	 *
+	 * @deprecated Use {@link JobManagerOptions#ADDRESS} instead
 	 */
+	@Deprecated
 	public static final String JOB_MANAGER_IPC_ADDRESS_KEY = "jobmanager.rpc.address";
 
 	/**
 	 * The config parameter defining the network port to connect to
 	 * for communication with the job manager.
+	 *
+	 * @deprecated Use {@link JobManagerOptions#PORT} instead
 	 */
+	@Deprecated
 	public static final String JOB_MANAGER_IPC_PORT_KEY = "jobmanager.rpc.port";
 
 	/**
@@ -570,36 +576,59 @@ public final class ConfigConstants {
 
 	/**
 	 * The port for the runtime monitor web-frontend server.
+	 *
+	 * @deprecated Use {@link JobManagerOptions#WEB_PORT} instead.
 	 */
+	@Deprecated
 	public static final String JOB_MANAGER_WEB_PORT_KEY = "jobmanager.web.port";
 
 	/**
 	 * Config parameter to override SSL support for the JobManager Web UI
+	 *
+	 * @deprecated Use {@link JobManagerOptions#WEB_SSL_ENABLED} instead.
 	 */
+	@Deprecated
 	public static final String JOB_MANAGER_WEB_SSL_ENABLED = "jobmanager.web.ssl.enabled";
 
 	/**
 	 * The config parameter defining the flink web directory to be used by the webmonitor.
+	 *
+	 * @deprecated Use {@link JobManagerOptions#WEB_TMP_DIR} instead.
 	 */
+	@Deprecated
 	public static final String JOB_MANAGER_WEB_TMPDIR_KEY = "jobmanager.web.tmpdir";
 
 	/**
 	 * The config parameter defining the directory for uploading the job jars. If not specified a dynamic directory
 	 * will be used under the directory specified by JOB_MANAGER_WEB_TMPDIR_KEY.
+	 *
+	 * @deprecated Use {@link JobManagerOptions#WEB_UPLOAD_DIR} instead.
 	 */
+	@Deprecated
 	public static final String JOB_MANAGER_WEB_UPLOAD_DIR_KEY = "jobmanager.web.upload.dir";
 
 	/**
 	 * The config parameter defining the number of archived jobs for the jobmanager
+	 *
+	 * @deprecated Use {@link JobManagerOptions#WEB_ARCHIVE_COUNT} instead.
 	 */
+	@Deprecated
 	public static final String JOB_MANAGER_WEB_ARCHIVE_COUNT = "jobmanager.web.history";
 
 	/**
 	 * The log file location (may be in /log for standalone but under log directory when using YARN)
+	 *
+	 * @deprecated Use {@link JobManagerOptions#WEB_LOG_PATH} instead.
 	 */
+	@Deprecated
 	public static final String JOB_MANAGER_WEB_LOG_PATH_KEY = "jobmanager.web.log.path";
 
-	/** Config parameter indicating whether jobs can be uploaded and run from the web-frontend. */
+	/**
+	 * Config parameter indicating whether jobs can be uploaded and run from the web-frontend.
+	 *
+	 * @deprecated Use {@link JobManagerOptions#WEB_SUBMIT_ENABLE} instead.
+	 */
+	@Deprecated
 	public static final String JOB_MANAGER_WEB_SUBMIT_ENABLED_KEY = "jobmanager.web.submit.enable";
 
 	/**
@@ -610,19 +639,44 @@ public final class ConfigConstants {
 	@Deprecated
 	public static final String JOB_MANAGER_WEB_CHECKPOINTS_DISABLE = "jobmanager.web.checkpoints.disable";
 
-	/** Config parameter defining the number of checkpoints to remember for recent history. */
+	/**
+	 * Config parameter defining the number of checkpoints to remember for recent history.
+	 *
+	 * @deprecated Use {@link JobManagerOptions#WEB_CHECKPOINTS_HISTORY_SIZE} instead.
+	 */
+	@Deprecated
 	public static final String JOB_MANAGER_WEB_CHECKPOINTS_HISTORY_SIZE = "jobmanager.web.checkpoints.history";
 
-	/** Time after which cached stats are cleaned up if not accessed. */
+	/**
+	 * Time after which cached stats are cleaned up if not accessed.
+	 *
+	 * @deprecated Use {@link JobManagerOptions#WEB_BACKPRESSURE_CLEANUP_INTERVAL} instead.
+	 */
+	@Deprecated
 	public static final String JOB_MANAGER_WEB_BACK_PRESSURE_CLEAN_UP_INTERVAL = "jobmanager.web.backpressure.cleanup-interval";
 
-	/** Time after which available stats are deprecated and need to be refreshed (by resampling). */
+	/**
+	 * Time after which available stats are deprecated and need to be refreshed (by resampling).
+	 *
+	 * @deprecated Use {@link JobManagerOptions#WEB_BACKPRESSURE_REFRESH_INTERVAL} instead.
+	 */
+	@Deprecated
 	public static final String JOB_MANAGER_WEB_BACK_PRESSURE_REFRESH_INTERVAL = "jobmanager.web.backpressure.refresh-interval";
 
-	/** Number of stack trace samples to take to determine back pressure. */
+	/**
+	 * Number of stack trace samples to take to determine back pressure.
+	 *
+	 * @deprecated Use {@link JobManagerOptions#WEB_BACKPRESSURE_NUM_SAMPLES} instead.
+	 */
+	@Deprecated
 	public static final String JOB_MANAGER_WEB_BACK_PRESSURE_NUM_SAMPLES = "jobmanager.web.backpressure.num-samples";
 
-	/** Delay between stack trace samples to determine back pressure. */
+	/**
+	 * Delay between stack trace samples to determine back pressure.
+	 *
+	 * @deprecated Use {@link JobManagerOptions#WEB_BACKPRESSURE_DELAY} instead.
+	 */
+	@Deprecated
 	public static final String JOB_MANAGER_WEB_BACK_PRESSURE_DELAY = "jobmanager.web.backpressure.delay-between-samples";
 
 	// ------------------------------ AKKA ------------------------------------

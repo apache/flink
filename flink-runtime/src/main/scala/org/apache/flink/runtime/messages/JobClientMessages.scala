@@ -66,10 +66,13 @@ object JobClientMessages {
   /** Message which is triggered when the JobClient registration at the JobManager times out */
   case object RegistrationTimeout extends RequiresLeaderSessionID
 
-  /** Message which is triggered when the connection timeout has been reached. */
-  case object ConnectionTimeout extends RequiresLeaderSessionID
+  /**
+    * Message which is triggered when the connection timeout has been reached.
+    *
+    * @param id Timeout id which identifies the concurrent timeouts
+    */
+  case class ConnectionTimeout(id: UUID)
 
   def getSubmissionTimeout(): AnyRef = SubmissionTimeout
   def getRegistrationTimeout(): AnyRef = RegistrationTimeout
-  def getConnectionTimeout(): AnyRef = ConnectionTimeout
 }

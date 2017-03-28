@@ -98,9 +98,7 @@ class UnboundedNonPartitionedProcessingOverProcessFunction(
   }
 
   override def initializeState(context: FunctionInitializationContext): Unit = {
-    val stateSerializer =
-      aggregationStateType.createSerializer(getRuntimeContext.getExecutionConfig)
-    val accumulatorsDescriptor = new ListStateDescriptor[Row]("overState", stateSerializer)
+    val accumulatorsDescriptor = new ListStateDescriptor[Row]("overState", aggregationStateType)
     state = context.getOperatorStateStore.getOperatorState(accumulatorsDescriptor)
   }
 }

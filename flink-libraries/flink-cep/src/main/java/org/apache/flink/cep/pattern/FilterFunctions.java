@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,24 +15,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.flink.cep.pattern;
 
-package org.apache.flink.runtime.jobmanager;
+import org.apache.flink.api.common.functions.FilterFunction;
 
-import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.configuration.ConfigOption;
+public class FilterFunctions<T> {
 
-import static org.apache.flink.configuration.ConfigOptions.key;
+	private FilterFunctions() {
+	}
 
-@PublicEvolving
-public class JobManagerOptions {
+	public static <T> FilterFunction<T> trueFunction()  {
+		return new FilterFunction<T>() {
+			@Override
+			public boolean filter(T value) throws Exception {
+				return true;
+			}
+		};
+	}
 
-	/**
-	 * The maximum number of prior execution attempts kept in history.
-	 */
-	public static final ConfigOption<Integer> MAX_ATTEMPTS_HISTORY_SIZE =
-			key("job-manager.max-attempts-history-size").defaultValue(16);
-
-	private JobManagerOptions() {
-		throw new IllegalAccessError();
+	public static <T> FilterFunction<T> falseFunction()  {
+		return new FilterFunction<T>() {
+			@Override
+			public boolean filter(T value) throws Exception {
+				return false;
+			}
+		};
 	}
 }

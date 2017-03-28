@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.functions.windowing;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
 
@@ -48,6 +49,14 @@ public abstract class ProcessAllWindowFunction<IN, OUT, W extends Window> implem
 	public abstract void process(Context context, Iterable<IN> elements, Collector<OUT> out) throws Exception;
 
 	/**
+	 * Deletes any state in the {@code Context} when the Window is purged.
+	 *
+	 * @param context The context to which the window is being evaluated
+	 * @throws Exception The function may throw exceptions to fail the program and trigger recovery.
+	 */
+	public void clear(Context context) throws Exception {}
+
+	/**
 	 * The context holding window metadata
 	 */
 	public abstract class Context {
@@ -55,5 +64,18 @@ public abstract class ProcessAllWindowFunction<IN, OUT, W extends Window> implem
 		 * @return The window that is being evaluated.
 		 */
 		public abstract W window();
+
+		/**
+		 * State accessor for per-key and per-window state.
+		 *
+		 * <p><b>NOTE:</b>If you use per-window state you have to ensure that you clean it up
+		 * by implementing {@link ProcessWindowFunction#clear(ProcessWindowFunction.Context)}.
+		 */
+		public abstract KeyedStateStore windowState();
+
+		/**
+		 * State accessor for per-key global state.
+		 */
+		public abstract KeyedStateStore globalState();
 	}
 }

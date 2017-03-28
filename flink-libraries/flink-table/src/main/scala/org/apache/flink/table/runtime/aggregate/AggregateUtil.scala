@@ -67,7 +67,7 @@ object AggregateUtil {
     * @param isPartitioned Flag to indicate whether the input is partitioned or not
     * @return [[org.apache.flink.streaming.api.functions.ProcessFunction]]
     */
-  private[flink] def CreateUnboundedProcessingOverProcessFunction(
+  private[flink] def createUnboundedProcessingOverProcessFunction(
     namedAggregates: Seq[CalcitePair[AggregateCall, String]],
     inputType: RelDataType,
     isPartitioned: Boolean = true): ProcessFunction[Row, Row] = {
@@ -106,6 +106,74 @@ object AggregateUtil {
     val lowerBoundIndex = count - index;
     val lowB = constants.get(lowerBoundIndex).getValue2.asInstanceOf[Long]
     lowB.intValue()
+  }
+
+  /**
+    * Create an [[org.apache.flink.streaming.api.functions.ProcessFunction]] for ROWS clause
+    * bounded OVER window to evaluate final aggregate value.
+    *
+    * @param namedAggregates List of calls to aggregate functions and their output field names
+    * @param inputType       Input row type
+    * @param inputFields     All input fields
+    * @param precedingOffset the preceding offset
+    * @param isRowTimeType   It is a tag that indicates whether the time type is rowTimeType
+    * @return [[org.apache.flink.streaming.api.functions.ProcessFunction]]
+    */
+  private[flink] def createRowsClauseBoundedOverProcessFunction(
+    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+    inputType: RelDataType,
+    precedingOffset: Long,
+    isRowTimeType: Boolean): ProcessFunction[Row, Row] = {
+
+    val (aggFields, aggregates) =
+      transformToAggregateFunctions(
+        namedAggregates.map(_.getKey),
+        inputType,
+        needRetraction = true)
+
+    val aggregationStateType: RowTypeInfo = createAccumulatorRowType(aggregates)
+    val inputRowType = FlinkTypeFactory.toInternalRowTypeInfo(inputType).asInstanceOf[RowTypeInfo]
+
+    if (isRowTimeType) {
+      new RowsClauseBoundedOverProcessFunction(
+        aggregates,
+        aggFields,
+        inputType.getFieldCount,
+        aggregationStateType,
+        inputRowType,
+        precedingOffset
+      )
+    } else {
+      throw TableException(
+        "Bounded partitioned proc-time OVER aggregation is not supported yet.")
+    }
+  }
+
+  /**
+    * Create an [[ProcessFunction]] to evaluate final aggregate value.
+    *
+    * @param namedAggregates List of calls to aggregate functions and their output field names
+    * @param inputType Input row type
+    * @return [[UnboundedEventTimeOverProcessFunction]]
+    */
+  private[flink] def createUnboundedEventTimeOverProcessFunction(
+   namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+   inputType: RelDataType): UnboundedEventTimeOverProcessFunction = {
+
+    val (aggFields, aggregates) =
+      transformToAggregateFunctions(
+        namedAggregates.map(_.getKey),
+        inputType,
+        needRetraction = false)
+
+    val aggregationStateType: RowTypeInfo = createAccumulatorRowType(aggregates)
+
+    new UnboundedEventTimeOverProcessFunction(
+      aggregates,
+      aggFields,
+      inputType.getFieldCount,
+      aggregationStateType,
+      FlinkTypeFactory.toInternalRowTypeInfo(inputType))
   }
 
   /**
@@ -567,7 +635,7 @@ object AggregateUtil {
       // compute preaggregation type
       val preAggFieldTypes = gkeyInFields
         .map(inputType.getFieldList.get(_).getType)
-        .map(FlinkTypeFactory.toTypeInfo) ++ createAccumulatorType(inputType, aggregates)
+        .map(FlinkTypeFactory.toTypeInfo) ++ createAccumulatorType(aggregates)
       val preAggRowType = new RowTypeInfo(preAggFieldTypes: _*)
 
       (
@@ -673,7 +741,7 @@ object AggregateUtil {
 
     val aggResultTypes = namedAggregates.map(a => FlinkTypeFactory.toTypeInfo(a.left.getType))
 
-    val accumulatorRowType = createAccumulatorRowType(inputType, aggregates)
+    val accumulatorRowType = createAccumulatorRowType(aggregates)
     val aggResultRowType = new RowTypeInfo(aggResultTypes: _*)
     val aggFunction = new AggregateAggFunction(aggregates, aggFields)
 
@@ -681,34 +749,37 @@ object AggregateUtil {
   }
   
   
-   private[flink] def createDataStreamOverAggregateFunction(
-      namedAggregates: Seq[CalcitePair[AggregateCall, String]],
-      inputType: RelDataType,
-      outputType: RelDataType,
-      groupKeysIndex: Array[Int])
-    : (DataStreamAggFunction[Row, Row, Row], RowTypeInfo, RowTypeInfo) = {
+     /*
+   * Function for building the processing logic for aggregating data in row bounded windows
+   *  @param namedAggregates List of calls to aggregate functions and their output field names
+    * @param inputType Input row type
+    * @param rowType Type info of row
+    * @param lowerBound the window boundary
+    * @return [[org.apache.flink.streaming.api.functions.ProcessFunction]]
+   */
+  private[flink] def createBoundedProcessingOverProcessFunction(
+    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+    inputType: RelDataType,
+    rowType: RowTypeInfo,
+    lowerBound: Int): ProcessFunction[Row, Row] = {
 
     val (aggFields, aggregates) =
       transformToAggregateFunctions(
         namedAggregates.map(_.getKey),
         inputType,
-        needRetraction = false)
+        needRetraction = true)
 
-    val aggregateMapping = getAggregateMapping(namedAggregates, outputType)
+    val aggregationStateType: RowTypeInfo =
+      createDataSetAggregateBufferDataType(Array(), aggregates, inputType)
 
-    if (aggregateMapping.length != namedAggregates.length) {
-      throw new TableException(
-        "Could not find output field in input data type or aggregate functions.")
-    }
+    new BoundedProcessingOverRowProcessFunction(
+      aggregates,
+      aggFields, lowerBound,
+      inputType.getFieldCount,
+      aggregationStateType, FlinkTypeFactory.toInternalRowTypeInfo(inputType))
 
-    val aggResultTypes = outputType.getFieldList.map(a => FlinkTypeFactory.toTypeInfo(a.getType))
-    
-    val accumulatorRowType = createAccumulatorRowType(inputType, aggregates)
-    val aggResultRowType = new RowTypeInfo(aggResultTypes: _*)
-    val aggFunction = new AggregateAggOverFunction(aggregates, aggFields, inputType.getFieldCount)
-
-    (aggFunction, accumulatorRowType, aggResultRowType)
   }
+   
 
   /**
     * Return true if all aggregates can be partially merged. False otherwise.
@@ -964,6 +1035,8 @@ object AggregateUtil {
                   new DecimalMinAggFunction
                 case BOOLEAN =>
                   new BooleanMinAggFunction
+                case VARCHAR | CHAR =>
+                  new StringMinAggFunction
                 case sqlType: SqlTypeName =>
                   throw new TableException("Min aggregate does no support type:" + sqlType)
               }
@@ -1009,6 +1082,8 @@ object AggregateUtil {
                   new DecimalMaxAggFunction
                 case BOOLEAN =>
                   new BooleanMaxAggFunction
+                case VARCHAR | CHAR =>
+                  new StringMaxAggFunction
                 case sqlType: SqlTypeName =>
                   throw new TableException("Max aggregate does no support type:" + sqlType)
               }
@@ -1027,7 +1102,6 @@ object AggregateUtil {
   }
 
   private def createAccumulatorType(
-      inputType: RelDataType,
       aggregates: Array[TableAggregateFunction[_]]): Seq[TypeInformation[_]] = {
 
     val aggTypes: Seq[TypeInformation[_]] =
@@ -1066,7 +1140,7 @@ object AggregateUtil {
         .map(FlinkTypeFactory.toTypeInfo)
 
     // get all field data types of all intermediate aggregates
-    val aggTypes: Seq[TypeInformation[_]] = createAccumulatorType(inputType, aggregates)
+    val aggTypes: Seq[TypeInformation[_]] = createAccumulatorType(aggregates)
 
     // concat group key types, aggregation types, and window key types
     val allFieldTypes: Seq[TypeInformation[_]] = windowKeyTypes match {
@@ -1077,10 +1151,9 @@ object AggregateUtil {
   }
 
   private def createAccumulatorRowType(
-      inputType: RelDataType,
       aggregates: Array[TableAggregateFunction[_]]): RowTypeInfo = {
 
-    val aggTypes: Seq[TypeInformation[_]] = createAccumulatorType(inputType, aggregates)
+    val aggTypes: Seq[TypeInformation[_]] = createAccumulatorType(aggregates)
 
     new RowTypeInfo(aggTypes: _*)
   }

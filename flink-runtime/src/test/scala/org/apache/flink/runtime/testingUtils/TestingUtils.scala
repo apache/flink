@@ -33,6 +33,7 @@ import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.client.JobClient
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager
 import org.apache.flink.runtime.clusterframework.types.ResourceID
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices
 import org.apache.flink.runtime.instance.{ActorGateway, AkkaActorGateway}
 import org.apache.flink.runtime.jobgraph.JobGraph
 import org.apache.flink.runtime.jobmanager.{JobManager, MemoryArchivist}
@@ -45,7 +46,7 @@ import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessageFilter, LogMess
 
 import scala.concurrent.duration.TimeUnit
 import scala.concurrent.duration._
-import scala.concurrent.{ExecutionContextExecutor, Await, ExecutionContext}
+import scala.concurrent.{Await, ExecutionContext, ExecutionContextExecutor}
 import scala.language.postfixOps
 
 /**
@@ -326,7 +327,7 @@ object TestingUtils {
       Await.ready(notificationResult, TESTING_DURATION)
     }
 
-    new AkkaActorGateway(taskManager, null)
+    new AkkaActorGateway(taskManager, HighAvailabilityServices.DEFAULT_LEADER_ID)
   }
 
   /** Stops the given actor by sending it a Kill message
@@ -456,7 +457,7 @@ object TestingUtils {
         jobManagerClass,
         classOf[MemoryArchivist])
 
-    new AkkaActorGateway(actor, null)
+    new AkkaActorGateway(actor, HighAvailabilityServices.DEFAULT_LEADER_ID)
   }
 
   /** Creates a forwarding JobManager which sends all received message to the forwarding target.
@@ -478,7 +479,7 @@ object TestingUtils {
           Props(
             classOf[ForwardingActor],
             forwardingTarget,
-            None),
+            Option(HighAvailabilityServices.DEFAULT_LEADER_ID)),
           name
         )
       case None =>
@@ -486,11 +487,11 @@ object TestingUtils {
           Props(
             classOf[ForwardingActor],
             forwardingTarget,
-            None)
+            Option(HighAvailabilityServices.DEFAULT_LEADER_ID))
         )
     }
 
-    new AkkaActorGateway(actor, null)
+    new AkkaActorGateway(actor, HighAvailabilityServices.DEFAULT_LEADER_ID)
   }
 
   def submitJobAndWait(
@@ -537,7 +538,7 @@ object TestingUtils {
       LeaderRetrievalUtils.createLeaderRetrievalService(configuration, jobManager),
       classOf[TestingResourceManager])
 
-    new AkkaActorGateway(actor, null)
+    new AkkaActorGateway(actor, HighAvailabilityServices.DEFAULT_LEADER_ID)
   }
 
 

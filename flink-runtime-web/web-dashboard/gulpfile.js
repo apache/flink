@@ -111,7 +111,7 @@ gulp.task('vendor-scripts', function() {
  });
 
 gulp.task('scripts', function() {
-  stream = gulp.src([ paths.src + 'scripts/config.js', paths.src + 'scripts/**/*.coffee'] )
+  stream = gulp.src([ paths.src + 'scripts/config.js', paths.src + 'scripts/**/*.coffee', '!' + paths.src + 'scripts/index_hs.coffee'] )
     .pipe(plumber())
     .pipe(sourcemaps.init())
     .pipe(coffee({ bare: true }))
@@ -126,8 +126,33 @@ gulp.task('scripts', function() {
   stream.pipe(gulp.dest(paths.dest + 'js/'))
 });
 
+gulp.task('scripts_hs', function() {
+  stream = gulp.src([ paths.src + 'scripts/config.js', paths.src + 'scripts/**/*.coffee', '!' + paths.src + 'scripts/index.coffee'] )
+    .pipe(plumber())
+    .pipe(sourcemaps.init())
+    .pipe(coffee({ bare: true }))
+    .pipe(ngAnnotate())
+    .pipe(concat('index.js'))
+    .pipe(sourcemaps.write());
+
+  if (environment == 'production') {
+    stream.pipe(uglify())
+  }
+
+  stream.pipe(gulp.dest(paths.dest + 'js/hs'))
+});
+
 gulp.task('html', function() {
   gulp.src(paths.src + 'index.jade')
+    .pipe(plumber())
+    .pipe(jade({
+      pretty: true
+    }))
+    .pipe(gulp.dest(paths.dest))
+});
+
+gulp.task('html_hs', function() {
+  gulp.src(paths.src + 'index_hs.jade')
     .pipe(plumber())
     .pipe(jade({
       pretty: true
@@ -179,7 +204,7 @@ gulp.task('serve', serve({
 }));
 
 gulp.task('vendor', ['vendor-styles', 'vendor-scripts']);
-gulp.task('compile', ['html', 'partials','styles', 'scripts']);
+gulp.task('compile', ['html', 'html_hs', 'partials','styles', 'scripts', 'scripts_hs']);
 
 gulp.task('default', ['fonts', 'assets', 'vendor', 'compile']);
 gulp.task('dev', ['set-development', 'default']);

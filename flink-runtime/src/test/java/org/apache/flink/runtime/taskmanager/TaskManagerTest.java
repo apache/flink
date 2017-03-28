@@ -46,6 +46,7 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobInformation;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.instance.InstanceID;
@@ -125,7 +126,7 @@ public class TaskManagerTest extends TestLogger {
 
 	private static ActorSystem system;
 
-	final static UUID leaderSessionID = null;
+	final static UUID leaderSessionID = HighAvailabilityServices.DEFAULT_LEADER_ID;
 
 	@BeforeClass
 	public static void setup() {
@@ -1165,8 +1166,8 @@ public class TaskManagerTest extends TestLogger {
 
 			// We need this to be a JM that answers to update messages for
 			// robustness on Travis (if jobs need to be resubmitted in (4)).
-			ActorRef jm = system.actorOf(Props.create(new SimpleLookupJobManagerCreator(null)));
-			ActorGateway jobManagerActorGateway = new AkkaActorGateway(jm, null);
+			ActorRef jm = system.actorOf(Props.create(new SimpleLookupJobManagerCreator(leaderSessionID)));
+			ActorGateway jobManagerActorGateway = new AkkaActorGateway(jm, leaderSessionID);
 
 			final ActorGateway testActorGateway = new AkkaActorGateway(
 					getTestActor(),

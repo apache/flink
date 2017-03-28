@@ -27,7 +27,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * A {@link TableSourceConverter} with this annotation bind the converter with table type.
+ * Annotates a table type of a {@link TableSourceConverter}.
  */
 @Documented
 @Target(ElementType.TYPE)
@@ -36,9 +36,9 @@ import java.lang.annotation.Target;
 public @interface TableType {
 
 	/**
-	 * Specifies the external catalog table type of {@link TableSourceConverter}.
+	 * Returns the table type of a {@link TableSourceConverter}.
 	 *
-	 * @return the external catalog table type of {@link TableSourceConverter}.
+	 * @return The table type of the {@link TableSourceConverter}.
 	 */
 	String value();
 

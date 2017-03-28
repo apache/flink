@@ -22,26 +22,29 @@ import java.util.{Set => JSet}
 
 import org.apache.flink.table.sources.TableSource
 
-/** Defines a converter used to convert [[org.apache.flink.table.sources.TableSource]] to
-  * or from [[ExternalCatalogTable]].
+/** Creates a [[org.apache.flink.table.sources.TableSource]] from the properties of an
+  * [[ExternalCatalogTable]].
   *
-  * @tparam T The tableSource which to do convert operation on.
+  * The [[org.apache.flink.table.annotation.TableType]] annotation defines which type of external
+  * table is supported.
+  *
+  * @tparam T The [[TableSource]] to be created by this converter.
   */
 trait TableSourceConverter[T <: TableSource[_]] {
 
   /**
-    * Defines the required properties that must exists in the properties of an ExternalCatalogTable
-    * to ensure the input ExternalCatalogTable is compatible with the requirements of
-    * current converter.
-    * @return the required properties.
+    * Defines the properties that need to be provided by the [[ExternalCatalogTable]] to create
+    * the [[TableSource]].
+    *
+    * @return The required properties.
     */
   def requiredProperties: JSet[String]
 
   /**
-    * Converts the input external catalog table instance to a tableSource instance.
+    * Creates a [[TableSource]] for the given [[ExternalCatalogTable]].
     *
-    * @param externalCatalogTable input external catalog table instance to convert
-    * @return converted tableSource instance from input external catalog table.
+    * @param externalCatalogTable ExternalCatalogTable to create a TableSource from.
+    * @return The created TableSource.
     */
   def fromExternalCatalogTable(externalCatalogTable: ExternalCatalogTable): T
 

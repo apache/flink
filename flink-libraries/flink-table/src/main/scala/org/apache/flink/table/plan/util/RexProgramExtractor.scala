@@ -92,6 +92,26 @@ object RexProgramExtractor {
       case _ => (Array.empty, Array.empty)
     }
   }
+
+  /**
+    * Extracts the name of nested input fields accessed by the RexProgram and returns the
+    * prefix of the accesses.
+    *
+    * @param rexProgram The RexProgram to analyze
+    * @return The full names of accessed input fields. e.g. field.subfield
+    */
+  def extractRefNestedInputFields(
+      rexProgram: RexProgram, usedFields: Array[Int]): Array[Array[String]] = {
+
+    val visitor = new RefFieldAccessorVisitor(usedFields)
+    rexProgram.getProjectList.foreach(exp => rexProgram.expandLocalRef(exp).accept(visitor))
+
+    val condition = rexProgram.getCondition
+    if (condition != null) {
+      rexProgram.expandLocalRef(condition).accept(visitor)
+    }
+    visitor.getProjectedFields
+  }
 }
 
 /**
@@ -180,4 +200,65 @@ class RexNodeToExpressionConverter(
     str.replaceAll("\\s|_", "")
   }
 
+}
+
+/**
+  * A RexVisitor to extract used nested input fields
+  */
+class RefFieldAccessorVisitor(usedFields: Array[Int]) extends RexVisitorImpl[Unit](true) {
+
+  private val projectedFields: Array[Array[String]] = Array.fill(usedFields.length)(Array.empty)
+
+  private val order: Map[Int, Int] = usedFields.zipWithIndex.toMap
+
+  /** Returns the prefix of the nested field accesses */
+  def getProjectedFields: Array[Array[String]] = {
+
+    projectedFields.map { nestedFields =>
+      // sort nested field accesses
+      val sorted = nestedFields.sorted
+      // get prefix field accesses
+      val prefixAccesses = sorted.foldLeft(Nil: List[String]) {
+        (prefixAccesses, nestedAccess) => prefixAccesses match {
+              // first access => add access
+            case Nil => List[String](nestedAccess)
+              // top-level access already found => return top-level access
+            case head :: Nil if head.equals("*") => prefixAccesses
+              // access is top-level access => return top-level access
+            case _ :: _ if nestedAccess.equals("*") => List("*")
+            // previous access is not prefix of this access => add access
+            case head :: _ if !nestedAccess.startsWith(head) =>
+              nestedAccess :: prefixAccesses
+              // previous access is a prefix of this access => do not add access
+            case _ => prefixAccesses
+          }
+      }
+      prefixAccesses.toArray
+    }
+  }
+
+  override def visitFieldAccess(fieldAccess: RexFieldAccess): Unit = {
+    def internalVisit(fieldAccess: RexFieldAccess): (Int, String) = {
+      fieldAccess.getReferenceExpr match {
+        case ref: RexInputRef =>
+          (ref.getIndex, fieldAccess.getField.getName)
+        case fac: RexFieldAccess =>
+          val (i, n) = internalVisit(fac)
+          (i, s"$n.${fieldAccess.getField.getName}")
+      }
+    }
+    val (index, fullName) = internalVisit(fieldAccess)
+    val outputIndex = order.getOrElse(index, -1)
+    val fields: Array[String] = projectedFields(outputIndex)
+    projectedFields(outputIndex) = fields :+ fullName
+  }
+
+  override def visitInputRef(inputRef: RexInputRef): Unit = {
+    val outputIndex = order.getOrElse(inputRef.getIndex, -1)
+    val fields: Array[String] = projectedFields(outputIndex)
+    projectedFields(outputIndex) = fields :+ "*"
+  }
+
+  override def visitCall(call: RexCall): Unit =
+    call.operands.foreach(operand => operand.accept(this))
 }

@@ -26,10 +26,8 @@ import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoader;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory;
-import org.apache.flink.runtime.heartbeat.HeartbeatListener;
-import org.apache.flink.runtime.heartbeat.HeartbeatManager;
-import org.apache.flink.runtime.heartbeat.HeartbeatManagerSenderImpl;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
+import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
@@ -38,14 +36,12 @@ import org.apache.flink.runtime.rpc.TestingSerialRpcService;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
-import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
-import org.slf4j.Logger;
 
 import java.net.InetAddress;
 import java.net.URL;
@@ -54,8 +50,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(BlobLibraryCacheManager.class)
@@ -64,7 +63,9 @@ public class JobMasterTest extends TestLogger {
 	@Test
 	public void testHeartbeatTimeoutWithTaskManager() throws Exception {
 		final TestingHighAvailabilityServices haServices = new TestingHighAvailabilityServices();
-		final TestingLeaderRetrievalService rmLeaderRetrievalService = new TestingLeaderRetrievalService();
+		final TestingLeaderRetrievalService rmLeaderRetrievalService = new TestingLeaderRetrievalService(
+			null,
+			null);
 		haServices.setResourceManagerLeaderRetriever(rmLeaderRetrievalService);
 		haServices.setCheckpointRecoveryFactory(mock(CheckpointRecoveryFactory.class));
 		final TestingFatalErrorHandler testingFatalErrorHandler = new TestingFatalErrorHandler();
@@ -106,10 +107,9 @@ public class JobMasterTest extends TestLogger {
 				testingFatalErrorHandler,
 				new FlinkUserCodeClassLoader(new URL[0]));
 
-			// also start the heartbeat manager in job manager
 			jobMaster.start(jmLeaderId);
 
-			// register task manager will trigger monitoring heartbeat target, schedule heartbeat request in interval time
+			// register task manager will trigger monitor heartbeat target, schedule heartbeat request at interval time
 			jobMaster.registerTaskManager(taskManagerAddress, taskManagerLocation, jmLeaderId);
 
 			ArgumentCaptor<Runnable> heartbeatRunnableCaptor = ArgumentCaptor.forClass(Runnable.class);
@@ -144,31 +144,5 @@ public class JobMasterTest extends TestLogger {
 		}
 	}
 
-	private static class TestingHeartbeatServices extends HeartbeatServices {
 
-		private final ScheduledExecutor scheduledExecutorToUse;
-
-		public TestingHeartbeatServices(long heartbeatInterval, long heartbeatTimeout, ScheduledExecutor scheduledExecutorToUse) {
-			super(heartbeatInterval, heartbeatTimeout);
-
-			this.scheduledExecutorToUse = Preconditions.checkNotNull(scheduledExecutorToUse);
-		}
-
-		@Override
-		public <I, O> HeartbeatManager<I, O> createHeartbeatManagerSender(
-			ResourceID resourceId,
-			HeartbeatListener<I, O> heartbeatListener,
-			ScheduledExecutor scheduledExecutor,
-			Logger log) {
-
-			return new HeartbeatManagerSenderImpl<>(
-				heartbeatInterval,
-				heartbeatTimeout,
-				resourceId,
-				heartbeatListener,
-				org.apache.flink.runtime.concurrent.Executors.directExecutor(),
-				scheduledExecutorToUse,
-				log);
-		}
-	}
 }

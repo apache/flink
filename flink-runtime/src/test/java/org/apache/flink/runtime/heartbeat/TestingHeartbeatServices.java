@@ -20,42 +20,33 @@ package org.apache.flink.runtime.heartbeat;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
+import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executor;
 
-/**
- *
- * @param <I>
- * @param <O>
- */
-public class TestingHeartbeatManagerSenderImpl<I, O> extends HeartbeatManagerSenderImpl<I, O> {
+public class TestingHeartbeatServices extends HeartbeatServices {
 
-	private final CountDownLatch waitLatch;
+	private final ScheduledExecutor scheduledExecutorToUse;
 
-	public TestingHeartbeatManagerSenderImpl(
-			CountDownLatch waitLatch,
-			long heartbeatPeriod,
-			long heartbeatTimeout,
-			ResourceID ownResourceID,
-			HeartbeatListener<I, O> heartbeatListener,
-			Executor executor,
-			ScheduledExecutor scheduledExecutor,
-			Logger log) {
+	public TestingHeartbeatServices(long heartbeatInterval, long heartbeatTimeout, ScheduledExecutor scheduledExecutorToUse) {
+		super(heartbeatInterval, heartbeatTimeout);
 
-		super(heartbeatPeriod, heartbeatTimeout, ownResourceID, heartbeatListener, executor, scheduledExecutor, log);
-
-		this.waitLatch = waitLatch;
+		this.scheduledExecutorToUse = Preconditions.checkNotNull(scheduledExecutorToUse);
 	}
 
 	@Override
-	public void unmonitorTarget(ResourceID resourceID) {
-		try {
-			waitLatch.await();
-		} catch (InterruptedException ex) {
-			log.error("Unexpected interrupted exception.", ex);
-		}
+	public <I, O> HeartbeatManager<I, O> createHeartbeatManagerSender(
+		ResourceID resourceId,
+		HeartbeatListener<I, O> heartbeatListener,
+		ScheduledExecutor scheduledExecutor,
+		Logger log) {
 
-		super.unmonitorTarget(resourceID);
+		return new HeartbeatManagerSenderImpl<>(
+			heartbeatInterval,
+			heartbeatTimeout,
+			resourceId,
+			heartbeatListener,
+			org.apache.flink.runtime.concurrent.Executors.directExecutor(),
+			scheduledExecutorToUse,
+			log);
 	}
 }

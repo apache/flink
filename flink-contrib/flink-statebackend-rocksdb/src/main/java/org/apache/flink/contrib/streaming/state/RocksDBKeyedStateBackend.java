@@ -821,7 +821,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				descriptor.getSerializer());
 
 		if (stateInfo != null) {
-			if (newMetaInfo.isCompatibleWith(stateInfo.f1)) {
+			if (newMetaInfo.canRestoreFrom(stateInfo.f1)) {
 				stateInfo.f1 = newMetaInfo;
 				return stateInfo.f0;
 			} else {

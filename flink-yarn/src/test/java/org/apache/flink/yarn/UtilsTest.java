@@ -93,7 +93,9 @@ public class UtilsTest extends TestLogger {
 
 			Configuration flinkConfig = new Configuration();
 			YarnConfiguration yarnConfig = new YarnConfiguration();
-			TestingLeaderRetrievalService leaderRetrievalService = new TestingLeaderRetrievalService();
+			TestingLeaderRetrievalService leaderRetrievalService = new TestingLeaderRetrievalService(
+				null,
+				null);
 			String applicationMasterHostName = "localhost";
 			String webInterfaceURL = "foobar";
 			ContaineredTaskManagerParameters taskManagerParameters = new ContaineredTaskManagerParameters(
