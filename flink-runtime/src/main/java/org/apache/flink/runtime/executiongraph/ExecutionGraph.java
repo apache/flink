@@ -58,11 +58,13 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
+import org.apache.flink.runtime.jobmanager.JobManagerOptions;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.query.KvStateLocationRegistry;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
+import org.apache.flink.runtime.util.EvictingBoundedList;
 import org.apache.flink.runtime.util.SerializableObject;
 import org.apache.flink.runtime.util.SerializedThrowable;
 import org.apache.flink.util.ExceptionUtils;
@@ -211,6 +213,8 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	/** The exception that caused the job to fail. This is set to the first root exception
 	 * that was not recoverable and triggered job failure */
 	private volatile ErrorInfo failureCause;
+	
+	private final EvictingBoundedList<ErrorInfo> priorFailureCauses;
 
 	/** The number of job vertices that have reached a terminal state */
 	private volatile int numFinishedJobVertices;
@@ -318,6 +322,8 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 		metricGroup.gauge(RESTARTING_TIME_METRIC_NAME, new RestartTimeGauge());
 
 		this.kvStateLocationRegistry = new KvStateLocationRegistry(jobId, getAllVertices());
+
+		this.priorFailureCauses = new EvictingBoundedList<>(jobConfig.getInteger(JobManagerOptions.MAX_ATTEMPTS_HISTORY_SIZE));
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -552,8 +558,16 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 		return state;
 	}
 
+	@Override
 	public ErrorInfo getFailureCause() {
 		return failureCause;
+	}
+
+	@Override
+	public EvictingBoundedList<ErrorInfo> getPriorFailureCauses() {
+		synchronized (priorFailureCauses) {
+			return new EvictingBoundedList<>(priorFailureCauses);
+		}
 	}
 
 	@Override
@@ -1072,6 +1086,10 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 
 				this.currentExecutions.clear();
 
+				synchronized (this.priorFailureCauses) {
+					this.priorFailureCauses.add(this.failureCause);
+				}
+
 				Collection<CoLocationGroup> colGroups = new HashSet<>();
 
 				for (ExecutionJobVertex jv : this.verticesInCreationOrder) {
@@ -1476,8 +1494,13 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 
 		// see what this means for us. currently, the first FAILED state means -> FAILED
 		if (newExecutionState == ExecutionState.FAILED) {
-			long timestamp = vertex.getTaskVertices()[subtask].getCurrentExecutionAttempt().getStateTimestamp(ExecutionState.FAILED);
-			fail(new ErrorInfo(error, timestamp));
+			Execution attempt = vertex.getTaskVertices()[subtask].getCurrentExecutionAttempt();
+			fail(new ErrorInfo(
+				error,
+				attempt.getStateTimestamp(ExecutionState.FAILED),
+				attempt.getAssignedResourceLocation(),
+				attempt.getVertex().getTaskNameWithSubtaskIndex(),
+				attempt.getAttemptNumber()));
 		}
 	}
 
@@ -1537,6 +1560,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			stateTimestamps,
 			getState(),
 			failureCause,
+			priorFailureCauses,
 			getJsonPlan(),
 			getAccumulatorResultsStringified(),
 			serializedUserAccumulators,

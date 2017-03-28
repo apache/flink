@@ -19,6 +19,7 @@ package org.apache.flink.runtime.webmonitor.handlers;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.google.common.collect.Lists;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
@@ -32,6 +33,7 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.List;
 
 public class JobExceptionsHandlerTest {
 
@@ -52,14 +54,16 @@ public class JobExceptionsHandlerTest {
 	public void testGetPaths() {
 		JobExceptionsHandler handler = new JobExceptionsHandler(null);
 		String[] paths = handler.getPaths();
-		Assert.assertEquals(1, paths.length);
-		Assert.assertEquals("/jobs/:jobid/exceptions", paths[0]);
+		Assert.assertEquals(2, paths.length);
+		List<String> pathsList = Lists.newArrayList(paths);
+		Assert.assertTrue(pathsList.contains("/jobs/:jobid/exceptions"));
+		Assert.assertTrue(pathsList.contains("/jobs/:jobid/exceptions/:attempt"));
 	}
 
 	@Test
 	public void testJsonGeneration() throws Exception {
 		AccessExecutionGraph originalJob = ArchivedJobGenerationUtils.getTestJob();
-		String json = JobExceptionsHandler.createJobExceptionsJson(originalJob);
+		String json = JobExceptionsHandler.createJobExceptionsJson(originalJob, -1);
 
 		compareExceptions(originalJob, json);
 	}

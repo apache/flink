@@ -17,9 +17,11 @@
  */
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
@@ -29,19 +31,34 @@ import java.io.Serializable;
  */
 public class ErrorInfo implements Serializable {
 
-	private static final long serialVersionUID = -6138942031953594202L;
+	private static final long serialVersionUID = 6457436405398438623L;
 
 	private final transient Throwable exception;
 	private final long timestamp;
 
 	private volatile String exceptionAsString;
+	
+	@Nullable
+	private final TaskManagerLocation location;
+	@Nullable
+	private final String taskName;
+	@Nullable
+	private final int attempt;
 
 	public ErrorInfo(Throwable exception, long timestamp) {
+		this(exception, timestamp, null, null, -1);
+	}
+
+	public ErrorInfo(Throwable exception, long timestamp, @Nullable TaskManagerLocation location, @Nullable String taskName, int attempt) {
 		Preconditions.checkNotNull(exception);
 		Preconditions.checkArgument(timestamp > 0);
 
 		this.exception = exception;
 		this.timestamp = timestamp;
+		
+		this.location = location;
+		this.taskName = taskName;
+		this.attempt = attempt;
 	}
 
 	/**
@@ -72,6 +89,33 @@ public class ErrorInfo implements Serializable {
 	 */
 	public long getTimestamp() {
 		return timestamp;
+	}
+
+	/**
+	 * Returns the {@link TaskManagerLocation} where the contained exception occurred.
+	 * 
+	 * @return location where the contained exception occurred.
+	 */
+	public TaskManagerLocation getLocation() {
+		return location;
+	}
+
+	/**
+	 * Returns the name of the task that caused the contained exception.
+	 *
+	 * @return name of the task that cause the contained exception.
+	 */
+	public String getTaskName() {
+		return taskName;
+	}
+
+	/**
+	 * Returns the attempt number of the {@link Execution} that caused the contained exception.
+	 *
+	 * @return attempt number of the execution that caused the contained exception.
+	 */
+	public int getAttemptNumber() {
+		return attempt;
 	}
 
 	private void writeObject(ObjectOutputStream out) throws IOException {

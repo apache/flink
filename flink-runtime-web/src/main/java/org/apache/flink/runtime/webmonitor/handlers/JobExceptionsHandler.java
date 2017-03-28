@@ -20,10 +20,12 @@ package org.apache.flink.runtime.webmonitor.handlers;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.AccessExecution;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.util.EvictingBoundedList;
 import org.apache.flink.runtime.webmonitor.ExecutionGraphHolder;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
@@ -41,6 +43,7 @@ import java.util.Map;
 public class JobExceptionsHandler extends AbstractExecutionGraphRequestHandler {
 
 	private static final String JOB_EXCEPTIONS_REST_PATH = "/jobs/:jobid/exceptions";
+	private static final String JOB_EXCEPTIONS_PRIOR_REST_PATH = "/jobs/:jobid/exceptions/:attempt";
 
 	static final int MAX_NUMBER_EXCEPTION_TO_REPORT = 20;
 	
@@ -50,26 +53,41 @@ public class JobExceptionsHandler extends AbstractExecutionGraphRequestHandler {
 
 	@Override
 	public String[] getPaths() {
-		return new String[]{JOB_EXCEPTIONS_REST_PATH};
+		return new String[]{JOB_EXCEPTIONS_REST_PATH, JOB_EXCEPTIONS_PRIOR_REST_PATH};
 	}
 
 	@Override
 	public String handleRequest(AccessExecutionGraph graph, Map<String, String> params) throws Exception {
-		return createJobExceptionsJson(graph);
+		String attemptString = params.get("attempt");
+		if (attemptString == null) {
+			return createJobExceptionsJson(graph, -1);
+		} else {
+			int attempt = Integer.valueOf(params.get("attempt"));
+			return createJobExceptionsJson(graph, attempt);
+		}
 	}
 
 	public static class JobExceptionsJsonArchivist implements JsonArchivist {
 
 		@Override
 		public Collection<ArchivedJson> archiveJsonWithPath(AccessExecutionGraph graph) throws IOException {
-			String json = createJobExceptionsJson(graph);
+			String json = createJobExceptionsJson(graph, -1);
 			String path = JOB_EXCEPTIONS_REST_PATH
 				.replace(":jobid", graph.getJobID().toString());
 			return Collections.singletonList(new ArchivedJson(path, json));
 		}
 	}
 
-	public static String createJobExceptionsJson(AccessExecutionGraph graph) throws IOException {
+	public static String createJobExceptionsJson(AccessExecutionGraph graph, int attempt) throws IOException {
+		EvictingBoundedList<ErrorInfo> priorFailureCauses = graph.getPriorFailureCauses();
+		ErrorInfo rootError = attempt == -1
+			? graph.getFailureCause()
+			: graph.getPriorFailureCauses().get(attempt);
+
+		if (rootError == null) {
+			return "{}";
+		}
+
 		StringWriter writer = new StringWriter();
 		JsonGenerator gen = JsonFactory.jacksonFactory.createGenerator(writer);
 
@@ -80,6 +98,24 @@ public class JobExceptionsHandler extends AbstractExecutionGraphRequestHandler {
 		if (rootException != null && !rootException.getExceptionAsString().equals(ExceptionUtils.STRINGIFIED_NULL_EXCEPTION)) {
 			gen.writeStringField("root-exception", rootException.getExceptionAsString());
 			gen.writeNumberField("timestamp", rootException.getTimestamp());
+
+			TaskManagerLocation location = rootError.getLocation();
+			if (location != null) {
+				String locationString = location.getFQDNHostname() + ':' + location.dataPort();
+				gen.writeStringField("location", locationString);
+			}
+			String task = rootError.getTaskName();
+			if (task != null) {
+				gen.writeStringField("task", task);
+			}
+		}
+
+		if (attempt == -1) {
+			gen.writeArrayFieldStart("availableExceptionIds");
+			for (int x = Math.max(0, priorFailureCauses.size() - priorFailureCauses.getSizeLimit()); x < priorFailureCauses.size(); x++) {
+				gen.writeNumber(priorFailureCauses.get(x).getAttemptNumber());
+			}
+			gen.writeEndArray();
 		}
 
 		// we additionally collect all exceptions (up to a limit) that occurred in the individual tasks
@@ -89,14 +125,18 @@ public class JobExceptionsHandler extends AbstractExecutionGraphRequestHandler {
 		boolean truncated = false;
 		
 		for (AccessExecutionVertex task : graph.getAllExecutionVertices()) {
-			String t = task.getFailureCauseAsString();
+			AccessExecution execution = attempt == -1
+				? task.getCurrentExecutionAttempt()
+				: task.getPriorExecutionAttempt(rootError.getAttemptNumber());
+
+			String t = execution.getFailureCauseAsString();
 			if (t != null && !t.equals(ExceptionUtils.STRINGIFIED_NULL_EXCEPTION)) {
 				if (numExceptionsSoFar >= MAX_NUMBER_EXCEPTION_TO_REPORT) {
 					truncated = true;
 					break;
 				}
 
-				TaskManagerLocation location = task.getCurrentAssignedResourceLocation();
+				TaskManagerLocation location = execution.getAssignedResourceLocation();
 				String locationString = location != null ?
 						location.getFQDNHostname() + ':' + location.dataPort() : "(unassigned)";
 
@@ -104,7 +144,7 @@ public class JobExceptionsHandler extends AbstractExecutionGraphRequestHandler {
 				gen.writeStringField("exception", t);
 				gen.writeStringField("task", task.getTaskNameWithSubtaskIndex());
 				gen.writeStringField("location", locationString);
-				long timestamp = task.getStateTimestamp(ExecutionState.FAILED);
+				long timestamp = execution.getStateTimestamp(ExecutionState.FAILED);
 				gen.writeNumberField("timestamp", timestamp == 0 ? -1 : timestamp);
 				gen.writeEndObject();
 				numExceptionsSoFar++;

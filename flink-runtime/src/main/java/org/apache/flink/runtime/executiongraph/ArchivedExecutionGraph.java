@@ -25,6 +25,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.JobSnapshottingSettings;
+import org.apache.flink.runtime.util.EvictingBoundedList;
 import org.apache.flink.util.SerializedValue;
 
 import javax.annotation.Nullable;
@@ -73,6 +74,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 	 */
 	private final ErrorInfo failureCause;
 
+	private EvictingBoundedList<ErrorInfo> priorFailureCauses;
 	// ------ Fields that are only relevant for archived execution graphs ------------
 	private final String jsonPlan;
 	private final StringifiedAccumulatorResult[] archivedUserAccumulators;
@@ -94,6 +96,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 			long[] stateTimestamps,
 			JobStatus state,
 			ErrorInfo failureCause,
+			EvictingBoundedList<ErrorInfo> priorFailureCauses,
 			String jsonPlan,
 			StringifiedAccumulatorResult[] archivedUserAccumulators,
 			Map<String, SerializedValue<Object>> serializedUserAccumulators,
@@ -109,6 +112,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 		this.stateTimestamps = stateTimestamps;
 		this.state = state;
 		this.failureCause = failureCause;
+		this.priorFailureCauses = priorFailureCauses;
 		this.jsonPlan = jsonPlan;
 		this.archivedUserAccumulators = archivedUserAccumulators;
 		this.serializedUserAccumulators = serializedUserAccumulators;
@@ -143,6 +147,11 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 	@Override
 	public ErrorInfo getFailureCause() {
 		return failureCause;
+	}
+
+	@Override
+	public EvictingBoundedList<ErrorInfo> getPriorFailureCauses() {
+		return priorFailureCauses;
 	}
 
 	@Override
