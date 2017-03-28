@@ -29,7 +29,7 @@ import java.io.IOException;
  * consists of a range of key group snapshots. A key group is subset of the available
  * key space. The key groups are identified by their key group indices.
  */
-public class KeyGroupsStateHandle implements StreamStateHandle {
+public class KeyGroupsStateHandle implements StreamStateHandle, KeyedStateHandle {
 
 	private static final long serialVersionUID = -8070326169926626355L;
 
@@ -54,20 +54,18 @@ public class KeyGroupsStateHandle implements StreamStateHandle {
 
 	/**
 	 *
-	 * @return iterable over the key-group range for the key-group state referenced by this handle
+	 * @return the internal key-group range to offsets metadata
 	 */
-	public Iterable<Integer> keyGroups() {
-		return groupRangeOffsets.getKeyGroupRange();
+	public KeyGroupRangeOffsets getGroupRangeOffsets() {
+		return groupRangeOffsets;
 	}
-
 
 	/**
 	 *
-	 * @param keyGroupId the id of a key-group
-	 * @return true if the provided key-group id is contained in the key-group range of this handle
+	 * @return The handle to the actual states
 	 */
-	public boolean containsKeyGroup(int keyGroupId) {
-		return groupRangeOffsets.getKeyGroupRange().contains(keyGroupId);
+	public StreamStateHandle getDelegateStateHandle() {
+		return stateHandle;
 	}
 
 	/**
@@ -85,24 +83,13 @@ public class KeyGroupsStateHandle implements StreamStateHandle {
 	 * @return key-group state over a range that is the intersection between this handle's key-group range and the
 	 *          provided key-group range.
 	 */
-	public KeyGroupsStateHandle getKeyGroupIntersection(KeyGroupRange keyGroupRange) {
+	public KeyGroupsStateHandle getIntersection(KeyGroupRange keyGroupRange) {
 		return new KeyGroupsStateHandle(groupRangeOffsets.getIntersection(keyGroupRange), stateHandle);
 	}
 
-	/**
-	 *
-	 * @return the internal key-group range to offsets metadata
-	 */
-	public KeyGroupRangeOffsets getGroupRangeOffsets() {
-		return groupRangeOffsets;
-	}
-
-	/**
-	 *
-	 * @return number of key-groups in the key-group range of this handle
-	 */
-	public int getNumberOfKeyGroups() {
-		return groupRangeOffsets.getKeyGroupRange().getNumberOfKeyGroups();
+	@Override
+	public KeyGroupRange getKeyGroupRange() {
+		return groupRangeOffsets.getKeyGroupRange();
 	}
 
 	@Override
@@ -118,10 +105,6 @@ public class KeyGroupsStateHandle implements StreamStateHandle {
 	@Override
 	public FSDataInputStream openInputStream() throws IOException {
 		return stateHandle.openInputStream();
-	}
-
-	public StreamStateHandle getDelegateStateHandle() {
-		return stateHandle;
 	}
 
 	@Override

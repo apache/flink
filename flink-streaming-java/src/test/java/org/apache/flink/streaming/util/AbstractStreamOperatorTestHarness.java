@@ -41,6 +41,7 @@ import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
@@ -318,7 +319,7 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 
 		StreamStateHandle stateHandle = SavepointV0Serializer.convertOperatorAndFunctionState(state);
 
-		List<KeyGroupsStateHandle> keyGroupStatesList = new ArrayList<>();
+		List<KeyedStateHandle> keyGroupStatesList = new ArrayList<>();
 		if (state.getKvStates() != null) {
 			KeyGroupsStateHandle keyedStateHandle = SavepointV0Serializer.convertKeyedBackendState(
 					state.getKvStates(),
@@ -331,7 +332,7 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 		initializeState(new OperatorStateHandles(0,
 				stateHandle,
 				keyGroupStatesList,
-				Collections.<KeyGroupsStateHandle>emptyList(),
+				Collections.<KeyedStateHandle>emptyList(),
 				Collections.<OperatorStateHandle>emptyList(),
 				Collections.<OperatorStateHandle>emptyList()));
 	}
@@ -364,16 +365,16 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 			KeyGroupRange localKeyGroupRange =
 					keyGroupPartitions.get(subtaskIndex);
 
-			List<KeyGroupsStateHandle> localManagedKeyGroupState = null;
+			List<KeyedStateHandle> localManagedKeyGroupState = null;
 			if (operatorStateHandles.getManagedKeyedState() != null) {
-				localManagedKeyGroupState = StateAssignmentOperation.getKeyGroupsStateHandles(
+				localManagedKeyGroupState = StateAssignmentOperation.getKeyedStateHandles(
 						operatorStateHandles.getManagedKeyedState(),
 						localKeyGroupRange);
 			}
 
-			List<KeyGroupsStateHandle> localRawKeyGroupState = null;
+			List<KeyedStateHandle> localRawKeyGroupState = null;
 			if (operatorStateHandles.getRawKeyedState() != null) {
-				localRawKeyGroupState = StateAssignmentOperation.getKeyGroupsStateHandles(
+				localRawKeyGroupState = StateAssignmentOperation.getKeyedStateHandles(
 						operatorStateHandles.getRawKeyedState(),
 						localKeyGroupRange);
 			}
@@ -442,15 +443,15 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 		List<OperatorStateHandle> mergedManagedOperatorState = new ArrayList<>(handles.length);
 		List<OperatorStateHandle> mergedRawOperatorState = new ArrayList<>(handles.length);
 
-		List<KeyGroupsStateHandle> mergedManagedKeyedState = new ArrayList<>(handles.length);
-		List<KeyGroupsStateHandle> mergedRawKeyedState = new ArrayList<>(handles.length);
+		List<KeyedStateHandle> mergedManagedKeyedState = new ArrayList<>(handles.length);
+		List<KeyedStateHandle> mergedRawKeyedState = new ArrayList<>(handles.length);
 
 		for (OperatorStateHandles handle: handles) {
 
 			Collection<OperatorStateHandle> managedOperatorState = handle.getManagedOperatorState();
 			Collection<OperatorStateHandle> rawOperatorState = handle.getRawOperatorState();
-			Collection<KeyGroupsStateHandle> managedKeyedState = handle.getManagedKeyedState();
-			Collection<KeyGroupsStateHandle> rawKeyedState = handle.getRawKeyedState();
+			Collection<KeyedStateHandle> managedKeyedState = handle.getManagedKeyedState();
+			Collection<KeyedStateHandle> rawKeyedState = handle.getRawKeyedState();
 
 			if (managedOperatorState != null) {
 				mergedManagedOperatorState.addAll(managedOperatorState);
@@ -502,8 +503,8 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 			timestamp,
 			CheckpointOptions.forFullCheckpoint());
 
-		KeyGroupsStateHandle keyedManaged = FutureUtil.runIfNotDoneAndGet(operatorStateResult.getKeyedStateManagedFuture());
-		KeyGroupsStateHandle keyedRaw = FutureUtil.runIfNotDoneAndGet(operatorStateResult.getKeyedStateRawFuture());
+		KeyedStateHandle keyedManaged = FutureUtil.runIfNotDoneAndGet(operatorStateResult.getKeyedStateManagedFuture());
+		KeyedStateHandle keyedRaw = FutureUtil.runIfNotDoneAndGet(operatorStateResult.getKeyedStateRawFuture());
 
 		OperatorStateHandle opManaged = FutureUtil.runIfNotDoneAndGet(operatorStateResult.getOperatorStateManagedFuture());
 		OperatorStateHandle opRaw = FutureUtil.runIfNotDoneAndGet(operatorStateResult.getOperatorStateRawFuture());
