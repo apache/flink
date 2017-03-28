@@ -32,6 +32,8 @@ angular.module('flinkApp')
 
   jobObservers = []
 
+  exceptions = {}
+
   notifyObservers = ->
     angular.forEach jobObservers, (callback) ->
       callback()
@@ -299,6 +301,20 @@ angular.module('flinkApp')
 
         deferred.resolve(exceptions)
 
+    deferred.promise
+  
+  @loadExceptionHistory = (attempt) ->
+    deferred = $q.defer()
+
+    if exceptions[attempt]?
+      deferred.resolve(exceptions[attempt])
+    else
+      deferreds.job.promise.then (data) =>
+
+        $http.get flinkConfig.jobServer + "jobs/" + currentJob.jid + "/exceptions/" + attempt
+        .success (exceptionHistory) ->
+          exceptions[attempt] = exceptionHistory
+          deferred.resolve(exceptionHistory)
     deferred.promise
 
   @cancelJob = (jobid) ->

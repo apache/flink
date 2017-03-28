@@ -207,10 +207,31 @@ angular.module('flinkApp', ['ui.router', 'angularMoment', 'dndLists'])
 
   .state "single-job.exceptions",
     url: "/exceptions"
+    redirectTo: "single-job.exceptions.latest"
     views:
       details:
         templateUrl: "partials/jobs/job.exceptions.html"
+
+  .state "single-job.exceptions.latest",
+    url: "/latest"
+    views:
+      exceptions:
+        templateUrl: "partials/jobs/job.exceptions.latest.html"
         controller: 'JobExceptionsController'
+
+  .state "single-job.exceptions.history",
+    url: "/history"
+    views:
+      exceptions:
+        templateUrl: "partials/jobs/job.exceptions.history.html"
+        controller: 'JobExceptionsController'
+
+  .state "single-job.exceptions.history.attempt",
+    url: "/{attempt}"
+    views:
+      exceptionHistory:
+        templateUrl: "partials/jobs/job.exceptions.history.attempt.html"
+        controller: 'JobExceptionHistoryController'
 
   .state "single-job.config",
     url: "/config"
