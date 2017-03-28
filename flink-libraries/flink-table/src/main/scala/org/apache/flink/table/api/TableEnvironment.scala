@@ -351,22 +351,6 @@ abstract class TableEnvironment(val config: TableConfig) {
   def registerTableSource(name: String, tableSource: TableSource[_]): Unit
 
   /**
-    * Unregisters a [[Table]] in the TableEnvironment's catalog.
-    * Unregistered tables cannot be referenced in SQL queries anymore.
-    *
-    * @param name The name under which the table is registered.
-    * @return true if table could be unregistered; false otherwise.
-    */
-  def unregisterTable(name: String): Boolean = {
-    if (isRegistered(name)) {
-      internalSchema.tableMap.remove(name)
-      true
-    } else {
-      false
-    }
-  }
-
-  /**
     * Replaces a registered Table with another Table under the same name.
     * We use this method to replace a [[org.apache.flink.table.plan.schema.DataStreamTable]]
     * with a [[org.apache.calcite.schema.TranslatableTable]].
