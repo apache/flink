@@ -51,7 +51,7 @@ class DataStreamUserDefinedFunctionITCase extends StreamingMultipleProgramsTestB
       .join(func0('c) as('d, 'e))
       .select('c, 'd, 'e)
       .join(pojoFunc0('c))
-      .where(('age > 20))
+      .where('age > 20)
       .select('c, 'name, 'age)
       .toDataStream[Row]
 
@@ -209,6 +209,142 @@ class DataStreamUserDefinedFunctionITCase extends StreamingMultipleProgramsTestB
       "nosharp,1",
       "nosharp,2",
       "nosharp,nosharp")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testDynamicSchema0(): Unit = {
+    val in = testData(env).toTable(tEnv).as('a, 'b, 'c)
+    val funcDyn = new DynamicSchema
+
+    val result = in
+      .join(funcDyn('c, 1) as 'name)
+      .select('c, 'name)
+    result.addSink(new StreamITCase.StringSink)
+    env.execute()
+    val expected = mutable.MutableList("Jack#22,Jack",
+      "Jack#22,22",
+      "John#19,John",
+      "John#19,19",
+      "Anna#44,Anna",
+      "Anna#44,44")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testDynamicSchema1(): Unit = {
+    val in = testData(env).toTable(tEnv).as('a, 'b, 'c)
+    val funcDyn = new DynamicSchema
+
+    val result = in
+      .join(funcDyn('c, 2) as('name, 'len0))
+      .select('c, 'name, 'len0)
+    result.addSink(new StreamITCase.StringSink)
+    env.execute()
+    val expected = mutable.MutableList("Jack#22,Jack,4",
+      "Jack#22,22,2",
+      "John#19,John,4",
+      "John#19,19,2",
+      "Anna#44,Anna,4",
+      "Anna#44,44,2")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testDynamicSchema2(): Unit = {
+    val in = testData(env).toTable(tEnv).as('a, 'b, 'c)
+    val funcDyn = new DynamicSchema
+
+    val result = in
+      .join(funcDyn('c, 3) as('name, 'len0, 'len1))
+      .select('c, 'name, 'len0, 'len1)
+    result.addSink(new StreamITCase.StringSink)
+    env.execute()
+    val expected = mutable.MutableList("Jack#22,Jack,4,4",
+      "Jack#22,22,2,2",
+      "John#19,John,4,4",
+      "John#19,19,2,2",
+      "Anna#44,Anna,4,4",
+      "Anna#44,44,2,2")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testDynamicSchema3(): Unit = {
+    val in = testData(env).toTable(tEnv).as('a, 'b, 'c)
+    val funcDyn = new DynamicSchema
+
+    val result = in
+      .join(funcDyn('c, 3) as ('name, 'len0, 'len1))
+      .select('c, 'name, 'len0, 'len1)
+      .join(funcDyn('c, 2) as ('name1, 'len10))
+      .select('c, 'name, 'len0, 'len1, 'name1, 'len10)
+    result.addSink(new StreamITCase.StringSink)
+    env.execute()
+    val expected = mutable.MutableList("Jack#22,Jack,4,4,22,2",
+      "Jack#22,Jack,4,4,Jack,4",
+      "Jack#22,22,2,2,22,2",
+      "Jack#22,22,2,2,Jack,4",
+      "John#19,John,4,4,19,2",
+      "John#19,John,4,4,John,4",
+      "John#19,19,2,2,19,2",
+      "John#19,19,2,2,John,4",
+      "Anna#44,Anna,4,4,44,2",
+      "Anna#44,Anna,4,4,Anna,4",
+      "Anna#44,44,2,2,44,2",
+      "Anna#44,44,2,2,Anna,4")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testDynamicSchemaWithSQL0(): Unit = {
+    val in = testData(env).toTable(tEnv).as('a, 'b, 'c)
+    val funcDyna0 = new DynamicSchema0
+    tEnv.registerFunction("funcDyna0", funcDyna0)
+    tEnv.registerTable("MyTable", in)
+    val result = tEnv.sql("SELECT c,name,len0,len1,name1,len10 FROM MyTable JOIN " +
+      "LATERAL TABLE(funcDyna0(c, 'string,int,int')) AS T1(name,len0,len1) ON TRUE JOIN " +
+      "LATERAL TABLE(funcDyna0(c, 'string,int')) AS T2(name1,len10) ON TRUE")
+    result.addSink(new StreamITCase.StringSink)
+    env.execute()
+    val expected = mutable.MutableList("Jack#22,Jack,4,4,22,2",
+      "Jack#22,Jack,4,4,Jack,4",
+      "Jack#22,22,2,2,22,2",
+      "Jack#22,22,2,2,Jack,4",
+      "John#19,John,4,4,19,2",
+      "John#19,John,4,4,John,4",
+      "John#19,19,2,2,19,2",
+      "John#19,19,2,2,John,4",
+      "Anna#44,Anna,4,4,44,2",
+      "Anna#44,Anna,4,4,Anna,4",
+      "Anna#44,44,2,2,44,2",
+      "Anna#44,44,2,2,Anna,4")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testDynamicSchemaWithExpressionParser(): Unit = {
+    val in = testData(env).toTable(tEnv).as('a, 'b, 'c)
+    val funcDyna0 = new DynamicSchema0
+    tEnv.registerFunction("funcDyna0", funcDyna0)
+    tEnv.registerTable("MyTable", in)
+    val result = in.join("funcDyna0(c, 'string,int,int') as (name, len0, len1)")
+      .join("funcDyna0(c, 'string,int') as (name1, len10)")
+      .select("c,name,len0,len1,name1,len10")
+    result.addSink(new StreamITCase.StringSink)
+    env.execute()
+    val expected = mutable.MutableList("Jack#22,Jack,4,4,22,2",
+      "Jack#22,Jack,4,4,Jack,4",
+      "Jack#22,22,2,2,22,2",
+      "Jack#22,22,2,2,Jack,4",
+      "John#19,John,4,4,19,2",
+      "John#19,John,4,4,John,4",
+      "John#19,19,2,2,19,2",
+      "John#19,19,2,2,John,4",
+      "Anna#44,Anna,4,4,44,2",
+      "Anna#44,Anna,4,4,Anna,4",
+      "Anna#44,44,2,2,44,2",
+      "Anna#44,44,2,2,Anna,4")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 

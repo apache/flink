@@ -129,9 +129,45 @@ class DynamicSchema extends TableFunction[Row] {
     val column = arguments.get(1).asInstanceOf[Int]
     val basicTypeInfos = new Array[TypeInformation[_]](column)
     basicTypeInfos(0) = BasicTypeInfo.STRING_TYPE_INFO
-    var i = 0
     for (i <- 1 until column) {
       basicTypeInfos(i) = BasicTypeInfo.INT_TYPE_INFO
+    }
+    new RowTypeInfo(basicTypeInfos: _*)
+  }
+}
+
+class DynamicSchema0 extends TableFunction[Row] {
+
+  def eval(str: String, cols: String): Unit = {
+    val columns = cols.split(",")
+
+    if (str.contains("#")) {
+      str.split("#").foreach({ s =>
+        val row = new Row(columns.length)
+        row.setField(0, s)
+        for (i <- 1 until columns.length) {
+          if (columns(i).equals("string")) {
+            row.setField(i, s.length.toString)
+          } else if (columns(i).equals("int")) {
+            row.setField(i, s.length)
+          }
+        }
+        collect(row)
+      })
+    }
+  }
+
+  override def getResultType(arguments: java.util.List[AnyRef]): TypeInformation[Row] = {
+    val columnStr = arguments.get(1).asInstanceOf[String]
+    val columns = columnStr.split(",")
+
+    val basicTypeInfos = new Array[TypeInformation[_]](columns.length)
+    for (i <- 0 until columns.length) {
+      if (columns(i).equals("string")) {
+        basicTypeInfos(i) = BasicTypeInfo.STRING_TYPE_INFO
+      } else if (columns(i).equals("int")) {
+        basicTypeInfos(i) = BasicTypeInfo.INT_TYPE_INFO
+      }
     }
     new RowTypeInfo(basicTypeInfos: _*)
   }

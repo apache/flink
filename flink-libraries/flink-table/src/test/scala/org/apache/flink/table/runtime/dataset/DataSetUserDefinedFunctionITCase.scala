@@ -158,6 +158,82 @@ class DataSetUserDefinedFunctionITCase(
       "Anna#44,Anna,4,4\n" +
       "Anna#44,44,2,2\n"
     TestBaseUtils.compareResultAsText(results2.asJava, expected2)
+
+    val result3 = in
+      .join(funcDyn('c, 3) as ('name, 'len0, 'len1))
+      .select('c, 'name, 'len0, 'len1)
+      .join(funcDyn('c, 2) as ('name1, 'len10))
+      .select('c, 'name, 'len0, 'len1, 'name1, 'len10)
+      .toDataSet[Row]
+    val results3 = result3.collect()
+    val expected3 = "Jack#22,Jack,4,4,22,2\n" +
+      "Jack#22,Jack,4,4,Jack,4\n" +
+      "Jack#22,22,2,2,22,2\n" +
+      "Jack#22,22,2,2,Jack,4\n" +
+      "John#19,John,4,4,19,2\n" +
+      "John#19,John,4,4,John,4\n" +
+      "John#19,19,2,2,19,2\n" +
+      "John#19,19,2,2,John,4\n" +
+      "Anna#44,Anna,4,4,44,2\n" +
+      "Anna#44,Anna,4,4,Anna,4\n" +
+      "Anna#44,44,2,2,44,2\n" +
+      "Anna#44,44,2,2,Anna,4"
+    TestBaseUtils.compareResultAsText(results3.asJava, expected3)
+  }
+
+  @Test
+  def testDynamicSchemaWithSQL(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
+    val in = testData(env).toTable(tableEnv).as('a, 'b, 'c)
+    val funcDyna0 = new DynamicSchema0
+    tableEnv.registerFunction("funcDyna0", funcDyna0)
+    tableEnv.registerTable("MyTable", in)
+    val result = tableEnv.sql("SELECT c,name,len0,len1,name1,len10 FROM MyTable JOIN " +
+      "LATERAL TABLE(funcDyna0(c, 'string,int,int')) AS T1(name,len0,len1) ON TRUE JOIN " +
+      "LATERAL TABLE(funcDyna0(c, 'string,int')) AS T2(name1,len10) ON TRUE").toDataSet[Row]
+    val results = result.collect()
+    val expected = "Jack#22,Jack,4,4,22,2\n" +
+      "Jack#22,Jack,4,4,Jack,4\n" +
+      "Jack#22,22,2,2,22,2\n" +
+      "Jack#22,22,2,2,Jack,4\n" +
+      "John#19,John,4,4,19,2\n" +
+      "John#19,John,4,4,John,4\n" +
+      "John#19,19,2,2,19,2\n" +
+      "John#19,19,2,2,John,4\n" +
+      "Anna#44,Anna,4,4,44,2\n" +
+      "Anna#44,Anna,4,4,Anna,4\n" +
+      "Anna#44,44,2,2,44,2\n" +
+      "Anna#44,44,2,2,Anna,4"
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testDynamicSchemaWithExpressionParser(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
+    val in = testData(env).toTable(tableEnv).as('a, 'b, 'c)
+    val funcDyna0 = new DynamicSchema0
+    tableEnv.registerFunction("funcDyna0", funcDyna0)
+    tableEnv.registerTable("MyTable", in)
+    val result = in.join("funcDyna0(c, 'string,int,int') as (name, len0, len1)")
+      .join("funcDyna0(c, 'string,int') as (name1, len10)")
+      .select("c,name,len0,len1,name1,len10")
+      .toDataSet[Row]
+    val results = result.collect()
+    val expected = "Jack#22,Jack,4,4,22,2\n" +
+      "Jack#22,Jack,4,4,Jack,4\n" +
+      "Jack#22,22,2,2,22,2\n" +
+      "Jack#22,22,2,2,Jack,4\n" +
+      "John#19,John,4,4,19,2\n" +
+      "John#19,John,4,4,John,4\n" +
+      "John#19,19,2,2,19,2\n" +
+      "John#19,19,2,2,John,4\n" +
+      "Anna#44,Anna,4,4,44,2\n" +
+      "Anna#44,Anna,4,4,Anna,4\n" +
+      "Anna#44,44,2,2,44,2\n" +
+      "Anna#44,44,2,2,Anna,4"
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
@@ -187,7 +263,7 @@ class DataSetUserDefinedFunctionITCase(
     val pojo = new PojoTableFunc()
     val result = in
       .join(pojo('c))
-      .where(('age > 20))
+      .where('age > 20)
       .select('c, 'name, 'age)
       .toDataSet[Row]
 
