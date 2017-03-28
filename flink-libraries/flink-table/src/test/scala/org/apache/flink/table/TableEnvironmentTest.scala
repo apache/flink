@@ -282,7 +282,6 @@ class TableEnvironmentTest extends TableTestBase {
   def testSqlWithoutRegisteringForBatchTables(): Unit = {
     val util = batchTestUtil()
     val table = util.addTable[(Long, Int, String)]("tableName", 'a, 'b, 'c)
-    util.tEnv.unregisterTable("tableName")
 
     val sqlTable = util.tEnv.sql(s"SELECT a, b, c FROM $table WHERE b > 12")
 
@@ -321,7 +320,6 @@ class TableEnvironmentTest extends TableTestBase {
   def testSqlWithoutRegisteringForStreamTables(): Unit = {
     val util = streamTestUtil()
     val table = util.addTable[(Long, Int, String)]("tableName", 'a, 'b, 'c)
-    util.tEnv.unregisterTable("tableName")
 
     val sqlTable = util.tEnv.sql(s"SELECT a, b, c FROM $table WHERE b > 12")
 

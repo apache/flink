@@ -1274,6 +1274,9 @@ class CodeGenerator(
     }
   }
 
+  override def visitPatternFieldRef(fieldRef: RexPatternFieldRef): GeneratedExpression =
+    throw new CodeGenException("PatternFieldRef is currently unsupported.")
+
   private def generateNullLiteral(resultType: TypeInformation[_]): GeneratedExpression = {
     val resultTerm = newName("result")
     val nullTerm = newName("isNull")

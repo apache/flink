@@ -21,6 +21,8 @@ package org.apache.flink.table.expressions.utils
 import org.apache.calcite.plan.hep.{HepMatchOrder, HepPlanner, HepProgramBuilder}
 import java.util
 import java.util.concurrent.Future
+
+import com.google.common.collect.ImmutableList
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql2rel.RelDecorrelator
@@ -194,7 +196,8 @@ abstract class ExpressionTestBase {
 
     // create DataSetCalc
     val flinkOutputProps = converted.getTraitSet.replace(DataSetConvention.INSTANCE).simplify()
-    val dataSetCalc = optProgram.run(context._2.getPlanner, normalizedPlan, flinkOutputProps)
+    val dataSetCalc = optProgram.run(context._2.getPlanner, normalizedPlan, flinkOutputProps,
+      ImmutableList.of(), ImmutableList.of())
 
     // extract RexNode
     val calcProgram = dataSetCalc
@@ -217,7 +220,8 @@ abstract class ExpressionTestBase {
     // create DataSetCalc
     val decorPlan = RelDecorrelator.decorrelateQuery(converted)
     val flinkOutputProps = converted.getTraitSet.replace(DataSetConvention.INSTANCE).simplify()
-    val dataSetCalc = optProgram.run(context._2.getPlanner, decorPlan, flinkOutputProps)
+    val dataSetCalc = optProgram.run(context._2.getPlanner, decorPlan, flinkOutputProps,
+      ImmutableList.of(), ImmutableList.of())
 
     // extract RexNode
     val calcProgram = dataSetCalc

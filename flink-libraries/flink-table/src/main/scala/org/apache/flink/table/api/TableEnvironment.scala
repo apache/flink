@@ -21,6 +21,7 @@ package org.apache.flink.table.api
 import _root_.java.lang.reflect.Modifier
 import _root_.java.util.concurrent.atomic.AtomicInteger
 
+import com.google.common.collect.ImmutableList
 import org.apache.calcite.config.Lex
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.plan.RelOptPlanner.CannotPlanException
@@ -231,7 +232,8 @@ abstract class TableEnvironment(val config: TableConfig) {
     val optProgram = Programs.ofRules(ruleSet)
 
     val output = try {
-      optProgram.run(getPlanner, input, targetTraits)
+      optProgram.run(getPlanner, input, targetTraits,
+        ImmutableList.of(), ImmutableList.of())
     } catch {
       case e: CannotPlanException =>
         throw new TableException(
