@@ -771,10 +771,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			for (Tuple2<Integer, Long> keyGroupOffset : currentKeyGroupsStateHandle.getGroupRangeOffsets()) {
 				int keyGroup = keyGroupOffset.f0;
 
-				// Skip those key groups that do not belong to the backend
-				if (!rocksDBKeyedStateBackend.getKeyGroupRange().contains(keyGroup)) {
-					continue;
-				}
+				// Check that restored key groups all belong to the backend
+				Preconditions.checkState(rocksDBKeyedStateBackend.getKeyGroupRange().contains(keyGroup),
+					"The key group must belong to the backend");
 
 				long offset = keyGroupOffset.f1;
 				//not empty key-group?

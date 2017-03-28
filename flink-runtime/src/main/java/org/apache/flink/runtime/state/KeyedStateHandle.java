@@ -31,8 +31,8 @@ public interface KeyedStateHandle extends StateObject {
 	KeyGroupRange getKeyGroupRange();
 
 	/**
-	 * Returns a keyed state handle which contains the states for the given
-	 * key groups.
+	 * Returns a state over a range that is the intersection between this
+	 * handle's key-group range and the provided key-group range.
 	 *
 	 * @param keyGroupRange The key group range to intersect with
 	 */

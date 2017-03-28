@@ -58,7 +58,6 @@ import org.junit.rules.TemporaryFolder;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
-import javax.swing.plaf.basic.BasicSplitPaneUI;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;

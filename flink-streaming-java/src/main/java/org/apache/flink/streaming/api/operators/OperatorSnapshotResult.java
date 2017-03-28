@@ -18,7 +18,6 @@
 
 package org.apache.flink.streaming.api.operators;
 
-import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateUtil;
@@ -32,7 +31,7 @@ import java.util.concurrent.RunnableFuture;
 public class OperatorSnapshotResult {
 
 	private RunnableFuture<KeyedStateHandle> keyedStateManagedFuture;
-	private RunnableFuture<KeyGroupsStateHandle> keyedStateRawFuture;
+	private RunnableFuture<KeyedStateHandle> keyedStateRawFuture;
 	private RunnableFuture<OperatorStateHandle> operatorStateManagedFuture;
 	private RunnableFuture<OperatorStateHandle> operatorStateRawFuture;
 
@@ -42,7 +41,7 @@ public class OperatorSnapshotResult {
 
 	public OperatorSnapshotResult(
 			RunnableFuture<KeyedStateHandle> keyedStateManagedFuture,
-			RunnableFuture<KeyGroupsStateHandle> keyedStateRawFuture,
+			RunnableFuture<KeyedStateHandle> keyedStateRawFuture,
 			RunnableFuture<OperatorStateHandle> operatorStateManagedFuture,
 			RunnableFuture<OperatorStateHandle> operatorStateRawFuture) {
 		this.keyedStateManagedFuture = keyedStateManagedFuture;
@@ -59,11 +58,11 @@ public class OperatorSnapshotResult {
 		this.keyedStateManagedFuture = keyedStateManagedFuture;
 	}
 
-	public RunnableFuture<KeyGroupsStateHandle> getKeyedStateRawFuture() {
+	public RunnableFuture<KeyedStateHandle> getKeyedStateRawFuture() {
 		return keyedStateRawFuture;
 	}
 
-	public void setKeyedStateRawFuture(RunnableFuture<KeyGroupsStateHandle> keyedStateRawFuture) {
+	public void setKeyedStateRawFuture(RunnableFuture<KeyedStateHandle> keyedStateRawFuture) {
 		this.keyedStateRawFuture = keyedStateRawFuture;
 	}
 

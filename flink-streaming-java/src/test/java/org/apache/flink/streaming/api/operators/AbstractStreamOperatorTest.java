@@ -51,7 +51,7 @@ import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
-import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
@@ -559,11 +559,11 @@ public class AbstractStreamOperatorTest {
 
 		final CloseableRegistry closeableRegistry = new CloseableRegistry();
 
-		RunnableFuture<KeyGroupsStateHandle> futureKeyGroupStateHandle = mock(RunnableFuture.class);
+		RunnableFuture<KeyedStateHandle> futureKeyedStateHandle = mock(RunnableFuture.class);
 		RunnableFuture<OperatorStateHandle> futureOperatorStateHandle = mock(RunnableFuture.class);
 
 		StateSnapshotContextSynchronousImpl context = mock(StateSnapshotContextSynchronousImpl.class);
-		when(context.getKeyedStateStreamFuture()).thenReturn(futureKeyGroupStateHandle);
+		when(context.getKeyedStateStreamFuture()).thenReturn(futureKeyedStateHandle);
 		when(context.getOperatorStateStreamFuture()).thenReturn(futureOperatorStateHandle);
 
 		OperatorSnapshotResult operatorSnapshotResult = spy(new OperatorSnapshotResult());
@@ -609,9 +609,9 @@ public class AbstractStreamOperatorTest {
 		verify(context).close();
 		verify(operatorSnapshotResult).cancel();
 
-		verify(futureKeyGroupStateHandle).cancel(anyBoolean());
+		verify(futureKeyedStateHandle).cancel(anyBoolean());
 		verify(futureOperatorStateHandle).cancel(anyBoolean());
-		verify(futureKeyGroupStateHandle).cancel(anyBoolean());
+		verify(futureKeyedStateHandle).cancel(anyBoolean());
 	}
 
 	@Test

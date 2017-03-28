@@ -300,7 +300,9 @@ public class StateAssignmentOperation {
 		for (KeyedStateHandle keyedStateHandle : keyedStateHandles) {
 			KeyedStateHandle intersectedKeyedStateHandle = keyedStateHandle.getIntersection(subtaskKeyGroupRange);
 
-			subtaskKeyedStateHandles.add(intersectedKeyedStateHandle);
+			if (intersectedKeyedStateHandle != null) {
+				subtaskKeyedStateHandles.add(intersectedKeyedStateHandle);
+			}
 		}
 
 		return subtaskKeyedStateHandles;

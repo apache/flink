@@ -425,10 +425,8 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					int keyGroupIndex = groupOffset.f0;
 					long offset = groupOffset.f1;
 
-					// Skip those key groups that don't belong to the backend.
-					if (!keyGroupRange.contains(keyGroupIndex)) {
-						continue;
-					}
+					// Check that restored key groups all belong to the backend.
+					Preconditions.checkState(keyGroupRange.contains(keyGroupIndex), "The key group must belong to the backend.");
 
 					fsDataInputStream.seek(offset);
 

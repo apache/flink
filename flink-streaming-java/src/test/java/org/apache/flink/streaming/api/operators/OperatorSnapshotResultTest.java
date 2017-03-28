@@ -18,7 +18,6 @@
 
 package org.apache.flink.streaming.api.operators;
 
-import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.util.TestLogger;
@@ -46,8 +45,8 @@ public class OperatorSnapshotResultTest extends TestLogger {
 		RunnableFuture<KeyedStateHandle> keyedStateManagedFuture = mock(RunnableFuture.class);
 		when(keyedStateManagedFuture.get()).thenReturn(keyedManagedStateHandle);
 
-		KeyGroupsStateHandle keyedRawStateHandle = mock(KeyGroupsStateHandle.class);
-		RunnableFuture<KeyGroupsStateHandle> keyedStateRawFuture = mock(RunnableFuture.class);
+		KeyedStateHandle keyedRawStateHandle = mock(KeyedStateHandle.class);
+		RunnableFuture<KeyedStateHandle> keyedStateRawFuture = mock(RunnableFuture.class);
 		when(keyedStateRawFuture.get()).thenReturn(keyedRawStateHandle);
 
 		OperatorStateHandle operatorManagedStateHandle = mock(OperatorStateHandle.class);
