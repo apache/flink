@@ -1,0 +1,58 @@
+
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+-->
+<div id="content-inner" class="panel-body clean has-navbar-secondary-additional"><span ng-if="!exceptionHistory['root-exception']">Exceptions for this attempt are no longer available.</span>
+  <div ng-if="exceptionHistory['root-exception']" class="panel panel-default panel-multi">
+    <div class="panel-heading clearfix">
+      <div ng-if="exceptionHistory.task" class="panel-title">Root exception : {{ exceptionHistory.task }}</div>
+      <div ng-if="!exceptionHistory.task" class="panel-title">Root exception</div>
+    </div>
+    <div class="panel-heading clearfix">
+      <div class="panel-info">
+        <div ng-if="exceptionHistory.timestamp != -1" class="thin"><strong>Timestamp:</strong> {{ exceptionHistory.timestamp | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}
+        </div>
+      </div>
+      <div class="panel-info">
+        <div ng-if="exceptionHistory.location" class="thin last"><strong>Location:</strong> {{ exceptionHistory.location }}
+        </div>
+      </div>
+    </div>
+    <div class="panel-body">
+      <pre class="exception">{{ exceptionHistory['root-exception'] }}</pre>
+    </div>
+  </div>
+  <div ng-repeat="exception in exceptionHistory['all-exceptions']" class="panel panel-default panel-multi">
+    <div class="panel-heading clearfix">
+      <div class="panel-title">{{ exception.task }}</div>
+    </div>
+    <div class="panel-heading clearfix">
+      <div class="panel-info">
+        <div ng-if="exception.timestamp != -1" class="thin"><strong>Timestamp:</strong> {{ exception.timestamp | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}
+        </div>
+      </div>
+      <div class="panel-info">
+        <div ng-if="exception.location" class="thin last"><strong>Location:</strong> {{ exception.location }}
+        </div>
+      </div>
+    </div>
+    <div class="panel-body">
+      <pre class="exception">{{ exception.exception }}</pre>
+    </div>
+  </div>
+</div>

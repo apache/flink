@@ -17,12 +17,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 -->
-<div class="panel panel-default">
+<div ng-if="exceptions.availableExceptionIds.length &gt; 0">
   <nav class="navbar navbar-default navbar-secondary-additional">
     <ul class="nav nav-tabs">
-      <li ui-sref-active="active"><a ui-sref=".latest">Latest</a></li>
-      <li ui-sref-active="active"><a ui-sref=".history">History</a></li>
+      <li ng-repeat="id in exceptions.availableExceptionIds | orderBy:valueOf():true" ui-sref-active="active"><a ui-sref=".attempt({attempt: id})">&#35;{{ id }}</a></li>
     </ul>
   </nav>
-  <div ui-view="exceptions"></div>
+  <div ui-view="exceptionHistory"></div>
 </div>
