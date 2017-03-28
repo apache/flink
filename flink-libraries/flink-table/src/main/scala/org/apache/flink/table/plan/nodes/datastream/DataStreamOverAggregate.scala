@@ -139,11 +139,16 @@ class DataStreamOverAggregate(
           // bounded OVER window
           if (overWindow.isRows) {
             // ROWS clause bounded OVER window
-            createRowsClauseBoundedAndCurrentRowOverWindow(inputDS, isRowTimeType = true)
+            createBoundedAndCurrentRowOverWindow(
+              inputDS,
+              isRangeClause = false,
+              isRowTimeType = true)
           } else {
             // RANGE clause bounded OVER window
-            throw new TableException(
-              "row-time OVER RANGE PRECEDING window is not supported yet.")
+            createBoundedAndCurrentRowOverWindow(
+              inputDS,
+              isRangeClause = true,
+              isRowTimeType = true)
           }
         } else {
           throw new TableException(
@@ -195,8 +200,9 @@ class DataStreamOverAggregate(
     result
   }
 
-  def createRowsClauseBoundedAndCurrentRowOverWindow(
+  def createBoundedAndCurrentRowOverWindow(
     inputDS: DataStream[Row],
+    isRangeClause: Boolean = false,
     isRowTimeType: Boolean = false): DataStream[Row] = {
 
     val overWindow: Group = logicWindow.groups.get(0)
@@ -209,10 +215,11 @@ class DataStreamOverAggregate(
     // get the output types
     val rowTypeInfo = FlinkTypeFactory.toInternalRowTypeInfo(getRowType).asInstanceOf[RowTypeInfo]
 
-    val processFunction = AggregateUtil.createRowsClauseBoundedOverProcessFunction(
+    val processFunction = AggregateUtil.createBoundedOverProcessFunction(
       namedAggregates,
       inputType,
       precedingOffset,
+      isRangeClause,
       isRowTimeType
     )
     val result: DataStream[Row] =
