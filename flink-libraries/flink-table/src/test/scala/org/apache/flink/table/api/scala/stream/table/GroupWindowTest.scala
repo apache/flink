@@ -181,11 +181,11 @@ class GroupWindowTest extends TableTestBase {
       .select('string.count)
 
     val expected = unaryNode(
-      "DataStreamAggregate",
+      "DataStreamGroupWindowAggregate",
       unaryNode(
         "DataStreamCalc",
         unaryNode(
-          "DataStreamAggregate",
+          "DataStreamGroupWindowAggregate",
           unaryNode(
             "DataStreamCalc",
             streamTableNode(0),
@@ -222,7 +222,7 @@ class GroupWindowTest extends TableTestBase {
       .select('string, 'int.count)
 
     val expected = unaryNode(
-      "DataStreamAggregate",
+      "DataStreamGroupWindowAggregate",
       unaryNode(
         "DataStreamCalc",
         streamTableNode(0),
@@ -251,7 +251,7 @@ class GroupWindowTest extends TableTestBase {
       .select('string, 'int.count)
 
     val expected = unaryNode(
-      "DataStreamAggregate",
+      "DataStreamGroupWindowAggregate",
       unaryNode(
         "DataStreamCalc",
         streamTableNode(0),
@@ -279,7 +279,7 @@ class GroupWindowTest extends TableTestBase {
       .select('string, 'int.count)
 
     val expected = unaryNode(
-      "DataStreamAggregate",
+      "DataStreamGroupWindowAggregate",
       unaryNode(
         "DataStreamCalc",
         streamTableNode(0),
@@ -299,7 +299,7 @@ class GroupWindowTest extends TableTestBase {
   }
 
   @Test
-  @Ignore // see comments in DataStreamAggregate
+  @Ignore // see comments in DataStreamGroupWindowAggregate
   def testEventTimeTumblingGroupWindowOverCount(): Unit = {
     val util = streamTestUtil()
     val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
@@ -310,7 +310,7 @@ class GroupWindowTest extends TableTestBase {
       .select('string, 'int.count)
 
     val expected = unaryNode(
-      "DataStreamAggregate",
+      "DataStreamGroupWindowAggregate",
       streamTableNode(0),
       term("groupBy", "string"),
       term(
@@ -335,7 +335,7 @@ class GroupWindowTest extends TableTestBase {
       .select('string, 'int.count)
 
     val expected = unaryNode(
-      "DataStreamAggregate",
+      "DataStreamGroupWindowAggregate",
       unaryNode(
         "DataStreamCalc",
         streamTableNode(0),
@@ -364,7 +364,7 @@ class GroupWindowTest extends TableTestBase {
       .select('string, 'int.count)
 
     val expected = unaryNode(
-      "DataStreamAggregate",
+      "DataStreamGroupWindowAggregate",
       unaryNode(
         "DataStreamCalc",
         streamTableNode(0),
@@ -393,7 +393,7 @@ class GroupWindowTest extends TableTestBase {
       .select('string, 'int.count)
 
     val expected = unaryNode(
-      "DataStreamAggregate",
+      "DataStreamGroupWindowAggregate",
       unaryNode(
         "DataStreamCalc",
         streamTableNode(0),
@@ -412,7 +412,7 @@ class GroupWindowTest extends TableTestBase {
   }
 
   @Test
-  @Ignore // see comments in DataStreamAggregate
+  @Ignore // see comments in DataStreamGroupWindowAggregate
   def testEventTimeSlidingGroupWindowOverCount(): Unit = {
     val util = streamTestUtil()
     val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
@@ -423,7 +423,7 @@ class GroupWindowTest extends TableTestBase {
       .select('string, 'int.count)
 
     val expected = unaryNode(
-      "DataStreamAggregate",
+      "DataStreamGroupWindowAggregate",
       streamTableNode(0),
       term("groupBy", "string"),
       term(
@@ -448,7 +448,7 @@ class GroupWindowTest extends TableTestBase {
       .select('string, 'int.count)
 
     val expected = unaryNode(
-      "DataStreamAggregate",
+      "DataStreamGroupWindowAggregate",
       unaryNode(
         "DataStreamCalc",
         streamTableNode(0),
@@ -477,7 +477,7 @@ class GroupWindowTest extends TableTestBase {
       .select('string, 'int.count)
 
     val expected = unaryNode(
-      "DataStreamAggregate",
+      "DataStreamGroupWindowAggregate",
       unaryNode(
         "DataStreamCalc",
         streamTableNode(0),
@@ -506,7 +506,7 @@ class GroupWindowTest extends TableTestBase {
       .select('int.count)
 
     val expected = unaryNode(
-      "DataStreamAggregate",
+      "DataStreamGroupWindowAggregate",
       unaryNode(
         "DataStreamCalc",
         streamTableNode(0),
@@ -534,7 +534,7 @@ class GroupWindowTest extends TableTestBase {
       .select('int.count)
 
     val expected = unaryNode(
-      "DataStreamAggregate",
+      "DataStreamGroupWindowAggregate",
       unaryNode(
         "DataStreamCalc",
         streamTableNode(0),
@@ -552,7 +552,7 @@ class GroupWindowTest extends TableTestBase {
   }
 
   @Test
-  @Ignore // see comments in DataStreamAggregate
+  @Ignore // see comments in DataStreamGroupWindowAggregate
   def testAllEventTimeTumblingGroupWindowOverCount(): Unit = {
     val util = streamTestUtil()
     val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
@@ -563,7 +563,7 @@ class GroupWindowTest extends TableTestBase {
       .select('int.count)
 
     val expected = unaryNode(
-      "DataStreamAggregate",
+      "DataStreamGroupWindowAggregate",
       unaryNode(
         "DataStreamCalc",
         streamTableNode(0),
@@ -592,7 +592,7 @@ class GroupWindowTest extends TableTestBase {
       .select('int.count)
 
     val expected = unaryNode(
-      "DataStreamAggregate",
+      "DataStreamGroupWindowAggregate",
       unaryNode(
         "DataStreamCalc",
         streamTableNode(0),
@@ -620,7 +620,7 @@ class GroupWindowTest extends TableTestBase {
       .select('int.count)
 
     val expected = unaryNode(
-      "DataStreamAggregate",
+      "DataStreamGroupWindowAggregate",
       unaryNode(
         "DataStreamCalc",
         streamTableNode(0),
@@ -648,7 +648,7 @@ class GroupWindowTest extends TableTestBase {
       .select('int.count)
 
     val expected = unaryNode(
-      "DataStreamAggregate",
+      "DataStreamGroupWindowAggregate",
       unaryNode(
         "DataStreamCalc",
         streamTableNode(0),
@@ -666,7 +666,7 @@ class GroupWindowTest extends TableTestBase {
   }
 
   @Test
-  @Ignore // see comments in DataStreamAggregate
+  @Ignore // see comments in DataStreamGroupWindowAggregate
   def testAllEventTimeSlidingGroupWindowOverCount(): Unit = {
     val util = streamTestUtil()
     val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
@@ -677,7 +677,7 @@ class GroupWindowTest extends TableTestBase {
       .select('int.count)
 
     val expected = unaryNode(
-      "DataStreamAggregate",
+      "DataStreamGroupWindowAggregate",
       unaryNode(
         "DataStreamCalc",
         streamTableNode(0),
@@ -705,7 +705,7 @@ class GroupWindowTest extends TableTestBase {
       .select('int.count)
 
     val expected = unaryNode(
-      "DataStreamAggregate",
+      "DataStreamGroupWindowAggregate",
       unaryNode(
         "DataStreamCalc",
         streamTableNode(0),
@@ -733,7 +733,7 @@ class GroupWindowTest extends TableTestBase {
       .select('string, 'int.count, 'w.start, 'w.end)
 
     val expected = unaryNode(
-      "DataStreamAggregate",
+      "DataStreamGroupWindowAggregate",
       unaryNode(
         "DataStreamCalc",
         streamTableNode(0),
@@ -766,7 +766,7 @@ class GroupWindowTest extends TableTestBase {
       .select('string, 'int.count, 'w.start, 'w.end)
 
     val expected = unaryNode(
-      "DataStreamAggregate",
+      "DataStreamGroupWindowAggregate",
       unaryNode(
         "DataStreamCalc",
         streamTableNode(0),
@@ -802,7 +802,7 @@ class GroupWindowTest extends TableTestBase {
     val expected = unaryNode(
       "DataStreamCalc",
       unaryNode(
-        "DataStreamAggregate",
+        "DataStreamGroupWindowAggregate",
         unaryNode(
           "DataStreamCalc",
           streamTableNode(0),
@@ -840,7 +840,7 @@ class GroupWindowTest extends TableTestBase {
     val expected = unaryNode(
       "DataStreamCalc",
       unaryNode(
-        "DataStreamAggregate",
+        "DataStreamGroupWindowAggregate",
         unaryNode(
           "DataStreamCalc",
           streamTableNode(0),

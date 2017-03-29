@@ -33,14 +33,14 @@ import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.plan.nodes.CommonAggregate
-import org.apache.flink.table.plan.nodes.datastream.DataStreamAggregate._
+import org.apache.flink.table.plan.nodes.datastream.DataStreamGroupWindowAggregate._
 import org.apache.flink.table.runtime.aggregate.AggregateUtil._
 import org.apache.flink.table.runtime.aggregate._
 import org.apache.flink.table.typeutils.TypeCheckUtils.isTimeInterval
 import org.apache.flink.table.typeutils.{RowIntervalTypeInfo, TimeIntervalTypeInfo}
 import org.apache.flink.types.Row
 
-class DataStreamAggregate(
+class DataStreamGroupWindowAggregate(
     window: LogicalWindow,
     namedProperties: Seq[NamedWindowProperty],
     cluster: RelOptCluster,
@@ -55,7 +55,7 @@ class DataStreamAggregate(
   override def deriveRowType(): RelDataType = rowRelDataType
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
-    new DataStreamAggregate(
+    new DataStreamGroupWindowAggregate(
       window,
       namedProperties,
       cluster,
@@ -132,7 +132,7 @@ class DataStreamAggregate(
           .asInstanceOf[WindowedStream[Row, Tuple, DataStreamWindow]]
 
       val (aggFunction, accumulatorRowType, aggResultRowType) =
-        AggregateUtil.createDataStreamAggregateFunction(
+        AggregateUtil.createDataStreamGroupWindowAggregateFunction(
           namedAggregates,
           inputType,
           rowRelDataType,
@@ -154,7 +154,7 @@ class DataStreamAggregate(
           .asInstanceOf[AllWindowedStream[Row, DataStreamWindow]]
 
       val (aggFunction, accumulatorRowType, aggResultRowType) =
-        AggregateUtil.createDataStreamAggregateFunction(
+        AggregateUtil.createDataStreamGroupWindowAggregateFunction(
           namedAggregates,
           inputType,
           rowRelDataType,
@@ -167,7 +167,7 @@ class DataStreamAggregate(
   }
 }
 
-object DataStreamAggregate {
+object DataStreamGroupWindowAggregate {
 
 
   private def createKeyedWindowedStream(groupWindow: LogicalWindow, stream: KeyedStream[Row, Tuple])

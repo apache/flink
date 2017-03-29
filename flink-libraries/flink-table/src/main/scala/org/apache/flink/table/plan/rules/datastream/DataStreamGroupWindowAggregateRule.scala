@@ -22,18 +22,17 @@ import org.apache.calcite.plan.{Convention, RelOptRule, RelOptRuleCall, RelTrait
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.expressions.Alias
 import org.apache.flink.table.plan.logical.rel.LogicalWindowAggregate
-import org.apache.flink.table.plan.nodes.datastream.{DataStreamAggregate, DataStreamConvention}
+import org.apache.flink.table.plan.nodes.datastream.{DataStreamConvention, DataStreamGroupWindowAggregate}
 
 import scala.collection.JavaConversions._
 
-class DataStreamAggregateRule
+class DataStreamGroupWindowAggregateRule
   extends ConverterRule(
       classOf[LogicalWindowAggregate],
       Convention.NONE,
       DataStreamConvention.INSTANCE,
-      "DataStreamAggregateRule") {
+      "DataStreamGroupWindowAggregateRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val agg: LogicalWindowAggregate = call.rel(0).asInstanceOf[LogicalWindowAggregate]
@@ -58,7 +57,7 @@ class DataStreamAggregateRule
     val traitSet: RelTraitSet = rel.getTraitSet.replace(DataStreamConvention.INSTANCE)
     val convInput: RelNode = RelOptRule.convert(agg.getInput, DataStreamConvention.INSTANCE)
 
-    new DataStreamAggregate(
+    new DataStreamGroupWindowAggregate(
       agg.getWindow,
       agg.getNamedProperties,
       rel.getCluster,
@@ -71,6 +70,6 @@ class DataStreamAggregateRule
     }
   }
 
-object DataStreamAggregateRule {
-  val INSTANCE: RelOptRule = new DataStreamAggregateRule
+object DataStreamGroupWindowAggregateRule {
+  val INSTANCE: RelOptRule = new DataStreamGroupWindowAggregateRule
 }
