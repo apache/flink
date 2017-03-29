@@ -515,17 +515,29 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	//---------------------------------------------------------------------------------------------
 	
 	void vertexFinished(int subtask) {
-		subtaskInFinalState(subtask);
+		//subtaskInFinalState(subtask);
 	}
 	
 	void vertexCancelled(int subtask) {
-		subtaskInFinalState(subtask);
+		//subtaskInFinalState(subtask);
 	}
 	
 	void vertexFailed(int subtask, Throwable error) {
 		subtaskInFinalState(subtask);
 	}
-	
+
+	void vertexRestarted(int subtask) {
+		if (finishedSubtasks[subtask]) {
+			finishedSubtasks[subtask] = false;
+			numSubtasksInFinalState--;
+
+			if (numSubtasksInFinalState + 1 == parallelism) {
+				// tell the graph
+				graph.finishedJobVertexRestarted();
+			}
+		}
+	}
+
 	private void subtaskInFinalState(int subtask) {
 		synchronized (stateMonitor) {
 			if (!finishedSubtasks[subtask]) {

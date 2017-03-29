@@ -522,6 +522,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 				if (grp != null) {
 					this.locationConstraint = grp.getLocationConstraint(subTaskIndex);
 				}
+				jobVertex.vertexRestarted(subTaskIndex);
 			}
 			else {
 				throw new IllegalStateException("Cannot reset a vertex that is in state " + state);

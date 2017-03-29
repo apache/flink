@@ -133,6 +133,9 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	 * within the job. */
 	private final SerializableObject progressLock = new SerializableObject();
 
+	/** The coordinator for failover */
+	private final FailoverCoordinator failoverCoordinator;
+
 	/** Job specific information like the job id, job name, job configuration, etc. */
 	private final JobInformation jobInformation;
 
@@ -318,6 +321,11 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 		metricGroup.gauge(RESTARTING_TIME_METRIC_NAME, new RestartTimeGauge());
 
 		this.kvStateLocationRegistry = new KvStateLocationRegistry(jobId, getAllVertices());
+
+		// initialize the FailoverCoordinator here since execution graph can not work without it
+		this.failoverCoordinator = new FailoverCoordinator(this);
+		registerExecutionListener(failoverCoordinator);
+		registerJobStatusListener(failoverCoordinator);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -734,6 +742,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 
 			this.verticesInCreationOrder.add(ejv);
 		}
+		this.failoverCoordinator.generateAllFailoverRegion();
 	}
 
 	public void scheduleForExecution() throws JobException {
@@ -893,42 +902,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	}
 
 	public void cancel() {
-		while (true) {
-			JobStatus current = state;
-
-			if (current == JobStatus.RUNNING || current == JobStatus.CREATED) {
-				if (transitionState(current, JobStatus.CANCELLING)) {
-					for (ExecutionJobVertex ejv : verticesInCreationOrder) {
-						ejv.cancel();
-					}
-					return;
-				}
-			}
-			// Executions are being canceled. Go into cancelling and wait for
-			// all vertices to be in their final state.
-			else if (current == JobStatus.FAILING) {
-				if (transitionState(current, JobStatus.CANCELLING)) {
-					return;
-				}
-			}
-			// All vertices have been cancelled and it's safe to directly go
-			// into the canceled state.
-			else if (current == JobStatus.RESTARTING) {
-				synchronized (progressLock) {
-					if (transitionState(current, JobStatus.CANCELED)) {
-						postRunCleanup();
-						progressLock.notifyAll();
-
-						LOG.info("Canceled during restart.");
-						return;
-					}
-				}
-			}
-			else {
-				// no need to treat other states
-				return;
-			}
-		}
+		this.failoverCoordinator.cancel();
 	}
 
 	public void stop() throws StoppingException {
@@ -980,39 +954,30 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 		}
 	}
 
-	public void fail(Throwable t) {
+	public void toFinalState(JobStatus status, Throwable t) {
 		while (true) {
+
 			JobStatus current = state;
-			// stay in these states
-			if (current == JobStatus.FAILING ||
-				current == JobStatus.SUSPENDED ||
-				current.isGloballyTerminalState()) {
-				return;
-			} else if (current == JobStatus.RESTARTING) {
-				this.failureCause = t;
-
-				if (tryRestartOrFail()) {
-					return;
-				}
-				// concurrent job status change, let's check again
-			} else if (transitionState(current, JobStatus.FAILING, t)) {
-				this.failureCause = t;
-
-				if (!verticesInCreationOrder.isEmpty()) {
-					// cancel all. what is failed will not cancel but stay failed
-					for (ExecutionJobVertex ejv : verticesInCreationOrder) {
-						ejv.cancel();
-					}
-				} else {
-					// set the state of the job to failed
-					transitionState(JobStatus.FAILING, JobStatus.FAILED, t);
-				}
-
-				return;
+			if (current.isGloballyTerminalState()) {
+				LOG.info("Job is already in final state {}", current);
+				break;
 			}
-
-			// no need to treat other states
+			else if(transitionState(current, status, t)) {
+				this.failureCause = t;
+				synchronized (progressLock) {
+					postRunCleanup();
+					progressLock.notifyAll();
+				}
+				break;
+			}
 		}
+	}
+
+	public void fail(Throwable t) {
+		LOG.info("Execution graph is failing", t);
+		//TODO: Temporaly use the FAILING status to trigger failover coordinator, 
+		// adding a method to failover coordinator may be better
+		notifyJobStatusChange(JobStatus.FAILING, t);
 	}
 
 	public void restart() {
@@ -1142,6 +1107,15 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 		}
 	}
 
+	// JobVertex has finished, but its downstream can not read its result, so need it to run again.
+	void finishedJobVertexRestarted() {
+		if (numFinishedJobVertices >= verticesInCreationOrder.size()) {
+			throw new IllegalStateException("All vertices are already finished, cannot transition vertex to finished.");
+		}
+
+		numFinishedJobVertices--;
+	}
+
 	void jobVertexInFinalState() {
 		synchronized (progressLock) {
 			if (numFinishedJobVertices >= verticesInCreationOrder.size()) {
@@ -1162,18 +1136,6 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 							postRunCleanup();
 							break;
 						}
-					}
-					else if (current == JobStatus.CANCELLING) {
-						if (transitionState(current, JobStatus.CANCELED)) {
-							postRunCleanup();
-							break;
-						}
-					}
-					else if (current == JobStatus.FAILING) {
-						if (tryRestartOrFail()) {
-							break;
-						}
-						// concurrent job status change, let's check again
 					}
 					else if (current == JobStatus.SUSPENDED) {
 						// we've already cleaned up when entering the SUSPENDED state
@@ -1423,6 +1385,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 		ExecutionJobVertex vertex = getJobVertex(vertexId);
 
 		if (executionListeners.size() > 0) {
+			//TODO: not change the error to String, need the error to know whether upstream node to rerun
 			final String message = error == null ? null : ExceptionUtils.stringifyException(error);
 			final long timestamp = System.currentTimeMillis();
 
@@ -1436,11 +1399,6 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 					LOG.warn("Error while notifying ExecutionStatusListener", t);
 				}
 			}
-		}
-
-		// see what this means for us. currently, the first FAILED state means -> FAILED
-		if (newExecutionState == ExecutionState.FAILED) {
-			fail(error);
 		}
 	}
 
