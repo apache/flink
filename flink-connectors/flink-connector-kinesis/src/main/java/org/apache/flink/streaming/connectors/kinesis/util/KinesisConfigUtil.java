@@ -226,12 +226,15 @@ public class KinesisConfigUtil {
 		if (config.containsKey(key)) {
 			try {
 				initTimestampDateFormat.parse(config.getProperty(key));
-				double value = Double.parseDouble(config.getProperty(key));
-				if (value < 0) {
-					throw new NumberFormatException();
+			} catch (ParseException parseException) {
+				try {
+					double value = Double.parseDouble(config.getProperty(key));
+					if (value < 0) {
+						throw new NumberFormatException();
+					}
+				} catch (NumberFormatException numberFormatException){
+					throw new IllegalArgumentException(message);
 				}
-			} catch (ParseException | NumberFormatException e) {
-				throw new IllegalArgumentException(message);
 			}
 		}
 	}
