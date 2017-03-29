@@ -757,8 +757,7 @@ object AggregateUtil {
         inputType,
         needRetraction = true)
 
-    val aggregationStateType: RowTypeInfo =
-      createDataSetAggregateBufferDataType(Array(), aggregates, inputType)
+    val aggregationStateType: RowTypeInfo = createAccumulatorRowType(aggregates)
 
     new BoundedProcessingOverRowProcessFunction(
       aggregates,

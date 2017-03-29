@@ -29,7 +29,7 @@ import org.apache.flink.api.common.state.MapState
 import org.apache.flink.api.common.state.MapStateDescriptor
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.ListTypeInfo
-import java.util.{ ArrayList, LinkedList, List => JList }
+import java.util.{ ArrayList, List => JList }
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 
 class BoundedProcessingOverRowProcessFunction(
@@ -46,7 +46,6 @@ class BoundedProcessingOverRowProcessFunction(
   Preconditions.checkArgument(aggregates.length == aggFields.length)
   Preconditions.checkArgument(precedingOffset > 0)
 
-  private var accumulators: Row = _
   private var accumulatorState: ValueState[Row] = _
   private var rowMapState: MapState[Long, JList[Row]] = _
   private var output: Row = _
@@ -93,9 +92,9 @@ class BoundedProcessingOverRowProcessFunction(
     
     val currentTime = ctx.timerService.currentProcessingTime
     var i = 0
-
-    accumulators = accumulatorState.value
-    // initialize state for the first processed element
+    
+    // initialize state for the processed element
+    var accumulators = accumulatorState.value
     if(accumulators == null){
       accumulators = new Row(aggregates.length)
       while (i < aggregates.length) {
