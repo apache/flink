@@ -21,6 +21,7 @@ package org.apache.flink.runtime.clusterframework;
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Address;
+import com.google.common.base.Joiner;
 import com.typesafe.config.Config;
 
 import org.apache.commons.cli.CommandLine;
@@ -46,6 +47,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.BindException;
 import java.net.ServerSocket;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -56,6 +58,7 @@ import java.util.Map;
  */
 public class BootstrapTools {
 	private static final Logger LOG = LoggerFactory.getLogger(BootstrapTools.class);
+	private static final Joiner SPACE_JOINER = Joiner.on(" ");
 
 	/**
 	 * Starts an ActorSystem with the given configuration listening at the address/ports.
@@ -355,10 +358,18 @@ public class BootstrapTools {
 
 		final Map<String, String> startCommandValues = new HashMap<>();
 		startCommandValues.put("java", "$JAVA_HOME/bin/java");
-		startCommandValues
-			.put("jvmmem", 	"-Xms" + tmParams.taskManagerHeapSizeMB() + "m " +
-							"-Xmx" + tmParams.taskManagerHeapSizeMB() + "m " +
-							"-XX:MaxDirectMemorySize=" + tmParams.taskManagerDirectMemoryLimitMB() + "m");
+
+		ArrayList<String> params = new ArrayList<>();
+		params.add(String.format("-Xms%dm", tmParams.taskManagerHeapSizeMB()));
+		params.add(String.format("-Xmx%dm", tmParams.taskManagerHeapSizeMB()));
+
+		if (tmParams.taskManagerDirectMemoryLimitMB() >= 0) {
+			params.add(String.format("-XX:MaxDirectMemorySize=%dm",
+				tmParams.taskManagerDirectMemoryLimitMB()));
+		}
+
+		startCommandValues.put("jvmmem", SPACE_JOINER.join(params));
+
 		String javaOpts = flinkConfig.getString(CoreOptions.FLINK_JVM_OPTIONS);
 		if (flinkConfig.getString(CoreOptions.FLINK_TM_JVM_OPTIONS).length() > 0) {
 			javaOpts += " " + flinkConfig.getString(CoreOptions.FLINK_TM_JVM_OPTIONS);

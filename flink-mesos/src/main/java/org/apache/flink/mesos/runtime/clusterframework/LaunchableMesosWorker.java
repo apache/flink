@@ -217,7 +217,9 @@ public class LaunchableMesosWorker implements LaunchableTask {
 		// finalize the memory parameters
 		jvmArgs.append(" -Xms").append(tmParams.taskManagerHeapSizeMB()).append("m");
 		jvmArgs.append(" -Xmx").append(tmParams.taskManagerHeapSizeMB()).append("m");
-		jvmArgs.append(" -XX:MaxDirectMemorySize=").append(tmParams.taskManagerDirectMemoryLimitMB()).append("m");
+		if (tmParams.taskManagerDirectMemoryLimitMB() >= 0) {
+			jvmArgs.append(" -XX:MaxDirectMemorySize=").append(tmParams.taskManagerDirectMemoryLimitMB()).append("m");
+		}
 
 		// pass dynamic system properties
 		jvmArgs.append(' ').append(
