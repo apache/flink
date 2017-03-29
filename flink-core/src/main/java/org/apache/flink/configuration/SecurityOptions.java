@@ -57,7 +57,7 @@ public class SecurityOptions {
 
 	public static final ConfigOption<Boolean> ZOOKEEPER_SASL_DISABLE =
 		key("zookeeper.sasl.disable")
-			.defaultValue(true);
+			.defaultValue(false);
 
 	public static final ConfigOption<String> ZOOKEEPER_SASL_SERVICE_NAME =
 		key("zookeeper.sasl.service-name")
