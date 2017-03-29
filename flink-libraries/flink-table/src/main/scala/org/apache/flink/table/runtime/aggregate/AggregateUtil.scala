@@ -96,18 +96,6 @@ object AggregateUtil {
     }
   }
  
-  def getLowerBoundary(
-      constants: ImmutableList[RexLiteral],
-      lowerBound: RexWindowBound,
-      input: RelNode): Int = {
-    val ref: RexInputRef = lowerBound.getOffset.asInstanceOf[RexInputRef]
-    val index: Int = ref.getIndex
-    val count: Int = input.getRowType.getFieldCount
-    val lowerBoundIndex = count - index;
-    val lowB = constants.get(lowerBoundIndex).getValue2.asInstanceOf[Long]
-    lowB.intValue()
-  }
-
   /**
     * Create an [[org.apache.flink.streaming.api.functions.ProcessFunction]] for ROWS clause
     * bounded OVER window to evaluate final aggregate value.
@@ -747,21 +735,21 @@ object AggregateUtil {
 
     (aggFunction, accumulatorRowType, aggResultRowType)
   }
-  
-  
-     /*
+
+ /**
    * Function for building the processing logic for aggregating data in row bounded windows
-   *  @param namedAggregates List of calls to aggregate functions and their output field names
-    * @param inputType Input row type
-    * @param rowType Type info of row
-    * @param lowerBound the window boundary
-    * @return [[org.apache.flink.streaming.api.functions.ProcessFunction]]
+   *
+   * @param namedAggregates   List of calls to aggregate functions and their output field names
+   * @param inputType         Input row type
+   * @param rowType           Type info of row
+   * @param precedingOffset   The window lower boundary expressed in number of rows
+   * @return [[org.apache.flink.streaming.api.functions.ProcessFunction]]
    */
   private[flink] def createBoundedProcessingOverProcessFunction(
     namedAggregates: Seq[CalcitePair[AggregateCall, String]],
     inputType: RelDataType,
     rowType: RowTypeInfo,
-    lowerBound: Int): ProcessFunction[Row, Row] = {
+    precedingOffset: Int): ProcessFunction[Row, Row] = {
 
     val (aggFields, aggregates) =
       transformToAggregateFunctions(
@@ -774,9 +762,11 @@ object AggregateUtil {
 
     new BoundedProcessingOverRowProcessFunction(
       aggregates,
-      aggFields, lowerBound,
+      aggFields,
+      precedingOffset,
       inputType.getFieldCount,
-      aggregationStateType, FlinkTypeFactory.toInternalRowTypeInfo(inputType))
+      aggregationStateType,
+      FlinkTypeFactory.toInternalRowTypeInfo(inputType))
 
   }
    
