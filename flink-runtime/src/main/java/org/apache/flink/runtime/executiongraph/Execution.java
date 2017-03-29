@@ -121,6 +121,9 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 	private final ConcurrentLinkedQueue<PartialInputChannelDeploymentDescriptor> partialInputChannelDeploymentDescriptors;
 
+	/** A future that completes once the Execution reaches a terminal ExecutionState */
+	private final FlinkCompletableFuture<ExecutionState> terminationFuture;
+
 	private volatile ExecutionState state = CREATED;
 
 	private volatile SimpleSlot assignedResource;     // once assigned, never changes until the execution is archived
@@ -161,6 +164,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		markTimestamp(ExecutionState.CREATED, startTimestamp);
 
 		this.partialInputChannelDeploymentDescriptors = new ConcurrentLinkedQueue<>();
+		this.terminationFuture = new FlinkCompletableFuture<>();
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -232,6 +236,16 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	public void setInitialState(TaskStateHandles checkpointStateHandles) {
 		checkState(state == CREATED, "Can only assign operator state when execution attempt is in CREATED");
 		this.taskState = checkpointStateHandles;
+	}
+
+	/**
+	 * Gets a future that completes once the task execution reaches a terminal state.
+	 * The future will be completed with specific state that the execution reached.
+	 *
+	 * @return A future for the execution's termination
+	 */
+	public Future<ExecutionState> getTerminationFuture() {
+		return terminationFuture;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -473,7 +487,8 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 						}
 					}
 					finally {
-						vertex.executionCanceled();
+						vertex.executionCanceled(this);
+						terminationFuture.complete(CANCELED);
 					}
 					return;
 				}
@@ -741,7 +756,8 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 						vertex.getExecutionGraph().deregisterExecution(this);
 					}
 					finally {
-						vertex.executionFinished();
+						vertex.executionFinished(this);
+						terminationFuture.complete(FINISHED);
 					}
 					return;
 				}
@@ -793,7 +809,8 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 						vertex.getExecutionGraph().deregisterExecution(this);
 					}
 					finally {
-						vertex.executionCanceled();
+						vertex.executionCanceled(this);
+						terminationFuture.complete(CANCELED);
 					}
 					return;
 				}
@@ -886,7 +903,8 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 					vertex.getExecutionGraph().deregisterExecution(this);
 				}
 				finally {
-					vertex.executionFailed(t);
+					vertex.executionFailed(this, t);
+					terminationFuture.complete(FAILED);
 				}
 
 				if (!isCallback && (current == RUNNING || current == DEPLOYING)) {
