@@ -327,7 +327,7 @@ public class Pattern<T, F extends T> {
 			case ONE_OR_MORE_COMBINATIONS_STRICT:
 			case ZERO_OR_MORE_EAGER_STRICT:
 			case TIMES_STRICT:
-				throw new MalformedPatternException("Strict continuity already applied!");
+				throw new MalformedPatternException("Strict continuity already applied! consecutive() called twice.");
 			case ONE:
 			case OPTIONAL:
 				throw new MalformedPatternException("Strict continuity cannot be applied to " + this.quantifier);

@@ -192,7 +192,7 @@ public class NFACompiler {
 		}
 
 		/**
-		 * Creates a pair of states that enables relaxed strictness before a zeroOrMora looping state.
+		 * Creates a pair of states that enables relaxed strictness before a zeroOrMore looping state.
 		 *
 		 * @param loopingState the first state of zeroOrMore complex state
 		 * @param lastSink     the state that the looping one points to
@@ -207,10 +207,10 @@ public class NFACompiler {
 
 			followByState.addProceed(lastSink, BooleanConditions.<T>trueFunction());
 			followByState.addIgnore(followByStateWithoutProceed, ignoreFunction);
-			followByState.addTake(loopingState, (IterativeCondition<T>)currentPattern.getCondition());
+			followByState.addTake(loopingState, currentFunction);
 
 			followByStateWithoutProceed.addIgnore(ignoreFunction);
-			followByStateWithoutProceed.addTake(loopingState, (IterativeCondition<T>)currentPattern.getCondition());
+			followByStateWithoutProceed.addTake(loopingState, currentFunction);
 
 			return followByState;
 		}
@@ -363,7 +363,7 @@ public class NFACompiler {
 				final IterativeCondition<T> ignoreCondition = getIgnoreCondition(currentPattern);
 
 				ignoreState.addTake(loopingState, filterFunction);
-				ignoreState.addIgnore(ignoreState, ignoreCondition);
+				ignoreState.addIgnore(ignoreCondition);
 				loopingState.addIgnore(ignoreState, ignoreCondition);
 			}
 
