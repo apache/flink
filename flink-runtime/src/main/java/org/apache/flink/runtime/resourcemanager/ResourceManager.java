@@ -79,7 +79,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * It offers the following methods as part of its rpc interface to interact with him remotely:
  * <ul>
- *     <li>{@link #registerJobManager(UUID, UUID, String, JobID)} registers a {@link JobMaster} at the resource manager</li>
+ *     <li>{@link #registerJobManager(UUID, UUID, String, JobID, ResourceID)} registers a {@link JobMaster} at the resource manager</li>
  *     <li>{@link #requestSlot(UUID, UUID, SlotRequest)} requests a slot from the resource manager</li>
  * </ul>
  */
@@ -96,6 +96,9 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	/** All currently registered JobMasterGateways scoped by JobID. */
 	private final Map<JobID, JobManagerRegistration> jobManagerRegistrations;
 
+	/** All currently registered JobMasterGateways scoped by ResourceID. */
+	private final Map<ResourceID, JobManagerRegistration> jmResourceIdRegistrations;
+
 	/** Service to retrieve the job leader ids */
 	private final JobLeaderIdService jobLeaderIdService;
 
@@ -107,6 +110,9 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 
 	/** The heartbeat manager with task managers. */
 	private final HeartbeatManager<Void, Void> taskManagerHeartbeatManager;
+
+	/** The heartbeat manager with job managers. */
+	private final HeartbeatManager<Void, Void> jobManagerHeartbeatManager;
 
 	/** The factory to construct the SlotManager. */
 	private final SlotManagerFactory slotManagerFactory;
@@ -151,12 +157,19 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
 
 		this.taskManagerHeartbeatManager = heartbeatServices.createHeartbeatManagerSender(
-				resourceId,
-				new TaskManagerHeartbeatListener(),
-				rpcService.getScheduledExecutor(),
-				log);
+			resourceId,
+			new TaskManagerHeartbeatListener(),
+			rpcService.getScheduledExecutor(),
+			log);
+
+		this.jobManagerHeartbeatManager = heartbeatServices.createHeartbeatManagerSender(
+			resourceId,
+			new JobManagerHeartbeatListener(),
+			rpcService.getScheduledExecutor(),
+			log);
 
 		this.jobManagerRegistrations = new HashMap<>(4);
+		this.jmResourceIdRegistrations = new HashMap<>(4);
 		this.taskExecutors = new HashMap<>(8);
 		this.leaderSessionId = null;
 		infoMessageListeners = new ConcurrentHashMap<>(8);
@@ -201,6 +214,8 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 
 		taskManagerHeartbeatManager.stop();
 
+		jobManagerHeartbeatManager.stop();
+
 		try {
 			super.shutDown();
 		} catch (Exception e) {
@@ -228,11 +243,13 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	public Future<RegistrationResponse> registerJobManager(
 			final UUID resourceManagerLeaderId,
 			final UUID jobManagerLeaderId,
+			final ResourceID jobManagerResourceId,
 			final String jobManagerAddress,
 			final JobID jobId) {
 
 		checkNotNull(resourceManagerLeaderId);
 		checkNotNull(jobManagerLeaderId);
+		checkNotNull(jobManagerResourceId);
 		checkNotNull(jobManagerAddress);
 		checkNotNull(jobId);
 
@@ -273,7 +290,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 
 			Future<RegistrationResponse> registrationResponseFuture = jobMasterGatewayFuture.thenCombineAsync(jobLeaderIdFuture, new BiFunction<JobMasterGateway, UUID, RegistrationResponse>() {
 				@Override
-				public RegistrationResponse apply(JobMasterGateway jobMasterGateway, UUID jobLeaderId) {
+				public RegistrationResponse apply(final JobMasterGateway jobMasterGateway, UUID jobLeaderId) {
 					if (isValid(resourceManagerLeaderId)) {
 						if (jobLeaderId.equals(jobManagerLeaderId)) {
 							if (jobManagerRegistrations.containsKey(jobId)) {
@@ -288,21 +305,43 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 										oldJobManagerRegistration.getJobID(),
 										new Exception("New job leader for job " + jobId + " found."));
 
-									JobManagerRegistration jobManagerRegistration = new JobManagerRegistration(jobId, jobLeaderId, jobMasterGateway);
+									JobManagerRegistration jobManagerRegistration = new JobManagerRegistration(
+										jobId,
+										jobManagerResourceId,
+										jobLeaderId,
+										jobMasterGateway);
 									jobManagerRegistrations.put(jobId, jobManagerRegistration);
+									jmResourceIdRegistrations.put(jobManagerResourceId, jobManagerRegistration);
 								}
 							} else {
 								// new registration for the job
-								JobManagerRegistration jobManagerRegistration = new JobManagerRegistration(jobId, jobLeaderId, jobMasterGateway);
-
+								JobManagerRegistration jobManagerRegistration = new JobManagerRegistration(
+									jobId,
+									jobManagerResourceId,
+									jobLeaderId,
+									jobMasterGateway);
 								jobManagerRegistrations.put(jobId, jobManagerRegistration);
+								jmResourceIdRegistrations.put(jobManagerResourceId, jobManagerRegistration);
 							}
 
 							log.info("Registered job manager {}@{} for job {}.", jobManagerLeaderId, jobManagerAddress, jobId);
 
+							jobManagerHeartbeatManager.monitorTarget(jobManagerResourceId, new HeartbeatTarget<Void>() {
+								@Override
+								public void receiveHeartbeat(ResourceID resourceID, Void payload) {
+									// the ResourceManager will always send heartbeat requests to the JobManager
+								}
+
+								@Override
+								public void requestHeartbeat(ResourceID resourceID, Void payload) {
+									jobMasterGateway.heartbeatFromResourceManager(resourceID);
+								}
+							});
+
 							return new JobMasterRegistrationSuccess(
 								resourceManagerConfiguration.getHeartbeatInterval().toMilliseconds(),
-								getLeaderSessionId());
+								getLeaderSessionId(),
+								resourceId);
 
 						} else {
 							log.debug("The job manager leader id {} did not match the job " +
@@ -420,8 +459,18 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	}
 
 	@RpcMethod
+	public void heartbeatFromJobManager(final ResourceID resourceID) {
+		jobManagerHeartbeatManager.receiveHeartbeat(resourceID, null);
+	}
+
+	@RpcMethod
 	public void disconnectTaskManager(final ResourceID resourceId, final Exception cause) {
 		closeTaskManagerConnection(resourceId, cause);
+	}
+
+	@RpcMethod
+	public void disconnectJobManager(final JobID jobId, final Exception cause) {
+		closeJobManagerConnection(jobId, cause);
 	}
 
 	/**
@@ -574,6 +623,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 
 	private void clearState() {
 		jobManagerRegistrations.clear();
+		jmResourceIdRegistrations.clear();
 		taskExecutors.clear();
 		slotManager.clearState();
 
@@ -587,23 +637,31 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	}
 
 	/**
-	 * Disconnects the job manager which is connected for the given job from the resource manager.
+	 * This method should be called by the framework once it detects that a currently registered
+	 * job manager has failed.
 	 *
-	 * @param jobId identifying the job whose leader shall be disconnected
+	 * @param jobId identifying the job whose leader shall be disconnected.
+	 * @param cause The exception which cause the JobManager failed.
 	 */
-	protected void disconnectJobManager(JobID jobId, Exception cause) {
+	protected void closeJobManagerConnection(JobID jobId, Exception cause) {
 		JobManagerRegistration jobManagerRegistration = jobManagerRegistrations.remove(jobId);
 
 		if (jobManagerRegistration != null) {
+			final ResourceID jobManagerResourceId = jobManagerRegistration.getJobManagerResourceID();
+			final JobMasterGateway jobMasterGateway = jobManagerRegistration.getJobManagerGateway();
+			final UUID jobManagerLeaderId = jobManagerRegistration.getLeaderID();
+
 			log.info("Disconnect job manager {}@{} for job {} from the resource manager.",
-				jobManagerRegistration.getLeaderID(),
-				jobManagerRegistration.getJobManagerGateway().getAddress(),
+				jobManagerLeaderId,
+				jobMasterGateway.getAddress(),
 				jobId);
 
-			JobMasterGateway jobMasterGateway = jobManagerRegistration.getJobManagerGateway();
+			jobManagerHeartbeatManager.unmonitorTarget(jobManagerResourceId);
+
+			jmResourceIdRegistrations.remove(jobManagerResourceId);
 
 			// tell the job manager about the disconnect
-			jobMasterGateway.disconnectResourceManager(jobManagerRegistration.getLeaderID(), getLeaderSessionId(), cause);
+			jobMasterGateway.disconnectResourceManager(jobManagerLeaderId, getLeaderSessionId(), cause);
 		} else {
 			log.debug("There was no registered job manager for job {}.", jobId);
 		}
@@ -879,14 +937,47 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 
 		@Override
 		public void notifyHeartbeatTimeout(final ResourceID resourceID) {
-			log.info("The heartbeat of TaskManager with id {} timed out.", resourceID);
-
 			runAsync(new Runnable() {
 				@Override
 				public void run() {
+					log.info("The heartbeat of TaskManager with id {} timed out.", resourceID);
+
 					closeTaskManagerConnection(
-						resourceID,
-						new TimeoutException("Task manager with id " + resourceID + " heartbeat timed out."));
+							resourceID,
+							new TimeoutException("The heartbeat of TaskManager with id " + resourceID + "  timed out."));
+				}
+			});
+		}
+
+		@Override
+		public void reportPayload(ResourceID resourceID, Void payload) {
+			// nothing to do since there is no payload
+		}
+
+		@Override
+		public Future<Void> retrievePayload() {
+			return FlinkCompletableFuture.completed(null);
+		}
+	}
+
+	private class JobManagerHeartbeatListener implements HeartbeatListener<Void, Void> {
+
+		@Override
+		public void notifyHeartbeatTimeout(final ResourceID resourceID) {
+			runAsync(new Runnable() {
+				@Override
+				public void run() {
+					log.info("The heartbeat of JobManager with id {} timed out.", resourceID);
+
+					if (jmResourceIdRegistrations.containsKey(resourceID)) {
+						JobManagerRegistration jobManagerRegistration = jmResourceIdRegistrations.get(resourceID);
+
+						if (jobManagerRegistration != null) {
+							closeJobManagerConnection(
+								jobManagerRegistration.getJobID(),
+								new TimeoutException("The heartbeat of JobManager with id " + resourceID + " timed out."));
+						}
+					}
 				}
 			});
 		}

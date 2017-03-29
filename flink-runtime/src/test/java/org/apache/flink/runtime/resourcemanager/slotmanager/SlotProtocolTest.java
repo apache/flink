@@ -100,6 +100,7 @@ public class SlotProtocolTest extends TestLogger {
 		final String jmAddress = "/jm1";
 		final JobID jobID = new JobID();
 		final ResourceID rmResourceId = new ResourceID(rmAddress);
+		final ResourceID jmResourceId = new ResourceID(jmAddress);
 
 		testRpcService.registerGateway(jmAddress, mock(JobMasterGateway.class));
 
@@ -137,7 +138,7 @@ public class SlotProtocolTest extends TestLogger {
 		rmLeaderElectionService.isLeader(rmLeaderID);
 
 		Future<RegistrationResponse> registrationFuture =
-			resourceManager.registerJobManager(rmLeaderID, jmLeaderID, jmAddress, jobID);
+			resourceManager.registerJobManager(rmLeaderID, jmLeaderID, jmResourceId, jmAddress, jobID);
 		try {
 			registrationFuture.get(5, TimeUnit.SECONDS);
 		} catch (Exception e) {
@@ -206,6 +207,7 @@ public class SlotProtocolTest extends TestLogger {
 		final String tmAddress = "/tm1";
 		final JobID jobID = new JobID();
 		final ResourceID rmResourceId = new ResourceID(rmAddress);
+		final ResourceID jmResourceId = new ResourceID(jmAddress);
 
 		testRpcService.registerGateway(jmAddress, mock(JobMasterGateway.class));
 
@@ -251,7 +253,7 @@ public class SlotProtocolTest extends TestLogger {
 		Thread.sleep(1000);
 
 		Future<RegistrationResponse> registrationFuture =
-			resourceManager.registerJobManager(rmLeaderID, jmLeaderID, jmAddress, jobID);
+			resourceManager.registerJobManager(rmLeaderID, jmLeaderID, jmResourceId, jmAddress, jobID);
 		try {
 			registrationFuture.get(5L, TimeUnit.SECONDS);
 		} catch (Exception e) {
