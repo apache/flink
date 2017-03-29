@@ -697,7 +697,7 @@ class SqlITCase extends StreamingWithStateTestBase {
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
   
-     //////////////////////////////////////////////////////
+   //////////////////////////////////////////////////////
    // START TESTING BOUNDED PROC TIME ROW AGGREGATION
    //////////////////////////////////////////////////////
   
@@ -706,6 +706,7 @@ class SqlITCase extends StreamingWithStateTestBase {
   def testSumMinPartitionedAggregatation2(): Unit = {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStateBackend(getStateBackend)
     val tEnv = TableEnvironment.getTableEnvironment(env)
     env.setParallelism(1)
     StreamITCase.testResults = mutable.MutableList()
@@ -747,6 +748,7 @@ class SqlITCase extends StreamingWithStateTestBase {
   def testSumMinPartitionedAggregatation4(): Unit = {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStateBackend(getStateBackend)
     val tEnv = TableEnvironment.getTableEnvironment(env)
     env.setParallelism(1)
     StreamITCase.testResults = mutable.MutableList()
@@ -789,6 +791,7 @@ class SqlITCase extends StreamingWithStateTestBase {
   def testSumMinUnpartitionedAggregatation2(): Unit = {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStateBackend(getStateBackend)
     val tEnv = TableEnvironment.getTableEnvironment(env)
     env.setParallelism(1)
     StreamITCase.testResults = mutable.MutableList()
@@ -830,6 +833,7 @@ class SqlITCase extends StreamingWithStateTestBase {
   def testSumMinUnpartitionedAggregatation10(): Unit = {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStateBackend(getStateBackend)
     val tEnv = TableEnvironment.getTableEnvironment(env)
     env.setParallelism(1)
     StreamITCase.testResults = mutable.MutableList()

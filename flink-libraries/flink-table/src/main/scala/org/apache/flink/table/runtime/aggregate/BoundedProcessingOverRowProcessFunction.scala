@@ -51,15 +51,13 @@ class BoundedProcessingOverRowProcessFunction(
   private var rowMapState: MapState[Long, JList[Row]] = _
   private var output: Row = _
   private var counterState: ValueState[Long] = _
-  private var counter : Long = _
   private var smallestTsState: ValueState[Long] = _
-  private var smallestTs : Long = _
   
   override def open(config: Configuration) {
     
     output = new Row(forwardedFieldCount + aggregates.length)
-    // We keep the elements received in a list state 
-    // together with the ingestion time in the operator
+    // We keep the elements received in a Map state keyed 
+    // by the ingestion time in the operator. 
     // we also keep counter of processed elements
     // and timestamp of oldest element
     val rowListTypeInfo: TypeInformation[JList[Row]] =
@@ -82,7 +80,7 @@ class BoundedProcessingOverRowProcessFunction(
     counterState = getRuntimeContext.getState(processedCountDescriptor)
     
     val smallesTimestampDescriptor : ValueStateDescriptor[Long] =
-       new ValueStateDescriptor[Long]("smallesTSState", classOf[Long])
+       new ValueStateDescriptor[Long]("smallestTSState", classOf[Long])
     
     smallestTsState = getRuntimeContext.getState(smallesTimestampDescriptor)
     
@@ -93,29 +91,29 @@ class BoundedProcessingOverRowProcessFunction(
     ctx: ProcessFunction[Row, Row]#Context,
     out: Collector[Row]): Unit = {
     
-    val currentTime = ctx.timerService().currentProcessingTime()
+    val currentTime = ctx.timerService.currentProcessingTime
     var i = 0
 
-    accumulators = accumulatorState.value()
+    accumulators = accumulatorState.value
     // initialize state for the first processed element
     if(accumulators == null){
       accumulators = new Row(aggregates.length)
       while (i < aggregates.length) {
-        accumulators.setField(i, aggregates(i).createAccumulator())
+        accumulators.setField(i, aggregates(i).createAccumulator)
         i += 1
       }
     }
     
     // get smallest timestamp 
-    smallestTs = smallestTsState.value()
+    var smallestTs = smallestTsState.value
     if(smallestTs == 0L){
       smallestTs = currentTime
+      smallestTsState.update(smallestTs)
     }
     // get previous counter value
-    counter = counterState.value()
+    var counter = counterState.value
     
     if (counter == precedingOffset) {
-      val retractTs = smallestTs
       val retractList = rowMapState.get(smallestTs)
 
       // get oldest element beyond buffer size   
@@ -127,24 +125,27 @@ class BoundedProcessingOverRowProcessFunction(
         i += 1
       }
       retractList.remove(0)
-      counter -= 1
       // if reference timestamp list not empty, keep the list
-      if (!retractList.isEmpty()) {
-        rowMapState.put(retractTs, retractList)
+      if (!retractList.isEmpty) {
+        rowMapState.put(smallestTs, retractList)
       } // if smallest timestamp list is empty, remove and find new smallest
       else {
-        rowMapState.remove(retractTs)
-        val iter = rowMapState.keys.iterator()
+        rowMapState.remove(smallestTs)
+        val iter = rowMapState.keys.iterator
         var currentTs: Long = 0L
-        var newSmallesTs: Long = Long.MaxValue
+        var newSmallestTs: Long = Long.MaxValue
         while(iter.hasNext){
           currentTs = iter.next
-          if(currentTs < newSmallesTs){
-            newSmallesTs = currentTs
+          if(currentTs < newSmallestTs){
+            newSmallestTs = currentTs
           }
         }
-        smallestTs = newSmallesTs
+        smallestTsState.update(newSmallestTs)
       }
+    } // we update the counter only while buffer is getting filled
+    else{
+      counter += 1
+      counterState.update(counter)
     }
 
     // copy forwarded fields in output row
@@ -165,17 +166,18 @@ class BoundedProcessingOverRowProcessFunction(
     }
 
     // update map state, accumulator state, counter and timestamp
-    if (rowMapState.contains(currentTime)) {
-      rowMapState.get(currentTime).add(input)
+    val currentTimeState = rowMapState.get(currentTime)
+    if (currentTimeState != null) {
+      currentTimeState.add(input)
+      rowMapState.put(currentTime, currentTimeState)
     } else { // add new input
       val newList = new ArrayList[Row]
       newList.add(input)
       rowMapState.put(currentTime, newList)
     }
-    counter += 1
+    
     accumulatorState.update(accumulators)
-    smallestTsState.update(smallestTs)
-    counterState.update(counter)
+
     out.collect(output)
   }
 
