@@ -33,6 +33,7 @@ import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
+import org.apache.flink.runtime.executiongraph.metrics.RestartTimeGauge;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.instance.SlotProvider;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -102,8 +103,7 @@ public class ExecutionGraphBuilder {
 						jobGraph.getUserJarBlobKeys(),
 						jobGraph.getClasspaths(),
 						slotProvider,
-						classLoader,
-						metrics);
+						classLoader);
 		} catch (IOException e) {
 			throw new JobException("Could not create the execution graph.", e);
 		}
@@ -249,6 +249,10 @@ public class ExecutionGraphBuilder {
 					metadataBackend,
 					checkpointStatsTracker);
 		}
+
+		// create all the metrics for the Execution Graph
+
+		metrics.gauge(RestartTimeGauge.METRIC_NAME, new RestartTimeGauge(executionGraph));
 
 		return executionGraph;
 	}

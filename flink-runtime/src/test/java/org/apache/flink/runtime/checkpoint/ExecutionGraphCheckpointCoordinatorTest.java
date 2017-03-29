@@ -22,7 +22,6 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
@@ -95,8 +94,7 @@ public class ExecutionGraphCheckpointCoordinatorTest {
 			Collections.<BlobKey>emptyList(),
 			Collections.<URL>emptyList(),
 			new Scheduler(TestingUtils.defaultExecutionContext()),
-			ClassLoader.getSystemClassLoader(),
-			new UnregisteredMetricsGroup());
+			ClassLoader.getSystemClassLoader());
 
 		executionGraph.enableCheckpointing(
 				100,
