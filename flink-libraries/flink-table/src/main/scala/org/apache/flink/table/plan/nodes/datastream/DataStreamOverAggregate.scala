@@ -112,8 +112,7 @@ class DataStreamOverAggregate(
           // bounded OVER window
           if (overWindow.isRows) {
             // ROWS clause bounded OVER window
-            throw new TableException(
-              "processing-time OVER ROWS PRECEDING window is not supported yet.")
+            createBoundedAndCurrentRowProcessingTimeOverWindow(inputDS)
           } else {
             // RANGE clause bounded OVER window
             throw new TableException(
@@ -195,6 +194,45 @@ class DataStreamOverAggregate(
     result
   }
 
+  def createBoundedAndCurrentRowProcessingTimeOverWindow(
+    inputDS: DataStream[Row]): DataStream[Row] = {
+
+    val overWindow: Group = logicWindow.groups.get(0)
+    val partitionKeys: Array[Int] = overWindow.keys.toArray
+    val namedAggregates: Seq[CalcitePair[AggregateCall, String]] = generateNamedAggregates
+
+    // get the output types
+    val rowTypeInfo = FlinkTypeFactory.toInternalRowTypeInfo(getRowType).asInstanceOf[RowTypeInfo]
+
+    // window size is lowerbound +1 to comply with over semantics 
+    val lowerbound: Long = getLowerBoundary(
+      logicWindow,
+      overWindow,
+      getInput()) + 1
+
+    val processFunction = AggregateUtil.createBoundedProcessingOverProcessFunction(
+      namedAggregates, inputType, rowTypeInfo, lowerbound.asInstanceOf[Int])
+
+    val result: DataStream[Row] =
+      // partitioned aggregation
+      if (partitionKeys.nonEmpty) {
+        inputDS.keyBy(partitionKeys: _*)
+          .process(processFunction)
+          .returns(rowTypeInfo)
+          .name(aggOpName)
+          .asInstanceOf[DataStream[Row]]
+        
+      } // global non-partitioned aggregation
+      else {
+        inputDS.keyBy(new NullByteKeySelector[Row])
+          .process(processFunction).setParallelism(1).setMaxParallelism(1)
+          .returns(rowTypeInfo)
+          .name(aggOpName)
+          .asInstanceOf[DataStream[Row]]
+      }
+    result
+  }
+  
   def createRowsClauseBoundedAndCurrentRowOverWindow(
     inputDS: DataStream[Row],
     isRowTimeType: Boolean = false): DataStream[Row] = {
