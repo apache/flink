@@ -20,25 +20,30 @@ package org.apache.flink.streaming.api.functions.source;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.util.Preconditions;
 
-import java.util.ArrayDeque;
-import java.util.Deque;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * A stateful streaming source that emits each number from a given interval exactly once,
  * possibly in parallel.
  *
- * <p>For the source to be re-scalable, the first time the job is run, we precompute all the elements
- * that each of the tasks should emit and upon checkpointing, each element constitutes its own
- * partition. When rescaling, these partitions will be randomly re-assigned to the new tasks.
+ * <p>For the source to be re-scalable, the range of elements to be emitted is initially (at the first execution)
+ * split into {@code min(maxParallelism, totalNumberOfElements)} partitions, and for each one, we
+ * store the {@code nextOffset}, i.e. the next element to be emitted, and its {@code end}. Upon rescaling, these
+ * partitions can be reshuffled among the new tasks, and these will resume emitting from where their predecessors
+ * left off.
  *
- * <p>This strategy guarantees that each element will be emitted exactly-once, but elements will not
- * necessarily be emitted in ascending order, even for the same tasks.
+ * <p>Although each element will be emitted exactly-once, elements will not necessarily be emitted in ascending order,
+ * even for the same task.
  */
 @PublicEvolving
 public class StatefulSequenceSource extends RichParallelSourceFunction<Long> implements CheckpointedFunction {
@@ -50,9 +55,8 @@ public class StatefulSequenceSource extends RichParallelSourceFunction<Long> imp
 
 	private volatile boolean isRunning = true;
 
-	private transient Deque<Long> valuesToEmit;
-
-	private transient ListState<Long> checkpointedState;
+	private transient Map<Long, Long> endToNextOffsetMapping;
+	private transient ListState<Tuple2<Long, Long>> checkpointedState;
 
 	/**
 	 * Creates a source that emits all numbers from the given interval exactly once.
@@ -61,6 +65,7 @@ public class StatefulSequenceSource extends RichParallelSourceFunction<Long> imp
 	 * @param end End of the range of numbers to emit.
 	 */
 	public StatefulSequenceSource(long start, long end) {
+		Preconditions.checkArgument(start <= end);
 		this.start = start;
 		this.end = end;
 	}
@@ -68,45 +73,81 @@ public class StatefulSequenceSource extends RichParallelSourceFunction<Long> imp
 	@Override
 	public void initializeState(FunctionInitializationContext context) throws Exception {
 
-		Preconditions.checkState(this.checkpointedState == null,
+		Preconditions.checkState(checkpointedState == null,
 			"The " + getClass().getSimpleName() + " has already been initialized.");
 
 		this.checkpointedState = context.getOperatorStateStore().getOperatorState(
 			new ListStateDescriptor<>(
-				"stateful-sequence-source-state",
-				LongSerializer.INSTANCE
+				"stateful-sequence-source-state", 
+					new TupleSerializer<>(
+							(Class<Tuple2<Long, Long>>) (Class<?>) Tuple2.class,
+							new TypeSerializer<?>[] { LongSerializer.INSTANCE, LongSerializer.INSTANCE }
+					)
 			)
 		);
 
-		this.valuesToEmit = new ArrayDeque<>();
+		this.endToNextOffsetMapping = new HashMap<>();
 		if (context.isRestored()) {
-			// upon restoring
-
-			for (Long v : this.checkpointedState.get()) {
-				this.valuesToEmit.add(v);
+			for (Tuple2<Long, Long> partitionInfo: checkpointedState.get()) {
+				Long prev = endToNextOffsetMapping.put(partitionInfo.f0, partitionInfo.f1);
+				Preconditions.checkState(prev == null,
+						getClass().getSimpleName() + " : Duplicate entry when restoring.");
 			}
 		} else {
-			// the first time the job is executed
-
-			final int stepSize = getRuntimeContext().getNumberOfParallelSubtasks();
 			final int taskIdx = getRuntimeContext().getIndexOfThisSubtask();
-			final long congruence = start + taskIdx;
+			final int parallelTasks = getRuntimeContext().getNumberOfParallelSubtasks();
 
-			long totalNoOfElements = Math.abs(end - start + 1);
-			final int baseSize = safeDivide(totalNoOfElements, stepSize);
-			final int toCollect = (totalNoOfElements % stepSize > taskIdx) ? baseSize + 1 : baseSize;
+			final long totalElements = Math.abs(end - start + 1L);
+			final int maxParallelism = getRuntimeContext().getMaxNumberOfParallelSubtasks();
+			final int totalPartitions = totalElements < Integer.MAX_VALUE ? Math.min(maxParallelism, (int) totalElements) : maxParallelism;
 
-			for (long collected = 0; collected < toCollect; collected++) {
-				this.valuesToEmit.add(collected * stepSize + congruence);
+			Tuple2<Integer, Integer> localPartitionRange = getLocalRange(totalPartitions, parallelTasks, taskIdx);
+			int localStartIdx = localPartitionRange.f0;
+			int localEndIdx = localStartIdx + localPartitionRange.f1;
+
+			for (int partIdx = localStartIdx; partIdx < localEndIdx; partIdx++) {
+				Tuple2<Long, Long> limits = getPartitionLimits(totalElements, totalPartitions, partIdx);
+				endToNextOffsetMapping.put(limits.f1, limits.f0);
 			}
 		}
 	}
 
+	private Tuple2<Integer, Integer> getLocalRange(int totalPartitions, int parallelTasks, int taskIdx) {
+		int minPartitionSliceSize = totalPartitions / parallelTasks;
+		int remainingPartitions = totalPartitions - minPartitionSliceSize * parallelTasks;
+
+		int localRangeStartIdx = taskIdx * minPartitionSliceSize + Math.min(taskIdx, remainingPartitions);
+		int localRangeSize = taskIdx < remainingPartitions ? minPartitionSliceSize + 1 : minPartitionSliceSize;
+
+		return new Tuple2<>(localRangeStartIdx, localRangeSize);
+	}
+
+	private Tuple2<Long, Long> getPartitionLimits(long totalElements, int totalPartitions, long partitionIdx) {
+		long minElementPartitionSize = totalElements / totalPartitions;
+		long remainingElements = totalElements - minElementPartitionSize * totalPartitions;
+		long startOffset = start;
+
+		for (int idx = 0; idx < partitionIdx; idx++) {
+			long partitionSize = idx < remainingElements ? minElementPartitionSize + 1L : minElementPartitionSize;
+			startOffset += partitionSize;
+		}
+
+		long partitionSize = partitionIdx < remainingElements ? minElementPartitionSize + 1L : minElementPartitionSize;
+		return new Tuple2<>(startOffset, startOffset + partitionSize);
+	}
+
 	@Override
 	public void run(SourceContext<Long> ctx) throws Exception {
-		while (isRunning && !this.valuesToEmit.isEmpty()) {
-			synchronized (ctx.getCheckpointLock()) {
-				ctx.collect(this.valuesToEmit.poll());
+		for (Map.Entry<Long, Long> partition: endToNextOffsetMapping.entrySet()) {
+			long endOffset = partition.getKey();
+			long currentOffset = partition.getValue();
+
+			while (isRunning && currentOffset < endOffset) {
+				synchronized (ctx.getCheckpointLock()) {
+					long toSend = currentOffset;
+					endToNextOffsetMapping.put(endOffset, ++currentOffset);
+					ctx.collect(toSend);
+				}
 			}
 		}
 	}
@@ -118,19 +159,12 @@ public class StatefulSequenceSource extends RichParallelSourceFunction<Long> imp
 
 	@Override
 	public void snapshotState(FunctionSnapshotContext context) throws Exception {
-		Preconditions.checkState(this.checkpointedState != null,
+		Preconditions.checkState(checkpointedState != null,
 			"The " + getClass().getSimpleName() + " state has not been properly initialized.");
 
-		this.checkpointedState.clear();
-		for (Long v : this.valuesToEmit) {
-			this.checkpointedState.add(v);
+		checkpointedState.clear();
+		for (Map.Entry<Long, Long> entry : endToNextOffsetMapping.entrySet()) {
+			checkpointedState.add(new Tuple2<>(entry.getKey(), entry.getValue()));
 		}
-	}
-
-	private static int safeDivide(long left, long right) {
-		Preconditions.checkArgument(right > 0);
-		Preconditions.checkArgument(left >= 0);
-		Preconditions.checkArgument(left <= Integer.MAX_VALUE * right);
-		return (int) (left / right);
 	}
 }

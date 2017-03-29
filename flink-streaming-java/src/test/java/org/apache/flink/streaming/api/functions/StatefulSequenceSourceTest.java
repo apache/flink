@@ -39,7 +39,8 @@ public class StatefulSequenceSourceTest {
 
 	@Test
 	public void testCheckpointRestore() throws Exception {
-		final int initElement = 0;
+		final int maxParallelism = 5;
+		final int initElement = -101;
 		final int maxElement = 100;
 
 		final Set<Long> expectedOutput = new HashSet<>();
@@ -57,14 +58,14 @@ public class StatefulSequenceSourceTest {
 		StreamSource<Long, StatefulSequenceSource> src1 = new StreamSource<>(source1);
 
 		final AbstractStreamOperatorTestHarness<Long> testHarness1 =
-			new AbstractStreamOperatorTestHarness<>(src1, 2, 2, 0);
+			new AbstractStreamOperatorTestHarness<>(src1, maxParallelism, 2, 0);
 		testHarness1.open();
 
 		final StatefulSequenceSource source2 = new StatefulSequenceSource(initElement, maxElement);
 		StreamSource<Long, StatefulSequenceSource> src2 = new StreamSource<>(source2);
 
 		final AbstractStreamOperatorTestHarness<Long> testHarness2 =
-			new AbstractStreamOperatorTestHarness<>(src2, 2, 2, 1);
+			new AbstractStreamOperatorTestHarness<>(src2, maxParallelism, 2, 1);
 		testHarness2.open();
 
 		final Throwable[] error = new Throwable[3];
@@ -117,7 +118,7 @@ public class StatefulSequenceSourceTest {
 		StreamSource<Long, StatefulSequenceSource> src3 = new StreamSource<>(source3);
 
 		final AbstractStreamOperatorTestHarness<Long> testHarness3 =
-			new AbstractStreamOperatorTestHarness<>(src3, 2, 1, 0);
+			new AbstractStreamOperatorTestHarness<>(src3, maxParallelism, 1, 0);
 		testHarness3.setup();
 		testHarness3.initializeState(snapshot);
 		testHarness3.open();
