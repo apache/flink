@@ -18,6 +18,8 @@
 ################################################################################
 
 constructFlinkClassPath() {
+    local FLINK_DIST
+    local FLINK_CLASSPATH
 
     while read -d '' -r jarfile ; do
         if [[ "$jarfile" =~ .*flink-dist.*.jar ]]; then
