@@ -435,7 +435,7 @@ public class CheckpointCoordinator {
 				executions[i] = ee;
 			} else {
 				LOG.info("Checkpoint triggering task {} is not being executed at the moment. Aborting checkpoint.",
-						tasksToTrigger[i].getSimpleName());
+						tasksToTrigger[i].getTaskNameWithSubtaskIndex());
 				return new CheckpointTriggerResult(CheckpointDeclineReason.NOT_ALL_REQUIRED_TASKS_RUNNING);
 			}
 		}
@@ -450,7 +450,7 @@ public class CheckpointCoordinator {
 				ackTasks.put(ee.getAttemptId(), ev);
 			} else {
 				LOG.info("Checkpoint acknowledging task {} is not being executed at the moment. Aborting checkpoint.",
-						ev.getSimpleName());
+						ev.getTaskNameWithSubtaskIndex());
 				return new CheckpointTriggerResult(CheckpointDeclineReason.NOT_ALL_REQUIRED_TASKS_RUNNING);
 			}
 		}
