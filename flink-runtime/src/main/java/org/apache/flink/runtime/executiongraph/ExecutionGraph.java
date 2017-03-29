@@ -63,6 +63,7 @@ import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.util.SerializedThrowable;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 
@@ -240,7 +241,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			SerializedValue<ExecutionConfig> serializedConfig,
 			Time timeout,
 			RestartStrategy restartStrategy,
-			SlotProvider slotProvider) throws IOException {
+			SlotProvider slotProvider) {
 		this(
 			futureExecutor,
 			ioExecutor,
@@ -268,7 +269,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			List<BlobKey> requiredJarFiles,
 			List<URL> requiredClasspaths,
 			SlotProvider slotProvider,
-			ClassLoader userClassLoader) throws IOException {
+			ClassLoader userClassLoader) {
 
 		checkNotNull(futureExecutor);
 		checkNotNull(jobId);
@@ -284,7 +285,14 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			requiredClasspaths);
 
 		// serialize the job information to do the serialisation work only once
-		this.serializedJobInformation = new SerializedValue<>(jobInformation);
+		try {
+			this.serializedJobInformation = new SerializedValue<>(jobInformation);
+		}
+		catch (IOException e) {
+			// this cannot happen because 'JobInformation' is perfectly serializable
+			// rethrow unchecked, because this indicates a bug, not a recoverable situation
+			throw new FlinkRuntimeException("Bug: Cannot serialize JobInformation", e);
+		}
 
 		this.futureExecutor = Preconditions.checkNotNull(futureExecutor);
 		this.ioExecutor = Preconditions.checkNotNull(ioExecutor);

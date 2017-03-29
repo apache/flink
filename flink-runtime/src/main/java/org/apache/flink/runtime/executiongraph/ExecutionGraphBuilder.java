@@ -87,11 +87,8 @@ public class ExecutionGraphBuilder {
 		final JobID jobId = jobGraph.getJobID();
 
 		// create a new execution graph, if none exists so far
-		final ExecutionGraph executionGraph;
-
-		try {
-			executionGraph = (prior != null) ? prior :
-					new ExecutionGraph(
+		final ExecutionGraph executionGraph = (prior != null) ? prior :
+				new ExecutionGraph(
 						futureExecutor,
 						ioExecutor,
 						jobId,
@@ -104,9 +101,6 @@ public class ExecutionGraphBuilder {
 						jobGraph.getClasspaths(),
 						slotProvider,
 						classLoader);
-		} catch (IOException e) {
-			throw new JobException("Could not create the execution graph.", e);
-		}
 
 		// set the basic properties
 
