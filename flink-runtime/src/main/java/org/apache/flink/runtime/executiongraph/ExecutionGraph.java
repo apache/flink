@@ -210,7 +210,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 
 	/** The exception that caused the job to fail. This is set to the first root exception
 	 * that was not recoverable and triggered job failure */
-	private volatile Throwable failureCause;
+	private volatile ErrorInfo failureCause;
 
 	/** The number of job vertices that have reached a terminal state */
 	private volatile int numFinishedJobVertices;
@@ -552,13 +552,8 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 		return state;
 	}
 
-	public Throwable getFailureCause() {
+	public ErrorInfo getFailureCause() {
 		return failureCause;
-	}
-
-	@Override
-	public String getFailureCauseAsString() {
-		return ExceptionUtils.stringifyException(failureCause);
 	}
 
 	@Override
@@ -955,6 +950,25 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	 * @param suspensionCause Cause of the suspension
 	 */
 	public void suspend(Throwable suspensionCause) {
+		suspend(new ErrorInfo(suspensionCause, System.currentTimeMillis()));
+	}
+
+	/**
+	 * Suspends the current ExecutionGraph.
+	 *
+	 * The JobStatus will be directly set to SUSPENDED iff the current state is not a terminal
+	 * state. All ExecutionJobVertices will be canceled and the postRunCleanup is executed.
+	 *
+	 * The SUSPENDED state is a local terminal state which stops the execution of the job but does
+	 * not remove the job from the HA job store so that it can be recovered by another JobManager.
+	 *
+	 * @param errorInfo ErrorInfo containing the cause of the suspension
+	 */
+	public void suspend(ErrorInfo errorInfo) {
+		Throwable suspensionCause = errorInfo != null
+			? errorInfo.getException()
+			: null;
+
 		while (true) {
 			JobStatus currentState = state;
 
@@ -962,7 +976,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 				// stay in a terminal state
 				return;
 			} else if (transitionState(currentState, JobStatus.SUSPENDED, suspensionCause)) {
-				this.failureCause = suspensionCause;
+				this.failureCause = errorInfo;
 
 				for (ExecutionJobVertex ejv: verticesInCreationOrder) {
 					ejv.cancel();
@@ -980,7 +994,26 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 		}
 	}
 
+
+	/**
+	 * Fails the execution of this ExecutionGraph.
+	 *
+	 * @param t Exception that caused this job to fail
+	 */
 	public void fail(Throwable t) {
+		fail(new ErrorInfo(t, System.currentTimeMillis()));
+	}
+
+	/**
+	 * Fails the execution of this ExecutionGraph.
+	 * 
+	 * @param errorInfo ErrorInfo containing the exception that causes this job to fail
+	 */
+	public void fail(ErrorInfo errorInfo) {
+		Throwable t = errorInfo != null
+			? errorInfo.getException()
+			: null;
+		
 		while (true) {
 			JobStatus current = state;
 			// stay in these states
@@ -989,14 +1022,14 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 				current.isGloballyTerminalState()) {
 				return;
 			} else if (current == JobStatus.RESTARTING) {
-				this.failureCause = t;
+				this.failureCause = errorInfo;
 
 				if (tryRestartOrFail()) {
 					return;
 				}
 				// concurrent job status change, let's check again
 			} else if (transitionState(current, JobStatus.FAILING, t)) {
-				this.failureCause = t;
+				this.failureCause = errorInfo;
 
 				if (!verticesInCreationOrder.isEmpty()) {
 					// cancel all. what is failed will not cancel but stay failed
@@ -1208,6 +1241,9 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 		JobStatus currentState = state;
 
 		if (currentState == JobStatus.FAILING || currentState == JobStatus.RESTARTING) {
+			Throwable failureCause = this.failureCause != null
+				? this.failureCause.getException()
+				: null;
 			synchronized (progressLock) {
 				if (LOG.isDebugEnabled()) {
 					LOG.debug("Try to restart or fail the job {} ({}) if no longer possible.", getJobName(), getJobID(), failureCause);
@@ -1440,7 +1476,8 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 
 		// see what this means for us. currently, the first FAILED state means -> FAILED
 		if (newExecutionState == ExecutionState.FAILED) {
-			fail(error);
+			long timestamp = vertex.getTaskVertices()[subtask].getCurrentExecutionAttempt().getStateTimestamp(ExecutionState.FAILED);
+			fail(new ErrorInfo(error, timestamp));
 		}
 	}
 
@@ -1499,7 +1536,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			archivedVerticesInCreationOrder,
 			stateTimestamps,
 			getState(),
-			getFailureCauseAsString(),
+			failureCause,
 			getJsonPlan(),
 			getAccumulatorResultsStringified(),
 			serializedUserAccumulators,
