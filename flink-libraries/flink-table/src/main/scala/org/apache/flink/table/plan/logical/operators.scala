@@ -33,9 +33,9 @@ import org.apache.flink.table.api.{StreamTableEnvironment, TableEnvironment, Unr
 import org.apache.flink.table.calcite.{FlinkRelBuilder, FlinkTypeFactory}
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.TableFunction
-import org.apache.flink.table.functions.utils.TableSqlFunction
+import org.apache.flink.table.functions.utils.{TableSqlFunction, UserDefinedFunctionUtils}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
-import org.apache.flink.table.plan.schema.FlinkTableFunctionImpl
+import org.apache.flink.table.plan.schema.TypedFlinkTableFunction
 import org.apache.flink.table.validate.{ValidationFailure, ValidationSuccess}
 
 import scala.collection.JavaConverters._
@@ -690,7 +690,7 @@ case class LogicalTableFunctionCall(
   }
 
   override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
-    val function = new FlinkTableFunctionImpl(tableFunction, resultType, evalMethod)
+    val function = new TypedFlinkTableFunction(tableFunction, evalMethod, resultType)
     val typeFactory = relBuilder.getTypeFactory.asInstanceOf[FlinkTypeFactory]
     val sqlFunction = TableSqlFunction(
       tableFunction.functionIdentifier,
@@ -704,7 +704,7 @@ case class LogicalTableFunctionCall(
       new util.ArrayList[RelNode](),
       relBuilder.call(sqlFunction, parameters.map(_.toRexNode(relBuilder)).asJava),
       function.getElementType(null),
-      function.buildRelDataType(
+      UserDefinedFunctionUtils.buildRelDataType(
         relBuilder.getTypeFactory, resultType, fieldNames, fieldIndexes),
       null)
 

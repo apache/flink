@@ -92,25 +92,6 @@ abstract class TableFunction[T] extends UserDefinedFunction {
       getClass.getSimpleName, this, typeInfo, params: _*)
   }
 
-  /**
-    * Internal use of [[getResultType()]]
-    *
-    * @param arguments arguments of a function call (only literal arguments
-    *                  are passed, nulls for non-literal ones)
-    * @param implicitResultType The implicit result type
-    * @return [[TypeInformation]] of result type or null if Flink should determine the type
-    */
-  private[table] def getResultType(
-      arguments: java.util.List[AnyRef],
-      implicitResultType: TypeInformation[_]): TypeInformation[_] = {
-    if (getResultType(arguments) == null) {
-      implicitResultType
-    } else {
-      getResultType(arguments)
-    }
-  }
-
-
   override def toString: String = getClass.getCanonicalName
 
   // ----------------------------------------------------------------------------------------------

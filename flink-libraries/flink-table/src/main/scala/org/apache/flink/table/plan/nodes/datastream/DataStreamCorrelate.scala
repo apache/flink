@@ -25,10 +25,10 @@ import org.apache.calcite.sql.SemiJoinType
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.StreamTableEnvironment
-import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.functions.utils.{TableSqlFunction, UserDefinedFunctionUtils}
 import org.apache.flink.table.plan.nodes.CommonCorrelate
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalTableFunctionScan
+import org.apache.flink.table.plan.schema.FlinkTableFunction
 import org.apache.flink.types.Row
 
 /**
@@ -90,7 +90,12 @@ class DataStreamCorrelate(
     val funcRel = scan.asInstanceOf[FlinkLogicalTableFunctionScan]
     val rexCall = funcRel.getCall.asInstanceOf[RexCall]
     val sqlFunction = rexCall.getOperator.asInstanceOf[TableSqlFunction]
-    val udtfTypeInfo = sqlFunction.getResultType(rexCall.getOperands)
+    // we need result TypeInformation to do code generation
+    val arguments = UserDefinedFunctionUtils.rexNodesToArguments(rexCall.operands)
+    val udtfTypeInfo = sqlFunction
+        .getFunction
+        .asInstanceOf[FlinkTableFunction]
+        .getResultType(arguments)
     val pojoFieldMapping = UserDefinedFunctionUtils.getFieldInfo(udtfTypeInfo)._2
 
     val mapFunc = correlateMapFunction(

@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.functions.utils
 
+import java.util
+
 import com.google.common.base.Predicate
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.sql._
@@ -25,16 +27,12 @@ import org.apache.calcite.sql.`type`._
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.sql.validate.SqlUserDefinedTableFunction
 import org.apache.calcite.util.Util
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.functions.TableFunction
-import org.apache.flink.table.plan.schema.FlinkTableFunctionImpl
+import org.apache.flink.table.plan.schema.FlinkTableFunction
 
 import scala.collection.JavaConverters._
-import java.util
-
-import org.apache.calcite.rex.RexNode
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.expressions.{Expression, TableFunctionCall}
 
 /**
   * Calcite wrapper for user-defined table functions.
@@ -42,12 +40,12 @@ import org.apache.flink.table.expressions.{Expression, TableFunctionCall}
 class TableSqlFunction(
     name: String,
     udtf: TableFunction[_],
-    implicitRowTypeInfo: TypeInformation[_],
+    implicitResultTypeInfo: TypeInformation[_],
     returnTypeInference: SqlReturnTypeInference,
     operandTypeInference: SqlOperandTypeInference,
     operandTypeChecker: SqlOperandTypeChecker,
     paramTypes: util.List[RelDataType],
-    functionImpl: FlinkTableFunctionImpl[_])
+    functionImpl: FlinkTableFunction)
   extends SqlUserDefinedTableFunction(
     new SqlIdentifier(name, SqlParserPos.ZERO),
     returnTypeInference,
@@ -56,29 +54,9 @@ class TableSqlFunction(
     paramTypes,
     functionImpl) {
 
-  /**
-    * Get the user-defined table function.
-    */
-  def getTableFunction = udtf
+  def getImplicitResultType: TypeInformation[_] = implicitResultTypeInfo
 
-  def getImplicitRowTypeInfo = implicitRowTypeInfo
-
-  def buildTableFunctionCall(name: String,
-                            params: Expression*): TableFunctionCall = {
-    UserDefinedFunctionUtils.buildTableFunctionCall(name, udtf, implicitRowTypeInfo, params: _*)
-  }
-
-  /**
-    * Get the result type for SQL
-    *
-    * @param operands The literals. Only the literal operands are used
-    * @return  Type information
-    */
-  def getResultType(operands: util.List[RexNode]): TypeInformation[_] = {
-    val arguments = UserDefinedFunctionUtils.rexNodesToArguments(operands)
-    udtf.getResultType(arguments, implicitRowTypeInfo)
-  }
-
+  def getTableFunction: TableFunction[_] = udtf
 }
 
 object TableSqlFunction {
@@ -88,7 +66,7 @@ object TableSqlFunction {
     *
     * @param name function name (used by SQL parser)
     * @param udtf user-defined table function to be called
-    * @param implicitRowTypeInfo Implicit row type information
+    * @param implicitResultTypeInfo Implicit result type information
     * @param typeFactory type factory for converting Flink's between Calcite's types
     * @param functionImpl Calcite table function schema
     * @return [[TableSqlFunction]]
@@ -96,9 +74,9 @@ object TableSqlFunction {
   def apply(
     name: String,
     udtf: TableFunction[_],
-    implicitRowTypeInfo: TypeInformation[_],
+    implicitResultTypeInfo: TypeInformation[_],
     typeFactory: FlinkTypeFactory,
-    functionImpl: FlinkTableFunctionImpl[_]): TableSqlFunction = {
+    functionImpl: FlinkTableFunction): TableSqlFunction = {
 
     val argTypes: util.List[RelDataType] = new util.ArrayList[RelDataType]
     val typeFamilies: util.List[SqlTypeFamily] = new util.ArrayList[SqlTypeFamily]
@@ -120,7 +98,7 @@ object TableSqlFunction {
     new TableSqlFunction(
       name,
       udtf,
-      implicitRowTypeInfo,
+      implicitResultTypeInfo,
       ReturnTypes.CURSOR,
       InferTypes.explicit(argTypes),
       typeChecker,
