@@ -38,6 +38,8 @@ public class ErrorInfo implements Serializable {
 
 	public ErrorInfo(Throwable exception, long timestamp) {
 		Preconditions.checkNotNull(exception);
+		Preconditions.checkArgument(timestamp > 0);
+
 		this.exception = exception;
 		this.timestamp = timestamp;
 	}
