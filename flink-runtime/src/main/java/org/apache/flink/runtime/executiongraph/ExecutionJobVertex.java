@@ -32,6 +32,7 @@ import org.apache.flink.core.io.LocatableInputSplit;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.instance.SlotProvider;
@@ -64,20 +65,18 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	public static final int VALUE_NOT_SET = -1;
 
 	private final Object stateMonitor = new Object();
-	
+
 	private final ExecutionGraph graph;
-	
+
 	private final JobVertex jobVertex;
-	
+
 	private final ExecutionVertex[] taskVertices;
 
 	private final IntermediateResult[] producedDataSets;
-	
-	private final List<IntermediateResult> inputs;
-	
-	private final int parallelism;
 
-	private final boolean[] finishedSubtasks;
+	private final List<IntermediateResult> inputs;
+
+	private final int parallelism;
 
 	private final SlotSharingGroup slotSharingGroup;
 
@@ -88,8 +87,6 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	private final boolean maxParallelismConfigured;
 
 	private int maxParallelism;
-
-	private volatile int numSubtasksInFinalState;
 
 	/**
 	 * Serialized task information which is for all sub tasks the same. Thus, it avoids to
@@ -210,8 +207,6 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		catch (Throwable t) {
 			throw new JobException("Creating the input splits caused an error: " + t.getMessage(), t);
 		}
-		
-		finishedSubtasks = new boolean[parallelism];
 	}
 
 	public void setMaxParallelism(int maxParallelismDerived) {
@@ -319,10 +314,6 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		}
 
 		return serializedTaskInformation;
-	}
-
-	public boolean isInFinalState() {
-		return numSubtasksInFinalState == parallelism;
 	}
 
 	@Override
@@ -445,51 +436,51 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		return slots;
 	}
 
+	/**
+	 * Cancels all currently running vertex executions.
+	 */
 	public void cancel() {
 		for (ExecutionVertex ev : getTaskVertices()) {
 			ev.cancel();
 		}
 	}
-	
+
+	/**
+	 * Cancels all currently running vertex executions.
+	 * 
+	 * @return A future that is complete once all tasks have canceled.
+	 */
+	public Future<Void> cancelWithFuture() {
+		// we collect all futures from the task cancellations
+		ArrayList<Future<?>> futures = new ArrayList<>(parallelism);
+
+		// cancel each vertex
+		for (ExecutionVertex ev : getTaskVertices()) {
+			futures.add(ev.cancel());
+		}
+
+		// return a conjunct future, which is complete once all individual tasks are canceled
+		return FutureUtils.combineAll(futures);
+	}
+
 	public void fail(Throwable t) {
 		for (ExecutionVertex ev : getTaskVertices()) {
 			ev.fail(t);
 		}
 	}
-	
-	public void waitForAllVerticesToReachFinishingState() throws InterruptedException {
-		synchronized (stateMonitor) {
-			while (numSubtasksInFinalState < parallelism) {
-				stateMonitor.wait();
-			}
-		}
-	}
-	
+
 	public void resetForNewExecution() {
-		if (!(numSubtasksInFinalState == 0 || numSubtasksInFinalState == parallelism)) {
-			throw new IllegalStateException("Cannot reset vertex that is not in final state");
-		}
-		
+
 		synchronized (stateMonitor) {
 			// check and reset the sharing groups with scheduler hints
 			if (slotSharingGroup != null) {
 				slotSharingGroup.clearTaskAssignment();
 			}
-			
-			// reset vertices one by one. if one reset fails, the "vertices in final state"
-			// fields will be consistent to handle triggered cancel calls
+
 			for (int i = 0; i < parallelism; i++) {
 				taskVertices[i].resetForNewExecution();
-				if (finishedSubtasks[i]) {
-					finishedSubtasks[i] = false;
-					numSubtasksInFinalState--;
-				}
 			}
-			
-			if (numSubtasksInFinalState != 0) {
-				throw new RuntimeException("Bug: resetting the execution job vertex failed.");
-			}
-			
+
 			// set up the input splits again
 			try {
 				if (this.inputSplits != null) {
@@ -506,51 +497,6 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 			// Reset intermediate results
 			for (IntermediateResult result : producedDataSets) {
 				result.resetForNewExecution();
-			}
-		}
-	}
-	
-	//---------------------------------------------------------------------------------------------
-	//  Notifications
-	//---------------------------------------------------------------------------------------------
-	
-	void vertexFinished(int subtask) {
-		subtaskInFinalState(subtask);
-	}
-	
-	void vertexCancelled(int subtask) {
-		subtaskInFinalState(subtask);
-	}
-	
-	void vertexFailed(int subtask, Throwable error) {
-		subtaskInFinalState(subtask);
-	}
-	
-	private void subtaskInFinalState(int subtask) {
-		synchronized (stateMonitor) {
-			if (!finishedSubtasks[subtask]) {
-				finishedSubtasks[subtask] = true;
-				
-				if (numSubtasksInFinalState+1 == parallelism) {
-					
-					// call finalizeOnMaster hook
-					try {
-						getJobVertex().finalizeOnMaster(getGraph().getUserClassLoader());
-					}
-					catch (Throwable t) {
-						getGraph().fail(t);
-					}
-
-					numSubtasksInFinalState++;
-					
-					// we are in our final state
-					stateMonitor.notifyAll();
-					
-					// tell the graph
-					graph.jobVertexInFinalState();
-				} else {
-					numSubtasksInFinalState++;
-				}
 			}
 		}
 	}

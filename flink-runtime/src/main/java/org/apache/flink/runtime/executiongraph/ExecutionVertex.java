@@ -22,6 +22,7 @@ import org.apache.flink.api.common.Archiveable;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.JobException;
+import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.PartialInputChannelDeploymentDescriptor;
@@ -60,8 +61,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static org.apache.flink.runtime.execution.ExecutionState.CANCELED;
-import static org.apache.flink.runtime.execution.ExecutionState.FAILED;
 import static org.apache.flink.runtime.execution.ExecutionState.FINISHED;
 
 /**
@@ -509,30 +508,41 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	//   Actions
 	// --------------------------------------------------------------------------------------------
 
-	public void resetForNewExecution() {
+	public Execution resetForNewExecution() {
 
 		LOG.debug("Resetting execution vertex {} for new execution.", getTaskNameWithSubtaskIndex());
 
 		synchronized (priorExecutions) {
-			Execution execution = currentExecution;
-			ExecutionState state = execution.getState();
+			final Execution oldExecution = currentExecution;
+			final ExecutionState oldState = oldExecution.getState();
 
-			if (state == FINISHED || state == CANCELED || state == FAILED) {
-				priorExecutions.add(execution);
-				currentExecution = new Execution(
+			if (oldState.isTerminal()) {
+				priorExecutions.add(oldExecution);
+
+				final Execution newExecution = new Execution(
 					getExecutionGraph().getFutureExecutor(),
 					this,
-					execution.getAttemptNumber()+1,
+						oldExecution.getAttemptNumber()+1,
 					System.currentTimeMillis(),
 					timeout);
+
+				this.currentExecution = newExecution;
 
 				CoLocationGroup grp = jobVertex.getCoLocationGroup();
 				if (grp != null) {
 					this.locationConstraint = grp.getLocationConstraint(subTaskIndex);
 				}
+
+				// if the execution was 'FINISHED' before, tell the ExecutionGraph that
+				// we take one step back on the road to reaching global FINISHED
+				if (oldState == FINISHED) {
+					getExecutionGraph().vertexUnFinished();
+				}
+
+				return newExecution;
 			}
 			else {
-				throw new IllegalStateException("Cannot reset a vertex that is in state " + state);
+				throw new IllegalStateException("Cannot reset a vertex that is in non-terminal state " + oldState);
 			}
 		}
 	}
@@ -545,8 +555,16 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		this.currentExecution.deployToSlot(slot);
 	}
 
-	public void cancel() {
-		this.currentExecution.cancel();
+	/**
+	 *  
+	 * @return A future that completes once the execution has reached its final state.
+	 */
+	public Future<ExecutionState> cancel() {
+		// to avoid any case of mixup in the presence of concurrent calls,
+		// we copy a reference to the stack to make sure both calls go to the same Execution 
+		final Execution exec = this.currentExecution;
+		exec.cancel();
+		return exec.getTerminationFuture();
 	}
 
 	public void stop() {
@@ -621,16 +639,18 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	//   Notifications from the Execution Attempt
 	// --------------------------------------------------------------------------------------------
 
-	void executionFinished() {
-		jobVertex.vertexFinished(subTaskIndex);
+	void executionFinished(Execution execution) {
+		if (execution == currentExecution) {
+			getExecutionGraph().vertexFinished();
+		}
 	}
 
-	void executionCanceled() {
-		jobVertex.vertexCancelled(subTaskIndex);
+	void executionCanceled(Execution execution) {
+		// nothing to do
 	}
 
-	void executionFailed(Throwable t) {
-		jobVertex.vertexFailed(subTaskIndex, t);
+	void executionFailed(Execution execution, Throwable cause) {
+		// nothing to do
 	}
 
 	// --------------------------------------------------------------------------------------------

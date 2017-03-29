@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 
@@ -52,9 +51,10 @@ import org.apache.flink.runtime.messages.TaskMessages.FailIntermediateResultPart
 import org.apache.flink.runtime.messages.TaskMessages.CancelTask;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.SerializedValue;
-import org.mockito.Matchers;
+
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
+
 import scala.concurrent.ExecutionContext;
 import scala.concurrent.ExecutionContext$;
 
@@ -197,10 +197,6 @@ public class ExecutionGraphTestUtils {
 				return null;
 			}
 		};
-
-		doAnswer(noop).when(ejv).vertexCancelled(Matchers.anyInt());
-		doAnswer(noop).when(ejv).vertexFailed(Matchers.anyInt(), Matchers.any(Throwable.class));
-		doAnswer(noop).when(ejv).vertexFinished(Matchers.anyInt());
 
 		return ejv;
 	}
