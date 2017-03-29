@@ -246,6 +246,13 @@ under the License.
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-shaded-hadoop2</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
 		<!-- end optional Flink libraries -->
 	</dependencies>
 
@@ -399,6 +406,20 @@ under the License.
 						<configuration>
 							<descriptors>
 								<descriptor>src/main/assemblies/opt.xml</descriptor>
+							</descriptors>
+							<finalName>flink-${project.version}-bin</finalName>
+							<appendAssemblyId>false</appendAssemblyId>
+						</configuration>
+					</execution>
+					<execution>
+						<id>lib</id>
+						<phase>package</phase>
+						<goals>
+							<goal>single</goal>
+						</goals>
+						<configuration>
+							<descriptors>
+								<descriptor>src/main/assemblies/lib.xml</descriptor>
 							</descriptors>
 							<finalName>flink-${project.version}-bin</finalName>
 							<appendAssemblyId>false</appendAssemblyId>
