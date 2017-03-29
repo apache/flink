@@ -32,14 +32,14 @@ import org.apache.flink.table.codegen.CodeGenerator
 import org.apache.flink.table.expressions.ExpressionUtils._
 import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.plan.nodes.CommonAggregate
-import org.apache.flink.table.plan.nodes.datastream.DataStreamAggregate._
 import org.apache.flink.table.plan.schema.RowSchema
+import org.apache.flink.table.plan.nodes.datastream.DataStreamGroupWindowAggregate._
 import org.apache.flink.table.runtime.aggregate.AggregateUtil._
 import org.apache.flink.table.runtime.aggregate._
 import org.apache.flink.table.typeutils.TypeCheckUtils.isTimeInterval
 import org.apache.flink.types.Row
 
-class DataStreamAggregate(
+class DataStreamGroupWindowAggregate(
     window: LogicalWindow,
     namedProperties: Seq[NamedWindowProperty],
     cluster: RelOptCluster,
@@ -54,7 +54,7 @@ class DataStreamAggregate(
   override def deriveRowType(): RelDataType = schema.logicalType
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
-    new DataStreamAggregate(
+    new DataStreamGroupWindowAggregate(
       window,
       namedProperties,
       cluster,
@@ -193,7 +193,7 @@ class DataStreamAggregate(
   }
 }
 
-object DataStreamAggregate {
+object DataStreamGroupWindowAggregate {
 
 
   private def createKeyedWindowedStream(groupWindow: LogicalWindow, stream: KeyedStream[Row, Tuple])

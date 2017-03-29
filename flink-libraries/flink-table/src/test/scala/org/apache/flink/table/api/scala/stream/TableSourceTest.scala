@@ -63,7 +63,7 @@ class TableSourceTest extends TableTestBase {
       unaryNode(
         "DataStreamCalc",
         unaryNode(
-          "DataStreamAggregate",
+          "DataStreamGroupWindowAggregate",
           unaryNode(
             "DataStreamCalc",
             "StreamTableSourceScan(table=[[rowTimeT]], fields=[id, val, name, addTime])",
