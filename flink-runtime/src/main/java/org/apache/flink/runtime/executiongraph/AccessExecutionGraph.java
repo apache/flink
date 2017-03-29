@@ -66,9 +66,9 @@ public interface AccessExecutionGraph {
 	 * Returns the exception that caused the job to fail. This is the first root exception
 	 * that was not recoverable and triggered job failure.
 	 *
-	 * @return failure causing exception as a string, or {@code "(null)"}
+	 * @return failure causing exception, or null
 	 */
-	String getFailureCauseAsString();
+	ErrorInfo getFailureCause();
 
 	/**
 	 * Returns the job vertex for the given {@link JobVertexID}.
