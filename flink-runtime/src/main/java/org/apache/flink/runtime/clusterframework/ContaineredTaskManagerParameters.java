@@ -146,8 +146,9 @@ public class ContaineredTaskManagerParameters implements java.io.Serializable {
 		final boolean useOffHeap = config.getBoolean(TaskManagerOptions.MEMORY_OFF_HEAP);
 
 		final long heapSizeMB;
+		long offHeapSize = -1;
 		if (useOffHeap) {
-			long offHeapSize = config.getLong(TaskManagerOptions.MANAGED_MEMORY_SIZE);
+			offHeapSize = config.getLong(TaskManagerOptions.MANAGED_MEMORY_SIZE);
 
 			if (offHeapSize <= 0) {
 				double fraction = config.getFloat(TaskManagerOptions.MANAGED_MEMORY_FRACTION);
@@ -174,6 +175,6 @@ public class ContaineredTaskManagerParameters implements java.io.Serializable {
 		
 		// done
 		return new ContaineredTaskManagerParameters(
-			containerMemoryMB, heapSizeMB, javaMemorySizeMB, numSlots, envVars);
+			containerMemoryMB, heapSizeMB, offHeapSize, numSlots, envVars);
 	}
 }
