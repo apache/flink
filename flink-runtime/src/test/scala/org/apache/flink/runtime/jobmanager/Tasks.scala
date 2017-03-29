@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.jobmanager
 
-import org.apache.flink.runtime.checkpoint.{CheckpointMetaData, CheckpointMetrics, CheckpointOptions}
 import org.apache.flink.runtime.execution.Environment
 import org.apache.flink.runtime.io.network.api.reader.RecordReader
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter
@@ -42,30 +41,6 @@ object Tasks {
       }finally{
         writer.clearBuffers()
       }
-    }
-
-    override def triggerCheckpoint(checkpointMetaData: CheckpointMetaData,
-                                    checkpointOptions: CheckpointOptions): Boolean = {
-      throw new UnsupportedOperationException(
-        String.format("triggerCheckpoint not supported by %s", this.getClass.getName))
-    }
-
-    override def triggerCheckpointOnBarrier(checkpointMetaData: CheckpointMetaData,
-                                            checkpointOptions: CheckpointOptions,
-                                            checkpointMetrics: CheckpointMetrics): Unit = {
-      throw new UnsupportedOperationException(
-        String.format("triggerCheckpointOnBarrier not supported by %s", this.getClass.getName))
-    }
-
-    override def abortCheckpointOnBarrier(checkpointId: Long,
-                                            cause: Throwable): Unit = {
-      throw new UnsupportedOperationException(
-        String.format("abortCheckpointOnBarrier not supported by %s", this.getClass.getName))
-    }
-
-    override def notifyCheckpointComplete(checkpointId: Long): Unit = {
-      throw new UnsupportedOperationException(
-        String.format("notifyCheckpointComplete not supported by %s", this.getClass.getName))
     }
   }
 
@@ -96,30 +71,6 @@ object Tasks {
         writer.clearBuffers()
       }
     }
-
-    override def triggerCheckpoint(checkpointMetaData: CheckpointMetaData,
-                                   checkpointOptions: CheckpointOptions): Boolean = {
-      throw new UnsupportedOperationException(
-        String.format("triggerCheckpoint not supported by %s", this.getClass.getName))
-    }
-
-    override def triggerCheckpointOnBarrier(checkpointMetaData: CheckpointMetaData,
-                                            checkpointOptions: CheckpointOptions,
-                                            checkpointMetrics: CheckpointMetrics): Unit = {
-      throw new UnsupportedOperationException(
-        String.format("triggerCheckpointOnBarrier not supported by %s", this.getClass.getName))
-    }
-
-    override def abortCheckpointOnBarrier(checkpointId: Long,
-                                          cause: Throwable): Unit = {
-      throw new UnsupportedOperationException(
-        String.format("abortCheckpointOnBarrier not supported by %s", this.getClass.getName))
-    }
-
-    override def notifyCheckpointComplete(checkpointId: Long): Unit = {
-      throw new UnsupportedOperationException(
-        String.format("notifyCheckpointComplete not supported by %s", this.getClass.getName))
-    }
   }
 
   class Receiver(environment: Environment, taskStateHandles: TaskStateHandles)
@@ -138,30 +89,6 @@ object Tasks {
       if(i1.getValue != 42 || i2.getValue != 1337 || i3 != null){
         throw new Exception("Wrong data received.")
       }
-    }
-
-    override def triggerCheckpoint(checkpointMetaData: CheckpointMetaData,
-                                   checkpointOptions: CheckpointOptions): Boolean = {
-      throw new UnsupportedOperationException(
-        String.format("triggerCheckpoint not supported by %s", this.getClass.getName))
-    }
-
-    override def triggerCheckpointOnBarrier(checkpointMetaData: CheckpointMetaData,
-                                            checkpointOptions: CheckpointOptions,
-                                            checkpointMetrics: CheckpointMetrics): Unit = {
-      throw new UnsupportedOperationException(
-        String.format("triggerCheckpointOnBarrier not supported by %s", this.getClass.getName))
-    }
-
-    override def abortCheckpointOnBarrier(checkpointId: Long,
-                                          cause: Throwable): Unit = {
-      throw new UnsupportedOperationException(
-        String.format("abortCheckpointOnBarrier not supported by %s", this.getClass.getName))
-    }
-
-    override def notifyCheckpointComplete(checkpointId: Long): Unit = {
-      throw new UnsupportedOperationException(
-        String.format("notifyCheckpointComplete not supported by %s", this.getClass.getName))
     }
   }
 
@@ -215,30 +142,6 @@ object Tasks {
 
       while(reader.next() != null){}
     }
-
-    override def triggerCheckpoint(checkpointMetaData: CheckpointMetaData,
-                                   checkpointOptions: CheckpointOptions): Boolean = {
-      throw new UnsupportedOperationException(
-        String.format("triggerCheckpoint not supported by %s", this.getClass.getName))
-    }
-
-    override def triggerCheckpointOnBarrier(checkpointMetaData: CheckpointMetaData,
-                                            checkpointOptions: CheckpointOptions,
-                                            checkpointMetrics: CheckpointMetrics): Unit = {
-      throw new UnsupportedOperationException(
-        String.format("triggerCheckpointOnBarrier not supported by %s", this.getClass.getName))
-    }
-
-    override def abortCheckpointOnBarrier(checkpointId: Long,
-                                          cause: Throwable): Unit = {
-      throw new UnsupportedOperationException(
-        String.format("abortCheckpointOnBarrier not supported by %s", this.getClass.getName))
-    }
-
-    override def notifyCheckpointComplete(checkpointId: Long): Unit = {
-      throw new UnsupportedOperationException(
-        String.format("notifyCheckpointComplete not supported by %s", this.getClass.getName))
-    }
   }
 
   class AgnosticBinaryReceiver(environment: Environment, taskStateHandles: TaskStateHandles)
@@ -257,30 +160,6 @@ object Tasks {
 
       while(reader1.next() != null){}
       while(reader2.next() != null){}
-    }
-
-    override def triggerCheckpoint(checkpointMetaData: CheckpointMetaData,
-                                   checkpointOptions: CheckpointOptions): Boolean = {
-      throw new UnsupportedOperationException(
-        String.format("triggerCheckpoint not supported by %s", this.getClass.getName))
-    }
-
-    override def triggerCheckpointOnBarrier(checkpointMetaData: CheckpointMetaData,
-                                            checkpointOptions: CheckpointOptions,
-                                            checkpointMetrics: CheckpointMetrics): Unit = {
-      throw new UnsupportedOperationException(
-        String.format("triggerCheckpointOnBarrier not supported by %s", this.getClass.getName))
-    }
-
-    override def abortCheckpointOnBarrier(checkpointId: Long,
-                                          cause: Throwable): Unit = {
-      throw new UnsupportedOperationException(
-        String.format("abortCheckpointOnBarrier not supported by %s", this.getClass.getName))
-    }
-
-    override def notifyCheckpointComplete(checkpointId: Long): Unit = {
-      throw new UnsupportedOperationException(
-        String.format("notifyCheckpointComplete not supported by %s", this.getClass.getName))
     }
   }
 
@@ -309,30 +188,6 @@ object Tasks {
       while(reader2.next() != null){}
       while(reader3.next() != null){}
     }
-
-    override def triggerCheckpoint(checkpointMetaData: CheckpointMetaData,
-                                   checkpointOptions: CheckpointOptions): Boolean = {
-      throw new UnsupportedOperationException(
-        String.format("triggerCheckpoint not supported by %s", this.getClass.getName))
-    }
-
-    override def triggerCheckpointOnBarrier(checkpointMetaData: CheckpointMetaData,
-                                            checkpointOptions: CheckpointOptions,
-                                            checkpointMetrics: CheckpointMetrics): Unit = {
-      throw new UnsupportedOperationException(
-        String.format("triggerCheckpointOnBarrier not supported by %s", this.getClass.getName))
-    }
-
-    override def abortCheckpointOnBarrier(checkpointId: Long,
-                                          cause: Throwable): Unit = {
-      throw new UnsupportedOperationException(
-        String.format("abortCheckpointOnBarrier not supported by %s", this.getClass.getName))
-    }
-
-    override def notifyCheckpointComplete(checkpointId: Long): Unit = {
-      throw new UnsupportedOperationException(
-        String.format("notifyCheckpointComplete not supported by %s", this.getClass.getName))
-    }
   }
 
   class ExceptionSender(environment: Environment, taskStateHandles: TaskStateHandles)
@@ -340,30 +195,6 @@ object Tasks {
 
     override def invoke(): Unit = {
       throw new Exception("Test exception")
-    }
-
-    override def triggerCheckpoint(checkpointMetaData: CheckpointMetaData,
-                                   checkpointOptions: CheckpointOptions): Boolean = {
-      throw new UnsupportedOperationException(
-        String.format("triggerCheckpoint not supported by %s", this.getClass.getName))
-    }
-
-    override def triggerCheckpointOnBarrier(checkpointMetaData: CheckpointMetaData,
-                                            checkpointOptions: CheckpointOptions,
-                                            checkpointMetrics: CheckpointMetrics): Unit = {
-      throw new UnsupportedOperationException(
-        String.format("triggerCheckpointOnBarrier not supported by %s", this.getClass.getName))
-    }
-
-    override def abortCheckpointOnBarrier(checkpointId: Long,
-                                          cause: Throwable): Unit = {
-      throw new UnsupportedOperationException(
-        String.format("abortCheckpointOnBarrier not supported by %s", this.getClass.getName))
-    }
-
-    override def notifyCheckpointComplete(checkpointId: Long): Unit = {
-      throw new UnsupportedOperationException(
-        String.format("notifyCheckpointComplete not supported by %s", this.getClass.getName))
     }
   }
 
@@ -379,30 +210,6 @@ object Tasks {
         o.synchronized(o.wait())
       }
     }
-
-    override def triggerCheckpoint(checkpointMetaData: CheckpointMetaData,
-                                   checkpointOptions: CheckpointOptions): Boolean = {
-      throw new UnsupportedOperationException(
-        String.format("triggerCheckpoint not supported by %s", this.getClass.getName))
-    }
-
-    override def triggerCheckpointOnBarrier(checkpointMetaData: CheckpointMetaData,
-                                            checkpointOptions: CheckpointOptions,
-                                            checkpointMetrics: CheckpointMetrics): Unit = {
-      throw new UnsupportedOperationException(
-        String.format("triggerCheckpointOnBarrier not supported by %s", this.getClass.getName))
-    }
-
-    override def abortCheckpointOnBarrier(checkpointId: Long,
-                                          cause: Throwable): Unit = {
-      throw new UnsupportedOperationException(
-        String.format("abortCheckpointOnBarrier not supported by %s", this.getClass.getName))
-    }
-
-    override def notifyCheckpointComplete(checkpointId: Long): Unit = {
-      throw new UnsupportedOperationException(
-        String.format("notifyCheckpointComplete not supported by %s", this.getClass.getName))
-    }
   }
 
   object SometimesExceptionSender {
@@ -415,30 +222,6 @@ object Tasks {
     override def invoke(): Unit = {
       throw new Exception("Test exception")
     }
-
-    override def triggerCheckpoint(checkpointMetaData: CheckpointMetaData,
-                                   checkpointOptions: CheckpointOptions): Boolean = {
-      throw new UnsupportedOperationException(
-        String.format("triggerCheckpoint not supported by %s", this.getClass.getName))
-    }
-
-    override def triggerCheckpointOnBarrier(checkpointMetaData: CheckpointMetaData,
-                                            checkpointOptions: CheckpointOptions,
-                                            checkpointMetrics: CheckpointMetrics): Unit = {
-      throw new UnsupportedOperationException(
-        String.format("triggerCheckpointOnBarrier not supported by %s", this.getClass.getName))
-    }
-
-    override def abortCheckpointOnBarrier(checkpointId: Long,
-                                          cause: Throwable): Unit = {
-      throw new UnsupportedOperationException(
-        String.format("abortCheckpointOnBarrier not supported by %s", this.getClass.getName))
-    }
-
-    override def notifyCheckpointComplete(checkpointId: Long): Unit = {
-      throw new UnsupportedOperationException(
-        String.format("notifyCheckpointComplete not supported by %s", this.getClass.getName))
-    }
   }
 
   class InstantiationErrorSender(environment: Environment, taskStateHandles: TaskStateHandles)
@@ -446,30 +229,6 @@ object Tasks {
     throw new RuntimeException("Test exception in constructor")
 
     override def invoke(): Unit = {
-    }
-
-    override def triggerCheckpoint(checkpointMetaData: CheckpointMetaData,
-                                   checkpointOptions: CheckpointOptions): Boolean = {
-      throw new UnsupportedOperationException(
-        String.format("triggerCheckpoint not supported by %s", this.getClass.getName))
-    }
-
-    override def triggerCheckpointOnBarrier(checkpointMetaData: CheckpointMetaData,
-                                            checkpointOptions: CheckpointOptions,
-                                            checkpointMetrics: CheckpointMetrics): Unit = {
-      throw new UnsupportedOperationException(
-        String.format("triggerCheckpointOnBarrier not supported by %s", this.getClass.getName))
-    }
-
-    override def abortCheckpointOnBarrier(checkpointId: Long,
-                                          cause: Throwable): Unit = {
-      throw new UnsupportedOperationException(
-        String.format("abortCheckpointOnBarrier not supported by %s", this.getClass.getName))
-    }
-
-    override def notifyCheckpointComplete(checkpointId: Long): Unit = {
-      throw new UnsupportedOperationException(
-        String.format("notifyCheckpointComplete not supported by %s", this.getClass.getName))
     }
   }
 
@@ -486,30 +245,6 @@ object Tasks {
       val o = new Object()
       o.synchronized(o.wait())
     }
-
-    override def triggerCheckpoint(checkpointMetaData: CheckpointMetaData,
-                                   checkpointOptions: CheckpointOptions): Boolean = {
-      throw new UnsupportedOperationException(
-        String.format("triggerCheckpoint not supported by %s", this.getClass.getName))
-    }
-
-    override def triggerCheckpointOnBarrier(checkpointMetaData: CheckpointMetaData,
-                                            checkpointOptions: CheckpointOptions,
-                                            checkpointMetrics: CheckpointMetrics): Unit = {
-      throw new UnsupportedOperationException(
-        String.format("triggerCheckpointOnBarrier not supported by %s", this.getClass.getName))
-    }
-
-    override def abortCheckpointOnBarrier(checkpointId: Long,
-                                          cause: Throwable): Unit = {
-      throw new UnsupportedOperationException(
-        String.format("abortCheckpointOnBarrier not supported by %s", this.getClass.getName))
-    }
-
-    override def notifyCheckpointComplete(checkpointId: Long): Unit = {
-      throw new UnsupportedOperationException(
-        String.format("notifyCheckpointComplete not supported by %s", this.getClass.getName))
-    }
   }
 
   object SometimesInstantiationErrorSender {
@@ -523,30 +258,6 @@ object Tasks {
       o.synchronized(
         o.wait()
       )
-    }
-
-    override def triggerCheckpoint(checkpointMetaData: CheckpointMetaData,
-                                   checkpointOptions: CheckpointOptions): Boolean = {
-      throw new UnsupportedOperationException(
-        String.format("triggerCheckpoint not supported by %s", this.getClass.getName))
-    }
-
-    override def triggerCheckpointOnBarrier(checkpointMetaData: CheckpointMetaData,
-                                            checkpointOptions: CheckpointOptions,
-                                            checkpointMetrics: CheckpointMetrics): Unit = {
-      throw new UnsupportedOperationException(
-        String.format("triggerCheckpointOnBarrier not supported by %s", this.getClass.getName))
-    }
-
-    override def abortCheckpointOnBarrier(checkpointId: Long,
-                                          cause: Throwable): Unit = {
-      throw new UnsupportedOperationException(
-        String.format("abortCheckpointOnBarrier not supported by %s", this.getClass.getName))
-    }
-
-    override def notifyCheckpointComplete(checkpointId: Long): Unit = {
-      throw new UnsupportedOperationException(
-        String.format("notifyCheckpointComplete not supported by %s", this.getClass.getName))
     }
   }
 }

@@ -180,7 +180,9 @@ public abstract class AbstractInvokable {
 	 *
 	 * @return {@code false} if the checkpoint can not be carried out, {@code true} otherwise
 	 */
-	public abstract boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) throws Exception;
+	public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) throws Exception {
+		throw new UnsupportedOperationException(String.format("triggerCheckpoint not supported by %s", this.getClass().getName()));
+	}
 
 	/**
 	 * This method is called when a checkpoint is triggered as a result of receiving checkpoint
@@ -192,7 +194,9 @@ public abstract class AbstractInvokable {
 	 *
 	 * @throws Exception Exceptions thrown as the result of triggering a checkpoint are forwarded.
 	 */
-	public abstract void triggerCheckpointOnBarrier(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions, CheckpointMetrics checkpointMetrics) throws Exception;
+	public void triggerCheckpointOnBarrier(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions, CheckpointMetrics checkpointMetrics) throws Exception {
+		throw new UnsupportedOperationException(String.format("triggerCheckpointOnBarrier not supported by %s", this.getClass().getName()));
+	}
 
 	/**
 	 * Aborts a checkpoint as the result of receiving possibly some checkpoint barriers,
@@ -204,7 +208,9 @@ public abstract class AbstractInvokable {
 	 * @param checkpointId The ID of the checkpoint to be aborted.
 	 * @param cause The reason why the checkpoint was aborted during alignment
 	 */
-	public abstract void abortCheckpointOnBarrier(long checkpointId, Throwable cause) throws Exception;
+	public void abortCheckpointOnBarrier(long checkpointId, Throwable cause) throws Exception {
+		throw new UnsupportedOperationException(String.format("abortCheckpointOnBarrier not supported by %s", this.getClass().getName()));
+	}
 
 	/**
 	 * Invoked when a checkpoint has been completed, i.e., when the checkpoint coordinator has received
@@ -213,5 +219,7 @@ public abstract class AbstractInvokable {
 	 * @param checkpointId The ID of the checkpoint that is complete..
 	 * @throws Exception The notification method may forward its exceptions.
 	 */
-	public abstract void notifyCheckpointComplete(long checkpointId) throws Exception;
+	public void notifyCheckpointComplete(long checkpointId) throws Exception {
+		throw new UnsupportedOperationException(String.format("notifyCheckpointComplete not supported by %s", this.getClass().getName()));
+	}
 }

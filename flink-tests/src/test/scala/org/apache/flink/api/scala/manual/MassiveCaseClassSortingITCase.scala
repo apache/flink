@@ -36,7 +36,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.runtime.operators.sort.UnilateralSortMerger
 import org.apache.flink.api.java.typeutils.runtime.RuntimeSerializerFactory
-import org.apache.flink.runtime.checkpoint.{CheckpointMetaData, CheckpointMetrics, CheckpointOptions}
 import org.apache.flink.runtime.execution.Environment
 import org.junit.Assert._
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable
@@ -247,27 +246,4 @@ class DummyInvokable(environment: Environment, taskStateHandles: TaskStateHandle
   extends AbstractInvokable(environment, taskStateHandles) {
 
   override def invoke() = {}
-
-  override def triggerCheckpoint(checkpointMetaData: CheckpointMetaData,
-                                  checkpointOptions: CheckpointOptions): Boolean = {
-    throw new UnsupportedOperationException(
-      String.format("triggerCheckpoint not supported by %s", this.getClass.getName))
-  }
-
-  override def triggerCheckpointOnBarrier(checkpointMetaData: CheckpointMetaData,
-                                          checkpointOptions: CheckpointOptions,
-                                          checkpointMetrics: CheckpointMetrics): Unit = {
-    throw new UnsupportedOperationException(
-      String.format("triggerCheckpointOnBarrier not supported by %s", this.getClass.getName))
-  }
-
-  override def abortCheckpointOnBarrier(checkpointId: Long, cause: Throwable): Unit = {
-    throw new UnsupportedOperationException(
-      String.format("abortCheckpointOnBarrier not supported by %s", this.getClass.getName))
-  }
-
-  override def notifyCheckpointComplete(checkpointId: Long): Unit = {
-    throw new UnsupportedOperationException(
-      String.format("notifyCheckpointComplete not supported by %s", this.getClass.getName))
-  }
 }
