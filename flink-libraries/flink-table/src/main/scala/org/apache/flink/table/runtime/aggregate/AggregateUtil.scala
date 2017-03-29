@@ -105,8 +105,8 @@ object AggregateUtil {
     namedAggregates: Seq[CalcitePair[AggregateCall, String]],
     inputType: RelDataType,
     precedingOffset: Long,
-    isRangeClause: Boolean = false,
-    isRowTimeType: Boolean = false): ProcessFunction[Row, Row] = {
+    isRangeClause: Boolean,
+    isRowTimeType: Boolean): ProcessFunction[Row, Row] = {
 
     val (aggFields, aggregates) =
       transformToAggregateFunctions(

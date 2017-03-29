@@ -146,6 +146,7 @@ class RangeClauseBoundedOverProcessFunction(
       // keep up timestamps of retract data
       val retractTsList: JList[Long] = new JArrayList[Long]
 
+      // do retraction
       val dataTimestampIt = dataState.keys.iterator
       while (dataTimestampIt.hasNext) {
         val dataTs: Long = dataTimestampIt.next()
@@ -158,13 +159,49 @@ class RangeClauseBoundedOverProcessFunction(
             while (aggregatesIndex < aggregates.length) {
               val accumulator = accumulators.getField(aggregatesIndex).asInstanceOf[Accumulator]
               aggregates(aggregatesIndex)
-                .retract(accumulator, retractDataList.get(dataListIndex).getField(aggFields(aggregatesIndex)))
+                .retract(accumulator, retractDataList.get(dataListIndex)
+                .getField(aggFields(aggregatesIndex)))
               aggregatesIndex += 1
             }
             dataListIndex += 1
-            retractTsList.add(dataTs)
           }
+          retractTsList.add(dataTs)
         }
+      }
+
+      // do accumulation
+      dataListIndex = 0
+      while (dataListIndex < inputs.size()) {
+        // accumulate current row
+        aggregatesIndex = 0
+        while (aggregatesIndex < aggregates.length) {
+          val accumulator = accumulators.getField(aggregatesIndex).asInstanceOf[Accumulator]
+          aggregates(aggregatesIndex).accumulate(accumulator, inputs.get(dataListIndex)
+            .getField(aggFields(aggregatesIndex)))
+          aggregatesIndex += 1
+        }
+        dataListIndex += 1
+      }
+
+      // set aggregate in output row
+      aggregatesIndex = 0
+      while (aggregatesIndex < aggregates.length) {
+        val index = forwardedFieldCount + aggregatesIndex
+        val accumulator = accumulators.getField(aggregatesIndex).asInstanceOf[Accumulator]
+        output.setField(index, aggregates(aggregatesIndex).getValue(accumulator))
+        aggregatesIndex += 1
+      }
+
+      // copy forwarded fields to output row and emit output row
+      dataListIndex = 0
+      while (dataListIndex < inputs.size()) {
+        aggregatesIndex = 0
+        while (aggregatesIndex < forwardedFieldCount) {
+          output.setField(aggregatesIndex, inputs.get(dataListIndex).getField(aggregatesIndex))
+          aggregatesIndex += 1
+        }
+        out.collect(output)
+        dataListIndex += 1
       }
 
       // remove the data that has been retracted
@@ -174,36 +211,7 @@ class RangeClauseBoundedOverProcessFunction(
         dataListIndex += 1
       }
 
-      // copy forwarded fields to output row
-      aggregatesIndex = 0
-      while (aggregatesIndex < forwardedFieldCount) {
-        output.setField(aggregatesIndex, inputs.get(0).getField(aggregatesIndex))
-        aggregatesIndex += 1
-      }
-
-      dataListIndex = 0
-      while (dataListIndex < inputs.size()) {
-        // accumulate current row and set aggregate in output row
-        aggregatesIndex = 0
-        while (aggregatesIndex < aggregates.length) {
-          val index = forwardedFieldCount + aggregatesIndex
-          val accumulator = accumulators.getField(aggregatesIndex).asInstanceOf[Accumulator]
-          aggregates(aggregatesIndex).accumulate(accumulator, inputs.get(dataListIndex).getField(aggFields(aggregatesIndex)))
-          if (dataListIndex >= (inputs.size() - 1)) {
-            output.setField(index, aggregates(aggregatesIndex).getValue(accumulator))
-          }
-          aggregatesIndex += 1
-        }
-        dataListIndex += 1
-      }
-
-
-      dataListIndex = 0
-      while (dataListIndex < inputs.size()) {
-        out.collect(output)
-        dataListIndex += 1
-      }
-
+      // update state
       accumulatorState.update(accumulators)
       lastTriggeringTsState.update(timestamp)
     }
