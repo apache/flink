@@ -77,8 +77,8 @@ public class JobExceptionsHandler extends AbstractExecutionGraphRequestHandler {
 		
 		// most important is the root failure cause
 		ErrorInfo rootException = graph.getFailureCause();
-		if (rootException != null && !rootException.getFailureCauseAsString().equals(ExceptionUtils.STRINGIFIED_NULL_EXCEPTION)) {
-			gen.writeStringField("root-exception", rootException.getFailureCauseAsString());
+		if (rootException != null && !rootException.getExceptionAsString().equals(ExceptionUtils.STRINGIFIED_NULL_EXCEPTION)) {
+			gen.writeStringField("root-exception", rootException.getExceptionAsString());
 			gen.writeNumberField("timestamp", rootException.getTimestamp());
 		}
 

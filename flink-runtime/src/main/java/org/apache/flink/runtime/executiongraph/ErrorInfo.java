@@ -35,7 +35,7 @@ public class ErrorInfo implements Serializable {
 	private final long timestamp;
 
 	private volatile String exceptionAsString;
-	
+
 	public ErrorInfo(Throwable exception, long timestamp) {
 		Preconditions.checkNotNull(exception);
 		this.exception = exception;
@@ -52,12 +52,11 @@ public class ErrorInfo implements Serializable {
 	}
 
 	/**
-	 * Returns the exception that caused the job to fail. This is the first root exception
-	 * that was not recoverable and triggered job failure.
+	 * Returns the contained exception as a string.
 	 *
 	 * @return failure causing exception as a string, or {@code "(null)"}
 	 */
-	public String getFailureCauseAsString() {
+	public String getExceptionAsString() {
 		if (exceptionAsString == null) {
 			exceptionAsString = ExceptionUtils.stringifyException(exception);
 		}
@@ -72,7 +71,7 @@ public class ErrorInfo implements Serializable {
 	public long getTimestamp() {
 		return timestamp;
 	}
-	
+
 	private void writeObject(ObjectOutputStream out) throws IOException {
 		// make sure that the exception was stringified so it isn't lost during serialization
 		if (exceptionAsString == null) {
