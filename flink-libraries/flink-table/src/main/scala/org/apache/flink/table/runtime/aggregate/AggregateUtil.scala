@@ -139,13 +139,23 @@ object AggregateUtil {
         )
       }
     } else {
-      new BoundedProcessingOverRowProcessFunction(
-        aggregates,
-        aggFields,
-        precedingOffset,
-        inputType.getFieldCount,
-        aggregationStateType,
-        FlinkTypeFactory.toInternalRowTypeInfo(inputType))
+      if (isRangeClause) {
+        new BoundedProcessingOverRangeProcessFunction(
+          aggregates,
+          aggFields,
+          inputType.getFieldCount,
+          aggregationStateType,
+          precedingOffset,
+          FlinkTypeFactory.toInternalRowTypeInfo(inputType))
+      } else {
+        new BoundedProcessingOverRowProcessFunction(
+          aggregates,
+          aggFields,
+          precedingOffset,
+          inputType.getFieldCount,
+          aggregationStateType,
+          FlinkTypeFactory.toInternalRowTypeInfo(inputType))
+      }
     }
   }
 
@@ -1240,4 +1250,3 @@ object AggregateUtil {
     if (b == 0) a else gcd(b, a % b)
   }
 }
-

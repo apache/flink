@@ -114,12 +114,14 @@ class DataStreamOverAggregate(
             // ROWS clause bounded OVER window
             createBoundedAndCurrentRowOverWindow(
               inputDS,
-              isRangeClause = true,
+              isRangeClause = false,
               isRowTimeType = false)
           } else {
             // RANGE clause bounded OVER window
-            throw new TableException(
-              "processing-time OVER RANGE PRECEDING window is not supported yet.")
+            createBoundedAndCurrentRowOverWindow(
+              inputDS,
+              isRangeClause = true,
+              isRowTimeType = false)
           }
         } else {
           throw new TableException(
@@ -206,7 +208,7 @@ class DataStreamOverAggregate(
     val namedAggregates: Seq[CalcitePair[AggregateCall, String]] = generateNamedAggregates
 
     val precedingOffset =
-      getLowerBoundary(logicWindow, overWindow, getInput()) + 1
+      getLowerBoundary(logicWindow, overWindow, getInput()) + (if (isRangeClause) 0 else 1)
 
     // get the output types
     val rowTypeInfo = FlinkTypeFactory.toInternalRowTypeInfo(getRowType).asInstanceOf[RowTypeInfo]
