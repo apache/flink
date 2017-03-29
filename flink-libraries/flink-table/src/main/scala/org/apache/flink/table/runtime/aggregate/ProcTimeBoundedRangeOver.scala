@@ -38,7 +38,7 @@ import org.slf4j.LoggerFactory
   * Process Function used for the aggregate in bounded proc-time OVER window
   * [[org.apache.flink.streaming.api.datastream.DataStream]]
   *
-  * @param genAggregations Generated aggregate helper function
+  * @param genAggregations          Generated aggregate helper function
   * @param precedingTimeBoundary    Is used to indicate the processing time boundaries
   * @param aggregatesTypeInfo       row type info of aggregation
   * @param inputType                row type info of input row
