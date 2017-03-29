@@ -261,7 +261,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 
 	/** The exception that caused the job to fail. This is set to the first root exception
 	 * that was not recoverable and triggered job failure */
-	private volatile Throwable failureCause;
+	private volatile ErrorInfo failureCause;
 
 	// ------ Fields that are relevant to the execution and need to be cleared before archiving  -------
 
@@ -593,7 +593,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 		return state;
 	}
 
-	public Throwable getFailureCause() {
+	public ErrorInfo getFailureCause() {
 		return failureCause;
 	}
 
@@ -607,11 +607,6 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	public long getNumberOfFullRestarts() {
 		// subtract one, because the version starts at one
 		return globalModVersion - 1;
-	}
-
-	@Override
-	public String getFailureCauseAsString() {
-		return ExceptionUtils.stringifyException(failureCause);
 	}
 
 	@Override
@@ -1034,6 +1029,25 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	 * @param suspensionCause Cause of the suspension
 	 */
 	public void suspend(Throwable suspensionCause) {
+		suspend(new ErrorInfo(suspensionCause, System.currentTimeMillis()));
+	}
+
+	/**
+	 * Suspends the current ExecutionGraph.
+	 *
+	 * The JobStatus will be directly set to SUSPENDED iff the current state is not a terminal
+	 * state. All ExecutionJobVertices will be canceled and the postRunCleanup is executed.
+	 *
+	 * The SUSPENDED state is a local terminal state which stops the execution of the job but does
+	 * not remove the job from the HA job store so that it can be recovered by another JobManager.
+	 *
+	 * @param errorInfo ErrorInfo containing the cause of the suspension
+	 */
+	public void suspend(ErrorInfo errorInfo) {
+		Throwable suspensionCause = errorInfo != null
+			? errorInfo.getException()
+			: null;
+
 		while (true) {
 			JobStatus currentState = state;
 
@@ -1041,7 +1055,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 				// stay in a terminal state
 				return;
 			} else if (transitionState(currentState, JobStatus.SUSPENDED, suspensionCause)) {
-				this.failureCause = suspensionCause;
+				this.failureCause = errorInfo;
 
 				// make sure no concurrent local actions interfere with the cancellation
 				incrementGlobalModVersion();
@@ -1061,6 +1075,10 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 		}
 	}
 
+	public void failGlobal(Throwable suspensionCause) {
+		failGlobal(new ErrorInfo(suspensionCause, System.currentTimeMillis()));
+	}
+
 	/**
 	 * Fails the execution graph globally. This failure will not be recovered by a specific
 	 * failover strategy, but results in a full restart of all tasks.
@@ -1070,9 +1088,13 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	 * exceptions that indicate a bug or an unexpected call race), and where a full restart is the
 	 * safe way to get consistency back.
 	 * 
-	 * @param t The exception that caused the failure.
+	 * @param errorInfo ErrorInfo containing the exception that caused the failure.
 	 */
-	public void failGlobal(Throwable t) {
+	public void failGlobal(ErrorInfo errorInfo) {
+		Throwable t = errorInfo != null
+			? errorInfo.getException()
+			: null;
+
 		while (true) {
 			JobStatus current = state;
 			// stay in these states
@@ -1082,14 +1104,14 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 				return;
 			}
 			else if (current == JobStatus.RESTARTING) {
-				this.failureCause = t;
+				this.failureCause = errorInfo;
 
 				if (tryRestartOrFail()) {
 					return;
 				}
 			}
-			else if (transitionState(current, JobStatus.FAILING, t)) {
-				this.failureCause = t;
+			else if (transitionState(current, JobStatus.FAILING,t)) {
+				this.failureCause = errorInfo;
 
 				// make sure no concurrent local actions interfere with the cancellation
 				incrementGlobalModVersion();
@@ -1375,6 +1397,9 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 		JobStatus currentState = state;
 
 		if (currentState == JobStatus.FAILING || currentState == JobStatus.RESTARTING) {
+			Throwable failureCause = this.failureCause != null
+				? this.failureCause.getException()
+				: null;
 			synchronized (progressLock) {
 				if (LOG.isDebugEnabled()) {
 					LOG.debug("Try to restart or fail the job {} ({}) if no longer possible.", getJobName(), getJobID(), failureCause);
@@ -1633,6 +1658,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 		// see what this means for us. currently, the first FAILED state means -> FAILED
 		if (newExecutionState == ExecutionState.FAILED) {
 			final Throwable ex = error != null ? error : new FlinkException("Unknown Error (missing cause)");
+			long timestamp = execution.getStateTimestamp(ExecutionState.FAILED);
 
 			// by filtering out late failure calls, we can save some work in
 			// avoiding redundant local failover
@@ -1643,7 +1669,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 				catch (Throwable t) {
 					// bug in the failover strategy - fall back to global failover
 					LOG.warn("Error in failover strategy - falling back to global restart", t);
-					failGlobal(ex);
+					failGlobal(new ErrorInfo(ex, timestamp));
 				}
 			}
 		}
@@ -1674,7 +1700,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			archivedVerticesInCreationOrder,
 			stateTimestamps,
 			getState(),
-			getFailureCauseAsString(),
+			failureCause,
 			getJsonPlan(),
 			getAccumulatorResultsStringified(),
 			serializedUserAccumulators,
