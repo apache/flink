@@ -127,14 +127,8 @@ class DataStreamOverAggregate(
         // row-time OVER window
         if (overWindow.lowerBound.isPreceding &&
               overWindow.lowerBound.isUnbounded && overWindow.upperBound.isCurrentRow) {
-          if (overWindow.isRows) {
-            // unbounded preceding OVER ROWS window
-            createUnboundedAndCurrentRowEventTimeOverWindow(inputDS)
-          } else {
-            // unbounded preceding OVER RANGE window
-            throw new TableException(
-              "row-time OVER RANGE UNBOUNDED PRECEDING window is not supported yet.")
-          }
+          // ROWS/RANGE clause unbounded OVER window
+          createUnboundedAndCurrentRowEventTimeOverWindow(inputDS, overWindow.isRows)
         } else if (overWindow.lowerBound.isPreceding && overWindow.upperBound.isCurrentRow) {
           // bounded OVER window
           if (overWindow.isRows) {
@@ -202,8 +196,8 @@ class DataStreamOverAggregate(
 
   def createBoundedAndCurrentRowOverWindow(
     inputDS: DataStream[Row],
-    isRangeClause: Boolean = false,
-    isRowTimeType: Boolean = false): DataStream[Row] = {
+    isRangeClause: Boolean,
+    isRowTimeType: Boolean): DataStream[Row] = {
 
     val overWindow: Group = logicWindow.groups.get(0)
     val partitionKeys: Array[Int] = overWindow.keys.toArray
@@ -247,7 +241,8 @@ class DataStreamOverAggregate(
   }
 
   def createUnboundedAndCurrentRowEventTimeOverWindow(
-    inputDS: DataStream[Row]): DataStream[Row]  = {
+    inputDS: DataStream[Row],
+    isRows: Boolean): DataStream[Row] = {
 
     val overWindow: Group = logicWindow.groups.get(0)
     val partitionKeys: Array[Int] = overWindow.keys.toArray
@@ -258,7 +253,8 @@ class DataStreamOverAggregate(
 
     val processFunction = AggregateUtil.createUnboundedEventTimeOverProcessFunction(
       namedAggregates,
-      inputType)
+      inputType,
+      isRows)
 
     val result: DataStream[Row] =
       // partitioned aggregation
