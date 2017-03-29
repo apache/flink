@@ -703,7 +703,7 @@ class SqlITCase extends StreamingWithStateTestBase {
   
 
   @Test
-  def testSumMinAggregatation2(): Unit = {
+  def testSumMinPartitionedAggregatation2(): Unit = {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
@@ -744,7 +744,7 @@ class SqlITCase extends StreamingWithStateTestBase {
   }
   
   @Test
-  def testSumMinAggregatation4(): Unit = {
+  def testSumMinPartitionedAggregatation4(): Unit = {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
