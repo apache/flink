@@ -90,6 +90,7 @@ public class TaskExecutorITCase extends TestLogger {
 		final String jmAddress = "jm";
 		final UUID jmLeaderId = UUID.randomUUID();
 		final ResourceID rmResourceId = new ResourceID(rmAddress);
+		final ResourceID jmResourceId = new ResourceID(jmAddress);
 		final JobID jobId = new JobID();
 		final ResourceProfile resourceProfile = new ResourceProfile(1.0, 1);
 
@@ -180,7 +181,12 @@ public class TaskExecutorITCase extends TestLogger {
 			// notify the TM about the new RM leader
 			rmLeaderRetrievalService.notifyListener(rmAddress, rmLeaderId);
 
-			Future<RegistrationResponse> registrationResponseFuture = resourceManager.registerJobManager(rmLeaderId, jmLeaderId, jmAddress, jobId);
+			Future<RegistrationResponse> registrationResponseFuture = resourceManager.registerJobManager(
+				rmLeaderId,
+				jmLeaderId,
+				jmResourceId,
+				jmAddress,
+				jobId);
 
 			RegistrationResponse registrationResponse = registrationResponseFuture.get();
 
