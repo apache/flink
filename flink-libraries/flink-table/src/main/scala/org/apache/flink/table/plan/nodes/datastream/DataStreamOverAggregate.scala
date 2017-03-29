@@ -20,8 +20,6 @@ package org.apache.flink.table.plan.nodes.datastream
 import java.util.{ List => JList }
 
 import org.apache.flink.table.runtime.aggregate.AggregateUtil.CalcitePair
-import org.apache.calcite.plan.RelOptCluster
-import org.apache.calcite.plan.RelTraitSet
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.RelWriter
 import org.apache.calcite.rel.SingleRel
@@ -42,10 +40,6 @@ import org.apache.flink.table.runtime.aggregate.AggregateUtil
 import org.apache.flink.types.Row
 import org.apache.calcite.sql.`type`.IntervalSqlType
 import org.apache.calcite.rex.RexInputRef
-import org.apache.flink.streaming.api.windowing.time.Time
-import org.apache.flink.api.java.tuple.Tuple
-import org.apache.flink.util.Collector
-import java.util.concurrent.TimeUnit
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet} 
 import org.apache.flink.api.java.functions.NullByteKeySelector
 import org.apache.flink.api.java.functions.NullByteKeySelector
@@ -297,11 +291,7 @@ class DataStreamOverAggregate(
     val count = input.getRowType.getFieldCount
     val lowerBoundIndex = index - count
     
-    
-    val timeBoundary = logicWindow.constants.get(lowerBoundIndex).getValue2 match {
-      case bd: java.math.BigDecimal => bd.longValue()
-      case _ => throw new TableException("OVER Window boundaries must be numeric")
-    }
+    val timeBoundary = getLowerBoundary(logicWindow, overWindow, input)
 
      // get the output types
     val rowTypeInfo = FlinkTypeFactory.toInternalRowTypeInfo(getRowType).asInstanceOf[RowTypeInfo]

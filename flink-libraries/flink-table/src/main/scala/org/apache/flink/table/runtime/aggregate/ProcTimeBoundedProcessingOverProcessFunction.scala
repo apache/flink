@@ -29,18 +29,15 @@ import org.apache.flink.api.common.state.ValueState
 import org.apache.flink.api.common.state.ValueStateDescriptor
 import scala.util.control.Breaks._
 import org.apache.flink.api.java.tuple.{ Tuple2 => JTuple2 }
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo
-import org.apache.flink.api.java.typeutils.TupleTypeInfo
-import scala.collection.mutable.Queue
-import org.apache.flink.api.common.typeinfo.TypeHint
 import org.apache.flink.api.common.state.MapState
 import org.apache.flink.api.common.state.MapStateDescriptor
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.ListTypeInfo
 import java.util.{ ArrayList, LinkedList, List => JList }
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 
 /**
- * Process Function used for the aggregate in partitioned bounded windows in
+ * Process Function used for the aggregate in bounded proc-time OVER window
  * [[org.apache.flink.streaming.api.datastream.DataStream]]
  *
  * @param aggregates the list of all [[org.apache.flink.table.functions.AggregateFunction]]
@@ -118,7 +115,7 @@ class ProcTimeBoundedProcessingOverProcessFunction(
     val limit = currentTime - timeBoundary
     
     // we iterate through all elements in the window buffer based on timestampt keys
-    // when we fine timestamps that are out of interest, we need to get the corresponding elements
+    // when we find timestamps that are out of interest, we need to get the corresponding elements
     // and eliminate them. Multiple elements can be received at the same timestamp
     val iter = rowMapState.keys.iterator
     var markToRemove = new ArrayList[Long]()

@@ -19,10 +19,7 @@
 package org.apache.flink.table.api.scala.stream.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala.stream.sql.SqlITCase.{
-  EventTimeSourceFunction, 
-  RowResultSortComparator,
-  TupleRowSelector}
+import org.apache.flink.table.api.scala.stream.sql.SqlITCase.{EventTimeSourceFunction,RowResultSortComparator,TupleRowSelector}
 import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.watermark.Watermark
