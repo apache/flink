@@ -295,15 +295,15 @@ class DataStreamOverAggregate(
 
      // get the output types
     val rowTypeInfo = FlinkTypeFactory.toInternalRowTypeInfo(getRowType).asInstanceOf[RowTypeInfo]
+    
+      val processFunction = AggregateUtil.createTimeBoundedProcessingOverProcessFunction(
+            namedAggregates,
+            inputType,
+            timeBoundary)
          
     val result: DataStream[Row] =
         // partitioned aggregation
         if (partitionKeys.nonEmpty) {
-          
-          val processFunction = AggregateUtil.createTimeBoundedProcessingOverProcessFunction(
-            namedAggregates,
-            inputType,
-            timeBoundary)
           
           inputDS
           .keyBy(partitionKeys: _*)
@@ -312,11 +312,6 @@ class DataStreamOverAggregate(
           .name(aggOpName)
           .asInstanceOf[DataStream[Row]]
         } else { // non-partitioned aggregation
-          val processFunction = AggregateUtil.createTimeBoundedProcessingOverProcessFunction(
-            namedAggregates,
-            inputType,
-            timeBoundary,
-            false)
           
           inputDS
             .keyBy(new NullByteKeySelector[Row])

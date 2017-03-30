@@ -45,7 +45,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo
  * @param aggFields  the position (in the input Row) of the input value for each aggregate
  * @param forwardedFieldCount Is used to indicate fields in the current element to forward
  * @param rowTypeInfo Is used to indicate the field schema
- * @param timeBoundary Is used to indicate the processing time boundaries
+ * @param precedingTimeBoundary Is used to indicate the processing time boundaries
  * @param inputType It is used to mark the Row type of the input
  */
 class ProcTimeBoundedProcessingOverProcessFunction(
@@ -53,7 +53,7 @@ class ProcTimeBoundedProcessingOverProcessFunction(
   private val aggFields: Array[Int],
   private val forwardedFieldCount: Int,
   private val rowTypeInfo: RowTypeInfo,
-  private val timeBoundary: Long,
+  private val precedingTimeBoundary: Long,
   private val inputType: TypeInformation[Row])
     extends ProcessFunction[Row, Row] {
 
@@ -63,13 +63,13 @@ class ProcTimeBoundedProcessingOverProcessFunction(
 
   private var output: Row = _
   private var accumulatorState: ValueState[Row] = _
+  private var lastProcessedProcTime: ValueState[Long] = _
   private var rowMapState: MapState[Long, JList[Row]] = _
 
   override def open(config: Configuration) {
     output = new Row(forwardedFieldCount + aggregates.length)
 
-    // We keep the elements received in a list state 
-    // together with the ingestion time in the operator
+    // We keep the elements received in a MapState indexed based on their ingestion time 
     val rowListTypeInfo: TypeInformation[JList[Row]] =
       new ListTypeInfo[Row](inputType).asInstanceOf[TypeInformation[JList[Row]]]
     val mapStateDescriptor: MapStateDescriptor[Long, JList[Row]] =
@@ -80,6 +80,11 @@ class ProcTimeBoundedProcessingOverProcessFunction(
     val stateDescriptor: ValueStateDescriptor[Row] =
       new ValueStateDescriptor[Row]("overState", rowTypeInfo)
     accumulatorState = getRuntimeContext.getState(stateDescriptor)
+    
+     val stateDescriptorProcTime: ValueStateDescriptor[Long] =
+      new ValueStateDescriptor[Long]("lastProcessedTime", 
+          BasicTypeInfo.LONG_TYPE_INFO.asInstanceOf[TypeInformation[Long]])
+    lastProcessedProcTime = getRuntimeContext.getState(stateDescriptorProcTime)
   }
 
   override def processElement(
@@ -103,6 +108,9 @@ class ProcTimeBoundedProcessingOverProcessFunction(
         i += 1
       }
     }
+    
+    //initialize the time reference of the last event that was processed 
+    var lastProcTime = lastProcessedProcTime.value()
 
     //set the fields of the last event to carry on with the aggregates
     i = 0
@@ -111,37 +119,44 @@ class ProcTimeBoundedProcessingOverProcessFunction(
       i += 1
     }
 
-    //update the elements to be removed and retract them from aggregators
-    val limit = currentTime - timeBoundary
+    //in case some other events arrived in the same time, we do not need to retract anymore 
+    if (lastProcTime != currentTime) {
     
-    // we iterate through all elements in the window buffer based on timestampt keys
-    // when we find timestamps that are out of interest, we need to get the corresponding elements
-    // and eliminate them. Multiple elements can be received at the same timestamp
-    val iter = rowMapState.keys.iterator
-    var markToRemove = new ArrayList[Long]()
-    while (iter.hasNext()) {
-      val elementKey = iter.next
-      if (elementKey < limit) {
-        val elementsRemove = rowMapState.get(elementKey)
-        val iterRemove = elementsRemove.iterator()
-        while (iterRemove.hasNext()) {
-         val remove = iterRemove.next() 
-         i = 0
-         while (i < aggregates.length) {
-           val accumulator = accumulators.getField(i).asInstanceOf[Accumulator]
-           aggregates(i).retract(accumulator, remove.getField(aggFields(i)))
-           i += 1
-         }
+      //update the elements to be removed and retract them from aggregators
+      val limit = currentTime - precedingTimeBoundary
+    
+      // we iterate through all elements in the window buffer based on timestamp keys
+      // when we find timestamps that are out of interest, we retrieve corresponding elements
+      // and eliminate them. Multiple elements can be received at the same timestamp
+      val iter = rowMapState.keys.iterator
+      var markToRemove = new ArrayList[Long]()
+      while (iter.hasNext()) {
+        val elementKey = iter.next
+        if (elementKey < limit) {
+          val elementsRemove = rowMapState.get(elementKey)
+          var iRemove = 0
+          while (iRemove < elementsRemove.size()) {
+            i = 0
+            while (i < aggregates.length) {
+              val accumulator = accumulators.getField(i).asInstanceOf[Accumulator]
+              aggregates(i).retract(accumulator, elementsRemove.get(iRemove)
+                 .getField(aggFields(i)))
+              i += 1
+            }
+            iRemove += 1
+          }
+          //mark element for later removal not to modify the iterator over MapState
+          markToRemove.add(elementKey)
         }
-       markToRemove.add(elementKey)
+      }
+      //need to remove in 2 steps not to have concurrent access errors via iterator to the MapState
+      i = 0
+      while (i < markToRemove.size()) {
+        rowMapState.remove(markToRemove.get(i))
+        i += 1
       }
     }
-    //need to remove in 2 steps not to have concurrent access errors via iterator to the MapState
-    var iterRemove = markToRemove.iterator()
-    while (iterRemove.hasNext()) {
-      rowMapState.remove(iterRemove.next())
-    }
-
+    
     //add current element to aggregator  
     i = 0
     while (i < aggregates.length) {
@@ -160,6 +175,8 @@ class ProcTimeBoundedProcessingOverProcessFunction(
     }
     rowList.add(input)
     rowMapState.put(currentTime, rowList)
+    //keep the value of the time when last processing happened
+    lastProcessedProcTime.update(currentTime)
 
     out.collect(output)
   }

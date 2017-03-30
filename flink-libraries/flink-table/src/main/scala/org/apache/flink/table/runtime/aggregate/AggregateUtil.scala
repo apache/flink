@@ -1222,17 +1222,15 @@ object AggregateUtil {
   private[flink] def createTimeBoundedProcessingOverProcessFunction(
     namedAggregates: Seq[CalcitePair[AggregateCall, String]],
     inputType: RelDataType,
-    timeBoundary: Long,
-    isPartitioned: Boolean = true): ProcessFunction[Row, Row] = {
+    timeBoundary: Long): ProcessFunction[Row, Row] = {
 
     val (aggFields, aggregates) =
       transformToAggregateFunctions(
         namedAggregates.map(_.getKey),
         inputType,
-        needRetraction = false)
+        needRetraction = true)
 
-    val aggregationStateType: RowTypeInfo =
-      createDataSetAggregateBufferDataType(Array(), aggregates, inputType)
+    val aggregationStateType: RowTypeInfo = createAccumulatorRowType(aggregates)
 
     new ProcTimeBoundedProcessingOverProcessFunction(
       aggregates,
