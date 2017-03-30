@@ -32,6 +32,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.util.Iterator;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.python.api.PythonPlanBinder.FLINK_PYTHON2_BINARY_PATH;
 import static org.apache.flink.python.api.PythonPlanBinder.FLINK_PYTHON3_BINARY_PATH;
@@ -71,7 +72,7 @@ public class PythonStreamer<S extends PythonSender, OUT> implements Serializable
 	protected S sender;
 	protected PythonReceiver<OUT> receiver;
 
-	protected StringBuilder msg = new StringBuilder();
+	protected AtomicReference<String> msg = new AtomicReference<>();
 
 	protected final AbstractRichFunction function;
 
@@ -118,9 +119,9 @@ public class PythonStreamer<S extends PythonSender, OUT> implements Serializable
 		}
 
 		process = Runtime.getRuntime().exec(pythonBinaryPath + " -O -B " + planPath + planArguments);
-		outPrinter = new StreamPrinter(process.getInputStream());
+		outPrinter = new Thread(new StreamPrinter(process.getInputStream()));
 		outPrinter.start();
-		errorPrinter = new StreamPrinter(process.getErrorStream(), true, msg);
+		errorPrinter = new Thread(new StreamPrinter(process.getErrorStream(), msg));
 		errorPrinter.start();
 
 		shutdownThread = new Thread() {

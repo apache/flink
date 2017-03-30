@@ -67,8 +67,8 @@ public class PythonPlanStreamer {
 		}
 		process = Runtime.getRuntime().exec(pythonBinaryPath + " -B " + tmpPath + FLINK_PYTHON_PLAN_NAME + args);
 
-		new StreamPrinter(process.getInputStream()).start();
-		new StreamPrinter(process.getErrorStream()).start();
+		new Thread(new StreamPrinter(process.getInputStream())).start();
+		new Thread(new StreamPrinter(process.getErrorStream())).start();
 
 		server = new ServerSocket(0);
 		server.setSoTimeout(50);
