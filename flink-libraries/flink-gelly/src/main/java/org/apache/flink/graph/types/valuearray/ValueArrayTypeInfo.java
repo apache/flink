@@ -25,7 +25,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.ValueTypeInfo;
-import org.apache.flink.api.java.typeutils.runtime.CopyableValueComparator;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
@@ -109,13 +108,13 @@ public class ValueArrayTypeInfo<T> extends TypeInformation<ValueArray<T>> implem
 	@Override
 	public TypeComparator<ValueArray<T>> createComparator(boolean sortOrderAscending, ExecutionConfig executionConfig) {
 		if (IntValue.class.isAssignableFrom(type)) {
-			return (TypeComparator<ValueArray<T>>) (TypeComparator<?>) new CopyableValueComparator(sortOrderAscending, IntValueArray.class);
+			return (TypeComparator<ValueArray<T>>) (TypeComparator<?>) new IntValueArrayComparator(sortOrderAscending);
 		} else if (LongValue.class.isAssignableFrom(type)) {
-			return (TypeComparator<ValueArray<T>>) (TypeComparator<?>) new CopyableValueComparator(sortOrderAscending, LongValueArray.class);
+			return (TypeComparator<ValueArray<T>>) (TypeComparator<?>) new LongValueArrayComparator(sortOrderAscending);
 		} else if (NullValue.class.isAssignableFrom(type)) {
-			return (TypeComparator<ValueArray<T>>) (TypeComparator<?>) new CopyableValueComparator(sortOrderAscending, NullValueArray.class);
+			return (TypeComparator<ValueArray<T>>) (TypeComparator<?>) new NullValueArrayComparator(sortOrderAscending);
 		} else if (StringValue.class.isAssignableFrom(type)) {
-			return (TypeComparator<ValueArray<T>>) (TypeComparator<?>) new CopyableValueComparator(sortOrderAscending, StringValueArray.class);
+			return (TypeComparator<ValueArray<T>>) (TypeComparator<?>) new StringValueArrayComparator(sortOrderAscending);
 		} else {
 			throw new InvalidTypesException("No ValueArray class exists for " + type);
 		}

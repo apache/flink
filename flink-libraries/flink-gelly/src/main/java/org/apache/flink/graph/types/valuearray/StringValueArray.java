@@ -52,7 +52,7 @@ implements ValueArray<StringValue> {
 	// see note in ArrayList, HashTable, ...
 	private static final int MAX_ARRAY_SIZE = Integer.MAX_VALUE - 8;
 
-	private static final int HIGH_BIT = 0x1 << 7;
+	protected static final int HIGH_BIT = 0x1 << 7;
 
 	private boolean isBounded;
 

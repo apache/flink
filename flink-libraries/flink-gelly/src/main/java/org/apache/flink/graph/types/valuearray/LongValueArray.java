@@ -226,23 +226,16 @@ implements ValueArray<LongValue> {
 	public int compareTo(ValueArray<LongValue> o) {
 		LongValueArray other = (LongValueArray) o;
 
-		// sorts first on number of data in the array, then comparison between
-		// the first non-equal element in the arrays
-		int cmp = Integer.compare(position, other.position);
-
-		if (cmp != 0) {
-			return cmp;
-		}
-
-		for (int i = 0 ; i < position ; i++) {
-			cmp = Long.compare(data[i], other.data[i]);
+		int min = Math.min(position, other.position);
+		for (int i = 0 ; i < min ; i++) {
+			int cmp = Long.compare(data[i], other.data[i]);
 
 			if (cmp != 0) {
 				return cmp;
 			}
 		}
 
-		return 0;
+		return Integer.compare(position, other.position);
 	}
 
 	// --------------------------------------------------------------------------------------------
