@@ -41,17 +41,19 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
 public class SignalWindow extends Window {
 
   private final long start;
-  private long end;
+  private final long end;
   private boolean signaled;
+  private long signal;
 
   public SignalWindow(long start, long end) {
     this.start = start;
     this.end = end;
   }
 
-  public SignalWindow(long start, long end, boolean signaled) {
+  public SignalWindow(long start, long end, boolean signaled, long signal) {
     this(start, end);
     this.signaled = signaled;
+    this.signal = signal;
   }
 
   /**
@@ -147,7 +149,18 @@ public class SignalWindow extends Window {
    */
   @Override
   public long maxTimestamp() {
+    if (this.signaled) {
+      return this.signal - 1;
+    }
     return this.end - 1;
+  }
+
+  /**
+   *
+   * @return
+   */
+  public long signal(){
+    return this.signal - 1;
   }
 
   /**
@@ -155,16 +168,10 @@ public class SignalWindow extends Window {
    * @param timestamp
    */
   public void update(long timestamp) {
-    if (this.end < timestamp) {
-      this.end = timestamp;
+    this.signaled = true;
+    if (this.signal < timestamp) {
+      this.signal = timestamp;
     }
-  }
-
-  /**
-   * Update signal flag
-   */
-  public void signal(boolean signal) {
-    this.signaled = signal;
   }
 
   /**
@@ -199,7 +206,7 @@ public class SignalWindow extends Window {
 
   @Override
   public String toString() {
-    return "TimeWindow{" +
+    return "SignalWindow{" +
         "start=" + start +
         ", end=" + end +
         '}';
@@ -224,7 +231,8 @@ public class SignalWindow extends Window {
    * Returns the minimal window covers both this window and the given window.
    */
   public SignalWindow cover(SignalWindow other) {
-    return new SignalWindow(Math.min(this.start, other.start), Math.max(this.end, other.end), this.signaled || other.signaled);
+    return new SignalWindow(Math.min(this.start, other.start), Math.max(this.end, other.end), this.signaled || other.signaled,
+        Math.max(this.signal, other.signal));
   }
 
   /**
@@ -269,6 +277,7 @@ public class SignalWindow extends Window {
       target.writeLong(record.start);
       target.writeLong(record.end);
       target.writeBoolean(record.signaled);
+      target.writeLong(record.signal);
     }
 
     @Override
@@ -276,9 +285,8 @@ public class SignalWindow extends Window {
       long start = source.readLong();
       long end = source.readLong();
       boolean signaled = source.readBoolean();
-      SignalWindow signalWindow = new SignalWindow(start, end);
-      signalWindow.signal(signaled);
-      return new SignalWindow(start, end);
+      long signal = source.readLong();
+      return new SignalWindow(start, end, signaled, signal);
     }
 
     @Override
@@ -291,6 +299,7 @@ public class SignalWindow extends Window {
       target.writeLong(source.readLong());
       target.writeLong(source.readLong());
       target.writeBoolean(source.readBoolean());
+      target.writeLong(source.readLong());
     }
 
     @Override
