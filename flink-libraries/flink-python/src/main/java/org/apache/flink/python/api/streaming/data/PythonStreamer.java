@@ -84,7 +84,7 @@ public class PythonStreamer<S extends PythonSender, OUT> implements Serializable
 		this.setID = setID;
 		this.usePython3 = PythonPlanBinder.usePython3;
 		planArguments = PythonPlanBinder.arguments.toString();
-		receiver = new PythonReceiver(usesByteArray);
+		receiver = new PythonReceiver<>(usesByteArray);
 		this.function = function;
 		this.sender = sender;
 	}
@@ -162,10 +162,22 @@ public class PythonStreamer<S extends PythonSender, OUT> implements Serializable
 	private void checkPythonProcessHealth() {
 		try {
 			int value = process.exitValue();
+			try {
+				outPrinter.join();
+			} catch (InterruptedException ignored) {
+				outPrinter.interrupt();
+				Thread.interrupted();
+			}
+			try {
+				errorPrinter.join();
+			} catch (InterruptedException ignored) {
+				errorPrinter.interrupt();
+				Thread.interrupted();
+			}
 			if (value != 0) {
-				throw new RuntimeException("Plan file caused an error. Check log-files for details.");
+				throw new RuntimeException("Plan file caused an error. Check log-files for details." + msg.get());
 			} else {
-				throw new RuntimeException("Plan file exited prematurely without an error.");
+				throw new RuntimeException("Plan file exited prematurely without an error." + msg.get());
 			}
 		} catch (IllegalThreadStateException ignored) {//Process still running
 		}
