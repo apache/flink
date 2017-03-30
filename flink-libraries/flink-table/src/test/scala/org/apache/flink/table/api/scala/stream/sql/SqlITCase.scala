@@ -840,6 +840,185 @@ class SqlITCase extends StreamingWithStateTestBase {
       "6,8,Hello world,51,9,5,9,1")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
+  
+   //////////////////////////////////////////////////////
+   // START TESTING BOUNDED PROC TIME ROW AGGREGATION
+   //////////////////////////////////////////////////////
+  
+
+  @Test
+  def testSumMinPartitionedAggregatation2(): Unit = {
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStateBackend(getStateBackend)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    env.setParallelism(1)
+    StreamITCase.testResults = mutable.MutableList()
+
+    val t = StreamTestData.get5TupleDataStream(env).toTable(tEnv).as('a, 'b, 'c, 'd, 'e)
+    tEnv.registerTable("MyTable", t)
+
+    val sqlQuery = "SELECT a,  " +
+      " SUM(c) OVER (" +
+      " PARTITION BY a ORDER BY procTime() ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) AS sumC , " +
+      " MIN(c) OVER (" +
+      " PARTITION BY a ORDER BY procTime() ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) AS minC " +
+      " FROM MyTable"
+
+    val result = tEnv.sql(sqlQuery).toDataStream[Row]
+    result.addSink(new StreamITCase.StringSink)
+    env.execute()
+
+    val expected = mutable.MutableList(
+      "1,0,0",
+      "2,1,1",
+      "2,3,1",
+      "3,3,3",
+      "3,7,3",
+      "3,12,3",
+      "4,6,6",
+      "4,13,6",
+      "4,21,6",
+      "4,24,7",
+      "5,10,10",
+      "5,21,10",
+      "5,33,10",
+      "5,36,11",
+      "5,39,12")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+  
+  @Test
+  def testSumMinPartitionedAggregatation4(): Unit = {
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStateBackend(getStateBackend)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    env.setParallelism(1)
+    StreamITCase.testResults = mutable.MutableList()
+
+    val t = StreamTestData.get5TupleDataStream(env).toTable(tEnv).as('a, 'b, 'c, 'd, 'e)
+    tEnv.registerTable("MyTable", t)
+
+    val sqlQuery = "SELECT a,  " +
+      " SUM(c) OVER (" +
+      " PARTITION BY a ORDER BY procTime() ROWS BETWEEN 4 PRECEDING AND CURRENT ROW) AS sumC , " +
+      " MIN(c) OVER (" +
+      " PARTITION BY a ORDER BY procTime() ROWS BETWEEN 4 PRECEDING AND CURRENT ROW) AS minC " +
+      " FROM MyTable"
+
+    val result = tEnv.sql(sqlQuery).toDataStream[Row]
+    result.addSink(new StreamITCase.StringSink)
+    env.execute()
+
+    val expected = mutable.MutableList(
+      "1,0,0",
+      "2,1,1",
+      "2,3,1",
+      "3,3,3",
+      "3,7,3",
+      "3,12,3",
+      "4,6,6",
+      "4,13,6",
+      "4,21,6",
+      "4,30,6",
+      "5,10,10",
+      "5,21,10",
+      "5,33,10",
+      "5,46,10",
+      "5,60,10")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+  
+
+  @Test
+  def testSumMinUnpartitionedAggregatation2(): Unit = {
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStateBackend(getStateBackend)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    env.setParallelism(1)
+    StreamITCase.testResults = mutable.MutableList()
+
+    val t = StreamTestData.get5TupleDataStream(env).toTable(tEnv).as('a, 'b, 'c, 'd, 'e)
+    tEnv.registerTable("MyTable", t)
+
+    val sqlQuery = "SELECT a,  " +
+      " SUM(c) OVER (" +
+      " ORDER BY procTime() ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) AS sumC , " +
+      " MIN(c) OVER (" +
+      " ORDER BY procTime() ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) AS minC " +
+      " FROM MyTable"
+
+    val result = tEnv.sql(sqlQuery).toDataStream[Row]
+    result.addSink(new StreamITCase.StringSink)
+    env.execute()
+
+    val expected = mutable.MutableList(
+      "1,0,0",
+      "2,1,0",
+      "2,3,0",
+      "3,6,1",
+      "3,9,2",
+      "3,12,3",
+      "4,15,4",
+      "4,18,5",
+      "4,21,6",
+      "4,24,7",
+      "5,27,8",
+      "5,30,9",
+      "5,33,10",
+      "5,36,11",
+      "5,39,12")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+   @Test
+  def testSumMinUnpartitionedAggregatation10(): Unit = {
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStateBackend(getStateBackend)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    env.setParallelism(1)
+    StreamITCase.testResults = mutable.MutableList()
+
+    val t = StreamTestData.get5TupleDataStream(env).toTable(tEnv).as('a, 'b, 'c, 'd, 'e)
+    tEnv.registerTable("MyTable", t)
+
+    val sqlQuery = "SELECT a,  " +
+      " SUM(c) OVER (" +
+      " ORDER BY procTime() ROWS BETWEEN 10 PRECEDING AND CURRENT ROW) AS sumC , " +
+      " MIN(c) OVER (" +
+      " ORDER BY procTime() ROWS BETWEEN 10 PRECEDING AND CURRENT ROW) AS minC " +
+      " FROM MyTable"
+
+    val result = tEnv.sql(sqlQuery).toDataStream[Row]
+    result.addSink(new StreamITCase.StringSink)
+    env.execute()
+
+    val expected = mutable.MutableList(
+      "1,0,0",
+      "2,1,0",
+      "2,3,0",
+      "3,6,0",
+      "3,10,0",
+      "3,15,0",
+      "4,21,0",
+      "4,28,0",
+      "4,36,0",
+      "4,45,0",
+      "5,55,0",
+      "5,66,1",
+      "5,77,2",
+      "5,88,3",
+      "5,99,4")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+   //////////////////////////////////////////////////////
+   // END TESTING BOUNDED PROC TIME ROW AGGREGATION
+   //////////////////////////////////////////////////////
+  
 }
 
 object SqlITCase {

@@ -112,8 +112,10 @@ class DataStreamOverAggregate(
           // bounded OVER window
           if (overWindow.isRows) {
             // ROWS clause bounded OVER window
-            throw new TableException(
-              "processing-time OVER ROWS PRECEDING window is not supported yet.")
+            createBoundedAndCurrentRowOverWindow(
+              inputDS,
+              isRangeClause = true,
+              isRowTimeType = false)
           } else {
             // RANGE clause bounded OVER window
             throw new TableException(
