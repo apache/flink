@@ -36,6 +36,7 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.expressions._
+import org.apache.flink.table.expressions.ResolvedFieldReference
 import org.apache.flink.table.functions.aggfunctions._
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.functions.{AggregateFunction => TableAggregateFunction}
@@ -46,6 +47,11 @@ import org.apache.flink.types.Row
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable.ArrayBuffer
+import com.google.common.collect.ImmutableList
+import org.apache.calcite.rex.RexLiteral
+import org.apache.calcite.rex.RexWindowBound
+import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rex.RexInputRef
 
 object AggregateUtil {
 
@@ -138,8 +144,13 @@ object AggregateUtil {
         )
       }
     } else {
-      throw TableException(
-        "Bounded partitioned proc-time OVER aggregation is not supported yet.")
+      new BoundedProcessingOverRowProcessFunction(
+        aggregates,
+        aggFields,
+        precedingOffset,
+        inputType.getFieldCount,
+        aggregationStateType,
+        FlinkTypeFactory.toInternalRowTypeInfo(inputType))
     }
   }
 
@@ -741,6 +752,40 @@ object AggregateUtil {
 
     (aggFunction, accumulatorRowType, aggResultRowType)
   }
+
+ /**
+   * Function for building the processing logic for aggregating data in row bounded windows
+   *
+   * @param namedAggregates   List of calls to aggregate functions and their output field names
+   * @param inputType         Input row type
+   * @param rowType           Type info of row
+   * @param precedingOffset   The window lower boundary expressed in number of rows
+   * @return [[org.apache.flink.streaming.api.functions.ProcessFunction]]
+   */
+  private[flink] def createBoundedProcessingOverProcessFunction(
+    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+    inputType: RelDataType,
+    rowType: RowTypeInfo,
+    precedingOffset: Int): ProcessFunction[Row, Row] = {
+
+    val (aggFields, aggregates) =
+      transformToAggregateFunctions(
+        namedAggregates.map(_.getKey),
+        inputType,
+        needRetraction = true)
+
+    val aggregationStateType: RowTypeInfo = createAccumulatorRowType(aggregates)
+
+    new BoundedProcessingOverRowProcessFunction(
+      aggregates,
+      aggFields,
+      precedingOffset,
+      inputType.getFieldCount,
+      aggregationStateType,
+      FlinkTypeFactory.toInternalRowTypeInfo(inputType))
+
+  }
+   
 
   /**
     * Return true if all aggregates can be partially merged. False otherwise.
