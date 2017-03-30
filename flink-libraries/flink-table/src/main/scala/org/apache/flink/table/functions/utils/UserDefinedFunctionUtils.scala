@@ -381,7 +381,7 @@ object UserDefinedFunctionUtils {
       tableFunction: TableFunction[_],
       implicitResultType: TypeInformation[_],
       params: Expression*): TableFunctionCall = {
-    val arguments = expressionsToArguments(params: _*)
+    val arguments = transformLiteralExpressions(params: _*)
     val userDefinedResultType = tableFunction.getResultType(arguments)
     val resultType = {
       if (userDefinedResultType != null) userDefinedResultType
@@ -391,13 +391,14 @@ object UserDefinedFunctionUtils {
   }
 
   /**
-    * Transform the expressions or rex nodes to Objects
-    * Only literal expressions will be passed, nulls for non-literal ones
+    * Transform the expressions to Objects
+    * Only literal expressions will be transformed, non-literal expressions will be
+    * translated to nulls.
     *
     * @param params actual parameters of the function
     * @return A java List of the Objects
     */
-  private[table] def expressionsToArguments(params: Expression*): java.util.List[AnyRef] = {
+  private[table] def transformLiteralExpressions(params: Expression*): java.util.List[AnyRef] = {
     params.map {
       case exp: Literal =>
         exp.value.asInstanceOf[AnyRef]
@@ -408,12 +409,13 @@ object UserDefinedFunctionUtils {
 
   /**
     * Transform the rex nodes to Objects
-    * Only literal expressions will be passed, nulls for non-literal ones
+    * Only literal rex nodes will be transformed, non-literal rex nodes will be
+    * translated to nulls.
     *
     * @param rexNodes actual parameters of the function
     * @return A java List of the Objects
     */
-  private[table] def rexNodesToArguments(
+  private[table] def transformRexNodes(
       rexNodes: java.util.List[RexNode]): java.util.List[AnyRef] = {
     rexNodes.map {
       case rexNode: RexLiteral =>
@@ -423,9 +425,11 @@ object UserDefinedFunctionUtils {
             value.asInstanceOf[Long].toInt.asInstanceOf[AnyRef]
           case SqlTypeName.SMALLINT =>
             value.asInstanceOf[Long].toShort.asInstanceOf[AnyRef]
-          case SqlTypeName.TIMESTAMP =>
+          case SqlTypeName.TINYINT =>
             value.asInstanceOf[Long].toByte.asInstanceOf[AnyRef]
           case SqlTypeName.FLOAT =>
+            value.asInstanceOf[Double].toFloat.asInstanceOf[AnyRef]
+          case SqlTypeName.REAL =>
             value.asInstanceOf[Double].toFloat.asInstanceOf[AnyRef]
           case _ =>
             value.asInstanceOf[AnyRef]

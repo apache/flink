@@ -28,7 +28,7 @@ import org.apache.flink.table.functions.{TableFunction => FlinkUDTF}
 
 /**
   * A Deferred Type is a Table Function which the type hasn't been determined yet.
-  * If will determine the result type after the arguments are passed.
+  * It will determine the result type after the arguments are passed.
   *
   * @param tableFunction The Table Function instance
   * @param evalMethod The eval() method of the [[tableFunction]]

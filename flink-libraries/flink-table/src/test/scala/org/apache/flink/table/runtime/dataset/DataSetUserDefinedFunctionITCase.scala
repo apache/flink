@@ -237,6 +237,27 @@ class DataSetUserDefinedFunctionITCase(
   }
 
   @Test
+  def testRexNodesTransformation(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
+    val in = testData(env).toTable(tableEnv).as('a, 'b, 'c)
+    val funcDyn = new DynamicSchemaWithRexNodes
+    tableEnv.registerFunction("funcDyn", funcDyn)
+    tableEnv.registerTable("MyTable", in)
+    val result = in
+      .join(funcDyn('c, 1, 2, 3, 4.0, 5.0, 6.0, true)
+        as ('name, 'c1, 'c2, 'c3, 'c4, 'c5, 'c6, 'c7))
+      .select('name, 'c1, 'c2, 'c3, 'c4, 'c5, 'c6, 'c7)
+      .toDataSet[Row]
+    val results = result.collect()
+    val expected = "Jack#22,1,2,3,4.0,5.0,6.0,true\n" +
+      "John#19,1,2,3,4.0,5.0,6.0,true\n" +
+      "Anna#44,1,2,3,4.0,5.0,6.0,true\n" +
+      "nosharp,1,2,3,4.0,5.0,6.0,true"
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
   def testHierarchyType(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tableEnv = TableEnvironment.getTableEnvironment(env, config)

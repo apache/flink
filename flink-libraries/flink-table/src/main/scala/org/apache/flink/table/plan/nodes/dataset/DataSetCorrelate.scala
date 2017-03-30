@@ -97,7 +97,7 @@ class DataSetCorrelate(
     val rexCall = funcRel.getCall.asInstanceOf[RexCall]
     val sqlFunction = rexCall.getOperator.asInstanceOf[TableSqlFunction]
     // we need result TypeInformation to do code generation
-    val arguments = UserDefinedFunctionUtils.rexNodesToArguments(rexCall.operands)
+    val arguments = UserDefinedFunctionUtils.transformRexNodes(rexCall.operands)
     val udtfTypeInfo = sqlFunction
         .getFunction
         .asInstanceOf[FlinkTableFunction]

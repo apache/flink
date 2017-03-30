@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.utils
 
-import java.lang.Boolean
+import java.util
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.tuple.Tuple3
@@ -170,6 +170,69 @@ class DynamicSchema0 extends TableFunction[Row] {
       }
     }
     new RowTypeInfo(basicTypeInfos: _*)
+  }
+}
+
+class DynamicSchemaWithRexNodes extends TableFunction[Row] {
+
+  def eval(str: String, i: Int, si: Int, bi: Int, flt: Double, real: Double, d: Double, b: Boolean):
+  Unit = {
+    val row = new Row(8)
+    row.setField(0, str)
+    row.setField(1, i)
+    row.setField(2, si)
+    row.setField(3, bi)
+    row.setField(4, flt)
+    row.setField(5, real)
+    row.setField(6, d)
+    row.setField(7, b)
+    collect(row)
+  }
+
+  override def getResultType(arguments: util.List[AnyRef]): TypeInformation[Row] = {
+    // Test for the transformRexNodes()
+    val str = arguments.get(0).asInstanceOf[String]
+    if (null != str) {
+      throw new RuntimeException("The first column should be null")
+    }
+    val i = arguments.get(1).asInstanceOf[Int]
+    if (i <= 0) {
+      throw new RuntimeException("The arguments should be greater than zero")
+    }
+    val si = arguments.get(2).asInstanceOf[Int]
+    if (si <= 0) {
+      throw new RuntimeException("The arguments should be greater than zero")
+    }
+    val bi = arguments.get(3).asInstanceOf[Int]
+    if (bi <= 0) {
+      throw new RuntimeException("The arguments should be greater than zero")
+    }
+    val float = arguments.get(4).asInstanceOf[Double]
+    if (float <= 0) {
+      throw new RuntimeException("The arguments should be greater than zero")
+    }
+    val real = arguments.get(5).asInstanceOf[Double]
+    if (real <= 0) {
+      throw new RuntimeException("The arguments should be greater than zero")
+    }
+    val d = arguments.get(6).asInstanceOf[Double]
+    if (d <= 0) {
+      throw new RuntimeException("The arguments should be greater than zero")
+    }
+    val b = arguments.get(7).asInstanceOf[Boolean]
+    if (!b) {
+      throw new RuntimeException("The arguments should be true")
+    }
+    new RowTypeInfo(
+      BasicTypeInfo.STRING_TYPE_INFO,
+      BasicTypeInfo.INT_TYPE_INFO,
+      BasicTypeInfo.INT_TYPE_INFO,
+      BasicTypeInfo.INT_TYPE_INFO,
+      BasicTypeInfo.DOUBLE_TYPE_INFO,
+      BasicTypeInfo.DOUBLE_TYPE_INFO,
+      BasicTypeInfo.DOUBLE_TYPE_INFO,
+      BasicTypeInfo.BOOLEAN_TYPE_INFO
+    )
   }
 }
 
