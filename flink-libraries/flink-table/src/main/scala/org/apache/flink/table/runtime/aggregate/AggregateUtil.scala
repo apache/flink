@@ -152,7 +152,8 @@ object AggregateUtil {
     */
   private[flink] def createUnboundedEventTimeOverProcessFunction(
    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
-   inputType: RelDataType): UnboundedEventTimeOverProcessFunction = {
+   inputType: RelDataType,
+   isRows: Boolean): UnboundedEventTimeOverProcessFunction = {
 
     val (aggFields, aggregates) =
       transformToAggregateFunctions(
@@ -162,12 +163,23 @@ object AggregateUtil {
 
     val aggregationStateType: RowTypeInfo = createAccumulatorRowType(aggregates)
 
-    new UnboundedEventTimeOverProcessFunction(
-      aggregates,
-      aggFields,
-      inputType.getFieldCount,
-      aggregationStateType,
-      FlinkTypeFactory.toInternalRowTypeInfo(inputType))
+    if (isRows) {
+      // ROWS unbounded over process function
+      new UnboundedEventTimeRowsOverProcessFunction(
+        aggregates,
+        aggFields,
+        inputType.getFieldCount,
+        aggregationStateType,
+        FlinkTypeFactory.toInternalRowTypeInfo(inputType))
+    } else {
+      // RANGE unbounded over process function
+      new UnboundedEventTimeRangeOverProcessFunction(
+        aggregates,
+        aggFields,
+        inputType.getFieldCount,
+        aggregationStateType,
+        FlinkTypeFactory.toInternalRowTypeInfo(inputType))
+    }
   }
 
   /**
