@@ -196,9 +196,6 @@ public class FlinkKinesisConsumerTest {
 
 		try {
 			KinesisConfigUtil.validateConsumerConfiguration(testConfig);
-
-			SimpleDateFormat customDateFormat = new SimpleDateFormat(ConsumerConfigConstants.DEFAULT_STREAM_TIMESTAMP_DATE_FORMAT);
-			customDateFormat.parse(timestamp);
 		} catch (Exception e) {
 			e.printStackTrace();
 			fail();
@@ -219,11 +216,6 @@ public class FlinkKinesisConsumerTest {
 
 		try {
 			KinesisConfigUtil.validateConsumerConfiguration(testConfig);
-
-			double value = Double.parseDouble(unixTimestamp);
-			if (value < 0) {
-				throw new NumberFormatException();
-			}
 		} catch (Exception e) {
 			e.printStackTrace();
 			fail();
@@ -280,9 +272,6 @@ public class FlinkKinesisConsumerTest {
 
 		try {
 			KinesisConfigUtil.validateConsumerConfiguration(testConfig);
-
-			SimpleDateFormat customDateFormat = new SimpleDateFormat(pattern);
-			customDateFormat.parse(unixTimestamp);
 		} catch (Exception e) {
 			e.printStackTrace();
 			fail();

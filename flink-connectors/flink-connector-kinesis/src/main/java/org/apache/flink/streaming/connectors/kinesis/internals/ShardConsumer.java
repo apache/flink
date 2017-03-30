@@ -122,7 +122,7 @@ public class ShardConsumer<T> implements Runnable {
 				SimpleDateFormat customDateFormat = new SimpleDateFormat(format);
 				this.initTimestamp = customDateFormat.parse(timestamp);
 			} catch (IllegalArgumentException | NullPointerException exception) {
-				throw new IllegalArgumentException(exception.getCause());
+				throw new IllegalArgumentException(exception);
 			} catch (ParseException exception) {
 				this.initTimestamp = new Date((long) (Double.parseDouble(timestamp) * 1000));
 			}
