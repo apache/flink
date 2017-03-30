@@ -53,52 +53,59 @@ public class ListViaMergeSpeedMiniBenchmark {
 		final String key = "key";
 		final String value = "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ7890654321";
 
-		final byte[] keyBytes = key.getBytes(StandardCharsets.UTF_8);
-		final byte[] valueBytes = value.getBytes(StandardCharsets.UTF_8);
+		try {
+			final byte[] keyBytes = key.getBytes(StandardCharsets.UTF_8);
+			final byte[] valueBytes = value.getBytes(StandardCharsets.UTF_8);
 
-		final int num = 50000;
+			final int num = 50000;
 
-		// ----- insert -----
-		System.out.println("begin insert");
+			// ----- insert -----
+			System.out.println("begin insert");
 
-		final long beginInsert = System.nanoTime();
-		for (int i = 0; i < num; i++) {
-			rocksDB.merge(write_options, keyBytes, valueBytes);
+			final long beginInsert = System.nanoTime();
+			for (int i = 0; i < num; i++) {
+				rocksDB.merge(write_options, keyBytes, valueBytes);
+			}
+			final long endInsert = System.nanoTime();
+			System.out.println("end insert - duration: " + ((endInsert - beginInsert) / 1_000_000) + " ms");
+
+			// ----- read (attempt 1) -----
+
+			final byte[] resultHolder = new byte[num * (valueBytes.length + 2)];
+			final long beginGet1 = System.nanoTime();
+			rocksDB.get(keyBytes, resultHolder);
+			final long endGet1 = System.nanoTime();
+
+			System.out.println("end get - duration: " + ((endGet1 - beginGet1) / 1_000_000) + " ms");
+
+			// ----- read (attempt 2) -----
+
+			final long beginGet2 = System.nanoTime();
+			rocksDB.get(keyBytes, resultHolder);
+			final long endGet2 = System.nanoTime();
+
+			System.out.println("end get - duration: " + ((endGet2 - beginGet2) / 1_000_000) + " ms");
+
+			// ----- compact -----
+			System.out.println("compacting...");
+			final long beginCompact = System.nanoTime();
+			rocksDB.compactRange();
+			final long endCompact = System.nanoTime();
+
+			System.out.println("end compaction - duration: " + ((endCompact - beginCompact) / 1_000_000) + " ms");
+
+			// ----- read (attempt 3) -----
+
+			final long beginGet3 = System.nanoTime();
+			rocksDB.get(keyBytes, resultHolder);
+			final long endGet3 = System.nanoTime();
+
+			System.out.println("end get - duration: " + ((endGet3 - beginGet3) / 1_000_000) + " ms");
+		} finally {
+			rocksDB.close();
+			options.close();
+			write_options.close();
+			FileUtils.deleteDirectory(rocksDir);
 		}
-		final long endInsert = System.nanoTime();
-		System.out.println("end insert - duration: " + ((endInsert - beginInsert) / 1_000_000) + " ms");
-
-		// ----- read (attempt 1) -----
-
-		final byte[] resultHolder = new byte[num * (valueBytes.length + 2)];
-		final long beginGet1 = System.nanoTime();
-		rocksDB.get(keyBytes, resultHolder);
-		final long endGet1 = System.nanoTime();
-
-		System.out.println("end get - duration: " + ((endGet1 - beginGet1) / 1_000_000) + " ms");
-
-		// ----- read (attempt 2) -----
-
-		final long beginGet2 = System.nanoTime();
-		rocksDB.get(keyBytes, resultHolder);
-		final long endGet2 = System.nanoTime();
-
-		System.out.println("end get - duration: " + ((endGet2 - beginGet2) / 1_000_000) + " ms");
-
-		// ----- compact -----
-		System.out.println("compacting...");
-		final long beginCompact = System.nanoTime();
-		rocksDB.compactRange();
-		final long endCompact = System.nanoTime();
-
-		System.out.println("end compaction - duration: " + ((endCompact - beginCompact) / 1_000_000) + " ms");
-
-		// ----- read (attempt 3) -----
-
-		final long beginGet3 = System.nanoTime();
-		rocksDB.get(keyBytes, resultHolder);
-		final long endGet3 = System.nanoTime();
-
-		System.out.println("end get - duration: " + ((endGet3 - beginGet3) / 1_000_000) + " ms");
 	}
 }
