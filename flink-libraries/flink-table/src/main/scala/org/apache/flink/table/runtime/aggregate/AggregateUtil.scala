@@ -138,8 +138,13 @@ object AggregateUtil {
         )
       }
     } else {
-      throw TableException(
-        "Bounded partitioned proc-time OVER aggregation is not supported yet.")
+      new BoundedProcessingOverRowProcessFunction(
+        aggregates,
+        aggFields,
+        precedingOffset,
+        inputType.getFieldCount,
+        aggregationStateType,
+        FlinkTypeFactory.toInternalRowTypeInfo(inputType))
     }
   }
 
