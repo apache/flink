@@ -36,9 +36,14 @@ public class ByteArrayInputStreamWithPosTest {
 		byte[] data = new byte[] {'0','1','2','3','4','5','6','7','8','9'};
 		ByteArrayInputStreamWithPos inputStreamWithPos = new ByteArrayInputStreamWithPos(data);
 		inputStreamWithPos.setPosition(1);
+		Assert.assertEquals(data.length - 1, inputStreamWithPos.available());
 		Assert.assertEquals('1', inputStreamWithPos.read());
 		inputStreamWithPos.setPosition(3);
+		Assert.assertEquals(data.length - 3, inputStreamWithPos.available());
 		Assert.assertEquals('3', inputStreamWithPos.read());
+		inputStreamWithPos.setPosition(data.length);
+		Assert.assertEquals(0, inputStreamWithPos.available());
+		Assert.assertEquals(-1, inputStreamWithPos.read());
 	}
 
 	/**
@@ -50,7 +55,7 @@ public class ByteArrayInputStreamWithPosTest {
 		thrown.expectMessage("Position out of bounds.");
 		byte[] data = new byte[] {'0','1','2','3','4','5','6','7','8','9'};
 		ByteArrayInputStreamWithPos inputStreamWithPos = new ByteArrayInputStreamWithPos(data);
-		inputStreamWithPos.setPosition(data.length);
+		inputStreamWithPos.setPosition(data.length + 1);
 		Assert.fail("Should not reach here !!!!");
 	}
 
