@@ -242,17 +242,17 @@ public class PythonStreamer<S extends PythonSender, OUT> implements Serializable
 
 			StringSerializer stringSerializer = new StringSerializer();
 			for (String name : names) {
-				Iterator<?> bcv = function.getRuntimeContext().getBroadcastVariable(name).iterator();
+				Iterator<byte[]> bcv = function.getRuntimeContext().<byte[]>getBroadcastVariable(name).iterator();
 
 				out.write(stringSerializer.serializeWithoutTypeInfo(name));
 
 				while (bcv.hasNext()) {
 					out.writeByte(1);
-					out.write((byte[]) bcv.next());
+					out.write(bcv.next());
 				}
 				out.writeByte(0);
 			}
-		} catch (SocketTimeoutException ste) {
+		} catch (SocketTimeoutException ignored) {
 			throw new RuntimeException("External process for task " + function.getRuntimeContext().getTaskName() + " stopped responding." + msg);
 		}
 	}
