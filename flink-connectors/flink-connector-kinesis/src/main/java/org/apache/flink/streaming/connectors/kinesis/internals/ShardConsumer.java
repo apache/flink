@@ -121,7 +121,9 @@ public class ShardConsumer<T> implements Runnable {
 					ConsumerConfigConstants.DEFAULT_STREAM_TIMESTAMP_DATE_FORMAT);
 				SimpleDateFormat customDateFormat = new SimpleDateFormat(format);
 				this.initTimestamp = customDateFormat.parse(timestamp);
-			} catch (ParseException | IllegalArgumentException | NullPointerException exception) {
+			} catch (IllegalArgumentException | NullPointerException exception) {
+				throw new IllegalArgumentException(exception.getCause());
+			} catch (ParseException exception) {
 				this.initTimestamp = new Date((long) (Double.parseDouble(timestamp) * 1000));
 			}
 		} else {

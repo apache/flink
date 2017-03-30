@@ -227,11 +227,13 @@ public class KinesisConfigUtil {
 			try {
 				SimpleDateFormat customDateFormat = new SimpleDateFormat(format);
 				customDateFormat.parse(config.getProperty(timestampKey));
-			} catch (ParseException | IllegalArgumentException | NullPointerException exception) {
+			} catch (IllegalArgumentException | NullPointerException exception) {
+				throw new IllegalArgumentException(message);
+			} catch (ParseException exception) {
 				try {
 					double value = Double.parseDouble(config.getProperty(timestampKey));
 					if (value < 0) {
-						throw new NumberFormatException();
+						throw new IllegalArgumentException(message);
 					}
 				} catch (NumberFormatException numberFormatException) {
 					throw new IllegalArgumentException(message);

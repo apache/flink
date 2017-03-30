@@ -124,7 +124,7 @@ one of the following values in the provided configuration properties (the naming
 properties by providing a value for `ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP`, in one of the following date pattern :
     - a non-negative double value representing the number of seconds that has elapsed since the Unix epoch (for example, `1459799926.480`).
     - a user defined pattern, which is a valid pattern for `SimpleDateFormat` provided by `ConsumerConfigConstants.STREAM_TIMESTAMP_DATE_FORMAT`.
-    If `ConsumerConfigConstants.STREAM_TIMESTAMP_DATE_FORMAT` is not defined then ehe default pattern will be `yyyy-MM-dd'T'HH:mm:ss.SSSXXX`
+    If `ConsumerConfigConstants.STREAM_TIMESTAMP_DATE_FORMAT` is not defined then the default pattern will be `yyyy-MM-dd'T'HH:mm:ss.SSSXXX`
     (for example, timestamp value is `2016-04-04` and pattern is `yyyy-MM-dd` given by user or timestamp value is `2016-04-04T19:58:46.480-00:00` without given a pattern).
 
 #### Fault Tolerance for Exactly-Once User-Defined State Update Semantics
