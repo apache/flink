@@ -38,6 +38,7 @@ import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 import java.util.Properties;
@@ -115,10 +116,21 @@ public class ShardConsumer<T> implements Runnable {
 
 		if (lastSequenceNum.equals(SentinelSequenceNumber.SENTINEL_AT_TIMESTAMP_SEQUENCE_NUM.get())) {
 			String timestamp = consumerConfig.getProperty(ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP);
-			try {
-				this.initTimestamp = KinesisConfigUtil.initTimestampDateFormat.parse(timestamp);
-			} catch (ParseException e) {
-				this.initTimestamp = new Date((long) (Double.parseDouble(timestamp) * 1000));
+
+			if (consumerConfig.containsKey(ConsumerConfigConstants.STREAM_TIMESTAMP_DATE_FORMAT)) {
+				try {
+					String format = ConsumerConfigConstants.STREAM_TIMESTAMP_DATE_FORMAT;
+					SimpleDateFormat customDateFormat = new SimpleDateFormat(consumerConfig.getProperty(format));
+					this.initTimestamp = customDateFormat.parse(timestamp);
+				} catch (Exception e) {
+					throw new IllegalArgumentException(e.getCause());
+				}
+			} else {
+				try {
+					this.initTimestamp = KinesisConfigUtil.initTimestampDateFormat.parse(timestamp);
+				} catch (ParseException e) {
+					this.initTimestamp = new Date((long) (Double.parseDouble(timestamp) * 1000));
+				}
 			}
 		} else {
 			this.initTimestamp = null;
