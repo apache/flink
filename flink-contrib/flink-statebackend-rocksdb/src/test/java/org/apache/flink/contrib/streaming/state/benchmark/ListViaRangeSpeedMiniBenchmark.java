@@ -54,59 +54,62 @@ public class ListViaRangeSpeedMiniBenchmark {
 
 		final RocksDB rocksDB = RocksDB.open(options, rocksDir.getAbsolutePath());
 
-		final String key = "key";
-		final String value = "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ7890654321";
+		try {
+			final String key = "key";
+			final String value = "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ7890654321";
 
-		final byte[] keyBytes = key.getBytes(StandardCharsets.UTF_8);
-		final byte[] valueBytes = value.getBytes(StandardCharsets.UTF_8);
+			final byte[] keyBytes = key.getBytes(StandardCharsets.UTF_8);
+			final byte[] valueBytes = value.getBytes(StandardCharsets.UTF_8);
 
-		final byte[] keyTemplate = Arrays.copyOf(keyBytes, keyBytes.length + 4);
+			final byte[] keyTemplate = Arrays.copyOf(keyBytes, keyBytes.length + 4);
 
-		final Unsafe unsafe = MemoryUtils.UNSAFE;
-		final long offset = unsafe.arrayBaseOffset(byte[].class) + keyTemplate.length - 4;
+			final Unsafe unsafe = MemoryUtils.UNSAFE;
+			final long offset = unsafe.arrayBaseOffset(byte[].class) + keyTemplate.length - 4;
 
-		final int num = 50000;
-		System.out.println("begin insert");
+			final int num = 50000;
+			System.out.println("begin insert");
 
-		final long beginInsert = System.nanoTime();
-		for (int i = 0; i < num; i++) {
-			unsafe.putInt(keyTemplate, offset, i);
-			rocksDB.put(write_options, keyTemplate, valueBytes);
-		}
-		final long endInsert = System.nanoTime();
-		System.out.println("end insert - duration: " + ((endInsert - beginInsert) / 1_000_000) + " ms");
-
-		final byte[] resultHolder = new byte[num * valueBytes.length];
-
-		final long beginGet = System.nanoTime();
-
-		final RocksIterator iterator = rocksDB.newIterator();
-		int pos = 0;
-
-		// seek to start
-		unsafe.putInt(keyTemplate, offset, 0);
-		iterator.seek(keyTemplate);
-
-		// mark end
-		unsafe.putInt(keyTemplate, offset, -1);
-
-		// iterate
-		while (iterator.isValid()) {
-			byte[] currKey = iterator.key();
-			if (samePrefix(keyBytes, currKey)) {
-				byte[] currValue = iterator.value();
-				System.arraycopy(currValue, 0, resultHolder, pos, currValue.length);
-				pos += currValue.length;
-				iterator.next();
+			final long beginInsert = System.nanoTime();
+			for (int i = 0; i < num; i++) {
+				unsafe.putInt(keyTemplate, offset, i);
+				rocksDB.put(write_options, keyTemplate, valueBytes);
 			}
-			else {
-				break;
+			final long endInsert = System.nanoTime();
+			System.out.println("end insert - duration: " + ((endInsert - beginInsert) / 1_000_000) + " ms");
+
+			final byte[] resultHolder = new byte[num * valueBytes.length];
+
+			final long beginGet = System.nanoTime();
+
+			final RocksIterator iterator = rocksDB.newIterator();
+			int pos = 0;
+
+			// seek to start
+			unsafe.putInt(keyTemplate, offset, 0);
+			iterator.seek(keyTemplate);
+
+			// mark end
+			unsafe.putInt(keyTemplate, offset, -1);
+
+			// iterate
+			while (iterator.isValid()) {
+				byte[] currKey = iterator.key();
+				if (samePrefix(keyBytes, currKey)) {
+					byte[] currValue = iterator.value();
+					System.arraycopy(currValue, 0, resultHolder, pos, currValue.length);
+					pos += currValue.length;
+					iterator.next();
+				} else {
+					break;
+				}
 			}
+
+			final long endGet = System.nanoTime();
+
+			System.out.println("end get - duration: " + ((endGet - beginGet) / 1_000_000) + " ms");
+		} finally {
+			rocksDB.close();
 		}
-
-		final long endGet = System.nanoTime();
-
-		System.out.println("end get - duration: " + ((endGet - beginGet) / 1_000_000) + " ms");
 	}
 
 	private static boolean samePrefix(byte[] prefix, byte[] key) {
