@@ -89,11 +89,11 @@ public class ByteArrayOutputStreamWithPosTest {
 
 		Assert.assertEquals(initBufferSize, stream.getBuf().length);
 
-		stream.setPosition(33);
+		stream.setPosition(initBufferSize + 1);
 
-		Assert.assertEquals(64, stream.getBuf().length);
+		Assert.assertEquals(initBufferSize * 2, stream.getBuf().length);
 
-		Assert.assertEquals(33, stream.getPosition());
+		Assert.assertEquals(initBufferSize + 1, stream.getPosition());
 	}
 
 	/**
