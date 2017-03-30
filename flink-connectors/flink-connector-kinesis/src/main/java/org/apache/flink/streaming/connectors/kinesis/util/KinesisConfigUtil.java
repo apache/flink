@@ -37,8 +37,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Utilities for Flink Kinesis connector configuration.
  */
 public class KinesisConfigUtil {
-	public static SimpleDateFormat initTimestampDateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX");
-
 	/**
 	 * Validate configuration properties for {@link FlinkKinesisConsumer}.
 	 */
@@ -69,7 +67,7 @@ public class KinesisConfigUtil {
 				}
 				validateOptionalDateProperty(config,
 					ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP,
-					ConsumerConfigConstants.STREAM_TIMESTAMP_DATE_FORMAT,
+					config.getProperty(ConsumerConfigConstants.STREAM_TIMESTAMP_DATE_FORMAT, ConsumerConfigConstants.DEFAULT_STREAM_TIMESTAMP_DATE_FORMAT),
 					"Invalid value given for initial timestamp for AT_TIMESTAMP initial position in stream. "
 						+ "Must be a valid format: yyyy-MM-dd'T'HH:mm:ss.SSSXXX or non-negative double value. For example, 2016-04-04T19:58:46.480-00:00 or 1459799926.480 .");
 			}
@@ -224,27 +222,19 @@ public class KinesisConfigUtil {
 		}
 	}
 
-	private static void validateOptionalDateProperty(Properties config, String timestampKey, String formatKey, String message) {
+	private static void validateOptionalDateProperty(Properties config, String timestampKey, String format, String message) {
 		if (config.containsKey(timestampKey)) {
-			if (config.containsKey(formatKey)) {
+			try {
+				SimpleDateFormat customDateFormat = new SimpleDateFormat(format);
+				customDateFormat.parse(config.getProperty(timestampKey));
+			} catch (ParseException | IllegalArgumentException | NullPointerException exception) {
 				try {
-					SimpleDateFormat customDateFormat = new SimpleDateFormat(config.getProperty(formatKey));
-					customDateFormat.parse(config.getProperty(timestampKey));
-				} catch (ParseException | IllegalArgumentException | NullPointerException exception) {
-					throw new IllegalArgumentException(message);
-				}
-			} else {
-				try {
-					initTimestampDateFormat.parse(config.getProperty(timestampKey));
-				} catch (ParseException exception) {
-					try {
-						double value = Double.parseDouble(config.getProperty(timestampKey));
-						if (value < 0) {
-							throw new NumberFormatException();
-						}
-					} catch (NumberFormatException numberFormatException) {
-						throw new IllegalArgumentException(message);
+					double value = Double.parseDouble(config.getProperty(timestampKey));
+					if (value < 0) {
+						throw new NumberFormatException();
 					}
+				} catch (NumberFormatException numberFormatException) {
+					throw new IllegalArgumentException(message);
 				}
 			}
 		}

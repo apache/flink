@@ -30,7 +30,6 @@ import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxy;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
-import org.apache.flink.streaming.connectors.kinesis.util.KinesisConfigUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -117,20 +116,13 @@ public class ShardConsumer<T> implements Runnable {
 		if (lastSequenceNum.equals(SentinelSequenceNumber.SENTINEL_AT_TIMESTAMP_SEQUENCE_NUM.get())) {
 			String timestamp = consumerConfig.getProperty(ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP);
 
-			if (consumerConfig.containsKey(ConsumerConfigConstants.STREAM_TIMESTAMP_DATE_FORMAT)) {
-				try {
-					String format = ConsumerConfigConstants.STREAM_TIMESTAMP_DATE_FORMAT;
-					SimpleDateFormat customDateFormat = new SimpleDateFormat(consumerConfig.getProperty(format));
-					this.initTimestamp = customDateFormat.parse(timestamp);
-				} catch (Exception e) {
-					throw new IllegalArgumentException(e.getCause());
-				}
-			} else {
-				try {
-					this.initTimestamp = KinesisConfigUtil.initTimestampDateFormat.parse(timestamp);
-				} catch (ParseException e) {
-					this.initTimestamp = new Date((long) (Double.parseDouble(timestamp) * 1000));
-				}
+			try {
+				String format = consumerConfig.getProperty(ConsumerConfigConstants.STREAM_TIMESTAMP_DATE_FORMAT,
+					ConsumerConfigConstants.DEFAULT_STREAM_TIMESTAMP_DATE_FORMAT);
+				SimpleDateFormat customDateFormat = new SimpleDateFormat(format);
+				this.initTimestamp = customDateFormat.parse(timestamp);
+			} catch (ParseException | IllegalArgumentException | NullPointerException exception) {
+				this.initTimestamp = new Date((long) (Double.parseDouble(timestamp) * 1000));
 			}
 		} else {
 			this.initTimestamp = null;

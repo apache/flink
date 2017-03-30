@@ -110,6 +110,8 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 
 	public static final String DEFAULT_STREAM_INITIAL_POSITION = InitialPosition.LATEST.toString();
 
+	public static final String DEFAULT_STREAM_TIMESTAMP_DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.SSSXXX";
+
 	public static final long DEFAULT_STREAM_DESCRIBE_BACKOFF_BASE = 1000L;
 
 	public static final long DEFAULT_STREAM_DESCRIBE_BACKOFF_MAX = 5000L;

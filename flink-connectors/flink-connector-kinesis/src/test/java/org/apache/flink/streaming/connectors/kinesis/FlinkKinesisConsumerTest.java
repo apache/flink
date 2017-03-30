@@ -197,7 +197,8 @@ public class FlinkKinesisConsumerTest {
 		try {
 			KinesisConfigUtil.validateConsumerConfiguration(testConfig);
 
-			KinesisConfigUtil.initTimestampDateFormat.parse(timestamp);
+			SimpleDateFormat customDateFormat = new SimpleDateFormat(ConsumerConfigConstants.DEFAULT_STREAM_TIMESTAMP_DATE_FORMAT);
+			customDateFormat.parse(timestamp);
 		} catch (Exception e) {
 			e.printStackTrace();
 			fail();
@@ -257,7 +258,7 @@ public class FlinkKinesisConsumerTest {
 		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
 		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
 		testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_POSITION, "AT_TIMESTAMP");
-		testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP, "1459799926.480");
+		testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP, "stillUnparsable");
 		testConfig.setProperty(ConsumerConfigConstants.STREAM_TIMESTAMP_DATE_FORMAT, "yyyy-MM-dd");
 
 		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
