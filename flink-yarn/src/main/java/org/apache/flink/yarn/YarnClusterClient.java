@@ -245,7 +245,8 @@ public class YarnClusterClient extends ClusterClient {
 					akkaDuration);
 			return (GetClusterStatusResponse) Await.result(clusterStatusOption, akkaDuration);
 		} catch (Exception e) {
-			throw new RuntimeException("Unable to get ClusterClient status from Application Client", e);
+			LOG.warn("Unable to get ClusterClient status from Application Client", e);
+			return null;
 		}
 	}
 
