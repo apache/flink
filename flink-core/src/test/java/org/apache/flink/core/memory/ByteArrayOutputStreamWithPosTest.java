@@ -18,12 +18,25 @@
 
 package org.apache.flink.core.memory;
 
+import org.apache.flink.configuration.ConfigConstants;
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
+
+import java.io.IOException;
+import java.util.Arrays;
 
 public class ByteArrayOutputStreamWithPosTest {
+
+	@Rule
+	public ExpectedException thrown = ExpectedException.none();
+
+	/**
+	 * This tests setting position which is exactly the same with the buffer size.
+	 */
 	@Test
-	public void setPositionWhenBufferIsFull() throws Exception {
+	public void testSetPositionWhenBufferIsFull() throws Exception {
 
 		int initBufferSize = 32;
 
@@ -44,4 +57,61 @@ public class ByteArrayOutputStreamWithPosTest {
 
 	}
 
+	/**
+	 * This tests setting negative position
+	 */
+	@Test
+	public void testSetNegativePosition() throws Exception {
+		thrown.expect(IllegalArgumentException.class);
+		thrown.expectMessage("Position out of bounds");
+
+		int initBufferSize = 32;
+
+		ByteArrayOutputStreamWithPos stream = new ByteArrayOutputStreamWithPos(initBufferSize);
+
+		stream.write(new byte[initBufferSize]);
+
+		stream.setPosition(-1);
+
+		Assert.fail("Should not reach here !!!!");
+	}
+
+	/**
+	 * This tests setting position larger than buffer size
+	 */
+	@Test
+	public void testSetPositionLargerThanBufferSize() throws Exception {
+		int initBufferSize = 32;
+
+		ByteArrayOutputStreamWithPos stream = new ByteArrayOutputStreamWithPos(initBufferSize);
+
+		stream.write(new byte[initBufferSize]);
+
+		Assert.assertEquals(initBufferSize, stream.getBuf().length);
+
+		stream.setPosition(33);
+
+		Assert.assertEquals(64, stream.getBuf().length);
+
+		Assert.assertEquals(33, stream.getPosition());
+	}
+
+	/**
+	 * THis tests that toString returns a substring of the buffer with range(0, position)
+	 */
+	@Test
+	public void testToString() throws IOException {
+		ByteArrayOutputStreamWithPos stream = new ByteArrayOutputStreamWithPos();
+
+		byte[] data = "1234567890".getBytes(ConfigConstants.DEFAULT_CHARSET);
+		stream.write(data);
+		Assert.assertArrayEquals(data, stream.toString().getBytes(ConfigConstants.DEFAULT_CHARSET));
+
+		stream.setPosition(1);
+		Assert.assertArrayEquals(Arrays.copyOf(data, 1), stream.toString().getBytes(ConfigConstants.DEFAULT_CHARSET));
+
+		stream.setPosition(data.length + 1);
+		Assert.assertArrayEquals(Arrays.copyOf(data, data.length + 1), stream.toString().getBytes(ConfigConstants.DEFAULT_CHARSET));
+
+	}
 }

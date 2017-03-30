@@ -19,9 +19,14 @@
 package org.apache.flink.core.memory;
 
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 public class ByteArrayInputStreamWithPosTest {
+
+	@Rule
+	public ExpectedException thrown = ExpectedException.none();
 
 	/**
 	 *  This tests setting position on a {@link ByteArrayInputStreamWithPos}
@@ -39,11 +44,26 @@ public class ByteArrayInputStreamWithPosTest {
 	/**
 	 * This tests that the expected position exceeds the capacity of the byte array.
 	 */
-	@Test(expected = IllegalArgumentException.class)
-	public void testSetErrorPosition() throws Exception {
+	@Test
+	public void testSetTooLargePosition() throws Exception {
+		thrown.expect(IllegalArgumentException.class);
+		thrown.expectMessage("Position out of bounds.");
 		byte[] data = new byte[] {'0','1','2','3','4','5','6','7','8','9'};
 		ByteArrayInputStreamWithPos inputStreamWithPos = new ByteArrayInputStreamWithPos(data);
 		inputStreamWithPos.setPosition(data.length);
+		Assert.fail("Should not reach here !!!!");
+	}
+
+	/**
+	 * This tests setting a negative position
+	 */
+	@Test
+	public void testSetNegativePosition() throws Exception {
+		thrown.expect(IllegalArgumentException.class);
+		thrown.expectMessage("Position out of bounds.");
+		byte[] data = new byte[] {'0','1','2','3','4','5','6','7','8','9'};
+		ByteArrayInputStreamWithPos inputStreamWithPos = new ByteArrayInputStreamWithPos(data);
+		inputStreamWithPos.setPosition(-1);
 		Assert.fail("Should not reach here !!!!");
 	}
 
