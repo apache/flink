@@ -12,13 +12,6 @@
  */
 package org.apache.flink.python.api;
 
-import java.io.File;
-import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.Arrays;
-import java.util.Random;
-
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
@@ -40,23 +33,31 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.python.api.functions.util.NestedKeyDiscarder;
-import org.apache.flink.python.api.functions.util.StringTupleDeserializerMap;
 import org.apache.flink.python.api.PythonOperationInfo.DatasizeHint;
-import static org.apache.flink.python.api.PythonOperationInfo.DatasizeHint.HUGE;
-import static org.apache.flink.python.api.PythonOperationInfo.DatasizeHint.NONE;
-import static org.apache.flink.python.api.PythonOperationInfo.DatasizeHint.TINY;
 import org.apache.flink.python.api.functions.PythonCoGroup;
-import org.apache.flink.python.api.functions.util.IdentityGroupReduce;
 import org.apache.flink.python.api.functions.PythonMapPartition;
+import org.apache.flink.python.api.functions.util.IdentityGroupReduce;
 import org.apache.flink.python.api.functions.util.KeyDiscarder;
+import org.apache.flink.python.api.functions.util.NestedKeyDiscarder;
 import org.apache.flink.python.api.functions.util.SerializerMap;
 import org.apache.flink.python.api.functions.util.StringDeserializerMap;
+import org.apache.flink.python.api.functions.util.StringTupleDeserializerMap;
 import org.apache.flink.python.api.streaming.plan.PythonPlanStreamer;
 import org.apache.flink.python.api.util.SetCache;
 import org.apache.flink.runtime.filecache.FileCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.File;
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.Arrays;
+import java.util.Random;
+
+import static org.apache.flink.python.api.PythonOperationInfo.DatasizeHint.HUGE;
+import static org.apache.flink.python.api.PythonOperationInfo.DatasizeHint.NONE;
+import static org.apache.flink.python.api.PythonOperationInfo.DatasizeHint.TINY;
 
 /**
  * This class allows the execution of a Flink plan written in python.
@@ -116,7 +117,7 @@ public class PythonPlanBinder {
 		binder.runPlan(Arrays.copyOfRange(args, 1, args.length));
 	}
 
-	public PythonPlanBinder() throws IOException {
+	public PythonPlanBinder() {
 		Configuration conf = GlobalConfiguration.loadConfiguration();
 		FLINK_PYTHON2_BINARY_PATH = conf.getString(FLINK_PYTHON2_BINARY_KEY, "python");
 		FLINK_PYTHON3_BINARY_PATH = conf.getString(FLINK_PYTHON3_BINARY_KEY, "python3");
@@ -164,6 +165,7 @@ public class PythonPlanBinder {
 	}
 
 	//=====Setup========================================================================================================
+
 	/**
 	 * Copies all files to a common directory (FLINK_PYTHON_FILE_PATH). This allows us to distribute it as one big
 	 * package, and resolves PYTHONPATH issues.
@@ -186,7 +188,7 @@ public class PythonPlanBinder {
 		}
 	}
 
-	private static void clearPath(String path) throws IOException, URISyntaxException {
+	private static void clearPath(String path) throws IOException {
 		FileSystem fs = FileSystem.get(new Path(path).toUri());
 		if (fs.exists(new Path(path))) {
 			fs.delete(new Path(path), true);
@@ -232,9 +234,9 @@ public class PythonPlanBinder {
 			local.delete(new Path(FLINK_PYTHON_FILE_PATH), true);
 			local.delete(new Path(FLINK_TMP_DATA_DIR), true);
 			streamer.close();
-		} catch (NullPointerException npe) {
+		} catch (NullPointerException ignored) {
 		} catch (IOException ioe) {
-			LOG.error("PythonAPI file cleanup failed. " + ioe.getMessage());
+			LOG.error("PythonAPI file cleanup failed. {}", ioe.getMessage());
 		} catch (URISyntaxException use) { // can't occur
 		}
 	}
@@ -249,6 +251,7 @@ public class PythonPlanBinder {
 	}
 
 	//====Environment===================================================================================================
+
 	/**
 	 * This enum contains the identifiers for all supported environment parameters.
 	 */
@@ -285,6 +288,7 @@ public class PythonPlanBinder {
 	}
 
 	//====Operations====================================================================================================
+
 	/**
 	 * This enum contains the identifiers for all supported DataSet operations.
 	 */
@@ -300,12 +304,7 @@ public class PythonPlanBinder {
 		Integer operationCount = (Integer) streamer.getRecord(true);
 		for (int x = 0; x < operationCount; x++) {
 			PythonOperationInfo info = new PythonOperationInfo(streamer, currentEnvironmentID);
-			Operation op;
-			try {
-				op = Operation.valueOf(info.identifier.toUpperCase());
-			} catch (IllegalArgumentException iae) {
-				throw new IllegalArgumentException("Invalid operation specified: " + info.identifier);
-			}
+			Operation op = Operation.valueOf(info.identifier.toUpperCase());
 			switch (op) {
 				case SOURCE_CSV:
 					createCsvSource(info);
