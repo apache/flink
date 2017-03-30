@@ -28,7 +28,6 @@ import org.apache.flink.streaming.connectors.kinesis.config.ProducerConfigConsta
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.Properties;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
