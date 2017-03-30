@@ -19,7 +19,11 @@
 package org.apache.flink.table.api.scala.stream.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala.stream.sql.SqlITCase.EventTimeSourceFunction
+import org.apache.flink.table.api.scala.stream.sql.SqlITCase.{
+  EventTimeSourceFunction, 
+  StreamSourceProcTime,
+  RowResultSortComparator,
+  TupleRowSelector}
 import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.watermark.Watermark
@@ -31,8 +35,25 @@ import org.junit.Assert._
 import org.junit._
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
-
 import scala.collection.mutable
+import org.apache.flink.streaming.api.functions.source.SourceFunction
+import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
+import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness
+import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness
+import org.apache.flink.streaming.util.TestHarnessUtil
+import org.apache.flink.api.java.functions.KeySelector
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
+import org.apache.flink.streaming.api.operators.KeyedProcessOperator
+import org.apache.flink.table.runtime.aggregate.ProcTimeBoundedProcessingOverProcessFunction
+import org.apache.flink.table.functions.aggfunctions.CountAggFunction
+import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.api.java.typeutils.ValueTypeInfo._
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
+import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.Comparator
+import java.io.ObjectInputStream.GetField
+import org.apache.flink.api.common.typeinfo._
 
 class SqlITCase extends StreamingWithStateTestBase {
 
@@ -412,8 +433,8 @@ class SqlITCase extends StreamingWithStateTestBase {
   }
 
   /**
-    *  All aggregates must be computed on the same window.
-    */
+   *  All aggregates must be computed on the same window.
+   */
   @Test(expected = classOf[TableException])
   def testMultiWindow(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
@@ -515,7 +536,7 @@ class SqlITCase extends StreamingWithStateTestBase {
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
-  /** test sliding event-time unbounded window with partition by **/
+    /** test sliding event-time unbounded window with partition by **/
   @Test
   def testUnboundedEventTimeRowWindowWithPartitionMultiThread(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
@@ -584,6 +605,7 @@ class SqlITCase extends StreamingWithStateTestBase {
     )
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
+  
 
   /** test sliding event-time unbounded window without partitiion by **/
   @Test
@@ -639,8 +661,9 @@ class SqlITCase extends StreamingWithStateTestBase {
       "6,8,Hello world,43,8,5,9,1")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
+  
 
-  /** test sliding event-time unbounded window without partitiion by and arrive early **/
+ /** test sliding event-time unbounded window without partitiion by and arrive early **/
   @Test
   def testUnboundedEventTimeRowWindowArriveEarly(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
@@ -696,6 +719,274 @@ class SqlITCase extends StreamingWithStateTestBase {
       "6,8,Hello world,51,9,5,9,1")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
+
+  @Test
+  def testAvgSumAggregatationPartition(): Unit = {
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    env.setParallelism(1)
+    StreamITCase.testResults = mutable.MutableList()
+
+    val sqlQuery = "SELECT a, AVG(c) OVER (PARTITION BY a ORDER BY procTime()" +
+      "RANGE BETWEEN INTERVAL '10' SECOND PRECEDING AND CURRENT ROW) AS avgC," +
+      "SUM(c) OVER (PARTITION BY a ORDER BY procTime()" +
+      "RANGE BETWEEN INTERVAL '10' SECOND PRECEDING AND CURRENT ROW) as sumC FROM MyTable"
+
+    val t = StreamTestData.get5TupleDataStream(env)
+      .toTable(tEnv).as('a, 'b, 'c, 'd, 'e)
+
+    tEnv.registerTable("MyTable", t)
+
+    val result = tEnv.sql(sqlQuery).toDataStream[Row]
+    result.addSink(new StreamITCase.StringSink)
+    env.execute()
+
+    val expected = mutable.MutableList(
+      "1,0,0",
+      "2,1,1",
+      "2,1,3",
+      "3,3,3",
+      "3,3,7",
+      "3,4,12",
+      "4,6,13",
+      "4,6,6",
+      "4,7,21",
+      "4,7,30",
+      "5,10,10",
+      "5,10,21",
+      "5,11,33",
+      "5,11,46",
+      "5,12,60")
+
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testAvgSumAggregatationNonPartition(): Unit = {
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    env.setParallelism(1)
+    StreamITCase.testResults = mutable.MutableList()
+
+    val sqlQuery = "SELECT a, Count(c) OVER (ORDER BY procTime()" +
+      "RANGE BETWEEN INTERVAL '10' SECOND PRECEDING AND CURRENT ROW) AS avgC," +
+      "MIN(c) OVER (ORDER BY procTime()" +
+      "RANGE BETWEEN INTERVAL '10' SECOND PRECEDING AND CURRENT ROW) as sumC FROM MyTable"
+
+    val t = StreamTestData.get5TupleDataStream(env)
+      .toTable(tEnv).as('a, 'b, 'c, 'd, 'e)
+
+    tEnv.registerTable("MyTable", t)
+
+    val result = tEnv.sql(sqlQuery).toDataStream[Row]
+    result.addSink(new StreamITCase.StringSink)
+    env.execute()
+
+    val expected = mutable.MutableList(
+      "1,1,0",
+      "2,2,0",
+      "2,3,0",
+      "3,4,0",
+      "3,5,0",
+      "3,6,0",
+      "4,7,0",
+      "4,8,0",
+      "4,9,0",
+      "4,10,0",
+      "5,11,0",
+      "5,12,0",
+      "5,13,0",
+      "5,14,0",
+      "5,15,0")
+
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testCountAggregatationProcTimePartitioned(): Unit = {
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    env.setParallelism(1)
+    StreamITCase.testResults = mutable.MutableList()
+    var t = env.addSource(new StreamSourceProcTime(1100))
+      .toTable(tEnv).as('a, 'b, 'c, 'd, 'e)
+    tEnv.registerTable("MyTable", t)
+
+    val sqlQuery = "SELECT a, Count(c) OVER (PARTITION BY c ORDER BY procTime()" +
+      "RANGE BETWEEN INTERVAL '3' SECOND PRECEDING AND CURRENT ROW) AS avgC FROM MyTable"
+
+    val result = tEnv.sql(sqlQuery).toDataStream[Row]
+    result.addSink(new StreamITCase.StringSink)
+    env.execute()
+
+    val expected = mutable.MutableList(
+      "1,1",
+      "1,1",
+      "1,2",
+      "1,2",
+      "1,2",
+      "1,2",
+      "1,2",
+      "1,2",
+      "1,2",
+      "1,2")
+
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+
+  }
+
+  @Test
+  def testCountAggregatationProcTimeNonPartitioned(): Unit = {
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    env.setParallelism(1)
+    StreamITCase.testResults = mutable.MutableList()
+    var t = env.addSource(new StreamSourceProcTime(1100))
+      .toTable(tEnv).as('a, 'b, 'c, 'd, 'e)
+
+    tEnv.registerTable("MyTable", t)
+
+    val sqlQuery = "SELECT a, Count(c) OVER (ORDER BY procTime()" +
+      "RANGE BETWEEN INTERVAL '2' SECOND PRECEDING AND CURRENT ROW) AS avgC FROM MyTable"
+
+    val result = tEnv.sql(sqlQuery).toDataStream[Row]
+    result.addSink(new StreamITCase.StringSink)
+    env.execute()
+
+    val expected = mutable.MutableList(
+      "1,1",
+      "1,2",
+      "1,2",
+      "1,2",
+      "1,2",
+      "1,2",
+      "1,2",
+      "1,2",
+      "1,2",
+      "1,2")
+
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+
+  }
+  
+  
+  @Test
+  def testCountAggregatationProcTimeHarnessPartitioned(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    env.setParallelism(1)
+    
+    val rT =  new RowTypeInfo(Array[TypeInformation[_]](
+      INT_TYPE_INFO,
+      LONG_TYPE_INFO,
+      INT_TYPE_INFO,
+      STRING_TYPE_INFO,
+      LONG_TYPE_INFO),
+      Array("a","b","c","d","e"))
+    
+    val rTA =  new RowTypeInfo(Array[TypeInformation[_]](
+     LONG_TYPE_INFO), Array("count"))
+      
+    val processFunction = new KeyedProcessOperator[String,Row,Row](
+      new ProcTimeBoundedProcessingOverProcessFunction(
+        Array(new CountAggFunction),
+        Array(1),
+        5,
+        rTA,
+        1000,
+        rT))
+  
+    val rInput:Row = new Row(5)
+      rInput.setField(0, 1)
+      rInput.setField(1, 11L)
+      rInput.setField(2, 1)
+      rInput.setField(3, "aaa")
+      rInput.setField(4, 11L)
+    
+   val testHarness = new KeyedOneInputStreamOperatorTestHarness[String,Row,Row](
+      processFunction, 
+      new TupleRowSelector(3), 
+      BasicTypeInfo.STRING_TYPE_INFO)
+    
+   testHarness.open();
+
+   testHarness.setProcessingTime(3)
+
+   // timestamp is ignored in processing time
+    testHarness.processElement(new StreamRecord(rInput, 1001))
+    testHarness.processElement(new StreamRecord(rInput, 2002))
+    testHarness.processElement(new StreamRecord(rInput, 2003))
+    testHarness.processElement(new StreamRecord(rInput, 2004))
+   
+    testHarness.setProcessingTime(1004)
+  
+    testHarness.processElement(new StreamRecord(rInput, 2005))
+    testHarness.processElement(new StreamRecord(rInput, 2006))
+  
+    val result = testHarness.getOutput
+    
+    val expectedOutput = new ConcurrentLinkedQueue[Object]()
+    
+     val rOutput:Row = new Row(6)
+      rOutput.setField(0, 1)
+      rOutput.setField(1, 11L)
+      rOutput.setField(2, 1)
+      rOutput.setField(3, "aaa")
+      rOutput.setField(4, 11L)
+      rOutput.setField(5, 1L)   //count is 1
+    expectedOutput.add(new StreamRecord(rOutput, 1001));
+    val rOutput2:Row = new Row(6)
+      rOutput2.setField(0, 1)
+      rOutput2.setField(1, 11L)
+      rOutput2.setField(2, 1)
+      rOutput2.setField(3, "aaa")
+      rOutput2.setField(4, 11L)
+      rOutput2.setField(5, 2L)   //count is 2 
+    expectedOutput.add(new StreamRecord(rOutput2, 2002));
+    val rOutput3:Row = new Row(6)
+      rOutput3.setField(0, 1)
+      rOutput3.setField(1, 11L)
+      rOutput3.setField(2, 1)
+      rOutput3.setField(3, "aaa")
+      rOutput3.setField(4, 11L)
+      rOutput3.setField(5, 3L)   //count is 3
+    expectedOutput.add(new StreamRecord(rOutput3, 2003));
+    val rOutput4:Row = new Row(6)
+      rOutput4.setField(0, 1)
+      rOutput4.setField(1, 11L)
+      rOutput4.setField(2, 1)
+      rOutput4.setField(3, "aaa")
+      rOutput4.setField(4, 11L)
+      rOutput4.setField(5, 4L)   //count is 4 
+    expectedOutput.add(new StreamRecord(rOutput4, 2004));
+    val rOutput5:Row = new Row(6)
+      rOutput5.setField(0, 1)
+      rOutput5.setField(1, 11L)
+      rOutput5.setField(2, 1)
+      rOutput5.setField(3, "aaa")
+      rOutput5.setField(4, 11L)
+      rOutput5.setField(5, 1L)   //count is reset to 1 
+    expectedOutput.add(new StreamRecord(rOutput5, 2005));
+    val rOutput6:Row = new Row(6)
+      rOutput6.setField(0, 1)
+      rOutput6.setField(1, 11L)
+      rOutput6.setField(2, 1)
+      rOutput6.setField(3, "aaa")
+      rOutput6.setField(4, 11L)
+      rOutput6.setField(5, 2L)   //count is 2 
+    expectedOutput.add(new StreamRecord(rOutput6, 2006));
+    
+    TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.",
+        expectedOutput, testHarness.getOutput(), new RowResultSortComparator(6))
+    
+    testHarness.close()
+        
+  }
+  
 }
 
 object SqlITCase {
@@ -711,4 +1002,80 @@ object SqlITCase {
 
     override def cancel(): Unit = ???
   }
+  
+  /**
+ * Generate 10 elements 1 second apart
+ */
+class StreamSourceProcTime(
+    private val delay: Long = 1000) extends SourceFunction[Tuple5[Int, Long, Int, String, Long]] {
+
+  var counter = 10
+  override def run(ctx: SourceContext[Tuple5[Int, Long, Int, String, Long]]): Unit = {
+
+    while (counter > 0) {
+      Thread.sleep(delay)
+      ctx.collect(new Tuple5(1, 2L, (counter % 2), "aaa", 2L))
+      counter -= 1
+    }
+  }
+
+  override def cancel(): Unit = {
+
+  }
 }
+
+/*
+ * Return 0 for equal Rows and non zero for different rows
+ */
+
+class RowResultSortComparator(
+    private val IndexCounter:Int) extends Comparator[Object] with Serializable {
+  
+    override def compare( o1:Object, o2:Object):Int = {
+  
+      if (o1.isInstanceOf[Watermark] || o2.isInstanceOf[Watermark]) {
+         0 
+       } else {
+        val sr0 = o1.asInstanceOf[StreamRecord[Row]]
+        val sr1 = o2.asInstanceOf[StreamRecord[Row]]
+        val row0 = sr0.getValue
+        val row1 = sr1.getValue
+        if ( row0.getArity != row1.getArity) {
+          -1
+        }
+  
+        if (sr0.getTimestamp != sr1.getTimestamp) {
+          (sr0.getTimestamp() - sr1.getTimestamp())
+        }
+
+        var i = 0
+        var result:Boolean = true
+        while (i < IndexCounter) {
+          result = (result) & (row0.getField(i)!=row1.getField(i))
+          i += 1
+        }
+  
+        if (result) {
+          0
+        } else {
+          -1
+        }
+      }
+   }
+}
+
+/*
+ * Simple test class that returns a specified field as the selector function
+ */
+class TupleRowSelector(
+    private val selectorField:Int) extends KeySelector[Row, String] {
+
+  override def getKey(value: Row): String = { 
+    value.getField(selectorField).asInstanceOf[String]
+  }
+}
+
+}
+
+
+
