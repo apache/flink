@@ -17,6 +17,7 @@
  */
 package org.apache.flink.table.utils
 
+import java.lang.Boolean
 import java.util
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
