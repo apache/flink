@@ -36,7 +36,7 @@ import org.apache.flink.util.Preconditions
   */
 class DataSetWindowAggMapFunction(
     private val aggregates: Array[AggregateFunction[_]],
-    private val aggFields: Array[Int],
+    private val aggFields: Array[Array[Int]],
     private val groupingKeys: Array[Int],
     private val timeFieldPos: Int, // time field position in input row
     private val tumbleTimeWindowSize: Option[Long],
@@ -62,7 +62,7 @@ class DataSetWindowAggMapFunction(
     var i = 0
     while (i < aggregates.length) {
       val agg = aggregates(i)
-      val fieldValue = input.getField(aggFields(i))
+      val fieldValue = input.getField(aggFields(i)(0))
       val accumulator = agg.createAccumulator()
       agg.accumulate(accumulator, fieldValue)
       output.setField(groupingKeys.length + i, accumulator)

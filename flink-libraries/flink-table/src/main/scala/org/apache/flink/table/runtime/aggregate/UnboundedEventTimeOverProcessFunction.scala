@@ -43,7 +43,7 @@ import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
   */
 abstract class UnboundedEventTimeOverProcessFunction(
     private val aggregates: Array[AggregateFunction[_]],
-    private val aggFields: Array[Int],
+    private val aggFields: Array[Array[Int]],
     private val forwardedFieldCount: Int,
     private val intermediateType: TypeInformation[Row],
     private val inputType: TypeInformation[Row])
@@ -217,7 +217,7 @@ abstract class UnboundedEventTimeOverProcessFunction(
   */
 class UnboundedEventTimeRowsOverProcessFunction(
    aggregates: Array[AggregateFunction[_]],
-   aggFields: Array[Int],
+   aggFields: Array[Array[Int]],
    forwardedFieldCount: Int,
    intermediateType: TypeInformation[Row],
    inputType: TypeInformation[Row])
@@ -250,7 +250,7 @@ class UnboundedEventTimeRowsOverProcessFunction(
       while (i < aggregates.length) {
         val index = forwardedFieldCount + i
         val accumulator = lastAccumulator.getField(i).asInstanceOf[Accumulator]
-        aggregates(i).accumulate(accumulator, curRow.getField(aggFields(i)))
+        aggregates(i).accumulate(accumulator, curRow.getField(aggFields(i)(0)))
         output.setField(index, aggregates(i).getValue(accumulator))
         i += 1
       }
@@ -269,7 +269,7 @@ class UnboundedEventTimeRowsOverProcessFunction(
   */
 class UnboundedEventTimeRangeOverProcessFunction(
     aggregates: Array[AggregateFunction[_]],
-    aggFields: Array[Int],
+    aggFields: Array[Array[Int]],
     forwardedFieldCount: Int,
     intermediateType: TypeInformation[Row],
     inputType: TypeInformation[Row])
@@ -294,7 +294,7 @@ class UnboundedEventTimeRangeOverProcessFunction(
       while (i < aggregates.length) {
         val index = forwardedFieldCount + i
         val accumulator = lastAccumulator.getField(i).asInstanceOf[Accumulator]
-        aggregates(i).accumulate(accumulator, curRow.getField(aggFields(i)))
+        aggregates(i).accumulate(accumulator, curRow.getField(aggFields(i)(0)))
         i += 1
       }
       j += 1

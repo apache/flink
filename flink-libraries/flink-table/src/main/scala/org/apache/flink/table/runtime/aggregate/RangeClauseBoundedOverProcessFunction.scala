@@ -40,7 +40,7 @@ import org.apache.flink.util.{Collector, Preconditions}
  */
 class RangeClauseBoundedOverProcessFunction(
     private val aggregates: Array[AggregateFunction[_]],
-    private val aggFields: Array[Int],
+    private val aggFields: Array[Array[Int]],
     private val forwardedFieldCount: Int,
     private val aggregationStateType: RowTypeInfo,
     private val inputRowType: RowTypeInfo,
@@ -160,7 +160,7 @@ class RangeClauseBoundedOverProcessFunction(
               val accumulator = accumulators.getField(aggregatesIndex).asInstanceOf[Accumulator]
               aggregates(aggregatesIndex)
                 .retract(accumulator, retractDataList.get(dataListIndex)
-                .getField(aggFields(aggregatesIndex)))
+                .getField(aggFields(aggregatesIndex)(0)))
               aggregatesIndex += 1
             }
             dataListIndex += 1
@@ -177,7 +177,7 @@ class RangeClauseBoundedOverProcessFunction(
         while (aggregatesIndex < aggregates.length) {
           val accumulator = accumulators.getField(aggregatesIndex).asInstanceOf[Accumulator]
           aggregates(aggregatesIndex).accumulate(accumulator, inputs.get(dataListIndex)
-            .getField(aggFields(aggregatesIndex)))
+            .getField(aggFields(aggregatesIndex)(0)))
           aggregatesIndex += 1
         }
         dataListIndex += 1

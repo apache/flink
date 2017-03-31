@@ -35,7 +35,7 @@ import org.apache.flink.util.{Collector, Preconditions}
   */
 class DataSetPreAggFunction(
     private val aggregates: Array[AggregateFunction[_ <: Any]],
-    private val aggInFields: Array[Int],
+    private val aggInFields: Array[Array[Int]],
     private val groupingKeys: Array[Int])
   extends AbstractRichFunction
   with GroupCombineFunction[Row, Row]
@@ -78,7 +78,7 @@ class DataSetPreAggFunction(
       // accumulate
       i = 0
       while (i < aggregates.length) {
-        aggregates(i).accumulate(accumulators(i), record.getField(aggInFields(i)))
+        aggregates(i).accumulate(accumulators(i), record.getField(aggInFields(i)(0)))
         i += 1
       }
       // check if this record is the last record

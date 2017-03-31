@@ -33,7 +33,7 @@ import org.apache.flink.types.Row
   */
 class AggregateAggFunction(
     private val aggregates: Array[AggregateFunction[_]],
-    private val aggFields: Array[Int])
+    private val aggFields: Array[Array[Int]])
   extends DataStreamAggFunc[Row, Row, Row] {
 
   override def createAccumulator(): Row = {
@@ -51,7 +51,7 @@ class AggregateAggFunction(
     var i = 0
     while (i < aggregates.length) {
       val acc = accumulatorRow.getField(i).asInstanceOf[Accumulator]
-      val v = value.getField(aggFields(i))
+      val v = value.getField(aggFields(i)(0))
       aggregates(i).accumulate(acc, v)
       i += 1
     }

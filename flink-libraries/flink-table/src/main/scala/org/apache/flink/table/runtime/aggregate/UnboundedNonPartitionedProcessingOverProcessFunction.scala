@@ -37,7 +37,7 @@ import org.apache.flink.util.{Collector, Preconditions}
   */
 class UnboundedNonPartitionedProcessingOverProcessFunction(
     private val aggregates: Array[AggregateFunction[_]],
-    private val aggFields: Array[Int],
+    private val aggFields: Array[Array[Int]],
     private val forwardedFieldCount: Int,
     private val aggregationStateType: RowTypeInfo)
   extends ProcessFunction[Row, Row] with CheckpointedFunction{
@@ -82,7 +82,7 @@ class UnboundedNonPartitionedProcessingOverProcessFunction(
     while (i < aggregates.length) {
       val index = forwardedFieldCount + i
       val accumulator = accumulators.getField(i).asInstanceOf[Accumulator]
-      aggregates(i).accumulate(accumulator, input.getField(aggFields(i)))
+      aggregates(i).accumulate(accumulator, input.getField(aggFields(i)(0)))
       output.setField(index, aggregates(i).getValue(accumulator))
       i += 1
     }

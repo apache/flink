@@ -41,7 +41,7 @@ import org.apache.flink.util.{Collector, Preconditions}
  */
 class RowsClauseBoundedOverProcessFunction(
     private val aggregates: Array[AggregateFunction[_]],
-    private val aggFields: Array[Int],
+    private val aggFields: Array[Array[Int]],
     private val forwardedFieldCount: Int,
     private val aggregationStateType: RowTypeInfo,
     private val inputRowType: RowTypeInfo,
@@ -202,7 +202,7 @@ class RowsClauseBoundedOverProcessFunction(
           i = 0
           while (i < aggregates.length) {
             val accumulator = accumulators.getField(i).asInstanceOf[Accumulator]
-            aggregates(i).retract(accumulator, retractRow.getField(aggFields(i)))
+            aggregates(i).retract(accumulator, retractRow.getField(aggFields(i)(0)))
             i += 1
           }
         }
@@ -212,7 +212,7 @@ class RowsClauseBoundedOverProcessFunction(
         while (i < aggregates.length) {
           val index = forwardedFieldCount + i
           val accumulator = accumulators.getField(i).asInstanceOf[Accumulator]
-          aggregates(i).accumulate(accumulator, input.getField(aggFields(i)))
+          aggregates(i).accumulate(accumulator, input.getField(aggFields(i)(0)))
           output.setField(index, aggregates(i).getValue(accumulator))
           i += 1
         }

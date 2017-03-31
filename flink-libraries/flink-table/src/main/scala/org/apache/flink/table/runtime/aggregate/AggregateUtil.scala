@@ -45,6 +45,7 @@ import org.apache.flink.table.typeutils.{RowIntervalTypeInfo, TimeIntervalTypeIn
 import org.apache.flink.types.Row
 
 import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 
 object AggregateUtil {
@@ -886,10 +887,10 @@ object AggregateUtil {
       aggregateCalls: Seq[AggregateCall],
       inputType: RelDataType,
       needRetraction: Boolean)
-  : (Array[Int], Array[TableAggregateFunction[_ <: Any]]) = {
+  : (Array[Array[Int]], Array[TableAggregateFunction[_ <: Any]]) = {
 
     // store the aggregate fields of each aggregate function, by the same order of aggregates.
-    val aggFieldIndexes = new Array[Int](aggregateCalls.size)
+    val aggFieldIndexes = new Array[Array[Int]](aggregateCalls.size)
     val aggregates = new Array[TableAggregateFunction[_ <: Any]](aggregateCalls.size)
 
     // create aggregate function instances by function type and aggregate field data type.
@@ -897,7 +898,7 @@ object AggregateUtil {
       val argList: util.List[Integer] = aggregateCall.getArgList
       if (argList.isEmpty) {
         if (aggregateCall.getAggregation.isInstanceOf[SqlCountAggFunction]) {
-          aggFieldIndexes(index) = 0
+          aggFieldIndexes(index) = Array[Int](0)
         } else {
           throw new TableException("Aggregate fields should not be empty.")
         }
@@ -905,9 +906,10 @@ object AggregateUtil {
         if (argList.size() > 1) {
           throw new TableException("Currently, do not support aggregate on multi fields.")
         }
-        aggFieldIndexes(index) = argList.get(0)
+        aggFieldIndexes(index) = argList.asScala.map(i => i.intValue).toArray
       }
-      val sqlTypeName = inputType.getFieldList.get(aggFieldIndexes(index)).getType.getSqlTypeName
+      val sqlTypeName = inputType.getFieldList.get(aggFieldIndexes(index)(0)).getType
+        .getSqlTypeName
       aggregateCall.getAggregation match {
 
         case _: SqlSumAggFunction | _: SqlSumEmptyIsZeroAggFunction =>
