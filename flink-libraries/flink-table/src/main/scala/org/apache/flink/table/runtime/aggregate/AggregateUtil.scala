@@ -1239,5 +1239,38 @@ object AggregateUtil {
   private def gcd(a: Long, b: Long): Long = {
     if (b == 0) a else gcd(b, a % b)
   }
-}
+  
+  /**
+   * Create an [[org.apache.flink.streaming.api.functions.ProcessFunction]] to evaluate final
+   * aggregate value over a window with processing time boundaries.
+   *
+   * @param namedAggregates List of calls to aggregate functions and their output field names
+   * @param inputType Input row type
+   * @param timeBoundary time limit of the window boundary expressed in milliseconds
+   * @param isPartitioned Flag to indicate whether the input is partitioned or not
+   * @return [[org.apache.flink.streaming.api.functions.ProcessFunction]]
+   */
+  private[flink] def createTimeBoundedProcessingOverProcessFunction(
+    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+    inputType: RelDataType,
+    timeBoundary: Long): ProcessFunction[Row, Row] = {
 
+    val (aggFields, aggregates) =
+      transformToAggregateFunctions(
+        namedAggregates.map(_.getKey),
+        inputType,
+        needRetraction = true)
+
+    val aggregationStateType: RowTypeInfo = createAccumulatorRowType(aggregates)
+
+    new ProcTimeBoundedProcessingOverProcessFunction(
+      aggregates,
+      aggFields,
+      inputType.getFieldCount,
+      aggregationStateType,
+      timeBoundary,
+      FlinkTypeFactory.toInternalRowTypeInfo(inputType))
+
+  }
+  
+}

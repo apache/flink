@@ -31,8 +31,9 @@ import org.junit.Assert._
 import org.junit._
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
-
 import scala.collection.mutable
+import java.io.ObjectInputStream.GetField
+import org.apache.flink.api.common.typeinfo._
 
 class SqlITCase extends StreamingWithStateTestBase {
 
@@ -841,6 +842,7 @@ class SqlITCase extends StreamingWithStateTestBase {
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
+
   /** test sliding event-time non-partitioned unbounded RANGE window **/
   @Test
   def testUnboundedNonPartitionedEventTimeRangeWindow(): Unit = {
@@ -1139,7 +1141,6 @@ class SqlITCase extends StreamingWithStateTestBase {
       "5,99,4")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
-
 }
 
 object SqlITCase {
@@ -1155,4 +1156,8 @@ object SqlITCase {
 
     override def cancel(): Unit = ???
   }
+
 }
+
+
+
