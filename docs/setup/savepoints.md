@@ -69,6 +69,8 @@ In the above example, the print sink is stateless and hence not part of the save
 
 You can use the [command line client]({{ site.baseurl }}/setup/cli.html#savepoints) to *trigger savepoints*, *cancel a job with a savepoint*, *resume from savepoints*, and *dispose savepoints*.
 
+With Flink >= 1.2.0 it is also possible to *resume from savepoints* using the webui.
+
 ### Triggering Savepoints
 
 When triggering a savepoint, a single savepoint file will be created that contains the checkpoint *meta data*. The actual checkpoint state will be kept around in the configured checkpoint directory. For example with a `FsStateBackend` or `RocksDBStateBackend`:
