@@ -1,4 +1,4 @@
-/*
+/**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -15,52 +15,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package Imputer;
+package org.apache.flink.ml.preprocessing;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.commons.collections.ListUtils;
 import org.apache.flink.api.common.functions.FlatMapFunction;
-import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.operators.AggregateOperator;
-import org.apache.flink.api.java.operators.MapOperator;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.ml.math.DenseVector;
-import org.apache.flink.shaded.com.google.common.collect.Lists;
 import org.apache.flink.util.Collector;
-import org.apache.hadoop.mapreduce.Reducer;
-
-import scala.collection.mutable.LinkedList;
-import scala.reflect.internal.Trees.New;
+import com.google.common.collect.Lists;
+import breeze.linalg.DenseVector;
 
 public class Imputer {
 
-	
-	static DenseVector testvec1= new DenseVector(new double[]{Double.NaN,3.0,1.0, 3.0});
-	static DenseVector testvec2= new DenseVector(new double[]{1.0,7.0,Double.NaN, 1.0});
-	static DenseVector testvec3= new DenseVector(new double[]{0.0,5.0,Double.NaN, 2.0});
-	static DenseVector testvec4= new DenseVector(new double[]{6.5,Double.NaN,0.5, 0.5});
-	static DenseVector testvec5= new DenseVector(new double[]{6.5,1.0,0.5, 0.5});
-	
-	static ExecutionEnvironment env= ExecutionEnvironment.getExecutionEnvironment();
-	
-	static DataSet<DenseVector> ds = env.fromElements(testvec1, testvec2, testvec3, testvec4, testvec5);
 	private static double[] meansA;
 	private static double[] medians;
 	private static double[] mostValues;
 
-	
 	/**
 	 * 
 	 * @param sparseData
@@ -69,17 +46,16 @@ public class Imputer {
 	 * @return dataset without zeroes / missing values
 	 * @throws Exception 
 	 */
-	public static DataSet<DenseVector> impute(DataSet<DenseVector> sparseData, Strategy strategy, int axis) throws Exception{
-		double val;
-		DataSet<DenseVector> ret = sparseData;
+	public static DataSet<DenseVector<Double>> impute(DataSet<DenseVector<Double>> sparseData, Strategy strategy, int axis) throws Exception{
+		DataSet<DenseVector<Double>> ret = sparseData;
 		if(axis==0){ //columnwise
 			switch (strategy){
 			case MEAN:
-				ret=sparseData.map(new MapFunction<DenseVector, DenseVector>() {
+				ret=sparseData.map(new MapFunction<DenseVector<Double>, DenseVector<Double>>() {
 					@Override
-					public DenseVector map(DenseVector vec) throws Exception {
+					public DenseVector<Double> map(DenseVector<Double> vec) throws Exception {
 						for(int i = 0; i<vec.size();i++){
-							if(Double.compare(Double.NaN, vec.apply(i))==0){
+							if(Double.compare(Double.NaN, (double)vec.apply(i))==0){
 								vec.update(i, getValueMEAN(vec));
 							}
 						}
@@ -88,11 +64,11 @@ public class Imputer {
 				});
 			break;
 			case MEDIAN:
-				ret=sparseData.map(new MapFunction<DenseVector, DenseVector>() {
+				ret=sparseData.map(new MapFunction<DenseVector<Double>, DenseVector<Double>>() {
 					@Override
-					public DenseVector map(DenseVector vec) throws Exception {
+					public DenseVector<Double> map(DenseVector<Double> vec) throws Exception {
 						for(int i = 0; i<vec.size();i++){
-							if(Double.compare(Double.NaN, vec.apply(i))==0){
+							if(Double.compare(Double.NaN, (double)vec.apply(i))==0){
 								vec.update(i, getValueMEDIAN(vec));
 							}
 						}
@@ -102,12 +78,12 @@ public class Imputer {
 				
 			break;
 			case MOST_FREQUENT:
-				ret=sparseData.map(new MapFunction<DenseVector, DenseVector>() {
+				ret=sparseData.map(new MapFunction<DenseVector<Double>, DenseVector<Double>>() {
 					@Override
-					public DenseVector map(DenseVector vec) throws Exception {
+					public DenseVector<Double> map(DenseVector<Double> vec) throws Exception {
 						for(int i = 0; i<vec.size();i++){
 //							if(vec.apply(i)==Double.NaN){
-							if(Double.compare(Double.NaN, vec.apply(i))==0){
+							if(Double.compare(Double.NaN, (double)vec.apply(i))==0){
 								vec.update(i, getValueMOST(vec));
 							}
 						}
@@ -122,12 +98,11 @@ public class Imputer {
 			switch (strategy){
 			case MEAN:
 				getValue(sparseData, Strategy.MEAN);
-				ret=sparseData.map(new MapFunction<DenseVector, DenseVector>() {
-					double v;
+				ret=sparseData.map(new MapFunction<DenseVector<Double>, DenseVector<Double>>() {
 					@Override
-					public DenseVector map(DenseVector vec) {
+					public DenseVector<Double> map(DenseVector<Double> vec) {
 						for(int i = 0; i<vec.size();i++){
-							if(Double.compare(Double.NaN, vec.apply(i))==0){
+							if(Double.compare(Double.NaN, (double)vec.apply(i))==0){
 								vec.update(i,  meansA[i]);
 							}
 						}
@@ -137,12 +112,12 @@ public class Imputer {
 			break;
 			case MEDIAN:
 				System.out.println("im here calculating the median");
-				getValue(ds, Strategy.MEDIAN);
-				ret=sparseData.map(new MapFunction<DenseVector, DenseVector>() {
+				getValue(sparseData, Strategy.MEDIAN);
+				ret=sparseData.map(new MapFunction<DenseVector<Double>, DenseVector<Double>>() {
 					@Override
-					public DenseVector map(DenseVector vec) throws Exception {
+					public DenseVector<Double> map(DenseVector<Double> vec) throws Exception {
 						for(int i = 0; i<vec.size();i++){
-							if(Double.compare(Double.NaN, vec.apply(i))==0){
+							if(Double.compare(Double.NaN,(double) vec.apply(i))==0){
 								vec.update(i, medians[i]);
 							}
 						}
@@ -152,12 +127,12 @@ public class Imputer {
 				
 			break;
 			case MOST_FREQUENT:
-				getValue(ds, Strategy.MOST_FREQUENT);
-				ret=sparseData.map(new MapFunction<DenseVector, DenseVector>() {
+				getValue(sparseData, Strategy.MOST_FREQUENT);
+				ret=sparseData.map(new MapFunction<DenseVector<Double>, DenseVector<Double>>() {
 					@Override
-					public DenseVector map(DenseVector vec) throws Exception {
+					public DenseVector<Double> map(DenseVector<Double> vec) throws Exception {
 						for(int i = 0; i<vec.size();i++){
-							if(Double.compare(Double.NaN, vec.apply(i))==0){
+							if(Double.compare(Double.NaN, (double)vec.apply(i))==0){
 								vec.update(i, mostValues[i] );
 							}
 						}
@@ -171,25 +146,25 @@ public class Imputer {
 	}
 	
 	
-	public static double getValueMEAN(DenseVector vec){
+	public static double getValueMEAN(DenseVector<Double> vec){
 		int num=0;
 		double sum=0;
 		double v;
 		for(int i = 0; i<vec.size(); i++){
-			v=vec.apply(i);
+			v=(double)vec.apply(i);
 			if(Double.compare(Double.NaN, v)!=0){
 				num++;
-				sum+=vec.apply(i);
+				sum+=(double)vec.apply(i);
 			}
 		}
 		return sum/num;
 	}
-	public static double getValueMEDIAN(DenseVector vec){
+	public static double getValueMEDIAN(DenseVector<Double> vec){
 		double ret=0;
 		List<Double> numArray = new ArrayList<>();
 		double val;
 		for(int i =0; i< vec.size(); i++){
-			val=vec.apply(i);
+			val=(double)vec.apply(i);
 			if(Double.compare(Double.NaN, val)!=0){
 				numArray.add(val);
 			}
@@ -197,19 +172,19 @@ public class Imputer {
 		Collections.sort(numArray);
 		int middle = numArray.size() / 2;
 		if(numArray.size() % 2 == 0){
-		 double medianA = numArray.get(middle);
-		 double medianB = numArray.get(middle-1);
-		 ret = (medianA + medianB) / 2d;
-		} else{
-		 ret = numArray.get(middle);
+			double medianA = numArray.get(middle);
+			double medianB = numArray.get(middle-1);
+			ret = (medianA + medianB) / 2d;
+		}else{
+			ret = numArray.get(middle);
 		}
 		return ret;
 	}
-	public static double getValueMOST(DenseVector vec){
+	public static double getValueMOST(DenseVector<Double> vec){
 		double ret=0;
 		HashMap<Double, Integer> frequencies= new HashMap<>();
 		for(int i =0; i<vec.size();i++){
-			double key= vec.apply(i);
+			double key= (double)vec.apply(i);
 			if(Double.compare(Double.NaN, key)!=0){
 				if(frequencies.containsKey(key)){
 					frequencies.put(key, frequencies.get(key)+1);
@@ -231,10 +206,10 @@ public class Imputer {
 		
 	}
 	
-	public static int numOfElementsNotZero(DenseVector vec){
+	public static int numOfElementsNotZero(DenseVector<Double> vec){
 		int zeros=0;
 		for(int i=0; i<vec.size(); i++){
-			if(Double.compare(Double.NaN, vec.apply(i))==0){
+			if(Double.compare(Double.NaN, (double)vec.apply(i))==0){
 				zeros++;
 			}
 		}
@@ -242,12 +217,12 @@ public class Imputer {
 	}
 	
 	
-	public static void getValue(DataSet<DenseVector> ds, Strategy strategy) throws Exception{
+	public static void getValue(DataSet<DenseVector<Double>> ds, Strategy strategy) throws Exception{
 		//(entry, 1, dimension)
-		DataSet<Tuple3<Double, Integer, Integer>> nonZeroTuples= ds.flatMap(new FlatMapFunction<DenseVector,Tuple3<Double, Integer, Integer>>() {
+		DataSet<Tuple3<Double, Integer, Integer>> nonZeroTuples= ds.flatMap(new FlatMapFunction<DenseVector<Double>,Tuple3<Double, Integer, Integer>>() {
 			@Override
-			public void flatMap(DenseVector vec, Collector<Tuple3<Double,Integer, Integer>> col) throws Exception {
-				double[] entries= vec.data();
+			public void flatMap(DenseVector<Double> vec, Collector<Tuple3<Double,Integer, Integer>> col) throws Exception {
+				double[] entries= (double[]) vec.data();
 				double entry;
 				for(int i = 0; i<entries.length; i++){
 					entry=entries[i];
@@ -280,7 +255,6 @@ public class Imputer {
 		case MEAN:
 			DataSet<Tuple3<Double, Integer, Integer>> infos= nonZeroTuples.groupBy(2).sum(0).andSum(1);
 			meansA= new double[lists.size()];
-			final String s = "hello";
 			List<Tuple2<Integer, Double>> means= infos.map(new MapFunction<Tuple3<Double,Integer,Integer>, Tuple2<Integer, Double>>() {
 				@Override
 				public Tuple2<Integer, Double> map(Tuple3<Double, Integer, Integer> t) throws Exception {
@@ -318,7 +292,6 @@ public class Imputer {
 		break;
 		case MOST_FREQUENT:
 			
-			double ret=0;
 			double key;
 			HashMap<Double, Integer> frequencies= new HashMap<>();
 			mostValues= new double[lists.size()];
