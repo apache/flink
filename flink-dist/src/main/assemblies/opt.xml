@@ -66,6 +66,14 @@
 			<fileMode>0644</fileMode>
 		</file>
 
+		<!-- TableAPI-->
+		<file>
+			<source>../flink-libraries/flink-table/target/flink-table_2.10-${project.version}-jar-with-dependencies.jar</source>
+			<outputDirectory>opt/</outputDirectory>
+			<destName>flink-table_2.10-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
+
 		<!-- ML -->
 		<file>
 			<source>../flink-libraries/flink-ml/target/flink-ml_2.10-${project.version}-jar-with-dependencies.jar</source>
