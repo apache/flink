@@ -63,7 +63,6 @@ class ProcTimeBoundedProcessingOverProcessFunction(
 
   private var output: Row = _
   private var accumulatorState: ValueState[Row] = _
-  private var lastProcessedProcTime: ValueState[Long] = _
   private var rowMapState: MapState[Long, JList[Row]] = _
 
   override def open(config: Configuration) {
@@ -80,11 +79,6 @@ class ProcTimeBoundedProcessingOverProcessFunction(
     val stateDescriptor: ValueStateDescriptor[Row] =
       new ValueStateDescriptor[Row]("overState", rowTypeInfo)
     accumulatorState = getRuntimeContext.getState(stateDescriptor)
-    
-     val stateDescriptorProcTime: ValueStateDescriptor[Long] =
-      new ValueStateDescriptor[Long]("lastProcessedTime", 
-          BasicTypeInfo.LONG_TYPE_INFO.asInstanceOf[TypeInformation[Long]])
-    lastProcessedProcTime = getRuntimeContext.getState(stateDescriptorProcTime)
   }
 
   override def processElement(
@@ -92,9 +86,35 @@ class ProcTimeBoundedProcessingOverProcessFunction(
     ctx: ProcessFunction[Row, Row]#Context,
     out: Collector[Row]): Unit = {
 
-    val currentTime = ctx.timerService().currentProcessingTime()
+    val currentTime = ctx.timerService.currentProcessingTime
     //buffer the event incoming event
-
+  
+    // add current element to the window list of elements with corresponding timestamp
+    var rowList = rowMapState.get(currentTime)
+    var registerTimer = false
+    // null value means that this si the first event received for this timestamp
+    if (rowList == null) {
+      rowList = new ArrayList[Row]()
+      registerTimer = true
+    }
+    rowList.add(input)
+    rowMapState.put(currentTime, rowList)
+  
+    //in case some other events arrived in the same timestamp we can record them,
+    // but we can register the triggering only once when we emit results for all of them
+    if (registerTimer) {
+      ctx.timerService.registerProcessingTimeTimer(currentTime + 1)  
+    }    
+    
+  }
+  
+  override def onTimer(
+    timestamp: Long,
+    ctx: ProcessFunction[Row, Row]#OnTimerContext,
+    out: Collector[Row]): Unit = {
+    
+    //we consider the original timestamp of events that have registered this time trigger 1 ms ago
+    val currentTime = timestamp  -1 
     var i = 0
 
     //initialize the accumulators 
@@ -104,80 +124,89 @@ class ProcTimeBoundedProcessingOverProcessFunction(
       accumulators = new Row(aggregates.length)
       i = 0
       while (i < aggregates.length) {
-        accumulators.setField(i, aggregates(i).createAccumulator())
+        accumulators.setField(i, aggregates(i).createAccumulator)
         i += 1
       }
     }
-    
-    //initialize the time reference of the last event that was processed 
-    var lastProcTime = lastProcessedProcTime.value()
 
-    //set the fields of the last event to carry on with the aggregates
-    i = 0
-    while (i < forwardedFieldCount) {
-      output.setField(i, input.getField(i))
-      i += 1
-    }
-
-    //in case some other events arrived in the same time, we do not need to retract anymore 
-    if (lastProcTime != currentTime) {
+    //update the elements to be removed and retract them from aggregators
+    val limit = currentTime - precedingTimeBoundary
     
-      //update the elements to be removed and retract them from aggregators
-      val limit = currentTime - precedingTimeBoundary
-    
-      // we iterate through all elements in the window buffer based on timestamp keys
-      // when we find timestamps that are out of interest, we retrieve corresponding elements
-      // and eliminate them. Multiple elements can be received at the same timestamp
-      val iter = rowMapState.keys.iterator
-      var markToRemove = new ArrayList[Long]()
-      while (iter.hasNext()) {
-        val elementKey = iter.next
-        if (elementKey < limit) {
-          val elementsRemove = rowMapState.get(elementKey)
-          var iRemove = 0
-          while (iRemove < elementsRemove.size()) {
-            i = 0
-            while (i < aggregates.length) {
-              val accumulator = accumulators.getField(i).asInstanceOf[Accumulator]
-              aggregates(i).retract(accumulator, elementsRemove.get(iRemove)
-                 .getField(aggFields(i)))
-              i += 1
-            }
-            iRemove += 1
+    // we iterate through all elements in the window buffer based on timestamp keys
+    // when we find timestamps that are out of interest, we retrieve corresponding elements
+    // and eliminate them. Multiple elements could have been received at the same timestamp
+    // the removal of old elements happens only once per proctime as onTimer is called only once
+    val iter = rowMapState.keys.iterator
+    var markToRemove = new ArrayList[Long]()
+    while (iter.hasNext()) {
+      val elementKey = iter.next
+      if (elementKey < limit) {
+        val elementsRemove = rowMapState.get(elementKey)
+        var iRemove = 0
+        while (iRemove < elementsRemove.size()) {
+          i = 0
+          while (i < aggregates.length) {
+            val accumulator = accumulators.getField(i).asInstanceOf[Accumulator]
+            aggregates(i).retract(accumulator, elementsRemove.get(iRemove)
+               .getField(aggFields(i)))
+            i += 1
           }
-          //mark element for later removal not to modify the iterator over MapState
-          markToRemove.add(elementKey)
+          iRemove += 1
         }
-      }
-      //need to remove in 2 steps not to have concurrent access errors via iterator to the MapState
-      i = 0
-      while (i < markToRemove.size()) {
-        rowMapState.remove(markToRemove.get(i))
-        i += 1
+        //mark element for later removal not to modify the iterator over MapState
+        markToRemove.add(elementKey)
       }
     }
-    
-    //add current element to aggregator  
+    //need to remove in 2 steps not to have concurrent access errors via iterator to the MapState
     i = 0
-    while (i < aggregates.length) {
-      val index = forwardedFieldCount + i
-      val accumulator = accumulators.getField(i).asInstanceOf[Accumulator]
-      aggregates(i).accumulate(accumulator, input.getField(aggFields(i)))
-      output.setField(index, aggregates(i).getValue(accumulator))
+    while (i < markToRemove.size()) {
+      rowMapState.remove(markToRemove.get(i))
       i += 1
     }
-
-    accumulatorState.update(accumulators)
-    // add current element to the window list of elements with corresponding timestamp
-    var rowList = rowMapState.get(currentTime)
-    if (rowList == null) {
-      rowList = new ArrayList[Row]()
+    
+    //get the list of elements of current proctime
+    val currentElements = rowMapState.get(currentTime)    
+    //add current elements to aggregator. Multiple elements might have arrived in the same proctime
+    //the same accumulator value will be computed for all elements 
+    var iElemenets = 0
+    while (iElemenets < currentElements.size()) {
+      val input = currentElements.get(iElemenets)
+      i = 0
+      while (i < aggregates.length) {
+        val accumulator = accumulators.getField(i).asInstanceOf[Accumulator]
+        aggregates(i).accumulate(accumulator, input.getField(aggFields(i)))
+        i += 1
+      }
+      iElemenets += 1
     }
-    rowList.add(input)
-    rowMapState.put(currentTime, rowList)
-    //keep the value of the time when last processing happened
-    lastProcessedProcTime.update(currentTime)
+    
+    //we need to build the output and emit for every event received at this proctime
+    iElemenets = 0
+    while (iElemenets < currentElements.size()) {
+      val input = currentElements.get(iElemenets)
+      
+      //set the fields of the last event to carry on with the aggregates
+      i = 0
+      while (i < forwardedFieldCount) {
+        output.setField(i, input.getField(i))
+        i += 1
+      }
 
-    out.collect(output)
+      //add the accumulators values to result
+      i = 0
+      while (i < aggregates.length) {
+        val index = forwardedFieldCount + i
+        val accumulator = accumulators.getField(i).asInstanceOf[Accumulator]
+        output.setField(index, aggregates(i).getValue(accumulator))
+        i += 1
+      }
+      out.collect(output)
+      iElemenets += 1
+    }
+    
+    //update the value of accumulators for future incremental computation
+    accumulatorState.update(accumulators)
+    
   }
+  
 }
