@@ -40,6 +40,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
@@ -89,6 +90,19 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 	private final NFACompiler.NFAFactory<IN> nfaFactory;
 
 	/**
+	 * {@link OutputTag} to use for late arriving events. Elements for which
+	 * {@code window.maxTimestamp + allowedLateness} is smaller than the current watermark will
+	 * be emitted to this.
+	 */
+	private final OutputTag<IN> lateDataOutputTag;
+
+	/**
+	 * The last seen watermark. This will be used to
+	 * decide if an incoming element is late or not.
+	 */
+	private long lastWatermark;
+
+	/**
 	 * A flag used in the case of migration that indicates if
 	 * we are restoring from an old keyed or non-keyed operator.
 	 */
@@ -100,6 +114,7 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 			final KeySelector<IN, KEY> keySelector,
 			final TypeSerializer<KEY> keySerializer,
 			final NFACompiler.NFAFactory<IN> nfaFactory,
+			final OutputTag<IN> lateDataOutputTag,
 			final boolean migratingFromOldKeyedOperator) {
 
 		this.inputSerializer = Preconditions.checkNotNull(inputSerializer);
@@ -107,11 +122,9 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 		this.keySelector = Preconditions.checkNotNull(keySelector);
 		this.keySerializer = Preconditions.checkNotNull(keySerializer);
 		this.nfaFactory = Preconditions.checkNotNull(nfaFactory);
-		this.migratingFromOldKeyedOperator = migratingFromOldKeyedOperator;
-	}
 
-	public TypeSerializer<IN> getInputSerializer() {
-		return inputSerializer;
+		this.lateDataOutputTag = lateDataOutputTag;
+		this.migratingFromOldKeyedOperator = migratingFromOldKeyedOperator;
 	}
 
 	@Override
@@ -159,6 +172,7 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 					// 3) advance the time to the current watermark, so that expired patterns are discarded.
 					// 4) update the stored state for the key, by only storing the new NFA and priority queue iff they
 					//		have state to be used later.
+					// 5) update the last seen watermark.
 
 					// STEP 1
 					PriorityQueue<StreamRecord<IN>> priorityQueue = getPriorityQueue();
@@ -180,6 +194,9 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 					if (priorityQueue.isEmpty() && nfa.isEmpty()) {
 						watermarkCallbackService.unregisterKeyFromWatermarkCallback(key);
 					}
+
+					// STEP 5
+					updateLastSeenWatermark(watermark);
 				}
 			},
 			keySerializer
@@ -196,19 +213,45 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT>
 			updateNFA(nfa);
 
 		} else {
-			getInternalWatermarkCallbackService().registerKeyForWatermarkCallback(keySelector.getKey(element.getValue()));
 
-			PriorityQueue<StreamRecord<IN>> priorityQueue = getPriorityQueue();
+			// In event-time processing we assume correctness of the watermark.
+			// Events with timestamp smaller than the last seen watermark are considered late.
+			// Late events are put in a dedicated side output, if the user has specified one.
 
-			// event time processing
-			// we have to buffer the elements until we receive the proper watermark
-			if (getExecutionConfig().isObjectReuseEnabled()) {
-				// copy the StreamRecord so that it cannot be changed
-				priorityQueue.offer(new StreamRecord<IN>(inputSerializer.copy(element.getValue()), element.getTimestamp()));
+			if (element.getTimestamp() >= lastWatermark) {
+
+				// we have an event with a valid timestamp, so
+				// we buffer it until we receive the proper watermark.
+
+				getInternalWatermarkCallbackService().registerKeyForWatermarkCallback(keySelector.getKey(element.getValue()));
+
+				PriorityQueue<StreamRecord<IN>> priorityQueue = getPriorityQueue();
+				if (getExecutionConfig().isObjectReuseEnabled()) {
+					// copy the StreamRecord so that it cannot be changed
+					priorityQueue.offer(new StreamRecord<>(inputSerializer.copy(element.getValue()), element.getTimestamp()));
+				} else {
+					priorityQueue.offer(element);
+				}
+				updatePriorityQueue(priorityQueue);
 			} else {
-				priorityQueue.offer(element);
+				sideOutputLateElement(element);
 			}
-			updatePriorityQueue(priorityQueue);
+		}
+	}
+
+	private void updateLastSeenWatermark(Watermark watermark) {
+		this.lastWatermark = watermark.getTimestamp();
+	}
+
+	/**
+	 * Puts the provided late element in the dedicated side output,
+	 * if the user has specified one.
+	 *
+	 * @param element The late element.
+	 */
+	private void sideOutputLateElement(StreamRecord<IN> element) {
+		if (lateDataOutputTag != null) {
+			output.collect(lateDataOutputTag, element);
 		}
 	}
 

@@ -396,6 +396,7 @@ patternState.within(Time.seconds(10));
           <td>
               <p>Specifies that this pattern can occur zero or more times(kleene star). This means any number of events can be matched in this state.</p>
               <p>If eagerness is enabled(by default) for a pattern A*B and sequence A1 A2 B will generate patterns: B, A1 B and A1 A2 B. If disabled B, A1 B, A2 B and A1 A2 B.</p>
+              <p>By default a relaxed internal continuity (between subsequent events of a loop) is used. For more info on the internal continuity see <a href="#consecutive_java">consecutive</a></p>
       {% highlight java %}
       patternState.zeroOrMore();
       {% endhighlight %}
@@ -406,6 +407,7 @@ patternState.within(Time.seconds(10));
           <td>
               <p>Specifies that this pattern can occur one or more times(kleene star). This means at least one and at most infinite number of events can be matched in this state.</p>
               <p>If eagerness is enabled (by default) for a pattern A*B and sequence A1 A2 B will generate patterns: A1 B and A1 A2 B. If disabled A1 B, A2 B and A1 A2 B.</p>
+              <p>By default a relaxed internal continuity (between subsequent events of a loop) is used. For more info on the internal continuity see <a href="#consecutive_java">consecutive</a></p>
       {% highlight java %}
       patternState.oneOrMore();
       {% endhighlight %}
@@ -424,9 +426,48 @@ patternState.within(Time.seconds(10));
           <td><strong>Times</strong></td>
           <td>
               <p>Specifies exact number of times that this pattern should be matched.</p>
+              <p>By default a relaxed internal continuity (between subsequent events of a loop) is used. For more info on the internal continuity see <a href="#consecutive_java">consecutive</a></p>
       {% highlight java %}
       patternState.times(2);
       {% endhighlight %}
+          </td>
+       </tr>
+       <tr>
+          <td><strong>Consecutive</strong><a name="consecutive_java"></a></td>
+          <td>
+              <p>Works in conjunction with zeroOrMore, oneOrMore or times. Specifies that any not matching element breaks the loop.</p>
+              
+              <p>If not applied a relaxed continuity (as in followedBy) is used.</p>
+
+          <p>E.g. a pattern like:</p>
+      {% highlight java %}
+      Pattern.<Event>begin("start").where(new SimpleCondition<Event>() {
+           @Override
+           public boolean filter(Event value) throws Exception {
+               return value.getName().equals("c");
+           }
+      })
+      .followedBy("middle").where(new SimpleCondition<Event>() {
+           @Override
+           public boolean filter(Event value) throws Exception {
+               return value.getName().equals("a");
+           }
+      })
+      .oneOrMore(true).consecutive()
+      .followedBy("end1").where(new SimpleCondition<Event>() {
+           @Override
+           public boolean filter(Event value) throws Exception {
+               return value.getName().equals("b");
+           }
+      });
+      {% endhighlight %}
+
+             <p>Will generate the following matches for a sequence: C D A1 A2 A3 D A4 B</p>
+
+             <p>with consecutive applied: {C A1 B}, {C A1 A2 B}, {C A1 A2 A3 B}</p>
+             <p>without consecutive applied: {C A1 B}, {C A1 A2 B}, {C A1 A2 A3 B}, {C A1 A2 A3 A4 B}</p>
+
+             <p><b>NOTICE:</b> This option can be applied only to zeroOrMore(), oneOrMore() and times()!</p>
           </td>
        </tr>
   </tbody>
@@ -511,6 +552,7 @@ patternState.within(Time.seconds(10))
           <td>
               <p>Specifies that this pattern can occur zero or more times(kleene star). This means any number of events can be matched in this state.</p>
               <p>If eagerness is enabled(by default) for a pattern A*B and sequence A1 A2 B will generate patterns: B, A1 B and A1 A2 B. If disabled B, A1 B, A2 B and A1 A2 B.</p>
+              <p>By default a relaxed internal continuity (between subsequent events of a loop) is used. For more info on the internal continuity see <a href="#consecutive_scala">consecutive</a></p>
       {% highlight scala %}
       patternState.zeroOrMore()
       {% endhighlight %}
@@ -521,6 +563,7 @@ patternState.within(Time.seconds(10))
           <td>
               <p>Specifies that this pattern can occur one or more times(kleene star). This means at least one and at most infinite number of events can be matched in this state.</p>
               <p>If eagerness is enabled (by default) for a pattern A*B and sequence A1 A2 B will generate patterns: A1 B and A1 A2 B. If disabled A1 B, A2 B and A1 A2 B.</p>
+              <p>By default a relaxed internal continuity (between subsequent events of a loop) is used. For more info on the internal continuity see <a href="#consecutive_scala">consecutive</a></p>
       {% highlight scala %}
       patternState.oneOrMore()
       {% endhighlight %}
@@ -539,9 +582,32 @@ patternState.within(Time.seconds(10))
           <td><strong>Times</strong></td>
           <td>
               <p>Specifies exact number of times that this pattern should be matched.</p>
+              <p>By default a relaxed internal continuity (between subsequent events of a loop) is used. For more info on the internal continuity see <a href="#consecutive_scala">consecutive</a></p>
       {% highlight scala %}
       patternState.times(2)
       {% endhighlight %}
+          </td>
+       </tr>
+       <tr>
+          <td><strong>Consecutive</strong><a name="consecutive_scala"></a></td>
+          <td>
+            <p>Works in conjunction with zeroOrMore, oneOrMore or times. Specifies that any not matching element breaks the loop.</p>
+            
+            <p>If not applied a relaxed continuity (as in followedBy) is used.</p>
+            
+      {% highlight scala %}
+      Pattern.begin("start").where(_.getName().equals("c"))
+       .followedBy("middle").where(_.getName().equals("a"))
+                            .oneOrMore(true).consecutive()
+       .followedBy("end1").where(_.getName().equals("b"));
+      {% endhighlight %}
+
+            <p>Will generate the following matches for a sequence: C D A1 A2 A3 D A4 B</p>
+
+            <p>with consecutive applied: {C A1 B}, {C A1 A2 B}, {C A1 A2 A3 B}</p>
+            <p>without consecutive applied: {C A1 B}, {C A1 A2 B}, {C A1 A2 A3 B}, {C A1 A2 A3 A4 B}</p>
+
+            <p><b>NOTICE:</b> This option can be applied only to zeroOrMore(), oneOrMore() and times()!</p>
           </td>
        </tr>
   </tbody>
@@ -708,6 +774,59 @@ DataStream[Either[TimeoutEvent, ComplexEvent]] result = patternStream.flatSelect
 }
 {% endhighlight %}
 
+</div>
+</div>
+
+### Handling Lateness in Event Time
+
+In `CEP` the order in which elements are processed matters. To guarantee that elements are processed in the correct order
+when working in event time, an incoming element is initially put in a buffer where elements are *sorted in ascending 
+order based on their timestamp*, and when a watermark arrives, all the elements in this buffer with timestamps smaller 
+than that of the watermark are processed. This implies that elements between watermarks are processed in event-time order. 
+
+<span class="label label-danger">Attention</span> The library assumes correctness of the watermark when working 
+in event time.
+
+To also guarantee that elements across watermarks are processed in event-time order, Flink's CEP library assumes 
+*correctness of the watermark*, and considers as *late* elements whose timestamp is smaller than that of the last 
+seen watermark. Late elements are not further processed but they can be redirected to a [side output]
+({{ site.baseurl }}/dev/stream/side_output.html), dedicated to them.
+
+To access the stream of late elements, you first need to specify that you want to get the late data using 
+`.withLateDataOutputTag(OutputTag)` on the `PatternStream` returned using the `CEP.pattern(...)` call. If you do not do
+so, the late elements will be silently dropped. Then, you can get the side-output stream using the 
+`.getSideOutput(OutputTag)` on the aforementioned `PatternStream`, and providing as argument the output tag used in 
+the `.withLateDataOutputTag(OutputTag)`:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+final OutputTag<T> lateOutputTag = new OutputTag<T>("late-data"){};
+
+PatternStream<T> patternStream = CEP.pattern(...)
+    .withLateDataOutputTag(lateOutputTag);
+
+// main output with matches
+DataStream<O> result = patternStream.select(...)    
+
+// side output containing the late events
+DataStream<T> lateStream = patternStream.getSideOutput(lateOutputTag);
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val lateOutputTag = OutputTag[T]("late-data")
+
+val patternStream: PatternStream[T] = CEP.pattern(...)
+    .withLateDataOutputTag(lateOutputTag)
+
+// main output with matches
+val result = patternStream.select(...)
+
+// side output containing the late events
+val lateStream = patternStream.getSideOutput(lateOutputTag)
+{% endhighlight %}
 </div>
 </div>
 

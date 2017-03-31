@@ -27,8 +27,11 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.cep.operator.CEPOperatorUtils;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.types.Either;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.OutputTag;
+import org.apache.flink.util.Preconditions;
 
 import java.util.Map;
 
@@ -50,6 +53,19 @@ public class PatternStream<T> {
 
 	private final Pattern<T, ?> pattern;
 
+	/**
+	 * A reference to the created pattern stream used to get
+	 * the registered side outputs, e.g late elements side output.
+	 */
+	private SingleOutputStreamOperator<?> patternStream;
+
+	/**
+	 * {@link OutputTag} to use for late arriving events. Elements for which
+	 * {@code window.maxTimestamp + allowedLateness} is smaller than the current watermark will
+	 * be emitted to this.
+	 */
+	private OutputTag<T> lateDataOutputTag;
+
 	PatternStream(final DataStream<T> inputStream, final Pattern<T, ?> pattern) {
 		this.inputStream = inputStream;
 		this.pattern = pattern;
@@ -64,6 +80,22 @@ public class PatternStream<T> {
 	}
 
 	/**
+	 * Send late arriving data to the side output identified by the given {@link OutputTag}. The
+	 * CEP library assumes correctness of the watermark, so an element is considered late if its
+	 * timestamp is smaller than the last received watermark.
+	 */
+	public PatternStream<T> withLateDataOutputTag(OutputTag<T> outputTag) {
+		Preconditions.checkNotNull(outputTag, "Side output tag must not be null.");
+		Preconditions.checkArgument(lateDataOutputTag == null,
+				"The late side output tag has already been initialized to " + lateDataOutputTag + ".");
+		Preconditions.checkArgument(patternStream == null,
+				"The late side output tag has to be set before calling select() or flatSelect().");
+
+		this.lateDataOutputTag = inputStream.getExecutionEnvironment().clean(outputTag);
+		return this;
+	}
+
+	/**
 	 * Applies a select function to the detected pattern sequence. For each pattern sequence the
 	 * provided {@link PatternSelectFunction} is called. The pattern select function can produce
 	 * exactly one resulting element.
@@ -74,7 +106,7 @@ public class PatternStream<T> {
 	 * @return {@link DataStream} which contains the resulting elements from the pattern select
 	 *         function.
 	 */
-	public <R> DataStream<R> select(final PatternSelectFunction<T, R> patternSelectFunction) {
+	public <R> SingleOutputStreamOperator<R> select(final PatternSelectFunction<T, R> patternSelectFunction) {
 		// we have to extract the output type from the provided pattern selection function manually
 		// because the TypeExtractor cannot do that if the method is wrapped in a MapFunction
 
@@ -102,8 +134,10 @@ public class PatternStream<T> {
 	 * @return {@link DataStream} which contains the resulting elements from the pattern select
 	 *         function.
 	 */
-	public <R> DataStream<R> select(final PatternSelectFunction<T, R> patternSelectFunction, TypeInformation<R> outTypeInfo) {
-		DataStream<Map<String, T>> patternStream = CEPOperatorUtils.createPatternStream(inputStream, pattern);
+	public <R> SingleOutputStreamOperator<R> select(final PatternSelectFunction<T, R> patternSelectFunction, TypeInformation<R> outTypeInfo) {
+		SingleOutputStreamOperator<Map<String, T>> patternStream =
+				CEPOperatorUtils.createPatternStream(inputStream, pattern, lateDataOutputTag);
+		this.patternStream = patternStream;
 
 		return patternStream.map(
 			new PatternSelectMapper<>(
@@ -129,11 +163,13 @@ public class PatternStream<T> {
 	 * @return {@link DataStream} which contains the resulting elements or the resulting timeout
 	 * elements wrapped in an {@link Either} type.
 	 */
-	public <L, R> DataStream<Either<L, R>> select(
+	public <L, R> SingleOutputStreamOperator<Either<L, R>> select(
 		final PatternTimeoutFunction<T, L> patternTimeoutFunction,
 		final PatternSelectFunction<T, R> patternSelectFunction) {
 
-		DataStream<Either<Tuple2<Map<String, T>, Long>, Map<String, T>>> patternStream = CEPOperatorUtils.createTimeoutPatternStream(inputStream, pattern);
+		SingleOutputStreamOperator<Either<Tuple2<Map<String, T>, Long>, Map<String, T>>> patternStream =
+				CEPOperatorUtils.createTimeoutPatternStream(inputStream, pattern, lateDataOutputTag);
+		this.patternStream = patternStream;
 
 		TypeInformation<L> leftTypeInfo = TypeExtractor.getUnaryOperatorReturnType(
 			patternTimeoutFunction,
@@ -174,7 +210,7 @@ public class PatternStream<T> {
 	 * @return {@link DataStream} which contains the resulting elements from the pattern flat select
 	 *         function.
 	 */
-	public <R> DataStream<R> flatSelect(final PatternFlatSelectFunction<T, R> patternFlatSelectFunction) {
+	public <R> SingleOutputStreamOperator<R> flatSelect(final PatternFlatSelectFunction<T, R> patternFlatSelectFunction) {
 		// we have to extract the output type from the provided pattern selection function manually
 		// because the TypeExtractor cannot do that if the method is wrapped in a MapFunction
 		TypeInformation<R> outTypeInfo = TypeExtractor.getUnaryOperatorReturnType(
@@ -201,8 +237,10 @@ public class PatternStream<T> {
 	 * @return {@link DataStream} which contains the resulting elements from the pattern flat select
 	 *         function.
 	 */
-	public <R> DataStream<R> flatSelect(final PatternFlatSelectFunction<T, R> patternFlatSelectFunction, TypeInformation<R> outTypeInfo) {
-		DataStream<Map<String, T>> patternStream = CEPOperatorUtils.createPatternStream(inputStream, pattern);
+	public <R> SingleOutputStreamOperator<R> flatSelect(final PatternFlatSelectFunction<T, R> patternFlatSelectFunction, TypeInformation<R> outTypeInfo) {
+		SingleOutputStreamOperator<Map<String, T>> patternStream =
+				CEPOperatorUtils.createPatternStream(inputStream, pattern, lateDataOutputTag);
+		this.patternStream = patternStream;
 
 		return patternStream.flatMap(
 			new PatternFlatSelectMapper<>(
@@ -229,11 +267,13 @@ public class PatternStream<T> {
 	 * function or the resulting timeout events from the pattern flat timeout function wrapped in an
 	 * {@link Either} type.
 	 */
-	public <L, R> DataStream<Either<L, R>> flatSelect(
+	public <L, R> SingleOutputStreamOperator<Either<L, R>> flatSelect(
 		final PatternFlatTimeoutFunction<T, L> patternFlatTimeoutFunction,
 		final PatternFlatSelectFunction<T, R> patternFlatSelectFunction) {
 
-		DataStream<Either<Tuple2<Map<String, T>, Long>, Map<String, T>>> patternStream = CEPOperatorUtils.createTimeoutPatternStream(inputStream, pattern);
+		SingleOutputStreamOperator<Either<Tuple2<Map<String, T>, Long>, Map<String, T>>> patternStream =
+				CEPOperatorUtils.createTimeoutPatternStream(inputStream, pattern, lateDataOutputTag);
+		this.patternStream = patternStream;
 
 		TypeInformation<L> leftTypeInfo = TypeExtractor.getUnaryOperatorReturnType(
 			patternFlatTimeoutFunction,
@@ -261,6 +301,18 @@ public class PatternStream<T> {
 				patternStream.getExecutionEnvironment().clean(patternFlatTimeoutFunction)
 			)
 		).returns(outTypeInfo);
+	}
+
+	/**
+	 * Gets the {@link DataStream} that contains the elements that are emitted from an operation
+	 * into the side output with the given {@link OutputTag}.
+	 *
+	 * @param sideOutputTag The tag identifying a specific side output.
+	 */
+	public <X> DataStream<X> getSideOutput(OutputTag<X> sideOutputTag) {
+		Preconditions.checkNotNull(patternStream, "The operator has not been initialized. " +
+				"To have the late element side output, you have to first define the main output using select() or flatSelect().");
+		return patternStream.getSideOutput(sideOutputTag);
 	}
 
 	/**

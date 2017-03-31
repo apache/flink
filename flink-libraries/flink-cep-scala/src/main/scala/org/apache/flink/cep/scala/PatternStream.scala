@@ -22,12 +22,13 @@ import java.util.{Map => JMap}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.cep.{PatternFlatSelectFunction, PatternFlatTimeoutFunction, PatternSelectFunction, PatternTimeoutFunction, PatternStream => JPatternStream}
 import org.apache.flink.cep.pattern.{Pattern => JPattern}
-import org.apache.flink.streaming.api.scala._
-import org.apache.flink.util.Collector
+import org.apache.flink.streaming.api.scala.{asScalaStream, _}
+import org.apache.flink.util.{Collector, OutputTag}
 import org.apache.flink.types.{Either => FEither}
 import org.apache.flink.api.java.tuple.{Tuple2 => FTuple2}
 import java.lang.{Long => JLong}
 
+import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.cep.operator.CEPOperatorUtils
 import org.apache.flink.cep.scala.pattern.Pattern
 
@@ -45,7 +46,22 @@ import scala.collection.mutable
   */
 class PatternStream[T](jPatternStream: JPatternStream[T]) {
 
+  private[flink] var lateDataOutputTag: OutputTag[T] = null
+
   private[flink] def wrappedPatternStream = jPatternStream
+
+
+  /**
+    * Send late arriving data to the side output identified by the given {@link OutputTag}. The
+    * CEP library assumes correctness of the watermark, so an element is considered late if its
+    * timestamp is smaller than the last received watermark.
+    */
+  @PublicEvolving
+  def withLateDataOutputTag(outputTag: OutputTag[T]): PatternStream[T] = {
+    jPatternStream.withLateDataOutputTag(outputTag)
+    lateDataOutputTag = outputTag
+    this
+  }
 
   def getPattern: Pattern[T, T] = Pattern(jPatternStream.getPattern.asInstanceOf[JPattern[T, T]])
 
@@ -93,7 +109,8 @@ class PatternStream[T](jPatternStream: JPatternStream[T]) {
 
     val patternStream = CEPOperatorUtils.createTimeoutPatternStream(
       jPatternStream.getInputStream(),
-      jPatternStream.getPattern())
+      jPatternStream.getPattern(),
+      lateDataOutputTag)
 
     val cleanedSelect = cleanClosure(patternSelectFunction)
     val cleanedTimeout = cleanClosure(patternTimeoutFunction)
@@ -158,7 +175,8 @@ class PatternStream[T](jPatternStream: JPatternStream[T]) {
   : DataStream[Either[L, R]] = {
     val patternStream = CEPOperatorUtils.createTimeoutPatternStream(
       jPatternStream.getInputStream(),
-      jPatternStream.getPattern()
+      jPatternStream.getPattern(),
+      lateDataOutputTag
     )
 
     val cleanedSelect = cleanClosure(patternFlatSelectFunction)
@@ -317,6 +335,17 @@ class PatternStream[T](jPatternStream: JPatternStream[T]) {
 
     flatSelect(patternFlatTimeoutFun, patternFlatSelectFun)
   }
+
+  /**
+    * Gets the {@link DataStream} that contains the elements that are emitted from an operation
+    * into the side output with the given {@link OutputTag}.
+    *
+    * @param tag The tag identifying a specific side output.
+    */
+    @PublicEvolving
+    def getSideOutput[X: TypeInformation](tag: OutputTag[X]): DataStream[X] = {
+      asScalaStream(jPatternStream.getSideOutput(tag))
+    }
 }
 
 object PatternStream {

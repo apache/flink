@@ -41,7 +41,7 @@ import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
   * @param inputType the input row tye which the state saved
   *
   */
-class UnboundedEventTimeOverProcessFunction(
+abstract class UnboundedEventTimeOverProcessFunction(
     private val aggregates: Array[AggregateFunction[_]],
     private val aggFields: Array[Int],
     private val forwardedFieldCount: Int,
@@ -53,7 +53,7 @@ class UnboundedEventTimeOverProcessFunction(
   Preconditions.checkNotNull(aggFields)
   Preconditions.checkArgument(aggregates.length == aggFields.length)
 
-  private var output: Row = _
+  protected var output: Row = _
   // state to hold the accumulators of the aggregations
   private var accumulatorState: ValueState[Row] = _
   // state to hold rows until the next watermark arrives
@@ -162,30 +162,9 @@ class UnboundedEventTimeOverProcessFunction(
         val curRowList = rowMapState.get(curTimestamp)
         collector.setAbsoluteTimestamp(curTimestamp)
 
-        var j = 0
-        while (j < curRowList.size) {
-          val curRow = curRowList.get(j)
-          i = 0
+        // process the same timestamp datas, the mechanism is different according ROWS or RANGE
+        processElementsWithSameTimestamp(curRowList, lastAccumulator, collector)
 
-          // copy forwarded fields to output row
-          while (i < forwardedFieldCount) {
-            output.setField(i, curRow.getField(i))
-            i += 1
-          }
-
-          // update accumulators and copy aggregates to output row
-          i = 0
-          while (i < aggregates.length) {
-            val index = forwardedFieldCount + i
-            val accumulator = lastAccumulator.getField(i).asInstanceOf[Accumulator]
-            aggregates(i).accumulate(accumulator, curRow.getField(aggFields(i)))
-            output.setField(index, aggregates(i).getValue(accumulator))
-            i += 1
-          }
-          // emit output row
-          collector.collect(output)
-          j += 1
-        }
         rowMapState.remove(curTimestamp)
       }
 
@@ -204,21 +183,145 @@ class UnboundedEventTimeOverProcessFunction(
    * If timestamps arrive in order (as in case of using the RocksDB state backend) this is just
    * an append with O(1).
    */
-  private def insertToSortedList(recordTimeStamp: Long) = {
+  private def insertToSortedList(recordTimestamp: Long) = {
     val listIterator = sortedTimestamps.listIterator(sortedTimestamps.size)
     var continue = true
     while (listIterator.hasPrevious && continue) {
       val timestamp = listIterator.previous
-      if (recordTimeStamp >= timestamp) {
+      if (recordTimestamp >= timestamp) {
         listIterator.next
-        listIterator.add(recordTimeStamp)
+        listIterator.add(recordTimestamp)
         continue = false
       }
     }
 
     if (continue) {
-      sortedTimestamps.addFirst(recordTimeStamp)
+      sortedTimestamps.addFirst(recordTimestamp)
     }
   }
 
+  /**
+   * Process the same timestamp datas, the mechanism is different between
+   * rows and range window.
+   */
+  def processElementsWithSameTimestamp(
+    curRowList: JList[Row],
+    lastAccumulator: Row,
+    out: Collector[Row]): Unit
+
+}
+
+/**
+  * A ProcessFunction to support unbounded ROWS window.
+  * The ROWS clause defines on a physical level how many rows are included in a window frame.
+  */
+class UnboundedEventTimeRowsOverProcessFunction(
+   aggregates: Array[AggregateFunction[_]],
+   aggFields: Array[Int],
+   forwardedFieldCount: Int,
+   intermediateType: TypeInformation[Row],
+   inputType: TypeInformation[Row])
+  extends UnboundedEventTimeOverProcessFunction(
+    aggregates,
+    aggFields,
+    forwardedFieldCount,
+    intermediateType,
+    inputType) {
+
+  override def processElementsWithSameTimestamp(
+    curRowList: JList[Row],
+    lastAccumulator: Row,
+    out: Collector[Row]): Unit = {
+
+    var j = 0
+    var i = 0
+    while (j < curRowList.size) {
+      val curRow = curRowList.get(j)
+      i = 0
+
+      // copy forwarded fields to output row
+      while (i < forwardedFieldCount) {
+        output.setField(i, curRow.getField(i))
+        i += 1
+      }
+
+      // update accumulators and copy aggregates to output row
+      i = 0
+      while (i < aggregates.length) {
+        val index = forwardedFieldCount + i
+        val accumulator = lastAccumulator.getField(i).asInstanceOf[Accumulator]
+        aggregates(i).accumulate(accumulator, curRow.getField(aggFields(i)))
+        output.setField(index, aggregates(i).getValue(accumulator))
+        i += 1
+      }
+      // emit output row
+      out.collect(output)
+      j += 1
+    }
+  }
+}
+
+
+/**
+  * A ProcessFunction to support unbounded RANGE window.
+  * The RANGE option includes all the rows within the window frame
+  * that have the same ORDER BY values as the current row.
+  */
+class UnboundedEventTimeRangeOverProcessFunction(
+    aggregates: Array[AggregateFunction[_]],
+    aggFields: Array[Int],
+    forwardedFieldCount: Int,
+    intermediateType: TypeInformation[Row],
+    inputType: TypeInformation[Row])
+  extends UnboundedEventTimeOverProcessFunction(
+    aggregates,
+    aggFields,
+    forwardedFieldCount,
+    intermediateType,
+    inputType) {
+
+  override def processElementsWithSameTimestamp(
+    curRowList: JList[Row],
+    lastAccumulator: Row,
+    out: Collector[Row]): Unit = {
+
+    var j = 0
+    var i = 0
+    // all same timestamp data should have same aggregation value.
+    while (j < curRowList.size) {
+      val curRow = curRowList.get(j)
+      i = 0
+      while (i < aggregates.length) {
+        val index = forwardedFieldCount + i
+        val accumulator = lastAccumulator.getField(i).asInstanceOf[Accumulator]
+        aggregates(i).accumulate(accumulator, curRow.getField(aggFields(i)))
+        i += 1
+      }
+      j += 1
+    }
+
+    // emit output row
+    j = 0
+    while (j < curRowList.size) {
+      val curRow = curRowList.get(j)
+
+      // copy forwarded fields to output row
+      i = 0
+      while (i < forwardedFieldCount) {
+        output.setField(i, curRow.getField(i))
+        i += 1
+      }
+
+      //copy aggregates to output row
+      i = 0
+      while (i < aggregates.length) {
+        val index = forwardedFieldCount + i
+        val accumulator = lastAccumulator.getField(i).asInstanceOf[Accumulator]
+        output.setField(index, aggregates(i).getValue(accumulator))
+        i += 1
+      }
+      out.collect(output)
+      j += 1
+    }
+  }
 }

@@ -120,8 +120,10 @@ class DataStreamOverAggregate(
           // bounded OVER window
           if (overWindow.isRows) {
             // ROWS clause bounded OVER window
-            throw new TableException(
-              "processing-time OVER ROWS PRECEDING window is not supported yet.")
+            createBoundedAndCurrentRowOverWindow(
+              inputDS,
+              isRangeClause = true,
+              isRowTimeType = false)
           } else {
             createTimeBoundedProcessingTimeOverWindow(inputDS)
           }
@@ -133,23 +135,22 @@ class DataStreamOverAggregate(
         // row-time OVER window
         if (overWindow.lowerBound.isPreceding &&
               overWindow.lowerBound.isUnbounded && overWindow.upperBound.isCurrentRow) {
-          if (overWindow.isRows) {
-            // unbounded preceding OVER ROWS window
-            createUnboundedAndCurrentRowEventTimeOverWindow(inputDS)
-          } else {
-            // unbounded preceding OVER RANGE window
-            throw new TableException(
-              "row-time OVER RANGE UNBOUNDED PRECEDING window is not supported yet.")
-          }
+          // ROWS/RANGE clause unbounded OVER window
+          createUnboundedAndCurrentRowEventTimeOverWindow(inputDS, overWindow.isRows)
         } else if (overWindow.lowerBound.isPreceding && overWindow.upperBound.isCurrentRow) {
           // bounded OVER window
           if (overWindow.isRows) {
             // ROWS clause bounded OVER window
-            createRowsClauseBoundedAndCurrentRowOverWindow(inputDS, isRowTimeType = true)
+            createBoundedAndCurrentRowOverWindow(
+              inputDS,
+              isRangeClause = false,
+              isRowTimeType = true)
           } else {
             // RANGE clause bounded OVER window
-            throw new TableException(
-              "row-time OVER RANGE PRECEDING window is not supported yet.")
+            createBoundedAndCurrentRowOverWindow(
+              inputDS,
+              isRangeClause = true,
+              isRowTimeType = true)
           }
         } else {
           throw new TableException(
@@ -201,9 +202,10 @@ class DataStreamOverAggregate(
     result
   }
 
-  def createRowsClauseBoundedAndCurrentRowOverWindow(
+  def createBoundedAndCurrentRowOverWindow(
     inputDS: DataStream[Row],
-    isRowTimeType: Boolean = false): DataStream[Row] = {
+    isRangeClause: Boolean,
+    isRowTimeType: Boolean): DataStream[Row] = {
 
     val overWindow: Group = logicWindow.groups.get(0)
     val partitionKeys: Array[Int] = overWindow.keys.toArray
@@ -215,10 +217,11 @@ class DataStreamOverAggregate(
     // get the output types
     val rowTypeInfo = FlinkTypeFactory.toInternalRowTypeInfo(getRowType).asInstanceOf[RowTypeInfo]
 
-    val processFunction = AggregateUtil.createRowsClauseBoundedOverProcessFunction(
+    val processFunction = AggregateUtil.createBoundedOverProcessFunction(
       namedAggregates,
       inputType,
       precedingOffset,
+      isRangeClause,
       isRowTimeType
     )
     val result: DataStream[Row] =
@@ -246,7 +249,8 @@ class DataStreamOverAggregate(
   }
 
   def createUnboundedAndCurrentRowEventTimeOverWindow(
-    inputDS: DataStream[Row]): DataStream[Row]  = {
+    inputDS: DataStream[Row],
+    isRows: Boolean): DataStream[Row] = {
 
     val overWindow: Group = logicWindow.groups.get(0)
     val partitionKeys: Array[Int] = overWindow.keys.toArray
@@ -257,7 +261,8 @@ class DataStreamOverAggregate(
 
     val processFunction = AggregateUtil.createUnboundedEventTimeOverProcessFunction(
       namedAggregates,
-      inputType)
+      inputType,
+      isRows)
 
     val result: DataStream[Row] =
       // partitioned aggregation

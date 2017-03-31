@@ -126,7 +126,7 @@ public class SchedulerTestUtils {
 		when(vertex.getTotalNumberOfParallelSubtasks()).thenReturn(numTasks);
 		when(vertex.getMaxParallelism()).thenReturn(numTasks);
 		when(vertex.toString()).thenReturn("TEST-VERTEX");
-		when(vertex.getSimpleName()).thenReturn("TEST-VERTEX");
+		when(vertex.getTaskNameWithSubtaskIndex()).thenReturn("TEST-VERTEX");
 		
 		Execution execution = mock(Execution.class);
 		when(execution.getVertex()).thenReturn(vertex);

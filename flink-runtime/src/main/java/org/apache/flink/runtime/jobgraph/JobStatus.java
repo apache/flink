@@ -69,11 +69,31 @@ public enum JobStatus {
 	JobStatus(TerminalState terminalState) {
 		this.terminalState = terminalState;
 	}
-	
+
+	/**
+	 * Checks whether this state is <i>globally terminal</i>. A globally terminal job
+	 * is complete and cannot fail any more and will not be restarted or recovered by another
+	 * standby master node.
+	 * 
+	 * <p>When a globally terminal state has been reached, all recovery data for the job is
+	 * dropped from the high-availability services.
+	 * 
+	 * @return True, if this job status is globally terminal, false otherwise.
+	 */
 	public boolean isGloballyTerminalState() {
 		return terminalState == TerminalState.GLOBALLY;
 	}
 
+	/**
+	 * Checks whether this state is <i>locally terminal</i>. Locally terminal refers to the
+	 * state of a job's execution graph within an executing JobManager. If the execution graph
+	 * is locally terminal, the JobManager will not continue executing or recovering the job. 
+	 *
+	 * <p>The only state that is locally terminal, but not globally terminal is {@link #SUSPENDED},
+	 * which is typically entered when the executing JobManager looses its leader status.
+	 * 
+	 * @return True, if this job status is terminal, false otherwise.
+	 */
 	public boolean isTerminalState() {
 		return terminalState != TerminalState.NON_TERMINAL;
 	}
