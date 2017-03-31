@@ -20,8 +20,9 @@ import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
-import static org.apache.flink.python.api.PythonPlanBinder.FLINK_TMP_DATA_DIR;
-import static org.apache.flink.python.api.PythonPlanBinder.MAPPED_FILE_SIZE;
+
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.python.api.PythonOptions;
 import org.apache.flink.util.Collector;
 
 /**
@@ -30,43 +31,40 @@ import org.apache.flink.util.Collector;
 public class PythonReceiver<OUT> implements Serializable {
 	private static final long serialVersionUID = -2474088929850009968L;
 
-	private transient File inputFile;
 	private transient RandomAccessFile inputRAF;
 	private transient FileChannel inputChannel;
 	private transient MappedByteBuffer fileBuffer;
+
+	private final long mappedFileSizeBytes;
 
 	private final boolean readAsByteArray;
 
 	private transient Deserializer<OUT> deserializer;
 
-	public PythonReceiver(boolean usesByteArray) {
+	public PythonReceiver(Configuration config, boolean usesByteArray) {
 		readAsByteArray = usesByteArray;
+		mappedFileSizeBytes = config.getLong(PythonOptions.MMAP_FILE_SIZE) << 10;
 	}
 
 	//=====Setup========================================================================================================
 
 	@SuppressWarnings("unchecked")
-	public void open(String path) throws IOException {
-		setupMappedFile(path);
+	public void open(File inputFile) throws IOException {
 		deserializer = (Deserializer<OUT>) (readAsByteArray ? new ByteArrayDeserializer() : new TupleDeserializer());
-	}
 
-	private void setupMappedFile(String inputFilePath) throws IOException {
-		File x = new File(FLINK_TMP_DATA_DIR);
-		x.mkdirs();
+		inputFile.getParentFile().mkdirs();
 
-		inputFile = new File(inputFilePath);
 		if (inputFile.exists()) {
 			inputFile.delete();
 		}
 		inputFile.createNewFile();
-		inputRAF = new RandomAccessFile(inputFilePath, "rw");
-		inputRAF.setLength(MAPPED_FILE_SIZE);
-		inputRAF.seek(MAPPED_FILE_SIZE - 1);
+		inputRAF = new RandomAccessFile(inputFile, "rw");
+		inputRAF.setLength(mappedFileSizeBytes);
+		inputRAF.seek(mappedFileSizeBytes - 1);
 		inputRAF.writeByte(0);
 		inputRAF.seek(0);
 		inputChannel = inputRAF.getChannel();
-		fileBuffer = inputChannel.map(FileChannel.MapMode.READ_WRITE, 0, MAPPED_FILE_SIZE);
+		fileBuffer = inputChannel.map(FileChannel.MapMode.READ_WRITE, 0, mappedFileSizeBytes);
 	}
 
 	public void close() throws IOException {
@@ -76,7 +74,6 @@ public class PythonReceiver<OUT> implements Serializable {
 	private void closeMappedFile() throws IOException {
 		inputChannel.close();
 		inputRAF.close();
-		inputFile.delete();
 	}
 
 

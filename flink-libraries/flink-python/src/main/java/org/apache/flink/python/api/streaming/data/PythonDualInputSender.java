@@ -17,6 +17,8 @@
  */
 package org.apache.flink.python.api.streaming.data;
 
+import org.apache.flink.configuration.Configuration;
+
 import java.io.IOException;
 
 /**
@@ -31,6 +33,10 @@ public class PythonDualInputSender<IN1, IN2> extends PythonSender {
 
 	private transient Serializer<IN1> serializer1;
 	private transient Serializer<IN2> serializer2;
+
+	protected PythonDualInputSender(Configuration config) {
+		super(config);
+	}
 
 	/**
 	 * Extracts records from an iterator and writes them to the memory-mapped file. This method assumes that all values

@@ -35,9 +35,9 @@ public class PythonMapPartition<IN, OUT> extends RichMapPartitionFunction<IN, OU
 	private final PythonSingleInputStreamer<IN, OUT> streamer;
 	private final transient TypeInformation<OUT> typeInformation;
 
-	public PythonMapPartition(int envId, int setId, TypeInformation<OUT> typeInformation) {
+	public PythonMapPartition(Configuration config, int envId, int setId, TypeInformation<OUT> typeInformation) {
 		this.typeInformation = typeInformation;
-		streamer = new PythonSingleInputStreamer<>(this, envId, setId, typeInformation instanceof PrimitiveArrayTypeInfo);
+		streamer = new PythonSingleInputStreamer<>(this, config, envId, setId, typeInformation instanceof PrimitiveArrayTypeInfo);
 	}
 
 	/**

@@ -14,6 +14,8 @@ package org.apache.flink.python.api.streaming.data;
 
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.python.api.PythonOptions;
 
 import java.io.File;
 import java.io.IOException;
@@ -22,9 +24,6 @@ import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
-
-import static org.apache.flink.python.api.PythonPlanBinder.FLINK_TMP_DATA_DIR;
-import static org.apache.flink.python.api.PythonPlanBinder.MAPPED_FILE_SIZE;
 
 /**
  * General-purpose class to write data to memory-mapped files.
@@ -37,32 +36,36 @@ public abstract class PythonSender implements Serializable {
 	public static final byte TYPE_KEY_VALUE = 62;
 	public static final byte TYPE_VALUE_VALUE = 61;
 
-	private transient File outputFile;
 	private transient RandomAccessFile outputRAF;
 	private transient FileChannel outputChannel;
 	private transient MappedByteBuffer fileBuffer;
 
-	//=====Setup========================================================================================================
-	public void open(String path) throws IOException {
-		setupMappedFile(path);
+	private final long mappedFileSizeBytes;
+	
+	private final Configuration config;
+
+	protected PythonSender(Configuration config) {
+		this.config = config;
+		mappedFileSizeBytes = config.getLong(PythonOptions.MMAP_FILE_SIZE) << 10;
 	}
 
-	private void setupMappedFile(String outputFilePath) throws IOException {
-		File x = new File(FLINK_TMP_DATA_DIR);
-		x.mkdirs();
+	//=====Setup========================================================================================================
+	public void open(File outputFile) throws IOException {
+		outputFile.mkdirs();
 
-		outputFile = new File(outputFilePath);
 		if (outputFile.exists()) {
 			outputFile.delete();
 		}
 		outputFile.createNewFile();
-		outputRAF = new RandomAccessFile(outputFilePath, "rw");
-		outputRAF.setLength(MAPPED_FILE_SIZE);
-		outputRAF.seek(MAPPED_FILE_SIZE - 1);
+		outputRAF = new RandomAccessFile(outputFile, "rw");
+
+		
+		outputRAF.setLength(mappedFileSizeBytes);
+		outputRAF.seek(mappedFileSizeBytes - 1);
 		outputRAF.writeByte(0);
 		outputRAF.seek(0);
 		outputChannel = outputRAF.getChannel();
-		fileBuffer = outputChannel.map(FileChannel.MapMode.READ_WRITE, 0, MAPPED_FILE_SIZE);
+		fileBuffer = outputChannel.map(FileChannel.MapMode.READ_WRITE, 0, mappedFileSizeBytes);
 	}
 
 	public void close() throws IOException {
@@ -72,7 +75,6 @@ public abstract class PythonSender implements Serializable {
 	private void closeMappedFile() throws IOException {
 		outputChannel.close();
 		outputRAF.close();
-		outputFile.delete();
 	}
 
 	//=====IO===========================================================================================================
@@ -92,7 +94,7 @@ public abstract class PythonSender implements Serializable {
 		while (input.hasNext()) {
 			IN value = input.next();
 			ByteBuffer bb = serializer.serialize(value);
-			if (bb.remaining() > MAPPED_FILE_SIZE) {
+			if (bb.remaining() > mappedFileSizeBytes) {
 				throw new RuntimeException("Serialized object does not fit into a single buffer.");
 			}
 			if (bb.remaining() <= fileBuffer.remaining()) {

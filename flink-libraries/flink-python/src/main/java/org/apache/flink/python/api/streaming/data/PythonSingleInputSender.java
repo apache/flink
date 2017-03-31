@@ -17,6 +17,8 @@
  */
 package org.apache.flink.python.api.streaming.data;
 
+import org.apache.flink.configuration.Configuration;
+
 import java.io.IOException;
 
 /**
@@ -29,6 +31,10 @@ public class PythonSingleInputSender<IN> extends PythonSender {
 	private static final long serialVersionUID = 614115041181108878L;
 
 	private transient Serializer<IN> serializer;
+
+	protected PythonSingleInputSender(Configuration config) {
+		super(config);
+	}
 
 	/**
 	 * Extracts records from an iterator and writes them to the memory-mapped file. This method assumes that all values

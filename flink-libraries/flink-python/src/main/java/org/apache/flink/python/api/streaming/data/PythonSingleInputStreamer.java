@@ -18,6 +18,7 @@
 package org.apache.flink.python.api.streaming.data;
 
 import org.apache.flink.api.common.functions.AbstractRichFunction;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
 
 import java.io.IOException;
@@ -33,8 +34,8 @@ public class PythonSingleInputStreamer<IN, OUT> extends PythonStreamer<PythonSin
 
 	private static final long serialVersionUID = -5149905918522069034L;
 
-	public PythonSingleInputStreamer(AbstractRichFunction function, int envID, int setID, boolean usesByteArray) {
-		super(function, envID, setID, usesByteArray, new PythonSingleInputSender<IN>());
+	public PythonSingleInputStreamer(AbstractRichFunction function, Configuration config, int envID, int setID, boolean usesByteArray) {
+		super(function, config, envID, setID, usesByteArray, new PythonSingleInputSender<IN>(config));
 	}
 
 	/**
@@ -83,7 +84,9 @@ public class PythonSingleInputStreamer<IN, OUT> extends PythonStreamer<PythonSin
 				}
 			}
 		} catch (SocketTimeoutException ignored) {
-			throw new RuntimeException("External process for task " + function.getRuntimeContext().getTaskName() + " stopped responding." + msg);
+			throw new RuntimeException("External process for task " + function.getRuntimeContext().getTaskName() + " stopped responding." + msg.get());
+		} catch (Exception e) {
+			throw new RuntimeException("Critical failure. " + msg.get(), e);
 		}
 	}
 }

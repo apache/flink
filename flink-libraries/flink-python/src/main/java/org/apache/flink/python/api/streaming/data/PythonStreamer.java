@@ -15,7 +15,7 @@ package org.apache.flink.python.api.streaming.data;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.python.api.PythonPlanBinder;
+import org.apache.flink.python.api.PythonOptions;
 import org.apache.flink.python.api.streaming.util.SerializationUtils.IntSerializer;
 import org.apache.flink.python.api.streaming.util.SerializationUtils.StringSerializer;
 import org.apache.flink.python.api.streaming.util.StreamPrinter;
@@ -24,6 +24,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.Serializable;
@@ -34,13 +35,11 @@ import java.net.SocketTimeoutException;
 import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.apache.flink.python.api.PythonPlanBinder.FLINK_PYTHON2_BINARY_PATH;
-import static org.apache.flink.python.api.PythonPlanBinder.FLINK_PYTHON3_BINARY_PATH;
 import static org.apache.flink.python.api.PythonPlanBinder.FLINK_PYTHON_DC_ID;
 import static org.apache.flink.python.api.PythonPlanBinder.FLINK_PYTHON_PLAN_NAME;
-import static org.apache.flink.python.api.PythonPlanBinder.FLINK_TMP_DATA_DIR;
 import static org.apache.flink.python.api.PythonPlanBinder.PLANBINDER_CONFIG_BCVAR_COUNT;
 import static org.apache.flink.python.api.PythonPlanBinder.PLANBINDER_CONFIG_BCVAR_NAME_PREFIX;
+import static org.apache.flink.python.api.PythonPlanBinder.PLAN_ARGUMENTS_KEY;
 
 /**
  * This streamer is used by functions to send/receive data to/from an external python process.
@@ -56,10 +55,9 @@ public class PythonStreamer<S extends PythonSender, OUT> implements Serializable
 	protected static final int SIGNAL_ERROR = -2;
 	protected static final byte SIGNAL_LAST = 32;
 
+	private final Configuration config;
 	private final int envID;
 	private final int setID;
-	private final boolean usePython3;
-	private final String planArguments;
 
 	private transient Process process;
 	private transient Thread shutdownThread;
@@ -79,12 +77,11 @@ public class PythonStreamer<S extends PythonSender, OUT> implements Serializable
 	protected transient Thread outPrinter;
 	protected transient Thread errorPrinter;
 
-	public PythonStreamer(AbstractRichFunction function, int envID, int setID, boolean usesByteArray, S sender) {
+	public PythonStreamer(AbstractRichFunction function, Configuration config, int envID, int setID, boolean usesByteArray, S sender) {
+		this.config = config;
 		this.envID = envID;
 		this.setID = setID;
-		this.usePython3 = PythonPlanBinder.usePython3;
-		planArguments = PythonPlanBinder.arguments.toString();
-		receiver = new PythonReceiver<>(usesByteArray);
+		this.receiver = new PythonReceiver<>(config, usesByteArray);
 		this.function = function;
 		this.sender = sender;
 	}
@@ -101,16 +98,21 @@ public class PythonStreamer<S extends PythonSender, OUT> implements Serializable
 	}
 
 	private void startPython() throws IOException {
-		String outputFilePath = FLINK_TMP_DATA_DIR + "/" + envID + "_" + setID + this.function.getRuntimeContext().getIndexOfThisSubtask() + "output";
-		String inputFilePath = FLINK_TMP_DATA_DIR + "/" + envID + "_" + setID + this.function.getRuntimeContext().getIndexOfThisSubtask() + "input";
+		String tmpDir = config.getString(PythonOptions.DATA_TMP_DIR);
+		if (tmpDir == null) {
+			tmpDir = System.getProperty("java.io.tmpdir");
+		}
+		File outputFile = new File(tmpDir, envID + "_" + setID + this.function.getRuntimeContext().getIndexOfThisSubtask() + "_output");
+		File inputFile = new File(tmpDir, envID + "_" + setID + this.function.getRuntimeContext().getIndexOfThisSubtask() + "_input)");
 
-		sender.open(inputFilePath);
-		receiver.open(outputFilePath);
+		sender.open(inputFile);
+		receiver.open(outputFile);
 
 		String path = function.getRuntimeContext().getDistributedCache().getFile(FLINK_PYTHON_DC_ID).getAbsolutePath();
+
 		String planPath = path + FLINK_PYTHON_PLAN_NAME;
 
-		String pythonBinaryPath = usePython3 ? FLINK_PYTHON3_BINARY_PATH : FLINK_PYTHON2_BINARY_PATH;
+		String pythonBinaryPath = config.getString(PythonOptions.PYTHON_BINARY_PATH);
 
 		try {
 			Runtime.getRuntime().exec(pythonBinaryPath);
@@ -118,7 +120,7 @@ public class PythonStreamer<S extends PythonSender, OUT> implements Serializable
 			throw new RuntimeException(pythonBinaryPath + " does not point to a valid python binary.");
 		}
 
-		process = Runtime.getRuntime().exec(pythonBinaryPath + " -O -B " + planPath + planArguments);
+		process = Runtime.getRuntime().exec(pythonBinaryPath + " -O -B " + planPath + config.getString(PLAN_ARGUMENTS_KEY, ""));
 		outPrinter = new Thread(new StreamPrinter(process.getInputStream()));
 		outPrinter.start();
 		errorPrinter = new Thread(new StreamPrinter(process.getErrorStream(), msg));
@@ -143,8 +145,9 @@ public class PythonStreamer<S extends PythonSender, OUT> implements Serializable
 		processOutput.write(("" + server.getLocalPort() + "\n").getBytes(ConfigConstants.DEFAULT_CHARSET));
 		processOutput.write((this.function.getRuntimeContext().getIndexOfThisSubtask() + "\n")
 			.getBytes(ConfigConstants.DEFAULT_CHARSET));
-		processOutput.write((inputFilePath + "\n").getBytes(ConfigConstants.DEFAULT_CHARSET));
-		processOutput.write((outputFilePath + "\n").getBytes(ConfigConstants.DEFAULT_CHARSET));
+		processOutput.write(((config.getLong(PythonOptions.MMAP_FILE_SIZE) << 10) + "\n").getBytes(ConfigConstants.DEFAULT_CHARSET));
+		processOutput.write((inputFile + "\n").getBytes(ConfigConstants.DEFAULT_CHARSET));
+		processOutput.write((outputFile + "\n").getBytes(ConfigConstants.DEFAULT_CHARSET));
 		processOutput.flush();
 
 		while (true) {

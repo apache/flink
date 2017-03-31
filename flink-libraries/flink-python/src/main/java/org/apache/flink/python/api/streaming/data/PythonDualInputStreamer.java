@@ -18,6 +18,7 @@
 package org.apache.flink.python.api.streaming.data;
 
 import org.apache.flink.api.common.functions.AbstractRichFunction;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
 
 import java.io.IOException;
@@ -35,8 +36,8 @@ public class PythonDualInputStreamer<IN1, IN2, OUT> extends PythonStreamer<Pytho
 
 	private static final long serialVersionUID = -607175070491761873L;
 
-	public PythonDualInputStreamer(AbstractRichFunction function, int envID, int setID, boolean usesByteArray) {
-		super(function, envID, setID, usesByteArray, new PythonDualInputSender<IN1, IN2>());
+	public PythonDualInputStreamer(AbstractRichFunction function, Configuration config, int envID, int setID, boolean usesByteArray) {
+		super(function, config, envID, setID, usesByteArray, new PythonDualInputSender<IN1, IN2>(config));
 	}
 
 	/**

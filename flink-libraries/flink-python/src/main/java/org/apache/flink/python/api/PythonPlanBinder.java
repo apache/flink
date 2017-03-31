@@ -18,7 +18,6 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.LocalEnvironment;
 import org.apache.flink.api.java.io.PrintingOutputFormat;
 import org.apache.flink.api.java.io.TupleCsvInputFormat;
 import org.apache.flink.api.java.operators.CoGroupRawOperator;
@@ -50,7 +49,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.Random;
@@ -65,41 +63,29 @@ import static org.apache.flink.python.api.PythonOperationInfo.DatasizeHint.TINY;
 public class PythonPlanBinder {
 	static final Logger LOG = LoggerFactory.getLogger(PythonPlanBinder.class);
 
-	public static final String ARGUMENT_PYTHON_2 = "2";
-	public static final String ARGUMENT_PYTHON_3 = "3";
-
 	public static final String FLINK_PYTHON_DC_ID = "flink";
 	public static final String FLINK_PYTHON_PLAN_NAME = File.separator + "plan.py";
 
-	public static final String FLINK_PYTHON2_BINARY_KEY = "python.binary.python2";
-	public static final String FLINK_PYTHON3_BINARY_KEY = "python.binary.python3";
 	public static final String PLANBINDER_CONFIG_BCVAR_COUNT = "PLANBINDER_BCVAR_COUNT";
 	public static final String PLANBINDER_CONFIG_BCVAR_NAME_PREFIX = "PLANBINDER_BCVAR_";
-	public static String FLINK_PYTHON2_BINARY_PATH =
-		GlobalConfiguration.loadConfiguration().getString(FLINK_PYTHON2_BINARY_KEY, "python");
-	public static String FLINK_PYTHON3_BINARY_PATH =
-		GlobalConfiguration.loadConfiguration().getString(FLINK_PYTHON3_BINARY_KEY, "python3");
 
 	private static final Random r = new Random();
 
-	public static final String FLINK_PYTHON_FILE_PATH = System.getProperty("java.io.tmpdir") + File.separator + "flink_plan";
+	public static final String PLAN_ARGUMENTS_KEY = "python.plan.arguments";
+
 	private static final String FLINK_PYTHON_REL_LOCAL_PATH = File.separator + "resources" + File.separator + "python";
-	private static final String FLINK_DIR = System.getenv("FLINK_ROOT_DIR");
-	private static String FULL_PATH;
 
-	public static StringBuilder arguments = new StringBuilder();
+	private final Configuration operatorConfig;
 
-	public static boolean usePython3 = false;
+	private final String pythonLibraryPath;
 
-	private static String FLINK_HDFS_PATH = "hdfs:/tmp";
-	public static final String FLINK_TMP_DATA_DIR = System.getProperty("java.io.tmpdir") + File.separator + "flink_data";
+	private final String tmpPlanFilesDir;
+	private String tmpDistributedDir;
 
 	private final SetCache sets = new SetCache();
 	public ExecutionEnvironment env;
 	private int currentEnvironmentID = 0;
 	private PythonPlanStreamer streamer;
-
-	public static final int MAPPED_FILE_SIZE = 1024 * 1024 * 64;
 
 	/**
 	 * Entry point for the execution of a python plan.
@@ -112,23 +98,37 @@ public class PythonPlanBinder {
 			System.out.println("Usage: ./bin/pyflink<2/3>.[sh/bat] <pathToScript>[ <pathToPackage1>[ <pathToPackageX]][ - <parameter1>[ <parameterX>]]");
 			return;
 		}
-		usePython3 = args[0].equals(ARGUMENT_PYTHON_3);
-		PythonPlanBinder binder = new PythonPlanBinder();
-		binder.runPlan(Arrays.copyOfRange(args, 1, args.length));
+
+		Configuration globalConfig = GlobalConfiguration.loadConfiguration();
+		PythonPlanBinder binder = new PythonPlanBinder(globalConfig);
+		binder.runPlan(args);
 	}
 
-	public PythonPlanBinder() {
-		Configuration conf = GlobalConfiguration.loadConfiguration();
-		FLINK_PYTHON2_BINARY_PATH = conf.getString(FLINK_PYTHON2_BINARY_KEY, "python");
-		FLINK_PYTHON3_BINARY_PATH = conf.getString(FLINK_PYTHON3_BINARY_KEY, "python3");
-		FULL_PATH = FLINK_DIR != null
+	public PythonPlanBinder(Configuration globalConfig) {
+		String configuredPlanTmpPath = globalConfig.getString(PythonOptions.PLAN_TMP_DIR);
+		tmpPlanFilesDir = configuredPlanTmpPath != null
+			? configuredPlanTmpPath
+			: System.getProperty("java.io.tmpdir") + File.separator + "flink_plan_" + r.nextInt();
+		
+		tmpDistributedDir = globalConfig.getString(PythonOptions.DC_TMP_DIR);
+		
+		String flinkRootDir = System.getenv("FLINK_ROOT_DIR");
+		pythonLibraryPath = flinkRootDir != null
 				//command-line
-				? FLINK_DIR + FLINK_PYTHON_REL_LOCAL_PATH
+				? flinkRootDir + FLINK_PYTHON_REL_LOCAL_PATH
 				//testing
-				: new Path(FileSystem.getLocalFileSystem().getWorkingDirectory(), "src/main/python/org/apache/flink/python/api").toString();
+				: new File(System.getProperty("user.dir"), "src/main/python/org/apache/flink/python/api").getAbsolutePath();
+
+		operatorConfig = new Configuration();
+		operatorConfig.setString(PythonOptions.PYTHON_BINARY_PATH, globalConfig.getString(PythonOptions.PYTHON_BINARY_PATH));
+		String configuredTmpDataDir = globalConfig.getString(PythonOptions.DATA_TMP_DIR);
+		if (configuredTmpDataDir != null) {
+			operatorConfig.setString(PythonOptions.DATA_TMP_DIR, configuredTmpDataDir);
+		}
+		operatorConfig.setLong(PythonOptions.MMAP_FILE_SIZE, globalConfig.getLong(PythonOptions.MMAP_FILE_SIZE));
 	}
 
-	private void runPlan(String[] args) throws Exception {
+	void runPlan(String[] args) throws Exception {
 		int split = 0;
 		for (int x = 0; x < args.length; x++) {
 			if (args[x].compareTo("-") == 0) {
@@ -137,17 +137,13 @@ public class PythonPlanBinder {
 		}
 
 		try {
-			String tmpPath = FLINK_PYTHON_FILE_PATH + r.nextInt();
+			String tmpPath = tmpPlanFilesDir;
 			prepareFiles(tmpPath, Arrays.copyOfRange(args, 0, split == 0 ? args.length : split));
 			startPython(tmpPath, Arrays.copyOfRange(args, split == 0 ? args.length : split + 1, args.length));
 
 			// Python process should terminate itself when all jobs have been run
 			while (streamer.preparePlanMode()) {
 				receivePlan();
-
-				if (env instanceof LocalEnvironment) {
-					FLINK_HDFS_PATH = "file:" + System.getProperty("java.io.tmpdir") + File.separator + "flink";
-				}
 
 				distributeFiles(tmpPath, env);
 				JobExecutionResult jer = env.execute();
@@ -167,8 +163,8 @@ public class PythonPlanBinder {
 	//=====Setup========================================================================================================
 
 	/**
-	 * Copies all files to a common directory (FLINK_PYTHON_FILE_PATH). This allows us to distribute it as one big
-	 * package, and resolves PYTHONPATH issues.
+	 * Copies all files to a common directory {@link PythonOptions#PLAN_TMP_DIR}). This allows us to distribute it as
+	 * one big package which resolves PYTHONPATH issues.
 	 *
 	 * @param filePaths
 	 * @throws IOException
@@ -177,7 +173,7 @@ public class PythonPlanBinder {
 	private void prepareFiles(String tempFilePath, String... filePaths) throws IOException, URISyntaxException {
 		//Flink python package
 		clearPath(tempFilePath);
-		FileCache.copy(new Path(FULL_PATH), new Path(tempFilePath), false);
+		FileCache.copy(new Path(pythonLibraryPath), new Path(tmpPlanFilesDir), false);
 
 		//plan file		
 		copyFile(filePaths[0], tempFilePath, FLINK_PYTHON_PLAN_NAME);
@@ -206,17 +202,21 @@ public class PythonPlanBinder {
 		FileCache.copy(p.makeQualified(FileSystem.get(p.toUri())), new Path(tmpFilePath), true);
 	}
 
-	private static void distributeFiles(String tmpPath, ExecutionEnvironment env) throws IOException, URISyntaxException {
-		clearPath(FLINK_HDFS_PATH);
-		FileCache.copy(new Path(tmpPath), new Path(FLINK_HDFS_PATH), true);
-		env.registerCachedFile(FLINK_HDFS_PATH, FLINK_PYTHON_DC_ID);
+	private void distributeFiles(String tmpPath, ExecutionEnvironment env) throws IOException {
+		clearPath(tmpDistributedDir);
+		FileCache.copy(new Path(tmpPath), new Path(tmpDistributedDir), true);
+		env.registerCachedFile(new Path(tmpDistributedDir).toUri().toString(), FLINK_PYTHON_DC_ID);
 	}
 
 	private void startPython(String tempPath, String[] args) throws IOException {
+		StringBuilder arguments = new StringBuilder();
 		for (String arg : args) {
 			arguments.append(" ").append(arg);
 		}
-		streamer = new PythonPlanStreamer();
+
+		operatorConfig.setString(PLAN_ARGUMENTS_KEY, arguments.toString());
+
+		streamer = new PythonPlanStreamer(operatorConfig);
 		streamer.open(tempPath, arguments.toString());
 	}
 
@@ -227,17 +227,15 @@ public class PythonPlanBinder {
 
 	private void close() {
 		try { //prevent throwing exception so that previous exceptions aren't hidden.
-			FileSystem hdfs = FileSystem.get(new URI(FLINK_HDFS_PATH));
-			hdfs.delete(new Path(FLINK_HDFS_PATH), true);
+			FileSystem hdfs = new Path(tmpDistributedDir).getFileSystem();
+			hdfs.delete(new Path(tmpDistributedDir), true);
 
 			FileSystem local = FileSystem.getLocalFileSystem();
-			local.delete(new Path(FLINK_PYTHON_FILE_PATH), true);
-			local.delete(new Path(FLINK_TMP_DATA_DIR), true);
+			local.delete(new Path(tmpPlanFilesDir), true);
 			streamer.close();
 		} catch (NullPointerException ignored) {
 		} catch (IOException ioe) {
 			LOG.error("PythonAPI file cleanup failed. {}", ioe.getMessage());
-		} catch (URISyntaxException use) { // can't occur
 		}
 	}
 
@@ -271,7 +269,10 @@ public class PythonPlanBinder {
 					env.setParallelism(dop);
 					break;
 				case MODE:
-					FLINK_HDFS_PATH = value.<Boolean>getField(1) ? "file:/tmp/flink" : "hdfs:/tmp/flink";
+					if (value.<Boolean>getField(1)) {
+						LOG.info("Local execution specified, using default for {}.", PythonOptions.DC_TMP_DIR);
+						tmpDistributedDir = PythonOptions.DC_TMP_DIR.defaultValue();
+					}
 					break;
 				case RETRY:
 					int retry = value.<Integer>getField(1);
@@ -527,7 +528,7 @@ public class PythonPlanBinder {
 		DataSet<IN2> op2 = sets.getDataSet(info.otherID);
 		Keys.ExpressionKeys<IN1> key1 = new Keys.ExpressionKeys<>(info.keys1, op1.getType());
 		Keys.ExpressionKeys<IN2> key2 = new Keys.ExpressionKeys<>(info.keys2, op2.getType());
-		PythonCoGroup<IN1, IN2, OUT> pcg = new PythonCoGroup<>(info.envID, info.setID, type);
+		PythonCoGroup<IN1, IN2, OUT> pcg = new PythonCoGroup<>(operatorConfig, info.envID, info.setID, type);
 		sets.add(info.setID, new CoGroupRawOperator<>(op1, op2, key1, key2, pcg, type, info.name).setParallelism(getParallelism(info)));
 	}
 
@@ -552,7 +553,9 @@ public class PythonPlanBinder {
 
 		defaultResult.setParallelism(getParallelism(info));
 		if (info.usesUDF) {
-			sets.add(info.setID, defaultResult.mapPartition(new PythonMapPartition<Tuple2<IN1, IN2>, OUT>(info.envID, info.setID, type)).setParallelism(getParallelism(info)).name(info.name));
+			sets.add(info.setID, defaultResult
+				.mapPartition(new PythonMapPartition<Tuple2<IN1, IN2>, OUT>(operatorConfig, info.envID, info.setID, type))
+				.setParallelism(getParallelism(info)).name(info.name));
 		} else {
 			sets.add(info.setID, defaultResult.name("DefaultCross"));
 		}
@@ -560,12 +563,16 @@ public class PythonPlanBinder {
 
 	private <IN, OUT> void createFilterOperation(PythonOperationInfo info, TypeInformation<OUT> type) {
 		DataSet<IN> op1 = sets.getDataSet(info.parentID);
-		sets.add(info.setID, op1.mapPartition(new PythonMapPartition<IN, OUT>(info.envID, info.setID, type)).setParallelism(getParallelism(info)).name(info.name));
+		sets.add(info.setID, op1
+			.mapPartition(new PythonMapPartition<IN, OUT>(operatorConfig, info.envID, info.setID, type))
+			.setParallelism(getParallelism(info)).name(info.name));
 	}
 
 	private <IN, OUT> void createFlatMapOperation(PythonOperationInfo info, TypeInformation<OUT> type) {
 		DataSet<IN> op1 = sets.getDataSet(info.parentID);
-		sets.add(info.setID, op1.mapPartition(new PythonMapPartition<IN, OUT>(info.envID, info.setID, type)).setParallelism(getParallelism(info)).name(info.name));
+		sets.add(info.setID, op1
+			.mapPartition(new PythonMapPartition<IN, OUT>(operatorConfig, info.envID, info.setID, type))
+			.setParallelism(getParallelism(info)).name(info.name));
 	}
 
 	private void createGroupReduceOperation(PythonOperationInfo info) {
@@ -581,19 +588,22 @@ public class PythonPlanBinder {
 	private <IN, OUT> DataSet<OUT> applyGroupReduceOperation(DataSet<IN> op1, PythonOperationInfo info, TypeInformation<OUT> type) {
 		return op1
 			.reduceGroup(new IdentityGroupReduce<IN>()).setCombinable(false).name("PythonGroupReducePreStep").setParallelism(getParallelism(info))
-			.mapPartition(new PythonMapPartition<IN, OUT>(info.envID, info.setID, type)).setParallelism(getParallelism(info)).name(info.name);
+			.mapPartition(new PythonMapPartition<IN, OUT>(operatorConfig, info.envID, info.setID, type))
+			.setParallelism(getParallelism(info)).name(info.name);
 	}
 
 	private <IN, OUT> DataSet<OUT> applyGroupReduceOperation(UnsortedGrouping<IN> op1, PythonOperationInfo info, TypeInformation<OUT> type) {
 		return op1
 			.reduceGroup(new IdentityGroupReduce<IN>()).setCombinable(false).setParallelism(getParallelism(info)).name("PythonGroupReducePreStep")
-			.mapPartition(new PythonMapPartition<IN, OUT>(info.envID, info.setID, type)).setParallelism(getParallelism(info)).name(info.name);
+			.mapPartition(new PythonMapPartition<IN, OUT>(operatorConfig, info.envID, info.setID, type))
+			.setParallelism(getParallelism(info)).name(info.name);
 	}
 
 	private <IN, OUT> DataSet<OUT> applyGroupReduceOperation(SortedGrouping<IN> op1, PythonOperationInfo info, TypeInformation<OUT> type) {
 		return op1
 			.reduceGroup(new IdentityGroupReduce<IN>()).setCombinable(false).setParallelism(getParallelism(info)).name("PythonGroupReducePreStep")
-			.mapPartition(new PythonMapPartition<IN, OUT>(info.envID, info.setID, type)).setParallelism(getParallelism(info)).name(info.name);
+			.mapPartition(new PythonMapPartition<IN, OUT>(operatorConfig, info.envID, info.setID, type))
+			.setParallelism(getParallelism(info)).name(info.name);
 	}
 
 	private <IN1, IN2, OUT> void createJoinOperation(DatasizeHint mode, PythonOperationInfo info, TypeInformation<OUT> type) {
@@ -602,7 +612,8 @@ public class PythonPlanBinder {
 
 		if (info.usesUDF) {
 			sets.add(info.setID, createDefaultJoin(op1, op2, info.keys1, info.keys2, mode, getParallelism(info))
-				.mapPartition(new PythonMapPartition<Tuple2<byte[], byte[]>, OUT>(info.envID, info.setID, type)).setParallelism(getParallelism(info)).name(info.name));
+				.mapPartition(new PythonMapPartition<Tuple2<byte[], byte[]>, OUT>(operatorConfig, info.envID, info.setID, type))
+				.setParallelism(getParallelism(info)).name(info.name));
 		} else {
 			sets.add(info.setID, createDefaultJoin(op1, op2, info.keys1, info.keys2, mode, getParallelism(info)));
 		}
@@ -629,12 +640,16 @@ public class PythonPlanBinder {
 
 	private <IN, OUT> void createMapOperation(PythonOperationInfo info, TypeInformation<OUT> type) {
 		DataSet<IN> op1 = sets.getDataSet(info.parentID);
-		sets.add(info.setID, op1.mapPartition(new PythonMapPartition<IN, OUT>(info.envID, info.setID, type)).setParallelism(getParallelism(info)).name(info.name));
+		sets.add(info.setID, op1
+			.mapPartition(new PythonMapPartition<IN, OUT>(operatorConfig, info.envID, info.setID, type))
+			.setParallelism(getParallelism(info)).name(info.name));
 	}
 
 	private <IN, OUT> void createMapPartitionOperation(PythonOperationInfo info, TypeInformation<OUT> type) {
 		DataSet<IN> op1 = sets.getDataSet(info.parentID);
-		sets.add(info.setID, op1.mapPartition(new PythonMapPartition<IN, OUT>(info.envID, info.setID, type)).setParallelism(getParallelism(info)).name(info.name));
+		sets.add(info.setID, op1
+			.mapPartition(new PythonMapPartition<IN, OUT>(operatorConfig, info.envID, info.setID, type))
+			.setParallelism(getParallelism(info)).name(info.name));
 	}
 
 	private void createReduceOperation(PythonOperationInfo info) {
@@ -650,12 +665,14 @@ public class PythonPlanBinder {
 	private <IN, OUT> DataSet<OUT> applyReduceOperation(DataSet<IN> op1, PythonOperationInfo info, TypeInformation<OUT> type) {
 		return op1
 			.reduceGroup(new IdentityGroupReduce<IN>()).setCombinable(false).setParallelism(getParallelism(info)).name("PythonReducePreStep")
-			.mapPartition(new PythonMapPartition<IN, OUT>(info.envID, info.setID, type)).setParallelism(getParallelism(info)).name(info.name);
+			.mapPartition(new PythonMapPartition<IN, OUT>(operatorConfig, info.envID, info.setID, type))
+			.setParallelism(getParallelism(info)).name(info.name);
 	}
 
 	private <IN, OUT> DataSet<OUT> applyReduceOperation(UnsortedGrouping<IN> op1, PythonOperationInfo info, TypeInformation<OUT> type) {
 		return op1
 			.reduceGroup(new IdentityGroupReduce<IN>()).setCombinable(false).setParallelism(getParallelism(info)).name("PythonReducePreStep")
-			.mapPartition(new PythonMapPartition<IN, OUT>(info.envID, info.setID, type)).setParallelism(getParallelism(info)).name(info.name);
+			.mapPartition(new PythonMapPartition<IN, OUT>(operatorConfig, info.envID, info.setID, type))
+			.setParallelism(getParallelism(info)).name(info.name);
 	}
 }
