@@ -39,8 +39,8 @@ import org.apache.flink.table.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
 import org.apache.flink.table.codegen.Indenter.toISC
 import org.apache.flink.table.codegen.calls.FunctionGenerator
 import org.apache.flink.table.codegen.calls.ScalarOperators._
-import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
+import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
 import org.apache.flink.table.runtime.TableFunctionCollector
 import org.apache.flink.table.typeutils.TypeCheckUtils._
 import org.apache.flink.types.Row
@@ -1106,6 +1106,31 @@ class CodeGenerator(
         requireArray(array)
         generateArrayElement(this, array)
 
+      // RAND([seed])
+      case RAND if isNumeric(resultType) && operands.size <= 1 =>
+        val randField = addReusableRandom()
+        val seedExpr = if (operands.nonEmpty) {
+          requireInteger(operands.head)
+          operands.head
+        } else {
+          null
+        }
+        generateRand(randField, seedExpr, resultType)
+
+      // RAND_INTEGER([seed, ] bound)
+      case RAND_INTEGER if isNumeric(resultType) && operands.nonEmpty && operands.size <= 2 =>
+        val randField = addReusableRandom()
+        val (seedExpr, boundExpr) = if (operands.size == 1) {
+          (null, operands.head)
+        } else {
+          (operands.head, operands(1))
+        }
+        if (seedExpr != null) {
+          requireInteger(seedExpr)
+        }
+        requireInteger(boundExpr)
+        generateRandInteger(randField, seedExpr, boundExpr, resultType)
+
       // advanced scalar functions
       case sqlOperator: SqlOperator =>
         val callGen = FunctionGenerator.getCallGenerator(
@@ -1491,6 +1516,22 @@ class CodeGenerator(
           |""".stripMargin
       reusableMemberStatements.add(fieldDecimal)
       fieldTerm
+  }
+
+  /**
+    * Adds a reusable [[java.util.Random]] to the member area of the generated [[Function]].
+    *
+    * @return member variable term
+    */
+  def addReusableRandom(): String = {
+    val fieldTerm = newName("random")
+
+    val field =
+      s"""
+         |transient java.util.Random $fieldTerm = null;
+         |""".stripMargin
+    reusableMemberStatements.add(field)
+    fieldTerm
   }
 
   /**

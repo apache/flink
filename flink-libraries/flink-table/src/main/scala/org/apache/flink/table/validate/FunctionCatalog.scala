@@ -348,6 +348,8 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     SqlStdOperatorTable.QUARTER,
     SqlStdOperatorTable.SCALAR_QUERY,
     SqlStdOperatorTable.EXISTS,
+    SqlStdOperatorTable.RAND,
+    SqlStdOperatorTable.RAND_INTEGER,
     // EXTENSIONS
     EventTimeExtractor,
     ProcTimeExtractor
