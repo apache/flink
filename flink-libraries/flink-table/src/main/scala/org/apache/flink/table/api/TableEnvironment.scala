@@ -21,6 +21,7 @@ package org.apache.flink.table.api
 import _root_.java.lang.reflect.Modifier
 import _root_.java.util.concurrent.atomic.AtomicInteger
 
+import com.google.common.collect.ImmutableList
 import org.apache.calcite.config.Lex
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.plan.RelOptPlanner.CannotPlanException
@@ -231,7 +232,8 @@ abstract class TableEnvironment(val config: TableConfig) {
     val optProgram = Programs.ofRules(ruleSet)
 
     val output = try {
-      optProgram.run(getPlanner, input, targetTraits)
+      optProgram.run(getPlanner, input, targetTraits,
+        ImmutableList.of(), ImmutableList.of())
     } catch {
       case e: CannotPlanException =>
         throw new TableException(
@@ -349,22 +351,6 @@ abstract class TableEnvironment(val config: TableConfig) {
     * @param tableSource The [[TableSource]] to register.
     */
   def registerTableSource(name: String, tableSource: TableSource[_]): Unit
-
-  /**
-    * Unregisters a [[Table]] in the TableEnvironment's catalog.
-    * Unregistered tables cannot be referenced in SQL queries anymore.
-    *
-    * @param name The name under which the table is registered.
-    * @return true if table could be unregistered; false otherwise.
-    */
-  def unregisterTable(name: String): Boolean = {
-    if (isRegistered(name)) {
-      internalSchema.tableMap.remove(name)
-      true
-    } else {
-      false
-    }
-  }
 
   /**
     * Replaces a registered Table with another Table under the same name.

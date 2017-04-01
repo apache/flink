@@ -63,7 +63,8 @@ class ExternalCatalogSchemaTest {
     val subSchemas = allSchemaObjectNames.asScala
         .filter(_.getType.equals(SqlMonikerType.SCHEMA))
         .map(_.getFullyQualifiedNames.asScala.toList).toSet
-    assertTrue(Set(List(schemaName, "db1"), List(schemaName, "db2")) == subSchemas)
+    assertTrue(Set(List(schemaName), List(schemaName, "db1"),
+      List(schemaName, "db2")) == subSchemas)
   }
 
   @Test

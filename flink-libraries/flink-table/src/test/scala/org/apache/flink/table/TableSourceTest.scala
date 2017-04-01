@@ -61,7 +61,7 @@ class TableSourceTest extends TableTestBase {
 
     util.tEnv.registerTableSource(tableName, tableSource)
 
-    val sqlQuery = s"SELECT last, floor(id), score * 2 FROM $tableName"
+    val sqlQuery = s"SELECT `last`, floor(id), score * 2 FROM $tableName"
 
     val expected = unaryNode(
       "DataSetCalc",
@@ -245,7 +245,7 @@ class TableSourceTest extends TableTestBase {
 
     util.tEnv.registerTableSource(tableName, tableSource)
 
-    val sqlQuery = s"SELECT last, floor(id), score * 2 FROM $tableName"
+    val sqlQuery = s"SELECT `last`, floor(id), score * 2 FROM $tableName"
 
     val expected = unaryNode(
       "DataStreamCalc",
