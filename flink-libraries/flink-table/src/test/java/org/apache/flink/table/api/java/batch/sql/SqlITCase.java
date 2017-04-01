@@ -18,22 +18,39 @@
 
 package org.apache.flink.table.api.java.batch.sql;
 
+import com.google.common.collect.Lists;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+<<<<<<< HEAD
+<<<<<<< HEAD
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.typeutils.MapTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+=======
+import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.tuple.Tuple5;
+>>>>>>> add the rand functions to FunctionGenerator class, and init random field in constructor
+=======
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.tuple.Tuple5;
+import org.apache.flink.api.java.typeutils.MapTypeInfo;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+>>>>>>> support non-constant field arguments for rand and rand_integer
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
 import org.apache.flink.table.api.scala.batch.utils.TableProgramsCollectionTestBase;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
 import org.apache.flink.types.Row;
+<<<<<<< HEAD
 
+=======
+>>>>>>> add the rand functions to FunctionGenerator class, and init random field in constructor
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -41,7 +58,14 @@ import org.junit.runners.Parameterized;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+<<<<<<< HEAD
 import java.util.Map;
+=======
+import java.util.Random;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+>>>>>>> add the rand functions to FunctionGenerator class, and init random field in constructor
 
 /**
  * Integration tests for batch SQL.
@@ -152,6 +176,106 @@ public class SqlITCase extends TableProgramsCollectionTestBase {
 	}
 
 	@Test
+<<<<<<< HEAD
+	public void testMap() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
+
+		List<Tuple2<Integer, Map<String, String>>> rows = new ArrayList<>();
+		rows.add(new Tuple2<>(1, Collections.singletonMap("foo", "bar")));
+		rows.add(new Tuple2<>(2, Collections.singletonMap("foo", "spam")));
+
+		TypeInformation<Tuple2<Integer, Map<String, String>>> ty = new TupleTypeInfo<>(
+			BasicTypeInfo.INT_TYPE_INFO,
+			new MapTypeInfo<>(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO));
+
+		DataSet<Tuple2<Integer, Map<String, String>>> ds1 = env.fromCollection(rows, ty);
+		tableEnv.registerDataSet("t1", ds1, "a, b");
+
+		String sqlQuery = "SELECT b['foo'] FROM t1";
+=======
+	public void testRandAndRandInteger() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
+
+		String sqlQuery = "SELECT i, RAND() AS r1, RAND(1) AS r2, " +
+			"RAND_INTEGER(10) AS r3, RAND_INTEGER(3, 10) AS r4 " +
+			"FROM (VALUES 1, 2, 3, 4, 5) AS t(i)";
+>>>>>>> add the rand functions to FunctionGenerator class, and init random field in constructor
+		Table result = tableEnv.sql(sqlQuery);
+
+		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
+		List<Row> results = resultSet.collect();
+<<<<<<< HEAD
+		String expected = "bar\n" + "spam\n";
+		compareResultAsText(results, expected);
+=======
+		Random expectedRandom1 = new Random(1);
+		Random expectedRandom2 = new Random(3);
+		assertEquals(5, results.size());
+		for (int i = 0; i < 5; ++i) {
+			Row row = results.get(i);
+			assertEquals(i + 1, row.getField(0));
+			double r1 = (double) row.getField(1);
+			double r2 = (double) row.getField(2);
+			int r3 = (int) row.getField(3);
+			int r4 = (int) row.getField(4);
+
+			assertTrue(0 <= r1 && r1 < 1);
+			assertEquals("" + expectedRandom1.nextDouble(), "" + r2);
+			assertTrue(0 <= r3 && r3 < 10);
+			assertEquals("" + expectedRandom2.nextInt(10), "" + r4);
+		}
+<<<<<<< HEAD
+>>>>>>> add the rand functions to FunctionGenerator class, and init random field in constructor
+=======
+	}
+
+	@Test
+	public void testRandAndRandIntegerWithField() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
+
+		DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.getSmall3TupleDataSet(env);
+		tableEnv.registerDataSet("t", ds, "a, b, c");
+
+		String sqlQuery = "SELECT a, b, RAND(a) AS r1, " +
+			"RAND_INTEGER(a) AS r2, RAND_INTEGER(a, 10) AS r3, RAND_INTEGER(4, a) AS r4, " +
+			"RAND_INTEGER(a, CAST(b AS INT)) AS r5 FROM t ORDER BY a";
+		Table result = tableEnv.sql(sqlQuery);
+
+		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
+		List<Row> results = resultSet.collect();
+
+		List<Integer> aValues = Lists.newArrayList(1, 2, 3);
+		List<Long> bValues = Lists.newArrayList(1L, 2L, 2L);
+		Random expectedRandom4 = new Random(4);
+		assertEquals(3, results.size());
+		for (int i = 0; i < 3; ++i) {
+			Row row = results.get(i);
+			int a = aValues.get(i);
+			Long b = bValues.get(i);
+			assertEquals(a, row.getField(0));
+			assertEquals(b, row.getField(1));
+			double expectedR1 = new Random(a).nextDouble();
+			double r1 = (double) row.getField(2);
+			int r2 = (int) row.getField(3);
+			int expectedR3 = new Random(a).nextInt(10);
+			int r3 = (int) row.getField(4);
+			int expectedR4 = expectedRandom4.nextInt(a);
+			int r4 = (int) row.getField(5);
+			int expectedR5 = new Random(a).nextInt(b.intValue());
+			int r5 = (int) row.getField(6);
+
+			assertEquals("" + expectedR1, "" + r1);
+			assertTrue(0 <= r2 && r2 < a);
+			assertEquals(expectedR3, r3);
+			assertEquals(expectedR4, r4);
+			assertEquals(expectedR5, r5);
+		}
+	}
+
+	@Test
 	public void testMap() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
@@ -174,5 +298,6 @@ public class SqlITCase extends TableProgramsCollectionTestBase {
 		List<Row> results = resultSet.collect();
 		String expected = "bar\n" + "spam\n";
 		compareResultAsText(results, expected);
+>>>>>>> support non-constant field arguments for rand and rand_integer
 	}
 }

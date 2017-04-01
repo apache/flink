@@ -458,6 +458,26 @@ object FunctionGenerator {
     Seq(),
     new CurrentTimePointCallGen(SqlTimeTypeInfo.TIMESTAMP, local = true))
 
+  addSqlFunction(
+    RAND,
+    Seq(),
+    new RandCallGen(BuiltInMethod.RAND))
+
+  addSqlFunction(
+    RAND,
+    Seq(INT_TYPE_INFO),
+    new RandCallGen(BuiltInMethod.RAND_SEED))
+
+  addSqlFunction(
+    RAND_INTEGER,
+    Seq(INT_TYPE_INFO),
+    new RandCallGen(BuiltInMethod.RAND_INTEGER))
+
+  addSqlFunction(
+    RAND_INTEGER,
+    Seq(INT_TYPE_INFO, INT_TYPE_INFO),
+    new RandCallGen(BuiltInMethod.RAND_INTEGER_SEED))
+
   // ----------------------------------------------------------------------------------------------
 
   /**

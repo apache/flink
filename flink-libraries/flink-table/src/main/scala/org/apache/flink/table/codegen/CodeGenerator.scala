@@ -43,7 +43,11 @@ import org.apache.flink.table.codegen.Indenter.toISC
 import org.apache.flink.table.codegen.calls.FunctionGenerator
 import org.apache.flink.table.codegen.calls.ScalarOperators._
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
+<<<<<<< HEAD
 import org.apache.flink.table.functions.{AggregateFunction, FunctionContext, TimeMaterializationSqlFunction, UserDefinedFunction}
+=======
+import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
+>>>>>>> [FLINK-6237] [table] support RAND and RAND_INTEGER on SQL
 import org.apache.flink.table.runtime.TableFunctionCollector
 import org.apache.flink.table.typeutils.TypeCheckUtils._
 import org.apache.flink.types.Row
@@ -1956,6 +1960,45 @@ class CodeGenerator(
           |""".stripMargin
       reusableMemberStatements.add(fieldDecimal)
       fieldTerm
+  }
+
+  /**
+    * Adds a reusable [[java.util.Random]] to the member area of the generated [[Function]].
+    *
+    * @return member variable term
+    */
+  def addReusableRandom(seedExpr: GeneratedExpression): String = {
+    val fieldTerm = newName("random")
+
+    val field =
+      s"""
+         |final java.util.Random $fieldTerm;
+         |""".stripMargin
+    reusableMemberStatements.add(field)
+
+    val fieldInit = if (seedExpr != null && nullCheck) {
+      s"""
+         |${seedExpr.code}
+         |if(!${seedExpr.nullTerm}) {
+         |  $fieldTerm = new java.util.Random(${seedExpr.resultTerm});
+         |}
+         |else {
+         |  $fieldTerm = new java.util.Random();
+         |}
+         |""".stripMargin
+    } else if (seedExpr != null) {
+      s"""
+         |${seedExpr.code}
+         |$fieldTerm = new java.util.Random(${seedExpr.resultTerm});
+         |""".stripMargin
+    } else {
+      s"""
+         |$fieldTerm = new java.util.Random();
+         |""".stripMargin
+    }
+
+    reusableInitStatements.add(fieldInit)
+    fieldTerm
   }
 
   /**
