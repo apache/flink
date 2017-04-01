@@ -564,12 +564,12 @@ public class SmarterLeaderLatch implements Closeable
 								duration = System.currentTimeMillis() - suspendTime;
 							}
 						} catch (Exception e) {
-							log.info("Waiting thread interrupted. We've lost connection to Zookeeper.");
+							log.error("Waiting thread interrupted. We've lost connection to Zookeeper.");
 							setLeadership(false);
 							return;
 						}
 						if (zkClient == null || !zkClient.getState().isConnected()) {
-							log.info("We've lost connection to Zookeeper.");
+							log.error("We've lost connection to Zookeeper.");
 							setLeadership(false);
 						}
 					}

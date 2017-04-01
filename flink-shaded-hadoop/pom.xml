@@ -150,6 +150,7 @@ under the License.
 									<shadedPattern>org.apache.flink.hadoop.shaded.org.apache.curator</shadedPattern>
 									<excludes>
 										<exclude>org/apache/curator/framework/listen/ListenerContainer</exclude>
+										<exclude>org/apache/curator/framework/listen/Listenable</exclude>
 									</excludes>
 								</relocation>
 								<relocation>
