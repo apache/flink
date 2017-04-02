@@ -169,7 +169,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 	protected transient Context triggerContext = new Context(null, null);
 
-	protected transient WindowContext processContext = new WindowContext(null);
+	protected transient WindowContext processContext = new WindowContext(null, Long.MIN_VALUE, Long.MIN_VALUE);
 
 	protected transient WindowAssigner.WindowAssignerContext windowAssignerContext;
 
@@ -275,7 +275,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 				getInternalTimerService("window-timers", windowSerializer, this);
 
 		triggerContext = new Context(null, null);
-		processContext = new WindowContext( null);
+		processContext = new WindowContext( null, Long.MIN_VALUE, Long.MIN_VALUE);
 
 		windowAssignerContext = new WindowAssigner.WindowAssignerContext() {
 			@Override
@@ -419,7 +419,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 					if (contents == null) {
 						continue;
 					}
-					emitWindowContents(actualWindow, contents);
+					emitWindowContents(triggerContext.window, contents);
 				}
 
 				if (triggerResult.isPurge()) {
@@ -452,7 +452,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 					if (contents == null) {
 						continue;
 					}
-					emitWindowContents(window, contents);
+					emitWindowContents(triggerContext.window, contents);
 				}
 
 				if (triggerResult.isPurge()) {
@@ -580,7 +580,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 			MergingWindowSet<W> mergingWindows) throws Exception {
 		windowState.clear();
 		triggerContext.clear();
-		processContext.window = window;
+		processContext.update(triggerContext);
 		processContext.clear();
 		if (mergingWindows != null) {
 			mergingWindows.retireWindow(window);
@@ -594,7 +594,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	@SuppressWarnings("unchecked")
 	private void emitWindowContents(W window, ACC contents) throws Exception {
 		timestampedCollector.setAbsoluteTimestamp(window.maxTimestamp());
-		processContext.window = window;
+		processContext.update(triggerContext);
 		userFunction.process(triggerContext.key, window, processContext, contents, timestampedCollector);
 	}
 
@@ -795,17 +795,29 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 	/**
 	 * A utility class for handling {@code ProcessWindowFunction} invocations. This can be reused
-	 * by setting the {@code key} and {@code window} fields. No internal state must be kept in the
-	 * {@code WindowContext}.
+	 * by setting {@code window}, {@code currentProcessingTime} and {@code currentWatermark} fields.
+	 * No internal state must be kept in the {@code WindowContext}.
 	 */
 	public class WindowContext implements InternalWindowFunction.InternalWindowContext {
 		protected W window;
 
+		protected long currentProcessingTime;
+
+		protected long currentWatermark;
+
 		protected AbstractPerWindowStateStore windowState;
 
-		public WindowContext(W window) {
+		public WindowContext(W window, long currentProcessingTime, long currentWatermark) {
 			this.window = window;
+			this.currentProcessingTime = currentProcessingTime;
+			this.currentWatermark = currentWatermark;
 			this.windowState = windowAssigner instanceof MergingWindowAssigner ?  new MergingWindowStateStore() : new PerWindowStateStore();
+		}
+
+		public void update(Context context) {
+			this.window = context.window;
+			this.currentProcessingTime = context.getCurrentProcessingTime();
+			this.currentWatermark = context.getCurrentWatermark();
 		}
 
 		@Override
@@ -815,6 +827,16 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
 		public void clear() throws Exception {
 			userFunction.clear(window, this);
+		}
+
+		@Override
+		public long currentProcessingTime() {
+			return currentProcessingTime;
+		}
+
+		@Override
+		public long currentWatermark() {
+			return currentWatermark;
 		}
 
 		@Override

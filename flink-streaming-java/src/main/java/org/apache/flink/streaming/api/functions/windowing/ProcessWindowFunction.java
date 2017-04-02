@@ -68,6 +68,16 @@ public abstract class ProcessWindowFunction<IN, OUT, KEY, W extends Window> impl
 		public abstract W window();
 
 		/**
+		 * @return The current processing time.
+		 */
+		public abstract long currentProcessingTime();
+
+		/**
+		 * @return The current event-time watermark.
+		 */
+		public abstract long currentWatermark();
+
+		/**
 		 * State accessor for per-key and per-window state.
 		 *
 		 * <p><b>NOTE:</b>If you use per-window state you have to ensure that you clean it up

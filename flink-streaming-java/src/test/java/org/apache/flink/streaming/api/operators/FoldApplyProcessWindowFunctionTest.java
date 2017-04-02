@@ -154,6 +154,16 @@ public class FoldApplyProcessWindowFunctionTest {
 			}
 
 			@Override
+			public long currentProcessingTime() {
+				return 0;
+			}
+
+			@Override
+			public long currentWatermark() {
+				return 0;
+			}
+
+			@Override
 			public KeyedStateStore windowState() {
 				return new DummyKeyedStateStore();
 			}
