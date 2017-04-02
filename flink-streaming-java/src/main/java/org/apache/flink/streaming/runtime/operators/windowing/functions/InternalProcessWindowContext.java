@@ -47,6 +47,16 @@ public class InternalProcessWindowContext<IN, OUT, KEY, W extends Window>
 	}
 
 	@Override
+	public long currentProcessingTime() {
+		return internalContext.currentProcessingTime();
+	}
+
+	@Override
+	public long currentWatermark() {
+		return internalContext.currentWatermark();
+	}
+
+	@Override
 	public KeyedStateStore windowState() {
 		return internalContext.windowState();
 	}

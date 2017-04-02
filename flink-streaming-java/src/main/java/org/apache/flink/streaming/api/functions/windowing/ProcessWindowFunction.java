@@ -63,9 +63,15 @@ public abstract class ProcessWindowFunction<IN, OUT, KEY, W extends Window> impl
 	 */
 	public abstract class Context implements java.io.Serializable {
 		/**
-		 * @return The window that is being evaluated.
+		 * Returns the window that is being evaluated.
 		 */
 		public abstract W window();
+
+		/** Returns the current processing time. */
+		public abstract long currentProcessingTime();
+
+		/** Returns the current event-time watermark. */
+		public abstract long currentWatermark();
 
 		/**
 		 * State accessor for per-key and per-window state.
