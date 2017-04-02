@@ -100,16 +100,14 @@ public class FoldApplyProcessWindowFunction<K, W extends Window, T, ACC, R>
 		}
 
 		this.ctx.window = context.window();
-		this.ctx.windowState = context.windowState();
-		this.ctx.globalState = context.globalState();
+		this.ctx.context = context;
 		windowFunction.process(key, ctx, Collections.singletonList(result), out);
 	}
 
 	@Override
 	public void clear(final Context context) throws Exception{
 		this.ctx.window = context.window();
-		this.ctx.windowState = context.windowState();
-		this.ctx.globalState = context.globalState();
+		this.ctx.context = context;
 		windowFunction.clear(ctx);
 	}
 

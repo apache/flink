@@ -63,9 +63,19 @@ abstract class ProcessWindowFunction[IN, OUT, KEY, W <: Window] extends Function
     */
   abstract class Context {
     /**
-      * @return The window that is being evaluated.
+      * Returns the window that is being evaluated.
       */
     def window: W
+
+    /**
+      * Returns the current processing time.
+      */
+    def currentProcessingTime: Long
+
+    /**
+      * Returns the current event-time watermark.
+      */
+    def currentWatermark: Long
 
     /**
       * State accessor for per-key and per-window state.
