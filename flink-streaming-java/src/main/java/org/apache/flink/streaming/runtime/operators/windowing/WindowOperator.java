@@ -817,6 +817,16 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		}
 
 		@Override
+		public long currentProcessingTime() {
+			return internalTimerService.currentProcessingTime();
+		}
+
+		@Override
+		public long currentWatermark() {
+			return internalTimerService.currentWatermark();
+		}
+
+		@Override
 		public KeyedStateStore windowState() {
 			this.windowState.window = this.window;
 			return this.windowState;

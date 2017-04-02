@@ -38,6 +38,8 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
 
 	private final OneInputStreamOperator<IN, OUT> oneInputOperator;
 
+	private long currentWatermark;
+
 	public OneInputStreamOperatorTestHarness(
 			OneInputStreamOperator<IN, OUT> operator,
 			TypeSerializer<IN> typeSerializerIn) throws Exception {
@@ -98,10 +100,15 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
 	}
 
 	public void processWatermark(long watermark) throws Exception {
-		oneInputOperator.processWatermark(new Watermark(watermark));
+		processWatermark(new Watermark(watermark));
 	}
 
 	public void processWatermark(Watermark mark) throws Exception {
+		currentWatermark = mark.getTimestamp();
 		oneInputOperator.processWatermark(mark);
+	}
+
+	public long getCurrentWatermark() {
+		return currentWatermark;
 	}
 }
