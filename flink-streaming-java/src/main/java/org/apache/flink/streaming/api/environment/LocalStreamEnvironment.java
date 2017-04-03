@@ -45,9 +45,6 @@ import org.slf4j.LoggerFactory;
 @Public
 public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 
-	/** The default parallelism used when creating a local environment */
-	private static int defaultLocalParallelism = Runtime.getRuntime().availableProcessors();
-
 	private static final Logger LOG = LoggerFactory.getLogger(LocalStreamEnvironment.class);
 	
 	/** The configuration to use for the local cluster */
@@ -57,16 +54,8 @@ public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 	 * Creates a new local stream environment that uses the default configuration.
 	 */
 	public LocalStreamEnvironment() {
-		this(defaultLocalParallelism);
+		this(null);
 	}
-
-	/**
-	 * Creates a new local stream environment that uses the default configuration.
-	 */
-	public LocalStreamEnvironment(int parallelism) {
-		this(null, parallelism);
-	}
-
 
 	/**
 	 * Creates a new local stream environment that configures its local executor with the given configuration.
@@ -74,25 +63,14 @@ public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 	 * @param config The configuration used to configure the local executor.
 	 */
 	public LocalStreamEnvironment(Configuration config) {
-		this(config, defaultLocalParallelism);
-	}
-
-	/**
-	 * Creates a new local stream environment that configures its local executor with the given configuration.
-	 *
-	 * @param config The configuration used to configure the local executor.
-	 */
-	public LocalStreamEnvironment(Configuration config, int parallelism) {
-		super(parallelism);
 		if (!ExecutionEnvironment.areExplicitEnvironmentsAllowed()) {
 			throw new InvalidProgramException(
 					"The LocalStreamEnvironment cannot be used when submitting a program through a client, " +
 							"or running in a TestEnvironment context.");
 		}
-
+		
 		this.conf = config == null ? new Configuration() : config;
 	}
-
 
 	/**
 	 * Executes the JobGraph of the on a mini cluster of CLusterUtil with a user
