@@ -267,6 +267,13 @@ public class RowTypeInfo extends TupleTypeInfoBase<Row> {
 		return bld.toString();
 	}
 
+	/**
+	 * Returns the field types of the row. The order matches the order of the field names.
+	 */
+	public TypeInformation<?>[] getFieldTypes() {
+		return types;
+	}
+
 	private boolean hasDuplicateFieldNames(String[] fieldNames) {
 		HashSet<String> names = new HashSet<>();
 		for (String field : fieldNames) {

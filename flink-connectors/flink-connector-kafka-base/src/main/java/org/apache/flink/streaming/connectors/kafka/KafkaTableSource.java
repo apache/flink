@@ -18,18 +18,14 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
+import java.util.Properties;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
-
-import java.util.Properties;
-
-import static org.apache.flink.streaming.connectors.kafka.internals.TypeUtil.toTypeInfo;
 
 /**
  * A version-agnostic Kafka {@link StreamTableSource}.
@@ -48,11 +44,8 @@ public abstract class KafkaTableSource implements StreamTableSource<Row> {
 	/** Deserialization schema to use for Kafka records. */
 	private final DeserializationSchema<Row> deserializationSchema;
 
-	/** Row field names. */
-	private final String[] fieldNames;
-
-	/** Row field types. */
-	private final TypeInformation<?>[] fieldTypes;
+	/** Type information describing the result type. */
+	private final TypeInformation<Row> typeInfo;
 
 	/**
 	 * Creates a generic Kafka {@link StreamTableSource}.
@@ -60,43 +53,18 @@ public abstract class KafkaTableSource implements StreamTableSource<Row> {
 	 * @param topic                 Kafka topic to consume.
 	 * @param properties            Properties for the Kafka consumer.
 	 * @param deserializationSchema Deserialization schema to use for Kafka records.
-	 * @param fieldNames            Row field names.
-	 * @param fieldTypes            Row field types.
+	 * @param typeInfo              Type information describing the result type.
 	 */
 	KafkaTableSource(
 			String topic,
 			Properties properties,
 			DeserializationSchema<Row> deserializationSchema,
-			String[] fieldNames,
-			Class<?>[] fieldTypes) {
-
-		this(topic, properties, deserializationSchema, fieldNames, toTypeInfo(fieldTypes));
-	}
-
-	/**
-	 * Creates a generic Kafka {@link StreamTableSource}.
-	 *
-	 * @param topic                 Kafka topic to consume.
-	 * @param properties            Properties for the Kafka consumer.
-	 * @param deserializationSchema Deserialization schema to use for Kafka records.
-	 * @param fieldNames            Row field names.
-	 * @param fieldTypes            Row field types.
-	 */
-	KafkaTableSource(
-			String topic,
-			Properties properties,
-			DeserializationSchema<Row> deserializationSchema,
-			String[] fieldNames,
-			TypeInformation<?>[] fieldTypes) {
+			TypeInformation<Row> typeInfo) {
 
 		this.topic = Preconditions.checkNotNull(topic, "Topic");
 		this.properties = Preconditions.checkNotNull(properties, "Properties");
 		this.deserializationSchema = Preconditions.checkNotNull(deserializationSchema, "Deserialization schema");
-		this.fieldNames = Preconditions.checkNotNull(fieldNames, "Field names");
-		this.fieldTypes = Preconditions.checkNotNull(fieldTypes, "Field types");
-
-		Preconditions.checkArgument(fieldNames.length == fieldTypes.length,
-				"Number of provided field names and types does not match.");
+		this.typeInfo = Preconditions.checkNotNull(typeInfo, "Type information");
 	}
 
 	/**
@@ -107,13 +75,12 @@ public abstract class KafkaTableSource implements StreamTableSource<Row> {
 	public DataStream<Row> getDataStream(StreamExecutionEnvironment env) {
 		// Version-specific Kafka consumer
 		FlinkKafkaConsumerBase<Row> kafkaConsumer = getKafkaConsumer(topic, properties, deserializationSchema);
-		DataStream<Row> kafkaSource = env.addSource(kafkaConsumer);
-		return kafkaSource;
+		return env.addSource(kafkaConsumer);
 	}
 
 	@Override
 	public TypeInformation<Row> getReturnType() {
-		return new RowTypeInfo(fieldTypes, fieldNames);
+		return typeInfo;
 	}
 
 	/**
