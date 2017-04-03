@@ -18,36 +18,28 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.types.Row;
-import org.apache.flink.table.sources.StreamTableSource;
-import org.apache.flink.streaming.util.serialization.DeserializationSchema;
-
 import java.util.Properties;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.streaming.util.serialization.DeserializationSchema;
+import org.apache.flink.streaming.util.serialization.JsonRowDeserializationSchema;
+import org.apache.flink.types.Row;
 
-/**
- * Kafka {@link StreamTableSource} for Kafka 0.8.
- */
-public class Kafka08JsonTableSource extends KafkaJsonTableSource {
+public class Kafka010JsonTableSourceTest extends KafkaTableSourceTestBase {
 
-	/**
-	 * Creates a Kafka 0.8 JSON {@link StreamTableSource}.
-	 *
-	 * @param topic      Kafka topic to consume.
-	 * @param properties Properties for the Kafka consumer.
-	 * @param typeInfo   Type information describing the result type. The field names are used
-	 *                   to parse the JSON file and so are the types.
-	 */
-	public Kafka08JsonTableSource(
-			String topic,
-			Properties properties,
-			TypeInformation<Row> typeInfo) {
-
-		super(topic, properties, typeInfo);
+	@Override
+	protected KafkaTableSource createTableSource(String topic, Properties properties, TypeInformation<Row> typeInfo) {
+		return new Kafka010JsonTableSource(topic, properties, typeInfo);
 	}
 
 	@Override
-	FlinkKafkaConsumerBase<Row> getKafkaConsumer(String topic, Properties properties, DeserializationSchema<Row> deserializationSchema) {
-		return new FlinkKafkaConsumer08<>(topic, deserializationSchema, properties);
+	@SuppressWarnings("unchecked")
+	protected Class<DeserializationSchema<Row>> getDeserializationSchema() {
+		return (Class) JsonRowDeserializationSchema.class;
+	}
+
+	@Override
+	@SuppressWarnings("unchecked")
+	protected Class<FlinkKafkaConsumerBase<Row>> getFlinkKafkaConsumer() {
+		return (Class) FlinkKafkaConsumer010.class;
 	}
 }

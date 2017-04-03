@@ -18,36 +18,39 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.types.Row;
-import org.apache.flink.table.sources.StreamTableSource;
-import org.apache.flink.streaming.util.serialization.DeserializationSchema;
-
 import java.util.Properties;
+import org.apache.avro.specific.SpecificRecord;
+import org.apache.avro.specific.SpecificRecordBase;
+import org.apache.flink.streaming.util.serialization.DeserializationSchema;
+import org.apache.flink.table.sources.StreamTableSource;
+import org.apache.flink.types.Row;
 
 /**
- * Kafka {@link StreamTableSource} for Kafka 0.8.
+ * Kafka {@link StreamTableSource} for Kafka 0.9.
  */
-public class Kafka08JsonTableSource extends KafkaJsonTableSource {
+public class Kafka09AvroTableSource extends KafkaAvroTableSource {
 
 	/**
-	 * Creates a Kafka 0.8 JSON {@link StreamTableSource}.
+	 * Creates a Kafka 0.9 Avro {@link StreamTableSource} using a given {@link SpecificRecord}.
 	 *
 	 * @param topic      Kafka topic to consume.
 	 * @param properties Properties for the Kafka consumer.
-	 * @param typeInfo   Type information describing the result type. The field names are used
-	 *                   to parse the JSON file and so are the types.
+	 * @param record     Avro specific record.
 	 */
-	public Kafka08JsonTableSource(
-			String topic,
-			Properties properties,
-			TypeInformation<Row> typeInfo) {
+	public Kafka09AvroTableSource(
+		String topic,
+		Properties properties,
+		Class<? extends SpecificRecordBase> record) {
 
-		super(topic, properties, typeInfo);
+		super(
+			topic,
+			properties,
+			record);
 	}
 
 	@Override
 	FlinkKafkaConsumerBase<Row> getKafkaConsumer(String topic, Properties properties, DeserializationSchema<Row> deserializationSchema) {
-		return new FlinkKafkaConsumer08<>(topic, deserializationSchema, properties);
+		return new FlinkKafkaConsumer09<>(topic, deserializationSchema, properties);
 	}
 }
+

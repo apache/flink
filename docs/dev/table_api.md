@@ -202,7 +202,7 @@ tableEnv.registerTableSource("Customers", custTS)
 
 A `TableSource` can provide access to data stored in various storage systems such as databases (MySQL, HBase, ...), file formats (CSV, Apache Parquet, Avro, ORC, ...), or messaging systems (Apache Kafka, RabbitMQ, ...).
 
-Currently, Flink provides the `CsvTableSource` to read CSV files and the `Kafka08JsonTableSource`/`Kafka09JsonTableSource` to read JSON objects from Kafka.
+Currently, Flink provides the `CsvTableSource` to read CSV files and various `TableSources` to read JSON or Avro objects from Kafka.
 A custom `TableSource` can be defined by implementing the `BatchTableSource` or `StreamTableSource` interface.
 
 ### Available Table Sources
@@ -210,7 +210,11 @@ A custom `TableSource` can be defined by implementing the `BatchTableSource` or 
 | **Class name** | **Maven dependency** | **Batch?** | **Streaming?** | **Description**
 | `CsvTableSouce` | `flink-table` | Y | Y | A simple source for CSV files.
 | `Kafka08JsonTableSource` | `flink-connector-kafka-0.8` | N | Y | A Kafka 0.8 source for JSON data.
+| `Kafka08AvroTableSource` | `flink-connector-kafka-0.8` | N | Y | A Kafka 0.8 source for Avro data.
 | `Kafka09JsonTableSource` | `flink-connector-kafka-0.9` | N | Y | A Kafka 0.9 source for JSON data.
+| `Kafka09AvroTableSource` | `flink-connector-kafka-0.9` | N | Y | A Kafka 0.9 source for Avro data.
+| `Kafka010JsonTableSource` | `flink-connector-kafka-0.10` | N | Y | A Kafka 0.10 source for JSON data.
+| `Kafka010AvroTableSource` | `flink-connector-kafka-0.10` | N | Y | A Kafka 0.10 source for Avro data.
 
 All sources that come with the `flink-table` dependency can be directly used by your Table programs. For all other table sources, you have to add the respective dependency in addition to the `flink-table` dependency.
 
@@ -218,22 +222,42 @@ All sources that come with the `flink-table` dependency can be directly used by 
 
 To use the Kafka JSON source, you have to add the Kafka connector dependency to your project:
 
-  - `flink-connector-kafka-0.8` for Kafka 0.8, and
-  - `flink-connector-kafka-0.9` for Kafka 0.9, respectively.
+  - `flink-connector-kafka-0.8` for Kafka 0.8,
+  - `flink-connector-kafka-0.9` for Kafka 0.9, or
+  - `flink-connector-kafka-0.10` for Kafka 0.10, respectively.
 
 You can then create the source as follows (example for Kafka 0.8):
-
-```java
-// The JSON field names and types
-String[] fieldNames =  new String[] { "id", "name", "score"};
-Class<?>[] fieldTypes = new Class<?>[] { Integer.class, String.class, Double.class };
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+// specify JSON field names and types
+TypeInformation<Row> typeInfo = Types.ROW(
+  new String[] { "id", "name", "score" },
+  new TypeInformation<?>[] { Types.INT(), Types.STRING(), Types.DOUBLE() }
+);
 
 KafkaJsonTableSource kafkaTableSource = new Kafka08JsonTableSource(
     kafkaTopic,
     kafkaProperties,
-    fieldNames,
-    fieldTypes);
-```
+    typeInfo);
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+// specify JSON field names and types
+val typeInfo = Types.ROW(
+  Array("id", "name", "score"),
+  Array(Types.INT, Types.STRING, Types.DOUBLE)
+)
+
+val kafkaTableSource = new Kafka08JsonTableSource(
+    kafkaTopic,
+    kafkaProperties,
+    typeInfo)
+{% endhighlight %}
+</div>
+</div>
 
 By default, a missing JSON field does not fail the source. You can configure this via:
 
@@ -248,6 +272,43 @@ You can work with the Table as explained in the rest of the Table API guide:
 tableEnvironment.registerTableSource("kafka-source", kafkaTableSource);
 Table result = tableEnvironment.ingest("kafka-source");
 ```
+
+#### KafkaAvroTableSource
+
+The `KafkaAvroTableSource` allows you to read Avro's `SpecificRecord` objects from Kafka.
+
+To use the Kafka Avro source, you have to add the Kafka connector dependency to your project:
+
+  - `flink-connector-kafka-0.8` for Kafka 0.8,
+  - `flink-connector-kafka-0.9` for Kafka 0.9, or
+  - `flink-connector-kafka-0.10` for Kafka 0.10, respectively.
+
+You can then create the source as follows (example for Kafka 0.8):
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+// pass the generated Avro class to the TableSource
+Class<? extends SpecificRecord> clazz = MyAvroType.class; 
+
+KafkaAvroTableSource kafkaTableSource = new Kafka08AvroTableSource(
+    kafkaTopic,
+    kafkaProperties,
+    clazz);
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+// pass the generated Avro class to the TableSource
+val clazz = classOf[MyAvroType]
+
+val kafkaTableSource = new Kafka08AvroTableSource(
+    kafkaTopic,
+    kafkaProperties,
+    clazz)
+{% endhighlight %}
+</div>
+</div>
 
 #### CsvTableSource
 
@@ -1684,6 +1745,8 @@ The Table API is built on top of Flink's DataSet and DataStream API. Internally,
 | `Types.TIMESTAMP`      | `TIMESTAMP(3)`              | `java.sql.Timestamp`   |
 | `Types.INTERVAL_MONTHS`| `INTERVAL YEAR TO MONTH`    | `java.lang.Integer`    |
 | `Types.INTERVAL_MILLIS`| `INTERVAL DAY TO SECOND(3)` | `java.lang.Long`       |
+| `Types.PRIMITIVE_ARRAY`| `ARRAY`                     | e.g. `int[]`           |
+| `Types.OBJECT_ARRAY`   | `ARRAY`                     | e.g. `java.lang.Byte[]`|
 
 
 Advanced types such as generic types, composite types (e.g. POJOs or Tuples), and array types (object or primitive arrays) can be fields of a row. 
