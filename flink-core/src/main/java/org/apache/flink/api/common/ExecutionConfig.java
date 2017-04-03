@@ -77,13 +77,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	public static final int PARALLELISM_DEFAULT = -1;
 
 	/**
-	 * The flag value indicating an unknown or unset parallelism. This value is
-	 * not a valid parallelism and indicates that the parallelism should remain
-	 * unchanged.
-	 */
-	public static final int PARALLELISM_UNKNOWN = -2;
-
-	/**
 	 * The default lower bound for max parallelism if nothing was configured by the user. We have
 	 * this to allow users some degree of scale-up in case they forgot to configure maximum
 	 * parallelism explicitly.
@@ -293,7 +286,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	 * @param parallelism The parallelism to use
 	 */
 	public ExecutionConfig setParallelism(int parallelism) {
-		checkArgument(parallelism != PARALLELISM_UNKNOWN, "Cannot specify UNKNOWN_PARALLELISM.");
 		checkArgument(
 				parallelism >= 1 || parallelism == PARALLELISM_DEFAULT,
 				"Parallelism must be at least one, or ExecutionConfig.PARALLELISM_DEFAULT " +

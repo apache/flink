@@ -203,7 +203,6 @@ public abstract class StreamTransformation<T> {
 	 * @param parallelism The new parallelism to set on this {@code StreamTransformation}
 	 */
 	public void setParallelism(int parallelism) {
-		checkArgument(parallelism != ExecutionConfig.PARALLELISM_UNKNOWN, "Cannot specify UNKNOWN_PARALLELISM.");
 		checkArgument(
 				parallelism >= 1 || parallelism == ExecutionConfig.PARALLELISM_DEFAULT,
 				"Parallelism must be at least one, or ExecutionConfig.PARALLELISM_DEFAULT " +
