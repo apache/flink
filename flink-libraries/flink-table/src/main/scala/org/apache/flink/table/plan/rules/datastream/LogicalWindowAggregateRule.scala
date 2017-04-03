@@ -17,23 +17,25 @@
  */
 package org.apache.flink.table.plan.rules.datastream
 
+import java.math.BigDecimal
+
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.avatica.util.TimeUnitRange
 import org.apache.calcite.plan._
 import org.apache.calcite.plan.hep.HepRelVertex
 import org.apache.calcite.rel.logical.{LogicalAggregate, LogicalProject}
 import org.apache.calcite.rex.{RexCall, RexLiteral, RexNode}
-import org.apache.calcite.sql.fun.SqlFloorFunction
+import org.apache.calcite.sql.fun.{SqlFloorFunction, SqlStdOperatorTable}
 import org.apache.calcite.util.ImmutableBitSet
-import org.apache.flink.table.api.scala.Tumble
-import org.apache.flink.table.api.{EventTimeWindow, TableException, TumblingWindow, Window}
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.scala.{Session, Slide, Tumble}
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.TimeModeTypes
 import org.apache.flink.table.plan.logical.rel.LogicalWindowAggregate
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
 
-import scala.collection.JavaConversions._
+import _root_.scala.collection.JavaConversions._
 
 class LogicalWindowAggregateRule
   extends RelOptRule(
@@ -117,46 +119,104 @@ class LogicalWindowAggregateRule
   }
 
   private def identifyWindow(field: RexNode): Option[Window] = {
-    // Detects window expressions by pattern matching
-    //   supported patterns: FLOOR(time AS xxx) and CEIL(time AS xxx),
-    //   with time being equal to proctime() or rowtime()
     field match {
       case call: RexCall =>
         call.getOperator match {
-          case _: SqlFloorFunction =>
-            val operand = call.getOperands.get(1).asInstanceOf[RexLiteral]
-            val unit: TimeUnitRange = operand.getValue.asInstanceOf[TimeUnitRange]
-            val w = LogicalWindowAggregateRule.timeUnitRangeToTumbleWindow(unit)
-            call.getType match {
-              case TimeModeTypes.PROCTIME =>
-                return Some(w)
-              case TimeModeTypes.ROWTIME =>
-                return Some(w.on("rowtime"))
-              case _ =>
-            }
-          case _ =>
+          case _: SqlFloorFunction => FloorWindowTranslator(call).toWindow
+          case SqlStdOperatorTable.TUMBLE => TumbleWindowTranslator(call).toWindow
+          case SqlStdOperatorTable.HOP => SlidingWindowTranslator(call).toWindow
+          case SqlStdOperatorTable.SESSION => SessionWindowTranslator(call).toWindow
+          case _ => None
         }
-      case _ =>
+      case _ => None
     }
-    None
   }
+}
 
+private abstract class WindowTranslator {
+  val call: RexCall
+
+  protected def unwrapLiteral[T](node: RexNode): T =
+    node.asInstanceOf[RexLiteral].getValue.asInstanceOf[T]
+
+  protected def getOperandAsLong(idx: Int): Long =
+    call.getOperands.get(idx) match {
+      case v : RexLiteral => v.getValue.asInstanceOf[BigDecimal].longValue()
+      case _ => throw new TableException("Only constant window descriptors are supported")
+    }
+
+  def toWindow: Option[Window]
+}
+
+private case class FloorWindowTranslator(call: RexCall) extends WindowTranslator {
+  override def toWindow: Option[Window] = {
+    val range = unwrapLiteral[TimeUnitRange](call.getOperands.get(1))
+    val w = Tumble.over(Literal(range.startUnit.multiplier.longValue(),
+      TimeIntervalTypeInfo.INTERVAL_MILLIS))
+    call.getType match {
+      case TimeModeTypes.PROCTIME => Some(w)
+      case TimeModeTypes.ROWTIME => Some(w.on("rowtime"))
+      case _ => None
+    }
+  }
+}
+
+private case class TumbleWindowTranslator(call: RexCall) extends WindowTranslator {
+  override def toWindow: Option[Window] = {
+
+    if (call.getOperands.size() != 2) {
+      throw new TableException("TUMBLE with alignment is not supported yet.")
+    }
+
+    val interval = getOperandAsLong(1)
+    val w = Tumble.over(Literal(interval, TimeIntervalTypeInfo.INTERVAL_MILLIS))
+    call.getType match {
+      case TimeModeTypes.PROCTIME => Some(w)
+      case TimeModeTypes.ROWTIME => Some(w.on("rowtime"))
+      case _ => None
+    }
+  }
+}
+
+private case class SlidingWindowTranslator(call: RexCall) extends WindowTranslator {
+  override def toWindow: Option[Window] = {
+
+    if (call.getOperands.size() != 3) {
+      throw new TableException("HOP with alignment is not supported yet.")
+    }
+
+    val (slide, size) = (getOperandAsLong(1), getOperandAsLong(2))
+    val w = Slide
+      .over(Literal(size, TimeIntervalTypeInfo.INTERVAL_MILLIS))
+      .every(Literal(slide, TimeIntervalTypeInfo.INTERVAL_MILLIS))
+    call.getType match {
+      case TimeModeTypes.PROCTIME => Some(w)
+      case TimeModeTypes.ROWTIME => Some(w.on("rowtime"))
+      case _ => None
+    }
+  }
+}
+
+private case class SessionWindowTranslator(call: RexCall) extends WindowTranslator {
+  override def toWindow: Option[Window] = {
+
+    if (call.getOperands.size() != 2) {
+      throw new TableException("SESSION with alignment is not supported yet")
+    }
+
+    val gap = getOperandAsLong(1)
+    val w = Session.withGap(Literal(gap, TimeIntervalTypeInfo.INTERVAL_MILLIS))
+    call.getType match {
+      case TimeModeTypes.PROCTIME => Some(w)
+      case TimeModeTypes.ROWTIME => Some(w.on("rowtime"))
+      case _ => None
+    }
+  }
 }
 
 object LogicalWindowAggregateRule {
-
   private[flink] val LOGICAL_WINDOW_PREDICATE = RelOptRule.operand(classOf[LogicalAggregate],
     RelOptRule.operand(classOf[LogicalProject], RelOptRule.none()))
 
   private[flink] val INSTANCE = new LogicalWindowAggregateRule
-
-  private def timeUnitRangeToTumbleWindow(range: TimeUnitRange): TumblingWindow = {
-    intervalToTumbleWindow(range.startUnit.multiplier.longValue())
-  }
-
-  private def intervalToTumbleWindow(size: Long): TumblingWindow = {
-    Tumble over Literal(size, TimeIntervalTypeInfo.INTERVAL_MILLIS)
-  }
-
 }
-
