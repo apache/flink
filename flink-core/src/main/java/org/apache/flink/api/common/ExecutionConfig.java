@@ -84,9 +84,8 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	public static final int PARALLELISM_UNKNOWN = -2;
 
 	/**
-	 * The default lower bound for max parallelism if nothing was configured by the user. We have
-	 * this to allow users some degree of scale-up in case they forgot to configure maximum
-	 * parallelism explicitly.
+	 * The default lower bound for max parallelism if nothing was configured by the user. We have this so allow users
+	 * some degree of scale-up in case they forgot to configure maximum parallelism explicitly.
 	 */
 	public static final int DEFAULT_LOWER_BOUND_MAX_PARALLELISM = 1 << 7;
 
@@ -290,18 +289,13 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	 * @param parallelism The parallelism to use
 	 */
 	public ExecutionConfig setParallelism(int parallelism) {
-		checkArgument(parallelism != PARALLELISM_UNKNOWN, "Cannot specify UNKNOWN_PARALLELISM.");
-		checkArgument(
-				parallelism >= 1 || parallelism == PARALLELISM_DEFAULT,
-				"Parallelism must be at least one, or ExecutionConfig.PARALLELISM_DEFAULT " +
-						"(use system default).");
-		checkArgument(
-				maxParallelism == -1 || parallelism <= maxParallelism,
-				"The specified parallelism must be smaller or equal to the maximum parallelism.");
-		checkArgument(
-				maxParallelism == -1 || parallelism != PARALLELISM_DEFAULT,
-				"Default parallelism cannot be specified when maximum parallelism is specified");
-		this.parallelism = parallelism;
+		if (parallelism != PARALLELISM_UNKNOWN) {
+			if (parallelism < 1 && parallelism != PARALLELISM_DEFAULT) {
+				throw new IllegalArgumentException(
+					"Parallelism must be at least one, or ExecutionConfig.PARALLELISM_DEFAULT (use system default).");
+			}
+			this.parallelism = parallelism;
+		}
 		return this;
 	}
 
@@ -328,18 +322,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	 */
 	@PublicEvolving
 	public void setMaxParallelism(int maxParallelism) {
-		checkArgument(
-				parallelism != PARALLELISM_DEFAULT,
-				"A maximum parallelism can only be specified with an explicitly specified " +
-						"parallelism.");
 		checkArgument(maxParallelism > 0, "The maximum parallelism must be greater than 0.");
-		checkArgument(
-				maxParallelism >= parallelism,
-				"The maximum parallelism must be larger than the parallelism.");
-		checkArgument(
-				maxParallelism > 0 && maxParallelism <= UPPER_BOUND_MAX_PARALLELISM,
-				"maxParallelism is out of bounds 0 < maxParallelism <= " +
-						UPPER_BOUND_MAX_PARALLELISM + ". Found: " + maxParallelism);
 		this.maxParallelism = maxParallelism;
 	}
 

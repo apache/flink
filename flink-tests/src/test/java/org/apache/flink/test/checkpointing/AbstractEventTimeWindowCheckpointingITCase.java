@@ -298,8 +298,8 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(
 					"localhost", cluster.getLeaderRPCPort());
 
-			env.setParallelism(PARALLELISM);
 			env.setMaxParallelism(2 * PARALLELISM);
+			env.setParallelism(PARALLELISM);
 			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 			env.enableCheckpointing(100);
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 0));
