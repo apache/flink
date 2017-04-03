@@ -18,34 +18,34 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.types.Row;
-import org.apache.flink.table.sources.StreamTableSource;
-import org.apache.flink.streaming.util.serialization.DeserializationSchema;
-
 import java.util.Properties;
+import org.apache.avro.specific.SpecificRecord;
+import org.apache.avro.specific.SpecificRecordBase;
+import org.apache.flink.streaming.util.serialization.DeserializationSchema;
+import org.apache.flink.table.sources.StreamTableSource;
+import org.apache.flink.types.Row;
 
 /**
  * Kafka {@link StreamTableSource} for Kafka 0.10.
  */
-public class Kafka010TableSource extends Kafka09TableSource {
+public class Kafka010AvroTableSource extends KafkaAvroTableSource {
 
 	/**
-	 * Creates a Kafka 0.10 {@link StreamTableSource}.
+	 * Creates a Kafka 0.10 Avro {@link StreamTableSource} using a given {@link SpecificRecord}.
 	 *
-	 * @param topic                 Kafka topic to consume.
-	 * @param properties            Properties for the Kafka consumer.
-	 * @param deserializationSchema Deserialization schema to use for Kafka records.
-	 * @param typeInfo              Type information describing the result type. The field names are used
-	 *                              to parse the JSON file and so are the types.
+	 * @param topic      Kafka topic to consume.
+	 * @param properties Properties for the Kafka consumer.
+	 * @param record     Avro specific record.
 	 */
-	public Kafka010TableSource(
-			String topic,
-			Properties properties,
-			DeserializationSchema<Row> deserializationSchema,
-			TypeInformation<Row> typeInfo) {
+	public Kafka010AvroTableSource(
+		String topic,
+		Properties properties,
+		Class<? extends SpecificRecordBase> record) {
 
-		super(topic, properties, deserializationSchema, typeInfo);
+		super(
+			topic,
+			properties,
+			record);
 	}
 
 	@Override
@@ -53,3 +53,4 @@ public class Kafka010TableSource extends Kafka09TableSource {
 		return new FlinkKafkaConsumer010<>(topic, deserializationSchema, properties);
 	}
 }
+

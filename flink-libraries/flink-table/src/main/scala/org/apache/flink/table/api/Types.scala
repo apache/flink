@@ -17,13 +17,17 @@
  */
 package org.apache.flink.table.api
 
-import org.apache.flink.api.common.typeinfo.{Types => JTypes, TypeInformation}
+import org.apache.flink.api.common.typeinfo.{PrimitiveArrayTypeInfo, TypeInformation, Types => JTypes}
+import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
+import org.apache.flink.types.Row
+
+import _root_.scala.annotation.varargs
 
 /**
   * This class enumerates all supported types of the Table API.
   */
-object Types extends JTypes {
+object Types {
 
   val STRING = JTypes.STRING
   val BOOLEAN = JTypes.BOOLEAN
@@ -43,24 +47,57 @@ object Types extends JTypes {
   val INTERVAL_MILLIS = TimeIntervalTypeInfo.INTERVAL_MILLIS
 
   /**
-    * Generates RowTypeInfo with default names (f1, f2 ..).
-    * same as ``new RowTypeInfo(types)``
+    * Generates row type information.
     *
-    * @param types of Row fields. e.g. ROW(Types.STRING, Types.INT)
+    * A row type consists of zero or more fields with a field name and a corresponding type.
+    *
+    * The fields have the default names (f0, f1, f2 ..).
+    *
+    * @param types types of row fields; e.g. Types.STRING, Types.INT
     */
-  def ROW[T: Manifest](types: TypeInformation[_]*) = {
+  @varargs
+  def ROW(types: TypeInformation[_]*): TypeInformation[Row] = {
     JTypes.ROW(types: _*)
   }
 
   /**
-    * Generates RowTypeInfo.
-    * same as ``new RowTypeInfo(types, names)``
+    * Generates row type information.
     *
-    * @param fields of Row. e.g. ROW(("name", Types.STRING), ("number", Types.INT))
+    * A row type consists of zero or more fields with a field name and a corresponding type.
+    *
+    * @param names names of row fields, e.g. "userid", "name"
+    * @param types types of row fields; e.g. Types.STRING, Types.INT
     */
-  def ROW_NAMED(fields: (String, TypeInformation[_])*) = {
-    val names = fields.toList.map(_._1).toArray
-    val types = fields.toList.map(_._2)
+  def ROW(names: Array[String], types: Array[TypeInformation[_]]): TypeInformation[Row] = {
     JTypes.ROW_NAMED(names, types: _*)
+  }
+
+  /**
+    * Generates type information for an array consisting of Java primitive elements.
+    *
+    * @param elementType type of the array elements; e.g. Types.INT
+    */
+  def PRIMITIVE_ARRAY(elementType: TypeInformation[_]): TypeInformation[_] = {
+    elementType match {
+      case BOOLEAN =>  PrimitiveArrayTypeInfo.BOOLEAN_PRIMITIVE_ARRAY_TYPE_INFO
+      case BYTE =>  PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO
+      case SHORT =>  PrimitiveArrayTypeInfo.SHORT_PRIMITIVE_ARRAY_TYPE_INFO
+      case INT =>  PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO
+      case LONG =>  PrimitiveArrayTypeInfo.LONG_PRIMITIVE_ARRAY_TYPE_INFO
+      case FLOAT =>  PrimitiveArrayTypeInfo.FLOAT_PRIMITIVE_ARRAY_TYPE_INFO
+      case DOUBLE =>  PrimitiveArrayTypeInfo.DOUBLE_PRIMITIVE_ARRAY_TYPE_INFO
+      case _ =>
+        throw new TableException(s"$elementType cannot be an element of a primitive array." +
+            s"Only Java primitive types are supported.")
+    }
+  }
+
+  /**
+    * Generates type information for an array consisting of Java object elements.
+    *
+    * @param elementType type of the array elements; e.g. Types.STRING or Types.INT
+    */
+  def OBJECT_ARRAY(elementType: TypeInformation[_]): TypeInformation[_] = {
+    ObjectArrayTypeInfo.getInfoFor(elementType)
   }
 }

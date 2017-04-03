@@ -48,7 +48,7 @@ public class Types {
 
 	/**
 	 * Generates a RowTypeInfo with fields of the given types.
-	 * The fields have the default names (f1, f2 ..).
+	 * The fields have the default names (f0, f1, f2 ..).
 	 * 
 	 * <p>This method is a shortcut to {@code new RowTypeInfo(types)}.
 	 *
