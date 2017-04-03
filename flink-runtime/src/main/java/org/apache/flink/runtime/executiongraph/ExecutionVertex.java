@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.Archiveable;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.JobException;
@@ -41,6 +40,7 @@ import org.apache.flink.runtime.jobmanager.JobManagerOptions;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
+import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.EvictingBoundedList;
@@ -609,7 +609,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 				//TODO this case only exists for test, currently there has to be exactly one consumer in real jobs!
 				producedPartitions.add(ResultPartitionDeploymentDescriptor.from(
 						partition,
-						ExecutionConfig.UPPER_BOUND_MAX_PARALLELISM,
+						KeyGroupRangeAssignment.UPPER_BOUND_MAX_PARALLELISM,
 						lazyScheduling));
 			} else {
 				Preconditions.checkState(1 == consumers.size(),

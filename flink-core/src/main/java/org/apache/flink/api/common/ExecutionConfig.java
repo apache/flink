@@ -83,15 +83,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	 */
 	public static final int PARALLELISM_UNKNOWN = -2;
 
-	/**
-	 * The default lower bound for max parallelism if nothing was configured by the user. We have this so allow users
-	 * some degree of scale-up in case they forgot to configure maximum parallelism explicitly.
-	 */
-	public static final int DEFAULT_LOWER_BOUND_MAX_PARALLELISM = 1 << 7;
-
-	/** The (inclusive) upper bound for max parallelism */
-	public static final int UPPER_BOUND_MAX_PARALLELISM = 1 << 15;
-
 	private static final long DEFAULT_RESTART_DELAY = 10000L;
 
 	// --------------------------------------------------------------------------------------------
