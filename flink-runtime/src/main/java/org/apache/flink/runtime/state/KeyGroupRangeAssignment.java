@@ -18,11 +18,19 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.Preconditions;
 
 public final class KeyGroupRangeAssignment {
+
+	/**
+	 * The default lower bound for max parallelism if nothing was configured by the user. We have this so allow users
+	 * some degree of scale-up in case they forgot to configure maximum parallelism explicitly.
+	 */
+	public static final int DEFAULT_LOWER_BOUND_MAX_PARALLELISM = 1 << 7;
+
+	/** The (inclusive) upper bound for max parallelism */
+	public static final int UPPER_BOUND_MAX_PARALLELISM = 1 << 15;
 
 	private KeyGroupRangeAssignment() {
 		throw new AssertionError();
@@ -122,13 +130,13 @@ public final class KeyGroupRangeAssignment {
 		return Math.min(
 				Math.max(
 						MathUtils.roundUpToPowerOfTwo(operatorParallelism + (operatorParallelism / 2)),
-						ExecutionConfig.DEFAULT_LOWER_BOUND_MAX_PARALLELISM),
-				ExecutionConfig.UPPER_BOUND_MAX_PARALLELISM);
+						DEFAULT_LOWER_BOUND_MAX_PARALLELISM),
+				UPPER_BOUND_MAX_PARALLELISM);
 	}
 
 	public static void checkParallelismPreconditions(int parallelism) {
 		Preconditions.checkArgument(parallelism > 0
-						&& parallelism <= ExecutionConfig.UPPER_BOUND_MAX_PARALLELISM,
+						&& parallelism <= UPPER_BOUND_MAX_PARALLELISM,
 				"Operator parallelism not within bounds: " + parallelism);
 	}
 }
