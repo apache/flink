@@ -656,7 +656,7 @@ public class AbstractStreamOperatorTestHarness<OUT> {
 		}
 
 		@Override
-		public <X> void collect(OutputTag<?> outputTag, StreamRecord<X> record) {
+		public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
 			sideOutputSerializer = TypeExtractor.getForObject(record.getValue()).createSerializer(executionConfig);
 
 			ConcurrentLinkedQueue<Object> sideOutputList = sideOutputLists.get(outputTag);

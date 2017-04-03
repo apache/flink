@@ -107,7 +107,8 @@ public class IterateExample {
 		}
 
 		// execute the program
-		env.execute("Streaming Iteration Example");
+		System.out.println(env.getExecutionPlan());
+//		env.execute("Streaming Iteration Example");
 	}
 
 	// *************************************************************************

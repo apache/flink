@@ -85,7 +85,7 @@ public class RecordWriterOutput<OUT> implements Output<StreamRecord<OUT>> {
 	}
 
 	@Override
-	public <X> void collect(OutputTag<?> outputTag, StreamRecord<X> record) {
+	public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
 		if (this.outputTag == null || !this.outputTag.equals(outputTag)) {
 			// we are only responsible for emitting to the side-output specified by our
 			// OutputTag.
