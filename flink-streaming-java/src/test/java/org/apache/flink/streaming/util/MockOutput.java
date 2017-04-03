@@ -41,7 +41,7 @@ public class MockOutput<T> implements Output<StreamRecord<T>> {
 	}
 
 	@Override
-	public <X> void collect(OutputTag<?> outputTag, StreamRecord<X> record) {
+	public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
 		throw new UnsupportedOperationException("Side output not supported for MockOutput");
 	}
 

@@ -872,7 +872,7 @@ public abstract class AbstractStreamOperator<OUT>
 		}
 
 		@Override
-		public <X> void collect(OutputTag<?> outputTag, StreamRecord<X> record) {
+		public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
 			numRecordsOut.inc();
 			output.collect(outputTag, record);
 		}
