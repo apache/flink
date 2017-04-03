@@ -42,7 +42,7 @@ import static org.junit.Assert.assertTrue;
 
 @SuppressWarnings("serial")
 public class StreamingJobGraphGeneratorTest extends TestLogger {
-
+	
 	@Test
 	public void testExecutionConfigSerialization() throws IOException, ClassNotFoundException {
 		final long seed = System.currentTimeMillis();
@@ -50,12 +50,12 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		StreamGraph streamingJob = new StreamGraph(env, 1 /* default parallelism */);
-		StreamingJobGraphGenerator compiler = new StreamingJobGraphGenerator(streamingJob, 1 /* default parallelism */);
-
+		StreamGraph streamingJob = new StreamGraph(env);
+		StreamingJobGraphGenerator compiler = new StreamingJobGraphGenerator(streamingJob);
+		
 		boolean closureCleanerEnabled = r.nextBoolean(), forceAvroEnabled = r.nextBoolean(), forceKryoEnabled = r.nextBoolean(), objectReuseEnabled = r.nextBoolean(), sysoutLoggingEnabled = r.nextBoolean();
 		int dop = 1 + r.nextInt(10);
-
+		
 		ExecutionConfig config = streamingJob.getExecutionConfig();
 		if(closureCleanerEnabled) {
 			config.enableClosureCleaner();
@@ -83,7 +83,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 			config.disableSysoutLogging();
 		}
 		config.setParallelism(dop);
-
+		
 		JobGraph jobGraph = compiler.createJobGraph();
 
 		final String EXEC_CONFIG_KEY = "runtime.config";
@@ -108,7 +108,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		assertEquals(sysoutLoggingEnabled, executionConfig.isSysoutLoggingEnabled());
 		assertEquals(dop, executionConfig.getParallelism());
 	}
-
+	
 	@Test
 	public void testParallelismOneNotChained() {
 
@@ -164,10 +164,10 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 	@Test
 	public void testDisabledCheckpointing() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		StreamGraph streamGraph = new StreamGraph(env, 1 /* default parallelism */);
+		StreamGraph streamGraph = new StreamGraph(env);
 		assertFalse("Checkpointing enabled", streamGraph.getCheckpointConfig().isCheckpointingEnabled());
 
-		StreamingJobGraphGenerator jobGraphGenerator = new StreamingJobGraphGenerator(streamGraph, 1 /* default parallelism */);
+		StreamingJobGraphGenerator jobGraphGenerator = new StreamingJobGraphGenerator(streamGraph);
 		JobGraph jobGraph = jobGraphGenerator.createJobGraph();
 
 		JobSnapshottingSettings snapshottingSettings = jobGraph.getSnapshotSettings();
@@ -189,7 +189,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 				}
 			})
 			.print();
-		JobGraph jobGraph = new StreamingJobGraphGenerator(env.getStreamGraph(), 1 /* default parallelism */).createJobGraph();
+		JobGraph jobGraph = new StreamingJobGraphGenerator(env.getStreamGraph()).createJobGraph();
 
 		JobVertex sourceVertex = jobGraph.getVerticesSortedTopologicallyFromSources().get(0);
 		JobVertex mapPrintVertex = jobGraph.getVerticesSortedTopologicallyFromSources().get(1);

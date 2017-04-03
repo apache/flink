@@ -255,10 +255,9 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
     val sink = map.addSink(x => {})
 
     assert(1 == env.getStreamGraph.getStreamNode(src.getId).getParallelism)
-    // default parallelism is only actualized when transforming to JobGraph
-    assert(-1 == env.getStreamGraph.getStreamNode(map.getId).getParallelism)
+    assert(10 == env.getStreamGraph.getStreamNode(map.getId).getParallelism)
     assert(1 == env.getStreamGraph.getStreamNode(windowed.getId).getParallelism)
-    assert(-1 == env.getStreamGraph.getStreamNode(sink.getTransformation.getId).getParallelism)
+    assert(10 == env.getStreamGraph.getStreamNode(sink.getTransformation.getId).getParallelism)
 
     try {
       src.setParallelism(3)
@@ -273,11 +272,9 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
     // the parallelism does not change since some windowing code takes the parallelism from
     // input operations and that cannot change dynamically
     assert(1 == env.getStreamGraph.getStreamNode(src.getId).getParallelism)
-    // setting a parallelism on the env/in the ExecutionConfig means that operators
-    // pick it up when being instantiated
-    assert(7 == env.getStreamGraph.getStreamNode(map.getId).getParallelism)
+    assert(10 == env.getStreamGraph.getStreamNode(map.getId).getParallelism)
     assert(1 == env.getStreamGraph.getStreamNode(windowed.getId).getParallelism)
-    assert(7 == env.getStreamGraph.getStreamNode(sink.getTransformation.getId).getParallelism)
+    assert(10 == env.getStreamGraph.getStreamNode(sink.getTransformation.getId).getParallelism)
 
     val parallelSource = env.generateSequence(0, 0)
     parallelSource.print()

@@ -19,7 +19,6 @@ package org.apache.flink.streaming.api.graph;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -87,13 +86,10 @@ public class StreamingJobGraphGenerator {
 	private final StreamGraphHasher defaultStreamGraphHasher;
 	private final List<StreamGraphHasher> legacyStreamGraphHashers;
 
-	private final int defaultParallelism;
-
-	public StreamingJobGraphGenerator(StreamGraph streamGraph, int defaultParallelism) {
+	public StreamingJobGraphGenerator(StreamGraph streamGraph) {
 		this.streamGraph = streamGraph;
 		this.defaultStreamGraphHasher = new StreamGraphHasherV2();
 		this.legacyStreamGraphHashers = Arrays.asList(new StreamGraphHasherV1(), new StreamGraphUserHashHasher());
-		this.defaultParallelism = defaultParallelism;
 	}
 
 	private void init() {
@@ -308,11 +304,11 @@ public class StreamingJobGraphGenerator {
 
 		int parallelism = streamNode.getParallelism();
 
-		if (parallelism == ExecutionConfig.PARALLELISM_DEFAULT) {
-			parallelism = defaultParallelism;
+		if (parallelism > 0) {
+			jobVertex.setParallelism(parallelism);
+		} else {
+			parallelism = jobVertex.getParallelism();
 		}
-
-		jobVertex.setParallelism(parallelism);
 
 		jobVertex.setMaxParallelism(streamNode.getMaxParallelism());
 
