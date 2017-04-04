@@ -46,9 +46,6 @@ public class Flip6LocalStreamEnvironment extends StreamExecutionEnvironment {
 
 	private static final Logger LOG = LoggerFactory.getLogger(Flip6LocalStreamEnvironment.class);
 
-	/** The default parallelism used when creating a local environment */
-	private static int defaultLocalParallelism = Runtime.getRuntime().availableProcessors();
-
 	/** The configuration to use for the mini cluster */
 	private final Configuration conf;
 
@@ -65,7 +62,6 @@ public class Flip6LocalStreamEnvironment extends StreamExecutionEnvironment {
 	 * @param config The configuration used to configure the local executor.
 	 */
 	public Flip6LocalStreamEnvironment(Configuration config) {
-		super(defaultLocalParallelism);
 		if (!ExecutionEnvironment.areExplicitEnvironmentsAllowed()) {
 			throw new InvalidProgramException(
 					"The Flip6LocalStreamEnvironment cannot be used when submitting a program through a client, " +
