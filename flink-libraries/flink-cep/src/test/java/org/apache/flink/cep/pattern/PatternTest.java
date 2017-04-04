@@ -196,7 +196,7 @@ public class PatternTest extends TestLogger {
 			public boolean filter(Object value) throws Exception {
 				return true;
 			}
-		}).oneOrMore().zeroOrMore();
+		}).oneOrMore().oneOrMore().optional();
 	}
 
 	@Test(expected = MalformedPatternException.class)
@@ -209,7 +209,7 @@ public class PatternTest extends TestLogger {
 			public boolean filter(Object value) throws Exception {
 				return true;
 			}
-		}).zeroOrMore().times(1);
+		}).oneOrMore().optional().times(1);
 	}
 
 	@Test(expected = MalformedPatternException.class)
@@ -235,7 +235,7 @@ public class PatternTest extends TestLogger {
 			public boolean filter(Object value) throws Exception {
 				return true;
 			}
-		}).oneOrMore().oneOrMore(true);
+		}).oneOrMore().oneOrMore();
 	}
 
 	@Test(expected = MalformedPatternException.class)
@@ -248,6 +248,6 @@ public class PatternTest extends TestLogger {
 			public boolean filter(Object value) throws Exception {
 				return true;
 			}
-		}).oneOrMore(true).zeroOrMore(true);
+		}).oneOrMore().oneOrMore().optional();
 	}
 }

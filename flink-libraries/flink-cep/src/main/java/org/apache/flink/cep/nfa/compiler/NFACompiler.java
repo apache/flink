@@ -31,7 +31,6 @@ import org.apache.flink.cep.pattern.FollowedByPattern;
 import org.apache.flink.cep.pattern.MalformedPatternException;
 import org.apache.flink.cep.pattern.conditions.NotCondition;
 import org.apache.flink.cep.pattern.Pattern;
-import org.apache.flink.cep.pattern.Quantifier;
 import org.apache.flink.cep.pattern.Quantifier.QuantifierProperty;
 import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.streaming.api.windowing.time.Time;
@@ -166,10 +165,10 @@ public class NFACompiler {
 				if (currentPattern.getQuantifier().hasProperty(QuantifierProperty.LOOPING)) {
 					final State<T> looping = createLooping(lastSink);
 
-					if (currentPattern.getQuantifier().hasProperty(QuantifierProperty.AT_LEAST_ONE)) {
+					if (!currentPattern.getQuantifier().hasProperty(QuantifierProperty.OPTIONAL)) {
 						lastSink = createFirstMandatoryStateOfLoop(looping);
 					} else if (currentPattern instanceof FollowedByPattern &&
-								currentPattern.getQuantifier().hasProperty(QuantifierProperty.STRICT)) {
+								currentPattern.getQuantifier().hasProperty(QuantifierProperty.CONSECUTIVE)) {
 						lastSink = createWaitingStateForZeroOrMore(looping, lastSink);
 					} else {
 						lastSink = looping;
@@ -237,7 +236,7 @@ public class NFACompiler {
 			final State<T> beginningState;
 			if (currentPattern.getQuantifier().hasProperty(QuantifierProperty.LOOPING)) {
 				final State<T> loopingState = createLooping(sinkState);
-				if (currentPattern.getQuantifier().hasProperty(QuantifierProperty.AT_LEAST_ONE)) {
+				if (!currentPattern.getQuantifier().hasProperty(QuantifierProperty.OPTIONAL)) {
 					beginningState = createFirstMandatoryStateOfLoop(loopingState);
 				} else {
 					beginningState = loopingState;
@@ -266,9 +265,29 @@ public class NFACompiler {
 			for (int i = 0; i < times - 1; i++) {
 				lastSink = createSingletonState(
 					lastSink,
-					!currentPattern.getQuantifier().hasProperty(QuantifierProperty.STRICT));
+					!currentPattern.getQuantifier().hasProperty(QuantifierProperty.CONSECUTIVE),
+					false);
 			}
-			return createSingletonState(lastSink, currentPattern instanceof FollowedByPattern);
+
+			// we created the intermediate states in the loop, now we create the start of the loop.
+			if (!currentPattern.getQuantifier().hasProperty(QuantifierProperty.OPTIONAL)) {
+				return createSingletonState(lastSink, currentPattern instanceof FollowedByPattern, false);
+			}
+
+			final IterativeCondition<T> currentFilterFunction = (IterativeCondition<T>) currentPattern.getCondition();
+			final IterativeCondition<T> trueFunction = BooleanConditions.trueFunction();
+
+			final State<T> singletonState = createNormalState();
+			singletonState.addTake(lastSink, currentFilterFunction);
+			singletonState.addProceed(sinkState, trueFunction);
+
+			if (currentPattern instanceof FollowedByPattern) {
+				State<T> ignoreState = createNormalState();
+				ignoreState.addTake(lastSink, currentFilterFunction);
+				ignoreState.addIgnore(BooleanConditions.<T>trueFunction());
+				singletonState.addIgnore(ignoreState, trueFunction);
+			}
+			return singletonState;
 		}
 
 		/**
@@ -281,7 +300,8 @@ public class NFACompiler {
 		 */
 		@SuppressWarnings("unchecked")
 		private State<T> createSingletonState(final State<T> sinkState) {
-			return createSingletonState(sinkState, currentPattern instanceof FollowedByPattern);
+			return createSingletonState(sinkState, currentPattern instanceof FollowedByPattern,
+					currentPattern.getQuantifier().hasProperty(QuantifierProperty.OPTIONAL));
 		}
 
 		/**
@@ -294,20 +314,20 @@ public class NFACompiler {
 		 * @return the created state
 		 */
 		@SuppressWarnings("unchecked")
-		private State<T> createSingletonState(final State<T> sinkState, boolean addIgnore) {
+		private State<T> createSingletonState(final State<T> sinkState, boolean addIgnore, boolean isOptional) {
 			final IterativeCondition<T> currentFilterFunction = (IterativeCondition<T>) currentPattern.getCondition();
 			final IterativeCondition<T> trueFunction = BooleanConditions.trueFunction();
 
 			final State<T> singletonState = createNormalState();
 			singletonState.addTake(sinkState, currentFilterFunction);
 
-			if (currentPattern.getQuantifier() == Quantifier.OPTIONAL) {
+			if (isOptional) {
 				singletonState.addProceed(sinkState, trueFunction);
 			}
 
 			if (addIgnore) {
 				final State<T> ignoreState;
-				if (currentPattern.getQuantifier() == Quantifier.OPTIONAL) {
+				if (isOptional) {
 					ignoreState = createNormalState();
 					ignoreState.addTake(sinkState, currentFilterFunction);
 				} else {
@@ -356,7 +376,7 @@ public class NFACompiler {
 
 			loopingState.addProceed(sinkState, trueFunction);
 			loopingState.addTake(filterFunction);
-			if (!currentPattern.getQuantifier().hasProperty(QuantifierProperty.STRICT)) {
+			if (!currentPattern.getQuantifier().hasProperty(QuantifierProperty.CONSECUTIVE)) {
 				final State<T> ignoreState = createNormalState();
 
 				final IterativeCondition<T> ignoreCondition = getIgnoreCondition(currentPattern);
