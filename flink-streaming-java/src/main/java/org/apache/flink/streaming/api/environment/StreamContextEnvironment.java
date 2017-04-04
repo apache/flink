@@ -38,13 +38,14 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 	private final ContextEnvironment ctx;
 
 	protected StreamContextEnvironment(ContextEnvironment ctx) {
-		// if the batch ContextEnvironment has a parallelism this must have come from
-		// the CLI Client. We should set that as our default parallelism
-		super(ctx.getParallelism() > 0 ? ctx.getParallelism() :
-				GlobalConfiguration.loadConfiguration().getInteger(
-						ConfigConstants.DEFAULT_PARALLELISM_KEY,
-						ConfigConstants.DEFAULT_PARALLELISM));
 		this.ctx = ctx;
+		if (ctx.getParallelism() > 0) {
+			setParallelism(ctx.getParallelism());
+		} else {
+			setParallelism(GlobalConfiguration.loadConfiguration().getInteger(
+					ConfigConstants.DEFAULT_PARALLELISM_KEY,
+					ConfigConstants.DEFAULT_PARALLELISM));
+		}
 	}
 
 	@Override
