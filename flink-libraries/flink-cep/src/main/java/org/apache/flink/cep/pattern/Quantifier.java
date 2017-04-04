@@ -18,51 +18,83 @@
 package org.apache.flink.cep.pattern;
 
 import java.util.EnumSet;
+import java.util.Objects;
 
-public enum Quantifier {
-	ONE,
-	ZERO_OR_MORE_EAGER(QuantifierProperty.LOOPING, QuantifierProperty.EAGER),
-	ZERO_OR_MORE_COMBINATIONS(QuantifierProperty.LOOPING),
-	ZERO_OR_MORE_EAGER_STRICT(QuantifierProperty.EAGER, QuantifierProperty.STRICT, QuantifierProperty.LOOPING),
-	ZERO_OR_MORE_COMBINATIONS_STRICT(QuantifierProperty.STRICT, QuantifierProperty.LOOPING),
-	ONE_OR_MORE_EAGER(
-		QuantifierProperty.LOOPING,
-		QuantifierProperty.EAGER,
-		QuantifierProperty.AT_LEAST_ONE),
-	ONE_OR_MORE_EAGER_STRICT(
-		QuantifierProperty.STRICT,
-		QuantifierProperty.LOOPING,
-		QuantifierProperty.EAGER,
-		QuantifierProperty.AT_LEAST_ONE),
-	ONE_OR_MORE_COMBINATIONS(QuantifierProperty.LOOPING, QuantifierProperty.AT_LEAST_ONE),
-	ONE_OR_MORE_COMBINATIONS_STRICT(
-		QuantifierProperty.STRICT,
-		QuantifierProperty.LOOPING,
-		QuantifierProperty.AT_LEAST_ONE),
-	TIMES(QuantifierProperty.TIMES),
-	TIMES_STRICT(QuantifierProperty.TIMES, QuantifierProperty.STRICT),
-	OPTIONAL;
+public class Quantifier {
 
 	private final EnumSet<QuantifierProperty> properties;
 
-	Quantifier(final QuantifierProperty first, final QuantifierProperty... rest) {
+	private Quantifier(final QuantifierProperty first, final QuantifierProperty... rest) {
 		this.properties = EnumSet.of(first, rest);
 	}
 
-	Quantifier() {
-		this.properties = EnumSet.noneOf(QuantifierProperty.class);
+	public static Quantifier ONE() {
+		return new Quantifier(QuantifierProperty.SINGLE);
+	}
+
+	public static Quantifier ONE_OR_MORE() {
+		return new Quantifier(QuantifierProperty.LOOPING, QuantifierProperty.EAGER);
+	}
+
+	public static Quantifier TIMES() {
+		return new Quantifier(QuantifierProperty.TIMES);
 	}
 
 	public boolean hasProperty(QuantifierProperty property) {
 		return properties.contains(property);
 	}
 
+	public void allowAllCombinations() {
+		if (!hasProperty(Quantifier.QuantifierProperty.EAGER)) {
+			throw new MalformedPatternException("Combinations already allowed!");
+		}
+
+		if (hasProperty(Quantifier.QuantifierProperty.LOOPING)) {
+			properties.remove(Quantifier.QuantifierProperty.EAGER);
+		} else {
+			throw new MalformedPatternException("Combinations not applicable to " + this + "!");
+		}
+	}
+
+	public void makeConsecutive() {
+		if (hasProperty(Quantifier.QuantifierProperty.CONSECUTIVE)) {
+			throw new MalformedPatternException("Strict continuity already applied!");
+		}
+
+		if (hasProperty(Quantifier.QuantifierProperty.LOOPING) || hasProperty(Quantifier.QuantifierProperty.TIMES)) {
+			properties.add(Quantifier.QuantifierProperty.CONSECUTIVE);
+		} else {
+			throw new MalformedPatternException("Strict continuity not applicable to " + this + "!");
+		}
+	}
+
+	public void makeOptional() {
+		if (hasProperty(Quantifier.QuantifierProperty.OPTIONAL)) {
+			throw new MalformedPatternException("Optional already applied!");
+		}
+		properties.add(Quantifier.QuantifierProperty.OPTIONAL);
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		return obj instanceof Quantifier && properties.equals(((Quantifier)obj).properties);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hashCode(properties);
+	}
+
+	/**
+	 * Properties that a {@link Quantifier} can have. Not all combinations are valid.
+	 */
 	public enum QuantifierProperty {
+		SINGLE,
 		LOOPING,
+		TIMES,
 		EAGER,
-		AT_LEAST_ONE,
-		STRICT,
-		TIMES
+		CONSECUTIVE,
+		OPTIONAL
 	}
 
 }

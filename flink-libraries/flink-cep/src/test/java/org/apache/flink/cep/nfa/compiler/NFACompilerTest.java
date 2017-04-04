@@ -153,7 +153,7 @@ public class NFACompilerTest extends TestLogger {
 	public void testNFACompilerWithKleeneStar() {
 
 		Pattern<Event, Event> pattern = Pattern.<Event>begin("start").where(startFilter)
-			.followedBy("middle").subtype(SubEvent.class).zeroOrMore()
+			.followedBy("middle").subtype(SubEvent.class).oneOrMore().optional()
 			.followedBy("end").where(endFilter);
 
 		NFA<Event> nfa = NFACompiler.compile(pattern, serializer, false);
