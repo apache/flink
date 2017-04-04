@@ -266,7 +266,6 @@ public class NFACompiler {
 			for (int i = 0; i < times - 1; i++) {
 				lastSink = createSingletonState(
 					lastSink,
-					currentPattern instanceof FollowedByPattern &&
 					!currentPattern.getQuantifier().hasProperty(QuantifierProperty.STRICT));
 			}
 			return createSingletonState(lastSink, currentPattern instanceof FollowedByPattern);
