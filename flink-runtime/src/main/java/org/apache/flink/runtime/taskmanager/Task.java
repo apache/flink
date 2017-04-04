@@ -394,28 +394,6 @@ public class Task implements Runnable, TaskActions {
 
 		// finally, create the executing thread, but do not start it
 		executingThread = new Thread(TASK_THREADS_GROUP, this, taskNameWithSubtask);
-
-		// add metrics for buffers
-		this.metrics.getIOMetricGroup().initializeBufferMetrics(this);
-
-		// register detailed network metrics, if configured
-		if (tmConfig.getBoolean(TaskManagerOptions.NETWORK_DETAILED_METRICS_KEY)) {
-			// similar to MetricUtils.instantiateNetworkMetrics() but inside this IOMetricGroup
-			MetricGroup networkGroup = this.metrics.getIOMetricGroup().addGroup("Network");
-			MetricGroup outputGroup = networkGroup.addGroup("Output");
-			MetricGroup inputGroup = networkGroup.addGroup("Input");
-
-			// output metrics
-			for (int i = 0; i < producedPartitions.length; i++) {
-				ResultPartitionMetrics.registerQueueLengthMetrics(
-					outputGroup.addGroup(i), producedPartitions[i]);
-			}
-
-			for (int i = 0; i < inputGates.length; i++) {
-				InputGateMetrics.registerQueueLengthMetrics(
-					inputGroup.addGroup(i), inputGates[i]);
-			}
-		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -611,6 +589,28 @@ public class Task implements Runnable, TaskActions {
 			LOG.info("Registering task at network: {}.", this);
 
 			network.registerTask(this);
+
+			// add metrics for buffers
+			this.metrics.getIOMetricGroup().initializeBufferMetrics(this);
+
+			// register detailed network metrics, if configured
+			if (taskManagerConfig.getConfiguration().getBoolean(TaskManagerOptions.NETWORK_DETAILED_METRICS)) {
+				// similar to MetricUtils.instantiateNetworkMetrics() but inside this IOMetricGroup
+				MetricGroup networkGroup = this.metrics.getIOMetricGroup().addGroup("Network");
+				MetricGroup outputGroup = networkGroup.addGroup("Output");
+				MetricGroup inputGroup = networkGroup.addGroup("Input");
+
+				// output metrics
+				for (int i = 0; i < producedPartitions.length; i++) {
+					ResultPartitionMetrics.registerQueueLengthMetrics(
+						outputGroup.addGroup(i), producedPartitions[i]);
+				}
+
+				for (int i = 0; i < inputGates.length; i++) {
+					InputGateMetrics.registerQueueLengthMetrics(
+						inputGroup.addGroup(i), inputGates[i]);
+				}
+			}
 
 			// next, kick off the background copying of files for the distributed cache
 			try {
