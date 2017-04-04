@@ -623,17 +623,12 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 			for (int i = 0; i < outputs.length - 1; i++) {
 				Output<StreamRecord<T>> output = outputs[i];
 
-				// due to side outputs, StreamRecords of varying types can pass through the broadcasting
-				// collector so we need to cast
-				@SuppressWarnings({"unchecked", "rawtypes"})
 				StreamRecord<X> shallowCopy = record.copy(record.getValue());
 				output.collect(outputTag, shallowCopy);
 			}
 
 			// don't copy for the last output
-			@SuppressWarnings({"unchecked", "rawtypes"})
-			StreamRecord<X> castRecord = record;
-			outputs[outputs.length - 1].collect(outputTag, castRecord);
+			outputs[outputs.length - 1].collect(outputTag, record);
 		}
 	}
 }
