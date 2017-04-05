@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.util.Preconditions;
@@ -75,6 +76,33 @@ public class TaskState implements StateObject {
 
 	public void putState(int subtaskIndex, SubtaskState subtaskState) {
 		Preconditions.checkNotNull(subtaskState);
+		KeyGroupRange keyGroupRange = null;
+		if (subtaskState.getManagedKeyedState() != null){
+			keyGroupRange = subtaskState.getManagedKeyedState().getKeyGroupRange();
+		}else if (subtaskState.getRawKeyedState() != null){
+			keyGroupRange = subtaskState.getRawKeyedState().getKeyGroupRange();
+		}
+		if (keyGroupRange != null){
+			for(Map.Entry<Integer,SubtaskState> entry : subtaskStates.entrySet()){
+				SubtaskState s = entry.getValue();
+				KeyGroupRange keyGroupRange1 = null;
+				if (s.getManagedKeyedState() != null){
+					keyGroupRange1 = s.getManagedKeyedState().getKeyGroupRange();
+				}else if (s.getRawKeyedState() != null){
+					keyGroupRange1 = s.getRawKeyedState().getKeyGroupRange();
+				}
+
+				if (keyGroupRange1 != null){
+					if (KeyGroupRange.EMPTY_KEY_GROUP_RANGE != keyGroupRange.getIntersection(keyGroupRange1)){
+						throw new IllegalArgumentException("KeyRange("+keyGroupRange+") of Subtask("+subtaskIndex+")"+
+							" has overlap with KeyRange("+keyGroupRange1+") " +
+							" of Subtask("+entry.getKey()+")");
+					}
+				}
+
+			}
+		}
+
 
 		if (subtaskIndex < 0 || subtaskIndex >= parallelism) {
 			throw new IndexOutOfBoundsException("The given sub task index " + subtaskIndex +

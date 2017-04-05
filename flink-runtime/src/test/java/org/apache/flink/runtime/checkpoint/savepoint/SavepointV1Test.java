@@ -128,14 +128,14 @@ public class SavepointV1Test {
 
 				if (hasKeyedBackend) {
 					keyedStateBackend = new KeyGroupsStateHandle(
-							new KeyGroupRangeOffsets(1, 1, new long[]{42}),
+							new KeyGroupRangeOffsets(subtaskIdx, subtaskIdx, new long[]{42}),
 							new TestByteStreamStateHandleDeepCompare("c", "Hello"
 								.getBytes(ConfigConstants.DEFAULT_CHARSET)));
 				}
 
 				if (hasKeyedStream) {
 					keyedStateStream = new KeyGroupsStateHandle(
-							new KeyGroupRangeOffsets(1, 1, new long[]{23}),
+							new KeyGroupRangeOffsets(subtaskIdx, subtaskIdx, new long[]{23}),
 							new TestByteStreamStateHandleDeepCompare("d", "World"
 								.getBytes(ConfigConstants.DEFAULT_CHARSET)));
 				}

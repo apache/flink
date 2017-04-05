@@ -20,6 +20,7 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.runtime.state.ChainedStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
+import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StateUtil;
@@ -83,6 +84,14 @@ public class SubtaskState implements StateObject {
 		this.managedKeyedState = managedKeyedState;
 		this.rawKeyedState = rawKeyedState;
 
+		if (this.managedKeyedState != null && this.rawKeyedState != null){
+			KeyGroupRange keyGroupRange1 = this.managedKeyedState.getKeyGroupRange();
+			KeyGroupRange keyGroupRange2 = this.rawKeyedState.getKeyGroupRange();
+			if (!keyGroupRange1.equals(keyGroupRange2)){
+				throw new IllegalArgumentException("ManagedKeyedState's KeyRange " + keyGroupRange1 +
+					" is different with RawKeyedState's KeyRange " + keyGroupRange2);
+			}
+		}
 		try {
 			long calculateStateSize = getSizeNullSafe(legacyOperatorState);
 			calculateStateSize += getSizeNullSafe(managedOperatorState);

@@ -463,6 +463,9 @@ public class StreamTaskTest extends TestLogger {
 		OperatorStateHandle managedOperatorStateHandle = mock(OperatorStateHandle.class);
 		OperatorStateHandle rawOperatorStateHandle = mock(OperatorStateHandle.class);
 
+		when(managedKeyedStateHandle.getKeyGroupRange()).thenReturn(KeyGroupRange.of(0,0));
+		when(rawKeyedStateHandle.getKeyGroupRange()).thenReturn(KeyGroupRange.of(0,0));
+
 		OperatorSnapshotResult operatorSnapshotResult = new OperatorSnapshotResult(
 			new DoneFuture<>(managedKeyedStateHandle),
 			new DoneFuture<>(rawKeyedStateHandle),
@@ -578,6 +581,9 @@ public class StreamTaskTest extends TestLogger {
 		KeyedStateHandle rawKeyedStateHandle = mock(KeyedStateHandle.class);
 		OperatorStateHandle managedOperatorStateHandle = mock(OperatorStateHandle.class);
 		OperatorStateHandle rawOperatorStateHandle = mock(OperatorStateHandle.class);
+
+		when(managedKeyedStateHandle.getKeyGroupRange()).thenReturn(KeyGroupRange.of(0,0));
+		when(rawKeyedStateHandle.getKeyGroupRange()).thenReturn(KeyGroupRange.of(0,0));
 
 		OperatorSnapshotResult operatorSnapshotResult = new OperatorSnapshotResult(
 			new DoneFuture<>(managedKeyedStateHandle),
