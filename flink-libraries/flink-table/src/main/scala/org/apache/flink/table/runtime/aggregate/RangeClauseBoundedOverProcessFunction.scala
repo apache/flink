@@ -24,33 +24,27 @@ import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.{ListTypeInfo, RowTypeInfo}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.ProcessFunction
-import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
+import org.apache.flink.table.codegen.{GeneratedAggregationsFunction, Compiler}
 import org.apache.flink.types.Row
 import org.apache.flink.util.{Collector, Preconditions}
+import org.slf4j.LoggerFactory
 
 /**
  * Process Function for RANGE clause event-time bounded OVER window
  *
- * @param aggregates           the list of all [[AggregateFunction]] used for this aggregation
- * @param aggFields            the position (in the input Row) of the input value for each aggregate
- * @param forwardedFieldCount  the count of forwarded fields.
- * @param aggregationStateType the row type info of aggregation
- * @param inputRowType         the row type info of input row
- * @param precedingOffset      the preceding offset
+  * @param genAggregations Generated aggregate helper function
+  * @param aggregationStateType     row type info of aggregation
+  * @param inputRowType             row type info of input row
+  * @param precedingOffset          preceding offset
  */
 class RangeClauseBoundedOverProcessFunction(
-    private val aggregates: Array[AggregateFunction[_]],
-    private val aggFields: Array[Array[Int]],
-    private val forwardedFieldCount: Int,
-    private val aggregationStateType: RowTypeInfo,
-    private val inputRowType: RowTypeInfo,
-    private val precedingOffset: Long)
-  extends ProcessFunction[Row, Row] {
+    genAggregations: GeneratedAggregationsFunction,
+    aggregationStateType: RowTypeInfo,
+    inputRowType: RowTypeInfo,
+    precedingOffset: Long)
+  extends ProcessFunction[Row, Row]
+    with Compiler[GeneratedAggregations] {
 
-  Preconditions.checkNotNull(aggregates)
-  Preconditions.checkNotNull(aggFields)
-  Preconditions.checkArgument(aggregates.length == aggFields.length)
-  Preconditions.checkNotNull(forwardedFieldCount)
   Preconditions.checkNotNull(aggregationStateType)
   Preconditions.checkNotNull(precedingOffset)
 
@@ -68,9 +62,20 @@ class RangeClauseBoundedOverProcessFunction(
   // to this time stamp.
   private var dataState: MapState[Long, JList[Row]] = _
 
-  override def open(config: Configuration) {
+  val LOG = LoggerFactory.getLogger(this.getClass)
+  private var function: GeneratedAggregations = _
 
-    output = new Row(forwardedFieldCount + aggregates.length)
+  override def open(config: Configuration) {
+    LOG.debug(s"Compiling AggregateHelper: $genAggregations.name \n\n " +
+                s"Code:\n$genAggregations.code")
+    val clazz = compile(
+      getRuntimeContext.getUserCodeClassLoader,
+      genAggregations.name,
+      genAggregations.code)
+    LOG.debug("Instantiating AggregateHelper.")
+    function = clazz.newInstance()
+
+    output = function.createOutputRow()
 
     val lastTriggeringTsDescriptor: ValueStateDescriptor[Long] =
       new ValueStateDescriptor[Long]("lastTriggeringTsState", classOf[Long])
@@ -91,7 +96,6 @@ class RangeClauseBoundedOverProcessFunction(
         valueTypeInformation)
 
     dataState = getRuntimeContext.getMapState(mapStateDescriptor)
-
   }
 
   override def processElement(
@@ -135,12 +139,8 @@ class RangeClauseBoundedOverProcessFunction(
 
       // initialize when first run or failover recovery per key
       if (null == accumulators) {
-        accumulators = new Row(aggregates.length)
+        accumulators = function.createAccumulators()
         aggregatesIndex = 0
-        while (aggregatesIndex < aggregates.length) {
-          accumulators.setField(aggregatesIndex, aggregates(aggregatesIndex).createAccumulator())
-          aggregatesIndex += 1
-        }
       }
 
       // keep up timestamps of retract data
@@ -155,14 +155,8 @@ class RangeClauseBoundedOverProcessFunction(
           val retractDataList = dataState.get(dataTs)
           dataListIndex = 0
           while (dataListIndex < retractDataList.size()) {
-            aggregatesIndex = 0
-            while (aggregatesIndex < aggregates.length) {
-              val accumulator = accumulators.getField(aggregatesIndex).asInstanceOf[Accumulator]
-              aggregates(aggregatesIndex)
-                .retract(accumulator, retractDataList.get(dataListIndex)
-                .getField(aggFields(aggregatesIndex)(0)))
-              aggregatesIndex += 1
-            }
+            val retractRow = retractDataList.get(dataListIndex)
+            function.retract(accumulators, retractRow)
             dataListIndex += 1
           }
           retractTsList.add(dataTs)
@@ -172,34 +166,20 @@ class RangeClauseBoundedOverProcessFunction(
       // do accumulation
       dataListIndex = 0
       while (dataListIndex < inputs.size()) {
+        val curRow = inputs.get(dataListIndex)
         // accumulate current row
-        aggregatesIndex = 0
-        while (aggregatesIndex < aggregates.length) {
-          val accumulator = accumulators.getField(aggregatesIndex).asInstanceOf[Accumulator]
-          aggregates(aggregatesIndex).accumulate(accumulator, inputs.get(dataListIndex)
-            .getField(aggFields(aggregatesIndex)(0)))
-          aggregatesIndex += 1
-        }
+        function.accumulate(accumulators, curRow)
         dataListIndex += 1
       }
 
       // set aggregate in output row
-      aggregatesIndex = 0
-      while (aggregatesIndex < aggregates.length) {
-        val index = forwardedFieldCount + aggregatesIndex
-        val accumulator = accumulators.getField(aggregatesIndex).asInstanceOf[Accumulator]
-        output.setField(index, aggregates(aggregatesIndex).getValue(accumulator))
-        aggregatesIndex += 1
-      }
+      function.setAggregationResults(accumulators, output)
 
       // copy forwarded fields to output row and emit output row
       dataListIndex = 0
       while (dataListIndex < inputs.size()) {
         aggregatesIndex = 0
-        while (aggregatesIndex < forwardedFieldCount) {
-          output.setField(aggregatesIndex, inputs.get(dataListIndex).getField(aggregatesIndex))
-          aggregatesIndex += 1
-        }
+        function.setForwardedFields(inputs.get(dataListIndex), output)
         out.collect(output)
         dataListIndex += 1
       }

@@ -33,6 +33,7 @@ import org.apache.calcite.rel.core.Window.Group
 import java.util.{List => JList}
 
 import org.apache.flink.api.java.functions.NullByteKeySelector
+import org.apache.flink.table.codegen.CodeGenerator
 import org.apache.flink.table.functions.{ProcTimeType, RowTimeType}
 import org.apache.flink.table.runtime.aggregate.AggregateUtil.CalcitePair
 
@@ -96,6 +97,11 @@ class DataStreamOverAggregate(
         "Unsupported use of OVER windows. The window may only be ordered by a single time column.")
     }
 
+    val generator = new CodeGenerator(
+      tableEnv.getConfig,
+      false,
+      inputDS.getType)
+
     val timeType = inputType
       .getFieldList
       .get(overWindow.orderKeys.getFieldCollations.get(0).getFieldIndex)
@@ -105,7 +111,9 @@ class DataStreamOverAggregate(
         // proc-time OVER window
         if (overWindow.lowerBound.isUnbounded && overWindow.upperBound.isCurrentRow) {
           // unbounded preceding OVER window
-          createUnboundedAndCurrentRowProcessingTimeOverWindow(inputDS)
+          createUnboundedAndCurrentRowProcessingTimeOverWindow(
+            generator,
+            inputDS)
         } else if (
           overWindow.lowerBound.isPreceding && !overWindow.lowerBound.isUnbounded &&
               overWindow.upperBound.isCurrentRow) {
@@ -113,12 +121,14 @@ class DataStreamOverAggregate(
           if (overWindow.isRows) {
             // ROWS clause bounded OVER window
             createBoundedAndCurrentRowOverWindow(
+              generator,
               inputDS,
               isRangeClause = false,
               isRowTimeType = false)
           } else {
             // RANGE clause bounded OVER window
             createBoundedAndCurrentRowOverWindow(
+              generator,
               inputDS,
               isRangeClause = true,
               isRowTimeType = false)
@@ -132,18 +142,23 @@ class DataStreamOverAggregate(
         if (overWindow.lowerBound.isPreceding &&
               overWindow.lowerBound.isUnbounded && overWindow.upperBound.isCurrentRow) {
           // ROWS/RANGE clause unbounded OVER window
-          createUnboundedAndCurrentRowEventTimeOverWindow(inputDS, overWindow.isRows)
+          createUnboundedAndCurrentRowEventTimeOverWindow(
+            generator,
+            inputDS,
+            overWindow.isRows)
         } else if (overWindow.lowerBound.isPreceding && overWindow.upperBound.isCurrentRow) {
           // bounded OVER window
           if (overWindow.isRows) {
             // ROWS clause bounded OVER window
             createBoundedAndCurrentRowOverWindow(
+              generator,
               inputDS,
               isRangeClause = false,
               isRowTimeType = true)
           } else {
             // RANGE clause bounded OVER window
             createBoundedAndCurrentRowOverWindow(
+              generator,
               inputDS,
               isRangeClause = true,
               isRowTimeType = true)
@@ -159,6 +174,7 @@ class DataStreamOverAggregate(
   }
 
   def createUnboundedAndCurrentRowProcessingTimeOverWindow(
+    generator: CodeGenerator,
     inputDS: DataStream[Row]): DataStream[Row] = {
 
     val overWindow: Group = logicWindow.groups.get(0)
@@ -172,6 +188,7 @@ class DataStreamOverAggregate(
     // partitioned aggregation
       if (partitionKeys.nonEmpty) {
         val processFunction = AggregateUtil.createUnboundedProcessingOverProcessFunction(
+          generator,
           namedAggregates,
           inputType)
 
@@ -185,6 +202,7 @@ class DataStreamOverAggregate(
       // non-partitioned aggregation
       else {
         val processFunction = AggregateUtil.createUnboundedProcessingOverProcessFunction(
+          generator,
           namedAggregates,
           inputType,
           isPartitioned = false)
@@ -199,6 +217,7 @@ class DataStreamOverAggregate(
   }
 
   def createBoundedAndCurrentRowOverWindow(
+    generator: CodeGenerator,
     inputDS: DataStream[Row],
     isRangeClause: Boolean,
     isRowTimeType: Boolean): DataStream[Row] = {
@@ -214,12 +233,12 @@ class DataStreamOverAggregate(
     val rowTypeInfo = FlinkTypeFactory.toInternalRowTypeInfo(getRowType).asInstanceOf[RowTypeInfo]
 
     val processFunction = AggregateUtil.createBoundedOverProcessFunction(
+      generator,
       namedAggregates,
       inputType,
       precedingOffset,
       isRangeClause,
-      isRowTimeType
-    )
+      isRowTimeType)
     val result: DataStream[Row] =
     // partitioned aggregation
       if (partitionKeys.nonEmpty) {
@@ -245,6 +264,7 @@ class DataStreamOverAggregate(
   }
 
   def createUnboundedAndCurrentRowEventTimeOverWindow(
+    generator: CodeGenerator,
     inputDS: DataStream[Row],
     isRows: Boolean): DataStream[Row] = {
 
@@ -256,6 +276,7 @@ class DataStreamOverAggregate(
     val rowTypeInfo = FlinkTypeFactory.toInternalRowTypeInfo(getRowType).asInstanceOf[RowTypeInfo]
 
     val processFunction = AggregateUtil.createUnboundedEventTimeOverProcessFunction(
+      generator,
       namedAggregates,
       inputType,
       isRows)

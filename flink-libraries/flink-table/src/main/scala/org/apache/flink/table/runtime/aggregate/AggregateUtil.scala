@@ -35,6 +35,7 @@ import org.apache.flink.streaming.api.windowing.windows.{Window => DataStreamWin
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.codegen.CodeGenerator
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.aggfunctions._
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
@@ -57,15 +58,18 @@ object AggregateUtil {
     * Create an [[org.apache.flink.streaming.api.functions.ProcessFunction]] to evaluate final
     * aggregate value.
     *
+    * @param generator       code generator instance
     * @param namedAggregates List of calls to aggregate functions and their output field names
-    * @param inputType Input row type
-    * @param isPartitioned Flag to indicate whether the input is partitioned or not
+    * @param inputType       Input row type
+    * @param isPartitioned   Flag to indicate whether the input is partitioned or not
+    *
     * @return [[org.apache.flink.streaming.api.functions.ProcessFunction]]
     */
   private[flink] def createUnboundedProcessingOverProcessFunction(
-    namedAggregates: Seq[CalcitePair[AggregateCall, String]],
-    inputType: RelDataType,
-    isPartitioned: Boolean = true): ProcessFunction[Row, Row] = {
+      generator: CodeGenerator,
+      namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+      inputType: RelDataType,
+      isPartitioned: Boolean = true): ProcessFunction[Row, Row] = {
 
     val (aggFields, aggregates) =
       transformToAggregateFunctions(
@@ -76,17 +80,28 @@ object AggregateUtil {
     val aggregationStateType: RowTypeInfo =
       createDataSetAggregateBufferDataType(Array(), aggregates, inputType)
 
+    val forwardMapping = (0 until inputType.getFieldCount).map(x => (x, x)).toArray
+    val aggMapping = aggregates.indices.map(x => x + inputType.getFieldCount).toArray
+    val outputArity = inputType.getFieldCount + aggregates.length
+
+    val genFunction = generator.generateAggregations(
+      "UnboundedProcessingOverAggregateHelper",
+      generator,
+      inputType,
+      aggregates,
+      aggFields,
+      aggMapping,
+      forwardMapping,
+      outputArity
+    )
+
     if (isPartitioned) {
       new UnboundedProcessingOverProcessFunction(
-        aggregates,
-        aggFields,
-        inputType.getFieldCount,
+        genFunction,
         aggregationStateType)
     } else {
       new UnboundedNonPartitionedProcessingOverProcessFunction(
-        aggregates,
-        aggFields,
-        inputType.getFieldCount,
+        genFunction,
         aggregationStateType)
     }
   }
@@ -95,6 +110,7 @@ object AggregateUtil {
     * Create an [[org.apache.flink.streaming.api.functions.ProcessFunction]] for
     * bounded OVER window to evaluate final aggregate value.
     *
+    * @param generator       code generator instance
     * @param namedAggregates List of calls to aggregate functions and their output field names
     * @param inputType       Input row type
     * @param precedingOffset the preceding offset
@@ -103,6 +119,7 @@ object AggregateUtil {
     * @return [[org.apache.flink.streaming.api.functions.ProcessFunction]]
     */
   private[flink] def createBoundedOverProcessFunction(
+    generator: CodeGenerator,
     namedAggregates: Seq[CalcitePair[AggregateCall, String]],
     inputType: RelDataType,
     precedingOffset: Long,
@@ -118,21 +135,32 @@ object AggregateUtil {
     val aggregationStateType: RowTypeInfo = createAccumulatorRowType(aggregates)
     val inputRowType = FlinkTypeFactory.toInternalRowTypeInfo(inputType).asInstanceOf[RowTypeInfo]
 
+    val forwardMapping = (0 until inputType.getFieldCount).map(x => (x, x)).toArray
+    val aggMapping = aggregates.indices.map(x => x + inputType.getFieldCount).toArray
+    val outputArity = inputType.getFieldCount + aggregates.length
+
+    val genFunction = generator.generateAggregations(
+      "BoundedOverAggregateHelper",
+      generator,
+      inputType,
+      aggregates,
+      aggFields,
+      aggMapping,
+      forwardMapping,
+      outputArity
+    )
+
     if (isRowTimeType) {
       if (isRangeClause) {
         new RangeClauseBoundedOverProcessFunction(
-          aggregates,
-          aggFields,
-          inputType.getFieldCount,
+          genFunction,
           aggregationStateType,
           inputRowType,
           precedingOffset
         )
       } else {
         new RowsClauseBoundedOverProcessFunction(
-          aggregates,
-          aggFields,
-          inputType.getFieldCount,
+          genFunction,
           aggregationStateType,
           inputRowType,
           precedingOffset
@@ -141,20 +169,16 @@ object AggregateUtil {
     } else {
       if (isRangeClause) {
         new BoundedProcessingOverRangeProcessFunction(
-          aggregates,
-          aggFields,
-          inputType.getFieldCount,
-          aggregationStateType,
+          genFunction,
           precedingOffset,
-          FlinkTypeFactory.toInternalRowTypeInfo(inputType))
+          aggregationStateType,
+          inputRowType)
       } else {
         new BoundedProcessingOverRowProcessFunction(
-          aggregates,
-          aggFields,
+          genFunction,
           precedingOffset,
-          inputType.getFieldCount,
           aggregationStateType,
-          FlinkTypeFactory.toInternalRowTypeInfo(inputType))
+          inputRowType)
       }
     }
   }
@@ -162,14 +186,18 @@ object AggregateUtil {
   /**
     * Create an [[ProcessFunction]] to evaluate final aggregate value.
     *
+    * @param generator       code generator instance
     * @param namedAggregates List of calls to aggregate functions and their output field names
-    * @param inputType Input row type
+    * @param inputType       Input row type
+    * @param isRows          Flag to indicate if whether this is a Row (true) or a Range (false)
+    *                        over window process
     * @return [[UnboundedEventTimeOverProcessFunction]]
     */
   private[flink] def createUnboundedEventTimeOverProcessFunction(
-   namedAggregates: Seq[CalcitePair[AggregateCall, String]],
-   inputType: RelDataType,
-   isRows: Boolean): UnboundedEventTimeOverProcessFunction = {
+      generator: CodeGenerator,
+      namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+      inputType: RelDataType,
+      isRows: Boolean): UnboundedEventTimeOverProcessFunction = {
 
     val (aggFields, aggregates) =
       transformToAggregateFunctions(
@@ -179,20 +207,30 @@ object AggregateUtil {
 
     val aggregationStateType: RowTypeInfo = createAccumulatorRowType(aggregates)
 
+    val forwardMapping = (0 until inputType.getFieldCount).map(x => (x, x)).toArray
+    val aggMapping = aggregates.indices.map(x => x + inputType.getFieldCount).toArray
+    val outputArity = inputType.getFieldCount + aggregates.length
+
+    val genFunction = generator.generateAggregations(
+      "UnboundedEventTimeOverAggregateHelper",
+      generator,
+      inputType,
+      aggregates,
+      aggFields,
+      aggMapping,
+      forwardMapping,
+      outputArity)
+
     if (isRows) {
       // ROWS unbounded over process function
       new UnboundedEventTimeRowsOverProcessFunction(
-        aggregates,
-        aggFields,
-        inputType.getFieldCount,
+        genFunction,
         aggregationStateType,
         FlinkTypeFactory.toInternalRowTypeInfo(inputType))
     } else {
       // RANGE unbounded over process function
       new UnboundedEventTimeRangeOverProcessFunction(
-        aggregates,
-        aggFields,
-        inputType.getFieldCount,
+        genFunction,
         aggregationStateType,
         FlinkTypeFactory.toInternalRowTypeInfo(inputType))
     }
@@ -1144,7 +1182,7 @@ object AggregateUtil {
     new RowTypeInfo(allFieldTypes: _*)
   }
 
-  private def createAccumulatorRowType(
+  private[flink] def createAccumulatorRowType(
       aggregates: Array[TableAggregateFunction[_]]): RowTypeInfo = {
 
     val aggTypes: Seq[TypeInformation[_]] = createAccumulatorType(aggregates)

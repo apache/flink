@@ -25,33 +25,27 @@ import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.{ListTypeInfo, RowTypeInfo}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.ProcessFunction
-import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
 import org.apache.flink.types.Row
 import org.apache.flink.util.{Collector, Preconditions}
+import org.apache.flink.table.codegen.{GeneratedAggregationsFunction, Compiler}
+import org.slf4j.LoggerFactory
 
 /**
  * Process Function for ROWS clause event-time bounded OVER window
  *
- * @param aggregates           the list of all [[AggregateFunction]] used for this aggregation
- * @param aggFields            the position (in the input Row) of the input value for each aggregate
- * @param forwardedFieldCount  the count of forwarded fields.
- * @param aggregationStateType the row type info of aggregation
- * @param inputRowType         the row type info of input row
- * @param precedingOffset      the preceding offset
+  * @param genAggregations Generated aggregate helper function
+  * @param aggregationStateType     row type info of aggregation
+  * @param inputRowType             row type info of input row
+  * @param precedingOffset          preceding offset
  */
 class RowsClauseBoundedOverProcessFunction(
-    private val aggregates: Array[AggregateFunction[_]],
-    private val aggFields: Array[Array[Int]],
-    private val forwardedFieldCount: Int,
-    private val aggregationStateType: RowTypeInfo,
-    private val inputRowType: RowTypeInfo,
-    private val precedingOffset: Long)
-  extends ProcessFunction[Row, Row] {
+    genAggregations: GeneratedAggregationsFunction,
+    aggregationStateType: RowTypeInfo,
+    inputRowType: RowTypeInfo,
+    precedingOffset: Long)
+  extends ProcessFunction[Row, Row]
+    with Compiler[GeneratedAggregations] {
 
-  Preconditions.checkNotNull(aggregates)
-  Preconditions.checkNotNull(aggFields)
-  Preconditions.checkArgument(aggregates.length == aggFields.length)
-  Preconditions.checkNotNull(forwardedFieldCount)
   Preconditions.checkNotNull(aggregationStateType)
   Preconditions.checkNotNull(precedingOffset)
 
@@ -72,9 +66,20 @@ class RowsClauseBoundedOverProcessFunction(
   // to this time stamp.
   private var dataState: MapState[Long, JList[Row]] = _
 
-  override def open(config: Configuration) {
+  val LOG = LoggerFactory.getLogger(this.getClass)
+  private var function: GeneratedAggregations = _
 
-    output = new Row(forwardedFieldCount + aggregates.length)
+  override def open(config: Configuration) {
+    LOG.debug(s"Compiling AggregateHelper: $genAggregations.name \n\n " +
+                s"Code:\n$genAggregations.code")
+    val clazz = compile(
+      getRuntimeContext.getUserCodeClassLoader,
+      genAggregations.name,
+      genAggregations.code)
+    LOG.debug("Instantiating AggregateHelper.")
+    function = clazz.newInstance()
+
+    output = function.createOutputRow()
 
     val lastTriggeringTsDescriptor: ValueStateDescriptor[Long] =
       new ValueStateDescriptor[Long]("lastTriggeringTsState", classOf[Long])
@@ -99,7 +104,6 @@ class RowsClauseBoundedOverProcessFunction(
         valueTypeInformation)
 
     dataState = getRuntimeContext.getMapState(mapStateDescriptor)
-
   }
 
   override def processElement(
@@ -144,20 +148,14 @@ class RowsClauseBoundedOverProcessFunction(
       var retractList: JList[Row] = null
       var retractTs: Long = Long.MaxValue
       var retractCnt: Int = 0
-      var j = 0
       var i = 0
 
-      while (j < inputs.size) {
-        val input = inputs.get(j)
+      while (i < inputs.size) {
+        val input = inputs.get(i)
 
         // initialize when first run or failover recovery per key
         if (null == accumulators) {
-          accumulators = new Row(aggregates.length)
-          i = 0
-          while (i < aggregates.length) {
-            accumulators.setField(i, aggregates(i).createAccumulator())
-            i += 1
-          }
+          accumulators = function.createAccumulators()
         }
 
         var retractRow: Row = null
@@ -191,32 +189,17 @@ class RowsClauseBoundedOverProcessFunction(
         }
 
         // copy forwarded fields to output row
-        i = 0
-        while (i < forwardedFieldCount) {
-          output.setField(i, input.getField(i))
-          i += 1
-        }
+        function.setForwardedFields(input, output)
 
         // retract old row from accumulators
         if (null != retractRow) {
-          i = 0
-          while (i < aggregates.length) {
-            val accumulator = accumulators.getField(i).asInstanceOf[Accumulator]
-            aggregates(i).retract(accumulator, retractRow.getField(aggFields(i)(0)))
-            i += 1
-          }
+          function.retract(accumulators, retractRow)
         }
 
         // accumulate current row and set aggregate in output row
-        i = 0
-        while (i < aggregates.length) {
-          val index = forwardedFieldCount + i
-          val accumulator = accumulators.getField(i).asInstanceOf[Accumulator]
-          aggregates(i).accumulate(accumulator, input.getField(aggFields(i)(0)))
-          output.setField(index, aggregates(i).getValue(accumulator))
-          i += 1
-        }
-        j += 1
+        function.accumulate(accumulators, input)
+        function.setAggregationResults(accumulators, output)
+        i += 1
 
         out.collect(output)
       }

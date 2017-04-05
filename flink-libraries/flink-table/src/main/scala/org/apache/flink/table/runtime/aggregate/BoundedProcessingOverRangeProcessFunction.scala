@@ -20,49 +20,54 @@ package org.apache.flink.table.runtime.aggregate
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.ProcessFunction
-import org.apache.flink.table.functions.{ Accumulator, AggregateFunction }
 import org.apache.flink.types.Row
-import org.apache.flink.util.{ Collector, Preconditions }
+import org.apache.flink.util.Collector
 import org.apache.flink.api.common.state.ValueState
 import org.apache.flink.api.common.state.ValueStateDescriptor
 import org.apache.flink.api.common.state.MapState
 import org.apache.flink.api.common.state.MapStateDescriptor
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.ListTypeInfo
-import java.util.{ ArrayList, List => JList }
+import java.util.{ArrayList, List => JList}
+
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
+import org.apache.flink.table.codegen.{GeneratedAggregationsFunction, Compiler}
+import org.slf4j.LoggerFactory
 
 /**
- * Process Function used for the aggregate in bounded proc-time OVER window
- * [[org.apache.flink.streaming.api.datastream.DataStream]]
- *
- * @param aggregates the list of all [[org.apache.flink.table.functions.AggregateFunction]]
- *                   used for this aggregation
- * @param aggFields  the position (in the input Row) of the input value for each aggregate
- * @param forwardedFieldCount Is used to indicate fields in the current element to forward
- * @param rowTypeInfo Is used to indicate the field schema
- * @param precedingTimeBoundary Is used to indicate the processing time boundaries
- * @param inputType It is used to mark the Row type of the input
- */
+  * Process Function used for the aggregate in bounded proc-time OVER window
+  * [[org.apache.flink.streaming.api.datastream.DataStream]]
+  *
+  * @param genAggregations Generated aggregate helper function
+  * @param precedingTimeBoundary    Is used to indicate the processing time boundaries
+  * @param aggregatesTypeInfo       row type info of aggregation
+  * @param inputType                row type info of input row
+  */
 class BoundedProcessingOverRangeProcessFunction(
-  private val aggregates: Array[AggregateFunction[_]],
-  private val aggFields: Array[Array[Int]],
-  private val forwardedFieldCount: Int,
-  private val rowTypeInfo: RowTypeInfo,
-  private val precedingTimeBoundary: Long,
-  private val inputType: TypeInformation[Row])
-    extends ProcessFunction[Row, Row] {
-
-  Preconditions.checkNotNull(aggregates)
-  Preconditions.checkNotNull(aggFields)
-  Preconditions.checkArgument(aggregates.length == aggFields.length)
+    genAggregations: GeneratedAggregationsFunction,
+    precedingTimeBoundary: Long,
+    aggregatesTypeInfo: RowTypeInfo,
+    inputType: TypeInformation[Row])
+  extends ProcessFunction[Row, Row]
+    with Compiler[GeneratedAggregations] {
 
   private var output: Row = _
   private var accumulatorState: ValueState[Row] = _
   private var rowMapState: MapState[Long, JList[Row]] = _
 
+  val LOG = LoggerFactory.getLogger(this.getClass)
+  private var function: GeneratedAggregations = _
+
   override def open(config: Configuration) {
-    output = new Row(forwardedFieldCount + aggregates.length)
+    LOG.debug(s"Compiling AggregateHelper: $genAggregations.name \n\n " +
+                s"Code:\n$genAggregations.code")
+    val clazz = compile(
+      getRuntimeContext.getUserCodeClassLoader,
+      genAggregations.name,
+      genAggregations.code)
+    LOG.debug("Instantiating AggregateHelper.")
+    function = clazz.newInstance()
+    output = function.createOutputRow()
 
     // We keep the elements received in a MapState indexed based on their ingestion time
     val rowListTypeInfo: TypeInformation[JList[Row]] =
@@ -73,7 +78,7 @@ class BoundedProcessingOverRangeProcessFunction(
     rowMapState = getRuntimeContext.getMapState(mapStateDescriptor)
 
     val stateDescriptor: ValueStateDescriptor[Row] =
-      new ValueStateDescriptor[Row]("overState", rowTypeInfo)
+      new ValueStateDescriptor[Row]("overState", aggregatesTypeInfo)
     accumulatorState = getRuntimeContext.getState(stateDescriptor)
   }
 
@@ -111,12 +116,7 @@ class BoundedProcessingOverRangeProcessFunction(
     var accumulators = accumulatorState.value()
 
     if (null == accumulators) {
-      accumulators = new Row(aggregates.length)
-      i = 0
-      while (i < aggregates.length) {
-        accumulators.setField(i, aggregates(i).createAccumulator())
-        i += 1
-      }
+      accumulators = function.createAccumulators()
     }
 
     // update the elements to be removed and retract them from aggregators
@@ -135,13 +135,8 @@ class BoundedProcessingOverRangeProcessFunction(
         val elementsRemove = rowMapState.get(elementKey)
         var iRemove = 0
         while (iRemove < elementsRemove.size()) {
-          i = 0
-          while (i < aggregates.length) {
-            val accumulator = accumulators.getField(i).asInstanceOf[Accumulator]
-            aggregates(i).retract(accumulator, elementsRemove.get(iRemove)
-               .getField(aggFields(i)(0)))
-            i += 1
-          }
+          val retractRow = elementsRemove.get(iRemove)
+          function.retract(accumulators, retractRow)
           iRemove += 1
         }
         // mark element for later removal not to modify the iterator over MapState
@@ -162,12 +157,7 @@ class BoundedProcessingOverRangeProcessFunction(
     var iElemenets = 0
     while (iElemenets < currentElements.size()) {
       val input = currentElements.get(iElemenets)
-      i = 0
-      while (i < aggregates.length) {
-        val accumulator = accumulators.getField(i).asInstanceOf[Accumulator]
-        aggregates(i).accumulate(accumulator, input.getField(aggFields(i)(0)))
-        i += 1
-      }
+      function.accumulate(accumulators, input)
       iElemenets += 1
     }
 
@@ -177,20 +167,10 @@ class BoundedProcessingOverRangeProcessFunction(
       val input = currentElements.get(iElemenets)
 
       // set the fields of the last event to carry on with the aggregates
-      i = 0
-      while (i < forwardedFieldCount) {
-        output.setField(i, input.getField(i))
-        i += 1
-      }
+      function.setForwardedFields(input, output)
 
       // add the accumulators values to result
-      i = 0
-      while (i < aggregates.length) {
-        val index = forwardedFieldCount + i
-        val accumulator = accumulators.getField(i).asInstanceOf[Accumulator]
-        output.setField(index, aggregates(i).getValue(accumulator))
-        i += 1
-      }
+      function.setAggregationResults(accumulators, output)
       out.collect(output)
       iElemenets += 1
     }

@@ -23,46 +23,48 @@ import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.state.{FunctionInitializationContext, FunctionSnapshotContext}
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction
 import org.apache.flink.streaming.api.functions.ProcessFunction
-import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
 import org.apache.flink.types.Row
-import org.apache.flink.util.{Collector, Preconditions}
+import org.apache.flink.util.Collector
+import org.apache.flink.table.codegen.{GeneratedAggregationsFunction, Compiler}
+import org.slf4j.LoggerFactory
 
 /**
-  * Process Function used for the aggregate in
-  * [[org.apache.flink.streaming.api.datastream.DataStream]]
+  * Process Function for non-partitioned processing-time unbounded OVER window
   *
-  * @param aggregates the list of all [[org.apache.flink.table.functions.AggregateFunction]]
-  *                   used for this aggregation
-  * @param aggFields  the position (in the input Row) of the input value for each aggregate
+  * @param genAggregations Generated aggregate helper function
+  * @param aggregationStateType     row type info of aggregation
   */
 class UnboundedNonPartitionedProcessingOverProcessFunction(
-    private val aggregates: Array[AggregateFunction[_]],
-    private val aggFields: Array[Array[Int]],
-    private val forwardedFieldCount: Int,
-    private val aggregationStateType: RowTypeInfo)
-  extends ProcessFunction[Row, Row] with CheckpointedFunction{
-
-  Preconditions.checkNotNull(aggregates)
-  Preconditions.checkNotNull(aggFields)
-  Preconditions.checkArgument(aggregates.length == aggFields.length)
+    genAggregations: GeneratedAggregationsFunction,
+    aggregationStateType: RowTypeInfo)
+  extends ProcessFunction[Row, Row]
+    with CheckpointedFunction
+    with Compiler[GeneratedAggregations] {
 
   private var accumulators: Row = _
   private var output: Row = _
-  private var state: ListState[Row] = null
+  private var state: ListState[Row] = _
+  val LOG = LoggerFactory.getLogger(this.getClass)
+
+  private var function: GeneratedAggregations = _
 
   override def open(config: Configuration) {
-    output = new Row(forwardedFieldCount + aggregates.length)
+    LOG.debug(s"Compiling AggregateHelper: $genAggregations.name \n\n " +
+                s"Code:\n$genAggregations.code")
+    val clazz = compile(
+      getRuntimeContext.getUserCodeClassLoader,
+      genAggregations.name,
+      genAggregations.code)
+    LOG.debug("Instantiating AggregateHelper.")
+    function = clazz.newInstance()
+
+    output = function.createOutputRow()
     if (null == accumulators) {
       val it = state.get().iterator()
       if (it.hasNext) {
         accumulators = it.next()
       } else {
-        accumulators = new Row(aggregates.length)
-        var i = 0
-        while (i < aggregates.length) {
-          accumulators.setField(i, aggregates(i).createAccumulator())
-          i += 1
-        }
+        accumulators = function.createAccumulators()
       }
     }
   }
@@ -72,20 +74,10 @@ class UnboundedNonPartitionedProcessingOverProcessFunction(
     ctx: ProcessFunction[Row, Row]#Context,
     out: Collector[Row]): Unit = {
 
-    var i = 0
-    while (i < forwardedFieldCount) {
-      output.setField(i, input.getField(i))
-      i += 1
-    }
+    function.setForwardedFields(input, output)
 
-    i = 0
-    while (i < aggregates.length) {
-      val index = forwardedFieldCount + i
-      val accumulator = accumulators.getField(i).asInstanceOf[Accumulator]
-      aggregates(i).accumulate(accumulator, input.getField(aggFields(i)(0)))
-      output.setField(index, aggregates(i).getValue(accumulator))
-      i += 1
-    }
+    function.accumulate(accumulators, input)
+    function.setAggregationResults(accumulators, output)
 
     out.collect(output)
   }

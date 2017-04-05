@@ -26,7 +26,6 @@ import org.apache.flink.util.{Collector, Preconditions}
 import org.apache.flink.api.common.state.ValueStateDescriptor
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.common.state.ValueState
-import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
 import org.apache.flink.api.common.state.MapState
 import org.apache.flink.api.common.state.MapStateDescriptor
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -34,19 +33,25 @@ import org.apache.flink.api.java.typeutils.ListTypeInfo
 import java.util.{List => JList}
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
+import org.apache.flink.table.codegen.{GeneratedAggregationsFunction, Compiler}
+import org.slf4j.LoggerFactory
 
+/**
+  * Process Function for ROW clause processing-time bounded OVER window
+  *
+  * @param genAggregations      Generated aggregate helper function
+  * @param precedingOffset      preceding offset
+  * @param aggregatesTypeInfo   row type info of aggregation
+  * @param inputType            row type info of input row
+  */
 class BoundedProcessingOverRowProcessFunction(
-  private val aggregates: Array[AggregateFunction[_]],
-  private val aggFields: Array[Array[Int]],
-  private val precedingOffset: Long,
-  private val forwardedFieldCount: Int,
-  private val aggregatesTypeInfo: RowTypeInfo,
-  private val inputType: TypeInformation[Row])
-    extends ProcessFunction[Row, Row] {
+    genAggregations: GeneratedAggregationsFunction,
+    precedingOffset: Long,
+    aggregatesTypeInfo: RowTypeInfo,
+    inputType: TypeInformation[Row])
+  extends ProcessFunction[Row, Row]
+    with Compiler[GeneratedAggregations] {
 
-  Preconditions.checkNotNull(aggregates)
-  Preconditions.checkNotNull(aggFields)
-  Preconditions.checkArgument(aggregates.length == aggFields.length)
   Preconditions.checkArgument(precedingOffset > 0)
 
   private var accumulatorState: ValueState[Row] = _
@@ -55,9 +60,20 @@ class BoundedProcessingOverRowProcessFunction(
   private var counterState: ValueState[Long] = _
   private var smallestTsState: ValueState[Long] = _
 
-  override def open(config: Configuration) {
+  val LOG = LoggerFactory.getLogger(this.getClass)
+  private var function: GeneratedAggregations = _
 
-    output = new Row(forwardedFieldCount + aggregates.length)
+  override def open(config: Configuration) {
+    LOG.debug(s"Compiling AggregateHelper: $genAggregations.name \n\n " +
+                s"Code:\n$genAggregations.code")
+    val clazz = compile(
+      getRuntimeContext.getUserCodeClassLoader,
+      genAggregations.name,
+      genAggregations.code)
+    LOG.debug("Instantiating AggregateHelper.")
+    function = clazz.newInstance()
+
+    output = function.createOutputRow()
     // We keep the elements received in a Map state keyed
     // by the ingestion time in the operator.
     // we also keep counter of processed elements
@@ -89,16 +105,11 @@ class BoundedProcessingOverRowProcessFunction(
     out: Collector[Row]): Unit = {
 
     val currentTime = ctx.timerService.currentProcessingTime
-    var i = 0
 
     // initialize state for the processed element
     var accumulators = accumulatorState.value
     if (accumulators == null) {
-      accumulators = new Row(aggregates.length)
-      while (i < aggregates.length) {
-        accumulators.setField(i, aggregates(i).createAccumulator())
-        i += 1
-      }
+      accumulators = function.createAccumulators()
     }
 
     // get smallest timestamp
@@ -115,13 +126,10 @@ class BoundedProcessingOverRowProcessFunction(
 
       // get oldest element beyond buffer size
       // and if oldest element exist, retract value
-      i = 0
-      while (i < aggregates.length) {
-        val accumulator = accumulators.getField(i).asInstanceOf[Accumulator]
-        aggregates(i).retract(accumulator, retractList.get(0).getField(aggFields(i)(0)))
-        i += 1
-      }
+      val retractRow = retractList.get(0)
+      function.retract(accumulators, retractRow)
       retractList.remove(0)
+
       // if reference timestamp list not empty, keep the list
       if (!retractList.isEmpty) {
         rowMapState.put(smallestTs, retractList)
@@ -146,21 +154,11 @@ class BoundedProcessingOverRowProcessFunction(
     }
 
     // copy forwarded fields in output row
-    i = 0
-    while (i < forwardedFieldCount) {
-      output.setField(i, input.getField(i))
-      i += 1
-    }
+    function.setForwardedFields(input, output)
 
     // accumulate current row and set aggregate in output row
-    i = 0
-    while (i < aggregates.length) {
-      val index = forwardedFieldCount + i
-      val accumulator = accumulators.getField(i).asInstanceOf[Accumulator]
-      aggregates(i).accumulate(accumulator, input.getField(aggFields(i)(0)))
-      output.setField(index, aggregates(i).getValue(accumulator))
-      i += 1
-    }
+    function.accumulate(accumulators, input)
+    function.setAggregationResults(accumulators, output)
 
     // update map state, accumulator state, counter and timestamp
     val currentTimeState = rowMapState.get(currentTime)

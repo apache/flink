@@ -29,6 +29,8 @@ import org.apache.flink.streaming.api.operators.KeyedProcessOperator
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.streaming.util.{KeyedOneInputStreamOperatorTestHarness, TestHarnessUtil}
+import org.apache.flink.table.codegen.GeneratedAggregationsFunction
+import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.functions.aggfunctions.{LongMaxWithRetractAggFunction, LongMinWithRetractAggFunction}
 import org.apache.flink.table.runtime.aggregate.BoundedProcessingOverRangeProcessFunctionTest._
 import org.apache.flink.types.Row
@@ -47,16 +49,126 @@ class BoundedProcessingOverRangeProcessFunctionTest {
       LONG_TYPE_INFO),
       Array("a", "b", "c", "d", "e"))
 
-    val rTA =  new RowTypeInfo(Array[TypeInformation[_]](
-     LONG_TYPE_INFO), Array("count"))
+    val aggregates =
+      Array(new LongMinWithRetractAggFunction,
+            new LongMaxWithRetractAggFunction).asInstanceOf[Array[AggregateFunction[_]]]
+    val aggregationStateType: RowTypeInfo = AggregateUtil.createAccumulatorRowType(aggregates)
 
+    val funcCode =
+      """
+        |public class BoundedOverAggregateHelper$33
+        |  extends org.apache.flink.table.runtime.aggregate.GeneratedAggregations {
+        |
+        |transient org.apache.flink.table.functions.aggfunctions.LongMinWithRetractAggFunction
+        |  fmin = null;
+        |
+        |transient org.apache.flink.table.functions.aggfunctions.LongMaxWithRetractAggFunction
+        |  fmax = null;
+        |
+        |  public BoundedOverAggregateHelper$33() throws Exception {
+        |
+        |  fmin = (org.apache.flink.table.functions.aggfunctions.LongMinWithRetractAggFunction)
+        |  org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
+        |    .deserialize("rO0ABXNyAEtvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLmZ1bmN0aW9ucy5hZ2dmdW5jdGlvbn" +
+        |    "MuTG9uZ01pbldpdGhSZXRyYWN0QWdnRnVuY3Rpb26oIdX_DaMPxQIAAHhyAEdvcmcuYXBhY2hlLmZsaW5rL" +
+        |    "nRhYmxlLmZ1bmN0aW9ucy5hZ2dmdW5jdGlvbnMuTWluV2l0aFJldHJhY3RBZ2dGdW5jdGlvbkDcXxs1apkP" +
+        |    "AgABTAADb3JkdAAVTHNjYWxhL21hdGgvT3JkZXJpbmc7eHIAMm9yZy5hcGFjaGUuZmxpbmsudGFibGUuZnV" +
+        |    "uY3Rpb25zLkFnZ3JlZ2F0ZUZ1bmN0aW9uSa3YqbzCL3QCAAB4cgA0b3JnLmFwYWNoZS5mbGluay50YWJsZS" +
+        |    "5mdW5jdGlvbnMuVXNlckRlZmluZWRGdW5jdGlvbi0B91QxuAyTAgAAeHBzcgAZc2NhbGEubWF0aC5PcmRlc" +
+        |    "mluZyRMb25nJOda0iCPo2ukAgAAeHA");
+        |
+        |  fmax = (org.apache.flink.table.functions.aggfunctions.LongMaxWithRetractAggFunction)
+        |  org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
+        |    .deserialize("rO0ABXNyAEtvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLmZ1bmN0aW9ucy5hZ2dmdW5jdGlvbn" +
+        |    "MuTG9uZ01heFdpdGhSZXRyYWN0QWdnRnVuY3Rpb25RmsI8azNGXwIAAHhyAEdvcmcuYXBhY2hlLmZsaW5rL" +
+        |    "nRhYmxlLmZ1bmN0aW9ucy5hZ2dmdW5jdGlvbnMuTWF4V2l0aFJldHJhY3RBZ2dGdW5jdGlvbu4_w_gPePlO" +
+        |    "AgABTAADb3JkdAAVTHNjYWxhL21hdGgvT3JkZXJpbmc7eHIAMm9yZy5hcGFjaGUuZmxpbmsudGFibGUuZnV" +
+        |    "uY3Rpb25zLkFnZ3JlZ2F0ZUZ1bmN0aW9uSa3YqbzCL3QCAAB4cgA0b3JnLmFwYWNoZS5mbGluay50YWJsZS" +
+        |    "5mdW5jdGlvbnMuVXNlckRlZmluZWRGdW5jdGlvbi0B91QxuAyTAgAAeHBzcgAZc2NhbGEubWF0aC5PcmRlc" +
+        |    "mluZyRMb25nJOda0iCPo2ukAgAAeHA");
+        |  }
+        |
+        |  public void setAggregationResults(
+        |    org.apache.flink.types.Row accs,
+        |    org.apache.flink.types.Row output) {
+        |
+        |    org.apache.flink.table.functions.AggregateFunction baseClass0 =
+        |      (org.apache.flink.table.functions.AggregateFunction) fmin;
+        |    output.setField(5, baseClass0.getValue(
+        |      (org.apache.flink.table.functions.Accumulator) accs.getField(0)));
+        |
+        |    org.apache.flink.table.functions.AggregateFunction baseClass1 =
+        |      (org.apache.flink.table.functions.AggregateFunction) fmax;
+        |    output.setField(6, baseClass1.getValue(
+        |      (org.apache.flink.table.functions.Accumulator) accs.getField(1)));
+        |  }
+        |
+        |  public void accumulate(
+        |    org.apache.flink.types.Row accs,
+        |    org.apache.flink.types.Row input) {
+        |
+        |    fmin.accumulate(
+        |      ((org.apache.flink.table.functions.Accumulator) accs.getField(0)),
+        |      (java.lang.Long) input.getField(4));
+        |
+        |    fmax.accumulate(
+        |      ((org.apache.flink.table.functions.Accumulator) accs.getField(1)),
+        |      (java.lang.Long) input.getField(4));
+        |  }
+        |
+        |  public void retract(
+        |    org.apache.flink.types.Row accs,
+        |    org.apache.flink.types.Row input) {
+        |
+        |    fmin.retract(
+        |      ((org.apache.flink.table.functions.Accumulator) accs.getField(0)),
+        |      (java.lang.Long) input.getField(4));
+        |
+        |    fmax.retract(
+        |      ((org.apache.flink.table.functions.Accumulator) accs.getField(1)),
+        |      (java.lang.Long) input.getField(4));
+        |  }
+        |
+        |  public org.apache.flink.types.Row createAccumulators() {
+        |
+        |    org.apache.flink.types.Row accs = new org.apache.flink.types.Row(2);
+        |
+        |    accs.setField(
+        |      0,
+        |      fmin.createAccumulator());
+        |
+        |    accs.setField(
+        |      1,
+        |      fmax.createAccumulator());
+        |
+        |      return accs;
+        |  }
+        |
+        |  public void setForwardedFields(
+        |    org.apache.flink.types.Row input,
+        |    org.apache.flink.types.Row output) {
+        |
+        |    output.setField(0, input.getField(0));
+        |    output.setField(1, input.getField(1));
+        |    output.setField(2, input.getField(2));
+        |    output.setField(3, input.getField(3));
+        |    output.setField(4, input.getField(4));
+        |  }
+        |
+        |  public org.apache.flink.types.Row createOutputRow() {
+        |    return new org.apache.flink.types.Row(7);
+        |  }
+        |}
+      """.stripMargin
+
+    val funcName = "BoundedOverAggregateHelper$33"
+
+    val genAggFunction = GeneratedAggregationsFunction(funcName, funcCode)
     val processFunction = new KeyedProcessOperator[String, Row, Row](
       new BoundedProcessingOverRangeProcessFunction(
-        Array(new LongMinWithRetractAggFunction, new LongMaxWithRetractAggFunction),
-        Array(Array(4), Array(4)),
-        5,
-        rTA,
+        genAggFunction,
         1000,
+        aggregationStateType,
         rT))
 
     val testHarness = new KeyedOneInputStreamOperatorTestHarness[JInt, Row, Row](
