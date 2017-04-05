@@ -249,6 +249,13 @@ class WindowAggregateTest extends TableTestBase {
     streamUtil.verifySql(sql, expected)
   }
 
+  @Test(expected = classOf[TableException])
+  def testNonconstantWindowSize() = {
+    val sql = "SELECT COUNT(*) FROM MyTable GROUP BY TUMBLE(proctime(), c * INTERVAL '1' MINUTE)"
+    val expected = ""
+    streamUtil.verifySql(sql, expected)
+  }
+
   @Test
   def testUnboundPartitionedProcessingWindowWithRange() = {
     val sql = "SELECT " +

@@ -27,8 +27,8 @@ import org.apache.calcite.rel.logical.{LogicalAggregate, LogicalProject}
 import org.apache.calcite.rex.{RexCall, RexLiteral, RexNode}
 import org.apache.calcite.sql.fun.{SqlFloorFunction, SqlStdOperatorTable}
 import org.apache.calcite.util.ImmutableBitSet
-import org.apache.flink.table.api.scala.{Session, Slide, Tumble}
 import org.apache.flink.table.api._
+import org.apache.flink.table.api.scala.{Session, Slide, Tumble}
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.TimeModeTypes
@@ -140,7 +140,10 @@ private abstract class WindowTranslator {
     node.asInstanceOf[RexLiteral].getValue.asInstanceOf[T]
 
   protected def getOperandAsLong(idx: Int): Long =
-    unwrapLiteral[BigDecimal](call.getOperands.get(idx)).longValue()
+    call.getOperands.get(idx) match {
+      case v : RexLiteral => v.getValue.asInstanceOf[BigDecimal].longValue()
+      case _ => throw new TableException("Only constant window descriptors are supported")
+    }
 
   def toWindow: Option[Window]
 }

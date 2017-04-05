@@ -352,14 +352,8 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     EventTimeExtractor,
     ProcTimeExtractor,
     SqlStdOperatorTable.TUMBLE,
-    SqlStdOperatorTable.TUMBLE_START,
-    SqlStdOperatorTable.TUMBLE_END,
     SqlStdOperatorTable.HOP,
-    SqlStdOperatorTable.HOP_START,
-    SqlStdOperatorTable.HOP_END,
-    SqlStdOperatorTable.SESSION,
-    SqlStdOperatorTable.SESSION_START,
-    SqlStdOperatorTable.SESSION_END
+    SqlStdOperatorTable.SESSION
   )
 
   builtInSqlOperators.foreach(register)
