@@ -911,64 +911,6 @@ object ScalarOperators {
     }
   }
 
-  def generateRand(
-    randField: String,
-    seedExpr: GeneratedExpression,
-    resultType: TypeInformation[_])
-  : GeneratedExpression = {
-    val resultTerm = newName("result")
-    val resultTypeTerm = primitiveTypeTermForTypeInfo(resultType)
-    val randCode = if (seedExpr != null) {
-      s"""
-         |if ($randField == null) {
-         |  ${seedExpr.code}
-         |  $randField = new java.util.Random(${seedExpr.resultTerm});
-         |}
-         |$resultTypeTerm $resultTerm = $randField.nextDouble();
-       """.stripMargin
-    } else {
-      s"""
-         |if ($randField == null) {
-         |  $randField = new java.util.Random();
-         |}
-         |$resultTypeTerm $resultTerm = $randField.nextDouble();
-       """.stripMargin
-    }
-
-    GeneratedExpression(resultTerm, GeneratedExpression.NEVER_NULL, randCode, resultType)
-  }
-
-  def generateRandInteger(
-    randField: String,
-    seedExpr: GeneratedExpression,
-    boundExpr: GeneratedExpression,
-    resultType: TypeInformation[_])
-  : GeneratedExpression = {
-    assert(boundExpr != null)
-    val resultTerm = newName("result")
-    val resultTypeTerm = primitiveTypeTermForTypeInfo(resultType)
-    val randCode = if (seedExpr != null) {
-      s"""
-         |if ($randField == null) {
-         |  ${seedExpr.code}
-         |  $randField = new java.util.Random(${seedExpr.resultTerm});
-         |}
-         |${boundExpr.code}
-         |$resultTypeTerm $resultTerm = $randField.nextInt(${boundExpr.resultTerm});
-       """.stripMargin
-    } else {
-      s"""
-         |if ($randField == null) {
-         |  $randField = new java.util.Random();
-         |}
-         |${boundExpr.code}
-         |$resultTypeTerm $resultTerm = $randField.nextInt(${boundExpr.resultTerm});
-       """.stripMargin
-    }
-
-    GeneratedExpression(resultTerm, GeneratedExpression.NEVER_NULL, randCode, resultType)
-  }
-
   // ----------------------------------------------------------------------------------------------
 
   private def generateUnaryOperatorIfNotNull(

@@ -20,19 +20,23 @@ package org.apache.flink.table.api.java.batch.sql;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.table.api.java.BatchTableEnvironment;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
-import org.apache.flink.types.Row;
-import org.apache.flink.table.api.scala.batch.utils.TableProgramsCollectionTestBase;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.java.BatchTableEnvironment;
+import org.apache.flink.table.api.scala.batch.utils.TableProgramsCollectionTestBase;
 import org.apache.flink.test.javaApiOperators.util.CollectionDataSets;
+import org.apache.flink.types.Row;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.util.List;
+import java.util.Random;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 @RunWith(Parameterized.class)
 public class SqlITCase extends TableProgramsCollectionTestBase {
@@ -137,5 +141,35 @@ public class SqlITCase extends TableProgramsCollectionTestBase {
 		List<Row> results = resultSet.collect();
 		String expected = "Hi,Hallo\n" + "Hello,Hallo Welt\n" + "Hello world,Hallo Welt\n";
 		compareResultAsText(results, expected);
+	}
+
+	@Test
+	public void testRandAndRandInteger() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
+
+		String sqlQuery = "SELECT i, RAND() AS r1, RAND(1) AS r2, " +
+			"RAND_INTEGER(10) AS r3, RAND_INTEGER(3, 10) AS r4 " +
+			"FROM (VALUES 1, 2, 3, 4, 5) AS t(i)";
+		Table result = tableEnv.sql(sqlQuery);
+
+		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
+		List<Row> results = resultSet.collect();
+		Random expectedRandom1 = new Random(1);
+		Random expectedRandom2 = new Random(3);
+		assertEquals(5, results.size());
+		for (int i = 0; i < 5; ++i) {
+			Row row = results.get(i);
+			assertEquals(i + 1, row.getField(0));
+			double r1 = (double) row.getField(1);
+			double r2 = (double) row.getField(2);
+			int r3 = (int) row.getField(3);
+			int r4 = (int) row.getField(4);
+
+			assertTrue(0 <= r1 && r1 < 1);
+			assertEquals("" + expectedRandom1.nextDouble(), "" + r2);
+			assertTrue(0 <= r3 && r3 < 10);
+			assertEquals("" + expectedRandom2.nextInt(10), "" + r4);
+		}
 	}
 }

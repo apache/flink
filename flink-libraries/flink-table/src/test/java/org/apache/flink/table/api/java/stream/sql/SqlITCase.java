@@ -18,21 +18,25 @@
 
 package org.apache.flink.table.api.java.stream.sql;
 
-import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
-import org.apache.flink.types.Row;
-import org.apache.flink.table.api.scala.stream.utils.StreamITCase;
-import org.apache.flink.table.api.Table;
-import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
+import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.api.java.stream.utils.StreamTestData;
+import org.apache.flink.table.api.scala.stream.utils.StreamITCase;
+import org.apache.flink.types.Row;
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class SqlITCase extends StreamingMultipleProgramsTestBase {
 
@@ -117,5 +121,39 @@ public class SqlITCase extends StreamingMultipleProgramsTestBase {
 		expected.add("2,3,Hallo Welt wie");
 
 		StreamITCase.compareWithList(expected);
+	}
+
+	@Test
+	public void testRandAndRandInteger() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+		StreamITCase.clear();
+
+		String sqlQuery = "SELECT i, RAND() AS r1, RAND(1) AS r2, " +
+			"RAND_INTEGER(10) AS r3, RAND_INTEGER(3, 10) AS r4 " +
+			"FROM (VALUES 1, 2, 3, 4, 5) AS t(i)";
+		Table result = tableEnv.sql(sqlQuery);
+
+		DataStream<Row> resultSet = tableEnv.toDataStream(result, Row.class);
+		resultSet.addSink(new StreamITCase.StringSink());
+		env.execute();
+
+		Random expectedRandom1 = new Random(1);
+		Random expectedRandom2 = new Random(3);
+		assertEquals(5, StreamITCase.testResults().size());
+		for (int i = 0; i < 5; ++i) {
+			String row = StreamITCase.testResults().get(i).get();
+			String[] values = row.split(",");
+			assertEquals(Integer.valueOf(i + 1), Integer.valueOf(values[0]));
+			double r1 = Double.valueOf(values[1]);
+			double r2 = Double.valueOf(values[2]);
+			int r3 = Integer.valueOf(values[3]);
+			int r4 = Integer.valueOf(values[4]);
+
+			assertTrue(0 <= r1 && r1 < 1);
+			assertEquals("" + expectedRandom1.nextDouble(), "" + r2);
+			assertTrue(0 <= r3 && r3 < 10);
+			assertEquals("" + expectedRandom2.nextInt(10), "" + r4);
+		}
 	}
 }

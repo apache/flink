@@ -1106,31 +1106,6 @@ class CodeGenerator(
         requireArray(array)
         generateArrayElement(this, array)
 
-      // RAND([seed])
-      case RAND if isNumeric(resultType) && operands.size <= 1 =>
-        val randField = addReusableRandom()
-        val seedExpr = if (operands.nonEmpty) {
-          requireInteger(operands.head)
-          operands.head
-        } else {
-          null
-        }
-        generateRand(randField, seedExpr, resultType)
-
-      // RAND_INTEGER([seed, ] bound)
-      case RAND_INTEGER if isNumeric(resultType) && operands.nonEmpty && operands.size <= 2 =>
-        val randField = addReusableRandom()
-        val (seedExpr, boundExpr) = if (operands.size == 1) {
-          (null, operands.head)
-        } else {
-          (operands.head, operands(1))
-        }
-        if (seedExpr != null) {
-          requireInteger(seedExpr)
-        }
-        requireInteger(boundExpr)
-        generateRandInteger(randField, seedExpr, boundExpr, resultType)
-
       // advanced scalar functions
       case sqlOperator: SqlOperator =>
         val callGen = FunctionGenerator.getCallGenerator(
@@ -1523,14 +1498,37 @@ class CodeGenerator(
     *
     * @return member variable term
     */
-  def addReusableRandom(): String = {
+  def addReusableRandom(seedExpr: GeneratedExpression): String = {
     val fieldTerm = newName("random")
 
     val field =
       s"""
-         |transient java.util.Random $fieldTerm = null;
+         |final java.util.Random $fieldTerm;
          |""".stripMargin
     reusableMemberStatements.add(field)
+
+    val fieldInit = if (seedExpr != null && nullCheck) {
+      s"""
+         |${seedExpr.code}
+         |if(!${seedExpr.nullTerm}) {
+         |  $fieldTerm = new java.util.Random(${seedExpr.resultTerm});
+         |}
+         |else {
+         |  $fieldTerm = new java.util.Random();
+         |}
+         |""".stripMargin
+    } else if (seedExpr != null) {
+      s"""
+         |${seedExpr.code}
+         |$fieldTerm = new java.util.Random(${seedExpr.resultTerm});
+         |""".stripMargin
+    } else {
+      s"""
+         |$fieldTerm = new java.util.Random();
+         |""".stripMargin
+    }
+
+    reusableInitStatements.add(fieldInit)
     fieldTerm
   }
 
