@@ -182,22 +182,20 @@ public class TaskManagerServicesConfiguration {
 				parseQueryableStateConfiguration(configuration);
 
 		// extract memory settings
-		long configuredMemory = configuration.getLong(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, -1L);
-		checkConfigParameter(configuredMemory == -1 || configuredMemory > 0, configuredMemory,
-			ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY,
+		long configuredMemory = configuration.getLong(TaskManagerOptions.MANAGED_MEMORY_SIZE);
+		checkConfigParameter(
+			configuredMemory == TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue() ||
+				configuredMemory > 0, configuredMemory,
+			TaskManagerOptions.MANAGED_MEMORY_SIZE.key(),
 			"MemoryManager needs at least one MB of memory. " +
 				"If you leave this config parameter empty, the system automatically " +
 				"pick a fraction of the available memory.");
 
-		boolean preAllocateMemory = configuration.getBoolean(
-			ConfigConstants.TASK_MANAGER_MEMORY_PRE_ALLOCATE_KEY,
-			ConfigConstants.DEFAULT_TASK_MANAGER_MEMORY_PRE_ALLOCATE);
+		boolean preAllocateMemory = configuration.getBoolean(TaskManagerOptions.MANAGED_MEMORY_PRE_ALLOCATE);
 
-		float memoryFraction = configuration.getFloat(
-			ConfigConstants.TASK_MANAGER_MEMORY_FRACTION_KEY,
-			ConfigConstants.DEFAULT_MEMORY_MANAGER_MEMORY_FRACTION);
+		float memoryFraction = configuration.getFloat(TaskManagerOptions.MANAGED_MEMORY_FRACTION);
 		checkConfigParameter(memoryFraction > 0.0f && memoryFraction < 1.0f, memoryFraction,
-			ConfigConstants.TASK_MANAGER_MEMORY_FRACTION_KEY,
+			TaskManagerOptions.MANAGED_MEMORY_FRACTION.key(),
 			"MemoryManager fraction of the free memory must be between 0.0 and 1.0");
 
 		final MetricRegistryConfiguration metricRegistryConfiguration = MetricRegistryConfiguration.fromConfiguration(configuration);
@@ -247,30 +245,26 @@ public class TaskManagerServicesConfiguration {
 		checkConfigParameter(slots >= 1, slots, ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS,
 			"Number of task slots must be at least one.");
 
-		final int numNetworkBuffers = configuration.getInteger(
-			ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY,
-			ConfigConstants.DEFAULT_TASK_MANAGER_NETWORK_NUM_BUFFERS);
+		final int numNetworkBuffers = configuration.getInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS);
 
 		checkConfigParameter(numNetworkBuffers > 0, numNetworkBuffers,
-			ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY, "");
+			TaskManagerOptions.NETWORK_NUM_BUFFERS.key(), "");
 
-		final int pageSize = configuration.getInteger(
-			ConfigConstants.TASK_MANAGER_MEMORY_SEGMENT_SIZE_KEY,
-			ConfigConstants.DEFAULT_TASK_MANAGER_MEMORY_SEGMENT_SIZE);
+		final int pageSize = configuration.getInteger(TaskManagerOptions.MEMORY_SEGMENT_SIZE);
 
 		// check page size of for minimum size
 		checkConfigParameter(pageSize >= MemoryManager.MIN_PAGE_SIZE, pageSize,
-			ConfigConstants.TASK_MANAGER_MEMORY_SEGMENT_SIZE_KEY,
+			TaskManagerOptions.MEMORY_SEGMENT_SIZE.key(),
 			"Minimum memory segment size is " + MemoryManager.MIN_PAGE_SIZE);
 
 		// check page size for power of two
 		checkConfigParameter(MathUtils.isPowerOf2(pageSize), pageSize,
-			ConfigConstants.TASK_MANAGER_MEMORY_SEGMENT_SIZE_KEY,
+			TaskManagerOptions.MEMORY_SEGMENT_SIZE.key(),
 			"Memory segment size must be a power of 2.");
 
 		// check whether we use heap or off-heap memory
 		final MemoryType memType;
-		if (configuration.getBoolean(ConfigConstants.TASK_MANAGER_MEMORY_OFF_HEAP_KEY, false)) {
+		if (configuration.getBoolean(TaskManagerOptions.MEMORY_OFF_HEAP)) {
 			memType = MemoryType.OFF_HEAP;
 		} else {
 			memType = MemoryType.HEAP;

@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.io.disk.iomanager.BufferFileWriter;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
@@ -50,9 +50,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * this state, different reader variants are returned (see
  * {@link SpillableSubpartitionView} and {@link SpilledSubpartitionView}).
  *
- * <p>Since the network buffer pool size is usually quite small (default is
- * {@link ConfigConstants#DEFAULT_TASK_MANAGER_NETWORK_NUM_BUFFERS}), most
- * spillable partitions will be spilled for real-world data sets.
+ * <p>Since the network buffer pool size for outgoing partitions is usually
+ * quite small, e.g. via the {@link TaskManagerOptions#NETWORK_BUFFERS_PER_CHANNEL}
+ * and {@link TaskManagerOptions#NETWORK_EXTRA_BUFFERS_PER_GATE} parameters
+ * for bounded channels or from the default value of
+ * {@link TaskManagerOptions#NETWORK_NUM_BUFFERS}, most spillable partitions
+ * will be spilled for real-world data sets.
  */
 class SpillableSubpartition extends ResultSubpartition {
 

@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.io.network.buffer;
 
-import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.core.memory.MemoryType;
@@ -199,7 +199,7 @@ public class NetworkBufferPool implements BufferPoolFactory {
 						numRequiredBuffers,
 						totalNumberOfMemorySegments - numTotalRequiredBuffers,
 						totalNumberOfMemorySegments,
-						ConfigConstants.TASK_MANAGER_NETWORK_NUM_BUFFERS_KEY));
+						TaskManagerOptions.NETWORK_NUM_BUFFERS.key()));
 			}
 
 			this.numTotalRequiredBuffers += numRequiredBuffers;
