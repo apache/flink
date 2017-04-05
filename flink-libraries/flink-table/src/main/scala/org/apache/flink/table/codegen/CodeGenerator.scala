@@ -21,6 +21,7 @@ package org.apache.flink.table.codegen
 import java.math.{BigDecimal => JBigDecimal}
 
 import org.apache.calcite.avatica.util.DateTimeUtils
+import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.`type`.SqlTypeName._
@@ -41,7 +42,7 @@ import org.apache.flink.table.codegen.calls.FunctionGenerator
 import org.apache.flink.table.codegen.calls.ScalarOperators._
 import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
-import org.apache.flink.table.runtime.TableFunctionCollector
+import org.apache.flink.table.runtime.{OuterJoinCoGroupFunction, TableFunctionCollector}
 import org.apache.flink.table.typeutils.TypeCheckUtils._
 import org.apache.flink.types.Row
 
@@ -203,6 +204,16 @@ class CodeGenerator(
   }
 
   /**
+    * @return term of the first iterable input
+    */
+  var iterableInput1Term = "it1"
+
+  /**
+    * @return term of the second iterable input
+    */
+  var iterableInput2Term = "it2"
+
+  /**
     * @return term of the (casted and possibly boxed) first input
     */
   var input1Term = "in1"
@@ -333,6 +344,188 @@ class CodeGenerator(
   }
 
   /**
+    * Generates a concrete [[org.apache.flink.table.runtime.OuterJoinCoGroupFunction]]
+    * processing Iterable inputs and can be passed to Java compiler.
+    * [[CodeGenerator.generateFunction]] is only suitable for those functions which process one or
+    * two input Object(s), so create the new method. This method is not a general use case for
+    * CoGroupFunction generating because it aims to solve outer joins with non-equi conditions.
+    *
+    * It should be noted that current implementation is not memory safe when do a many-to-one outer
+    * join which will copy the opposite side input into an ArrayList buffer. It's a work-around for
+    * now due to the backend limitation of shared iterator instance.
+    *
+    * @param name Class name of the Function. Must not be unique but has to be a valid Java class
+    *             identifier.
+    * @param joinType
+    * @param nonEquiCondition
+    * @param conversion
+    * @param conversionWithNull
+    * @param input1Type
+    * @param input2Type
+    * @param clazz Flink Function to be generated.
+    * @param returnType expected return type
+    * @tparam F Flink Function to be generated.
+    * @tparam T Return type of the Flink Function.
+    * @return instance of GeneratedFunction
+    */
+  def generateOuterJoinCoGroupFunction[F <: Function, T <: Any](
+      name: String,
+      joinType: JoinRelType,
+      nonEquiCondition: GeneratedExpression,
+      conversion: GeneratedExpression,
+      conversionWithNull: GeneratedExpression,
+      input1Type: TypeInformation[T],
+      input2Type: TypeInformation[T],
+      clazz: Class[F],
+      returnType: TypeInformation[T])
+  : GeneratedFunction[F, T] = {
+    if (joinType == JoinRelType.FULL){
+      throw new CodeGenException("Unsupported JoinType.")
+    }
+    if (clazz != classOf[OuterJoinCoGroupFunction[_, _, _]]) {
+      throw new CodeGenException("Unsupported Function.")
+    }
+    val funcName = newName(name)
+    val input1TypeTerm = CodeGenUtils.boxedTypeTermForTypeInfo(input1Type)
+    val input2TypeTerm = CodeGenUtils.boxedTypeTermForTypeInfo(input2Type)
+
+    val iterableInputTypeTerm1 = boxedTypeTermForIterableTypeInfo(input1)
+    val iterableInputTypeTerm2 = boxedTypeTermForIterableTypeInfo(
+      input2.getOrElse(
+        throw new CodeGenException("Input 2 for OuterJoinCoGroupFunction should not be null")))
+
+    // Janino does not support generics, that's why we need manual casting here
+    val samHeader = (s"void coGroup(Iterable _it1, Iterable _it2, org.apache.flink.util.Collector" +
+      s" $collectorTerm)",
+      List(
+        s"$iterableInputTypeTerm1 $iterableInput1Term = ($iterableInputTypeTerm1) _it1.iterator();",
+        s"$iterableInputTypeTerm2 $iterableInput2Term = ($iterableInputTypeTerm2) _it2.iterator();"
+      ),
+      List(
+        s"${input1TypeTerm} ${input1Term} = null;",
+        s"${input2TypeTerm} ${input2Term} = null;"
+      )
+    )
+
+    val partialIterationCodeBlock = if(joinType == JoinRelType.LEFT) {
+      j"""
+            if (null != ${iterableInput1Term}) {
+              long firstCnt = 0;
+              boolean needCopy = false;
+              java.util.List<${input2TypeTerm}> copy = null;
+              while(${iterableInput1Term}.hasNext()){
+                boolean matched = false;
+                ${input1Term} = (${input1TypeTerm})${iterableInput1Term}.next();
+
+                //init once
+                if (${iterableInput1Term}.hasNext() && firstCnt==0){
+                  needCopy = true;
+                  copy = new java.util.LinkedList<${input2TypeTerm}>();
+                }
+                if(firstCnt > 0){
+                  // it1:it2 many to one/many, restart iterator.
+                  // the backend Iterator do not supply a new instance but reseek is required here,
+                  // so replace the iterator into that from the copied list
+                  $iterableInput2Term = copy.iterator();
+
+                  // currently could not use the way below though it looks more pretty against
+                  // copied list
+                  //$iterableInput2Term = ($iterableInputTypeTerm2) _it2.iterator();
+                }
+
+                if (null != ${iterableInput2Term}) {
+                  while(${iterableInput2Term}.hasNext()){
+                    ${input2Term} = (${input2TypeTerm})${iterableInput2Term}.next();
+                    if(needCopy){
+                      copy.add(${input2Term});
+                    }
+        """.stripMargin
+    } else { // joinType == JoinRelType.RIGHT
+      j"""
+            if (null != ${iterableInput2Term}) {
+              long firstCnt = 0;
+              boolean needCopy = false;
+              java.util.List<${input1TypeTerm}> copy = null;
+              while(${iterableInput2Term}.hasNext()){
+                boolean matched = false;
+                ${input2Term} = (${input2TypeTerm})${iterableInput2Term}.next();
+
+                //init once
+                if (${iterableInput2Term}.hasNext() && firstCnt==0){
+                  needCopy = true;
+                  copy = new java.util.LinkedList<${input1TypeTerm}>();
+                }
+
+                if(firstCnt > 0){
+                  // it2:it1 many to one/many, restart iterator
+                  // the backend Iterator do not supply a new instance but reseek is required here,
+                  // so replace the iterator into that from the copied list
+                  $iterableInput1Term = copy.iterator();
+                  // currently could not use the way below though it looks more pretty against
+                  // copied list
+                  //$iterableInput1Term = ($iterableInputTypeTerm1) _it1.iterator();
+                }
+                if (null != ${iterableInput1Term}) {
+                  while(${iterableInput1Term}.hasNext()){
+                    ${input1Term} = (${input1TypeTerm})${iterableInput1Term}.next();
+                    if(needCopy){
+                      copy.add(${input1Term});
+                    }
+      """.stripMargin
+    }
+
+    // reuseInputUnboxingCode must duplicate now in inner 'while' and '!matched' code block
+    val funcCode =
+      j"""
+        public class $funcName
+            implements ${clazz.getCanonicalName} {
+
+          ${reuseMemberCode()}
+
+          public $funcName() throws Exception {
+            ${reuseInitCode()}
+          }
+
+          ${reuseConstructorCode(funcName)}
+
+          @Override
+          public ${samHeader._1} throws Exception {
+            ${samHeader._2.mkString("\n")}
+            ${samHeader._3.mkString("\n")}
+
+            ${partialIterationCodeBlock}
+
+                    ${reusePerRecordCode()}
+                    ${reuseInputUnboxingCode()}
+                    ${nonEquiCondition.code}
+                    if (${nonEquiCondition.resultTerm}) {
+                      ${conversion.code}
+                      matched = true;
+                      ${collectorTerm}.collect(${conversion.resultTerm});
+                    }
+                  } // end-while
+
+                  needCopy = false;// copy once
+                } // end-if
+
+                firstCnt++;
+
+                if (!matched) {
+                  ${reusePerRecordCode()}
+                  ${reuseInputUnboxingCode()}
+                  ${conversionWithNull.code}
+                  ${collectorTerm}.collect(${conversionWithNull.resultTerm});
+                } // end-if
+              } // end-while
+            } // end-if
+          } // end-method
+        } // end-class
+      """.stripMargin
+
+    GeneratedFunction(funcName, returnType, funcCode)
+  }
+
+  /**
     * Generates a values input format that can be passed to Java compiler.
     *
     * @param name Class name of the input format. Must not be unique but has to be a
@@ -457,6 +650,49 @@ class CodeGenerator(
     }
 
     generateResultExpression(input1AccessExprs ++ input2AccessExprs, returnType, resultFieldNames)
+  }
+
+  /**
+    * Similar to function [[CodeGenerator.generateConverterResultExpression]], difference is this
+    * function satisfy to that one input is null when generating result expression.
+    *
+    * @param returnType conversion target type. Inputs and output must have the same arity.
+    * @param resultFieldNames result field names necessary for a mapping to POJO fields.
+    * @param isNullFromLeft input1 is null if true, otherwise input2 is null
+    * @return
+    */
+  def generateConverterResultWithOneSideNullExpression(
+      returnType: TypeInformation[_ <: Any],
+      resultFieldNames: Seq[String],
+      isNullFromLeft: Boolean)
+    : GeneratedExpression = {
+
+    val input1AccessExprs = for (i <- 0 until input1.getArity)
+      yield if (isNullFromLeft) {
+        generateNullInputFieldAccess(input1, input1Term, i, input1PojoFieldMapping)
+      } else {
+        generateInputAccess(input1, input1Term, i, input1PojoFieldMapping)
+      }
+
+    val input2AccessExprs = input2 match {
+      case Some(ti) => for (i <- 0 until ti.getArity)
+        yield if (!isNullFromLeft) {
+          generateNullInputFieldAccess(ti, input2Term, i, input2PojoFieldMapping)
+        } else {
+          generateInputAccess(ti, input2Term, i, input2PojoFieldMapping)
+        }
+      case None => Seq() // add nothing
+    }
+
+    generateResultExpression(input1AccessExprs ++ input2AccessExprs, returnType, resultFieldNames)
+  }
+
+  def generateInput2NotNullExpression(): String = {
+    s"$input2Term != null"
+  }
+
+  def generateInput1NotNullExpression(): String = {
+    s"$input1Term != null"
   }
 
   /**
@@ -1204,6 +1440,39 @@ class CodeGenerator(
         |  $nullTerm = ${fieldAccessExpr.nullTerm};
         |}
         |""".stripMargin
+
+    GeneratedExpression(resultTerm, nullTerm, inputCheckCode, fieldType)
+  }
+
+  private def generateNullInputFieldAccess(
+      inputType: TypeInformation[_ <: Any],
+      inputTerm: String,
+      index: Int,
+      pojoFieldMapping: Option[Array[Int]])
+    : GeneratedExpression = {
+    val resultTerm = newName("result")
+    val nullTerm = newName("isNull")
+
+    val fieldType = inputType match {
+      case ct: CompositeType[_] =>
+        val fieldIndex = if (ct.isInstanceOf[PojoTypeInfo[_]]) {
+          pojoFieldMapping.get(index)
+        }
+        else {
+          index
+        }
+        ct.getTypeAt(fieldIndex)
+      case at: AtomicType[_] => at
+      case _ => throw new CodeGenException("Unsupported type for input field access.")
+    }
+    val resultTypeTerm = primitiveTypeTermForTypeInfo(fieldType)
+    val defaultValue = primitiveDefaultValue(fieldType)
+
+    val inputCheckCode =
+      s"""
+         |$resultTypeTerm $resultTerm = $defaultValue;
+         |boolean $nullTerm = true;
+         |""".stripMargin
 
     GeneratedExpression(resultTerm, nullTerm, inputCheckCode, fieldType)
   }

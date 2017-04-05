@@ -249,7 +249,7 @@ class JoinITCase(
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testLeftJoinWithNonEquiJoinPredicate(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
@@ -258,7 +258,16 @@ class JoinITCase(
     val ds1 = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
     val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
 
-    ds1.leftOuterJoin(ds2, 'a === 'd && 'b < 'h).select('c, 'g).toDataSet[Row].collect()
+    val results = ds1.leftOuterJoin(ds2, 'a === 'd && 'b < 'h).select('c, 'g).toDataSet[Row]
+      .collect()
+
+    val expected = "Hi,null\n" + "Hello,null\n" + "Hello world,BCD\n" +
+      "Hello world, how are you?,null\n" + "I am fine.,null\n" + "Luke Skywalker,null\n" +
+      "Comment#1,null\n" + "Comment#2,null\n" + "Comment#3,null\n" + "Comment#4,null\n" +
+      "Comment#5,null\n" + "Comment#6,null\n" + "Comment#7,null\n" + "Comment#8,null\n" +
+      "Comment#9,null\n" + "Comment#10,null\n" + "Comment#11,null\n" + "Comment#12,null\n" +
+      "Comment#13,null\n" + "Comment#14,null\n" + "Comment#15,null\n"
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -273,7 +282,7 @@ class JoinITCase(
     ds1.fullOuterJoin(ds2, 'a === 'd && 'b < 'h).select('c, 'g).toDataSet[Row].collect()
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testRightJoinWithNonEquiJoinPredicate(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
@@ -282,10 +291,18 @@ class JoinITCase(
     val ds1 = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
     val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
 
-    ds1.rightOuterJoin(ds2, 'a === 'd && 'b < 'h).select('c, 'g).toDataSet[Row].collect()
+    val results = ds1.rightOuterJoin(ds2, 'a === 'd && 'b < 'h).select('c, 'g).toDataSet[Row]
+      .collect()
+
+    val expected = "null,Hallo\n" + "null,Hallo Welt\n" + "null,Hallo Welt wie\n" +
+      "null,Hallo Welt wie gehts?\n" + "null,ABC\n" + "Hello world,BCD\n" + "null,CDE\n" +
+      "null,DEF\n" + "null,EFG\n" + "null,FGH\n" + "null,GHI\n" + "null,HIJ\n" + "null,IJK\n" +
+      "null,JKL\n" + "null,KLM\n"
+
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testLeftJoinWithLocalPredicate(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
@@ -293,8 +310,17 @@ class JoinITCase(
 
     val ds1 = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
     val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+    val results = ds1.leftOuterJoin(ds2, 'a === 'd && 'b < 3).select('c, 'g).toDataSet[Row]
+      .collect()
 
-    ds1.leftOuterJoin(ds2, 'a === 'd && 'b < 3).select('c, 'g).toDataSet[Row].collect()
+    val expected = "Hi,Hallo\n" + "Hello,Hallo Welt\n" + "Hello,Hallo Welt wie\n" +
+      "Hello world,Hallo Welt wie gehts?\n" + "Hello world,ABC\n" + "Hello world,BCD\n" +
+      "Hello world, how are you?,null\n" + "I am fine.,null\n" + "Luke Skywalker,null\n" +
+      "Comment#1,null\n" + "Comment#2,null\n" + "Comment#3,null\n" + "Comment#4,null\n" +
+      "Comment#5,null\n" + "Comment#6,null\n" + "Comment#7,null\n" + "Comment#8,null\n" +
+      "Comment#9,null\n" + "Comment#10,null\n" + "Comment#11,null\n" + "Comment#12,null\n" +
+      "Comment#13,null\n" + "Comment#14,null\n" + "Comment#15,null\n"
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -309,7 +335,7 @@ class JoinITCase(
     ds1.fullOuterJoin(ds2, 'a === 'd && 'b < 3).select('c, 'g).toDataSet[Row].collect()
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testRightJoinWithLocalPredicate(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
@@ -318,7 +344,13 @@ class JoinITCase(
     val ds1 = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
     val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
 
-    ds1.rightOuterJoin(ds2, 'a === 'd && 'b < 3).select('c, 'g).toDataSet[Row].collect()
+    val results = ds1.rightOuterJoin(ds2, 'a === 'd && 'b < 3).select('c, 'g).toDataSet[Row]
+      .collect()
+    val expected = "Hi,Hallo\n" + "Hello,Hallo Welt\n" + "Hello,Hallo Welt wie\n" +
+      "Hello world,Hallo Welt wie gehts?\n" + "Hello world,ABC\n" + "Hello world,BCD\n" +
+      "null,CDE\n" + "null,DEF\n" + "null,EFG\n" + "null,FGH\n" + "null,GHI\n" + "null,HIJ\n" +
+      "null,IJK\n" + "null,JKL\n" + "null,KLM\n"
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test

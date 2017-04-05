@@ -375,7 +375,7 @@ class JoinITCase(
     Assert.assertEquals(0, result)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testRightOuterJoinWithNonEquiJoinPredicate(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
@@ -384,15 +384,25 @@ class JoinITCase(
 
     val sqlQuery = "SELECT c, g FROM Table3 RIGHT OUTER JOIN Table5 ON b = e and a > d"
 
-    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
+    val ds1 = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
     val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('d, 'e, 'f, 'g, 'h)
     tEnv.registerTable("Table3", ds1)
     tEnv.registerTable("Table5", ds2)
 
-    tEnv.sql(sqlQuery).toDataSet[Row].collect()
+    val expected = "null,Hallo\n" + "Hello world,Hallo Welt\n" +
+      "Hello world, how are you?,Hallo Welt wie\n" + "I am fine.,Hallo Welt wie\n" +
+      "Luke Skywalker,Hallo Welt wie\n" + "Comment#1,Hallo Welt wie gehts?\n" +
+      "Comment#2,Hallo Welt wie gehts?\n" + "Comment#3,Hallo Welt wie gehts?\n" +
+      "Comment#4,Hallo Welt wie gehts?\n" + "Comment#5,ABC\n" + "Comment#6,ABC\n" +
+      "Comment#7,ABC\n" + "Comment#8,ABC\n" + "Comment#9,ABC\n" + "Comment#10,BCD\n" +
+      "Comment#11,BCD\n" + "Comment#12,BCD\n" + "Comment#13,BCD\n" + "Comment#14,BCD\n" +
+      "Comment#15,BCD\n" + "null,CDE\n" + "null,DEF\n" + "null,EFG\n" + "null,FGH\n" +
+      "null,GHI\n" + "null,HIJ\n" + "null,IJK\n" + "null,JKL\n" + "null,KLM\n"
+    val results = tEnv.sql(sqlQuery).toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testLeftOuterJoinWithNonEquiJoinPredicate(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
@@ -401,12 +411,21 @@ class JoinITCase(
 
     val sqlQuery = "SELECT c, g FROM Table3 LEFT OUTER JOIN Table5 ON b = e and a > d"
 
-    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
+    val ds1 = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
     val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('d, 'e, 'f, 'g, 'h)
     tEnv.registerTable("Table3", ds1)
     tEnv.registerTable("Table5", ds2)
 
-    tEnv.sql(sqlQuery).toDataSet[Row].collect()
+    val expected = "Hi,null\n" + "Hello,null\n" + "Hello world,Hallo Welt\n" +
+      "Hello world, how are you?,Hallo Welt wie\n" + "I am fine.,Hallo Welt wie\n" +
+      "Luke Skywalker,Hallo Welt wie\n" + "Comment#1,Hallo Welt wie gehts?\n" +
+      "Comment#2,Hallo Welt wie gehts?\n" + "Comment#3,Hallo Welt wie gehts?\n" +
+      "Comment#4,Hallo Welt wie gehts?\n" + "Comment#5,ABC\n" + "Comment#6,ABC\n" +
+      "Comment#7,ABC\n" + "Comment#8,ABC\n" + "Comment#9,ABC\n" + "Comment#10,BCD\n" +
+      "Comment#11,BCD\n" + "Comment#12,BCD\n" + "Comment#13,BCD\n" + "Comment#14,BCD\n" +
+      "Comment#15,BCD\n"
+    val results = tEnv.sql(sqlQuery).toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test(expected = classOf[TableException])
@@ -426,7 +445,7 @@ class JoinITCase(
     tEnv.sql(sqlQuery).toDataSet[Row].collect()
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testRightOuterJoinWithLocalPredicate(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
@@ -435,15 +454,24 @@ class JoinITCase(
 
     val sqlQuery = "SELECT c, g FROM Table3 RIGHT OUTER JOIN Table5 ON b = e and e > 3"
 
-    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
+    val ds1 = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
     val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('d, 'e, 'f, 'g, 'h)
     tEnv.registerTable("Table3", ds1)
     tEnv.registerTable("Table5", ds2)
 
-    tEnv.sql(sqlQuery).toDataSet[Row].collect()
+    val expected = "null,Hallo\n" + "null,Hallo Welt\n" + "null,Hallo Welt wie\n" +
+      "Comment#1,Hallo Welt wie gehts?\n" + "Comment#2,Hallo Welt wie gehts?\n" +
+      "Comment#3,Hallo Welt wie gehts?\n" + "Comment#4,Hallo Welt wie gehts?\n" +
+      "Comment#5,ABC\n" + "Comment#6,ABC\n" + "Comment#7,ABC\n" + "Comment#8,ABC\n" +
+      "Comment#9,ABC\n" + "Comment#10,BCD\n" + "Comment#11,BCD\n" + "Comment#12,BCD\n" +
+      "Comment#13,BCD\n" + "Comment#14,BCD\n" + "Comment#15,BCD\n" + "null,CDE\n" + "null,DEF\n" +
+      "null,EFG\n" + "null,FGH\n" + "null,GHI\n" + "null,HIJ\n" + "null,IJK\n" + "null,JKL\n" +
+      "null,KLM\n"
+    val results = tEnv.sql(sqlQuery).toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testLeftOuterJoinWithLocalPredicate(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
@@ -452,12 +480,20 @@ class JoinITCase(
 
     val sqlQuery = "SELECT c, g FROM Table3 LEFT OUTER JOIN Table5 ON b = e and b > 3"
 
-    val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
+    val ds1 = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
     val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('d, 'e, 'f, 'g, 'h)
     tEnv.registerTable("Table3", ds1)
     tEnv.registerTable("Table5", ds2)
 
-    tEnv.sql(sqlQuery).toDataSet[Row].collect()
+    val expected = "Hi,null\n" + "Hello,null\n" + "Hello world,null\n" +
+      "Hello world, how are you?,null\n" + "I am fine.,null\n" + "Luke Skywalker,null\n" +
+      "Comment#1,Hallo Welt wie gehts?\n" + "Comment#2,Hallo Welt wie gehts?\n" +
+      "Comment#3,Hallo Welt wie gehts?\n" + "Comment#4,Hallo Welt wie gehts?\n" +
+      "Comment#5,ABC\n" + "Comment#6,ABC\n" + "Comment#7,ABC\n" + "Comment#8,ABC\n" +
+      "Comment#9,ABC\n" + "Comment#10,BCD\n" + "Comment#11,BCD\n" + "Comment#12,BCD\n" +
+      "Comment#13,BCD\n" + "Comment#14,BCD\n" + "Comment#15,BCD\n"
+    val results = tEnv.sql(sqlQuery).toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test(expected = classOf[TableException])

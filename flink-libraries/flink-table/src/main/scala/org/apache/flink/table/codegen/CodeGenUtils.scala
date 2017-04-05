@@ -78,6 +78,10 @@ object CodeGenUtils {
       tpe.getTypeClass.getCanonicalName
   }
 
+  def boxedTypeTermForIterableTypeInfo(tpe: TypeInformation[_]): String = {
+    s"java.util.Iterator<${tpe.getTypeClass.getCanonicalName}>"
+  }
+
   def boxedTypeTermForTypeInfo(tpe: TypeInformation[_]): String = tpe match {
     // From PrimitiveArrayTypeInfo we would get class "int[]", scala reflections
     // does not seem to like this, so we manually give the correct type here.
