@@ -350,7 +350,10 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     SqlStdOperatorTable.EXISTS,
     // EXTENSIONS
     EventTimeExtractor,
-    ProcTimeExtractor
+    ProcTimeExtractor,
+    SqlStdOperatorTable.TUMBLE,
+    SqlStdOperatorTable.HOP,
+    SqlStdOperatorTable.SESSION
   )
 
   builtInSqlOperators.foreach(register)

@@ -1418,9 +1418,45 @@ val result2 = tableEnv.sql(
 </div>
 </div>
 
+#### Group windows
+
+Streaming SQL supports aggregation on group windows by specifying the windows in the `GROUP BY` clause. The following table describes the syntax of the group windows:
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th><code>GROUP BY</code> clause</th>
+      <th class="text-left">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <tr>
+      <td><code>TUMBLE(mode, interval)</code></td>
+      <td>A tumbling window over the time period specified by <code>interval</code>.</td>
+    </tr>
+    <tr>
+      <td><code>HOP(mode, slide, size)</code></td>
+      <td>A sliding window with the length of <code>size</code> and moves every <code>slide</code>.</td>
+    </tr>
+    <tr>
+      <td><code>SESSION(mode, gap)</code></td>
+      <td>A session window that has <code>gap</code> as the gap between two windows.</td>
+    </tr>
+  </tbody>
+</table>
+
+The parameters `interval`, `slide`, `size`, `gap` must be constant time intervals. The `mode` can be either `proctime()` or `rowtime()`, which specifies the window is over the processing time or the event time.
+
+As an example, the following SQL computes the total number of records over a 15 minute tumbling window over processing time:
+
+```
+SELECT COUNT(*) FROM $table GROUP BY TUMBLE(proctime(), INTERVAL '15' MINUTE)
+```
+
 #### Limitations
 
-The current version of streaming SQL only supports `SELECT`, `FROM`, `WHERE`, and `UNION` clauses. Aggregations or joins are not supported yet.
+The current version of streaming SQL only supports `SELECT`, `FROM`, `WHERE`, and `UNION` clauses. Aggregations or joins are not fully supported yet.
 
 {% top %}
 
@@ -5093,8 +5129,7 @@ The following operations are not supported yet:
 - Collection functions
 - Aggregate functions like STDDEV_xxx, VAR_xxx, and REGR_xxx
 - Distinct aggregate functions like COUNT DISTINCT
-- Window functions
-- Grouping functions
+- Row windows
 
 
 
