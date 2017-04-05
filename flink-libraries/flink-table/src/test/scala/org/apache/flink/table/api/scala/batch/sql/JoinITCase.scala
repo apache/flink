@@ -40,10 +40,8 @@ class JoinITCase(
 
   @Test
   def testJoin(): Unit = {
-
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
-
     val sqlQuery = "SELECT c, g FROM Table3, Table5 WHERE b = e"
 
     val ds1 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
@@ -280,8 +278,6 @@ class JoinITCase(
     tEnv.registerTable("Table3", ds1)
     tEnv.registerTable("Table5", ds2)
 
-    tEnv.sql(sqlQuery).toDataSet[Row].collect()
-
     val expected = "Hi,Hallo\n" + "Hello,Hallo Welt\n" + "Hello world,Hallo Welt\n" +
       "null,Hallo Welt wie\n" + "null,Hallo Welt wie gehts?\n" + "null,ABC\n" + "null,BCD\n" +
       "null,CDE\n" + "null,DEF\n" + "null,EFG\n" + "null,FGH\n" + "null,GHI\n" + "null,HIJ\n" +
@@ -303,8 +299,6 @@ class JoinITCase(
     val ds2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('d, 'e, 'f, 'g, 'h)
     tEnv.registerTable("Table3", ds1)
     tEnv.registerTable("Table5", ds2)
-
-    tEnv.sql(sqlQuery).toDataSet[Row].collect()
 
     val expected = "Hi,Hallo\n" + "Hello,Hallo Welt\n" + "Hello world,Hallo Welt\n" +
       "null,Hallo Welt wie\n" + "null,Hallo Welt wie gehts?\n" + "null,ABC\n" + "null,BCD\n" +
@@ -372,8 +366,181 @@ class JoinITCase(
 
     val sqlQuery1 = "SELECT * FROM A CROSS JOIN (SELECT count(*) FROM A HAVING count(*) < 0)"
     val result = tEnv.sql(sqlQuery1).count()
-
     Assert.assertEquals(0, result)
+  }
+
+  @Test
+  def testLeftNullRightJoin(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val sqlQuery =
+      "SELECT a, cnt " +
+      "FROM (SELECT cnt FROM (SELECT COUNT(*) AS cnt FROM B) WHERE cnt < 0) RIGHT JOIN A ON a < cnt"
+
+    val ds1 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c, 'd, 'e)
+    val ds2 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv)
+    tEnv.registerTable("A", ds1)
+    tEnv.registerTable("B", ds2)
+
+
+    val result = tEnv.sql(sqlQuery)
+    val expected = Seq(
+          "1,null",
+          "2,null", "2,null",
+          "3,null", "3,null", "3,null",
+          "4,null", "4,null", "4,null", "4,null",
+          "5,null", "5,null", "5,null", "5,null", "5,null").mkString("\n")
+
+    val results = result.toDataSet[Row].collect()
+
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+
+  @Test
+  def testLeftSingleRightJoinEqualPredicate(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val sqlQuery =
+      "SELECT a, cnt FROM (SELECT COUNT(*) AS cnt FROM B) RIGHT JOIN A ON cnt = a"
+
+    val ds1 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c, 'd, 'e)
+    val ds2 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv)
+    tEnv.registerTable("A", ds1)
+    tEnv.registerTable("B", ds2)
+
+    val result = tEnv.sql(sqlQuery)
+    val expected = Seq(
+      "1,null", "2,null", "2,null", "3,3", "3,3",
+      "3,3", "4,null", "4,null", "4,null",
+      "4,null", "5,null", "5,null", "5,null",
+      "5,null", "5,null").mkString("\n")
+
+    val results = result.toDataSet[Row].collect()
+
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testLeftSingleRightJoinNotEqualPredicate(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val sqlQuery =
+      "SELECT a, cnt FROM (SELECT COUNT(*) AS cnt FROM B) RIGHT JOIN A ON cnt > a"
+
+    val ds1 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c, 'd, 'e)
+    val ds2 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv)
+    tEnv.registerTable("A", ds1)
+    tEnv.registerTable("B", ds2)
+
+    val result = tEnv.sql(sqlQuery)
+    val expected = Seq(
+      "1,3", "2,3", "2,3", "3,null", "3,null",
+      "3,null", "4,null", "4,null", "4,null",
+      "4,null", "5,null", "5,null", "5,null",
+      "5,null", "5,null").mkString("\n")
+
+    val results = result.toDataSet[Row].collect()
+
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testRightNullLeftJoin(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val sqlQuery =
+      "SELECT a, cnt " +
+      "FROM A LEFT JOIN (SELECT cnt FROM (SELECT COUNT(*) AS cnt FROM B) WHERE cnt < 0) ON cnt > a"
+
+    val ds1 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv)
+    val ds2 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
+    tEnv.registerTable("A", ds2)
+    tEnv.registerTable("B", ds1)
+
+    val result = tEnv.sql(sqlQuery)
+
+    val expected = Seq(
+      "2,null", "3,null", "1,null").mkString("\n")
+
+    val results = result.toDataSet[Row].collect()
+
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testRightSingleLeftJoinEqualPredicate(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val sqlQuery =
+      "SELECT a, cnt FROM A LEFT JOIN (SELECT COUNT(*) AS cnt FROM B) ON cnt = a"
+
+    val ds1 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c, 'd, 'e)
+    val ds2 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv)
+    tEnv.registerTable("A", ds1)
+    tEnv.registerTable("B", ds2)
+
+    val result = tEnv.sql(sqlQuery)
+
+    val expected = Seq(
+      "1,null", "2,null", "2,null", "3,3", "3,3",
+      "3,3", "4,null", "4,null", "4,null",
+      "4,null", "5,null", "5,null", "5,null",
+      "5,null", "5,null").mkString("\n")
+
+    val results = result.toDataSet[Row].collect()
+
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testRightSingleLeftJoinNotEqualPredicate(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val sqlQuery =
+      "SELECT a, cnt FROM A LEFT JOIN (SELECT COUNT(*) AS cnt FROM B) ON cnt < a"
+
+    val ds1 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c, 'd, 'e)
+    val ds2 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv)
+    tEnv.registerTable("A", ds1)
+    tEnv.registerTable("B", ds2)
+
+    val result = tEnv.sql(sqlQuery)
+
+    val expected = Seq(
+      "1,null", "2,null", "2,null", "3,null", "3,null",
+      "3,null", "4,3", "4,3", "4,3",
+      "4,3", "5,3", "5,3", "5,3",
+      "5,3", "5,3").mkString("\n")
+
+    val results = result.toDataSet[Row].collect()
+
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testRightSingleLeftJoinTwoFields(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val sqlQuery =
+      "SELECT a, cnt, cnt2 " +
+      "FROM t1 LEFT JOIN (SELECT COUNT(*) AS cnt,COUNT(*) AS cnt2 FROM t2 ) AS x ON a = cnt"
+
+    val ds1 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c, 'd, 'e)
+    val ds2 = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv)
+    tEnv.registerTable("t1", ds1)
+    tEnv.registerTable("t2", ds2)
+
+    val result = tEnv.sql(sqlQuery)
+    val expected = Seq(
+      "1,null,null",
+      "2,null,null", "2,null,null",
+      "3,3,3", "3,3,3", "3,3,3",
+      "4,null,null", "4,null,null", "4,null,null", "4,null,null",
+      "5,null,null", "5,null,null", "5,null,null", "5,null,null", "5,null,null").mkString("\n")
+
+    val results = result.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
   @Test
