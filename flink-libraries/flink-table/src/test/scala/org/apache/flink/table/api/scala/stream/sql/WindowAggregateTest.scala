@@ -299,27 +299,6 @@ class WindowAggregateTest extends TableTestBase {
   }
 
   @Test
-  def testGroupWithFloorExpression() = {
-    val sql = "SELECT COUNT(*) FROM MyTable GROUP BY FLOOR(localTimestamp TO HOUR)"
-    val expected =
-      unaryNode(
-        "DataStreamCalc",
-        unaryNode(
-          "DataStreamGroupAggregate",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "FLOOR(LOCALTIMESTAMP(), FLAG(HOUR)) AS $f0")
-          ),
-          term("groupBy", "$f0"),
-          term("select", "$f0", "COUNT(*) AS EXPR$0")
-        ),
-        term("select", "EXPR$0")
-      )
-    streamUtil.verifySql(sql, expected)
-  }
-
-  @Test
   def testUnboundPartitionedProcessingWindowWithRange() = {
     val sql = "SELECT " +
       "c, " +

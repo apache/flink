@@ -83,7 +83,7 @@ class GroupAggProcessFunction(
       i += 1
     }
 
-    // Set aggregate (early-firing) result to the final output
+    // Set aggregate result to the final output
     i = 0
     while (i < aggregates.length) {
       val index = groupings.length + i

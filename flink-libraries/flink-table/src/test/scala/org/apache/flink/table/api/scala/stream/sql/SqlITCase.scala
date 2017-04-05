@@ -47,7 +47,7 @@ class SqlITCase extends StreamingWithStateTestBase {
     (8L, 8, "Hello World"),
     (20L, 20, "Hello World"))
 
-  /** test groupby without window & early-firing **/
+  /** test unbounded groupby (without window) **/
   @Test
   def testUnboundedGroupby(): Unit = {
 

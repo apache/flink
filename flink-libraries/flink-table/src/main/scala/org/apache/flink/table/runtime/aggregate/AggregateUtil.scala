@@ -73,8 +73,7 @@ object AggregateUtil {
         inputType,
         needRetraction = false)
 
-    val aggregationStateType: RowTypeInfo =
-      createRowTypeForKeysAndAggregates(Array(), aggregates, inputType)
+    val aggregationStateType: RowTypeInfo = createAccumulatorRowType(aggregates)
 
     if (isPartitioned) {
       new UnboundedProcessingOverProcessFunction(
@@ -111,8 +110,7 @@ object AggregateUtil {
         inputType,
         needRetraction = false)
 
-    val aggregationStateType: RowTypeInfo =
-      createRowTypeForKeysAndAggregates(Array(), aggregates, inputType)
+    val aggregationStateType: RowTypeInfo = createAccumulatorRowType(aggregates)
 
     new GroupAggProcessFunction(
       aggregates,

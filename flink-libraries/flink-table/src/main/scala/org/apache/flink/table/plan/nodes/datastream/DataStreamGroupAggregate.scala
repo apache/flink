@@ -21,6 +21,7 @@ import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
+import org.apache.flink.api.java.functions.NullByteKeySelector
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.StreamTableEnvironment
 import org.apache.flink.table.calcite.FlinkTypeFactory
@@ -31,7 +32,7 @@ import org.apache.flink.table.runtime.aggregate.AggregateUtil.CalcitePair
 
 /**
   *
-  * Flink RelNode for data stream group (without window & early-firing) aggregate
+  * Flink RelNode for data stream unbounded group aggregate
   *
   * @param cluster         Cluster of the RelNode, represent for an environment of related
   *                        relational expressions during the optimization of a query.
@@ -55,8 +56,6 @@ class DataStreamGroupAggregate(
     with DataStreamRel {
 
   override def deriveRowType() = rowRelDataType
-
-  def getGrouping() = groupings
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new DataStreamGroupAggregate(
@@ -100,18 +99,35 @@ class DataStreamGroupAggregate(
 
     val keyedAggOpName = s"groupBy: (${groupingToString(inputType, groupings)}), " +
       s"select: ($aggString)"
+    val nonKeyedAggOpName = s"select: ($aggString)"
 
     val processFunction = AggregateUtil.createGroupAggregateFunction(
       namedAggregates,
       inputType,
       groupings)
 
-    inputDS
-      .keyBy(groupings: _*)
-      .process(processFunction)
-      .returns(rowTypeInfo)
-      .name(keyedAggOpName)
-      .asInstanceOf[DataStream[Row]]
+    val result: DataStream[Row] =
+    // grouped / keyed aggregation
+      if (groupings.nonEmpty) {
+        inputDS
+        .keyBy(groupings: _*)
+        .process(processFunction)
+        .returns(rowTypeInfo)
+        .name(keyedAggOpName)
+        .asInstanceOf[DataStream[Row]]
+      }
+      // global / non-keyed aggregation
+      else {
+        inputDS
+        .keyBy(new NullByteKeySelector[Row])
+        .process(processFunction)
+        .setParallelism(1)
+        .setMaxParallelism(1)
+        .returns(rowTypeInfo)
+        .name(nonKeyedAggOpName)
+        .asInstanceOf[DataStream[Row]]
+      }
+    result
   }
 }
 
