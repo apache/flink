@@ -949,8 +949,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 						checkpointMetaData.getCheckpointId());
 				}
 			} catch (Exception e) {
-				e.printStackTrace();;
-				System.err.println("we are exception"+e);
 				// the state is completed if an exception occurred in the acknowledgeCheckpoint call
 				// in order to clean up, we have to set it to RUNNING again.
 				asyncCheckpointState.compareAndSet(
