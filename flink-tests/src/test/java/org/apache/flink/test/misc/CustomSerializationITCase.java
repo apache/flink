@@ -24,6 +24,7 @@ import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
@@ -50,7 +51,7 @@ public class CustomSerializationITCase {
 		try {
 			Configuration config = new Configuration();
 			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, PARLLELISM);
-			config.setInteger(ConfigConstants.TASK_MANAGER_MEMORY_SIZE_KEY, 30);
+			config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 30L);
 			cluster = new LocalFlinkMiniCluster(config, false);
 			cluster.start();
 		}
