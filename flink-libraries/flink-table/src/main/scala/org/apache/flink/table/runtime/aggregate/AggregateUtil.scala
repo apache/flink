@@ -80,13 +80,16 @@ object AggregateUtil {
     val aggregationStateType: RowTypeInfo =
       createDataSetAggregateBufferDataType(Array(), aggregates, inputType)
 
+    val forwardMapping = (0 until inputType.getFieldCount).map(x => (x, x)).toArray
+
     val genFunction = generator.generateAggregateHelper[AggregateHelper](
       "UnboundedProcessingOverAggregateHelper",
       classOf[AggregateHelper],
       aggFields,
       aggregates,
       generator,
-      inputType)
+      inputType,
+      forwardMapping)
 
     if (isPartitioned) {
       new UnboundedProcessingOverProcessFunction(
@@ -130,13 +133,16 @@ object AggregateUtil {
     val aggregationStateType: RowTypeInfo = createAccumulatorRowType(aggregates)
     val inputRowType = FlinkTypeFactory.toInternalRowTypeInfo(inputType).asInstanceOf[RowTypeInfo]
 
+    val forwardMapping = (0 until inputType.getFieldCount).map(x => (x, x)).toArray
+
     val genFunction = generator.generateAggregateHelper[AggregateHelper](
       "BoundedOverAggregateHelper",
       classOf[AggregateHelper],
       aggFields,
       aggregates,
       generator,
-      inputType)
+      inputType,
+      forwardMapping)
 
     if (isRowTimeType) {
       if (isRangeClause) {
@@ -195,13 +201,16 @@ object AggregateUtil {
 
     val aggregationStateType: RowTypeInfo = createAccumulatorRowType(aggregates)
 
+    val forwardMapping = (0 until inputType.getFieldCount).map(x => (x, x)).toArray
+
     val genFunction = generator.generateAggregateHelper[AggregateHelper](
       "UnboundedEventTimeOverAggregateHelper",
       classOf[AggregateHelper],
       aggFields,
       aggregates,
       generator,
-      inputType)
+      inputType,
+      forwardMapping)
 
     if (isRows) {
       // ROWS unbounded over process function

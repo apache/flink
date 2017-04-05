@@ -261,7 +261,8 @@ class CodeGenerator(
       aggFields: Array[Array[Int]],
       aggregates: Array[AggregateFunction[_ <: Any]],
       generator: CodeGenerator,
-      inputType: RelDataType)
+      inputType: RelDataType,
+      forwardMapping: Array[(Int, Int)])
   : AggregateHelperFunction = {
 
     def generateSetOutput(
@@ -345,21 +346,53 @@ class CodeGenerator(
 
       val sig: String =
         j"""
-           |  public void createAccumulator(
-           |    org.apache.flink.types.Row accs,
-           |    int rowOffset)
+           |  public org.apache.flink.types.Row createAccumulator()
            |    """.stripMargin
+      val init: String =
+        j"""
+           |      org.apache.flink.types.Row accs =
+           |          new org.apache.flink.types.Row(${aggs.length});"""
+          .stripMargin
       val create: String = {
         for (i <- aggs.indices) yield
           j"""
              |    accs.setField(
-             |      rowOffset + $i,
+             |      $i,
              |      ${aggs(i)}.createAccumulator());"""
+            .stripMargin
+      }.mkString("\n")
+      val ret: String =
+        j"""
+           |      return accs;"""
+          .stripMargin
+
+      j"""$sig {
+         |$init
+         |$create
+         |$ret
+         |  }""".stripMargin
+    }
+
+    def generateForward(
+        forwardMapping: Array[(Int, Int)]): String = {
+
+      val sig: String =
+        j"""
+           |  public void forwardValueToOutput(
+           |    org.apache.flink.types.Row input,
+           |    org.apache.flink.types.Row output)
+           |    """.stripMargin
+      val forward: String = {
+        for (i <- forwardMapping.indices) yield
+          j"""
+             |    output.setField(
+             |      ${forwardMapping(i)._1},
+             |      input.getField(${forwardMapping(i)._2}));"""
             .stripMargin
       }.mkString("\n")
 
       j"""$sig {
-         |$create
+         |$forward
          |  }""".stripMargin
     }
 
@@ -407,6 +440,7 @@ class CodeGenerator(
     funcCode += generateAccumulate(accTypes, aggs, parameters) + "\n"
     funcCode += generateRetract(accTypes, aggs, parameters) + "\n"
     funcCode += generateCreateAccumulator(aggs) + "\n"
+    funcCode += generateForward(forwardMapping) + "\n"
     funcCode += "}"
 
     AggregateHelperFunction(funcName, funcCode)

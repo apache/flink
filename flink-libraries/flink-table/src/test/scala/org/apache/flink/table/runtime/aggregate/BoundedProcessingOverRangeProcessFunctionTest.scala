@@ -141,17 +141,23 @@ class BoundedProcessingOverRangeProcessFunctionTest {
         |      (java.lang.Long) input.getField(4));
         |  }
         |
-        |  public void createAccumulator(
-        |    org.apache.flink.types.Row accs,
-        |    int rowOffset) {
-        |    accs.setField(
-        |      rowOffset + 0,
-        |      longMinWithRetractAggFunction.createAccumulator());
+        |   public org.apache.flink.types.Row createAccumulator() {
+        |        org.apache.flink.types.Row accs =
+        |                new org.apache.flink.types.Row(2);
+        |        accs.setField(0, longMinWithRetractAggFunction.createAccumulator());
+        |        accs.setField(1, longMaxWithRetractAggFunction.createAccumulator());
+        |        return accs;
+        |    }
         |
-        |    accs.setField(
-        |      rowOffset + 1,
-        |      longMaxWithRetractAggFunction.createAccumulator());
-        |  }
+        |    public void forwardValueToOutput(
+        |            org.apache.flink.types.Row input,
+        |            org.apache.flink.types.Row output) {
+        |        output.setField(0, input.getField(0));
+        |        output.setField(1, input.getField(1));
+        |        output.setField(2, input.getField(2));
+        |        output.setField(3, input.getField(3));
+        |        output.setField(4, input.getField(4));
+        |    }
         |}
       """.stripMargin
 

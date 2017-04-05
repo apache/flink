@@ -136,7 +136,6 @@ abstract class UnboundedEventTimeOverProcessFunction(
     if (keyIterator.hasNext) {
       val curWatermark = ctx.timerService.currentWatermark
       var existEarlyRecord: Boolean = false
-      var i = 0
 
       // sort the record timestamps
       do {
@@ -153,8 +152,7 @@ abstract class UnboundedEventTimeOverProcessFunction(
       var lastAccumulator = accumulatorState.value
       if (lastAccumulator == null) {
         // initialize accumulator
-        lastAccumulator = new Row(NumOfAggregates)
-        function.createAccumulator(lastAccumulator, 0)
+        lastAccumulator = function.createAccumulator()
       }
 
       // emit the rows in order
@@ -236,10 +234,7 @@ class UnboundedEventTimeRowsOverProcessFunction(
 
       var j = 0
       // copy forwarded fields to output row
-      while (j < forwardedFieldCount) {
-        output.setField(j, curRow.getField(j))
-        j += 1
-      }
+      function.forwardValueToOutput(curRow, output)
 
       // update accumulators and copy aggregates to output row
       function.accumulate(lastAccumulator, curRow)
@@ -286,11 +281,7 @@ class UnboundedEventTimeRangeOverProcessFunction(
       val curRow = curRowList.get(i)
 
       // copy forwarded fields to output row
-      var j = 0
-      while (j < forwardedFieldCount) {
-        output.setField(j, curRow.getField(j))
-        j += 1
-      }
+      function.forwardValueToOutput(curRow, output)
 
       //copy aggregates to output row
       function.setOutput(lastAccumulator, output, forwardedFieldCount)

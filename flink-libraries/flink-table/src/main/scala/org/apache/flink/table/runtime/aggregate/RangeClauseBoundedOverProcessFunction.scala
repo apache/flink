@@ -142,9 +142,8 @@ class RangeClauseBoundedOverProcessFunction(
 
       // initialize when first run or failover recovery per key
       if (null == accumulators) {
-        accumulators = new Row(NumOfaggregates)
+        accumulators = function.createAccumulator()
         aggregatesIndex = 0
-        function.createAccumulator(accumulators, 0)
       }
 
       // keep up timestamps of retract data
@@ -183,10 +182,7 @@ class RangeClauseBoundedOverProcessFunction(
       dataListIndex = 0
       while (dataListIndex < inputs.size()) {
         aggregatesIndex = 0
-        while (aggregatesIndex < forwardedFieldCount) {
-          output.setField(aggregatesIndex, inputs.get(dataListIndex).getField(aggregatesIndex))
-          aggregatesIndex += 1
-        }
+        function.forwardValueToOutput(inputs.get(dataListIndex), output)
         out.collect(output)
         dataListIndex += 1
       }

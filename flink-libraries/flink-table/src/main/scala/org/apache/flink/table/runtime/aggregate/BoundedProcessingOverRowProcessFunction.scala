@@ -107,11 +107,9 @@ class BoundedProcessingOverRowProcessFunction(
     val currentTime = ctx.timerService.currentProcessingTime
 
     // initialize state for the processed element
-    var i = 0
     var accumulators = accumulatorState.value
     if (accumulators == null) {
-      accumulators = new Row(NumOfAggregates)
-      function.createAccumulator(accumulators, 0)
+      accumulators = function.createAccumulator()
     }
 
     // get smallest timestamp
@@ -156,11 +154,7 @@ class BoundedProcessingOverRowProcessFunction(
     }
 
     // copy forwarded fields in output row
-    i = 0
-    while (i < forwardedFieldCount) {
-      output.setField(i, input.getField(i))
-      i += 1
-    }
+    function.forwardValueToOutput(input, output)
 
     // accumulate current row and set aggregate in output row
     function.accumulate(accumulators, input)

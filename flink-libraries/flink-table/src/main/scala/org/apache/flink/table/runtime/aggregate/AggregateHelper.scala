@@ -56,12 +56,18 @@ abstract class AggregateHelper extends Function {
   def retract(accumulators: Row, input: Row)
 
   /**
+    * Init the accumulators, and save them to a accumulators Row.
+    *
+    * @return a row of accumulators which contains the aggregated results
+    */
+  def createAccumulator(): Row
+
+  /**
     * Init the accumulators, and save them to the input accumulators Row.
     *
-    * @param accumulators the accumulators (saved in a row) which contains the aggregated results
-    * @param rowOffset    offset of the position (in the accumulators row) where the accumulators
-    *                     starts
+    * @param input  input values bundled in a row
+    * @param output output results collected in a row
     */
-  def createAccumulator(accumulators: Row, rowOffset: Int)
+  def forwardValueToOutput(input: Row, output: Row)
 
 }

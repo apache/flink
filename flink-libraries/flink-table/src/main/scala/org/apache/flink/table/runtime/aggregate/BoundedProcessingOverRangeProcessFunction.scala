@@ -117,8 +117,7 @@ class BoundedProcessingOverRangeProcessFunction(
     var accumulators = accumulatorState.value()
 
     if (null == accumulators) {
-      accumulators = new Row(NumOfaggregates)
-      function.createAccumulator(accumulators, 0)
+      accumulators = function.createAccumulator()
     }
 
     // update the elements to be removed and retract them from aggregators
@@ -169,11 +168,7 @@ class BoundedProcessingOverRangeProcessFunction(
       val input = currentElements.get(iElemenets)
 
       // set the fields of the last event to carry on with the aggregates
-      i = 0
-      while (i < forwardedFieldCount) {
-        output.setField(i, input.getField(i))
-        i += 1
-      }
+      function.forwardValueToOutput(input, output)
 
       // add the accumulators values to result
       function.setOutput(accumulators, output, forwardedFieldCount)

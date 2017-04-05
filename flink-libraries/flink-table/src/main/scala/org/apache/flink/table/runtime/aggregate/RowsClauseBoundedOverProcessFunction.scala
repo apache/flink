@@ -151,16 +151,14 @@ class RowsClauseBoundedOverProcessFunction(
       var retractList: JList[Row] = null
       var retractTs: Long = Long.MaxValue
       var retractCnt: Int = 0
-      var j = 0
       var i = 0
 
-      while (j < inputs.size) {
-        val input = inputs.get(j)
+      while (i < inputs.size) {
+        val input = inputs.get(i)
 
         // initialize when first run or failover recovery per key
         if (null == accumulators) {
-          accumulators = new Row(NumOfaggregates)
-          function.createAccumulator(accumulators, 0)
+          accumulators = function.createAccumulator()
         }
 
         var retractRow: Row = null
@@ -194,11 +192,7 @@ class RowsClauseBoundedOverProcessFunction(
         }
 
         // copy forwarded fields to output row
-        i = 0
-        while (i < forwardedFieldCount) {
-          output.setField(i, input.getField(i))
-          i += 1
-        }
+        function.forwardValueToOutput(input, output)
 
         // retract old row from accumulators
         if (null != retractRow) {
@@ -208,7 +202,7 @@ class RowsClauseBoundedOverProcessFunction(
         // accumulate current row and set aggregate in output row
         function.accumulate(accumulators, input)
         function.setOutput(accumulators, output, forwardedFieldCount)
-        j += 1
+        i += 1
 
         out.collect(output)
       }

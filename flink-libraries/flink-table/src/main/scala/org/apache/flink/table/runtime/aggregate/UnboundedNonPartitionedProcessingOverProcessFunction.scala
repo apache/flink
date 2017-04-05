@@ -65,8 +65,7 @@ class UnboundedNonPartitionedProcessingOverProcessFunction(
       if (it.hasNext) {
         accumulators = it.next()
       } else {
-        accumulators = new Row(NumOfAggregates)
-        function.createAccumulator(accumulators, 0)
+        accumulators = function.createAccumulator()
       }
     }
   }
@@ -76,11 +75,7 @@ class UnboundedNonPartitionedProcessingOverProcessFunction(
     ctx: ProcessFunction[Row, Row]#Context,
     out: Collector[Row]): Unit = {
 
-    var i = 0
-    while (i < forwardedFieldCount) {
-      output.setField(i, input.getField(i))
-      i += 1
-    }
+    function.forwardValueToOutput(input, output)
 
     function.accumulate(accumulators, input)
     function.setOutput(accumulators, output, forwardedFieldCount)
