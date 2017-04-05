@@ -951,6 +951,8 @@ object ScalarOperators {
     : GeneratedExpression = {
     val resultTerm = newName("result")
     val nullTerm = newName("isNull")
+    val leftNullTerm = newName("leftIsNull")
+    val rightNullTerm = newName("rightIsNull")
     val resultTypeTerm = primitiveTypeTermForTypeInfo(resultType)
     val defaultValue = primitiveDefaultValue(resultType)
 
@@ -995,6 +997,8 @@ object ScalarOperators {
       s"""
         |${left.code}
         |${right.code}
+        |boolean $leftNullTerm = ${left.nullTerm};
+        |boolean $rightNullTerm = ${right.nullTerm};
         |boolean $nullTerm = ${left.nullTerm} || ${right.nullTerm};
         |$resultTypeTerm $resultTerm;
         |if ($nullTerm) {
@@ -1013,7 +1017,11 @@ object ScalarOperators {
         |""".stripMargin
     }
 
-    GeneratedExpression(resultTerm, nullTerm, resultCode, resultType)
+    val retval = GeneratedExpression(resultTerm, nullTerm, resultCode, resultType)
+    retval.leftNullTerm = leftNullTerm
+    retval.rightNullTerm = rightNullTerm
+
+    return retval
   }
 
   private def internalExprCasting(
