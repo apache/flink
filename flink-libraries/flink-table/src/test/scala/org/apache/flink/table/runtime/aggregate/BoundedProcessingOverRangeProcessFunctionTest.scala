@@ -29,6 +29,8 @@ import org.apache.flink.streaming.api.operators.KeyedProcessOperator
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.streaming.util.{KeyedOneInputStreamOperatorTestHarness, TestHarnessUtil}
+import org.apache.flink.table.codegen.AggregateHelperFunction
+import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.functions.aggfunctions.{LongMaxWithRetractAggFunction, LongMinWithRetractAggFunction}
 import org.apache.flink.table.runtime.aggregate.BoundedProcessingOverRangeProcessFunctionTest._
 import org.apache.flink.types.Row
@@ -47,16 +49,120 @@ class BoundedProcessingOverRangeProcessFunctionTest {
       LONG_TYPE_INFO),
       Array("a", "b", "c", "d", "e"))
 
-    val rTA =  new RowTypeInfo(Array[TypeInformation[_]](
-     LONG_TYPE_INFO), Array("count"))
+    val aggregates =
+      Array(new LongMinWithRetractAggFunction,
+            new LongMaxWithRetractAggFunction).asInstanceOf[Array[AggregateFunction[_]]]
+    val aggregationStateType: RowTypeInfo = AggregateUtil.createAccumulatorRowType(aggregates)
 
+    val funcCode =
+      """
+        |public class BoundedOverAggregateHelper$28 extends org.apache.flink.table
+        |    .runtime.aggregate.AggregateHelper {
+        |
+        |transient org.apache.flink.table.functions.aggfunctions.LongMinWithRetractAggFunction
+        |  longMinWithRetractAggFunction = null;
+        |
+        |transient org.apache.flink.table.functions.aggfunctions.LongMaxWithRetractAggFunction
+        |  longMaxWithRetractAggFunction = null;
+        |
+        |public BoundedOverAggregateHelper$28() throws Exception {
+        |
+        |longMinWithRetractAggFunction =
+        |   (org.apache.flink.table.functions.aggfunctions.LongMinWithRetractAggFunction)
+        |org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.deserialize
+        |("rO0ABXNyAEtvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLmZ1bmN0aW9ucy5hZ2dmdW5jdGlvbnMuTG9uZ01pbldp" +
+        |"dGhSZXRyYWN0QWdnRnVuY3Rpb26oIdX_DaMPxQIAAHhyAEdvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLmZ1bmN0a" +
+        |"W9ucy5hZ2dmdW5jdGlvbnMuTWluV2l0aFJldHJhY3RBZ2dGdW5jdGlvbkDcXxs1apkPAgABTAADb3JkdAAVTH" +
+        |"NjYWxhL21hdGgvT3JkZXJpbmc7eHIAMm9yZy5hcGFjaGUuZmxpbmsudGFibGUuZnVuY3Rpb25zLkFnZ3JlZ2F" +
+        |"0ZUZ1bmN0aW9uSa3YqbzCL3QCAAB4cgA0b3JnLmFwYWNoZS5mbGluay50YWJsZS5mdW5jdGlvbnMuVXNlckRl" +
+        |"ZmluZWRGdW5jdGlvbi0B91QxuAyTAgAAeHBzcgAZc2NhbGEubWF0aC5PcmRlcmluZyRMb25nJOda0iCPo2ukA" +
+        |"gAAeHA");
+        |
+        |longMaxWithRetractAggFunction =
+        |(org.apache.flink.table.functions.aggfunctions.LongMaxWithRetractAggFunction)
+        |org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
+        |.deserialize
+        |("rO0ABXNyAEtvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLmZ1bmN0aW9ucy5hZ2dmdW5jdGlvbnMuTG9uZ01heFdp" +
+        |"dGhSZXRyYWN0QWdnRnVuY3Rpb25RmsI8azNGXwIAAHhyAEdvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLmZ1bmN0a" +
+        |"W9ucy5hZ2dmdW5jdGlvbnMuTWF4V2l0aFJldHJhY3RBZ2dGdW5jdGlvbu4_w_gPePlOAgABTAADb3JkdAAVTH" +
+        |"NjYWxhL21hdGgvT3JkZXJpbmc7eHIAMm9yZy5hcGFjaGUuZmxpbmsudGFibGUuZnVuY3Rpb25zLkFnZ3JlZ2F" +
+        |"0ZUZ1bmN0aW9uSa3YqbzCL3QCAAB4cgA0b3JnLmFwYWNoZS5mbGluay50YWJsZS5mdW5jdGlvbnMuVXNlckRl" +
+        |"ZmluZWRGdW5jdGlvbi0B91QxuAyTAgAAeHBzcgAZc2NhbGEubWF0aC5PcmRlcmluZyRMb25nJOda0iCPo2ukA" +
+        |"gAAeHA");
+        |}
+        |
+        |  public void setOutput(
+        |    org.apache.flink.types.Row accs,
+        |    org.apache.flink.types.Row output,
+        |    int rowOffset) {
+        |
+        |    org.apache.flink.table.functions.AggregateFunction baseClass0 =
+        |      (org.apache.flink.table.functions.AggregateFunction)
+        |      longMinWithRetractAggFunction;
+        |
+        |    output.setField(
+        |      rowOffset + 0,
+        |      baseClass0.getValue((org.apache.flink.table.functions.Accumulator)
+        |         accs.getField(0)));
+        |
+        |    org.apache.flink.table.functions.AggregateFunction baseClass1 =
+        |      (org.apache.flink.table.functions.AggregateFunction)
+        |      longMaxWithRetractAggFunction;
+        |
+        |    output.setField(
+        |      rowOffset + 1,
+        |      baseClass1.getValue((org.apache.flink.table.functions.Accumulator)
+        |         accs.getField(1)));
+        |  }
+        |
+        |  public void accumulate(
+        |    org.apache.flink.types.Row accs,
+        |    org.apache.flink.types.Row input) {
+        |
+        |    longMinWithRetractAggFunction.accumulate(
+        |      ((org.apache.flink.table.functions.Accumulator) accs.getField(0)),
+        |      (java.lang.Long) input.getField(4));
+        |
+        |    longMaxWithRetractAggFunction.accumulate(
+        |      ((org.apache.flink.table.functions.Accumulator) accs.getField(1)),
+        |      (java.lang.Long) input.getField(4));
+        |  }
+        |
+        |  public void retract(
+        |    org.apache.flink.types.Row accs,
+        |    org.apache.flink.types.Row input) {
+        |
+        |    longMinWithRetractAggFunction.retract(
+        |      ((org.apache.flink.table.functions.Accumulator) accs.getField(0)),
+        |      (java.lang.Long) input.getField(4));
+        |
+        |    longMaxWithRetractAggFunction.retract(
+        |      ((org.apache.flink.table.functions.Accumulator) accs.getField(1)),
+        |      (java.lang.Long) input.getField(4));
+        |  }
+        |
+        |  public void createAccumulator(
+        |    org.apache.flink.types.Row accs,
+        |    int rowOffset) {
+        |    accs.setField(
+        |      rowOffset + 0,
+        |      longMinWithRetractAggFunction.createAccumulator());
+        |
+        |    accs.setField(
+        |      rowOffset + 1,
+        |      longMaxWithRetractAggFunction.createAccumulator());
+        |  }
+        |}
+      """.stripMargin
+
+    val funcName = "BoundedOverAggregateHelper$28"
+
+    val aggHelperFunction = AggregateHelperFunction(funcName, funcCode)
     val processFunction = new KeyedProcessOperator[String, Row, Row](
       new BoundedProcessingOverRangeProcessFunction(
-        Array(new LongMinWithRetractAggFunction, new LongMaxWithRetractAggFunction),
-        Array(Array(4), Array(4)),
-        5,
-        rTA,
+        aggHelperFunction,
         1000,
+        aggregationStateType,
         rT))
 
     val testHarness = new KeyedOneInputStreamOperatorTestHarness[JInt, Row, Row](
