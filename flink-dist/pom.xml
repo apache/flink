@@ -156,6 +156,19 @@ under the License.
 		</dependency>
 
 		<!--
+			The following dependencies are packaged in 'examples/'
+			The scope of these dependencies needs to be 'provided' so that
+			they are not included into the 'flink-dist' uber jar.
+		-->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-gelly-examples_2.10</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<!--
 			The following dependencies are packaged in 'opt/' 
 			The scope of these dependencies needs to be 'provided' so that
 			they are not included into the 'flink-dist' uber jar.
@@ -216,13 +229,6 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-gelly-scala_2.10</artifactId>
-			<version>${project.version}</version>
-			<scope>provided</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-gelly-examples_2.10</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
