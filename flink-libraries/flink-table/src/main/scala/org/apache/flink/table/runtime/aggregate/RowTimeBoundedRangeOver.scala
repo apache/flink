@@ -37,14 +37,13 @@ import org.slf4j.LoggerFactory
   * @param inputRowType             row type info of input row
   * @param precedingOffset          preceding offset
  */
-class RangeClauseBoundedOverProcessFunction(
+class RowTimeBoundedRangeOver(
     genAggregations: GeneratedAggregationsFunction,
     aggregationStateType: RowTypeInfo,
     inputRowType: RowTypeInfo,
     precedingOffset: Long)
   extends ProcessFunction[Row, Row]
     with Compiler[GeneratedAggregations] {
-
   Preconditions.checkNotNull(aggregationStateType)
   Preconditions.checkNotNull(precedingOffset)
 

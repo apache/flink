@@ -38,7 +38,7 @@ import org.slf4j.LoggerFactory
   * @param inputRowType             row type info of input row
   * @param precedingOffset          preceding offset
  */
-class RowsClauseBoundedOverProcessFunction(
+class RowTimeBoundedRowsOver(
     genAggregations: GeneratedAggregationsFunction,
     aggregationStateType: RowTypeInfo,
     inputRowType: RowTypeInfo,

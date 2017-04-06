@@ -44,7 +44,7 @@ import org.slf4j.LoggerFactory
   * @param aggregatesTypeInfo   row type info of aggregation
   * @param inputType            row type info of input row
   */
-class BoundedProcessingOverRowProcessFunction(
+class ProcTimeBoundedRowsOver(
     genAggregations: GeneratedAggregationsFunction,
     precedingOffset: Long,
     aggregatesTypeInfo: RowTypeInfo,
