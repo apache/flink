@@ -47,18 +47,17 @@ public class NumericBetweenParametersProvider implements ParameterValuesProvider
 	}
 
 	@Override
-	public Serializable[][] getParameterValues(){
+	public Serializable[][] getParameterValues() {
 		double maxElemCount = (max - min) + 1;
 		int size = new Double(Math.ceil(maxElemCount / fetchSize)).intValue();
 		Serializable[][] parameters = new Serializable[size][2];
 		int count = 0;
-		for (long i = min; i < max; i += fetchSize, count++) {
+		for (long i = min; i <= max; i += fetchSize, count++) {
 			long currentLimit = i + fetchSize - 1;
+			if (currentLimit > max) {
+				currentLimit = max;
+		    }
 			parameters[count] = new Long[]{i,currentLimit};
-			if (currentLimit + 1 + fetchSize > max) {
-				parameters[count + 1] = new Long[]{currentLimit + 1, max};
-				break;
-			}
 		}
 		return parameters;
 	}
