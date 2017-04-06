@@ -92,12 +92,12 @@ public class EitherSerializer<L, R> extends TypeSerializer<Either<L, R>> {
 	@Override
 	public Either<L, R> copy(Either<L, R> from, Either<L, R> reuse) {
 		if (from.isLeft()) {
-			Left<L, R> to = Either.asLeft(reuse, leftSerializer);
+			Left<L, R> to = Either.obtainLeft(reuse, leftSerializer);
 			L left = leftSerializer.copy(from.left(), to.left());
 			to.setValue(left);
 			return to;
 		} else {
-			Right<L, R> to = Either.asRight(reuse, rightSerializer);
+			Right<L, R> to = Either.obtainRight(reuse, rightSerializer);
 			R right = rightSerializer.copy(from.right(), to.right());
 			to.setValue(right);
 			return to;
@@ -136,12 +136,12 @@ public class EitherSerializer<L, R> extends TypeSerializer<Either<L, R>> {
 	public Either<L, R> deserialize(Either<L, R> reuse, DataInputView source) throws IOException {
 		boolean isLeft = source.readBoolean();
 		if (isLeft) {
-			Left<L, R> to = Either.asLeft(reuse, leftSerializer);
+			Left<L, R> to = Either.obtainLeft(reuse, leftSerializer);
 			L left = leftSerializer.deserialize(to.left(), source);
 			to.setValue(left);
 			return to;
 		} else {
-			Right<L, R> to = Either.asRight(reuse, rightSerializer);
+			Right<L, R> to = Either.obtainRight(reuse, rightSerializer);
 			R right = rightSerializer.deserialize(to.right(), source);
 			to.setValue(right);
 			return to;

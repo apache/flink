@@ -18,6 +18,7 @@
 
 package org.apache.flink.types;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.typeinfo.TypeInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -228,7 +229,8 @@ public abstract class Either<L, R> {
 	 *            the type of Right
 	 * @return input if Left type else input's Left reference
 	 */
-	public static <L, R> Left<L, R> asLeft(Either<L, R> input, TypeSerializer<L> leftSerializer) {
+	@Internal
+	public static <L, R> Left<L, R> obtainLeft(Either<L, R> input, TypeSerializer<L> leftSerializer) {
 		if (input.isLeft()) {
 			return (Left<L, R>) input;
 		} else {
@@ -256,7 +258,8 @@ public abstract class Either<L, R> {
 	 *            the type of Right
 	 * @return input if Right type else input's Right reference
 	 */
-	public static <L, R> Right<L, R> asRight(Either<L, R> input, TypeSerializer<R> rightSerializer) {
+	@Internal
+	public static <L, R> Right<L, R> obtainRight(Either<L, R> input, TypeSerializer<R> rightSerializer) {
 		if (input.isRight()) {
 			return (Right<L, R>) input;
 		} else {
