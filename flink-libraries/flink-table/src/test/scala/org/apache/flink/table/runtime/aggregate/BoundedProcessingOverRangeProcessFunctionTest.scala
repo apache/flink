@@ -165,7 +165,7 @@ class BoundedProcessingOverRangeProcessFunctionTest {
 
     val genAggFunction = GeneratedAggregationsFunction(funcName, funcCode)
     val processFunction = new KeyedProcessOperator[String, Row, Row](
-      new BoundedProcessingOverRangeProcessFunction(
+      new ProcTimeBoundedRangeOver(
         genAggFunction,
         1000,
         aggregationStateType,

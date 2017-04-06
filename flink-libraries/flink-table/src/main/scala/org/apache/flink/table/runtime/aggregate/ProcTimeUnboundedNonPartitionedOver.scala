@@ -34,7 +34,7 @@ import org.slf4j.LoggerFactory
   * @param genAggregations Generated aggregate helper function
   * @param aggregationStateType     row type info of aggregation
   */
-class UnboundedNonPartitionedProcessingOverProcessFunction(
+class ProcTimeUnboundedNonPartitionedOver(
     genAggregations: GeneratedAggregationsFunction,
     aggregationStateType: RowTypeInfo)
   extends ProcessFunction[Row, Row]

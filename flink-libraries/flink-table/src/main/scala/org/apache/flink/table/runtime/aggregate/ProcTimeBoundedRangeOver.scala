@@ -43,14 +43,13 @@ import org.slf4j.LoggerFactory
   * @param aggregatesTypeInfo       row type info of aggregation
   * @param inputType                row type info of input row
   */
-class BoundedProcessingOverRangeProcessFunction(
+class ProcTimeBoundedRangeOver(
     genAggregations: GeneratedAggregationsFunction,
     precedingTimeBoundary: Long,
     aggregatesTypeInfo: RowTypeInfo,
     inputType: TypeInformation[Row])
   extends ProcessFunction[Row, Row]
     with Compiler[GeneratedAggregations] {
-
   private var output: Row = _
   private var accumulatorState: ValueState[Row] = _
   private var rowMapState: MapState[Long, JList[Row]] = _
