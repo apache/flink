@@ -38,7 +38,7 @@ object FlinkRuleSets {
     ProjectToWindowRule.PROJECT,
 
     // Transform window to LogicalWindowAggregate
-    dataSet.LogicalWindowAggregateRule.INSTANCE
+    DataSetLogicalWindowAggregateRule.INSTANCE
   )
 
   /**
@@ -135,7 +135,7 @@ object FlinkRuleSets {
     */
   val DATASTREAM_NORM_RULES: RuleSet = RuleSets.ofList(
     // Transform window to LogicalWindowAggregate
-    datastream.LogicalWindowAggregateRule.INSTANCE,
+    DataStreamLogicalWindowAggregateRule.INSTANCE,
 
     // simplify expressions rules
     ReduceExpressionsRule.FILTER_INSTANCE,
