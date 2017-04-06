@@ -143,20 +143,17 @@ public class EitherSerializerTest {
 		// the first copy creates a new instance of Left
 		Either<LongValue, DoubleValue> copy0 = eitherSerializer.copy(left, right);
 
-		// and the second copy creates a new instance of Right
-		Either<LongValue, DoubleValue> copy1 = eitherSerializer.copy(right, copy0);
-
 		// then the cross-references are used for future copies
+		Either<LongValue, DoubleValue> copy1 = eitherSerializer.copy(right, copy0);
 		Either<LongValue, DoubleValue> copy2 = eitherSerializer.copy(left, copy1);
-		Either<LongValue, DoubleValue> copy3 = eitherSerializer.copy(right, copy2);
 
 		// validate reference equality
+		assertSame(right, copy1);
 		assertSame(copy0, copy2);
-		assertSame(copy1, copy3);
 
 		// validate reference equality of contained objects
+		assertSame(right.right(), copy1.right());
 		assertSame(copy0.left(), copy2.left());
-		assertSame(copy1.right(), copy3.right());
 	}
 
 	@Test
@@ -182,20 +179,17 @@ public class EitherSerializerTest {
 		// the first deserialization creates a new instance of Left
 		Either<LongValue, DoubleValue> copy0 = eitherSerializer.deserialize(right, in);
 
-		// and the second deserialization creates a new instance of Right
-		Either<LongValue, DoubleValue> copy1 = eitherSerializer.deserialize(copy0, in);
-
 		// then the cross-references are used for future copies
+		Either<LongValue, DoubleValue> copy1 = eitherSerializer.deserialize(copy0, in);
 		Either<LongValue, DoubleValue> copy2 = eitherSerializer.deserialize(copy1, in);
-		Either<LongValue, DoubleValue> copy3 = eitherSerializer.deserialize(copy2, in);
 
 		// validate reference equality
+		assertSame(right, copy1);
 		assertSame(copy0, copy2);
-		assertSame(copy1, copy3);
 
 		// validate reference equality of contained objects
+		assertSame(right.right(), copy1.right());
 		assertSame(copy0.left(), copy2.left());
-		assertSame(copy1.right(), copy3.right());
 	}
 
 	/**
