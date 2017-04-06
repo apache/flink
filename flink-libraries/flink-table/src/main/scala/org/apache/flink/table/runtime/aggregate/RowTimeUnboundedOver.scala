@@ -39,7 +39,7 @@ import org.slf4j.LoggerFactory
   * @param intermediateType         the intermediate row tye which the state saved
   * @param inputType                the input row tye which the state saved
   */
-abstract class UnboundedEventTimeOverProcessFunction(
+abstract class RowTimeUnboundedOver(
     genAggregations: GeneratedAggregationsFunction,
     intermediateType: TypeInformation[Row],
     inputType: TypeInformation[Row])
@@ -214,11 +214,11 @@ abstract class UnboundedEventTimeOverProcessFunction(
   * A ProcessFunction to support unbounded ROWS window.
   * The ROWS clause defines on a physical level how many rows are included in a window frame.
   */
-class UnboundedEventTimeRowsOverProcessFunction(
+class RowTimeUnboundedRowsOver(
     genAggregations: GeneratedAggregationsFunction,
     intermediateType: TypeInformation[Row],
     inputType: TypeInformation[Row])
-  extends UnboundedEventTimeOverProcessFunction(
+  extends RowTimeUnboundedOver(
     genAggregations: GeneratedAggregationsFunction,
     intermediateType,
     inputType) {
@@ -252,11 +252,11 @@ class UnboundedEventTimeRowsOverProcessFunction(
   * The RANGE option includes all the rows within the window frame
   * that have the same ORDER BY values as the current row.
   */
-class UnboundedEventTimeRangeOverProcessFunction(
+class RowTimeUnboundedRangeOver(
     genAggregations: GeneratedAggregationsFunction,
     intermediateType: TypeInformation[Row],
     inputType: TypeInformation[Row])
-  extends UnboundedEventTimeOverProcessFunction(
+  extends RowTimeUnboundedOver(
     genAggregations: GeneratedAggregationsFunction,
     intermediateType,
     inputType) {
