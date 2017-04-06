@@ -17,8 +17,6 @@
  */
 package org.apache.flink.table.api.scala.stream.sql
 
-import java.sql.Timestamp
-
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.scala._
@@ -63,7 +61,7 @@ class WindowAggregateTest extends TableTestBase {
     val sqlQuery = "SELECT a, AVG(c) OVER (PARTITION BY a ORDER BY procTime()" +
       "RANGE BETWEEN INTERVAL '2' HOUR PRECEDING AND CURRENT ROW) AS avgA " +
       "FROM MyTable"
-      val expected =
+    val expected =
       unaryNode(
         "DataStreamCalc",
         unaryNode(
@@ -73,7 +71,7 @@ class WindowAggregateTest extends TableTestBase {
             streamTableNode(0),
             term("select", "a", "c", "PROCTIME() AS $2")
           ),
-          term("partitionBy","a"),
+          term("partitionBy", "a"),
           term("orderBy", "PROCTIME"),
           term("range", "BETWEEN 7200000 PRECEDING AND CURRENT ROW"),
           term("select", "a", "c", "PROCTIME", "COUNT(c) AS w0$o0", "$SUM0(c) AS w0$o1")
@@ -84,6 +82,26 @@ class WindowAggregateTest extends TableTestBase {
     streamUtil.verifySql(sqlQuery, expected)
   }
 
+  def testGroupbyWithoutWindow() = {
+    val sql = "SELECT COUNT(a) FROM MyTable GROUP BY b"
+    val expected =
+      unaryNode(
+        "DataStreamCalc",
+        unaryNode(
+          "DataStreamGroupAggregate",
+          unaryNode(
+            "DataStreamCalc",
+            streamTableNode(0),
+            term("select", "b", "a")
+          ),
+          term("groupBy", "b"),
+          term("select", "b", "COUNT(a) AS EXPR$0")
+        ),
+        term("select", "EXPR$0")
+      )
+    streamUtil.verifySql(sql, expected)
+  }
+
   @Test
   def testNonPartitionedTumbleWindow() = {
     val sql = "SELECT COUNT(*) FROM MyTable GROUP BY FLOOR(rowtime() TO HOUR)"
@@ -91,7 +109,7 @@ class WindowAggregateTest extends TableTestBase {
       unaryNode(
         "DataStreamCalc",
         unaryNode(
-          "DataStreamAggregate",
+          "DataStreamGroupWindowAggregate",
           unaryNode(
             "DataStreamCalc",
             streamTableNode(0),
@@ -112,7 +130,7 @@ class WindowAggregateTest extends TableTestBase {
       unaryNode(
         "DataStreamCalc",
         unaryNode(
-          "DataStreamAggregate",
+          "DataStreamGroupWindowAggregate",
           unaryNode(
             "DataStreamCalc",
             streamTableNode(0),
@@ -134,7 +152,7 @@ class WindowAggregateTest extends TableTestBase {
       unaryNode(
         "DataStreamCalc",
         unaryNode(
-          "DataStreamAggregate",
+          "DataStreamGroupWindowAggregate",
           unaryNode(
             "DataStreamCalc",
             streamTableNode(0),
@@ -156,7 +174,7 @@ class WindowAggregateTest extends TableTestBase {
       unaryNode(
         "DataStreamCalc",
         unaryNode(
-          "DataStreamAggregate",
+          "DataStreamGroupWindowAggregate",
           unaryNode(
             "DataStreamCalc",
             streamTableNode(0),
@@ -177,7 +195,7 @@ class WindowAggregateTest extends TableTestBase {
       unaryNode(
         "DataStreamCalc",
         unaryNode(
-          "DataStreamAggregate",
+          "DataStreamGroupWindowAggregate",
           unaryNode(
             "DataStreamCalc",
             streamTableNode(0),
@@ -199,7 +217,7 @@ class WindowAggregateTest extends TableTestBase {
       unaryNode(
         "DataStreamCalc",
         unaryNode(
-          "DataStreamAggregate",
+          "DataStreamGroupWindowAggregate",
           unaryNode(
             "DataStreamCalc",
             streamTableNode(0),
@@ -222,7 +240,7 @@ class WindowAggregateTest extends TableTestBase {
       unaryNode(
         "DataStreamCalc",
         unaryNode(
-          "DataStreamAggregate",
+          "DataStreamGroupWindowAggregate",
           unaryNode(
             "DataStreamCalc",
             streamTableNode(0),
@@ -276,13 +294,6 @@ class WindowAggregateTest extends TableTestBase {
   def testMultiWindow() = {
     val sql = "SELECT COUNT(*) FROM MyTable GROUP BY " +
       "FLOOR(rowtime() TO HOUR), FLOOR(rowtime() TO MINUTE)"
-    val expected = ""
-    streamUtil.verifySql(sql, expected)
-  }
-
-  @Test(expected = classOf[TableException])
-  def testInvalidWindowExpression() = {
-    val sql = "SELECT COUNT(*) FROM MyTable GROUP BY FLOOR(localTimestamp TO HOUR)"
     val expected = ""
     streamUtil.verifySql(sql, expected)
   }
