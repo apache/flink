@@ -28,30 +28,23 @@ import org.apache.flink.util.{Collector, Preconditions}
 import org.apache.flink.api.common.state._
 import org.apache.flink.api.java.typeutils.ListTypeInfo
 import org.apache.flink.streaming.api.operators.TimestampedCollector
-import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
+import org.apache.flink.table.codegen.{AggregateHelperFunction, Compiler}
+import org.slf4j.LoggerFactory
 
 
 /**
   * A ProcessFunction to support unbounded event-time over-window
   *
-  * @param aggregates the aggregate functions
-  * @param aggFields  the filed index which the aggregate functions use
-  * @param forwardedFieldCount the input fields count
-  * @param intermediateType the intermediate row tye which the state saved
-  * @param inputType the input row tye which the state saved
-  *
+  * @param GeneratedAggregateHelper Generated aggregate helper function
+  * @param intermediateType         the intermediate row tye which the state saved
+  * @param inputType                the input row tye which the state saved
   */
 abstract class UnboundedEventTimeOverProcessFunction(
-    private val aggregates: Array[AggregateFunction[_]],
-    private val aggFields: Array[Array[Int]],
-    private val forwardedFieldCount: Int,
-    private val intermediateType: TypeInformation[Row],
-    private val inputType: TypeInformation[Row])
-  extends ProcessFunction[Row, Row]{
-
-  Preconditions.checkNotNull(aggregates)
-  Preconditions.checkNotNull(aggFields)
-  Preconditions.checkArgument(aggregates.length == aggFields.length)
+    GeneratedAggregateHelper: AggregateHelperFunction,
+    intermediateType: TypeInformation[Row],
+    inputType: TypeInformation[Row])
+  extends ProcessFunction[Row, Row]
+    with Compiler[AggregateHelper] {
 
   protected var output: Row = _
   // state to hold the accumulators of the aggregations
@@ -60,10 +53,21 @@ abstract class UnboundedEventTimeOverProcessFunction(
   private var rowMapState: MapState[Long, JList[Row]] = _
   // list to sort timestamps to access rows in timestamp order
   private var sortedTimestamps: util.LinkedList[Long] = _
-
+  val forwardedFieldCount = inputType.getArity
+  val NumOfAggregates = intermediateType.getArity
+  val LOG = LoggerFactory.getLogger(this.getClass)
+  protected var function: AggregateHelper = _
 
   override def open(config: Configuration) {
-    output = new Row(forwardedFieldCount + aggregates.length)
+    LOG.debug(s"Compiling AggregateHelper: $GeneratedAggregateHelper.name \n\n " +
+                s"Code:\n$GeneratedAggregateHelper.code")
+    val clazz = compile(getRuntimeContext.getUserCodeClassLoader,
+                        GeneratedAggregateHelper.name,
+                        GeneratedAggregateHelper.code)
+    LOG.debug("Instantiating AggregateHelper.")
+    function = clazz.newInstance()
+
+    output = new Row(forwardedFieldCount + NumOfAggregates)
     sortedTimestamps = new util.LinkedList[Long]()
 
     // initialize accumulator state
@@ -132,7 +136,6 @@ abstract class UnboundedEventTimeOverProcessFunction(
     if (keyIterator.hasNext) {
       val curWatermark = ctx.timerService.currentWatermark
       var existEarlyRecord: Boolean = false
-      var i = 0
 
       // sort the record timestamps
       do {
@@ -149,11 +152,7 @@ abstract class UnboundedEventTimeOverProcessFunction(
       var lastAccumulator = accumulatorState.value
       if (lastAccumulator == null) {
         // initialize accumulator
-        lastAccumulator = new Row(aggregates.length)
-        while (i < aggregates.length) {
-          lastAccumulator.setField(i, aggregates(i).createAccumulator())
-          i += 1
-        }
+        lastAccumulator = function.createAccumulator()
       }
 
       // emit the rows in order
@@ -216,15 +215,11 @@ abstract class UnboundedEventTimeOverProcessFunction(
   * The ROWS clause defines on a physical level how many rows are included in a window frame.
   */
 class UnboundedEventTimeRowsOverProcessFunction(
-   aggregates: Array[AggregateFunction[_]],
-   aggFields: Array[Array[Int]],
-   forwardedFieldCount: Int,
-   intermediateType: TypeInformation[Row],
-   inputType: TypeInformation[Row])
+    GeneratedAggregateHelper: AggregateHelperFunction,
+    intermediateType: TypeInformation[Row],
+    inputType: TypeInformation[Row])
   extends UnboundedEventTimeOverProcessFunction(
-    aggregates,
-    aggFields,
-    forwardedFieldCount,
+    GeneratedAggregateHelper: AggregateHelperFunction,
     intermediateType,
     inputType) {
 
@@ -233,30 +228,20 @@ class UnboundedEventTimeRowsOverProcessFunction(
     lastAccumulator: Row,
     out: Collector[Row]): Unit = {
 
-    var j = 0
     var i = 0
-    while (j < curRowList.size) {
-      val curRow = curRowList.get(j)
-      i = 0
+    while (i < curRowList.size) {
+      val curRow = curRowList.get(i)
 
+      var j = 0
       // copy forwarded fields to output row
-      while (i < forwardedFieldCount) {
-        output.setField(i, curRow.getField(i))
-        i += 1
-      }
+      function.forwardValueToOutput(curRow, output)
 
       // update accumulators and copy aggregates to output row
-      i = 0
-      while (i < aggregates.length) {
-        val index = forwardedFieldCount + i
-        val accumulator = lastAccumulator.getField(i).asInstanceOf[Accumulator]
-        aggregates(i).accumulate(accumulator, curRow.getField(aggFields(i)(0)))
-        output.setField(index, aggregates(i).getValue(accumulator))
-        i += 1
-      }
+      function.accumulate(lastAccumulator, curRow)
+      function.setOutput(lastAccumulator, output, forwardedFieldCount)
       // emit output row
       out.collect(output)
-      j += 1
+      i += 1
     }
   }
 }
@@ -268,15 +253,11 @@ class UnboundedEventTimeRowsOverProcessFunction(
   * that have the same ORDER BY values as the current row.
   */
 class UnboundedEventTimeRangeOverProcessFunction(
-    aggregates: Array[AggregateFunction[_]],
-    aggFields: Array[Array[Int]],
-    forwardedFieldCount: Int,
+    GeneratedAggregateHelper: AggregateHelperFunction,
     intermediateType: TypeInformation[Row],
     inputType: TypeInformation[Row])
   extends UnboundedEventTimeOverProcessFunction(
-    aggregates,
-    aggFields,
-    forwardedFieldCount,
+    GeneratedAggregateHelper: AggregateHelperFunction,
     intermediateType,
     inputType) {
 
@@ -285,43 +266,27 @@ class UnboundedEventTimeRangeOverProcessFunction(
     lastAccumulator: Row,
     out: Collector[Row]): Unit = {
 
-    var j = 0
     var i = 0
     // all same timestamp data should have same aggregation value.
-    while (j < curRowList.size) {
-      val curRow = curRowList.get(j)
-      i = 0
-      while (i < aggregates.length) {
-        val index = forwardedFieldCount + i
-        val accumulator = lastAccumulator.getField(i).asInstanceOf[Accumulator]
-        aggregates(i).accumulate(accumulator, curRow.getField(aggFields(i)(0)))
-        i += 1
-      }
-      j += 1
+    while (i < curRowList.size) {
+      val curRow = curRowList.get(i)
+
+      function.accumulate(lastAccumulator, curRow)
+      i += 1
     }
 
     // emit output row
-    j = 0
-    while (j < curRowList.size) {
-      val curRow = curRowList.get(j)
+    i = 0
+    while (i < curRowList.size) {
+      val curRow = curRowList.get(i)
 
       // copy forwarded fields to output row
-      i = 0
-      while (i < forwardedFieldCount) {
-        output.setField(i, curRow.getField(i))
-        i += 1
-      }
+      function.forwardValueToOutput(curRow, output)
 
       //copy aggregates to output row
-      i = 0
-      while (i < aggregates.length) {
-        val index = forwardedFieldCount + i
-        val accumulator = lastAccumulator.getField(i).asInstanceOf[Accumulator]
-        output.setField(index, aggregates(i).getValue(accumulator))
-        i += 1
-      }
+      function.setOutput(lastAccumulator, output, forwardedFieldCount)
       out.collect(output)
-      j += 1
+      i += 1
     }
   }
 }

@@ -20,28 +20,43 @@ package org.apache.flink.table.runtime.aggregate
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.types.Row
-import org.apache.flink.util.{Collector, Preconditions}
+import org.apache.flink.util.Collector
 import org.apache.flink.api.common.state.ValueStateDescriptor
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.common.state.ValueState
-import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
+import org.apache.flink.table.codegen.{AggregateHelperFunction, Compiler}
+import org.slf4j.LoggerFactory
 
+/**
+  * Process Function for processing-time unbounded OVER window
+  *
+  * @param GeneratedAggregateHelper Generated aggregate helper function
+  * @param forwardedFieldCount      count of forwarded fields.
+  * @param aggregationStateType     row type info of aggregation
+  */
 class UnboundedProcessingOverProcessFunction(
-    private val aggregates: Array[AggregateFunction[_]],
-    private val aggFields: Array[Array[Int]],
-    private val forwardedFieldCount: Int,
-    private val aggregationStateType: RowTypeInfo)
-  extends ProcessFunction[Row, Row]{
-
-  Preconditions.checkNotNull(aggregates)
-  Preconditions.checkNotNull(aggFields)
-  Preconditions.checkArgument(aggregates.length == aggFields.length)
+    GeneratedAggregateHelper: AggregateHelperFunction,
+    forwardedFieldCount: Int,
+    aggregationStateType: RowTypeInfo)
+  extends ProcessFunction[Row, Row]
+    with Compiler[AggregateHelper] {
 
   private var output: Row = _
   private var state: ValueState[Row] = _
+  val LOG = LoggerFactory.getLogger(this.getClass)
+  private var function: AggregateHelper = _
+  val NumOfAggregates = aggregationStateType.getFieldNames.length
 
   override def open(config: Configuration) {
-    output = new Row(forwardedFieldCount + aggregates.length)
+    LOG.debug(s"Compiling AggregateHelper: $GeneratedAggregateHelper.name \n\n " +
+                s"Code:\n$GeneratedAggregateHelper.code")
+    val clazz = compile(getRuntimeContext.getUserCodeClassLoader,
+                        GeneratedAggregateHelper.name,
+                        GeneratedAggregateHelper.code)
+    LOG.debug("Instantiating AggregateHelper.")
+    function = clazz.newInstance()
+
+    output = new Row(forwardedFieldCount + NumOfAggregates)
     val stateDescriptor: ValueStateDescriptor[Row] =
       new ValueStateDescriptor[Row]("overState", aggregationStateType)
     state = getRuntimeContext.getState(stateDescriptor)
@@ -52,33 +67,17 @@ class UnboundedProcessingOverProcessFunction(
     ctx: ProcessFunction[Row, Row]#Context,
     out: Collector[Row]): Unit = {
 
-    var i = 0
-
     var accumulators = state.value()
 
     if (null == accumulators) {
-      accumulators = new Row(aggregates.length)
-      i = 0
-      while (i < aggregates.length) {
-        accumulators.setField(i, aggregates(i).createAccumulator())
-        i += 1
-      }
+      accumulators = function.createAccumulator()
     }
 
-    i = 0
-    while (i < forwardedFieldCount) {
-      output.setField(i, input.getField(i))
-      i += 1
-    }
+    function.forwardValueToOutput(input, output)
 
-    i = 0
-    while (i < aggregates.length) {
-      val index = forwardedFieldCount + i
-      val accumulator = accumulators.getField(i).asInstanceOf[Accumulator]
-      aggregates(i).accumulate(accumulator, input.getField(aggFields(i)(0)))
-      output.setField(index, aggregates(i).getValue(accumulator))
-      i += 1
-    }
+    function.accumulate(accumulators, input)
+    function.setOutput(accumulators, output, forwardedFieldCount)
+
     state.update(accumulators)
 
     out.collect(output)
