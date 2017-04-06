@@ -34,6 +34,8 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 import org.apache.flink.util.MathUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.net.InetAddress;
@@ -47,6 +49,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * the io manager and the metric registry
  */
 public class TaskManagerServicesConfiguration {
+	private static final Logger LOG = LoggerFactory.getLogger(TaskManagerServicesConfiguration.class);
 
 	private final InetAddress taskManagerAddress;
 
@@ -58,6 +61,11 @@ public class TaskManagerServicesConfiguration {
 
 	private final QueryableStateConfiguration queryableStateConfig;
 
+	/**
+	 * Managed memory (in megabytes).
+	 *
+	 * @see TaskManagerOptions#MANAGED_MEMORY_SIZE
+	 */
 	private final long configuredMemory;
 
 	private final boolean preAllocateMemory;
@@ -126,6 +134,13 @@ public class TaskManagerServicesConfiguration {
 		return memoryFraction;
 	}
 
+	/**
+	 * Returns the size of the managed memory (in megabytes), if configured.
+	 *
+	 * @return managed memory or a default value (currently <tt>-1</tt>) if not configured
+	 *
+	 * @see TaskManagerOptions#MANAGED_MEMORY_SIZE
+	 */
 	public long getConfiguredMemory() {
 		return configuredMemory;
 	}
@@ -228,6 +243,7 @@ public class TaskManagerServicesConfiguration {
 	 * @param slots to start the task manager with
 	 * @return Network environment configuration
 	 */
+	@SuppressWarnings("deprecation")
 	private static NetworkEnvironmentConfiguration parseNetworkEnvironmentConfiguration(
 		Configuration configuration,
 		boolean localTaskManagerCommunication,
@@ -244,11 +260,6 @@ public class TaskManagerServicesConfiguration {
 
 		checkConfigParameter(slots >= 1, slots, ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS,
 			"Number of task slots must be at least one.");
-
-		final int numNetworkBuffers = configuration.getInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS);
-
-		checkConfigParameter(numNetworkBuffers > 0, numNetworkBuffers,
-			TaskManagerOptions.NETWORK_NUM_BUFFERS.key(), "");
 
 		final int pageSize = configuration.getInteger(TaskManagerOptions.MEMORY_SEGMENT_SIZE);
 
@@ -281,6 +292,41 @@ public class TaskManagerServicesConfiguration {
 			if (!MemorySegmentFactory.initializeIfNotInitialized(HybridMemorySegment.FACTORY)) {
 				throw new Exception("Memory type is set to off-heap memory, but memory segment " +
 					"factory has been initialized for heap memory segments");
+			}
+		}
+
+		// network buffer memory fraction
+
+		float networkBufFraction = configuration.getFloat(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_FRACTION);
+		checkConfigParameter(networkBufFraction > 0.0f && networkBufFraction < 1.0f, networkBufFraction,
+			TaskManagerOptions.NETWORK_BUFFERS_MEMORY_FRACTION.key(),
+			"Network buffer memory fraction of the free memory must be between 0.0 and 1.0");
+
+		long networkBufMin = configuration.getLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN);
+		checkConfigParameter(networkBufMin >= pageSize, networkBufMin,
+			TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN.key(),
+			"Minimum memory for network buffers must allow at least one network " +
+				"buffer with respect to the memory segment size");
+
+		long networkBufMax = configuration.getLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX);
+		checkConfigParameter(networkBufMax >= pageSize, networkBufMax,
+			TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX.key(),
+			"Maximum memory for network buffers must allow at least one network " +
+				"buffer with respect to the memory segment size");
+
+		// fallback: number of network buffers
+		final int numNetworkBuffers = configuration.getInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS);
+		checkConfigParameter(numNetworkBuffers > 0, numNetworkBuffers,
+			TaskManagerOptions.NETWORK_NUM_BUFFERS.key(),
+			"Must have at least one network buffer");
+
+		if (!hasNewNetworkBufConf(configuration)) {
+			// map old config to new one:
+			networkBufMin = networkBufMax = numNetworkBuffers * pageSize;
+		} else {
+			if (configuration.contains(TaskManagerOptions.NETWORK_NUM_BUFFERS)) {
+				LOG.info("Ignoring old (but still present) network buffer configuration via {}.",
+					TaskManagerOptions.NETWORK_NUM_BUFFERS.key());
 			}
 		}
 
@@ -317,7 +363,9 @@ public class TaskManagerServicesConfiguration {
 			TaskManagerOptions.NETWORK_EXTRA_BUFFERS_PER_GATE);
 
 		return new NetworkEnvironmentConfiguration(
-			numNetworkBuffers,
+			networkBufFraction,
+			networkBufMin,
+			networkBufMax,
 			pageSize,
 			memType,
 			ioMode,
@@ -326,6 +374,21 @@ public class TaskManagerServicesConfiguration {
 			buffersPerChannel,
 			extraBuffersPerGate,
 			nettyConfig);
+	}
+
+	/**
+	 * Returns whether the new network buffer memory configuration is present in the configuration
+	 * object, i.e. at least one new parameter is given or the old one is not present.
+	 *
+	 * @param config configuration object
+	 * @return <tt>true</tt> if the new configuration method is used, <tt>false</tt> otherwise
+	 */
+	@SuppressWarnings("deprecation")
+	public static boolean hasNewNetworkBufConf(final Configuration config) {
+		return config.contains(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_FRACTION) ||
+			config.contains(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN) ||
+			config.contains(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX) ||
+			!config.contains(TaskManagerOptions.NETWORK_NUM_BUFFERS);
 	}
 
 	/**
