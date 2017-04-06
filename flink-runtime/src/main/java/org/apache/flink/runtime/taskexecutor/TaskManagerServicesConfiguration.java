@@ -183,7 +183,9 @@ public class TaskManagerServicesConfiguration {
 
 		// extract memory settings
 		long configuredMemory = configuration.getLong(TaskManagerOptions.MANAGED_MEMORY_SIZE);
-		checkConfigParameter(configuredMemory == -1 || configuredMemory > 0, configuredMemory,
+		checkConfigParameter(
+			configuredMemory == TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue() ||
+				configuredMemory > 0, configuredMemory,
 			TaskManagerOptions.MANAGED_MEMORY_SIZE.key(),
 			"MemoryManager needs at least one MB of memory. " +
 				"If you leave this config parameter empty, the system automatically " +

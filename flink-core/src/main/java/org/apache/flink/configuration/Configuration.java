@@ -600,9 +600,10 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 	 *
 	 * @param configOption The configuration option
 	 *
-	 * @return <tt>true</tt> if a valid (current of deprecated) key of the config option is stored,
+	 * @return <tt>true</tt> if a valid (current or deprecated) key of the config option is stored,
 	 * <tt>false</tt> otherwise
 	 */
+	@PublicEvolving
 	public boolean contains(ConfigOption<?> configOption) {
 		synchronized (this.confData){
 			// first try the current key

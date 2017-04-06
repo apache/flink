@@ -198,7 +198,10 @@ public class MiniClusterConfiguration {
 
 			long memorySize = config.getLong(TaskManagerOptions.MANAGED_MEMORY_SIZE);
 
-			if (memorySize == -1) {
+			// we could probably use config.contains() but the previous implementation compared to
+			// the default (-1) thus allowing the user to explicitly specify this as well
+			// -> don't change this behaviour now
+			if (memorySize == TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue()) {
 				// no memory set in the flink configuration
 				// share the available memory among all running components
 
