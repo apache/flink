@@ -47,7 +47,7 @@ OutputTag<String> outputTag = new OutputTag<String>("side-output") {};
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-val outputTag = OutputTag[String]("string-side-output")
+val outputTag = OutputTag[String]("side-output")
 {% endhighlight %}
 </div>
 </div>
