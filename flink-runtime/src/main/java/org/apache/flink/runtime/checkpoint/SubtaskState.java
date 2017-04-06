@@ -144,12 +144,17 @@ public class SubtaskState implements CompositeStateHandle {
 	}
 
 	@Override
-	public void register(SharedStateRegistry sharedStateRegistry) {
+	public void registerSharedStates(SharedStateRegistry sharedStateRegistry) {
 		// No shared states
 	}
 
 	@Override
-	public void unregister(SharedStateRegistry sharedStateRegistry) {
+	public void unregisterSharedStates(SharedStateRegistry sharedStateRegistry) {
+		// No shared states
+	}
+
+	@Override
+	public void discardSharedStatesOnFail() {
 		// No shared states
 	}
 

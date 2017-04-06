@@ -38,8 +38,6 @@ import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.state.SharedStateRegistry;
-import org.apache.flink.runtime.state.StateObject;
-import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.TaskStateHandles;
 
 import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
@@ -489,8 +487,7 @@ public class CheckpointCoordinator {
 				ackTasks,
 				props,
 				targetDirectory,
-				executor,
-				sharedStateRegistry);
+				executor);
 
 			if (statsTracker != null) {
 				PendingCheckpointStats callback = statsTracker.reportPendingCheckpoint(
@@ -718,8 +715,6 @@ public class CheckpointCoordinator {
 
 				switch (checkpoint.acknowledgeTask(message.getTaskExecutionId(), message.getSubtaskState(), message.getCheckpointMetrics())) {
 					case SUCCESS:
-						sharedStateRegistry.registerAll(message.getSubtaskState());
-
 						LOG.debug("Received acknowledge message for checkpoint {} from task {} of job {}.",
 							checkpointId, message.getTaskExecutionId(), message.getJob());
 
@@ -732,8 +727,6 @@ public class CheckpointCoordinator {
 							message.getCheckpointId(), message.getTaskExecutionId(), message.getJob());
 						break;
 					case UNKNOWN:
-						sharedStateRegistry.registerAll(message.getSubtaskState());
-
 						LOG.warn("Could not acknowledge the checkpoint {} for task {} of job {}, " +
 								"because the task's execution attempt id was unknown. Discarding " +
 								"the state handle to avoid lingering state.", message.getCheckpointId(),
@@ -743,8 +736,6 @@ public class CheckpointCoordinator {
 
 						break;
 					case DISCARDED:
-						sharedStateRegistry.registerAll(message.getSubtaskState());
-
 						LOG.warn("Could not acknowledge the checkpoint {} for task {} of job {}, " +
 							"because the pending checkpoint had been discarded. Discarding the " +
 								"state handle tp avoid lingering state.",
@@ -762,8 +753,6 @@ public class CheckpointCoordinator {
 			}
 			else {
 				boolean wasPendingCheckpoint;
-
-				sharedStateRegistry.registerAll(message.getSubtaskState());
 
 				// message is for an unknown checkpoint, or comes too late (checkpoint disposed)
 				if (recentPendingCheckpoints.contains(checkpointId)) {
@@ -824,10 +813,8 @@ public class CheckpointCoordinator {
 				executor.execute(new Runnable() {
 					@Override
 					public void run() {
-						sharedStateRegistry.unregisterAll(completedCheckpoint.getTaskStates().values());
-						
 						try {
-							completedCheckpoint.discard();
+							completedCheckpoint.discardOnFail();
 						} catch (Throwable t) {
 							LOG.warn("Could not properly discard completed checkpoint {}.", completedCheckpoint.getCheckpointID(), t);
 						}
@@ -966,21 +953,12 @@ public class CheckpointCoordinator {
 			}
 
 			// Recover the checkpoints
-			completedCheckpointStore.recover();
+			completedCheckpointStore.recover(sharedStateRegistry);
 
-			// Recover the registry for shared states
-			CompletedCheckpoint latestCompletedCheckpoint = null;
-			List<CompletedCheckpoint> completedCheckpoints = completedCheckpointStore.getAllCheckpoints();
-			for (CompletedCheckpoint completedCheckpoint : completedCheckpoints) {
-				sharedStateRegistry.registerAll(completedCheckpoint.getTaskStates().values());
+			// restore from the latest checkpoint
+			CompletedCheckpoint latest = completedCheckpointStore.getLatestCheckpoint();
 
-				if (latestCompletedCheckpoint == null ||
-						latestCompletedCheckpoint.getCheckpointID() > completedCheckpoint.getCheckpointID()) {
-					latestCompletedCheckpoint = completedCheckpoint;
-				}
-			}
-
-			if (latestCompletedCheckpoint == null) {
+			if (latest == null) {
 				if (errorIfNoCheckpoint) {
 					throw new IllegalStateException("No completed checkpoint available");
 				} else {
@@ -988,9 +966,9 @@ public class CheckpointCoordinator {
 				}
 			}
 
-			LOG.info("Restoring from latest valid checkpoint: {}.", latestCompletedCheckpoint);
+			LOG.info("Restoring from latest valid checkpoint: {}.", latest);
 
-			final Map<JobVertexID, TaskState> taskStates = latestCompletedCheckpoint.getTaskStates();
+			final Map<JobVertexID, TaskState> taskStates = latest.getTaskStates();
 
 			StateAssignmentOperation stateAssignmentOperation =
 					new StateAssignmentOperation(LOG, tasks, taskStates, allowNonRestoredState);
@@ -1000,10 +978,10 @@ public class CheckpointCoordinator {
 			if (statsTracker != null) {
 				long restoreTimestamp = System.currentTimeMillis();
 				RestoredCheckpointStats restored = new RestoredCheckpointStats(
-					latestCompletedCheckpoint.getCheckpointID(),
-					latestCompletedCheckpoint.getProperties(),
+					latest.getCheckpointID(),
+					latest.getProperties(),
 					restoreTimestamp,
-					latestCompletedCheckpoint.getExternalPointer());
+					latest.getExternalPointer());
 
 				statsTracker.reportRestoredCheckpoint(restored);
 			}
@@ -1183,16 +1161,13 @@ public class CheckpointCoordinator {
 			executor.execute(new Runnable() {
 				@Override
 				public void run() {
-					List<StateObject> discardedSharedStates = sharedStateRegistry.unregisterAll(subtaskState);
-
 					try {
-						StateUtil.bestEffortDiscardAllStateObjects(discardedSharedStates);
+						subtaskState.discardSharedStatesOnFail();
 					} catch (Throwable t1) {
 						LOG.warn("Could not properly discard shared states of checkpoint {} " +
-							"belonging to task {} of job {}.", checkpointId, executionAttemptID, jobId, t1
-						);
+							"belonging to task {} of job {}.", checkpointId, executionAttemptID, jobId, t1);
 					}
-					
+
 					try {
 						subtaskState.discardState();
 					} catch (Throwable t2) {

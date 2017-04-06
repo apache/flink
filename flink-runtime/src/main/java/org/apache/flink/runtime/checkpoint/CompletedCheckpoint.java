@@ -23,10 +23,12 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStats.DiscardCallback;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.util.ExceptionUtils;
 
+import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -184,22 +186,30 @@ public class CompletedCheckpoint implements Serializable {
 		return props;
 	}
 
-	public boolean subsume() throws Exception {
+	public void discardOnFail() throws Exception {
+		discard(null, true);
+	}
+
+	public boolean discardOnSubsume(SharedStateRegistry sharedStateRegistry) throws Exception {
+		Preconditions.checkNotNull(sharedStateRegistry, "The registry cannot be null.");
+
 		if (props.discardOnSubsumed()) {
-			discard();
+			discard(sharedStateRegistry, false);
 			return true;
 		}
 
 		return false;
 	}
 
-	public boolean discard(JobStatus jobStatus) throws Exception {
+	public boolean discardOnShutdown(JobStatus jobStatus, SharedStateRegistry sharedStateRegistry) throws Exception {
+		Preconditions.checkNotNull(sharedStateRegistry, "The registry cannot be null.");
+
 		if (jobStatus == JobStatus.FINISHED && props.discardOnJobFinished() ||
 				jobStatus == JobStatus.CANCELED && props.discardOnJobCancelled() ||
 				jobStatus == JobStatus.FAILED && props.discardOnJobFailed() ||
 				jobStatus == JobStatus.SUSPENDED && props.discardOnJobSuspended()) {
 
-			discard();
+			discard(sharedStateRegistry, false);
 			return true;
 		} else {
 			if (externalPointer != null) {
@@ -211,7 +221,10 @@ public class CompletedCheckpoint implements Serializable {
 		}
 	}
 
-	void discard() throws Exception {
+	private void discard(SharedStateRegistry sharedStateRegistry, boolean failed) throws Exception {
+		Preconditions.checkState(failed || (sharedStateRegistry != null),
+			"The registry must not be null if the complete checkpoint does not fail.");
+
 		try {
 			// collect exceptions and continue cleanup
 			Exception exception = null;
@@ -223,6 +236,15 @@ public class CompletedCheckpoint implements Serializable {
 				} catch (Exception e) {
 					exception = e;
 				}
+			}
+
+			// In the cases where the completed checkpoint fails, the shared
+			// states have not been registered to the registry. It's the state
+			// handles' responsibility to discard their shared states.
+			if (!failed) {
+				unregisterSharedStates(sharedStateRegistry);
+			} else {
+				discardSharedStatesOnFail();
 			}
 
 			// discard private state objects
@@ -285,6 +307,36 @@ public class CompletedCheckpoint implements Serializable {
 	 */
 	void setDiscardCallback(@Nullable CompletedCheckpointStats.DiscardCallback discardCallback) {
 		this.discardCallback = discardCallback;
+	}
+
+	/**
+	 * Register all shared states in the given registry. This is method is called
+	 * when the completed checkpoint has been successfully added into the store.
+	 *
+	 * @param sharedStateRegistry The registry where shared states are registered
+	 */
+	public void registerSharedStates(SharedStateRegistry sharedStateRegistry) {
+		sharedStateRegistry.registerAll(taskStates.values());
+	}
+
+	/**
+	 * Unregister all shared states from the given registry. This is method is
+	 * called when the completed checkpoint is subsumed or the job terminates.
+	 *
+	 * @param sharedStateRegistry The registry where shared states are registered
+	 */
+	private void unregisterSharedStates(SharedStateRegistry sharedStateRegistry) {
+		sharedStateRegistry.unregisterAll(taskStates.values());
+	}
+
+	/**
+	 * Discard all shared states created in the checkpoint. This method is called
+	 * when the completed checkpoint fails to be added into the store.
+	 */
+	private void discardSharedStatesOnFail() throws Exception {
+		for (TaskState taskState : taskStates.values()) {
+			taskState.discardSharedStatesOnFail();
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------

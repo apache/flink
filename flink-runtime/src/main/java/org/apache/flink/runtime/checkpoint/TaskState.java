@@ -130,16 +130,23 @@ public class TaskState implements CompositeStateHandle {
 	}
 
 	@Override
-	public void register(SharedStateRegistry sharedStateRegistry) {
+	public void registerSharedStates(SharedStateRegistry sharedStateRegistry) {
 		for (SubtaskState subtaskState : subtaskStates.values()) {
-			subtaskState.register(sharedStateRegistry);
+			subtaskState.registerSharedStates(sharedStateRegistry);
 		}
 	}
 
 	@Override
-	public void unregister(SharedStateRegistry sharedStateRegistry) {
+	public void unregisterSharedStates(SharedStateRegistry sharedStateRegistry) {
 		for (SubtaskState subtaskState : subtaskStates.values()) {
-			subtaskState.unregister(sharedStateRegistry);
+			subtaskState.unregisterSharedStates(sharedStateRegistry);
+		}
+	}
+
+	@Override
+	public void discardSharedStatesOnFail() {
+		for (SubtaskState subtaskState : subtaskStates.values()) {
+			subtaskState.discardSharedStatesOnFail();
 		}
 	}
 

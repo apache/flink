@@ -105,14 +105,14 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
 		assertTrue(pendingCheckpoint.isDiscarded());
 
 		// make sure that the subtask state has been discarded after we could not complete it.
-		verify(subtaskState, times(1)).unregister(any(SharedStateRegistry.class));
+		verify(subtaskState, times(1)).discardSharedStatesOnFail();
 		verify(subtaskState).discardState();
 	}
 
 	private static final class FailingCompletedCheckpointStore implements CompletedCheckpointStore {
 
 		@Override
-		public void recover() throws Exception {
+		public void recover(SharedStateRegistry sharedStateRegistry) throws Exception {
 			throw new UnsupportedOperationException("Not implemented.");
 		}
 

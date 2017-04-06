@@ -21,8 +21,6 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.state.SharedStateRegistry;
-import org.apache.flink.runtime.state.StateObject;
-import org.apache.flink.runtime.state.StateUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,7 +57,7 @@ public class StandaloneCompletedCheckpointStore implements CompletedCheckpointSt
 	}
 
 	@Override
-	public void recover() throws Exception {
+	public void recover(SharedStateRegistry sharedStateRegistry) throws Exception {
 		// Nothing to do
 	}
 
@@ -68,18 +66,12 @@ public class StandaloneCompletedCheckpointStore implements CompletedCheckpointSt
 		
 		checkpoints.addLast(checkpoint);
 
+		checkpoint.registerSharedStates(sharedStateRegistry);
+
 		if (checkpoints.size() > maxNumberOfCheckpointsToRetain) {
 			try {
 				CompletedCheckpoint checkpointToSubsume = checkpoints.removeFirst();
-
-				List<StateObject> unreferencedSharedStates = sharedStateRegistry.unregisterAll(checkpointToSubsume.getTaskStates().values());
-				try {
-					StateUtil.bestEffortDiscardAllStateObjects(unreferencedSharedStates);
-				} catch (Exception e) {
-					LOG.warn("Could not properly discard unreferenced shared states.", e);
-				}
-
-				checkpointToSubsume.subsume();
+				checkpointToSubsume.discardOnSubsume(sharedStateRegistry);
 			} catch (Exception e) {
 				LOG.warn("Fail to subsume the old checkpoint.", e);
 			}
@@ -112,14 +104,7 @@ public class StandaloneCompletedCheckpointStore implements CompletedCheckpointSt
 			LOG.info("Shutting down");
 
 			for (CompletedCheckpoint checkpoint : checkpoints) {
-				List<StateObject> unreferencedSharedStates = sharedStateRegistry.unregisterAll(checkpoint.getTaskStates().values());
-				try {
-					StateUtil.bestEffortDiscardAllStateObjects(unreferencedSharedStates);
-				} catch (Exception e) {
-					LOG.warn("Could not properly discard unreferenced shared states.", e);
-				}
-
-				checkpoint.discard(jobStatus);
+				checkpoint.discardOnShutdown(jobStatus, sharedStateRegistry);
 			}
 		} finally {
 			checkpoints.clear();

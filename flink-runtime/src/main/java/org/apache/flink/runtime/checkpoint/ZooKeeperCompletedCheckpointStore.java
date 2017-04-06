@@ -28,8 +28,6 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
-import org.apache.flink.runtime.state.StateObject;
-import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.zookeeper.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
 import org.apache.flink.util.FlinkException;
@@ -143,7 +141,7 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 	 * that the history of checkpoints is consistent.
 	 */
 	@Override
-	public void recover() throws Exception {
+	public void recover(SharedStateRegistry sharedStateRegistry) throws Exception {
 		LOG.info("Recovering checkpoints from ZooKeeper.");
 
 		// Clear local handles in order to prevent duplicates on
@@ -167,8 +165,24 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 
 		LOG.info("Found {} checkpoints in ZooKeeper.", numberOfInitialCheckpoints);
 
-		for (Tuple2<RetrievableStateHandle<CompletedCheckpoint>, String> checkpoint : initialCheckpoints) {
-			checkpointStateHandles.add(checkpoint);
+		for (Tuple2<RetrievableStateHandle<CompletedCheckpoint>, String> checkpointStateHandle : initialCheckpoints) {
+
+			CompletedCheckpoint completedCheckpoint = null;
+
+			try {
+				completedCheckpoint = retrieveCompletedCheckpoint(checkpointStateHandle);
+			} catch (Exception e) {
+				LOG.warn("Could not retrieve checkpoint. Removing it from the completed " +
+					"checkpoint store.", e);
+
+				// remove the checkpoint with broken state handle
+				removeBrokenStateHandle(checkpointStateHandle);
+			}
+
+			if (completedCheckpoint != null) {
+				completedCheckpoint.registerSharedStates(sharedStateRegistry);
+				checkpointStateHandles.add(checkpointStateHandle);
+			}
 		}
 	}
 
@@ -188,6 +202,9 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 		stateHandle = checkpointsInZooKeeper.add(path, checkpoint);
 
 		checkpointStateHandles.addLast(new Tuple2<>(stateHandle, path));
+
+		// Register all shared states in the checkpoint
+		checkpoint.registerSharedStates(sharedStateRegistry);
 
 		// Everything worked, let's remove a previous checkpoint if necessary.
 		while (checkpointStateHandles.size() > maxNumberOfCheckpointsToRetain) {
@@ -302,15 +319,7 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 				CompletedCheckpoint completedCheckpoint = retrieveCompletedCheckpoint(stateHandleAndPath);
 				
 				if (completedCheckpoint != null) {
-					List<StateObject> unreferencedSharedStates = sharedStateRegistry.unregisterAll(completedCheckpoint.getTaskStates().values());
-
-					try {
-						StateUtil.bestEffortDiscardAllStateObjects(unreferencedSharedStates);
-					} catch (Throwable t) {
-						LOG.warn("Could not properly discard unreferenced shared states.", t);
-					}
-					
-					completedCheckpoint.subsume();
+					completedCheckpoint.discardOnSubsume(sharedStateRegistry);
 				}
 
 				return null;
@@ -331,15 +340,7 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 				CompletedCheckpoint completedCheckpoint = retrieveCompletedCheckpoint(stateHandleAndPath);
 				
 				if (completedCheckpoint != null) {
-					List<StateObject> unreferencedSharedStates = sharedStateRegistry.unregisterAll(completedCheckpoint.getTaskStates().values());
-
-					try {
-						StateUtil.bestEffortDiscardAllStateObjects(unreferencedSharedStates);
-					} catch (Throwable t) {
-						LOG.warn("Could not properly discard unreferenced shared states.", t);
-					}
-					
-					completedCheckpoint.discard(jobStatus);
+					completedCheckpoint.discardOnShutdown(jobStatus, sharedStateRegistry);
 				}
 
 				return null;

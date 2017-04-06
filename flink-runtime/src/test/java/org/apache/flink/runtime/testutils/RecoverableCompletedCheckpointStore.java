@@ -44,25 +44,24 @@ public class RecoverableCompletedCheckpointStore implements CompletedCheckpointS
 	private final ArrayDeque<CompletedCheckpoint> suspended = new ArrayDeque<>(2);
 
 	@Override
-	public void recover() throws Exception {
+	public void recover(SharedStateRegistry sharedStateRegistry) throws Exception {
 		checkpoints.addAll(suspended);
 		suspended.clear();
+
+		for (CompletedCheckpoint checkpoint : checkpoints) {
+			checkpoint.registerSharedStates(sharedStateRegistry);
+		}
 	}
 
 	@Override
 	public void addCheckpoint(CompletedCheckpoint checkpoint, SharedStateRegistry sharedStateRegistry) throws Exception {
 		checkpoints.addLast(checkpoint);
 
+		checkpoint.registerSharedStates(sharedStateRegistry);
+
 		if (checkpoints.size() > 1) {
 			CompletedCheckpoint checkpointToSubsume = checkpoints.removeFirst();
-			List<StateObject> unreferencedSharedStates = sharedStateRegistry.unregisterAll(checkpointToSubsume.getTaskStates().values());
-			try {
-				StateUtil.bestEffortDiscardAllStateObjects(unreferencedSharedStates);
-			} catch (Exception e) {
-				LOG.warn("Could not properly discard unreferenced shared states.", e);
-			}
-
-			checkpointToSubsume.subsume();
+			checkpointToSubsume.discardOnSubsume(sharedStateRegistry);
 		}
 	}
 
@@ -80,13 +79,7 @@ public class RecoverableCompletedCheckpointStore implements CompletedCheckpointS
 			suspended.clear();
 
 			for (CompletedCheckpoint checkpoint : checkpoints) {
-				List<StateObject> unreferencedSharedStates = sharedStateRegistry.unregisterAll(checkpoint.getTaskStates().values());
-				try {
-					StateUtil.bestEffortDiscardAllStateObjects(unreferencedSharedStates);
-				} catch (Exception e) {
-					LOG.warn("Could not properly discard unreferenced shared states.", e);
-				}
-
+				sharedStateRegistry.unregisterAll(checkpoint.getTaskStates().values());
 				suspended.add(checkpoint);
 			}
 

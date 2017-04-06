@@ -558,18 +558,17 @@ public class CheckpointCoordinatorTest {
 			assertEquals(1, checkpoint.getNumberOfNonAcknowledgedTasks());
 			assertFalse(checkpoint.isDiscarded());
 			assertFalse(checkpoint.isFullyAcknowledged());
-			verify(subtaskState2, times(1)).register(any(SharedStateRegistry.class));
+			verify(subtaskState2, never()).registerSharedStates(any(SharedStateRegistry.class));
 
 			// acknowledge the same task again (should not matter)
 			coord.receiveAcknowledgeMessage(acknowledgeCheckpoint1);
 			assertFalse(checkpoint.isDiscarded());
 			assertFalse(checkpoint.isFullyAcknowledged());
-			verify(subtaskState2, times(1)).register(any(SharedStateRegistry.class));
+			verify(subtaskState2, never()).registerSharedStates(any(SharedStateRegistry.class));
 
 			// acknowledge the other task.
 			SubtaskState subtaskState1 = mock(SubtaskState.class);
 			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, attemptID1, checkpointId, new CheckpointMetrics(), subtaskState1));
-			verify(subtaskState1, times(1)).register(any(SharedStateRegistry.class));
 
 			// the checkpoint is internally converted to a successful checkpoint and the
 			// pending checkpoint object is disposed
@@ -582,10 +581,10 @@ public class CheckpointCoordinatorTest {
 			// the canceler should be removed now
 			assertEquals(0, coord.getNumScheduledTasks());
 
-			// validate that the subtasks states have not unregistered their shared states.
+			// validate that the subtasks states have registered their shared states.
 			{
-				verify(subtaskState1, never()).unregister(any(SharedStateRegistry.class));
-				verify(subtaskState2, never()).unregister(any(SharedStateRegistry.class));
+				verify(subtaskState1, times(1)).registerSharedStates(any(SharedStateRegistry.class));
+				verify(subtaskState2, times(1)).registerSharedStates(any(SharedStateRegistry.class));
 			}
 
 			// validate that the relevant tasks got a confirmation message
@@ -622,8 +621,8 @@ public class CheckpointCoordinatorTest {
 
 			// validate that the subtask states in old savepoint have unregister their shared states
 			{
-				verify(subtaskState1, times(1)).unregister(any(SharedStateRegistry.class));
-				verify(subtaskState2, times(1)).unregister(any(SharedStateRegistry.class));
+				verify(subtaskState1, times(1)).unregisterSharedStates(any(SharedStateRegistry.class));
+				verify(subtaskState2, times(1)).unregisterSharedStates(any(SharedStateRegistry.class));
 			}
 
 			// validate that the relevant tasks got a confirmation message
@@ -835,7 +834,6 @@ public class CheckpointCoordinatorTest {
 			// acknowledge one of the three tasks
 			SubtaskState subtaskState1_2 = mock(SubtaskState.class);
 			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, ackAttemptID2, checkpointId1, new CheckpointMetrics(), subtaskState1_2));
-			verify(subtaskState1_2, times(1)).register(any(SharedStateRegistry.class));
 
 			// start the second checkpoint
 			// trigger the first checkpoint. this should succeed
@@ -862,19 +860,15 @@ public class CheckpointCoordinatorTest {
 
 			SubtaskState subtaskState2_3 = mock(SubtaskState.class);
 			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, ackAttemptID3, checkpointId2, new CheckpointMetrics(), subtaskState2_3));
-			verify(subtaskState2_3, times(1)).register(any(SharedStateRegistry.class));
 
 			SubtaskState subtaskState2_1 = mock(SubtaskState.class);
 			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, ackAttemptID1, checkpointId2, new CheckpointMetrics(), subtaskState2_1));
-			verify(subtaskState2_1, times(1)).register(any(SharedStateRegistry.class));
 
 			SubtaskState subtaskState1_1 = mock(SubtaskState.class);
 			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, ackAttemptID1, checkpointId1, new CheckpointMetrics(), subtaskState1_1));
-			verify(subtaskState1_1, times(1)).register(any(SharedStateRegistry.class));
 
 			SubtaskState subtaskState2_2 = mock(SubtaskState.class);
 			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, ackAttemptID2, checkpointId2, new CheckpointMetrics(), subtaskState2_2));
-			verify(subtaskState2_2, times(1)).register(any(SharedStateRegistry.class));
 
 			// now, the second checkpoint should be confirmed, and the first discarded
 			// actually both pending checkpoints are discarded, and the second has been transformed
@@ -886,15 +880,15 @@ public class CheckpointCoordinatorTest {
 			assertEquals(1, coord.getNumberOfRetainedSuccessfulCheckpoints());
 
 			// validate that all received subtask states in the first checkpoint have been discarded
-			verify(subtaskState1_1, times(1)).unregister(any(SharedStateRegistry.class));
-			verify(subtaskState1_2, times(1)).unregister(any(SharedStateRegistry.class));
+			verify(subtaskState1_1, times(1)).discardSharedStatesOnFail();
+			verify(subtaskState1_2, times(1)).discardSharedStatesOnFail();
 			verify(subtaskState1_1, times(1)).discardState();
 			verify(subtaskState1_2, times(1)).discardState();
 
 			// validate that all subtask states in the second checkpoint are not discarded
-			verify(subtaskState2_1, never()).unregister(any(SharedStateRegistry.class));
-			verify(subtaskState2_2, never()).unregister(any(SharedStateRegistry.class));
-			verify(subtaskState2_3, never()).unregister(any(SharedStateRegistry.class));
+			verify(subtaskState2_1, never()).unregisterSharedStates(any(SharedStateRegistry.class));
+			verify(subtaskState2_2, never()).unregisterSharedStates(any(SharedStateRegistry.class));
+			verify(subtaskState2_3, never()).unregisterSharedStates(any(SharedStateRegistry.class));
 			verify(subtaskState2_1, never()).discardState();
 			verify(subtaskState2_2, never()).discardState();
 			verify(subtaskState2_3, never()).discardState();
@@ -913,16 +907,15 @@ public class CheckpointCoordinatorTest {
 			// send the last remaining ack for the first checkpoint. This should not do anything
 			SubtaskState subtaskState1_3 = mock(SubtaskState.class);
 			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, ackAttemptID3, checkpointId1, new CheckpointMetrics(), subtaskState1_3));
-			verify(subtaskState1_3, times(1)).register(any(SharedStateRegistry.class));
-			verify(subtaskState1_3, times(1)).unregister(any(SharedStateRegistry.class));
+			verify(subtaskState1_3, times(1)).discardSharedStatesOnFail();
 			verify(subtaskState1_3, times(1)).discardState();
 
 			coord.shutdown(JobStatus.FINISHED);
 
 			// validate that the states in the second checkpoint have been discarded
-			verify(subtaskState2_1, times(1)).unregister(any(SharedStateRegistry.class));
-			verify(subtaskState2_2, times(1)).unregister(any(SharedStateRegistry.class));
-			verify(subtaskState2_3, times(1)).unregister(any(SharedStateRegistry.class));
+			verify(subtaskState2_1, times(1)).unregisterSharedStates(any(SharedStateRegistry.class));
+			verify(subtaskState2_2, times(1)).unregisterSharedStates(any(SharedStateRegistry.class));
+			verify(subtaskState2_3, times(1)).unregisterSharedStates(any(SharedStateRegistry.class));
 			verify(subtaskState2_1, times(1)).discardState();
 			verify(subtaskState2_2, times(1)).discardState();
 			verify(subtaskState2_3, times(1)).discardState();
@@ -983,7 +976,6 @@ public class CheckpointCoordinatorTest {
 
 			SubtaskState subtaskState = mock(SubtaskState.class);
 			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, ackAttemptID1, checkpoint.getCheckpointId(), new CheckpointMetrics(), subtaskState));
-			verify(subtaskState, times(1)).register(any(SharedStateRegistry.class));
 
 			// wait until the checkpoint must have expired.
 			// we check every 250 msecs conservatively for 5 seconds
@@ -1001,7 +993,7 @@ public class CheckpointCoordinatorTest {
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
 
 			// validate that the received states have been discarded
-			verify(subtaskState, times(1)).unregister(any(SharedStateRegistry.class));
+			verify(subtaskState, times(1)).discardSharedStatesOnFail();
 			verify(subtaskState, times(1)).discardState();
 
 			// no confirm message must have been sent
@@ -1125,8 +1117,7 @@ public class CheckpointCoordinatorTest {
 		coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jobId, triggerAttemptId, checkpointId, new CheckpointMetrics(), triggerSubtaskState));
 
 		// verify that the subtask state has registered its shared states at the registry
-		verify(triggerSubtaskState, times(1)).register(any(SharedStateRegistry.class));
-		verify(triggerSubtaskState, never()).unregister(any(SharedStateRegistry.class));
+		verify(triggerSubtaskState, never()).discardSharedStatesOnFail();
 		verify(triggerSubtaskState, never()).discardState();
 
 		SubtaskState unknownSubtaskState = mock(SubtaskState.class);
@@ -1135,8 +1126,7 @@ public class CheckpointCoordinatorTest {
 		coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jobId, new ExecutionAttemptID(), checkpointId, new CheckpointMetrics(), unknownSubtaskState));
 
 		// we should discard acknowledge messages from an unknown vertex belonging to our job
-		verify(unknownSubtaskState, times(1)).register(any(SharedStateRegistry.class));
-		verify(unknownSubtaskState, times(1)).unregister(any(SharedStateRegistry.class));
+		verify(unknownSubtaskState, times(1)).discardSharedStatesOnFail();
 		verify(unknownSubtaskState, times(1)).discardState();
 
 		SubtaskState differentJobSubtaskState = mock(SubtaskState.class);
@@ -1145,8 +1135,7 @@ public class CheckpointCoordinatorTest {
 		coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(new JobID(), new ExecutionAttemptID(), checkpointId, new CheckpointMetrics(), differentJobSubtaskState));
 
 		// we should not interfere with different jobs
-		verify(differentJobSubtaskState, never()).register(any(SharedStateRegistry.class));
-		verify(differentJobSubtaskState, never()).unregister(any(SharedStateRegistry.class));
+		verify(differentJobSubtaskState, never()).discardSharedStatesOnFail();
 		verify(differentJobSubtaskState, never()).discardState();
 
 		// duplicate acknowledge message for the trigger vertex
@@ -1154,8 +1143,7 @@ public class CheckpointCoordinatorTest {
 		coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jobId, triggerAttemptId, checkpointId, new CheckpointMetrics(), triggerSubtaskState));
 
 		// duplicate acknowledge messages for a known vertex should not trigger discarding the state
-		verify(triggerSubtaskState, never()).register(any(SharedStateRegistry.class));
-		verify(triggerSubtaskState, never()).unregister(any(SharedStateRegistry.class));
+		verify(triggerSubtaskState, never()).discardSharedStatesOnFail();
 		verify(triggerSubtaskState, never()).discardState();
 
 		// let the checkpoint fail at the first ack vertex
@@ -1165,7 +1153,7 @@ public class CheckpointCoordinatorTest {
 		assertTrue(pendingCheckpoint.isDiscarded());
 
 		// check that we've cleaned up the already acknowledged state
-		verify(triggerSubtaskState, times(1)).unregister(any(SharedStateRegistry.class));
+		verify(triggerSubtaskState, times(1)).discardSharedStatesOnFail();
 		verify(triggerSubtaskState, times(1)).discardState();
 
 		SubtaskState ackSubtaskState = mock(SubtaskState.class);
@@ -1174,8 +1162,7 @@ public class CheckpointCoordinatorTest {
 		coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jobId, ackAttemptId2, checkpointId, new CheckpointMetrics(), ackSubtaskState));
 
 		// check that we also cleaned up this state
-		verify(ackSubtaskState, times(1)).register(any(SharedStateRegistry.class));
-		verify(ackSubtaskState, times(1)).unregister(any(SharedStateRegistry.class));
+		verify(ackSubtaskState, times(1)).discardSharedStatesOnFail();
 		verify(ackSubtaskState, times(1)).discardState();
 
 		// receive an acknowledge message from an unknown job
@@ -1183,8 +1170,7 @@ public class CheckpointCoordinatorTest {
 		coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(new JobID(), new ExecutionAttemptID(), checkpointId, new CheckpointMetrics(), differentJobSubtaskState));
 
 		// we should not interfere with different jobs
-		verify(differentJobSubtaskState, never()).register(any(SharedStateRegistry.class));
-		verify(differentJobSubtaskState, never()).unregister(any(SharedStateRegistry.class));
+		verify(differentJobSubtaskState, never()).discardSharedStatesOnFail();
 		verify(differentJobSubtaskState, never()).discardState();
 
 		SubtaskState unknownSubtaskState2 = mock(SubtaskState.class);
@@ -1193,8 +1179,7 @@ public class CheckpointCoordinatorTest {
 		coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jobId, new ExecutionAttemptID(), checkpointId, new CheckpointMetrics(), unknownSubtaskState2));
 
 		// we should discard acknowledge messages from an unknown vertex belonging to our job
-		verify(unknownSubtaskState2, times(1)).register(any(SharedStateRegistry.class));
-		verify(unknownSubtaskState2, times(1)).unregister(any(SharedStateRegistry.class));
+		verify(unknownSubtaskState2, times(1)).discardSharedStatesOnFail();
 		verify(unknownSubtaskState2, times(1)).discardState();
 	}
 
@@ -1453,22 +1438,16 @@ public class CheckpointCoordinatorTest {
 		assertFalse(pending.isDiscarded());
 		assertFalse(pending.isFullyAcknowledged());
 		assertFalse(savepointFuture.isDone());
-		verify(subtaskState2, times(1)).register(any(SharedStateRegistry.class));
-		verify(subtaskState2, never()).unregister(any(SharedStateRegistry.class));
 
 		// acknowledge the same task again (should not matter)
 		coord.receiveAcknowledgeMessage(acknowledgeCheckpoint2);
 		assertFalse(pending.isDiscarded());
 		assertFalse(pending.isFullyAcknowledged());
 		assertFalse(savepointFuture.isDone());
-		verify(subtaskState2, times(1)).register(any(SharedStateRegistry.class));
-		verify(subtaskState2, never()).unregister(any(SharedStateRegistry.class));
 
 		// acknowledge the other task.
 		SubtaskState subtaskState1 = mock(SubtaskState.class);
 		coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, attemptID1, checkpointId, new CheckpointMetrics(), subtaskState1));
-		verify(subtaskState1, times(1)).register(any(SharedStateRegistry.class));
-		verify(subtaskState1, never()).unregister(any(SharedStateRegistry.class));
 
 		// the checkpoint is internally converted to a successful checkpoint and the
 		// pending checkpoint object is disposed
@@ -1483,6 +1462,12 @@ public class CheckpointCoordinatorTest {
 		{
 			verify(vertex1.getCurrentExecutionAttempt(), times(1)).notifyCheckpointComplete(eq(checkpointId), eq(timestamp));
 			verify(vertex2.getCurrentExecutionAttempt(), times(1)).notifyCheckpointComplete(eq(checkpointId), eq(timestamp));
+		}
+
+		// validate that the shared states are registered
+		{
+			verify(subtaskState1, times(1)).registerSharedStates(any(SharedStateRegistry.class));
+			verify(subtaskState2, times(1)).registerSharedStates(any(SharedStateRegistry.class));
 		}
 
 		CompletedCheckpoint success = coord.getSuccessfulCheckpoints().get(0);
@@ -1516,10 +1501,9 @@ public class CheckpointCoordinatorTest {
 		verify(subtaskState1, never()).discardState();
 		verify(subtaskState2, never()).discardState();
 
-		// Savepoints are not supposed to have any shared state. But we still
-		// call the unregister method in case savepoints register something in the registry.
-		verify(subtaskState1, times(1)).unregister(any(SharedStateRegistry.class));
-		verify(subtaskState2, times(1)).unregister(any(SharedStateRegistry.class));
+		// Savepoints are not supposed to have any shared state.
+		verify(subtaskState1, never()).unregisterSharedStates(any(SharedStateRegistry.class));
+		verify(subtaskState2, never()).unregisterSharedStates(any(SharedStateRegistry.class));
 
 		// validate that the relevant tasks got a confirmation message
 		{
@@ -2029,13 +2013,14 @@ public class CheckpointCoordinatorTest {
 		assertEquals(1, completedCheckpoints.size());
 
 		// shutdown the store
-		store.shutdown(JobStatus.SUSPENDED, new SharedStateRegistry());
+		SharedStateRegistry sharedStateRegistry = coord.getSharedStateRegistry();
+		store.shutdown(JobStatus.SUSPENDED, sharedStateRegistry);
 
 		// All shared states should be unregistered once the store is shut down
 		for (CompletedCheckpoint completedCheckpoint : completedCheckpoints) {
 			for (TaskState taskState : completedCheckpoint.getTaskStates().values()) {
 				for (SubtaskState subtaskState : taskState.getStates()) {
-					verify(subtaskState, times(1)).unregister(any(SharedStateRegistry.class));
+					verify(subtaskState, times(1)).unregisterSharedStates(sharedStateRegistry);
 				}
 			}
 		}
@@ -2052,7 +2037,7 @@ public class CheckpointCoordinatorTest {
 		for (CompletedCheckpoint completedCheckpoint : completedCheckpoints) {
 			for (TaskState taskState : completedCheckpoint.getTaskStates().values()) {
 				for (SubtaskState subtaskState : taskState.getStates()) {
-					verify(subtaskState, times(2)).register(any(SharedStateRegistry.class));
+					verify(subtaskState, times(2)).registerSharedStates(sharedStateRegistry);
 				}
 			}
 		}
@@ -3163,9 +3148,9 @@ public class CheckpointCoordinatorTest {
 			store,
 			null,
 			Executors.directExecutor());
-		
+
 		store.addCheckpoint(
-			new CompletedCheckpoint(new JobID(), 0, 0, 0, Collections.<JobVertexID, TaskState>emptyMap()), 
+			new CompletedCheckpoint(new JobID(), 0, 0, 0, Collections.<JobVertexID, TaskState>emptyMap()),
 			coord.getSharedStateRegistry());
 
 		CheckpointStatsTracker tracker = mock(CheckpointStatsTracker.class);

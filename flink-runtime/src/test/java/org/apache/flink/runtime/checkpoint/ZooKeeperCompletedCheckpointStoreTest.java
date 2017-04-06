@@ -160,7 +160,9 @@ public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
 			stateSotrage,
 			Executors.directExecutor());
 
-		zooKeeperCompletedCheckpointStore.recover();
+		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+
+		zooKeeperCompletedCheckpointStore.recover(sharedStateRegistry);
 
 		CompletedCheckpoint latestCompletedCheckpoint = zooKeeperCompletedCheckpointStore.getLatestCheckpoint();
 

@@ -23,6 +23,7 @@ import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
@@ -53,15 +54,16 @@ public class StandaloneCompletedCheckpointStoreTest extends CompletedCheckpointS
 		CompletedCheckpointStore store = createCompletedCheckpoints(1);
 		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
 		TestCompletedCheckpoint checkpoint = createCheckpoint(0);
-
-		sharedStateRegistry.registerAll(checkpoint.getTaskStates().values());
+		Collection<TaskState> taskStates = checkpoint.getTaskStates().values();
 
 		store.addCheckpoint(checkpoint, sharedStateRegistry);
 		assertEquals(1, store.getNumberOfRetainedCheckpoints());
+		verifyCheckpointRegistered(taskStates, sharedStateRegistry);
 
 		store.shutdown(JobStatus.FINISHED, sharedStateRegistry);
 		assertEquals(0, store.getNumberOfRetainedCheckpoints());
 		assertTrue(checkpoint.isDiscarded());
+		verifyCheckpointDiscarded(taskStates);
 	}
 
 	/**
@@ -72,16 +74,17 @@ public class StandaloneCompletedCheckpointStoreTest extends CompletedCheckpointS
 	public void testSuspendDiscardsCheckpoints() throws Exception {
 		CompletedCheckpointStore store = createCompletedCheckpoints(1);
 		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
-
 		TestCompletedCheckpoint checkpoint = createCheckpoint(0);
+		Collection<TaskState> taskStates = checkpoint.getTaskStates().values();
 
-		sharedStateRegistry.registerAll(checkpoint.getTaskStates().values());
 		store.addCheckpoint(checkpoint, sharedStateRegistry);
 		assertEquals(1, store.getNumberOfRetainedCheckpoints());
+		verifyCheckpointRegistered(taskStates, sharedStateRegistry);
 
 		store.shutdown(JobStatus.SUSPENDED, sharedStateRegistry);
 		assertEquals(0, store.getNumberOfRetainedCheckpoints());
 		assertTrue(checkpoint.isDiscarded());
+		verifyCheckpointDiscarded(taskStates);
 	}
 	
 	/**
@@ -99,7 +102,7 @@ public class StandaloneCompletedCheckpointStoreTest extends CompletedCheckpointS
 			CompletedCheckpoint checkpointToAdd = mock(CompletedCheckpoint.class);
 			doReturn(i).when(checkpointToAdd).getCheckpointID();
 			doReturn(Collections.emptyMap()).when(checkpointToAdd).getTaskStates();
-			doThrow(new IOException()).when(checkpointToAdd).subsume();
+			doThrow(new IOException()).when(checkpointToAdd).discardOnSubsume(sharedStateRegistry);
 			
 			try {
 				store.addCheckpoint(checkpointToAdd, sharedStateRegistry);

@@ -34,14 +34,14 @@ public interface CompletedCheckpointStore {
 	 * <p>After a call to this method, {@link #getLatestCheckpoint()} returns the latest
 	 * available checkpoint.
 	 */
-	void recover() throws Exception;
+	void recover(SharedStateRegistry sharedStateRegistry) throws Exception;
 
 	/**
 	 * Adds a {@link CompletedCheckpoint} instance to the list of completed checkpoints.
 	 *
 	 * <p>Only a bounded number of checkpoints is kept. When exceeding the maximum number of
 	 * retained checkpoints, the oldest one will be discarded via {@link
-	 * CompletedCheckpoint#subsume()} )}.
+	 * CompletedCheckpoint#discardOnSubsume(SharedStateRegistry)} )}.
 	 */
 	void addCheckpoint(CompletedCheckpoint checkpoint, SharedStateRegistry sharedStateRegistry) throws Exception;
 

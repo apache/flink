@@ -33,43 +33,51 @@ public class SharedStateRegistryTest {
 		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
 
 		// register one state
-		TestState firstState = new TestState("first");
-		sharedStateRegistry.register(firstState.getKey(), firstState);
-		assertEquals(1, sharedStateRegistry.getReferenceCount(firstState.getKey()));
+		TestSharedState firstState = new TestSharedState("first");
+		sharedStateRegistry.register(firstState, true);
+		assertEquals(1, sharedStateRegistry.getReferenceCount(firstState));
 
 		// register another state
-		TestState secondState = new TestState("second");
-		sharedStateRegistry.register(secondState.getKey(), secondState);
-		assertEquals(1, sharedStateRegistry.getReferenceCount(secondState.getKey()));
+		TestSharedState secondState = new TestSharedState("second");
+		sharedStateRegistry.register(secondState, true);
+		assertEquals(1, sharedStateRegistry.getReferenceCount(secondState));
 
 		// register the first state again
-		sharedStateRegistry.register(firstState.getKey(), firstState);
-		assertEquals(2, sharedStateRegistry.getReferenceCount(firstState.getKey()));
+		sharedStateRegistry.register(firstState, false);
+		assertEquals(2, sharedStateRegistry.getReferenceCount(firstState));
 
 		// unregister the second state
-		sharedStateRegistry.unregister(secondState.getKey());
-		assertEquals(0, sharedStateRegistry.getReferenceCount(secondState.getKey()));
+		sharedStateRegistry.unregister(secondState);
+		assertEquals(0, sharedStateRegistry.getReferenceCount(secondState));
 
 		// unregister the first state
-		sharedStateRegistry.unregister(firstState.getKey());
-		assertEquals(1, sharedStateRegistry.getReferenceCount(firstState.getKey()));
+		sharedStateRegistry.unregister(firstState);
+		assertEquals(1, sharedStateRegistry.getReferenceCount(firstState));
 	}
 
 	/**
-	 * Validate that registering a key with different states will throw exception
+	 * Validate that registering a handle referencing uncreated state will throw exception
 	 */
 	@Test(expected = IllegalStateException.class)
-	public void testRegisterWithInconsistentState() {
+	public void testRegisterWithUncreatedReference() {
 		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
 
 		// register one state
-		TestState state = new TestState("state");
-		sharedStateRegistry.register("key", state);
-		assertEquals(1, sharedStateRegistry.getReferenceCount("key"));
+		TestSharedState state = new TestSharedState("state");
+		sharedStateRegistry.register(state, false);
+	}
 
-		// register the state with another key
-		TestState anotherState = new TestState("anotherState");
-		sharedStateRegistry.register("key", anotherState);
+	/**
+	 * Validate that registering duplicate creation of the same state will throw exception
+	 */
+	@Test(expected = IllegalStateException.class)
+	public void testRegisterWithDuplicateState() {
+		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+
+		// register one state
+		TestSharedState state = new TestSharedState("state");
+		sharedStateRegistry.register(state, true);
+		sharedStateRegistry.register(state, true);
 	}
 
 	/**
@@ -79,18 +87,19 @@ public class SharedStateRegistryTest {
 	public void testUnregisterWithUnexistedKey() {
 		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
 
-		sharedStateRegistry.unregister("unexistedKey");
+		sharedStateRegistry.unregister(new TestSharedState("unexisted"));
 	}
 
-	private static class TestState implements StateObject {
+	private static class TestSharedState implements SharedStateHandle {
 		private static final long serialVersionUID = 4468635881465159780L;
 
 		private String key;
 
-		TestState(String key) {
+		TestSharedState(String key) {
 			this.key = key;
 		}
 
+		@Override
 		public String getKey() {
 			return key;
 		}
@@ -114,7 +123,7 @@ public class SharedStateRegistryTest {
 				return false;
 			}
 
-			TestState testState = (TestState) o;
+			TestSharedState testState = (TestSharedState) o;
 
 			return key.equals(testState.key);
 		}

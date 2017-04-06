@@ -88,19 +88,25 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
 		};
 
 		// Add multiple checkpoints
-		sharedStateRegistry.registerAll(expected[0].getTaskStates().values());
 		checkpoints.addCheckpoint(expected[0], sharedStateRegistry);
-		sharedStateRegistry.registerAll(expected[1].getTaskStates().values());
 		checkpoints.addCheckpoint(expected[1], sharedStateRegistry);
-		sharedStateRegistry.registerAll(expected[2].getTaskStates().values());
 		checkpoints.addCheckpoint(expected[2], sharedStateRegistry);
+
+		verifyCheckpointRegistered(expected[0].getTaskStates().values(), sharedStateRegistry);
+		verifyCheckpointRegistered(expected[1].getTaskStates().values(), sharedStateRegistry);
+		verifyCheckpointRegistered(expected[2].getTaskStates().values(), sharedStateRegistry);
 
 		// All three should be in ZK
 		assertEquals(3, ZooKeeper.getClient().getChildren().forPath(CheckpointsPath).size());
 		assertEquals(3, checkpoints.getNumberOfRetainedCheckpoints());
 
+		resetCheckpoint(expected[0].getTaskStates().values());
+		resetCheckpoint(expected[1].getTaskStates().values());
+		resetCheckpoint(expected[2].getTaskStates().values());
+
 		// Recover
-		checkpoints.recover();
+		SharedStateRegistry newSharedStateRegistry = new SharedStateRegistry();
+		checkpoints.recover(newSharedStateRegistry);
 
 		assertEquals(3, ZooKeeper.getClient().getChildren().forPath(CheckpointsPath).size());
 		assertEquals(3, checkpoints.getNumberOfRetainedCheckpoints());
@@ -111,11 +117,15 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
 		expectedCheckpoints.add(expected[2]);
 		expectedCheckpoints.add(createCheckpoint(3));
 
-		checkpoints.addCheckpoint(expectedCheckpoints.get(2), sharedStateRegistry);
+		checkpoints.addCheckpoint(expectedCheckpoints.get(2), newSharedStateRegistry);
 
 		List<CompletedCheckpoint> actualCheckpoints = checkpoints.getAllCheckpoints();
 
 		assertEquals(expectedCheckpoints, actualCheckpoints);
+
+		for (CompletedCheckpoint actualCheckpoint : actualCheckpoints) {
+			verifyCheckpointRegistered(actualCheckpoint.getTaskStates().values(), newSharedStateRegistry);
+		}
 	}
 
 	/**
@@ -129,7 +139,6 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
 		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
 		TestCompletedCheckpoint checkpoint = createCheckpoint(0);
 
-		sharedStateRegistry.registerAll(checkpoint.getTaskStates().values());
 		store.addCheckpoint(checkpoint, sharedStateRegistry);
 		assertEquals(1, store.getNumberOfRetainedCheckpoints());
 		assertNotNull(client.checkExists().forPath(CheckpointsPath + "/" + checkpoint.getCheckpointID()));
@@ -138,7 +147,7 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
 		assertEquals(0, store.getNumberOfRetainedCheckpoints());
 		assertNull(client.checkExists().forPath(CheckpointsPath + "/" + checkpoint.getCheckpointID()));
 
-		store.recover();
+		store.recover(sharedStateRegistry);
 
 		assertEquals(0, store.getNumberOfRetainedCheckpoints());
 	}
@@ -165,7 +174,7 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
 		assertNotNull(client.checkExists().forPath(CheckpointsPath + "/" + checkpoint.getCheckpointID()));
 
 		// Recover again
-		store.recover();
+		store.recover(sharedStateRegistry);
 
 		CompletedCheckpoint recovered = store.getLatestCheckpoint();
 		assertEquals(checkpoint, recovered);
