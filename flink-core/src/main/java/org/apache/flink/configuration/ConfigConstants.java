@@ -990,21 +990,8 @@ public final class ConfigConstants {
 
 	// ---------------------------- Metrics -----------------------------------
 
-	/**
-	 * The list of named reporters. Names are defined here and per-reporter configs
-	 * are given with the reporter config prefix and the reporter name.
-	 *
-	 * Example:
-	 * <pre>{@code
-	 * metrics.reporters = foo, bar
-	 *
-	 * metrics.reporter.foo.class = org.apache.flink.metrics.reporter.JMXReporter
-	 * metrics.reporter.foo.interval = 10
-	 *
-	 * metrics.reporter.bar.class = org.apache.flink.metrics.graphite.GraphiteReporter
-	 * metrics.reporter.bar.port = 1337
-	 * }</pre>
-	 */
+	/** @deprecated Use {@link MetricOptions#REPORTERS_LIST} instead. */
+	@Deprecated
 	public static final String METRICS_REPORTERS_LIST = "metrics.reporters";
 
 	/**
@@ -1022,28 +1009,36 @@ public final class ConfigConstants {
 	/**	The delimiter used to assemble the metric identifier. This is used as a suffix in an actual reporter config. */
 	public static final String METRICS_REPORTER_SCOPE_DELIMITER = "scope.delimiter";
 
-	/** The delimiter used to assemble the metric identifier. */
+	/** @deprecated Use {@link MetricOptions#SCOPE_DELIMITER} instead. */
+	@Deprecated
 	public static final String METRICS_SCOPE_DELIMITER = "metrics.scope.delimiter";
 
-	/** The scope format string that is applied to all metrics scoped to a JobManager. */
+	/** @deprecated Use {@link MetricOptions#SCOPE_NAMING_JM} instead. */
+	@Deprecated
 	public static final String METRICS_SCOPE_NAMING_JM = "metrics.scope.jm";
 
-	/** The scope format string that is applied to all metrics scoped to a TaskManager. */
+	/** @deprecated Use {@link MetricOptions#SCOPE_NAMING_TM} instead. */
+	@Deprecated
 	public static final String METRICS_SCOPE_NAMING_TM = "metrics.scope.tm";
 
-	/** The scope format string that is applied to all metrics scoped to a job on a JobManager. */
+	/** @deprecated Use {@link MetricOptions#SCOPE_NAMING_JM_JOB} instead. */
+	@Deprecated
 	public static final String METRICS_SCOPE_NAMING_JM_JOB = "metrics.scope.jm.job";
 
-	/** The scope format string that is applied to all metrics scoped to a job on a TaskManager. */
+	/** @deprecated Use {@link MetricOptions#SCOPE_NAMING_TM_JOB} instead. */
+	@Deprecated
 	public static final String METRICS_SCOPE_NAMING_TM_JOB = "metrics.scope.tm.job";
 
-	/** The scope format string that is applied to all metrics scoped to a task. */
+	/** @deprecated Use {@link MetricOptions#SCOPE_NAMING_TASK} instead. */
+	@Deprecated
 	public static final String METRICS_SCOPE_NAMING_TASK = "metrics.scope.task";
 
-	/** The scope format string that is applied to all metrics scoped to an operator. */
+	/** @deprecated Use {@link MetricOptions#SCOPE_NAMING_OPERATOR} instead. */
+	@Deprecated
 	public static final String METRICS_SCOPE_NAMING_OPERATOR = "metrics.scope.operator";
 
-	/** The number of measured latencies to maintain at each operator */
+	/** @deprecated Use {@link MetricOptions#LATENCY_HISTORY_SIZE} instead. */
+	@Deprecated
 	public static final String METRICS_LATENCY_HISTORY_SIZE = "metrics.latency.history-size";
 
 
@@ -1498,7 +1493,8 @@ public final class ConfigConstants {
 
 	// ----------------------------- Metrics ----------------------------
 
-	/** The default number of measured latencies to maintain at each operator */
+	/** @deprecated Use {@link MetricOptions#LATENCY_HISTORY_SIZE} instead. */
+	@Deprecated
 	public static final int DEFAULT_METRICS_LATENCY_HISTORY_SIZE = 128;
 
 	// ----------------------------- Environment Variables ----------------------------
