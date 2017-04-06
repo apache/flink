@@ -79,7 +79,7 @@ SingleOutputStreamOperator<Integer> mainDataStream = input
         out.collect(value);
 
         // emit data to side output
-        ctx.output(sideOutputTag, "sideout-" + String.valueOf(value));
+        ctx.output(outputTag, "sideout-" + String.valueOf(value));
       }
     });
 {% endhighlight %}
