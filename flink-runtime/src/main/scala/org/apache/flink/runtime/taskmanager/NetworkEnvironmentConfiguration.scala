@@ -23,7 +23,9 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager.IOMode
 import org.apache.flink.runtime.io.network.netty.NettyConfig
 
 case class NetworkEnvironmentConfiguration(
-    numNetworkBuffers: Int,
+    networkBufFraction: Float,
+    networkBufMin: Long,
+    networkBufMax: Long,
     networkBufferSize: Int,
     memoryType: MemoryType,
     ioMode: IOMode,
