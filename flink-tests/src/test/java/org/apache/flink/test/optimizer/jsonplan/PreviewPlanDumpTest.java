@@ -20,6 +20,9 @@ package org.apache.flink.test.optimizer.jsonplan;
 
 import java.util.List;
 
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.JsonParser;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.client.program.OptimizerPlanEnvironment;
 import org.apache.flink.client.program.PreviewPlanEnvironment;
@@ -32,9 +35,6 @@ import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.dag.DataSinkNode;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.optimizer.util.CompilerTestBase;
-import org.codehaus.jackson.JsonFactory;
-import org.codehaus.jackson.JsonParseException;
-import org.codehaus.jackson.JsonParser;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -168,8 +168,9 @@ public class PreviewPlanDumpTest extends CompilerTestBase {
 			List<DataSinkNode> sinks = Optimizer.createPreOptimizedPlan(p);
 			PlanJSONDumpGenerator dumper = new PlanJSONDumpGenerator();
 			String json = dumper.getPactPlanAsJSON(sinks);
-			JsonParser parser = new JsonFactory().createJsonParser(json);
-			while (parser.nextToken() != null);
+			try (JsonParser parser = new JsonFactory().createParser(json)) {
+				while (parser.nextToken() != null) ;
+			}
 		} catch (JsonParseException e) {
 			e.printStackTrace();
 			Assert.fail("JSON Generator produced malformatted output: " + e.getMessage());
