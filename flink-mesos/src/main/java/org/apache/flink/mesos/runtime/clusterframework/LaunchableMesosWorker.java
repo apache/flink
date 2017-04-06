@@ -22,10 +22,12 @@ import com.netflix.fenzo.ConstraintEvaluator;
 import com.netflix.fenzo.TaskAssignmentResult;
 import com.netflix.fenzo.TaskRequest;
 import com.netflix.fenzo.VMTaskFitnessCalculator;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.mesos.Utils;
 import org.apache.flink.mesos.scheduler.LaunchableTask;
 import org.apache.flink.mesos.util.MesosArtifactResolver;
+import org.apache.flink.mesos.util.MesosConfiguration;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
 import org.apache.flink.util.Preconditions;
@@ -64,6 +66,7 @@ public class LaunchableMesosWorker implements LaunchableTask {
 	private final MesosTaskManagerParameters params;
 	private final Protos.TaskID taskID;
 	private final Request taskRequest;
+	private final MesosConfiguration mesosConfiguration;
 
 	/**
 	 * Construct a launchable Mesos worker.
@@ -76,11 +79,14 @@ public class LaunchableMesosWorker implements LaunchableTask {
 			MesosArtifactResolver resolver,
 			MesosTaskManagerParameters params,
 			ContainerSpecification containerSpec,
-			Protos.TaskID taskID) {
+			Protos.TaskID taskID,
+			MesosConfiguration mesosConfiguration) {
 		this.resolver = Preconditions.checkNotNull(resolver);
-		this.params = Preconditions.checkNotNull(params);
 		this.containerSpec = Preconditions.checkNotNull(containerSpec);
+		this.params = Preconditions.checkNotNull(params);
 		this.taskID = Preconditions.checkNotNull(taskID);
+		this.mesosConfiguration = Preconditions.checkNotNull(mesosConfiguration);
+		
 		this.taskRequest = new Request();
 	}
 
@@ -193,6 +199,12 @@ public class LaunchableMesosWorker implements LaunchableTask {
 		final Protos.Environment.Builder env = cmd.getEnvironmentBuilder();
 		final StringBuilder jvmArgs = new StringBuilder();
 
+		//configure task manager hostname property if hostname override property is supplied
+		if(params.getTaskManagerHostname().isDefined()) {
+			final String taskManagerHostName = params.getTaskManagerHostname().get().replace("_TASK",taskID.getValue());
+			dynamicProperties.setString(ConfigConstants.TASK_MANAGER_HOSTNAME_KEY, taskManagerHostName);
+		}
+
 		// use the assigned ports for the TM
 		if (assignment.getAssignedPorts().size() < TM_PORT_KEYS.length) {
 			throw new IllegalArgumentException("unsufficient # of ports assigned");
@@ -234,8 +246,16 @@ public class LaunchableMesosWorker implements LaunchableTask {
 		// finalize JVM args
 		env.addVariables(variable(MesosConfigKeys.ENV_JVM_ARGS, jvmArgs.toString()));
 
+		// populate TASK_NAME and FRAMEWORK_NAME environment variables to the TM container
+		env.addVariables(variable(MesosConfigKeys.ENV_TASK_NAME, taskInfo.getTaskId().getValue()));
+		env.addVariables(variable(MesosConfigKeys.ENV_FRAMEWORK_NAME, mesosConfiguration.frameworkInfo().getName()));
+
 		// build the launch command w/ dynamic application properties
-		StringBuilder launchCommand = new StringBuilder("$FLINK_HOME/bin/mesos-taskmanager.sh ");
+		StringBuilder launchCommand = new StringBuilder();
+		if(params.bootstrapCommand().isDefined()) {
+			launchCommand.append(params.bootstrapCommand().get()).append(" && ");
+		}
+		launchCommand.append("$FLINK_HOME/bin/mesos-taskmanager.sh ");
 		launchCommand.append(ContainerSpecification.formatSystemProperties(dynamicProperties));
 		cmd.setValue(launchCommand.toString());
 

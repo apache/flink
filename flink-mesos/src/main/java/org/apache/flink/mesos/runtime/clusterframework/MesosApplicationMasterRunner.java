@@ -210,10 +210,19 @@ public class MesosApplicationMasterRunner {
 		try {
 			// ------- (1) load and parse / validate all configurations -------
 
-			// Note that we use the "appMasterHostname" given by the system, to make sure
-			// we use the hostnames consistently throughout akka.
-			// for akka "localhost" and "localhost.localdomain" are different actors.
-			final String appMasterHostname = InetAddress.getLocalHost().getHostName();
+			final String appMasterHostname;
+			//We will use JM RPC address property if it is supplied through configuration
+			final String jmRpcAddress = config.getString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, null);
+			if(jmRpcAddress != null) {
+				LOG.info("JM RPC address from Flink configuration file: {} ", jmRpcAddress);
+				appMasterHostname = jmRpcAddress;
+			} else {
+				// Note that we use the "appMasterHostname" given by the system, to make sure
+				// we use the hostnames consistently throughout akka.
+				// for akka "localhost" and "localhost.localdomain" are different actors.
+				appMasterHostname = InetAddress.getLocalHost().getHostName();
+			}
+			LOG.info("App Master Hostname to use: {}", appMasterHostname);
 
 			// Mesos configuration
 			final MesosConfiguration mesosConfig = createMesosConfig(config, appMasterHostname);
