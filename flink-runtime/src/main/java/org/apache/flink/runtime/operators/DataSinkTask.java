@@ -43,6 +43,7 @@ import org.apache.flink.runtime.operators.util.DistributedRuntimeUDFContext;
 import org.apache.flink.runtime.operators.util.ReaderIterator;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
+import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.util.MutableObjectIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,7 +54,16 @@ import org.slf4j.LoggerFactory;
  * @see OutputFormat
  */
 public class DataSinkTask<IT> extends AbstractInvokable {
-	
+
+	public DataSinkTask(Environment environment, TaskStateHandles taskStateHandles) {
+		super(environment, taskStateHandles);
+		if (taskStateHandles != null) {
+			// Currently, batch task doesn't support initial state.
+			// The constructor will throw an exception if initial state is not null.
+			throw new IllegalStateException("Found operator state for a non-stateful task invokable");
+		}
+	}
+
 	// Obtain DataSinkTask Logger
 	private static final Logger LOG = LoggerFactory.getLogger(DataSinkTask.class);
 
@@ -284,7 +294,7 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 		
 		LOG.debug(getLogString("Cancelling data sink operator"));
 	}
-	
+
 	/**
 	 * Initializes the OutputFormat implementation and configuration.
 	 * 

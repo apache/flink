@@ -31,10 +31,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.runtime.operators.testutils.DummyInvokable;
-import org.apache.flink.runtime.operators.testutils.TestData;
-import org.apache.flink.runtime.operators.testutils.UniformIntTupleGenerator;
-import org.apache.flink.runtime.operators.testutils.UnionIterator;
+import org.apache.flink.runtime.operators.testutils.*;
 import org.apache.flink.util.MutableObjectIterator;
 import org.junit.After;
 import org.junit.Assert;
@@ -59,7 +56,7 @@ public class ReOpenableHashTableITCase {
 	private IOManager ioManager;
 	private MemoryManager memoryManager;
 
-	private static final AbstractInvokable MEM_OWNER = new DummyInvokable();
+	private static final AbstractInvokable MEM_OWNER = new DummyInvokable(new DummyEnvironment("test", 1, 0), null);
 	private TypeSerializer<Tuple2<Integer, Integer>> recordBuildSideAccesssor;
 	private TypeSerializer<Tuple2<Integer, Integer>> recordProbeSideAccesssor;
 	private TypeComparator<Tuple2<Integer, Integer>> recordBuildSideComparator;

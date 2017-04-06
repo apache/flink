@@ -20,8 +20,10 @@ package org.apache.flink.client.program;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.util.NetUtils;
 import org.junit.Test;
 
@@ -149,6 +151,10 @@ public class ClientConnectionTest {
 	// --------------------------------------------------------------------------------------------
 
 	public static class TestInvokable extends AbstractInvokable {
+
+		public TestInvokable(Environment environment, TaskStateHandles taskStateHandles) {
+			super(environment, taskStateHandles);
+		}
 
 		@Override
 		public void invoke() {}

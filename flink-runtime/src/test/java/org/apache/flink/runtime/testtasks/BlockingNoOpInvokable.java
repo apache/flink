@@ -18,12 +18,18 @@
 
 package org.apache.flink.runtime.testtasks;
 
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.state.TaskStateHandles;
 
 /**
  * A task that does nothing but blocks indefinitely, until the executing thread is interrupted.
  */
 public class BlockingNoOpInvokable extends AbstractInvokable {
+
+	public BlockingNoOpInvokable(Environment environment, TaskStateHandles taskStateHandles) {
+		super(environment, taskStateHandles);
+	}
 
 	@Override
 	public void invoke() throws Exception {

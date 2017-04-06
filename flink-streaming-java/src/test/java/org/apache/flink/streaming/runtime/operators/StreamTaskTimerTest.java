@@ -42,10 +42,8 @@ public class StreamTaskTimerTest {
 
 	@Test
 	public void testOpenCloseAndTimestamps() throws Exception {
-		final OneInputStreamTask<String, String> mapTask = new OneInputStreamTask<>();
-		
 		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(
-				mapTask, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+				BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 		testHarness.setupOutputForSingletonOperatorChain();
 
 		StreamConfig streamConfig = testHarness.getStreamConfig();
@@ -53,7 +51,9 @@ public class StreamTaskTimerTest {
 		StreamMap<String, String> mapOperator = new StreamMap<>(new DummyMapFunction<String>());
 		streamConfig.setStreamOperator(mapOperator);
 
-		testHarness.invoke();
+		final OneInputStreamTask<String, String> mapTask = new OneInputStreamTask<>(testHarness.createEnvironment(), null);
+
+		testHarness.invoke(mapTask);
 		testHarness.waitForTaskRunning();
 
 		// first one spawns thread
@@ -82,15 +82,16 @@ public class StreamTaskTimerTest {
 	@Test
 	public void checkScheduledTimestampe() {
 		try {
-			final OneInputStreamTask<String, String> mapTask = new OneInputStreamTask<>();
-			final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(mapTask, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+			final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 			testHarness.setupOutputForSingletonOperatorChain();
 
 			StreamConfig streamConfig = testHarness.getStreamConfig();
 			StreamMap<String, String> mapOperator = new StreamMap<>(new DummyMapFunction<String>());
 			streamConfig.setStreamOperator(mapOperator);
 
-			testHarness.invoke();
+			final OneInputStreamTask<String, String> mapTask = new OneInputStreamTask<>(testHarness.createEnvironment(), null);
+
+			testHarness.invoke(mapTask);
 			testHarness.waitForTaskRunning();
 
 			final AtomicReference<Throwable> errorRef = new AtomicReference<>();

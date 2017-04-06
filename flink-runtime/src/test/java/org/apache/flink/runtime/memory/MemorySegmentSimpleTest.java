@@ -28,6 +28,7 @@ import java.util.Random;
 
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.core.memory.MemoryType;
+import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.core.memory.MemorySegment;
 
@@ -54,7 +55,7 @@ public class MemorySegmentSimpleTest {
 	public void setUp() throws Exception{
 		try {
 			this.manager = new MemoryManager(MANAGED_MEMORY_SIZE, 1, PAGE_SIZE, MemoryType.HEAP, true);
-			this.segment = manager.allocatePages(new DummyInvokable(), 1).get(0);
+			this.segment = manager.allocatePages(new DummyInvokable(new DummyEnvironment("test", 1, 0), null), 1).get(0);
 			this.random = new Random(RANDOM_SEED);
 		} catch (Exception e) {
 			e.printStackTrace();

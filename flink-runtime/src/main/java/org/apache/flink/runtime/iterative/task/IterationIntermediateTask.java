@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.iterative.task;
 
 import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.api.EndOfSuperstepEvent;
 import org.apache.flink.runtime.iterative.concurrent.BlockingBackChannel;
@@ -26,6 +27,7 @@ import org.apache.flink.runtime.iterative.concurrent.SuperstepKickoffLatch;
 import org.apache.flink.runtime.iterative.concurrent.SuperstepKickoffLatchBroker;
 import org.apache.flink.runtime.iterative.event.TerminationEvent;
 import org.apache.flink.runtime.iterative.io.WorksetUpdateOutputCollector;
+import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.util.Collector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,6 +49,10 @@ public class IterationIntermediateTask<S extends Function, OT> extends AbstractI
 	private static final Logger log = LoggerFactory.getLogger(IterationIntermediateTask.class);
 
 	private WorksetUpdateOutputCollector<OT> worksetUpdateOutputCollector;
+
+	public IterationIntermediateTask(Environment environment, TaskStateHandles taskStateHandles) {
+		super(environment, taskStateHandles);
+	}
 
 	@Override
 	protected void initialize() throws Exception {

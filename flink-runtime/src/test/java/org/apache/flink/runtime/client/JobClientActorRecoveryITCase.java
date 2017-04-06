@@ -23,10 +23,12 @@ import org.apache.curator.test.TestingServer;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
 import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
@@ -141,6 +143,10 @@ public class JobClientActorRecoveryITCase extends TestLogger {
 		private volatile static int BlockExecution = 1;
 		private volatile static int HasBlockedExecution = 0;
 		private static Object waitLock = new Object();
+
+		public BlockingTask(Environment environment, TaskStateHandles taskStateHandles) {
+			super(environment, taskStateHandles);
+		}
 
 		@Override
 		public void invoke() throws Exception {

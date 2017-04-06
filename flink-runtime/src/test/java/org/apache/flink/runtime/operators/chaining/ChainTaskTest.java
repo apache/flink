@@ -106,7 +106,7 @@ public class ChainTaskTest extends TaskTestBase {
 			// chained map+combine
 			{
 				BatchTask<FlatMapFunction<Record, Record>, Record> testTask =
-											new BatchTask<>();
+											new BatchTask<>(this.mockEnv, null);
 				registerTask(testTask, FlatMapDriver.class, MockMapStub.class);
 				
 				try {
@@ -167,7 +167,7 @@ public class ChainTaskTest extends TaskTestBase {
 			// chained map+combine
 			{
 				final BatchTask<FlatMapFunction<Record, Record>, Record> testTask =
-											new BatchTask<>();
+											new BatchTask<>(this.mockEnv, null);
 				
 				super.registerTask(testTask, FlatMapDriver.class, MockMapStub.class);
 	

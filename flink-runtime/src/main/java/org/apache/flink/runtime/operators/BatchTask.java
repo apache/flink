@@ -59,6 +59,7 @@ import org.apache.flink.runtime.operators.util.ReaderIterator;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
+import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.InstantiationUtil;
@@ -81,6 +82,22 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 	protected static final Logger LOG = LoggerFactory.getLogger(BatchTask.class);
 	
 	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Create an Invokable task and set its environment and initial state.
+	 * The initial state is typically a snapshot of the state from a previous execution.
+	 *
+	 * @param environment The environment assigned to this invokable.
+	 * @param taskStateHandles The taskStateHandles assigned to this invokable
+	 */
+	public BatchTask(Environment environment, TaskStateHandles taskStateHandles) {
+		super(environment, taskStateHandles);
+		if (taskStateHandles != null) {
+			// Currently, batch task doesn't support initial state.
+			// The constructor will throw an exception if initial state is not null.
+			throw new IllegalStateException("Found operator state for a non-stateful task invokable");
+		}
+	}
 
 	/**
 	 * The driver that invokes the user code (the stub implementation). The central driver in this task

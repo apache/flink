@@ -23,6 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.reader.RecordReader;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -31,6 +32,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
+import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
 import org.junit.Ignore;
@@ -163,6 +165,10 @@ public class NetworkStackThroughputITCase {
 
 	public static class SpeedTestProducer extends AbstractInvokable {
 
+		public SpeedTestProducer(Environment environment, TaskStateHandles taskStateHandles) {
+			super(environment, taskStateHandles);
+		}
+
 		@Override
 		public void invoke() throws Exception {
 			RecordWriter<SpeedTestRecord> writer = new RecordWriter<>(getEnvironment().getWriter(0));
@@ -198,6 +204,10 @@ public class NetworkStackThroughputITCase {
 
 	public static class SpeedTestForwarder extends AbstractInvokable {
 
+		public SpeedTestForwarder(Environment environment, TaskStateHandles taskStateHandles) {
+			super(environment, taskStateHandles);
+		}
+
 		@Override
 		public void invoke() throws Exception {
 			RecordReader<SpeedTestRecord> reader = new RecordReader<>(
@@ -221,6 +231,10 @@ public class NetworkStackThroughputITCase {
 	}
 
 	public static class SpeedTestConsumer extends AbstractInvokable {
+
+		public SpeedTestConsumer(Environment environment, TaskStateHandles taskStateHandles) {
+			super(environment, taskStateHandles);
+		}
 
 		@Override
 		public void invoke() throws Exception {

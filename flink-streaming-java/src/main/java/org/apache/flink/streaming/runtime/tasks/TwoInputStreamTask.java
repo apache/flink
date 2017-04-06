@@ -22,7 +22,9 @@ import java.util.List;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
@@ -34,6 +36,10 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputS
 	private StreamTwoInputProcessor<IN1, IN2> inputProcessor;
 	
 	private volatile boolean running = true;
+
+	public TwoInputStreamTask(Environment environment, TaskStateHandles taskStateHandles) {
+		super(environment, taskStateHandles);
+	}
 
 	@Override
 	public void init() throws Exception {

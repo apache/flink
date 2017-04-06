@@ -22,11 +22,13 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.EndOfSuperstepEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.operators.Driver;
+import org.apache.flink.runtime.state.TaskStateHandles;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -97,6 +99,10 @@ public class IterationHeadTask<X, Y, S extends Function, OT> extends AbstractIte
 	private int feedbackDataInput; // workset or bulk partial solution
 
 	// --------------------------------------------------------------------------------------------
+
+	public IterationHeadTask(Environment environment, TaskStateHandles taskStateHandles) {
+		super(environment, taskStateHandles);
+	}
 
 	@Override
 	protected int getNumTaskInputs() {

@@ -21,6 +21,8 @@ package org.apache.flink.runtime.io.disk;
 import static org.junit.Assert.*;
 
 import org.apache.flink.core.memory.MemoryType;
+import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -58,6 +60,8 @@ public class FileChannelStreamsITCase {
 	
 	private static final int NUM_MEMORY_SEGMENTS = 3;
 
+	private Environment dummyEnvironment = new DummyEnvironment("test", 1, 0);
+
 	private IOManager ioManager;
 
 	private MemoryManager memManager;
@@ -83,7 +87,7 @@ public class FileChannelStreamsITCase {
 	@Test
 	public void testWriteReadSmallRecords() {
 		try {
-			List<MemorySegment> memory = memManager.allocatePages(new DummyInvokable(), NUM_MEMORY_SEGMENTS);
+			List<MemorySegment> memory = memManager.allocatePages(new DummyInvokable(dummyEnvironment, null), NUM_MEMORY_SEGMENTS);
 			
 			final PairGenerator generator = new PairGenerator(SEED, KEY_MAX, VALUE_SHORT_LENGTH, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
 			final FileIOChannel.ID channel = ioManager.createChannel();
@@ -101,7 +105,7 @@ public class FileChannelStreamsITCase {
 			outView.close();
 			
 			// create the reader input view
-			List<MemorySegment> readMemory = memManager.allocatePages(new DummyInvokable(), NUM_MEMORY_SEGMENTS);
+			List<MemorySegment> readMemory = memManager.allocatePages(new DummyInvokable(dummyEnvironment, null), NUM_MEMORY_SEGMENTS);
 			
 			final BlockChannelReader<MemorySegment> reader = ioManager.createBlockChannelReader(channel);
 			final FileChannelInputView inView = new FileChannelInputView(reader, memManager, readMemory, outView.getBytesInLatestSegment());
@@ -127,7 +131,7 @@ public class FileChannelStreamsITCase {
 	@Test
 	public void testWriteAndReadLongRecords() {
 		try {
-			final List<MemorySegment> memory = memManager.allocatePages(new DummyInvokable(), NUM_MEMORY_SEGMENTS);
+			final List<MemorySegment> memory = memManager.allocatePages(new DummyInvokable(dummyEnvironment, null), NUM_MEMORY_SEGMENTS);
 			
 			final PairGenerator generator = new PairGenerator(SEED, KEY_MAX, VALUE_LONG_LENGTH, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
 			final FileIOChannel.ID channel = this.ioManager.createChannel();
@@ -145,7 +149,7 @@ public class FileChannelStreamsITCase {
 			outView.close();
 			
 			// create the reader input view
-			List<MemorySegment> readMemory = memManager.allocatePages(new DummyInvokable(), NUM_MEMORY_SEGMENTS);
+			List<MemorySegment> readMemory = memManager.allocatePages(new DummyInvokable(dummyEnvironment, null), NUM_MEMORY_SEGMENTS);
 			
 			final BlockChannelReader<MemorySegment> reader = ioManager.createBlockChannelReader(channel);
 			final FileChannelInputView inView = new FileChannelInputView(reader, memManager, readMemory, outView.getBytesInLatestSegment());
@@ -171,7 +175,7 @@ public class FileChannelStreamsITCase {
 	@Test
 	public void testReadTooMany() {
 		try {
-			final List<MemorySegment> memory = memManager.allocatePages(new DummyInvokable(), NUM_MEMORY_SEGMENTS);
+			final List<MemorySegment> memory = memManager.allocatePages(new DummyInvokable(dummyEnvironment, null), NUM_MEMORY_SEGMENTS);
 			
 			final PairGenerator generator = new PairGenerator(SEED, KEY_MAX, VALUE_SHORT_LENGTH, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
 			final FileIOChannel.ID channel = this.ioManager.createChannel();
@@ -189,7 +193,7 @@ public class FileChannelStreamsITCase {
 			outView.close();
 	
 			// create the reader input view
-			List<MemorySegment> readMemory = memManager.allocatePages(new DummyInvokable(), NUM_MEMORY_SEGMENTS);
+			List<MemorySegment> readMemory = memManager.allocatePages(new DummyInvokable(dummyEnvironment, null), NUM_MEMORY_SEGMENTS);
 			
 			final BlockChannelReader<MemorySegment> reader = ioManager.createBlockChannelReader(channel);
 			final FileChannelInputView inView = new FileChannelInputView(reader, memManager, readMemory, outView.getBytesInLatestSegment());
@@ -221,7 +225,7 @@ public class FileChannelStreamsITCase {
 	@Test
 	public void testWriteReadOneBufferOnly() {
 		try {
-			final List<MemorySegment> memory = memManager.allocatePages(new DummyInvokable(), 1);
+			final List<MemorySegment> memory = memManager.allocatePages(new DummyInvokable(dummyEnvironment, null), 1);
 			
 			final PairGenerator generator = new PairGenerator(SEED, KEY_MAX, VALUE_SHORT_LENGTH, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
 			final FileIOChannel.ID channel = this.ioManager.createChannel();
@@ -239,7 +243,7 @@ public class FileChannelStreamsITCase {
 			outView.close();
 			
 			// create the reader input view
-			List<MemorySegment> readMemory = memManager.allocatePages(new DummyInvokable(), 1);
+			List<MemorySegment> readMemory = memManager.allocatePages(new DummyInvokable(dummyEnvironment, null), 1);
 			
 			final BlockChannelReader<MemorySegment> reader = ioManager.createBlockChannelReader(channel);
 			final FileChannelInputView inView = new FileChannelInputView(reader, memManager, readMemory, outView.getBytesInLatestSegment());
@@ -265,7 +269,7 @@ public class FileChannelStreamsITCase {
 	@Test
 	public void testWriteReadNotAll() {
 		try {
-			final List<MemorySegment> memory = memManager.allocatePages(new DummyInvokable(), NUM_MEMORY_SEGMENTS);
+			final List<MemorySegment> memory = memManager.allocatePages(new DummyInvokable(dummyEnvironment, null), NUM_MEMORY_SEGMENTS);
 			
 			final PairGenerator generator = new PairGenerator(SEED, KEY_MAX, VALUE_SHORT_LENGTH, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
 			final FileIOChannel.ID channel = this.ioManager.createChannel();
@@ -283,7 +287,7 @@ public class FileChannelStreamsITCase {
 			outView.close();
 			
 			// create the reader input view
-			List<MemorySegment> readMemory = memManager.allocatePages(new DummyInvokable(), NUM_MEMORY_SEGMENTS);
+			List<MemorySegment> readMemory = memManager.allocatePages(new DummyInvokable(dummyEnvironment, null), NUM_MEMORY_SEGMENTS);
 			
 			final BlockChannelReader<MemorySegment> reader = ioManager.createBlockChannelReader(channel);
 			final FileChannelInputView inView = new FileChannelInputView(reader, memManager, readMemory, outView.getBytesInLatestSegment());

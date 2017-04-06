@@ -25,6 +25,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.ListMemorySegmentSource;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.operators.testutils.TestData;
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.KeyMode;
@@ -56,7 +57,7 @@ public class SpillingBufferTest {
 	
 	private static final int NUM_MEMORY_SEGMENTS = 23;
 	
-	private final AbstractInvokable parentTask = new DummyInvokable();
+	private final AbstractInvokable parentTask = new DummyInvokable(new DummyEnvironment("test", 1, 0), null);
 
 	private IOManager ioManager;
 

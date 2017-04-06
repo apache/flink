@@ -30,6 +30,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.hash.NonReusingHashJoinIteratorITCase.TupleMatch;
+import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.operators.testutils.TestData;
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator;
@@ -55,7 +56,7 @@ public abstract class ReOpenableHashTableTestBase {
 
 	protected static final int NUM_PROBES = 3; // number of reopenings of hash join
 
-	protected final AbstractInvokable parentTask = new DummyInvokable();
+	protected final AbstractInvokable parentTask = new DummyInvokable(new DummyEnvironment("test", 1, 0), null);
 
 	protected IOManager ioManager;
 	protected MemoryManager memoryManager;

@@ -31,6 +31,7 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.TaskContext;
+import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.operators.testutils.UnregisteredTaskMetricsGroup;
 import org.apache.flink.runtime.operators.util.TaskConfig;
@@ -41,7 +42,7 @@ import org.apache.flink.util.MutableObjectIterator;
 
 public class TestTaskContext<S, T> implements TaskContext<S, T> {
 	
-	private final AbstractInvokable owner = new DummyInvokable();
+	private final AbstractInvokable owner = new DummyInvokable(new DummyEnvironment("test", 1, 0), null);
 	
 	private MutableObjectIterator<?> input1;
 	

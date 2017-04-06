@@ -27,14 +27,10 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.runtime.operators.testutils.DiscardingOutputCollector;
-import org.apache.flink.runtime.operators.testutils.DummyInvokable;
-import org.apache.flink.runtime.operators.testutils.TestData;
+import org.apache.flink.runtime.operators.testutils.*;
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator;
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.KeyMode;
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.ValueMode;
-import org.apache.flink.runtime.operators.testutils.UniformIntPairGenerator;
-import org.apache.flink.runtime.operators.testutils.UnionIterator;
 import org.apache.flink.runtime.operators.testutils.types.IntPair;
 import org.apache.flink.runtime.operators.testutils.types.IntPairSerializer;
 import org.apache.flink.types.NullKeyFieldException;
@@ -66,7 +62,7 @@ public class NonReusingHashJoinIteratorITCase {
 	private static final long SEED1 = 561349061987311L;
 	private static final long SEED2 = 231434613412342L;
 	
-	private final AbstractInvokable parentTask = new DummyInvokable();
+	private final AbstractInvokable parentTask = new DummyInvokable(new DummyEnvironment("test", 1, 0), null);
 
 	private IOManager ioManager;
 	private MemoryManager memoryManager;

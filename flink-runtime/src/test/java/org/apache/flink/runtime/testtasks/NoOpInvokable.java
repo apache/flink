@@ -18,12 +18,18 @@
 
 package org.apache.flink.runtime.testtasks;
 
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.state.TaskStateHandles;
 
 /**
  * A simple task that does nothing and finishes immediately.
  */
 public class NoOpInvokable extends AbstractInvokable {
+
+	public NoOpInvokable(Environment environment, TaskStateHandles taskStateHandles) {
+		super(environment, taskStateHandles);
+	}
 
 	@Override
 	public void invoke() {}

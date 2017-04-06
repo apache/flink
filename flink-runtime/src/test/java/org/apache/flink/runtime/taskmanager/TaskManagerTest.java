@@ -42,6 +42,7 @@ import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionLocation;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobInformation;
@@ -70,6 +71,7 @@ import org.apache.flink.runtime.messages.TaskMessages;
 import org.apache.flink.runtime.messages.TaskMessages.CancelTask;
 import org.apache.flink.runtime.messages.TaskMessages.StopTask;
 import org.apache.flink.runtime.messages.TaskMessages.SubmitTask;
+import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.runtime.taskexecutor.TaskManagerServicesConfiguration;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages;
@@ -1958,11 +1960,19 @@ public class TaskManagerTest extends TestLogger {
 	
 	public static final class TestInvokableCorrect extends AbstractInvokable {
 
+		public TestInvokableCorrect(Environment environment, TaskStateHandles taskStateHandles) {
+			super(environment, taskStateHandles);
+		}
+
 		@Override
 		public void invoke() {}
 	}
 	
 	public static class TestInvokableBlockingCancelable extends AbstractInvokable {
+
+		public TestInvokableBlockingCancelable(Environment environment, TaskStateHandles taskStateHandles) {
+			super(environment, taskStateHandles);
+		}
 
 		@Override
 		public void invoke() throws Exception {
@@ -1981,6 +1991,10 @@ public class TaskManagerTest extends TestLogger {
 
 		private static final Object lock = new Object();
 		private static CompletableFuture<Boolean> gotCanceledFuture = new FlinkCompletableFuture<>();
+
+		public TestInvokableRecordCancel(Environment environment, TaskStateHandles taskStateHandles) {
+			super(environment, taskStateHandles);
+		}
 
 		@Override
 		public void invoke() throws Exception {

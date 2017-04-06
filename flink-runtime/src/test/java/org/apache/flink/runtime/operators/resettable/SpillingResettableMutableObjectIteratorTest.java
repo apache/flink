@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.operators.resettable;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.testutils.recordutils.RecordSerializer;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
@@ -41,6 +43,8 @@ public class SpillingResettableMutableObjectIteratorTest {
 	private static final int NUM_TESTRECORDS = 50000;
 
 	private static final int MEMORY_CAPACITY = 10 * 1024 * 1024;
+
+	private Environment dummyEnvironment = new DummyEnvironment("test", 1, 0);
 
 	private IOManager ioman;
 
@@ -89,7 +93,7 @@ public class SpillingResettableMutableObjectIteratorTest {
 	@Test
 	public void testResettableIterator() {
 		try {
-			final AbstractInvokable memOwner = new DummyInvokable();
+			final AbstractInvokable memOwner = new DummyInvokable(dummyEnvironment, null);
 	
 			// create the resettable Iterator
 			SpillingResettableMutableObjectIterator<Record> iterator = new SpillingResettableMutableObjectIterator<Record>(
@@ -133,7 +137,7 @@ public class SpillingResettableMutableObjectIteratorTest {
 	@Test
 	public void testResettableIteratorInMemory() {
 		try {
-			final AbstractInvokable memOwner = new DummyInvokable();
+			final AbstractInvokable memOwner = new DummyInvokable(dummyEnvironment, null);
 	
 			// create the resettable Iterator
 			SpillingResettableMutableObjectIterator<Record> iterator = new SpillingResettableMutableObjectIterator<Record>(

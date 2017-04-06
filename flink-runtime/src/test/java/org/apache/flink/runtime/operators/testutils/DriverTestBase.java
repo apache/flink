@@ -112,7 +112,7 @@ public class DriverTestBase<S extends Function> extends TestLogger implements Ta
 		this.comparators = new ArrayList<TypeComparator<Record>>();
 		this.sorters = new ArrayList<UnilateralSortMerger<Record>>();
 		
-		this.owner = new DummyInvokable();
+		this.owner = new DummyInvokable(new DummyEnvironment("test", 1, 0), null);
 		this.taskConfig = new TaskConfig(new Configuration());
 		this.executionConfig = executionConfig;
 		this.taskManageInfo = new TestingTaskManagerRuntimeInfo();

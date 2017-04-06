@@ -55,7 +55,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * and events. You are free to modify the retrieved list.
  *
  * <p>
- * After setting up everything the Task can be invoked using {@link #invoke()}. This will start
+ * After setting up everything the Task can be invoked using {@link #invoke(AbstractInvokable)}. This will start
  * a new Thread to execute the Task. Use {@link #waitForTaskCompletion()} to wait for the Task
  * thread to finish.
  *
@@ -96,8 +96,7 @@ public class StreamTaskTestHarness<OUT> {
 	@SuppressWarnings("rawtypes")
 	protected StreamTestSingleInputGate[] inputGates;
 
-	public StreamTaskTestHarness(AbstractInvokable task, TypeInformation<OUT> outputType) {
-		this.task = task;
+	public StreamTaskTestHarness(TypeInformation<OUT> outputType) {
 		this.memorySize = DEFAULT_MEMORY_MANAGER_SIZE;
 		this.bufferSize = DEFAULT_NETWORK_BUFFER_SIZE;
 
@@ -169,22 +168,12 @@ public class StreamTaskTestHarness<OUT> {
 	 * Invoke the Task. This resets the output of any previous invocation. This will start a new
 	 * Thread to execute the Task in. Use {@link #waitForTaskCompletion()} to wait for the
 	 * Task thread to finish running.
-	 */
-	public void invoke() throws Exception {
-		invoke(createEnvironment());
-	}
-
-	/**
-	 * Invoke the Task. This resets the output of any previous invocation. This will start a new
-	 * Thread to execute the Task in. Use {@link #waitForTaskCompletion()} to wait for the
-	 * Task thread to finish running.
 	 *
 	 * <p>Variant for providing a custom environment.
 	 */
-	public void invoke(StreamMockEnvironment mockEnv) throws Exception {
-		this.mockEnv = mockEnv;
-
-		task.setEnvironment(mockEnv);
+	public void invoke(AbstractInvokable task) throws Exception {
+		this.mockEnv = (StreamMockEnvironment) task.getEnvironment();
+		this.task = task;
 
 		initializeInputs();
 		initializeOutput();

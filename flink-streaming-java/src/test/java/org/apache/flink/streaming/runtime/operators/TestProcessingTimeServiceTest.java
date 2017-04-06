@@ -39,11 +39,8 @@ public class TestProcessingTimeServiceTest {
 	public void testCustomTimeServiceProvider() throws Throwable {
 		TestProcessingTimeService tp = new TestProcessingTimeService();
 
-		final OneInputStreamTask<String, String> mapTask = new OneInputStreamTask<>();
-		mapTask.setProcessingTimeService(tp);
-
 		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(
-			mapTask, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+			BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 		testHarness.setupOutputForSingletonOperatorChain();
 
 		StreamConfig streamConfig = testHarness.getStreamConfig();
@@ -51,7 +48,10 @@ public class TestProcessingTimeServiceTest {
 		StreamMap<String, String> mapOperator = new StreamMap<>(new StreamTaskTimerTest.DummyMapFunction<String>());
 		streamConfig.setStreamOperator(mapOperator);
 
-		testHarness.invoke();
+		final OneInputStreamTask<String, String> mapTask = new OneInputStreamTask<>(testHarness.createEnvironment(), null);
+		mapTask.setProcessingTimeService(tp);
+
+		testHarness.invoke(mapTask);
 
 		assertEquals(Long.MIN_VALUE, testHarness.getProcessingTimeService().getCurrentProcessingTime());
 

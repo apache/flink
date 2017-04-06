@@ -30,8 +30,8 @@ import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
-import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
 
+import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 
@@ -118,7 +118,7 @@ public class BarrierBufferAlignmentLimitTest {
 		MockInputGate gate = new MockInputGate(PAGE_SIZE, 3, Arrays.asList(sequence));
 		BarrierBuffer buffer = new BarrierBuffer(gate, IO_MANAGER, 1000);
 
-		StatefulTask toNotify = mock(StatefulTask.class);
+		AbstractInvokable toNotify = mock(AbstractInvokable.class);
 		buffer.registerCheckpointEventHandler(toNotify);
 
 		// validating the sequence of buffers
@@ -212,7 +212,7 @@ public class BarrierBufferAlignmentLimitTest {
 		MockInputGate gate = new MockInputGate(PAGE_SIZE, 3, Arrays.asList(sequence));
 		BarrierBuffer buffer = new BarrierBuffer(gate, IO_MANAGER, 500);
 
-		StatefulTask toNotify = mock(StatefulTask.class);
+		AbstractInvokable toNotify = mock(AbstractInvokable.class);
 		buffer.registerCheckpointEventHandler(toNotify);
 
 		// validating the sequence of buffers

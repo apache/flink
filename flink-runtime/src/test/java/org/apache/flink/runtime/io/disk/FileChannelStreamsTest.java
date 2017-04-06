@@ -33,6 +33,7 @@ import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.types.StringValue;
 import org.junit.Test;
@@ -46,7 +47,7 @@ public class FileChannelStreamsTest {
 		try {
 			MemoryManager memMan = new MemoryManager(4 * 16*1024, 1, 16*1024, MemoryType.HEAP, true);
 			List<MemorySegment> memory = new ArrayList<MemorySegment>();
-			memMan.allocatePages(new DummyInvokable(), memory, 4);
+			memMan.allocatePages(new DummyInvokable(new DummyEnvironment("test", 1, 0), null), memory, 4);
 			
 			FileIOChannel.ID channel = ioManager.createChannel();
 			BlockChannelWriter<MemorySegment> writer = ioManager.createBlockChannelWriter(channel);
@@ -80,7 +81,7 @@ public class FileChannelStreamsTest {
 		try {
 			MemoryManager memMan = new MemoryManager(4 * 16*1024, 1, 16*1024, MemoryType.HEAP, true);
 			List<MemorySegment> memory = new ArrayList<MemorySegment>();
-			memMan.allocatePages(new DummyInvokable(), memory, 4);
+			memMan.allocatePages(new DummyInvokable(new DummyEnvironment("test", 1, 0), null), memory, 4);
 			
 			FileIOChannel.ID channel = ioManager.createChannel();
 			

@@ -39,6 +39,7 @@ import org.apache.flink.runtime.operators.chaining.ExceptionInChainedStubExcepti
 import org.apache.flink.runtime.operators.util.DistributedRuntimeUDFContext;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.runtime.operators.util.metrics.CountingCollector;
+import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.util.Collector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,6 +56,15 @@ import java.util.NoSuchElementException;
  * @see org.apache.flink.api.common.io.InputFormat
  */
 public class DataSourceTask<OT> extends AbstractInvokable {
+
+	public DataSourceTask(Environment environment, TaskStateHandles taskStateHandles) {
+		super(environment, taskStateHandles);
+		if (taskStateHandles != null) {
+			// Currently, batch task doesn't support initial state.
+			// The constructor will throw an exception if initial state is not null.
+			throw new IllegalStateException("Found operator state for a non-stateful task invokable");
+		}
+	}
 
 	private static final Logger LOG = LoggerFactory.getLogger(DataSourceTask.class);
 
@@ -229,7 +239,7 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 		this.taskCanceled = true;
 		LOG.debug(getLogString("Cancelling data source operator"));
 	}
-	
+
 	/**
 	 * Initializes the InputFormat implementation and configuration.
 	 * 

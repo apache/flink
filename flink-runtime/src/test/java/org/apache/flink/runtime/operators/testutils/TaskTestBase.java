@@ -95,12 +95,9 @@ public abstract class TaskTestBase extends TestLogger {
 		final TaskConfig config = new TaskConfig(this.mockEnv.getTaskConfiguration());
 		config.setDriver(driver);
 		config.setStubWrapper(new UserCodeClassWrapper<>(stubClass));
-		
-		task.setEnvironment(this.mockEnv);
 	}
 
 	public void registerTask(AbstractInvokable task) {
-		task.setEnvironment(this.mockEnv);
 	}
 
 	public void registerFileOutputTask(AbstractInvokable outTask, Class<? extends FileOutputFormat<Record>> stubClass, String outPath) {
@@ -114,8 +111,6 @@ public abstract class TaskTestBase extends TestLogger {
 		outputFormat.setWriteMode(WriteMode.OVERWRITE);
 
 		dsConfig.setStubWrapper(new UserCodeObjectWrapper<>(outputFormat));
-
-		outTask.setEnvironment(this.mockEnv);
 	}
 
 	public void registerFileInputTask(AbstractInvokable inTask,
@@ -136,8 +131,6 @@ public abstract class TaskTestBase extends TestLogger {
 		dsConfig.setStubWrapper(new UserCodeObjectWrapper<>(format));
 		
 		this.inputSplitProvider.addInputSplits(inPath, 5);
-
-		inTask.setEnvironment(this.mockEnv);
 	}
 
 	public MemoryManager getMemoryManager() {

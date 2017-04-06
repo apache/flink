@@ -12,11 +12,17 @@
  */
 package org.apache.flink.runtime.testutils;
 
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.StoppableTask;
+import org.apache.flink.runtime.state.TaskStateHandles;
 
 public final class StoppableInvokable extends AbstractInvokable implements StoppableTask {
 	private boolean isRunning = true;
+
+	public StoppableInvokable(Environment environment, TaskStateHandles taskStateHandles) {
+		super(environment, taskStateHandles);
+	}
 
 	@Override
 	public void invoke() throws Exception {

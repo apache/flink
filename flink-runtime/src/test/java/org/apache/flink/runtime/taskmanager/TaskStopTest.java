@@ -23,6 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.JobInformation;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
 import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker;
@@ -41,6 +42,7 @@ import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.StoppableTask;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.state.TaskStateHandles;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -110,7 +112,7 @@ public class TaskStopTest {
 
 	@Test(timeout = 20000)
 	public void testStopExecution() throws Exception {
-		StoppableTestTask taskMock = new StoppableTestTask();
+		StoppableTestTask taskMock = new StoppableTestTask(new DummyEnvironment("test", 1, 0), null);
 		doMocking(taskMock);
 
 		task.stopExecution();
@@ -130,6 +132,10 @@ public class TaskStopTest {
 
 	private final static class StoppableTestTask extends AbstractInvokable implements StoppableTask {
 		public volatile boolean stopCalled = false;
+
+		public StoppableTestTask(Environment environment, TaskStateHandles taskStateHandles) {
+			super(environment, taskStateHandles);
+		}
 
 		@Override
 		public void invoke() throws Exception {

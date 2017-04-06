@@ -40,6 +40,7 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemoryType;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.disk.FileChannelOutputView;
 import org.apache.flink.runtime.io.disk.SeekableFileChannelInputView;
 import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
@@ -47,6 +48,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.MutableObjectIterator;
@@ -54,6 +56,8 @@ import org.apache.flink.util.MutableObjectIterator;
 import org.junit.Test;
 
 public class LargeRecordHandlerITCase {
+
+	private Environment dummyEnvironment = new DummyEnvironment("test", 1, 0);
 
 	@Test
 	public void testRecordHandlerCompositeKey() {
@@ -65,7 +69,7 @@ public class LargeRecordHandlerITCase {
 		
 		try {
 			final MemoryManager memMan = new MemoryManager(NUM_PAGES * PAGE_SIZE, 1, PAGE_SIZE, MemoryType.HEAP, true);
-			final AbstractInvokable owner = new DummyInvokable();
+			final AbstractInvokable owner = new DummyInvokable(dummyEnvironment, null);
 			
 			final List<MemorySegment> initialMemory = memMan.allocatePages(owner, 6);
 			final List<MemorySegment> sortMemory = memMan.allocatePages(owner, NUM_PAGES - 6);
@@ -202,7 +206,7 @@ public class LargeRecordHandlerITCase {
 		
 		try {
 			final MemoryManager memMan = new MemoryManager(NUM_PAGES * PAGE_SIZE, 1, PAGE_SIZE, MemoryType.HEAP, true);
-			final AbstractInvokable owner = new DummyInvokable();
+			final AbstractInvokable owner = new DummyInvokable(dummyEnvironment, null);
 			
 			final List<MemorySegment> memory = memMan.allocatePages(owner, NUM_PAGES);
 

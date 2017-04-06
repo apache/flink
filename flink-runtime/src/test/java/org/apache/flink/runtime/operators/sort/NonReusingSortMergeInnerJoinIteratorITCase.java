@@ -33,11 +33,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.runtime.operators.testutils.DiscardingOutputCollector;
-import org.apache.flink.runtime.operators.testutils.DummyInvokable;
-import org.apache.flink.runtime.operators.testutils.Match;
-import org.apache.flink.runtime.operators.testutils.MatchRemovingJoiner;
-import org.apache.flink.runtime.operators.testutils.TestData;
+import org.apache.flink.runtime.operators.testutils.*;
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator;
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.KeyMode;
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.ValueMode;
@@ -73,7 +69,7 @@ public class NonReusingSortMergeInnerJoinIteratorITCase {
 	private static final long SEED2 = 231434613412342L;
 	
 	// dummy abstract task
-	private final AbstractInvokable parentTask = new DummyInvokable();
+	private final AbstractInvokable parentTask = new DummyInvokable(new DummyEnvironment("test", 1, 0), null);
 
 	private IOManager ioManager;
 	private MemoryManager memoryManager;

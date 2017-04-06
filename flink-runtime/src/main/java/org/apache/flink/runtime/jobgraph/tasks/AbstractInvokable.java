@@ -20,8 +20,14 @@ package org.apache.flink.runtime.jobgraph.tasks;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
+import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.operators.BatchTask;
+import org.apache.flink.runtime.state.TaskStateHandles;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * This is the abstract base class for every task that can be executed by a
@@ -31,11 +37,31 @@ import org.apache.flink.runtime.operators.BatchTask;
  * <p>The TaskManager invokes the {@link #invoke()} method when executing a
  * task. All operations of the task happen in this method (setting up input
  * output stream readers and writers as well as the task's core operation).
+ *
+ * Any subclass that supports recoverable state and participates in
+ * checkpointing needs to override {@link #triggerCheckpoint(CheckpointMetaData, CheckpointOptions)},
+ * {@link #triggerCheckpointOnBarrier(CheckpointMetaData, CheckpointOptions, CheckpointMetrics)},
+ * {@link #abortCheckpointOnBarrier(long, Throwable)} and {@link #notifyCheckpointComplete(long)}.
  */
 public abstract class AbstractInvokable {
 
 	/** The environment assigned to this invokable. */
 	private Environment environment;
+
+	/** The taskStateHandles assigned to this invokable */
+	private TaskStateHandles taskStateHandles;
+
+	/**
+	 * Create an Invokable task and set its environment and initial state.
+	 * The initial state is typically a snapshot of the state from a previous execution.
+	 *
+	 * @param environment The environment assigned to this invokable.
+	 * @param taskStateHandles The taskStateHandles assigned to this invokable
+	 */
+	public AbstractInvokable(Environment environment, TaskStateHandles taskStateHandles) {
+		this.environment = checkNotNull(environment);
+		this.taskStateHandles = taskStateHandles;
+	}
 
 	/**
 	 * Starts the execution.
@@ -61,16 +87,6 @@ public abstract class AbstractInvokable {
 	 */
 	public void cancel() throws Exception {
 		// The default implementation does nothing.
-	}
-	
-	/**
-	 * Sets the environment of this task.
-	 * 
-	 * @param environment
-	 *        the environment of this task
-	 */
-	public final void setEnvironment(Environment environment) {
-		this.environment = environment;
 	}
 
 	/**
@@ -132,5 +148,78 @@ public abstract class AbstractInvokable {
 	 */
 	public ExecutionConfig getExecutionConfig() {
 		return this.environment.getExecutionConfig();
+	}
+
+	/**
+	 * Returns the taskStateHandles of this task.
+	 *
+	 * @return The taskStateHandles of this task.
+	 */
+	public TaskStateHandles getTaskStateHandles() {
+		return this.taskStateHandles;
+	}
+
+	/**
+	 * Free taskStateHandles for GC
+	 */
+	protected void clearTaskStateHandles() {
+		this.taskStateHandles = null;
+	}
+
+	/**
+	 * This method is called to trigger a checkpoint, asynchronously by the checkpoint
+	 * coordinator.
+	 *
+	 * <p>This method is called for tasks that start the checkpoints by injecting the initial barriers,
+	 * i.e., the source tasks. In contrast, checkpoints on downstream operators, which are the result of
+	 * receiving checkpoint barriers, invoke the {@link #triggerCheckpointOnBarrier(CheckpointMetaData, CheckpointOptions, CheckpointMetrics)}
+	 * method.
+	 *
+	 * @param checkpointMetaData Meta data for about this checkpoint
+	 * @param checkpointOptions Options for performing this checkpoint
+	 *
+	 * @return {@code false} if the checkpoint can not be carried out, {@code true} otherwise
+	 */
+	public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) throws Exception {
+		throw new UnsupportedOperationException(String.format("triggerCheckpoint not supported by %s", this.getClass().getName()));
+	}
+
+	/**
+	 * This method is called when a checkpoint is triggered as a result of receiving checkpoint
+	 * barriers on all input streams.
+	 *
+	 * @param checkpointMetaData Meta data for about this checkpoint
+	 * @param checkpointOptions Options for performing this checkpoint
+	 * @param checkpointMetrics Metrics about this checkpoint
+	 *
+	 * @throws Exception Exceptions thrown as the result of triggering a checkpoint are forwarded.
+	 */
+	public void triggerCheckpointOnBarrier(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions, CheckpointMetrics checkpointMetrics) throws Exception {
+		throw new UnsupportedOperationException(String.format("triggerCheckpointOnBarrier not supported by %s", this.getClass().getName()));
+	}
+
+	/**
+	 * Aborts a checkpoint as the result of receiving possibly some checkpoint barriers,
+	 * but at least one {@link org.apache.flink.runtime.io.network.api.CancelCheckpointMarker}.
+	 *
+	 * <p>This requires implementing tasks to forward a
+	 * {@link org.apache.flink.runtime.io.network.api.CancelCheckpointMarker} to their outputs.
+	 *
+	 * @param checkpointId The ID of the checkpoint to be aborted.
+	 * @param cause The reason why the checkpoint was aborted during alignment
+	 */
+	public void abortCheckpointOnBarrier(long checkpointId, Throwable cause) throws Exception {
+		throw new UnsupportedOperationException(String.format("abortCheckpointOnBarrier not supported by %s", this.getClass().getName()));
+	}
+
+	/**
+	 * Invoked when a checkpoint has been completed, i.e., when the checkpoint coordinator has received
+	 * the notification from all participating tasks.
+	 *
+	 * @param checkpointId The ID of the checkpoint that is complete..
+	 * @throws Exception The notification method may forward its exceptions.
+	 */
+	public void notifyCheckpointComplete(long checkpointId) throws Exception {
+		throw new UnsupportedOperationException(String.format("notifyCheckpointComplete not supported by %s", this.getClass().getName()));
 	}
 }

@@ -25,7 +25,9 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.flink.runtime.event.TaskEvent;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.operators.BatchTask;
+import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.types.IntValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,7 +74,16 @@ public class IterationSynchronizationSinkTask extends AbstractInvokable implemen
 	private final AtomicBoolean terminated = new AtomicBoolean(false);
 
 	// --------------------------------------------------------------------------------------------
-	
+
+	public IterationSynchronizationSinkTask(Environment environment, TaskStateHandles taskStateHandles) {
+		super(environment, taskStateHandles);
+		if (taskStateHandles != null) {
+			// Currently, batch task doesn't support initial state.
+			// The constructor will throw an exception if initial state is not null.
+			throw new IllegalStateException("Found operator state for a non-stateful task invokable");
+		}
+	}
+
 	@Override
 	public void invoke() throws Exception {
 		this.headEventReader = new MutableRecordReader<>(

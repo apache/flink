@@ -24,8 +24,10 @@ import java.util.Random;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemoryType;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 
+import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.junit.Assert;
 import org.junit.After;
@@ -46,6 +48,8 @@ public class MemoryManagerTest {
 	private static final int PAGE_SIZE = 1024 * 32; // 32 KiBytes
 	
 	private static final int NUM_PAGES = MEMORY_SIZE / PAGE_SIZE;
+
+	private Environment dummyEnvironment = new DummyEnvironment("test", 1, 0);
 
 	private MemoryManager memoryManager;
 
@@ -70,7 +74,7 @@ public class MemoryManagerTest {
 	@Test
 	public void allocateAllSingle() {
 		try {
-			final AbstractInvokable mockInvoke = new DummyInvokable();
+			final AbstractInvokable mockInvoke = new DummyInvokable(dummyEnvironment, null);
 			List<MemorySegment> segments = new ArrayList<MemorySegment>();
 			
 			try {
@@ -93,7 +97,7 @@ public class MemoryManagerTest {
 	@Test
 	public void allocateAllMulti() {
 		try {
-			final AbstractInvokable mockInvoke = new DummyInvokable();
+			final AbstractInvokable mockInvoke = new DummyInvokable(dummyEnvironment, null);
 			final List<MemorySegment> segments = new ArrayList<MemorySegment>();
 			
 			try {
@@ -123,7 +127,7 @@ public class MemoryManagerTest {
 			List<MemorySegment>[] mems = (List<MemorySegment>[]) new List<?>[NUM_OWNERS];
 			
 			for (int i = 0; i < NUM_OWNERS; i++) {
-				owners[i] = new DummyInvokable();
+				owners[i] = new DummyInvokable(dummyEnvironment, null);
 				mems[i] = new ArrayList<MemorySegment>(64);
 			}
 			
@@ -155,7 +159,7 @@ public class MemoryManagerTest {
 	@Test
 	public void allocateTooMuch() {
 		try {
-			final AbstractInvokable mockInvoke = new DummyInvokable();
+			final AbstractInvokable mockInvoke = new DummyInvokable(dummyEnvironment, null);
 			
 			List<MemorySegment> segs = this.memoryManager.allocatePages(mockInvoke, NUM_PAGES);
 			

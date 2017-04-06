@@ -23,17 +23,16 @@ import java.util.UUID
 import akka.actor.ActorSystem
 import akka.actor.Status.Success
 import akka.testkit.{ImplicitSender, TestKit}
-import org.apache.flink.api.common.ExecutionConfig
-import org.apache.flink.runtime.akka.{ListeningBehaviour, AkkaUtils}
+import org.apache.flink.runtime.akka.{AkkaUtils, ListeningBehaviour}
+import org.apache.flink.runtime.execution.Environment
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable
 import org.apache.flink.runtime.jobgraph.{JobGraph, JobVertex}
-import org.apache.flink.runtime.messages.JobManagerMessages.{LeaderSessionMessage, CancelJob,
-JobResultSuccess, SubmitJob}
-import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.{AllVerticesRunning,
-WaitForAllVerticesToBeRunning}
+import org.apache.flink.runtime.messages.JobManagerMessages.{CancelJob, JobResultSuccess, LeaderSessionMessage, SubmitJob}
+import org.apache.flink.runtime.state.TaskStateHandles
+import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.{AllVerticesRunning, WaitForAllVerticesToBeRunning}
 import org.apache.flink.runtime.testingUtils.{ScalaTestingUtils, TestingUtils}
 import org.junit.runner.RunWith
-import org.scalatest.{FunSuiteLike, Matchers, BeforeAndAfterAll}
+import org.scalatest.{BeforeAndAfterAll, FunSuiteLike, Matchers}
 import org.scalatest.junit.JUnitRunner
 
 @RunWith(classOf[JUnitRunner])
@@ -90,7 +89,8 @@ class JobManagerLeaderSessionIDITSuite(_system: ActorSystem)
   }
 }
 
-class BlockingUntilSignalNoOpInvokable extends AbstractInvokable {
+class BlockingUntilSignalNoOpInvokable(environment: Environment, taskStateHandles: TaskStateHandles)
+  extends AbstractInvokable(environment, taskStateHandles) {
 
   override def invoke(): Unit = {
     BlockingUntilSignalNoOpInvokable.lock.synchronized{

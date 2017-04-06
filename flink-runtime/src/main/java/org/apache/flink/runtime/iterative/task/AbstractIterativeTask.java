@@ -24,6 +24,7 @@ import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.operators.BatchTask;
+import org.apache.flink.runtime.state.TaskStateHandles;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.flink.api.common.aggregators.Aggregator;
@@ -90,6 +91,10 @@ public abstract class AbstractIterativeTask<S extends Function, OT> extends Batc
 	// --------------------------------------------------------------------------------------------
 	// Main life cycle methods that implement the iterative behavior
 	// --------------------------------------------------------------------------------------------
+
+	public AbstractIterativeTask(Environment environment, TaskStateHandles taskStateHandles) {
+		super(environment, taskStateHandles);
+	}
 
 	@Override
 	protected void initialize() throws Exception {

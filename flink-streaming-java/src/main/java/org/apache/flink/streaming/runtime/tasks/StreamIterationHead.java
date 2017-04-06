@@ -23,6 +23,8 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.runtime.io.BlockingQueueBroker;
@@ -38,7 +40,11 @@ public class StreamIterationHead<OUT> extends OneInputStreamTask<OUT, OUT> {
 	private volatile boolean running = true;
 
 	// ------------------------------------------------------------------------
-	
+
+	public StreamIterationHead(Environment environment, TaskStateHandles taskStateHandles) {
+		super(environment, taskStateHandles);
+	}
+
 	@Override
 	protected void run() throws Exception {
 		

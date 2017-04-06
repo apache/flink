@@ -58,7 +58,6 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
-import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
 import org.apache.flink.runtime.jobgraph.tasks.StoppableTask;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.memory.MemoryManager;
@@ -582,9 +581,6 @@ public class Task implements Runnable, TaskActions {
 				taskCancellationTimeout = executionConfig.getTaskCancellationTimeout();
 			}
 
-			// now load the task's invokable code
-			invokable = loadAndInstantiateInvokable(userCodeClassLoader, nameOfInvokableClass);
-
 			if (isCanceledOrFailed()) {
 				throw new CancelTaskException();
 			}
@@ -621,12 +617,13 @@ public class Task implements Runnable, TaskActions {
 			}
 
 			// ----------------------------------------------------------------
-			//  call the user code initialization methods
+			//  load and call the user code constructor
 			// ----------------------------------------------------------------
 
 			TaskKvStateRegistry kvStateRegistry = network
 					.createKvStateTaskRegistry(jobId, getJobVertexId());
 
+			// assign env to user code to let the task code create its readers and writers
 			Environment env = new RuntimeEnvironment(
 				jobId, vertexId, executionId, executionConfig, taskInfo,
 				jobConfiguration, taskConfiguration, userCodeClassLoader,
@@ -635,24 +632,19 @@ public class Task implements Runnable, TaskActions {
 				distributedCacheEntries, writers, inputGates,
 				checkpointResponder, taskManagerConfig, metrics, this);
 
-			// let the task code create its readers and writers
-			invokable.setEnvironment(env);
-
 			// the very last thing before the actual execution starts running is to inject
 			// the state into the task. the state is non-empty if this is an execution
 			// of a task that failed but had backuped state from a checkpoint
 
 			if (null != taskStateHandles) {
-				if (invokable instanceof StatefulTask) {
-					StatefulTask op = (StatefulTask) invokable;
-					op.setInitialState(taskStateHandles);
-				} else {
-					throw new IllegalStateException("Found operator state for a non-stateful task invokable");
-				}
+				invokable = loadAndInstantiateInvokable(userCodeClassLoader, nameOfInvokableClass, env, taskStateHandles);
+
 				// be memory and GC friendly - since the code stays in invoke() for a potentially long time,
 				// we clear the reference to the state handle
 				//noinspection UnusedAssignment
 				taskStateHandles = null;
+			} else {
+				invokable = loadAndInstantiateInvokable(userCodeClassLoader, nameOfInvokableClass, env, null);
 			}
 
 			// ----------------------------------------------------------------
@@ -842,7 +834,10 @@ public class Task implements Runnable, TaskActions {
 		return userCodeClassLoader;
 	}
 
-	private AbstractInvokable loadAndInstantiateInvokable(ClassLoader classLoader, String className) throws Exception {
+	private AbstractInvokable loadAndInstantiateInvokable(ClassLoader classLoader,
+															String className,
+															Environment environment,
+															TaskStateHandles taskStateHandles) throws Exception {
 		Class<? extends AbstractInvokable> invokableClass;
 		try {
 			invokableClass = Class.forName(className, true, classLoader)
@@ -852,7 +847,7 @@ public class Task implements Runnable, TaskActions {
 			throw new Exception("Could not load the task's invokable class.", t);
 		}
 		try {
-			return invokableClass.newInstance();
+			return invokableClass.getConstructor(Environment.class, TaskStateHandles.class).newInstance(environment, taskStateHandles);
 		}
 		catch (Throwable t) {
 			throw new Exception("Could not instantiate the task's invokable class.", t);
@@ -1125,7 +1120,7 @@ public class Task implements Runnable, TaskActions {
 
 	/**
 	 * Calls the invokable to trigger a checkpoint, if the invokable implements the interface
-	 * {@link StatefulTask}.
+	 * {@link AbstractInvokable}.
 	 * 
 	 * @param checkpointID The ID identifying the checkpoint.
 	 * @param checkpointTimestamp The timestamp associated with the checkpoint.
@@ -1140,55 +1135,52 @@ public class Task implements Runnable, TaskActions {
 		final CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointID, checkpointTimestamp);
 
 		if (executionState == ExecutionState.RUNNING && invokable != null) {
-			if (invokable instanceof StatefulTask) {
-				// build a local closure
-				final StatefulTask statefulTask = (StatefulTask) invokable;
-				final String taskName = taskNameWithSubtask;
+			// build a local closure
+			final AbstractInvokable statefulTask = invokable;
+			final String taskName = taskNameWithSubtask;
 
-				Runnable runnable = new Runnable() {
-					@Override
-					public void run() {
-						// activate safety net for checkpointing thread
-						LOG.debug("Creating FileSystem stream leak safety net for {}", Thread.currentThread().getName());
-						FileSystemSafetyNet.initializeSafetyNetForThread();
+			Runnable runnable = new Runnable() {
+				@Override
+				public void run() {
+					// activate safety net for checkpointing thread
+					LOG.debug("Creating FileSystem stream leak safety net for {}", Thread.currentThread().getName());
+					FileSystemSafetyNet.initializeSafetyNetForThread();
 
-						try {
-							boolean success = statefulTask.triggerCheckpoint(checkpointMetaData, checkpointOptions);
-							if (!success) {
-								checkpointResponder.declineCheckpoint(
-										getJobID(), getExecutionId(), checkpointID,
-										new CheckpointDeclineTaskNotReadyException(taskName));
-							}
-						}
-						catch (Throwable t) {
-							if (getExecutionState() == ExecutionState.RUNNING) {
-								failExternally(new Exception(
-									"Error while triggering checkpoint " + checkpointID + " for " +
-										taskNameWithSubtask, t));
-							} else {
-								LOG.debug("Encountered error while triggering checkpoint {} for " +
-									"{} ({}) while being not in state running.", checkpointID,
-									taskNameWithSubtask, executionId, t);
-							}
-						} finally {
-							// close and de-activate safety net for checkpointing thread
-							LOG.debug("Ensuring all FileSystem streams are closed for {}",
-									Thread.currentThread().getName());
-
-							FileSystemSafetyNet.closeSafetyNetAndGuardedResourcesForThread();
+					try {
+						boolean success = statefulTask.triggerCheckpoint(checkpointMetaData, checkpointOptions);
+						if (!success) {
+							checkpointResponder.declineCheckpoint(
+								getJobID(), getExecutionId(), checkpointID,
+								new CheckpointDeclineTaskNotReadyException(taskName));
 						}
 					}
-				};
-				executeAsyncCallRunnable(runnable, String.format("Checkpoint Trigger for %s (%s).", taskNameWithSubtask, executionId));
-			}
-			else {
-				checkpointResponder.declineCheckpoint(jobId, executionId, checkpointID,
-						new CheckpointDeclineTaskNotCheckpointingException(taskNameWithSubtask));
-				
-				LOG.error("Task received a checkpoint request, but is not a checkpointing task - {} ({}).",
-						taskNameWithSubtask, executionId);
+					catch (UnsupportedOperationException exception) {
+						checkpointResponder.declineCheckpoint(jobId, executionId, checkpointID,
+							new CheckpointDeclineTaskNotCheckpointingException(taskNameWithSubtask));
 
-			}
+						LOG.error("Task received a checkpoint request, but is not a checkpointing task - {} ({}).",
+							taskNameWithSubtask, executionId);
+					}
+					catch (Throwable t) {
+						if (getExecutionState() == ExecutionState.RUNNING) {
+							failExternally(new Exception(
+								"Error while triggering checkpoint " + checkpointID + " for " +
+									taskNameWithSubtask, t));
+						} else {
+							LOG.debug("Encountered error while triggering checkpoint {} for " +
+									"{} ({}) while being not in state running.", checkpointID,
+								taskNameWithSubtask, executionId, t);
+						}
+					} finally {
+						// close and de-activate safety net for checkpointing thread
+						LOG.debug("Ensuring all FileSystem streams are closed for {}",
+							Thread.currentThread().getName());
+
+						FileSystemSafetyNet.closeSafetyNetAndGuardedResourcesForThread();
+					}
+				}
+			};
+			executeAsyncCallRunnable(runnable, String.format("Checkpoint Trigger for %s (%s).", taskNameWithSubtask, executionId));
 		}
 		else {
 			LOG.debug("Declining checkpoint request for non-running task {} ({}).", taskNameWithSubtask, executionId);
@@ -1203,34 +1195,31 @@ public class Task implements Runnable, TaskActions {
 		AbstractInvokable invokable = this.invokable;
 
 		if (executionState == ExecutionState.RUNNING && invokable != null) {
-			if (invokable instanceof StatefulTask) {
+			// build a local closure
+			final AbstractInvokable statefulTask = invokable;
+			final String taskName = taskNameWithSubtask;
 
-				// build a local closure
-				final StatefulTask statefulTask = (StatefulTask) invokable;
-				final String taskName = taskNameWithSubtask;
-
-				Runnable runnable = new Runnable() {
-					@Override
-					public void run() {
-						try {
-							statefulTask.notifyCheckpointComplete(checkpointID);
-						}
-						catch (Throwable t) {
-							if (getExecutionState() == ExecutionState.RUNNING) {
-								// fail task if checkpoint confirmation failed.
-								failExternally(new RuntimeException(
-									"Error while confirming checkpoint",
-									t));
-							}
+			Runnable runnable = new Runnable() {
+				@Override
+				public void run() {
+					try {
+						statefulTask.notifyCheckpointComplete(checkpointID);
+					}
+					catch (UnsupportedOperationException exception) {
+						LOG.error("Task received a checkpoint commit notification, but is not a checkpoint committing task - {}.",
+							taskNameWithSubtask);
+					}
+					catch (Throwable t) {
+						if (getExecutionState() == ExecutionState.RUNNING) {
+							// fail task if checkpoint confirmation failed.
+							failExternally(new RuntimeException(
+								"Error while confirming checkpoint",
+								t));
 						}
 					}
-				};
-				executeAsyncCallRunnable(runnable, "Checkpoint Confirmation for " + taskName);
-			}
-			else {
-				LOG.error("Task received a checkpoint commit notification, but is not a checkpoint committing task - {}.",
-						taskNameWithSubtask);
-			}
+				}
+			};
+			executeAsyncCallRunnable(runnable, "Checkpoint Confirmation for " + taskName);
 		}
 		else {
 			LOG.debug("Ignoring checkpoint commit notification for non-running task {}.", taskNameWithSubtask);
