@@ -33,4 +33,21 @@ trait DataStreamRel extends FlinkRelNode {
     */
   def translateToPlan(tableEnv: StreamTableEnvironment) : DataStream[Row]
 
+  /**
+    * Whether the [[DataStreamRel]] requires that update and delete changes are sent with retraction
+    * messages.
+    */
+  def needsUpdatesAsRetraction: Boolean = false
+
+  /**
+    * Whether the [[DataStreamRel]] produces update and delete changes.
+    */
+  def producesUpdates: Boolean = false
+
+  /**
+    * Wheter the [[DataStreamRel]] consumes retraction messages instead of forwarding them.
+    * The node might or might not produce new retraction messages.
+    */
+  def consumesRetractions: Boolean = false
+
 }
