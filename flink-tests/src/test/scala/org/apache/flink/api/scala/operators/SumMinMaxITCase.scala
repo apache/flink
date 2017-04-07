@@ -43,7 +43,7 @@ class SumMinMaxITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(
       .sum(0)
       .andMax(1)
       // Ensure aggregate operator correctly copies other fields
-      .filter(_._3 != null)
+      .filter((tup: (Int, Long, String)) => tup._3 != null)
       .map{ t => (t._1, t._2) }
 
 
@@ -63,7 +63,7 @@ class SumMinMaxITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(
       .groupBy(1)
       .sum(0)
       // Ensure aggregate operator correctly copies other fields
-      .filter(_._3 != null)
+      .filter((tup: (Int, Long, String)) => tup._3 != null)
       .map { t => (t._2, t._1) }
 
     val result : Seq[(Long, Int)] = aggregateDs.collect().sortWith((a, b) => a._1 < b._1)
@@ -83,7 +83,7 @@ class SumMinMaxITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(
       .min(0)
       .min(0)
       // Ensure aggregate operator correctly copies other fields
-      .filter(_._3 != null)
+      .filter((tup: (Int, Long, String)) => tup._3 != null)
       .map { t => t._1 }
 
     val result: Seq[Int] = aggregateDs.collect()
