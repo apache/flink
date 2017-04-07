@@ -746,10 +746,10 @@ object AggregateUtil {
   }
 
   private[flink] def createDataStreamAggregateFunction(
+      generator: CodeGenerator,
       namedAggregates: Seq[CalcitePair[AggregateCall, String]],
       inputType: RelDataType,
-      outputType: RelDataType,
-      groupKeysIndex: Array[Int])
+      outputType: RelDataType)
     : (DataStreamAggFunction[Row, Row, Row], RowTypeInfo, RowTypeInfo) = {
 
     val (aggFields, aggregates) =
@@ -757,6 +757,19 @@ object AggregateUtil {
         namedAggregates.map(_.getKey),
         inputType,
         needRetraction = false)
+
+    val aggMapping = aggregates.indices.toArray
+    val outputArity = aggregates.length
+
+    val genFunction = generator.generateAggregations(
+      "GroupingWindowAggregateHelper",
+      generator,
+      inputType,
+      aggregates,
+      aggFields,
+      aggMapping,
+      Array(),
+      outputArity)
 
     val aggregateMapping = getAggregateMapping(namedAggregates, outputType)
 
@@ -769,7 +782,7 @@ object AggregateUtil {
 
     val accumulatorRowType = createAccumulatorRowType(aggregates)
     val aggResultRowType = new RowTypeInfo(aggResultTypes: _*)
-    val aggFunction = new AggregateAggFunction(aggregates, aggFields)
+    val aggFunction = new AggregateAggFunction(genFunction)
 
     (aggFunction, accumulatorRowType, aggResultRowType)
   }

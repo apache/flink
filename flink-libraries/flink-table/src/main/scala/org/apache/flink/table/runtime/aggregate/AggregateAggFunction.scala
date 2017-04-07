@@ -18,69 +18,61 @@
 
 package org.apache.flink.table.runtime.aggregate
 
-import java.util.{ArrayList => JArrayList, List => JList}
-import org.apache.flink.api.common.functions.{AggregateFunction => DataStreamAggFunc}
-import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
+import org.apache.flink.api.common.functions.AggregateFunction
+import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
 import org.apache.flink.types.Row
+import org.slf4j.LoggerFactory
 
 /**
   * Aggregate Function used for the aggregate operator in
   * [[org.apache.flink.streaming.api.datastream.WindowedStream]]
   *
-  * @param aggregates       the list of all [[org.apache.flink.table.functions.AggregateFunction]]
-  *                         used for this aggregation
-  * @param aggFields   the position (in the input Row) of the input value for each aggregate
+  * @param genAggregations Generated aggregate helper function
   */
-class AggregateAggFunction(
-    private val aggregates: Array[AggregateFunction[_]],
-    private val aggFields: Array[Array[Int]])
-  extends DataStreamAggFunc[Row, Row, Row] {
+class AggregateAggFunction(genAggregations: GeneratedAggregationsFunction)
+  extends AggregateFunction[Row, Row, Row] with Compiler[GeneratedAggregations] {
+
+  val LOG = LoggerFactory.getLogger(this.getClass)
+  private var function: GeneratedAggregations = _
 
   override def createAccumulator(): Row = {
-    val accumulatorRow: Row = new Row(aggregates.length)
-    var i = 0
-    while (i < aggregates.length) {
-      accumulatorRow.setField(i, aggregates(i).createAccumulator())
-      i += 1
+    if (function == null) {
+      initFunction
     }
-    accumulatorRow
+    function.createAccumulators()
   }
 
   override def add(value: Row, accumulatorRow: Row): Unit = {
-
-    var i = 0
-    while (i < aggregates.length) {
-      val acc = accumulatorRow.getField(i).asInstanceOf[Accumulator]
-      val v = value.getField(aggFields(i)(0))
-      aggregates(i).accumulate(acc, v)
-      i += 1
+    if (function == null) {
+      initFunction
     }
+    function.accumulate(accumulatorRow, value)
   }
 
   override def getResult(accumulatorRow: Row): Row = {
-    val output = new Row(aggFields.length)
-
-    var i = 0
-    while (i < aggregates.length) {
-      val acc = accumulatorRow.getField(i).asInstanceOf[Accumulator]
-      output.setField(i, aggregates(i).getValue(acc))
-      i += 1
+    if (function == null) {
+      initFunction
     }
+    val output = function.createOutputRow()
+    function.setAggregationResults(accumulatorRow, output)
     output
   }
 
   override def merge(aAccumulatorRow: Row, bAccumulatorRow: Row): Row = {
-
-    var i = 0
-    while (i < aggregates.length) {
-      val aAcc = aAccumulatorRow.getField(i).asInstanceOf[Accumulator]
-      val bAcc = bAccumulatorRow.getField(i).asInstanceOf[Accumulator]
-      val accumulators: JList[Accumulator] = new JArrayList[Accumulator]()
-      accumulators.add(aAcc)
-      accumulators.add(bAcc)
-      aAccumulatorRow.setField(i, aggregates(i).merge(accumulators))
-      i += 1
+    if (function == null) {
+      initFunction
     }
-    aAccumulatorRow
+    function.mergeAccumulatorsPair(aAccumulatorRow, bAccumulatorRow)
+  }
+
+  def initFunction(): Unit = {
+    LOG.debug(s"Compiling AggregateHelper: $genAggregations.name \n\n " +
+                s"Code:\n$genAggregations.code")
+    val clazz = compile(
+      getClass.getClassLoader,
+      genAggregations.name,
+      genAggregations.code)
+    LOG.debug("Instantiating AggregateHelper.")
+    function = clazz.newInstance()
   }
 }
