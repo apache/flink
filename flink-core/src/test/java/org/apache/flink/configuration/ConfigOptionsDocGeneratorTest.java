@@ -21,7 +21,7 @@ import org.junit.Test;
 
 import static org.junit.Assert.*;
 
-public class ConfigGroupTest {
+public class ConfigOptionsDocGeneratorTest {
 
 	public static class TestConfigGroup {
 		public static ConfigOption<Integer> firstOption = ConfigOptions
@@ -62,7 +62,7 @@ public class ConfigGroupTest {
 			"</tr>" +
 			"</tbody>" +
 			"</table>";
-		final String htmlTable = ConfigGroup.create(TestConfigGroup.class, false);
+		final String htmlTable = ConfigOptionsDocGenerator.create(TestConfigGroup.class, false);
 
 		assertEquals(expectedTable, htmlTable);
 	}
@@ -93,7 +93,7 @@ public class ConfigGroupTest {
 		                             "</tr>" +
 		                             "</tbody>" +
 		                             "</table>";
-		final String htmlTable = ConfigGroup.create(TestConfigGroup.class, true);
+		final String htmlTable = ConfigOptionsDocGenerator.create(TestConfigGroup.class, true);
 
 		assertEquals(expectedTable, htmlTable);
 	}

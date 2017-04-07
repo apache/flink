@@ -142,9 +142,12 @@ under the License.
 						</executions>
 						<configuration>
 							<target>
-								<touch file="${rootDir}/${generated.docs.dir}/high_availability_configuration.html" mkdirs="true"/>
-								<java classname="org.apache.flink.configuration.HighAvailabilityOptions" output="${rootDir}/${generated.docs.dir}/high_availability_configuration.html" fork="true">
+								<mkdir dir="${rootDir}/${generated.docs.dir}"/>
+								<java classname="org.apache.flink.configuration.ConfigOptionsDocGenerator" fork="true">
 									<classpath refid="maven.compile.classpath" />
+									<arg value="${rootDir}/${generated.docs.dir}/" />
+									<!--package with configuration classes-->
+									<arg value="org.apache.flink.configuration" />
 								</java>
 							</target>
 						</configuration>

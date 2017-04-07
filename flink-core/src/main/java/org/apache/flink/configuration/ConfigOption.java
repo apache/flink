@@ -103,10 +103,29 @@ public class ConfigOption<T> {
 		return new ConfigOption<>(key, shortDescription, description, defaultValue, deprecatedKeys);
 	}
 
+	/**
+	 * Creates a new config option, using this option's key and default value, and
+	 * adding the given description. The given description will be used for generating documentation table.
+	 *
+	 * <p><b>NOTE:</b> You can use html to format the output of the generated cell in documentation.
+	 *
+	 * @param description description for this option
+	 * @return A new config option, with given description
+	 */
 	public ConfigOption<T> withDescription(String description) {
 		return new ConfigOption<>(key, shortDescription, description, defaultValue, deprecatedKeys);
 	}
 
+	/**
+	 * Creates a new config option, using this option's key and default value, and
+	 * adding the given description. The given description will be used for generating documentation table.
+	 *
+	 * <p><b>NOTE:</b> You can use html to format the output of the generated cell in documentation.
+	 *
+	 * @param description      description for this option
+	 * @param shortDescription short version of the description
+	 * @return A new config option, with given description
+	 */
 	public ConfigOption<T> withDescription(String shortDescription, String description) {
 		return new ConfigOption<>(key, shortDescription, description, defaultValue, deprecatedKeys);
 	}
@@ -153,26 +172,20 @@ public class ConfigOption<T> {
 		return deprecatedKeys == EMPTY ? Collections.<String>emptyList() : Arrays.asList(deprecatedKeys);
 	}
 
+	/**
+	 * Gets the short version of description of this option.
+	 * @return The option's short version of description.
+	 */
 	public String shortDescription() {
 		return shortDescription;
 	}
 
+	/**
+	 * Gets the description of this option.
+	 * @return The option's description.
+	 */
 	public String description() {
 		return description;
-	}
-
-	String toHTMLString(boolean includeShort) {
-		final StringBuilder stringBuilder = new StringBuilder("<tr><td>")
-			.append(key).append("</td>")
-			.append("<td>")
-			.append(defaultValue == null ? "" : defaultValue)
-			.append("</td>");
-		if (includeShort) {
-			stringBuilder.append("<td>").append(shortDescription).append("</td>");
-		}
-
-		stringBuilder.append("<td>").append(description).append("</td></tr>");
-		return stringBuilder.toString();
 	}
 
 	// ------------------------------------------------------------------------

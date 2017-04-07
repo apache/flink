@@ -134,6 +134,6 @@ public class HighAvailabilityOptions {
 	private HighAvailabilityOptions() {}
 
 	public static void main(String[] args) {
-		System.out.println(ConfigGroup.create(HighAvailabilityOptions.class, false));
+		System.out.println(ConfigOptionsDocGenerator.create(HighAvailabilityOptions.class, false));
 	}
 }

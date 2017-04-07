@@ -17,16 +17,24 @@
  */
 package org.apache.flink.configuration;
 
+import java.io.IOException;
 import java.lang.reflect.Field;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Class used for generating code based documentation of configuration parameters.
  */
-public class ConfigGroup {
+public class ConfigOptionsDocGenerator {
 
 	/**
 	 * Transforms this configuration group into HTML formatted table.
@@ -50,7 +58,7 @@ public class ConfigGroup {
 		}
 
 		for (ConfigOption option : options) {
-			htmlTable.append(option.toHTMLString(includeShort));
+			htmlTable.append(toHTMLString(option, includeShort));
 		}
 
 		htmlTable.append("</tbody></table>");
@@ -89,7 +97,60 @@ public class ConfigGroup {
 		}
 	}
 
+	/**
+	 * Transforms option to table row.
+	 *
+	 * @param option option to transform
+	 * @param includeShort should the short description be included
+	 * @return row with the option description
+	 */
+	private static String toHTMLString(final ConfigOption<?> option, boolean includeShort) {
+		final StringBuilder stringBuilder = new StringBuilder("<tr><td>")
+			.append(option.key()).append("</td>")
+			.append("<td>")
+			.append(option.defaultValue() == null ? "" : option.defaultValue())
+			.append("</td>");
+		if (includeShort) {
+			stringBuilder.append("<td>").append(option.shortDescription()).append("</td>");
+		}
 
-	private ConfigGroup() {
+		stringBuilder.append("<td>").append(option.description()).append("</td></tr>");
+		return stringBuilder.toString();
+	}
+
+	/**
+	 * Method used to generated documentation entries containing tables of configuration options with default value and
+	 * description. Each found class matching a pattern *Options.java will results in a separate file with a configuration
+	 * table.
+	 *
+	 * @param args first argument is output path for the generated files, second argument is full package name containing
+	 *             classes with {@link ConfigOption}
+	 */
+	public static void main(String[] args) throws IOException, ClassNotFoundException {
+		final String outputPath = args[0];
+		final String packageName = args[1];
+
+		final Path configDir = Paths.get("../src/main/java", packageName.replaceAll("\\.", "/"));
+
+		final Pattern p = Pattern.compile("(([a-zA-Z]*)(Options))\\.java");
+		try (DirectoryStream<Path> stream = Files.newDirectoryStream(configDir, "*Options.java")) {
+			for (Path entry: stream) {
+				final String fileName = entry.getFileName().toString();
+				final Matcher matcher = p.matcher(fileName);
+				if (!fileName.equals("ConfigOptions.java") && matcher.matches()) {
+
+					final String outputFile = matcher.group(2).replaceAll("(.)(\\p{Upper})", "$1_$2").toLowerCase() +
+						"_configuration.html";
+
+					final String className = matcher.group(1);
+					final String doc = ConfigOptionsDocGenerator.create(Class.forName(packageName + "." + className), false);
+					Files.write(Paths.get(outputPath, outputFile), doc.getBytes(StandardCharsets.UTF_8));
+				}
+			}
+		}
+	}
+
+
+	private ConfigOptionsDocGenerator() {
 	}
 }
