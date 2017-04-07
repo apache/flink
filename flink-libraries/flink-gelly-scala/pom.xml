@@ -103,45 +103,6 @@ under the License.
 
     <build>
         <plugins>
-            <!-- Scala Compiler -->
-            <plugin>
-                <groupId>net.alchim31.maven</groupId>
-                <artifactId>scala-maven-plugin</artifactId>
-                <executions>
-                    <!-- Run scala compiler in the process-resources phase, so that dependencies on
-                        scala classes can be resolved later in the (Java) compile phase -->
-                    <execution>
-                        <id>scala-compile-first</id>
-                        <phase>process-resources</phase>
-                        <goals>
-                            <goal>compile</goal>
-                        </goals>
-                    </execution>
-
-                    <!-- Run scala compiler in the process-test-resources phase, so that dependencies on
-                         scala classes can be resolved later in the (Java) test-compile phase -->
-                    <execution>
-                        <id>scala-test-compile</id>
-                        <phase>process-test-resources</phase>
-                        <goals>
-                            <goal>testCompile</goal>
-                        </goals>
-                    </execution>
-                </executions>
-                <configuration>
-                    <jvmArgs>
-                        <jvmArg>-Xms128m</jvmArg>
-                        <jvmArg>-Xmx512m</jvmArg>
-                    </jvmArgs>
-                    <compilerPlugins combine.children="append">
-                        <compilerPlugin>
-                            <groupId>org.scalamacros</groupId>
-                            <artifactId>paradise_${scala.version}</artifactId>
-                            <version>${scala.macros.version}</version>
-                        </compilerPlugin>
-                    </compilerPlugins>
-                </configuration>
-            </plugin>
 
             <!-- Eclipse Integration -->
             <plugin>
@@ -237,4 +198,106 @@ under the License.
         </plugins>
     </build>
 
+	<profiles>
+		<profile>
+			<id>scala</id>
+			<activation>
+				<property>
+					<name>!scala-2.12</name>
+				</property>
+			</activation>
+
+			<build>
+				<plugins>
+					<!-- Scala Compiler -->
+					<plugin>
+						<groupId>net.alchim31.maven</groupId>
+						<artifactId>scala-maven-plugin</artifactId>
+						<executions>
+							<!-- Run scala compiler in the process-resources phase, so that dependencies on
+                                scala classes can be resolved later in the (Java) compile phase -->
+							<execution>
+								<id>scala-compile-first</id>
+								<phase>process-resources</phase>
+								<goals>
+									<goal>compile</goal>
+								</goals>
+							</execution>
+
+							<!-- Run scala compiler in the process-test-resources phase, so that dependencies on
+                                 scala classes can be resolved later in the (Java) test-compile phase -->
+							<execution>
+								<id>scala-test-compile</id>
+								<phase>process-test-resources</phase>
+								<goals>
+									<goal>testCompile</goal>
+								</goals>
+							</execution>
+						</executions>
+						<configuration>
+							<jvmArgs>
+								<jvmArg>-Xms128m</jvmArg>
+								<jvmArg>-Xmx512m</jvmArg>
+							</jvmArgs>
+							<compilerPlugins combine.children="append">
+								<compilerPlugin>
+									<groupId>org.scalamacros</groupId>
+									<artifactId>paradise_${scala.version}</artifactId>
+									<version>${scala.macros.version}</version>
+								</compilerPlugin>
+							</compilerPlugins>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+
+		</profile>
+		<profile>
+			<id>scala-2.12</id>
+			<activation>
+				<property>
+					<name>!scala-2.10</name>
+				</property>
+			</activation>
+
+			<build>
+				<plugins>
+					<!-- Scala Compiler -->
+					<plugin>
+						<groupId>net.alchim31.maven</groupId>
+						<artifactId>scala-maven-plugin</artifactId>
+						<executions>
+							<!-- Run scala compiler in the process-resources phase, so that dependencies on
+                                scala classes can be resolved later in the (Java) compile phase -->
+							<execution>
+								<id>scala-compile-first</id>
+								<phase>process-resources</phase>
+								<goals>
+									<goal>compile</goal>
+								</goals>
+							</execution>
+
+							<!-- Run scala compiler in the process-test-resources phase, so that dependencies on
+                                 scala classes can be resolved later in the (Java) test-compile phase -->
+							<execution>
+								<id>scala-test-compile</id>
+								<phase>process-test-resources</phase>
+								<goals>
+									<goal>testCompile</goal>
+								</goals>
+							</execution>
+						</executions>
+						<configuration>
+							<jvmArgs>
+								<jvmArg>-Xms128m</jvmArg>
+								<jvmArg>-Xmx512m</jvmArg>
+							</jvmArgs>
+						</configuration>
+					</plugin>
+
+				</plugins>
+			</build>
+
+		</profile>
+	</profiles>
 </project>
