@@ -67,7 +67,7 @@ public class NumericBetweenParametersProvider implements ParameterValuesProvider
 			long end = start + fetchSize - 1;
 			if (end > maxVal) {
 				end = maxVal;
-		    }
+			}
 			parameters[batchIndex] = new Long[]{start, end};
 		}
 		return parameters;
