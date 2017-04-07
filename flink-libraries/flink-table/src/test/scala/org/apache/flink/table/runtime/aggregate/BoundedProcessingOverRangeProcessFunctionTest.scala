@@ -158,6 +158,32 @@ class BoundedProcessingOverRangeProcessFunctionTest {
         |  public org.apache.flink.types.Row createOutputRow() {
         |    return new org.apache.flink.types.Row(7);
         |  }
+        |
+        |  public org.apache.flink.types.Row mergeTwoRows(
+        |    org.apache.flink.types.Row a,
+        |    org.apache.flink.types.Row b) {
+        |    org.apache.flink.table.functions.Accumulator aAcc0
+        |      = (org.apache.flink.table.functions.Accumulator) a.getField(0);
+        |    org.apache.flink.table.functions.Accumulator bAcc0
+        |      = (org.apache.flink.table.functions.Accumulator) a.getField(0);
+        |    java.util.ArrayList<org.apache.flink.table.functions.Accumulator> accumulators0
+        |      = new java.util.ArrayList<org.apache.flink.table.functions.Accumulator>();
+        |    accumulators0.add(aAcc0);
+        |    accumulators0.add(bAcc0);
+        |    a.setField(0, fmin.merge(accumulators0));
+        |
+        |    org.apache.flink.table.functions.Accumulator aAcc1
+        |      = (org.apache.flink.table.functions.Accumulator) a.getField(1);
+        |    org.apache.flink.table.functions.Accumulator bAcc1
+        |      = (org.apache.flink.table.functions.Accumulator) a.getField(1);
+        |    java.util.ArrayList<org.apache.flink.table.functions.Accumulator> accumulators1
+        |      = new java.util.ArrayList<org.apache.flink.table.functions.Accumulator>();
+        |    accumulators1.add(aAcc1);
+        |    accumulators1.add(bAcc1);
+        |    a.setField(1, fmax.merge(accumulators1));
+        |
+        |    return a;
+        |  }
         |}
       """.stripMargin
 

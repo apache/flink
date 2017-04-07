@@ -403,6 +403,41 @@ class CodeGenerator(
          |  }""".stripMargin
     }
 
+    def generateMergeTwoRows(
+        accTypes: Array[String],
+        aggs: Array[String]): String = {
+
+      val sig: String =
+        j"""
+           |  public org.apache.flink.types.Row mergeTwoRows(
+           |    org.apache.flink.types.Row a,
+           |    org.apache.flink.types.Row b)
+           |    """.stripMargin
+      val merge: String = {
+        for (i <- aggs.indices) yield
+          j"""
+             |    ${accTypes(i)} aAcc$i = (${accTypes(i)}) a.getField($i);
+             |    ${accTypes(i)} bAcc$i = (${accTypes(i)}) b.getField($i);
+             |    java.util.ArrayList<${accTypes(i)}> accumulators$i
+             |      = new java.util.ArrayList<${accTypes(i)}>();
+             |    accumulators$i.add(aAcc$i);
+             |    accumulators$i.add(bAcc$i);
+             |    a.setField(
+             |      $i,
+             |      ${aggs(i)}.merge(accumulators$i));"""
+            .stripMargin
+      }.mkString("\n")
+      val ret: String =
+        j"""
+           |      return a;"""
+          .stripMargin
+
+      j"""$sig {
+         |$merge
+         |$ret
+         |  }""".stripMargin
+    }
+
     // get unique function name
     val funcName = newName(name)
     // register UDAGGs
@@ -441,6 +476,7 @@ class CodeGenerator(
     funcCode += generateCreateAccumulators(aggs) + "\n"
     funcCode += generateSetForwardedFields(fwdMapping) + "\n"
     funcCode += generateCreateOutputRow(outputArity) + "\n"
+    funcCode += generateMergeTwoRows(accTypes, aggs) + "\n"
     funcCode += "}"
 
     GeneratedAggregationsFunction(funcName, funcCode)
