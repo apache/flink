@@ -17,12 +17,10 @@
  */
 package org.apache.flink.table.api.scala.stream.sql
 
-import java.sql.Timestamp
-
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.plan.logical.{EventTimeTumblingGroupWindow, ProcessingTimeSessionGroupWindow, ProcessingTimeSlidingGroupWindow, ProcessingTimeTumblingGroupWindow}
+import org.apache.flink.table.plan.logical.{EventTimeTumblingGroupWindow, ProcessingTimeSessionGroupWindow, ProcessingTimeSlidingGroupWindow}
 import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils.{StreamTableTestUtil, TableTestBase}
 import org.junit.Test
@@ -146,6 +144,29 @@ class WindowAggregateTest extends TableTestBase {
           term("select", "COUNT(*) AS EXPR$0")
         ),
         term("select", "EXPR$0")
+      )
+    streamUtil.verifySql(sql, expected)
+  }
+
+  @Test
+  def testWindowExpression() = {
+    val sql = "SELECT TUMBLE_START(rowtime(), INTERVAL '15' MINUTE)," +
+      "TUMBLE_END(rowtime(), INTERVAL '15' MINUTE), COUNT(*)" +
+      "FROM MyTable GROUP BY TUMBLE(rowtime(), INTERVAL '15' MINUTE)"
+    val expected =
+      unaryNode(
+        "DataStreamCalc",
+        unaryNode(
+          "DataStreamAggregate",
+          unaryNode(
+            "DataStreamCalc",
+            streamTableNode(0),
+            term("select", "1970-01-01 00:00:00 AS $f0")
+          ),
+          term("window", EventTimeTumblingGroupWindow(Some('w$), 'rowtime, 900000.millis)),
+          term("select", "COUNT(*) AS EXPR$2", "start('w$) AS w$start", "end('w$) AS w$end")
+        ),
+        term("select", "CAST(w$start) AS w$start", "CAST(w$end) AS w$end", "EXPR$2")
       )
     streamUtil.verifySql(sql, expected)
   }

@@ -21,6 +21,7 @@ package org.apache.flink.table.plan.rules
 import org.apache.calcite.rel.rules._
 import org.apache.calcite.tools.{RuleSet, RuleSets}
 import org.apache.flink.table.calcite.rules.FlinkAggregateExpandDistinctAggregatesRule
+import org.apache.flink.table.plan.rules.common.WindowExpressionRule
 import org.apache.flink.table.plan.rules.dataSet._
 import org.apache.flink.table.plan.rules.datastream._
 
@@ -38,7 +39,8 @@ object FlinkRuleSets {
     ProjectToWindowRule.PROJECT,
 
     // Transform window to LogicalWindowAggregate
-    DataSetLogicalWindowAggregateRule.INSTANCE
+    DataSetLogicalWindowAggregateRule.INSTANCE,
+    WindowExpressionRule.INSTANCE
   )
 
   /**
@@ -136,6 +138,7 @@ object FlinkRuleSets {
   val DATASTREAM_NORM_RULES: RuleSet = RuleSets.ofList(
     // Transform window to LogicalWindowAggregate
     DataStreamLogicalWindowAggregateRule.INSTANCE,
+    WindowExpressionRule.INSTANCE,
 
     // simplify expressions rules
     ReduceExpressionsRule.FILTER_INSTANCE,
