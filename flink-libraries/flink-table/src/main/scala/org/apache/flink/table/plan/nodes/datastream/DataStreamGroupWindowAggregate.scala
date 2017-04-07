@@ -54,6 +54,10 @@ class DataStreamGroupWindowAggregate(
 
   override def deriveRowType(): RelDataType = rowRelDataType
 
+  override def needsUpdatesAsRetraction = true
+
+  override def consumesRetractions = true
+
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new DataStreamGroupWindowAggregate(
       window,
