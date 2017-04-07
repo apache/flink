@@ -696,6 +696,106 @@ class SqlITCase extends StreamingWithStateTestBase {
       "6,8,Hello world,51,9,5,9,1")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
+  
+   
+  /**
+   * Integration tests based on Proctime tests will be replaced with harness tests 
+   */
+   @Test
+  def testOrderBy(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.testResults = mutable.MutableList()
+
+    // for sum aggregation ensure that every time the order of each element is consistent
+    env.setParallelism(1)
+
+    val t1 = env.fromCollection(data).toTable(tEnv).as('a, 'b, 'c)
+
+    tEnv.registerTable("s1", t1)
+    
+     val t2 = StreamTestData.get5TupleDataStream(env)
+         .toTable(tEnv).as('a2, 'b2, 'c2, 'd2, 'e2)
+    
+    tEnv.registerTable("s2", t2)
+
+    var  sqlquery="SELECT a2 FROM s2 ORDER BY proctime() ASC"
+
+    
+    val result = tEnv.sql(sqlquery).toDataStream[Row]
+    result.addSink(new StreamITCase.StringSink)
+    env.execute()
+
+    //Sort does not do project. Hence it will output also the ordering proctime field 
+    val expected = mutable.MutableList(
+      "1,1970-01-01 00:00:00.0",
+      "2,1970-01-01 00:00:00.0",
+      "2,1970-01-01 00:00:00.0",
+      "3,1970-01-01 00:00:00.0",
+      "3,1970-01-01 00:00:00.0",
+      "3,1970-01-01 00:00:00.0",
+      "4,1970-01-01 00:00:00.0", 
+      "4,1970-01-01 00:00:00.0", 
+      "4,1970-01-01 00:00:00.0",
+      "4,1970-01-01 00:00:00.0",
+      "5,1970-01-01 00:00:00.0",
+      "5,1970-01-01 00:00:00.0",
+      "5,1970-01-01 00:00:00.0",
+      "5,1970-01-01 00:00:00.0",
+      "5,1970-01-01 00:00:00.0")
+      
+    assertEquals(expected.take(5).sorted, StreamITCase.testResults.take(5).sorted)
+  }
+  
+  /**
+   * Integration tests based on Proctime tests will be replaced with harness tests 
+   */
+  @Test
+  def testOrderBy2(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.testResults = mutable.MutableList()
+
+    // for sum aggregation ensure that every time the order of each element is consistent
+    env.setParallelism(1)
+
+    val t1 = env.fromCollection(data).toTable(tEnv).as('a, 'b, 'c)
+
+    tEnv.registerTable("s1", t1)
+    
+     val t2 = StreamTestData.get5TupleDataStream(env)
+         .toTable(tEnv).as('a2, 'b2, 'c2, 'd2, 'e2)
+    
+    tEnv.registerTable("s2", t2)
+
+    var  sqlquery = "SELECT a2,CEIL(proctime() TO hour) FROM s2 " +
+      "ORDER BY CEIL(proctime() TO hour),c2 ASC ";
+    
+    val result = tEnv.sql(sqlquery).toDataStream[Row]
+    result.addSink(new StreamITCase.StringSink)
+    env.execute()
+
+    //sorting fields proctime and c2 are kept as well
+    val expected = mutable.MutableList(
+      "1,1970-01-01 00:00:00.0,0",
+      "2,1970-01-01 00:00:00.0,1",
+      "2,1970-01-01 00:00:00.0,2",
+      "3,1970-01-01 00:00:00.0,3",
+      "3,1970-01-01 00:00:00.0,4",
+      "3,1970-01-01 00:00:00.0,5",
+      "4,1970-01-01 00:00:00.0,6", 
+      "4,1970-01-01 00:00:00.0,7", 
+      "4,1970-01-01 00:00:00.0,8",
+      "4,1970-01-01 00:00:00.0,9",
+      "5,1970-01-01 00:00:00.0,10",
+      "5,1970-01-01 00:00:00.0,11",
+      "5,1970-01-01 00:00:00.0,12",
+      "5,1970-01-01 00:00:00.0,13",
+      "5,1970-01-01 00:00:00.0,14")
+    assertEquals(expected.take(5).sorted, StreamITCase.testResults.take(5).sorted)
+  }
+  
+  
 }
 
 object SqlITCase {
