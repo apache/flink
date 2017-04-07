@@ -20,7 +20,6 @@ package org.apache.flink.table.plan.rules
 
 import org.apache.calcite.rel.rules._
 import org.apache.calcite.tools.{RuleSet, RuleSets}
-import org.apache.flink.table.calcite.rules.FlinkAggregateExpandDistinctAggregatesRule
 import org.apache.flink.table.plan.rules.dataSet._
 import org.apache.flink.table.plan.rules.datastream._
 
@@ -85,6 +84,8 @@ object FlinkRuleSets {
     AggregateJoinTransposeRule.EXTENDED,
     // aggregate union rule
     AggregateUnionAggregateRule.INSTANCE,
+    // expand distinct aggregate to normal aggregate with groupby
+    AggregateExpandDistinctAggregatesRule.JOIN,
 
     // remove unnecessary sort rule
     SortRemoveRule.INSTANCE,
@@ -104,9 +105,6 @@ object FlinkRuleSets {
     FilterToCalcRule.INSTANCE,
     ProjectToCalcRule.INSTANCE,
     CalcMergeRule.INSTANCE,
-
-    // distinct aggregate rule for FLINK-3475
-    FlinkAggregateExpandDistinctAggregatesRule.JOIN,
 
     // translate to Flink DataSet nodes
     DataSetWindowAggregateRule.INSTANCE,
