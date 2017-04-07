@@ -621,6 +621,7 @@ under the License.
 				</dependency>
 			</dependencies>
 		</profile>
+		
 		<profile>
 			<id>scala</id>
 			<dependencies>
