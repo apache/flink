@@ -95,22 +95,7 @@ under the License.
 			<groupId>org.scala-lang</groupId>
 			<artifactId>scala-library</artifactId>
 		</dependency>
-
-		<dependency>
-			<groupId>com.data-artisans</groupId>
-			<artifactId>flakka-actor_${scala.binary.version}</artifactId>
-		</dependency>
-
-		<dependency>
-			<groupId>com.data-artisans</groupId>
-			<artifactId>flakka-remote_${scala.binary.version}</artifactId>
-		</dependency>
-
-		<dependency>
-			<groupId>com.data-artisans</groupId>
-			<artifactId>flakka-slf4j_${scala.binary.version}</artifactId>
-		</dependency>
-
+		
 		<dependency>
 			<groupId>org.clapper</groupId>
 			<artifactId>grizzled-slf4j_${scala.binary.version}</artifactId>
@@ -184,10 +169,6 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
-		<dependency>
-			<groupId>com.data-artisans</groupId>
-			<artifactId>flakka-testkit_${scala.binary.version}</artifactId>
-		</dependency>
 
 		<dependency>
 			<groupId>org.reflections</groupId>
@@ -395,4 +376,58 @@ under the License.
 			</plugin>
 		</plugins>
 	</build>
+
+	<profiles>
+		<profile>
+			<id>scala-2.12</id>
+			<activation>
+				<property>
+					<!-- this is the default scala profile -->
+					<name>!scala-2.11</name>
+				</property>
+			</activation>
+			<dependencies>
+				<dependency>
+					<groupId>com.typesafe.akka</groupId>
+					<artifactId>akka-actor_2.12</artifactId>
+				</dependency>
+				<dependency>
+					<groupId>com.typesafe.akka</groupId>
+					<artifactId>akka-slf4j_2.12</artifactId>
+				</dependency>
+				<dependency>
+					<groupId>com.typesafe.akka</groupId>
+					<artifactId>akka-remote_2.12</artifactId>
+				</dependency>
+				<dependency>
+					<groupId>com.typesafe.akka</groupId>
+					<artifactId>akka-testkit_2.12</artifactId>
+				</dependency>
+			</dependencies>
+		</profile>
+		<profile>
+			<id>scala</id>
+			<dependencies>
+				<dependency>
+					<groupId>com.data-artisans</groupId>
+					<artifactId>flakka-actor_${scala.binary.version}</artifactId>
+				</dependency>
+
+				<dependency>
+					<groupId>com.data-artisans</groupId>
+					<artifactId>flakka-remote_${scala.binary.version}</artifactId>
+				</dependency>
+
+				<dependency>
+					<groupId>com.data-artisans</groupId>
+					<artifactId>flakka-slf4j_${scala.binary.version}</artifactId>
+				</dependency>
+
+				<dependency>
+					<groupId>com.data-artisans</groupId>
+					<artifactId>flakka-testkit_${scala.binary.version}</artifactId>
+				</dependency>
+			</dependencies>
+		</profile>
+	</profiles>
 </project>

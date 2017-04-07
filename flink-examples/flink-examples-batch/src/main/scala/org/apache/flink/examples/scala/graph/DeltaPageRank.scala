@@ -77,7 +77,7 @@ object DeltaPageRank {
       (solutionSet, workset) =>
         {
           val deltas = workset.join(adjacency).where(0).equalTo(0) {
-            (lastDeltas, adj, out: Collector[Page]) =>
+            (lastDeltas: (Long, Double), adj: (Long, Array[Long]), out: Collector[Page]) =>
               {
                 val targets = adj._2
                 val deltaPerTarget = DAMPENING_FACTOR * lastDeltas._2 / targets.length
@@ -88,7 +88,7 @@ object DeltaPageRank {
               }
           }
             .groupBy(0).sum(1)
-            .filter(x => Math.abs(x._2) > THRESHOLD)
+            .filter((x: (Long, Double)) => Math.abs(x._2) > THRESHOLD)
 
           val rankUpdates = solutionSet.join(deltas).where(0).equalTo(0) {
             (current, delta) => (current._1, current._2 + delta._2)

@@ -166,11 +166,6 @@ under the License.
 			<artifactId>scalatest_${scala.binary.version}</artifactId>
 			<scope>test</scope>
 		</dependency>
-
-		<dependency>
-			<groupId>com.data-artisans</groupId>
-			<artifactId>flakka-testkit_${scala.binary.version}</artifactId>
-		</dependency>
 		
 		<dependency>
 			<groupId>joda-time</groupId>
@@ -608,4 +603,32 @@ under the License.
 			</plugins>
 		</pluginManagement>
 	</build>
+
+	<profiles>
+		<profile>
+			<id>scala-2.12</id>
+			<activation>
+				<property>
+					<!-- this is the default scala profile -->
+					<name>!scala-2.11</name>
+				</property>
+			</activation>
+			<dependencies>
+
+				<dependency>
+					<groupId>com.typesafe.akka</groupId>
+					<artifactId>akka-testkit_2.12</artifactId>
+				</dependency>
+			</dependencies>
+		</profile>
+		<profile>
+			<id>scala</id>
+			<dependencies>
+				<dependency>
+					<groupId>com.data-artisans</groupId>
+					<artifactId>flakka-testkit_${scala.binary.version}</artifactId>
+				</dependency>
+			</dependencies>
+		</profile>
+	</profiles>
 </project>

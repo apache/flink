@@ -105,20 +105,22 @@ object WebLogAnalysis {
     val visits = getVisitsDataSet(env, params)
 
     val filteredDocs = documents
-      .filter(doc => doc._2.contains(" editors ") && doc._2.contains(" oscillations "))
+      .filter((doc: (String, String)) =>
+        doc._2.contains(" editors ") && doc._2.contains(" oscillations "))
 
     val filteredRanks = ranks
-      .filter(rank => rank._1 > 40)
+      .filter((rank: (Int, String, Int)) => rank._1 > 40)
 
     val filteredVisits = visits
-      .filter(visit => visit._2.substring(0, 4).toInt == 2007)
+      .filter((visit: (String, String)) => visit._2.substring(0, 4).toInt == 2007)
 
     val joinDocsRanks = filteredDocs.join(filteredRanks).where(0).equalTo(1) {
-      (doc, rank) => rank
+      (doc: (String, String), rank: (Int, String, Int)) => rank
     }.withForwardedFieldsSecond("*")
 
     val result = joinDocsRanks.coGroup(filteredVisits).where(1).equalTo(0) {
-      (ranks, visits, out: Collector[(Int, String, Int)]) =>
+      (ranks: Iterator[(Int, String, Int)], visits: Iterator[(String, String)],
+       out: Collector[(Int, String, Int)]) =>
         if (visits.isEmpty) for (rank <- ranks) out.collect(rank)
     }.withForwardedFieldsFirst("*")
 

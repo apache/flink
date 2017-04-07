@@ -395,6 +395,28 @@ under the License.
 			</dependency>
 
 			<dependency>
+				<groupId>com.typesafe.akka</groupId>
+				<artifactId>akka-actor_2.12</artifactId>
+				<version>${akka.typesafe.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.typesafe.akka</groupId>
+				<artifactId>akka-slf4j_2.12</artifactId>
+				<version>${akka.typesafe.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.typesafe.akka</groupId>
+				<artifactId>akka-remote_2.12</artifactId>
+				<version>${akka.typesafe.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.typesafe.akka</groupId>
+				<artifactId>akka-testkit_2.12</artifactId>
+				<version>${akka.typesafe.version}</version>
+				<scope>test</scope>
+			</dependency>
+
+			<dependency>
 				<groupId>org.scalatest</groupId>
 				<artifactId>scalatest_${scala.binary.version}</artifactId>
 				<version>${scalatest.version}</version>
@@ -481,12 +503,13 @@ under the License.
 			<id>scala-2.12</id>
 			<activation>
 				<property>
-					<name>!scala-2.12</name>
+					<name>scala-2.12</name>
 				</property>
 			</activation>
 			<properties>
 				<scala.version>2.12.1</scala.version>
 				<scala.binary.version>2.12</scala.binary.version>
+				<akka.typesafe.version>2.4.16</akka.typesafe.version>
 				<chill.version>0.9.0</chill.version>
 				<scalatest.version>3.0.1</scalatest.version>
 				<scopt.version>3.5.0</scopt.version>
@@ -1338,7 +1361,7 @@ under the License.
 							<!-- Don't break build on newly added maven modules -->
 							<ignoreNonResolvableArtifacts>true</ignoreNonResolvableArtifacts>
 						</parameter>
-						<skip>false</skip>
+						<skip>true</skip>
 						<dependencies>
 							<dependency>
 								<groupId>org.apache.flink</groupId>
