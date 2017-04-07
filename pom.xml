@@ -114,7 +114,7 @@ under the License.
 			to revisit the impact at that time.
 		-->
 		<minikdc.version>2.7.2</minikdc.version>
-		<generated.docs.dir>./docs/generated</generated.docs.dir>
+		<generated.docs.dir>./docs/_includes/generated</generated.docs.dir>
 	</properties>
 
 	<dependencies>

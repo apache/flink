@@ -28,18 +28,17 @@ import java.util.List;
  */
 public class ConfigGroup {
 
-	private final List<ConfigOption> options;
-
 	/**
 	 * Transforms this configuration group into HTML formatted table.
 	 * Options are sorted alphabetically by key.
 	 *
+	 * @param options list of options to include in this group
 	 * @param includeShort should the short description be included
 	 * @return string containing HTML formatted table
 	 */
-	public String toHTMLTable(boolean includeShort) {
+	private static String toHTMLTable(final List<ConfigOption> options, boolean includeShort) {
 		final StringBuilder htmlTable = new StringBuilder(
-			"<table><thead><tr><th class=\"text-left\" style=\"width: 20%\">Name</th>" +
+			"<table class=\"table table-bordered\"><thead><tr><th class=\"text-left\" style=\"width: 20%\">Name</th>" +
 			"<th class=\"text-left\" style=\"width: 20%\">Default Value</th>");
 		if (includeShort) {
 			htmlTable.append(
@@ -59,7 +58,15 @@ public class ConfigGroup {
 		return htmlTable.toString();
 	}
 
-	static ConfigGroup create(Class<?> clazzz) {
+	/**
+	 * Transforms this configuration group into HTML formatted table.
+	 * Options are sorted alphabetically by key.
+	 *
+	 * @param clazzz a class that contains options to be converted int documentation
+	 * @param includeShort should the short description be included
+	 * @return string containing HTML formatted table
+	 */
+	static String create(Class<?> clazzz, boolean includeShort) {
 		try {
 			final List<ConfigOption> configOptions = new ArrayList<>();
 			final Field[] fields = clazzz.getFields();
@@ -76,15 +83,13 @@ public class ConfigGroup {
 				}
 			});
 
-			return new ConfigGroup(configOptions);
+			return toHTMLTable(configOptions, includeShort);
 		} catch (Exception e) {
 			throw new RuntimeException("Could not retrieve all options.", e);
 		}
 	}
 
-	private ConfigGroup(List<ConfigOption> options) {
-		this.options = options;
+
+	private ConfigGroup() {
 	}
-
-
 }

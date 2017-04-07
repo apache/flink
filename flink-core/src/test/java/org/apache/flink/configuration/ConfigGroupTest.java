@@ -41,7 +41,7 @@ public class ConfigGroupTest {
 
 	@Test
 	public void testCreatingNoShortDescription() throws Exception {
-		final String expectedTable = "<table>" +
+		final String expectedTable = "<table class=\"table table-bordered\">" +
 			"<thead>" +
 			"<tr>" +
 			"<th class=\"text-left\" style=\"width: 20%\">Name</th>" +
@@ -62,14 +62,14 @@ public class ConfigGroupTest {
 			"</tr>" +
 			"</tbody>" +
 			"</table>";
-		final String htmlTable = ConfigGroup.create(TestConfigGroup.class).toHTMLTable(false);
+		final String htmlTable = ConfigGroup.create(TestConfigGroup.class, false);
 
 		assertEquals(expectedTable, htmlTable);
 	}
 
 	@Test
 	public void testCreatingWithShortDescription() throws Exception {
-		final String expectedTable = "<table>" +
+		final String expectedTable = "<table class=\"table table-bordered\">" +
 		                             "<thead>" +
 		                             "<tr>" +
 		                             "<th class=\"text-left\" style=\"width: 20%\">Name</th>" +
@@ -93,7 +93,7 @@ public class ConfigGroupTest {
 		                             "</tr>" +
 		                             "</tbody>" +
 		                             "</table>";
-		final String htmlTable = ConfigGroup.create(TestConfigGroup.class).toHTMLTable(true);
+		final String htmlTable = ConfigGroup.create(TestConfigGroup.class, true);
 
 		assertEquals(expectedTable, htmlTable);
 	}
