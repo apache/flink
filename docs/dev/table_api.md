@@ -1439,7 +1439,7 @@ Group windows are defined in the `GROUP BY` clause of a SQL query. Just like que
   <tbody>
     <tr>
       <td><code>TUMBLE(time_attr, interval)</code></td>
-      <td>Defines are tumbling time window. A tumbling time window assigns rows to non-overlapping, continuous windows with a fixed duration (<code>interval</code>). For example, a tumbling window of 5 minutes groups rows in 5 minutes intervals. Tumbling windows can be defined on event-time (stream + batch) or processing-time (stream).</td>
+      <td>Defines a tumbling time window. A tumbling time window assigns rows to non-overlapping, continuous windows with a fixed duration (<code>interval</code>). For example, a tumbling window of 5 minutes groups rows in 5 minutes intervals. Tumbling windows can be defined on event-time (stream + batch) or processing-time (stream).</td>
     </tr>
     <tr>
       <td><code>HOP(time_attr, interval, interval)</code></td>
@@ -1453,6 +1453,40 @@ Group windows are defined in the `GROUP BY` clause of a SQL query. Just like que
 </table>
 
 For SQL queries on streaming tables, the `time_attr` argument of the group window function must be one of the `rowtime()` or `proctime()` time-indicators, which distinguish between event or processing time, respectively. For SQL on batch tables, the `time_attr` argument of the group window function must be an attribute of type `TIMESTAMP`. 
+
+#### Selecting Group Window Start and End Timestamps
+
+The start and end timestamps of group windows can be selected with the following auxiliary functions:
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 40%">Auxiliary Function</th>
+      <th class="text-left">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <tr>
+      <td>
+        <code>TUMBLE_START(time_attr, interval)</code><br/>
+        <code>HOP_START(time_attr, interval, interval)</code><br/>
+        <code>SESSION_START(time_attr, interval)</code><br/>
+      </td>
+      <td>Returns the start timestamp of the corresponding tumbling, hopping, and session window.</td>
+    </tr>
+    <tr>
+      <td>
+        <code>TUMBLE_END(time_attr, interval)</code><br/>
+        <code>HOP_END(time_attr, interval, interval)</code><br/>
+        <code>SESSION_END(time_attr, interval)</code><br/>
+      </td>
+      <td>Returns the end timestamp of the corresponding tumbling, hopping, and session window.</td>
+    </tr>
+  </tbody>
+</table>
+
+Note that the auxiliary functions must be called with exactly same arguments as the group window function in the `GROUP BY` clause.
 
 The following examples show how to specify SQL queries with group windows on streaming tables. 
 
@@ -1469,7 +1503,10 @@ tableEnv.registerDataStream("Orders", ds, "user, product, amount");
 
 // compute SUM(amount) per day (in event-time)
 Table result1 = tableEnv.sql(
-  "SELECT user, SUM(amount) FROM Orders GROUP BY TUMBLE(rowtime(), INTERVAL '1' DAY), user");
+  "SELECT user, " +
+  "  TUMBLE_START(rowtime(), INTERVAL '1' DAY) as wStart,  " +
+  "  SUM(amount) FROM Orders " + 
+  "GROUP BY TUMBLE(rowtime(), INTERVAL '1' DAY), user");
 
 // compute SUM(amount) per day (in processing-time)
 Table result2 = tableEnv.sql(
@@ -1481,7 +1518,12 @@ Table result3 = tableEnv.sql(
 
 // compute SUM(amount) per session with 12 hour inactivity gap (in event-time)
 Table result4 = tableEnv.sql(
-  "SELECT user, SUM(amount) FROM Orders GROUP BY SESSION(rowtime(), INTERVAL '12' HOUR), user");
+  "SELECT user, " +
+  "  SESSION_START(rowtime(), INTERVAL '12' HOUR) AS sStart, " +
+  "  SESSION_END(rowtime(), INTERVAL '12' HOUR) AS snd, " + 
+  "  SUM(amount) " + 
+  "FROM Orders " + 
+  "GROUP BY SESSION(rowtime(), INTERVAL '12' HOUR), user");
 
 {% endhighlight %}
 </div>
@@ -1498,7 +1540,14 @@ tableEnv.registerDataStream("Orders", ds, 'user, 'product, 'amount)
 
 // compute SUM(amount) per day (in event-time)
 val result1 = tableEnv.sql(
-  "SELECT user, SUM(amount) FROM Orders GROUP BY TUMBLE(rowtime(), INTERVAL '1' DAY), user")
+    """
+      |SELECT
+      |  user, 
+      |  TUMBLE_START(rowtime(), INTERVAL '1' DAY) as wStart,
+      |  SUM(amount)
+      | FROM Orders
+      | GROUP BY TUMBLE(rowtime(), INTERVAL '1' DAY), user
+    """.stripMargin)
 
 // compute SUM(amount) per day (in processing-time)
 val result2 = tableEnv.sql(
@@ -1510,7 +1559,15 @@ val result3 = tableEnv.sql(
 
 // compute SUM(amount) per session with 12 hour inactivity gap (in event-time)
 val result4 = tableEnv.sql(
-  "SELECT user, SUM(amount) FROM Orders GROUP BY SESSION(rowtime(), INTERVAL '12' HOUR), user")
+    """
+      |SELECT
+      |  user, 
+      |  SESSION_START(rowtime(), INTERVAL '12' HOUR) AS sStart,
+      |  SESSION_END(rowtime(), INTERVAL '12' HOUR) AS sEnd,
+      |  SUM(amount)
+      | FROM Orders
+      | GROUP BY SESSION(rowtime(), INTERVAL '12' HOUR), user
+    """.stripMargin)
 
 {% endhighlight %}
 </div>

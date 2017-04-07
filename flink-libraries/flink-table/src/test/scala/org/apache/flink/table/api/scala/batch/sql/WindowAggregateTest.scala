@@ -63,7 +63,14 @@ class WindowAggregateTest extends TableTestBase {
     util.addTable[(Int, Long, String, Timestamp)]("T", 'a, 'b, 'c, 'ts)
 
     val sqlQuery =
-      "SELECT c, SUM(a) AS sumA, MIN(b) AS minB FROM T GROUP BY TUMBLE(ts, INTERVAL '4' MINUTE), c"
+      "SELECT " +
+        "  TUMBLE_START(ts, INTERVAL '4' MINUTE), " +
+        "  TUMBLE_END(ts, INTERVAL '4' MINUTE), " +
+        "  c, " +
+        "  SUM(a) AS sumA, " +
+        "  MIN(b) AS minB " +
+        "FROM T " +
+        "GROUP BY TUMBLE(ts, INTERVAL '4' MINUTE), c"
 
     val expected =
       unaryNode(
@@ -73,9 +80,10 @@ class WindowAggregateTest extends TableTestBase {
           batchTableNode(0),
           term("groupBy", "c"),
           term("window", EventTimeTumblingGroupWindow(Some('w$), 'ts, 240000.millis)),
-          term("select", "c, SUM(a) AS sumA, MIN(b) AS minB")
+          term("select", "c, SUM(a) AS sumA, MIN(b) AS minB, " +
+            "start('w$) AS w$start, end('w$) AS w$end")
         ),
-        term("select", "c, sumA, minB")
+        term("select", "CAST(w$start) AS w$start, CAST(w$end) AS w$end, c, sumA, minB")
       )
 
     util.verifySql(sqlQuery, expected)
@@ -117,7 +125,12 @@ class WindowAggregateTest extends TableTestBase {
     util.addTable[(Int, Long, String, Long, Timestamp)]("T", 'a, 'b, 'c, 'd, 'ts)
 
     val sqlQuery =
-      "SELECT c, SUM(a) AS sumA, AVG(b) AS avgB " +
+      "SELECT " +
+        "  c, " +
+        "  HOP_END(ts, INTERVAL '1' HOUR, INTERVAL '3' HOUR), " +
+        "  HOP_START(ts, INTERVAL '1' HOUR, INTERVAL '3' HOUR), " +
+        "  SUM(a) AS sumA, " +
+        "  AVG(b) AS avgB " +
         "FROM T " +
         "GROUP BY HOP(ts, INTERVAL '1' HOUR, INTERVAL '3' HOUR), d, c"
 
@@ -130,9 +143,10 @@ class WindowAggregateTest extends TableTestBase {
           term("groupBy", "c, d"),
           term("window",
             EventTimeSlidingGroupWindow(Some('w$), 'ts, 10800000.millis, 3600000.millis)),
-          term("select", "c, d, SUM(a) AS sumA, AVG(b) AS avgB")
+          term("select", "c, d, SUM(a) AS sumA, AVG(b) AS avgB, " +
+            "start('w$) AS w$start, end('w$) AS w$end")
         ),
-        term("select", "c, sumA, avgB")
+        term("select", "c, CAST(w$end) AS w$end, CAST(w$start) AS w$start, sumA, avgB")
       )
 
     util.verifySql(sqlQuery, expected)
@@ -171,7 +185,12 @@ class WindowAggregateTest extends TableTestBase {
     util.addTable[(Int, Long, String, Int, Timestamp)]("T", 'a, 'b, 'c, 'd, 'ts)
 
     val sqlQuery =
-      "SELECT c, d, SUM(a) AS sumA, MIN(b) AS minB " +
+      "SELECT " +
+        "  c, d, " +
+        "  SESSION_START(ts, INTERVAL '12' HOUR), " +
+        "  SESSION_END(ts, INTERVAL '12' HOUR), " +
+        "  SUM(a) AS sumA, " +
+        "  MIN(b) AS minB " +
         "FROM T " +
         "GROUP BY SESSION(ts, INTERVAL '12' HOUR), c, d"
 
@@ -183,9 +202,10 @@ class WindowAggregateTest extends TableTestBase {
           batchTableNode(0),
           term("groupBy", "c, d"),
           term("window", EventTimeSessionGroupWindow(Some('w$), 'ts, 43200000.millis)),
-          term("select", "c, d, SUM(a) AS sumA, MIN(b) AS minB")
+          term("select", "c, d, SUM(a) AS sumA, MIN(b) AS minB, " +
+            "start('w$) AS w$start, end('w$) AS w$end")
         ),
-        term("select", "c, d, sumA, minB")
+        term("select", "c, d, CAST(w$start) AS w$start, CAST(w$end) AS w$end, sumA, minB")
       )
 
     util.verifySql(sqlQuery, expected)
