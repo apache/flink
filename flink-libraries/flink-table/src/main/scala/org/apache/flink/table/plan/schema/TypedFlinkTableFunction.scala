@@ -23,7 +23,7 @@ import java.util
 
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
+import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.functions.{TableFunction => FlinkUDTF}
 
 /**
@@ -46,7 +46,6 @@ class TypedFlinkTableFunction(
       typeFactory: RelDataTypeFactory,
       arguments: util.List[AnyRef]): RelDataType = {
     // we have determined the row type before, just convert it to RelDataType
-    val (fieldNames, fieldIndexes, _) = UserDefinedFunctionUtils.getFieldInfo(resultType)
-    UserDefinedFunctionUtils.buildRelDataType(typeFactory, resultType, fieldNames, fieldIndexes)
+    typeFactory.asInstanceOf[FlinkTypeFactory].createTypeFromTypeInfo(resultType)
   }
 }

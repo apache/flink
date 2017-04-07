@@ -27,9 +27,9 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.functions.{TableFunction => FlinkUDTF}
 
 /**
-  * This is heavily inspired by Calcite's [[org.apache.calcite.schema.impl.TableFunctionImpl]].
-  * We need it in order to create a [[org.apache.flink.table.functions.utils.TableSqlFunction]].
-  * The main difference is that we override the [[getResultType()]] and [[getElementType()]].
+  * A [[FlinkTableFunction]] is an implementation of  [[org.apache.calcite.schema.TableFunction]].
+  * It is also an abstraction and instance holder of Table Function in Flink's Table API & SQL.
+  * We can create different kinds of [[FlinkTableFunction]] for different usages.
   *
   * @param tableFunction The Table Function instance
   * @param evalMethod The eval() method of the [[tableFunction]]
@@ -46,10 +46,5 @@ abstract class FlinkTableFunction(
     * Returns the TypeInformation for internal usage, i.e. code generation.
     */
   def getResultType(arguments: util.List[AnyRef]): TypeInformation[_]
-
-  /**
-    * Returns the record type of the table function to integrate with Calcite.
-    */
-  def getRowType(typeFactory: RelDataTypeFactory, arguments: util.List[AnyRef]): RelDataType
 
 }

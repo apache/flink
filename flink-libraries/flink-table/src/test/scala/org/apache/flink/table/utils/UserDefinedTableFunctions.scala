@@ -18,9 +18,10 @@
 package org.apache.flink.table.utils
 
 import java.lang.Boolean
+import java.sql.Timestamp
 import java.util
 
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, IntegerTypeInfo, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.java.tuple.Tuple3
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.ValidationException
@@ -69,7 +70,9 @@ class TableFunc2 extends TableFunction[Row] {
     }
   }
 
-  override def getResultType(arguments: java.util.List[AnyRef]): TypeInformation[Row] = {
+  override def getResultType(
+      arguments: java.util.List[AnyRef],
+      typeInfos: java.util.List[TypeInformation[_]]): TypeInformation[Row] = {
     new RowTypeInfo(BasicTypeInfo.STRING_TYPE_INFO,
                     BasicTypeInfo.INT_TYPE_INFO)
   }
@@ -126,13 +129,15 @@ class DynamicSchema extends TableFunction[Row] {
     }
   }
 
-  override def getResultType(arguments: java.util.List[AnyRef]): TypeInformation[Row] = {
-    val column = arguments.get(1).asInstanceOf[Int]
-    val basicTypeInfos = new Array[TypeInformation[_]](column)
-    basicTypeInfos(0) = BasicTypeInfo.STRING_TYPE_INFO
-    for (i <- 1 until column) {
-      basicTypeInfos(i) = BasicTypeInfo.INT_TYPE_INFO
+  override def getResultType(
+      arguments: java.util.List[AnyRef],
+      typeInfos: java.util.List[TypeInformation[_]]): TypeInformation[Row] = {
+    if (!typeInfos.get(1).isInstanceOf[IntegerTypeInfo[_]]) {
+      throw new RuntimeException("The second parameter should be integer")
     }
+    val column = arguments.get(1).asInstanceOf[Int]
+    val basicTypeInfos = Array.fill[TypeInformation[_]](column)(BasicTypeInfo.INT_TYPE_INFO)
+    basicTypeInfos(0) = BasicTypeInfo.STRING_TYPE_INFO
     new RowTypeInfo(basicTypeInfos: _*)
   }
 }
@@ -158,17 +163,15 @@ class DynamicSchema0 extends TableFunction[Row] {
     }
   }
 
-  override def getResultType(arguments: java.util.List[AnyRef]): TypeInformation[Row] = {
+  override def getResultType(
+      arguments: java.util.List[AnyRef],
+      typeInfos: java.util.List[TypeInformation[_]]): TypeInformation[Row] = {
     val columnStr = arguments.get(1).asInstanceOf[String]
     val columns = columnStr.split(",")
 
-    val basicTypeInfos = new Array[TypeInformation[_]](columns.length)
-    for (i <- 0 until columns.length) {
-      if (columns(i).equals("string")) {
-        basicTypeInfos(i) = BasicTypeInfo.STRING_TYPE_INFO
-      } else if (columns(i).equals("int")) {
-        basicTypeInfos(i) = BasicTypeInfo.INT_TYPE_INFO
-      }
+    val basicTypeInfos = for (c <- columns) yield c match {
+      case "string" => BasicTypeInfo.STRING_TYPE_INFO.asInstanceOf[TypeInformation[_]]
+      case "int" => BasicTypeInfo.INT_TYPE_INFO.asInstanceOf[TypeInformation[_]]
     }
     new RowTypeInfo(basicTypeInfos: _*)
   }
@@ -176,9 +179,10 @@ class DynamicSchema0 extends TableFunction[Row] {
 
 class DynamicSchemaWithRexNodes extends TableFunction[Row] {
 
-  def eval(str: String, i: Int, si: Int, bi: Int, flt: Double, real: Double, d: Double, b: Boolean):
+  def eval(str: String, i: Int, si: Int, bi: Int, flt: Double, real: Double, d: Double,
+           b: Boolean, ts: Timestamp):
   Unit = {
-    val row = new Row(8)
+    val row = new Row(9)
     row.setField(0, str)
     row.setField(1, i)
     row.setField(2, si)
@@ -187,10 +191,13 @@ class DynamicSchemaWithRexNodes extends TableFunction[Row] {
     row.setField(5, real)
     row.setField(6, d)
     row.setField(7, b)
+    row.setField(8, ts)
     collect(row)
   }
 
-  override def getResultType(arguments: util.List[AnyRef]): TypeInformation[Row] = {
+  override def getResultType(
+      arguments: util.List[AnyRef],
+      typeInfos: util.List[TypeInformation[_]]): TypeInformation[Row] = {
     // Test for the transformRexNodes()
     val str = arguments.get(0).asInstanceOf[String]
     if (null != str) {
@@ -224,6 +231,11 @@ class DynamicSchemaWithRexNodes extends TableFunction[Row] {
     if (!b) {
       throw new RuntimeException("The arguments should be true")
     }
+    val ts = arguments.get(8).asInstanceOf[Timestamp]
+    if (ts.getTime <= 0) {
+      throw new RuntimeException("The arguments should be greater than zero")
+    }
+
     new RowTypeInfo(
       BasicTypeInfo.STRING_TYPE_INFO,
       BasicTypeInfo.INT_TYPE_INFO,
@@ -232,7 +244,8 @@ class DynamicSchemaWithRexNodes extends TableFunction[Row] {
       BasicTypeInfo.DOUBLE_TYPE_INFO,
       BasicTypeInfo.DOUBLE_TYPE_INFO,
       BasicTypeInfo.DOUBLE_TYPE_INFO,
-      BasicTypeInfo.BOOLEAN_TYPE_INFO
+      BasicTypeInfo.BOOLEAN_TYPE_INFO,
+      SqlTimeTypeInfo.TIMESTAMP
     )
   }
 }

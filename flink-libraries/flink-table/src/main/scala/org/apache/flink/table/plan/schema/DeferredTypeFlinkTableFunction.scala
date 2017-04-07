@@ -23,11 +23,14 @@ import java.util
 
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.functions.{TableFunction => FlinkUDTF}
 
+import scala.collection.JavaConversions._
+
 /**
-  * A Deferred Type is a Table Function which the type hasn't been determined yet.
+  * A Deferred Type is a Table Function which the result type hasn't been determined yet.
   * It will determine the result type after the arguments are passed.
   *
   * @param tableFunction The Table Function instance
@@ -39,6 +42,10 @@ class DeferredTypeFlinkTableFunction(
     val evalMethod: Method,
     val implicitResultType: TypeInformation[_])
   extends FlinkTableFunction(tableFunction, evalMethod) {
+
+  val paramTypeInfos = evalMethod.getParameterTypes.map { paramType =>
+    TypeExtractor.getForClass(paramType)
+  }.toList
 
   override def getResultType(arguments: util.List[AnyRef]): TypeInformation[_] = {
     determineResultType(arguments)
@@ -53,7 +60,7 @@ class DeferredTypeFlinkTableFunction(
   }
 
   private def determineResultType(arguments: util.List[AnyRef]): TypeInformation[_] = {
-    val resultType = tableFunction.getResultType(arguments)
+    val resultType = tableFunction.getResultType(arguments, paramTypeInfos)
     if (resultType != null) {
       resultType
     } else {

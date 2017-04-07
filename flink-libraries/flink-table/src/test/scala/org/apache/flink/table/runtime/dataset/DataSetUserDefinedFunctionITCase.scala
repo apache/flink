@@ -245,15 +245,15 @@ class DataSetUserDefinedFunctionITCase(
     tableEnv.registerFunction("funcDyn", funcDyn)
     tableEnv.registerTable("MyTable", in)
     val result = in
-      .join(funcDyn('c, 1, 2, 3, 4.0, 5.0, 6.0, true)
-        as ('name, 'c1, 'c2, 'c3, 'c4, 'c5, 'c6, 'c7))
-      .select('name, 'c1, 'c2, 'c3, 'c4, 'c5, 'c6, 'c7)
+      .join(funcDyn('c, 1, 2, 3, 4.0, 5.0, 6.0, true, new Timestamp(888))
+        as ('name, 'c1, 'c2, 'c3, 'c4, 'c5, 'c6, 'c7, 'c8))
+      .select('name, 'c1, 'c2, 'c3, 'c4, 'c5, 'c6, 'c7, 'c8)
       .toDataSet[Row]
     val results = result.collect()
-    val expected = "Jack#22,1,2,3,4.0,5.0,6.0,true\n" +
-      "John#19,1,2,3,4.0,5.0,6.0,true\n" +
-      "Anna#44,1,2,3,4.0,5.0,6.0,true\n" +
-      "nosharp,1,2,3,4.0,5.0,6.0,true"
+    val expected = "Jack#22,1,2,3,4.0,5.0,6.0,true,1970-01-01 08:00:00.888\n" +
+      "John#19,1,2,3,4.0,5.0,6.0,true,1970-01-01 08:00:00.888\n" +
+      "Anna#44,1,2,3,4.0,5.0,6.0,true,1970-01-01 08:00:00.888\n" +
+      "nosharp,1,2,3,4.0,5.0,6.0,true,1970-01-01 08:00:00.888"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 

@@ -230,8 +230,7 @@ object UserDefinedFunctionUtils {
 
     evalMethods.map { method =>
       // we don't know the exact result type yet.
-      val function = new DeferredTypeFlinkTableFunction(
-        tableFunction, method, implicitResultType)
+      val function = new DeferredTypeFlinkTableFunction(tableFunction, method, implicitResultType)
       TableSqlFunction(name, tableFunction, implicitResultType, typeFactory, function)
     }
   }
@@ -382,7 +381,10 @@ object UserDefinedFunctionUtils {
       implicitResultType: TypeInformation[_],
       params: Expression*): TableFunctionCall = {
     val arguments = transformLiteralExpressions(params: _*)
-    val userDefinedResultType = tableFunction.getResultType(arguments)
+    val typeInformations = params.map { param =>
+      if (param.valid) param.resultType else null
+    }
+    val userDefinedResultType = tableFunction.getResultType(arguments, typeInformations)
     val resultType = {
       if (userDefinedResultType != null) userDefinedResultType
       else implicitResultType
@@ -439,7 +441,7 @@ object UserDefinedFunctionUtils {
     }
   }
 
-  private [table] def buildRelDataType(
+  private[table] def buildRelDataType(
       typeFactory: RelDataTypeFactory,
       resultType: TypeInformation[_],
       fieldNames: Array[String],
