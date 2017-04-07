@@ -274,6 +274,11 @@ trait ImplicitExpressionOperations {
     */
   def ceil() = Ceil(expr)
 
+  /**
+    * Calculates the sine of a given number.
+    */
+  def sin() = Sin(expr)
+
   // String operations
 
   /**

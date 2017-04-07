@@ -696,6 +696,39 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       "-1231")
   }
 
+  @Test
+  def testSin(): Unit = {
+    testAllApis(
+      'f2.sin(),
+      "f2.sin()",
+      "SIN(f2)",
+      math.sin(42.toByte).toString)
+
+    testAllApis(
+      'f3.sin(),
+      "f3.sin()",
+      "SIN(f3)",
+      math.sin(43.toShort).toString)
+
+    testAllApis(
+      'f4.sin(),
+      "f4.sin()",
+      "SIN(f4)",
+      math.sin(44.toLong).toString)
+
+    testAllApis(
+      'f5.sin(),
+      "f5.sin()",
+      "SIN(f5)",
+      math.sin(4.5.toFloat).toString)
+
+    testAllApis(
+      'f6.sin(),
+      "f6.sin()",
+      "SIN(f6)",
+      math.sin(4.6).toString)
+  }
+
   // ----------------------------------------------------------------------------------------------
   // Temporal functions
   // ----------------------------------------------------------------------------------------------

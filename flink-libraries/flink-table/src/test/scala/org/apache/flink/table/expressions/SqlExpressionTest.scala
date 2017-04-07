@@ -101,6 +101,7 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi("EXP(0)", "1.0")
     testSqlApi("CEIL(2.5)", "3")
     testSqlApi("FLOOR(2.5)", "2")
+    testSqlApi("SIN(2.5)", "0.5984721441039564")
   }
 
   @Test

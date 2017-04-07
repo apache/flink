@@ -201,6 +201,7 @@ object FunctionCatalog {
     "mod" -> classOf[Mod],
     "sqrt" -> classOf[Sqrt],
     "minusPrefix" -> classOf[UnaryMinus],
+    "sin" -> classOf[Sin],
 
     // temporal functions
     "extract" -> classOf[Extract],
@@ -348,6 +349,7 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     SqlStdOperatorTable.QUARTER,
     SqlStdOperatorTable.SCALAR_QUERY,
     SqlStdOperatorTable.EXISTS,
+    SqlStdOperatorTable.SIN,
     // EXTENSIONS
     EventTimeExtractor,
     ProcTimeExtractor,
