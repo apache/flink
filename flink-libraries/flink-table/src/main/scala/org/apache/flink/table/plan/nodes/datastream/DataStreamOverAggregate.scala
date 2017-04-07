@@ -49,6 +49,10 @@ class DataStreamOverAggregate(
 
   override def deriveRowType(): RelDataType = schema.logicalType
 
+  override def needsUpdatesAsRetraction = true
+
+  override def consumesRetractions = true
+
   override def copy(traitSet: RelTraitSet, inputs: JList[RelNode]): RelNode = {
     new DataStreamOverAggregate(
       logicWindow,
@@ -297,7 +301,7 @@ class DataStreamOverAggregate(
     }ORDER BY: ${orderingToString(inputSchema.logicalType,
         overWindow.orderKeys.getFieldCollations)}, " +
       s"${if (overWindow.isRows) "ROWS" else "RANGE"}" +
-      s"${windowRange(logicWindow, overWindow, inputNode.asInstanceOf[DataStreamRel])}, " +
+      s"${windowRange(logicWindow, overWindow, inputNode)}, " +
       s"select: (${
         aggregationToString(
           inputSchema.logicalType,

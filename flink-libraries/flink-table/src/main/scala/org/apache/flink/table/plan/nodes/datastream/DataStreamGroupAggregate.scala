@@ -60,6 +60,12 @@ class DataStreamGroupAggregate(
 
   override def deriveRowType() = schema.logicalType
 
+  override def needsUpdatesAsRetraction = true
+
+  override def producesUpdates = true
+
+  override def consumesRetractions = true
+
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new DataStreamGroupAggregate(
       cluster,
