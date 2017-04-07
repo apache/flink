@@ -34,7 +34,7 @@
 	<packaging>jar</packaging>
 
 	<properties>
-		<breeze.version>0.12</breeze.version>
+		<breeze.version>0.13</breeze.version>
 	</properties>
 	<dependencies>
 
@@ -123,13 +123,6 @@
 			<properties>
 				<suffix.test>(?&lt;!(IT|Integration))(Test|Suite|Case)</suffix.test>
 				<suffix.it>(IT|Integration)(Test|Suite|Case)</suffix.it>
-			</properties>
-		</profile>
-
-		<profile>
-			<id>scala-2.12</id>
-			<properties>
-				<breeze.version>0.13</breeze.version>
 			</properties>
 		</profile>
 	</profiles>

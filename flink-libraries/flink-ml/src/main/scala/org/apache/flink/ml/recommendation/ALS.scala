@@ -210,7 +210,7 @@ class ALS extends Predictor[ALS] {
         val predictions = data.join(userFactors, JoinHint.REPARTITION_HASH_SECOND).where(0)
           .equalTo(0).join(itemFactors, JoinHint.REPARTITION_HASH_SECOND).where("_1._2")
           .equalTo(0).map {
-          triple => {
+          (triple: (((Long, Long), ALS.Factors), ALS.Factors)) => {
             val (((uID, iID), uFactors), iFactors) = triple
 
             val uFactorsVector = uFactors.factors
@@ -404,7 +404,7 @@ object ALS {
         case Some((userFactors, itemFactors)) => {
           input.join(userFactors, JoinHint.REPARTITION_HASH_SECOND).where(0).equalTo(0)
             .join(itemFactors, JoinHint.REPARTITION_HASH_SECOND).where("_1._2").equalTo(0).map {
-            triple => {
+            (triple: (((Long, Long), ALS.Factors), ALS.Factors)) => {
               val (((uID, iID), uFactors), iFactors) = triple
 
               val uFactorsVector = uFactors.factors
