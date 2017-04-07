@@ -21,6 +21,7 @@ package org.apache.flink.table.plan.rules
 import org.apache.calcite.rel.rules._
 import org.apache.calcite.tools.{RuleSet, RuleSets}
 import org.apache.flink.table.calcite.rules.FlinkAggregateExpandDistinctAggregatesRule
+import org.apache.flink.table.plan.nodes.datastream.DataStreamRetractionRule
 import org.apache.flink.table.plan.rules.dataSet._
 import org.apache.flink.table.plan.rules.datastream._
 
@@ -195,6 +196,10 @@ object FlinkRuleSets {
   val DATASTREAM_DECO_RULES: RuleSet = RuleSets.ofList(
     // rules
 
+    // retraction rules
+    DataStreamRetractionRule.INIT_INSTANCE,
+    DataStreamRetractionRule.NEEDTORETRACT_INSTANCE,
+    DataStreamRetractionRule.ACCMODE_INSTANCE
   )
 
 }
