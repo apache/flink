@@ -37,7 +37,7 @@ under the License.
 
 	<!-- Allow users to pass custom connector versions -->
 	<properties>
-		<kafka.version>0.8.2.2</kafka.version>
+		<kafka.version>0.10.1.1</kafka.version>
 	</properties>
 
 	<dependencies>
