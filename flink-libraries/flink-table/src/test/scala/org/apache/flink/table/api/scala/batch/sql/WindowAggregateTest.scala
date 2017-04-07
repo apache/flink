@@ -191,6 +191,39 @@ class WindowAggregateTest extends TableTestBase {
     util.verifySql(sqlQuery, expected)
   }
 
+  @Test
+  def testWindowExpression() = {
+    val util = batchTestUtil()
+    util.addTable[(Int, Long, String, Int, Timestamp)]("T", 'a, 'b, 'c, 'd, 'ts)
+
+    val sqlQuery =
+      "SELECT TUMBLE_START(ts, INTERVAL '4' MINUTE), TUMBLE_END(ts, INTERVAL '4' MINUTE)," +
+        "c, SUM(a) AS sumA, MIN(b) AS minB, MAX(b) AS maxB FROM T " +
+        "GROUP BY TUMBLE(ts, INTERVAL '4' MINUTE), c"
+
+    val expected =
+      unaryNode(
+        "DataSetCalc",
+        unaryNode(
+          "DataSetWindowAggregate",
+          unaryNode(
+            "DataSetCalc",
+            batchTableNode(0),
+            term("select", "ts", "c", "a", "b")
+          ),
+          term("groupBy", "c"),
+          term("window", EventTimeTumblingGroupWindow(Some('w$), 'ts, 240000.millis)),
+          term("select", "c", "SUM(a) AS sumA", "MIN(b) AS minB", "MAX(b) AS maxB",
+            "start('w$) AS w$start", "end('w$) AS w$end"
+          )
+        ),
+        term("select", "CAST(w$start) AS w$start", "CAST(w$end) AS w$end",
+          "c", "sumA", "minB", "maxB")
+      )
+
+    util.verifySql(sqlQuery, expected)
+  }
+
   @Test(expected = classOf[TableException])
   def testTumbleWindowNoOffset(): Unit = {
     val util = batchTestUtil()
