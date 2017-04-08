@@ -93,6 +93,7 @@ under the License.
 		<log4j.configuration>log4j-test.properties</log4j.configuration>
 		<guava.version>18.0</guava.version>
 		<akka.version>2.3-custom</akka.version>
+		<akka.typesafe.version>2.4.16</akka.typesafe.version>
 		<java.version>1.7</java.version>
 		<scala.macros.version>2.0.1</scala.macros.version>
 		<!-- Default scala versions, may be overwritten by build profiles -->
@@ -515,7 +516,6 @@ under the License.
 			<properties>
 				<scala.version>2.12.1</scala.version>
 				<scala.binary.version>2.12</scala.binary.version>
-				<akka.typesafe.version>2.4.16</akka.typesafe.version>
 				<grizzled.version>1.3.0</grizzled.version>
 			</properties>
 		</profile>
