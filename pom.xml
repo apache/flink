@@ -101,7 +101,7 @@ under the License.
 		<scalatest.version>3.0.1</scalatest.version>
 		<scopt.version>3.5.0</scopt.version>
 		<grizzled.version>1.0.2</grizzled.version>
-		<chill.version>0.8.1</chill.version>
+		<chill.version>0.8.3</chill.version>
 		<asm.version>5.0.4</asm.version>
 		<zookeeper.version>3.4.6</zookeeper.version>
 		<curator.version>2.8.0</curator.version>
@@ -516,7 +516,6 @@ under the License.
 				<scala.version>2.12.1</scala.version>
 				<scala.binary.version>2.12</scala.binary.version>
 				<akka.typesafe.version>2.4.16</akka.typesafe.version>
-				<chill.version>0.9.0</chill.version>
 				<grizzled.version>1.3.0</grizzled.version>
 			</properties>
 		</profile>
