@@ -19,7 +19,6 @@ matrix:
     - jdk: "oraclejdk8"
       env: PROFILE="-Dhadoop.version=2.7.2 -Dscala-2.12 -Pinclude-yarn-tests,flink-fast-tests-b,include-kinesis -Dmaven.javadoc.skip=true"
 
-  exclude:
   # Always run test groups A and B together
     - jdk: "oraclejdk8"
       env: PROFILE="-Dhadoop.version=2.7.2 -Dscala-2.11 -Pinclude-yarn-tests,flink-fast-tests-a,include-kinesis,jdk8 -Dmaven.javadoc.skip=true"
