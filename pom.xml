@@ -417,6 +417,12 @@ under the License.
 			</dependency>
 
 			<dependency>
+				<groupId>com.typesafe.akka</groupId>
+				<artifactId>akka-camel_2.12</artifactId>
+				<version>${akka.typesafe.version}</version>
+			</dependency>
+
+			<dependency>
 				<groupId>org.scalatest</groupId>
 				<artifactId>scalatest_${scala.binary.version}</artifactId>
 				<version>${scalatest.version}</version>

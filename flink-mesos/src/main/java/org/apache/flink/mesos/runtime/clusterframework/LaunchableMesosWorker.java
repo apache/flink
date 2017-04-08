@@ -126,7 +126,7 @@ public class LaunchableMesosWorker implements LaunchableTask {
 		}
 
 		@Override
-		public Map<String, NamedResourceSetRequest> getCustomNamedResources() {
+		public Map<String, TaskRequest.NamedResourceSetRequest> getCustomNamedResources() {
 			return Collections.emptyMap();
 		}
 
@@ -141,12 +141,12 @@ public class LaunchableMesosWorker implements LaunchableTask {
 		}
 
 		@Override
-		public void setAssignedResources(AssignedResources assignedResources) {
+		public void setAssignedResources(TaskRequest.AssignedResources assignedResources) {
 			this.assignedResources.set(assignedResources);
 		}
 
 		@Override
-		public AssignedResources getAssignedResources() {
+		public TaskRequest.AssignedResources getAssignedResources() {
 			return assignedResources.get();
 		}
 
