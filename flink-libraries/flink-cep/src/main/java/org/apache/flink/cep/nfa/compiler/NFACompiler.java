@@ -226,7 +226,7 @@ public class NFACompiler {
 		/**
 		 * Creates the Start {@link State} of the resulting NFA graph.
 		 *
-		 * @param sinkState the state that Start state should point to (alwyas first state of middle states)
+		 * @param sinkState the state that Start state should point to (always first state of middle states)
 		 * @return created state
 		 */
 		@SuppressWarnings("unchecked")
