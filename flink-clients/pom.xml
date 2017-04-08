@@ -194,7 +194,7 @@ under the License.
 			<activation>
 				<property>
 					<!-- this is the default scala profile -->
-					<name>!scala-2.11</name>
+					<name>scala-2.12</name>
 				</property>
 			</activation>
 			<dependencies>
@@ -206,6 +206,12 @@ under the License.
 		</profile>
 		<profile>
 			<id>scala</id>
+			<activation>
+				<property>
+					<!-- this is the default scala profile -->
+					<name>!scala-2.12</name>
+				</property>
+			</activation>
 			<dependencies>
 				<dependency>
 					<groupId>com.data-artisans</groupId>
