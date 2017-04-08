@@ -1102,6 +1102,86 @@ class ScalarFunctionsTest extends ExpressionTestBase {
       "true")
   }
 
+  @Test(expected = classOf[ValidationException])
+  def testInvalidTableApiRand1(): Unit = {
+    // Must fail. Parameter of rand must be an Integer not a Double.
+    testTableApi(rand(2.0.toExpr), "FAIL", "FAIL")
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testInvalidTableApiRand2(): Unit = {
+    // Must fail. The parameter number of rand must be less than 2.
+    testTableApi(rand(1, 10), "FAIL", "FAIL")
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testInvalidTableApiStringExpressionRand1(): Unit = {
+    // Must fail. Parameter of rand must be an Integer not a Double.
+    testTableApi("FAIL", "rand(2.0)", "FAIL")
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testInvalidTableApiStringExpressionRand2(): Unit = {
+    // Must fail. The parameter number of rand must be less than 2.
+    testTableApi("FAIL", "rand(1, 10)", "FAIL")
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testInvalidSqlRand(): Unit = {
+    // Must fail. The parameter number of rand must be less than 2.
+    testSqlApi("RAND(1, 10)", "FAIL")
+  }
+
+  @Test
+  def testRand(): Unit = {
+    val random = new java.util.Random(1)
+    testAllApis(
+      rand(1),
+      "rand(1)",
+      "RAND(1)",
+      "" + random.nextDouble())
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testInvalidTableApiRandInteger1(): Unit = {
+    // Must fail. Parameter of rand_integer must be an Integer not a Double.
+    testTableApi(rand_integer(2.0.toExpr), "FAIL", "FAIL")
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testInvalidTableApiRandInteger2(): Unit = {
+    // Must fail. The parameter number of rand_integer must be less than 3 and greater than 0.
+    testTableApi(rand_integer(), "FAIL", "FAIL")
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testInvalidTableApiStringExpressionRandInteger1(): Unit = {
+    // Must fail. Parameter of rand_integer must be an Integer not a Double.
+    testTableApi("FAIL", "rand_integer(2.0)", "FAIL")
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testInvalidTableApiStringExpressionRandInteger2(): Unit = {
+    // Must fail. The parameter number of rand_integer must be less than 3 and greater than 0.
+    testTableApi("FAIL", "rand_integer()", "FAIL")
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testInvalidSqlRandInteger(): Unit = {
+    // Must fail. The parameter number of rand_integer must be less than 3 and greater than 0.
+    testSqlApi("RAND_INTEGER()", "FAIL")
+  }
+
+  @Test
+  def testRandInteger(): Unit = {
+    val random = new java.util.Random(1)
+    testAllApis(
+      rand_integer(1, 10),
+      "rand_integer(1, 10)",
+      "RAND_INTEGER(1, 10)",
+      "" + random.nextInt(10))
+  }
+
   // ----------------------------------------------------------------------------------------------
 
   def testData = {

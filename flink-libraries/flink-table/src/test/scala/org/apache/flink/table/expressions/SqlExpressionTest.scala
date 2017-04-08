@@ -168,18 +168,6 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi("ELEMENT(ARRAY['HELLO WORLD'])", "HELLO WORLD")
   }
 
-  @Test
-  def testRand(): Unit = {
-    val random = new java.util.Random(1)
-    testSqlApi("RAND(1)", random.nextDouble().toString)
-  }
-
-  @Test
-  def testRandInteger(): Unit = {
-    val random = new java.util.Random(1)
-    testSqlApi("RAND_INTEGER(1, 10)", random.nextInt(10).toString)
-  }
-
   override def testData: Any = new Row(0)
 
   override def typeInfo: TypeInformation[Any] =

@@ -224,7 +224,10 @@ object FunctionCatalog {
 
     // extensions to support streaming query
     "rowtime" -> classOf[RowTime],
-    "proctime" -> classOf[ProcTime]
+    "proctime" -> classOf[ProcTime],
+
+    "rand" -> classOf[Rand],
+    "rand_integer" -> classOf[RandInteger]
   )
 
   /**
