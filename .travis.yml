@@ -15,11 +15,11 @@ language: java
 matrix:
   include:
     - jdk: "oraclejdk8"
-      env: PROFILE="-Dhadoop.version=2.7.2 -Dscala-2.12 -Pinclude-yarn-tests,flink-fast-tests-a,include-kinesis -Dmaven.javadoc.skip=true"
+      env: PROFILE="-Dhadoop.version=2.7.2 -Dscala-2.12 -Pinclude-yarn-tests,flink-fast-tests-a,include-kinesis,jdk8 -Dmaven.javadoc.skip=true"
     - jdk: "oraclejdk8"
-      env: PROFILE="-Dhadoop.version=2.7.2 -Dscala-2.12 -Pinclude-yarn-tests,flink-fast-tests-b,include-kinesis -Dmaven.javadoc.skip=true"
+      env: PROFILE="-Dhadoop.version=2.7.2 -Dscala-2.12 -Pinclude-yarn-tests,flink-fast-tests-b,include-kinesis,jdk8 -Dmaven.javadoc.skip=true"
     - jdk: "oraclejdk8"
-      env: PROFILE="-Dhadoop.version=2.7.2 -Dscala-2.12 -Pinclude-yarn-tests,flink-fast-tests-c,include-kinesis -Dmaven.javadoc.skip=true"
+      env: PROFILE="-Dhadoop.version=2.7.2 -Dscala-2.12 -Pinclude-yarn-tests,flink-fast-tests-c,include-kinesis,jdk8 -Dmaven.javadoc.skip=true"
 
   # Always run test groups A and B together
     - jdk: "oraclejdk8"
@@ -36,12 +36,12 @@ matrix:
     - jdk: "oraclejdk8"
       env: PROFILE="-Dhadoop.version=2.6.3 -Dscala-2.10 -Pinclude-yarn-tests,flink-fast-tests-c,include-kinesis -Dmaven.javadoc.skip=true"
 
-    - jdk: "openjdk7"
-      env: PROFILE="-Dhadoop.version=2.4.1 -Dscala-2.12 -Pinclude-yarn-tests,flink-fast-tests-a,include-kinesis"
-    - jdk: "openjdk7"
-      env: PROFILE="-Dhadoop.version=2.4.1 -Dscala-2.12 -Pinclude-yarn-tests,flink-fast-tests-b,include-kinesis"
-    - jdk: "openjdk7"
-      env: PROFILE="-Dhadoop.version=2.4.1 -Dscala-2.12 -Pinclude-yarn-tests,flink-fast-tests-c,include-kinesis"
+    - jdk: "oraclejdk8"
+      env: PROFILE="-Dhadoop.version=2.4.1 -Dscala-2.12 -Pinclude-yarn-tests,flink-fast-tests-a,include-kinesis,jdk8"
+    - jdk: "oraclejdk8"
+      env: PROFILE="-Dhadoop.version=2.4.1 -Dscala-2.12 -Pinclude-yarn-tests,flink-fast-tests-b,include-kinesis,jdk8"
+    - jdk: "oraclejdk8"
+      env: PROFILE="-Dhadoop.version=2.4.1 -Dscala-2.12 -Pinclude-yarn-tests,flink-fast-tests-c,include-kinesis,jdk8"
 
     - jdk: "openjdk7"
       env: PROFILE="-Dhadoop.version=2.4.1 -Dscala-2.11 -Pinclude-yarn-tests,flink-fast-tests-a,include-kinesis"
