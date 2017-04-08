@@ -47,7 +47,7 @@ class GroupCombineITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
       .output(new DiscardingOutputFormat[Tuple1[String]])
 
     ds.combineGroup((in: Iterator[Tuple1[String]], out: Collector[Tuple1[String]]) =>
-      in.toSet foreach (out.collect(_)))
+      in.toSet foreach ((t: Tuple1[String]) => out.collect(t)))
       .output(new DiscardingOutputFormat[Tuple1[String]])
 
     // all methods on UnsortedGrouping
@@ -57,7 +57,7 @@ class GroupCombineITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
 
     ds.groupBy(0)
       .combineGroup((in: Iterator[Tuple1[String]], out: Collector[Tuple1[String]]) =>
-        in.toSet foreach (out.collect(_)))
+        in.toSet foreach ((t: Tuple1[String]) => out.collect(t)))
       .output(new DiscardingOutputFormat[Tuple1[String]])
 
     // all methods on SortedGrouping
@@ -67,7 +67,7 @@ class GroupCombineITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
 
     ds.groupBy(0).sortGroup(0, Order.ASCENDING)
       .combineGroup((in: Iterator[Tuple1[String]], out: Collector[Tuple1[String]]) =>
-        in.toSet foreach (out.collect(_)))
+        in.toSet foreach ((t: Tuple1[String]) => out.collect(t)))
       .output(new DiscardingOutputFormat[Tuple1[String]])
 
     env.execute()
