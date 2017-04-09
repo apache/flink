@@ -107,6 +107,11 @@ under the License.
 		</profile>
 		<profile>
 			<id>scala</id>
+			<activation>
+				<property>
+					<name>!scala-2.12</name>
+				</property>
+			</activation>
 			<modules>
 				<module>flink-connector-kafka-0.8</module>
 				<module>flink-connector-kafka-0.9</module>
