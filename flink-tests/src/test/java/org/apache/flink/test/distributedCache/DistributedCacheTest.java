@@ -15,29 +15,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.test.distributedCache;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.IOException;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+package org.apache.flink.test.distributedCache;
 
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.util.Collector;
+import org.junit.Test;
 
-/**
- * Tests the distributed cache by comparing a text file with a distributed copy.
- */
-public class DistributedCacheTest extends JavaProgramTestBase {
+import static org.junit.Assert.assertTrue;
 
+import java.io.*;
+
+import java.util.*;
+
+
+public class DistributedCacheTest extends StreamingMultipleProgramsTestBase {
 	public static final String data
 			= "machen\n"
 			+ "zeit\n"
@@ -45,33 +42,31 @@ public class DistributedCacheTest extends JavaProgramTestBase {
 			+ "keiner\n"
 			+ "meine\n";
 
-	protected String textPath;
 
-	@Override
-	protected void preSubmit() throws Exception {
-		textPath = createTempFile("count.txt", data);
+	@Test
+	public void testStreamingDistributedCache() throws Exception {
+		String textPath = createTempFile("count.txt", data);
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.registerCachedFile(textPath, "cache_test");
+		env.readTextFile(textPath).flatMap(new WordChecker());
+		env.execute();
 	}
 
-	@Override
-	protected void testProgram() throws Exception {
+	@Test
+	public void testBatchDistributedCache() throws Exception {
+		String textPath = createTempFile("count.txt", data);
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.registerCachedFile(textPath, "cache_test");
-
-		List<Tuple1<String>> result = env
-				.readTextFile(textPath)
-				.flatMap(new WordChecker())
-				.collect();
-
-		compareResultAsTuples(result, data);
+		env.readTextFile(textPath).flatMap(new WordChecker()).count();
 	}
 
 	public static class WordChecker extends RichFlatMapFunction<String, Tuple1<String>> {
 		private static final long serialVersionUID = 1L;
 
-		private final Set<String> wordList = new HashSet<>();
+		private final List<String> wordList = new ArrayList<>();
 
 		@Override
-		public void open(Configuration conf) throws FileNotFoundException, IOException {
+		public void open(Configuration conf) throws IOException {
 			File file = getRuntimeContext().getDistributedCache().getFile("cache_test");
 			BufferedReader reader = new BufferedReader(new FileReader(file));
 			String tempString;
@@ -83,9 +78,10 @@ public class DistributedCacheTest extends JavaProgramTestBase {
 
 		@Override
 		public void flatMap(String word, Collector<Tuple1<String>> out) throws Exception {
-			if (wordList.contains(word)) {
-				out.collect(new Tuple1<>(word));
-			}
+			assertTrue("Unexpected word in stream! wordFromStream: " + word + ", shouldBeOneOf: " +
+				wordList.toString(), wordList.contains(word));
+
+			out.collect(new Tuple1<>(word));
 		}
 	}
 }
