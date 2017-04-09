@@ -44,7 +44,7 @@ abstract class AggFunctionTestBase[T] {
     // iterate over input sets
     for ((vals, expected) <- inputValueSets.zip(expectedResults)) {
       val accumulator = accumulateVals(vals)
-      var result = aggregator.getValue(accumulator)
+      val result = aggregator.getValue(accumulator)
       validateResult[T](expected, result)
 
       if (supportRetraction) {
@@ -71,7 +71,7 @@ abstract class AggFunctionTestBase[T] {
         accumulators.add(accumulateVals(firstVals))
         accumulators.add(accumulateVals(secondVals))
 
-        var accumulator = aggregator.merge(accumulators)
+        val accumulator = aggregator.merge(accumulators)
         val result = aggregator.getValue(accumulator)
         validateResult[T](expected, result)
 

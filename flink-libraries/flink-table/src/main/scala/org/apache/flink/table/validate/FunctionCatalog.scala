@@ -355,7 +355,16 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     SqlStdOperatorTable.RAND_INTEGER,
     // EXTENSIONS
     EventTimeExtractor,
-    ProcTimeExtractor
+    ProcTimeExtractor,
+    SqlStdOperatorTable.TUMBLE,
+    SqlStdOperatorTable.TUMBLE_START,
+    SqlStdOperatorTable.TUMBLE_END,
+    SqlStdOperatorTable.HOP,
+    SqlStdOperatorTable.HOP_START,
+    SqlStdOperatorTable.HOP_END,
+    SqlStdOperatorTable.SESSION,
+    SqlStdOperatorTable.SESSION_START,
+    SqlStdOperatorTable.SESSION_END
   )
 
   builtInSqlOperators.foreach(register)

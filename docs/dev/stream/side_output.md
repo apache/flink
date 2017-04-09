@@ -41,13 +41,13 @@ side output stream:
 
 {% highlight java %}
 // this needs to be an anonymous inner class, so that we can analyze the type
-OutputTag<String> outputTag = new OutputTag<String>("string-side-output") {};
+OutputTag<String> outputTag = new OutputTag<String>("side-output") {};
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-val outputTag = OutputTag[String]("string-side-output")
+val outputTag = OutputTag[String]("side-output")
 {% endhighlight %}
 </div>
 </div>
@@ -79,7 +79,7 @@ SingleOutputStreamOperator<Integer> mainDataStream = input
         out.collect(value);
 
         // emit data to side output
-        ctx.output(sideOutputTag, "sideout-" + String.valueOf(value));
+        ctx.output(outputTag, "sideout-" + String.valueOf(value));
       }
     });
 {% endhighlight %}
@@ -90,7 +90,7 @@ SingleOutputStreamOperator<Integer> mainDataStream = input
 {% highlight scala %}
 
 val input: DataStream[Int] = ...
-val outputTag = OutputTag[String]("string-side-output")
+val outputTag = OutputTag[String]("side-output")
 
 val mainDataStream = input
   .process(new ProcessFunction[Int, Int] {
@@ -128,7 +128,7 @@ DataStream<String> sideOutputStream = mainDataStream.getSideOutput(outputTag);
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-val outputTag = OutputTag[String]("string-side-output")
+val outputTag = OutputTag[String]("side-output")
 
 val mainDataStream = ...
 

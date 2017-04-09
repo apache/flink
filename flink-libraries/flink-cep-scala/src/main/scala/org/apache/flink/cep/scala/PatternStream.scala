@@ -57,8 +57,8 @@ class PatternStream[T](jPatternStream: JPatternStream[T]) {
     * timestamp is smaller than the last received watermark.
     */
   @PublicEvolving
-  def withLateDataOutputTag(outputTag: OutputTag[T]): PatternStream[T] = {
-    jPatternStream.withLateDataOutputTag(outputTag)
+  def sideOutputLateData(outputTag: OutputTag[T]): PatternStream[T] = {
+    jPatternStream.sideOutputLateData(outputTag)
     lateDataOutputTag = outputTag
     this
   }

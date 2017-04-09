@@ -226,7 +226,7 @@ public class NFACompiler {
 		/**
 		 * Creates the Start {@link State} of the resulting NFA graph.
 		 *
-		 * @param sinkState the state that Start state should point to (alwyas first state of middle states)
+		 * @param sinkState the state that Start state should point to (always first state of middle states)
 		 * @return created state
 		 */
 		@SuppressWarnings("unchecked")
@@ -266,7 +266,6 @@ public class NFACompiler {
 			for (int i = 0; i < times - 1; i++) {
 				lastSink = createSingletonState(
 					lastSink,
-					currentPattern instanceof FollowedByPattern &&
 					!currentPattern.getQuantifier().hasProperty(QuantifierProperty.STRICT));
 			}
 			return createSingletonState(lastSink, currentPattern instanceof FollowedByPattern);

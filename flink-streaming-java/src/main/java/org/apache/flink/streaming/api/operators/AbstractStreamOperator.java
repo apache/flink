@@ -249,6 +249,10 @@ public abstract class AbstractStreamOperator<OUT>
 		}
 	}
 
+	/**
+	 * @deprecated Non-repartitionable operator state that has been deprecated.
+	 * Can be removed when we remove the APIs for non-repartitionable operator state.
+	 */
 	@Deprecated
 	private void restoreStreamCheckpointed(OperatorStateHandles stateHandles) throws Exception {
 		StreamStateHandle state = stateHandles.getLegacyOperatorState();
@@ -436,6 +440,10 @@ public abstract class AbstractStreamOperator<OUT>
 		}
 	}
 
+	/**
+	 * @deprecated Non-repartitionable operator state that has been deprecated.
+	 * Can be removed when we remove the APIs for non-repartitionable operator state.
+	 */
 	@SuppressWarnings("deprecation")
 	@Deprecated
 	@Override
@@ -864,7 +872,7 @@ public abstract class AbstractStreamOperator<OUT>
 		}
 
 		@Override
-		public <X> void collect(OutputTag<?> outputTag, StreamRecord<X> record) {
+		public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
 			numRecordsOut.inc();
 			output.collect(outputTag, record);
 		}

@@ -23,6 +23,8 @@ import java.io.Serializable;
 
 /**
  * A state handle that produces an input stream when resolved.
+ *
+ * @deprecated Internal class for savepoint backwards compatibility. Don't use for other purposes.
  */
 @Deprecated
 @SuppressWarnings("deprecation")

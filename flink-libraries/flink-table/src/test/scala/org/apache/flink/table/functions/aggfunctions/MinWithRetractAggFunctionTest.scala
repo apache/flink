@@ -186,3 +186,35 @@ class DecimalMinWithRetractAggFunctionTest extends AggFunctionTestBase[BigDecima
 
   override def aggregator: AggregateFunction[BigDecimal] = new DecimalMinWithRetractAggFunction()
 }
+
+class StringMinWithRetractAggFunctionTest extends AggFunctionTestBase[String] {
+
+  override def inputValueSets: Seq[Seq[_]] = Seq(
+    Seq(
+      "abc",
+      "def",
+      "ghi",
+      null,
+      "jkl",
+      null,
+      "zzz"
+    ),
+    Seq(
+      null,
+      null
+    ),
+    Seq(
+      "x",
+      null,
+      "e"
+    )
+  )
+
+  override def expectedResults: Seq[String] = Seq(
+    "abc",
+    null,
+    "e"
+  )
+
+  override def aggregator: AggregateFunction[String] = new StringMinWithRetractAggFunction()
+}

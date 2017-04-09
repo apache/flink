@@ -123,7 +123,7 @@ public class UnorderedStreamElementQueue implements StreamElementQueue {
 			if (numberEntries < capacity) {
 				addEntry(streamElementQueueEntry);
 
-				LOG.debug("Put element into ordered stream element queue. New filling degree " +
+				LOG.debug("Put element into unordered stream element queue. New filling degree " +
 					"({}/{}).", numberEntries, capacity);
 
 				return true;

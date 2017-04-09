@@ -84,7 +84,7 @@ public class PatternStream<T> {
 	 * CEP library assumes correctness of the watermark, so an element is considered late if its
 	 * timestamp is smaller than the last received watermark.
 	 */
-	public PatternStream<T> withLateDataOutputTag(OutputTag<T> outputTag) {
+	public PatternStream<T> sideOutputLateData(OutputTag<T> outputTag) {
 		Preconditions.checkNotNull(outputTag, "Side output tag must not be null.");
 		Preconditions.checkArgument(lateDataOutputTag == null,
 				"The late side output tag has already been initialized to " + lateDataOutputTag + ".");

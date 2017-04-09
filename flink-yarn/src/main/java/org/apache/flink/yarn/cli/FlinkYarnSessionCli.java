@@ -105,6 +105,12 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 	private final Option SLOTS;
 	private final Option DETACHED;
 	private final Option ZOOKEEPER_NAMESPACE;
+
+	/**
+	 * @deprecated Streaming mode has been deprecated without replacement. Set the
+	 * {@link ConfigConstants#TASK_MANAGER_MEMORY_PRE_ALLOCATE_KEY} configuration
+	 * key to true to get the previous batch mode behaviour.
+	 */
 	@Deprecated
 	private final Option STREAMING;
 	private final Option NAME;

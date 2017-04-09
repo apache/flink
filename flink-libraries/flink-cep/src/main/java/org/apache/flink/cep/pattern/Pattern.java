@@ -151,7 +151,7 @@ public class Pattern<T, F extends T> {
 	 * between first and the last event must not be longer than the window time.
 	 *
 	 * @param windowTime Time of the matching window
-	 * @return The same pattenr operator with the new window length
+	 * @return The same pattern operator with the new window length
 	 */
 	public Pattern<T, F> within(Time windowTime) {
 		if (windowTime != null) {

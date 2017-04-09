@@ -423,7 +423,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 		}
 
 		@Override
-		public <X> void collect(OutputTag<?> outputTag, StreamRecord<X> record) {
+		public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
 			if (this.outputTag == null || !this.outputTag.equals(outputTag)) {
 				// we are only responsible for emitting to the side-output specified by our
 				// OutputTag.
@@ -506,7 +506,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 		}
 
 		@Override
-		public <X> void collect(OutputTag<?> outputTag, StreamRecord<X> record) {
+		public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
 			if (this.outputTag == null || !this.outputTag.equals(outputTag)) {
 				// we are only responsible for emitting to the side-output specified by our
 				// OutputTag.
@@ -579,7 +579,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 		}
 
 		@Override
-		public <X> void collect(OutputTag<?> outputTag, StreamRecord<X> record) {
+		public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
 			for (Output<StreamRecord<T>> output : outputs) {
 				output.collect(outputTag, record);
 			}
@@ -619,21 +619,16 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 		}
 
 		@Override
-		public <X> void collect(OutputTag<?> outputTag, StreamRecord<X> record) {
+		public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
 			for (int i = 0; i < outputs.length - 1; i++) {
 				Output<StreamRecord<T>> output = outputs[i];
 
-				// due to side outputs, StreamRecords of varying types can pass through the broadcasting
-				// collector so we need to cast
-				@SuppressWarnings({"unchecked", "rawtypes"})
-				StreamRecord<T> shallowCopy = (StreamRecord<T>) record.copy(record.getValue());
+				StreamRecord<X> shallowCopy = record.copy(record.getValue());
 				output.collect(outputTag, shallowCopy);
 			}
 
 			// don't copy for the last output
-			@SuppressWarnings({"unchecked", "rawtypes"})
-			StreamRecord<T> castRecord = (StreamRecord<T>) record;
-			outputs[outputs.length - 1].collect(outputTag, castRecord);
+			outputs[outputs.length - 1].collect(outputTag, record);
 		}
 	}
 }

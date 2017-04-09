@@ -164,7 +164,7 @@ watchdog () {
 
 # Check the final fat jar for illegal artifacts
 check_shaded_artifacts() {
-	jar tf build-target/lib/flink-dist-*.jar > allClasses
+	jar tf build-target/lib/flink-dist*.jar > allClasses
 	ASM=`cat allClasses | grep '^org/objectweb/asm/' | wc -l`
 	if [ $ASM != "0" ]; then
 		echo "=============================================================================="

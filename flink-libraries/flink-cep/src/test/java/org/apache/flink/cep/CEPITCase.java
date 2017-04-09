@@ -639,7 +639,7 @@ public class CEPITCase extends StreamingMultipleProgramsTestBase {
 
 		final OutputTag<Event> lateOutputTag = new OutputTag<Event>("late-data"){};
 
-		PatternStream<Event> patternStream = CEP.pattern(input, pattern).withLateDataOutputTag(lateOutputTag);
+		PatternStream<Event> patternStream = CEP.pattern(input, pattern).sideOutputLateData(lateOutputTag);
 		DataStream<String> result = patternStream.select(
 				new PatternSelectFunction<Event, String>() {
 

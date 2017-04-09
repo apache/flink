@@ -22,4 +22,4 @@ bin=`cd "$bin"; pwd`
 
 . "$bin"/config.sh
 
-"$FLINK_BIN_DIR"/flink run -v "$FLINK_ROOT_DIR"/lib/flink-python*.jar "2" "$@"
+"$FLINK_BIN_DIR"/flink run -v "$FLINK_ROOT_DIR"/lib/flink-python*.jar "$@"
