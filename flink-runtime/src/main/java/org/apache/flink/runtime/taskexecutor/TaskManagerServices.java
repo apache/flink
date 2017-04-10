@@ -410,7 +410,12 @@ public class TaskManagerServices {
 	 *
 	 * @return memory to use for network buffers (in bytes)
 	 */
+	@SuppressWarnings("deprecation")
 	public static long calculateNetworkBuf(long totalJavaMemorySize, Configuration config) {
+		assert totalJavaMemorySize > 0;
+
+		int segmentSize = config.getInteger(TaskManagerOptions.MEMORY_SEGMENT_SIZE);
+
 		final long networkBufBytes;
 		if (TaskManagerServicesConfiguration.hasNewNetworkBufConf(config)) {
 			// new configuration based on fractions of available memory with selectable min and max
@@ -418,16 +423,34 @@ public class TaskManagerServices {
 			long networkBufMin = config.getLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN);
 			long networkBufMax = config.getLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX);
 
+			TaskManagerServicesConfiguration
+				.checkNetworkBufferConfig(segmentSize, networkBufFraction, networkBufMin, networkBufMax);
+
 			networkBufBytes = Math.min(networkBufMax, Math.max(networkBufMin,
 				(long) (networkBufFraction * totalJavaMemorySize)));
+
+			TaskManagerServicesConfiguration
+				.checkConfigParameter(networkBufBytes < totalJavaMemorySize,
+					"(" + networkBufFraction + ", " + networkBufMin + ", " + networkBufMax + ")",
+					"(" + TaskManagerOptions.NETWORK_BUFFERS_MEMORY_FRACTION.key() + ", " +
+						TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN.key() + ", " +
+						TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX.key() + ")",
+					"Network buffer memory size too large: " + networkBufBytes + " >= " +
+						totalJavaMemorySize + " (total JVM memory size)");
 		} else {
 			// use old (deprecated) network buffers parameter
-			@SuppressWarnings("deprecation")
-			long numNetworkBuffers = config.getInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS);
-			int segmentSize = config.getInteger(TaskManagerOptions.MEMORY_SEGMENT_SIZE);
+			int numNetworkBuffers = config.getInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS);
+			networkBufBytes = (long) numNetworkBuffers * (long) segmentSize;
 
-			networkBufBytes = numNetworkBuffers * (long) segmentSize;
+			TaskManagerServicesConfiguration.checkNetworkConfigOld(numNetworkBuffers);
+
+			TaskManagerServicesConfiguration
+				.checkConfigParameter(networkBufBytes < totalJavaMemorySize,
+					networkBufBytes, TaskManagerOptions.NETWORK_NUM_BUFFERS.key(),
+					"Network buffer memory size too large: " + networkBufBytes + " >= " +
+						totalJavaMemorySize + " (total JVM memory size)");
 		}
+
 		return networkBufBytes;
 	}
 
@@ -475,6 +498,15 @@ public class TaskManagerServices {
 			final long relativeMemSize = EnvironmentInformation.getSizeOfFreeHeapMemoryWithDefrag();
 			networkBufBytes = Math.min(networkBufMax, Math.max(networkBufMin,
 				(long) (networkBufFraction * relativeMemSize)));
+
+			TaskManagerServicesConfiguration
+				.checkConfigParameter(networkBufBytes < relativeMemSize,
+					"(" + networkBufFraction + ", " + networkBufMin + ", " + networkBufMax + ")",
+					"(" + TaskManagerOptions.NETWORK_BUFFERS_MEMORY_FRACTION.key() + ", " +
+						TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN.key() + ", " +
+						TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX.key() + ")",
+					"Network buffer memory size too large: " + networkBufBytes + " >= " +
+						relativeMemSize + "(free JVM heap size)");
 		} else if (memType == MemoryType.OFF_HEAP) {
 			// The maximum heap memory has been adjusted accordingly as in
 			// calculateHeapSizeMB(long totalJavaMemorySizeMB, Configuration config))
@@ -504,6 +536,15 @@ public class TaskManagerServices {
 			//              = jvmHeap - Math.min(networkBufMax, Math.max(networkBufMin, jvmHeap * netFraction)
 			networkBufBytes = Math.min(networkBufMax, Math.max(networkBufMin,
 				(long) (jvmHeapNoNet / (1.0 - networkBufFraction) * networkBufFraction)));
+
+			TaskManagerServicesConfiguration
+				.checkConfigParameter(networkBufBytes < maxMemory,
+					"(" + networkBufFraction + ", " + networkBufMin + ", " + networkBufMax + ")",
+					"(" + TaskManagerOptions.NETWORK_BUFFERS_MEMORY_FRACTION.key() + ", " +
+						TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN.key() + ", " +
+						TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX.key() + ")",
+					"Network buffer memory size too large: " + networkBufBytes + " >= " +
+						maxMemory + "(maximum JVM heap size)");
 		} else {
 			throw new RuntimeException("No supported memory type detected.");
 		}
@@ -523,7 +564,7 @@ public class TaskManagerServices {
 	 * @return heap memory to use (in megabytes)
 	 */
 	public static long calculateHeapSizeMB(long totalJavaMemorySizeMB, Configuration config) {
-
+		assert totalJavaMemorySizeMB > 0;
 
 		final long totalJavaMemorySize = totalJavaMemorySizeMB << 20; // megabytes to bytes
 
@@ -545,6 +586,13 @@ public class TaskManagerServices {
 				double fraction = config.getFloat(TaskManagerOptions.MANAGED_MEMORY_FRACTION);
 				offHeapSize = (long) (fraction * remainingJavaMemorySizeMB);
 			}
+
+			TaskManagerServicesConfiguration
+				.checkConfigParameter(offHeapSize < remainingJavaMemorySizeMB, offHeapSize,
+					TaskManagerOptions.MANAGED_MEMORY_SIZE.key(),
+					"Managed memory size too large for " + networkBufMB +
+						" MB network buffer memory and a total of " + totalJavaMemorySizeMB +
+						" MB JVM memory");
 
 			heapSizeMB = remainingJavaMemorySizeMB - offHeapSize;
 		} else {

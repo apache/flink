@@ -298,27 +298,13 @@ public class TaskManagerServicesConfiguration {
 		// network buffer memory fraction
 
 		float networkBufFraction = configuration.getFloat(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_FRACTION);
-		checkConfigParameter(networkBufFraction > 0.0f && networkBufFraction < 1.0f, networkBufFraction,
-			TaskManagerOptions.NETWORK_BUFFERS_MEMORY_FRACTION.key(),
-			"Network buffer memory fraction of the free memory must be between 0.0 and 1.0");
-
 		long networkBufMin = configuration.getLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN);
-		checkConfigParameter(networkBufMin >= pageSize, networkBufMin,
-			TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN.key(),
-			"Minimum memory for network buffers must allow at least one network " +
-				"buffer with respect to the memory segment size");
-
 		long networkBufMax = configuration.getLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX);
-		checkConfigParameter(networkBufMax >= pageSize, networkBufMax,
-			TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX.key(),
-			"Maximum memory for network buffers must allow at least one network " +
-				"buffer with respect to the memory segment size");
+		checkNetworkBufferConfig(pageSize, networkBufFraction, networkBufMin, networkBufMax);
 
 		// fallback: number of network buffers
 		final int numNetworkBuffers = configuration.getInteger(TaskManagerOptions.NETWORK_NUM_BUFFERS);
-		checkConfigParameter(numNetworkBuffers > 0, numNetworkBuffers,
-			TaskManagerOptions.NETWORK_NUM_BUFFERS.key(),
-			"Must have at least one network buffer");
+		checkNetworkConfigOld(numNetworkBuffers);
 
 		if (!hasNewNetworkBufConf(configuration)) {
 			// map old config to new one:
@@ -377,6 +363,54 @@ public class TaskManagerServicesConfiguration {
 	}
 
 	/**
+	 * Validates the (old) network buffer configuration.
+	 *
+	 * @param numNetworkBuffers		number of buffers used in the network stack
+	 *
+	 * @throws IllegalConfigurationException if the condition does not hold
+	 */
+	@SuppressWarnings("deprecation")
+	protected static void checkNetworkConfigOld(final int numNetworkBuffers) {
+		checkConfigParameter(numNetworkBuffers > 0, numNetworkBuffers,
+			TaskManagerOptions.NETWORK_NUM_BUFFERS.key(),
+			"Must have at least one network buffer");
+	}
+
+	/**
+	 * Validates the (new) network buffer configuration.
+	 *
+	 * @param pageSize 				size of memory buffers
+	 * @param networkBufFraction	fraction of JVM memory to use for network buffers
+	 * @param networkBufMin 		minimum memory size for network buffers (in bytes)
+	 * @param networkBufMax 		maximum memory size for network buffers (in bytes)
+	 *
+	 * @throws IllegalConfigurationException if the condition does not hold
+	 */
+	protected static void checkNetworkBufferConfig(
+			final int pageSize, final float networkBufFraction, final long networkBufMin,
+			final long networkBufMax) throws IllegalConfigurationException {
+
+		checkConfigParameter(networkBufFraction > 0.0f && networkBufFraction < 1.0f, networkBufFraction,
+			TaskManagerOptions.NETWORK_BUFFERS_MEMORY_FRACTION.key(),
+			"Network buffer memory fraction of the free memory must be between 0.0 and 1.0");
+
+		checkConfigParameter(networkBufMin >= pageSize, networkBufMin,
+			TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MIN.key(),
+			"Minimum memory for network buffers must allow at least one network " +
+				"buffer with respect to the memory segment size");
+
+		checkConfigParameter(networkBufMax >= pageSize, networkBufMax,
+			TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX.key(),
+			"Maximum memory for network buffers must allow at least one network " +
+				"buffer with respect to the memory segment size");
+
+		checkConfigParameter(networkBufMax >= networkBufMin, networkBufMax,
+			TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX.key(),
+			"Maximum memory for network buffers must not be smaller than minimum memory (" +
+				TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX.key() + ": " + networkBufMin + ")");
+	}
+
+	/**
 	 * Returns whether the new network buffer memory configuration is present in the configuration
 	 * object, i.e. at least one new parameter is given or the old one is not present.
 	 *
@@ -416,8 +450,11 @@ public class TaskManagerServicesConfiguration {
 	 * @param parameter         The parameter value. Will be shown in the exception message.
 	 * @param name              The name of the config parameter. Will be shown in the exception message.
 	 * @param errorMessage  The optional custom error message to append to the exception message.
+	 *
+	 * @throws IllegalConfigurationException if the condition does not hold
 	 */
-	private static void checkConfigParameter(boolean condition, Object parameter, String name, String errorMessage) {
+	static void checkConfigParameter(boolean condition, Object parameter, String name, String errorMessage)
+			throws IllegalConfigurationException {
 		if (!condition) {
 			throw new IllegalConfigurationException("Invalid configuration value for " + 
 					name + " : " + parameter + " - " + errorMessage);
