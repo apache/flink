@@ -70,6 +70,15 @@ under the License.
 									<include>org.apache.curator:*</include>
 								</includes>
 							</artifactSet>
+							<relocations>
+								<relocation>
+									<pattern>com.google</pattern>
+									<shadedPattern>org.apache.flink.shaded.com.google</shadedPattern>
+									<excludes combine.children="append">
+										<exclude>com.google.common.base.Function</exclude>
+									</excludes>
+								</relocation>
+							</relocations>
 						</configuration>
 					</execution>
 				</executions>

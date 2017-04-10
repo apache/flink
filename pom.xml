@@ -1156,7 +1156,6 @@ under the License.
 									<excludes>
 										<exclude>com.google.protobuf.**</exclude>
 										<exclude>com.google.inject.**</exclude>
-										<exclude>com/google/common/base/Function</exclude>
 									</excludes>
 								</relocation>
 								<relocation>

@@ -134,7 +134,6 @@ under the License.
 									<shadedPattern>org.apache.flink.hadoop.shaded.com.google</shadedPattern>
 									<excludes>
 										<exclude>com.google.inject.**</exclude>
-										<exclude>com/google/common/base/Function</exclude>
 									</excludes>
 								</relocation>
 								<relocation>
@@ -148,10 +147,6 @@ under the License.
 								<relocation>
 									<pattern>org.apache.curator</pattern>
 									<shadedPattern>org.apache.flink.hadoop.shaded.org.apache.curator</shadedPattern>
-									<excludes>
-										<exclude>org/apache/curator/framework/listen/ListenerContainer</exclude>
-										<exclude>org/apache/curator/framework/listen/Listenable</exclude>
-									</excludes>
 								</relocation>
 								<relocation>
 									<pattern>org.apache.http</pattern>
