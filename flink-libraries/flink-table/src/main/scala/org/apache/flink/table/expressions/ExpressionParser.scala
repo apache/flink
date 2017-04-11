@@ -87,6 +87,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val STAR: Keyword = Keyword("*")
   lazy val GET: Keyword = Keyword("get")
   lazy val FLATTEN: Keyword = Keyword("flatten")
+  lazy val ASIN: Keyword = Keyword("asin")
 
   def functionIdent: ExpressionParser.Parser[String] =
     not(ARRAY) ~ not(AS) ~ not(COUNT) ~ not(AVG) ~ not(MIN) ~ not(MAX) ~
@@ -289,12 +290,15 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val suffixFlattening: PackratParser[Expression] =
     composite <~ "." ~ FLATTEN ~ opt("()") ^^ { e => Flattening(e) }
 
+  lazy val suffixAsin: PackratParser[Expression] =
+    composite <~ "." ~ ASIN ~ opt("()") ^^ { e => Asin(e) }
+
   lazy val suffixed: PackratParser[Expression] =
     suffixTimeInterval | suffixRowInterval | suffixSum | suffixMin | suffixMax | suffixStart |
       suffixEnd | suffixCount | suffixAvg | suffixCast | suffixAs | suffixTrim |
       suffixTrimWithoutArgs | suffixIf | suffixAsc | suffixDesc | suffixToDate |
       suffixToTimestamp | suffixToTime | suffixExtract | suffixFloor | suffixCeil |
-      suffixGet | suffixFlattening |
+      suffixGet | suffixFlattening | suffixAsin |
       suffixFunctionCall | suffixFunctionCallOneArg // function call must always be at the end
 
   // prefix operators
@@ -375,10 +379,14 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val prefixFlattening: PackratParser[Expression] =
     FLATTEN ~ "(" ~> composite <~ ")" ^^ { e => Flattening(e) }
 
+  lazy val prefixAsin: PackratParser[Expression] =
+    ASIN ~ "(" ~> composite <~ ")" ^^ { e => Asin(e) }
+
   lazy val prefixed: PackratParser[Expression] =
     prefixArray | prefixSum | prefixMin | prefixMax | prefixCount | prefixAvg |
       prefixStart | prefixEnd | prefixCast | prefixAs | prefixTrim | prefixTrimWithoutArgs |
       prefixIf | prefixExtract | prefixFloor | prefixCeil | prefixGet | prefixFlattening |
+      prefixAsin |
       prefixFunctionCall | prefixFunctionCallOneArg // function call must always be at the end
 
   // suffix/prefix composite

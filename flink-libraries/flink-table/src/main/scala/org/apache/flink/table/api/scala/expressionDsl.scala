@@ -279,6 +279,56 @@ trait ImplicitExpressionOperations {
     */
   def sin() = Sin(expr)
 
+  /**
+    * Calculates the cosine of a given number.
+    */
+  def cos() = Cos(expr)
+
+  /**
+    * Calculates the tangent of a given number.
+    */
+  def tan() = Tan(expr)
+
+  /**
+    * Calculates the tangent of a given number.
+    */
+  def cot() = Cot(expr)
+
+  /**
+    * Calculates the tangent of a given number.
+    */
+  def asin() = Asin(expr)
+
+  /**
+    * Calculates the tangent of a given number.
+    */
+  def acos() = Acos(expr)
+
+  /**
+    * Calculates the tangent of a given number.
+    */
+  def atan() = Atan(expr)
+
+  /**
+    * Converts numeric from radians to degrees.
+    */
+  def degrees() = Degrees(expr)
+
+  /**
+    * Converts numeric from degrees to radians.
+    */
+  def radians() = Radians(expr)
+
+  /**
+    * Calculates the signum of a given number.
+    */
+  def sign() = Sign(expr)
+
+  /**
+    * Rounds the given number to the other value places right to the decimal point.
+    */
+  def round(other: Expression) = Round(expr, other)
+
   // String operations
 
   /**
@@ -784,6 +834,19 @@ object array {
     */
   def apply(head: Expression, tail: Expression*): Expression = {
     ArrayConstructor(head +: tail.toSeq)
+  }
+}
+
+/**
+  * Returns pi.
+  */
+object pi {
+
+  /**
+    * Returns pi.
+    */
+  def apply(): Expression = {
+    Pi()
   }
 }
 
