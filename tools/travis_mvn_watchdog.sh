@@ -92,9 +92,9 @@ upload_artifacts_s3() {
 		artifacts upload --bucket $UPLOAD_BUCKET --key $UPLOAD_ACCESS_KEY --secret $UPLOAD_SECRET_KEY --target-paths $UPLOAD_TARGET_PATH $ARTIFACTS_FILE
 	fi
 
-	# upload to http://transfer.sh
+	# upload to https://transfer.sh
 	echo "Uploading to transfer.sh"
-	curl --upload-file $ARTIFACTS_FILE http://transfer.sh
+	curl --upload-file $ARTIFACTS_FILE https://transfer.sh
 }
 
 print_stacktraces () {
