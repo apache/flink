@@ -18,6 +18,9 @@
 
 package org.apache.flink.runtime.webmonitor;
 
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
@@ -30,15 +33,16 @@ import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
-import java.util.WeakHashMap;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Gateway to obtaining an {@link ExecutionGraph} from a source, like JobManager or Archive.
  * <p>
- * The holder will cache the ExecutionGraph behind a weak reference, which will be cleared
- * at some point once no one else is pointing to the ExecutionGraph.
+ * The holder will cache the ExecutionGraph behind a LoadingCache, which will expire after 30
+ * seconds since written.
  * Note that while the holder runs in the same JVM as the JobManager or Archive, the reference should
  * stay valid.
  */
@@ -48,7 +52,41 @@ public class ExecutionGraphHolder {
 
 	private final FiniteDuration timeout;
 
-	private final WeakHashMap<JobID, AccessExecutionGraph> cache = new WeakHashMap<>();
+	private AtomicReference<ActorGateway> jobManagerRef = new AtomicReference<>(null);
+
+	private final LoadingCache<JobID, AccessExecutionGraph> cache =
+		CacheBuilder.newBuilder()
+			.maximumSize(1000)
+			.expireAfterWrite(30, TimeUnit.SECONDS)
+			.build(new CacheLoader<JobID, AccessExecutionGraph>() {
+				@Override
+				public AccessExecutionGraph load(JobID jobID) throws Exception {
+					try {
+						if (jobManagerRef.get() != null) {
+							Future<Object> future = jobManagerRef.get().ask(new JobManagerMessages.RequestJob(jobID), timeout);
+							Object result = Await.result(future, timeout);
+
+							if (result instanceof JobManagerMessages.JobNotFound) {
+								return null;
+							}
+							else if (result instanceof JobManagerMessages.JobFound) {
+								AccessExecutionGraph eg = ((JobManagerMessages.JobFound) result).executionGraph();
+								return eg;
+							}
+							else {
+								throw new RuntimeException("Unknown response from JobManager / Archive: " + result);
+							}
+						}
+						else {
+							LOG.warn("No connection to the leading JobManager.");
+							return null;
+						}
+					}
+					catch (Exception e) {
+						throw new RuntimeException("Error requesting execution graph", e);
+					}
+				}
+			});
 
 	public ExecutionGraphHolder() {
 		this(WebRuntimeMonitor.DEFAULT_REQUEST_TIMEOUT);
@@ -65,32 +103,11 @@ public class ExecutionGraphHolder {
 	 * @return the retrieved execution graph or null if it is not retrievable
 	 */
 	public AccessExecutionGraph getExecutionGraph(JobID jid, ActorGateway jobManager) {
-		AccessExecutionGraph cached = cache.get(jid);
-		if (cached != null) {
-			return cached;
+		if (jobManagerRef.get() == null) {
+			this.jobManagerRef.set(jobManager);
 		}
-
 		try {
-			if (jobManager != null) {
-				Future<Object> future = jobManager.ask(new JobManagerMessages.RequestJob(jid), timeout);
-				Object result = Await.result(future, timeout);
-				
-				if (result instanceof JobManagerMessages.JobNotFound) {
-					return null;
-				}
-				else if (result instanceof JobManagerMessages.JobFound) {
-					AccessExecutionGraph eg = ((JobManagerMessages.JobFound) result).executionGraph();
-					cache.put(jid, eg);
-					return eg;
-				}
-				else {
-					throw new RuntimeException("Unknown response from JobManager / Archive: " + result);
-				}
-			}
-			else {
-				LOG.warn("No connection to the leading JobManager.");
-				return null;
-			}
+			return cache.get(jid);
 		}
 		catch (Exception e) {
 			throw new RuntimeException("Error requesting execution graph", e);
