@@ -1,3 +1,0 @@
-*.bat text eol=crlf
-flink-runtime-web/web-dashboard/web/* linguist-vendored -diff
-
