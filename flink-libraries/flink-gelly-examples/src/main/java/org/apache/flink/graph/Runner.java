@@ -108,7 +108,7 @@ public class Runner {
 
 		strBuilder
 			.appendNewLine()
-			.appendln("Select an algorithm to view usage: flink run opt/flink-gelly-examples_<version>.jar --algorithm <algorithm>")
+			.appendln("Select an algorithm to view usage: flink run examples/flink-gelly-examples_<version>.jar --algorithm <algorithm>")
 			.appendNewLine()
 			.appendln("Available algorithms:");
 
@@ -139,7 +139,7 @@ public class Runner {
 			.appendNewLine()
 			.appendln(algorithm.getLongDescription())
 			.appendNewLine()
-			.append("usage: flink run opt/flink-gelly-examples_<version>.jar --algorithm ")
+			.append("usage: flink run examples/flink-gelly-examples_<version>.jar --algorithm ")
 			.append(algorithmName)
 			.append(" [algorithm options] --input <input> [input options] --output <output> [output options]")
 			.appendNewLine()

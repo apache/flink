@@ -102,15 +102,17 @@ public class AsmTestBase {
 			.generate();
 
 		/*
-			./bin/flink run -c org.apache.flink.graph.drivers.Graph500 flink-gelly-examples_2.10-1.2-SNAPSHOT.jar \
-				--directed true --simplify true --scale 10 --edge_factor 16 --output csv --filename directedRMatGraph.csv
+		   ./bin/flink run examples/flink-gelly-examples_*.jar --algorithm EdgeList \
+		       --input RMatGraph --type long --simplify directed --scale 10 --edge_factor 16 \
+		       --output csv --output_filename directedRMatGraph.csv
 		 */
 		directedRMatGraph = rmatGraph
 			.run(new org.apache.flink.graph.asm.simple.directed.Simplify<LongValue, NullValue, NullValue>());
 
 		/*
-			./bin/flink run -c org.apache.flink.graph.drivers.Graph500 flink-gelly-examples_2.10-1.2-SNAPSHOT.jar \
-				--directed false --simplify true --scale 10 --edge_factor 16 --output csv --filename undirectedRMatGraph.csv
+		   ./bin/flink run examples/flink-gelly-examples_*.jar --algorithm EdgeList \
+		       --input RMatGraph --type long --simplify undirected --scale 10 --edge_factor 16 \
+		       --output csv --output_filename undirectedRMatGraph.csv
 		 */
 		undirectedRMatGraph = rmatGraph
 			.run(new org.apache.flink.graph.asm.simple.undirected.Simplify<LongValue, NullValue, NullValue>(false));
