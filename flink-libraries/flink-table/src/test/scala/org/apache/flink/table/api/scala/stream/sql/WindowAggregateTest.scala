@@ -29,6 +29,27 @@ class WindowAggregateTest extends TableTestBase {
   private val streamUtil: StreamTableTestUtil = streamTestUtil()
   streamUtil.addTable[(Int, String, Long)]("MyTable", 'a, 'b, 'c)
 
+  
+  
+  @Test
+  def testSortProcessingTime() = {
+
+    val sqlQuery = "SELECT a FROM MyTable ORDER BY procTime(), c"
+      
+      val expected =
+      unaryNode(
+        "DataStreamSort",
+          unaryNode(
+            "DataStreamCalc",
+            streamTableNode(0),
+            term("select", "a", "1970-01-01 00:00:00 AS EXPR$1","c")
+          ),
+        term("sort fields", """[1, 2]""")
+      )
+
+    streamUtil.verifySql(sqlQuery, expected)
+  }
+  
   @Test
   def testNonPartitionedProcessingTimeBoundedWindow() = {
 
