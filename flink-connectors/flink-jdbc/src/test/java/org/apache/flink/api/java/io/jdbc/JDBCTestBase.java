@@ -39,8 +39,10 @@ public class JDBCTestBase {
 	public static final String DB_URL = "jdbc:derby:memory:ebookshop";
 	public static final String INPUT_TABLE = "books";
 	public static final String OUTPUT_TABLE = "newbooks";
+	public static final String OUTPUT_TABLE_2 = "newbooks2";
 	public static final String SELECT_ALL_BOOKS = "select * from " + INPUT_TABLE;
 	public static final String SELECT_ALL_NEWBOOKS = "select * from " + OUTPUT_TABLE;
+	public static final String SELECT_ALL_NEWBOOKS_2 = "select * from " + OUTPUT_TABLE_2;
 	public static final String SELECT_EMPTY = "select * from books WHERE QTY < 0";
 	public static final String INSERT_TEMPLATE = "insert into %s (id, title, author, price, qty) values (?,?,?,?,?)";
 	public static final String SELECT_ALL_BOOKS_SPLIT_BY_ID = SELECT_ALL_BOOKS + " WHERE id BETWEEN ? AND ?";
@@ -125,6 +127,7 @@ public class JDBCTestBase {
 		try (Connection conn = DriverManager.getConnection(DB_URL + ";create=true")) {
 			createTable(conn, JDBCTestBase.INPUT_TABLE);
 			createTable(conn, OUTPUT_TABLE);
+			createTable(conn, OUTPUT_TABLE_2);
 			insertDataIntoInputTable(conn);
 		}
 	}
@@ -150,6 +153,7 @@ public class JDBCTestBase {
 
 			stat.executeUpdate("DROP TABLE " + INPUT_TABLE);
 			stat.executeUpdate("DROP TABLE " + OUTPUT_TABLE);
+			stat.executeUpdate("DROP TABLE " + OUTPUT_TABLE_2);
 		}
 	}
 }
