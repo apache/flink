@@ -230,6 +230,7 @@ public class CassandraSink<IN> {
 		protected final TypeSerializer<IN> serializer;
 		protected final TypeInformation<IN> typeInfo;
 		protected ClusterBuilder builder;
+		protected MapperOptions mapperOptions;
 		protected String query;
 		protected CheckpointCommitter committer;
 		protected boolean isWriteAheadLogEnabled;
@@ -321,6 +322,21 @@ public class CassandraSink<IN> {
 		}
 
 		/**
+		 * Sets the mapper options for this sink. The mapper options are used to configure the DataStax
+		 * {@link com.datastax.driver.mapping.Mapper} when writing POJOs.
+		 *
+		 * <p>This call has no effect if the input {@link DataStream} for this sink does not contain POJOs.
+		 *
+		 * @param options MapperOptions, that return an array of options that are used to configure the DataStax mapper.
+		 *
+		 * @return this builder
+		 */
+		public CassandraSinkBuilder<IN> setMapperOptions(MapperOptions options) {
+			this.mapperOptions = options;
+			return this;
+		}
+
+		/**
 		 * Finalizes the configuration of this sink.
 		 *
 		 * @return finalized sink
@@ -393,7 +409,7 @@ public class CassandraSink<IN> {
 
 		@Override
 		public CassandraSink<IN> createSink() throws Exception {
-			return new CassandraSink<>(input.addSink(new CassandraPojoSink<>(typeInfo.getTypeClass(), builder)).name("Cassandra Sink"));
+			return new CassandraSink<>(input.addSink(new CassandraPojoSink<>(typeInfo.getTypeClass(), builder, mapperOptions)).name("Cassandra Sink"));
 		}
 
 		@Override
