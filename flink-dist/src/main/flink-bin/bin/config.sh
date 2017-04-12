@@ -310,11 +310,24 @@ fi
 INTERNAL_HADOOP_CLASSPATHS="${HADOOP_CLASSPATH}:${HADOOP_CONF_DIR}:${YARN_CONF_DIR}"
 
 if [ -n "${HBASE_CONF_DIR}" ]; then
-    # Setup the HBase classpath.
-    INTERNAL_HADOOP_CLASSPATHS="${INTERNAL_HADOOP_CLASSPATHS}:`hbase classpath`"
+    # Look for hbase command in HBASE_HOME or search PATH.
+    if [ -n "${HBASE_HOME}" ]; then
+        HBASE_PATH="${HBASE_HOME}/bin"
+        HBASE_COMMAND=`command -v "${HBASE_PATH}/hbase"`
+    else
+        HBASE_PATH=$PATH
+        HBASE_COMMAND=`command -v hbase`
+    fi
 
-    # We add the HBASE_CONF_DIR last to ensure the right config directory is used.
-    INTERNAL_HADOOP_CLASSPATHS="${INTERNAL_HADOOP_CLASSPATHS}:${HBASE_CONF_DIR}"
+    # Whether the hbase command was found.
+    if [[ $? -eq 0 ]]; then
+        # Setup the HBase classpath. We add the HBASE_CONF_DIR last to ensure the right config directory is used.
+        INTERNAL_HADOOP_CLASSPATHS="${INTERNAL_HADOOP_CLASSPATHS}:`${HBASE_COMMAND} classpath`:${HBASE_CONF_DIR}"
+    else
+        echo "HBASE_CONF_DIR=${HBASE_CONF_DIR} is set but 'hbase' command was not found in ${HBASE_PATH} so classpath could not be updated."
+    fi
+
+    unset HBASE_COMMAND HBASE_PATH
 fi
 
 # Auxilliary function which extracts the name of host from a line which
