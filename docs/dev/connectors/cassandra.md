@@ -69,10 +69,13 @@ The following configuration methods can be used:
     * Sets the cluster builder that is used to configure the connection to cassandra with more sophisticated settings such as consistency level, retry policy and etc.
 3. _setHost(String host[, int port])_
     * Simple version of setClusterBuilder() with host/port information to connect to Cassandra instances
-4. _enableWriteAheadLog([CheckpointCommitter committer])_
+4. _setMapperOptions(MapperOptions options)_
+    * Sets the mapper options that are used to configure the DataStax ObjectMapper.
+    * Only applies when processing __POJO__ data types.
+5. _enableWriteAheadLog([CheckpointCommitter committer])_
     * An __optional__ setting
     * Allows exactly-once processing for non-deterministic algorithms.
-5. _build()_
+6. _build()_
     * Finalizes the configuration and constructs the CassandraSink instance.
 
 ### Write-ahead Log
@@ -236,6 +239,7 @@ DataStream<WordCount> result = text
 
 CassandraSink.addSink(result)
         .setHost("127.0.0.1")
+        .setMapperOptions(() -> new Mapper.Option[]{Mapper.Option.saveNullFields(true)})
         .build();
 
 

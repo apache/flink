@@ -24,6 +24,8 @@ import com.datastax.driver.mapping.Mapper;
 import com.datastax.driver.mapping.MappingManager;
 import com.google.common.util.concurrent.ListenableFuture;
 
+import javax.annotation.Nullable;
+
 /**
  * Flink Sink to save data into a Cassandra cluster using
  * <a href="http://docs.datastax.com/en/drivers/java/2.1/com/datastax/driver/mapping/Mapper.html">Mapper</a>,
@@ -38,6 +40,7 @@ public class CassandraPojoSink<IN> extends CassandraSinkBase<IN, ResultSet> {
 	private static final long serialVersionUID = 1L;
 
 	protected final Class<IN> clazz;
+	private final MapperOptions options;
 	protected transient Mapper<IN> mapper;
 	protected transient MappingManager mappingManager;
 
@@ -47,8 +50,13 @@ public class CassandraPojoSink<IN> extends CassandraSinkBase<IN, ResultSet> {
 	 * @param clazz Class instance
 	 */
 	public CassandraPojoSink(Class<IN> clazz, ClusterBuilder builder) {
+		this(clazz, builder, null);
+	}
+
+	public CassandraPojoSink(Class<IN> clazz, ClusterBuilder builder, @Nullable MapperOptions options) {
 		super(builder);
 		this.clazz = clazz;
+		this.options = options;
 	}
 
 	@Override
@@ -57,6 +65,12 @@ public class CassandraPojoSink<IN> extends CassandraSinkBase<IN, ResultSet> {
 		try {
 			this.mappingManager = new MappingManager(session);
 			this.mapper = mappingManager.mapper(clazz);
+			if (options != null) {
+				Mapper.Option[] optionsArray = options.getMapperOptions();
+				if (optionsArray != null) {
+					this.mapper.setDefaultSaveOptions(optionsArray);
+				}
+			}
 		} catch (Exception e) {
 			throw new RuntimeException("Cannot create CassandraPojoSink with input: " + clazz.getSimpleName(), e);
 		}
