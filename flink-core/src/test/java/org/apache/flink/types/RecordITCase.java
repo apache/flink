@@ -27,11 +27,12 @@ import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 
+import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-public class RecordITCase {
+public class RecordITCase extends TestLogger {
 	
 	private static final long SEED = 354144423270432543L;
 	private final Random rand = new Random(RecordITCase.SEED);

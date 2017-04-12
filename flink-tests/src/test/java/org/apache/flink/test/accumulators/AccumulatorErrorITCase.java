@@ -30,6 +30,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
+import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -43,7 +44,7 @@ import static org.junit.Assert.fail;
  *  a) throw errors during runtime
  *  b) is not compatible with existing accumulator
  */
-public class AccumulatorErrorITCase {
+public class AccumulatorErrorITCase extends TestLogger {
 
 	private static LocalFlinkMiniCluster cluster;
 

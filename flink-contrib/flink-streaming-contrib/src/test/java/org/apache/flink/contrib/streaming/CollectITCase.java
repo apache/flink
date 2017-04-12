@@ -23,6 +23,7 @@ import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
+import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import java.util.Iterator;
@@ -32,7 +33,7 @@ import static org.junit.Assert.*;
 /**
  * This test verifies the behavior of DataStreamUtils.collect.
  */
-public class CollectITCase {
+public class CollectITCase extends TestLogger {
 
 	@Test
 	public void testCollect() throws Exception {

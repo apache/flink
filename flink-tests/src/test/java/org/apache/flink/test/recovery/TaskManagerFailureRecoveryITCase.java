@@ -32,6 +32,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.messages.TaskManagerMessages;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
+import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
@@ -59,7 +60,7 @@ import static org.junit.Assert.*;
  * the original task managers. The recovery should restart the tasks on the new TaskManager.
  */
 @SuppressWarnings("serial")
-public class TaskManagerFailureRecoveryITCase {
+public class TaskManagerFailureRecoveryITCase extends TestLogger {
 
 	@Test
 	public void testRestartWithFailingTaskManager() {

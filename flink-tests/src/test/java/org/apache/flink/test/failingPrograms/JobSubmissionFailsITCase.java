@@ -30,6 +30,7 @@ import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 
+import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -44,7 +45,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 @RunWith(Parameterized.class)
-public class JobSubmissionFailsITCase {
+public class JobSubmissionFailsITCase extends TestLogger {
 	
 	private static final int NUM_SLOTS = 20;
 	

@@ -55,6 +55,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.Collector;
 
+import org.apache.flink.util.TestLogger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -90,7 +91,7 @@ import static org.junit.Assert.*;
  * that's why exact guarantees about the number of records read are very hard to make. Thus, why we
  * check for an upper bound of the elements read.
  */
-public class AccumulatorLiveITCase {
+public class AccumulatorLiveITCase extends TestLogger {
 
 	private static final Logger LOG = LoggerFactory.getLogger(AccumulatorLiveITCase.class);
 
