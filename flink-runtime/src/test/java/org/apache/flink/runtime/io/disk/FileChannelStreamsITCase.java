@@ -21,6 +21,7 @@ package org.apache.flink.runtime.io.disk;
 import static org.junit.Assert.*;
 
 import org.apache.flink.core.memory.MemoryType;
+import org.apache.flink.util.TestLogger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -40,7 +41,7 @@ import org.apache.flink.runtime.operators.testutils.PairGenerator.ValueMode;
 import java.io.EOFException;
 import java.util.List;
 
-public class FileChannelStreamsITCase {
+public class FileChannelStreamsITCase extends TestLogger {
 	
 	private static final long SEED = 649180756312423613L;
 

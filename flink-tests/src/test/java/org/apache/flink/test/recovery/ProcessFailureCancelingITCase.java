@@ -40,6 +40,7 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.util.NetUtils;
 
+import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import scala.Some;
@@ -66,7 +67,7 @@ import static org.junit.Assert.fail;
  * the task manager went down and did not respond to cancel messages.
  */
 @SuppressWarnings("serial")
-public class ProcessFailureCancelingITCase {
+public class ProcessFailureCancelingITCase extends TestLogger {
 	
 	@Test
 	public void testCancelingOnProcessFailure() {
