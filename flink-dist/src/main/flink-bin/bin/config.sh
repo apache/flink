@@ -311,7 +311,11 @@ INTERNAL_HADOOP_CLASSPATHS="${HADOOP_CLASSPATH}:${HADOOP_CONF_DIR}:${YARN_CONF_D
 
 if [ -n "${HBASE_CONF_DIR}" ]; then
     # Setup the HBase classpath.
-    INTERNAL_HADOOP_CLASSPATHS="${INTERNAL_HADOOP_CLASSPATHS}:`hbase classpath`"
+    HBASE_IN_PATH=$(PATH="${HBASE_HOME}/bin:$PATH" \
+        which hbase 2>/dev/null)
+    if [ -f "${HBASE_IN_PATH}" ]; then
+        INTERNAL_HADOOP_CLASSPATHS="${INTERNAL_HADOOP_CLASSPATHS}:`${HBASE_IN_PATH} classpath`"
+    fi
 
     # We add the HBASE_CONF_DIR last to ensure the right config directory is used.
     INTERNAL_HADOOP_CLASSPATHS="${INTERNAL_HADOOP_CLASSPATHS}:${HBASE_CONF_DIR}"
