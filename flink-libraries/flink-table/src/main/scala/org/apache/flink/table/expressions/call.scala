@@ -17,16 +17,26 @@
  */
 package org.apache.flink.table.expressions
 
-import org.apache.calcite.rex.RexNode
+import java.util
+
+import com.google.common.collect.ImmutableList
+import org.apache.calcite.rex.RexWindowBound._
+import org.apache.calcite.rex.{RexFieldCollation, RexNode, RexWindowBound}
+import org.apache.calcite.sql._
+import org.apache.calcite.sql.`type`.OrdinalReturnTypeInference
+import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.api.{UnresolvedException, ValidationException}
+import org.apache.flink.table.api.{OverWindow, UnresolvedException, ValidationException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.functions.{ScalarFunction, TableFunction}
 import org.apache.flink.table.plan.logical.{LogicalNode, LogicalTableFunctionCall}
 import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
-
+import org.apache.flink.table.typeutils.RowIntervalTypeInfo
+import org.apache.flink.table.api.Types
+import org.apache.flink.table.api.scala.{UNBOUNDED_RANGE, UNBOUNDED_ROW, CURRENT_RANGE, CURRENT_ROW}
+import org.apache.flink.table.functions.{EventTimeExtractor, ProcTimeExtractor}
 /**
   * General expression for unresolved function calls. The function can be a built-in
   * scalar function or a user-defined scalar function.
@@ -46,6 +56,161 @@ case class Call(functionName: String, args: Seq[Expression]) extends Expression 
 
   override private[flink] def validateInput(): ValidationResult =
     ValidationFailure(s"Unresolved function call: $functionName")
+}
+
+/**
+  * Over expression for calcite over transform.
+  *
+  * @param agg             over-agg expression
+  * @param overWindowAlias over window alias
+  * @param overWindow      over window
+  */
+case class OverCall(
+    agg: Aggregation,
+    overWindowAlias: Expression,
+    var overWindow: OverWindow = null) extends Expression {
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+
+    val rexBuilder = relBuilder.getRexBuilder
+
+    val operator: SqlAggFunction = agg.getSqlAggFunction()
+
+    val relDataType = relBuilder
+      .getTypeFactory.asInstanceOf[FlinkTypeFactory]
+      .createTypeFromTypeInfo(agg.resultType)
+
+    val aggExprs: util.ArrayList[RexNode] = new util.ArrayList[RexNode]()
+    val aggChildName = agg.child.asInstanceOf[ResolvedFieldReference].name
+
+    aggExprs.add(relBuilder.field(aggChildName))
+
+    val orderKeys: ImmutableList.Builder[RexFieldCollation] =
+      new ImmutableList.Builder[RexFieldCollation]()
+
+    val sets: util.HashSet[SqlKind] = new util.HashSet[SqlKind]()
+    val orderName = overWindow.orderBy.asInstanceOf[UnresolvedFieldReference].name
+
+    val rexNode =
+      if (orderName.equalsIgnoreCase("rowtime")) {
+        // for stream event-time
+        relBuilder.call(EventTimeExtractor)
+      }
+      else if (orderName.equalsIgnoreCase("proctime")) {
+        // for stream proc-time
+        relBuilder.call(ProcTimeExtractor)
+      } else {
+        // for batch event-time
+        relBuilder.field(orderName)
+      }
+
+    orderKeys.add(new RexFieldCollation(rexNode, sets))
+
+    val partitionKeys: util.ArrayList[RexNode] = new util.ArrayList[RexNode]()
+    overWindow.partitionBy.foreach {
+      x =>
+        val partitionKey = relBuilder.field(x.asInstanceOf[UnresolvedFieldReference].name)
+        if (!FlinkTypeFactory.toTypeInfo(partitionKey.getType).isKeyType) {
+          throw ValidationException(
+            s"expression $partitionKey cannot be used as a partition key expression " +
+            "because it's not a valid key type which must be hashable and comparable")
+        }
+        partitionKeys.add(partitionKey)
+    }
+
+    val preceding = overWindow.preceding.asInstanceOf[Literal]
+    val following = overWindow.following.asInstanceOf[Literal]
+
+    val isPhysical: Boolean = preceding.resultType.isInstanceOf[RowIntervalTypeInfo]
+
+    val lowerBound = createBound(relBuilder, preceding, SqlKind.PRECEDING)
+    val upperBound = createBound(relBuilder, following, SqlKind.FOLLOWING)
+
+    rexBuilder.makeOver(
+      relDataType,
+      operator,
+      aggExprs,
+      partitionKeys,
+      orderKeys.build,
+      lowerBound,
+      upperBound,
+      isPhysical,
+      true,
+      false)
+  }
+
+  private def createBound(
+    relBuilder: RelBuilder,
+    bound: Literal,
+    sqlKind: SqlKind): RexWindowBound = {
+
+    if (bound == UNBOUNDED_RANGE || bound == UNBOUNDED_ROW) {
+      val unbounded = SqlWindow.createUnboundedPreceding(SqlParserPos.ZERO)
+      create(unbounded, null)
+    } else if (bound == CURRENT_RANGE || bound == CURRENT_ROW) {
+      val currentRow = SqlWindow.createCurrentRow(SqlParserPos.ZERO)
+      create(currentRow, null)
+    } else {
+      val returnType = relBuilder
+        .getTypeFactory.asInstanceOf[FlinkTypeFactory]
+        .createTypeFromTypeInfo(Types.DECIMAL)
+
+      val sqlOperator = new SqlPostfixOperator(
+        sqlKind.name,
+        sqlKind,
+        2,
+        new OrdinalReturnTypeInference(0),
+        null,
+        null)
+
+      val operands: Array[SqlNode] = new Array[SqlNode](1)
+      operands(0) = (SqlLiteral.createExactNumeric("1", SqlParserPos.ZERO))
+
+      val node = new SqlBasicCall(sqlOperator, operands, SqlParserPos.ZERO)
+
+      val expressions: util.ArrayList[RexNode] = new util.ArrayList[RexNode]()
+      expressions.add(relBuilder.literal(bound.value))
+
+      val rexNode = relBuilder.getRexBuilder.makeCall(returnType, sqlOperator, expressions)
+
+      create(node, rexNode)
+    }
+  }
+
+  override private[flink] def children: Seq[Expression] = Seq(agg)
+
+  override def toString = s"${this.getClass.getCanonicalName}(${overWindowAlias.toString})"
+
+  override private[flink] def resultType = agg.resultType
+
+  override private[flink] def validateInput(): ValidationResult = {
+    var validationResult: ValidationResult = ValidationSuccess
+    val orderName = overWindow.orderBy.asInstanceOf[UnresolvedFieldReference].name
+    if (!orderName.equalsIgnoreCase("rowtime")
+      && !orderName.equalsIgnoreCase("proctime")) {
+      validationResult = ValidationFailure(
+        s"OrderBy expression must be ['rowtime] or ['proctime], but got ['${orderName}]")
+    }
+
+    if (!overWindow.preceding.asInstanceOf[Literal].resultType.getClass
+         .equals(overWindow.following.asInstanceOf[Literal].resultType.getClass)) {
+      validationResult = ValidationFailure(
+        "Proceeding and the following must be based on same intervals type (time or row-count).")
+    }
+
+    val precedingValue = overWindow.preceding.asInstanceOf[Literal].value.asInstanceOf[Long]
+    if (precedingValue <= 0) {
+      validationResult = ValidationFailure(
+        s"Proceeding value is [${precedingValue}], It should be bigger than 0.")
+    }
+
+    val followingValue = overWindow.following.asInstanceOf[Literal].value.asInstanceOf[Long]
+    if (followingValue < -1) {
+      validationResult = ValidationFailure(
+        s"Following value is [${followingValue}], It should be bigger than -1.")
+    }
+    validationResult
+  }
 }
 
 /**

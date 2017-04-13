@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.logical.Minus
-import org.apache.flink.table.expressions.{Alias, Asc, Call, Expression, ExpressionParser, Ordering, TableFunctionCall, UnresolvedAlias}
+import org.apache.flink.table.expressions.{Alias, Asc, Call, Expression, ExpressionParser, Literal, Ordering, TableFunctionCall, UnresolvedAlias}
 import org.apache.flink.table.plan.ProjectionTranslator._
 import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.sinks.TableSink
@@ -810,6 +810,43 @@ class Table(
     new WindowedTable(this, window)
   }
 
+  /**
+    * Defines over-windows on the records of a table.
+    *
+    * An over-window defines for each record an interval of records over which aggregation
+    * functions can be computed.
+    *
+    * Example:
+    *
+    * {{{
+    *   table
+    *     .window(Over partitionBy 'c orderBy 'rowTime preceding 10.seconds as 'ow)
+    *     .select('c, 'b.count over 'ow, 'e.sum over 'ow)
+    * }}}
+    *
+    * __Note__: Computing over window aggregates on a streaming table is only a parallel operation
+    * if the window is partitioned. Otherwise, the whole stream will be processed by a single
+    * task, i.e., with parallelism 1.
+    *
+    * __Note__: Over-windows for batch tables are currently not supported.
+    *
+    * @param overWindows windows that specify the record interval over which aggregations are
+    *                    computed.
+    * @return An OverWindowedTable to specify the aggregations.
+    */
+  def window(overWindows: OverWindow*): OverWindowedTable = {
+
+    if (tableEnv.isInstanceOf[BatchTableEnvironment]) {
+      throw TableException("Over-windows for batch tables are currently not supported..")
+    }
+
+    if (overWindows.size != 1) {
+      throw TableException("Over-Windows are currently only supported single window.")
+    }
+
+    new OverWindowedTable(this, overWindows.toArray)
+  }
+
   var tableName: String = _
 
   /**
@@ -926,6 +963,29 @@ class WindowedTable(
     groupBy(fieldsExpr: _*)
   }
 
+}
+
+class OverWindowedTable(
+    private[flink] val table: Table,
+    private[flink] val overWindows: Array[OverWindow]) {
+
+  def select(fields: Expression*): Table = {
+    val expandedFields = expandProjectList(
+      fields,
+      table.logicalPlan,
+      table.tableEnv)
+
+    val expandedOverFields = translateOverWindows(expandedFields, overWindows)
+
+    new Table(
+      table.tableEnv,
+      Project(expandedOverFields.map(UnresolvedAlias), table.logicalPlan).validate(table.tableEnv))
+  }
+
+  def select(fields: String): Table = {
+    val fieldExprs = ExpressionParser.parseExpressionList(fields)
+    select(fieldExprs: _*)
+  }
 }
 
 class WindowGroupedTable(

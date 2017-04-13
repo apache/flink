@@ -20,6 +20,143 @@ package org.apache.flink.table.api
 
 import org.apache.flink.table.expressions.{Expression, ExpressionParser}
 import org.apache.flink.table.plan.logical._
+import org.apache.flink.table.typeutils.RowIntervalTypeInfo
+import org.apache.flink.table.api.scala.{CURRENT_RANGE, CURRENT_ROW}
+
+/**
+  * Over window is similar to the traditional OVER SQL.
+  */
+case class OverWindow(
+    alias: Expression,
+    partitionBy: Seq[Expression],
+    orderBy: Expression,
+    preceding: Expression,
+    following: Expression)
+
+/**
+  * An over window predefined  specification.
+  */
+class OverWindowPredefined {
+  private[flink] var partitionBy: Seq[Expression] = Seq[Expression]()
+  private[flink] var orderBy: Expression = _
+  private[flink] var preceding: Expression = _
+  private[flink] var following: Expression = null
+
+  /**
+    * Assigns an alias for this window that the following `select()` clause can refer to.
+    *
+    * @param alias alias for this over window
+    * @return over window
+    */
+  def as(alias: String): OverWindow = as(ExpressionParser.parseExpression(alias))
+
+  /**
+    * Assigns an alias for this window that the following `select()` clause can refer to.
+    *
+    * @param alias alias for this over window
+    * @return over window
+    */
+  def as(alias: Expression): OverWindow = {
+
+    // we want return the complete OverWindow,
+    // so we check the Optional members (`following` and `pratitionBy`) value here
+    if (null == following) {
+      if (preceding.resultType.isInstanceOf[RowIntervalTypeInfo]) {
+        following = CURRENT_ROW
+      } else {
+        following = CURRENT_RANGE
+      }
+    }
+    OverWindow(alias, partitionBy, orderBy, preceding, following)
+  }
+
+  /**
+    * Partitions the elements on some partition keys.
+    *
+    * @param partitionBy
+    * @return this over window
+    */
+  def partitionBy(partitionBy: String): OverWindowPredefined = {
+    this.partitionBy(ExpressionParser.parseExpression(partitionBy))
+  }
+
+  /**
+    * Partitions the elements on some partition keys.
+    *
+    * @param partitionBy
+    * @return this over window
+    */
+  def partitionBy(partitionBy: Expression*): OverWindowPredefined = {
+    this.partitionBy = partitionBy
+    this
+  }
+
+
+  /**
+    * Specifies the time mode.
+    *
+    * @param orderBy For streaming tables call [[orderBy 'rowtime or orderBy 'proctime]]
+    *                to specify time mode.
+    * @return this over window
+    */
+  def orderBy(orderBy: String): OverWindowPredefined = {
+    this.orderBy(ExpressionParser.parseExpression(orderBy))
+  }
+
+  /**
+    * Specifies the time mode.
+    *
+    * @param orderBy For streaming tables call [[orderBy 'rowtime or orderBy 'proctime]]
+    *                to specify time mode.
+    * @return this over window
+    */
+  def orderBy(orderBy: Expression): OverWindowPredefined = {
+    this.orderBy = orderBy
+    this
+  }
+
+  /**
+    * Set the preceding offset (based on time or row-count intervals) for over window
+    *
+    * @param preceding forward offset that relative to the current row
+    * @return this over window
+    */
+  def preceding(preceding: String): OverWindowPredefined = {
+    this.preceding(ExpressionParser.parseExpression(preceding))
+  }
+
+  /**
+    * Set the preceding offset (based on time or row-count intervals) for over window
+    *
+    * @param preceding forward offset that relative to the current row
+    * @return this over window
+    */
+  def preceding(preceding: Expression): OverWindowPredefined = {
+    this.preceding = preceding
+    this
+  }
+
+  /**
+    * Set the following offset (based on time or row-count intervals) for over window
+    *
+    * @param following subsequent offset that relative to the current row
+    * @return this over window
+    */
+  def following(following: String): OverWindowPredefined = {
+    this.following(ExpressionParser.parseExpression(following))
+  }
+
+  /**
+    * Set the following offset (based on time or row-count intervals) for over window
+    *
+    * @param following subsequent offset that relative to the current row
+    * @return this over window
+    */
+  def following(following: Expression): OverWindowPredefined = {
+    this.following = following
+    this
+  }
+}
 
 /**
   * A window specification.

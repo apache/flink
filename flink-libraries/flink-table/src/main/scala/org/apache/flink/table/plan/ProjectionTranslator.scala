@@ -19,7 +19,7 @@
 package org.apache.flink.table.plan
 
 import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.table.api.TableEnvironment
+import org.apache.flink.table.api.{OverWindow, TableEnvironment}
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.plan.logical.{LogicalNode, Project}
 
@@ -220,6 +220,23 @@ object ProjectionTranslator {
     }
     projectList
   }
+
+  def translateOverWindows(
+      exprs: Seq[Expression],
+      overWindows: Array[OverWindow]): Seq[Expression] = {
+    val projectList = new ListBuffer[Expression]
+    exprs.foreach {
+      case Alias(OverCall(agg, alias, _), name, _) =>
+        val overWindow = overWindows.find(_.alias.equals(alias)).get
+        projectList += Alias(OverCall(agg, alias, overWindow), name)
+      case OverCall(agg, alias, _) =>
+        val overWindow = overWindows.find(_.alias.equals(alias)).get
+        projectList += OverCall(agg, alias, overWindow)
+      case e: Expression => projectList += e
+    }
+    projectList
+  }
+
 
   /**
     * Extract all field references from the given expressions.

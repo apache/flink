@@ -19,7 +19,7 @@
 package org.apache.flink.table.api.scala
 
 import org.apache.flink.table.expressions.Expression
-import org.apache.flink.table.api.{SessionWindow, SlideWithSize, TumblingWindow}
+import org.apache.flink.table.api.{SessionWindow, SlideWithSize, TumblingWindow, OverWindowPredefined}
 
 /**
   * Helper object for creating a tumbling window. Tumbling windows are consecutive, non-overlapping
@@ -82,4 +82,50 @@ object Session {
     * @return a session window
     */
   def withGap(gap: Expression): SessionWindow = new SessionWindow(gap)
+}
+
+/**
+  * Helper object for creating a over window.
+  */
+object Over {
+
+  /**
+    * Specifies the time attribute on which rows are grouped.
+    *
+    * For streaming tables call [[orderBy 'rowtime or orderBy 'proctime]] to specify time mode.
+    *
+    * For batch tables, refer to a timestamp or long attribute.
+    */
+  def orderBy(orderBy: Expression): OverWindowPredefined = {
+    val overWindow = new OverWindowPredefined
+    overWindow.orderBy = orderBy
+    overWindow
+  }
+
+  /**
+    * Partitions the elements on some partition keys.
+    *
+    * @param partitionBy some partition keys.
+    * @return A partitionedOver instance that only contains the orderBy method.
+    */
+  def partitionBy(partitionBy: Expression*): PartitionedOver = {
+    PartitionedOver(partitionBy: _*)
+  }
+}
+
+case class PartitionedOver(partitionBy: Expression*) {
+
+  /**
+    * Specifies the time attribute on which rows are grouped.
+    *
+    * For streaming tables call [[orderBy 'rowtime or orderBy 'proctime]] to specify time mode.
+    *
+    * For batch tables, refer to a timestamp or long attribute.
+    */
+  def orderBy(orderBy: Expression): OverWindowPredefined = {
+    val overWindow = new OverWindowPredefined
+    overWindow.orderBy = orderBy
+    overWindow.partitionBy = partitionBy
+    overWindow
+  }
 }

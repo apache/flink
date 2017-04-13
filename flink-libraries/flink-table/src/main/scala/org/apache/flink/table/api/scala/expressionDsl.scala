@@ -17,14 +17,15 @@
  */
 package org.apache.flink.table.api.scala
 
+import java.math.{BigDecimal => JBigDecimal}
 import java.sql.{Date, Time, Timestamp}
 
 import org.apache.calcite.avatica.util.DateTimeUtils._
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.expressions.ExpressionUtils.{convertArray, toMilliInterval, toMonthInterval, toRowInterval}
 import org.apache.flink.table.expressions.TimeIntervalUnit.TimeIntervalUnit
 import org.apache.flink.table.expressions._
-import java.math.{BigDecimal => JBigDecimal}
 
 import scala.language.implicitConversions
 
@@ -364,6 +365,22 @@ trait ImplicitExpressionOperations {
   def position(haystack: Expression) = Position(expr, haystack)
 
   /**
+    * For windowing function to config over window
+    * e.g.:
+    * table
+    *   .window(Over partitionBy 'c orderBy 'rowtime preceding 2.rows following CURRENT_ROW as 'w)
+    *   .select('c, 'a, 'a.count over 'w, 'a.sum over 'w)
+    */
+  def
+  over(alias: Expression) = {
+    expr match {
+      case _: Aggregation => OverCall(expr.asInstanceOf[Aggregation], alias)
+      case _ => throw new TableException(
+        "The over method can only using with aggregation expression.")
+    }
+  }
+
+  /**
     * Replaces a substring of string with a string starting at a position (starting at 1).
     *
     * e.g. "xxxxxtest".overlay("xxxx", 6) leads to "xxxxxxxxx"
@@ -586,6 +603,13 @@ trait ImplicitExpressionOperations {
  * to [[ImplicitExpressionOperations]].
  */
 trait ImplicitExpressionConversions {
+
+  implicit val UNBOUNDED_ROW = toRowInterval(Long.MaxValue)
+  implicit val UNBOUNDED_RANGE = toMilliInterval(1, Long.MaxValue)
+
+  implicit val CURRENT_ROW = toRowInterval(0L)
+  implicit val CURRENT_RANGE = toMilliInterval(-1L, 1)
+
   implicit class WithOperations(e: Expression) extends ImplicitExpressionOperations {
     def expr = e
   }
