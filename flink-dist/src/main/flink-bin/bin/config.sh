@@ -310,11 +310,15 @@ fi
 INTERNAL_HADOOP_CLASSPATHS="${HADOOP_CLASSPATH}:${HADOOP_CONF_DIR}:${YARN_CONF_DIR}"
 
 if [ -n "${HBASE_CONF_DIR}" ]; then
-    # Setup the HBase classpath.
+    # Search hbase command in PATH.
     HBASE_IN_PATH=$(PATH="${HBASE_HOME}/bin:$PATH" \
         which hbase 2>/dev/null)
+    # Whether the hbase command is found.
     if [ -f "${HBASE_IN_PATH}" ]; then
+        # The hbase command is found, then setup the HBase classpath.
         INTERNAL_HADOOP_CLASSPATHS="${INTERNAL_HADOOP_CLASSPATHS}:`${HBASE_IN_PATH} classpath`"
+    else
+        echo "The HBASE_IN_PATH is setted but can't setup HBase classpath. Please verify hbase command exists."
     fi
 
     # We add the HBASE_CONF_DIR last to ensure the right config directory is used.
