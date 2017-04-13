@@ -23,8 +23,7 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.core.TableScan
 import org.apache.calcite.rel.logical.LogicalTableScan
-import org.apache.flink.table.plan.nodes.datastream.
-  {StreamTableSourceScan, DataStreamConvention}
+import org.apache.flink.table.plan.nodes.datastream.{StreamTableSourceScan, DataStreamConvention}
 import org.apache.flink.table.plan.schema.TableSourceTable
 import org.apache.flink.table.sources.StreamTableSource
 
