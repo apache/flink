@@ -51,6 +51,10 @@ class DataStreamOverAggregate(
 
   override def deriveRowType(): RelDataType = rowRelDataType
 
+  override def needsUpdatesAsRetraction = true
+
+  override def consumesRetractions = true
+
   override def copy(traitSet: RelTraitSet, inputs: JList[RelNode]): RelNode = {
     new DataStreamOverAggregate(
       logicWindow,

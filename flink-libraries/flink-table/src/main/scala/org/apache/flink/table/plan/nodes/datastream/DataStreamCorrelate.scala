@@ -36,14 +36,14 @@ import org.apache.flink.types.Row
 class DataStreamCorrelate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
-    inputNode: RelNode,
+    input: RelNode,
     scan: LogicalTableFunctionScan,
     condition: Option[RexNode],
     relRowType: RelDataType,
     joinRowType: RelDataType,
     joinType: SemiJoinType,
     ruleDescription: String)
-  extends SingleRel(cluster, traitSet, inputNode)
+  extends SingleRel(cluster, traitSet, input)
   with CommonCorrelate
   with DataStreamRel {
 
@@ -84,7 +84,7 @@ class DataStreamCorrelate(
     val config = tableEnv.getConfig
 
     // we do not need to specify input type
-    val inputDS = inputNode.asInstanceOf[DataStreamRel].translateToPlan(tableEnv)
+    val inputDS = getInput.asInstanceOf[DataStreamRel].translateToPlan(tableEnv)
 
     val funcRel = scan.asInstanceOf[LogicalTableFunctionScan]
     val rexCall = funcRel.getCall.asInstanceOf[RexCall]

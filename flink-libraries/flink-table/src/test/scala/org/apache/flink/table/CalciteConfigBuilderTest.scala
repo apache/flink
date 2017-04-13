@@ -22,6 +22,7 @@ import org.apache.calcite.rel.rules._
 import org.apache.calcite.sql.fun.{OracleSqlOperatorTable, SqlStdOperatorTable}
 import org.apache.calcite.tools.RuleSets
 import org.apache.flink.table.calcite.{CalciteConfig, CalciteConfigBuilder}
+import org.apache.flink.table.plan.nodes.datastream.DataStreamRetractionRule
 import org.junit.Assert._
 import org.junit.Test
 
@@ -50,7 +51,7 @@ class CalciteConfigBuilderTest {
     val cc: CalciteConfig = new CalciteConfigBuilder()
       .addNormRuleSet(RuleSets.ofList(ReduceExpressionsRule.FILTER_INSTANCE))
       .replaceOptRuleSet(RuleSets.ofList(FilterMergeRule.INSTANCE))
-      .replaceDecoRuleSet(RuleSets.ofList(ReduceExpressionsRule.FILTER_INSTANCE))
+      .replaceDecoRuleSet(RuleSets.ofList(DataStreamRetractionRule.INIT_INSTANCE))
       .build()
 
     assertFalse(cc.replacesNormRuleSet)
@@ -191,62 +192,62 @@ class CalciteConfigBuilderTest {
   def testReplaceDecorationRules(): Unit = {
 
     val cc: CalciteConfig = new CalciteConfigBuilder()
-      .replaceDecoRuleSet(RuleSets.ofList(ReduceExpressionsRule.FILTER_INSTANCE))
+      .replaceDecoRuleSet(RuleSets.ofList(DataStreamRetractionRule.INIT_INSTANCE))
       .build()
 
     assertEquals(true, cc.replacesDecoRuleSet)
     assertTrue(cc.getDecoRuleSet.isDefined)
     val cSet = cc.getDecoRuleSet.get.iterator().asScala.toSet
     assertEquals(1, cSet.size)
-    assertTrue(cSet.contains(ReduceExpressionsRule.FILTER_INSTANCE))
+    assertTrue(cSet.contains(DataStreamRetractionRule.INIT_INSTANCE))
   }
 
   @Test
   def testReplaceDecorationAddRules(): Unit = {
 
     val cc: CalciteConfig = new CalciteConfigBuilder()
-      .replaceDecoRuleSet(RuleSets.ofList(ReduceExpressionsRule.FILTER_INSTANCE))
-      .addDecoRuleSet(RuleSets.ofList(ReduceExpressionsRule.PROJECT_INSTANCE))
+      .replaceDecoRuleSet(RuleSets.ofList(DataStreamRetractionRule.INIT_INSTANCE))
+      .addDecoRuleSet(RuleSets.ofList(DataStreamRetractionRule.NEEDTORETRACT_INSTANCE))
       .build()
 
     assertEquals(true, cc.replacesDecoRuleSet)
     assertTrue(cc.getDecoRuleSet.isDefined)
     val cSet = cc.getDecoRuleSet.get.iterator().asScala.toSet
     assertEquals(2, cSet.size)
-    assertTrue(cSet.contains(ReduceExpressionsRule.FILTER_INSTANCE))
-    assertTrue(cSet.contains(ReduceExpressionsRule.PROJECT_INSTANCE))
+    assertTrue(cSet.contains(DataStreamRetractionRule.INIT_INSTANCE))
+    assertTrue(cSet.contains(DataStreamRetractionRule.NEEDTORETRACT_INSTANCE))
   }
 
   @Test
   def testAddDecorationRules(): Unit = {
 
     val cc: CalciteConfig = new CalciteConfigBuilder()
-      .addDecoRuleSet(RuleSets.ofList(ReduceExpressionsRule.FILTER_INSTANCE))
+      .addDecoRuleSet(RuleSets.ofList(DataStreamRetractionRule.INIT_INSTANCE))
       .build()
 
     assertEquals(false, cc.replacesDecoRuleSet)
     assertTrue(cc.getDecoRuleSet.isDefined)
     val cSet = cc.getDecoRuleSet.get.iterator().asScala.toSet
     assertEquals(1, cSet.size)
-    assertTrue(cSet.contains(ReduceExpressionsRule.FILTER_INSTANCE))
+    assertTrue(cSet.contains(DataStreamRetractionRule.INIT_INSTANCE))
   }
 
   @Test
   def testAddAddDecorationRules(): Unit = {
 
     val cc: CalciteConfig = new CalciteConfigBuilder()
-      .addDecoRuleSet(RuleSets.ofList(ReduceExpressionsRule.FILTER_INSTANCE))
-      .addDecoRuleSet(RuleSets.ofList(ReduceExpressionsRule.PROJECT_INSTANCE,
-                                      ReduceExpressionsRule.CALC_INSTANCE))
+      .addDecoRuleSet(RuleSets.ofList(DataStreamRetractionRule.INIT_INSTANCE))
+      .addDecoRuleSet(RuleSets.ofList(DataStreamRetractionRule.NEEDTORETRACT_INSTANCE,
+                                      DataStreamRetractionRule.ACCMODE_INSTANCE))
       .build()
 
     assertEquals(false, cc.replacesDecoRuleSet)
     assertTrue(cc.getDecoRuleSet.isDefined)
     val cList = cc.getDecoRuleSet.get.iterator().asScala.toList
     assertEquals(3, cList.size)
-    assertEquals(cList.head, ReduceExpressionsRule.FILTER_INSTANCE)
-    assertEquals(cList(1), ReduceExpressionsRule.PROJECT_INSTANCE)
-    assertEquals(cList(2), ReduceExpressionsRule.CALC_INSTANCE)
+    assertEquals(cList.head, DataStreamRetractionRule.INIT_INSTANCE)
+    assertEquals(cList(1), DataStreamRetractionRule.NEEDTORETRACT_INSTANCE)
+    assertEquals(cList(2), DataStreamRetractionRule.ACCMODE_INSTANCE)
   }
 
   @Test
