@@ -89,7 +89,7 @@ public class UntilConditionITCase {
 				UNTIL_CONDITION
 			);
 
-		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+		NFA<Event> nfa = NFACompiler.compile(pattern, false);
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
@@ -135,7 +135,7 @@ public class UntilConditionITCase {
 		}).oneOrMore().allowCombinations().until(UNTIL_CONDITION)
 			.followedBy("end").where(UNTIL_CONDITION);
 
-		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+		NFA<Event> nfa = NFACompiler.compile(pattern, false);
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
@@ -183,7 +183,7 @@ public class UntilConditionITCase {
 				UNTIL_CONDITION
 			);
 
-		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+		NFA<Event> nfa = NFACompiler.compile(pattern, false);
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
@@ -231,7 +231,7 @@ public class UntilConditionITCase {
 				UNTIL_CONDITION
 			);
 
-		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+		NFA<Event> nfa = NFACompiler.compile(pattern, false);
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
@@ -276,7 +276,7 @@ public class UntilConditionITCase {
 				UNTIL_CONDITION
 			);
 
-		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+		NFA<Event> nfa = NFACompiler.compile(pattern, false);
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
@@ -323,7 +323,7 @@ public class UntilConditionITCase {
 		}).oneOrMore().optional().allowCombinations().until(UNTIL_CONDITION)
 			.followedBy("end").where(UNTIL_CONDITION);
 
-		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+		NFA<Event> nfa = NFACompiler.compile(pattern, false);
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
@@ -372,7 +372,7 @@ public class UntilConditionITCase {
 				UNTIL_CONDITION
 			);
 
-		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+		NFA<Event> nfa = NFACompiler.compile(pattern, false);
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
@@ -416,7 +416,7 @@ public class UntilConditionITCase {
 			}
 		}).oneOrMore().until(UNTIL_CONDITION);
 
-		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+		NFA<Event> nfa = NFACompiler.compile(pattern, false);
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
@@ -460,7 +460,7 @@ public class UntilConditionITCase {
 			}
 		}).oneOrMore().optional().until(UNTIL_CONDITION);
 
-		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+		NFA<Event> nfa = NFACompiler.compile(pattern, false);
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
@@ -500,7 +500,7 @@ public class UntilConditionITCase {
 			}
 		}).followedBy("middle").oneOrMore().until(UNTIL_CONDITION);
 
-		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+		NFA<Event> nfa = NFACompiler.compile(pattern, false);
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
@@ -551,7 +551,7 @@ public class UntilConditionITCase {
 			}
 		});
 
-		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+		NFA<Event> nfa = NFACompiler.compile(pattern, false);
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
@@ -602,7 +602,7 @@ public class UntilConditionITCase {
 			}
 		});
 
-		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+		NFA<Event> nfa = NFACompiler.compile(pattern, false);
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 

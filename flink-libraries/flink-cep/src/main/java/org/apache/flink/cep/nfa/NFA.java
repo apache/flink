@@ -31,7 +31,6 @@ import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
-import org.apache.flink.cep.NonDuplicatingTypeSerializer;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.cep.nfa.compiler.NFAStateNameHandler;
 import org.apache.flink.cep.operator.AbstractKeyedCEPPatternOperator;
@@ -48,7 +47,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.io.OptionalDataException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -105,12 +103,6 @@ public class NFA<T> implements Serializable {
 	@Deprecated
 	private int startEventCounter;
 
-	/**
-	 * @deprecated Used only for backwards compatibility.
-	 */
-	@Deprecated
-	private final NonDuplicatingTypeSerializer<T> nonDuplicatingTypeSerializer;
-
 	//////////////////			End of Backwards Compatibility Fields			//////////////////
 
 	/**
@@ -145,23 +137,18 @@ public class NFA<T> implements Serializable {
 	 */
 	private SharedBuffer<String, T> eventSharedBuffer;
 
-	private TypeSerializer<T> eventSerializer;
-
 	/**
 	 * Flag indicating whether the matching status of the state machine has changed.
 	 */
 	private boolean nfaChanged;
 
 	public NFA(
-			final TypeSerializer<T> eventSerializer,
-			final long windowTime,
-			final boolean handleTimeout) {
+		final long windowTime,
+		final boolean handleTimeout) {
 
-		this.eventSerializer = eventSerializer;
-		this.nonDuplicatingTypeSerializer = new NonDuplicatingTypeSerializer<>(eventSerializer);
 		this.windowTime = windowTime;
 		this.handleTimeout = handleTimeout;
-		this.eventSharedBuffer = new SharedBuffer<>(nonDuplicatingTypeSerializer);
+		this.eventSharedBuffer = new SharedBuffer<>();
 		this.computationStates = new LinkedList<>();
 		this.states = new HashSet<>();
 		this.nfaChanged = false;
@@ -341,8 +328,7 @@ public class NFA<T> implements Serializable {
 			@SuppressWarnings("unchecked")
 			NFA<T> other = (NFA<T>) obj;
 
-			return nonDuplicatingTypeSerializer.equals(other.nonDuplicatingTypeSerializer) &&
-				eventSharedBuffer.equals(other.eventSharedBuffer) &&
+			return eventSharedBuffer.equals(other.eventSharedBuffer) &&
 				states.equals(other.states) &&
 				windowTime == other.windowTime;
 		} else {
@@ -352,7 +338,7 @@ public class NFA<T> implements Serializable {
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(nonDuplicatingTypeSerializer, eventSharedBuffer, states, windowTime);
+		return Objects.hash(eventSharedBuffer, states, windowTime);
 	}
 
 	private static <T> boolean isEquivalentState(final State<T> s1, final State<T> s2) {
@@ -672,18 +658,12 @@ public class NFA<T> implements Serializable {
 			return new HashMap<>();
 		}
 
-		// the following is used when migrating from previous versions.
-		if (eventSerializer == null) {
-			eventSerializer = nonDuplicatingTypeSerializer.getTypeSerializer();
-		}
-
 		List<Map<String, List<T>>> paths = eventSharedBuffer.extractPatterns(
-				NFAStateNameHandler.getOriginalNameFromInternal(
-						computationState.getPreviousState().getName()),
-				computationState.getEvent(),
-				computationState.getTimestamp(),
-				computationState.getCounter(),
-				computationState.getVersion());
+			NFAStateNameHandler.getOriginalNameFromInternal(computationState.getPreviousState().getName()),
+			computationState.getEvent(),
+			computationState.getTimestamp(),
+			computationState.getCounter(),
+			computationState.getVersion());
 
 		if (paths.isEmpty()) {
 			return new HashMap<>();
@@ -693,7 +673,7 @@ public class NFA<T> implements Serializable {
 
 		Map<String, List<T>> result = new HashMap<>();
 		Map<String, List<T>> path = paths.get(0);
-		for (String key: path.keySet()) {
+		for (String key : path.keySet()) {
 			List<T> events = path.get(key);
 
 			List<T> values = result.get(key);
@@ -702,59 +682,9 @@ public class NFA<T> implements Serializable {
 				result.put(key, values);
 			}
 
-			for (T event: events) {
-				// copy the element so that the user can change it
-				values.add(eventSerializer.isImmutableType() ? event : eventSerializer.copy(event));
-			}
+			values.addAll(events);
 		}
 		return result;
-	}
-
-	//////////////////////			Fault-Tolerance			//////////////////////
-
-	private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
-		ois.defaultReadObject();
-
-		int numberComputationStates = ois.readInt();
-
-		computationStates = new LinkedList<>();
-
-		final List<ComputationState<T>> readComputationStates = new ArrayList<>(numberComputationStates);
-
-		for (int i = 0; i < numberComputationStates; i++) {
-			ComputationState<T> computationState = readComputationState(ois);
-			readComputationStates.add(computationState);
-		}
-
-		this.computationStates.addAll(readComputationStates);
-		nonDuplicatingTypeSerializer.clearReferences();
-	}
-
-	@SuppressWarnings("unchecked")
-	private ComputationState<T> readComputationState(ObjectInputStream ois) throws IOException, ClassNotFoundException {
-		final State<T> state = (State<T>) ois.readObject();
-		State<T> previousState;
-		try {
-			previousState = (State<T>) ois.readObject();
-		} catch (OptionalDataException e) {
-			previousState = null;
-		}
-
-		final long timestamp = ois.readLong();
-		final DeweyNumber version = (DeweyNumber) ois.readObject();
-		final long startTimestamp = ois.readLong();
-
-		final boolean hasEvent = ois.readBoolean();
-		final T event;
-
-		if (hasEvent) {
-			DataInputViewStreamWrapper input = new DataInputViewStreamWrapper(ois);
-			event = nonDuplicatingTypeSerializer.deserialize(input);
-		} else {
-			event = null;
-		}
-
-		return ComputationState.createState(this, state, previousState, event, 0, timestamp, version, startTimestamp);
 	}
 
 	//////////////////////			New Serialization			//////////////////////
@@ -894,7 +824,7 @@ public class NFA<T> implements Serializable {
 			long windowTime = source.readLong();
 			boolean handleTimeout = source.readBoolean();
 
-			NFA<T> nfa = new NFA<>(eventSerializer, windowTime, handleTimeout);
+			NFA<T> nfa = new NFA<>(windowTime, handleTimeout);
 			nfa.states = states;
 
 			nfa.eventSharedBuffer = sharedBufferSerializer.deserialize(source);

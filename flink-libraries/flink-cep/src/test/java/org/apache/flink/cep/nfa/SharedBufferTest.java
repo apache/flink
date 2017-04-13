@@ -47,7 +47,7 @@ public class SharedBufferTest extends TestLogger {
 
 	@Test
 	public void testSharedBuffer() {
-		SharedBuffer<String, Event> sharedBuffer = new SharedBuffer<>(Event.createTypeSerializer());
+		SharedBuffer<String, Event> sharedBuffer = new SharedBuffer<>();
 		int numberEvents = 8;
 		Event[] events = new Event[numberEvents];
 		final long timestamp = 1L;
@@ -130,7 +130,7 @@ public class SharedBufferTest extends TestLogger {
 
 	@Test
 	public void testSharedBufferSerialization() throws IOException, ClassNotFoundException {
-		SharedBuffer<String, Event> sharedBuffer = new SharedBuffer<>(Event.createTypeSerializer());
+		SharedBuffer<String, Event> sharedBuffer = new SharedBuffer<>();
 		int numberEvents = 8;
 		Event[] events = new Event[numberEvents];
 		final long timestamp = 1L;
@@ -166,7 +166,7 @@ public class SharedBufferTest extends TestLogger {
 
 	@Test
 	public void testClearingSharedBufferWithMultipleEdgesBetweenEntries() {
-		SharedBuffer<String, Event> sharedBuffer = new SharedBuffer<>(Event.createTypeSerializer());
+		SharedBuffer<String, Event> sharedBuffer = new SharedBuffer<>();
 		int numberEvents = 8;
 		Event[] events = new Event[numberEvents];
 		final long timestamp = 1L;
