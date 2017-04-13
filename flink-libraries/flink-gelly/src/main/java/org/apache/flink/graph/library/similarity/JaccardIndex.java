@@ -78,7 +78,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 
 	private int maximumScoreNumerator = 1;
 
-	private int maximumScoreDenominator = 0;
+	private int maximumScoreDenominator = 1;
 
 	private int littleParallelism = PARALLELISM_DEFAULT;
 
@@ -121,7 +121,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	}
 
 	/**
-	 * Filter out Jaccard Index scores greater than or equal to the given maximum fraction.
+	 * Filter out Jaccard Index scores greater than the given maximum fraction.
 	 *
 	 * @param numerator numerator of the maximum score
 	 * @param denominator denominator of the maximum score
@@ -253,6 +253,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 * number of groups and {@link GenerateGroups} emits each edge into each group.
 	 *
 	 * @param <T> ID type
+	 * @param <ET> edge value type
 	 */
 	@ForwardedFields("0->1; 1->2")
 	private static class GenerateGroupSpans<T, ET>
@@ -439,7 +440,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 
 			if (unboundedScores ||
 					(count * minimumScoreDenominator >= distinctNeighbors * minimumScoreNumerator
-						&& count * maximumScoreDenominator < distinctNeighbors * maximumScoreNumerator)) {
+						&& count * maximumScoreDenominator <= distinctNeighbors * maximumScoreNumerator)) {
 				output.f0 = edge.f0;
 				output.f1 = edge.f1;
 				output.f2.setValue(count);
