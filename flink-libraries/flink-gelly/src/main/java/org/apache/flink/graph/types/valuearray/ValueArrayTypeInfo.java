@@ -30,6 +30,7 @@ import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.types.Value;
+import org.apache.flink.util.Preconditions;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -54,7 +55,7 @@ public class ValueArrayTypeInfo<T> extends TypeInformation<ValueArray<T>> implem
 
 	public ValueArrayTypeInfo(TypeInformation<T> valueType) {
 		this.valueType = valueType;
-		this.type = valueType.getTypeClass();
+		this.type = valueType == null ? null : valueType.getTypeClass();
 	}
 
 	@Override
@@ -85,12 +86,16 @@ public class ValueArrayTypeInfo<T> extends TypeInformation<ValueArray<T>> implem
 
 	@Override
 	public boolean isKeyType() {
+		Preconditions.checkNotNull(type, "TypeInformation type class is required");
+
 		return Comparable.class.isAssignableFrom(type);
 	}
 
 	@Override
 	@SuppressWarnings("unchecked")
 	public TypeSerializer<ValueArray<T>> createSerializer(ExecutionConfig executionConfig) {
+		Preconditions.checkNotNull(type, "TypeInformation type class is required");
+
 		if (IntValue.class.isAssignableFrom(type)) {
 			return (TypeSerializer<ValueArray<T>>) (TypeSerializer<?>) new IntValueArraySerializer();
 		} else if (LongValue.class.isAssignableFrom(type)) {
@@ -107,6 +112,8 @@ public class ValueArrayTypeInfo<T> extends TypeInformation<ValueArray<T>> implem
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Override
 	public TypeComparator<ValueArray<T>> createComparator(boolean sortOrderAscending, ExecutionConfig executionConfig) {
+		Preconditions.checkNotNull(type, "TypeInformation type class is required");
+
 		if (IntValue.class.isAssignableFrom(type)) {
 			return (TypeComparator<ValueArray<T>>) (TypeComparator<?>) new IntValueArrayComparator(sortOrderAscending);
 		} else if (LongValue.class.isAssignableFrom(type)) {
@@ -131,6 +138,8 @@ public class ValueArrayTypeInfo<T> extends TypeInformation<ValueArray<T>> implem
 
 	@Override
 	public int hashCode() {
+		Preconditions.checkNotNull(type, "TypeInformation type class is required");
+
 		return type.hashCode();
 	}
 
@@ -154,6 +163,8 @@ public class ValueArrayTypeInfo<T> extends TypeInformation<ValueArray<T>> implem
 
 	@Override
 	public String toString() {
+		Preconditions.checkNotNull(type, "TypeInformation type class is required");
+
 		return "ValueArrayType<" + type.getSimpleName() + ">";
 	}
 }

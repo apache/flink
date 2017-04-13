@@ -96,6 +96,9 @@ implements Input<K, NullValue, NullValue> {
 		.setMinimumValue(0.0, true)
 		.setMaximumValue(2.0, true);
 
+	private LongParameter seed = new LongParameter(this, "seed")
+		.setDefaultValue(JDKRandomGeneratorFactory.DEFAULT_SEED);
+
 	private Simplify simplify = new Simplify(this);
 
 	private LongParameter littleParallelism = new LongParameter(this, "little_parallelism")

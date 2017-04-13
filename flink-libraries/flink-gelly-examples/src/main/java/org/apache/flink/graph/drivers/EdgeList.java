@@ -82,10 +82,7 @@ implements Driver<K, VV, EV>, CSV, Hash, Print {
 
 	@Override
 	public void print(String executionName) throws Exception {
-		Collect<Edge<K, EV>> collector = new Collect<>();
-
-		// Refactored due to openjdk7 compile error: https://travis-ci.org/greghogan/flink/builds/200487761
-		List<Edge<K, EV>> records = collector.run(edges).execute(executionName);
+		List<Edge<K, EV>> records = new Collect<Edge<K, EV>>().run(edges).execute(executionName);
 
 		if (hasNullValueEdges(edges)) {
 			for (Edge<K, EV> result : records) {

@@ -20,6 +20,7 @@ package org.apache.flink.graph.drivers;
 
 import org.apache.commons.lang3.text.StrBuilder;
 import org.apache.commons.lang3.text.WordUtils;
+import org.apache.flink.api.java.DataSet;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.GraphAnalytic;
 import org.apache.flink.graph.asm.result.PrintableResult;
@@ -42,8 +43,8 @@ import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
  * @see org.apache.flink.graph.library.clustering.undirected.TriadicCensus
  */
 public class TriangleListing<K extends Comparable<K> & CopyableValue<K>, VV, EV>
-extends SimpleDriver<PrintableResult>
-implements Driver<K, VV, EV>, CSV, Hash, Print {
+extends SimpleDriver<K, VV, EV, PrintableResult>
+implements CSV, Hash, Print {
 
 	private static final String DIRECTED = "directed";
 
@@ -83,35 +84,40 @@ implements Driver<K, VV, EV>, CSV, Hash, Print {
 	}
 
 	@Override
-	public void plan(Graph<K, VV, EV> graph) throws Exception {
+	protected DataSet<PrintableResult> simplePlan(Graph<K, VV, EV> graph) throws Exception {
 		int lp = littleParallelism.getValue().intValue();
 
 		switch (order.getValue()) {
 			case DIRECTED:
-				result = graph
-					.run(new org.apache.flink.graph.library.clustering.directed.TriangleListing<K, VV, EV>()
-						.setSortTriangleVertices(sortTriangleVertices.getValue())
-						.setLittleParallelism(lp));
-
 				if (computeTriadicCensus.getValue()) {
 					triadicCensus = graph
 						.run(new org.apache.flink.graph.library.clustering.directed.TriadicCensus<K, VV, EV>()
 							.setLittleParallelism(lp));
 				}
-				break;
 
-			case UNDIRECTED:
-				result = graph
-					.run(new org.apache.flink.graph.library.clustering.undirected.TriangleListing<K, VV, EV>()
+				@SuppressWarnings("unchecked")
+				DataSet<PrintableResult> directedResult = (DataSet<PrintableResult>) (DataSet<?>) graph
+					.run(new org.apache.flink.graph.library.clustering.directed.TriangleListing<K, VV, EV>()
 						.setSortTriangleVertices(sortTriangleVertices.getValue())
 						.setLittleParallelism(lp));
+				return directedResult;
 
+			case UNDIRECTED:
 				if (computeTriadicCensus.getValue()) {
 					triadicCensus = graph
 						.run(new org.apache.flink.graph.library.clustering.undirected.TriadicCensus<K, VV, EV>()
 							.setLittleParallelism(lp));
 				}
-				break;
+
+				@SuppressWarnings("unchecked")
+				DataSet<PrintableResult> undirectedResult = (DataSet<PrintableResult>) (DataSet<?>) graph
+					.run(new org.apache.flink.graph.library.clustering.undirected.TriangleListing<K, VV, EV>()
+						.setSortTriangleVertices(sortTriangleVertices.getValue())
+						.setLittleParallelism(lp));
+				return undirectedResult;
+
+			default:
+				throw new RuntimeException("Unknown order: " + order);
 		}
 	}
 
