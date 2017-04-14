@@ -222,7 +222,7 @@ public class BucketingSink<T>
 	/**
 	 * The default prefix for part files.
 	 */
-	private final String DEFAULT_PART_REFIX = "part";
+	private final String DEFAULT_PART_PREFIX = "part";
 
 	/**
 	 * The default timeout for asynchronous operations such as recoverLease and truncate (in {@code ms}).
@@ -260,7 +260,7 @@ public class BucketingSink<T>
 	private String validLengthSuffix = DEFAULT_VALID_SUFFIX;
 	private String validLengthPrefix= DEFAULT_VALID_PREFIX;
 
-	private String partPrefix = DEFAULT_PART_REFIX;
+	private String partPrefix = DEFAULT_PART_PREFIX;
 
 	/**
 	 * The timeout for asynchronous operations such as recoverLease and truncate (in {@code ms}).
