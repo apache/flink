@@ -318,7 +318,7 @@ if [ -n "${HBASE_CONF_DIR}" ]; then
         # The hbase command is found, then setup the HBase classpath.
         INTERNAL_HADOOP_CLASSPATHS="${INTERNAL_HADOOP_CLASSPATHS}:`${HBASE_IN_PATH} classpath`"
     else
-        echo "The HBASE_IN_PATH is setted but can't setup HBase classpath. Please verify hbase command exists."
+        echo "HBASE_CONF_DIR="${HBASE_CONF_DIR}" is set but 'hbase' command was not found in "${PATH}", so classpath could not be updated."
     fi
 
     # We add the HBASE_CONF_DIR last to ensure the right config directory is used.
