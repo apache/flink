@@ -49,9 +49,20 @@ class InITCase(configMode: TableConfigMode)
     val sqlQuery = "SELECT a, c FROM T1 WHERE b IN (SELECT b FROM T1 WHERE b = 6 OR b = 1)";
     val result = tEnv.sql(sqlQuery).toDataSet[Row].collect();
     compareResultAsText(result.asJava, expected)
-    tEnv.unregisterTable("T1")
   }
 
+  @Test
+  def testSqlNotInOperator(): Unit = {
+    val ds1 = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
+    tEnv.registerTable("T2", ds1)
+    val expected = "10,Comment#4\n11,Comment#5\n12,Comment#6\n" +
+      "13,Comment#7\n14,Comment#8\n15,Comment#9\n" +
+      "2,Hello\n3,Hello world\n4,Hello world, how are you?\n5,I am fine.\n" +
+      "6,Luke Skywalker\n7,Comment#1\n8,Comment#2\n9,Comment#3\n"
+    val sqlQuery = "SELECT a, c FROM T2 WHERE b NOT IN (SELECT b FROM T2 WHERE b = 6 OR b = 1)";
+    val result = tEnv.sql(sqlQuery).toDataSet[Row].collect();
+    compareResultAsText(result.asJava, expected)
+  }
 
   @Test
   def testSqlInOperatorWithDate(): Unit = {
@@ -63,7 +74,6 @@ class InITCase(configMode: TableConfigMode)
     val sqlQuery = "SELECT a, e FROM T3 WHERE b IN (SELECT b FROM T3 WHERE a = 16)";
     val result = tEnv.sql(sqlQuery).toDataSet[Row].collect();
     compareResultAsText(result.asJava, expected)
-    tEnv.unregisterTable("T3")
   }
 
   @Test
@@ -75,7 +85,6 @@ class InITCase(configMode: TableConfigMode)
     val sqlQuery = "SELECT a, e FROM T4 WHERE c IN (SELECT c FROM T4 WHERE a = 16)";
     val result = tEnv.sql(sqlQuery).toDataSet[Row].collect();
     compareResultAsText(result.asJava, expected)
-    tEnv.unregisterTable("T4")
   }
 
   @Test
@@ -87,7 +96,6 @@ class InITCase(configMode: TableConfigMode)
     val sqlQuery = "SELECT a, e FROM T5 WHERE d IN (SELECT d FROM T5 WHERE a = 16)";
     val result = tEnv.sql(sqlQuery).toDataSet[Row].collect();
     compareResultAsText(result.asJava, expected)
-    tEnv.unregisterTable("T5")
   }
 
   @Test
@@ -100,7 +108,6 @@ class InITCase(configMode: TableConfigMode)
     val sqlQuery = "SELECT a, b, c, d, e FROM T6 WHERE a IN (c, b, 5)";
     val result = tEnv.sql(sqlQuery).toDataSet[Row].collect();
     compareResultAsText(result.asJava, expected)
-    tEnv.unregisterTable("T6")
   }
 
   @Test
@@ -111,7 +118,6 @@ class InITCase(configMode: TableConfigMode)
     val sqlQuery = "SELECT a, b, c FROM T7 WHERE c IN (a)";
     val result = tEnv.sql(sqlQuery).toDataSet[Row].collect();
     compareResultAsText(result.asJava, expected)
-    tEnv.unregisterTable("T7")
   }
 
   @Test
@@ -146,7 +152,6 @@ class InITCase(configMode: TableConfigMode)
       " as X WHERE d2=true";
     val result = tEnv.sql(sqlQuery).toDataSet[Row].collect();
     compareResultAsText(result.asJava, expected)
-    tEnv.unregisterTable("T8")
   }
 
   @Test
@@ -157,7 +162,6 @@ class InITCase(configMode: TableConfigMode)
     val sqlQuery = "SELECT * FROM (SELECT c IN (a, b, 5) as c2, d FROM T9) as X WHERE c2=true";
     val result = tEnv.sql(sqlQuery).toDataSet[Row].collect();
     compareResultAsText(result.asJava, expected)
-    tEnv.unregisterTable("T9")
   }
 
   @Test
