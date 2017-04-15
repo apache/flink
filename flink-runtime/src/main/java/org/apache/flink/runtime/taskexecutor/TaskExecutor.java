@@ -554,6 +554,24 @@ public class TaskExecutor extends RpcEndpoint<TaskExecutorGateway> {
 		}
 	}
 
+	@RpcMethod
+	public Acknowledge timeoutCheckpoint(ExecutionAttemptID executionAttemptID, long checkpointId, long checkpointTimestamp) throws CheckpointException {
+		log.debug("Notify checkpoint timeout {}@{} for {}.", checkpointId, checkpointTimestamp, executionAttemptID);
+
+		final Task task = taskSlotTable.getTask(executionAttemptID);
+
+		if (task != null) {
+			task.notifyCheckpointTimeout(checkpointId);
+
+			return Acknowledge.get();
+		} else {
+			final String message = "TaskManager received a checkpoint timeout notification for unknown task " + executionAttemptID + '.';
+
+			log.debug(message);
+			throw new CheckpointException(message);
+		}
+	}
+
 	// ----------------------------------------------------------------------
 	// Slot allocation RPCs
 	// ----------------------------------------------------------------------

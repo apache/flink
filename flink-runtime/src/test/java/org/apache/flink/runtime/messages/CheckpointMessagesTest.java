@@ -29,6 +29,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.NotifyCheckpointComplete;
+import org.apache.flink.runtime.messages.checkpoint.NotifyCheckpointTimeout;
 import org.apache.flink.runtime.messages.checkpoint.TriggerCheckpoint;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.StreamStateHandle;
@@ -49,6 +50,9 @@ public class CheckpointMessagesTest {
 		try {
 			NotifyCheckpointComplete cc = new NotifyCheckpointComplete(new JobID(), new ExecutionAttemptID(), 45287698767345L, 467L);
 			testSerializabilityEqualsHashCode(cc);
+
+			NotifyCheckpointTimeout ct = new NotifyCheckpointTimeout(new JobID(), new ExecutionAttemptID(), 23987201839L, 92318L);
+			testSerializabilityEqualsHashCode(ct);
 
 			TriggerCheckpoint tc = new TriggerCheckpoint(new JobID(), new ExecutionAttemptID(), 347652734L, 7576752L, CheckpointOptions.forFullCheckpoint());
 			testSerializabilityEqualsHashCode(tc);

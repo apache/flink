@@ -28,11 +28,8 @@ import java.util.{Collections, UUID}
 import _root_.akka.actor._
 import _root_.akka.pattern.ask
 import _root_.akka.util.Timeout
-
 import grizzled.slf4j.Logger
-
 import org.apache.commons.lang3.exception.ExceptionUtils
-
 import org.apache.flink.configuration._
 import org.apache.flink.core.fs.FileSystem
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
@@ -58,7 +55,7 @@ import org.apache.flink.runtime.messages.RegistrationMessages._
 import org.apache.flink.runtime.messages.StackTraceSampleMessages.{SampleTaskStackTrace, StackTraceSampleMessages, TriggerStackTraceSample}
 import org.apache.flink.runtime.messages.TaskManagerMessages._
 import org.apache.flink.runtime.messages.TaskMessages._
-import org.apache.flink.runtime.messages.checkpoint.{AbstractCheckpointMessage, NotifyCheckpointComplete, TriggerCheckpoint}
+import org.apache.flink.runtime.messages.checkpoint.{AbstractCheckpointMessage, NotifyCheckpointComplete, NotifyCheckpointTimeout, TriggerCheckpoint}
 import org.apache.flink.runtime.messages.{Acknowledge, StackTraceSampleResponse}
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup
 import org.apache.flink.runtime.metrics.util.MetricUtils
@@ -66,7 +63,7 @@ import org.apache.flink.runtime.metrics.{MetricRegistry => FlinkMetricRegistry}
 import org.apache.flink.runtime.process.ProcessReaper
 import org.apache.flink.runtime.security.SecurityUtils
 import org.apache.flink.runtime.security.SecurityUtils.SecurityConfiguration
-import org.apache.flink.runtime.taskexecutor.{TaskManagerServices, TaskManagerServicesConfiguration, TaskManagerConfiguration}
+import org.apache.flink.runtime.taskexecutor.{TaskManagerConfiguration, TaskManagerServices, TaskManagerServicesConfiguration}
 import org.apache.flink.runtime.util._
 import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessageFilter, LogMessages}
 
@@ -525,6 +522,21 @@ class TaskManager(
         } else {
           log.debug(
             s"TaskManager received a checkpoint confirmation for unknown task $taskExecutionId.")
+        }
+
+      case message: NotifyCheckpointTimeout =>
+        val taskExecutionId = message.getTaskExecutionId
+        val checkpointId = message.getCheckpointId
+        val timestamp = message.getTimestamp
+
+        log.debug(s"Receiver TimedOutCheckpoint $checkpointId@$timestamp for $taskExecutionId.")
+
+        val task = runningTasks.get(taskExecutionId)
+        if (task != null) {
+          task.notifyCheckpointTimeout(checkpointId)
+        } else {
+          log.debug(
+            s"TaskManager received a checkpoint timeout for unknown task $taskExecutionId.")
         }
 
       // unknown checkpoint message

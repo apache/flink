@@ -136,6 +136,16 @@ public interface StreamOperator<OUT> extends Serializable {
 	 */
 	void notifyOfCompletedCheckpoint(long checkpointId) throws Exception;
 
+	/**
+	 * Called when the checkpoint with the given ID is timed out by the checkpoint coordinator.
+	 *
+	 * @param checkpointId The ID of the checkpoint that has been timed out.
+	 *
+	 * @throws Exception Exceptions during checkpoint timeout acknowledgement may be forwarded and will cause
+	 *                   the program to fail and enter recovery.
+	 */
+	void notifyOfTimedOutCheckpoint(long checkpointId) throws Exception;
+
 	// ------------------------------------------------------------------------
 	//  miscellaneous
 	// ------------------------------------------------------------------------

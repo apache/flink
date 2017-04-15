@@ -27,6 +27,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.runtime.state.CheckpointListener;
+import org.apache.flink.runtime.state.CheckpointTimeoutListener;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
@@ -187,6 +188,15 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
 
 		if (userFunction instanceof CheckpointListener) {
 			((CheckpointListener) userFunction).notifyCheckpointComplete(checkpointId);
+		}
+	}
+
+	@Override
+	public void notifyOfTimedOutCheckpoint(long checkpointId) throws Exception {
+		super.notifyOfTimedOutCheckpoint(checkpointId);
+
+		if (userFunction instanceof CheckpointTimeoutListener) {
+			((CheckpointTimeoutListener) userFunction).notifyCheckpointTimeout(checkpointId);
 		}
 	}
 

@@ -85,4 +85,13 @@ public interface StatefulTask {
 	 * @throws Exception The notification method may forward its exceptions.
 	 */
 	void notifyCheckpointComplete(long checkpointId) throws Exception;
+
+	/**
+	 * Invoked when a checkpoint has timed out, i.e., when the checkpoint coordinator has
+	 * not received the notification from all participating tasks within the allowed time frame.
+	 *
+	 * @param checkpointId The ID of the checkpoint that is complete..
+	 * @throws Exception The notification method may forward its exceptions.
+	 */
+	void notifyCheckpointTimeout(long checkpointId) throws Exception;
 }

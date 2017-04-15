@@ -1237,6 +1237,44 @@ public class Task implements Runnable, TaskActions {
 		}
 	}
 
+	public void notifyCheckpointTimeout(final long checkpointID) {
+		AbstractInvokable invokable = this.invokable;
+
+		if (executionState == ExecutionState.RUNNING && invokable != null) {
+			if (invokable instanceof StatefulTask) {
+
+				// build a local closure
+				final StatefulTask statefulTask = (StatefulTask) invokable;
+				final String taskName = taskNameWithSubtask;
+
+				Runnable runnable = new Runnable() {
+					@Override
+					public void run() {
+						try {
+							statefulTask.notifyCheckpointTimeout(checkpointID);
+						}
+						catch (Throwable t) {
+							if (getExecutionState() == ExecutionState.RUNNING) {
+								// fail task if checkpoint confirmation failed.
+								failExternally(new RuntimeException(
+									"Error while notifying tasks of checkpoint timeout",
+									t));
+							}
+						}
+					}
+				};
+				executeAsyncCallRunnable(runnable, "Checkpoint Timeout for " + taskName);
+			}
+			else {
+				LOG.error("Task received a checkpoint timeout notification, but is not a checkpoint committing task - {}.",
+					taskNameWithSubtask);
+			}
+		}
+		else {
+			LOG.debug("Ignoring checkpoint timeout notification for non-running task {}.", taskNameWithSubtask);
+		}
+	}
+
 	// ------------------------------------------------------------------------
 
 	/**

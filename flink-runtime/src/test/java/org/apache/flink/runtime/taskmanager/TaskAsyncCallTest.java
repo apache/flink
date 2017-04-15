@@ -262,5 +262,10 @@ public class TaskAsyncCallTest {
 				}
 			}
 		}
+
+		@Override
+		public void notifyCheckpointTimeout(long checkpointId) throws Exception {
+			throw new UnsupportedOperationException("Should not be called");
+		}
 	}
 }

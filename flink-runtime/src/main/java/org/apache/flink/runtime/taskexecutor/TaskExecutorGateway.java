@@ -116,6 +116,17 @@ public interface TaskExecutorGateway extends RpcGateway {
 	Future<Acknowledge> confirmCheckpoint(ExecutionAttemptID executionAttemptID, long checkpointId, long checkpointTimestamp);
 
 	/**
+	 * Notify a given task that a checkpoint has timed out. The checkpoint is identified by the checkpoint ID
+	 * and the checkpoint timestamp.
+	 *
+	 * @param executionAttemptID identifying the task
+	 * @param checkpointId unique id for the checkpoint
+	 * @param checkpointTimestamp is the timestamp when the checkpoint has been initiated
+	 * @return Future acknowledge if the checkpoint time out has been successfully confirmed
+	 */
+	Future<Acknowledge> timeoutCheckpoint(ExecutionAttemptID executionAttemptID, long checkpointId, long checkpointTimestamp);
+
+	/**
 	 * Stop the given task.
 	 *
 	 * @param executionAttemptID identifying the task

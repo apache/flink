@@ -650,6 +650,11 @@ public class JobManagerHARecoveryTest {
 			}
 		}
 
+		@Override
+		public void notifyCheckpointTimeout(long checkpointId) throws Exception {
+
+		}
+
 		public static void initializeStaticHelpers(int numSubtasks) {
 			completedCheckpointsLatch = new CountDownLatch(numSubtasks);
 			recoveredStates = new long[numSubtasks];
