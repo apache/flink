@@ -21,12 +21,12 @@ import java.io._
 
 import org.apache.flink.annotation.Internal
 import org.apache.flink.api.common.InvalidProgramException
+import org.apache.flink.api.scala.utils.LambdaClosureCleaner
 import org.apache.flink.util.InstantiationUtil
 import org.slf4j.LoggerFactory
 
 import scala.collection.mutable.Map
 import scala.collection.mutable.Set
-
 import org.objectweb.asm.{ClassReader, ClassVisitor, MethodVisitor, Type}
 import org.objectweb.asm.Opcodes._
 
@@ -36,7 +36,7 @@ object ClosureCleaner {
   val LOG = LoggerFactory.getLogger(this.getClass)
 
   // Get an ASM class reader for a given class from the JAR that loaded it
-  private def getClassReader(cls: Class[_]): ClassReader = {
+  def getClassReader(cls: Class[_]): ClassReader = {
     // Copy data over, before delegating to ClassReader - else we can run out of open file handles.
     val className = cls.getName.replaceFirst("^.*\\.", "") + ".class"
     val resourceStream = cls.getResourceAsStream(className)
@@ -50,8 +50,9 @@ object ClosureCleaner {
   }
 
   // Check whether a class represents a Scala closure
+  // since scala 2.12 anonymous functions are called Lambda, pre 2.12 anonfun.
   private def isClosure(cls: Class[_]): Boolean = {
-    cls.getName.contains("$anonfun$")
+    cls.getName.contains("$anonfun$") //|| cls.getName.contains("$Lambda$")
   }
 
   // Get a list of the classes of the outer objects of a given closure object, obj;
@@ -110,10 +111,21 @@ object ClosureCleaner {
   }
 
   def clean(func: AnyRef, checkSerializable: Boolean = true) {
+
+    if (!isClosure(func.getClass)) {
+      LambdaClosureCleaner.clean(func)
+      return
+    }
+
+    if (func == null) {
+      return
+    }
+    
     // TODO: cache outerClasses / innerClasses / accessedFields
     val outerClasses = getOuterClasses(func)
     val innerClasses = getInnerClasses(func)
     val outerObjects = getOuterObjects(func)
+    
 
     val accessedFields = Map[Class[_], Set[String]]()
 
@@ -234,6 +246,27 @@ class ReturnStatementFinder extends ClassVisitor(ASM5) {
   override def visitMethod(access: Int, name: String, desc: String,
                            sig: String, exceptions: Array[String]): MethodVisitor = {
     if (name.contains("apply")) {
+      new MethodVisitor(ASM5) {
+        override def visitTypeInsn(op: Int, tp: String) {
+          if (op == NEW && tp.contains("scala/runtime/NonLocalReturnControl")) {
+            throw new InvalidProgramException("Return statements aren't allowed in Flink closures")
+          }
+        }
+      }
+    } else {
+      new MethodVisitor(ASM5) {}
+    }
+  }
+}
+
+private class LambdaReturnStatementFinder(targetMethodName: String) extends ClassVisitor(ASM5) {
+  override def visitMethod(
+                            access: Int,
+                            name: String,
+                            desc: String,
+                            sig: String,
+                            exceptions: Array[String]): MethodVisitor = {
+    if (name == targetMethodName) {
       new MethodVisitor(ASM5) {
         override def visitTypeInsn(op: Int, tp: String) {
           if (op == NEW && tp.contains("scala/runtime/NonLocalReturnControl")) {
