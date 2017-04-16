@@ -5,16 +5,16 @@ import java.lang.reflect.Method
 import org.apache.flink.api.scala.{ClosureCleaner, LambdaReturnStatementFinder}
 import org.slf4j.LoggerFactory
 
- object LambdaClosureCleaner {
+object LambdaClosureCleaner {
 
-  def getSparkClassLoader: ClassLoader = getClass.getClassLoader
+  def getFlinkClassLoader: ClassLoader = getClass.getClassLoader
 
-  def getContextOrSparkClassLoader: ClassLoader =
-    Option(Thread.currentThread().getContextClassLoader).getOrElse(getSparkClassLoader)
+  def getContextOrFlinkClassLoader: ClassLoader =
+    Option(Thread.currentThread().getContextClassLoader).getOrElse(getFlinkClassLoader)
 
   /** Preferred alternative to Class.forName(className) */
   def classForName(className: String): Class[_] = {
-    Class.forName(className, true, getContextOrSparkClassLoader)
+    Class.forName(className, true, getContextOrFlinkClassLoader)
     // scalastyle:on classforname
   }
 

@@ -259,7 +259,8 @@ class ReturnStatementFinder extends ClassVisitor(ASM5) {
   }
 }
 
-private class LambdaReturnStatementFinder(targetMethodName: String) extends ClassVisitor(ASM5) {
+private[flink]
+class LambdaReturnStatementFinder(targetMethodName: String) extends ClassVisitor(ASM5) {
   override def visitMethod(
                             access: Int,
                             name: String,
