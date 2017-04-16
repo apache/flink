@@ -391,6 +391,10 @@ public class JobManager implements ExtendedManagementProtocol, InputSplitProvide
 
 				// master side initialization
 				vertex.initializeOnMaster(userCodeLoader);
+
+				if (vertex.getParallelism() == ExecutionConfig.PARALLELISM_AUTO_MAX) {
+					vertex.setParallelism(numSlots);
+				}
 			}
 
 			// first topologically sort the job vertices to form the basis of creating the execution graph
