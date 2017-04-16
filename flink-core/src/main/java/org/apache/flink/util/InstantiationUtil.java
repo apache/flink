@@ -56,6 +56,20 @@ public final class InstantiationUtil {
 			this.classLoader = classLoader;
 		}
 
+		private static final HashMap<String, Class<?>> primitiveClasses
+				= new HashMap<String, Class<?>>(8, 1.0F);
+		static {
+			primitiveClasses.put("boolean", boolean.class);
+			primitiveClasses.put("byte", byte.class);
+			primitiveClasses.put("char", char.class);
+			primitiveClasses.put("short", short.class);
+			primitiveClasses.put("int", int.class);
+			primitiveClasses.put("long", long.class);
+			primitiveClasses.put("float", float.class);
+			primitiveClasses.put("double", double.class);
+			primitiveClasses.put("void", void.class);
+		}
+
 		@Override
 		protected Class<?> resolveClass(ObjectStreamClass desc) throws IOException, ClassNotFoundException {
 			if (classLoader != null) {
