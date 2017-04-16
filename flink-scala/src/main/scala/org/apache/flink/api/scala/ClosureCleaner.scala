@@ -262,7 +262,7 @@ class FieldAccessFinder(output: Map[Class[_], Set[String]]) extends ClassVisitor
       }
 
       override def visitMethodInsn(op: Int, owner: String, name: String,
-                                   desc: String) {
+                                   desc: String, itf: Boolean) {
         // Check for calls a getter method for a variable in an interpreter wrapper object.
         // This means that the corresponding field will be accessed, so we should save it.
         if (op == INVOKEVIRTUAL && owner.endsWith("$iwC") && !name.endsWith("$outer")) {
@@ -288,7 +288,7 @@ private[flink] class InnerClosureFinder(output: Set[Class[_]]) extends ClassVisi
                            sig: String, exceptions: Array[String]): MethodVisitor = {
     new MethodVisitor(ASM5) {
       override def visitMethodInsn(op: Int, owner: String, name: String,
-                                   desc: String) {
+                                   desc: String, itf: Boolean) {
         val argTypes = Type.getArgumentTypes(desc)
         if (op == INVOKESPECIAL && name == "<init>" && argTypes.nonEmpty
           && argTypes(0).toString.startsWith("L") // is it an object?
