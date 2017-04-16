@@ -161,11 +161,12 @@ public class YarnFlinkApplicationMasterRunner extends AbstractYarnFlinkApplicati
 				// ---- (5) start the web monitor
 				// TODO: add web monitor
 			}
-
-			// wait for resource manager to finish
-			resourceManager.getTerminationFuture().get();
-			// everything started, we can wait until all is done or the process is killed
-			LOG.info("YARN Application Master finished");
+			synchronized (lock) {
+				// wait for resource manager to finish
+				resourceManager.getTerminationFuture().get();
+				// everything started, we can wait until all is done or the process is killed
+				LOG.info("YARN Application Master finished");
+			}
 		}
 		catch (Throwable t) {
 			// make sure that everything whatever ends up in the log
