@@ -84,6 +84,10 @@ under the License.
 					<groupId>org.apache.storm</groupId>
 					<artifactId>storm-core</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>org.apache.curator</groupId>
+					<artifactId>curator-framework</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 
