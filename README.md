@@ -73,6 +73,7 @@ Prerequisites for building Flink:
 * Java 7 or 8
 
 ```
+git config --global http.proxy http://user:pwd@proxyserver.com:port # set network proxy if have
 git clone https://github.com/apache/flink.git
 cd flink
 mvn clean package -DskipTests # this will take up to 10 minutes
