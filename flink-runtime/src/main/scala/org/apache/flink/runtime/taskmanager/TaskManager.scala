@@ -192,9 +192,7 @@ class TaskManager(
     log.info(s"TaskManager has $numberOfSlots task slot(s).")
 
     // log the initial memory utilization
-    if (log.isInfoEnabled) {
-      log.info(MemoryLogger.getMemoryUsageStatsAsString(ManagementFactory.getMemoryMXBean))
-    }
+    log.info(MemoryLogger.getMemoryUsageStatsAsString(ManagementFactory.getMemoryMXBean))
 
     try {
       leaderRetrievalService.start(this)
