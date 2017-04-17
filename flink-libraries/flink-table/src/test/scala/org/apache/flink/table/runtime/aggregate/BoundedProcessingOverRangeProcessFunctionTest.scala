@@ -59,16 +59,16 @@ class BoundedProcessingOverRangeProcessFunctionTest {
         |public class BoundedOverAggregateHelper$33
         |  extends org.apache.flink.table.runtime.aggregate.GeneratedAggregations {
         |
-        |transient org.apache.flink.table.functions.aggfunctions.LongMinWithRetractAggFunction
-        |  fmin = null;
+        |  transient org.apache.flink.table.functions.aggfunctions.LongMinWithRetractAggFunction
+        |    fmin = null;
         |
-        |transient org.apache.flink.table.functions.aggfunctions.LongMaxWithRetractAggFunction
-        |  fmax = null;
+        |  transient org.apache.flink.table.functions.aggfunctions.LongMaxWithRetractAggFunction
+        |    fmax = null;
         |
         |  public BoundedOverAggregateHelper$33() throws Exception {
         |
-        |  fmin = (org.apache.flink.table.functions.aggfunctions.LongMinWithRetractAggFunction)
-        |  org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
+        |    fmin = (org.apache.flink.table.functions.aggfunctions.LongMinWithRetractAggFunction)
+        |    org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
         |    .deserialize("rO0ABXNyAEtvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLmZ1bmN0aW9ucy5hZ2dmdW5jdGlvbn" +
         |    "MuTG9uZ01pbldpdGhSZXRyYWN0QWdnRnVuY3Rpb26oIdX_DaMPxQIAAHhyAEdvcmcuYXBhY2hlLmZsaW5rL" +
         |    "nRhYmxlLmZ1bmN0aW9ucy5hZ2dmdW5jdGlvbnMuTWluV2l0aFJldHJhY3RBZ2dGdW5jdGlvbkDcXxs1apkP" +
@@ -77,8 +77,8 @@ class BoundedProcessingOverRangeProcessFunctionTest {
         |    "5mdW5jdGlvbnMuVXNlckRlZmluZWRGdW5jdGlvbi0B91QxuAyTAgAAeHBzcgAZc2NhbGEubWF0aC5PcmRlc" +
         |    "mluZyRMb25nJOda0iCPo2ukAgAAeHA");
         |
-        |  fmax = (org.apache.flink.table.functions.aggfunctions.LongMaxWithRetractAggFunction)
-        |  org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
+        |    fmax = (org.apache.flink.table.functions.aggfunctions.LongMaxWithRetractAggFunction)
+        |    org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
         |    .deserialize("rO0ABXNyAEtvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLmZ1bmN0aW9ucy5hZ2dmdW5jdGlvbn" +
         |    "MuTG9uZ01heFdpdGhSZXRyYWN0QWdnRnVuY3Rpb25RmsI8azNGXwIAAHhyAEdvcmcuYXBhY2hlLmZsaW5rL" +
         |    "nRhYmxlLmZ1bmN0aW9ucy5hZ2dmdW5jdGlvbnMuTWF4V2l0aFJldHJhY3RBZ2dGdW5jdGlvbu4_w_gPePlO" +
@@ -157,6 +157,13 @@ class BoundedProcessingOverRangeProcessFunctionTest {
         |
         |  public org.apache.flink.types.Row createOutputRow() {
         |    return new org.apache.flink.types.Row(7);
+        |  }
+        |
+        |  //The test won't use this method
+        |  public org.apache.flink.types.Row mergeAccumulatorsPair(
+        |    org.apache.flink.types.Row a,
+        |    org.apache.flink.types.Row b) {
+        |    return null;
         |  }
         |}
       """.stripMargin

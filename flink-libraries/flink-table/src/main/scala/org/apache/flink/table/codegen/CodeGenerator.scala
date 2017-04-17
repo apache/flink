@@ -266,7 +266,7 @@ class CodeGenerator(
      outputArity: Int)
   : GeneratedAggregationsFunction = {
 
-    def generateSetAggregationResults(
+    def genSetAggregationResults(
       accTypes: Array[String],
       aggs: Array[String],
       aggMapping: Array[Int]): String = {
@@ -293,7 +293,7 @@ class CodeGenerator(
          |  }""".stripMargin
     }
 
-    def generateAccumulate(
+    def genAccumulate(
      accTypes: Array[String],
      aggs: Array[String],
      parameters: Array[String]): String = {
@@ -317,7 +317,7 @@ class CodeGenerator(
          |  }""".stripMargin
     }
 
-    def generateRetract(
+    def genRetract(
       accTypes: Array[String],
       aggs: Array[String],
       parameters: Array[String]): String = {
@@ -341,7 +341,7 @@ class CodeGenerator(
          |  }""".stripMargin
     }
 
-    def generateCreateAccumulators(
+    def genCreateAccumulators(
         aggs: Array[String]): String = {
 
       val sig: String =
@@ -373,7 +373,7 @@ class CodeGenerator(
          |  }""".stripMargin
     }
 
-    def generateSetForwardedFields(
+    def genSetForwardedFields(
         forwardMapping: Array[(Int, Int)]): String = {
 
       val sig: String =
@@ -396,11 +396,66 @@ class CodeGenerator(
          |  }""".stripMargin
     }
 
-    def generateCreateOutputRow(outputArity: Int): String = {
+    def genCreateOutputRow(outputArity: Int): String = {
       j"""
          |  public org.apache.flink.types.Row createOutputRow() {
          |    return new org.apache.flink.types.Row($outputArity);
          |  }""".stripMargin
+    }
+
+    def genMergeAccumulatorsPair(
+        accTypes: Array[String],
+        aggs: Array[String]): String = {
+
+      val sig: String =
+        j"""
+           |  public org.apache.flink.types.Row mergeAccumulatorsPair(
+           |    org.apache.flink.types.Row a,
+           |    org.apache.flink.types.Row b)
+           """.stripMargin
+      val merge: String = {
+        for (i <- aggs.indices) yield
+          j"""
+             |    ${accTypes(i)} aAcc$i = (${accTypes(i)}) a.getField($i);
+             |    ${accTypes(i)} bAcc$i = (${accTypes(i)}) b.getField($i);
+             |    accList$i.set(0, aAcc$i);
+             |    accList$i.set(1, bAcc$i);
+             |    a.setField(
+             |      $i,
+             |      ${aggs(i)}.merge(accList$i));
+             """.stripMargin
+      }.mkString("\n")
+      val ret: String =
+        j"""
+           |      return a;
+           """.stripMargin
+
+      j"""$sig {
+         |$merge
+         |$ret
+         |  }""".stripMargin
+    }
+
+    def genMergeList(accTypes: Array[String]): String = {
+      {
+        for (i <- accTypes.indices) yield
+          j"""
+             |    java.util.ArrayList<${accTypes(i)}> accList$i;
+             """.stripMargin
+      }.mkString("\n")
+    }
+
+    def initMergeList(
+        accTypes: Array[String],
+        aggs: Array[String]): String = {
+      {
+        for (i <- accTypes.indices) yield
+          j"""
+             |    accList$i = new java.util.ArrayList<${accTypes(i)}>();
+             |    accList$i.add(${aggs(i)}.createAccumulator());
+             |    accList$i.add(${aggs(i)}.createAccumulator());
+             """.stripMargin
+      }.mkString("\n")
     }
 
     // get unique function name
@@ -428,19 +483,22 @@ class CodeGenerator(
          |  extends org.apache.flink.table.runtime.aggregate.GeneratedAggregations {
          |
          |  ${reuseMemberCode()}
+         |  ${genMergeList(accTypes)}
          |  public $funcName() throws Exception {
          |    ${reuseInitCode()}
+         |    ${initMergeList(accTypes, aggs)}
          |  }
          |  ${reuseConstructorCode(funcName)}
          |
          """.stripMargin
 
-    funcCode += generateSetAggregationResults(accTypes, aggs, aggMapping) + "\n"
-    funcCode += generateAccumulate(accTypes, aggs, parameters) + "\n"
-    funcCode += generateRetract(accTypes, aggs, parameters) + "\n"
-    funcCode += generateCreateAccumulators(aggs) + "\n"
-    funcCode += generateSetForwardedFields(fwdMapping) + "\n"
-    funcCode += generateCreateOutputRow(outputArity) + "\n"
+    funcCode += genSetAggregationResults(accTypes, aggs, aggMapping) + "\n"
+    funcCode += genAccumulate(accTypes, aggs, parameters) + "\n"
+    funcCode += genRetract(accTypes, aggs, parameters) + "\n"
+    funcCode += genCreateAccumulators(aggs) + "\n"
+    funcCode += genSetForwardedFields(fwdMapping) + "\n"
+    funcCode += genCreateOutputRow(outputArity) + "\n"
+    funcCode += genMergeAccumulatorsPair(accTypes, aggs) + "\n"
     funcCode += "}"
 
     GeneratedAggregationsFunction(funcName, funcCode)

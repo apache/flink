@@ -75,4 +75,13 @@ abstract class GeneratedAggregations extends Function {
     */
   def createOutputRow(): Row
 
+  /**
+    * merge two rows of accumulators into one row
+    *
+    * @param a one input row
+    * @param b the other input row
+    * @return a row of accumulators which contains the merged aggregated results
+    */
+  def mergeAccumulatorsPair(a: Row, b: Row): Row
+
 }
