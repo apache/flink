@@ -803,7 +803,7 @@ object AggregateUtil {
       aggregates,
       aggFields,
       aggMapping,
-      forwardMapping,
+      Array(),
       outputArity)
 
     val aggregateMapping = getAggregateMapping(namedAggregates, outputType)

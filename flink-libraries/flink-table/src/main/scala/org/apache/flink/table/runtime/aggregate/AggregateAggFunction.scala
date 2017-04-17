@@ -29,40 +29,50 @@ import org.slf4j.LoggerFactory
   *
   * @param genAggregations Generated aggregate helper function
   */
-class AggregateAggFunction(
-    genAggregations: GeneratedAggregationsFunction)
-  extends AggregateFunction[Row, Row, Row]
-    with Compiler[GeneratedAggregations] {
+class AggregateAggFunction(genAggregations: GeneratedAggregationsFunction)
+  extends AggregateFunction[Row, Row, Row] with Compiler[GeneratedAggregations] {
 
   val LOG = LoggerFactory.getLogger(this.getClass)
   private var function: GeneratedAggregations = _
 
   override def createAccumulator(): Row = {
     if (function == null) {
-      LOG.debug(s"Compiling AggregateHelper: $genAggregations.name \n\n " +
-                  s"Code:\n$genAggregations.code")
-      val clazz = compile(
-        getClass.getClassLoader,
-        genAggregations.name,
-        genAggregations.code)
-      LOG.debug("Instantiating AggregateHelper.")
-      function = clazz.newInstance()
+      initFunction
     }
-
     function.createAccumulators()
   }
 
   override def add(value: Row, accumulatorRow: Row): Unit = {
+    if (function == null) {
+      initFunction
+    }
     function.accumulate(accumulatorRow, value)
   }
 
   override def getResult(accumulatorRow: Row): Row = {
+    if (function == null) {
+      initFunction
+    }
     val output = function.createOutputRow()
     function.setAggregationResults(accumulatorRow, output)
     output
   }
 
   override def merge(aAccumulatorRow: Row, bAccumulatorRow: Row): Row = {
-    function.mergeTwoRows(aAccumulatorRow, bAccumulatorRow)
+    if (function == null) {
+      initFunction
+    }
+    function.mergeAccumulatorsPair(aAccumulatorRow, bAccumulatorRow)
+  }
+
+  def initFunction(): Unit = {
+    LOG.debug(s"Compiling AggregateHelper: $genAggregations.name \n\n " +
+                s"Code:\n$genAggregations.code")
+    val clazz = compile(
+      getClass.getClassLoader,
+      genAggregations.name,
+      genAggregations.code)
+    LOG.debug("Instantiating AggregateHelper.")
+    function = clazz.newInstance()
   }
 }
