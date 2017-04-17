@@ -22,7 +22,7 @@ import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.api.BackgroundCallback;
 import org.apache.curator.framework.api.CuratorEvent;
 import org.apache.curator.framework.api.CuratorEventType;
-import org.apache.curator.framework.api.Pathable;
+import org.apache.curator.framework.api.ErrorListenerPathable;
 import org.apache.curator.utils.EnsurePath;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.concurrent.Executors;
@@ -127,12 +127,12 @@ public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
 				.delete()
 				.deletingChildrenIfNeeded()
 				.inBackground(any(BackgroundCallback.class), any(Executor.class))
-		).thenAnswer(new Answer<Pathable<Void>>() {
+		).thenAnswer(new Answer<ErrorListenerPathable<Void>>() {
 			@Override
-			public Pathable<Void> answer(InvocationOnMock invocation) throws Throwable {
+			public ErrorListenerPathable<Void> answer(InvocationOnMock invocation) throws Throwable {
 				final BackgroundCallback callback = (BackgroundCallback) invocation.getArguments()[0];
 
-				Pathable<Void> result = mock(Pathable.class);
+				ErrorListenerPathable<Void> result = mock(ErrorListenerPathable.class);
 
 				when(result.forPath(anyString())).thenAnswer(new Answer<Void>() {
 					@Override
