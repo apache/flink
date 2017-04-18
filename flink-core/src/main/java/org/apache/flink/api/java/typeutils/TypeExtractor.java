@@ -1790,6 +1790,19 @@ public class TypeExtractor {
 
 		CompositeType<OUT> pojoType = new PojoTypeInfo<OUT>(clazz, pojoFields);
 
+		//POJO should override hashcode and equals method
+		//in the situation where it used as key for operations.
+		try {
+			clazz.getDeclaredMethod("hashCode");
+		} catch (NoSuchMethodException e) {
+			LOG.info(clazz + " should override hashCode method.");
+		}
+
+		try {
+			clazz.getDeclaredMethod("equals");
+		} catch (NoSuchMethodException e) {
+			LOG.info(clazz + " should override equals method.");
+		}
 		//
 		// Validate the correctness of the pojo.
 		// returning "null" will result create a generic type information.
