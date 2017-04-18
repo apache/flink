@@ -263,7 +263,8 @@ class CodeGenerator(
      aggFields: Array[Array[Int]],
      aggMapping: Array[Int],
      fwdMapping: Array[(Int, Int)],
-     outputArity: Int)
+     outputArity: Int,
+     groupingKeys: Array[Int])
   : GeneratedAggregationsFunction = {
 
     def genSetAggregationResults(
@@ -271,25 +272,47 @@ class CodeGenerator(
       aggs: Array[String],
       aggMapping: Array[Int]): String = {
 
-      val sig: String =
+      val sigHelper: String =
         j"""
-            |  public void setAggregationResults(
-            |    org.apache.flink.types.Row accs,
-            |    org.apache.flink.types.Row output)""".stripMargin
+           |  private final void setAggregationResultsHelper(
+           |    org.apache.flink.types.Row accs,
+           |    org.apache.flink.types.Row output,
+           |    java.lang.Integer offset)""".stripMargin
 
-      val setAggs: String = {
+      val setAggsHelper: String = {
         for (i <- aggs.indices) yield
           j"""
              |    org.apache.flink.table.functions.AggregateFunction baseClass$i =
              |      (org.apache.flink.table.functions.AggregateFunction) ${aggs(i)};
              |
              |    output.setField(
-             |      ${aggMapping(i)},
+             |      ${aggMapping(i)} + offset,
              |      baseClass$i.getValue((${accTypes(i)}) accs.getField($i)));""".stripMargin
       }.mkString("\n")
 
-      j"""$sig {
-         |$setAggs
+      val setAggregationResults: String =
+        j"""
+           |  public void setAggregationResults(
+           |    org.apache.flink.types.Row accs,
+           |    org.apache.flink.types.Row output) {
+           |    setAggregationResultsHelper(accs, output, 0);
+           |  }""".stripMargin
+
+      val setAggregationResultsWithKeyOffset: String =
+        j"""
+           |  public void setAggregationResultsWithKeyOffset(
+           |    org.apache.flink.types.Row accs,
+           |    org.apache.flink.types.Row output) {
+           |    setAggregationResultsHelper(accs, output, ${groupingKeys.length});
+           |  }""".stripMargin
+
+      j"""
+         |$setAggregationResults
+         |
+         |$setAggregationResultsWithKeyOffset
+         |
+         |$sigHelper {
+         |$setAggsHelper
          |  }""".stripMargin
     }
 
@@ -312,8 +335,26 @@ class CodeGenerator(
              |      ${parameters(i)});""".stripMargin
       }.mkString("\n")
 
+      val sigWithKeyOffset: String =
+        j"""
+           |  public void accumulateWithKeyOffset(
+           |    org.apache.flink.types.Row accs,
+           |    org.apache.flink.types.Row input)""".stripMargin
+
+      val accumulateWithKeyOffset: String = {
+        for (i <- aggs.indices) yield
+          j"""
+             |    ${aggs(i)}.accumulate(
+             |      ((${accTypes(i)}) accs.getField(${groupingKeys.length + i})),
+             |      ${parameters(i)});""".stripMargin
+      }.mkString("\n")
+
       j"""$sig {
          |$accumulate
+         |  }
+         |
+         |$sigWithKeyOffset {
+         |$accumulateWithKeyOffset
          |  }""".stripMargin
     }
 
@@ -373,6 +414,27 @@ class CodeGenerator(
          |  }""".stripMargin
     }
 
+    def genCreateAccumulatorsAndSetToOutput(
+        aggs: Array[String]): String = {
+
+      val sig: String =
+        j"""
+           |  public void createAccumulatorsAndSetToOutput(org.apache.flink.types.Row output)
+           |    """.stripMargin
+      val create: String = {
+        for (i <- aggs.indices) yield
+          j"""
+             |    output.setField(
+             |      ${groupingKeys.length + i},
+             |      ${aggs(i)}.createAccumulator());"""
+            .stripMargin
+      }.mkString("\n")
+
+      j"""$sig {
+         |$create
+         |  }""".stripMargin
+    }
+
     def genSetForwardedFields(
         forwardMapping: Array[(Int, Int)]): String = {
 
@@ -396,6 +458,50 @@ class CodeGenerator(
          |  }""".stripMargin
     }
 
+    def genSetKeyToOutput(): String = {
+
+      val sig: String =
+        j"""
+           |  public void setKeyToOutput(
+           |    org.apache.flink.types.Row input,
+           |    org.apache.flink.types.Row output)
+           |    """.stripMargin
+      val setKey: String = {
+        for (i <- groupingKeys.indices) yield
+          j"""
+             |    output.setField(
+             |      $i,
+             |      input.getField(${groupingKeys(i)}));"""
+            .stripMargin
+      }.mkString("\n")
+
+      j"""$sig {
+         |$setKey
+         |  }""".stripMargin
+    }
+
+    def genCopyAccumulatorsToBuffer(): String = {
+
+      val sig: String =
+        j"""
+           |  public void copyAccumulatorsToBuffer(
+           |    org.apache.flink.types.Row accumulators,
+           |    org.apache.flink.types.Row buffer)
+           |    """.stripMargin
+      val copy: String = {
+        for (i <- aggregates.indices) yield
+          j"""
+             |    buffer.setField(
+             |      ${groupingKeys.length + i},
+             |      accumulators.getField($i));"""
+            .stripMargin
+      }.mkString("\n")
+
+      j"""$sig {
+         |$copy
+         |  }""".stripMargin
+    }
+
     def genCreateOutputRow(outputArity: Int): String = {
       j"""
          |  public org.apache.flink.types.Row createOutputRow() {
@@ -407,17 +513,18 @@ class CodeGenerator(
         accTypes: Array[String],
         aggs: Array[String]): String = {
 
-      val sig: String =
+      val sigHelper: String =
         j"""
-           |  public org.apache.flink.types.Row mergeAccumulatorsPair(
+           |  public final org.apache.flink.types.Row mergeAccumulatorsPairHelper(
            |    org.apache.flink.types.Row a,
-           |    org.apache.flink.types.Row b)
+           |    org.apache.flink.types.Row b,
+           |    java.lang.Integer offset)
            """.stripMargin
-      val merge: String = {
+      val mergeHelper: String = {
         for (i <- aggs.indices) yield
           j"""
              |    ${accTypes(i)} aAcc$i = (${accTypes(i)}) a.getField($i);
-             |    ${accTypes(i)} bAcc$i = (${accTypes(i)}) b.getField($i);
+             |    ${accTypes(i)} bAcc$i = (${accTypes(i)}) b.getField($i + offset);
              |    accList$i.set(0, aAcc$i);
              |    accList$i.set(1, bAcc$i);
              |    a.setField(
@@ -425,14 +532,37 @@ class CodeGenerator(
              |      ${aggs(i)}.merge(accList$i));
              """.stripMargin
       }.mkString("\n")
-      val ret: String =
+      val retHelper: String =
         j"""
            |      return a;
            """.stripMargin
 
-      j"""$sig {
-         |$merge
-         |$ret
+      val mergeAccumulatorsPair: String =
+        j"""
+           |  public org.apache.flink.types.Row mergeAccumulatorsPair(
+           |    org.apache.flink.types.Row a,
+           |    org.apache.flink.types.Row b) {
+           |    return mergeAccumulatorsPairHelper(a, b, 0);
+           |  }
+           """.stripMargin
+
+      val mergeAccumulatorsPairWithKeyOffset: String =
+        j"""
+           |  public org.apache.flink.types.Row mergeAccumulatorsPairWithKeyOffset(
+           |    org.apache.flink.types.Row a,
+           |    org.apache.flink.types.Row b) {
+           |    return mergeAccumulatorsPairHelper(a, b, ${groupingKeys.length});
+           |  }
+           """.stripMargin
+
+      j"""
+         |$mergeAccumulatorsPair
+         |
+         |$mergeAccumulatorsPairWithKeyOffset
+         |
+         |$sigHelper {
+         |$mergeHelper
+         |$retHelper
          |  }""".stripMargin
     }
 
@@ -451,11 +581,32 @@ class CodeGenerator(
       {
         for (i <- accTypes.indices) yield
           j"""
-             |    accList$i = new java.util.ArrayList<${accTypes(i)}>(2);
+             |    accList$i = new java.util.ArrayList<${accTypes(i)}>();
              |    accList$i.add(${aggs(i)}.createAccumulator());
              |    accList$i.add(${aggs(i)}.createAccumulator());
              """.stripMargin
       }.mkString("\n")
+    }
+
+    def genResetAccumulator(
+        accTypes: Array[String],
+        aggs: Array[String]): String = {
+
+      val sig: String =
+        j"""
+           |  public void resetAccumulator(
+           |    org.apache.flink.types.Row accs)""".stripMargin
+
+      val reset: String = {
+        for (i <- aggs.indices) yield
+          j"""
+             |    ${aggs(i)}.resetAccumulator(
+             |      ((${accTypes(i)}) accs.getField($i)));""".stripMargin
+      }.mkString("\n")
+
+      j"""$sig {
+         |$reset
+         |  }""".stripMargin
     }
 
     // get unique function name
@@ -496,9 +647,13 @@ class CodeGenerator(
     funcCode += genAccumulate(accTypes, aggs, parameters) + "\n"
     funcCode += genRetract(accTypes, aggs, parameters) + "\n"
     funcCode += genCreateAccumulators(aggs) + "\n"
+    funcCode += genCreateAccumulatorsAndSetToOutput(aggs) + "\n"
     funcCode += genSetForwardedFields(fwdMapping) + "\n"
+    funcCode += genCopyAccumulatorsToBuffer() + "\n"
+    funcCode += genSetKeyToOutput() + "\n"
     funcCode += genCreateOutputRow(outputArity) + "\n"
     funcCode += genMergeAccumulatorsPair(accTypes, aggs) + "\n"
+    funcCode += genResetAccumulator(accTypes, aggs) + "\n"
     funcCode += "}"
 
     GeneratedAggregationsFunction(funcName, funcCode)

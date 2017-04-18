@@ -21,36 +21,40 @@ import java.lang.Iterable
 
 import org.apache.flink.api.common.functions._
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
+import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
 import org.apache.flink.types.Row
-import org.apache.flink.util.{Collector, Preconditions}
+import org.apache.flink.util.Collector
+import org.slf4j.LoggerFactory
 
 /**
   * [[GroupCombineFunction]] and [[MapPartitionFunction]] to compute pre-aggregates for batch
   * (DataSet) queries.
   *
-  * @param aggregates The aggregate functions.
-  * @param aggInFields The positions of the aggregation input fields.
-  * @param groupingKeys The positions of the grouping keys in the input.
+  * @param genAggregations Code-generated [[GeneratedAggregations]]
   */
-class DataSetPreAggFunction(
-    private val aggregates: Array[AggregateFunction[_ <: Any]],
-    private val aggInFields: Array[Array[Int]],
-    private val groupingKeys: Array[Int])
+class DataSetPreAggFunction(genAggregations: GeneratedAggregationsFunction)
   extends AbstractRichFunction
   with GroupCombineFunction[Row, Row]
-  with MapPartitionFunction[Row, Row] {
-
-  Preconditions.checkNotNull(aggregates)
-  Preconditions.checkNotNull(aggInFields)
-  Preconditions.checkNotNull(groupingKeys)
+  with MapPartitionFunction[Row, Row]
+  with Compiler[GeneratedAggregations] {
 
   private var output: Row = _
-  private var accumulators: Array[Accumulator] = _
+  private var accumulators: Row = _
+
+  val LOG = LoggerFactory.getLogger(this.getClass)
+  private var function: GeneratedAggregations = _
 
   override def open(config: Configuration) {
-    accumulators = new Array(aggregates.length)
-    output = new Row(groupingKeys.length + aggregates.length)
+    LOG.debug(s"Compiling AggregateHelper: $genAggregations.name \n\n " +
+                s"Code:\n$genAggregations.code")
+    val clazz = compile(
+      getClass.getClassLoader,
+      genAggregations.name,
+      genAggregations.code)
+    LOG.debug("Instantiating AggregateHelper.")
+    function = clazz.newInstance()
+
+    output = function.createOutputRow()
   }
 
   override def combine(values: Iterable[Row], out: Collector[Row]): Unit = {
@@ -64,11 +68,7 @@ class DataSetPreAggFunction(
   def preaggregate(records: Iterable[Row], out: Collector[Row]): Unit = {
 
     // create accumulators
-    var i = 0
-    while (i < aggregates.length) {
-      accumulators(i) = aggregates(i).createAccumulator()
-      i += 1
-    }
+    accumulators = function.createAccumulators()
 
     val iterator = records.iterator()
 
@@ -76,26 +76,14 @@ class DataSetPreAggFunction(
       val record = iterator.next()
 
       // accumulate
-      i = 0
-      while (i < aggregates.length) {
-        aggregates(i).accumulate(accumulators(i), record.getField(aggInFields(i)(0)))
-        i += 1
-      }
+      function.accumulate(accumulators, record)
+
       // check if this record is the last record
       if (!iterator.hasNext) {
         // set group keys value to output
-        i = 0
-        while (i < groupingKeys.length) {
-          output.setField(i, record.getField(groupingKeys(i)))
-          i += 1
-        }
+        function.setKeyToOutput(record, output)
 
-        // set agg results to output
-        i = 0
-        while (i < accumulators.length) {
-          output.setField(groupingKeys.length + i, accumulators(i))
-          i += 1
-        }
+        function.copyAccumulatorsToBuffer(accumulators, output)
 
         out.collect(output)
       }

@@ -21,44 +21,48 @@ import java.lang.Iterable
 
 import org.apache.flink.api.common.functions.RichGroupReduceFunction
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
+import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
 import org.apache.flink.types.Row
 import org.apache.flink.util.{Collector, Preconditions}
+import org.slf4j.LoggerFactory
 
 /**
   * [[RichGroupReduceFunction]] to compute aggregates that do not support pre-aggregation for batch
   * (DataSet) queries.
   *
-  * @param aggregates The aggregate functions.
-  * @param aggInFields The positions of the aggregation input fields.
+  * @param genAggregations Code-generated [[GeneratedAggregations]]
   * @param gkeyOutMapping The mapping of group keys between input and output positions.
-  * @param aggOutMapping  The mapping of aggregates to output positions.
   * @param groupingSetsMapping The mapping of grouping set keys between input and output positions.
-  * @param finalRowArity The arity of the final resulting row.
   */
 class DataSetAggFunction(
-    private val aggregates: Array[AggregateFunction[_ <: Any]],
-    private val aggInFields: Array[Array[Int]],
-    private val aggOutMapping: Array[(Int, Int)],
+    private val genAggregations: GeneratedAggregationsFunction,
     private val gkeyOutMapping: Array[(Int, Int)],
-    private val groupingSetsMapping: Array[(Int, Int)],
-    private val finalRowArity: Int)
-  extends RichGroupReduceFunction[Row, Row] {
+    private val groupingSetsMapping: Array[(Int, Int)])
+  extends RichGroupReduceFunction[Row, Row]
+    with Compiler[GeneratedAggregations] {
 
-  Preconditions.checkNotNull(aggregates)
-  Preconditions.checkNotNull(aggInFields)
-  Preconditions.checkNotNull(aggOutMapping)
   Preconditions.checkNotNull(gkeyOutMapping)
   Preconditions.checkNotNull(groupingSetsMapping)
 
-  private var output: Row = _
-
   private var intermediateGKeys: Option[Array[Int]] = None
-  private var accumulators: Array[Accumulator] = _
+
+  private var output: Row = _
+  private var accumulators: Row = _
+
+  val LOG = LoggerFactory.getLogger(this.getClass)
+  private var function: GeneratedAggregations = _
 
   override def open(config: Configuration) {
-    accumulators = new Array(aggregates.length)
-    output = new Row(finalRowArity)
+    LOG.debug(s"Compiling AggregateHelper: $genAggregations.name \n\n " +
+                s"Code:\n$genAggregations.code")
+    val clazz = compile(
+      getClass.getClassLoader,
+      genAggregations.name,
+      genAggregations.code)
+    LOG.debug("Instantiating AggregateHelper.")
+    function = clazz.newInstance()
+
+    output = function.createOutputRow()
 
     if (!groupingSetsMapping.isEmpty) {
       intermediateGKeys = Some(gkeyOutMapping.map(_._1))
@@ -68,23 +72,16 @@ class DataSetAggFunction(
   override def reduce(records: Iterable[Row], out: Collector[Row]): Unit = {
 
     // create accumulators
-    var i = 0
-    while (i < aggregates.length) {
-      accumulators(i) = aggregates(i).createAccumulator()
-      i += 1
-    }
+    accumulators = function.createAccumulators()
 
     val iterator = records.iterator()
 
     while (iterator.hasNext) {
       val record = iterator.next()
+      var i = 0
 
       // accumulate
-      i = 0
-      while (i < aggregates.length) {
-        aggregates(i).accumulate(accumulators(i), record.getField(aggInFields(i)(0)))
-        i += 1
-      }
+      function.accumulate(accumulators, record)
 
       // check if this record is the last record
       if (!iterator.hasNext) {
@@ -97,12 +94,7 @@ class DataSetAggFunction(
         }
 
         // set agg results to output
-        i = 0
-        while (i < aggOutMapping.length) {
-          val (out, in) = aggOutMapping(i)
-          output.setField(out, aggregates(in).getValue(accumulators(in)))
-          i += 1
-        }
+        function.setAggregationResults(accumulators, output)
 
         // set grouping set flags to output
         if (intermediateGKeys.isDefined) {

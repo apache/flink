@@ -19,38 +19,37 @@
 package org.apache.flink.table.runtime.aggregate
 
 import java.lang.Iterable
-import java.util.{ArrayList => JArrayList}
 
 import org.apache.flink.api.common.functions.RichGroupReduceFunction
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.table.functions.{Accumulator, AggregateFunction}
+import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
 import org.apache.flink.types.Row
 import org.apache.flink.util.{Collector, Preconditions}
+import org.slf4j.LoggerFactory
 
 /**
   * [[RichGroupReduceFunction]] to compute the final result of a pre-aggregated aggregation
   * for batch (DataSet) queries.
   *
-  * @param aggregates The aggregate functions.
-  * @param aggOutFields The positions of the aggregation results in the output
+  * @param genAggregations Code-generated [[GeneratedAggregations]]
   * @param gkeyOutFields The positions of the grouping keys in the output
   * @param groupingSetsMapping The mapping of grouping set keys between input and output positions.
-  * @param finalRowArity The arity of the final resulting row
   */
 class DataSetFinalAggFunction(
-    private val aggregates: Array[AggregateFunction[_ <: Any]],
-    private val aggOutFields: Array[Int],
+    private val genAggregations: GeneratedAggregationsFunction,
     private val gkeyOutFields: Array[Int],
-    private val groupingSetsMapping: Array[(Int, Int)],
-    private val finalRowArity: Int)
-  extends RichGroupReduceFunction[Row, Row] {
+    private val groupingSetsMapping: Array[(Int, Int)])
+  extends RichGroupReduceFunction[Row, Row]
+    with Compiler[GeneratedAggregations] {
 
-  Preconditions.checkNotNull(aggregates)
-  Preconditions.checkNotNull(aggOutFields)
   Preconditions.checkNotNull(gkeyOutFields)
   Preconditions.checkNotNull(groupingSetsMapping)
 
   private var output: Row = _
+  private var accumulators: Row = _
+
+  val LOG = LoggerFactory.getLogger(this.getClass)
+  private var function: GeneratedAggregations = _
 
   private val intermediateGKeys: Option[Array[Int]] = if (!groupingSetsMapping.isEmpty) {
     Some(gkeyOutFields)
@@ -58,21 +57,18 @@ class DataSetFinalAggFunction(
     None
   }
 
-  private val numAggs = aggregates.length
-  private val numGKeys = gkeyOutFields.length
-
-  private val accumulators: Array[JArrayList[Accumulator]] =
-    Array.fill(numAggs)(new JArrayList[Accumulator](2))
-
   override def open(config: Configuration) {
-    output = new Row(finalRowArity)
+    LOG.debug(s"Compiling AggregateHelper: $genAggregations.name \n\n " +
+                s"Code:\n$genAggregations.code")
+    val clazz = compile(
+      getClass.getClassLoader,
+      genAggregations.name,
+      genAggregations.code)
+    LOG.debug("Instantiating AggregateHelper.")
+    function = clazz.newInstance()
 
-    // init lists with two empty accumulators
-    for (i <- aggregates.indices) {
-      val accumulator = aggregates(i).createAccumulator()
-      accumulators(i).add(accumulator)
-      accumulators(i).add(accumulator)
-    }
+    output = function.createOutputRow()
+    accumulators = function.createAccumulators()
   }
 
   override def reduce(records: Iterable[Row], out: Collector[Row]): Unit = {
@@ -80,27 +76,14 @@ class DataSetFinalAggFunction(
     val iterator = records.iterator()
 
     // reset first accumulator
-    var i = 0
-    while (i < aggregates.length) {
-      aggregates(i).resetAccumulator(accumulators(i).get(0))
-      i += 1
-    }
+    function.resetAccumulator(accumulators)
 
+    var i = 0
     while (iterator.hasNext) {
       val record = iterator.next()
 
       // accumulate
-      i = 0
-      while (i < aggregates.length) {
-        // insert received accumulator into acc list
-        val newAcc = record.getField(numGKeys + i).asInstanceOf[Accumulator]
-        accumulators(i).set(1, newAcc)
-        // merge acc list
-        val retAcc = aggregates(i).merge(accumulators(i))
-        // insert result into acc list
-        accumulators(i).set(0, retAcc)
-        i += 1
-      }
+      function.mergeAccumulatorsPairWithKeyOffset(accumulators, record)
 
       // check if this record is the last record
       if (!iterator.hasNext) {
@@ -112,11 +95,7 @@ class DataSetFinalAggFunction(
         }
 
         // get final aggregate value and set to output.
-        i = 0
-        while (i < aggOutFields.length) {
-          output.setField(aggOutFields(i), aggregates(i).getValue(accumulators(i).get(0)))
-          i += 1
-        }
+        function.setAggregationResults(accumulators, output)
 
         // set grouping set flags to output
         if (intermediateGKeys.isDefined) {

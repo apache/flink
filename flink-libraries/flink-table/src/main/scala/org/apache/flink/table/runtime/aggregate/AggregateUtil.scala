@@ -94,7 +94,8 @@ object AggregateUtil {
       aggFields,
       aggMapping,
       forwardMapping,
-      outputArity
+      outputArity,
+      Array()
     )
 
     if (isRowTimeType) {
@@ -165,7 +166,8 @@ object AggregateUtil {
       aggFields,
       aggMapping,
       forwardMapping,
-      outputArity
+      outputArity,
+      Array()
     )
 
     if (isRowTimeType) {
@@ -225,6 +227,7 @@ object AggregateUtil {
     * NOTE: this function is only used for time based window on batch tables.
     */
   def createDataSetWindowPrepareMapFunction(
+      generator: CodeGenerator,
       window: LogicalWindow,
       namedAggregates: Seq[CalcitePair[AggregateCall, String]],
       groupings: Array[Int],
@@ -272,10 +275,23 @@ object AggregateUtil {
         throw new UnsupportedOperationException(s"$window is currently not supported on batch")
     }
 
-    new DataSetWindowAggMapFunction(
+    val aggMapping = aggregates.indices.toArray
+    val outputArity = aggregates.length + groupings.length + 1
+
+    val genFunction = generator.generateAggregations(
+      "DataSetAggregatePrepareMapHelper",
+      generator,
+      inputType,
       aggregates,
       aggFieldIndexes,
-      groupings,
+      aggMapping,
+      Array(),
+      outputArity,
+      groupings
+    )
+
+    new DataSetWindowAggMapFunction(
+      genFunction,
       timeFieldPos,
       tumbleTimeWindowSize,
       mapReturnType)
@@ -309,6 +325,7 @@ object AggregateUtil {
     * NOTE: this function is only used for sliding windows with partial aggregates on batch tables.
     */
   def createDataSetSlideWindowPrepareGroupReduceFunction(
+      generator: CodeGenerator,
       window: LogicalWindow,
       namedAggregates: Seq[CalcitePair[AggregateCall, String]],
       groupings: Array[Int],
@@ -316,10 +333,10 @@ object AggregateUtil {
       isParserCaseSensitive: Boolean)
     : RichGroupReduceFunction[Row, Row] = {
 
-    val aggregates = transformToAggregateFunctions(
+    val (aggFieldIndexes, aggregates) = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),
       inputType,
-      needRetraction = false)._2
+      needRetraction = false)
 
     val returnType: RowTypeInfo = createDataSetAggregateBufferDataType(
       groupings,
@@ -327,13 +344,26 @@ object AggregateUtil {
       inputType,
       Some(Array(BasicTypeInfo.LONG_TYPE_INFO)))
 
+    val keysAndAggregatesArity = groupings.length + namedAggregates.length
+
+    val genFunction = generator.generateAggregations(
+      "DataSetAggregatePrepareMapHelper",
+      generator,
+      inputType,
+      aggregates,
+      aggFieldIndexes,
+      aggregates.indices.toArray,
+      Array(),
+      keysAndAggregatesArity + 1,
+      groupings
+    )
+
     window match {
       case EventTimeSlidingGroupWindow(_, _, size, slide) if isTimeInterval(size.resultType) =>
         // sliding time-window for partial aggregations
         new DataSetSlideTimeWindowAggReduceGroupFunction(
-          aggregates,
-          groupings.length,
-          returnType.getArity - 1,
+          genFunction,
+          keysAndAggregatesArity,
           asLong(size),
           asLong(slide),
           returnType)
@@ -400,6 +430,7 @@ object AggregateUtil {
     * NOTE: this function is only used for window on batch tables.
     */
   def createDataSetWindowAggregationGroupReduceFunction(
+      generator: CodeGenerator,
       window: LogicalWindow,
       namedAggregates: Seq[CalcitePair[AggregateCall, String]],
       inputType: RelDataType,
@@ -413,6 +444,20 @@ object AggregateUtil {
       namedAggregates.map(_.getKey),
       inputType,
       needRetraction = false)
+
+    val aggMapping = aggregates.indices.toArray
+
+    val genFunction = generator.generateAggregations(
+      "GroupingWindowAggregateHelper",
+      generator,
+      inputType,
+      aggregates,
+      aggFieldIndexes,
+      aggMapping,
+      Array(),
+      outputType.getFieldCount,
+      groupings.indices.toArray
+    )
 
     // the mapping relation between field index of intermediate aggregate Row and output Row.
     val groupingOffsetMapping = getGroupKeysMapping(inputType, outputType, groupings)
@@ -428,6 +473,8 @@ object AggregateUtil {
           "or aggregate functions.")
     }
 
+    val keysAndAggregatesArity = groupings.length + namedAggregates.length
+
     window match {
       case EventTimeTumblingGroupWindow(_, _, size) if isTimeInterval(size.resultType) =>
         // tumbling time window
@@ -435,41 +482,32 @@ object AggregateUtil {
         if (doAllSupportPartialMerge(aggregates)) {
           // for incremental aggregations
           new DataSetTumbleTimeWindowAggReduceCombineFunction(
+            genFunction,
             asLong(size),
             startPos,
             endPos,
-            aggregates,
-            groupingOffsetMapping,
-            aggOffsetMapping,
-            outputType.getFieldCount)
+            keysAndAggregatesArity)
         }
         else {
           // for non-incremental aggregations
           new DataSetTumbleTimeWindowAggReduceGroupFunction(
+            genFunction,
             asLong(size),
             startPos,
             endPos,
-            aggregates,
-            groupingOffsetMapping,
-            aggOffsetMapping,
             outputType.getFieldCount)
         }
       case EventTimeTumblingGroupWindow(_, _, size) =>
         // tumbling count window
         new DataSetTumbleCountWindowAggReduceGroupFunction(
-          asLong(size),
-          aggregates,
-          groupingOffsetMapping,
-          aggOffsetMapping,
-          outputType.getFieldCount)
+          genFunction,
+          asLong(size))
 
       case EventTimeSessionGroupWindow(_, _, gap) =>
         val (startPos, endPos) = computeWindowStartEndPropertyPos(properties)
         new DataSetSessionWindowAggReduceGroupFunction(
-          aggregates,
-          groupingOffsetMapping,
-          aggOffsetMapping,
-          outputType.getFieldCount,
+          genFunction,
+          keysAndAggregatesArity,
           startPos,
           endPos,
           asLong(gap),
@@ -480,10 +518,8 @@ object AggregateUtil {
         if (doAllSupportPartialMerge(aggregates)) {
           // for partial aggregations
           new DataSetSlideWindowAggReduceCombineFunction(
-            aggregates,
-            groupingOffsetMapping,
-            aggOffsetMapping,
-            outputType.getFieldCount,
+            genFunction,
+            keysAndAggregatesArity,
             startPos,
             endPos,
             asLong(size))
@@ -491,10 +527,8 @@ object AggregateUtil {
         else {
           // for non-partial aggregations
           new DataSetSlideWindowAggReduceGroupFunction(
-            aggregates,
-            groupingOffsetMapping,
-            aggOffsetMapping,
-            outputType.getFieldCount,
+            genFunction,
+            keysAndAggregatesArity,
             startPos,
             endPos,
             asLong(size))
@@ -502,10 +536,8 @@ object AggregateUtil {
 
       case EventTimeSlidingGroupWindow(_, _, size, _) =>
         new DataSetSlideWindowAggReduceGroupFunction(
-            aggregates,
-            groupingOffsetMapping,
-            aggOffsetMapping,
-            outputType.getFieldCount,
+            genFunction,
+            keysAndAggregatesArity,
             None,
             None,
             asLong(size))
@@ -537,15 +569,32 @@ object AggregateUtil {
     *
     */
   def createDataSetWindowAggregationMapPartitionFunction(
+    generator: CodeGenerator,
     window: LogicalWindow,
     namedAggregates: Seq[CalcitePair[AggregateCall, String]],
     inputType: RelDataType,
     groupings: Array[Int]): MapPartitionFunction[Row, Row] = {
 
-    val aggregates = transformToAggregateFunctions(
+    val (aggFieldIndexes, aggregates) = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),
       inputType,
-      needRetraction = false)._2
+      needRetraction = false)
+
+    val aggMapping = aggregates.indices.toArray
+
+    val genFunction = generator.generateAggregations(
+      "GroupingWindowAggregateHelper",
+      generator,
+      inputType,
+      aggregates,
+      aggFieldIndexes,
+      aggMapping,
+      Array(),
+      0,
+      groupings.indices.toArray
+    )
+
+    val keysAndAggregatesArity = groupings.length + namedAggregates.length
 
     window match {
       case EventTimeSessionGroupWindow(_, _, gap) =>
@@ -557,8 +606,8 @@ object AggregateUtil {
             Option(Array(BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO)))
 
         new DataSetSessionWindowAggregatePreProcessor(
-          aggregates,
-          groupings,
+          genFunction,
+          keysAndAggregatesArity,
           asLong(gap),
           combineReturnType)
       case _ =>
@@ -585,16 +634,33 @@ object AggregateUtil {
     *
     */
   private[flink] def createDataSetWindowAggregationCombineFunction(
+      generator: CodeGenerator,
       window: LogicalWindow,
       namedAggregates: Seq[CalcitePair[AggregateCall, String]],
       inputType: RelDataType,
       groupings: Array[Int])
     : GroupCombineFunction[Row, Row] = {
 
-    val aggregates = transformToAggregateFunctions(
+    val (aggFieldIndexes, aggregates) = transformToAggregateFunctions(
       namedAggregates.map(_.getKey),
       inputType,
-      needRetraction = false)._2
+      needRetraction = false)
+
+    val aggMapping = aggregates.indices.toArray
+
+    val genFunction = generator.generateAggregations(
+      "GroupingWindowAggregateHelper",
+      generator,
+      inputType,
+      aggregates,
+      aggFieldIndexes,
+      aggMapping,
+      Array(),
+      0,
+      groupings.indices.toArray
+    )
+
+    val keysAndAggregatesArity = groupings.length + namedAggregates.length
 
     window match {
 
@@ -607,8 +673,8 @@ object AggregateUtil {
             Option(Array(BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO)))
 
         new DataSetSessionWindowAggregatePreProcessor(
-          aggregates,
-          groupings,
+          genFunction,
+          keysAndAggregatesArity,
           asLong(gap),
           combineReturnType)
 
@@ -625,6 +691,7 @@ object AggregateUtil {
     * respective output type are generated as well.
     */
   private[flink] def createDataSetAggregateFunctions(
+      generator: CodeGenerator,
       namedAggregates: Seq[CalcitePair[AggregateCall, String]],
       inputType: RelDataType,
       outputType: RelDataType,
@@ -652,7 +719,6 @@ object AggregateUtil {
     }
 
     if (doAllSupportPartialMerge(aggregates)) {
-
       // compute grouping key and aggregation positions
       val gkeyInFields = gkeyOutMapping.map(_._2)
       val gkeyOutFields = gkeyOutMapping.map(_._1)
@@ -664,32 +730,60 @@ object AggregateUtil {
         .map(FlinkTypeFactory.toTypeInfo) ++ createAccumulatorType(aggregates)
       val preAggRowType = new RowTypeInfo(preAggFieldTypes: _*)
 
+      val genPreAggFunction = generator.generateAggregations(
+        "DataSetAggregatePrepareMapHelper",
+        generator,
+        inputType,
+        aggregates,
+        aggInFields,
+        aggregates.indices.toArray,
+        Array(),
+        groupings.length + aggregates.length,
+        groupings
+      )
+
+      val genFinalAggFunction = generator.generateAggregations(
+        "DataSetAggregatePrepareMapHelper",
+        generator,
+        inputType,
+        aggregates,
+        aggInFields,
+        aggOutFields,
+        Array(),
+        outputType.getFieldCount,
+        groupings
+      )
+
       (
-        Some(new DataSetPreAggFunction(
-          aggregates,
-          aggInFields,
-          gkeyInFields
-        )),
+        Some(new DataSetPreAggFunction(genPreAggFunction)),
         Some(preAggRowType),
         new DataSetFinalAggFunction(
-          aggregates,
-          aggOutFields,
+          genFinalAggFunction,
           gkeyOutFields,
-          groupingSetsMapping,
-          outputType.getFieldCount)
+          groupingSetsMapping)
       )
     }
     else {
+      val aggMapping = aggOutMapping.indices.map(x => aggOutMapping(x)._1).toArray
+
+      val genFunction = generator.generateAggregations(
+        "DataSetAggregatePrepareMapHelper",
+        generator,
+        inputType,
+        aggregates,
+        aggInFields,
+        aggMapping,
+        Array(),
+        outputType.getFieldCount,
+        groupings
+      )
       (
         None,
         None,
         new DataSetAggFunction(
-          aggregates,
-          aggInFields,
-          aggOutMapping,
+          genFunction,
           gkeyOutMapping,
-          groupingSetsMapping,
-          outputType.getFieldCount)
+          groupingSetsMapping)
       )
     }
 
@@ -769,7 +863,8 @@ object AggregateUtil {
       aggFields,
       aggMapping,
       Array(),
-      outputArity)
+      outputArity,
+      Array())
 
     val aggregateMapping = getAggregateMapping(namedAggregates, outputType)
 
